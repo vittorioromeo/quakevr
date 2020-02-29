@@ -1,0 +1,378 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{AE77266F-0A23-4F08-A491-369DE664B273}</ProjectGuid>
+    <RootNamespace>quakespasm-sdl2</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>15.0.28127.55</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug</OutDir>
+    <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>$(ProjectName)-release</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\codecs\x86;..\SDL2\lib;F:\stuf\Quakespasm-OpenVR\Windows\OpenVR\lib\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>msvcrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsC</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\openvr\lib\$(platform);..\codecs\x86;..\SDL2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;PARANOID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>F:\stuf\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>msvcrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>F:\stuf\Quakespasm-OpenVR\make_pak.bat</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>../../glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader />
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>F:\stuf\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Quake\bgmusic.cpp" />
+    <ClCompile Include="..\..\Quake\cd_sdl.cpp" />
+    <ClCompile Include="..\..\Quake\cfgfile.cpp" />
+    <ClCompile Include="..\..\Quake\chase.cpp" />
+    <ClCompile Include="..\..\Quake\cl_demo.cpp" />
+    <ClCompile Include="..\..\Quake\cl_input.cpp" />
+    <ClCompile Include="..\..\Quake\cl_main.cpp" />
+    <ClCompile Include="..\..\Quake\cl_parse.cpp" />
+    <ClCompile Include="..\..\Quake\cl_tent.cpp" />
+    <ClCompile Include="..\..\Quake\cmd.cpp" />
+    <ClCompile Include="..\..\Quake\common.cpp" />
+    <ClCompile Include="..\..\Quake\console.cpp" />
+    <ClCompile Include="..\..\Quake\crc.cpp" />
+    <ClCompile Include="..\..\Quake\cvar.cpp" />
+    <ClCompile Include="..\..\Quake\debug_menu.cpp" />
+    <ClCompile Include="..\..\Quake\gl_draw.cpp" />
+    <ClCompile Include="..\..\Quake\gl_fog.cpp" />
+    <ClCompile Include="..\..\Quake\gl_mesh.cpp" />
+    <ClCompile Include="..\..\Quake\gl_model.cpp" />
+    <ClCompile Include="..\..\Quake\gl_refrag.cpp" />
+    <ClCompile Include="..\..\Quake\gl_rlight.cpp" />
+    <ClCompile Include="..\..\Quake\gl_rmain.cpp" />
+    <ClCompile Include="..\..\Quake\gl_rmisc.cpp" />
+    <ClCompile Include="..\..\Quake\gl_screen.cpp" />
+    <ClCompile Include="..\..\Quake\gl_sky.cpp" />
+    <ClCompile Include="..\..\Quake\gl_texmgr.cpp" />
+    <ClCompile Include="..\..\Quake\gl_vidsdl.cpp" />
+    <ClCompile Include="..\..\Quake\gl_warp.cpp" />
+    <ClCompile Include="..\..\Quake\host.cpp" />
+    <ClCompile Include="..\..\Quake\host_cmd.cpp" />
+    <ClCompile Include="..\..\Quake\image.cpp" />
+    <ClCompile Include="..\..\Quake\in_sdl.cpp" />
+    <ClCompile Include="..\..\Quake\keys.cpp" />
+    <ClCompile Include="..\..\Quake\main_sdl.cpp" />
+    <ClCompile Include="..\..\Quake\map_menu.cpp" />
+    <ClCompile Include="..\..\Quake\mathlib.cpp" />
+    <ClCompile Include="..\..\Quake\menu.cpp" />
+    <ClCompile Include="..\..\Quake\net_dgrm.cpp" />
+    <ClCompile Include="..\..\Quake\net_loop.cpp" />
+    <ClCompile Include="..\..\Quake\net_main.cpp" />
+    <ClCompile Include="..\..\Quake\net_win.cpp" />
+    <ClCompile Include="..\..\Quake\net_wins.cpp" />
+    <ClCompile Include="..\..\Quake\net_wipx.cpp" />
+    <ClCompile Include="..\..\Quake\pl_win.cpp" />
+    <ClCompile Include="..\..\Quake\pr_cmds.cpp" />
+    <ClCompile Include="..\..\Quake\pr_edict.cpp" />
+    <ClCompile Include="..\..\Quake\pr_exec.cpp" />
+    <ClCompile Include="..\..\Quake\r_alias.cpp" />
+    <ClCompile Include="..\..\Quake\r_brush.cpp" />
+    <ClCompile Include="..\..\Quake\r_part.cpp" />
+    <ClCompile Include="..\..\Quake\r_sprite.cpp" />
+    <ClCompile Include="..\..\Quake\r_world.cpp" />
+    <ClCompile Include="..\..\Quake\sbar.cpp" />
+    <ClCompile Include="..\..\Quake\sbaroffset_menu.cpp" />
+    <ClCompile Include="..\..\Quake\snd_codec.cpp" />
+    <ClCompile Include="..\..\Quake\snd_dma.cpp" />
+    <ClCompile Include="..\..\Quake\snd_flac.cpp" />
+    <ClCompile Include="..\..\Quake\snd_mem.cpp" />
+    <ClCompile Include="..\..\Quake\snd_mikmod.cpp" />
+    <ClCompile Include="..\..\Quake\snd_mix.cpp" />
+    <ClCompile Include="..\..\Quake\snd_mp3.cpp" />
+    <ClCompile Include="..\..\Quake\snd_mp3tag.cpp" />
+    <ClCompile Include="..\..\Quake\snd_opus.cpp" />
+    <ClCompile Include="..\..\Quake\snd_sdl.cpp" />
+    <ClCompile Include="..\..\Quake\snd_umx.cpp" />
+    <ClCompile Include="..\..\Quake\snd_vorbis.cpp" />
+    <ClCompile Include="..\..\Quake\snd_wave.cpp" />
+    <ClCompile Include="..\..\Quake\snd_xmp.cpp" />
+    <ClCompile Include="..\..\Quake\strlcat.cpp" />
+    <ClCompile Include="..\..\Quake\strlcpy.cpp" />
+    <ClCompile Include="..\..\Quake\sv_main.cpp" />
+    <ClCompile Include="..\..\Quake\sv_move.cpp" />
+    <ClCompile Include="..\..\Quake\sv_phys.cpp" />
+    <ClCompile Include="..\..\Quake\sv_user.cpp" />
+    <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
+    <ClCompile Include="..\..\Quake\view.cpp" />
+    <ClCompile Include="..\..\Quake\vr.cpp" />
+    <ClCompile Include="..\..\Quake\vrgameplay_menu.cpp" />
+    <ClCompile Include="..\..\Quake\vr_menu.cpp" />
+    <ClCompile Include="..\..\Quake\wad.cpp" />
+    <ClCompile Include="..\..\Quake\world.cpp" />
+    <ClCompile Include="..\..\Quake\wpnoffset_menu.cpp" />
+    <ClCompile Include="..\..\Quake\zone.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Quake\anorms.hpp" />
+    <ClInclude Include="..\..\Quake\anorm_dots.hpp" />
+    <ClInclude Include="..\..\Quake\arch_def.hpp" />
+    <ClInclude Include="..\..\Quake\bgmusic.hpp" />
+    <ClInclude Include="..\..\Quake\bspfile.hpp" />
+    <ClInclude Include="..\..\Quake\cdaudio.hpp" />
+    <ClInclude Include="..\..\Quake\cfgfile.hpp" />
+    <ClInclude Include="..\..\Quake\client.hpp" />
+    <ClInclude Include="..\..\Quake\cmd.hpp" />
+    <ClInclude Include="..\..\Quake\common.hpp" />
+    <ClInclude Include="..\..\Quake\console.hpp" />
+    <ClInclude Include="..\..\Quake\crc.hpp" />
+    <ClInclude Include="..\..\Quake\cvar.hpp" />
+    <ClInclude Include="..\..\Quake\debug_menu.hpp" />
+    <ClInclude Include="..\..\Quake\draw.hpp" />
+    <ClInclude Include="..\..\Quake\glquake.hpp" />
+    <ClInclude Include="..\..\Quake\gl_model.hpp" />
+    <ClInclude Include="..\..\Quake\gl_texmgr.hpp" />
+    <ClInclude Include="..\..\Quake\gl_warp_sin.hpp" />
+    <ClInclude Include="..\..\Quake\image.hpp" />
+    <ClInclude Include="..\..\Quake\input.hpp" />
+    <ClInclude Include="..\..\Quake\keys.hpp" />
+    <ClInclude Include="..\..\Quake\map_menu.hpp" />
+    <ClInclude Include="..\..\Quake\mathlib.hpp" />
+    <ClInclude Include="..\..\Quake\menu.hpp" />
+    <ClInclude Include="..\..\Quake\modelgen.hpp" />
+    <ClInclude Include="..\..\Quake\net.hpp" />
+    <ClInclude Include="..\..\Quake\net_defs.hpp" />
+    <ClInclude Include="..\..\Quake\net_dgrm.hpp" />
+    <ClInclude Include="..\..\Quake\net_loop.hpp" />
+    <ClInclude Include="..\..\Quake\net_sys.hpp" />
+    <ClInclude Include="..\..\Quake\net_wins.hpp" />
+    <ClInclude Include="..\..\Quake\net_wipx.hpp" />
+    <ClInclude Include="..\..\Quake\openvr.hpp" />
+    <ClInclude Include="..\..\Quake\openvr_driver.hpp" />
+    <ClInclude Include="..\..\Quake\platform.hpp" />
+    <ClInclude Include="..\..\Quake\progdefs.hpp" />
+    <ClInclude Include="..\..\Quake\progs.hpp" />
+    <ClInclude Include="..\..\Quake\protocol.hpp" />
+    <ClInclude Include="..\..\Quake\pr_comp.hpp" />
+    <ClInclude Include="..\..\Quake\qs_bmp.hpp" />
+    <ClInclude Include="..\..\Quake\quakedef.hpp" />
+    <ClInclude Include="..\..\Quake\q_sound.hpp" />
+    <ClInclude Include="..\..\Quake\q_stdinc.hpp" />
+    <ClInclude Include="..\..\Quake\render.hpp" />
+    <ClInclude Include="..\..\Quake\resource.hpp" />
+    <ClInclude Include="..\..\Quake\sbar.hpp" />
+    <ClInclude Include="..\..\Quake\sbaroffset_menu.hpp" />
+    <ClInclude Include="..\..\Quake\screen.hpp" />
+    <ClInclude Include="..\..\Quake\server.hpp" />
+    <ClInclude Include="..\..\Quake\snd_codec.hpp" />
+    <ClInclude Include="..\..\Quake\snd_codeci.hpp" />
+    <ClInclude Include="..\..\Quake\snd_flac.hpp" />
+    <ClInclude Include="..\..\Quake\snd_mikmod.hpp" />
+    <ClInclude Include="..\..\Quake\snd_mp3.hpp" />
+    <ClInclude Include="..\..\Quake\snd_opus.hpp" />
+    <ClInclude Include="..\..\Quake\snd_umx.hpp" />
+    <ClInclude Include="..\..\Quake\snd_vorbis.hpp" />
+    <ClInclude Include="..\..\Quake\snd_wave.hpp" />
+    <ClInclude Include="..\..\Quake\snd_xmp.hpp" />
+    <ClInclude Include="..\..\Quake\spritegn.hpp" />
+    <ClInclude Include="..\..\Quake\strl_fn.hpp" />
+    <ClInclude Include="..\..\Quake\sys.hpp" />
+    <ClInclude Include="..\..\Quake\util.hpp" />
+    <ClInclude Include="..\..\Quake\vid.hpp" />
+    <ClInclude Include="..\..\Quake\view.hpp" />
+    <ClInclude Include="..\..\Quake\vr.hpp" />
+    <ClInclude Include="..\..\Quake\vrgameplay_menu.hpp" />
+    <ClInclude Include="..\..\Quake\vr_menu.hpp" />
+    <ClInclude Include="..\..\Quake\wad.hpp" />
+    <ClInclude Include="..\..\Quake\world.hpp" />
+    <ClInclude Include="..\..\Quake\wpnoffset_menu.hpp" />
+    <ClInclude Include="..\..\Quake\wsaerror.hpp" />
+    <ClInclude Include="..\..\Quake\zone.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\QuakeSpasm.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

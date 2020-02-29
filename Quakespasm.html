@@ -1,0 +1,749 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.65">
+ <TITLE>QuakeSpasm</TITLE>
+</HEAD>
+<BODY>
+<H1>QuakeSpasm</H1>
+
+<H2></H2>
+<P>
+<PRE>
+</PRE>
+</P>
+<P><EM>Page last edited: Sep. 2019</EM></P>
+
+<P>
+<H2><A NAME="toc1">1.</A> <A HREF="Quakespasm.html#s1">About </A></H2>
+
+<P>
+<H2><A NAME="toc2">2.</A> <A HREF="Quakespasm.html#s2">Downloads </A></H2>
+
+<P>
+<H2><A NAME="toc3">3.</A> <A HREF="Quakespasm.html#s3">Hints </A></H2>
+
+<UL>
+<LI><A NAME="toc3.1">3.1</A> <A HREF="Quakespasm.html#ss3.1">Music Playback</A>
+<LI><A NAME="toc3.2">3.2</A> <A HREF="Quakespasm.html#ss3.2">Controller Support</A>
+</UL>
+<P>
+<H2><A NAME="toc4">4.</A> <A HREF="Quakespasm.html#s4">Compiling and Installation</A></H2>
+
+<UL>
+<LI><A NAME="toc4.1">4.1</A> <A HREF="Quakespasm.html#ss4.1">Linux/Unix </A>
+<LI><A NAME="toc4.2">4.2</A> <A HREF="Quakespasm.html#ss4.2">Windows </A>
+<LI><A NAME="toc4.3">4.3</A> <A HREF="Quakespasm.html#ss4.3">Mac OS X </A>
+</UL>
+<P>
+<H2><A NAME="toc5">5.</A> <A HREF="Quakespasm.html#s5">Known Bugs </A></H2>
+
+<P>
+<H2><A NAME="toc6">6.</A> <A HREF="Quakespasm.html#s6">Changes</A></H2>
+
+<UL>
+<LI><A NAME="toc6.1">6.1</A> <A HREF="Quakespasm.html#ss6.1">Changes in 0.93.2</A>
+<LI><A NAME="toc6.2">6.2</A> <A HREF="Quakespasm.html#ss6.2">Changes in 0.93.1</A>
+<LI><A NAME="toc6.3">6.3</A> <A HREF="Quakespasm.html#ss6.3">Changes in 0.93.0</A>
+<LI><A NAME="toc6.4">6.4</A> <A HREF="Quakespasm.html#ss6.4">Changes in 0.92.1</A>
+<LI><A NAME="toc6.5">6.5</A> <A HREF="Quakespasm.html#ss6.5">Changes in 0.92.0</A>
+<LI><A NAME="toc6.6">6.6</A> <A HREF="Quakespasm.html#ss6.6">Changes in 0.91.0</A>
+<LI><A NAME="toc6.7">6.7</A> <A HREF="Quakespasm.html#ss6.7">Changes in 0.90.1</A>
+<LI><A NAME="toc6.8">6.8</A> <A HREF="Quakespasm.html#ss6.8">Changes in 0.90.0</A>
+<LI><A NAME="toc6.9">6.9</A> <A HREF="Quakespasm.html#ss6.9">Changes in 0.85.9</A>
+<LI><A NAME="toc6.10">6.10</A> <A HREF="Quakespasm.html#ss6.10">Changes in 0.85.8</A>
+<LI><A NAME="toc6.11">6.11</A> <A HREF="Quakespasm.html#ss6.11">Changes in 0.85.7</A>
+<LI><A NAME="toc6.12">6.12</A> <A HREF="Quakespasm.html#ss6.12">Changes in 0.85.6</A>
+<LI><A NAME="toc6.13">6.13</A> <A HREF="Quakespasm.html#ss6.13">Changes in 0.85.5</A>
+<LI><A NAME="toc6.14">6.14</A> <A HREF="Quakespasm.html#ss6.14">Changes in 0.85.4</A>
+<LI><A NAME="toc6.15">6.15</A> <A HREF="Quakespasm.html#ss6.15">Changes in 0.85.3</A>
+<LI><A NAME="toc6.16">6.16</A> <A HREF="Quakespasm.html#ss6.16">Changes in 0.85.2</A>
+<LI><A NAME="toc6.17">6.17</A> <A HREF="Quakespasm.html#ss6.17">Changes in 0.85.1</A>
+</UL>
+<P>
+<H2><A NAME="toc7">7.</A> <A HREF="Quakespasm.html#s7">Todo </A></H2>
+
+<P>
+<H2><A NAME="toc8">8.</A> <A HREF="Quakespasm.html#s8">Copyright </A></H2>
+
+<P>
+<H2><A NAME="toc9">9.</A> <A HREF="Quakespasm.html#s9">Contact </A></H2>
+
+<P>
+<H2><A NAME="toc10">10.</A> <A HREF="Quakespasm.html#s10">Links </A></H2>
+
+
+<HR>
+<H2><A NAME="s1">1.</A> <A HREF="#toc1">About </A></H2>
+
+
+<P>
+<A HREF="http://quakespasm.sourceforge.net">QuakeSpasm</A>
+is a modern, cross-platform Quake 1 engine based on
+<A HREF="http://www.celephais.net/fitzquake">FitzQuake</A>.</P>
+<P>It includes support for 64 bit CPUs and custom music playback, a new
+sound driver, some graphical niceities, and numerous bug-fixes and other improvements.</P>
+<P>Quakespasm utilizes either the SDL or SDL2 frameworks, so choose which one works best for you.
+SDL is probably less buggy, but SDL2 has nicer features and smoother mouse input - though no CD support.</P>
+
+<H2><A NAME="s2">2.</A> <A HREF="#toc2">Downloads </A></H2>
+
+
+<P>
+<UL>
+<LI>
+<A HREF="http://quakespasm.sourceforge.net/download.htm">Project Downloads</A></LI>
+<LI>
+<A HREF="http://quakespasm.ericwa.com/job/quakespasm-sdl2/">Automatic Builds</A></LI>
+</UL>
+</P>
+
+
+<H2><A NAME="s3">3.</A> <A HREF="#toc3">Hints </A></H2>
+
+
+<P><EM>Visit the
+<A HREF="http://www.celephais.net/fitzquake">FitzQuake homepage</A> for a full run-down of the engine's commands and variables.</EM></P>
+<P>
+<UL>
+<LI>To disable some changes, use "<B>quakespasm -fitz</B>"
+</LI>
+<LI>Quakespasm's custom data is stored in "quakespasm.pak". Install this file alongside your id1 directory to enable the custom console background and other minor features.
+</LI>
+<LI>For different sound backend drivers use "<B>SDL_AUDIODRIVER=</B><EM>DRIVER</EM><B> ./quakespasm</B>"
+, where DRIVER may be alsa, dsp, pulse, esd ...
+</LI>
+<LI><B>Shift+Escape</B> draws the Console.</LI>
+<LI>From the console, use <B>UP</B> to browse the command line history and
+<B>TAB</B> to autocomplete command and map names.</LI>
+<LI>There is currently no CD Music volume support and SDL2 doesn't support CD audio. cd_sdl.c needs replacing with cd_linux.c, cd_bsd.c etc..</LI>
+<LI>In windows, alternative CD drives are accessible by "<B>quakespasm -cddev F</B>" (for example)
+</LI>
+<LI>Quakespasm allows loading new games (mods) on the fly with "<B>game</B> <EM>GAMENAME {-quoth/hipnotic/rogue}</EM>"
+</LI>
+<LI>Use "<B>quakespasm -condebug</B>" to save console log to "qconsole.log". SDL2 builds no longer generate stdout.txt/stderr.txt.</LI>
+</UL>
+</P>
+<H2><A NAME="ss3.1">3.1</A> <A HREF="#toc3.1">Music Playback</A>
+</H2>
+
+<P>Quakespasm can play various external music formats, including MP3, OGG and FLAC.
+<UL>
+<LI>Tracks should be named like "track02.ogg", "track03.ogg" ... (there is no track01) and placed into "Quake/id1/music".</LI>
+<LI>Unix users may need some extra libraries installed: "libmad" or "libmpg123" for MP3, and "libogg" and "libvorbis" for OGG.</LI>
+<LI>As of 0.90.0, music is played back at 44100 Hz by default with no need to adjust "-sndspeed".</LI>
+<LI>Use the "-noextmusic" option to disable this feature.</LI>
+<LI>See
+<A HREF="Quakespasm-Music.txt">Quakespasm-Music.txt</A> for more details.</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss3.2">3.2</A> <A HREF="#toc3.2">Controller Support</A>
+</H2>
+
+<P>The SDL2 variant of Quakespasm supports Xbox 360 style game controllers.</P>
+<P>The default configuration uses the left analog stick for movement and the right for looking.</P>
+<P>If your controller doesn't work you can try placing
+<A HREF="https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt">this file</A> in your Quake directory, it is a community-maintained database that adds support for more controllers to SDL2.</P>
+
+<H3>Cvars</H3>
+
+<P>
+<UL>
+<LI>joy_deadzone - Fraction of the stick travel to be deadzone, between 0 and 1. Default 0.175.</LI>
+<LI>joy_deadzone_trigger - Fraction of trigger range required to register a button press on the analog triggers, between 0 and 1. Default 0.2.</LI>
+<LI>joy_sensitivity_yaw/pitch - Max angular speed in degrees/second when looking. Defaults are 300 for yaw (turning left/right) and 150 for pitch (up/down).</LI>
+<LI>joy_exponent - For the look stick, the stick displacement (between 0 and 1) is raised to this power. Default is 3. A value of 1 would give a linear relationship between stick displacement and fraction of the maximum angular speed.</LI>
+<LI>joy_invert - Set to 1 to invert the vertical axis of the look stick.</LI>
+<LI>joy_swapmovelook - Set to 1 to swap the left and right analog stick functions. Default 0, move on the left stick, look on the right stick.</LI>
+<LI>joy_enable - Set to 0 to disable controller support. Default 1.</LI>
+</UL>
+</P>
+
+<H3>Buttons</H3>
+
+<P>Some of the controller buttons are hardcoded to allow navigating the menu:</P>
+<P>
+<UL>
+<LI>Back - alias for TAB</LI>
+<LI>Start - alias for ESC</LI>
+<LI>DPad, analog sticks - mapped to arrow keys</LI>
+<LI>A Button - alias for ENTER in menus</LI>
+<LI>B Button - alias for ESC in menus</LI>
+</UL>
+</P>
+<P>These buttons can be bound normally:</P>
+<P>
+<UL>
+<LI>LTRIGGER - Left trigger</LI>
+<LI>RTRIGGER - Right trigger</LI>
+<LI>LSHOULDER - Left shoulder button</LI>
+<LI>RSHOULDER - Right shoulder button</LI>
+<LI>LTHUMB - Clicking the left thumbstick</LI>
+<LI>RTHUMB - Clicking the right thumbstick</LI>
+<LI>ABUTTON</LI>
+<LI>BBUTTON</LI>
+<LI>XBUTTON</LI>
+<LI>YBUTTON</LI>
+</UL>
+
+quakespasm.pak contains a default.cfg which has been updated to give some default bindings. L/R shoulder buttons are bound to weapon switching, and L/R triggers are jump and attack.</P>
+<P>The controller support started as Jeremiah Sypult's implementation in Quakespasm-Rift and also uses ideas and code from LordHavoc (DarkPlaces).</P>
+
+<H2><A NAME="s4">4.</A> <A HREF="#toc4">Compiling and Installation</A></H2>
+
+
+<P>Quakespasm's (optional) custom data is now stored in the file <B>quakespasm.pak</B>. This file should be placed alongside your quakespasm binary and <B>id1</B> directory.</P>
+<P><EM>To checkout the latest version of QuakeSpasm, do:</EM>
+<B>svn co svn://svn.code.sf.net/p/quakespasm/code/trunk/quakespasm</B></P>
+<H2><A NAME="ss4.1">4.1</A> <A HREF="#toc4.1">Linux/Unix </A>
+</H2>
+
+<P>After extracting the source tarball, browse the Makefile and edit the music streaming options, then
+<HR>
+<PRE>
+make
+cp quakespasm /usr/local/games/quake (for example)
+</PRE>
+<HR>
+<BR>
+Compile time options include
+<UL>
+<LI><B>make DO_USERDIRS=1</B> to include user directories support</LI>
+<LI><B>make DEBUG=1</B> for debugging</LI>
+<LI><B>make SDL_CONFIG=</B><EM>/PATH/TO/SDL-CONFIG</EM> for unusual SDL installations</LI>
+<LI><B>make USE_SDL2=1</B> to compile against SDL2 instead of SDL-1.2</LI>
+</UL>
+</P>
+<P>Streaming music playback requires "libmad" or "libmpg123" for MP3, and "libogg" and "libvorbis" for OGG files.</P>
+<P>The project can also be built with Codeblocks (project files included).</P>
+<H2><A NAME="ss4.2">4.2</A> <A HREF="#toc4.2">Windows </A>
+</H2>
+
+<P>The QuakeSpasm developers cross-compile windows binaries using
+<A HREF="http://www.mingw.org">MinGW</A> and
+<A HREF="http://mingw-w64.sf.net">Mingw-w64</A>.</P>
+<P>The project can also be built using Visual Studio 2005 (or newer).</P>
+<H2><A NAME="ss4.3">4.3</A> <A HREF="#toc4.3">Mac OS X </A>
+</H2>
+
+<P>A Quakespasm App (including program launcher and update framework) can be made using the <B>Xcode</B> template found in the MacOSX directory.</P>
+<P>Alternatively, have a look at <B>Makefile.darwin</B> for more instructions on building from a console.</P>
+<H2><A NAME="s5">5.</A> <A HREF="#toc5">Known Bugs </A></H2>
+
+<P>Brightness issues should be fixed with GLSL gamma in 0.90.1, if your system supports OpenGL 2. For reference on older systems:<BR>
+Some versions of Xorg and SDL have brightness issues.<BR>
+Try setting "export SDL_VIDEO_X11_NODIRECTCOLOR=1", or if you have Xorg >= 7.5 and broken brightness,
+these patched libSDL binaries may help.
+<UL>
+<LI>
+<A HREF="http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched.tgz/download">Gamma patched libSDL (i686-linux)</A></LI>
+<LI>
+<A HREF="http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched-AMD64.tgz/download">Gamma patched libSDL (x86_64-linux)</A></LI>
+</UL>
+</P>
+<H2><A NAME="s6">6.</A> <A HREF="#toc6">Changes</A></H2>
+
+
+
+<H2><A NAME="ss6.1">6.1</A> <A HREF="#toc6.1">Changes in 0.93.2</A>
+</H2>
+
+<P>
+<UL>
+<LI> Lightmaps are now dynamically allocated (from QSS), and BLOCK_WIDTH/HEIGHT raised from 128 to 256.</LI>
+<LI> Fixed several uncheked limits that would crash the Slayer's Testaments mod (sf.net bug #33).</LI>
+<LI> Raised MAXALIASTRIS from 2048 to 4096, so that the Slayer's Testaments mod works.</LI>
+<LI> Fixed 'pants' and 'shirt' types so that those textures load correctly on platforms where char is unsigned by default (sf.net bug #28).</LI>
+<LI> Windows audio: WASAPI-enabled SDL2 dlls function properly now.</LI>
+<LI> Update the third-party libraries. Other fixes/cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.2">6.2</A> <A HREF="#toc6.2">Changes in 0.93.1</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fixed a fog regression which was introduced in 0.93.0.</LI>
+<LI> Fixed a crash (buffer overflow) with invalid vis data.</LI>
+<LI> Fixed buttons crushing players in 64-bit builds.</LI>
+<LI> Change controller movement to use cubic easing by default; added "joy_exponent_move" cvar.</LI>
+<LI> config.cfg is no longer written in case of a Sys_Error.</LI>
+<LI> Fixed Opus encoded cd tracks not being recognized as ripped tracks.</LI>
+<LI> Update the third-party libraries. Other fixes/cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.3">6.3</A> <A HREF="#toc6.3">Changes in 0.93.0</A>
+</H2>
+
+<P>
+<UL>
+<LI> Raise default "joy_deadzone_trigger" cvar to 0.2.</LI>
+<LI> Raise console buffer size to 1MB.</LI>
+<LI> Raise MAX_STATIC_ENTITIES from 512 to 4096.</LI>
+<LI> Raise MAX_STACK_DEPTH from 32 to 64.</LI>
+<LI> Raise command buffer size from 8K to 256K to support large configs.</LI>
+<LI> Remove MAX_EFRAGS and MAX_MAP_LEAFS limits.</LI>
+<LI> Remove "Loadgame buffer overflow" limit, which could happen when loading DP or QSS saves.</LI>
+<LI> Adjust "exceeds standard limit of" debug warnings to include the actual QS limit.</LI>
+<LI> Change "game" command to now exec quake.rc.</LI>
+<LI> Change "games" / "mods" commands to list all subdirectories.</LI>
+<LI> Restore vid_refreshrate from fitzquake-0.85 for SDL2 builds.</LI>
+<LI> Alpha-masked model support. (MF_HOLEY: 0x4000).</LI>
+<LI> Invalid skin index now draws skin 0 (WinQuake behaviour) instead of blue checkerboard.</LI>
+<LI> Change default screenshot format to png. The 'screenshot' command now supports optional format (tga, png or jpg) and quality (1-100) arguments.</LI>
+<LI> Revert "always run" changes from 0.85.9 and move the QuakeSpasm customizations to a new "cl_alwaysrun" cvar: Set to 1 in order to scale forward/side/up speed by "cl_movespeedkey" (usually 2), and to make "speedkey" act as "slowkey".</LI>
+<LI> Change the "always run" menu option to offer three choices:
+<UL>
+<LI> off        (cl_alwaysrun 0, cl_forwardspeed 200, cl_backspeed 200)</LI>
+<LI> vanilla    (cl_alwaysrun 0, cl_forwardspeed 400, cl_backspeed 400)</LI>
+<LI> quakespasm (cl_alwaysrun 1, cl_forwardspeed 200, cl_backspeed 200)</LI>
+</UL>
+</LI>
+<LI> New "r_scale" cvar. Set to 2, 3, or 4 to render the view at 1/2, 1/3, or 1/4 resolution.</LI>
+<LI> New "r_viewmodel_quake" cvar. Set to 1 for WinQuake gun position (from MarkV).</LI>
+<LI> New "find" / "apropos" command, searches for commands/cvar names for the given substring (from Spike).</LI>
+<LI> New "randmap" command for loading a random map.</LI>
+<LI> New "gl_cshiftpercent_contents", "gl_cshiftpercent_damage", "gl_cshiftpercent_bonus", "gl_cshiftpercent_powerup" cvars for tuning the strength of specic view blends.</LI>
+<LI> GL2 renderer: use a GLSL shader for world faces. Fixes reports of integrated+discrete GPU laptops having inconsistent fog rendering.</LI>
+<LI> Fix macOS startup delay (avoid calling gethostbyname() for ".local" hostnames).</LI>
+<LI> Fix memory corruption in PF_lightstyle with out of bounds lightstyles.</LI>
+<LI> Fix crash in BoundPoly with polygons extending beyond +/-9999.</LI>
+<LI> Fix QS window to stay on the current monitor when changing video modes (SDL2 only).</LI>
+<LI> Fix possible freeze in SV_TouchLinks regardless of what QC does in the touch function.</LI>
+<LI> Fix for maps with empty strings for vector keys (e.g. "origin"); don't read uninitialized memory.</LI>
+<LI> Support for Open Watcom compiler.</LI>
+<LI> Update the third-party libraries.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.4">6.4</A> <A HREF="#toc6.4">Changes in 0.92.1</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fixed large menu scale factors (was broken in 0.92.0).</LI>
+<LI> Fixed PAUSE key (was broken in 0.92.0).</LI>
+<LI> Updated some of the third-party libraries.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.5">6.5</A> <A HREF="#toc6.5">Changes in 0.92.0</A>
+</H2>
+
+<P>
+<UL>
+<LI> SDL2 Game Controller support.</LI>
+<LI> Contrast support with new "contrast" cvar, behaving the same as MarkV. It may be a useful alternative to the existing gamma control for laptops in a bright environment, etc. Raising contrast gives less of a gray/washed out look than raising gamma, but at a disadvantage: colors near white get clipped to white.</LI>
+<LI> RMQ protocol (999) support, adapted from RMQEngine.</LI>
+<LI> New "-protocol x" command line option. Accepted values for 'x' are 15 (NetQuake), 666 (FitzQuake, default), and 999 (RMQ).</LI>
+<LI> New "setpos" console command.</LI>
+<LI> New "vid_borderless" cvar for getting a borderless window.</LI>
+<LI> Increased MAX_MAP_LEAFS from 65535 to 70000 and MAX_LIGHTMAPS from 256 to 512 in order to handle the oms3 map pack.</LI>
+<LI> Server edicts are now allocated using malloc instead of allocating on the hunk.</LI>
+<LI> gl_clear now defaults to 1.</LI>
+<LI> Fix items falling out of the world on oms3.bsp on SSE builds.</LI>
+<LI> Worked around an OSX 10.6 driver bug when using FSAA, which was leading to an unplayable HOM effect on the rest of the screen.</LI>
+<LI> Fix wrong trace endpoint from the tracepos console command.</LI>
+<LI> Updated some of the third-party libraries. Other fixes/clean-ups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.6">6.6</A> <A HREF="#toc6.6">Changes in 0.91.0</A>
+</H2>
+
+
+<H3>Bugfixes</H3>
+
+<P>
+<UL>
+<LI> Fix unwanted fog mode change upon video restart.</LI>
+<LI> Work around Intel 855 bug in status bar drawing with "r_oldwater 0" and "scr_sbaralpha 0".</LI>
+<LI> Fix an obscure GLSL bug where changing gamma would result in the screen turning to noise.</LI>
+<LI> Fix GLSL gamma causing the tiled screen border to turn white when "sizedown" is used.</LI>
+<LI> Fix an alias model VBO renderer bug where a model not precached during map start wouldn't be drawn.</LI>
+<LI> Fix the order of OpenGL context creation and window creation in SDL2 video.</LI>
+<LI> Fix a calling convention issue in windows DPI awareness function pointers.</LI>
+<LI> Fix a random texture recoloring after video mode change.</LI>
+<LI> Fix a liquid turning to garbage after several video mode changes and "r_oldwater 0".</LI>
+<LI> Fix a wrong alpha-sorting bug introduced in 0.90.1.</LI>
+<LI> Fix "flush" command not reloading mdl's from disk (bug introduced in 0.90.1).</LI>
+<LI> Prevent a possible buffer overflow in Cbuf_Execute (old Q1/Q2 bug).</LI>
+<LI> Prevent a possible vulnerability in MSG_ReadString (old Q1/Q2 bug).</LI>
+</UL>
+</P>
+
+<H3>Visual improvements</H3>
+
+<P>
+<UL>
+<LI> New cvars r_lavaalpha, r_slimealpha, r_telealpha for fine-tuning specific liquid opacities (from DirectQ/RMQEngine, non-archived, default to 0), and new worldspawn keys _wateralpha, _lavaalpha, _slimealpha, _telealpha, _skyfog (unique to Quakespasm, similar to the behaviour of the "fog" worldspawn key).</LI>
+<LI> GLSL gamma is now supported on older hardware without NPOT extension.</LI>
+</UL>
+</P>
+
+<H3>Interface improvements</H3>
+
+<P>
+<UL>
+<LI> New r_pos command to show player position.</LI>
+<LI> NaN detection in traceline with "developer 1" set now warns instead of errors.</LI>
+</UL>
+</P>
+
+<H3>Code cleanup / Other</H3>
+
+<P>
+<UL>
+<LI> Update third-party libraries.</LI>
+</UL>
+</P>
+
+<H3>Raised limits</H3>
+
+<P>
+<UL>
+<LI> Default max_edicts 8192 (was 2048) and no longer saved to config.cfg.</LI>
+<LI> Default heapsize 256 MB (was 64 MB).</LI>
+<LI> Default zone 4 MB (was 384 KB).</LI>
+<LI> Raised MAX_SFX to 1024 (was 512).</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.7">6.7</A> <A HREF="#toc6.7">Changes in 0.90.1</A>
+</H2>
+
+
+<H3>Bugfixes</H3>
+
+<P>
+<UL>
+<LI> Fix dynamic light artifact where changing lightmap are rendered one frame late (bug introduced in 0.90.0).</LI>
+<LI> Fix texture memory leak when changing video modes with SDL2.</LI>
+<LI> Fix rare incorrect mdl lighting on 64-bit builds.
+<A HREF="http://forums.insideqc.com/viewtopic.php?f=3&amp;t=5620">(details here.)</A></LI>
+<LI> Fix fullbrights turning black after "kill" command (bug introduced in 0.90.0).</LI>
+<LI> Clear all fog values on map change to prevent colored fog carrying over to jam3_tronyn.bsp.</LI>
+<LI> Allow loading saves with } character in quoted strings, fixes issue with retrojam1_skacky.bsp.</LI>
+<LI> Fix viewmodel not lerping on extended-limit maps.</LI>
+<LI> Fix crash on out-of-bounds skin number.</LI>
+</UL>
+</P>
+
+<H3>Performance</H3>
+
+<P>
+<UL>
+<LI> Use multithreaded OpenGL on OS X for better performance.</LI>
+<LI> New, faster mdl renderer using GLSL. Disable with "-noglslalias".</LI>
+</UL>
+</P>
+
+<H3>Visual improvements</H3>
+
+<P>
+<UL>
+<LI> New gamma correction implementation using GLSL. Fixes all known gamma issues (affecting the full display, persisting after quitting, or darkening the screen on OS X). Disable with "-noglslgamma".</LI>
+<LI> Use high-quality water by default (r_oldwater 0).</LI>
+<LI> Shadows use stencil buffer to avoid overlapping artifacts (from MarkV.)</LI>
+<LI> r_noshadow_list cvar added (from MarkV.)</LI>
+</UL>
+</P>
+
+<H3>Interface improvements</H3>
+
+<P>
+<UL>
+<LI> Support pausing demo playback with the "pause" command.</LI>
+<LI> Autocompletion for "game", "record", "playdemo".</LI>
+<LI> Experimental windowed fullscreen mode available with vid_desktopfullscreen 1 (only in SDL2 builds, takes effect upon entering fullscreen mode the next time.)</LI>
+<LI> Silence "exceeded standard limit" messages unless developer cvar is >= 1.</LI>
+<LI> Some spam moved from developer 1 to 2: "can't find tga/lit/ent", "trying to load ent", "bad chunk length", "meshing", "PR_AlocStringSlots: realloc'ing"</LI>
+</UL>
+</P>
+
+<H3>Code cleanup</H3>
+
+<P>
+<UL>
+<LI> Clean up IDE project files to build on fresh systems.</LI>
+<LI> Update 3rd-party libraries.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.8">6.8</A> <A HREF="#toc6.8">Changes in 0.90.0</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fix issues on Windows systems with DPI scaling.</LI>
+<LI> Unix/Mac user directories support. Disabled by default, 'make DO_USERDIRS=1' to enable it.</LI>
+<LI> SDL2 support. Disabled by default, 'make USE_SDL2=1' to enable it.</LI>
+<LI> Revised keyboard input code.</LI>
+<LI> Revised/improved the 'game' command, i.e. on-the-fly mod changing. It now accepts an optional second argument for mission packs or quoth support i.e. -hipnotic, -rogue, or -quoth. For example, for WarpSpasm: "game warp -quoth"</LI>
+<LI> Command line: "-game {quoth/hipnotic/rogue}" is now treated the same as -quoth, -hipnotic, or -rogue.</LI>
+<LI> Console speed now resolution-independent.</LI>
+<LI> Disabled gl_zfix, which caused glitches and is undesirable for new maps. Replacement .ent files to fix z-fighting for several id1 maps added to quakespasm.pak.</LI>
+<LI> PF_VarString buffer bumped to 1024, avoids truncated centerprints from the 'In The Shadows' mod.</LI>
+<LI> Support for opengl non-power-of-two-textures extension (disable with command line: "-notexturenpot".)</LI>
+<LI> Support for OpenGL vertex buffer objects (VBO, OpenGL 1.5 or newer) for world and brush models (disable with command line: "-novbo".)</LI>
+<LI> Antialiasing (FSAA) support (command line: -fsaa x, where x can be 0, 2, 4, 8).</LI>
+<LI> Fence textures support.</LI>
+<LI> Dynamic light speedup. Speedup loading of tga and pcx external images.</LI>
+<LI> Brush model drawing speedup.</LI>
+<LI> Support for BSP2 and 2PSB map formats.</LI>
+<LI> Support for Opus, FLAC, and tracker music (S3M, IT, UMX, etc.), as compile-time options.</LI>
+<LI> Music and sfx now mixed at 44100 Hz to avoid downsampling music. Low-pass filter applied to the sfx if -sndspeed is 11025 (the default), to preserve the same sound quality as 0.85.9.  New -mixspeed option sets the rate for mixing sfx and music, and output to the OS (default 44100), setting it to 11025 reverts to 0.85.9 behaviour. New snd_filterquality cvar, value can be between 1 (emulate OS X resampler) and 5 (emulate Windows resampler), controls the sound of the low-pass filter.</LI>
+<LI> Better Hor+ field of view (FOV) scaling behavior.</LI>
+<LI> Better cross-map demo playback support.</LI>
+<LI> Fix screenshots when screen width isn't a multiple of 4.</LI>
+<LI> Fix a lighting glitch due to floating point precision.</LI>
+<LI> Fix a looping sounds glitch.</LI>
+<LI> Fix a vulnerability in file extension handling. Tighten path handling safety.</LI>
+<LI> Initialize opengl with 24-bit depth buffer at 32 bpp.</LI>
+<LI> Reset all models upon gamedir changes. (Fixes failures with mods using custom content.)</LI>
+<LI> Fix broken behavior upon gamedir changes if -basedir is specified on the command line.</LI>
+<LI> NET_MAXMESSAGE and MAX_MSGLEN limits bumped to 64000.</LI>
+<LI> MAX_EFRAGS bumped to 4096, and MAX_CHANNELS to 1024.</LI>
+<LI> MAX_ENT_LEAFS bumped from 16 to 32 to work around disappearing or flickering brush models in some situations. Also, if an entity is visible from MAX_ENT_LEAFS or more leafs, we now always send it to the client.</LI>
+<LI> Fix cvar cycle command not working sometimes.</LI>
+<LI> Host_Error upon missing models. (Prevents segmentation faults.)</LI>
+<LI> Change sv_aim default value to 1 (i.e. turn off autoaim)</LI>
+<LI> Add 'prev' and 'next' keywords to the 'cd' command.</LI>
+<LI> Work around a linux cdrom issue (playback might not start for a while after a stop).</LI>
+<LI> Quakespasm content customization moved from engine-embedded into a new optional quakespasm.pak file.</LI>
+<LI> Version bumped to 0.90.0 (because Quakespasm has a decent life of it's own)</LI>
+<LI> Other fixes and clean-ups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.9">6.9</A> <A HREF="#toc6.9">Changes in 0.85.9</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fixes for several undefined behaviors in C code (gcc-4.8 support.)</LI>
+<LI> Implemented Hor+ style field of view (FOV) scaling, useful for widescreen resolutions. Configured by new cvar fov_adapt: set it to 1 and your fov will be scaled automatically according to the resolution. Enabled by default.</LI>
+<LI> Adjusted string buffers for PR_ValueString and friends to fix crashes with excessively long global strings seen in some rude mods.</LI>
+<LI> Toned down warning messages from PF_VarString() a bit.</LI>
+<LI> Fixed Fitzquake's map existence check in changelevel (used to leak file handles which would end up in a Sys_Error() due to consuming all free handles if many maps reside not in pak files.)</LI>
+<LI> Fixes/cleanups in chat mode handling. Client no longer gets stuck in chat mode upon disconnect.</LI>
+<LI> Mouse grab/key_dest fixes and key cleanups.</LI>
+<LI> The "speedkey" now acts as "slowkey" when "always run" is on.</LI>
+<LI> Support for demo recording after connection to server. (thanks to Baker for a patch)</LI>
+<LI> Corner case fixes in COM_Parse() for quoted strings and support for C-style /*..*/ comments.</LI>
+<LI> Changed lightmaps to GL_RGBA instead of GL_RGB.</LI>
+<LI> Better parse for opengl extensions list (from quakeforge.)</LI>
+<LI> Vsync saving/loading fixes.</LI>
+<LI> Fixed pointfile loading.</LI>
+<LI> Multiple cleanups in gl_vidsdl.c.</LI>
+<LI> Opus music decoding support (as an optional patch only.)</LI>
+<LI> Several other minor fixes/cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.10">6.10</A> <A HREF="#toc6.10">Changes in 0.85.8</A>
+</H2>
+
+<P>
+<UL>
+<LI> Made Quake shareware 1.00 and 1.01 versions to be recognized properly.</LI>
+<LI> Fixed control-character handling in unicode mode. Keyboard input tweaks.</LI>
+<LI> Made the keypad keys to send separate key events in game mode.</LI>
+<LI> Text pasting support from OS clipboard to console. (windows and macosx.)</LI>
+<LI> Support for the Apple (Command) key on macosx.</LI>
+<LI> Fixed increased (more than 32) dynamic lights.</LI>
+<LI> Music playback: Made sure that the file's channels count is supported.</LI>
+<LI> Support for Solaris.</LI>
+<LI> Switched to using libmad instead of libmpg123 for MP3 playback on Mac OS X.</LI>
+<LI> Better support for building the Mac OS X version using a makefile, support for cross-compiling on Linux.</LI>
+<LI> Fixed a minor intermissions glitch.</LI>
+<LI> Increased string buffer size from 256 to 384 for PF_VarString to work around broken mods such as UQC.</LI>
+<LI> Restored original behavior for Quake registered version detection.</LI>
+<LI> Minor demo recording/playback tweaks.</LI>
+<LI> Minor tweaks to the scale menu option.</LI>
+<LI> unbindall before loading stored bindings (configurable by new cvar cfg_unbindall, enabled by default.)</LI>
+<LI> New icon.</LI>
+<LI> Miscellaneous source code cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.11">6.11</A> <A HREF="#toc6.11">Changes in 0.85.7</A>
+</H2>
+
+<P>
+<UL>
+<LI> Added support for cross-level demo playback</LI>
+<LI> gl_texturemode is reimplemented as a cvar with a callback and the setting is automatically saved to the config</LI>
+<LI> Fixed execution of external files without a newline at the end</LI>
+<LI> Reduced memory usage during reloading of textures</LI>
+<LI> Fixed compilation on GNU/kFreeBSD (Debian bug #657793)</LI>
+<LI> Fixed backspace key on Mac OS X</LI>
+<LI> Disable mouse acceleration in Mac OS X</LI>
+<LI> Worked around recursive calling of the anisotropic filter callback</LI>
+<LI> Console word wrap and long input line fixes</LI>
+<LI> Verified correct compilation by clang (using v3.0)</LI>
+<LI> Several other small changes mostly invisible to the end-user</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.12">6.12</A> <A HREF="#toc6.12">Changes in 0.85.6</A>
+</H2>
+
+<P>
+<UL>
+<LI> More work for string buffer safety</LI>
+<LI> Reverted v0.85.5 change of not allowing deathmatch and coop cvars to be set at the same time (was reported for possibility of causing compatibility issues with mods)</LI>
+<LI> Several cleanups/changes in the cvar layer</LI>
+<LI> Minor SDL video fixes.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.13">6.13</A> <A HREF="#toc6.13">Changes in 0.85.5</A>
+</H2>
+
+<P>
+<UL>
+<LI> SDL input driver updated adding native keymap and dead key support to the console</LI>
+<LI> Fixed a crash in net play in maps with extended limits</LI>
+<LI> Verified successful compilation using gcc-4.6.x</LI>
+<LI> Added workaround against GL texture flicker (z fighting), controlled by new cvar 'gl_zfix'</LI>
+<LI> Read video variables early so that a vid_restart isn't necessary after init</LI>
+<LI> mlook and lookspring fixes</LI>
+<LI> Added support for loading external entity files, controlled by new cvar 'external_ents'</LI>
+<LI> Made mp3 playback to allocate system memory instead of zone</LI>
+<LI> Some updates to the progs interpreter code</LI>
+<LI> Fixed r_nolerp_list parsing code of fitzquake</LI>
+<LI> Made sure that deathmatch and coop are not set at the same time</LI>
+<LI> Several code updates from uHexen2 project, several code cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.14">6.14</A> <A HREF="#toc6.14">Changes in 0.85.4</A>
+</H2>
+
+<P>
+<UL>
+<LI> Implement music (OGG, MP3, WAV) playback</LI>
+<LI> A better fix for the infamous SV_TouchLinks problem, no more hard lockups with maps such as "whiteroom"</LI>
+<LI> Add support for mouse buttons 4 and 5</LI>
+<LI> Fix the "unalias" console command</LI>
+<LI> Restore the "screen size" menu item</LI>
+<LI> Fixed an erroneous protocol check in the server code</LI>
+<LI> Raised the default zone memory size to 384 kb</LI>
+<LI> Raised the default max_edicts from 1024 to 2048</LI>
+<LI> Revised lit file loading, the lit file must be from the same game directory as the map itself or from a searchpath with a higher priority</LI>
+<LI> Fixed rest of the compiler warnings</LI>
+<LI> Other minor sound and cdaudio updates</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.15">6.15</A> <A HREF="#toc6.15">Changes in 0.85.3</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fix the "-dedicated" option (thanks Oz) and add platform specific networking code (default) rather than SDL_net</LI>
+<LI> Much needed OSX framework stuff from Kristian</LI>
+<LI> Add a persistent history feature (thanks Baker)</LI>
+<LI> Add a slider for scr_sbaralpha, which now defaults to 0.95 (slightly transparent, allowing for a nicer status bar)</LI>
+<LI> Allow player messages longer than 32 characters</LI>
+<LI> Sockaddr fix for FreeBSD/OSX/etc networking</LI>
+<LI> Connect status bar size to the scale slider</LI>
+<LI> Include an ISNAN (is not-a-number) fix to catch the occassional quake C bug giving traceline problems</LI>
+<LI> Enumerate options menus</LI>
+<LI> Add a "prev weapon" menu item (from Sander)</LI>
+<LI> Small fix to Sound Block/Unblock on win32</LI>
+<LI> Lots of code fixes (some from uhexen2)</LI>
+<LI> Sys_Error calls Host_Shutdown</LI>
+<LI> Added MS Visual Studio support</LI>
+<LI> Add a "-cd" option to let the CD Player work in dedicated mode, and some other CD tweaks.</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss6.16">6.16</A> <A HREF="#toc6.16">Changes in 0.85.2</A>
+</H2>
+
+<P>
+<UL>
+<LI> Replace the old "Screen size" slider with a "Scale" slider</LI>
+<LI> Don't constantly open and close condebug log</LI>
+<LI> Heap of C clean-ups</LI>
+<LI> Fix mapname sorting</LI>
+<LI> Alias the "mods" command to "games"</LI>
+<LI> Block/Unblock sound upon focus loss/gain</LI>
+<LI> NAT fix (networking protocol fix)</LI>
+<LI> SDLNet_ResolveHost bug-fix allowing connection to ports other than 26000</LI>
+<LI> Bumped array size of sv_main.c::localmodels from 5 to 6 fixing an old fitzquake-0.85 bug which used to cause segfaults depending on the compiler.</LI>
+<LI> Accept commandline options like "+connect ip:port"</LI>
+<LI> Add OSX Makefile (tested?)</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss6.17">6.17</A> <A HREF="#toc6.17">Changes in 0.85.1</A>
+</H2>
+
+<P>
+<UL>
+<LI>64 bit CPU support</LI>
+<LI>Restructured SDL sound driver</LI>
+<LI>Custom conback </LI>
+<LI>Tweaked the command line completion and added a map/changelevel autocompletion function</LI>
+<LI>Alt+Enter toggles fullscreen</LI>
+<LI>Disable Draw_BeginDisc which causes core dumps when called excessively</LI>
+<LI>Show helpful info on start-up</LI>
+<LI>Include real map name (sv.name) and skill in the status bar</LI>
+<LI>Remove confirm quit dialog</LI>
+<LI>Don't spam the console with PackFile seek requests</LI>
+<LI>Default to window mode</LI>
+<LI>Withdraw console when playing demos</LI>
+<LI>Don't play demos on program init</LI>
+<LI>Default Heapsize is 64meg</LI>
+<LI>Changes to default console alpha, speed</LI>
+<LI>Changes to cvar persistence gl_flashblend (default 0), r_shadow, r_wateralpha, r_dynamic, r_novis</LI>
+</UL>
+</P>
+
+
+<H2><A NAME="s7">7.</A> <A HREF="#toc7">Todo </A></H2>
+
+<P>
+<UL>
+<LI>Add uHexen2's first person camera (and menu item)</LI>
+<LI>Native CD audio support (if desired). cd_sdl.c doesn't have proper volume controls and SDL2 doesn't support CD audio</LI>
+</UL>
+</P>
+
+<H2><A NAME="s8">8.</A> <A HREF="#toc8">Copyright </A></H2>
+
+<P>
+<UL>
+<LI>Quake and Quakespasm are released under the
+<A HREF="http://www.gnu.org/licenses/gpl-2.0.html">GNU GENERAL PUBLIC LICENSE Version 2</A></LI>
+<LI>Quakespasm console background image by <B>AAS</B>, released under the
+<A HREF="http://creativecommons.org/licenses/by/3.0/legalcode">CREATIVE COMMONS PUBLIC LICENSE</A></LI>
+</UL>
+</P>
+
+<H2><A NAME="s9">9.</A> <A HREF="#toc9">Contact </A></H2>
+
+<P>
+<UL>
+<LI>
+<A HREF="https://sourceforge.net/projects/quakespasm/">QuakeSpasm Project page</A></LI>
+<LI>
+<A HREF="https://sourceforge.net/p/quakespasm/bugs/">Bug reports</A></LI>
+<LI>
+<A HREF="mailto:gmail - dot - com - username - sezeroz">Ozkan</A>,
+<A HREF="mailto:gmail - dot - com - username - ewasylishen">Eric</A>,
+<A HREF="mailto:gmail - dot - com - username - a.h.vandijk">Sander</A>
+</UL>
+</P>
+
+<H2><A NAME="s10">10.</A> <A HREF="#toc10">Links </A></H2>
+
+<P>
+<UL>
+<LI>
+<A HREF="http://quakespasm.sourceforge.net">QuakeSpasm Homepage</A></LI>
+<LI>
+<A HREF="http://quakespasm.sourceforge.net/download.htm">Downloads</A></LI>
+<LI>
+<A HREF="http://www.celephais.net/fitzquake">FitzQuake Homepage</A></LI>
+<LI>
+<A HREF="http://www.celephais.net/board/view_thread.php?id=60452">Func Quakespasm forum</A></LI>
+<LI>
+<A HREF="http://forums.insideqc.com">Inside3D forums</A></LI>
+</UL>
+</P>
+
+</BODY>
+</HTML>
