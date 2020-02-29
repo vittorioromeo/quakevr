@@ -1,0 +1,6 @@
+# sgml tools are from linuxdoc-tools 
+default:	Quakespasm.sgml
+	sgml2html -s 0 -T 2 Quakespasm.sgml 2>/dev/null
+all:	default text
+text txt:	Quakespasm.sgml
+	./sgml2rawtxt Quakespasm
