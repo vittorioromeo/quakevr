@@ -1,4 +1,9 @@
+<p align="center">
+  <img width="460" height="300" src="https://vittorioromeo.info/Misc/quakevrlogo.png">
+</p>
+
 # Quakespasm-OpenVR
+
 OpenVR support integrated into Quakespasm. This version contains a few changes I wanted to make for my own playthroughs of Quake in VR.
 
 Forked from [Fishbiter's OpenVR port of Quakespasm](https://github.com/Fishbiter/Quakespasm-OpenVR) Forked from [Zackin5's OpenVR port of Dominic Szablewski's (Phoboslab) Oculus modification of Quakespasm](https://github.com/Zackin5/Quakespasm-OpenVR)
