@@ -720,6 +720,7 @@ vr::VRActionHandle_t vrahFire;
 vr::VRActionHandle_t vrahJump;
 vr::VRActionHandle_t vrahPrevWeapon;
 vr::VRActionHandle_t vrahNextWeapon;
+vr::VRActionHandle_t vrahEscape;
 vr::VRActionHandle_t vrahHaptic;
 
 static void VR_InitActionHandles()
@@ -755,6 +756,7 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/Jump", vrahJump);
     readHandle("/actions/default/in/PrevWeapon", vrahPrevWeapon);
     readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
+    readHandle("/actions/default/in/Escape", vrahEscape);
     readHandle("/actions/default/out/Haptic", vrahHaptic);
 
     vrActiveActionSet.ulActionSet = vrashDefault;
@@ -2084,6 +2086,7 @@ struct VRAxisResult
     const auto inpJump = readDigitalAction(vrahJump);
     const auto inpPrevWeapon = readDigitalAction(vrahPrevWeapon);
     const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
+    const auto inpEscape = readDigitalAction(vrahEscape);
 
     const auto btnPressed = [](const vr::InputDigitalActionData_t& data) {
         // Detect rising edge.
@@ -2094,12 +2097,40 @@ struct VRAxisResult
     const bool mustJump = btnPressed(inpJump);
     const bool mustPrevWeapon = btnPressed(inpPrevWeapon);
     const bool mustNextWeapon = btnPressed(inpNextWeapon);
+    const bool mustEscape = btnPressed(inpEscape);
 
     if(key_dest == key_menu)
     {
         VR_DoInput_Menu();
 
         // TODO VR: !!!
+        Key_Event(K_ENTER, mustJump);
+        Key_Event(K_ESCAPE, mustEscape);
+        Key_Event(K_LEFTARROW, mustPrevWeapon);
+        Key_Event(K_RIGHTARROW, mustNextWeapon);
+
+        auto DoAxis2 = [&](int quakeKeyNeg, int quakeKeyPos,
+                           double deadzoneExtra) {
+            float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
+            float val = inpLocomotion.y;
+
+            bool posWasDown = lastVal > 0.0f;
+            bool posDown = val > 0.0f;
+            if(posDown != posWasDown)
+            {
+                Key_Event(quakeKeyNeg, posDown);
+            }
+
+            bool negWasDown = lastVal < 0.0f;
+            bool negDown = val < 0.0f;
+            if(negDown != negWasDown)
+            {
+                Key_Event(quakeKeyPos, negDown);
+            }
+        };
+
+        DoAxis2(
+            K_DOWNARROW, K_UPARROW, vr_joystick_axis_menu_deadzone_extra.value);
     }
     else
     {
@@ -2108,6 +2139,7 @@ struct VRAxisResult
         // TODO VR: !!!
         Key_Event(K_MOUSE1, mustFire);
         Key_Event(K_SPACE, mustJump);
+        Key_Event(K_ESCAPE, mustEscape);
         Key_Event('3', mustPrevWeapon);
         Key_Event('1', mustNextWeapon);
     }
