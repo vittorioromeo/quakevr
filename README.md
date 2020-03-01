@@ -40,6 +40,8 @@
 
 * [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view)
 
+    * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
+
 ## Credits
 
 * Built on top of QuakeSpasm and existing forks
