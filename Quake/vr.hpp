@@ -102,8 +102,6 @@ extern cvar_t vr_melee_threshold;
 extern cvar_t vr_menu_scale;
 extern cvar_t vr_movement_mode;
 extern cvar_t vr_msaa;
-// TODO VR: consider restoring for custom QC?
-// extern cvar_t vr_projectilespawn_z_offset;
 extern cvar_t vr_enable_joystick_turn;
 extern cvar_t vr_snap_turn;
 extern cvar_t vr_turn_speed;

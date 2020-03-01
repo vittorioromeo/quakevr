@@ -167,9 +167,6 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_GUNMODELSCALE: printAsStr(vr_gunmodelscale); break;
         case VRMenuOpt::VR_GUNMODELY: printAsStr(vr_gunmodely); break;
         case VRMenuOpt::VR_CROSSHAIRY: printAsStr(vr_crosshairy); break;
-        // TODO VR: consider restoring for custom QC?
-        // case VRMenuOpt::VR_PROJECTILESPAWN_Z_OFFSET:
-        // printAsStr(vr_projectilespawn_z_offset); break;
         case VRMenuOpt::VR_HUD_SCALE: printAsStr(vr_hud_scale); break;
         case VRMenuOpt::VR_MENU_SCALE: printAsStr(vr_menu_scale); break;
         case VRMenuOpt::VR_GUNYAW: printAsStr(vr_gunyaw); break;
@@ -283,9 +280,6 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_CROSSHAIRY:
             adjustF(vr_crosshairy, 0.05f, -10.0f, 10.f);
             break;
-        // TODO VR: consider restoring for custom QC?
-        // case VRMenuOpt::VR_PROJECTILESPAWN_Z_OFFSET:
-        // adjustF(vr_projectilespawn_z_offset, 0.5f, -24.0f, 24.f); break;
         case VRMenuOpt::VR_HUD_SCALE:
             adjustF(vr_hud_scale, 0.005f, 0.01f, 0.1f);
             break;

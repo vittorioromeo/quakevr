@@ -16,6 +16,7 @@
 * Weapon models with hands and ironsights
 * VR interactions *(melee, pick up items, press buttons)*
 * Rebalanced for VR *(hitboxes, difficulty, projectile speed)*
+* Steam VR Input support *(can rebind inputs in Steam VR settings)*
 
 ## Disclaimer
 
@@ -65,10 +66,7 @@
 * `vr_world_scale` - 1: Size of the player compared to normal quake character.
 * `vr_floor_offset` - -16: height (in Quake units) of the player's origin off the ground (probably not useful to change)
 * `vr_snap_turn` - 0: If 0, smooth turning, otherwise the size in degrees of each snap turn.
-* `vr_joystick_yaw_multi` - 1.0: Adjusts turn speed when using VR controllers, suggested 2.0-3.0
-* `vr_joystick_axis_deadzone` - 0.25: Deadzone value for joysticks, suggested 0.1-0.2
-* `vr_joystick_axis_exponent` - 1.0: Exponent for axis input, suggested 2.0. Larger numbers increase the 'low speed' portion of the movement range, numbers under 1.0: decrease it, 1.0 is linear response. 2.0 makes it easier to make fine adjustments at low speed
-* `vr_joystick_deadzone_trunc` - 1 If enabled (value 1) then minimum movement speed will be given by the deadzone value, so it will be impossible to move at speeds below the deadzone value. When disabled (value 0) movement speed will ramp up from complete standstill to maximum speed while above the deadzone, so any speed is possible. Suggest setting to 0 to disable
+* `vr_turn_speed` - 1.0: Adjusts turn speed when using VR controllers, suggested 2.0-3.0
 
 ### Weapon Offsets
 

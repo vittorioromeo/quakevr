@@ -183,8 +183,6 @@ DEFINE_CVAR(vr_gunangle, 32, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodelpitch, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodelscale, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodely, 0, CVAR_ARCHIVE);
-// TODO VR: consider restoring for custom QC?
-// DEFINE_CVAR(vr_projectilespawn_z_offset, 24, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_crosshairy, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_world_scale, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_floor_offset, -16, CVAR_ARCHIVE);
@@ -193,10 +191,6 @@ DEFINE_CVAR(vr_enable_joystick_turn, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_turn_speed, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_msaa, 4, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_movement_mode, 0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_yaw_multi, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_deadzone, 0.25, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_exponent, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_deadzone_trunc, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hud_scale, 0.025, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_menu_scale, 0.13, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_threshold, 7, CVAR_ARCHIVE);
@@ -1023,8 +1017,6 @@ void SetHandPos(int index, entity_t* player)
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
-static void IdentifyAxes(const int device);
-
 void VR_UpdateScreenContent()
 {
     GLint w;
@@ -1127,8 +1119,6 @@ void VR_UpdateScreenContent()
             if(controllerIndex != -1)
             {
                 vr_controller* controller = &controllers[controllerIndex];
-
-                IdentifyAxes(iDevice);
 
                 controller->lastState = controller->state;
                 vr::VRSystem()->GetControllerState(
@@ -1822,48 +1812,6 @@ void VR_ResetOrientation()
     }
 }
 
-int axisTrackpad = -1;
-int axisJoystick = -1;
-int axisTrigger = -1;
-bool identified = false;
-
-static void IdentifyAxes(const int device)
-{
-    if(identified)
-    {
-        return;
-    }
-
-    for(uint32_t i = 0; i < vr::k_unControllerStateAxisCount; i++)
-    {
-        switch(vr::VRSystem()->GetInt32TrackedDeviceProperty(device,
-            (vr::ETrackedDeviceProperty)(vr::Prop_Axis0Type_Int32 + i),
-            nullptr))
-        {
-            case vr::k_eControllerAxis_TrackPad:
-                if(axisTrackpad == -1)
-                {
-                    axisTrackpad = i;
-                }
-                break;
-            case vr::k_eControllerAxis_Joystick:
-                if(axisJoystick == -1)
-                {
-                    axisJoystick = i;
-                }
-                break;
-            case vr::k_eControllerAxis_Trigger:
-                if(axisTrigger == -1)
-                {
-                    axisTrigger = i;
-                }
-                break;
-        }
-    }
-
-    identified = true;
-}
-
 struct VRAxisResult
 {
     float fwdMove;
@@ -1933,26 +1881,23 @@ struct VRAxisResult
     const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
     const auto inpEscape = readDigitalAction(vrahEscape);
 
-    const auto btnPressed = [](const vr::InputDigitalActionData_t& data) {
-        // Detect rising edge.
+    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
         return data.bState && data.bChanged;
     };
 
     const bool mustFire = inpFire.bState;
-    const bool mustJump = btnPressed(inpJump);
-    const bool mustPrevWeapon = btnPressed(inpPrevWeapon);
-    const bool mustNextWeapon = btnPressed(inpNextWeapon);
-    const bool mustEscape = btnPressed(inpEscape);
+    const bool mustJump = isRisingEdge(inpJump);
+    const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
+    const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
+    const bool mustEscape = isRisingEdge(inpEscape);
 
     if(key_dest == key_menu)
     {
-        // TODO VR: !!!
         Key_Event(K_ENTER, mustJump);
         Key_Event(K_ESCAPE, mustEscape);
         Key_Event(K_LEFTARROW, mustPrevWeapon);
         Key_Event(K_RIGHTARROW, mustNextWeapon);
 
-        // TODO VR:
         const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
             const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
             const float val = inpLocomotion.y;
@@ -2103,9 +2048,7 @@ void VR_Move(usercmd_t* cmd)
         }
         else
         {
-            vrYaw -= (yawMove * host_frametime * 100.0f *
-                         vr_joystick_yaw_multi.value) *
-                     vr_turn_speed.value;
+            vrYaw -= (yawMove * host_frametime * 100.0f) * vr_turn_speed.value;
         }
     }
 }
