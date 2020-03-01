@@ -27,13 +27,15 @@
 
 ## Installation
 
-1. Install Quake 1. The [Steam version](https://store.steampowered.com/app/2310/QUAKE/) works fine.
+1. Install [Visual C++ x64 Redistributable](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads) package.
 
-2. Grab the latest binary from [the releases page](https://github.com/SuperV1234/quakevr/releases).
+2. Install Quake 1. The [Steam version](https://store.steampowered.com/app/2310/QUAKE/) works fine.
 
-3. Extract the contents of the package directly in the Quake installation folder *(e.g. `C:/Program Files/Steam/steamapps/common/Quake`)*.
+3. Grab the latest binary from [the releases page](https://github.com/SuperV1234/quakevr/releases).
 
-4. Run the game by launching the `.exe` you just extracted.
+4. Extract the contents of the package directly in the Quake installation folder *(e.g. `C:/Program Files/Steam/steamapps/common/Quake`)*.
+
+5. Run the game by launching the `.exe` you just extracted.
 
 ### Highly Recommended Addons
 
