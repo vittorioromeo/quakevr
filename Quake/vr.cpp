@@ -195,7 +195,6 @@ DEFINE_CVAR(vr_msaa, 4, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_movement_mode, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_joystick_yaw_multi, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_joystick_axis_deadzone, 0.25, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_menu_deadzone_extra, 0.25, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_joystick_axis_exponent, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_joystick_deadzone_trunc, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hud_scale, 0.025, CVAR_ARCHIVE);
@@ -1892,8 +1891,7 @@ struct VRAxisResult
         }
     }
 
-    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle)
-        -> vr::InputAnalogActionData_t {
+    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle) {
         vr::InputAnalogActionData_t out;
 
         const auto rc = vr::VRInput()->GetAnalogActionData(actionHandle, &out,
@@ -1909,22 +1907,23 @@ struct VRAxisResult
         return out;
     };
 
-    const auto readDigitalAction = [](const vr::VRActionHandle_t& actionHandle)
-        -> vr::InputDigitalActionData_t {
-        vr::InputDigitalActionData_t out;
+    const auto readDigitalAction =
+        [](const vr::VRActionHandle_t& actionHandle) {
+            vr::InputDigitalActionData_t out;
 
-        const auto rc = vr::VRInput()->GetDigitalActionData(actionHandle, &out,
-            sizeof(vr::InputDigitalActionData_t),
-            vr::k_ulInvalidInputValueHandle);
+            const auto rc = vr::VRInput()->GetDigitalActionData(actionHandle,
+                &out, sizeof(vr::InputDigitalActionData_t),
+                vr::k_ulInvalidInputValueHandle);
 
-        if(rc != vr::EVRInputError::VRInputError_None)
-        {
-            Con_Printf("Failed to read Steam VR digital action data, rc = %d",
-                (int)rc);
-        }
+            if(rc != vr::EVRInputError::VRInputError_None)
+            {
+                Con_Printf(
+                    "Failed to read Steam VR digital action data, rc = %d",
+                    (int)rc);
+            }
 
-        return out;
-    };
+            return out;
+        };
 
     const auto inpLocomotion = readAnalogAction(vrahLocomotion);
     const auto inpTurn = readAnalogAction(vrahTurn);
@@ -1954,8 +1953,7 @@ struct VRAxisResult
         Key_Event(K_RIGHTARROW, mustNextWeapon);
 
         // TODO VR:
-        auto doAxis = [&](int quakeKeyNeg, int quakeKeyPos,
-                          double deadzoneExtra) {
+        auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
             float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
             float val = inpLocomotion.y;
 
@@ -1974,8 +1972,7 @@ struct VRAxisResult
             }
         };
 
-        doAxis(
-            K_DOWNARROW, K_UPARROW, vr_joystick_axis_menu_deadzone_extra.value);
+        doAxis(K_DOWNARROW, K_UPARROW);
     }
     else
     {
