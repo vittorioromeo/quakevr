@@ -33,6 +33,10 @@
 
 4. Run the game by launching the `.exe` you just extracted.
 
+### Highly Recommended Addons
+
+* [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view)
+
 ## Credits
 
 * Built on top of QuakeSpasm and existing forks
