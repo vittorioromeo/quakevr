@@ -1953,26 +1953,26 @@ struct VRAxisResult
         Key_Event(K_RIGHTARROW, mustNextWeapon);
 
         // TODO VR:
-        auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
-            float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
-            float val = inpLocomotion.y;
+        const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
+            const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
+            const float val = inpLocomotion.y;
 
-            bool posWasDown = lastVal > 0.0f;
-            bool posDown = val > 0.0f;
+            const bool posWasDown = lastVal > 0.0f;
+            const bool posDown = val > 0.0f;
             if(posDown != posWasDown)
             {
                 Key_Event(quakeKeyNeg, posDown);
             }
 
-            bool negWasDown = lastVal < 0.0f;
-            bool negDown = val < 0.0f;
+            const bool negWasDown = lastVal < 0.0f;
+            const bool negDown = val < 0.0f;
             if(negDown != negWasDown)
             {
                 Key_Event(quakeKeyPos, negDown);
             }
         };
 
-        doAxis(K_DOWNARROW, K_UPARROW);
+        doAxis(K_UPARROW, K_DOWNARROW);
     }
     else
     {
@@ -2081,7 +2081,8 @@ void VR_Move(usercmd_t* cmd)
         cmd->forwardmove /= cl_movespeedkey.value;
     }
 
-    if((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+    if((cl_forwardspeed.value > 200) ^ (in_speed.state & 1) ^
+        (cl_alwaysrun.value != 0.0))
     {
         cmd->forwardmove *= cl_movespeedkey.value;
         cmd->sidemove *= cl_movespeedkey.value;
