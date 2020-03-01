@@ -6,6 +6,8 @@
 
 > **One of the best first person shooters ever, modded and rebalanced for virtual reality.**
 
+[*(See the release trailer on YouTube.)*](https://www.youtube.com/watch?v=AevBPsuMab0)
+
 ## Main Features
 
 * Smooth locomotion
