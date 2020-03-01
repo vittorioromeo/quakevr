@@ -1865,160 +1865,6 @@ static void IdentifyAxes(const int device)
     identified = true;
 }
 
-static float GetAxis(
-    vr::VRControllerState_t* state, int axis, double deadzoneExtra)
-{
-    float v = 0;
-
-    if(axis == 0)
-    {
-        if(axisTrackpad != -1)
-        {
-            v += state->rAxis[axisTrackpad].x;
-        }
-        if(axisJoystick != -1)
-        {
-            v += state->rAxis[axisJoystick].x;
-        }
-    }
-    else
-    {
-        if(axisTrackpad != -1)
-        {
-            v += state->rAxis[axisTrackpad].y;
-        }
-        if(axisJoystick != -1)
-        {
-            v += state->rAxis[axisJoystick].y;
-        }
-    }
-
-    int sign = (v > 0) - (v < 0);
-    v = fabsf(v);
-
-    if(v < vr_joystick_axis_deadzone.value + deadzoneExtra)
-    {
-        return 0.0f;
-    }
-
-    if(vr_joystick_deadzone_trunc.value == 0)
-    {
-        v = (v - vr_joystick_axis_deadzone.value) /
-            (1 - vr_joystick_axis_deadzone.value);
-    }
-
-    if(vr_joystick_axis_exponent.value >= 0)
-    {
-        v = powf(v, vr_joystick_axis_exponent.value);
-    }
-
-    return sign * v;
-}
-
-static void DoKey(
-    vr_controller* controller, vr::EVRButtonId vrButton, int quakeKey)
-{
-    const bool wasDown = (controller->lastState.ulButtonPressed &
-                             vr::ButtonMaskFromId(vrButton)) != 0;
-    const bool isDown = (controller->state.ulButtonPressed &
-                            vr::ButtonMaskFromId(vrButton)) != 0;
-
-    if(isDown != wasDown)
-    {
-        Key_Event(quakeKey, isDown);
-    }
-}
-
-static void DoTrigger(vr_controller* controller, int quakeKey)
-{
-    if(axisTrigger == -1)
-    {
-        return;
-    }
-
-    const bool triggerWasDown =
-        controller->lastState.rAxis[axisTrigger].x > 0.5f;
-    const bool triggerDown = controller->state.rAxis[axisTrigger].x > 0.5f;
-
-    if(triggerDown != triggerWasDown)
-    {
-        Key_Event(quakeKey, triggerDown);
-    }
-}
-
-static void DoAxis(vr_controller* controller, int axis, int quakeKeyNeg,
-    int quakeKeyPos, double deadzoneExtra)
-{
-    float lastVal = GetAxis(&controller->lastState, axis, deadzoneExtra);
-    float val = GetAxis(&controller->state, axis, deadzoneExtra);
-
-    bool posWasDown = lastVal > 0.0f;
-    bool posDown = val > 0.0f;
-    if(posDown != posWasDown)
-    {
-        Key_Event(quakeKeyPos, posDown);
-    }
-
-    bool negWasDown = lastVal < 0.0f;
-    bool negDown = val < 0.0f;
-    if(negDown != negWasDown)
-    {
-        Key_Event(quakeKeyNeg, negDown);
-    }
-}
-
-static void VR_DoInput_Menu()
-{
-    // Menu controls - Valve Index:
-    // * Any joystick -> navigation
-    // * Left A       -> right
-    // * Left B       -> left
-    // * Right A      -> enter
-    // * Right B      -> escape
-    // * Any trigger  -> nothing
-
-    for(int i = 0; i < 2; i++)
-    {
-        DoAxis(&controllers[i], 0, K_LEFTARROW, K_RIGHTARROW,
-            vr_joystick_axis_menu_deadzone_extra.value);
-        DoAxis(&controllers[i], 1, K_DOWNARROW, K_UPARROW,
-            vr_joystick_axis_menu_deadzone_extra.value);
-    }
-
-    DoKey(&controllers[0], vr::k_EButton_IndexController_A, K_LEFTARROW);
-    DoKey(&controllers[0], vr::k_EButton_IndexController_B, K_RIGHTARROW);
-
-    DoKey(&controllers[1], vr::k_EButton_IndexController_A, K_ENTER);
-    DoKey(&controllers[1], vr::k_EButton_IndexController_B, K_ESCAPE);
-}
-
-static void VR_DoInput_Game()
-{
-    // Game controls - Valve Index:
-    // * Left joystick -> movement
-    // * Left A        -> escape
-    // * Left B        -> previous weapon
-    // * Right A       -> space
-    // * Right B       -> next weapon
-    // * Left trigger  -> nothing
-    // * Right trigger -> mouse1
-
-    DoKey(&controllers[0], vr::k_EButton_IndexController_A, K_ESCAPE);
-    DoKey(&controllers[0], vr::k_EButton_IndexController_B, '3');
-
-    DoKey(&controllers[1], vr::k_EButton_IndexController_A, K_SPACE);
-    DoKey(&controllers[1], vr::k_EButton_IndexController_B, '1');
-
-    DoTrigger(&controllers[1], K_MOUSE1);
-
-    // TODO VR: what to do with these?
-    DoKey(&controllers[0], vr::k_EButton_SteamVR_Touchpad, K_SHIFT);
-    DoKey(&controllers[1], vr::k_EButton_SteamVR_Touchpad, K_ALT);
-    // DoTrigger(&controllers[0], K_SPACE);
-    // DoKey(&controllers[0], vr::k_EButton_Grip, K_MWHEELUP);
-    // DoKey(&controllers[1], vr::k_EButton_Grip, K_MWHEELDOWN);
-}
-
 struct VRAxisResult
 {
     float fwdMove;
@@ -2101,16 +1947,15 @@ struct VRAxisResult
 
     if(key_dest == key_menu)
     {
-        VR_DoInput_Menu();
-
         // TODO VR: !!!
         Key_Event(K_ENTER, mustJump);
         Key_Event(K_ESCAPE, mustEscape);
         Key_Event(K_LEFTARROW, mustPrevWeapon);
         Key_Event(K_RIGHTARROW, mustNextWeapon);
 
-        auto DoAxis2 = [&](int quakeKeyNeg, int quakeKeyPos,
-                           double deadzoneExtra) {
+        // TODO VR:
+        auto doAxis = [&](int quakeKeyNeg, int quakeKeyPos,
+                          double deadzoneExtra) {
             float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
             float val = inpLocomotion.y;
 
@@ -2129,14 +1974,11 @@ struct VRAxisResult
             }
         };
 
-        DoAxis2(
+        doAxis(
             K_DOWNARROW, K_UPARROW, vr_joystick_axis_menu_deadzone_extra.value);
     }
     else
     {
-        VR_DoInput_Game();
-
-        // TODO VR: !!!
         Key_Event(K_MOUSE1, mustFire);
         Key_Event(K_SPACE, mustJump);
         Key_Event(K_ESCAPE, mustEscape);
