@@ -118,6 +118,8 @@ extern cvar_t vr_roomscale_jump;
 extern cvar_t vr_height_calibration;
 extern cvar_t vr_roomscale_jump_threshold;
 extern cvar_t vr_menu_distance;
+extern cvar_t vr_melee_dmg_multiplier;
+extern cvar_t vr_melee_range_multiplier;
 
 // TODO VR: not sure what this number should actually be...
 #define MAX_WEAPONS 20

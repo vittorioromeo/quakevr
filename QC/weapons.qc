@@ -55,7 +55,21 @@ vector() vrProjectileVelocity =
 	return VEC_ORIGIN;
 };
 
+float(float v) VRMeleeDmg =
+{
+	return (v * self.handvelmag) * cvar("vr_melee_dmg_multiplier");
+}
 
+float(float v) VRMeleeOffHandDmg =
+{
+	return (v * self.offhandvelmag) * cvar("vr_melee_dmg_multiplier");
+}
+
+
+float(float v) VRMeleeRange =
+{
+	return v * cvar("vr_melee_range_multiplier");
+}
 
 /*
 ================
@@ -70,8 +84,7 @@ void() W_FireAxe =
 	local	string	s;
 	local	float	playedsound;
 
-	// TODO VR: add damage multiplier cvar
-	xdmg = 0.73 * self.handvelmag;
+	xdmg = VRMeleeDmg(0.73);
 
 	// s = ftos(xdmg);
 	// sprint (self, "DMG: ");
@@ -80,8 +93,7 @@ void() W_FireAxe =
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
-	// TODO VR: add range multiplier cvar
-	traceline (source - v_forward*24, source + v_forward*28, FALSE, self);
+	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
 
@@ -137,7 +149,7 @@ void() W_GunMelee =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = 0.43 * self.handvelmag;
+	xdmg = VRMeleeDmg(0.43);
 
 	// s = ftos(xdmg);
 	// sprint (self, "DMG: ");
@@ -146,7 +158,7 @@ void() W_GunMelee =
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward*26, FALSE, self);
+	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
 
@@ -203,7 +215,7 @@ void() W_FistMelee =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = 0.53 * self.offhandvelmag;
+	xdmg = VRMeleeOffHandDmg(0.53);
 
 	// s = ftos(xdmg);
 	// sprint (self, "OFFHANDDMG: ");
@@ -212,7 +224,7 @@ void() W_FistMelee =
 
 	makevectors (self.v_angle);
 	source = self.offhandpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward*24, FALSE, self);
+	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(24), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
 

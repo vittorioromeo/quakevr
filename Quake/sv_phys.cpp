@@ -1064,7 +1064,8 @@ Trigger hand-touching actions (e.g. pick up an item, press a button)
 */
 void SV_Handtouch(edict_t* ent)
 {
-    // TODO VR: this is still fucking broken, buttons don't work sometimes
+    // TODO VR: cleanup, too much unnecessary tracing and work
+
 
     using namespace quake::util;
 

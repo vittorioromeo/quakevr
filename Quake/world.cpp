@@ -431,7 +431,7 @@ void SV_TouchLinks(edict_t* ent)
             continue;
         }
 
-        // TODO VR: code repetition
+        // TODO VR: code repetition, add cvar to control
         constexpr float o = 1.f;
         vec3_t handposmin{-o, -o, -o};
         VectorAdd(handposmin, ent->v.handpos, handposmin);
