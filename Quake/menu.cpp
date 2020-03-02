@@ -1893,8 +1893,9 @@ bool M_Quit_TextEntry()
 void M_Quit_Draw() // johnfitz -- modified for new quit message
 {
     char msg1[40];
-    char msg2[] = "by Ozkan Sezer, Eric Wasylishen, others"; /* msg2/msg3 are
-                                                                mostly [40] */
+    char msg2[] =
+        "by Vittorio Romeo, Ozkan Sezer, Eric Wasylishen, others"; /* msg2/msg3
+                                                      are mostly [40] */
     char msg3[] = "Press y to quit";
     int boxlen;
 

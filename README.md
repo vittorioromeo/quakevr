@@ -11,12 +11,13 @@
 ## Main Features
 
 * Smooth locomotion
-* Fully room-scale
+* Fully room-scale *(including jumping)*
 * Hand tracking
 * Weapon models with hands and ironsights
 * VR interactions *(melee, pick up items, press buttons)*
 * Rebalanced for VR *(hitboxes, difficulty, projectile speed)*
-* Steam VR Input support *(can rebind inputs in Steam VR settings)*
+* Steam VR Input API support *(can rebind inputs in Steam VR settings)*
+* Many customization options *(e.g. melee damage/range, hand/body item pickup, and more)*
 
 ## Disclaimer
 

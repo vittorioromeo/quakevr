@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include <string>
 
 #ifdef WIN32
 #define UNICODE 1
@@ -127,6 +128,8 @@ extern int glx, gly, glwidth, glheight;
 
 static float vrYaw;
 static bool readbackYaw;
+
+std::string vr_working_directory;
 
 vec3_t vr_viewOffset;
 glm::vec3 lastHudPosition{};
@@ -790,10 +793,14 @@ bool VR_Enable()
     }
 
     {
-        // TODO VR: hardcoded path
-        const auto rc = vr::VRInput()->SetActionManifestPath(
-            "C:/OHWorkspace/quakevr/Windows/VisualStudio/Build-quakespasm-sdl2/x64/"
-            "Debug/actions.json");
+        static std::string manifestPath =
+            vr_working_directory + "/actions.json";
+
+        Con_Printf(
+            "Set Steam VR action manifest path to: '%s'", manifestPath.c_str());
+
+        const auto rc =
+            vr::VRInput()->SetActionManifestPath(manifestPath.c_str());
 
         if(rc != vr::EVRInputError::VRInputError_None)
         {
