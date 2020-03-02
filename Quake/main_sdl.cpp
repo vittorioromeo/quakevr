@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <cassert>
+#include <string>
+
 #include "quakedef.hpp"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #if defined(USE_SDL2)
@@ -104,8 +107,17 @@ static quakeparms_t parms;
 #define main SDL_main
 #endif
 
+// TODO VR:
+extern std::string vr_working_directory;
+
 int main(int argc, char* argv[])
 {
+    // TODO VR: more portable/reliable way of doing this
+    assert(argc >= 1);
+    vr_working_directory = argv[0];
+    vr_working_directory = vr_working_directory.substr(0, vr_working_directory.find_last_of("\\"));
+    Sys_Printf("Working directory: '%s'\n", vr_working_directory.c_str());
+
     int t;
     double time;
 
@@ -152,6 +164,7 @@ int main(int argc, char* argv[])
     Sys_Printf("FitzQuake SDL port (c) SleepwalkR, Baker\n");
     Sys_Printf("QuakeSpasm " QUAKESPASM_VER_STRING
                " (c) Ozkan Sezer, Eric Wasylishen & others\n");
+    Sys_Printf("Quake VR " QUAKEVR_VERSION " by Vittorio Romeo & others\n");
 
     Sys_Printf("Host_Init\n");
     Host_Init();

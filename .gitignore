@@ -1,6 +1,8 @@
 Windows/build
-id1
-Id1
+Debug/id1
+Debug/Id1
+Linux/CodeBlocks/id1
+Linux/CodeBlocks/Id1
 Build-qu*
 *.so
 *.dbg

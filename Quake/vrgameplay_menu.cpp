@@ -33,8 +33,32 @@ static void VRGameplay_MenuPrintOptionValue(
 
     switch(option)
     {
-        case VRGameplayMenuOpt::e_Melee_Threshold:
+        case VRGameplayMenuOpt::e_MeleeThreshold:
             printAsStr(vr_melee_threshold);
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJump:
+            M_Print(cx, cy, vr_roomscale_jump.value == 0 ? "Off" : "On");
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJumpThreshold:
+            printAsStr(vr_roomscale_jump_threshold);
+            break;
+        case VRGameplayMenuOpt::e_CalibrateHeight:
+            printAsStr(vr_height_calibration);
+            break;
+        case VRGameplayMenuOpt::e_MeleeDmgMultiplier:
+            printAsStr(vr_melee_dmg_multiplier);
+            break;
+        case VRGameplayMenuOpt::e_MeleeRangeMultiplier:
+            printAsStr(vr_melee_range_multiplier);
+            break;
+        case VRGameplayMenuOpt::e_BodyInteractions:
+            M_Print(cx, cy, vr_body_interactions.value == 0 ? "Off" : "On");
+            break;
+        case VRGameplayMenuOpt::e_ForwardSpeed:
+            printAsStr(cl_forwardspeed);
+            break;
+        case VRGameplayMenuOpt::e_SpeedBtnMultiplier:
+            printAsStr(cl_movespeedkey);
             break;
         default: assert(false); break;
     }
@@ -55,10 +79,39 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
     };
 
+    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
+                             auto max) {
+        Cvar_SetValue(cvar.name,
+            (int)CLAMP(
+                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
+    };
+
     switch(option)
     {
-        case VRGameplayMenuOpt::e_Melee_Threshold:
+        case VRGameplayMenuOpt::e_MeleeThreshold:
             adjustF(vr_melee_threshold, 0.5f, 4.f, 18.f);
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJump:
+            adjustI(vr_roomscale_jump, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJumpThreshold:
+            adjustF(vr_roomscale_jump_threshold, 0.05f, 0.05f, 3.f);
+            break;
+        case VRGameplayMenuOpt::e_CalibrateHeight: VR_CalibrateHeight(); break;
+        case VRGameplayMenuOpt::e_MeleeDmgMultiplier:
+            adjustF(vr_melee_dmg_multiplier, 0.25f, 0.25f, 15.f);
+            break;
+        case VRGameplayMenuOpt::e_MeleeRangeMultiplier:
+            adjustF(vr_melee_range_multiplier, 0.25f, 0.25f, 15.f);
+            break;
+        case VRGameplayMenuOpt::e_BodyInteractions:
+            adjustI(vr_body_interactions, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_ForwardSpeed:
+            adjustI(cl_forwardspeed, 25, 100, 400);
+            break;
+        case VRGameplayMenuOpt::e_SpeedBtnMultiplier:
+            adjustF(cl_movespeedkey, 0.05f, 0.1f, 1.f);
             break;
         default: assert(false); break;
     }
@@ -130,8 +183,10 @@ void M_VRGameplay_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Melee Threshold");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Melee Threshold", "Roomscale Jump", "Roomscale Jump Threshold",
+        "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
+        "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

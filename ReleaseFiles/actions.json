@@ -1,0 +1,66 @@
+{
+    "actions": [
+        {
+            "name": "/actions/default/in/Locomotion",
+            "type": "vector2"
+        },
+        {
+            "name": "/actions/default/in/Turn",
+            "type": "vector2"
+        },
+        {
+            "name": "/actions/default/in/Fire",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/Jump",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/PrevWeapon",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/NextWeapon",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/Escape",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/Speed",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/out/Haptic",
+            "type": "vibration"
+        }
+    ],
+    "action_sets": [
+        {
+            "name": "/actions/default",
+            "usage": "leftright"
+        }
+    ],
+    "default_bindings": [
+        {
+            "controller_type": "knuckles",
+            "binding_url": "bindings_knuckles.json"
+        }
+    ],
+    "localization": [
+        {
+            "language_tag": "en_US",
+            "/actions/default/in/Locomotion": "Locomotion",
+            "/actions/default/in/Turn": "Turn",
+            "/actions/default/in/Fire": "Fire",
+            "/actions/default/in/Jump": "Jump",
+            "/actions/default/in/PrevWeapon": "Previous Weapon",
+            "/actions/default/in/NextWeapon": "Next Weapon",
+            "/actions/default/in/Escape": "Escape",
+            "/actions/default/in/Speed": "Speed Modifier",
+            "/actions/default/out/Haptic": "Haptic"
+        }
+    ]
+}

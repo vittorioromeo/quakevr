@@ -2,7 +2,8 @@
 
 enum class VRMenuOpt
 {
-    VR_ENABLED,
+    // TODO VR:
+    // VR_ENABLED,
 
     VR_AIMMODE,
     VR_DEADZONE,
@@ -22,14 +23,13 @@ enum class VRMenuOpt
     VR_GUNMODELSCALE,
     VR_GUNMODELY,
     VR_CROSSHAIRY,
-    // TODO VR: consider restoring for custom QC?
-    // VR_PROJECTILESPAWN_Z_OFFSET,
     VR_HUD_SCALE,
     VR_MENU_SCALE,
     VR_GUNYAW,
     VR_GUN_Z_OFFSET,
     VR_SBAR_MODE,
     VR_VIEWKICK,
+    VR_MENU_DISTANCE,
 
     VR_MAX
 };
