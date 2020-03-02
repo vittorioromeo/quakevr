@@ -51,6 +51,9 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_MeleeRangeMultiplier:
             printAsStr(vr_melee_range_multiplier);
             break;
+        case VRGameplayMenuOpt::e_BodyInteractions:
+            M_Print(cx, cy, vr_body_interactions.value == 0 ? "Off" : "On");
+            break;
         default: assert(false); break;
     }
 
@@ -94,6 +97,9 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_MeleeRangeMultiplier:
             adjustF(vr_melee_range_multiplier, 0.25f, 0.25f, 15.f);
+            break;
+        case VRGameplayMenuOpt::e_BodyInteractions:
+            adjustI(vr_body_interactions, 1, 0, 1);
             break;
         default: assert(false); break;
     }
@@ -165,10 +171,10 @@ void M_VRGameplay_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Melee Threshold", "Roomscale Jump",
-            "Roomscale Jump Threshold", "Calibrate Height",
-            "Melee Damage Multiplier", "Melee Range Multiplier");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Melee Threshold", "Roomscale Jump", "Roomscale Jump Threshold",
+        "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
+        "Body-Item Interactions");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

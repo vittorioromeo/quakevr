@@ -8,6 +8,7 @@ enum class VRGameplayMenuOpt
     e_CalibrateHeight,
     e_MeleeDmgMultiplier,
     e_MeleeRangeMultiplier,
+    e_BodyInteractions,
 
     k_Max
 };

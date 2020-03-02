@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 
 extern cvar_t vr_enabled;
+extern cvar_t vr_body_interactions;
 
 /*
 
@@ -397,8 +398,8 @@ void SV_TouchLinks(edict_t* ent)
             continue;
         }
 
-        const bool canBeTouched =
-            target->v.touch && target->v.solid == SOLID_TRIGGER;
+        const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
+                                  target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
@@ -414,7 +415,15 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
 
-        PR_ExecuteProgram(target->v.touch);
+        if(target->v.touch)
+        {
+            PR_ExecuteProgram(target->v.touch);
+        }
+
+        if(target->v.handtouch && vr_body_interactions.value)
+        {
+            PR_ExecuteProgram(target->v.handtouch);
+        }
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;
@@ -431,7 +440,7 @@ void SV_TouchLinks(edict_t* ent)
             continue;
         }
 
-        // TODO VR: code repetition, add cvar to control
+        // TODO VR: code repetition
         constexpr float o = 1.f;
         vec3_t handposmin{-o, -o, -o};
         VectorAdd(handposmin, ent->v.handpos, handposmin);
@@ -1169,4 +1178,3 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 
     return clip.trace;
 }
-

@@ -211,6 +211,7 @@ DEFINE_CVAR(vr_roomscale_jump_threshold, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_menu_distance, 76, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_dmg_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_range_multiplier, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
 
 [[nodiscard]] static bool InitOpenGLExtensions()
 {

@@ -355,7 +355,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         //
         SV_Impact(ent, trace.ent, &entvars_t::touch);
 
-        if(!vr_enabled.value)
+        if(!vr_enabled.value || vr_body_interactions.value)
         {
             SV_Impact(ent, trace.ent, &entvars_t::handtouch);
         }
@@ -507,7 +507,7 @@ trace_t SV_PushEntity(edict_t* ent, vec3_t push)
     {
         SV_Impact(ent, trace.ent, &entvars_t::touch);
 
-        if(!vr_enabled.value)
+        if(!vr_enabled.value || vr_body_interactions.value)
         {
             SV_Impact(ent, trace.ent, &entvars_t::handtouch);
         }
