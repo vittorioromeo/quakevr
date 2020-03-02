@@ -208,6 +208,7 @@ DEFINE_CVAR(vr_sbar_offset_roll, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_roomscale_jump, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_height_calibration, 1.6, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_roomscale_jump_threshold, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_menu_distance, 76, CVAR_ARCHIVE);
 
 [[nodiscard]] static bool InitOpenGLExtensions()
 {
@@ -1013,7 +1014,9 @@ void SetHandPos(int index, entity_t* player)
     VectorCopy(controllers[index].velocity, cl.handvel[index]);
 
     // handvelmag
-    // TODO VR: document
+    // VR: This helps direct punches being registered. This calculation works
+    // because the controller velocity is always absolute (not oriented where
+    // the player is looking).
     const auto length = VectorLength(controllers[index].velocity);
     const auto bestSingle = std::max({std::abs(controllers[index].velocity[0]),
                                 std::abs(controllers[index].velocity[1]),
@@ -1633,9 +1636,7 @@ void VR_Draw2D()
         }
 
         AngleVectors(menu_angles, forward, right, up);
-
-        // TODO VR: make the distance a cvar
-        VectorMA(r_refdef.vieworg, 76, forward, target);
+        VectorMA(r_refdef.vieworg, vr_menu_distance.value, forward, target);
     }
 
     // TODO VR: control smoothing with cvar
@@ -1900,9 +1901,10 @@ struct VRAxisResult
 
     const bool mustFire = inpFire.bState;
 
-    const bool isRoomscaleJump = vr_roomscale_jump.value &&
-                                 headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
-                                 headPos.v[1] > vr_height_calibration.value;
+    const bool isRoomscaleJump =
+        vr_roomscale_jump.value &&
+        headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
+        headPos.v[1] > vr_height_calibration.value;
 
     // TODO VR: make nice `Menu` class with declarative syntax
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;

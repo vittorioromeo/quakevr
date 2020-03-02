@@ -28,6 +28,7 @@ enum class VRMenuOpt
     VR_GUN_Z_OFFSET,
     VR_SBAR_MODE,
     VR_VIEWKICK,
+    VR_MENU_DISTANCE,
 
     VR_MAX
 };

@@ -174,6 +174,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_VIEWKICK:
             value_string = vr_viewkick.value == 0 ? "Off" : "On";
             break;
+            case VRMenuOpt::VR_MENU_DISTANCE: printAsStr(vr_menu_distance); break;
         default: assert(false); break;
     }
 
@@ -294,6 +295,7 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
             break;
         case VRMenuOpt::VR_SBAR_MODE: adjustI(vr_sbar_mode, 1, 0, 1); break;
         case VRMenuOpt::VR_VIEWKICK: adjustI(vr_viewkick, 1, 0, 1); break;
+        case VRMenuOpt::VR_MENU_DISTANCE: adjustI(vr_menu_distance, 1, 24, 256); break;
         default: assert(false); break;
     }
 
@@ -374,7 +376,7 @@ void M_VR_Draw()
         // TODO VR: consider restoring for custom QC?
         // "Projectile Spawn Z",
         "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset",
-        "Status Bar Mode", "Viewkick");
+        "Status Bar Mode", "Viewkick", "Menu Distance");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 

@@ -334,7 +334,6 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
         const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
                                   target->v.solid == SOLID_TRIGGER;
 
-        // TODO VR: re-enabled check, testing... (remove comment if it works)
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
                 target->v.absmin, target->v.absmax))
@@ -473,7 +472,7 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
 
-        // TODO VR: this is for ammo and slipgates, I think...
+        // VR: This is for things like ammo pickups and slipgates.
         PR_ExecuteProgram(target->v.handtouch);
 
         pr_global_struct->self = old_self;

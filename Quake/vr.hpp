@@ -117,6 +117,7 @@ extern cvar_t vr_sbar_offset_roll;
 extern cvar_t vr_roomscale_jump;
 extern cvar_t vr_height_calibration;
 extern cvar_t vr_roomscale_jump_threshold;
+extern cvar_t vr_menu_distance;
 
 // TODO VR: not sure what this number should actually be...
 #define MAX_WEAPONS 20
