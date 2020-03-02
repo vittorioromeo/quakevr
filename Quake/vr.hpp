@@ -80,7 +80,7 @@ void VR_AddOrientationToViewAngles(vec3_t angles);
 void VR_SetAngles(vec3_t angles);
 void VR_ResetOrientation();
 void VR_SetMatrices();
-void VR_SetTrackingSpace(int n);
+void VR_CalibrateHeight();
 
 extern cvar_t vr_aimmode;
 extern cvar_t vr_crosshair_alpha;
@@ -102,8 +102,6 @@ extern cvar_t vr_melee_threshold;
 extern cvar_t vr_menu_scale;
 extern cvar_t vr_movement_mode;
 extern cvar_t vr_msaa;
-// TODO VR: consider restoring for custom QC?
-// extern cvar_t vr_projectilespawn_z_offset;
 extern cvar_t vr_enable_joystick_turn;
 extern cvar_t vr_snap_turn;
 extern cvar_t vr_turn_speed;
@@ -116,6 +114,13 @@ extern cvar_t vr_sbar_offset_z;
 extern cvar_t vr_sbar_offset_pitch;
 extern cvar_t vr_sbar_offset_yaw;
 extern cvar_t vr_sbar_offset_roll;
+extern cvar_t vr_roomscale_jump;
+extern cvar_t vr_height_calibration;
+extern cvar_t vr_roomscale_jump_threshold;
+extern cvar_t vr_menu_distance;
+extern cvar_t vr_melee_dmg_multiplier;
+extern cvar_t vr_melee_range_multiplier;
+extern cvar_t vr_body_interactions;
 
 // TODO VR: not sure what this number should actually be...
 #define MAX_WEAPONS 20

@@ -347,19 +347,11 @@ void CL_UpdateTEnts()
         {
             if(vr_enabled.value)
             {
-                // TODO VR: deal with offset in non-vr mode ?
-                //
-                // vec3_t adj;
-                // VectorCopy(cl.handpos[1], adj);
-                // adj[2] += vr_projectilespawn_z_offset.value;
-                // VectorCopy(adj, b->start);
-
                 // TODO VR: hardcoded lightning gun muzzle position for beam
                 // effect
+
                 vec3_t forward;
-
                 vec3_t right;
-
                 vec3_t up;
                 AngleVectors(cl.handrot[1], forward, right, up);
 

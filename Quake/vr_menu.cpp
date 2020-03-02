@@ -41,9 +41,10 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
 
     switch(option)
     {
-        case VRMenuOpt::VR_ENABLED:
-            M_DrawCheckbox(cx, cy, (int)vr_enabled.value);
-            break;
+        // TODO VR:
+        // case VRMenuOpt::VR_ENABLED:
+        //     M_DrawCheckbox(cx, cy, (int)vr_enabled.value);
+        //     break;
         case VRMenuOpt::VR_AIMMODE:
             switch((int)vr_aimmode.value)
             {
@@ -167,9 +168,6 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_GUNMODELSCALE: printAsStr(vr_gunmodelscale); break;
         case VRMenuOpt::VR_GUNMODELY: printAsStr(vr_gunmodely); break;
         case VRMenuOpt::VR_CROSSHAIRY: printAsStr(vr_crosshairy); break;
-        // TODO VR: consider restoring for custom QC?
-        // case VRMenuOpt::VR_PROJECTILESPAWN_Z_OFFSET:
-        // printAsStr(vr_projectilespawn_z_offset); break;
         case VRMenuOpt::VR_HUD_SCALE: printAsStr(vr_hud_scale); break;
         case VRMenuOpt::VR_MENU_SCALE: printAsStr(vr_menu_scale); break;
         case VRMenuOpt::VR_GUNYAW: printAsStr(vr_gunyaw); break;
@@ -177,6 +175,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_VIEWKICK:
             value_string = vr_viewkick.value == 0 ? "Off" : "On";
             break;
+        case VRMenuOpt::VR_MENU_DISTANCE: printAsStr(vr_menu_distance); break;
         default: assert(false); break;
     }
 
@@ -216,13 +215,14 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
 
     switch(option)
     {
-        case VRMenuOpt::VR_ENABLED:
-            // TODO VR: fix and restore
-            // Cvar_SetValue( "vr_enabled", ! (int)vr_enabled.value );
-            // if ( (int)vr_enabled.value ) {
-            //    VR_MenuPlaySound( "items/r_item2.wav", 0.5 );
-            // }
-            break;
+        // TODO VR:
+        // case VRMenuOpt::VR_ENABLED:
+        // TODO VR: fix and restore
+        // Cvar_SetValue( "vr_enabled", ! (int)vr_enabled.value );
+        // if ( (int)vr_enabled.value ) {
+        //    VR_MenuPlaySound( "items/r_item2.wav", 0.5 );
+        // }
+        // break;
         case VRMenuOpt::VR_AIMMODE:
             intValue = (int)vr_aimmode.value;
             intValue = CLAMP(aimmode[0], isLeft ? intValue - 1 : intValue + 1,
@@ -283,9 +283,6 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_CROSSHAIRY:
             adjustF(vr_crosshairy, 0.05f, -10.0f, 10.f);
             break;
-        // TODO VR: consider restoring for custom QC?
-        // case VRMenuOpt::VR_PROJECTILESPAWN_Z_OFFSET:
-        // adjustF(vr_projectilespawn_z_offset, 0.5f, -24.0f, 24.f); break;
         case VRMenuOpt::VR_HUD_SCALE:
             adjustF(vr_hud_scale, 0.005f, 0.01f, 0.1f);
             break;
@@ -300,6 +297,9 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
             break;
         case VRMenuOpt::VR_SBAR_MODE: adjustI(vr_sbar_mode, 1, 0, 1); break;
         case VRMenuOpt::VR_VIEWKICK: adjustI(vr_viewkick, 1, 0, 1); break;
+        case VRMenuOpt::VR_MENU_DISTANCE:
+            adjustI(vr_menu_distance, 1, 24, 256);
+            break;
         default: assert(false); break;
     }
 
@@ -372,15 +372,19 @@ void M_VR_Draw()
     int idx = 0;
 
     static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
-        "VR Enabled", "Aim Mode", "Deadzone", "Crosshair", "Crosshair Depth",
+        // TODO VR:
+        // "VR Enabled",
+
+
+        "Aim Mode", "Deadzone", "Crosshair", "Crosshair Depth",
         "Crosshair Size", "Crosshair Alpha", "World Scale", "Movement mode",
         "Enable Joystick Turn", "Turn", "Turn Speed", "MSAA", "Gun Angle",
         "Floor Offset", "Gun Model Pitch", "Gun Model Scale",
         "Gun Model Z Offset", "Crosshair Z Offset",
         // TODO VR: consider restoring for custom QC?
         // "Projectile Spawn Z",
-        "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset",
-        "Status Bar Mode", "Viewkick");
+        "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset", "Status Bar Mode",
+        "Viewkick", "Menu Distance");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 

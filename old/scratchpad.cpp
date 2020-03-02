@@ -11,6 +11,7 @@
 
 // TODO VR: this kinda works in E1M1 if put inside FlyMove
 // TODO VR: test, what is this one for? How does it differ from world.cpp?
+
     auto doHandTouch = [&](vec3_t handpos, vec3_t handrot, int type) {
         vec3_t fwd, right, up, end;
         AngleVectors(handrot, fwd, right, up);
@@ -64,3 +65,39 @@
 
     doHandTouch(ent->v.handpos, ent->v.handrot, MOVE_NORMAL);
     doHandTouch(ent->v.offhandpos, ent->v.offhandrot, MOVE_NORMAL);
+
+
+
+
+void VR_Move(usercmd_t* cmd)
+{
+    if(!vr_enabled.value)
+    {
+        return;
+    }
+
+    // TODO VR: repetition of ofs calculation
+    // TODO VR: adj unused? could be used to find position of muzzle
+    //
+    /*
+    vec3_t adj;
+    _VectorCopy(cl.handpos[1], adj);
+
+    vec3_t ofs = {vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
+            vr_gunmodely.value};
+
+    vec3_t fwd2, right, up;
+    AngleVectors(cl.handrot[1], fwd2, right, up);
+    fwd2[0] *= vr_gunmodelscale.value * ofs[2];
+    fwd2[1] *= vr_gunmodelscale.value * ofs[2];
+    fwd2[2] *= vr_gunmodelscale.value * ofs[2];
+    VectorAdd(adj, fwd2, adj);
+    */
+
+    // TODO VR: not needed anymore, changing QC - what to do?
+    //
+    // vec3_t adjhandpos;
+    // VectorCopy(cl.handpos[1], adjhandpos);
+    // adjhandpos[2] -= vr_projectilespawn_z_offset.value;

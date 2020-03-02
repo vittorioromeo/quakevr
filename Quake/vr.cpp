@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include <string>
 
 #ifdef WIN32
 #define UNICODE 1
@@ -128,6 +129,8 @@ extern int glx, gly, glwidth, glheight;
 static float vrYaw;
 static bool readbackYaw;
 
+std::string vr_working_directory;
+
 vec3_t vr_viewOffset;
 glm::vec3 lastHudPosition{};
 glm::vec3 lastMenuPosition{};
@@ -145,6 +148,8 @@ static bool vr_initialized = false;
 
 static vec3_t headOrigin;
 static vec3_t lastHeadOrigin;
+static vr::HmdVector3_t headPos;
+static vr::HmdVector3_t headVelocity;
 
 vec3_t vr_room_scale_move;
 
@@ -183,8 +188,6 @@ DEFINE_CVAR(vr_gunangle, 32, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodelpitch, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodelscale, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_gunmodely, 0, CVAR_ARCHIVE);
-// TODO VR: consider restoring for custom QC?
-// DEFINE_CVAR(vr_projectilespawn_z_offset, 24, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_crosshairy, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_world_scale, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_floor_offset, -16, CVAR_ARCHIVE);
@@ -193,11 +196,6 @@ DEFINE_CVAR(vr_enable_joystick_turn, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_turn_speed, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_msaa, 4, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_movement_mode, 0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_yaw_multi, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_deadzone, 0.25, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_menu_deadzone_extra, 0.25, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_axis_exponent, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_joystick_deadzone_trunc, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hud_scale, 0.025, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_menu_scale, 0.13, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_threshold, 7, CVAR_ARCHIVE);
@@ -210,6 +208,13 @@ DEFINE_CVAR(vr_sbar_offset_z, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_pitch, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_yaw, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_roll, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_roomscale_jump, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_height_calibration, 1.6, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_roomscale_jump_threshold, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_menu_distance, 76, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_melee_dmg_multiplier, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_melee_range_multiplier, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
 
 [[nodiscard]] static bool InitOpenGLExtensions()
 {
@@ -708,6 +713,68 @@ void VR_InitGame()
     InitAllWeaponCVars();
 }
 
+// ----------------------------------------------------------------------------
+// VR Action Handles
+// ----------------------------------------------------------------------------
+
+vr::VRActiveActionSet_t vrActiveActionSet;
+vr::VRActionSetHandle_t vrashDefault;
+vr::VRActionHandle_t vrahLocomotion;
+vr::VRActionHandle_t vrahTurn;
+vr::VRActionHandle_t vrahFire;
+vr::VRActionHandle_t vrahJump;
+vr::VRActionHandle_t vrahPrevWeapon;
+vr::VRActionHandle_t vrahNextWeapon;
+vr::VRActionHandle_t vrahEscape;
+vr::VRActionHandle_t vrahSpeed;
+
+// TODO VR: implement haptic feedback
+vr::VRActionHandle_t vrahHaptic;
+
+static void VR_InitActionHandles()
+{
+    // -----------------------------------------------------------------------
+    // VR: Read "default" action set handle.
+    {
+        const auto rc = vr::VRInput()->GetActionSetHandle(
+            "/actions/default", &vrashDefault);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf(
+                "Failed to read Steam VR action set handle, rc = %d", (int)rc);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // VR: Read all action handles.
+    const auto readHandle = [](const char* name, vr::VRActionHandle_t& handle) {
+        const auto rc = vr::VRInput()->GetActionHandle(name, &handle);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf(
+                "Failed to read Steam VR action handle, rc = %d", (int)rc);
+        }
+    };
+
+    readHandle("/actions/default/in/Locomotion", vrahLocomotion);
+    readHandle("/actions/default/in/Turn", vrahTurn);
+    readHandle("/actions/default/in/Fire", vrahFire);
+    readHandle("/actions/default/in/Jump", vrahJump);
+    readHandle("/actions/default/in/PrevWeapon", vrahPrevWeapon);
+    readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
+    readHandle("/actions/default/in/Escape", vrahEscape);
+    readHandle("/actions/default/in/Speed", vrahSpeed);
+    readHandle("/actions/default/out/Haptic", vrahHaptic);
+
+    vrActiveActionSet.ulActionSet = vrashDefault;
+    vrActiveActionSet.ulRestrictedToDevice = vr::k_ulInvalidInputValueHandle;
+    vrActiveActionSet.nPriority = 0;
+}
+
+// ----------------------------------------------------------------------------
+
 bool VR_Enable()
 {
     if(vr_initialized)
@@ -720,9 +787,30 @@ bool VR_Enable()
 
     if(eInit != vr::VRInitError_None)
     {
-        Con_Printf("%s\nFailed to Initialize Steam VR",
+        Con_Printf("%s\nFailed to initialize Steam VR",
             VR_GetVRInitErrorAsEnglishDescription(eInit));
         return false;
+    }
+
+    {
+        static std::string manifestPath =
+            vr_working_directory + "/actions.json";
+
+        Con_Printf(
+            "Set Steam VR action manifest path to: '%s'", manifestPath.c_str());
+
+        const auto rc =
+            vr::VRInput()->SetActionManifestPath(manifestPath.c_str());
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf(
+                "Failed to read Steam VR action manifest, rc = %d", (int)rc);
+        }
+        else
+        {
+            VR_InitActionHandles();
+        }
     }
 
     if(!InitOpenGLExtensions())
@@ -879,6 +967,9 @@ static void RenderScreenForCurrentEye_OVR()
 
 void SetHandPos(int index, entity_t* player)
 {
+    // -----------------------------------------------------------------------
+    // VR: Figure out position of hand controllers in the game world.
+
     vec3_t headLocalPreRot;
     _VectorSubtract(controllers[index].position, headOrigin, headLocalPreRot);
 
@@ -888,36 +979,52 @@ void SetHandPos(int index, entity_t* player)
 
     vec3_t finalPre, finalVec;
 
+    const auto handZOrigin =
+        player->origin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
+
     finalPre[0] = -headLocal[0] + player->origin[0];
     finalPre[1] = -headLocal[1] + player->origin[1];
-    finalPre[2] = headLocal[2] + player->origin[2] + vr_floor_offset.value +
-                  vr_gun_z_offset.value;
+    finalPre[2] = headLocal[2] + handZOrigin;
 
-    // TODO VR:
+    // -----------------------------------------------------------------------
+    // VR: Detect & resolve hand collisions against the world or entities.
 
-    vec3_t mins{-4.f, -4.f, -4.f};
-    vec3_t maxs{4.f, 4.f, 4.f};
+    // Size of hand hitboxes.
+    vec3_t mins{-1.f, -1.f, -1.f};
+    vec3_t maxs{1.f, 1.f, 1.f};
 
-    trace_t SV_Move2(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
-        int type, edict_t* passedict);
-    // trace_t trace =
-    // SV_Move2(player->origin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
+    // Start around the upper torso, not actual center of the player.
+    vec3_t adjPlayerOrigin;
+    VectorCopy(player->origin, adjPlayerOrigin);
+    adjPlayerOrigin[2] = handZOrigin + 40;
 
-    // TODO VR: collide with entities
-    vec3_t dummy;
-    trace_t trace = TraceLine(player->origin, finalPre, dummy);
+    // Trace from upper torso to desired final location. `SV_Move` detects
+    // entities as well, not just geometry.
+    const trace_t trace =
+        SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
 
-    const auto orig = quake::util::toVec3(player->origin);
+    // Origin of the trace.
+    const auto orig = quake::util::toVec3(adjPlayerOrigin);
+
+    // Final position before collision resolution.
     const auto pre = quake::util::toVec3(finalPre);
+
+    // Final position after full collision resolution.
     const auto crop = quake::util::toVec3(trace.endpos);
 
-    if(glm::length(pre - orig) < glm::length(crop - orig))
+    // Compute final collision resolution position, starting from the desired
+    // position and resolving only against the collision plane's normal vector.
+    VectorCopy(finalPre, finalVec);
+    if(glm::length(pre - orig) >= glm::length(crop - orig))
     {
         VectorCopy(finalPre, finalVec);
-    }
-    else
-    {
-        VectorCopy(trace.endpos, finalVec);
+        for(int i = 0; i < 3; ++i)
+        {
+            if(trace.plane.normal[i] != 0)
+            {
+                finalVec[i] = trace.endpos[i];
+            }
+        }
     }
 
     // handpos
@@ -940,7 +1047,11 @@ void SetHandPos(int index, entity_t* player)
     VectorCopy(controllers[index].velocity, cl.handvel[index]);
 
     // handvelmag
-    // TODO VR: document
+    // VR: This helps direct punches being registered. This calculation works
+    // because the controller velocity is always absolute (not oriented where
+    // the player is looking).
+    // TODO VR: this still needs to be oriented to the headset's rotation,
+    // otherwise diagonal punches will still not register.
     const auto length = VectorLength(controllers[index].velocity);
     const auto bestSingle = std::max({std::abs(controllers[index].velocity[0]),
                                 std::abs(controllers[index].velocity[1]),
@@ -948,8 +1059,6 @@ void SetHandPos(int index, entity_t* player)
                             1.75f;
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
-
-void IdentifyAxes(int device);
 
 void VR_UpdateScreenContent()
 {
@@ -984,7 +1093,9 @@ void VR_UpdateScreenContent()
             ovrHMD->GetTrackedDeviceClass(iDevice) ==
                 vr::TrackedDeviceClass_HMD)
         {
-            vr::HmdVector3_t headPos =
+            headVelocity = ovr_DevicePose->vVelocity;
+
+            headPos =
                 Matrix34ToVector(ovr_DevicePose->mDeviceToAbsoluteTracking);
             headOrigin[0] = headPos.v[2];
             headOrigin[1] = headPos.v[0];
@@ -1053,8 +1164,6 @@ void VR_UpdateScreenContent()
             if(controllerIndex != -1)
             {
                 vr_controller* controller = &controllers[controllerIndex];
-
-                IdentifyAxes(iDevice);
 
                 controller->lastState = controller->state;
                 vr::VRSystem()->GetControllerState(
@@ -1285,7 +1394,8 @@ void VR_UpdateScreenContent()
                 // BModels cannot be scaled, doesnt work
                 // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
                 // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
-                // VectorScale(testhdr->scale_origin, 0.5f, testhdr->scale_origin);
+                // VectorScale(testhdr->scale_origin, 0.5f,
+                // testhdr->scale_origin);
             }
 
             if(cl.offhand_viewent.model)
@@ -1359,6 +1469,12 @@ void VR_SetMatrices()
     glLoadMatrixf((GLfloat*)projection.m);
 }
 
+void VR_CalibrateHeight()
+{
+    const auto height = headPos.v[1];
+    Cvar_SetValue("vr_height_calibration", height);
+    Con_Printf("Calibrated height to %.2f\n", height);
+}
 
 void VR_AddOrientationToViewAngles(vec3_t angles)
 {
@@ -1555,9 +1671,7 @@ void VR_Draw2D()
         }
 
         AngleVectors(menu_angles, forward, right, up);
-
-        // TODO VR: make the distance a cvar
-        VectorMA(r_refdef.vieworg, 76, forward, target);
+        VectorMA(r_refdef.vieworg, vr_menu_distance.value, forward, target);
     }
 
     // TODO VR: control smoothing with cvar
@@ -1747,141 +1861,134 @@ void VR_ResetOrientation()
     }
 }
 
-int axisTrackpad = -1;
-int axisJoystick = -1;
-int axisTrigger = -1;
-bool identified = false;
-
-void IdentifyAxes(int device)
+struct VRAxisResult
 {
-    if(identified)
-    {
-        return;
-    }
+    float fwdMove;
+    float sideMove;
+    float yawMove;
+};
 
-    for(uint32_t i = 0; i < vr::k_unControllerStateAxisCount; i++)
-    {
-        switch(vr::VRSystem()->GetInt32TrackedDeviceProperty(device,
-            (vr::ETrackedDeviceProperty)(vr::Prop_Axis0Type_Int32 + i),
-            nullptr))
-        {
-            case vr::k_eControllerAxis_TrackPad:
-                if(axisTrackpad == -1)
-                {
-                    axisTrackpad = i;
-                }
-                break;
-            case vr::k_eControllerAxis_Joystick:
-                if(axisJoystick == -1)
-                {
-                    axisJoystick = i;
-                }
-                break;
-            case vr::k_eControllerAxis_Trigger:
-                if(axisTrigger == -1)
-                {
-                    axisTrigger = i;
-                }
-                break;
-        }
-    }
-
-    identified = true;
+[[nodiscard]] static VRAxisResult VR_GetInputAxes(
+    const vr::InputAnalogActionData_t& locomotion,
+    const vr::InputAnalogActionData_t& turn)
+{
+    return {locomotion.y, locomotion.x, turn.x};
 }
 
-float GetAxis(vr::VRControllerState_t* state, int axis, double deadzoneExtra)
+[[nodiscard]] static VRAxisResult VR_DoInput()
 {
-    float v = 0;
-
-    if(axis == 0)
     {
-        if(axisTrackpad != -1)
+        const auto rc = vr::VRInput()->UpdateActionState(
+            &vrActiveActionSet, sizeof(vr::VRActiveActionSet_t), 1);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
         {
-            v += state->rAxis[axisTrackpad].x;
+            Con_Printf(
+                "Failed to update Steam VR action state, rc = %d", (int)rc);
         }
-        if(axisJoystick != -1)
+    }
+
+    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle) {
+        vr::InputAnalogActionData_t out;
+
+        const auto rc = vr::VRInput()->GetAnalogActionData(actionHandle, &out,
+            sizeof(vr::InputAnalogActionData_t),
+            vr::k_ulInvalidInputValueHandle);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
         {
-            v += state->rAxis[axisJoystick].x;
+            Con_Printf(
+                "Failed to read Steam VR analog action data, rc = %d", (int)rc);
         }
+
+        return out;
+    };
+
+    const auto readDigitalAction =
+        [](const vr::VRActionHandle_t& actionHandle) {
+            vr::InputDigitalActionData_t out;
+
+            const auto rc = vr::VRInput()->GetDigitalActionData(actionHandle,
+                &out, sizeof(vr::InputDigitalActionData_t),
+                vr::k_ulInvalidInputValueHandle);
+
+            if(rc != vr::EVRInputError::VRInputError_None)
+            {
+                Con_Printf(
+                    "Failed to read Steam VR digital action data, rc = %d",
+                    (int)rc);
+            }
+
+            return out;
+        };
+
+    const auto inpLocomotion = readAnalogAction(vrahLocomotion);
+    const auto inpTurn = readAnalogAction(vrahTurn);
+    const auto inpFire = readDigitalAction(vrahFire);
+    const auto inpJump = readDigitalAction(vrahJump);
+    const auto inpPrevWeapon = readDigitalAction(vrahPrevWeapon);
+    const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
+    const auto inpEscape = readDigitalAction(vrahEscape);
+    const auto inpSpeed = readDigitalAction(vrahSpeed);
+
+    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
+        return data.bState && data.bChanged;
+    };
+
+    const bool mustFire = inpFire.bState;
+
+    const bool isRoomscaleJump =
+        vr_roomscale_jump.value &&
+        headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
+        headPos.v[1] > vr_height_calibration.value;
+
+    // TODO VR: make nice `Menu` class with declarative syntax
+    const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
+    const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
+    const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
+    const bool mustEscape = isRisingEdge(inpEscape);
+    const bool mustSpeed = inpSpeed.bState;
+
+    in_speed.state = mustSpeed;
+
+    if(key_dest == key_menu)
+    {
+        Key_Event(K_ENTER, mustJump);
+        Key_Event(K_ESCAPE, mustEscape);
+        Key_Event(K_LEFTARROW, mustPrevWeapon);
+        Key_Event(K_RIGHTARROW, mustNextWeapon);
+
+        const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
+            const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
+            const float val = inpLocomotion.y;
+
+            const bool posWasDown = lastVal > 0.0f;
+            const bool posDown = val > 0.0f;
+            if(posDown != posWasDown)
+            {
+                Key_Event(quakeKeyNeg, posDown);
+            }
+
+            const bool negWasDown = lastVal < 0.0f;
+            const bool negDown = val < 0.0f;
+            if(negDown != negWasDown)
+            {
+                Key_Event(quakeKeyPos, negDown);
+            }
+        };
+
+        doAxis(K_UPARROW, K_DOWNARROW);
     }
     else
     {
-        if(axisTrackpad != -1)
-        {
-            v += state->rAxis[axisTrackpad].y;
-        }
-        if(axisJoystick != -1)
-        {
-            v += state->rAxis[axisJoystick].y;
-        }
+        Key_Event(K_MOUSE1, mustFire);
+        Key_Event(K_SPACE, mustJump);
+        Key_Event(K_ESCAPE, mustEscape);
+        Key_Event('3', mustPrevWeapon);
+        Key_Event('1', mustNextWeapon);
     }
 
-    int sign = (v > 0) - (v < 0);
-    v = fabsf(v);
-
-    if(v < vr_joystick_axis_deadzone.value + deadzoneExtra)
-    {
-        return 0.0f;
-    }
-
-    if(vr_joystick_deadzone_trunc.value == 0)
-    {
-        v = (v - vr_joystick_axis_deadzone.value) /
-            (1 - vr_joystick_axis_deadzone.value);
-    }
-
-    if(vr_joystick_axis_exponent.value >= 0)
-    {
-        v = powf(v, vr_joystick_axis_exponent.value);
-    }
-
-    return sign * v;
-}
-
-void DoKey(vr_controller* controller, vr::EVRButtonId vrButton, int quakeKey)
-{
-    bool wasDown = (controller->lastState.ulButtonPressed &
-                       vr::ButtonMaskFromId(vrButton)) != 0;
-    bool isDown = (controller->state.ulButtonPressed &
-                      vr::ButtonMaskFromId(vrButton)) != 0;
-    if(isDown != wasDown)
-    {
-        Key_Event(quakeKey, isDown);
-    }
-}
-
-void DoTrigger(vr_controller* controller, int quakeKey)
-{
-    if(axisTrigger != -1)
-    {
-        bool triggerWasDown = controller->lastState.rAxis[axisTrigger].x > 0.5f;
-        bool triggerDown = controller->state.rAxis[axisTrigger].x > 0.5f;
-        if(triggerDown != triggerWasDown)
-        {
-            Key_Event(quakeKey, triggerDown);
-        }
-    }
-}
-
-void DoAxis(vr_controller* controller, int axis, int quakeKeyNeg,
-    int quakeKeyPos, double deadzoneExtra)
-{
-    float lastVal = GetAxis(&controller->lastState, axis, deadzoneExtra);
-    float val = GetAxis(&controller->state, axis, deadzoneExtra);
-
-    bool posWasDown = lastVal > 0.0f;
-    bool posDown = val > 0.0f;
-    if(posDown != posWasDown)
-    {
-        Key_Event(quakeKeyPos, posDown);
-    }
-
-    bool negWasDown = lastVal < 0.0f;
-    bool negDown = val < 0.0f;
-    if(negDown != negWasDown)
-    {
-        Key_Event(quakeKeyNeg, negDown);
-    }
+    return VR_GetInputAxes(inpLocomotion, inpTurn);
 }
 
 void VR_Move(usercmd_t* cmd)
@@ -1891,186 +1998,111 @@ void VR_Move(usercmd_t* cmd)
         return;
     }
 
-    // TODO VR: repetition of ofs calculation
-    // TODO VR: adj unused? could be used to find position of muzzle
-    //
-    /*
-    vec3_t adj;
-    _VectorCopy(cl.handpos[1], adj);
-
-    vec3_t ofs = {vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
-            vr_gunmodely.value};
-
-    vec3_t fwd2, right, up;
-    AngleVectors(cl.handrot[1], fwd2, right, up);
-    fwd2[0] *= vr_gunmodelscale.value * ofs[2];
-    fwd2[1] *= vr_gunmodelscale.value * ofs[2];
-    fwd2[2] *= vr_gunmodelscale.value * ofs[2];
-    VectorAdd(adj, fwd2, adj);
-    */
-
-    // TODO VR: not needed anymore, changing QC - what to do?
-    //
-    // vec3_t adjhandpos;
-    // VectorCopy(cl.handpos[1], adjhandpos);
-    // adjhandpos[2] -= vr_projectilespawn_z_offset.value;
-
-    // main hand: handpos, handrot, handvel, handvelmag
+    // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`.
     VectorCopy(cl.handpos[1], cmd->handpos);
     VectorCopy(cl.handrot[1], cmd->handrot);
     VectorCopy(cl.handvel[1], cmd->handvel);
     cmd->handvelmag = cl.handvelmag[1];
 
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
+    // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`.
     VectorCopy(cl.handpos[0], cmd->offhandpos);
     VectorCopy(cl.handrot[0], cmd->offhandrot);
     VectorCopy(cl.handvel[0], cmd->offhandvel);
     cmd->offhandvelmag = cl.handvelmag[0];
 
-    // TODO VR:
-    /*
-    if(cmd->offhandvelmag > 4) {
-        Con_Printf("%.2f %.2f %.2f -> %.2f\n",
-        controllers[0].velocity[0],
-        controllers[0].velocity[1],
-        controllers[0].velocity[2],
-        cl.handvelmag[0]);
-    }
-    */
+    // VR: Buttons and instant controller actions.
+    // VR: Query state of controller axes.
+    const auto [fwdMove, sideMove, yawMove] = VR_DoInput();
 
-    DoTrigger(&controllers[0], K_SPACE);
-
-    // TODO VR: what to do with grips?
-    // DoKey(&controllers[0], vr::k_EButton_Grip, K_MWHEELUP);
-    // DoKey(&controllers[1], vr::k_EButton_Grip, K_MWHEELDOWN);
-
-    DoKey(&controllers[0], vr::k_EButton_SteamVR_Touchpad, K_SHIFT);
-    DoKey(&controllers[1], vr::k_EButton_SteamVR_Touchpad, K_ALT);
-
-    DoKey(&controllers[0], vr::k_EButton_ApplicationMenu, '1');
-    DoKey(&controllers[0], vr::k_EButton_A, '2');
-    DoKey(&controllers[1], vr::k_EButton_A, '3');
-
-    DoKey(&controllers[1], vr::k_EButton_ApplicationMenu, K_ESCAPE);
     if(key_dest == key_menu)
     {
-        for(int i = 0; i < 2; i++)
-        {
-            DoAxis(&controllers[i], 0, K_LEFTARROW, K_RIGHTARROW,
-                vr_joystick_axis_menu_deadzone_extra.value);
-            DoAxis(&controllers[i], 1, K_DOWNARROW, K_UPARROW,
-                vr_joystick_axis_menu_deadzone_extra.value);
-            DoTrigger(&controllers[i], K_ENTER);
-        }
+        return;
+    }
+
+    vec3_t lfwd;
+    vec3_t lright;
+    vec3_t lup;
+    AngleVectors(cl.handrot[0], lfwd, lright, lup);
+
+    if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
+    {
+        cmd->forwardmove += cl_forwardspeed.value * fwdMove;
+        cmd->sidemove += cl_forwardspeed.value * sideMove;
     }
     else
     {
-        DoTrigger(&controllers[1], K_MOUSE1);
+        vec3_t playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
 
-        vec3_t lfwd;
+        vec3_t vfwd;
+        vec3_t vright;
+        vec3_t vup;
+        AngleVectors(playerYawOnly, vfwd, vright, vup);
 
-        vec3_t lright;
-
-        vec3_t lup;
-        AngleVectors(cl.handrot[0], lfwd, lright, lup);
-
-        if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
+        // avoid gimbal by using up if we are point up/down
+        if(fabsf(lfwd[2]) > 0.8f)
         {
-            cmd->forwardmove +=
-                cl_forwardspeed.value * GetAxis(&controllers[0].state, 1, 0.0);
-
-            cmd->sidemove +=
-                cl_forwardspeed.value * GetAxis(&controllers[0].state, 0, 0.0);
-        }
-        else
-        {
-            vec3_t vfwd;
-
-            vec3_t vright;
-
-            vec3_t vup;
-            vec3_t playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
-
-            AngleVectors(playerYawOnly, vfwd, vright, vup);
-
-            // avoid gimbal by using up if we are point up/down
-            if(fabsf(lfwd[2]) > 0.8f)
+            if(lfwd[2] < -0.8f)
             {
-                if(lfwd[2] < -0.8f)
-                {
-                    lfwd[0] *= -1;
-                    lfwd[1] *= -1;
-                    lfwd[2] *= -1;
-                }
-                else
-                {
-                    lup[0] *= -1;
-                    lup[1] *= -1;
-                    lup[2] *= -1;
-                }
-
-                VectorSwap(lup, lfwd);
-            }
-
-            // Scale up directions so tilting doesn't affect speed
-            float fac = 1.0f / lup[2];
-            for(int i = 0; i < 3; i++)
-            {
-                lfwd[i] *= fac;
-                lright[i] *= fac;
-            }
-
-            vec3_t move = {0, 0, 0};
-            VectorMA(move, GetAxis(&controllers[0].state, 1, 0.0), lfwd, move);
-            VectorMA(
-                move, GetAxis(&controllers[0].state, 0, 0.0), lright, move);
-
-            float fwd = DotProduct(move, vfwd);
-            float right = DotProduct(move, vright);
-
-            // Quake run doesn't affect the value of cl_sidespeed.value, so
-            // just use forward speed here for consistency
-            cmd->forwardmove += cl_forwardspeed.value * fwd;
-            cmd->sidemove += cl_forwardspeed.value * right;
-        }
-
-        AngleVectors(cl.handrot[0], lfwd, lright, lup);
-        cmd->upmove +=
-            cl_upspeed.value * GetAxis(&controllers[0].state, 1, 0.0) * lfwd[2];
-
-        if(cl_forwardspeed.value > 200 && cl_movespeedkey.value)
-        {
-            cmd->forwardmove /= cl_movespeedkey.value;
-        }
-        if((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
-        {
-            cmd->forwardmove *= cl_movespeedkey.value;
-            cmd->sidemove *= cl_movespeedkey.value;
-            cmd->upmove *= cl_movespeedkey.value;
-        }
-
-        if(vr_enable_joystick_turn.value == 1)
-        {
-            const float yawMove = GetAxis(&controllers[1].state, 0, 0.0);
-
-            if(vr_snap_turn.value != 0)
-            {
-                static int lastSnap = 0;
-                int snap = yawMove > 0.0f ? 1 : yawMove < 0.0f ? -1 : 0;
-                if(snap != lastSnap)
-                {
-                    vrYaw -= snap * vr_snap_turn.value;
-                    lastSnap = snap;
-                }
+                lfwd[0] *= -1;
+                lfwd[1] *= -1;
+                lfwd[2] *= -1;
             }
             else
             {
-                vrYaw -= (yawMove * host_frametime * 100.0f *
-                             vr_joystick_yaw_multi.value) *
-                         vr_turn_speed.value;
+                lup[0] *= -1;
+                lup[1] *= -1;
+                lup[2] *= -1;
             }
+
+            VectorSwap(lup, lfwd);
+        }
+
+        // Scale up directions so tilting doesn't affect speed
+        float fac = 1.0f / lup[2];
+        for(int i = 0; i < 3; i++)
+        {
+            lfwd[i] *= fac;
+            lright[i] *= fac;
+        }
+
+        vec3_t move = {0, 0, 0};
+        VectorMA(move, fwdMove, lfwd, move);
+        VectorMA(move, sideMove, lright, move);
+
+        const float fwd = DotProduct(move, vfwd);
+        const float right = DotProduct(move, vright);
+
+        // Quake run doesn't affect the value of cl_sidespeed.value, so
+        // just use forward speed here for consistency
+        cmd->forwardmove += cl_forwardspeed.value * fwd;
+        cmd->sidemove += cl_forwardspeed.value * right;
+    }
+
+    AngleVectors(cl.handrot[0], lfwd, lright, lup);
+    cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
+
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
+    {
+        cmd->forwardmove *= cl_movespeedkey.value;
+        cmd->sidemove *= cl_movespeedkey.value;
+        cmd->upmove *= cl_movespeedkey.value;
+    }
+
+    if(vr_enable_joystick_turn.value == 1)
+    {
+        if(vr_snap_turn.value != 0)
+        {
+            static int lastSnap = 0;
+            int snap = yawMove > 0.0f ? 1 : yawMove < 0.0f ? -1 : 0;
+            if(snap != lastSnap)
+            {
+                vrYaw -= snap * vr_snap_turn.value;
+                lastSnap = snap;
+            }
+        }
+        else
+        {
+            vrYaw -= (yawMove * host_frametime * 100.0f) * vr_turn_speed.value;
         }
     }
 }
