@@ -2,7 +2,10 @@
 
 enum class VRGameplayMenuOpt
 {
-    e_Melee_Threshold,
+    e_MeleeThreshold,
+    e_RoomscaleJump,
+    e_RoomscaleJumpThreshold,
+    e_CalibrateHeight,
 
     k_Max
 };

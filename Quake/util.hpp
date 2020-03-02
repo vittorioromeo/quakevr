@@ -60,7 +60,10 @@ namespace quake::util
     template <typename... Ts>
     [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
     {
-        return std::array{(std::string(24 - strlen(labels), ' ') + labels)...};
+        constexpr auto maxLen = 25;
+
+        assert(((strlen(labels) <= maxLen) && ...));
+        return std::array{(std::string(maxLen - strlen(labels), ' ') + labels)...};
     }
 
     [[nodiscard]] constexpr bool boxIntersection(const vec3_t& aMin,

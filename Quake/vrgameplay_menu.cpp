@@ -33,8 +33,17 @@ static void VRGameplay_MenuPrintOptionValue(
 
     switch(option)
     {
-        case VRGameplayMenuOpt::e_Melee_Threshold:
+        case VRGameplayMenuOpt::e_MeleeThreshold:
             printAsStr(vr_melee_threshold);
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJump:
+            M_Print(cx, cy, vr_roomscale_jump.value == 0 ? "Off" : "On");
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJumpThreshold:
+            printAsStr(vr_roomscale_jump_threshold);
+            break;
+        case VRGameplayMenuOpt::e_CalibrateHeight:
+            printAsStr(vr_height_calibration);
             break;
         default: assert(false); break;
     }
@@ -55,11 +64,25 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
     };
 
+    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
+                             auto max) {
+        Cvar_SetValue(cvar.name,
+            (int)CLAMP(
+                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
+    };
+
     switch(option)
     {
-        case VRGameplayMenuOpt::e_Melee_Threshold:
+        case VRGameplayMenuOpt::e_MeleeThreshold:
             adjustF(vr_melee_threshold, 0.5f, 4.f, 18.f);
             break;
+        case VRGameplayMenuOpt::e_RoomscaleJump:
+            adjustI(vr_roomscale_jump, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_RoomscaleJumpThreshold:
+            adjustF(vr_roomscale_jump_threshold, 0.05f, 0.05f, 3.f);
+            break;
+        case VRGameplayMenuOpt::e_CalibrateHeight: VR_CalibrateHeight(); break;
         default: assert(false); break;
     }
 }
@@ -131,7 +154,8 @@ void M_VRGameplay_Draw()
     int idx = 0;
 
     static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Melee Threshold");
+        quake::util::makeAdjustedMenuLabels("Melee Threshold", "Roomscale Jump",
+            "Roomscale Jump Threshold", "Calibrate Height");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

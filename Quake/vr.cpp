@@ -145,6 +145,7 @@ static bool vr_initialized = false;
 
 static vec3_t headOrigin;
 static vec3_t lastHeadOrigin;
+static vr::HmdVector3_t headPos;
 static vr::HmdVector3_t headVelocity;
 
 vec3_t vr_room_scale_move;
@@ -204,6 +205,9 @@ DEFINE_CVAR(vr_sbar_offset_z, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_pitch, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_yaw, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_sbar_offset_roll, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_roomscale_jump, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_height_calibration, 1.6, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_roomscale_jump_threshold, 1.0, CVAR_ARCHIVE);
 
 [[nodiscard]] static bool InitOpenGLExtensions()
 {
@@ -1053,7 +1057,7 @@ void VR_UpdateScreenContent()
         {
             headVelocity = ovr_DevicePose->vVelocity;
 
-            vr::HmdVector3_t headPos =
+            headPos =
                 Matrix34ToVector(ovr_DevicePose->mDeviceToAbsoluteTracking);
             headOrigin[0] = headPos.v[2];
             headOrigin[1] = headPos.v[0];
@@ -1427,6 +1431,12 @@ void VR_SetMatrices()
     glLoadMatrixf((GLfloat*)projection.m);
 }
 
+void VR_CalibrateHeight()
+{
+    const auto height = headPos.v[1];
+    Cvar_SetValue("vr_height_calibration", height);
+    Con_Printf("Calibrated height to %.2f\n", height);
+}
 
 void VR_AddOrientationToViewAngles(vec3_t angles)
 {
@@ -1890,11 +1900,12 @@ struct VRAxisResult
 
     const bool mustFire = inpFire.bState;
 
-    // TODO VR: this works, but needs a height check
-    // (to avoid jumping after crouching) and a CVar to control it
+    const bool isRoomscaleJump = vr_roomscale_jump.value &&
+                                 headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
+                                 headPos.v[1] > vr_height_calibration.value;
 
     // TODO VR: make nice `Menu` class with declarative syntax
-    const bool mustJump = isRisingEdge(inpJump) || headVelocity.v[1] > 1.f;
+    const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
     const bool mustEscape = isRisingEdge(inpEscape);
