@@ -651,7 +651,7 @@ void R_SetupAliasLighting(entity_t* e)
     }
 
     // minimum light value on gun (24)
-    if(e == &cl.viewent)
+    if(e == &cl.viewent || e == &cl.offhand_viewent)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)

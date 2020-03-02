@@ -926,7 +926,6 @@ qboolean SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     return false;
 }
 
-
 /*
 ==================
 SV_ClipMoveToEntity
@@ -956,48 +955,6 @@ trace_t SV_ClipMoveToEntity(
     VectorSubtract(end, offset, end_l);
 
     // trace a line through the apropriate clipping hull
-    SV_RecursiveHullCheck(
-        hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
-
-    // fix trace up by the offset
-    if(trace.fraction != 1)
-    {
-        VectorAdd(trace.endpos, offset, trace.endpos);
-    }
-
-    // did we clip the move?
-    if(trace.fraction < 1 || trace.startsolid)
-    {
-        trace.ent = ent;
-    }
-
-    return trace;
-}
-
-// TODO VR:
-trace_t SV_ClipMoveToEntity2(
-    edict_t* ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end)
-{
-    vec3_t offset;
-    vec3_t start_l;
-    vec3_t end_l;
-
-    // fill in a default trace
-    trace_t trace;
-    memset(&trace, 0, sizeof(trace_t));
-    trace.fraction = 1;
-    trace.allsolid = true;
-    VectorCopy(end, trace.endpos);
-
-    // get the clipping hull
-    hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
-
-    VectorSubtract(start, offset, start_l);
-    VectorSubtract(end, offset, end_l);
-
-    // trace a line through the apropriate clipping hull
-    // SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0, 1, start, end,
-    // &clip.trace);
     SV_RecursiveHullCheck(
         hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
 
@@ -1213,34 +1170,3 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
     return clip.trace;
 }
 
-// TODO VR:
-trace_t SV_Move2(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
-    edict_t* passedict)
-{
-    moveclip_t clip;
-    memset(&clip, 0, sizeof(moveclip_t));
-
-    // clip to world
-    // SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0, 1, start, end,
-    // &clip.trace);
-    clip.trace = SV_ClipMoveToEntity2(sv.edicts, start, mins, maxs, end);
-
-    clip.start = start;
-    clip.end = end;
-    clip.mins = mins;
-    clip.maxs = maxs;
-    clip.type = type;
-    clip.passedict = passedict;
-
-    VectorCopy(mins, clip.mins2);
-    VectorCopy(maxs, clip.maxs2);
-
-    // create the bounding box of the entire move
-    SV_MoveBounds(
-        start, clip.mins2, clip.maxs2, end, clip.boxmins, clip.boxmaxs);
-
-    // clip to entities
-    SV_ClipToLinks(sv_areanodes, &clip);
-
-    return clip.trace;
-}

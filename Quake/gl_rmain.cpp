@@ -981,28 +981,25 @@ void R_ShowTris()
             }
         }
 
-        // viewmodel
-        currententity = &cl.viewent;
-        if(r_drawviewmodel.value && !chase_active.value &&
-            cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
-            currententity->model && currententity->model->type == mod_alias)
-        {
-            glDepthRange(0, 0.3);
-            R_DrawAliasModel_ShowTris(currententity);
-            glDepthRange(0, 1);
-        }
+        const auto doViewmodel =
+            [&](entity_t* ent) {
+            currententity = ent;
+            if (r_drawviewmodel.value && !chase_active.value &&
+                cl.stats[STAT_HEALTH] > 0 &&
+                !(cl.items & IT_INVISIBILITY) && currententity->model &&
+                currententity->model->type == mod_alias)
+            {
+                glDepthRange(0, 0.3);
+                R_DrawAliasModel_ShowTris(currententity);
+                glDepthRange(0, 1);
+            }
+        };
 
-        // TODO VR: not needed?
+        // viewmodel
+        doViewmodel(&cl.viewent);
+
         // offhand viewmodel
-        /*    currententity = &cl.offhand_viewent;
-           if(r_drawviewmodel.value && !chase_active.value &&
-               cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
-               currententity->model && currententity->model->type == mod_alias)
-           {
-               glDepthRange(0, 0.3);
-               R_DrawAliasModel_ShowTris(currententity);
-               glDepthRange(0, 1);
-           } */
+        doViewmodel(&cl.offhand_viewent);
     }
 
     if(r_particles.value)

@@ -953,6 +953,9 @@ static void RenderScreenForCurrentEye_OVR()
 
 void SetHandPos(int index, entity_t* player)
 {
+    // -----------------------------------------------------------------------
+    // VR: Figure out position of hand controllers in the game world.
+
     vec3_t headLocalPreRot;
     _VectorSubtract(controllers[index].position, headOrigin, headLocalPreRot);
 
@@ -962,36 +965,52 @@ void SetHandPos(int index, entity_t* player)
 
     vec3_t finalPre, finalVec;
 
+    const auto handZOrigin =
+        player->origin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
+
     finalPre[0] = -headLocal[0] + player->origin[0];
     finalPre[1] = -headLocal[1] + player->origin[1];
-    finalPre[2] = headLocal[2] + player->origin[2] + vr_floor_offset.value +
-                  vr_gun_z_offset.value;
+    finalPre[2] = headLocal[2] + handZOrigin;
 
-    // TODO VR:
+    // -----------------------------------------------------------------------
+    // VR: Detect & resolve hand collisions against the world or entities.
 
-    vec3_t mins{-4.f, -4.f, -4.f};
-    vec3_t maxs{4.f, 4.f, 4.f};
+    // Size of hand hitboxes.
+    vec3_t mins{-1.f, -1.f, -1.f};
+    vec3_t maxs{1.f, 1.f, 1.f};
 
-    trace_t SV_Move2(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
-        int type, edict_t* passedict);
-    // trace_t trace =
-    // SV_Move2(player->origin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
+    // Start around the upper torso, not actual center of the player.
+    vec3_t adjPlayerOrigin;
+    VectorCopy(player->origin, adjPlayerOrigin);
+    adjPlayerOrigin[2] = handZOrigin + 40;
 
-    // TODO VR: collide with entities
-    vec3_t dummy;
-    trace_t trace = TraceLine(player->origin, finalPre, dummy);
+    // Trace from upper torso to desired final location. `SV_Move` detects
+    // entities as well, not just geometry.
+    const trace_t trace =
+        SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
 
-    const auto orig = quake::util::toVec3(player->origin);
+    // Origin of the trace.
+    const auto orig = quake::util::toVec3(adjPlayerOrigin);
+
+    // Final position before collision resolution.
     const auto pre = quake::util::toVec3(finalPre);
+
+    // Final position after full collision resolution.
     const auto crop = quake::util::toVec3(trace.endpos);
 
-    if(glm::length(pre - orig) < glm::length(crop - orig))
+    // Compute final collision resolution position, starting from the desired
+    // position and resolving only against the collision plane's normal vector.
+    VectorCopy(finalPre, finalVec);
+    if(glm::length(pre - orig) >= glm::length(crop - orig))
     {
         VectorCopy(finalPre, finalVec);
-    }
-    else
-    {
-        VectorCopy(trace.endpos, finalVec);
+        for(int i = 0; i < 3; ++i)
+        {
+            if(trace.plane.normal[i] != 0)
+            {
+                finalVec[i] = trace.endpos[i];
+            }
+        }
     }
 
     // handpos
@@ -1017,6 +1036,8 @@ void SetHandPos(int index, entity_t* player)
     // VR: This helps direct punches being registered. This calculation works
     // because the controller velocity is always absolute (not oriented where
     // the player is looking).
+    // TODO VR: this still needs to be oriented to the headset's rotation,
+    // otherwise diagonal punches will still not register.
     const auto length = VectorLength(controllers[index].velocity);
     const auto bestSingle = std::max({std::abs(controllers[index].velocity[0]),
                                 std::abs(controllers[index].velocity[1]),
