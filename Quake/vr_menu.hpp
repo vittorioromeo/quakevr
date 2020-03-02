@@ -2,7 +2,8 @@
 
 enum class VRMenuOpt
 {
-    VR_ENABLED,
+    // TODO VR:
+    // VR_ENABLED,
 
     VR_AIMMODE,
     VR_DEADZONE,
