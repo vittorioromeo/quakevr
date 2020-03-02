@@ -145,6 +145,7 @@ static bool vr_initialized = false;
 
 static vec3_t headOrigin;
 static vec3_t lastHeadOrigin;
+static vr::HmdVector3_t headVelocity;
 
 vec3_t vr_room_scale_move;
 
@@ -1050,6 +1051,8 @@ void VR_UpdateScreenContent()
             ovrHMD->GetTrackedDeviceClass(iDevice) ==
                 vr::TrackedDeviceClass_HMD)
         {
+            headVelocity = ovr_DevicePose->vVelocity;
+
             vr::HmdVector3_t headPos =
                 Matrix34ToVector(ovr_DevicePose->mDeviceToAbsoluteTracking);
             headOrigin[0] = headPos.v[2];
@@ -1886,7 +1889,12 @@ struct VRAxisResult
     };
 
     const bool mustFire = inpFire.bState;
-    const bool mustJump = isRisingEdge(inpJump);
+
+    // TODO VR: this works, but needs a height check
+    // (to avoid jumping after crouching) and a CVar to control it
+
+    // TODO VR: make nice `Menu` class with declarative syntax
+    const bool mustJump = isRisingEdge(inpJump) || headVelocity.v[1] > 1.f;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
     const bool mustEscape = isRisingEdge(inpEscape);
