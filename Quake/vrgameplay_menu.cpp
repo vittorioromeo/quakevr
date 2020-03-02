@@ -54,6 +54,12 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_BodyInteractions:
             M_Print(cx, cy, vr_body_interactions.value == 0 ? "Off" : "On");
             break;
+        case VRGameplayMenuOpt::e_ForwardSpeed:
+            printAsStr(cl_forwardspeed);
+            break;
+        case VRGameplayMenuOpt::e_SpeedBtnMultiplier:
+            printAsStr(cl_movespeedkey);
+            break;
         default: assert(false); break;
     }
 
@@ -100,6 +106,12 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_BodyInteractions:
             adjustI(vr_body_interactions, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_ForwardSpeed:
+            adjustI(cl_forwardspeed, 25, 100, 400);
+            break;
+        case VRGameplayMenuOpt::e_SpeedBtnMultiplier:
+            adjustF(cl_movespeedkey, 0.05f, 0.1f, 1.f);
             break;
         default: assert(false); break;
     }
@@ -174,7 +186,7 @@ void M_VRGameplay_Draw()
     static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
         "Melee Threshold", "Roomscale Jump", "Roomscale Jump Threshold",
         "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
-        "Body-Item Interactions");
+        "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

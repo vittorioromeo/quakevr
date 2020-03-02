@@ -9,6 +9,8 @@ enum class VRGameplayMenuOpt
     e_MeleeDmgMultiplier,
     e_MeleeRangeMultiplier,
     e_BodyInteractions,
+    e_ForwardSpeed,
+    e_SpeedBtnMultiplier,
 
     k_Max
 };

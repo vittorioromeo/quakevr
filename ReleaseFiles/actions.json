@@ -29,6 +29,10 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/Speed",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/out/Haptic",
             "type": "vibration"
         }
@@ -55,6 +59,7 @@
             "/actions/default/in/PrevWeapon": "Previous Weapon",
             "/actions/default/in/NextWeapon": "Next Weapon",
             "/actions/default/in/Escape": "Escape",
+            "/actions/default/in/Speed": "Speed Modifier",
             "/actions/default/out/Haptic": "Haptic"
         }
     ]

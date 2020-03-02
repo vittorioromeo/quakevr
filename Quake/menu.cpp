@@ -1101,7 +1101,7 @@ enum
 {
     ALWAYSRUN_OFF = 0,
     ALWAYSRUN_VANILLA,
-    ALWAYSRUN_QUAKESPASM,
+    // ALWAYSRUN_QUAKESPASM,
     ALWAYSRUN_ITEMS
 };
 
@@ -1120,7 +1120,8 @@ void M_Menu_Options_f()
 
 void M_AdjustSliders(int dir)
 {
-    int curr_alwaysrun;
+    // TODO VR:
+    // int curr_alwaysrun;
 
     int target_alwaysrun;
     float f;
@@ -1235,39 +1236,36 @@ void M_AdjustSliders(int dir)
             break;
 
         case OPT_ALWAYRUN: // always run
-            if(cl_alwaysrun.value)
+            // TODO VR:
+            /*if(cl_alwaysrun.value)
             {
                 curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
             }
-            else if(cl_forwardspeed.value > 200)
+            else */
+            /*if(cl_forwardspeed.value > 200)
             {
                 curr_alwaysrun = ALWAYSRUN_VANILLA;
             }
             else
             {
                 curr_alwaysrun = ALWAYSRUN_OFF;
-            }
+            }*/
 
             target_alwaysrun =
-                (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
+                (ALWAYSRUN_ITEMS + (int)cl_alwaysrun.value + dir) %
+                ALWAYSRUN_ITEMS;
 
             if(target_alwaysrun == ALWAYSRUN_VANILLA)
             {
-                Cvar_SetValue("cl_alwaysrun", 0);
-                Cvar_SetValue("cl_forwardspeed", 400);
-                Cvar_SetValue("cl_backspeed", 400);
-            }
-            else if(target_alwaysrun == ALWAYSRUN_QUAKESPASM)
-            {
                 Cvar_SetValue("cl_alwaysrun", 1);
-                Cvar_SetValue("cl_forwardspeed", 200);
-                Cvar_SetValue("cl_backspeed", 200);
             }
+            // TODO VR:
+            // else if(target_alwaysrun == ALWAYSRUN_QUAKESPASM)
+            // {
+            // }
             else // ALWAYSRUN_OFF
             {
                 Cvar_SetValue("cl_alwaysrun", 0);
-                Cvar_SetValue("cl_forwardspeed", 200);
-                Cvar_SetValue("cl_backspeed", 200);
             }
             break;
 
@@ -1404,11 +1402,7 @@ void M_Options_Draw()
     M_Print(16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
     if(cl_alwaysrun.value)
     {
-        M_Print(220, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
-    }
-    else if(cl_forwardspeed.value > 200.0)
-    {
-        M_Print(220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
+        M_Print(220, 32 + 8 * OPT_ALWAYRUN, "on");
     }
     else
     {

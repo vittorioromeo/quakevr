@@ -723,6 +723,9 @@ vr::VRActionHandle_t vrahJump;
 vr::VRActionHandle_t vrahPrevWeapon;
 vr::VRActionHandle_t vrahNextWeapon;
 vr::VRActionHandle_t vrahEscape;
+vr::VRActionHandle_t vrahSpeed;
+
+// TODO VR: implement haptic feedback
 vr::VRActionHandle_t vrahHaptic;
 
 static void VR_InitActionHandles()
@@ -759,6 +762,7 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/PrevWeapon", vrahPrevWeapon);
     readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
     readHandle("/actions/default/in/Escape", vrahEscape);
+    readHandle("/actions/default/in/Speed", vrahSpeed);
     readHandle("/actions/default/out/Haptic", vrahHaptic);
 
     vrActiveActionSet.ulActionSet = vrashDefault;
@@ -788,7 +792,7 @@ bool VR_Enable()
     {
         // TODO VR: hardcoded path
         const auto rc = vr::VRInput()->SetActionManifestPath(
-            "F:/stuf/quakevr/Windows/VisualStudio/Build-quakespasm-sdl2/x64/"
+            "C:/OHWorkspace/quakevr/Windows/VisualStudio/Build-quakespasm-sdl2/x64/"
             "Debug/actions.json");
 
         if(rc != vr::EVRInputError::VRInputError_None)
@@ -1918,6 +1922,7 @@ struct VRAxisResult
     const auto inpPrevWeapon = readDigitalAction(vrahPrevWeapon);
     const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
     const auto inpEscape = readDigitalAction(vrahEscape);
+    const auto inpSpeed = readDigitalAction(vrahSpeed);
 
     const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
         return data.bState && data.bChanged;
@@ -1935,6 +1940,9 @@ struct VRAxisResult
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
     const bool mustEscape = isRisingEdge(inpEscape);
+    const bool mustSpeed = inpSpeed.bState;
+
+    in_speed.state = mustSpeed;
 
     if(key_dest == key_menu)
     {
@@ -2066,13 +2074,7 @@ void VR_Move(usercmd_t* cmd)
     AngleVectors(cl.handrot[0], lfwd, lright, lup);
     cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
 
-    if(cl_forwardspeed.value > 200 && cl_movespeedkey.value)
-    {
-        cmd->forwardmove /= cl_movespeedkey.value;
-    }
-
-    if((cl_forwardspeed.value > 200) ^ (in_speed.state & 1) ^
-        (cl_alwaysrun.value != 0.0))
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
     {
         cmd->forwardmove *= cl_movespeedkey.value;
         cmd->sidemove *= cl_movespeedkey.value;

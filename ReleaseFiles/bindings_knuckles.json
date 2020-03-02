@@ -1,92 +1,101 @@
 {
-    "action_manifest_version": 0,
-    "alias_info": {},
-    "bindings": {
-        "/actions/default": {
-            "chords": [],
-            "haptics": [
-                {
-                    "output": "/actions/default/out/Haptic",
-                    "path": "/user/hand/left/output/haptic"
-                },
-                {
-                    "output": "/actions/default/out/Haptic",
-                    "path": "/user/hand/right/output/haptic"
-                }
-            ],
-            "poses": [],
-            "skeleton": [],
-            "sources": [
-                {
-                    "inputs": {
-                        "position": {
-                            "output": "/actions/default/in/Locomotion"
-                        }
-                    },
-                    "mode": "joystick",
-                    "path": "/user/hand/left/input/thumbstick"
-                },
-                {
-                    "inputs": {
-                        "position": {
-                            "output": "/actions/default/in/Turn"
-                        }
-                    },
-                    "mode": "joystick",
-                    "path": "/user/hand/right/input/thumbstick"
-                },
-                {
-                    "inputs": {
-                        "click": {
-                            "output": "/actions/default/in/Fire"
-                        }
-                    },
-                    "mode": "button",
-                    "path": "/user/hand/right/input/trigger"
-                },
-                {
-                    "inputs": {
-                        "click": {
-                            "output": "/actions/default/in/Jump"
-                        }
-                    },
-                    "mode": "button",
-                    "path": "/user/hand/right/input/a"
-                },
-                {
-                    "inputs": {
-                        "click": {
-                            "output": "/actions/default/in/NextWeapon"
-                        }
-                    },
-                    "mode": "button",
-                    "path": "/user/hand/right/input/b"
-                },
-                {
-                    "inputs": {
-                        "click": {
-                            "output": "/actions/default/in/Escape"
-                        }
-                    },
-                    "mode": "button",
-                    "path": "/user/hand/left/input/a"
-                },
-                {
-                    "inputs": {
-                        "click": {
-                            "output": "/actions/default/in/PrevWeapon"
-                        }
-                    },
-                    "mode": "button",
-                    "path": "/user/hand/left/input/b"
-                }
-            ]
-        }
-    },
-    "category": "steamvr_input",
-    "controller_type": "knuckles",
-    "description": "The default binding for Valve Index controllers",
-    "name": "Default Index Controller Binding",
-    "options": {},
-    "simulated_actions": []
+   "action_manifest_version" : 0,
+   "alias_info" : {},
+   "bindings" : {
+      "/actions/default" : {
+         "chords" : [],
+         "haptics" : [
+            {
+               "output" : "/actions/default/out/Haptic",
+               "path" : "/user/hand/left/output/haptic"
+            },
+            {
+               "output" : "/actions/default/out/Haptic",
+               "path" : "/user/hand/right/output/haptic"
+            }
+         ],
+         "poses" : [],
+         "skeleton" : [],
+         "sources" : [
+            {
+               "inputs" : {
+                  "position" : {
+                     "output" : "/actions/default/in/Locomotion"
+                  }
+               },
+               "mode" : "joystick",
+               "path" : "/user/hand/left/input/thumbstick"
+            },
+            {
+               "inputs" : {
+                  "position" : {
+                     "output" : "/actions/default/in/Turn"
+                  }
+               },
+               "mode" : "joystick",
+               "path" : "/user/hand/right/input/thumbstick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/Fire"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/Jump"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/a"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/NextWeapon"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/b"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/Escape"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/a"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/PrevWeapon"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/b"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/default/in/speed"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/trigger"
+            }
+         ]
+      }
+   },
+   "category" : "steamvr_input",
+   "controller_type" : "knuckles",
+   "description" : "The default binding for Valve Index controllers",
+   "name": "Default Index Controller Binding",
+   "options" : {},
+   "simulated_actions" : []
 }
