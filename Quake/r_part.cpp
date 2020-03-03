@@ -74,6 +74,15 @@ cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
     return result;
 }
 
+template <typename F>
+void forActiveParticles(F&& f)
+{
+    for(particle_t* p = active_particles; p; p = p->next)
+    {
+        f(*p);
+    }
+}
+
 /*
 ===============
 R_ParticleTextureLookup -- johnfitz -- generate nice antialiased 32x32 circle
@@ -798,34 +807,32 @@ void CL_RunParticles()
 
     while(true)
     {
-        if(particle_t* const kill = active_particles;
-            kill && kill->die < cl.time)
+        if(particle_t* const pk = active_particles; pk && pk->die < cl.time)
         {
-            active_particles = killParticle(kill);
+            active_particles = killParticle(pk);
             continue;
         }
 
         break;
     }
 
-    for(particle_t* p = active_particles; p; p = p->next)
-    {
+    forActiveParticles([&](particle_t& p) {
         while(true)
         {
-            if(particle_t* const kill = p->next; kill && kill->die < cl.time)
+            if(particle_t* const pk = p.next; pk && pk->die < cl.time)
             {
-                p->next = killParticle(kill);
+                p.next = killParticle(pk);
                 continue;
             }
 
             break;
         }
 
-        p->org[0] += p->vel[0] * frametime;
-        p->org[1] += p->vel[1] * frametime;
-        p->org[2] += p->vel[2] * frametime;
+        p.org[0] += p.vel[0] * frametime;
+        p.org[1] += p.vel[1] * frametime;
+        p.org[2] += p.vel[2] * frametime;
 
-        switch(p->type)
+        switch(p.type)
         {
             case pt_static:
             {
@@ -834,54 +841,54 @@ void CL_RunParticles()
 
             case pt_fire:
             {
-                p->ramp += time1;
-                if(p->ramp >= 6)
+                p.ramp += time1;
+                if(p.ramp >= 6)
                 {
-                    p->die = -1;
+                    p.die = -1;
                 }
                 else
                 {
-                    p->color = ramp3[(int)p->ramp];
+                    p.color = ramp3[(int)p.ramp];
                 }
-                p->vel[2] += grav;
+                p.vel[2] += grav;
                 break;
             }
 
             case pt_explode:
             {
-                p->ramp += time2;
-                if(p->ramp >= 8)
+                p.ramp += time2;
+                if(p.ramp >= 8)
                 {
-                    p->die = -1;
+                    p.die = -1;
                 }
                 else
                 {
-                    p->color = ramp1[(int)p->ramp];
+                    p.color = ramp1[(int)p.ramp];
                 }
                 for(int i = 0; i < 3; i++)
                 {
-                    p->vel[i] += p->vel[i] * dvel;
+                    p.vel[i] += p.vel[i] * dvel;
                 }
-                p->vel[2] -= grav;
+                p.vel[2] -= grav;
                 break;
             }
 
             case pt_explode2:
             {
-                p->ramp += time3;
-                if(p->ramp >= 8)
+                p.ramp += time3;
+                if(p.ramp >= 8)
                 {
-                    p->die = -1;
+                    p.die = -1;
                 }
                 else
                 {
-                    p->color = ramp2[(int)p->ramp];
+                    p.color = ramp2[(int)p.ramp];
                 }
                 for(int i = 0; i < 3; i++)
                 {
-                    p->vel[i] -= p->vel[i] * frametime;
+                    p.vel[i] -= p.vel[i] * frametime;
                 }
-                p->vel[2] -= grav;
+                p.vel[2] -= grav;
                 break;
             }
 
@@ -889,9 +896,9 @@ void CL_RunParticles()
             {
                 for(int i = 0; i < 3; i++)
                 {
-                    p->vel[i] += p->vel[i] * dvel;
+                    p.vel[i] += p.vel[i] * dvel;
                 }
-                p->vel[2] -= grav;
+                p.vel[2] -= grav;
                 break;
             }
 
@@ -899,20 +906,20 @@ void CL_RunParticles()
             {
                 for(int i = 0; i < 2; i++)
                 {
-                    p->vel[i] -= p->vel[i] * dvel;
+                    p.vel[i] -= p.vel[i] * dvel;
                 }
-                p->vel[2] -= grav;
+                p.vel[2] -= grav;
                 break;
             }
 
             case pt_grav: [[fallthrough]];
             case pt_slowgrav:
             {
-                p->vel[2] -= grav;
+                p.vel[2] -= grav;
                 break;
             }
         }
-    }
+    });
 }
 
 /*
@@ -955,12 +962,11 @@ void R_DrawParticles()
     if(r_quadparticles.value) // johnitz -- quads save fillrate
     {
         glBegin(GL_QUADS);
-        for(particle_t* p = active_particles; p; p = p->next)
-        {
+        forActiveParticles([&](particle_t& p) {
             // hack a scale up to keep particles from disapearing
-            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                          (p->org[1] - r_origin[1]) * vpn[1] +
-                          (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p.org[0] - r_origin[0]) * vpn[0] +
+                          (p.org[1] - r_origin[1]) * vpn[1] +
+                          (p.org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -977,8 +983,7 @@ void R_DrawParticles()
                                          // particle textures
 
             // TODO VR: global particle scale
-            if(p->type == ptype_t::pt_explode ||
-                p->type == ptype_t::pt_explode2)
+            if(p.type == ptype_t::pt_explode || p.type == ptype_t::pt_explode2)
             {
                 scale *= 1.2f;
             }
@@ -988,21 +993,21 @@ void R_DrawParticles()
             }
 
             // johnfitz -- particle transparency and fade out
-            c = (GLubyte*)&d_8to24table[(int)p->color];
+            c = (GLubyte*)&d_8to24table[(int)p.color];
             color[0] = c[0];
             color[1] = c[1];
             color[2] = c[2];
-            // alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
+            // alpha = CLAMP(0, p.die + 0.5 - cl.time, 1);
             color[3] = 255; //(int)(alpha * 255);
             glColor4ubv(color);
             // johnfitz
 
             glTexCoord2f(0, 0);
-            glVertex3fv(p->org);
+            glVertex3fv(p.org);
 
             glTexCoord2f(0.5, 0);
             vec3_t p_up;
-            VectorMA(p->org, scale, up, p_up);
+            VectorMA(p.org, scale, up, p_up);
             glVertex3fv(p_up);
 
             glTexCoord2f(0.5, 0.5);
@@ -1012,22 +1017,21 @@ void R_DrawParticles()
 
             glTexCoord2f(0, 0.5);
             vec3_t p_right;
-            VectorMA(p->org, scale, right, p_right);
+            VectorMA(p.org, scale, right, p_right);
             glVertex3fv(p_right);
 
             rs_particles++; // johnfitz //FIXME: just use r_numparticles
-        }
+        });
         glEnd();
     }
     else // johnitz --  triangles save verts
     {
         glBegin(GL_TRIANGLES);
-        for(particle_t* p = active_particles; p; p = p->next)
-        {
+        forActiveParticles([&](particle_t& p) {
             // hack a scale up to keep particles from disapearing
-            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                          (p->org[1] - r_origin[1]) * vpn[1] +
-                          (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p.org[0] - r_origin[0]) * vpn[0] +
+                          (p.org[1] - r_origin[1]) * vpn[1] +
+                          (p.org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1042,30 +1046,30 @@ void R_DrawParticles()
                                          // particle textures
 
             // johnfitz -- particle transparency and fade out
-            c = (GLubyte*)&d_8to24table[(int)p->color];
+            c = (GLubyte*)&d_8to24table[(int)p.color];
             color[0] = c[0];
             color[1] = c[1];
             color[2] = c[2];
-            // alpha = CLAMP(0, p->die + 0.5 - cl.time, 1);
+            // alpha = CLAMP(0, p.die + 0.5 - cl.time, 1);
             color[3] = 255; //(int)(alpha * 255);
             glColor4ubv(color);
             // johnfitz
 
             glTexCoord2f(0, 0);
-            glVertex3fv(p->org);
+            glVertex3fv(p.org);
 
             glTexCoord2f(1, 0);
             vec3_t p_up;
-            VectorMA(p->org, scale, up, p_up);
+            VectorMA(p.org, scale, up, p_up);
             glVertex3fv(p_up);
 
             glTexCoord2f(0, 1);
             vec3_t p_right;
-            VectorMA(p->org, scale, right, p_right);
+            VectorMA(p.org, scale, right, p_right);
             glVertex3fv(p_right);
 
             rs_particles++; // johnfitz //FIXME: just use r_numparticles
-        }
+        });
         glEnd();
     }
 
@@ -1096,14 +1100,13 @@ void R_DrawParticles_ShowTris()
 
     if(r_quadparticles.value)
     {
-        for(particle_t* p = active_particles; p; p = p->next)
-        {
+        forActiveParticles([&](particle_t& p) {
             glBegin(GL_TRIANGLE_FAN);
 
             // hack a scale up to keep particles from disapearing
-            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                          (p->org[1] - r_origin[1]) * vpn[1] +
-                          (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p.org[0] - r_origin[0]) * vpn[0] +
+                          (p.org[1] - r_origin[1]) * vpn[1] +
+                          (p.org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1118,10 +1121,10 @@ void R_DrawParticles_ShowTris()
             scale *= texturescalefactor; // compensate for apparent size of
                                          // different particle textures
 
-            glVertex3fv(p->org);
+            glVertex3fv(p.org);
 
             vec3_t p_up;
-            VectorMA(p->org, scale, up, p_up);
+            VectorMA(p.org, scale, up, p_up);
             glVertex3fv(p_up);
 
             vec3_t p_upright;
@@ -1129,21 +1132,20 @@ void R_DrawParticles_ShowTris()
             glVertex3fv(p_upright);
 
             vec3_t p_right;
-            VectorMA(p->org, scale, right, p_right);
+            VectorMA(p.org, scale, right, p_right);
             glVertex3fv(p_right);
 
             glEnd();
-        }
+        });
     }
     else
     {
         glBegin(GL_TRIANGLES);
-        for(particle_t* p = active_particles; p; p = p->next)
-        {
+        forActiveParticles([&](particle_t& p) {
             // hack a scale up to keep particles from disapearing
-            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                          (p->org[1] - r_origin[1]) * vpn[1] +
-                          (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p.org[0] - r_origin[0]) * vpn[0] +
+                          (p.org[1] - r_origin[1]) * vpn[1] +
+                          (p.org[2] - r_origin[2]) * vpn[2];
 
             if(scale < 20)
             {
@@ -1157,16 +1159,16 @@ void R_DrawParticles_ShowTris()
             scale *= texturescalefactor; // compensate for apparent size of
                                          // different particle textures
 
-            glVertex3fv(p->org);
+            glVertex3fv(p.org);
 
             vec3_t p_up;
-            VectorMA(p->org, scale, up, p_up);
+            VectorMA(p.org, scale, up, p_up);
             glVertex3fv(p_up);
 
             vec3_t p_right;
-            VectorMA(p->org, scale, right, p_right);
+            VectorMA(p.org, scale, right, p_right);
             glVertex3fv(p_right);
-        }
+        });
 
         glEnd();
     }
