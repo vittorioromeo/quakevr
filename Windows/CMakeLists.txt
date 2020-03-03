@@ -109,8 +109,8 @@ target_include_directories(
 
 include(FindOpenGL)
 set(SDL2_LIBRARIES
-    "C:/pers/Quakespasm-OpenVR/Windows/SDL2/lib64/SDL2main.lib"
-    "C:/pers/Quakespasm-OpenVR/Windows/SDL2/lib64/SDL2.lib"
-    "C:/pers/Quakespasm-OpenVR/Windows/OpenVR/lib/win64/openvr_api.lib")
+    "C:/OHWorkspace/Windows/SDL2/lib64/SDL2main.lib"
+    "C:/OHWorkspace/Windows/SDL2/lib64/SDL2.lib"
+    "C:/OHWorkspace/Windows/OpenVR/lib/win64/openvr_api.lib")
 
 target_link_libraries(quakespasm-sdl2 ${OPENGL_gl_LIBRARY} ${SDL2_LIBRARIES} wsock32 winmm ws2_32)

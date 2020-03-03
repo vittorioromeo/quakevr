@@ -24,29 +24,55 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 
 #define MAX_PARTICLES \
-    2048 // default max # of particles at one
-         //  time
+    65536 // default max # of particles at one
+          //  time
 #define ABSOLUTE_MIN_PARTICLES \
     512 // no fewer than this no matter what's
         //  on the command line
 
-int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
-int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
-int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
+// These "ramps" below are for colors..
+constexpr int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
+constexpr int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
+constexpr int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
-particle_t *active_particles, *free_particles, *particles;
-
-vec3_t r_pright, r_pup, r_ppn;
+particle_t* active_particles;
+particle_t* free_particles;
+particle_t* particles;
 
 int r_numparticles;
 
-gltexture_t *particletexture, *particletexture1, *particletexture2,
-    *particletexture3, *particletexture4; // johnfitz
-float texturescalefactor; // johnfitz -- compensate for apparent size of
-                          // different particle textures
+gltexture_t* default_particletexture;
+gltexture_t* particletexture1;
+gltexture_t* particletexture2;
+gltexture_t* particletexture3;
+gltexture_t* particletexture4; // johnfitz
+float texturescalefactor;      // johnfitz -- compensate for apparent size of
+                               // different particle textures
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};         // johnfitz
 cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
+
+[[nodiscard]] static particle_t* getFreeParticle() noexcept
+{
+    // Pop from free particles list
+    particle_t* const p = free_particles;
+    free_particles = p->next;
+
+    // Push into active particles list
+    p->next = active_particles;
+    active_particles = p;
+
+    return p;
+}
+
+[[nodiscard]] static particle_t* killParticle(particle_t* p) noexcept
+{
+    particle_t* const result = p->next;
+    p->next = free_particles;
+    free_particles = p;
+
+    return result;
+}
 
 /*
 ===============
@@ -56,15 +82,17 @@ for particles
 */
 int R_ParticleTextureLookup(int x, int y, int sharpness)
 {
-    int r; // distance from point x,y to circle origin, squared
-    int a; // alpha value to return
-
     x -= 16;
     y -= 16;
-    r = x * x + y * y;
+
+    // distance from point x,y to circle origin, squared
+    int r = x * x + y * y;
     r = r > 255 ? 255 : r;
-    a = sharpness * (255 - r);
+
+    // alpha value to return
+    int a = sharpness * (255 - r);
     a = q_min(a, 255);
+
     return a;
 }
 
@@ -132,7 +160,7 @@ void R_InitParticleTextures()
         TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
 
     // set default
-    particletexture = particletexture1;
+    default_particletexture = particletexture1;
     texturescalefactor = 1.27;
 }
 
@@ -148,15 +176,15 @@ static void R_SetParticleTexture_f(cvar_t* var)
     switch((int)(r_particles.value))
     {
         case 1:
-            particletexture = particletexture1;
+            default_particletexture = particletexture1;
             texturescalefactor = 1.27;
             break;
         case 2:
-            particletexture = particletexture2;
+            default_particletexture = particletexture2;
             texturescalefactor = 1.0;
             break;
             //	case 3:
-            //		particletexture = particletexture3;
+            //		default_particletexture = particletexture3;
             //		texturescalefactor = 1.5;
             //		break;
     }
@@ -169,9 +197,7 @@ R_InitParticles
 */
 void R_InitParticles()
 {
-    int i;
-
-    i = COM_CheckParm("-particles");
+    const int i = COM_CheckParm("-particles");
 
     if(i)
     {
@@ -211,8 +237,6 @@ float timescale = 0.01;
 
 void R_EntityParticles(entity_t* ent)
 {
-    int i;
-    particle_t* p;
     float angle;
     float sp;
 
@@ -224,14 +248,13 @@ void R_EntityParticles(entity_t* ent)
     //	float		sr, cr;
     //	int		count;
     vec3_t forward;
-    float dist;
 
-    dist = 64;
+    const float dist = 64;
     //	count = 50;
 
     if(!avelocities[0][0])
     {
-        for(i = 0; i < NUMVERTEXNORMALS; i++)
+        for(int i = 0; i < NUMVERTEXNORMALS; i++)
         {
             avelocities[i][0] = (rand() & 255) * 0.01;
             avelocities[i][1] = (rand() & 255) * 0.01;
@@ -239,7 +262,7 @@ void R_EntityParticles(entity_t* ent)
         }
     }
 
-    for(i = 0; i < NUMVERTEXNORMALS; i++)
+    for(int i = 0; i < NUMVERTEXNORMALS; i++)
     {
         angle = cl.time * avelocities[i][0];
         sy = sin(angle);
@@ -259,10 +282,8 @@ void R_EntityParticles(entity_t* ent)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         p->die = cl.time + 0.01;
         p->color = 0x6f;
@@ -284,15 +305,14 @@ R_ClearParticles
 */
 void R_ClearParticles()
 {
-    int i;
-
     free_particles = &particles[0];
     active_particles = nullptr;
 
-    for(i = 0; i < r_numparticles; i++)
+    for(int i = 0; i < r_numparticles; i++)
     {
         particles[i].next = &particles[i + 1];
     }
+
     particles[r_numparticles - 1].next = nullptr;
 }
 
@@ -303,20 +323,15 @@ R_ReadPointFile_f
 */
 void R_ReadPointFile_f()
 {
-    FILE* f;
-    vec3_t org;
-    int r;
-    int c;
-    particle_t* p;
-    char name[MAX_QPATH];
-
     if(cls.state != ca_connected)
     {
         return; // need an active map.
     }
 
+    char name[MAX_QPATH];
     q_snprintf(name, sizeof(name), "maps/%s.pts", cl.mapname);
 
+    FILE* f;
     COM_FOpenFile(name, &f, nullptr);
     if(!f)
     {
@@ -325,15 +340,18 @@ void R_ReadPointFile_f()
     }
 
     Con_Printf("Reading %s...\n", name);
-    c = 0;
-    org[0] = org[1] = org[2] = 0; // silence pesky compiler warnings
-    for(;;)
+
+    int c = 0;
+    while(true)
     {
-        r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
+        vec3_t org;
+        const int r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
+
         if(r != 3)
         {
             break;
         }
+
         c++;
 
         if(!free_particles)
@@ -341,14 +359,13 @@ void R_ReadPointFile_f()
             Con_Printf("Not enough free particles\n");
             break;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         p->die = 99999;
         p->color = (-c) & 15;
         p->type = pt_static;
+
         VectorCopy(vec3_origin, p->vel);
         VectorCopy(org, p->org);
     }
@@ -367,35 +384,20 @@ Parse an effect out of the server message
 void R_ParseParticleEffect()
 {
     vec3_t org;
-
-    vec3_t dir;
-    int i;
-
-    int count;
-
-    int msgcount;
-
-    int color;
-
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
-    for(i = 0; i < 3; i++)
+
+    vec3_t dir;
+    for(int i = 0; i < 3; i++)
     {
         dir[i] = MSG_ReadChar() * (1.0 / 16);
     }
-    msgcount = MSG_ReadByte();
-    color = MSG_ReadByte();
 
-    if(msgcount == 255)
-    {
-        count = 1024;
-    }
-    else
-    {
-        count = msgcount;
-    }
+    const int msgcount = MSG_ReadByte();
+    const int color = MSG_ReadByte();
+    const int count = msgcount == 255 ? 1024 : msgcount;
 
     R_RunParticleEffect(org, dir, color, count);
 }
@@ -407,29 +409,23 @@ R_ParticleExplosion
 */
 void R_ParticleExplosion(vec3_t org)
 {
-    int i;
-
-    int j;
-    particle_t* p;
-
-    for(i = 0; i < 1024; i++)
+    for(int i = 0; i < 1024; i++)
     {
         if(!free_particles)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         p->die = cl.time + 5;
         p->color = ramp1[0];
         p->ramp = rand() & 3;
+
         if(i & 1)
         {
             p->type = pt_explode;
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 p->org[j] = org[j] + ((rand() % 32) - 16);
                 p->vel[j] = (rand() % 512) - 256;
@@ -438,7 +434,7 @@ void R_ParticleExplosion(vec3_t org)
         else
         {
             p->type = pt_explode2;
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 p->org[j] = org[j] + ((rand() % 32) - 16);
                 p->vel[j] = (rand() % 512) - 256;
@@ -454,29 +450,23 @@ R_ParticleExplosion2
 */
 void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 {
-    int i;
-
-    int j;
-    particle_t* p;
     int colorMod = 0;
 
-    for(i = 0; i < 512; i++)
+    for(int i = 0; i < 512; i++)
     {
         if(!free_particles)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         p->die = cl.time + 0.3;
         p->color = colorStart + (colorMod % colorLength);
         colorMod++;
 
         p->type = pt_blob;
-        for(j = 0; j < 3; j++)
+        for(int j = 0; j < 3; j++)
         {
             p->org[j] = org[j] + ((rand() % 32) - 16);
             p->vel[j] = (rand() % 512) - 256;
@@ -491,21 +481,14 @@ R_BlobExplosion
 */
 void R_BlobExplosion(vec3_t org)
 {
-    int i;
-
-    int j;
-    particle_t* p;
-
-    for(i = 0; i < 1024; i++)
+    for(int i = 0; i < 1024; i++)
     {
         if(!free_particles)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         p->die = cl.time + 1 + (rand() & 8) * 0.05;
 
@@ -513,7 +496,7 @@ void R_BlobExplosion(vec3_t org)
         {
             p->type = pt_blob;
             p->color = 66 + rand() % 6;
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 p->org[j] = org[j] + ((rand() % 32) - 16);
                 p->vel[j] = (rand() % 512) - 256;
@@ -523,7 +506,7 @@ void R_BlobExplosion(vec3_t org)
         {
             p->type = pt_blob2;
             p->color = 150 + rand() % 6;
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 p->org[j] = org[j] + ((rand() % 32) - 16);
                 p->vel[j] = (rand() % 512) - 256;
@@ -539,21 +522,14 @@ R_RunParticleEffect
 */
 void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
-    int i;
-
-    int j;
-    particle_t* p;
-
-    for(i = 0; i < count; i++)
+    for(int i = 0; i < count; i++)
     {
         if(!free_particles)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         if(count == 1024)
         { // rocket explosion
@@ -563,7 +539,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
             if(i & 1)
             {
                 p->type = pt_explode;
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = org[j] + ((rand() % 32) - 16);
                     p->vel[j] = (rand() % 512) - 256;
@@ -572,7 +548,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
             else
             {
                 p->type = pt_explode2;
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = org[j] + ((rand() % 32) - 16);
                     p->vel[j] = (rand() % 512) - 256;
@@ -584,7 +560,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
             p->die = cl.time + 0.1 * (rand() % 5);
             p->color = (color & ~7) + (rand() & 7);
             p->type = pt_slowgrav;
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 // TODO VR: bullet puff
                 p->org[j] = org[j] + ((rand() & 7) - 4);
@@ -601,29 +577,21 @@ R_LavaSplash
 */
 void R_LavaSplash(vec3_t org)
 {
-    int i;
-
-    int j;
-
-    int k;
-    particle_t* p;
     float vel;
     vec3_t dir;
 
-    for(i = -16; i < 16; i++)
+    for(int i = -16; i < 16; i++)
     {
-        for(j = -16; j < 16; j++)
+        for(int j = -16; j < 16; j++)
         {
-            for(k = 0; k < 1; k++)
+            for(int k = 0; k < 1; k++)
             {
                 if(!free_particles)
                 {
                     return;
                 }
-                p = free_particles;
-                free_particles = p->next;
-                p->next = active_particles;
-                active_particles = p;
+
+                particle_t* const p = getFreeParticle();
 
                 p->die = cl.time + 2 + (rand() & 31) * 0.02;
                 p->color = 224 + (rand() & 7);
@@ -652,29 +620,20 @@ R_TeleportSplash
 */
 void R_TeleportSplash(vec3_t org)
 {
-    int i;
-
-    int j;
-
-    int k;
-    particle_t* p;
-    float vel;
     vec3_t dir;
 
-    for(i = -16; i < 16; i += 4)
+    for(int i = -16; i < 16; i += 1)
     {
-        for(j = -16; j < 16; j += 4)
+        for(int j = -16; j < 16; j += 1)
         {
-            for(k = -24; k < 32; k += 4)
+            for(int k = -24; k < 32; k += 1)
             {
                 if(!free_particles)
                 {
                     return;
                 }
-                p = free_particles;
-                free_particles = p->next;
-                p->next = active_particles;
-                active_particles = p;
+
+                particle_t* const p = getFreeParticle();
 
                 p->die = cl.time + 0.2 + (rand() & 7) * 0.02;
                 p->color = 7 + (rand() & 7);
@@ -689,7 +648,7 @@ void R_TeleportSplash(vec3_t org)
                 p->org[2] = org[2] + k + (rand() & 3);
 
                 VectorNormalize(dir);
-                vel = 50 + (rand() & 63);
+                const float vel = 50 + (rand() & 63);
                 VectorScale(dir, vel, p->vel);
             }
         }
@@ -707,8 +666,6 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 {
     vec3_t vec;
     float len;
-    int j;
-    particle_t* p;
     int dec;
     static int tracercount;
 
@@ -732,10 +689,8 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
         {
             return;
         }
-        p = free_particles;
-        free_particles = p->next;
-        p->next = active_particles;
-        active_particles = p;
+
+        particle_t* const p = getFreeParticle();
 
         VectorCopy(vec3_origin, p->vel);
         p->die = cl.time + 2;
@@ -746,7 +701,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                 p->ramp = (rand() & 3);
                 p->color = ramp3[(int)p->ramp];
                 p->type = pt_fire;
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = start[j] + ((rand() % 6) - 3);
                 }
@@ -756,7 +711,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                 p->ramp = (rand() & 3) + 2;
                 p->color = ramp3[(int)p->ramp];
                 p->type = pt_fire;
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = start[j] + ((rand() % 6) - 3);
                 }
@@ -765,7 +720,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             case 2: // blood
                 p->type = pt_grav;
                 p->color = 67 + (rand() & 3);
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = start[j] + ((rand() % 6) - 3);
                 }
@@ -802,7 +757,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             case 4: // slight blood
                 p->type = pt_grav;
                 p->color = 67 + (rand() & 3);
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = start[j] + ((rand() % 6) - 3);
                 }
@@ -813,7 +768,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                 p->color = 9 * 16 + 8 + (rand() & 3);
                 p->type = pt_static;
                 p->die = cl.time + 0.3;
-                for(j = 0; j < 3; j++)
+                for(int j = 0; j < 3; j++)
                 {
                     p->org[j] = start[j] + ((rand() & 15) - 8);
                 }
@@ -832,55 +787,37 @@ R_DrawParticles
 */
 void CL_RunParticles()
 {
-    particle_t* p;
-
-    particle_t* kill;
-    int i;
-    float time1;
-
-    float time2;
-
-    float time3;
-
-    float dvel;
-
-    float frametime;
-
-    float grav;
     extern cvar_t sv_gravity;
 
-    frametime = cl.time - cl.oldtime;
-    time3 = frametime * 15;
-    time2 = frametime * 10;
-    time1 = frametime * 5;
-    grav = frametime * sv_gravity.value * 0.05;
-    dvel = 4 * frametime;
+    const float frametime = cl.time - cl.oldtime;
+    const float time3 = frametime * 15;
+    const float time2 = frametime * 10;
+    const float time1 = frametime * 5;
+    const float grav = frametime * sv_gravity.value * 0.05;
+    const float dvel = 4 * frametime;
 
-    for(;;)
+    while(true)
     {
-        kill = active_particles;
-        if(kill && kill->die < cl.time)
+        if(particle_t* const kill = active_particles;
+            kill && kill->die < cl.time)
         {
-            active_particles = kill->next;
-            kill->next = free_particles;
-            free_particles = kill;
+            active_particles = killParticle(kill);
             continue;
         }
+
         break;
     }
 
-    for(p = active_particles; p; p = p->next)
+    for(particle_t* p = active_particles; p; p = p->next)
     {
-        for(;;)
+        while(true)
         {
-            kill = p->next;
-            if(kill && kill->die < cl.time)
+            if(particle_t* const kill = p->next; kill && kill->die < cl.time)
             {
-                p->next = kill->next;
-                kill->next = free_particles;
-                free_particles = kill;
+                p->next = killParticle(kill);
                 continue;
             }
+
             break;
         }
 
@@ -890,8 +827,13 @@ void CL_RunParticles()
 
         switch(p->type)
         {
-            case pt_static: break;
+            case pt_static:
+            {
+                break;
+            }
+
             case pt_fire:
+            {
                 p->ramp += time1;
                 if(p->ramp >= 6)
                 {
@@ -903,8 +845,10 @@ void CL_RunParticles()
                 }
                 p->vel[2] += grav;
                 break;
+            }
 
             case pt_explode:
+            {
                 p->ramp += time2;
                 if(p->ramp >= 8)
                 {
@@ -914,14 +858,16 @@ void CL_RunParticles()
                 {
                     p->color = ramp1[(int)p->ramp];
                 }
-                for(i = 0; i < 3; i++)
+                for(int i = 0; i < 3; i++)
                 {
                     p->vel[i] += p->vel[i] * dvel;
                 }
                 p->vel[2] -= grav;
                 break;
+            }
 
             case pt_explode2:
+            {
                 p->ramp += time3;
                 if(p->ramp >= 8)
                 {
@@ -931,31 +877,40 @@ void CL_RunParticles()
                 {
                     p->color = ramp2[(int)p->ramp];
                 }
-                for(i = 0; i < 3; i++)
+                for(int i = 0; i < 3; i++)
                 {
                     p->vel[i] -= p->vel[i] * frametime;
                 }
                 p->vel[2] -= grav;
                 break;
+            }
 
             case pt_blob:
-                for(i = 0; i < 3; i++)
+            {
+                for(int i = 0; i < 3; i++)
                 {
                     p->vel[i] += p->vel[i] * dvel;
                 }
                 p->vel[2] -= grav;
                 break;
+            }
 
             case pt_blob2:
-                for(i = 0; i < 2; i++)
+            {
+                for(int i = 0; i < 2; i++)
                 {
                     p->vel[i] -= p->vel[i] * dvel;
                 }
                 p->vel[2] -= grav;
                 break;
+            }
 
-            case pt_grav:
-            case pt_slowgrav: p->vel[2] -= grav; break;
+            case pt_grav: [[fallthrough]];
+            case pt_slowgrav:
+            {
+                p->vel[2] -= grav;
+                break;
+            }
         }
     }
 }
@@ -968,17 +923,6 @@ CL_RunParticles
 */
 void R_DrawParticles()
 {
-    particle_t* p;
-    float scale;
-    vec3_t up;
-
-    vec3_t right;
-
-    vec3_t p_up;
-
-    vec3_t p_right;
-
-    vec3_t p_upright; // johnfitz -- p_ vectors
     GLubyte color[4];
 
     GLubyte* c; // johnfitz -- particle transparency
@@ -997,10 +941,13 @@ void R_DrawParticles()
         return;
     }
 
+    vec3_t up;
     VectorScale(vup, 1.5, up);
+
+    vec3_t right;
     VectorScale(vright, 1.5, right);
 
-    GL_Bind(particletexture);
+    GL_Bind(default_particletexture);
     glEnable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
@@ -1008,12 +955,12 @@ void R_DrawParticles()
     if(r_quadparticles.value) // johnitz -- quads save fillrate
     {
         glBegin(GL_QUADS);
-        for(p = active_particles; p; p = p->next)
+        for(particle_t* p = active_particles; p; p = p->next)
         {
             // hack a scale up to keep particles from disapearing
-            scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                    (p->org[1] - r_origin[1]) * vpn[1] +
-                    (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
+                          (p->org[1] - r_origin[1]) * vpn[1] +
+                          (p->org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1054,14 +1001,17 @@ void R_DrawParticles()
             glVertex3fv(p->org);
 
             glTexCoord2f(0.5, 0);
+            vec3_t p_up;
             VectorMA(p->org, scale, up, p_up);
             glVertex3fv(p_up);
 
             glTexCoord2f(0.5, 0.5);
+            vec3_t p_upright; // johnfitz -- p_ vectors
             VectorMA(p_up, scale, right, p_upright);
             glVertex3fv(p_upright);
 
             glTexCoord2f(0, 0.5);
+            vec3_t p_right;
             VectorMA(p->org, scale, right, p_right);
             glVertex3fv(p_right);
 
@@ -1072,12 +1022,12 @@ void R_DrawParticles()
     else // johnitz --  triangles save verts
     {
         glBegin(GL_TRIANGLES);
-        for(p = active_particles; p; p = p->next)
+        for(particle_t* p = active_particles; p; p = p->next)
         {
             // hack a scale up to keep particles from disapearing
-            scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                    (p->org[1] - r_origin[1]) * vpn[1] +
-                    (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
+                          (p->org[1] - r_origin[1]) * vpn[1] +
+                          (p->org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1105,10 +1055,12 @@ void R_DrawParticles()
             glVertex3fv(p->org);
 
             glTexCoord2f(1, 0);
+            vec3_t p_up;
             VectorMA(p->org, scale, up, p_up);
             glVertex3fv(p_up);
 
             glTexCoord2f(0, 1);
+            vec3_t p_right;
             VectorMA(p->org, scale, right, p_right);
             glVertex3fv(p_right);
 
@@ -1131,37 +1083,27 @@ R_DrawParticles_ShowTris -- johnfitz
 */
 void R_DrawParticles_ShowTris()
 {
-    particle_t* p;
-    float scale;
-    vec3_t up;
-
-    vec3_t right;
-
-    vec3_t p_up;
-
-    vec3_t p_right;
-
-    vec3_t p_upright;
-
-
     if(!r_particles.value)
     {
         return;
     }
 
+    vec3_t up;
     VectorScale(vup, 1.5, up);
+
+    vec3_t right;
     VectorScale(vright, 1.5, right);
 
     if(r_quadparticles.value)
     {
-        for(p = active_particles; p; p = p->next)
+        for(particle_t* p = active_particles; p; p = p->next)
         {
             glBegin(GL_TRIANGLE_FAN);
 
             // hack a scale up to keep particles from disapearing
-            scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                    (p->org[1] - r_origin[1]) * vpn[1] +
-                    (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
+                          (p->org[1] - r_origin[1]) * vpn[1] +
+                          (p->org[2] - r_origin[2]) * vpn[2];
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1178,12 +1120,15 @@ void R_DrawParticles_ShowTris()
 
             glVertex3fv(p->org);
 
+            vec3_t p_up;
             VectorMA(p->org, scale, up, p_up);
             glVertex3fv(p_up);
 
+            vec3_t p_upright;
             VectorMA(p_up, scale, right, p_upright);
             glVertex3fv(p_upright);
 
+            vec3_t p_right;
             VectorMA(p->org, scale, right, p_right);
             glVertex3fv(p_right);
 
@@ -1193,12 +1138,13 @@ void R_DrawParticles_ShowTris()
     else
     {
         glBegin(GL_TRIANGLES);
-        for(p = active_particles; p; p = p->next)
+        for(particle_t* p = active_particles; p; p = p->next)
         {
             // hack a scale up to keep particles from disapearing
-            scale = (p->org[0] - r_origin[0]) * vpn[0] +
-                    (p->org[1] - r_origin[1]) * vpn[1] +
-                    (p->org[2] - r_origin[2]) * vpn[2];
+            float scale = (p->org[0] - r_origin[0]) * vpn[0] +
+                          (p->org[1] - r_origin[1]) * vpn[1] +
+                          (p->org[2] - r_origin[2]) * vpn[2];
+
             if(scale < 20)
             {
                 scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
@@ -1213,12 +1159,15 @@ void R_DrawParticles_ShowTris()
 
             glVertex3fv(p->org);
 
+            vec3_t p_up;
             VectorMA(p->org, scale, up, p_up);
             glVertex3fv(p_up);
 
+            vec3_t p_right;
             VectorMA(p->org, scale, right, p_right);
             glVertex3fv(p_right);
         }
+
         glEnd();
     }
 }

@@ -99,6 +99,7 @@ struct particle_t
     // driver-usable fields
     vec3_t org;
     float color;
+
     // drivers never touch the following fields
     struct particle_t* next;
     vec3_t vel;

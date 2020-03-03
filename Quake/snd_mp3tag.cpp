@@ -429,7 +429,7 @@ int mp3_skiptags(snd_stream_t* stream)
      * or musicmatch tags, hence the loop here.. */
     c_ape = 0;
     c_lyr = 0;
-    for(;;)
+    while(true)
     {
         if(!c_lyr)
         {
