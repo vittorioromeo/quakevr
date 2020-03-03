@@ -67,7 +67,7 @@
                         }
                     },
                     "mode": "button",
-                    "path": "/user/hand/left/input/a"
+                    "path": "/user/hand/left/input/x"
                 },
                 {
                     "inputs": {
@@ -76,7 +76,7 @@
                         }
                     },
                     "mode": "button",
-                    "path": "/user/hand/left/input/b"
+                    "path": "/user/hand/left/input/y"
                 },
                 {
                     "inputs": {
@@ -91,9 +91,9 @@
         }
     },
     "category": "steamvr_input",
-    "controller_type": "knuckles",
-    "description": "The default binding for Valve Index controllers",
-    "name": "Default Index Controller Binding",
+    "controller_type": "oculus_touch",
+    "description": "The default binding for Oculus Touch controllers",
+    "name": "Default Oculus Touch Controller Binding",
     "options": {},
     "simulated_actions": []
 }

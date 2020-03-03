@@ -1,6 +1,5 @@
 {
-    "actions": [
-        {
+    "actions": [{
             "name": "/actions/default/in/Locomotion",
             "type": "vector2"
         },
@@ -37,30 +36,33 @@
             "type": "vibration"
         }
     ],
-    "action_sets": [
-        {
-            "name": "/actions/default",
-            "usage": "leftright"
-        }
-    ],
-    "default_bindings": [
-        {
+    "action_sets": [{
+        "name": "/actions/default",
+        "usage": "leftright"
+    }],
+    "default_bindings": [{
             "controller_type": "knuckles",
             "binding_url": "bindings_knuckles.json"
+        },
+        {
+            "controller_type": "oculus_touch",
+            "binding_url": "bindings_touch.json"
+        },
+        {
+            "controller_type": "generic",
+            "binding_url": "bindings_generic.json"
         }
     ],
-    "localization": [
-        {
-            "language_tag": "en_US",
-            "/actions/default/in/Locomotion": "Locomotion",
-            "/actions/default/in/Turn": "Turn",
-            "/actions/default/in/Fire": "Fire",
-            "/actions/default/in/Jump": "Jump",
-            "/actions/default/in/PrevWeapon": "Previous Weapon",
-            "/actions/default/in/NextWeapon": "Next Weapon",
-            "/actions/default/in/Escape": "Escape",
-            "/actions/default/in/Speed": "Speed Modifier",
-            "/actions/default/out/Haptic": "Haptic"
-        }
-    ]
+    "localization": [{
+        "language_tag": "en_US",
+        "/actions/default/in/Locomotion": "Locomotion",
+        "/actions/default/in/Turn": "Turn",
+        "/actions/default/in/Fire": "Fire",
+        "/actions/default/in/Jump": "Jump",
+        "/actions/default/in/PrevWeapon": "Previous Weapon",
+        "/actions/default/in/NextWeapon": "Next Weapon",
+        "/actions/default/in/Escape": "Escape",
+        "/actions/default/in/Speed": "Speed Modifier",
+        "/actions/default/out/Haptic": "Haptic"
+    }]
 }
