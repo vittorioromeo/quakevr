@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __GLQUAKE_H
 #define __GLQUAKE_H
 
+#include <cstdint>
+
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
 void GL_EndRendering(void);
 void GL_Set2D(void);
@@ -81,7 +83,7 @@ typedef struct
 } drawsurf_t;
 
 
-enum ptype_t
+enum ptype_t : std::uint8_t
 {
     pt_static,
     pt_grav,
@@ -96,16 +98,14 @@ enum ptype_t
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 struct particle_t
 {
-    // driver-usable fields
-    vec3_t org;
-    float color;
+    vec3_t org; // driver-usable field
+    vec3_t vel; // drivers never touches this field
 
-    // drivers never touch the following fields
-    struct particle_t* next;
-    vec3_t vel;
-    float ramp;
-    float die;
-    ptype_t type;
+    float color; // driver-usable field
+    float ramp;  // drivers never touches this field
+    float die;   // drivers never touches this field
+
+    ptype_t type; // drivers never touches this field
 };
 
 

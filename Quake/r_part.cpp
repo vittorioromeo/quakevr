@@ -23,6 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 
+#include <vector>
+#include <algorithm>
+#include <utility>
+
 #define MAX_PARTICLES \
     65536 // default max # of particles at one
           //  time
@@ -35,9 +39,60 @@ constexpr int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
 constexpr int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
 constexpr int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
-particle_t* active_particles;
-particle_t* free_particles;
-particle_t* particles;
+class ParticleBuffer
+{
+private:
+    std::vector<particle_t> _particles;
+    std::size_t _maxParticles;
+
+public:
+    void initialize(std::size_t maxParticles)
+    {
+        _maxParticles = maxParticles;
+        _particles.reserve(maxParticles);
+    }
+
+    void cleanup()
+    {
+        _particles.erase(_particles.begin(),
+            std::remove_if(_particles.begin(), _particles.end(),
+                [](const particle_t& p) { return p.die >= cl.time; }));
+    }
+
+    [[nodiscard]] particle_t& create()
+    {
+        return _particles.emplace_back();
+    }
+
+    template <typename F>
+    void forActive(F&& f)
+    {
+        for(auto& p : _particles)
+        {
+            f(p);
+        }
+    }
+
+    [[nodiscard]] bool reachedMax() const noexcept
+    {
+        return _particles.size() == _maxParticles;
+    }
+
+    void clear()
+    {
+        _particles.clear();
+    }
+
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return _particles.empty();
+    }
+};
+
+ParticleBuffer particleBuffer;
+// particle_t* active_particles;
+// particle_t* free_particles;
+// particle_t* particles;
 
 int r_numparticles;
 
@@ -52,35 +107,52 @@ float texturescalefactor;      // johnfitz -- compensate for apparent size of
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};         // johnfitz
 cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
 
-[[nodiscard]] static particle_t* getFreeParticle() noexcept
+[[nodiscard]] static particle_t& getFreeParticle() noexcept
 {
-    // Pop from free particles list
-    particle_t* const p = free_particles;
-    free_particles = p->next;
+    return particleBuffer.create();
 
-    // Push into active particles list
-    p->next = active_particles;
-    active_particles = p;
-
-    return p;
+    // TODO VR:
+    // // Pop from free particles list
+    // particle_t* const p = free_particles;
+    // free_particles = p->next;
+    //
+    // // Push into active particles list
+    // p->next = active_particles;
+    // active_particles = p;
+    //
+    // return *p;
 }
 
-[[nodiscard]] static particle_t* killParticle(particle_t* p) noexcept
+// TODO VR:
+/* [[nodiscard]] static particle_t* killParticle(particle_t* p) noexcept
 {
     particle_t* const result = p->next;
     p->next = free_particles;
     free_particles = p;
 
     return result;
+}*/
+
+[[nodiscard]] bool reachedMax() noexcept
+{
+    return particleBuffer.reachedMax();
+}
+
+[[nodiscard]] bool noActiveParticles() noexcept
+{
+    return particleBuffer.empty();
 }
 
 template <typename F>
 void forActiveParticles(F&& f)
 {
-    for(particle_t* p = active_particles; p; p = p->next)
-    {
-        f(*p);
-    }
+    particleBuffer.forActive(std::forward<F>(f));
+
+    // TODO VR:
+    // for(particle_t* p = active_particles; p; p = p->next)
+    // {
+    //     f(*p);
+    // }
 }
 
 /*
@@ -199,12 +271,7 @@ static void R_SetParticleTexture_f(cvar_t* var)
     }
 }
 
-/*
-===============
-R_InitParticles
-===============
-*/
-void R_InitParticles()
+static void R_InitRNumParticles()
 {
     const int i = COM_CheckParm("-particles");
 
@@ -220,14 +287,31 @@ void R_InitParticles()
     {
         r_numparticles = MAX_PARTICLES;
     }
+}
 
-    particles = (particle_t*)Hunk_AllocName(
-        r_numparticles * sizeof(particle_t), "particles");
-
+static void R_InitParticleCVars()
+{
     Cvar_RegisterVariable(&r_particles); // johnfitz
     Cvar_SetCallback(&r_particles, R_SetParticleTexture_f);
     Cvar_RegisterVariable(&r_quadparticles); // johnfitz
+}
 
+/*
+===============
+R_InitParticles
+===============
+*/
+void R_InitParticles()
+{
+    R_InitRNumParticles();
+
+    particleBuffer.initialize(r_numparticles);
+
+    // TODO VR:
+    // particles = (particle_t*)Hunk_AllocName(
+    //     r_numparticles * sizeof(particle_t), "particles");
+
+    R_InitParticleCVars();
     R_InitParticleTextures(); // johnfitz
 }
 
@@ -287,23 +371,23 @@ void R_EntityParticles(entity_t* ent)
         forward[1] = cp * sy;
         forward[2] = -sp;
 
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        p->die = cl.time + 0.01;
-        p->color = 0x6f;
-        p->type = pt_explode;
+        p.die = cl.time + 0.01;
+        p.color = 0x6f;
+        p.type = pt_explode;
 
-        p->org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
-                    forward[0] * beamlength;
-        p->org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
-                    forward[1] * beamlength;
-        p->org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
-                    forward[2] * beamlength;
+        p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
+                   forward[0] * beamlength;
+        p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
+                   forward[1] * beamlength;
+        p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
+                   forward[2] * beamlength;
     }
 }
 
@@ -314,15 +398,18 @@ R_ClearParticles
 */
 void R_ClearParticles()
 {
-    free_particles = &particles[0];
-    active_particles = nullptr;
+    particleBuffer.clear();
 
-    for(int i = 0; i < r_numparticles; i++)
-    {
-        particles[i].next = &particles[i + 1];
-    }
-
-    particles[r_numparticles - 1].next = nullptr;
+    // TODO VR:
+    // free_particles = &particles[0];
+    // active_particles = nullptr;
+    //
+    // for(int i = 0; i < r_numparticles; i++)
+    // {
+    //     particles[i].next = &particles[i + 1];
+    // }
+    //
+    // particles[r_numparticles - 1].next = nullptr;
 }
 
 /*
@@ -363,20 +450,20 @@ void R_ReadPointFile_f()
 
         c++;
 
-        if(!free_particles)
+        if(reachedMax())
         {
             Con_Printf("Not enough free particles\n");
             break;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        p->die = 99999;
-        p->color = (-c) & 15;
-        p->type = pt_static;
+        p.die = 99999;
+        p.color = (-c) & 15;
+        p.type = pt_static;
 
-        VectorCopy(vec3_origin, p->vel);
-        VectorCopy(org, p->org);
+        VectorCopy(vec3_origin, p.vel);
+        VectorCopy(org, p.org);
     }
 
     fclose(f);
@@ -420,33 +507,33 @@ void R_ParticleExplosion(vec3_t org)
 {
     for(int i = 0; i < 1024; i++)
     {
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        p->die = cl.time + 5;
-        p->color = ramp1[0];
-        p->ramp = rand() & 3;
+        p.die = cl.time + 5;
+        p.color = ramp1[0];
+        p.ramp = rand() & 3;
 
         if(i & 1)
         {
-            p->type = pt_explode;
+            p.type = pt_explode;
             for(int j = 0; j < 3; j++)
             {
-                p->org[j] = org[j] + ((rand() % 32) - 16);
-                p->vel[j] = (rand() % 512) - 256;
+                p.org[j] = org[j] + ((rand() % 32) - 16);
+                p.vel[j] = (rand() % 512) - 256;
             }
         }
         else
         {
-            p->type = pt_explode2;
+            p.type = pt_explode2;
             for(int j = 0; j < 3; j++)
             {
-                p->org[j] = org[j] + ((rand() % 32) - 16);
-                p->vel[j] = (rand() % 512) - 256;
+                p.org[j] = org[j] + ((rand() % 32) - 16);
+                p.vel[j] = (rand() % 512) - 256;
             }
         }
     }
@@ -463,22 +550,22 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 
     for(int i = 0; i < 512; i++)
     {
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        p->die = cl.time + 0.3;
-        p->color = colorStart + (colorMod % colorLength);
+        p.die = cl.time + 0.3;
+        p.color = colorStart + (colorMod % colorLength);
         colorMod++;
 
-        p->type = pt_blob;
+        p.type = pt_blob;
         for(int j = 0; j < 3; j++)
         {
-            p->org[j] = org[j] + ((rand() % 32) - 16);
-            p->vel[j] = (rand() % 512) - 256;
+            p.org[j] = org[j] + ((rand() % 32) - 16);
+            p.vel[j] = (rand() % 512) - 256;
         }
     }
 }
@@ -492,33 +579,33 @@ void R_BlobExplosion(vec3_t org)
 {
     for(int i = 0; i < 1024; i++)
     {
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        p->die = cl.time + 1 + (rand() & 8) * 0.05;
+        p.die = cl.time + 1 + (rand() & 8) * 0.05;
 
         if(i & 1)
         {
-            p->type = pt_blob;
-            p->color = 66 + rand() % 6;
+            p.type = pt_blob;
+            p.color = 66 + rand() % 6;
             for(int j = 0; j < 3; j++)
             {
-                p->org[j] = org[j] + ((rand() % 32) - 16);
-                p->vel[j] = (rand() % 512) - 256;
+                p.org[j] = org[j] + ((rand() % 32) - 16);
+                p.vel[j] = (rand() % 512) - 256;
             }
         }
         else
         {
-            p->type = pt_blob2;
-            p->color = 150 + rand() % 6;
+            p.type = pt_blob2;
+            p.color = 150 + rand() % 6;
             for(int j = 0; j < 3; j++)
             {
-                p->org[j] = org[j] + ((rand() % 32) - 16);
-                p->vel[j] = (rand() % 512) - 256;
+                p.org[j] = org[j] + ((rand() % 32) - 16);
+                p.vel[j] = (rand() % 512) - 256;
             }
         }
     }
@@ -533,47 +620,47 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
     for(int i = 0; i < count; i++)
     {
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
         if(count == 1024)
         { // rocket explosion
-            p->die = cl.time + 5;
-            p->color = ramp1[0];
-            p->ramp = rand() & 3;
+            p.die = cl.time + 5;
+            p.color = ramp1[0];
+            p.ramp = rand() & 3;
             if(i & 1)
             {
-                p->type = pt_explode;
+                p.type = pt_explode;
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = org[j] + ((rand() % 32) - 16);
-                    p->vel[j] = (rand() % 512) - 256;
+                    p.org[j] = org[j] + ((rand() % 32) - 16);
+                    p.vel[j] = (rand() % 512) - 256;
                 }
             }
             else
             {
-                p->type = pt_explode2;
+                p.type = pt_explode2;
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = org[j] + ((rand() % 32) - 16);
-                    p->vel[j] = (rand() % 512) - 256;
+                    p.org[j] = org[j] + ((rand() % 32) - 16);
+                    p.vel[j] = (rand() % 512) - 256;
                 }
             }
         }
         else
         {
-            p->die = cl.time + 0.1 * (rand() % 5);
-            p->color = (color & ~7) + (rand() & 7);
-            p->type = pt_slowgrav;
+            p.die = cl.time + 0.7 * (rand() % 5);
+            p.color = (color & ~7) + (rand() & 7);
+            p.type = pt_slowgrav;
             for(int j = 0; j < 3; j++)
             {
                 // TODO VR: bullet puff
-                p->org[j] = org[j] + ((rand() & 7) - 4);
-                p->vel[j] = dir[j] * 15 + (rand() % 6) - 3;
+                p.org[j] = org[j] + ((rand() & 7) - 4);
+                p.vel[j] = dir[j] * 15 + (rand() % 6) - 3;
             }
         }
     }
@@ -595,28 +682,28 @@ void R_LavaSplash(vec3_t org)
         {
             for(int k = 0; k < 1; k++)
             {
-                if(!free_particles)
+                if(reachedMax())
                 {
                     return;
                 }
 
-                particle_t* const p = getFreeParticle();
+                particle_t& p = getFreeParticle();
 
-                p->die = cl.time + 2 + (rand() & 31) * 0.02;
-                p->color = 224 + (rand() & 7);
-                p->type = pt_slowgrav;
+                p.die = cl.time + 2 + (rand() & 31) * 0.02;
+                p.color = 224 + (rand() & 7);
+                p.type = pt_slowgrav;
 
                 dir[0] = j * 8 + (rand() & 7);
                 dir[1] = i * 8 + (rand() & 7);
                 dir[2] = 256;
 
-                p->org[0] = org[0] + dir[0];
-                p->org[1] = org[1] + dir[1];
-                p->org[2] = org[2] + (rand() & 63);
+                p.org[0] = org[0] + dir[0];
+                p.org[1] = org[1] + dir[1];
+                p.org[2] = org[2] + (rand() & 63);
 
                 VectorNormalize(dir);
                 vel = 50 + (rand() & 63);
-                VectorScale(dir, vel, p->vel);
+                VectorScale(dir, vel, p.vel);
             }
         }
     }
@@ -631,34 +718,34 @@ void R_TeleportSplash(vec3_t org)
 {
     vec3_t dir;
 
-    for(int i = -16; i < 16; i += 1)
+    for(int i = -16; i < 16; i += 4)
     {
-        for(int j = -16; j < 16; j += 1)
+        for(int j = -16; j < 16; j += 4)
         {
-            for(int k = -24; k < 32; k += 1)
+            for(int k = -24; k < 32; k += 4)
             {
-                if(!free_particles)
+                if(reachedMax())
                 {
                     return;
                 }
 
-                particle_t* const p = getFreeParticle();
+                particle_t& p = getFreeParticle();
 
-                p->die = cl.time + 0.2 + (rand() & 7) * 0.02;
-                p->color = 7 + (rand() & 7);
-                p->type = pt_slowgrav;
+                p.die = cl.time + 1.2 + (rand() & 7) * 1.2;
+                p.color = 7 + (rand() & 7);
+                p.type = pt_slowgrav;
 
                 dir[0] = j * 8;
                 dir[1] = i * 8;
                 dir[2] = k * 8;
 
-                p->org[0] = org[0] + i + (rand() & 3);
-                p->org[1] = org[1] + j + (rand() & 3);
-                p->org[2] = org[2] + k + (rand() & 3);
+                p.org[0] = org[0] + i + (rand() & 3);
+                p.org[1] = org[1] + j + (rand() & 3);
+                p.org[2] = org[2] + k + (rand() & 3);
 
                 VectorNormalize(dir);
                 const float vel = 50 + (rand() & 63);
-                VectorScale(dir, vel, p->vel);
+                VectorScale(dir, vel, p.vel);
             }
         }
     }
@@ -694,92 +781,92 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
     {
         len -= dec;
 
-        if(!free_particles)
+        if(reachedMax())
         {
             return;
         }
 
-        particle_t* const p = getFreeParticle();
+        particle_t& p = getFreeParticle();
 
-        VectorCopy(vec3_origin, p->vel);
-        p->die = cl.time + 2;
+        VectorCopy(vec3_origin, p.vel);
+        p.die = cl.time + 2;
 
         switch(type)
         {
             case 0: // rocket trail
-                p->ramp = (rand() & 3);
-                p->color = ramp3[(int)p->ramp];
-                p->type = pt_fire;
+                p.ramp = (rand() & 3);
+                p.color = ramp3[(int)p.ramp];
+                p.type = pt_fire;
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = start[j] + ((rand() % 6) - 3);
+                    p.org[j] = start[j] + ((rand() % 6) - 3);
                 }
                 break;
 
             case 1: // smoke smoke
-                p->ramp = (rand() & 3) + 2;
-                p->color = ramp3[(int)p->ramp];
-                p->type = pt_fire;
+                p.ramp = (rand() & 3) + 2;
+                p.color = ramp3[(int)p.ramp];
+                p.type = pt_fire;
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = start[j] + ((rand() % 6) - 3);
+                    p.org[j] = start[j] + ((rand() % 6) - 3);
                 }
                 break;
 
             case 2: // blood
-                p->type = pt_grav;
-                p->color = 67 + (rand() & 3);
+                p.type = pt_grav;
+                p.color = 67 + (rand() & 3);
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = start[j] + ((rand() % 6) - 3);
+                    p.org[j] = start[j] + ((rand() % 6) - 3);
                 }
                 break;
 
             case 3:
             case 5: // tracer
-                p->die = cl.time + 0.5;
-                p->type = pt_static;
+                p.die = cl.time + 0.5;
+                p.type = pt_static;
                 if(type == 3)
                 {
-                    p->color = 52 + ((tracercount & 4) << 1);
+                    p.color = 52 + ((tracercount & 4) << 1);
                 }
                 else
                 {
-                    p->color = 230 + ((tracercount & 4) << 1);
+                    p.color = 230 + ((tracercount & 4) << 1);
                 }
 
                 tracercount++;
 
-                VectorCopy(start, p->org);
+                VectorCopy(start, p.org);
                 if(tracercount & 1)
                 {
-                    p->vel[0] = 30 * vec[1];
-                    p->vel[1] = 30 * -vec[0];
+                    p.vel[0] = 30 * vec[1];
+                    p.vel[1] = 30 * -vec[0];
                 }
                 else
                 {
-                    p->vel[0] = 30 * -vec[1];
-                    p->vel[1] = 30 * vec[0];
+                    p.vel[0] = 30 * -vec[1];
+                    p.vel[1] = 30 * vec[0];
                 }
                 break;
 
             case 4: // slight blood
-                p->type = pt_grav;
-                p->color = 67 + (rand() & 3);
+                p.type = pt_grav;
+                p.color = 67 + (rand() & 3);
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = start[j] + ((rand() % 6) - 3);
+                    p.org[j] = start[j] + ((rand() % 6) - 3);
                 }
                 len -= 3;
                 break;
 
             case 6: // voor trail
-                p->color = 9 * 16 + 8 + (rand() & 3);
-                p->type = pt_static;
-                p->die = cl.time + 0.3;
+                p.color = 9 * 16 + 8 + (rand() & 3);
+                p.type = pt_static;
+                p.die = cl.time + 0.3;
                 for(int j = 0; j < 3; j++)
                 {
-                    p->org[j] = start[j] + ((rand() & 15) - 8);
+                    p.org[j] = start[j] + ((rand() & 15) - 8);
                 }
                 break;
         }
@@ -805,7 +892,10 @@ void CL_RunParticles()
     const float grav = frametime * sv_gravity.value * 0.05;
     const float dvel = 4 * frametime;
 
-    while(true)
+    particleBuffer.cleanup();
+
+    // TODO VR:
+    /* while(true)
     {
         if(particle_t* const pk = active_particles; pk && pk->die < cl.time)
         {
@@ -814,20 +904,21 @@ void CL_RunParticles()
         }
 
         break;
-    }
+    } */
 
     forActiveParticles([&](particle_t& p) {
-        while(true)
-        {
-            if(particle_t* const pk = p.next; pk && pk->die < cl.time)
-            {
-                p.next = killParticle(pk);
-                continue;
-            }
+        // TODO VR:
+        /*        while(true)
+               {
+                   if(particle_t* const pk = p.next; pk && pk->die < cl.time)
+                   {
+                       p.next = killParticle(pk);
+                       continue;
+                   }
 
-            break;
-        }
-
+                   break;
+               }
+        */
         p.org[0] += p.vel[0] * frametime;
         p.org[1] += p.vel[1] * frametime;
         p.org[2] += p.vel[2] * frametime;
@@ -943,7 +1034,7 @@ void R_DrawParticles()
 
     // ericw -- avoid empty glBegin(),glEnd() pair below; causes issues
     // on AMD
-    if(!active_particles)
+    if(noActiveParticles())
     {
         return;
     }
