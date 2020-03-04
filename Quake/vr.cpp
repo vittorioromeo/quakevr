@@ -1391,8 +1391,10 @@ void VR_UpdateScreenContent()
                 auto* hdr = (aliashdr_t*)Mod_Extradata(cl.viewent.model);
                 Mod_Weapon(cl.viewent.model->name, hdr);
 
+                // TODO VR: move somewhere else (init?)
                 qmodel_t* test = Mod_ForName("progs/grenade.mdl", true);
                 test->flags |= EF_GRENADE;
+
                 // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
                 // testhdr->flags |= EF_GRENADE;
                 // VectorScale(testhdr->scale_origin, 0.5f, testhdr->scale_origin);
