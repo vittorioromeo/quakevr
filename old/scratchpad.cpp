@@ -101,3 +101,133 @@ void VR_Move(usercmd_t* cmd)
     // vec3_t adjhandpos;
     // VectorCopy(cl.handpos[1], adjhandpos);
     // adjhandpos[2] -= vr_projectilespawn_z_offset.value;
+
+
+
+class ParticleBuffer
+{
+private:
+    // TODO VR: use raw buffer for more speed
+    std::vector<particle_t> _particles;
+    std::size_t _maxParticles;
+
+public:
+    void initialize(std::size_t maxParticles)
+    {
+        _maxParticles = maxParticles;
+        _particles.reserve(maxParticles);
+    }
+
+    void cleanup()
+    {
+        _particles.erase(
+            std::remove_if(_particles.begin(), _particles.end(),
+                [](const particle_t& p) { return cl.time >= p.die; }),
+            _particles.end());
+    }
+
+    [[nodiscard]] particle_t& create()
+    {
+        return _particles.emplace_back();
+    }
+
+    template <typename F>
+    void forActive(F&& f)
+    {
+        for(auto& p : _particles)
+        {
+            f(p);
+        }
+    }
+
+    [[nodiscard]] bool reachedMax() const noexcept
+    {
+        return _particles.size() == _maxParticles;
+    }
+
+    void clear()
+    {
+        _particles.clear();
+    }
+
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return _particles.empty();
+    }
+};
+
+
+
+class ParticleBuffer
+{
+private:
+    particle_t* _particles;
+    particle_t* _aliveEnd;
+    particle_t* _end;
+
+public:
+    void initialize(const std::size_t maxParticles) noexcept
+    {
+        _particles = (particle_t*)Hunk_AllocName(
+            maxParticles * sizeof(particle_t), "particles");
+        _aliveEnd = _particles;
+        _end = _particles + maxParticles;
+    }
+
+    void cleanup() noexcept
+    {
+        const auto it = std::remove_if(_particles, _aliveEnd,
+            [](const particle_t& p) { return cl.time >= p.die; });
+
+#if 0
+        for(auto p = it; p != _aliveEnd; ++p)
+        {
+            p->~particle_t();
+        }
+#endif
+
+        _aliveEnd = it;
+    }
+
+    [[nodiscard]] particle_t& create() noexcept
+    {
+#if 0
+        const auto p = _aliveEnd++;
+        new(p) particle_t;
+        return *p;
+#else
+        return *_aliveEnd++;
+#endif
+    }
+
+    template <typename F>
+    void forActive(F&& f) noexcept
+    {
+        for(auto p = _particles; p != _aliveEnd; ++p)
+        {
+            f(*p);
+        }
+    }
+
+    [[nodiscard]] bool reachedMax() const noexcept
+    {
+        return _aliveEnd == _end;
+    }
+
+    void clear() noexcept
+    {
+#if 0
+        for(auto p = _particles; p != _aliveEnd; ++p)
+        {
+            p->~particle_t();
+        }
+#endif
+
+        _aliveEnd = _particles;
+    }
+
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return _aliveEnd == _particles;
+    }
+};

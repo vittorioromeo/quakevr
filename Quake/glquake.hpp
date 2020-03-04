@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -86,8 +87,6 @@ typedef struct
 enum ptype_t : std::uint8_t
 {
     pt_static,
-    pt_grav,
-    pt_slowgrav,
     pt_fire,
     pt_explode,
     pt_explode2,
@@ -100,10 +99,13 @@ struct particle_t
 {
     vec3_t org; // driver-usable field
     vec3_t vel; // drivers never touches this field
+    vec3_t acc; // TODO VR: driver?
 
-    float color; // driver-usable field
-    float ramp;  // drivers never touches this field
-    float die;   // drivers never touches this field
+    float color;        // driver-usable field
+    float ramp;         // drivers never touches this field
+    float die;          // drivers never touches this field
+    float scale;        // TODO VR: driver?
+    std::uint8_t alpha; // TODO VR: use?
 
     ptype_t type; // drivers never touches this field
 };
