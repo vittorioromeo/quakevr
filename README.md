@@ -71,6 +71,18 @@
 
 *(Please forgive me if I am forgetting someone. I will update this list as needed.)*
 
+## Fan Coverage
+
+*(Thanks everyone for playing Quake VR! If you have created content related to the mod, please let me know and I'll add it to this list.)*
+
+* VHS Productions's [gameplay video](https://www.youtube.com/watch?v=fwyHMHvGOiI) with commentary and webcam.
+
+* Sly VR's gameplay videos: [part 1](https://www.youtube.com/watch?v=lAlJubb64g0), [part 2](https://www.youtube.com/watch?v=M0Pv66638Hc), and [part 3](https://www.youtube.com/watch?v=ST9w7dwW6Rw). With commentary.
+
+* UploadVR [article](https://uploadvr.com/new-quake-vr-mod/) and [gameplay video](https://www.youtube.com/watch?v=fBzCdMSF2-U).
+
+* My own [let's play series](https://www.youtube.com/playlist?list=PLTEcWGdSiQemN50YKFbEpR9har292EJns) with developer commentary and webcam. Nightmare difficulty!
+
 ## CVars
 
 *(This list is not exhaustive. More options are exposed in the in-game menu, or available via the console.)*
