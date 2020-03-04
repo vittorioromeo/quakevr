@@ -672,7 +672,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1, p2, FALSE, self);
 	if (trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
 		T_Damage (trace_ent, from, from, damage);
 		if (self.classname == "player")
 		{
@@ -685,7 +685,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 + f, p2 + f, FALSE, self);
 	if (trace_ent != e1 && trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
 		T_Damage (trace_ent, from, from, damage);
 	}
 	e2 = trace_ent;
@@ -693,7 +693,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 - f, p2 - f, FALSE, self);
 	if (trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
 		T_Damage (trace_ent, from, from, damage);
 	}
 };
@@ -734,6 +734,8 @@ void() W_FireLightning =
 	org = self.handpos + '0 0 0';
 
 	traceline (org, org + v_forward*600, TRUE, self);
+	particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
+	particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
 	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
 };
 

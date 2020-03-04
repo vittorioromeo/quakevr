@@ -227,7 +227,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_BlobExplosion(pos);
+            R_ParticleExplosion(pos);
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
             break;

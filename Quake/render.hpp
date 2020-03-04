@@ -167,7 +167,6 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count);
 void R_RunParticleEffect_BulletPuff(vec3_t org, vec3_t dir, int color, int count);
 void R_RocketTrail(vec3_t start, vec3_t end, int type);
 void R_EntityParticles(entity_t* ent);
-void R_BlobExplosion(vec3_t org);
 void R_ParticleExplosion(vec3_t org);
 void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength);
 void R_LavaSplash(vec3_t org);

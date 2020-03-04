@@ -93,7 +93,8 @@ enum ptype_t : std::uint8_t
     pt_blob,
     pt_blob2,
     pt_txexplode,
-    pt_txsmoke
+    pt_txsmoke,
+    pt_lightning
 };
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!

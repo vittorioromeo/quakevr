@@ -289,6 +289,7 @@ ParticleTextureManager::Handle ptxExplosion;
 ParticleTextureManager::Handle ptxSmoke;
 ParticleTextureManager::Handle ptxBlood;
 ParticleTextureManager::Handle ptxBloodMist;
+ParticleTextureManager::Handle ptxLightning;
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 
@@ -432,6 +433,7 @@ void R_InitParticleTextures()
     load(ptxSmoke, "textures/particle_smoke");
     load(ptxBlood, "textures/particle_blood");
     load(ptxBloodMist, "textures/particle_blood_mist");
+    load(ptxLightning, "textures/particle_lightning");
 }
 
 static void R_InitRNumParticles()
@@ -671,7 +673,7 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(ptxExplosion, 6, [&](particle_t& p) {
+    makeNParticles(ptxExplosion, 4, [&](particle_t& p) {
         p.alpha = 136;
         p.die = cl.time + 4 * rnd(0.5f, 1.5f);
         p.color = ramp1[0];
@@ -687,8 +689,8 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(ptxSmoke, 6, [&](particle_t& p) {
-        p.alpha = 185;
+    makeNParticles(ptxSmoke, 4, [&](particle_t& p) {
+        p.alpha = 195;
         p.die = cl.time + 3.5 * (rand() % 5);
         p.color = rand() & 7;
         p.scale = rnd(1.2f, 1.5f);
@@ -721,38 +723,6 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
         setAccGrav(p);
 
         p.type = pt_blob;
-        for(int j = 0; j < 3; j++)
-        {
-            p.org[j] = org[j] + rnd(-16, 16);
-            p.vel[j] = rnd(-256, 256);
-        }
-    });
-}
-
-/*
-===============
-R_BlobExplosion
-===============
-*/
-void R_BlobExplosion(vec3_t org)
-{
-    makeNParticlesI(ptxCircle, 1024, [&](const int i, particle_t& p) {
-        p.alpha = 255;
-        p.die = cl.time + 1 + (rand() & 8) * 0.05;
-        p.scale = 1.f;
-        setAccGrav(p);
-
-        if(i & 1)
-        {
-            p.type = pt_blob;
-            p.color = 66 + rand() % 6;
-        }
-        else
-        {
-            p.type = pt_blob2;
-            p.color = 150 + rand() % 6;
-        }
-
         for(int j = 0; j < 3; j++)
         {
             p.org[j] = org[j] + rnd(-16, 16);
@@ -875,6 +845,46 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
     });
 }
 
+void R_RunParticleEffect_Lightning(vec3_t org, vec3_t dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxLightning, count, [&](particle_t& p) {
+        p.alpha = 180;
+        p.die = cl.time + 1.3 * (rand() % 3);
+        p.color = 254;
+        p.scale = rnd(0.35f, 0.6f) * 6.2f;
+        p.type = pt_lightning;
+        setAccGrav(p, 0.f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-3, 3);
+            p.vel[j] = rnd(-185, 185);
+        }
+    });
+}
+
+void R_RunParticleEffect_Smoke(vec3_t org, vec3_t dir, int count)
+{
+    (void) dir;
+
+    makeNParticles(ptxSmoke, count, [&](particle_t& p) {
+        p.alpha = 125;
+        p.die = cl.time + 3.5 * (rand() % 5);
+        p.color = rand() & 7;
+        p.scale = rnd(1.2f, 1.5f) * 0.8f;
+        p.type = pt_txsmoke;
+        setAccGrav(p, -0.09f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 7) - 4);
+            p.vel[j] = rnd(-24, 24);
+        }
+    });
+}
+
 /*
 ===============
 R_RunParticleEffect
@@ -897,7 +907,10 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
     enum class Preset : int
     {
         BulletPuff = 0,
-        Blood = 1
+        Blood = 1,
+        Explosion = 2,
+        Lightning = 3,
+        Smoke = 4,
     };
 
     switch(static_cast<Preset>(preset))
@@ -910,6 +923,21 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         case Preset::Blood:
         {
             R_RunParticleEffect_Blood(org, dir, count);
+            break;
+        }
+        case Preset::Explosion:
+        {
+            R_ParticleExplosion(org);
+            break;
+        }
+        case Preset::Lightning:
+        {
+            R_RunParticleEffect_Lightning(org, dir, count);
+            break;
+        }
+        case Preset::Smoke:
+        {
+            R_RunParticleEffect_Smoke(org, dir, count);
             break;
         }
         default:
@@ -1331,30 +1359,24 @@ void CL_RunParticles()
 
             case pt_txexplode:
             {
-                if(p.alpha > 0.f)
-                {
-                    p.alpha -= 90.f * frametime;
-                }
-
-                if(p.scale > 0.f)
-                {
-                    p.scale += 45.f * frametime;
-                }
+                p.alpha -= 90.f * frametime;
+                p.scale += 45.f * frametime;
 
                 break;
             }
 
             case pt_txsmoke:
             {
-                if(p.alpha > 0.f)
-                {
-                    p.alpha -= 75.f * frametime;
-                }
+                p.alpha -= 75.f * frametime;
+                p.scale += 47.f * frametime;
 
-                if(p.scale > 0.f)
-                {
-                    p.scale += 47.f * frametime;
-                }
+                break;
+            }
+
+            case pt_lightning:
+            {
+                p.alpha -= 90.f * frametime;
+                p.scale -= 35.f * frametime;
 
                 break;
             }
@@ -1395,6 +1417,9 @@ void R_DrawParticles()
     left[0] = right[0] * -1.f;
     left[1] = right[1] * -1.f;
     left[2] = right[2] * -1.f;
+
+    // TODO VR: this could be optimized a lot
+    // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
 
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         ParticleBuffer& pBuffer) {
