@@ -100,6 +100,45 @@ std::mt19937 mt(rd());
     return std::uniform_real_distribution<float>{min, max}(mt);
 }
 
+[[nodiscard]] static int rndi(const int min, const int max) noexcept
+{
+    return std::uniform_int_distribution<int>{min, max - 1}(mt);
+}
+
+template <typename F>
+void makeParticle(F&& f)
+{
+    if(particleBuffer.full())
+    {
+        return;
+    }
+
+    f(particleBuffer.create());
+}
+
+template <typename F>
+void makeNParticles(const int count, F&& f)
+{
+    for(int i = 0; i < count; i++)
+    {
+        makeParticle(f);
+    }
+}
+
+template <typename F>
+void makeNParticlesI(const int count, F&& f)
+{
+    for(int i = 0; i < count; i++)
+    {
+        if(particleBuffer.full())
+        {
+            return;
+        }
+
+        f(i, particleBuffer.create());
+    }
+}
+
 void setAccGrav(particle_t& p, float mult = 0.5f)
 {
     extern cvar_t sv_gravity;
@@ -288,9 +327,6 @@ R_EntityParticles
 extern float r_avertexnormals[NUMVERTEXNORMALS][3];
 vec3_t avelocities[NUMVERTEXNORMALS];
 float beamlength = 16;
-vec3_t avelocity = {23, 7, 3};
-float partstep = 0.01;
-float timescale = 0.01;
 
 void R_EntityParticles(entity_t* ent)
 {
@@ -435,9 +471,39 @@ void R_ParseParticleEffect()
 
     const int msgcount = MSG_ReadByte();
     const int color = MSG_ReadByte();
-    const int count = msgcount == 255 ? 1024 : msgcount;
 
-    R_RunParticleEffect(org, dir, color, count);
+    // TODO VR:
+    // const int count = msgcount == 255 ? 1024 : msgcount;
+
+    R_RunParticleEffect(org, dir, color, msgcount);
+}
+
+// TODO VR:
+/*
+===============
+R_ParseParticle2Effect
+
+Parse an effect out of the server message
+===============
+*/
+void R_ParseParticle2Effect()
+{
+    vec3_t org;
+    for(int i = 0; i < 3; i++)
+    {
+        org[i] = MSG_ReadCoord(cl.protocolflags);
+    }
+
+    vec3_t dir;
+    for(int i = 0; i < 3; i++)
+    {
+        dir[i] = MSG_ReadChar() * (1.0 / 16);
+    }
+
+    const int preset = MSG_ReadByte();
+    const int msgcount = MSG_ReadByte();
+
+    R_RunParticle2Effect(org, dir, preset, msgcount);
 }
 
 /*
@@ -447,40 +513,36 @@ R_ParticleExplosion
 */
 void R_ParticleExplosion(vec3_t org)
 {
-    for(int i = 0; i < 1024; i++)
-    {
-        if(particleBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = particleBuffer.create();
-
+    makeNParticlesI(1024, [&](const int i, particle_t& p) {
         p.die = cl.time + 5;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
-        p.scale = rnd(0.5f, 1.5f);
+        p.scale = rnd(0.9f, 2.3f);
         setAccGrav(p);
+        p.type = i & 1 ? pt_explode : pt_explode2;
 
-        if(i & 1)
+        for(int j = 0; j < 3; j++)
         {
-            p.type = pt_explode;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
+            p.org[j] = org[j] + rnd(-16, 16);
+            p.vel[j] = rnd(-256, 256);
         }
-        else
+    });
+
+    makeNParticles(512, [&](particle_t& p) {
+        p.die = cl.time + 3.5 * (rand() % 5);
+        p.color = rand() & 7;
+        p.scale = rnd(0.2f, 0.5f);
+        p.type = pt_static;
+        setAccGrav(p, -0.08f);
+
+        for(int j = 0; j < 3; j++)
         {
-            p.type = pt_explode2;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
+            p.org[j] = org[j] + ((rand() & 7) - 4);
+            p.vel[j] = rnd(-24, 24);
         }
-    }
+
+        p.vel[2] += rnd(10, 40);
+    });
 }
 
 /*
@@ -510,8 +572,8 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
         p.type = pt_blob;
         for(int j = 0; j < 3; j++)
         {
-            p.org[j] = org[j] + ((rand() % 32) - 16);
-            p.vel[j] = (rand() % 512) - 256;
+            p.org[j] = org[j] + rnd(-16, 16);
+            p.vel[j] = rnd(-256, 256);
         }
     }
 }
@@ -540,108 +602,48 @@ void R_BlobExplosion(vec3_t org)
         {
             p.type = pt_blob;
             p.color = 66 + rand() % 6;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
         }
         else
         {
             p.type = pt_blob2;
             p.color = 150 + rand() % 6;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
+        }
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-16, 16);
+            p.vel[j] = rnd(-256, 256);
         }
     }
 }
 
-static void R_RunParticleEffect_Explosion(
-    vec3_t org, vec3_t dir, int color, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        if(particleBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = particleBuffer.create();
-
-        // rocket explosion
-        p.die = cl.time + 5;
-        p.color = ramp1[0];
-        p.ramp = rand() & 3;
-        p.scale = 1.f;
-        setAccGrav(p);
-
-        if(i & 1)
-        {
-            p.type = pt_explode;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
-        }
-        else
-        {
-            p.type = pt_explode2;
-            for(int j = 0; j < 3; j++)
-            {
-                p.org[j] = org[j] + ((rand() % 32) - 16);
-                p.vel[j] = (rand() % 512) - 256;
-            }
-        }
-    }
-}
-
-static void R_RunParticleEffect_BulletPuff(
+void R_RunParticleEffect_BulletPuff(
     vec3_t org, vec3_t dir, int color, int count)
 {
     const auto debrisCount = count * 0.7f;
-    const auto dustCount = count;
-    const auto sparkCount = count * 0.5f;
+    const auto dustCount = count * 0.7f;
+    const auto sparkCount = count * 0.4f;
 
-    for(int i = 0; i < debrisCount; i++)
-    {
-        if(particleBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = particleBuffer.create();
-
+    makeNParticles(debrisCount, [&](particle_t& p) {
         p.die = cl.time + 0.7 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
-        p.scale = rnd(0.25f, 0.45f);
+        p.scale = rnd(0.5f, 0.9f);
         p.type = pt_static;
-        setAccGrav(p, 0.8f);
+        setAccGrav(p, 0.26f);
 
         for(int j = 0; j < 3; j++)
         {
             p.org[j] = org[j] + ((rand() & 7) - 4);
-            p.vel[j] = dir[j] * rnd(5, 18);
+            p.vel[j] = dir[j] * rnd(5, 90);
         }
-    }
+    });
 
-    for(int i = 0; i < dustCount; i++)
-    {
-        if(particleBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = particleBuffer.create();
-
-        p.die = cl.time + 1.7 * (rand() % 5);
+    makeNParticles(dustCount, [&](particle_t& p) {
+        p.die = cl.time + 1.5 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
-        p.scale = rnd(0.12f, 0.3f);
+        p.scale = rnd(0.2f, 0.5f);
         p.type = pt_static;
-        setAccGrav(p, 0.05f);
+        setAccGrav(p, 0.08f);
 
         for(int j = 0; j < 3; j++)
         {
@@ -650,20 +652,12 @@ static void R_RunParticleEffect_BulletPuff(
         }
 
         p.vel[2] += rnd(10, 40);
-    }
+    });
 
-    for(int i = 0; i < sparkCount; i++)
-    {
-        if(particleBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = particleBuffer.create();
-
+    makeNParticles(sparkCount, [&](particle_t& p) {
         p.die = cl.time + 1.6 * (rand() % 5);
         p.color = ramp3[0] + (rand() & 7);
-        p.scale = rnd(0.1f, 0.3f);
+        p.scale = rnd(0.15f, 0.35f);
         p.type = pt_static;
         setAccGrav(p, 1.f);
 
@@ -674,7 +668,44 @@ static void R_RunParticleEffect_BulletPuff(
         }
 
         p.vel[2] = rnd(60, 360);
-    }
+    });
+}
+
+void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
+{
+    constexpr int bloodColors[]{247, 248, 249, 250, 251};
+    const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
+
+    makeNParticles(count * 5, [&](particle_t& p) {
+        p.die = cl.time + 0.7 * (rand() % 5);
+        p.color = pickBloodColor();
+        p.scale = rnd(0.35f, 0.6f);
+        p.type = pt_static;
+        setAccGrav(p, 0.33f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-2, 2);
+            p.vel[j] = (dir[j] + 0.3f) * rnd(-10, 10);
+        }
+    });
+
+    makeNParticles(count * 15, [&](particle_t& p) {
+        p.die = cl.time + 0.4 * (rand() % 5);
+        p.color = pickBloodColor();
+        p.scale = rnd(0.15f, 0.4f);
+        p.type = pt_static;
+        setAccGrav(p, 0.45f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-2, 2);
+            p.vel[j] = (dir[j] + 0.3f) * rnd(-3, 3);
+            p.vel[j] *= 13.f;
+        }
+
+        p.vel[2] += rnd(20, 60);
+    });
 }
 
 /*
@@ -684,14 +715,41 @@ R_RunParticleEffect
 */
 void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
-    // TODO VR: hardcoded based on count, ew
-    if(count == 1024)
+    // TODO VR: add way to change types
+    R_RunParticleEffect_BulletPuff(org, dir, color, count);
+}
+
+// TODO VR:
+/*
+===============
+R_RunParticle2Effect
+===============
+*/
+void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
+{
+    enum class Preset : int
     {
-        R_RunParticleEffect_Explosion(org, dir, color, count);
-    }
-    else
+        BulletPuff = 0,
+        Blood = 1
+    };
+
+    switch(static_cast<Preset>(preset))
     {
-        R_RunParticleEffect_BulletPuff(org, dir, color, count);
+        case Preset::BulletPuff:
+        {
+            R_RunParticleEffect_BulletPuff(org, dir, 0, count);
+            break;
+        }
+        case Preset::Blood:
+        {
+            R_RunParticleEffect_Blood(org, dir, count);
+            break;
+        }
+        default:
+        {
+            assert(false);
+            break;
+        }
     }
 }
 
@@ -706,15 +764,7 @@ void R_LavaSplash(vec3_t org)
     {
         for(int j = -16; j < 16; j++)
         {
-            for(int k = 0; k < 1; k++)
-            {
-                if(particleBuffer.full())
-                {
-                    return;
-                }
-
-                particle_t& p = particleBuffer.create();
-
+            makeNParticles(1, [&](particle_t& p) {
                 p.scale = 1.f;
                 p.die = cl.time + 2 + (rand() & 31) * 0.02;
                 p.color = 224 + (rand() & 7);
@@ -733,7 +783,7 @@ void R_LavaSplash(vec3_t org)
                 VectorNormalize(dir);
                 const float vel = 50 + (rand() & 63);
                 VectorScale(dir, vel, p.vel);
-            }
+            });
         }
     }
 }
@@ -762,7 +812,7 @@ void R_TeleportSplash(vec3_t org)
                 p.die = cl.time + 1.2 + (rand() & 7) * 0.2;
                 p.color = 7 + (rand() & 7);
                 p.type = pt_static;
-                setAccGrav(p);
+                setAccGrav(p, 0.2f);
 
                 vec3_t dir;
                 dir[0] = j * 8;
@@ -817,7 +867,8 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
         }
 
         particle_t& p = particleBuffer.create();
-        p.scale = 1.f;
+        p.scale = 0.7f;
+        setAccGrav(p, 0.05f);
 
         VectorCopy(vec3_origin, p.vel);
         p.die = cl.time + 2;
@@ -1028,14 +1079,7 @@ void R_DrawParticles()
     // johnfitz
     // float			alpha; //johnfitz -- particle transparency
 
-    if(!r_particles.value)
-    {
-        return;
-    }
-
-    // ericw -- avoid empty glBegin(),glEnd() pair below; causes issues
-    // on AMD
-    if(particleBuffer.empty())
+    if(!r_particles.value || particleBuffer.empty())
     {
         return;
     }
@@ -1053,24 +1097,7 @@ void R_DrawParticles()
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
-        // hack a scale up to keep particles from disapearing
-        float scale = (p.org[0] - r_origin[0]) * vpn[0] +
-                      (p.org[1] - r_origin[1]) * vpn[1] +
-                      (p.org[2] - r_origin[2]) * vpn[2];
-        if(scale < 20)
-        {
-            scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
-        }
-        else
-        {
-            scale = 1 + scale * 0.004;
-        }
-
-        scale *= texturescalefactor; // johnfitz -- compensate for
-                                     // apparent size of different
-                                     // particle textures
-
-        scale *= p.scale;
+        const float scale = texturescalefactor * p.scale;
 
         // johnfitz -- particle transparency and fade out
         c = (GLubyte*)&d_8to24table[(int)p.color];
@@ -1126,22 +1153,7 @@ void R_DrawParticles_ShowTris()
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
-        // hack a scale up to keep particles from disapearing
-        float scale = (p.org[0] - r_origin[0]) * vpn[0] +
-                      (p.org[1] - r_origin[1]) * vpn[1] +
-                      (p.org[2] - r_origin[2]) * vpn[2];
-
-        if(scale < 20)
-        {
-            scale = 1 + 0.08; // johnfitz -- added .08 to be consistent
-        }
-        else
-        {
-            scale = 1 + scale * 0.004;
-        }
-
-        scale *= texturescalefactor; // compensate for apparent size of
-                                     // different particle textures
+        const float scale = texturescalefactor * p.scale;
 
         glVertex3fv(p.org);
 

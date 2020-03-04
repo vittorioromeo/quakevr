@@ -74,12 +74,12 @@ const char* svc_strings[] = {
                              // framenum, alpha, using flags
     "svc_spawnstaticsound2", //	44		// [coord3] [short] samp [byte] vol
                              //[byte] aten
-    "",                      // 44
-    "",                      // 45
+    "svc_particle2",         // 45
     "",                      // 46
     "",                      // 47
     "",                      // 48
     "",                      // 49
+    "",                      // 50
     // johnfitz
 };
 
@@ -1387,6 +1387,7 @@ void CL_ParseServerMessage()
                 break;
 
             case svc_particle: R_ParseParticleEffect(); break;
+            case svc_particle2: R_ParseParticle2Effect(); break;
 
             case svc_spawnbaseline:
                 i = MSG_ReadShort();

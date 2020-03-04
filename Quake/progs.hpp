@@ -41,7 +41,7 @@ typedef union eval_s
 
 struct edict_t
 {
-    qboolean free;
+    bool free;
     link_t area; /* linked to a division node or leaf */
 
     int num_leafs;
@@ -50,7 +50,7 @@ struct edict_t
     entity_state_t baseline;
     unsigned char alpha;   /* johnfitz -- hack to support alpha since it's not
                               part of entvars_t */
-    qboolean sendinterval; /* johnfitz -- send time until nextthink to client
+    bool sendinterval; /* johnfitz -- send time until nextthink to client
                               for better lerp timing */
 
     float freetime; /* sv.time when the object was freed */
@@ -124,11 +124,11 @@ extern int type_size[8];
 
 typedef void (*builtin_t)(void);
 extern builtin_t* pr_builtins;
-extern int pr_numbuiltins;
+extern const int pr_numbuiltins;
 
 extern int pr_argc;
 
-extern qboolean pr_trace;
+extern bool pr_trace;
 extern dfunction_t* pr_xfunction;
 extern int pr_xstatement;
 

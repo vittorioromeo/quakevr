@@ -153,23 +153,21 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
+void SV_StartParticle(
+    const vec3_t org, const vec3_t dir, const int color, const int count)
 {
-    int i;
-
-    int v;
-
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
         return;
     }
+
     MSG_WriteByte(&sv.datagram, svc_particle);
     MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
     MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
     MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        v = dir[i] * 16;
+        int v = dir[i] * 16;
         if(v > 127)
         {
             v = 127;
@@ -182,6 +180,43 @@ void SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
     }
     MSG_WriteByte(&sv.datagram, count);
     MSG_WriteByte(&sv.datagram, color);
+}
+
+// TODO VR:
+/*
+==================
+SV_StartParticle2
+
+Make sure the event gets sent to all clients
+==================
+*/
+void SV_StartParticle2(
+    const vec3_t org, const vec3_t dir, const int preset, const int count)
+{
+    if(sv.datagram.cursize > MAX_DATAGRAM - 16)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, svc_particle2);
+    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    for(int i = 0; i < 3; i++)
+    {
+        int v = dir[i] * 16;
+        if(v > 127)
+        {
+            v = 127;
+        }
+        else if(v < -128)
+        {
+            v = -128;
+        }
+        MSG_WriteChar(&sv.datagram, v);
+    }
+    MSG_WriteByte(&sv.datagram, preset);
+    MSG_WriteByte(&sv.datagram, count);
 }
 
 /*

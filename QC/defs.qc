@@ -684,6 +684,8 @@ void(entity e) setspawnparms		= #78;		// set parm1... to the
 												// values at level start
 												// for coop respawn
 
+void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
+
 //============================================================================
 
 //

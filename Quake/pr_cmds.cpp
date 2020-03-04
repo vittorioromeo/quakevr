@@ -585,23 +585,34 @@ static void PF_random()
 =================
 PF_particle
 
-particle(origin, color, count)
+particle(origin, dir, color, count)
 =================
 */
 static void PF_particle()
 {
-    float* org;
-
-    float* dir;
-    float color;
-    float count;
-
-    org = G_VECTOR(OFS_PARM0);
-    dir = G_VECTOR(OFS_PARM1);
-    color = G_FLOAT(OFS_PARM2);
-    count = G_FLOAT(OFS_PARM3);
+    float* org = G_VECTOR(OFS_PARM0);
+    float* dir = G_VECTOR(OFS_PARM1);
+    const float color = G_FLOAT(OFS_PARM2);
+    const float count = G_FLOAT(OFS_PARM3);
     SV_StartParticle(org, dir, color, count);
 }
+
+/*
+=================
+PF_particle2
+
+particle2(origin, dir, preset, count)
+=================
+*/
+static void PF_particle2()
+{
+    float* org = G_VECTOR(OFS_PARM0);
+    float* dir = G_VECTOR(OFS_PARM1);
+    const int preset = G_FLOAT(OFS_PARM2);
+    const float count = G_FLOAT(OFS_PARM3);
+    SV_StartParticle2(org, dir, preset, count);
+}
+
 
 
 /*
@@ -1632,25 +1643,18 @@ This was a major timewaster in progs, so it was converted to C
 */
 void PF_changeyaw()
 {
-    edict_t* ent;
-    float ideal;
-
-    float current;
-
-    float move;
-
-    float speed;
-
-    ent = PROG_TO_EDICT(pr_global_struct->self);
-    current = anglemod(ent->v.angles[1]);
-    ideal = ent->v.ideal_yaw;
-    speed = ent->v.yaw_speed;
+    edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
+    float current = anglemod(ent->v.angles[1]);
+    float ideal = ent->v.ideal_yaw;
+    float speed = ent->v.yaw_speed;
 
     if(current == ideal)
     {
         return;
     }
-    move = ideal - current;
+
+    float move = ideal - current;
+
     if(ideal > current)
     {
         if(move >= 180)
@@ -1665,6 +1669,7 @@ void PF_changeyaw()
             move = move + 360;
         }
     }
+
     if(move > 0)
     {
         if(move > speed)
@@ -1863,19 +1868,15 @@ PF_setspawnparms
 */
 static void PF_setspawnparms()
 {
-    edict_t* ent;
-    int i;
-    client_t* client;
-
-    ent = G_EDICT(OFS_PARM0);
-    i = NUM_FOR_EDICT(ent);
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    int i = NUM_FOR_EDICT(ent);
     if(i < 1 || i > svs.maxclients)
     {
         PR_RunError("Entity is not a client");
     }
 
     // copy spawn parms out of the client_t
-    client = svs.clients + (i - 1);
+    client_t* client = svs.clients + (i - 1);
 
     for(i = 0; i < NUM_SPAWN_PARMS; i++)
     {
@@ -1890,16 +1891,15 @@ PF_changelevel
 */
 static void PF_changelevel()
 {
-    const char* s;
-
     // make sure we don't issue two changelevels
     if(svs.changelevel_issued)
     {
         return;
     }
+
     svs.changelevel_issued = true;
 
-    s = G_STRING(OFS_PARM0);
+    const char* s = G_STRING(OFS_PARM0);
     Cbuf_AddText(va("changelevel %s\n", s));
 }
 
@@ -1907,7 +1907,6 @@ static void PF_Fixme()
 {
     PR_RunError("unimplemented builtin");
 }
-
 
 static builtin_t pr_builtin[] = {PF_Fixme,
     PF_makevectors,    // void(entity e) makevectors		= #1
@@ -1965,7 +1964,7 @@ static builtin_t pr_builtin[] = {PF_Fixme,
     PF_precache_sound, // precache_sound2 is different only for qcc
     PF_precache_file,
 
-    PF_setspawnparms};
+    PF_setspawnparms, PF_particle2};
 
 builtin_t* pr_builtins = pr_builtin;
-int pr_numbuiltins = sizeof(pr_builtin) / sizeof(pr_builtin[0]);
+const int pr_numbuiltins = sizeof(pr_builtin) / sizeof(pr_builtin[0]);

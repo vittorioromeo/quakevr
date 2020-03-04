@@ -321,7 +321,7 @@ SpawnBlood
 */
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-	particle (org, vel*0.1, 73, damage*2);
+	particle2 (org, vel * 0.1, 1 /* blood preset */, damage);
 };
 
 /*
@@ -334,7 +334,7 @@ void(float damage) spawn_touchblood =
 	local vector	vel;
 
 	vel = wall_velocity () * 0.2;
-	SpawnBlood (self.origin + vel*0.01, vel, damage);
+	SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
 
@@ -345,7 +345,7 @@ SpawnChunk
 */
 void(vector org, vector vel) SpawnChunk =
 {
-	particle (org, vel*0.02, 0, 10);
+	particle (org, vel * 0.02, 0, 10);
 };
 
 /*

@@ -202,11 +202,11 @@ void(float r, vector p) boss_missile =
 	// VR: Predicted direction attack.
 	if (r == 0)
 	{
-		vel = 700 + random() * 200;
+		vel = 550 + random() * 150;
 	}
 	else
 	{
-		vel = 300 + random() * 200;
+		vel = 200 + random() * 150;
 	}
 
 	offang = vectoangles (self.enemy.origin - self.origin);
