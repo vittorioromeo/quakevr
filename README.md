@@ -45,6 +45,20 @@
 
     * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
 
+## Troubleshooting
+
+* > The game seems to work fine, but there is no audio!
+
+    * Ensure that the correct audio output device is set (HMD) and that the volume is turned up.
+    
+    * Open the Desktop view from your Steam VR dashboard, and make sure that the Quake VR window is in focus. You can bring it in focus by clicking on it.
+
+    * Check that the in-game audio settings are correct.
+
+* > The controls are not working, and I cannot create a new binding in the Steam VR settings!
+
+    * This is a problem with `v0.0.2` that will be fixed in the next version, because I am only supplying bindings for Knuckles controllers. You can fix it by copying [these `.json` files](https://github.com/SuperV1234/quakevr/tree/develop_otherinputs/ReleaseFiles) in your installation folder. Sorry for the inconvenience!
+
 ## Credits
 
 * Built on top of QuakeSpasm and existing forks
