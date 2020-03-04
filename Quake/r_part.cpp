@@ -30,11 +30,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <array>
 
 #define MAX_PARTICLES \
-    65536 // default max # of particles at one
-          //  time
+    4096 // default max # of particles at one
+         //  time
 #define ABSOLUTE_MIN_PARTICLES \
-    1024 // no fewer than this no matter what's
-         //  on the command line
+    512 // no fewer than this no matter what's
+        //  on the command line
 
 // These "ramps" below are for colors..
 constexpr int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
@@ -59,8 +59,10 @@ public:
 
     void cleanup() noexcept
     {
-        _aliveEnd = std::remove_if(_particles, _aliveEnd,
-            [](const particle_t& p) { return cl.time >= p.die; });
+        _aliveEnd =
+            std::remove_if(_particles, _aliveEnd, [](const particle_t& p) {
+                return p.alpha <= 0.f || p.scale <= 0.f || cl.time >= p.die;
+            });
     }
 
     [[nodiscard]] particle_t& create() noexcept
@@ -93,28 +95,126 @@ public:
     }
 };
 
+struct ImageData
+{
+    byte* data; // Hunk-allocated.
+    int width;
+    int height;
+};
+
 class ParticleTextureManager
 {
 public:
     using Handle = std::uint8_t;
+    static constexpr std::size_t maxTextures = 32;
 
 private:
-    static constexpr std::size_t maxTextures = 32;
     std::array<gltexture_t*, maxTextures> _textures;
+    std::array<ImageData, maxTextures> _imageData;
     Handle _next = 0;
 
 public:
-    [[nodiscard]] Handle put(gltexture_t* const texture) noexcept
+    [[nodiscard]] Handle put(
+        gltexture_t* const texture, const ImageData& imageData) noexcept
     {
         assert(_next < maxTextures);
         _textures[_next] = texture;
+        _imageData[_next] = imageData;
         return _next++;
     }
 
-    [[nodiscard]] gltexture_t* get(const Handle handle) noexcept
+    [[nodiscard]] gltexture_t* get(const Handle handle) const noexcept
     {
         assert(handle < _next);
         return _textures[handle];
+    }
+
+    [[nodiscard]] const ImageData& getImageData(
+        const Handle handle) const noexcept
+    {
+        assert(handle < _next);
+        return _imageData[handle];
+    }
+
+    [[nodiscard]] std::size_t numActive() const noexcept
+    {
+        return _next;
+    }
+};
+
+int r_numparticles;
+
+class ParticleManager
+{
+public:
+    using Handle = ParticleTextureManager::Handle;
+
+private:
+    ParticleTextureManager _textureMgr;
+    std::array<ParticleBuffer, ParticleTextureManager::maxTextures> _buffers;
+
+public:
+    [[nodiscard]] Handle createBuffer(
+        gltexture_t* const texture, const ImageData& imageData) noexcept
+    {
+        const Handle h = _textureMgr.put(texture, imageData);
+        _buffers[h].initialize(r_numparticles);
+        return h;
+    }
+
+    [[nodiscard]] gltexture_t* getTexture(const Handle handle) const noexcept
+    {
+        return _textureMgr.get(handle);
+    }
+
+    [[nodiscard]] const ImageData& getImageData(
+        const Handle handle) const noexcept
+    {
+        return _textureMgr.getImageData(handle);
+    }
+
+    [[nodiscard]] ParticleBuffer& getBuffer(
+        const ParticleTextureManager::Handle txHandle) noexcept
+    {
+        assert(txHandle < _textureMgr.numActive());
+        return _buffers[txHandle];
+    }
+
+    void clear() noexcept
+    {
+        for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
+        {
+            _buffers[i].clear();
+        }
+    }
+
+    void cleanup() noexcept
+    {
+        for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
+        {
+            _buffers[i].cleanup();
+        }
+    }
+
+    template <typename F>
+    void forActive(F&& f)
+    {
+        for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
+        {
+            _buffers[i].forActive(f);
+        }
+    }
+
+    template <typename F>
+    void forBuffers(F&& f)
+    {
+        for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
+        {
+            if(!_buffers[i].empty())
+            {
+                f(getTexture(i), getImageData(i), _buffers[i]);
+            }
+        }
     }
 };
 
@@ -132,8 +232,10 @@ std::mt19937 mt(rd());
 }
 
 template <typename F>
-void makeParticle(F&& f)
+void makeParticle(const ParticleTextureManager::Handle txHandle, F&& f)
 {
+    auto& pBuffer = pMgr.getBuffer(txHandle);
+
     if(pBuffer.full())
     {
         return;
@@ -143,17 +245,21 @@ void makeParticle(F&& f)
 }
 
 template <typename F>
-void makeNParticles(const int count, F&& f)
+void makeNParticles(
+    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
 {
     for(int i = 0; i < count; i++)
     {
-        makeParticle(f);
+        makeParticle(txHandle, f);
     }
 }
 
 template <typename F>
-void makeNParticlesI(const int count, F&& f)
+void makeNParticlesI(
+    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
 {
+    auto& pBuffer = pMgr.getBuffer(txHandle);
+
     for(int i = 0; i < count; i++)
     {
         if(pBuffer.full())
@@ -174,26 +280,22 @@ void setAccGrav(particle_t& p, float mult = 0.5f)
     p.acc[2] = -sv_gravity.value * mult;
 }
 
+ParticleManager pMgr;
 
-ParticleBuffer pBuffer;
-ParticleTextureManager pTextureMgr;
-int r_numparticles;
-
-gltexture_t* default_particletexture;
-gltexture_t* particletexture1;
-gltexture_t* particletexture2;
-gltexture_t* particletexture3;
-gltexture_t* particletexture4;
-gltexture_t* testtx;      // johnfitz
-float texturescalefactor; // johnfitz -- compensate for apparent size of
-                          // different particle textures
+ParticleTextureManager::Handle ptxCircle;
+ParticleTextureManager::Handle ptxSquare;
+ParticleTextureManager::Handle ptxBlob;
+ParticleTextureManager::Handle ptxExplosion;
+ParticleTextureManager::Handle ptxSmoke;
+ParticleTextureManager::Handle ptxBlood;
+ParticleTextureManager::Handle ptxBloodMist;
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 
 template <typename F>
 void forActiveParticles(F&& f)
 {
-    pBuffer.forActive(std::forward<F>(f));
+    pMgr.forActive(std::forward<F>(f));
 }
 
 /*
@@ -217,8 +319,6 @@ int R_ParticleTextureLookup(int x, int y, int sharpness)
 
     return a;
 }
-
-
 
 static void buildCircleTexture(byte* dst) noexcept
 {
@@ -269,12 +369,7 @@ static void buildBlobTexture(byte* dst) noexcept
         (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
 }
 
-struct ImageData
-{
-    byte* data; // Hunk-allocated.
-    int width;
-    int height;
-};
+
 
 [[nodiscard]] ImageData loadImage(const char* filename)
 {
@@ -307,54 +402,38 @@ void R_InitParticleTextures()
     static byte particle2_data[2 * 2 * 4];
     static byte particle3_data[64 * 64 * 4];
 
-    // particle texture 1 -- circle
-    buildCircleTexture(particle1_data);
-    particletexture1 =
-        makeTextureFromDataBuffer("particle1", 64, 64, particle1_data);
-
-    // particle texture 2 -- square
-    buildSquareTexture(particle2_data);
-    particletexture1 =
-        makeTextureFromDataBuffer("particle2", 64, 64, particle2_data);
-
-    // particle texture 3 -- blob
-    buildBlobTexture(particle3_data);
-    particletexture1 =
-        makeTextureFromDataBuffer("particle3", 64, 64, particle3_data);
-
-    // particle texture 3 -- explosion
-    testtx = makeTextureFromImageData(
-        "particle4", loadImage("textures/particle_explosion"));
-
-    // set default
-    default_particletexture = particletexture1;
-    texturescalefactor = 1.27;
-}
-
-/*
-===============
-R_SetParticleTexture_f -- johnfitz
-===============
-*/
-static void R_SetParticleTexture_f(cvar_t* var)
-{
-    (void)var;
-
-    switch((int)(r_particles.value))
     {
-        case 1:
-            default_particletexture = particletexture1;
-            texturescalefactor = 1.27;
-            break;
-        case 2:
-            default_particletexture = particletexture2;
-            texturescalefactor = 1.0;
-            break;
-            //	case 3:
-            //		default_particletexture = particletexture3;
-            //		texturescalefactor = 1.5;
-            //		break;
+        buildCircleTexture(particle1_data);
+        const ImageData imageData{particle1_data, 64, 64};
+        ptxCircle = pMgr.createBuffer(
+            makeTextureFromImageData("particle1", imageData), imageData);
     }
+
+    {
+        buildSquareTexture(particle2_data);
+        const ImageData imageData{particle2_data, 64, 64};
+        ptxSquare = pMgr.createBuffer(
+            makeTextureFromImageData("particle2", imageData), imageData);
+    }
+
+    {
+        buildBlobTexture(particle3_data);
+        const ImageData imageData{particle3_data, 64, 64};
+        ptxBlob = pMgr.createBuffer(
+            makeTextureFromImageData("particle3", imageData), imageData);
+    }
+
+    const auto load = [&](ParticleTextureManager::Handle& target,
+                          const char* name) {
+        const auto imageData = loadImage(name);
+        target = pMgr.createBuffer(
+            makeTextureFromImageData(name, imageData), imageData);
+    };
+
+    load(ptxExplosion, "textures/particle_explosion");
+    load(ptxSmoke, "textures/particle_smoke");
+    load(ptxBlood, "textures/particle_blood");
+    load(ptxBloodMist, "textures/particle_blood_mist");
 }
 
 static void R_InitRNumParticles()
@@ -378,7 +457,6 @@ static void R_InitRNumParticles()
 static void R_InitParticleCVars()
 {
     Cvar_RegisterVariable(&r_particles); // johnfitz
-    Cvar_SetCallback(&r_particles, R_SetParticleTexture_f);
 }
 
 /*
@@ -389,9 +467,6 @@ R_InitParticles
 void R_InitParticles()
 {
     R_InitRNumParticles();
-
-    pBuffer.initialize(r_numparticles);
-
     R_InitParticleCVars();
     R_InitParticleTextures(); // johnfitz
 }
@@ -433,26 +508,22 @@ void R_EntityParticles(entity_t* ent)
         forward[1] = cp * sy;
         forward[2] = -sp;
 
-        if(pBuffer.full())
-        {
-            return;
-        }
+        makeParticle(ptxCircle, [&](particle_t& p) {
+            p.alpha = 255;
+            p.die = cl.time + 0.01;
+            p.color = 0x6f;
+            p.type = pt_explode;
+            p.scale = 1.f;
+            setAccGrav(p);
 
-        particle_t& p = pBuffer.create();
-
-        p.die = cl.time + 0.01;
-        p.color = 0x6f;
-        p.type = pt_explode;
-        p.scale = 1.f;
-        setAccGrav(p);
-
-        constexpr float dist = 64;
-        p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
-                   forward[0] * beamlength;
-        p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
-                   forward[1] * beamlength;
-        p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
-                   forward[2] * beamlength;
+            constexpr float dist = 64;
+            p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
+                       forward[0] * beamlength;
+            p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
+                       forward[1] * beamlength;
+            p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
+                       forward[2] * beamlength;
+        });
     }
 }
 
@@ -463,7 +534,7 @@ R_ClearParticles
 */
 void R_ClearParticles()
 {
-    pBuffer.clear();
+    pMgr.clear();
 }
 
 /*
@@ -504,22 +575,17 @@ void R_ReadPointFile_f()
 
         c++;
 
-        if(pBuffer.full())
-        {
-            Con_Printf("Not enough free particles\n");
-            break;
-        }
+        makeParticle(ptxCircle, [&](particle_t& p) {
+            p.alpha = 255;
+            p.die = 99999;
+            p.color = (-c) & 15;
+            p.type = pt_static;
+            p.scale = 1.f;
+            setAccGrav(p);
 
-        particle_t& p = pBuffer.create();
-
-        p.die = 99999;
-        p.color = (-c) & 15;
-        p.type = pt_static;
-        p.scale = 1.f;
-        setAccGrav(p);
-
-        VectorCopy(vec3_origin, p.vel);
-        VectorCopy(org, p.org);
+            VectorCopy(vec3_origin, p.vel);
+            VectorCopy(org, p.org);
+        });
     }
 
     fclose(f);
@@ -591,8 +657,9 @@ R_ParticleExplosion
 */
 void R_ParticleExplosion(vec3_t org)
 {
-    makeNParticlesI(1024, [&](const int i, particle_t& p) {
-        p.die = cl.time + 5;
+    makeNParticlesI(ptxCircle, 256, [&](const int i, particle_t& p) {
+        p.alpha = 255;
+        p.die = cl.time + 4;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
         p.scale = rnd(0.9f, 2.3f);
@@ -606,20 +673,35 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(512, [&](particle_t& p) {
+    makeNParticles(ptxExplosion, 8, [&](particle_t& p) {
+        p.alpha = 136;
+        p.die = cl.time + 4 * rnd(0.5f, 1.5f);
+        p.color = ramp1[0];
+        p.ramp = rand() & 3;
+        p.scale = rnd(0.5f, 2.1f) * 35.f;
+        setAccGrav(p, 0.05f);
+        p.type = pt_txexplode;
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-14, 14);
+            p.vel[j] = rnd(-8, 8);
+        }
+    });
+
+    makeNParticles(ptxSmoke, 8, [&](particle_t& p) {
+        p.alpha = 185;
         p.die = cl.time + 3.5 * (rand() % 5);
         p.color = rand() & 7;
-        p.scale = rnd(0.2f, 0.5f);
-        p.type = pt_static;
-        setAccGrav(p, -0.08f);
+        p.scale = rnd(1.2f, 1.5f);
+        p.type = pt_txsmoke;
+        setAccGrav(p, -0.09f);
 
         for(int j = 0; j < 3; j++)
         {
             p.org[j] = org[j] + ((rand() & 7) - 4);
             p.vel[j] = rnd(-24, 24);
         }
-
-        p.vel[2] += rnd(10, 40);
     });
 }
 
@@ -632,15 +714,8 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 {
     int colorMod = 0;
 
-    for(int i = 0; i < 512; i++)
-    {
-        if(pBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = pBuffer.create();
-
+    makeNParticles(ptxCircle, 512, [&](particle_t& p) {
+        p.alpha = 255;
         p.die = cl.time + 0.3;
         p.color = colorStart + (colorMod % colorLength);
         p.scale = 1.f;
@@ -653,7 +728,7 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
             p.org[j] = org[j] + rnd(-16, 16);
             p.vel[j] = rnd(-256, 256);
         }
-    }
+    });
 }
 
 /*
@@ -663,15 +738,8 @@ R_BlobExplosion
 */
 void R_BlobExplosion(vec3_t org)
 {
-    for(int i = 0; i < 1024; i++)
-    {
-        if(pBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = pBuffer.create();
-
+    makeNParticlesI(ptxCircle, 1024, [&](const int i, particle_t& p) {
+        p.alpha = 255;
         p.die = cl.time + 1 + (rand() & 8) * 0.05;
         p.scale = 1.f;
         setAccGrav(p);
@@ -692,7 +760,7 @@ void R_BlobExplosion(vec3_t org)
             p.org[j] = org[j] + rnd(-16, 16);
             p.vel[j] = rnd(-256, 256);
         }
-    }
+    });
 }
 
 void R_RunParticleEffect_BulletPuff(
@@ -702,7 +770,8 @@ void R_RunParticleEffect_BulletPuff(
     const auto dustCount = count * 0.7f;
     const auto sparkCount = count * 0.4f;
 
-    makeNParticles(debrisCount, [&](particle_t& p) {
+    makeNParticles(ptxCircle, debrisCount, [&](particle_t& p) {
+        p.alpha = 255;
         p.die = cl.time + 0.7 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
         p.scale = rnd(0.5f, 0.9f);
@@ -716,7 +785,8 @@ void R_RunParticleEffect_BulletPuff(
         }
     });
 
-    makeNParticles(dustCount, [&](particle_t& p) {
+    makeNParticles(ptxCircle, dustCount, [&](particle_t& p) {
+        p.alpha = 255;
         p.die = cl.time + 1.5 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
         p.scale = rnd(0.2f, 0.5f);
@@ -732,7 +802,8 @@ void R_RunParticleEffect_BulletPuff(
         p.vel[2] += rnd(10, 40);
     });
 
-    makeNParticles(sparkCount, [&](particle_t& p) {
+    makeNParticles(ptxCircle, sparkCount, [&](particle_t& p) {
+        p.alpha = 255;
         p.die = cl.time + 1.6 * (rand() % 5);
         p.color = ramp3[0] + (rand() & 7);
         p.scale = rnd(0.15f, 0.35f);
@@ -754,22 +825,26 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
     constexpr int bloodColors[]{247, 248, 249, 250, 251};
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
 
-    makeNParticles(count * 5, [&](particle_t& p) {
-        p.die = cl.time + 0.7 * (rand() % 5);
+    makeNParticles(ptxBlood, count * 2, [&](particle_t& p) {
+        p.alpha = 100;
+        p.die = cl.time + 0.7 * (rand() % 3);
         p.color = pickBloodColor();
-        p.scale = rnd(0.35f, 0.6f);
+        p.scale = rnd(0.35f, 0.6f) * 6.5f;
         p.type = pt_static;
-        setAccGrav(p, 0.33f);
+        setAccGrav(p, 0.29f);
 
         for(int j = 0; j < 3; j++)
         {
             p.org[j] = org[j] + rnd(-2, 2);
             p.vel[j] = (dir[j] + 0.3f) * rnd(-10, 10);
         }
+
+        p.vel[2] += rnd(0, 40);
     });
 
-    makeNParticles(count * 15, [&](particle_t& p) {
-        p.die = cl.time + 0.4 * (rand() % 5);
+    makeNParticles(ptxCircle, count * 12, [&](particle_t& p) {
+        p.alpha = 175;
+        p.die = cl.time + 0.4 * (rand() % 3);
         p.color = pickBloodColor();
         p.scale = rnd(0.15f, 0.4f);
         p.type = pt_static;
@@ -783,6 +858,22 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
         }
 
         p.vel[2] += rnd(20, 60);
+    });
+
+    makeNParticles(ptxBloodMist, 1, [&](particle_t& p) {
+        p.alpha = 38;
+        p.die = cl.time + 3.2;
+        p.color = 225;
+        p.ramp = rand() & 3;
+        p.scale = rnd(1.1f, 2.4f) * 15.f;
+        setAccGrav(p, -0.03f);
+        p.type = pt_txsmoke;
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-8, 8);
+            p.vel[j] = rnd(-4, -4);
+        }
     });
 }
 
@@ -842,7 +933,8 @@ void R_LavaSplash(vec3_t org)
     {
         for(int j = -16; j < 16; j++)
         {
-            makeNParticles(1, [&](particle_t& p) {
+            makeParticle(ptxCircle, [&](particle_t& p) {
+                p.alpha = 255;
                 p.scale = 1.f;
                 p.die = cl.time + 2 + (rand() & 31) * 0.02;
                 p.color = 224 + (rand() & 7);
@@ -879,34 +971,114 @@ void R_TeleportSplash(vec3_t org)
         {
             for(int k = -24; k < 32; k += 4)
             {
-                if(pBuffer.full())
-                {
-                    return;
-                }
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    p.alpha = 255;
+                    p.scale = 1.f;
+                    p.die = cl.time + 1.2 + (rand() & 7) * 0.2;
+                    p.color = 7 + (rand() & 7);
+                    p.type = pt_static;
+                    setAccGrav(p, 0.2f);
 
-                particle_t& p = pBuffer.create();
+                    vec3_t dir;
+                    dir[0] = j * 8;
+                    dir[1] = i * 8;
+                    dir[2] = k * 8;
 
-                p.scale = 1.f;
-                p.die = cl.time + 1.2 + (rand() & 7) * 0.2;
-                p.color = 7 + (rand() & 7);
-                p.type = pt_static;
-                setAccGrav(p, 0.2f);
+                    p.org[0] = org[0] + i + (rand() & 3);
+                    p.org[1] = org[1] + j + (rand() & 3);
+                    p.org[2] = org[2] + k + (rand() & 3);
 
-                vec3_t dir;
-                dir[0] = j * 8;
-                dir[1] = i * 8;
-                dir[2] = k * 8;
-
-                p.org[0] = org[0] + i + (rand() & 3);
-                p.org[1] = org[1] + j + (rand() & 3);
-                p.org[2] = org[2] + k + (rand() & 3);
-
-                VectorNormalize(dir);
-                const float vel = 50 + (rand() & 63);
-                VectorScale(dir, vel, p.vel);
+                    VectorNormalize(dir);
+                    const float vel = 50 + (rand() & 63);
+                    VectorScale(dir, vel, p.vel);
+                });
             }
         }
     }
+}
+
+static void R_SetRTRocketTrail(vec3_t start, particle_t& p)
+{
+    p.ramp = (rand() & 3);
+    p.color = ramp3[(int)p.ramp];
+    p.type = pt_fire;
+    for(int j = 0; j < 3; j++)
+    {
+        p.org[j] = start[j] + ((rand() % 6) - 3);
+    }
+}
+
+static void R_SetRTBlood(vec3_t start, particle_t& p)
+{
+    p.type = pt_static;
+    p.color = 67 + (rand() & 3);
+    for(int j = 0; j < 3; j++)
+    {
+        p.org[j] = start[j] + ((rand() % 6) - 3);
+    }
+}
+
+static void R_SetRTTracer(vec3_t start, vec3_t end, particle_t& p, int type)
+{
+    static int tracercount;
+
+    vec3_t vec;
+    VectorSubtract(end, start, vec);
+
+    p.die = cl.time + 0.5;
+    p.type = pt_static;
+    if(type == 3)
+    {
+        p.color = 52 + ((tracercount & 4) << 1);
+    }
+    else
+    {
+        p.color = 230 + ((tracercount & 4) << 1);
+    }
+
+    tracercount++;
+
+    VectorCopy(start, p.org);
+    if(tracercount & 1)
+    {
+        p.vel[0] = 30 * vec[1];
+        p.vel[1] = 30 * -vec[0];
+    }
+    else
+    {
+        p.vel[0] = 30 * -vec[1];
+        p.vel[1] = 30 * vec[0];
+    }
+}
+
+static void R_SetRTSlightBlood(vec3_t start, particle_t& p)
+{
+    p.type = pt_static;
+    p.color = 67 + (rand() & 3);
+    for(int j = 0; j < 3; j++)
+    {
+        p.org[j] = start[j] + ((rand() % 6) - 3);
+    }
+}
+
+static void R_SetRTVoorTrail(vec3_t start, particle_t& p)
+{
+    p.color = 9 * 16 + 8 + (rand() & 3);
+    p.type = pt_static;
+    p.die = cl.time + 0.3;
+    for(int j = 0; j < 3; j++)
+    {
+        p.org[j] = start[j] + ((rand() & 15) - 8);
+    }
+}
+
+static void R_SetRTCommon(particle_t& p)
+{
+    p.alpha = 255;
+    p.scale = 0.7f;
+    setAccGrav(p, 0.05f);
+    VectorCopy(vec3_origin, p.vel);
+    p.die = cl.time + 2;
 }
 
 /*
@@ -918,7 +1090,17 @@ FIXME -- rename function and use #defined types instead of numbers
 */
 void R_RocketTrail(vec3_t start, vec3_t end, int type)
 {
-    static int tracercount;
+    constexpr float rate = 0.1f / 9.f;
+    static float untilNext = rate;
+    const float frametime = cl.time - cl.oldtime;
+
+    untilNext -= frametime;
+    if(untilNext > 0)
+    {
+        return;
+    }
+
+    untilNext = rate;
 
     vec3_t vec;
     VectorSubtract(end, start, vec);
@@ -939,96 +1121,110 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
     {
         len -= dec;
 
-        if(pBuffer.full())
-        {
-            return;
-        }
-
-        particle_t& p = pBuffer.create();
-        p.scale = 0.7f;
-        setAccGrav(p, 0.05f);
-
-        VectorCopy(vec3_origin, p.vel);
-        p.die = cl.time + 2;
-
         switch(type)
         {
             case 0: // rocket trail
-                p.ramp = (rand() & 3);
-                p.color = ramp3[(int)p.ramp];
-                p.type = pt_fire;
-                for(int j = 0; j < 3; j++)
-                {
-                    p.org[j] = start[j] + ((rand() % 6) - 3);
-                }
+            {
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTRocketTrail(start, p);
+                });
+
+                makeNParticles(ptxSmoke, 1, [&](particle_t& p) {
+                    p.alpha = 65;
+                    p.die = cl.time + 1.5 * (rand() % 5);
+                    p.color = rand() & 7;
+                    p.scale = rnd(0.3f, 0.5f);
+                    p.type = pt_txsmoke;
+                    setAccGrav(p, -0.09f);
+
+                    for(int j = 0; j < 3; j++)
+                    {
+                        p.org[j] = start[j] + ((rand() & 6) - 3);
+                        p.vel[j] = rnd(-18, 18);
+                    }
+                });
+
                 break;
+            }
 
             case 1: // smoke smoke
-                p.ramp = (rand() & 3) + 2;
-                p.color = ramp3[(int)p.ramp];
-                p.type = pt_fire;
-                for(int j = 0; j < 3; j++)
-                {
-                    p.org[j] = start[j] + ((rand() % 6) - 3);
-                }
+            {
+                makeNParticles(ptxSmoke, 1, [&](particle_t& p) {
+                    p.alpha = 65;
+                    p.die = cl.time + 1.5 * (rand() % 5);
+                    p.color = rand() & 7;
+                    p.scale = rnd(0.3f, 0.5f);
+                    p.type = pt_txsmoke;
+                    setAccGrav(p, -0.09f);
+
+                    for(int j = 0; j < 3; j++)
+                    {
+                        p.org[j] = start[j] + ((rand() & 6) - 3);
+                        p.vel[j] = rnd(-18, 18);
+                    }
+                });
+
                 break;
+            }
 
             case 2: // blood
-                p.type = pt_static;
-                p.color = 67 + (rand() & 3);
-                for(int j = 0; j < 3; j++)
-                {
-                    p.org[j] = start[j] + ((rand() % 6) - 3);
-                }
-                break;
+            {
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTBlood(start, p);
+                });
 
-            case 3:
+                makeParticle(ptxBloodMist, [&](particle_t& p) {
+                    p.alpha = 32;
+                    p.die = cl.time + 3.2;
+                    p.color = 225;
+                    p.ramp = rand() & 3;
+                    p.scale = rnd(1.1f, 2.4f) * 15.f;
+                    setAccGrav(p, -0.03f);
+                    p.type = pt_txsmoke;
+
+                    for(int j = 0; j < 3; j++)
+                    {
+                        p.org[j] = start[j] + rnd(-8, 8);
+                        p.vel[j] = rnd(-4, -4);
+                    }
+                });
+
+                break;
+            }
+
+            case 3: [[fallthrough]];
             case 5: // tracer
-                p.die = cl.time + 0.5;
-                p.type = pt_static;
-                if(type == 3)
-                {
-                    p.color = 52 + ((tracercount & 4) << 1);
-                }
-                else
-                {
-                    p.color = 230 + ((tracercount & 4) << 1);
-                }
+            {
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTTracer(start, end, p, type);
+                });
 
-                tracercount++;
-
-                VectorCopy(start, p.org);
-                if(tracercount & 1)
-                {
-                    p.vel[0] = 30 * vec[1];
-                    p.vel[1] = 30 * -vec[0];
-                }
-                else
-                {
-                    p.vel[0] = 30 * -vec[1];
-                    p.vel[1] = 30 * vec[0];
-                }
                 break;
+            }
 
             case 4: // slight blood
-                p.type = pt_static;
-                p.color = 67 + (rand() & 3);
-                for(int j = 0; j < 3; j++)
-                {
-                    p.org[j] = start[j] + ((rand() % 6) - 3);
-                }
-                len -= 3;
+            {
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTSlightBlood(start, p);
+                    len -= 3;
+                });
+
                 break;
+            }
 
             case 6: // voor trail
-                p.color = 9 * 16 + 8 + (rand() & 3);
-                p.type = pt_static;
-                p.die = cl.time + 0.3;
-                for(int j = 0; j < 3; j++)
-                {
-                    p.org[j] = start[j] + ((rand() & 15) - 8);
-                }
+            {
+                makeParticle(ptxCircle, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTVoorTrail(start, p);
+                });
+
                 break;
+            }
         }
 
         VectorAdd(start, vec, start);
@@ -1049,7 +1245,7 @@ void CL_RunParticles()
     const float time1 = frametime * 5;
     const float dvel = 4 * frametime;
 
-    pBuffer.cleanup();
+    pMgr.cleanup();
 
     forActiveParticles([&](particle_t& p) {
         p.vel[0] += p.acc[0] * frametime;
@@ -1135,6 +1331,36 @@ void CL_RunParticles()
                 break;
             }
 
+            case pt_txexplode:
+            {
+                if(p.alpha > 0.f)
+                {
+                    p.alpha -= 90.f * frametime;
+                }
+
+                if(p.scale > 0.f)
+                {
+                    p.scale += 45.f * frametime;
+                }
+
+                break;
+            }
+
+            case pt_txsmoke:
+            {
+                if(p.alpha > 0.f)
+                {
+                    p.alpha -= 75.f * frametime;
+                }
+
+                if(p.scale > 0.f)
+                {
+                    p.scale += 47.f * frametime;
+                }
+
+                break;
+            }
+
             default:
             {
                 break;
@@ -1151,13 +1377,7 @@ CL_RunParticles
 */
 void R_DrawParticles()
 {
-    GLubyte color[4];
-
-    GLubyte* c; // johnfitz -- particle transparency
-    // johnfitz
-    // float			alpha; //johnfitz -- particle transparency
-
-    if(!r_particles.value || pBuffer.empty())
+    if(!r_particles.value)
     {
         return;
     }
@@ -1168,48 +1388,80 @@ void R_DrawParticles()
     vec3_t right;
     VectorScale(vright, 1.5, right);
 
-    // TODO VR:
-    // GL_Bind(default_particletexture);
-    GL_Bind(testtx);
-    glEnable(GL_BLEND);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
+    vec3_t down;
+    down[0] = up[0] * -1.f;
+    down[1] = up[1] * -1.f;
+    down[2] = up[2] * -1.f;
 
-    glBegin(GL_TRIANGLES);
-    forActiveParticles([&](particle_t& p) {
-        const float scale = texturescalefactor * p.scale * 85.f;
+    vec3_t left;
+    left[0] = right[0] * -1.f;
+    left[1] = right[1] * -1.f;
+    left[2] = right[2] * -1.f;
 
-        // johnfitz -- particle transparency and fade out
-        c = (GLubyte*)&d_8to24table[(int)p.color];
-        color[0] = c[0];
-        color[1] = c[1];
-        color[2] = c[2];
-        // alpha = CLAMP(0, p.die + 0.5 - cl.time, 1);
-        color[3] = 255; //(int)(alpha * 255);
-        glColor4ubv(color);
-        // johnfitz
+    pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
+                        ParticleBuffer& pBuffer) {
+        (void)imageData;
 
-        glTexCoord2f(0, 0);
-        glVertex3fv(p.org);
+        // TODO VR:
+        GL_Bind(texture);
+        glEnable(GL_BLEND);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
 
-        glTexCoord2f(1, 0);
-        vec3_t p_up;
-        VectorMA(p.org, scale, up, p_up);
-        glVertex3fv(p_up);
+        glBegin(GL_QUADS);
+        pBuffer.forActive([&](particle_t& p) {
+            const float scale = p.scale;
 
-        glTexCoord2f(0, 1);
-        vec3_t p_right;
-        VectorMA(p.org, scale, right, p_right);
-        glVertex3fv(p_right);
+            // johnfitz -- particle transparency and fade out
+            GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color];
 
-        rs_particles++; // johnfitz //FIXME: just use r_numparticles
+            GLubyte color[4];
+            color[0] = c[0];
+            color[1] = c[1];
+            color[2] = c[2];
+            color[3] = p.alpha;
+
+            glColor4ubv(color);
+            // johnfitz
+
+            vec3_t p_org;
+            VectorCopy(p.org, p_org);
+
+            vec3_t p_upleft;
+            VectorMA(p_org, scale / 2.f, up, p_upleft);
+            VectorMA(p_upleft, scale / 2.f, left, p_upleft);
+
+            vec3_t p_upright;
+            VectorMA(p_org, scale / 2.f, up, p_upright);
+            VectorMA(p_upright, scale / 2.f, right, p_upright);
+
+            vec3_t p_downleft;
+            VectorMA(p_org, scale / 2.f, down, p_downleft);
+            VectorMA(p_downleft, scale / 2.f, left, p_downleft);
+
+            vec3_t p_downright;
+            VectorMA(p_org, scale / 2.f, down, p_downright);
+            VectorMA(p_downright, scale / 2.f, right, p_downright);
+
+            glTexCoord2f(0, 0);
+            glVertex3fv(p_downleft);
+
+            glTexCoord2f(1, 0);
+            glVertex3fv(p_upleft);
+
+            glTexCoord2f(1, 1);
+            glVertex3fv(p_upright);
+
+            glTexCoord2f(0, 1);
+            glVertex3fv(p_downright);
+        });
+        glEnd();
+
+        glDepthMask(GL_TRUE); // johnfitz -- fix for particle z-buffer bug
+        glDisable(GL_BLEND);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        glColor3f(1, 1, 1);
     });
-    glEnd();
-
-    glDepthMask(GL_TRUE); // johnfitz -- fix for particle z-buffer bug
-    glDisable(GL_BLEND);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glColor3f(1, 1, 1);
 }
 
 
@@ -1233,7 +1485,7 @@ void R_DrawParticles_ShowTris()
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
-        const float scale = texturescalefactor * p.scale;
+        const float scale = p.scale;
 
         glVertex3fv(p.org);
 
@@ -1245,6 +1497,5 @@ void R_DrawParticles_ShowTris()
         VectorMA(p.org, scale, right, p_right);
         glVertex3fv(p_right);
     });
-
     glEnd();
 }

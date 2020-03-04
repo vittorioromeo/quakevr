@@ -1922,9 +1922,9 @@ void M_Quit_Draw() // johnfitz -- modified for new quit message
     M_DrawTextBox(160 - 4 * (boxlen + 2), 76, boxlen, 4);
 
     // now do the text
-    M_Print(160 - 4 * strlen(msg1), 88, msg1);
-    M_Print(160 - 4 * (sizeof(msg2) - 1), 96, msg2);
-    M_PrintWhite(160 - 4 * (sizeof(msg3) - 1), 104, msg3);
+    M_Print(260 - 4 * strlen(msg1), 88, msg1);
+    M_Print(260 - 4 * (sizeof(msg2) - 1), 96, msg2);
+    M_PrintWhite(260 - 4 * (sizeof(msg3) - 1), 104, msg3);
 }
 
 //=============================================================================

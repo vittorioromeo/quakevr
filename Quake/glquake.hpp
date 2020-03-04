@@ -91,7 +91,9 @@ enum ptype_t : std::uint8_t
     pt_explode,
     pt_explode2,
     pt_blob,
-    pt_blob2
+    pt_blob2,
+    pt_txexplode,
+    pt_txsmoke
 };
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
@@ -101,11 +103,11 @@ struct particle_t
     vec3_t vel; // drivers never touches this field
     vec3_t acc; // TODO VR: driver?
 
-    float color;        // driver-usable field
-    float ramp;         // drivers never touches this field
-    float die;          // drivers never touches this field
-    float scale;        // TODO VR: driver?
-    std::uint8_t alpha; // TODO VR: use?
+    float color; // driver-usable field
+    float ramp;  // drivers never touches this field
+    float die;   // drivers never touches this field
+    float scale; // TODO VR: driver?
+    float alpha; // TODO VR: use?
 
     ptype_t type; // drivers never touches this field
 };
@@ -287,7 +289,7 @@ extern qboolean gl_texture_env_combine;
 extern qboolean gl_texture_env_add; // for GL_EXT_texture_env_add
 
 // johnfitz -- rendering statistics
-extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
 extern int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 

@@ -85,8 +85,6 @@ TODO: search order: tga png jpg pcx lmp
 */
 byte* Image_LoadImage(const char* name, int* width, int* height)
 {
-    Con_Printf("loading %s\n", name);
-
     FILE* f;
 
     q_snprintf(loadfilename, sizeof(loadfilename), "%s.tga", name);

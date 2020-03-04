@@ -36,7 +36,7 @@ int r_framecount;    // used for dlight push checking
 mplane_t frustum[4];
 
 // johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 float rs_megatexels;
 
@@ -1256,7 +1256,7 @@ void R_RenderView()
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys =
             rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }
