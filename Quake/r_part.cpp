@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <algorithm>
 #include <random>
 #include <utility>
+#include <array>
 
 #define MAX_PARTICLES \
     65536 // default max # of particles at one
@@ -92,6 +93,31 @@ public:
     }
 };
 
+class ParticleTextureManager
+{
+public:
+    using Handle = std::uint8_t;
+
+private:
+    static constexpr std::size_t maxTextures = 32;
+    std::array<gltexture_t*, maxTextures> _textures;
+    Handle _next = 0;
+
+public:
+    [[nodiscard]] Handle put(gltexture_t* const texture) noexcept
+    {
+        assert(_next < maxTextures);
+        _textures[_next] = texture;
+        return _next++;
+    }
+
+    [[nodiscard]] gltexture_t* get(const Handle handle) noexcept
+    {
+        assert(handle < _next);
+        return _textures[handle];
+    }
+};
+
 std::random_device rd;
 std::mt19937 mt(rd());
 
@@ -108,12 +134,12 @@ std::mt19937 mt(rd());
 template <typename F>
 void makeParticle(F&& f)
 {
-    if(particleBuffer.full())
+    if(pBuffer.full())
     {
         return;
     }
 
-    f(particleBuffer.create());
+    f(pBuffer.create());
 }
 
 template <typename F>
@@ -130,12 +156,12 @@ void makeNParticlesI(const int count, F&& f)
 {
     for(int i = 0; i < count; i++)
     {
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             return;
         }
 
-        f(i, particleBuffer.create());
+        f(i, pBuffer.create());
     }
 }
 
@@ -148,23 +174,26 @@ void setAccGrav(particle_t& p, float mult = 0.5f)
     p.acc[2] = -sv_gravity.value * mult;
 }
 
-ParticleBuffer particleBuffer;
+
+ParticleBuffer pBuffer;
+ParticleTextureManager pTextureMgr;
 int r_numparticles;
 
 gltexture_t* default_particletexture;
 gltexture_t* particletexture1;
 gltexture_t* particletexture2;
 gltexture_t* particletexture3;
-gltexture_t* particletexture4; // johnfitz
-float texturescalefactor;      // johnfitz -- compensate for apparent size of
-                               // different particle textures
+gltexture_t* particletexture4;
+gltexture_t* testtx;      // johnfitz
+float texturescalefactor; // johnfitz -- compensate for apparent size of
+                          // different particle textures
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 
 template <typename F>
 void forActiveParticles(F&& f)
 {
-    particleBuffer.forActive(std::forward<F>(f));
+    pBuffer.forActive(std::forward<F>(f));
 }
 
 /*
@@ -189,6 +218,84 @@ int R_ParticleTextureLookup(int x, int y, int sharpness)
     return a;
 }
 
+
+
+static void buildCircleTexture(byte* dst) noexcept
+{
+    for(int x = 0; x < 64; x++)
+    {
+        for(int y = 0; y < 64; y++)
+        {
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = R_ParticleTextureLookup(x, y, 8);
+        }
+    }
+}
+
+static void buildSquareTexture(byte* dst) noexcept
+{
+    for(int x = 0; x < 2; x++)
+    {
+        for(int y = 0; y < 2; y++)
+        {
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = x || y ? 0 : 255;
+        }
+    }
+}
+
+static void buildBlobTexture(byte* dst) noexcept
+{
+    for(int x = 0; x < 64; x++)
+    {
+        for(int y = 0; y < 64; y++)
+        {
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = 255;
+            *dst++ = R_ParticleTextureLookup(x, y, 2);
+        }
+    }
+}
+
+[[nodiscard]] gltexture_t* makeTextureFromDataBuffer(
+    const char* name, int width, int height, byte* data) noexcept
+{
+    return TexMgr_LoadImage(nullptr, name, width, height, SRC_RGBA, data, "",
+        (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
+}
+
+struct ImageData
+{
+    byte* data; // Hunk-allocated.
+    int width;
+    int height;
+};
+
+[[nodiscard]] ImageData loadImage(const char* filename)
+{
+    char filenameBuf[128];
+    q_snprintf(filenameBuf, sizeof(filenameBuf), filename);
+
+    int width;
+    int height;
+    byte* data = Image_LoadImage(filename, &width, &height);
+
+    return {data, width, height};
+}
+
+[[nodiscard]] gltexture_t* makeTextureFromImageData(
+    const char* name, const ImageData& imageData) noexcept
+{
+    return makeTextureFromDataBuffer(
+        name, imageData.width, imageData.height, imageData.data);
+}
+
+
 /*
 ===============
 R_InitParticleTextures -- johnfitz -- rewritten
@@ -201,52 +308,23 @@ void R_InitParticleTextures()
     static byte particle3_data[64 * 64 * 4];
 
     // particle texture 1 -- circle
-    byte* dst = particle1_data;
-    for(int x = 0; x < 64; x++)
-    {
-        for(int y = 0; y < 64; y++)
-        {
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = R_ParticleTextureLookup(x, y, 8);
-        }
-    }
-    particletexture1 = TexMgr_LoadImage(nullptr, "particle1", 64, 64, SRC_RGBA,
-        particle1_data, "", (src_offset_t)particle1_data,
-        TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
+    buildCircleTexture(particle1_data);
+    particletexture1 =
+        makeTextureFromDataBuffer("particle1", 64, 64, particle1_data);
 
     // particle texture 2 -- square
-    dst = particle2_data;
-    for(int x = 0; x < 2; x++)
-    {
-        for(int y = 0; y < 2; y++)
-        {
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = x || y ? 0 : 255;
-        }
-    }
-    particletexture2 = TexMgr_LoadImage(nullptr, "particle2", 2, 2, SRC_RGBA,
-        particle2_data, "", (src_offset_t)particle2_data,
-        TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_NEAREST);
+    buildSquareTexture(particle2_data);
+    particletexture1 =
+        makeTextureFromDataBuffer("particle2", 64, 64, particle2_data);
 
     // particle texture 3 -- blob
-    dst = particle3_data;
-    for(int x = 0; x < 64; x++)
-    {
-        for(int y = 0; y < 64; y++)
-        {
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = 255;
-            *dst++ = R_ParticleTextureLookup(x, y, 2);
-        }
-    }
-    particletexture3 = TexMgr_LoadImage(nullptr, "particle3", 64, 64, SRC_RGBA,
-        particle3_data, "", (src_offset_t)particle3_data,
-        TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
+    buildBlobTexture(particle3_data);
+    particletexture1 =
+        makeTextureFromDataBuffer("particle3", 64, 64, particle3_data);
+
+    // particle texture 3 -- explosion
+    testtx = makeTextureFromImageData(
+        "particle4", loadImage("textures/particle_explosion"));
 
     // set default
     default_particletexture = particletexture1;
@@ -312,7 +390,7 @@ void R_InitParticles()
 {
     R_InitRNumParticles();
 
-    particleBuffer.initialize(r_numparticles);
+    pBuffer.initialize(r_numparticles);
 
     R_InitParticleCVars();
     R_InitParticleTextures(); // johnfitz
@@ -355,12 +433,12 @@ void R_EntityParticles(entity_t* ent)
         forward[1] = cp * sy;
         forward[2] = -sp;
 
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             return;
         }
 
-        particle_t& p = particleBuffer.create();
+        particle_t& p = pBuffer.create();
 
         p.die = cl.time + 0.01;
         p.color = 0x6f;
@@ -385,7 +463,7 @@ R_ClearParticles
 */
 void R_ClearParticles()
 {
-    particleBuffer.clear();
+    pBuffer.clear();
 }
 
 /*
@@ -426,13 +504,13 @@ void R_ReadPointFile_f()
 
         c++;
 
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             Con_Printf("Not enough free particles\n");
             break;
         }
 
-        particle_t& p = particleBuffer.create();
+        particle_t& p = pBuffer.create();
 
         p.die = 99999;
         p.color = (-c) & 15;
@@ -556,12 +634,12 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 
     for(int i = 0; i < 512; i++)
     {
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             return;
         }
 
-        particle_t& p = particleBuffer.create();
+        particle_t& p = pBuffer.create();
 
         p.die = cl.time + 0.3;
         p.color = colorStart + (colorMod % colorLength);
@@ -587,12 +665,12 @@ void R_BlobExplosion(vec3_t org)
 {
     for(int i = 0; i < 1024; i++)
     {
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             return;
         }
 
-        particle_t& p = particleBuffer.create();
+        particle_t& p = pBuffer.create();
 
         p.die = cl.time + 1 + (rand() & 8) * 0.05;
         p.scale = 1.f;
@@ -801,12 +879,12 @@ void R_TeleportSplash(vec3_t org)
         {
             for(int k = -24; k < 32; k += 4)
             {
-                if(particleBuffer.full())
+                if(pBuffer.full())
                 {
                     return;
                 }
 
-                particle_t& p = particleBuffer.create();
+                particle_t& p = pBuffer.create();
 
                 p.scale = 1.f;
                 p.die = cl.time + 1.2 + (rand() & 7) * 0.2;
@@ -861,12 +939,12 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
     {
         len -= dec;
 
-        if(particleBuffer.full())
+        if(pBuffer.full())
         {
             return;
         }
 
-        particle_t& p = particleBuffer.create();
+        particle_t& p = pBuffer.create();
         p.scale = 0.7f;
         setAccGrav(p, 0.05f);
 
@@ -971,7 +1049,7 @@ void CL_RunParticles()
     const float time1 = frametime * 5;
     const float dvel = 4 * frametime;
 
-    particleBuffer.cleanup();
+    pBuffer.cleanup();
 
     forActiveParticles([&](particle_t& p) {
         p.vel[0] += p.acc[0] * frametime;
@@ -1079,7 +1157,7 @@ void R_DrawParticles()
     // johnfitz
     // float			alpha; //johnfitz -- particle transparency
 
-    if(!r_particles.value || particleBuffer.empty())
+    if(!r_particles.value || pBuffer.empty())
     {
         return;
     }
@@ -1090,14 +1168,16 @@ void R_DrawParticles()
     vec3_t right;
     VectorScale(vright, 1.5, right);
 
-    GL_Bind(default_particletexture);
+    // TODO VR:
+    // GL_Bind(default_particletexture);
+    GL_Bind(testtx);
     glEnable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
-        const float scale = texturescalefactor * p.scale;
+        const float scale = texturescalefactor * p.scale * 85.f;
 
         // johnfitz -- particle transparency and fade out
         c = (GLubyte*)&d_8to24table[(int)p.color];
