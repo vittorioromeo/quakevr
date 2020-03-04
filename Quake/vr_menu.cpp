@@ -255,7 +255,7 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_ENABLE_JOYSTICK_TURN:
             adjustI(vr_enable_joystick_turn, 1, 0, 1);
             break;
-        case VRMenuOpt::VR_SNAP_TURN: adjustI(vr_snap_turn, 45, 0, 90); break;
+        case VRMenuOpt::VR_SNAP_TURN: adjustI(vr_snap_turn, 5, 0, 90); break;
         case VRMenuOpt::VR_TURN_SPEED:
             adjustF(vr_turn_speed, 0.25f, 0.f, VR_MAX_TURN_SPEED);
             break;

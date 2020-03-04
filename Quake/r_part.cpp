@@ -369,8 +369,6 @@ static void buildBlobTexture(byte* dst) noexcept
         (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
 }
 
-
-
 [[nodiscard]] ImageData loadImage(const char* filename)
 {
     char filenameBuf[128];
@@ -673,12 +671,12 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(ptxExplosion, 8, [&](particle_t& p) {
+    makeNParticles(ptxExplosion, 6, [&](particle_t& p) {
         p.alpha = 136;
         p.die = cl.time + 4 * rnd(0.5f, 1.5f);
         p.color = ramp1[0];
         p.ramp = rand() & 3;
-        p.scale = rnd(0.5f, 2.1f) * 35.f;
+        p.scale = rnd(0.5f, 2.1f) * 37.f;
         setAccGrav(p, 0.05f);
         p.type = pt_txexplode;
 
@@ -689,7 +687,7 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(ptxSmoke, 8, [&](particle_t& p) {
+    makeNParticles(ptxSmoke, 6, [&](particle_t& p) {
         p.alpha = 185;
         p.die = cl.time + 3.5 * (rand() % 5);
         p.color = rand() & 7;
@@ -1424,23 +1422,20 @@ void R_DrawParticles()
             glColor4ubv(color);
             // johnfitz
 
-            vec3_t p_org;
-            VectorCopy(p.org, p_org);
-
             vec3_t p_upleft;
-            VectorMA(p_org, scale / 2.f, up, p_upleft);
+            VectorMA(p.org, scale / 2.f, up, p_upleft);
             VectorMA(p_upleft, scale / 2.f, left, p_upleft);
 
             vec3_t p_upright;
-            VectorMA(p_org, scale / 2.f, up, p_upright);
+            VectorMA(p.org, scale / 2.f, up, p_upright);
             VectorMA(p_upright, scale / 2.f, right, p_upright);
 
             vec3_t p_downleft;
-            VectorMA(p_org, scale / 2.f, down, p_downleft);
+            VectorMA(p.org, scale / 2.f, down, p_downleft);
             VectorMA(p_downleft, scale / 2.f, left, p_downleft);
 
             vec3_t p_downright;
-            VectorMA(p_org, scale / 2.f, down, p_downright);
+            VectorMA(p.org, scale / 2.f, down, p_downright);
             VectorMA(p_downright, scale / 2.f, right, p_downright);
 
             glTexCoord2f(0, 0);
