@@ -1175,7 +1175,7 @@ void Char_Event(int key)
             {
                 break;
             }
-            /* fallthrough */
+            [[fallthrough]];
         case key_console: Char_Console(key); break;
         default: break;
     }
@@ -1202,7 +1202,7 @@ qboolean Key_TextEntry()
             {
                 return false;
             }
-            /* fallthrough */
+            [[fallthrough]];
         case key_console: return true;
         default: return false;
     }
@@ -1258,7 +1258,7 @@ void Key_UpdateForDest()
                 key_dest = key_console;
                 break;
             }
-        /* fallthrough */
+        [[fallthrough]];
         default: forced = false; break;
     }
 }

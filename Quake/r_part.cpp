@@ -218,6 +218,8 @@ public:
     }
 };
 
+ParticleManager pMgr;
+
 std::random_device rd;
 std::mt19937 mt(rd());
 
@@ -280,7 +282,7 @@ void setAccGrav(particle_t& p, float mult = 0.5f)
     p.acc[2] = -sv_gravity.value * mult;
 }
 
-ParticleManager pMgr;
+
 
 ParticleTextureManager::Handle ptxCircle;
 ParticleTextureManager::Handle ptxSquare;
