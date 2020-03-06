@@ -231,3 +231,9 @@ public:
         return _aliveEnd == _particles;
     }
 };
+
+
+	// s = ftos(xdmg);
+	// sprint (self, "OFFHANDDMG: ");
+	// sprint (self, s);
+	// sprint (self, "\n");

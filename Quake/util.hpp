@@ -81,8 +81,10 @@ namespace quake::util
             (std::string(maxLen - strlen(labels), ' ') + labels)...};
     }
 
-    [[nodiscard]] constexpr bool boxIntersection(const vec3_t& aMin,
-        const vec3_t& aMax, const vec3_t& bMin, const vec3_t& bMax)
+    template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
+        typename TVec3BMax>
+    [[nodiscard]] constexpr bool boxIntersection(const TVec3AMin& aMin,
+        const TVec3AMax& aMax, const TVec3BMin& bMin, const TVec3BMax& bMax)
     {
         return aMin[0] <= bMax[0] && //
                aMin[1] <= bMax[1] && //
@@ -114,5 +116,30 @@ namespace glm
     [[nodiscard]] QUAKE_FORCEINLINE T get(const glm::vec<D, T, P>& v) noexcept
     {
         return v[I];
+    }
+
+    // TODO VR:
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator+(
+        const glm::vec3& lhs, const vec3_t& rhs) noexcept
+    {
+        return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator+(
+        const vec3_t& lhs, const glm::vec3& rhs) noexcept
+    {
+        return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator-(
+        const glm::vec3& lhs, const vec3_t& rhs) noexcept
+    {
+        return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator-(
+        const vec3_t& lhs, const glm::vec3& rhs) noexcept
+    {
+        return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
     }
 } // namespace glm

@@ -617,6 +617,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     // clang-format on
 }
 
+// TODO VR: get rid of this
 void InitAllWeaponCVars()
 {
     // clang-format off
@@ -699,6 +700,10 @@ void VID_VR_Init()
     }
 
     InitAllWeaponCVars();
+
+    // VR: Fix grenade model flags to enable smoke trail.
+    qmodel_t* test = Mod_ForName("progs/grenade.mdl", true);
+    test->flags |= EF_GRENADE;
 
     // Set the cvar if invoked from a command line parameter
     {
@@ -1392,13 +1397,10 @@ void VR_UpdateScreenContent()
                 auto* hdr = (aliashdr_t*)Mod_Extradata(cl.viewent.model);
                 Mod_Weapon(cl.viewent.model->name, hdr);
 
-                // TODO VR: move somewhere else (init?)
-                qmodel_t* test = Mod_ForName("progs/grenade.mdl", true);
-                test->flags |= EF_GRENADE;
-
                 // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
                 // testhdr->flags |= EF_GRENADE;
-                // VectorScale(testhdr->scale_origin, 0.5f, testhdr->scale_origin);
+                // VectorScale(testhdr->scale_origin, 0.5f,
+                // testhdr->scale_origin);
 
                 // BModels cannot be scaled, doesnt work
                 // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
@@ -1670,11 +1672,11 @@ void VR_Draw2D()
     {
         // TODO: Make the menus' position sperate from the right hand.
         // Centered on last view dir?
-        VectorCopy(cl.viewangles, menu_angles)
+        VectorCopy(cl.viewangles, menu_angles);
 
-            // TODO VR: ?
-            if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
-                vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
+        // TODO VR: ?
+        if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
+            vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
         {
             menu_angles[PITCH] = 0;
         }

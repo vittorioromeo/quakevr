@@ -99,7 +99,7 @@ enum ptype_t : std::uint8_t
     pt_rock
 };
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
+// TODO VR: optimize layout?
 struct particle_t
 {
     vec3_t org; // driver-usable field

@@ -45,10 +45,6 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
 
     switch(option)
     {
-        // TODO VR:
-        // case VRMenuOpt::VR_ENABLED:
-        //     M_DrawCheckbox(cx, cy, (int)vr_enabled.value);
-        //     break;
         case VRMenuOpt::VR_AIMMODE:
             switch((int)vr_aimmode.value)
             {
@@ -223,14 +219,6 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
 
     switch(option)
     {
-        // TODO VR:
-        // case VRMenuOpt::VR_ENABLED:
-        // TODO VR: fix and restore
-        // Cvar_SetValue( "vr_enabled", ! (int)vr_enabled.value );
-        // if ( (int)vr_enabled.value ) {
-        //    VR_MenuPlaySound( "items/r_item2.wav", 0.5 );
-        // }
-        // break;
         case VRMenuOpt::VR_AIMMODE:
             intValue = (int)vr_aimmode.value;
             intValue = CLAMP(aimmode[0], isLeft ? intValue - 1 : intValue + 1,
@@ -384,17 +372,11 @@ void M_VR_Draw()
     int idx = 0;
 
     static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
-        // TODO VR:
-        // "VR Enabled",
-
-
         "Aim Mode", "Deadzone", "Crosshair", "Crosshair Depth",
         "Crosshair Size", "Crosshair Alpha", "World Scale", "Movement mode",
         "Enable Joystick Turn", "Turn", "Turn Speed", "MSAA", "Gun Angle",
         "Floor Offset", "Gun Model Pitch", "Gun Model Scale",
         "Gun Model Z Offset", "Crosshair Z Offset",
-        // TODO VR: consider restoring for custom QC?
-        // "Projectile Spawn Z",
         "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset", "Status Bar Mode",
         "Viewkick", "Menu Distance", "Particle Effects", "Particle Multiplier");
 
@@ -430,6 +412,4 @@ void M_Menu_VR_f()
 
 // TODO VR:
 // * difficulty options
-// * nicer explosion particles
-// * speed adjustment options, sprinting
 // * vignette?

@@ -182,7 +182,7 @@ void SV_StartParticle(
     MSG_WriteByte(&sv.datagram, color);
 }
 
-// TODO VR:
+// TODO VR: repetition with above
 /*
 ==================
 SV_StartParticle2
@@ -195,7 +195,6 @@ void SV_StartParticle2(
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
-        Con_Printf("Datagram too large");
         return;
     }
 

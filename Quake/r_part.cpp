@@ -631,12 +631,11 @@ void R_ParseParticleEffect()
     R_RunParticleEffect(org, dir, color, msgcount);
 }
 
-// TODO VR:
 /*
 ===============
 R_ParseParticle2Effect
 
-Parse an effect out of the server message
+Parse an effect out of the server message (preset-based)
 ===============
 */
 void R_ParseParticle2Effect()
@@ -995,7 +994,6 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
     R_RunParticleEffect_BulletPuff(org, dir, color, count);
 }
 
-// TODO VR:
 /*
 ===============
 R_RunParticle2Effect
@@ -1571,7 +1569,6 @@ void R_DrawParticles()
                         ParticleBuffer& pBuffer) {
         (void)imageData;
 
-        // TODO VR:
         GL_Bind(texture);
         glEnable(GL_BLEND);
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -1579,8 +1576,6 @@ void R_DrawParticles()
 
         glBegin(GL_QUADS);
         pBuffer.forActive([&](particle_t& p) {
-            const float scale = p.scale;
-
             // johnfitz -- particle transparency and fade out
             GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color];
 
@@ -1595,11 +1590,11 @@ void R_DrawParticles()
             const auto xOrg = toVec3(p.org);
             const auto xFwd = xOrg - glmROrigin;
 
-            // TODO VR: glm::rotate is the bottleneck
+            // TODO VR: `glm::rotate` is the bottleneck in debug mode (!)
             const auto xUp = glm::rotate(glmUp, p.angle, xFwd);
             const auto xRight = glm::rotate(glmRight, p.angle, xFwd);
 
-            const auto halfScale = scale / 2.f;
+            const auto halfScale = p.scale / 2.f;
             const auto xLeft = -xRight;
             const auto xDown = -xUp;
             const auto xUpLeft = xOrg + halfScale * xUp + halfScale * xLeft;

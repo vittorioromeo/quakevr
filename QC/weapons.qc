@@ -106,6 +106,15 @@ float(float v) VRMeleeRange =
 	return v * cvar("vr_melee_range_multiplier") * mult;
 }
 
+void(vector org) BroadcastGunshotEffect =
+{
+	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+	WriteByte (MSG_BROADCAST, TE_GUNSHOT);
+	WriteCoord (MSG_BROADCAST, org_x);
+	WriteCoord (MSG_BROADCAST, org_y);
+	WriteCoord (MSG_BROADCAST, org_z);
+}
+
 /*
 ================
 W_FireAxe
@@ -117,14 +126,8 @@ void() W_FireAxe =
 	local	vector	org;
 	local	float	xdmg;
 	local	string	s;
-	local	float	playedsound;
 
 	xdmg = VRMeleeDmg(0.95);
-
-	// s = ftos(xdmg);
-	// sprint (self, "DMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
@@ -144,7 +147,7 @@ void() W_FireAxe =
 		if (self.melee_hit_sound_played == FALSE)
 		{
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 	}
 	else
@@ -153,19 +156,10 @@ void() W_FireAxe =
 		if (self.melee_hit_sound_played == FALSE)
 		{
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
-	}
-
-	if (playedsound)
-	{
-		self.melee_hit_sound_played = TRUE;
+		BroadcastGunshotEffect(org);
 	}
 };
 
@@ -183,14 +177,8 @@ void() W_GunMelee =
 	local	vector	org;
 	local	float	xdmg;
 	local	string	s;
-	local	float	playedsound;
 
 	xdmg = VRMeleeDmg(0.5);
-
-	// s = ftos(xdmg);
-	// sprint (self, "DMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
@@ -209,7 +197,7 @@ void() W_GunMelee =
 		if (self.melee_hit_sound_played == FALSE)
 		{
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 	}
 	else
@@ -218,19 +206,10 @@ void() W_GunMelee =
 		if (self.melee_hit_sound_played == FALSE)
 		{
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
-	}
-
-	if (playedsound)
-	{
-		self.melee_hit_sound_played = TRUE;
+		BroadcastGunshotEffect(org);
 	}
 };
 
@@ -252,11 +231,6 @@ void() W_FistMelee =
 	local	float	playedsound;
 
 	xdmg = VRMeleeOffHandDmg(0.75);
-
-	// s = ftos(xdmg);
-	// sprint (self, "OFFHANDDMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
 
 	makevectors (self.v_angle);
 	source = self.offhandpos + '0 0 0';
@@ -288,11 +262,7 @@ void() W_FistMelee =
 			playedsound = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
+		BroadcastGunshotEffect(org);
 	}
 
 	if (playedsound)
@@ -474,11 +444,7 @@ void(float damage, vector dir) TraceAttack =
 	}
 	else
 	{
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
+		BroadcastGunshotEffect(org);
 	}
 };
 

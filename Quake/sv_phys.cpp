@@ -1067,8 +1067,6 @@ Trigger hand-touching actions (e.g. pick up an item, press a button)
 void SV_Handtouch(edict_t* ent)
 {
     // TODO VR: cleanup, too much unnecessary tracing and work
-
-
     using namespace quake::util;
 
     // Utility constants
@@ -1121,7 +1119,6 @@ void SV_Handtouch(edict_t* ent)
 
     vec3_t qMaxs;
     toQuakeVec3(qMaxs, maxs);
-
 
     const auto traceCheck = [&](const trace_t& trace) {
         if(!trace.ent)

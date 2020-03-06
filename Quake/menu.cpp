@@ -1067,8 +1067,6 @@ again:
 
 enum
 {
-    // TODO VR:
-    // OPT_CUSTOMIZE = 0,
     OPT_CONSOLE = 0,
     OPT_DEFAULTS,
     OPT_SCALE,
@@ -1122,9 +1120,6 @@ void M_Menu_Options_f()
 
 void M_AdjustSliders(int dir)
 {
-    // TODO VR:
-    // int curr_alwaysrun;
-
     int target_alwaysrun;
     float f;
 
@@ -1238,21 +1233,6 @@ void M_AdjustSliders(int dir)
             break;
 
         case OPT_ALWAYRUN: // always run
-            // TODO VR:
-            /*if(cl_alwaysrun.value)
-            {
-                curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
-            }
-            else */
-            /*if(cl_forwardspeed.value > 200)
-            {
-                curr_alwaysrun = ALWAYSRUN_VANILLA;
-            }
-            else
-            {
-                curr_alwaysrun = ALWAYSRUN_OFF;
-            }*/
-
             target_alwaysrun =
                 (ALWAYSRUN_ITEMS + (int)cl_alwaysrun.value + dir) %
                 ALWAYSRUN_ITEMS;
@@ -1261,10 +1241,6 @@ void M_AdjustSliders(int dir)
             {
                 Cvar_SetValue("cl_alwaysrun", 1);
             }
-            // TODO VR:
-            // else if(target_alwaysrun == ALWAYSRUN_QUAKESPASM)
-            // {
-            // }
             else // ALWAYSRUN_OFF
             {
                 Cvar_SetValue("cl_alwaysrun", 0);
@@ -1348,9 +1324,6 @@ void M_Options_Draw()
     M_DrawPic((320 - p->width) / 2, 4, p);
 
     // Draw the items in the order of the enum defined above:
-    // TODO VR:
-    // OPT_CUSTOMIZE:
-    // M_Print(16, 32, "              Controls");
     // OPT_CONSOLE:
     M_Print(16, 32 + 8 * OPT_CONSOLE, "          Goto console");
     // OPT_DEFAULTS:
@@ -1462,8 +1435,6 @@ void M_Options_Key(int k)
             m_entersound = true;
             switch(options_cursor)
             {
-                // TODO VR:
-                // case OPT_CUSTOMIZE: M_Menu_Keys_f(); break;
                 case OPT_CONSOLE:
                     m_state = m_none;
                     Con_ToggleConsole_f();

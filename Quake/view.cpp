@@ -702,14 +702,6 @@ CalcGunAngle
 void CalcGunAngle(
     const int wpnCvarEntry, entity_t* viewent, const vec3_t& handrot)
 {
-    float yaw;
-
-    float pitch;
-
-    float move;
-    static float oldyaw = 0;
-    static float oldpitch = 0;
-
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
@@ -724,12 +716,14 @@ void CalcGunAngle(
         viewent->angles[PITCH] = -(handrot[PITCH]) + rotOfs[0];
         viewent->angles[YAW] = handrot[YAW] + rotOfs[1];
         viewent->angles[ROLL] = handrot[ROLL] + rotOfs[2];
+
         return;
     }
 
-    yaw = r_refdef.aimangles[YAW];
-    pitch = -r_refdef.aimangles[PITCH];
+    static float oldyaw = 0;
+    static float oldpitch = 0;
 
+    float yaw = r_refdef.aimangles[YAW];
     yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
     if(yaw > 10)
     {
@@ -739,6 +733,8 @@ void CalcGunAngle(
     {
         yaw = -10;
     }
+
+    float pitch = -r_refdef.aimangles[PITCH];
     pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
     if(pitch > 10)
     {
@@ -748,7 +744,8 @@ void CalcGunAngle(
     {
         pitch = -10;
     }
-    move = host_frametime * 20;
+
+    const float move = host_frametime * 20;
     if(yaw > oldyaw)
     {
         if(oldyaw + move < yaw)
@@ -1154,30 +1151,7 @@ void V_CalcRefdef2Test()
     }
     else
     {
-        // No off-hand without VR
-    }
-
-    // johnfitz -- removed all gun position fudging code (was used to keep
-    // gun from getting covered by sbar) MarkV -- restored this with
-    // r_viewmodel_quake cvar
-    if(r_viewmodel_quake.value)
-    {
-        if(scr_viewsize.value == 110)
-        {
-            view->origin[2] += 1;
-        }
-        else if(scr_viewsize.value == 100)
-        {
-            view->origin[2] += 2;
-        }
-        else if(scr_viewsize.value == 90)
-        {
-            view->origin[2] += 1;
-        }
-        else if(scr_viewsize.value == 80)
-        {
-            view->origin[2] += 0.5;
-        }
+        // No off-hand without VR.
     }
 
     view->model = Mod_ForName("progs/hand.mdl", true);

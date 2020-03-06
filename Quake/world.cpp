@@ -436,24 +436,17 @@ void SV_TouchLinks(edict_t* ent)
         edict_t* target = list[i]; // thing that's being touched
         // re-validate in case of PR_ExecuteProgram having side effects that
         // make edicts later in the list no longer touch
-        if(target == ent || ent != sv_player)
+        if(target == ent || ent != sv_player /* TODO VR: hack */)
         {
             continue;
         }
 
-        // TODO VR: code repetition
-        constexpr float o = 1.f;
-        vec3_t handposmin{-o, -o, -o};
-        VectorAdd(handposmin, ent->v.handpos, handposmin);
-
-        vec3_t handposmax{o, o, o};
-        VectorAdd(handposmax, ent->v.handpos, handposmax);
-
-        vec3_t offhandposmin{-o, -o, -o};
-        VectorAdd(offhandposmin, ent->v.offhandpos, offhandposmin);
-
-        vec3_t offhandposmax{o, o, o};
-        VectorAdd(offhandposmax, ent->v.offhandpos, offhandposmax);
+        // Add some size to the hands.
+        const glm::vec3 offsets{1.f, 1.f, 1.f};
+        const auto handposmin = ent->v.handpos - offsets;
+        const auto handposmax = ent->v.handpos + offsets;
+        const auto offhandposmin = ent->v.offhandpos - offsets;
+        const auto offhandposmax = ent->v.offhandpos + offsets;
 
         const bool canBeHandTouched =
             target->v.handtouch && target->v.solid == SOLID_TRIGGER;
