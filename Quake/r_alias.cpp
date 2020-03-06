@@ -54,9 +54,9 @@ vec3_t shadevector;
 
 float entalpha; // johnfitz
 
-qboolean overbright; // johnfitz
+bool overbright; // johnfitz
 
-qboolean shading =
+bool shading =
     true; // johnfitz -- if false, disable vertex shading for various reasons
           // (fullbright, r_lightmap, showtris, etc)
 
@@ -344,7 +344,7 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
     float blend;
 
     float iblend;
-    qboolean lerping;
+    bool lerping;
 
     if(lerpdata.pose1 != lerpdata.pose2)
     {
@@ -730,7 +730,7 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
 
     gltexture_t* fb;
     lerpdata_t lerpdata;
-    qboolean alphatest = !!(e->model->flags & MF_HOLEY);
+    bool alphatest = !!(e->model->flags & MF_HOLEY);
 
     //
     // setup pose/lerp data -- do it first so we don't miss updates due to

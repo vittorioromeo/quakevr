@@ -32,9 +32,9 @@ typedef struct
 
 struct trace_t
 {
-    qboolean allsolid;   // if true, plane is not valid
-    qboolean startsolid; // if true, the initial point was in a solid area
-    qboolean inopen, inwater;
+    bool allsolid;   // if true, plane is not valid
+    bool startsolid; // if true, the initial point was in a solid area
+    bool inopen, inwater;
     float fraction; // time completed, 1.0 = didn't hit anything
     vec3_t endpos;  // final position
     plane_t plane;  // surface normal at impact
@@ -83,7 +83,7 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 
 // passedict is explicitly excluded from clipping checks (normally nullptr)
 
-qboolean SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
+bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     vec3_t p1, vec3_t p2, trace_t* trace);
 
 #endif /* _QUAKE_WORLD_H */

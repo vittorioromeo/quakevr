@@ -166,7 +166,7 @@ void Sky_LoadSkyBox(const char* name)
     int height;
     char filename[MAX_OSPATH];
     byte* data;
-    qboolean nonefound = true;
+    bool nonefound = true;
 
     if(strcmp(skybox_name, name) == 0)
     {
@@ -506,9 +506,9 @@ void Sky_ClipPoly(int nump, vec3_t vecs, int stage)
 {
     float* norm;
     float* v;
-    qboolean front;
+    bool front;
 
-    qboolean back;
+    bool back;
     float d;
 
     float e;

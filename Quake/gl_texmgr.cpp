@@ -394,7 +394,7 @@ static void GL_DeleteTexture(gltexture_t* texture);
 
 // ericw -- workaround for preventing TexMgr_FreeTexture during
 // TexMgr_ReloadImages
-static qboolean in_reload_images;
+static bool in_reload_images;
 
 /*
 ================
@@ -844,7 +844,7 @@ TexMgr_ResampleTexture -- bilinear resample
 ================
 */
 static unsigned* TexMgr_ResampleTexture(
-    unsigned* in, int inwidth, int inheight, qboolean alpha)
+    unsigned* in, int inwidth, int inheight, bool alpha)
 {
     byte* nwpx;
 
@@ -1357,9 +1357,9 @@ TexMgr_LoadImage8 -- handles 8bit source data, then passes it to LoadImage32
 static void TexMgr_LoadImage8(gltexture_t* glt, byte* data)
 {
     extern cvar_t gl_fullbrights;
-    qboolean padw = false;
+    bool padw = false;
 
-    qboolean padh = false;
+    bool padh = false;
     byte padbyte;
     unsigned int* usepal;
     int i;
@@ -1775,7 +1775,7 @@ void TexMgr_ReloadNobrightImages()
 static GLuint currenttexture[3] = {GL_UNUSED_TEXTURE, GL_UNUSED_TEXTURE,
     GL_UNUSED_TEXTURE}; // to avoid unnecessary texture sets
 static GLenum currenttarget = GL_TEXTURE0_ARB;
-qboolean mtexenabled = false;
+bool mtexenabled = false;
 
 /*
 ================

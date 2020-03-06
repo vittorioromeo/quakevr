@@ -111,13 +111,10 @@ typedef unsigned char byte;
 
 #undef true
 #undef false
-/* some structures have qboolean members and the x86 asm code expect
- * those members to be 4 bytes long. therefore, qboolean must be 32
+// TODO VR:
+/* some structures have bool members and the x86 asm code expect
+ * those members to be 4 bytes long. therefore, bool must be 32
  * bits and it can NOT be binary compatible with the 8 bit C++ bool.  */
-typedef int qboolean;
-static_assert(0 == false);
-static_assert(1 == true);
-static_assert(sizeof(qboolean) == 4);
 
 /*==========================================================================*/
 

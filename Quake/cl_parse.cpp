@@ -83,7 +83,7 @@ const char* svc_strings[] = {
     // johnfitz
 };
 
-qboolean warn_about_nehahra_protocol; // johnfitz
+bool warn_about_nehahra_protocol; // johnfitz
 
 extern vec3_t v_punchangles[2]; // johnfitz
 
@@ -478,7 +478,7 @@ void CL_ParseUpdate(int bits)
     int i;
     qmodel_t* model;
     int modnum;
-    qboolean forcelink;
+    bool forcelink;
     entity_t* ent;
     int num;
     int skin;

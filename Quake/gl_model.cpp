@@ -33,7 +33,7 @@ char loadname[32]; // for hunk tags
 void Mod_LoadSpriteModel(qmodel_t* mod, void* buffer);
 void Mod_LoadBrushModel(qmodel_t* mod, void* buffer);
 void Mod_LoadAliasModel(qmodel_t* mod, void* buffer);
-qmodel_t* Mod_LoadModel(qmodel_t* mod, qboolean crash);
+qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 
@@ -344,7 +344,7 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-qmodel_t* Mod_LoadModel(qmodel_t* mod, qboolean crash)
+qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
 {
     byte* buf;
     byte stackbuf[1024]; // avoid dirtying the cache heap
@@ -421,7 +421,7 @@ Mod_ForName
 Loads in a model for the given name
 ==================
 */
-qmodel_t* Mod_ForName(const char* name, qboolean crash)
+qmodel_t* Mod_ForName(const char* name, bool crash)
 {
     qmodel_t* mod;
 
@@ -446,7 +446,7 @@ byte* mod_base;
 Mod_CheckFullbrights -- johnfitz
 =================
 */
-qboolean Mod_CheckFullbrights(byte* pixels, int count)
+bool Mod_CheckFullbrights(byte* pixels, int count)
 {
     int i;
     for(i = 0; i < count; i++)
@@ -1401,7 +1401,7 @@ void Mod_CalcSurfaceBounds(msurface_t* s)
 Mod_LoadFaces
 =================
 */
-void Mod_LoadFaces(lump_t* l, qboolean bsp2)
+void Mod_LoadFaces(lump_t* l, bool bsp2)
 {
     dsface_t* ins;
     dlface_t* inl;
@@ -2041,7 +2041,7 @@ void Mod_LoadLeafs(lump_t* l, int bsp2)
 Mod_LoadClipnodes
 =================
 */
-void Mod_LoadClipnodes(lump_t* l, qboolean bsp2)
+void Mod_LoadClipnodes(lump_t* l, bool bsp2)
 {
     dsclipnode_t* ins;
     dlclipnode_t* inl;
@@ -3068,7 +3068,7 @@ void Mod_CalcAliasBounds(aliashdr_t* a)
     loadmodel->ymaxs[2] = loadmodel->maxs[2];
 }
 
-static qboolean nameInList(const char* list, const char* name)
+static bool nameInList(const char* list, const char* name)
 {
     const char* s;
     char tmp[MAX_QPATH];

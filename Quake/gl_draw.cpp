@@ -135,7 +135,7 @@ int scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
 byte scrap_texels[MAX_SCRAPS]
                  [BLOCK_WIDTH *
                      BLOCK_HEIGHT]; // johnfitz -- removed *4 after BLOCK_HEIGHT
-qboolean scrap_dirty;
+bool scrap_dirty;
 gltexture_t* scrap_textures[MAX_SCRAPS]; // johnfitz
 
 

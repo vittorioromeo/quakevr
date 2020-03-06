@@ -36,7 +36,7 @@ static int pr_numknownstrings;
 static ddef_t* pr_fielddefs;
 static ddef_t* pr_globaldefs;
 
-qboolean pr_alpha_supported; // johnfitz
+bool pr_alpha_supported; // johnfitz
 
 dstatement_t* pr_statements;
 globalvars_t* pr_global_struct;
@@ -57,7 +57,7 @@ int type_size[8] = {
 };
 
 static ddef_t* ED_FieldAtOfs(int ofs);
-static qboolean ED_ParseEpair(void* base, ddef_t* key, const char* s);
+static bool ED_ParseEpair(void* base, ddef_t* key, const char* s);
 
 #define MAX_FIELD_LEN 64
 #define GEFV_CACHESIZE 2
@@ -858,7 +858,7 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static qboolean ED_ParseEpair(void* base, ddef_t* key, const char* s)
+static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
 {
     int i;
     char string[128];
@@ -955,9 +955,9 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 {
     ddef_t* key;
     char keyname[256];
-    qboolean anglehack;
+    bool anglehack;
 
-    qboolean init;
+    bool init;
     int n;
 
     init = false;

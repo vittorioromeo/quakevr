@@ -23,7 +23,7 @@
 #include "snd_codec.hpp"
 #include "q_ctype.hpp"
 
-static inline qboolean is_id3v1(const unsigned char* data, long length)
+static inline bool is_id3v1(const unsigned char* data, long length)
 {
     /* http://id3.org/ID3v1 :  3 bytes "TAG" identifier and 125 bytes tag data
      */
@@ -33,7 +33,7 @@ static inline qboolean is_id3v1(const unsigned char* data, long length)
     }
     return true;
 }
-static qboolean is_id3v2(const unsigned char* data, size_t length)
+static bool is_id3v2(const unsigned char* data, size_t length)
 {
     /* ID3v2 header is 10 bytes:  http://id3.org/id3v2.4.0-structure */
     /* bytes 0-2: "ID3" identifier */
@@ -76,7 +76,7 @@ static long get_id3v2_len(const unsigned char* data, long length)
     }
     return size;
 }
-static qboolean is_apetag(const unsigned char* data, size_t length)
+static bool is_apetag(const unsigned char* data, size_t length)
 {
     /* http://wiki.hydrogenaud.io/index.php?title=APEv2_specification
      * Header/footer is 32 bytes: bytes 0-7 ident, bytes 8-11 version,
@@ -147,14 +147,14 @@ static inline long get_lyrics3v2_len(const unsigned char* data, long length)
     if(length != 6) return 0;
     return strtol((const char*)data, nullptr, 10) + 15;
 }
-static inline qboolean verify_lyrics3v2(const unsigned char* data, long length)
+static inline bool verify_lyrics3v2(const unsigned char* data, long length)
 {
     if(length < 11) return false;
     if(memcmp(data, "LYRICSBEGIN", 11) == 0) return true;
     return false;
 }
 #define MMTAG_PARANOID
-static qboolean is_musicmatch(const unsigned char* data, long length)
+static bool is_musicmatch(const unsigned char* data, long length)
 {
     /* From docs/musicmatch.txt in id3lib:
        https://sourceforge.net/projects/id3lib/ Overall tag structure:

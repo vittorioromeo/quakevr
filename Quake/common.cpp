@@ -39,9 +39,9 @@ cvar_t cmdline = {
     "cmdline", "", CVAR_ROM /*|CVAR_SERVERINFO*/}; /* sending cmdline upon
                                                       CCREQ_RULE_INFO is evil */
 
-static qboolean com_modified; // set true if using non-id files
+static bool com_modified; // set true if using non-id files
 
-qboolean fitzmode;
+bool fitzmode;
 
 static void COM_Path_f();
 
@@ -61,7 +61,7 @@ char** com_argv;
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
 char com_cmdline[CMDLINE_LENGTH];
 
-qboolean standard_quake = true, rogue, hipnotic;
+bool standard_quake = true, rogue, hipnotic;
 
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] = {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -656,7 +656,7 @@ float Q_atof(const char* str)
 ============================================================================
 */
 
-qboolean host_bigendian;
+bool host_bigendian;
 
 short (*BigShort)(short l);
 short (*LittleShort)(short l);
@@ -893,7 +893,7 @@ void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags)
 // reading functions
 //
 int msg_readcount;
-qboolean msg_badread;
+bool msg_badread;
 
 void MSG_BeginReading()
 {
@@ -2026,7 +2026,7 @@ COM_FileExists
 Returns whether the file is found in the quake filesystem.
 ===========
 */
-qboolean COM_FileExists(const char* filename, unsigned int* path_id)
+bool COM_FileExists(const char* filename, unsigned int* path_id)
 {
     int ret = COM_FindFile(filename, nullptr, nullptr, path_id);
     return (ret == -1) ? false : true;
@@ -2372,7 +2372,7 @@ static void COM_AddGameDirectory(const char* base, const char* dir)
 
     pack_t* qspak;
     char pakfile[MAX_OSPATH];
-    qboolean been_here = false;
+    bool been_here = false;
 
     q_strlcpy(com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));
 
@@ -2405,7 +2405,7 @@ _add_path:
         }
         else
         {
-            qboolean old = com_modified;
+            bool old = com_modified;
             if(been_here)
             {
                 base = host_parms->userdir;

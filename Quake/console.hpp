@@ -29,8 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 extern int con_totallines;
 extern int con_backscroll;
-extern qboolean con_forcedup; // because no entities to refresh
-extern qboolean con_initialized;
+extern bool con_forcedup; // because no entities to refresh
+extern bool con_initialized;
 extern byte* con_chars;
 
 extern char con_lastcenterstring[]; // johnfitz
@@ -39,7 +39,7 @@ void Con_DrawCharacter(int cx, int line, int num);
 
 void Con_CheckResize(void);
 void Con_Init(void);
-void Con_DrawConsole(int lines, qboolean drawinput);
+void Con_DrawConsole(int lines, bool drawinput);
 void Con_Printf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DWarning(const char* fmt, ...) FUNC_PRINTF(1, 2); // ericw
 void Con_Warning(const char* fmt, ...) FUNC_PRINTF(1, 2);  // johnfitz

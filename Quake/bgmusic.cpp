@@ -31,7 +31,7 @@
 bool bgmloop;
 cvar_t bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE};
 
-static qboolean no_extmusic = false;
+static bool no_extmusic = false;
 static float old_volume = -1.0f;
 
 enum bgm_player_t
@@ -132,7 +132,7 @@ static void BGM_Stop_f()
     BGM_Stop();
 }
 
-qboolean BGM_Init()
+bool BGM_Init()
 {
     music_handler_t* handlers = nullptr;
     int i;
@@ -292,7 +292,7 @@ void BGM_Play(const char* filename)
     Con_Printf("Couldn't handle music file %s\n", filename);
 }
 
-void BGM_PlayCDtrack(byte track, qboolean looping)
+void BGM_PlayCDtrack(byte track, bool looping)
 {
     /* instead of searching by the order of music_handlers, do so by
      * the order of searchpath priority: the file from the searchpath
@@ -406,7 +406,7 @@ void BGM_Resume()
 
 static void BGM_UpdateStream()
 {
-    qboolean did_rewind = false;
+    bool did_rewind = false;
     int res; /* Number of bytes read. */
     int bufferSamples;
     int fileSamples;

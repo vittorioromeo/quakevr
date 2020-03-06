@@ -52,6 +52,6 @@ void IN_ClearStates(void);
 void IN_Activate();
 
 // called when the app becomes inactive
-void IN_Deactivate(qboolean free_cursor);
+void IN_Deactivate(bool free_cursor);
 
 #endif /* _QUAKE_INPUT_H */

@@ -577,7 +577,7 @@ void V_UpdateBlend()
     int i;
 
     int j;
-    qboolean blend_changed;
+    bool blend_changed;
 
     V_CalcPowerupCshift();
 

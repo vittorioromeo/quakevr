@@ -59,7 +59,7 @@ struct qsocket_s* NET_Connect(const char* host);
 double NET_QSocketGetTime(const struct qsocket_s* sock);
 const char* NET_QSocketGetAddressString(const struct qsocket_s* sock);
 
-qboolean NET_CanSendMessage(struct qsocket_s* sock);
+bool NET_CanSendMessage(struct qsocket_s* sock);
 // Returns true or false if the given qsocket can currently accept a
 // message to be transmitted.
 
@@ -93,9 +93,9 @@ void NET_Poll(void);
 
 
 // Server list related globals:
-extern qboolean slistInProgress;
-extern qboolean slistSilent;
-extern qboolean slistLocal;
+extern bool slistInProgress;
+extern bool slistSilent;
+extern bool slistLocal;
 
 extern int hostCacheCount;
 
@@ -107,8 +107,8 @@ const char* NET_SlistPrintServerName(int n);
 
 /* FIXME: driver related, but public:
  */
-extern qboolean ipxAvailable;
-extern qboolean tcpipAvailable;
+extern bool ipxAvailable;
+extern bool tcpipAvailable;
 extern char my_ipx_address[NET_NAMELEN];
 extern char my_tcpip_address[NET_NAMELEN];
 

@@ -118,15 +118,15 @@ typedef struct
 
     // demo recording info must be here, because record is started before
     // entering a map (and clearing client_state_t)
-    qboolean demorecording;
-    qboolean demoplayback;
+    bool demorecording;
+    bool demoplayback;
 
     // did the user pause demo playback? (separate from cl.paused because we
     // don't want a svc_setpause inside the demo to actually pause demo
     // playback).
-    qboolean demopaused;
+    bool demopaused;
 
-    qboolean timedemo;
+    bool timedemo;
     int forcetrack; // -1 = use normal cd track
     FILE* demofile;
     int td_lastframe;   // to meter out one message a frame
@@ -187,16 +187,16 @@ struct client_state_t
     // pitch drifting vars
     float idealpitch;
     float pitchvel;
-    qboolean nodrift;
+    bool nodrift;
     float driftmove;
     double laststop;
 
     float viewheight;
     float crouch; // local amount for smoothing stepups
 
-    qboolean paused; // send over by server
-    qboolean onground;
-    qboolean inwater;
+    bool paused; // send over by server
+    bool onground;
+    bool inwater;
 
     int intermission;   // don't change view angle, full screen, etc
     int completed_time; // latched at intermission start

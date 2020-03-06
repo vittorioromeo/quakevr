@@ -134,9 +134,9 @@ typedef struct qsocket_s
     double lastMessageTime;
     double lastSendTime;
 
-    qboolean disconnected;
-    qboolean canSend;
-    qboolean sendNext;
+    bool disconnected;
+    bool canSend;
+    bool sendNext;
 
     int driver;
     int landriver;
@@ -166,11 +166,11 @@ extern int net_numsockets;
 typedef struct
 {
     const char* name;
-    qboolean initialized;
+    bool initialized;
     sys_socket_t controlSock;
     sys_socket_t (*Init)(void);
     void (*Shutdown)(void);
-    void (*Listen)(qboolean state);
+    void (*Listen)(bool state);
     sys_socket_t (*Open_Socket)(int port);
     int (*Close_Socket)(sys_socket_t socketid);
     int (*Connect)(sys_socket_t socketid, struct qsockaddr* addr);
@@ -197,17 +197,17 @@ extern const int net_numlandrivers;
 typedef struct
 {
     const char* name;
-    qboolean initialized;
+    bool initialized;
     int (*Init)(void);
-    void (*Listen)(qboolean state);
-    void (*SearchForHosts)(qboolean xmit);
+    void (*Listen)(bool state);
+    void (*SearchForHosts)(bool xmit);
     qsocket_t* (*Connect)(const char* host);
     qsocket_t* (*CheckNewConnections)(void);
     int (*QGetMessage)(qsocket_t* sock);
     int (*QSendMessage)(qsocket_t* sock, sizebuf_t* data);
     int (*SendUnreliableMessage)(qsocket_t* sock, sizebuf_t* data);
-    qboolean (*CanSendMessage)(qsocket_t* sock);
-    qboolean (*CanSendUnreliableMessage)(qsocket_t* sock);
+    bool (*CanSendMessage)(qsocket_t* sock);
+    bool (*CanSendUnreliableMessage)(qsocket_t* sock);
     void (*Close)(qsocket_t* sock);
     void (*Shutdown)(void);
 } net_driver_t;

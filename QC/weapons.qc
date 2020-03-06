@@ -128,6 +128,7 @@ void() W_FireAxe =
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
+	// TODO VR: improve this collision detection
 	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;

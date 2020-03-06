@@ -105,9 +105,9 @@ struct
 // main screen & 2D drawing
 extern void SCR_SetUpToDrawConsole();
 extern void SCR_UpdateScreenContent();
-extern qboolean scr_drawdialog;
+extern bool scr_drawdialog;
 extern void SCR_DrawNotifyString();
-extern qboolean scr_drawloading;
+extern bool scr_drawloading;
 extern void SCR_DrawLoading();
 extern void SCR_CheckDrawCenterString();
 extern void SCR_DrawRam();

@@ -40,7 +40,7 @@ typedef struct cmdalias_s
 
 cmdalias_t* cmd_alias;
 
-qboolean cmd_wait;
+bool cmd_wait;
 
 //=============================================================================
 

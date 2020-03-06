@@ -30,8 +30,8 @@ qsocket_t* net_activeSockets = nullptr;
 qsocket_t* net_freeSockets = nullptr;
 int net_numsockets = 0;
 
-qboolean ipxAvailable = false;
-qboolean tcpipAvailable = false;
+bool ipxAvailable = false;
+bool tcpipAvailable = false;
 
 int net_hostport;
 int DEFAULTnet_hostport = 26000;
@@ -39,11 +39,11 @@ int DEFAULTnet_hostport = 26000;
 char my_ipx_address[NET_NAMELEN];
 char my_tcpip_address[NET_NAMELEN];
 
-static qboolean listening = false;
+static bool listening = false;
 
-qboolean slistInProgress = false;
-qboolean slistSilent = false;
-qboolean slistLocal = true;
+bool slistInProgress = false;
+bool slistSilent = false;
+bool slistLocal = true;
 static double slistStartTime;
 static int slistLastShown;
 
@@ -756,7 +756,7 @@ Returns true or false if the given qsocket can currently accept a
 message to be transmitted.
 ==================
 */
-qboolean NET_CanSendMessage(qsocket_t* sock)
+bool NET_CanSendMessage(qsocket_t* sock)
 {
     if(!sock)
     {
@@ -779,9 +779,9 @@ int NET_SendToAll(sizebuf_t* data, double blocktime)
     double start;
     int i;
     int count = 0;
-    qboolean msg_init[MAX_SCOREBOARD]; /* did we write the message to the
+    bool msg_init[MAX_SCOREBOARD]; /* did we write the message to the
                                           client's connection	*/
-    qboolean msg_sent[MAX_SCOREBOARD]; /* did the msg arrive its destination
+    bool msg_sent[MAX_SCOREBOARD]; /* did the msg arrive its destination
                                           (canSend state).	*/
 
     for(i = 0, host_client = svs.clients; i < svs.maxclients;

@@ -75,7 +75,7 @@ static char* gl_extensions_nice;
 static vmode_t modelist[MAX_MODE_LIST];
 static int nummodes;
 
-static qboolean vid_initialized = false;
+static bool vid_initialized = false;
 
 #if defined(USE_SDL2)
 static SDL_Window* draw_context;
@@ -84,8 +84,8 @@ static SDL_GLContext gl_context;
 static SDL_Surface* draw_context;
 #endif
 
-static qboolean vid_locked = false; // johnfitz
-static qboolean vid_changed = false;
+static bool vid_locked = false; // johnfitz
+static bool vid_changed = false;
 
 static void VID_Menu_Init(); // johnfitz
 static void VID_Menu_f();    // johnfitz
@@ -98,20 +98,20 @@ static void GL_SetupState(); // johnfitz
 
 viddef_t vid; // global video state
 modestate_t modestate = MS_UNINIT;
-qboolean scr_skipupdate;
+bool scr_skipupdate;
 
-qboolean gl_mtexable = false;
-qboolean gl_texture_env_combine = false; // johnfitz
-qboolean gl_texture_env_add = false;     // johnfitz
-qboolean gl_swap_control = false;        // johnfitz
-qboolean gl_anisotropy_able = false;     // johnfitz
+bool gl_mtexable = false;
+bool gl_texture_env_combine = false; // johnfitz
+bool gl_texture_env_add = false;     // johnfitz
+bool gl_swap_control = false;        // johnfitz
+bool gl_anisotropy_able = false;     // johnfitz
 float gl_max_anisotropy;                 // johnfitz
-qboolean gl_texture_NPOT = false;        // ericw
-qboolean gl_vbo_able = false;            // ericw
-qboolean gl_glsl_able = false;           // ericw
+bool gl_texture_NPOT = false;        // ericw
+bool gl_vbo_able = false;            // ericw
+bool gl_glsl_able = false;           // ericw
 GLint gl_max_texture_units = 0;          // ericw
-qboolean gl_glsl_gamma_able = false;     // ericw
-qboolean gl_glsl_alias_able = false;     // ericw
+bool gl_glsl_gamma_able = false;     // ericw
+bool gl_glsl_alias_able = false;     // ericw
 int gl_stencilbits;
 
 PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc = nullptr; // johnfitz
@@ -190,7 +190,7 @@ static unsigned short vid_sysgamma_green[256];
 static unsigned short vid_sysgamma_blue[256];
 #endif
 
-static qboolean gammaworks = false; // whether hw-gamma works
+static bool gammaworks = false; // whether hw-gamma works
 static int fsaa;
 
 /*
@@ -454,7 +454,7 @@ VID_GetFullscreen
 returns true if we are in regular fullscreen or "desktop fullscren"
 ====================
 */
-static qboolean VID_GetFullscreen()
+static bool VID_GetFullscreen()
 {
 #if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN) != 0;
@@ -470,7 +470,7 @@ VID_GetDesktopFullscreen
 returns true if we are specifically in "desktop fullscreen" mode
 ====================
 */
-static qboolean VID_GetDesktopFullscreen()
+static bool VID_GetDesktopFullscreen()
 {
 #if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) ==
@@ -485,7 +485,7 @@ static qboolean VID_GetDesktopFullscreen()
 VID_GetVSync
 ====================
 */
-static qboolean VID_GetVSync()
+static bool VID_GetVSync()
 {
 #if defined(USE_SDL2)
     return SDL_GL_GetSwapInterval() == 1;
@@ -518,7 +518,7 @@ void* VID_GetWindow()
 VID_HasMouseOrInputFocus
 ====================
 */
-qboolean VID_HasMouseOrInputFocus()
+bool VID_HasMouseOrInputFocus()
 {
 #if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) &
@@ -533,7 +533,7 @@ qboolean VID_HasMouseOrInputFocus()
 VID_IsMinimized
 ====================
 */
-qboolean VID_IsMinimized()
+bool VID_IsMinimized()
 {
 #if defined(USE_SDL2)
     return !(SDL_GetWindowFlags(draw_context) & SDL_WINDOW_SHOWN);
@@ -586,8 +586,8 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
 VID_ValidMode
 ================
 */
-static qboolean VID_ValidMode(
-    int width, int height, int refreshrate, int bpp, qboolean fullscreen)
+static bool VID_ValidMode(
+    int width, int height, int refreshrate, int bpp, bool fullscreen)
 {
     // ignore width / height / bpp if vid_desktopfullscreen is enabled
     if(fullscreen && vid_desktopfullscreen.value)
@@ -636,8 +636,8 @@ static qboolean VID_ValidMode(
 VID_SetMode
 ================
 */
-static qboolean VID_SetMode(
-    int width, int height, int refreshrate, int bpp, qboolean fullscreen)
+static bool VID_SetMode(
+    int width, int height, int refreshrate, int bpp, bool fullscreen)
 {
     int temp;
     Uint32 flags;
@@ -887,7 +887,7 @@ static void VID_Restart()
     int refreshrate;
 
     int bpp;
-    qboolean fullscreen;
+    bool fullscreen;
 
     if(vid_locked || !vid_changed)
     {
@@ -1123,7 +1123,7 @@ static void GL_Info_f()
 GL_CheckExtensions
 ===============
 */
-static qboolean GL_ParseExtensionList(const char* list, const char* name)
+static bool GL_ParseExtensionList(const char* list, const char* name)
 {
     const char* start;
     const char* where;
@@ -1850,7 +1850,7 @@ void VID_Init()
     int display_refreshrate;
 
     int display_bpp;
-    qboolean fullscreen;
+    bool fullscreen;
     const char* read_vars[] = {"vid_fullscreen", "vid_width", "vid_height",
         "vid_refreshrate", "vid_bpp", "vid_vsync", "vid_fsaa",
         "vid_desktopfullscreen", "vid_borderless"};
@@ -2048,8 +2048,8 @@ void VID_Toggle()
     // TODO: Clear out the dead code, reinstate the fast path using
     // SDL_SetWindowFullscreen inside VID_SetMode, check window size to fix
     // WinXP issue. This will keep all the mode changing code in one place.
-    static qboolean vid_toggle_works = false;
-    qboolean toggleWorked;
+    static bool vid_toggle_works = false;
+    bool toggleWorked;
 #if defined(USE_SDL2)
     Uint32 flags = 0;
 #endif

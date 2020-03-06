@@ -414,7 +414,7 @@ void CL_PlayDemo_f()
     int i;
 
     int c;
-    qboolean neg;
+    bool neg;
 
     if(cmd_source != src_command)
     {

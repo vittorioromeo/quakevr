@@ -122,7 +122,7 @@ float Cvar_VariableValue(const char* var_name);
 const char* Cvar_VariableString(const char* var_name);
 // returns an empty string if not defined
 
-qboolean Cvar_Command(void);
+bool Cvar_Command(void);
 // called by Cmd_ExecuteString when Cmd_Argv(0) doesn't match a known
 // command.  Returns true if the command was a variable reference that
 // was handled. (print or change)

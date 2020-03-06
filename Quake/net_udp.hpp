@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 sys_socket_t UDP_Init(void);
 void UDP_Shutdown(void);
-void UDP_Listen(qboolean state);
+void UDP_Listen(bool state);
 sys_socket_t UDP_OpenSocket(int port);
 int UDP_CloseSocket(sys_socket_t socketid);
 int UDP_Connect(sys_socket_t socketid, struct qsockaddr* addr);

@@ -111,7 +111,7 @@ static int WAV_FindRIFFChunk(FILE* f, const char* chunk)
 WAV_ReadRIFFHeader
 =================
 */
-static qboolean WAV_ReadRIFFHeader(
+static bool WAV_ReadRIFFHeader(
     const char* name, FILE* file, snd_info_t* info)
 {
     char dump[16];
@@ -190,7 +190,7 @@ static qboolean WAV_ReadRIFFHeader(
 S_WAV_CodecOpenStream
 =================
 */
-static qboolean S_WAV_CodecOpenStream(snd_stream_t* stream)
+static bool S_WAV_CodecOpenStream(snd_stream_t* stream)
 {
     long start = stream->fh.start;
 
@@ -245,7 +245,7 @@ static int S_WAV_CodecRewindStream(snd_stream_t* stream)
     return 0;
 }
 
-static qboolean S_WAV_CodecInitialize(void)
+static bool S_WAV_CodecInitialize(void)
 {
     return true;
 }

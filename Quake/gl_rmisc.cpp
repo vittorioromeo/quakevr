@@ -533,7 +533,7 @@ void D_FlushCaches()
 static GLuint gl_programs[16];
 static int gl_num_programs;
 
-static qboolean GL_CheckShader(GLuint shader)
+static bool GL_CheckShader(GLuint shader)
 {
     GLint status;
     GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &status);
@@ -552,7 +552,7 @@ static qboolean GL_CheckShader(GLuint shader)
     return true;
 }
 
-static qboolean GL_CheckProgram(GLuint program)
+static bool GL_CheckProgram(GLuint program)
 {
     GLint status;
     GL_GetProgramivFunc(program, GL_LINK_STATUS, &status);

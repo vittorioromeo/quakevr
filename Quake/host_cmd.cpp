@@ -627,7 +627,7 @@ void Host_Notarget_f()
     // johnfitz
 }
 
-qboolean noclip_anglehack;
+bool noclip_anglehack;
 
 /*
 ==================
@@ -1467,7 +1467,7 @@ void Host_Name_f()
     MSG_WriteString(&sv.reliable_datagram, host_client->name);
 }
 
-void Host_Say(qboolean teamonly)
+void Host_Say(bool teamonly)
 {
     int j;
     client_t* client;
@@ -1476,8 +1476,8 @@ void Host_Say(qboolean teamonly)
     char text[MAXCMDLINE];
 
     char* p2;
-    qboolean quoted;
-    qboolean fromServer = false;
+    bool quoted;
+    bool fromServer = false;
 
     if(cmd_source == src_command)
     {
@@ -1583,7 +1583,7 @@ void Host_Tell_f()
     char text[MAXCMDLINE];
 
     char* p2;
-    qboolean quoted;
+    bool quoted;
 
     if(cmd_source == src_command)
     {
@@ -1969,7 +1969,7 @@ void Host_Kick_f()
     const char* message = nullptr;
     client_t* save;
     int i;
-    qboolean byNumber = false;
+    bool byNumber = false;
 
     if(cmd_source == src_command)
     {

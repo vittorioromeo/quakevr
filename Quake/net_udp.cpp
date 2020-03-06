@@ -128,7 +128,7 @@ void UDP_Shutdown()
 
 //=============================================================================
 
-void UDP_Listen(qboolean state)
+void UDP_Listen(bool state)
 {
     // enable listening
     if(state)

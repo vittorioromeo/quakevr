@@ -49,8 +49,8 @@ extern float scr_conlines; // lines of console to display
 extern int sb_lines;
 
 extern int clearnotify; // set to 0 whenever notify text is drawn
-extern qboolean scr_disabled_for_loading;
-extern qboolean scr_skipupdate;
+extern bool scr_disabled_for_loading;
+extern bool scr_skipupdate;
 
 extern cvar_t scr_viewsize;
 
