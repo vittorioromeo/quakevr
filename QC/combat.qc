@@ -90,6 +90,7 @@ void(entity targ, entity attacker) Killed =
 	self = oself;
 };
 
+void(vector org, float damage) SpawnBloodSplash;
 
 /*
 ============
@@ -167,6 +168,15 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 	&& (attacker.classname == "player")
 	&& (inflictor.classname != "door") )	// because squishing a teammate is still possible
 		return;
+
+	if (targ.classname == "player")
+	{
+		SpawnBloodSplash(targ.origin, take / 2.0);
+		SpawnBloodSplash(targ.handpos, take / 2.0);
+		SpawnBloodSplash(targ.offhandpos, take / 2.0);
+		haptic(0, 0.0, 0.5, 30, 1.0);
+		haptic(1, 0.0, 0.5, 30, 1.0);
+	}
 
 // do the damage
 	targ.health = targ.health - take;

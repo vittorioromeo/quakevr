@@ -454,11 +454,13 @@ void SV_TouchLinks(edict_t* ent)
         const bool entIntersects = !quake::util::boxIntersection(
             ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);
 
-        const bool anyHandIntersects =
-            quake::util::boxIntersection(
-                handposmin, handposmax, target->v.absmin, target->v.absmax) ||
-            quake::util::boxIntersection(offhandposmin, offhandposmax,
-                target->v.absmin, target->v.absmax);
+        const bool offHandIntersects = quake::util::boxIntersection(
+            offhandposmin, offhandposmax, target->v.absmin, target->v.absmax);
+
+        const bool mainHandIntersects = quake::util::boxIntersection(
+            handposmin, handposmax, target->v.absmin, target->v.absmax);
+
+        const bool anyHandIntersects = offHandIntersects || mainHandIntersects;
 
         const bool anyIntersection =
             vr_enabled.value ? anyHandIntersects : entIntersects;
@@ -474,6 +476,15 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->self = EDICT_TO_PROG(target);
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
+
+        if (offHandIntersects)
+        {
+            ent->v.touchinghand = 0;
+        }
+        else if (mainHandIntersects)
+        {
+            ent->v.touchinghand = 1;
+        }
 
         // VR: This is for things like ammo pickups and slipgates.
         PR_ExecuteProgram(target->v.handtouch);

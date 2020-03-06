@@ -218,6 +218,7 @@ void		end_sys_globals;		// flag for structure dumping
 .vector		offhandrot;
 .vector		offhandvel;
 .float		offhandvelmag;
+.float		touchinghand;
 
 //================================================
 void		end_sys_fields;			// flag for structure dumping
@@ -686,6 +687,7 @@ void(entity e) setspawnparms		= #78;		// set parm1... to the
 
 void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
 float(float base, float exp) pow = #80; // power function
+void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #81; // VR haptics function
 
 //============================================================================
 

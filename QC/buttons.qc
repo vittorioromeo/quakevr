@@ -1,5 +1,18 @@
 // button and multiple button
 
+void(entity e) VRButtonPressHaptic =
+{
+	if (cvar("vr_body_interactions") == 0)
+	{
+		haptic(e.touchinghand, 0.0, 0.3, 75, 1.0);
+	}
+	else
+	{
+		haptic(0, 0.0, 0.3, 75, 1.0);
+		haptic(1, 0.0, 0.3, 75, 1.0);
+	}
+}
+
 void() button_wait;
 void() button_return;
 
@@ -76,6 +89,8 @@ void() button_touch =
 	{
 		return;
 	}
+
+	VRButtonPressHaptic(other);
 
 	self.enemy = other;
 	button_fire ();

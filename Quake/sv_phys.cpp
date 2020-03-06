@@ -1126,7 +1126,7 @@ void SV_Handtouch(edict_t* ent)
             return;
         }
 
-        const auto handCollisionCheck = [&](vec3_t handPos) {
+        const auto handCollisionCheck = [&](const int hand, vec3_t handPos) {
             vec3_t aMin, aMax, bMin, bMax;
             VectorAdd(trace.ent->v.origin, trace.ent->v.mins, aMin);
             VectorAdd(trace.ent->v.origin, trace.ent->v.maxs, aMax);
@@ -1135,12 +1135,13 @@ void SV_Handtouch(edict_t* ent)
 
             if(quake::util::boxIntersection(aMin, aMax, bMin, bMax))
             {
+                ent->v.touchinghand = hand;
                 SV_Impact(ent, trace.ent, &entvars_t::handtouch);
             }
         };
 
-        handCollisionCheck(ent->v.handpos);
-        handCollisionCheck(ent->v.offhandpos);
+        handCollisionCheck(0, ent->v.offhandpos);
+        handCollisionCheck(1, ent->v.handpos);
     };
 
     const auto endHandPosition = [&](vec3_t out, vec3_t handPos,

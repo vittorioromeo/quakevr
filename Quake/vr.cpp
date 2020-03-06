@@ -724,7 +724,9 @@ void VR_InitGame()
 // ----------------------------------------------------------------------------
 
 vr::VRActiveActionSet_t vrActiveActionSet;
+
 vr::VRActionSetHandle_t vrashDefault;
+
 vr::VRActionHandle_t vrahLocomotion;
 vr::VRActionHandle_t vrahTurn;
 vr::VRActionHandle_t vrahFire;
@@ -733,9 +735,11 @@ vr::VRActionHandle_t vrahPrevWeapon;
 vr::VRActionHandle_t vrahNextWeapon;
 vr::VRActionHandle_t vrahEscape;
 vr::VRActionHandle_t vrahSpeed;
+vr::VRActionHandle_t vrahLeftHaptic;
+vr::VRActionHandle_t vrahRightHaptic;
 
-// TODO VR: implement haptic feedback
-vr::VRActionHandle_t vrahHaptic;
+vr::VRInputValueHandle_t vrivhLeft;
+vr::VRInputValueHandle_t vrivhRight;
 
 static void VR_InitActionHandles()
 {
@@ -772,11 +776,28 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
     readHandle("/actions/default/in/Escape", vrahEscape);
     readHandle("/actions/default/in/Speed", vrahSpeed);
-    readHandle("/actions/default/out/Haptic", vrahHaptic);
+    readHandle("/actions/default/out/LeftHaptic", vrahLeftHaptic);
+    readHandle("/actions/default/out/RightHaptic", vrahRightHaptic);
 
     vrActiveActionSet.ulActionSet = vrashDefault;
     vrActiveActionSet.ulRestrictedToDevice = vr::k_ulInvalidInputValueHandle;
     vrActiveActionSet.nPriority = 0;
+
+    // -----------------------------------------------------------------------
+    // VR: Get handles to the controllers.
+    const auto readInputSourceHandle = [](const char* name,
+                                           vr::VRInputValueHandle_t& handle) {
+        const auto rc = vr::VRInput()->GetInputSourceHandle(name, &handle);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf("Failed to read Steam VR input source handle, rc = %d",
+                (int)rc);
+        }
+    };
+
+    readInputSourceHandle("/user/hand/left", vrivhLeft);
+    readInputSourceHandle("/user/hand/right", vrivhRight);
 }
 
 // ----------------------------------------------------------------------------
@@ -1886,6 +1907,15 @@ struct VRAxisResult
     return {locomotion.y, locomotion.x, turn.x};
 }
 
+void VR_DoHaptic(const int hand, const float delay, const float duration,
+    const float frequency, const float amplitude)
+{
+    const auto hapticTarget = hand == 0 ? vrahLeftHaptic : vrahRightHaptic;
+
+    vr::VRInput()->TriggerHapticVibrationAction(hapticTarget, delay, duration,
+        frequency, amplitude, vr::k_ulInvalidInputValueHandle);
+}
+
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
     {
@@ -1962,12 +1992,32 @@ struct VRAxisResult
 
     in_speed.state = mustSpeed;
 
+    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
+        vr::VRInput()->TriggerHapticVibrationAction(
+            vrahLeftHaptic, 0, 0.1, 50, 0.5, origin);
+
+        vr::VRInput()->TriggerHapticVibrationAction(
+            vrahRightHaptic, 0, 0.1, 50, 0.5, origin);
+    };
+
+    const auto doMenuKeyEventWithHaptic =
+        [&](const int key, const vr::InputDigitalActionData_t& i) {
+            const bool pressed = isRisingEdge(i);
+
+            if(pressed)
+            {
+                doMenuHaptic(i.activeOrigin);
+            }
+
+            Key_Event(key, pressed);
+        };
+
     if(key_dest == key_menu)
     {
-        Key_Event(K_ENTER, mustJump);
-        Key_Event(K_ESCAPE, mustEscape);
-        Key_Event(K_LEFTARROW, mustPrevWeapon);
-        Key_Event(K_RIGHTARROW, mustNextWeapon);
+        doMenuKeyEventWithHaptic(K_ENTER, inpJump);
+        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
+        doMenuKeyEventWithHaptic(K_LEFTARROW, inpPrevWeapon);
+        doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeapon);
 
         const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
             const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
@@ -1977,6 +2027,11 @@ struct VRAxisResult
             const bool posDown = val > 0.0f;
             if(posDown != posWasDown)
             {
+                if(posDown)
+                {
+                    doMenuHaptic(inpLocomotion.activeOrigin);
+                }
+
                 Key_Event(quakeKeyNeg, posDown);
             }
 
@@ -1984,6 +2039,11 @@ struct VRAxisResult
             const bool negDown = val < 0.0f;
             if(negDown != negWasDown)
             {
+                if(negDown)
+                {
+                    doMenuHaptic(inpLocomotion.activeOrigin);
+                }
+
                 Key_Event(quakeKeyPos, negDown);
             }
         };
@@ -1994,7 +2054,7 @@ struct VRAxisResult
     {
         Key_Event(K_MOUSE1, mustFire);
         Key_Event(K_SPACE, mustJump);
-        Key_Event(K_ESCAPE, mustEscape);
+        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
         Key_Event('3', mustPrevWeapon);
         Key_Event('1', mustNextWeapon);
     }

@@ -148,6 +148,7 @@ typedef struct
 	vec3_t	offhandrot;
 	vec3_t	offhandvel;
 	float	offhandvelmag;
+	float	touchinghand;
 } entvars_t;
 
-#define PROGHEADER_CRC 37768
+#define PROGHEADER_CRC 12268

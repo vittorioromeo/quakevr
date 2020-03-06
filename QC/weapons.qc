@@ -71,7 +71,7 @@ float(float velmag) VRMeleeStrengthMult =
 	local float strength;
 	strength = velmag - cvar("vr_melee_threshold");
 
-	if (strength > 1)
+	if (strength > 1.0)
 	{
 		strength = pow(strength, 1.5);
 	}
@@ -104,6 +104,27 @@ float(float v) VRMeleeRange =
 	}
 
 	return v * cvar("vr_melee_range_multiplier") * mult;
+}
+
+void(float hand, float velmag) VRMeleeHaptic =
+{
+	local float power, amplitude, duration;
+	power = VRMeleeStrengthMult(velmag);
+
+	amplitude = power / 10.0;
+	if (amplitude > 1.0) { amplitude = 1.0; }
+	else if (amplitude < 0.45) { amplitude = 0.45; }
+
+	duration = 0.35 + power / 18.0;
+	if (duration < 0.35) { duration = 0.35; }
+	else if (duration > 0.9) { duration = 0.9; }
+
+	haptic(hand, 0.0, duration, 75.0, amplitude);
+}
+
+void(float duration, float frequency, float amplitude) VRGunHaptic =
+{
+	haptic(1, 0.0, duration, frequency, amplitude);
 }
 
 void(vector org) BroadcastGunshotEffect =
@@ -146,6 +167,7 @@ void() W_FireAxe =
 
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
 			self.melee_hit_sound_played = TRUE;
 		}
@@ -155,6 +177,7 @@ void() W_FireAxe =
 		// hit wall
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 			self.melee_hit_sound_played = TRUE;
 		}
@@ -196,6 +219,7 @@ void() W_GunMelee =
 
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
 			self.melee_hit_sound_played = TRUE;
 		}
@@ -205,6 +229,7 @@ void() W_GunMelee =
 		// hit wall
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 			self.melee_hit_sound_played = TRUE;
 		}
@@ -248,6 +273,7 @@ void() W_FistMelee =
 
 	if (trace_ent.takedamage)
 	{
+		VRMeleeHaptic(0, self.offhandvelmag);
 		trace_ent.axhitme = 1;
 		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
@@ -257,6 +283,7 @@ void() W_FistMelee =
 		// hit wall
 		if (self.offhand_melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(0, self.offhandvelmag);
 			PainSound();
 			SpawnBloodSplash (org, xdmg);
 			playedsound = TRUE;
@@ -529,6 +556,8 @@ void() W_FireShotgun =
 	self.currentammo = self.ammo_shells = self.ammo_shells - 1;
 	dir = aim (self, 100000);
 	FireBullets (6, dir, '0.01 0.01 0');
+
+	VRGunHaptic(0.25, 70, 0.75);
 };
 
 
@@ -554,6 +583,8 @@ void() W_FireSuperShotgun =
 	self.currentammo = self.ammo_shells = self.ammo_shells - 2;
 	dir = aim (self, 100000);
 	FireBullets (14, dir, '0.035 0.025 0');
+
+	VRGunHaptic(0.55, 75, 1.0);
 };
 
 
@@ -661,6 +692,8 @@ void() W_FireRocket =
 	setsize (missile, '0 0 0', '0 0 0');
 	setorigin (missile, self.handpos + '0 0 0');
 	//setorigin (missile, self.handpos + v_forward*8 + '0 0 16');
+
+	VRGunHaptic(0.5, 75, 1.0);
 };
 
 /*
@@ -759,6 +792,8 @@ void() W_FireLightning =
 	particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
 	particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
 	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
+
+	VRGunHaptic(0.4, 175, 1.0);
 };
 
 
@@ -858,6 +893,8 @@ void() W_FireGrenade =
 	setmodel (missile, "progs/grenade.mdl");
 	setsize (missile, '0 0 0', '0 0 0');
 	setorigin (missile, self.handpos);
+
+	VRGunHaptic(0.4, 75, 1.0);
 };
 
 
@@ -912,6 +949,8 @@ void() W_FireSuperSpikes =
 	newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
 	self.punchangle_x = -2;
+
+	VRGunHaptic(0.05, 150, 1.0);
 };
 
 void(float ox) W_FireSpikes =
@@ -944,6 +983,8 @@ void(float ox) W_FireSpikes =
 	newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
 	self.punchangle_x = -2;
+
+	VRGunHaptic(0.05, 150, 1.0);
 };
 
 

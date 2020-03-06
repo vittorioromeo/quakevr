@@ -175,8 +175,7 @@ static void PF_setorigin()
 }
 
 
-static void SetMinMaxSize(
-    edict_t* e, float* minvec, float* maxvec, bool rotate)
+static void SetMinMaxSize(edict_t* e, float* minvec, float* maxvec, bool rotate)
 {
     float* angles;
     vec3_t rmin;
@@ -628,7 +627,27 @@ static void PF_particle2()
     SV_StartParticle2(org, dir, preset, count);
 }
 
+/*
+=================
+PF_Haptic
 
+VR haptics function
+=================
+*/
+static void PF_haptic()
+{
+    // {0 = off hand, 1 = main hand}
+    const int hand = G_FLOAT(OFS_PARM0);
+
+    const float delay = G_FLOAT(OFS_PARM1);
+    const float duration = G_FLOAT(OFS_PARM2);
+    const float frequency = G_FLOAT(OFS_PARM3);
+    const float amplitude = G_FLOAT(OFS_PARM4);
+
+    extern void VR_DoHaptic(const int hand, const float delay,
+        const float duration, const float frequency, const float amplitude);
+    VR_DoHaptic(hand, delay, duration, frequency, amplitude);
+}
 
 /*
 =================
@@ -1982,7 +2001,8 @@ static builtin_t pr_builtin[] = {
 
     PF_setspawnparms,
     PF_particle2, // #79
-    PF_pow        // #80
+    PF_pow,       // #80
+    PF_haptic,    // #81
 };
 
 builtin_t* pr_builtins = pr_builtin;

@@ -54,6 +54,39 @@ constexpr int ramp2[8] = {111, 110, 109, 108, 107, 106, 104, 102};
 // Gold/brown/grey
 constexpr int ramp3[8] = {109, 107, 6, 5, 4, 3};
 
+enum ptype_t : std::uint8_t
+{
+    pt_static,
+    pt_fire,
+    pt_explode,
+    pt_explode2,
+    pt_blob,
+    pt_blob2,
+    pt_txexplode,
+    pt_txsmoke,
+    pt_lightning,
+    pt_teleport,
+    pt_rock
+};
+
+// TODO VR: optimize layout?
+struct particle_t
+{
+    glm::vec3 org; // driver-usable field
+    glm::vec3 vel; // drivers never touches this field
+    glm::vec3 acc; // TODO VR: driver?
+
+    float color; // driver-usable field
+    float ramp;  // drivers never touches this field
+    float die;   // drivers never touches this field
+    float scale; // TODO VR: driver?
+    float alpha; // TODO VR: use?
+    float angle; // TODO VR: use?
+
+    ptype_t type;        // drivers never touches this field
+    std::uint8_t param0; // TODO VR: use?
+};
+
 class ParticleBuffer
 {
 private:
@@ -212,7 +245,7 @@ public:
     }
 
     template <typename F>
-    void forActive(F&& f)
+    void forActive(F&& f) noexcept
     {
         for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
         {
@@ -221,7 +254,7 @@ public:
     }
 
     template <typename F>
-    void forBuffers(F&& f)
+    void forBuffers(F&& f) noexcept
     {
         for(std::size_t i = 0; i < _textureMgr.numActive(); ++i)
         {
@@ -250,10 +283,10 @@ std::mt19937 mt(rd());
     return std::uniform_int_distribution<int>{min, max - 1}(mt);
 }
 
-
 template <typename F>
 QUAKE_FORCEINLINE void makeNParticlesI(
-    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
+    const ParticleTextureManager::Handle txHandle, const int count,
+    F&& f) noexcept
 {
     auto& pBuffer = pMgr.getBuffer(txHandle);
 
@@ -271,12 +304,13 @@ QUAKE_FORCEINLINE void makeNParticlesI(
 
 template <typename F>
 QUAKE_FORCEINLINE void makeNParticles(
-    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
+    const ParticleTextureManager::Handle txHandle, const int count,
+    F&& f) noexcept
 {
     makeNParticlesI(txHandle, count, [&f](const int, particle_t& p) { f(p); });
 }
 
-QUAKE_FORCEINLINE void setAccGrav(particle_t& p, float mult = 0.5f)
+QUAKE_FORCEINLINE void setAccGrav(particle_t& p, float mult = 0.5f) noexcept
 {
     extern cvar_t sv_gravity;
 
@@ -300,7 +334,7 @@ cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
 
 template <typename F>
-QUAKE_FORCEINLINE void forActiveParticles(F&& f)
+QUAKE_FORCEINLINE void forActiveParticles(F&& f) noexcept
 {
     // TODO VR: parallelize with thread pool
     pMgr.forActive(std::forward<F>(f));
@@ -384,7 +418,7 @@ static void buildBlobTexture(byte* dst) noexcept
 
     int width;
     int height;
-    byte* data = Image_LoadImage(filename, &width, &height);
+    byte* const data = Image_LoadImage(filename, &width, &height);
 
     return {data, width, height};
 }
@@ -528,12 +562,9 @@ void R_EntityParticles(entity_t* ent)
             setAccGrav(p);
 
             constexpr float dist = 64;
-            p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
-                       forward[0] * beamlength;
-            p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
-                       forward[1] * beamlength;
-            p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
-                       forward[2] * beamlength;
+            p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist + forward[0] * beamlength;
+            p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist + forward[1] * beamlength;
+            p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist + forward[2] * beamlength;
         });
     }
 }
@@ -1071,18 +1102,17 @@ void R_LavaSplash(vec3_t org)
                 p.type = pt_static;
                 setAccGrav(p);
 
-                vec3_t dir;
-                dir[0] = j * 8 + (rand() & 7);
-                dir[1] = i * 8 + (rand() & 7);
-                dir[2] = 256;
+                const glm::vec3 dir{      //
+                    j * 8 + (rand() & 7), //
+                    i * 8 + (rand() & 7), //
+                    256};
 
                 p.org[0] = org[0] + dir[0];
                 p.org[1] = org[1] + dir[1];
                 p.org[2] = org[2] + (rand() & 63);
 
-                VectorNormalize(dir);
                 const float vel = 50 + (rand() & 63);
-                VectorScale(dir, vel, p.vel);
+                p.vel = glm::normalize(dir) * vel;
             });
         }
     }
@@ -1110,18 +1140,18 @@ void R_TeleportSplash(vec3_t org)
                     p.type = pt_teleport;
                     setAccGrav(p, 0.2f);
 
-                    vec3_t dir;
-                    dir[0] = j * 8;
-                    dir[1] = i * 8;
-                    dir[2] = k * 8;
+                    const glm::vec3 dir{
+                        j * 8, //
+                        i * 8, //
+                        k * 8  //
+                    };
 
                     p.org[0] = org[0] + i + (rand() & 3);
                     p.org[1] = org[1] + j + (rand() & 3);
                     p.org[2] = org[2] + k + (rand() & 3);
 
-                    VectorNormalize(dir);
                     const float vel = 50 + (rand() & 63);
-                    VectorScale(dir, vel, p.vel);
+                    p.vel = glm::normalize(dir) * vel;
                 });
             }
         }
@@ -1142,7 +1172,7 @@ static void R_SetRTRocketTrail(vec3_t start, particle_t& p)
 static void R_SetRTBlood(vec3_t start, particle_t& p)
 {
     p.type = pt_static;
-    p.color = 67 + (rand() & 3);
+    p.color = 67 + (rand() & 3);  
     for(int j = 0; j < 3; j++)
     {
         p.org[j] = start[j] + ((rand() % 6) - 3);
@@ -1388,13 +1418,8 @@ void CL_RunParticles()
     pMgr.cleanup();
 
     forActiveParticles([&](particle_t& p) {
-        p.vel[0] += p.acc[0] * frametime;
-        p.vel[1] += p.acc[1] * frametime;
-        p.vel[2] += p.acc[2] * frametime;
-
-        p.org[0] += p.vel[0] * frametime;
-        p.org[1] += p.vel[1] * frametime;
-        p.org[2] += p.vel[2] * frametime;
+        p.vel += p.acc * frametime;
+        p.org += p.vel * frametime;
 
         switch(p.type)
         {
@@ -1547,16 +1572,6 @@ void R_DrawParticles()
     vec3_t right;
     VectorScale(vright, 1.5, right);
 
-    vec3_t down;
-    down[0] = up[0] * -1.f;
-    down[1] = up[1] * -1.f;
-    down[2] = up[2] * -1.f;
-
-    vec3_t left;
-    left[0] = right[0] * -1.f;
-    left[1] = right[1] * -1.f;
-    left[2] = right[2] * -1.f;
-
     using namespace quake::util;
 
     const auto glmUp = toVec3(up);
@@ -1587,8 +1602,7 @@ void R_DrawParticles()
 
             glColor4ubv(color);
 
-            const auto xOrg = toVec3(p.org);
-            const auto xFwd = xOrg - glmROrigin;
+            const auto xFwd = p.org - glmROrigin;
 
             // TODO VR: `glm::rotate` is the bottleneck in debug mode (!)
             const auto xUp = glm::rotate(glmUp, p.angle, xFwd);
@@ -1597,11 +1611,12 @@ void R_DrawParticles()
             const auto halfScale = p.scale / 2.f;
             const auto xLeft = -xRight;
             const auto xDown = -xUp;
-            const auto xUpLeft = xOrg + halfScale * xUp + halfScale * xLeft;
-            const auto xUpRight = xOrg + halfScale * xUp + halfScale * xRight;
-            const auto xDownLeft = xOrg + halfScale * xDown + halfScale * xLeft;
+            const auto xUpLeft = p.org + halfScale * xUp + halfScale * xLeft;
+            const auto xUpRight = p.org + halfScale * xUp + halfScale * xRight;
+            const auto xDownLeft =
+                p.org + halfScale * xDown + halfScale * xLeft;
             const auto xDownRight =
-                xOrg + halfScale * xDown + halfScale * xRight;
+                p.org + halfScale * xDown + halfScale * xRight;
 
             glTexCoord2f(0, 0);
             glVertex3fv(glm::value_ptr(xDownLeft));
@@ -1645,17 +1660,22 @@ void R_DrawParticles_ShowTris()
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
+        (void)p;
+
+        // TODO VR: rewrite
+        /*
         const float scale = p.scale;
 
-        glVertex3fv(p.org);
+        glVertex3fv(glm::value_ptr(p.org));
 
         vec3_t p_up;
         VectorMA(p.org, scale, up, p_up);
-        glVertex3fv(p_up);
+        glVertex3fv(glm::value_ptr(p_up));
 
         vec3_t p_right;
         VectorMA(p.org, scale, right, p_right);
-        glVertex3fv(p_right);
+        glVertex3fv(glm::value_ptr(p_right));
+        */
     });
     glEnd();
 }
