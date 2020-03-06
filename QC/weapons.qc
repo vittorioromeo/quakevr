@@ -259,7 +259,7 @@ void() W_FistMelee =
 
 	makevectors (self.v_angle);
 	source = self.offhandpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(24), FALSE, self);
+	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
 
