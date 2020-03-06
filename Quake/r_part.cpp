@@ -29,20 +29,30 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <random>
 #include <utility>
 #include <array>
+
+#define GLM_FORCE_INLINE
 #include <glm.hpp>
 #include <gtx/rotate_vector.hpp>
+#include <gtc/type_ptr.hpp>
 
 #define MAX_PARTICLES \
     4096 // default max # of particles at one
-         //  time
+         // time, per texture (TODO VR: should it be per texture?)
+
 #define ABSOLUTE_MIN_PARTICLES \
     512 // no fewer than this no matter what's
-        //  on the command line
+        // on the command line
 
 // These "ramps" below are for colors..
-constexpr int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
-constexpr int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
-constexpr int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
+
+// Gold/brown/peach
+constexpr int ramp1[8] = {111, 112, 107, 105, 103, 101, 99, 97};
+
+// Gold/brown
+constexpr int ramp2[8] = {111, 110, 109, 108, 107, 106, 104, 102};
+
+// Gold/brown/grey
+constexpr int ramp3[8] = {109, 107, 6, 5, 4, 3};
 
 class ParticleBuffer
 {
@@ -50,14 +60,16 @@ private:
     particle_t* _particles;
     particle_t* _aliveEnd;
     particle_t* _end;
+    std::size_t _maxParticles;
 
 public:
     void initialize(const std::size_t maxParticles) noexcept
     {
+        _maxParticles = maxParticles;
         _particles = (particle_t*)Hunk_AllocName(
-            maxParticles * sizeof(particle_t), "particles");
+            _maxParticles * sizeof(particle_t), "particles");
         _aliveEnd = _particles;
-        _end = _particles + maxParticles;
+        _end = _particles + _maxParticles;
     }
 
     void cleanup() noexcept
@@ -68,13 +80,13 @@ public:
             });
     }
 
-    [[nodiscard]] particle_t& create() noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE particle_t& create() noexcept
     {
         return *_aliveEnd++;
     }
 
     template <typename F>
-    void forActive(F&& f) noexcept
+    QUAKE_FORCEINLINE void forActive(F&& f) noexcept
     {
         for(auto p = _particles; p != _aliveEnd; ++p)
         {
@@ -82,7 +94,7 @@ public:
         }
     }
 
-    [[nodiscard]] bool full() const noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE bool full() const noexcept
     {
         return _aliveEnd == _end;
     }
@@ -92,7 +104,7 @@ public:
         _aliveEnd = _particles;
     }
 
-    [[nodiscard]] bool empty() const noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE bool empty() const noexcept
     {
         return _aliveEnd == _particles;
     }
@@ -139,7 +151,7 @@ public:
         return _imageData[handle];
     }
 
-    [[nodiscard]] std::size_t numActive() const noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE std::size_t numActive() const noexcept
     {
         return _next;
     }
@@ -226,21 +238,25 @@ ParticleManager pMgr;
 std::random_device rd;
 std::mt19937 mt(rd());
 
-[[nodiscard]] static float rnd(const float min, const float max) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE static float rnd(
+    const float min, const float max) noexcept
 {
     return std::uniform_real_distribution<float>{min, max}(mt);
 }
 
-[[nodiscard]] static int rndi(const int min, const int max) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE static int rndi(
+    const int min, const int max) noexcept
 {
     return std::uniform_int_distribution<int>{min, max - 1}(mt);
 }
 
 template <typename F>
-void makeParticle(const ParticleTextureManager::Handle txHandle, F&& f)
+QUAKE_FORCEINLINE void makeParticle(
+    const ParticleTextureManager::Handle txHandle, F&& f)
 {
     auto& pBuffer = pMgr.getBuffer(txHandle);
 
+    // TODO VR: try modulo for MAX instead of returning?
     if(pBuffer.full())
     {
         return;
@@ -250,17 +266,24 @@ void makeParticle(const ParticleTextureManager::Handle txHandle, F&& f)
 }
 
 template <typename F>
-void makeNParticles(
+QUAKE_FORCEINLINE void makeNParticles(
     const ParticleTextureManager::Handle txHandle, const int count, F&& f)
 {
+    auto& pBuffer = pMgr.getBuffer(txHandle);
+
     for(int i = 0; i < count; i++)
     {
-        makeParticle(txHandle, f);
+        if(pBuffer.full())
+        {
+            return;
+        }
+
+        f(pBuffer.create());
     }
 }
 
 template <typename F>
-void makeNParticlesI(
+QUAKE_FORCEINLINE void makeNParticlesI(
     const ParticleTextureManager::Handle txHandle, const int count, F&& f)
 {
     auto& pBuffer = pMgr.getBuffer(txHandle);
@@ -276,7 +299,7 @@ void makeNParticlesI(
     }
 }
 
-void setAccGrav(particle_t& p, float mult = 0.5f)
+QUAKE_FORCEINLINE void setAccGrav(particle_t& p, float mult = 0.5f)
 {
     extern cvar_t sv_gravity;
 
@@ -284,8 +307,6 @@ void setAccGrav(particle_t& p, float mult = 0.5f)
     p.acc[1] = 0.f;
     p.acc[2] = -sv_gravity.value * mult;
 }
-
-
 
 ParticleTextureManager::Handle ptxCircle;
 ParticleTextureManager::Handle ptxSquare;
@@ -301,8 +322,9 @@ ParticleTextureManager::Handle ptxRock;
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 
 template <typename F>
-void forActiveParticles(F&& f)
+QUAKE_FORCEINLINE void forActiveParticles(F&& f)
 {
+    // TODO VR: parallelize with thread pool
     pMgr.forActive(std::forward<F>(f));
 }
 
@@ -627,9 +649,6 @@ void R_ParseParticleEffect()
     const int msgcount = MSG_ReadByte();
     const int color = MSG_ReadByte();
 
-    // TODO VR:
-    // const int count = msgcount == 255 ? 1024 : msgcount;
-
     R_RunParticleEffect(org, dir, color, msgcount);
 }
 
@@ -671,10 +690,10 @@ void R_ParticleExplosion(vec3_t org)
     makeNParticlesI(ptxCircle, 256, [&](const int i, particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
-        p.die = cl.time + 4;
+        p.die = cl.time + 2;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
-        p.scale = rnd(0.5f, 1.2f);
+        p.scale = rnd(0.6f, 1.2f);
         setAccGrav(p);
         p.type = i & 1 ? pt_explode : pt_explode2;
 
@@ -688,7 +707,7 @@ void R_ParticleExplosion(vec3_t org)
     makeNParticlesI(ptxSpark, 64, [&](const int, particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
-        p.die = cl.time + 4;
+        p.die = cl.time + 3;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
         p.scale = rnd(1.9f, 2.9f) * 0.55f;
@@ -706,7 +725,7 @@ void R_ParticleExplosion(vec3_t org)
     makeNParticlesI(ptxRock, 48, [&](const int, particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
-        p.die = cl.time + 4;
+        p.die = cl.time + 3;
         p.color = 167 + (rand() & 7);
         p.ramp = rand() & 3;
         p.scale = rnd(0.9f, 1.9f);
@@ -1224,10 +1243,11 @@ R_RocketTrail
 FIXME -- rename function and use #defined types instead of numbers
 ===============
 */
+constexpr float rate = 0.1f / 9.f;
+float untilNext = rate;
+
 void R_RocketTrail(vec3_t start, vec3_t end, int type)
 {
-    constexpr float rate = 0.1f / 9.f;
-    static float untilNext = rate;
     const float frametime = cl.time - cl.oldtime;
 
     untilNext -= frametime;
@@ -1377,6 +1397,11 @@ R_DrawParticles
 */
 void CL_RunParticles()
 {
+    if(!r_particles.value)
+    {
+        return;
+    }
+
     const float frametime = cl.time - cl.oldtime;
     const float time3 = frametime * 15;
     const float time2 = frametime * 10;
@@ -1412,12 +1437,14 @@ void CL_RunParticles()
                 {
                     p.color = ramp3[(int)p.ramp];
                 }
+
                 break;
             }
 
             case pt_explode:
             {
                 p.ramp += time2;
+
                 if(p.ramp >= 8)
                 {
                     p.die = -1;
@@ -1426,16 +1453,19 @@ void CL_RunParticles()
                 {
                     p.color = ramp1[(int)p.ramp];
                 }
+
                 for(int i = 0; i < 3; i++)
                 {
                     p.vel[i] += p.vel[i] * dvel;
                 }
+
                 break;
             }
 
             case pt_explode2:
             {
                 p.ramp += time3;
+
                 if(p.ramp >= 8)
                 {
                     p.die = -1;
@@ -1444,10 +1474,12 @@ void CL_RunParticles()
                 {
                     p.color = ramp2[(int)p.ramp];
                 }
+
                 for(int i = 0; i < 3; i++)
                 {
                     p.vel[i] -= p.vel[i] * frametime;
                 }
+
                 break;
             }
 
@@ -1457,6 +1489,7 @@ void CL_RunParticles()
                 {
                     p.vel[i] += p.vel[i] * dvel;
                 }
+
                 break;
             }
 
@@ -1466,6 +1499,7 @@ void CL_RunParticles()
                 {
                     p.vel[i] -= p.vel[i] * dvel;
                 }
+
                 break;
             }
 
@@ -1546,6 +1580,12 @@ void R_DrawParticles()
     left[1] = right[1] * -1.f;
     left[2] = right[2] * -1.f;
 
+    using namespace quake::util;
+
+    const auto glmUp = toVec3(up);
+    const auto glmRight = toVec3(right);
+    const auto glmROrigin = toVec3(r_origin);
+
     // TODO VR: this could be optimized a lot
     // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
@@ -1572,49 +1612,34 @@ void R_DrawParticles()
             color[3] = p.alpha > 0 ? p.alpha : 0;
 
             glColor4ubv(color);
-            // johnfitz
 
-            using namespace quake::util;
-            auto xFwd = toVec3(p.org) - toVec3(r_origin);
-            auto xUp = toVec3(up);
-            auto xRight = toVec3(right);
+            const auto xOrg = toVec3(p.org);
+            const auto xFwd = xOrg - glmROrigin;
 
-            xUp = glm::rotate(xUp, p.angle, xFwd);
-            xRight = glm::rotate(xRight, p.angle, xFwd);
+            // TODO VR: glm::rotate is the bottleneck
+            const auto xUp = glm::rotate(glmUp, p.angle, xFwd);
+            const auto xRight = glm::rotate(glmRight, p.angle, xFwd);
 
-            vec3_t up, down, left, right;
-            toQuakeVec3(up, xUp);
-            toQuakeVec3(down, -xUp);
-            toQuakeVec3(right, xRight);
-            toQuakeVec3(left, -xRight);
-
-            vec3_t p_upleft;
-            VectorMA(p.org, scale / 2.f, up, p_upleft);
-            VectorMA(p_upleft, scale / 2.f, left, p_upleft);
-
-            vec3_t p_upright;
-            VectorMA(p.org, scale / 2.f, up, p_upright);
-            VectorMA(p_upright, scale / 2.f, right, p_upright);
-
-            vec3_t p_downleft;
-            VectorMA(p.org, scale / 2.f, down, p_downleft);
-            VectorMA(p_downleft, scale / 2.f, left, p_downleft);
-
-            vec3_t p_downright;
-            VectorMA(p.org, scale / 2.f, down, p_downright);
-            VectorMA(p_downright, scale / 2.f, right, p_downright);
+            const auto halfScale = scale / 2.f;
+            const auto xLeft = -xRight;
+            const auto xDown = -xUp;
+            const auto xUpLeft = xOrg + halfScale * xUp + halfScale * xLeft;
+            const auto xUpRight = xOrg + halfScale * xUp + halfScale * xRight;
+            const auto xDownLeft = xOrg + halfScale * xDown + halfScale * xLeft;
+            const auto xDownRight =
+                xOrg + halfScale * xDown + halfScale * xRight;
 
             glTexCoord2f(0, 0);
-            glVertex3fv(p_downleft);
+            glVertex3fv(glm::value_ptr(xDownLeft));
 
             glTexCoord2f(1, 0);
-            glVertex3fv(p_upleft);
+            glVertex3fv(glm::value_ptr(xUpLeft));
 
             glTexCoord2f(1, 1);
-            glVertex3fv(p_upright);
+            glVertex3fv(glm::value_ptr(xUpRight));
 
             glTexCoord2f(0, 1);
-            glVertex3fv(p_downright);
+            glVertex3fv(glm::value_ptr(xDownRight));
         });
         glEnd();
 

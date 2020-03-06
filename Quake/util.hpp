@@ -3,6 +3,7 @@
 #include "debugapi.h"
 #include "q_stdinc.hpp"
 
+#define GLM_FORCE_INLINE
 #include <glm.hpp>
 
 #include <array>
@@ -12,6 +13,17 @@
 #include <tuple>
 #include <type_traits>
 #include <sstream>
+
+#if !defined(QUAKE_FORCEINLINE)
+#if defined(_MSC_VER)
+#define QUAKE_FORCEINLINE __forceinline
+#elif defined(__GNUC__) && __GNUC__ > 3
+// Clang also defines __GNUC__ (as 4)
+#define QUAKE_FORCEINLINE inline __attribute__((__always_inline__))
+#else
+#define QUAKE_FORCEINLINE inline
+#endif
+#endif
 
 namespace quake::util
 {
@@ -45,12 +57,14 @@ namespace quake::util
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
     }
 
-    [[nodiscard]] constexpr glm::vec3 toVec3(const vec3_t& v) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 toVec3(
+        const vec3_t& v) noexcept
     {
         return {v[0], v[1], v[2]};
     }
 
-    constexpr void toQuakeVec3(vec3_t out, const glm::vec3& v) noexcept
+    QUAKE_FORCEINLINE constexpr void toQuakeVec3(
+        vec3_t out, const glm::vec3& v) noexcept
     {
         out[0] = v[0];
         out[1] = v[1];
@@ -63,7 +77,8 @@ namespace quake::util
         constexpr auto maxLen = 25;
 
         assert(((strlen(labels) <= maxLen) && ...));
-        return std::array{(std::string(maxLen - strlen(labels), ' ') + labels)...};
+        return std::array{
+            (std::string(maxLen - strlen(labels), ' ') + labels)...};
     }
 
     [[nodiscard]] constexpr bool boxIntersection(const vec3_t& aMin,
@@ -96,7 +111,7 @@ namespace std
 namespace glm
 {
     template <std::size_t I, int D, typename T, glm::qualifier P>
-    [[nodiscard]] T get(const glm::vec<D, T, P>& v) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE T get(const glm::vec<D, T, P>& v) noexcept
     {
         return v[I];
     }

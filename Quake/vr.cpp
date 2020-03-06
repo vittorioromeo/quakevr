@@ -4,6 +4,7 @@
 #include "util.hpp"
 #include "openvr.hpp"
 
+#define GLM_FORCE_INLINE
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include <gtx/quaternion.hpp>
