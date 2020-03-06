@@ -939,8 +939,6 @@ R_ShowTris -- johnfitz
 */
 void R_ShowTris()
 {
-    extern cvar_t r_particles;
-
     if(r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1)
     {
         return;
@@ -1003,6 +1001,7 @@ void R_ShowTris()
         doViewmodel(&cl.offhand_viewent);
     }
 
+    extern cvar_t r_particles;
     if(r_particles.value)
     {
         R_DrawParticles_ShowTris();

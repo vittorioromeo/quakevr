@@ -8,6 +8,10 @@
 #include <cassert>
 #include <array>
 
+// TODO VR: move to other menu?
+extern cvar_t r_particles;
+extern cvar_t r_particle_mult;
+
 static int vr_options_cursor = 0;
 
 #define VR_MAX_TURN_SPEED 10.0f
@@ -176,6 +180,10 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
             value_string = vr_viewkick.value == 0 ? "Off" : "On";
             break;
         case VRMenuOpt::VR_MENU_DISTANCE: printAsStr(vr_menu_distance); break;
+        case VRMenuOpt::VR_PARTICLES:
+            value_string = r_particles.value == 0 ? "Off" : "On";
+            break;
+            case VRMenuOpt::VR_PARTICLE_MULT: printAsStr(r_particle_mult); break;
         default: assert(false); break;
     }
 
@@ -300,6 +308,10 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_MENU_DISTANCE:
             adjustI(vr_menu_distance, 1, 24, 256);
             break;
+        case VRMenuOpt::VR_PARTICLES: adjustI(r_particles, 1, 0, 1); break;
+        case VRMenuOpt::VR_PARTICLE_MULT:
+            adjustF(r_particle_mult, 0.25f, 0.25f, 10.f);
+            break;
         default: assert(false); break;
     }
 
@@ -384,7 +396,7 @@ void M_VR_Draw()
         // TODO VR: consider restoring for custom QC?
         // "Projectile Spawn Z",
         "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset", "Status Bar Mode",
-        "Viewkick", "Menu Distance");
+        "Viewkick", "Menu Distance", "Particle Effects", "Particle Multiplier");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 

@@ -250,37 +250,6 @@ std::mt19937 mt(rd());
     return std::uniform_int_distribution<int>{min, max - 1}(mt);
 }
 
-template <typename F>
-QUAKE_FORCEINLINE void makeParticle(
-    const ParticleTextureManager::Handle txHandle, F&& f)
-{
-    auto& pBuffer = pMgr.getBuffer(txHandle);
-
-    // TODO VR: try modulo for MAX instead of returning?
-    if(pBuffer.full())
-    {
-        return;
-    }
-
-    f(pBuffer.create());
-}
-
-template <typename F>
-QUAKE_FORCEINLINE void makeNParticles(
-    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
-{
-    auto& pBuffer = pMgr.getBuffer(txHandle);
-
-    for(int i = 0; i < count; i++)
-    {
-        if(pBuffer.full())
-        {
-            return;
-        }
-
-        f(pBuffer.create());
-    }
-}
 
 template <typename F>
 QUAKE_FORCEINLINE void makeNParticlesI(
@@ -288,7 +257,7 @@ QUAKE_FORCEINLINE void makeNParticlesI(
 {
     auto& pBuffer = pMgr.getBuffer(txHandle);
 
-    for(int i = 0; i < count; i++)
+    for(int i = 0; i < count * r_particle_mult.value; i++)
     {
         if(pBuffer.full())
         {
@@ -297,6 +266,14 @@ QUAKE_FORCEINLINE void makeNParticlesI(
 
         f(i, pBuffer.create());
     }
+}
+
+
+template <typename F>
+QUAKE_FORCEINLINE void makeNParticles(
+    const ParticleTextureManager::Handle txHandle, const int count, F&& f)
+{
+    makeNParticlesI(txHandle, count, [&f](const int, particle_t& p) { f(p); });
 }
 
 QUAKE_FORCEINLINE void setAccGrav(particle_t& p, float mult = 0.5f)
@@ -320,6 +297,7 @@ ParticleTextureManager::Handle ptxSpark;
 ParticleTextureManager::Handle ptxRock;
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
 
 template <typename F>
 QUAKE_FORCEINLINE void forActiveParticles(F&& f)
@@ -488,6 +466,7 @@ static void R_InitRNumParticles()
 static void R_InitParticleCVars()
 {
     Cvar_RegisterVariable(&r_particles); // johnfitz
+    Cvar_RegisterVariable(&r_particle_mult);
 }
 
 /*
@@ -539,7 +518,7 @@ void R_EntityParticles(entity_t* ent)
         forward[1] = cp * sy;
         forward[2] = -sp;
 
-        makeParticle(ptxCircle, [&](particle_t& p) {
+        makeNParticles(ptxCircle, 1, [&](particle_t& p) {
             p.angle = rnd(0.f, 360.f);
             p.alpha = 255;
             p.die = cl.time + 0.01;
@@ -607,7 +586,7 @@ void R_ReadPointFile_f()
 
         c++;
 
-        makeParticle(ptxCircle, [&](particle_t& p) {
+        makeNParticles(ptxCircle, 1, [&](particle_t& p) {
             p.angle = rnd(0.f, 360.f);
             p.alpha = 255;
             p.die = 99999;
@@ -1085,7 +1064,7 @@ void R_LavaSplash(vec3_t org)
     {
         for(int j = -16; j < 16; j++)
         {
-            makeParticle(ptxCircle, [&](particle_t& p) {
+            makeNParticles(ptxCircle, 1, [&](particle_t& p) {
                 p.angle = rnd(0.f, 360.f);
                 p.alpha = 255;
                 p.scale = 1.f;
@@ -1124,7 +1103,7 @@ void R_TeleportSplash(vec3_t org)
         {
             for(int k = -24; k < 32; k += 4)
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 1, [&](particle_t& p) {
                     p.angle = rnd(0.f, 360.f);
                     p.alpha = rnd(150, 255);
                     p.scale = rnd(0.6f, 1.f);
@@ -1332,7 +1311,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                     R_SetRTBlood(start, p);
                 });
 
-                makeParticle(ptxBloodMist, [&](particle_t& p) {
+                makeNParticles(ptxBloodMist, 1, [&](particle_t& p) {
                     p.angle = rnd(0.f, 360.f);
                     p.alpha = 32;
                     p.die = cl.time + 3.2;

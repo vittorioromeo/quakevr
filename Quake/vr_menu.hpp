@@ -30,6 +30,8 @@ enum class VRMenuOpt
     VR_SBAR_MODE,
     VR_VIEWKICK,
     VR_MENU_DISTANCE,
+    VR_PARTICLES,
+    VR_PARTICLE_MULT,
 
     VR_MAX
 };
