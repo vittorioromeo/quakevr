@@ -21,7 +21,11 @@ void() button_done =
 void() button_return =
 {
 	self.state = STATE_DOWN;
+
+	// TODO VR: doesn't work - why?
+	// particle2 (self.pos1, '0 0 0', 5 /* sparks preset */, 256);
 	SUB_CalcMove (self.pos1, self.speed, button_done);
+
 	self.frame = 0;			// use normal textures
 	if (self.health)
 		self.takedamage = DAMAGE_YES;	// can be shot again
@@ -41,6 +45,8 @@ void() button_fire =
 	}
 
 	sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+	// TODO VR: doesn't work - why?
+	// particle2 (self.pos2, '0 0 0', 5 /* sparks preset */, 256);
 
 	self.state = STATE_UP;
 	SUB_CalcMove (self.pos2, self.speed, button_wait);

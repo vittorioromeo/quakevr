@@ -117,7 +117,7 @@ void() boss_missile7	=[	$attack7, boss_missile8 ] {boss_face();};
 void() boss_missile8	=[	$attack8, boss_missile9 ] {boss_face();};
 void() boss_missile9	=[	$attack9, boss_missile10 ] {boss_missile(0, '100 100 200');};
 void() boss_missile10	=[	$attack10, boss_missile11 ] {boss_face();};
-void() boss_missile11	=[	$attack11, boss_missile12 ] {boss_missile(1, '100 100 200');};
+void() boss_missile11	=[	$attack11, boss_missile12 ] {boss_face();};
 void() boss_missile12	=[	$attack12, boss_missile13 ] {boss_face();};
 void() boss_missile13	=[	$attack13, boss_missile14 ] {boss_face();};
 void() boss_missile14	=[	$attack14, boss_missile15 ] {boss_face();};
@@ -202,11 +202,11 @@ void(float r, vector p) boss_missile =
 	// VR: Predicted direction attack.
 	if (r == 0)
 	{
-		vel = 550 + random() * 150;
+		vel = 450 + random() * 150;
 	}
 	else
 	{
-		vel = 200 + random() * 150;
+		vel = 100 + random() * 150;
 	}
 
 	offang = vectoangles (self.enemy.origin - self.origin);

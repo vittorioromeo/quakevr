@@ -23,11 +23,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 #include <algorithm>
 #include <random>
 #include <utility>
 #include <array>
+#include <glm.hpp>
+#include <gtx/rotate_vector.hpp>
 
 #define MAX_PARTICLES \
     4096 // default max # of particles at one
@@ -292,6 +295,8 @@ ParticleTextureManager::Handle ptxSmoke;
 ParticleTextureManager::Handle ptxBlood;
 ParticleTextureManager::Handle ptxBloodMist;
 ParticleTextureManager::Handle ptxLightning;
+ParticleTextureManager::Handle ptxSpark;
+ParticleTextureManager::Handle ptxRock;
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 
@@ -436,6 +441,8 @@ void R_InitParticleTextures()
     load(ptxBlood, "textures/particle_blood");
     load(ptxBloodMist, "textures/particle_blood_mist");
     load(ptxLightning, "textures/particle_lightning");
+    load(ptxSpark, "textures/particle_spark");
+    load(ptxRock, "textures/particle_rock");
 }
 
 static void R_InitRNumParticles()
@@ -511,6 +518,7 @@ void R_EntityParticles(entity_t* ent)
         forward[2] = -sp;
 
         makeParticle(ptxCircle, [&](particle_t& p) {
+            p.angle = rnd(0.f, 360.f);
             p.alpha = 255;
             p.die = cl.time + 0.01;
             p.color = 0x6f;
@@ -578,6 +586,7 @@ void R_ReadPointFile_f()
         c++;
 
         makeParticle(ptxCircle, [&](particle_t& p) {
+            p.angle = rnd(0.f, 360.f);
             p.alpha = 255;
             p.die = 99999;
             p.color = (-c) & 15;
@@ -660,11 +669,12 @@ R_ParticleExplosion
 void R_ParticleExplosion(vec3_t org)
 {
     makeNParticlesI(ptxCircle, 256, [&](const int i, particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
         p.die = cl.time + 4;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
-        p.scale = rnd(0.9f, 2.3f);
+        p.scale = rnd(0.5f, 1.2f);
         setAccGrav(p);
         p.type = i & 1 ? pt_explode : pt_explode2;
 
@@ -675,24 +685,63 @@ void R_ParticleExplosion(vec3_t org)
         }
     });
 
-    makeNParticles(ptxExplosion, 4, [&](particle_t& p) {
-        p.alpha = 136;
-        p.die = cl.time + 4 * rnd(0.5f, 1.5f);
+    makeNParticlesI(ptxSpark, 64, [&](const int, particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 255;
+        p.die = cl.time + 4;
         p.color = ramp1[0];
         p.ramp = rand() & 3;
-        p.scale = rnd(0.5f, 2.1f) * 37.f;
-        setAccGrav(p, 0.05f);
-        p.type = pt_txexplode;
+        p.scale = rnd(1.9f, 2.9f) * 0.55f;
+        setAccGrav(p);
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
 
         for(int j = 0; j < 3; j++)
         {
-            p.org[j] = org[j] + rnd(-14, 14);
+            p.org[j] = org[j] + rnd(-16, 16);
+            p.vel[j] = rnd(-256, 256);
+        }
+    });
+
+    makeNParticlesI(ptxRock, 48, [&](const int, particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 255;
+        p.die = cl.time + 4;
+        p.color = 167 + (rand() & 7);
+        p.ramp = rand() & 3;
+        p.scale = rnd(0.9f, 1.9f);
+        setAccGrav(p);
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-16, 16);
+            p.vel[j] = rnd(-256, 256);
+        }
+    });
+
+    makeNParticles(ptxExplosion, 3, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 240;
+        p.die = cl.time + 1.5 * rnd(0.5f, 1.5f);
+        p.color = ramp1[0];
+        p.ramp = rand() & 3;
+        p.scale = rnd(0.5f, 2.1f) * 2.f;
+        setAccGrav(p, 0.05f);
+        p.type = pt_txexplode;
+        p.param0 = rndi(0, 2); // rotation direction
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + rnd(-11, 11);
             p.vel[j] = rnd(-8, 8);
         }
     });
 
-    makeNParticles(ptxSmoke, 4, [&](particle_t& p) {
-        p.alpha = 195;
+    makeNParticles(ptxSmoke, 3, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 225;
         p.die = cl.time + 3.5 * (rand() % 5);
         p.color = rand() & 7;
         p.scale = rnd(1.2f, 1.5f);
@@ -717,6 +766,7 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
     int colorMod = 0;
 
     makeNParticles(ptxCircle, 512, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
         p.die = cl.time + 0.3;
         p.color = colorStart + (colorMod % colorLength);
@@ -740,26 +790,44 @@ void R_RunParticleEffect_BulletPuff(
     const auto dustCount = count * 0.7f;
     const auto sparkCount = count * 0.4f;
 
-    makeNParticles(ptxCircle, debrisCount, [&](particle_t& p) {
+    makeNParticles(ptxRock, debrisCount, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
         p.die = cl.time + 0.7 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
         p.scale = rnd(0.5f, 0.9f);
-        p.type = pt_static;
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
         setAccGrav(p, 0.26f);
 
         for(int j = 0; j < 3; j++)
         {
             p.org[j] = org[j] + ((rand() & 7) - 4);
-            p.vel[j] = dir[j] * rnd(5, 90);
+            p.vel[j] = (dir[j] + 0.3f) * rnd(-75, 75);
+        }
+    });
+
+    makeNParticles(ptxSmoke, 1, [&](particle_t& p) {
+        p.alpha = 45;
+        p.die = cl.time + 1.5 * (rand() % 5);
+        p.color = rand() & 7;
+        p.scale = rnd(0.3f, 0.5f);
+        p.type = pt_txsmoke;
+        setAccGrav(p, -0.09f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 4) - 2);
+            p.vel[j] = rnd(-12, 12);
         }
     });
 
     makeNParticles(ptxCircle, dustCount, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
         p.die = cl.time + 1.5 * (rand() % 5);
         p.color = (color & ~7) + (rand() & 7);
-        p.scale = rnd(0.2f, 0.5f);
+        p.scale = rnd(0.05f, 0.3f);
         p.type = pt_static;
         setAccGrav(p, 0.08f);
 
@@ -772,12 +840,14 @@ void R_RunParticleEffect_BulletPuff(
         p.vel[2] += rnd(10, 40);
     });
 
-    makeNParticles(ptxCircle, sparkCount, [&](particle_t& p) {
+    makeNParticles(ptxSpark, sparkCount, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
         p.die = cl.time + 1.6 * (rand() % 5);
         p.color = ramp3[0] + (rand() & 7);
-        p.scale = rnd(0.15f, 0.35f);
-        p.type = pt_static;
+        p.scale = rnd(1.95f, 2.87f) * 0.35f;
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
         setAccGrav(p, 1.f);
 
         for(int j = 0; j < 3; j++)
@@ -796,6 +866,7 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
 
     makeNParticles(ptxBlood, count * 2, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 100;
         p.die = cl.time + 0.7 * (rand() % 3);
         p.color = pickBloodColor();
@@ -812,11 +883,12 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
         p.vel[2] += rnd(0, 40);
     });
 
-    makeNParticles(ptxCircle, count * 12, [&](particle_t& p) {
+    makeNParticles(ptxCircle, count * 24, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 175;
         p.die = cl.time + 0.4 * (rand() % 3);
         p.color = pickBloodColor();
-        p.scale = rnd(0.15f, 0.4f);
+        p.scale = rnd(0.12f, 0.2f);
         p.type = pt_static;
         setAccGrav(p, 0.45f);
 
@@ -831,6 +903,7 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
     });
 
     makeNParticles(ptxBloodMist, 1, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 38;
         p.die = cl.time + 3.2;
         p.color = 225;
@@ -852,6 +925,7 @@ void R_RunParticleEffect_Lightning(vec3_t org, vec3_t dir, int count)
     (void)dir;
 
     makeNParticles(ptxLightning, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 180;
         p.die = cl.time + 1.3 * (rand() % 3);
         p.color = 254;
@@ -869,9 +943,10 @@ void R_RunParticleEffect_Lightning(vec3_t org, vec3_t dir, int count)
 
 void R_RunParticleEffect_Smoke(vec3_t org, vec3_t dir, int count)
 {
-    (void) dir;
+    (void)dir;
 
     makeNParticles(ptxSmoke, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
         p.alpha = 125;
         p.die = cl.time + 3.5 * (rand() % 5);
         p.color = rand() & 7;
@@ -884,6 +959,30 @@ void R_RunParticleEffect_Smoke(vec3_t org, vec3_t dir, int count)
             p.org[j] = org[j] + ((rand() & 7) - 4);
             p.vel[j] = rnd(-24, 24);
         }
+    });
+}
+
+void R_RunParticleEffect_Sparks(vec3_t org, vec3_t dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxSpark, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 255;
+        p.die = cl.time + 1.6 * (rand() % 5);
+        p.color = ramp3[0] + (rand() & 7);
+        p.scale = rnd(1.95f, 2.87f) * 0.35f;
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
+        setAccGrav(p, 1.f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 7) - 4);
+            p.vel[j] = rnd(-48, 48);
+        }
+
+        p.vel[2] = rnd(60, 360);
     });
 }
 
@@ -913,6 +1012,7 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         Explosion = 2,
         Lightning = 3,
         Smoke = 4,
+        Sparks = 5
     };
 
     switch(static_cast<Preset>(preset))
@@ -942,6 +1042,11 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
             R_RunParticleEffect_Smoke(org, dir, count);
             break;
         }
+        case Preset::Sparks:
+        {
+            R_RunParticleEffect_Sparks(org, dir, count);
+            break;
+        }
         default:
         {
             assert(false);
@@ -962,6 +1067,7 @@ void R_LavaSplash(vec3_t org)
         for(int j = -16; j < 16; j++)
         {
             makeParticle(ptxCircle, [&](particle_t& p) {
+                p.angle = rnd(0.f, 360.f);
                 p.alpha = 255;
                 p.scale = 1.f;
                 p.die = cl.time + 2 + (rand() & 31) * 0.02;
@@ -1000,11 +1106,12 @@ void R_TeleportSplash(vec3_t org)
             for(int k = -24; k < 32; k += 4)
             {
                 makeParticle(ptxCircle, [&](particle_t& p) {
-                    p.alpha = 255;
-                    p.scale = 1.f;
+                    p.angle = rnd(0.f, 360.f);
+                    p.alpha = rnd(150, 255);
+                    p.scale = rnd(0.6f, 1.f);
                     p.die = cl.time + 1.2 + (rand() & 7) * 0.2;
                     p.color = 7 + (rand() & 7);
-                    p.type = pt_static;
+                    p.type = pt_teleport;
                     setAccGrav(p, 0.2f);
 
                     vec3_t dir;
@@ -1102,6 +1209,7 @@ static void R_SetRTVoorTrail(vec3_t start, particle_t& p)
 
 static void R_SetRTCommon(particle_t& p)
 {
+    p.angle = rnd(0.f, 360.f);
     p.alpha = 255;
     p.scale = 0.7f;
     setAccGrav(p, 0.05f);
@@ -1153,7 +1261,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
         {
             case 0: // rocket trail
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 6, [&](particle_t& p) {
                     R_SetRTCommon(p);
                     R_SetRTRocketTrail(start, p);
                 });
@@ -1179,6 +1287,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             case 1: // smoke smoke
             {
                 makeNParticles(ptxSmoke, 1, [&](particle_t& p) {
+                    p.angle = rnd(0.f, 360.f);
                     p.alpha = 65;
                     p.die = cl.time + 1.5 * (rand() % 5);
                     p.color = rand() & 7;
@@ -1198,12 +1307,13 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 
             case 2: // blood
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 6, [&](particle_t& p) {
                     R_SetRTCommon(p);
                     R_SetRTBlood(start, p);
                 });
 
                 makeParticle(ptxBloodMist, [&](particle_t& p) {
+                    p.angle = rnd(0.f, 360.f);
                     p.alpha = 32;
                     p.die = cl.time + 3.2;
                     p.color = 225;
@@ -1225,7 +1335,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             case 3: [[fallthrough]];
             case 5: // tracer
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 6, [&](particle_t& p) {
                     R_SetRTCommon(p);
                     R_SetRTTracer(start, end, p, type);
                 });
@@ -1235,7 +1345,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 
             case 4: // slight blood
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 6, [&](particle_t& p) {
                     R_SetRTCommon(p);
                     R_SetRTSlightBlood(start, p);
                     len -= 3;
@@ -1246,7 +1356,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 
             case 6: // voor trail
             {
-                makeParticle(ptxCircle, [&](particle_t& p) {
+                makeNParticles(ptxCircle, 6, [&](particle_t& p) {
                     R_SetRTCommon(p);
                     R_SetRTVoorTrail(start, p);
                 });
@@ -1361,8 +1471,9 @@ void CL_RunParticles()
 
             case pt_txexplode:
             {
-                p.alpha -= 90.f * frametime;
-                p.scale += 45.f * frametime;
+                p.alpha -= 345.f * frametime;
+                p.scale += 135.f * frametime;
+                p.angle += 0.75f * frametime * (p.param0 == 0 ? 1.f : -1.f);
 
                 break;
             }
@@ -1377,8 +1488,23 @@ void CL_RunParticles()
 
             case pt_lightning:
             {
-                p.alpha -= 90.f * frametime;
-                p.scale -= 35.f * frametime;
+                p.alpha -= 87.f * frametime;
+                p.scale -= 33.f * frametime;
+
+                break;
+            }
+
+            case pt_teleport:
+            {
+                p.alpha -= 85.f * frametime;
+                p.scale -= 0.1f * frametime;
+
+                break;
+            }
+
+            case pt_rock:
+            {
+                p.angle += 25.f * frametime * (p.param0 == 0 ? 1.f : -1.f);
 
                 break;
             }
@@ -1422,7 +1548,6 @@ void R_DrawParticles()
 
     // TODO VR: this could be optimized a lot
     // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
-
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         ParticleBuffer& pBuffer) {
         (void)imageData;
@@ -1444,10 +1569,24 @@ void R_DrawParticles()
             color[0] = c[0];
             color[1] = c[1];
             color[2] = c[2];
-            color[3] = p.alpha;
+            color[3] = p.alpha > 0 ? p.alpha : 0;
 
             glColor4ubv(color);
             // johnfitz
+
+            using namespace quake::util;
+            auto xFwd = toVec3(p.org) - toVec3(r_origin);
+            auto xUp = toVec3(up);
+            auto xRight = toVec3(right);
+
+            xUp = glm::rotate(xUp, p.angle, xFwd);
+            xRight = glm::rotate(xRight, p.angle, xFwd);
+
+            vec3_t up, down, left, right;
+            toQuakeVec3(up, xUp);
+            toQuakeVec3(down, -xUp);
+            toQuakeVec3(right, xRight);
+            toQuakeVec3(left, -xRight);
 
             vec3_t p_upleft;
             VectorMA(p.org, scale / 2.f, up, p_upleft);

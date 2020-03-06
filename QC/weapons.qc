@@ -1524,6 +1524,8 @@ void() W_WeaponFrame =
 		if (self.weapon == IT_LIGHTNING)
 		{
 			org = self.handpos + '0 0 0';
+
+			makevectors(self.v_angle);
 			traceline (org, org + v_forward*600, TRUE, self);
 
 			WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);

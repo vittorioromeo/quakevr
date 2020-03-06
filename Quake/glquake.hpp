@@ -94,7 +94,9 @@ enum ptype_t : std::uint8_t
     pt_blob2,
     pt_txexplode,
     pt_txsmoke,
-    pt_lightning
+    pt_lightning,
+    pt_teleport,
+    pt_rock
 };
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
@@ -109,8 +111,10 @@ struct particle_t
     float die;   // drivers never touches this field
     float scale; // TODO VR: driver?
     float alpha; // TODO VR: use?
+    float angle; // TODO VR: use?
 
-    ptype_t type; // drivers never touches this field
+    ptype_t type;        // drivers never touches this field
+    std::uint8_t param0; // TODO VR: use?
 };
 
 
