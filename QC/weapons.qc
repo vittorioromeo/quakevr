@@ -4,6 +4,7 @@ void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
 void () player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
+void(vector org, float damage) SpawnBloodSplash;
 void() SuperDamageSound;
 void() PainSound;
 
@@ -55,20 +56,54 @@ vector() vrProjectileVelocity =
 	return VEC_ORIGIN;
 };
 
+float() VRMeleeDmgQuadMult =
+{
+	if (self.super_damage_finished > time)
+	{
+		return 2.75;
+	}
+
+	return 1;
+}
+
+float(float velmag) VRMeleeStrengthMult =
+{
+	local float strength;
+	strength = velmag - cvar("vr_melee_threshold");
+
+	if (strength > 1)
+	{
+		strength = pow(strength, 1.5);
+	}
+
+	return strength;
+}
+
+
 float(float v) VRMeleeDmg =
 {
-	return (v * self.handvelmag) * cvar("vr_melee_dmg_multiplier");
+	return (v * VRMeleeStrengthMult(self.handvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeOffHandDmg =
 {
-	return (v * self.offhandvelmag) * cvar("vr_melee_dmg_multiplier");
+	return (v * VRMeleeStrengthMult(self.offhandvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
-
 
 float(float v) VRMeleeRange =
 {
-	return v * cvar("vr_melee_range_multiplier");
+	local float mult;
+
+	if (self.super_damage_finished > time)
+	{
+		mult = 1.25;
+	}
+	else
+	{
+		mult = 1;
+	}
+
+	return v * cvar("vr_melee_range_multiplier") * mult;
 }
 
 /*
@@ -84,7 +119,7 @@ void() W_FireAxe =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = VRMeleeDmg(0.73);
+	xdmg = VRMeleeDmg(0.95);
 
 	// s = ftos(xdmg);
 	// sprint (self, "DMG: ");
@@ -102,7 +137,7 @@ void() W_FireAxe =
 	if (trace_ent.takedamage)
 	{
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 
 		if (self.melee_hit_sound_played == FALSE)
@@ -149,7 +184,7 @@ void() W_GunMelee =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = VRMeleeDmg(0.43);
+	xdmg = VRMeleeDmg(0.5);
 
 	// s = ftos(xdmg);
 	// sprint (self, "DMG: ");
@@ -167,7 +202,7 @@ void() W_GunMelee =
 	if (trace_ent.takedamage)
 	{
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 
 		if (self.melee_hit_sound_played == FALSE)
@@ -215,7 +250,7 @@ void() W_FistMelee =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = VRMeleeOffHandDmg(0.53);
+	xdmg = VRMeleeOffHandDmg(0.75);
 
 	// s = ftos(xdmg);
 	// sprint (self, "OFFHANDDMG: ");
@@ -239,7 +274,7 @@ void() W_FistMelee =
 	if (trace_ent.takedamage)
 	{
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 	}
 	else
@@ -248,7 +283,7 @@ void() W_FistMelee =
 		if (self.offhand_melee_hit_sound_played == FALSE)
 		{
 			PainSound();
-			SpawnBlood(org, '0 0 0', xdmg);
+			SpawnBloodSplash (org, xdmg);
 			playedsound = TRUE;
 		}
 
@@ -321,8 +356,27 @@ SpawnBlood
 */
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-	particle2 (org, vel * 0.1, 1 /* blood preset */, damage);
+	particle2 (org, vel * 0.2, 1 /* blood preset */, damage);
 };
+
+/*
+================
+SpawnBloodSplash
+================
+*/
+void(vector org, float damage) SpawnBloodSplash =
+{
+	local vector		pvel;
+
+	pvel_x = crandom() * 240;
+	pvel_y = crandom() * 240;
+	pvel_z = random() * 120 + 100;
+
+	SpawnBlood(org, pvel, damage);
+};
+
+
+
 
 /*
 ================
@@ -672,7 +726,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1, p2, FALSE, self);
 	if (trace_ent.takedamage)
 	{
-		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 		if (self.classname == "player")
 		{
@@ -685,7 +739,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 + f, p2 + f, FALSE, self);
 	if (trace_ent != e1 && trace_ent.takedamage)
 	{
-		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 	}
 	e2 = trace_ent;
@@ -693,7 +747,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 - f, p2 - f, FALSE, self);
 	if (trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
 	{
-		particle2 (trace_endpos, '0 0 100', 1 /* blood preset */, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 	}
 };
@@ -736,6 +790,7 @@ void() W_FireLightning =
 	traceline (org, org + v_forward*600, TRUE, self);
 	particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
 	particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
+	particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
 	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
 };
 

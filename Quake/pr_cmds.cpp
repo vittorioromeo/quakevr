@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 
+#include <cmath>
+
 #define STRINGTEMP_BUFFERS 16
 #define STRINGTEMP_LENGTH 1024
 static char pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
@@ -574,11 +576,24 @@ random()
 */
 static void PF_random()
 {
-    float num;
-
-    num = (rand() & 0x7fff) / ((float)0x7fff);
-
+    const float num = (rand() & 0x7fff) / ((float)0x7fff);
     G_FLOAT(OFS_RETURN) = num;
+}
+
+/*
+=================
+PF_Pow
+
+power function
+=================
+*/
+static void PF_pow()
+{
+    const float base = G_FLOAT(OFS_PARM0);
+    const float exp = G_FLOAT(OFS_PARM1);
+
+    const float res = std::pow(base, exp);
+    G_FLOAT(OFS_RETURN) = res;
 }
 
 /*
@@ -609,7 +624,7 @@ static void PF_particle2()
     float* org = G_VECTOR(OFS_PARM0);
     float* dir = G_VECTOR(OFS_PARM1);
     const int preset = G_FLOAT(OFS_PARM2);
-    const float count = G_FLOAT(OFS_PARM3);
+    const int count = G_FLOAT(OFS_PARM3);
     SV_StartParticle2(org, dir, preset, count);
 }
 
@@ -1908,7 +1923,8 @@ static void PF_Fixme()
     PR_RunError("unimplemented builtin");
 }
 
-static builtin_t pr_builtin[] = {PF_Fixme,
+static builtin_t pr_builtin[] = {
+    PF_Fixme,
     PF_makevectors,    // void(entity e) makevectors		= #1
     PF_setorigin,      // void(entity e, vector o) setorigin	= #2
     PF_setmodel,       // void(entity e, string m) setmodel	= #3
@@ -1964,7 +1980,10 @@ static builtin_t pr_builtin[] = {PF_Fixme,
     PF_precache_sound, // precache_sound2 is different only for qcc
     PF_precache_file,
 
-    PF_setspawnparms, PF_particle2};
+    PF_setspawnparms,
+    PF_particle2, // #79
+    PF_pow        // #80
+};
 
 builtin_t* pr_builtins = pr_builtin;
 const int pr_numbuiltins = sizeof(pr_builtin) / sizeof(pr_builtin[0]);

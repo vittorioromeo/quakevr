@@ -656,7 +656,7 @@ void R_ParseParticle2Effect()
     }
 
     const int preset = MSG_ReadByte();
-    const int msgcount = MSG_ReadByte();
+    const int msgcount = MSG_ReadShort();
 
     R_RunParticle2Effect(org, dir, preset, msgcount);
 }
@@ -969,9 +969,9 @@ void R_RunParticleEffect_Sparks(vec3_t org, vec3_t dir, int count)
     makeNParticles(ptxSpark, count, [&](particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = 255;
-        p.die = cl.time + 1.6 * (rand() % 5);
-        p.color = ramp3[0] + (rand() & 7);
-        p.scale = rnd(1.95f, 2.87f) * 0.35f;
+        p.die = cl.time + 2.6 * (rand() % 5);
+        p.color = rndi(102, 112);
+        p.scale = rnd(1.55f, 2.87f) * 0.45f;
         p.type = pt_rock;
         p.param0 = rndi(0, 2); // rotation direction
         setAccGrav(p, 1.f);

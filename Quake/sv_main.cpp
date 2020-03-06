@@ -195,6 +195,7 @@ void SV_StartParticle2(
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
+        Con_Printf("Datagram too large");
         return;
     }
 
@@ -216,7 +217,7 @@ void SV_StartParticle2(
         MSG_WriteChar(&sv.datagram, v);
     }
     MSG_WriteByte(&sv.datagram, preset);
-    MSG_WriteByte(&sv.datagram, count);
+    MSG_WriteShort(&sv.datagram, count);
 }
 
 /*

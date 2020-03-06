@@ -1378,16 +1378,12 @@ const char* PR_GetString(int num)
     {
         return pr_strings + num;
     }
+
     if(num < 0 && num >= -pr_numknownstrings)
-
     {
-
         if(!pr_knownstrings[-1 - num])
-
         {
-
             Host_Error(
-
                 "PR_GetString: attempt to get a non-existant string %d\n", num);
 
             return "";
@@ -1395,13 +1391,9 @@ const char* PR_GetString(int num)
 
         return pr_knownstrings[-1 - num];
     }
-
     else
-
     {
-
         Host_Error("PR_GetString: invalid string offset %d\n", num);
-
         return "";
     }
 }

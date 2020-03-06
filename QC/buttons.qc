@@ -20,10 +20,15 @@ void() button_done =
 
 void() button_return =
 {
+	local vector porg;
+
+	porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
+	porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
+	porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
+	particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
+
 	self.state = STATE_DOWN;
 
-	// TODO VR: doesn't work - why?
-	// particle2 (self.pos1, '0 0 0', 5 /* sparks preset */, 256);
 	SUB_CalcMove (self.pos1, self.speed, button_done);
 
 	self.frame = 0;			// use normal textures
@@ -39,14 +44,20 @@ void() button_blocked =
 
 void() button_fire =
 {
+	local vector porg;
+
 	if (self.state == STATE_UP || self.state == STATE_TOP)
 	{
 		return;
 	}
 
+
+	porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
+	porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
+	porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
+	particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
+
 	sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
-	// TODO VR: doesn't work - why?
-	// particle2 (self.pos2, '0 0 0', 5 /* sparks preset */, 256);
 
 	self.state = STATE_UP;
 	SUB_CalcMove (self.pos2, self.speed, button_wait);
