@@ -312,7 +312,7 @@ mad_fixed_t mad_f_mul_inline(mad_fixed_t x, mad_fixed_t y)
 
 # elif defined(FPM_ARM)
 
-/* 
+/*
  * This ARM V4 version is as accurate as FPM_64BIT but much faster. The
  * least significant bit is properly rounded at no CPU cycle cost!
  */
@@ -348,7 +348,7 @@ mad_fixed_t mad_f_mul_inline(mad_fixed_t x, mad_fixed_t y)
 
 #ifdef __thumb__
 /* In Thumb-2, the RSB-immediate instruction is only allowed with a zero
-	operand.  If needed this code can also support Thumb-1 
+	operand.  If needed this code can also support Thumb-1
 	(simply append "s" to the end of the second two instructions). */
 #  define MAD_F_MLN(hi, lo)  \
     asm ("rsbs        %0, %0, #0\n\t"  \

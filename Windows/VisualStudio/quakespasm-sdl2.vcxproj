@@ -194,6 +194,9 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -208,6 +211,9 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>C:\OHWorkspace\quakevr\make_pak.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\bgmusic.cpp" />
@@ -259,7 +265,13 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\pr_exec.cpp" />
     <ClCompile Include="..\..\Quake\r_alias.cpp" />
     <ClCompile Include="..\..\Quake\r_brush.cpp" />
-    <ClCompile Include="..\..\Quake\r_part.cpp" />
+    <ClCompile Include="..\..\Quake\r_part.cpp">
+      <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExceptionHandling>
+      <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</BufferSecurityCheck>
+      <ControlFlowGuard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ControlFlowGuard>
+      <FloatingPointModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Fast</FloatingPointModel>
+      <FloatingPointExceptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</FloatingPointExceptions>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\r_sprite.cpp" />
     <ClCompile Include="..\..\Quake\r_world.cpp" />
     <ClCompile Include="..\..\Quake\sbar.cpp" />

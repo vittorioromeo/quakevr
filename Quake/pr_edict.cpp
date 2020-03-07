@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -35,7 +36,7 @@ static int pr_numknownstrings;
 static ddef_t* pr_fielddefs;
 static ddef_t* pr_globaldefs;
 
-qboolean pr_alpha_supported; // johnfitz
+bool pr_alpha_supported; // johnfitz
 
 dstatement_t* pr_statements;
 globalvars_t* pr_global_struct;
@@ -56,7 +57,7 @@ int type_size[8] = {
 };
 
 static ddef_t* ED_FieldAtOfs(int ofs);
-static qboolean ED_ParseEpair(void* base, ddef_t* key, const char* s);
+static bool ED_ParseEpair(void* base, ddef_t* key, const char* s);
 
 #define MAX_FIELD_LEN 64
 #define GEFV_CACHESIZE 2
@@ -857,7 +858,7 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static qboolean ED_ParseEpair(void* base, ddef_t* key, const char* s)
+static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
 {
     int i;
     char string[128];
@@ -954,9 +955,9 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 {
     ddef_t* key;
     char keyname[256];
-    qboolean anglehack;
+    bool anglehack;
 
-    qboolean init;
+    bool init;
     int n;
 
     init = false;
@@ -1377,16 +1378,12 @@ const char* PR_GetString(int num)
     {
         return pr_strings + num;
     }
+
     if(num < 0 && num >= -pr_numknownstrings)
-
     {
-
         if(!pr_knownstrings[-1 - num])
-
         {
-
             Host_Error(
-
                 "PR_GetString: attempt to get a non-existant string %d\n", num);
 
             return "";
@@ -1394,13 +1391,9 @@ const char* PR_GetString(int num)
 
         return pr_knownstrings[-1 - num];
     }
-
     else
-
     {
-
         Host_Error("PR_GetString: invalid string offset %d\n", num);
-
         return "";
     }
 }

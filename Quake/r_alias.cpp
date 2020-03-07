@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -53,9 +54,9 @@ vec3_t shadevector;
 
 float entalpha; // johnfitz
 
-qboolean overbright; // johnfitz
+bool overbright; // johnfitz
 
-qboolean shading =
+bool shading =
     true; // johnfitz -- if false, disable vertex shading for various reasons
           // (fullbright, r_lightmap, showtris, etc)
 
@@ -343,7 +344,7 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
     float blend;
 
     float iblend;
-    qboolean lerping;
+    bool lerping;
 
     if(lerpdata.pose1 != lerpdata.pose2)
     {
@@ -729,7 +730,7 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
 
     gltexture_t* fb;
     lerpdata_t lerpdata;
-    qboolean alphatest = !!(e->model->flags & MF_HOLEY);
+    bool alphatest = !!(e->model->flags & MF_HOLEY);
 
     //
     // setup pose/lerp data -- do it first so we don't miss updates due to

@@ -4,6 +4,7 @@
 #include "util.hpp"
 #include "openvr.hpp"
 
+#define GLM_FORCE_INLINE
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include <gtx/quaternion.hpp>
@@ -105,9 +106,9 @@ struct
 // main screen & 2D drawing
 extern void SCR_SetUpToDrawConsole();
 extern void SCR_UpdateScreenContent();
-extern qboolean scr_drawdialog;
+extern bool scr_drawdialog;
 extern void SCR_DrawNotifyString();
-extern qboolean scr_drawloading;
+extern bool scr_drawloading;
 extern void SCR_DrawLoading();
 extern void SCR_CheckDrawCenterString();
 extern void SCR_DrawRam();
@@ -593,7 +594,8 @@ void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
 void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* offsetY, const char* offsetZ, const char* scale,
     const char* roll = "0.0", const char* pitch = "0.0",
-    const char* yaw = "0.0")
+    const char* yaw = "0.0", const char* muzzleOffsetX = "0.0",
+    const char* muzzleOffsetY = "0.0", const char* muzzleOffsetZ = "0.0")
 {
     // clang-format off
     constexpr const char* nameOffsetX = "vr_wofs_x_nn";
@@ -604,6 +606,9 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* nameRoll = "vr_wofs_roll_nn";
     constexpr const char* namePitch = "vr_wofs_pitch_nn";
     constexpr const char* nameYaw = "vr_wofs_yaw_nn";
+    constexpr const char* nameMuzzleOffsetX = "vr_wofs_muzzle_x_nn";
+    constexpr const char* nameMuzzleOffsetY = "vr_wofs_muzzle_y_nn";
+    constexpr const char* nameMuzzleOffsetZ = "vr_wofs_muzzle_z_nn";
 
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON], nameOffsetX, i, offsetX);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 1], nameOffsetY, i, offsetY);
@@ -613,9 +618,13 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 5], nameRoll, i, roll);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 6], namePitch, i, pitch);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 7], nameYaw, i, yaw);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 8], nameMuzzleOffsetX, i, muzzleOffsetX);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 9], nameMuzzleOffsetY, i, muzzleOffsetY);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 10], nameMuzzleOffsetZ, i, muzzleOffsetZ);
     // clang-format on
 }
 
+// TODO VR: get rid of this
 void InitAllWeaponCVars()
 {
     // clang-format off
@@ -699,6 +708,10 @@ void VID_VR_Init()
 
     InitAllWeaponCVars();
 
+    // VR: Fix grenade model flags to enable smoke trail.
+    qmodel_t* test = Mod_ForName("progs/grenade.mdl", true);
+    test->flags |= EF_GRENADE;
+
     // Set the cvar if invoked from a command line parameter
     {
         // int i = COM_CheckParm("-vr");
@@ -718,7 +731,9 @@ void VR_InitGame()
 // ----------------------------------------------------------------------------
 
 vr::VRActiveActionSet_t vrActiveActionSet;
+
 vr::VRActionSetHandle_t vrashDefault;
+
 vr::VRActionHandle_t vrahLocomotion;
 vr::VRActionHandle_t vrahTurn;
 vr::VRActionHandle_t vrahFire;
@@ -727,9 +742,11 @@ vr::VRActionHandle_t vrahPrevWeapon;
 vr::VRActionHandle_t vrahNextWeapon;
 vr::VRActionHandle_t vrahEscape;
 vr::VRActionHandle_t vrahSpeed;
+vr::VRActionHandle_t vrahLeftHaptic;
+vr::VRActionHandle_t vrahRightHaptic;
 
-// TODO VR: implement haptic feedback
-vr::VRActionHandle_t vrahHaptic;
+vr::VRInputValueHandle_t vrivhLeft;
+vr::VRInputValueHandle_t vrivhRight;
 
 static void VR_InitActionHandles()
 {
@@ -766,11 +783,28 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
     readHandle("/actions/default/in/Escape", vrahEscape);
     readHandle("/actions/default/in/Speed", vrahSpeed);
-    readHandle("/actions/default/out/Haptic", vrahHaptic);
+    readHandle("/actions/default/out/LeftHaptic", vrahLeftHaptic);
+    readHandle("/actions/default/out/RightHaptic", vrahRightHaptic);
 
     vrActiveActionSet.ulActionSet = vrashDefault;
     vrActiveActionSet.ulRestrictedToDevice = vr::k_ulInvalidInputValueHandle;
     vrActiveActionSet.nPriority = 0;
+
+    // -----------------------------------------------------------------------
+    // VR: Get handles to the controllers.
+    const auto readInputSourceHandle = [](const char* name,
+                                           vr::VRInputValueHandle_t& handle) {
+        const auto rc = vr::VRInput()->GetInputSourceHandle(name, &handle);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf("Failed to read Steam VR input source handle, rc = %d",
+                (int)rc);
+        }
+    };
+
+    readInputSourceHandle("/user/hand/left", vrivhLeft);
+    readInputSourceHandle("/user/hand/right", vrivhRight);
 }
 
 // ----------------------------------------------------------------------------
@@ -1391,6 +1425,11 @@ void VR_UpdateScreenContent()
                 auto* hdr = (aliashdr_t*)Mod_Extradata(cl.viewent.model);
                 Mod_Weapon(cl.viewent.model->name, hdr);
 
+                // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
+                // testhdr->flags |= EF_GRENADE;
+                // VectorScale(testhdr->scale_origin, 0.5f,
+                // testhdr->scale_origin);
+
                 // BModels cannot be scaled, doesnt work
                 // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
                 // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
@@ -1485,34 +1524,66 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     angles[ROLL] = orientation[ROLL];
 }
 
+void VR_CalcWeaponMuzzlePos(vec3_t out)
+{
+    // TODO VR:
+
+    vec3_t forward;
+    vec3_t up;
+    vec3_t right;
+
+    /*
+    vec3_t ofs = {//
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
+            vr_gunmodely.value};
+            */
+
+    vec3_t muzzleOfs = {
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 8].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 9].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 10].value};
+
+    const float scaleCorrect =
+        (vr_world_scale.value / 0.75f) *
+        vr_gunmodelscale.value; // initial version had 0.75 default world
+                                // scale, so weapons reflect that
+
+    using namespace quake::util;
+    // glm::vec3 finalOffsets{ofs[0], ofs[1], ofs[2]};
+    glm::vec3 finalOffsets{0, 0, 0};
+    finalOffsets = finalOffsets + muzzleOfs;
+    AngleVectors(cl.handrot[1], forward, right, up);
+    const auto glmForward = toVec3(forward);
+    const auto glmRight = toVec3(right);
+    const auto glmUp = toVec3(up);
+
+    finalOffsets *=
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 3].value *
+        scaleCorrect;
+
+
+    const auto fFwd = glmForward * finalOffsets[0];
+    const auto fRight = glmRight * finalOffsets[1];
+    const auto fUp = glmUp * finalOffsets[2];
+
+
+
+    // Con_Printf("%.2f %.2f %.2f\n", forward[0], forward[1], forward[2]);
+
+    toQuakeVec3(out, toVec3(cl.handpos[1]) + fFwd + fRight + fUp);
+}
+
 void VR_ShowCrosshair()
 {
-    vec3_t forward;
-
-    vec3_t up;
-
-    vec3_t right;
-    vec3_t start;
-
-    vec3_t end;
-
-    vec3_t impact;
-    float size;
-
-    float alpha;
-
-    if(!sv_player)
+    if(!sv_player || (int)(sv_player->v.weapon) == IT_AXE)
     {
         return;
     }
 
-    if((int)(sv_player->v.weapon) == IT_AXE)
-    {
-        return;
-    }
-
-    size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
-    alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
+    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
+    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
 
     if(size <= 0 || alpha <= 0)
     {
@@ -1528,25 +1599,20 @@ void VR_ShowCrosshair()
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
 
+    vec3_t forward;
+    vec3_t up;
+    vec3_t right;
+    vec3_t start;
+    vec3_t end;
+    vec3_t impact;
+
     // calc the line and draw
     // VR TODO: Make the laser align correctly
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        VectorCopy(cl.handpos[1], start);
-
         // TODO VR: repetition of ofs calculation
-        vec3_t ofs = {vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
-            vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
-            vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
-                vr_gunmodely.value};
-
         AngleVectors(cl.handrot[1], forward, right, up);
-        vec3_t fwd2;
-        VectorCopy(forward, fwd2);
-        fwd2[0] *= vr_gunmodelscale.value * ofs[2];
-        fwd2[1] *= vr_gunmodelscale.value * ofs[2];
-        fwd2[2] *= vr_gunmodelscale.value * ofs[2];
-        VectorAdd(start, fwd2, start);
+        VR_CalcWeaponMuzzlePos(start);
     }
     else
     {
@@ -1661,11 +1727,11 @@ void VR_Draw2D()
     {
         // TODO: Make the menus' position sperate from the right hand.
         // Centered on last view dir?
-        VectorCopy(cl.viewangles, menu_angles)
+        VectorCopy(cl.viewangles, menu_angles);
 
-            // TODO VR: ?
-            if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
-                vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
+        // TODO VR: ?
+        if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
+            vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
         {
             menu_angles[PITCH] = 0;
         }
@@ -1875,6 +1941,15 @@ struct VRAxisResult
     return {locomotion.y, locomotion.x, turn.x};
 }
 
+void VR_DoHaptic(const int hand, const float delay, const float duration,
+    const float frequency, const float amplitude)
+{
+    const auto hapticTarget = hand == 0 ? vrahLeftHaptic : vrahRightHaptic;
+
+    vr::VRInput()->TriggerHapticVibrationAction(hapticTarget, delay, duration,
+        frequency, amplitude, vr::k_ulInvalidInputValueHandle);
+}
+
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
     {
@@ -1951,12 +2026,32 @@ struct VRAxisResult
 
     in_speed.state = mustSpeed;
 
+    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
+        vr::VRInput()->TriggerHapticVibrationAction(
+            vrahLeftHaptic, 0, 0.1, 50, 0.5, origin);
+
+        vr::VRInput()->TriggerHapticVibrationAction(
+            vrahRightHaptic, 0, 0.1, 50, 0.5, origin);
+    };
+
+    const auto doMenuKeyEventWithHaptic =
+        [&](const int key, const vr::InputDigitalActionData_t& i) {
+            const bool pressed = isRisingEdge(i);
+
+            if(pressed)
+            {
+                doMenuHaptic(i.activeOrigin);
+            }
+
+            Key_Event(key, pressed);
+        };
+
     if(key_dest == key_menu)
     {
-        Key_Event(K_ENTER, mustJump);
-        Key_Event(K_ESCAPE, mustEscape);
-        Key_Event(K_LEFTARROW, mustPrevWeapon);
-        Key_Event(K_RIGHTARROW, mustNextWeapon);
+        doMenuKeyEventWithHaptic(K_ENTER, inpJump);
+        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
+        doMenuKeyEventWithHaptic(K_LEFTARROW, inpPrevWeapon);
+        doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeapon);
 
         const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
             const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
@@ -1966,6 +2061,11 @@ struct VRAxisResult
             const bool posDown = val > 0.0f;
             if(posDown != posWasDown)
             {
+                if(posDown)
+                {
+                    doMenuHaptic(inpLocomotion.activeOrigin);
+                }
+
                 Key_Event(quakeKeyNeg, posDown);
             }
 
@@ -1973,6 +2073,11 @@ struct VRAxisResult
             const bool negDown = val < 0.0f;
             if(negDown != negWasDown)
             {
+                if(negDown)
+                {
+                    doMenuHaptic(inpLocomotion.activeOrigin);
+                }
+
                 Key_Event(quakeKeyPos, negDown);
             }
         };
@@ -1983,7 +2088,7 @@ struct VRAxisResult
     {
         Key_Event(K_MOUSE1, mustFire);
         Key_Event(K_SPACE, mustJump);
-        Key_Event(K_ESCAPE, mustEscape);
+        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
         Key_Event('3', mustPrevWeapon);
         Key_Event('1', mustNextWeapon);
     }
@@ -2009,6 +2114,9 @@ void VR_Move(usercmd_t* cmd)
     VectorCopy(cl.handrot[0], cmd->offhandrot);
     VectorCopy(cl.handvel[0], cmd->offhandvel);
     cmd->offhandvelmag = cl.handvelmag[0];
+
+    // VR: Weapon muzzle position.
+    VR_CalcWeaponMuzzlePos(cmd->muzzlepos);
 
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.

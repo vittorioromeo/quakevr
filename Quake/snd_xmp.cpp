@@ -44,7 +44,7 @@ static int S_XMP_StartPlay(snd_stream_t* stream)
     return xmp_start_player((xmp_context)stream->priv, stream->info.rate, fmt);
 }
 
-static qboolean S_XMP_CodecInitialize(void)
+static bool S_XMP_CodecInitialize(void)
 {
     return true;
 }
@@ -53,7 +53,7 @@ static void S_XMP_CodecShutdown(void)
 {
 }
 
-static qboolean S_XMP_CodecOpenStream(snd_stream_t* stream)
+static bool S_XMP_CodecOpenStream(snd_stream_t* stream)
 {
     /* need to load the whole file into memory and pass it to libxmp
      * using xmp_load_module_from_memory() which requires libxmp >= 4.2.

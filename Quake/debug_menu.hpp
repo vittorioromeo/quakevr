@@ -9,6 +9,7 @@ enum class DebugMenuOpt
     e_Noclip,
     e_Fly,
     e_HostTimescale,
+    e_Impulse255,
 
     k_Max
 };

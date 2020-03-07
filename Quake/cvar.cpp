@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -602,7 +603,7 @@ Adds a freestanding variable to the variable list.
 void Cvar_RegisterVariable(cvar_t* variable)
 {
     char value[512];
-    qboolean set_rom;
+    bool set_rom;
     cvar_t* cursor;
 
     cvar_t* prev; // johnfitz -- sorted list insert
@@ -692,7 +693,7 @@ Cvar_Command
 Handles variable inspection and changing from the console
 ============
 */
-qboolean Cvar_Command()
+bool Cvar_Command()
 {
     cvar_t* v;
 

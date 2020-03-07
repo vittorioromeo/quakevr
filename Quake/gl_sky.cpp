@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -165,7 +166,7 @@ void Sky_LoadSkyBox(const char* name)
     int height;
     char filename[MAX_OSPATH];
     byte* data;
-    qboolean nonefound = true;
+    bool nonefound = true;
 
     if(strcmp(skybox_name, name) == 0)
     {
@@ -505,9 +506,9 @@ void Sky_ClipPoly(int nump, vec3_t vecs, int stage)
 {
     float* norm;
     float* v;
-    qboolean front;
+    bool front;
 
-    qboolean back;
+    bool back;
     float d;
 
     float e;

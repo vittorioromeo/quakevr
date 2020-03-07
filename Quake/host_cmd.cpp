@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -626,7 +627,7 @@ void Host_Notarget_f()
     // johnfitz
 }
 
-qboolean noclip_anglehack;
+bool noclip_anglehack;
 
 /*
 ==================
@@ -1466,7 +1467,7 @@ void Host_Name_f()
     MSG_WriteString(&sv.reliable_datagram, host_client->name);
 }
 
-void Host_Say(qboolean teamonly)
+void Host_Say(bool teamonly)
 {
     int j;
     client_t* client;
@@ -1475,8 +1476,8 @@ void Host_Say(qboolean teamonly)
     char text[MAXCMDLINE];
 
     char* p2;
-    qboolean quoted;
-    qboolean fromServer = false;
+    bool quoted;
+    bool fromServer = false;
 
     if(cmd_source == src_command)
     {
@@ -1582,7 +1583,7 @@ void Host_Tell_f()
     char text[MAXCMDLINE];
 
     char* p2;
-    qboolean quoted;
+    bool quoted;
 
     if(cmd_source == src_command)
     {
@@ -1968,7 +1969,7 @@ void Host_Kick_f()
     const char* message = nullptr;
     client_t* save;
     int i;
-    qboolean byNumber = false;
+    bool byNumber = false;
 
     if(cmd_source == src_command)
     {

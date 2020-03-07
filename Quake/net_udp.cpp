@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -127,7 +128,7 @@ void UDP_Shutdown()
 
 //=============================================================================
 
-void UDP_Listen(qboolean state)
+void UDP_Listen(bool state)
 {
     // enable listening
     if(state)

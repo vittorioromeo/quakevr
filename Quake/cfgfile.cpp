@@ -175,7 +175,7 @@ int CFG_OpenConfig(const char* cfg_name)
 {
     FILE* f;
     long length;
-    qboolean pak;
+    bool pak;
 
     CFG_CloseConfig();
 

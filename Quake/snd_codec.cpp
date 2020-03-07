@@ -279,7 +279,7 @@ snd_stream_t* S_CodecOpenStreamAny(const char* filename)
     return stream;
 }
 
-qboolean S_CodecForwardStream(snd_stream_t* stream, unsigned int type)
+bool S_CodecForwardStream(snd_stream_t* stream, unsigned int type)
 {
     snd_codec_t* codec = codecs;
 
@@ -321,7 +321,7 @@ snd_stream_t* S_CodecUtilOpen(const char* filename, snd_codec_t* codec)
 {
     snd_stream_t* stream;
     FILE* handle;
-    qboolean pak;
+    bool pak;
     long length;
 
     /* Try to open the file */

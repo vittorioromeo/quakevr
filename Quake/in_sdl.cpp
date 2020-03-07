@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2005 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -32,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
-static qboolean textmode;
+static bool textmode;
 
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
@@ -64,7 +65,7 @@ static SDL_JoystickID joy_active_instaceid = -1;
 static SDL_GameController* joy_active_controller = nullptr;
 #endif
 
-static qboolean no_mouse = false;
+static bool no_mouse = false;
 
 static int buttonremap[] = {K_MOUSE1, K_MOUSE3, /* right button		*/
     K_MOUSE2,                                   /* middle button	*/
@@ -256,7 +257,7 @@ void IN_Activate()
     total_dy = 0;
 }
 
-void IN_Deactivate(qboolean free_cursor)
+void IN_Deactivate(bool free_cursor)
 {
     if(no_mouse)
     {
@@ -441,7 +442,7 @@ typedef struct joyaxis_s
 
 typedef struct joy_buttonstate_s
 {
-    qboolean buttondown[SDL_CONTROLLER_BUTTON_MAX];
+    bool buttondown[SDL_CONTROLLER_BUTTON_MAX];
 } joybuttonstate_t;
 
 typedef struct axisstate_s
@@ -593,7 +594,7 @@ Adapted from DarkPlaces by lordhavoc
 ================
 */
 static void IN_JoyKeyEvent(
-    qboolean wasdown, qboolean isdown, int key, double* timer)
+    bool wasdown, bool isdown, int key, double* timer)
 {
     // we can't use `realtime` for key repeats because it is not monotomic
     const double currenttime = Sys_DoubleTime();
@@ -654,9 +655,9 @@ void IN_Commands()
     // emit key events for controller buttons
     for(i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
     {
-        qboolean newstate = SDL_GameControllerGetButton(
+        bool newstate = SDL_GameControllerGetButton(
             joy_active_controller, (SDL_GameControllerButton)i);
-        qboolean oldstate = joy_buttonstate.buttondown[i];
+        bool oldstate = joy_buttonstate.buttondown[i];
 
         joy_buttonstate.buttondown[i] = newstate;
 
@@ -879,7 +880,7 @@ void IN_ClearStates()
 
 void IN_UpdateInputMode()
 {
-    qboolean want_textmode = Key_TextEntry();
+    bool want_textmode = Key_TextEntry();
     if(textmode != want_textmode)
     {
         textmode = want_textmode;
@@ -1134,7 +1135,7 @@ void IN_SendKeyEvents()
 {
     SDL_Event event;
     int key;
-    qboolean down;
+    bool down;
 
     while(SDL_PollEvent(&event))
     {

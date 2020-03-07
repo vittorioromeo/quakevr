@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -35,7 +36,7 @@ static int pr_depth;
 static int localstack[LOCALSTACK_SIZE];
 static int localstack_used;
 
-qboolean pr_trace;
+bool pr_trace;
 dfunction_t* pr_xfunction;
 int pr_xstatement;
 int pr_argc;

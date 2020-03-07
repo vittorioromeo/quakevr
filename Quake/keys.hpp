@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -177,7 +178,7 @@ extern int key_linepos;
 extern int key_insert;
 extern double key_blinktime;
 
-extern qboolean chat_team;
+extern bool chat_team;
 
 void Key_Init(void);
 void Key_ClearStates(void);
@@ -187,9 +188,9 @@ void Key_BeginInputGrab(void);
 void Key_EndInputGrab(void);
 void Key_GetGrabbedInput(int* lastkey, int* lastchar);
 
-void Key_Event(int key, qboolean down);
+void Key_Event(int key, bool down);
 void Char_Event(int key);
-qboolean Key_TextEntry(void);
+bool Key_TextEntry(void);
 
 void Key_SetBinding(int keynum, const char* binding);
 const char* Key_KeynumToString(int keynum);

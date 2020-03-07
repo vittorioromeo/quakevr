@@ -43,18 +43,18 @@
 
 #include "quakedef.hpp"
 
-static qboolean cdValid = false;
-static qboolean playing = false;
-static qboolean wasPlaying = false;
-static qboolean enabled = true;
-static qboolean playLooping = false;
+static bool cdValid = false;
+static bool playing = false;
+static bool wasPlaying = false;
+static bool enabled = true;
+static bool playLooping = false;
 static byte remap[100];
 static byte playTrack;
 static double endOfTrack = -1.0, pausetime = -1.0;
 static SDL_CD* cd_handle;
 static int cd_dev = -1;
 static float old_cdvolume;
-static qboolean hw_vol_works = true;
+static bool hw_vol_works = true;
 
 
 static void CDAudio_Eject(void)
@@ -81,7 +81,7 @@ static int CDAudio_GetAudioDiskInfo(void)
     return 0;
 }
 
-int CDAudio_Play(byte track, qboolean looping)
+int CDAudio_Play(byte track, bool looping)
 {
     int len_m, len_s, len_f;
 
@@ -358,7 +358,7 @@ static void CD_f(void)
     Con_Printf("cd: unknown command \"%s\"\n", command);
 }
 
-static qboolean CD_GetVolume(void* unused)
+static bool CD_GetVolume(void* unused)
 {
     (void)unused;
 
@@ -367,7 +367,7 @@ static qboolean CD_GetVolume(void* unused)
     return false;
 }
 
-static qboolean CD_SetVolume(void* unused)
+static bool CD_SetVolume(void* unused)
 {
     (void)unused;
 
@@ -376,7 +376,7 @@ static qboolean CD_SetVolume(void* unused)
     return false;
 }
 
-static qboolean CDAudio_SetVolume(float value)
+static bool CDAudio_SetVolume(float value)
 {
     if(!cd_handle || !enabled) return false;
 

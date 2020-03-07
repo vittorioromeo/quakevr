@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -59,22 +60,20 @@ CL_ParseBeam
 */
 void CL_ParseBeam(qmodel_t* m)
 {
-    int ent;
+    const int ent = MSG_ReadShort();
+
     vec3_t start;
-
-    vec3_t end;
-    beam_t* b;
-    int i;
-
-    ent = MSG_ReadShort();
-
     start[0] = MSG_ReadCoord(cl.protocolflags);
     start[1] = MSG_ReadCoord(cl.protocolflags);
     start[2] = MSG_ReadCoord(cl.protocolflags);
 
+    vec3_t end;
     end[0] = MSG_ReadCoord(cl.protocolflags);
     end[1] = MSG_ReadCoord(cl.protocolflags);
     end[2] = MSG_ReadCoord(cl.protocolflags);
+
+    beam_t* b;
+    int i;
 
     // override any beam with the same entity
     for(i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
@@ -136,7 +135,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect(pos, vec3_origin, 20, 30);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
 
@@ -144,7 +143,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect(pos, vec3_origin, 226, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
 
@@ -152,7 +151,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect(pos, vec3_origin, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
             if(rand() % 5)
             {
                 S_StartSound(-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -178,7 +177,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect(pos, vec3_origin, 0, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 20);
 
             if(rand() % 5)
             {
@@ -206,7 +205,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect(pos, vec3_origin, 0, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
             break;
 
         case TE_EXPLOSION: // rocket explosion
@@ -226,7 +225,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_BlobExplosion(pos);
+            R_ParticleExplosion(pos);
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
             break;
@@ -315,26 +314,13 @@ CL_UpdateTEnts
 */
 void CL_UpdateTEnts()
 {
-    int i;
-
-    int j; // johnfitz -- use j instead of using i twice, so we don't corrupt
-           // memory
-    beam_t* b;
-    vec3_t dist;
-
-    vec3_t org;
-    float d;
-    entity_t* ent;
-    float yaw;
-
-    float pitch;
-    float forward;
-
     num_temp_entities = 0;
 
     srand((int)(cl.time * 1000)); // johnfitz -- freeze beams when paused
 
     // update lightning
+    int i;
+    beam_t* b;
     for(i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
     {
         if(!b->model || b->endtime < cl.time)
@@ -375,7 +361,11 @@ void CL_UpdateTEnts()
         }
 
         // calculate pitch and yaw
+        vec3_t dist;
         VectorSubtract(b->end, b->start, dist);
+
+        float pitch;
+        float yaw;
 
         if(dist[1] == 0 && dist[0] == 0)
         {
@@ -397,7 +387,7 @@ void CL_UpdateTEnts()
                 yaw += 360;
             }
 
-            forward = sqrt(dist[0] * dist[0] + dist[1] * dist[1]);
+            const float forward = sqrt(dist[0] * dist[0] + dist[1] * dist[1]);
             pitch = (int)(atan2(dist[2], forward) * 180 / M_PI);
             if(pitch < 0)
             {
@@ -406,11 +396,13 @@ void CL_UpdateTEnts()
         }
 
         // add new entities for the lightning
+        vec3_t org;
         VectorCopy(b->start, org);
-        d = VectorNormalize(dist);
+        float d = VectorNormalize(dist);
         while(d > 0)
         {
-            ent = CL_NewTempEntity();
+
+            entity_t* ent = CL_NewTempEntity();
             if(!ent)
             {
                 return;
@@ -423,7 +415,7 @@ void CL_UpdateTEnts()
 
             // johnfitz -- use j instead of using i twice, so we don't corrupt
             // memory
-            for(j = 0; j < 3; j++)
+            for(int j = 0; j < 3; j++)
             {
                 org[j] += dist[j] * 30;
             }

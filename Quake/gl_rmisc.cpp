@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -532,7 +533,7 @@ void D_FlushCaches()
 static GLuint gl_programs[16];
 static int gl_num_programs;
 
-static qboolean GL_CheckShader(GLuint shader)
+static bool GL_CheckShader(GLuint shader)
 {
     GLint status;
     GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &status);
@@ -551,7 +552,7 @@ static qboolean GL_CheckShader(GLuint shader)
     return true;
 }
 
-static qboolean GL_CheckProgram(GLuint program)
+static bool GL_CheckProgram(GLuint program)
 {
     GLint status;
     GL_GetProgramivFunc(program, GL_LINK_STATUS, &status);

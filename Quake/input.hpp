@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -51,6 +52,6 @@ void IN_ClearStates(void);
 void IN_Activate();
 
 // called when the app becomes inactive
-void IN_Deactivate(qboolean free_cursor);
+void IN_Deactivate(bool free_cursor);
 
 #endif /* _QUAKE_INPUT_H */

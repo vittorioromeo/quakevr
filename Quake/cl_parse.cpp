@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -73,16 +74,16 @@ const char* svc_strings[] = {
                              // framenum, alpha, using flags
     "svc_spawnstaticsound2", //	44		// [coord3] [short] samp [byte] vol
                              //[byte] aten
-    "",                      // 44
-    "",                      // 45
+    "svc_particle2",         // 45
     "",                      // 46
     "",                      // 47
     "",                      // 48
     "",                      // 49
+    "",                      // 50
     // johnfitz
 };
 
-qboolean warn_about_nehahra_protocol; // johnfitz
+bool warn_about_nehahra_protocol; // johnfitz
 
 extern vec3_t v_punchangles[2]; // johnfitz
 
@@ -477,7 +478,7 @@ void CL_ParseUpdate(int bits)
     int i;
     qmodel_t* model;
     int modnum;
-    qboolean forcelink;
+    bool forcelink;
     entity_t* ent;
     int num;
     int skin;
@@ -1386,6 +1387,7 @@ void CL_ParseServerMessage()
                 break;
 
             case svc_particle: R_ParseParticleEffect(); break;
+            case svc_particle2: R_ParseParticle2Effect(); break;
 
             case svc_spawnbaseline:
                 i = MSG_ReadShort();
