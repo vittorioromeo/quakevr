@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -48,8 +49,8 @@ extern float scr_conlines; // lines of console to display
 extern int sb_lines;
 
 extern int clearnotify; // set to 0 whenever notify text is drawn
-extern qboolean scr_disabled_for_loading;
-extern qboolean scr_skipupdate;
+extern bool scr_disabled_for_loading;
+extern bool scr_skipupdate;
 
 extern cvar_t scr_viewsize;
 

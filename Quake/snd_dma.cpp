@@ -4,6 +4,7 @@ Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2011 O. Sezer <sezero@users.sourceforge.net>
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -43,7 +44,7 @@ channel_t snd_channels[MAX_CHANNELS];
 int total_channels;
 
 static int snd_blocked = 0;
-static qboolean snd_initialized = false;
+static bool snd_initialized = false;
 
 static dma_t sn;
 volatile dma_t* shm = nullptr;
@@ -68,7 +69,7 @@ static int num_sfx;
 
 static sfx_t* ambient_sfx[NUM_AMBIENTS];
 
-static qboolean sound_started = false;
+static bool sound_started = false;
 
 cvar_t bgmvolume = {"bgmvolume", "1", CVAR_ARCHIVE};
 cvar_t sfxvolume = {"volume", "0.7", CVAR_ARCHIVE};
@@ -588,7 +589,7 @@ void S_StopSound(int entnum, int entchannel)
     }
 }
 
-void S_StopAllSounds(qboolean clear)
+void S_StopAllSounds(bool clear)
 {
     int i;
 

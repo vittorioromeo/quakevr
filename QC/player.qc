@@ -180,7 +180,7 @@ void() player_nail1   =[$nailatt1, player_nail2  ]
 	if (self.weaponframe == 9)
 		self.weaponframe = 1;
 	SuperDamageSound();
-	W_FireSpikes (3);
+	W_FireSpikes (2.35);
 	self.attack_finished = time + 0.2;
 };
 void() player_nail2   =[$nailatt2, player_nail1  ]
@@ -193,7 +193,7 @@ void() player_nail2   =[$nailatt2, player_nail1  ]
 	if (self.weaponframe == 9)
 		self.weaponframe = 1;
 	SuperDamageSound();
-	W_FireSpikes (-3);
+	W_FireSpikes (-2.35);
 	self.attack_finished = time + 0.2;
 };
 
@@ -483,6 +483,8 @@ void(string gibname, float dm) ThrowGib =
 	new.nextthink = time + 10 + random()*10;
 	new.frame = 0;
 	new.flags = 0;
+
+	particle2 (self.origin, new.velocity, 1 /* blood preset */, 40);
 };
 
 void(string gibname, float dm) ThrowHead =
@@ -499,6 +501,8 @@ void(string gibname, float dm) ThrowHead =
 	self.origin_z = self.origin_z - 24;
 	self.flags = self.flags - (self.flags & FL_ONGROUND);
 	self.avelocity = crandom() * '0 600 0';
+
+	particle2 (self.origin, self.velocity, 1 /* blood preset */, 40);
 };
 
 

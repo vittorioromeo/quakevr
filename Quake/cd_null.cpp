@@ -20,7 +20,7 @@
 
 #include "quakedef.hpp"
 
-int CDAudio_Play(byte track, qboolean looping)
+int CDAudio_Play(byte track, bool looping)
 {
     (void)track;
     (void)looping;

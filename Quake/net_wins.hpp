@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 sys_socket_t WINS_Init(void);
 void WINS_Shutdown(void);
-void WINS_Listen(qboolean state);
+void WINS_Listen(bool state);
 sys_socket_t WINS_OpenSocket(int port);
 int WINS_CloseSocket(sys_socket_t socketid);
 int WINS_Connect(sys_socket_t socketid, struct qsockaddr* addr);

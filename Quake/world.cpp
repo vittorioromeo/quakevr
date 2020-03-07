@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -435,24 +436,17 @@ void SV_TouchLinks(edict_t* ent)
         edict_t* target = list[i]; // thing that's being touched
         // re-validate in case of PR_ExecuteProgram having side effects that
         // make edicts later in the list no longer touch
-        if(target == ent || ent != sv_player)
+        if(target == ent || ent != sv_player /* TODO VR: hack */)
         {
             continue;
         }
 
-        // TODO VR: code repetition
-        constexpr float o = 1.f;
-        vec3_t handposmin{-o, -o, -o};
-        VectorAdd(handposmin, ent->v.handpos, handposmin);
-
-        vec3_t handposmax{o, o, o};
-        VectorAdd(handposmax, ent->v.handpos, handposmax);
-
-        vec3_t offhandposmin{-o, -o, -o};
-        VectorAdd(offhandposmin, ent->v.offhandpos, offhandposmin);
-
-        vec3_t offhandposmax{o, o, o};
-        VectorAdd(offhandposmax, ent->v.offhandpos, offhandposmax);
+        // Add some size to the hands.
+        const glm::vec3 offsets{1.f, 1.f, 1.f};
+        const auto handposmin = ent->v.handpos - offsets;
+        const auto handposmax = ent->v.handpos + offsets;
+        const auto offhandposmin = ent->v.offhandpos - offsets;
+        const auto offhandposmax = ent->v.offhandpos + offsets;
 
         const bool canBeHandTouched =
             target->v.handtouch && target->v.solid == SOLID_TRIGGER;
@@ -460,11 +454,13 @@ void SV_TouchLinks(edict_t* ent)
         const bool entIntersects = !quake::util::boxIntersection(
             ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);
 
-        const bool anyHandIntersects =
-            quake::util::boxIntersection(
-                handposmin, handposmax, target->v.absmin, target->v.absmax) ||
-            quake::util::boxIntersection(offhandposmin, offhandposmax,
-                target->v.absmin, target->v.absmax);
+        const bool offHandIntersects = quake::util::boxIntersection(
+            offhandposmin, offhandposmax, target->v.absmin, target->v.absmax);
+
+        const bool mainHandIntersects = quake::util::boxIntersection(
+            handposmin, handposmax, target->v.absmin, target->v.absmax);
+
+        const bool anyHandIntersects = offHandIntersects || mainHandIntersects;
 
         const bool anyIntersection =
             vr_enabled.value ? anyHandIntersects : entIntersects;
@@ -480,6 +476,15 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->self = EDICT_TO_PROG(target);
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
+
+        if (offHandIntersects)
+        {
+            ent->v.touchinghand = 0;
+        }
+        else if (mainHandIntersects)
+        {
+            ent->v.touchinghand = 1;
+        }
 
         // VR: This is for things like ammo pickups and slipgates.
         PR_ExecuteProgram(target->v.handtouch);
@@ -762,7 +767,7 @@ SV_RecursiveHullCheck
 
 ==================
 */
-qboolean SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
+bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     vec3_t p1, vec3_t p2, trace_t* trace)
 {
     mclipnode_t* node; // johnfitz -- was dclipnode_t

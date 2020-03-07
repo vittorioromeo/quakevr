@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -42,7 +43,7 @@ float con_cursorspeed = 4;
 
 int con_buffersize; // johnfitz -- user can now override default
 
-qboolean con_forcedup; // because no entities to refresh
+bool con_forcedup; // because no entities to refresh
 
 int con_totallines; // total lines in console scrollback
 int con_backscroll; // lines up from bottom to display
@@ -61,9 +62,9 @@ float con_times[NUM_CON_TIMES]; // realtime time the line was generated
 
 int con_vislines;
 
-qboolean con_debuglog = false;
+bool con_debuglog = false;
 
-qboolean con_initialized;
+bool con_initialized;
 
 
 /*
@@ -433,7 +434,7 @@ static void Con_Print(const char* txt)
     int l;
     static int cr;
     int mask;
-    qboolean boundary;
+    bool boundary;
 
     // con_backscroll = 0; //johnfitz -- better console scrolling
 
@@ -555,7 +556,7 @@ void Con_Printf(const char* fmt, ...)
 {
     va_list argptr;
     char msg[MAXPRINTMSG];
-    static qboolean inupdate;
+    static bool inupdate;
 
     va_start(argptr, fmt);
     q_vsnprintf(msg, sizeof(msg), fmt, argptr);
@@ -814,7 +815,7 @@ typedef struct tab_s
 tab_t* tablist;
 
 // defs from elsewhere
-extern qboolean keydown[256];
+extern bool keydown[256];
 typedef struct cmd_function_s
 {
     struct cmd_function_s* next;
@@ -842,7 +843,7 @@ tablist is a doubly-linked loop, alphabetized by name
 // bash_partial is the string that can be expanded,
 // aka Linux Bash shell. -- S.A.
 static char bash_partial[80];
-static qboolean bash_singlematch;
+static bool bash_singlematch;
 
 void AddToTabList(const char* name, const char* type)
 {
@@ -1366,7 +1367,7 @@ The typing input line at the bottom should only be drawn if
 typing is allowed
 ================
 */
-void Con_DrawConsole(int lines, qboolean drawinput)
+void Con_DrawConsole(int lines, bool drawinput)
 {
     int i;
 

@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -31,7 +32,7 @@ static char localmodels[MAX_MODELS][8]; // inline model names for precache
 
 int sv_protocol = PROTOCOL_FITZQUAKE; // johnfitz
 
-extern qboolean pr_alpha_supported; // johnfitz
+extern bool pr_alpha_supported; // johnfitz
 
 //============================================================================
 
@@ -152,23 +153,21 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
+void SV_StartParticle(
+    const vec3_t org, const vec3_t dir, const int color, const int count)
 {
-    int i;
-
-    int v;
-
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
         return;
     }
+
     MSG_WriteByte(&sv.datagram, svc_particle);
     MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
     MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
     MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        v = dir[i] * 16;
+        int v = dir[i] * 16;
         if(v > 127)
         {
             v = 127;
@@ -181,6 +180,43 @@ void SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
     }
     MSG_WriteByte(&sv.datagram, count);
     MSG_WriteByte(&sv.datagram, color);
+}
+
+// TODO VR: repetition with above
+/*
+==================
+SV_StartParticle2
+
+Make sure the event gets sent to all clients
+==================
+*/
+void SV_StartParticle2(
+    const vec3_t org, const vec3_t dir, const int preset, const int count)
+{
+    if(sv.datagram.cursize > MAX_DATAGRAM - 16)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, svc_particle2);
+    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    for(int i = 0; i < 3; i++)
+    {
+        int v = dir[i] * 16;
+        if(v > 127)
+        {
+            v = 127;
+        }
+        else if(v < -128)
+        {
+            v = -128;
+        }
+        MSG_WriteChar(&sv.datagram, v);
+    }
+    MSG_WriteByte(&sv.datagram, preset);
+    MSG_WriteShort(&sv.datagram, count);
 }
 
 /*
@@ -628,7 +664,7 @@ SV_VisibleToClient -- johnfitz
 PVS test encapsulated in a nice function
 =============
 */
-qboolean SV_VisibleToClient(
+bool SV_VisibleToClient(
     edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
@@ -1268,7 +1304,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 SV_SendClientDatagram
 =======================
 */
-qboolean SV_SendClientDatagram(client_t* client)
+bool SV_SendClientDatagram(client_t* client)
 {
     byte buf[MAX_DATAGRAM];
     sizebuf_t msg;

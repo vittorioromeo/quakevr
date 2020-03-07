@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -91,7 +92,7 @@ typedef struct texture_s
     struct gltexture_s* gltexture;       // johnfitz -- pointer to gltexture
     struct gltexture_s* fullbright;      // johnfitz -- fullbright mask texture
     struct gltexture_s* warpimage;       // johnfitz -- for water animation
-    qboolean update_warp;                // johnfitz -- update warp this frame
+    bool update_warp;                // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
@@ -143,7 +144,7 @@ typedef struct glpoly_s
 typedef struct msurface_s
 {
     int visframe;    // should be drawn when node is crossed
-    qboolean culled; // johnfitz -- for frustum culling
+    bool culled; // johnfitz -- for frustum culling
     float mins[3];   // johnfitz -- for frustum culling
     float maxs[3];   // johnfitz -- for frustum culling
 
@@ -173,7 +174,7 @@ typedef struct msurface_s
     int lightmaptexturenum;
     byte styles[MAXLIGHTMAPS];
     int cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
-    qboolean cached_dlight;         // true if dynamic light in cache
+    bool cached_dlight;         // true if dynamic light in cache
     byte* samples;                  // [numstyles*surfsize]
 } msurface_t;
 
@@ -427,7 +428,7 @@ typedef struct qmodel_s
     char name[MAX_QPATH];
     unsigned int path_id; // path id of the game directory
                           // that this model came from
-    qboolean needload;    // bmodels and sprites don't cache normally
+    bool needload;    // bmodels and sprites don't cache normally
 
     modtype_t type;
     int numframes;
@@ -447,7 +448,7 @@ typedef struct qmodel_s
     //
     // solid volume for clipping
     //
-    qboolean clipbox;
+    bool clipbox;
     vec3_t clipmins, clipmaxs;
 
     //
@@ -497,7 +498,7 @@ typedef struct qmodel_s
     byte* lightdata;
     char* entities;
 
-    qboolean viswarn; // for Mod_DecompressVis()
+    bool viswarn; // for Mod_DecompressVis()
 
     int bspversion;
 
@@ -523,7 +524,7 @@ typedef struct qmodel_s
 void Mod_Init(void);
 void Mod_ClearAll(void);
 void Mod_ResetAll(void); // for gamedir changes (Host_Game_f)
-qmodel_t* Mod_ForName(const char* name, qboolean crash);
+qmodel_t* Mod_ForName(const char* name, bool crash);
 void* Mod_Extradata(qmodel_t* mod); // handles caching
 void Mod_TouchModel(const char* name);
 

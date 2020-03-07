@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -54,7 +55,7 @@ typedef struct efrag_s
 
 typedef struct entity_s
 {
-    qboolean forcelink; // model changed
+    bool forcelink; // model changed
 
     int update_type;
 
@@ -160,10 +161,12 @@ void R_NewMap(void);
 
 
 void R_ParseParticleEffect(void);
+void R_ParseParticle2Effect(void);
 void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count);
+void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count);
+void R_RunParticleEffect_BulletPuff(vec3_t org, vec3_t dir, int color, int count);
 void R_RocketTrail(vec3_t start, vec3_t end, int type);
 void R_EntityParticles(entity_t* ent);
-void R_BlobExplosion(vec3_t org);
 void R_ParticleExplosion(vec3_t org);
 void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength);
 void R_LavaSplash(vec3_t org);
@@ -176,7 +179,7 @@ void R_PushDlights(void);
 // surface cache related
 //
 extern int reinit_surfcache;    // if 1, surface cache is currently empty and
-extern qboolean r_cache_thrash; // set if thrashing the surface cache
+extern bool r_cache_thrash; // set if thrashing the surface cache
 
 int D_SurfaceCacheForRes(int width, int height);
 void D_FlushCaches(void);

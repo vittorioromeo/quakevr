@@ -233,7 +233,7 @@ static void flac_meta_func(const FLAC__StreamDecoder* decoder,
 }
 
 
-static qboolean S_FLAC_CodecInitialize(void)
+static bool S_FLAC_CodecInitialize(void)
 {
     return true;
 }
@@ -242,7 +242,7 @@ static void S_FLAC_CodecShutdown(void)
 {
 }
 
-static qboolean S_FLAC_CodecOpenStream(snd_stream_t* stream)
+static bool S_FLAC_CodecOpenStream(snd_stream_t* stream)
 {
     flacfile_t* ff;
     int rc;

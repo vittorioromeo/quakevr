@@ -49,7 +49,7 @@ static void S_MODPLUG_SetSettings(snd_stream_t* stream)
     }
 }
 
-static qboolean S_MODPLUG_CodecInitialize(void)
+static bool S_MODPLUG_CodecInitialize(void)
 {
     return true;
 }
@@ -58,7 +58,7 @@ static void S_MODPLUG_CodecShutdown(void)
 {
 }
 
-static qboolean S_MODPLUG_CodecOpenStream(snd_stream_t* stream)
+static bool S_MODPLUG_CodecOpenStream(snd_stream_t* stream)
 {
     /* need to load the whole file into memory and pass it to libmodplug */
     const long len = FS_filelength(&stream->fh);

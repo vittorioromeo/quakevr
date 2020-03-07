@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -30,11 +31,11 @@ byte* Image_LoadTGA(FILE* f, int* width, int* height);
 byte* Image_LoadPCX(FILE* f, int* width, int* height);
 byte* Image_LoadImage(const char* name, int* width, int* height);
 
-qboolean Image_WriteTGA(const char* name, byte* data, int width, int height,
-    int bpp, qboolean upsidedown);
-qboolean Image_WritePNG(const char* name, byte* data, int width, int height,
-    int bpp, qboolean upsidedown);
-qboolean Image_WriteJPG(const char* name, byte* data, int width, int height,
-    int bpp, int quality, qboolean upsidedown);
+bool Image_WriteTGA(const char* name, byte* data, int width, int height,
+    int bpp, bool upsidedown);
+bool Image_WritePNG(const char* name, byte* data, int width, int height,
+    int bpp, bool upsidedown);
+bool Image_WriteJPG(const char* name, byte* data, int width, int height,
+    int bpp, int quality, bool upsidedown);
 
 #endif /* GL_IMAGE_H */

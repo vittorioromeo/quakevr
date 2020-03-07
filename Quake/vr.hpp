@@ -124,7 +124,7 @@ extern cvar_t vr_body_interactions;
 
 // TODO VR: not sure what this number should actually be...
 #define MAX_WEAPONS 20
-#define VARS_PER_WEAPON 8
+#define VARS_PER_WEAPON 11
 
 extern cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
 extern int weaponCVarEntry;

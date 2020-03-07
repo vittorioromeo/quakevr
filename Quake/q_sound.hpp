@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -96,7 +97,7 @@ void S_StartSound(int entnum, int entchannel, sfx_t* sfx, vec3_t origin,
     float fvol, float attenuation);
 void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
-void S_StopAllSounds(qboolean clear);
+void S_StopAllSounds(bool clear);
 void S_ClearBuffer(void);
 void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up);
 void S_ExtraUpdate(void);
@@ -124,7 +125,7 @@ void S_RawSamples(
 /* Expects data in signed 16 bit, or unsigned 8 bit format. */
 
 /* initializes cycling through a DMA buffer and returns information on it */
-qboolean SNDDMA_Init(dma_t* dma);
+bool SNDDMA_Init(dma_t* dma);
 
 /* gets the current DMA position */
 int SNDDMA_GetDMAPos(void);

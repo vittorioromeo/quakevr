@@ -2,6 +2,18 @@ void() W_SetCurrentAmmo;
 /* ALL LIGHTS SHOULD BE 0 1 0 IN COLOR ALL OTHER ITEMS SHOULD
 BE .8 .3 .4 IN COLOR */
 
+void(entity e) VRItemPickupHaptic =
+{
+	if (cvar("vr_body_interactions") == 0)
+	{
+		haptic(e.touchinghand, 0.0, 0.3, 75, 1.0);
+	}
+	else
+	{
+		haptic(0, 0.0, 0.3, 75, 1.0);
+		haptic(1, 0.0, 0.3, 75, 1.0);
+	}
+}
 
 void() SUB_regen =
 {
@@ -173,6 +185,8 @@ void() health_touch =
 			return;
 	}
 
+	VRItemPickupHaptic(other);
+
 	sprint(other, "You receive ");
 	s = ftos(self.healamount);
 	sprint(other, s);
@@ -279,6 +293,8 @@ void() armor_touch =
 	if (deathmatch == 1)
 		self.nextthink = time + 20;
 	self.think = SUB_regen;
+
+	VRItemPickupHaptic(other);
 
 	sprint(other, "You got armor\n");
 // armor touch sound
@@ -470,6 +486,8 @@ void() weapon_touch =
 	}
 	else
 		objerror ("weapon_touch: unknown classname");
+
+	VRItemPickupHaptic(other);
 
 	sprint (other, "You got the ");
 	sprint (other, self.netname);
@@ -667,6 +685,8 @@ local float		best;
 	}
 
 	bound_other_ammo ();
+
+	VRItemPickupHaptic(other);
 
 	sprint (other, "You got the ");
 	sprint (other, self.netname);
@@ -911,6 +931,8 @@ local float		best;
 	if (other.items & self.items)
 		return;
 
+	VRItemPickupHaptic(other);
+
 	sprint (other, "You got the ");
 	sprint (other, self.netname);
 	sprint (other,"\n");
@@ -1121,6 +1143,8 @@ local float		best;
 	if (other.health <= 0)
 		return;
 
+	VRItemPickupHaptic(other);
+
 	sprint (other, "You got the ");
 	sprint (other, self.netname);
 	sprint (other,"\n");
@@ -1191,7 +1215,7 @@ void() item_artifact_invulnerability =
 	setmodel (self, "progs/invulner.mdl");
 	self.netname = "Pentagram of Protection";
 	self.items = IT_INVULNERABILITY;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	setsize (self, '-8 -8 -24', '8 8 32');
 	StartItem ();
 };
 
@@ -1210,7 +1234,7 @@ void() item_artifact_envirosuit =
 	setmodel (self, "progs/suit.mdl");
 	self.netname = "Biosuit";
 	self.items = IT_SUIT;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	setsize (self, '-8 -8 -24', '8 8 32');
 	StartItem ();
 };
 
@@ -1231,7 +1255,7 @@ void() item_artifact_invisibility =
 	setmodel (self, "progs/invisibl.mdl");
 	self.netname = "Ring of Shadows";
 	self.items = IT_INVISIBILITY;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	setsize (self, '-8 -8 -24', '8 8 32');
 	StartItem ();
 };
 
@@ -1252,7 +1276,7 @@ void() item_artifact_super_damage =
 	setmodel (self, "progs/quaddama.mdl");
 	self.netname = "Quad Damage";
 	self.items = IT_QUAD;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	setsize (self, '-8 -8 -24', '8 8 32');
 	StartItem ();
 };
 
@@ -1277,6 +1301,8 @@ void() BackpackTouch =
 		return;
 	if (other.health <= 0)
 		return;
+
+	VRItemPickupHaptic(other);
 
 	acount = 0;
 	sprint (other, "You get ");

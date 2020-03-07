@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -37,7 +38,7 @@ float* angles;
 float* origin;
 float* velocity;
 
-qboolean onground;
+bool onground;
 
 usercmd_t cmd;
 
@@ -620,6 +621,10 @@ void SV_ReadClientMove(usercmd_t* move)
     move->offhandvelmag = MSG_ReadFloat();
     host_client->edict->v.offhandvelmag = move->offhandvelmag;
 
+    // muzzlepos
+    readVec(move->muzzlepos);
+    VectorCopy(move->muzzlepos, host_client->edict->v.muzzlepos);
+
     // read movement
     move->forwardmove = MSG_ReadShort();
     move->sidemove = MSG_ReadShort();
@@ -644,7 +649,7 @@ SV_ReadClientMessage
 Returns false if the client should be killed
 ===================
 */
-qboolean SV_ReadClientMessage()
+bool SV_ReadClientMessage()
 {
     int ret;
     int ccmd;

@@ -5,6 +5,7 @@
  * Copyright (C) 1999-2005 Id Software, Inc.
  * Copyright (C) 2005-2012 O.Sezer <sezero@users.sourceforge.net>
  * Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,7 +89,7 @@ static void SDLCALL paint_audio(void* unused, Uint8* stream, int len)
     }
 }
 
-qboolean SNDDMA_Init(dma_t* dma)
+bool SNDDMA_Init(dma_t* dma)
 {
     SDL_AudioSpec desired;
     int tmp;

@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -631,23 +632,23 @@ void CL_RelinkEntities()
 
         if(ent->model->flags & EF_GIB)
         {
-            R_RocketTrail(oldorg, ent->origin, 2);
+            R_RocketTrail(oldorg, ent->origin, 2 /* blood */);
         }
         else if(ent->model->flags & EF_ZOMGIB)
         {
-            R_RocketTrail(oldorg, ent->origin, 4);
+            R_RocketTrail(oldorg, ent->origin, 4 /* slight blood */);
         }
         else if(ent->model->flags & EF_TRACER)
         {
-            R_RocketTrail(oldorg, ent->origin, 3);
+            R_RocketTrail(oldorg, ent->origin, 3) /* tracer */;
         }
         else if(ent->model->flags & EF_TRACER2)
         {
-            R_RocketTrail(oldorg, ent->origin, 5);
+            R_RocketTrail(oldorg, ent->origin, 5 /* tracer */);
         }
         else if(ent->model->flags & EF_ROCKET)
         {
-            R_RocketTrail(oldorg, ent->origin, 0);
+            R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
             dl = CL_AllocDlight(i);
             VectorCopy(ent->origin, dl->origin);
             dl->radius = 200;
@@ -655,11 +656,11 @@ void CL_RelinkEntities()
         }
         else if(ent->model->flags & EF_GRENADE)
         {
-            R_RocketTrail(oldorg, ent->origin, 1);
+            R_RocketTrail(oldorg, ent->origin, 1 /* smoke */);
         }
         else if(ent->model->flags & EF_TRACER3)
         {
-            R_RocketTrail(oldorg, ent->origin, 6);
+            R_RocketTrail(oldorg, ent->origin, 6 /* voor trail */);
         }
 
         ent->forcelink = false;
