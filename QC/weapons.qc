@@ -4,6 +4,7 @@ void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
 void () player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
+void(vector org, float damage) SpawnBloodSplash;
 void() SuperDamageSound;
 void() PainSound;
 
@@ -55,20 +56,84 @@ vector() vrProjectileVelocity =
 	return VEC_ORIGIN;
 };
 
+float() VRMeleeDmgQuadMult =
+{
+	if (self.super_damage_finished > time)
+	{
+		return 2.75;
+	}
+
+	return 1;
+}
+
+float(float velmag) VRMeleeStrengthMult =
+{
+	local float strength;
+	strength = velmag - cvar("vr_melee_threshold");
+
+	if (strength > 1.0)
+	{
+		strength = pow(strength, 1.5);
+	}
+
+	return strength;
+}
+
+
 float(float v) VRMeleeDmg =
 {
-	return (v * self.handvelmag) * cvar("vr_melee_dmg_multiplier");
+	return (v * VRMeleeStrengthMult(self.handvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeOffHandDmg =
 {
-	return (v * self.offhandvelmag) * cvar("vr_melee_dmg_multiplier");
+	return (v * VRMeleeStrengthMult(self.offhandvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
-
 
 float(float v) VRMeleeRange =
 {
-	return v * cvar("vr_melee_range_multiplier");
+	local float mult;
+
+	if (self.super_damage_finished > time)
+	{
+		mult = 1.25;
+	}
+	else
+	{
+		mult = 1;
+	}
+
+	return v * cvar("vr_melee_range_multiplier") * mult;
+}
+
+void(float hand, float velmag) VRMeleeHaptic =
+{
+	local float power, amplitude, duration;
+	power = VRMeleeStrengthMult(velmag);
+
+	amplitude = power / 10.0;
+	if (amplitude > 1.0) { amplitude = 1.0; }
+	else if (amplitude < 0.45) { amplitude = 0.45; }
+
+	duration = 0.35 + power / 18.0;
+	if (duration < 0.35) { duration = 0.35; }
+	else if (duration > 0.9) { duration = 0.9; }
+
+	haptic(hand, 0.0, duration, 75.0, amplitude);
+}
+
+void(float duration, float frequency, float amplitude) VRGunHaptic =
+{
+	haptic(1, 0.0, duration, frequency, amplitude);
+}
+
+void(vector org) BroadcastGunshotEffect =
+{
+	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+	WriteByte (MSG_BROADCAST, TE_GUNSHOT);
+	WriteCoord (MSG_BROADCAST, org_x);
+	WriteCoord (MSG_BROADCAST, org_y);
+	WriteCoord (MSG_BROADCAST, org_z);
 }
 
 /*
@@ -82,17 +147,12 @@ void() W_FireAxe =
 	local	vector	org;
 	local	float	xdmg;
 	local	string	s;
-	local	float	playedsound;
 
-	xdmg = VRMeleeDmg(0.73);
-
-	// s = ftos(xdmg);
-	// sprint (self, "DMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
+	xdmg = VRMeleeDmg(0.95);
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
+	// TODO VR: improve this collision detection
 	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
@@ -102,13 +162,14 @@ void() W_FireAxe =
 	if (trace_ent.takedamage)
 	{
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 	}
 	else
@@ -116,20 +177,12 @@ void() W_FireAxe =
 		// hit wall
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
-	}
-
-	if (playedsound)
-	{
-		self.melee_hit_sound_played = TRUE;
+		BroadcastGunshotEffect(org);
 	}
 };
 
@@ -147,14 +200,8 @@ void() W_GunMelee =
 	local	vector	org;
 	local	float	xdmg;
 	local	string	s;
-	local	float	playedsound;
 
-	xdmg = VRMeleeDmg(0.43);
-
-	// s = ftos(xdmg);
-	// sprint (self, "DMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
+	xdmg = VRMeleeDmg(0.5);
 
 	makevectors (self.v_angle);
 	source = self.handpos + '0 0 0';
@@ -167,13 +214,14 @@ void() W_GunMelee =
 	if (trace_ent.takedamage)
 	{
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 	}
 	else
@@ -181,20 +229,12 @@ void() W_GunMelee =
 		// hit wall
 		if (self.melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(1, self.handvelmag);
 			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			playedsound = TRUE;
+			self.melee_hit_sound_played = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
-	}
-
-	if (playedsound)
-	{
-		self.melee_hit_sound_played = TRUE;
+		BroadcastGunshotEffect(org);
 	}
 };
 
@@ -215,16 +255,11 @@ void() W_FistMelee =
 	local	string	s;
 	local	float	playedsound;
 
-	xdmg = VRMeleeOffHandDmg(0.53);
-
-	// s = ftos(xdmg);
-	// sprint (self, "OFFHANDDMG: ");
-	// sprint (self, s);
-	// sprint (self, "\n");
+	xdmg = VRMeleeOffHandDmg(0.75);
 
 	makevectors (self.v_angle);
 	source = self.offhandpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(24), FALSE, self);
+	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
 	if (trace_fraction == 1.0)
 		return;
 
@@ -238,8 +273,9 @@ void() W_FistMelee =
 
 	if (trace_ent.takedamage)
 	{
+		VRMeleeHaptic(0, self.offhandvelmag);
 		trace_ent.axhitme = 1;
-		SpawnBlood (org, '0 0 0', xdmg);
+		SpawnBloodSplash (org, xdmg);
 		T_Damage (trace_ent, self, self, xdmg);
 	}
 	else
@@ -247,16 +283,13 @@ void() W_FistMelee =
 		// hit wall
 		if (self.offhand_melee_hit_sound_played == FALSE)
 		{
+			VRMeleeHaptic(0, self.offhandvelmag);
 			PainSound();
-			SpawnBlood(org, '0 0 0', xdmg);
+			SpawnBloodSplash (org, xdmg);
 			playedsound = TRUE;
 		}
 
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
+		BroadcastGunshotEffect(org);
 	}
 
 	if (playedsound)
@@ -321,8 +354,27 @@ SpawnBlood
 */
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-	particle (org, vel*0.1, 73, damage*2);
+	particle2 (org, vel * 0.2, 1 /* blood preset */, damage);
 };
+
+/*
+================
+SpawnBloodSplash
+================
+*/
+void(vector org, float damage) SpawnBloodSplash =
+{
+	local vector		pvel;
+
+	pvel_x = crandom() * 240;
+	pvel_y = crandom() * 240;
+	pvel_z = random() * 120 + 100;
+
+	SpawnBlood(org, pvel, damage);
+};
+
+
+
 
 /*
 ================
@@ -334,7 +386,7 @@ void(float damage) spawn_touchblood =
 	local vector	vel;
 
 	vel = wall_velocity () * 0.2;
-	SpawnBlood (self.origin + vel*0.01, vel, damage);
+	SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
 
@@ -345,7 +397,7 @@ SpawnChunk
 */
 void(vector org, vector vel) SpawnChunk =
 {
-	particle (org, vel*0.02, 0, 10);
+	particle (org, vel * 0.02, 0, 10);
 };
 
 /*
@@ -419,11 +471,7 @@ void(float damage, vector dir) TraceAttack =
 	}
 	else
 	{
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
+		BroadcastGunshotEffect(org);
 	}
 };
 
@@ -508,6 +556,10 @@ void() W_FireShotgun =
 	self.currentammo = self.ammo_shells = self.ammo_shells - 1;
 	dir = aim (self, 100000);
 	FireBullets (6, dir, '0.01 0.01 0');
+
+	VRGunHaptic(0.25, 70, 0.75);
+
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -533,6 +585,11 @@ void() W_FireSuperShotgun =
 	self.currentammo = self.ammo_shells = self.ammo_shells - 2;
 	dir = aim (self, 100000);
 	FireBullets (14, dir, '0.035 0.025 0');
+
+	VRGunHaptic(0.55, 75, 1.0);
+
+	particle2 (self.muzzlepos - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+	particle2 (self.muzzlepos + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -640,6 +697,10 @@ void() W_FireRocket =
 	setsize (missile, '0 0 0', '0 0 0');
 	setorigin (missile, self.handpos + '0 0 0');
 	//setorigin (missile, self.handpos + v_forward*8 + '0 0 16');
+
+	VRGunHaptic(0.5, 75, 1.0);
+
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 3);
 };
 
 /*
@@ -672,7 +733,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1, p2, FALSE, self);
 	if (trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 		if (self.classname == "player")
 		{
@@ -685,7 +746,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 + f, p2 + f, FALSE, self);
 	if (trace_ent != e1 && trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 	}
 	e2 = trace_ent;
@@ -693,7 +754,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 	traceline (p1 - f, p2 - f, FALSE, self);
 	if (trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
 	{
-		particle (trace_endpos, '0 0 100', 225, damage*4);
+		SpawnBloodSplash (trace_endpos, damage*5);
 		T_Damage (trace_ent, from, from, damage);
 	}
 };
@@ -734,7 +795,13 @@ void() W_FireLightning =
 	org = self.handpos + '0 0 0';
 
 	traceline (org, org + v_forward*600, TRUE, self);
+	particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
+	particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
+	particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
 	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
+
+	VRGunHaptic(0.4, 175, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -834,6 +901,9 @@ void() W_FireGrenade =
 	setmodel (missile, "progs/grenade.mdl");
 	setsize (missile, '0 0 0', '0 0 0');
 	setorigin (missile, self.handpos);
+
+	VRGunHaptic(0.4, 75, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
 
@@ -888,6 +958,9 @@ void() W_FireSuperSpikes =
 	newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
 	self.punchangle_x = -2;
+
+	VRGunHaptic(0.05, 150, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 void(float ox) W_FireSpikes =
@@ -920,6 +993,9 @@ void(float ox) W_FireSpikes =
 	newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
 	self.punchangle_x = -2;
+
+	VRGunHaptic(0.05, 150, 1.0);
+	particle2 (self.muzzlepos + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -1522,6 +1598,8 @@ void() W_WeaponFrame =
 		if (self.weapon == IT_LIGHTNING)
 		{
 			org = self.handpos + '0 0 0';
+
+			makevectors(self.v_angle);
 			traceline (org, org + v_forward*600, TRUE, self);
 
 			WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);

@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -102,7 +103,7 @@ cvar_t gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 
 extern cvar_t crosshair;
 
-qboolean scr_initialized; // ready to draw
+bool scr_initialized; // ready to draw
 
 qpic_t* scr_ram;
 qpic_t* scr_net;
@@ -113,8 +114,8 @@ int clearnotify;
 
 vrect_t scr_vrect;
 
-qboolean scr_disabled_for_loading;
-qboolean scr_drawloading;
+bool scr_disabled_for_loading;
+bool scr_drawloading;
 float scr_disabled_time;
 
 int scr_tileclear_updates = 0; // johnfitz
@@ -911,7 +912,7 @@ void SCR_ScreenShot_f()
     int i;
 
     int quality;
-    qboolean ok;
+    bool ok;
 
     Q_strncpy(ext, "png", sizeof(ext));
 
@@ -1056,7 +1057,7 @@ void SCR_EndLoadingPlaque()
 //=============================================================================
 
 const char* scr_notifystring;
-qboolean scr_drawdialog;
+bool scr_drawdialog;
 
 void SCR_DrawNotifyString()
 {

@@ -61,7 +61,7 @@ static ov_callbacks ovc_qfs = {
     (int (*)(void*, ogg_int64_t, int))ovc_fseek, (int (*)(void*))ovc_fclose,
     (long (*)(void*))FS_ftell};
 
-static qboolean S_VORBIS_CodecInitialize(void)
+static bool S_VORBIS_CodecInitialize(void)
 {
     return true;
 }
@@ -70,7 +70,7 @@ static void S_VORBIS_CodecShutdown(void)
 {
 }
 
-static qboolean S_VORBIS_CodecOpenStream(snd_stream_t* stream)
+static bool S_VORBIS_CodecOpenStream(snd_stream_t* stream)
 {
     OggVorbis_File* ovFile;
     vorbis_info* ovf_info;

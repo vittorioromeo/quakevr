@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -226,7 +227,7 @@ R_BackFaceCull -- johnfitz -- returns true if the surface is facing away from
 vieworg
 ================
 */
-qboolean R_BackFaceCull(msurface_t* surf)
+bool R_BackFaceCull(msurface_t* surf)
 {
     double dot;
 
@@ -490,7 +491,7 @@ void R_DrawTextureChains_Glow(qmodel_t* model, entity_t* ent, texchain_t chain)
     msurface_t* s;
     texture_t* t;
     gltexture_t* glt;
-    qboolean bound;
+    bool bound;
 
     for(i = 0; i < model->numtextures; i++)
     {
@@ -622,7 +623,7 @@ void R_DrawTextureChains_Multitexture(
     msurface_t* s;
     texture_t* t;
     float* v;
-    qboolean bound;
+    bool bound;
 
     for(i = 0; i < model->numtextures; i++)
     {
@@ -688,7 +689,7 @@ void R_DrawTextureChains_NoTexture(qmodel_t* model, texchain_t chain)
     int i;
     msurface_t* s;
     texture_t* t;
-    qboolean bound;
+    bool bound;
 
     for(i = 0; i < model->numtextures; i++)
     {
@@ -730,7 +731,7 @@ void R_DrawTextureChains_TextureOnly(
     int i;
     msurface_t* s;
     texture_t* t;
-    qboolean bound;
+    bool bound;
 
     for(i = 0; i < model->numtextures; i++)
     {
@@ -806,7 +807,7 @@ void R_DrawTextureChains_Water(qmodel_t* model, entity_t* ent, texchain_t chain)
     msurface_t* s;
     texture_t* t;
     glpoly_t* p;
-    qboolean bound;
+    bool bound;
     float entalpha;
 
     if(r_drawflat_cheatsafe || r_lightmap_cheatsafe)
@@ -1087,7 +1088,7 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
     int i;
     msurface_t* s;
     texture_t* t;
-    qboolean bound;
+    bool bound;
     int lastlightmap;
     gltexture_t* fullbright = nullptr;
     float entalpha;

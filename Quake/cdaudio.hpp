@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __CDAUDIO_H
 
 int CDAudio_Init(void);
-int CDAudio_Play(byte track, qboolean looping);
+int CDAudio_Play(byte track, bool looping);
 /* returns 0 for success, -1 for failure. */
 void CDAudio_Stop(void);
 void CDAudio_Pause(void);

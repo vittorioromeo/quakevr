@@ -1,5 +1,18 @@
 // button and multiple button
 
+void(entity e) VRButtonPressHaptic =
+{
+	if (cvar("vr_body_interactions") == 0)
+	{
+		haptic(e.touchinghand, 0.0, 0.3, 75, 1.0);
+	}
+	else
+	{
+		haptic(0, 0.0, 0.3, 75, 1.0);
+		haptic(1, 0.0, 0.3, 75, 1.0);
+	}
+}
+
 void() button_wait;
 void() button_return;
 
@@ -20,8 +33,17 @@ void() button_done =
 
 void() button_return =
 {
+	local vector porg;
+
+	porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
+	porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
+	porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
+	particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
+
 	self.state = STATE_DOWN;
+
 	SUB_CalcMove (self.pos1, self.speed, button_done);
+
 	self.frame = 0;			// use normal textures
 	if (self.health)
 		self.takedamage = DAMAGE_YES;	// can be shot again
@@ -35,10 +57,18 @@ void() button_blocked =
 
 void() button_fire =
 {
+	local vector porg;
+
 	if (self.state == STATE_UP || self.state == STATE_TOP)
 	{
 		return;
 	}
+
+
+	porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
+	porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
+	porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
+	particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
 
 	sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
@@ -59,6 +89,8 @@ void() button_touch =
 	{
 		return;
 	}
+
+	VRButtonPressHaptic(other);
 
 	self.enemy = other;
 	button_fire ();

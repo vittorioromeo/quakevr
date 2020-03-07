@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "world.hpp"
 #include "util.hpp"
 
+#include <algorithm>
 #include <tuple>
 
 /*
@@ -140,7 +142,7 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
-qboolean SV_RunThink(edict_t* ent)
+bool SV_RunThink(edict_t* ent)
 {
     float thinktime;
     float oldframe; // johnfitz
@@ -782,7 +784,7 @@ void SV_CheckStuck(edict_t* ent)
 SV_CheckWater
 =============
 */
-qboolean SV_CheckWater(edict_t* ent)
+bool SV_CheckWater(edict_t* ent)
 {
     vec3_t point;
     int cont;
@@ -1065,8 +1067,6 @@ Trigger hand-touching actions (e.g. pick up an item, press a button)
 void SV_Handtouch(edict_t* ent)
 {
     // TODO VR: cleanup, too much unnecessary tracing and work
-
-
     using namespace quake::util;
 
     // Utility constants
@@ -1120,14 +1120,13 @@ void SV_Handtouch(edict_t* ent)
     vec3_t qMaxs;
     toQuakeVec3(qMaxs, maxs);
 
-
     const auto traceCheck = [&](const trace_t& trace) {
         if(!trace.ent)
         {
             return;
         }
 
-        const auto handCollisionCheck = [&](vec3_t handPos) {
+        const auto handCollisionCheck = [&](const int hand, vec3_t handPos) {
             vec3_t aMin, aMax, bMin, bMax;
             VectorAdd(trace.ent->v.origin, trace.ent->v.mins, aMin);
             VectorAdd(trace.ent->v.origin, trace.ent->v.maxs, aMax);
@@ -1136,12 +1135,13 @@ void SV_Handtouch(edict_t* ent)
 
             if(quake::util::boxIntersection(aMin, aMax, bMin, bMax))
             {
+                ent->v.touchinghand = hand;
                 SV_Impact(ent, trace.ent, &entvars_t::handtouch);
             }
         };
 
-        handCollisionCheck(ent->v.handpos);
-        handCollisionCheck(ent->v.offhandpos);
+        handCollisionCheck(0, ent->v.offhandpos);
+        handCollisionCheck(1, ent->v.handpos);
     };
 
     const auto endHandPosition = [&](vec3_t out, vec3_t handPos,
@@ -1501,7 +1501,7 @@ will fall if the floor is pulled out from under them.
 */
 void SV_Physics_Step(edict_t* ent)
 {
-    qboolean hitsound;
+    bool hitsound;
 
     // freefall if not onground
     if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))

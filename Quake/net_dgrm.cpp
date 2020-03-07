@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -259,7 +260,7 @@ static int ReSendMessage(qsocket_t* sock)
 }
 
 
-qboolean Datagram_CanSendMessage(qsocket_t* sock)
+bool Datagram_CanSendMessage(qsocket_t* sock)
 {
     if(sock->sendNext)
     {
@@ -270,7 +271,7 @@ qboolean Datagram_CanSendMessage(qsocket_t* sock)
 }
 
 
-qboolean Datagram_CanSendUnreliableMessage(qsocket_t* sock)
+bool Datagram_CanSendUnreliableMessage(qsocket_t* sock)
 {
     (void)sock;
 
@@ -570,7 +571,7 @@ static const char* Strip_Port(const char* host)
 }
 
 
-static qboolean testInProgress = false;
+static bool testInProgress = false;
 static int testPollCount;
 static int testDriver;
 static sys_socket_t testSocket;
@@ -734,7 +735,7 @@ JustDoIt:
 }
 
 
-static qboolean test2InProgress = false;
+static bool test2InProgress = false;
 static int test2Driver;
 static sys_socket_t test2Socket;
 
@@ -967,7 +968,7 @@ void Datagram_Close(qsocket_t* sock)
 }
 
 
-void Datagram_Listen(qboolean state)
+void Datagram_Listen(bool state)
 {
     int i;
 
@@ -1287,7 +1288,7 @@ qsocket_t* Datagram_CheckNewConnections()
 }
 
 
-static void _Datagram_SearchForHosts(qboolean xmit)
+static void _Datagram_SearchForHosts(bool xmit)
 {
     int ret;
     int n;
@@ -1414,7 +1415,7 @@ static void _Datagram_SearchForHosts(qboolean xmit)
     }
 }
 
-void Datagram_SearchForHosts(qboolean xmit)
+void Datagram_SearchForHosts(bool xmit)
 {
     for(net_landriverlevel = 0; net_landriverlevel < net_numlandrivers;
         net_landriverlevel++)

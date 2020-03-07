@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -36,7 +37,7 @@ is not a staircase.
 */
 int c_yes, c_no;
 
-qboolean SV_CheckBottom(edict_t* ent)
+bool SV_CheckBottom(edict_t* ent)
 {
     vec3_t mins;
 
@@ -131,7 +132,7 @@ possible, no move is done, false is returned, and
 pr_global_struct->trace_normal is set to the normal of the blocking wall
 =============
 */
-qboolean SV_movestep(edict_t* ent, vec3_t move, qboolean relink)
+bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 {
     float dz;
     vec3_t oldorg;
@@ -281,7 +282,7 @@ facing it.
 ======================
 */
 void PF_changeyaw();
-qboolean SV_StepDirection(edict_t* ent, float yaw, float dist)
+bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
     vec3_t move;
 
@@ -467,7 +468,7 @@ SV_CloseEnough
 
 ======================
 */
-qboolean SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
+bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 {
     int i;
 

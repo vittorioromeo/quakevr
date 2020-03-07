@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "vr.hpp"
 
-qboolean r_cache_thrash; // compatability
+bool r_cache_thrash; // compatability
 
 vec3_t modelorg, r_entorigin;
 entity_t* currententity;
@@ -35,7 +36,7 @@ int r_framecount;    // used for dlight push checking
 mplane_t frustum[4];
 
 // johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 float rs_megatexels;
 
@@ -119,7 +120,7 @@ cvar_t r_slimealpha = {"r_slimealpha", "0", CVAR_NONE};
 
 float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 
-qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
+bool r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
     r_drawworld_cheatsafe; // johnfitz
 
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
@@ -296,7 +297,7 @@ R_CullBox -- johnfitz -- replaced with new function from lordhavoc
 Returns true if the box is completely outside the frustum
 =================
 */
-qboolean R_CullBox(vec3_t emins, vec3_t emaxs)
+bool R_CullBox(vec3_t emins, vec3_t emaxs)
 {
     int i;
     mplane_t* p;
@@ -379,7 +380,7 @@ qboolean R_CullBox(vec3_t emins, vec3_t emaxs)
 R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 ===============
 */
-qboolean R_CullModelForEntity(entity_t* e)
+bool R_CullModelForEntity(entity_t* e)
 {
     vec3_t mins;
 
@@ -738,7 +739,7 @@ void R_SetupView()
 R_DrawEntitiesOnList
 =============
 */
-void R_DrawEntitiesOnList(qboolean alphapass) // johnfitz -- added parameter
+void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 {
     if(!r_drawentities.value)
     {
@@ -938,8 +939,6 @@ R_ShowTris -- johnfitz
 */
 void R_ShowTris()
 {
-    extern cvar_t r_particles;
-
     if(r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1)
     {
         return;
@@ -1002,6 +1001,7 @@ void R_ShowTris()
         doViewmodel(&cl.offhand_viewent);
     }
 
+    extern cvar_t r_particles;
     if(r_particles.value)
     {
         R_DrawParticles_ShowTris();
@@ -1255,7 +1255,7 @@ void R_RenderView()
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys =
             rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }

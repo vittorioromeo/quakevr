@@ -1,6 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_defs.hpp"
 #include "net_loop.hpp"
 
-static qboolean localconnectpending = false;
+static bool localconnectpending = false;
 static qsocket_t* loop_client = nullptr;
 static qsocket_t* loop_server = nullptr;
 
@@ -45,13 +46,13 @@ void Loop_Shutdown()
 }
 
 
-void Loop_Listen(qboolean state)
+void Loop_Listen(bool state)
 {
     (void)state;
 }
 
 
-void Loop_SearchForHosts(qboolean xmit)
+void Loop_SearchForHosts(bool xmit)
 {
     (void)xmit;
 
@@ -252,7 +253,7 @@ int Loop_SendUnreliableMessage(qsocket_t* sock, sizebuf_t* data)
 }
 
 
-qboolean Loop_CanSendMessage(qsocket_t* sock)
+bool Loop_CanSendMessage(qsocket_t* sock)
 {
     if(!sock->driverdata)
     {
@@ -262,7 +263,7 @@ qboolean Loop_CanSendMessage(qsocket_t* sock)
 }
 
 
-qboolean Loop_CanSendUnreliableMessage(qsocket_t* sock)
+bool Loop_CanSendUnreliableMessage(qsocket_t* sock)
 {
     (void)sock;
 

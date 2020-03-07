@@ -8,6 +8,10 @@
 #include <cassert>
 #include <array>
 
+// TODO VR: move to other menu?
+extern cvar_t r_particles;
+extern cvar_t r_particle_mult;
+
 static int vr_options_cursor = 0;
 
 #define VR_MAX_TURN_SPEED 10.0f
@@ -41,10 +45,6 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
 
     switch(option)
     {
-        // TODO VR:
-        // case VRMenuOpt::VR_ENABLED:
-        //     M_DrawCheckbox(cx, cy, (int)vr_enabled.value);
-        //     break;
         case VRMenuOpt::VR_AIMMODE:
             switch((int)vr_aimmode.value)
             {
@@ -176,6 +176,10 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
             value_string = vr_viewkick.value == 0 ? "Off" : "On";
             break;
         case VRMenuOpt::VR_MENU_DISTANCE: printAsStr(vr_menu_distance); break;
+        case VRMenuOpt::VR_PARTICLES:
+            value_string = r_particles.value == 0 ? "Off" : "On";
+            break;
+            case VRMenuOpt::VR_PARTICLE_MULT: printAsStr(r_particle_mult); break;
         default: assert(false); break;
     }
 
@@ -215,14 +219,6 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
 
     switch(option)
     {
-        // TODO VR:
-        // case VRMenuOpt::VR_ENABLED:
-        // TODO VR: fix and restore
-        // Cvar_SetValue( "vr_enabled", ! (int)vr_enabled.value );
-        // if ( (int)vr_enabled.value ) {
-        //    VR_MenuPlaySound( "items/r_item2.wav", 0.5 );
-        // }
-        // break;
         case VRMenuOpt::VR_AIMMODE:
             intValue = (int)vr_aimmode.value;
             intValue = CLAMP(aimmode[0], isLeft ? intValue - 1 : intValue + 1,
@@ -255,7 +251,7 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_ENABLE_JOYSTICK_TURN:
             adjustI(vr_enable_joystick_turn, 1, 0, 1);
             break;
-        case VRMenuOpt::VR_SNAP_TURN: adjustI(vr_snap_turn, 45, 0, 90); break;
+        case VRMenuOpt::VR_SNAP_TURN: adjustI(vr_snap_turn, 5, 0, 90); break;
         case VRMenuOpt::VR_TURN_SPEED:
             adjustF(vr_turn_speed, 0.25f, 0.f, VR_MAX_TURN_SPEED);
             break;
@@ -299,6 +295,10 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_VIEWKICK: adjustI(vr_viewkick, 1, 0, 1); break;
         case VRMenuOpt::VR_MENU_DISTANCE:
             adjustI(vr_menu_distance, 1, 24, 256);
+            break;
+        case VRMenuOpt::VR_PARTICLES: adjustI(r_particles, 1, 0, 1); break;
+        case VRMenuOpt::VR_PARTICLE_MULT:
+            adjustF(r_particle_mult, 0.25f, 0.25f, 10.f);
             break;
         default: assert(false); break;
     }
@@ -372,19 +372,13 @@ void M_VR_Draw()
     int idx = 0;
 
     static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
-        // TODO VR:
-        // "VR Enabled",
-
-
         "Aim Mode", "Deadzone", "Crosshair", "Crosshair Depth",
         "Crosshair Size", "Crosshair Alpha", "World Scale", "Movement mode",
         "Enable Joystick Turn", "Turn", "Turn Speed", "MSAA", "Gun Angle",
         "Floor Offset", "Gun Model Pitch", "Gun Model Scale",
         "Gun Model Z Offset", "Crosshair Z Offset",
-        // TODO VR: consider restoring for custom QC?
-        // "Projectile Spawn Z",
         "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset", "Status Bar Mode",
-        "Viewkick", "Menu Distance");
+        "Viewkick", "Menu Distance", "Particle Effects", "Particle Multiplier");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 
@@ -418,6 +412,4 @@ void M_Menu_VR_f()
 
 // TODO VR:
 // * difficulty options
-// * nicer explosion particles
-// * speed adjustment options, sprinting
 // * vignette?

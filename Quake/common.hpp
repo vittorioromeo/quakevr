@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2020-2020 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -48,8 +49,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct sizebuf_s
 {
-    qboolean allowoverflow; // if false, do a Sys_Error
-    qboolean overflowed;    // set to true if the buffer size failed
+    bool allowoverflow; // if false, do a Sys_Error
+    bool overflowed;    // set to true if the buffer size failed
     byte* data;
     int maxsize;
     int cursize;
@@ -82,7 +83,7 @@ void InsertLinkAfter(link_t* l, link_t* after);
 
 //============================================================================
 
-extern qboolean host_bigendian;
+extern bool host_bigendian;
 
 extern short (*BigShort)(short l);
 extern short (*LittleShort)(short l);
@@ -104,7 +105,7 @@ void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags);
 void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags); // johnfitz
 
 extern int msg_readcount;
-extern qboolean msg_badread; // set if a read goes beyond end of message
+extern bool msg_badread; // set if a read goes beyond end of message
 
 void MSG_BeginReading(void);
 int MSG_ReadChar(void);
@@ -156,7 +157,7 @@ extern int q_vsnprintf(char* str, size_t size, const char* format, va_list args)
 //============================================================================
 
 extern char com_token[1024];
-extern qboolean com_eof;
+extern bool com_eof;
 
 const char* COM_Parse(const char* data);
 
@@ -232,7 +233,7 @@ extern int file_from_pak; // global indicating that file came from a pak
 void COM_WriteFile(const char* filename, const void* data, int len);
 int COM_OpenFile(const char* filename, int* handle, unsigned int* path_id);
 int COM_FOpenFile(const char* filename, FILE** file, unsigned int* path_id);
-qboolean COM_FileExists(const char* filename, unsigned int* path_id);
+bool COM_FileExists(const char* filename, unsigned int* path_id);
 void COM_CloseFile(int h);
 
 // these procedures open a file using COM_FindFile and loads it into a proper
@@ -282,7 +283,7 @@ const char* COM_ParseStringNewline(const char* buffer);
 typedef struct _fshandle_t
 {
     FILE* file;
-    qboolean pak; /* is the file read from a pak */
+    bool pak; /* is the file read from a pak */
     long start;   /* file or data start position */
     long length;  /* file or data size */
     long pos;     /* current position relative to start */
@@ -301,8 +302,8 @@ long FS_filelength(fshandle_t* fh);
 
 
 extern struct cvar_s registered;
-extern qboolean standard_quake, rogue, hipnotic;
-extern qboolean fitzmode;
+extern bool standard_quake, rogue, hipnotic;
+extern bool fitzmode;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
 
 #endif /* _Q_COMMON_H */

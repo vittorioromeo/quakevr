@@ -28,7 +28,7 @@
 extern bool bgmloop;
 extern cvar_t bgm_extmusic;
 
-qboolean BGM_Init(void);
+bool BGM_Init(void);
 void BGM_Shutdown(void);
 
 void BGM_Play(const char* filename);
@@ -37,6 +37,6 @@ void BGM_Update(void);
 void BGM_Pause(void);
 void BGM_Resume(void);
 
-void BGM_PlayCDtrack(byte track, qboolean looping);
+void BGM_PlayCDtrack(byte track, bool looping);
 
 #endif /* _BGMUSIC_H_ */

@@ -1931,7 +1931,7 @@ static unsigned encodeLZ77(uivector* out, Hash* hash, const unsigned char* in,
 
         /*search for the longest string*/
         prev_offset = 0;
-        for(;;)
+        while(true)
         {
             if(chainlength++ >= maxchainlength) break;
             current_offset =
@@ -3026,7 +3026,7 @@ const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk)
 unsigned char* lodepng_chunk_find(
     unsigned char* chunk, const unsigned char* end, const char type[5])
 {
-    for(;;)
+    while(true)
     {
         if(chunk + 12 >= end) return 0;
         if(lodepng_chunk_type_equals(chunk, type)) return chunk;
@@ -3037,7 +3037,7 @@ unsigned char* lodepng_chunk_find(
 const unsigned char* lodepng_chunk_find_const(
     const unsigned char* chunk, const unsigned char* end, const char type[5])
 {
-    for(;;)
+    while(true)
     {
         if(chunk + 12 >= end) return 0;
         if(lodepng_chunk_type_equals(chunk, type)) return chunk;
