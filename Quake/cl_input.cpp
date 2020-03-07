@@ -559,6 +559,9 @@ void CL_SendMove(const usercmd_t* cmd)
     writeVec(cmd->offhandvel);
     MSG_WriteFloat(&buf, cmd->offhandvelmag);
 
+    // muzzlepos
+    writeVec(cmd->muzzlepos);
+
     MSG_WriteShort(&buf, cmd->forwardmove);
     MSG_WriteShort(&buf, cmd->sidemove);
     MSG_WriteShort(&buf, cmd->upmove);

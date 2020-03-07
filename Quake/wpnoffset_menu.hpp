@@ -11,6 +11,9 @@ enum class WpnOffsetMenuOpt
     Roll,
     Pitch,
     Yaw,
+    MuzzleOffsetX,
+    MuzzleOffsetY,
+    MuzzleOffsetZ,
 
     Max
 };

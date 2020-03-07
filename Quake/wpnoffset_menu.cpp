@@ -33,7 +33,10 @@ static auto getCvars()
         vr_weapon_offset[idx * VARS_PER_WEAPON + 3], // Scale
         vr_weapon_offset[idx * VARS_PER_WEAPON + 7], // Roll
         vr_weapon_offset[idx * VARS_PER_WEAPON + 5], // Pitch
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 6]  // Yaw
+        vr_weapon_offset[idx * VARS_PER_WEAPON + 6], // Yaw
+        vr_weapon_offset[idx * VARS_PER_WEAPON + 8], // MuzzleOffsetX
+        vr_weapon_offset[idx * VARS_PER_WEAPON + 9], // MuzzleOffsetY
+        vr_weapon_offset[idx * VARS_PER_WEAPON + 10] // MuzzleOffsetZ
     );
     // clang-format on
 }
@@ -53,7 +56,7 @@ static void WpnOffset_MenuPrintOptionValue(
         M_Print(cx, cy, value_buffer);
     };
 
-    const auto& [ox, oy, oz, sc, rr, rp, ry] = getCvars();
+    const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz] = getCvars();
 
     switch(option)
     {
@@ -65,6 +68,9 @@ static void WpnOffset_MenuPrintOptionValue(
         case WpnOffsetMenuOpt::Roll: printAsStr(rr); break;
         case WpnOffsetMenuOpt::Pitch: printAsStr(rp); break;
         case WpnOffsetMenuOpt::Yaw: printAsStr(ry); break;
+        case WpnOffsetMenuOpt::MuzzleOffsetX: printAsStr(mx); break;
+        case WpnOffsetMenuOpt::MuzzleOffsetY: printAsStr(my); break;
+        case WpnOffsetMenuOpt::MuzzleOffsetZ: printAsStr(mz); break;
         default: assert(false); break;
     }
 }
@@ -79,12 +85,12 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
             CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
     };
 
-    const auto& [ox, oy, oz, sc, rr, rp, ry] = getCvars();
+    const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz] = getCvars();
 
-    constexpr float oInc = 0.1f;
+    const float oInc = in_speed.state ? 5.f : 0.1f;
     constexpr float oBound = 100.f;
 
-    constexpr float rInc = 0.5f;
+    const float rInc = in_speed.state ? 5.f : 0.5f;
     constexpr float rBound = 90.f;
 
     switch(option)
@@ -103,6 +109,15 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
         case WpnOffsetMenuOpt::Roll: adjustF(rr, rInc, -rBound, rBound); break;
         case WpnOffsetMenuOpt::Pitch: adjustF(rp, rInc, -rBound, rBound); break;
         case WpnOffsetMenuOpt::Yaw: adjustF(ry, rInc, -rBound, rBound); break;
+        case WpnOffsetMenuOpt::MuzzleOffsetX:
+            adjustF(mx, oInc, -oBound, oBound);
+            break;
+        case WpnOffsetMenuOpt::MuzzleOffsetY:
+            adjustF(my, oInc, -oBound, oBound);
+            break;
+        case WpnOffsetMenuOpt::MuzzleOffsetZ:
+            adjustF(mz, oInc, -oBound, oBound);
+            break;
         default: assert(false); break;
     }
 }
@@ -179,9 +194,9 @@ void M_WpnOffset_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Offhand", "Offset X", "Offset Y",
-            "Offset Z", "Scale", "Roll", "Pitch", "Yaw");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
+        "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 

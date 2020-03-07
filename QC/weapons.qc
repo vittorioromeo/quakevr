@@ -558,6 +558,8 @@ void() W_FireShotgun =
 	FireBullets (6, dir, '0.01 0.01 0');
 
 	VRGunHaptic(0.25, 70, 0.75);
+
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -585,6 +587,9 @@ void() W_FireSuperShotgun =
 	FireBullets (14, dir, '0.035 0.025 0');
 
 	VRGunHaptic(0.55, 75, 1.0);
+
+	particle2 (self.muzzlepos - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+	particle2 (self.muzzlepos + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -694,6 +699,8 @@ void() W_FireRocket =
 	//setorigin (missile, self.handpos + v_forward*8 + '0 0 16');
 
 	VRGunHaptic(0.5, 75, 1.0);
+
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 3);
 };
 
 /*
@@ -794,6 +801,7 @@ void() W_FireLightning =
 	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
 
 	VRGunHaptic(0.4, 175, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -895,6 +903,7 @@ void() W_FireGrenade =
 	setorigin (missile, self.handpos);
 
 	VRGunHaptic(0.4, 75, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
 
@@ -951,6 +960,7 @@ void() W_FireSuperSpikes =
 	self.punchangle_x = -2;
 
 	VRGunHaptic(0.05, 150, 1.0);
+	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 void(float ox) W_FireSpikes =
@@ -985,6 +995,7 @@ void(float ox) W_FireSpikes =
 	self.punchangle_x = -2;
 
 	VRGunHaptic(0.05, 150, 1.0);
+	particle2 (self.muzzlepos + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 

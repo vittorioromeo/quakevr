@@ -594,7 +594,8 @@ void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
 void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* offsetY, const char* offsetZ, const char* scale,
     const char* roll = "0.0", const char* pitch = "0.0",
-    const char* yaw = "0.0")
+    const char* yaw = "0.0", const char* muzzleOffsetX = "0.0",
+    const char* muzzleOffsetY = "0.0", const char* muzzleOffsetZ = "0.0")
 {
     // clang-format off
     constexpr const char* nameOffsetX = "vr_wofs_x_nn";
@@ -605,6 +606,9 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* nameRoll = "vr_wofs_roll_nn";
     constexpr const char* namePitch = "vr_wofs_pitch_nn";
     constexpr const char* nameYaw = "vr_wofs_yaw_nn";
+    constexpr const char* nameMuzzleOffsetX = "vr_wofs_muzzle_x_nn";
+    constexpr const char* nameMuzzleOffsetY = "vr_wofs_muzzle_y_nn";
+    constexpr const char* nameMuzzleOffsetZ = "vr_wofs_muzzle_z_nn";
 
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON], nameOffsetX, i, offsetX);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 1], nameOffsetY, i, offsetY);
@@ -614,6 +618,9 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 5], nameRoll, i, roll);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 6], namePitch, i, pitch);
     InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 7], nameYaw, i, yaw);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 8], nameMuzzleOffsetX, i, muzzleOffsetX);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 9], nameMuzzleOffsetY, i, muzzleOffsetY);
+    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 10], nameMuzzleOffsetZ, i, muzzleOffsetZ);
     // clang-format on
 }
 
@@ -1517,34 +1524,66 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     angles[ROLL] = orientation[ROLL];
 }
 
+void VR_CalcWeaponMuzzlePos(vec3_t out)
+{
+    // TODO VR:
+
+    vec3_t forward;
+    vec3_t up;
+    vec3_t right;
+
+    /*
+    vec3_t ofs = {//
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
+            vr_gunmodely.value};
+            */
+
+    vec3_t muzzleOfs = {
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 8].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 9].value,
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 10].value};
+
+    const float scaleCorrect =
+        (vr_world_scale.value / 0.75f) *
+        vr_gunmodelscale.value; // initial version had 0.75 default world
+                                // scale, so weapons reflect that
+
+    using namespace quake::util;
+    // glm::vec3 finalOffsets{ofs[0], ofs[1], ofs[2]};
+    glm::vec3 finalOffsets{0, 0, 0};
+    finalOffsets = finalOffsets + muzzleOfs;
+    AngleVectors(cl.handrot[1], forward, right, up);
+    const auto glmForward = toVec3(forward);
+    const auto glmRight = toVec3(right);
+    const auto glmUp = toVec3(up);
+
+    finalOffsets *=
+        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 3].value *
+        scaleCorrect;
+
+
+    const auto fFwd = glmForward * finalOffsets[0];
+    const auto fRight = glmRight * finalOffsets[1];
+    const auto fUp = glmUp * finalOffsets[2];
+
+
+
+    // Con_Printf("%.2f %.2f %.2f\n", forward[0], forward[1], forward[2]);
+
+    toQuakeVec3(out, toVec3(cl.handpos[1]) + fFwd + fRight + fUp);
+}
+
 void VR_ShowCrosshair()
 {
-    vec3_t forward;
-
-    vec3_t up;
-
-    vec3_t right;
-    vec3_t start;
-
-    vec3_t end;
-
-    vec3_t impact;
-    float size;
-
-    float alpha;
-
-    if(!sv_player)
+    if(!sv_player || (int)(sv_player->v.weapon) == IT_AXE)
     {
         return;
     }
 
-    if((int)(sv_player->v.weapon) == IT_AXE)
-    {
-        return;
-    }
-
-    size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
-    alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
+    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
+    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
 
     if(size <= 0 || alpha <= 0)
     {
@@ -1560,25 +1599,20 @@ void VR_ShowCrosshair()
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
 
+    vec3_t forward;
+    vec3_t up;
+    vec3_t right;
+    vec3_t start;
+    vec3_t end;
+    vec3_t impact;
+
     // calc the line and draw
     // VR TODO: Make the laser align correctly
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        VectorCopy(cl.handpos[1], start);
-
         // TODO VR: repetition of ofs calculation
-        vec3_t ofs = {vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
-            vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
-            vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
-                vr_gunmodely.value};
-
         AngleVectors(cl.handrot[1], forward, right, up);
-        vec3_t fwd2;
-        VectorCopy(forward, fwd2);
-        fwd2[0] *= vr_gunmodelscale.value * ofs[2];
-        fwd2[1] *= vr_gunmodelscale.value * ofs[2];
-        fwd2[2] *= vr_gunmodelscale.value * ofs[2];
-        VectorAdd(start, fwd2, start);
+        VR_CalcWeaponMuzzlePos(start);
     }
     else
     {
@@ -2080,6 +2114,9 @@ void VR_Move(usercmd_t* cmd)
     VectorCopy(cl.handrot[0], cmd->offhandrot);
     VectorCopy(cl.handvel[0], cmd->offhandvel);
     cmd->offhandvelmag = cl.handvelmag[0];
+
+    // VR: Weapon muzzle position.
+    VR_CalcWeaponMuzzlePos(cmd->muzzlepos);
 
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.

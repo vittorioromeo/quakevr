@@ -66,7 +66,8 @@ enum ptype_t : std::uint8_t
     pt_txsmoke,
     pt_lightning,
     pt_teleport,
-    pt_rock
+    pt_rock,
+    pt_gunsmoke,
 };
 
 // TODO VR: optimize layout?
@@ -329,6 +330,7 @@ ParticleTextureManager::Handle ptxBloodMist;
 ParticleTextureManager::Handle ptxLightning;
 ParticleTextureManager::Handle ptxSpark;
 ParticleTextureManager::Handle ptxRock;
+ParticleTextureManager::Handle ptxGunSmoke;
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
@@ -477,6 +479,7 @@ void R_InitParticleTextures()
     load(ptxLightning, "textures/particle_lightning");
     load(ptxSpark, "textures/particle_spark");
     load(ptxRock, "textures/particle_rock");
+    load(ptxGunSmoke, "textures/particle_gun_smoke");
 }
 
 static void R_InitRNumParticles()
@@ -1014,6 +1017,29 @@ void R_RunParticleEffect_Sparks(vec3_t org, vec3_t dir, int count)
     });
 }
 
+void R_RunParticleEffect_GunSmoke(vec3_t org, vec3_t dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxGunSmoke, count, [&](particle_t& p) {
+        p.angle = 3.14f / 2.f + rnd(-0.2f, 0.2f);
+        p.alpha = rnd(85, 125);
+        p.die = cl.time + 6;
+        p.color = rndi(10, 16);
+        p.scale = rnd(0.9f, 1.5f) * 0.1f;
+        p.type = pt_gunsmoke;
+        setAccGrav(p, -0.09f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j];
+            p.vel[j] = rnd(-3, 3);
+        }
+
+        p.org[2] += 3.f;
+    });
+}
+
 /*
 ===============
 R_RunParticleEffect
@@ -1039,7 +1065,8 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         Explosion = 2,
         Lightning = 3,
         Smoke = 4,
-        Sparks = 5
+        Sparks = 5,
+        GunSmoke = 6
     };
 
     switch(static_cast<Preset>(preset))
@@ -1072,6 +1099,11 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         case Preset::Sparks:
         {
             R_RunParticleEffect_Sparks(org, dir, count);
+            break;
+        }
+        case Preset::GunSmoke:
+        {
+            R_RunParticleEffect_GunSmoke(org, dir, count);
             break;
         }
         default:
@@ -1172,7 +1204,7 @@ static void R_SetRTRocketTrail(vec3_t start, particle_t& p)
 static void R_SetRTBlood(vec3_t start, particle_t& p)
 {
     p.type = pt_static;
-    p.color = 67 + (rand() & 3);  
+    p.color = 67 + (rand() & 3);
     for(int j = 0; j < 3; j++)
     {
         p.org[j] = start[j] + ((rand() % 6) - 3);
@@ -1541,6 +1573,15 @@ void CL_RunParticles()
             case pt_rock:
             {
                 p.angle += 25.f * frametime * (p.param0 == 0 ? 1.f : -1.f);
+
+                break;
+            }
+
+            case pt_gunsmoke:
+            {
+                p.alpha -= 105.f * frametime;
+                p.scale += 68.f * frametime;
+                p.org[2] += 18.f * frametime;
 
                 break;
             }

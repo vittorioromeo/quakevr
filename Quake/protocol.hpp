@@ -294,6 +294,7 @@ typedef struct
     vec3_t offhandrot;
     vec3_t offhandvel;
     float offhandvelmag;
+    vec3_t muzzlepos;
 
     // intended velocities
     float forwardmove;

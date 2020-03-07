@@ -219,6 +219,7 @@ void		end_sys_globals;		// flag for structure dumping
 .vector		offhandvel;
 .float		offhandvelmag;
 .float		touchinghand;
+.vector		muzzlepos;
 
 //================================================
 void		end_sys_fields;			// flag for structure dumping

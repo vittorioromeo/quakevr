@@ -621,6 +621,10 @@ void SV_ReadClientMove(usercmd_t* move)
     move->offhandvelmag = MSG_ReadFloat();
     host_client->edict->v.offhandvelmag = move->offhandvelmag;
 
+    // muzzlepos
+    readVec(move->muzzlepos);
+    VectorCopy(move->muzzlepos, host_client->edict->v.muzzlepos);
+
     // read movement
     move->forwardmove = MSG_ReadShort();
     move->sidemove = MSG_ReadShort();
