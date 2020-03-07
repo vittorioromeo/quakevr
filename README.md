@@ -18,6 +18,8 @@
 * Rebalanced for VR *(hitboxes, difficulty, projectile speed)*
 * Steam VR Input API support *(can rebind inputs in Steam VR settings)*
 * Many customization options *(e.g. melee damage/range, hand/body item pickup, and more)*
+* Brand new particle system *(smoke, blood, lightning effects, and more)*
+* Haptic feedback *(weapons, melee, damage, interactions with items)*
 
 ## Disclaimer
 
@@ -50,7 +52,7 @@
 * > The game seems to work fine, but there is no audio!
 
     * Ensure that the correct audio output device is set (HMD) and that the volume is turned up.
-    
+
     * Open the Desktop view from your Steam VR dashboard, and make sure that the Quake VR window is in focus. You can bring it in focus by clicking on it.
 
     * Check that the in-game audio settings are correct.
@@ -77,11 +79,21 @@
 
 * VHS Productions's [gameplay video](https://www.youtube.com/watch?v=fwyHMHvGOiI) with commentary and webcam.
 
-* Sly VR's gameplay videos: [part 1](https://www.youtube.com/watch?v=lAlJubb64g0), [part 2](https://www.youtube.com/watch?v=M0Pv66638Hc), and [part 3](https://www.youtube.com/watch?v=ST9w7dwW6Rw). With commentary.
+* Sly VR's gameplay videos: [part 1](https://www.youtube.com/watch?v=lAlJubb64g0), [part 2](https://www.youtube.com/watch?v=M0Pv66638Hc), [part 3](https://www.youtube.com/watch?v=ST9w7dwW6Rw), and [part 4](https://www.youtube.com/watch?v=pzSvgJWMnr8). With commentary.
 
 * UploadVR [article](https://uploadvr.com/new-quake-vr-mod/) and [gameplay video](https://www.youtube.com/watch?v=fBzCdMSF2-U).
 
 * My own [let's play series](https://www.youtube.com/playlist?list=PLTEcWGdSiQemN50YKFbEpR9har292EJns) with developer commentary and webcam. Nightmare difficulty!
+
+* Elia1995's [gameplay video](https://www.youtube.com/watch?v=rvigiMdIT-M) with webcam.
+
+* Stoni's [gameplay video](https://www.youtube.com/watch?v=Jserap1p2Ho) with webcam and commentary.
+
+* Custom Gamer's [video](https://www.youtube.com/watch?v=eeqtFDf3tkM) showcasing his awesome custom map in VR!
+
+* Gamertag VR's [livestream video](https://www.youtube.com/watch?v=W1_WG_PHUpw) with webcam and commentary.
+
+* Tom's [gameplay video](https://www.youtube.com/watch?v=96xC_khtrUE).
 
 ## CVars
 
