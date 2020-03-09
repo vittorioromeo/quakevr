@@ -1229,10 +1229,6 @@ void SV_Physics_Client(edict_t* ent, int num)
             return;
         }
 
-        Con_Printf("dealing with teleport movement to %.2f %.2f %.2f\n",
-            ent->v.teleport_target[0], ent->v.teleport_target[1],
-            ent->v.teleport_target[2]);
-
         ent->v.teleport_time = sv.time + 0.3;
         VectorCopy(ent->v.teleport_target, ent->v.origin);
         VectorCopy(ent->v.teleport_target, ent->v.oldorigin);

@@ -246,7 +246,7 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
             adjustF(vr_world_scale, crosshairAlphaDiff, 0.f, 2.f);
             break;
         case VRMenuOpt::VR_MOVEMENT_MODE:
-            adjustI(vr_movement_mode, 1, 0, VrMovementMode::k_Max);
+            adjustI(vr_movement_mode, 1, 0, VrMovementMode::k_Max - 1);
             break;
         case VRMenuOpt::VR_ENABLE_JOYSTICK_TURN:
             adjustI(vr_enable_joystick_turn, 1, 0, 1);

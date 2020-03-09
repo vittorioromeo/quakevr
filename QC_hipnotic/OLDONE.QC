@@ -111,9 +111,6 @@ void() finale_1 =
 	local entity	pos, pl;
 	local entity	timer;
 
-	killed_monsters = killed_monsters + 1;
-	WriteByte (MSG_ALL, SVC_KILLEDMONSTER);	// FIXME: reliable broadcast
-
 	intermission_exittime = time + 10000000;	// never allow exit
 	intermission_running = 1;
 

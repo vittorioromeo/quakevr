@@ -2283,11 +2283,6 @@ void VR_Move(usercmd_t* cmd)
     // VR: Teleportation.
     if(std::exchange(vr_send_teleport_msg, false))
     {
-
-        Con_Printf("setting teleport msg to %.2f %.2f %.2f\n",
-            vr_teleporting_impact[0], vr_teleporting_impact[1],
-            vr_teleporting_impact[2]);
-
         cmd->teleporting = 1;
         VectorCopy(vr_teleporting_impact, cmd->teleport_target);
     }
