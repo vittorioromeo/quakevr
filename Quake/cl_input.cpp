@@ -562,9 +562,14 @@ void CL_SendMove(const usercmd_t* cmd)
     // muzzlepos
     writeVec(cmd->muzzlepos);
 
+    // movement
     MSG_WriteShort(&buf, cmd->forwardmove);
     MSG_WriteShort(&buf, cmd->sidemove);
     MSG_WriteShort(&buf, cmd->upmove);
+
+    // teleportation
+    MSG_WriteShort(&buf, cmd->teleporting);
+    writeVec(cmd->teleport_target);
 
     //
     // send button bits

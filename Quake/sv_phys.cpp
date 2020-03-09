@@ -1222,82 +1222,66 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     // decide which move function to call
     //
-    switch((int)ent->v.movetype)
+    if(ent->v.teleporting == 1)
     {
-        case MOVETYPE_NONE:
-            if(!SV_RunThink(ent))
-            {
-                return;
-            }
-            break;
-
-        case MOVETYPE_WALK:
+        if(!SV_RunThink(ent))
         {
-            if(!SV_RunThink(ent))
-            {
-                return;
-            }
-
-            if(!SV_CheckWater(ent) && !((int)ent->v.flags & FL_WATERJUMP))
-            {
-                SV_AddGravity(ent);
-            }
-            SV_CheckStuck(ent);
-            SV_WalkMove(ent);
-
-
-            break;
+            return;
         }
 
-        case MOVETYPE_TOSS:
-        case MOVETYPE_BOUNCE: SV_Physics_Toss(ent); break;
+        Con_Printf("dealing with teleport movement to %.2f %.2f %.2f\n",
+            ent->v.teleport_target[0], ent->v.teleport_target[1],
+            ent->v.teleport_target[2]);
 
-        case MOVETYPE_FLY:
-            if(!SV_RunThink(ent))
-            {
-                return;
-            }
-            SV_FlyMove(ent, host_frametime, nullptr);
-            break;
-
-        case MOVETYPE_NOCLIP:
-            if(!SV_RunThink(ent))
-            {
-                return;
-            }
-            VectorMA(
-                ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
-            break;
-
-        default:
-            Sys_Error(
-                "SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+        ent->v.teleport_time = sv.time + 0.3;
+        VectorCopy(ent->v.teleport_target, ent->v.origin);
+        VectorCopy(ent->v.teleport_target, ent->v.oldorigin);
     }
-
-    if(num == cl.viewentity && vr_enabled.value)
+    else
     {
-        vec3_t restoreVel;
-        _VectorCopy(ent->v.velocity, restoreVel);
-        extern vec3_t vr_room_scale_move;
-        VectorScale(vr_room_scale_move, 1.0f / host_frametime, ent->v.velocity);
-
         switch((int)ent->v.movetype)
         {
-            case MOVETYPE_NONE: break;
+            case MOVETYPE_NONE:
+                if(!SV_RunThink(ent))
+                {
+                    return;
+                }
+                break;
 
             case MOVETYPE_WALK:
-                ent->v.velocity[2] = -1.0f;
+            {
+                if(!SV_RunThink(ent))
+                {
+                    return;
+                }
+
+                if(!SV_CheckWater(ent) && !((int)ent->v.flags & FL_WATERJUMP))
+                {
+                    SV_AddGravity(ent);
+                }
                 SV_CheckStuck(ent);
                 SV_WalkMove(ent);
 
+
                 break;
+            }
 
             case MOVETYPE_TOSS:
-            case MOVETYPE_BOUNCE: break;
+            case MOVETYPE_BOUNCE: SV_Physics_Toss(ent); break;
 
-            case MOVETYPE_FLY: SV_FlyMove(ent, host_frametime, nullptr); break;
+            case MOVETYPE_FLY:
+                if(!SV_RunThink(ent))
+                {
+                    return;
+                }
+                SV_FlyMove(ent, host_frametime, nullptr);
+                break;
 
             case MOVETYPE_NOCLIP:
+                if(!SV_RunThink(ent))
+                {
+                    return;
+                }
                 VectorMA(ent->v.origin, host_frametime, ent->v.velocity,
                     ent->v.origin);
                 break;
@@ -1307,7 +1291,44 @@ void SV_Physics_Client(edict_t* ent, int num)
                     "SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
         }
 
-        _VectorCopy(restoreVel, ent->v.velocity);
+        if(num == cl.viewentity && vr_enabled.value)
+        {
+            vec3_t restoreVel;
+            _VectorCopy(ent->v.velocity, restoreVel);
+            extern vec3_t vr_room_scale_move;
+            VectorScale(
+                vr_room_scale_move, 1.0f / host_frametime, ent->v.velocity);
+
+            switch((int)ent->v.movetype)
+            {
+                case MOVETYPE_NONE: break;
+
+                case MOVETYPE_WALK:
+                    ent->v.velocity[2] = -1.0f;
+                    SV_CheckStuck(ent);
+                    SV_WalkMove(ent);
+
+                    break;
+
+                case MOVETYPE_TOSS:
+                case MOVETYPE_BOUNCE: break;
+
+                case MOVETYPE_FLY:
+                    SV_FlyMove(ent, host_frametime, nullptr);
+                    break;
+
+                case MOVETYPE_NOCLIP:
+                    VectorMA(ent->v.origin, host_frametime, ent->v.velocity,
+                        ent->v.origin);
+                    break;
+
+                default:
+                    Sys_Error("SV_Physics_client: bad movetype %i",
+                        (int)ent->v.movetype);
+            }
+
+            _VectorCopy(restoreVel, ent->v.velocity);
+        }
     }
 
     //

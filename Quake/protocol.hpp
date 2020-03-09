@@ -300,6 +300,10 @@ typedef struct
     float forwardmove;
     float sidemove;
     float upmove;
+
+    // VR teleportation
+    int teleporting;
+    vec3_t teleport_target;
 } usercmd_t;
 
 #endif /* _QUAKE_PROTOCOL_H */

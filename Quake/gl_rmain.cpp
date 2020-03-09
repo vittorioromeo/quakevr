@@ -793,9 +793,14 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
         return;
     }
 
-    if(vr_enabled.value && vr_crosshair.value)
+    if(vr_enabled.value)
     {
-        VR_ShowCrosshair();
+        if(vr_crosshair.value)
+        {
+            VR_ShowCrosshair();
+        }
+
+        VR_DrawTeleportLine();
     }
 
     currententity = viewent;

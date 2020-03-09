@@ -32,6 +32,10 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/Teleport",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/out/LeftHaptic",
             "type": "vibration"
         },
@@ -67,6 +71,7 @@
         "/actions/default/in/NextWeapon": "Next Weapon",
         "/actions/default/in/Escape": "Escape",
         "/actions/default/in/Speed": "Speed Modifier",
+        "/actions/default/in/Teleport": "Teleport",
         "/actions/default/out/LeftHaptic": "Left Haptic",
         "/actions/default/out/RightHaptic": "Right Haptic"
     }]

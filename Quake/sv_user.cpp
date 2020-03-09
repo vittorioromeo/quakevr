@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.hpp"
+#include "world.hpp"
 #include <iostream>
 
 edict_t* sv_player;
@@ -625,10 +626,16 @@ void SV_ReadClientMove(usercmd_t* move)
     readVec(move->muzzlepos);
     VectorCopy(move->muzzlepos, host_client->edict->v.muzzlepos);
 
-    // read movement
+    // movement
     move->forwardmove = MSG_ReadShort();
     move->sidemove = MSG_ReadShort();
     move->upmove = MSG_ReadShort();
+
+    // teleportation
+    move->teleporting = MSG_ReadShort();
+    host_client->edict->v.teleporting = move->teleporting;
+    readVec(move->teleport_target);
+    VectorCopy(move->teleport_target, host_client->edict->v.teleport_target);
 
     // read buttons
     bits = MSG_ReadByte();

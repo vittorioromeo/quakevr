@@ -1,9 +1,14 @@
-// 2016 Dominic Szablewski - phoboslab.org
+#pragma once // 2016 Dominic Szablewski - phoboslab.org
 
 #include "quakedef.hpp"
 
-#ifndef __R_VR_H
-#define __R_VR_H
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR Configuration Enums
+// ----------------------------------------------------------------------------
+
 
 struct VrAimMode
 {
@@ -64,6 +69,14 @@ enum class VrSbarMode : int
     OffHand = 1
 };
 
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR Public API
+// ----------------------------------------------------------------------------
+
 void VID_VR_Init();
 void VID_VR_Shutdown();
 bool VR_Enable();
@@ -71,6 +84,7 @@ void VID_VR_Disable();
 
 void VR_UpdateScreenContent();
 void VR_ShowCrosshair();
+void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
 void VR_InitGame();
@@ -81,6 +95,82 @@ void VR_SetAngles(vec3_t angles);
 void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Weapon CVars
+// ----------------------------------------------------------------------------
+
+enum class WpnCVar : std::uint8_t
+{
+    OffsetX = 0,
+    OffsetY = 1,
+    OffsetZ = 2,
+    Scale = 3,
+    ID = 4,
+    Pitch = 5,
+    Roll = 6,
+    Yaw = 7,
+    MuzzleOffsetX = 8,
+    MuzzleOffsetY = 9,
+    MuzzleOffsetZ = 10,
+
+    k_Max
+};
+
+// ----------------------------------------------------------------------------
+
+struct WeaponOffsets
+{
+    float _x;
+    float _y;
+    float _z;
+};
+
+[[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept;
+
+// ----------------------------------------------------------------------------
+
+struct WeaponAngleOffsets
+{
+    float _pitch;
+    float _yaw;
+    float _roll;
+};
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpnAngleOffsets(
+    const int cvarEntry) noexcept;
+
+// ----------------------------------------------------------------------------
+
+struct WeaponMuzzleOffsets
+{
+    float _x;
+    float _y;
+    float _z;
+};
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
+    const int cvarEntry) noexcept;
+
+// ----------------------------------------------------------------------------
+
+[[nodiscard]] cvar_t& VR_GetWpnCVar(
+    const int cvarEntry, WpnCVar setting) noexcept;
+[[nodiscard]] float VR_GetWpnCVarValue(
+    const int cvarEntry, WpnCVar setting) noexcept;
+
+
+extern int weaponCVarEntry;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// CVar Declarations
+// ----------------------------------------------------------------------------
 
 extern cvar_t vr_aimmode;
 extern cvar_t vr_crosshair_alpha;
@@ -121,12 +211,3 @@ extern cvar_t vr_menu_distance;
 extern cvar_t vr_melee_dmg_multiplier;
 extern cvar_t vr_melee_range_multiplier;
 extern cvar_t vr_body_interactions;
-
-// TODO VR: not sure what this number should actually be...
-#define MAX_WEAPONS 20
-#define VARS_PER_WEAPON 11
-
-extern cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
-extern int weaponCVarEntry;
-
-#endif

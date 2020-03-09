@@ -93,6 +93,11 @@ namespace quake::util
                aMax[1] >= bMin[1] && //
                aMax[2] >= bMin[2];
     }
+
+    [[nodiscard]] inline double lerp(double a, double b, double f) noexcept
+    {
+        return (a * (1.0 - f)) + (b * f);
+    }
 } // namespace quake::util
 
 namespace std

@@ -27,16 +27,16 @@ static auto getCvars()
 
     // clang-format off
     return std::tie(
-        vr_weapon_offset[idx * VARS_PER_WEAPON],     // OffsetX
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 1], // OffsetY
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 2], // OffsetZ
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 3], // Scale
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 7], // Roll
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 5], // Pitch
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 6], // Yaw
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 8], // MuzzleOffsetX
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 9], // MuzzleOffsetY
-        vr_weapon_offset[idx * VARS_PER_WEAPON + 10] // MuzzleOffsetZ
+        VR_GetWpnCVar(idx, WpnCVar::OffsetX),
+        VR_GetWpnCVar(idx, WpnCVar::OffsetY),
+        VR_GetWpnCVar(idx, WpnCVar::OffsetZ),
+        VR_GetWpnCVar(idx, WpnCVar::Scale),
+        VR_GetWpnCVar(idx, WpnCVar::Roll),
+        VR_GetWpnCVar(idx, WpnCVar::Pitch),
+        VR_GetWpnCVar(idx, WpnCVar::Yaw),
+        VR_GetWpnCVar(idx, WpnCVar::MuzzleOffsetX),
+        VR_GetWpnCVar(idx, WpnCVar::MuzzleOffsetY),
+        VR_GetWpnCVar(idx, WpnCVar::MuzzleOffsetZ)
     );
     // clang-format on
 }

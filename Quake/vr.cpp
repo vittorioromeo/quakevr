@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include <tuple>
 #include <string>
 
 #ifdef WIN32
@@ -21,19 +22,23 @@
 #undef UNICODE
 #endif
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Utilities
+// ----------------------------------------------------------------------------
+
+using quake::util::lerp;
+using quake::util::toQuakeVec3;
 using quake::util::toVec3;
 
-static double lerp(double a, double b, double f)
-{
-    return (a * (1.0 - f)) + (b * f);
-}
-
-static void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
-{
-    out[0] = lerp(start[0], end[0], f);
-    out[1] = lerp(start[1], end[1], f);
-    out[2] = lerp(start[2], end[2], f);
-}
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR Rendering Structs
+// ----------------------------------------------------------------------------
 
 struct fbo_t
 {
@@ -56,6 +61,13 @@ struct vr_eye_t
     float fov_x, fov_y;
 };
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR Input Structs
+// ----------------------------------------------------------------------------
+
 struct vr_controller
 {
     vr::VRControllerState_t state;
@@ -67,7 +79,13 @@ struct vr_controller
     vr::HmdQuaternion_t raworientation;
 };
 
+//
+//
+//
+// ----------------------------------------------------------------------------
 // OpenGL Extensions
+// ----------------------------------------------------------------------------
+
 #define GL_READ_FRAMEBUFFER_EXT 0x8CA8
 #define GL_DRAW_FRAMEBUFFER_EXT 0x8CA9
 #define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9
@@ -103,6 +121,13 @@ struct
     {nullptr, nullptr},
 };
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Extern Rendering and Screen Declarations
+// ----------------------------------------------------------------------------
+
 // main screen & 2D drawing
 extern void SCR_SetUpToDrawConsole();
 extern void SCR_UpdateScreenContent();
@@ -122,10 +147,14 @@ extern void SCR_DrawConsole();
 
 // rendering
 extern void R_SetupView();
-
 extern int glx, gly, glwidth, glheight;
 
-
+//
+//
+//
+// ----------------------------------------------------------------------------
+// TODO VR
+// ----------------------------------------------------------------------------
 
 static float vrYaw;
 static bool readbackYaw;
@@ -160,9 +189,14 @@ vec3_t vr_room_scale_move;
 #define meters_to_units (vr_world_scale.value / (1.5f * 0.0254f))
 
 extern cvar_t gl_farclip;
-extern int glwidth, glheight;
 
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR CVar Definition and Registration
+// ----------------------------------------------------------------------------
 
 static std::vector<cvar_t*> cvarsToRegister;
 
@@ -216,6 +250,13 @@ DEFINE_CVAR(vr_menu_distance, 76, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_dmg_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_range_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// VR Rendering
+// ----------------------------------------------------------------------------
 
 [[nodiscard]] static bool InitOpenGLExtensions()
 {
@@ -476,8 +517,12 @@ void HmdVec3RotateY(vr::HmdVector3_t* const pos, const float angle)
     pos->v[2] = y;
 }
 
+//
+//
+//
 // ----------------------------------------------------------------------------
-// Callbacks for cvars
+// VR CVar Callbacks
+// ----------------------------------------------------------------------------
 
 static void VR_Enabled_f(cvar_t* var)
 {
@@ -496,8 +541,6 @@ static void VR_Enabled_f(cvar_t* var)
     }
 }
 
-
-
 static void VR_Deadzone_f(cvar_t* var)
 {
     (void)var;
@@ -510,27 +553,41 @@ static void VR_Deadzone_f(cvar_t* var)
     }
 }
 
-// Weapon scale/position stuff
-cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Weapon CVars
+// ----------------------------------------------------------------------------
+
+// TODO VR: not sure what this number should actually be...
+enum
+{
+    e_MAX_WEAPONS = 20
+};
+
+cvar_t
+    vr_weapon_offset[e_MAX_WEAPONS * static_cast<std::size_t>(WpnCVar::k_Max)];
 
 aliashdr_t* lastWeaponHeader;
 int weaponCVarEntry;
 
+[[nodiscard]] float VR_GetScaleCorrect() noexcept
+{
+    // Initial version had 0.75 default world scale, so weapons reflect that.
+    return (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
+}
+
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 {
-    const float scaleCorrect =
-        (vr_world_scale.value / 0.75f) *
-        vr_gunmodelscale.value; // initial version had 0.75 default world
-                                // scale, so weapons reflect that
+    const float scaleCorrect = VR_GetScaleCorrect();
+
     VectorScale(hdr->original_scale,
-        vr_weapon_offset[cvarEntry * VARS_PER_WEAPON + 3].value * scaleCorrect,
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale) * scaleCorrect,
         hdr->scale);
 
-    // TODO VR: repetition of ofs calculation
-    vec3_t ofs = {vr_weapon_offset[cvarEntry * VARS_PER_WEAPON].value,
-        vr_weapon_offset[cvarEntry * VARS_PER_WEAPON + 1].value,
-        vr_weapon_offset[cvarEntry * VARS_PER_WEAPON + 2].value +
-            vr_gunmodely.value};
+    const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
+    vec3_t ofs{ox, oy, oz};
 
     VectorAdd(hdr->original_scale_origin, ofs, hdr->scale_origin);
     VectorScale(hdr->scale_origin, scaleCorrect, hdr->scale_origin);
@@ -543,9 +600,9 @@ void Mod_Weapon(const char* name, aliashdr_t* hdr)
         lastWeaponHeader = hdr;
         weaponCVarEntry = -1;
 
-        for(int i = 0; i < MAX_WEAPONS; i++)
+        for(int i = 0; i < e_MAX_WEAPONS; i++)
         {
-            if(!strcmp(vr_weapon_offset[i * VARS_PER_WEAPON + 4].string, name))
+            if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
             {
                 weaponCVarEntry = i;
                 break;
@@ -575,6 +632,47 @@ char* CopyWithNumeral(const char* str, int i)
     return ret;
 }
 
+[[nodiscard]] cvar_t& VR_GetWpnCVar(
+    const int cvarEntry, WpnCVar setting) noexcept
+{
+    return vr_weapon_offset[cvarEntry *
+                                static_cast<std::size_t>(WpnCVar::k_Max) +
+                            static_cast<std::uint8_t>(setting)];
+}
+
+[[nodiscard]] float VR_GetWpnCVarValue(
+    const int cvarEntry, WpnCVar setting) noexcept
+{
+    return VR_GetWpnCVar(cvarEntry, setting).value;
+}
+
+
+[[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffsetX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffsetY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffsetZ) + vr_gunmodely.value};
+}
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpnAngleOffsets(
+    const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Pitch) + vr_gunmodelpitch.value,
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Yaw),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Roll)};
+}
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
+    const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetZ)};
+}
+
 void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
 {
     const char* cvarname = CopyWithNumeral(name, i + 1);
@@ -590,6 +688,7 @@ void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
         Cvar_SetQuick(cvar, value);
     }
 }
+
 
 void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* offsetY, const char* offsetZ, const char* scale,
@@ -610,17 +709,17 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* nameMuzzleOffsetY = "vr_wofs_muzzle_y_nn";
     constexpr const char* nameMuzzleOffsetZ = "vr_wofs_muzzle_z_nn";
 
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON], nameOffsetX, i, offsetX);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 1], nameOffsetY, i, offsetY);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 2], nameOffsetZ, i, offsetZ);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 3], nameScale, i, scale);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 4], nameID, i, id);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 5], nameRoll, i, roll);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 6], namePitch, i, pitch);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 7], nameYaw, i, yaw);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 8], nameMuzzleOffsetX, i, muzzleOffsetX);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 9], nameMuzzleOffsetY, i, muzzleOffsetY);
-    InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 10], nameMuzzleOffsetZ, i, muzzleOffsetZ);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetZ), nameOffsetZ, i, offsetZ);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Scale), nameScale, i, scale);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::ID), nameID, i, id);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Pitch), nameRoll, i, roll); // TODO VR: mismatch
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Roll), namePitch, i, pitch); // TODO VR: mismatch
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Yaw), nameYaw, i, yaw); // TODO VR: mismatch
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX), nameMuzzleOffsetX, i, muzzleOffsetX);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY), nameMuzzleOffsetY, i, muzzleOffsetY);
+    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ), nameMuzzleOffsetZ, i, muzzleOffsetZ);
     // clang-format on
 }
 
@@ -686,14 +785,18 @@ void InitAllWeaponCVars()
             vr_wofs_z_02 "14"
     */
 
-    while(i < MAX_WEAPONS)
+    while(i < e_MAX_WEAPONS)
     {
         InitWeaponCVars(i++, "-1", "1.5", "1", "10", "0.5");
     }
 }
 
+//
+//
+//
 // ----------------------------------------------------------------------------
-// Public vars and functions
+// VR Initialization
+// ----------------------------------------------------------------------------
 
 void VID_VR_Init()
 {
@@ -726,6 +829,9 @@ void VR_InitGame()
     InitAllWeaponCVars();
 }
 
+//
+//
+//
 // ----------------------------------------------------------------------------
 // VR Action Handles
 // ----------------------------------------------------------------------------
@@ -742,6 +848,7 @@ vr::VRActionHandle_t vrahPrevWeapon;
 vr::VRActionHandle_t vrahNextWeapon;
 vr::VRActionHandle_t vrahEscape;
 vr::VRActionHandle_t vrahSpeed;
+vr::VRActionHandle_t vrahTeleport;
 vr::VRActionHandle_t vrahLeftHaptic;
 vr::VRActionHandle_t vrahRightHaptic;
 
@@ -783,6 +890,7 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
     readHandle("/actions/default/in/Escape", vrahEscape);
     readHandle("/actions/default/in/Speed", vrahSpeed);
+    readHandle("/actions/default/in/Teleport", vrahTeleport);
     readHandle("/actions/default/out/LeftHaptic", vrahLeftHaptic);
     readHandle("/actions/default/out/RightHaptic", vrahRightHaptic);
 
@@ -807,6 +915,11 @@ static void VR_InitActionHandles()
     readInputSourceHandle("/user/hand/right", vrivhRight);
 }
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// TODO VR
 // ----------------------------------------------------------------------------
 
 bool VR_Enable()
@@ -1094,6 +1207,13 @@ void SetHandPos(int index, entity_t* player)
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
+// TODO VR:
+bool vr_was_teleporting = false;
+bool vr_teleporting = false;
+bool vr_teleporting_impact_valid = false;
+bool vr_send_teleport_msg = false;
+vec3_t vr_teleporting_impact{0, 0, 0};
+
 void VR_UpdateScreenContent()
 {
     GLint w;
@@ -1270,7 +1390,7 @@ void VR_UpdateScreenContent()
             cl.viewangles[YAW] = cl.aimangles[YAW] + orientation[YAW];
             break;
 
-        case VrAimMode::e_BLENDED:
+        case VrAimMode::e_BLENDED: [[fallthrough]];
         case VrAimMode::e_BLENDED_NOPITCH:
         {
             float diffHMDYaw = orientation[YAW] - lastOrientation[YAW];
@@ -1295,39 +1415,29 @@ void VR_UpdateScreenContent()
                 cl.aimangles[PITCH] += diffHMDPitch;
             }
             cl.viewangles[PITCH] = orientation[PITCH];
+
+            break;
         }
-        break;
 
         // 7: Controller Aiming;
         case VrAimMode::e_CONTROLLER:
+        {
             cl.viewangles[PITCH] = orientation[PITCH];
             cl.viewangles[YAW] = orientation[YAW];
 
-            // TODO VR: this affects aim, not just drawing
-            /*
-            vec3_t rotOfs = {
-                vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON +
-            5].value + vr_gunangle.value, vr_weapon_offset[weaponCVarEntry *
-            VARS_PER_WEAPON + 6].value + vr_gunyaw.value,
-                vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON +
-            7].value
-            };
-            */
+            vec3_t mat[3];
+            vec3_t matTmp[3];
 
             vec3_t rotOfs = {vr_gunangle.value, vr_gunyaw.value, 0};
 
-            vec3_t mat[3];
-
-            vec3_t matTmp[3];
-
             vec3_t gunMatPitch[3];
+            CreateRotMat(0, rotOfs[0], gunMatPitch); // pitch
 
             vec3_t gunMatYaw[3];
+            CreateRotMat(1, rotOfs[1], gunMatYaw); // yaw
 
             vec3_t gunMatRoll[3];
-            CreateRotMat(0, rotOfs[0], gunMatPitch); // pitch
-            CreateRotMat(1, rotOfs[1], gunMatYaw);   // yaw
-            CreateRotMat(2, rotOfs[2], gunMatRoll);  // roll
+            CreateRotMat(2, rotOfs[2], gunMatRoll); // roll
 
             for(int i = 0; i < 2; i++)
             {
@@ -1353,70 +1463,6 @@ void VR_UpdateScreenContent()
 
                 vec3_t handrottemp;
                 AngleVectorFromRotMat(mat, handrottemp);
-
-#if 0
-                if (i == 0) continue;
-
-                const auto ox = cl.handrot[i][PITCH];
-                const auto oy = cl.handrot[i][YAW];
-                const auto oz = cl.handrot[i][ROLL];
-
-                const auto tx = handrottemp[PITCH];
-                const auto ty = handrottemp[YAW];
-                const auto tz = handrottemp[ROLL];
-
-                const glm::vec3 orig{ ox, oy, oz };
-
-                // glm::fquat q{glm::radians(orig)};
-                // q = glm::mix(glm::normalize(q), glm::normalize(glm::fquat(glm::radians(glm::vec3(tx, ty, tz)))), 0.05f);
-
-                glm::mat3 m(toVec3(mat[0]), toVec3(mat[1]), toVec3(mat[2]));
-                glm::fquat q(m);
-
-                const glm::vec3 res{ glm::degrees(glm::eulerAngles(glm::normalize(q))) };
-
-                const auto nx = res[PITCH];
-                const auto ny = res[YAW];
-                const auto nz = res[ROLL];
-
-                auto fx = nx;
-                auto fy = ny;
-                auto fz = nz;
-
-                if (oy > 90.f)
-                {
-                    fx -= 180.f;
-                    fy -= 180.f;
-                    fy *= -1.f;
-                    fz += 180.f;
-
-                    if (ox > 0.f)
-                    {
-                        fx += 360.f;
-                    }
-                }
-
-                if (false)
-                {
-                    Con_Printf("%d %d %d | %d %d %d | %d %d %d\n",
-                        (int)ox, (int)oy, (int)oz,
-                        (int)nx, (int)ny, (int)nz,
-                        (int)fx, (int)fy, (int)fz
-                    );
-
-                    quake::util::debugPrintSeparated(" ", (int)ox, (int)oy, (int)oz);
-                    quake::util::debugPrint(" | ");
-                    quake::util::debugPrintSeparated(" ", (int)nx, (int)ny, (int)nz);
-                    quake::util::debugPrint(" | ");
-                    quake::util::debugPrintSeparated(" ", (int)fx, (int)fy, (int)fz);
-                    quake::util::debugPrint("\n");
-                }
-
-                handrottemp[0] = fx;
-                handrottemp[1] = fy;
-                handrottemp[2] = fz;
-#endif
-
                 VectorCopy(handrottemp, cl.handrot[i]);
             }
 
@@ -1453,9 +1499,72 @@ void VR_UpdateScreenContent()
 
             // TODO VR: interpolate based on weapon weight?
             VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
-            // TODO: what sets the shooting origin?
+            // TODO VR: what sets the shooting origin?
 
+            // TODO VR: teleportation stuff
+            {
+                if(vr_teleporting)
+                {
+                    constexpr float o = 6.f;
+                    vec3_t mins{-o, -o, -o};
+                    vec3_t maxs{o, o, o};
+
+                    vec3_t forward, right, up;
+                    AngleVectors(cl.handrot[0], forward, right, up);
+
+                    vec3_t target;
+                    VectorMA(cl.handpos[0], 400, forward, target);
+
+                    // TODO VR: repetition
+                    const auto handZOrigin = player->origin[2] +
+                                             vr_floor_offset.value +
+                                             vr_gun_z_offset.value;
+
+                    vec3_t adjPlayerOrigin;
+                    VectorCopy(player->origin, adjPlayerOrigin);
+                    adjPlayerOrigin[2] = handZOrigin + 40;
+
+                    const trace_t trace = SV_Move(adjPlayerOrigin, mins, maxs,
+                        target, MOVE_NORMAL, sv_player);
+
+                    const auto between = [](const float value, const float min,
+                                             const float max) {
+                        return value >= min && value <= max;
+                    };
+
+                    const bool goodNormal =                              //
+                        between(trace.plane.normal[0], -0.15f, 0.15f) && //
+                        between(trace.plane.normal[1], -0.15f, 0.15f) && //
+                        between(trace.plane.normal[2], 0.75f, 1.f);
+
+                    vr_teleporting_impact_valid =
+                        trace.fraction < 1.0 && goodNormal;
+                    VectorCopy(trace.endpos, vr_teleporting_impact);
+
+                    // Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
+                    //     trace.plane.normal[1], trace.plane.normal[2]);
+
+                    if(vr_teleporting_impact_valid)
+                    {
+                        // TODO VR:
+                        extern void R_RunParticle2Effect(
+                            vec3_t org, vec3_t dir, int preset, int count);
+
+                        vec3_t dir{0, 0, 0};
+                        R_RunParticle2Effect(vr_teleporting_impact, dir, 7, 4);
+                    }
+                }
+                else if(vr_was_teleporting && vr_teleporting_impact_valid)
+                {
+                    // TODO VR: server
+                    vr_send_teleport_msg = true;
+                    VectorCopy(vr_teleporting_impact, sv_player->v.origin);
+                }
+
+                vr_was_teleporting = vr_teleporting;
+            }
             break;
+        }
     }
     cl.viewangles[ROLL] = orientation[ROLL];
 
@@ -1524,55 +1633,44 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     angles[ROLL] = orientation[ROLL];
 }
 
-void VR_CalcWeaponMuzzlePos(vec3_t out)
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
 {
     // TODO VR:
 
-    vec3_t forward;
-    vec3_t up;
-    vec3_t right;
-
     /*
-    vec3_t ofs = {//
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value +
-            vr_gunmodely.value};
-            */
+        const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
+        vec3_t ofs{ox, oy, oz};
+    */
 
-    vec3_t muzzleOfs = {
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 8].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 9].value,
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 10].value};
-
-    const float scaleCorrect =
-        (vr_world_scale.value / 0.75f) *
-        vr_gunmodelscale.value; // initial version had 0.75 default world
-                                // scale, so weapons reflect that
+    const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(weaponCVarEntry);
+    vec3_t muzzleOfs{moX, moY, moZ};
 
     using namespace quake::util;
     // glm::vec3 finalOffsets{ofs[0], ofs[1], ofs[2]};
     glm::vec3 finalOffsets{0, 0, 0};
     finalOffsets = finalOffsets + muzzleOfs;
+
+    vec3_t forward, right, up;
     AngleVectors(cl.handrot[1], forward, right, up);
+
     const auto glmForward = toVec3(forward);
     const auto glmRight = toVec3(right);
     const auto glmUp = toVec3(up);
 
-    finalOffsets *=
-        vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 3].value *
-        scaleCorrect;
-
+    finalOffsets *= VR_GetWpnCVarValue(weaponCVarEntry, WpnCVar::Scale) *
+                    VR_GetScaleCorrect();
 
     const auto fFwd = glmForward * finalOffsets[0];
     const auto fRight = glmRight * finalOffsets[1];
     const auto fUp = glmUp * finalOffsets[2];
 
-
-
     // Con_Printf("%.2f %.2f %.2f\n", forward[0], forward[1], forward[2]);
+    return toVec3(cl.handpos[1]) + fFwd + fRight + fUp;
+}
 
-    toQuakeVec3(out, toVec3(cl.handpos[1]) + fFwd + fRight + fUp);
+void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept
+{
+    quake::util::toQuakeVec3(out, VR_CalcWeaponMuzzlePos());
 }
 
 void VR_ShowCrosshair()
@@ -1599,18 +1697,12 @@ void VR_ShowCrosshair()
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
 
-    vec3_t forward;
-    vec3_t up;
-    vec3_t right;
+    vec3_t forward, right, up;
     vec3_t start;
-    vec3_t end;
-    vec3_t impact;
 
     // calc the line and draw
-    // VR TODO: Make the laser align correctly
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        // TODO VR: repetition of ofs calculation
         AngleVectors(cl.handrot[1], forward, right, up);
         VR_CalcWeaponMuzzlePos(start);
     }
@@ -1621,6 +1713,8 @@ void VR_ShowCrosshair()
         AngleVectors(cl.aimangles, forward, right, up);
     }
 
+    vec3_t end;
+    vec3_t impact;
 
     switch((int)vr_crosshair.value)
     {
@@ -1676,6 +1770,67 @@ void VR_ShowCrosshair()
     glEnable(GL_DEPTH_TEST);
 }
 
+void VR_DrawTeleportLine()
+{
+    if(!sv_player || !vr_teleporting ||
+        vr_aimmode.value != VrAimMode::e_CONTROLLER)
+    {
+        return;
+    }
+
+    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
+    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
+
+    if(size <= 0 || alpha <= 0)
+    {
+        return;
+    }
+
+    // setup gl
+    glDisable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    GL_PolygonOffset(OFFSET_SHOWTRIS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+
+    // calc angles
+    vec3_t forward, right, up;
+    vec3_t start;
+
+    AngleVectors(cl.handrot[0], forward, right, up);
+    VectorCopy(cl.handpos[0], start);
+
+    // calc line
+    vec3_t impact;
+    VectorCopy(vr_teleporting_impact, impact);
+
+    // draw line
+    if(vr_teleporting_impact_valid)
+    {
+        glColor4f(0, 0, 1, alpha);
+    }
+    else
+    {
+        glColor4f(1, 0, 0, alpha);
+    }
+
+    glLineWidth(size * glwidth / vid.width);
+    glBegin(GL_LINES);
+    glVertex3f(start[0], start[1], start[2]);
+    glVertex3f(impact[0], impact[1], impact[2]);
+    glEnd();
+
+    // cleanup gl
+    glColor3f(1, 1, 1);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    GL_PolygonOffset(OFFSET_NONE);
+    glEnable(GL_DEPTH_TEST);
+}
 
 
 void VR_Draw2D()
@@ -2005,6 +2160,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
     const auto inpEscape = readDigitalAction(vrahEscape);
     const auto inpSpeed = readDigitalAction(vrahSpeed);
+    const auto inpTeleport = readDigitalAction(vrahTeleport);
 
     const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
         return data.bState && data.bChanged;
@@ -2091,6 +2247,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
         Key_Event('3', mustPrevWeapon);
         Key_Event('1', mustNextWeapon);
+
+        vr_teleporting = inpTeleport.bState;
     }
 
     return VR_GetInputAxes(inpLocomotion, inpTurn);
@@ -2121,6 +2279,22 @@ void VR_Move(usercmd_t* cmd)
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.
     const auto [fwdMove, sideMove, yawMove] = VR_DoInput();
+
+    // VR: Teleportation.
+    if(std::exchange(vr_send_teleport_msg, false))
+    {
+
+        Con_Printf("setting teleport msg to %.2f %.2f %.2f\n",
+            vr_teleporting_impact[0], vr_teleporting_impact[1],
+            vr_teleporting_impact[2]);
+
+        cmd->teleporting = 1;
+        VectorCopy(vr_teleporting_impact, cmd->teleport_target);
+    }
+    else
+    {
+        cmd->teleporting = 0;
+    }
 
     if(key_dest == key_menu)
     {

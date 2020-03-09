@@ -705,17 +705,12 @@ void CalcGunAngle(
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        // TODO VR: ofs repetition
-        vec3_t rotOfs = {
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 5].value +
-                vr_gunmodelpitch.value,                                 // Pitch
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 6].value, // Yaw
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 7].value  // Roll
-        };
+        const auto [oPitch, oYaw, oRoll] =
+            VR_GetWpnAngleOffsets(wpnCvarEntry);
 
-        viewent->angles[PITCH] = -(handrot[PITCH]) + rotOfs[0];
-        viewent->angles[YAW] = handrot[YAW] + rotOfs[1];
-        viewent->angles[ROLL] = handrot[ROLL] + rotOfs[2];
+        viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch;
+        viewent->angles[YAW] = handrot[YAW] + oYaw;
+        viewent->angles[ROLL] = handrot[ROLL] + oRoll;
 
         return;
     }

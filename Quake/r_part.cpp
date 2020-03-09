@@ -565,9 +565,12 @@ void R_EntityParticles(entity_t* ent)
             setAccGrav(p);
 
             constexpr float dist = 64;
-            p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist + forward[0] * beamlength;
-            p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist + forward[1] * beamlength;
-            p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist + forward[2] * beamlength;
+            p.org[0] = ent->origin[0] + r_avertexnormals[i][0] * dist +
+                       forward[0] * beamlength;
+            p.org[1] = ent->origin[1] + r_avertexnormals[i][1] * dist +
+                       forward[1] * beamlength;
+            p.org[2] = ent->origin[2] + r_avertexnormals[i][2] * dist +
+                       forward[2] * beamlength;
         });
     }
 }
@@ -1040,6 +1043,30 @@ void R_RunParticleEffect_GunSmoke(vec3_t org, vec3_t dir, int count)
     });
 }
 
+void R_RunParticleEffect_Teleport(vec3_t org, vec3_t dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxSpark, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = 255;
+        p.die = cl.time + 0.6;
+        p.color = rndi(208, 220);
+        p.scale = rnd(1.55f, 2.87f) * 0.65f;
+        p.type = pt_rock;
+        p.param0 = rndi(0, 2); // rotation direction
+        setAccGrav(p, 1.f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 7) - 4);
+            p.vel[j] = rnd(-48, 48);
+        }
+
+        p.vel[2] = rnd(60, 360);
+    });
+}
+
 /*
 ===============
 R_RunParticleEffect
@@ -1066,7 +1093,8 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         Lightning = 3,
         Smoke = 4,
         Sparks = 5,
-        GunSmoke = 6
+        GunSmoke = 6,
+        Teleport = 7
     };
 
     switch(static_cast<Preset>(preset))
@@ -1104,6 +1132,11 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
         case Preset::GunSmoke:
         {
             R_RunParticleEffect_GunSmoke(org, dir, count);
+            break;
+        }
+        case Preset::Teleport:
+        {
+            R_RunParticleEffect_Teleport(org, dir, count);
             break;
         }
         default:

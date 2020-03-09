@@ -237,3 +237,78 @@ public:
 	// sprint (self, "OFFHANDDMG: ");
 	// sprint (self, s);
 	// sprint (self, "\n");
+
+
+static void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
+{
+    out[0] = lerp(start[0], end[0], f);
+    out[1] = lerp(start[1], end[1], f);
+    out[2] = lerp(start[2], end[2], f);
+}
+
+
+
+
+// non-working smoothed hand rotation
+#if 0
+                if (i == 0) continue;
+
+                const auto ox = cl.handrot[i][PITCH];
+                const auto oy = cl.handrot[i][YAW];
+                const auto oz = cl.handrot[i][ROLL];
+
+                const auto tx = handrottemp[PITCH];
+                const auto ty = handrottemp[YAW];
+                const auto tz = handrottemp[ROLL];
+
+                const glm::vec3 orig{ ox, oy, oz };
+
+                // glm::fquat q{glm::radians(orig)};
+                // q = glm::mix(glm::normalize(q), glm::normalize(glm::fquat(glm::radians(glm::vec3(tx, ty, tz)))), 0.05f);
+
+                glm::mat3 m(toVec3(mat[0]), toVec3(mat[1]), toVec3(mat[2]));
+                glm::fquat q(m);
+
+                const glm::vec3 res{ glm::degrees(glm::eulerAngles(glm::normalize(q))) };
+
+                const auto nx = res[PITCH];
+                const auto ny = res[YAW];
+                const auto nz = res[ROLL];
+
+                auto fx = nx;
+                auto fy = ny;
+                auto fz = nz;
+
+                if (oy > 90.f)
+                {
+                    fx -= 180.f;
+                    fy -= 180.f;
+                    fy *= -1.f;
+                    fz += 180.f;
+
+                    if (ox > 0.f)
+                    {
+                        fx += 360.f;
+                    }
+                }
+
+                if (false)
+                {
+                    Con_Printf("%d %d %d | %d %d %d | %d %d %d\n",
+                        (int)ox, (int)oy, (int)oz,
+                        (int)nx, (int)ny, (int)nz,
+                        (int)fx, (int)fy, (int)fz
+                    );
+
+                    quake::util::debugPrintSeparated(" ", (int)ox, (int)oy, (int)oz);
+                    quake::util::debugPrint(" | ");
+                    quake::util::debugPrintSeparated(" ", (int)nx, (int)ny, (int)nz);
+                    quake::util::debugPrint(" | ");
+                    quake::util::debugPrintSeparated(" ", (int)fx, (int)fy, (int)fz);
+                    quake::util::debugPrint("\n");
+                }
+
+                handrottemp[0] = fx;
+                handrottemp[1] = fy;
+                handrottemp[2] = fz;
+#endif
