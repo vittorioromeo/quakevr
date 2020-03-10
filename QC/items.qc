@@ -123,7 +123,6 @@ void() item_megahealth_rot;
 
 void() item_health =
 {
-    // self.touch = health_touch;
     self.handtouch = health_touch;
 
     if (self.spawnflags & H_ROTTEN)
@@ -158,7 +157,6 @@ void() item_health =
         self.healtype = 1;
         setsize (self, '0 0 0', '32 32 16');
     }
-    // setsize (self, '0 0 0', '32 32 56');
 
     StartItem ();
 };
@@ -316,7 +314,6 @@ void() item_armor1 =
     precache_model ("progs/armor.mdl");
     setmodel (self, "progs/armor.mdl");
     self.skin = 0;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-10 -10 0', '10 10 28');
     StartItem ();
 };
@@ -538,9 +535,7 @@ void() weapon_supershotgun =
     setmodel (self, "progs/g_shot.mdl");
     self.weapon = IT_SUPER_SHOTGUN;
     self.netname = "Double-barrelled Shotgun";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -554,9 +549,7 @@ void() weapon_nailgun =
     setmodel (self, "progs/g_nail.mdl");
     self.weapon = IT_NAILGUN;
     self.netname = "nailgun";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -570,9 +563,7 @@ void() weapon_supernailgun =
     setmodel (self, "progs/g_nail2.mdl");
     self.weapon = IT_SUPER_NAILGUN;
     self.netname = "Super Nailgun";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -586,9 +577,7 @@ void() weapon_grenadelauncher =
     setmodel (self, "progs/g_rock.mdl");
     self.weapon = 3;
     self.netname = "Grenade Launcher";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -602,9 +591,7 @@ void() weapon_rocketlauncher =
     setmodel (self, "progs/g_rock2.mdl");
     self.weapon = 3;
     self.netname = "Rocket Launcher";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -619,9 +606,7 @@ void() weapon_lightning =
     setmodel (self, "progs/g_light.mdl");
     self.weapon = 3;
     self.netname = "Thunderbolt";
-    // self.touch = weapon_touch;
     self.handtouch = weapon_touch;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-8 -8 16', '8 8 38');
     StartItem ();
 };
@@ -733,7 +718,6 @@ float WEAPON_BIG2 = 1;
 
 void() item_shells =
 {
-    // self.touch = ammo_touch;
     self.handtouch = ammo_touch;
 
     if (self.spawnflags & WEAPON_BIG2)
@@ -750,7 +734,6 @@ void() item_shells =
     }
     self.weapon = 1;
     self.netname = "shells";
-    // setsize (self, '0 0 0', '32 32 56');
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -760,7 +743,6 @@ void() item_shells =
 
 void() item_spikes =
 {
-    // self.touch = ammo_touch;
     self.handtouch = ammo_touch;
 
     if (self.spawnflags & WEAPON_BIG2)
@@ -777,7 +759,6 @@ void() item_spikes =
     }
     self.weapon = 2;
     self.netname = "nails";
-    // setsize (self, '0 0 0', '32 32 56');
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -787,7 +768,6 @@ void() item_spikes =
 
 void() item_rockets =
 {
-    // self.touch = ammo_touch;
     self.handtouch = ammo_touch;
 
     if (self.spawnflags & WEAPON_BIG2)
@@ -804,7 +784,6 @@ void() item_rockets =
     }
     self.weapon = 3;
     self.netname = "rockets";
-    // setsize (self, '0 0 0', '32 32 56');
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -815,7 +794,6 @@ void() item_rockets =
 
 void() item_cells =
 {
-    // self.touch = ammo_touch;
     self.handtouch = ammo_touch;
 
     if (self.spawnflags & WEAPON_BIG2)
@@ -832,7 +810,6 @@ void() item_cells =
     }
     self.weapon = 4;
     self.netname = "cells";
-    // setsize (self, '0 0 0', '32 32 56');
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -848,7 +825,6 @@ float WEAPON_SPIKES = 4;
 float WEAPON_BIG = 8;
 void() item_weapon =
 {
-    // self.touch = ammo_touch;
     self.handtouch = ammo_touch;
 
     if (self.spawnflags & WEAPON_SHOTGUN)
@@ -905,7 +881,6 @@ void() item_weapon =
         self.netname = "rockets";
     }
 
-    // setsize (self, '0 0 0', '32 32 56');
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -1003,7 +978,6 @@ void() item_key1 =
         self.netname = "silver keycard";
     }
     key_setsounds();
-    // self.touch = key_touch;
     self.handtouch = key_touch;
     self.items = IT_KEY1;
     setsize (self, '-16 -16 -24', '16 16 32');
@@ -1042,7 +1016,6 @@ void() item_key2 =
         self.netname = "gold keycard";
     }
     key_setsounds();
-    // self.touch = key_touch;
     self.handtouch = key_touch;
     self.items = IT_KEY2;
     setsize (self, '-16 -16 -24', '16 16 32');
@@ -1116,7 +1089,6 @@ void() item_sigil =
         setmodel (self, "progs/end4.mdl");
     }
 
-    // self.touch = sigil_touch;
     self.handtouch = sigil_touch;
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
@@ -1204,7 +1176,6 @@ Player is invulnerable for 30 seconds
 */
 void() item_artifact_invulnerability =
 {
-    // self.touch = powerup_touch;
     self.handtouch = powerup_touch;
 
     precache_model ("progs/invulner.mdl");
@@ -1224,7 +1195,6 @@ Player takes no damage from water or slime for 30 seconds
 */
 void() item_artifact_envirosuit =
 {
-    // self.touch = powerup_touch;
     self.handtouch = powerup_touch;
 
     precache_model ("progs/suit.mdl");
@@ -1244,7 +1214,6 @@ Player is invisible for 30 seconds
 */
 void() item_artifact_invisibility =
 {
-    // self.touch = powerup_touch;
     self.handtouch = powerup_touch;
 
     precache_model ("progs/invisibl.mdl");
@@ -1265,7 +1234,6 @@ The next attack from the player will do 4x damage
 */
 void() item_artifact_super_damage =
 {
-    // self.touch = powerup_touch;
     self.handtouch = powerup_touch;
 
     precache_model ("progs/quaddama.mdl");
@@ -1438,9 +1406,7 @@ void() DropBackpack =
     item.solid = SOLID_TRIGGER;
     item.movetype = MOVETYPE_TOSS;
     setmodel (item, "progs/backpack.mdl");
-    // setsize (item, '-16 -16 0', '16 16 56');
     setsize (item, '-8 -8 0', '8 8 24');
-    // item.touch = BackpackTouch;
     item.handtouch = BackpackTouch;
 
     item.nextthink = time + 120;    // remove after 2 minutes

@@ -71,7 +71,7 @@ void() walkmonster_start_go =
 local string    stemp;
 local entity    etemp;
 
-   self.origin_z = self.origin_z + 1;  // raise off floor a bit
+    self.origin_z = self.origin_z + 1;    // raise off floor a bit
     droptofloor();
 
     if (!walkmove(0,0))
@@ -124,8 +124,8 @@ void() walkmonster_start =
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
-   self.flags = self.flags | FL_MONSTER;
-   self.think = walkmonster_start_go;
+    self.flags = self.flags | FL_MONSTER;
+    self.think = walkmonster_start_go;
     total_monsters = total_monsters + 1;
 };
 
@@ -178,8 +178,8 @@ void() flymonster_start =
 {
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
-   self.flags = self.flags | FL_MONSTER;
-   self.think = flymonster_start_go;
+    self.flags = self.flags | FL_MONSTER;
+    self.think = flymonster_start_go;
     total_monsters = total_monsters + 1;
 };
 
@@ -231,8 +231,8 @@ void() swimmonster_start_go =
 void() swimmonster_start =
 {
 // spread think times so they don't all happen at same time
-   self.flags = self.flags | FL_MONSTER;
-   self.nextthink = self.nextthink + random()*0.5;
+    self.flags = self.flags | FL_MONSTER;
+    self.nextthink = self.nextthink + random()*0.5;
     self.think = swimmonster_start_go;
     total_monsters = total_monsters + 1;
 };

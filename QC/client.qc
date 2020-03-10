@@ -76,7 +76,6 @@ void() SetNewParms =
 
 void() DecodeLevelParms =
 {
-//    if (serverflags)
     if (!deathmatch)
     {
         if (world.model == "maps/start.bsp")
@@ -520,7 +519,6 @@ void() PutClientInServer =
 
 //    spot = SelectSpawnPoint ();
 
-//    self.origin = spot.origin + '0 0 1';
     self.origin = self.oldorigin = spot.origin + '0 0 1';    // 1998-07-21 Respawning where player died fix by Robert Field
     self.angles = spot.angles;
     self.fixangle = TRUE;        // turn this way immediately
@@ -532,7 +530,6 @@ void() PutClientInServer =
     setmodel (self, "progs/player.mdl");
     modelindex_player = self.modelindex;
 
-    // setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
     setsize (self, '-16 -16 -24', '16 16 26');
 
     self.view_ofs = '0 0 22';
@@ -1113,28 +1110,11 @@ void() CheckPowerups =
 
 };
 
-
-/*
-================
-PlayerPostThink
-
-Called every frame after physics are run
-================
-*/
-void() PlayerPostThink =
+void() PlayerVRMelee =
 {
-    local    float    mspeed, aspeed;
-    local    float    r;
     local    float    vr_melee_threshold;
 
     vr_melee_threshold = cvar("vr_melee_threshold");
-
-    if (self.view_ofs == '0 0 0')
-        return;        // intermission or finale
-    if (self.deadflag)
-        return;
-
-// do weapon stuff
 
     // vr main hand melee attack
     if (cvar("vr_enabled") == 1 && time >= self.in_melee && self.handvelmag > vr_melee_threshold)
@@ -1186,7 +1166,28 @@ void() PlayerPostThink =
     {
         self.offhand_melee_hit_sound_played = FALSE;
     }
+}
 
+/*
+================
+PlayerPostThink
+
+Called every frame after physics are run
+================
+*/
+void() PlayerPostThink =
+{
+    local    float    mspeed, aspeed;
+    local    float    r;
+
+    if (self.view_ofs == '0 0 0')
+        return;        // intermission or finale
+    if (self.deadflag)
+        return;
+
+// do weapon stuff
+
+    PlayerVRMelee();
     W_WeaponFrame ();
 
 // check to see if player landed and play landing sound

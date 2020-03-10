@@ -219,7 +219,6 @@ void() barrel_explode =
     // did say self.owner
     T_RadiusDamage (self, self, 160, world);
     sound (self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
-
     particle2 (self.origin, '0 0 0', 2 /* explosion preset */, 1);
 
     self.origin_z = self.origin_z + 32;
@@ -672,23 +671,3 @@ void() misc_noisemaker =
     self.think = noise_think;
 };
 
-/*
-float(vector org) vecmagnitude =
-{
-    local float dotp;
-    dotp = org_x * org_x + org_y * org_y + org_z * org_z;
-
-    return ;
-
-    s = spawn ();
-    s.origin = org;
-    s.nextthink = time + 0.2;
-    s.think = play_teleport;
-
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TELEPORT);
-    WriteCoord (MSG_BROADCAST, org_x);
-    WriteCoord (MSG_BROADCAST, org_y);
-    WriteCoord (MSG_BROADCAST, org_z);
-};
-*/

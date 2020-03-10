@@ -348,7 +348,6 @@ void() monster_dog =
 
     setmodel (self, "progs/dog.mdl");
 
-    // setsize (self, '-32 -32 -24', '32 32 40');
     setsize (self, '-12 -12 -24', '12 12 16');
     self.health = 25;
 

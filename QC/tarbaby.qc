@@ -207,7 +207,6 @@ void() monster_tarbaby =
 
     setmodel (self, "progs/tarbaby.mdl");
 
-    // setsize (self, '-16 -16 -24', '16 16 40');
     setsize (self, '-12 -12 -24', '12 12 24');
     self.health = 80;
 

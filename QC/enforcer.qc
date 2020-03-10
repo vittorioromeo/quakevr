@@ -73,8 +73,6 @@ void() Laser_Touch =
 
 void(vector org, vector vec) LaunchLaser =
 {
-//    local    vector    vec;
-
     if (self.classname == "monster_enforcer")
         sound (self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
@@ -337,7 +335,6 @@ void() monster_enforcer =
 
     setmodel (self, "progs/enforcer.mdl");
 
-    // setsize (self, '-16 -16 -24', '16 16 40');
     setsize (self, '-14 -14 -24', '14 14 28');
     self.health = 80;
 

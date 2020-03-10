@@ -250,7 +250,7 @@ void() ogre_smash9    =[    $smash9,        ogre_smash10 ] {ai_charge(13); chain
 void() ogre_smash10    =[    $smash10,        ogre_smash11 ] {chainsaw(1);};
 void() ogre_smash11    =[    $smash11,        ogre_smash12 ] {ai_charge(2); chainsaw(0);
 self.nextthink = self.nextthink + random()*0.2;};    // slight variation
-void() ogre_smash12    =[    $smash12,        ogre_smash13 ] {ai_charge();};
+void() ogre_smash12    =[    $smash12,        ogre_smash13 ] {ai_charge(0);};
 void() ogre_smash13    =[    $smash13,        ogre_smash14 ] {ai_charge(4);};
 void() ogre_smash14    =[    $smash14,        ogre_run1    ] {ai_charge(12);};
 

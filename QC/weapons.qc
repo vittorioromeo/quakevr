@@ -4,8 +4,9 @@ void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
 void () player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
-void(vector org, float damage) SpawnBloodSplash;
 void() SuperDamageSound;
+
+void(vector org, float damage) SpawnBloodSplash;
 void() PainSound;
 
 
@@ -324,7 +325,6 @@ SpawnMeatSpray
 void(vector org, vector vel) SpawnMeatSpray =
 {
     local    entity missile, mpuff;
-//    local    vector    org;
 
     missile = spawn ();
     missile.owner = self;
@@ -696,7 +696,6 @@ void() W_FireRocket =
     setmodel (missile, "progs/missile.mdl");
     setsize (missile, '0 0 0', '0 0 0');
     setorigin (missile, self.handpos + '0 0 0');
-    //setorigin (missile, self.handpos + v_forward*8 + '0 0 16');
 
     VRGunHaptic(0.5, 75, 1.0);
 
@@ -949,7 +948,6 @@ void() W_FireSuperSpikes =
     self.attack_finished = time + 0.2;
     self.currentammo = self.ammo_nails = self.ammo_nails - 2;
     dir = aim (self, 1000);
-    // launch_spike (self.handpos + '0 0 16', dir);
     launch_spike (self.handpos + '0 0 0', dir);
     newmis.touch = superspike_touch;
     setmodel (newmis, "progs/s_spike.mdl");
@@ -987,7 +985,6 @@ void(float ox) W_FireSpikes =
     self.attack_finished = time + 0.2;
     self.currentammo = self.ammo_nails = self.ammo_nails - 1;
     dir = aim (self, 1000);
-    // launch_spike (self.handpos + '0 0 16' + v_right*ox, dir);
     launch_spike (self.handpos + '0 0 0' + v_right*ox, dir);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
