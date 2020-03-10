@@ -8,32 +8,32 @@ SHAMBLER
 
 $cd id1/models/shams
 $origin 0 0 24
-$base base		
+$base base
 $skin base
 
 $frame stand1 stand2 stand3 stand4 stand5 stand6 stand7 stand8 stand9
 $frame stand10 stand11 stand12 stand13 stand14 stand15 stand16 stand17
 
-$frame walk1 walk2 walk3 walk4 walk5 walk6 walk7 
+$frame walk1 walk2 walk3 walk4 walk5 walk6 walk7
 $frame walk8 walk9 walk10 walk11 walk12
 
 $frame	run1 run2 run3 run4 run5 run6
 
-$frame smash1 smash2 smash3 smash4 smash5 smash6 smash7 
+$frame smash1 smash2 smash3 smash4 smash5 smash6 smash7
 $frame smash8 smash9 smash10 smash11 smash12
 
-$frame swingr1 swingr2 swingr3 swingr4 swingr5 
+$frame swingr1 swingr2 swingr3 swingr4 swingr5
 $frame swingr6 swingr7 swingr8 swingr9
 
-$frame swingl1 swingl2 swingl3 swingl4 swingl5 
+$frame swingl1 swingl2 swingl3 swingl4 swingl5
 $frame swingl6 swingl7 swingl8 swingl9
 
-$frame magic1 magic2 magic3 magic4 magic5 
+$frame magic1 magic2 magic3 magic4 magic5
 $frame magic6 magic7 magic8 magic9 magic10 magic11 magic12
 
 $frame pain1 pain2 pain3 pain4 pain5 pain6
 
-$frame death1 death2 death3 death4 death5 death6 
+$frame death1 death2 death3 death4 death5 death6
 $frame death7 death8 death9 death10 death11
 
 void() sham_stand1	=[	$stand1,	sham_stand2	] {ai_stand();};
@@ -104,7 +104,7 @@ local float 	ldmg;
 		return;
 	if (!CanDamage (self.enemy, self))
 		return;
-		
+
 	ldmg = (random() + random() + random()) * 40;
 	T_Damage (self.enemy, self, self, ldmg);
 	sound (self, CHAN_VOICE, "shambler/smack.wav", 1, ATTN_NORM);
@@ -130,7 +130,7 @@ local float 	ldmg;
 
 	if (vlen(delta) > 100)
 		return;
-		
+
 	ldmg = (random() + random() + random()) * 20;
 	T_Damage (self.enemy, self, self, ldmg);
 	sound (self, CHAN_VOICE, "shambler/smack.wav", 1, ATTN_NORM);
@@ -177,7 +177,7 @@ if (random()<0.5)
 void() sham_melee =
 {
 	local float chance;
-	
+
 	chance = random();
 	if (chance > 0.6 || self.health == 600)
 		sham_smash1 ();
@@ -193,7 +193,7 @@ void() sham_melee =
 void() CastLightning =
 {
 	local	vector	org, dir;
-	
+
 	self.effects = self.effects | EF_MUZZLEFLASH;
 
 	ai_face ();
@@ -284,7 +284,7 @@ void(entity attacker, float damage)	sham_pain =
 	if (self.pain_finished > time)
 		return;
 	self.pain_finished = time + 2;
-		
+
 	sham_pain1 ();
 };
 
@@ -337,7 +337,7 @@ void() monster_shambler =
 	precache_model ("progs/s_light.mdl");
 	precache_model ("progs/h_shams.mdl");
 	precache_model ("progs/bolt.mdl");
-	
+
 	precache_sound ("shambler/sattck1.wav");
 	precache_sound ("shambler/sboom.wav");
 	precache_sound ("shambler/sdeath.wav");
@@ -362,6 +362,6 @@ void() monster_shambler =
 	self.th_melee = sham_melee;
 	self.th_missile = sham_magic1;
 	self.th_pain = sham_pain;
-	
+
 	walkmonster_start();
 };

@@ -10,10 +10,10 @@ Teleporter testing
 void() test_teleport =
 {
 	precache_model ("sprites/s_aball.spr");
-	setsize (self, self.mins, self.maxs);	
+	setsize (self, self.mins, self.maxs);
 	self.touch = test_teleport_touch;
 	self.solid = 1;
-	
+
 	if (!self.target)
 		objerror ("no target\n");
 };
@@ -34,7 +34,7 @@ local entity oldself;
 void() tele_done =
 {
 	self.movetype = MOVETYPE_WALK;
-	self.solid = SOLID_SLIDEBOX;	
+	self.solid = SOLID_SLIDEBOX;
 };
 
 /*~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>~<~>

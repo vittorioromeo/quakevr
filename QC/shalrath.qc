@@ -14,7 +14,7 @@ $scale 0.7
 $frame attack1 attack2 attack3 attack4 attack5 attack6 attack7 attack8
 $frame attack9 attack10 attack11
 
-$frame pain1 pain2 pain3 pain4 pain5 
+$frame pain1 pain2 pain3 pain4 pain5
 
 $frame death1 death2 death3 death4 death5 death6 death7
 
@@ -145,7 +145,7 @@ void() ShalMissile =
 	missile.movetype = MOVETYPE_FLYMISSILE;
 	setmodel (missile, "progs/v_spike.mdl");
 
-	setsize (missile, '0 0 0', '0 0 0');		
+	setsize (missile, '0 0 0', '0 0 0');
 
 	missile.origin = self.origin + '0 0 10';
 	missile.velocity = dir * 400;
@@ -171,7 +171,7 @@ void() ShalHome =
 	else
 		self.velocity = dir * 250;
 	self.nextthink = time + 0.2;
-	self.think = ShalHome;	
+	self.think = ShalHome;
 };
 
 void() ShalMissileTouch =
@@ -180,7 +180,7 @@ void() ShalMissileTouch =
 		return;		// don't explode on owner
 
 	if (other.classname == "monster_zombie")
-		T_Damage (other, self, self, 110);	
+		T_Damage (other, self, self, 110);
 	T_RadiusDamage (self, self.owner, 40, world);
 	sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
@@ -211,17 +211,17 @@ void() monster_shalrath =
 	precache_model2 ("progs/shalrath.mdl");
 	precache_model2 ("progs/h_shal.mdl");
 	precache_model2 ("progs/v_spike.mdl");
-	
+
 	precache_sound2 ("shalrath/attack.wav");
 	precache_sound2 ("shalrath/attack2.wav");
 	precache_sound2 ("shalrath/death.wav");
 	precache_sound2 ("shalrath/idle.wav");
 	precache_sound2 ("shalrath/pain.wav");
 	precache_sound2 ("shalrath/sight.wav");
-	
+
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;
-	
+
 	setmodel (self, "progs/shalrath.mdl");
 	setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
 	self.health = 400;
@@ -234,6 +234,6 @@ void() monster_shalrath =
 	self.th_missile = shal_attack1;
 
 	self.think = walkmonster_start;
-	self.nextthink = time + 0.1 + random ()*0.1;	
+	self.nextthink = time + 0.1 + random ()*0.1;
 
 };

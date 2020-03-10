@@ -8,7 +8,7 @@ SOLDIER / PLAYER
 
 $cd id1/models/enforcer
 $origin 0 -6 24
-$base base		
+$base base
 $skin skin
 
 $frame stand1 stand2 stand3 stand4 stand5 stand6 stand7
@@ -41,7 +41,7 @@ $frame paind17 paind18 paind19
 void() Laser_Touch =
 {
 	local vector org;
-	
+
 	if (other == self.owner)
 		return;		// don't explode on owner
 
@@ -50,7 +50,7 @@ void() Laser_Touch =
 		remove(self);
 		return;
 	}
-	
+
 	sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
 	org = self.origin - 8*normalize(self.velocity);
 
@@ -67,19 +67,19 @@ void() Laser_Touch =
 		WriteCoord (MSG_BROADCAST, org_y);
 		WriteCoord (MSG_BROADCAST, org_z);
 	}
-	
-	remove(self);	
+
+	remove(self);
 };
 
 void(vector org, vector vec) LaunchLaser =
 {
 	local	vector	vec;
-		
+
 	if (self.classname == "monster_enforcer")
 		sound (self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
 	vec = normalize(vec);
-	
+
 	newmis = spawn();
 	newmis.owner = self;
 	newmis.movetype = MOVETYPE_FLY;
@@ -87,7 +87,7 @@ void(vector org, vector vec) LaunchLaser =
 	newmis.effects = EF_DIMLIGHT;
 
 	setmodel (newmis, "progs/laser.mdl");
-	setsize (newmis, '0 0 0', '0 0 0');		
+	setsize (newmis, '0 0 0', '0 0 0');
 
 	setorigin (newmis, org);
 
@@ -107,7 +107,7 @@ void() enforcer_fire =
 
 	self.effects = self.effects | EF_MUZZLEFLASH;
 	makevectors (self.angles);
-	
+
 	org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
 
 	LaunchLaser(org, self.enemy.origin - self.origin);
@@ -220,7 +220,7 @@ void(entity attacker, float damage)	enf_pain =
 	if (self.pain_finished > time)
 		return;
 
-	
+
 	if (r < 0.5)
 		sound (self, CHAN_VOICE, "enforcer/pain1.wav", 1, ATTN_NORM);
 	else
@@ -273,7 +273,7 @@ void()	enf_fdie1	=[	$fdeath1,	enf_fdie2	] {
 
 };
 void()	enf_fdie2	=[	$fdeath2,	enf_fdie3	] {};
-void()	enf_fdie3	=[	$fdeath3,	enf_fdie4	] 
+void()	enf_fdie3	=[	$fdeath3,	enf_fdie4	]
 {self.solid = SOLID_NOT;self.ammo_cells = 5;DropBackpack();};
 void()	enf_fdie4	=[	$fdeath4,	enf_fdie5	] {};
 void()	enf_fdie5	=[	$fdeath5,	enf_fdie6	] {};
@@ -331,7 +331,7 @@ void() monster_enforcer =
 	precache_sound2 ("enforcer/sight2.wav");
 	precache_sound2 ("enforcer/sight3.wav");
 	precache_sound2 ("enforcer/sight4.wav");
-	
+
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;
 

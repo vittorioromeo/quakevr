@@ -43,10 +43,10 @@ $frame slice1 slice2 slice3 slice4 slice5 slice6 slice7 slice8 slice9 slice10
 $frame smash1 smash2 smash3 smash4 smash5 smash6 smash7 smash8 smash9 smash10
 $frame smash11
 
-$frame w_attack1 w_attack2 w_attack3 w_attack4 w_attack5 w_attack6 w_attack7 
+$frame w_attack1 w_attack2 w_attack3 w_attack4 w_attack5 w_attack6 w_attack7
 $frame w_attack8 w_attack9 w_attack10 w_attack11 w_attack12 w_attack13 w_attack14
-$frame w_attack15 w_attack16 w_attack17 w_attack18 w_attack19 w_attack20 
-$frame w_attack21 w_attack22 
+$frame w_attack15 w_attack16 w_attack17 w_attack18 w_attack19 w_attack20
+$frame w_attack21 w_attack22
 
 $frame magicc1 magicc2 magicc3 magicc4 magicc5 magicc6 magicc7 magicc8
 $frame magicc9 magicc10 magicc11
@@ -60,10 +60,10 @@ void(float offset) hknight_shot =
 {
 	local	vector	offang;
 	local	vector	org, vec;
-	
+
 	offang = vectoangles (self.enemy.origin - self.origin);
 	offang_y = offang_y + offset * 6;
-	
+
 	makevectors (offang);
 
 	org = self.origin + self.mins + self.size*0.5 + v_forward * 20;
@@ -71,11 +71,11 @@ void(float offset) hknight_shot =
 // set missile speed
 	vec = normalize (v_forward);
 	vec_z = 0 - vec_z + (random() - 0.5)*0.1;
-	
+
 	launch_spike (org, vec);
 	newmis.classname = "knightspike";
 	setmodel (newmis, "progs/k_spike.mdl");
-	setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);		
+	setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
 	newmis.velocity = vec*300;
 	sound (self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
 };
@@ -86,13 +86,13 @@ void() CheckForCharge =
 if (!enemy_vis)
 	return;
 if (time < self.attack_finished)
-	return;	
+	return;
 if ( fabs(self.origin_z - self.enemy.origin_z) > 20)
 	return;		// too much height change
 if ( vlen (self.origin - self.enemy.origin) < 80)
 	return;		// use regular attack
 
-// charge		
+// charge
 	SUB_AttackFinished (2);
 	hknight_char_a1 ();
 
@@ -368,7 +368,7 @@ void(entity attacker, float damage)	hknight_pain =
 		self.pain_finished = time + 1;
 		return;
 	}
-	
+
 	if ((random()*30 > damage) )
 		return;		// didn't flinch
 
@@ -407,7 +407,7 @@ void() monster_hell_knight =
 	precache_model2 ("progs/k_spike.mdl");
 	precache_model2 ("progs/h_hellkn.mdl");
 
-	
+
 	precache_sound2 ("hknight/attack1.wav");
 	precache_sound2 ("hknight/death1.wav");
 	precache_sound2 ("hknight/pain1.wav");
@@ -419,7 +419,7 @@ void() monster_hell_knight =
 
 	precache_sound ("knight/sword1.wav");
 	precache_sound ("knight/sword2.wav");
-	
+
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;
 
@@ -435,6 +435,6 @@ void() monster_hell_knight =
 	self.th_missile = hknight_magicc1;
 	self.th_pain = hknight_pain;
 	self.th_die = hknight_die;
-	
+
 	walkmonster_start ();
 };

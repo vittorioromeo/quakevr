@@ -27,7 +27,7 @@ float(entity targ, entity inflictor) CanDamage =
 			return TRUE;
 		return FALSE;
 	}
-	
+
 	traceline(inflictor.origin, targ.origin, TRUE, self);
 	if (trace_fraction == 1)
 		return TRUE;
@@ -59,7 +59,7 @@ void(entity targ, entity attacker) Killed =
 
 	oself = self;
 	self = targ;
-	
+
 	if (self.health < -99)
 		self.health = -99;		// don't let sbar look bad if a player
 
@@ -80,13 +80,13 @@ void(entity targ, entity attacker) Killed =
 	}
 
 	ClientObituary(self, attacker);
-	
+
 	self.takedamage = DAMAGE_NO;
 	self.touch = SUB_Null;
 
 	monster_death_use();
 	self.th_die ();
-	
+
 	self = oself;
 };
 
@@ -125,7 +125,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 		targ.armortype = 0;	// lost all armor
 		targ.items = targ.items - (targ.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3));
 	}
-	
+
 	targ.armorvalue = targ.armorvalue - save;
 	take = ceil(damage-save);
 
@@ -163,10 +163,10 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 // team play damage avoidance
 	if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
 		return;
-		
+
 // do the damage
 	targ.health = targ.health - take;
-			
+
 	if (targ.health <= 0)
 	{
 		Killed (targ, attacker);
@@ -182,7 +182,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 	// get mad unless of the same class (except for soldiers)
 		if (self != attacker && attacker != self.enemy)
 		{
-			if ( (self.classname != attacker.classname) 
+			if ( (self.classname != attacker.classname)
 			|| (self.classname == "monster_army" ) )
 			{
 				if (self.enemy.classname == "player")
@@ -198,7 +198,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 		self.th_pain (attacker, take);
 	// nightmare mode monsters don't go into pain frames often
 		if (skill == 3)
-			self.pain_finished = time + 5;		
+			self.pain_finished = time + 5;
 	}
 
 	self = oldself;
@@ -216,7 +216,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
 	local	vector	org;
 
 	head = findradius(inflictor.origin, damage+40);
-	
+
 	while (head)
 	{
 		if (head != ignore)
@@ -234,7 +234,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
 				{
 					if (CanDamage (head, inflictor))
 					{	// shambler takes half damage from all explosions
-						if (head.classname == "monster_shambler")						
+						if (head.classname == "monster_shambler")
 							T_Damage (head, inflictor, attacker, points*0.5);
 						else
 							T_Damage (head, inflictor, attacker, points);
@@ -255,9 +255,9 @@ void(entity attacker, float damage) T_BeamDamage =
 {
 	local	float 	points;
 	local	entity	head;
-	
+
 	head = findradius(attacker.origin, damage+40);
-	
+
 	while (head)
 	{
 		if (head.takedamage)
@@ -272,7 +272,7 @@ void(entity attacker, float damage) T_BeamDamage =
 			{
 				if (CanDamage (head, attacker))
 				{
-					if (head.classname == "monster_shambler")						
+					if (head.classname == "monster_shambler")
 						T_Damage (head, attacker, attacker, points*0.5);
 					else
 						T_Damage (head, attacker, attacker, points);

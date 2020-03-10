@@ -151,7 +151,7 @@ void(entity attacker, float damage)	knight_pain =
 		return;
 
 	r = random();
-	
+
 	sound (self, CHAN_VOICE, "knight/khurt.wav", 1, ATTN_NORM);
 	if (r < 0.85)
 	{
@@ -163,7 +163,7 @@ void(entity attacker, float damage)	knight_pain =
 		knight_painb1 ();
 		self.pain_finished = time + 1;
 	}
-	
+
 };
 
 //===========================================================================
@@ -185,7 +185,7 @@ void()	knight_bow10	=[	$walk1,		knight_walk1	] {ai_turn();};
 
 void()	knight_die1	=[	$death1,	knight_die2	] {};
 void()	knight_die2	=[	$death2,	knight_die3	] {};
-void()	knight_die3	=[	$death3,	knight_die4	] 
+void()	knight_die3	=[	$death3,	knight_die4	]
 {self.solid = SOLID_NOT;};
 void()	knight_die4	=[	$death4,	knight_die5	] {};
 void()	knight_die5	=[	$death5,	knight_die6	] {};
@@ -198,7 +198,7 @@ void()	knight_die10=[	$death10,	knight_die10] {};
 
 void()	knight_dieb1	=[	$deathb1,	knight_dieb2	] {};
 void()	knight_dieb2	=[	$deathb2,	knight_dieb3	] {};
-void()	knight_dieb3	=[	$deathb3,	knight_dieb4	] 	
+void()	knight_dieb3	=[	$deathb3,	knight_dieb4	]
 {self.solid = SOLID_NOT;};
 void()	knight_dieb4	=[	$deathb4,	knight_dieb5	] {};
 void()	knight_dieb5	=[	$deathb5,	knight_dieb6	] {};
@@ -265,6 +265,6 @@ void() monster_knight =
 	self.th_melee = knight_atk1;
 	self.th_pain = knight_pain;
 	self.th_die = knight_die;
-	
+
 	walkmonster_start ();
 };
