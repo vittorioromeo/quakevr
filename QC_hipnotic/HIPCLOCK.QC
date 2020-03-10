@@ -43,7 +43,7 @@ void() clock_setpos =
    };
 
 void() clock_think =
-	{
+    {
    clock_setpos();
    self.nextthink = time + 1;
    };
@@ -66,7 +66,7 @@ Set the angle to be the direction the clock is facing.
 */
 
 void() func_clock =
-	{
+    {
    local vector temp;
 
    self.classname = "clock";

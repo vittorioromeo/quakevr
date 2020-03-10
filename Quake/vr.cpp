@@ -1245,8 +1245,8 @@ void VR_DoTeleportation()
             return value >= min && value <= max;
         };
 
-        Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
-            trace.plane.normal[1], trace.plane.normal[2]);
+        // Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
+        //    trace.plane.normal[1], trace.plane.normal[2]);
 
         // Allow slopes, but not walls or ceilings.
         const bool

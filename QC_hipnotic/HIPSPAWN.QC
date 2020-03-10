@@ -334,8 +334,8 @@ void() func_spawn =
    deathmatch = tempdeathmatch;
    self.solid = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;
-	self.modelindex = 0;
-	self.model = "";
+    self.modelindex = 0;
+    self.model = "";
    setmodel (self, self.model);  // set size and link into world
    self.use = spawn_use;
    self.spawnmaster = monster;

@@ -10,9 +10,9 @@ float USE_GOLD_KEY = 1;
 void() keytrigger_use =
    {
    if (activator.classname != "player")
-		return;
+        return;
    if (self.attack_finished > time)
-		return;
+        return;
 
    self.attack_finished = time + 2;
 
@@ -88,32 +88,32 @@ Variable sized single use trigger that requires a key to trigger targets.  Must 
 */
 
 void() trigger_usekey =
-	{
+    {
    if (world.worldtype == 0)
-	{
-		precache_sound ("doors/medtry.wav");
-		precache_sound ("doors/meduse.wav");
-		self.noise3 = "doors/medtry.wav";
-		self.noise4 = "doors/meduse.wav";
-	}
-	else if (world.worldtype == 1)
-	{
-		precache_sound ("doors/runetry.wav");
-		precache_sound ("doors/runeuse.wav");
-		self.noise3 = "doors/runetry.wav";
-		self.noise4 = "doors/runeuse.wav";
-	}
-	else if (world.worldtype == 2)
-	{
-		precache_sound ("doors/basetry.wav");
-		precache_sound ("doors/baseuse.wav");
-		self.noise3 = "doors/basetry.wav";
-		self.noise4 = "doors/baseuse.wav";
-	}
-	else
-	{
-		dprint ("no worldtype set!\n");
-	}
+    {
+        precache_sound ("doors/medtry.wav");
+        precache_sound ("doors/meduse.wav");
+        self.noise3 = "doors/medtry.wav";
+        self.noise4 = "doors/meduse.wav";
+    }
+    else if (world.worldtype == 1)
+    {
+        precache_sound ("doors/runetry.wav");
+        precache_sound ("doors/runeuse.wav");
+        self.noise3 = "doors/runetry.wav";
+        self.noise4 = "doors/runeuse.wav";
+    }
+    else if (world.worldtype == 2)
+    {
+        precache_sound ("doors/basetry.wav");
+        precache_sound ("doors/baseuse.wav");
+        self.noise3 = "doors/basetry.wav";
+        self.noise4 = "doors/baseuse.wav";
+    }
+    else
+    {
+        dprint ("no worldtype set!\n");
+    }
 
    if (self.spawnflags & USE_GOLD_KEY)
       self.items = IT_KEY2;
@@ -123,7 +123,7 @@ void() trigger_usekey =
    self.use = keytrigger_use;
    self.touch = keytrigger_touch;
 
-	InitTrigger ();
+    InitTrigger ();
    };
 
 void() remove_touch =
@@ -162,8 +162,8 @@ trigger_setgravity
 
 void() trigger_gravity_touch =
 {
-	if (other.classname != "player")
-		return;
+    if (other.classname != "player")
+        return;
    if (self.gravity == -1)
       other.gravity = 1.0;
    else
@@ -184,7 +184,7 @@ set the gravity of a player
 */
 void() trigger_setgravity =
 {
-	InitTrigger ();
+    InitTrigger ();
    self.touch = trigger_gravity_touch;
    if (!self.gravity)
       {
@@ -212,7 +212,7 @@ void() trigger_command_use =
 void() trigger_command =
    {
    self.use = oncount_use;
-	self.think = SUB_Null;
+    self.think = SUB_Null;
    };
 
 void() trigger_decoy_touch =
@@ -233,10 +233,10 @@ void() trigger_decoy_touch =
 void() trigger_decoy_use =
    {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    InitTrigger ();
    self.touch = trigger_decoy_touch;
    };

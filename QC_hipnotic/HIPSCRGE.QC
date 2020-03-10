@@ -49,15 +49,15 @@ Returns FALSE if movement should continue
 */
 float() ScourgeCheckAttack =
 {
-	local vector	spot1, spot2;
-	local entity	targ;
-	local float		chance;
-	local float		enemy_yaw;
+    local vector    spot1, spot2;
+    local entity    targ;
+    local float        chance;
+    local float        enemy_yaw;
 
    targ = self.enemy;
 // see if any entities are in the way of the shot
    spot1 = self.origin + self.view_ofs;
-	spot2 = targ.origin + targ.view_ofs;
+    spot2 = targ.origin + targ.view_ofs;
 
    if (vlen(spot1 - spot2) <= 100 )
       {
@@ -68,10 +68,10 @@ float() ScourgeCheckAttack =
          }
       }
    if (time < self.attack_finished)
-		return FALSE;
+        return FALSE;
 
    if (!enemy_vis)
-		return FALSE;
+        return FALSE;
 
 
    chance = spot2_z - spot1_z;
@@ -81,19 +81,19 @@ float() ScourgeCheckAttack =
       return FALSE;
 
    if (vlen(spot1 - spot2) > 1000)
-		return FALSE;
+        return FALSE;
 
    if (vlen(spot1 - spot2) < 150)
-		return FALSE;
+        return FALSE;
 
-	traceline (spot1, spot2, FALSE, self);
+    traceline (spot1, spot2, FALSE, self);
 
    if (trace_inopen && trace_inwater)
-		return FALSE;			// sight line crossed contents
+        return FALSE;            // sight line crossed contents
 
    if (trace_ent != targ)
       {
-		return FALSE;	// don't have a clear shot
+        return FALSE;    // don't have a clear shot
       }
 
 // missile attack
@@ -101,8 +101,8 @@ float() ScourgeCheckAttack =
 //      return FALSE;
 
    self.attack_state = AS_MISSILE;
-	SUB_AttackFinished (2 + 2*random());
-	return TRUE;
+    SUB_AttackFinished (2 + 2*random());
+    return TRUE;
 };
 
 void(float ox) SCOURGE_FireSpikes =
@@ -132,12 +132,12 @@ void() Attack_With_Tail =
    delta = self.enemy.origin - self.origin;
 
    if (vlen(delta) > 100)
-		return;
-	if (!CanDamage (self.enemy, self))
-		return;
+        return;
+    if (!CanDamage (self.enemy, self))
+        return;
 
-	ldmg = (random() + random() + random()) * 40;
-	T_Damage (self.enemy, self, self, ldmg);
+    ldmg = (random() + random() + random()) * 40;
+    T_Damage (self.enemy, self, self, ldmg);
    sound (self, CHAN_WEAPON, "shambler/smack.wav", 1, ATTN_NORM);
 
    SpawnMeatSpray (self.origin + v_forward*16, crandom() * 50 * v_right);
@@ -341,14 +341,14 @@ void()   scourge_pain5  =[ $pain5.asc, scourge_run1 ] {};
 
 void(entity attacker, float damage) scourge_pain =
 {
-	local float r;
+    local float r;
 
 
    if (random()*50 > damage)
-		return;		// didn't flinch
+        return;        // didn't flinch
 
    if (self.pain_finished > time)
-		return;
+        return;
 
 
    r = random ();
@@ -378,11 +378,11 @@ void() scourge_die =
    scourge_think();
    if (self.health < -35)
    {
-		sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_scourg.mdl", self.health);
       ThrowGib ("progs/gib1.mdl", self.health);
-		ThrowGib ("progs/gib2.mdl", self.health);
-		ThrowGib ("progs/gib3.mdl", self.health);
+        ThrowGib ("progs/gib2.mdl", self.health);
+        ThrowGib ("progs/gib3.mdl", self.health);
       return;
    }
 
@@ -396,7 +396,7 @@ void() scourge_die =
 //
 void() scourge_melee =
    {
-	local float chance;
+    local float chance;
 
 //   chance = random();
 //   if (chance < 0.5 )
@@ -480,14 +480,14 @@ void() monster_scourge =
 {
    local entity trig;
 
-	if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    if (deathmatch)
+    {
+        remove(self);
+        return;
+    }
    precache_model2 ("progs/scor.mdl");
    precache_model2 ("progs/h_scourg.mdl");
-	precache_model2 ("progs/laser.mdl");
+    precache_model2 ("progs/laser.mdl");
    precache_model2 ("progs/s_light.mdl");
    precache_model2 ("progs/spike.mdl");
 
@@ -501,8 +501,8 @@ void() monster_scourge =
    precache_sound2 ("shambler/smack.wav");
    precache_sound2 ("weapons/rocket1i.wav");
 
-	self.solid = SOLID_SLIDEBOX;
-	self.movetype = MOVETYPE_STEP;
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
 
    setmodel (self, "progs/scor.mdl");
 
@@ -521,5 +521,5 @@ void() monster_scourge =
    self.attack_state = AS_DODGING;
    self.state = 0;
 
-	walkmonster_start();
+    walkmonster_start();
 };

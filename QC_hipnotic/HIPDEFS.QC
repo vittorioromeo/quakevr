@@ -32,7 +32,7 @@ float footsteps;
 
 
 //MED 11/09/96 added new spawnflags
-float SPAWNFLAG_SUPERSPIKE	= 1;
+float SPAWNFLAG_SUPERSPIKE    = 1;
 float SPAWNFLAG_LASER = 2;
 float SPAWNFLAG_LAVABALL = 4;
 float SPAWNFLAG_ROCKET = 8;

@@ -7,7 +7,7 @@ spike mine
 */
 
 $cd id1/models/demon3
-$scale	0.8
+$scale    0.8
 $origin 0 0 24
 $base base
 $skin base
@@ -32,10 +32,10 @@ $frame attacka9 attacka10 attacka11 attacka12 attacka13 attacka14 attacka15
 void() monster_spikemine =
 {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    precache_model ("progs/demon.mdl");
    precache_model ("progs/h_demon.mdl");
 
@@ -47,7 +47,7 @@ void() monster_spikemine =
    precache_sound ("demon/sight2.wav");
 
    self.solid = SOLID_SLIDEBOX;
-	self.movetype = MOVETYPE_STEP;
+    self.movetype = MOVETYPE_STEP;
 
    setmodel (self, "progs/demon.mdl");
 

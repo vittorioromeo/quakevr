@@ -19,21 +19,21 @@ HIPNOTIC ITEMS
 //
 void() hip_powerup_touch =
 {
-local entity	stemp;
-local float		best;
+local entity    stemp;
+local float        best;
 
-	if (other.classname != "player")
-		return;
-	if (other.health <= 0)
-		return;
+    if (other.classname != "player")
+        return;
+    if (other.health <= 0)
+        return;
 
-	sprint (other, "You got the ");
-	sprint (other, self.netname);
-	sprint (other,"\n");
+    sprint (other, "You got the ");
+    sprint (other, self.netname);
+    sprint (other,"\n");
 
-	if (deathmatch)
-	{
-		self.mdl = self.model;
+    if (deathmatch)
+    {
+        self.mdl = self.model;
 
 //      if ((self.classname == "item_artifact_invulnerability") ||
 //         (self.classname == "item_artifact_invisibility"))
@@ -41,29 +41,29 @@ local float		best;
 //      else
       self.nextthink = time + 60;
 
-		self.think = SUB_regen;
-	}
+        self.think = SUB_regen;
+    }
 
-	sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
-	stuffcmd (other, "bf\n");
-	self.solid = SOLID_NOT;
+    sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    stuffcmd (other, "bf\n");
+    self.solid = SOLID_NOT;
    other.items2 = other.items2 | self.items2;
-	self.model = string_null;
+    self.model = string_null;
 
 // do the apropriate action
    if ( self.classname == "item_artifact_wetsuit" )
-	{
-		other.wetsuit_time = 1;
-		other.wetsuit_finished = time + 30;
-	}
+    {
+        other.wetsuit_time = 1;
+        other.wetsuit_finished = time + 30;
+    }
    if ( self.classname == "item_artifact_empathy_shields" )
-	{
+    {
       other.empathy_time = 1;
       other.empathy_finished = time + 30;
-	}
+    }
 
-	activator = other;
-	SUB_UseTargets();				// fire all targets / killtargets
+    activator = other;
+    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -80,11 +80,11 @@ void() item_artifact_wetsuit =
    precache_sound ("items/suit2.wav");
    self.noise = "misc/weton.wav";
    setmodel (self, "progs/wetsuit.mdl");
-	self.netname = "Wetsuit";
+    self.netname = "Wetsuit";
    self.items2 = HIP_IT_WETSUIT;
    setsize (self, '-16 -16 -24', '16 16 32');
 
-	StartItem ();
+    StartItem ();
 };
 
 /*
@@ -97,30 +97,30 @@ void() item_artifact_wetsuit =
 
 void() horn_touch =
 {
-	local	float amount;
+    local    float amount;
    local float value;
 
-	if (other.classname != "player")
-		return;
+    if (other.classname != "player")
+        return;
 
    if (deathmatch)
-	{
-		self.mdl = self.model;
+    {
+        self.mdl = self.model;
 
       self.nextthink = time + 60;
 
-		self.think = SUB_regen;
-	}
+        self.think = SUB_regen;
+    }
 
-	self.solid = SOLID_NOT;
-	self.model = string_null;
+    self.solid = SOLID_NOT;
+    self.model = string_null;
    sprint (other, "You got the Horn of Conjuring\n");
    sound (other, CHAN_VOICE, self.noise, 1, ATTN_NONE);
-	stuffcmd (other, "bf\n");
+    stuffcmd (other, "bf\n");
    activator = other;
    horn_active = 1;
    horn_charmer = other;
-	SUB_UseTargets();				// fire all targets / killtargets
+    SUB_UseTargets();                // fire all targets / killtargets
    horn_active = 0;
 };
 
@@ -138,7 +138,7 @@ void() item_hornofconjuring =
    setmodel(self, "progs/horn.mdl");
    self.noise = "hipitems/horn.wav";
    setsize (self, '-16 -16 0', '16 16 32');
-	StartItem ();
+    StartItem ();
    };
 
 /*QUAKED item_artifact_empathy_shields (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -157,7 +157,7 @@ void() item_artifact_empathy_shields =
    self.netname = "Empathy Shields";
    self.items2 = HIP_IT_EMPATHY_SHIELDS;
    setsize (self, '-16 -16 0', '16 16 32');
-	StartItem ();
+    StartItem ();
    };
 /*
 ===============================================================================
@@ -174,12 +174,12 @@ void() weapon_mjolnir =
 {
    precache_model ("progs/g_hammer.mdl");
    setmodel (self, "progs/g_hammer.mdl");
-	self.weapon = 3;
+    self.weapon = 3;
    self.netname = "Mjolnir";
    self.items = IT_MJOLNIR;
-	self.touch = weapon_touch;
-	setsize (self, '-16 -16 0', '16 16 56');
-	StartItem ();
+    self.touch = weapon_touch;
+    setsize (self, '-16 -16 0', '16 16 56');
+    StartItem ();
 };
 
 /*QUAKED weapon_laser_gun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -189,12 +189,12 @@ void() weapon_laser_gun =
 {
    precache_model ("progs/g_laserg.mdl");
    setmodel (self, "progs/g_laserg.mdl");
-	self.weapon = 3;
+    self.weapon = 3;
    self.netname = "Laser Cannon";
    self.items = IT_LASER_CANNON;
    self.touch = weapon_touch;
-	setsize (self, '-16 -16 0', '16 16 56');
-	StartItem ();
+    setsize (self, '-16 -16 0', '16 16 56');
+    StartItem ();
 };
 
 /*QUAKED weapon_proximity_gun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -204,12 +204,12 @@ void() weapon_proximity_gun =
 {
    precache_model ("progs/g_prox.mdl");
    setmodel (self, "progs/g_prox.mdl");
-	self.weapon = 3;
+    self.weapon = 3;
    self.netname = "Proximity Gun";
    self.items = IT_PROXIMITY_GUN;
    self.touch = weapon_touch;
-	setsize (self, '-16 -16 0', '16 16 56');
-	StartItem ();
+    setsize (self, '-16 -16 0', '16 16 56');
+    StartItem ();
 };
 
 /*
@@ -269,7 +269,7 @@ void() spikemine_Home =
       return;
       }
    vtemp = self.enemy.origin + '0 0 10';
-	dir = normalize(vtemp - self.origin);
+    dir = normalize(vtemp - self.origin);
    if (infront(self.enemy))
       {
       self.velocity = dir * ((skill*50) + 50);
@@ -302,20 +302,20 @@ void() spikemine_Touch =
 //   self.effects = self.effects | EF_MUZZLEFLASH;
 
    T_RadiusDamage (self, self, 110, world);
-	sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-	WriteCoord (MSG_BROADCAST, self.origin_x);
-	WriteCoord (MSG_BROADCAST, self.origin_y);
-	WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte (MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord (MSG_BROADCAST, self.origin_x);
+    WriteCoord (MSG_BROADCAST, self.origin_y);
+    WriteCoord (MSG_BROADCAST, self.origin_z);
 
    sound (self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
    self.velocity = '0 0 0';
-	self.touch = SUB_Null;
-	setmodel (self, "progs/s_explod.spr");
-	self.solid = SOLID_NOT;
-	s_explode1 ();
+    self.touch = SUB_Null;
+    setmodel (self, "progs/s_explod.spr");
+    self.solid = SOLID_NOT;
+    s_explode1 ();
    };
 
 /*
@@ -328,7 +328,7 @@ void() spike_mine_first_think =
    self.nextthink = time + 0.1;
    self.search_time = 0;
    self.takedamage = DAMAGE_AIM;
-	self.use = monster_use;
+    self.use = monster_use;
    };
 
 /*QUAKED trap_spike_mine (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -337,10 +337,10 @@ void() spike_mine_first_think =
 void() trap_spike_mine =
    {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    precache_model ("progs/spikmine.mdl");
    precache_sound ("weapons/r_exp3.wav");
    precache_sound ("hipitems/spikmine.wav");

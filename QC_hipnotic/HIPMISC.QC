@@ -208,7 +208,7 @@ void() info_command =
 void() effect_teleport_use =
    {
    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_TELEPORT);
+    WriteByte (MSG_BROADCAST, TE_TELEPORT);
    WriteCoord (MSG_BROADCAST, self.origin_x);
    WriteCoord (MSG_BROADCAST, self.origin_y);
    WriteCoord (MSG_BROADCAST, self.origin_z);
@@ -347,14 +347,14 @@ a camera has reached a path trigger
 /*
 void() t_cameratarget =
 {
-local entity	temp;
+local entity    temp;
 
-	if (other.movetarget != self)
-		return;
+    if (other.movetarget != self)
+        return;
 
-	temp = self;
-	self = other;
-	other = temp;
+    temp = self;
+    self = other;
+    other = temp;
 
    self.angles = self.movetarget.mangle;
    self.movetarget = find (world, targetname, other.target);
@@ -398,11 +398,11 @@ path for a camera
 /*
 void() path_camera =
 {
-	self.solid = SOLID_TRIGGER;
+    self.solid = SOLID_TRIGGER;
    self.touch = t_cameratarget;
    if (!self.duration)
       self.duration = 10;
-	setsize (self, '-8 -8 -8', '8 8 8');
+    setsize (self, '-8 -8 -8', '8 8 8');
 };
 */
 float SVC_UPDATEENTITY = 128; // Net.Protocol 0x80
@@ -444,7 +444,7 @@ void() effect_finale_use =
 //   intermission_running = 1;
    self.state = 1;
 
-	// find the intermission spot
+    // find the intermission spot
    pos = find (world, targetname, self.target);
    if (!pos)
       error ("no target in finale");
@@ -469,26 +469,26 @@ void() effect_finale_use =
          }
       }
 
-	pl = find (world, classname, "player");
-	while (pl != world)
-	{
+    pl = find (world, classname, "player");
+    while (pl != world)
+    {
       pl.view_ofs = '0 0 0';
-		pl.angles = other.v_angle = pos.mangle;
+        pl.angles = other.v_angle = pos.mangle;
       pl.mangle = pos.mangle;
       pl.fixangle = TRUE;     // turn this way immediately
       pl.trigger_field = self;
       pl.nextthink = time + 0.5;
       pl.takedamage = DAMAGE_NO;
-		pl.solid = SOLID_NOT;
+        pl.solid = SOLID_NOT;
       pl.movetype = MOVETYPE_NONE;
-		pl.modelindex = 0;
+        pl.modelindex = 0;
       setorigin (pl, pos.origin);
       pl.origin = pos.origin;
       pl.oldorigin = pos.origin;
       UpdateCamera(pl,pl);
       UpdateCamera(pl,pl.trigger_field);
       pl = find (pl, classname, "player");
-	}
+    }
 
    // wait for next sequence
    if (self.spawnfunction)
@@ -526,10 +526,10 @@ void() effect_finale_use =
 void() effect_finale =
    {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    setorigin(self,self.origin);
    self.angles = self.mangle;
    self.use = effect_finale_use;

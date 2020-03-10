@@ -59,8 +59,8 @@ void() f_walk17 =[      $swim17, f_walk18 ] {ai_walk(8);};
 void() f_walk18 =[      $swim18, f_walk1 ] {ai_walk(8);};
 
 void() f_run1  =[      $swim1, f_run2 ] {ai_run(12);
-	if (random() < 0.5)
-		sound (self, CHAN_VOICE, "fish/idle.wav", 1, ATTN_NORM);
+    if (random() < 0.5)
+        sound (self, CHAN_VOICE, "fish/idle.wav", 1, ATTN_NORM);
 };
 void() f_run2  =[      $swim3, f_run3 ] {ai_run(12);};
 void() f_run3  =[      $swim5, f_run4 ] {ai_run(12);};
@@ -73,20 +73,20 @@ void() f_run9  =[      $swim17, f_run1 ] {ai_run(12);};
 
 void() fish_melee =
 {
-	local vector	delta;
-	local float 	ldmg;
+    local vector    delta;
+    local float     ldmg;
 
-	if (!self.enemy)
-		return;		// removed before stroke
+    if (!self.enemy)
+        return;        // removed before stroke
 
-	delta = self.enemy.origin - self.origin;
+    delta = self.enemy.origin - self.origin;
 
-	if (vlen(delta) > 60)
-		return;
+    if (vlen(delta) > 60)
+        return;
 
-	sound (self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
-	ldmg = (random() + random()) * 3;
-	T_Damage (self.enemy, self, self, ldmg);
+    sound (self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
+    ldmg = (random() + random()) * 3;
+    T_Damage (self.enemy, self, self, ldmg);
 };
 
 void() f_attack1        =[      $attack1,       f_attack2 ] {ai_charge(10);};
@@ -142,11 +142,11 @@ void() f_pain7  =[      $pain7, f_pain8 ] {ai_pain(6);};
 void() f_pain8  =[      $pain8, f_pain9 ] {ai_pain(6);};
 void() f_pain9  =[      $pain9, f_run1 ] {ai_pain(6);};
 
-void(entity attacker, float damage)	fish_pain =
+void(entity attacker, float damage)    fish_pain =
 {
 
 // fish allways do pain frames
-	f_pain1 ();
+    f_pain1 ();
 };
 
 
@@ -155,32 +155,32 @@ void(entity attacker, float damage)	fish_pain =
 */
 void() monster_fish =
 {
-	if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
-	precache_model2 ("progs/fish.mdl");
+    if (deathmatch)
+    {
+        remove(self);
+        return;
+    }
+    precache_model2 ("progs/fish.mdl");
 
-	precache_sound2 ("fish/death.wav");
-	precache_sound2 ("fish/bite.wav");
-	precache_sound2 ("fish/idle.wav");
+    precache_sound2 ("fish/death.wav");
+    precache_sound2 ("fish/bite.wav");
+    precache_sound2 ("fish/idle.wav");
 
-	self.solid = SOLID_SLIDEBOX;
-	self.movetype = MOVETYPE_STEP;
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
 
-	setmodel (self, "progs/fish.mdl");
+    setmodel (self, "progs/fish.mdl");
 
-	setsize (self, '-16 -16 -24', '16 16 24');
-	self.health = 25;
+    setsize (self, '-16 -16 -24', '16 16 24');
+    self.health = 25;
 
-	self.th_stand = f_stand1;
-	self.th_walk = f_walk1;
-	self.th_run = f_run1;
-	self.th_die = f_death1;
-	self.th_pain = fish_pain;
-	self.th_melee = f_attack1;
+    self.th_stand = f_stand1;
+    self.th_walk = f_walk1;
+    self.th_run = f_run1;
+    self.th_die = f_death1;
+    self.th_pain = fish_pain;
+    self.th_melee = f_attack1;
 
-	swimmonster_start ();
+    swimmonster_start ();
 };
 

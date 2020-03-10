@@ -240,7 +240,7 @@ void() rotate_entity_think =
 void() rotate_entity_use =
    {
    // change to alternate textures
-	self.frame = 1 - self.frame;
+    self.frame = 1 - self.frame;
 
    if ( self.state == STATE_ACTIVE )
       {
@@ -419,9 +419,9 @@ void() rotate_train_think =
 void() rotate_train_use =
    {
    if (self.think1 != rotate_train_find)
-		{
-		if ( self.velocity != '0 0 0' )
-			return;		// already activated
+        {
+        if ( self.velocity != '0 0 0' )
+            return;        // already activated
       if ( self.think1 )
          {
          self.think1();
@@ -430,7 +430,7 @@ void() rotate_train_use =
    };
 
 void() rotate_train_wait =
-	{
+    {
    self.state = STATE_WAIT;
 
    if ( self.goalentity.noise )
@@ -455,7 +455,7 @@ void() rotate_train_wait =
    };
 
 void() rotate_train_stop =
-	{
+    {
    self.state = STATE_STOP;
 
    if ( self.goalentity.noise )
@@ -511,13 +511,13 @@ void() rotate_train_next =
       self.think1 = rotate_train_stop;
       }
    else if (targ.wait)
-		{
+        {
       self.think1 = rotate_train_wait;
       }
-	else
-		{
+    else
+        {
       self.think1 = rotate_train_next;
-		}
+        }
 
    if ( current.event )
       {
@@ -552,8 +552,8 @@ void() rotate_train_next =
       }
 
    if ( current.speed == -1 )
-		{
-		// Warp to the next path_corner
+        {
+        // Warp to the next path_corner
       setorigin( self, targ.origin );
       self.endtime = self.ltime + 0.01;
       SetTargetOrigin();
@@ -569,8 +569,8 @@ void() rotate_train_next =
       self.dest1 = self.origin;  // original position
       self.finaldest = self.origin;
       }
-	else
-		{
+    else
+        {
       self.state = STATE_MOVE;
 
       self.finaldest = targ.origin;
@@ -708,7 +708,7 @@ The func_rotate_train entity is the center of rotation of all objects targeted b
 
 If "deathtype" is set with a string, this is the message that will appear when a player is killed by the train.
 
-speed	default 100
+speed    default 100
 dmg      default  0
 sounds
 1) ratchet metal
@@ -722,8 +722,8 @@ void() rotate_train =
 void() func_rotate_train =
    {
    if (!self.speed)
-		self.speed = 100;
-	if (!self.target)
+        self.speed = 100;
+    if (!self.target)
       objerror ("rotate_train without a target");
 
    if ( !self.noise )
@@ -760,12 +760,12 @@ void() func_rotate_train =
 
    setmodel (self, self.model);
    setsize (self, self.mins, self.maxs);
-	setorigin (self, self.origin);
+    setorigin (self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn
    self.ltime = time;
-	self.nextthink = self.ltime + 0.1;
+    self.nextthink = self.ltime + 0.1;
    self.endtime = self.ltime + 0.1;
    self.think = rotate_train_think;
    self.think1 = rotate_train_find;
@@ -792,7 +792,7 @@ void() rotate_door_group_reversedirection;
 void() movewall_touch =
    {
    if (time < self.owner.attack_finished)
-		return;
+        return;
 
    if ( self.dmg )
       {
@@ -811,7 +811,7 @@ void() movewall_blocked =
    local entity temp;
 
    if (time < self.owner.attack_finished)
-		return;
+        return;
 
    self.owner.attack_finished = time + 0.5;
 
@@ -957,7 +957,7 @@ void() rotate_door_reversedirection =
    local vector start;
 
    // change to alternate textures
-	self.frame = 1 - self.frame;
+    self.frame = 1 - self.frame;
 
    if ( self.state == STATE_CLOSING )
       {
@@ -1017,7 +1017,7 @@ void() rotate_door_use =
       }
 
    // change to alternate textures
-	self.frame = 1 - self.frame;
+    self.frame = 1 - self.frame;
 
    if ( self.state == STATE_CLOSED )
       {
@@ -1078,7 +1078,7 @@ void() func_rotate_door =
    self.cnt = 0;
 
    if (!self.dmg)
-		self.dmg = 2;
+        self.dmg = 2;
    else if ( self.dmg < 0 )
       {
       self.dmg = 0;
@@ -1086,31 +1086,31 @@ void() func_rotate_door =
 
    if (self.sounds == 0)
       self.sounds = 1;
-	if (self.sounds == 1)
-	{
-		precache_sound ("doors/latch2.wav");
-		precache_sound ("doors/winch2.wav");
-		precache_sound ("doors/drclos4.wav");
-		self.noise1 = "doors/latch2.wav";
-		self.noise2 = "doors/winch2.wav";
-		self.noise3 = "doors/drclos4.wav";
-	}
-	if (self.sounds == 2)
-	{
-		precache_sound ("doors/airdoor1.wav");
-		precache_sound ("doors/airdoor2.wav");
-		self.noise2 = "doors/airdoor1.wav";
-		self.noise1 = "doors/airdoor2.wav";
-		self.noise3 = "doors/airdoor2.wav";
-	}
-	if (self.sounds == 3)
-	{
-		precache_sound ("doors/basesec1.wav");
-		precache_sound ("doors/basesec2.wav");
-		self.noise2 = "doors/basesec1.wav";
-		self.noise1 = "doors/basesec2.wav";
-		self.noise3 = "doors/basesec2.wav";
-	}
+    if (self.sounds == 1)
+    {
+        precache_sound ("doors/latch2.wav");
+        precache_sound ("doors/winch2.wav");
+        precache_sound ("doors/drclos4.wav");
+        self.noise1 = "doors/latch2.wav";
+        self.noise2 = "doors/winch2.wav";
+        self.noise3 = "doors/drclos4.wav";
+    }
+    if (self.sounds == 2)
+    {
+        precache_sound ("doors/airdoor1.wav");
+        precache_sound ("doors/airdoor2.wav");
+        self.noise2 = "doors/airdoor1.wav";
+        self.noise1 = "doors/airdoor2.wav";
+        self.noise3 = "doors/airdoor2.wav";
+    }
+    if (self.sounds == 3)
+    {
+        precache_sound ("doors/basesec1.wav");
+        precache_sound ("doors/basesec2.wav");
+        self.noise2 = "doors/basesec1.wav";
+        self.noise1 = "doors/basesec2.wav";
+        self.noise3 = "doors/basesec2.wav";
+    }
 
    self.solid = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;

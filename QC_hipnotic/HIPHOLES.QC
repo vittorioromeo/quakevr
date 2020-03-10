@@ -23,14 +23,14 @@ void() wallsprite =
    // QuakeEd doesn't save up and down angles properly.
    if (self.angles == '0 -1 0')
       self.angles = '-90 0 0';
-	else if (self.angles == '0 -2 0')
+    else if (self.angles == '0 -2 0')
       self.angles = '90 0 0';
 
    // Pull the sprite away from the wall slightly to
    // get rid of z sort errors.
    makevectors(self.angles);
    setorigin( self, self.origin - ( v_forward * 0.2 ) );
-	makestatic (self);
+    makestatic (self);
    };
 
 void() InitBulletHoles =

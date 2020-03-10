@@ -11,7 +11,7 @@ $modelname g_hammer
 $cd hipwork/models/g_hammer
 $origin 0 0 -24
 $scale 1
-$flags 8		// client side rotate
+$flags 8        // client side rotate
 $base mjolbase.asc
 $skin skin
 $frame mjol.asc
@@ -78,7 +78,7 @@ ITEMS
 
 $modelname empathy
 $cd hipwork/models/empathy
-$flags 8		// client side rotate
+$flags 8        // client side rotate
 $origin 0 0 -40
 $scale 2.5
 $base base.asc
@@ -87,7 +87,7 @@ $frame frame1.asc
 
 $modelname wetsuit
 $cd hipwork/models/wetsuit
-$flags 8		// client side rotate
+$flags 8        // client side rotate
 $base suitbase.asc
 $skin skin
 $frame suit.asc
@@ -192,7 +192,7 @@ $frame frame1
 
 $modelname lavarock
 $cd hipwork/models/lava2
-$flags	1			// EF_ROCKET
+$flags    1            // EF_ROCKET
 $origin 0 0 8
 //$scale 0.7
 $base base

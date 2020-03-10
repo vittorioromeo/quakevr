@@ -120,7 +120,7 @@ float() GremlinAttemptWeaponSteal =
          amount = 20;
       victim.ammo_shells = victim.ammo_shells - amount;
       self.ammo_shells = self.ammo_shells + amount;
-		self.items = self.items | IT_SHELLS;
+        self.items = self.items | IT_SHELLS;
       self.currentammo = self.ammo_shells;
       sprint (victim, "Gremlin stole your Super Shotgun\n");
       }
@@ -304,13 +304,13 @@ The monster is walking it's beat
 */
 void(float dist) gremlin_walk =
    {
-	movedist = dist;
+    movedist = dist;
 
-	// check for noticing a player
+    // check for noticing a player
    if (GremlinFindTarget ())
-		return;
+        return;
 
-	movetogoal (dist);
+    movetogoal (dist);
    };
 
 //============================================================================
@@ -325,12 +325,12 @@ The monster is staying in one place for a while, with slight angle turns
 void() gremlin_stand =
    {
    if (FindTarget ())
-		return;
+        return;
 
-	if (time > self.pausetime)
+    if (time > self.pausetime)
       {
-		self.th_walk ();
-		return;
+        self.th_walk ();
+        return;
       }
    };
 
@@ -547,7 +547,7 @@ void()   gremlin_jump3   =[ $jump3.asc,     gremlin_jump4   ] {ai_face();};
 void()   gremlin_jump4   =[ $jump4.asc,     gremlin_jump5   ] {ai_face();};
 void()   gremlin_jump5   =[ $jump5.asc,     gremlin_jump6   ]
 {
-	ai_face();
+    ai_face();
 
    if (self.flags & FL_ONGROUND)
       {
@@ -592,32 +592,32 @@ void(float ox) Gremlin_FireNailGun;
 
 void() gremlin_nail1   =[$gfire1.asc, gremlin_nail2  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail2   =[$gfire1.asc, gremlin_nail3  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail3   =[$gfire1.asc, gremlin_nail4  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail4   =[$gfire1.asc, gremlin_nail5  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail5   =[$gfire1.asc, gremlin_nail6  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail6   =[$gfire1.asc, gremlin_nail7  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireNailGun(4);
    };
 void() gremlin_nail7 = [$gfire1.asc, gremlin_run1   ] {};
@@ -627,32 +627,32 @@ void(float ox) Gremlin_FireLaserGun;
 
 void() gremlin_laser1   =[$gfire1.asc, gremlin_laser2  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser2   =[$gfire1.asc, gremlin_laser3  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser3   =[$gfire1.asc, gremlin_laser4  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser4   =[$gfire1.asc, gremlin_laser5  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser5   =[$gfire1.asc, gremlin_laser6  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser6   =[$gfire1.asc, gremlin_laser7  ]
    {
-	self.effects = self.effects | EF_MUZZLEFLASH;
+    self.effects = self.effects | EF_MUZZLEFLASH;
    Gremlin_FireLaserGun(4);
    };
 void() gremlin_laser7 = [$gfire1.asc, gremlin_run1   ] {};
@@ -808,12 +808,12 @@ void(entity attacker, float damage) gremlin_pain =
       FoundTarget();
       }
    if (self.touch == Gremlin_JumpTouch)
-		return;
+        return;
 
-	if (self.pain_finished > time)
-		return;
+    if (self.pain_finished > time)
+        return;
 
-	self.pain_finished = time + 1;
+    self.pain_finished = time + 1;
 //   if (random()<0.5)
 //      sound (self, CHAN_VOICE, "grem/pain2.wav", 1, ATTN_NORM);
 //   else
@@ -875,11 +875,11 @@ void() gremlin_gib=
 void()   gremlin_flip1    =[ $flip1.asc,    gremlin_flip2 ]
    {
    ai_face();
-	makevectors (self.angles);
+    makevectors (self.angles);
    self.origin_z = self.origin_z + 1;
    self.velocity = '0 0 350' - (v_forward * 200);
-	if (self.flags & FL_ONGROUND)
-		self.flags = self.flags - FL_ONGROUND;
+    if (self.flags & FL_ONGROUND)
+        self.flags = self.flags - FL_ONGROUND;
    sound (self, CHAN_VOICE, "grem/death.wav", 1, ATTN_NORM);
    };
 void()   gremlin_flip2    =[ $flip2.asc,    gremlin_flip3 ] {ai_face();};
@@ -904,30 +904,30 @@ GremlinDropBackpack
 */
 void() GremlinDropBackpack =
 {
-	local entity	item;
+    local entity    item;
 
-	item = spawn();
-	item.origin = self.origin - '0 0 24';
+    item = spawn();
+    item.origin = self.origin - '0 0 24';
 
    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
    item.items = self.items;
 
    if (item.items & IT_AXE)
-		item.netname = "Axe";
+        item.netname = "Axe";
    else if (item.items & IT_SHOTGUN)
-		item.netname = "Shotgun";
+        item.netname = "Shotgun";
    else if (item.items & IT_SUPER_SHOTGUN)
-		item.netname = "Double-barrelled Shotgun";
+        item.netname = "Double-barrelled Shotgun";
    else if (item.items & IT_NAILGUN)
-		item.netname = "Nailgun";
+        item.netname = "Nailgun";
    else if (item.items & IT_SUPER_NAILGUN)
-		item.netname = "Super Nailgun";
+        item.netname = "Super Nailgun";
    else if (item.items & IT_GRENADE_LAUNCHER)
-		item.netname = "Grenade Launcher";
+        item.netname = "Grenade Launcher";
    else if (item.items & IT_ROCKET_LAUNCHER)
-		item.netname = "Rocket Launcher";
+        item.netname = "Rocket Launcher";
    else if (item.items & IT_LIGHTNING)
-		item.netname = "Thunderbolt";
+        item.netname = "Thunderbolt";
    else if (item.items & IT_LASER_CANNON)
       item.netname = "Laser Cannon";
    else if (item.items & IT_PROXIMITY_GUN)
@@ -935,36 +935,36 @@ void() GremlinDropBackpack =
    else if (item.items & IT_MJOLNIR)
       item.netname = "Mjolnir";
    else
-		item.netname = "";
+        item.netname = "";
 
    item.ammo_shells = self.ammo_shells;
-	item.ammo_nails = self.ammo_nails;
-	item.ammo_rockets = self.ammo_rockets;
-	item.ammo_cells = self.ammo_cells;
+    item.ammo_nails = self.ammo_nails;
+    item.ammo_rockets = self.ammo_rockets;
+    item.ammo_cells = self.ammo_cells;
    if (item.ammo_shells < 0) item.ammo_shells = 0;
    if (item.ammo_nails < 0) item.ammo_nails = 0;
    if (item.ammo_rockets < 0) item.ammo_rockets = 0;
    if (item.ammo_cells < 0) item.ammo_cells = 0;
 
-	item.velocity_z = 300;
-	item.velocity_x = -100 + (random() * 200);
-	item.velocity_y = -100 + (random() * 200);
+    item.velocity_z = 300;
+    item.velocity_x = -100 + (random() * 200);
+    item.velocity_y = -100 + (random() * 200);
 
-	item.flags = FL_ITEM;
-	item.solid = SOLID_TRIGGER;
-	item.movetype = MOVETYPE_TOSS;
-	setmodel (item, "progs/backpack.mdl");
-	setsize (item, '-16 -16 0', '16 16 56');
-	item.touch = BackpackTouch;
+    item.flags = FL_ITEM;
+    item.solid = SOLID_TRIGGER;
+    item.movetype = MOVETYPE_TOSS;
+    setmodel (item, "progs/backpack.mdl");
+    setsize (item, '-16 -16 0', '16 16 56');
+    item.touch = BackpackTouch;
 
-	item.nextthink = time + 120;	// remove after 2 minutes
-	item.think = SUB_Remove;
+    item.nextthink = time + 120;    // remove after 2 minutes
+    item.think = SUB_Remove;
 };
 
 void() gremlin_die =
 {
    local vector   vec;
-	local float		dot;
+    local float        dot;
 
 // check for gib
    if (self.items & (IT_SUPER_SHOTGUN|IT_NAILGUN|IT_SUPER_NAILGUN|IT_GRENADE_LAUNCHER|IT_ROCKET_LAUNCHER|IT_LIGHTNING|IT_LASER_CANNON|IT_PROXIMITY_GUN))
@@ -975,16 +975,16 @@ void() gremlin_die =
 
    makevectors (self.angles);
    vec = normalize (damage_attacker.origin - self.origin);
-	dot = vec * v_forward;
+    dot = vec * v_forward;
 
    if (self.health < -35)
       {
-		sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_grem.mdl", self.health);
-		ThrowGib ("progs/gib1.mdl", self.health);
-		ThrowGib ("progs/gib1.mdl", self.health);
-		ThrowGib ("progs/gib1.mdl", self.health);
-		return;
+        ThrowGib ("progs/gib1.mdl", self.health);
+        ThrowGib ("progs/gib1.mdl", self.health);
+        ThrowGib ("progs/gib1.mdl", self.health);
+        return;
       }
    else if (dot>0.7 && (random()<0.5) && (self.flags & FL_ONGROUND))
       {
@@ -1076,8 +1076,8 @@ attack with a weapon
 */
 float() GremlinCheckNoAmmo =
    {
-	if (self.currentammo > 0)
-		return TRUE;
+    if (self.currentammo > 0)
+        return TRUE;
    else
       {
       self.stoleweapon = FALSE;
@@ -1142,21 +1142,21 @@ fire a rocket
 */
 void() Gremlin_FireRocket =
 {
-	local	entity missile, mpuff;
+    local    entity missile, mpuff;
    local vector dir;
 
-	self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
-	sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_FLYMISSILE;
-	missile.solid = SOLID_BBOX;
-	missile.classname = "missile";
+    missile = spawn ();
+    missile.owner = self;
+    missile.movetype = MOVETYPE_FLYMISSILE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "missile";
 
 // set missile speed
 
@@ -1166,17 +1166,17 @@ void() Gremlin_FireRocket =
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
    missile.velocity = normalize(dir);
    missile.velocity = missile.velocity * 1000;
-	missile.angles = vectoangles(missile.velocity);
+    missile.angles = vectoangles(missile.velocity);
 
-	missile.touch = T_MissileTouch;
+    missile.touch = T_MissileTouch;
 
 // set missile duration
-	missile.nextthink = time + 5;
-	missile.think = SUB_Remove;
+    missile.nextthink = time + 5;
+    missile.think = SUB_Remove;
 
-	setmodel (missile, "progs/missile.mdl");
-	setsize (missile, '0 0 0', '0 0 0');
-	setorigin (missile, self.origin + v_forward*8 + '0 0 16');
+    setmodel (missile, "progs/missile.mdl");
+    setsize (missile, '0 0 0', '0 0 0');
+    setorigin (missile, self.origin + v_forward*8 + '0 0 16');
 //   GremlinRecoil(dir,-1000);
 };
 
@@ -1283,47 +1283,47 @@ fire lightning gun
 */
 void() Gremlin_FireLightningGun =
    {
-	local	vector	org, dir;
+    local    vector    org, dir;
    local float cells;
 
 // explode if under water
    if (self.watertype <= CONTENT_WATER)
-	{
-		cells = self.ammo_cells;
-		self.ammo_cells = 0;
+    {
+        cells = self.ammo_cells;
+        self.ammo_cells = 0;
       discharged = 1;
-		T_RadiusDamage (self, self, 35*cells, world);
+        T_RadiusDamage (self, self, 35*cells, world);
       discharged = 0;
 //      W_SetCurrentAmmo ();
-		return;
-	}
+        return;
+    }
 
    self.effects = self.effects | EF_MUZZLEFLASH;
 
-	ai_face ();
+    ai_face ();
 
    self.currentammo = self.ammo_cells = self.ammo_cells - 2;
    org = self.origin + '0 0 16';
 
-	dir = self.enemy.origin + '0 0 16' - org;
-	dir = normalize (dir);
+    dir = self.enemy.origin + '0 0 16' - org;
+    dir = normalize (dir);
    dir = normalize(self.enemy.origin - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
    dir = normalize(dir);
 
-	traceline (org, self.origin + dir*600, TRUE, self);
+    traceline (org, self.origin + dir*600, TRUE, self);
 
    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-	WriteEntity (MSG_BROADCAST, self);
-	WriteCoord (MSG_BROADCAST, org_x);
-	WriteCoord (MSG_BROADCAST, org_y);
-	WriteCoord (MSG_BROADCAST, org_z);
-	WriteCoord (MSG_BROADCAST, trace_endpos_x);
-	WriteCoord (MSG_BROADCAST, trace_endpos_y);
-	WriteCoord (MSG_BROADCAST, trace_endpos_z);
+    WriteEntity (MSG_BROADCAST, self);
+    WriteCoord (MSG_BROADCAST, org_x);
+    WriteCoord (MSG_BROADCAST, org_y);
+    WriteCoord (MSG_BROADCAST, org_z);
+    WriteCoord (MSG_BROADCAST, trace_endpos_x);
+    WriteCoord (MSG_BROADCAST, trace_endpos_y);
+    WriteCoord (MSG_BROADCAST, trace_endpos_z);
 
    LightningDamage (org, trace_endpos+(dir*4), self, 30);
 };
@@ -1341,13 +1341,13 @@ void() GremlinFireProximityGrenade =
    NumProximityGrenades = NumProximityGrenades + 1;
    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
 
-	sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
 
-	missile = spawn ();
+    missile = spawn ();
    missile.owner = self;
    missile.lastvictim = self;
    missile.movetype = MOVETYPE_TOSS;
-	missile.solid = SOLID_BBOX;
+    missile.solid = SOLID_BBOX;
    missile.classname = "proximity_grenade";
    missile.takedamage = DAMAGE_NO;
    missile.health = 5;
@@ -1361,11 +1361,11 @@ void() GremlinFireProximityGrenade =
    dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
    dir = normalize(dir);
    missile.velocity = dir * 600;
-	missile.velocity_z = 200;
+    missile.velocity_z = 200;
 
    missile.avelocity = '100 600 100';
 
-	missile.angles = vectoangles(missile.velocity);
+    missile.angles = vectoangles(missile.velocity);
 
    missile.touch = ProximityGrenadeTouch;
 
@@ -1394,7 +1394,7 @@ void()   gremlin_rocket1;
 
 float() GremlinWeaponAttack =
    {
-	local	float	r;
+    local    float    r;
    local entity targ;
    local vector vec;
 
@@ -1410,36 +1410,36 @@ float() GremlinWeaponAttack =
       Gremlin_FireShotGun();
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_SUPER_SHOTGUN)
+    else if (self.weapon == IT_SUPER_SHOTGUN)
       {
       gremlin_shot1 ();
       Gremlin_FireSuperShotGun();
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_NAILGUN)
+    else if (self.weapon == IT_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_SUPER_NAILGUN)
+    else if (self.weapon == IT_SUPER_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_GRENADE_LAUNCHER)
+    else if (self.weapon == IT_GRENADE_LAUNCHER)
       {
       gremlin_rocket1();
       OgreFireGrenade();
       self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_ROCKET_LAUNCHER)
+    else if (self.weapon == IT_ROCKET_LAUNCHER)
       {
       gremlin_rocket1();
       Gremlin_FireRocket();
       SUB_AttackFinished(1);
       }
-	else if (self.weapon == IT_LIGHTNING)
+    else if (self.weapon == IT_LIGHTNING)
       {
       gremlin_light1();
       SUB_AttackFinished(1);
@@ -1481,10 +1481,10 @@ void() Gremlin_MissileAttack =
 void() monster_gremlin =
 {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    NumGremlins = NumGremlins + 1;
    precache_model ("progs/grem.mdl");
    precache_model ("progs/h_grem.mdl");
@@ -1500,7 +1500,7 @@ void() monster_gremlin =
    precache_sound ("grem/sight1.wav");
 
    self.solid = SOLID_SLIDEBOX;
-	self.movetype = MOVETYPE_STEP;
+    self.movetype = MOVETYPE_STEP;
 
    setmodel (self, "progs/grem.mdl");
 
@@ -1517,16 +1517,16 @@ void() monster_gremlin =
    self.th_missile = Gremlin_MissileAttack; // check for random jump or firing of weapon
    self.th_pain = gremlin_pain;
 
-	walkmonster_start();
+    walkmonster_start();
 };
 
 float()  GremlinCheckAttack =
    {
-	local vector	spot1, spot2;
-	local entity	targ;
-	local float		chance;
+    local vector    spot1, spot2;
+    local entity    targ;
+    local float        chance;
 
-	targ = self.enemy;
+    targ = self.enemy;
 
    if (time < self.attack_finished)
       return FALSE;
@@ -1547,7 +1547,7 @@ float()  GremlinCheckAttack =
       self.attack_state = AS_MISSILE;
       return TRUE;
       }
-	return FALSE;
+    return FALSE;
    };
 
 
@@ -1555,27 +1555,27 @@ float()  GremlinCheckAttack =
 
 void(float side)  Gremlin_Melee =
 {
-	local	float	ldmg;
-	local vector	delta;
+    local    float    ldmg;
+    local vector    delta;
 
-	ai_face ();
+    ai_face ();
 
 //   walkmove (self.ideal_yaw, 12);   // allow a little closing
 
 
-	delta = self.enemy.origin - self.origin;
+    delta = self.enemy.origin - self.origin;
 
-	if (vlen(delta) > 100)
-		return;
-	if (!CanDamage (self.enemy, self))
-		return;
+    if (vlen(delta) > 100)
+        return;
+    if (!CanDamage (self.enemy, self))
+        return;
 
     sound (self, CHAN_WEAPON, "grem/attack.wav", 1, ATTN_NORM);
-	ldmg = 10 + 5*random();
-	T_Damage (self.enemy, self, self, ldmg);
+    ldmg = 10 + 5*random();
+    T_Damage (self.enemy, self, self, ldmg);
 
-	makevectors (self.angles);
-	SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
+    makevectors (self.angles);
+    SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
 };
 
 //===========================================================================
@@ -1584,7 +1584,7 @@ void(float dm) Gremlin_ThrowHead =
    local string gibname;
    if (self.classname == "monster_ogre")
       gibname = "progs/h_ogre.mdl";
-	else if (self.classname == "monster_knight")
+    else if (self.classname == "monster_knight")
       gibname = "progs/h_knight.mdl";
    else if (self.classname == "monster_shambler")
       gibname = "progs/h_shams.mdl";
@@ -1626,21 +1626,21 @@ The damage is coming from inflictor, but get mad at attacker
 void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damage=
 {
 // check for godmode or invincibility
-	if (targ.flags & FL_GODMODE)
-		return;
-	if (targ.invincible_finished >= time)
-	{
-		if (self.invincible_sound < time)
-		{
-			sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
-			self.invincible_sound = time + 2;
-		}
-		return;
-	}
+    if (targ.flags & FL_GODMODE)
+        return;
+    if (targ.invincible_finished >= time)
+    {
+        if (self.invincible_sound < time)
+        {
+            sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
+            self.invincible_sound = time + 2;
+        }
+        return;
+    }
 
 // team play damage avoidance
-	if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
-		return;
+    if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
+        return;
 
 // do the damage
    targ.health = targ.health - damage;
@@ -1734,14 +1734,14 @@ void() Gremlin_Split =
 
 void(float side)  Gremlin_Gorge =
    {
-	local	float	ldmg;
-	local vector	delta;
+    local    float    ldmg;
+    local vector    delta;
    local entity temp;
 
 //   ai_face ();
 //   walkmove (self.ideal_yaw, 6);   // allow a little closing
 
-	delta = self.enemy.origin - self.origin;
+    delta = self.enemy.origin - self.origin;
 //   self.enemy.takedamage = DAMAGE_YES;
 
     sound (self, CHAN_WEAPON, "demon/dhit2.wav", 1, ATTN_NORM);
@@ -1749,8 +1749,8 @@ void(float side)  Gremlin_Gorge =
    ldmg = 7+5*random();
    Gremlin_Damage (self.enemy, self, self, ldmg);
 
-	makevectors (self.angles);
-	SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
+    makevectors (self.angles);
+    SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
    if (self.enemy.health < -200.0)
       {
       if (self.enemy.gorging==FALSE)
@@ -1806,53 +1806,53 @@ void(float side)  Gremlin_Gorge =
 
 void()   Gremlin_JumpTouch =
 {
-	local	float	ldmg;
+    local    float    ldmg;
 
    if (self.health <= 0)
-		return;
+        return;
 
 /*
-	if (other.takedamage)
-	{
-		if ( vlen(self.velocity) > 400 )
-		{
-			ldmg = 40 + 10*random();
-			T_Damage (other, self, self, ldmg);
-		}
-	}
+    if (other.takedamage)
+    {
+        if ( vlen(self.velocity) > 400 )
+        {
+            ldmg = 40 + 10*random();
+            T_Damage (other, self, self, ldmg);
+        }
+    }
 */
-	if (!checkbottom(self))
+    if (!checkbottom(self))
       {
-		if (self.flags & FL_ONGROUND)
+        if (self.flags & FL_ONGROUND)
          {
          self.touch = SUB_Null;
          self.think = gremlin_jump1;
          self.nextthink = time + 0.1;
          }
-		return;	// not on ground yet
+        return;    // not on ground yet
       }
 
-	self.touch = SUB_Null;
+    self.touch = SUB_Null;
    self.think = gremlin_jump12;
-	self.nextthink = time + 0.1;
+    self.nextthink = time + 0.1;
 };
 
 void()   Gremlin_FlipTouch =
 {
-	local	float	ldmg;
+    local    float    ldmg;
 
-	if (!checkbottom(self))
+    if (!checkbottom(self))
       {
-		if (self.flags & FL_ONGROUND)
+        if (self.flags & FL_ONGROUND)
          {
          self.touch = SUB_Null;
          self.think = gremlin_flip1;
          self.nextthink = time + 0.1;
          }
-		return;	// not on ground yet
+        return;    // not on ground yet
       }
 
-	self.touch = SUB_Null;
+    self.touch = SUB_Null;
    self.think = gremlin_flip8;
-	self.nextthink = time + 0.1;
+    self.nextthink = time + 0.1;
 };

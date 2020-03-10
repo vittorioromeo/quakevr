@@ -17,7 +17,7 @@ void() finale_3;
 void() finale_4;
 
 
-entity	shub;
+entity    shub;
 
 $frame old1 old2 old3 old4 old5 old6 old7 old8 old9
 $frame old10 old11 old12 old13 old14 old15 old16 old17 old18 old19
@@ -96,7 +96,7 @@ void() old_thrash14       =[      $shake14, old_thrash15      ] {lightstyle(0, "
 void() old_thrash15       =[      $shake15, old_thrash16      ] {lightstyle(0, "m");
 self.cnt = self.cnt + 1;
 if (self.cnt != 3)
-	self.think = old_thrash1;
+    self.think = old_thrash1;
 };
 void() old_thrash16       =[      $shake16, old_thrash17      ] {lightstyle(0, "g");};
 void() old_thrash17       =[      $shake17, old_thrash18      ] {lightstyle(0, "c");};
@@ -108,143 +108,143 @@ void() old_thrash20       =[      $shake20, old_thrash20      ] {finale_4();};
 
 void() finale_1 =
 {
-	local entity	pos, pl;
-	local entity	timer;
+    local entity    pos, pl;
+    local entity    timer;
 
-	killed_monsters = killed_monsters + 1;
-	WriteByte (MSG_ALL, SVC_KILLEDMONSTER);	// FIXME: reliable broadcast
+    killed_monsters = killed_monsters + 1;
+    WriteByte (MSG_ALL, SVC_KILLEDMONSTER);    // FIXME: reliable broadcast
 
-	intermission_exittime = time + 10000000;	// never allow exit
-	intermission_running = 1;
+    intermission_exittime = time + 10000000;    // never allow exit
+    intermission_running = 1;
 
-	// find the intermission spot
-	pos = find (world, classname, "info_intermission");
-	if (!pos)
-		error ("no info_intermission");
-	pl = find (world, classname, "misc_teleporttrain");
-	if (!pl)
-		error ("no teleporttrain");
-	remove (pl);
+    // find the intermission spot
+    pos = find (world, classname, "info_intermission");
+    if (!pos)
+        error ("no info_intermission");
+    pl = find (world, classname, "misc_teleporttrain");
+    if (!pl)
+        error ("no teleporttrain");
+    remove (pl);
 
-	WriteByte (MSG_ALL, SVC_FINALE);
-	WriteString (MSG_ALL, "");
+    WriteByte (MSG_ALL, SVC_FINALE);
+    WriteString (MSG_ALL, "");
 
-	pl = find (world, classname, "player");
-	while (pl != world)
-	{
-		pl.view_ofs = '0 0 0';
-		pl.angles = other.v_angle = pos.mangle;
-		pl.fixangle = TRUE;		// turn this way immediately
-		pl.map = self.map;
-		pl.nextthink = time + 0.5;
-		pl.takedamage = DAMAGE_NO;
-		pl.solid = SOLID_NOT;
-		pl.movetype = MOVETYPE_NONE;
-		pl.modelindex = 0;
-		setorigin (pl, pos.origin);
-		pl = find (pl, classname, "player");
-	}
+    pl = find (world, classname, "player");
+    while (pl != world)
+    {
+        pl.view_ofs = '0 0 0';
+        pl.angles = other.v_angle = pos.mangle;
+        pl.fixangle = TRUE;        // turn this way immediately
+        pl.map = self.map;
+        pl.nextthink = time + 0.5;
+        pl.takedamage = DAMAGE_NO;
+        pl.solid = SOLID_NOT;
+        pl.movetype = MOVETYPE_NONE;
+        pl.modelindex = 0;
+        setorigin (pl, pos.origin);
+        pl = find (pl, classname, "player");
+    }
 
-	// make fake versions of all players as standins, and move the real
-	// players to the intermission spot
+    // make fake versions of all players as standins, and move the real
+    // players to the intermission spot
 
-	// wait for 1 second
-	timer = spawn();
-	timer.nextthink = time + 1;
-	timer.think = finale_2;
+    // wait for 1 second
+    timer = spawn();
+    timer.nextthink = time + 1;
+    timer.think = finale_2;
 };
 
 void() finale_2 =
 {
-	local vector	o;
+    local vector    o;
 
-	// start a teleport splash inside shub
+    // start a teleport splash inside shub
 
-	o = shub.origin - '0 100 0';
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_TELEPORT);
-	WriteCoord (MSG_BROADCAST, o_x);
-	WriteCoord (MSG_BROADCAST, o_y);
-	WriteCoord (MSG_BROADCAST, o_z);
+    o = shub.origin - '0 100 0';
+    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte (MSG_BROADCAST, TE_TELEPORT);
+    WriteCoord (MSG_BROADCAST, o_x);
+    WriteCoord (MSG_BROADCAST, o_y);
+    WriteCoord (MSG_BROADCAST, o_z);
 
-	sound (shub, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
+    sound (shub, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
 
-	self.nextthink = time + 2;
-	self.think = finale_3;
+    self.nextthink = time + 2;
+    self.think = finale_3;
 };
 
 void() finale_3 =
 {
-	// start shub thrashing wildly
-	shub.think = old_thrash1;
-	sound (shub, CHAN_VOICE, "boss2/death.wav", 1, ATTN_NORM);
-	lightstyle(0, "abcdefghijklmlkjihgfedcb");
+    // start shub thrashing wildly
+    shub.think = old_thrash1;
+    sound (shub, CHAN_VOICE, "boss2/death.wav", 1, ATTN_NORM);
+    lightstyle(0, "abcdefghijklmlkjihgfedcb");
 };
 
 void() finale_4 =
 {
-	// throw tons of meat chunks
-	local	vector	oldo;
-	local	float	x, y, z;
-	local	float	r;
-	local entity	n;
+    // throw tons of meat chunks
+    local    vector    oldo;
+    local    float    x, y, z;
+    local    float    r;
+    local entity    n;
 
-	sound (self, CHAN_VOICE, "boss2/pop2.wav", 1, ATTN_NORM);
+    sound (self, CHAN_VOICE, "boss2/pop2.wav", 1, ATTN_NORM);
 
-	oldo = self.origin;
+    oldo = self.origin;
 
-	z = 16;
-	while (z <= 144)
-	{
-		x = -64;
-		while (x <= 64)
-		{
-			y = -64;
-			while (y <= 64)
-			{
-				self.origin_x = oldo_x + x;
-				self.origin_y = oldo_y + y;
-				self.origin_z = oldo_z + z;
+    z = 16;
+    while (z <= 144)
+    {
+        x = -64;
+        while (x <= 64)
+        {
+            y = -64;
+            while (y <= 64)
+            {
+                self.origin_x = oldo_x + x;
+                self.origin_y = oldo_y + y;
+                self.origin_z = oldo_z + z;
 
-				r = random();
-				if (r < 0.3)
-					ThrowGib ("progs/gib1.mdl", -999);
-				else if (r < 0.6)
-					ThrowGib ("progs/gib2.mdl", -999);
-				else
-					ThrowGib ("progs/gib3.mdl", -999);
-				y = y + 32;
-			}
-			x = x + 32;
-		}
-		z = z + 96;
-	}
-	// start the end text
-	WriteByte (MSG_ALL, SVC_FINALE);
-	WriteString (MSG_ALL, "Congratulations and well done! You have\nbeaten the hideous Shub-Niggurath, and\nher hundreds of ugly changelings and\nmonsters. You have proven that your\nskill and your cunning are greater than\nall the powers of Quake. You are the\nmaster now. Id Software salutes you.");
+                r = random();
+                if (r < 0.3)
+                    ThrowGib ("progs/gib1.mdl", -999);
+                else if (r < 0.6)
+                    ThrowGib ("progs/gib2.mdl", -999);
+                else
+                    ThrowGib ("progs/gib3.mdl", -999);
+                y = y + 32;
+            }
+            x = x + 32;
+        }
+        z = z + 96;
+    }
+    // start the end text
+    WriteByte (MSG_ALL, SVC_FINALE);
+    WriteString (MSG_ALL, "Congratulations and well done! You have\nbeaten the hideous Shub-Niggurath, and\nher hundreds of ugly changelings and\nmonsters. You have proven that your\nskill and your cunning are greater than\nall the powers of Quake. You are the\nmaster now. Id Software salutes you.");
 
 // put a player model down
-	n = spawn();
-	setmodel (n, "progs/player.mdl");
-	oldo = oldo - '32 264 0';
-	setorigin (n, oldo);
-	n.angles = '0 290 0';
-	n.frame = 1;
+    n = spawn();
+    setmodel (n, "progs/player.mdl");
+    oldo = oldo - '32 264 0';
+    setorigin (n, oldo);
+    n.angles = '0 290 0';
+    n.frame = 1;
 
-	remove (self);
+    remove (self);
 
 // switch cd track
-	WriteByte (MSG_ALL, SVC_CDTRACK);
-	WriteByte (MSG_ALL, 3);
-	WriteByte (MSG_ALL, 3);
-	lightstyle(0, "m");
+    WriteByte (MSG_ALL, SVC_CDTRACK);
+    WriteByte (MSG_ALL, 3);
+    WriteByte (MSG_ALL, 3);
+    lightstyle(0, "m");
 };
 
 //============================================================================
 
 void () nopain =
 {
-	self.health = 40000;
+    self.health = 40000;
 };
 
 //============================================================================
@@ -254,33 +254,33 @@ void () nopain =
 */
 void() monster_oldone =
 {
-	if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    if (deathmatch)
+    {
+        remove(self);
+        return;
+    }
 
-	precache_model2 ("progs/oldone.mdl");
+    precache_model2 ("progs/oldone.mdl");
 
-	precache_sound2 ("boss2/death.wav");
-	precache_sound2 ("boss2/idle.wav");
-	precache_sound2 ("boss2/sight.wav");
-	precache_sound2 ("boss2/pop2.wav");
+    precache_sound2 ("boss2/death.wav");
+    precache_sound2 ("boss2/idle.wav");
+    precache_sound2 ("boss2/sight.wav");
+    precache_sound2 ("boss2/pop2.wav");
 
-	self.solid = SOLID_SLIDEBOX;
-	self.movetype = MOVETYPE_STEP;
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
 
-	setmodel (self, "progs/oldone.mdl");
-	setsize (self, '-160 -128 -24', '160 128 256');
+    setmodel (self, "progs/oldone.mdl");
+    setsize (self, '-160 -128 -24', '160 128 256');
 
-	self.health = 40000;		// kill by telefrag
-	self.think = old_idle1;
-	self.nextthink = time + 0.1;
-	self.takedamage = DAMAGE_YES;
-	self.th_pain = nopain;
-	self.th_die = finale_1;
-	shub = self;
+    self.health = 40000;        // kill by telefrag
+    self.think = old_idle1;
+    self.nextthink = time + 0.1;
+    self.takedamage = DAMAGE_YES;
+    self.th_pain = nopain;
+    self.th_die = finale_1;
+    shub = self;
 
-	total_monsters = total_monsters + 1;
+    total_monsters = total_monsters + 1;
 };
 

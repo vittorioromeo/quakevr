@@ -10,14 +10,14 @@ float USE_PARTICLES = 1;
 void() BecomeExplosion;
 
 void() exploder_fire =
-	{
-	local entity temp;
+    {
+    local entity temp;
 
-	temp = self;
-	activator = other;
-	SUB_UseTargets ();
-	self = temp;
-	other = self;
+    temp = self;
+    activator = other;
+    SUB_UseTargets ();
+    self = temp;
+    other = self;
    if (self.dmg<120)
       {
       sound (self , CHAN_AUTO, "misc/shortexp.wav", self.volume, self.speed);
@@ -36,21 +36,21 @@ void() exploder_fire =
       WriteCoord (MSG_BROADCAST, self.origin_z);
       }
    BecomeExplosion();
-	};
+    };
 
 void() exploder_use =
-	{
-	if (self.delay)
-		{
-		self.nextthink = time + self.delay;
-		self.delay = 0;
-		self.think = exploder_fire;
-		}
-	else
-		{
-		exploder_fire();
-		}
-	};
+    {
+    if (self.delay)
+        {
+        self.nextthink = time + self.delay;
+        self.delay = 0;
+        self.think = exploder_fire;
+        }
+    else
+        {
+        exploder_fire();
+        }
+    };
 
 /*QUAKED func_exploder (0.4 0 0) (0 0 0) (8 8 8) particles
   Spawns an explosion when triggered.  Triggers any targets.
@@ -61,32 +61,32 @@ void() exploder_use =
   "speed" attenuation for explosions (default normal)
 */
 void() func_exploder =
-	{
+    {
    precache_sound ("misc/shortexp.wav");
    precache_sound ("misc/longexpl.wav");
-	self.classname = "exploder";
-	self.use = exploder_use;
-	if ( self.dmg == 0 )
-	   {
-	   self.dmg = 120;
-	   }
-	if ( self.dmg < 0 )
-	   {
-	   self.dmg = 0;
-	   }
+    self.classname = "exploder";
+    self.use = exploder_use;
+    if ( self.dmg == 0 )
+       {
+       self.dmg = 120;
+       }
+    if ( self.dmg < 0 )
+       {
+       self.dmg = 0;
+       }
    if ( self.speed == 0 )
-	   {
+       {
       self.speed = 1;
-	   }
+       }
    if ( self.volume == 0 )
-	   {
+       {
       self.volume = 1.0;
-	   }
+       }
    };
 
 void() multi_exploder_fire =
-	{
-	local entity temp;
+    {
+    local entity temp;
    local entity expl;
 
    self.nextthink = time + self.wait;
@@ -125,10 +125,10 @@ void() multi_exploder_fire =
    self = expl;
    BecomeExplosion();
    self = temp;
-	};
+    };
 
 void( vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
-	{
+    {
    local entity temp;
 
    temp = self;
@@ -144,22 +144,22 @@ void( vector loc, float rad, float damage, float dur, float pause, float vol) mu
    self.volume = vol;
    multi_exploder_fire();
    self = temp;
-	};
+    };
 
 void() multi_exploder_use =
-	{
+    {
    if (self.delay)
-		{
-		self.nextthink = time + self.delay;
-		self.delay = 0;
+        {
+        self.nextthink = time + self.delay;
+        self.delay = 0;
       self.think = multi_exploder_fire;
       }
-	else
-		{
+    else
+        {
       self.think = multi_exploder_fire;
       multi_exploder_fire();
-		}
-	};
+        }
+    };
 
 /*QUAKED func_multi_exploder (0.4 0 0) ?
   Spawns an explosion when triggered.  Triggers any targets.
@@ -175,23 +175,23 @@ void() multi_exploder_use =
 
 */
 void() func_multi_exploder =
-	{
+    {
    precache_sound ("misc/shortexp.wav");
    precache_sound ("misc/longexpl.wav");
-	self.classname = "exploder";
+    self.classname = "exploder";
    self.use = multi_exploder_use;
    setmodel(self,self.model);
    self.movetype = MOVETYPE_NONE;
-	self.modelindex = 0;
+    self.modelindex = 0;
    self.model = "";
-	if ( self.dmg == 0 )
-	   {
-	   self.dmg = 120;
-	   }
-	if ( self.dmg < 0 )
-	   {
-	   self.dmg = 0;
-	   }
+    if ( self.dmg == 0 )
+       {
+       self.dmg = 120;
+       }
+    if ( self.dmg < 0 )
+       {
+       self.dmg = 0;
+       }
    if (self.duration == 0)
       self.duration = 1.0;
    if (self.speed == 0)

@@ -75,27 +75,27 @@ void(float ofs, float turn) armagon_launch_missile =
       vec=v_forward;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
-	sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_FLYMISSILE;
-	missile.solid = SOLID_BBOX;
-	missile.classname = "missile";
+    missile = spawn ();
+    missile.owner = self;
+    missile.movetype = MOVETYPE_FLYMISSILE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "missile";
 
 // set missile speed
    missile.velocity = vec * 1000;
    missile.angles = vectoangles(vec);
-	missile.touch = T_MissileTouch;
+    missile.touch = T_MissileTouch;
 
 // set missile duration
-	missile.nextthink = time + 5;
-	missile.think = SUB_Remove;
+    missile.nextthink = time + 5;
+    missile.think = SUB_Remove;
 
-	setmodel (missile, "progs/missile.mdl");
-	setsize (missile, '0 0 0', '0 0 0');
+    setmodel (missile, "progs/missile.mdl");
+    setsize (missile, '0 0 0', '0 0 0');
    setorigin (missile, src);
    };
 
@@ -641,7 +641,7 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    // legs
    self.nextthink = -1;
    self.movetype = MOVETYPE_NONE;
-	self.takedamage = DAMAGE_NO;
+    self.takedamage = DAMAGE_NO;
    self.solid = SOLID_NOT;
    setsize (self, '-32 -32 -24', '32 32 32' );
    self.flags = 0;
@@ -712,13 +712,13 @@ void()   armagon_body_explode1 =
 void(entity attacker, float damage) armagon_pain =
    {
    if (self.health <= 0)
-		return;		// allready dying, don't go into pain frame
+        return;        // allready dying, don't go into pain frame
 
    if (damage < 25)
       return;
-	if (self.pain_finished > time)
-		return;
-	self.pain_finished = time + 2;
+    if (self.pain_finished > time)
+        return;
+    self.pain_finished = time + 2;
 
    sound (self, CHAN_VOICE, "armagon/pain.wav", 1, ATTN_NORM);
    };
@@ -787,7 +787,7 @@ void() armagon_stand_attack =
       return;
       }
 
-	if (trace_inopen && trace_inwater)
+    if (trace_inopen && trace_inwater)
       {
       armagon_run1();
       return;
@@ -827,30 +827,30 @@ void() armagon_stand_attack =
 
 float()  ArmagonCheckAttack =
    {
-	local vector	spot1, spot2;
-	local entity	targ;
+    local vector    spot1, spot2;
+    local entity    targ;
    local float    ang;
    local float    delta;
    local float    dist;
 
    self.lefty = 0;
 
-	targ = self.enemy;
+    targ = self.enemy;
 
 // see if any entities are in the way of the shot
    spot1 = self.origin + self.view_ofs;
-	spot2 = targ.origin + targ.view_ofs;
+    spot2 = targ.origin + targ.view_ofs;
 
-	traceline (spot1, spot2, FALSE, self);
+    traceline (spot1, spot2, FALSE, self);
 
    if ((trace_ent != targ) && (!self.charmed))
       return FALSE;     // don't have a clear shot
 
-	if (trace_inopen && trace_inwater)
-		return FALSE;			// sight line crossed contents
+    if (trace_inopen && trace_inwater)
+        return FALSE;            // sight line crossed contents
 
    if (time < self.attack_finished)
-		return FALSE;
+        return FALSE;
 
    ang = self.angles_y + self.fixangle;
    delta = self.ideal_yaw - ang;
@@ -861,7 +861,7 @@ float()  ArmagonCheckAttack =
       {  // melee attack
       self.th_melee ();
       return TRUE;
-		}
+        }
 // missile attack
    self.lefty = 1;
 //   self.th_missile ();
@@ -877,10 +877,10 @@ void() monster_armagon =
    local entity body;
    local float sk;
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
 
    self.lefty = 0;
 
@@ -910,7 +910,7 @@ void() monster_armagon =
 
    self.solid = SOLID_SLIDEBOX;
    self.fixangle = 0;
-	self.movetype = MOVETYPE_STEP;
+    self.movetype = MOVETYPE_STEP;
    body.solid = SOLID_NOT;
    body.movetype = MOVETYPE_STEP;
    self.trigger_field = body;

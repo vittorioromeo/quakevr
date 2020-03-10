@@ -33,9 +33,9 @@ void()   decoy_stand1 =[  $axstnd1,   decoy_stand1  ]
    if (self.walkframe >= 5)
       self.walkframe = 0;
    self.frame = $stand1 + self.walkframe;
-	self.walkframe = self.walkframe + 1;
-	if (time > self.pausetime)
-		self.th_walk ();
+    self.walkframe = self.walkframe + 1;
+    if (time > self.pausetime)
+        self.th_walk ();
    };
 
 void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
@@ -69,7 +69,7 @@ void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
          sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
       }
    self.frame = self.frame + self.walkframe;
-	self.walkframe = self.walkframe + 1;
+    self.walkframe = self.walkframe + 1;
    };
 
 void(entity decoy) setup_decoy =
@@ -102,10 +102,10 @@ void(entity decoy) setup_decoy =
 void() monster_decoy =
 {
    if (deathmatch)
-	{
-		remove(self);
-		return;
-	}
+    {
+        remove(self);
+        return;
+    }
    setup_decoy(self);
 
    walkmonster_start ();
@@ -141,27 +141,27 @@ void(string targ, vector orig) become_decoy =
    decoy.flags = decoy.flags | FL_MONSTER;
 
    if (decoy.target)
-	{
+    {
       decoy.goalentity = decoy.movetarget = find(world, targetname, decoy.target);
       decoy.ideal_yaw = vectoyaw(decoy.goalentity.origin - decoy.origin);
       if (!decoy.movetarget)
-		{
-			dprint ("Monster can't find target at ");
+        {
+            dprint ("Monster can't find target at ");
          dprint (vtos(decoy.origin));
-			dprint ("\n");
-		}
+            dprint ("\n");
+        }
 // this used to be an objerror
       if (decoy.movetarget.classname == "path_corner")
          decoy.th_walk ();
-		else
+        else
          decoy.pausetime = 99999999;
          decoy.th_stand ();
-	}
-	else
-	{
+    }
+    else
+    {
       decoy.pausetime = 99999999;
       decoy.th_stand ();
-	}
+    }
 
 // spread think times so they don't all happen at same time
    decoy.nextthink = decoy.nextthink + random()*0.5;

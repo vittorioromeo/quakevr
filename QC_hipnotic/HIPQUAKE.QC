@@ -32,9 +32,9 @@ void() earthquake_prethink =
    };
 
 void() earthquake_postthink =
-	{
-	if ( earthquake > time )
-		{
+    {
+    if ( earthquake > time )
+        {
       if (quakeactive == 0)
          {
          sound (self, CHAN_VOICE, "misc/quake.wav", 1, ATTN_NONE);
@@ -42,12 +42,12 @@ void() earthquake_postthink =
          }
 //      lastearthquake = 1;
 //      self.savedz = self.view_ofs_z;
-		if ( self.flags & FL_ONGROUND )
-			{
+        if ( self.flags & FL_ONGROUND )
+            {
 //         self.view_ofs_z = self.view_ofs_z - 5 + random() * 10;
          self.velocity = self.velocity + (random() * '0 0 150');
          }
-		}
+        }
    else
       {
       if (quakeactive == 1)
@@ -56,12 +56,12 @@ void() earthquake_postthink =
          quakeactive = 0;
          }
       }
-	};
+    };
 
 void() earthquake_use =
-	{
-	EarthQuakeTime( self.dmg );
-	};
+    {
+    EarthQuakeTime( self.dmg );
+    };
 
 /*QUAKED func_earthquake (0 0 0.5) (0 0 0) (32 32 32)
 Causes an earthquake.  Triggers targets.
@@ -70,15 +70,15 @@ Causes an earthquake.  Triggers targets.
 */
 
 void() func_earthquake =
-	{
+    {
    quakeactive = 0;
    precache_sound("misc/quake.wav");
    precache_sound("misc/quakeend.wav");
    self.classname = "earthquake";
-	self.use = earthquake_use;
-	self.think = SUB_Null;
-	if ( !self.dmg )
-	   {
-	   self.dmg = 0.8;
-	   }
-	};
+    self.use = earthquake_use;
+    self.think = SUB_Null;
+    if ( !self.dmg )
+       {
+       self.dmg = 0.8;
+       }
+    };
