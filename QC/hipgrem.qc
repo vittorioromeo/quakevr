@@ -75,6 +75,40 @@ see if we can steal enemy's weapon
 entity()GremlinFindVictim;
 float() GremlinFindTarget;
 
+float(float wid) WeaponIdToItemId =
+{
+   if(wid == WID_AXE) { return IT_AXE; }
+   if(wid == WID_MJOLNIR) { return IT_MJOLNIR; }
+   if(wid == WID_SHOTGUN) { return IT_SHOTGUN; }
+   if(wid == WID_SUPER_SHOTGUN) { return IT_SUPER_SHOTGUN; }
+   if(wid == WID_NAILGUN) { return IT_NAILGUN; }
+   if(wid == WID_SUPER_NAILGUN) { return IT_SUPER_NAILGUN; }
+   if(wid == WID_GRENADE_LAUNCHER) { return IT_GRENADE_LAUNCHER; }
+   if(wid == WID_PROXIMITY_GUN) { return IT_PROXIMITY_GUN; }
+   if(wid == WID_ROCKET_LAUNCHER) { return IT_ROCKET_LAUNCHER; }
+   if(wid == WID_LIGHTNING) { return IT_LIGHTNING; }
+   if(wid == WID_LASER_CANNON) { return IT_LASER_CANNON; }
+
+   return -1;
+}
+
+float(float it) ItemIdToWeaponId =
+{
+   if(it == IT_AXE) { return WID_AXE; }
+   if(it == IT_MJOLNIR) { return WID_MJOLNIR; }
+   if(it == IT_SHOTGUN) { return WID_SHOTGUN; }
+   if(it == IT_SUPER_SHOTGUN) { return WID_SUPER_SHOTGUN; }
+   if(it == IT_NAILGUN) { return WID_NAILGUN; }
+   if(it == IT_SUPER_NAILGUN) { return WID_SUPER_NAILGUN; }
+   if(it == IT_GRENADE_LAUNCHER) { return WID_GRENADE_LAUNCHER; }
+   if(it == IT_PROXIMITY_GUN) { return WID_PROXIMITY_GUN; }
+   if(it == IT_ROCKET_LAUNCHER) { return WID_ROCKET_LAUNCHER; }
+   if(it == IT_LIGHTNING) { return WID_LIGHTNING; }
+   if(it == IT_LASER_CANNON) { return WID_LASER_CANNON; }
+
+   return -1;
+}
+
 float() GremlinAttemptWeaponSteal =
    {
    local vector delta;
@@ -104,16 +138,16 @@ float() GremlinAttemptWeaponSteal =
    //
    victim = self.enemy;
    best = victim.weapon;
-   if (best == IT_AXE || best == IT_SHOTGUN || best == IT_MJOLNIR)
+   if (best == WID_AXE || best == WID_SHOTGUN || best == WID_MJOLNIR)
       return FALSE;
    // take that weapon from the entity
-   victim.items = victim.items - (victim.items & best);
+   victim.items = victim.items - (victim.items & WeaponIdToItemId(best));
    // give it to our gremlin
-   self.items = self.items | best;
+   self.items = self.items | WeaponIdToItemId(best);
    self.weapon = best;
    // take some ammo while we are at it
    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
-   if (best == IT_SUPER_SHOTGUN)
+   if (best == WID_SUPER_SHOTGUN)
       {
       amount = victim.ammo_shells;
       if (amount > 20)
@@ -124,7 +158,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_shells;
       sprint (victim, "Gremlin stole your Super Shotgun\n");
       }
-   else if (best == IT_NAILGUN)
+   else if (best == WID_NAILGUN)
       {
       amount = victim.ammo_nails;
       if (amount > 40)
@@ -135,7 +169,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_nails;
       sprint (victim, "Gremlin stole your Nailgun\n");
       }
-   else if (best == IT_SUPER_NAILGUN)
+   else if (best == WID_SUPER_NAILGUN)
       {
       amount = victim.ammo_nails;
       if (amount > 40)
@@ -146,7 +180,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_nails;
       sprint (victim, "Gremlin stole your Super Nailgun\n");
       }
-   else if (best == IT_GRENADE_LAUNCHER)
+   else if (best == WID_GRENADE_LAUNCHER)
       {
       amount = victim.ammo_rockets;
       if (amount > 5)
@@ -157,7 +191,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_rockets;
       sprint (victim, "Gremlin stole your Grenade Launcher\n");
       }
-   else if (best == IT_ROCKET_LAUNCHER)
+   else if (best == WID_ROCKET_LAUNCHER)
       {
       amount = victim.ammo_rockets;
       if (amount > 5)
@@ -168,7 +202,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_rockets;
       sprint (victim, "Gremlin stole your Rocket Launcher\n");
       }
-   else if (best == IT_LIGHTNING)
+   else if (best == WID_LIGHTNING)
       {
       amount = victim.ammo_cells;
       if (amount > 40)
@@ -179,7 +213,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_cells;
       sprint (victim, "Gremlin stole your Lightning Gun\n");
       }
-   else if (best == IT_LASER_CANNON)
+   else if (best == WID_LASER_CANNON)
       {
       amount = victim.ammo_cells;
       if (amount > 40)
@@ -190,7 +224,7 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_cells;
       sprint (victim, "Gremlin stole your Laser Cannon\n");
       }
-   else if (best == IT_PROXIMITY_GUN)
+   else if (best == WID_PROXIMITY_GUN)
       {
       amount = victim.ammo_rockets;
       if (amount > 5)
@@ -1404,53 +1438,53 @@ float() GremlinWeaponAttack =
 
    self.show_hostile = time + 1; // wake monsters up
 
-   if (self.weapon == IT_SHOTGUN)
+    if (self.weapon == WID_SHOTGUN)
       {
       gremlin_shot1 ();
       Gremlin_FireShotGun();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_SUPER_SHOTGUN)
+    else if (self.weapon == WID_SUPER_SHOTGUN)
       {
       gremlin_shot1 ();
       Gremlin_FireSuperShotGun();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_NAILGUN)
+    else if (self.weapon == WID_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_SUPER_NAILGUN)
+    else if (self.weapon == WID_SUPER_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_GRENADE_LAUNCHER)
+    else if (self.weapon == WID_GRENADE_LAUNCHER)
       {
       gremlin_rocket1();
       OgreFireGrenade();
       self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_ROCKET_LAUNCHER)
+    else if (self.weapon == WID_ROCKET_LAUNCHER)
       {
       gremlin_rocket1();
       Gremlin_FireRocket();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == IT_LIGHTNING)
+    else if (self.weapon == WID_LIGHTNING)
       {
       gremlin_light1();
       SUB_AttackFinished(1);
       sound (self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
       }
-   else if (self.weapon == IT_LASER_CANNON)
+   else if (self.weapon == WID_LASER_CANNON)
       {
       gremlin_laser3();
       SUB_AttackFinished(1);
       }
-   else if (self.weapon == IT_PROXIMITY_GUN)
+   else if (self.weapon == WID_PROXIMITY_GUN)
       {
       gremlin_rocket1();
       GremlinFireProximityGrenade();

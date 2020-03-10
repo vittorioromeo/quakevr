@@ -371,23 +371,23 @@ void() bound_other_ammo =
 //MED 01/06/97 added hipnotic weapons into rankings
 float(float w) RankForWeapon =
 {
-    if (w == IT_LIGHTNING)
+    if (w == WID_LIGHTNING)
         return 1;
-    if (w == IT_ROCKET_LAUNCHER)
+    if (w == WID_ROCKET_LAUNCHER)
         return 2;
-    if (w == IT_LASER_CANNON)
+    if (w == WID_LASER_CANNON)
         return 3;
-    if (w == IT_SUPER_NAILGUN)
+    if (w == WID_SUPER_NAILGUN)
         return 4;
-    if (w == IT_PROXIMITY_GUN)
+    if (w == WID_PROXIMITY_GUN)
         return 5;
-    if (w == IT_GRENADE_LAUNCHER)
+    if (w == WID_GRENADE_LAUNCHER)
         return 6;
-    if (w == IT_SUPER_SHOTGUN)
+    if (w == WID_SUPER_SHOTGUN)
         return 7;
-    if (w == IT_NAILGUN)
+    if (w == WID_NAILGUN)
         return 8;
-    if (w == IT_MJOLNIR)
+    if (w == WID_MJOLNIR)
         return 9;
    return 10;
 };
@@ -421,7 +421,7 @@ float() W_BestWeapon;
 
 void() weapon_touch =
 {
-    local    float    hadammo, best, new, old;
+    local    float    hadammo, best, newIt, newWid, old;
     local    entity    stemp;
     local    float    leave;
 
@@ -444,7 +444,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_NAILGUN) )
             return;
         hadammo = other.ammo_nails;
-        new = IT_NAILGUN;
+        newIt = IT_NAILGUN;
+        newWid = WID_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
     else if (self.classname == "weapon_supernailgun")
@@ -452,7 +453,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_SUPER_NAILGUN) )
             return;
         hadammo = other.ammo_rockets;
-        new = IT_SUPER_NAILGUN;
+        newIt = IT_SUPER_NAILGUN;
+        newWid = WID_SUPER_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
     else if (self.classname == "weapon_supershotgun")
@@ -460,7 +462,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_SUPER_SHOTGUN) )
             return;
         hadammo = other.ammo_rockets;
-        new = IT_SUPER_SHOTGUN;
+        newIt = IT_SUPER_SHOTGUN;
+        newWid = WID_SUPER_SHOTGUN;
         other.ammo_shells = other.ammo_shells + 5;
     }
     else if (self.classname == "weapon_rocketlauncher")
@@ -468,7 +471,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_ROCKET_LAUNCHER) )
             return;
         hadammo = other.ammo_rockets;
-        new = IT_ROCKET_LAUNCHER;
+        newIt = IT_ROCKET_LAUNCHER;
+        newWid = WID_ROCKET_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
     else if (self.classname == "weapon_grenadelauncher")
@@ -476,7 +480,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_GRENADE_LAUNCHER) )
             return;
         hadammo = other.ammo_rockets;
-        new = IT_GRENADE_LAUNCHER;
+        newIt = IT_GRENADE_LAUNCHER;
+        newWid = WID_GRENADE_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
     else if (self.classname == "weapon_lightning")
@@ -484,7 +489,8 @@ void() weapon_touch =
         if (leave && (other.items & IT_LIGHTNING) )
             return;
         hadammo = other.ammo_rockets;
-        new = IT_LIGHTNING;
+        newIt = IT_LIGHTNING;
+        newWid = WID_LIGHTNING;
         other.ammo_cells = other.ammo_cells + 15;
     }
 //MED
@@ -493,7 +499,8 @@ void() weapon_touch =
       if (leave && (other.items & IT_LASER_CANNON) )
             return;
         hadammo = other.ammo_rockets;
-      new = IT_LASER_CANNON;
+      newIt = IT_LASER_CANNON;
+      newWid = WID_LASER_CANNON;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
@@ -502,16 +509,18 @@ void() weapon_touch =
       if (leave && (other.items & IT_MJOLNIR) )
             return;
         hadammo = other.ammo_rockets;
-      new = IT_MJOLNIR;
+      newIt = IT_MJOLNIR;
+      newWid = WID_MJOLNIR;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
     else if (self.classname == "weapon_proximity_gun")
     {
-      if (leave && (other.items & IT_PROXIMITY_GUN) )
+      if (leave && (other.hipnotic_items & IT_PROXIMITY_GUN) )
             return;
         hadammo = other.ammo_rockets;
-      new = IT_PROXIMITY_GUN;
+      newIt = IT_PROXIMITY_GUN;
+      newWid = WID_PROXIMITY_GUN;
       other.ammo_rockets = other.ammo_rockets + 6;
     }
     else
@@ -530,15 +539,15 @@ void() weapon_touch =
 
 // change to the weapon
     old = other.items;
-    other.items = other.items | new;
+    other.items = other.items | newIt;
 
     stemp = self;
     self = other;
 
     if (!deathmatch)
-        self.weapon = new;
+        self.weapon = newWid;
     else
-        Deathmatch_Weapon (old, new);
+        Deathmatch_Weapon (old, newWid);
 
     W_SetCurrentAmmo();
 
@@ -566,7 +575,7 @@ void() weapon_supershotgun =
 {
     precache_model ("progs/g_shot.mdl");
     setmodel (self, "progs/g_shot.mdl");
-    self.weapon = IT_SUPER_SHOTGUN;
+    self.weapon = WID_SUPER_SHOTGUN;
     self.netname = "Double-barrelled Shotgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -580,7 +589,7 @@ void() weapon_nailgun =
 {
     precache_model ("progs/g_nail.mdl");
     setmodel (self, "progs/g_nail.mdl");
-    self.weapon = IT_NAILGUN;
+    self.weapon = WID_NAILGUN;
     self.netname = "nailgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -594,7 +603,7 @@ void() weapon_supernailgun =
 {
     precache_model ("progs/g_nail2.mdl");
     setmodel (self, "progs/g_nail2.mdl");
-    self.weapon = IT_SUPER_NAILGUN;
+    self.weapon = WID_SUPER_NAILGUN;
     self.netname = "Super Nailgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -608,7 +617,7 @@ void() weapon_grenadelauncher =
 {
     precache_model ("progs/g_rock.mdl");
     setmodel (self, "progs/g_rock.mdl");
-    self.weapon = 3;
+    self.weapon = WID_GRENADE_LAUNCHER;
     self.netname = "Grenade Launcher";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -622,7 +631,7 @@ void() weapon_rocketlauncher =
 {
     precache_model ("progs/g_rock2.mdl");
     setmodel (self, "progs/g_rock2.mdl");
-    self.weapon = 3;
+    self.weapon = WID_ROCKET_LAUNCHER;
     self.netname = "Rocket Launcher";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -637,7 +646,7 @@ void() weapon_lightning =
 {
     precache_model ("progs/g_light.mdl");
     setmodel (self, "progs/g_light.mdl");
-    self.weapon = 3;
+    self.weapon = WID_LIGHTNING;
     self.netname = "Thunderbolt";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
@@ -1294,10 +1303,13 @@ PLAYER BACKPACKS
 ===============================================================================
 */
 
+float(float wid) WeaponIdToItemId;
+float(float it) ItemIdToWeaponId;
+
 void() BackpackTouch =
 {
     local string s;
-    local float  best, old, new;
+    local float  best, old, newIt;
     local entity stemp;
     local    float    acount;
 
@@ -1333,11 +1345,11 @@ void() BackpackTouch =
     other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
     other.ammo_cells = other.ammo_cells + self.ammo_cells;
 
-    new = self.items;
-    if (!new)
-        new = other.weapon;
+    newIt = self.items;
+    if (!newIt)
+        newIt = WeaponIdToItemId(other.weapon);
     old = other.items;
-    other.items = other.items | new;
+    other.items = other.items | newIt;
 
     bound_other_ammo ();
 
@@ -1389,9 +1401,9 @@ void() BackpackTouch =
 
 // change to the weapon
     if (!deathmatch)
-        self.weapon = new;
+        self.weapon = ItemIdToWeaponId(newIt);
     else
-        Deathmatch_Weapon (old, new);
+        Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
 
     W_SetCurrentAmmo ();
 };

@@ -15,9 +15,9 @@ HIPNOTIC ITEMS
 ===============================================================================
 */
 //
-// hip_powerup_touch function
+// HIP_powerup_touch function
 //
-void() hip_powerup_touch =
+void() HIP_powerup_touch =
 {
 local entity    stemp;
 local float        best;
@@ -72,7 +72,7 @@ Player takes no damage from electrical attacks and swims faster for 30 seconds
 */
 void() item_artifact_wetsuit =
 {
-   self.touch = hip_powerup_touch;
+   self.touch = HIP_powerup_touch;
 
    precache_model ("progs/wetsuit.mdl");
    precache_sound ("misc/wetsuit.wav");
@@ -146,7 +146,7 @@ Empathy Shield.
 */
 void() item_artifact_empathy_shields =
    {
-   self.touch = hip_powerup_touch;
+   self.touch = HIP_powerup_touch;
 
    precache_model("progs/empathy.mdl");
    precache_sound("hipitems/empathy.wav");
@@ -174,7 +174,7 @@ void() weapon_mjolnir =
 {
    precache_model ("progs/g_hammer.mdl");
    setmodel (self, "progs/g_hammer.mdl");
-    self.weapon = 3;
+    self.weapon = WID_MJOLNIR;
    self.netname = "Mjolnir";
    self.items = IT_MJOLNIR;
     self.touch = weapon_touch;
@@ -189,7 +189,7 @@ void() weapon_laser_gun =
 {
    precache_model ("progs/g_laserg.mdl");
    setmodel (self, "progs/g_laserg.mdl");
-    self.weapon = 3;
+    self.weapon = WID_LASER_CANNON;
    self.netname = "Laser Cannon";
    self.items = IT_LASER_CANNON;
    self.touch = weapon_touch;
@@ -204,7 +204,7 @@ void() weapon_proximity_gun =
 {
    precache_model ("progs/g_prox.mdl");
    setmodel (self, "progs/g_prox.mdl");
-    self.weapon = 3;
+    self.weapon = WID_PROXIMITY_GUN;
    self.netname = "Proximity Gun";
    self.items = IT_PROXIMITY_GUN;
    self.touch = weapon_touch;

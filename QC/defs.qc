@@ -330,6 +330,20 @@ float    IT_SUIT                  = 2097152;
 float    IT_QUAD                  = 4194304;
 float    IT_LASER_CANNON          = 8388608;
 
+// weapon ids
+float    WID_AXE                   = 0;
+float    WID_MJOLNIR               = 1;
+float    WID_SHOTGUN               = 2;
+float    WID_SUPER_SHOTGUN         = 3;
+float    WID_NAILGUN               = 4;
+float    WID_SUPER_NAILGUN         = 5;
+float    WID_GRENADE_LAUNCHER      = 6;
+float    WID_PROXIMITY_GUN         = 7;
+float    WID_ROCKET_LAUNCHER       = 8;
+float    WID_LIGHTNING             = 9;
+float    WID_LASER_CANNON          = 10;
+
+
 // hipnotic items
 float    HIP_IT_WETSUIT           = 2;
 float    HIP_IT_EMPATHY_SHIELDS   = 4;

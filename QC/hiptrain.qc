@@ -7,20 +7,20 @@
 
 void() train_blocked;
 void() func_train;
-void() hip_train_next;
-void() hip_func_train_find;
+void() HIP_train_next;
+void() HIP_func_train_find;
 
-void() hip_train_use =
+void() HIP_train_use =
 {
-    if (self.think != hip_func_train_find)
+    if (self.think != HIP_func_train_find)
         {
         if ( self.velocity != '0 0 0' )
             return;        // already activated
         }
-    hip_train_next();
+    HIP_train_next();
 };
 
-void() hip_train_wait =
+void() HIP_train_wait =
     {
     if (self.wait)
         {
@@ -34,11 +34,11 @@ void() hip_train_wait =
     else
         self.nextthink = self.ltime + 0.1;
 
-    self.think = hip_train_next;
+    self.think = HIP_train_next;
     };
 
 
-void() hip_train_next =
+void() HIP_train_next =
 {
     local entity    targ;
     local float        current;
@@ -55,18 +55,18 @@ void() hip_train_next =
     self.cnt = targ.speed;
     self.target = targ.target;
     if (!self.target)
-        objerror ("hip_train_next: no next target");
+        objerror ("HIP_train_next: no next target");
 
     sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
 
     self.wait = targ.wait;
      if (targ.wait)
         {
-        self.think = hip_train_wait;
+        self.think = HIP_train_wait;
         }
     else
         {
-        self.think = hip_train_next;
+        self.think = HIP_train_next;
         }
 
    if ( self.goalentity.event )
@@ -100,7 +100,7 @@ void() hip_train_next =
         }
     };
 
-void() hip_func_train_find =
+void() HIP_func_train_find =
 
 {
     local entity    targ;
@@ -118,7 +118,7 @@ void() hip_func_train_find =
     if (!self.targetname)
     {    // not triggered, so start immediately
         self.nextthink = self.ltime + 0.1;
-        self.think = hip_train_next;
+        self.think = HIP_train_next;
     }
 };
 
@@ -191,7 +191,7 @@ void() func_train2 =
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
     self.blocked = train_blocked;
-   self.use = hip_train_use;
+   self.use = HIP_train_use;
     self.classname = "train2";
 
     setmodel (self, self.model);
@@ -201,5 +201,5 @@ void() func_train2 =
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn
     self.nextthink = self.ltime + 0.1;
-   self.think = hip_func_train_find;
+   self.think = HIP_func_train_find;
 };

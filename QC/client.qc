@@ -77,7 +77,7 @@ void() SetNewParms =
     parm5 = 0;
     parm6 = 0;
     parm7 = 0;
-    parm8 = 1;
+    parm8 = WID_SHOTGUN;
     parm9 = 0;
 };
 
@@ -1092,7 +1092,7 @@ void() PlayerPreThink =
     if (time < self.pausetime)
         self.velocity = '0 0 0';
 
-    if(time > self.attack_finished && self.currentammo == 0 && self.weapon != IT_AXE && self.weapon != IT_MJOLNIR)
+    if(time > self.attack_finished && self.currentammo == 0 && self.weapon != WID_AXE && self.weapon != WID_MJOLNIR)
     {
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
@@ -1151,7 +1151,7 @@ void() CheckPowerups =
         self.modelindex = modelindex_eyes;
     }
 //MED 12/04/96 added mjolnir stuff
-    else if (self.weapon == IT_MJOLNIR)
+    else if (self.weapon == WID_MJOLNIR)
         self.modelindex = modelindex_hammer;   // don't use eyes
     else
         self.modelindex = modelindex_player;    // don't use eyes
@@ -1480,12 +1480,12 @@ void(entity targ, entity attacker) ClientObituary =
                 attacker.frags = attacker.frags - 1;
                 bprint (targ.netname);
 
-                if (targ.weapon == 64 && targ.waterlevel > 1)
+                if (targ.weapon == WID_LIGHTNING && targ.waterlevel > 1)
                 {
                     bprint (" discharges into the water.\n");
                     return;
                 }
-                if (targ.weapon == IT_GRENADE_LAUNCHER)
+                if (targ.weapon == WID_GRENADE_LAUNCHER)
                     bprint (" tries to put the pin back in\n");
 //JIM
                 else if (rnum > 0.4 )
@@ -1538,32 +1538,32 @@ void(entity targ, entity attacker) ClientObituary =
                return;
                }
                 rnum = attacker.weapon;
-                if (rnum == IT_AXE)
+                if (rnum == WID_AXE)
                 {
                     deathstring = " was ax-murdered by ";
                     deathstring2 = "\n";
                 }
-                if (rnum == IT_SHOTGUN)
+                if (rnum == WID_SHOTGUN)
                 {
                     deathstring = " chewed on ";
                     deathstring2 = "'s boomstick\n";
                 }
-                if (rnum == IT_SUPER_SHOTGUN)
+                if (rnum == WID_SUPER_SHOTGUN)
                 {
                     deathstring = " ate 2 loads of ";
                     deathstring2 = "'s buckshot\n";
                 }
-                if (rnum == IT_NAILGUN)
+                if (rnum == WID_NAILGUN)
                 {
                     deathstring = " was nailed by ";
                     deathstring2 = "\n";
                 }
-                if (rnum == IT_SUPER_NAILGUN)
+                if (rnum == WID_SUPER_NAILGUN)
                 {
                     deathstring = " was punctured by ";
                     deathstring2 = "\n";
                 }
-                if (rnum == IT_GRENADE_LAUNCHER)
+                if (rnum == WID_GRENADE_LAUNCHER)
                 {
                     deathstring = " eats ";
                     deathstring2 = "'s pineapple\n";
@@ -1573,7 +1573,7 @@ void(entity targ, entity attacker) ClientObituary =
                         deathstring2 = "'s grenade\n";
                     }
                 }
-                if (rnum == IT_ROCKET_LAUNCHER)
+                if (rnum == WID_ROCKET_LAUNCHER)
                 {
                     deathstring = " rides ";
                     deathstring2 = "'s rocket\n";
@@ -1583,7 +1583,7 @@ void(entity targ, entity attacker) ClientObituary =
                         deathstring2 = "'s rocket\n" ;
                     }
                 }
-                if (rnum == IT_LIGHTNING)
+                if (rnum == WID_LIGHTNING)
                 {
                     deathstring = " accepts ";
                     if (attacker.waterlevel > 1)
@@ -1592,7 +1592,7 @@ void(entity targ, entity attacker) ClientObituary =
                         deathstring2 = "'s shaft\n";
                 }
 //MED
-            if (rnum == IT_LASER_CANNON)
+            if (rnum == WID_LASER_CANNON)
                 {
                if (random()<0.5)
                   {
@@ -1605,7 +1605,7 @@ void(entity targ, entity attacker) ClientObituary =
                deathstring2 = "'s laser\n";
                 }
 //MED
-            if (rnum == IT_MJOLNIR)
+            if (rnum == WID_MJOLNIR)
                 {
                deathstring = " was slammed by ";
                deathstring2 = "'s hammer\n";
@@ -1768,7 +1768,7 @@ void() PlayerVRMelee =
     // vr main hand melee attack
     if (cvar("vr_enabled") == 1 && time >= self.in_melee && self.handvelmag > vr_melee_threshold)
     {
-        if (self.weapon == IT_AXE)
+        if (self.weapon == WID_AXE)
         {
             if (time >= self.mainhand_melee_attack_finished)
             {
@@ -1777,7 +1777,7 @@ void() PlayerVRMelee =
 
             W_FireAxe();
         }
-        else if (self.weapon == IT_MJOLNIR)
+        else if (self.weapon == WID_MJOLNIR)
         {
             if (time >= self.mainhand_melee_attack_finished)
             {
