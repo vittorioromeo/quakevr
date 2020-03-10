@@ -248,40 +248,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     }
 };
 
-/*
-void() HIP_DiversionLightningThink =
-   {
-   local vector   org,end;
 
-   if (time > self.delay)
-      {
-      remove(self);
-      return;
-      }
-
-   makevectors(self.v_angle);
-   org = self.origin;
-   end = org + v_forward*200;
-//   end = end + (((200*random()) - 100) * v_up);
-   end = end + (((400*random()) - 200) * v_right);
-
-   traceline (org, end, TRUE, self);
-
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity (MSG_BROADCAST, self);
-    WriteCoord (MSG_BROADCAST, org_x);
-    WriteCoord (MSG_BROADCAST, org_y);
-    WriteCoord (MSG_BROADCAST, org_z);
-   WriteCoord (MSG_BROADCAST, trace_endpos_x);
-   WriteCoord (MSG_BROADCAST, trace_endpos_y);
-   WriteCoord (MSG_BROADCAST, trace_endpos_z);
-
-   self.nextthink = time + 0.1;
-   };
-*/
-
-//void(entity prev, entity owner, float dst) HIP_SpawnMjolnirLightning;
 void() HIP_LightningThink =
    {
    local vector org;
@@ -1577,27 +1544,19 @@ float() W_BestWeapon =
    if (self.waterlevel <= 1 && self.ammo_cells >= 1 && (it & IT_LIGHTNING) )
       return IT_LIGHTNING;
 //MED
-   else if(self.ammo_cells >= 1 && (it & IT_LASER_CANNON) )
+   if(self.ammo_cells >= 1 && (it & IT_LASER_CANNON) )
       return IT_LASER_CANNON;
-   else if(self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN) )
+   if(self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN) )
         return IT_SUPER_NAILGUN;
-    else if(self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN) )
+    if(self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN) )
         return IT_SUPER_SHOTGUN;
-    else if(self.ammo_nails >= 1 && (it & IT_NAILGUN) )
+    if(self.ammo_nails >= 1 && (it & IT_NAILGUN) )
         return IT_NAILGUN;
-    else if(self.ammo_shells >= 1 && (it & IT_SHOTGUN) )
+    if(self.ammo_shells >= 1 && (it & IT_SHOTGUN) )
         return IT_SHOTGUN;
 //MED
-   else if( it & IT_MJOLNIR )
+   if( it & IT_MJOLNIR )
       return IT_MJOLNIR;
-
-/*
-    if(self.ammo_rockets >= 1 && (it & IT_ROCKET_LAUNCHER) )
-        return IT_ROCKET_LAUNCHER;
-    else if(self.ammo_rockets >= 1 && (it & IT_GRENADE_LAUNCHER) )
-        return IT_GRENADE_LAUNCHER;
-
-*/
 
     return IT_AXE;
 };
@@ -2083,17 +2042,19 @@ Just for development
 */
 void() ServerflagsCommand =
 {
+    if (deathmatch)
+        return;
     serverflags = serverflags * 2 + 1;
 };
 
 void() QuadCheat =
 {
-    if (deathmatch || coop)
+    if (deathmatch)
         return;
     self.super_time = 1;
     self.super_damage_finished = time + 30;
     self.items = self.items | IT_QUAD;
-   bprint ("quad cheat\n");
+    dprint ("quad cheat\n");
 };
 
 //MED

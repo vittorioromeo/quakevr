@@ -96,6 +96,10 @@ void() OgreFireGrenade =
     sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
 
     missile = spawn ();
+
+//JIM
+    missile.classname = "grenade";
+
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;

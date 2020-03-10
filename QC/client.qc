@@ -7,7 +7,8 @@ void() player_stand1;
 void (vector org) spawn_tfog;
 void (vector org, entity death_owner) spawn_tdeath;
 
-float    modelindex_eyes, modelindex_player;
+float modelindex_eyes, modelindex_player, modelindex_hammer;
+
 
 /*
 =============================================================================
@@ -38,9 +39,15 @@ void() SetChangeParms =
         return;
     }
 
+//JIM
 // remove items
     self.items = self.items - (self.items &
-    (IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD) );
+        (IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD ) );
+//MED
+    self.items2 = self.items2 - (self.items2 &
+        (HIP_IT_WETSUIT | HIP_IT_EMPATHY_SHIELDS ) );
+//MED
+    self.gravity = 1.0;
 
 // cap super health
     if (self.health > 100)
@@ -81,6 +88,16 @@ void() DecodeLevelParms =
         if (world.model == "maps/start.bsp")
             SetNewParms ();        // take away all stuff on starting new episode
     }
+
+//HIPNOTIC
+   if (world.model == "maps/start.bsp")
+       SetNewParms ();      // take away all stuff on starting new episode
+   if (world.model == "maps/hip1m1.bsp")
+       SetNewParms ();      // take away all stuff on starting new episode
+   if (world.model == "maps/hip2m1.bsp")
+       SetNewParms ();      // take away all stuff on starting new episode
+   if (world.model == "maps/hip3m1.bsp")
+       SetNewParms ();      // take awa
 
     self.items = parm1;
     self.health = parm2;
@@ -211,7 +228,40 @@ void() ExitIntermission =
             return;
         }
 
-        GotoNextMap();
+//HIPNOTIC
+      if (world.model == "maps/hip1m4.bsp")
+      {
+            WriteByte (MSG_ALL, SVC_CDTRACK);
+            WriteByte (MSG_ALL, 6);
+            WriteByte (MSG_ALL, 3);
+            WriteByte (MSG_ALL, SVC_FINALE);
+
+         WriteString (MSG_ALL, "Deep within the bowels of the\nResearch Facility, you discover the\npassage that the followers of Quake\nhave used to enter our world.\nThe bastards used some type of\ngigantic teleporter to overload\none of our own slipgates!  As long as\nthis portal exists, Earth will never\nbe safe from Quake's cruel minions." );
+         //WriteString (MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake." );
+         return;
+        }
+        else if (world.model == "maps/hip2m5.bsp")
+        {
+         WriteByte (MSG_ALL, SVC_CDTRACK);
+         WriteByte (MSG_ALL, 6);
+            WriteByte (MSG_ALL, 3);
+
+            WriteByte (MSG_ALL, SVC_FINALE);
+         WriteString (MSG_ALL, "After destroying the power generator,\nyou pass beyond the gate of Mortum's\nKeep.  A wave of nausea suddenly flows\nover you and you find yourself cast\nout into a liquid void.  You float\nlifelessly, yet aware, in a lavender\nsea of energy." );
+         return;
+        }
+      else if (world.model == "maps/hipend.bsp")
+      {
+
+         WriteByte (MSG_ALL, SVC_CDTRACK);
+         WriteByte (MSG_ALL, 2);
+            WriteByte (MSG_ALL, 3);
+
+            WriteByte (MSG_ALL, SVC_FINALE);
+         WriteString (MSG_ALL, "After the last echoes of Armagon's\ndeath yell fade away, you breathe a\nheavy sigh of relief.  With the loss\nof his magic, Armagon's fortress\nbegins to collapse.  The rift he\ncreated to send his grisly troops\nthrough time slowly closes and seals\nitself forever.  In the chaos that\nensues, a wall collapses, revealing\none remaining time portal.  With your\nchances to escape rapidly growing\nslim, you race for the portal,\nmindless of your destination.  In a\nflash of light, you find yourself\nback at Command HQ, safe and sound." );
+            return;
+        }
+      GotoNextMap();
     }
 
     if (intermission_running == 3)
@@ -229,7 +279,27 @@ void() ExitIntermission =
             return;
         }
 
-    }
+    //HIPNOTIC
+      if (world.model == "maps/hip1m4.bsp")
+      {
+         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteString (MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake." );
+         return;
+        }
+        else if (world.model == "maps/hip2m5.bsp")
+        {
+         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteString (MSG_ALL, "After what seems like an eternity,\nyou feel the presence of a diabolical\nintelligence.  You are held helpless\nfor a moment as your mind is open to\nthat of Armagon--Quake's General and\nmaster of this realm.  Recognizing\nyou as the one who foiled his\nattempt to conquer Earth, a hellish\nhowl fills your mind and blots out\nall consciousness.  When you awake,\nyou find yourself on the shores of\nreality, but in a time and place\nunknown to you." );
+         return;
+        }
+      else if (world.model == "maps/hipend.bsp")
+      {
+         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteString (MSG_ALL, "Congratulations!  You are victorious!\nThe minions of Quake have once again\nfallen before your mighty hand.\nIs this the last you will see of\nQuake's hellions?\n\nOnly time will tell..." );
+         intermission_exittime = time + 10000000;  // never allow exit
+            return;
+        }
+   }
 
     GotoNextMap();
 };
@@ -502,6 +572,13 @@ void() PutClientInServer =
     self.invincible_finished = 0;
     self.effects = 0;
     self.invincible_time = 0;
+    //JIM
+    self.wetsuit_finished = 0;
+    //MED
+    self.empathy_finished = 0;
+    //MED
+    self.items2 = 0;
+    self.gravity = 1.0;
 
     DecodeLevelParms ();
 
@@ -524,6 +601,10 @@ void() PutClientInServer =
     self.fixangle = TRUE;        // turn this way immediately
 
 // oh, this is a hack!
+    // TODO VR: could be problematic?
+    setmodel (self, "progs/playham.mdl");
+    modelindex_hammer = self.modelindex;
+
     setmodel (self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;
 
@@ -898,7 +979,6 @@ void() CheckWaterJump =
     }
 };
 
-
 /*
 ================
 PlayerPreThink
@@ -906,6 +986,8 @@ PlayerPreThink
 Called every frame before physics are run
 ================
 */
+//MED 01/17/97
+void(float num_bubbles) DeathBubbles;
 void() PlayerPreThink =
 {
     local    float    mspeed, aspeed;
@@ -913,6 +995,7 @@ void() PlayerPreThink =
 
     if (intermission_running)
     {
+        earthquake_prethink();
         IntermissionThink ();    // otherwise a button could be missed between
         return;                    // the think tics
     }
@@ -920,10 +1003,71 @@ void() PlayerPreThink =
     if (self.view_ofs == '0 0 0')
         return;        // intermission or finale
 
+//JIM
+   // Kill player on Edge of Oblivion
+    if ( ( self.origin_z < -1300 ) && (world.model == "maps/hipdm1.bsp") &&
+      ( self.health > 0 ) )
+    {
+        self.deathtype = "falling";
+
+        if (self.invincible_finished >= time)
+           {
+           self.invincible_finished = 0;
+           self.items = self.items - (self.items & IT_INVULNERABILITY);
+           self.invincible_time = 0;
+              self.invincible_finished = 0;
+           self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+           }
+        T_Damage( self, self, world, self.health + 1000 );
+    }
+
+    //JIM
+    earthquake_prethink();
+
     makevectors (self.v_angle);        // is this still used
 
     CheckRules ();
     WaterMove ();
+
+    //JIM
+    //WETSUIT
+    if (self.wetsuit_finished > time)
+        {
+        if (self.waterlevel==2)
+            {
+            self.velocity = self.velocity * 1.25;
+            }
+        if (self.waterlevel==3)
+            {
+            self.velocity = self.velocity * 1.5;
+            }
+      if (self.waterlevel >= 2)
+         {
+         // play scuba sound
+         if (self.swim_flag < time)
+            {
+            self.swim_flag = time + 7;
+            sound (self, CHAN_BODY, "misc/wetsuit.wav", 1, ATTN_NORM);
+            }
+         //MED 01/17/97
+         else
+            {
+            if (fabs(self.swim_flag - time - 6)<0.04)
+               {
+               DeathBubbles(1);
+               }
+            else if (fabs(self.swim_flag - time - 5.5)<0.04)
+               {
+               DeathBubbles(1);
+               }
+            else if (fabs(self.swim_flag - time - 5)<0.04)
+               {
+               DeathBubbles(1);
+               }
+            }
+         }
+
+     }
 
     if (self.waterlevel == 2)
         CheckWaterJump ();
@@ -948,7 +1092,7 @@ void() PlayerPreThink =
     if (time < self.pausetime)
         self.velocity = '0 0 0';
 
-    if(time > self.attack_finished && self.currentammo == 0 && self.weapon != IT_AXE)
+    if(time > self.attack_finished && self.currentammo == 0 && self.weapon != IT_AXE && self.weapon != IT_MJOLNIR)
     {
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
@@ -1006,6 +1150,9 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
+//MED 12/04/96 added mjolnir stuff
+    else if (self.weapon == IT_MJOLNIR)
+        self.modelindex = modelindex_hammer;   // don't use eyes
     else
         self.modelindex = modelindex_player;    // don't use eyes
 
@@ -1108,65 +1255,78 @@ void() CheckPowerups =
         }
     }
 
+//JIM
+// wetsuit
+    if (self.wetsuit_finished)
+    {
+    self.air_finished = time + 12;        // don't drown
+
+    // sound and screen flash when items starts to run out
+    if (self.wetsuit_finished < time + 3)
+        {
+            if (self.wetsuit_time == 1)
+            {
+                sprint (self, "Air supply in Wetsuit is running out\n");
+                stuffcmd (self, "bf\n");
+                sound (self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+                self.wetsuit_time = time + 1;
+            }
+
+            if (self.wetsuit_time < time)
+            {
+                self.wetsuit_time = time + 1;
+                stuffcmd (self, "bf\n");
+            }
+        }
+
+        if (self.wetsuit_finished < time)
+        {    // just stopped
+//MED
+         self.items2 = self.items2 - HIP_IT_WETSUIT;
+            self.wetsuit_time = 0;
+            self.wetsuit_finished = 0;
+        }
+    }
+
+//MED
+// empathy shields
+   if (self.empathy_finished)
+    {
+      // sound and screen flash when items starts to run out
+      if (self.empathy_finished < time + 3)
+        {
+         if (self.empathy_time == 1)
+            {
+            sprint (self, "Empathy Shields are running out\n");
+                stuffcmd (self, "bf\n");
+                sound (self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+            self.empathy_time = time + 1;
+            }
+
+         if (self.empathy_time < time)
+            {
+            self.empathy_time = time + 1;
+                stuffcmd (self, "bf\n");
+            }
+        }
+
+      if (self.empathy_finished < time)
+        {    // just stopped
+//MED
+         self.items2 = self.items2 - HIP_IT_EMPATHY_SHIELDS;
+         self.empathy_time = 0;
+         self.empathy_finished = 0;
+        }
+//MED
+      if (self.empathy_finished > time)
+            self.effects = self.effects | EF_DIMLIGHT;
+        else
+            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+   }
 };
 
-void() PlayerVRMelee =
-{
-    local    float    vr_melee_threshold;
 
-    vr_melee_threshold = cvar("vr_melee_threshold");
-
-    // vr main hand melee attack
-    if (cvar("vr_enabled") == 1 && time >= self.in_melee && self.handvelmag > vr_melee_threshold)
-    {
-        if (self.weapon == IT_AXE)
-        {
-            if (time >= self.mainhand_melee_attack_finished)
-            {
-                sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
-            }
-
-            W_FireAxe();
-        }
-        else
-        {
-            if (time >= self.mainhand_melee_attack_finished)
-            {
-                sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
-            }
-
-            W_GunMelee();
-        }
-
-        self.mainhand_melee_attack_finished = time + 0.1;
-        self.in_melee = time + 0.02;
-    }
-
-    if(self.handvelmag <= vr_melee_threshold)
-    {
-        self.melee_hit_sound_played = FALSE;
-    }
-
-    // vr off hand melee attack
-    if (cvar("vr_enabled") == 1 && time >= self.offhand_in_melee && self.offhandvelmag > vr_melee_threshold)
-    {
-        // TODO VR: assuming fist
-        if (time >= self.offhand_melee_attack_finished)
-        {
-            sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
-        }
-
-        W_FistMelee();
-
-        self.offhand_melee_attack_finished = time + 0.1;
-        self.offhand_in_melee = time + 0.02;
-    }
-
-    if(self.offhandvelmag <= vr_melee_threshold)
-    {
-        self.offhand_melee_hit_sound_played = FALSE;
-    }
-}
+void() PlayerVRMelee;
 
 /*
 ================
@@ -1181,7 +1341,28 @@ void() PlayerPostThink =
     local    float    r;
 
     if (self.view_ofs == '0 0 0')
-        return;        // intermission or finale
+    {
+       earthquake_postthink();
+       return;     // intermission or finale
+    }
+
+    //JIM
+    //WETSUIT
+    if (self.wetsuit_finished > time)
+    {
+        if (self.waterlevel==2)
+        {
+            self.velocity = self.velocity * 0.8;
+        }
+        if (self.waterlevel==3)
+        {
+            self.velocity = self.velocity * 0.66;
+        }
+    }
+
+    //JIM
+    earthquake_postthink();
+
     if (self.deadflag)
         return;
 
@@ -1306,8 +1487,11 @@ void(entity targ, entity attacker) ClientObituary =
                 }
                 if (targ.weapon == IT_GRENADE_LAUNCHER)
                     bprint (" tries to put the pin back in\n");
-                else
+//JIM
+                else if (rnum > 0.4 )
                     bprint (" becomes bored with life\n");
+                else
+                    bprint (" checks if his weapon is loaded\n");
                 return;
             }
             else if ( (teamplay == 2) && (targ.team > 0)&&(targ.team == attacker.team) )
@@ -1328,7 +1512,31 @@ void(entity targ, entity attacker) ClientObituary =
             else
             {
                 attacker.frags = attacker.frags + 1;
+//MED 01/19/97
+            if (empathyused == 1)
+               {
+               bprint (targ.netname);
+               if (random()<0.5)
+                  bprint (" shares ");
+               else
+                  bprint (" feels ");
+               bprint (attacker.netname);
+               bprint ("'s pain\n");
+               return;
+               }
 
+//MED 11/18/96
+            if (targ.dmg_inflictor.classname == "proximity_grenade")
+               {
+               bprint (targ.netname);
+               if (random()<0.5)
+                  bprint (" got too friendly with ");
+               else
+                  bprint (" did the rhumba with ");
+               bprint (attacker.netname);
+               bprint ("'s bomb\n");
+               return;
+               }
                 rnum = attacker.weapon;
                 if (rnum == IT_AXE)
                 {
@@ -1383,6 +1591,25 @@ void(entity targ, entity attacker) ClientObituary =
                     else
                         deathstring2 = "'s shaft\n";
                 }
+//MED
+            if (rnum == IT_LASER_CANNON)
+                {
+               if (random()<0.5)
+                  {
+                  deathstring = " was toasted by ";
+                  }
+               else
+                  {
+                  deathstring = " was radiated by ";
+                  }
+               deathstring2 = "'s laser\n";
+                }
+//MED
+            if (rnum == IT_MJOLNIR)
+                {
+               deathstring = " was slammed by ";
+               deathstring2 = "'s hammer\n";
+                }
                 bprint (targ.netname);
                 bprint (deathstring);
                 bprint (attacker.netname);
@@ -1392,10 +1619,20 @@ void(entity targ, entity attacker) ClientObituary =
         }
         else
         {
-            targ.frags = targ.frags - 1;
+            targ.frags = targ.frags - 1;        // killed self
+            rnum = targ.watertype;
+
             bprint (targ.netname);
 
-            // killed by a montser?
+//JIM
+         if ( attacker.deathtype )
+            {
+            bprint( " " );
+            bprint ( attacker.deathtype );
+            bprint( "\n" );
+            return;
+            }
+
             if (attacker.flags & FL_MONSTER)
             {
                 if (attacker.classname == "monster_army")
@@ -1430,6 +1667,15 @@ void(entity targ, entity attacker) ClientObituary =
                     bprint (" was scragged by a Scrag\n");
                 if (attacker.classname == "monster_zombie")
                     bprint (" joins the Zombies\n");
+//MED
+            if (attacker.classname == "monster_gremlin")
+               bprint (" was outsmarted by a Gremlin\n");
+//MED
+            if (attacker.classname == "monster_scourge")
+               bprint (" was stung by a Centroid\n");
+//MED
+            if (attacker.classname == "monster_armagon")
+               bprint (" was outgunned by Armagon\n");
 
                 return;
             }
@@ -1443,6 +1689,12 @@ void(entity targ, entity attacker) ClientObituary =
             if (attacker.solid == SOLID_BSP && attacker != world)
             {
                 bprint (" was squished\n");
+                return;
+            }
+            if (targ.deathtype == "falling")
+            {
+                targ.deathtype = "";
+                bprint (" fell to his death\n");
                 return;
             }
             if (attacker.classname == "trap_shooter" || attacker.classname == "trap_spikeshooter")
@@ -1506,3 +1758,70 @@ void(entity targ, entity attacker) ClientObituary =
         }
     }
 };
+
+void() PlayerVRMelee =
+{
+    local    float    vr_melee_threshold;
+
+    vr_melee_threshold = cvar("vr_melee_threshold");
+
+    // vr main hand melee attack
+    if (cvar("vr_enabled") == 1 && time >= self.in_melee && self.handvelmag > vr_melee_threshold)
+    {
+        if (self.weapon == IT_AXE)
+        {
+            if (time >= self.mainhand_melee_attack_finished)
+            {
+                sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
+            }
+
+            W_FireAxe();
+        }
+        else if (self.weapon == IT_MJOLNIR)
+        {
+            if (time >= self.mainhand_melee_attack_finished)
+            {
+                sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
+            }
+
+            HIP_FireMjolnir();
+        }
+        else
+        {
+            if (time >= self.mainhand_melee_attack_finished)
+            {
+                sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+            }
+
+            W_GunMelee();
+        }
+
+        self.mainhand_melee_attack_finished = time + 0.1;
+        self.in_melee = time + 0.02;
+    }
+
+    if(self.handvelmag <= vr_melee_threshold)
+    {
+        self.melee_hit_sound_played = FALSE;
+    }
+
+    // vr off hand melee attack
+    if (cvar("vr_enabled") == 1 && time >= self.offhand_in_melee && self.offhandvelmag > vr_melee_threshold)
+    {
+        // TODO VR: assuming fist
+        if (time >= self.offhand_melee_attack_finished)
+        {
+            sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+        }
+
+        W_FistMelee();
+
+        self.offhand_melee_attack_finished = time + 0.1;
+        self.offhand_in_melee = time + 0.02;
+    }
+
+    if(self.offhandvelmag <= vr_melee_threshold)
+    {
+        self.offhand_melee_hit_sound_played = FALSE;
+    }
+}

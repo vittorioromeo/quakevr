@@ -664,8 +664,7 @@ SV_VisibleToClient -- johnfitz
 PVS test encapsulated in a nice function
 =============
 */
-bool SV_VisibleToClient(
-    edict_t* client, edict_t* test, qmodel_t* worldmodel)
+bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
     vec3_t org;
@@ -1523,14 +1522,13 @@ SV_ModelIndex
 */
 int SV_ModelIndex(const char* name)
 {
-    int i;
-
     if(!name || !name[0])
     {
         return 0;
     }
 
-    for(i = 0; i < MAX_MODELS && sv.model_precache[i]; i++)
+    int i;
+    for(i = 0; i < MAX_MODELS && sv.model_precache[i]; ++i)
     {
         if(!strcmp(sv.model_precache[i], name))
         {

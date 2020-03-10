@@ -168,11 +168,11 @@ local float     ldmg;
 };
 
 
-void() ogre_stand1   =[ $stand1, ogre_stand2 ] {ai_stand();};
-void() ogre_stand2   =[ $stand2, ogre_stand3 ] {ai_stand();};
-void() ogre_stand3   =[ $stand3, ogre_stand4 ] {ai_stand();};
-void() ogre_stand4   =[ $stand4, ogre_stand5 ] {ai_stand();};
-void() ogre_stand5   =[ $stand5, ogre_stand6 ] {
+void() ogre_stand1    =[    $stand1,    ogre_stand2    ] {ai_stand();};
+void() ogre_stand2    =[    $stand2,    ogre_stand3    ] {ai_stand();};
+void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
+void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
+void() ogre_stand5    =[    $stand5,    ogre_stand6    ] {
 if (random() < 0.2)
     sound (self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
 ai_stand();

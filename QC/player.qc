@@ -104,6 +104,12 @@ void()    player_stand1 =[    $axstnd1,    player_stand1    ]
             self.walkframe = 0;
         self.frame = $axstnd1 + self.walkframe;
     }
+    else if (self.weapon == IT_MJOLNIR)
+    {
+        if (self.walkframe >= 12)
+            self.walkframe = 0;
+        self.frame = 6 + self.walkframe;
+    }
     else
     {
         if (self.walkframe >= 5)
@@ -113,7 +119,7 @@ void()    player_stand1 =[    $axstnd1,    player_stand1    ]
     self.walkframe = self.walkframe + 1;
 };
 
-void()    player_run =[    $rockrun1,    player_run    ]
+void()   player_run =[  $rockrun1,  player_run  ]
 {
     self.weaponframe=0;
     if (!self.velocity_x && !self.velocity_y)
@@ -129,11 +135,50 @@ void()    player_run =[    $rockrun1,    player_run    ]
             self.walkframe = 0;
         self.frame = $axrun1 + self.walkframe;
     }
+    else if (self.weapon == IT_MJOLNIR)
+    {
+        if (self.walkframe == 6)
+            self.walkframe = 0;
+        self.frame = self.walkframe;
+    }
     else
     {
         if (self.walkframe == 6)
             self.walkframe = 0;
         self.frame = self.frame + self.walkframe;
+    }
+    if (footsteps == 1)
+    {
+        self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
+        self.old_velocity = self.origin;
+        if (self.flags & FL_ONGROUND)
+        {
+            if (self.spawnsilent > 95)
+            {
+                local float r;
+                if (self.spawnsilent > 190)
+                   self.spawnsilent = 0;
+                else
+                   {
+                   self.spawnsilent = 0.5*(self.spawnsilent - 95);
+                   }
+                r = random();
+                if (r < 0.14)
+                   sound (self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
+                else if (r < 0.29)
+                   sound (self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
+                else if (r < 0.43)
+                   sound (self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
+                else if (r < 0.58)
+                   sound (self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
+                else if (r < 0.72)
+                   sound (self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
+                else if (r < 0.86)
+                   sound (self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
+                else
+                   sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
+            }
+        }
     }
     self.walkframe = self.walkframe + 1;
 };
@@ -226,6 +271,36 @@ void() player_light2   =[$light2, player_light1  ]
     self.attack_finished = time + 0.2;
 };
 
+//MED 10/18/96 added HIPWEAPONS
+//============================================================================
+
+void()   player_hammer1 =  [32, player_hammer2   ] {self.weaponframe=1;};
+void()   player_hammer2 =  [33, player_hammer3   ] {self.weaponframe=2;};
+void()   player_hammer3 =  [34, player_hammer4   ] {self.weaponframe=3;};
+void()   player_hammer4 =  [35, player_hammer5   ] {self.weaponframe=4;HIP_FireMjolnir();};
+void()   player_hammer5 =  [36, player_hammer6   ] {self.weaponframe=4;};
+void()   player_hammer6 =  [37, player_run ] {self.weaponframe=4;};
+
+void()   player_mjolnir1 =  [38, player_mjolnir2   ] {self.weaponframe=1;};
+void()   player_mjolnir2 =  [39, player_mjolnir3   ] {self.weaponframe=2;};
+void()   player_mjolnir3 =  [40, player_mjolnir4   ] {self.weaponframe=3;};
+void()   player_mjolnir4 =  [41, player_mjolnir5   ] {self.weaponframe=4;HIP_FireMjolnir();};
+void()   player_mjolnir5 =  [42, player_mjolnir6   ] {self.weaponframe=4;};
+void()   player_mjolnir6 =  [43, player_run ] {self.weaponframe=4;};
+
+//============================================================================
+
+//MED 10/18/96 added HIPSWEAPONS
+//void() player_laser1   =[$nailatt1, player_laser2  ] {self.attack_finished = time + 0.1;self.weaponframe=1;self.nextthink = time + 0.09;HIP_FireLaser(0);};
+//void() player_laser2   =[$nailatt2, player_laser4  ] {self.attack_finished = time + 0.1;self.weaponframe=2;self.nextthink = time + 0.09;};
+//void() player_laser3   =[$nailatt1, player_laser4  ] {self.attack_finished = time + 0.1;self.weaponframe=3;self.nextthink = time + 0.09;};
+//void() player_laser4   =[$nailatt2, player_laser5  ] {self.attack_finished = time + 0.1;self.weaponframe=4;self.nextthink = time + 0.09;HIP_FireLaser(1);};
+//void() player_laser5   =[$nailatt1, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=5;self.nextthink = time + 0.09;};
+//void() player_laser6   =[$nailatt2, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=6;self.nextthink = time + 0.09;};
+void() player_laser1   =[$nailatt1, player_laser3  ] {self.attack_finished = time + 0.1;self.weaponframe=1;self.nextthink = time + 0.1;HIP_FireLaser(0);};
+void() player_laser2   =[$nailatt2, player_laser3  ] {self.attack_finished = time + 0.1;self.weaponframe=2;self.nextthink = time + 0.1;};
+void() player_laser3   =[$nailatt2, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=4;self.nextthink = time + 0.1;HIP_FireLaser(1);};
+void() player_laser4   =[$nailatt1, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=5;self.nextthink = time + 0.1;};
 //============================================================================
 
 
@@ -336,6 +411,13 @@ void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
 void()    player_axpain6 =    [    $axpain6,    player_run    ] {};
 
+void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound();self.weaponframe=0;};
+void()   player_hampain2 =  [  19,   player_hampain3 ] {};
+void()   player_hampain3 =  [  20,   player_hampain4 ] {};
+void()   player_hampain4 =  [  21,   player_hampain5 ] {};
+void()   player_hampain5 =  [  22,   player_hampain6 ] {};
+void()   player_hampain6 =  [  23,   player_run  ] {};
+
 void() player_pain =
 {
     if (self.weaponframe)
@@ -346,6 +428,8 @@ void() player_pain =
 
     if (self.weapon == IT_AXE)
         player_axpain1 ();
+    else if (self.weapon == IT_MJOLNIR)
+        player_hampain1 ();
     else
         player_pain1 ();
 };
@@ -356,6 +440,7 @@ void() player_diec1;
 void() player_died1;
 void() player_diee1;
 void() player_die_ax1;
+void() player_die_ham1;
 
 void() DeathBubblesSpawn =
 {
@@ -441,9 +526,21 @@ vector(float dm) VelocityForDamage =
 {
     local vector v;
 
-    v_x = 100 * crandom();
-    v_y = 100 * crandom();
-    v_z = 200 + 100 * random();
+//MED 01/17/97
+    if (vlen(damage_inflictor.velocity)>0)
+    {
+        v = 0.2 * damage_inflictor.velocity;
+        v = v + (25 * normalize(self.origin-damage_inflictor.origin));
+        v_z = 100 + 100 * random();
+        v_x = v_x + (50 * crandom());
+        v_y = v_y + (50 * crandom());
+    }
+    else
+    {
+        v_x = 100 * crandom();
+        v_y = 100 * crandom();
+        v_z = 200 + 100 * random();
+    }
 
     if (dm > -50)
     {
@@ -484,11 +581,24 @@ void(string gibname, float dm) ThrowGib =
     particle2 (self.origin, new.velocity, 1 /* blood preset */, 40);
 };
 
+//MED
+void() HeadThink =
+   {
+   self.nextthink = -1;
+   if (world.worldtype != 2)
+      {
+      if (random()<0.1)
+         sound (self, 6, "misc/flys.wav", 0.7, ATTN_STATIC);
+      }
+   };
+
 void(string gibname, float dm) ThrowHead =
 {
     setmodel (self, gibname);
     self.frame = 0;
-    self.nextthink = -1;
+//   self.nextthink = -1;
+//MED
+    self.nextthink = time + 1.5;
     self.movetype = MOVETYPE_BOUNCE;
     self.takedamage = DAMAGE_NO;
     self.solid = SOLID_NOT;
@@ -498,6 +608,9 @@ void(string gibname, float dm) ThrowHead =
     self.origin_z = self.origin_z - 24;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.avelocity = crandom() * '0 600 0';
+//MED
+    self.gorging = TRUE;
+    self.think = HeadThink;
 
     particle2 (self.origin, self.velocity, 1 /* blood preset */, 40);
 };
@@ -541,8 +654,13 @@ void() PlayerDie =
     self.invincible_finished = 0;
     self.super_damage_finished = 0;
     self.radsuit_finished = 0;
+    //JIM
+    self.wetsuit_finished = 0;
     self.effects = 0;    // 1998-07-23 Glowing corpse of players which had quad/pentagram until respawn fix by Maddes
     self.modelindex = modelindex_player;    // don't use eyes
+    //JIM
+    self.empathy_finished = 0;
+    self.items2 = self.items2 - (self.items2 & HIP_IT_EMPATHY_SHIELDS);
 
     if (deathmatch || coop)
         DropBackpack();
@@ -570,6 +688,13 @@ void() PlayerDie =
     if (self.weapon == IT_AXE)
     {
         player_die_ax1 ();
+        return;
+    }
+    //MED 12/04/96
+    else if (self.weapon == IT_MJOLNIR)
+    {
+        self.modelindex = modelindex_hammer; // use hammer model
+        player_die_ham1();
         return;
     }
 
@@ -669,3 +794,12 @@ void()    player_die_ax6    =    [    $axdeth6,    player_die_ax7    ] {};
 void()    player_die_ax7    =    [    $axdeth7,    player_die_ax8    ] {};
 void()    player_die_ax8    =    [    $axdeth8,    player_die_ax9    ] {};
 void()    player_die_ax9    =    [    $axdeth9,    player_die_ax9    ] {PlayerDead();};
+
+void()   player_die_ham1 =  [ 24 ,   player_die_ham2 ] {};
+void()   player_die_ham2 =  [ 25 ,   player_die_ham3 ] {};
+void()   player_die_ham3 =  [ 26 ,   player_die_ham4 ] {};
+void()   player_die_ham4 =  [ 27 ,   player_die_ham5 ] {};
+void()   player_die_ham5 =  [ 28 ,   player_die_ham6 ] {};
+void()   player_die_ham6 =  [ 29 ,   player_die_ham7 ] {};
+void()   player_die_ham7 =  [ 30 ,   player_die_ham8 ] {};
+void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead();};

@@ -201,6 +201,8 @@ void() health_touch =
     // Megahealth = rot down the player's super health
     if (self.healtype == 2)
     {
+// TODO VR: deal with superhealth hipnotic removal
+// 11/02/96 removed SUPERHEALTH from defs.qc
         other.items = other.items | IT_SUPERHEALTH;
         self.nextthink = time + 5;
         self.think = item_megahealth_rot;
@@ -233,6 +235,8 @@ void() item_megahealth_rot =
 
 // it is possible for a player to die and respawn between rots, so don't
 // just blindly subtract the flag off
+// TODO VR: deal with superhealth hipnotic removal
+// 11/02/96 removed SUPERHEALTH from defs.qc
     other.items = other.items - (other.items & IT_SUPERHEALTH);
 
     if (deathmatch == 1)    // deathmatch 2 is silly old rules
@@ -309,7 +313,6 @@ void() armor_touch =
 
 void() item_armor1 =
 {
-    // self.touch = armor_touch;
     self.handtouch = armor_touch;
     precache_model ("progs/armor.mdl");
     setmodel (self, "progs/armor.mdl");
@@ -323,12 +326,10 @@ void() item_armor1 =
 
 void() item_armor2 =
 {
-    // self.touch = armor_touch;
     self.handtouch = armor_touch;
     precache_model ("progs/armor.mdl");
     setmodel (self, "progs/armor.mdl");
     self.skin = 1;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-10 -10 0', '10 10 28');
     StartItem ();
 };
@@ -338,12 +339,10 @@ void() item_armor2 =
 
 void() item_armorInv =
 {
-    // self.touch = armor_touch;
     self.handtouch = armor_touch;
     precache_model ("progs/armor.mdl");
     setmodel (self, "progs/armor.mdl");
     self.skin = 2;
-    // setsize (self, '-16 -16 0', '16 16 56');
     setsize (self, '-10 -10 0', '10 10 28');
     StartItem ();
 };
@@ -369,21 +368,28 @@ void() bound_other_ammo =
 };
 
 
+//MED 01/06/97 added hipnotic weapons into rankings
 float(float w) RankForWeapon =
 {
     if (w == IT_LIGHTNING)
         return 1;
     if (w == IT_ROCKET_LAUNCHER)
         return 2;
-    if (w == IT_SUPER_NAILGUN)
+    if (w == IT_LASER_CANNON)
         return 3;
-    if (w == IT_GRENADE_LAUNCHER)
+    if (w == IT_SUPER_NAILGUN)
         return 4;
-    if (w == IT_SUPER_SHOTGUN)
+    if (w == IT_PROXIMITY_GUN)
         return 5;
-    if (w == IT_NAILGUN)
+    if (w == IT_GRENADE_LAUNCHER)
         return 6;
-    return 7;
+    if (w == IT_SUPER_SHOTGUN)
+        return 7;
+    if (w == IT_NAILGUN)
+        return 8;
+    if (w == IT_MJOLNIR)
+        return 9;
+   return 10;
 };
 
 /*
@@ -480,6 +486,33 @@ void() weapon_touch =
         hadammo = other.ammo_rockets;
         new = IT_LIGHTNING;
         other.ammo_cells = other.ammo_cells + 15;
+    }
+//MED
+    else if (self.classname == "weapon_laser_gun")
+    {
+      if (leave && (other.items & IT_LASER_CANNON) )
+            return;
+        hadammo = other.ammo_rockets;
+      new = IT_LASER_CANNON;
+      other.ammo_cells = other.ammo_cells + 30;
+    }
+//MED
+    else if (self.classname == "weapon_mjolnir")
+    {
+      if (leave && (other.items & IT_MJOLNIR) )
+            return;
+        hadammo = other.ammo_rockets;
+      new = IT_MJOLNIR;
+      other.ammo_cells = other.ammo_cells + 30;
+    }
+//MED
+    else if (self.classname == "weapon_proximity_gun")
+    {
+      if (leave && (other.items & IT_PROXIMITY_GUN) )
+            return;
+        hadammo = other.ammo_rockets;
+      new = IT_PROXIMITY_GUN;
+      other.ammo_rockets = other.ammo_rockets + 6;
     }
     else
         objerror ("weapon_touch: unknown classname");
@@ -980,6 +1013,7 @@ void() item_key1 =
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY1;
+    // TODO VR: smaller size
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
@@ -1018,6 +1052,7 @@ void() item_key2 =
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY2;
+    // TODO VR: smaller size
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
@@ -1090,6 +1125,7 @@ void() item_sigil =
     }
 
     self.handtouch = sigil_touch;
+    // TODO VR: smaller size
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
@@ -1260,9 +1296,9 @@ PLAYER BACKPACKS
 
 void() BackpackTouch =
 {
-    local string    s;
-    local    float    best, old, new;
-    local        entity    stemp;
+    local string s;
+    local float  best, old, new;
+    local entity stemp;
     local    float    acount;
 
     if (other.classname != "player")
@@ -1276,12 +1312,14 @@ void() BackpackTouch =
     sprint (other, "You get ");
 
     if (self.items)
+    {
         if ((other.items & self.items) == 0)
         {
             acount = 1;
             sprint (other, "the ");
             sprint (other, self.netname);
         }
+    }
 
 // if the player was using his best weapon, change up to the new one if better
     stemp = self;
@@ -1390,6 +1428,12 @@ void() DropBackpack =
         item.netname = "Rocket Launcher";
     else if (item.items == IT_LIGHTNING)
         item.netname = "Thunderbolt";
+    else if (item.items == IT_LASER_CANNON)
+        item.netname = "Laser Cannon";
+    else if (item.items == IT_PROXIMITY_GUN)
+        item.netname = "Proximity Gun";
+    else if (item.items == IT_MJOLNIR)
+        item.netname = "Mjolnir";
     else
         item.netname = "";
 

@@ -424,7 +424,8 @@ void CL_ParseServerInfo()
 
     for(i = 1; i < nummodels; i++)
     {
-        cl.model_precache[i] = Mod_ForName(model_precache[i], false);
+        cl.model_precache[i] =
+            Mod_ForName_WithFallback(model_precache[i], "progs/player.mdl");
         if(cl.model_precache[i] == nullptr)
         {
             Host_Error("Model %s not found", model_precache[i]);

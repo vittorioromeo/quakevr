@@ -298,7 +298,6 @@ float    DAMAGE_YES                = 1;
 float    DAMAGE_AIM                = 2;
 
 // items
-float    IT_AXE                    = 4096;
 float    IT_SHOTGUN                = 1;
 float    IT_SUPER_SHOTGUN        = 2;
 float    IT_NAILGUN                = 4;
@@ -312,17 +311,20 @@ float    IT_SHELLS                = 256;
 float    IT_NAILS                = 512;
 float    IT_ROCKETS                = 1024;
 float    IT_CELLS                = 2048;
+float    IT_AXE                    = 4096;
 
 float    IT_ARMOR1                = 8192;
 float    IT_ARMOR2                = 16384;
 float    IT_ARMOR3                = 32768;
+// TODO VR: deal with this, hipnotic comments the line below
+//MED 11/02/96 added new hip weapon removed SUPERHEALTH
 float    IT_SUPERHEALTH            = 65536;
 
 float    IT_KEY1                    = 131072;
 float    IT_KEY2                    = 262144;
 
 float    IT_INVISIBILITY            = 524288;
-float    IT_INVULNERABILITY        = 1048576;
+float    IT_INVULNERABILITY         = 1048576;
 float    IT_SUIT                    = 2097152;
 float    IT_QUAD                    = 4194304;
 
@@ -715,5 +717,3 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage;
 float (entity e, float healamount, float ignore) T_Heal; // health function
 
 float(entity targ, entity inflictor) CanDamage;
-
-

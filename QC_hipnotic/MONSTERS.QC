@@ -193,8 +193,6 @@ void() swimmonster_start_go =
     }
 
     self.takedamage = DAMAGE_AIM;
-//MED
-//   total_monsters = total_monsters + 1;
 
     self.ideal_yaw = self.angles * '0 1 0';
     if (!self.yaw_speed)

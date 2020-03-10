@@ -62,6 +62,11 @@ void(entity targ, entity attacker) Killed =
 
     if (self.health < -99)
         self.health = -99;        // don't let sbar look bad if a player
+//MED
+    if (self.charmed)
+    {
+        self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+    }
 
     if (self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
     {    // doors, triggers, etc
@@ -100,6 +105,8 @@ The damage is coming from inflictor, but get mad at attacker
 This should be the only function that ever reduces health.
 ============
 */
+//MED 01/10/97 added empathyused variable
+float empathyused;
 void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 {
     local    vector    dir;
@@ -110,12 +117,31 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
     if (!targ.takedamage)
         return;
 
-// used by buttons and triggers to set activator for target firing
-    damage_attacker = attacker;
+   if (discharged && targ.wetsuit_finished )
+      return;
+//MED moved damage_attacker down a bit
 
 // check for quad damage powerup on the attacker
     if (attacker.super_damage_finished > time)
         damage = damage * 4;
+
+
+//MED
+//check for empathy shields
+   if ((targ.items2 & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.items2 & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
+      {
+      empathyused = 1;
+      damage = damage/2;
+      T_Damage (attacker,targ,targ,damage);
+      empathyused = 0;
+      }
+//MED
+// used by buttons and triggers to set activator for target firing
+    damage_attacker = attacker;
+
+//MED
+// used to keep track of what hit us
+   damage_inflictor = inflictor;
 
 // save damage based on the target's armor level
 
@@ -160,6 +186,15 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
         }
         return;
     }
+//MED
+    if (targ.items2 & HIP_IT_EMPATHY_SHIELDS)
+    {
+        if (self.empathy_sound < time)
+        {
+            sound (targ, CHAN_ITEM, "hipitems/empathy2.wav", 1, ATTN_NORM);
+            self.empathy_sound = time + 0.5;
+        }
+    }
 
 // team play damage avoidance
 //    if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
@@ -191,13 +226,14 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
     oldself = self;
     self = targ;
 
+//MED 10/17/96 added charmed stuff
     if ( (self.flags & FL_MONSTER) && attacker != world)
     {
     // get mad unless of the same class (except for soldiers)
-        if (self != attacker && attacker != self.enemy)
+        if (self != attacker && attacker != self.enemy && (self.charmer!=attacker))
         {
             if ( (self.classname != attacker.classname)
-            || (self.classname == "monster_army" ) )
+            || (self.classname == "monster_army" ) || (self.classname == "monster_armagon" ) )
             {
                 if (self.enemy.classname == "player")
                     self.oldenemy = self.enemy;
@@ -296,4 +332,3 @@ void(entity attacker, float damage) T_BeamDamage =
         head = head.chain;
     }
 };
-

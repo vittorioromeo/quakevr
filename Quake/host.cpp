@@ -164,6 +164,35 @@ void Host_EndGame(const char* message, ...)
 
 /*
 ================
+Host_Warn
+
+TODO VR
+================
+*/
+void Host_Warn(const char* error, ...)
+{
+    va_list argptr;
+    char string[1024];
+    static bool inwarn = false;
+
+    if(inwarn)
+    {
+        Sys_Error("Host_Warn: recursively entered");
+    }
+    inwarn = true;
+
+    SCR_EndLoadingPlaque(); // reenable screen updates
+
+    va_start(argptr, error);
+    q_vsnprintf(string, sizeof(string), error, argptr);
+    va_end(argptr);
+    Con_Printf("Host_Warn: %s\n", string);
+
+    inwarn = false;
+}
+
+/*
+================
 Host_Error
 
 This shuts down both the client and server

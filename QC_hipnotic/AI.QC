@@ -309,7 +309,7 @@ float (entity targ) visible =
 
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
-   traceline (spot1, spot2, TRUE, self);  // see through other monsters
+    traceline (spot1, spot2, TRUE, self);    // see through other monsters
 
     if (trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -637,7 +637,7 @@ float() FindTarget =
       {
         client = sight_entity;
         if (client.enemy == self.enemy)
-            return;
+            return TRUE;
       }
 //MED 10/17/96 added charmed clause
    else if (self.charmed)
@@ -934,7 +934,7 @@ float()  ArmagonCheckAttack;
 float() CheckAnyAttack =
 {
     if (!enemy_vis)
-        return;
+        return FALSE;
    if (self.classname == "monster_army")
         return SoldierCheckAttack ();
    if (self.classname == "monster_ogre")

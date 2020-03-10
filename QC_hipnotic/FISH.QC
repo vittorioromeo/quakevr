@@ -200,9 +200,8 @@ void() monster_fish =
     self.th_walk = f_walk1;
     self.th_run = f_run1;
 //MED 01/15/97 added fish death
-//   self.th_die = f_death1;
-   self.th_die = fish_die;
-   self.th_pain = fish_pain;
+    self.th_die = fish_die;
+    self.th_pain = fish_pain;
     self.th_melee = f_attack1;
 
     swimmonster_start ();

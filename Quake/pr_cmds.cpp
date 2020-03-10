@@ -1324,7 +1324,9 @@ static void PF_precache_model()
         if(!sv.model_precache[i])
         {
             sv.model_precache[i] = s;
-            sv.models[i] = Mod_ForName(s, true);
+            // TODO VR:
+            // sv.models[i] = Mod_ForName(s, /* crash */ true);
+            sv.models[i] = Mod_ForName_WithFallback(s, "progs/player.mdl");
             return;
         }
         if(!strcmp(sv.model_precache[i], s))

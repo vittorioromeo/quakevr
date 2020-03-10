@@ -43,6 +43,7 @@ float    current_yaw;
 //
 entity    sight_entity;
 float    sight_entity_time;
+void() FoundTarget;
 
 float(float v) anglemod =
 {
@@ -86,6 +87,7 @@ void() movetarget_f =
 
 /*QUAKED path_corner (0.5 0.3 0) (-8 -8 -8) (8 8 8)
 Monsters will continue walking towards the next target corner.
+"delay" delay to wait before proceeding to next segment;
 */
 void() path_corner =
 {
@@ -119,16 +121,149 @@ local entity    temp;
         sound (self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);// play chainsaw drag sound
 
 //dprint ("t_movetarget\n");
-    self.goalentity = self.movetarget = find (world, targetname, other.target);
-    self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
-    if (!self.movetarget)
-    {
-        self.pausetime = time + 999999;
-        self.th_stand ();
-        return;
-    }
+//MED
+   if (other.target)
+      {
+      self.goalentity = self.movetarget = find (world, targetname, other.target);
+      self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
+      if (!self.movetarget)
+         {
+         self.pausetime = time + 999999;
+         self.th_stand ();
+         return;
+         }
+   //MED 01/20/97
+      else if (other.delay)
+         {
+         self.pausetime = time + other.delay;
+         self.th_stand ();
+         }
+      }
+   else
+      {
+      self.pausetime = time + 999999;
+      self.th_stand ();
+      return;
+      }
 };
 
+
+//MED 01/20/97
+
+/*
+=============
+t_followtarget
+
+Something has bumped into a followtarget.  If it is a monster
+moving towards it, change the next destination and continue.
+==============
+*/
+void() t_followtarget =
+{
+   local entity   temp;
+   local vector   spot1, spot2;
+   local entity   targ;
+   local entity   client;
+
+   if (!other.flags & FL_MONSTER)
+      return;
+   if (other.classname == "monster_decoy")
+      return;
+//   if (other.enemy == world)
+//      return;
+   if (other.wetsuit_time > time)
+      return;
+   targ = other.enemy;
+
+// see if any entities are in the way of the shot
+   spot1 = other.origin + other.view_ofs;
+    spot2 = targ.origin + targ.view_ofs;
+
+   traceline (spot1, spot2, FALSE, other);
+   if (trace_fraction == 1)
+      return;
+
+    if (other.enemy)
+      {
+      // make the monster tame
+      other.oldenemy = other.enemy;
+      other.enemy = world;
+      other.think = other.th_walk;
+      }
+
+    temp = self;
+    self = other;
+    other = temp;
+
+    self.goalentity = self.movetarget = find (world, targetname, other.target);
+/*
+   bprint("target ");
+   bprint(other.target);
+   bprint(" targetname ");
+   bprint(self.goalentity.targetname);
+   bprint(" origin ");
+   bprint(vtos(self.goalentity.origin));
+   bprint("\n");
+*/
+   self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
+   self.wetsuit_time = time + 2;
+    if (!self.movetarget)
+      {
+      if (self.oldenemy != world)
+         {
+         self.enemy = self.oldenemy;
+         FoundTarget();
+         return;
+         }
+      else
+         {
+         client = checkclient ();
+         if (!client)
+            {
+            self.enemy = client;
+            FoundTarget();
+            return;
+            }
+         self.pausetime = time + 999999;
+         self.th_stand ();
+         }
+      }
+};
+
+void() followtarget_f =
+{
+//   if (!self.targetname)
+//      objerror ("monster_followtarget: no targetname");
+
+    self.solid = SOLID_TRIGGER;
+   self.touch = t_followtarget;
+   setmodel (self, self.model);  // set size and link into world
+    self.movetype = MOVETYPE_NONE;
+    self.modelindex = 0;
+    self.model = "";
+//   setsize (self, '-8 -8 -8', '8 8 8');
+
+};
+
+/*QUAKED path_follow (0.5 0.3 0) ?
+Monsters will stop what they are doing and follow to the path
+*/
+
+void() path_follow =
+{
+   followtarget_f ();
+};
+
+/*QUAKED path_follow2 (0.5 0.3 0) (-8 -8 -8) (8 8 8)
+Monsters will stop what they are doing and follow to the path
+*/
+
+void() path_follow2 =
+{
+   self.solid = SOLID_TRIGGER;
+   self.touch = t_followtarget;
+    setsize (self, '-8 -8 -8', '8 8 8');
+};
 
 
 //============================================================================
@@ -179,8 +314,12 @@ float (entity targ) visible =
     if (trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
+//MED 11/21/96
     if (trace_fraction == 1)
-        return TRUE;
+      {
+      visible_distance = vlen(spot2-spot1);
+      return TRUE;
+      }
     return FALSE;
 };
 
@@ -264,6 +403,75 @@ void() ChangeYaw =
 
 */
 
+//MED 10/18/96 added charmed stuff
+//============================================================================
+void() UpdateCharmerGoal =
+   {
+   local entity targ;
+   local vector d;
+
+   d = normalize(self.origin-self.charmer.origin);
+
+   if (self.huntingcharmer == 1)
+      {
+      targ = spawn();
+      self.trigger_field = targ;
+      setorigin(targ,self.charmer.origin);
+      self.huntingcharmer = 2;
+      self.goalentity = targ;
+      }
+   if (self.huntingcharmer == 2)
+      {
+      targ = self.trigger_field;
+      traceline(self.origin,self.charmer.origin,TRUE,self);
+      if (trace_fraction == 1.0)
+         {
+//         dprint("can see ");
+//         dprint(vtos(self.charmer.origin));
+//         dprint("\n");
+         setorigin(targ,self.charmer.origin);
+         }
+      }
+   else
+      {
+      targ = self.trigger_field;
+      setorigin(targ,self.charmer.origin + (d*300));
+      }
+   };
+
+//============================================================================
+void() HuntCharmer =
+{
+   self.huntingcharmer = 1;
+   UpdateCharmerGoal();
+//   self.goalentity = self.charmer;
+   self.think = self.th_walk;
+   self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
+   self.nextthink = time + 0.1;
+};
+
+//============================================================================
+void() FleeCharmer =
+{
+   self.huntingcharmer = 1;
+   UpdateCharmerGoal();
+   self.huntingcharmer = 3;
+//   self.goalentity = self.charmer;
+   self.think = self.th_walk;
+//   self.ideal_yaw = vectoyaw(self.originself.goalentity.origin - self.origin);
+   self.nextthink = time + 0.1;
+};
+
+//============================================================================
+void() StopHuntingCharmer =
+{
+   self.goalentity = world;
+   if (self.huntingcharmer>1)
+      remove(self.trigger_field);
+   self.huntingcharmer = 0;
+   self.think = self.th_stand;
+   self.nextthink = time + 0.1;
+};
 
 //============================================================================
 
@@ -316,15 +524,45 @@ local float    rsnd;
         sound (self, CHAN_VOICE, "soldier/sight1.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_shalrath")
         sound (self, CHAN_VOICE, "shalrath/sight.wav", 1, ATTN_NORM);
+//MED
+   else if (self.classname == "monster_gremlin")
+      {
+      if (self.stoleweapon == 0)
+         sound (self, CHAN_VOICE, "grem/sight1.wav", 1, ATTN_NORM);
+      }
+//MED
+   else if (self.classname == "monster_scourge")
+      sound (self, CHAN_VOICE, "scourge/sight.wav", 1, ATTN_NORM);
+//MED
+   else if (self.classname == "monster_armagon")
+      sound (self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
 };
 
 void() FoundTarget =
 {
+//MED
     if (self.enemy.classname == "player")
-    {    // let other monsters see this monster for a while
+      {
+      if (self.charmed)
+         {
+         if ((self.charmer == self.enemy) || (self.charmer == self.enemy.charmer))
+            {
+            self.enemy = world;
+            return;
+            }
+         }
+      // let other monsters see this monster for a while
         sight_entity = self;
         sight_entity_time = time;
-    }
+      }
+   else if (self.charmed)
+      {
+      if ((self.charmer == self.enemy.charmer))
+         {
+         self.enemy = world;
+         return;
+         }
+      }
 
     self.show_hostile = time + 1;        // wake up other monsters
 
@@ -360,26 +598,95 @@ float() FindTarget =
 // spawnflags & 3 is a big hack, because zombie crucified used the first
 // spawn flag prior to the ambush flag, and I forgot about it, so the second
 // spawn flag works as well
-    if (sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) )
-    {
+
+//MED 10/17/96 added charmed stuff
+   if (self.charmed)
+      {
+      self.effects = self.effects | EF_DIMLIGHT;
+      if (self.huntingcharmer > 0)
+         {
+         UpdateCharmerGoal();
+//         self.goalentity = self.charmer;
+         r = vlen(self.origin - self.goalentity.origin);
+         if (r < MIN_CHARMER_DISTANCE)
+            {
+//            dprint("stopping\n");
+            if ((self.huntingcharmer == 3) && (r > TOOCLOSE_CHARMER_DISTANCE))
+               return FALSE;
+//            self.huntingcharmer = 0;
+            StopHuntingCharmer();
+            return TRUE;
+            }
+         }
+      else if (vlen (self.origin - self.charmer.origin) > MAX_CHARMER_DISTANCE)
+         {
+//         self.huntingcharmer = 1;
+//         dprint("hunting\n");
+         HuntCharmer();
+         return FALSE;
+         }
+      else if (vlen (self.origin - self.charmer.origin) < TOOCLOSE_CHARMER_DISTANCE)
+         {
+//         self.huntingcharmer = 1;
+//         dprint("fleeing\n");
+         FleeCharmer();
+         return FALSE;
+         }
+      }
+   if (sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) && !(self.charmed) )
+      {
         client = sight_entity;
         if (client.enemy == self.enemy)
             return TRUE;
-    }
-    else
+      }
+//MED 10/17/96 added charmed clause
+   else if (self.charmed)
+      {
+      local entity head;
+      local entity selected;
+      local float dist;
+
+      selected = world;
+      dist = CHARMED_RADIUS;
+      head = findradius(self.origin, CHARMED_RADIUS);
+      while(head)
+         {
+         if(!(head.flags & FL_NOTARGET) && (head.flags & FL_MONSTER))
+            {
+            if (visible(head) && (visible_distance < dist) && (head.health>0))
+               {
+               if ((head !=self) && (head != self.charmer) && (head.charmer != self.charmer))
+                  {
+                  selected = head;
+                  dist = visible_distance;
+                  }
+               }
+            }
+         head = head.chain;
+         }
+      if (selected == world)
+         return FALSE;
+
+      client = selected;
+      }
+   else
     {
         client = checkclient ();
-        if (!client)
+      if (!client)
             return FALSE;    // current check entity isn't in PVS
     }
 
     if (client == self.enemy)
         return FALSE;
 
-    if (client.flags & FL_NOTARGET)
-        return FALSE;
-    if (client.items & IT_INVISIBILITY)
-        return FALSE;
+   //MED 10/17/96 added charmed stuff
+   if (!self.charmed)
+      {
+      if (client.flags & FL_NOTARGET)
+         return FALSE;
+      }
+   if (client.items & IT_INVISIBILITY)
+      return FALSE;
 
     r = range (client);
     if (r == RANGE_FAR)
@@ -388,30 +695,39 @@ float() FindTarget =
     if (!visible (client))
         return FALSE;
 
-    if (r == RANGE_NEAR)
-    {
-        if (client.show_hostile < time && !infront (client))
+   //MED 10/17/96 added charmed stuff
+   if (!self.charmed)
+      {
+      if (r == RANGE_NEAR)
+         {
+         if (client.show_hostile < time && !infront (client))
             return FALSE;
-    }
-    else if (r == RANGE_MID)
-    {
-        if ( /* client.show_hostile < time || */ !infront (client))
+         }
+      else if (r == RANGE_MID)
+         {
+         if ( /* client.show_hostile < time || */ !infront (client))
             return FALSE;
-    }
+         }
+      }
 
 //
 // got one
 //
     self.enemy = client;
-    if (self.enemy.classname != "player")
-    {
-        self.enemy = self.enemy.enemy;
-        if (self.enemy.classname != "player")
-        {
+
+//MED 10/17/96 added charmed stuff
+   if ((!self.charmed) && (!self.enemy.charmed))
+      {
+      if (self.enemy.classname != "player")
+         {
+         self.enemy = self.enemy.enemy;
+         if (self.enemy.classname != "player")
+            {
             self.enemy = world;
             return FALSE;
-        }
-    }
+            }
+         }
+      }
 
     FoundTarget ();
 
@@ -477,16 +793,20 @@ void(float dist) ai_walk =
 
     movedist = dist;
 
-    if (self.classname == "monster_dragon")
-    {
-        movetogoal (dist);
-        return;
-    }
+//MED 01/20/97
     // check for noticing a player
-    if (FindTarget ())
-        return;
+   if (FindTarget ())
+      return;
 
-    movetogoal (dist);
+//MED 11/02/96
+   if (self.huntingcharmer)
+      {
+//      movetogoal (dist*2);
+      movetogoal (dist);
+      self.nextthink = time + ((self.nextthink - time)/2);
+      }
+   else
+      movetogoal (dist);
 };
 
 
@@ -499,8 +819,8 @@ The monster is staying in one place for a while, with slight angle turns
 */
 void() ai_stand =
 {
-    if (FindTarget ())
-        return;
+   if (FindTarget ())
+      return;
 
     if (time > self.pausetime)
     {
@@ -526,6 +846,32 @@ void() ai_turn =
 
     ChangeYaw ();
 };
+
+//MED 11/10/96 added ai_turn_in_place
+/*
+=============
+ai_turn_in_place
+
+don't move, but turn towards ideal_yaw
+=============
+*/
+void() ai_turn_in_place =
+   {
+   local float delta;
+
+   self.nextthink = time + 0.1;
+   enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+   delta = fabs(self.angles_y - enemy_yaw);
+   if (delta > MIN_ANGLE_DELTA)
+      {
+      self.ideal_yaw = enemy_yaw;
+      ChangeYaw();
+      }
+   else
+      {
+      self.think = self.th_run;
+      }
+   };
 
 //=============================================================================
 
@@ -580,16 +926,20 @@ float() FacingIdeal =
 
 float()    WizardCheckAttack;
 float()    DogCheckAttack;
+//MED
+float()  GremlinCheckAttack;
+float()  ScourgeCheckAttack;
+float()  ArmagonCheckAttack;
 
 float() CheckAnyAttack =
 {
     if (!enemy_vis)
         return FALSE;
-    if (self.classname == "monster_army")
+   if (self.classname == "monster_army")
         return SoldierCheckAttack ();
-    if (self.classname == "monster_ogre")
+   if (self.classname == "monster_ogre")
         return OgreCheckAttack ();
-    if (self.classname == "monster_shambler")
+   if (self.classname == "monster_shambler")
         return ShamCheckAttack ();
     if (self.classname == "monster_demon1")
         return DemonCheckAttack ();
@@ -597,7 +947,13 @@ float() CheckAnyAttack =
         return DogCheckAttack ();
     if (self.classname == "monster_wizard")
         return WizardCheckAttack ();
-    return CheckAttack ();
+   if (self.classname == "monster_gremlin")
+      return GremlinCheckAttack ();
+   if (self.classname == "monster_scourge")
+      return ScourgeCheckAttack ();
+   if (self.classname == "monster_armagon")
+      return ArmagonCheckAttack ();
+   return CheckAttack ();
 };
 
 
@@ -666,6 +1022,60 @@ void() ai_run_slide =
     walkmove (self.ideal_yaw - ofs, movedist);
 };
 
+//MED
+/*
+=============
+ai_run_dodge
+
+Strafe sideways, but continue moving towards the enemy
+Used by the Scourge.
+=============
+*/
+void() ai_run_dodge =
+{
+    local float    ofs;
+   local float newyaw;
+
+/*
+// attempt to jump over missiles
+   if (self.enemy.weaponframe == 1)
+      {
+      if (self.flags & FL_ONGROUND)
+         {
+         self.origin_z = self.origin_z + 1;
+         self.velocity = self.velocity + '0 0 500';
+         self.flags = self.flags - FL_ONGROUND;
+         }
+      self.ltime = self.ltime + 1.0;
+      }
+*/
+   self.nextthink = time + 0.1;
+   if (self.lefty)
+      ofs = 40;
+    else
+      ofs = -40;
+
+   if (time > self.ltime)
+      {
+      self.lefty = 1 - self.lefty;
+      self.ltime = time + 0.8;
+      }
+
+   newyaw = enemy_yaw + ofs;
+   self.ideal_yaw = enemy_yaw;
+   if (walkmove (newyaw, movedist))
+      {
+      ChangeYaw ();
+      return;
+      }
+
+   self.lefty = 1 - self.lefty;
+   self.ltime = time + 0.8;
+   newyaw = enemy_yaw - ofs;
+   self.ideal_yaw = enemy_yaw;
+   walkmove (newyaw, movedist);
+   ChangeYaw ();
+};
 
 /*
 =============
@@ -674,6 +1084,7 @@ ai_run
 The monster has an enemy it is trying to kill
 =============
 */
+float RUN_STRAIGHT;
 void(float dist) ai_run =
 {
     local    vector    delta;
@@ -682,9 +1093,15 @@ void(float dist) ai_run =
 
     movedist = dist;
 // see if the enemy is dead
-    if (self.enemy.health <= 0)
+   if (self.enemy.health <= 0 || (self.charmed && (self.charmer == self.enemy)))
     {
         self.enemy = world;
+//MED 10/30/96 added charmed stuff
+      if (self.charmed)
+         {
+         HuntCharmer();
+         return;
+         }
     // FIXME: look all around for other targets
         if (self.oldenemy.health > 0)
         {
@@ -709,15 +1126,28 @@ void(float dist) ai_run =
         self.search_time = time + 5;
 
 // look for other coop players
-    if (coop && self.search_time < time)
+//MED 10/17/96 added charmed stuff
+   if (coop && self.search_time < time && !self.charmed)
     {
         if (FindTarget ())
             return;
     }
-
     enemy_infront = infront(self.enemy);
     enemy_range = range(self.enemy);
     enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+
+//MED
+   if (self.th_turn)
+      {
+      local float angledelta;
+
+      angledelta = fabs(self.angles_y - enemy_yaw);
+      if (angledelta > MIN_ANGLE_DELTA)
+         {
+         self.th_turn();
+         return;
+         }
+      }
 
     if (self.attack_state == AS_MISSILE)
     {
@@ -733,7 +1163,9 @@ void(float dist) ai_run =
     }
 
     if (CheckAnyAttack ())
-        return;                    // beginning an attack
+      {
+      return;              // beginning an attack
+      }
 
     if (self.attack_state == AS_SLIDING)
     {
@@ -741,7 +1173,28 @@ void(float dist) ai_run =
         return;
     }
 
-// head straight in
-    movetogoal (dist);        // done in C code...
-};
+   if (self.attack_state == AS_DODGING)
+    {
+      ai_run_dodge ();
+        return;
+    }
 
+//MED 11/11/96
+   if (RUN_STRAIGHT && time > self.endtime)
+      {
+      RUN_STRAIGHT = 0;
+      axis = walkmove (self.angles_y, movedist);
+      if (!axis)
+         {
+         self.endtime = time + 3;
+         movetogoal (dist);      // done in C code...
+         }
+//      else
+//         ChangeYaw();
+      }
+   else
+      {
+      // head straight in
+      movetogoal (dist);      // done in C code...
+      }
+};

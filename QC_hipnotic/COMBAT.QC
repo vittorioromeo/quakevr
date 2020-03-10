@@ -67,7 +67,6 @@ void(entity targ, entity attacker) Killed =
       {
       self.effects = self.effects - (self.effects & EF_DIMLIGHT);
       }
-//      self.effects = self.effects - EF_BRIGHTFIELD;
 
     if (self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
     {    // doors, triggers, etc
@@ -120,15 +119,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
    if (discharged && targ.wetsuit_finished )
       return;
 //MED moved damage_attacker down a bit
-/*
-   dprint("netname = ");
-   dprint(attacker.netname);
-   dprint(" classname = ");
-   dprint(attacker.classname);
-   dprint(" classname = ");
-   dprint(inflictor.classname);
-   dprint("\n");
-*/
+
 // check for quad damage powerup on the attacker
     if (attacker.super_damage_finished > time)
         damage = damage * 4;

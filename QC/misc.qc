@@ -290,21 +290,53 @@ void() misc_explobox2 =
 
 //============================================================================
 
-float SPAWNFLAG_SUPERSPIKE    = 1;
-float SPAWNFLAG_LASER = 2;
 
 void(vector org, vector vec) LaunchLaser;
 
+//MED 11/09/96 added lava ball and rocket
 void() spikeshooter_use =
 {
+    local entity lavaball;
     if (self.spawnflags & SPAWNFLAG_LASER)
     {
-        sound (self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
+        if (!self.spawnflags & SPAWNFLAG_SILENT)
+            sound (self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
         LaunchLaser (self.origin, self.movedir);
+        newmis.spawnflags = self.spawnflags;
+    }
+    else if (self.spawnflags & SPAWNFLAG_LAVABALL)
+    {
+        if (!self.spawnflags & SPAWNFLAG_SILENT)
+             sound (self, CHAN_VOICE, "misc/spike.wav", 1, ATTN_NORM);
+        lavaball = spawn();
+        lavaball.movetype = MOVETYPE_FLYMISSILE;
+        lavaball.solid = SOLID_BBOX;
+        lavaball.classname = "lavaball";
+        // set lavaball speed
+        lavaball.velocity = self.movedir * 300;
+        lavaball.angles = vectoangles(lavaball.velocity);
+        lavaball.owner = self;
+        lavaball.touch = T_MissileTouch;
+        setmodel (lavaball, "progs/lavarock.mdl");
+        setsize (lavaball, '-4 -4 -4', '4 4 4');
+        setorigin (lavaball, self.origin);
+        lavaball.avelocity = '0 0 400';
+        lavaball.nextthink = time + 5;
+        lavaball.think = SUB_Remove;
+    }
+    else if (self.spawnflags & SPAWNFLAG_ROCKET)
+    {
+        if (!self.spawnflags & SPAWNFLAG_SILENT)
+            sound (self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
+        W_FireRocket();
+        newmis.velocity = self.movedir*1000;
+        newmis.angles = vectoangles(newmis.velocity);
+        setorigin (newmis, self.origin + self.movedir*8);
     }
     else
     {
-        sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        if (!self.spawnflags & SPAWNFLAG_SILENT)
+            sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if (self.spawnflags & SPAWNFLAG_SUPERSPIKE)
@@ -312,19 +344,24 @@ void() spikeshooter_use =
     }
 };
 
+//MED 11/01/96 added state capability
 void() shooter_think =
 {
-    spikeshooter_use ();
+    if (self.state)
+    {
+        spikeshooter_use ();
+    }
     self.nextthink = time + self.wait;
     newmis.velocity = self.movedir * 500;
 };
 
 
-/*QUAKED trap_spikeshooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser
+/*QUAKED trap_spikeshooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lavaball rocket silent
 When triggered, fires a spike in the direction set in QuakeEd.
 Laser is only for REGISTERED.
 */
 
+//MED 11/01/96 commented out setmovedir
 void() trap_spikeshooter =
 {
     SetMovedir ();
@@ -336,12 +373,22 @@ void() trap_spikeshooter =
         precache_sound2 ("enforcer/enfire.wav");
         precache_sound2 ("enforcer/enfstop.wav");
     }
+    else if (self.spawnflags & SPAWNFLAG_LAVABALL)
+    {
+        precache_model ("progs/lavarock.mdl");
+        precache_sound2 ("misc/spike.wav");
+    }
+    else if (self.spawnflags & SPAWNFLAG_ROCKET)
+    {
+        precache_model ("progs/missile.mdl");
+        precache_sound ("weapons/sgun1.wav");
+    }
     else
         precache_sound ("weapons/spike2.wav");
 };
 
 
-/*QUAKED trap_shooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser
+/*QUAKED trap_shooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lavaball rocket silent
 Continuously fires spikes.
 "wait" time between spike (1.0 default)
 "nextthink" delay before firing first spike, so multiple shooters can be stagered.
@@ -352,10 +399,36 @@ void() trap_shooter =
 
     if (self.wait == 0)
         self.wait = 1;
+//MED 11/01/96 added state capability
+    self.state = 1;
+
     self.nextthink = self.nextthink + self.wait + self.ltime;
     self.think = shooter_think;
 };
 
+//MED 11/01/96 added new use function
+void() trap_shooter_use =
+{
+    self.state = 1 - self.state;
+};
+//MED 11/01/96 added new function
+/*QUAKED trap_switched_shooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lavaball rocket silent
+Continuously fires spikes.
+"wait" time between spike (1.0 default)
+"nextthink" delay before firing first spike, so multiple shooters can be stagered.
+"state" 0 initially off, 1 initially on. (0 default)
+*/
+void() trap_switched_shooter =
+{
+    trap_spikeshooter ();
+
+    if (self.wait == 0)
+        self.wait = 1;
+//MED 11/01/96 added state capability
+    self.nextthink = self.nextthink + self.wait + self.ltime;
+    self.think = shooter_think;
+    self.use = trap_shooter_use;
+};
 
 
 /*
@@ -670,4 +743,3 @@ void() misc_noisemaker =
     self.nextthink = time + 0.1 + random();
     self.think = noise_think;
 };
-

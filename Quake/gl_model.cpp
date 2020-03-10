@@ -430,6 +430,22 @@ qmodel_t* Mod_ForName(const char* name, bool crash)
     return Mod_LoadModel(mod, crash);
 }
 
+// TODO VR:
+qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback)
+{
+    qmodel_t* const r = Mod_ForName(name, false /* crash */);
+
+    if(r == nullptr)
+    {
+        Host_Warn(
+            "Mod_LoadModel: %s not found, falling back to %s", name, fallback);
+
+        return Mod_ForName(fallback, true);
+    }
+
+    return r;
+}
+
 
 /*
 ===============================================================================

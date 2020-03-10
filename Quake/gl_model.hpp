@@ -525,6 +525,7 @@ void Mod_Init(void);
 void Mod_ClearAll(void);
 void Mod_ResetAll(void); // for gamedir changes (Host_Game_f)
 qmodel_t* Mod_ForName(const char* name, bool crash);
+qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback);
 void* Mod_Extradata(qmodel_t* mod); // handles caching
 void Mod_TouchModel(const char* name);
 

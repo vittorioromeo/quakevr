@@ -2473,16 +2473,13 @@ Host_Viewprev_f
 */
 void Host_Viewprev_f()
 {
-    edict_t* e;
-    qmodel_t* m;
-
-    e = FindViewthing();
+    edict_t* e = FindViewthing();
     if(!e)
     {
         return;
     }
 
-    m = cl.model_precache[(int)e->v.modelindex];
+    qmodel_t* m = cl.model_precache[(int)e->v.modelindex];
 
     e->v.frame = e->v.frame - 1;
     if(e->v.frame < 0)

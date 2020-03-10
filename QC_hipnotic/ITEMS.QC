@@ -1264,9 +1264,9 @@ PLAYER BACKPACKS
 
 void() BackpackTouch =
 {
-   local string   s;
-   local float best, old, new;
-   local    entity   stemp;
+   local string s;
+   local float  best, old, new;
+   local entity stemp;
     local    float    acount;
 
     if (other.classname != "player")

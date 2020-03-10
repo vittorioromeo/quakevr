@@ -375,7 +375,6 @@ void() trap_spikeshooter =
    else if (self.spawnflags & SPAWNFLAG_LAVABALL)
    {
       precache_model ("progs/lavarock.mdl");
-//      self.classname = "fireball";
       precache_sound2 ("misc/spike.wav");
    }
    else if (self.spawnflags & SPAWNFLAG_ROCKET)
@@ -428,7 +427,6 @@ void() trap_switched_shooter =
     self.think = shooter_think;
    self.use = trap_shooter_use;
    };
-
 
 
 /*

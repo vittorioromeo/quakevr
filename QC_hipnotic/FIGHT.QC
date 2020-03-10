@@ -20,7 +20,7 @@ void() sham_swingr1;
 void() sham_swingl1;
 
 float()    DemonCheckAttack;
-void(float side)  Demon_Melee;
+void(float side)    Demon_Melee;
 
 void(vector dest) ChooseTurn;
 

@@ -536,18 +536,20 @@ vector(float dm) VelocityForDamage =
       v_y = 100 * crandom();
       v_z = 200 + 100 * random();
       }
+
    if (dm > -50)
    {
-//    dprint ("level 1\n");
+//        dprint ("level 1\n");
       v = v * 0.7;
    }
    else if (dm > -200)
    {
-//    dprint ("level 3\n");
+//        dprint ("level 3\n");
       v = v * 2;
    }
    else
       v = v * 10;
+
    return v;
 };
 
@@ -602,6 +604,7 @@ void(string gibname, float dm) ThrowHead =
 //MED
    self.gorging = TRUE;
    self.think = HeadThink;
+
 };
 
 
@@ -636,14 +639,17 @@ void() PlayerDie =
 {
     local    float    i;
 
-   self.items = self.items - (self.items & IT_INVISIBILITY);
+    //    self.items = self.items - (self.items & IT_INVISIBILITY);
+    self.items = self.items - (self.items &
+        (IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD) );
     self.invisible_finished = 0;    // don't die as eyes
     self.invincible_finished = 0;
     self.super_damage_finished = 0;
     self.radsuit_finished = 0;
     //JIM
     self.wetsuit_finished = 0;
-   self.modelindex = modelindex_player;   // don't use eyes
+    self.effects = 0;    // 1998-07-23 Glowing corpse of players which had quad/pentagram until respawn fix by Maddes
+   self.modelindex = modelindex_player;    // don't use eyes
    //JIM
    self.empathy_finished = 0;
    self.items2 = self.items2 - (self.items2 & HIP_IT_EMPATHY_SHIELDS);
