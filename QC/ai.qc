@@ -503,11 +503,18 @@ local float    rsnd;
     else if (self.classname == "monster_dog")
         sound (self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_hell_knight")
-        sound (self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
+    {
+        if (self.skin == 0)
+            sound (self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
+    }
     else if (self.classname == "monster_tarbaby")
         sound (self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_vomit")
         sound (self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+    else if (self.classname == "monster_eel")
+        sound (self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+    else if (self.classname == "monster_wrath")
+        sound (self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_enforcer")
     {
         rsnd = rint(random() * 3);
@@ -531,11 +538,13 @@ local float    rsnd;
          sound (self, CHAN_VOICE, "grem/sight1.wav", 1, ATTN_NORM);
       }
 //MED
-   else if (self.classname == "monster_scourge")
-      sound (self, CHAN_VOICE, "scourge/sight.wav", 1, ATTN_NORM);
+    else if (self.classname == "monster_scourge")
+        sound (self, CHAN_VOICE, "scourge/sight.wav", 1, ATTN_NORM);
 //MED
-   else if (self.classname == "monster_armagon")
-      sound (self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
+    else if (self.classname == "monster_armagon")
+        sound (self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
+    else if (self.classname == "monster_dragon")
+        sound (self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
 };
 
 void() FoundTarget =
@@ -729,7 +738,9 @@ float() FindTarget =
          }
       }
 
-    FoundTarget ();
+// PGM hack
+    if (self.classname != "dragon")
+        FoundTarget ();
 
     return TRUE;
 };
