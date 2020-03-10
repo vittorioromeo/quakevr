@@ -211,3 +211,4 @@ extern cvar_t vr_menu_distance;
 extern cvar_t vr_melee_dmg_multiplier;
 extern cvar_t vr_melee_range_multiplier;
 extern cvar_t vr_body_interactions;
+extern cvar_t vr_room_scale_move_mult;

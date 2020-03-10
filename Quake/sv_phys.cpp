@@ -1230,6 +1230,7 @@ void SV_Physics_Client(edict_t* ent, int num)
         }
 
         ent->v.teleport_time = sv.time + 0.3;
+        ent->v.teleport_target[2] += 16;
         VectorCopy(ent->v.teleport_target, ent->v.origin);
         VectorCopy(ent->v.teleport_target, ent->v.oldorigin);
     }
@@ -1292,6 +1293,8 @@ void SV_Physics_Client(edict_t* ent, int num)
             vec3_t restoreVel;
             _VectorCopy(ent->v.velocity, restoreVel);
             extern vec3_t vr_room_scale_move;
+
+            // TODO VR: add multiplier here
             VectorScale(
                 vr_room_scale_move, 1.0f / host_frametime, ent->v.velocity);
 

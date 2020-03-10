@@ -250,6 +250,7 @@ DEFINE_CVAR(vr_menu_distance, 76, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_dmg_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_range_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_room_scale_move_mult, 1.0, CVAR_ARCHIVE);
 
 //
 //
@@ -772,18 +773,9 @@ void InitAllWeaponCVars()
     }
 
     // empty hand
-    InitWeaponCVars(i++, "progs/hand.mdl", "0.0", "0.0", "0.0", "0.0"); // shadow axe
+    InitWeaponCVars(i++, "progs/hand.mdl", "0.0", "0.0", "0.0", "0.0");
 
     // clang-format on
-
-    // TODO VR: authentic model offsets, hardcode?
-    /*
-    auth_mdl
-        gun
-            vr_wofs_x_02 "-0.5"
-            vr_wofs_y_02 "1.5"
-            vr_wofs_z_02 "14"
-    */
 
     while(i < e_MAX_WEAPONS)
     {
@@ -1112,6 +1104,19 @@ static void RenderScreenForCurrentEye_OVR()
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 }
 
+// Get a reasonable height around where hands should be when aiming a gun.
+[[nodiscard]] float VR_GetHandZOrigin(entity_t* player) noexcept
+{
+    return player->origin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
+}
+
+// Get the player origin vector, but adjusted to the upper torso on the Z axis.
+void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
+{
+    VectorCopy(player->origin, out);
+    out[2] = VR_GetHandZOrigin(player) + 40;
+}
+
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1126,8 +1131,7 @@ void SetHandPos(int index, entity_t* player)
 
     vec3_t finalPre, finalVec;
 
-    const auto handZOrigin =
-        player->origin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
+    const auto handZOrigin = VR_GetHandZOrigin(player);
 
     finalPre[0] = -headLocal[0] + player->origin[0];
     finalPre[1] = -headLocal[1] + player->origin[1];
@@ -1142,8 +1146,7 @@ void SetHandPos(int index, entity_t* player)
 
     // Start around the upper torso, not actual center of the player.
     vec3_t adjPlayerOrigin;
-    VectorCopy(player->origin, adjPlayerOrigin);
-    adjPlayerOrigin[2] = handZOrigin + 40;
+    VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
@@ -1214,6 +1217,69 @@ bool vr_teleporting_impact_valid = false;
 bool vr_send_teleport_msg = false;
 vec3_t vr_teleporting_impact{0, 0, 0};
 
+void VR_DoTeleportation()
+{
+    entity_t* player = &cl_entities[cl.viewentity];
+
+    if(vr_teleporting)
+    {
+        constexpr float oh = 6.f;
+        constexpr float oy = 12.f;
+        vec3_t mins{-oh, -oh, -oy};
+        vec3_t maxs{oh, oh, oy};
+
+        vec3_t forward, right, up;
+        AngleVectors(cl.handrot[0], forward, right, up);
+
+        vec3_t target;
+        VectorMA(cl.handpos[0], 400, forward, target);
+
+        vec3_t adjPlayerOrigin;
+        VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
+
+        const trace_t trace = SV_Move(
+            adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, sv_player);
+
+        const auto between = [](const float value, const float min,
+                                 const float max) {
+            return value >= min && value <= max;
+        };
+
+        Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
+            trace.plane.normal[1], trace.plane.normal[2]);
+
+        // Allow slopes, but not walls or ceilings.
+        const bool
+            goodNormal = //
+                         // between(trace.plane.normal[0], -0.15f, 0.15f) && //
+                         // between(trace.plane.normal[1], -0.15f, 0.15f) && //
+            between(trace.plane.normal[2], 0.75f, 1.f);
+
+        vr_teleporting_impact_valid = trace.fraction < 1.0 && goodNormal;
+        VectorCopy(trace.endpos, vr_teleporting_impact);
+        // TODO VR: sometimes this goes into the floor!
+        // Try checking other trace properties (e.g. allsolid) or increasing the
+        // offsets
+
+        if(vr_teleporting_impact_valid)
+        {
+            // TODO VR:
+            extern void R_RunParticle2Effect(
+                vec3_t org, vec3_t dir, int preset, int count);
+
+            vec3_t dir{0, 0, 0};
+            R_RunParticle2Effect(vr_teleporting_impact, dir, 7, 4);
+        }
+    }
+    else if(vr_was_teleporting && vr_teleporting_impact_valid)
+    {
+        vr_send_teleport_msg = true;
+        VectorCopy(vr_teleporting_impact, sv_player->v.origin);
+    }
+
+    vr_was_teleporting = vr_teleporting;
+}
+
 void VR_UpdateScreenContent()
 {
     GLint w;
@@ -1262,6 +1328,12 @@ void VR_UpdateScreenContent()
             moveInTracking[2] = 0;
             Vec3RotateZ(
                 moveInTracking, vrYaw * M_PI_DIV_180, vr_room_scale_move);
+
+            // VR: Scale room-scale movement for easier dodging and improve
+            // teleportation-based gameplay experience.
+            vr_room_scale_move[0] *= vr_room_scale_move_mult.value;
+            vr_room_scale_move[1] *= vr_room_scale_move_mult.value;
+            vr_room_scale_move[2] *= vr_room_scale_move_mult.value;
 
             _VectorCopy(headOrigin, lastHeadOrigin);
             _VectorSubtract(headOrigin, lastHeadOrigin, headOrigin);
@@ -1502,67 +1574,7 @@ void VR_UpdateScreenContent()
             // TODO VR: what sets the shooting origin?
 
             // TODO VR: teleportation stuff
-            {
-                if(vr_teleporting)
-                {
-                    constexpr float o = 6.f;
-                    vec3_t mins{-o, -o, -o};
-                    vec3_t maxs{o, o, o};
-
-                    vec3_t forward, right, up;
-                    AngleVectors(cl.handrot[0], forward, right, up);
-
-                    vec3_t target;
-                    VectorMA(cl.handpos[0], 400, forward, target);
-
-                    // TODO VR: repetition
-                    const auto handZOrigin = player->origin[2] +
-                                             vr_floor_offset.value +
-                                             vr_gun_z_offset.value;
-
-                    vec3_t adjPlayerOrigin;
-                    VectorCopy(player->origin, adjPlayerOrigin);
-                    adjPlayerOrigin[2] = handZOrigin + 40;
-
-                    const trace_t trace = SV_Move(adjPlayerOrigin, mins, maxs,
-                        target, MOVE_NORMAL, sv_player);
-
-                    const auto between = [](const float value, const float min,
-                                             const float max) {
-                        return value >= min && value <= max;
-                    };
-
-                    const bool goodNormal =                              //
-                        between(trace.plane.normal[0], -0.15f, 0.15f) && //
-                        between(trace.plane.normal[1], -0.15f, 0.15f) && //
-                        between(trace.plane.normal[2], 0.75f, 1.f);
-
-                    vr_teleporting_impact_valid =
-                        trace.fraction < 1.0 && goodNormal;
-                    VectorCopy(trace.endpos, vr_teleporting_impact);
-
-                    // Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
-                    //     trace.plane.normal[1], trace.plane.normal[2]);
-
-                    if(vr_teleporting_impact_valid)
-                    {
-                        // TODO VR:
-                        extern void R_RunParticle2Effect(
-                            vec3_t org, vec3_t dir, int preset, int count);
-
-                        vec3_t dir{0, 0, 0};
-                        R_RunParticle2Effect(vr_teleporting_impact, dir, 7, 4);
-                    }
-                }
-                else if(vr_was_teleporting && vr_teleporting_impact_valid)
-                {
-                    // TODO VR: server
-                    vr_send_teleport_msg = true;
-                    VectorCopy(vr_teleporting_impact, sv_player->v.origin);
-                }
-
-                vr_was_teleporting = vr_teleporting;
-            }
+            VR_DoTeleportation();
             break;
         }
     }

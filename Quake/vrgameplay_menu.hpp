@@ -11,6 +11,7 @@ enum class VRGameplayMenuOpt
     e_BodyInteractions,
     e_ForwardSpeed,
     e_SpeedBtnMultiplier,
+    e_RoomScaleMoveMult,
 
     k_Max
 };
