@@ -587,7 +587,7 @@ void() HIP_FireMjolnir =
     xdmg = VRMeleeDmg(1.15);
 
     makevectors(self.v_angle);
-    source = self.handpos + '0 0 0';
+    source = self.handpos;
     // TODO VR: improve this collision detection
     traceline (source, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
@@ -690,7 +690,7 @@ void() W_FireAxe =
     xdmg = VRMeleeDmg(0.95);
 
     makevectors (self.v_angle);
-    source = self.handpos + '0 0 0';
+    source = self.handpos;
     // TODO VR: improve this collision detection
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
@@ -743,7 +743,7 @@ void() W_GunMelee =
     xdmg = VRMeleeDmg(0.5);
 
     makevectors (self.v_angle);
-    source = self.handpos + '0 0 0';
+    source = self.handpos;
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
         return;
@@ -797,7 +797,7 @@ void() W_FistMelee =
     xdmg = VRMeleeOffHandDmg(0.75);
 
     makevectors (self.v_angle);
-    source = self.offhandpos + '0 0 0';
+    source = self.offhandpos;
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
         return;
@@ -1227,7 +1227,7 @@ void() W_FireRocket =
 
     setmodel (missile, "progs/missile.mdl");
     setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.handpos + '0 0 0');
+    setorigin (missile, self.handpos);
 
     // HIPNOTIC
     //MED 11/09/96
@@ -1336,7 +1336,7 @@ void() W_FireLightning =
 
     self.currentammo = self.ammo_cells = self.ammo_cells - 1;
 
-    org = self.handpos + '0 0 0';
+    org = self.handpos;
 
     traceline (org, org + v_forward*600, TRUE, self);
     particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
@@ -1677,7 +1677,7 @@ void() W_FireSuperSpikes =
     self.attack_finished = time + 0.2;
     self.currentammo = self.ammo_nails = self.ammo_nails - 2;
     dir = aim (self, 1000);
-    launch_spike (self.handpos + '0 0 0', dir);
+    launch_spike (self.handpos, dir);
     newmis.touch = superspike_touch;
     setmodel (newmis, "progs/s_spike.mdl");
     setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -1714,7 +1714,7 @@ void(float ox) W_FireSpikes =
     self.attack_finished = time + 0.2;
     self.currentammo = self.ammo_nails = self.ammo_nails - 1;
     dir = aim (self, 1000);
-    launch_spike (self.handpos + '0 0 0' + v_right*ox, dir);
+    launch_spike (self.handpos + v_right*ox, dir);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
@@ -2447,7 +2447,7 @@ void() WetsuitCheat =
     {
    if (deathmatch || coop)
         return;
-   self.items2 = self.items2 | HIP_IT_WETSUIT;
+   self.hipnotic_items = self.hipnotic_items | HIP_IT_WETSUIT;
     self.wetsuit_time = 1;
     self.wetsuit_finished = time + 30;
    bprint( "wetsuit cheat\n" );
@@ -2458,7 +2458,7 @@ void() EmpathyShieldsCheat =
     {
    if (deathmatch || coop)
         return;
-   self.items2 = self.items2 | HIP_IT_EMPATHY_SHIELDS;
+   self.hipnotic_items = self.hipnotic_items | HIP_IT_EMPATHY_SHIELDS;
    self.empathy_time = 1;
    self.empathy_finished = time + 30;
    bprint( "empathy shields cheat\n" );
@@ -2601,7 +2601,7 @@ void() W_WeaponFrame =
         // Lightning effect (per-frame)
         if (self.weapon == IT_LIGHTNING)
         {
-            org = self.handpos + '0 0 0';
+            org = self.handpos;
 
             makevectors(self.v_angle);
             traceline (org, org + v_forward*600, TRUE, self);

@@ -47,7 +47,7 @@ local float        best;
     sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
-   other.items2 = other.items2 | self.items2;
+   other.hipnotic_items = other.hipnotic_items | self.hipnotic_items;
     self.model = string_null;
 
 // do the apropriate action
@@ -81,7 +81,7 @@ void() item_artifact_wetsuit =
    self.noise = "misc/weton.wav";
    setmodel (self, "progs/wetsuit.mdl");
     self.netname = "Wetsuit";
-   self.items2 = HIP_IT_WETSUIT;
+   self.hipnotic_items = HIP_IT_WETSUIT;
    setsize (self, '-16 -16 -24', '16 16 32');
 
     StartItem ();
@@ -155,7 +155,7 @@ void() item_artifact_empathy_shields =
    setmodel(self, "progs/empathy.mdl");
    self.noise = "hipitems/empathy.wav";
    self.netname = "Empathy Shields";
-   self.items2 = HIP_IT_EMPATHY_SHIELDS;
+   self.hipnotic_items = HIP_IT_EMPATHY_SHIELDS;
    setsize (self, '-16 -16 0', '16 16 32');
     StartItem ();
    };

@@ -660,7 +660,7 @@ void() PlayerDie =
     self.modelindex = modelindex_player;    // don't use eyes
     //JIM
     self.empathy_finished = 0;
-    self.items2 = self.items2 - (self.items2 & HIP_IT_EMPATHY_SHIELDS);
+    self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items & HIP_IT_EMPATHY_SHIELDS);
 
     if (deathmatch || coop)
         DropBackpack();

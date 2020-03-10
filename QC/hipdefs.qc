@@ -8,14 +8,7 @@ entity nullentity;
 entity bulletholes;
 entity lastbullet;
 float numbulletholes;
-float IT_MJOLNIR = 128;
-float IT_LASER_CANNON = 8388608;
-// TODO VR: this conflicts with super health
-float IT_PROXIMITY_GUN = 65536;
 
-float HIP_IT_WETSUIT = 2;
-float HIP_IT_EMPATHY_SHIELDS = 4;
-float HIP_IT_HORN_OF_CONJURING = 8;
 //added update stat message
 float SVC_UPDATESTAT = 3;
 float SVC_CUTSCENE   = 34;
@@ -35,10 +28,10 @@ float footsteps;
 
 //MED 11/09/96 added new spawnflags
 float SPAWNFLAG_SUPERSPIKE    = 1;
-float SPAWNFLAG_LASER = 2;
-float SPAWNFLAG_LAVABALL = 4;
-float SPAWNFLAG_ROCKET = 8;
-float SPAWNFLAG_SILENT = 16;
+float SPAWNFLAG_LASER         = 2;
+float SPAWNFLAG_LAVABALL      = 4;
+float SPAWNFLAG_ROCKET        = 8;
+float SPAWNFLAG_SILENT        = 16;
 
 // Hipnotic Constants
 float MIN_ANGLE_DELTA = 10;
@@ -54,7 +47,7 @@ float MIN_ANGLE_DELTA = 10;
 // Hipnotic entries
 //
 // have to use a new items flag because we ran out of bits in the original
-.float      items2;
+.float      hipnotic_items;
 // gremlin stuff
 .float      gorging;
 .float      stoleweapon;

@@ -128,7 +128,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 
 //MED
 //check for empathy shields
-   if ((targ.items2 & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.items2 & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
+   if ((targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
       {
       empathyused = 1;
       damage = damage/2;
@@ -187,7 +187,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
         return;
     }
 //MED
-    if (targ.items2 & HIP_IT_EMPATHY_SHIELDS)
+    if (targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS)
     {
         if (self.empathy_sound < time)
         {

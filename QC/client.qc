@@ -44,7 +44,7 @@ void() SetChangeParms =
     self.items = self.items - (self.items &
         (IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD ) );
 //MED
-    self.items2 = self.items2 - (self.items2 &
+    self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items &
         (HIP_IT_WETSUIT | HIP_IT_EMPATHY_SHIELDS ) );
 //MED
     self.gravity = 1.0;
@@ -577,7 +577,7 @@ void() PutClientInServer =
     //MED
     self.empathy_finished = 0;
     //MED
-    self.items2 = 0;
+    self.hipnotic_items = 0;
     self.gravity = 1.0;
 
     DecodeLevelParms ();
@@ -1282,7 +1282,7 @@ void() CheckPowerups =
         if (self.wetsuit_finished < time)
         {    // just stopped
 //MED
-         self.items2 = self.items2 - HIP_IT_WETSUIT;
+         self.hipnotic_items = self.hipnotic_items - HIP_IT_WETSUIT;
             self.wetsuit_time = 0;
             self.wetsuit_finished = 0;
         }
@@ -1313,7 +1313,7 @@ void() CheckPowerups =
       if (self.empathy_finished < time)
         {    // just stopped
 //MED
-         self.items2 = self.items2 - HIP_IT_EMPATHY_SHIELDS;
+         self.hipnotic_items = self.hipnotic_items - HIP_IT_EMPATHY_SHIELDS;
          self.empathy_time = 0;
          self.empathy_finished = 0;
         }
