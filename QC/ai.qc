@@ -1175,7 +1175,7 @@ void(float dist) ai_run =
 
    if (self.attack_state == AS_DODGING)
     {
-      ai_run_dodge ();
+        ai_run_dodge ();
         return;
     }
 

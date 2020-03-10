@@ -237,7 +237,7 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
 
     setorigin (newmis, org);
 
-   newmis.speed = 1000;
+   newmis.speed = 1750;
    newmis.dmg = 18;
    newmis.velocity = vec * newmis.speed;
    newmis.old_velocity = newmis.velocity;
@@ -284,7 +284,8 @@ void(float stat) HIP_FireLaser =
    out = v_forward;
    out_z = 0;
    out = normalize(out);
-   org = self.origin + ((12-ofs) * v_up) + (12*out);
+   // TODO VR: fix, make model
+   org = self.handpos + ((12-ofs) * v_up) + (12*out);
 //   org = self.origin + (1*v_forward);
    dir = aim (self, 1000);
    aofs = ofs * 0.707;
@@ -309,8 +310,11 @@ void(float stat) HIP_FireLaser =
       else
          HIP_LaunchLaser(org, dir, 0);
       }
+
    self.punchangle_x = -1;
-   };
+   VRGunHaptic(0.05, 150, 1.0);
+   particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+};
 
 /*
 =================
@@ -595,9 +599,10 @@ void() HIP_FireMjolnir =
     {
         VRMeleeHaptic(1, self.handvelmag);
 
-        if (time >= self.mainhand_melee_attack_finished)
+        if (time >= self.attack_finished)
         {
             HIP_FireMjolnirLightning();
+            self.attack_finished = time + 0.5;
         }
 
         if (trace_ent.classname == "monster_zombie")
@@ -612,9 +617,10 @@ void() HIP_FireMjolnir =
         // hit wall
         if (trace_fraction != 1.0)
         {
-            if (time >= self.mainhand_melee_attack_finished)
+            if (time >= self.attack_finished)
             {
                 HIP_FireMjolnirLightning();
+                self.attack_finished = time + 0.5;
             }
 
             if (self.melee_hit_sound_played == FALSE)
@@ -1752,7 +1758,8 @@ local float rand;
             WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
         else
         {
-            placebullethole( self.origin );
+            // TODO VR: need to calculate normal
+            // placebullethole( self.origin );
             WriteByte (MSG_BROADCAST, TE_SPIKE);
         }
         WriteCoord (MSG_BROADCAST, self.origin_x);
@@ -1787,7 +1794,8 @@ local float rand;
     }
     else
     {
-        placebullethole( self.origin );
+        // TODO VR: need to calculate normal
+        // placebullethole( self.origin );
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_SUPERSPIKE);
         WriteCoord (MSG_BROADCAST, self.origin_x);

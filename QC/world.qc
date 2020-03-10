@@ -178,8 +178,6 @@ void() main =
     precache_file ("maps/hip3m4.bsp");
     precache_file ("maps/hipdm1.bsp");
     precache_file ("maps/hipend.bsp");
-    precache_file ("maps/zoo.bsp");
-    precache_file ("maps/mark.bsp");
 };
 
 

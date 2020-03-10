@@ -46,7 +46,24 @@ static const std::array maps{
     "e4m6"sv,
     "e4m7"sv,
     "e4m8"sv,
-    "end"sv
+    "end"sv,
+    "hip1m1"sv,
+    "hip1m2"sv,
+    "hip1m3"sv,
+    "hip1m4"sv,
+    "hip1m5"sv,
+    "hip2m1"sv,
+    "hip2m2"sv,
+    "hip2m3"sv,
+    "hip2m4"sv,
+    "hip2m5"sv,
+    "hip2m6"sv,
+    "hip3m1"sv,
+    "hip3m2"sv,
+    "hip3m3"sv,
+    "hip3m4"sv,
+    "hipdm1"sv,
+    "hipend"sv
 };
 // clang-format on
 
@@ -153,17 +170,21 @@ void M_MapMenu_Draw()
 
     for(const std::string_view& label : maps)
     {
-        M_Print(160, y, label.data());
+        M_Print(70 + (120 * (idx / 25)), y, label.data());
         MapMenu_MenuPrintOptionValue(240, y, idx);
 
         // draw the blinking cursor
         if(mapmenu_cursor == idx)
         {
-            M_DrawCharacter(140, y, 12 + ((int)(realtime * 4) & 1));
+            M_DrawCharacter((70 - 15) + (120 * (idx / 25)), y, 12 + ((int)(realtime * 4) & 1));
         }
 
         ++idx;
         y += 8;
+        if(idx % 25 == 0)
+        {
+            y = 32 + 16;
+        }
     }
 }
 
