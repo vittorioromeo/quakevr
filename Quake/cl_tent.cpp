@@ -266,9 +266,11 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
+            R_ParticleExplosion(pos);
             colorStart = MSG_ReadByte();
             colorLength = MSG_ReadByte();
-            R_ParticleExplosion2(pos, colorStart, colorLength);
+            // TODO VR:
+            // R_ParticleExplosion2(pos, colorStart, colorLength);
             dl = CL_AllocDlight(0);
             VectorCopy(pos, dl->origin);
             dl->radius = 350;
