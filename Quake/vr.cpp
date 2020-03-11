@@ -32,6 +32,7 @@
 using quake::util::lerp;
 using quake::util::toQuakeVec3;
 using quake::util::toVec3;
+using quake::util::vec3lerp;
 
 //
 //
@@ -195,7 +196,7 @@ extern cvar_t gl_farclip;
 //
 //
 // ----------------------------------------------------------------------------
-// VR CVar Definition and Registration
+// VR CVar ition and Registration
 // ----------------------------------------------------------------------------
 
 static std::vector<cvar_t*> cvarsToRegister;
@@ -251,6 +252,8 @@ DEFINE_CVAR(vr_melee_dmg_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_melee_range_multiplier, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_room_scale_move_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_teleport_enabled, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_teleport_range, 400, CVAR_ARCHIVE);
 
 //
 //
@@ -647,6 +650,11 @@ char* CopyWithNumeral(const char* str, int i)
     return VR_GetWpnCVar(cvarEntry, setting).value;
 }
 
+[[nodiscard]] int VR_GetOffHandFistCvarEntry() noexcept
+{
+    // TODO VR: hardcoded hand/fist cvar number
+    return 16;
+}
 
 [[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept
 {
@@ -674,19 +682,19 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetZ)};
 }
 
-void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
+void InitWeaponCVar(cvar_t& cvar, const char* name, int i, const char* value)
 {
     const char* cvarname = CopyWithNumeral(name, i + 1);
     if(!Cvar_FindVar(cvarname))
     {
-        cvar->name = cvarname;
-        cvar->string = value;
-        cvar->flags = CVAR_ARCHIVE;
-        Cvar_RegisterVariable(cvar);
+        cvar.name = cvarname;
+        cvar.string = value;
+        cvar.flags = CVAR_ARCHIVE;
+        Cvar_RegisterVariable(&cvar);
     }
     else
     {
-        Cvar_SetQuick(cvar, value);
+        Cvar_SetQuick(&cvar, value);
     }
 }
 
@@ -710,17 +718,17 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* nameMuzzleOffsetY = "vr_wofs_muzzle_y_nn";
     constexpr const char* nameMuzzleOffsetZ = "vr_wofs_muzzle_z_nn";
 
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::OffsetZ), nameOffsetZ, i, offsetZ);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Scale), nameScale, i, scale);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::ID), nameID, i, id);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Pitch), nameRoll, i, roll); // TODO VR: mismatch
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Roll), namePitch, i, pitch); // TODO VR: mismatch
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::Yaw), nameYaw, i, yaw); // TODO VR: mismatch
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX), nameMuzzleOffsetX, i, muzzleOffsetX);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY), nameMuzzleOffsetY, i, muzzleOffsetY);
-    InitWeaponCVar(&VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ), nameMuzzleOffsetZ, i, muzzleOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetZ), nameOffsetZ, i, offsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Scale), nameScale, i, scale);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::ID), nameID, i, id);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Pitch), nameRoll, i, roll); // TODO VR: mismatch
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Roll), namePitch, i, pitch); // TODO VR: mismatch
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Yaw), nameYaw, i, yaw); // TODO VR: mismatch
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX), nameMuzzleOffsetX, i, muzzleOffsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY), nameMuzzleOffsetY, i, muzzleOffsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ), nameMuzzleOffsetZ, i, muzzleOffsetZ);
     // clang-format on
 }
 
@@ -1219,6 +1227,11 @@ vec3_t vr_teleporting_impact{0, 0, 0};
 
 void VR_DoTeleportation()
 {
+    if(!vr_teleport_enabled.value)
+    {
+        return;
+    }
+
     entity_t* player = &cl_entities[cl.viewentity];
 
     if(vr_teleporting)
@@ -1232,7 +1245,7 @@ void VR_DoTeleportation()
         AngleVectors(cl.handrot[0], forward, right, up);
 
         vec3_t target;
-        VectorMA(cl.handpos[0], 400, forward, target);
+        VectorMA(cl.handpos[0], vr_teleport_range.value, forward, target);
 
         vec3_t adjPlayerOrigin;
         VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
@@ -1562,9 +1575,8 @@ void VR_UpdateScreenContent()
                 // (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model);
                 // Mod_Weapon(cl.offhand_viewent.model->name, hdr);
 
-                // TODO VR: hardcoded fist cvar entry number
-                ApplyMod_Weapon(
-                    16, (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model));
+                ApplyMod_Weapon(VR_GetOffHandFistCvarEntry(),
+                    (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model));
             }
 
             SetHandPos(0, player);
@@ -1648,20 +1660,15 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
 {
-    // TODO VR:
-
-    /*
-        const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
-        vec3_t ofs{ox, oy, oz};
-    */
+    const auto [ox, oy, oz] = VR_GetWpnOffsets(weaponCVarEntry);
+    glm::vec3 finalOffsets{ox, -oy, oz};
+    finalOffsets /= VR_GetWpnCVarValue(weaponCVarEntry, WpnCVar::Scale);
 
     const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(weaponCVarEntry);
-    vec3_t muzzleOfs{moX, moY, moZ};
+    const glm::vec3 muzzleOfs{moX, moY, moZ};
 
     using namespace quake::util;
-    // glm::vec3 finalOffsets{ofs[0], ofs[1], ofs[2]};
-    glm::vec3 finalOffsets{0, 0, 0};
-    finalOffsets = finalOffsets + muzzleOfs;
+    finalOffsets += muzzleOfs;
 
     vec3_t forward, right, up;
     AngleVectors(cl.handrot[1], forward, right, up);
@@ -1677,7 +1684,6 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     const auto fRight = glmRight * finalOffsets[1];
     const auto fUp = glmUp * finalOffsets[2];
 
-    // Con_Printf("%.2f %.2f %.2f\n", forward[0], forward[1], forward[2]);
     return toVec3(cl.handpos[1]) + fFwd + fRight + fUp;
 }
 
@@ -1688,7 +1694,8 @@ void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept
 
 void VR_ShowCrosshair()
 {
-    if(!sv_player || (int)(sv_player->v.weapon) == IT_AXE)
+    if(!sv_player || (int)(sv_player->v.weapon) == WID_AXE ||
+        (int)(sv_player->v.weapon) == WID_MJOLNIR)
     {
         return;
     }
@@ -1733,6 +1740,7 @@ void VR_ShowCrosshair()
     {
         default:
         case VrCrosshair::e_POINT:
+        {
             if(vr_crosshair_depth.value <= 0)
             {
                 // trace to first wall
@@ -1744,8 +1752,7 @@ void VR_ShowCrosshair()
             else
             {
                 // fix crosshair to specific depth
-                VectorMA(start, vr_crosshair_depth.value * meters_to_units,
-                    forward, impact);
+                VectorMA(start, vr_crosshair_depth.value, forward, impact);
             }
 
             glEnable(GL_POINT_SMOOTH);
@@ -1757,20 +1764,59 @@ void VR_ShowCrosshair()
             glEnd();
             glDisable(GL_POINT_SMOOTH);
             break;
+        }
 
-        case VrCrosshair::e_LINE:
+        case VrCrosshair::e_LINE: [[fallthrough]];
+        case VrCrosshair::e_LINE_SMOOTH:
+        {
+            const float depth =
+                vr_crosshair_depth.value <= 0 ? 4096 : vr_crosshair_depth.value;
+
             // trace to first entity
-            VectorMA(start, 4096, forward, end);
-            TraceLineToEntity(start, end, impact, sv_player);
+            VectorMA(start, depth, forward, end);
+            const trace_t trace =
+                TraceLineToEntity(start, end, impact, sv_player);
 
-            glColor4f(1, 0, 0, alpha);
-            glLineWidth(size * glwidth / vid.width);
-            glBegin(GL_LINES);
+            if(trace.fraction >= 1.0)
+            {
+                VectorCopy(end, impact);
+            }
+
             impact[2] += vr_crosshairy.value * 10.f;
-            glVertex3f(start[0], start[1], start[2]);
-            glVertex3f(impact[0], impact[1], impact[2]);
+
+            glLineWidth(size * glwidth / vid.width);
+            glEnable(GL_LINE_SMOOTH);
+            glShadeModel(GL_SMOOTH);
+            glBegin(GL_LINE_STRIP);
+
+            if((int)vr_crosshair.value == VrCrosshair::e_LINE)
+            {
+                glColor4f(1, 0, 0, alpha);
+                glVertex3f(start[0], start[1], start[2]);
+                glVertex3f(impact[0], impact[1], impact[2]);
+            }
+            else
+            {
+                vec3_t midA, midB;
+                vec3lerp(midA, start, impact, 0.15);
+                vec3lerp(midB, start, impact, 0.85);
+
+                glColor4f(1, 0, 0, alpha * 0.01f);
+                glVertex3f(start[0], start[1], start[2]);
+
+                glColor4f(1, 0, 0, alpha);
+                glVertex3f(midA[0], midA[1], midA[2]);
+                glVertex3f(midB[0], midB[1], midB[2]);
+
+                glColor4f(1, 0, 0, alpha * 0.01f);
+                glVertex3f(impact[0], impact[1], impact[2]);
+            }
+
             glEnd();
+            glShadeModel(GL_FLAT);
+            glDisable(GL_LINE_SMOOTH);
             break;
+        }
     }
 
     // cleanup gl
@@ -1785,17 +1831,14 @@ void VR_ShowCrosshair()
 
 void VR_DrawTeleportLine()
 {
-    // TODO VR: do not use crosshair cvars
-    // TODO VR: add teleportation tweaking cvars in gameplay menu
-
-    if(!sv_player || !vr_teleporting ||
+    if(!vr_teleport_enabled.value || !sv_player || !vr_teleporting ||
         vr_aimmode.value != VrAimMode::e_CONTROLLER)
     {
         return;
     }
 
-    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
-    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
+    const float size = 2.f;
+    const float alpha = 0.5f;
 
     if(size <= 0 || alpha <= 0)
     {
@@ -1847,7 +1890,6 @@ void VR_DrawTeleportLine()
     GL_PolygonOffset(OFFSET_NONE);
     glEnable(GL_DEPTH_TEST);
 }
-
 
 void VR_Draw2D()
 {

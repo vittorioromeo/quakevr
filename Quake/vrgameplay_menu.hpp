@@ -12,6 +12,8 @@ enum class VRGameplayMenuOpt
     e_ForwardSpeed,
     e_SpeedBtnMultiplier,
     e_RoomScaleMoveMult,
+    e_TeleportEnabled,
+    e_TeleportRange,
 
     k_Max
 };

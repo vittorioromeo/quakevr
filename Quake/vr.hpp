@@ -9,7 +9,6 @@
 // VR Configuration Enums
 // ----------------------------------------------------------------------------
 
-
 struct VrAimMode
 {
     enum Enum
@@ -49,7 +48,10 @@ struct VrCrosshair
         e_POINT = 1,
 
         // Line crosshair
-        e_LINE = 2
+        e_LINE = 2,
+
+        // Smooth line crosshair
+        e_LINE_SMOOTH = 3
     };
 };
 
@@ -68,7 +70,6 @@ enum class VrSbarMode : int
     MainHand = 0,
     OffHand = 1
 };
-
 
 //
 //
@@ -155,13 +156,19 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
     const int cvarEntry) noexcept;
 
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept;
+
+void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept;
+
 // ----------------------------------------------------------------------------
 
 [[nodiscard]] cvar_t& VR_GetWpnCVar(
     const int cvarEntry, WpnCVar setting) noexcept;
+
 [[nodiscard]] float VR_GetWpnCVarValue(
     const int cvarEntry, WpnCVar setting) noexcept;
 
+[[nodiscard]] int VR_GetOffHandFistCvarEntry() noexcept;
 
 extern int weaponCVarEntry;
 
@@ -212,3 +219,5 @@ extern cvar_t vr_melee_dmg_multiplier;
 extern cvar_t vr_melee_range_multiplier;
 extern cvar_t vr_body_interactions;
 extern cvar_t vr_room_scale_move_mult;
+extern cvar_t vr_teleport_enabled;
+extern cvar_t vr_teleport_range;

@@ -1230,7 +1230,7 @@ void SV_Physics_Client(edict_t* ent, int num)
         }
 
         ent->v.teleport_time = sv.time + 0.3;
-        ent->v.teleport_target[2] += 16;
+        ent->v.teleport_target[2] += 12;
         VectorCopy(ent->v.teleport_target, ent->v.origin);
         VectorCopy(ent->v.teleport_target, ent->v.oldorigin);
     }

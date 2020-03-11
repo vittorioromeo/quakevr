@@ -63,6 +63,12 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_RoomScaleMoveMult:
             printAsStr(vr_room_scale_move_mult);
             break;
+        case VRGameplayMenuOpt::e_TeleportEnabled:
+            M_Print(cx, cy, vr_teleport_enabled.value == 0 ? "Off" : "On");
+            break;
+        case VRGameplayMenuOpt::e_TeleportRange:
+            printAsStr(vr_teleport_range);
+            break;
         default: assert(false); break;
     }
 
@@ -118,6 +124,12 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_RoomScaleMoveMult:
             adjustF(vr_room_scale_move_mult, 0.25f, 0.25f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_TeleportEnabled:
+            adjustI(vr_teleport_enabled, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_TeleportRange:
+            adjustF(vr_teleport_range, 10.f, 100.f, 800.f);
             break;
         default: assert(false); break;
     }
@@ -193,7 +205,7 @@ void M_VRGameplay_Draw()
         "Melee Threshold", "Roomscale Jump", "Roomscale Jump Threshold",
         "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
         "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier",
-        "Room-Scale Move Mult.");
+        "Room-Scale Move Mult.", "Teleportation", "Teleport Range");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

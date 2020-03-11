@@ -22,8 +22,8 @@ static void WpnOffset_MenuPlaySound(const char* sound, float fvol)
 
 static auto getCvars()
 {
-    // TODO VR: hardcoded hand/fist cvar number
-    const auto idx = wpnoff_offhand ? 16 : weaponCVarEntry;
+    const auto idx =
+        wpnoff_offhand ? VR_GetOffHandFistCvarEntry() : weaponCVarEntry;
 
     // clang-format off
     return std::tie(

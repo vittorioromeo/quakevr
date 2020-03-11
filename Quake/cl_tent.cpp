@@ -335,26 +335,7 @@ void CL_UpdateTEnts()
         {
             if(vr_enabled.value)
             {
-                // TODO VR: hardcoded lightning gun muzzle position for beam
-                // effect
-
-                vec3_t forward;
-                vec3_t right;
-                vec3_t up;
-                AngleVectors(cl.handrot[1], forward, right, up);
-
-                // TODO VR: this calculation needs to take into account the
-                // scale of the gun itself, not just the global one. Also grep
-                // for other vr_gunmodelscale calculations that do not do that
-                forward[0] *= 16 * vr_gunmodelscale.value;
-                forward[1] *= 16 * vr_gunmodelscale.value;
-                forward[2] *= 16 * vr_gunmodelscale.value;
-
-                vec3_t adj;
-                VectorCopy(cl.handpos[1], adj);
-                VectorAdd(adj, forward, adj);
-
-                VectorCopy(adj, b->start);
+                VR_CalcWeaponMuzzlePos(b->start);
             }
             else
             {

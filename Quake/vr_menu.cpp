@@ -71,7 +71,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_DEADZONE:
             if(vr_deadzone.value > 0)
             {
-                fmt("%.0f degrees", vr_deadzone);
+                fmt("%.1f degrees", vr_deadzone);
             }
             else
             {
@@ -79,7 +79,11 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
             }
             break;
         case VRMenuOpt::VR_CROSSHAIR:
-            if((int)vr_crosshair.value == 2)
+            if((int)vr_crosshair.value == 3)
+            {
+                value_string = "smooth line";
+            }
+            else if((int)vr_crosshair.value == 2)
             {
                 value_string = "line";
             }
@@ -95,7 +99,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_CROSSHAIR_DEPTH:
             if(vr_crosshair_depth.value > 0)
             {
-                fmt("%.0f units", vr_crosshair_depth);
+                fmt("%.1f units", vr_crosshair_depth);
             }
             else
             {
@@ -105,7 +109,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_CROSSHAIR_SIZE:
             if(vr_crosshair_size.value > 0)
             {
-                fmt("%.0f pixels", vr_crosshair_size);
+                fmt("%.1f pixels", vr_crosshair_size);
                 value_string = value_buffer;
             }
             else
@@ -179,7 +183,7 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
         case VRMenuOpt::VR_PARTICLES:
             value_string = r_particles.value == 0 ? "Off" : "On";
             break;
-            case VRMenuOpt::VR_PARTICLE_MULT: printAsStr(r_particle_mult); break;
+        case VRMenuOpt::VR_PARTICLE_MULT: printAsStr(r_particle_mult); break;
         default: assert(false); break;
     }
 
@@ -199,10 +203,7 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
 
     int aimmode[] = {1, 2, 3, 4, 5, 6, 7};
     int deadzoneDiff = 5;
-    int crosshair[] = {0, 1, 2};
-    int crosshairDepthDiff = 32;
-    int crosshairSizeDiff = 1;
-    float crosshairAlphaDiff = 0.05f;
+    int crosshair[] = {0, 1, 2, 3};
 
     const auto adjustF = [&isLeft](const cvar_t& cvar, auto incr, auto min,
                              auto max) {
@@ -234,16 +235,16 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
                 vr_crosshair, 1, crosshair[0], crosshair[_maxarray(crosshair)]);
             break;
         case VRMenuOpt::VR_CROSSHAIR_DEPTH:
-            adjustF(vr_crosshair_depth, crosshairDepthDiff, 0.f, 4096.f);
+            adjustF(vr_crosshair_depth, 16.f, 0.f, 4096.f);
             break;
         case VRMenuOpt::VR_CROSSHAIR_SIZE:
-            adjustF(vr_crosshair_size, crosshairSizeDiff, 0.f, 32.f);
+            adjustF(vr_crosshair_size, 0.5f, 0.f, 32.f);
             break;
         case VRMenuOpt::VR_CROSSHAIR_ALPHA:
-            adjustF(vr_crosshair_alpha, crosshairAlphaDiff, 0.f, 1.f);
+            adjustF(vr_crosshair_alpha, 0.05f, 0.f, 1.f);
             break;
         case VRMenuOpt::VR_WORLD_SCALE:
-            adjustF(vr_world_scale, crosshairAlphaDiff, 0.f, 2.f);
+            adjustF(vr_world_scale, 0.05f, 0.f, 2.f);
             break;
         case VRMenuOpt::VR_MOVEMENT_MODE:
             adjustI(vr_movement_mode, 1, 0, VrMovementMode::k_Max - 1);
@@ -376,9 +377,9 @@ void M_VR_Draw()
         "Crosshair Size", "Crosshair Alpha", "World Scale", "Movement mode",
         "Enable Joystick Turn", "Turn", "Turn Speed", "MSAA", "Gun Angle",
         "Floor Offset", "Gun Model Pitch", "Gun Model Scale",
-        "Gun Model Z Offset", "Crosshair Z Offset",
-        "HUD Scale", "Menu Scale", "Gun Yaw", "Gun Z Offset", "Status Bar Mode",
-        "Viewkick", "Menu Distance", "Particle Effects", "Particle Multiplier");
+        "Gun Model Z Offset", "Crosshair Z Offset", "HUD Scale", "Menu Scale",
+        "Gun Yaw", "Gun Z Offset", "Status Bar Mode", "Viewkick",
+        "Menu Distance", "Particle Effects", "Particle Multiplier");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 

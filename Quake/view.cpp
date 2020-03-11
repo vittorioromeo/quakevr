@@ -705,8 +705,7 @@ void CalcGunAngle(
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        const auto [oPitch, oYaw, oRoll] =
-            VR_GetWpnAngleOffsets(wpnCvarEntry);
+        const auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
 
         viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch;
         viewent->angles[YAW] = handrot[YAW] + oYaw;
@@ -1136,8 +1135,7 @@ void V_CalcRefdef2Test()
     // set up gun position
     VectorCopy(cl.viewangles, view->angles);
 
-    // TODO VR: hardcoded fist cvar entry (16)
-    CalcGunAngle(16, view, cl.handrot[0]);
+    CalcGunAngle(VR_GetOffHandFistCvarEntry(), view, cl.handrot[0]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)

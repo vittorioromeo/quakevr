@@ -48,10 +48,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QS_STRINGIFY(x) QS_STRINGIFY_(x)
 
 // combined version string like "0.92.1-beta1"
-#define QUAKESPASM_VER_STRING        \
-    QS_STRINGIFY(QUAKESPASM_VERSION) \
+#define QUAKESPASM_VER_STRING                                    \
+    QS_STRINGIFY(QUAKESPASM_VERSION)                             \
     "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX \
-    " | Quake VR " QUAKEVR_VERSION
+        " | Quake VR " QUAKEVR_VERSION
 
 // define	PARANOID			// speed sapping error checking
 
@@ -195,6 +195,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define HIT_EMPATHY_SHIELDS (1 << (23 + 3))
 
 //===========================================
+
+// weapon ids
+#define WID_AXE 0
+#define WID_MJOLNIR 1
+#define WID_SHOTGUN 2
+#define WID_SUPER_SHOTGUN 3
+#define WID_NAILGUN 4
+#define WID_SUPER_NAILGUN 5
+#define WID_GRENADE_LAUNCHER 6
+#define WID_PROXIMITY_GUN 7
+#define WID_ROCKET_LAUNCHER 8
+#define WID_LIGHTNING 9
+#define WID_LASER_CANNON 10
 
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32

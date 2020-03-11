@@ -98,6 +98,13 @@ namespace quake::util
     {
         return (a * (1.0 - f)) + (b * f);
     }
+
+    inline void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
+    {
+        out[0] = lerp(start[0], end[0], f);
+        out[1] = lerp(start[1], end[1], f);
+        out[2] = lerp(start[2], end[2], f);
+    }
 } // namespace quake::util
 
 namespace std
