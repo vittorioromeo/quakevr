@@ -60,3 +60,7 @@ hipmisc.qc
 hipwater.qc
 hipdecoy.qc
 
+// Rogue Quake additions
+
+mult_wpn.qc
+

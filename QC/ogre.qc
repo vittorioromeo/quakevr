@@ -374,6 +374,7 @@ void()    ogre_die3    =[    $death3,    ogre_die4    ]
         {
             // TODO VR: rogue
             // self.ammo_multi_rockets = 2;
+            self.ammo_rockets = 2;
         }
         else
             self.ammo_rockets = 2;
@@ -399,7 +400,8 @@ void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
         if (self.spawnflags & OGRE_BOSS)
         {
             // TODO VR: rogue
-            // ockets = 2;
+            // self.ammo_multi_rockets = 2;
+            self.ammo_rockets = 2;
         }
         else
             self.ammo_rockets = 2;
@@ -487,7 +489,8 @@ void() monster_ogre =
 
     if (self.spawnflags & OGRE_BOSS)
     {
-        self.skin = 1;
+        // TODO VR: rogue
+        // self.skin = 1;
     }
 
     setsize (self, '-24 -24 -24', '24 24 40');

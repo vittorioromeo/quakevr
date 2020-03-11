@@ -352,6 +352,10 @@ void() worldspawn =
     precache_model ("progs/hand.mdl");
     precache_sound ("fisthit.wav");        // ax hit world
 
+    // PGM addition
+    precache_model ("progs/mervup.mdl");
+    // TODO VR: rogue...
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 //

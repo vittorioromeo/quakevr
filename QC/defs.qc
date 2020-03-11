@@ -391,6 +391,8 @@ float    TE_KNIGHTSPIKE           = 8;
 float    TE_LIGHTNING3            = 9;
 float    TE_LAVASPLASH            = 10;
 float    TE_TELEPORT              = 11;
+float    TE_EXPLOSION2            = 12;
+float    TE_BEAM                  = 13;
 
 // sound channels
 // channel 0 never willingly overrides
