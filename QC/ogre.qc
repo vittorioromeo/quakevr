@@ -49,6 +49,8 @@ $frame pull1 pull2 pull3 pull4 pull5 pull6 pull7 pull8 pull9 pull10 pull11
 
 //=============================================================================
 
+float    OGRE_BOSS    = 2;
+float    OGRE_NORMAL    = 4;
 
 void() OgreGrenadeExplode =
 {
@@ -87,6 +89,9 @@ void() OgreGrenadeTouch =
 OgreFireGrenade
 ================
 */
+void() MultiGrenadeTouch;
+void() MultiGrenadeExplode;
+
 void() OgreFireGrenade =
 {
     local    entity missile, mpuff;
@@ -96,35 +101,40 @@ void() OgreFireGrenade =
     sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
 
     missile = spawn ();
-
-//JIM
-    missile.classname = "grenade";
-
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
+    missile.classname = "ogre_grenade";
 
 // set missile speed
 
     makevectors (self.angles);
-
     missile.velocity = normalize(self.enemy.origin - self.origin);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
-
     missile.avelocity = '300 300 300';
-
     missile.angles = vectoangles(missile.velocity);
 
-    missile.touch = OgreGrenadeTouch;
-
 // set missile duration
-    missile.nextthink = time + 2.5;
-    missile.think = OgreGrenadeExplode;
-
-    setmodel (missile, "progs/grenade.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin);
+    if(self.spawnflags & OGRE_BOSS)
+    {
+        missile.touch = MultiGrenadeTouch;
+        missile.nextthink = time + 2.5;
+        missile.think = MultiGrenadeExplode;
+        setmodel (missile, "progs/mervup.mdl");
+        setsize (missile, '0 0 0', '0 0 0');
+        setorigin (missile, self.origin);
+        missile.classname = "MultiGrenade";
+    }
+    else
+    {
+        missile.touch = OgreGrenadeTouch;
+        missile.nextthink = time + 2.5;
+        missile.think = OgreGrenadeExplode;
+        setmodel (missile, "progs/grenade.mdl");
+        setsize (missile, '0 0 0', '0 0 0');
+        setorigin (missile, self.origin);
+    }
 };
 
 
@@ -358,8 +368,17 @@ void(entity attacker, float damage)    ogre_pain =
 void()    ogre_die1    =[    $death1,    ogre_die2    ] {};
 void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
-{self.solid = SOLID_NOT;
-self.ammo_rockets = 2;DropBackpack();};
+    {
+        self.solid = SOLID_NOT;
+        if (self.spawnflags & OGRE_BOSS)
+        {
+            // TODO VR: rogue
+            // self.ammo_multi_rockets = 2;
+        }
+        else
+            self.ammo_rockets = 2;
+        DropBackpack();
+    };
 void()    ogre_die4    =[    $death4,    ogre_die5    ] {};
 void()    ogre_die5    =[    $death5,    ogre_die6    ] {};
 void()    ogre_die6    =[    $death6,    ogre_die7    ] {};
@@ -375,8 +394,17 @@ void()    ogre_die14    =[    $death14,    ogre_die14    ] {};
 void()    ogre_bdie1    =[    $bdeath1,    ogre_bdie2    ] {};
 void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
-{self.solid = SOLID_NOT;
-self.ammo_rockets = 2;DropBackpack();};
+    {
+        self.solid = SOLID_NOT;
+        if (self.spawnflags & OGRE_BOSS)
+        {
+            // TODO VR: rogue
+            // ockets = 2;
+        }
+        else
+            self.ammo_rockets = 2;
+        DropBackpack();
+    };
 void()    ogre_bdie4    =[    $bdeath4,    ogre_bdie5    ] {ai_forward(1);};
 void()    ogre_bdie5    =[    $bdeath5,    ogre_bdie6    ] {ai_forward(3);};
 void()    ogre_bdie6    =[    $bdeath6,    ogre_bdie7    ] {ai_forward(7);};
@@ -415,8 +443,11 @@ void() ogre_melee =
 };
 
 
-/*QUAKED monster_ogre (1 0 0) (-32 -32 -24) (32 32 64) Ambush
+/*QUAKED monster_ogre (1 0 0) (-32 -32 -24) (32 32 64) Ambush Boss Normal
+The Ogre
 
+Boss: use the modified skin and fire multigrenades.
+Normal: use the original skin and fire normal grenades.
 */
 void() monster_ogre =
 {
@@ -442,6 +473,23 @@ void() monster_ogre =
 
     setmodel (self, "progs/ogre.mdl");
 
+    // none specified - choose random. 25% boss on normal, hard, bloodbath
+    if (self.spawnflags <= 1)
+    {
+        if (cvar("skill") > 0)
+        {
+            if ( random() <= 0.25 )
+            {
+                self.spawnflags = self.spawnflags | OGRE_BOSS;
+            }
+        }
+    }
+
+    if (self.spawnflags & OGRE_BOSS)
+    {
+        self.skin = 1;
+    }
+
     setsize (self, '-24 -24 -24', '24 24 40');
     self.health = 200;
 
@@ -454,9 +502,4 @@ void() monster_ogre =
     self.th_pain = ogre_pain;
 
     walkmonster_start();
-};
-
-void() monster_ogre_marksman =
-{
-    monster_ogre ();
 };

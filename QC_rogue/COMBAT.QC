@@ -145,6 +145,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 // check for quad damage powerup on the attacker
     if (attacker.super_damage_finished > time)
         damage = damage * 4;
+
 // rune power up (Black Magic)
     if (deathmatch)
         damage = RuneApplyBlack(damage, attacker);
@@ -373,4 +374,3 @@ void(entity attacker, float damage) T_BeamDamage =
         head = head.chain;
     }
 };
-

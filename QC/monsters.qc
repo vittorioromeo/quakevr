@@ -76,7 +76,9 @@ local entity    etemp;
 
     if (!walkmove(0,0))
     {
-        dprint ("walkmonster in wall at: ");
+        dprint ("walkmonster in wall!\n");
+        dprint (self.classname);
+        dprint (" at ");
         dprint (vtos(self.origin));
         dprint ("\n");
     }
@@ -146,7 +148,9 @@ void() flymonster_start_go =
 
     if (!walkmove(0,0))
     {
-        dprint ("flymonster in wall at: ");
+        dprint ("flymonster in wall!\n");
+        dprint (self.classname);
+        dprint (" at ");
         dprint (vtos(self.origin));
         dprint ("\n");
     }

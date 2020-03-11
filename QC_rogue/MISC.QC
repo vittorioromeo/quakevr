@@ -588,7 +588,7 @@ void() func_illusionary =
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
     setmodel (self, self.model);
-    makestatic ();
+    makestatic (self);
 };
 
 /*QUAKED func_episodegate (0 .5 .8) ? E1 E2 E3 E4

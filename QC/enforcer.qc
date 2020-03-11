@@ -86,9 +86,16 @@ void(vector org, vector vec) LaunchLaser =
     newmis.movetype = MOVETYPE_FLY;
     newmis.solid = SOLID_BBOX;
     newmis.effects = EF_DIMLIGHT;
+    newmis.classname = "enforcer_laser";
 
     setmodel (newmis, "progs/laser.mdl");
     setsize (newmis, '0 0 0', '0 0 0');
+
+    if (self.classname == "monster_morph")
+    {
+        if (!self.owner)
+            newmis.skin = 1;
+    }
 
     setorigin (newmis, org);
 

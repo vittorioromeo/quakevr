@@ -229,7 +229,8 @@ void() knight_die =
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_knight.mdl", self.health);
-        if (self.spawnflags & 2) // statue
+
+    if (self.spawnflags & 2) // statue
         {
             ThrowGib ( "progs/statgib1.mdl", self.health);
             ThrowGib ( "progs/statgib2.mdl", self.health);
@@ -302,7 +303,8 @@ void() monster_knight =
     }
     precache_model ("progs/knight.mdl");
     precache_model ("progs/h_knight.mdl");
-    if (self.spawnflags & 2) // statue
+
+    if (self.spawnflags & 2) // statue
     {
         precache_model ( "progs/statgib1.mdl");
         precache_model ( "progs/statgib2.mdl");

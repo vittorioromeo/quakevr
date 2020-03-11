@@ -511,7 +511,7 @@ local vector tempVect;
     if (!self.dmg)
         self.dmg = 2;
 
-    self.pos1=self.origin;
+    self.pos1 = self.origin;
 //    self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
 
 // PGM fix for cameron's door problem - 02/19/97

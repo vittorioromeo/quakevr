@@ -519,6 +519,17 @@ void() bubble_bob =
 local float        rnd1, rnd2, rnd3;
 local vector    vtmp1, modi;
 
+    // PGM fix - 02/25/97 so bubbles won't go through walls
+    rnd1 = pointcontents(self.origin);
+    if (rnd1 == CONTENT_SOLID)
+        remove(self);
+    // PGM fix - 02/25/97 so bubbles pop 2 seconds after leaving water
+    else if (rnd1 == CONTENT_EMPTY)
+    {
+        if (self.cnt < 16)
+            self.cnt = 16;
+    }
+
     self.cnt = self.cnt + 1;
     if (self.cnt == 4)
         bubble_split();

@@ -405,4 +405,3 @@ float() OgreCheckAttack =
     SUB_AttackFinished (1 + 2*random());
     return TRUE;
 };
-

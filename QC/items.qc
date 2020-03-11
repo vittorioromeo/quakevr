@@ -2,6 +2,9 @@ void() W_SetCurrentAmmo;
 /* ALL LIGHTS SHOULD BE 0 1 0 IN COLOR ALL OTHER ITEMS SHOULD
 BE .8 .3 .4 IN COLOR */
 
+float(float wid) WeaponIdToItemId;
+float(float it) ItemIdToWeaponId;
+
 void(entity e) VRItemPickupHaptic =
 {
     if (cvar("vr_body_interactions") == 0)
@@ -421,7 +424,7 @@ float() W_BestWeapon;
 
 void() weapon_touch =
 {
-    local    float    hadammo, best, newIt, newWid, old;
+    local    float    hadammo, best, newIt, old;
     local    entity    stemp;
     local    float    leave;
 
@@ -445,7 +448,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_nails;
         newIt = IT_NAILGUN;
-        newWid = WID_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
     else if (self.classname == "weapon_supernailgun")
@@ -454,7 +456,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_SUPER_NAILGUN;
-        newWid = WID_SUPER_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
     else if (self.classname == "weapon_supershotgun")
@@ -463,7 +464,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_SUPER_SHOTGUN;
-        newWid = WID_SUPER_SHOTGUN;
         other.ammo_shells = other.ammo_shells + 5;
     }
     else if (self.classname == "weapon_rocketlauncher")
@@ -472,7 +472,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_ROCKET_LAUNCHER;
-        newWid = WID_ROCKET_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
     else if (self.classname == "weapon_grenadelauncher")
@@ -481,7 +480,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_GRENADE_LAUNCHER;
-        newWid = WID_GRENADE_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
     else if (self.classname == "weapon_lightning")
@@ -490,7 +488,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_LIGHTNING;
-        newWid = WID_LIGHTNING;
         other.ammo_cells = other.ammo_cells + 15;
     }
 //MED
@@ -500,7 +497,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_LASER_CANNON;
-      newWid = WID_LASER_CANNON;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
@@ -510,7 +506,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_MJOLNIR;
-      newWid = WID_MJOLNIR;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
@@ -520,7 +515,6 @@ void() weapon_touch =
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_PROXIMITY_GUN;
-      newWid = WID_PROXIMITY_GUN;
       other.ammo_rockets = other.ammo_rockets + 6;
     }
     else
@@ -545,9 +539,9 @@ void() weapon_touch =
     self = other;
 
     if (!deathmatch)
-        self.weapon = newWid;
+        self.weapon = ItemIdToWeaponId(newIt);
     else
-        Deathmatch_Weapon (old, newWid);
+        Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
 
     W_SetCurrentAmmo();
 
@@ -1302,9 +1296,6 @@ PLAYER BACKPACKS
 
 ===============================================================================
 */
-
-float(float wid) WeaponIdToItemId;
-float(float it) ItemIdToWeaponId;
 
 void() BackpackTouch =
 {

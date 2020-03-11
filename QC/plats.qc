@@ -135,7 +135,7 @@ speed    default 150
 
 Plats are always drawn in the extended position, so they will light correctly.
 
-If the plat is the target of another trigger or button, it will start out disabled in the extended position until it is trigger, when it will lower and become a normal plat.
+If the plat is the target of another trigger or button, it will start out disabled in the extended position until it is triggered, when it will lower and become a normal plat.
 
 If the "height" key is set, that will determine the amount the plat moves, instead of being implicitly determined by the model's height.
 Set "sounds" to one of the following:

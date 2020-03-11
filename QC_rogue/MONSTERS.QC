@@ -239,5 +239,3 @@ void() swimmonster_start =
 //  the monster count!!!
 //    total_monsters = total_monsters + 1;
 };
-
-

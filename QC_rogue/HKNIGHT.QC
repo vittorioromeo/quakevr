@@ -211,7 +211,8 @@ void() hknight_die =
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_hellkn.mdl", self.health);
-        if (self.spawnflags & 2) // statue
+
+    if (self.spawnflags & 2) // statue
         {
             ThrowGib ( "progs/statgib1.mdl", self.health);
             ThrowGib ( "progs/statgib2.mdl", self.health);
@@ -227,7 +228,8 @@ void() hknight_die =
     }
 
 // regular death
-    if (self.spawnflags & 2) // statue
+
+    if (self.spawnflags & 2) // statue
         sound (self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
     else
         sound (self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
@@ -468,7 +470,8 @@ void() monster_hell_knight =
     precache_model2 ("progs/hknight.mdl");
     precache_model2 ("progs/k_spike.mdl");
     precache_model2 ("progs/h_hellkn.mdl");
-    if (self.spawnflags & 2) // statue
+
+    if (self.spawnflags & 2) // statue
     {
         precache_model ( "progs/statgib1.mdl");
         precache_model ( "progs/statgib2.mdl");
@@ -484,7 +487,8 @@ void() monster_hell_knight =
         precache_sound2 ("hknight/pain1.wav");
         precache_sound2 ("hknight/sight1.wav");
         precache_sound2 ("hknight/idle.wav");
-    }
+
+    }
 
     precache_sound2 ("hknight/attack1.wav");
     precache_sound ("hknight/hit.wav");        // used by C code, so don't sound2
