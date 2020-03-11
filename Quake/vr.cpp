@@ -1245,6 +1245,7 @@ void VR_DoTeleportation()
             return value >= min && value <= max;
         };
 
+        // TODO VR:
         // Con_Printf("%.2f, %.2f, %.2f\n", trace.plane.normal[0],
         //    trace.plane.normal[1], trace.plane.normal[2]);
 
@@ -1784,6 +1785,9 @@ void VR_ShowCrosshair()
 
 void VR_DrawTeleportLine()
 {
+    // TODO VR: do not use crosshair cvars
+    // TODO VR: add teleportation tweaking cvars in gameplay menu
+
     if(!sv_player || !vr_teleporting ||
         vr_aimmode.value != VrAimMode::e_CONTROLLER)
     {
