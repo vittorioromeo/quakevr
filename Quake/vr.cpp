@@ -812,8 +812,9 @@ void VID_VR_Init()
     InitAllWeaponCVars();
 
     // VR: Fix grenade model flags to enable smoke trail.
-    qmodel_t* test = Mod_ForName("progs/grenade.mdl", true);
-    test->flags |= EF_GRENADE;
+    Mod_ForName("progs/grenade.mdl", true)->flags |= EF_GRENADE;
+    Mod_ForName("progs/lasrspik.mdl", true)->flags |= EF_GRENADE;
+    Mod_ForName("progs/mervup.mdl", true)->flags |= EF_GRENADE;
 
     // Set the cvar if invoked from a command line parameter
     {
@@ -1864,8 +1865,6 @@ void VR_DrawTeleportLine()
     // calc line
     vec3_t impact;
     VectorCopy(vr_teleporting_impact, impact);
-
-    // TODO VR: make it smooth like for laser crosshair
 
     // draw line
     const auto setColor = [&](const float xAlpha) {

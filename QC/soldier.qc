@@ -174,6 +174,7 @@ void(entity attacker, float damage)    army_pain =
 
 void() army_fire =
 {
+    // local vector   src, vec;
     local    vector    dir;
     local    entity    en;
 
@@ -181,14 +182,22 @@ void() army_fire =
 
     sound (self, CHAN_WEAPON, "soldier/sattck1.wav", 1, ATTN_NORM);
 
-// TODO VR: opportunity for extra difficulty
-// fire somewhat behind the player, so a dodging player is harder to hit
+    // TODO VR: opportunity for extra difficulty
+    // fire somewhat behind the player, so a dodging player is harder to hit
     en = self.enemy;
 
     dir = en.origin - en.velocity*0.2;
     dir = normalize (dir - self.origin);
 
     EnemyFireBullets (4, dir, '0.1 0.1 0');
+
+    // TODO VR: nail shooting variant?
+    // makevectors(self.angles);
+    // src = self.origin - '0 0 19' + v_forward*14;
+    // vec = (self.enemy.origin + (200*v_forward)) - src;
+    // vec = normalize(vec);
+    // sound (self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
+    // launch_spike (src, vec);
 };
 
 
