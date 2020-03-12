@@ -312,3 +312,150 @@ static void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
                 handrottemp[1] = fy;
                 handrottemp[2] = fz;
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+ case VrAimMode::e_CONTROLLER:
+        {
+            cl.viewangles[PITCH] = orientation[PITCH];
+            cl.viewangles[YAW] = orientation[YAW];
+
+            vec3_t mat[3];
+            vec3_t matTmp[3];
+
+            vec3_t rotOfs = {vr_gunangle.value, vr_gunyaw.value, 0};
+
+            vec3_t gunMatPitch[3];
+            CreateRotMat(0, rotOfs[0], gunMatPitch); // pitch
+
+            vec3_t gunMatYaw[3];
+            CreateRotMat(1, rotOfs[1], gunMatYaw); // yaw
+
+            vec3_t gunMatRoll[3];
+            CreateRotMat(2, rotOfs[2], gunMatRoll); // roll
+
+            for(int i = 0; i < 2; i++)
+            {
+                RotMatFromAngleVector(controllers[i].orientation, mat);
+
+                R_ConcatRotations(gunMatRoll, mat, matTmp);
+                for(int j = 0; j < 3; ++j)
+                {
+                    VectorCopy(matTmp[j], mat[j]);
+                }
+
+                R_ConcatRotations(gunMatPitch, mat, matTmp);
+                for(int j = 0; j < 3; ++j)
+                {
+                    VectorCopy(matTmp[j], mat[j]);
+                }
+
+                R_ConcatRotations(gunMatYaw, mat, matTmp);
+                for(int j = 0; j < 3; ++j)
+                {
+                    VectorCopy(matTmp[j], mat[j]);
+                }
+
+                vec3_t handrottemp;
+                AngleVectorFromRotMat(mat, handrottemp);
+                VectorCopy(handrottemp, cl.handrot[i]);
+            }
+
+            if(cl.viewent.model)
+            {
+                auto* hdr = (aliashdr_t*)Mod_Extradata(cl.viewent.model);
+                Mod_Weapon(cl.viewent.model->name, hdr);
+
+                // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
+                // testhdr->flags |= EF_GRENADE;
+                // VectorScale(testhdr->scale_origin, 0.5f,
+                // testhdr->scale_origin);
+
+                // BModels cannot be scaled, doesnt work
+                // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
+                // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
+                // VectorScale(testhdr->scale_origin, 0.5f,
+                // testhdr->scale_origin);
+            }
+
+            if(cl.offhand_viewent.model)
+            {
+                // aliashdr_t* hdr =
+                // (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model);
+                // Mod_Weapon(cl.offhand_viewent.model->name, hdr);
+
+                ApplyMod_Weapon(VR_GetOffHandFistCvarEntry(),
+                    (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model));
+            }
+
+            SetHandPos(0, player);
+            SetHandPos(1, player);
+
+            Con_Printf("%d %d %d | ", (int)cl.handpos[1][0],
+                (int)cl.handpos[1][1], (int)cl.handpos[1][2]);
+
+            Con_Printf("%d %d %d\n", (int)cl.handrot[1][0],
+                (int)cl.handrot[1][1], (int)cl.handrot[1][2]);
+
+            auto up = glm::vec3{0, 0, 1};
+
+            auto m = glm::lookAtRH(toVec3(cl.handpos[1]), toVec3(cl.handpos[0]),
+                up);
+
+            vr::HmdMatrix34_t mm;
+            for(int x = 0; x < 3; ++x)
+            {
+                for(int y = 0; y < 4; ++y)
+                {
+                    mm.m[x][y] = m[x][y];
+                }
+            }
+
+            auto ypr = QuatToYawPitchRoll(Matrix34ToQuaternion(mm));
+
+            const auto nx = ypr[PITCH];
+            const auto ny = ypr[YAW];
+            const auto nz = ypr[ROLL];
+
+            auto fy = nx;
+            auto fx = ny;
+            auto fz = nz;
+
+           if(fy > 90.f)
+            {
+                fx -= 180.f;
+                fy -= 180.f;
+                fy *= -1.f;
+                fz += 180.f;
+
+                if(fx > 0.f)
+                {
+                    fx += 360.f;
+                }
+            }
+
+
+            cl.handrot[1][PITCH] = fx;
+            cl.handrot[1][YAW] = fy;
+            cl.handrot[1][ROLL] = fz;
+
+            // TODO VR: interpolate based on weapon weight?
+            VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
+            // TODO VR: what sets the shooting origin?
+
+            // TODO VR: teleportation stuff
+            VR_DoTeleportation();
+            break;
+        }
+    }
+    cl.viewangles[ROLL] = orientation[ROLL];

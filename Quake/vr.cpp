@@ -813,7 +813,7 @@ void VID_VR_Init()
 
     // VR: Fix grenade model flags to enable smoke trail.
     Mod_ForName("progs/grenade.mdl", true)->flags |= EF_GRENADE;
-    Mod_ForName("progs/lasrspik.mdl", true)->flags |= EF_GRENADE;
+    Mod_ForName("progs/proxbomb.mdl", true)->flags |= EF_GRENADE;
     Mod_ForName("progs/mervup.mdl", true)->flags |= EF_GRENADE;
 
     // Set the cvar if invoked from a command line parameter
@@ -1526,6 +1526,8 @@ void VR_UpdateScreenContent()
             vec3_t gunMatRoll[3];
             CreateRotMat(2, rotOfs[2], gunMatRoll); // roll
 
+            vec3_t originalRots[2];
+
             for(int i = 0; i < 2; i++)
             {
                 RotMatFromAngleVector(controllers[i].orientation, mat);
@@ -1550,6 +1552,7 @@ void VR_UpdateScreenContent()
 
                 vec3_t handrottemp;
                 AngleVectorFromRotMat(mat, handrottemp);
+                VectorCopy(handrottemp, originalRots[i]);
                 VectorCopy(handrottemp, cl.handrot[i]);
             }
 
@@ -1582,6 +1585,53 @@ void VR_UpdateScreenContent()
 
             SetHandPos(0, player);
             SetHandPos(1, player);
+
+            // From: https://stackoverflow.com/a/21627251/598696
+            const auto handDiff = toVec3(cl.handpos[0]) - toVec3(cl.handpos[1]);
+            const auto dir = glm::normalize(handDiff);
+            const auto xPitch = asin(dir[2]);
+            const auto xYaw = atan2(dir[1], dir[0]);
+
+            const auto up = glm::vec3{0, 0, 1};
+            const auto w0 = glm::vec3{-dir[1], dir[0], 0};
+            const auto u0 = glm::cross(w0, dir);
+
+            const auto xRoll = ::atan2(glm::dot(w0, up) / glm::length(w0),
+                glm::dot(u0, up) / glm::length(u0));
+
+            {
+                vec3_t forward, right, up;
+                AngleVectors(originalRots[1], forward, right, up);
+
+                const auto diffDot =
+                    glm::dot(glm::normalize(handDiff), toVec3(forward));
+
+                const bool goodDistance =
+                    glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
+
+                const bool canTwoHand = [](const int wpnCvarEntry) {
+                    if(wpnCvarEntry == 0     // axe
+                        || wpnCvarEntry == 8 // hammer (mjolnir)
+                    )
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }(weaponCVarEntry);
+
+                // TODO VR: buttons, cvars, weapon traits, virtual stock
+                // Con_Printf("%.2f\n", diffDot);
+
+                if(goodDistance && diffDot > 0.85f && canTwoHand)
+                {
+                    cl.handrot[1][PITCH] = -xPitch * 180.0 / glm::pi<double>();
+                    cl.handrot[1][YAW] = xYaw * 180.0 / glm::pi<double>();
+                }
+            }
+
+            // TODO VR:
+            // cl.handrot[1][ROLL] = (xRoll * 180.0 / glm::pi<double>()) + 180;
 
             // TODO VR: interpolate based on weapon weight?
             VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
