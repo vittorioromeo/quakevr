@@ -1865,21 +1865,42 @@ void VR_DrawTeleportLine()
     vec3_t impact;
     VectorCopy(vr_teleporting_impact, impact);
 
+    // TODO VR: make it smooth like for laser crosshair
+
     // draw line
-    if(vr_teleporting_impact_valid)
-    {
-        glColor4f(0, 0, 1, alpha);
-    }
-    else
-    {
-        glColor4f(1, 0, 0, alpha);
-    }
+    const auto setColor = [&](const float xAlpha) {
+        if(vr_teleporting_impact_valid)
+        {
+            glColor4f(0, 0, 1, xAlpha);
+        }
+        else
+        {
+            glColor4f(1, 0, 0, xAlpha);
+        }
+    };
 
     glLineWidth(size * glwidth / vid.width);
-    glBegin(GL_LINES);
+    glEnable(GL_LINE_SMOOTH);
+    glShadeModel(GL_SMOOTH);
+    glBegin(GL_LINE_STRIP);
+
+    vec3_t midA, midB;
+    vec3lerp(midA, start, impact, 0.15);
+    vec3lerp(midB, start, impact, 0.85);
+
+    setColor(alpha * 0.01f);
     glVertex3f(start[0], start[1], start[2]);
+
+    setColor(alpha);
+    glVertex3f(midA[0], midA[1], midA[2]);
+    glVertex3f(midB[0], midB[1], midB[2]);
+
+    setColor(alpha * 0.01f);
     glVertex3f(impact[0], impact[1], impact[2]);
+
     glEnd();
+    glShadeModel(GL_FLAT);
+    glDisable(GL_LINE_SMOOTH);
 
     // cleanup gl
     glColor3f(1, 1, 1);
