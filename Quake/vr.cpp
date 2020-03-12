@@ -1588,16 +1588,68 @@ void VR_UpdateScreenContent()
 
             // From: https://stackoverflow.com/a/21627251/598696
             const auto handDiff = toVec3(cl.handpos[0]) - toVec3(cl.handpos[1]);
-            const auto dir = glm::normalize(handDiff);
-            const auto xPitch = asin(dir[2]);
-            const auto xYaw = atan2(dir[1], dir[0]);
+            const auto handDir = glm::normalize(handDiff);
 
-            const auto up = glm::vec3{0, 0, 1};
-            const auto w0 = glm::vec3{-dir[1], dir[0], 0};
-            const auto u0 = glm::cross(w0, dir);
 
-            const auto xRoll = ::atan2(glm::dot(w0, up) / glm::length(w0),
-                glm::dot(u0, up) / glm::length(u0));
+            const auto calcShoulderPos = [] {
+                vec3_t playerYawOnly = {0, sv_player->v.angles[YAW], 0};
+
+                vec3_t vfwd;
+                vec3_t vright;
+                vec3_t vup;
+                AngleVectors(playerYawOnly, vfwd, vright, vup);
+                auto glmVFwd = toVec3(vfwd);
+                auto glmVRight = toVec3(vright);
+                auto glmVUp = toVec3(vup);
+
+                const auto shoulderPos =
+                    toVec3(sv_player->v.origin) + glmVRight * 1.75f +
+                    glmVFwd * -1.5f +
+                    glmVUp * vr_height_calibration.value * 16.f;
+
+                return shoulderPos;
+            };
+
+            const auto shoulderPos = calcShoulderPos();
+
+            const auto shoulderDiff = toVec3(cl.handpos[0]) - shoulderPos;
+            const auto shoulderDir = glm::normalize(shoulderDiff);
+
+            const auto averageDiff = glm::vec3{
+                (handDiff[0] + shoulderDiff[0]) / 2.f, //
+                (handDiff[1] + shoulderDiff[1]) / 2.f, //
+                (handDiff[2] + shoulderDiff[2]) / 2.f  //
+            };
+            const auto averageDir = glm::normalize(averageDiff);
+
+            const auto getAngles = [](const glm::vec3& dir) {
+                const auto xPitch = asin(dir[2]);
+                const auto xYaw = atan2(dir[1], dir[0]);
+
+                const auto up = glm::vec3{0, 0, 1};
+                const auto w0 = glm::vec3{-dir[1], dir[0], 0};
+                const auto u0 = glm::cross(w0, dir);
+
+                const auto xRoll = ::atan2(glm::dot(w0, up) / glm::length(w0),
+                    glm::dot(u0, up) / glm::length(u0));
+
+                return glm::vec3{xPitch, xYaw, xRoll};
+            };
+
+
+            const bool canTwoHand = [](const int wpnCvarEntry) {
+                if(wpnCvarEntry == 0     // axe
+                    || wpnCvarEntry == 8 // hammer (mjolnir)
+                )
+                {
+                    return false;
+                }
+
+                return true;
+            }(weaponCVarEntry);
+
+            // TODO VR: buttons, cvars for everything, weapon traits, virtual
+            // stock
 
             {
                 vec3_t forward, right, up;
@@ -1609,22 +1661,14 @@ void VR_UpdateScreenContent()
                 const bool goodDistance =
                     glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
 
-                const bool canTwoHand = [](const int wpnCvarEntry) {
-                    if(wpnCvarEntry == 0     // axe
-                        || wpnCvarEntry == 8 // hammer (mjolnir)
-                    )
-                    {
-                        return false;
-                    }
-
-                    return true;
-                }(weaponCVarEntry);
-
-                // TODO VR: buttons, cvars, weapon traits, virtual stock
-                // Con_Printf("%.2f\n", diffDot);
+                const bool inStockDistance =
+                    glm::length(toVec3(cl.handpos[1]) - shoulderPos) < 10.f;
 
                 if(goodDistance && diffDot > 0.85f && canTwoHand)
                 {
+                    const auto [xPitch, xYaw, xRoll] =
+                        getAngles(inStockDistance ? averageDir : handDir);
+
                     cl.handrot[1][PITCH] = -xPitch * 180.0 / glm::pi<double>();
                     cl.handrot[1][YAW] = xYaw * 180.0 / glm::pi<double>();
                 }
@@ -1750,6 +1794,58 @@ void VR_ShowCrosshair()
     {
         return;
     }
+
+
+
+    vec3_t playerYawOnly = {0, sv_player->v.angles[YAW], 0};
+
+    vec3_t vfwd;
+    vec3_t vright;
+    vec3_t vup;
+    AngleVectors(playerYawOnly, vfwd, vright, vup);
+    auto glmVFwd = toVec3(vfwd);
+    auto glmVRight = toVec3(vright);
+    auto glmVUp = toVec3(vup);
+
+    const auto shoulderPos = toVec3(sv_player->v.origin) + glmVRight * 1.75f +
+                             glmVFwd * -1.5f +
+                             glmVUp * vr_height_calibration.value * 16.f;
+
+
+    // setup gl
+    glDisable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    GL_PolygonOffset(OFFSET_SHOWTRIS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+
+    glLineWidth(4.f * glwidth / vid.width);
+    glEnable(GL_LINE_SMOOTH);
+    glShadeModel(GL_SMOOTH);
+    glBegin(GL_LINE_STRIP);
+
+    glColor4f(0, 1, 0, 0.7);
+    glVertex3f(shoulderPos[0], shoulderPos[1], shoulderPos[2]);
+    glVertex3f(cl.handpos[1][0], cl.handpos[1][1], cl.handpos[1][2]);
+    glVertex3f(cl.handpos[0][0], cl.handpos[0][1], cl.handpos[0][2]);
+
+
+    glEnd();
+    glShadeModel(GL_FLAT);
+    glDisable(GL_LINE_SMOOTH);
+
+    // cleanup gl
+    glColor3f(1, 1, 1);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    GL_PolygonOffset(OFFSET_NONE);
+    glEnable(GL_DEPTH_TEST);
+
+
 
     const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
     const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
