@@ -14,6 +14,12 @@ enum class WpnOffsetMenuOpt
     MuzzleOffsetX,
     MuzzleOffsetY,
     MuzzleOffsetZ,
+    TwoHOffsetX,
+    TwoHOffsetY,
+    TwoHOffsetZ,
+    TwoHPitch,
+    TwoHYaw,
+    TwoHRoll,
 
     Max
 };

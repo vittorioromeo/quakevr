@@ -69,6 +69,28 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_TeleportRange:
             printAsStr(vr_teleport_range);
             break;
+        case VRGameplayMenuOpt::e_2HMode:
+        {
+            if((int)vr_2h_mode.value == (int)Vr2HMode::Disabled)
+            {
+                M_Print(cx, cy, "Disabled");
+            }
+            else if((int)vr_2h_mode.value == (int)Vr2HMode::Basic)
+            {
+                M_Print(cx, cy, "Basic");
+            }
+            else if((int)vr_2h_mode.value == (int)Vr2HMode::VirtualStock)
+            {
+                M_Print(cx, cy, "Virtual Stock");
+            }
+            break;
+        }
+        case VRGameplayMenuOpt::e_2HAngleThreshold:
+            printAsStr(vr_2h_angle_threshold);
+            break;
+        case VRGameplayMenuOpt::e_2HVirtualStockThreshold:
+            printAsStr(vr_2h_virtual_stock_threshold);
+            break;
         default: assert(false); break;
     }
 
@@ -130,6 +152,13 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_TeleportRange:
             adjustF(vr_teleport_range, 10.f, 100.f, 800.f);
+            break;
+        case VRGameplayMenuOpt::e_2HMode: adjustI(vr_2h_mode, 1, 0, 2); break;
+        case VRGameplayMenuOpt::e_2HAngleThreshold:
+            adjustF(vr_2h_angle_threshold, 0.05f, -1.f, 1.f);
+            break;
+        case VRGameplayMenuOpt::e_2HVirtualStockThreshold:
+            adjustF(vr_2h_virtual_stock_threshold, 1.f, 0.f, 50.f);
             break;
         default: assert(false); break;
     }
@@ -205,7 +234,8 @@ void M_VRGameplay_Draw()
         "Melee Threshold", "Roomscale Jump", "Roomscale Jump Threshold",
         "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
         "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier",
-        "Room-Scale Move Mult.", "Teleportation", "Teleport Range");
+        "Room-Scale Move Mult.", "Teleportation", "Teleport Range", "2H Aiming",
+        "2H Aiming Threshold", "2H Virtual Stock Dist.");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

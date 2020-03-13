@@ -71,6 +71,13 @@ enum class VrSbarMode : int
     OffHand = 1
 };
 
+enum class Vr2HMode:int
+{
+    Disabled = 0,
+    Basic = 1,
+    VirtualStock = 2
+};
+
 //
 //
 //
@@ -117,6 +124,12 @@ enum class WpnCVar : std::uint8_t
     MuzzleOffsetX = 8,
     MuzzleOffsetY = 9,
     MuzzleOffsetZ = 10,
+    TwoHOffsetX = 11,
+    TwoHOffsetY = 12,
+    TwoHOffsetZ = 13,
+    TwoHPitch = 14,
+    TwoHYaw = 15,
+    TwoHRoll = 16,
 
     k_Max
 };
@@ -221,3 +234,6 @@ extern cvar_t vr_body_interactions;
 extern cvar_t vr_room_scale_move_mult;
 extern cvar_t vr_teleport_enabled;
 extern cvar_t vr_teleport_range;
+extern cvar_t vr_2h_mode;
+extern cvar_t vr_2h_angle_threshold;
+extern cvar_t vr_2h_virtual_stock_threshold;

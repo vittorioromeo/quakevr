@@ -254,8 +254,6 @@ DEFINE_CVAR(vr_body_interactions, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_room_scale_move_mult, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_teleport_enabled, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_teleport_range, 400, CVAR_ARCHIVE);
-
-// TODO VR: use, add to menu
 DEFINE_CVAR(vr_2h_mode, 2, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_angle_threshold, 0.85, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_virtual_stock_threshold, 10, CVAR_ARCHIVE);
@@ -687,6 +685,24 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetZ)};
 }
 
+[[nodiscard]] WeaponOffsets VR_GetWpn2HOffsets(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHOffsetX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHOffsetY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHOffsetZ)};
+}
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpn2HAngleOffsets(
+    const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHPitch),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHYaw),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHRoll)};
+}
+
+
 void InitWeaponCVar(cvar_t& cvar, const char* name, int i, const char* value)
 {
     const char* cvarname = CopyWithNumeral(name, i + 1);
@@ -708,7 +724,10 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* offsetY, const char* offsetZ, const char* scale,
     const char* roll = "0.0", const char* pitch = "0.0",
     const char* yaw = "0.0", const char* muzzleOffsetX = "0.0",
-    const char* muzzleOffsetY = "0.0", const char* muzzleOffsetZ = "0.0")
+    const char* muzzleOffsetY = "0.0", const char* muzzleOffsetZ = "0.0",
+    const char* twoHOffsetX = "0.0", const char* twoHOffsetY = "0.0",
+    const char* twoHOffsetZ = "0.0", const char* twoHPitch = "0.0",
+    const char* twoHYaw = "0.0", const char* twoHRoll = "0.0")
 {
     // clang-format off
     constexpr const char* nameOffsetX = "vr_wofs_x_nn";
@@ -722,6 +741,12 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* nameMuzzleOffsetX = "vr_wofs_muzzle_x_nn";
     constexpr const char* nameMuzzleOffsetY = "vr_wofs_muzzle_y_nn";
     constexpr const char* nameMuzzleOffsetZ = "vr_wofs_muzzle_z_nn";
+    constexpr const char* name2HOffsetX = "vr_wofs_2h_x_nn";
+    constexpr const char* name2HOffsetY = "vr_wofs_2h_y_nn";
+    constexpr const char* name2HOffsetZ = "vr_wofs_2h_z_nn";
+    constexpr const char* name2HPitch = "vr_wofs_2h_pitch_nn";
+    constexpr const char* name2HYaw = "vr_wofs_2h_yaw_nn";
+    constexpr const char* name2HRoll = "vr_wofs_2h_roll_nn";
 
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
@@ -734,6 +759,12 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX), nameMuzzleOffsetX, i, muzzleOffsetX);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY), nameMuzzleOffsetY, i, muzzleOffsetY);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ), nameMuzzleOffsetZ, i, muzzleOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetX), name2HOffsetX, i, twoHOffsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetY), name2HOffsetY, i, twoHOffsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetZ), name2HOffsetZ, i, twoHOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHPitch), name2HPitch, i, twoHPitch);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHYaw), name2HYaw, i, twoHYaw);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll), name2HRoll, i, twoHRoll);
     // clang-format on
 }
 
@@ -1602,7 +1633,8 @@ void VR_UpdateScreenContent()
             SetHandPos(0, player);
             SetHandPos(1, player);
 
-            if(vr_left_grabbing)
+            if(vr_left_grabbing &&
+                (int)vr_2h_mode.value != (int)Vr2HMode::Disabled)
             {
                 const auto handDiff =
                     toVec3(cl.handpos[0]) - toVec3(cl.handpos[1]);
@@ -1641,16 +1673,26 @@ void VR_UpdateScreenContent()
                                               glm::length(handDiff) < 25.f;
 
                     const bool inStockDistance =
-                        glm::length(toVec3(cl.handpos[1]) - shoulderPos) < 10.f;
+                        glm::length(toVec3(cl.handpos[1]) - shoulderPos) <
+                        vr_2h_virtual_stock_threshold.value;
 
-                    if(goodDistance && diffDot > 0.85f && canTwoHand)
+                    const bool useStock =
+                        inStockDistance &&
+                        (int)vr_2h_mode.value == (int)Vr2HMode::VirtualStock;
+
+                    if(goodDistance && diffDot > vr_2h_angle_threshold.value &&
+                        canTwoHand)
                     {
                         const auto [pitch, yaw, roll] =
                             quake::util::pitchYawRollFromDirectionVector(
-                                inStockDistance ? averageDir : handDir);
+                                useStock ? averageDir : handDir);
 
-                        cl.handrot[1][PITCH] = -pitch;
-                        cl.handrot[1][YAW] = yaw;
+                        const auto [oP, oY, oR] =
+                            VR_GetWpn2HAngleOffsets(weaponCVarEntry);
+
+                        cl.handrot[1][PITCH] = -pitch + oP;
+                        cl.handrot[1][YAW] = yaw + oY;
+                        cl.handrot[1][ROLL] = oR;
 
                         // TODO VR:
                         // cl.handrot[1][ROLL] = roll;

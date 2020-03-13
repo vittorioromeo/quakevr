@@ -14,6 +14,9 @@ enum class VRGameplayMenuOpt
     e_RoomScaleMoveMult,
     e_TeleportEnabled,
     e_TeleportRange,
+    e_2HMode,
+    e_2HAngleThreshold,
+    e_2HVirtualStockThreshold,
 
     k_Max
 };
