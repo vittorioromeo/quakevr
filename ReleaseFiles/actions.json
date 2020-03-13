@@ -1,5 +1,6 @@
 {
-    "actions": [{
+    "actions": [
+        {
             "name": "/actions/default/in/Locomotion",
             "type": "vector2"
         },
@@ -36,6 +37,14 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/LeftGrab",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/RightGrab",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/out/LeftHaptic",
             "type": "vibration"
         },
@@ -44,11 +53,14 @@
             "type": "vibration"
         }
     ],
-    "action_sets": [{
-        "name": "/actions/default",
-        "usage": "leftright"
-    }],
-    "default_bindings": [{
+    "action_sets": [
+        {
+            "name": "/actions/default",
+            "usage": "leftright"
+        }
+    ],
+    "default_bindings": [
+        {
             "controller_type": "knuckles",
             "binding_url": "bindings_knuckles.json"
         },
@@ -61,18 +73,22 @@
             "binding_url": "bindings_generic.json"
         }
     ],
-    "localization": [{
-        "language_tag": "en_US",
-        "/actions/default/in/Locomotion": "Locomotion",
-        "/actions/default/in/Turn": "Turn",
-        "/actions/default/in/Fire": "Fire",
-        "/actions/default/in/Jump": "Jump",
-        "/actions/default/in/PrevWeapon": "Previous Weapon",
-        "/actions/default/in/NextWeapon": "Next Weapon",
-        "/actions/default/in/Escape": "Escape",
-        "/actions/default/in/Speed": "Speed Modifier",
-        "/actions/default/in/Teleport": "Teleport",
-        "/actions/default/out/LeftHaptic": "Left Haptic",
-        "/actions/default/out/RightHaptic": "Right Haptic"
-    }]
+    "localization": [
+        {
+            "language_tag": "en_US",
+            "/actions/default/in/Locomotion": "Locomotion",
+            "/actions/default/in/Turn": "Turn",
+            "/actions/default/in/Fire": "Fire",
+            "/actions/default/in/Jump": "Jump",
+            "/actions/default/in/PrevWeapon": "Previous Weapon",
+            "/actions/default/in/NextWeapon": "Next Weapon",
+            "/actions/default/in/Escape": "Escape",
+            "/actions/default/in/Speed": "Speed Modifier",
+            "/actions/default/in/Teleport": "Teleport",
+            "/actions/default/in/LeftGrab": "Left Hand Grab",
+            "/actions/default/in/RightGrab": "Right Hand Grab",
+            "/actions/default/out/LeftHaptic": "Left Hand Haptic",
+            "/actions/default/out/RightHaptic": "Right Hand Haptic"
+        }
+    ]
 }

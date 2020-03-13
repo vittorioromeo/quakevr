@@ -105,6 +105,25 @@ namespace quake::util
         out[1] = lerp(start[1], end[1], f);
         out[2] = lerp(start[2], end[2], f);
     }
+
+    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
+        const glm::vec3& dir)
+    {
+        // From: https://stackoverflow.com/a/21627251/598696
+
+        const auto pitch = asin(dir[2]);
+        const auto yaw = atan2(dir[1], dir[0]);
+
+        const auto up = glm::vec3{0, 0, 1};
+        const auto w0 = glm::vec3{-dir[1], dir[0], 0};
+        const auto u0 = glm::cross(w0, dir);
+
+        // TODO VR: verify correctness of roll
+        const auto roll = atan2(glm::dot(w0, up) / glm::length(w0),
+            glm::dot(u0, up) / glm::length(u0));
+
+        return glm::degrees(glm::vec3{pitch, yaw, roll});
+    }
 } // namespace quake::util
 
 namespace std

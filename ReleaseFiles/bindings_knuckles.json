@@ -1,21 +1,24 @@
 {
     "action_manifest_version": 0,
     "alias_info": {},
+    "app_key": "system.generated.quakespasm-sdl2-release.exe",
     "bindings": {
         "/actions/default": {
             "chords": [],
-            "haptics": [{
-                    "output": "/actions/default/out/LeftHaptic",
+            "haptics": [
+                {
+                    "output": "/actions/default/out/lefthaptic",
                     "path": "/user/hand/left/output/haptic"
                 },
                 {
-                    "output": "/actions/default/out/RightHaptic",
+                    "output": "/actions/default/out/righthaptic",
                     "path": "/user/hand/right/output/haptic"
                 }
             ],
             "poses": [],
             "skeleton": [],
-            "sources": [{
+            "sources": [
+                {
                     "inputs": {
                         "position": {
                             "output": "/actions/default/in/Locomotion"
@@ -86,6 +89,33 @@
                     },
                     "mode": "button",
                     "path": "/user/hand/left/input/trigger"
+                },
+                {
+                    "inputs": {
+                        "touch": {
+                            "output": "/actions/default/in/teleport"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/left/input/trackpad"
+                },
+                {
+                    "inputs": {
+                        "grab": {
+                            "output": "/actions/default/in/leftgrab"
+                        }
+                    },
+                    "mode": "grab",
+                    "path": "/user/hand/left/input/grip"
+                },
+                {
+                    "inputs": {
+                        "grab": {
+                            "output": "/actions/default/in/rightgrab"
+                        }
+                    },
+                    "mode": "grab",
+                    "path": "/user/hand/right/input/grip"
                 }
             ]
         }
