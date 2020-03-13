@@ -10,6 +10,7 @@ enum class DebugMenuOpt
     e_Fly,
     e_HostTimescale,
     e_Impulse255,
+    e_ShowVirtualStock,
 
     k_Max
 };

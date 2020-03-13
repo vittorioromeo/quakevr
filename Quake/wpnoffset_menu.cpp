@@ -42,7 +42,8 @@ static auto getCvars()
         VR_GetWpnCVar(idx, WpnCVar::TwoHOffsetZ),
         VR_GetWpnCVar(idx, WpnCVar::TwoHPitch),
         VR_GetWpnCVar(idx, WpnCVar::TwoHYaw),
-        VR_GetWpnCVar(idx, WpnCVar::TwoHRoll)
+        VR_GetWpnCVar(idx, WpnCVar::TwoHRoll),
+        VR_GetWpnCVar(idx, WpnCVar::TwoHMode)
     );
     // clang-format on
 }
@@ -63,7 +64,7 @@ static void WpnOffset_MenuPrintOptionValue(
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr] = getCvars();
+        thry, thrr, thmode] = getCvars();
 
     switch(option)
     {
@@ -84,6 +85,25 @@ static void WpnOffset_MenuPrintOptionValue(
         case WpnOffsetMenuOpt::TwoHPitch: printAsStr(thrp); break;
         case WpnOffsetMenuOpt::TwoHYaw: printAsStr(thry); break;
         case WpnOffsetMenuOpt::TwoHRoll: printAsStr(thrr); break;
+        case WpnOffsetMenuOpt::TwoHMode:
+        {
+            const auto mode =
+                static_cast<Wpn2HMode>(static_cast<int>(thmode.value));
+
+            if(mode == Wpn2HMode::Default)
+            {
+                M_Print(cx, cy, "Default");
+            }
+            else if(mode == Wpn2HMode::NoVirtualStock)
+            {
+                M_Print(cx, cy, "Ignore Virtual Stock");
+            }
+            else if(mode == Wpn2HMode::Forbidden)
+            {
+                M_Print(cx, cy, "Forbidden");
+            }
+            break;
+        }
         default: assert(false); break;
     }
 }
@@ -98,8 +118,15 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
             CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
     };
 
+    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
+                             auto max) {
+        Cvar_SetValue(cvar.name,
+            (int)CLAMP(
+                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
+    };
+
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr] = getCvars();
+        thry, thrr, thmode] = getCvars();
 
     const float oInc = in_speed.state ? 5.f : 0.1f;
     constexpr float oBound = 100.f;
@@ -150,6 +177,7 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
         case WpnOffsetMenuOpt::TwoHRoll:
             adjustF(thrr, rInc, -rBound, rBound);
             break;
+        case WpnOffsetMenuOpt::TwoHMode: adjustI(thmode, 1, 0, 2); break;
         default: assert(false); break;
     }
 }
@@ -226,11 +254,11 @@ void M_WpnOffset_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Offhand", "Offset X", "Offset Y",
-            "Offset Z", "Scale", "Roll", "Pitch", "Yaw", "Muzzle Offset X",
-            "Muzzle Offset Y", "Muzzle Offset Z", "2H Offset X", "2H Offset Y",
-            "2H Offset Z", "2H Aim Pitch", "2H Aim Yaw", "2H Aim Roll");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
+        "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z",
+        "2H Offset X", "2H Offset Y", "2H Offset Z", "2H Aim Pitch",
+        "2H Aim Yaw", "2H Aim Roll", "2H Mode");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 

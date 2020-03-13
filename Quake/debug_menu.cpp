@@ -44,6 +44,9 @@ static void Debug_MenuPrintOptionValue(int cx, int cy, DebugMenuOpt option)
         case DebugMenuOpt::e_Fly: break;
         case DebugMenuOpt::e_HostTimescale: printAsStr(host_timescale); break;
         case DebugMenuOpt::e_Impulse255: break;
+        case DebugMenuOpt::e_ShowVirtualStock:
+            M_Print(cx, cy, vr_show_virtual_stock.value == 0 ? "Off" : "On");
+            break;
         default: assert(false); break;
     }
 }
@@ -82,6 +85,9 @@ static void M_Debug_KeyOption(int key, DebugMenuOpt option)
             adjustF(host_timescale, 0.05f, 0.1f, 5.f);
             break;
         case DebugMenuOpt::e_Impulse255: doCheat("impulse 255"); break;
+        case DebugMenuOpt::e_ShowVirtualStock:
+            adjustI(vr_show_virtual_stock, 1, 0, 1);
+            break;
         default: assert(false); break;
     }
 }
@@ -150,9 +156,9 @@ void M_Debug_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Show BBoxes", "Impulse 9",
-            "Impuse 11", "God", "Noclip", "Fly", "Timescale", "Impulse 255");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Show BBoxes", "Impulse 9", "Impuse 11", "God", "Noclip", "Fly",
+        "Timescale", "Impulse 255", "Show Virtual Stock");
 
     static_assert(adjustedLabels.size() == (int)DebugMenuOpt::k_Max);
 

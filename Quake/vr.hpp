@@ -71,7 +71,7 @@ enum class VrSbarMode : int
     OffHand = 1
 };
 
-enum class Vr2HMode:int
+enum class Vr2HMode : int
 {
     Disabled = 0,
     Basic = 1,
@@ -92,6 +92,7 @@ void VID_VR_Disable();
 
 void VR_UpdateScreenContent();
 void VR_ShowCrosshair();
+void VR_ShowVirtualStock();
 void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
@@ -110,6 +111,18 @@ void VR_CalibrateHeight();
 // ----------------------------------------------------------------------------
 // Weapon CVars
 // ----------------------------------------------------------------------------
+
+enum class Wpn2HMode : std::uint8_t
+{
+    // Allows two-hand aiming, and supports virtual stock.
+    Default,
+
+    // Allows two-hand aiming, ignores virtual stock.
+    NoVirtualStock,
+
+    // Disallows two-hand aiming.
+    Forbidden,
+};
 
 enum class WpnCVar : std::uint8_t
 {
@@ -130,6 +143,7 @@ enum class WpnCVar : std::uint8_t
     TwoHPitch = 14,
     TwoHYaw = 15,
     TwoHRoll = 16,
+    TwoHMode = 17,
 
     k_Max
 };
@@ -144,6 +158,7 @@ struct WeaponOffsets
 };
 
 [[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] WeaponOffsets VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 
@@ -155,6 +170,9 @@ struct WeaponAngleOffsets
 };
 
 [[nodiscard]] WeaponAngleOffsets VR_GetWpnAngleOffsets(
+    const int cvarEntry) noexcept;
+
+[[nodiscard]] WeaponAngleOffsets VR_GetWpn2HAngleOffsets(
     const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
@@ -182,6 +200,8 @@ void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept;
     const int cvarEntry, WpnCVar setting) noexcept;
 
 [[nodiscard]] int VR_GetOffHandFistCvarEntry() noexcept;
+
+[[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept;
 
 extern int weaponCVarEntry;
 
@@ -237,3 +257,4 @@ extern cvar_t vr_teleport_range;
 extern cvar_t vr_2h_mode;
 extern cvar_t vr_2h_angle_threshold;
 extern cvar_t vr_2h_virtual_stock_threshold;
+extern cvar_t vr_show_virtual_stock;

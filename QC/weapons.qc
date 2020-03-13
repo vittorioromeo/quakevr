@@ -288,15 +288,14 @@ void(float stat) HIP_FireLaser =
    out_z = 0;
    out = normalize(out);
    // TODO VR: fix, make model
-   org = self.handpos + ((12-ofs) * v_up) + (12*out);
+   org = self.muzzlepos + ((-1) * v_up) + (2*out);
 //   org = self.origin + (1*v_forward);
    dir = aim (self, 1000);
-   aofs = ofs * 0.707;
+   aofs = ofs * 0.15;
    if (stat == 0)
       {
       self.currentammo = self.ammo_cells = self.ammo_cells - 1;
       org = org + (aofs*v_right);
-      org = org - (aofs*v_up);
       HIP_LaunchLaser(org, dir, 0);
       org = org - (2*aofs*v_right);
       HIP_LaunchLaser(org, dir, 0);
@@ -304,7 +303,7 @@ void(float stat) HIP_FireLaser =
    else if (stat == 1)
       {
       self.currentammo = self.ammo_cells = self.ammo_cells - 1;
-      org = org + (ofs*v_up);
+      org = org + (ofs*(v_up * 0.4));
       if (random()<0.1)
          {
          HIP_LaunchLaser(org, dir, 1);

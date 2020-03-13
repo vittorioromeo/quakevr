@@ -800,6 +800,11 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
             VR_ShowCrosshair();
         }
 
+        if(vr_show_virtual_stock.value)
+        {
+            VR_ShowVirtualStock();
+        }
+
         VR_DrawTeleportLine();
     }
 

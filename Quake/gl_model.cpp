@@ -3265,7 +3265,7 @@ void Mod_LoadAliasModel(qmodel_t* mod, void* buffer)
         pheader->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
-    VectorCopy(pheader->scale, pheader->original_scale);
+    VectorCopy(pheader->scale, pheader->original_scale); 
     VectorCopy(pheader->scale_origin, pheader->original_scale_origin);
 
     //

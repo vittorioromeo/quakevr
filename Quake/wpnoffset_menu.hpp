@@ -20,6 +20,7 @@ enum class WpnOffsetMenuOpt
     TwoHPitch,
     TwoHYaw,
     TwoHRoll,
+    TwoHMode,
 
     Max
 };
