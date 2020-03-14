@@ -17,6 +17,9 @@ enum class VRGameplayMenuOpt
     e_2HMode,
     e_2HAngleThreshold,
     e_2HVirtualStockThreshold,
+    e_ShoulderOffsetX,
+    e_ShoulderOffsetY,
+    e_ShoulderOffsetZ,
 
     k_Max
 };

@@ -282,6 +282,9 @@ DEFINE_CVAR(vr_2h_mode, 2, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_angle_threshold, 0.8, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_virtual_stock_threshold, 10, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_offset_x, -1.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_offset_y, 1.75, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_offset_z, 16.0, CVAR_ARCHIVE);
 
 //
 //
@@ -1363,18 +1366,14 @@ void SetHandPos(int index, entity_t* player)
 {
     vec3_t playerYawOnly = {0, sv_player->v.angles[YAW], 0};
 
-    vec3_t vfwd;
-    vec3_t vright;
-    vec3_t vup;
-    AngleVectors(playerYawOnly, vfwd, vright, vup);
-    auto glmVFwd = toVec3(vfwd);
-    auto glmVRight = toVec3(vright);
-    auto glmVUp = toVec3(vup);
+    const auto [vFwd, vRight, vUp] = getGlmAngledVectors(playerYawOnly);
 
-    // TODO VR: cvars
-    const auto shoulderPos = toVec3(sv_player->v.origin) + glmVRight * 1.75f +
-                             glmVFwd * -1.5f +
-                             glmVUp * vr_height_calibration.value * 16.f;
+    const auto ox = vr_shoulder_offset_x.value;
+    const auto oy = vr_shoulder_offset_y.value;
+    const auto oz = vr_shoulder_offset_z.value;
+
+    const auto shoulderPos = toVec3(sv_player->v.origin) + vRight * oy +
+                             vFwd * ox + vUp * vr_height_calibration.value * oz;
 
     return shoulderPos;
 }
@@ -1741,7 +1740,7 @@ void VR_UpdateScreenContent()
             SetHandPos(1, player);
 
 
-        // TODO VR: move refactor and reorganize
+            // TODO VR: move refactor and reorganize
             const auto vr2HMode =
                 static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
             const auto wpn2HMode = VR_GetWpn2HMode(currWpnCVarEntry);
@@ -1789,37 +1788,23 @@ void VR_UpdateScreenContent()
 
                     const float frametime = cl.time - cl.oldtime;
 
-                    // TODO VR: repetition with below
-                    if(useStock)
-                    {
-                        vr_2h_aim_stock_transition += frametime * 5.f;
-                    }
-                    else
-                    {
-                        vr_2h_aim_stock_transition -= frametime * 5.f;
-                    }
+                    const auto transitionVar = [&frametime](float& var,
+                                                   const bool predicate,
+                                                   const float speed) {
+                        var += frametime * (predicate ? speed : -speed);
+                        var = std::clamp(var, 0.f, 1.f);
+                    };
 
-                    vr_2h_aim_stock_transition =
-                        std::clamp(vr_2h_aim_stock_transition, 0.f, 1.f);
+                    transitionVar(vr_2h_aim_stock_transition, useStock, 5.f);
 
-                    // Con_Printf("%.2f | %.2f\n", vr_2h_aim_transition,
-                    //     vr_2h_aim_stock_transition);
+                    const bool shouldAim2H =
+                        canGrabWith2H && goodDistance &&
+                        diffDot > vr_2h_angle_threshold.value;
+
+                    transitionVar(vr_2h_aim_transition, shouldAim2H, 5.f);
 
                     const auto mixStockDir = glm::mix(
                         handDir, averageDir, vr_2h_aim_stock_transition);
-
-                    if(canGrabWith2H && goodDistance &&
-                        diffDot > vr_2h_angle_threshold.value)
-                    {
-                        vr_2h_aim_transition += frametime * 5.f;
-                    }
-                    else
-                    {
-                        vr_2h_aim_transition -= frametime * 5.f;
-                    }
-
-                    vr_2h_aim_transition =
-                        std::clamp(vr_2h_aim_transition, 0.f, 1.f);
 
                     const auto mixDir =
                         glm::mix(origDir, mixStockDir, vr_2h_aim_transition);

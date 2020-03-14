@@ -91,6 +91,15 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_2HVirtualStockThreshold:
             printAsStr(vr_2h_virtual_stock_threshold);
             break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetX:
+            printAsStr(vr_shoulder_offset_x);
+            break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetY:
+            printAsStr(vr_shoulder_offset_y);
+            break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetZ:
+            printAsStr(vr_shoulder_offset_z);
+            break;
         default: assert(false); break;
     }
 
@@ -159,6 +168,15 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_2HVirtualStockThreshold:
             adjustF(vr_2h_virtual_stock_threshold, 1.f, 0.f, 50.f);
+            break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetX:
+            adjustF(vr_shoulder_offset_x, 0.5f, -50.f, 50.f);
+            break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetY:
+            adjustF(vr_shoulder_offset_y, 0.5f, -50.f, 50.f);
+            break;
+        case VRGameplayMenuOpt::e_ShoulderOffsetZ:
+            adjustF(vr_shoulder_offset_z, 0.5f, -50.f, 50.f);
             break;
         default: assert(false); break;
     }
@@ -235,7 +253,8 @@ void M_VRGameplay_Draw()
         "Calibrate Height", "Melee Damage Multiplier", "Melee Range Multiplier",
         "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier",
         "Room-Scale Move Mult.", "Teleportation", "Teleport Range", "2H Aiming",
-        "2H Aiming Threshold", "2H Virtual Stock Dist.");
+        "2H Aiming Threshold", "2H Virtual Stock Dist.", "Shoulder Offset X",
+        "Shoulder Offset Y", "Shoulder Offset Z");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

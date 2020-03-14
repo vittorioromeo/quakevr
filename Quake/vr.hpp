@@ -263,3 +263,6 @@ extern cvar_t vr_2h_mode;
 extern cvar_t vr_2h_angle_threshold;
 extern cvar_t vr_2h_virtual_stock_threshold;
 extern cvar_t vr_show_virtual_stock;
+extern cvar_t vr_shoulder_offset_x;
+extern cvar_t vr_shoulder_offset_y;
+extern cvar_t vr_shoulder_offset_z;
