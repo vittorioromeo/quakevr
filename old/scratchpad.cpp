@@ -459,3 +459,93 @@ static void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
         }
     }
     cl.viewangles[ROLL] = orientation[ROLL];
+
+
+
+
+// -----------------------------------------------------------------------
+    // VR: Detect & resolve hand collisions against the world or entities.
+
+    // Positions.
+    auto currHandPos = toVec3(cl.handpos[index]);
+    const auto desiredHandPos = toVec3(finalPre);
+
+    // Size of hand hitboxes.
+    vec3_t mins{-1.f, -1.f, -1.f};
+    vec3_t maxs{1.f, 1.f, 1.f};
+
+    // Start around the upper torso, not actual center of the player.
+    vec3_t adjPlayerOrigin;
+    VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
+
+    // TODO VR:
+    const float gunLength = 13;
+
+    // 1. If hands get too far, bring them closer to the player.
+    constexpr auto maxHandPlayerDiff = 100.f;
+    const auto handPlayerDiff = currHandPos - toVec3(adjPlayerOrigin);
+    if (glm::length(handPlayerDiff) > maxHandPlayerDiff)
+    {
+        const auto dir = glm::normalize(handPlayerDiff);
+        currHandPos[0] = dir[0] * maxHandPlayerDiff;
+        currHandPos[1] = dir[1] * maxHandPlayerDiff;
+        currHandPos[2] = dir[2] * maxHandPlayerDiff;
+    }
+
+    // 2. Trace the current hand position against the desired one.
+    // `SV_Move` detects entities as well, not just geometry.
+    const trace_t handTrace =
+        SV_Move(cl.handpos[index], mins, maxs, finalPre, MOVE_NORMAL, sv_player);
+
+
+
+
+
+    vec3_t forward, right, up;
+    AngleVectors(cl.handrot[1], forward, right, up);
+
+
+
+    // Trace from upper torso to desired final location. `SV_Move` detects
+    // entities as well, not just geometry.
+    const trace_t trace =
+        SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
+
+    vec3_t adjFinalPre;
+    VectorCopy(finalPre, adjFinalPre);
+
+    adjFinalPre[0] += forward[0] * gunLength;
+    adjFinalPre[1] += forward[1] * gunLength;
+    adjFinalPre[2] += forward[2] * gunLength;
+
+    // TODO VR:
+    const trace_t gunTrace =
+        SV_Move(cl.handpos[1], mins, maxs, adjFinalPre, MOVE_NORMAL, sv_player);
+
+    // Origin of the trace.
+    const auto orig = quake::util::toVec3(adjPlayerOrigin);
+
+    // Final position before collision resolution.
+    const auto pre = quake::util::toVec3(finalPre);
+
+    // Final position after full collision resolution.
+    const auto crop = quake::util::toVec3(trace.endpos);
+
+    // TODO VR:
+    auto gunCrop = quake::util::toVec3(gunTrace.endpos) -=
+        toVec3(forward) * gunLength;
+
+    // Compute final collision resolution position, starting from the desired
+    // position and resolving only against the collision plane's normal vector.
+    VectorCopy(finalPre, finalVec);
+    if(trace.fraction < 1.f)
+    {
+        VectorCopy(finalPre, finalVec);
+        for(int i = 0; i < 3; ++i)
+        {
+            if(trace.plane.normal[i] != 0)
+            {
+                finalVec[i] = crop[i];
+            }
+        }
+    }

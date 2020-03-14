@@ -105,6 +105,9 @@ void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
 
+void VR_DoHaptic(const int hand, const float delay, const float duration,
+    const float frequency, const float amplitude);
+
 //
 //
 //
@@ -144,6 +147,7 @@ enum class WpnCVar : std::uint8_t
     TwoHYaw = 15,
     TwoHRoll = 16,
     TwoHMode = 17,
+    Length = 18,
 
     k_Max
 };
@@ -187,6 +191,7 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
     const int cvarEntry) noexcept;
 
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept;
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept;
 
 void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept;

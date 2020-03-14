@@ -255,9 +255,9 @@ DEFINE_CVAR(vr_room_scale_move_mult, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_teleport_enabled, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_teleport_range, 400, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_mode, 2, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_2h_angle_threshold, 0.85, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_2h_angle_threshold, 0.8, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_virtual_stock_threshold, 10, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_show_virtual_stock, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
 
 //
 //
@@ -709,6 +709,11 @@ char* CopyWithNumeral(const char* str, int i)
         static_cast<int>(VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHMode)));
 }
 
+[[nodiscard]] float VR_GetWpnLength(const int cvarEntry) noexcept
+{
+    return VR_GetWpnCVarValue(cvarEntry, WpnCVar::Length);
+}
+
 
 void InitWeaponCVar(cvar_t& cvar, const char* name, int i, const char* value)
 {
@@ -735,7 +740,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* twoHOffsetX = "0.0", const char* twoHOffsetY = "0.0",
     const char* twoHOffsetZ = "0.0", const char* twoHPitch = "0.0",
     const char* twoHYaw = "0.0", const char* twoHRoll = "0.0",
-    const char* twoHMode = "0.0")
+    const char* twoHMode = "0.0", const char* length = "0.0")
 {
     // clang-format off
     constexpr const char* nameOffsetX = "vr_wofs_x_nn";
@@ -756,6 +761,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* name2HYaw = "vr_wofs_2h_yaw_nn";
     constexpr const char* name2HRoll = "vr_wofs_2h_roll_nn";
     constexpr const char* name2HMode = "vr_wofs_2h_mode_nn";
+    constexpr const char* nameLength = "vr_wofs_length_nn";
 
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
@@ -775,6 +781,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHYaw), name2HYaw, i, twoHYaw);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll), name2HRoll, i, twoHRoll);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHMode), name2HMode, i, twoHMode);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Length), nameLength, i, length);
     // clang-format on
 }
 
@@ -1176,6 +1183,20 @@ void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
     out[2] = VR_GetHandZOrigin(player) + 40;
 }
 
+
+// TODO VR:
+bool vr_was_teleporting = false;
+bool vr_teleporting = false;
+bool vr_teleporting_impact_valid = false;
+bool vr_send_teleport_msg = false;
+vec3_t vr_teleporting_impact{0, 0, 0};
+bool vr_left_grabbing = false;
+bool vr_right_grabbing = false;
+bool vr_gun_colliding_with_wall = false;
+float vr_2h_aim_transition = 0.f;
+float vr_2h_aim_stock_transition = 0.f;
+
+
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1203,6 +1224,16 @@ void SetHandPos(int index, entity_t* player)
     vec3_t mins{-1.f, -1.f, -1.f};
     vec3_t maxs{1.f, 1.f, 1.f};
 
+    // TODO VR: cvar to enable/disable muzzle collisions
+
+    VectorCopy(finalPre, finalVec);
+
+    //  const float gunLength = index == 0 ? 0.f :
+    //  VR_GetWpnLength(weaponCVarEntry);
+
+    vec3_t forward, right, up;
+    AngleVectors(cl.handrot[1], forward, right, up);
+
     // Start around the upper torso, not actual center of the player.
     vec3_t adjPlayerOrigin;
     VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
@@ -1212,34 +1243,72 @@ void SetHandPos(int index, entity_t* player)
     const trace_t trace =
         SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
 
-    // Origin of the trace.
-    const auto orig = quake::util::toVec3(adjPlayerOrigin);
-
-    // Final position before collision resolution.
-    const auto pre = quake::util::toVec3(finalPre);
-
     // Final position after full collision resolution.
     const auto crop = quake::util::toVec3(trace.endpos);
 
     // Compute final collision resolution position, starting from the desired
     // position and resolving only against the collision plane's normal vector.
-    VectorCopy(finalPre, finalVec);
-    if(glm::length(pre - orig) >= glm::length(crop - orig))
+    vec3_t resolvedHandPos;
+    VectorCopy(finalPre, resolvedHandPos);
+    if(trace.fraction < 1.f)
     {
-        VectorCopy(finalPre, finalVec);
         for(int i = 0; i < 3; ++i)
         {
             if(trace.plane.normal[i] != 0)
             {
-                finalVec[i] = trace.endpos[i];
+                resolvedHandPos[i] = crop[i];
             }
         }
     }
+
+    VectorCopy(resolvedHandPos, finalVec);
+
+    const auto muzzlePos =
+        index == 0 ? toVec3(cl.handpos[index])
+                   : toVec3(resolvedHandPos) + VR_CalcWeaponMuzzlePosImpl();
+
+    vec3_t adjFinalPre;
+    // VectorCopy(finalPre, adjFinalPre);
+
+    adjFinalPre[0] = muzzlePos[0];
+    adjFinalPre[1] = muzzlePos[1];
+    adjFinalPre[2] = muzzlePos[2];
+
+    // TODO VR:
+    const trace_t gunTrace = SV_Move(
+        resolvedHandPos, mins, maxs, adjFinalPre, MOVE_NORMAL, sv_player);
+
+    // TODO VR:
+    auto gunCrop =
+        quake::util::toVec3(gunTrace.endpos) - VR_CalcWeaponMuzzlePosImpl();
+
+
+    if(gunTrace.fraction < 1.f)
+    {
+        // TODO VR: haptics cancel each other
+        // VR_DoHaptic(index, 0.f, 0.1f, 50, 1.f - gunTrace.fraction);
+
+        vr_gun_colliding_with_wall = true;
+        for(int i = 0; i < 3; ++i)
+        {
+            // if(gunTrace.plane.normal[i] != 0)
+            {
+                finalVec[i] = gunCrop[i];
+            }
+        }
+    }
+    else
+    {
+        vr_gun_colliding_with_wall = false;
+    }
+
+
 
     // handpos
     const auto oldx = cl.handpos[index][0];
     const auto oldy = cl.handpos[index][1];
     const auto oldz = cl.handpos[index][2];
+
     VectorCopy(finalVec, cl.handpos[index]);
 
     // TODO VR: adjust weight and add cvar, fix movement
@@ -1268,15 +1337,6 @@ void SetHandPos(int index, entity_t* player)
                             1.75f;
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
-
-// TODO VR:
-bool vr_was_teleporting = false;
-bool vr_teleporting = false;
-bool vr_teleporting_impact_valid = false;
-bool vr_send_teleport_msg = false;
-vec3_t vr_teleporting_impact{0, 0, 0};
-bool vr_left_grabbing = false;
-bool vr_right_grabbing = false;
 
 [[nodiscard]] static glm::vec3 VR_GetShoulderPos() noexcept
 {
@@ -1660,11 +1720,11 @@ void VR_UpdateScreenContent()
                 static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
             const auto wpn2HMode = VR_GetWpn2HMode(weaponCVarEntry);
 
-            const bool canGrabWith2H = vr_left_grabbing &&
-                                       wpn2HMode != Wpn2HMode::Forbidden &&
-                                       vr2HMode != Vr2HMode::Disabled;
+            const bool canGrabWith2H =
+                vr_left_grabbing && wpn2HMode != Wpn2HMode::Forbidden &&
+                vr2HMode != Vr2HMode::Disabled && !vr_gun_colliding_with_wall;
 
-            if(canGrabWith2H)
+            if(true)
             {
                 const auto offHandPos = VR_Get2HOffHandPos();
 
@@ -1685,8 +1745,10 @@ void VR_UpdateScreenContent()
                     vec3_t forward, right, up;
                     AngleVectors(originalRots[1], forward, right, up);
 
+                    const auto origDir = toVec3(forward);
+
                     const auto diffDot =
-                        glm::dot(glm::normalize(handDiff), toVec3(forward));
+                        glm::dot(glm::normalize(handDiff), origDir);
 
                     const bool goodDistance = glm::length(handDiff) > 5.f &&
                                               glm::length(handDiff) < 25.f;
@@ -1699,22 +1761,63 @@ void VR_UpdateScreenContent()
                         inStockDistance && vr2HMode == Vr2HMode::VirtualStock &&
                         wpn2HMode != Wpn2HMode::NoVirtualStock;
 
-                    if(goodDistance && diffDot > vr_2h_angle_threshold.value)
+                    const float frametime = cl.time - cl.oldtime;
+
+                    if(useStock)
                     {
-                        const auto [pitch, yaw, roll] =
-                            quake::util::pitchYawRollFromDirectionVector(
-                                useStock ? averageDir : handDir);
-
-                        const auto [oP, oY, oR] =
-                            VR_GetWpn2HAngleOffsets(weaponCVarEntry);
-
-                        cl.handrot[1][PITCH] = -pitch + oP;
-                        cl.handrot[1][YAW] = yaw + oY;
-                        cl.handrot[1][ROLL] = oR;
-
-                        // TODO VR:
-                        // cl.handrot[1][ROLL] = roll;
+                        vr_2h_aim_stock_transition += frametime * 5.f;
                     }
+                    else
+                    {
+                        vr_2h_aim_stock_transition -= frametime * 5.f;
+                    }
+
+                    vr_2h_aim_stock_transition =
+                        std::clamp(vr_2h_aim_stock_transition, 0.f, 1.f);
+
+                   // Con_Printf("%.2f | %.2f\n", vr_2h_aim_transition,
+                   //     vr_2h_aim_stock_transition);
+
+                    const auto mixStockDir = glm::mix(
+                        handDir, averageDir, vr_2h_aim_stock_transition);
+
+                    if(canGrabWith2H && goodDistance &&
+                        diffDot > vr_2h_angle_threshold.value)
+                    {
+                        vr_2h_aim_transition += frametime * 5.f;
+                    }
+                    else
+                    {
+                        vr_2h_aim_transition -= frametime * 5.f;
+                    }
+
+                    vr_2h_aim_transition =
+                        std::clamp(vr_2h_aim_transition, 0.f, 1.f);
+
+                    const auto mixDir =
+                        glm::mix(origDir, mixStockDir, vr_2h_aim_transition);
+
+                    const auto [pitch, yaw, roll] =
+                        quake::util::pitchYawRollFromDirectionVector(up, mixDir);
+
+                    const auto [oP, oY, oR] =
+                        VR_GetWpn2HAngleOffsets(weaponCVarEntry);
+
+                    cl.handrot[1][PITCH] = pitch + oP;
+                    cl.handrot[1][YAW] = yaw + oY;
+
+                 //   Con_Printf("roll: %2.f\n", roll);
+                    cl.handrot[1][ROLL] = roll + oR;
+
+                    // TODO VR: deal with NANs, they crash the program
+
+                    // TODO VR:
+                    // cl.handrot[1][ROLL] = roll;
+
+                    // TODO VR: sometimes hands disappear
+                    // TODO VR: melee doesn't work with laser cannon
+                    // TODO VR: check if music works or not
+                    // TODO VR: scourge of armagon music?
                 }
             }
 
@@ -1797,7 +1900,7 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     angles[ROLL] = orientation[ROLL];
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept
 {
     const auto [ox, oy, oz] = VR_GetWpnOffsets(weaponCVarEntry);
     glm::vec3 finalOffsets{ox, -oy, oz};
@@ -1823,7 +1926,12 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
     const auto fRight = glmRight * finalOffsets[1];
     const auto fUp = glmUp * finalOffsets[2];
 
-    return toVec3(cl.handpos[1]) + fFwd + fRight + fUp;
+    return fFwd + fRight + fUp;
+}
+
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
+{
+    return toVec3(cl.handpos[1]) + VR_CalcWeaponMuzzlePosImpl();
 }
 
 void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept

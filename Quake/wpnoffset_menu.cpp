@@ -43,7 +43,8 @@ static auto getCvars()
         VR_GetWpnCVar(idx, WpnCVar::TwoHPitch),
         VR_GetWpnCVar(idx, WpnCVar::TwoHYaw),
         VR_GetWpnCVar(idx, WpnCVar::TwoHRoll),
-        VR_GetWpnCVar(idx, WpnCVar::TwoHMode)
+        VR_GetWpnCVar(idx, WpnCVar::TwoHMode),
+        VR_GetWpnCVar(idx, WpnCVar::Length)
     );
     // clang-format on
 }
@@ -64,7 +65,7 @@ static void WpnOffset_MenuPrintOptionValue(
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode] = getCvars();
+        thry, thrr, thmode, len] = getCvars();
 
     switch(option)
     {
@@ -104,6 +105,7 @@ static void WpnOffset_MenuPrintOptionValue(
             }
             break;
         }
+        case WpnOffsetMenuOpt::Length: printAsStr(len); break;
         default: assert(false); break;
     }
 }
@@ -126,7 +128,7 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode] = getCvars();
+        thry, thrr, thmode, len] = getCvars();
 
     const float oInc = in_speed.state ? 5.f : 0.1f;
     constexpr float oBound = 100.f;
@@ -178,6 +180,9 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
             adjustF(thrr, rInc, -rBound, rBound);
             break;
         case WpnOffsetMenuOpt::TwoHMode: adjustI(thmode, 1, 0, 2); break;
+        case WpnOffsetMenuOpt::Length:
+            adjustF(len, oInc, -oBound, oBound);
+            break;
         default: assert(false); break;
     }
 }
@@ -258,7 +263,7 @@ void M_WpnOffset_Draw()
         "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
         "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z",
         "2H Offset X", "2H Offset Y", "2H Offset Z", "2H Aim Pitch",
-        "2H Aim Yaw", "2H Aim Roll", "2H Mode");
+        "2H Aim Yaw", "2H Aim Roll", "2H Mode", "Gun Length");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 
