@@ -25,6 +25,9 @@
 #endif
 #endif
 
+// TODO VR:
+void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
+
 namespace quake::util
 {
     template <typename... Ts>
@@ -63,8 +66,34 @@ namespace quake::util
         return {v[0], v[1], v[2]};
     }
 
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr const glm::vec3& toVec3(
+        const glm::vec3& v) noexcept
+    {
+        return v;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3& toVec3(
+        glm::vec3& v) noexcept
+    {
+        return v;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3&& toVec3(
+        glm::vec3&& v) noexcept
+    {
+        return std::move(v);
+    }
+
     QUAKE_FORCEINLINE constexpr void toQuakeVec3(
         vec3_t out, const glm::vec3& v) noexcept
+    {
+        out[0] = v[0];
+        out[1] = v[1];
+        out[2] = v[2];
+    }
+
+    QUAKE_FORCEINLINE constexpr void toQuakeVec3(
+        vec3_t out, const vec3_t& v) noexcept
     {
         out[0] = v[0];
         out[1] = v[1];
@@ -106,8 +135,8 @@ namespace quake::util
         out[2] = lerp(start[2], end[2], f);
     }
 
-    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(const vec3_t& xup,
-        const glm::vec3& dir)
+    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
+        const vec3_t& xup, const glm::vec3& dir)
     {
         // From: https://stackoverflow.com/a/21627251/598696
 
@@ -126,6 +155,29 @@ namespace quake::util
         res[0 /* PITCH */] *= -1.f;
         res[2 /* ROLL */] -= 180.f;
         return res;
+    }
+
+    struct GlmAngledVectors
+    {
+        glm::vec3 _forward;
+        glm::vec3 _right;
+        glm::vec3 _up;
+    };
+
+    [[nodiscard]] inline GlmAngledVectors getGlmAngledVectors(vec3_t v)
+    {
+        vec3_t forward, right, up;
+        AngleVectors(v, forward, right, up);
+
+        return {toVec3(forward), toVec3(right), toVec3(up)};
+    }
+
+    [[nodiscard]] inline GlmAngledVectors getGlmAngledVectors(
+        const glm::vec3& v)
+    {
+        vec3_t tmp;
+        toQuakeVec3(tmp, v);
+        return getGlmAngledVectors(tmp);
     }
 } // namespace quake::util
 

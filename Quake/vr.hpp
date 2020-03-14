@@ -208,7 +208,7 @@ void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept;
 
 [[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept;
 
-extern int weaponCVarEntry;
+extern int currWpnCVarEntry;
 
 //
 //

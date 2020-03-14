@@ -1003,7 +1003,7 @@ void V_CalcRefdef()
     // set up gun position
     VectorCopy(cl.viewangles, view->angles);
 
-    CalcGunAngle(weaponCVarEntry, view, cl.handrot[1]);
+    CalcGunAngle(currWpnCVarEntry, view, cl.handrot[1]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)

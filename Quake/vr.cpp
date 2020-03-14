@@ -29,7 +29,9 @@
 // Utilities
 // ----------------------------------------------------------------------------
 
+using quake::util::getGlmAngledVectors;
 using quake::util::lerp;
+using quake::util::pitchYawRollFromDirectionVector;
 using quake::util::toQuakeVec3;
 using quake::util::toVec3;
 using quake::util::vec3lerp;
@@ -154,7 +156,7 @@ extern int glx, gly, glwidth, glheight;
 //
 //
 // ----------------------------------------------------------------------------
-// TODO VR
+// TODO VR: reorganize and document these globals
 // ----------------------------------------------------------------------------
 
 static float vrYaw;
@@ -191,6 +193,28 @@ vec3_t vr_room_scale_move;
 
 extern cvar_t gl_farclip;
 
+bool vr_was_teleporting = false;
+bool vr_teleporting = false;
+bool vr_teleporting_impact_valid = false;
+bool vr_send_teleport_msg = false;
+vec3_t vr_teleporting_impact{0, 0, 0};
+bool vr_left_grabbing = false;
+bool vr_right_grabbing = false;
+bool vr_gun_colliding_with_wall = false;
+float vr_2h_aim_transition = 0.f;
+float vr_2h_aim_stock_transition = 0.f;
+
+aliashdr_t* lastWeaponHeader;
+int currWpnCVarEntry;
+
+// TODO VR: not sure what this number should actually be...
+enum
+{
+    e_MAX_WEAPONS = 32
+};
+
+cvar_t
+    vr_weapon_offset[e_MAX_WEAPONS * static_cast<std::size_t>(WpnCVar::k_Max)];
 
 //
 //
@@ -266,9 +290,9 @@ DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
 // VR Rendering
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] static bool InitOpenGLExtensions()
+[[nodiscard]] static bool InitOpenGLExtensions() noexcept
 {
-    static bool extensions_initialized;
+    static bool extensions_initialized{false};
 
     if(extensions_initialized)
     {
@@ -277,7 +301,7 @@ DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
 
     for(int i = 0; gl_extensions[i].func; ++i)
     {
-        void* func = SDL_GL_GetProcAddress(gl_extensions[i].name);
+        void* const func = SDL_GL_GetProcAddress(gl_extensions[i].name);
         if(!func)
         {
             return false;
@@ -290,10 +314,11 @@ DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
     return extensions_initialized;
 }
 
-void RecreateTextures(fbo_t* const fbo, const int width, const int height)
+void RecreateTextures(
+    fbo_t* const fbo, const int width, const int height) noexcept
 {
-    GLuint oldDepth = fbo->depth_texture;
-    GLuint oldTexture = fbo->texture;
+    const GLuint oldDepth = fbo->depth_texture;
+    const GLuint oldTexture = fbo->texture;
 
     glGenTextures(1, &fbo->depth_texture);
     glGenTextures(1, &fbo->texture);
@@ -330,7 +355,7 @@ void RecreateTextures(fbo_t* const fbo, const int width, const int height)
         GL_TEXTURE_2D, fbo->depth_texture, 0);
 }
 
-[[nodiscard]] fbo_t CreateFBO(const int width, const int height)
+[[nodiscard]] fbo_t CreateFBO(const int width, const int height) noexcept
 {
     fbo_t fbo;
 
@@ -347,8 +372,8 @@ void RecreateTextures(fbo_t* const fbo, const int width, const int height)
     return fbo;
 }
 
-void CreateMSAA(
-    fbo_t* const fbo, const int width, const int height, const int msaa)
+void CreateMSAA(fbo_t* const fbo, const int width, const int height,
+    const int msaa) noexcept
 {
     fbo->msaa = msaa;
 
@@ -377,7 +402,7 @@ void CreateMSAA(
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
         GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture, 0);
 
-    GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+    const GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
     if(status != GL_FRAMEBUFFER_COMPLETE)
     {
         Con_Printf("Framebuffer incomplete %x", status);
@@ -392,7 +417,9 @@ void DeleteFBO(const fbo_t& fbo)
     glDeleteTextures(1, &fbo.texture);
 }
 
-[[nodiscard]] glm::vec3 QuatToYawPitchRoll(vr::HmdQuaternion_t q)
+// TODO VR: move to util?
+[[nodiscard]] glm::vec3 QuatToYawPitchRoll(
+    const vr::HmdQuaternion_t& q) noexcept
 {
     const auto sqw = q.w * q.w;
     const auto sqx = q.x * q.x;
@@ -401,24 +428,25 @@ void DeleteFBO(const fbo_t& fbo)
 
     glm::vec3 out;
 
-    out[ROLL] = -atan2(2 * (q.x * q.y + q.w * q.z), sqw - sqx + sqy - sqz) /
-                M_PI_DIV_180;
     out[PITCH] = -asin(-2 * (q.y * q.z - q.w * q.x)) / M_PI_DIV_180;
     out[YAW] = atan2(2 * (q.x * q.z + q.w * q.y), sqw - sqx - sqy + sqz) /
                    M_PI_DIV_180 +
                vrYaw;
+    out[ROLL] = -atan2(2 * (q.x * q.y + q.w * q.z), sqw - sqx + sqy - sqz) /
+                M_PI_DIV_180;
 
     return out;
 }
 
-void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
+void Vec3RotateZ(const vec3_t& in, const float angle, vec3_t out) noexcept
 {
     out[0] = in[0] * cos(angle) - in[1] * sin(angle);
     out[1] = in[0] * sin(angle) + in[1] * cos(angle);
     out[2] = in[2];
 }
 
-[[nodiscard]] vr::HmdMatrix44_t TransposeMatrix(const vr::HmdMatrix44_t& in)
+[[nodiscard]] vr::HmdMatrix44_t TransposeMatrix(
+    const vr::HmdMatrix44_t& in) noexcept
 {
     vr::HmdMatrix44_t out;
 
@@ -429,11 +457,12 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
             out.m[x][y] = in.m[y][x];
         }
     }
+
     return out;
 }
 
 [[nodiscard]] vr::HmdVector3_t AddVectors(
-    const vr::HmdVector3_t& a, const vr::HmdVector3_t& b)
+    const vr::HmdVector3_t& a, const vr::HmdVector3_t& b) noexcept
 {
     vr::HmdVector3_t out;
 
@@ -448,19 +477,16 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
 // Based on math from
 // https://gamedev.stackexchange.com/questions/28395/rotating-vector3-by-a-quaternion
 [[nodiscard]] vr::HmdVector3_t RotateVectorByQuaternion(
-    const vr::HmdVector3_t& v, const vr::HmdQuaternion_t& q)
+    const vr::HmdVector3_t& v, const vr::HmdQuaternion_t& q) noexcept
 {
     vr::HmdVector3_t u;
-
-    vr::HmdVector3_t result;
     u.v[0] = q.x;
     u.v[1] = q.y;
     u.v[2] = q.z;
-    float s = q.w;
 
     // Dot products of u,v and u,u
-    float uvDot = (u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2]);
-    float uuDot = (u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2]);
+    const float uvDot = (u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2]);
+    const float uuDot = (u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2]);
 
     // Calculate cross product of u, v
     vr::HmdVector3_t uvCross;
@@ -470,6 +496,9 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
 
     // Calculate each vectors' result individually because there aren't
     // arthimetic functions for HmdVector3_t dsahfkldhsaklfhklsadh
+    const float s = q.w;
+    vr::HmdVector3_t result;
+
     result.v[0] = u.v[0] * 2.0f * uvDot + (s * s - uuDot) * v.v[0] +
                   2.0f * s * uvCross.v[0];
     result.v[1] = u.v[1] * 2.0f * uvDot + (s * s - uuDot) * v.v[1] +
@@ -482,7 +511,8 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
 
 // Transforms a HMD Matrix34 to a Vector3
 // Math borrowed from https://github.com/Omnifinity/OpenVR-Tracking-Example
-[[nodiscard]] vr::HmdVector3_t Matrix34ToVector(const vr::HmdMatrix34_t& in)
+[[nodiscard]] vr::HmdVector3_t Matrix34ToVector(
+    const vr::HmdMatrix34_t& in) noexcept
 {
     vr::HmdVector3_t vector;
 
@@ -497,7 +527,7 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
 // Function logic nicked from
 // https://github.com/Omnifinity/OpenVR-Tracking-Example
 [[nodiscard]] vr::HmdQuaternion_t Matrix34ToQuaternion(
-    const vr::HmdMatrix34_t& in)
+    const vr::HmdMatrix34_t& in) noexcept
 {
     vr::HmdQuaternion_t q;
 
@@ -511,18 +541,19 @@ void Vec3RotateZ(vec3_t in, float angle, vec3_t out)
         q.y, static_cast<double>(in.m[0][2]) - static_cast<double>(in.m[2][0]));
     q.z = copysign(
         q.z, static_cast<double>(in.m[1][0]) - static_cast<double>(in.m[0][1]));
+
     return q;
 }
 
-void HmdVec3RotateY(vr::HmdVector3_t* const pos, const float angle)
+void HmdVec3RotateY(vr::HmdVector3_t& pos, const float angle) noexcept
 {
     const float s = sin(angle);
     const float c = cos(angle);
-    const float x = c * pos->v[0] - s * pos->v[2];
-    const float y = s * pos->v[0] + c * pos->v[2];
+    const float x = c * pos.v[0] - s * pos.v[2];
+    const float y = s * pos.v[0] + c * pos.v[2];
 
-    pos->v[0] = x;
-    pos->v[2] = y;
+    pos.v[0] = x;
+    pos.v[2] = y;
 }
 
 //
@@ -532,7 +563,8 @@ void HmdVec3RotateY(vr::HmdVector3_t* const pos, const float angle)
 // VR CVar Callbacks
 // ----------------------------------------------------------------------------
 
-static void VR_Enabled_f(cvar_t* var)
+// TODO VR: consider removing and having vr always enabled
+static void VR_Enabled_f(cvar_t* var) noexcept
 {
     (void)var;
 
@@ -549,7 +581,7 @@ static void VR_Enabled_f(cvar_t* var)
     }
 }
 
-static void VR_Deadzone_f(cvar_t* var)
+static void VR_Deadzone_f(cvar_t* var) noexcept
 {
     (void)var;
 
@@ -567,18 +599,6 @@ static void VR_Deadzone_f(cvar_t* var)
 // ----------------------------------------------------------------------------
 // Weapon CVars
 // ----------------------------------------------------------------------------
-
-// TODO VR: not sure what this number should actually be...
-enum
-{
-    e_MAX_WEAPONS = 32
-};
-
-cvar_t
-    vr_weapon_offset[e_MAX_WEAPONS * static_cast<std::size_t>(WpnCVar::k_Max)];
-
-aliashdr_t* lastWeaponHeader;
-int weaponCVarEntry;
 
 [[nodiscard]] float VR_GetScaleCorrect() noexcept
 {
@@ -606,26 +626,26 @@ void Mod_Weapon(const char* name, aliashdr_t* hdr)
     if(lastWeaponHeader != hdr)
     {
         lastWeaponHeader = hdr;
-        weaponCVarEntry = -1;
+        currWpnCVarEntry = -1;
 
         for(int i = 0; i < e_MAX_WEAPONS; i++)
         {
             if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
             {
-                weaponCVarEntry = i;
+                currWpnCVarEntry = i;
                 break;
             }
         }
 
-        if(weaponCVarEntry == -1)
+        if(currWpnCVarEntry == -1)
         {
             Con_Printf("No VR offset for weapon: %s\n", name);
         }
     }
 
-    if(weaponCVarEntry != -1)
+    if(currWpnCVarEntry != -1)
     {
-        ApplyMod_Weapon(weaponCVarEntry, hdr);
+        ApplyMod_Weapon(currWpnCVarEntry, hdr);
     }
 }
 
@@ -1183,20 +1203,6 @@ void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
     out[2] = VR_GetHandZOrigin(player) + 40;
 }
 
-
-// TODO VR:
-bool vr_was_teleporting = false;
-bool vr_teleporting = false;
-bool vr_teleporting_impact_valid = false;
-bool vr_send_teleport_msg = false;
-vec3_t vr_teleporting_impact{0, 0, 0};
-bool vr_left_grabbing = false;
-bool vr_right_grabbing = false;
-bool vr_gun_colliding_with_wall = false;
-float vr_2h_aim_transition = 0.f;
-float vr_2h_aim_stock_transition = 0.f;
-
-
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1220,6 +1226,12 @@ void SetHandPos(int index, entity_t* player)
     // -----------------------------------------------------------------------
     // VR: Detect & resolve hand collisions against the world or entities.
 
+    // Start around the upper torso, not actual center of the player.
+    vec3_t adjPlayerOrigin;
+    VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
+
+
+
     // Size of hand hitboxes.
     vec3_t mins{-1.f, -1.f, -1.f};
     vec3_t maxs{1.f, 1.f, 1.f};
@@ -1228,15 +1240,14 @@ void SetHandPos(int index, entity_t* player)
 
     VectorCopy(finalPre, finalVec);
 
-    //  const float gunLength = index == 0 ? 0.f :
-    //  VR_GetWpnLength(weaponCVarEntry);
+    // TODO VR: reintroduce as modifier
+    // const float gunLength = index == 0 ? 0.f :
+    // VR_GetWpnLength(currWpnCVarEntry);
 
     vec3_t forward, right, up;
     AngleVectors(cl.handrot[1], forward, right, up);
 
-    // Start around the upper torso, not actual center of the player.
-    vec3_t adjPlayerOrigin;
-    VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
+
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
@@ -1244,7 +1255,7 @@ void SetHandPos(int index, entity_t* player)
         SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
 
     // Final position after full collision resolution.
-    const auto crop = quake::util::toVec3(trace.endpos);
+    const auto crop = toVec3(trace.endpos);
 
     // Compute final collision resolution position, starting from the desired
     // position and resolving only against the collision plane's normal vector.
@@ -1279,8 +1290,7 @@ void SetHandPos(int index, entity_t* player)
         resolvedHandPos, mins, maxs, adjFinalPre, MOVE_NORMAL, sv_player);
 
     // TODO VR:
-    auto gunCrop =
-        quake::util::toVec3(gunTrace.endpos) - VR_CalcWeaponMuzzlePosImpl();
+    auto gunCrop = toVec3(gunTrace.endpos) - VR_CalcWeaponMuzzlePosImpl();
 
 
     if(gunTrace.fraction < 1.f)
@@ -1302,14 +1312,25 @@ void SetHandPos(int index, entity_t* player)
         vr_gun_colliding_with_wall = false;
     }
 
-
-
     // handpos
     const auto oldx = cl.handpos[index][0];
     const auto oldy = cl.handpos[index][1];
     const auto oldz = cl.handpos[index][2];
 
     VectorCopy(finalVec, cl.handpos[index]);
+
+    // If hands get too far, bring them closer to the player.
+    auto currHandPos = toVec3(cl.handpos[index]);
+    constexpr auto maxHandPlayerDiff = 50.f;
+    const auto handPlayerDiff = currHandPos - toVec3(adjPlayerOrigin);
+    if(glm::length(handPlayerDiff) > maxHandPlayerDiff)
+    {
+        const auto dir = glm::normalize(handPlayerDiff);
+        cl.handpos[index][0] = adjPlayerOrigin[0] + dir[0] * maxHandPlayerDiff;
+        cl.handpos[index][1] = adjPlayerOrigin[1] + dir[1] * maxHandPlayerDiff;
+        cl.handpos[index][2] = adjPlayerOrigin[2] + dir[2] * maxHandPlayerDiff;
+    }
+
 
     // TODO VR: adjust weight and add cvar, fix movement
     if(false)
@@ -1363,11 +1384,14 @@ void SetHandPos(int index, entity_t* player)
     return toVec3(cl.handpos[1]);
 }
 
-
 [[nodiscard]] static glm::vec3 VR_Get2HOffHandPos() noexcept
 {
-    const auto [thox, thoy, thoz] = VR_GetWpn2HOffsets(weaponCVarEntry);
-    const auto offHandPos = toVec3(cl.handpos[0]) + glm::vec3{thox, thoy, thoz};
+    const auto [thox, thoy, thoz] = VR_GetWpn2HOffsets(currWpnCVarEntry);
+    const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[1]);
+
+    const auto offHandPos =
+        toVec3(cl.handpos[0]) + forward * thox + right * thoy + up * thoz;
+
     return offHandPos;
 }
 
@@ -1503,10 +1527,10 @@ void VR_UpdateScreenContent()
             leyePos = RotateVectorByQuaternion(leyePos, headQuat);
             reyePos = RotateVectorByQuaternion(reyePos, headQuat);
 
-            HmdVec3RotateY(&headPos, -vrYaw * M_PI_DIV_180);
+            HmdVec3RotateY(headPos, -vrYaw * M_PI_DIV_180);
 
-            HmdVec3RotateY(&leyePos, -vrYaw * M_PI_DIV_180);
-            HmdVec3RotateY(&reyePos, -vrYaw * M_PI_DIV_180);
+            HmdVec3RotateY(leyePos, -vrYaw * M_PI_DIV_180);
+            HmdVec3RotateY(reyePos, -vrYaw * M_PI_DIV_180);
 
             eyes[0].position = AddVectors(headPos, leyePos);
             eyes[1].position = AddVectors(headPos, reyePos);
@@ -1716,9 +1740,11 @@ void VR_UpdateScreenContent()
             SetHandPos(0, player);
             SetHandPos(1, player);
 
+
+        // TODO VR: move refactor and reorganize
             const auto vr2HMode =
                 static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
-            const auto wpn2HMode = VR_GetWpn2HMode(weaponCVarEntry);
+            const auto wpn2HMode = VR_GetWpn2HMode(currWpnCVarEntry);
 
             const bool canGrabWith2H =
                 vr_left_grabbing && wpn2HMode != Wpn2HMode::Forbidden &&
@@ -1763,6 +1789,7 @@ void VR_UpdateScreenContent()
 
                     const float frametime = cl.time - cl.oldtime;
 
+                    // TODO VR: repetition with below
                     if(useStock)
                     {
                         vr_2h_aim_stock_transition += frametime * 5.f;
@@ -1775,8 +1802,8 @@ void VR_UpdateScreenContent()
                     vr_2h_aim_stock_transition =
                         std::clamp(vr_2h_aim_stock_transition, 0.f, 1.f);
 
-                   // Con_Printf("%.2f | %.2f\n", vr_2h_aim_transition,
-                   //     vr_2h_aim_stock_transition);
+                    // Con_Printf("%.2f | %.2f\n", vr_2h_aim_transition,
+                    //     vr_2h_aim_stock_transition);
 
                     const auto mixStockDir = glm::mix(
                         handDir, averageDir, vr_2h_aim_stock_transition);
@@ -1798,18 +1825,18 @@ void VR_UpdateScreenContent()
                         glm::mix(origDir, mixStockDir, vr_2h_aim_transition);
 
                     const auto [pitch, yaw, roll] =
-                        quake::util::pitchYawRollFromDirectionVector(up, mixDir);
+                        pitchYawRollFromDirectionVector(up, mixDir);
 
                     const auto [oP, oY, oR] =
-                        VR_GetWpn2HAngleOffsets(weaponCVarEntry);
+                        VR_GetWpn2HAngleOffsets(currWpnCVarEntry);
 
                     cl.handrot[1][PITCH] = pitch + oP;
                     cl.handrot[1][YAW] = yaw + oY;
 
-                 //   Con_Printf("roll: %2.f\n", roll);
+                    //   Con_Printf("roll: %2.f\n", roll);
                     cl.handrot[1][ROLL] = roll + oR;
 
-                    // TODO VR: deal with NANs, they crash the program
+                    // TODO VR: deal with NANs, they crash the program (!)
 
                     // TODO VR:
                     // cl.handrot[1][ROLL] = roll;
@@ -1902,29 +1929,24 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept
 {
-    const auto [ox, oy, oz] = VR_GetWpnOffsets(weaponCVarEntry);
+    const auto [ox, oy, oz] = VR_GetWpnOffsets(currWpnCVarEntry);
     glm::vec3 finalOffsets{ox, -oy, oz};
-    finalOffsets /= VR_GetWpnCVarValue(weaponCVarEntry, WpnCVar::Scale);
+    finalOffsets /= VR_GetWpnCVarValue(currWpnCVarEntry, WpnCVar::Scale);
 
-    const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(weaponCVarEntry);
+    const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(currWpnCVarEntry);
     const glm::vec3 muzzleOfs{moX, moY, moZ};
 
     using namespace quake::util;
     finalOffsets += muzzleOfs;
 
-    vec3_t forward, right, up;
-    AngleVectors(cl.handrot[1], forward, right, up);
+    const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[1]);
 
-    const auto glmForward = toVec3(forward);
-    const auto glmRight = toVec3(right);
-    const auto glmUp = toVec3(up);
-
-    finalOffsets *= VR_GetWpnCVarValue(weaponCVarEntry, WpnCVar::Scale) *
+    finalOffsets *= VR_GetWpnCVarValue(currWpnCVarEntry, WpnCVar::Scale) *
                     VR_GetScaleCorrect();
 
-    const auto fFwd = glmForward * finalOffsets[0];
-    const auto fRight = glmRight * finalOffsets[1];
-    const auto fUp = glmUp * finalOffsets[2];
+    const auto fFwd = forward * finalOffsets[0];
+    const auto fRight = right * finalOffsets[1];
+    const auto fUp = up * finalOffsets[2];
 
     return fFwd + fRight + fUp;
 }
@@ -1936,9 +1958,8 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
 
 void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept
 {
-    quake::util::toQuakeVec3(out, VR_CalcWeaponMuzzlePos());
+    toQuakeVec3(out, VR_CalcWeaponMuzzlePos());
 }
-
 
 void VR_ShowVirtualStock()
 {
