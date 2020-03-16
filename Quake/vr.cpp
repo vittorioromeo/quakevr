@@ -294,6 +294,14 @@ DEFINE_CVAR(vr_shoulder_offset_y, 1.75, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_offset_z, 16.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_virtual_stock_factor, 0.5, CVAR_ARCHIVE);
 
+// TODO VR: implement
+DEFINE_CVAR(vr_wpn_pos_weight, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_pos_weight_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_pos_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
+
 //
 //
 //
@@ -1126,14 +1134,12 @@ void VID_VR_Disable()
     vr_initialized = false;
 }
 
-static void RenderScreenForCurrentEye_OVR()
+static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 {
-    assert(current_eye != nullptr);
-
     // Remember the current glwidht/height; we have to modify it here for
     // each eye
-    int oldglheight = glheight;
-    int oldglwidth = glwidth;
+    const int oldglheight = glheight;
+    const int oldglwidth = glwidth;
 
     uint32_t cglwidth = glwidth;
     uint32_t cglheight = glheight;
@@ -1141,58 +1147,57 @@ static void RenderScreenForCurrentEye_OVR()
     glwidth = cglwidth;
     glheight = cglheight;
 
-    bool newTextures = glwidth != current_eye->fbo.size.width ||
-                       glheight != current_eye->fbo.size.height;
+    const bool newTextures =
+        glwidth != eye.fbo.size.width || glheight != eye.fbo.size.height;
+
     if(newTextures)
     {
-        RecreateTextures(&current_eye->fbo, glwidth, glheight);
+        RecreateTextures(&eye.fbo, glwidth, glheight);
     }
 
-    if(newTextures || vr_msaa.value != current_eye->fbo.msaa)
+    if(newTextures || vr_msaa.value != eye.fbo.msaa)
     {
-        CreateMSAA(&current_eye->fbo, glwidth, glheight, vr_msaa.value);
+        CreateMSAA(&eye.fbo, glwidth, glheight, vr_msaa.value);
     }
 
     // Set up current FBO
-    if(current_eye->fbo.msaa > 0)
+    if(eye.fbo.msaa > 0)
     {
         glEnable(GL_MULTISAMPLE);
-        glBindFramebufferEXT(
-            GL_FRAMEBUFFER_EXT, current_eye->fbo.msaa_framebuffer);
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, eye.fbo.msaa_framebuffer);
     }
     else
     {
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, current_eye->fbo.framebuffer);
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, eye.fbo.framebuffer);
     }
 
-    glViewport(0, 0, current_eye->fbo.size.width, current_eye->fbo.size.height);
+    glViewport(0, 0, eye.fbo.size.width, eye.fbo.size.height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Draw everything
     srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
-    r_refdef.fov_x = current_eye->fov_x;
-    r_refdef.fov_y = current_eye->fov_y;
+    r_refdef.fov_x = eye.fov_x;
+    r_refdef.fov_y = eye.fov_y;
 
     SCR_UpdateScreenContent();
 
     // Generate the eye texture and send it to the HMD
 
-    if(current_eye->fbo.msaa > 0)
+    if(eye.fbo.msaa > 0)
     {
         glDisable(GL_MULTISAMPLE);
-        glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, current_eye->fbo.framebuffer);
-        glBindFramebufferEXT(
-            GL_READ_FRAMEBUFFER, current_eye->fbo.msaa_framebuffer);
+        glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, eye.fbo.framebuffer);
+        glBindFramebufferEXT(GL_READ_FRAMEBUFFER, eye.fbo.msaa_framebuffer);
         glDrawBuffer(GL_BACK);
         glBlitFramebufferEXT(0, 0, glwidth, glheight, 0, 0, glwidth, glheight,
             GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
     vr::Texture_t eyeTexture = {
-        reinterpret_cast<void*>(uintptr_t(current_eye->fbo.texture)),
+        reinterpret_cast<void*>(uintptr_t(eye.fbo.texture)),
         vr::TextureType_OpenGL, vr::ColorSpace_Gamma};
-    vr::VRCompositor()->Submit(current_eye->eye, &eyeTexture);
+    vr::VRCompositor()->Submit(eye.eye, &eyeTexture);
 
     // Reset
     glwidth = oldglwidth;
@@ -1446,8 +1451,9 @@ void SetHandPos(int index, entity_t* player)
         const auto ldiffy = newy - oldy;
         const auto ldiffz = newz - oldz;
 
-    // TODO VR: seems good now. Cvar everything
-    // TODO VR: collision detection is affected by lerping, not nice with big guns
+        // TODO VR: seems good now. Cvar everything
+        // TODO VR: collision detection is affected by lerping, not nice with
+        // big guns
         cl.handpos[index][0] += ldiffx + (opx * (1.f - ftw)) - olddiffx;
         cl.handpos[index][1] += ldiffy + (opy * (1.f - ftw)) - olddiffy;
         cl.handpos[index][2] += ldiffz + (opz * (1.f - ftw));
@@ -2067,7 +2073,7 @@ void VR_UpdateScreenContent()
 
         vr_viewOffset[2] += vr_floor_offset.value;
 
-        RenderScreenForCurrentEye_OVR();
+        RenderScreenForCurrentEye_OVR(eye);
     }
 
     // Blit mirror texture to backbuffer
