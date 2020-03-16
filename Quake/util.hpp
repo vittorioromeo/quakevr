@@ -2,6 +2,7 @@
 
 #include "debugapi.h"
 #include "q_stdinc.hpp"
+#include "cvar.hpp"
 
 #define GLM_FORCE_INLINE
 #include <glm.hpp>
@@ -9,6 +10,7 @@
 #include <array>
 #include <string>
 #include <cassert>
+#include <cmath>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -135,21 +137,46 @@ namespace quake::util
         out[2] = lerp(start[2], end[2], f);
     }
 
+    template <typename T>
+    [[nodiscard]] constexpr inline auto safeAsin(const T x) noexcept
+    {
+        assert(!std::isnan(x));
+        assert(x >= T(-1));
+        assert(x <= T(1));
+
+        return std::asin(x);
+    }
+
+    template <typename T>
+    [[nodiscard]] constexpr inline auto safeAtan2(const T y, const T x) noexcept
+    {
+        assert(!std::isnan(y));
+        assert(!std::isnan(x));
+        assert(y != T(0) || x != T(0));
+
+        return std::atan2(y, x);
+    }
+
     [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
         const vec3_t& xup, const glm::vec3& dir)
     {
         // From: https://stackoverflow.com/a/21627251/598696
 
-        const auto pitch = asin(dir[2]);
-        const auto yaw = atan2(dir[1], dir[0]);
+        const auto pitch = safeAsin(dir[2]);
+        const auto yaw = safeAtan2(dir[1], dir[0]);
 
         const auto up = toVec3(xup);
         const auto w0 = glm::vec3{-dir[1], dir[0], 0};
         const auto u0 = glm::cross(w0, dir);
 
-        // TODO VR: verify correctness of roll
-        const auto roll = atan2(glm::dot(w0, up) / glm::length(w0),
-            glm::dot(u0, up) / glm::length(u0));
+        const auto w0len = glm::length(w0);
+        assert(w0len != 0);
+
+        const auto u0len = glm::length(u0);
+        assert(u0len != 0);
+
+        const auto roll =
+            safeAtan2(glm::dot(w0, up) / w0len, glm::dot(u0, up) / u0len);
 
         auto res = glm::degrees(glm::vec3{pitch, yaw, roll});
         res[0 /* PITCH */] *= -1.f;
@@ -178,6 +205,19 @@ namespace quake::util
         vec3_t tmp;
         toQuakeVec3(tmp, v);
         return getGlmAngledVectors(tmp);
+    }
+
+    template <typename T>
+    [[nodiscard]] auto makeMenuAdjuster(const bool isLeft)
+    {
+        return [isLeft](
+                   const cvar_t& cvar, const T incr, const T min, const T max) {
+            const auto newVal =
+                static_cast<T>(isLeft ? cvar.value - incr : cvar.value + incr);
+            const auto res = static_cast<T>(std::clamp(newVal, min, max));
+
+            Cvar_SetValue(cvar.name, res);
+        };
     }
 } // namespace quake::util
 

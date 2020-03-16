@@ -5,6 +5,7 @@
 //JIM
 void( vector pos ) placebullethole
 void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
+void (entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee;
 void () player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
@@ -612,7 +613,7 @@ void() HIP_FireMjolnir =
 
         trace_ent.axhitme = 1;
         SpawnBlood (org, v_forward, xdmg);
-        T_Damage (trace_ent, self, self, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
     }
     else
     {
@@ -704,7 +705,7 @@ void() W_FireAxe =
     {
         trace_ent.axhitme = 1;
         SpawnBloodSplash (org, xdmg);
-        T_Damage (trace_ent, self, self, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
         if (self.melee_hit_sound_played == FALSE)
         {
@@ -748,7 +749,16 @@ void() W_GunMelee =
     source = self.handpos;
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
-        return;
+    {
+        // TODO VR: try muzzle position for longer guns
+        source = self.muzzlepos;
+        traceline (source - v_forward*8, source + v_forward * VRMeleeRange(8), FALSE, self);
+
+        if (trace_fraction == 1.0)
+        {
+            return;
+        }
+    }
 
     org = trace_endpos - v_forward*4;
 
@@ -756,7 +766,7 @@ void() W_GunMelee =
     {
         trace_ent.axhitme = 1;
         SpawnBloodSplash (org, xdmg);
-        T_Damage (trace_ent, self, self, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
         if (self.melee_hit_sound_played == FALSE)
         {
@@ -798,6 +808,11 @@ void() W_FistMelee =
 
     xdmg = VRMeleeOffHandDmg(0.75);
 
+    // TODO VR: good place to add effects
+    // particle2 (self.offhandpos, '0 0 0', 3 /* lightning preset */, 60);
+    // particle2 (self.offhandpos, '0 0 0', 4 /* smoke preset */, 1);
+    // particle2 (self.offhandpos, '0 0 0', 5 /* sparks preset */, 12);
+
     makevectors (self.v_angle);
     source = self.offhandpos;
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
@@ -817,7 +832,7 @@ void() W_FistMelee =
         VRMeleeHaptic(0, self.offhandvelmag);
         trace_ent.axhitme = 1;
         SpawnBloodSplash (org, xdmg);
-        T_Damage (trace_ent, self, self, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
     }
     else
     {

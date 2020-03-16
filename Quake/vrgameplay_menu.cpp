@@ -100,6 +100,9 @@ static void VRGameplay_MenuPrintOptionValue(
         case VRGameplayMenuOpt::e_ShoulderOffsetZ:
             printAsStr(vr_shoulder_offset_z);
             break;
+        case VRGameplayMenuOpt::e_2HVirtualStockFactor:
+            printAsStr(vr_2h_virtual_stock_factor);
+            break;
         default: assert(false); break;
     }
 
@@ -112,19 +115,8 @@ static void VRGameplay_MenuPrintOptionValue(
 static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
 {
     const bool isLeft = (key == K_LEFTARROW);
-
-    const auto adjustF = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
-
-    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            (int)CLAMP(
-                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
+    const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
+    const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
     switch(option)
     {
@@ -177,6 +169,9 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_ShoulderOffsetZ:
             adjustF(vr_shoulder_offset_z, 0.5f, -50.f, 50.f);
+            break;
+            case VRGameplayMenuOpt::e_2HVirtualStockFactor:
+            adjustF(vr_2h_virtual_stock_factor, 0.05f, 0.f, 1.f);
             break;
         default: assert(false); break;
     }
@@ -254,7 +249,7 @@ void M_VRGameplay_Draw()
         "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier",
         "Room-Scale Move Mult.", "Teleportation", "Teleport Range", "2H Aiming",
         "2H Aiming Threshold", "2H Virtual Stock Dist.", "Shoulder Offset X",
-        "Shoulder Offset Y", "Shoulder Offset Z");
+        "Shoulder Offset Y", "Shoulder Offset Z", "2H Virtual Stock Factor");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

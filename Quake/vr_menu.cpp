@@ -199,24 +199,14 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
 #define _maxarray(x) (_sizeofarray(x) - 1)
 
     const bool isLeft = (key == K_LEFTARROW);
+    const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
+    const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
+
     int intValue = 0;
 
     int aimmode[] = {1, 2, 3, 4, 5, 6, 7};
     int deadzoneDiff = 5;
     int crosshair[] = {0, 1, 2, 3};
-
-    const auto adjustF = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
-
-    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            (int)CLAMP(
-                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
 
     switch(option)
     {

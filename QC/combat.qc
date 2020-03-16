@@ -124,7 +124,7 @@ This should be the only function that ever reduces health.
 */
 //MED 01/10/97 added empathyused variable
 float empathyused;
-void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
+void(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
     local    vector    dir;
     local    entity    oldself;
@@ -170,7 +170,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
       {
       empathyused = 1;
       damage = damage/2;
-      T_Damage (attacker,targ,targ,damage);
+      T_DamageImpl (attacker,targ,targ,damage,isVRMelee);
       empathyused = 0;
       }
 //MED
@@ -268,8 +268,20 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
 
     if (targ.health <= 0)
     {
+        if(isVRMelee)
+        {
+            sprint(attacker, "VR melee takedown\n");
+        }
+
         Killed (targ, attacker);
         return;
+    }
+    else
+    {
+        if(isVRMelee)
+        {
+            sprint(attacker, "VR melee damage\n");
+        }
     }
 
 // react to the damage
@@ -305,6 +317,16 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage=
     }
 
     self = oldself;
+};
+
+void(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
+{
+    T_DamageImpl(targ, inflictor, attacker, damage, 0);
+};
+
+void(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
+{
+    T_DamageImpl(targ, inflictor, attacker, damage, 1);
 };
 
 /*

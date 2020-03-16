@@ -113,19 +113,8 @@ static void WpnOffset_MenuPrintOptionValue(
 static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
 {
     const bool isLeft = (key == K_LEFTARROW);
-
-    const auto adjustF = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            CLAMP(min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
-
-    const auto adjustI = [&isLeft](const cvar_t& cvar, auto incr, auto min,
-                             auto max) {
-        Cvar_SetValue(cvar.name,
-            (int)CLAMP(
-                min, isLeft ? cvar.value - incr : cvar.value + incr, max));
-    };
+    const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
+    const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
         thry, thrr, thmode, len] = getCvars();

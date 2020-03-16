@@ -20,6 +20,7 @@ enum class VRGameplayMenuOpt
     e_ShoulderOffsetX,
     e_ShoulderOffsetY,
     e_ShoulderOffsetZ,
+    e_2HVirtualStockFactor,
 
     k_Max
 };
