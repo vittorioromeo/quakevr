@@ -549,3 +549,136 @@ static void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
             }
         }
     }
+
+
+
+
+    // Con_Printf("newup: %.2f, %.2f, %.2f\n", newUp[0], newUp[1], newUp[2]);
+    // Con_Printf("mixup: %.2f, %.2f, %.2f\n\n", mixUp[0], mixUp[1], mixUp[2]);
+
+    // const auto oldDir = getDirectionVectorFromPitchYawRoll(cl.aimangles);
+    // const auto newDir = getDirectionVectorFromPitchYawRoll(cl.handrot[1]);
+    // Con_Printf("dir: %.2f, %.2f, %.2f\n", newDir[0], newDir[1], newDir[2]);
+    // const auto mixDir = glm::slerp(oldDir, newDir, 0.05f);
+
+    // handpos
+    // const auto pitch = glm::radians(cl.handrot[1][PITCH]);
+    // const auto yaw = glm::radians(cl.handrot[1][YAW]);
+    // const auto roll = glm::radians(cl.handrot[1][ROLL]);
+
+    //  const glm::vec3 oldAngles{oldx, oldy, oldz};
+
+    // auto dx = sin(yaw);
+    // auto dy = -(sin(pitch)*cos(yaw));
+    // auto dz = -(cos(pitch)*cos(yaw));
+
+    //    auto dx = std::cos(yaw) * std::cos(pitch);
+    //    auto dy = std::sin(yaw) * std::cos(pitch);
+    //    auto dz = std::sin(pitch);
+
+    // const auto [fwd, right, up] = getGlmAngledVectors(newDir);
+    // Con_Printf("fwd: %.2f, %.2f, %.2f\n", fwd[0], fwd[1], fwd[2]);
+
+
+
+
+
+    const auto mySlerp = [](auto start, auto end, float percent) {
+        // Dot product - the cosine of the angle between 2 vectors.
+        float dot = glm::dot(start, end);
+        // Clamp it to be in the range of Acos()
+        // This may be unnecessary, but floating point
+        // precision can be a fickle mistress.
+        dot = std::clamp(dot, -1.0f, 1.0f);
+        // Acos(dot) returns the angle between start and end,
+        // And multiplying that by percent returns the angle between
+        // start and the final result.
+        float theta = acos(dot) * percent;
+        auto RelativeVec = glm::normalize(end - start * dot);
+        // Orthonormal basis
+        // The final result.
+        return ((start * cos(theta)) + (RelativeVec * sin(theta)));
+    };
+
+    const auto [oldFwd, oldRight, oldUp] = getGlmAngledVectors(cl.prevhandrot[1]);
+    const auto [newFwd, newRight, newUp] = getGlmAngledVectors(cl.handrot[1]);
+
+    const auto nOldFwd = glm::normalize(oldFwd);
+    const auto nOldUp = glm::normalize(oldUp);
+    const auto nNewFwd = glm::normalize(newFwd);
+    const auto nNewUp = glm::normalize(newUp);
+
+    const float frametime = cl.time - cl.oldtime;
+    const auto factor = 0.1f + ((vr_2h_aim_transition / 10.f) * 2.f);
+    const auto ftw = (factor * frametime) * 100.f;
+
+    const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
+    const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
+
+    const auto anyNan = [](const glm::vec3& v) {
+        return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]);
+    };
+
+    const auto mixFwd = anyNan(slerpFwd) ? nNewFwd : slerpFwd;
+    const auto mixUp = anyNan(slerpUp) ? nNewUp : slerpUp;
+
+    // TODO VR: should be mixUp, this causes issues  when meleeing
+    const auto [p, y, r] = pitchYawRollFromDirectionVector(mixUp, mixFwd);
+    // Con_Printf("pyr: %.2f, %.2f, %.2f\n", p, y, r);
+
+    const auto fixRoll = cl.handrot[1][ROLL]+360.f;
+
+    Con_Printf("%.2f, %.2f, %.2f\n", cl.prevhandrot[1][ROLL] + 360.f,
+        LerpDegrees(cl.prevhandrot[1][ROLL] + 360.f, fixRoll, ftw), fixRoll);
+
+    cl.handrot[1][PITCH] = p;
+    cl.handrot[1][YAW] = y;
+    cl.handrot[1][ROLL] = r;// LerpDegrees(cl.prevhandrot[1][ROLL] + 360.f, fixRoll, ftw) - 360.f;
+
+    VectorCopy(cl.handrot[1], cl.prevhandrot[1]);
+
+    // TODO VR: interpolate based on weapon weight?
+    VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
+    // TODO VR: what sets the shooting origin?
+
+    // TODO VR: teleportation stuff
+    VR_DoTeleportation();
+
+
+
+
+
+float LerpDegrees(float a, float b,
+    float lerpFactor) // Lerps from angle a to b (both between 0.f and 360.f),
+                      // taking the shortest path
+{
+    float result;
+    float diff = b - a;
+    if(diff < -180.f)
+    {
+        // lerp upwards past 360
+        b += 360.f;
+        result = lerp(a, b, lerpFactor);
+        if(result >= 360.f)
+        {
+            result -= 360.f;
+        }
+    }
+    else if(diff > 180.f)
+    {
+        // lerp downwards past 0
+        b -= 360.f;
+        result = lerp(a, b, lerpFactor);
+        if(result < 0.f)
+        {
+            result += 360.f;
+        }
+    }
+    else
+    {
+        // straight lerp
+        result = lerp(a, b, lerpFactor);
+    }
+
+    return result;
+}

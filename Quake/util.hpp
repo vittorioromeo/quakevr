@@ -184,6 +184,14 @@ namespace quake::util
         return res;
     }
 
+    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
+        const glm::vec3& xup, const glm::vec3& dir)
+    {
+        vec3_t tmp;
+        toQuakeVec3(tmp, xup);
+        return pitchYawRollFromDirectionVector(tmp, dir);
+    }
+
     struct GlmAngledVectors
     {
         glm::vec3 _forward;
@@ -205,6 +213,17 @@ namespace quake::util
         vec3_t tmp;
         toQuakeVec3(tmp, v);
         return getGlmAngledVectors(tmp);
+    }
+
+    [[nodiscard]] inline glm::vec3 getDirectionVectorFromPitchYawRoll(vec3_t v)
+    {
+        return getGlmAngledVectors(v)._forward;
+    }
+
+    [[nodiscard]] inline glm::vec3 getDirectionVectorFromPitchYawRoll(
+        const glm::vec3& v)
+    {
+        return getGlmAngledVectors(v)._forward;
     }
 
     template <typename T>

@@ -9,6 +9,7 @@
 #include <gtc/quaternion.hpp>
 #include <gtx/quaternion.hpp>
 #include <gtx/euler_angles.hpp>
+#include <gtx/rotate_vector.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -29,6 +30,7 @@
 // Utilities
 // ----------------------------------------------------------------------------
 
+using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::getGlmAngledVectors;
 using quake::util::lerp;
 using quake::util::pitchYawRollFromDirectionVector;
@@ -204,6 +206,10 @@ bool vr_right_grabbing = false;
 bool vr_gun_colliding_with_wall = false;
 float vr_2h_aim_transition = 0.f;
 float vr_2h_aim_stock_transition = 0.f;
+bool gotLastPlayerOrigin{false};
+vec3_t lastPlayerOrigin;
+float lastPlayerYaw{};
+float lastVrYawDiff{};
 
 aliashdr_t* lastWeaponHeader;
 int currWpnCVarEntry;
@@ -1208,6 +1214,17 @@ void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
     out[2] = VR_GetHandZOrigin(player) + 40;
 }
 
+// TODO VR: better system for this, use cvar per weapon
+[[nodiscard]] int wpnCvarEntryToWpnId(const int cvarEntry)
+{
+    constexpr int mapping[]{WID_AXE, WID_SHOTGUN, WID_SUPER_SHOTGUN,
+        WID_NAILGUN, WID_SUPER_NAILGUN, WID_GRENADE_LAUNCHER,
+        WID_ROCKET_LAUNCHER, WID_LIGHTNING, WID_MJOLNIR, WID_LASER_CANNON,
+        WID_PROXIMITY_GUN};
+
+    return mapping[cvarEntry];
+}
+
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1249,8 +1266,8 @@ void SetHandPos(int index, entity_t* player)
     // const float gunLength = index == 0 ? 0.f :
     // VR_GetWpnLength(currWpnCVarEntry);
 
-    vec3_t forward, right, up;
-    AngleVectors(cl.handrot[1], forward, right, up);
+    // vec3_t forward, right, up;
+    // AngleVectors(cl.handrot[1], forward, right, up);
 
 
 
@@ -1317,12 +1334,7 @@ void SetHandPos(int index, entity_t* player)
         vr_gun_colliding_with_wall = false;
     }
 
-    // handpos
-    const auto oldx = cl.handpos[index][0];
-    const auto oldy = cl.handpos[index][1];
-    const auto oldz = cl.handpos[index][2];
 
-    VectorCopy(finalVec, cl.handpos[index]);
 
     // If hands get too far, bring them closer to the player.
     auto currHandPos = toVec3(cl.handpos[index]);
@@ -1336,13 +1348,113 @@ void SetHandPos(int index, entity_t* player)
         cl.handpos[index][2] = adjPlayerOrigin[2] + dir[2] * maxHandPlayerDiff;
     }
 
+    // handpos
+    const auto oldx = cl.handpos[index][0];
+    const auto oldy = cl.handpos[index][1];
+    const auto oldz = cl.handpos[index][2];
+
+
 
     // TODO VR: adjust weight and add cvar, fix movement
-    if(false)
+    if(true /* TODO VR: cvar! */)
     {
-        cl.handpos[index][0] = lerp(oldx, finalVec[0], 0.05f);
-        cl.handpos[index][1] = lerp(oldy, finalVec[1], 0.05f);
-        cl.handpos[index][2] = lerp(oldz, finalVec[2], 0.05f);
+        auto weaponWeight = [&] {
+            constexpr float max1H = 0.85f;
+            const float help2H = vr_2h_aim_transition / 3.25f;
+            const float max = max1H + help2H;
+
+            if(index == 0 && vr_2h_aim_transition <= 0.1f)
+            {
+                return max;
+            }
+
+            const auto wid = wpnCvarEntryToWpnId(currWpnCVarEntry);
+
+            if(wid == WID_AXE) return max;
+            if(wid == WID_MJOLNIR) return max;
+            if(wid == WID_SHOTGUN) return max;
+            if(wid == WID_SUPER_SHOTGUN) return max;
+            if(wid == WID_NAILGUN) return max;
+            if(wid == WID_SUPER_NAILGUN) return 0.1f + help2H;
+            if(wid == WID_GRENADE_LAUNCHER) return 0.1f + help2H;
+            if(wid == WID_PROXIMITY_GUN) return 0.1f + help2H;
+            if(wid == WID_ROCKET_LAUNCHER) return 0.1f + help2H;
+            if(wid == WID_LIGHTNING) return 0.1f + help2H;
+            if(wid == WID_LASER_CANNON) return 0.05f + help2H;
+
+            return max;
+        }();
+
+        if(weaponWeight > 1.f) weaponWeight = 1.f;
+
+        float opx{}, opy{}, opz{};
+        if(gotLastPlayerOrigin)
+        {
+            opx = player->origin[0] - lastPlayerOrigin[0];
+            opy = player->origin[1] - lastPlayerOrigin[1];
+            opz = player->origin[2] - lastPlayerOrigin[2];
+
+            // Con_Printf("%.2f, %.2f, %.2f\n", opx, opy, opz);
+        }
+
+        const float frametime = cl.time - cl.oldtime;
+        const auto ftw = (weaponWeight * frametime) * 100.f;
+
+        auto rotate_point = [](float cx, float cy, float angle, glm::vec2 p) {
+            float s = std::sin(glm::radians(angle));
+            float c = std::cos(glm::radians(angle));
+
+            // translate point back to origin:
+            p.x -= cx;
+            p.y -= cy;
+
+            // rotate point
+            float xnew = p.x * c - p.y * s;
+            float ynew = p.x * s + p.y * c;
+
+            // translate point back:
+            p.x = xnew + cx;
+            p.y = ynew + cy;
+            return p;
+        };
+
+        if(lastVrYawDiff != 0.f)
+            Con_Printf("lastVrYawDiff: %.2f\n", lastVrYawDiff);
+
+        auto cx = player->origin[0];
+        auto cy = player->origin[1];
+
+        const auto oldadjxy =
+            rotate_point(cx, cy, -lastVrYawDiff, {oldx, oldy});
+        const auto newadjxy =
+            rotate_point(cx, cy, lastVrYawDiff, {finalVec[0], finalVec[1]});
+
+        const auto olddiffx = oldx - oldadjxy[0];
+        const auto olddiffy = oldy - oldadjxy[1];
+
+        const auto newdiffx = finalVec[0] - newadjxy[0];
+        const auto newdiffy = finalVec[1] - newadjxy[1];
+
+        const auto diffx = lerp(olddiffx, newdiffx, ftw);
+        const auto diffy = lerp(olddiffy, newdiffy, ftw);
+
+        const auto newx = lerp(oldx, finalVec[0], ftw);
+        const auto newy = lerp(oldy, finalVec[1], ftw);
+        const auto newz = lerp(oldz, finalVec[2], ftw);
+
+        const auto ldiffx = newx - oldx;
+        const auto ldiffy = newy - oldy;
+        const auto ldiffz = newz - oldz;
+
+    // TODO VR: seems good now. Cvar everything
+    // TODO VR: collision detection is affected by lerping, not nice with big guns
+        cl.handpos[index][0] += ldiffx + (opx * (1.f - ftw)) - olddiffx;
+        cl.handpos[index][1] += ldiffy + (opy * (1.f - ftw)) - olddiffy;
+        cl.handpos[index][2] += ldiffz + (opz * (1.f - ftw));
+    }
+    else
+    {
+        VectorCopy(finalVec, cl.handpos[index]);
     }
 
     // handrot is set with AngleVectorFromRotMat
@@ -1595,6 +1707,7 @@ static void VR_UpdateDevicesOrientationPosition() noexcept
     }
 }
 
+
 static void VR_ControllerAiming(const glm::vec3& orientation)
 {
     cl.viewangles[PITCH] = orientation[PITCH];
@@ -1667,6 +1780,9 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     SetHandPos(0, player);
     SetHandPos(1, player);
 
+    VectorCopy(player->origin, lastPlayerOrigin);
+    gotLastPlayerOrigin = true;
+
     // TODO VR: move refactor and reorganize
     const auto vr2HMode =
         static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
@@ -1679,7 +1795,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     const bool bothControllersActive =
         controllers[0].active && controllers[1].active;
 
-    // TODO VR: cvar
+    // TODO VR: cvar? or is this handled by vr2hmode?
     if(bothControllersActive && true)
     {
         const auto offHandPos = VR_Get2HOffHandPos();
@@ -1751,6 +1867,73 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
             // TODO VR: scourge of armagon music?
         }
     }
+
+    const auto [oldFwd, oldRight, oldUp] =
+        getGlmAngledVectors(cl.prevhandrot[1]);
+    const auto [newFwd, newRight, newUp] = getGlmAngledVectors(cl.handrot[1]);
+
+    const auto nOldFwd = glm::normalize(oldFwd);
+    const auto nOldUp = glm::normalize(oldUp);
+    const auto nNewFwd = glm::normalize(newFwd);
+    const auto nNewUp = glm::normalize(newUp);
+
+    const float frametime = cl.time - cl.oldtime;
+
+    auto weaponWeight = [&] {
+        constexpr float max1H = 0.85f;
+        const float help2H = vr_2h_aim_transition / 3.25f;
+        const float max = max1H + help2H;
+
+        const auto wid = wpnCvarEntryToWpnId(currWpnCVarEntry);
+
+        if(wid == WID_AXE) return max;
+        if(wid == WID_MJOLNIR) return max;
+        if(wid == WID_SHOTGUN) return max;
+        if(wid == WID_SUPER_SHOTGUN) return max;
+        if(wid == WID_NAILGUN) return max;
+        if(wid == WID_SUPER_NAILGUN) return 0.1f + help2H;
+        if(wid == WID_GRENADE_LAUNCHER) return 0.1f + help2H;
+        if(wid == WID_PROXIMITY_GUN) return 0.1f + help2H;
+        if(wid == WID_ROCKET_LAUNCHER) return 0.1f + help2H;
+        if(wid == WID_LIGHTNING) return 0.1f + help2H;
+        if(wid == WID_LASER_CANNON) return 0.05f + help2H;
+
+        return max;
+    }();
+
+    if(weaponWeight > 1.f) weaponWeight = 1.f;
+
+
+
+    const auto factor = weaponWeight;
+    const auto ftw = (factor * frametime) * 100.f;
+
+    const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
+    const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
+
+    const auto anyNan = [](const glm::vec3& v) {
+        return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]);
+    };
+
+    const auto mixFwd = anyNan(slerpFwd) ? nNewFwd : slerpFwd;
+    const auto mixUp = anyNan(slerpUp) ? nNewUp : slerpUp;
+
+    const auto [p, y, r] = pitchYawRollFromDirectionVector(mixUp, mixFwd);
+
+    const auto yawDiff =
+        lastVrYawDiff; // sv_player->v.v_viewangle[YAW] - lastPlayerYaw;
+    if(yawDiff != 0.f)
+        Con_Printf(
+            "yawDiff: %.2f | withftw: %2.f \n", yawDiff, yawDiff * (1.f - ftw));
+
+
+    cl.handrot[1][PITCH] = p;
+    cl.handrot[1][YAW] = y - (yawDiff * (1.f - ftw));
+    cl.handrot[1][ROLL] = r;
+
+
+    lastPlayerYaw = sv_player->v.v_viewangle[YAW];
+    VectorCopy(cl.handrot[1], cl.prevhandrot[1]);
 
     // TODO VR: interpolate based on weapon weight?
     VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
@@ -2779,6 +2962,8 @@ void VR_Move(usercmd_t* cmd)
         cmd->upmove *= cl_movespeedkey.value;
     }
 
+    lastVrYawDiff = 0.f;
+
     if(vr_enable_joystick_turn.value == 1)
     {
         if(vr_snap_turn.value != 0)
@@ -2787,13 +2972,16 @@ void VR_Move(usercmd_t* cmd)
             int snap = yawMove > 0.0f ? 1 : yawMove < 0.0f ? -1 : 0;
             if(snap != lastSnap)
             {
-                vrYaw -= snap * vr_snap_turn.value;
+                lastVrYawDiff = snap * vr_snap_turn.value;
+                vrYaw -= lastVrYawDiff;
                 lastSnap = snap;
             }
         }
         else
         {
-            vrYaw -= (yawMove * host_frametime * 100.0f) * vr_turn_speed.value;
+            lastVrYawDiff =
+                (yawMove * host_frametime * 100.0f) * vr_turn_speed.value;
+            vrYaw -= lastVrYawDiff;
         }
     }
 }

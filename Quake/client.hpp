@@ -175,6 +175,7 @@ struct client_state_t
     vec3_t vmeshoffset;
     vec3_t handpos[2];
     vec3_t handrot[2];
+    vec3_t prevhandrot[2];
     vec3_t handvel[2];
     float handvelmag[2];
 
