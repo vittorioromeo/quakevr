@@ -125,16 +125,6 @@ typedef unsigned char byte;
 /* math */
 using vec_t = float;
 using vec3_t = vec_t[3];
-
-// TODO VR:
-/*
-struct vec3_t : glm::vec3
-{
-    using glm::vec3::vec3;
-    operator vec_t* () { return reinterpret_cast<float*>(this); }
-};
-*/
-
 using vec4_t = vec_t[4];
 using vec5_t = vec_t[5];
 using fixed4_t = int;

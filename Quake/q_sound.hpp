@@ -75,7 +75,7 @@ typedef struct
     int looping;  /* where to loop, -1 = no looping		*/
     int entnum;   /* to allow overriding a specific sound		*/
     int entchannel;
-    vec3_t origin;   /* origin of sound effect			*/
+    glm::vec3 origin;   /* origin of sound effect			*/
     vec_t dist_mult; /* distance multiplier (attenuation/clipK)	*/
     int master_vol;  /* 0-255 master volume				*/
 } channel_t;
@@ -97,7 +97,7 @@ void S_Startup(void);
 void S_Shutdown(void);
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
     const glm::vec3& origin, float fvol, float attenuation);
-void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation);
+void S_StaticSound(sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
 void S_ClearBuffer(void);

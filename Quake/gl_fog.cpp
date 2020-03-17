@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_fog.c -- global and volumetric fog
 
 #include "quakedef.hpp"
+#include "glm.hpp"
+#include "gtc/type_ptr.hpp"
 
 //==============================================================================
 //
@@ -351,11 +353,11 @@ called before drawing stuff that is additive blended -- sets fog color to black
 */
 void Fog_StartAdditive()
 {
-    vec3_t color = {0, 0, 0};
+    const glm::vec3 color{0, 0, 0};
 
     if(Fog_GetDensity() > 0)
     {
-        glFogfv(GL_FOG_COLOR, color);
+        glFogfv(GL_FOG_COLOR, glm::value_ptr(color));
     }
 }
 

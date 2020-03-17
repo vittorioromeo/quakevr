@@ -89,7 +89,7 @@ typedef struct
 //====================================================
 
 extern bool r_cache_thrash; // compatability
-extern vec3_t modelorg, r_entorigin;
+extern glm::vec3 modelorg, r_entorigin;
 extern entity_t* currententity;
 extern int r_visframecount; // ??? what difs?
 extern int r_framecount;
@@ -356,7 +356,7 @@ struct dlight_t;
 void R_AnimateLight(void);
 void R_MarkSurfaces(void);
 void R_CullSurfaces(void);
-bool R_CullBox(vec3_t emins, vec3_t emaxs);
+bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
 void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles);

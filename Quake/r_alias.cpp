@@ -51,7 +51,7 @@ float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
 extern glm::vec3 lightspot;
 
 float* shadedots = r_avertexnormal_dots[0];
-vec3_t shadevector;
+glm::vec3 shadevector;
 
 float entalpha; // johnfitz
 
@@ -552,7 +552,7 @@ R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
 {
     float blend;
-    vec3_t d;
+    glm::vec3 d;
     int i;
 
     // if LERP_RESETMOVE, kill any lerps in progress
@@ -627,7 +627,7 @@ rewritten
 */
 void R_SetupAliasLighting(entity_t* e)
 {
-    vec3_t dist;
+    glm::vec3 dist;
     float add;
     int i;
     int quantizedangle;
@@ -641,7 +641,7 @@ void R_SetupAliasLighting(entity_t* e)
         if(cl_dlights[i].die >= cl.time)
         {
             VectorSubtract(currententity->origin, cl_dlights[i].origin, dist);
-            add = cl_dlights[i].radius - VectorLength(dist);
+            add = cl_dlights[i].radius - glm::length(dist);
 
             if(add > 0)
             {
@@ -705,7 +705,7 @@ void R_SetupAliasLighting(entity_t* e)
     shadevector[0] = cos(-radiansangle);
     shadevector[1] = sin(-radiansangle);
     shadevector[2] = 1;
-    VectorNormalize(shadevector);
+    shadevector = glm::normalize(shadevector);
     // ericw --
 
     shadedots = r_avertexnormal_dots[quantizedangle];

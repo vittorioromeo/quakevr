@@ -129,14 +129,14 @@ possible, no move is done, false is returned, and
 pr_global_struct->trace_normal is set to the normal of the blocking wall
 =============
 */
-bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
+bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 {
     float dz;
-    vec3_t oldorg;
+    glm::vec3 oldorg;
 
-    vec3_t neworg;
+    glm::vec3 neworg;
 
-    vec3_t end;
+    glm::vec3 end;
     trace_t trace;
     int i;
     edict_t* enemy;
@@ -287,9 +287,9 @@ facing it.
 void PF_changeyaw();
 bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
-    vec3_t move;
+    glm::vec3 move;
 
-    vec3_t oldorigin;
+    glm::vec3 oldorigin;
     float delta;
 
     ent->v.ideal_yaw = yaw;

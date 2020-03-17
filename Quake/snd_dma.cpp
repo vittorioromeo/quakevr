@@ -435,7 +435,7 @@ void SND_Spatialize(channel_t* ch)
     vec_t rscale;
 
     vec_t scale;
-    vec3_t source_vec;
+    glm::vec3 source_vec;
 
     // anything coming from the view entity will always be full volume
     if(ch->entnum == cl.viewentity)
@@ -447,7 +447,8 @@ void SND_Spatialize(channel_t* ch)
 
     // calculate stereo seperation and distance attenuation
     VectorSubtract(ch->origin, listener_origin, source_vec);
-    dist = VectorNormalize(source_vec) * ch->dist_mult;
+    dist = glm::length(source_vec) * ch->dist_mult;
+    source_vec = glm::normalize(source_vec);
     dot = DotProduct(listener_right, source_vec);
 
     if(shm->channels == 1)
@@ -659,7 +660,7 @@ void S_ClearBuffer()
 S_StaticSound
 =================
 */
-void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation)
+void S_StaticSound(sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
 {
     channel_t* ss;
     sfxcache_t* sc;

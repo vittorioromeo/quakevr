@@ -30,12 +30,11 @@
 // Utilities
 // ----------------------------------------------------------------------------
 
-using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::getAngledVectors;
+using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::hitSomething;
 using quake::util::lerp;
 using quake::util::pitchYawRollFromDirectionVector;
-using quake::util::toVec3;
 
 //
 //
@@ -1217,7 +1216,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 // Get the player origin vector, but adjusted to the upper torso on the Z axis.
 [[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(entity_t* player) noexcept
 {
-    glm::vec3 res = toVec3(player->origin);
+    glm::vec3 res = player->origin;
     res[2] = VR_GetHandZOrigin(player) + 40;
     return res;
 }
@@ -1279,7 +1278,7 @@ void SetHandPos(int index, entity_t* player)
         SV_Move(adjPlayerOrigin, mins, maxs, finalPre, MOVE_NORMAL, sv_player);
 
     // Final position after full collision resolution.
-    const auto crop = toVec3(trace.endpos);
+    const auto& crop = trace.endpos;
 
     // Compute final collision resolution position, starting from the desired
     // position and resolving only against the collision plane's normal vector.
@@ -1306,7 +1305,7 @@ void SetHandPos(int index, entity_t* player)
     finalVec = resolvedHandPos;
 
     const auto muzzlePos = index == 0
-                               ? toVec3(cl.handpos[index])
+                               ? cl.handpos[index]
                                : resolvedHandPos + VR_CalcWeaponMuzzlePosImpl();
 
     const glm::vec3 adjFinalPre{muzzlePos[0], muzzlePos[1], muzzlePos[2]};
@@ -1316,7 +1315,7 @@ void SetHandPos(int index, entity_t* player)
         resolvedHandPos, mins, maxs, adjFinalPre, MOVE_NORMAL, sv_player);
 
     // TODO VR:
-    auto gunCrop = toVec3(gunTrace.endpos) - VR_CalcWeaponMuzzlePosImpl();
+    auto gunCrop = gunTrace.endpos - VR_CalcWeaponMuzzlePosImpl();
 
     if(gunTrace.fraction < 1.f)
     {
@@ -1338,9 +1337,9 @@ void SetHandPos(int index, entity_t* player)
     }
 
     // If hands get too far, bring them closer to the player.
-    const auto currHandPos = toVec3(cl.handpos[index]);
+    const auto currHandPos = cl.handpos[index];
     constexpr auto maxHandPlayerDiff = 50.f;
-    const auto handPlayerDiff = currHandPos - toVec3(adjPlayerOrigin);
+    const auto handPlayerDiff = currHandPos - adjPlayerOrigin;
     if(glm::length(handPlayerDiff) > maxHandPlayerDiff)
     {
         const auto dir = glm::normalize(handPlayerDiff);
@@ -1477,8 +1476,8 @@ void SetHandPos(int index, entity_t* player)
     const auto oy = vr_shoulder_offset_y.value;
     const auto oz = vr_shoulder_offset_z.value;
 
-    const auto shoulderPos = toVec3(sv_player->v.origin) + vRight * oy +
-                             vFwd * ox + vUp * vr_height_calibration.value * oz;
+    const auto shoulderPos = sv_player->v.origin + vRight * oy + vFwd * ox +
+                             vUp * vr_height_calibration.value * oz;
 
     return shoulderPos;
 }
@@ -1491,7 +1490,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] static glm::vec3 VR_Get2HMainHandPos() noexcept
 {
-    return toVec3(cl.handpos[1]);
+    return cl.handpos[1];
 }
 
 [[nodiscard]] static glm::vec3 VR_Get2HOffHandPos() noexcept
@@ -1500,7 +1499,7 @@ void SetHandPos(int index, entity_t* player)
     const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
 
     const auto offHandPos =
-        toVec3(cl.handpos[0]) + forward * thox + right * thoy + up * thoz;
+        cl.handpos[0] + forward * thox + right * thoy + up * thoz;
 
     return offHandPos;
 }
@@ -1508,7 +1507,7 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] static bool VR_InStockDistance(
     const glm::vec3& shoulderPos) noexcept
 {
-    return glm::length(toVec3(cl.handpos[1]) - shoulderPos) <
+    return glm::length(cl.handpos[1] - shoulderPos) <
            vr_2h_virtual_stock_threshold.value;
 }
 
@@ -1529,8 +1528,7 @@ static void VR_DoTeleportation()
         const glm::vec3 maxs{oh, oh, oy};
 
         const auto [forward, right, up] = getAngledVectors(cl.handrot[0]);
-        const auto target =
-            toVec3(cl.handpos[0]) + vr_teleport_range.value * forward;
+        const auto target = cl.handpos[0] + vr_teleport_range.value * forward;
 
         const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
 
@@ -1546,7 +1544,7 @@ static void VR_DoTeleportation()
         const bool goodNormal = between(trace.plane.normal[2], 0.75f, 1.f);
 
         vr_teleporting_impact_valid = trace.fraction < 1.0 && goodNormal;
-        vr_teleporting_impact = toVec3(trace.endpos);
+        vr_teleporting_impact = trace.endpos;
 
         if(vr_teleporting_impact_valid)
         {
@@ -1560,7 +1558,7 @@ static void VR_DoTeleportation()
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
     {
         vr_send_teleport_msg = true;
-        quake::util::toQuakeVec3(sv_player->v.origin, vr_teleporting_impact);
+        sv_player->v.origin = vr_teleporting_impact;
     }
 
     vr_was_teleporting = vr_teleporting;
@@ -1774,8 +1772,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         // TODO VR: cvars for everything, weapon traits, virtual stock
 
         {
-            const auto [forward, right, up] =
-                getAngledVectors(originalRots[1]);
+            const auto [forward, right, up] = getAngledVectors(originalRots[1]);
 
             const auto origDir = forward;
 
@@ -1827,8 +1824,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         }
     }
 
-    const auto [oldFwd, oldRight, oldUp] =
-        getAngledVectors(cl.prevhandrot[1]);
+    const auto [oldFwd, oldRight, oldUp] = getAngledVectors(cl.prevhandrot[1]);
     const auto [newFwd, newRight, newUp] = getAngledVectors(cl.handrot[1]);
 
     const auto nOldFwd = glm::normalize(oldFwd);
@@ -1999,7 +1995,7 @@ void VR_UpdateScreenContent()
     cl.viewangles[ROLL] = orientation[ROLL];
 
     lastOrientation = orientation;
-    lastAim = toVec3(cl.aimangles);
+    lastAim = cl.aimangles;
 
     VectorCopy(cl.viewangles, r_refdef.viewangles);
     VectorCopy(cl.aimangles, r_refdef.aimangles);
@@ -2096,7 +2092,7 @@ void VR_CalibrateHeight()
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
 {
-    return toVec3(cl.handpos[1]) + VR_CalcWeaponMuzzlePosImpl();
+    return cl.handpos[1] + VR_CalcWeaponMuzzlePosImpl();
 }
 
 void VR_ShowVirtualStock()
@@ -2191,12 +2187,11 @@ void VR_ShowCrosshair()
         if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
         {
             const auto start = VR_CalcWeaponMuzzlePos();
-            const auto [forward, right, up] =
-                getAngledVectors(cl.handrot[1]);
+            const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
             return std::tuple{start, forward, right, up};
         }
 
-        auto start = toVec3(cl.viewent.origin);
+        auto start = cl.viewent.origin;
         start[2] -= cl.viewheight - 10;
 
         const auto [forward, right, up] = getAngledVectors(cl.aimangles);
@@ -2216,7 +2211,7 @@ void VR_ShowCrosshair()
                 end = start + 4096.f * forward;
                 end[2] += vr_crosshairy.value;
 
-                impact = toVec3(TraceLine(start, end).endpos);
+                impact = TraceLine(start, end).endpos;
             }
             else
             {
@@ -2244,7 +2239,7 @@ void VR_ShowCrosshair()
             // trace to first entity
             const auto end = start + depth * forward;
             const trace_t trace = TraceLineToEntity(start, end, sv_player);
-            auto impact = hitSomething(trace) ? toVec3(trace.endpos) : end;
+            auto impact = hitSomething(trace) ? trace.endpos : end;
             impact[2] += vr_crosshairy.value * 10.f;
 
             glLineWidth(size * glwidth / vid.width);
@@ -2317,7 +2312,7 @@ void VR_DrawTeleportLine()
     glDisable(GL_CULL_FACE);
 
     // calc angles
-    const auto start = toVec3(cl.handpos[0]);
+    const auto start = cl.handpos[0];
 
     // calc line
     const auto impact = vr_teleporting_impact;
@@ -2424,7 +2419,7 @@ void VR_Draw2D()
     }
 
     // TODO VR: control smoothing with cvar
-    const auto smoothedTarget = glm::mix(lastMenuPosition, toVec3(target), 0.9);
+    const auto smoothedTarget = glm::mix(lastMenuPosition, target, 0.9);
     lastMenuPosition = smoothedTarget;
 
     glTranslatef(smoothedTarget[0], smoothedTarget[1], smoothedTarget[2]);
@@ -2547,7 +2542,7 @@ void VR_DrawSbar()
     }
 
     // TODO VR: 1.0? Attach to off hand?
-    const auto smoothedTarget = glm::mix(lastHudPosition, toVec3(target), 1.0);
+    const auto smoothedTarget = glm::mix(lastHudPosition, target, 1.0);
     lastHudPosition = smoothedTarget;
 
     glTranslatef(smoothedTarget[0], smoothedTarget[1], smoothedTarget[2]);
@@ -2557,7 +2552,7 @@ void VR_DrawSbar()
             static_cast<int>(VrSbarMode::OffHand))
     {
         glm::fquat m;
-        m = glm::quatLookAt(toVec3(forward), toVec3(up));
+        m = glm::quatLookAt(forward, up);
         m = glm::rotate(m, vr_sbar_offset_pitch.value, glm::vec3(1, 0, 0));
         m = glm::rotate(m, vr_sbar_offset_yaw.value, glm::vec3(0, 1, 0));
         m = glm::rotate(m, vr_sbar_offset_roll.value, glm::vec3(0, 0, 1));
@@ -2603,7 +2598,7 @@ void VR_ResetOrientation()
     if(vr_enabled.value)
     {
         // IVRSystem_ResetSeatedZeroPose(ovrHMD);
-        lastAim = toVec3(cl.aimangles);
+        lastAim = cl.aimangles;
     }
 }
 
@@ -2857,7 +2852,7 @@ void VR_Move(usercmd_t* cmd)
                 lup[2] *= -1;
             }
 
-            VectorSwap(lup, lfwd);
+            std::swap(lup, lfwd);
         }
 
         // Scale up directions so tilting doesn't affect speed

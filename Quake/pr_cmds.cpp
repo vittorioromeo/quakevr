@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "glm.hpp"
 #include "util.hpp"
+#include "gtc/type_ptr.hpp"
 
 #include <cmath>
 
@@ -43,6 +44,14 @@ static char* PR_GetTempString()
 #define MSG_ONE 1       // reliable to one (msg_entity)
 #define MSG_ALL 2       // reliable to all
 #define MSG_INIT 3      // write to the init string
+
+
+// TODO VR:
+[[nodiscard]] static glm::vec3 extractVector(const int parm) noexcept
+{
+    float* const ptr = G_VECTOR(parm);
+    return {ptr[0], ptr[1], ptr[2]};
+}
 
 /*
 ===============================================================================
@@ -147,11 +156,10 @@ makevectors(vector)
 */
 static void PF_makevectors()
 {
-    vec_t* ptr = G_VECTOR(OFS_PARM0);
-    auto arrPtr = static_cast<vec_t(*)[3]>(static_cast<void*>(ptr));
+    const auto org = extractVector(OFS_PARM0);
 
-    AngleVectors(*arrPtr, pr_global_struct->v_forward,
-        pr_global_struct->v_right, pr_global_struct->v_up);
+    AngleVectors(org, pr_global_struct->v_forward, pr_global_struct->v_right,
+        pr_global_struct->v_up);
 }
 
 /*
@@ -184,17 +192,17 @@ template <typename V0, typename V1>
 static void SetMinMaxSize(edict_t* e, V0 minvec, V1 maxvec, bool rotate)
 {
     float* angles;
-    vec3_t rmin;
+    glm::vec3 rmin;
 
-    vec3_t rmax;
+    glm::vec3 rmax;
     float bounds[2][3];
     float xvector[2];
 
     float yvector[2];
     float a;
-    vec3_t base;
+    glm::vec3 base;
 
-    vec3_t transformed;
+    glm::vec3 transformed;
     int i;
 
     int j;
@@ -220,7 +228,7 @@ static void SetMinMaxSize(edict_t* e, V0 minvec, V1 maxvec, bool rotate)
     else
     {
         // find min / max for rotations
-        angles = e->v.angles;
+        angles = glm::value_ptr(e->v.angles);
 
         a = angles[1] / 180 * M_PI;
 
@@ -444,7 +452,7 @@ vector normalize(vector)
 static void PF_normalize()
 {
     float* value1;
-    vec3_t newvalue;
+    glm::vec3 newvalue;
     double new_temp;
 
     value1 = G_VECTOR(OFS_PARM0);
@@ -610,8 +618,8 @@ particle(origin, dir, color, count)
 */
 static void PF_particle()
 {
-    float* org = G_VECTOR(OFS_PARM0);
-    float* dir = G_VECTOR(OFS_PARM1);
+    const auto org = extractVector(OFS_PARM0);
+    const auto dir = extractVector(OFS_PARM1);
     const float color = G_FLOAT(OFS_PARM2);
     const float count = G_FLOAT(OFS_PARM3);
     SV_StartParticle(org, dir, color, count);
@@ -626,8 +634,8 @@ particle2(origin, dir, preset, count)
 */
 static void PF_particle2()
 {
-    float* org = G_VECTOR(OFS_PARM0);
-    float* dir = G_VECTOR(OFS_PARM1);
+    const auto org = extractVector(OFS_PARM0);
+    const auto dir = extractVector(OFS_PARM1);
     const int preset = G_FLOAT(OFS_PARM2);
     const int count = G_FLOAT(OFS_PARM3);
     SV_StartParticle2(org, dir, preset, count);
@@ -1129,7 +1137,7 @@ static void PF_findradius()
     edict_t* chain;
     float rad;
     float* org;
-    vec3_t eorg;
+    glm::vec3 eorg;
     int i;
 
     int j;
@@ -1155,7 +1163,7 @@ static void PF_findradius()
             eorg[j] = org[j] - (ent->v.origin[j] +
                                    (ent->v.mins[j] + ent->v.maxs[j]) * 0.5);
         }
-        if(VectorLength(eorg) > rad)
+        if(glm::length(eorg) > rad)
         {
             continue;
         }
@@ -1380,7 +1388,7 @@ static void PF_walkmove()
     float yaw;
 
     float dist;
-    vec3_t move;
+    glm::vec3 move;
     dfunction_t* oldf;
     int oldself;
 
@@ -1422,7 +1430,7 @@ void() droptofloor
 static void PF_droptofloor()
 {
     edict_t* ent;
-    vec3_t end;
+    glm::vec3 end;
     trace_t trace;
 
     ent = PROG_TO_EDICT(pr_global_struct->self);
@@ -1592,13 +1600,13 @@ static void PF_aim()
     edict_t* check;
 
     edict_t* bestent;
-    vec3_t start;
+    glm::vec3 start;
 
-    vec3_t dir;
+    glm::vec3 dir;
 
-    vec3_t end;
+    glm::vec3 end;
 
-    vec3_t bestdir;
+    glm::vec3 bestdir;
     int i;
 
     int j;
@@ -1616,11 +1624,10 @@ static void PF_aim()
     start[2] += 20;
 
     // try sending a trace straight
-    VectorCopy(pr_global_struct->v_forward, dir);
-    VectorMA(start, 2048, dir, end);
+    dir = pr_global_struct->v_forward;
+    end = start + 2048.f * dir;
     glm::vec3 origin{0.f, 0.f, 0.f};
-    tr = SV_Move(quake::util::toVec3(start), origin, origin,
-        quake::util::toVec3(end), false, ent);
+    tr = SV_Move(start, origin, origin, end, false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
@@ -1654,7 +1661,7 @@ static void PF_aim()
                      0.5 * (check->v.mins[j] + check->v.maxs[j]);
         }
         VectorSubtract(end, start, dir);
-        VectorNormalize(dir);
+        dir = glm::normalize(dir);
         dist = DotProduct(dir, pr_global_struct->v_forward);
         if(dist < bestdist)
         {
@@ -1675,7 +1682,7 @@ static void PF_aim()
         dist = DotProduct(dir, pr_global_struct->v_forward);
         VectorScale(pr_global_struct->v_forward, dist, end);
         end[2] = dir[2];
-        VectorNormalize(end);
+        end = glm::normalize(end);
         VectorCopy(end, G_VECTOR(OFS_RETURN));
     }
     else

@@ -536,8 +536,7 @@ void R_DrawBrushModel(entity_t* e)
     VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        vec3_t temp;
-        VectorCopy(modelorg, temp);
+        glm::vec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -627,8 +626,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        vec3_t temp;
-        VectorCopy(modelorg, temp);
+        glm::vec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -1161,9 +1159,9 @@ void R_AddDynamicLights(msurface_t* surf)
     float rad;
 
     float minlight;
-    vec3_t impact;
+    glm::vec3 impact;
 
-    vec3_t local;
+    glm::vec3 local;
     int s;
 
     int t;

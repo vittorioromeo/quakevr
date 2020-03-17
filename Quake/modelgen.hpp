@@ -44,6 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "trilib.hpp"
 #include "lbmlib.hpp"
 #include "mathlib.hpp"
+#include "glm.hpp"
 
 #endif
 
@@ -77,10 +78,10 @@ typedef struct
 {
     int ident;
     int version;
-    vec3_t scale;
-    vec3_t scale_origin;
+    glm::vec3 scale;
+    glm::vec3 scale_origin;
     float boundingradius;
-    vec3_t eyeposition;
+    glm::vec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;

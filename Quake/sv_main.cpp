@@ -153,8 +153,8 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(
-    const vec3_t org, const vec3_t dir, const int color, const int count)
+void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
+    const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -190,8 +190,8 @@ SV_StartParticle2
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle2(
-    const vec3_t org, const vec3_t dir, const int preset, const int count)
+void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
+    const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {

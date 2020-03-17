@@ -33,12 +33,12 @@ extern cvar_t sv_friction;
 cvar_t sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern cvar_t sv_stopspeed;
 
-static vec3_t forward, right, up;
+static glm::vec3 forward, right, up;
 
 // world
-float* angles;
-float* origin;
-float* velocity;
+glm::vec3* angles;
+glm::vec3* origin;
+glm::vec3* velocity;
 
 bool onground;
 
@@ -149,7 +149,7 @@ SV_UserFriction
 */
 void SV_UserFriction()
 {
-    float* vel;
+    glm::vec3* vel;
     float speed;
 
     float newspeed;
@@ -163,16 +163,16 @@ void SV_UserFriction()
 
     vel = velocity;
 
-    speed = sqrt(vel[0] * vel[0] + vel[1] * vel[1]);
+    speed = sqrt((*vel)[0] * (*vel)[0] + (*vel)[1] * (*vel)[1]);
     if(!speed)
     {
         return;
     }
 
     // if the leading edge is over a dropoff, increase friction
-    start[0] = stop[0] = origin[0] + vel[0] / speed * 16;
-    start[1] = stop[1] = origin[1] + vel[1] / speed * 16;
-    start[2] = origin[2] + sv_player->v.mins[2];
+    start[0] = stop[0] = (*origin)[0] + (*vel)[0] / speed * 16;
+    start[1] = stop[1] = (*origin)[1] + (*vel)[1] / speed * 16;
+    start[2] = (*origin)[2] + sv_player->v.mins[2];
     stop[2] = start[2] - 34;
 
     trace =
@@ -212,7 +212,7 @@ cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
 
 void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
 {
-    const float currentspeed = DotProduct(velocity, wishdir);
+    const float currentspeed = DotProduct((*velocity), wishdir);
     const float addspeed = wishspeed - currentspeed;
 
     if(addspeed <= 0)
@@ -232,7 +232,7 @@ void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
     }
 }
 
-void SV_AirAccelerate(float wishspeed, const  glm::vec3& wishveloc)
+void SV_AirAccelerate(float wishspeed, const glm::vec3& wishveloc)
 {
     float wishspd = glm::length(wishveloc);
 
@@ -242,7 +242,7 @@ void SV_AirAccelerate(float wishspeed, const  glm::vec3& wishveloc)
     }
 
     const auto wishvelocdir = glm::normalize(wishveloc);
-    const float currentspeed = DotProduct(velocity, wishvelocdir);
+    const float currentspeed = DotProduct((*velocity), wishvelocdir);
     const float addspeed = wishspd - currentspeed;
 
     if(addspeed <= 0)
@@ -265,15 +265,15 @@ void SV_AirAccelerate(float wishspeed, const  glm::vec3& wishveloc)
 
 void DropPunchAngle()
 {
-    float len;
-
-    len = VectorNormalize(sv_player->v.punchangle);
+    float len = glm::length(sv_player->v.punchangle);
+    sv_player->v.punchangle = glm::normalize(sv_player->v.punchangle);
 
     len -= 10 * host_frametime;
     if(len < 0)
     {
         len = 0;
     }
+
     VectorScale(sv_player->v.punchangle, len, sv_player->v.punchangle);
 }
 
@@ -286,7 +286,7 @@ SV_WaterMove
 void SV_WaterMove()
 {
     int i;
-    vec3_t wishvel;
+    glm::vec3 wishvel;
     float speed;
 
     float newspeed;
@@ -316,7 +316,7 @@ void SV_WaterMove()
         wishvel[2] += cmd.upmove;
     }
 
-    wishspeed = VectorLength(wishvel);
+    wishspeed = glm::length(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
         VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
@@ -327,7 +327,7 @@ void SV_WaterMove()
     //
     // water friction
     //
-    speed = VectorLength(velocity);
+    speed = glm::length(*velocity);
     if(speed)
     {
         newspeed = speed - host_frametime * speed * sv_friction.value;
@@ -335,7 +335,7 @@ void SV_WaterMove()
         {
             newspeed = 0;
         }
-        VectorScale(velocity, newspeed / speed, velocity);
+        VectorScale(*velocity, newspeed / speed, *velocity);
     }
     else
     {
@@ -356,7 +356,7 @@ void SV_WaterMove()
         return;
     }
 
-    VectorNormalize(wishvel);
+    wishvel = glm::normalize(wishvel);
     accelspeed = sv_accelerate.value * wishspeed * host_frametime;
     if(accelspeed > addspeed)
     {
@@ -391,15 +391,15 @@ void SV_NoclipMove()
 {
     AngleVectors(sv_player->v.v_angle, forward, right, up);
 
-    velocity[0] = forward[0] * cmd.forwardmove + right[0] * cmd.sidemove;
-    velocity[1] = forward[1] * cmd.forwardmove + right[1] * cmd.sidemove;
-    velocity[2] = forward[2] * cmd.forwardmove + right[2] * cmd.sidemove;
-    velocity[2] += cmd.upmove * 2; // doubled to match running speed
+    (*velocity)[0] = forward[0] * cmd.forwardmove + right[0] * cmd.sidemove;
+    (*velocity)[1] = forward[1] * cmd.forwardmove + right[1] * cmd.sidemove;
+    (*velocity)[2] = forward[2] * cmd.forwardmove + right[2] * cmd.sidemove;
+    (*velocity)[2] += cmd.upmove * 2; // doubled to match running speed
 
-    if(VectorLength(velocity) > sv_maxspeed.value)
+    if(glm::length(*velocity) > sv_maxspeed.value)
     {
-        VectorNormalize(velocity);
-        VectorScale(velocity, sv_maxspeed.value, velocity);
+        *velocity = glm::normalize(*velocity);
+        VectorScale(*velocity, sv_maxspeed.value, *velocity);
     }
 }
 
@@ -423,7 +423,7 @@ void SV_AirMove()
         fmove = 0;
     }
 
-   glm::vec3 wishvel;
+    glm::vec3 wishvel;
 
 
     for(int i = 0; i < 3; i++)
@@ -450,7 +450,7 @@ void SV_AirMove()
 
     if(sv_player->v.movetype == MOVETYPE_NOCLIP)
     { // noclip
-        VectorCopy(wishvel, velocity);
+        *velocity = wishvel;
     }
     else if(onground)
     {
@@ -481,8 +481,8 @@ void SV_ClientThink()
 
     onground = (int)sv_player->v.flags & FL_ONGROUND;
 
-    origin = sv_player->v.origin;
-    velocity = sv_player->v.velocity;
+    origin = &sv_player->v.origin;
+    velocity = &sv_player->v.velocity;
 
     DropPunchAngle();
 
@@ -498,17 +498,17 @@ void SV_ClientThink()
     // angles
     // show 1/3 the pitch angle and all the roll angle
     cmd = host_client->cmd;
-    angles = sv_player->v.angles;
+    angles = &sv_player->v.angles;
 
     glm::vec3 v_angle;
     VectorAdd(sv_player->v.v_angle, sv_player->v.punchangle, v_angle);
-    angles[ROLL] = V_CalcRoll(quake::util::toVec3(sv_player->v.angles),
-                       quake::util::toVec3(sv_player->v.velocity)) *
-                   4;
+    (*angles)[ROLL] = V_CalcRoll(quake::util::toVec3(sv_player->v.angles),
+                          quake::util::toVec3(sv_player->v.velocity)) *
+                      4;
     if(!sv_player->v.fixangle)
     {
-        angles[PITCH] = -v_angle[PITCH] / 3;
-        angles[YAW] = v_angle[YAW];
+        (*angles)[PITCH] = -v_angle[PITCH] / 3;
+        (*angles)[YAW] = v_angle[YAW];
     }
 
     if((int)sv_player->v.flags & FL_WATERJUMP)

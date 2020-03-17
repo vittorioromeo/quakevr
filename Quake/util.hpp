@@ -88,14 +88,6 @@ namespace quake::util
         return std::move(v);
     }
 
-    QUAKE_FORCEINLINE constexpr void toQuakeVec3(
-        vec3_t out, const glm::vec3& v) noexcept
-    {
-        out[0] = v[0];
-        out[1] = v[1];
-        out[2] = v[2];
-    }
-
     template <typename... Ts>
     [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
     {

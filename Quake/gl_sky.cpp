@@ -719,7 +719,8 @@ void Sky_ProcessEntities()
         {
             rotated = true;
 
-            const auto [xforward, xright, xup] = quake::util::getAngledVectors(e->angles);
+            const auto [xforward, xright, xup] =
+                quake::util::getAngledVectors(e->angles);
             forward = xforward;
             right = xright;
             up = xup;
@@ -1086,13 +1087,13 @@ void Sky_DrawFace(int axis)
     float dj;
 
     float qj;
-    vec3_t vup;
+    glm::vec3 vup;
 
-    vec3_t vright;
+    glm::vec3 vright;
 
-    vec3_t temp;
+    glm::vec3 temp;
 
-    vec3_t temp2;
+    glm::vec3 temp2;
 
     Sky_SetBoxVert(-1.0, -1.0, axis, verts[0]);
     Sky_SetBoxVert(-1.0, 1.0, axis, verts[1]);

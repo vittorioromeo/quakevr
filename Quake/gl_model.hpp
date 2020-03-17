@@ -146,8 +146,8 @@ typedef struct msurface_s
 {
     int visframe;    // should be drawn when node is crossed
     bool culled; // johnfitz -- for frustum culling
-    float mins[3];   // johnfitz -- for frustum culling
-    float maxs[3];   // johnfitz -- for frustum culling
+    glm::vec3 mins;   // johnfitz -- for frustum culling
+    glm::vec3 maxs;   // johnfitz -- for frustum culling 
 
     mplane_t* plane;
     int flags;

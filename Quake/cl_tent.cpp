@@ -63,12 +63,12 @@ void CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
 
-    vec3_t start;
+    glm::vec3 start;
     start[0] = MSG_ReadCoord(cl.protocolflags);
     start[1] = MSG_ReadCoord(cl.protocolflags);
     start[2] = MSG_ReadCoord(cl.protocolflags);
 
-    vec3_t end;
+    glm::vec3 end;
     end[0] = MSG_ReadCoord(cl.protocolflags);
     end[1] = MSG_ReadCoord(cl.protocolflags);
     end[2] = MSG_ReadCoord(cl.protocolflags);
@@ -334,7 +334,7 @@ void CL_UpdateTEnts()
         if(b->entity == cl.viewentity)
         {
             if(vr_enabled.value)
-            { 
+            {
                 b->start = VR_CalcWeaponMuzzlePos();
             }
             else
@@ -344,7 +344,7 @@ void CL_UpdateTEnts()
         }
 
         // calculate pitch and yaw
-        vec3_t dist;
+        glm::vec3 dist;
         VectorSubtract(b->end, b->start, dist);
 
         float pitch;
@@ -379,9 +379,10 @@ void CL_UpdateTEnts()
         }
 
         // add new entities for the lightning
-        vec3_t org;
+        glm::vec3 org;
         VectorCopy(b->start, org);
-        float d = VectorNormalize(dist);
+        float d = glm::length(dist);
+        dist = glm::normalize(dist);
         while(d > 0)
         {
 

@@ -30,9 +30,9 @@ typedef struct
 {
     int maxclients;
     int maxclientslimit;
-    struct client_s* clients;    // [maxclients]
-    int serverflags;             // episode completion information
-    bool changelevel_issued; // cleared when at SV_SpawnServer
+    struct client_s* clients; // [maxclients]
+    int serverflags;          // episode completion information
+    bool changelevel_issued;  // cleared when at SV_SpawnServer
 } server_static_t;
 
 //=============================================================================
@@ -99,8 +99,8 @@ typedef struct client_s
 
     struct qsocket_s* netconnection; // communications handle
 
-    usercmd_t cmd;  // movement
-    vec3_t wishdir; // intended motion calced from cmd
+    usercmd_t cmd;     // movement
+    glm::vec3 wishdir; // intended motion calced from cmd
 
     sizebuf_t message; // can be added to at any time,
                        // copied and clear once per frame
@@ -199,10 +199,10 @@ extern edict_t* sv_player;
 
 void SV_Init(void);
 
-void SV_StartParticle(
-    const vec3_t org, const vec3_t dir, const int color, const int count);
-void SV_StartParticle2(
-    const vec3_t org, const vec3_t dir, const int preset, const int count);
+void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
+    const int color, const int count);
+void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
+    const int preset, const int count);
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation);
 
@@ -226,7 +226,7 @@ void SV_BroadcastPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void SV_Physics(void);
 
 bool SV_CheckBottom(edict_t* ent);
-bool SV_movestep(edict_t* ent, vec3_t move, bool relink);
+bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink);
 
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 

@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct mplane_s;
 
-extern vec3_t vec3_origin;
+inline constexpr glm::vec3 vec3_origin{0.f, 0.f, 0.f};
 
 #define nanmask (255 << 23) /* 7F800000 */
 #if 0                       /* macro is violating strict aliasing rules */
@@ -80,19 +80,6 @@ static inline int IS_NAN(float x)
         b[1] = a[1];     \
         b[2] = a[2];     \
     }
-#define VectorSwap(a, b) \
-    {                    \
-        float tmp;       \
-        tmp = a[0];      \
-        a[0] = b[0];     \
-        b[0] = tmp;      \
-        tmp = a[1];      \
-        a[1] = b[1];     \
-        b[1] = tmp;      \
-        tmp = a[2];      \
-        a[2] = b[2];     \
-        b[2] = tmp;      \
-    }
 
 // johnfitz -- courtesy of lordhavoc
 // QuakeSpasm: To avoid strict aliasing violations, use a float/int union
@@ -113,51 +100,21 @@ static inline int IS_NAN(float x)
         }                                                            \
     }
 
-void TurnVector(vec3_t out, const vec3_t forward, const vec3_t side,
-    float angle);                                       // johnfitz
 [[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept; // johnfitz
 
-void VectorMA(vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
-
-vec_t _DotProduct(vec3_t v1, vec3_t v2);
-void _VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out);
-void _VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out);
-void _VectorCopy(vec3_t in, vec3_t out);
-
 vec_t VectorLength(vec3_t v);
-void CrossProduct(vec3_t v1, vec3_t v2, vec3_t cross);
-float VectorNormalize(vec3_t v); // returns vector length
-void VectorInverse(vec3_t v);
-
-
 
 template <typename T>
-void VectorScale(const T& in, vec_t scale, vec3_t out)
+void VectorScale(const T& in, const float scale, glm::vec3& out)
 {
     out[0] = in[0] * scale;
     out[1] = in[1] * scale;
     out[2] = in[2] * scale;
 }
-
-template <typename T>
-void VectorScale(const T&  in, const float scale, glm::vec3& out)
-{
-    out[0] = in[0] * scale;
-    out[1] = in[1] * scale;
-    out[2] = in[2] * scale;
-}
-
-
-int Q_log2(int val);
 
 [[nodiscard]] glm::mat3 R_ConcatRotations(
     const glm::mat3& in1, const glm::mat3& in2) noexcept;
-void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3]);
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
-
-void FloorDivMod(double numer, double denom, int* quotient, int* rem);
-fixed16_t Invert24To16(fixed16_t val);
-int GreatestCommonDivisor(int i1, int i2);
 
 template <typename T>
 void AngleVectors(const T& angles, T& forward, T& right, T& up)
@@ -196,7 +153,7 @@ void AngleVectors(const T& angles, T& forward, T& right, T& up)
     up[2] = cr * cp;
 }
 
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s* plane);
+int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
 [[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;

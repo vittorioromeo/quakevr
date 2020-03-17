@@ -1745,11 +1745,11 @@ void R_DrawParticles_ShowTris()
 
         glVertex3fv(glm::value_ptr(p.org));
 
-        vec3_t p_up;
+        glm::vec3 p_up;
         VectorMA(p.org, scale, up, p_up);
         glVertex3fv(glm::value_ptr(p_up));
 
-        vec3_t p_right;
+        glm::vec3 p_right;
         VectorMA(p.org, scale, right, p_right);
         glVertex3fv(glm::value_ptr(p_right));
         */

@@ -1147,7 +1147,7 @@ CL_ParseStaticSound
 */
 void CL_ParseStaticSound(int version) // johnfitz -- added argument
 {
-    vec3_t org;
+    glm::vec3 org;
     int sound_num;
 
     int vol;

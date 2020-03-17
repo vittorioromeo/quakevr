@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 bool r_cache_thrash; // compatability
 
-vec3_t modelorg, r_entorigin;
+glm::vec3 modelorg, r_entorigin;
 entity_t* currententity;
 
 int r_visframecount; // bumped when going to a new PVS
@@ -299,7 +299,7 @@ R_CullBox -- johnfitz -- replaced with new function from lordhavoc
 Returns true if the box is completely outside the frustum
 =================
 */
-bool R_CullBox(vec3_t emins, vec3_t emaxs)
+bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs)
 {
     int i;
     mplane_t* p;
@@ -384,24 +384,23 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 */
 bool R_CullModelForEntity(entity_t* e)
 {
-    vec3_t mins;
-
-    vec3_t maxs;
+    glm::vec3 mins;
+    glm::vec3 maxs;
 
     if(e->angles[0] || e->angles[2]) // pitch or roll
     {
-        VectorAdd(e->origin, e->model->rmins, mins);
-        VectorAdd(e->origin, e->model->rmaxs, maxs);
+        mins = e->origin + e->model->rmins;
+        maxs = e->origin + e->model->rmaxs;
     }
     else if(e->angles[1]) // yaw
     {
-        VectorAdd(e->origin, e->model->ymins, mins);
-        VectorAdd(e->origin, e->model->ymaxs, maxs);
+        mins = e->origin + e->model->ymins;
+        maxs = e->origin + e->model->ymaxs;
     }
     else // no rotation
     {
-        VectorAdd(e->origin, e->model->mins, mins);
-        VectorAdd(e->origin, e->model->maxs, maxs);
+        mins = e->origin + e->model->mins;
+        maxs = e->origin + e->model->maxs;
     }
 
     return R_CullBox(mins, maxs);
@@ -659,7 +658,8 @@ void R_SetupView()
     // build the transformation matrix for the given view angles
     r_origin = r_refdef.vieworg;
 
-    const auto [xvpn, xvright, xvup] = quake::util::getAngledVectors(r_refdef.viewangles);
+    const auto [xvpn, xvright, xvup] =
+        quake::util::getAngledVectors(r_refdef.viewangles);
     vpn = xvpn;
     vright = xvright;
     vup = xvup;
@@ -845,7 +845,7 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 ================
 */
-void R_EmitWirePoint(vec3_t origin)
+void R_EmitWirePoint(const glm::vec3& origin)
 {
     int size = 8;
 
@@ -864,7 +864,7 @@ void R_EmitWirePoint(vec3_t origin)
 R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 ================
 */
-void R_EmitWireBox(vec3_t mins, vec3_t maxs)
+void R_EmitWireBox(const glm::vec3& mins, const glm::vec3& maxs)
 {
     glBegin(GL_QUAD_STRIP);
     glVertex3f(mins[0], mins[1], mins[2]);
@@ -889,10 +889,9 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 */
 void R_ShowBoundingBoxes()
 {
+    glm::vec3 mins;
+    glm::vec3 maxs;
 
-    vec3_t mins;
-
-    vec3_t maxs;
     edict_t* ed;
     int i;
 
@@ -1285,7 +1284,8 @@ void R_RenderView()
         float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
         float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
-        const auto [xvpn, xvright, xvup] = quake::util::getAngledVectors(r_refdef.viewangles);
+        const auto [xvpn, xvright, xvup] =
+            quake::util::getAngledVectors(r_refdef.viewangles);
         vpn = xvpn;
         vright = xvright;
         vpn = xvup;
