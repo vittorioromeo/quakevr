@@ -151,7 +151,7 @@ void R_DrawSpriteModel(entity_t* e)
             break;
         }
         case SPR_ORIENTED: { // pitch yaw roll are independent of camera
-            const auto [xv_forward, xv_right, xv_up] = quake::util::getGlmAngledVectors(currententity->angles);
+            const auto [xv_forward, xv_right, xv_up] = quake::util::getAngledVectors(currententity->angles);
 
             v_forward = xv_forward;
             v_right = xv_right;

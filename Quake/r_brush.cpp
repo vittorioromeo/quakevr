@@ -540,7 +540,7 @@ void R_DrawBrushModel(entity_t* e)
         VectorCopy(modelorg, temp);
 
         const auto [forward, right, up] =
-            quake::util::getGlmAngledVectors(e->angles);
+            quake::util::getAngledVectors(e->angles);
 
         modelorg[0] = DotProduct(temp, forward);
         modelorg[1] = -DotProduct(temp, right);
@@ -631,7 +631,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
         VectorCopy(modelorg, temp);
 
         const auto [forward, right, up] =
-            quake::util::getGlmAngledVectors(e->angles);
+            quake::util::getAngledVectors(e->angles);
 
         modelorg[0] = DotProduct(temp, forward);
         modelorg[1] = -DotProduct(temp, right);

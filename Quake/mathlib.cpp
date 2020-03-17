@@ -338,7 +338,7 @@ int Q_log2(int val)
 
 [[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept
 {
-    const auto [fwd, right, up] = quake::util::getGlmAngledVectors(angles);
+    const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
 
     glm::mat3 res;
     res[0] = fwd;

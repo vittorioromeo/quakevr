@@ -827,7 +827,7 @@ void SV_WallFriction(edict_t* ent, trace_t* trace)
     glm::vec3 side;
 
     const auto [forward, right, up] =
-        quake::util::getGlmAngledVectors(quake::util::toVec3(ent->v.v_angle));
+        quake::util::getAngledVectors(quake::util::toVec3(ent->v.v_angle));
 
     float d = DotProduct(trace->plane.normal, forward);
 
@@ -1122,7 +1122,7 @@ void SV_Handtouch(edict_t* ent)
 
     const auto endHandPos = [&](const glm::vec3& handPos,
                                 const glm::vec3& handRot) {
-        const auto [fwd, right, up] = quake::util::getGlmAngledVectors(handRot);
+        const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
         return handPos + fwd * 1.f;
     };
 
@@ -1146,7 +1146,7 @@ void SV_Handtouch(edict_t* ent)
 
     const auto traceForHand = [&](const glm::vec3& handPos,
                                   const glm::vec3& handRot) {
-        const auto [fwd, right, up] = quake::util::getGlmAngledVectors(handRot);
+        const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
         const auto end = handPos + fwd * 1.f;
 
         return SV_Move(handPos, handMins, handMaxs, end, MOVE_NORMAL, ent);

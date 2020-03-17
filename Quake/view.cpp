@@ -97,7 +97,7 @@ float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity)
     float side;
     float value;
 
-    const auto [forward, right, up] = quake::util::getGlmAngledVectors(angles);
+    const auto [forward, right, up] = quake::util::getAngledVectors(angles);
 
     side = DotProduct(velocity, right);
     sign = side < 0 ? -1 : 1;
@@ -386,7 +386,7 @@ void V_ParseDamage()
         VectorSubtract(from, ent->origin, from);
         from = glm::normalize(from);
 
-        const auto [forward, right, up] = quake::util::getGlmAngledVectors(ent->angles);
+        const auto [forward, right, up] = quake::util::getAngledVectors(ent->angles);
 
         side = DotProduct(from, right);
         v_dmg_roll = count * side * v_kickroll.value;
@@ -972,7 +972,7 @@ void V_CalcRefdef()
     angles[YAW] = ent->angles[YAW];
     angles[ROLL] = ent->angles[ROLL];
 
-    const auto [forward, right, up] = quake::util::getGlmAngledVectors(angles);
+    const auto [forward, right, up] = quake::util::getAngledVectors(angles);
 
     if(cl.maxclients <= 1)
     { // johnfitz -- moved cheat-protection here from V_RenderView

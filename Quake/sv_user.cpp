@@ -209,65 +209,56 @@ SV_Accelerate
 */
 cvar_t sv_maxspeed = {"sv_maxspeed", "320", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
-void SV_Accelerate(float wishspeed, const vec3_t wishdir)
+
+void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
 {
-    int i;
-    float addspeed;
+    const float currentspeed = DotProduct(velocity, wishdir);
+    const float addspeed = wishspeed - currentspeed;
 
-    float accelspeed;
-
-    float currentspeed;
-
-    currentspeed = DotProduct(velocity, wishdir);
-    addspeed = wishspeed - currentspeed;
     if(addspeed <= 0)
     {
         return;
     }
-    accelspeed = sv_accelerate.value * host_frametime * wishspeed;
+
+    float accelspeed = sv_accelerate.value * host_frametime * wishspeed;
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
     }
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         velocity[i] += accelspeed * wishdir[i];
     }
 }
 
-void SV_AirAccelerate(float wishspeed, vec3_t wishveloc)
+void SV_AirAccelerate(float wishspeed, const  glm::vec3& wishveloc)
 {
-    int i;
-    float addspeed;
+    float wishspd = glm::length(wishveloc);
 
-    float wishspd;
-
-    float accelspeed;
-
-    float currentspeed;
-
-    wishspd = VectorNormalize(wishveloc);
     if(wishspd > 30)
     {
         wishspd = 30;
     }
-    currentspeed = DotProduct(velocity, wishveloc);
-    addspeed = wishspd - currentspeed;
+
+    const auto wishvelocdir = glm::normalize(wishveloc);
+    const float currentspeed = DotProduct(velocity, wishvelocdir);
+    const float addspeed = wishspd - currentspeed;
+
     if(addspeed <= 0)
     {
         return;
     }
-    //	accelspeed = sv_accelerate.value * host_frametime;
-    accelspeed = sv_accelerate.value * wishspeed * host_frametime;
+
+    float accelspeed = sv_accelerate.value * wishspeed * host_frametime;
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
     }
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        velocity[i] += accelspeed * wishveloc[i];
+        velocity[i] += accelspeed * wishvelocdir[i];
     }
 }
 
@@ -419,19 +410,12 @@ SV_AirMove
 */
 void SV_AirMove()
 {
-    int i;
-    vec3_t wishvel;
 
-    vec3_t wishdir;
-    float wishspeed;
-    float fmove;
-
-    float smove;
 
     AngleVectors(sv_player->v.v_viewangle, forward, right, up);
 
-    fmove = cmd.forwardmove;
-    smove = cmd.sidemove;
+    float fmove = cmd.forwardmove;
+    const float smove = cmd.sidemove;
 
     // hack to not let you back into teleporter
     if(sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -439,7 +423,10 @@ void SV_AirMove()
         fmove = 0;
     }
 
-    for(i = 0; i < 3; i++)
+   glm::vec3 wishvel;
+
+
+    for(int i = 0; i < 3; i++)
     {
         wishvel[i] = forward[i] * fmove + right[i] * smove;
     }
@@ -453,8 +440,8 @@ void SV_AirMove()
         wishvel[2] = 0;
     }
 
-    VectorCopy(wishvel, wishdir);
-    wishspeed = VectorNormalize(wishdir);
+    float wishspeed = glm::length(wishvel);
+    const auto wishdir = glm::normalize(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
         VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
@@ -486,7 +473,6 @@ the angle fields specify an exact angular motion in degrees
 */
 void SV_ClientThink()
 {
-    vec3_t v_angle;
 
     if(sv_player->v.movetype == MOVETYPE_NONE)
     {
@@ -514,6 +500,7 @@ void SV_ClientThink()
     cmd = host_client->cmd;
     angles = sv_player->v.angles;
 
+    glm::vec3 v_angle;
     VectorAdd(sv_player->v.v_angle, sv_player->v.punchangle, v_angle);
     angles[ROLL] = V_CalcRoll(quake::util::toVec3(sv_player->v.angles),
                        quake::util::toVec3(sv_player->v.velocity)) *

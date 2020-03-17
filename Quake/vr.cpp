@@ -31,7 +31,7 @@
 // ----------------------------------------------------------------------------
 
 using quake::util::getDirectionVectorFromPitchYawRoll;
-using quake::util::getGlmAngledVectors;
+using quake::util::getAngledVectors;
 using quake::util::hitSomething;
 using quake::util::lerp;
 using quake::util::pitchYawRollFromDirectionVector;
@@ -1471,7 +1471,7 @@ void SetHandPos(int index, entity_t* player)
 {
     const glm::vec3 playerYawOnly{0, sv_player->v.angles[YAW], 0};
 
-    const auto [vFwd, vRight, vUp] = getGlmAngledVectors(playerYawOnly);
+    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
 
     const auto ox = vr_shoulder_offset_x.value;
     const auto oy = vr_shoulder_offset_y.value;
@@ -1497,7 +1497,7 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] static glm::vec3 VR_Get2HOffHandPos() noexcept
 {
     const auto [thox, thoy, thoz] = VR_GetWpn2HOffsets(currWpnCVarEntry);
-    const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[1]);
+    const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
 
     const auto offHandPos =
         toVec3(cl.handpos[0]) + forward * thox + right * thoy + up * thoz;
@@ -1528,7 +1528,7 @@ static void VR_DoTeleportation()
         const glm::vec3 mins{-oh, -oh, -oy};
         const glm::vec3 maxs{oh, oh, oy};
 
-        const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[0]);
+        const auto [forward, right, up] = getAngledVectors(cl.handrot[0]);
         const auto target =
             toVec3(cl.handpos[0]) + vr_teleport_range.value * forward;
 
@@ -1775,7 +1775,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
         {
             const auto [forward, right, up] =
-                getGlmAngledVectors(originalRots[1]);
+                getAngledVectors(originalRots[1]);
 
             const auto origDir = forward;
 
@@ -1822,12 +1822,14 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
             // TODO VR: melee doesn't work with laser cannon
             // TODO VR: check if music works or not
             // TODO VR: scourge of armagon music?
+            // TODO VR: teleportation offset needs to be added to weapon
+            //          weighted movement to avoid jelly effect
         }
     }
 
     const auto [oldFwd, oldRight, oldUp] =
-        getGlmAngledVectors(cl.prevhandrot[1]);
-    const auto [newFwd, newRight, newUp] = getGlmAngledVectors(cl.handrot[1]);
+        getAngledVectors(cl.prevhandrot[1]);
+    const auto [newFwd, newRight, newUp] = getAngledVectors(cl.handrot[1]);
 
     const auto nOldFwd = glm::normalize(oldFwd);
     const auto nOldUp = glm::normalize(oldUp);
@@ -2080,7 +2082,7 @@ void VR_CalibrateHeight()
     using namespace quake::util;
     finalOffsets += muzzleOfs;
 
-    const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[1]);
+    const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
 
     finalOffsets *= VR_GetWpnCVarValue(currWpnCVarEntry, WpnCVar::Scale) *
                     VR_GetScaleCorrect();
@@ -2190,14 +2192,14 @@ void VR_ShowCrosshair()
         {
             const auto start = VR_CalcWeaponMuzzlePos();
             const auto [forward, right, up] =
-                getGlmAngledVectors(cl.handrot[1]);
+                getAngledVectors(cl.handrot[1]);
             return std::tuple{start, forward, right, up};
         }
 
         auto start = toVec3(cl.viewent.origin);
         start[2] -= cl.viewheight - 10;
 
-        const auto [forward, right, up] = getGlmAngledVectors(cl.aimangles);
+        const auto [forward, right, up] = getAngledVectors(cl.aimangles);
         return std::tuple{start, forward, right, up};
     }();
 
@@ -2837,7 +2839,7 @@ void VR_Move(usercmd_t* cmd)
     else
     {
         glm::vec3 playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
-        const auto [vfwd, vright, vup] = getGlmAngledVectors(playerYawOnly);
+        const auto [vfwd, vright, vup] = getAngledVectors(playerYawOnly);
 
         // avoid gimbal by using up if we are point up/down
         if(fabsf(lfwd[2]) > 0.8f)

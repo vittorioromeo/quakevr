@@ -178,32 +178,19 @@ namespace quake::util
         glm::vec3 _up;
     };
 
-    [[nodiscard]] inline GlmAngledVectors getGlmAngledVectors(vec3_t v)
-    {
-        vec3_t forward, right, up;
-        AngleVectors(*static_cast<vec_t(*)[3]>(static_cast<void*>(v)), forward,
-            right, up);
-
-        return {toVec3(forward), toVec3(right), toVec3(up)};
-    }
-
-    [[nodiscard]] inline GlmAngledVectors getGlmAngledVectors(
+    [[nodiscard]] inline GlmAngledVectors getAngledVectors(
         const glm::vec3& v)
     {
-        vec3_t tmp;
-        toQuakeVec3(tmp, v);
-        return getGlmAngledVectors(tmp);
-    }
+        glm::vec3 forward, right, up;
+        AngleVectors(v, forward, right, up);
 
-    [[nodiscard]] inline glm::vec3 getDirectionVectorFromPitchYawRoll(vec3_t v)
-    {
-        return getGlmAngledVectors(v)._forward;
+        return {forward, right, up};
     }
 
     [[nodiscard]] inline glm::vec3 getDirectionVectorFromPitchYawRoll(
         const glm::vec3& v)
     {
-        return getGlmAngledVectors(v)._forward;
+        return getAngledVectors(v)._forward;
     }
 
     template <typename T>
@@ -247,30 +234,5 @@ namespace glm
     [[nodiscard]] QUAKE_FORCEINLINE T get(const glm::vec<D, T, P>& v) noexcept
     {
         return v[I];
-    }
-
-    // TODO VR:
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator+(
-        const glm::vec3& lhs, const vec3_t& rhs) noexcept
-    {
-        return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator+(
-        const vec3_t& lhs, const glm::vec3& rhs) noexcept
-    {
-        return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator-(
-        const glm::vec3& lhs, const vec3_t& rhs) noexcept
-    {
-        return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 operator-(
-        const vec3_t& lhs, const glm::vec3& rhs) noexcept
-    {
-        return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
     }
 } // namespace glm

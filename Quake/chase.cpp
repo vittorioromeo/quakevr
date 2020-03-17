@@ -100,7 +100,7 @@ TODO: stay at least 8 units away from all walls in this leaf
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
 {
     const auto [forward, right, up] =
-        quake::util::getGlmAngledVectors(cl.viewangles);
+        quake::util::getAngledVectors(cl.viewangles);
 
     // calc ideal camera location before checking for walls
     glm::vec3 ideal;

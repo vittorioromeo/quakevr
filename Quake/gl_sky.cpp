@@ -719,7 +719,7 @@ void Sky_ProcessEntities()
         {
             rotated = true;
 
-            const auto [xforward, xright, xup] = quake::util::getGlmAngledVectors(e->angles);
+            const auto [xforward, xright, xup] = quake::util::getAngledVectors(e->angles);
             forward = xforward;
             right = xright;
             up = xup;

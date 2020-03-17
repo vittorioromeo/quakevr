@@ -659,7 +659,7 @@ void R_SetupView()
     // build the transformation matrix for the given view angles
     r_origin = r_refdef.vieworg;
 
-    const auto [xvpn, xvright, xvup] = quake::util::getGlmAngledVectors(r_refdef.viewangles);
+    const auto [xvpn, xvright, xvup] = quake::util::getAngledVectors(r_refdef.viewangles);
     vpn = xvpn;
     vright = xvright;
     vup = xvup;
@@ -1285,7 +1285,7 @@ void R_RenderView()
         float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
         float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
-        const auto [xvpn, xvright, xvup] = quake::util::getGlmAngledVectors(r_refdef.viewangles);
+        const auto [xvpn, xvright, xvup] = quake::util::getAngledVectors(r_refdef.viewangles);
         vpn = xvpn;
         vright = xvright;
         vpn = xvup;
