@@ -167,7 +167,7 @@ static bool readbackYaw;
 
 std::string vr_working_directory;
 
-vec3_t vr_viewOffset;
+glm::vec3 vr_viewOffset;
 glm::vec3 lastHudPosition{};
 glm::vec3 lastMenuPosition{};
 
@@ -177,17 +177,17 @@ vr::TrackedDevicePose_t ovr_DevicePose[vr::k_unMaxTrackedDeviceCount];
 static vr_eye_t eyes[2];
 static vr_eye_t* current_eye = nullptr;
 static vr_controller controllers[2];
-static vec3_t lastOrientation = {0, 0, 0};
-static vec3_t lastAim = {0, 0, 0};
+static glm::vec3 lastOrientation = {0, 0, 0};
+static glm::vec3 lastAim = {0, 0, 0};
 
 static bool vr_initialized = false;
 
-static vec3_t headOrigin;
-static vec3_t lastHeadOrigin;
+static glm::vec3 headOrigin;
+static glm::vec3 lastHeadOrigin;
 static vr::HmdVector3_t headPos;
 static vr::HmdVector3_t headVelocity;
 
-vec3_t vr_room_scale_move;
+glm::vec3 vr_room_scale_move;
 
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
@@ -200,14 +200,14 @@ bool vr_was_teleporting = false;
 bool vr_teleporting = false;
 bool vr_teleporting_impact_valid = false;
 bool vr_send_teleport_msg = false;
-vec3_t vr_teleporting_impact{0, 0, 0};
+glm::vec3 vr_teleporting_impact{0, 0, 0};
 bool vr_left_grabbing = false;
 bool vr_right_grabbing = false;
 bool vr_gun_colliding_with_wall = false;
 float vr_2h_aim_transition = 0.f;
 float vr_2h_aim_stock_transition = 0.f;
 bool gotLastPlayerOrigin{false};
-vec3_t lastPlayerOrigin;
+glm::vec3 lastPlayerOrigin;
 float lastPlayerYaw{};
 float lastVrYawDiff{};
 
@@ -465,13 +465,6 @@ void DeleteFBO(const fbo_t& fbo)
         in[0] * std::sin(angle) + in[1] * std::cos(angle), //
         in[2]                                              //
     };
-}
-
-void Vec3RotateZ(const vec3_t& in, const float angle, vec3_t out) noexcept
-{
-    out[0] = in[0] * cos(angle) - in[1] * sin(angle);
-    out[1] = in[0] * sin(angle) + in[1] * cos(angle);
-    out[2] = in[2];
 }
 
 [[nodiscard]] vr::HmdMatrix44_t TransposeMatrix(
@@ -1223,12 +1216,6 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 }
 
 // Get the player origin vector, but adjusted to the upper torso on the Z axis.
-void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
-{
-    VectorCopy(player->origin, out);
-    out[2] = VR_GetHandZOrigin(player) + 40;
-}
-
 [[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(entity_t* player) noexcept
 {
     glm::vec3 res = toVec3(player->origin);
@@ -1537,17 +1524,14 @@ static void VR_DoTeleportation()
     {
         constexpr float oh = 6.f;
         constexpr float oy = 12.f;
-        vec3_t mins{-oh, -oh, -oy};
-        vec3_t maxs{oh, oh, oy};
+        const glm::vec3 mins{-oh, -oh, -oy};
+        const glm::vec3 maxs{oh, oh, oy};
 
-        vec3_t forward, right, up;
-        AngleVectors(cl.handrot[0], forward, right, up);
+        const auto [forward, right, up] = getGlmAngledVectors(cl.handrot[0]);
+        const auto target =
+            toVec3(cl.handpos[0]) + vr_teleport_range.value * forward;
 
-        vec3_t target;
-        VectorMA(cl.handpos[0], vr_teleport_range.value, forward, target);
-
-        vec3_t adjPlayerOrigin;
-        VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
+        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
 
         const trace_t trace = SV_Move(
             adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, sv_player);
@@ -1558,14 +1542,10 @@ static void VR_DoTeleportation()
         };
 
         // Allow slopes, but not walls or ceilings.
-        const bool
-            goodNormal = //
-                         // between(trace.plane.normal[0], -0.15f, 0.15f) && //
-                         // between(trace.plane.normal[1], -0.15f, 0.15f) && //
-            between(trace.plane.normal[2], 0.75f, 1.f);
+        const bool goodNormal = between(trace.plane.normal[2], 0.75f, 1.f);
 
         vr_teleporting_impact_valid = trace.fraction < 1.0 && goodNormal;
-        VectorCopy(trace.endpos, vr_teleporting_impact);
+        vr_teleporting_impact = toVec3(trace.endpos);
 
         if(vr_teleporting_impact_valid)
         {
@@ -1573,14 +1553,17 @@ static void VR_DoTeleportation()
             extern void R_RunParticle2Effect(
                 vec3_t org, vec3_t dir, int preset, int count);
 
+            vec3_t origin;
+            toQuakeVec3(origin, vr_teleporting_impact);
+
             vec3_t dir{0, 0, 0};
-            R_RunParticle2Effect(vr_teleporting_impact, dir, 7, 2);
+            R_RunParticle2Effect(origin, dir, 7, 2);
         }
     }
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
     {
         vr_send_teleport_msg = true;
-        VectorCopy(vr_teleporting_impact, sv_player->v.origin);
+        toQuakeVec3(sv_player->v.origin, vr_teleporting_impact);
     }
 
     vr_was_teleporting = vr_teleporting;
@@ -1611,22 +1594,19 @@ static void VR_UpdateDevicesOrientationPosition() noexcept
             headOrigin[1] = headPos.v[0];
             headOrigin[2] = headPos.v[1];
 
-            vec3_t moveInTracking;
-            _VectorSubtract(headOrigin, lastHeadOrigin, moveInTracking);
+            glm::vec3 moveInTracking = headOrigin - lastHeadOrigin;
             moveInTracking[0] *= -meters_to_units;
             moveInTracking[1] *= -meters_to_units;
             moveInTracking[2] = 0;
-            Vec3RotateZ(
-                moveInTracking, vrYaw * M_PI_DIV_180, vr_room_scale_move);
+            vr_room_scale_move =
+                Vec3RotateZ(moveInTracking, vrYaw * M_PI_DIV_180);
 
-            // VR: Scale room-scale movement for easier dodging and improve
-            // teleportation-based gameplay experience.
-            vr_room_scale_move[0] *= vr_room_scale_move_mult.value;
-            vr_room_scale_move[1] *= vr_room_scale_move_mult.value;
-            vr_room_scale_move[2] *= vr_room_scale_move_mult.value;
+            // VR: Scale room-scale movement scaling for easier dodging and
+            // improve teleportation-based gameplay experience.
+            vr_room_scale_move *= vr_room_scale_move_mult.value;
 
-            _VectorCopy(headOrigin, lastHeadOrigin);
-            _VectorSubtract(headOrigin, lastHeadOrigin, headOrigin);
+            lastHeadOrigin = headOrigin;
+            headOrigin -= lastHeadOrigin;
             headPos.v[0] -= lastHeadOrigin[1];
             headPos.v[2] -= lastHeadOrigin[0];
 
@@ -2019,8 +1999,8 @@ void VR_UpdateScreenContent()
 
     cl.viewangles[ROLL] = orientation[ROLL];
 
-    VectorCopy(orientation, lastOrientation);
-    VectorCopy(cl.aimangles, lastAim);
+    lastOrientation = orientation;
+    lastAim = toVec3(cl.aimangles);
 
     VectorCopy(cl.viewangles, r_refdef.viewangles);
     VectorCopy(cl.aimangles, r_refdef.aimangles);
@@ -2035,15 +2015,11 @@ void VR_UpdateScreenContent()
         // rotate it by the current input angles (viewangle - eye
         // orientation)
         const auto orientation = QuatToYawPitchRoll(eye.orientation);
-
-        vec3_t temp;
-        temp[0] = -eye.position.v[2] * meters_to_units; // X
-        temp[1] = -eye.position.v[0] * meters_to_units; // Y
-        temp[2] = eye.position.v[1] * meters_to_units;  // Z
-
-        Vec3RotateZ(temp,
-            (r_refdef.viewangles[YAW] - orientation[YAW]) * M_PI_DIV_180,
-            vr_viewOffset);
+        glm::vec3 temp{
+            -eye.position.v[2], -eye.position.v[0], eye.position.v[1]};
+        temp *= meters_to_units;
+        vr_viewOffset = Vec3RotateZ(
+            temp, (r_refdef.viewangles[YAW] - orientation[YAW]) * M_PI_DIV_180);
 
         vr_viewOffset[2] += vr_floor_offset.value;
 
@@ -2350,15 +2326,10 @@ void VR_DrawTeleportLine()
     glDisable(GL_CULL_FACE);
 
     // calc angles
-    vec3_t forward, right, up;
-    vec3_t start;
-
-    AngleVectors(cl.handrot[0], forward, right, up);
-    VectorCopy(cl.handpos[0], start);
+    const auto start = toVec3(cl.handpos[0]);
 
     // calc line
-    vec3_t impact;
-    VectorCopy(vr_teleporting_impact, impact);
+    const auto impact = vr_teleporting_impact;
 
     // draw line
     const auto setColor = [&](const float xAlpha) {
@@ -2377,9 +2348,8 @@ void VR_DrawTeleportLine()
     glShadeModel(GL_SMOOTH);
     glBegin(GL_LINE_STRIP);
 
-    vec3_t midA, midB;
-    vec3lerp(midA, start, impact, 0.15);
-    vec3lerp(midB, start, impact, 0.85);
+    const auto midA = glm::mix(start, impact, 0.15);
+    const auto midB = glm::mix(start, impact, 0.85);
 
     setColor(alpha * 0.01f);
     glVertex3f(start[0], start[1], start[2]);
@@ -2640,7 +2610,7 @@ void VR_SetAngles(vec3_t angles)
 {
     VectorCopy(angles, cl.aimangles);
     VectorCopy(angles, cl.viewangles);
-    VectorCopy(angles, lastAim);
+    lastAim = toVec3(angles);
 }
 
 void VR_ResetOrientation()
@@ -2650,7 +2620,7 @@ void VR_ResetOrientation()
     if(vr_enabled.value)
     {
         // IVRSystem_ResetSeatedZeroPose(ovrHMD);
-        VectorCopy(cl.aimangles, lastAim);
+        lastAim = toVec3(cl.aimangles);
     }
 }
 

@@ -62,8 +62,9 @@ namespace quake::util
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
     }
 
+    template <typename T>
     [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 toVec3(
-        const vec3_t& v) noexcept
+        const T& v) noexcept
     {
         return {v[0], v[1], v[2]};
     }

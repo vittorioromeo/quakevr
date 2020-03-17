@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 /*
 
@@ -956,8 +957,9 @@ void V_CalcRefdef()
     // refresh position
     if(vr_enabled.value)
     {
-        extern vec3_t vr_viewOffset;
-        _VectorAdd(ent->origin, vr_viewOffset, r_refdef.vieworg);
+        extern glm::vec3 vr_viewOffset;
+        const auto tmp = quake::util::toVec3(ent->origin) + vr_viewOffset;
+        quake::util::toQuakeVec3(r_refdef.vieworg, tmp);
     }
     else
     {

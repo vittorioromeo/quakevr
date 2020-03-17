@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "world.hpp"
 #include "util.hpp"
+#include "glm.hpp"
 
 #include <algorithm>
 #include <tuple>
@@ -1292,11 +1293,12 @@ void SV_Physics_Client(edict_t* ent, int num)
         {
             vec3_t restoreVel;
             _VectorCopy(ent->v.velocity, restoreVel);
-            extern vec3_t vr_room_scale_move;
+            extern glm::vec3 vr_room_scale_move;
 
             // TODO VR: add multiplier here
-            VectorScale(
-                vr_room_scale_move, 1.0f / host_frametime, ent->v.velocity);
+            const auto newVelocity =
+                vr_room_scale_move * static_cast<float>(1.0f / host_frametime);
+            quake::util::toQuakeVec3(ent->v.velocity, newVelocity);
 
             switch((int)ent->v.movetype)
             {
