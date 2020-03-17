@@ -383,7 +383,7 @@ void V_ParseDamage()
     {
         ent = &cl_entities[cl.viewentity];
 
-        VectorSubtract(from, ent->origin, from);
+        from -= ent->origin;
         from = glm::normalize(from);
 
         const auto [forward, right, up] = quake::util::getAngledVectors(ent->angles);
@@ -539,7 +539,7 @@ void V_CalcBlend()
         {
             continue;
         }
-        a = a + a2 * (1 - a);
+        a += a2 * (1 - a);
         a2 = a2 / a;
         r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
         g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
@@ -889,8 +889,8 @@ void V_CalcIntermissionRefdef()
     // view is the weapon model (only visible from inside body)
     view = &cl.viewent;
 
-    VectorCopy(ent->origin, r_refdef.vieworg);
-    VectorCopy(ent->angles, r_refdef.viewangles);
+    r_refdef.vieworg = ent->origin;
+    r_refdef.viewangles = ent->angles;
     view->model = nullptr;
 
     if(vr_enabled.value)
@@ -949,7 +949,7 @@ void V_CalcRefdef()
     }
     else
     {
-        VectorCopy(ent->origin, r_refdef.vieworg);
+        r_refdef.vieworg = ent->origin;
         r_refdef.vieworg[2] += cl.viewheight + bob;
     }
 
@@ -961,7 +961,7 @@ void V_CalcRefdef()
     r_refdef.vieworg[1] += 1.0 / 32;
     r_refdef.vieworg[2] += 1.0 / 32;
 
-    VectorCopy(cl.viewangles, r_refdef.viewangles);
+    r_refdef.viewangles = cl.viewangles;
     V_CalcViewRoll();
     V_AddIdle();
 
@@ -990,7 +990,7 @@ void V_CalcRefdef()
     }
 
     // set up gun position
-    VectorCopy(cl.viewangles, view->angles);
+    view->angles = cl.viewangles;
 
     CalcGunAngle(currWpnCVarEntry, view, cl.handrot[1]);
 
@@ -998,7 +998,7 @@ void V_CalcRefdef()
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
         // TODO VR: this sets the weapon model's position
-        VectorAdd(cl.handpos[1], cl.vmeshoffset, view->origin);
+        view->origin = cl.handpos[1] + cl.vmeshoffset;
     }
     else
     {
@@ -1048,7 +1048,7 @@ void V_CalcRefdef()
     // johnfitz -- v_gunkick
     if(v_gunkick.value == 1 &&
         !(vr_enabled.value && !vr_viewkick.value)) // original quake kick
-        VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
+        r_refdef.viewangles += cl.punchangle;
     if(v_gunkick.value == 2 &&
         !(vr_enabled.value &&
             !vr_viewkick.value)) // lerped kick /* TODO VR: create CVAR */
@@ -1073,7 +1073,7 @@ void V_CalcRefdef()
             }
         }
 
-        VectorAdd(r_refdef.viewangles, punch, r_refdef.viewangles);
+        r_refdef.viewangles += punch;
     }
     // johnfitz
 
@@ -1122,14 +1122,14 @@ void V_CalcRefdef2Test()
     entity_t* view = &cl.offhand_viewent;
 
     // set up gun position
-    VectorCopy(cl.viewangles, view->angles);
+    view->angles = cl.viewangles;
 
     CalcGunAngle(VR_GetOffHandFistCvarEntry(), view, cl.handrot[0]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        VectorAdd(cl.handpos[0], cl.vmeshoffset, view->origin);
+        view->origin = cl.handpos[0] + cl.vmeshoffset;
     }
     else
     {

@@ -446,9 +446,9 @@ void SND_Spatialize(channel_t* ch)
     }
 
     // calculate stereo seperation and distance attenuation
-    VectorSubtract(ch->origin, listener_origin, source_vec);
+    source_vec = ch->origin - listener_origin;
     dist = glm::length(source_vec) * ch->dist_mult;
-    source_vec = glm::normalize(source_vec);
+    source_vec = safeNormalize(source_vec);
     dot = DotProduct(listener_right, source_vec);
 
     if(shm->channels == 1)
@@ -517,7 +517,7 @@ void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
 
     // spatialize
     memset(target_chan, 0, sizeof(*target_chan));
-    VectorCopy(origin, target_chan->origin);
+    target_chan->origin = origin;
     target_chan->dist_mult = attenuation / sound_nominal_clip_dist;
     target_chan->master_vol = (int)(fvol * 255);
     target_chan->entnum = entnum;
@@ -692,7 +692,7 @@ void S_StaticSound(sfx_t* sfx, const glm::vec3& origin, float vol, float attenua
     }
 
     ss->sfx = sfx;
-    VectorCopy(origin, ss->origin);
+    ss->origin = origin;
     ss->master_vol = (int)vol;
     ss->dist_mult = (attenuation / 64) / sound_nominal_clip_dist;
     ss->end = paintedtime + sc->length;
@@ -898,10 +898,10 @@ void S_Update(const glm::vec3& origin, const glm::vec3& forward,
         return;
     }
 
-    VectorCopy(origin, listener_origin);
-    VectorCopy(forward, listener_forward);
-    VectorCopy(right, listener_right);
-    VectorCopy(up, listener_up);
+    listener_origin = origin;
+    listener_forward = forward;
+    listener_right = right;
+    listener_up = up;
 
     // update general area ambient sound sources
     S_UpdateAmbientSounds();

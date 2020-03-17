@@ -1334,9 +1334,9 @@ void SCR_UpdateScreen()
     }
     else
     {
-        VectorCopy(cl.aimangles, cl.viewangles);
-        VectorCopy(cl.aimangles, r_refdef.viewangles);
-        VectorCopy(cl.aimangles, r_refdef.aimangles);
+        cl.viewangles = cl.aimangles;
+        r_refdef.viewangles = cl.aimangles;
+        r_refdef.aimangles = cl.aimangles;
 
         SCR_UpdateScreenContent();
     }

@@ -559,19 +559,19 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
     if(e->lerpflags & LERP_RESETMOVE)
     {
         e->movelerpstart = 0;
-        VectorCopy(e->origin, e->previousorigin);
-        VectorCopy(e->origin, e->currentorigin);
-        VectorCopy(e->angles, e->previousangles);
-        VectorCopy(e->angles, e->currentangles);
+        e->previousorigin = e->origin;
+        e->currentorigin = e->origin;
+        e->previousangles = e->angles;
+        e->currentangles = e->angles;
         e->lerpflags -= LERP_RESETMOVE;
     }
     else if(e->origin != e->currentorigin || e->angles != e->currentangles)
     { // origin/angles changed, start new lerp
         e->movelerpstart = cl.time;
-        VectorCopy(e->currentorigin, e->previousorigin);
-        VectorCopy(e->origin, e->currentorigin);
-        VectorCopy(e->currentangles, e->previousangles);
-        VectorCopy(e->angles, e->currentangles);
+        e->previousorigin = e->currentorigin;
+        e->currentorigin = e->origin;
+        e->previousangles = e->currentangles;
+        e->currentangles = e->angles;
     }
 
     // set up values
@@ -590,13 +590,13 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
         }
 
         // translation
-        VectorSubtract(e->currentorigin, e->previousorigin, d);
+        d = e->currentorigin - e->previousorigin;
         lerpdata->origin[0] = e->previousorigin[0] + d[0] * blend;
         lerpdata->origin[1] = e->previousorigin[1] + d[1] * blend;
         lerpdata->origin[2] = e->previousorigin[2] + d[2] * blend;
 
         // rotation
-        VectorSubtract(e->currentangles, e->previousangles, d);
+        d = e->currentangles - e->previousangles;
         for(i = 0; i < 3; i++)
         {
             if(d[i] > 180)
@@ -614,8 +614,8 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
     }
     else // don't lerp
     {
-        VectorCopy(e->origin, lerpdata->origin);
-        VectorCopy(e->angles, lerpdata->angles);
+        lerpdata->origin = e->origin;
+        lerpdata->angles = e->angles;
     }
 }
 
@@ -640,7 +640,7 @@ void R_SetupAliasLighting(entity_t* e)
     {
         if(cl_dlights[i].die >= cl.time)
         {
-            VectorSubtract(currententity->origin, cl_dlights[i].origin, dist);
+            dist = currententity->origin - cl_dlights[i].origin;
             add = cl_dlights[i].radius - glm::length(dist);
 
             if(add > 0)
@@ -705,7 +705,7 @@ void R_SetupAliasLighting(entity_t* e)
     shadevector[0] = cos(-radiansangle);
     shadevector[1] = sin(-radiansangle);
     shadevector[2] = 1;
-    shadevector = glm::normalize(shadevector);
+    shadevector = safeNormalize(shadevector);
     // ericw --
 
     shadedots = r_avertexnormal_dots[quantizedangle];

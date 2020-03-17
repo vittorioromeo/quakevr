@@ -84,8 +84,8 @@ void CL_ParseBeam(qmodel_t* m)
             b->entity = ent;
             b->model = m;
             b->endtime = cl.time + 0.2;
-            VectorCopy(start, b->start);
-            VectorCopy(end, b->end);
+            b->start = start;
+            b->end = end;
             return;
         }
     }
@@ -98,8 +98,8 @@ void CL_ParseBeam(qmodel_t* m)
             b->entity = ent;
             b->model = m;
             b->endtime = cl.time + 0.2;
-            VectorCopy(start, b->start);
-            VectorCopy(end, b->end);
+            b->start = start;
+            b->end = end;
             return;
         }
     }
@@ -214,7 +214,7 @@ void CL_ParseTEnt()
             pos[2] = MSG_ReadCoord(cl.protocolflags);
             R_ParticleExplosion(pos);
             dl = CL_AllocDlight(0);
-            VectorCopy(pos, dl->origin);
+            dl->origin = pos;
             dl->radius = 350;
             dl->die = cl.time + 0.5;
             dl->decay = 300;
@@ -272,7 +272,7 @@ void CL_ParseTEnt()
             // TODO VR:
             // R_ParticleExplosion2(pos, colorStart, colorLength);
             dl = CL_AllocDlight(0);
-            VectorCopy(pos, dl->origin);
+            dl->origin = pos;
             dl->radius = 350;
             dl->die = cl.time + 0.5;
             dl->decay = 300;
@@ -339,7 +339,7 @@ void CL_UpdateTEnts()
             }
             else
             {
-                VectorCopy(cl_entities[cl.viewentity].origin, b->start);
+                b->start = cl_entities[cl.viewentity].origin;
             }
         }
 
@@ -380,7 +380,7 @@ void CL_UpdateTEnts()
 
         // add new entities for the lightning
         glm::vec3 org;
-        VectorCopy(b->start, org);
+        org = b->start;
         float d = glm::length(dist);
         dist = glm::normalize(dist);
         while(d > 0)
@@ -391,7 +391,7 @@ void CL_UpdateTEnts()
             {
                 return;
             }
-            VectorCopy(org, ent->origin);
+            ent->origin = org;
             ent->model = b->model;
             ent->angles[0] = pitch;
             ent->angles[1] = yaw;

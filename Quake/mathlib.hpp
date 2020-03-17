@@ -100,6 +100,12 @@ static inline int IS_NAN(float x)
         }                                                            \
     }
 
+[[nodiscard ]] inline glm::vec3 safeNormalize(const glm::vec3& in)
+{
+    const auto length = glm::length(in);
+    return length != 0.f ? in / length : in;
+}
+
 [[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept; // johnfitz
 
 vec_t VectorLength(vec3_t v);

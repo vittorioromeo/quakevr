@@ -820,11 +820,11 @@ void M_Setup_Key(int k)
             S_LocalSound("misc/menu3.wav");
             if(setup_cursor == 2)
             {
-                setup_top = setup_top - 1;
+                setup_top -= 1;
             }
             if(setup_cursor == 3)
             {
-                setup_bottom = setup_bottom - 1;
+                setup_bottom -= 1;
             }
             break;
         case K_RIGHTARROW:
@@ -836,11 +836,11 @@ void M_Setup_Key(int k)
             S_LocalSound("misc/menu3.wav");
             if(setup_cursor == 2)
             {
-                setup_top = setup_top + 1;
+                setup_top += 1;
             }
             if(setup_cursor == 3)
             {
-                setup_bottom = setup_bottom + 1;
+                setup_bottom += 1;
             }
             break;
 
@@ -1622,7 +1622,7 @@ void M_Keys_Draw()
                 name = Key_KeynumToString(keys[1]);
                 M_Print(140 + x + 8, y, "or");
                 M_Print(140 + x + 32, y, name);
-                x = x + 32 + strlen(name) * 8;
+                x += 32 + strlen(name) * 8;
                 if(keys[2] != -1)
                 {
                     M_Print(140 + x + 8, y, "or");

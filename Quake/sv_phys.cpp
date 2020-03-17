@@ -310,14 +310,14 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         if(trace.allsolid)
         { // entity is trapped in another solid
-            VectorCopy(vec3_origin, ent->v.velocity);
+            ent->v.velocity = vec3_origin;
             return 3;
         }
 
         if(trace.fraction > 0)
         { // actually covered some distance
-            VectorCopy(trace.endpos, ent->v.origin);
-            VectorCopy(ent->v.velocity, original_velocity);
+            ent->v.origin = trace.endpos;
+            original_velocity = ent->v.velocity;
             numplanes = 0;
         }
 
@@ -369,11 +369,11 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         // cliped to another plane
         if(numplanes >= MAX_CLIP_PLANES)
         { // this shouldn't really happen
-            VectorCopy(vec3_origin, ent->v.velocity);
+            ent->v.velocity = vec3_origin;
             return 3;
         }
 
-        VectorCopy(trace.plane.normal, planes[numplanes]);
+        planes[numplanes] = trace.plane.normal;
         numplanes++;
 
         //
@@ -401,7 +401,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         if(i != numplanes)
         { // go along this plane
-            VectorCopy(new_velocity, ent->v.velocity);
+            ent->v.velocity = new_velocity;
         }
         else
         { // go along the crease
@@ -409,7 +409,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             {
                 //				Con_Printf ("clip velocity, numplanes ==
                 //%i\n",numplanes);
-                VectorCopy(vec3_origin, ent->v.velocity);
+                ent->v.velocity = vec3_origin;
                 return 7;
             }
 
@@ -424,7 +424,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         //
         if(DotProduct(ent->v.velocity, primal_velocity) <= 0)
         {
-            VectorCopy(vec3_origin, ent->v.velocity);
+            ent->v.velocity = vec3_origin;
             return blocked;
         }
     }
@@ -479,7 +479,7 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
     trace_t trace;
     glm::vec3 end;
 
-    VectorAdd(ent->v.origin, push, end);
+    end = ent->v.origin + push;
 
     if(ent->v.movetype == MOVETYPE_FLYMISSILE)
     {
@@ -498,7 +498,7 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
             ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
     }
 
-    VectorCopy(trace.endpos, ent->v.origin);
+    ent->v.origin = trace.endpos;
     SV_LinkEdict(ent, true);
 
     if(trace.ent)
@@ -554,11 +554,11 @@ void SV_PushMove(edict_t* pusher, float movetime)
         maxs[i] = pusher->v.absmax[i] + move[i];
     }
 
-    VectorCopy(pusher->v.origin, pushorig);
+    pushorig = pusher->v.origin;
 
     // move the pusher to it's final position
 
-    VectorAdd(pusher->v.origin, move, pusher->v.origin);
+    pusher->v.origin += move;
     pusher->v.ltime += movetime;
     SV_LinkEdict(pusher, false);
 
@@ -609,8 +609,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
         }
 
-        VectorCopy(check->v.origin, entorig);
-        VectorCopy(check->v.origin, moved_from[num_moved]);
+        entorig = check->v.origin;
+        moved_from[num_moved] = check->v.origin;
         moved_edict[num_moved] = check;
         num_moved++;
 
@@ -630,14 +630,14 @@ void SV_PushMove(edict_t* pusher, float movetime)
             if(check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
             { // corpse
                 check->v.mins[0] = check->v.mins[1] = 0;
-                VectorCopy(check->v.mins, check->v.maxs);
+                check->v.maxs = check->v.mins;
                 continue;
             }
 
-            VectorCopy(entorig, check->v.origin);
+            check->v.origin = entorig;
             SV_LinkEdict(check, true);
 
-            VectorCopy(pushorig, pusher->v.origin);
+            pusher->v.origin = pushorig;
             SV_LinkEdict(pusher, false);
             pusher->v.ltime -= movetime;
 
@@ -653,7 +653,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
             // move back any entities we already moved
             for(i = 0; i < num_moved; i++)
             {
-                VectorCopy(moved_from[i], moved_edict[i]->v.origin);
+                moved_edict[i]->v.origin = moved_from[i];
                 SV_LinkEdict(moved_edict[i], false);
             }
             Hunk_FreeToLowMark(mark); // johnfitz
@@ -738,12 +738,12 @@ void SV_CheckStuck(edict_t* ent)
 
     if(!SV_TestEntityPosition(ent))
     {
-        VectorCopy(ent->v.origin, ent->v.oldorigin);
+        ent->v.oldorigin = ent->v.origin;
         return;
     }
 
-    VectorCopy(ent->v.origin, org);
-    VectorCopy(ent->v.oldorigin, ent->v.origin);
+    org = ent->v.origin;
+    ent->v.origin = ent->v.oldorigin;
     if(!SV_TestEntityPosition(ent))
     {
         Con_DPrintf("Unstuck.\n");
@@ -770,7 +770,7 @@ void SV_CheckStuck(edict_t* ent)
         }
     }
 
-    VectorCopy(org, ent->v.origin);
+    ent->v.origin = org;
     Con_DPrintf("player is stuck.\n");
 }
 
@@ -838,7 +838,7 @@ void SV_WallFriction(edict_t* ent, trace_t* trace)
     // cut the tangential velocity
     float i = DotProduct(trace->plane.normal, ent->v.velocity);
     VectorScale(trace->plane.normal, i, into);
-    VectorSubtract(ent->v.velocity, into, side);
+    side = ent->v.velocity - into;
 
     ent->v.velocity[0] = side[0] * (1 + d);
     ent->v.velocity[1] = side[1] * (1 + d);
@@ -864,8 +864,8 @@ int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
     int clip;
     trace_t steptrace;
 
-    VectorCopy(ent->v.origin, oldorg);
-    VectorCopy(vec3_origin, dir);
+    oldorg = ent->v.origin;
+    dir = vec3_origin;
 
     for(i = 0; i < 8; i++)
     {
@@ -922,10 +922,10 @@ int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
         }
 
         // go back to the original pos and try again
-        VectorCopy(oldorg, ent->v.origin);
+        ent->v.origin = oldorg;
     }
 
-    VectorCopy(vec3_origin, ent->v.velocity);
+    ent->v.velocity = vec3_origin;
     return 7; // still not moving
 }
 
@@ -946,10 +946,10 @@ void SV_WalkMove(edict_t* ent)
     ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
 
     glm::vec3 oldorg;
-    VectorCopy(ent->v.origin, oldorg);
+    oldorg = ent->v.origin;
 
     glm::vec3 oldvel;
-    VectorCopy(ent->v.velocity, oldvel);
+    oldvel = ent->v.velocity;
 
     trace_t steptrace;
     int clip = SV_FlyMove(ent, host_frametime, &steptrace);
@@ -980,22 +980,22 @@ void SV_WalkMove(edict_t* ent)
     }
 
     glm::vec3 nosteporg;
-    VectorCopy(ent->v.origin, nosteporg);
+    nosteporg = ent->v.origin;
 
     glm::vec3 nostepvel;
-    VectorCopy(ent->v.velocity, nostepvel);
+    nostepvel = ent->v.velocity;
 
     //
     // try moving up and forward to go up a step
     //
-    VectorCopy(oldorg, ent->v.origin); // back to start pos
+    ent->v.origin = oldorg; // back to start pos
 
     glm::vec3 upmove;
-    VectorCopy(vec3_origin, upmove);
+    upmove = vec3_origin;
     upmove[2] = STEPSIZE;
 
     glm::vec3 downmove;
-    VectorCopy(vec3_origin, downmove);
+    downmove = vec3_origin;
     downmove[2] = -STEPSIZE + oldvel[2] * host_frametime;
 
     // move up
@@ -1041,8 +1041,8 @@ void SV_WalkMove(edict_t* ent)
         // without the step up.  This happens near wall / slope
         // combinations, and can cause the player to hop up higher on a
         // slope too steep to climb
-        VectorCopy(nosteporg, ent->v.origin);
-        VectorCopy(nostepvel, ent->v.velocity);
+        ent->v.origin = nosteporg;
+        ent->v.velocity = nostepvel;
     }
 }
 
@@ -1190,8 +1190,8 @@ void SV_Physics_Client(edict_t* ent, int num)
 
         ent->v.teleport_time = sv.time + 0.3;
         ent->v.teleport_target[2] += 12;
-        VectorCopy(ent->v.teleport_target, ent->v.origin);
-        VectorCopy(ent->v.teleport_target, ent->v.oldorigin);
+        ent->v.origin = ent->v.teleport_target;
+        ent->v.oldorigin = ent->v.teleport_target;
     }
     else
     {
@@ -1416,7 +1416,6 @@ void SV_Physics_Toss(edict_t* ent)
     // move angles
     ent->v.angles += static_cast<float>(host_frametime) * ent->v.avelocity;
 
-
     // move origin
     glm::vec3 move;
     VectorScale(ent->v.velocity, host_frametime, move);
@@ -1451,8 +1450,8 @@ void SV_Physics_Toss(edict_t* ent)
         {
             ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
             ent->v.groundentity = EDICT_TO_PROG(trace.ent);
-            VectorCopy(vec3_origin, ent->v.velocity);
-            VectorCopy(vec3_origin, ent->v.avelocity);
+            ent->v.velocity = vec3_origin;
+            ent->v.avelocity = vec3_origin;
         }
     }
 

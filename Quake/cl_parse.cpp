@@ -610,8 +610,8 @@ void CL_ParseUpdate(int bits)
     }
 
     // shift the known values for interpolation
-    VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-    VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
+    ent->msg_origins[1] = ent->msg_origins[0];
+    ent->msg_angles[1] = ent->msg_angles[0];
 
     if(bits & U_ORIGIN1)
     {
@@ -775,10 +775,10 @@ void CL_ParseUpdate(int bits)
 
     if(forcelink)
     { // didn't have an update last message
-        VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-        VectorCopy(ent->msg_origins[0], ent->origin);
-        VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
-        VectorCopy(ent->msg_angles[0], ent->angles);
+        ent->msg_origins[1] = ent->msg_origins[0];
+        ent->origin = ent->msg_origins[0];
+        ent->msg_angles[1] = ent->msg_angles[0];
+        ent->angles = ent->msg_angles[0];
         ent->forcelink = true;
     }
 }
@@ -862,7 +862,7 @@ void CL_ParseClientdata()
         cl.idealpitch = 0;
     }
 
-    VectorCopy(cl.mvelocity[0], cl.mvelocity[1]);
+    cl.mvelocity[1] = cl.mvelocity[0];
     for(i = 0; i < 3; i++)
     {
         if(bits & (SU_PUNCH1 << i))
@@ -1135,8 +1135,8 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
     ent->effects = ent->baseline.effects;
     ent->alpha = ent->baseline.alpha; // johnfitz -- alpha
 
-    VectorCopy(ent->baseline.origin, ent->origin);
-    VectorCopy(ent->baseline.angles, ent->angles);
+    ent->origin = ent->baseline.origin;
+    ent->angles = ent->baseline.angles;
     R_AddEfrags(ent);
 }
 

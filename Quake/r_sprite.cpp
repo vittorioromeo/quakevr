@@ -131,7 +131,7 @@ void R_DrawSpriteModel(entity_t* e)
         }
         case SPR_FACING_UPRIGHT: { // faces camera origin, up is towards the
                                   // heavens
-            VectorSubtract(currententity->origin, r_origin, v_forward);
+            v_forward = currententity->origin - r_origin;
             v_forward[2] = 0;
             VectorNormalizeFast(v_forward);
             v_right[0] = v_forward[1];
@@ -195,22 +195,22 @@ void R_DrawSpriteModel(entity_t* e)
 
     glTexCoord2f(0, frame->tmax);
     point = e->origin + (frame->down * (*s_up));
-    point = point + (frame->left * (*s_right));
+    point += (frame->left * (*s_right));
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(0, 0);
     point = e->origin + (frame->up * (*s_up));
-    point = point + (frame->left * (*s_right));
+    point += (frame->left * (*s_right));
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, 0);
     point = e->origin + (frame->up * (*s_up));
-    point = point + (frame->right * (*s_right));
+    point += (frame->right * (*s_right));
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, frame->tmax);
     point = e->origin + (frame->down * (*s_up));
-    point = point + (frame->right * (*s_right));
+    point += (frame->right * (*s_right));
     glVertex3fv(glm::value_ptr(point));
 
     glEnd();

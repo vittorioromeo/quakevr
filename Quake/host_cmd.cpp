@@ -2457,7 +2457,7 @@ void Host_Viewnext_f()
     }
     m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame = e->v.frame + 1;
+    e->v.frame += 1;
     if(e->v.frame >= m->numframes)
     {
         e->v.frame = m->numframes - 1;
@@ -2481,7 +2481,7 @@ void Host_Viewprev_f()
 
     qmodel_t* m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame = e->v.frame - 1;
+    e->v.frame -= 1;
     if(e->v.frame < 0)
     {
         e->v.frame = 0;

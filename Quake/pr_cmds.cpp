@@ -191,7 +191,6 @@ static void PF_setorigin()
 template <typename V0, typename V1>
 static void SetMinMaxSize(edict_t* e, V0 minvec, V1 maxvec, bool rotate)
 {
-    float* angles;
     glm::vec3 rmin;
 
     glm::vec3 rmax;
@@ -228,9 +227,7 @@ static void SetMinMaxSize(edict_t* e, V0 minvec, V1 maxvec, bool rotate)
     else
     {
         // find min / max for rotations
-        angles = glm::value_ptr(e->v.angles);
-
-        a = angles[1] / 180 * M_PI;
+        a = e->v.angles[1] / 180 * M_PI;
 
         xvector[0] = cos(a);
         xvector[1] = sin(a);
@@ -1402,7 +1399,7 @@ static void PF_walkmove()
         return;
     }
 
-    yaw = yaw * M_PI * 2 / 360;
+    yaw *= M_PI * 2 / 360;
 
     move[0] = cos(yaw) * dist;
     move[1] = sin(yaw) * dist;
@@ -1661,7 +1658,7 @@ static void PF_aim()
                      0.5 * (check->v.mins[j] + check->v.maxs[j]);
         }
         VectorSubtract(end, start, dir);
-        dir = glm::normalize(dir);
+        dir = safeNormalize(dir);
         dist = DotProduct(dir, pr_global_struct->v_forward);
         if(dist < bestdist)
         {
@@ -1682,7 +1679,7 @@ static void PF_aim()
         dist = DotProduct(dir, pr_global_struct->v_forward);
         VectorScale(pr_global_struct->v_forward, dist, end);
         end[2] = dir[2];
-        end = glm::normalize(end);
+        end = safeNormalize(end);
         VectorCopy(end, G_VECTOR(OFS_RETURN));
     }
     else
@@ -1716,14 +1713,14 @@ void PF_changeyaw()
     {
         if(move >= 180)
         {
-            move = move - 360;
+            move -= 360;
         }
     }
     else
     {
         if(move <= -180)
         {
-            move = move + 360;
+            move += 360;
         }
     }
 

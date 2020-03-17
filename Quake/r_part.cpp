@@ -632,8 +632,8 @@ void R_ReadPointFile_f()
             p.scale = 1.f;
             setAccGrav(p);
 
-            VectorCopy(vec3_origin, p.vel);
-            VectorCopy(org, p.org);
+            p.vel = vec3_origin;
+            p.org = org;
         });
     }
 
@@ -1185,7 +1185,7 @@ void R_LavaSplash(const glm::vec3& org)
                 p.org[2] = org[2] + (rand() & 63);
 
                 const float vel = 50 + (rand() & 63);
-                p.vel = glm::normalize(dir) * vel;
+                p.vel = safeNormalize(dir) * vel;
             });
         }
     }
@@ -1224,7 +1224,7 @@ void R_TeleportSplash(const glm::vec3& org)
                     p.org[2] = org[2] + k + (rand() & 3);
 
                     const float vel = 50 + (rand() & 63);
-                    p.vel = glm::normalize(dir) * vel;
+                    p.vel = safeNormalize(dir) * vel;
                 });
             }
         }
@@ -1272,7 +1272,7 @@ static void R_SetRTTracer(
 
     tracercount++;
 
-    VectorCopy(start, p.org);
+    p.org = start;
     if(tracercount & 1)
     {
         p.vel[0] = 30 * vec[1];
@@ -1312,7 +1312,7 @@ static void R_SetRTCommon(particle_t& p)
     p.alpha = 255;
     p.scale = 0.7f;
     setAccGrav(p, 0.05f);
-    VectorCopy(vec3_origin, p.vel);
+    p.vel = vec3_origin;
     p.die = cl.time + 2;
 }
 
@@ -1352,7 +1352,7 @@ void R_RocketTrail(glm::vec3 start, const glm::vec3& end, int type)
     }
 
     float len = glm::length(vec);
-    vec = glm::normalize(vec);
+    vec = safeNormalize(vec);
 
     while(len > 0)
     {

@@ -123,7 +123,7 @@ static int CL_GetDemoMessage()
 
     // get the next message
     fread(&net_message.cursize, 4, 1, cls.demofile);
-    VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
+    cl.mviewangles[1] = cl.mviewangles[0];
     for(int i = 0; i < 3; i++)
     {
         float f;

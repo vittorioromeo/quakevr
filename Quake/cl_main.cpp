@@ -587,7 +587,7 @@ void CL_RelinkEntities()
             const auto [fv, rv, uv] =
                 quake::util::getAngledVectors(ent->angles);
 
-            dl->origin = dl->origin + 18.f * fv;
+            dl->origin += 18.f * fv;
             dl->radius = 200 + (rand() & 31);
             dl->minlight = 32;
             dl->die = cl.time + 0.1;

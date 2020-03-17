@@ -31,7 +31,7 @@ extern cvar_t r_flatlightstyles; // johnfitz
 /*
 ==================
 R_AnimateLight
-================== 
+==================
 */
 void R_AnimateLight()
 {
@@ -389,7 +389,7 @@ loc0:
 
     // check for impact on this node
 
-    VectorCopy(mid, lightspot);
+    lightspot = mid;
     lightplane = node->plane;
 
     surf = cl.worldmodel->surfaces + node->firstsurface;

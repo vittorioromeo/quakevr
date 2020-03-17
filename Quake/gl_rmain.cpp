@@ -1292,7 +1292,7 @@ void R_RenderView()
 
         // render left eye (red)
         glColorMask(1, 0, 0, 1);
-        r_refdef.vieworg = r_refdef.vieworg + (-0.5f * eyesep) * vright;
+        r_refdef.vieworg += (-0.5f * eyesep) * vright;
         frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1301,7 +1301,7 @@ void R_RenderView()
         // render right eye (cyan)
         glClear(GL_DEPTH_BUFFER_BIT);
         glColorMask(0, 1, 1, 1);
-        r_refdef.vieworg = r_refdef.vieworg + (1.0f * eyesep) * vright;
+        r_refdef.vieworg += (1.0f * eyesep) * vright;
         frustum_skew = -frustum_skew;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1309,7 +1309,7 @@ void R_RenderView()
 
         // restore
         glColorMask(1, 1, 1, 1);
-        r_refdef.vieworg = r_refdef.vieworg + (-0.5f * eyesep), vright;
+        r_refdef.vieworg += (-0.5f * eyesep), vright;
         frustum_skew = 0.0f;
     }
     else

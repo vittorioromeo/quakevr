@@ -670,7 +670,7 @@ bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
     glm::vec3 org;
     int i;
 
-    VectorAdd(client->v.origin, client->v.view_ofs, org);
+    org = client->v.origin + client->v.view_ofs;
     pvs = SV_FatPVS(org, worldmodel);
 
     for(i = 0; i < test->num_leafs; i++)
@@ -704,7 +704,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
     edict_t* ent;
 
     // find the client's PVS
-    VectorAdd(clent->v.origin, clent->v.view_ofs, org);
+    org = clent->v.origin + clent->v.view_ofs;
     pvs = SV_FatPVS(org, sv.worldmodel);
 
     // send over all entities (excpet the client) that touch the pvs
@@ -1572,8 +1572,8 @@ void SV_CreateBaseline()
         //
         // create entity baseline
         //
-        VectorCopy(svent->v.origin, svent->baseline.origin);
-        VectorCopy(svent->v.angles, svent->baseline.angles);
+        svent->baseline.origin = svent->v.origin;
+        svent->baseline.angles = svent->v.angles;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;
         if(entnum > 0 && entnum <= svs.maxclients)

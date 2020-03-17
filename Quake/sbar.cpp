@@ -1456,7 +1456,7 @@ void Sbar_MiniDeathmatchOverlay()
     }
     else
     { // figure out start
-        i = i - numlines / 2;
+        i -= numlines / 2;
     }
     if(i > scoreboardlines - numlines)
     {

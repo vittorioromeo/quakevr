@@ -50,8 +50,8 @@ bool SV_CheckBottom(edict_t* ent)
 
     float bottom;
 
-    VectorAdd(ent->v.origin, ent->v.mins, mins);
-    VectorAdd(ent->v.origin, ent->v.maxs, maxs);
+    mins = ent->v.origin + ent->v.mins;
+    maxs = ent->v.origin + ent->v.maxs;
 
     // if all of the points under the corners are solid world, don't bother
     // with the tougher checks
@@ -142,8 +142,8 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     edict_t* enemy;
 
     // try the move
-    VectorCopy(ent->v.origin, oldorg);
-    VectorAdd(ent->v.origin, move, neworg);
+    oldorg = ent->v.origin;
+    neworg = ent->v.origin + move;
 
     // flying monsters don't step up
     if((int)ent->v.flags & (FL_SWIM | FL_FLY))
@@ -151,7 +151,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
         // try one move with vertical motion, then one without
         for(i = 0; i < 2; i++)
         {
-            VectorAdd(ent->v.origin, move, neworg);
+            neworg = ent->v.origin + move;
             enemy = PROG_TO_EDICT(ent->v.enemy);
             if(i == 0 && enemy != sv.edicts)
             {
@@ -179,7 +179,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
                     return false; // swim monster left water
                 }
 
-                VectorCopy(trace.endpos, ent->v.origin);
+                ent->v.origin = trace.endpos;
                 if(relink)
                 {
                     SV_LinkEdict(ent, true);
@@ -198,7 +198,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 
     // push down from a step height above the wished position
     neworg[2] += STEPSIZE;
-    VectorCopy(neworg, end);
+    end = neworg;
     end[2] -= STEPSIZE * 2;
 
     trace = SV_Move(quake::util::toVec3(neworg),
@@ -226,7 +226,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
         // if monster had the ground pulled out, go ahead and fall
         if((int)ent->v.flags & FL_PARTIALGROUND)
         {
-            VectorAdd(ent->v.origin, move, ent->v.origin);
+            ent->v.origin += move;
             if(relink)
             {
                 SV_LinkEdict(ent, true);
@@ -240,7 +240,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     }
 
     // check point traces down for dangling corners
-    VectorCopy(trace.endpos, ent->v.origin);
+    ent->v.origin = trace.endpos;
 
     if(!SV_CheckBottom(ent))
     {
@@ -253,7 +253,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
             }
             return true;
         }
-        VectorCopy(oldorg, ent->v.origin);
+        ent->v.origin = oldorg;
         return false;
     }
 
@@ -300,13 +300,13 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist)
     move[1] = sin(yaw) * dist;
     move[2] = 0;
 
-    VectorCopy(ent->v.origin, oldorigin);
+    oldorigin = ent->v.origin;
     if(SV_movestep(ent, move, false))
     {
         delta = ent->v.angles[YAW] - ent->v.ideal_yaw;
         if(delta > 45 && delta < 315)
         { // not turned far enough, so don't take the step
-            VectorCopy(oldorigin, ent->v.origin);
+            ent->v.origin = oldorigin;
         }
         SV_LinkEdict(ent, true);
         return true;

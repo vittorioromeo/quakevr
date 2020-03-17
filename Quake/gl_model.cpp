@@ -813,7 +813,7 @@ void Mod_LoadTextures(lump_t* l)
             }
             else if(num >= 'A' && num <= 'J')
             {
-                num = num - 'A';
+                num -= 'A';
                 altanims[num] = tx2;
                 if(num + 1 > altmax)
                 {
@@ -3264,8 +3264,8 @@ void Mod_LoadAliasModel(qmodel_t* mod, void* buffer)
         pheader->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
-    VectorCopy(pheader->scale, pheader->original_scale);
-    VectorCopy(pheader->scale_origin, pheader->original_scale_origin);
+    pheader->original_scale = pheader->scale;
+    pheader->original_scale_origin = pheader->scale_origin;
 
     //
     // load the skins

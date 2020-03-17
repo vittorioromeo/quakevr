@@ -175,13 +175,13 @@ vr::TrackedDevicePose_t ovr_DevicePose[vr::k_unMaxTrackedDeviceCount];
 static vr_eye_t eyes[2];
 static vr_eye_t* current_eye = nullptr;
 static vr_controller controllers[2];
-static glm::vec3 lastOrientation = {0, 0, 0};
-static glm::vec3 lastAim = {0, 0, 0};
+static glm::vec3 lastOrientation{0, 0, 0};
+static glm::vec3 lastAim{0, 0, 0};
 
 static bool vr_initialized = false;
 
-static glm::vec3 headOrigin;
-static glm::vec3 lastHeadOrigin;
+static glm::vec3 headOrigin{0, 0, 0};
+static glm::vec3 lastHeadOrigin{0, 0, 0};
 static vr::HmdVector3_t headPos;
 static vr::HmdVector3_t headVelocity;
 
@@ -1444,13 +1444,13 @@ void SetHandPos(int index, entity_t* player)
     }
     else
     {
-        VectorCopy(finalVec, cl.handpos[index]);
+        cl.handpos[index] = finalVec;
     }
 
     // handrot is set with AngleVectorFromRotMat
 
     // handvel
-    VectorCopy(controllers[index].velocity, cl.handvel[index]);
+    cl.handvel[index] = controllers[index].velocity;
 
     // handvelmag
     // VR: This helps direct punches being registered. This calculation works
@@ -1734,7 +1734,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     SetHandPos(0, player);
     SetHandPos(1, player);
 
-    VectorCopy(player->origin, lastPlayerOrigin);
+    lastPlayerOrigin = player->origin;
     gotLastPlayerOrigin = true;
 
     // TODO VR: move refactor and reorganize
@@ -1888,10 +1888,10 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
 
     lastPlayerYaw = sv_player->v.v_viewangle[YAW];
-    VectorCopy(cl.handrot[1], cl.prevhandrot[1]);
+    cl.prevhandrot[1] = cl.handrot[1];
 
     // TODO VR: interpolate based on weapon weight?
-    VectorCopy(cl.handrot[1], cl.aimangles); // Sets the shooting angle
+    cl.aimangles = cl.handrot[1]; // Sets the shooting angle
     // TODO VR: what sets the shooting origin?
 
     // TODO VR: teleportation stuff
@@ -1997,8 +1997,8 @@ void VR_UpdateScreenContent()
     lastOrientation = orientation;
     lastAim = cl.aimangles;
 
-    VectorCopy(cl.viewangles, r_refdef.viewangles);
-    VectorCopy(cl.aimangles, r_refdef.aimangles);
+    r_refdef.viewangles = cl.viewangles;
+    r_refdef.aimangles = cl.aimangles;
 
     // Render the scene for each eye into their FBOs
     for(vr_eye_t& eye : eyes)
@@ -2405,7 +2405,7 @@ void VR_Draw2D()
     {
         // TODO: Make the menus' position sperate from the right hand.
         // Centered on last view dir?
-        VectorCopy(cl.viewangles, menu_angles);
+        menu_angles = cl.viewangles;
 
         // TODO VR: ?
         if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
@@ -2512,7 +2512,7 @@ void VR_DrawSbar()
         if(mode == static_cast<int>(VrSbarMode::MainHand))
         {
             AngleVectors(cl.handrot[1], forward, right, up);
-            VectorCopy(cl.handrot[1], sbar_angles);
+            sbar_angles = cl.handrot[1];
 
             AngleVectors(sbar_angles, forward, right, up);
             target = cl.handpos[1] + -5.f * right;
@@ -2520,7 +2520,7 @@ void VR_DrawSbar()
         else
         {
             AngleVectors(cl.handrot[0], forward, right, up);
-            VectorCopy(cl.handrot[0], sbar_angles);
+            sbar_angles = cl.handrot[0];
 
             AngleVectors(sbar_angles, forward, right, up);
             target = cl.handpos[0] + 0.f * right;
@@ -2528,7 +2528,7 @@ void VR_DrawSbar()
     }
     else
     {
-        VectorCopy(cl.aimangles, sbar_angles);
+        sbar_angles = cl.aimangles;
 
         if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
             vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
@@ -2787,15 +2787,15 @@ void VR_Move(usercmd_t* cmd)
     }
 
     // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`.
-    VectorCopy(cl.handpos[1], cmd->handpos);
-    VectorCopy(cl.handrot[1], cmd->handrot);
-    VectorCopy(cl.handvel[1], cmd->handvel);
+    cmd->handpos = cl.handpos[1];
+    cmd->handrot = cl.handrot[1];
+    cmd->handvel = cl.handvel[1];
     cmd->handvelmag = cl.handvelmag[1];
 
     // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`.
-    VectorCopy(cl.handpos[0], cmd->offhandpos);
-    VectorCopy(cl.handrot[0], cmd->offhandrot);
-    VectorCopy(cl.handvel[0], cmd->offhandvel);
+    cmd->offhandpos = cl.handpos[0];
+    cmd->offhandrot = cl.handrot[0];
+    cmd->offhandvel = cl.handvel[0];
     cmd->offhandvelmag = cl.handvelmag[0];
 
     // VR: Weapon muzzle position.
@@ -2809,7 +2809,7 @@ void VR_Move(usercmd_t* cmd)
     if(std::exchange(vr_send_teleport_msg, false))
     {
         cmd->teleporting = 1;
-        VectorCopy(vr_teleporting_impact, cmd->teleport_target);
+        cmd->teleport_target = vr_teleporting_impact;
     }
     else
     {

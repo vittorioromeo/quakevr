@@ -167,7 +167,7 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
                 ent->v.origin[1], ent->v.origin[2]);
         }
 
-        VectorSubtract(maxs, mins, size);
+        size = maxs - mins;
         if(size[0] < 3)
         {
             hull = &model->hulls[0];
@@ -182,17 +182,17 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
         }
 
         // calculate an offset value to center the origin
-        VectorSubtract(hull->clip_mins, mins, offset);
-        VectorAdd(offset, ent->v.origin, offset);
+        offset = hull->clip_mins - mins;
+        offset += ent->v.origin;
     }
     else
     { // create a temp hull from bounding box sizes
 
-        VectorSubtract(ent->v.mins, maxs, hullmins);
-        VectorSubtract(ent->v.maxs, mins, hullmaxs);
+        hullmins = ent->v.mins - maxs;
+        hullmaxs = ent->v.maxs - mins;
         hull = SV_HullForBox(hullmins, hullmaxs);
 
-        VectorCopy(ent->v.origin, offset);
+        offset = ent->v.origin;
     }
 
 
@@ -247,7 +247,7 @@ areanode_t* SV_CreateAreaNode(
         return anode;
     }
 
-    VectorSubtract(maxs, mins, size);
+    size = maxs - mins;
     if(size[0] > size[1])
     {
         anode->axis = 0;
@@ -575,8 +575,8 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     }
 
     // set the abs box
-    VectorAdd(ent->v.origin, ent->v.mins, ent->v.absmin);
-    VectorAdd(ent->v.origin, ent->v.maxs, ent->v.absmax);
+    ent->v.absmin = ent->v.origin + ent->v.mins;
+    ent->v.absmax = ent->v.origin + ent->v.maxs;
 
     //
     // to make items easier to pick up and allow them to be grabbed off
@@ -908,12 +908,12 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     //==================
     if(!side)
     {
-        VectorCopy(plane->normal, trace->plane.normal);
+        trace->plane.normal = plane->normal;
         trace->plane.dist = plane->dist;
     }
     else
     {
-        VectorSubtract(vec3_origin, plane->normal, trace->plane.normal);
+        trace->plane.normal = vec3_origin - plane->normal;
         trace->plane.dist = -plane->dist;
     }
 
@@ -924,7 +924,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         if(frac < 0)
         {
             trace->fraction = midf;
-            VectorCopy(mid, trace->endpos);
+            trace->endpos = mid;
             Con_DPrintf("backup past 0\n");
             return false;
         }
@@ -936,7 +936,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     }
 
     trace->fraction = midf;
-    VectorCopy(mid, trace->endpos);
+    trace->endpos = mid;
 
     return false;
 }
@@ -966,8 +966,8 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
     // get the clipping hull
     hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
 
-    VectorSubtract(start, offset, start_l);
-    VectorSubtract(end, offset, end_l);
+    start_l = start - offset;
+    end_l = end - offset;
 
     // trace a line through the apropriate clipping hull
     SV_RecursiveHullCheck(
@@ -976,7 +976,7 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
     // fix trace up by the offset
     if(trace.fraction != 1)
     {
-        VectorAdd(trace.endpos, offset, trace.endpos);
+        trace.endpos += offset;
     }
 
     // did we clip the move?
@@ -1173,8 +1173,8 @@ trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
     }
     else
     {
-        VectorCopy(mins, clip.mins2);
-        VectorCopy(maxs, clip.maxs2);
+        clip.mins2 = mins;
+        clip.maxs2 = maxs;
     }
 
     // create the bounding box of the entire move
