@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.h
 
 #include <math.h>
+#include "glm.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 // matches value in gcc v2 math.h
@@ -131,6 +132,8 @@ void VectorInverse(vec3_t v);
 void VectorScale(vec3_t in, vec_t scale, vec3_t out);
 int Q_log2(int val);
 
+[[nodiscard]] glm::mat3 R_ConcatRotations(
+    const glm::mat3& in1, const glm::mat3& in2) noexcept;
 void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3]);
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
 
@@ -142,8 +145,12 @@ void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
+[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;
 void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3]);
+[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept;
 void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles);
+[[nodiscard]] glm::mat3 CreateRotMat(
+    const int axis, const float angle) noexcept;
 void CreateRotMat(int axis, float angle, vec3_t mat[3]);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)                                    \

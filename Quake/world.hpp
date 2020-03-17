@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_WORLD_H
 #define _QUAKE_WORLD_H
 
+#include "glm.hpp"
+
 typedef struct
 {
     vec3_t normal;
@@ -71,6 +73,10 @@ edict_t* SV_TestEntityPosition(edict_t* ent);
 
 trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
     edict_t* passedict);
+
+trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
+    const glm::vec3& maxs, const glm::vec3& end, const int type,
+    edict_t* const passedict);
 // mins and maxs are reletive
 
 // if the entire move stays in a solid volume, trace.allsolid will be set

@@ -77,9 +77,9 @@ struct vr_controller
 {
     vr::VRControllerState_t state;
     vr::VRControllerState_t lastState;
-    vec3_t position;
-    vec3_t orientation;
-    vec3_t velocity;
+    glm::vec3 position;
+    glm::vec3 orientation;
+    glm::vec3 velocity;
     vr::HmdVector3_t rawvector;
     vr::HmdQuaternion_t raworientation;
     bool active{false};
@@ -455,6 +455,16 @@ void DeleteFBO(const fbo_t& fbo)
                 M_PI_DIV_180;
 
     return out;
+}
+
+[[nodiscard]] glm::vec3 Vec3RotateZ(
+    const glm::vec3& in, const float angle) noexcept
+{
+    return {
+        in[0] * std::cos(angle) - in[1] * std::sin(angle), //
+        in[0] * std::sin(angle) + in[1] * std::cos(angle), //
+        in[2]                                              //
+    };
 }
 
 void Vec3RotateZ(const vec3_t& in, const float angle, vec3_t out) noexcept
@@ -1219,6 +1229,14 @@ void VR_GetAdjustedPlayerOrigin(vec3_t out, entity_t* player) noexcept
     out[2] = VR_GetHandZOrigin(player) + 40;
 }
 
+[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(entity_t* player) noexcept
+{
+    glm::vec3 res = toVec3(player->origin);
+    res[2] = VR_GetHandZOrigin(player) + 40;
+    return res;
+}
+
+
 // TODO VR: better system for this, use cvar per weapon
 [[nodiscard]] int wpnCvarEntryToWpnId(const int cvarEntry)
 {
@@ -1235,37 +1253,32 @@ void SetHandPos(int index, entity_t* player)
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
 
-    vec3_t headLocalPreRot;
-    _VectorSubtract(controllers[index].position, headOrigin, headLocalPreRot);
+    const auto headLocalPreRot = controllers[index].position - headOrigin;
+    const auto headLocal =
+        Vec3RotateZ(headLocalPreRot, vrYaw * M_PI_DIV_180) + headOrigin;
 
-    vec3_t headLocal;
-    Vec3RotateZ(headLocalPreRot, vrYaw * M_PI_DIV_180, headLocal);
-    _VectorAdd(headLocal, headOrigin, headLocal);
-
-    vec3_t finalPre, finalVec;
+    glm::vec3 finalVec;
 
     const auto handZOrigin = VR_GetHandZOrigin(player);
 
-    finalPre[0] = -headLocal[0] + player->origin[0];
-    finalPre[1] = -headLocal[1] + player->origin[1];
-    finalPre[2] = headLocal[2] + handZOrigin;
+    glm::vec3 finalPre{
+        -headLocal[0] + player->origin[0], //
+        -headLocal[1] + player->origin[1], //
+        headLocal[2] + handZOrigin         //
+    };
 
     // -----------------------------------------------------------------------
     // VR: Detect & resolve hand collisions against the world or entities.
 
     // Start around the upper torso, not actual center of the player.
-    vec3_t adjPlayerOrigin;
-    VR_GetAdjustedPlayerOrigin(adjPlayerOrigin, player);
-
-
+    const glm::vec3 adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
 
     // Size of hand hitboxes.
-    vec3_t mins{-1.f, -1.f, -1.f};
-    vec3_t maxs{1.f, 1.f, 1.f};
+    const glm::vec3 mins{-1.f, -1.f, -1.f};
+    const glm::vec3 maxs{1.f, 1.f, 1.f};
 
     // TODO VR: cvar to enable/disable muzzle collisions
-
-    VectorCopy(finalPre, finalVec);
+    finalVec = finalPre;
 
     // TODO VR: reintroduce as modifier
     // const float gunLength = index == 0 ? 0.f :
@@ -1273,8 +1286,6 @@ void SetHandPos(int index, entity_t* player)
 
     // vec3_t forward, right, up;
     // AngleVectors(cl.handrot[1], forward, right, up);
-
-
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
@@ -1286,31 +1297,33 @@ void SetHandPos(int index, entity_t* player)
 
     // Compute final collision resolution position, starting from the desired
     // position and resolving only against the collision plane's normal vector.
-    vec3_t resolvedHandPos;
-    VectorCopy(finalPre, resolvedHandPos);
-    if(trace.fraction < 1.f)
-    {
+    const auto resolvedHandPos = [&] {
+        glm::vec3 res = finalPre;
+
+        if(trace.fraction >= 1.f)
+        {
+            // Didn't hit anything.
+            return res;
+        }
+
         for(int i = 0; i < 3; ++i)
         {
             if(trace.plane.normal[i] != 0)
             {
-                resolvedHandPos[i] = crop[i];
+                res[i] = crop[i];
             }
         }
-    }
 
-    VectorCopy(resolvedHandPos, finalVec);
+        return res;
+    }();
 
-    const auto muzzlePos =
-        index == 0 ? toVec3(cl.handpos[index])
-                   : toVec3(resolvedHandPos) + VR_CalcWeaponMuzzlePosImpl();
+    finalVec = resolvedHandPos;
 
-    vec3_t adjFinalPre;
-    // VectorCopy(finalPre, adjFinalPre);
+    const auto muzzlePos = index == 0
+                               ? toVec3(cl.handpos[index])
+                               : resolvedHandPos + VR_CalcWeaponMuzzlePosImpl();
 
-    adjFinalPre[0] = muzzlePos[0];
-    adjFinalPre[1] = muzzlePos[1];
-    adjFinalPre[2] = muzzlePos[2];
+    const glm::vec3 adjFinalPre{muzzlePos[0], muzzlePos[1], muzzlePos[2]};
 
     // TODO VR:
     const trace_t gunTrace = SV_Move(
@@ -1318,7 +1331,6 @@ void SetHandPos(int index, entity_t* player)
 
     // TODO VR:
     auto gunCrop = toVec3(gunTrace.endpos) - VR_CalcWeaponMuzzlePosImpl();
-
 
     if(gunTrace.fraction < 1.f)
     {
@@ -1339,10 +1351,8 @@ void SetHandPos(int index, entity_t* player)
         vr_gun_colliding_with_wall = false;
     }
 
-
-
     // If hands get too far, bring them closer to the player.
-    auto currHandPos = toVec3(cl.handpos[index]);
+    const auto currHandPos = toVec3(cl.handpos[index]);
     constexpr auto maxHandPlayerDiff = 50.f;
     const auto handPlayerDiff = currHandPos - toVec3(adjPlayerOrigin);
     if(glm::length(handPlayerDiff) > maxHandPlayerDiff)
@@ -1358,8 +1368,7 @@ void SetHandPos(int index, entity_t* player)
     const auto oldy = cl.handpos[index][1];
     const auto oldz = cl.handpos[index][2];
 
-
-
+    // Weight stuff
     // TODO VR: adjust weight and add cvar, fix movement
     if(true /* TODO VR: cvar! */)
     {
@@ -1390,7 +1399,7 @@ void SetHandPos(int index, entity_t* player)
             return max;
         }();
 
-        if(weaponWeight > 1.f) weaponWeight = 1.f;
+        weaponWeight = std::clamp(weaponWeight, 0.f, 1.f);
 
         float opx{}, opy{}, opz{};
         if(gotLastPlayerOrigin)
@@ -1405,43 +1414,31 @@ void SetHandPos(int index, entity_t* player)
         const float frametime = cl.time - cl.oldtime;
         const auto ftw = (weaponWeight * frametime) * 100.f;
 
-        auto rotate_point = [](float cx, float cy, float angle, glm::vec2 p) {
-            float s = std::sin(glm::radians(angle));
-            float c = std::cos(glm::radians(angle));
-
+        const auto rotate_point = [](const glm::vec2& center, const float angle,
+                                      glm::vec2 p) {
             // translate point back to origin:
-            p.x -= cx;
-            p.y -= cy;
+            p -= center;
 
             // rotate point
-            float xnew = p.x * c - p.y * s;
-            float ynew = p.x * s + p.y * c;
+            const float s = std::sin(angle);
+            const float c = std::cos(angle);
+            const glm::vec2 rotated{p.x * c - p.y * s, p.x * s + p.y * c};
 
-            // translate point back:
-            p.x = xnew + cx;
-            p.y = ynew + cy;
-            return p;
+            // translate point back
+            return rotated + center;
         };
 
         if(lastVrYawDiff != 0.f)
             Con_Printf("lastVrYawDiff: %.2f\n", lastVrYawDiff);
 
-        auto cx = player->origin[0];
-        auto cy = player->origin[1];
+        const auto cx = player->origin[0];
+        const auto cy = player->origin[1];
 
         const auto oldadjxy =
-            rotate_point(cx, cy, -lastVrYawDiff, {oldx, oldy});
-        const auto newadjxy =
-            rotate_point(cx, cy, lastVrYawDiff, {finalVec[0], finalVec[1]});
+            rotate_point({cx, cy}, glm::radians(-lastVrYawDiff), {oldx, oldy});
 
         const auto olddiffx = oldx - oldadjxy[0];
         const auto olddiffy = oldy - oldadjxy[1];
-
-        const auto newdiffx = finalVec[0] - newadjxy[0];
-        const auto newdiffy = finalVec[1] - newadjxy[1];
-
-        const auto diffx = lerp(olddiffx, newdiffx, ftw);
-        const auto diffy = lerp(olddiffy, newdiffy, ftw);
 
         const auto newx = lerp(oldx, finalVec[0], ftw);
         const auto newy = lerp(oldy, finalVec[1], ftw);
@@ -1474,7 +1471,7 @@ void SetHandPos(int index, entity_t* player)
     // the player is looking).
     // TODO VR: this still needs to be oriented to the headset's rotation,
     // otherwise diagonal punches will still not register.
-    const auto length = VectorLength(controllers[index].velocity);
+    const auto length = glm::length(controllers[index].velocity);
     const auto bestSingle = std::max({std::abs(controllers[index].velocity[0]),
                                 std::abs(controllers[index].velocity[1]),
                                 std::abs(controllers[index].velocity[2])}) *
@@ -1719,48 +1716,24 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     cl.viewangles[PITCH] = orientation[PITCH];
     cl.viewangles[YAW] = orientation[YAW];
 
-    vec3_t mat[3];
-    vec3_t matTmp[3];
+    const glm::vec3 rotOfs{vr_gunangle.value, vr_gunyaw.value, 0};
 
-    vec3_t rotOfs = {vr_gunangle.value, vr_gunyaw.value, 0};
+    const auto gunMatPitch = CreateRotMat(0, rotOfs[0]);
+    const auto gunMatYaw = CreateRotMat(1, rotOfs[1]);
+    const auto gunMatRoll = CreateRotMat(2, rotOfs[2]);
 
-    vec3_t gunMatPitch[3];
-    CreateRotMat(0, rotOfs[0], gunMatPitch); // pitch
-
-    vec3_t gunMatYaw[3];
-    CreateRotMat(1, rotOfs[1], gunMatYaw); // yaw
-
-    vec3_t gunMatRoll[3];
-    CreateRotMat(2, rotOfs[2], gunMatRoll); // roll
-
-    vec3_t originalRots[2];
+    glm::vec3 originalRots[2];
 
     for(int i = 0; i < 2; i++)
     {
-        RotMatFromAngleVector(controllers[i].orientation, mat);
+        auto mat = RotMatFromAngleVector(controllers[i].orientation);
+        mat = R_ConcatRotations(gunMatRoll, mat);
+        mat = R_ConcatRotations(gunMatPitch, mat);
+        mat = R_ConcatRotations(gunMatYaw, mat);
 
-        R_ConcatRotations(gunMatRoll, mat, matTmp);
-        for(int j = 0; j < 3; ++j)
-        {
-            VectorCopy(matTmp[j], mat[j]);
-        }
-
-        R_ConcatRotations(gunMatPitch, mat, matTmp);
-        for(int j = 0; j < 3; ++j)
-        {
-            VectorCopy(matTmp[j], mat[j]);
-        }
-
-        R_ConcatRotations(gunMatYaw, mat, matTmp);
-        for(int j = 0; j < 3; ++j)
-        {
-            VectorCopy(matTmp[j], mat[j]);
-        }
-
-        vec3_t handrottemp;
-        AngleVectorFromRotMat(mat, handrottemp);
-        VectorCopy(handrottemp, originalRots[i]);
-        VectorCopy(handrottemp, cl.handrot[i]);
+        const auto handrottemp = AngleVectorFromRotMat(mat);
+        originalRots[i] = handrottemp;
+        toQuakeVec3(cl.handrot[i], handrottemp);
     }
 
     if(cl.viewent.model)
@@ -1801,6 +1774,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     const bool bothControllersActive =
         controllers[0].active && controllers[1].active;
 
+    // TODO VR: ghost hands
     // TODO VR: cvar? or is this handled by vr2hmode?
     if(bothControllersActive && true)
     {
@@ -1823,10 +1797,10 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         // TODO VR: cvars for everything, weapon traits, virtual stock
 
         {
-            vec3_t forward, right, up;
-            AngleVectors(originalRots[1], forward, right, up);
+            const auto [forward, right, up] =
+                getGlmAngledVectors(originalRots[1]);
 
-            const auto origDir = toVec3(forward);
+            const auto origDir = forward;
 
             const auto diffDot = glm::dot(glm::normalize(handDiff), origDir);
 

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.c -- math primitives
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 vec3_t vec3_origin = {0, 0, 0};
 
@@ -398,6 +399,18 @@ int Q_log2(int val)
 }
 
 
+
+[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept
+{
+    const auto [fwd, right, up] = quake::util::getGlmAngledVectors(angles);
+
+    glm::mat3 res;
+    res[0] = fwd;
+    res[1] = right * -1.f; // flip y so (0,0,0) produces identity!
+    res[2] = up;
+    return res;
+}
+
 void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3])
 {
     AngleVectors(angles, mat[0], mat[1], mat[2]);
@@ -406,6 +419,27 @@ void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3])
     mat[1][0] *= -1;
     mat[1][1] *= -1;
     mat[1][2] *= -1;
+}
+
+[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept
+{
+    glm::vec3 out;
+
+    out[1] = -atan2(mat[0][0], mat[0][1]) / M_PI_DIV_180 + 90;
+    out[0] =
+        atan2(sqrt(mat[0][0] * mat[0][0] + mat[0][1] * mat[0][1]), mat[0][2]) /
+            M_PI_DIV_180 -
+        90;
+    out[2] = 0;
+
+    const auto unrolled = RotMatFromAngleVector(out);
+
+    out[2] =
+        -atan2(glm::dot(unrolled[1], mat[1]), glm::dot(unrolled[2], mat[1])) /
+            M_PI_DIV_180 +
+        90;
+
+    return out;
 }
 
 void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles)
@@ -427,6 +461,14 @@ void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles)
                 90;
 }
 
+[[nodiscard]] glm::mat3 CreateRotMat(const int axis, const float angle) noexcept
+{
+    const glm::vec3 angles{
+        axis == 0 ? angle : 0, axis == 1 ? angle : 0, axis == 2 ? angle : 0};
+
+    return RotMatFromAngleVector(angles);
+}
+
 void CreateRotMat(int axis, float angle, vec3_t mat[3])
 {
     vec3_t angles = {
@@ -439,6 +481,33 @@ void CreateRotMat(int axis, float angle, vec3_t mat[3])
 R_ConcatRotations
 ================
 */
+[[nodiscard]] glm::mat3 R_ConcatRotations(
+    const glm::mat3& in1, const glm::mat3& in2) noexcept
+{
+    glm::mat3 res;
+
+    res[0][0] =
+        in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
+    res[0][1] =
+        in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
+    res[0][2] =
+        in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
+    res[1][0] =
+        in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0];
+    res[1][1] =
+        in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1];
+    res[1][2] =
+        in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2];
+    res[2][0] =
+        in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0];
+    res[2][1] =
+        in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1];
+    res[2][2] =
+        in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
+
+    return res;
+}
+
 void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3])
 {
     out[0][0] =

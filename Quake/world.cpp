@@ -477,11 +477,11 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
 
-        if (offHandIntersects)
+        if(offHandIntersects)
         {
             ent->v.touchinghand = 0;
         }
-        else if (mainHandIntersects)
+        else if(mainHandIntersects)
         {
             ent->v.touchinghand = 1;
         }
@@ -1182,4 +1182,17 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
     SV_ClipToLinks(sv_areanodes, &clip);
 
     return clip.trace;
+}
+
+trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
+    const glm::vec3& maxs, const glm::vec3& end, const int type,
+    edict_t* const passedict)
+{
+    // TODO VR: optimize
+    vec3_t xStart, xMins, xMaxs, xEnd;
+    quake::util::toQuakeVec3(xStart, start);
+    quake::util::toQuakeVec3(xMins, mins);
+    quake::util::toQuakeVec3(xMaxs, maxs);
+    quake::util::toQuakeVec3(xEnd, end);
+    return SV_Move(xStart, xMins, xMaxs, xEnd, type, passedict);
 }
