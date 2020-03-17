@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "world.hpp"
+#include "util.hpp"
 #include <iostream>
 
 edict_t* sv_player;
@@ -60,9 +61,9 @@ void SV_SetIdealPitch()
 
     float cosval;
     trace_t tr;
-    vec3_t top;
+    glm::vec3 top;
 
-    vec3_t bottom;
+    glm::vec3 bottom;
     float z[MAX_FORWARD];
     int i;
 
@@ -92,7 +93,8 @@ void SV_SetIdealPitch()
         bottom[1] = top[1];
         bottom[2] = top[2] - 160;
 
-        tr = SV_Move(top, vec3_origin, vec3_origin, bottom, 1, sv_player);
+        tr = SV_Move(
+            top, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, bottom, 1, sv_player);
         if(tr.allsolid)
         {
             return; // looking at a wall, leave ideal the way is was
@@ -153,9 +155,9 @@ void SV_UserFriction()
     float newspeed;
 
     float control;
-    vec3_t start;
+    glm::vec3 start;
 
-    vec3_t stop;
+    glm::vec3 stop;
     float friction;
     trace_t trace;
 
@@ -173,7 +175,8 @@ void SV_UserFriction()
     start[2] = origin[2] + sv_player->v.mins[2];
     stop[2] = start[2] - 34;
 
-    trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, sv_player);
+    trace =
+        SV_Move(start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, sv_player);
 
     if(trace.fraction == 1.0)
     {
@@ -512,7 +515,9 @@ void SV_ClientThink()
     angles = sv_player->v.angles;
 
     VectorAdd(sv_player->v.v_angle, sv_player->v.punchangle, v_angle);
-    angles[ROLL] = V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
+    angles[ROLL] = V_CalcRoll(quake::util::toVec3(sv_player->v.angles),
+                       quake::util::toVec3(sv_player->v.velocity)) *
+                   4;
     if(!sv_player->v.fixangle)
     {
         angles[PITCH] = -v_angle[PITCH] / 3;

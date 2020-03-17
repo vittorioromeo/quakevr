@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __QUAKE_SOUND__
 #define __QUAKE_SOUND__
 
+#include "glm.hpp"
+
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct
 {
@@ -93,13 +95,14 @@ typedef struct
 void S_Init(void);
 void S_Startup(void);
 void S_Shutdown(void);
-void S_StartSound(int entnum, int entchannel, sfx_t* sfx, vec3_t origin,
-    float fvol, float attenuation);
+void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
+    const glm::vec3& origin, float fvol, float attenuation);
 void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
 void S_ClearBuffer(void);
-void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up);
+void S_Update(const glm::vec3& origin, const glm::vec3& forward,
+    const glm::vec3& right, const glm::vec3& up);
 void S_ExtraUpdate(void);
 
 void S_BlockSound(void);
@@ -166,10 +169,10 @@ extern int soundtime;
 extern int paintedtime;
 extern int s_rawend;
 
-extern vec3_t listener_origin;
-extern vec3_t listener_forward;
-extern vec3_t listener_right;
-extern vec3_t listener_up;
+extern glm::vec3 listener_origin;
+extern glm::vec3 listener_forward;
+extern glm::vec3 listener_right;
+extern glm::vec3 listener_up;
 
 extern cvar_t sndspeed;
 extern cvar_t snd_mixspeed;

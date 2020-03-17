@@ -23,7 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.hpp"
+#include "glm.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 bool r_cache_thrash; // compatability
 
@@ -43,10 +45,10 @@ float rs_megatexels;
 //
 // view origin
 //
-vec3_t vup;
-vec3_t vpn;
-vec3_t vright;
-vec3_t r_origin;
+glm::vec3 vup;
+glm::vec3 vpn;
+glm::vec3 vright;
+glm::vec3 r_origin;
 
 float r_fovx, r_fovy; // johnfitz -- rendering fov may be different becuase of
                       // r_waterwarp and r_stereo
@@ -411,7 +413,7 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
 pointer to entity
 ===============
 */
-void R_RotateForEntity(vec3_t origin, vec3_t angles)
+void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
     glRotatef(angles[YAW], 0, 0, 1);
@@ -483,19 +485,17 @@ to turn away from side, use a negative angle
 ===============
 */
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
-void TurnVector(
-    vec3_t out, const vec3_t forward, const vec3_t side, float angle)
+[[nodiscard]] glm::vec3 TurnVector(
+    const glm::vec3& forward, const glm::vec3& side, const float angle) noexcept
 {
-    float scale_forward;
+    const float scale_forward = cos(DEG2RAD(angle));
+    const float scale_side = sin(DEG2RAD(angle));
 
-    float scale_side;
-
-    scale_forward = cos(DEG2RAD(angle));
-    scale_side = sin(DEG2RAD(angle));
-
-    out[0] = scale_forward * forward[0] + scale_side * side[0];
-    out[1] = scale_forward * forward[1] + scale_side * side[1];
-    out[2] = scale_forward * forward[2] + scale_side * side[2];
+    glm::vec3 res;
+    res[0] = scale_forward * forward[0] + scale_side * side[0];
+    res[1] = scale_forward * forward[1] + scale_side * side[1];
+    res[2] = scale_forward * forward[2] + scale_side * side[2];
+    return res;
 }
 
 /*
@@ -519,10 +519,10 @@ void R_SetFrustum(float fovx, float fovy)
         fovx += 25;
     }
 
-    TurnVector(frustum[0].normal, vpn, vright, fovx / 2 - 90); // left plane
-    TurnVector(frustum[1].normal, vpn, vright, 90 - fovx / 2); // right plane
-    TurnVector(frustum[2].normal, vpn, vup, 90 - fovy / 2);    // bottom plane
-    TurnVector(frustum[3].normal, vpn, vup, fovy / 2 - 90);    // top plane
+    frustum[0].normal = TurnVector(vpn, vright, fovx / 2 - 90); // left plane
+    frustum[1].normal = TurnVector(vpn, vright, 90 - fovx / 2); // right plane
+    frustum[2].normal = TurnVector(vpn, vup, 90 - fovy / 2);    // bottom plane
+    frustum[3].normal = TurnVector(vpn, vup, fovy / 2 - 90);    // top plane
 
     for(i = 0; i < 4; i++)
     {
@@ -657,8 +657,12 @@ void R_SetupView()
     Fog_SetupFrame(); // johnfitz
 
     // build the transformation matrix for the given view angles
-    VectorCopy(r_refdef.vieworg, r_origin);
-    AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+    r_origin = r_refdef.vieworg;
+
+    const auto [xvpn, xvright, xvup] = quake::util::getGlmAngledVectors(r_refdef.viewangles);
+    vpn = xvpn;
+    vright = xvright;
+    vup = xvup;
 
     // current viewleaf
     r_oldviewleaf = r_viewleaf;
@@ -990,13 +994,11 @@ void R_ShowTris()
             }
         }
 
-        const auto doViewmodel =
-            [&](entity_t* ent) {
+        const auto doViewmodel = [&](entity_t* ent) {
             currententity = ent;
-            if (r_drawviewmodel.value && !chase_active.value &&
-                cl.stats[STAT_HEALTH] > 0 &&
-                !(cl.items & IT_INVISIBILITY) && currententity->model &&
-                currententity->model->type == mod_alias)
+            if(r_drawviewmodel.value && !chase_active.value &&
+                cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
+                currententity->model && currententity->model->type == mod_alias)
             {
                 glDepthRange(0, 0.3);
                 R_DrawAliasModel_ShowTris(currententity);
@@ -1265,8 +1267,8 @@ void R_RenderView()
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys =
-            rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_fogpolys =
+            rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }
     else if(gl_finish.value)
@@ -1283,11 +1285,14 @@ void R_RenderView()
         float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
         float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
-        AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+        const auto [xvpn, xvright, xvup] = quake::util::getGlmAngledVectors(r_refdef.viewangles);
+        vpn = xvpn;
+        vright = xvright;
+        vpn = xvup;
 
         // render left eye (red)
         glColorMask(1, 0, 0, 1);
-        VectorMA(r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg = r_refdef.vieworg + (-0.5f * eyesep) * vright;
         frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1296,7 +1301,7 @@ void R_RenderView()
         // render right eye (cyan)
         glClear(GL_DEPTH_BUFFER_BIT);
         glColorMask(0, 1, 1, 1);
-        VectorMA(r_refdef.vieworg, 1.0f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg = r_refdef.vieworg + (1.0f * eyesep) * vright;
         frustum_skew = -frustum_skew;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1304,7 +1309,7 @@ void R_RenderView()
 
         // restore
         glColorMask(1, 1, 1, 1);
-        VectorMA(r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg = r_refdef.vieworg + (-0.5f * eyesep), vright;
         frustum_skew = 0.0f;
     }
     else

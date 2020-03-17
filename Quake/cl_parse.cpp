@@ -85,7 +85,7 @@ const char* svc_strings[] = {
 
 bool warn_about_nehahra_protocol; // johnfitz
 
-extern vec3_t v_punchangles[2]; // johnfitz
+extern glm::vec3 v_punchangles[2]; // johnfitz
 
 //=============================================================================
 
@@ -131,7 +131,7 @@ CL_ParseStartSoundPacket
 */
 void CL_ParseStartSoundPacket()
 {
-    vec3_t pos;
+    glm::vec3 pos;
     int channel;
 
     int ent;
@@ -889,8 +889,8 @@ void CL_ParseClientdata()
         v_punchangles[0][1] != cl.punchangle[1] ||
         v_punchangles[0][2] != cl.punchangle[2])
     {
-        VectorCopy(v_punchangles[0], v_punchangles[1]);
-        VectorCopy(cl.punchangle, v_punchangles[0]);
+        v_punchangles[1] = v_punchangles[0];
+        v_punchangles[0] = cl.punchangle;
     }
     // johnfitz
 

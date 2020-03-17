@@ -237,76 +237,20 @@ int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t* p)
 // johnfitz -- the opposite of AngleVectors.  this takes forward and generates
 // pitch yaw roll
 // TODO: take right and up vectors to properly set yaw and roll
-void VectorAngles(const vec3_t forward, vec3_t angles)
+[[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept
 {
-    vec3_t temp;
+    glm::vec3 temp, res;
 
     temp[0] = forward[0];
     temp[1] = forward[1];
     temp[2] = 0;
-    angles[PITCH] = -atan2(forward[2], VectorLength(temp)) / M_PI_DIV_180;
-    angles[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
-    angles[ROLL] = 0;
+    res[PITCH] = -atan2(forward[2], glm::length(temp)) / M_PI_DIV_180;
+    res[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
+    res[ROLL] = 0;
+
+    return res;
 }
 
-void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
-{
-    float angle;
-    float sr;
-    float sp;
-    float sy;
-    float cr;
-    float cp;
-    float cy;
-
-    angle = angles[YAW] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
-
-    sy = sin(angle);
-    cy = cos(angle);
-
-    angle = angles[PITCH] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
-
-    sp = sin(angle);
-    cp = cos(angle);
-
-    angle = angles[ROLL] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
-
-    sr = sin(angle);
-    cr = cos(angle);
-
-    forward[0] = cp * cy;
-    forward[1] = cp * sy;
-    forward[2] = -sp;
-
-    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
-    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
-    right[2] = -1 * sr * cp;
-
-    up[0] = (cr * sp * cy + -sr * -sy);
-    up[1] = (cr * sp * sy + -sr * cy);
-    up[2] = cr * cp;
-}
-
-int VectorCompare(vec3_t v1, vec3_t v2)
-{
-    int i;
-
-    for(i = 0; i < 3; i++)
-    {
-        if(v1[i] != v2[i])
-        {
-            return 0;
-        }
-    }
-
-    return 1;
-}
 
 void VectorMA(vec3_t veca, float scale, vec3_t vecb, vec3_t vecc)
 {
@@ -380,14 +324,6 @@ void VectorInverse(vec3_t v)
     v[2] = -v[2];
 }
 
-void VectorScale(vec3_t in, vec_t scale, vec3_t out)
-{
-    out[0] = in[0] * scale;
-    out[1] = in[1] * scale;
-    out[2] = in[2] * scale;
-}
-
-
 int Q_log2(int val)
 {
     int answer = 0;
@@ -411,16 +347,6 @@ int Q_log2(int val)
     return res;
 }
 
-void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3])
-{
-    AngleVectors(angles, mat[0], mat[1], mat[2]);
-
-    // flip y so (0,0,0) produces identity!
-    mat[1][0] *= -1;
-    mat[1][1] *= -1;
-    mat[1][2] *= -1;
-}
-
 [[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept
 {
     glm::vec3 out;
@@ -442,38 +368,12 @@ void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3])
     return out;
 }
 
-void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles)
-{
-    angles[1] = -atan2(mat[0][0], mat[0][1]) / M_PI_DIV_180 + 90;
-    angles[0] =
-        atan2(sqrt(mat[0][0] * mat[0][0] + mat[0][1] * mat[0][1]), mat[0][2]) /
-            M_PI_DIV_180 -
-        90;
-    angles[2] = 0;
-
-    vec3_t unrolled[3];
-
-    RotMatFromAngleVector(angles, unrolled);
-
-    angles[2] = -atan2(_DotProduct(unrolled[1], mat[1]),
-                    _DotProduct(unrolled[2], mat[1])) /
-                    M_PI_DIV_180 +
-                90;
-}
-
 [[nodiscard]] glm::mat3 CreateRotMat(const int axis, const float angle) noexcept
 {
     const glm::vec3 angles{
         axis == 0 ? angle : 0, axis == 1 ? angle : 0, axis == 2 ? angle : 0};
 
     return RotMatFromAngleVector(angles);
-}
-
-void CreateRotMat(int axis, float angle, vec3_t mat[3])
-{
-    vec3_t angles = {
-        axis == 0 ? angle : 0, axis == 1 ? angle : 0, axis == 2 ? angle : 0};
-    RotMatFromAngleVector(angles, mat);
 }
 
 /*

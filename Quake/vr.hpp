@@ -99,8 +99,8 @@ void VR_Move(usercmd_t* cmd);
 void VR_InitGame();
 void VR_PushYaw();
 void VR_DrawSbar();
-void VR_AddOrientationToViewAngles(vec3_t angles);
-void VR_SetAngles(vec3_t angles);
+[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(const glm::vec3& angles) noexcept;
+void VR_SetAngles(const glm::vec3& angles) noexcept;
 void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
@@ -193,8 +193,6 @@ struct WeaponMuzzleOffsets
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept;
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept;
-
-void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept;
 
 // ----------------------------------------------------------------------------
 

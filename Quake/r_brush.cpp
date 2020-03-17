@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_brush.c: brush model rendering. renamed from r_surf.c
 
 #include "quakedef.hpp"
+#include "util.hpp"
+#include "glm.hpp"
+#include "gtc/type_ptr.hpp"
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -534,14 +537,11 @@ void R_DrawBrushModel(entity_t* e)
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
         vec3_t temp;
-        vec3_t forward;
-
-        vec3_t right;
-
-        vec3_t up;
-
         VectorCopy(modelorg, temp);
-        AngleVectors(e->angles, forward, right, up);
+
+        const auto [forward, right, up] =
+            quake::util::getGlmAngledVectors(e->angles);
+
         modelorg[0] = DotProduct(temp, forward);
         modelorg[1] = -DotProduct(temp, right);
         modelorg[2] = DotProduct(temp, up);
@@ -628,14 +628,11 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
         vec3_t temp;
-        vec3_t forward;
-
-        vec3_t right;
-
-        vec3_t up;
-
         VectorCopy(modelorg, temp);
-        AngleVectors(e->angles, forward, right, up);
+
+        const auto [forward, right, up] =
+            quake::util::getGlmAngledVectors(e->angles);
+
         modelorg[0] = DotProduct(temp, forward);
         modelorg[1] = -DotProduct(temp, right);
         modelorg[2] = DotProduct(temp, up);
@@ -908,12 +905,12 @@ void BuildSurfaceDisplayList(msurface_t* fa)
         if(lindex > 0)
         {
             r_pedge = &pedges[lindex];
-            vec = r_pcurrentvertbase[r_pedge->v[0]].position;
+            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[0]].position);
         }
         else
         {
             r_pedge = &pedges[-lindex];
-            vec = r_pcurrentvertbase[r_pedge->v[1]].position;
+            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[1]].position);
         }
         s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
         s /= fa->texinfo->texture->width;

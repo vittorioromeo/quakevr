@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_move.c -- monster movement
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 #define STEPSIZE 18
 
@@ -39,13 +40,8 @@ int c_yes, c_no;
 
 bool SV_CheckBottom(edict_t* ent)
 {
-    vec3_t mins;
+    glm::vec3 mins, maxs, start, stop;
 
-    vec3_t maxs;
-
-    vec3_t start;
-
-    vec3_t stop;
     trace_t trace;
     int x;
 
@@ -88,7 +84,7 @@ realcheck:
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
     stop[2] = start[2] - 2 * STEPSIZE;
-    trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
+    trace = SV_Move(start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, ent);
 
     if(trace.fraction == 1.0)
     {
@@ -104,7 +100,8 @@ realcheck:
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-            trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
+            trace = SV_Move(
+                start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, ent);
 
             if(trace.fraction != 1.0 && trace.endpos[2] > bottom)
             {
@@ -169,8 +166,10 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
                     neworg[2] += 8;
                 }
             }
-            trace = SV_Move(
-                ent->v.origin, ent->v.mins, ent->v.maxs, neworg, false, ent);
+            trace = SV_Move(quake::util::toVec3(ent->v.origin),
+                quake::util::toVec3(ent->v.mins),
+                quake::util::toVec3(ent->v.maxs), quake::util::toVec3(neworg),
+                false, ent);
 
             if(trace.fraction == 1)
             {
@@ -202,7 +201,9 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
     VectorCopy(neworg, end);
     end[2] -= STEPSIZE * 2;
 
-    trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
+    trace = SV_Move(quake::util::toVec3(neworg),
+        quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
+        quake::util::toVec3(end), false, ent);
 
     if(trace.allsolid)
     {
@@ -212,7 +213,9 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
     if(trace.startsolid)
     {
         neworg[2] -= STEPSIZE;
-        trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
+        trace = SV_Move(quake::util::toVec3(neworg),
+            quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
+            quake::util::toVec3(end), false, ent);
         if(trace.allsolid || trace.startsolid)
         {
             return false;

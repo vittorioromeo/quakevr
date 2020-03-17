@@ -40,6 +40,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _CLIENT_H_
 #define _CLIENT_H_
 
+#include "glm.hpp"
+
 // client.h
 
 typedef struct
@@ -74,13 +76,13 @@ typedef struct
 
 struct dlight_t
 {
-    vec3_t origin;
+    glm::vec3 origin;
     float radius;
     float die;      // stop lighting after this time
     float decay;    // drop this each second
     float minlight; // don't add when contributing less
     int key;
-    vec3_t color; // johnfitz -- lit support via lordhavoc
+    glm::vec3 color; // johnfitz -- lit support via lordhavoc
 };
 
 
@@ -89,7 +91,7 @@ typedef struct
     int entity;
     struct qmodel_s* model;
     float endtime;
-    vec3_t start, end;
+    glm::vec3 start, end;
 } beam_t;
 
 
@@ -167,23 +169,23 @@ struct client_state_t
     // sent to the server each frame.  The server sets punchangle when
     // the view is temporarliy offset, and an angle reset commands at the start
     // of each level and after teleporting.
-    vec3_t mviewangles[2]; // during demo playback viewangles is lerped
-                           // between these
-    vec3_t viewangles;
+    glm::vec3 mviewangles[2]; // during demo playback viewangles is lerped
+                              // between these
+    glm::vec3 viewangles;
 
-    vec3_t aimangles;
-    vec3_t vmeshoffset;
-    vec3_t handpos[2];
-    vec3_t handrot[2];
-    vec3_t prevhandrot[2];
-    vec3_t handvel[2];
+    glm::vec3 aimangles;
+    glm::vec3 vmeshoffset;
+    glm::vec3 handpos[2];
+    glm::vec3 handrot[2];
+    glm::vec3 prevhandrot[2];
+    glm::vec3 handvel[2];
     float handvelmag[2];
 
-    vec3_t mvelocity[2]; // update by server, used for lean+bob
-                         // (0 is newest)
-    vec3_t velocity;     // lerped between mvelocity[0] and [1]
+    glm::vec3 mvelocity[2]; // update by server, used for lean+bob
+                            // (0 is newest)
+    glm::vec3 velocity;     // lerped between mvelocity[0] and [1]
 
-    vec3_t punchangle; // temporary offset
+    glm::vec3 punchangle; // temporary offset
 
     // pitch drifting vars
     float idealpitch;
@@ -383,8 +385,9 @@ extern cvar_t chase_active;
 void Chase_Init(void);
 
 struct trace_t;
-trace_t TraceLine(vec3_t start, vec3_t end, vec3_t impact);
-trace_t TraceLineToEntity(vec3_t start, vec3_t end, vec3_t impact, edict_t* ent);
+[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end);
+[[nodiscard]] trace_t TraceLineToEntity(
+    const glm::vec3& start, const glm::vec3& end, edict_t* ent);
 void Chase_UpdateForClient(void);                                 // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz
 

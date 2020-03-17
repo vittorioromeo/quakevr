@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
+#include "glm.hpp"
 
 static void S_Play();
 static void S_PlayVol();
@@ -49,10 +50,10 @@ static bool snd_initialized = false;
 static dma_t sn;
 volatile dma_t* shm = nullptr;
 
-vec3_t listener_origin;
-vec3_t listener_forward;
-vec3_t listener_right;
-vec3_t listener_up;
+glm::vec3 listener_origin;
+glm::vec3 listener_forward;
+glm::vec3 listener_right;
+glm::vec3 listener_up;
 
 #define sound_nominal_clip_dist 1000.0
 
@@ -481,8 +482,8 @@ void SND_Spatialize(channel_t* ch)
 // Start a sound effect
 // =======================================================================
 
-void S_StartSound(int entnum, int entchannel, sfx_t* sfx, vec3_t origin,
-    float fvol, float attenuation)
+void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
+    const glm::vec3& origin, float fvol, float attenuation)
 {
     channel_t* target_chan;
 
@@ -881,7 +882,8 @@ S_Update
 Called once each time through the main loop
 ============
 */
-void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
+void S_Update(const glm::vec3& origin, const glm::vec3& forward,
+    const glm::vec3& right, const glm::vec3& up)
 {
     int i;
 
@@ -1196,7 +1198,7 @@ void S_LocalSound(const char* name)
         Con_Printf("S_LocalSound: can't cache %s\n", name);
         return;
     }
-    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, 1, 1);
+    S_StartSound(cl.viewentity, -1, sfx, { 0.f, 0.f, 0.f }, 1, 1);
 }
 
 

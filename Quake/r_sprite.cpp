@@ -23,6 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_sprite.c -- sprite model rendering
 
 #include "quakedef.hpp"
+#include "glm.hpp"
+#include "gtc/type_ptr.hpp"
+#include "util.hpp"
 
 /*
 ================
@@ -95,22 +98,19 @@ R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 */
 void R_DrawSpriteModel(entity_t* e)
 {
-    vec3_t point;
+    glm::vec3 point;
+    glm::vec3 v_forward;
+    glm::vec3 v_right;
+    glm::vec3 v_up;
 
-    vec3_t v_forward;
-
-    vec3_t v_right;
-
-    vec3_t v_up;
     msprite_t* psprite;
     mspriteframe_t* frame;
-    float* s_up;
 
-    float* s_right;
+    glm::vec3* s_up;
+    glm::vec3* s_right;
+
     float angle;
-
     float sr;
-
     float cr;
 
     // TODO: frustum cull it?
@@ -120,16 +120,17 @@ void R_DrawSpriteModel(entity_t* e)
 
     switch(psprite->type)
     {
-        case SPR_VP_PARALLEL_UPRIGHT: // faces view plane, up is towards the
-                                      // heavens
+        case SPR_VP_PARALLEL_UPRIGHT: { // faces view plane, up is towards the
+                                       // heavens
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
-            s_up = v_up;
-            s_right = vright;
+            s_up = &v_up;
+            s_right = &vright;
             break;
-        case SPR_FACING_UPRIGHT: // faces camera origin, up is towards the
-                                 // heavens
+        }
+        case SPR_FACING_UPRIGHT: { // faces camera origin, up is towards the
+                                  // heavens
             VectorSubtract(currententity->origin, r_origin, v_forward);
             v_forward[2] = 0;
             VectorNormalizeFast(v_forward);
@@ -139,20 +140,28 @@ void R_DrawSpriteModel(entity_t* e)
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
-            s_up = v_up;
-            s_right = v_right;
+            s_up = &v_up;
+            s_right = &v_right;
             break;
-        case SPR_VP_PARALLEL: // faces view plane, up is towards the top of the
-                              // screen
-            s_up = vup;
-            s_right = vright;
+        }
+        case SPR_VP_PARALLEL: { // faces view plane, up is towards the top of the
+                                // screen
+            s_up = &vup;
+            s_right = &vright;
             break;
-        case SPR_ORIENTED: // pitch yaw roll are independent of camera
-            AngleVectors(currententity->angles, v_forward, v_right, v_up);
-            s_up = v_up;
-            s_right = v_right;
+        }
+        case SPR_ORIENTED: { // pitch yaw roll are independent of camera
+            const auto [xv_forward, xv_right, xv_up] = quake::util::getGlmAngledVectors(currententity->angles);
+
+            v_forward = xv_forward;
+            v_right = xv_right;
+            v_up = xv_up;
+
+            s_up = &v_up;
+            s_right = &v_right;
             break;
-        case SPR_VP_PARALLEL_ORIENTED: // faces view plane, but obeys roll value
+        }
+        case SPR_VP_PARALLEL_ORIENTED: { // faces view plane, but obeys roll value
             angle = currententity->angles[ROLL] * M_PI_DIV_180;
             sr = sin(angle);
             cr = cos(angle);
@@ -162,9 +171,10 @@ void R_DrawSpriteModel(entity_t* e)
             v_up[0] = vright[0] * -sr + vup[0] * cr;
             v_up[1] = vright[1] * -sr + vup[1] * cr;
             v_up[2] = vright[2] * -sr + vup[2] * cr;
-            s_up = v_up;
-            s_right = v_right;
+            s_up = &v_up;
+            s_right = &v_right;
             break;
+        }
         default: return;
     }
 
@@ -184,24 +194,24 @@ void R_DrawSpriteModel(entity_t* e)
     glBegin(GL_TRIANGLE_FAN); // was GL_QUADS, but changed to support r_showtris
 
     glTexCoord2f(0, frame->tmax);
-    VectorMA(e->origin, frame->down, s_up, point);
-    VectorMA(point, frame->left, s_right, point);
-    glVertex3fv(point);
+    point = e->origin + (frame->down * (*s_up));
+    point = point + (frame->left * (*s_right));
+    glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(0, 0);
-    VectorMA(e->origin, frame->up, s_up, point);
-    VectorMA(point, frame->left, s_right, point);
-    glVertex3fv(point);
+    point = e->origin + (frame->up * (*s_up));
+    point = point + (frame->left * (*s_right));
+    glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, 0);
-    VectorMA(e->origin, frame->up, s_up, point);
-    VectorMA(point, frame->right, s_right, point);
-    glVertex3fv(point);
+    point = e->origin + (frame->up * (*s_up));
+    point = point + (frame->right * (*s_right));
+    glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, frame->tmax);
-    VectorMA(e->origin, frame->down, s_up, point);
-    VectorMA(point, frame->right, s_right, point);
-    glVertex3fv(point);
+    point = e->origin + (frame->down * (*s_up));
+    point = point + (frame->right * (*s_right));
+    glVertex3fv(glm::value_ptr(point));
 
     glEnd();
     glDisable(GL_ALPHA_TEST);

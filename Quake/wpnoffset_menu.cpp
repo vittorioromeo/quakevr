@@ -16,7 +16,7 @@ static void WpnOffset_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* const sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, vec3_origin, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
     }
 }
 

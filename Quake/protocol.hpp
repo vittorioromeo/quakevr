@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_PROTOCOL_H
 #define _QUAKE_PROTOCOL_H
 
+#include "glm.hpp"
+
 // protocol.h -- communications protocols
 
 #define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
@@ -273,8 +275,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct
 {
-    vec3_t origin;
-    vec3_t angles;
+    glm::vec3 origin;
+    glm::vec3 angles;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned char colormap;    // johnfitz -- was int
@@ -283,18 +285,18 @@ typedef struct
     int effects;
 } entity_state_t;
 
-typedef struct
+struct usercmd_t
 {
-    vec3_t viewangles;
-    vec3_t handpos;
-    vec3_t handrot;
-    vec3_t handvel;
+    glm::vec3 viewangles;
+    glm::vec3 handpos;
+    glm::vec3 handrot;
+    glm::vec3 handvel;
     float handvelmag;
-    vec3_t offhandpos;
-    vec3_t offhandrot;
-    vec3_t offhandvel;
+    glm::vec3 offhandpos;
+    glm::vec3 offhandrot;
+    glm::vec3 offhandvel;
     float offhandvelmag;
-    vec3_t muzzlepos;
+    glm::vec3 muzzlepos;
 
     // intended velocities
     float forwardmove;
@@ -303,7 +305,7 @@ typedef struct
 
     // VR teleportation
     int teleporting;
-    vec3_t teleport_target;
-} usercmd_t;
+    glm::vec3 teleport_target;
+};
 
 #endif /* _QUAKE_PROTOCOL_H */

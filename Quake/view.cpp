@@ -78,7 +78,7 @@ float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 extern int in_forward, in_forward2, in_back;
 
-vec3_t v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
+glm::vec3 v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
                          // current, 1 is previous value. never the same unless
                          // map just loaded
 
@@ -91,18 +91,14 @@ V_CalcRoll
 Used by view and sv_user
 ===============
 */
-float V_CalcRoll(vec3_t angles, vec3_t velocity)
+float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity)
 {
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
     float sign;
     float side;
     float value;
 
-    AngleVectors(angles, forward, right, up);
+    const auto [forward, right, up] = quake::util::getGlmAngledVectors(angles);
+
     side = DotProduct(velocity, right);
     sign = side < 0 ? -1 : 1;
     side = fabs(side);
@@ -328,13 +324,9 @@ void V_ParseDamage()
     int armor;
 
     int blood;
-    vec3_t from;
+    glm::vec3 from;
     int i;
-    vec3_t forward;
 
-    vec3_t right;
-
-    vec3_t up;
     entity_t* ent;
     float side;
     float count;
@@ -392,9 +384,9 @@ void V_ParseDamage()
         ent = &cl_entities[cl.viewentity];
 
         VectorSubtract(from, ent->origin, from);
-        VectorNormalize(from);
+        from = glm::normalize(from);
 
-        AngleVectors(ent->angles, forward, right, up);
+        const auto [forward, right, up] = quake::util::getGlmAngledVectors(ent->angles);
 
         side = DotProduct(from, right);
         v_dmg_roll = count * side * v_kickroll.value;
@@ -701,7 +693,7 @@ CalcGunAngle
 ==================
 */
 void CalcGunAngle(
-    const int wpnCvarEntry, entity_t* viewent, const vec3_t& handrot)
+    const int wpnCvarEntry, entity_t* viewent, const glm::vec3& handrot)
 {
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -904,8 +896,8 @@ void V_CalcIntermissionRefdef()
     if(vr_enabled.value)
     {
         r_refdef.viewangles[PITCH] = 0;
-        VectorCopy(r_refdef.viewangles, r_refdef.aimangles);
-        VR_AddOrientationToViewAngles(r_refdef.viewangles);
+        r_refdef.aimangles = r_refdef.viewangles;
+        r_refdef.viewangles = VR_AddOrientationToViewAngles(r_refdef.viewangles);
         VR_SetAngles(r_refdef.viewangles);
     }
 
@@ -927,15 +919,10 @@ void V_CalcRefdef()
 
     entity_t* view;
     int i;
-    vec3_t forward;
 
-    vec3_t right;
-
-    vec3_t up;
-    vec3_t angles;
     float bob;
     static float oldz = 0;
-    static vec3_t punch = {0, 0, 0}; // johnfitz -- v_gunkick
+    static glm::vec3 punch = {0, 0, 0}; // johnfitz -- v_gunkick
     float delta;                     // johnfitz -- v_gunkick
 
     V_DriftPitch();
@@ -958,8 +945,7 @@ void V_CalcRefdef()
     if(vr_enabled.value)
     {
         extern glm::vec3 vr_viewOffset;
-        const auto tmp = quake::util::toVec3(ent->origin) + vr_viewOffset;
-        quake::util::toQuakeVec3(r_refdef.vieworg, tmp);
+        r_refdef.vieworg = quake::util::toVec3(ent->origin) + vr_viewOffset;
     }
     else
     {
@@ -980,12 +966,13 @@ void V_CalcRefdef()
     V_AddIdle();
 
     // offsets
+    glm::vec3 angles;
     angles[PITCH] =
         -ent->angles[PITCH]; // because entity pitches are actually backward
     angles[YAW] = ent->angles[YAW];
     angles[ROLL] = ent->angles[ROLL];
 
-    AngleVectors(angles, forward, right, up);
+    const auto [forward, right, up] = quake::util::getGlmAngledVectors(angles);
 
     if(cl.maxclients <= 1)
     { // johnfitz -- moved cheat-protection here from V_RenderView

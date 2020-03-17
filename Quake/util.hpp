@@ -28,7 +28,8 @@
 #endif
 
 // TODO VR:
-void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
+template <typename T>
+void AngleVectors(const T& angles, T& forward, T& right, T& up);
 
 namespace quake::util
 {
@@ -95,14 +96,6 @@ namespace quake::util
         out[2] = v[2];
     }
 
-    QUAKE_FORCEINLINE constexpr void toQuakeVec3(
-        vec3_t out, const vec3_t& v) noexcept
-    {
-        out[0] = v[0];
-        out[1] = v[1];
-        out[2] = v[2];
-    }
-
     template <typename... Ts>
     [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
     {
@@ -131,13 +124,6 @@ namespace quake::util
         return (a * (1.0 - f)) + (b * f);
     }
 
-    inline void vec3lerp(vec3_t out, vec3_t start, vec3_t end, double f)
-    {
-        out[0] = lerp(start[0], end[0], f);
-        out[1] = lerp(start[1], end[1], f);
-        out[2] = lerp(start[2], end[2], f);
-    }
-
     template <typename T>
     [[nodiscard]] constexpr inline auto safeAsin(const T x) noexcept
     {
@@ -159,7 +145,7 @@ namespace quake::util
     }
 
     [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
-        const vec3_t& xup, const glm::vec3& dir)
+        const glm::vec3& xup, const glm::vec3& dir)
     {
         // From: https://stackoverflow.com/a/21627251/598696
 
@@ -185,14 +171,6 @@ namespace quake::util
         return res;
     }
 
-    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
-        const glm::vec3& xup, const glm::vec3& dir)
-    {
-        vec3_t tmp;
-        toQuakeVec3(tmp, xup);
-        return pitchYawRollFromDirectionVector(tmp, dir);
-    }
-
     struct GlmAngledVectors
     {
         glm::vec3 _forward;
@@ -203,7 +181,8 @@ namespace quake::util
     [[nodiscard]] inline GlmAngledVectors getGlmAngledVectors(vec3_t v)
     {
         vec3_t forward, right, up;
-        AngleVectors(v, forward, right, up);
+        AngleVectors(*static_cast<vec_t(*)[3]>(static_cast<void*>(v)), forward,
+            right, up);
 
         return {toVec3(forward), toVec3(right), toVec3(up)};
     }
@@ -238,6 +217,12 @@ namespace quake::util
 
             Cvar_SetValue(cvar.name, res);
         };
+    }
+
+    template <typename T>
+    [[nodiscard]] bool hitSomething(const T& trace) noexcept
+    {
+        return trace.fraction < 1.0f;
     }
 } // namespace quake::util
 

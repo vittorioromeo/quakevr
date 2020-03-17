@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.hpp"
+#include "util.hpp"
+#include "gtc/type_ptr.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags
@@ -105,7 +107,7 @@ void* Mod_Extradata(qmodel_t* mod)
 Mod_PointInLeaf
 ===============
 */
-mleaf_t* Mod_PointInLeaf(vec3_t p, qmodel_t* model)
+mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model)
 {
     mnode_t* node;
     float d;
@@ -1307,9 +1309,7 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 {
     vec3_t verts[64];
     int numverts;
-
     int i;
-
     int lindex;
     float* vec;
     glpoly_t* poly;
@@ -1332,11 +1332,11 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 
         if(lindex > 0)
         {
-            vec = loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position;
+            vec = glm::value_ptr(loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
         }
         else
         {
-            vec = loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position;
+            vec = glm::value_ptr(loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
         }
         VectorCopy(vec, verts[numverts]);
         numverts++;
@@ -2382,18 +2382,17 @@ void Mod_LoadPlanes(lump_t* l)
 RadiusFromBounds
 =================
 */
-float RadiusFromBounds(vec3_t mins, vec3_t maxs)
+float RadiusFromBounds(const glm::vec3& mins, const glm::vec3& maxs)
 {
-    int i;
-    vec3_t corner;
+    glm::vec3 corner;
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         corner[i] =
             fabs(mins[i]) > fabs(maxs[i]) ? fabs(mins[i]) : fabs(maxs[i]);
     }
 
-    return VectorLength(corner);
+    return glm::length(corner);
 }
 
 /*
@@ -3265,7 +3264,7 @@ void Mod_LoadAliasModel(qmodel_t* mod, void* buffer)
         pheader->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
-    VectorCopy(pheader->scale, pheader->original_scale); 
+    VectorCopy(pheader->scale, pheader->original_scale);
     VectorCopy(pheader->scale_origin, pheader->original_scale_origin);
 
     //

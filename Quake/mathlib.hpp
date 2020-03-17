@@ -115,7 +115,7 @@ static inline int IS_NAN(float x)
 
 void TurnVector(vec3_t out, const vec3_t forward, const vec3_t side,
     float angle);                                       // johnfitz
-void VectorAngles(const vec3_t forward, vec3_t angles); // johnfitz
+[[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept; // johnfitz
 
 void VectorMA(vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
 
@@ -124,12 +124,30 @@ void _VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out);
 void _VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out);
 void _VectorCopy(vec3_t in, vec3_t out);
 
-int VectorCompare(vec3_t v1, vec3_t v2);
 vec_t VectorLength(vec3_t v);
 void CrossProduct(vec3_t v1, vec3_t v2, vec3_t cross);
 float VectorNormalize(vec3_t v); // returns vector length
 void VectorInverse(vec3_t v);
-void VectorScale(vec3_t in, vec_t scale, vec3_t out);
+
+
+
+template <typename T>
+void VectorScale(const T& in, vec_t scale, vec3_t out)
+{
+    out[0] = in[0] * scale;
+    out[1] = in[1] * scale;
+    out[2] = in[2] * scale;
+}
+
+template <typename T>
+void VectorScale(const T&  in, const float scale, glm::vec3& out)
+{
+    out[0] = in[0] * scale;
+    out[1] = in[1] * scale;
+    out[2] = in[2] * scale;
+}
+
+
 int Q_log2(int val);
 
 [[nodiscard]] glm::mat3 R_ConcatRotations(
@@ -141,14 +159,48 @@ void FloorDivMod(double numer, double denom, int* quotient, int* rem);
 fixed16_t Invert24To16(fixed16_t val);
 int GreatestCommonDivisor(int i1, int i2);
 
-void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
+template <typename T>
+void AngleVectors(const T& angles, T& forward, T& right, T& up)
+{
+    float angle = angles[YAW] * (M_PI * 2 / 360);
+    assert(!std::isnan(angle));
+    assert(!std::isinf(angle));
+
+    const float sy = std::sin(angle);
+    const float cy = std::cos(angle);
+
+    angle = angles[PITCH] * (M_PI * 2 / 360);
+    assert(!std::isnan(angle));
+    assert(!std::isinf(angle));
+
+    const float sp = std::sin(angle);
+    const float cp = std::cos(angle);
+
+    angle = angles[ROLL] * (M_PI * 2 / 360);
+    assert(!std::isnan(angle));
+    assert(!std::isinf(angle));
+
+    const float sr = std::sin(angle);
+    const float cr = std::cos(angle);
+
+    forward[0] = cp * cy;
+    forward[1] = cp * sy;
+    forward[2] = -sp;
+
+    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
+    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
+    right[2] = -1 * sr * cp;
+
+    up[0] = (cr * sp * cy + -sr * -sy);
+    up[1] = (cr * sp * sy + -sr * cy);
+    up[2] = cr * cp;
+}
+
 int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
 [[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;
-void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3]);
 [[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept;
-void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles);
 [[nodiscard]] glm::mat3 CreateRotMat(
     const int axis, const float angle) noexcept;
 void CreateRotMat(int axis, float angle, vec3_t mat[3]);

@@ -525,7 +525,7 @@ R_EntityParticles
 */
 #define NUMVERTEXNORMALS 162
 extern float r_avertexnormals[NUMVERTEXNORMALS][3];
-vec3_t avelocities[NUMVERTEXNORMALS];
+glm::vec3 avelocities[NUMVERTEXNORMALS];
 float beamlength = 16;
 
 void R_EntityParticles(entity_t* ent)
@@ -550,7 +550,7 @@ void R_EntityParticles(entity_t* ent)
         float sp = sin(angle);
         float cp = cos(angle);
 
-        vec3_t forward;
+        glm::vec3 forward;
         forward[0] = cp * cy;
         forward[1] = cp * sy;
         forward[2] = -sp;
@@ -613,7 +613,7 @@ void R_ReadPointFile_f()
     int c = 0;
     while(true)
     {
-        vec3_t org;
+        glm::vec3 org;
         const int r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
 
         if(r != 3)
@@ -650,13 +650,13 @@ Parse an effect out of the server message
 */
 void R_ParseParticleEffect()
 {
-    vec3_t org;
+    glm::vec3 org;
     for(int i = 0; i < 3; i++)
     {
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
 
-    vec3_t dir;
+    glm::vec3 dir;
     for(int i = 0; i < 3; i++)
     {
         dir[i] = MSG_ReadChar() * (1.0 / 16);
@@ -677,13 +677,13 @@ Parse an effect out of the server message (preset-based)
 */
 void R_ParseParticle2Effect()
 {
-    vec3_t org;
+    glm::vec3 org;
     for(int i = 0; i < 3; i++)
     {
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
 
-    vec3_t dir;
+    glm::vec3 dir;
     for(int i = 0; i < 3; i++)
     {
         dir[i] = MSG_ReadChar() * (1.0 / 16);
@@ -700,7 +700,7 @@ void R_ParseParticle2Effect()
 R_ParticleExplosion
 ===============
 */
-void R_ParticleExplosion(vec3_t org)
+void R_ParticleExplosion(const glm::vec3& org)
 {
     makeNParticlesI(ptxCircle, 256, [&](const int i, particle_t& p) {
         p.angle = rnd(0.f, 360.f);
@@ -795,7 +795,7 @@ void R_ParticleExplosion(vec3_t org)
 R_ParticleExplosion2
 ===============
 */
-void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
+void R_ParticleExplosion2(const glm::vec3& org, int colorStart, int colorLength)
 {
     int colorMod = 0;
 
@@ -818,7 +818,7 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 }
 
 void R_RunParticleEffect_BulletPuff(
-    vec3_t org, vec3_t dir, int color, int count)
+    const glm::vec3& org, const glm::vec3& dir, int color, int count)
 {
     const auto debrisCount = count * 0.7f;
     const auto dustCount = count * 0.7f;
@@ -894,7 +894,8 @@ void R_RunParticleEffect_BulletPuff(
     });
 }
 
-void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_Blood(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     constexpr int bloodColors[]{247, 248, 249, 250, 251};
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
@@ -954,7 +955,8 @@ void R_RunParticleEffect_Blood(vec3_t org, vec3_t dir, int count)
     });
 }
 
-void R_RunParticleEffect_Lightning(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_Lightning(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     (void)dir;
 
@@ -975,7 +977,8 @@ void R_RunParticleEffect_Lightning(vec3_t org, vec3_t dir, int count)
     });
 }
 
-void R_RunParticleEffect_Smoke(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_Smoke(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     (void)dir;
 
@@ -996,7 +999,8 @@ void R_RunParticleEffect_Smoke(vec3_t org, vec3_t dir, int count)
     });
 }
 
-void R_RunParticleEffect_Sparks(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_Sparks(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     (void)dir;
 
@@ -1020,7 +1024,8 @@ void R_RunParticleEffect_Sparks(vec3_t org, vec3_t dir, int count)
     });
 }
 
-void R_RunParticleEffect_GunSmoke(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_GunSmoke(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     (void)dir;
 
@@ -1043,7 +1048,8 @@ void R_RunParticleEffect_GunSmoke(vec3_t org, vec3_t dir, int count)
     });
 }
 
-void R_RunParticleEffect_Teleport(vec3_t org, vec3_t dir, int count)
+void R_RunParticleEffect_Teleport(
+    const glm::vec3& org, const glm::vec3& dir, int count)
 {
     (void)dir;
 
@@ -1072,7 +1078,8 @@ void R_RunParticleEffect_Teleport(vec3_t org, vec3_t dir, int count)
 R_RunParticleEffect
 ===============
 */
-void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
+void R_RunParticleEffect(
+    const glm::vec3& org, const glm::vec3& dir, int color, int count)
 {
     // TODO VR: add way to change types
     R_RunParticleEffect_BulletPuff(org, dir, color, count);
@@ -1083,7 +1090,8 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 R_RunParticle2Effect
 ===============
 */
-void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
+void R_RunParticle2Effect(
+    const glm::vec3& org, const glm::vec3& dir, int preset, int count)
 {
     enum class Preset : int
     {
@@ -1152,7 +1160,7 @@ void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count)
 R_LavaSplash
 ===============
 */
-void R_LavaSplash(vec3_t org)
+void R_LavaSplash(const glm::vec3& org)
 {
     for(int i = -16; i < 16; i++)
     {
@@ -1188,7 +1196,7 @@ void R_LavaSplash(vec3_t org)
 R_TeleportSplash
 ===============
 */
-void R_TeleportSplash(vec3_t org)
+void R_TeleportSplash(const glm::vec3& org)
 {
     for(int i = -16; i < 16; i += 4)
     {
@@ -1223,7 +1231,7 @@ void R_TeleportSplash(vec3_t org)
     }
 }
 
-static void R_SetRTRocketTrail(vec3_t start, particle_t& p)
+static void R_SetRTRocketTrail(const glm::vec3& start, particle_t& p)
 {
     p.ramp = (rand() & 3);
     p.color = ramp3[(int)p.ramp];
@@ -1234,7 +1242,7 @@ static void R_SetRTRocketTrail(vec3_t start, particle_t& p)
     }
 }
 
-static void R_SetRTBlood(vec3_t start, particle_t& p)
+static void R_SetRTBlood(const glm::vec3& start, particle_t& p)
 {
     p.type = pt_static;
     p.color = 67 + (rand() & 3);
@@ -1244,12 +1252,12 @@ static void R_SetRTBlood(vec3_t start, particle_t& p)
     }
 }
 
-static void R_SetRTTracer(vec3_t start, vec3_t end, particle_t& p, int type)
+static void R_SetRTTracer(
+    const glm::vec3& start, const glm::vec3& end, particle_t& p, int type)
 {
     static int tracercount;
 
-    vec3_t vec;
-    VectorSubtract(end, start, vec);
+    const auto vec = end - start;
 
     p.die = cl.time + 0.5;
     p.type = pt_static;
@@ -1277,7 +1285,7 @@ static void R_SetRTTracer(vec3_t start, vec3_t end, particle_t& p, int type)
     }
 }
 
-static void R_SetRTSlightBlood(vec3_t start, particle_t& p)
+static void R_SetRTSlightBlood(const glm::vec3& start, particle_t& p)
 {
     p.type = pt_static;
     p.color = 67 + (rand() & 3);
@@ -1287,7 +1295,7 @@ static void R_SetRTSlightBlood(vec3_t start, particle_t& p)
     }
 }
 
-static void R_SetRTVoorTrail(vec3_t start, particle_t& p)
+static void R_SetRTVoorTrail(const glm::vec3& start, particle_t& p)
 {
     p.color = 9 * 16 + 8 + (rand() & 3);
     p.type = pt_static;
@@ -1318,7 +1326,7 @@ FIXME -- rename function and use #defined types instead of numbers
 constexpr float rate = 0.1f / 9.f;
 float untilNext = rate;
 
-void R_RocketTrail(vec3_t start, vec3_t end, int type)
+void R_RocketTrail(glm::vec3 start, const glm::vec3& end, int type)
 {
     const float frametime = cl.time - cl.oldtime;
 
@@ -1330,8 +1338,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 
     untilNext = rate;
 
-    vec3_t vec;
-    VectorSubtract(end, start, vec);
+    auto vec = end - start;
 
     int dec;
     if(type < 128)
@@ -1344,7 +1351,9 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
         type -= 128;
     }
 
-    float len = VectorNormalize(vec);
+    float len = glm::length(vec);
+    vec = glm::normalize(vec);
+
     while(len > 0)
     {
         len -= dec;
@@ -1457,7 +1466,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             }
         }
 
-        VectorAdd(start, vec, start);
+        start += vec;
     }
 }
 
@@ -1640,11 +1649,8 @@ void R_DrawParticles()
         return;
     }
 
-    vec3_t up;
-    VectorScale(vup, 1.5, up);
-
-    vec3_t right;
-    VectorScale(vright, 1.5, right);
+    const auto up = vup * 1.5f;
+    const auto right = vright * 1.5f;
 
     using namespace quake::util;
 
@@ -1726,11 +1732,8 @@ void R_DrawParticles_ShowTris()
         return;
     }
 
-    vec3_t up;
-    VectorScale(vup, 1.5, up);
-
-    vec3_t right;
-    VectorScale(vright, 1.5, right);
+    const auto up = vup * 1.5f;
+    const auto right = vright * 1.5f;
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {

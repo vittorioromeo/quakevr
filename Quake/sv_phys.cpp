@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_phys.c
 
+#include "fwd.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
 #include "world.hpp"
@@ -230,11 +231,11 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 */
 #define STOP_EPSILON 0.1
 
-int ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
+int ClipVelocity(const glm::vec3& in, const glm::vec3& normal, glm::vec3& out,
+    float overbounce)
 {
     float backoff;
     float change;
-    int i;
 
     int blocked;
 
@@ -250,7 +251,7 @@ int ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 
     backoff = DotProduct(in, normal) * overbounce;
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         change = normal[i] * backoff;
         out[i] = in[i] - change;
@@ -281,15 +282,10 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 {
     constexpr int numbumps = 4;
 
-    vec3_t planes[MAX_CLIP_PLANES];
-
-    vec3_t primal_velocity;
-    VectorCopy(ent->v.velocity, primal_velocity);
-
-    vec3_t original_velocity;
-    VectorCopy(ent->v.velocity, original_velocity);
-
-    vec3_t new_velocity;
+    glm::vec3 planes[MAX_CLIP_PLANES];
+    glm::vec3 primal_velocity = quake::util::toVec3(ent->v.velocity);
+    glm::vec3 original_velocity = quake::util::toVec3(ent->v.velocity);
+    glm::vec3 new_velocity;
 
     float time_left = time;
 
@@ -309,8 +305,9 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
         }
 
-        trace_t trace =
-            SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+        trace_t trace = SV_Move(quake::util::toVec3(ent->v.origin),
+            quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
+            quake::util::toVec3(end), false, ent);
 
         if(trace.allsolid)
         { // entity is trapped in another solid
@@ -417,8 +414,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
                 return 7;
             }
 
-            vec3_t dir;
-            CrossProduct(planes[0], planes[1], dir);
+            const auto dir = glm::cross(planes[0], planes[1]);
             const float d = DotProduct(dir, ent->v.velocity);
             VectorScale(dir, d, ent->v.velocity);
         }
@@ -479,28 +475,29 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-trace_t SV_PushEntity(edict_t* ent, vec3_t push)
+trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
 {
     trace_t trace;
-    vec3_t end;
+    glm::vec3 end;
 
     VectorAdd(ent->v.origin, push, end);
 
+    const auto glmOrigin = quake::util::toVec3(ent->v.origin);
+    const auto glmMins = quake::util::toVec3(ent->v.mins);
+    const auto glmMaxs = quake::util::toVec3(ent->v.maxs);
+
     if(ent->v.movetype == MOVETYPE_FLYMISSILE)
     {
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
+        trace = SV_Move(glmOrigin, glmMins, glmMaxs, end, MOVE_MISSILE, ent);
     }
     else if(ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
     {
         // only clip against bmodels
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+        trace = SV_Move(glmOrigin, glmMins, glmMaxs, end, MOVE_NOMONSTERS, ent);
     }
     else
     {
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+        trace = SV_Move(glmOrigin, glmMins, glmMaxs, end, MOVE_NORMAL, ent);
     }
 
     VectorCopy(trace.endpos, ent->v.origin);
@@ -533,17 +530,17 @@ void SV_PushMove(edict_t* pusher, float movetime)
     edict_t* check;
 
     edict_t* block;
-    vec3_t mins;
+    glm::vec3 mins;
 
-    vec3_t maxs;
+    glm::vec3 maxs;
 
-    vec3_t move;
-    vec3_t entorig;
+    glm::vec3 move;
+    glm::vec3 entorig;
 
-    vec3_t pushorig;
+    glm::vec3 pushorig;
     int num_moved;
     edict_t** moved_edict; // johnfitz -- dynamically allocate
-    vec3_t* moved_from;    // johnfitz -- dynamically allocate
+    glm::vec3* moved_from; // johnfitz -- dynamically allocate
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -570,7 +567,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
     // johnfitz -- dynamically allocate
     const int mark = Hunk_LowMark(); // johnfitz
     moved_edict = (edict_t**)Hunk_Alloc(sv.num_edicts * sizeof(edict_t*));
-    moved_from = (vec3_t*)Hunk_Alloc(sv.num_edicts * sizeof(vec3_t));
+    moved_from = (glm::vec3*)Hunk_Alloc(sv.num_edicts * sizeof(vec3_t));
     // johnfitz
 
     // see if any solid entities are inside the final position
@@ -787,7 +784,7 @@ SV_CheckWater
 */
 bool SV_CheckWater(edict_t* ent)
 {
-    vec3_t point;
+    glm::vec3 point;
     int cont;
 
     point[0] = ent->v.origin[0];
@@ -826,20 +823,13 @@ SV_WallFriction
 */
 void SV_WallFriction(edict_t* ent, trace_t* trace)
 {
-    vec3_t forward;
+    glm::vec3 into;
+    glm::vec3 side;
 
-    vec3_t right;
+    const auto [forward, right, up] =
+        quake::util::getGlmAngledVectors(quake::util::toVec3(ent->v.v_angle));
 
-    vec3_t up;
-    float d;
-
-    float i;
-    vec3_t into;
-
-    vec3_t side;
-
-    AngleVectors(ent->v.v_angle, forward, right, up);
-    d = DotProduct(trace->plane.normal, forward);
+    float d = DotProduct(trace->plane.normal, forward);
 
     d += 0.5;
     if(d >= 0)
@@ -848,7 +838,7 @@ void SV_WallFriction(edict_t* ent, trace_t* trace)
     }
 
     // cut the tangential velocity
-    i = DotProduct(trace->plane.normal, ent->v.velocity);
+    float i = DotProduct(trace->plane.normal, ent->v.velocity);
     VectorScale(trace->plane.normal, i, into);
     VectorSubtract(ent->v.velocity, into, side);
 
@@ -868,11 +858,11 @@ Try fixing by pushing one pixel in each direction.
 This is a hack, but in the interest of good gameplay...
 ======================
 */
-int SV_TryUnstick(edict_t* ent, vec3_t oldvel)
+int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
 {
     int i;
-    vec3_t oldorg;
-    vec3_t dir;
+    glm::vec3 oldorg;
+    glm::vec3 dir;
     int clip;
     trace_t steptrace;
 
@@ -957,10 +947,10 @@ void SV_WalkMove(edict_t* ent)
     const int oldonground = (int)ent->v.flags & FL_ONGROUND;
     ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
 
-    vec3_t oldorg;
+    glm::vec3 oldorg;
     VectorCopy(ent->v.origin, oldorg);
 
-    vec3_t oldvel;
+    glm::vec3 oldvel;
     VectorCopy(ent->v.velocity, oldvel);
 
     trace_t steptrace;
@@ -991,10 +981,10 @@ void SV_WalkMove(edict_t* ent)
         return;
     }
 
-    vec3_t nosteporg;
+    glm::vec3 nosteporg;
     VectorCopy(ent->v.origin, nosteporg);
 
-    vec3_t nostepvel;
+    glm::vec3 nostepvel;
     VectorCopy(ent->v.velocity, nostepvel);
 
     //
@@ -1002,11 +992,11 @@ void SV_WalkMove(edict_t* ent)
     //
     VectorCopy(oldorg, ent->v.origin); // back to start pos
 
-    vec3_t upmove;
+    glm::vec3 upmove;
     VectorCopy(vec3_origin, upmove);
     upmove[2] = STEPSIZE;
 
-    vec3_t downmove;
+    glm::vec3 downmove;
     VectorCopy(vec3_origin, downmove);
     downmove[2] = -STEPSIZE + oldvel[2] * host_frametime;
 
@@ -1071,14 +1061,8 @@ void SV_Handtouch(edict_t* ent)
     using namespace quake::util;
 
     // Utility constants
-    const auto handMins = glm::vec3{-2.f, -2.f, -2.f};
-    const auto handMaxs = glm::vec3{2.f, 2.f, 2.f};
-
-    vec3_t qHandMins;
-    toQuakeVec3(qHandMins, handMins);
-
-    vec3_t qHandMaxs;
-    toQuakeVec3(qHandMaxs, handMaxs);
+    const glm::vec3 handMins{-2.f, -2.f, -2.f};
+    const glm::vec3 handMaxs{2.f, 2.f, 2.f};
 
     // Figure out tracing boundaries
     // (Largest possible volume containing the hands and the player)
@@ -1112,15 +1096,6 @@ void SV_Handtouch(edict_t* ent)
         return std::tuple{origin, -halfSize, +halfSize};
     }();
 
-    vec3_t qOrigin;
-    toQuakeVec3(qOrigin, origin);
-
-    vec3_t qMins;
-    toQuakeVec3(qMins, mins);
-
-    vec3_t qMaxs;
-    toQuakeVec3(qMaxs, maxs);
-
     const auto traceCheck = [&](const trace_t& trace) {
         if(!trace.ent)
         {
@@ -1145,46 +1120,40 @@ void SV_Handtouch(edict_t* ent)
         handCollisionCheck(1, ent->v.handpos);
     };
 
-    const auto endHandPosition = [&](vec3_t out, vec3_t handPos,
-                                     vec3_t handRot) {
-        vec3_t fwd, right, up;
-        AngleVectors(handRot, fwd, right, up);
-        fwd[0] *= 1.f;
-        fwd[1] *= 1.f;
-        fwd[2] *= 1.f;
-
-        VectorCopy(handPos, out);
-        VectorAdd(out, fwd, out);
+    const auto endHandPos = [&](const glm::vec3& handPos,
+                                const glm::vec3& handRot) {
+        const auto [fwd, right, up] = quake::util::getGlmAngledVectors(handRot);
+        return handPos + fwd * 1.f;
     };
 
-    vec3_t mainHandEnd;
-    endHandPosition(mainHandEnd, ent->v.handpos, ent->v.handrot);
+    const auto glmOrigin = toVec3(ent->v.origin);
+    const auto glmMins = toVec3(ent->v.mins);
+    const auto glmMaxs = toVec3(ent->v.maxs);
+    const auto glmHandpos = toVec3(ent->v.handpos);
+    const auto glmHandrot = toVec3(ent->v.handrot);
+    const auto glmOffhandpos = toVec3(ent->v.offhandpos);
+    const auto glmOffhandrot = toVec3(ent->v.offhandrot);
 
-    vec3_t offHandEnd;
-    endHandPosition(offHandEnd, ent->v.offhandpos, ent->v.offhandrot);
+    const auto mainHandEnd = endHandPos(glmHandpos, glmHandrot);
+    const auto offHandEnd = endHandPos(glmOffhandpos, glmOffhandrot);
 
-    traceCheck(SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, mainHandEnd,
-        MOVE_NORMAL, ent));
-    traceCheck(SV_Move(qOrigin, qMins, qMaxs, mainHandEnd, MOVE_NORMAL, ent));
-    traceCheck(SV_Move(
-        ent->v.origin, ent->v.mins, ent->v.maxs, offHandEnd, MOVE_NORMAL, ent));
-    traceCheck(SV_Move(qOrigin, qMins, qMaxs, offHandEnd, MOVE_NORMAL, ent));
+    traceCheck(
+        SV_Move(glmOrigin, glmMins, glmMaxs, mainHandEnd, MOVE_NORMAL, ent));
+    traceCheck(SV_Move(origin, mins, maxs, mainHandEnd, MOVE_NORMAL, ent));
+    traceCheck(
+        SV_Move(glmOrigin, glmMins, glmMaxs, offHandEnd, MOVE_NORMAL, ent));
+    traceCheck(SV_Move(origin, mins, maxs, offHandEnd, MOVE_NORMAL, ent));
 
-    const auto traceForHand = [&](vec3_t handPos, vec3_t handRot) {
-        vec3_t fwd, right, up, end;
-        AngleVectors(handRot, fwd, right, up);
-        fwd[0] *= 1.f;
-        fwd[1] *= 1.f;
-        fwd[2] *= 1.f;
+    const auto traceForHand = [&](const glm::vec3& handPos,
+                                  const glm::vec3& handRot) {
+        const auto [fwd, right, up] = quake::util::getGlmAngledVectors(handRot);
+        const auto end = handPos + fwd * 1.f;
 
-        VectorCopy(handPos, end);
-        VectorAdd(end, fwd, end);
-
-        return SV_Move(handPos, qHandMins, qHandMaxs, end, MOVE_NORMAL, ent);
+        return SV_Move(handPos, handMins, handMaxs, end, MOVE_NORMAL, ent);
     };
 
-    traceCheck(traceForHand(ent->v.handpos, ent->v.handrot));
-    traceCheck(traceForHand(ent->v.offhandpos, ent->v.offhandrot));
+    traceCheck(traceForHand(glmHandpos, glmHandrot));
+    traceCheck(traceForHand(glmOffhandpos, glmOffhandrot));
 }
 
 
@@ -1397,7 +1366,7 @@ void SV_CheckWaterTransition(edict_t* ent)
 {
     int cont;
 
-    cont = SV_PointContents(ent->v.origin);
+    cont = SV_PointContents(quake::util::toVec3(ent->v.origin));
 
     if(!ent->v.watertype)
     { // just spawned here
@@ -1435,10 +1404,6 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 */
 void SV_Physics_Toss(edict_t* ent)
 {
-    trace_t trace;
-    vec3_t move;
-    float backoff;
-
     // regular thinking
     if(!SV_RunThink(ent))
     {
@@ -1463,9 +1428,11 @@ void SV_Physics_Toss(edict_t* ent)
     // move angles
     VectorMA(ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 
+
     // move origin
-    VectorScale(ent->v.velocity, host_frametime, move);
-    trace = SV_PushEntity(ent, move);
+    glm::vec3 move;
+    VectorScale(quake::util::toVec3(ent->v.velocity), host_frametime, move);
+    const trace_t trace = SV_PushEntity(ent, move);
     if(trace.fraction == 1)
     {
         return;
@@ -1475,6 +1442,7 @@ void SV_Physics_Toss(edict_t* ent)
         return;
     }
 
+    float backoff;
     if(ent->v.movetype == MOVETYPE_BOUNCE)
     {
         backoff = 1.5;
@@ -1484,7 +1452,10 @@ void SV_Physics_Toss(edict_t* ent)
         backoff = 1;
     }
 
-    ClipVelocity(ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
+    glm::vec3 tmpOut;
+    ClipVelocity(quake::util::toVec3(ent->v.velocity), trace.plane.normal,
+        tmpOut, backoff);
+    quake::util::toQuakeVec3(ent->v.velocity, tmpOut);
 
     // stop if on ground
     if(trace.plane.normal[2] > 0.7)

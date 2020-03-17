@@ -583,7 +583,7 @@ static int fatbytes;
 static byte* fatpvs;
 static int fatpvs_capacity;
 
-void SV_AddToFatPVS(vec3_t org, mnode_t* node,
+void SV_AddToFatPVS(const glm::vec3& org, mnode_t* node,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     int i;
@@ -635,7 +635,7 @@ Calculates a PVS that is the inclusive or of all leafs within 8 pixels of
 the given point.
 =============
 */
-byte* SV_FatPVS(vec3_t org,
+byte* SV_FatPVS(const glm::vec3& org,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     fatbytes = (worldmodel->numleafs + 7) >>
@@ -667,7 +667,7 @@ PVS test encapsulated in a nice function
 bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
-    vec3_t org;
+    glm::vec3 org;
     int i;
 
     VectorAdd(client->v.origin, client->v.view_ofs, org);
@@ -699,7 +699,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
     int i;
     int bits;
     byte* pvs;
-    vec3_t org;
+    glm::vec3 org;
     float miss;
     edict_t* ent;
 

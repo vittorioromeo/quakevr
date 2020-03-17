@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_sky.c
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 #define MAX_CLIP_VERTS 64
 
@@ -683,13 +684,11 @@ void Sky_ProcessEntities()
     int mark;
     float dot;
     bool rotated;
-    vec3_t temp;
 
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
+    glm::vec3 temp;
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
 
     if(!r_drawentities.value)
     {
@@ -719,7 +718,12 @@ void Sky_ProcessEntities()
         if(e->angles[0] || e->angles[1] || e->angles[2])
         {
             rotated = true;
-            AngleVectors(e->angles, forward, right, up);
+
+            const auto [xforward, xright, xup] = quake::util::getGlmAngledVectors(e->angles);
+            forward = xforward;
+            right = xright;
+            up = xup;
+
             VectorCopy(modelorg, temp);
             modelorg[0] = DotProduct(temp, forward);
             modelorg[1] = -DotProduct(temp, right);

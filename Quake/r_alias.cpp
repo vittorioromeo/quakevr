@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // r_alias.c -- alias model rendering
 
+#include "glm.hpp"
 #include "quakedef.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,
@@ -38,8 +39,8 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.hpp"
 };
 
-extern vec3_t
-    lightcolor; // johnfitz -- replaces "float shadelight" for lit support
+// johnfitz -- replaces "float shadelight" for lit support
+extern glm::vec3 lightcolor;
 
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
@@ -47,7 +48,7 @@ float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
 #include "anorm_dots.hpp"
 };
 
-extern vec3_t lightspot;
+extern glm::vec3 lightspot;
 
 float* shadedots = r_avertexnormal_dots[0];
 vec3_t shadevector;
@@ -56,9 +57,8 @@ float entalpha; // johnfitz
 
 bool overbright; // johnfitz
 
-bool shading =
-    true; // johnfitz -- if false, disable vertex shading for various reasons
-          // (fullbright, r_lightmap, showtris, etc)
+bool shading = true; // johnfitz -- if false, disable vertex shading for various
+                     // reasons (fullbright, r_lightmap, showtris, etc)
 
 // johnfitz -- struct for passing lerp information to drawing functions
 typedef struct
@@ -66,8 +66,8 @@ typedef struct
     short pose1;
     short pose2;
     float blend;
-    vec3_t origin;
-    vec3_t angles;
+    glm::vec3 origin;
+    glm::vec3 angles;
 } lerpdata_t;
 // johnfitz
 
@@ -565,10 +565,8 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
         VectorCopy(e->angles, e->currentangles);
         e->lerpflags -= LERP_RESETMOVE;
     }
-    else if(!VectorCompare(e->origin, e->currentorigin) ||
-            !VectorCompare(e->angles,
-                e->currentangles)) // origin/angles changed, start new lerp
-    {
+    else if(e->origin != e->currentorigin || e->angles != e->currentangles)
+    { // origin/angles changed, start new lerp
         e->movelerpstart = cl.time;
         VectorCopy(e->currentorigin, e->previousorigin);
         VectorCopy(e->origin, e->currentorigin);
@@ -644,9 +642,10 @@ void R_SetupAliasLighting(entity_t* e)
         {
             VectorSubtract(currententity->origin, cl_dlights[i].origin, dist);
             add = cl_dlights[i].radius - VectorLength(dist);
+
             if(add > 0)
             {
-                VectorMA(lightcolor, add, cl_dlights[i].color, lightcolor);
+                lightcolor += add * cl_dlights[i].color;
             }
         }
     }

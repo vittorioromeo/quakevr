@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
+#include "glm.hpp"
+#include "util.hpp"
 
 #include <cmath>
 
@@ -145,7 +147,10 @@ makevectors(vector)
 */
 static void PF_makevectors()
 {
-    AngleVectors(G_VECTOR(OFS_PARM0), pr_global_struct->v_forward,
+    vec_t* ptr = G_VECTOR(OFS_PARM0);
+    auto arrPtr = static_cast<vec_t(*)[3]>(static_cast<void*>(ptr));
+
+    AngleVectors(*arrPtr, pr_global_struct->v_forward,
         pr_global_struct->v_right, pr_global_struct->v_up);
 }
 
@@ -174,8 +179,9 @@ static void PF_setorigin()
     SV_LinkEdict(e, false);
 }
 
-
-static void SetMinMaxSize(edict_t* e, float* minvec, float* maxvec, bool rotate)
+// TODO VR: cleanup
+template <typename V0, typename V1>
+static void SetMinMaxSize(edict_t* e, V0 minvec, V1 maxvec, bool rotate)
 {
     float* angles;
     vec3_t rmin;
@@ -841,7 +847,10 @@ static void PF_traceline()
         v2[0] = v2[1] = v2[2] = 0;
     }
 
-    trace = SV_Move(v1, vec3_origin, vec3_origin, v2, nomonsters, ent);
+    glm::vec3 gv1{v1[0], v1[1], v1[2]};
+    glm::vec3 gv2{v2[0], v2[1], v2[2]};
+    glm::vec3 origin{0.f, 0.f, 0.f};
+    trace = SV_Move(gv1, origin, origin, gv2, nomonsters, ent);
 
     pr_global_struct->trace_allsolid = trace.allsolid;
     pr_global_struct->trace_startsolid = trace.startsolid;
@@ -888,7 +897,7 @@ static int PF_newcheckclient(int check)
     byte* pvs;
     edict_t* ent;
     mleaf_t* leaf;
-    vec3_t org;
+    glm::vec3 org;
     int pvsbytes;
 
     // cycle to the next one
@@ -987,7 +996,7 @@ static void PF_checkclient()
     edict_t* self;
     mleaf_t* leaf;
     int l;
-    vec3_t view;
+    glm::vec3 view;
 
     // find a new check if on a new frame
     if(sv.time - sv.lastchecktime >= 0.1)
@@ -1421,7 +1430,9 @@ static void PF_droptofloor()
     VectorCopy(ent->v.origin, end);
     end[2] -= 256;
 
-    trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+    trace = SV_Move(quake::util::toVec3(ent->v.origin),
+        quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
+        quake::util::toVec3(end), false, ent);
 
     if(trace.fraction == 1 || trace.allsolid)
     {
@@ -1531,7 +1542,7 @@ static void PF_pointcontents()
 
     v = G_VECTOR(OFS_PARM0);
 
-    G_FLOAT(OFS_RETURN) = SV_PointContents(v);
+    G_FLOAT(OFS_RETURN) = SV_PointContents(glm::vec3{v[0], v[1], v[2]});
 }
 
 /*
@@ -1607,7 +1618,9 @@ static void PF_aim()
     // try sending a trace straight
     VectorCopy(pr_global_struct->v_forward, dir);
     VectorMA(start, 2048, dir, end);
-    tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
+    glm::vec3 origin{0.f, 0.f, 0.f};
+    tr = SV_Move(quake::util::toVec3(start), origin, origin,
+        quake::util::toVec3(end), false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
@@ -1647,7 +1660,8 @@ static void PF_aim()
         {
             continue; // to far to turn
         }
-        tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
+        tr = SV_Move(quake::util::toVec3(start), origin, origin,
+            quake::util::toVec3(end), false, ent);
         if(tr.ent == check)
         { // can shoot at this one
             bestdist = dist;

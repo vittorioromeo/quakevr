@@ -32,11 +32,10 @@
 
 using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::getGlmAngledVectors;
+using quake::util::hitSomething;
 using quake::util::lerp;
 using quake::util::pitchYawRollFromDirectionVector;
-using quake::util::toQuakeVec3;
 using quake::util::toVec3;
-using quake::util::vec3lerp;
 
 //
 //
@@ -637,10 +636,10 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
         hdr->scale);
 
     const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
-    vec3_t ofs{ox, oy, oz};
+    const glm::vec3 ofs{ox, oy, oz};
 
-    VectorAdd(hdr->original_scale_origin, ofs, hdr->scale_origin);
-    VectorScale(hdr->scale_origin, scaleCorrect, hdr->scale_origin);
+    hdr->scale_origin = hdr->original_scale_origin + ofs;
+    hdr->scale_origin *= scaleCorrect;
 }
 
 void Mod_Weapon(const char* name, aliashdr_t* hdr)
@@ -1271,7 +1270,7 @@ void SetHandPos(int index, entity_t* player)
     // const float gunLength = index == 0 ? 0.f :
     // VR_GetWpnLength(currWpnCVarEntry);
 
-    // vec3_t forward, right, up;
+    //  forward, right, up;
     // AngleVectors(cl.handrot[1], forward, right, up);
 
     // Trace from upper torso to desired final location. `SV_Move` detects
@@ -1438,6 +1437,8 @@ void SetHandPos(int index, entity_t* player)
         // TODO VR: seems good now. Cvar everything
         // TODO VR: collision detection is affected by lerping, not nice with
         // big guns
+        // TODO VR: too strong for light guns, while smooth rotating it is
+        // noticeable
         cl.handpos[index][0] += ldiffx + (opx * (1.f - ftw)) - olddiffx;
         cl.handpos[index][1] += ldiffy + (opy * (1.f - ftw)) - olddiffy;
         cl.handpos[index][2] += ldiffz + (opz * (1.f - ftw));
@@ -1468,7 +1469,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] static glm::vec3 VR_GetShoulderPos() noexcept
 {
-    vec3_t playerYawOnly = {0, sv_player->v.angles[YAW], 0};
+    const glm::vec3 playerYawOnly{0, sv_player->v.angles[YAW], 0};
 
     const auto [vFwd, vRight, vUp] = getGlmAngledVectors(playerYawOnly);
 
@@ -1550,20 +1551,16 @@ static void VR_DoTeleportation()
         if(vr_teleporting_impact_valid)
         {
             // TODO VR:
-            extern void R_RunParticle2Effect(
-                vec3_t org, vec3_t dir, int preset, int count);
+            extern void R_RunParticle2Effect(const glm::vec3& org,
+                const glm::vec3& dir, int preset, int count);
 
-            vec3_t origin;
-            toQuakeVec3(origin, vr_teleporting_impact);
-
-            vec3_t dir{0, 0, 0};
-            R_RunParticle2Effect(origin, dir, 7, 2);
+            R_RunParticle2Effect(vr_teleporting_impact, {0.f, 0.f, 0.f}, 7, 2);
         }
     }
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
     {
         vr_send_teleport_msg = true;
-        toQuakeVec3(sv_player->v.origin, vr_teleporting_impact);
+        quake::util::toQuakeVec3(sv_player->v.origin, vr_teleporting_impact);
     }
 
     vr_was_teleporting = vr_teleporting;
@@ -1713,7 +1710,7 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
         const auto handrottemp = AngleVectorFromRotMat(mat);
         originalRots[i] = handrottemp;
-        toQuakeVec3(cl.handrot[i], handrottemp);
+        cl.handrot[i] = handrottemp;
     }
 
     if(cl.viewent.model)
@@ -2058,13 +2055,17 @@ void VR_CalibrateHeight()
 }
 
 
-void VR_AddOrientationToViewAngles(vec3_t angles)
+[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(
+    const glm::vec3& angles) noexcept
 {
-    const auto orientation = QuatToYawPitchRoll(current_eye->orientation);
+    const auto [pitch, yaw, roll] =
+        QuatToYawPitchRoll(current_eye->orientation);
 
-    angles[PITCH] = angles[PITCH] + orientation[PITCH];
-    angles[YAW] = angles[YAW] + orientation[YAW];
-    angles[ROLL] = orientation[ROLL];
+    glm::vec3 res;
+    res[PITCH] = angles[PITCH] + pitch;
+    res[YAW] = angles[YAW] + yaw;
+    res[ROLL] = roll;
+    return res;
 }
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept
@@ -2094,11 +2095,6 @@ void VR_AddOrientationToViewAngles(vec3_t angles)
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
 {
     return toVec3(cl.handpos[1]) + VR_CalcWeaponMuzzlePosImpl();
-}
-
-void VR_CalcWeaponMuzzlePos(vec3_t out) noexcept
-{
-    toQuakeVec3(out, VR_CalcWeaponMuzzlePos());
 }
 
 void VR_ShowVirtualStock()
@@ -2188,42 +2184,42 @@ void VR_ShowCrosshair()
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
 
-    vec3_t forward, right, up;
-    vec3_t start;
+    const auto [start, forward, right, up] = [&] {
+        // calc the line and draw
+        if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
+        {
+            const auto start = VR_CalcWeaponMuzzlePos();
+            const auto [forward, right, up] =
+                getGlmAngledVectors(cl.handrot[1]);
+            return std::tuple{start, forward, right, up};
+        }
 
-    // calc the line and draw
-    if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
-    {
-        AngleVectors(cl.handrot[1], forward, right, up);
-        VR_CalcWeaponMuzzlePos(start);
-    }
-    else
-    {
-        VectorCopy(cl.viewent.origin, start);
+        auto start = toVec3(cl.viewent.origin);
         start[2] -= cl.viewheight - 10;
-        AngleVectors(cl.aimangles, forward, right, up);
-    }
 
-    vec3_t end;
-    vec3_t impact;
+        const auto [forward, right, up] = getGlmAngledVectors(cl.aimangles);
+        return std::tuple{start, forward, right, up};
+    }();
 
     switch((int)vr_crosshair.value)
     {
         default:
         case VrCrosshair::e_POINT:
         {
+            glm::vec3 end, impact;
+
             if(vr_crosshair_depth.value <= 0)
             {
                 // trace to first wall
-                VectorMA(start, 4096, forward, end);
-
+                end = start + 4096.f * forward;
                 end[2] += vr_crosshairy.value;
-                TraceLine(start, end, impact);
+
+                impact = toVec3(TraceLine(start, end).endpos);
             }
             else
             {
                 // fix crosshair to specific depth
-                VectorMA(start, vr_crosshair_depth.value, forward, impact);
+                impact = start + vr_crosshair_depth.value * forward;
             }
 
             glEnable(GL_POINT_SMOOTH);
@@ -2244,15 +2240,9 @@ void VR_ShowCrosshair()
                 vr_crosshair_depth.value <= 0 ? 4096 : vr_crosshair_depth.value;
 
             // trace to first entity
-            VectorMA(start, depth, forward, end);
-            const trace_t trace =
-                TraceLineToEntity(start, end, impact, sv_player);
-
-            if(trace.fraction >= 1.0)
-            {
-                VectorCopy(end, impact);
-            }
-
+            const auto end = start + depth * forward;
+            const trace_t trace = TraceLineToEntity(start, end, sv_player);
+            auto impact = hitSomething(trace) ? toVec3(trace.endpos) : end;
             impact[2] += vr_crosshairy.value * 10.f;
 
             glLineWidth(size * glwidth / vid.width);
@@ -2268,9 +2258,8 @@ void VR_ShowCrosshair()
             }
             else
             {
-                vec3_t midA, midB;
-                vec3lerp(midA, start, impact, 0.15);
-                vec3lerp(midB, start, impact, 0.85);
+                const auto midA = glm::mix(start, impact, 0.15);
+                const auto midB = glm::mix(start, impact, 0.85);
 
                 glColor4f(1, 0, 0, alpha * 0.01f);
                 glVertex3f(start[0], start[1], start[2]);
@@ -2378,24 +2367,19 @@ void VR_DrawTeleportLine()
 void VR_Draw2D()
 {
     bool draw_sbar = false;
-    vec3_t menu_angles;
 
-    vec3_t forward;
+    glm::vec3 menu_angles;
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
+    glm::vec3 target;
 
-    vec3_t right;
+    const float scale_hud = vr_menu_scale.value;
 
-    vec3_t up;
-
-    vec3_t target;
-    float scale_hud = vr_menu_scale.value;
-
-    int oldglwidth = glwidth;
-
-    int oldglheight = glheight;
-
-    int oldconwidth = vid.conwidth;
-
-    int oldconheight = vid.conheight;
+    const int oldglwidth = glwidth;
+    const int oldglheight = glheight;
+    const int oldconwidth = vid.conwidth;
+    const int oldconheight = vid.conheight;
 
     glwidth = 320;
     glheight = 200;
@@ -2414,11 +2398,11 @@ void VR_Draw2D()
     {
         AngleVectors(cl.handrot[1], forward, right, up);
 
-        VectorCopy(cl.handrot[1], menu_angles);
+        menu_angles = cl.handrot[1];
 
         AngleVectors(menu_angles, forward, right, up);
 
-        VectorMA(cl.handpos[1], 48, forward, target);
+        target = cl.handpos[1] + 48.f * forward;
     }
     else
     {
@@ -2434,7 +2418,7 @@ void VR_Draw2D()
         }
 
         AngleVectors(menu_angles, forward, right, up);
-        VectorMA(r_refdef.vieworg, vr_menu_distance.value, forward, target);
+        target = r_refdef.vieworg + vr_menu_distance.value * forward;
     }
 
     // TODO VR: control smoothing with cvar
@@ -2512,16 +2496,13 @@ void VR_Draw2D()
 
 void VR_DrawSbar()
 {
-    vec3_t sbar_angles;
+    glm::vec3 sbar_angles;
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
+    glm::vec3 target;
 
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
-
-    vec3_t target;
-    float scale_hud = vr_hud_scale.value;
+    const float scale_hud = vr_hud_scale.value;
 
     glPushMatrix();
     glDisable(GL_DEPTH_TEST); // prevents drawing sprites on sprites from
@@ -2537,7 +2518,7 @@ void VR_DrawSbar()
             VectorCopy(cl.handrot[1], sbar_angles);
 
             AngleVectors(sbar_angles, forward, right, up);
-            VectorMA(cl.handpos[1], -5, right, target);
+            target = cl.handpos[1] + -5.f * right;
         }
         else
         {
@@ -2545,7 +2526,7 @@ void VR_DrawSbar()
             VectorCopy(cl.handrot[0], sbar_angles);
 
             AngleVectors(sbar_angles, forward, right, up);
-            VectorMA(cl.handpos[0], 0.f, right, target);
+            target = cl.handpos[0] + 0.f * right;
         }
     }
     else
@@ -2560,7 +2541,7 @@ void VR_DrawSbar()
 
         AngleVectors(sbar_angles, forward, right, up);
 
-        VectorMA(cl.viewent.origin, 1.0, forward, target);
+        target = cl.viewent.origin + 1.f * forward;
     }
 
     // TODO VR: 1.0? Attach to off hand?
@@ -2606,11 +2587,11 @@ void VR_DrawSbar()
     glPopMatrix();
 }
 
-void VR_SetAngles(vec3_t angles)
+void VR_SetAngles(const glm::vec3& angles) noexcept
 {
-    VectorCopy(angles, cl.aimangles);
-    VectorCopy(angles, cl.viewangles);
-    lastAim = toVec3(angles);
+    cl.aimangles = angles;
+    cl.viewangles = angles;
+    lastAim = angles;
 }
 
 void VR_ResetOrientation()
@@ -2821,7 +2802,7 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhandvelmag = cl.handvelmag[0];
 
     // VR: Weapon muzzle position.
-    VR_CalcWeaponMuzzlePos(cmd->muzzlepos);
+    cmd->muzzlepos = VR_CalcWeaponMuzzlePos();
 
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.
@@ -2843,9 +2824,9 @@ void VR_Move(usercmd_t* cmd)
         return;
     }
 
-    vec3_t lfwd;
-    vec3_t lright;
-    vec3_t lup;
+    glm::vec3 lfwd;
+    glm::vec3 lright;
+    glm::vec3 lup;
     AngleVectors(cl.handrot[0], lfwd, lright, lup);
 
     if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
@@ -2855,12 +2836,8 @@ void VR_Move(usercmd_t* cmd)
     }
     else
     {
-        vec3_t playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
-
-        vec3_t vfwd;
-        vec3_t vright;
-        vec3_t vup;
-        AngleVectors(playerYawOnly, vfwd, vright, vup);
+        glm::vec3 playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
+        const auto [vfwd, vright, vup] = getGlmAngledVectors(playerYawOnly);
 
         // avoid gimbal by using up if we are point up/down
         if(fabsf(lfwd[2]) > 0.8f)
@@ -2889,9 +2866,9 @@ void VR_Move(usercmd_t* cmd)
             lright[i] *= fac;
         }
 
-        vec3_t move = {0, 0, 0};
-        VectorMA(move, fwdMove, lfwd, move);
-        VectorMA(move, sideMove, lright, move);
+        glm::vec3 move = {0, 0, 0};
+        move += fwdMove * lfwd;
+        move += sideMove * lright;
 
         const float fwd = DotProduct(move, vfwd);
         const float right = DotProduct(move, vright);

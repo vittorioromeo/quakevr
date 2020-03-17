@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
+#include "glm.hpp"
 
 extern cvar_t vr_enabled;
 extern cvar_t vr_body_interactions;
@@ -38,19 +39,19 @@ line of sight checks trace->crosscontent, but bullets don't
 */
 
 
-typedef struct
+struct moveclip_t
 {
-    vec3_t boxmins, boxmaxs; // enclose the test object along entire move
-    float *mins, *maxs;      // size of the moving object
-    vec3_t mins2, maxs2;     // size when clipping against mosnters
-    float *start, *end;
+    glm::vec3 boxmins, boxmaxs; // enclose the test object along entire move
+    glm::vec3 mins, maxs;       // size of the moving object
+    glm::vec3 mins2, maxs2;     // size when clipping against mosnters
+    glm::vec3 start, end;
     trace_t trace;
     int type;
     edict_t* passedict;
-} moveclip_t;
+};
 
 
-int SV_HullPointContents(hull_t* hull, int num, vec3_t p);
+int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p);
 
 /*
 ===============================================================================
@@ -113,7 +114,7 @@ To keep everything totally uniform, bounding boxes are turned into small
 BSP trees instead of being compared directly.
 ===================
 */
-hull_t* SV_HullForBox(vec3_t mins, vec3_t maxs)
+hull_t* SV_HullForBox(const glm::vec3& mins, const glm::vec3& maxs)
 {
     box_planes[0].dist = maxs[0];
     box_planes[1].dist = mins[0];
@@ -137,13 +138,14 @@ Offset is filled in to contain the adjustment that must be added to the
 testing object's origin to get a point to use with the returned hull.
 ================
 */
-hull_t* SV_HullForEntity(edict_t* ent, vec3_t mins, vec3_t maxs, vec3_t offset)
+hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
+    const glm::vec3& maxs, glm::vec3& offset)
 {
     qmodel_t* model;
-    vec3_t size;
-    vec3_t hullmins;
+    glm::vec3 size;
+    glm::vec3 hullmins;
 
-    vec3_t hullmaxs;
+    glm::vec3 hullmaxs;
     hull_t* hull;
 
     // decide which clipping hull to use, based on the size
@@ -226,17 +228,11 @@ SV_CreateAreaNode
 
 ===============
 */
-areanode_t* SV_CreateAreaNode(int depth, vec3_t mins, vec3_t maxs)
+areanode_t* SV_CreateAreaNode(
+    int depth, const glm::vec3& mins, const glm::vec3& maxs)
 {
     areanode_t* anode;
-    vec3_t size;
-    vec3_t mins1;
-
-    vec3_t maxs1;
-
-    vec3_t mins2;
-
-    vec3_t maxs2;
+    glm::vec3 size;
 
     anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
@@ -262,10 +258,10 @@ areanode_t* SV_CreateAreaNode(int depth, vec3_t mins, vec3_t maxs)
     }
 
     anode->dist = 0.5f * (maxs[anode->axis] + mins[anode->axis]);
-    VectorCopy(mins, mins1);
-    VectorCopy(mins, mins2);
-    VectorCopy(maxs, maxs1);
-    VectorCopy(maxs, maxs2);
+    glm::vec3 mins1 = mins;
+    glm::vec3 mins2 = mins;
+    glm::vec3 maxs1 = maxs;
+    glm::vec3 maxs2 = maxs;
 
     maxs1[anode->axis] = mins2[anode->axis] = anode->dist;
 
@@ -668,7 +664,7 @@ SV_HullPointContents
 
 ==================
 */
-int SV_HullPointContents(hull_t* hull, int num, vec3_t p)
+int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p)
 {
     float d;
     mclipnode_t* node; // johnfitz -- was dclipnode_t
@@ -712,7 +708,7 @@ SV_PointContents
 
 ==================
 */
-int SV_PointContents(vec3_t p)
+int SV_PointContents(const glm::vec3& p)
 {
     const int cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
     if(cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
@@ -723,7 +719,7 @@ int SV_PointContents(vec3_t p)
     return cont;
 }
 
-int SV_TruePointContents(vec3_t p)
+int SV_TruePointContents(const glm::vec3& p)
 {
     return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
 }
@@ -741,8 +737,10 @@ edict_t* SV_TestEntityPosition(edict_t* ent)
 {
     trace_t trace;
 
-    trace =
-        SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent);
+    using namespace quake::util;
+
+    trace = SV_Move(toVec3(ent->v.origin), toVec3(ent->v.mins),
+        toVec3(ent->v.maxs), toVec3(ent->v.origin), 0, ent);
 
     if(trace.startsolid)
     {
@@ -768,7 +766,7 @@ SV_RecursiveHullCheck
 ==================
 */
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
-    vec3_t p1, vec3_t p2, trace_t* trace)
+    const glm::vec3& p1, const glm::vec3& p2, trace_t* trace)
 {
     mclipnode_t* node; // johnfitz -- was dclipnode_t
     mplane_t* plane;
@@ -777,7 +775,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     float t2;
     float frac;
     int i;
-    vec3_t mid;
+    glm::vec3 mid;
     int side;
     float midf;
 
@@ -948,19 +946,19 @@ Handles selection or creation of a clipping hull, and offseting (and
 eventually rotation) of the end points
 ==================
 */
-trace_t SV_ClipMoveToEntity(
-    edict_t* ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end)
+trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
+    const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end)
 {
-    vec3_t offset;
-    vec3_t start_l;
-    vec3_t end_l;
+    glm::vec3 offset;
+    glm::vec3 start_l;
+    glm::vec3 end_l;
 
     // fill in a default trace
     trace_t trace;
     memset(&trace, 0, sizeof(trace_t));
     trace.fraction = 1;
     trace.allsolid = true;
-    VectorCopy(end, trace.endpos);
+    trace.endpos = end;
 
     // get the clipping hull
     hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
@@ -1112,8 +1110,9 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
 SV_MoveBounds
 ==================
 */
-void SV_MoveBounds(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
-    vec3_t boxmins, vec3_t boxmaxs)
+void SV_MoveBounds(const glm::vec3& start, const glm::vec3& mins,
+    const glm::vec3& maxs, const glm::vec3& end, glm::vec3& boxmins,
+    glm::vec3& boxmaxs)
 {
 #if 0
 // debug to test against everything
@@ -1141,8 +1140,9 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
-    edict_t* passedict)
+trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
+    const glm::vec3& maxs, const glm::vec3& end, const int type,
+    edict_t* const passedict)
 {
     moveclip_t clip;
     memset(&clip, 0, sizeof(moveclip_t));
@@ -1182,17 +1182,4 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
     SV_ClipToLinks(sv_areanodes, &clip);
 
     return clip.trace;
-}
-
-trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, const int type,
-    edict_t* const passedict)
-{
-    // TODO VR: optimize
-    vec3_t xStart, xMins, xMaxs, xEnd;
-    quake::util::toQuakeVec3(xStart, start);
-    quake::util::toQuakeVec3(xMins, mins);
-    quake::util::toQuakeVec3(xMaxs, maxs);
-    quake::util::toQuakeVec3(xEnd, end);
-    return SV_Move(xStart, xMins, xMaxs, xEnd, type, passedict);
 }

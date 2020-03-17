@@ -16,7 +16,7 @@ static void VRGameplay_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, vec3_origin, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
     }
 }
 
@@ -170,7 +170,7 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
         case VRGameplayMenuOpt::e_ShoulderOffsetZ:
             adjustF(vr_shoulder_offset_z, 0.5f, -50.f, 50.f);
             break;
-            case VRGameplayMenuOpt::e_2HVirtualStockFactor:
+        case VRGameplayMenuOpt::e_2HVirtualStockFactor:
             adjustF(vr_2h_virtual_stock_factor, 0.05f, 0.f, 1.f);
             break;
         default: assert(false); break;

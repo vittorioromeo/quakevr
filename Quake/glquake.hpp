@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __GLQUAKE_H
 
 #include <cstdint>
+#include "glm.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
 void GL_EndRendering(void);
@@ -97,10 +98,10 @@ extern mplane_t frustum[4];
 //
 // view origin
 //
-extern vec3_t vup;
-extern vec3_t vpn;
-extern vec3_t vright;
-extern vec3_t r_origin;
+extern glm::vec3 vup;
+extern glm::vec3 vpn;
+extern glm::vec3 vright;
+extern glm::vec3 r_origin;
 
 //
 // screen size info
@@ -358,7 +359,7 @@ void R_CullSurfaces(void);
 bool R_CullBox(vec3_t emins, vec3_t emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
-void R_RotateForEntity(vec3_t origin, vec3_t angles);
+void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles);
 void R_MarkLights(dlight_t* light, int num, mnode_t* node);
 
 void R_InitParticles(void);
@@ -387,7 +388,7 @@ void GLMesh_LoadVertexBuffers(void);
 void GLMesh_DeleteVertexBuffers(void);
 void R_RebuildAllLightmaps(void);
 
-int R_LightPoint(vec3_t p);
+int R_LightPoint(const glm::vec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);

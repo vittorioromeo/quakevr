@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -511,19 +512,18 @@ void CL_RelinkEntities()
             continue;
         }
 
-        vec3_t oldorg;
-        VectorCopy(ent->origin, oldorg);
+        const auto oldorg = ent->origin;
 
         if(ent->forcelink)
         { // the entity was not updated in the last message
             // so move to the final spot
-            VectorCopy(ent->msg_origins[0], ent->origin);
-            VectorCopy(ent->msg_angles[0], ent->angles);
+            ent->origin = ent->msg_origins[0];
+            ent->angles = ent->msg_angles[0];
         }
         else
         { // if the delta is large, assume a teleport and don't lerp
             float f = frac;
-            vec3_t delta;
+            glm::vec3 delta;
 
             for(int j = 0; j < 3; j++)
             {
@@ -579,18 +579,15 @@ void CL_RelinkEntities()
         dlight_t* dl;
         if(ent->effects & EF_MUZZLEFLASH)
         {
-            vec3_t fv;
-
-            vec3_t rv;
-
-            vec3_t uv;
 
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->origin[2] += 16;
-            AngleVectors(ent->angles, fv, rv, uv);
 
-            VectorMA(dl->origin, 18, fv, dl->origin);
+            const auto [fv, rv, uv] =
+                quake::util::getGlmAngledVectors(ent->angles);
+
+            dl->origin = dl->origin + 18.f * fv;
             dl->radius = 200 + (rand() & 31);
             dl->minlight = 32;
             dl->die = cl.time + 0.1;
@@ -617,7 +614,7 @@ void CL_RelinkEntities()
         if(ent->effects & EF_BRIGHTLIGHT)
         {
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->origin[2] += 16;
             dl->radius = 400 + (rand() & 31);
             dl->die = cl.time + 0.001;
@@ -625,7 +622,7 @@ void CL_RelinkEntities()
         if(ent->effects & EF_DIMLIGHT)
         {
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->radius = 200 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
@@ -650,7 +647,7 @@ void CL_RelinkEntities()
         {
             R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->radius = 200;
             dl->die = cl.time + 0.01;
         }
@@ -849,24 +846,21 @@ display impact point of trace along VPN
 */
 void CL_Tracepos_f(refdef_t& refdef)
 {
-    vec3_t v;
-
-    vec3_t w;
-
     if(cls.state != ca_connected)
     {
         return;
     }
 
-    VectorMA(refdef.vieworg, 8192.0, vpn, v);
-    TraceLine(refdef.vieworg, v, w);
+    const auto v = refdef.vieworg + 8192.f * vpn;
+    const auto trace = TraceLine(refdef.vieworg, v);
 
-    if(VectorLength(w) == 0)
+    if(!quake::util::hitSomething(trace))
     {
         Con_Printf("Tracepos: trace didn't hit anything\n");
     }
     else
     {
+        const auto w = quake::util::toVec3(trace.endpos);
         Con_Printf("Tracepos: (%i %i %i)\n", (int)w[0], (int)w[1], (int)w[2]);
     }
 }

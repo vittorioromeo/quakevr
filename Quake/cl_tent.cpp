@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 int num_temp_entities;
 entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
@@ -120,22 +121,21 @@ CL_ParseTEnt
 */
 void CL_ParseTEnt()
 {
-    int type;
-    vec3_t pos;
+    glm::vec3 pos;
     dlight_t* dl;
     int rnd;
     int colorStart;
 
     int colorLength;
 
-    type = MSG_ReadByte();
+    int type = MSG_ReadByte();
     switch(type)
     {
         case TE_WIZSPIKE: // spike hitting wall
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 20, 30);
+            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
 
@@ -143,7 +143,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 226, 20);
+            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
 
@@ -151,7 +151,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 10);
             if(rand() % 5)
             {
                 S_StartSound(-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -177,7 +177,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 20);
+            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 20);
 
             if(rand() % 5)
             {
@@ -205,7 +205,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 10);
             break;
 
         case TE_EXPLOSION: // rocket explosion
@@ -334,8 +334,8 @@ void CL_UpdateTEnts()
         if(b->entity == cl.viewentity)
         {
             if(vr_enabled.value)
-            {
-                VR_CalcWeaponMuzzlePos(b->start);
+            { 
+                b->start = VR_CalcWeaponMuzzlePos();
             }
             else
             {
