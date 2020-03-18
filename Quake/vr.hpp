@@ -99,7 +99,8 @@ void VR_Move(usercmd_t* cmd);
 void VR_InitGame();
 void VR_PushYaw();
 void VR_DrawSbar();
-[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(const glm::vec3& angles) noexcept;
+[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(
+    const glm::vec3& angles) noexcept;
 void VR_SetAngles(const glm::vec3& angles) noexcept;
 void VR_ResetOrientation();
 void VR_SetMatrices();
@@ -148,6 +149,7 @@ enum class WpnCVar : std::uint8_t
     TwoHRoll = 16,
     TwoHMode = 17,
     Length = 18,
+    Weight = 19,
 
     k_Max
 };
@@ -265,3 +267,13 @@ extern cvar_t vr_shoulder_offset_x;
 extern cvar_t vr_shoulder_offset_y;
 extern cvar_t vr_shoulder_offset_z;
 extern cvar_t vr_2h_virtual_stock_factor;
+extern cvar_t vr_wpn_pos_weight;
+extern cvar_t vr_wpn_pos_weight_offset;
+extern cvar_t vr_wpn_pos_weight_mult;
+extern cvar_t vr_wpn_pos_weight_2h_help_offset;
+extern cvar_t vr_wpn_pos_weight_2h_help_mult;
+extern cvar_t vr_wpn_dir_weight;
+extern cvar_t vr_wpn_dir_weight_offset;
+extern cvar_t vr_wpn_dir_weight_mult;
+extern cvar_t vr_wpn_dir_weight_2h_help_offset;
+extern cvar_t vr_wpn_dir_weight_2h_help_mult;

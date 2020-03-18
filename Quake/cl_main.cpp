@@ -860,7 +860,7 @@ void CL_Tracepos_f(refdef_t& refdef)
     }
     else
     {
-        const auto w = quake::util::toVec3(trace.endpos);
+        const auto& w = trace.endpos;
         Con_Printf("Tracepos: (%i %i %i)\n", (int)w[0], (int)w[1], (int)w[2]);
     }
 }

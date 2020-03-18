@@ -22,9 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
-#include "glm.hpp"
+#include "quakeglm.hpp"
 #include "util.hpp"
-#include "gtc/type_ptr.hpp"
 
 #include <cmath>
 
@@ -852,10 +851,9 @@ static void PF_traceline()
         v2[0] = v2[1] = v2[2] = 0;
     }
 
-    glm::vec3 gv1{v1[0], v1[1], v1[2]};
-    glm::vec3 gv2{v2[0], v2[1], v2[2]};
-    glm::vec3 origin{0.f, 0.f, 0.f};
-    trace = SV_Move(gv1, origin, origin, gv2, nomonsters, ent);
+    const glm::vec3 gv1{v1[0], v1[1], v1[2]};
+    const glm::vec3 gv2{v2[0], v2[1], v2[2]};
+    trace = SV_Move(gv1, vec3_origin, vec3_origin, gv2, nomonsters, ent);
 
     pr_global_struct->trace_allsolid = trace.allsolid;
     pr_global_struct->trace_startsolid = trace.startsolid;
@@ -1435,9 +1433,7 @@ static void PF_droptofloor()
     VectorCopy(ent->v.origin, end);
     end[2] -= 256;
 
-    trace = SV_Move(quake::util::toVec3(ent->v.origin),
-        quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
-        quake::util::toVec3(end), false, ent);
+    trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
 
     if(trace.fraction == 1 || trace.allsolid)
     {
@@ -1623,8 +1619,7 @@ static void PF_aim()
     // try sending a trace straight
     dir = pr_global_struct->v_forward;
     end = start + 2048.f * dir;
-    glm::vec3 origin{0.f, 0.f, 0.f};
-    tr = SV_Move(start, origin, origin, end, false, ent);
+    tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
@@ -1664,8 +1659,7 @@ static void PF_aim()
         {
             continue; // to far to turn
         }
-        tr = SV_Move(quake::util::toVec3(start), origin, origin,
-            quake::util::toVec3(end), false, ent);
+        tr = SV_Move(start, origin, origin, end, false, ent);
         if(tr.ent == check)
         { // can shoot at this one
             bestdist = dist;

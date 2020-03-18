@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 extern cvar_t vr_enabled;
 extern cvar_t vr_body_interactions;
@@ -439,13 +439,11 @@ void SV_TouchLinks(edict_t* ent)
 
         // Add some size to the hands.
         const glm::vec3 offsets{1.f, 1.f, 1.f};
-        const auto glmHandpos = quake::util::toVec3(ent->v.handpos);
-        const auto glmOffhandpos = quake::util::toVec3(ent->v.offhandpos);
 
-        const auto handposmin = glmHandpos - offsets;
-        const auto handposmax = glmHandpos + offsets;
-        const auto offhandposmin = glmOffhandpos - offsets;
-        const auto offhandposmax = glmOffhandpos + offsets;
+        const auto handposmin = ent->v.handpos - offsets;
+        const auto handposmax = ent->v.handpos + offsets;
+        const auto offhandposmin = ent->v.offhandpos - offsets;
+        const auto offhandposmax = ent->v.offhandpos + offsets;
 
         const bool canBeHandTouched =
             target->v.handtouch && target->v.solid == SOLID_TRIGGER;
@@ -742,8 +740,8 @@ edict_t* SV_TestEntityPosition(edict_t* ent)
 
     using namespace quake::util;
 
-    trace = SV_Move(toVec3(ent->v.origin), toVec3(ent->v.mins),
-        toVec3(ent->v.maxs), toVec3(ent->v.origin), 0, ent);
+    trace =
+        SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent);
 
     if(trace.startsolid)
     {

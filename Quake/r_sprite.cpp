@@ -23,8 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_sprite.c -- sprite model rendering
 
 #include "quakedef.hpp"
-#include "glm.hpp"
-#include "gtc/type_ptr.hpp"
+#include "quakeglm.hpp"
 #include "util.hpp"
 
 /*

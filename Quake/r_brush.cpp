@@ -25,8 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "glm.hpp"
-#include "gtc/type_ptr.hpp"
+#include "quakeglm.hpp"
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix

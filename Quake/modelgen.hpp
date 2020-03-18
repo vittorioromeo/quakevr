@@ -44,7 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "trilib.hpp"
 #include "lbmlib.hpp"
 #include "mathlib.hpp"
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 #endif
 

@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "modelgen.hpp"
 #include "spritegn.hpp"
 #include "client.hpp"
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 /*
 
@@ -147,7 +147,7 @@ typedef struct msurface_s
     int visframe;    // should be drawn when node is crossed
     bool culled; // johnfitz -- for frustum culling
     glm::vec3 mins;   // johnfitz -- for frustum culling
-    glm::vec3 maxs;   // johnfitz -- for frustum culling 
+    glm::vec3 maxs;   // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;

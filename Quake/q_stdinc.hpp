@@ -34,7 +34,7 @@
 #include <limits.h>
 
 #define GLM_FORCE_INLINE
-#include <glm.hpp>
+#include "quakeglm.hpp"
 
 #ifndef _WIN32 /* others we support without sys/param.h? */
 #include <sys/param.h>

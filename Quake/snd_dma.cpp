@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 static void S_Play();
 static void S_PlayVol();

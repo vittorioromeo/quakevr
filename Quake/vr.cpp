@@ -3,13 +3,7 @@
 #include "vr_menu.hpp"
 #include "util.hpp"
 #include "openvr.hpp"
-
-#define GLM_FORCE_INLINE
-#include <glm.hpp>
-#include <gtc/quaternion.hpp>
-#include <gtx/quaternion.hpp>
-#include <gtx/euler_angles.hpp>
-#include <gtx/rotate_vector.hpp>
+#include "quakeglm.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -291,14 +285,16 @@ DEFINE_CVAR(vr_shoulder_offset_x, -1.5, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_offset_y, 1.75, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_offset_z, 16.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_virtual_stock_factor, 0.5, CVAR_ARCHIVE);
-
-// TODO VR: implement
 DEFINE_CVAR(vr_wpn_pos_weight, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_pos_weight_offset, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_wpn_pos_weight_mult, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_wpn_pos_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_pos_weight_2h_help_offset, 0.3, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_pos_weight_2h_help_mult, 1.15, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_wpn_dir_weight, 1, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight_offset, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_wpn_dir_weight_mult, 1.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight_2h_help_offset, 0.3, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.15, CVAR_ARCHIVE);
 
 //
 //
@@ -780,7 +776,8 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* twoHOffsetX = "0.0", const char* twoHOffsetY = "0.0",
     const char* twoHOffsetZ = "0.0", const char* twoHPitch = "0.0",
     const char* twoHYaw = "0.0", const char* twoHRoll = "0.0",
-    const char* twoHMode = "0.0", const char* length = "0.0")
+    const char* twoHMode = "0.0", const char* length = "0.0",
+    const char* weight = "0.0")
 {
     // clang-format off
     constexpr const char* nameOffsetX = "vr_wofs_x_nn";
@@ -802,6 +799,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     constexpr const char* name2HRoll = "vr_wofs_2h_roll_nn";
     constexpr const char* name2HMode = "vr_wofs_2h_mode_nn";
     constexpr const char* nameLength = "vr_wofs_length_nn";
+    constexpr const char* nameWeight = "vr_wofs_weight_nn";
 
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX), nameOffsetX, i, offsetX);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY), nameOffsetY, i, offsetY);
@@ -822,6 +820,7 @@ void InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll), name2HRoll, i, twoHRoll);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHMode), name2HMode, i, twoHMode);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Length), nameLength, i, length);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Weight), nameWeight, i, weight);
     // clang-format on
 }
 
@@ -1106,7 +1105,6 @@ bool VR_Enable()
     return true;
 }
 
-
 void VR_PushYaw()
 {
     readbackYaw = true;
@@ -1221,16 +1219,40 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     return res;
 }
 
-
-// TODO VR: better system for this, use cvar per weapon
-[[nodiscard]] int wpnCvarEntryToWpnId(const int cvarEntry)
+// TODO VR: repetition
+[[nodiscard]] float VR_GetWeaponWeightPosFactor(
+    const int cvarEntry, const float aiming2H)
 {
-    constexpr int mapping[]{WID_AXE, WID_SHOTGUN, WID_SUPER_SHOTGUN,
-        WID_NAILGUN, WID_SUPER_NAILGUN, WID_GRENADE_LAUNCHER,
-        WID_ROCKET_LAUNCHER, WID_LIGHTNING, WID_MJOLNIR, WID_LASER_CANNON,
-        WID_PROXIMITY_GUN};
+    assert(aiming2H >= 0.f && aiming2H <= 1.f);
 
-    return mapping[cvarEntry];
+    const auto initial = 1.f - VR_GetWpnCVarValue(cvarEntry, WpnCVar::Weight);
+    const auto withOffset = initial + vr_wpn_pos_weight_offset.value;
+    const auto withMult = withOffset * vr_wpn_pos_weight_mult.value;
+    const auto with2HHelpOffset =
+        withOffset + vr_wpn_pos_weight_2h_help_offset.value;
+    const auto with2HHelpMult =
+        with2HHelpOffset * vr_wpn_pos_weight_2h_help_mult.value;
+
+    const float finalFactor = lerp(withMult, with2HHelpMult, aiming2H);
+    return std::clamp(finalFactor, 0.f, 1.f);
+}
+
+
+[[nodiscard]] float VR_GetWeaponWeightDirFactor(
+    const int cvarEntry, const float aiming2H)
+{
+    assert(aiming2H >= 0.f && aiming2H <= 1.f);
+
+    const auto initial = 1.f - VR_GetWpnCVarValue(cvarEntry, WpnCVar::Weight);
+    const auto withOffset = initial + vr_wpn_dir_weight_offset.value;
+    const auto withMult = withOffset * vr_wpn_dir_weight_mult.value;
+    const auto with2HHelpOffset =
+        withOffset + vr_wpn_dir_weight_2h_help_offset.value;
+    const auto with2HHelpMult =
+        with2HHelpOffset * vr_wpn_dir_weight_2h_help_mult.value;
+
+    const float finalFactor = lerp(withMult, with2HHelpMult, aiming2H);
+    return std::clamp(finalFactor, 0.f, 1.f);
 }
 
 void SetHandPos(int index, entity_t* player)
@@ -1355,36 +1377,13 @@ void SetHandPos(int index, entity_t* player)
 
     // Weight stuff
     // TODO VR: adjust weight and add cvar, fix movement
-    if(true /* TODO VR: cvar! */)
+    if(vr_wpn_pos_weight.value == 1)
     {
-        auto weaponWeight = [&] {
-            constexpr float max1H = 0.85f;
-            const float help2H = vr_2h_aim_transition / 3.25f;
-            const float max = max1H + help2H;
-
-            if(index == 0 && vr_2h_aim_transition <= 0.1f)
-            {
-                return max;
-            }
-
-            const auto wid = wpnCvarEntryToWpnId(currWpnCVarEntry);
-
-            if(wid == WID_AXE) return max;
-            if(wid == WID_MJOLNIR) return max;
-            if(wid == WID_SHOTGUN) return max;
-            if(wid == WID_SUPER_SHOTGUN) return max;
-            if(wid == WID_NAILGUN) return max;
-            if(wid == WID_SUPER_NAILGUN) return 0.1f + help2H;
-            if(wid == WID_GRENADE_LAUNCHER) return 0.1f + help2H;
-            if(wid == WID_PROXIMITY_GUN) return 0.1f + help2H;
-            if(wid == WID_ROCKET_LAUNCHER) return 0.1f + help2H;
-            if(wid == WID_LIGHTNING) return 0.1f + help2H;
-            if(wid == WID_LASER_CANNON) return 0.05f + help2H;
-
-            return max;
-        }();
-
-        weaponWeight = std::clamp(weaponWeight, 0.f, 1.f);
+        // TODO VR: left hand?
+        const auto weaponWeight =
+            index == 0 ? 1.f
+                       : VR_GetWeaponWeightPosFactor(
+                             currWpnCVarEntry, vr_2h_aim_transition);
 
         float opx{}, opy{}, opz{};
         if(gotLastPlayerOrigin)
@@ -1834,34 +1833,13 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
     const float frametime = cl.time - cl.oldtime;
 
-    auto weaponWeight = [&] {
-        constexpr float max1H = 0.85f;
-        const float help2H = vr_2h_aim_transition / 3.25f;
-        const float max = max1H + help2H;
+    // TODO VR: left hand?
+    const auto weaponWeight = index == 0
+                                  ? 1.f
+                                  : VR_GetWeaponWeightDirFactor(
+                                        currWpnCVarEntry, vr_2h_aim_transition);
 
-        const auto wid = wpnCvarEntryToWpnId(currWpnCVarEntry);
-
-        if(wid == WID_AXE) return max;
-        if(wid == WID_MJOLNIR) return max;
-        if(wid == WID_SHOTGUN) return max;
-        if(wid == WID_SUPER_SHOTGUN) return max;
-        if(wid == WID_NAILGUN) return max;
-        if(wid == WID_SUPER_NAILGUN) return 0.1f + help2H;
-        if(wid == WID_GRENADE_LAUNCHER) return 0.1f + help2H;
-        if(wid == WID_PROXIMITY_GUN) return 0.1f + help2H;
-        if(wid == WID_ROCKET_LAUNCHER) return 0.1f + help2H;
-        if(wid == WID_LIGHTNING) return 0.1f + help2H;
-        if(wid == WID_LASER_CANNON) return 0.05f + help2H;
-
-        return max;
-    }();
-
-    if(weaponWeight > 1.f) weaponWeight = 1.f;
-
-
-
-    const auto factor = weaponWeight;
-    const auto ftw = (factor * frametime) * 100.f;
+    const auto ftw = (weaponWeight * frametime) * 100.f;
 
     const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
     const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);

@@ -1,0 +1,21 @@
+#pragma once
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmacro-redefined"
+
+#define GLM_FORCE_INLINE
+#define GLM_CONFIG_SIMD GLM_ENABLE
+#define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_OPERATOR
+#define GLM_CONFIG_ALIGNED_GENTYPES GLM_ENABLE
+#define GLM_CONFIG_ANONYMOUS_STRUCT GLM_ENABLE
+#define GLM_FORCE_SWIZZLE
+
+#include <glm.hpp>
+#include <gtc/type_ptr.hpp>
+#include <gtc/quaternion.hpp>
+#include <gtx/quaternion.hpp>
+#include <gtx/euler_angles.hpp>
+#include <gtx/rotate_vector.hpp>
+
+#pragma GCC diagnostic pop
+

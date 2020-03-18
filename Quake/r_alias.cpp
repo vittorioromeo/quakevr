@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // r_alias.c -- alias model rendering
 
-#include "glm.hpp"
+#include "quakeglm.hpp"
 #include "quakedef.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,

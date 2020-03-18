@@ -66,8 +66,7 @@ TODO: impact on bmodels, monsters
     trace_t trace;
     memset(&trace, 0, sizeof(trace));
 
-    trace =
-        SV_Move(start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, end, MOVE_NORMAL, ent);
+    trace = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, ent);
 
     return trace;
 }

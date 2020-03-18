@@ -945,7 +945,7 @@ void V_CalcRefdef()
     if(vr_enabled.value)
     {
         extern glm::vec3 vr_viewOffset;
-        r_refdef.vieworg = quake::util::toVec3(ent->origin) + vr_viewOffset;
+        r_refdef.vieworg = ent->origin + vr_viewOffset;
     }
     else
     {

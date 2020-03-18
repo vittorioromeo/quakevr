@@ -21,6 +21,16 @@ enum class VRGameplayMenuOpt
     e_ShoulderOffsetY,
     e_ShoulderOffsetZ,
     e_2HVirtualStockFactor,
+    e_WpnPosWeight,
+    e_WpnPosWeightOffset,
+    e_WpnPosWeightMult,
+    e_WpnPosWeight2HHelpOffset,
+    e_WpnPosWeight2HHelpMult,
+    e_WpnDirWeight,
+    e_WpnDirWeightOffset,
+    e_WpnDirWeightMult,
+    e_WpnDirWeight2HHelpOffset,
+    e_WpnDirWeight2HHelpMult,
 
     k_Max
 };

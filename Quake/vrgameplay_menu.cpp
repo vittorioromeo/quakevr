@@ -31,13 +31,17 @@ static void VRGameplay_MenuPrintOptionValue(
         M_Print(cx, cy, value_buffer);
     };
 
+    const auto printOnOff = [&](const auto& cvar) {
+        M_Print(cx, cy, cvar.value == 0 ? "Off" : "On");
+    };
+
     switch(option)
     {
         case VRGameplayMenuOpt::e_MeleeThreshold:
             printAsStr(vr_melee_threshold);
             break;
         case VRGameplayMenuOpt::e_RoomscaleJump:
-            M_Print(cx, cy, vr_roomscale_jump.value == 0 ? "Off" : "On");
+            printOnOff(vr_roomscale_jump);
             break;
         case VRGameplayMenuOpt::e_RoomscaleJumpThreshold:
             printAsStr(vr_roomscale_jump_threshold);
@@ -52,7 +56,7 @@ static void VRGameplay_MenuPrintOptionValue(
             printAsStr(vr_melee_range_multiplier);
             break;
         case VRGameplayMenuOpt::e_BodyInteractions:
-            M_Print(cx, cy, vr_body_interactions.value == 0 ? "Off" : "On");
+            printOnOff(vr_body_interactions);
             break;
         case VRGameplayMenuOpt::e_ForwardSpeed:
             printAsStr(cl_forwardspeed);
@@ -64,7 +68,7 @@ static void VRGameplay_MenuPrintOptionValue(
             printAsStr(vr_room_scale_move_mult);
             break;
         case VRGameplayMenuOpt::e_TeleportEnabled:
-            M_Print(cx, cy, vr_teleport_enabled.value == 0 ? "Off" : "On");
+            printOnOff(vr_teleport_enabled);
             break;
         case VRGameplayMenuOpt::e_TeleportRange:
             printAsStr(vr_teleport_range);
@@ -102,6 +106,36 @@ static void VRGameplay_MenuPrintOptionValue(
             break;
         case VRGameplayMenuOpt::e_2HVirtualStockFactor:
             printAsStr(vr_2h_virtual_stock_factor);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight:
+            printOnOff(vr_wpn_pos_weight);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeightOffset:
+            printAsStr(vr_wpn_pos_weight_offset);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeightMult:
+            printAsStr(vr_wpn_pos_weight_mult);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight2HHelpOffset:
+            printAsStr(vr_wpn_pos_weight_2h_help_offset);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight2HHelpMult:
+            printAsStr(vr_wpn_pos_weight_2h_help_mult);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight:
+            printOnOff(vr_wpn_dir_weight);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeightOffset:
+            printAsStr(vr_wpn_dir_weight_offset);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeightMult:
+            printAsStr(vr_wpn_dir_weight_mult);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight2HHelpOffset:
+            printAsStr(vr_wpn_dir_weight_2h_help_offset);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight2HHelpMult:
+            printAsStr(vr_wpn_dir_weight_2h_help_mult);
             break;
         default: assert(false); break;
     }
@@ -172,6 +206,36 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             break;
         case VRGameplayMenuOpt::e_2HVirtualStockFactor:
             adjustF(vr_2h_virtual_stock_factor, 0.05f, 0.f, 1.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight:
+            adjustI(vr_wpn_pos_weight, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeightOffset:
+            adjustF(vr_wpn_pos_weight_offset, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeightMult:
+            adjustF(vr_wpn_pos_weight_mult, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight2HHelpOffset:
+            adjustF(vr_wpn_pos_weight_2h_help_offset, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnPosWeight2HHelpMult:
+            adjustF(vr_wpn_pos_weight_2h_help_mult, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight:
+            adjustI(vr_wpn_dir_weight, 1, 0, 1);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeightOffset:
+            adjustF(vr_wpn_dir_weight_offset, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeightMult:
+            adjustF(vr_wpn_dir_weight_mult, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight2HHelpOffset:
+            adjustF(vr_wpn_dir_weight_2h_help_offset, 0.125f, 0.125f, 5.f);
+            break;
+        case VRGameplayMenuOpt::e_WpnDirWeight2HHelpMult:
+            adjustF(vr_wpn_dir_weight_2h_help_mult, 0.125f, 0.125f, 5.f);
             break;
         default: assert(false); break;
     }
@@ -249,7 +313,11 @@ void M_VRGameplay_Draw()
         "Body-Item Interactions", "Movement Speed", "Speed Button Multiplier",
         "Room-Scale Move Mult.", "Teleportation", "Teleport Range", "2H Aiming",
         "2H Aiming Threshold", "2H Virtual Stock Dist.", "Shoulder Offset X",
-        "Shoulder Offset Y", "Shoulder Offset Z", "2H Virtual Stock Factor");
+        "Shoulder Offset Y", "Shoulder Offset Z", "2H Virtual Stock Factor",
+        "Weighted Weapon Move", "W. Weapon Move Off.", "W. Weapon Move Mult",
+        "W. W. Move 2H Help Off.", "W. W. Move 2H Help Mult",
+        "Weighted Weapon Turn", "W. Weapon Turn Off.", "W. Weapon Turn Mult",
+        "W. W. Turn 2H Help Off.", "W. W. Turn 2H Help Mult");
 
     static_assert(adjustedLabels.size() == (int)VRGameplayMenuOpt::k_Max);
 

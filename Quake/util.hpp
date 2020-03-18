@@ -3,9 +3,7 @@
 #include "debugapi.h"
 #include "q_stdinc.hpp"
 #include "cvar.hpp"
-
-#define GLM_FORCE_INLINE
-#include <glm.hpp>
+#include "quakeglm.hpp"
 
 #include <array>
 #include <string>
@@ -63,35 +61,10 @@ namespace quake::util
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
     }
 
-    template <typename T>
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3 toVec3(
-        const T& v) noexcept
-    {
-        return {v[0], v[1], v[2]};
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr const glm::vec3& toVec3(
-        const glm::vec3& v) noexcept
-    {
-        return v;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3& toVec3(
-        glm::vec3& v) noexcept
-    {
-        return v;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE constexpr glm::vec3&& toVec3(
-        glm::vec3&& v) noexcept
-    {
-        return std::move(v);
-    }
-
     template <typename... Ts>
     [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
     {
-        constexpr auto maxLen = 25;
+        constexpr auto maxLen = 26;
 
         assert(((strlen(labels) <= maxLen) && ...));
         return std::array{
@@ -137,14 +110,13 @@ namespace quake::util
     }
 
     [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
-        const glm::vec3& xup, const glm::vec3& dir)
+        const glm::vec3& up, const glm::vec3& dir)
     {
         // From: https://stackoverflow.com/a/21627251/598696
 
         const auto pitch = safeAsin(dir[2]);
         const auto yaw = safeAtan2(dir[1], dir[0]);
 
-        const auto up = toVec3(xup);
         const auto w0 = glm::vec3{-dir[1], dir[0], 0};
         const auto u0 = glm::cross(w0, dir);
 

@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.h
 
 #include <math.h>
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 // matches value in gcc v2 math.h

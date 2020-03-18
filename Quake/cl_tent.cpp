@@ -135,7 +135,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 20, 30);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
 
@@ -143,7 +143,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 226, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
 
@@ -151,7 +151,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
             if(rand() % 5)
             {
                 S_StartSound(-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -177,7 +177,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 20);
 
             if(rand() % 5)
             {
@@ -205,7 +205,7 @@ void CL_ParseTEnt()
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, {0.f, 0.f, 0.f}, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
             break;
 
         case TE_EXPLOSION: // rocket explosion
@@ -382,7 +382,7 @@ void CL_UpdateTEnts()
         glm::vec3 org;
         org = b->start;
         float d = glm::length(dist);
-        dist = glm::normalize(dist);
+        dist = safeNormalize(dist);
         while(d > 0)
         {
 

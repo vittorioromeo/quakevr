@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_PROTOCOL_H
 #define _QUAKE_PROTOCOL_H
 
-#include "glm.hpp"
+#include "quakeglm.hpp"
 
 // protocol.h -- communications protocols
 

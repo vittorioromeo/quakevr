@@ -24,16 +24,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
+#include "quakeglm.hpp"
 
 #include <algorithm>
 #include <random>
 #include <utility>
 #include <array>
-
-#define GLM_FORCE_INLINE
-#include <glm.hpp>
-#include <gtx/rotate_vector.hpp>
-#include <gtc/type_ptr.hpp>
 
 #define MAX_PARTICLES \
     4096 // default max # of particles at one
@@ -1654,10 +1650,6 @@ void R_DrawParticles()
 
     using namespace quake::util;
 
-    const auto glmUp = toVec3(up);
-    const auto glmRight = toVec3(right);
-    const auto glmROrigin = toVec3(r_origin);
-
     // TODO VR: this could be optimized a lot
     // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
@@ -1682,11 +1674,11 @@ void R_DrawParticles()
 
             glColor4ubv(color);
 
-            const auto xFwd = p.org - glmROrigin;
+            const auto xFwd = p.org - r_origin;
 
             // TODO VR: `glm::rotate` is the bottleneck in debug mode (!)
-            const auto xUp = glm::rotate(glmUp, p.angle, xFwd);
-            const auto xRight = glm::rotate(glmRight, p.angle, xFwd);
+            const auto xUp = glm::rotate(up, p.angle, xFwd);
+            const auto xRight = glm::rotate(right, p.angle, xFwd);
 
             const auto halfScale = p.scale / 2.f;
             const auto xLeft = -xRight;

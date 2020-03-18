@@ -84,7 +84,7 @@ realcheck:
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
     stop[2] = start[2] - 2 * STEPSIZE;
-    trace = SV_Move(start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, ent);
+    trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
 
     if(trace.fraction == 1.0)
     {
@@ -100,8 +100,7 @@ realcheck:
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-            trace = SV_Move(
-                start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, ent);
+            trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
 
             if(trace.fraction != 1.0 && trace.endpos[2] > bottom)
             {
@@ -166,10 +165,8 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
                     neworg[2] += 8;
                 }
             }
-            trace = SV_Move(quake::util::toVec3(ent->v.origin),
-                quake::util::toVec3(ent->v.mins),
-                quake::util::toVec3(ent->v.maxs), quake::util::toVec3(neworg),
-                false, ent);
+            trace = SV_Move(
+                ent->v.origin, ent->v.mins, ent->v.maxs, neworg, false, ent);
 
             if(trace.fraction == 1)
             {
@@ -201,9 +198,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     end = neworg;
     end[2] -= STEPSIZE * 2;
 
-    trace = SV_Move(quake::util::toVec3(neworg),
-        quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
-        quake::util::toVec3(end), false, ent);
+    trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
 
     if(trace.allsolid)
     {
@@ -213,9 +208,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     if(trace.startsolid)
     {
         neworg[2] -= STEPSIZE;
-        trace = SV_Move(quake::util::toVec3(neworg),
-            quake::util::toVec3(ent->v.mins), quake::util::toVec3(ent->v.maxs),
-            quake::util::toVec3(end), false, ent);
+        trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
         if(trace.allsolid || trace.startsolid)
         {
             return false;
