@@ -1391,8 +1391,21 @@ void SetHandPos(int index, entity_t* player)
     // handrot is set with AngleVectorFromRotMat
 
     // handvel
-    cl.handvel[index] =
-        (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
+    cl.handvel[index] = controllers[index].velocity;
+
+    // TODO VR: cleanup and fix
+    if(vr_wpn_pos_weight.value == 1)
+    {
+        const auto weaponWeight =
+            index == 0 ? 1.f
+                       : VR_GetWeaponWeightPosFactor(currWpnCVarEntry, 1.f);
+
+        cl.handvel[index] *= weaponWeight;
+    }
+
+    // TODO VR: doesn't work due to collision resolution with wall, it jumps up
+    // cl.handvel[index] = (cl.handpos[index] - lastPlayerTranslation) -
+    // oldHandpos;
 
     if(vr_gun_colliding_with_wall)
     {
