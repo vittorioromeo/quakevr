@@ -1045,7 +1045,7 @@ Used by the Scourge.
 void() ai_run_dodge =
 {
     local float    ofs;
-   local float newyaw;
+    local float newyaw;
 
 /*
 // attempt to jump over missiles

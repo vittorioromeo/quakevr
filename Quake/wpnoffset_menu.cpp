@@ -22,8 +22,8 @@ static void WpnOffset_MenuPlaySound(const char* sound, float fvol)
 
 static auto getCvars()
 {
-    const auto idx =
-        wpnoff_offhand ? VR_GetOffHandFistCvarEntry() : currWpnCVarEntry;
+    const auto idx = wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                                    : VR_GetMainHandWpnCvarEntry();
 
     // clang-format off
     return std::tie(

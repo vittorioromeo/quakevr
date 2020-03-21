@@ -204,11 +204,11 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] float VR_GetWpnCVarValue(
     const int cvarEntry, WpnCVar setting) noexcept;
 
-[[nodiscard]] int VR_GetOffHandFistCvarEntry() noexcept;
+[[nodiscard]] int& VR_GetMainHandWpnCvarEntry() noexcept;
+
+[[nodiscard]] int& VR_GetOffHandWpnCvarEntry() noexcept;
 
 [[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept;
-
-extern int currWpnCVarEntry;
 
 //
 //

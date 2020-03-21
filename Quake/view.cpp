@@ -994,7 +994,7 @@ void V_CalcRefdef()
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(currWpnCVarEntry, view, cl.handrot[1]);
+    CalcGunAngle(VR_GetMainHandWpnCvarEntry(), view, cl.handrot[1]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -1126,7 +1126,7 @@ void V_CalcRefdef2Test()
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(VR_GetOffHandFistCvarEntry(), view, cl.handrot[0]);
+    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), view, cl.handrot[0]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
