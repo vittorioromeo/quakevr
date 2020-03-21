@@ -1326,6 +1326,9 @@ void SetHandPos(int index, entity_t* player)
 
     const auto oldHandpos = cl.handpos[index];
 
+    const glm::vec3 lastPlayerTranslation =
+        gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
+
     // Weight stuff
     // TODO VR: adjust weight and add cvar, fix movement
     if(vr_wpn_pos_weight.value == 1)
@@ -1336,24 +1339,21 @@ void SetHandPos(int index, entity_t* player)
                        : VR_GetWeaponWeightPosFactor(
                              currWpnCVarEntry, vr_2h_aim_transition);
 
-        const glm::vec3 lastPlayerTranslation =
-            gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
-
         const float frametime = cl.time - cl.oldtime;
         const auto ftw = (weaponWeight * frametime) * 100.f;
 
         const auto rotate_point = [](const glm::vec2& center, const float angle,
-            glm::vec2 p) {
-                // translate point back to origin:
-                p -= center;
+                                      glm::vec2 p) {
+            // translate point back to origin:
+            p -= center;
 
-                // rotate point
-                const float s = std::sin(angle);
-                const float c = std::cos(angle);
-                const glm::vec2 rotated{ p.x * c - p.y * s, p.x * s + p.y * c };
+            // rotate point
+            const float s = std::sin(angle);
+            const float c = std::cos(angle);
+            const glm::vec2 rotated{p.x * c - p.y * s, p.x * s + p.y * c};
 
-                // translate point back
-                return rotated + center;
+            // translate point back
+            return rotated + center;
         };
 
         const auto oldadjxy = rotate_point(
@@ -1372,17 +1372,6 @@ void SetHandPos(int index, entity_t* player)
         // rotating it is noticeable
         cl.handpos[index] +=
             diffWithNew + (lastPlayerTranslation * (1.f - ftw)) - diffWithOld;
-
-        if(vr_gun_colliding_with_wall)
-        {
-            for(int i = 0; i < 3; ++i)
-            {
-                if(vr_gun_colliding_with_wall_normals[i])
-                {
-                    cl.handpos[index][i] = finalVec[i];
-                }
-            }
-        }
     }
     else
     {
@@ -1402,7 +1391,19 @@ void SetHandPos(int index, entity_t* player)
     // handrot is set with AngleVectorFromRotMat
 
     // handvel
-    cl.handvel[index] = cl.handpos[index] - oldHandpos;
+    cl.handvel[index] =
+        (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
+
+    if(vr_gun_colliding_with_wall)
+    {
+        for(int i = 0; i < 3; ++i)
+        {
+            if(vr_gun_colliding_with_wall_normals[i])
+            {
+                cl.handpos[index][i] = finalVec[i];
+            }
+        }
+    }
 
     // handvelmag
     // VR: This helps direct punches being registered. This calculation works
@@ -1410,11 +1411,11 @@ void SetHandPos(int index, entity_t* player)
     // the player is looking).
     // TODO VR: this still needs to be oriented to the headset's rotation,
     // otherwise diagonal punches will still not register.
-    const auto length = glm::length(controllers[index].velocity);
-    const auto bestSingle = std::max({std::abs(controllers[index].velocity[0]),
-                                std::abs(controllers[index].velocity[1]),
-                                std::abs(controllers[index].velocity[2])}) *
-                            1.75f;
+    const auto length = glm::length(cl.handvel[index]);
+    const auto bestSingle =
+        std::max({std::abs(cl.handvel[index][0]),
+            std::abs(cl.handvel[index][1]), std::abs(cl.handvel[index][2])}) *
+        1.75f;
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
@@ -2726,6 +2727,7 @@ void VR_Move(usercmd_t* cmd)
     cmd->handpos = cl.handpos[1];
     cmd->handrot = cl.handrot[1];
     cmd->handvel = cl.handvel[1];
+    Con_Printf("handvelmag: %.2f\n", cl.handvelmag[1]);
     cmd->handvelmag = cl.handvelmag[1];
 
     // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`.
