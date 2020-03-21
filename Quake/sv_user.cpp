@@ -92,8 +92,7 @@ void SV_SetIdealPitch()
         bottom[1] = top[1];
         bottom[2] = top[2] - 160;
 
-        tr = SV_Move(
-            top, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, bottom, 1, sv_player);
+        tr = SV_Move(top, vec3_zero, vec3_zero, bottom, 1, sv_player);
         if(tr.allsolid)
         {
             return; // looking at a wall, leave ideal the way is was
@@ -174,8 +173,7 @@ void SV_UserFriction()
     start[2] = (*origin)[2] + sv_player->v.mins[2];
     stop[2] = start[2] - 34;
 
-    trace =
-        SV_Move(start, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, stop, true, sv_player);
+    trace = SV_Move(start, vec3_zero, vec3_zero, stop, true, sv_player);
 
     if(trace.fraction == 1.0)
     {
@@ -270,7 +268,7 @@ void DropPunchAngle()
         len = 0;
     }
 
-    VectorScale(sv_player->v.punchangle, len, sv_player->v.punchangle);
+    sv_player->v.punchangle *= len;
 }
 
 /*
@@ -296,7 +294,8 @@ void SV_WaterMove()
     //
     // user intentions
     //
-    AngleVectors(sv_player->v.v_angle, forward, right, up);
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(sv_player->v.v_angle);
 
     for(i = 0; i < 3; i++)
     {
@@ -315,7 +314,7 @@ void SV_WaterMove()
     wishspeed = glm::length(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
-        VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
+        wishvel *= sv_maxspeed.value / wishspeed;
         wishspeed = sv_maxspeed.value;
     }
     wishspeed *= 0.7;
@@ -331,7 +330,8 @@ void SV_WaterMove()
         {
             newspeed = 0;
         }
-        VectorScale(*velocity, newspeed / speed, *velocity);
+
+        *velocity *= newspeed / speed;
     }
     else
     {
@@ -385,7 +385,8 @@ new, alternate noclip. old noclip is still handled in SV_AirMove
 */
 void SV_NoclipMove()
 {
-    AngleVectors(sv_player->v.v_angle, forward, right, up);
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(sv_player->v.v_angle);
 
     (*velocity)[0] = forward[0] * cmd.forwardmove + right[0] * cmd.sidemove;
     (*velocity)[1] = forward[1] * cmd.forwardmove + right[1] * cmd.sidemove;
@@ -395,7 +396,7 @@ void SV_NoclipMove()
     if(glm::length(*velocity) > sv_maxspeed.value)
     {
         *velocity = safeNormalize(*velocity);
-        VectorScale(*velocity, sv_maxspeed.value, *velocity);
+        *velocity *= sv_maxspeed.value;
     }
 }
 
@@ -406,9 +407,8 @@ SV_AirMove
 */
 void SV_AirMove()
 {
-
-
-    AngleVectors(sv_player->v.v_viewangle, forward, right, up);
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(sv_player->v.v_viewangle);
 
     float fmove = cmd.forwardmove;
     const float smove = cmd.sidemove;
@@ -440,7 +440,7 @@ void SV_AirMove()
     const auto wishdir = safeNormalize(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
-        VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
+        wishvel *= sv_maxspeed.value / wishspeed;
         wishspeed = sv_maxspeed.value;
     }
 
@@ -627,6 +627,7 @@ void SV_ReadClientMove(usercmd_t* move)
     bits = MSG_ReadByte();
     host_client->edict->v.button0 = bits & 1;
     host_client->edict->v.button2 = (bits & 2) >> 1;
+    host_client->edict->v.button3 = (bits & 4) >> 2;
 
     i = MSG_ReadByte();
     if(i)

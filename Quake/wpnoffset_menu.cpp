@@ -16,7 +16,7 @@ static void WpnOffset_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* const sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, vec3_zero, fvol, 1);
     }
 }
 
@@ -44,7 +44,8 @@ static auto getCvars()
         VR_GetWpnCVar(idx, WpnCVar::TwoHYaw),
         VR_GetWpnCVar(idx, WpnCVar::TwoHRoll),
         VR_GetWpnCVar(idx, WpnCVar::TwoHMode),
-        VR_GetWpnCVar(idx, WpnCVar::Length)
+        VR_GetWpnCVar(idx, WpnCVar::Length),
+        VR_GetWpnCVar(idx, WpnCVar::Weight)
     );
     // clang-format on
 }
@@ -65,7 +66,7 @@ static void WpnOffset_MenuPrintOptionValue(
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len] = getCvars();
+        thry, thrr, thmode, len, wgh] = getCvars();
 
     switch(option)
     {
@@ -106,6 +107,7 @@ static void WpnOffset_MenuPrintOptionValue(
             break;
         }
         case WpnOffsetMenuOpt::Length: printAsStr(len); break;
+        case WpnOffsetMenuOpt::Weight: printAsStr(wgh); break;
         default: assert(false); break;
     }
 }
@@ -117,13 +119,16 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
     const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len] = getCvars();
+        thry, thrr, thmode, len, wgh] = getCvars();
 
-    const float oInc = in_speed.state ? 5.f : 0.1f;
+    const float oInc = vr_menu_mult == 2 ? 1.5f : 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = in_speed.state ? 5.f : 0.5f;
+    const float rInc = vr_menu_mult == 2 ? 1.5f : 0.1f;
     constexpr float rBound = 90.f;
+
+    const float wInc = vr_menu_mult == 2 ? 1.5f : 0.01f;
+    constexpr float wBound = 1.f;
 
     switch(option)
     {
@@ -169,9 +174,8 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
             adjustF(thrr, rInc, -rBound, rBound);
             break;
         case WpnOffsetMenuOpt::TwoHMode: adjustI(thmode, 1, 0, 2); break;
-        case WpnOffsetMenuOpt::Length:
-            adjustF(len, oInc, -oBound, oBound);
-            break;
+        case WpnOffsetMenuOpt::Length: adjustF(len, oInc, 0.f, oBound); break;
+        case WpnOffsetMenuOpt::Weight: adjustF(wgh, wInc, 0.f, wBound); break;
         default: assert(false); break;
     }
 }
@@ -252,7 +256,7 @@ void M_WpnOffset_Draw()
         "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
         "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z",
         "2H Offset X", "2H Offset Y", "2H Offset Z", "2H Aim Pitch",
-        "2H Aim Yaw", "2H Aim Roll", "2H Mode", "Gun Length");
+        "2H Aim Yaw", "2H Aim Roll", "2H Mode", "Gun Length", "Gun Weight");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 

@@ -8,6 +8,7 @@ entity nullentity;
 entity bulletholes;
 entity lastbullet;
 float numbulletholes;
+float lastbulletholeroll;
 
 //added update stat message
 float SVC_UPDATESTAT = 3;

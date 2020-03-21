@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "util.hpp"
 
+struct qmodel_t;
+
 int num_temp_entities;
 entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
 beam_t cl_beams[MAX_BEAMS];
@@ -59,7 +61,7 @@ void CL_InitTEnts()
 CL_ParseBeam
 =================
 */
-void CL_ParseBeam(qmodel_t* m)
+beam_t* CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
 
@@ -86,7 +88,7 @@ void CL_ParseBeam(qmodel_t* m)
             b->endtime = cl.time + 0.2;
             b->start = start;
             b->end = end;
-            return;
+            return b;
         }
     }
 
@@ -100,7 +102,7 @@ void CL_ParseBeam(qmodel_t* m)
             b->endtime = cl.time + 0.2;
             b->start = start;
             b->end = end;
-            return;
+            return b;
         }
     }
 
@@ -112,6 +114,8 @@ void CL_ParseBeam(qmodel_t* m)
         dev_overflows.beams = realtime;
     }
     // johnfitz
+
+    return nullptr;
 }
 
 /*
@@ -132,26 +136,31 @@ void CL_ParseTEnt()
     switch(type)
     {
         case TE_WIZSPIKE: // spike hitting wall
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 20, 30);
+            R_RunParticleEffect_BulletPuff(pos, vec3_zero, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
+        }
 
         case TE_KNIGHTSPIKE: // spike hitting wall
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 226, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_zero, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
+        }
 
         case TE_SPIKE: // spike hitting wall
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             if(rand() % 5)
             {
                 S_StartSound(-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -173,11 +182,14 @@ void CL_ParseTEnt()
                 }
             }
             break;
+        }
+
         case TE_SUPERSPIKE: // super spike hitting wall
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 20);
+            R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 20);
 
             if(rand() % 5)
             {
@@ -200,15 +212,19 @@ void CL_ParseTEnt()
                 }
             }
             break;
+        }
 
         case TE_GUNSHOT: // bullet hitting wall
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
-            R_RunParticleEffect_BulletPuff(pos, vec3_origin, 0, 10);
+            R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             break;
+        }
 
         case TE_EXPLOSION: // rocket explosion
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
@@ -220,8 +236,10 @@ void CL_ParseTEnt()
             dl->decay = 300;
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
             break;
+        }
 
         case TE_TAREXPLOSION: // tarbaby explosion
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
@@ -229,40 +247,80 @@ void CL_ParseTEnt()
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
             break;
+        }
 
-        case TE_LIGHTNING1: // lightning bolts
-            CL_ParseBeam(Mod_ForName("progs/bolt.mdl", true));
-            break;
+        case TE_LIGHTNING1: // lightning bolts (shambler)
+        {
+            if(beam_t* b = CL_ParseBeam(Mod_ForName("progs/bolt.mdl", true)))
+            {
+                b->spin = true;
+            }
 
-        case TE_LIGHTNING2: // lightning bolts
-            CL_ParseBeam(Mod_ForName("progs/bolt2.mdl", true));
             break;
+        }
 
-        case TE_LIGHTNING3: // lightning bolts
-            CL_ParseBeam(Mod_ForName("progs/bolt3.mdl", true));
+        case TE_LIGHTNING2: // lightning bolts (lighting gun, mjolnir, gremlin)
+        {
+            qmodel_t* model = Mod_ForName("progs/bolt2.mdl", true);
+            auto* hdr = (aliashdr_t*)Mod_Extradata(model);
+            hdr->scale_origin = hdr->original_scale_origin * 0.5f;
+            hdr->scale = hdr->original_scale * 0.5f;
+
+            if(beam_t* b = CL_ParseBeam(model))
+            {
+                b->spin = true;
+            }
+
             break;
+        }
+
+        case TE_LIGHTNING3: // lightning bolts (boss)
+        {
+            if(beam_t* b = CL_ParseBeam(Mod_ForName("progs/bolt3.mdl", true)))
+            {
+                b->spin = true;
+            }
+
+            break;
+        }
 
             // PGM 01/21/97
         case TE_BEAM: // grappling hook beam
-            CL_ParseBeam(Mod_ForName("progs/beam.mdl", true));
+        {
+            qmodel_t* model = Mod_ForName("progs/beam.mdl", true);
+            auto* hdr = (aliashdr_t*)Mod_Extradata(model);
+            hdr->scale_origin = hdr->original_scale_origin * 0.5f;
+            hdr->scale = hdr->original_scale * 0.5f;
+
+            if(beam_t* b = CL_ParseBeam(model))
+            {
+                b->spin = false;
+            }
+
             break;
+        }
             // PGM 01/21/97
 
         case TE_LAVASPLASH:
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
             R_LavaSplash(pos);
             break;
+        }
 
         case TE_TELEPORT:
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
             R_TeleportSplash(pos);
             break;
+        }
 
         case TE_EXPLOSION2: // color mapped explosion
+        {
             pos[0] = MSG_ReadCoord(cl.protocolflags);
             pos[1] = MSG_ReadCoord(cl.protocolflags);
             pos[2] = MSG_ReadCoord(cl.protocolflags);
@@ -278,6 +336,7 @@ void CL_ParseTEnt()
             dl->decay = 300;
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
             break;
+        }
 
         default: Sys_Error("CL_ParseTEnt: bad type");
     }
@@ -344,8 +403,7 @@ void CL_UpdateTEnts()
         }
 
         // calculate pitch and yaw
-        glm::vec3 dist;
-        VectorSubtract(b->end, b->start, dist);
+        glm::vec3 dist = b->end - b->start;
 
         float pitch;
         float yaw;
@@ -383,27 +441,33 @@ void CL_UpdateTEnts()
         org = b->start;
         float d = glm::length(dist);
         dist = safeNormalize(dist);
+
+        auto* hdr = (aliashdr_t*)Mod_Extradata(b->model);
+        const auto scaleRatioX = hdr->scale[0] / hdr->original_scale[0];
+        const float incr = 30.f * scaleRatioX;
+
         while(d > 0)
         {
-
             entity_t* ent = CL_NewTempEntity();
             if(!ent)
             {
                 return;
             }
+
             ent->origin = org;
             ent->model = b->model;
             ent->angles[0] = pitch;
             ent->angles[1] = yaw;
-            ent->angles[2] = rand() % 360;
+            ent->angles[2] = b->spin ? rand() % 360 : 0;
 
             // johnfitz -- use j instead of using i twice, so we don't corrupt
             // memory
             for(int j = 0; j < 3; j++)
             {
-                org[j] += dist[j] * 30;
+                org[j] += dist[j] * incr;
             }
-            d -= 30;
+
+            d -= incr;
         }
     }
 }

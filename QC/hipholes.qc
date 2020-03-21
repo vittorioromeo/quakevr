@@ -40,6 +40,7 @@ void() InitBulletHoles =
    bulletholes = nullentity;
    lastbullet = nullentity;
    numbulletholes = 0;
+   lastbulletholeroll = 0;
    };
 
 void() remove_bullethole =
@@ -72,42 +73,53 @@ void() remove_bullethole =
 
 void( vector pos ) placebullethole =
 {
-   local entity new;
-   local entity ent;
-   local vector norm;
+    local entity new;
+    local entity ent;
+    local vector norm;
 
-   new = spawn();
-   new.owner = new;
-   new.movetype = MOVETYPE_NONE;
-   new.solid = SOLID_NOT;
-   new.classname = "bullethole";
-   setmodel( new, "progs/s_bullet.spr" );
-   setsize (new, '0 0 0', '0 0 0');
+    new = spawn();
+    new.owner = new;
+    new.movetype = MOVETYPE_NONE;
+    new.solid = SOLID_NOT;
+    new.classname = "bullethole";
+    setmodel( new, "progs/s_bullet.spr" );
+    setsize (new, '0 0 0', '0 0 0');
 
-   norm = trace_plane_normal;
-   norm_x = 0 - norm_x;
-   norm_y = 0 - norm_y;
-   new.angles = vectoangles( norm );
-   makevectors(self.angles);
-   setorigin( new, pos - ( v_forward * 0.2 ) );
+    norm = trace_plane_normal;
+    norm_x = 0 - norm_x;
+    norm_y = 0 - norm_y;
+    new.angles = vectoangles( norm );
+    new.angles_z = lastbulletholeroll;
 
-   new.think = remove_bullethole;
-   new.nextthink = time + 300;
+    lastbulletholeroll = lastbulletholeroll + 35 + 15 * random();
 
-   numbulletholes = numbulletholes + 1;
-   if ( numbulletholes > 10 )
-      {
-      remove_bullethole();
-      }
+    if(lastbulletholeroll > 360)
+    {
+       lastbulletholeroll = 0;
+    }
 
-   if ( lastbullet != nullentity )
-      {
-      lastbullet.lastvictim = new;
-      }
-   else
-      {
-      bulletholes = new;
-      }
-   new.lastvictim = nullentity;
-   lastbullet = new;
-   };
+    makevectors(self.angles);
+    setorigin( new, pos - ( v_forward * (0.03 + new.angles_z / 450) ) );
+        // try to avoid z-fighting for overlapping sprites
+
+    new.think = remove_bullethole;
+    new.nextthink = time + 250 + (150 * random());
+
+    numbulletholes = numbulletholes + 1;
+    if ( numbulletholes > 64 )
+    {
+        remove_bullethole();
+    }
+
+    if ( lastbullet != nullentity )
+    {
+        lastbullet.lastvictim = new;
+    }
+    else
+    {
+        bulletholes = new;
+    }
+
+    new.lastvictim = nullentity;
+    lastbullet = new;
+};

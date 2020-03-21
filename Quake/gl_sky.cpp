@@ -391,11 +391,8 @@ update sky bounds
 void Sky_ProjectPoly(int nump, vec3_t vecs)
 {
     int i;
-
     int j;
-    vec3_t v;
 
-    vec3_t av;
     float s;
 
     float t;
@@ -405,11 +402,13 @@ void Sky_ProjectPoly(int nump, vec3_t vecs)
     float* vp;
 
     // decide which face it maps to
-    VectorCopy(vec3_origin, v);
+    glm::vec3 v = vec3_zero;
     for(i = 0, vp = vecs; i < nump; i++, vp += 3)
     {
         VectorAdd(vp, v, v);
     }
+
+    glm::vec3 av;
     av[0] = fabs(v[0]);
     av[1] = fabs(v[1]);
     av[2] = fabs(v[2]);
@@ -714,18 +713,15 @@ void Sky_ProcessEntities()
             continue;
         }
 
-        VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
+        modelorg = r_refdef.vieworg - e->origin;
         if(e->angles[0] || e->angles[1] || e->angles[2])
         {
             rotated = true;
 
-            const auto [xforward, xright, xup] =
+            std::tie(forward, right, up) =
                 quake::util::getAngledVectors(e->angles);
-            forward = xforward;
-            right = xright;
-            up = xup;
 
-            VectorCopy(modelorg, temp);
+            temp = modelorg;
             modelorg[0] = DotProduct(temp, forward);
             modelorg[1] = -DotProduct(temp, right);
             modelorg[2] = DotProduct(temp, up);
@@ -1125,15 +1121,15 @@ void Sky_DrawFace(int axis)
             }
 
             // if (i&1 ^ j&1) continue; //checkerboard test
-            VectorScale(vright, qi * i, temp);
-            VectorScale(vup, qj * j, temp2);
-            VectorAdd(temp, temp2, temp);
+            temp = vright * (qi * i);
+            temp2 = vup * (qj * j);
+            temp += temp2;
             VectorAdd(verts[0], temp, p->verts[0]);
 
-            VectorScale(vup, qj, temp);
+            temp = vup * qj;
             VectorAdd(p->verts[0], temp, p->verts[1]);
 
-            VectorScale(vright, qi, temp);
+            temp = vright * qi;
             VectorAdd(p->verts[1], temp, p->verts[2]);
 
             VectorAdd(p->verts[0], temp, p->verts[3]);

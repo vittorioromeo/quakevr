@@ -146,6 +146,26 @@ EVENT MESSAGES
 =============================================================================
 */
 
+static void writeCommonParticleData(const glm::vec3& org, const glm::vec3& dir)
+{
+    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    for(int i = 0; i < 3; i++)
+    {
+        int v = dir[i] * 16;
+        if(v > 127)
+        {
+            v = 127;
+        }
+        else if(v < -128)
+        {
+            v = -128;
+        }
+        MSG_WriteChar(&sv.datagram, v);
+    }
+}
+
 /*
 ==================
 SV_StartParticle
@@ -162,27 +182,11 @@ void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
     }
 
     MSG_WriteByte(&sv.datagram, svc_particle);
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(int i = 0; i < 3; i++)
-    {
-        int v = dir[i] * 16;
-        if(v > 127)
-        {
-            v = 127;
-        }
-        else if(v < -128)
-        {
-            v = -128;
-        }
-        MSG_WriteChar(&sv.datagram, v);
-    }
+    writeCommonParticleData(org, dir);
     MSG_WriteByte(&sv.datagram, count);
     MSG_WriteByte(&sv.datagram, color);
 }
 
-// TODO VR: repetition with above
 /*
 ==================
 SV_StartParticle2
@@ -199,22 +203,7 @@ void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
     }
 
     MSG_WriteByte(&sv.datagram, svc_particle2);
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(int i = 0; i < 3; i++)
-    {
-        int v = dir[i] * 16;
-        if(v > 127)
-        {
-            v = 127;
-        }
-        else if(v < -128)
-        {
-            v = -128;
-        }
-        MSG_WriteChar(&sv.datagram, v);
-    }
+    writeCommonParticleData(org, dir);
     MSG_WriteByte(&sv.datagram, preset);
     MSG_WriteShort(&sv.datagram, count);
 }

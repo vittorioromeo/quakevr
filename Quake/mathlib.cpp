@@ -32,10 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
 #define DEG2RAD(a) ((a)*M_PI_DIV_180) // johnfitz
 
-void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
+glm::vec3 ProjectPointOnPlane(const glm::vec3& p, const glm::vec3& normal)
 {
     float d;
-    vec3_t n;
+    glm::vec3 n;
     float inv_denom;
 
     inv_denom = 1.0F / DotProduct(normal, normal);
@@ -46,9 +46,11 @@ void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
     n[1] = normal[1] * inv_denom;
     n[2] = normal[2] * inv_denom;
 
+    glm::vec3 dst;
     dst[0] = p[0] - d * n[0];
     dst[1] = p[1] - d * n[1];
     dst[2] = p[2] - d * n[2];
+    return dst;
 }
 
 /*-----------------------------------------------------------------*/
@@ -211,7 +213,7 @@ int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
     return res;
 }
 
-vec_t VectorLength(vec3_t v)
+float VectorLength(vec3_t v)
 {
     return sqrt(DotProduct(v, v));
 }
@@ -320,4 +322,3 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
     out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] +
                 in1[2][2] * in2[2][3] + in1[2][3];
 }
-

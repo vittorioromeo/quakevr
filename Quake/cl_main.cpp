@@ -944,7 +944,6 @@ void CL_Init()
     Cmd_AddCommand("playdemo", CL_PlayDemo_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);
 
-    // TODO VR:
     Cmd_AddCommand("tracepos", [] { CL_Tracepos_f(r_refdef); }); // johnfitz
     Cmd_AddCommand("viewpos", [] { CL_Viewpos_f(r_refdef); });   // johnfitz
 }

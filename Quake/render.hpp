@@ -68,7 +68,7 @@ typedef struct entity_s
     glm::vec3 origin;
     glm::vec3 msg_angles[2]; // last two updates (0 is newest)
     glm::vec3 angles;
-    struct qmodel_s* model; // nullptr = no model
+    qmodel_t* model; // nullptr = no model
     struct efrag_s* efrag;  // linked list of efrags
     int frame;
     float syncbase; // for client-side animations
@@ -164,8 +164,6 @@ void R_NewMap(void);
 
 void R_ParseParticleEffect(void);
 void R_ParseParticle2Effect(void);
-void R_RunParticleEffect(
-    const glm::vec3& org, const glm::vec3& dir, int color, int count);
 void R_RunParticle2Effect(
     const glm::vec3& org, const glm::vec3& dir, int preset, int count);
 void R_RunParticleEffect_BulletPuff(

@@ -352,9 +352,19 @@ void() worldspawn =
     precache_model ("progs/hand.mdl");
     precache_sound ("fisthit.wav");        // ax hit world
 
+    // ROGUE
     // PGM addition
     precache_model ("progs/mervup.mdl");
     // TODO VR: rogue...
+
+    // ROGUE
+//ZOID--
+    // hook for CTF
+    precache_model ("progs/hook.mdl");
+//    precache_model ("progs/v_grpple.mdl");
+//    precache_model ("progs/bit.mdl");
+//--ZOID
+
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
@@ -467,6 +477,6 @@ void(entity ent) CopyToBodyQue =
     bodyque_head = bodyque_head.owner;
 };
 
-// TODO VR ideas:
+// TODO VR: ideas:
 // * monster variants
 // * chance to spawn hipnotic monsters in normal quake

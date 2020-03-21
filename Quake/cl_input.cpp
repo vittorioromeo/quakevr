@@ -55,7 +55,7 @@ state bit 2 is edge triggered on the down to up transition
 kbutton_t in_mlook, in_klook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack;
+kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack;
 kbutton_t in_up, in_down;
 
 int in_impulse;
@@ -269,6 +269,15 @@ void IN_AttackDown()
 void IN_AttackUp()
 {
     KeyUp(&in_attack);
+}
+
+void IN_OffHandAttackDown()
+{
+    KeyDown(&in_offhandattack);
+}
+void IN_OffHandAttackUp()
+{
+    KeyUp(&in_offhandattack);
 }
 
 void IN_UseDown()
@@ -588,6 +597,12 @@ void CL_SendMove(const usercmd_t* cmd)
     }
     in_jump.state &= ~2;
 
+    if(in_offhandattack.state & 3)
+    {
+        bits |= 4;
+    }
+    in_offhandattack.state &= ~2;
+
     MSG_WriteByte(&buf, bits);
 
     MSG_WriteByte(&buf, in_impulse);
@@ -650,6 +665,8 @@ void CL_InitInput()
     Cmd_AddCommand("-speed", IN_SpeedUp);
     Cmd_AddCommand("+attack", IN_AttackDown);
     Cmd_AddCommand("-attack", IN_AttackUp);
+    Cmd_AddCommand("+offhandattack", IN_OffHandAttackDown);
+    Cmd_AddCommand("-offhandattack", IN_OffHandAttackUp);
     Cmd_AddCommand("+use", IN_UseDown);
     Cmd_AddCommand("-use", IN_UseUp);
     Cmd_AddCommand("+jump", IN_JumpDown);

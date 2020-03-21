@@ -24,7 +24,7 @@ static void VR_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, vec3_zero, fvol, 1);
     }
 }
 
@@ -184,6 +184,8 @@ static void VR_MenuPrintOptionValue(int cx, int cy, VRMenuOpt option)
             value_string = r_particles.value == 0 ? "Off" : "On";
             break;
         case VRMenuOpt::VR_PARTICLE_MULT: printAsStr(r_particle_mult); break;
+        case VRMenuOpt::VR_OFFHANDPITCH: printAsStr(vr_offhandpitch); break;
+        case VRMenuOpt::VR_OFFHANDYAW: printAsStr(vr_offhandyaw); break;
         default: assert(false); break;
     }
 
@@ -291,6 +293,12 @@ static void M_VR_KeyOption(int key, VRMenuOpt option)
         case VRMenuOpt::VR_PARTICLE_MULT:
             adjustF(r_particle_mult, 0.25f, 0.25f, 10.f);
             break;
+        case VRMenuOpt::VR_OFFHANDPITCH:
+            adjustF(vr_offhandpitch, 0.25f, -90.f, 90.f);
+            break;
+        case VRMenuOpt::VR_OFFHANDYAW:
+            adjustF(vr_offhandyaw, 0.25f, -90.f, 90.f);
+            break;
         default: assert(false); break;
     }
 
@@ -369,7 +377,8 @@ void M_VR_Draw()
         "Floor Offset", "Gun Model Pitch", "Gun Model Scale",
         "Gun Model Z Offset", "Crosshair Z Offset", "HUD Scale", "Menu Scale",
         "Gun Yaw", "Gun Z Offset", "Status Bar Mode", "Viewkick",
-        "Menu Distance", "Particle Effects", "Particle Multiplier");
+        "Menu Distance", "Particle Effects", "Particle Multiplier",
+        "Off-Hand Pitch", "Off-Hand Yaw");
 
     static_assert(adjustedLabels.size() == (int)VRMenuOpt::VR_MAX);
 

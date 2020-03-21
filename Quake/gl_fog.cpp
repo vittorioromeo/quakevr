@@ -352,11 +352,9 @@ called before drawing stuff that is additive blended -- sets fog color to black
 */
 void Fog_StartAdditive()
 {
-    const glm::vec3 color{0, 0, 0};
-
     if(Fog_GetDensity() > 0)
     {
-        glFogfv(GL_FOG_COLOR, glm::value_ptr(color));
+        glFogfv(GL_FOG_COLOR, glm::value_ptr(vec3_zero));
     }
 }
 

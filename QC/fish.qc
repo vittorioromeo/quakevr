@@ -193,6 +193,7 @@ void() monster_fish =
 
     setmodel (self, "progs/fish.mdl");
 
+    // TODO VR: tweak hitbox
     setsize (self, '-16 -16 -24', '16 16 24');
     self.health = 25;
 

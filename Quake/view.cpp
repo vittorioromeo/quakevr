@@ -79,8 +79,8 @@ float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 extern int in_forward, in_forward2, in_back;
 
 glm::vec3 v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
-                         // current, 1 is previous value. never the same unless
-                         // map just loaded
+                            // current, 1 is previous value. never the same
+                            // unless map just loaded
 
 
 
@@ -164,7 +164,7 @@ float V_CalcBob()
     bob = sqrt(cl.velocity[0] * cl.velocity[0] +
                cl.velocity[1] * cl.velocity[1]) *
           cl_bob.value;
-    // Con_Printf ("speed: %5.1f\n", VectorLength(cl.velocity));
+    // Con_Printf ("speed: %5.1f\n", glm::length(cl.velocity));
     bob = bob * 0.3 + bob * 0.7 * sin(cycle);
     if(bob > 4)
     {
@@ -386,7 +386,8 @@ void V_ParseDamage()
         from -= ent->origin;
         from = glm::normalize(from);
 
-        const auto [forward, right, up] = quake::util::getAngledVectors(ent->angles);
+        const auto [forward, right, up] =
+            quake::util::getAngledVectors(ent->angles);
 
         side = DotProduct(from, right);
         v_dmg_roll = count * side * v_kickroll.value;
@@ -897,7 +898,8 @@ void V_CalcIntermissionRefdef()
     {
         r_refdef.viewangles[PITCH] = 0;
         r_refdef.aimangles = r_refdef.viewangles;
-        r_refdef.viewangles = VR_AddOrientationToViewAngles(r_refdef.viewangles);
+        r_refdef.viewangles =
+            VR_AddOrientationToViewAngles(r_refdef.viewangles);
         VR_SetAngles(r_refdef.viewangles);
     }
 
@@ -922,8 +924,8 @@ void V_CalcRefdef()
 
     float bob;
     static float oldz = 0;
-    static glm::vec3 punch = {0, 0, 0}; // johnfitz -- v_gunkick
-    float delta;                     // johnfitz -- v_gunkick
+    static glm::vec3 punch{vec3_zero}; // johnfitz -- v_gunkick
+    float delta;                       // johnfitz -- v_gunkick
 
     V_DriftPitch();
 
@@ -1002,9 +1004,8 @@ void V_CalcRefdef()
     }
     else
     {
-        VectorCopy(ent->origin, view->origin)
-
-            view->origin[2] += cl.viewheight;
+        view->origin = ent->origin;
+        view->origin[2] += cl.viewheight;
 
         for(i = 0; i < 3; i++)
         {
@@ -1077,6 +1078,7 @@ void V_CalcRefdef()
     }
     // johnfitz
 
+    // TODO VR: add to vr view?
     // smooth out stair step ups
     if(!noclip_anglehack && cl.onground &&
         ent->origin[2] - oldz > 0) // johnfitz -- added exception for noclip
@@ -1136,7 +1138,8 @@ void V_CalcRefdef2Test()
         // No off-hand without VR.
     }
 
-    view->model = Mod_ForName("progs/hand.mdl", true);
+    static qmodel_t* handModel = Mod_ForName("progs/hand.mdl", true);
+    view->model = handModel;
     view->frame = cl.stats[STAT_WEAPONFRAME];
     view->colormap = vid.colormap;
 

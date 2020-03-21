@@ -119,8 +119,9 @@ void R_DrawSpriteModel(entity_t* e)
 
     switch(psprite->type)
     {
-        case SPR_VP_PARALLEL_UPRIGHT: { // faces view plane, up is towards the
-                                       // heavens
+        case SPR_VP_PARALLEL_UPRIGHT:
+        { // faces view plane, up is towards the
+          // heavens
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
@@ -128,11 +129,12 @@ void R_DrawSpriteModel(entity_t* e)
             s_right = &vright;
             break;
         }
-        case SPR_FACING_UPRIGHT: { // faces camera origin, up is towards the
-                                  // heavens
+        case SPR_FACING_UPRIGHT:
+        { // faces camera origin, up is towards the
+          // heavens
             v_forward = currententity->origin - r_origin;
             v_forward[2] = 0;
-            VectorNormalizeFast(v_forward);
+            v_forward = safeNormalize(v_forward);
             v_right[0] = v_forward[1];
             v_right[1] = -v_forward[0];
             v_right[2] = 0;
@@ -143,14 +145,17 @@ void R_DrawSpriteModel(entity_t* e)
             s_right = &v_right;
             break;
         }
-        case SPR_VP_PARALLEL: { // faces view plane, up is towards the top of the
-                                // screen
+        case SPR_VP_PARALLEL:
+        { // faces view plane, up is towards the top of the
+          // screen
             s_up = &vup;
             s_right = &vright;
             break;
         }
-        case SPR_ORIENTED: { // pitch yaw roll are independent of camera
-            const auto [xv_forward, xv_right, xv_up] = quake::util::getAngledVectors(currententity->angles);
+        case SPR_ORIENTED:
+        { // pitch yaw roll are independent of camera
+            const auto [xv_forward, xv_right, xv_up] =
+                quake::util::getAngledVectors(currententity->angles);
 
             v_forward = xv_forward;
             v_right = xv_right;
@@ -160,7 +165,8 @@ void R_DrawSpriteModel(entity_t* e)
             s_right = &v_right;
             break;
         }
-        case SPR_VP_PARALLEL_ORIENTED: { // faces view plane, but obeys roll value
+        case SPR_VP_PARALLEL_ORIENTED:
+        { // faces view plane, but obeys roll value
             angle = currententity->angles[ROLL] * M_PI_DIV_180;
             sr = sin(angle);
             cr = cos(angle);
@@ -188,6 +194,8 @@ void R_DrawSpriteModel(entity_t* e)
     GL_DisableMultitexture();
 
     GL_Bind(frame->gltexture);
+
+    // TODO VR: this could be optimized to use a single draw call...
 
     glEnable(GL_ALPHA_TEST);
     glBegin(GL_TRIANGLE_FAN); // was GL_QUADS, but changed to support r_showtris

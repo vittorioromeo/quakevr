@@ -1,6 +1,7 @@
 
 // prototypes
 void () W_WeaponFrame;
+void () W_OffHandWeaponFrame;
 void() W_SetCurrentAmmo;
 void() player_pain;
 void() player_stand1;
@@ -585,6 +586,7 @@ void() PutClientInServer =
     W_SetCurrentAmmo ();
 
     self.attack_finished = time;
+    self.offhand_attack_finished = time;
     self.mainhand_melee_attack_finished = time;
     self.offhand_melee_attack_finished = time;
     self.th_pain = player_pain;
@@ -624,6 +626,11 @@ void() PutClientInServer =
         makevectors(self.angles);
         spawn_tfog (self.origin + v_forward*20);
     }
+
+    // ROGUE
+    //Grapple stuff
+    self.on_hook = FALSE;
+    self.hook_out = FALSE;
 
     spawn_tdeath (self.origin, self);
 };
@@ -1097,6 +1104,12 @@ void() PlayerPreThink =
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
     }
+
+    // Track the grapple
+    if (self.hook_out)
+    {
+        GrappleService();
+    }
 };
 
 /*
@@ -1370,6 +1383,7 @@ void() PlayerPostThink =
 
     PlayerVRMelee();
     W_WeaponFrame ();
+    W_OffHandWeaponFrame ();
 
 // check to see if player landed and play landing sound
     if ((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))

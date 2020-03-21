@@ -212,7 +212,54 @@ void()    player_axed2 =    [$axattd2, player_axed3    ] {self.weaponframe=6;};
 void()    player_axed3 =    [$axattd3, player_axed4    ] {self.weaponframe=7;W_FireAxe();};
 void()    player_axed4 =    [$axattd4, player_run    ] {self.weaponframe=8;};
 
+// ROGUE
+//============================================================================
+//ZOID--
+void() player_grapple3;
+void() player_grapple4;
+void() player_grapple5;
 
+// TODO VR: commented out weaponframe
+void()  player_grapple1 =  [$axattd1, player_grapple2 ]
+{
+    // self.weaponframe=1;
+    W_FireGrapple();
+};
+void()  player_grapple2 =  [$axattd2, player_grapple3 ]
+{
+    // self.weaponframe=2;
+};
+void()  player_grapple3 =  [$axattd3, player_grapple3 ]
+{
+    // self.weaponframe=2;
+    if (!self.hook_out) {
+            player_grapple5();
+            return;
+    }
+    if (vlen(self.hook.origin - self.origin) >= 50) {
+        if (self.on_hook) {
+            player_grapple4();
+            return;
+        }
+    }
+};
+void() player_grapple4 =  [$deathc4, player_grapple4 ]
+{
+    // self.weaponframe=2;
+    if (!self.hook_out) {
+        player_grapple5();
+        return;
+    }
+    if (vlen(self.hook.origin - self.origin) < 50 || !self.on_hook) {
+        player_grapple3();
+        return;
+    }
+};
+void()  player_grapple5 =  [$axattd4, player_run    ]
+{
+    // self.weaponframe=1;
+};
+//--ZOID
 //============================================================================
 
 void() player_nail1   =[$nailatt1, player_nail2  ]

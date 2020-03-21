@@ -505,7 +505,7 @@ void() monster_hell_knight =
 
     setmodel (self, "progs/hknight.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 28');
+    setsize (self, '-12 -12 -24', '12 12 36');
     self.health = 250;
 
     if (self.spawnflags & 2) // statue

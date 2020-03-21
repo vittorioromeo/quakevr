@@ -1067,7 +1067,8 @@ again:
 
 enum
 {
-    OPT_CONSOLE = 0,
+    OPT_CUSTOMIZE = 0,
+    OPT_CONSOLE,
     OPT_DEFAULTS,
     OPT_SCALE,
     OPT_SCRSIZE,
@@ -1324,6 +1325,8 @@ void M_Options_Draw()
     M_DrawPic((320 - p->width) / 2, 4, p);
 
     // Draw the items in the order of the enum defined above:
+    // OPT_CUSTOMIZE:
+    M_Print(16, 32, "              Controls");
     // OPT_CONSOLE:
     M_Print(16, 32 + 8 * OPT_CONSOLE, "          Goto console");
     // OPT_DEFAULTS:
@@ -1435,6 +1438,7 @@ void M_Options_Key(int k)
             m_entersound = true;
             switch(options_cursor)
             {
+                case OPT_CUSTOMIZE: M_Menu_Keys_f(); break;
                 case OPT_CONSOLE:
                     m_state = m_none;
                     Con_ToggleConsole_f();

@@ -123,13 +123,8 @@ typedef unsigned char byte;
 /*==========================================================================*/
 
 /* math */
-using vec_t = float;
-using vec3_t = vec_t[3];
-using vec4_t = vec_t[4];
-using vec5_t = vec_t[5];
-using fixed4_t = int;
+using vec3_t = float[3];
 using fixed8_t = int;
-using fixed16_t = int;
 
 
 /*==========================================================================*/

@@ -76,7 +76,7 @@ typedef struct
     int entnum;   /* to allow overriding a specific sound		*/
     int entchannel;
     glm::vec3 origin;   /* origin of sound effect			*/
-    vec_t dist_mult; /* distance multiplier (attenuation/clipK)	*/
+    float dist_mult; /* distance multiplier (attenuation/clipK)	*/
     int master_vol;  /* 0-255 master volume				*/
 } channel_t;
 

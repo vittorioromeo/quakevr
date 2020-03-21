@@ -106,6 +106,7 @@ typedef struct
 	float	button0;
 	float	button1;
 	float	button2;
+	float	button3;
 	float	impulse;
 	float	fixangle;
 	vec3_t	v_angle;
@@ -154,4 +155,4 @@ typedef struct
 	vec3_t	teleport_target;
 } entvars_t;
 
-#define PROGHEADER_CRC 59939
+#define PROGHEADER_CRC 49612

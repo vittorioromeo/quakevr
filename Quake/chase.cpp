@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // chase.c -- chase camera code
 
 #include "quakedef.hpp"
+#include "mathlib.hpp"
 #include "util.hpp"
 
 cvar_t chase_back = {"chase_back", "100", CVAR_NONE};
@@ -66,7 +67,7 @@ TODO: impact on bmodels, monsters
     trace_t trace;
     memset(&trace, 0, sizeof(trace));
 
-    trace = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, ent);
+    trace = SV_Move(start, vec3_zero, vec3_zero, end, MOVE_NORMAL, ent);
 
     return trace;
 }

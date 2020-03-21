@@ -332,7 +332,7 @@ void() monster_knight =
 
     setmodel (self, "progs/knight.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 24');
+    setsize (self, '-12 -12 -24', '12 12 26');
     self.health = 75;
 
     if (self.spawnflags & 2) // statue

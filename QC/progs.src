@@ -7,6 +7,10 @@ fight.qc
 ai.qc
 combat.qc
 items.qc
+
+// ROGUE
+grapple.qc
+
 weapons.qc
 world.qc
 client.qc
@@ -35,6 +39,7 @@ shalrath.qc  // registered
 enforcer.qc  // registered
 oldone.qc  // registered
 
+// HIPNOTIC
 // Hipnotic Quake additions
 
 hipsubs.qc
@@ -63,4 +68,5 @@ hipdecoy.qc
 // Rogue Quake additions
 
 mult_wpn.qc
+
 

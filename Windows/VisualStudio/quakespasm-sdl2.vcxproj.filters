@@ -488,6 +488,9 @@
     <ClInclude Include="..\..\Quake\vrgameplay_menu.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Quake\quakeglm.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\QuakeSpasm.rc">

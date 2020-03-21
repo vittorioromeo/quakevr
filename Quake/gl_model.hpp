@@ -424,7 +424,7 @@ typedef enum
          // brighter
 // johnfitz
 
-typedef struct qmodel_s
+struct qmodel_t
 {
     char name[MAX_QPATH];
     unsigned int path_id; // path id of the game directory
@@ -518,7 +518,7 @@ typedef struct qmodel_s
     //
     cache_user_t cache; // only access through Mod_Extradata
 
-} qmodel_t;
+};
 
 //============================================================================
 

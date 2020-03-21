@@ -1016,8 +1016,8 @@ void() item_key1 =
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY1;
-    // TODO VR: smaller size
-    setsize (self, '-16 -16 -24', '16 16 32');
+
+    setsize (self, '-8 -8 -24', '8 8 32');
     StartItem ();
 };
 
@@ -1055,8 +1055,8 @@ void() item_key2 =
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY2;
-    // TODO VR: smaller size
-    setsize (self, '-16 -16 -24', '16 16 32');
+
+    setsize (self, '-8 -8 -24', '8 8 32');
     StartItem ();
 };
 
@@ -1128,8 +1128,8 @@ void() item_sigil =
     }
 
     self.handtouch = sigil_touch;
-    // TODO VR: smaller size
-    setsize (self, '-16 -16 -24', '16 16 32');
+
+    setsize (self, '-8 -8 -24', '8 8 32');
     StartItem ();
 };
 

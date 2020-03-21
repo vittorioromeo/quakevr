@@ -85,9 +85,7 @@ Caches the data if needed
 */
 void* Mod_Extradata(qmodel_t* mod)
 {
-    void* r;
-
-    r = Cache_Check(&mod->cache);
+    void* r = Cache_Check(&mod->cache);
     if(r)
     {
         return r;
@@ -425,27 +423,21 @@ Loads in a model for the given name
 */
 qmodel_t* Mod_ForName(const char* name, bool crash)
 {
-    qmodel_t* mod;
-
-    mod = Mod_FindName(name);
-
-    return Mod_LoadModel(mod, crash);
+    return Mod_LoadModel(Mod_FindName(name), crash);
 }
 
 // TODO VR:
 qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback)
 {
-    qmodel_t* const r = Mod_ForName(name, false /* crash */);
-
-    if(r == nullptr)
+    if(qmodel_t* const r = Mod_ForName(name, false /* crash */))
     {
-        Host_Warn(
-            "Mod_LoadModel: %s not found, falling back to %s", name, fallback);
-
-        return Mod_ForName(fallback, true);
+        return r;
     }
 
-    return r;
+    Host_Warn(
+        "Mod_LoadModel: %s not found, falling back to %s", name, fallback);
+
+    return Mod_ForName(fallback, true);
 }
 
 
@@ -1332,11 +1324,13 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 
         if(lindex > 0)
         {
-            vec = glm::value_ptr(loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
+            vec = glm::value_ptr(
+                loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
         }
         else
         {
-            vec = glm::value_ptr(loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
+            vec = glm::value_ptr(
+                loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
         }
         VectorCopy(vec, verts[numverts]);
         numverts++;
@@ -2632,8 +2626,8 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
                            // the actual world
         {
             // start with the hull0 bounds
-            VectorCopy(mod->maxs, mod->clipmaxs);
-            VectorCopy(mod->mins, mod->clipmins);
+            mod->clipmaxs = mod->maxs;
+            mod->clipmins = mod->mins;
 
             // process hull1 (we don't need to process hull2 becuase
             // there's no such thing as a brush that appears in hull2
@@ -3020,20 +3014,12 @@ nonrotated, yawrotated, and fullrotated cases
 */
 void Mod_CalcAliasBounds(aliashdr_t* a)
 {
-    int i;
-
-    int j;
-
-    int k;
-    float dist;
-
     float yawradius;
-
     float radius;
-    vec3_t v;
+    glm::vec3 v;
 
     // clear out all data
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         loadmodel->mins[i] = loadmodel->ymins[i] = loadmodel->rmins[i] = 999999;
         loadmodel->maxs[i] = loadmodel->ymaxs[i] = loadmodel->rmaxs[i] =
@@ -3042,22 +3028,22 @@ void Mod_CalcAliasBounds(aliashdr_t* a)
     }
 
     // process verts
-    for(i = 0; i < a->numposes; i++)
+    for(int i = 0; i < a->numposes; i++)
     {
-        for(j = 0; j < a->numverts; j++)
+        for(int j = 0; j < a->numverts; j++)
         {
-            for(k = 0; k < 3; k++)
+            for(int k = 0; k < 3; k++)
             {
                 v[k] = poseverts[i][j].v[k] * pheader->scale[k] +
                        pheader->scale_origin[k];
             }
 
-            for(k = 0; k < 3; k++)
+            for(int k = 0; k < 3; k++)
             {
                 loadmodel->mins[k] = q_min(loadmodel->mins[k], v[k]);
                 loadmodel->maxs[k] = q_max(loadmodel->maxs[k], v[k]);
             }
-            dist = v[0] * v[0] + v[1] * v[1];
+            float dist = v[0] * v[0] + v[1] * v[1];
             if(yawradius < dist)
             {
                 yawradius = dist;

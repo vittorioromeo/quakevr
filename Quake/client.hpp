@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NAME_LENGTH 64
 #define SIGNONS 4      // signon messages to receive before connected
 #define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 32   // johnfitz -- was 24
+#define MAX_BEAMS 64   // johnfitz -- was 24
 #define MAX_MAPSTRING 2048
 #define MAX_DEMOS 8
 #define MAX_DEMONAME 16
@@ -89,9 +89,10 @@ struct dlight_t
 typedef struct
 {
     int entity;
-    struct qmodel_s* model;
+    qmodel_t* model;
     float endtime;
     glm::vec3 start, end;
+    bool spin{true};
 } beam_t;
 
 
@@ -217,7 +218,7 @@ struct client_state_t
     //
     // information that is static for the entire time connected to a server
     //
-    struct qmodel_s* model_precache[MAX_MODELS];
+    qmodel_t* model_precache[MAX_MODELS];
     struct sfx_s* sound_precache[MAX_SOUNDS];
 
     char mapname[128];
@@ -227,7 +228,7 @@ struct client_state_t
     int gametype;
 
     // refresh related state
-    struct qmodel_s* worldmodel; // cl_entitites[0].model
+    qmodel_t* worldmodel; // cl_entitites[0].model
     struct efrag_s* free_efrags;
     int num_efrags;
     int num_entities;         // held in cl_entities array

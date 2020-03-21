@@ -385,16 +385,7 @@ void SV_TouchLinks(edict_t* ent)
     int listcount = 0;
     SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
 
-    for(int i = 0; i < listcount; i++)
-    {
-        edict_t* target = list[i]; // thing that's being touched
-        // re-validate in case of PR_ExecuteProgram having side effects that
-        // make edicts later in the list no longer touch
-        if(target == ent)
-        {
-            continue;
-        }
-
+    const auto doTouch = [](edict_t* ent, edict_t* target) {
         const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
                                   target->v.solid == SOLID_TRIGGER;
 
@@ -402,7 +393,7 @@ void SV_TouchLinks(edict_t* ent)
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
                 target->v.absmin, target->v.absmax))
         {
-            continue;
+            return;
         }
 
         const int old_self = pr_global_struct->self;
@@ -424,19 +415,9 @@ void SV_TouchLinks(edict_t* ent)
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;
-    }
+    };
 
-    // TODO VR: code repetition with above, also a hack (checks for player...)
-    for(int i = 0; i < listcount; i++)
-    {
-        edict_t* target = list[i]; // thing that's being touched
-        // re-validate in case of PR_ExecuteProgram having side effects that
-        // make edicts later in the list no longer touch
-        if(target == ent || ent != sv_player /* TODO VR: hack */)
-        {
-            continue;
-        }
-
+    const auto doHandtouch = [](edict_t* ent, edict_t* target) {
         // Add some size to the hands.
         const glm::vec3 offsets{1.f, 1.f, 1.f};
 
@@ -464,7 +445,7 @@ void SV_TouchLinks(edict_t* ent)
 
         if(!canBeHandTouched || !anyIntersection)
         {
-            continue;
+            return;
         }
 
         const int old_self = pr_global_struct->self;
@@ -488,6 +469,24 @@ void SV_TouchLinks(edict_t* ent)
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;
+    };
+
+    for(int i = 0; i < listcount; i++)
+    {
+        edict_t* target = list[i]; // thing that's being touched
+        // re-validate in case of PR_ExecuteProgram having side effects that
+        // make edicts later in the list no longer touch
+
+        if(target != ent)
+        {
+            doTouch(ent, target);
+
+            // TODO VR: hack
+            if(ent == sv_player)
+            {
+                doHandtouch(ent, target);
+            }
+        }
     }
 
     // free hunk-allocated edicts array
@@ -911,7 +910,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     }
     else
     {
-        trace->plane.normal = vec3_origin - plane->normal;
+        trace->plane.normal = vec3_zero - plane->normal;
         trace->plane.dist = -plane->dist;
     }
 

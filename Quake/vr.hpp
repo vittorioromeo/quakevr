@@ -277,3 +277,8 @@ extern cvar_t vr_wpn_dir_weight_offset;
 extern cvar_t vr_wpn_dir_weight_mult;
 extern cvar_t vr_wpn_dir_weight_2h_help_offset;
 extern cvar_t vr_wpn_dir_weight_2h_help_mult;
+extern cvar_t vr_offhandpitch;
+extern cvar_t vr_offhandyaw;
+
+// TODO VR:
+extern float vr_menu_mult;

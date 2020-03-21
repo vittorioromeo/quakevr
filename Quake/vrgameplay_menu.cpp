@@ -16,7 +16,7 @@ static void VRGameplay_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, vec3_zero, fvol, 1);
     }
 }
 
@@ -211,31 +211,31 @@ static void M_VRGameplay_KeyOption(int key, VRGameplayMenuOpt option)
             adjustI(vr_wpn_pos_weight, 1, 0, 1);
             break;
         case VRGameplayMenuOpt::e_WpnPosWeightOffset:
-            adjustF(vr_wpn_pos_weight_offset, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_pos_weight_offset, 0.05f, 0.05f, 1.f);
             break;
         case VRGameplayMenuOpt::e_WpnPosWeightMult:
-            adjustF(vr_wpn_pos_weight_mult, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_pos_weight_mult, 0.1f, -5.f, 5.f);
             break;
         case VRGameplayMenuOpt::e_WpnPosWeight2HHelpOffset:
-            adjustF(vr_wpn_pos_weight_2h_help_offset, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_pos_weight_2h_help_offset, 0.05f, 0.05f, 1.f);
             break;
         case VRGameplayMenuOpt::e_WpnPosWeight2HHelpMult:
-            adjustF(vr_wpn_pos_weight_2h_help_mult, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_pos_weight_2h_help_mult, 0.1f, -5.f, 5.f);
             break;
         case VRGameplayMenuOpt::e_WpnDirWeight:
             adjustI(vr_wpn_dir_weight, 1, 0, 1);
             break;
         case VRGameplayMenuOpt::e_WpnDirWeightOffset:
-            adjustF(vr_wpn_dir_weight_offset, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_dir_weight_offset, 0.05f, 0.05f, 1.f);
             break;
         case VRGameplayMenuOpt::e_WpnDirWeightMult:
-            adjustF(vr_wpn_dir_weight_mult, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_dir_weight_mult, 0.1f, -5.f, 5.f);
             break;
         case VRGameplayMenuOpt::e_WpnDirWeight2HHelpOffset:
-            adjustF(vr_wpn_dir_weight_2h_help_offset, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_dir_weight_2h_help_offset, 0.05f, 0.05f, 1.f);
             break;
         case VRGameplayMenuOpt::e_WpnDirWeight2HHelpMult:
-            adjustF(vr_wpn_dir_weight_2h_help_mult, 0.125f, 0.125f, 5.f);
+            adjustF(vr_wpn_dir_weight_2h_help_mult, 0.1f, -5.f, 5.f);
             break;
         default: assert(false); break;
     }

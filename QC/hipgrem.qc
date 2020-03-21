@@ -988,7 +988,7 @@ void() GremlinDropBackpack =
     item.solid = SOLID_TRIGGER;
     item.movetype = MOVETYPE_TOSS;
     setmodel (item, "progs/backpack.mdl");
-    setsize (item, '-16 -16 0', '16 16 56');
+    setsize (item, '-8 -8 0', '8 8 24');
     item.touch = BackpackTouch;
 
     item.nextthink = time + 120;    // remove after 2 minutes
@@ -1538,7 +1538,7 @@ void() monster_gremlin =
 
    setmodel (self, "progs/grem.mdl");
 
-   setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+   setsize (self, '-12 -12 -18', '12 12 18');
    self.health = 100;
    self.max_health = 101;
    self.yaw_speed = 40;
@@ -1745,7 +1745,7 @@ void() Gremlin_Split =
    grem.solid = SOLID_SLIDEBOX;
    grem.movetype = MOVETYPE_STEP;
    setmodel (grem, "progs/grem.mdl");
-   setsize (grem, VEC_HULL_MIN, VEC_HULL_MAX);
+   setsize (grem, '-12 -12 -18', '12 12 18');
    if (self.health < 100) self.health = 100;
    grem.health = self.health / 2;
    self.health = self.health / 2;

@@ -45,6 +45,15 @@
                 {
                     "inputs": {
                         "click": {
+                            "output": "/actions/default/in/FireOffHand"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/left/input/trigger"
+                },
+                {
+                    "inputs": {
+                        "click": {
                             "output": "/actions/default/in/Jump"
                         }
                     },
@@ -85,7 +94,7 @@
                         }
                     },
                     "mode": "button",
-                    "path": "/user/hand/left/input/trigger"
+                    "path": "/user/hand/left/input/thumbstick"
                 }
             ]
         }

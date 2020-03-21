@@ -428,13 +428,13 @@ spatializes a channel
 */
 void SND_Spatialize(channel_t* ch)
 {
-    vec_t dot;
-    vec_t dist;
-    vec_t lscale;
+    float dot;
+    float dist;
+    float lscale;
 
-    vec_t rscale;
+    float rscale;
 
-    vec_t scale;
+    float scale;
     glm::vec3 source_vec;
 
     // anything coming from the view entity will always be full volume

@@ -154,6 +154,7 @@ void        end_sys_globals;        // flag for structure dumping
 .float        button0;        // fire
 .float        button1;        // use
 .float        button2;        // jump
+.float        button3;        // off-hand fire
 
 .float        impulse;        // weapon changes
 
@@ -500,6 +501,7 @@ float    AS_MISSILE        = 4;
 .float        walkframe;
 
 .float         attack_finished;
+.float         offhand_attack_finished;
 .float         mainhand_melee_attack_finished;
 .float         offhand_melee_attack_finished;
 .float        in_melee;
@@ -715,6 +717,8 @@ void(entity e) setspawnparms        = #78;        // set parm1... to the
 void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
 float(float base, float exp) pow = #80; // power function
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #81; // VR haptics function
+float(float a, float b) min = #82;
+float(float a, float b) max = #83;
 
 //============================================================================
 

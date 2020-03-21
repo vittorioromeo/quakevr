@@ -166,7 +166,7 @@ void Host_EndGame(const char* message, ...)
 ================
 Host_Warn
 
-TODO VR
+Prints a warning without shutting down
 ================
 */
 void Host_Warn(const char* error, ...)

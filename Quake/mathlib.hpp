@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct mplane_s;
 
-inline constexpr glm::vec3 vec3_origin{0.f, 0.f, 0.f};
+inline constexpr glm::vec3 vec3_zero{0.f, 0.f, 0.f};
 
 #define nanmask (255 << 23) /* 7F800000 */
 #if 0                       /* macro is violating strict aliasing rules */
@@ -81,49 +81,23 @@ static inline int IS_NAN(float x)
         b[2] = a[2];     \
     }
 
-// johnfitz -- courtesy of lordhavoc
-// QuakeSpasm: To avoid strict aliasing violations, use a float/int union
-// instead of type punning.
-#define VectorNormalizeFast(_v)                                      \
-    {                                                                \
-        union                                                        \
-        {                                                            \
-            float f;                                                 \
-            int i;                                                   \
-        } _y, _number;                                               \
-        _number.f = DotProduct(_v, _v);                              \
-        if(_number.f != 0.0)                                         \
-        {                                                            \
-            _y.i = 0x5f3759df - (_number.i >> 1);                    \
-            _y.f = _y.f * (1.5f - (_number.f * 0.5f * _y.f * _y.f)); \
-            VectorScale(_v, _y.f, _v);                               \
-        }                                                            \
-    }
-
-[[nodiscard ]] inline glm::vec3 safeNormalize(const glm::vec3& in)
+[[nodiscard]] inline glm::vec3 safeNormalize(const glm::vec3& in)
 {
     const auto length = glm::length(in);
     return length != 0.f ? in / length : in;
 }
 
-[[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept; // johnfitz
+[[nodiscard]] glm::vec3 VectorAngles(
+    const glm::vec3& forward) noexcept; // johnfitz
 
-vec_t VectorLength(vec3_t v);
-
-template <typename T>
-void VectorScale(const T& in, const float scale, glm::vec3& out)
-{
-    out[0] = in[0] * scale;
-    out[1] = in[1] * scale;
-    out[2] = in[2] * scale;
-}
+float VectorLength(vec3_t v);
 
 [[nodiscard]] glm::mat3 R_ConcatRotations(
     const glm::mat3& in1, const glm::mat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
 
-template <typename T>
-void AngleVectors(const T& angles, T& forward, T& right, T& up)
+inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward, glm::vec3& right,
+    glm::vec3& up) noexcept  
 {
     float angle = angles[YAW] * (M_PI * 2 / 360);
     assert(!std::isnan(angle));
@@ -159,14 +133,14 @@ void AngleVectors(const T& angles, T& forward, T& right, T& up)
     up[2] = cr * cp;
 }
 
-int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, struct mplane_s* plane);
+int BoxOnPlaneSide(
+    const glm::vec3& emins, const glm::vec3& emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
 [[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;
 [[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept;
 [[nodiscard]] glm::mat3 CreateRotMat(
     const int axis, const float angle) noexcept;
-void CreateRotMat(int axis, float angle, vec3_t mat[3]);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)                                    \
     (((p)->type < 3) ? (((p)->dist <= (emins)[(p)->type])                     \

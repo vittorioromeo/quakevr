@@ -69,19 +69,19 @@ enum ptype_t : std::uint8_t
 // TODO VR: optimize layout?
 struct particle_t
 {
-    glm::vec3 org; // driver-usable field
-    glm::vec3 vel; // drivers never touches this field
-    glm::vec3 acc; // TODO VR: driver?
+    glm::vec3 org;
+    glm::vec3 vel;
+    glm::vec3 acc;
 
-    float color; // driver-usable field
-    float ramp;  // drivers never touches this field
-    float die;   // drivers never touches this field
-    float scale; // TODO VR: driver?
-    float alpha; // TODO VR: use?
-    float angle; // TODO VR: use?
+    float color;
+    float ramp;
+    float die;
+    float scale;
+    float alpha;
+    float angle;
 
-    ptype_t type;        // drivers never touches this field
-    std::uint8_t param0; // TODO VR: use?
+    ptype_t type;
+    std::uint8_t param0;
 };
 
 class ParticleBuffer
@@ -628,7 +628,7 @@ void R_ReadPointFile_f()
             p.scale = 1.f;
             setAccGrav(p);
 
-            p.vel = vec3_origin;
+            p.vel = vec3_zero;
             p.org = org;
         });
     }
@@ -661,7 +661,7 @@ void R_ParseParticleEffect()
     const int msgcount = MSG_ReadByte();
     const int color = MSG_ReadByte();
 
-    R_RunParticleEffect(org, dir, color, msgcount);
+    R_RunParticleEffect_BulletPuff(org, dir, color, msgcount);
 }
 
 /*
@@ -1071,18 +1071,6 @@ void R_RunParticleEffect_Teleport(
 
 /*
 ===============
-R_RunParticleEffect
-===============
-*/
-void R_RunParticleEffect(
-    const glm::vec3& org, const glm::vec3& dir, int color, int count)
-{
-    // TODO VR: add way to change types
-    R_RunParticleEffect_BulletPuff(org, dir, color, count);
-}
-
-/*
-===============
 R_RunParticle2Effect
 ===============
 */
@@ -1308,7 +1296,7 @@ static void R_SetRTCommon(particle_t& p)
     p.alpha = 255;
     p.scale = 0.7f;
     setAccGrav(p, 0.05f);
-    p.vel = vec3_origin;
+    p.vel = vec3_zero;
     p.die = cl.time + 2;
 }
 

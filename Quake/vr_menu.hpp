@@ -29,6 +29,8 @@ enum class VRMenuOpt
     VR_MENU_DISTANCE,
     VR_PARTICLES,
     VR_PARTICLE_MULT,
+    VR_OFFHANDPITCH,
+    VR_OFFHANDYAW,
 
     VR_MAX
 };

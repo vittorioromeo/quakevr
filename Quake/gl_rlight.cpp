@@ -94,17 +94,12 @@ void AddLightBlend(float r, float g, float b, float a2)
 
 void R_RenderDlight(dlight_t* light)
 {
-    int i;
-
-    int j;
     float a;
-    vec3_t v;
-    float rad;
 
-    rad = light->radius * 0.35;
+    float rad = light->radius * 0.35;
 
-    VectorSubtract(light->origin, r_origin, v);
-    if(VectorLength(v) < rad)
+    glm::vec3 v = light->origin - r_origin;
+    if(glm::length(v) < rad)
     { // view is inside the dlight
         AddLightBlend(1, 0.5, 0, light->radius * 0.0003);
         return;
@@ -112,21 +107,21 @@ void R_RenderDlight(dlight_t* light)
 
     glBegin(GL_TRIANGLE_FAN);
     glColor3f(0.2, 0.1, 0.0);
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         v[i] = light->origin[i] - vpn[i] * rad;
     }
-    glVertex3fv(v);
+    glVertex3fv(glm::value_ptr(v));
     glColor3f(0, 0, 0);
-    for(i = 16; i >= 0; i--)
+    for(int i = 16; i >= 0; i--)
     {
         a = i / 16.0 * M_PI * 2;
-        for(j = 0; j < 3; j++)
+        for(int j = 0; j < 3; j++)
         {
             v[j] = light->origin[j] + vright[j] * cos(a) * rad +
                    vup[j] * sin(a) * rad;
         }
-        glVertex3fv(v);
+        glVertex3fv(glm::value_ptr(v));
     }
     glEnd();
 }
@@ -194,7 +189,6 @@ void R_MarkLights(dlight_t* light, int num, mnode_t* node)
 
     float l;
 
-    float maxdist;
     int j;
 
     int s;
@@ -202,7 +196,6 @@ void R_MarkLights(dlight_t* light, int num, mnode_t* node)
     int t;
 
 start:
-
     if(node->contents < 0)
     {
         return;
@@ -229,7 +222,7 @@ start:
         goto start;
     }
 
-    maxdist = light->radius * light->radius;
+    float maxdist = light->radius * light->radius;
     // mark the polygons
     surf = cl.worldmodel->surfaces + node->firstsurface;
     for(unsigned int i = 0; i < node->numsurfaces; i++, surf++)

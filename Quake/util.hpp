@@ -3,6 +3,7 @@
 #include "debugapi.h"
 #include "q_stdinc.hpp"
 #include "cvar.hpp"
+#include "mathlib.hpp"
 #include "quakeglm.hpp"
 
 #include <array>
@@ -25,9 +26,7 @@
 #endif
 #endif
 
-// TODO VR:
-template <typename T>
-void AngleVectors(const T& angles, T& forward, T& right, T& up);
+extern float vr_menu_mult;
 
 namespace quake::util
 {
@@ -73,8 +72,9 @@ namespace quake::util
 
     template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
         typename TVec3BMax>
-    [[nodiscard]] constexpr bool boxIntersection(const TVec3AMin& aMin,
-        const TVec3AMax& aMax, const TVec3BMin& bMin, const TVec3BMax& bMax)
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE bool boxIntersection(
+        const TVec3AMin& aMin, const TVec3AMax& aMax, const TVec3BMin& bMin,
+        const TVec3BMax& bMax)
     {
         return aMin[0] <= bMax[0] && //
                aMin[1] <= bMax[1] && //
@@ -84,13 +84,14 @@ namespace quake::util
                aMax[2] >= bMin[2];
     }
 
-    [[nodiscard]] inline double lerp(double a, double b, double f) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE double lerp(
+        double a, double b, double f) noexcept
     {
         return (a * (1.0 - f)) + (b * f);
     }
 
     template <typename T>
-    [[nodiscard]] constexpr inline auto safeAsin(const T x) noexcept
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE auto safeAsin(const T x) noexcept
     {
         assert(!std::isnan(x));
         assert(x >= T(-1));
@@ -100,7 +101,8 @@ namespace quake::util
     }
 
     template <typename T>
-    [[nodiscard]] constexpr inline auto safeAtan2(const T y, const T x) noexcept
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE auto safeAtan2(
+        const T y, const T x) noexcept
     {
         assert(!std::isnan(y));
         assert(!std::isnan(x));
@@ -135,26 +137,18 @@ namespace quake::util
         return res;
     }
 
-    struct GlmAngledVectors
-    {
-        glm::vec3 _forward;
-        glm::vec3 _right;
-        glm::vec3 _up;
-    };
-
-    [[nodiscard]] inline GlmAngledVectors getAngledVectors(
-        const glm::vec3& v)
+    [[nodiscard]] QUAKE_FORCEINLINE std::tuple<glm::vec3, glm::vec3, glm::vec3>
+    getAngledVectors(const glm::vec3& v)
     {
         glm::vec3 forward, right, up;
         AngleVectors(v, forward, right, up);
-
-        return {forward, right, up};
+        return std::tuple{forward, right, up};
     }
 
-    [[nodiscard]] inline glm::vec3 getDirectionVectorFromPitchYawRoll(
-        const glm::vec3& v)
+    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3
+    getDirectionVectorFromPitchYawRoll(const glm::vec3& v)
     {
-        return getAngledVectors(v)._forward;
+        return std::get<0>(getAngledVectors(v));
     }
 
     template <typename T>
@@ -162,8 +156,10 @@ namespace quake::util
     {
         return [isLeft](
                    const cvar_t& cvar, const T incr, const T min, const T max) {
-            const auto newVal =
-                static_cast<T>(isLeft ? cvar.value - incr : cvar.value + incr);
+            const T adjIncr = incr * static_cast<T>(vr_menu_mult);
+
+            const auto newVal = static_cast<T>(
+                isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
             const auto res = static_cast<T>(std::clamp(newVal, min, max));
 
             Cvar_SetValue(cvar.name, res);
@@ -171,9 +167,9 @@ namespace quake::util
     }
 
     template <typename T>
-    [[nodiscard]] bool hitSomething(const T& trace) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE bool hitSomething(const T& trace) noexcept
     {
-        return trace.fraction < 1.0f;
+        return trace.fraction < 1.f;
     }
 } // namespace quake::util
 

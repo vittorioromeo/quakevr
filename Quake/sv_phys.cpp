@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // sv_phys.c
- 
+
 #include "fwd.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
@@ -310,7 +310,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         if(trace.allsolid)
         { // entity is trapped in another solid
-            ent->v.velocity = vec3_origin;
+            ent->v.velocity = vec3_zero;
             return 3;
         }
 
@@ -369,7 +369,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         // cliped to another plane
         if(numplanes >= MAX_CLIP_PLANES)
         { // this shouldn't really happen
-            ent->v.velocity = vec3_origin;
+            ent->v.velocity = vec3_zero;
             return 3;
         }
 
@@ -409,13 +409,13 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             {
                 //				Con_Printf ("clip velocity, numplanes ==
                 //%i\n",numplanes);
-                ent->v.velocity = vec3_origin;
+                ent->v.velocity = vec3_zero;
                 return 7;
             }
 
             const auto dir = glm::cross(planes[0], planes[1]);
             const float d = DotProduct(dir, ent->v.velocity);
-            VectorScale(dir, d, ent->v.velocity);
+            ent->v.velocity = dir * d;
         }
 
         //
@@ -424,7 +424,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         //
         if(DotProduct(ent->v.velocity, primal_velocity) <= 0)
         {
-            ent->v.velocity = vec3_origin;
+            ent->v.velocity = vec3_zero;
             return blocked;
         }
     }
@@ -821,9 +821,6 @@ SV_WallFriction
 */
 void SV_WallFriction(edict_t* ent, trace_t* trace)
 {
-    glm::vec3 into;
-    glm::vec3 side;
-
     const auto [forward, right, up] =
         quake::util::getAngledVectors(ent->v.v_angle);
 
@@ -837,8 +834,8 @@ void SV_WallFriction(edict_t* ent, trace_t* trace)
 
     // cut the tangential velocity
     float i = DotProduct(trace->plane.normal, ent->v.velocity);
-    VectorScale(trace->plane.normal, i, into);
-    side = ent->v.velocity - into;
+    const glm::vec3 into = trace->plane.normal * i;
+    const glm::vec3 side = ent->v.velocity - into;
 
     ent->v.velocity[0] = side[0] * (1 + d);
     ent->v.velocity[1] = side[1] * (1 + d);
@@ -865,7 +862,7 @@ int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
     trace_t steptrace;
 
     oldorg = ent->v.origin;
-    dir = vec3_origin;
+    dir = vec3_zero;
 
     for(i = 0; i < 8; i++)
     {
@@ -925,7 +922,7 @@ int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
         ent->v.origin = oldorg;
     }
 
-    ent->v.velocity = vec3_origin;
+    ent->v.velocity = vec3_zero;
     return 7; // still not moving
 }
 
@@ -991,11 +988,11 @@ void SV_WalkMove(edict_t* ent)
     ent->v.origin = oldorg; // back to start pos
 
     glm::vec3 upmove;
-    upmove = vec3_origin;
+    upmove = vec3_zero;
     upmove[2] = STEPSIZE;
 
     glm::vec3 downmove;
-    downmove = vec3_origin;
+    downmove = vec3_zero;
     downmove[2] = -STEPSIZE + oldvel[2] * host_frametime;
 
     // move up
@@ -1078,12 +1075,12 @@ void SV_Handtouch(edict_t* ent)
         const auto offHandAbsMin = offHandOrigin + handMins;
         const auto offHandAbsMax = offHandOrigin + handMaxs;
 
-        const auto minBound = glm::vec3{
+        const glm::vec3 minBound{
             std::min({playerAbsMin.x, mainHandAbsMin.x, offHandAbsMin.x}),
             std::min({playerAbsMin.y, mainHandAbsMin.y, offHandAbsMin.y}),
             std::min({playerAbsMin.z, mainHandAbsMin.z, offHandAbsMin.z})};
 
-        const auto maxBound = glm::vec3{
+        const glm::vec3 maxBound{
             std::max({playerAbsMax.x, mainHandAbsMax.x, offHandAbsMax.x}),
             std::max({playerAbsMax.y, mainHandAbsMax.y, offHandAbsMax.y}),
             std::max({playerAbsMax.z, mainHandAbsMax.z, offHandAbsMax.z})};
@@ -1252,7 +1249,6 @@ void SV_Physics_Client(edict_t* ent, int num)
             const auto restoreVel = ent->v.velocity;
             extern glm::vec3 vr_room_scale_move;
 
-            // TODO VR: add multiplier here
             const auto newVelocity =
                 vr_room_scale_move * static_cast<float>(1.0f / host_frametime);
             ent->v.velocity = newVelocity;
@@ -1417,8 +1413,7 @@ void SV_Physics_Toss(edict_t* ent)
     ent->v.angles += static_cast<float>(host_frametime) * ent->v.avelocity;
 
     // move origin
-    glm::vec3 move;
-    VectorScale(ent->v.velocity, host_frametime, move);
+    glm::vec3 move = ent->v.velocity * static_cast<float>(host_frametime);
     const trace_t trace = SV_PushEntity(ent, move);
 
     if(trace.fraction == 1)
@@ -1450,8 +1445,8 @@ void SV_Physics_Toss(edict_t* ent)
         {
             ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
             ent->v.groundentity = EDICT_TO_PROG(trace.ent);
-            ent->v.velocity = vec3_origin;
-            ent->v.avelocity = vec3_origin;
+            ent->v.velocity = vec3_zero;
+            ent->v.avelocity = vec3_zero;
         }
     }
 

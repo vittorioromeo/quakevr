@@ -128,6 +128,157 @@ void(float hand, float velmag) VRMeleeHaptic =
     haptic(hand, 0.0, xduration, 75.0, amplitude);
 }
 
+
+float PositionalDamageFactor(float positionalDamageType)
+{
+    if (positionalDamageType == 0) // standard
+    {
+        return 1;
+    }
+
+    if (positionalDamageType == 1) // headshot
+    {
+        return 1.5;
+    }
+
+    if (positionalDamageType == 2) // extremities
+    {
+        return 0.35;
+    }
+
+    if (positionalDamageType == 3) // legs
+    {
+        return 0.6;
+    }
+
+    return 1;
+}
+
+// TODO VR: positional damage WIP, add cvar
+float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
+{
+    local float supportHS;   // Target supports headshots.
+    local float supportCD;   // Target supports core distance.
+    local float maxh;        // Max horizontal dimension.
+    local float diagonality; // How "diagonal" the hit was.
+    local float headsize;    // Size of target head.
+    local float head_hdepth; // Depth of head center in the model (horizontal).
+    local float head_vdepth; // Depth of head center in the model (vertical).
+    local vector headpos;    // Position of target head.
+    local vector hitpos;     // Tweaked hit position.
+    local vector hitdiff;    // Temp vector for hit differences.
+
+    supportHS = 0;
+    supportCD = 0;
+
+    headpos_x = xTarget.origin_x;
+    headpos_y = xTarget.origin_y;
+    head_vdepth = 0;
+
+    if (xTarget.classname == "monster_army")
+    {
+        headpos_z = xTarget.origin_z + 24;
+        headsize = 3.2;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_ogre")
+    {
+        headpos_z = xTarget.origin_z + 37;
+        headsize = 5;
+        head_hdepth = 24;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_enforcer")
+    {
+        headpos_z = xTarget.origin_z + 26;
+        headsize = 3.6;
+        head_hdepth = 14;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_gremlin")
+    {
+        headpos_z = xTarget.origin_z + 16;
+        headsize = 3.2;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_hell_knight")
+    {
+        headpos_z = xTarget.origin_z + 34;
+        headsize = 3.6;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_knight")
+    {
+        headpos_z = xTarget.origin_z + 24;
+        headsize = 3.1;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_shambler")
+    {
+        headpos_z = xTarget.origin_z + 60;
+        headsize = 6;
+        head_hdepth = 32;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if (xTarget.classname == "monster_shalrath")
+    {
+        headpos_z = xTarget.origin_z + 54;
+        headsize = 4.5;
+        head_hdepth = 32;
+        supportHS = 1;
+        supportCD = 1;
+    }
+
+    // Since `xEndpos` is from a trace, it always hits one of the AABB planes,
+    // so to compensate we check how "diagonal" the hit was and move the hit
+    // position more to reach the center and check distance from the head more
+    // accurately. This helps shots coming at a 45 degree angle to the AABB.
+    maxh = max(fabs(xDirection_x), fabs(xDirection_y));
+    maxh = max(maxh, fabs(xDirection_z));
+    diagonality = (1 - max(maxh, 0.7)) * 3.33; // Returns a value closer to 1 the more diagonal the shot is.
+    hitpos_x = xEndpos_x + xDirection_x * (head_hdepth + (1.414 * diagonality)); // Approx of square diagonal ratio.
+    hitpos_y = xEndpos_y + xDirection_y * (head_hdepth + (1.414 * diagonality));
+    hitpos_z = xEndpos_z + xDirection_z * head_vdepth;
+
+    // Check for headshot.
+    if (supportHS && vlen(hitpos - headpos) < headsize * 2)
+    {
+        return 1; // headshot
+    }
+
+    if (!supportCD)
+    {
+        return 0; // standard
+    }
+
+    // Check for core shot.
+    hitdiff = hitpos - xTarget.origin;
+    hitdiff_z = 0;
+
+    if(vlen(hitdiff) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
+    {
+        return 2; // extremities
+    }
+
+    if(hitpos_z < xTarget.origin_z)
+    {
+        return 3; // legs
+    }
+
+    return 0; // standard
+}
+
 // HIPNOTIC
 //MED 10/18/96
 void(float damage) spawn_touchblood;
@@ -143,6 +294,8 @@ void() HIP_LaserTouch =
    local vector oldvel;
    local float mag;
    local float r;
+   local float adjDmg;
+   local float posDmgType;
 
    self.owner = world;
    self.cnt = self.cnt + 1;
@@ -166,7 +319,14 @@ void() HIP_LaserTouch =
          self.dmg = self.dmg / 2;
          }
       spawn_touchblood (self.dmg);
-      T_Damage (other, self, self.lastvictim, self.dmg);
+
+      makevectors (self.angles);
+      posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+      adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
+
+      T_Damage (other, self, self.lastvictim, adjDmg);
+
+
       }
    else if ((self.cnt == 3) || (random()<0.15))
       {
@@ -288,7 +448,6 @@ void(float stat) HIP_FireLaser =
    out = v_forward;
    out_z = 0;
    out = normalize(out);
-   // TODO VR: fix, make model
    org = self.muzzlepos + ((-1) * v_up) + (2*out);
 //   org = self.origin + (1*v_forward);
    dir = aim (self, 1000);
@@ -372,6 +531,17 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     }
 };
 
+void(vector vStart, vector vEnd) LightningParticles =
+{
+    particle2 (vStart, '0 0 0', 3 /* lightning preset */, 20);
+    particle2 (vStart, '0 0 0', 4 /* smoke preset */, 1);
+    particle2 (vStart, '0 0 0', 5 /* sparks preset */, 4);
+
+    particle2 (vEnd, '0 0 0', 3 /* lightning preset */, 60);
+    particle2 (vEnd, '0 0 0', 4 /* smoke preset */, 1);
+    particle2 (vEnd, '0 0 0', 5 /* sparks preset */, 12);
+}
+
 
 void() HIP_LightningThink =
    {
@@ -446,21 +616,9 @@ void() HIP_LightningThink =
          WriteCoord (MSG_BROADCAST, trace_endpos_y);
          WriteCoord (MSG_BROADCAST, trace_endpos_z);
 
-        // TODO VR: repetition with LG
-        particle2 (org, '0 0 0', 3 /* lightning preset */, 20);
-        particle2 (org, '0 0 0', 4 /* smoke preset */, 1);
-        particle2 (org, '0 0 0', 5 /* sparks preset */, 4);
-
-        particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
-        particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
-        particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
+        LightningParticles(org, trace_endpos);
 
          self.nextthink = time + 0.1;
-//         self.think = HIP_DiversionLightningThink;
-//         self.nextthink = time;
-//         self.delay = time + 0.30;
-//         self.origin = self.owner.origin;
-//         self.think();
          return;
          }
       }
@@ -486,14 +644,7 @@ void() HIP_LightningThink =
    WriteCoord (MSG_BROADCAST, trace_endpos_y);
    WriteCoord (MSG_BROADCAST, trace_endpos_z);
 
-    // TODO VR: repetition with LG
-    particle2 (org, '0 0 0', 3 /* lightning preset */, 20);
-    particle2 (org, '0 0 0', 4 /* smoke preset */, 1);
-    particle2 (org, '0 0 0', 5 /* sparks preset */, 4);
-
-    particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
-    particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
-    particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
+   LightningParticles(org, trace_endpos);
 
    vec = normalize(self.enemy.origin - self.owner.origin);
    dot = vec * self.owner.movedir;
@@ -677,6 +828,13 @@ void() W_Precache =
    precache_sound ("hipweap/mjolhit.wav");   // mjolnir
    precache_sound ("hipweap/mjolslap.wav");   // mjolnir
    precache_sound ("hipweap/mjoltink.wav");   // mjolnir
+
+    // ROGUE
+    //ZOID--
+    // grapple
+    precache_sound("weapons/chain1.wav");
+    precache_sound("pendulum/hit.wav");
+//--ZOID
 };
 
 /*
@@ -1031,6 +1189,7 @@ void(float damage, vector dir) TraceAttack =
     }
 };
 
+
 /*
 ================
 FireBullets
@@ -1041,12 +1200,11 @@ Go to the trouble of combining multiple pellets into a single damage call.
 */
 void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 {
-    local    vector direction;
-
-    // HIPNOTIC
-    //JIM
-    local float bullet;
-    bullet = 0;
+    local vector direction;
+    local float xdiff, ydiff, zdiff, habsdiff;
+    local string temps;
+    local float adjDmg;
+    local float posDmgType;
 
     makevectors(self.v_angle);
 
@@ -1059,13 +1217,15 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
         if (trace_fraction != 1.0)
         //JIM
         {
-            TraceAttack (4, direction);
+            posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            adjDmg = 4 * PositionalDamageFactor(posDmgType);
+
+            TraceAttack (adjDmg, direction);
 
             // HIPNOTIC
-            if ( ( !bullet ) && ( trace_ent == world ) )
+            if (trace_ent == world)
             {
                 placebullethole( trace_endpos );
-                bullet = 1;
             }
         }
 
@@ -1573,7 +1733,6 @@ void() ProximityBomb =
    self.nextthink = time + 0.25;
    };
 
-// TODO VR: adapt proximity grenades for VR
 /*
 ================
 W_FireProximityGrenade
@@ -1741,12 +1900,20 @@ void(float ox) W_FireSpikes =
     particle2 (self.muzzlepos + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
-
+void() spike_bullethole =
+{
+    if (trace_ent == world)
+    {
+        placebullethole(trace_endpos);
+    }
+}
 
 .float hit_z;
 void() spike_touch =
 {
-local float rand;
+    local float posDmgType;
+    local float adjDmg;
+
     if (other == self.owner)
         return;
 
@@ -1759,11 +1926,17 @@ local float rand;
         return;
     }
 
+    makevectors(self.angles);
+    traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+
 // hit something that bleeds
     if (other.takedamage)
     {
-        spawn_touchblood (9);
-        T_Damage (other, self, self.owner, 9);
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = 9 * PositionalDamageFactor(posDmgType);
+
+        spawn_touchblood (adjDmg);
+        T_Damage (other, self, self.owner, adjDmg);
     }
     else
     {
@@ -1775,10 +1948,10 @@ local float rand;
             WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
         else
         {
-            // TODO VR: need to calculate normal
-            // placebullethole( self.origin );
+            spike_bullethole();
             WriteByte (MSG_BROADCAST, TE_SPIKE);
         }
+
         WriteCoord (MSG_BROADCAST, self.origin_x);
         WriteCoord (MSG_BROADCAST, self.origin_y);
         WriteCoord (MSG_BROADCAST, self.origin_z);
@@ -1790,7 +1963,9 @@ local float rand;
 
 void() superspike_touch =
 {
-local float rand;
+    local float posDmgType;
+    local float adjDmg;
+
     if (other == self.owner)
         return;
 
@@ -1803,16 +1978,21 @@ local float rand;
         return;
     }
 
+    makevectors(self.angles);
+    traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+
 // hit something that bleeds
     if (other.takedamage)
     {
-        spawn_touchblood (18);
-        T_Damage (other, self, self.owner, 18);
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = 18 * PositionalDamageFactor(posDmgType);
+
+        spawn_touchblood (adjDmg);
+        T_Damage (other, self, self.owner, adjDmg);
     }
     else
     {
-        // TODO VR: need to calculate normal
-        // placebullethole( self.origin );
+        spike_bullethole();
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_SUPERSPIKE);
         WriteCoord (MSG_BROADCAST, self.origin_x);
@@ -1991,11 +2171,17 @@ void()    player_shot1;
 void()    player_nail1;
 void()    player_light1;
 void()    player_rocket1;
-// HYPNOTIC
+// HIPNOTIC
 //MED
 void()   player_laser1;
 void()   player_hammer1;
 void()   player_mjolnir1;
+// ROGUE
+//ZOID--
+void()  player_grapple1;
+void()  player_grapple3;
+//--ZOID
+
 
 void() W_Attack =
 {
@@ -2086,6 +2272,21 @@ void() W_Attack =
         player_rocket1();
         W_FireProximityGrenade();
         self.attack_finished = time + 0.6;
+    }
+};
+
+void() W_OffHandAttack =
+{
+    makevectors    (self.v_angle);            // calculate forward angle for velocity
+    self.show_hostile = time + 1;    // wake monsters up
+
+    // TODO VR: grapple
+    {
+        if (!self.hook_out)
+            player_grapple1();
+        else
+            player_grapple3();
+        self.offhand_attack_finished = time + 0.1;
     }
 };
 
@@ -2646,6 +2847,25 @@ void() W_WeaponFrame =
     {
         SuperDamageSound ();
         W_Attack ();
+    }
+};
+
+/*
+============
+W_OffHandWeaponFrame
+
+// TODO VR:
+============
+*/
+void() W_OffHandWeaponFrame =
+{
+    if (time < self.offhand_attack_finished)
+        return;
+
+// check for attack
+    if (self.button3)
+    {
+        W_OffHandAttack ();
     }
 };
 

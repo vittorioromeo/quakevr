@@ -468,10 +468,9 @@ IN_AxisMagnitude
 Returns the vector length of the given joystick axis
 ================
 */
-static vec_t IN_AxisMagnitude(joyaxis_t axis)
+static float IN_AxisMagnitude(joyaxis_t axis)
 {
-    vec_t magnitude = sqrtf((axis.x * axis.x) + (axis.y * axis.y));
-    return magnitude;
+    return sqrtf((axis.x * axis.x) + (axis.y * axis.y));
 }
 
 /*
@@ -485,16 +484,14 @@ at 1. Raises the axis values to the given exponent, keeping signs.
 static joyaxis_t IN_ApplyEasing(joyaxis_t axis, float exponent)
 {
     joyaxis_t result = {0};
-    vec_t eased_magnitude;
-    vec_t magnitude = IN_AxisMagnitude(axis);
+    float magnitude = IN_AxisMagnitude(axis);
 
     if(magnitude == 0)
     {
         return result;
     }
 
-    eased_magnitude = powf(magnitude, exponent);
-
+    float eased_magnitude = powf(magnitude, exponent);
     result.x = axis.x * (eased_magnitude / magnitude);
     result.y = axis.y * (eased_magnitude / magnitude);
     return result;
@@ -542,13 +539,13 @@ http://www.third-helix.com/2013/04/12/doing-thumbstick-dead-zones-right.html
 static joyaxis_t IN_ApplyDeadzone(joyaxis_t axis, float deadzone)
 {
     joyaxis_t result = {0};
-    vec_t magnitude = IN_AxisMagnitude(axis);
+    float magnitude = IN_AxisMagnitude(axis);
 
     if(magnitude > deadzone)
     {
-        const vec_t new_magnitude =
+        const float new_magnitude =
             q_min(1.0, (magnitude - deadzone) / (1.0 - deadzone));
-        const vec_t scale = new_magnitude / magnitude;
+        const float scale = new_magnitude / magnitude;
         result.x = axis.x * scale;
         result.y = axis.y * scale;
     }
@@ -593,8 +590,7 @@ occurred, and generates key repeats if the button is held down.
 Adapted from DarkPlaces by lordhavoc
 ================
 */
-static void IN_JoyKeyEvent(
-    bool wasdown, bool isdown, int key, double* timer)
+static void IN_JoyKeyEvent(bool wasdown, bool isdown, int key, double* timer)
 {
     // we can't use `realtime` for key repeats because it is not monotomic
     const double currenttime = Sys_DoubleTime();

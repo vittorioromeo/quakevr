@@ -681,7 +681,7 @@ void R_SetupAliasLighting(entity_t* e)
         add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add < 1.0f)
         {
-            VectorScale(lightcolor, add, lightcolor);
+            lightcolor *= add;
         }
     }
 
@@ -709,7 +709,7 @@ void R_SetupAliasLighting(entity_t* e)
     // ericw --
 
     shadedots = r_avertexnormal_dots[quantizedangle];
-    VectorScale(lightcolor, 1.0f / 200.0f, lightcolor);
+    lightcolor *= 1.0f / 200.0f;
 }
 
 /*

@@ -56,7 +56,7 @@ cvar_t con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; // johnfitz
 
 char con_lastcenterstring[1024]; // johnfitz
 
-#define NUM_CON_TIMES 4
+#define NUM_CON_TIMES 8
 float con_times[NUM_CON_TIMES]; // realtime time the line was generated
                                 // for transparent notify lines
 

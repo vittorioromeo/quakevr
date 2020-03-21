@@ -13,6 +13,10 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/FireOffHand",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/in/Jump",
             "type": "boolean"
         },
@@ -79,6 +83,7 @@
             "/actions/default/in/Locomotion": "Locomotion",
             "/actions/default/in/Turn": "Turn",
             "/actions/default/in/Fire": "Fire",
+            "/actions/default/in/FireOffHand": "Fire (Off-Hand)",
             "/actions/default/in/Jump": "Jump",
             "/actions/default/in/PrevWeapon": "Previous Weapon",
             "/actions/default/in/NextWeapon": "Next Weapon",

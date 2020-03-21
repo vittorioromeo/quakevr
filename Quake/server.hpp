@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_SERVER_H
 #define _QUAKE_SERVER_H
 
+struct qmodel_t;
+
 // server.h
 
 typedef struct
@@ -57,9 +59,9 @@ typedef struct
 
     char name[64];      // map name
     char modelname[64]; // maps/<name>.bsp, for model_precache[0]
-    struct qmodel_s* worldmodel;
+    qmodel_t* worldmodel;
     const char* model_precache[MAX_MODELS]; // nullptr terminated
-    struct qmodel_s* models[MAX_MODELS];
+    qmodel_t* models[MAX_MODELS];
     const char* sound_precache[MAX_SOUNDS]; // nullptr terminated
     const char* lightstyles[MAX_LIGHTSTYLES];
     int num_edicts;

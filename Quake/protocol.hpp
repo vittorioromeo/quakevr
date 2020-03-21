@@ -240,7 +240,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_spawnstatic2 \
     43 // support for large modelindex, large framenum, alpha, using flags
 #define svc_spawnstaticsound2 44 // [coord3] [short] samp [byte] vol [byte] aten
-#define svc_particle2 45 // TODO VR: docs
+#define svc_particle2 45 // [vec3] pos [vec3] dir [byte] preset [short] count
 // johnfitz
 
 //

@@ -70,7 +70,7 @@ cvar_t r_speeds = {"r_speeds", "0", CVAR_NONE};
 cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
-cvar_t r_shadows = {"r_shadows", "0", CVAR_ARCHIVE};
+cvar_t r_shadows = {"r_shadows", "1", CVAR_ARCHIVE};
 cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "0", CVAR_ARCHIVE};
@@ -929,8 +929,8 @@ void R_ShowBoundingBoxes()
         else
         {
             // box entity
-            VectorAdd(ed->v.mins, ed->v.origin, mins);
-            VectorAdd(ed->v.maxs, ed->v.origin, maxs);
+            const glm::vec3 mins = ed->v.mins + ed->v.origin;
+            const glm::vec3 maxs = ed->v.maxs + ed->v.origin;
             R_EmitWireBox(mins, maxs);
         }
     }
