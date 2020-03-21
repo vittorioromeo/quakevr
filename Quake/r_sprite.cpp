@@ -97,25 +97,13 @@ R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 */
 void R_DrawSpriteModel(entity_t* e)
 {
-    glm::vec3 point;
+    // TODO: frustum cull it?
+
     glm::vec3 v_forward;
     glm::vec3 v_right;
     glm::vec3 v_up;
 
-    msprite_t* psprite;
-    mspriteframe_t* frame;
-
-    glm::vec3* s_up;
-    glm::vec3* s_right;
-
-    float angle;
-    float sr;
-    float cr;
-
-    // TODO: frustum cull it?
-
-    frame = R_GetSpriteFrame(e);
-    psprite = (msprite_t*)currententity->model->cache.data;
+    msprite_t* psprite = (msprite_t*)currententity->model->cache.data;
 
     switch(psprite->type)
     {
@@ -125,8 +113,6 @@ void R_DrawSpriteModel(entity_t* e)
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
-            s_up = &v_up;
-            s_right = &vright;
             break;
         }
         case SPR_FACING_UPRIGHT:
@@ -141,15 +127,13 @@ void R_DrawSpriteModel(entity_t* e)
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
-            s_up = &v_up;
-            s_right = &v_right;
             break;
         }
         case SPR_VP_PARALLEL:
         { // faces view plane, up is towards the top of the
           // screen
-            s_up = &vup;
-            s_right = &vright;
+            v_up = vup;
+            v_right = vright;
             break;
         }
         case SPR_ORIENTED:
@@ -160,24 +144,19 @@ void R_DrawSpriteModel(entity_t* e)
             v_forward = xv_forward;
             v_right = xv_right;
             v_up = xv_up;
-
-            s_up = &v_up;
-            s_right = &v_right;
             break;
         }
         case SPR_VP_PARALLEL_ORIENTED:
         { // faces view plane, but obeys roll value
-            angle = currententity->angles[ROLL] * M_PI_DIV_180;
-            sr = sin(angle);
-            cr = cos(angle);
+            const float angle = currententity->angles[ROLL] * M_PI_DIV_180;
+            const float sr = std::sin(angle);
+            const float cr = std::cos(angle);
             v_right[0] = vright[0] * cr + vup[0] * sr;
             v_right[1] = vright[1] * cr + vup[1] * sr;
             v_right[2] = vright[2] * cr + vup[2] * sr;
             v_up[0] = vright[0] * -sr + vup[0] * cr;
             v_up[1] = vright[1] * -sr + vup[1] * cr;
             v_up[2] = vright[2] * -sr + vup[2] * cr;
-            s_up = &v_up;
-            s_right = &v_right;
             break;
         }
         default: return;
@@ -193,6 +172,7 @@ void R_DrawSpriteModel(entity_t* e)
 
     GL_DisableMultitexture();
 
+    mspriteframe_t* frame = R_GetSpriteFrame(e);
     GL_Bind(frame->gltexture);
 
     // TODO VR: this could be optimized to use a single draw call...
@@ -201,23 +181,23 @@ void R_DrawSpriteModel(entity_t* e)
     glBegin(GL_TRIANGLE_FAN); // was GL_QUADS, but changed to support r_showtris
 
     glTexCoord2f(0, frame->tmax);
-    point = e->origin + (frame->down * (*s_up));
-    point += (frame->left * (*s_right));
+    glm::vec3 point = e->origin + (frame->down * v_up);
+    point += (frame->left * v_right);
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(0, 0);
-    point = e->origin + (frame->up * (*s_up));
-    point += (frame->left * (*s_right));
+    point = e->origin + (frame->up * v_up);
+    point += (frame->left * v_right);
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, 0);
-    point = e->origin + (frame->up * (*s_up));
-    point += (frame->right * (*s_right));
+    point = e->origin + (frame->up * v_up);
+    point += (frame->right * v_right);
     glVertex3fv(glm::value_ptr(point));
 
     glTexCoord2f(frame->smax, frame->tmax);
-    point = e->origin + (frame->down * (*s_up));
-    point += (frame->right * (*s_right));
+    point = e->origin + (frame->down * v_up);
+    point += (frame->right * v_right);
     glVertex3fv(glm::value_ptr(point));
 
     glEnd();
