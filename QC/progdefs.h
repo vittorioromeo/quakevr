@@ -85,14 +85,19 @@ typedef struct
 	func_t	handtouch;
 	func_t	use;
 	func_t	think;
+	func_t	think2;
 	func_t	blocked;
 	float	nextthink;
+	float	nextthink2;
 	int	groundentity;
 	float	health;
 	float	frags;
 	float	weapon;
 	string_t	weaponmodel;
 	float	weaponframe;
+	float	weapon2;
+	string_t	weaponmodel2;
+	float	weaponframe2;
 	float	currentammo;
 	float	ammo_shells;
 	float	ammo_nails;
@@ -155,4 +160,4 @@ typedef struct
 	vec3_t	teleport_target;
 } entvars_t;
 
-#define PROGHEADER_CRC 49612
+#define PROGHEADER_CRC 5548

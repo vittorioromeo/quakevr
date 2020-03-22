@@ -289,8 +289,8 @@ void CL_ParseTEnt()
         {
             qmodel_t* model = Mod_ForName("progs/beam.mdl", true);
             auto* hdr = (aliashdr_t*)Mod_Extradata(model);
-            hdr->scale_origin = hdr->original_scale_origin * 0.5f;
-            hdr->scale = hdr->original_scale * 0.5f;
+            hdr->scale_origin = hdr->original_scale_origin * 0.25f;
+            hdr->scale = hdr->original_scale * 0.25f;
 
             if(beam_t* b = CL_ParseBeam(model))
             {

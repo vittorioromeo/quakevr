@@ -618,6 +618,8 @@ void PR_ExecuteProgram(func_t fnum)
                 ed->v.nextthink = pr_global_struct->time + 0.1;
                 ed->v.frame = OPA->_float;
                 ed->v.think = OPB->function;
+                // TODO VR: think2?
+                // ed->v.nextthink2 = pr_global_struct->time + 0.1;
                 break;
 
             default:

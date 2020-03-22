@@ -144,13 +144,10 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
-bool SV_RunThink(edict_t* ent)
+template <auto TNextThink, auto TThink, bool TDoLerp>
+bool SV_RunThinkImpl(edict_t* ent)
 {
-    float thinktime;
-    float oldframe; // johnfitz
-    int i;          // johnfitz
-
-    thinktime = ent->v.nextthink;
+    float thinktime = (ent->v).*TNextThink;
     if(thinktime <= 0 || thinktime > sv.time + host_frametime)
     {
         return true;
@@ -163,30 +160,40 @@ bool SV_RunThink(edict_t* ent)
     // it is possible to start that way
     // by a trigger with a local time.
 
-    oldframe = ent->v.frame; // johnfitz
+    float oldframe = ent->v.frame; // johnfitz
 
-    ent->v.nextthink = 0;
+    (ent->v).*TNextThink = 0;
     pr_global_struct->time = thinktime;
     pr_global_struct->self = EDICT_TO_PROG(ent);
     pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
-    PR_ExecuteProgram(ent->v.think);
+    PR_ExecuteProgram((ent->v).*TThink);
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    // capture interval to nextthink here and send it to client for better
-    // lerp timing, but only if interval is not 0.1 (which client assumes)
-    ent->sendinterval = false;
-    if(!ent->free && ent->v.nextthink &&
-        (ent->v.movetype == MOVETYPE_STEP || ent->v.frame != oldframe))
+    if(TDoLerp)
     {
-        i = Q_rint((ent->v.nextthink - thinktime) * 255);
-        if(i >= 0 && i < 256 && i != 25 && i != 26)
-        { // 25 and 26 are close enough to 0.1 to not send
-            ent->sendinterval = true;
+        // johnfitz -- PROTOCOL_FITZQUAKE
+        // capture interval to nextthink here and send it to client for better
+        // lerp timing, but only if interval is not 0.1 (which client assumes)
+        ent->sendinterval = false;
+        if(!ent->free && (ent->v).*TNextThink &&
+            (ent->v.movetype == MOVETYPE_STEP || ent->v.frame != oldframe))
+        {
+            int i = Q_rint(((ent->v).*TNextThink - thinktime) * 255);
+            if(i >= 0 && i < 256 && i != 25 && i != 26)
+            { // 25 and 26 are close enough to 0.1 to not send
+                ent->sendinterval = true;
+            }
         }
+        // johnfitz
     }
-    // johnfitz
 
     return !ent->free;
+}
+
+bool SV_RunThink(edict_t* ent)
+{
+    return //
+        SV_RunThinkImpl<&entvars_t::nextthink, &entvars_t::think, true>(ent) &&
+        SV_RunThinkImpl<&entvars_t::nextthink2, &entvars_t::think2, false>(ent);
 }
 
 /*
@@ -672,13 +679,10 @@ SV_Physics_Pusher
 */
 void SV_Physics_Pusher(edict_t* ent)
 {
-    float thinktime;
-    float oldltime;
     float movetime;
+    float oldltime = ent->v.ltime;
+    float thinktime = ent->v.nextthink;
 
-    oldltime = ent->v.ltime;
-
-    thinktime = ent->v.nextthink;
     if(thinktime < ent->v.ltime + host_frametime)
     {
         movetime = thinktime - ent->v.ltime;

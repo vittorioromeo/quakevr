@@ -29,8 +29,8 @@ void() GrappleReset =
 {
     self.owner.on_hook = FALSE;
     self.owner.hook_out = FALSE;
-    // TODO VR: weaponframe offhand
-    // self.owner.weaponframe = 0;
+    // TODO VR: assumes offhand (TODO dual-wielding)
+    self.owner.weaponframe2 = 0;
     self.owner.offhand_attack_finished = time + 0.25;
 
     remove(self);
@@ -146,10 +146,14 @@ void () GrappleAnchor =
     self.touch = SUB_Null;
 };
 
+void(float xduration, float frequency, float amplitude) VRGunHaptic;
+
 void () W_FireGrapple =
 {
     if (self.hook_out)// reject subsequent calls from player.qc
         return;
+
+    VRGunHaptic(0.55, 75, 1.0);
 
     self.punchangle_x = -2; // bump him
 
@@ -196,7 +200,9 @@ void() GrappleService =
     }
 
     // drop the hook if player lets go of button
-    if ((!self.button3) || self.teleport_time > time)
+    if ((!self.button3) ||
+        self.teleport_time > time ||
+        self.weapon2 != WID_GRAPPLE) // TODO VR: assumes offhand (TODO dual-wielding)
     { // release when we get 'ported
         self = self.hook;
         GrappleReset();

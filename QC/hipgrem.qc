@@ -88,6 +88,7 @@ float(float wid) WeaponIdToItemId =
    if(wid == WID_ROCKET_LAUNCHER) { return IT_ROCKET_LAUNCHER; }
    if(wid == WID_LIGHTNING) { return IT_LIGHTNING; }
    if(wid == WID_LASER_CANNON) { return IT_LASER_CANNON; }
+   // TODO VR: fist and grapple
 
    return -1;
 }
@@ -105,6 +106,7 @@ float(float it) ItemIdToWeaponId =
    if(it == IT_ROCKET_LAUNCHER) { return WID_ROCKET_LAUNCHER; }
    if(it == IT_LIGHTNING) { return WID_LIGHTNING; }
    if(it == IT_LASER_CANNON) { return WID_LASER_CANNON; }
+   // TODO VR: fist and grapple
 
    return -1;
 }

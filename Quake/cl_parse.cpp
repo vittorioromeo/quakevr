@@ -829,9 +829,8 @@ void CL_ParseClientdata()
     int j;
     int bits; // johnfitz
 
-    bits =
-        (unsigned short)MSG_ReadShort(); // johnfitz -- read bits here isntead
-                                         // of in CL_ParseServerMessage()
+    bits = (unsigned int) MSG_ReadLong(); // johnfitz -- read bits here isntead
+                           // of in CL_ParseServerMessage()
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -1035,6 +1034,27 @@ void CL_ParseClientdata()
         cl.viewent.alpha = ENTALPHA_DEFAULT;
     }
     // johnfitz
+
+    // TODO VR: do we need all these bits?
+    if(bits & SU_VR_WEAPON2)
+    {
+        cl.stats[STAT_WEAPON2] = MSG_ReadByte();
+        cl.stats[STAT_WEAPONMODEL2] = MSG_ReadByte();
+    }
+    else
+    {
+        cl.stats[STAT_WEAPON2] = 0;
+        cl.stats[STAT_WEAPONMODEL2] = 0;
+    }
+
+    if(bits & SU_VR_WEAPONFRAME2)
+    {
+        cl.stats[STAT_WEAPONFRAME2] = MSG_ReadByte();
+    }
+    else
+    {
+        cl.stats[STAT_WEAPONFRAME2] = 0;
+    }
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of

@@ -161,6 +161,7 @@ void ED_Free(edict_t* ed)
     ed->v.origin = vec3_zero;
     ed->v.angles = vec3_zero;
     ed->v.nextthink = -1;
+    ed->v.nextthink2 = -1;
     ed->v.solid = 0;
     ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
 

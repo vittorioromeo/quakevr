@@ -920,7 +920,6 @@ void V_CalcRefdef()
     entity_t* ent;
 
     entity_t* view;
-    int i;
 
     float bob;
     static float oldz = 0;
@@ -978,7 +977,7 @@ void V_CalcRefdef()
 
     if(cl.maxclients <= 1)
     { // johnfitz -- moved cheat-protection here from V_RenderView
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             r_refdef.vieworg[i] += scr_ofsx.value * forward[i] +
                                    scr_ofsy.value * right[i] +
@@ -1007,7 +1006,7 @@ void V_CalcRefdef()
         view->origin = ent->origin;
         view->origin[2] += cl.viewheight;
 
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             view->origin[i] += forward[i] * bob * 0.4;
         }
@@ -1054,7 +1053,7 @@ void V_CalcRefdef()
         !(vr_enabled.value &&
             !vr_viewkick.value)) // lerped kick /* TODO VR: create CVAR */
     {
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             if(punch[i] != v_punchangles[0][i])
             {
@@ -1138,9 +1137,20 @@ void V_CalcRefdef2Test()
         // No off-hand without VR.
     }
 
-    static qmodel_t* handModel = Mod_ForName("progs/hand.mdl", true);
-    view->model = handModel;
-    view->frame = cl.stats[STAT_WEAPONFRAME];
+    // TODO VR: old
+    // static qmodel_t* handModel = Mod_ForName("progs/hand.mdl", true);
+    // view->model = handModel;
+
+    static unsigned int k = 0;
+    ++k;
+    if(k % 500 == 0)
+    {
+        Con_Printf("wm2: %d; wf2: %d\n", cl.stats[STAT_WEAPONMODEL2],
+            cl.stats[STAT_WEAPONFRAME2]);
+    }
+
+    view->model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
+    view->frame = cl.stats[STAT_WEAPONFRAME2];
     view->colormap = vid.colormap;
 
     if(chase_active.value)

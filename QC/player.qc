@@ -215,23 +215,37 @@ void()    player_axed4 =    [$axattd4, player_run    ] {self.weaponframe=8;};
 // ROGUE
 //============================================================================
 //ZOID--
+void() player_grapple2;
 void() player_grapple3;
 void() player_grapple4;
 void() player_grapple5;
 
-// TODO VR: commented out weaponframe
-void()  player_grapple1 =  [$axattd1, player_grapple2 ]
+// Required to not make the grapple hijack the main weapon's think.
+void(float xFrame, void() xFn) setThink2 =
 {
-    // self.weaponframe=1;
+    self.frame = xFrame;
+    self.nextthink2 = time + 0.1;
+    self.think2 = xFn;
+}
+
+void()  player_grapple1 =
+{
+    setThink2($axattd1, player_grapple2);
+    // TODO VR: assumes off-hand (TODO dual-wielding)
+    self.weaponframe2=1;
     W_FireGrapple();
 };
-void()  player_grapple2 =  [$axattd2, player_grapple3 ]
+void()  player_grapple2 =
 {
-    // self.weaponframe=2;
+    setThink2($axattd2, player_grapple3);
+    // TODO VR: assumes off-hand (TODO dual-wielding)
+    self.weaponframe2=2;
 };
-void()  player_grapple3 =  [$axattd3, player_grapple3 ]
+void()  player_grapple3 =
 {
-    // self.weaponframe=2;
+    setThink2($axattd3, player_grapple3);
+    // TODO VR: assumes off-hand (TODO dual-wielding)
+    self.weaponframe2=2;
     if (!self.hook_out) {
             player_grapple5();
             return;
@@ -243,9 +257,11 @@ void()  player_grapple3 =  [$axattd3, player_grapple3 ]
         }
     }
 };
-void() player_grapple4 =  [$deathc4, player_grapple4 ]
+void() player_grapple4 =
 {
-    // self.weaponframe=2;
+    setThink2($deathc4, player_grapple4);
+    // TODO VR: assumes off-hand (TODO dual-wielding)
+    self.weaponframe2=2;
     if (!self.hook_out) {
         player_grapple5();
         return;
@@ -255,9 +271,11 @@ void() player_grapple4 =  [$deathc4, player_grapple4 ]
         return;
     }
 };
-void()  player_grapple5 =  [$axattd4, player_run    ]
+void()  player_grapple5 =
 {
-    // self.weaponframe=1;
+    setThink2($axattd4, player_run);
+    // TODO VR: assumes off-hand (TODO dual-wielding)
+    self.weaponframe2=0;
 };
 //--ZOID
 //============================================================================
@@ -713,6 +731,7 @@ void() PlayerDie =
         DropBackpack();
 
     self.weaponmodel="";
+    self.weaponmodel2="";
     self.view_ofs = '0 0 -8';
     self.deadflag = DEAD_DYING;
     self.solid = SOLID_NOT;

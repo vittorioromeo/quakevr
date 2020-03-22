@@ -128,6 +128,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_TOTALMONSTERS 12
 #define STAT_SECRETS 13  // bumped on client side by svc_foundsecret
 #define STAT_MONSTERS 14 // bumped by svc_killedmonster
+#define STAT_WEAPON2 15
+#define STAT_WEAPONMODEL2 16
+#define STAT_WEAPONFRAME2 17
 
 // stock defines
 //
@@ -208,6 +211,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WID_ROCKET_LAUNCHER 8
 #define WID_LIGHTNING 9
 #define WID_LASER_CANNON 10
+#define WID_FIST 11
+#define WID_GRAPPLE 12
 
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32

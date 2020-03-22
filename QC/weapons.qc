@@ -2020,6 +2020,28 @@ void() W_SetCurrentAmmo =
 
     self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS) );
 
+    // TODO VR: (TODO dual-wielding)
+    if (self.weapon2 == WID_FIST)
+    {
+        // TODO VR:
+        bprint("Setting weaponmodel2 to hand\n");
+        self.weaponmodel2 = "progs/hand.mdl";
+        self.weaponframe2 = 0;
+    }
+    else if (self.weapon2 == WID_GRAPPLE)
+    {
+        // TODO VR:
+        bprint("Setting weaponmodel2 to grapple\n");
+        self.weaponmodel2 = "progs/v_grpple.mdl";
+        self.weaponframe2 = 0;
+    }
+    else
+    {
+        bprint("Invalid off-hand weapon.\n");
+        self.weaponmodel2 = "";
+        self.weaponframe2 = 0;
+    }
+
     if (self.weapon == WID_AXE)
     {
         self.currentammo = 0;
@@ -2281,13 +2303,11 @@ void() W_OffHandAttack =
     self.show_hostile = time + 1;    // wake monsters up
 
     // TODO VR: grapple
-    {
-        if (!self.hook_out)
-            player_grapple1();
-        else
-            player_grapple3();
-        self.offhand_attack_finished = time + 0.1;
-    }
+    if (!self.hook_out)
+        player_grapple1();
+    else
+        player_grapple3();
+    self.offhand_attack_finished = time + 0.1;
 };
 
 /*
@@ -2632,8 +2652,28 @@ void() CycleWeaponReverseCommand =
             return;
         }
     }
-
 };
+
+// TODO VR: off hand weapon cycling (TODO dual-wielding)
+void() CycleOffHandWeapon =
+{
+    if (self.weapon2 == WID_FIST)
+    {
+        // TODO VR:
+        bprint("Cycle offhand weapon to grapple\n");
+
+        self.weapon2 = WID_GRAPPLE;
+    }
+    else if (self.weapon2 == WID_GRAPPLE)
+    {
+        // TODO VR:
+        bprint("Cycle offhand weapon to fist\n");
+
+        self.weapon2 = WID_FIST;
+    }
+
+    W_SetCurrentAmmo();
+}
 
 /*
 ============
@@ -2782,6 +2822,10 @@ void() ImpulseCommands =
         ServerflagsCommand ();
     if (self.impulse == 12)
         CycleWeaponReverseCommand ();
+    if (self.impulse == 13)
+    {
+        CycleOffHandWeapon ();
+    }
 //JIM
     if ( self.impulse == 200 )
         WetsuitCheat();

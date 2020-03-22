@@ -1047,19 +1047,6 @@ void() ai_run_dodge =
     local float    ofs;
     local float newyaw;
 
-/*
-// attempt to jump over missiles
-   if (self.enemy.weaponframe == 1)
-      {
-      if (self.flags & FL_ONGROUND)
-         {
-         self.origin_z = self.origin_z + 1;
-         self.velocity = self.velocity + '0 0 500';
-         self.flags = self.flags - FL_ONGROUND;
-         }
-      self.ltime = self.ltime + 1.0;
-      }
-*/
    self.nextthink = time + 0.1;
    if (self.lefty)
       ofs = 40;

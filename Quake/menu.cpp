@@ -1504,6 +1504,7 @@ void M_Options_Key(int k)
 
 const char* bindnames[][2] = {{"+attack", "attack"},
     {"impulse 10", "next weapon"}, {"impulse 12", "prev weapon"},
+    {"impulse 13", "cycle off-hand weapons"},
     {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
     {"+back", "backpedal"}, {"+left", "turn left"}, {"+right", "turn right"},
     {"+speed", "run"}, {"+moveleft", "step left"}, {"+moveright", "step right"},

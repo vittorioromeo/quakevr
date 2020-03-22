@@ -128,17 +128,26 @@ void        end_sys_globals;        // flag for structure dumping
 .void()        handtouch;        // touched by VR hand
 .void()        use;
 .void()        think;
+.void()        think2;
 .void()        blocked;        // for doors or plats, called when can't push other
 
 .float        nextthink;
+.float        nextthink2;
 .entity        groundentity;
 
 // stats
 .float        health;
 .float        frags;
-.float        weapon;            // one of the IT_SHOTGUN, etc flags
-.string        weaponmodel;
+
+.float        weapon;             // WID
+.string       weaponmodel;
 .float        weaponframe;
+
+// QUAKE VR
+.float        weapon2;            // WID
+.string       weaponmodel2;
+.float        weaponframe2;
+
 .float        currentammo;
 .float        ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 
@@ -343,6 +352,8 @@ float    WID_PROXIMITY_GUN         = 7;
 float    WID_ROCKET_LAUNCHER       = 8;
 float    WID_LIGHTNING             = 9;
 float    WID_LASER_CANNON          = 10;
+float    WID_FIST                  = 11;
+float    WID_GRAPPLE               = 12;
 
 
 // hipnotic items

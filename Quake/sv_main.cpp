@@ -361,7 +361,7 @@ This will be sent on the initial connection and upon each server load.
 void SV_SendServerinfo(client_t* client)
 {
     const char** s;
-    char message[2048];
+    char message[4096];
     int i; // johnfitz
 
     MSG_WriteByte(&client->message, svc_print);
@@ -1165,13 +1165,16 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         {
             bits |= SU_EXTEND2;
         }
+
+        bits |= SU_VR_WEAPON2;
+        bits |= SU_VR_WEAPONFRAME2;
     }
     // johnfitz
 
     // send the data
 
     MSG_WriteByte(msg, svc_clientdata);
-    MSG_WriteShort(msg, bits);
+    MSG_WriteLong(msg, bits);
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -1285,6 +1288,17 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
                                         // client entity alpha
     }
     // johnfitz
+
+    // TODO VR: do we need all these bits?
+    if(bits & SU_VR_WEAPON2)
+    {
+        MSG_WriteByte(msg, (int)ent->v.weapon2);
+        MSG_WriteByte(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel2)));
+    }
+    if(bits & SU_VR_WEAPONFRAME2)
+    {
+        MSG_WriteByte(msg, (int)ent->v.weaponframe2);
+    }
 }
 
 /*

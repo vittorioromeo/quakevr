@@ -1065,7 +1065,8 @@ void GL_DrawAliasShadow(entity_t* e)
         return;
     }
 
-    if(e == &cl.viewent || e->model->flags & MOD_NOSHADOW)
+    // TODO VR: viewent shadow looks weird
+    if(/*e == &cl.viewent ||*/ e->model->flags & MOD_NOSHADOW)
     {
         return;
     }

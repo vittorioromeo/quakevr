@@ -49,6 +49,10 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/NextWeaponOffHand",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/out/LeftHaptic",
             "type": "vibration"
         },
@@ -92,6 +96,7 @@
             "/actions/default/in/Teleport": "Teleport",
             "/actions/default/in/LeftGrab": "Left Hand Grab",
             "/actions/default/in/RightGrab": "Right Hand Grab",
+            "/actions/default/in/NextWeaponOffHand": "Next Weapon (Off-Hand)",
             "/actions/default/out/LeftHaptic": "Left Hand Haptic",
             "/actions/default/out/RightHaptic": "Right Hand Haptic"
         }

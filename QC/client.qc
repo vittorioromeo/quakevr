@@ -67,6 +67,7 @@ void() SetChangeParms =
     parm7 = self.ammo_cells;
     parm8 = self.weapon;
     parm9 = self.armortype * 100;
+    parm10 = self.weapon2;
 };
 
 void() SetNewParms =
@@ -80,6 +81,7 @@ void() SetNewParms =
     parm7 = 0;
     parm8 = WID_SHOTGUN;
     parm9 = 0;
+    parm10 = WID_FIST;
 };
 
 void() DecodeLevelParms =
@@ -109,6 +111,7 @@ void() DecodeLevelParms =
     self.ammo_cells = parm7;
     self.weapon = parm8;
     self.armortype = parm9 * 0.01;
+    self.weapon2 = parm10;
 };
 
 /*
@@ -995,6 +998,47 @@ Called every frame before physics are run
 */
 //MED 01/17/97
 void(float num_bubbles) DeathBubbles;
+void() doWetsuit =
+{
+    if (self.wetsuit_finished > time)
+    {
+        if (self.waterlevel==2)
+        {
+            self.velocity = self.velocity * 1.25;
+        }
+        if (self.waterlevel==3)
+        {
+            self.velocity = self.velocity * 1.5;
+        }
+        if (self.waterlevel >= 2)
+        {
+            // play scuba sound
+            if (self.swim_flag < time)
+            {
+                self.swim_flag = time + 7;
+                sound (self, CHAN_BODY, "misc/wetsuit.wav", 1, ATTN_NORM);
+            }
+            //MED 01/17/97
+            else
+            {
+                if (fabs(self.swim_flag - time - 6)<0.04)
+                {
+                    DeathBubbles(1);
+                }
+                else if (fabs(self.swim_flag - time - 5.5)<0.04)
+                {
+                    DeathBubbles(1);
+                }
+                else if (fabs(self.swim_flag - time - 5)<0.04)
+                {
+                    DeathBubbles(1);
+                }
+            }
+         }
+    }
+}
+
+
 void() PlayerPreThink =
 {
     local    float    mspeed, aspeed;
@@ -1038,46 +1082,12 @@ void() PlayerPreThink =
 
     //JIM
     //WETSUIT
-    if (self.wetsuit_finished > time)
-        {
-        if (self.waterlevel==2)
-            {
-            self.velocity = self.velocity * 1.25;
-            }
-        if (self.waterlevel==3)
-            {
-            self.velocity = self.velocity * 1.5;
-            }
-      if (self.waterlevel >= 2)
-         {
-         // play scuba sound
-         if (self.swim_flag < time)
-            {
-            self.swim_flag = time + 7;
-            sound (self, CHAN_BODY, "misc/wetsuit.wav", 1, ATTN_NORM);
-            }
-         //MED 01/17/97
-         else
-            {
-            if (fabs(self.swim_flag - time - 6)<0.04)
-               {
-               DeathBubbles(1);
-               }
-            else if (fabs(self.swim_flag - time - 5.5)<0.04)
-               {
-               DeathBubbles(1);
-               }
-            else if (fabs(self.swim_flag - time - 5)<0.04)
-               {
-               DeathBubbles(1);
-               }
-            }
-         }
-
-     }
+    doWetsuit();
 
     if (self.waterlevel == 2)
+    {
         CheckWaterJump ();
+    }
 
     if (self.deadflag >= DEAD_DEAD)
     {
@@ -1093,13 +1103,21 @@ void() PlayerPreThink =
         PlayerJump ();
     }
     else
+    {
         self.flags = self.flags | FL_JUMPRELEASED;
+    }
 
 // teleporters can force a non-moving pause time
     if (time < self.pausetime)
+    {
         self.velocity = '0 0 0';
+    }
 
-    if(time > self.attack_finished && self.currentammo == 0 && self.weapon != WID_AXE && self.weapon != WID_MJOLNIR)
+    // TODO VR: what about weapon2? (TODO dual-wielding)
+    if(time > self.attack_finished &&
+       self.currentammo == 0 &&
+       self.weapon != WID_AXE &&
+       self.weapon != WID_MJOLNIR)
     {
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
@@ -1163,6 +1181,7 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
+// TODO VR: maybe check for mission pack 1 support here
 //MED 12/04/96 added mjolnir stuff
     else if (self.weapon == WID_MJOLNIR)
         self.modelindex = modelindex_hammer;   // don't use eyes
@@ -1820,7 +1839,9 @@ void() PlayerVRMelee =
     }
 
     // vr off hand melee attack
-    if (cvar("vr_enabled") == 1 && time >= self.offhand_in_melee && self.offhandvelmag > vr_melee_threshold)
+    if (cvar("vr_enabled") == 1 &&
+        time >= self.offhand_in_melee &&
+        self.offhandvelmag > vr_melee_threshold)
     {
         // TODO VR: assuming fist
         if (time >= self.offhand_melee_attack_finished)
