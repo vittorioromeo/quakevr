@@ -93,6 +93,7 @@ typedef struct
     float endtime;
     glm::vec3 start, end;
     bool spin{true};
+    float scaleRatioX{1.f};
 } beam_t;
 
 

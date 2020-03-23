@@ -1713,92 +1713,19 @@ static void VR_UpdateDevicesOrientationPosition() noexcept
     }
 }
 
-static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
+static void VR_DoWeaponDirSlerp()
 {
-    // TODO VR: move refactor and reorganize
-    const auto vr2HMode =
-        static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
-    const auto wpn2HMode = VR_GetWpn2HMode(VR_GetMainHandWpnCvarEntry());
-
-    const bool bothControllersActive =
-        controllers[0].active && controllers[1].active;
-
-    if(!bothControllersActive || vr2HMode == Vr2HMode::Disabled)
+    if(vr_wpn_dir_weight.value != 1)
     {
         return;
     }
 
-    // TODO VR: ghost hands
-    const auto offHandPos = VR_Get2HOffHandPos();
-
-    const auto handDiff = offHandPos - VR_Get2HMainHandPos();
-    const auto handDir = safeNormalize(handDiff);
-
-    const auto shoulderPos = VR_GetShoulderPos();
-    const auto shoulderDiff = offHandPos - shoulderPos;
-
-    const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
-    const auto averageDir = safeNormalize(averageDiff);
-
-    // TODO VR: cvars for everything, weapon traits, virtual stock
-
-    {
-        const auto [origDir, right, up] = getAngledVectors(originalRots[1]);
-
-        const auto diffDot = glm::dot(handDir, origDir);
-
-        const bool goodDistance =
-            glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
-
-        const float frametime = cl.time - cl.oldtime;
-
-        const auto transitionVar =
-            [&frametime](float& var, const bool predicate, const float speed) {
-                var += frametime * (predicate ? speed : -speed);
-                var = std::clamp(var, 0.f, 1.f);
-            };
-
-        const bool useStock = VR_InStockDistance(shoulderPos) &&
-                              vr2HMode == Vr2HMode::VirtualStock &&
-                              wpn2HMode != Wpn2HMode::NoVirtualStock;
-
-        transitionVar(vr_2h_aim_stock_transition, useStock, 5.f);
-
-        const bool canGrabWith2H =
-            vr_left_grabbing && wpn2HMode != Wpn2HMode::Forbidden &&
-            !vr_gun_colliding_with_wall &&
-            (sv_player && sv_player->v.weapon2 == WID_FIST);
-
-        vr_should_aim_2h = canGrabWith2H && goodDistance &&
-                           diffDot > vr_2h_angle_threshold.value;
-
-        transitionVar(vr_2h_aim_transition, vr_should_aim_2h, 5.f);
-
-        const auto mixStockDir =
-            glm::mix(handDir, averageDir, vr_2h_aim_stock_transition);
-
-        const auto mixDir =
-            glm::mix(origDir, mixStockDir, vr_2h_aim_transition);
-
-        const auto [pitch, yaw, roll] =
-            pitchYawRollFromDirectionVector(up, mixDir);
-
-        const auto [oP, oY, oR] =
-            VR_GetWpn2HAngleOffsets(VR_GetMainHandWpnCvarEntry());
-
-        cl.handrot[1][PITCH] = pitch + oP * vr_2h_aim_transition;
-        cl.handrot[1][YAW] = yaw + oY * vr_2h_aim_transition;
-        cl.handrot[1][ROLL] = roll + oR * vr_2h_aim_transition;
-
-        // TODO VR: melee doesn't work with laser cannon
-        // TODO VR: scourge of armagon music?
-    }
-
-    if(vr_wpn_dir_weight.value == 1)
+    for(int index = 0; index < 2; ++index)
     {
         const auto [oldFwd, oldRight, oldUp] =
-            getAngledVectors(cl.prevhandrot[1]);
-        const auto [newFwd, newRight, newUp] = getAngledVectors(cl.handrot[1]);
+            getAngledVectors(cl.prevhandrot[index]);
+        const auto [newFwd, newRight, newUp] =
+            getAngledVectors(cl.handrot[index]);
 
         const auto nOldFwd = safeNormalize(oldFwd);
         const auto nOldUp = safeNormalize(oldUp);
@@ -1806,7 +1733,7 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
         const auto nNewUp = safeNormalize(newUp);
 
         const auto ftw =
-            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightDirFactor>(1);
+            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightDirFactor>(index);
 
         const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
         const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
@@ -1825,17 +1752,101 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
         // sv_player->v.v_viewangle[YAW] - lastPlayerYaw;
         // if(yawDiff != 0.f)
         //     Con_Printf(
-        //         "yawDiff: %.2f | withftw: %2.f \n", yawDiff, yawDiff * (1.f -
-        //         ftw));
+        //         "yawDiff: %.2f | withftw: %2.f \n", yawDiff, yawDiff *
+        //         (1.f - ftw));
 
-        cl.handrot[1][PITCH] = p;
-        cl.handrot[1][YAW] = y - (yawDiff * (1.f - ftw));
-        cl.handrot[1][ROLL] = r;
+        cl.handrot[index][PITCH] = p;
+        cl.handrot[index][YAW] = y - (yawDiff * (1.f - ftw));
+        cl.handrot[index][ROLL] = r;
     }
+}
 
+static void VR_DoUpdatePrevAnglesAndPlayerYaw()
+{
     lastPlayerYaw = sv_player->v.v_viewangle[YAW];
+    cl.prevhandrot[0] = cl.handrot[0];
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
+}
+
+static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
+{
+    const auto vr2HMode =
+        static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
+
+    if(vr2HMode == Vr2HMode::Disabled)
+    {
+        return;
+    }
+
+    const bool bothControllersActive =
+        controllers[0].active && controllers[1].active;
+
+    if(!bothControllersActive)
+    {
+        return;
+    }
+
+    // TODO VR: ghost hands
+    const auto offHandPos = VR_Get2HOffHandPos();
+
+    const auto handDiff = offHandPos - VR_Get2HMainHandPos();
+    const auto handDir = safeNormalize(handDiff);
+
+    const auto shoulderPos = VR_GetShoulderPos();
+    const auto shoulderDiff = offHandPos - shoulderPos;
+
+    const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
+    const auto averageDir = safeNormalize(averageDiff);
+
+    const auto [origDir, right, up] = getAngledVectors(originalRots[1]);
+
+    const auto diffDot = glm::dot(handDir, origDir);
+
+    const bool goodDistance =
+        glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
+
+    const float frametime = cl.time - cl.oldtime;
+
+    const auto transitionVar = [&frametime](float& var, const bool predicate,
+                                   const float speed) {
+        var += frametime * (predicate ? speed : -speed);
+        var = std::clamp(var, 0.f, 1.f);
+    };
+
+    const auto wpn2HMode = VR_GetWpn2HMode(VR_GetMainHandWpnCvarEntry());
+    const bool useStock = VR_InStockDistance(shoulderPos) &&
+                          vr2HMode == Vr2HMode::VirtualStock &&
+                          wpn2HMode != Wpn2HMode::NoVirtualStock;
+
+    transitionVar(vr_2h_aim_stock_transition, useStock, 5.f);
+
+    const bool canGrabWith2H = vr_left_grabbing &&
+                               wpn2HMode != Wpn2HMode::Forbidden &&
+                               !vr_gun_colliding_with_wall &&
+                               (sv_player && sv_player->v.weapon2 == WID_FIST);
+
+    vr_should_aim_2h =
+        canGrabWith2H && goodDistance && diffDot > vr_2h_angle_threshold.value;
+
+    transitionVar(vr_2h_aim_transition, vr_should_aim_2h, 5.f);
+
+    const auto mixStockDir =
+        glm::mix(handDir, averageDir, vr_2h_aim_stock_transition);
+
+    const auto mixDir = glm::mix(origDir, mixStockDir, vr_2h_aim_transition);
+
+    const auto [pitch, yaw, roll] = pitchYawRollFromDirectionVector(up, mixDir);
+
+    const auto [oP, oY, oR] =
+        VR_GetWpn2HAngleOffsets(VR_GetMainHandWpnCvarEntry());
+
+    cl.handrot[1][PITCH] = pitch + oP * vr_2h_aim_transition;
+    cl.handrot[1][YAW] = yaw + oY * vr_2h_aim_transition;
+    cl.handrot[1][ROLL] = roll + oR * vr_2h_aim_transition;
+
+    // TODO VR: melee doesn't work with laser cannon
+    // TODO VR: scourge of armagon music?
 }
 
 static void VR_ControllerAiming(const glm::vec3& orientation)
@@ -1890,8 +1901,8 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     gotLastPlayerOrigin = true;
 
     VR_Do2HAiming(originalRots);
-
-    // TODO VR: teleportation stuff
+    VR_DoWeaponDirSlerp();
+    VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
 }
 
@@ -2002,6 +2013,7 @@ void VR_UpdateScreenContent()
     for(vr_eye_t& eye : eyes)
     {
         // TODO VR: this global is problematic, remove it and pass args around
+        // It is used in view.cpp and gl_rmain.cpp
         current_eye = &eye;
 
         // We need to scale the view offset position to quake units and
@@ -2272,7 +2284,6 @@ static void VR_ShowCrosshairMainHand(const float size, const float alpha)
     VR_ShowCrosshairImpl(size, alpha, start, forward);
 }
 
-// TODO VR: code repetition
 static void VR_ShowCrosshairOffHand(const float size, const float alpha)
 {
     if(vr_aimmode.value != VrAimMode::e_CONTROLLER ||
@@ -2667,6 +2678,11 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         frequency, amplitude, vr::k_ulInvalidInputValueHandle);
 }
 
+[[nodiscard]] float VR_GetMenuMult() noexcept
+{
+    return vr_menu_mult;
+}
+
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
     {
@@ -2754,7 +2770,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     vr_right_grabbing = inpRightGrab.bState;
     in_speed.state = mustSpeed;
 
-    // TODO VR: menu mult
+    // Menu multipliers to fine-tune values.
     vr_menu_mult = mustTeleport ? 0.5f : 1.f;
     vr_menu_mult += static_cast<int>(mustFire);
     vr_menu_mult += static_cast<int>(mustFireOffHand);

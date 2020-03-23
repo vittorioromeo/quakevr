@@ -26,7 +26,6 @@
 #endif
 #endif
 
-extern float vr_menu_mult;
 
 namespace quake::util
 {
@@ -156,7 +155,7 @@ namespace quake::util
     {
         return [isLeft](
                    const cvar_t& cvar, const T incr, const T min, const T max) {
-            const T adjIncr = incr * static_cast<T>(vr_menu_mult);
+            const T adjIncr = incr * static_cast<T>(VR_GetMenuMult());
 
             const auto newVal = static_cast<T>(
                 isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);

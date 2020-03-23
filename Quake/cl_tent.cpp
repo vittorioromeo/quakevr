@@ -56,6 +56,15 @@ void CL_InitTEnts()
     cl_sfx_r_exp3 = S_PrecacheSound("weapons/r_exp3.wav");
 }
 
+[[nodiscard]] static glm::vec3 readVectorFromProtocolFlags() noexcept
+{
+    glm::vec3 res;
+    res[0] = MSG_ReadCoord(cl.protocolflags);
+    res[1] = MSG_ReadCoord(cl.protocolflags);
+    res[2] = MSG_ReadCoord(cl.protocolflags);
+    return res;
+}
+
 /*
 =================
 CL_ParseBeam
@@ -65,44 +74,37 @@ beam_t* CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
 
-    glm::vec3 start;
-    start[0] = MSG_ReadCoord(cl.protocolflags);
-    start[1] = MSG_ReadCoord(cl.protocolflags);
-    start[2] = MSG_ReadCoord(cl.protocolflags);
-
-    glm::vec3 end;
-    end[0] = MSG_ReadCoord(cl.protocolflags);
-    end[1] = MSG_ReadCoord(cl.protocolflags);
-    end[2] = MSG_ReadCoord(cl.protocolflags);
-
-    beam_t* b;
-    int i;
+    const glm::vec3 start = readVectorFromProtocolFlags();
+    const glm::vec3 end = readVectorFromProtocolFlags();
 
     // override any beam with the same entity
-    for(i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
+    for(int i = 0; i < MAX_BEAMS; ++i)
     {
-        if(b->entity == ent)
+        beam_t& b = cl_beams[i];
+
+        if(b.entity == ent)
         {
-            b->entity = ent;
-            b->model = m;
-            b->endtime = cl.time + 0.2;
-            b->start = start;
-            b->end = end;
-            return b;
+            b.entity = ent;
+            b.model = m;
+            b.endtime = cl.time + 0.2;
+            b.start = start;
+            b.end = end;
+            return &b;
         }
     }
 
     // find a free beam
-    for(i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
+    for(int i = 0; i < MAX_BEAMS; ++i)
     {
-        if(!b->model || b->endtime < cl.time)
+        beam_t& b = cl_beams[i];
+        if(!b.model || b.endtime < cl.time)
         {
-            b->entity = ent;
-            b->model = m;
-            b->endtime = cl.time + 0.2;
-            b->start = start;
-            b->end = end;
-            return b;
+            b.entity = ent;
+            b.model = m;
+            b.endtime = cl.time + 0.2;
+            b.start = start;
+            b.end = end;
+            return &b;
         }
     }
 
@@ -125,21 +127,14 @@ CL_ParseTEnt
 */
 void CL_ParseTEnt()
 {
-    glm::vec3 pos;
-    dlight_t* dl;
-    int rnd;
-    int colorStart;
 
-    int colorLength;
 
-    int type = MSG_ReadByte();
+    const int type = MSG_ReadByte();
     switch(type)
     {
         case TE_WIZSPIKE: // spike hitting wall
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
@@ -147,9 +142,7 @@ void CL_ParseTEnt()
 
         case TE_KNIGHTSPIKE: // spike hitting wall
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
@@ -157,9 +150,7 @@ void CL_ParseTEnt()
 
         case TE_SPIKE: // spike hitting wall
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             if(rand() % 5)
             {
@@ -167,7 +158,7 @@ void CL_ParseTEnt()
             }
             else
             {
-                rnd = rand() & 3;
+                const int rnd = rand() & 3;
                 if(rnd == 1)
                 {
                     S_StartSound(-1, 0, cl_sfx_ric1, pos, 1, 1);
@@ -186,9 +177,7 @@ void CL_ParseTEnt()
 
         case TE_SUPERSPIKE: // super spike hitting wall
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 20);
 
             if(rand() % 5)
@@ -197,7 +186,7 @@ void CL_ParseTEnt()
             }
             else
             {
-                rnd = rand() & 3;
+                const int rnd = rand() & 3;
                 if(rnd == 1)
                 {
                     S_StartSound(-1, 0, cl_sfx_ric1, pos, 1, 1);
@@ -216,20 +205,16 @@ void CL_ParseTEnt()
 
         case TE_GUNSHOT: // bullet hitting wall
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             break;
         }
 
         case TE_EXPLOSION: // rocket explosion
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
-            dl = CL_AllocDlight(0);
+            dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;
             dl->radius = 350;
             dl->die = cl.time + 0.5;
@@ -240,9 +225,7 @@ void CL_ParseTEnt()
 
         case TE_TAREXPLOSION: // tarbaby explosion
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
@@ -269,6 +252,9 @@ void CL_ParseTEnt()
             if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = true;
+
+                const auto scaleRatioX = hdr->scale[0] / hdr->original_scale[0];
+                b->scaleRatioX = scaleRatioX;
             }
 
             break;
@@ -298,6 +284,9 @@ void CL_ParseTEnt()
             if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = false;
+
+                const auto scaleRatioX = hdr->scale[0] / hdr->original_scale[0];
+                b->scaleRatioX = scaleRatioX;
             }
 
             break;
@@ -306,33 +295,27 @@ void CL_ParseTEnt()
 
         case TE_LAVASPLASH:
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_LavaSplash(pos);
             break;
         }
 
         case TE_TELEPORT:
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_TeleportSplash(pos);
             break;
         }
 
         case TE_EXPLOSION2: // color mapped explosion
         {
-            pos[0] = MSG_ReadCoord(cl.protocolflags);
-            pos[1] = MSG_ReadCoord(cl.protocolflags);
-            pos[2] = MSG_ReadCoord(cl.protocolflags);
+            const glm::vec3 pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
-            colorStart = MSG_ReadByte();
-            colorLength = MSG_ReadByte();
+            const int colorStart = MSG_ReadByte();
+            const int colorLength = MSG_ReadByte();
             // TODO VR:
             // R_ParticleExplosion2(pos, colorStart, colorLength);
-            dl = CL_AllocDlight(0);
+            dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;
             dl->radius = 350;
             dl->die = cl.time + 0.5;
@@ -383,30 +366,32 @@ void CL_UpdateTEnts()
     srand((int)(cl.time * 1000)); // johnfitz -- freeze beams when paused
 
     // update lightning
-    int i;
-    beam_t* b;
-    for(i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
+    for(int i = 0; i < MAX_BEAMS; ++i)
     {
-        if(!b->model || b->endtime < cl.time)
+        beam_t& b = cl_beams[i];
+        if(!b.model || b.endtime < cl.time)
         {
             continue;
         }
 
         // if coming from the player, update the start position
-        if(b->entity == cl.viewentity)
+        // TODO VR: needed?
+        /*
+        if(b.entity == cl.viewentity)
         {
             if(vr_enabled.value)
             {
-                b->start = VR_CalcMainHandWpnMuzzlePos();
+                b.start = VR_CalcMainHandWpnMuzzlePos();
             }
             else
             {
-                b->start = cl_entities[cl.viewentity].origin;
+                b.start = cl_entities[cl.viewentity].origin;
             }
         }
+        */
 
         // calculate pitch and yaw
-        glm::vec3 dist = b->end - b->start;
+        glm::vec3 dist = b.end - b.start;
 
         float pitch;
         float yaw;
@@ -440,14 +425,11 @@ void CL_UpdateTEnts()
         }
 
         // add new entities for the lightning
-        glm::vec3 org;
-        org = b->start;
+        glm::vec3 org = b.start;
         float d = glm::length(dist);
         dist = safeNormalize(dist);
 
-        auto* hdr = (aliashdr_t*)Mod_Extradata(b->model);
-        const auto scaleRatioX = hdr->scale[0] / hdr->original_scale[0];
-        const float incr = 30.f * scaleRatioX;
+        const float incr = 30.f * b.scaleRatioX;
 
         while(d > 0)
         {
@@ -458,10 +440,10 @@ void CL_UpdateTEnts()
             }
 
             ent->origin = org;
-            ent->model = b->model;
+            ent->model = b.model;
             ent->angles[0] = pitch;
             ent->angles[1] = yaw;
-            ent->angles[2] = b->spin ? rand() % 360 : 0;
+            ent->angles[2] = b.spin ? rand() % 360 : 0;
 
             // johnfitz -- use j instead of using i twice, so we don't corrupt
             // memory

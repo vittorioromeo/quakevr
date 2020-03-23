@@ -1077,7 +1077,8 @@ void V_CalcRefdef()
     }
     // johnfitz
 
-    // TODO VR: add to vr view?
+    // TODO VR: add to vr view? the onground evaluates to false, this is why
+    // it doesnt work
     // smooth out stair step ups
     if(!noclip_anglehack && cl.onground &&
         ent->origin[2] - oldz > 0) // johnfitz -- added exception for noclip
@@ -1123,8 +1124,6 @@ void V_CalcRefdef2Test()
     entity_t* view = &cl.offhand_viewent;
 
     // set up gun position
-    view->angles = cl.viewangles;
-
     CalcGunAngle(VR_GetOffHandWpnCvarEntry(), view, cl.handrot[0]);
 
     // VR controller aiming configuration

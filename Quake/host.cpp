@@ -844,8 +844,8 @@ void _Host_Frame(float time)
     //-------------------
     //
     // server operations
-    // 
-    //------------------- 
+    //
+    //-------------------
 
     // check for commands typed to the host
     Host_GetConsoleCommands();
@@ -872,7 +872,7 @@ void _Host_Frame(float time)
     if(cls.state == ca_connected)
     {
         CL_ReadFromServer();
-    } 
+    }
 
     // update video
     if(host_speeds.value)

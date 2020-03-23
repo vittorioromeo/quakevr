@@ -188,7 +188,7 @@ void () W_FireGrapple =
 void() GrappleService =
 {
     local   vector  o,  vel, hookfwd;
-    local    float    v;
+    local    float    v, dot;
 
     makevectors (self.hook.angles);
     hookfwd = v_forward;
@@ -224,8 +224,9 @@ void() GrappleService =
         vel = normalize(vel) * 350;
     }
 
-    // TODO VR: this magnitude needs to be checked in the direction of the hook, otherwise the hook won't pull when falling down fast
-    if (vlen(self.velocity) < 800)
+    dot = vel * self.velocity;
+
+    if (dot < 0 || vlen(self.velocity) < 800)
     {
         self.velocity = self.velocity + (vel * 8 * frametime);
     }

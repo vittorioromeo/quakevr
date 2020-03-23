@@ -409,7 +409,3 @@ void M_Menu_VR_f()
 
     VR_MenuPlaySound(sound, 0.5);
 }
-
-// TODO VR:
-// * difficulty options
-// * vignette?

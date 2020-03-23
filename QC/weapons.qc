@@ -1515,6 +1515,7 @@ void() W_FireLightning =
 
     org = self.handpos;
 
+    makevectors(self.v_angle);
     traceline (org, org + v_forward*600, TRUE, self);
     particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
     particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
@@ -2856,7 +2857,7 @@ void() W_WeaponFrame =
         // Lightning effect (per-frame)
         if (self.weapon == WID_LIGHTNING)
         {
-            org = self.handpos;
+            org = self.muzzlepos;
 
             makevectors(self.v_angle);
             traceline (org, org + v_forward*600, TRUE, self);

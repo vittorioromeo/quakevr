@@ -9,7 +9,9 @@
 #include <array>
 
 extern cvar_t r_showbboxes;
+extern cvar_t r_shadows;
 extern cvar_t host_timescale;
+extern cvar_t skill;
 
 static int debug_options_cursor = 0;
 
@@ -19,7 +21,7 @@ static void Debug_MenuPlaySound(const char* sound, float fvol)
 {
     if(sfx_t* sfx = S_PrecacheSound(sound))
     {
-        S_StartSound(cl.viewentity, 0, sfx, { 0.f, 0.f, 0.f }, fvol, 1);
+        S_StartSound(cl.viewentity, 0, sfx, {0.f, 0.f, 0.f}, fvol, 1);
     }
 }
 
@@ -47,6 +49,17 @@ static void Debug_MenuPrintOptionValue(int cx, int cy, DebugMenuOpt option)
         case DebugMenuOpt::e_ShowVirtualStock:
             M_Print(cx, cy, vr_show_virtual_stock.value == 0 ? "Off" : "On");
             break;
+        case DebugMenuOpt::e_Shadows:
+            M_Print(cx, cy, r_shadows.value == 0 ? "Off" : "On");
+            break;
+        case DebugMenuOpt::e_Skill:
+        {
+            static const std::array<std::string, 4> strings{
+                "Easy", "Normal", "Hard", "Nightmare"};
+
+            M_Print(cx, cy, strings[static_cast<int>(skill.value)].c_str());
+            break;
+        }
         default: assert(false); break;
     }
 }
@@ -77,6 +90,8 @@ static void M_Debug_KeyOption(int key, DebugMenuOpt option)
         case DebugMenuOpt::e_ShowVirtualStock:
             adjustI(vr_show_virtual_stock, 1, 0, 1);
             break;
+        case DebugMenuOpt::e_Shadows: adjustI(r_shadows, 1, 0, 1); break;
+        case DebugMenuOpt::e_Skill: adjustI(skill, 1, 0, 3); break;
         default: assert(false); break;
     }
 }
@@ -145,9 +160,10 @@ void M_Debug_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
-        "Show BBoxes", "Impulse 9", "Impuse 11", "God", "Noclip", "Fly",
-        "Timescale", "Impulse 255", "Show Virtual Stock");
+    static const auto adjustedLabels =
+        quake::util::makeAdjustedMenuLabels("Show BBoxes", "Impulse 9",
+            "Impuse 11", "God", "Noclip", "Fly", "Timescale", "Impulse 255",
+            "Show Virtual Stock", "Shadows", "Skill Level");
 
     static_assert(adjustedLabels.size() == (int)DebugMenuOpt::k_Max);
 

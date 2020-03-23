@@ -121,13 +121,13 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
         thry, thrr, thmode, len, wgh] = getCvars();
 
-    const float oInc = vr_menu_mult == 2 ? 1.5f : 0.1f;
+    const float oInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = vr_menu_mult == 2 ? 1.5f : 0.1f;
+    const float rInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
     constexpr float rBound = 90.f;
 
-    const float wInc = vr_menu_mult == 2 ? 1.5f : 0.01f;
+    const float wInc = VR_GetMenuMult() == 2 ? 1.5f : 0.01f;
     constexpr float wBound = 1.f;
 
     switch(option)
