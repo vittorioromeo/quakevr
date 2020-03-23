@@ -29,11 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NAME_LENGTH 64
 #define SIGNONS 4      // signon messages to receive before connected
 #define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 64   // johnfitz -- was 24
+#define MAX_BEAMS 128   // johnfitz -- was 24
 #define MAX_MAPSTRING 2048
 #define MAX_DEMOS 8
 #define MAX_DEMONAME 16
-#define MAX_TEMP_ENTITIES 256    // johnfitz -- was 64
+#define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
 #define MAX_VISEDICTS 4096       // larger, now we support BSP2
 

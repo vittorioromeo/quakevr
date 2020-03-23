@@ -1282,7 +1282,7 @@ template <auto TFactorFn>
 {
     // TODO: use cvar for left hand as well?
     return (handIndex == 0 && !vr_should_aim_2h)
-               ? 1.f
+               ? (*TFactorFn)(VR_GetOffHandWpnCvarEntry(), 0.f)
                : (*TFactorFn)(
                      VR_GetMainHandWpnCvarEntry(), vr_2h_aim_transition);
 }
@@ -1361,12 +1361,13 @@ void SetHandPos(int index, entity_t* player)
     finalVec = resolvedHandPos;
 
     // Local position of the gun's muzzle. Takes orientation into account.
-    const auto localMuzzlePos = VR_CalcWeaponMuzzlePosImpl();
+    const auto localMuzzlePos = VR_CalcWeaponMuzzlePosImpl(
+        index, index == 0 ? VR_GetOffHandWpnCvarEntry()
+                          : VR_GetMainHandWpnCvarEntry());
 
     // TODO VR: use cvar for left hand as well
     // World position of the gun's muzzle.
-    const auto muzzlePos =
-        index == 0 ? cl.handpos[index] : resolvedHandPos + localMuzzlePos;
+    const auto muzzlePos = resolvedHandPos + localMuzzlePos;
 
     // Check for collisions between the muzzle and geometry/entities.
     const trace_t gunTrace =
@@ -1763,9 +1764,10 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 
         transitionVar(vr_2h_aim_stock_transition, useStock, 5.f);
 
-        const bool canGrabWith2H = vr_left_grabbing &&
-                                   wpn2HMode != Wpn2HMode::Forbidden &&
-                                   !vr_gun_colliding_with_wall;
+        const bool canGrabWith2H =
+            vr_left_grabbing && wpn2HMode != Wpn2HMode::Forbidden &&
+            !vr_gun_colliding_with_wall &&
+            (sv_player && sv_player->v.weapon2 == WID_FIST);
 
         vr_should_aim_2h = canGrabWith2H && goodDistance &&
                            diffDot > vr_2h_angle_threshold.value;
@@ -2062,24 +2064,23 @@ void VR_CalibrateHeight()
     return res;
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
+    const int index, const int cvarEntry) noexcept
 {
-    const auto mainWpnCVarEntry = VR_GetMainHandWpnCvarEntry();
-
-    const auto [ox, oy, oz] = VR_GetWpnOffsets(mainWpnCVarEntry);
+    const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
     glm::vec3 finalOffsets{ox, -oy, oz};
-    finalOffsets /= VR_GetWpnCVarValue(mainWpnCVarEntry, WpnCVar::Scale);
+    finalOffsets /= VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
 
-    const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(mainWpnCVarEntry);
+    const auto [moX, moY, moZ] = VR_GetWpnMuzzleOffsets(cvarEntry);
     const glm::vec3 muzzleOfs{moX, moY, moZ};
 
     using namespace quake::util;
     finalOffsets += muzzleOfs;
 
-    const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
+    const auto [forward, right, up] = getAngledVectors(cl.handrot[index]);
 
-    finalOffsets *= VR_GetWpnCVarValue(mainWpnCVarEntry, WpnCVar::Scale) *
-                    VR_GetScaleCorrect();
+    finalOffsets *=
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale) * VR_GetScaleCorrect();
 
     const auto fFwd = forward * finalOffsets[0];
     const auto fRight = right * finalOffsets[1];
@@ -2088,9 +2089,16 @@ void VR_CalibrateHeight()
     return fFwd + fRight + fUp;
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept
+[[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept
 {
-    return cl.handpos[1] + VR_CalcWeaponMuzzlePosImpl();
+    return cl.handpos[1] +
+           VR_CalcWeaponMuzzlePosImpl(1, VR_GetMainHandWpnCvarEntry());
+}
+
+[[nodiscard]] glm::vec3 VR_CalcOffHandWpnMuzzlePos() noexcept
+{
+    return cl.handpos[0] +
+           VR_CalcWeaponMuzzlePosImpl(0, VR_GetOffHandWpnCvarEntry());
 }
 
 void VR_ShowVirtualStock()
@@ -2155,47 +2163,9 @@ void VR_ShowVirtualStock()
     glEnable(GL_DEPTH_TEST);
 }
 
-void VR_ShowCrosshair()
+static void VR_ShowCrosshairImpl(const float size, const float alpha,
+    const glm::vec3& start, const glm::vec3& forward)
 {
-    if(!sv_player || (int)(sv_player->v.weapon) == WID_AXE ||
-        (int)(sv_player->v.weapon) == WID_MJOLNIR)
-    {
-        return;
-    }
-
-    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
-    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
-
-    if(size <= 0 || alpha <= 0)
-    {
-        return;
-    }
-
-    // setup gl
-    glDisable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    GL_PolygonOffset(OFFSET_SHOWTRIS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
-
-    const auto [start, forward, right, up] = [&] {
-        // calc the line and draw
-        if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
-        {
-            const auto start = VR_CalcWeaponMuzzlePos();
-            const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
-            return std::tuple{start, forward, right, up};
-        }
-
-        auto start = cl.viewent.origin;
-        start[2] -= cl.viewheight - 10;
-
-        const auto [forward, right, up] = getAngledVectors(cl.aimangles);
-        return std::tuple{start, forward, right, up};
-    }();
-
     switch((int)vr_crosshair.value)
     {
         default:
@@ -2254,7 +2224,7 @@ void VR_ShowCrosshair()
             else
             {
                 const auto midA = glm::mix(start, impact, 0.15);
-                const auto midB = glm::mix(start, impact, 0.85);
+                const auto midB = glm::mix(start, impact, 0.70);
 
                 glColor4f(1, 0, 0, alpha * 0.01f);
                 glVertex3f(start[0], start[1], start[2]);
@@ -2273,6 +2243,80 @@ void VR_ShowCrosshair()
             break;
         }
     }
+}
+
+static void VR_ShowCrosshairMainHand(const float size, const float alpha)
+{
+    if((int)(sv_player->v.weapon) == WID_AXE ||
+        (int)(sv_player->v.weapon) == WID_MJOLNIR)
+    {
+        return;
+    }
+
+    const auto [start, forward, right, up] = [&] {
+        // calc the line and draw
+        if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
+        {
+            const auto start = VR_CalcMainHandWpnMuzzlePos();
+            const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
+            return std::tuple{start, forward, right, up};
+        }
+
+        auto start = cl.viewent.origin;
+        start[2] -= cl.viewheight - 10;
+
+        const auto [forward, right, up] = getAngledVectors(cl.aimangles);
+        return std::tuple{start, forward, right, up};
+    }();
+
+    VR_ShowCrosshairImpl(size, alpha, start, forward);
+}
+
+// TODO VR: code repetition
+static void VR_ShowCrosshairOffHand(const float size, const float alpha)
+{
+    if(vr_aimmode.value != VrAimMode::e_CONTROLLER ||
+        (int)(sv_player->v.weapon2) == WID_FIST)
+    {
+        return;
+    }
+
+    const auto [start, forward, right, up] = [&] {
+        // calc the line and draw
+        const auto start = VR_CalcOffHandWpnMuzzlePos();
+        const auto [forward, right, up] = getAngledVectors(cl.handrot[0]);
+        return std::tuple{start, forward, right, up};
+    }();
+
+    VR_ShowCrosshairImpl(size, alpha, start, forward);
+}
+
+void VR_ShowCrosshair()
+{
+    if(!sv_player)
+    {
+        return;
+    }
+
+    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
+    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
+
+    if(size <= 0 || alpha <= 0)
+    {
+        return;
+    }
+
+    // setup gl
+    glDisable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    GL_PolygonOffset(OFFSET_SHOWTRIS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+
+    VR_ShowCrosshairMainHand(size, alpha);
+    VR_ShowCrosshairOffHand(size, alpha);
 
     // cleanup gl
     glColor3f(1, 1, 1);
@@ -2810,7 +2854,8 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhandvelmag = cl.handvelmag[0];
 
     // VR: Weapon muzzle position.
-    cmd->muzzlepos = VR_CalcWeaponMuzzlePos();
+    cmd->muzzlepos = VR_CalcMainHandWpnMuzzlePos();
+    cmd->offmuzzlepos = VR_CalcOffHandWpnMuzzlePos();
 
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.

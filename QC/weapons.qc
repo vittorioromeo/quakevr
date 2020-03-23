@@ -2023,15 +2023,11 @@ void() W_SetCurrentAmmo =
     // TODO VR: (TODO dual-wielding)
     if (self.weapon2 == WID_FIST)
     {
-        // TODO VR:
-        bprint("Setting weaponmodel2 to hand\n");
         self.weaponmodel2 = "progs/hand.mdl";
         self.weaponframe2 = 0;
     }
     else if (self.weapon2 == WID_GRAPPLE)
     {
-        // TODO VR:
-        bprint("Setting weaponmodel2 to grapple\n");
         self.weaponmodel2 = "progs/v_grpple.mdl";
         self.weaponframe2 = 0;
     }
@@ -2302,11 +2298,14 @@ void() W_OffHandAttack =
     makevectors    (self.v_angle);            // calculate forward angle for velocity
     self.show_hostile = time + 1;    // wake monsters up
 
-    // TODO VR: grapple
-    if (!self.hook_out)
-        player_grapple1();
-    else
-        player_grapple3();
+    if (self.weapon2 == WID_GRAPPLE)
+    {
+        if (!self.hook_out)
+            player_grapple1();
+        else
+            player_grapple3();
+    }
+
     self.offhand_attack_finished = time + 0.1;
 };
 
@@ -2659,16 +2658,10 @@ void() CycleOffHandWeapon =
 {
     if (self.weapon2 == WID_FIST)
     {
-        // TODO VR:
-        bprint("Cycle offhand weapon to grapple\n");
-
         self.weapon2 = WID_GRAPPLE;
     }
     else if (self.weapon2 == WID_GRAPPLE)
     {
-        // TODO VR:
-        bprint("Cycle offhand weapon to fist\n");
-
         self.weapon2 = WID_FIST;
     }
 

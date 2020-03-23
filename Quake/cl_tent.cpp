@@ -292,6 +292,9 @@ void CL_ParseTEnt()
             hdr->scale_origin = hdr->original_scale_origin * 0.25f;
             hdr->scale = hdr->original_scale * 0.25f;
 
+            hdr->scale[0] = hdr->original_scale[0] * 0.12f;
+            hdr->scale_origin[0] = hdr->original_scale_origin[0] * 0.12f;
+
             if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = false;
@@ -394,7 +397,7 @@ void CL_UpdateTEnts()
         {
             if(vr_enabled.value)
             {
-                b->start = VR_CalcWeaponMuzzlePos();
+                b->start = VR_CalcMainHandWpnMuzzlePos();
             }
             else
             {

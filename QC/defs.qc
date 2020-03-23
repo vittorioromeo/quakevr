@@ -230,6 +230,7 @@ void        end_sys_globals;        // flag for structure dumping
 .float        offhandvelmag;
 .float        touchinghand;
 .vector        muzzlepos;
+.vector        offmuzzlepos;
 .float        teleporting;
 .vector        teleport_target;
 

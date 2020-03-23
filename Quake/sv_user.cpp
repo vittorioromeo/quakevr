@@ -612,6 +612,10 @@ void SV_ReadClientMove(usercmd_t* move)
     readVec(move->muzzlepos);
     host_client->edict->v.muzzlepos = move->muzzlepos;
 
+    // offmuzzlepos
+    readVec(move->offmuzzlepos);
+    host_client->edict->v.offmuzzlepos = move->offmuzzlepos;
+
     // movement
     move->forwardmove = MSG_ReadShort();
     move->sidemove = MSG_ReadShort();

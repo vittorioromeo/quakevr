@@ -571,6 +571,9 @@ void CL_SendMove(const usercmd_t* cmd)
     // muzzlepos
     writeVec(cmd->muzzlepos);
 
+    // offmuzzlepos
+    writeVec(cmd->offmuzzlepos);
+
     // movement
     MSG_WriteShort(&buf, cmd->forwardmove);
     MSG_WriteShort(&buf, cmd->sidemove);

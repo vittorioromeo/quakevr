@@ -297,6 +297,7 @@ struct usercmd_t
     glm::vec3 offhandvel;
     float offhandvelmag;
     glm::vec3 muzzlepos;
+    glm::vec3 offmuzzlepos;
 
     // intended velocities
     float forwardmove;

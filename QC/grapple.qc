@@ -11,18 +11,18 @@
 float() crandom;
 void(vector org, vector vel, float damage) SpawnBlood;
 
-void(entity h, vector startPos) GrappleTrail =
+void(entity h, vector startPos, vector endPos) GrappleTrail =
 {
     // draw a line to the hook
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_BEAM);
     WriteEntity (MSG_BROADCAST, h);
-    WriteCoord (MSG_BROADCAST, h.origin_x);
-    WriteCoord (MSG_BROADCAST, h.origin_y);
-    WriteCoord (MSG_BROADCAST, h.origin_z);
     WriteCoord (MSG_BROADCAST, startPos_x);
     WriteCoord (MSG_BROADCAST, startPos_y);
     WriteCoord (MSG_BROADCAST, startPos_z);
+    WriteCoord (MSG_BROADCAST, endPos_x);
+    WriteCoord (MSG_BROADCAST, endPos_y);
+    WriteCoord (MSG_BROADCAST, endPos_z);
 };
 
 void() GrappleReset =
@@ -114,7 +114,9 @@ void () GrappleAnchor =
         // damage will only be done to PLAYERS... this way secret
         // doors and triggers will only be damaged once.
         if (other.takedamage)
+        {
             T_Damage (other, self, self.owner, 1);
+        }
 
         self.velocity = '0 0 0';
         self.avelocity = '0 0 0';
@@ -123,6 +125,7 @@ void () GrappleAnchor =
     self.frame = 2; // anchored
 
     sound (self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
+    particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 48);
 
     if (!self.owner.button3) {
         GrappleReset();
@@ -132,12 +135,6 @@ void () GrappleAnchor =
     self.owner.on_hook = TRUE;
     if (self.owner.flags & FL_ONGROUND)
         self.owner.flags = self.owner.flags - FL_ONGROUND;
-
-    // CHAIN2 is a looping sample. Use LEFTY as a flag so that client.qc
-    // will know to only play the tink sound ONCE to clear the weapons
-    // sound channel. (Lefty is a leftover from AI.QC, so I reused it to
-    // avoid adding a field)
-    self.owner.lefty = TRUE;
 
     self.enemy = other;// remember this guy!
     self.think = GrappleTrack;
@@ -154,6 +151,8 @@ void () W_FireGrapple =
         return;
 
     VRGunHaptic(0.55, 75, 1.0);
+    particle2 (self.offmuzzlepos, '0 0 0', 5 /* sparks preset */, 8);
+    particle2 (self.offmuzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
 
     self.punchangle_x = -2; // bump him
 
@@ -168,7 +167,7 @@ void () W_FireGrapple =
     newmis.classname = "hook";
 
     makevectors (self.offhandrot);
-    newmis.velocity = v_forward * 1200;
+    newmis.velocity = v_forward * 1500;
 //    newmis.avelocity = '0 0 -500';
     newmis.angles = vectoangles(v_forward);
 
@@ -188,14 +187,17 @@ void () W_FireGrapple =
 // called each frame by CLIENT.QC if client has hook_out
 void() GrappleService =
 {
-    local   vector  o, dist, vel;
+    local   vector  o,  vel, hookfwd;
     local    float    v;
+
+    makevectors (self.hook.angles);
+    hookfwd = v_forward;
 
     makevectors (self.offhandrot);
 
     if (!self.on_hook) {
-        // just draw a line to the hook
-            GrappleTrail(self.hook, self.offhandpos + v_forward * 6);
+        // TODO VR: still wonky position on hook , dunno why
+        GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos);
         return;
     }
 
@@ -209,29 +211,26 @@ void() GrappleService =
         return;
     }
 
-    dist = self.hook.origin - self.origin;
-    vel = self.hook.origin - ( self.origin + (v_up * 16 *
-            (!self.button2)) + (v_forward * 16));
-
+    vel = self.hook.origin - self.offmuzzlepos;
     v = vlen (vel);
 
-    if (v <= 100)
-        vel = normalize(vel) * v * 10;
-    else
-        vel = normalize(vel) * 1000;
+    // if (v <= 250)
+    // {
+    //     vel = normalize(vel) * 250;
+    // }
 
-    if (vlen(self.velocity) < vlen(vel))
+    if (v >= 350)
     {
-        self.velocity = self.velocity + normalize(vel) * 8.5;
+        vel = normalize(vel) * 350;
     }
 
-    if ( vlen(dist) <= 50) {
-        if (self.lefty) { // cancel chain sound
-            self.lefty = FALSE;// we've reset the sound channel.
-        }
+    // TODO VR: this magnitude needs to be checked in the direction of the hook, otherwise the hook won't pull when falling down fast
+    if (vlen(self.velocity) < 800)
+    {
+        self.velocity = self.velocity + (vel * 8 * frametime);
     }
 
-    GrappleTrail(self.hook, self.offhandpos + v_forward * 6);
+    GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos);
 };
 
 

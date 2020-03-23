@@ -1137,18 +1137,6 @@ void V_CalcRefdef2Test()
         // No off-hand without VR.
     }
 
-    // TODO VR: old
-    // static qmodel_t* handModel = Mod_ForName("progs/hand.mdl", true);
-    // view->model = handModel;
-
-    static unsigned int k = 0;
-    ++k;
-    if(k % 500 == 0)
-    {
-        Con_Printf("wm2: %d; wf2: %d\n", cl.stats[STAT_WEAPONMODEL2],
-            cl.stats[STAT_WEAPONFRAME2]);
-    }
-
     view->model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
     view->frame = cl.stats[STAT_WEAPONFRAME2];
     view->colormap = vid.colormap;

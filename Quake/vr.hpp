@@ -193,8 +193,9 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
     const int cvarEntry) noexcept;
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl() noexcept;
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePos() noexcept;
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
+    const int index, const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
 
 // ----------------------------------------------------------------------------
 
