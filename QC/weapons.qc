@@ -6,7 +6,7 @@
 void( vector pos ) placebullethole
 void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
 void (entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee;
-void () player_run;
+void (float xHand) player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
 void() SuperDamageSound;
@@ -87,6 +87,20 @@ void(float xHand, float v) VRMeleeSetHitSoundPlayed =
     else           self.melee_hit_sound_played = v;
 }
 
+// TODO VR:
+void(float xHand, float v) setCurrentAmmo =
+{
+    // TODO VR: test to fix supernailgun bug
+    if(xHand == 0) { self.currentammo2 = v; if(self.currentammo2 < 0) self.currentammo2 = 0; }
+    else           { self.currentammo = v; if(self.currentammo < 0) self.currentammo = 0; }
+}
+
+float(float xHand) getCurrentAmmo =
+{
+    if(xHand == 0) return self.currentammo2;
+    else           return self.currentammo;
+}
+
 float() VRMeleeDmgQuadMult =
 {
     if (self.super_damage_finished > time)
@@ -110,23 +124,15 @@ float(float velmag) VRMeleeStrengthMult =
     return strength;
 }
 
-
-float(float v) VRMeleeMainHandDmg =
-{
-    return (v * VRMeleeStrengthMult(self.handvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
-}
-
-float(float v) VRMeleeOffHandDmg =
-{
-    return (v * VRMeleeStrengthMult(self.offhandvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
-}
-
 float(float xHand, float v) VRMeleeDmg =
 {
-    if(xHand == 0) return VRMeleeOffHandDmg(v);
-    else           return VRMeleeMainHandDmg(v);
-}
+    local float tmp;
 
+    if(xHand == 0) tmp = self.offhandvelmag;
+    else           tmp = self.handvelmag;
+
+    return (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
+}
 
 float(float v) VRMeleeRange =
 {
@@ -159,7 +165,6 @@ void(float hand, float velmag) VRMeleeHaptic =
 
     haptic(hand, 0.0, xduration, 75.0, amplitude);
 }
-
 
 float PositionalDamageFactor(float positionalDamageType)
 {
@@ -322,192 +327,221 @@ HIPNOTIC WEAPONS
 void() HIP_LaserTouch =
 {
     local vector org;
-   local vector spot1,spot2;
-   local vector oldvel;
-   local float mag;
-   local float r;
-   local float adjDmg;
-   local float posDmgType;
+    local vector spot1,spot2;
+    local vector oldvel;
+    local float r;
+    local float adjDmg;
+    local float posDmgType;
 
-   self.owner = world;
-   self.cnt = self.cnt + 1;
-   if (pointcontents(self.origin) == CONTENT_SKY)
+    self.owner = world;
+    self.cnt = self.cnt + 1;
+    if (pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
     }
-   oldvel = normalize(self.old_velocity);
-   spot1 = self.origin - (16*oldvel);
-   spot2 = self.origin + (16*oldvel);
-   traceline (spot1, spot2, FALSE, self);  // see through other monsters
-   self.origin = trace_endpos;
+    oldvel = normalize(self.old_velocity);
+    spot1 = self.origin - (16*oldvel);
+    spot2 = self.origin + (16*oldvel);
+    traceline (spot1, spot2, FALSE, self);  // see through other monsters
+    self.origin = trace_endpos;
 
-   org = self.origin;
+    org = self.origin;
 
     if (other.health)
-      {
-      if (self.lastvictim == other)
-         {
-         self.dmg = self.dmg / 2;
-         }
-      spawn_touchblood (self.dmg);
+    {
+        if (self.lastvictim == other)
+        {
+            self.dmg = self.dmg / 2;
+        }
 
-      makevectors (self.angles);
-      posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-      adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
+        spawn_touchblood (self.dmg);
 
-      T_Damage (other, self, self.lastvictim, adjDmg);
+        makevectors (self.angles);
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
-
-      }
-   else if ((self.cnt == 3) || (random()<0.15))
-      {
+        T_Damage (other, self, self.lastvictim, adjDmg);
+    }
+    else if ((self.cnt == 3) || (random()<0.15))
+    {
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_GUNSHOT);
         WriteCoord (MSG_BROADCAST, org_x);
         WriteCoord (MSG_BROADCAST, org_y);
         WriteCoord (MSG_BROADCAST, org_z);
-      }
-   else
-      {
-//      self.dmg = 0.66 * self.dmg;
-      self.dmg = 0.9 * self.dmg;
-//      self.speed = 0.95 * self.speed;
-      self.velocity = oldvel+(2*trace_plane_normal);
-      self.velocity = normalize(self.velocity);
-      self.velocity = self.speed * self.velocity;
-      self.old_velocity = self.velocity;
-      if (self.flags & FL_ONGROUND)
-         self.flags = self.flags - FL_ONGROUND;
-      r = random();
-      sound (self, CHAN_WEAPON, "hipweap/laserric.wav", 1, ATTN_STATIC);
-/*
-      if (r<0.33)
-         sound (self, CHAN_WEAPON, "weapons/ric1.wav", 1, ATTN_STATIC);
-      else if (r<0.66)
-         sound (self, CHAN_WEAPON, "weapons/ric2.wav", 1, ATTN_STATIC);
-      else
-         sound (self, CHAN_WEAPON, "weapons/ric3.wav", 1, ATTN_STATIC);
-*/
-      return;
-      }
-   sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
-   remove(self);
+    }
+    else
+    {
+       self.dmg = 0.9 * self.dmg;
+       self.velocity = oldvel+(2*trace_plane_normal);
+       self.velocity = normalize(self.velocity);
+       self.velocity = self.speed * self.velocity;
+       self.old_velocity = self.velocity;
+       if (self.flags & FL_ONGROUND)
+           self.flags = self.flags - FL_ONGROUND;
+       r = random();
+       sound (self, CHAN_WEAPON, "hipweap/laserric.wav", 1, ATTN_STATIC);
+       return;
+    }
 
+    sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
+    remove(self);
 };
+
 void() HIP_LaserThink =
-   {
-   local float delta;
+{
+    if (time > self.attack_finished)
+    {
+        remove(self);
+        return;
+    }
 
+    if (self.flags & FL_ONGROUND)
+    {
+        self.flags = self.flags - FL_ONGROUND;
+    }
 
-   if (time>self.attack_finished)
-      {
-      remove(self);
-      return;
-      }
-   if (self.flags & FL_ONGROUND)
-      self.flags = self.flags - FL_ONGROUND;
-   self.velocity = self.old_velocity;
-   self.angles = vectoangles(self.velocity);
-   self.nextthink = time+0.1;
-   };
+    self.velocity = self.old_velocity;
+    self.angles = vectoangles(self.velocity);
+    self.nextthink = time + 0.1;
+};
 
 void(vector org, vector vec, float light) HIP_LaunchLaser =
 {
-//   sound (self ,CHAN_WEAPON, "weapons/shotgn2.wav", 1, ATTN_NORM);
-   sound (self ,CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
+    sound (self ,CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
 
-   vec = normalize(vec);
+    vec = normalize(vec);
 
     newmis = spawn();
-   newmis.owner = self;
-   newmis.classname = "hiplaser";
-   newmis.lastvictim = self;
-   newmis.movetype = MOVETYPE_FLYMISSILE;
-   newmis.solid = SOLID_BBOX;
-   if (light)
-      newmis.effects = EF_DIMLIGHT;
+    newmis.owner = self;
+    newmis.classname = "hiplaser";
+    newmis.lastvictim = self;
+    newmis.movetype = MOVETYPE_FLYMISSILE;
+    newmis.solid = SOLID_BBOX;
+    if (light)
+       newmis.effects = EF_DIMLIGHT;
 
-   setmodel (newmis, "progs/lasrspik.mdl");
+    setmodel (newmis, "progs/lasrspik.mdl");
     setsize (newmis, '0 0 0', '0 0 0');
 
     setorigin (newmis, org);
 
-   newmis.speed = 1750;
-   newmis.dmg = 18;
-   newmis.velocity = vec * newmis.speed;
-   newmis.old_velocity = newmis.velocity;
-   newmis.angles = vectoangles(newmis.velocity);
-   newmis.avelocity = '0 0 400';
+    newmis.speed = 1750;
+    newmis.dmg = 18;
+    newmis.velocity = vec * newmis.speed;
+    newmis.old_velocity = newmis.velocity;
+    newmis.angles = vectoangles(newmis.velocity);
+    newmis.avelocity = '0 0 400';
 
-   newmis.nextthink = time;
-   newmis.attack_finished = time + 5;
-   newmis.think = HIP_LaserThink;
-   newmis.touch = HIP_LaserTouch;
-   newmis.count = 0;
-
+    newmis.nextthink = time;
+    newmis.attack_finished = time + 5;
+    newmis.think = HIP_LaserThink;
+    newmis.touch = HIP_LaserTouch;
+    newmis.count = 0;
 };
+
+// TODO VR: move
+float(float xHand) VRFireButtonPressed =
+{
+    if(xHand == 0) return self.button3;
+    else           return self.button0;
+}
+
+void(float xHand, float v) VRSetWeapon =
+{
+    if(xHand == 0) self.weapon2 = v;
+    else           self.weapon = v;
+}
+
+float(float xHand) VRGetWeapon =
+{
+    if(xHand == 0) return self.weapon2;
+    else           return self.weapon;
+}
+
+vector(float xHand) VRGetWeaponFireRot =
+{
+    return VRGetHandRot(xHand);
+}
+
+vector(float xHand) VRGetMuzzlePos =
+{
+    if(xHand == 0) return self.offmuzzlepos;
+    else           return self.muzzlepos;
+}
+
+vector(float xHand) VRGetWeaponFireRotFwd =
+{
+    makevectors (VRGetWeaponFireRot(xHand));
+    return v_forward;
+}
+
 
 /*
 =================
 HIP_FireLaser
 =================
 */
-void(float stat) HIP_FireLaser =
-   {
+void(float xHand, float stat) HIP_FireLaser =
+{
     local vector org;
-   local vector dir;
-   local vector out;
-   local float ofs;
-   local float aofs;
+    local vector dir;
+    local vector out;
+    local float ofs;
+    local float aofs;
 
-   if (!self.button0)
-      {
-      player_run ();
-      return;
-      }
-   if (self.ammo_cells < 1)
-      {
-        self.weapon = W_BestWeapon ();
+    if (!VRFireButtonPressed(xHand))
+    {
+        player_run (xHand);
+        return;
+    }
+
+    if (self.ammo_cells < 1)
+    {
+        VRSetWeapon(xHand, W_BestWeapon());
         W_SetCurrentAmmo ();
         return;
-      }
-   SuperDamageSound();
-   self.effects = self.effects | EF_MUZZLEFLASH;
-   makevectors (self.v_angle);
+    }
 
-   ofs = 6;
-   out = v_forward;
-   out_z = 0;
-   out = normalize(out);
-   org = self.muzzlepos + ((-1) * v_up) + (2*out);
-//   org = self.origin + (1*v_forward);
-   dir = aim (self, 1000);
-   aofs = ofs * 0.15;
-   if (stat == 0)
-      {
-      self.currentammo = self.ammo_cells = self.ammo_cells - 1;
-      org = org + (aofs*v_right);
-      HIP_LaunchLaser(org, dir, 0);
-      org = org - (2*aofs*v_right);
-      HIP_LaunchLaser(org, dir, 0);
-      }
-   else if (stat == 1)
-      {
-      self.currentammo = self.ammo_cells = self.ammo_cells - 1;
-      org = org + (ofs*(v_up * 0.4));
-      if (random()<0.1)
-         {
-         HIP_LaunchLaser(org, dir, 1);
-         newmis.dmg = 25;
-         }
-      else
-         HIP_LaunchLaser(org, dir, 0);
-      }
+    SuperDamageSound();
+    self.effects = self.effects | EF_MUZZLEFLASH;
+    makevectors (VRGetWeaponFireRot(xHand));
 
-   self.punchangle_x = -1;
-   VRGunHaptic(0.05, 150, 1.0);
-   particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    ofs = 6;
+    out = v_forward;
+    out_z = 0;
+    out = normalize(out);
+    org = VRGetMuzzlePos(xHand) + ((-1) * v_up) + (2*out);
+    dir = aim (self, 1000);
+    aofs = ofs * 0.15;
+    if (stat == 0)
+    {
+        // TODO VR: deal with ammo
+        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        org = org + (aofs*v_right);
+        HIP_LaunchLaser(org, dir, 0);
+        org = org - (2*aofs*v_right);
+        HIP_LaunchLaser(org, dir, 0);
+    }
+    else if (stat == 1)
+    {
+        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        org = org + (ofs*(v_up * 0.4));
+        if (random()<0.1)
+        {
+            HIP_LaunchLaser(org, dir, 1);
+            newmis.dmg = 25;
+        }
+        else
+        {
+            HIP_LaunchLaser(org, dir, 0);
+        }
+    }
+
+    self.punchangle_x = -1;
+    VRGunHaptic(0.05, 150, 1.0);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 /*
@@ -641,6 +675,7 @@ void() HIP_LightningThink =
          WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
          WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
          WriteEntity (MSG_BROADCAST, self);
+         WriteByte (MSG_BROADCAST, 0); /* disambiguator */
          WriteCoord (MSG_BROADCAST, org_x);
          WriteCoord (MSG_BROADCAST, org_y);
          WriteCoord (MSG_BROADCAST, org_z);
@@ -669,6 +704,7 @@ void() HIP_LightningThink =
    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
    WriteEntity (MSG_BROADCAST, self);
+   WriteByte (MSG_BROADCAST, 0); /* disambiguator */
    WriteCoord (MSG_BROADCAST, org_x);
    WriteCoord (MSG_BROADCAST, org_y);
    WriteCoord (MSG_BROADCAST, org_z);
@@ -735,34 +771,26 @@ void() HIP_SpawnMjolnirBase =
    HIP_SpawnMjolnirLightning( light, light, 350 );
    };
 
-void() HIP_FireMjolnirLightning =
-   {
-   local vector   org;
-    local    float        cells;
+void(float xHand) HIP_FireMjolnirLightning =
+{
+    local float cells;
 
-// explode if under water
+    // explode if under water
     if (self.waterlevel > 1)
     {
         cells = self.ammo_cells;
         self.ammo_cells = 0;
-      discharged = 1;
+        discharged = 1;
         T_RadiusDamage (self, self, 35*cells, world);
-      discharged = 0;
+        discharged = 0;
         W_SetCurrentAmmo ();
         return;
     }
 
-//   if (self.t_width < time)
-//   {
-//      sound (self, CHAN_WEAPON, "weapons/lhit.wav", 1, ATTN_NORM);
-//      self.t_width = time + 0.6;
-//   }
-//   self.punchangle_x = 12;
+    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 15);
 
-   self.currentammo = self.ammo_cells = self.ammo_cells - 15;
-
-   HIP_SpawnMjolnirBase();
-   };
+    HIP_SpawnMjolnirBase();
+};
 
 void(float xHand) HIP_FireMjolnir =
 {
@@ -785,10 +813,10 @@ void(float xHand) HIP_FireMjolnir =
     {
         VRMeleeHaptic(1, self.handvelmag);
 
-        if (time >= self.attack_finished && self.ammo_cells >= 15)
+        if (time >= getAttackFinished(xHand) && self.ammo_cells >= 15)
         {
-            HIP_FireMjolnirLightning();
-            self.attack_finished = time + 0.5;
+            HIP_FireMjolnirLightning(xHand);
+            setAttackFinished(xHand, time + 0.5);
         }
 
         if (trace_ent.classname == "monster_zombie")
@@ -803,10 +831,10 @@ void(float xHand) HIP_FireMjolnir =
         // hit wall
         if (trace_fraction != 1.0)
         {
-            if (time >= self.attack_finished && self.ammo_cells >= 15)
+            if (time >= getAttackFinished(xHand) && self.ammo_cells >= 15)
             {
-                HIP_FireMjolnirLightning();
-                self.attack_finished = time + 0.5;
+                HIP_FireMjolnirLightning(xHand);
+                setAttackFinished(xHand, time + 0.5);
             }
 
             if (VRMeleeHitSoundPlayed(xHand) == FALSE)
@@ -931,7 +959,6 @@ void(float xHand) W_GunMelee =
     local    vector    source;
     local    vector    org;
     local    float    xdmg;
-    local    string    s;
 
     xdmg = VRMeleeDmg(xHand, 0.5);
 
@@ -993,7 +1020,6 @@ void(float xHand) W_FistMelee =
     local vector source;
     local vector org;
     local float  xdmg;
-    local string s;
     local float  playedsound;
 
     xdmg = VRMeleeDmg(xHand, 0.75);
@@ -1069,7 +1095,7 @@ SpawnMeatSpray
 */
 void(vector org, vector vel) SpawnMeatSpray =
 {
-    local    entity missile, mpuff;
+    local    entity missile;
 
     missile = spawn ();
     missile.owner = self;
@@ -1233,12 +1259,12 @@ Go to the trouble of combining multiple pellets into a single damage call.
 void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 {
     local vector direction;
-    local float xdiff, ydiff, zdiff, habsdiff;
-    local string temps;
     local float adjDmg;
     local float posDmgType;
 
-    makevectors(self.v_angle);
+    // TODO VR: wrong?
+    // makevectors(self.v_angle);
+    makevectors(vectoangles(dir));
 
     ClearMultiDamage ();
     while (shotcount > 0)
@@ -1266,9 +1292,9 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
     ApplyMultiDamage ();
 };
 
-void(float shotcount, vector dir, vector spread) FireBullets =
+void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
 {
-    FireBulletsImpl(shotcount, dir, spread, self.handpos);
+    FireBulletsImpl(shotcount, dir, spread, VRGetMuzzlePos(xHand));
 }
 
 void(float shotcount, vector dir, vector spread) EnemyFireBullets =
@@ -1286,7 +1312,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 W_FireShotgun
 ================
 */
-void() W_FireShotgun =
+void(float xHand) W_FireShotgun =
 {
     local vector dir;
 
@@ -1294,13 +1320,15 @@ void() W_FireShotgun =
 
     self.punchangle_x = -2;
 
-    self.currentammo = self.ammo_shells = self.ammo_shells - 1;
-    dir = aim (self, 100000);
-    FireBullets (6, dir, '0.01 0.01 0');
+    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 1);
+
+    dir = VRGetWeaponFireRotFwd(xHand);
+
+    FireBullets (xHand, 6, dir, '0.01 0.01 0');
 
     VRGunHaptic(0.25, 70, 0.75);
 
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -1309,28 +1337,28 @@ void() W_FireShotgun =
 W_FireSuperShotgun
 ================
 */
-void() W_FireSuperShotgun =
+void(float xHand) W_FireSuperShotgun =
 {
     local vector dir;
 
-    if (self.currentammo == 1)
+    if (getCurrentAmmo(xHand) == 1)
     {
-        W_FireShotgun ();
+        W_FireShotgun (xHand);
         return;
     }
 
-    sound (self ,CHAN_WEAPON, "weapons/shotgn2.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "weapons/shotgn2.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -4;
 
-    self.currentammo = self.ammo_shells = self.ammo_shells - 2;
-    dir = aim (self, 100000);
-    FireBullets (14, dir, '0.035 0.025 0');
+    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 2);
+    dir = VRGetWeaponFireRotFwd(xHand);
+    FireBullets (xHand, 14, dir, '0.035 0.025 0');
 
     VRGunHaptic(0.55, 75, 1.0);
 
-    particle2 (self.muzzlepos - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
-    particle2 (self.muzzlepos + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -1404,11 +1432,11 @@ void() T_MissileTouch =
 W_FireRocket
 ================
 */
-void() W_FireRocket =
+void(float xHand) W_FireRocket =
 {
-    local    entity missile, mpuff;
+    local    entity missile;
 
-    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
 
     sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
 
@@ -1420,23 +1448,20 @@ void() W_FireRocket =
     missile.solid = SOLID_BBOX;
     missile.classname = "missile";
 
-// set missile speed
-
-    makevectors (self.v_angle);
-    missile.velocity = aim(self, 1000);
-    missile.velocity = missile.velocity * 1000;
+    // set missile speed
+    missile.velocity = VRGetWeaponFireRotFwd(xHand) * 1000;
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
     missile.velocity = missile.velocity + vrProjectileVelocity();
 
-// set missile duration
+    // set missile duration
     missile.nextthink = time + 5;
     missile.think = SUB_Remove;
 
     setmodel (missile, "progs/missile.mdl");
     setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.handpos);
+    setorigin (missile, VRGetMuzzlePos(xHand));
 
     // HIPNOTIC
     //MED 11/09/96
@@ -1444,7 +1469,7 @@ void() W_FireRocket =
 
     VRGunHaptic(0.5, 75, 1.0);
 
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 3);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 3);
 };
 
 /*
@@ -1509,18 +1534,17 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 };
 
 
-void() W_FireLightning =
+void(float xHand) W_FireLightning =
 {
     local    vector        org;
     local    float        cells;
 
     if (self.ammo_cells < 1)
     {
-        self.weapon = W_BestWeapon ();
+        VRSetWeapon(xHand, W_BestWeapon());
         W_SetCurrentAmmo ();
         return;
     }
-
 // explode if under water
     if (self.waterlevel > 1)
     {
@@ -1529,9 +1553,9 @@ void() W_FireLightning =
 
     // HIPNOTIC
 //MED 01/05/97 added discharge flag
-      discharged = 1;
+        discharged = 1;
         T_RadiusDamage (self, self, 35*cells, world);
-      discharged = 0;
+        discharged = 0;
         W_SetCurrentAmmo ();
         return;
     }
@@ -1541,21 +1565,21 @@ void() W_FireLightning =
         sound (self, CHAN_WEAPON, "weapons/lhit.wav", 1, ATTN_NORM);
         self.t_width = time + 0.6;
     }
+
     self.punchangle_x = -2;
+    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
 
-    self.currentammo = self.ammo_cells = self.ammo_cells - 1;
+    org = VRGetMuzzlePos(xHand);
 
-    org = self.handpos;
-
-    makevectors(self.v_angle);
+    makevectors (VRGetHandRot(xHand));
     traceline (org, org + v_forward*600, TRUE, self);
     particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
     particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
     particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
-    LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
+    LightningDamage (org, trace_endpos + v_forward*4, self, 30);
 
     VRGunHaptic(0.4, 175, 1.0);
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (org, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -1594,11 +1618,12 @@ void() GrenadeTouch =
 W_FireGrenade
 ================
 */
-void() W_FireGrenade =
+void(float xHand) W_FireGrenade =
 {
-    local    entity missile, mpuff;
+    local entity missile;
+    local vector tmpAngles;
 
-    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
 
     sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
 
@@ -1610,34 +1635,32 @@ void() W_FireGrenade =
     missile.solid = SOLID_BBOX;
     missile.classname = "grenade";
 
-// set missile speed
-
-    makevectors (self.v_angle);
+    // set missile speed
+    tmpAngles = VRGetWeaponFireRot(xHand);
+    makevectors (tmpAngles);
 
     if (cvar("vr_enabled") == 1)
     {
-        if (self.v_angle_x)
+        if (tmpAngles_x)
         {
             missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
         }
         else
         {
-            missile.velocity = aim(self, 10000);
-            missile.velocity = missile.velocity * 600;
+            missile.velocity = v_forward * 600;
         }
 
         missile.velocity = missile.velocity + vrProjectileVelocity();
     }
     else
     {
-        if (self.v_angle_x)
+        if (tmpAngles_x)
         {
             missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
         }
         else
         {
-            missile.velocity = aim(self, 10000);
-            missile.velocity = missile.velocity * 600;
+            missile.velocity = v_forward * 600;
             missile.velocity_z = 200;
         }
     }
@@ -1654,10 +1677,10 @@ void() W_FireGrenade =
 
     setmodel (missile, "progs/grenade.mdl");
     setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.handpos);
+    setorigin (missile, VRGetMuzzlePos(xHand));
 
     VRGunHaptic(0.4, 75, 1.0);
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 2);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
 
@@ -1771,78 +1794,77 @@ void() ProximityBomb =
 W_FireProximityGrenade
 ================
 */
-void() W_FireProximityGrenade =
-   {
-   local entity missile, mpuff;
+void(float xHand) W_FireProximityGrenade =
+{
+    local entity missile;
+    local vector tmpAngles;
 
-   NumProximityGrenades = NumProximityGrenades + 1;
-   self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    NumProximityGrenades = NumProximityGrenades + 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
 
-   sound (self, CHAN_WEAPON, "hipweap/proxbomb.wav", 1, ATTN_NORM);
+    sound (self, CHAN_WEAPON, "hipweap/proxbomb.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
     missile = spawn ();
-   missile.owner = self;
-   missile.lastvictim = self;
-   missile.movetype = MOVETYPE_TOSS;
+    missile.owner = self;
+    missile.lastvictim = self;
+    missile.movetype = MOVETYPE_TOSS;
     missile.solid = SOLID_BBOX;
-   missile.classname = "proximity_grenade";
-   missile.takedamage = DAMAGE_NO;
-   missile.health = 5;
-   missile.state = 0;
+    missile.classname = "proximity_grenade";
+    missile.takedamage = DAMAGE_NO;
+    missile.health = 5;
+    missile.state = 0;
 
-// set missile speed
-
-    makevectors (self.v_angle);
+    // set missile speed
+    tmpAngles = VRGetWeaponFireRot(xHand);
+    makevectors (tmpAngles);
 
     if (cvar("vr_enabled") == 1)
     {
-        if (self.v_angle_x)
+        if (tmpAngles_x)
         {
             missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
         }
         else
         {
-            missile.velocity = aim(self, 10000);
-            missile.velocity = missile.velocity * 600;
+            missile.velocity = v_forward * 600;
         }
 
         missile.velocity = missile.velocity + vrProjectileVelocity();
     }
     else
     {
-        if (self.v_angle_x)
+        if (tmpAngles_x)
         {
             missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
         }
         else
         {
-            missile.velocity = aim(self, 10000);
-            missile.velocity = missile.velocity * 600;
+            missile.velocity = v_forward * 600;
             missile.velocity_z = 200;
         }
     }
 
-   missile.avelocity = '100 600 100';
+    missile.avelocity = '100 600 100';
 
     missile.angles = vectoangles(missile.velocity);
 
-   missile.touch = ProximityGrenadeTouch;
+    missile.touch = ProximityGrenadeTouch;
 
-// set missile duration
-   missile.nextthink = time + 2;
-   missile.delay = time + 15 + (10*random());
-   missile.think = ProximityBomb;
-   missile.th_die = ProximityGrenadeExplode;
+    // set missile duration
+    missile.nextthink = time + 2;
+    missile.delay = time + 15 + (10*random());
+    missile.think = ProximityBomb;
+    missile.th_die = ProximityGrenadeExplode;
 
-   setmodel (missile, "progs/proxbomb.mdl");
-   setorigin (missile, self.handpos);
-   setsize (missile, '-1 -1 -1', '1 1 1');
+    setmodel (missile, "progs/proxbomb.mdl");
+    setorigin (missile, VRGetMuzzlePos(xHand));
+    setsize (missile, '-1 -1 -1', '1 1 1');
 
-   VRGunHaptic(0.4, 75, 1.0);
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 2);
-   };
+    VRGunHaptic(0.4, 75, 1.0);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
+};
 
 //=============================================================================
 
@@ -1877,16 +1899,18 @@ void(vector org, vector dir) launch_spike =
     newmis.velocity = dir * 1750;
 };
 
-void() W_FireSuperSpikes =
+void(float xHand) W_FireSuperSpikes =
 {
-    local vector    dir;
-    local entity    old;
+    local vector dir;
 
     sound (self, CHAN_WEAPON, "weapons/spike2.wav", 1, ATTN_NORM);
-    self.attack_finished = time + 0.2;
-    self.currentammo = self.ammo_nails = self.ammo_nails - 2;
-    dir = aim (self, 1000);
-    launch_spike (self.handpos, dir);
+    setAttackFinished(xHand, time + 0.2);
+    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 2);
+
+    makevectors (VRGetWeaponFireRot(xHand));
+    dir = v_forward;
+
+    launch_spike (VRGetMuzzlePos(xHand), dir);
     newmis.touch = superspike_touch;
     setmodel (newmis, "progs/s_spike.mdl");
     setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -1896,41 +1920,39 @@ void() W_FireSuperSpikes =
     self.punchangle_x = -2;
 
     VRGunHaptic(0.05, 150, 1.0);
-    particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
-void(float ox) W_FireSpikes =
+void(float xHand, float ox) W_FireSpikes =
 {
     local vector    dir;
-    local entity    old;
 
-    makevectors (self.v_angle);
+    makevectors (VRGetWeaponFireRot(xHand));
 
     if (self.ammo_nails >= 2 && self.weapon == WID_SUPER_NAILGUN)
     {
-        W_FireSuperSpikes ();
+        W_FireSuperSpikes (xHand);
         return;
     }
 
     if (self.ammo_nails < 1)
     {
-        self.weapon = W_BestWeapon ();
+        VRSetWeapon(xHand, W_BestWeapon ());
         W_SetCurrentAmmo ();
         return;
     }
-
     sound (self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
-    self.attack_finished = time + 0.2;
-    self.currentammo = self.ammo_nails = self.ammo_nails - 1;
-    dir = aim (self, 1000);
-    launch_spike (self.handpos + v_right*ox, dir);
+    setAttackFinished(xHand, time + 0.2);
+    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 1);
+    dir = v_forward;
+    launch_spike (VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
     self.punchangle_x = -2;
 
     VRGunHaptic(0.05, 150, 1.0);
-    particle2 (self.muzzlepos + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 void() spike_bullethole =
@@ -2047,121 +2069,117 @@ PLAYER WEAPON USE
 */
 
 //MED 10/18/96 added HIPWEAPONS
+void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
+{
+    if (xWeapon == WID_FIST)
+    {
+        *xCurrentAmmo = 0;
+        *xModel = "progs/hand.mdl";
+        *xFrame = 0;
+    }
+    else if (xWeapon == WID_GRAPPLE)
+    {
+        *xCurrentAmmo = 0;
+        *xModel = "progs/v_grpple.mdl";
+        *xFrame = 0;
+    }
+    else if (xWeapon == WID_AXE)
+    {
+        *xCurrentAmmo = 0;
+        *xModel = "progs/v_axe.mdl";
+        *xFrame = 0;
+    }
+    else if (xWeapon == WID_SHOTGUN)
+    {
+        *xCurrentAmmo = self.ammo_shells;
+        *xModel = "progs/v_shot.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_SHELLS;
+    }
+    else if (xWeapon == WID_SUPER_SHOTGUN)
+    {
+        *xCurrentAmmo = self.ammo_shells;
+        *xModel = "progs/v_shot2.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_SHELLS;
+    }
+    else if (xWeapon == WID_NAILGUN)
+    {
+        *xCurrentAmmo = self.ammo_nails;
+        *xModel = "progs/v_nail.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_NAILS;
+    }
+    else if (xWeapon == WID_SUPER_NAILGUN)
+    {
+        *xCurrentAmmo = self.ammo_nails;
+        *xModel = "progs/v_nail2.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_NAILS;
+    }
+//MED
+   else if (xWeapon == WID_LASER_CANNON)
+    {
+        *xCurrentAmmo = self.ammo_cells;
+        *xModel = "progs/v_laserg.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_CELLS;
+    }
+    else if (xWeapon == WID_GRENADE_LAUNCHER)
+    {
+        *xCurrentAmmo = self.ammo_rockets;
+        *xModel = "progs/v_rock.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_ROCKETS;
+    }
+    else if (xWeapon == WID_ROCKET_LAUNCHER)
+    {
+        *xCurrentAmmo = self.ammo_rockets;
+        *xModel = "progs/v_rock2.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_ROCKETS;
+    }
+    else if (xWeapon == WID_LIGHTNING)
+    {
+        *xCurrentAmmo = self.ammo_cells;
+        *xModel = "progs/v_light.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_CELLS;
+    }
+//MED
+    else if (xWeapon == WID_MJOLNIR)
+    {
+        *xCurrentAmmo = self.ammo_cells;
+        *xModel = "progs/v_hammer.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_CELLS;
+    }
+//MED
+    else if (xWeapon == WID_PROXIMITY_GUN)
+    {
+        *xCurrentAmmo = self.ammo_rockets;
+        *xModel = "progs/v_prox.mdl";
+        *xFrame = 0;
+        self.items = self.items | IT_ROCKETS;
+    }
+    else
+    {
+        *xCurrentAmmo = 0;
+        *xModel = "";
+        *xFrame = 0;
+    }
+};
+
+//MED 10/18/96 added HIPWEAPONS
 void() W_SetCurrentAmmo =
 {
-    player_run ();        // get out of any weapon firing states
+    player_run (MAIN_HAND); // get out of any weapon firing states
+    player_run (OFF_HAND);  // get out of any weapon firing states
 
     self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS) );
 
-    // TODO VR: (TODO dual-wielding)
-    if (self.weapon2 == WID_FIST)
-    {
-        self.weaponmodel2 = "progs/hand.mdl";
-        self.weaponframe2 = 0;
-    }
-    else if (self.weapon2 == WID_GRAPPLE)
-    {
-        self.weaponmodel2 = "progs/v_grpple.mdl";
-        self.weaponframe2 = 0;
-    }
-    else
-    {
-        bprint("Invalid off-hand weapon.\n");
-        self.weaponmodel2 = "";
-        self.weaponframe2 = 0;
-    }
-
-    if (self.weapon == WID_FIST)
-    {
-        self.currentammo = 0;
-        self.weaponmodel = "progs/hand.mdl";
-        self.weaponframe = 0;
-    }
-    else if (self.weapon == WID_AXE)
-    {
-        self.currentammo = 0;
-        self.weaponmodel = "progs/v_axe.mdl";
-        self.weaponframe = 0;
-    }
-    else if (self.weapon == WID_SHOTGUN)
-    {
-        self.currentammo = self.ammo_shells;
-        self.weaponmodel = "progs/v_shot.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_SHELLS;
-    }
-    else if (self.weapon == WID_SUPER_SHOTGUN)
-    {
-        self.currentammo = self.ammo_shells;
-        self.weaponmodel = "progs/v_shot2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_SHELLS;
-    }
-    else if (self.weapon == WID_NAILGUN)
-    {
-        self.currentammo = self.ammo_nails;
-        self.weaponmodel = "progs/v_nail.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_NAILS;
-    }
-    else if (self.weapon == WID_SUPER_NAILGUN)
-    {
-        self.currentammo = self.ammo_nails;
-        self.weaponmodel = "progs/v_nail2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_NAILS;
-    }
-//MED
-   else if (self.weapon == WID_LASER_CANNON)
-    {
-        self.currentammo = self.ammo_cells;
-        self.weaponmodel = "progs/v_laserg.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_CELLS;
-    }
-    else if (self.weapon == WID_GRENADE_LAUNCHER)
-    {
-        self.currentammo = self.ammo_rockets;
-        self.weaponmodel = "progs/v_rock.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_ROCKETS;
-    }
-    else if (self.weapon == WID_ROCKET_LAUNCHER)
-    {
-        self.currentammo = self.ammo_rockets;
-        self.weaponmodel = "progs/v_rock2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_ROCKETS;
-    }
-    else if (self.weapon == WID_LIGHTNING)
-    {
-        self.currentammo = self.ammo_cells;
-        self.weaponmodel = "progs/v_light.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_CELLS;
-    }
-//MED
-    else if (self.weapon == WID_MJOLNIR)
-    {
-        self.currentammo = self.ammo_cells;
-        self.weaponmodel = "progs/v_hammer.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_CELLS;
-    }
-//MED
-    else if (self.weapon == WID_PROXIMITY_GUN)
-    {
-        self.currentammo = self.ammo_rockets;
-        self.weaponmodel = "progs/v_prox.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_ROCKETS;
-    }
-    else
-    {
-        self.currentammo = 0;
-        self.weaponmodel = "";
-        self.weaponframe = 0;
-    }
+    W_SetCurrentAmmoImpl(self.weapon, &self.currentammo, &self.weaponmodel, &self.weaponframe);
+    W_SetCurrentAmmoImpl(self.weapon2, &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
 };
 
 float() W_BestWeapon =
@@ -2190,26 +2208,25 @@ float() W_BestWeapon =
     return WID_AXE;
 };
 
-float() W_CheckNoAmmo =
+float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
 {
-    if (self.currentammo > 0)
-        return TRUE;
-
-    if (self.weapon == WID_AXE)
-        return TRUE;
-
-    // HIPNOTIC
-//MED
-    if (self.weapon == WID_MJOLNIR)
+    if (getCurrentAmmo(xHand) > 0)
     {
         return TRUE;
     }
 
-    self.weapon = W_BestWeapon ();
+    if (xWeapon == WID_FIST ||
+        xWeapon == WID_AXE ||
+        xWeapon == WID_MJOLNIR ||
+        xWeapon == WID_GRAPPLE)
+    {
+        return TRUE;
+    }
 
+    *xOutWeapon = W_BestWeapon ();
     W_SetCurrentAmmo ();
 
-// drop the weapon down
+    // drop the weapon down
     return FALSE;
 };
 
@@ -2220,132 +2237,137 @@ W_Attack
 An attack impulse can be triggered now
 ============
 */
-void()    player_axe1;
-void()    player_axeb1;
-void()    player_axec1;
-void()    player_axed1;
-void()    player_shot1;
-void()    player_nail1;
-void()    player_light1;
-void()    player_rocket1;
+void(float xHand)    player_axe1;
+void(float xHand)    player_axeb1;
+void(float xHand)    player_axec1;
+void(float xHand)    player_axed1;
+void(float xHand)    player_shot1;
+void(float xHand)    player_nail1;
+void(float xHand)    player_light1;
+void(float xHand)    player_rocket1;
 // HIPNOTIC
 //MED
-void()   player_laser1;
-void()   player_hammer1;
-void()   player_mjolnir1;
+void(float xHand)   player_laser1;
+void(float xHand)   player_hammer1;
+void(float xHand)   player_mjolnir1;
 // ROGUE
 //ZOID--
-void()  player_grapple1;
-void()  player_grapple3;
+void(float xHand)  player_grapple1;
+void(float xHand)  player_grapple3;
 //--ZOID
 
 
-void() W_Attack =
+void(float xHand, float xWeapon, float* xOutWeapon, float* xAttackFinished) W_AttackImpl =
 {
     local    float    r;
 
-    if (!W_CheckNoAmmo ())
+    if (!W_CheckNoAmmo (xHand, xWeapon, xOutWeapon))
+    {
         return;
+    }
 
-    makevectors    (self.v_angle);            // calculate forward angle for velocity
-    self.show_hostile = time + 1;    // wake monsters up
+    makevectors(VRGetWeaponFireRot(xHand)); // calculate forward angle for velocity
+    self.show_hostile = time + 1; // wake monsters up
 
-    if (self.weapon == WID_AXE)
+    if (xWeapon == WID_AXE)
     {
         if(cvar("vr_enabled") == 0)
         {
             sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
             r = random();
             if (r < 0.25)
-                player_axe1 ();
+                player_axe1 (MAIN_HAND);
             else if (r<0.5)
-                player_axeb1 ();
+                player_axeb1 (MAIN_HAND);
             else if (r<0.75)
-                player_axec1 ();
+                player_axec1 (MAIN_HAND);
             else
-                player_axed1 ();
-            self.attack_finished = time + 0.5;
+                player_axed1 (MAIN_HAND);
+            *xAttackFinished = time + 0.5;
         }
     }
-    else if (self.weapon == WID_SHOTGUN)
+    else if (xWeapon == WID_SHOTGUN)
     {
-        player_shot1 ();
-        W_FireShotgun ();
-        self.attack_finished = time + 0.5;
+        player_shot1 (xHand);
+        W_FireShotgun (xHand);
+        *xAttackFinished = time + 0.5;
     }
-    else if (self.weapon == WID_SUPER_SHOTGUN)
+    else if (xWeapon == WID_SUPER_SHOTGUN)
     {
-        player_shot1 ();
-        W_FireSuperShotgun ();
-        self.attack_finished = time + 0.7;
+        player_shot1 (xHand);
+        W_FireSuperShotgun (xHand);
+        *xAttackFinished = time + 0.7;
     }
-    else if (self.weapon == WID_NAILGUN)
+    else if (xWeapon == WID_NAILGUN)
     {
-        player_nail1 ();
+        player_nail1 (xHand);
     }
-    else if (self.weapon == WID_SUPER_NAILGUN)
+    else if (xWeapon == WID_SUPER_NAILGUN)
     {
-        player_nail1 ();
+        player_nail1 (xHand);
     }
-    else if (self.weapon == WID_GRENADE_LAUNCHER)
+    else if (xWeapon == WID_GRENADE_LAUNCHER)
     {
-        player_rocket1();
-        W_FireGrenade();
-        self.attack_finished = time + 0.6;
+        player_rocket1(xHand);
+        W_FireGrenade(xHand);
+        *xAttackFinished = time + 0.6;
     }
-    else if (self.weapon == WID_ROCKET_LAUNCHER)
+    else if (xWeapon == WID_ROCKET_LAUNCHER)
     {
-        player_rocket1();
-        W_FireRocket();
-        self.attack_finished = time + 0.8;
+        player_rocket1(xHand);
+        W_FireRocket(xHand);
+        *xAttackFinished = time + 0.8;
     }
-    else if (self.weapon == WID_LIGHTNING)
+    else if (xWeapon == WID_LIGHTNING)
     {
-        player_light1();
-        self.attack_finished = time + 0.1;
+        player_light1(xHand);
+        *xAttackFinished = time + 0.1;
         sound (self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
     }
     // HYPNOTIC
 //MED
-    else if (self.weapon == WID_LASER_CANNON)
+    else if (xWeapon == WID_LASER_CANNON)
     {
-        player_laser1();
+        player_laser1(xHand);
     }
 //MED
-   else if (self.weapon == WID_MJOLNIR)
+   else if (xWeapon == WID_MJOLNIR)
    {
         if(cvar("vr_enabled") == 0)
         {
             if (self.ammo_cells < 30)
-                player_hammer1();
+                player_hammer1(MAIN_HAND);
             else
-                player_mjolnir1();
-            self.attack_finished = time + 0.8;
+                player_mjolnir1(MAIN_HAND);
+            *xAttackFinished = time + 0.8;
         }
    }
 //MED
-    else if (self.weapon == WID_PROXIMITY_GUN)
+    else if (xWeapon == WID_PROXIMITY_GUN)
     {
-        player_rocket1();
-        W_FireProximityGrenade();
-        self.attack_finished = time + 0.6;
+        player_rocket1(xHand);
+        W_FireProximityGrenade(xHand);
+        *xAttackFinished = time + 0.6;
     }
+    else if (xWeapon == WID_GRAPPLE)
+    {
+        if (!getHookOut(xHand))
+            player_grapple1(xHand);
+        else
+            player_grapple3(xHand);
+
+        *xAttackFinished = time + 0.1;
+    }
+};
+
+void() W_Attack =
+{
+    W_AttackImpl(MAIN_HAND, self.weapon, &self.weapon, &self.attack_finished);
 };
 
 void() W_OffHandAttack =
 {
-    makevectors    (self.v_angle);            // calculate forward angle for velocity
-    self.show_hostile = time + 1;    // wake monsters up
-
-    if (self.weapon2 == WID_GRAPPLE)
-    {
-        if (!self.hook_out)
-            player_grapple1();
-        else
-            player_grapple3();
-    }
-
-    self.offhand_attack_finished = time + 0.1;
+    W_AttackImpl(OFF_HAND, self.weapon2, &self.weapon2, &self.offhand_attack_finished);
 };
 
 /*
@@ -2515,7 +2537,7 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void() CycleWeaponCommand =
+void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
 {
     local    float    it, am;
 
@@ -2526,83 +2548,76 @@ void() CycleWeaponCommand =
     {
         am = 0;
 
-//MED
-        if (self.weapon == WID_FIST)
+        if (xWeapon == WID_FIST)
         {
-            self.weapon = WID_MJOLNIR;
+            xWeapon = WID_MJOLNIR;
         }
-        else if (self.weapon == WID_MJOLNIR)
+        else if (xWeapon == WID_MJOLNIR)
         {
-            self.weapon = WID_AXE;
+            xWeapon = WID_AXE;
         }
-        else if (self.weapon == WID_AXE)
+        else if (xWeapon == WID_AXE)
         {
-            self.weapon = WID_SHOTGUN;
-            if (self.ammo_shells < 1)
-                am = 1;
+            xWeapon = WID_SHOTGUN;
+            if (self.ammo_shells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_SHOTGUN)
+        else if (xWeapon == WID_SHOTGUN)
         {
-            self.weapon = WID_SUPER_SHOTGUN;
-            if (self.ammo_shells < 2)
-                am = 1;
+            xWeapon = WID_SUPER_SHOTGUN;
+            if (self.ammo_shells < 2) { am = 1; }
         }
-        else if (self.weapon == WID_SUPER_SHOTGUN)
+        else if (xWeapon == WID_SUPER_SHOTGUN)
         {
-            self.weapon = WID_NAILGUN;
-            if (self.ammo_nails < 1)
-                am = 1;
+            xWeapon = WID_NAILGUN;
+            if (self.ammo_nails < 1) { am = 1; }
         }
-        else if (self.weapon == WID_NAILGUN)
+        else if (xWeapon == WID_NAILGUN)
         {
-            self.weapon = WID_SUPER_NAILGUN;
-            if (self.ammo_nails < 2)
-                am = 1;
+            xWeapon = WID_SUPER_NAILGUN;
+            if (self.ammo_nails < 2) { am = 1; }
         }
-        else if (self.weapon == WID_SUPER_NAILGUN)
+        else if (xWeapon == WID_SUPER_NAILGUN)
         {
-            self.weapon = WID_GRENADE_LAUNCHER;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_GRENADE_LAUNCHER;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-//MED
-        else if (self.weapon == WID_GRENADE_LAUNCHER)
+        else if (xWeapon == WID_GRENADE_LAUNCHER)
         {
-            self.weapon = WID_PROXIMITY_GUN;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_PROXIMITY_GUN;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-//MED
-        else if (self.weapon == WID_PROXIMITY_GUN)
+        else if (xWeapon == WID_PROXIMITY_GUN)
         {
-            self.weapon = WID_ROCKET_LAUNCHER;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_ROCKET_LAUNCHER;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-        else if (self.weapon == WID_ROCKET_LAUNCHER)
+        else if (xWeapon == WID_ROCKET_LAUNCHER)
         {
-            self.weapon = WID_LIGHTNING;
-            if (self.ammo_cells < 1)
-                am = 1;
+            xWeapon = WID_LIGHTNING;
+            if (self.ammo_cells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_LIGHTNING)
+        else if (xWeapon == WID_LIGHTNING)
         {
-            self.weapon = WID_LASER_CANNON;
-            if (self.ammo_cells < 1)
-                am = 1;
+            xWeapon = WID_LASER_CANNON;
+            if (self.ammo_cells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_LASER_CANNON)
+        else if (xWeapon == WID_LASER_CANNON)
         {
-            self.weapon = WID_FIST;
+            xWeapon = WID_GRAPPLE;
+        }
+        else if (xWeapon == WID_GRAPPLE)
+        {
+            xWeapon = WID_FIST;
         }
 
-        if (PlayerHasWeapon(self.weapon, it) && am == 0)
+        *xOutWeapon = xWeapon;
+
+        if (PlayerHasWeapon(xWeapon, it) && am == 0)
         {
             W_SetCurrentAmmo();
             return;
         }
     }
-
 };
 
 /*
@@ -2612,7 +2627,7 @@ CycleWeaponReverseCommand
 Go to the prev weapon with ammo
 ============
 */
-void() CycleWeaponReverseCommand =
+void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
 {
     local    float    it, am;
 
@@ -2623,76 +2638,71 @@ void() CycleWeaponReverseCommand =
     {
         am = 0;
 
-//MED
-        if (self.weapon == WID_FIST)
+        if (xWeapon == WID_FIST)
         {
-            self.weapon = WID_LASER_CANNON;
-            if (self.ammo_cells < 1)
-                am = 1;
+            xWeapon = WID_GRAPPLE;
         }
-//MED
-        else if (self.weapon == WID_LASER_CANNON)
+        else if (xWeapon == WID_GRAPPLE)
         {
-            self.weapon = WID_LIGHTNING;
-            if (self.ammo_cells < 1)
-                am = 1;
+            xWeapon = WID_LASER_CANNON;
+            if (self.ammo_cells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_LIGHTNING)
+        else if (xWeapon == WID_LASER_CANNON)
         {
-            self.weapon = WID_ROCKET_LAUNCHER;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_LIGHTNING;
+            if (self.ammo_cells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_ROCKET_LAUNCHER)
+        else if (xWeapon == WID_LIGHTNING)
         {
-            self.weapon = WID_PROXIMITY_GUN;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_ROCKET_LAUNCHER;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-        else if (self.weapon == WID_PROXIMITY_GUN)
+        else if (xWeapon == WID_ROCKET_LAUNCHER)
         {
-            self.weapon = WID_GRENADE_LAUNCHER;
-            if (self.ammo_rockets < 1)
-                am = 1;
+            xWeapon = WID_PROXIMITY_GUN;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-        else if (self.weapon == WID_GRENADE_LAUNCHER)
+        else if (xWeapon == WID_PROXIMITY_GUN)
         {
-            self.weapon = WID_SUPER_NAILGUN;
-            if (self.ammo_nails < 2)
-                am = 1;
+            xWeapon = WID_GRENADE_LAUNCHER;
+            if (self.ammo_rockets < 1) { am = 1; }
         }
-        else if (self.weapon == WID_SUPER_NAILGUN)
+        else if (xWeapon == WID_GRENADE_LAUNCHER)
         {
-            self.weapon = WID_NAILGUN;
-            if (self.ammo_nails < 1)
-                am = 1;
+            xWeapon = WID_SUPER_NAILGUN;
+            if (self.ammo_nails < 2) { am = 1; }
         }
-        else if (self.weapon == WID_NAILGUN)
+        else if (xWeapon == WID_SUPER_NAILGUN)
         {
-            self.weapon = WID_SUPER_SHOTGUN;
-            if (self.ammo_shells < 2)
-                am = 1;
+            xWeapon = WID_NAILGUN;
+            if (self.ammo_nails < 1) { am = 1; }
         }
-        else if (self.weapon == WID_SUPER_SHOTGUN)
+        else if (xWeapon == WID_NAILGUN)
         {
-            self.weapon = WID_SHOTGUN;
-            if (self.ammo_shells < 1)
-                am = 1;
+            xWeapon = WID_SUPER_SHOTGUN;
+            if (self.ammo_shells < 2) { am = 1; }
         }
-        else if (self.weapon == WID_SHOTGUN)
+        else if (xWeapon == WID_SUPER_SHOTGUN)
         {
-            self.weapon = WID_AXE;
+            xWeapon = WID_SHOTGUN;
+            if (self.ammo_shells < 1) { am = 1; }
         }
-        else if (self.weapon == WID_AXE)
+        else if (xWeapon == WID_SHOTGUN)
         {
-            self.weapon = WID_MJOLNIR;
+            xWeapon = WID_AXE;
         }
-        else if (self.weapon == WID_MJOLNIR)
+        else if (xWeapon == WID_AXE)
         {
-            self.weapon = WID_FIST;
+            xWeapon = WID_MJOLNIR;
+        }
+        else if (xWeapon == WID_MJOLNIR)
+        {
+            xWeapon = WID_FIST;
         }
 
-        if (PlayerHasWeapon(self.weapon, it) && am == 0)
+        *xOutWeapon = xWeapon;
+
+        if (PlayerHasWeapon(xWeapon, it) && am == 0)
         {
             W_SetCurrentAmmo();
             return;
@@ -2708,6 +2718,10 @@ void() CycleOffHandWeapon =
         self.weapon2 = WID_GRAPPLE;
     }
     else if (self.weapon2 == WID_GRAPPLE)
+    {
+        self.weapon2 = WID_SHOTGUN;
+    }
+    else if (self.weapon2 == WID_SHOTGUN)
     {
         self.weapon2 = WID_FIST;
     }
@@ -2851,21 +2865,35 @@ void() ImpulseCommands =
     if (self.impulse >= 1 && self.impulse <= 8)
         W_ChangeWeapon ();
 
-   if (self.impulse >= 225 && self.impulse <= 226)
+    if (self.impulse >= 225 && self.impulse <= 226)
         W_ChangeWeapon ();
 
     if (self.impulse == 9)
+    {
         CheatCommand ();
+    }
+
     if (self.impulse == 10)
-        CycleWeaponCommand ();
+    {
+        CycleWeaponCommand (self.weapon, &self.weapon);
+    }
+
     if (self.impulse == 11)
+    {
         ServerflagsCommand ();
+    }
+
     if (self.impulse == 12)
-        CycleWeaponReverseCommand ();
+    {
+        // TODO VR: CycleWeaponReverseCommand ();
+        CycleWeaponCommand (self.weapon2, &self.weapon2);
+    }
+
     if (self.impulse == 13)
     {
         CycleOffHandWeapon ();
     }
+
 //JIM
     if ( self.impulse == 200 )
         WetsuitCheat();
@@ -2896,7 +2924,7 @@ Called every frame so impulse events can be handled as well as possible
 */
 void() W_WeaponFrame =
 {
-    local    vector        org;
+    local vector org;
 
     if (self.button0)
     {
@@ -2905,12 +2933,13 @@ void() W_WeaponFrame =
         {
             org = self.muzzlepos;
 
-            makevectors(self.v_angle);
+            makevectors(VRGetWeaponFireRot(MAIN_HAND));
             traceline (org, org + v_forward*600, TRUE, self);
 
             WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
             WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
             WriteEntity (MSG_BROADCAST, self);
+            WriteByte (MSG_BROADCAST, 1); /* disambiguator */
             WriteCoord (MSG_BROADCAST, org_x);
             WriteCoord (MSG_BROADCAST, org_y);
             WriteCoord (MSG_BROADCAST, org_z);
@@ -2921,12 +2950,16 @@ void() W_WeaponFrame =
     }
 
     if (time < self.attack_finished)
+    {
         return;
+    }
 
     if (self.impulse)
+    {
         ImpulseCommands ();
+    }
 
-// check for attack
+    // check for attack
     if (self.button0)
     {
         SuperDamageSound ();
@@ -2943,12 +2976,40 @@ W_OffHandWeaponFrame
 */
 void() W_OffHandWeaponFrame =
 {
-    if (time < self.offhand_attack_finished)
-        return;
+    local vector org;
 
-// check for attack
     if (self.button3)
     {
+        // Lightning effect (per-frame)
+        if (self.weapon2 == WID_LIGHTNING)
+        {
+            org = self.offmuzzlepos;
+
+            makevectors(VRGetWeaponFireRot(OFF_HAND));
+            traceline (org, org + v_forward*600, TRUE, self);
+
+            WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+            WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
+            WriteEntity (MSG_BROADCAST, self);
+            WriteByte (MSG_BROADCAST, 0); /* disambiguator */
+            WriteCoord (MSG_BROADCAST, org_x);
+            WriteCoord (MSG_BROADCAST, org_y);
+            WriteCoord (MSG_BROADCAST, org_z);
+            WriteCoord (MSG_BROADCAST, trace_endpos_x);
+            WriteCoord (MSG_BROADCAST, trace_endpos_y);
+            WriteCoord (MSG_BROADCAST, trace_endpos_z);
+        }
+    }
+
+    if (time < self.offhand_attack_finished)
+    {
+        return;
+    }
+
+    // check for attack
+    if (self.button3)
+    {
+        SuperDamageSound ();
         W_OffHandAttack ();
     }
 };

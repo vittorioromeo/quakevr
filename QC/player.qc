@@ -86,11 +86,14 @@ PLAYER
 ==============================================================================
 */
 
-void() player_run;
+void(float xHand) player_run;
 
-void()    player_stand1 =[    $axstnd1,    player_stand1    ]
+void(float xHand)    player_stand1 =
 {
-    self.weaponframe=0;
+    setHandThinkWithArg(xHand, $axstnd1, player_stand1);
+
+    setWeaponFrame(xHand, 0);
+
     if (self.velocity_x || self.velocity_y)
     {
         self.walkframe=0;
@@ -100,53 +103,51 @@ void()    player_stand1 =[    $axstnd1,    player_stand1    ]
 
     if (self.weapon == WID_AXE)
     {
-        if (self.walkframe >= 12)
-            self.walkframe = 0;
+        if (self.walkframe >= 12) { self.walkframe = 0; }
         self.frame = $axstnd1 + self.walkframe;
     }
     else if (self.weapon == WID_MJOLNIR)
     {
-        if (self.walkframe >= 12)
-            self.walkframe = 0;
+        if (self.walkframe >= 12) { self.walkframe = 0; }
         self.frame = 6 + self.walkframe;
     }
     else
     {
-        if (self.walkframe >= 5)
-            self.walkframe = 0;
+        if (self.walkframe >= 5) { self.walkframe = 0; }
         self.frame = $stand1 + self.walkframe;
     }
     self.walkframe = self.walkframe + 1;
 };
 
-void()   player_run =[  $rockrun1,  player_run  ]
+void(float xHand) player_run =
 {
-    self.weaponframe=0;
+    setHandThinkWithArg(xHand, $rockrun1, player_run);
+
+    setWeaponFrame(xHand, 0);
+
     if (!self.velocity_x && !self.velocity_y)
     {
         self.walkframe=0;
-        player_stand1();
+        player_stand1(xHand);
         return;
     }
 
     if (self.weapon == WID_AXE)
     {
-        if (self.walkframe == 6)
-            self.walkframe = 0;
+        if (self.walkframe == 6) { self.walkframe = 0; }
         self.frame = $axrun1 + self.walkframe;
     }
     else if (self.weapon == WID_MJOLNIR)
     {
-        if (self.walkframe == 6)
-            self.walkframe = 0;
+        if (self.walkframe == 6) { self.walkframe = 0; }
         self.frame = self.walkframe;
     }
     else
     {
-        if (self.walkframe == 6)
-            self.walkframe = 0;
+        if (self.walkframe == 6) { self.walkframe = 0; }
         self.frame = self.frame + self.walkframe;
     }
+
     if (footsteps == 1)
     {
         self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
@@ -183,42 +184,40 @@ void()   player_run =[  $rockrun1,  player_run  ]
     self.walkframe = self.walkframe + 1;
 };
 
+void() player_run_no_arg =
+{
+    player_run(MAIN_HAND);
+};
 
-void()    player_shot1 =    [$shotatt1, player_shot2    ] {self.weaponframe=1;
-self.effects = self.effects | EF_MUZZLEFLASH;};
-void()    player_shot2 =    [$shotatt2, player_shot3    ] {self.weaponframe=2;};
-void()    player_shot3 =    [$shotatt3, player_shot4    ] {self.weaponframe=3;};
-void()    player_shot4 =    [$shotatt4, player_shot5    ] {self.weaponframe=4;};
-void()    player_shot5 =    [$shotatt5, player_shot6    ] {self.weaponframe=5;};
-void()    player_shot6 =    [$shotatt6, player_run    ] {self.weaponframe=6;};
+.void(float) thinkArgFn;
+.void(float) think2ArgFn;
+.float thinkArg;
+.float think2Arg;
 
-void()    player_axe1 =    [$axatt1, player_axe2    ] {self.weaponframe=1;};
-void()    player_axe2 =    [$axatt2, player_axe3    ] {self.weaponframe=2;};
-void()    player_axe3 =    [$axatt3, player_axe4    ] {self.weaponframe=3;W_FireAxe(MAIN_HAND);};
-void()    player_axe4 =    [$axatt4, player_run    ] {self.weaponframe=4;};
+void() doThinkArgFn =
+{
+    self.thinkArgFn(self.thinkArg);
+}
 
-void()    player_axeb1 =    [$axattb1, player_axeb2    ] {self.weaponframe=5;};
-void()    player_axeb2 =    [$axattb2, player_axeb3    ] {self.weaponframe=6;};
-void()    player_axeb3 =    [$axattb3, player_axeb4    ] {self.weaponframe=7;W_FireAxe(MAIN_HAND);};
-void()    player_axeb4 =    [$axattb4, player_run    ] {self.weaponframe=8;};
+void() doThink2ArgFn =
+{
+    self.think2ArgFn(self.think2Arg);
+}
 
-void()    player_axec1 =    [$axattc1, player_axec2    ] {self.weaponframe=1;};
-void()    player_axec2 =    [$axattc2, player_axec3    ] {self.weaponframe=2;};
-void()    player_axec3 =    [$axattc3, player_axec4    ] {self.weaponframe=3;W_FireAxe(MAIN_HAND);};
-void()    player_axec4 =    [$axattc4, player_run    ] {self.weaponframe=4;};
+// Required to not make the grapple hijack the main weapon's think.
+void(float xFrame, void() xFn) setThink =
+{
+    self.frame = xFrame;
+    self.nextthink = time + 0.1;
+    self.think = xFn;
+}
 
-void()    player_axed1 =    [$axattd1, player_axed2    ] {self.weaponframe=5;};
-void()    player_axed2 =    [$axattd2, player_axed3    ] {self.weaponframe=6;};
-void()    player_axed3 =    [$axattd3, player_axed4    ] {self.weaponframe=7;W_FireAxe(MAIN_HAND);};
-void()    player_axed4 =    [$axattd4, player_run    ] {self.weaponframe=8;};
-
-// ROGUE
-//============================================================================
-//ZOID--
-void() player_grapple2;
-void() player_grapple3;
-void() player_grapple4;
-void() player_grapple5;
+void(float xArg, float xFrame, void(float) xFn) setThinkWithArg =
+{
+    self.thinkArg = xArg;
+    self.thinkArgFn = xFn;
+    setThink(xFrame, doThinkArgFn);
+}
 
 // Required to not make the grapple hijack the main weapon's think.
 void(float xFrame, void() xFn) setThink2 =
@@ -228,154 +227,256 @@ void(float xFrame, void() xFn) setThink2 =
     self.think2 = xFn;
 }
 
-void()  player_grapple1 =
+void(float xArg, float xFrame, void(float) xFn) setThink2WithArg =
 {
-    setThink2($axattd1, player_grapple2);
-    // TODO VR: assumes off-hand (TODO dual-wielding)
-    self.weaponframe2=1;
-    W_FireGrapple();
+    self.think2Arg = xArg;
+    self.think2ArgFn = xFn;
+    setThink2(xFrame, doThink2ArgFn);
+}
+
+void(float xHand, float v) setWeaponFrame =
+{
+    if(xHand == 0) self.weaponframe2 = v;
+    else           self.weaponframe = v;
+}
+
+float(float xHand) getWeaponFrame =
+{
+    if(xHand == 0) return self.weaponframe2;
+    else           return self.weaponframe;
+}
+
+void(float xHand, float v) setAttackFinished =
+{
+    if(xHand == 0) self.offhand_attack_finished = v;
+    else           self.attack_finished = v;
+}
+
+float(float xHand) getAttackFinished =
+{
+    if(xHand == 0) return self.offhand_attack_finished;
+    else           return self.attack_finished;
+}
+
+void(float xHand, float xFrame, void(float) xFn) setHandThinkWithArg =
+{
+    if(xHand == 0) setThink2WithArg(xHand, xFrame, xFn);
+    else           setThinkWithArg(xHand, xFrame, xFn);
+}
+
+void(float xHand, float xFrame, void() xFn) setHandThink =
+{
+    if(xHand == 0) setThink2(xFrame, xFn);
+    else           setThink(xFrame, xFn);
+}
+
+void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); setWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
+void(float xHand) player_shot2 = { setHandThinkWithArg(xHand, $shotatt2, player_shot3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_shot3 = { setHandThinkWithArg(xHand, $shotatt3, player_shot4); setWeaponFrame(xHand, 3); };
+void(float xHand) player_shot4 = { setHandThinkWithArg(xHand, $shotatt4, player_shot5); setWeaponFrame(xHand, 4); };
+void(float xHand) player_shot5 = { setHandThinkWithArg(xHand, $shotatt5, player_shot6); setWeaponFrame(xHand, 5); };
+void(float xHand) player_shot6 = { setHandThinkWithArg(xHand, $shotatt6, player_run); setWeaponFrame(xHand, 6); };
+
+void(float xHand) player_axe1 = { setHandThinkWithArg(xHand, $axatt1, player_axe2); setWeaponFrame(xHand, 1); };
+void(float xHand) player_axe2 = { setHandThinkWithArg(xHand, $axatt2, player_axe3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_axe3 = { setHandThinkWithArg(xHand, $axatt3, player_axe4); setWeaponFrame(xHand, 3); W_FireAxe(xHand); };
+void(float xHand) player_axe4 = { setHandThinkWithArg(xHand, $axatt4, player_run); setWeaponFrame(xHand, 4); };
+
+void(float xHand) player_axeb1 = { setHandThinkWithArg(xHand, $axattb1, player_axeb2); setWeaponFrame(xHand, 5); };
+void(float xHand) player_axeb2 = { setHandThinkWithArg(xHand, $axattb2, player_axeb3); setWeaponFrame(xHand, 6); };
+void(float xHand) player_axeb3 = { setHandThinkWithArg(xHand, $axattb3, player_axeb4); setWeaponFrame(xHand, 7); W_FireAxe(xHand); };
+void(float xHand) player_axeb4 = { setHandThinkWithArg(xHand, $axattb4, player_run); setWeaponFrame(xHand, 8); };
+
+void(float xHand) player_axec1 = { setHandThinkWithArg(xHand, $axattc1, player_axec2); setWeaponFrame(xHand, 1); };
+void(float xHand) player_axec2 = { setHandThinkWithArg(xHand, $axattc2, player_axec3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_axec3 = { setHandThinkWithArg(xHand, $axattc3, player_axec4); setWeaponFrame(xHand, 3); W_FireAxe(xHand); };
+void(float xHand) player_axec4 = { setHandThinkWithArg(xHand, $axattc4, player_run); setWeaponFrame(xHand, 4); };
+
+void(float xHand) player_axed1 = { setHandThinkWithArg(xHand, $axattd1, player_axed2); setWeaponFrame(xHand, 5); };
+void(float xHand) player_axed2 = { setHandThinkWithArg(xHand, $axattd2, player_axed3); setWeaponFrame(xHand, 6); };
+void(float xHand) player_axed3 = { setHandThinkWithArg(xHand, $axattd3, player_axed4); setWeaponFrame(xHand, 7); W_FireAxe(xHand); };
+void(float xHand) player_axed4 = { setHandThinkWithArg(xHand, $axattd4, player_run); setWeaponFrame(xHand, 8); };
+
+// ROGUE
+//============================================================================
+//ZOID--
+void(float xHand) player_grapple1 =
+{
+    setHandThinkWithArg(xHand, $axattd1, player_grapple2);
+    setWeaponFrame(xHand, 1);
+    W_FireGrapple(xHand);
 };
-void()  player_grapple2 =
+
+void(float xHand) player_grapple2 =
 {
-    setThink2($axattd2, player_grapple3);
-    // TODO VR: assumes off-hand (TODO dual-wielding)
-    self.weaponframe2=2;
+    setHandThinkWithArg(xHand, $axattd2, player_grapple3);
+    setWeaponFrame(xHand, 2);
 };
-void()  player_grapple3 =
+
+void(float xHand) player_grapple3 =
 {
-    setThink2($axattd3, player_grapple3);
-    // TODO VR: assumes off-hand (TODO dual-wielding)
-    self.weaponframe2=2;
-    if (!self.hook_out) {
-            player_grapple5();
-            return;
+    setHandThinkWithArg(xHand, $axattd3, player_grapple3);
+    setWeaponFrame(xHand, 2);
+
+    if (!getHookOut(xHand))
+    {
+        player_grapple5(xHand);
+        return;
     }
-    if (vlen(self.hook.origin - self.origin) >= 50) {
-        if (self.on_hook) {
-            player_grapple4();
+
+    if (vlen(getHook(xHand).origin - self.origin) >= 50)
+    {
+        if (getOnHook(xHand))
+        {
+            player_grapple4(xHand);
             return;
         }
     }
 };
-void() player_grapple4 =
+
+void(float xHand) player_grapple4 =
 {
-    setThink2($deathc4, player_grapple4);
-    // TODO VR: assumes off-hand (TODO dual-wielding)
-    self.weaponframe2=2;
-    if (!self.hook_out) {
-        player_grapple5();
+    setHandThinkWithArg(xHand, $deathc4, player_grapple4);
+    setWeaponFrame(xHand, 2);
+
+    if (!getHookOut(xHand))
+    {
+        player_grapple5(xHand);
         return;
     }
-    if (vlen(self.hook.origin - self.origin) < 50 || !self.on_hook) {
-        player_grapple3();
+
+    if (vlen(getHook(xHand).origin - self.origin) < 50 || !getOnHook(xHand))
+    {
+        player_grapple3(xHand);
         return;
     }
 };
-void()  player_grapple5 =
+
+void(float xHand) player_grapple5 =
 {
-    setThink2($axattd4, player_run);
-    // TODO VR: assumes off-hand (TODO dual-wielding)
-    self.weaponframe2=0;
+    setHandThinkWithArg(xHand, $axattd4, player_run);
+    setWeaponFrame(xHand, 0);
 };
+
 //--ZOID
 //============================================================================
 
-void() player_nail1   =[$nailatt1, player_nail2  ]
+void(float xHand) player_nail1 =
 {
+    setHandThinkWithArg(xHand, $nailatt1, player_nail2);
+
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 9)
-        self.weaponframe = 1;
+    if (!VRFireButtonPressed(xHand))
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
+    if (getWeaponFrame(xHand) == 9)
+        setWeaponFrame(xHand, 1);
+
     SuperDamageSound();
-    W_FireSpikes (2.35);
-    self.attack_finished = time + 0.2;
+    W_FireSpikes (xHand, 2.35);
+    setAttackFinished(xHand, time + 0.2);
 };
-void() player_nail2   =[$nailatt2, player_nail1  ]
+
+void(float xHand) player_nail2 =
 {
+    setHandThinkWithArg(xHand, $nailatt2, player_nail1);
+
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 9)
-        self.weaponframe = 1;
+    if (!VRFireButtonPressed(xHand))
+    {
+        player_run (xHand);
+        return;
+    }
+
+    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
+    if (getWeaponFrame(xHand) == 9)
+        setWeaponFrame(xHand, 1);
+
     SuperDamageSound();
-    W_FireSpikes (-2.35);
-    self.attack_finished = time + 0.2;
+    W_FireSpikes (xHand, -2.35);
+    setAttackFinished(xHand, time + 0.2);
 };
 
 //============================================================================
 
-void() player_light1   =[$light1, player_light2  ]
+void(float xHand) player_light1 =
 {
+    setHandThinkWithArg(xHand, $light1, player_light2);
+
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 5)
-        self.weaponframe = 1;
+    if (!VRFireButtonPressed(xHand))
+    {
+        player_run (xHand);
+        return;
+    }
+
+    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
+    if (getWeaponFrame(xHand) == 5)
+        setWeaponFrame(xHand, 1);
+
     SuperDamageSound();
-    W_FireLightning();
-    self.attack_finished = time + 0.2;
+    W_FireLightning(xHand);
+    setAttackFinished(xHand, time + 0.2);
 };
-void() player_light2   =[$light2, player_light1  ]
+
+void(float xHand) player_light2 =
 {
+    setHandThinkWithArg(xHand, $light2, player_light1);
+
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 5)
-        self.weaponframe = 1;
+    if (!VRFireButtonPressed(xHand))
+    {
+        player_run (xHand);
+        return;
+    }
+
+    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
+    if (getWeaponFrame(xHand) == 5)
+        setWeaponFrame(xHand, 1);
+
     SuperDamageSound();
-    W_FireLightning();
-    self.attack_finished = time + 0.2;
+    W_FireLightning(xHand);
+    setAttackFinished(xHand, time + 0.2);
 };
 
 //MED 10/18/96 added HIPWEAPONS
 //============================================================================
 
-void()   player_hammer1 =  [32, player_hammer2   ] {self.weaponframe=1;};
-void()   player_hammer2 =  [33, player_hammer3   ] {self.weaponframe=2;};
-void()   player_hammer3 =  [34, player_hammer4   ] {self.weaponframe=3;};
-void()   player_hammer4 =  [35, player_hammer5   ] {self.weaponframe=4;HIP_FireMjolnir(MAIN_HAND);};
-void()   player_hammer5 =  [36, player_hammer6   ] {self.weaponframe=4;};
-void()   player_hammer6 =  [37, player_run ] {self.weaponframe=4;};
-
-void()   player_mjolnir1 =  [38, player_mjolnir2   ] {self.weaponframe=1;};
-void()   player_mjolnir2 =  [39, player_mjolnir3   ] {self.weaponframe=2;};
-void()   player_mjolnir3 =  [40, player_mjolnir4   ] {self.weaponframe=3;};
-void()   player_mjolnir4 =  [41, player_mjolnir5   ] {self.weaponframe=4;HIP_FireMjolnir(MAIN_HAND);};
-void()   player_mjolnir5 =  [42, player_mjolnir6   ] {self.weaponframe=4;};
-void()   player_mjolnir6 =  [43, player_run ] {self.weaponframe=4;};
+void(float xHand) player_hammer1 = { setHandThinkWithArg(xHand, 32, player_hammer2); setWeaponFrame(xHand, 1); };
+void(float xHand) player_hammer2 = { setHandThinkWithArg(xHand, 33, player_hammer3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_hammer3 = { setHandThinkWithArg(xHand, 34, player_hammer4); setWeaponFrame(xHand, 3); };
+void(float xHand) player_hammer4 = { setHandThinkWithArg(xHand, 35, player_hammer5); setWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_hammer5 = { setHandThinkWithArg(xHand, 36, player_hammer6); setWeaponFrame(xHand, 4); };
+void(float xHand) player_hammer6 = { setHandThinkWithArg(xHand, 37, player_run); setWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir1 = { setHandThinkWithArg(xHand, 38, player_mjolnir2); setWeaponFrame(xHand, 1); };
+void(float xHand) player_mjolnir2 = { setHandThinkWithArg(xHand, 39, player_mjolnir3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_mjolnir3 = { setHandThinkWithArg(xHand, 40, player_mjolnir4); setWeaponFrame(xHand, 3); };
+void(float xHand) player_mjolnir4 = { setHandThinkWithArg(xHand, 41, player_mjolnir5); setWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_mjolnir5 = { setHandThinkWithArg(xHand, 42, player_mjolnir6); setWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run); setWeaponFrame(xHand, 4); };
 
 //============================================================================
 
 //MED 10/18/96 added HIPSWEAPONS
-//void() player_laser1   =[$nailatt1, player_laser2  ] {self.attack_finished = time + 0.1;self.weaponframe=1;self.nextthink = time + 0.09;HIP_FireLaser(0);};
-//void() player_laser2   =[$nailatt2, player_laser4  ] {self.attack_finished = time + 0.1;self.weaponframe=2;self.nextthink = time + 0.09;};
-//void() player_laser3   =[$nailatt1, player_laser4  ] {self.attack_finished = time + 0.1;self.weaponframe=3;self.nextthink = time + 0.09;};
-//void() player_laser4   =[$nailatt2, player_laser5  ] {self.attack_finished = time + 0.1;self.weaponframe=4;self.nextthink = time + 0.09;HIP_FireLaser(1);};
-//void() player_laser5   =[$nailatt1, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=5;self.nextthink = time + 0.09;};
-//void() player_laser6   =[$nailatt2, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=6;self.nextthink = time + 0.09;};
-void() player_laser1   =[$nailatt1, player_laser3  ] {self.attack_finished = time + 0.1;self.weaponframe=1;self.nextthink = time + 0.1;HIP_FireLaser(0);};
-void() player_laser2   =[$nailatt2, player_laser3  ] {self.attack_finished = time + 0.1;self.weaponframe=2;self.nextthink = time + 0.1;};
-void() player_laser3   =[$nailatt2, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=4;self.nextthink = time + 0.1;HIP_FireLaser(1);};
-void() player_laser4   =[$nailatt1, player_laser1  ] {self.attack_finished = time + 0.1;self.weaponframe=5;self.nextthink = time + 0.1;};
+void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
+void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 2); };
+void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };
+void(float xHand) player_laser4 = { setHandThinkWithArg(xHand, $nailatt1, player_laser1); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 5); };
 //============================================================================
-
-
-void() player_rocket1   =[$rockatt1, player_rocket2  ] {self.weaponframe=1;
-self.effects = self.effects | EF_MUZZLEFLASH;};
-void() player_rocket2   =[$rockatt2, player_rocket3  ] {self.weaponframe=2;};
-void() player_rocket3   =[$rockatt3, player_rocket4  ] {self.weaponframe=3;};
-void() player_rocket4   =[$rockatt4, player_rocket5  ] {self.weaponframe=4;};
-void() player_rocket5   =[$rockatt5, player_rocket6  ] {self.weaponframe=5;};
-void() player_rocket6   =[$rockatt6, player_run  ] {self.weaponframe=6;};
+void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); setWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
+void(float xHand) player_rocket2 = { setHandThinkWithArg(xHand, $rockatt2, player_rocket3); setWeaponFrame(xHand, 2); };
+void(float xHand) player_rocket3 = { setHandThinkWithArg(xHand, $rockatt3, player_rocket4); setWeaponFrame(xHand, 3); };
+void(float xHand) player_rocket4 = { setHandThinkWithArg(xHand, $rockatt4, player_rocket5); setWeaponFrame(xHand, 4); };
+void(float xHand) player_rocket5 = { setHandThinkWithArg(xHand, $rockatt5, player_rocket6); setWeaponFrame(xHand, 5); };
+void(float xHand) player_rocket6 = { setHandThinkWithArg(xHand, $rockatt6, player_run); setWeaponFrame(xHand, 6); };
 void(float num_bubbles) DeathBubbles;
 
 void() PainSound =
@@ -462,30 +563,30 @@ local float        rs;
     return;
 };
 
-void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();self.weaponframe=0;};
+void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();/* TODO VR: self.weaponframe=0; */ };
 void()    player_pain2 =    [    $pain2,    player_pain3    ] {};
 void()    player_pain3 =    [    $pain3,    player_pain4    ] {};
 void()    player_pain4 =    [    $pain4,    player_pain5    ] {};
 void()    player_pain5 =    [    $pain5,    player_pain6    ] {};
-void()    player_pain6 =    [    $pain6,    player_run    ] {};
+void()    player_pain6 =    [    $pain6,    player_run_no_arg    ] {};
 
-void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();self.weaponframe=0;};
+void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();/* TODO VR: self.weaponframe=0; */ };
 void()    player_axpain2 =    [    $axpain2,    player_axpain3    ] {};
 void()    player_axpain3 =    [    $axpain3,    player_axpain4    ] {};
 void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
-void()    player_axpain6 =    [    $axpain6,    player_run    ] {};
+void()    player_axpain6 =    [    $axpain6,    player_run_no_arg    ] {};
 
-void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound();self.weaponframe=0;};
+void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound(); /* TODO VR: self.weaponframe=0; */ };
 void()   player_hampain2 =  [  19,   player_hampain3 ] {};
 void()   player_hampain3 =  [  20,   player_hampain4 ] {};
 void()   player_hampain4 =  [  21,   player_hampain5 ] {};
 void()   player_hampain5 =  [  22,   player_hampain6 ] {};
-void()   player_hampain6 =  [  23,   player_run  ] {};
+void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
 
-void() player_pain =
+void(entity attacker, float damage) player_pain =
 {
-    if (self.weaponframe)
+    if (self.weaponframe || self.weaponframe2)
         return;
 
     if (self.invisible_finished > time)
@@ -803,7 +904,7 @@ void()    player_diea7    =    [    $deatha7,    player_diea8    ] {};
 void()    player_diea8    =    [    $deatha8,    player_diea9    ] {};
 void()    player_diea9    =    [    $deatha9,    player_diea10    ] {};
 void()    player_diea10    =    [    $deatha10,    player_diea11    ] {};
-void()    player_diea11    =    [    $deatha11,    player_diea11 ] {PlayerDead();};
+void()    player_diea11    =    [    $deatha11,    player_diea11 ] {PlayerDead(); };
 
 void()    player_dieb1    =    [    $deathb1,    player_dieb2    ] {};
 void()    player_dieb2    =    [    $deathb2,    player_dieb3    ] {};
@@ -813,7 +914,7 @@ void()    player_dieb5    =    [    $deathb5,    player_dieb6    ] {};
 void()    player_dieb6    =    [    $deathb6,    player_dieb7    ] {};
 void()    player_dieb7    =    [    $deathb7,    player_dieb8    ] {};
 void()    player_dieb8    =    [    $deathb8,    player_dieb9    ] {};
-void()    player_dieb9    =    [    $deathb9,    player_dieb9    ] {PlayerDead();};
+void()    player_dieb9    =    [    $deathb9,    player_dieb9    ] {PlayerDead(); };
 
 void()    player_diec1    =    [    $deathc1,    player_diec2    ] {};
 void()    player_diec2    =    [    $deathc2,    player_diec3    ] {};
@@ -829,7 +930,7 @@ void()    player_diec11    =    [    $deathc11,    player_diec12    ] {};
 void()    player_diec12    =    [    $deathc12,    player_diec13    ] {};
 void()    player_diec13    =    [    $deathc13,    player_diec14    ] {};
 void()    player_diec14    =    [    $deathc14,    player_diec15    ] {};
-void()    player_diec15    =    [    $deathc15,    player_diec15 ] {PlayerDead();};
+void()    player_diec15    =    [    $deathc15,    player_diec15 ] {PlayerDead(); };
 
 void()    player_died1    =    [    $deathd1,    player_died2    ] {};
 void()    player_died2    =    [    $deathd2,    player_died3    ] {};
@@ -839,7 +940,7 @@ void()    player_died5    =    [    $deathd5,    player_died6    ] {};
 void()    player_died6    =    [    $deathd6,    player_died7    ] {};
 void()    player_died7    =    [    $deathd7,    player_died8    ] {};
 void()    player_died8    =    [    $deathd8,    player_died9    ] {};
-void()    player_died9    =    [    $deathd9,    player_died9    ] {PlayerDead();};
+void()    player_died9    =    [    $deathd9,    player_died9    ] {PlayerDead(); };
 
 void()    player_diee1    =    [    $deathe1,    player_diee2    ] {};
 void()    player_diee2    =    [    $deathe2,    player_diee3    ] {};
@@ -849,7 +950,7 @@ void()    player_diee5    =    [    $deathe5,    player_diee6    ] {};
 void()    player_diee6    =    [    $deathe6,    player_diee7    ] {};
 void()    player_diee7    =    [    $deathe7,    player_diee8    ] {};
 void()    player_diee8    =    [    $deathe8,    player_diee9    ] {};
-void()    player_diee9    =    [    $deathe9,    player_diee9    ] {PlayerDead();};
+void()    player_diee9    =    [    $deathe9,    player_diee9    ] {PlayerDead(); };
 
 void()    player_die_ax1    =    [    $axdeth1,    player_die_ax2    ] {};
 void()    player_die_ax2    =    [    $axdeth2,    player_die_ax3    ] {};
@@ -859,7 +960,7 @@ void()    player_die_ax5    =    [    $axdeth5,    player_die_ax6    ] {};
 void()    player_die_ax6    =    [    $axdeth6,    player_die_ax7    ] {};
 void()    player_die_ax7    =    [    $axdeth7,    player_die_ax8    ] {};
 void()    player_die_ax8    =    [    $axdeth8,    player_die_ax9    ] {};
-void()    player_die_ax9    =    [    $axdeth9,    player_die_ax9    ] {PlayerDead();};
+void()    player_die_ax9    =    [    $axdeth9,    player_die_ax9    ] {PlayerDead(); };
 
 void()   player_die_ham1 =  [ 24 ,   player_die_ham2 ] {};
 void()   player_die_ham2 =  [ 25 ,   player_die_ham3 ] {};
@@ -868,4 +969,4 @@ void()   player_die_ham4 =  [ 27 ,   player_die_ham5 ] {};
 void()   player_die_ham5 =  [ 28 ,   player_die_ham6 ] {};
 void()   player_die_ham6 =  [ 29 ,   player_die_ham7 ] {};
 void()   player_die_ham7 =  [ 30 ,   player_die_ham8 ] {};
-void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead();};
+void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead(); };

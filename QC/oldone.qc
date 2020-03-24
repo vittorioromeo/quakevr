@@ -242,7 +242,7 @@ void() finale_4 =
 
 //============================================================================
 
-void () nopain =
+void (entity attacker, float damage) nopain =
 {
     self.health = 40000;
 };

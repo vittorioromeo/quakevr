@@ -32,11 +32,6 @@ walkmove(angle, speed) primitive is all or nothing
 
 
 //
-// globals
-//
-float    current_yaw;
-
-//
 // when a monster becomes angry at a player, that monster will be used
 // as the sight target the next frame so that monsters near that one
 // will wake up even if they wouldn't have noticed the player
@@ -350,58 +345,6 @@ float(entity targ) infront =
 
 //============================================================================
 
-/*
-===========
-ChangeYaw
-
-Turns towards self.ideal_yaw at self.yaw_speed
-Sets the global variable current_yaw
-Called every 0.1 sec by monsters
-============
-*/
-/*
-
-void() ChangeYaw =
-{
-    local float        ideal, move;
-
-//current_yaw = self.ideal_yaw;
-// mod down the current angle
-    current_yaw = anglemod( self.angles_y );
-    ideal = self.ideal_yaw;
-
-    if (current_yaw == ideal)
-        return;
-
-    move = ideal - current_yaw;
-    if (ideal > current_yaw)
-    {
-        if (move > 180)
-            move = move - 360;
-    }
-    else
-    {
-        if (move < -180)
-            move = move + 360;
-    }
-
-    if (move > 0)
-    {
-        if (move > self.yaw_speed)
-            move = self.yaw_speed;
-    }
-    else
-    {
-        if (move < 0-self.yaw_speed )
-            move = 0-self.yaw_speed;
-    }
-
-    current_yaw = anglemod (current_yaw + move);
-
-    self.angles_y = current_yaw;
-};
-
-*/
 
 //MED 10/18/96 added charmed stuff
 //============================================================================
@@ -510,11 +453,17 @@ local float    rsnd;
     else if (self.classname == "monster_tarbaby")
         sound (self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_vomit")
+    {
         sound (self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+    }
     else if (self.classname == "monster_eel")
+    {
         sound (self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+    }
     else if (self.classname == "monster_wrath")
+    {
         sound (self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
+    }
     else if (self.classname == "monster_enforcer")
     {
         rsnd = rint(random() * 3);
@@ -800,8 +749,6 @@ The monster is walking it's beat
 */
 void(float dist) ai_walk =
 {
-    local vector        mtemp;
-
     movedist = dist;
 
 //MED 01/20/97
@@ -1085,9 +1032,7 @@ The monster has an enemy it is trying to kill
 float RUN_STRAIGHT;
 void(float dist) ai_run =
 {
-    local    vector    delta;
     local    float    axis;
-    local    float    direct, ang_rint, ang_floor, ang_ceil;
 
     movedist = dist;
 // see if the enemy is dead

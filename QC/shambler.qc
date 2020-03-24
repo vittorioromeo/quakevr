@@ -208,6 +208,7 @@ void() CastLightning =
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_LIGHTNING1);
     WriteEntity (MSG_BROADCAST, self);
+    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
     WriteCoord (MSG_BROADCAST, org_x);
     WriteCoord (MSG_BROADCAST, org_y);
     WriteCoord (MSG_BROADCAST, org_z);

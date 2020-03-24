@@ -97,15 +97,14 @@ void() counter_off_use =
     };
 
 float( entity counter ) counter_GetCount =
-    {
-    local float value;
-
+{
     if ( counter.classname == "counter" )
-        {
+    {
         return counter.state;
-        }
+    }
+
     return 0;
-    };
+};
 
 /*QUAKED func_counter (0 0 0.5) (0 0 0) (32 32 32) TOGGLE LOOP STEP RESET RANDOM FINISHCOUNT START_ON
 TOGGLE causes the counter to switch between an on and off state

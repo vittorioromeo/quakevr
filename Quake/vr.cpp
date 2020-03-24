@@ -1739,8 +1739,9 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
 
-    Con_Printf("%d | %d\n", (int)VR_GetOffHandWpnCvarEntry(),
-        (int)VR_GetMainHandWpnCvarEntry());
+    // TODO VR: remove
+    // Con_Printf("%d | %d\n", (int)VR_GetOffHandWpnCvarEntry(),
+    //     (int)VR_GetMainHandWpnCvarEntry());
 }
 
 static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])

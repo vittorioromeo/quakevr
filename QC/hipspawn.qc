@@ -23,11 +23,10 @@ void() spawn_think =
 //================
 
 void() spawn_use =
-   {
-   local entity spawnentity;
-   local entity tempself;
+{
+    local entity spawnentity;
 
-   if ((self.spawnmulti == 1) || (horn_active))
+    if ((self.spawnmulti == 1) || (horn_active))
       {
       // spawn the new entity
       spawnentity = spawn();
@@ -119,13 +118,6 @@ void() func_spawn =
    local entity monster;
    local float tempdeathmatch;
    local float temptotal_monsters;
-   local vector mn,mx;
-
-//   if (deathmatch)
-//   {
-//      remove(self);
-//      return;
-//   }
 
    // save off deathmatch and zero it out
    tempself = self;

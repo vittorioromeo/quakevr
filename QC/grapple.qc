@@ -7,6 +7,78 @@
 .float on_hook; // we're on it
 .float hook_out; // it's out
 
+.entity hook2; // (off-hand) this is my hook
+.float on_hook2; // (off-hand) we're on it
+.float hook_out2; // (off-hand) it's out
+
+.float handParm;
+
+void(float xHand, entity v) setHook =
+{
+    if(xHand == 0) self.hook2 = v;
+    else           self.hook = v;
+}
+
+void(float xHand, float v) setOnHook =
+{
+    if(xHand == 0) self.on_hook2 = v;
+    else           self.on_hook = v;
+}
+
+void(float xHand, float v) setHookOut =
+{
+    if(xHand == 0) self.hook_out2 = v;
+    else           self.hook_out = v;
+}
+
+entity(float xHand) getHook =
+{
+    if(xHand == 0) return self.hook2;
+    else           return self.hook;
+}
+
+float(float xHand) getOnHook =
+{
+    if(xHand == 0) return self.on_hook2;
+    else           return self.on_hook;
+}
+
+float(float xHand) getHookOut =
+{
+    if(xHand == 0) return self.hook_out2;
+    else           return self.hook_out;
+}
+
+void(float xHand, float v) setOwnerOnHook =
+{
+    if(xHand == 0) self.owner.on_hook2 = v;
+    else           self.owner.on_hook = v;
+}
+
+void(float xHand, float v) setOwnerHookOut =
+{
+    if(xHand == 0) self.owner.hook_out2 = v;
+    else           self.owner.hook_out = v;
+}
+
+float(float xHand) getOwnerOnHook =
+{
+    if(xHand == 0) return self.owner.on_hook2;
+    else           return self.owner.on_hook;
+}
+
+float(float xHand) getOwnerHookOut =
+{
+    if(xHand == 0) return self.owner.hook_out2;
+    else           return self.owner.hook_out;
+}
+
+float(float xHand) ownerFireButtonPressed =
+{
+    if(xHand == 0) return self.owner.button3;
+    else           return self.owner.button0;
+}
+
 // prototypes for WEAPONS.QC functions
 float() crandom;
 void(vector org, vector vel, float damage) SpawnBlood;
@@ -17,6 +89,7 @@ void(entity h, vector startPos, vector endPos) GrappleTrail =
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_BEAM);
     WriteEntity (MSG_BROADCAST, h);
+    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
     WriteCoord (MSG_BROADCAST, startPos_x);
     WriteCoord (MSG_BROADCAST, startPos_y);
     WriteCoord (MSG_BROADCAST, startPos_z);
@@ -25,31 +98,46 @@ void(entity h, vector startPos, vector endPos) GrappleTrail =
     WriteCoord (MSG_BROADCAST, endPos_z);
 };
 
-void() GrappleReset =
+void() GrappleResetFromHook =
 {
-    self.owner.on_hook = FALSE;
-    self.owner.hook_out = FALSE;
-    // TODO VR: assumes offhand (TODO dual-wielding)
-    self.owner.weaponframe2 = 0;
-    self.owner.offhand_attack_finished = time + 0.25;
+    local float xHand;
+    xHand = self.handParm;
+
+    setOwnerOnHook(xHand, FALSE);
+    setOwnerHookOut(xHand, FALSE);
+    setWeaponFrame(xHand, 0);
+    setAttackFinished(xHand, time + 0.25);
+
+    remove(self);
+};
+
+void(float xHand) GrappleResetFromPlayer =
+{
+    setOwnerOnHook(xHand, FALSE);
+    setOwnerHookOut(xHand, FALSE);
+    setWeaponFrame(xHand, 0);
+    setAttackFinished(xHand, time + 0.25);
 
     remove(self);
 };
 
 void() GrappleTrack =
 {
-    local   vector  spray;
+    local vector spray;
+    local float xHand;
+
+    xHand = self.handParm;
 
     // Release dead targets
     if (self.enemy.classname == "player" && self.enemy.health <= 0)
     {
-        self.owner.on_hook = FALSE;
+        setOwnerOnHook(xHand, FALSE);
     }
 
     // drop the hook if owner is dead or has released the button
-    if (!self.owner.on_hook || self.owner.health <= 0)
+    if (!getOwnerOnHook(xHand) || self.owner.health <= 0)
     {
-        GrappleReset();
+        GrappleResetFromHook();
         return;
     }
 
@@ -57,7 +145,7 @@ void() GrappleTrack =
     {
         if (self.enemy.teleport_time > time)
         {
-            GrappleReset();
+            GrappleResetFromHook();
             return;
         }
 
@@ -87,11 +175,15 @@ void() GrappleTrack =
 // Tries to anchor the grapple to whatever it touches
 void () GrappleAnchor =
 {
+    local float xHand;
+
+    xHand = self.handParm;
+
     if (other == self.owner) // don't hook the guy that fired it
         return;
 
     if (pointcontents(self.origin) == CONTENT_SKY) {
-        GrappleReset();
+        GrappleResetFromHook();
         return;
     }
 
@@ -127,12 +219,12 @@ void () GrappleAnchor =
     sound (self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
     particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 48);
 
-    if (!self.owner.button3) {
-        GrappleReset();
+    if (!ownerFireButtonPressed(xHand)) {
+        GrappleResetFromHook();
         return;
     }
 
-    self.owner.on_hook = TRUE;
+    setOwnerOnHook(xHand, TRUE);
     if (self.owner.flags & FL_ONGROUND)
         self.owner.flags = self.owner.flags - FL_ONGROUND;
 
@@ -145,14 +237,14 @@ void () GrappleAnchor =
 
 void(float xduration, float frequency, float amplitude) VRGunHaptic;
 
-void () W_FireGrapple =
+void (float xHand) W_FireGrapple =
 {
-    if (self.hook_out)// reject subsequent calls from player.qc
+    if (getHookOut(xHand))// reject subsequent calls from player.qc
         return;
 
     VRGunHaptic(0.55, 75, 1.0);
-    particle2 (self.offmuzzlepos, '0 0 0', 5 /* sparks preset */, 8);
-    particle2 (self.offmuzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 5 /* sparks preset */, 8);
+    particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 
     self.punchangle_x = -2; // bump him
 
@@ -160,58 +252,62 @@ void () W_FireGrapple =
     sound (self, CHAN_WEAPON, "weapons/chain1.wav", 1, ATTN_NORM);
 
     newmis = spawn();
+    newmis.handParm = xHand;
     newmis.movetype = MOVETYPE_FLYMISSILE;
     newmis.solid = SOLID_BBOX;
     newmis.owner = self;        // newmis belongs to me
-    self.hook = newmis;            // This is my newmis
+    setHook(xHand, newmis);            // This is my newmis
     newmis.classname = "hook";
 
-    makevectors (self.offhandrot);
+    makevectors (VRGetHandRot(xHand));
     newmis.velocity = v_forward * 1500;
 //    newmis.avelocity = '0 0 -500';
     newmis.angles = vectoangles(v_forward);
 
     newmis.touch = GrappleAnchor;
-    newmis.think = GrappleReset;
+    newmis.think = GrappleResetFromHook;
     // grapple only lives for two seconds, this gives max range on it
     newmis.nextthink = time + 1.8;
     newmis.frame = 1; // hook spread
 
     setmodel (newmis,"progs/hook.mdl");
-    setorigin (newmis, self.offhandpos + v_forward * 6);
+    setorigin (newmis, VRGetMuzzlePos(xHand) + v_forward * 6);
     setsize(newmis, '0 0 0' , '0 0 0 ');
 
-    self.hook_out = TRUE;
+    setHookOut(xHand, TRUE);
 };
 
 // called each frame by CLIENT.QC if client has hook_out
-void() GrappleService =
+void(float xHand) GrappleService =
 {
-    local   vector  o,  vel, hookfwd;
-    local    float    v, dot;
+    local vector vel, hookfwd;
+    local float  v, dot;
+    local entity xHook;
 
-    makevectors (self.hook.angles);
+    xHook = getHook(xHand);
+
+    makevectors (xHook.angles);
     hookfwd = v_forward;
 
-    makevectors (self.offhandrot);
+    makevectors (VRGetHandRot(xHand));
 
-    if (!self.on_hook) {
+    if (!getOnHook(xHand)) {
         // TODO VR: still wonky position on hook , dunno why
-        GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos + v_forward * 1.5);
+        GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
         return;
     }
 
     // drop the hook if player lets go of button
-    if ((!self.button3) ||
+    if ((!VRFireButtonPressed(xHand)) ||
         self.teleport_time > time ||
-        self.weapon2 != WID_GRAPPLE) // TODO VR: assumes offhand (TODO dual-wielding)
+        VRGetWeapon(xHand) != WID_GRAPPLE) // TODO VR: assumes offhand (TODO dual-wielding)
     { // release when we get 'ported
-        self = self.hook;
-        GrappleReset();
+        self = xHook;
+        GrappleResetFromPlayer(xHand);
         return;
     }
 
-    vel = self.hook.origin - self.offmuzzlepos;
+    vel = xHook.origin - VRGetMuzzlePos(xHand);
     v = vlen (vel);
 
     // if (v <= 250)
@@ -231,7 +327,7 @@ void() GrappleService =
         self.velocity = self.velocity + (vel * 8 * frametime);
     }
 
-    GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos + v_forward * 1.5);
+    GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
 };
 
 

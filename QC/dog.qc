@@ -195,7 +195,7 @@ void() dog_painb14    =[    $painb14 ,    dog_painb15    ] {};
 void() dog_painb15    =[    $painb15 ,    dog_painb16    ] {};
 void() dog_painb16    =[    $painb16 ,    dog_run1    ] {};
 
-void() dog_pain =
+void(entity attacker, float damage) dog_pain =
 {
     sound (self, CHAN_VOICE, "dog/dpain1.wav", 1, ATTN_NORM);
 
@@ -303,9 +303,7 @@ float()    CheckDogJump =
 
 float()    DogCheckAttack =
 {
-    local    vector    vec;
-
-// if close enough for slashing, go for it
+    // if close enough for slashing, go for it
     if (CheckDogMelee ())
     {
         self.attack_state = AS_MELEE;

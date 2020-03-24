@@ -31,7 +31,7 @@ void() MiniGrenadeExplode =
 //================================
 void(float offsetAngle) MiniGrenadeLaunch =
 {
-    local    entity missile, mpuff;
+    local    entity missile;
     local    float    tempRand;
 
     missile = spawn ();
@@ -108,7 +108,7 @@ void() MultiGrenadeTouch =
 //================================
 void() W_FireMultiGrenade =
 {
-    local    entity missile, mpuff;
+    local    entity missile;
 
     // TODO VR: rogue
     // self.currentammo = self.ammo_multi_rockets = self.ammo_multi_rockets - 1;
@@ -271,7 +271,7 @@ void() HomingMissileAcquire =
 //================================
 void(float offset, float frameNum) MultiRocketLaunch =
 {
-    local entity     missile, mpuff;
+    local entity     missile;
     local vector    aimangle;
 
     missile = spawn ();
@@ -401,6 +401,7 @@ void(entity current, float doDamage) PlasmaDischarge =
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity (MSG_BROADCAST, current);
+    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
     WriteCoord (MSG_BROADCAST, current.origin_x);
     WriteCoord (MSG_BROADCAST, current.origin_y);
     WriteCoord (MSG_BROADCAST, current.origin_z);
@@ -497,7 +498,7 @@ void() PlasmaLaunch =
 
 void(vector org, vector dir) launch_plasma =
 {
-    local entity    missile, mpuff;
+    local entity    missile;
 
     missile = spawn ();
     missile.owner = self;

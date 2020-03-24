@@ -662,8 +662,6 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
 
 void()   armagon_body_explode2 =
    {
-   local entity expl;
-
    sound (self , CHAN_AUTO, "misc/longexpl.wav", 1, ATTN_ARMAGON);
    self.think = armagon_body_explode2;
    ThrowGib ("progs/gib1.mdl", -200);

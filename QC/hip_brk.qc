@@ -24,7 +24,7 @@ void() damagethreshold_killed =
        }
     };
 
-void() damagethreshold_pain =
+void(entity attacker, float damage) damagethreshold_pain =
     {
     self.health = self.max_health;
     };

@@ -143,12 +143,8 @@ Set "sounds" to one of the following:
 2) chain slow
 */
 
-
 void() func_plat =
-
 {
-local entity t;
-
     if (!self.t_length)
         self.t_length = 80;
     if (!self.t_width)

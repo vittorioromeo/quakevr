@@ -3,8 +3,8 @@
 void () W_WeaponFrame;
 void () W_OffHandWeaponFrame;
 void() W_SetCurrentAmmo;
-void() player_pain;
-void() player_stand1;
+void(entity attacker, float damage) player_pain;
+void(float xHand) player_stand1;
 void (vector org) spawn_tfog;
 void (vector org, entity death_owner) spawn_tdeath;
 
@@ -365,8 +365,6 @@ void() execute_changelevel =
 
 void() changelevel_touch =
 {
-    local entity    pos;
-
     if (other.classname != "player")
         return;
 
@@ -622,7 +620,8 @@ void() PutClientInServer =
 
     self.velocity = '0 0 0';    // 1998-07-21 Player moves after respawn fix by Xian
 
-    player_stand1 ();
+    player_stand1 (MAIN_HAND);
+    player_stand1 (OFF_HAND);
 
     if (deathmatch || coop)
     {
@@ -634,6 +633,8 @@ void() PutClientInServer =
     //Grapple stuff
     self.on_hook = FALSE;
     self.hook_out = FALSE;
+    self.on_hook2 = FALSE;
+    self.hook_out2 = FALSE;
 
     spawn_tdeath (self.origin, self);
 };
@@ -792,8 +793,7 @@ void() CheckRules =
 
 void() PlayerDeathThink =
 {
-    local entity    old_self;
-    local float        forward;
+    local float forward;
 
     if ((self.flags & FL_ONGROUND))
     {
@@ -827,8 +827,6 @@ void() PlayerDeathThink =
 
 void() PlayerJump =
 {
-    local vector start, end;
-
     if (self.flags & FL_WATERJUMP)
         return;
 
@@ -1041,9 +1039,6 @@ void() doWetsuit =
 
 void() PlayerPreThink =
 {
-    local    float    mspeed, aspeed;
-    local    float    r;
-
     if (intermission_running)
     {
         earthquake_prethink();
@@ -1115,19 +1110,36 @@ void() PlayerPreThink =
 
     // TODO VR: what about weapon2? (TODO dual-wielding)
     if(time > self.attack_finished &&
-       self.currentammo == 0 &&
+       self.currentammo <= 0 &&
        self.weapon != WID_FIST &&
        self.weapon != WID_AXE &&
-       self.weapon != WID_MJOLNIR)
+       self.weapon != WID_MJOLNIR &&
+       self.weapon != WID_GRAPPLE)
     {
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
     }
 
+    if(time > self.offhand_attack_finished &&
+       self.currentammo2 <= 0 &&
+       self.weapon2 != WID_FIST &&
+       self.weapon2 != WID_AXE &&
+       self.weapon2 != WID_MJOLNIR &&
+       self.weapon2 != WID_GRAPPLE)
+    {
+        self.weapon2 = W_BestWeapon ();
+        W_SetCurrentAmmo ();
+    }
+
     // Track the grapple
+    if (self.hook_out2)
+    {
+        GrappleService(OFF_HAND);
+    }
+
     if (self.hook_out)
     {
-        GrappleService();
+        GrappleService(MAIN_HAND);
     }
 };
 
@@ -1370,9 +1382,6 @@ Called every frame after physics are run
 */
 void() PlayerPostThink =
 {
-    local    float    mspeed, aspeed;
-    local    float    r;
-
     if (self.view_ofs == '0 0 0')
     {
        earthquake_postthink();
@@ -1846,6 +1855,8 @@ void() PlayerVRMelee =
 
     vr_melee_threshold = cvar("vr_melee_threshold");
 
+    // TODO VR: code repetition
+
     // vr main hand melee attack
     if (cvar("vr_enabled") == 1 &&
         time >= self.in_melee &&
@@ -1871,7 +1882,9 @@ void() PlayerVRMelee =
         self.offhandvelmag > vr_melee_threshold)
     {
         if(!DoOffHandMelee(WID_FIST, "knight/sword1.wav", W_FistMelee))
-            DoOffHandMeleeImpl("knight/sword1.wav", W_GunMelee);
+            if(!DoOffHandMelee(WID_AXE, "weapons/ax1.wav", W_FireAxe))
+                if(!DoOffHandMelee(WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
+                    DoOffHandMeleeImpl("knight/sword1.wav", W_GunMelee);
 
         self.offhand_melee_attack_finished = time + 0.1;
         self.offhand_in_melee = time + 0.02;

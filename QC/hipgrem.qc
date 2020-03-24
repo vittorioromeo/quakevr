@@ -78,6 +78,7 @@ float() GremlinFindTarget;
 float(float wid, float wpnFlags) PlayerHasWeapon =
 {
    if(wid == WID_FIST) return TRUE;
+   if(wid == WID_GRAPPLE) return TRUE; // TODO VR: always have grapple?
    return wpnFlags & WeaponIdToItemId(wid);
 }
 
@@ -390,7 +391,6 @@ The monster has an enemy it is trying to kill
 */
 void(float dist) gremlin_run =
    {
-   local entity oldtarget;
    local float r;
    local vector d;
 
@@ -880,8 +880,7 @@ void(entity attacker, float damage) gremlin_pain =
 };
 
 void()   gremlin_spawn1 =[ $spawn1.asc,      gremlin_spawn2 ] {self.nextthink = time + 0.3;
-   self.th_pain = SUB_Null;
-//    sound (self, CHAN_VOICE, "grem/idle.wav", 1, ATTN_IDLE);
+   self.th_pain = SUB_NullPain;
 };
 void()   gremlin_spawn2 =[ $spawn2.asc,      gremlin_spawn3 ] {self.nextthink = time + 0.3;};
 void()   gremlin_spawn3 =[ $spawn3.asc,      gremlin_spawn4 ] {self.nextthink = time + 0.3;};
@@ -1142,7 +1141,6 @@ entity() GremlinFindVictim =
    local entity selected;
    local float dist;
    local float head_dist;
-   local float decision;
 
    self.search_time = time + 1.0;
 // look in our immediate vicinity
@@ -1186,7 +1184,7 @@ fire a rocket
 */
 void() Gremlin_FireRocket =
 {
-    local    entity missile, mpuff;
+    local    entity missile;
    local vector dir;
 
     self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
@@ -1359,9 +1357,10 @@ void() Gremlin_FireLightningGun =
 
     traceline (org, self.origin + dir*600, TRUE, self);
 
-   WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-   WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
+    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity (MSG_BROADCAST, self);
+    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
     WriteCoord (MSG_BROADCAST, org_x);
     WriteCoord (MSG_BROADCAST, org_y);
     WriteCoord (MSG_BROADCAST, org_z);
@@ -1437,16 +1436,11 @@ void()   gremlin_light1;
 void()   gremlin_rocket1;
 
 float() GremlinWeaponAttack =
-   {
-    local    float    r;
-   local entity targ;
-   local vector vec;
+{
+    if (!GremlinCheckNoAmmo ())
+       return FALSE;
 
-
-   if (!GremlinCheckNoAmmo ())
-      return FALSE;
-
-   self.show_hostile = time + 1; // wake monsters up
+    self.show_hostile = time + 1; // wake monsters up
 
     if (self.weapon == WID_SHOTGUN)
       {
@@ -1850,9 +1844,7 @@ void(float side)  Gremlin_Gorge =
 
 void()   Gremlin_JumpTouch =
 {
-    local    float    ldmg;
-
-   if (self.health <= 0)
+    if (self.health <= 0)
         return;
 
 /*
@@ -1883,8 +1875,6 @@ void()   Gremlin_JumpTouch =
 
 void()   Gremlin_FlipTouch =
 {
-    local    float    ldmg;
-
     if (!checkbottom(self))
       {
         if (self.flags & FL_ONGROUND)

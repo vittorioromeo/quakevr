@@ -328,7 +328,7 @@ void() spikeshooter_use =
     {
         if (!self.spawnflags & SPAWNFLAG_SILENT)
             sound (self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
-        W_FireRocket();
+        W_FireRocket(MAIN_HAND); // TODO VR: this will spawn particles at the gun position
         newmis.velocity = self.movedir*1000;
         newmis.angles = vectoangles(newmis.velocity);
         setorigin (newmis, self.origin + self.movedir*8);
@@ -516,8 +516,7 @@ void() bubble_remove =
 
 void() bubble_bob =
 {
-local float        rnd1, rnd2, rnd3;
-local vector    vtmp1, modi;
+    local float rnd1, rnd2, rnd3;
 
     // PGM fix - 02/25/97 so bubbles won't go through walls
     rnd1 = pointcontents(self.origin);

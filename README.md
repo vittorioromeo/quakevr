@@ -24,6 +24,7 @@
 * Two-handed weapon aiming *(with virtual stock support)*
 * Weapon weight simulation
 * Grappling hook *(from Dissolution of Eternity)*
+* Positional damage *(headshots)*
 
 ## Disclaimer
 

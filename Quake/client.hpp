@@ -89,6 +89,7 @@ struct dlight_t
 typedef struct
 {
     int entity;
+    int disambiguator{0};
     qmodel_t* model;
     float endtime;
     glm::vec3 start, end;

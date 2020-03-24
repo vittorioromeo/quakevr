@@ -19,9 +19,6 @@ HIPNOTIC ITEMS
 //
 void() HIP_powerup_touch =
 {
-local entity    stemp;
-local float        best;
-
     if (other.classname != "player")
         return;
     if (other.health <= 0)
@@ -97,9 +94,6 @@ void() item_artifact_wetsuit =
 
 void() horn_touch =
 {
-    local    float amount;
-   local float value;
-
     if (other.classname != "player")
         return;
 
@@ -172,11 +166,11 @@ HIPNOTIC WEAPONS
 
 void() weapon_mjolnir =
 {
-   precache_model ("progs/g_hammer.mdl");
-   setmodel (self, "progs/g_hammer.mdl");
+    precache_model ("progs/g_hammer.mdl");
+    setmodel (self, "progs/g_hammer.mdl");
     self.weapon = WID_MJOLNIR;
-   self.netname = "Mjolnir";
-   self.items = IT_MJOLNIR;
+    self.netname = "Mjolnir";
+    self.items = IT_MJOLNIR;
     self.touch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
@@ -187,12 +181,12 @@ void() weapon_mjolnir =
 
 void() weapon_laser_gun =
 {
-   precache_model ("progs/g_laserg.mdl");
-   setmodel (self, "progs/g_laserg.mdl");
+    precache_model ("progs/g_laserg.mdl");
+    setmodel (self, "progs/g_laserg.mdl");
     self.weapon = WID_LASER_CANNON;
-   self.netname = "Laser Cannon";
-   self.items = IT_LASER_CANNON;
-   self.touch = weapon_touch;
+    self.netname = "Laser Cannon";
+    self.items = IT_LASER_CANNON;
+    self.touch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
 };
@@ -202,12 +196,12 @@ void() weapon_laser_gun =
 
 void() weapon_proximity_gun =
 {
-   precache_model ("progs/g_prox.mdl");
-   setmodel (self, "progs/g_prox.mdl");
+    precache_model ("progs/g_prox.mdl");
+    setmodel (self, "progs/g_prox.mdl");
     self.weapon = WID_PROXIMITY_GUN;
-   self.netname = "Proximity Gun";
-   self.items = IT_PROXIMITY_GUN;
-   self.touch = weapon_touch;
+    self.netname = "Proximity Gun";
+    self.items = IT_PROXIMITY_GUN;
+    self.touch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
 };
@@ -390,6 +384,7 @@ void() SpawnLightningThink =
       WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
       WriteEntity (MSG_BROADCAST, self);
+      WriteByte (MSG_BROADCAST, 0); /* disambiguator */
       WriteCoord (MSG_BROADCAST, self.origin_x);
       WriteCoord (MSG_BROADCAST, self.origin_y);
       WriteCoord (MSG_BROADCAST, self.origin_z);
@@ -463,6 +458,7 @@ void() trap_lightning_use =
       WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
       WriteEntity (MSG_BROADCAST, self);
+      WriteByte (MSG_BROADCAST, 0); /* disambiguator */
       WriteCoord (MSG_BROADCAST, p1_x);
       WriteCoord (MSG_BROADCAST, p1_y);
       WriteCoord (MSG_BROADCAST, p1_z);
@@ -649,6 +645,7 @@ void() TeslaLightningThink =
    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
    WriteEntity (MSG_BROADCAST, self);
+   WriteByte (MSG_BROADCAST, 0); /* disambiguator */
    WriteCoord (MSG_BROADCAST, self.origin_x);
    WriteCoord (MSG_BROADCAST, self.origin_y);
    WriteCoord (MSG_BROADCAST, self.origin_z);

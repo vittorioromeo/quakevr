@@ -149,6 +149,7 @@ void        end_sys_globals;        // flag for structure dumping
 .float        weaponframe2;
 
 .float        currentammo;
+.float        currentammo2;  // off-hand
 .float        ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 
 .float        items;            // bit flags
@@ -457,7 +458,6 @@ float    movedist;
 float    gameover;        // set when a rule exits
 
 string    string_null;    // null string, nothing should be held here
-float    empty_float;
 
 entity    newmis;            // launch_spike sets this after spawning it
 
@@ -749,6 +749,7 @@ void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove;
 void()  SUB_CalcMoveDone;
 void() SUB_CalcAngleMoveDone;
 void() SUB_Null;
+void(entity attacker, float damage) SUB_NullPain;
 void() SUB_UseTargets;
 void() SUB_Remove;
 

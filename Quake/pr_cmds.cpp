@@ -1774,11 +1774,10 @@ static void PF_WriteEntity()
 
 static void PF_makestatic()
 {
-    edict_t* ent;
     int i;
     int bits = 0; // johnfitz -- PROTOCOL_FITZQUAKE
 
-    ent = G_EDICT(OFS_PARM0);
+    edict_t* ent = G_EDICT(OFS_PARM0);
 
     // johnfitz -- don't send invisible static entities
     if(ent->alpha == ENTALPHA_ZERO)

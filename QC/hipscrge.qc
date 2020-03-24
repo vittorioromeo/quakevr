@@ -25,20 +25,7 @@ $frame sting7.asc sting8.asc sting9.asc sting10.asc sting11.asc
 $frame pain1.asc pain2.asc pain3.asc pain4.asc pain5.asc
 
 $frame death1.asc death2.asc death3.asc death4.asc death5.asc
-//
 
-$frame stand1.asc stand2.asc stand3.asc stand4.asc stand5.asc stand6.asc stand7.asc
-
-$frame sting1.asc sting2.asc sting3.asc sting4.asc sting5.asc sting6.asc sting7.asc sting8.asc
-$frame sting9.asc sting10.asc sting11.asc
-
-$frame walk1.asc walk2.asc walk3.asc walk4.asc walk5.asc walk6.asc
-
-$frame shoot1.asc shoot2.asc
-
-$frame pain1.asc pain2.asc pain3.asc pain4.asc pain5.asc
-
-$frame death1.asc death2.asc death3.asc death4.asc death5.asc death6.asc death7.asc
 /*
 ===========
 ScourgeCheckAttack
@@ -394,18 +381,10 @@ void() scourge_die =
 // scourge_melee
 //
 void() scourge_melee =
-   {
-    local float chance;
-
-//   chance = random();
-//   if (chance < 0.5 )
-//      {
-      scourge_melee1();
-//      }
-//   else
-//      return;
-   SUB_AttackFinished (2*random());
-   };
+{
+    scourge_melee1();
+    SUB_AttackFinished (2*random());
+};
 
 //
 // ScourgeTriggerThink
@@ -477,49 +456,47 @@ void() ScourgeTriggerTouch =
 */
 void() monster_scourge =
 {
-   local entity trig;
-
     if (deathmatch)
     {
         remove(self);
         return;
     }
-   precache_model2 ("progs/scor.mdl");
-   precache_model2 ("progs/h_scourg.mdl");
-    precache_model2 ("progs/laser.mdl");
-   precache_model2 ("progs/s_light.mdl");
-   precache_model2 ("progs/spike.mdl");
 
-   precache_sound ("misc/null.wav");
-   precache_sound ("scourge/idle.wav");
-   precache_sound ("scourge/pain.wav");
-   precache_sound ("scourge/pain2.wav");
-   precache_sound ("scourge/sight.wav");
-   precache_sound ("scourge/tailswng.wav");
-   precache_sound ("scourge/walk.wav");
-   precache_sound2 ("shambler/smack.wav");
-   precache_sound2 ("weapons/rocket1i.wav");
+    precache_model2 ("progs/scor.mdl");
+    precache_model2 ("progs/h_scourg.mdl");
+    precache_model2 ("progs/laser.mdl");
+    precache_model2 ("progs/s_light.mdl");
+    precache_model2 ("progs/spike.mdl");
+
+    precache_sound ("misc/null.wav");
+    precache_sound ("scourge/idle.wav");
+    precache_sound ("scourge/pain.wav");
+    precache_sound ("scourge/pain2.wav");
+    precache_sound ("scourge/sight.wav");
+    precache_sound ("scourge/tailswng.wav");
+    precache_sound ("scourge/walk.wav");
+    precache_sound2 ("shambler/smack.wav");
+    precache_sound2 ("weapons/rocket1i.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-   setmodel (self, "progs/scor.mdl");
+    setmodel (self, "progs/scor.mdl");
 
-   // TODO VR: tweak hitbox
-   setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
-   self.health = 300;
+    // TODO VR: tweak hitbox
+    setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    self.health = 300;
 
-   self.th_stand = scourge_stand1;
-   self.th_walk = scourge_walk1;
-   self.th_run = scourge_run1;
-   self.th_pain = scourge_pain;
-   self.th_die = scourge_die;
-   self.th_melee = scourge_melee;
-   self.th_missile = scourge_atk1;
-//   self.th_turn = scourge_turn1;
-   self.yaw_speed = 60;
-   self.attack_state = AS_DODGING;
-   self.state = 0;
+    self.th_stand = scourge_stand1;
+    self.th_walk = scourge_walk1;
+    self.th_run = scourge_run1;
+    self.th_pain = scourge_pain;
+    self.th_die = scourge_die;
+    self.th_melee = scourge_melee;
+    self.th_missile = scourge_atk1;
+    self.yaw_speed = 60;
+    self.attack_state = AS_DODGING;
+    self.state = 0;
 
     walkmonster_start();
 };

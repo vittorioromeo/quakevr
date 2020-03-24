@@ -1,6 +1,7 @@
 
 
 void() SUB_Null = {};
+void(entity attacker, float damage) SUB_NullPain = {};
 
 void() SUB_Remove = {remove(self);};
 

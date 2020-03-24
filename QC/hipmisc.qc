@@ -435,7 +435,6 @@ void(entity me, entity camera) UpdateCamera =
 void() effect_finale_use =
 {
    local entity   pos, pl, targ;
-   local entity   temp;
 
    if (self.state == 1)
       return;

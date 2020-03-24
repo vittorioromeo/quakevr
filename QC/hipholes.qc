@@ -74,7 +74,6 @@ void() remove_bullethole =
 void( vector pos ) placebullethole =
 {
     local entity new;
-    local entity ent;
     local vector norm;
 
     new = spawn();
