@@ -25,6 +25,7 @@
 * Weapon weight simulation
 * Grappling hook *(from Dissolution of Eternity)*
 * Positional damage *(headshots)*
+* Dual-wielding
 
 ## Disclaimer
 
