@@ -202,7 +202,7 @@ bool vr_should_aim_2h{false};
 int vr_hardcoded_wpn_cvar_fist{16};
 int vr_hardcoded_wpn_cvar_grapple{17};
 
-aliashdr_t* lastWeaponHeader;
+aliashdr_t* lastWeaponHeader[2];
 
 // TODO VR: not sure what this number should actually be...
 enum
@@ -636,60 +636,31 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
     hdr->scale_origin *= scaleCorrect;
 }
 
-void Mod_Weapon(const char* name, aliashdr_t* hdr)
+void Mod_Weapon(int index, int& cvarEntry, const char* name, aliashdr_t* hdr)
 {
-    if(lastWeaponHeader != hdr)
+    if(lastWeaponHeader[index] != hdr)
     {
-        lastWeaponHeader = hdr;
-        VR_GetMainHandWpnCvarEntry() = -1;
+        lastWeaponHeader[index] = hdr;
+        cvarEntry = -1;
 
         for(int i = 0; i < e_MAX_WEAPONS; i++)
         {
             if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
             {
-                VR_GetMainHandWpnCvarEntry() = i;
+                cvarEntry = i;
                 break;
             }
         }
 
-        if(VR_GetMainHandWpnCvarEntry() == -1)
+        if(cvarEntry == -1)
         {
             Con_Printf("No VR offset for weapon: %s\n", name);
         }
     }
 
-    if(VR_GetMainHandWpnCvarEntry() != -1)
+    if(cvarEntry != -1)
     {
-        ApplyMod_Weapon(VR_GetMainHandWpnCvarEntry(), hdr);
-    }
-}
-
-// TODO VR: repetition
-void Mod_OffHandWeapon(const char* name, aliashdr_t* hdr)
-{
-    if(lastWeaponHeader != hdr)
-    {
-        lastWeaponHeader = hdr;
-        VR_GetOffHandWpnCvarEntry() = -1;
-
-        for(int i = 0; i < e_MAX_WEAPONS; i++)
-        {
-            if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
-            {
-                VR_GetOffHandWpnCvarEntry() = i;
-                break;
-            }
-        }
-
-        if(VR_GetOffHandWpnCvarEntry() == -1)
-        {
-            Con_Printf("No VR offset for weapon: %s\n", name);
-        }
-    }
-
-    if(VR_GetOffHandWpnCvarEntry() != -1)
-    {
-        ApplyMod_Weapon(VR_GetOffHandWpnCvarEntry(), hdr);
+        ApplyMod_Weapon(cvarEntry, hdr);
     }
 }
 
@@ -1767,6 +1738,9 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     cl.prevhandrot[0] = cl.handrot[0];
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
+
+    Con_Printf("%d | %d\n", (int)VR_GetOffHandWpnCvarEntry(),
+        (int)VR_GetMainHandWpnCvarEntry());
 }
 
 static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
@@ -1874,23 +1848,23 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         originalRots[i] = cl.handrot[i] = AngleVectorFromRotMat(mat);
     }
 
-    if(cl.viewent.model)
-    {
-        auto* hdr = (aliashdr_t*)Mod_Extradata(cl.viewent.model);
-        Mod_Weapon(cl.viewent.model->name, hdr);
+    const auto doModWeapon = [](const int index, int& cvarEntry,
+                                 entity_t& viewEntity) {
+        if(viewEntity.model)
+        {
+            auto* hdr = (aliashdr_t*)Mod_Extradata(viewEntity.model);
+            Mod_Weapon(index, cvarEntry, viewEntity.model->name, hdr);
+        }
+    };
 
-        // TODO VR:
-        // BModels cannot be scaled, doesnt work (bmodel size)
-        // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
-        // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
-        // testhdr->scale_origin *= 0.5f
-    }
+    doModWeapon(0, VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
+    doModWeapon(1, VR_GetMainHandWpnCvarEntry(), cl.viewent);
 
-    if(cl.offhand_viewent.model)
-    {
-        auto* hdr = (aliashdr_t*)Mod_Extradata(cl.offhand_viewent.model);
-        Mod_OffHandWeapon(cl.offhand_viewent.model->name, hdr);
-    }
+    // TODO VR:
+    // BModels cannot be scaled, doesnt work (bmodel size)
+    // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
+    // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
+    // testhdr->scale_origin *= 0.5f
 
     entity_t* const player = &cl_entities[cl.viewentity];
 
@@ -2259,7 +2233,9 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
 
 static void VR_ShowCrosshairMainHand(const float size, const float alpha)
 {
-    if((int)(sv_player->v.weapon) == WID_AXE ||
+    // TODO VR: use WpnCVar to control crosshair
+    if((int)(sv_player->v.weapon) == WID_FIST ||
+        (int)(sv_player->v.weapon) == WID_AXE ||
         (int)(sv_player->v.weapon) == WID_MJOLNIR)
     {
         return;
@@ -2286,6 +2262,7 @@ static void VR_ShowCrosshairMainHand(const float size, const float alpha)
 
 static void VR_ShowCrosshairOffHand(const float size, const float alpha)
 {
+    // TODO VR: use WpnCVar to control crosshair
     if(vr_aimmode.value != VrAimMode::e_CONTROLLER ||
         (int)(sv_player->v.weapon2) == WID_FIST)
     {

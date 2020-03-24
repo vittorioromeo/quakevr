@@ -1065,6 +1065,12 @@ void CL_ParseClientdata()
         cl.viewent.lerpflags |=
             LERP_RESETANIM; // don't lerp animation across model changes
     }
+
+    if(cl.offhand_viewent.model != cl.model_precache[cl.stats[STAT_WEAPON2]])
+    {
+        cl.offhand_viewent.lerpflags |=
+            LERP_RESETANIM; // don't lerp animation across model changes
+    }
     // johnfitz
 }
 

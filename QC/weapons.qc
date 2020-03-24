@@ -17,6 +17,7 @@ void() PainSound;
 
 float(float it) ItemIdToWeaponId;
 float(float wid) WeaponIdToItemId;
+float(float wid, float wpnFlags) PlayerHasWeapon;
 
 float() crandom =
 {
@@ -62,6 +63,30 @@ vector() vrProjectileVelocity =
     return VEC_ORIGIN;
 };
 
+vector(float xHand) VRGetHandPos =
+{
+    if(xHand == 0) return self.offhandpos;
+    else           return self.handpos;
+}
+
+vector(float xHand) VRGetHandRot =
+{
+    if(xHand == 0) return self.offhandrot;
+    else           return self.handrot;
+}
+
+float(float xHand) VRMeleeHitSoundPlayed =
+{
+    if(xHand == 0) return self.offhand_melee_hit_sound_played;
+    else           return self.melee_hit_sound_played;
+}
+
+void(float xHand, float v) VRMeleeSetHitSoundPlayed =
+{
+    if(xHand == 0) self.offhand_melee_hit_sound_played = v;
+    else           self.melee_hit_sound_played = v;
+}
+
 float() VRMeleeDmgQuadMult =
 {
     if (self.super_damage_finished > time)
@@ -86,7 +111,7 @@ float(float velmag) VRMeleeStrengthMult =
 }
 
 
-float(float v) VRMeleeDmg =
+float(float v) VRMeleeMainHandDmg =
 {
     return (v * VRMeleeStrengthMult(self.handvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
@@ -95,6 +120,13 @@ float(float v) VRMeleeOffHandDmg =
 {
     return (v * VRMeleeStrengthMult(self.offhandvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
+
+float(float xHand, float v) VRMeleeDmg =
+{
+    if(xHand == 0) return VRMeleeOffHandDmg(v);
+    else           return VRMeleeMainHandDmg(v);
+}
+
 
 float(float v) VRMeleeRange =
 {
@@ -732,16 +764,16 @@ void() HIP_FireMjolnirLightning =
    HIP_SpawnMjolnirBase();
    };
 
-void() HIP_FireMjolnir =
+void(float xHand) HIP_FireMjolnir =
 {
     local vector source;
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(1.15);
+    xdmg = VRMeleeDmg(xHand, 1.15);
 
-    makevectors(self.v_angle);
-    source = self.handpos;
+    makevectors(VRGetHandRot(xHand));
+    source = VRGetHandPos(xHand);
     // TODO VR: improve this collision detection
     traceline (source, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
@@ -777,21 +809,21 @@ void() HIP_FireMjolnir =
                 self.attack_finished = time + 0.5;
             }
 
-            if (self.melee_hit_sound_played == FALSE)
+            if (VRMeleeHitSoundPlayed(xHand) == FALSE)
             {
                 VRMeleeHaptic(1, self.handvelmag);
                 sound (self, CHAN_WEAPON, "hipweap/mjoltink.wav", 1, ATTN_NORM);
                 BroadcastGunshotEffect(org);
-                self.melee_hit_sound_played = TRUE;
+                VRMeleeSetHitSoundPlayed(xHand, TRUE);
             }
         }
         else
         {
-            if (self.melee_hit_sound_played == FALSE)
+            if (VRMeleeHitSoundPlayed(xHand) == FALSE)
             {
                 VRMeleeHaptic(1, self.handvelmag);
                 sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
-                self.melee_hit_sound_played = TRUE;
+                VRMeleeSetHitSoundPlayed(xHand, TRUE);
             }
         }
     }
@@ -842,16 +874,16 @@ void() W_Precache =
 W_FireAxe
 ================
 */
-void() W_FireAxe =
+void(float xHand) W_FireAxe =
 {
     local vector source;
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(0.95);
+    xdmg = VRMeleeDmg(xHand, 0.95);
 
-    makevectors (self.v_angle);
-    source = self.handpos;
+    makevectors(VRGetHandRot(xHand));
+    source = VRGetHandPos(xHand);
     // TODO VR: improve this collision detection
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
@@ -865,21 +897,21 @@ void() W_FireAxe =
         SpawnBloodSplash (org, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
-        if (self.melee_hit_sound_played == FALSE)
+        if (VRMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHaptic(1, self.handvelmag);
             sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-            self.melee_hit_sound_played = TRUE;
+            VRMeleeSetHitSoundPlayed(xHand, TRUE);
         }
     }
     else
     {
         // hit wall
-        if (self.melee_hit_sound_played == FALSE)
+        if (VRMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHaptic(1, self.handvelmag);
             sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-            self.melee_hit_sound_played = TRUE;
+            VRMeleeSetHitSoundPlayed(xHand, TRUE);
         }
 
         BroadcastGunshotEffect(org);
@@ -894,17 +926,17 @@ void() W_FireAxe =
 W_GunMelee
 ================
 */
-void() W_GunMelee =
+void(float xHand) W_GunMelee =
 {
     local    vector    source;
     local    vector    org;
     local    float    xdmg;
     local    string    s;
 
-    xdmg = VRMeleeDmg(0.5);
+    xdmg = VRMeleeDmg(xHand, 0.5);
 
-    makevectors (self.v_angle);
-    source = self.handpos;
+    makevectors(VRGetHandRot(xHand));
+    source = VRGetHandPos(xHand);
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
     {
@@ -926,21 +958,21 @@ void() W_GunMelee =
         SpawnBloodSplash (org, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
-        if (self.melee_hit_sound_played == FALSE)
+        if (VRMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHaptic(1, self.handvelmag);
             sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-            self.melee_hit_sound_played = TRUE;
+            VRMeleeSetHitSoundPlayed(xHand, TRUE);
         }
     }
     else
     {
         // hit wall
-        if (self.melee_hit_sound_played == FALSE)
+        if (VRMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHaptic(1, self.handvelmag);
             sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-            self.melee_hit_sound_played = TRUE;
+            VRMeleeSetHitSoundPlayed(xHand, TRUE);
         }
 
         BroadcastGunshotEffect(org);
@@ -956,30 +988,30 @@ void() W_GunMelee =
 W_FistMelee
 ================
 */
-void() W_FistMelee =
+void(float xHand) W_FistMelee =
 {
-    local    vector    source;
-    local    vector    org;
-    local    float    xdmg;
-    local    string    s;
-    local    float    playedsound;
+    local vector source;
+    local vector org;
+    local float  xdmg;
+    local string s;
+    local float  playedsound;
 
-    xdmg = VRMeleeOffHandDmg(0.75);
+    xdmg = VRMeleeDmg(xHand, 0.75);
 
     // TODO VR: good place to add effects
     // particle2 (self.offhandpos, '0 0 0', 3 /* lightning preset */, 60);
     // particle2 (self.offhandpos, '0 0 0', 4 /* smoke preset */, 1);
     // particle2 (self.offhandpos, '0 0 0', 5 /* sparks preset */, 12);
 
-    makevectors (self.v_angle);
-    source = self.offhandpos;
+    makevectors (VRGetHandRot(xHand));
+    source = VRGetHandPos(xHand);
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
         return;
 
     org = trace_endpos - v_forward*4;
 
-    if (self.offhand_melee_hit_sound_played == FALSE)
+    if (VRMeleeHitSoundPlayed(xHand) == FALSE)
     {
         sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
         playedsound = TRUE;
@@ -995,7 +1027,7 @@ void() W_FistMelee =
     else
     {
         // hit wall
-        if (self.offhand_melee_hit_sound_played == FALSE)
+        if (VRMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHaptic(0, self.offhandvelmag);
             PainSound();
@@ -1008,7 +1040,7 @@ void() W_FistMelee =
 
     if (playedsound)
     {
-        self.offhand_melee_hit_sound_played = TRUE;
+        VRMeleeSetHitSoundPlayed(xHand, TRUE);
     }
 };
 
@@ -2039,7 +2071,13 @@ void() W_SetCurrentAmmo =
         self.weaponframe2 = 0;
     }
 
-    if (self.weapon == WID_AXE)
+    if (self.weapon == WID_FIST)
+    {
+        self.currentammo = 0;
+        self.weaponmodel = "progs/hand.mdl";
+        self.weaponframe = 0;
+    }
+    else if (self.weapon == WID_AXE)
     {
         self.currentammo = 0;
         self.weaponmodel = "progs/v_axe.mdl";
@@ -2489,7 +2527,11 @@ void() CycleWeaponCommand =
         am = 0;
 
 //MED
-        if (self.weapon == WID_MJOLNIR)
+        if (self.weapon == WID_FIST)
+        {
+            self.weapon = WID_MJOLNIR;
+        }
+        else if (self.weapon == WID_MJOLNIR)
         {
             self.weapon = WID_AXE;
         }
@@ -2551,12 +2593,12 @@ void() CycleWeaponCommand =
         }
         else if (self.weapon == WID_LASER_CANNON)
         {
-            self.weapon = WID_MJOLNIR;
+            self.weapon = WID_FIST;
         }
 
-        if ( (it & WeaponIdToItemId(self.weapon)) && am == 0)
+        if (PlayerHasWeapon(self.weapon, it) && am == 0)
         {
-            W_SetCurrentAmmo ();
+            W_SetCurrentAmmo();
             return;
         }
     }
@@ -2582,7 +2624,7 @@ void() CycleWeaponReverseCommand =
         am = 0;
 
 //MED
-        if (self.weapon == WID_MJOLNIR)
+        if (self.weapon == WID_FIST)
         {
             self.weapon = WID_LASER_CANNON;
             if (self.ammo_cells < 1)
@@ -2645,10 +2687,14 @@ void() CycleWeaponReverseCommand =
         {
             self.weapon = WID_MJOLNIR;
         }
-
-        if ( (it & WeaponIdToItemId(self.weapon)) && am == 0)
+        else if (self.weapon == WID_MJOLNIR)
         {
-            W_SetCurrentAmmo ();
+            self.weapon = WID_FIST;
+        }
+
+        if (PlayerHasWeapon(self.weapon, it) && am == 0)
+        {
+            W_SetCurrentAmmo();
             return;
         }
     }

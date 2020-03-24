@@ -251,6 +251,9 @@ void        end_sys_fields;            // flag for structure dumping
 // constants
 //
 
+float OFF_HAND = 0;
+float MAIN_HAND = 1;
+
 float    FALSE                    = 0;
 float     TRUE                    = 1;
 
@@ -309,6 +312,8 @@ float    DAMAGE_YES               = 1;
 float    DAMAGE_AIM               = 2;
 
 // items
+// TODO VR:
+float    IT_FIST                  = 0;
 float    IT_SHOTGUN               = 1;
 float    IT_SUPER_SHOTGUN         = 2;
 float    IT_NAILGUN               = 4;
@@ -415,6 +420,7 @@ float    CHAN_WEAPON              = 1;
 float    CHAN_VOICE               = 2;
 float    CHAN_ITEM                = 3;
 float    CHAN_BODY                = 4;
+float    CHAN_WEAPON2             = 5;
 
 float    ATTN_NONE                = 0;
 float    ATTN_NORM                = 1;

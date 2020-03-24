@@ -197,7 +197,7 @@ void() GrappleService =
 
     if (!self.on_hook) {
         // TODO VR: still wonky position on hook , dunno why
-        GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos);
+        GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos + v_forward * 1.5);
         return;
     }
 
@@ -231,7 +231,7 @@ void() GrappleService =
         self.velocity = self.velocity + (vel * 8 * frametime);
     }
 
-    GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos);
+    GrappleTrail(self.hook, self.hook.origin - hookfwd * 6.5, self.offmuzzlepos + v_forward * 1.5);
 };
 
 

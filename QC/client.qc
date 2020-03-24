@@ -1116,6 +1116,7 @@ void() PlayerPreThink =
     // TODO VR: what about weapon2? (TODO dual-wielding)
     if(time > self.attack_finished &&
        self.currentammo == 0 &&
+       self.weapon != WID_FIST &&
        self.weapon != WID_AXE &&
        self.weapon != WID_MJOLNIR)
     {
@@ -1571,6 +1572,11 @@ void(entity targ, entity attacker) ClientObituary =
                return;
                }
                 rnum = attacker.weapon;
+                if (rnum == WID_FIST)
+                {
+                    deathstring = " was punched by ";
+                    deathstring2 = "\n";
+                }
                 if (rnum == WID_AXE)
                 {
                     deathstring = " was ax-murdered by ";
@@ -1792,42 +1798,63 @@ void(entity targ, entity attacker) ClientObituary =
     }
 };
 
+void(string xSound, void(float xHand) xWpnFn) DoMainHandMeleeImpl =
+{
+    if (time >= self.mainhand_melee_attack_finished)
+    {
+        sound (self, CHAN_WEAPON, xSound, 1, ATTN_NORM);
+    }
+
+    xWpnFn(MAIN_HAND);
+}
+
+float(float xWpnId, string xSound, void(float xHand) xWpnFn) DoMainHandMelee =
+{
+    if (self.weapon == xWpnId)
+    {
+        DoMainHandMeleeImpl(xSound, xWpnFn);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+void(string xSound, void(float xHand) xWpnFn) DoOffHandMeleeImpl =
+{
+    if (time >= self.offhand_melee_attack_finished)
+    {
+        sound (self, CHAN_WEAPON2, xSound, 1, ATTN_NORM);
+    }
+
+    xWpnFn(OFF_HAND);
+}
+
+float(float xWpnId, string xSound, void(float xHand) xWpnFn) DoOffHandMelee =
+{
+    if (self.weapon2 == xWpnId)
+    {
+        DoOffHandMeleeImpl(xSound, xWpnFn);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 void() PlayerVRMelee =
 {
-    local    float    vr_melee_threshold;
+    local float vr_melee_threshold;
 
     vr_melee_threshold = cvar("vr_melee_threshold");
 
     // vr main hand melee attack
-    if (cvar("vr_enabled") == 1 && time >= self.in_melee && self.handvelmag > vr_melee_threshold)
+    if (cvar("vr_enabled") == 1 &&
+        time >= self.in_melee &&
+        self.handvelmag > vr_melee_threshold)
     {
-        if (self.weapon == WID_AXE)
-        {
-            if (time >= self.mainhand_melee_attack_finished)
-            {
-                sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
-            }
-
-            W_FireAxe();
-        }
-        else if (self.weapon == WID_MJOLNIR)
-        {
-            if (time >= self.mainhand_melee_attack_finished)
-            {
-                sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
-            }
-
-            HIP_FireMjolnir();
-        }
-        else
-        {
-            if (time >= self.mainhand_melee_attack_finished)
-            {
-                sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
-            }
-
-            W_GunMelee();
-        }
+        if(!DoMainHandMelee(WID_FIST, "knight/sword1.wav", W_FistMelee))
+            if(!DoMainHandMelee(WID_AXE, "weapons/ax1.wav", W_FireAxe))
+                if(!DoMainHandMelee(WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
+                    DoMainHandMeleeImpl("knight/sword1.wav", W_GunMelee);
 
         self.mainhand_melee_attack_finished = time + 0.1;
         self.in_melee = time + 0.02;
@@ -1843,13 +1870,8 @@ void() PlayerVRMelee =
         time >= self.offhand_in_melee &&
         self.offhandvelmag > vr_melee_threshold)
     {
-        // TODO VR: assuming fist
-        if (time >= self.offhand_melee_attack_finished)
-        {
-            sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
-        }
-
-        W_FistMelee();
+        if(!DoOffHandMelee(WID_FIST, "knight/sword1.wav", W_FistMelee))
+            DoOffHandMeleeImpl("knight/sword1.wav", W_GunMelee);
 
         self.offhand_melee_attack_finished = time + 0.1;
         self.offhand_in_melee = time + 0.02;

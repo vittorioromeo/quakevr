@@ -1175,6 +1175,7 @@ void V_RenderView()
 
         // VR: This is what draws the offhand.
         V_CalcRefdef2Test();
+        // TODO VR: called twice?
         R_DrawViewModel(&cl.offhand_viewent, true);
     }
 

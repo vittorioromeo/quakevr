@@ -194,22 +194,22 @@ void()    player_shot6 =    [$shotatt6, player_run    ] {self.weaponframe=6;};
 
 void()    player_axe1 =    [$axatt1, player_axe2    ] {self.weaponframe=1;};
 void()    player_axe2 =    [$axatt2, player_axe3    ] {self.weaponframe=2;};
-void()    player_axe3 =    [$axatt3, player_axe4    ] {self.weaponframe=3;W_FireAxe();};
+void()    player_axe3 =    [$axatt3, player_axe4    ] {self.weaponframe=3;W_FireAxe(MAIN_HAND);};
 void()    player_axe4 =    [$axatt4, player_run    ] {self.weaponframe=4;};
 
 void()    player_axeb1 =    [$axattb1, player_axeb2    ] {self.weaponframe=5;};
 void()    player_axeb2 =    [$axattb2, player_axeb3    ] {self.weaponframe=6;};
-void()    player_axeb3 =    [$axattb3, player_axeb4    ] {self.weaponframe=7;W_FireAxe();};
+void()    player_axeb3 =    [$axattb3, player_axeb4    ] {self.weaponframe=7;W_FireAxe(MAIN_HAND);};
 void()    player_axeb4 =    [$axattb4, player_run    ] {self.weaponframe=8;};
 
 void()    player_axec1 =    [$axattc1, player_axec2    ] {self.weaponframe=1;};
 void()    player_axec2 =    [$axattc2, player_axec3    ] {self.weaponframe=2;};
-void()    player_axec3 =    [$axattc3, player_axec4    ] {self.weaponframe=3;W_FireAxe();};
+void()    player_axec3 =    [$axattc3, player_axec4    ] {self.weaponframe=3;W_FireAxe(MAIN_HAND);};
 void()    player_axec4 =    [$axattc4, player_run    ] {self.weaponframe=4;};
 
 void()    player_axed1 =    [$axattd1, player_axed2    ] {self.weaponframe=5;};
 void()    player_axed2 =    [$axattd2, player_axed3    ] {self.weaponframe=6;};
-void()    player_axed3 =    [$axattd3, player_axed4    ] {self.weaponframe=7;W_FireAxe();};
+void()    player_axed3 =    [$axattd3, player_axed4    ] {self.weaponframe=7;W_FireAxe(MAIN_HAND);};
 void()    player_axed4 =    [$axattd4, player_run    ] {self.weaponframe=8;};
 
 // ROGUE
@@ -342,14 +342,14 @@ void() player_light2   =[$light2, player_light1  ]
 void()   player_hammer1 =  [32, player_hammer2   ] {self.weaponframe=1;};
 void()   player_hammer2 =  [33, player_hammer3   ] {self.weaponframe=2;};
 void()   player_hammer3 =  [34, player_hammer4   ] {self.weaponframe=3;};
-void()   player_hammer4 =  [35, player_hammer5   ] {self.weaponframe=4;HIP_FireMjolnir();};
+void()   player_hammer4 =  [35, player_hammer5   ] {self.weaponframe=4;HIP_FireMjolnir(MAIN_HAND);};
 void()   player_hammer5 =  [36, player_hammer6   ] {self.weaponframe=4;};
 void()   player_hammer6 =  [37, player_run ] {self.weaponframe=4;};
 
 void()   player_mjolnir1 =  [38, player_mjolnir2   ] {self.weaponframe=1;};
 void()   player_mjolnir2 =  [39, player_mjolnir3   ] {self.weaponframe=2;};
 void()   player_mjolnir3 =  [40, player_mjolnir4   ] {self.weaponframe=3;};
-void()   player_mjolnir4 =  [41, player_mjolnir5   ] {self.weaponframe=4;HIP_FireMjolnir();};
+void()   player_mjolnir4 =  [41, player_mjolnir5   ] {self.weaponframe=4;HIP_FireMjolnir(MAIN_HAND);};
 void()   player_mjolnir5 =  [42, player_mjolnir6   ] {self.weaponframe=4;};
 void()   player_mjolnir6 =  [43, player_run ] {self.weaponframe=4;};
 

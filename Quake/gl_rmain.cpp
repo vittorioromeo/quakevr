@@ -405,7 +405,7 @@ bool R_CullModelForEntity(entity_t* e)
 
     return R_CullBox(mins, maxs);
 }
-  
+
 /*
 ===============
 R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
@@ -435,7 +435,7 @@ void GL_PolygonOffset(int offset)
         glEnable(GL_POLYGON_OFFSET_LINE);
         glPolygonOffset(1, offset);
     }
-    else if(offset < 0) 
+    else if(offset < 0)
     {
         glEnable(GL_POLYGON_OFFSET_FILL);
         glEnable(GL_POLYGON_OFFSET_LINE);
@@ -1064,7 +1064,7 @@ void R_DrawShadows()
             continue;
         }
 
-        if(currententity == &cl.viewent)
+        if(currententity == &cl.viewent || currententity == &cl.offhand_viewent)
         {
             // View entities are drawn manually below.
             continue;

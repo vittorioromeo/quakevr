@@ -75,19 +75,26 @@ see if we can steal enemy's weapon
 entity()GremlinFindVictim;
 float() GremlinFindTarget;
 
+float(float wid, float wpnFlags) PlayerHasWeapon =
+{
+   if(wid == WID_FIST) return TRUE;
+   return wpnFlags & WeaponIdToItemId(wid);
+}
+
 float(float wid) WeaponIdToItemId =
 {
-   if(wid == WID_AXE) { return IT_AXE; }
-   if(wid == WID_MJOLNIR) { return IT_MJOLNIR; }
-   if(wid == WID_SHOTGUN) { return IT_SHOTGUN; }
-   if(wid == WID_SUPER_SHOTGUN) { return IT_SUPER_SHOTGUN; }
-   if(wid == WID_NAILGUN) { return IT_NAILGUN; }
-   if(wid == WID_SUPER_NAILGUN) { return IT_SUPER_NAILGUN; }
+   if(wid == WID_FIST)             { return IT_FIST; }
+   if(wid == WID_AXE)              { return IT_AXE; }
+   if(wid == WID_MJOLNIR)          { return IT_MJOLNIR; }
+   if(wid == WID_SHOTGUN)          { return IT_SHOTGUN; }
+   if(wid == WID_SUPER_SHOTGUN)    { return IT_SUPER_SHOTGUN; }
+   if(wid == WID_NAILGUN)          { return IT_NAILGUN; }
+   if(wid == WID_SUPER_NAILGUN)    { return IT_SUPER_NAILGUN; }
    if(wid == WID_GRENADE_LAUNCHER) { return IT_GRENADE_LAUNCHER; }
-   if(wid == WID_PROXIMITY_GUN) { return IT_PROXIMITY_GUN; }
-   if(wid == WID_ROCKET_LAUNCHER) { return IT_ROCKET_LAUNCHER; }
-   if(wid == WID_LIGHTNING) { return IT_LIGHTNING; }
-   if(wid == WID_LASER_CANNON) { return IT_LASER_CANNON; }
+   if(wid == WID_PROXIMITY_GUN)    { return IT_PROXIMITY_GUN; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return IT_ROCKET_LAUNCHER; }
+   if(wid == WID_LIGHTNING)        { return IT_LIGHTNING; }
+   if(wid == WID_LASER_CANNON)     { return IT_LASER_CANNON; }
    // TODO VR: fist and grapple
 
    return -1;
@@ -95,17 +102,18 @@ float(float wid) WeaponIdToItemId =
 
 float(float it) ItemIdToWeaponId =
 {
-   if(it == IT_AXE) { return WID_AXE; }
-   if(it == IT_MJOLNIR) { return WID_MJOLNIR; }
-   if(it == IT_SHOTGUN) { return WID_SHOTGUN; }
-   if(it == IT_SUPER_SHOTGUN) { return WID_SUPER_SHOTGUN; }
-   if(it == IT_NAILGUN) { return WID_NAILGUN; }
-   if(it == IT_SUPER_NAILGUN) { return WID_SUPER_NAILGUN; }
+   if(it == IT_FIST)             { return WID_FIST; }
+   if(it == IT_AXE)              { return WID_AXE; }
+   if(it == IT_MJOLNIR)          { return WID_MJOLNIR; }
+   if(it == IT_SHOTGUN)          { return WID_SHOTGUN; }
+   if(it == IT_SUPER_SHOTGUN)    { return WID_SUPER_SHOTGUN; }
+   if(it == IT_NAILGUN)          { return WID_NAILGUN; }
+   if(it == IT_SUPER_NAILGUN)    { return WID_SUPER_NAILGUN; }
    if(it == IT_GRENADE_LAUNCHER) { return WID_GRENADE_LAUNCHER; }
-   if(it == IT_PROXIMITY_GUN) { return WID_PROXIMITY_GUN; }
-   if(it == IT_ROCKET_LAUNCHER) { return WID_ROCKET_LAUNCHER; }
-   if(it == IT_LIGHTNING) { return WID_LIGHTNING; }
-   if(it == IT_LASER_CANNON) { return WID_LASER_CANNON; }
+   if(it == IT_PROXIMITY_GUN)    { return WID_PROXIMITY_GUN; }
+   if(it == IT_ROCKET_LAUNCHER)  { return WID_ROCKET_LAUNCHER; }
+   if(it == IT_LIGHTNING)        { return WID_LIGHTNING; }
+   if(it == IT_LASER_CANNON)     { return WID_LASER_CANNON; }
    // TODO VR: fist and grapple
 
    return -1;
