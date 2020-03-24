@@ -20,6 +20,10 @@
 * Many customization options *(e.g. melee damage/range, hand/body item pickup, and more)*
 * Brand new particle system *(smoke, blood, lightning effects, and more)*
 * Haptic feedback *(weapons, melee, damage, interactions with items)*
+* Full Scourge of Armagon support *(weapons, enemies, maps)*
+* Two-handed weapon aiming *(with virtual stock support)*
+* Weapon weight simulation
+* Grappling hook *(from Dissolution of Eternity)*
 
 ## Disclaimer
 
