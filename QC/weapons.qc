@@ -2183,6 +2183,9 @@ void() W_SetCurrentAmmo =
 
     self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS) );
 
+    // TODO VR: this always sets both weaponframes, it should only set it if the weapon changed
+    // It happens when putting a gun in a holster
+
     W_SetCurrentAmmoImpl(self.weapon, &self.currentammo, &self.weaponmodel, &self.weaponframe);
     W_SetCurrentAmmoImpl(self.weapon2, &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
 };

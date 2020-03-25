@@ -747,6 +747,14 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHRoll)};
 }
 
+[[nodiscard]] glm::vec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::HandOffsetX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::HandOffsetY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::HandOffsetZ)};
+}
+
 [[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept
 {
     return static_cast<Wpn2HMode>(
@@ -785,29 +793,35 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* twoHOffsetZ = "0.0", const char* twoHPitch = "0.0",
     const char* twoHYaw = "0.0", const char* twoHRoll = "0.0",
     const char* twoHMode = "0.0", const char* length = "0.0",
-    const char* weight = "0.0")
+    const char* weight = "0.0", const char* handOffsetX = "0.0",
+    const char* handOffsetY = "0.0", const char* handOffsetZ = "0.0",
+    const char* handAnchorVertex = "0.0")
 {
     // clang-format off
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX),       "vr_wofs_x_nn",        i, offsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY),       "vr_wofs_y_nn",        i, offsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetZ),       "vr_wofs_z_nn",        i, offsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Scale),         "vr_wofs_scale_nn",    i, scale);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::ID),            "vr_wofs_id_nn",       i, id);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Roll),          "vr_wofs_roll_nn",     i, roll);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Yaw),           "vr_wofs_yaw_nn",      i, yaw);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Pitch),         "vr_wofs_pitch_nn",    i, pitch);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX), "vr_wofs_muzzle_x_nn", i, muzzleOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY), "vr_wofs_muzzle_y_nn", i, muzzleOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ), "vr_wofs_muzzle_z_nn", i, muzzleOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetX),   "vr_wofs_2h_x_nn",     i, twoHOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetY),   "vr_wofs_2h_y_nn",     i, twoHOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetZ),   "vr_wofs_2h_z_nn",     i, twoHOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHPitch),     "vr_wofs_2h_pitch_nn", i, twoHPitch);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHYaw),       "vr_wofs_2h_yaw_nn",   i, twoHYaw);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll),      "vr_wofs_2h_roll_nn",  i, twoHRoll);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHMode),      "vr_wofs_2h_mode_nn",  i, twoHMode);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Length),        "vr_wofs_length_nn",   i, length);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Weight),        "vr_wofs_weight_nn",   i, weight);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX),          "vr_wofs_x_nn",        i, offsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY),          "vr_wofs_y_nn",        i, offsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetZ),          "vr_wofs_z_nn",        i, offsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Scale),            "vr_wofs_scale_nn",    i, scale);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::ID),               "vr_wofs_id_nn",       i, id);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Roll),             "vr_wofs_roll_nn",     i, roll);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Yaw),              "vr_wofs_yaw_nn",      i, yaw);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Pitch),            "vr_wofs_pitch_nn",    i, pitch);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX),    "vr_wofs_muzzle_x_nn", i, muzzleOffsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY),    "vr_wofs_muzzle_y_nn", i, muzzleOffsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ),    "vr_wofs_muzzle_z_nn", i, muzzleOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetX),      "vr_wofs_2h_x_nn",     i, twoHOffsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetY),      "vr_wofs_2h_y_nn",     i, twoHOffsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetZ),      "vr_wofs_2h_z_nn",     i, twoHOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHPitch),        "vr_wofs_2h_pitch_nn", i, twoHPitch);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHYaw),          "vr_wofs_2h_yaw_nn",   i, twoHYaw);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll),         "vr_wofs_2h_roll_nn",  i, twoHRoll);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHMode),         "vr_wofs_2h_mode_nn",  i, twoHMode);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Length),           "vr_wofs_length_nn",   i, length);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Weight),           "vr_wofs_weight_nn",   i, weight);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetX),      "vr_wofs_hand_x_nn",   i, handOffsetX);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetY),      "vr_wofs_hand_y_nn",   i, handOffsetY);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetZ),      "vr_wofs_hand_z_nn",   i, handOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandAnchorVertex), "vr_wofs_hand_av_nn",  i, handAnchorVertex);
     // clang-format on
 
     return i;

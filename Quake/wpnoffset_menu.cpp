@@ -45,7 +45,11 @@ static auto getCvars()
         VR_GetWpnCVar(idx, WpnCVar::TwoHRoll),
         VR_GetWpnCVar(idx, WpnCVar::TwoHMode),
         VR_GetWpnCVar(idx, WpnCVar::Length),
-        VR_GetWpnCVar(idx, WpnCVar::Weight)
+        VR_GetWpnCVar(idx, WpnCVar::Weight),
+        VR_GetWpnCVar(idx, WpnCVar::HandOffsetX),
+        VR_GetWpnCVar(idx, WpnCVar::HandOffsetY),
+        VR_GetWpnCVar(idx, WpnCVar::HandOffsetZ),
+        VR_GetWpnCVar(idx, WpnCVar::HandAnchorVertex)
     );
     // clang-format on
 }
@@ -66,7 +70,7 @@ static void WpnOffset_MenuPrintOptionValue(
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len, wgh] = getCvars();
+        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav] = getCvars();
 
     switch(option)
     {
@@ -108,6 +112,10 @@ static void WpnOffset_MenuPrintOptionValue(
         }
         case WpnOffsetMenuOpt::Length: printAsStr(len); break;
         case WpnOffsetMenuOpt::Weight: printAsStr(wgh); break;
+        case WpnOffsetMenuOpt::HandOffsetX: printAsStr(hox); break;
+        case WpnOffsetMenuOpt::HandOffsetY: printAsStr(hoy); break;
+        case WpnOffsetMenuOpt::HandOffsetZ: printAsStr(hoz); break;
+        case WpnOffsetMenuOpt::HandAnchorVertex: printAsStr(hav); break;
         default: assert(false); break;
     }
 }
@@ -119,7 +127,7 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
     const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len, wgh] = getCvars();
+        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav] = getCvars();
 
     const float oInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
     constexpr float oBound = 100.f;
@@ -176,6 +184,18 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
         case WpnOffsetMenuOpt::TwoHMode: adjustI(thmode, 1, 0, 2); break;
         case WpnOffsetMenuOpt::Length: adjustF(len, oInc, 0.f, oBound); break;
         case WpnOffsetMenuOpt::Weight: adjustF(wgh, wInc, 0.f, wBound); break;
+        case WpnOffsetMenuOpt::HandOffsetX:
+            adjustF(hox, oInc, -oBound, oBound);
+            break;
+        case WpnOffsetMenuOpt::HandOffsetY:
+            adjustF(hoy, oInc, -oBound, oBound);
+            break;
+        case WpnOffsetMenuOpt::HandOffsetZ:
+            adjustF(hoz, oInc, -oBound, oBound);
+            break;
+        case WpnOffsetMenuOpt::HandAnchorVertex:
+            adjustI(hav, 1, 0, 1024);
+            break;
         default: assert(false); break;
     }
 }
@@ -252,11 +272,13 @@ void M_WpnOffset_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
-        "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
-        "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z",
-        "2H Offset X", "2H Offset Y", "2H Offset Z", "2H Aim Pitch",
-        "2H Aim Yaw", "2H Aim Roll", "2H Mode", "Gun Length", "Gun Weight");
+    static const auto adjustedLabels =
+        quake::util::makeAdjustedMenuLabels("Offhand", "Offset X", "Offset Y",
+            "Offset Z", "Scale", "Roll", "Pitch", "Yaw", "Muzzle Offset X",
+            "Muzzle Offset Y", "Muzzle Offset Z", "2H Offset X", "2H Offset Y",
+            "2H Offset Z", "2H Aim Pitch", "2H Aim Yaw", "2H Aim Roll",
+            "2H Mode", "Gun Length", "Gun Weight", "Hand Offset X",
+            "Hand Offset Y", "Hand Offset Z", "Hand Anchor Vertex");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 

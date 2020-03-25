@@ -367,4 +367,18 @@ extern bool isDedicated;
 
 extern int minimum_memory;
 
+// TODO VR:
+
+// johnfitz -- struct for passing lerp information to drawing functions
+typedef struct
+{
+    short pose1;
+    short pose2;
+    float blend;
+    glm::vec3 origin;
+    glm::vec3 angles;
+} lerpdata_t;
+// johnfitz
+
+
 #endif /* QUAKEDEFS_H */

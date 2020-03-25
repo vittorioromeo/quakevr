@@ -60,17 +60,6 @@ bool overbright; // johnfitz
 bool shading = true; // johnfitz -- if false, disable vertex shading for various
                      // reasons (fullbright, r_lightmap, showtris, etc)
 
-// johnfitz -- struct for passing lerp information to drawing functions
-typedef struct
-{
-    short pose1;
-    short pose2;
-    float blend;
-    glm::vec3 origin;
-    glm::vec3 angles;
-} lerpdata_t;
-// johnfitz
-
 static GLuint r_alias_program;
 
 // uniforms used in vert shader
@@ -332,15 +321,9 @@ entalpha, multitexture, and r_drawflat
 */
 void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 {
-    float vertcolor[4];
     trivertx_t* verts1;
-
     trivertx_t* verts2;
-    int* commands;
-    int count;
-    float u;
 
-    float v;
     float blend;
 
     float iblend;
@@ -366,15 +349,16 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
         blend = iblend = 0; // avoid bogus compiler warning
     }
 
-    commands = (int*)((byte*)paliashdr + paliashdr->commands);
+    int* commands = (int*)((byte*)paliashdr + paliashdr->commands);
 
+    float vertcolor[4];
     vertcolor[3] = entalpha; // never changes, so there's no need to put this
                              // inside the loop
 
     while(true)
     {
         // get the vertex count and primitive type
-        count = *commands++;
+        int count = *commands++;
         if(!count)
         {
             break; // done
@@ -392,8 +376,8 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 
         do
         {
-            u = ((float*)commands)[0];
-            v = ((float*)commands)[1];
+            float u = ((float*)commands)[0];
+            float v = ((float*)commands)[1];
             if(mtexenabled)
             {
                 GL_MTexCoord2fFunc(GL_TEXTURE0_ARB, u, v);
@@ -652,7 +636,8 @@ void R_SetupAliasLighting(entity_t* e)
 
     // minimum light value on gun (24)
     if(e == &cl.viewent || e == &cl.offhand_viewent ||
-        e == &cl.left_hip_holster || e == &cl.right_hip_holster)
+        e == &cl.left_hip_holster || e == &cl.right_hip_holster ||
+        e == &cl.left_hand || e == &cl.right_hand)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)

@@ -23,6 +23,10 @@ enum class WpnOffsetMenuOpt
     TwoHMode,
     Length,
     Weight,
+    HandOffsetX,
+    HandOffsetY,
+    HandOffsetZ,
+    HandAnchorVertex,
 
     Max
 };

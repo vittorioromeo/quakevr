@@ -117,7 +117,10 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept;
 
+// TODO VR: remove
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
+void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
+[[nodiscard]] float VR_GetScaleCorrect() noexcept;
 
 //
 //
@@ -160,6 +163,10 @@ enum class WpnCVar : std::uint8_t
     TwoHMode = 17,
     Length = 18,
     Weight = 19,
+    HandOffsetX = 20,
+    HandOffsetY = 21,
+    HandOffsetZ = 22,
+    HandAnchorVertex = 23,
 
     k_Max
 };
@@ -208,6 +215,8 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
 
 // ----------------------------------------------------------------------------
+
+[[nodiscard]] glm::vec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept;
 
 [[nodiscard]] cvar_t& VR_GetWpnCVar(
     const int cvarEntry, WpnCVar setting) noexcept;

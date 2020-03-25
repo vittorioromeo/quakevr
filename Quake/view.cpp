@@ -1206,6 +1206,64 @@ void V_RenderView()
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
             VR_GetRightHipPos(), &cl.right_hip_holster);
 
+        // TODO VR: hack/test
+        {
+            cl.left_hand.model = nullptr;
+
+            entity_t* anchor = &cl.viewent;
+            aliashdr_t* paliashdr = (aliashdr_t*)Mod_Extradata(anchor->model);
+            lerpdata_t lerpdata;
+
+            void R_SetupAliasFrame(
+                aliashdr_t * paliashdr, int frame, lerpdata_t* lerpdata);
+            R_SetupAliasFrame(paliashdr, anchor->frame, &lerpdata);
+
+            void R_SetupEntityTransform(entity_t * e, lerpdata_t * lerpdata);
+            R_SetupEntityTransform(anchor, &lerpdata);
+
+            trivertx_t* verts1 =
+                (trivertx_t*)((byte*)paliashdr + paliashdr->posedata);
+            verts1 += lerpdata.pose1 * paliashdr->poseverts;
+
+            const int wpncvar = VR_GetWpnCVarFromModel(anchor->model);
+            // const auto [ox, oy, oz] = VR_GetWpnOffsets(wpncvar);
+
+            verts1 += std::clamp(
+                (int)VR_GetWpnCVar(wpncvar, WpnCVar::HandAnchorVertex).value, 0,
+                paliashdr->numverts);
+            glm::vec3 vofs{verts1->v[0], verts1->v[2], verts1->v[1]};
+            vofs[0] *= paliashdr->scale[0];
+            vofs[1] *= paliashdr->scale[1];
+            vofs[2] *= paliashdr->scale[2];
+            vofs[0] += paliashdr->scale_origin[0];
+            vofs[1] -= paliashdr->scale_origin[1];
+            vofs[2] += paliashdr->scale_origin[2];
+            vofs += VR_GetWpnHandOffsets(wpncvar);
+
+            const auto [fwd, right, up] =
+                quake::util::getAngledVectors(cl.handrot[1]);
+
+            glm::vec3 adjvofs = fwd * vofs[0] + right * vofs[1] + up * vofs[2];
+
+            glm::vec3 pos = anchor->origin + adjvofs;
+
+            // Con_Printf("%.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
+            // Con_Printf("| %.2f, %.2f, %.2f\n", pos.x, pos.y, pos.z);
+
+            entity_t* view = &cl.right_hand;
+
+            // view->angles = cl.handrot[0];
+            view->origin = pos;
+            view->model = Mod_ForName("progs/hand.mdl", true);
+
+            aliashdr_t* viewpaliashdr = (aliashdr_t*)Mod_Extradata(view->model);
+            ApplyMod_Weapon(16, viewpaliashdr);
+            CalcGunAngle(16, view, cl.handrot[1]);
+
+            view->frame = 0;
+            view->colormap = vid.colormap;
+        }
+
         R_RenderView();
     }
 

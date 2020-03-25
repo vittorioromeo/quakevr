@@ -99,7 +99,7 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
-cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
+cvar_t r_lerpmodels = {"r_lerpmodels", "0", CVAR_NONE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t r_nolerp_list = {"r_nolerp_list",
     "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/"
@@ -1000,6 +1000,10 @@ void R_ShowTris()
         // hip holsters
         doViewmodel(&cl.left_hip_holster);
         doViewmodel(&cl.right_hip_holster);
+
+        // hands
+        doViewmodel(&cl.left_hand);
+        doViewmodel(&cl.right_hand);
     }
 
     extern cvar_t r_particles;
@@ -1057,7 +1061,9 @@ void R_DrawShadows()
         if(currententity == &cl.viewent ||
             currententity == &cl.offhand_viewent ||
             currententity == &cl.left_hip_holster ||
-            currententity == &cl.right_hip_holster)
+            currententity == &cl.right_hip_holster ||
+            currententity == &cl.left_hand ||
+            currententity == &cl.right_hand)
         {
             // View entities are drawn manually below.
             continue;
@@ -1079,6 +1085,8 @@ void R_DrawShadows()
     drawViewentShadow(&cl.offhand_viewent);
     drawViewentShadow(&cl.left_hip_holster);
     drawViewentShadow(&cl.right_hip_holster);
+    drawViewentShadow(&cl.left_hand);
+    drawViewentShadow(&cl.right_hand);
 
     if(gl_stencilbits)
     {
@@ -1151,6 +1159,10 @@ void R_RenderScene()
     // VR: This is what draws the hip holsters.
     R_DrawViewModel(&cl.left_hip_holster, true);
     R_DrawViewModel(&cl.right_hip_holster, true);
+
+    // TODO VR: hack/test
+    R_DrawViewModel(&cl.left_hand, false);
+    R_DrawViewModel(&cl.right_hand, false);
 
     R_ShowTris(); // johnfitz
 

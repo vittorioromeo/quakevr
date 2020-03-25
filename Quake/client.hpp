@@ -241,6 +241,10 @@ struct client_state_t
     entity_t left_hip_holster; // TODO VR:
     entity_t right_hip_holster; // TODO VR:
 
+    // TODO VR:
+    entity_t left_hand;
+    entity_t right_hand;
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard
