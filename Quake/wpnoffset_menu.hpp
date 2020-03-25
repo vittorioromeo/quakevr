@@ -27,6 +27,9 @@ enum class WpnOffsetMenuOpt
     HandOffsetY,
     HandOffsetZ,
     HandAnchorVertex,
+    OffHandOffsetX,
+    OffHandOffsetY,
+    OffHandOffsetZ,
 
     Max
 };

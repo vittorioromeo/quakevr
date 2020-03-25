@@ -1161,7 +1161,7 @@ void R_RenderScene()
     R_DrawViewModel(&cl.right_hip_holster, true);
 
     // TODO VR: hack/test
-    R_DrawViewModel(&cl.left_hand, false);
+    R_DrawViewModel(&cl.left_hand, true);
     R_DrawViewModel(&cl.right_hand, false);
 
     R_ShowTris(); // johnfitz

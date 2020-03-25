@@ -167,6 +167,9 @@ enum class WpnCVar : std::uint8_t
     HandOffsetY = 21,
     HandOffsetZ = 22,
     HandAnchorVertex = 23,
+    OffHandOffsetX = 24,
+    OffHandOffsetY = 25,
+    OffHandOffsetZ = 26,
 
     k_Max
 };
@@ -217,6 +220,7 @@ struct WeaponMuzzleOffsets
 // ----------------------------------------------------------------------------
 
 [[nodiscard]] glm::vec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept;
 
 [[nodiscard]] cvar_t& VR_GetWpnCVar(
     const int cvarEntry, WpnCVar setting) noexcept;
