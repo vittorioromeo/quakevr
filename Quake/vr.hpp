@@ -93,6 +93,7 @@ void VID_VR_Disable();
 void VR_UpdateScreenContent();
 void VR_ShowCrosshair();
 void VR_ShowVirtualStock();
+void VR_ShowHolsters();
 void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
@@ -110,6 +111,13 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude);
 
 [[nodiscard]] float VR_GetMenuMult() noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept;
+[[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept;
+[[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept;
+[[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept;
+
+[[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 
 //
 //
@@ -282,3 +290,4 @@ extern cvar_t vr_wpn_dir_weight_2h_help_offset;
 extern cvar_t vr_wpn_dir_weight_2h_help_mult;
 extern cvar_t vr_offhandpitch;
 extern cvar_t vr_offhandyaw;
+extern cvar_t vr_show_holsters;

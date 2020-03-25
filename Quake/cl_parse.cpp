@@ -1056,6 +1056,16 @@ void CL_ParseClientdata()
         cl.stats[STAT_WEAPONFRAME2] = 0;
     }
 
+    // TODO VR: weapon ids in holsters
+    cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
+
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of
     // cl.stats[STAT_WEAPON] were filled in, breaking on large maps like
@@ -1066,7 +1076,7 @@ void CL_ParseClientdata()
             LERP_RESETANIM; // don't lerp animation across model changes
     }
 
-    if(cl.offhand_viewent.model != cl.model_precache[cl.stats[STAT_WEAPON2]])
+    if(cl.offhand_viewent.model != cl.model_precache[cl.stats[STAT_WEAPONMODEL2]])
     {
         cl.offhand_viewent.lerpflags |=
             LERP_RESETANIM; // don't lerp animation across model changes

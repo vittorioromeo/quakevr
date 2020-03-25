@@ -238,6 +238,9 @@ struct client_state_t
     entity_t viewent;         // the gun model
     entity_t offhand_viewent; // the offhand gun model
 
+    entity_t left_hip_holster; // TODO VR:
+    entity_t right_hip_holster; // TODO VR:
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard

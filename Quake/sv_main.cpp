@@ -1299,6 +1299,16 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     {
         MSG_WriteByte(msg, (int)ent->v.weaponframe2);
     }
+
+    // TODO VR: weapon ids in holsters
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
+    MSG_WriteByte(msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
+    MSG_WriteByte(msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
+    MSG_WriteByte(msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
+    MSG_WriteByte(msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
 }
 
 /*

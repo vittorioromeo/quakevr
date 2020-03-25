@@ -148,6 +148,18 @@ void        end_sys_globals;        // flag for structure dumping
 .string       weaponmodel2;
 .float        weaponframe2;
 
+// TODO VR:
+.float prevweapon;
+.float prevweapon2;
+.float holsterweapon0;
+.float holsterweapon1;
+.float holsterweapon2;
+.float holsterweapon3;
+.string holsterweaponmodel0;
+.string holsterweaponmodel1;
+.string holsterweaponmodel2;
+.string holsterweaponmodel3;
+
 .float        currentammo;
 .float        currentammo2;  // off-hand
 .float        ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
@@ -234,6 +246,10 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        offmuzzlepos;
 .float        teleporting;
 .vector        teleport_target;
+.float        offhand_grabbing;
+.float        mainhand_grabbing;
+.float        offhand_hotspot;
+.float        mainhand_hotspot;
 
 //================================================
 void        end_sys_fields;            // flag for structure dumping

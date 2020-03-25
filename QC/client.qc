@@ -112,6 +112,18 @@ void() DecodeLevelParms =
     self.weapon = parm8;
     self.armortype = parm9 * 0.01;
     self.weapon2 = parm10;
+
+    // TODO VR:
+    self.prevweapon = parm8;
+    self.prevweapon2 = parm10;
+    self.holsterweapon0 = WID_FIST;
+    self.holsterweapon1 = WID_FIST;
+    self.holsterweapon2 = WID_FIST;
+    self.holsterweapon3 = WID_FIST;
+    self.holsterweaponmodel0 = "";
+    self.holsterweaponmodel1 = "";
+    self.holsterweaponmodel2 = "";
+    self.holsterweaponmodel3 = "";
 };
 
 /*
@@ -1411,8 +1423,10 @@ void() PlayerPostThink =
 // do weapon stuff
 
     PlayerVRMelee();
+
     W_WeaponFrame ();
     W_OffHandWeaponFrame ();
+    W_Frame ();
 
 // check to see if player landed and play landing sound
     if ((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))

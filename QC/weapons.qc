@@ -879,7 +879,6 @@ void() W_Precache =
     //MED
    precache_sound ("enforcer/enfstop.wav");   // laser cannon
 //MED 11/06/96
-   precache_sound ("knight/sword1.wav");   // laser cannon
    precache_sound ("hipweap/laserg.wav");   // laser cannon
    precache_sound ("hipweap/laserric.wav");   // laser cannon ricochet
    precache_sound ("hipweap/proxwarn.wav");   // proximity bomb
@@ -895,6 +894,12 @@ void() W_Precache =
     precache_sound("weapons/chain1.wav");
     precache_sound("pendulum/hit.wav");
 //--ZOID
+
+    // QUAKE VR
+    precache_sound ("knight/sword1.wav");
+    precache_sound ("knight/sword2.wav");
+    precache_sound("weapons/holster0.wav");
+    precache_sound("weapons/holster1.wav");
 };
 
 /*
@@ -2537,7 +2542,7 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
 {
     local    float    it, am;
 
@@ -2548,6 +2553,7 @@ void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
     {
         am = 0;
 
+        // TODO VR: fist removed
         if (xWeapon == WID_FIST)
         {
             xWeapon = WID_MJOLNIR;
@@ -2607,10 +2613,13 @@ void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
         }
         else if (xWeapon == WID_GRAPPLE)
         {
-            xWeapon = WID_FIST;
+            // TODO VR: fist removed
+            // xWeapon = WID_FIST;
+            xWeapon = WID_MJOLNIR;
         }
 
         *xOutWeapon = xWeapon;
+        *xOutPrevWeapon = xWeapon;
 
         if (PlayerHasWeapon(xWeapon, it) && am == 0)
         {
@@ -2697,7 +2706,9 @@ void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
         }
         else if (xWeapon == WID_MJOLNIR)
         {
-            xWeapon = WID_FIST;
+            // TODO VR: fist removed
+            // xWeapon = WID_FIST;
+            xWeapon = WID_GRAPPLE;
         }
 
         *xOutWeapon = xWeapon;
@@ -2873,9 +2884,10 @@ void() ImpulseCommands =
         CheatCommand ();
     }
 
-    if (self.impulse == 10)
+    // TODO VR:
+    if (self.impulse == 10 && time >= self.attack_finished)
     {
-        CycleWeaponCommand (self.weapon, &self.weapon);
+        CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
     }
 
     if (self.impulse == 11)
@@ -2883,12 +2895,13 @@ void() ImpulseCommands =
         ServerflagsCommand ();
     }
 
-    if (self.impulse == 12)
+    if (self.impulse == 12 && time >= self.offhand_attack_finished)
     {
         // TODO VR: CycleWeaponReverseCommand ();
-        CycleWeaponCommand (self.weapon2, &self.weapon2);
+        CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
     }
 
+    // TODO VR:
     if (self.impulse == 13)
     {
         CycleOffHandWeapon ();
@@ -2954,11 +2967,6 @@ void() W_WeaponFrame =
         return;
     }
 
-    if (self.impulse)
-    {
-        ImpulseCommands ();
-    }
-
     // check for attack
     if (self.button0)
     {
@@ -3013,6 +3021,168 @@ void() W_OffHandWeaponFrame =
         W_OffHandAttack ();
     }
 };
+
+float(float xHolster) getHolsterWeapon =
+{
+    if(xHolster == 3) return self.holsterweapon0;
+    if(xHolster == 4) return self.holsterweapon1;
+    if(xHolster == 5) return self.holsterweapon2;
+    if(xHolster == 6) return self.holsterweapon3;
+
+    bprint("Invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+void(float xHolster, float v) setHolsterWeapon =
+{
+    if(xHolster == 3) { self.holsterweapon0 = v; return; }
+    if(xHolster == 4) { self.holsterweapon1 = v; return; }
+    if(xHolster == 5) { self.holsterweapon2 = v; return; }
+    if(xHolster == 6) { self.holsterweapon3 = v; return; }
+
+    bprint("Invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+string(float xHolster) getHolsterWeaponModel =
+{
+    if(xHolster == 3) return self.holsterweaponmodel0;
+    if(xHolster == 4) return self.holsterweaponmodel1;
+    if(xHolster == 5) return self.holsterweaponmodel2;
+    if(xHolster == 6) return self.holsterweaponmodel3;
+
+    bprint("Invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+void(float xHolster, string v) setHolsterWeaponModel =
+{
+    if(xHolster == 3) { self.holsterweaponmodel0 = v; return; }
+    if(xHolster == 4) { self.holsterweaponmodel1 = v; return; }
+    if(xHolster == 5) { self.holsterweaponmodel2 = v; return; }
+    if(xHolster == 6) { self.holsterweaponmodel3 = v; return; }
+
+    bprint("Invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+float(float xHotspot) isHolsterHotspot =
+{
+    return xHotspot == 3 ||
+           xHotspot == 4 ||
+           xHotspot == 5 ||
+           xHotspot == 6;
+}
+
+void(float xWeapon, float* xOutWeapon,
+     float xGrabbing, float xAttackFinished, float xHotspot,
+     float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished, float xOtherGrabbing) DoHandImpl =
+{
+    if (xWeapon != WID_FIST && !xGrabbing && time >= xAttackFinished)
+    {
+        if(xHotspot == 0 /* nothing */ ||
+           xHotspot == 1 /* 2H grab - helper offhand */ ||
+           xHotspot == 2 /* 2H grab - helper mainhand */)
+        {
+            // 1 and 2 ignored because you can only dual wield with no weapon out
+            // TODO VR: what to do?
+
+            sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+
+            *xOutWeapon = WID_FIST;
+            W_SetCurrentAmmo();
+
+        }
+        else if(isHolsterHotspot(xHotspot)) /* [3, 4, 5, 6] holsters */
+        {
+            if(getHolsterWeapon(xHotspot) == WID_FIST)
+            {
+                // TODO VR: holster data instead of prevweapon
+
+                sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+
+                setHolsterWeapon(xHotspot, xWeapon);
+                setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                *xOutWeapon = WID_FIST;
+                W_SetCurrentAmmo();
+            }
+        }
+        else if(xHotspot == 7 /* hand swap */)
+        {
+            if(xOtherGrabbing && xOtherWeapon == WID_FIST && time >= xOtherAttackFinished)
+            {
+                sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+
+                *xOutOtherWeapon = xWeapon;
+                *xOutWeapon = WID_FIST;
+
+                W_SetCurrentAmmo();
+            }
+        }
+    }
+    else if (xWeapon == WID_FIST && xGrabbing)
+    {
+        if(xHotspot == 0 /* nothing */)
+        {
+            // TODO VR: what to do?
+        }
+        else if(xHotspot == 1 /* 2H grab - helper offhand */)
+        {
+            // TODO VR: what to do?
+        }
+        else if(xHotspot == 2 /* 2H grab - helper mainhand */)
+        {
+            // TODO VR: what to do?
+        }
+        else if(isHolsterHotspot(xHotspot)) /* [3, 4, 5, 6] holsters */
+        {
+            if(getHolsterWeapon(xHotspot) != WID_FIST)
+            {
+                sound (self, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
+
+                *xOutWeapon = getHolsterWeapon(xHotspot);
+                setHolsterWeapon(xHotspot, WID_FIST);
+                setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
+                W_SetCurrentAmmo();
+            }
+        }
+    }
+}
+
+// TODO VR:
+void() W_Frame =
+{
+    if (self.impulse)
+    {
+        ImpulseCommands ();
+    }
+
+    // TODO VR:
+    DoHandImpl(self.weapon2, &self.weapon2,
+               self.offhand_grabbing, self.offhand_attack_finished, self.offhand_hotspot,
+               self.weapon, &self.weapon, self.attack_finished, self.mainhand_grabbing);
+
+    DoHandImpl(self.weapon, &self.weapon,
+               self.mainhand_grabbing, self.attack_finished, self.mainhand_hotspot,
+               self.weapon2, &self.weapon2, self.offhand_attack_finished, self.offhand_grabbing);
+
+    // bprint(ftos(self.offhand_grabbing));
+    // bprint(" | ");
+    // bprint(ftos(self.mainhand_grabbing));
+    // bprint(" ||| ");
+    // bprint(ftos(self.offhand_hotspot));
+    // bprint(" | ");
+    // bprint(ftos(self.mainhand_hotspot));
+    // bprint(" ||| ");
+    // bprint(ftos(self.weapon2));
+    // bprint(" | ");
+    // bprint(ftos(self.weapon));
+    // bprint("\n");
+}
 
 /*
 ========

@@ -622,10 +622,19 @@ void SV_ReadClientMove(usercmd_t* move)
     move->upmove = MSG_ReadShort();
 
     // teleportation
-    move->teleporting = MSG_ReadShort();
-    host_client->edict->v.teleporting = move->teleporting;
+    host_client->edict->v.teleporting = move->teleporting = MSG_ReadShort();
     readVec(move->teleport_target);
     host_client->edict->v.teleport_target = move->teleport_target;
+
+    // hands
+    host_client->edict->v.offhand_grabbing = move->offhand_grabbing =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_grabbing = move->mainhand_grabbing =
+        MSG_ReadShort();
+    host_client->edict->v.offhand_hotspot = move->offhand_hotspot =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_hotspot = move->mainhand_hotspot =
+        MSG_ReadShort();
 
     // read buttons
     bits = MSG_ReadByte();

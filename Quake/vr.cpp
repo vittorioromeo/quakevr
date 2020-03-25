@@ -295,6 +295,7 @@ DEFINE_CVAR(vr_wpn_dir_weight_2h_help_offset, 0.3, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandpitch, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandyaw, 0.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_holsters, 0, CVAR_ARCHIVE);
 
 //
 //
@@ -1466,9 +1467,24 @@ void SetHandPos(int index, entity_t* player)
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
-[[nodiscard]] static glm::vec3 VR_GetShoulderPos() noexcept
+[[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model)
 {
-    const glm::vec3 playerYawOnly{0, sv_player->v.angles[YAW], 0};
+    // TODO VR: repetition with Mod_Weapon
+    for(int i = 0; i < e_MAX_WEAPONS; i++)
+    {
+        if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, model->name))
+        {
+            return i;
+        }
+    }
+
+    Con_Printf("No VR offset for weapon: %s\n", model->name);
+    return -1;
+}
+
+[[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept
+{
+    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
 
     const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
 
@@ -1481,6 +1497,58 @@ void SetHandPos(int index, entity_t* player)
 
     return shoulderPos;
 }
+
+// TODO VR: code repetition
+[[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept
+{
+    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
+
+    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+
+    const auto ox = vr_shoulder_offset_x.value;
+    const auto oy = vr_shoulder_offset_y.value;
+    const auto oz = vr_shoulder_offset_z.value;
+
+    const auto shoulderPos = sv_player->v.origin - vRight * oy + vFwd * ox +
+                             vUp * vr_height_calibration.value * oz;
+
+    return shoulderPos;
+}
+
+// TODO VR: code repetition, cvars
+[[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept
+{
+    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
+
+    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+
+    const auto ox = vr_shoulder_offset_x.value;
+    const auto oy = 7.f;  // vr_shoulder_offset_y.value;
+    const auto oz = 4.5f; // vr_shoulder_offset_z.value;
+
+    const auto shoulderPos = sv_player->v.origin - vRight * oy + vFwd * ox +
+                             vUp * vr_height_calibration.value * oz;
+
+    return shoulderPos;
+}
+
+[[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept
+{
+    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
+
+    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+
+    const auto ox = vr_shoulder_offset_x.value;
+    const auto oy = 7.f;  // vr_shoulder_offset_y.value;
+    const auto oz = 4.5f; // vr_shoulder_offset_z.value;
+
+    const auto shoulderPos = sv_player->v.origin + vRight * oy + vFwd * ox +
+                             vUp * vr_height_calibration.value * oz;
+
+    return shoulderPos;
+}
+
+
 
 [[nodiscard]] static glm::vec3 VR_Get2HVirtualStockMix(
     const glm::vec3& viaHand, const glm::vec3& viaShoulder) noexcept
@@ -1744,6 +1812,34 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     //     (int)VR_GetMainHandWpnCvarEntry());
 }
 
+static bool VR_GoodDistanceFor2HGrab(
+    const glm::vec3& wieldingHand, const glm::vec3& helpingHand)
+{
+    const auto handDiff = helpingHand - wieldingHand;
+
+    const bool goodDistance =
+        glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
+
+    return goodDistance;
+}
+
+static bool VR_GoodDistanceForOffHand2HGrab()
+{
+    return VR_GoodDistanceFor2HGrab(
+        VR_Get2HMainHandPos(), VR_Get2HOffHandPos());
+}
+
+// TODO VR: implement
+static bool VR_GoodDistanceForMainHand2HGrab()
+{
+    return false;
+}
+
+static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
+{
+    return glm::distance(a, b) < 5.f;
+}
+
 static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 {
     const auto vr2HMode =
@@ -1768,7 +1864,7 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
     const auto handDiff = offHandPos - VR_Get2HMainHandPos();
     const auto handDir = safeNormalize(handDiff);
 
-    const auto shoulderPos = VR_GetShoulderPos();
+    const auto shoulderPos = VR_GetRightShoulderPos();
     const auto shoulderDiff = offHandPos - shoulderPos;
 
     const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
@@ -1778,8 +1874,7 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 
     const auto diffDot = glm::dot(handDir, origDir);
 
-    const bool goodDistance =
-        glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
+    const bool goodDistance = VR_GoodDistanceForOffHand2HGrab();
 
     const float frametime = cl.time - cl.oldtime;
 
@@ -2097,7 +2192,7 @@ void VR_ShowVirtualStock()
 
     const auto mainHandPos = VR_Get2HMainHandPos();
     const auto offHandPos = VR_Get2HOffHandPos();
-    const auto shoulderPos = VR_GetShoulderPos();
+    const auto shoulderPos = VR_GetRightShoulderPos();
     const auto averagePos = VR_Get2HVirtualStockMix(mainHandPos, shoulderPos);
 
     // setup gl
@@ -2135,6 +2230,108 @@ void VR_ShowVirtualStock()
     glLineWidth(4.f * glwidth / vid.width);
     glVertex3f(averagePos[0], averagePos[1], averagePos[2]);
     glVertex3f(offHandPos[0], offHandPos[1], offHandPos[2]);
+
+    glEnd();
+    glShadeModel(GL_FLAT);
+    glDisable(GL_LINE_SMOOTH);
+
+    // cleanup gl
+    glColor3f(1, 1, 1);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    GL_PolygonOffset(OFFSET_NONE);
+    glEnable(GL_DEPTH_TEST);
+}
+
+[[nodiscard]] static bool VR_InHipHolsterDistance(
+    const glm::vec3& hand, const glm::vec3& holster)
+{
+    return glm::distance(hand, holster) < 6.f;
+}
+
+[[nodiscard]] static bool VR_InShoulderHolsterDistance(
+    const glm::vec3& hand, const glm::vec3& holster)
+{
+    return glm::distance(hand, holster) < 9.f;
+}
+
+void VR_ShowHolsters()
+{
+    if(!sv_player)
+    {
+        return;
+    }
+
+    const auto offHandPos = cl.handpos[0];
+    const auto mainHandPos = cl.handpos[1];
+
+    const auto leftHipPos = VR_GetLeftHipPos();
+    const auto rightHipPos = VR_GetRightHipPos();
+    const auto leftShoulderPos = VR_GetLeftShoulderPos();
+    const auto rightShoulderPos = VR_GetRightShoulderPos();
+
+    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        const bool hipHolster = holster == leftHipPos || holster == rightHipPos;
+
+        if((hipHolster && VR_InHipHolsterDistance(hand, holster)) ||
+            (!hipHolster && VR_InShoulderHolsterDistance(hand, holster)))
+        {
+            glColor4f(1, 1, 0, 0.95);
+        }
+        else
+        {
+            if(hand == mainHandPos)
+            {
+                glColor4f(0, 1, 1, 0.75);
+            }
+            else
+            {
+                glColor4f(0, 1, 0, 0.75);
+            }
+        }
+    };
+
+    const auto doVertex = [](const glm::vec3& v) {
+        glVertex3f(v[0], v[1], v[2]);
+    };
+
+    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        doColor(hand, holster);
+        doVertex(hand);
+        doVertex(holster);
+    };
+
+    // setup gl
+    glDisable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    GL_PolygonOffset(OFFSET_SHOWTRIS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+
+    glEnable(GL_LINE_SMOOTH);
+    glShadeModel(GL_SMOOTH);
+    glBegin(GL_LINES);
+
+    glLineWidth(2.f * glwidth / vid.width);
+
+    doLine(offHandPos, leftHipPos);
+    doLine(offHandPos, rightHipPos);
+    doLine(offHandPos, leftShoulderPos);
+    doLine(offHandPos, rightShoulderPos);
+
+    doLine(mainHandPos, leftHipPos);
+    doLine(mainHandPos, rightHipPos);
+    doLine(mainHandPos, leftShoulderPos);
+    doLine(mainHandPos, rightShoulderPos);
+
+    // doLine(leftHipPos, rightHipPos);
+    // doLine(rightHipPos, rightShoulderPos);
+    // doLine(rightShoulderPos, leftShoulderPos);
+    // doLine(leftShoulderPos, leftHipPos);
 
     glEnd();
     glShadeModel(GL_FLAT);
@@ -2865,6 +3062,52 @@ void VR_Move(usercmd_t* cmd)
     {
         cmd->teleporting = 0;
     }
+
+    // VR: Hands.
+    const auto computeHotSpot = [&](const glm::vec3& hand) {
+        if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderPos()))
+        {
+            return 3;
+        }
+
+        if(VR_InShoulderHolsterDistance(hand, VR_GetRightShoulderPos()))
+        {
+            return 4;
+        }
+
+        if(VR_InHipHolsterDistance(hand, VR_GetLeftHipPos()))
+        {
+            return 5;
+        }
+
+        if(VR_InHipHolsterDistance(hand, VR_GetRightHipPos()))
+        {
+            return 6;
+        }
+
+        if(hand == cl.handpos[0] && VR_GoodDistanceForOffHand2HGrab())
+        {
+            return 1;
+        }
+
+        if(hand == cl.handpos[1] && VR_GoodDistanceForMainHand2HGrab())
+        {
+            return 2;
+        }
+
+        if(VR_GoodDistanceForHandSwitch(cl.handpos[0], cl.handpos[1]))
+        {
+            return 7;
+        }
+
+        return 0;
+    };
+
+    cmd->offhand_grabbing = vr_left_grabbing;
+    cmd->mainhand_grabbing = vr_right_grabbing;
+
+    cmd->offhand_hotspot = computeHotSpot(cl.handpos[0]);
+    cmd->mainhand_hotspot = computeHotSpot(cl.handpos[1]);
 
     if(key_dest == key_menu)
     {

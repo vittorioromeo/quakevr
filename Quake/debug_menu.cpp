@@ -60,6 +60,9 @@ static void Debug_MenuPrintOptionValue(int cx, int cy, DebugMenuOpt option)
             M_Print(cx, cy, strings[static_cast<int>(skill.value)].c_str());
             break;
         }
+        case DebugMenuOpt::e_ShowHolsters:
+            M_Print(cx, cy, vr_show_holsters.value == 0 ? "Off" : "On");
+            break;
         default: assert(false); break;
     }
 }
@@ -92,6 +95,9 @@ static void M_Debug_KeyOption(int key, DebugMenuOpt option)
             break;
         case DebugMenuOpt::e_Shadows: adjustI(r_shadows, 1, 0, 1); break;
         case DebugMenuOpt::e_Skill: adjustI(skill, 1, 0, 3); break;
+        case DebugMenuOpt::e_ShowHolsters:
+            adjustI(vr_show_holsters, 1, 0, 1);
+            break;
         default: assert(false); break;
     }
 }
@@ -163,7 +169,7 @@ void M_Debug_Draw()
     static const auto adjustedLabels =
         quake::util::makeAdjustedMenuLabels("Show BBoxes", "Impulse 9",
             "Impuse 11", "God", "Noclip", "Fly", "Timescale", "Impulse 255",
-            "Show Virtual Stock", "Shadows", "Skill Level");
+            "Show Virtual Stock", "Shadows", "Skill Level", "Show Holsters");
 
     static_assert(adjustedLabels.size() == (int)DebugMenuOpt::k_Max);
 

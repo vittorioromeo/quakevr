@@ -98,6 +98,16 @@ typedef struct
 	float	weapon2;
 	string_t	weaponmodel2;
 	float	weaponframe2;
+	float	prevweapon;
+	float	prevweapon2;
+	float	holsterweapon0;
+	float	holsterweapon1;
+	float	holsterweapon2;
+	float	holsterweapon3;
+	string_t	holsterweaponmodel0;
+	string_t	holsterweaponmodel1;
+	string_t	holsterweaponmodel2;
+	string_t	holsterweaponmodel3;
 	float	currentammo;
 	float	currentammo2;
 	float	ammo_shells;
@@ -160,4 +170,8 @@ typedef struct
 	vec3_t	offmuzzlepos;
 	float	teleporting;
 	vec3_t	teleport_target;
+	float	offhand_grabbing;
+	float	mainhand_grabbing;
+	float	offhand_hotspot;
+	float	mainhand_hotspot;
 } entvars_t;

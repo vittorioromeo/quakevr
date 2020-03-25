@@ -794,22 +794,8 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
 
     if(cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
     {
+        // TODO VR: use alpha instead of not drawing viewmodel with invisibility
         return;
-    }
-
-    if(vr_enabled.value)
-    {
-        if(vr_crosshair.value)
-        {
-            VR_ShowCrosshair();
-        }
-
-        if(vr_show_virtual_stock.value)
-        {
-            VR_ShowVirtualStock();
-        }
-
-        VR_DrawTeleportLine();
     }
 
     currententity = viewent;
@@ -1010,6 +996,10 @@ void R_ShowTris()
 
         // offhand viewmodel
         doViewmodel(&cl.offhand_viewent);
+
+        // hip holsters
+        doViewmodel(&cl.left_hip_holster);
+        doViewmodel(&cl.right_hip_holster);
     }
 
     extern cvar_t r_particles;
@@ -1064,7 +1054,10 @@ void R_DrawShadows()
             continue;
         }
 
-        if(currententity == &cl.viewent || currententity == &cl.offhand_viewent)
+        if(currententity == &cl.viewent ||
+            currententity == &cl.offhand_viewent ||
+            currententity == &cl.left_hip_holster ||
+            currententity == &cl.right_hip_holster)
         {
             // View entities are drawn manually below.
             continue;
@@ -1073,18 +1066,19 @@ void R_DrawShadows()
         GL_DrawAliasShadow(currententity);
     }
 
-    // TODO VR: viewent shadow looks weird. code repetition
-    if(cl.viewent.model != nullptr)
-    {
-        currententity = &cl.viewent;
-        GL_DrawAliasShadow(&cl.viewent);
-    }
+    // TODO VR: viewent shadow looks weird
+    const auto drawViewentShadow = [](entity_t* ent) {
+        if(ent->model != nullptr)
+        {
+            currententity = ent;
+            GL_DrawAliasShadow(ent);
+        }
+    };
 
-    if(cl.offhand_viewent.model != nullptr)
-    {
-        currententity = &cl.offhand_viewent;
-        GL_DrawAliasShadow(&cl.offhand_viewent);
-    }
+    drawViewentShadow(&cl.viewent);
+    drawViewentShadow(&cl.offhand_viewent);
+    drawViewentShadow(&cl.left_hip_holster);
+    drawViewentShadow(&cl.right_hip_holster);
 
     if(gl_stencilbits)
     {
@@ -1127,8 +1121,36 @@ void R_RenderScene()
 
     Fog_DisableGFog(); // johnfitz
 
-    R_DrawViewModel(
-        &cl.viewent, false); // johnfitz -- moved here from R_RenderView
+    // TODO VR: package into function
+    if(vr_enabled.value)
+    {
+        if(vr_crosshair.value)
+        {
+            VR_ShowCrosshair();
+        }
+
+        if(vr_show_virtual_stock.value)
+        {
+            VR_ShowVirtualStock();
+        }
+
+        if(vr_show_holsters.value)
+        {
+            VR_ShowHolsters();
+        }
+
+        VR_DrawTeleportLine();
+    }
+
+    // johnfitz -- moved here from R_RenderView
+    R_DrawViewModel(&cl.viewent, false);
+
+    // VR: This is what draws the offhand.
+    R_DrawViewModel(&cl.offhand_viewent, true);
+
+    // VR: This is what draws the hip holsters.
+    R_DrawViewModel(&cl.left_hip_holster, true);
+    R_DrawViewModel(&cl.right_hip_holster, true);
 
     R_ShowTris(); // johnfitz
 

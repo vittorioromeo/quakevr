@@ -13,6 +13,7 @@ enum class DebugMenuOpt
     e_ShowVirtualStock,
     e_Shadows,
     e_Skill,
+    e_ShowHolsters,
 
     k_Max
 };

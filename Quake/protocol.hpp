@@ -307,6 +307,12 @@ struct usercmd_t
     // VR teleportation
     int teleporting;
     glm::vec3 teleport_target;
+
+    // VR hands
+    int offhand_grabbing;
+    int mainhand_grabbing;
+    int offhand_hotspot;
+    int mainhand_hotspot;
 };
 
 #endif /* _QUAKE_PROTOCOL_H */

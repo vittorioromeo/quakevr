@@ -583,6 +583,12 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteShort(&buf, cmd->teleporting);
     writeVec(cmd->teleport_target);
 
+    // hands
+    MSG_WriteShort(&buf, cmd->offhand_grabbing);
+    MSG_WriteShort(&buf, cmd->mainhand_grabbing);
+    MSG_WriteShort(&buf, cmd->offhand_hotspot);
+    MSG_WriteShort(&buf, cmd->mainhand_hotspot);
+
     //
     // send button bits
     //

@@ -120,6 +120,25 @@ float(float it) ItemIdToWeaponId =
    return -1;
 }
 
+string(float wid) WeaponIdToModel =
+{
+   if(wid == WID_AXE)              { return "progs/v_axe.mdl"; }
+   if(wid == WID_MJOLNIR)          { return "progs/v_hammer.mdl"; }
+   if(wid == WID_SHOTGUN)          { return "progs/v_shot.mdl"; }
+   if(wid == WID_SUPER_SHOTGUN)    { return "progs/v_shot2.mdl"; }
+   if(wid == WID_NAILGUN)          { return "progs/v_nail.mdl"; }
+   if(wid == WID_SUPER_NAILGUN)    { return "progs/v_nail2.mdl"; }
+   if(wid == WID_GRENADE_LAUNCHER) { return "progs/v_rock.mdl"; }
+   if(wid == WID_PROXIMITY_GUN)    { return "progs/v_prox.mdl"; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return "progs/v_rock2.mdl"; }
+   if(wid == WID_LIGHTNING)        { return "progs/v_light.mdl"; }
+   if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
+   if(wid == WID_FIST)             { return "progs/hand.mdl"; }
+   if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
+
+   return "";
+}
+
 float() GremlinAttemptWeaponSteal =
    {
    local vector delta;

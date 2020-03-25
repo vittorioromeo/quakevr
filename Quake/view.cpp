@@ -1146,6 +1146,33 @@ void V_CalcRefdef2Test()
     }
 }
 
+// TODO VR: hack, fix
+void V_CalcHolsterRefdef2Test(
+    const int modelId, const glm::vec3& pos, entity_t* view)
+{
+    view->angles[PITCH] = -90;
+    view->angles[YAW] = 0;
+
+    // TODO VR: hack
+    view->angles[ROLL] = -sv_player->v.v_viewangle[YAW];
+    view->origin = pos;
+    view->model = cl.model_precache[modelId];
+
+    // TODO VR: hack
+    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    {
+        view->model = nullptr;
+    }
+
+    view->frame = 0;
+    view->colormap = vid.colormap;
+
+    if(chase_active.value)
+    {
+        Chase_UpdateForDrawing(r_refdef, view); // johnfitz
+    }
+}
+
 /*
 ==================
 V_RenderView
@@ -1171,12 +1198,15 @@ void V_RenderView()
     else if(!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
     {
         V_CalcRefdef();
-        R_RenderView();
-
-        // VR: This is what draws the offhand.
         V_CalcRefdef2Test();
-        // TODO VR: called twice?
-        R_DrawViewModel(&cl.offhand_viewent, true);
+
+        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL2],
+            VR_GetLeftHipPos(), &cl.left_hip_holster);
+
+        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
+            VR_GetRightHipPos(), &cl.right_hip_holster);
+
+        R_RenderView();
     }
 
     // johnfitz -- removed lcd code
