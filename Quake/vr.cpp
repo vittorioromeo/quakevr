@@ -2280,7 +2280,7 @@ void VR_ShowVirtualStock()
 [[nodiscard]] static bool VR_InShoulderHolsterDistance(
     const glm::vec3& hand, const glm::vec3& holster)
 {
-    return glm::distance(hand, holster) < 9.f;
+    return glm::distance(hand, holster) < 10.f;
 }
 
 void VR_ShowHolsters()
