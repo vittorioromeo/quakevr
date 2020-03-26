@@ -875,9 +875,6 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 */
 void R_ShowBoundingBoxes()
 {
-    glm::vec3 mins;
-    glm::vec3 maxs;
-
     edict_t* ed;
     int i;
 
@@ -1357,7 +1354,7 @@ void R_RenderView()
 
         // restore
         glColorMask(1, 1, 1, 1);
-        r_refdef.vieworg += (-0.5f * eyesep), vright;
+        r_refdef.vieworg += (-0.5f * eyesep) * vright;
         frustum_skew = 0.0f;
     }
     else

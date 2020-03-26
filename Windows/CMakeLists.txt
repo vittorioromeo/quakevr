@@ -44,10 +44,19 @@ set(source_list "../Quake/bgmusic.cpp"
                 "../Quake/net_loop.cpp"
                 "../Quake/net_main.cpp"
                 "../Quake/net_udp.cpp"
-                "../Quake/net_win.cpp"
-                "../Quake/net_wins.cpp"
-                "../Quake/net_wipx.cpp"
-                "../Quake/pl_win.cpp"
+
+                # TODO VR: linux only
+                "../Quake/net_bsd.cpp"
+                "../Quake/pl_linux.cpp"
+                "../Quake/sys_sdl_unix.cpp"
+
+                # TODO VR: windows only
+                # "../Quake/net_win.cpp"
+                # "../Quake/net_wins.cpp"
+                # "../Quake/net_wipx.cpp"
+                # "../Quake/pl_win.cpp"
+                # "../Quake/sys_sdl_win.cpp"
+
                 "../Quake/pr_cmds.cpp"
                 "../Quake/pr_edict.cpp"
                 "../Quake/pr_exec.cpp"
@@ -80,10 +89,12 @@ set(source_list "../Quake/bgmusic.cpp"
                 "../Quake/sv_move.cpp"
                 "../Quake/sv_phys.cpp"
                 "../Quake/sv_user.cpp"
-                "../Quake/sys_sdl_win.cpp"
+
                 "../Quake/view.cpp"
                 "../Quake/vr.cpp"
                 "../Quake/vr_menu.cpp"
+                "../Quake/vrgameplay_menu.cpp"
+                "../Quake/debug_menu.cpp"
                 "../Quake/wad.cpp"
                 "../Quake/world.cpp"
                 "../Quake/wpnoffset_menu.cpp"
@@ -108,9 +119,21 @@ target_include_directories(
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 include(FindOpenGL)
-set(SDL2_LIBRARIES
-    "C:/pers/quakevr/Windows/SDL2/lib64/SDL2main.lib"
-    "C:/pers/quakevr/Windows/SDL2/lib64/SDL2.lib"
-    "C:/pers/quakevr/Windows/OpenVR/lib/win64/openvr_api.lib")
 
-target_link_libraries(quakespasm-sdl2 ${OPENGL_gl_LIBRARY} ${SDL2_LIBRARIES} wsock32 winmm ws2_32)
+# TODO VR: windows only
+# set(SDL2_LIBRARIES
+#     "C:/pers/quakevr/Windows/SDL2/lib64/SDL2main.lib"
+#     "C:/pers/quakevr/Windows/SDL2/lib64/SDL2.lib"
+#     "C:/pers/quakevr/Windows/OpenVR/lib/win64/openvr_api.lib")
+#
+# target_link_libraries(quakespasm-sdl2 ${OPENGL_gl_LIBRARY} ${SDL2_LIBRARIES} wsock32 winmm ws2_32)
+
+# TODO VR: linux only
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIRS})
+
+set(OPENVR_LIBRARIES
+    "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
+)
+
+target_link_libraries(quakespasm-sdl2 ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES})

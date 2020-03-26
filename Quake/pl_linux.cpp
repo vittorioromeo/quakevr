@@ -89,4 +89,5 @@ char* PL_GetClipboardData(void)
 
 void PL_ErrorDialog(const char* errorMsg)
 {
+    (void)errorMsg;
 }

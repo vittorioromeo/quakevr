@@ -1,12 +1,16 @@
 #pragma once
 
+#ifdef WIN32
 #include "debugapi.h"
+#endif
+
 #include "q_stdinc.hpp"
 #include "cvar.hpp"
 #include "mathlib.hpp"
 #include "quakeglm.hpp"
 
 #include <array>
+#include <algorithm>
 #include <string>
 #include <cassert>
 #include <cmath>
@@ -26,6 +30,8 @@
 #endif
 #endif
 
+// TODO VR: ugly declaration
+float VR_GetMenuMult() noexcept;
 
 namespace quake::util
 {
@@ -50,13 +56,17 @@ namespace quake::util
     template <typename... Ts>
     void debugPrint(const Ts&... xs)
     {
+#ifdef WIN32
         OutputDebugStringA(stringCat(xs...).data());
+#endif
     }
 
     template <typename... Ts>
     void debugPrintSeparated(const std::string_view separator, const Ts&... xs)
     {
+#ifdef WIN32
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
+#endif
     }
 
     template <typename... Ts>

@@ -1,7 +1,9 @@
 #pragma once
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wmacro-redefined"
+#pragma GCC diagnostic ignored "-Wpedantic"
 
 #define GLM_FORCE_INLINE
 #define GLM_CONFIG_SIMD GLM_ENABLE
@@ -18,4 +20,5 @@
 #include <gtx/rotate_vector.hpp>
 
 #pragma GCC diagnostic pop
-
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop

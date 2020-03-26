@@ -456,13 +456,14 @@
 #	define GLM_FORCE_SWIZZLE
 #endif
 
-#if defined(GLM_FORCE_SWIZZLE) && (GLM_LANG & GLM_LANG_CXXMS_FLAG)
-#	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_OPERATOR
-#elif defined(GLM_FORCE_SWIZZLE)
-#	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_FUNCTION
-#else
-#	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_DISABLED
-#endif
+// TODO VR: manually defined
+// #if defined(GLM_FORCE_SWIZZLE) && (GLM_LANG & GLM_LANG_CXXMS_FLAG)
+// #	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_OPERATOR
+// #elif defined(GLM_FORCE_SWIZZLE)
+// #	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_FUNCTION
+// #else
+// #	define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_DISABLED
+// #endif
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Allows using not basic types as genType
@@ -801,11 +802,12 @@ namespace detail
 ///////////////////////////////////////////////////////////////////////////////////
 // Use SIMD instruction sets
 
-#if GLM_HAS_ALIGNOF && (GLM_LANG & GLM_LANG_CXXMS_FLAG) && (GLM_ARCH & GLM_ARCH_SIMD_BIT)
-#	define GLM_CONFIG_SIMD GLM_ENABLE
-#else
-#	define GLM_CONFIG_SIMD GLM_DISABLE
-#endif
+// TODO VR: manually defined
+// #if GLM_HAS_ALIGNOF && (GLM_LANG & GLM_LANG_CXXMS_FLAG) && (GLM_ARCH & GLM_ARCH_SIMD_BIT)
+// #	define GLM_CONFIG_SIMD GLM_ENABLE
+// #else
+// #	define GLM_CONFIG_SIMD GLM_DISABLE
+// #endif
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Configure the use of defaulted function
@@ -829,20 +831,22 @@ namespace detail
 #	define GLM_FORCE_ALIGNED_GENTYPES
 #endif
 
-#if GLM_HAS_ALIGNOF && (GLM_LANG & GLM_LANG_CXXMS_FLAG) && (defined(GLM_FORCE_ALIGNED_GENTYPES) || (GLM_CONFIG_SIMD == GLM_ENABLE))
-#	define GLM_CONFIG_ALIGNED_GENTYPES GLM_ENABLE
-#else
-#	define GLM_CONFIG_ALIGNED_GENTYPES GLM_DISABLE
-#endif
+// TODO VR: manually defined
+// #if GLM_HAS_ALIGNOF && (GLM_LANG & GLM_LANG_CXXMS_FLAG) && (defined(GLM_FORCE_ALIGNED_GENTYPES) || (GLM_CONFIG_SIMD == GLM_ENABLE))
+// #	define GLM_CONFIG_ALIGNED_GENTYPES GLM_ENABLE
+// #else
+// #	define GLM_CONFIG_ALIGNED_GENTYPES GLM_DISABLE
+// #endif
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Configure the use of anonymous structure as implementation detail
 
-#if ((GLM_CONFIG_SIMD == GLM_ENABLE) || (GLM_CONFIG_SWIZZLE == GLM_SWIZZLE_OPERATOR) || (GLM_CONFIG_ALIGNED_GENTYPES == GLM_ENABLE))
-#	define GLM_CONFIG_ANONYMOUS_STRUCT GLM_ENABLE
-#else
-#	define GLM_CONFIG_ANONYMOUS_STRUCT GLM_DISABLE
-#endif
+// TODO VR: manually defined
+// #if ((GLM_CONFIG_SIMD == GLM_ENABLE) || (GLM_CONFIG_SWIZZLE == GLM_SWIZZLE_OPERATOR) || (GLM_CONFIG_ALIGNED_GENTYPES == GLM_ENABLE))
+// #	define GLM_CONFIG_ANONYMOUS_STRUCT GLM_ENABLE
+// #else
+// #	define GLM_CONFIG_ANONYMOUS_STRUCT GLM_DISABLE
+// #endif
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Silent warnings

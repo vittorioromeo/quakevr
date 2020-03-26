@@ -280,6 +280,10 @@ std::mt19937 mt(rd());
     return std::uniform_int_distribution<int>{min, max - 1}(mt);
 }
 
+
+cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
+
 template <typename F>
 QUAKE_FORCEINLINE void makeNParticlesI(
     const ParticleTextureManager::Handle txHandle, const int count,
@@ -327,9 +331,6 @@ ParticleTextureManager::Handle ptxLightning;
 ParticleTextureManager::Handle ptxSpark;
 ParticleTextureManager::Handle ptxRock;
 ParticleTextureManager::Handle ptxGunSmoke;
-
-cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
-cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
 
 template <typename F>
 QUAKE_FORCEINLINE void forActiveParticles(F&& f) noexcept
@@ -1712,8 +1713,8 @@ void R_DrawParticles_ShowTris()
         return;
     }
 
-    const auto up = vup * 1.5f;
-    const auto right = vright * 1.5f;
+    // const auto up = vup * 1.5f;
+    // const auto right = vright * 1.5f;
 
     glBegin(GL_TRIANGLES);
     forActiveParticles([&](particle_t& p) {
