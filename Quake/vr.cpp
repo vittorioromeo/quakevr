@@ -1060,6 +1060,12 @@ static void VR_InitActionHandles()
 // TODO VR:
 // ----------------------------------------------------------------------------
 
+[[nodiscard]] static bool svPlayerActive() noexcept
+{
+    return true;
+    return sv_player != nullptr;
+}
+
 bool VR_Enable()
 {
     if(vr_initialized)
@@ -1507,73 +1513,59 @@ void SetHandPos(int index, entity_t* player)
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
-[[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept
+[[nodiscard]] glm::vec3 VR_GetBodyAnchor(const glm::vec3& offsets) noexcept
 {
+    if(!svPlayerActive())
+    {
+        // TODO VR:
+        return vec3_zero;
+    }
+
     const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
-
     const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+    const auto& [ox, oy, oz] = offsets;
 
-    const auto ox = vr_shoulder_offset_x.value;
-    const auto oy = vr_shoulder_offset_y.value;
-    const auto oz = vr_shoulder_offset_z.value;
-
-    const auto shoulderPos = sv_player->v.origin + vRight * oy + vFwd * ox +
-                             vUp * vr_height_calibration.value * oz;
-
-    return shoulderPos;
+    return sv_player->v.origin + vRight * oy + vFwd * ox +
+           vUp * vr_height_calibration.value * oz;
 }
 
-// TODO VR: code repetition
-[[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept
+
+[[nodiscard]] glm::vec3 VR_GetLeftShoulderStockPos() noexcept
 {
-    // TODO VR: crashed here yesterday while switching maps via maps menu. try
-    // to reproduce in debug. Can reproduce on map changes, debug not helpful
-    // TODO VR: should probably use the client here, and not the server? dunno
-    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
-
-    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
-
-    const auto ox = vr_shoulder_offset_x.value;
-    const auto oy = vr_shoulder_offset_y.value;
-    const auto oz = vr_shoulder_offset_z.value;
-
-    const auto shoulderPos = sv_player->v.origin - vRight * oy + vFwd * ox +
-                             vUp * vr_height_calibration.value * oz;
-
-    return shoulderPos;
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
+        -vr_shoulder_offset_y.value, vr_shoulder_offset_z.value});
 }
 
-// TODO VR: code repetition, cvars
+[[nodiscard]] glm::vec3 VR_GetRightShoulderStockPos() noexcept
+{
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
+        vr_shoulder_offset_y.value, vr_shoulder_offset_z.value});
+}
+
+[[nodiscard]] glm::vec3 VR_GetLeftShoulderHolsterPos() noexcept
+{
+    // TODO VR: cvars
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
+        -(vr_shoulder_offset_y.value + 1.5f), vr_shoulder_offset_z.value});
+}
+
+[[nodiscard]] glm::vec3 VR_GetRightShoulderHolsterPos() noexcept
+{
+    // TODO VR: cvars
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value - 5.f,
+        vr_shoulder_offset_y.value + 1.5f, vr_shoulder_offset_z.value});
+}
+
 [[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept
 {
-    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
-
-    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
-
-    const auto ox = vr_shoulder_offset_x.value;
-    const auto oy = 7.f;  // vr_shoulder_offset_y.value;
-    const auto oz = 4.5f; // vr_shoulder_offset_z.value;
-
-    const auto shoulderPos = sv_player->v.origin - vRight * oy + vFwd * ox +
-                             vUp * vr_height_calibration.value * oz;
-
-    return shoulderPos;
+    // TODO VR: cvars
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value, -7.f, 4.5f});
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept
 {
-    const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
-
-    const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
-
-    const auto ox = vr_shoulder_offset_x.value;
-    const auto oy = 7.f;  // vr_shoulder_offset_y.value;
-    const auto oz = 4.5f; // vr_shoulder_offset_z.value;
-
-    const auto shoulderPos = sv_player->v.origin + vRight * oy + vFwd * ox +
-                             vUp * vr_height_calibration.value * oz;
-
-    return shoulderPos;
+    // TODO VR: cvars
+    return VR_GetBodyAnchor({vr_shoulder_offset_x.value, 7.f, 4.5f});
 }
 
 
@@ -1887,7 +1879,7 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
     const auto handDiff = offHandPos - VR_Get2HMainHandPos();
     const auto handDir = safeNormalize(handDiff);
 
-    const auto shoulderPos = VR_GetRightShoulderPos();
+    const auto shoulderPos = VR_GetRightShoulderStockPos();
     const auto shoulderDiff = offHandPos - shoulderPos;
 
     const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
@@ -2209,7 +2201,7 @@ void VR_ShowVirtualStock()
 
     const auto mainHandPos = VR_Get2HMainHandPos();
     const auto offHandPos = VR_Get2HOffHandPos();
-    const auto shoulderPos = VR_GetRightShoulderPos();
+    const auto shoulderPos = VR_GetRightShoulderStockPos();
     const auto averagePos = VR_Get2HVirtualStockMix(mainHandPos, shoulderPos);
 
     // setup gl
@@ -2293,8 +2285,8 @@ void VR_ShowHolsters()
 
     const auto leftHipPos = VR_GetLeftHipPos();
     const auto rightHipPos = VR_GetRightHipPos();
-    const auto leftShoulderPos = VR_GetLeftShoulderPos();
-    const auto rightShoulderPos = VR_GetRightShoulderPos();
+    const auto leftShoulderPos = VR_GetLeftShoulderHolsterPos();
+    const auto rightShoulderPos = VR_GetRightShoulderHolsterPos();
 
     const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
         const bool hipHolster = holster == leftHipPos || holster == rightHipPos;
@@ -3086,12 +3078,12 @@ void VR_Move(usercmd_t* cmd)
 
     // VR: Hands.
     const auto computeHotSpot = [](const glm::vec3& hand) {
-        if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderPos()))
+        if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderHolsterPos()))
         {
             return 3;
         }
 
-        if(VR_InShoulderHolsterDistance(hand, VR_GetRightShoulderPos()))
+        if(VR_InShoulderHolsterDistance(hand, VR_GetRightShoulderHolsterPos()))
         {
             return 4;
         }

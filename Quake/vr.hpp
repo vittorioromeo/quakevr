@@ -314,5 +314,5 @@ extern cvar_t vr_offhandpitch;
 extern cvar_t vr_offhandyaw;
 extern cvar_t vr_show_holsters;
 
-// TODO VR:
+// TODO VR: what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

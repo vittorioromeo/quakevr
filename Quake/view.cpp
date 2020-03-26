@@ -1148,13 +1148,13 @@ void V_CalcRefdef2Test()
 
 // TODO VR: hack, fix
 void V_CalcHolsterRefdef2Test(
-    const int modelId, const glm::vec3& pos, entity_t* view)
+    const int modelId, const glm::vec3& pos, entity_t* view, const float roll)
 {
     view->angles[PITCH] = -90;
     view->angles[YAW] = 0;
 
     // TODO VR: hack
-    view->angles[ROLL] = -sv_player->v.v_viewangle[YAW];
+    view->angles[ROLL] = -sv_player->v.v_viewangle[YAW] + roll;
     view->origin = pos;
     view->model = cl.model_precache[modelId];
 
@@ -1181,11 +1181,7 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 static void SetupHandViewModel(entity_t* const anchor, entity_t* const hand,
     const glm::vec3& handRot, const glm::vec3& extraOffset)
 {
-    if(anchor->model == nullptr)
-    {
-        return;
-    }
-
+    assert(anchor->model != nullptr);
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     lerpdata_t lerpdata;
@@ -1305,19 +1301,25 @@ void V_RenderView()
         V_CalcRefdef2Test();
 
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL2],
-            VR_GetLeftHipPos(), &cl.left_hip_holster);
+            VR_GetLeftHipPos(), &cl.left_hip_holster, 10);
 
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
-            VR_GetRightHipPos(), &cl.right_hip_holster);
+            VR_GetRightHipPos(), &cl.right_hip_holster, -10);
 
-        SetupHandViewModel(
-            &cl.viewent, &cl.right_hand, cl.handrot[1], vec3_zero);
+        if(cl.viewent.model != nullptr)
+        {
+            SetupHandViewModel(
+                &cl.viewent, &cl.right_hand, cl.handrot[1], vec3_zero);
+        }
 
-        const auto offHandOffsets = VR_GetWpnOffHandOffsets(
-            VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
+        if(cl.offhand_viewent.model != nullptr)
+        {
+            const auto offHandOffsets = VR_GetWpnOffHandOffsets(
+                VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
-        SetupHandViewModel(
-            &cl.offhand_viewent, &cl.left_hand, cl.handrot[0], offHandOffsets);
+            SetupHandViewModel(&cl.offhand_viewent, &cl.left_hand,
+                cl.handrot[0], offHandOffsets);
+        }
 
         // TODO VR: refactor and add lerping, also hand angles?
         // TODO VR: some weird crash here

@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include <iostream>
 
-edict_t* sv_player;
+edict_t* sv_player{nullptr};
 
 extern cvar_t sv_friction;
 cvar_t sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
@@ -589,8 +589,7 @@ void SV_ReadClientMove(usercmd_t* move)
     host_client->edict->v.handvel = move->handvel;
 
     // handvelmag
-    move->handvelmag = MSG_ReadFloat();
-    host_client->edict->v.handvelmag = move->handvelmag;
+    host_client->edict->v.handvelmag = move->handvelmag = MSG_ReadFloat();
 
     // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
     // offhandpos
@@ -606,8 +605,7 @@ void SV_ReadClientMove(usercmd_t* move)
     host_client->edict->v.offhandvel = move->offhandvel;
 
     // offhandvelmag
-    move->offhandvelmag = MSG_ReadFloat();
-    host_client->edict->v.offhandvelmag = move->offhandvelmag;
+    host_client->edict->v.offhandvelmag = move->offhandvelmag = MSG_ReadFloat();
 
     // muzzlepos
     readVec(move->muzzlepos);
