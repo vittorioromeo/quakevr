@@ -30,6 +30,7 @@ enum class WpnOffsetMenuOpt
     OffHandOffsetX,
     OffHandOffsetY,
     OffHandOffsetZ,
+    CrosshairMode,
 
     Max
 };

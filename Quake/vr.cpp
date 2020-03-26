@@ -617,7 +617,7 @@ static void VR_Deadzone_f(cvar_t* var) noexcept
 // Weapon CVars
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] float VR_GetScaleCorrect() noexcept
+[[nodiscard]] static float VR_GetScaleCorrect() noexcept
 {
     // Initial version had 0.75 default world scale, so weapons reflect that.
     return (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
@@ -637,26 +637,31 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
     hdr->scale_origin *= scaleCorrect;
 }
 
+[[nodiscard]] int VR_GetWpnCVarFromModelName(const char* name)
+{
+    for(int i = 0; i < e_MAX_WEAPONS; i++)
+    {
+        if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
+        {
+            return i;
+        }
+    }
+
+    Con_Printf("No VR offset for weapon: %s\n", name);
+    return -1;
+}
+
+[[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model)
+{
+    return VR_GetWpnCVarFromModelName(model->name);
+}
+
 void Mod_Weapon(int index, int& cvarEntry, const char* name, aliashdr_t* hdr)
 {
     if(lastWeaponHeader[index] != hdr)
     {
         lastWeaponHeader[index] = hdr;
-        cvarEntry = -1;
-
-        for(int i = 0; i < e_MAX_WEAPONS; i++)
-        {
-            if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, name))
-            {
-                cvarEntry = i;
-                break;
-            }
-        }
-
-        if(cvarEntry == -1)
-        {
-            Con_Printf("No VR offset for weapon: %s\n", name);
-        }
+        cvarEntry = VR_GetWpnCVarFromModelName(name);
     }
 
     if(cvarEntry != -1)
@@ -769,6 +774,13 @@ char* CopyWithNumeral(const char* str, int i)
         static_cast<int>(VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHMode)));
 }
 
+[[nodiscard]] WpnCrosshairMode VR_GetWpnCrosshairMode(
+    const int cvarEntry) noexcept
+{
+    return static_cast<WpnCrosshairMode>(static_cast<int>(
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::CrosshairMode)));
+}
+
 [[nodiscard]] float VR_GetWpnLength(const int cvarEntry) noexcept
 {
     return VR_GetWpnCVarValue(cvarEntry, WpnCVar::Length);
@@ -804,7 +816,8 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* weight = "0.0", const char* handOffsetX = "0.0",
     const char* handOffsetY = "0.0", const char* handOffsetZ = "0.0",
     const char* handAnchorVertex = "0.0", const char* offHandOffsetX = "0.0",
-    const char* offHandOffsetY = "0.0", const char* offHandOffsetZ = "0.0")
+    const char* offHandOffsetY = "0.0", const char* offHandOffsetZ = "0.0",
+    const char* crosshairMode = "0.0")
 {
     // clang-format off
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX),          "vr_wofs_x_nn",         i, offsetX);
@@ -834,6 +847,7 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetX),   "vr_wofs_offhand_x_nn", i, offHandOffsetX);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetY),   "vr_wofs_offhand_y_nn", i, offHandOffsetY);
     InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetZ),   "vr_wofs_offhand_z_nn", i, offHandOffsetZ);
+    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::CrosshairMode),    "vr_wofs_ch_mode_z_nn", i, crosshairMode);
     // clang-format on
 
     return i;
@@ -936,7 +950,7 @@ void VID_VR_Init()
         //}
     }
 
-    // TODO VR: cvar or cheat
+    // TODO VR: cvar or cheat, add item value in QC
     // VR_GetOffHandWpnCvarEntry() = vr_hardcoded_wpn_cvar_grapple;
 }
 
@@ -1493,21 +1507,6 @@ void SetHandPos(int index, entity_t* player)
     cl.handvelmag[index] = std::max(length, bestSingle);
 }
 
-[[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model)
-{
-    // TODO VR: repetition with Mod_Weapon
-    for(int i = 0; i < e_MAX_WEAPONS; i++)
-    {
-        if(!strcmp(VR_GetWpnCVar(i, WpnCVar::ID).string, model->name))
-        {
-            return i;
-        }
-    }
-
-    Con_Printf("No VR offset for weapon: %s\n", model->name);
-    return -1;
-}
-
 [[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept
 {
     const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
@@ -1527,6 +1526,9 @@ void SetHandPos(int index, entity_t* player)
 // TODO VR: code repetition
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept
 {
+    // TODO VR: crashed here yesterday while switching maps via maps menu. try
+    // to reproduce in debug. Can reproduce on map changes, debug not helpful
+    // TODO VR: should probably use the client here, and not the server? dunno
     const glm::vec3 playerYawOnly{0, sv_player->v.v_viewangle[YAW], 0};
 
     const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
@@ -1768,7 +1770,6 @@ static void VR_UpdateDevicesOrientationPosition() noexcept
                 controller->velocity[1] = rawControllerVel.v[1];
                 controller->velocity[2] = rawControllerVel.v[2];
 
-                // TODO VR: make prettier
                 const auto [x, y, z] = QuatToYawPitchRoll(rawControllerQuat);
                 controller->orientation[0] = x;
                 controller->orientation[1] = y;
@@ -1832,10 +1833,6 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     cl.prevhandrot[0] = cl.handrot[0];
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
-
-    // TODO VR: remove
-    // Con_Printf("%d | %d\n", (int)VR_GetOffHandWpnCvarEntry(),
-    //     (int)VR_GetMainHandWpnCvarEntry());
 }
 
 static bool VR_GoodDistanceFor2HGrab(
@@ -1981,12 +1978,6 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
     doModWeapon(0, VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
     doModWeapon(1, VR_GetMainHandWpnCvarEntry(), cl.viewent);
-
-    // TODO VR:
-    // BModels cannot be scaled, doesnt work (bmodel size)
-    // qmodel_t* test = Mod_ForName("maps/b_shell1.bsp", true);
-    // auto* testhdr = (aliashdr_t*)Mod_Extradata(test);
-    // testhdr->scale_origin *= 0.5f
 
     entity_t* const player = &cl_entities[cl.viewentity];
 
@@ -2280,7 +2271,14 @@ void VR_ShowVirtualStock()
 [[nodiscard]] static bool VR_InShoulderHolsterDistance(
     const glm::vec3& hand, const glm::vec3& holster)
 {
-    return glm::distance(hand, holster) < 10.f;
+    // TODO VR: the distance was too big yesterday, it caused both shoulders to
+    // be always active
+
+    // TODO VR: separate virtual stock shoulder position from holster, holster
+    // should be more back
+
+    // TODO VR: implement arbitrary 2H aim
+    return glm::distance(hand, holster) < 8.f;
 }
 
 void VR_ShowHolsters()
@@ -2457,10 +2455,8 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
 
 static void VR_ShowCrosshairMainHand(const float size, const float alpha)
 {
-    // TODO VR: use WpnCVar to control crosshair
-    if((int)(sv_player->v.weapon) == WID_FIST ||
-        (int)(sv_player->v.weapon) == WID_AXE ||
-        (int)(sv_player->v.weapon) == WID_MJOLNIR)
+    if(VR_GetWpnCrosshairMode(VR_GetMainHandWpnCvarEntry()) ==
+        WpnCrosshairMode::Forbidden)
     {
         return;
     }
@@ -2486,9 +2482,8 @@ static void VR_ShowCrosshairMainHand(const float size, const float alpha)
 
 static void VR_ShowCrosshairOffHand(const float size, const float alpha)
 {
-    // TODO VR: use WpnCVar to control crosshair
-    if(vr_aimmode.value != VrAimMode::e_CONTROLLER ||
-        (int)(sv_player->v.weapon2) == WID_FIST)
+    if(VR_GetWpnCrosshairMode(VR_GetOffHandWpnCvarEntry()) ==
+        WpnCrosshairMode::Forbidden)
     {
         return;
     }
@@ -3090,7 +3085,7 @@ void VR_Move(usercmd_t* cmd)
     }
 
     // VR: Hands.
-    const auto computeHotSpot = [&](const glm::vec3& hand) {
+    const auto computeHotSpot = [](const glm::vec3& hand) {
         if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderPos()))
         {
             return 3;

@@ -372,6 +372,7 @@ void SV_WaterJump()
         sv_player->v.flags = (int)sv_player->v.flags & ~FL_WATERJUMP;
         sv_player->v.teleport_time = 0;
     }
+
     sv_player->v.velocity[0] = sv_player->v.movedir[0];
     sv_player->v.velocity[1] = sv_player->v.movedir[1];
 }

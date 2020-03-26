@@ -452,9 +452,9 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
-void R_SetupAliasFrame(aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
+void R_SetupAliasFrame(
+    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
 {
-    entity_t* e = currententity;
     int posenum;
 
     int numposes;
@@ -722,7 +722,7 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     // culling
     //
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     //
@@ -1064,7 +1064,7 @@ void GL_DrawAliasShadow(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
     R_LightPoint(e->origin);
     lheight = currententity->origin[2] - lightspot[2];
@@ -1114,7 +1114,7 @@ void R_DrawAliasModel_ShowTris(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     glPushMatrix();

@@ -52,7 +52,8 @@ static auto getCvars()
         VR_GetWpnCVar(idx, WpnCVar::HandAnchorVertex),
         VR_GetWpnCVar(idx, WpnCVar::OffHandOffsetX),
         VR_GetWpnCVar(idx, WpnCVar::OffHandOffsetY),
-        VR_GetWpnCVar(idx, WpnCVar::OffHandOffsetZ)
+        VR_GetWpnCVar(idx, WpnCVar::OffHandOffsetZ),
+        VR_GetWpnCVar(idx, WpnCVar::CrosshairMode)
     );
     // clang-format on
 }
@@ -73,7 +74,8 @@ static void WpnOffset_MenuPrintOptionValue(
     };
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav, ohox, ohoy, ohoz] = getCvars();
+        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav, ohox, ohoy, ohoz,
+        chmode] = getCvars();
 
     switch(option)
     {
@@ -122,6 +124,21 @@ static void WpnOffset_MenuPrintOptionValue(
         case WpnOffsetMenuOpt::OffHandOffsetX: printAsStr(ohox); break;
         case WpnOffsetMenuOpt::OffHandOffsetY: printAsStr(ohoy); break;
         case WpnOffsetMenuOpt::OffHandOffsetZ: printAsStr(ohoz); break;
+        case WpnOffsetMenuOpt::CrosshairMode:
+        {
+            const auto mode =
+                static_cast<WpnCrosshairMode>(static_cast<int>(chmode.value));
+
+            if(mode == WpnCrosshairMode::Default)
+            {
+                M_Print(cx, cy, "Default");
+            }
+            else if(mode == WpnCrosshairMode::Forbidden)
+            {
+                M_Print(cx, cy, "Forbidden");
+            }
+            break;
+        }
         default: assert(false); break;
     }
 }
@@ -133,8 +150,8 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
     const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
     const auto& [ox, oy, oz, sc, rr, rp, ry, mx, my, mz, thox, thoy, thoz, thrp,
-        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav, ohox, ohoy, ohoz] =
-        getCvars();
+        thry, thrr, thmode, len, wgh, hox, hoy, hoz, hav, ohox, ohoy, ohoz,
+        chmode] = getCvars();
 
     const float oInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
     constexpr float oBound = 100.f;
@@ -212,6 +229,7 @@ static void M_WpnOffset_KeyOption(int key, WpnOffsetMenuOpt option)
         case WpnOffsetMenuOpt::OffHandOffsetZ:
             adjustF(ohoz, oInc, -oBound, oBound);
             break;
+        case WpnOffsetMenuOpt::CrosshairMode: adjustI(chmode, 1, 0, 2); break;
         default: assert(false); break;
     }
 }
@@ -288,14 +306,14 @@ void M_WpnOffset_Draw()
     y += 16;
     int idx = 0;
 
-    static const auto adjustedLabels =
-        quake::util::makeAdjustedMenuLabels("Offhand", "Offset X", "Offset Y",
-            "Offset Z", "Scale", "Roll", "Pitch", "Yaw", "Muzzle Offset X",
-            "Muzzle Offset Y", "Muzzle Offset Z", "2H Offset X", "2H Offset Y",
-            "2H Offset Z", "2H Aim Pitch", "2H Aim Yaw", "2H Aim Roll",
-            "2H Mode", "Gun Length", "Gun Weight", "Hand Offset X",
-            "Hand Offset Y", "Hand Offset Z", "Hand Anchor Vertex", "Offhand Offset X",
-            "Offhand Offset Y", "Offhand Offset Z");
+    static const auto adjustedLabels = quake::util::makeAdjustedMenuLabels(
+        "Offhand", "Offset X", "Offset Y", "Offset Z", "Scale", "Roll", "Pitch",
+        "Yaw", "Muzzle Offset X", "Muzzle Offset Y", "Muzzle Offset Z",
+        "2H Offset X", "2H Offset Y", "2H Offset Z", "2H Aim Pitch",
+        "2H Aim Yaw", "2H Aim Roll", "2H Mode", "Gun Length", "Gun Weight",
+        "Hand Offset X", "Hand Offset Y", "Hand Offset Z", "Hand Anchor Vertex",
+        "Offhand Offset X", "Offhand Offset Y", "Offhand Offset Z",
+        "Crosshair Mode");
 
     static_assert(adjustedLabels.size() == (int)WpnOffsetMenuOpt::Max);
 

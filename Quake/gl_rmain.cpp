@@ -99,7 +99,7 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
-cvar_t r_lerpmodels = {"r_lerpmodels", "0", CVAR_NONE};
+cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t r_nolerp_list = {"r_nolerp_list",
     "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/"

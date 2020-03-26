@@ -1173,6 +1173,110 @@ void V_CalcHolsterRefdef2Test(
     }
 }
 
+// TODO VR: make a header instead?
+void R_SetupAliasFrame(
+    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
+void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
+
+static void SetupHandViewModel(entity_t* const anchor, entity_t* const hand,
+    const glm::vec3& handRot, const glm::vec3& extraOffset)
+{
+    if(anchor->model == nullptr)
+    {
+        return;
+    }
+
+    const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
+
+    lerpdata_t lerpdata;
+    R_SetupAliasFrame(anchor, anchorHdr, anchor->frame, &lerpdata);
+    R_SetupEntityTransform(anchor, &lerpdata);
+
+    // ------------------------------------------------------------------------
+    // VR: Mostly taken from `GL_DrawAliasFrame`.
+    trivertx_t* verts1;
+    trivertx_t* verts2;
+    float blend;
+    float iblend;
+    bool lerping;
+
+    if(lerpdata.pose1 != lerpdata.pose2)
+    {
+        lerping = true;
+        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
+        verts2 = verts1;
+        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
+        verts2 += lerpdata.pose2 * anchorHdr->poseverts;
+        blend = lerpdata.blend;
+        iblend = 1.0f - blend;
+    }
+    else // poses the same means either 1. the entity has paused its animation,
+         // or 2. r_lerpmodels is disabled
+    {
+        lerping = false;
+        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
+        verts2 = verts1; // avoid bogus compiler warning
+        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
+        blend = iblend = 0; // avoid bogus compiler warning
+    }
+    // ------------------------------------------------------------------------
+
+    const int anchorWpnCvar = VR_GetWpnCVarFromModel(anchor->model);
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVar(anchorWpnCvar, WpnCVar::HandAnchorVertex).value);
+    const int clampedAnchorVertex =
+        std::clamp(anchorVertex, 0, anchorHdr->numverts);
+
+    verts1 += clampedAnchorVertex;
+    verts2 += clampedAnchorVertex;
+
+    const auto vertexOffsets = [&]() -> glm::vec3 {
+        if(lerping)
+        {
+            return {//
+                verts1->v[0] * iblend + verts2->v[0] * blend,
+                verts1->v[2] * iblend + verts2->v[2] * blend,
+                verts1->v[1] * iblend + verts2->v[1] * blend};
+        }
+
+        return {verts1->v[0], verts1->v[2], verts1->v[1]};
+    }();
+
+    const auto finalOffsets = [&]() {
+        glm::vec3 result{vertexOffsets};
+
+        result *= anchorHdr->scale;
+        result[0] += anchorHdr->scale_origin[0];
+        result[1] -= anchorHdr->scale_origin[1];
+        result[2] += anchorHdr->scale_origin[2];
+        result += VR_GetWpnHandOffsets(anchorWpnCvar);
+        result += extraOffset;
+
+        return result;
+    }();
+
+    const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
+
+    const glm::vec3 angledOffsets =
+        fwd * finalOffsets[0] + right * finalOffsets[1] + up * finalOffsets[2];
+
+    const glm::vec3 pos = anchor->origin + angledOffsets;
+
+    hand->origin = pos;
+    hand->model = Mod_ForName("progs/hand.mdl", true);
+    hand->frame = 0;
+    hand->colormap = vid.colormap;
+
+    // TODO VR: hardcoded fist cvar number
+    {
+        const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+        ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
+    }
+
+    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, handRot);
+}
+
+
 /*
 ==================
 V_RenderView
@@ -1206,145 +1310,22 @@ void V_RenderView()
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
             VR_GetRightHipPos(), &cl.right_hip_holster);
 
-        // TODO VR: hack/test
-        {
-            entity_t* anchor = &cl.viewent;
-            if(anchor->model != nullptr)
-            {
-                aliashdr_t* paliashdr =
-                    (aliashdr_t*)Mod_Extradata(anchor->model);
-                lerpdata_t lerpdata;
+        SetupHandViewModel(
+            &cl.viewent, &cl.right_hand, cl.handrot[1], vec3_zero);
 
-                void R_SetupAliasFrame(
-                    aliashdr_t * paliashdr, int frame, lerpdata_t* lerpdata);
-                R_SetupAliasFrame(paliashdr, anchor->frame, &lerpdata);
+        const auto offHandOffsets = VR_GetWpnOffHandOffsets(
+            VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
-                void R_SetupEntityTransform(
-                    entity_t * e, lerpdata_t * lerpdata);
-                R_SetupEntityTransform(anchor, &lerpdata);
-
-                trivertx_t* verts1 =
-                    (trivertx_t*)((byte*)paliashdr + paliashdr->posedata);
-                verts1 += lerpdata.pose1 * paliashdr->poseverts;
-
-                const int wpncvar = VR_GetWpnCVarFromModel(anchor->model);
-                // const auto [ox, oy, oz] = VR_GetWpnOffsets(wpncvar);
-
-                verts1 += std::clamp(
-                    (int)VR_GetWpnCVar(wpncvar, WpnCVar::HandAnchorVertex)
-                        .value,
-                    0, paliashdr->numverts);
-                glm::vec3 vofs{verts1->v[0], verts1->v[2], verts1->v[1]};
-                vofs[0] *= paliashdr->scale[0];
-                vofs[1] *= paliashdr->scale[1];
-                vofs[2] *= paliashdr->scale[2];
-                vofs[0] += paliashdr->scale_origin[0];
-                vofs[1] -= paliashdr->scale_origin[1];
-                vofs[2] += paliashdr->scale_origin[2];
-                vofs += VR_GetWpnHandOffsets(wpncvar);
-
-                const auto [fwd, right, up] =
-                    quake::util::getAngledVectors(cl.handrot[1]);
-
-                glm::vec3 adjvofs =
-                    fwd * vofs[0] + right * vofs[1] + up * vofs[2];
-
-                glm::vec3 pos = anchor->origin + adjvofs;
-
-                // Con_Printf("%.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
-                // Con_Printf("| %.2f, %.2f, %.2f\n", pos.x, pos.y, pos.z);
-
-                entity_t* view = &cl.right_hand;
-
-                // view->angles = cl.handrot[0];
-                view->origin = pos;
-                view->model = Mod_ForName("progs/hand.mdl", true);
-
-                aliashdr_t* viewpaliashdr =
-                    (aliashdr_t*)Mod_Extradata(view->model);
-                ApplyMod_Weapon(16, viewpaliashdr);
-                CalcGunAngle(16, view, cl.handrot[1]);
-
-                view->frame = 0;
-                view->colormap = vid.colormap;
-            }
-        }
+        SetupHandViewModel(
+            &cl.offhand_viewent, &cl.left_hand, cl.handrot[0], offHandOffsets);
 
         // TODO VR: refactor and add lerping, also hand angles?
         // TODO VR: some weird crash here
-
-        // TODO VR: hack/test
-        {
-            entity_t* anchor = &cl.offhand_viewent;
-            if(anchor->model != nullptr)
-            {
-                aliashdr_t* paliashdr =
-                    (aliashdr_t*)Mod_Extradata(anchor->model);
-                lerpdata_t lerpdata;
-
-                void R_SetupAliasFrame(
-                    aliashdr_t * paliashdr, int frame, lerpdata_t* lerpdata);
-                R_SetupAliasFrame(paliashdr, anchor->frame, &lerpdata);
-
-                void R_SetupEntityTransform(
-                    entity_t * e, lerpdata_t * lerpdata);
-                R_SetupEntityTransform(anchor, &lerpdata);
-
-                trivertx_t* verts1 =
-                    (trivertx_t*)((byte*)paliashdr + paliashdr->posedata);
-                verts1 += lerpdata.pose1 * paliashdr->poseverts;
-
-                const int wpncvar = VR_GetWpnCVarFromModel(anchor->model);
-                // const auto [ox, oy, oz] = VR_GetWpnOffsets(wpncvar);
-
-                verts1 += std::clamp(
-                    (int)VR_GetWpnCVar(wpncvar, WpnCVar::HandAnchorVertex)
-                        .value,
-                    0, paliashdr->numverts);
-                glm::vec3 vofs{verts1->v[0], verts1->v[2], verts1->v[1]};
-                vofs[0] *= paliashdr->scale[0];
-                vofs[1] *= paliashdr->scale[1];
-                vofs[2] *= paliashdr->scale[2];
-                vofs[0] += paliashdr->scale_origin[0];
-                vofs[1] -= paliashdr->scale_origin[1];
-                vofs[2] += paliashdr->scale_origin[2];
-                vofs += VR_GetWpnHandOffsets(wpncvar);
-                vofs += VR_GetWpnOffHandOffsets(wpncvar);
-
-                const auto [fwd, right, up] =
-                    quake::util::getAngledVectors(cl.handrot[0]);
-
-                glm::vec3 adjvofs =
-                    fwd * vofs[0] + right * vofs[1] + up * vofs[2];
-
-                glm::vec3 pos = anchor->origin + adjvofs;
-
-                // Con_Printf("%.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
-                // Con_Printf("| %.2f, %.2f, %.2f\n", pos.x, pos.y, pos.z);
-
-                entity_t* view = &cl.left_hand;
-
-                // view->angles = cl.handrot[0];
-                view->origin = pos;
-                view->model = Mod_ForName("progs/hand.mdl", true);
-
-                aliashdr_t* viewpaliashdr =
-                    (aliashdr_t*)Mod_Extradata(view->model);
-                ApplyMod_Weapon(16, viewpaliashdr);
-                CalcGunAngle(16, view, cl.handrot[0]);
-
-                view->frame = 0;
-                view->colormap = vid.colormap;
-            }
-        }
 
         R_RenderView();
     }
 
     // johnfitz -- removed lcd code
-
-
-
     V_PolyBlend(); // johnfitz -- moved here from R_Renderview ();
 }
 

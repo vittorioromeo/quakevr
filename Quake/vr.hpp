@@ -117,10 +117,9 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept;
 
-// TODO VR: remove
+// TODO VR: remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
-[[nodiscard]] float VR_GetScaleCorrect() noexcept;
 
 //
 //
@@ -138,6 +137,15 @@ enum class Wpn2HMode : std::uint8_t
     NoVirtualStock,
 
     // Disallows two-hand aiming.
+    Forbidden,
+};
+
+enum class WpnCrosshairMode : std::uint8_t
+{
+    // Shows crosshair, if enabled.
+    Default,
+
+    // Never shows crosshair. Useful for melee weapons.
     Forbidden,
 };
 
@@ -170,6 +178,7 @@ enum class WpnCVar : std::uint8_t
     OffHandOffsetX = 24,
     OffHandOffsetY = 25,
     OffHandOffsetZ = 26,
+    CrosshairMode = 27,
 
     k_Max
 };
@@ -304,3 +313,6 @@ extern cvar_t vr_wpn_dir_weight_2h_help_mult;
 extern cvar_t vr_offhandpitch;
 extern cvar_t vr_offhandyaw;
 extern cvar_t vr_show_holsters;
+
+// TODO VR:
+extern int vr_hardcoded_wpn_cvar_fist;
