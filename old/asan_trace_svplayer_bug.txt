@@ -1,0 +1,44 @@
+=================================================================
+==29426==ERROR: AddressSanitizer: heap-use-after-free on address 0x7fffca6860a0 at pc 0x5555556078bc bp 0x7fffffffbaf0 sp 0x7fffffffbae0
+READ of size 4 at 0x7fffca6860a0 thread T0
+    #0 0x5555556078bb in VR_GetBodyAnchor(glm::vec<3, float, (glm::qualifier)0> const&) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:1524
+    #1 0x55555560aea0 in VR_GetLeftShoulderHolsterPos() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:1548
+    #2 0x555555641292 in VR_Move(usercmd_t*)::$_4::operator()(glm::vec<3, float, (glm::qualifier)0> const&) const /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:3088
+    #3 0x55555563c83b in VR_Move(usercmd_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:3129
+    #4 0x555555682685 in CL_SendCmd() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/cl_main.cpp:808
+    #5 0x555555745c3c in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:841
+    #6 0x555555745fc0 in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:935
+    #7 0x55555579cdaf in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:224
+    #8 0x7ffff67c3022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)
+    #9 0x5555555eb01d in _start (/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/build/quakespasm-sdl2+0x9701d)
+
+0x7fffca6860a0 is located 2208 bytes inside of 12058624-byte region [0x7fffca685800,0x7fffcb205800)
+freed by thread T0 here:
+    #0 0x7ffff7655720 in __interceptor_free /build/gcc/src/gcc/libsanitizer/asan/asan_malloc_linux.cc:122
+    #1 0x555555745310 in Host_ClearMemory() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:653
+    #2 0x5555558cecec in SV_SpawnServer(char const*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_main.cpp:1820
+    #3 0x55555574b9d2 in Host_Map_f() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host_cmd.cpp:917
+    #4 0x555555697030 in Cmd_ExecuteString(char const*, cmd_source_t) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/cmd.cpp:869
+    #5 0x5555557b3438 in M_MapMenu_KeyOption(int, int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/map_menu.cpp:91
+    #6 0x5555557b33e0 in M_MapMenu_Key(int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/map_menu.cpp:145
+    #7 0x5555557bea1a in M_Keydown(int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/menu.cpp:2949
+    #8 0x55555579c2f0 in Key_Event(int, bool) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/keys.cpp:1133
+    #9 0x5555556593cb in VR_DoInput()::$_18::operator()(int, vr::InputDigitalActionData_t const&) const /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:2990
+    #10 0x555555640cfa in VR_DoInput() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:2995
+    #11 0x55555563c527 in VR_Move(usercmd_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/vr.cpp:3073
+    #12 0x555555682685 in CL_SendCmd() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/cl_main.cpp:808
+    #13 0x555555745c3c in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:841
+    #14 0x555555745fc0 in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:935
+    #15 0x55555579cdaf in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:224
+    #16 0x7ffff67c3022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)
+
+previously allocated by thread T0 here:
+    #0 0x7ffff7655b3a in __interceptor_malloc /build/gcc/src/gcc/libsanitizer/asan/asan_malloc_linux.cc:144
+    #1 0x5555558cef25 in SV_SpawnServer(char const*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_main.cpp:1847
+    #2 0x55555574c3a7 in Host_Restart_f() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host_cmd.cpp:1048
+    #3 0x555555697030 in Cmd_ExecuteString(char const*, cmd_source_t) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/cmd.cpp:869
+    #4 0x555555696eb6 in Cbuf_Execute() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/cmd.cpp:207
+    #5 0x555555745bea in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:834
+    #6 0x555555745fc0 in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:935
+    #7 0x55555579cdaf in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:224
+    #8 0x7ffff67c3022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
+#include "sys.hpp"
 #include "util.hpp"
 #include "quakeglm.hpp"
 
@@ -174,8 +175,8 @@ public:
         return _textures[handle];
     }
 
-    [[nodiscard]] const ImageData& getImageData(
-        const Handle handle) const noexcept
+    [[nodiscard]] const ImageData& getImageData(const Handle handle) const
+        noexcept
     {
         assert(handle < _next);
         return _imageData[handle];
@@ -212,8 +213,8 @@ public:
         return _textureMgr.get(handle);
     }
 
-    [[nodiscard]] const ImageData& getImageData(
-        const Handle handle) const noexcept
+    [[nodiscard]] const ImageData& getImageData(const Handle handle) const
+        noexcept
     {
         return _textureMgr.getImageData(handle);
     }
@@ -419,6 +420,11 @@ static void buildBlobTexture(byte* dst) noexcept
     int height;
     byte* const data = Image_LoadImage(filename, &width, &height);
 
+    if(data == nullptr)
+    {
+        Sys_Error("Could not load image '%s'\n", filename);
+    }
+
     return {data, width, height};
 }
 
@@ -450,7 +456,7 @@ void R_InitParticleTextures()
 
     {
         buildSquareTexture(particle2_data);
-        const ImageData imageData{particle2_data, 64, 64};
+        const ImageData imageData{particle2_data, 2, 2};
         ptxSquare = pMgr.createBuffer(
             makeTextureFromImageData("particle2", imageData), imageData);
     }

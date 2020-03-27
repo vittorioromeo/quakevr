@@ -107,7 +107,7 @@ add_executable(quakespasm-sdl2 "${CMAKE_CURRENT_SOURCE_DIR}/../Quake/vr.cpp" "${
 set_target_properties(quakespasm-sdl2 PROPERTIES LINKER_LANGUAGE CXX)
 
 target_compile_features(quakespasm-sdl2 PUBLIC cxx_std_17)
-target_compile_options(quakespasm-sdl2 PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough)
+target_compile_options(quakespasm-sdl2 PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough -g -fsanitize=address)
 target_compile_definitions(quakespasm-sdl2 PRIVATE USE_SDL2=1 _AMD64_=1)
 
 target_include_directories(
@@ -136,4 +136,4 @@ set(OPENVR_LIBRARIES
     "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
 )
 
-target_link_libraries(quakespasm-sdl2 ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES})
+target_link_libraries(quakespasm-sdl2 asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES})

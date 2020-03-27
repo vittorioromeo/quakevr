@@ -999,8 +999,8 @@ static void VR_InitActionHandles()
 
         if(rc != vr::EVRInputError::VRInputError_None)
         {
-            Con_Printf(
-                "Failed to read Steam VR action set handle, rc = %d", (int)rc);
+            Con_Printf("Failed to read Steam VR action set handle, rc = %d\n",
+                (int)rc);
         }
     }
 
@@ -1012,7 +1012,7 @@ static void VR_InitActionHandles()
         if(rc != vr::EVRInputError::VRInputError_None)
         {
             Con_Printf(
-                "Failed to read Steam VR action handle, rc = %d", (int)rc);
+                "Failed to read Steam VR action handle, rc = %d\n", (int)rc);
         }
     };
 
@@ -1044,7 +1044,7 @@ static void VR_InitActionHandles()
 
         if(rc != vr::EVRInputError::VRInputError_None)
         {
-            Con_Printf("Failed to read Steam VR input source handle, rc = %d",
+            Con_Printf("Failed to read Steam VR input source handle, rc = %d\n",
                 (int)rc);
         }
     };
@@ -1062,8 +1062,10 @@ static void VR_InitActionHandles()
 
 [[nodiscard]] static bool svPlayerActive() noexcept
 {
-    return true;
-    return sv_player != nullptr;
+    // TODO VR: document, this is because of Host_ClearMemory and map change
+    // callback
+    return sv_player != nullptr && sv.active == true && sv.state == ss_active &&
+           cls.signon == SIGNONS;
 }
 
 bool VR_Enable()
@@ -1096,7 +1098,7 @@ bool VR_Enable()
         if(rc != vr::EVRInputError::VRInputError_None)
         {
             Con_Printf(
-                "Failed to read Steam VR action manifest, rc = %d", (int)rc);
+                "Failed to read Steam VR action manifest, rc = %d\n", (int)rc);
         }
         else
         {
@@ -1651,14 +1653,24 @@ static void VR_DoTeleportation()
     vr_was_teleporting = vr_teleporting;
 }
 
+#ifndef WIN32
+// TODO VR: linux hack
+__attribute__((no_sanitize_address))
+#endif
 static void VR_UpdateDevicesOrientationPosition() noexcept
 {
-    // Update poses
-    vr::VRCompositor()->WaitGetPoses(
-        ovr_DevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
-
     controllers[0].active = false;
     controllers[1].active = false;
+
+    // Update poses
+    const auto rc = vr::VRCompositor()->WaitGetPoses(
+        ovr_DevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+
+    if(rc != vr::EVRCompositorError::VRCompositorError_None)
+    {
+        Con_Printf("Failed to wait for Steam VR poses, rc = %d\n", (int)rc);
+        return;
+    }
 
     for(uint32_t iDevice = 0; iDevice < vr::k_unMaxTrackedDeviceCount;
         iDevice++)
@@ -2893,8 +2905,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
         if(rc != vr::EVRInputError::VRInputError_None)
         {
-            Con_Printf(
-                "Failed to read Steam VR analog action data, rc = %d", (int)rc);
+            Con_Printf("Failed to read Steam VR analog action data, rc = %d\n",
+                (int)rc);
         }
 
         return out;
@@ -2911,7 +2923,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             if(rc != vr::EVRInputError::VRInputError_None)
             {
                 Con_Printf(
-                    "Failed to read Steam VR digital action data, rc = %d",
+                    "Failed to read Steam VR digital action data, rc = %d\n",
                     (int)rc);
             }
 

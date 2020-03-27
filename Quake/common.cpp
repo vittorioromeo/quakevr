@@ -1908,29 +1908,30 @@ static int COM_FindFile(
                 {
                     continue;
                 }
+
                 // found it!
                 com_filesize = pak->files[i].filelen;
                 file_from_pak = 1;
+
                 if(path_id)
                 {
                     *path_id = search->path_id;
                 }
+
                 if(handle)
                 {
                     *handle = pak->handle;
                     Sys_FileSeek(pak->handle, pak->files[i].filepos);
                     return com_filesize;
                 }
-                if(file)
 
+                if(file)
                 { /* open a new file on the pakfile */
 
                     *file = fopen(pak->filename, "rb");
 
                     if(*file)
-
                     {
-
                         fseek(*file, pak->files[i].filepos, SEEK_SET);
                     }
 
@@ -1938,25 +1939,16 @@ static int COM_FindFile(
                 }
 
                 else /* for COM_FileExists() */
-
                 {
-
                     return com_filesize;
                 }
             }
         }
         else /* check a file in the directory tree */
         {
-            if(!registered.value)
-            { /* if not a registered version, don't ever go beyond base */
-                if(strchr(filename, '/') || strchr(filename, '\\'))
-                {
-                    continue;
-                }
-            }
-
             q_snprintf(
                 netpath, sizeof(netpath), "%s/%s", search->filename, filename);
+
             findtime = Sys_FileTime(netpath);
             if(findtime == -1)
             {
@@ -1967,27 +1959,22 @@ static int COM_FindFile(
             {
                 *path_id = search->path_id;
             }
+
             if(handle)
             {
                 com_filesize = Sys_FileOpenRead(netpath, &i);
                 *handle = i;
                 return com_filesize;
             }
+
             if(file)
-
             {
-
                 *file = fopen(netpath, "rb");
-
                 com_filesize = (*file == nullptr) ? -1 : COM_filelength(*file);
-
                 return com_filesize;
             }
-
             else
-
             {
-
                 return 0; /* dummy valid value for COM_FileExists() */
             }
         }
@@ -2394,11 +2381,15 @@ _add_path:
     search->next = com_searchpaths;
     com_searchpaths = search;
 
+    // TODO VR: could allow non-contiguous pak numbers here
     // add any pak files in the format pak0.pak pak1.pak, ...
     for(i = 0;; i++)
     {
         q_snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+
+        Con_Printf("Attempting to add pakfile to search paths '%s'\n", pakfile);
         pak = COM_LoadPackFile(pakfile);
+
         if(i != 0 || path_id != 1 || fitzmode)
         {
             qspak = nullptr;
@@ -2414,6 +2405,7 @@ _add_path:
             qspak = COM_LoadPackFile(pakfile);
             com_modified = old;
         }
+
         if(pak)
         {
             search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
@@ -2422,6 +2414,7 @@ _add_path:
             search->next = com_searchpaths;
             com_searchpaths = search;
         }
+
         if(qspak)
         {
             search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
@@ -2430,8 +2423,10 @@ _add_path:
             search->next = com_searchpaths;
             com_searchpaths = search;
         }
+
         if(!pak)
         {
+            Con_Printf("Could not add pakfile to search paths'%s'\n", pakfile);
             break;
         }
     }
@@ -2457,13 +2452,6 @@ static void COM_Game_f()
         const char* p = Cmd_Argv(1);
         const char* p2 = Cmd_Argv(2);
         searchpath_t* search;
-
-        if(!registered.value) // disable shareware quake
-        {
-            Con_Printf(
-                "You must have the registered version to use modified games\n");
-            return;
-        }
 
         if(!*p || !strcmp(p, ".") || strstr(p, "..") || strstr(p, "/") ||
             strstr(p, "\\") || strstr(p, ":"))

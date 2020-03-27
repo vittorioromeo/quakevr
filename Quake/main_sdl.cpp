@@ -116,7 +116,18 @@ int main(int argc, char* argv[])
     // TODO VR: more portable/reliable way of doing this
     assert(argc >= 1);
     vr_working_directory = argv[0];
-    vr_working_directory = vr_working_directory.substr(0, vr_working_directory.find_last_of("\\"));
+
+// TODO VR: linux hack
+#ifdef WIN32
+    vr_working_directory =
+        vr_working_directory.substr(0, vr_working_directory.find_last_of("\\"));
+#else
+    vr_working_directory =
+        "/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/"
+        "VisualStudio/Build-quakespasm-sdl2/x64/Debug";
+    // vr_working_directory.substr(0, vr_working_directory.find_last_of("/"));
+#endif
+
     Sys_Printf("Working directory: '%s'\n", vr_working_directory.c_str());
 
     int t;

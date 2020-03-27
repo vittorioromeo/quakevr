@@ -768,16 +768,11 @@ SV_RecursiveHullCheck
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const glm::vec3& p1, const glm::vec3& p2, trace_t* trace)
 {
-    mclipnode_t* node; // johnfitz -- was dclipnode_t
-    mplane_t* plane;
-    float t1;
-
-    float t2;
-    float frac;
-    int i;
-    glm::vec3 mid;
-    int side;
-    float midf;
+    // TODO VR: solves some crashes on linux
+    if(std::isnan(p1f) || std::isnan(p2f))
+    {
+        return false;
+    }
 
     // check for empty
     if(num < 0)
@@ -809,9 +804,11 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     //
     // find the point distances
     //
-    node = hull->clipnodes + num;
-    plane = hull->planes + node->planenum;
+    mclipnode_t* node = hull->clipnodes + num; // johnfitz -- was dclipnode_t
+    mplane_t* plane = hull->planes + node->planenum;
 
+    float t1;
+    float t2;
     if(plane->type < 3)
     {
         t1 = p1[plane->type] - plane->dist;
@@ -821,6 +818,12 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     {
         t1 = DoublePrecisionDotProduct(plane->normal, p1) - plane->dist;
         t2 = DoublePrecisionDotProduct(plane->normal, p2) - plane->dist;
+    }
+
+    // TODO VR: solves some crashes on linux
+    if(std::isnan(t1) || std::isnan(t2))
+    {
+        return false;
     }
 
 #if 1
@@ -844,6 +847,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
 #endif
 
     // put the crosspoint DIST_EPSILON pixels on the near side
+    float frac;
     if(t1 < 0)
     {
         frac = (t1 + DIST_EPSILON) / (t1 - t2);
@@ -861,13 +865,14 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         frac = 1;
     }
 
-    midf = p1f + (p2f - p1f) * frac;
-    for(i = 0; i < 3; i++)
+    glm::vec3 mid;
+    float midf = p1f + (p2f - p1f) * frac;
+    for(int i = 0; i < 3; i++)
     {
         mid[i] = p1[i] + frac * (p2[i] - p1[i]);
     }
 
-    side = (t1 < 0);
+    int side = (t1 < 0);
 
     // move up to the node
     if(!SV_RecursiveHullCheck(
@@ -926,7 +931,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
             return false;
         }
         midf = p1f + (p2f - p1f) * frac;
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             mid[i] = p1[i] + frac * (p2[i] - p1[i]);
         }
