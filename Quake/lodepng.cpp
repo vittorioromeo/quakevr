@@ -130,7 +130,7 @@ static size_t lodepng_strlen(const char* a)
     const char* orig = a;
     /* avoid warning about unused function in case of disabled COMPILE... macros
      */
-    (void)lodepng_strlen;
+    (void)&lodepng_strlen;
     while(*a) a++;
     return (size_t)(a - orig);
 }
