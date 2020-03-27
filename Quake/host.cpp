@@ -898,8 +898,7 @@ void _Host_Frame(float time)
     }
     else
     {
-        const glm::vec3 origin{ 0.f, 0.f, 0.f };
-        S_Update(origin, origin, origin, origin);
+        S_Update(vec3_zero, vec3_zero, vec3_zero, vec3_zero);
     }
 
     CDAudio_Update();

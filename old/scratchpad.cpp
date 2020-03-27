@@ -682,3 +682,13 @@ float LerpDegrees(float a, float b,
 
     return result;
 }
+
+    template <typename... Ts>
+    [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
+    {
+        constexpr auto maxLen = 26;
+
+        assert(((strlen(labels) <= maxLen) && ...));
+        return std::array{
+            (std::string(maxLen - strlen(labels), ' ') + labels)...};
+    }

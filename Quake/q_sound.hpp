@@ -35,11 +35,11 @@ typedef struct
     int right;
 } portable_samplepair_t;
 
-typedef struct sfx_s
+struct sfx_t
 {
     char name[MAX_QPATH];
     cache_user_t cache;
-} sfx_t;
+};
 
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct

@@ -18,6 +18,7 @@
 #include <tuple>
 #include <type_traits>
 #include <sstream>
+#include <variant>
 
 #if !defined(QUAKE_FORCEINLINE)
 #if defined(_MSC_VER)
@@ -67,16 +68,6 @@ namespace quake::util
 #ifdef WIN32
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
 #endif
-    }
-
-    template <typename... Ts>
-    [[nodiscard]] constexpr auto makeAdjustedMenuLabels(const Ts&... labels)
-    {
-        constexpr auto maxLen = 26;
-
-        assert(((strlen(labels) <= maxLen) && ...));
-        return std::array{
-            (std::string(maxLen - strlen(labels), ' ') + labels)...};
     }
 
     template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
@@ -179,6 +170,28 @@ namespace quake::util
     [[nodiscard]] QUAKE_FORCEINLINE bool hitSomething(const T& trace) noexcept
     {
         return trace.fraction < 1.f;
+    }
+
+    template <typename... Fs>
+    struct overload_set : Fs...
+    {
+        template <typename... FFwds>
+        constexpr overload_set(FFwds&&... fFwds)
+            : Fs{std::forward<FFwds>(fFwds)}...
+        {
+        }
+
+        using Fs::operator()...;
+    };
+
+    template <typename... Fs>
+    overload_set(Fs...) -> overload_set<Fs...>;
+
+    template <typename Variant, typename... Fs>
+    constexpr decltype(auto) match(Variant&& v, Fs&&... fs)
+    {
+        return std::visit(
+            overload_set{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
     }
 } // namespace quake::util
 

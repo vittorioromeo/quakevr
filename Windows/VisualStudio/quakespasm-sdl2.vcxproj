@@ -253,6 +253,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\map_menu.cpp" />
     <ClCompile Include="..\..\Quake\mathlib.cpp" />
     <ClCompile Include="..\..\Quake\menu.cpp" />
+    <ClCompile Include="..\..\Quake\menu_util.cpp" />
     <ClCompile Include="..\..\Quake\net_dgrm.cpp" />
     <ClCompile Include="..\..\Quake\net_loop.cpp" />
     <ClCompile Include="..\..\Quake\net_main.cpp" />
@@ -332,6 +333,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\map_menu.hpp" />
     <ClInclude Include="..\..\Quake\mathlib.hpp" />
     <ClInclude Include="..\..\Quake\menu.hpp" />
+    <ClInclude Include="..\..\Quake\menu_util.hpp" />
     <ClInclude Include="..\..\Quake\modelgen.hpp" />
     <ClInclude Include="..\..\Quake\net.hpp" />
     <ClInclude Include="..\..\Quake\net_defs.hpp" />

@@ -1199,7 +1199,7 @@ void S_LocalSound(const char* name)
         Con_Printf("S_LocalSound: can't cache %s\n", name);
         return;
     }
-    S_StartSound(cl.viewentity, -1, sfx, { 0.f, 0.f, 0.f }, 1, 1);
+    S_StartSound(cl.viewentity, -1, sfx, vec3_zero, 1, 1);
 }
 
 

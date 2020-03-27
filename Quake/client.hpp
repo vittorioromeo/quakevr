@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#ifndef _CLIENT_H_
+#define _CLIENT_H_
+
 #define CSHIFT_CONTENTS 0
 #define CSHIFT_DAMAGE 1
 #define CSHIFT_BONUS 2
@@ -37,10 +40,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
 #define MAX_VISEDICTS 4096       // larger, now we support BSP2
 
-#ifndef _CLIENT_H_
-#define _CLIENT_H_
-
 #include "quakeglm.hpp"
+#include "quakedef.hpp"
 
 // client.h
 
@@ -221,7 +222,7 @@ struct client_state_t
     // information that is static for the entire time connected to a server
     //
     qmodel_t* model_precache[MAX_MODELS];
-    struct sfx_s* sound_precache[MAX_SOUNDS];
+    struct sfx_t* sound_precache[MAX_SOUNDS];
 
     char mapname[128];
     char levelname[128]; // for display on solo scoreboard //johnfitz -- was 40.

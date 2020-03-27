@@ -2,6 +2,7 @@
 #include "map_menu.hpp"
 #include "cmd.hpp"
 #include "util.hpp"
+#include "menu_util.hpp"
 
 #include <string>
 #include <cassert>
@@ -11,8 +12,6 @@
 #include <string_view>
 
 using namespace std::literals;
-
-static std::size_t mapmenu_cursor = 0;
 
 // clang-format off
 static const std::array maps{
@@ -67,135 +66,36 @@ static const std::array maps{
 };
 // clang-format on
 
-static void MapMenu_MenuPlaySound(const char* sound, float fvol)
+[[nodiscard]] static quake::menu make_menu()
 {
-    if(sfx_t* const sfx = S_PrecacheSound(sound))
+    const auto changeMap = [](const int option) {
+        return [option] {
+            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+            Cmd_ExecuteString(va("map %s", maps[option].data()), src_command);
+        };
+    };
+
+    quake::menu m{"Maps", true};
+
+    int idx{0};
+    for(const auto& map : maps)
     {
-        S_StartSound(cl.viewentity, 0, sfx, { 0.f, 0.f, 0.f }, fvol, 1);
+        m.add_action_entry(map, changeMap(idx));
+        ++idx;
     }
+
+    return m;
 }
 
-static void MapMenu_MenuPrintOptionValue(
-    const int cx, const int cy, const int option)
-{
-    (void)cx;
-    (void)cy;
-    (void)option;
-}
-
-static void M_MapMenu_KeyOption(const int key, const int option)
-{
-    (void)key;
-
-    const auto& mapName = maps[option];
-    Cmd_ExecuteString(va("map %s", mapName.data()), src_command);
-}
+static quake::menu g_menu = make_menu();
 
 void M_MapMenu_Key(int key)
 {
-    switch(key)
-    {
-        case K_ESCAPE:
-        {
-            VID_SyncCvars(); // sync cvars before leaving menu. FIXME: there are
-                             // other ways to leave menu
-            S_LocalSound("misc/menu1.wav");
-            M_Menu_Options_f();
-            break;
-        }
-
-        case K_UPARROW:
-        {
-            S_LocalSound("misc/menu1.wav");
-
-            if(mapmenu_cursor == 0)
-            {
-                mapmenu_cursor = maps.size() - 1;
-            }
-            else
-            {
-                --mapmenu_cursor;
-            }
-
-            break;
-        }
-
-        case K_DOWNARROW:
-        {
-            S_LocalSound("misc/menu1.wav");
-            ++mapmenu_cursor;
-            if(mapmenu_cursor >= maps.size())
-            {
-                mapmenu_cursor = 0;
-            }
-            break;
-        }
-
-        case K_LEFTARROW: [[fallthrough]];
-        case K_RIGHTARROW:
-        {
-            S_LocalSound("misc/menu3.wav");
-            M_MapMenu_KeyOption(key, mapmenu_cursor);
-            break;
-        }
-
-        case K_ENTER:
-        {
-            m_entersound = true;
-            M_MapMenu_KeyOption(key, mapmenu_cursor);
-            break;
-        }
-    }
+    g_menu.key(key);
 }
 
 void M_MapMenu_Draw()
 {
-    int y = 4;
-
-    // plaque
-    M_DrawTransPic(16, y, Draw_CachePic("gfx/qplaque.lmp"));
-
-    // customize header
-    qpic_t* p = Draw_CachePic("gfx/ttl_cstm.lmp");
-    M_DrawPic((320 - p->width) / 2, y, p);
-
-    y += 28;
-
-    // title
-    const char* title = "Change Map";
-    M_PrintWhite((320 - 8 * strlen(title)) / 2, y, title);
-
-    y += 16;
-    std::size_t idx = 0;
-
-    for(const std::string_view& label : maps)
-    {
-        M_Print(70 + (120 * (idx / 25)), y, label.data());
-        MapMenu_MenuPrintOptionValue(240, y, idx);
-
-        // draw the blinking cursor
-        if(mapmenu_cursor == idx)
-        {
-            M_DrawCharacter((70 - 15) + (120 * (idx / 25)), y, 12 + ((int)(realtime * 4) & 1));
-        }
-
-        ++idx;
-        y += 8;
-        if(idx % 25 == 0)
-        {
-            y = 32 + 16;
-        }
-    }
+    g_menu.draw();
 }
 
-void M_Menu_MapMenu_f()
-{
-    const char* sound = "items/r_item1.wav";
-
-    IN_Deactivate(modestate == MS_WINDOWED);
-    key_dest = key_menu;
-    m_state = m_map;
-    m_entersound = true;
-
-    MapMenu_MenuPlaySound(sound, 0.5);
-}

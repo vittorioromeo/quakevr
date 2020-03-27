@@ -14,26 +14,26 @@ struct VrAimMode
     enum Enum
     {
         // Head Aiming; View YAW is mouse+head, PITCH is head
-        e_HEAD_MYAW = 1,
+        e_HEAD_MYAW = 0,
 
         // Head Aiming; View YAW and PITCH is mouse+head
-        e_HEAD_MYAW_MPITCH = 2,
+        e_HEAD_MYAW_MPITCH = 1,
 
         // Mouse Aiming; View YAW is mouse+head, PITCH is head
-        e_MOUSE_MYAW = 3,
+        e_MOUSE_MYAW = 2,
 
         // Mouse Aiming; View YAW and PITCH is mouse+head
-        e_MOUSE_MYAW_MPITCH = 4,
+        e_MOUSE_MYAW_MPITCH = 3,
 
         // Blended Aiming; Mouse aims, with YAW decoupled for limited area
-        e_BLENDED = 5,
+        e_BLENDED = 4,
 
         // Blended Aiming; Mouse aims, with YAW decoupled for limited area,
         // pitch decoupled entirely
-        e_BLENDED_NOPITCH = 6,
+        e_BLENDED_NOPITCH = 5,
 
         // Controller Aiming
-        e_CONTROLLER = 7
+        e_CONTROLLER = 6
     };
 };
 
@@ -131,22 +131,22 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
 enum class Wpn2HMode : std::uint8_t
 {
     // Allows two-hand aiming, and supports virtual stock.
-    Default,
+    Default = 0,
 
     // Allows two-hand aiming, ignores virtual stock.
-    NoVirtualStock,
+    NoVirtualStock = 1,
 
     // Disallows two-hand aiming.
-    Forbidden,
+    Forbidden = 2,
 };
 
 enum class WpnCrosshairMode : std::uint8_t
 {
     // Shows crosshair, if enabled.
-    Default,
+    Default = 0,
 
     // Never shows crosshair. Useful for melee weapons.
-    Forbidden,
+    Forbidden = 1,
 };
 
 enum class WpnCVar : std::uint8_t

@@ -1657,7 +1657,8 @@ static void VR_DoTeleportation()
 // TODO VR: linux hack
 __attribute__((no_sanitize_address))
 #endif
-static void VR_UpdateDevicesOrientationPosition() noexcept
+static void
+VR_UpdateDevicesOrientationPosition() noexcept
 {
     controllers[0].active = false;
     controllers[1].active = false;
@@ -2280,6 +2281,9 @@ void VR_ShowVirtualStock()
 
     // TODO VR: separate virtual stock shoulder position from holster, holster
     // should be more back
+
+    // TODO VR: consider toning animation down while aiming 2h, might need a new
+    // weapon cvar and significant work
 
     // TODO VR: implement arbitrary 2H aim
     return glm::distance(hand, holster) < 8.f;

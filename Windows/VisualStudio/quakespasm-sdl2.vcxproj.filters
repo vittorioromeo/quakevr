@@ -264,6 +264,9 @@
     <ClCompile Include="..\..\Quake\vrgameplay_menu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\menu_util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\anorms.hpp">
@@ -489,6 +492,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\quakeglm.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\menu_util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "wpnoffset_menu.hpp"
 #include "sbaroffset_menu.hpp"
 #include "map_menu.hpp"
+#include "menu_util.hpp"
 
 void (*vid_menucmdfn)(); // johnfitz
 void (*vid_menudrawfn)();
@@ -1427,6 +1428,8 @@ void M_Options_Draw()
 
 void M_Options_Key(int k)
 {
+    namespace qmu = ::quake::menu_util;
+
     switch(k)
     {
         case K_ESCAPE:
@@ -1453,12 +1456,15 @@ void M_Options_Key(int k)
                     }
                     break;
                 case OPT_VIDEO: M_Menu_Video_f(); break;
-                case OPT_VR: M_Menu_VR_f(); break;
-                case OPT_VRGAMEPLAY: M_Menu_VRGameplay_f(); break;
-                case OPT_WPN_OFFSET: M_Menu_WpnOffset_f(); break;
-                case OPT_SBAR_OFFSET: M_Menu_SbarOffset_f(); break;
-                case OPT_MAP_MENU: M_Menu_MapMenu_f(); break;
-                case OPT_DEBUG: M_Menu_Debug_f(); break;
+                // -----------------------------------------------------------
+                // VR: New menus.
+                case OPT_VR: qmu::setMenuState(m_vr); break;
+                case OPT_VRGAMEPLAY: qmu::setMenuState(m_vrgameplay); break;
+                case OPT_WPN_OFFSET: qmu::setMenuState(m_wpn_offset); break;
+                case OPT_SBAR_OFFSET: qmu::setMenuState(m_sbar_offset); break;
+                case OPT_MAP_MENU: qmu::setMenuState(m_map); break;
+                case OPT_DEBUG: qmu::setMenuState(m_debug); break;
+                // -----------------------------------------------------------
                 default: M_AdjustSliders(1); break;
             }
             return;
@@ -1504,10 +1510,10 @@ void M_Options_Key(int k)
 
 const char* bindnames[][2] = {{"+attack", "attack"},
     {"impulse 10", "next weapon"}, {"impulse 12", "prev weapon"},
-    {"impulse 13", "cycle off-hand weapons"},
-    {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
-    {"+back", "backpedal"}, {"+left", "turn left"}, {"+right", "turn right"},
-    {"+speed", "run"}, {"+moveleft", "step left"}, {"+moveright", "step right"},
+    {"impulse 13", "cycle off-hand weapons"}, {"+jump", "jump / swim up"},
+    {"+forward", "walk forward"}, {"+back", "backpedal"},
+    {"+left", "turn left"}, {"+right", "turn right"}, {"+speed", "run"},
+    {"+moveleft", "step left"}, {"+moveright", "step right"},
     {"+strafe", "sidestep"}, {"+lookup", "look up"}, {"+lookdown", "look down"},
     {"centerview", "center view"}, {"+mlook", "mouse look"},
     {"+klook", "keyboard look"}, {"+moveup", "swim up"},
@@ -2851,7 +2857,9 @@ void M_Init()
     Cmd_AddCommand("menu_options", M_Menu_Options_f);
     Cmd_AddCommand("menu_keys", M_Menu_Keys_f);
     Cmd_AddCommand("menu_video", M_Menu_Video_f);
-    Cmd_AddCommand("menu_vr", M_Menu_VR_f);
+
+    // TODO VR: cmds for new menu here?
+
     Cmd_AddCommand("help", M_Menu_Help_f);
     Cmd_AddCommand("menu_quit", M_Menu_Quit_f);
 }
@@ -2894,12 +2902,15 @@ void M_Draw()
         case m_options: M_Options_Draw(); break;
         case m_keys: M_Keys_Draw(); break;
         case m_video: M_Video_Draw(); break;
+        // -------------------------------------------------------------------
+        // VR: New menus.
         case m_vr: M_VR_Draw(); break;
         case m_vrgameplay: M_VRGameplay_Draw(); break;
         case m_wpn_offset: M_WpnOffset_Draw(); return;
         case m_sbar_offset: M_SbarOffset_Draw(); return;
         case m_map: M_MapMenu_Draw(); return;
         case m_debug: M_Debug_Draw(); return;
+        // -------------------------------------------------------------------
         case m_help: M_Help_Draw(); break;
         case m_lanconfig: M_LanConfig_Draw(); break;
         case m_gameoptions: M_GameOptions_Draw(); break;
@@ -2942,12 +2953,15 @@ void M_Keydown(int key)
         case m_options: M_Options_Key(key); return;
         case m_keys: M_Keys_Key(key); return;
         case m_video: M_Video_Key(key); return;
+        // -------------------------------------------------------------------
+        // VR: New menus.
         case m_vr: M_VR_Key(key); return;
         case m_vrgameplay: M_VRGameplay_Key(key); return;
         case m_wpn_offset: M_WpnOffset_Key(key); return;
         case m_sbar_offset: M_SbarOffset_Key(key); return;
         case m_map: M_MapMenu_Key(key); return;
         case m_debug: M_Debug_Key(key); return;
+        // -------------------------------------------------------------------
         case m_help: M_Help_Key(key); return;
         case m_quit: M_Quit_Key(key); return;
         case m_lanconfig: M_LanConfig_Key(key); return;
