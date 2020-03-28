@@ -2018,7 +2018,6 @@ void() spike_touch =
     }
 
     remove(self);
-
 };
 
 void() superspike_touch =
@@ -3081,10 +3080,191 @@ float(float xHotspot) isHolsterHotspot =
            xHotspot == 6;
 }
 
+void() axethrow_think =
+{
+    // bprint(ftos(self.angles_z));
+    // bprint("\n");
+
+    if (self.throwhit == TRUE)
+    {
+        if(self.angles_z >= 0)
+        {
+            self.angles_z = self.angles_z - 360;
+        }
+
+        if(self.angles_z < -360)
+        {
+            self.angles_z = self.angles_z + 360;
+        }
+
+        if (self.angles_z >= -360 && self.angles_z < -270)
+        {
+            self.angles_z = self.angles_z + self.throwstabilize;
+            if(self.angles_z > -270)
+            {
+                self.angles_z = -270;
+            }
+        }
+        else if (self.angles_z >= -270 && self.angles_z < -180)
+        {
+            self.angles_z = self.angles_z - self.throwstabilize;
+            if(self.angles_z < -270)
+            {
+                self.angles_z = -270;
+            }
+        }
+        else if (self.angles_z >= -180 && self.angles_z < -90)
+        {
+            self.angles_z = self.angles_z + self.throwstabilize;
+            if(self.angles_z > -90)
+            {
+                self.angles_z = -90;
+            }
+        }
+        else if (self.angles_z >= -90 && self.angles_z < 0)
+        {
+            self.angles_z = self.angles_z - self.throwstabilize;
+            if(self.angles_z < -90)
+            {
+                self.angles_z = -90;
+            }
+        }
+        else
+        {
+            bprint(ftos(self.angles_z));
+            bprint("\n");
+        }
+
+        if (self.throwstabilize > 0)
+        {
+            self.throwstabilize = self.throwstabilize - 0.5;
+        }
+    }
+
+    self.nextthink = time + 0.02;
+}
+
+void() axethrow_touch =
+{
+    local float posDmgType;
+    local float adjDmg;
+    local vector dir;
+
+    if (other == self.owner)
+        return;
+
+    if (other.solid == SOLID_TRIGGER)
+        return;    // trigger field, do nothing
+
+    if (pointcontents(self.origin) == CONTENT_SKY)
+        return;
+
+    // makevectors(self.angles);
+    // traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+
+    // hit something that bleeds
+    if (self.throwhit == FALSE && other.takedamage)
+    {
+        sound (self, CHAN_OTHER, "player/fisthit.wav", 1, ATTN_NORM);
+
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = 20 * PositionalDamageFactor(posDmgType);
+
+        spawn_touchblood (adjDmg);
+        T_Damage (other, self, self.owner, adjDmg);
+
+        self.throwhit = TRUE;
+        return;
+    }
+
+    // hit wall
+    if (self.throwhit == FALSE)
+    {
+        sound (self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
+        setsize (self, '-3.5 -3.5 -3.5', '3.5 3.5 3.5');
+        // self.solid = SOLID_TRIGGER;
+        self.throwhit = TRUE;
+    }
+
+    if (vlen(self.velocity) > 1)
+    {
+        dir = normalize(self.velocity);
+        dir_z = 0;
+
+        traceline (self.origin - dir * 2, self.origin + dir * 8, FALSE, self);
+        if (trace_fraction != 1.0)
+        {
+            setorigin(self, trace_endpos - dir * 8);
+        }
+
+        dir = normalize(self.velocity);
+        dir_x = 0;
+        dir_y = 0;
+
+        traceline (self.origin - dir * 2, self.origin + dir * 2, FALSE, self);
+        if (trace_fraction != 1.0)
+        {
+            setorigin(self, trace_endpos - dir * 2);
+            self.velocity = '0 0 0';
+            self.avelocity = '0 0 0';
+        }
+
+        // bprint(ftos(dir_x));
+        // bprint(", ");
+        // bprint(ftos(dir_y));
+        // bprint(", ");
+        // bprint(ftos(dir_z));
+        // bprint("\n");
+
+       // if (trace_fraction != 1.0)
+       // {
+       //     // bprint("nohit");
+       //     setorigin(self, trace_endpos - dir * 8);
+//
+       //     if ((normalize(self.velocity) * '0 0 1') < -0.5)
+       //     {
+       //         self.velocity_z = 0;
+       //     }
+       // }
+
+        // bprint("dot :");
+        // bprint(ftos(normalize(self.velocity) * '0 0 1'));
+        // bprint("\n");
+    }
+
+    // remove(self);
+};
+
+void() axethrow_handtouch =
+{
+    if(self.handtouch_hand == OFF_HAND &&
+       self.handtouch_ent.offhand_grabbing &&
+       self.handtouch_ent.weapon2 == WID_FIST)
+    {
+        self.handtouch_ent.weapon2 = WID_AXE;
+        remove(self);
+
+        self = self.handtouch_ent;
+        W_SetCurrentAmmo();
+    }
+    else if(self.handtouch_hand == MAIN_HAND &&
+            self.handtouch_ent.mainhand_grabbing &&
+            self.handtouch_ent.weapon == WID_FIST)
+    {
+        self.handtouch_ent.weapon = WID_AXE;
+        remove(self);
+
+        self = self.handtouch_ent;
+        W_SetCurrentAmmo();
+    }
+}
+
 void(float xWeapon, float* xOutWeapon,
      float xGrabbing, float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished, float xOtherGrabbing) DoHandImpl =
 {
+    local float tmp;
+
     if (xWeapon != WID_FIST && !xGrabbing && time >= xAttackFinished)
     {
         if(xHotspot == 0 /* nothing */ ||
@@ -3101,39 +3281,51 @@ void(float xWeapon, float* xOutWeapon,
             {
                 newmis = spawn ();
                 newmis.owner = self;
-                newmis.movetype = MOVETYPE_FLYMISSILE;
-                //newmis.movetype = MOVETYPE_TOSS;
+                // newmis.movetype = MOVETYPE_FLYMISSILE;
+                newmis.movetype = MOVETYPE_TOSS;
                 newmis.solid = SOLID_BBOX;
 
+                newmis.throwhit = FALSE;
+                newmis.throwstabilize = 12;
+
                 // newmis.angles = vectoangles(self.handvel);
-                newmis.angles = self.handrot; // TODO VR: this direction seems wrong sometimes
+
+                newmis.angles = self.handrot;
                 newmis.angles_x = newmis.angles_x * -1;
 
-                newmis.touch = spike_touch;
-                newmis.classname = "spike";
+                newmis.touch = axethrow_touch;
+                newmis.handtouch = axethrow_handtouch;
+
+                newmis.classname = "thrown_weapon";
 
                 // newmis.avelocity = self.handvel * 20;
 
-                 // TODO VR: best one so far:
-                 makevectors(self.handvel);
-                 newmis.avelocity = self.handavel_x * v_forward * 20
-                 + self.handavel_y * v_right * -20
-                 + self.handavel_z * v_up * -20;
+                // TODO VR: best one so far:
+                makevectors(self.handvel);
+                newmis.avelocity = self.handavel_x * v_forward * 30
+                                 + self.handavel_y * v_right * -30
+                                 + self.handavel_z * v_up * -30;
 
+                // makevectors(newmis.angles);
+                // newmis.avelocity = v_right * 200;
+                // tmp = newmis.avelocity_y;
+                // newmis.avelocity_y = newmis.avelocity_z;
+                // newmis.avelocity_z = tmp;
 
-                // newmis.think = SUB_Remove;
+                newmis.think = axethrow_think;
+                newmis.nextthink = time + 0.02;
+
                 // newmis.nextthink = time + 6;
                 setmodel (newmis, "progs/v_axe.mdl");
-                setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+                setsize (newmis, '-1 -1 -1', '1 1 1');
                 setorigin (newmis, self.handpos);
 
                 makevectors(self.handvel);
-                newmis.velocity = self.handvel * 50;
+                newmis.velocity = self.handvel * 100;
             }
 
             *xOutWeapon = WID_FIST;
             W_SetCurrentAmmo();
-
         }
         else if(isHolsterHotspot(xHotspot)) /* [3, 4, 5, 6] holsters */
         {

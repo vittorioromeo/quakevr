@@ -329,8 +329,39 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
             continue;
         }
 
-        const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
-                                  target->v.solid == SOLID_TRIGGER;
+        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
+                                  //target->v.solid == SOLID_TRIGGER;
+
+        if(!canBeTouched ||
+            !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
+                target->v.absmin, target->v.absmax))
+        {
+            continue;
+        }
+
+        if(*listcount == listspace)
+        {
+            return; // should never happen
+        }
+
+        list[*listcount] = target;
+        (*listcount)++;
+    }
+
+    // touch linked edicts
+    for(link_t* l = node->solid_edicts.next; l != &node->solid_edicts;
+        l = next)
+    {
+        next = l->next;
+        edict_t* target = EDICT_FROM_AREA(l);
+
+        if(target == ent)
+        {
+            continue;
+        }
+
+        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
+                                  //target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
@@ -386,8 +417,8 @@ void SV_TouchLinks(edict_t* ent)
     SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
 
     const auto doTouch = [](edict_t* ent, edict_t* target) {
-        const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
-                                  target->v.solid == SOLID_TRIGGER;
+        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
+                                  //target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
@@ -410,6 +441,7 @@ void SV_TouchLinks(edict_t* ent)
 
         if(target->v.handtouch && vr_body_interactions.value)
         {
+            // TODO VR: handtouch_hand and handtouch_ent ?
             PR_ExecuteProgram(target->v.handtouch);
         }
 
@@ -427,7 +459,7 @@ void SV_TouchLinks(edict_t* ent)
         const auto offhandposmax = ent->v.offhandpos + offsets;
 
         const bool canBeHandTouched =
-            target->v.handtouch && target->v.solid == SOLID_TRIGGER;
+            target->v.handtouch ;//&& target->v.solid == SOLID_TRIGGER;
 
         const bool entIntersects = !quake::util::boxIntersection(
             ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);
@@ -463,6 +495,9 @@ void SV_TouchLinks(edict_t* ent)
         {
             ent->v.touchinghand = 1;
         }
+
+        target->v.handtouch_hand = ent->v.touchinghand;
+        target->v.handtouch_ent = EDICT_TO_PROG(ent);
 
         // VR: This is for things like ammo pickups and slipgates.
         PR_ExecuteProgram(target->v.handtouch);
@@ -631,6 +666,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
         }
     }
 
+    // TODO VR: here
     // link it in
     if(ent->v.solid == SOLID_TRIGGER)
     {
@@ -1013,10 +1049,10 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
             continue;
         }
 
-        if(target->v.solid == SOLID_TRIGGER)
-        {
-            Sys_Error("Trigger in clipping list");
-        }
+        // if(target->v.solid == SOLID_TRIGGER)
+        // {
+        //     Sys_Error("Trigger in clipping list");
+        // }
 
         if(clip->type == MOVE_NOMONSTERS && target->v.solid != SOLID_BSP)
         {

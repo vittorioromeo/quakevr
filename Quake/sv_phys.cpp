@@ -363,6 +363,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         if(!vr_enabled.value || vr_body_interactions.value)
         {
+            // TODO VR: handtouch_hand and handtouch_ent ?
             SV_Impact(ent, trace.ent, &entvars_t::handtouch);
         }
 
@@ -514,6 +515,7 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
 
         if(!vr_enabled.value || vr_body_interactions.value)
         {
+            // TODO VR: handtouch_hand and handtouch_ent ?
             SV_Impact(ent, trace.ent, &entvars_t::handtouch);
         }
     }
@@ -1110,6 +1112,8 @@ void SV_Handtouch(edict_t* ent)
             if(quake::util::boxIntersection(aMin, aMax, bMin, bMax))
             {
                 ent->v.touchinghand = hand;
+                trace.ent->v.handtouch_hand = hand;
+                trace.ent->v.handtouch_ent = EDICT_TO_PROG(ent);
                 SV_Impact(ent, trace.ent, &entvars_t::handtouch);
             }
         };

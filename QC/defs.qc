@@ -254,6 +254,10 @@ void        end_sys_globals;        // flag for structure dumping
 .float        mainhand_grabbing;
 .float        offhand_hotspot;
 .float        mainhand_hotspot;
+.float        throwhit;
+.float        throwstabilize;
+.float      handtouch_hand;
+.entity     handtouch_ent;
 
 //================================================
 void        end_sys_fields;            // flag for structure dumping
@@ -442,6 +446,7 @@ float    CHAN_VOICE               = 2;
 float    CHAN_ITEM                = 3;
 float    CHAN_BODY                = 4;
 float    CHAN_WEAPON2             = 5;
+float    CHAN_OTHER               = 6;
 
 float    ATTN_NONE                = 0;
 float    ATTN_NORM                = 1;
