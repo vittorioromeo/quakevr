@@ -556,17 +556,19 @@ void CL_SendMove(const usercmd_t* cmd)
     // viewangles
     writeAngles(cl.viewangles);
 
-    // main hand: handpos, handrot, handvel, handvelmag
+    // main hand: handpos, handrot, handvel, handvelmag, handavel
     writeVec(cmd->handpos);
     writeVec(cmd->handrot);
     writeVec(cmd->handvel);
     MSG_WriteFloat(&buf, cmd->handvelmag);
+    writeVec(cmd->handavel);
 
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
+    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag, offhandavel
     writeVec(cmd->offhandpos);
     writeVec(cmd->offhandrot);
     writeVec(cmd->offhandvel);
     MSG_WriteFloat(&buf, cmd->offhandvelmag);
+    writeVec(cmd->offhandavel);
 
     // muzzlepos
     writeVec(cmd->muzzlepos);

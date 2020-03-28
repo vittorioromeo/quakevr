@@ -184,6 +184,7 @@ struct client_state_t
     glm::vec3 prevhandrot[2];
     glm::vec3 handvel[2];
     float handvelmag[2];
+    glm::vec3 handavel[2];
 
     glm::vec3 mvelocity[2]; // update by server, used for lean+bob
                             // (0 is newest)

@@ -160,11 +160,13 @@ typedef struct
 	vec3_t	handrot;
 	vec3_t	handvel;
 	float	handvelmag;
+	vec3_t	handavel;
 	vec3_t	v_viewangle;
 	vec3_t	offhandpos;
 	vec3_t	offhandrot;
 	vec3_t	offhandvel;
 	float	offhandvelmag;
+	vec3_t	offhandavel;
 	float	touchinghand;
 	vec3_t	muzzlepos;
 	vec3_t	offmuzzlepos;

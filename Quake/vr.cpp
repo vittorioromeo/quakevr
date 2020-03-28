@@ -66,6 +66,7 @@ struct vr_controller
     glm::vec3 position;
     glm::vec3 orientation;
     glm::vec3 velocity;
+    glm::vec3 a_velocity;
     vr::HmdVector3_t rawvector;
     vr::HmdQuaternion_t raworientation;
     bool active{false};
@@ -1476,7 +1477,56 @@ void SetHandPos(int index, entity_t* player)
     // handrot is set with AngleVectorFromRotMat
 
     // handvel
-    cl.handvel[index] = controllers[index].velocity;
+    if(true)
+    {
+        cl.handvel[index] = controllers[index].velocity;
+    }
+
+
+
+    if(false)
+    {
+        cl.handvel[index] =
+            (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
+        const auto [vFwd, vRight, vUp] = getAngledVectors(cl.handrot[index]);
+
+        cl.handvel[index] += glm::cross(controllers[index].a_velocity,
+            (cl.handpos[index] + vUp * 0.1f) - cl.handpos[index]);
+    }
+
+    if(false)
+    {
+        cl.handvel[index] =
+            Vec3RotateZ(cl.handvel[index], vrYaw * M_PI_DIV_180);
+    }
+
+    if(true)
+    {
+        {
+            const auto [vFwd, vRight, vUp] =
+                getAngledVectors(controllers[index].orientation);
+
+            cl.handvel[index] +=
+                glm::cross(controllers[index].a_velocity, vUp * 0.1f);
+        }
+
+        const glm::vec3 playerYawOnly{0, vrYaw, 0};
+        const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+        const auto [ox, oy, oz] = cl.handvel[index];
+
+        cl.handvel[index] = vFwd * -oz + vRight * ox + vUp * oy;
+    }
+
+    if(true)
+    {
+        const glm::vec3 playerYawOnly{0, vrYaw, 0};
+        const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
+        const auto [ox, oy, oz] = controllers[index].a_velocity;
+
+        cl.handavel[index] =
+            controllers[index]
+                .a_velocity; // vFwd * -oz + vRight * ox + vUp * oy;
+    }
 
     // TODO VR: cleanup and fix
     if(vr_wpn_pos_weight.value == 1)
@@ -1734,8 +1784,10 @@ VR_UpdateDevicesOrientationPosition() noexcept
                 ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
             vr::HmdQuaternion_t rawControllerQuat = Matrix34ToQuaternion(
                 ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
-            vr::HmdVector3_t rawControllerVel =
+            const vr::HmdVector3_t& rawControllerVel =
                 ovr_DevicePose[iDevice].vVelocity;
+            const vr::HmdVector3_t& rawControllerAVel =
+                ovr_DevicePose[iDevice].vAngularVelocity;
 
             int controllerIndex = -1;
 
@@ -1774,6 +1826,10 @@ VR_UpdateDevicesOrientationPosition() noexcept
                 controller->velocity[0] = rawControllerVel.v[0];
                 controller->velocity[1] = rawControllerVel.v[1];
                 controller->velocity[2] = rawControllerVel.v[2];
+
+                controller->a_velocity[0] = rawControllerAVel.v[0];
+                controller->a_velocity[1] = rawControllerAVel.v[1];
+                controller->a_velocity[2] = rawControllerAVel.v[2];
 
                 const auto [x, y, z] = QuatToYawPitchRoll(rawControllerQuat);
                 controller->orientation[0] = x;
@@ -1838,6 +1894,8 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     cl.prevhandrot[0] = cl.handrot[0];
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
+
+    Con_Printf("%.2f, %.2f, %.2f\n", cl.handrot[1][0], cl.handrot[1][1], cl.handrot[1][2]);
 }
 
 static bool VR_GoodDistanceFor2HGrab(
@@ -3061,17 +3119,20 @@ void VR_Move(usercmd_t* cmd)
         return;
     }
 
-    // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`.
+    // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`, `handavel`.
     cmd->handpos = cl.handpos[1];
     cmd->handrot = cl.handrot[1];
     cmd->handvel = cl.handvel[1];
     cmd->handvelmag = cl.handvelmag[1];
+    cmd->handavel = cl.handavel[1];
 
-    // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`.
+    // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`,
+    // `offhandavel`.
     cmd->offhandpos = cl.handpos[0];
     cmd->offhandrot = cl.handrot[0];
     cmd->offhandvel = cl.handvel[0];
     cmd->offhandvelmag = cl.handvelmag[0];
+    cmd->offhandavel = cl.handavel[0];
 
     // VR: Weapon muzzle position.
     cmd->muzzlepos = VR_CalcMainHandWpnMuzzlePos();

@@ -234,13 +234,17 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        handpos;
 .vector        handrot;
 .vector        handvel;
-.float        handvelmag;
+.float         handvelmag;
+.vector        handavel;
+
 .vector        v_viewangle;
 
 .vector        offhandpos;
 .vector        offhandrot;
 .vector        offhandvel;
 .float        offhandvelmag;
+.vector        offhandavel;
+
 .float        touchinghand;
 .vector        muzzlepos;
 .vector        offmuzzlepos;

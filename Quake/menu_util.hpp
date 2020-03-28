@@ -127,7 +127,7 @@ namespace quake
 
 
     public:
-        constexpr menu(
+        menu(
             const std::string_view title, bool two_columns = false) noexcept
             : _title{title}, _two_columns{two_columns}
         {

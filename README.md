@@ -26,6 +26,7 @@
 * Grappling hook *(from Dissolution of Eternity)*
 * Positional damage *(headshots)*
 * Dual-wielding
+* Weapon holster system *(hip and shoulders, fully customizable)*
 
 ## Disclaimer
 

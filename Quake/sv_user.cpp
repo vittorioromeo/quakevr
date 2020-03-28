@@ -575,7 +575,8 @@ void SV_ReadClientMove(usercmd_t* move)
     // viewangles
     readAngles(host_client->edict->v.v_viewangle);
 
-    // main hand: handpos, handrot, handvel, handvelmag
+    // ------------------------------------------------------------------------
+    // main hand: handpos, handrot, handvel, handvelmag, handavel
     // handpos
     readVec(move->handpos);
     host_client->edict->v.handpos = move->handpos;
@@ -591,7 +592,13 @@ void SV_ReadClientMove(usercmd_t* move)
     // handvelmag
     host_client->edict->v.handvelmag = move->handvelmag = MSG_ReadFloat();
 
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
+    // handavel
+    readVec(move->handavel);
+    host_client->edict->v.handavel = move->handavel;
+    // ------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------
+    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag, offhandavel
     // offhandpos
     readVec(move->offhandpos);
     host_client->edict->v.offhandpos = move->offhandpos;
@@ -606,6 +613,11 @@ void SV_ReadClientMove(usercmd_t* move)
 
     // offhandvelmag
     host_client->edict->v.offhandvelmag = move->offhandvelmag = MSG_ReadFloat();
+
+    // offhandavel
+    readVec(move->offhandavel);
+    host_client->edict->v.offhandavel = move->offhandavel;
+    // ------------------------------------------------------------------------
 
     // muzzlepos
     readVec(move->muzzlepos);

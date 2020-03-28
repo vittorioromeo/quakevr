@@ -292,10 +292,12 @@ struct usercmd_t
     glm::vec3 handrot;
     glm::vec3 handvel;
     float handvelmag;
+    glm::vec3 handavel;
     glm::vec3 offhandpos;
     glm::vec3 offhandrot;
     glm::vec3 offhandvel;
     float offhandvelmag;
+    glm::vec3 offhandavel;
     glm::vec3 muzzlepos;
     glm::vec3 offmuzzlepos;
 

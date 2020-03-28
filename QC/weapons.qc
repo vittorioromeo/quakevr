@@ -3096,6 +3096,41 @@ void(float xWeapon, float* xOutWeapon,
 
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
+            // TODO VR: throwing axe lol
+            if (xWeapon == WID_AXE)
+            {
+                newmis = spawn ();
+                newmis.owner = self;
+                newmis.movetype = MOVETYPE_FLYMISSILE;
+                //newmis.movetype = MOVETYPE_TOSS;
+                newmis.solid = SOLID_BBOX;
+
+                // newmis.angles = vectoangles(self.handvel);
+                newmis.angles = self.handrot; // TODO VR: this direction seems wrong sometimes
+                newmis.angles_x = newmis.angles_x * -1;
+
+                newmis.touch = spike_touch;
+                newmis.classname = "spike";
+
+                // newmis.avelocity = self.handvel * 20;
+
+                 // TODO VR: best one so far:
+                 makevectors(self.handvel);
+                 newmis.avelocity = self.handavel_x * v_forward * 20
+                 + self.handavel_y * v_right * -20
+                 + self.handavel_z * v_up * -20;
+
+
+                // newmis.think = SUB_Remove;
+                // newmis.nextthink = time + 6;
+                setmodel (newmis, "progs/v_axe.mdl");
+                setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+                setorigin (newmis, self.handpos);
+
+                makevectors(self.handvel);
+                newmis.velocity = self.handvel * 50;
+            }
+
             *xOutWeapon = WID_FIST;
             W_SetCurrentAmmo();
 
@@ -3104,8 +3139,6 @@ void(float xWeapon, float* xOutWeapon,
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
             {
-                // TODO VR: holster data instead of prevweapon
-
                 sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
                 setHolsterWeapon(xHotspot, xWeapon);
