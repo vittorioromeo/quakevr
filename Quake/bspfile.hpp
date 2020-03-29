@@ -396,4 +396,3 @@ extern entity_t entities[MAX_MAP_ENTITIES];
 
 #endif /* QUAKE_GAME */
 #endif /* __BSPFILE_H */
-

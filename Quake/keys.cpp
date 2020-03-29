@@ -1258,7 +1258,7 @@ void Key_UpdateForDest()
                 key_dest = key_console;
                 break;
             }
-        [[fallthrough]];
+            [[fallthrough]];
         default: forced = false; break;
     }
 }

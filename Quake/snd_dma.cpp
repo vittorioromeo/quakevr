@@ -660,7 +660,8 @@ void S_ClearBuffer()
 S_StaticSound
 =================
 */
-void S_StaticSound(sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
+void S_StaticSound(
+    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
 {
     channel_t* ss;
     sfxcache_t* sc;

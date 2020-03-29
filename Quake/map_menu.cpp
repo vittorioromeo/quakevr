@@ -98,4 +98,3 @@ void M_MapMenu_Draw()
 {
     g_menu.draw();
 }
-

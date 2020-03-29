@@ -707,8 +707,7 @@ int LongNoSwap(int l)
 
 float FloatSwap(float f)
 {
-    union
-    {
+    union {
         float f;
         byte b[4];
     } dat1, dat2;
@@ -794,8 +793,7 @@ void MSG_WriteLong(sizebuf_t* sb, int c)
 
 void MSG_WriteFloat(sizebuf_t* sb, float f)
 {
-    union
-    {
+    union {
         float f;
         int l;
     } dat;
@@ -974,8 +972,7 @@ int MSG_ReadLong()
 
 float MSG_ReadFloat()
 {
-    union
-    {
+    union {
         byte b[4];
         float f;
         int l;

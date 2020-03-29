@@ -1059,8 +1059,7 @@ void R_DrawShadows()
             currententity == &cl.offhand_viewent ||
             currententity == &cl.left_hip_holster ||
             currententity == &cl.right_hip_holster ||
-            currententity == &cl.left_hand ||
-            currententity == &cl.right_hand)
+            currententity == &cl.left_hand || currententity == &cl.right_hand)
         {
             // View entities are drawn manually below.
             continue;

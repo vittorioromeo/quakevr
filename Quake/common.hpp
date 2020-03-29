@@ -283,10 +283,10 @@ const char* COM_ParseStringNewline(const char* buffer);
 typedef struct _fshandle_t
 {
     FILE* file;
-    bool pak; /* is the file read from a pak */
-    long start;   /* file or data start position */
-    long length;  /* file or data size */
-    long pos;     /* current position relative to start */
+    bool pak;    /* is the file read from a pak */
+    long start;  /* file or data start position */
+    long length; /* file or data size */
+    long pos;    /* current position relative to start */
 } fshandle_t;
 
 size_t FS_fread(void* ptr, size_t size, size_t nmemb, fshandle_t* fh);

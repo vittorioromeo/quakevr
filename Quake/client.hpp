@@ -32,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NAME_LENGTH 64
 #define SIGNONS 4      // signon messages to receive before connected
 #define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 128   // johnfitz -- was 24
+#define MAX_BEAMS 128  // johnfitz -- was 24
 #define MAX_MAPSTRING 2048
 #define MAX_DEMOS 8
 #define MAX_DEMONAME 16
@@ -240,7 +240,7 @@ struct client_state_t
     entity_t viewent;         // the gun model
     entity_t offhand_viewent; // the offhand gun model
 
-    entity_t left_hip_holster; // TODO VR:
+    entity_t left_hip_holster;  // TODO VR:
     entity_t right_hip_holster; // TODO VR:
 
     // TODO VR:

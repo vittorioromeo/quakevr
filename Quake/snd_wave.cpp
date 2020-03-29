@@ -111,8 +111,7 @@ static int WAV_FindRIFFChunk(FILE* f, const char* chunk)
 WAV_ReadRIFFHeader
 =================
 */
-static bool WAV_ReadRIFFHeader(
-    const char* name, FILE* file, snd_info_t* info)
+static bool WAV_ReadRIFFHeader(const char* name, FILE* file, snd_info_t* info)
 {
     char dump[16];
     int wav_format;

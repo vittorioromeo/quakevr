@@ -344,7 +344,7 @@ void DemoList_Init()
     searchpath_t* search;
     pack_t* pak;
     int i;
-     
+
     // we don't want to list the demos in id1 pakfiles,
     // because these are not "add-on" demos
     q_snprintf(ignorepakdir, sizeof(ignorepakdir), "/%s/", GAMENAME);

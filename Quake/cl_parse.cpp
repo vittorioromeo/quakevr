@@ -829,8 +829,8 @@ void CL_ParseClientdata()
     int j;
     int bits; // johnfitz
 
-    bits = (unsigned int) MSG_ReadLong(); // johnfitz -- read bits here isntead
-                           // of in CL_ParseServerMessage()
+    bits = (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
+                                         // of in CL_ParseServerMessage()
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -1076,7 +1076,8 @@ void CL_ParseClientdata()
             LERP_RESETANIM; // don't lerp animation across model changes
     }
 
-    if(cl.offhand_viewent.model != cl.model_precache[cl.stats[STAT_WEAPONMODEL2]])
+    if(cl.offhand_viewent.model !=
+        cl.model_precache[cl.stats[STAT_WEAPONMODEL2]])
     {
         cl.offhand_viewent.lerpflags |=
             LERP_RESETANIM; // don't lerp animation across model changes

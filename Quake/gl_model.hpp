@@ -93,7 +93,7 @@ typedef struct texture_s
     struct gltexture_s* gltexture;       // johnfitz -- pointer to gltexture
     struct gltexture_s* fullbright;      // johnfitz -- fullbright mask texture
     struct gltexture_s* warpimage;       // johnfitz -- for water animation
-    bool update_warp;                // johnfitz -- update warp this frame
+    bool update_warp;                    // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
@@ -144,10 +144,10 @@ typedef struct glpoly_s
 
 typedef struct msurface_s
 {
-    int visframe;    // should be drawn when node is crossed
-    bool culled; // johnfitz -- for frustum culling
-    glm::vec3 mins;   // johnfitz -- for frustum culling
-    glm::vec3 maxs;   // johnfitz -- for frustum culling
+    int visframe;   // should be drawn when node is crossed
+    bool culled;    // johnfitz -- for frustum culling
+    glm::vec3 mins; // johnfitz -- for frustum culling
+    glm::vec3 maxs; // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;
@@ -175,7 +175,7 @@ typedef struct msurface_s
     int lightmaptexturenum;
     byte styles[MAXLIGHTMAPS];
     int cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
-    bool cached_dlight;         // true if dynamic light in cache
+    bool cached_dlight;             // true if dynamic light in cache
     byte* samples;                  // [numstyles*surfsize]
 } msurface_t;
 
@@ -429,7 +429,7 @@ struct qmodel_t
     char name[MAX_QPATH];
     unsigned int path_id; // path id of the game directory
                           // that this model came from
-    bool needload;    // bmodels and sprites don't cache normally
+    bool needload;        // bmodels and sprites don't cache normally
 
     modtype_t type;
     int numframes;
@@ -517,7 +517,6 @@ struct qmodel_t
     // additional model data
     //
     cache_user_t cache; // only access through Mod_Extradata
-
 };
 
 //============================================================================

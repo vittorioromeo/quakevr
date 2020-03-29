@@ -233,7 +233,7 @@ byte* Image_LoadTGA(FILE* fin, int* width, int* height)
 
     int column;
     byte* targa_rgba;
-    int realrow;          // johnfitz -- fix for upside-down targas
+    int realrow;      // johnfitz -- fix for upside-down targas
     bool upside_down; // johnfitz -- fix for upside-down targas
     stdio_buffer_t* buf;
 

@@ -324,8 +324,8 @@ extern int lightmap_count; // allocated lightmaps
 
 extern int gl_warpimagesize; // johnfitz -- for water warp
 
-extern bool r_drawflat_cheatsafe, r_fullbright_cheatsafe,
-    r_lightmap_cheatsafe, r_drawworld_cheatsafe; // johnfitz
+extern bool r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
+    r_drawworld_cheatsafe; // johnfitz
 
 typedef struct glsl_attrib_binding_s
 {
