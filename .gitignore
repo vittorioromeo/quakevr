@@ -1,4 +1,5 @@
 Windows/build
+.fuse*
 Windows/buildlx
 Debug/id1
 Debug/Id1
