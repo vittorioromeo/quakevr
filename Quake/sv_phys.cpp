@@ -636,7 +636,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
             {
                 continue;
             }
-            if(check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
+            if(check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER ||
+                check->v.solid == SOLID_NOT_BUT_TOUCHABLE)
             { // corpse
                 check->v.mins[0] = check->v.mins[1] = 0;
                 check->v.maxs = check->v.mins;

@@ -138,11 +138,12 @@ typedef struct client_s
 #define MOVETYPE_BOUNCE 10
 
 // edict->solid values
-#define SOLID_NOT 0      // no interaction with other objects
-#define SOLID_TRIGGER 1  // touch on edge, but not blocking
-#define SOLID_BBOX 2     // touch on edge, block
-#define SOLID_SLIDEBOX 3 // touch on edge, but not an onground
-#define SOLID_BSP 4      // bsp clip, touch on edge, block
+#define SOLID_NOT 0               // no interaction with other objects
+#define SOLID_TRIGGER 1           // touch on edge, but not blocking
+#define SOLID_BBOX 2              // touch on edge, block
+#define SOLID_SLIDEBOX 3          // touch on edge, but not an onground
+#define SOLID_BSP 4               // bsp clip, touch on edge, block
+#define SOLID_NOT_BUT_TOUCHABLE 5 // TODO VR: docs
 
 // edict->deadflag values
 #define DEAD_NO 0

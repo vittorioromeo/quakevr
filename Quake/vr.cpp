@@ -1477,12 +1477,12 @@ void SetHandPos(int index, entity_t* player)
     // handrot is set with AngleVectorFromRotMat
 
     // handvel
+    // TODO VR: cleanup this shit, check velmag now that we have cross product,
+    // maybe introduce new throwvel instead
     if(true)
     {
         cl.handvel[index] = controllers[index].velocity;
     }
-
-
 
     if(false)
     {
@@ -1895,16 +1895,17 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     cl.prevhandrot[1] = cl.handrot[1];
     cl.aimangles = cl.handrot[1]; // Sets the shooting angle
 
-   // Con_Printf("rt: %.2f, %.2f, %.2f\n", cl.handrot[1][0], cl.handrot[1][1],
-   //     cl.handrot[1][2]);
-    //Con_Printf("av: %.2f, %.2f, %.2f\n", cl.handavel[1][0], cl.handavel[1][1],
+    // Con_Printf("rt: %.2f, %.2f, %.2f\n", cl.handrot[1][0], cl.handrot[1][1],
+    //     cl.handrot[1][2]);
+    // Con_Printf("av: %.2f, %.2f, %.2f\n", cl.handavel[1][0],
+    // cl.handavel[1][1],
     //    cl.handavel[1][2]);
-//
-    //const auto [f, r, u] = getAngledVectors(cl.handrot[1]);
-//
-    //Con_Printf("rf: %.2f, %.2f, %.2f\n", f[0], f[1], f[2]);
-    //Con_Printf("rr: %.2f, %.2f, %.2f\n", r[0], r[1], r[2]);
-    //Con_Printf("ru: %.2f, %.2f, %.2f\n", u[0], u[1], u[2]);
+    //
+    // const auto [f, r, u] = getAngledVectors(cl.handrot[1]);
+    //
+    // Con_Printf("rf: %.2f, %.2f, %.2f\n", f[0], f[1], f[2]);
+    // Con_Printf("rr: %.2f, %.2f, %.2f\n", r[0], r[1], r[2]);
+    // Con_Printf("ru: %.2f, %.2f, %.2f\n", u[0], u[1], u[2]);
 }
 
 static bool VR_GoodDistanceFor2HGrab(

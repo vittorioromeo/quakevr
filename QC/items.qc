@@ -538,7 +538,10 @@ void() weapon_touch =
     self = other;
 
     if (!deathmatch)
+    {
+        // TODO VR: this should depend on the hand
         self.weapon = ItemIdToWeaponId(newIt);
+    }
     else
         Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
 

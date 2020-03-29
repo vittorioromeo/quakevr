@@ -75,6 +75,7 @@ see if we can steal enemy's weapon
 entity()GremlinFindVictim;
 float() GremlinFindTarget;
 
+// TODO VR: move all these functions to their own file
 float(float wid, float wpnFlags) PlayerHasWeapon =
 {
    if(wid == WID_FIST) return TRUE;
@@ -137,6 +138,63 @@ string(float wid) WeaponIdToModel =
    if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
 
    return "";
+}
+
+float(float wid) WeaponIdToThrowMult =
+{
+   if(wid == WID_AXE)              { return 1; }
+   if(wid == WID_MJOLNIR)          { return 0.7; }
+   if(wid == WID_SHOTGUN)          { return 0.8; }
+   if(wid == WID_SUPER_SHOTGUN)    { return 0.8; }
+   if(wid == WID_NAILGUN)          { return 0.8; }
+   if(wid == WID_SUPER_NAILGUN)    { return 0.4; }
+   if(wid == WID_GRENADE_LAUNCHER) { return 0.6; }
+   if(wid == WID_PROXIMITY_GUN)    { return 0.6; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return 0.4; }
+   if(wid == WID_LIGHTNING)        { return 0.5; }
+   if(wid == WID_LASER_CANNON)     { return 0.2; }
+   if(wid == WID_FIST)             { return 1; }
+   if(wid == WID_GRAPPLE)          { return 1; }
+
+   return 1;
+}
+
+float(float wid) WeaponIdToThrowStabilizeDim =
+{
+   if(wid == WID_AXE)              { return 2; }
+   if(wid == WID_MJOLNIR)          { return 2; }
+   if(wid == WID_SHOTGUN)          { return 0; }
+   if(wid == WID_SUPER_SHOTGUN)    { return 0; }
+   if(wid == WID_NAILGUN)          { return 0; }
+   if(wid == WID_SUPER_NAILGUN)    { return 0; }
+   if(wid == WID_GRENADE_LAUNCHER) { return 0; }
+   if(wid == WID_PROXIMITY_GUN)    { return 0; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return 0; }
+   if(wid == WID_LIGHTNING)        { return 0; }
+   if(wid == WID_LASER_CANNON)     { return 0; }
+   if(wid == WID_FIST)             { return 0; }
+   if(wid == WID_GRAPPLE)          { return 0; }
+
+   return 0;
+}
+
+float(float wid) WeaponIdToThrowBounds =
+{
+   if(wid == WID_AXE)              { return 1; }
+   if(wid == WID_MJOLNIR)          { return 1.1; }
+   if(wid == WID_SHOTGUN)          { return 1.25; }
+   if(wid == WID_SUPER_SHOTGUN)    { return 1.25; }
+   if(wid == WID_NAILGUN)          { return 1.25; }
+   if(wid == WID_SUPER_NAILGUN)    { return 1.5; }
+   if(wid == WID_GRENADE_LAUNCHER) { return 1.5; }
+   if(wid == WID_PROXIMITY_GUN)    { return 1.5; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return 1.7; }
+   if(wid == WID_LIGHTNING)        { return 1.5; }
+   if(wid == WID_LASER_CANNON)     { return 2.2; }
+   if(wid == WID_FIST)             { return 1; }
+   if(wid == WID_GRAPPLE)          { return 1; }
+
+   return 0;
 }
 
 float() GremlinAttemptWeaponSteal =

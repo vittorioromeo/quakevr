@@ -317,66 +317,57 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
 {
     link_t* next;
 
+    // TODO VR: rename this lambda
+    const auto doIt = [&](link_t& edictList) {
+        for(link_t* l = edictList.next; l != &edictList; l = next)
+        {
+            next = l->next;
+            edict_t* target = EDICT_FROM_AREA(l);
+
+            if(target == ent)
+            {
+                continue;
+            }
+
+            const bool canBeTouched =
+                (target->v.touch || target->v.handtouch) &&
+                target->v.solid != SOLID_NOT;
+            // TODO VR: target->v.solid == SOLID_TRIGGER;
+
+            if(!canBeTouched ||
+                !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
+                    target->v.absmin, target->v.absmax))
+            {
+                continue;
+            }
+
+            if(*listcount == listspace)
+            {
+                // TODO VR: should this be an assertion instead?
+                return false; // should never happen
+            }
+
+            list[*listcount] = target;
+            (*listcount)++;
+        }
+
+        return true;
+    };
+
     // touch linked edicts
-    for(link_t* l = node->trigger_edicts.next; l != &node->trigger_edicts;
-        l = next)
+    if(!doIt(node->trigger_edicts))
     {
-        next = l->next;
-        edict_t* target = EDICT_FROM_AREA(l);
-
-        if(target == ent)
-        {
-            continue;
-        }
-
-        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
-                                  //target->v.solid == SOLID_TRIGGER;
-
-        if(!canBeTouched ||
-            !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
-                target->v.absmin, target->v.absmax))
-        {
-            continue;
-        }
-
-        if(*listcount == listspace)
-        {
-            return; // should never happen
-        }
-
-        list[*listcount] = target;
-        (*listcount)++;
+        // TODO VR: this prevents the other one from being ran, but the return
+        // was originally there in quake's source code
+        return;
     }
 
-    // touch linked edicts
-    for(link_t* l = node->solid_edicts.next; l != &node->solid_edicts;
-        l = next)
+    // TODO VR: hack - what is the consequence of adding this loop over solid
+    // edicts? need testing
+    if(!doIt(node->solid_edicts))
     {
-        next = l->next;
-        edict_t* target = EDICT_FROM_AREA(l);
-
-        if(target == ent)
-        {
-            continue;
-        }
-
-        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
-                                  //target->v.solid == SOLID_TRIGGER;
-
-        if(!canBeTouched ||
-            !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
-                target->v.absmin, target->v.absmax))
-        {
-            continue;
-        }
-
-        if(*listcount == listspace)
-        {
-            return; // should never happen
-        }
-
-        list[*listcount] = target;
-        (*listcount)++;
+        // TODO VR: ditto, as above
+        return;
     }
 
     // recurse down both sides
@@ -417,8 +408,10 @@ void SV_TouchLinks(edict_t* ent)
     SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
 
     const auto doTouch = [](edict_t* ent, edict_t* target) {
-        const bool canBeTouched = (target->v.touch || target->v.handtouch);// &&
-                                  //target->v.solid == SOLID_TRIGGER;
+        const bool canBeTouched =
+            (target->v.touch || target->v.handtouch) &&
+            target->v.solid !=
+                SOLID_NOT; // TODO VR: target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
@@ -459,7 +452,7 @@ void SV_TouchLinks(edict_t* ent)
         const auto offhandposmax = ent->v.offhandpos + offsets;
 
         const bool canBeHandTouched =
-            target->v.handtouch ;//&& target->v.solid == SOLID_TRIGGER;
+            target->v.handtouch; //&& target->v.solid == SOLID_TRIGGER;
 
         const bool entIntersects = !quake::util::boxIntersection(
             ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);

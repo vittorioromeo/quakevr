@@ -315,7 +315,7 @@ void CL_ParseTEnt()
             R_ParticleExplosion(pos);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
-            // TODO VR:
+            // TODO VR: unused above ^
             // R_ParticleExplosion2(pos, colorStart, colorLength);
             dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;

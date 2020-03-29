@@ -98,7 +98,7 @@ namespace quake
             const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
             assert(idx >= 0);
-            assert(idx < _entries.size());
+            assert(idx < static_cast<int>(_entries.size()));
             auto& e = _entries[idx];
 
             quake::util::match(
@@ -269,7 +269,7 @@ namespace quake
             constexpr int char_size = 8;
             constexpr int label_padding = 26;
 
-            const auto get_label_x = [this, &idx, &char_size, &label_padding](
+            const auto get_label_x = [this, &idx](
                                          const std::string_view s) {
                 if(_two_columns)
                 {

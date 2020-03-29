@@ -55,7 +55,7 @@ namespace quake::util
     }
 
     template <typename... Ts>
-    void debugPrint(const Ts&... xs)
+    void debugPrint([[maybe_unused]] const Ts&... xs)
     {
 #ifdef WIN32
         OutputDebugStringA(stringCat(xs...).data());
@@ -63,7 +63,8 @@ namespace quake::util
     }
 
     template <typename... Ts>
-    void debugPrintSeparated(const std::string_view separator, const Ts&... xs)
+    void debugPrintSeparated([[maybe_unused]] const std::string_view separator,
+        [[maybe_unused]] const Ts&... xs)
     {
 #ifdef WIN32
         OutputDebugStringA(stringCatSeparated(separator, xs...).data());
@@ -185,7 +186,7 @@ namespace quake::util
     };
 
     template <typename... Fs>
-    overload_set(Fs...) -> overload_set<Fs...>;
+    overload_set(Fs...)->overload_set<Fs...>;
 
     template <typename Variant, typename... Fs>
     constexpr decltype(auto) match(Variant&& v, Fs&&... fs)

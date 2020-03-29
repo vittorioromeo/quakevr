@@ -256,6 +256,7 @@ void        end_sys_globals;        // flag for structure dumping
 .float        mainhand_hotspot;
 .float        throwhit;
 .float        throwstabilize;
+.float        throwstabilizedim;
 .float      handtouch_hand;
 .entity     handtouch_ent;
 
@@ -316,6 +317,7 @@ float    SOLID_TRIGGER            = 1;    // touch on edge, but not blocking
 float    SOLID_BBOX               = 2;    // touch on edge, block
 float    SOLID_SLIDEBOX           = 3;    // touch on edge, but not an onground
 float    SOLID_BSP                = 4;    // bsp clip, touch on edge, block
+float    SOLID_NOT_BUT_TOUCHABLE  = 5;    // TODO VR:
 
 // range values
 float    RANGE_MELEE              = 0;

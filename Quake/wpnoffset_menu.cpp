@@ -89,19 +89,6 @@ static int getIdx()
     o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY);
     o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ);
 
-    const auto enumLabels = [](auto x, auto... xs) {
-        static std::array<const char*, sizeof...(xs)> strs{xs...};
-        return strs[static_cast<int>(x)];
-    };
-
-    const auto twoHModeLabels = [&](const Wpn2HMode x) {
-        return enumLabels(x, "Default", "Ignore Virtual Stock", "Forbidden");
-    };
-
-    const auto crosshairModeLabels = [&](const WpnCrosshairMode x) {
-        return enumLabels(x, "Default", "Forbidden");
-    };
-
     m.add_cvar_getter_enum_entry<Wpn2HMode>(                        //
         "2H Mode",                                                  //
         [] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //

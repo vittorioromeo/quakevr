@@ -24,7 +24,4 @@
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
 #endif
- 

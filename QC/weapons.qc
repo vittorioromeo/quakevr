@@ -75,6 +75,18 @@ vector(float xHand) VRGetHandRot =
     else           return self.handrot;
 }
 
+vector(float xHand) VRGetHandVel =
+{
+    if(xHand == 0) return self.offhandvel;
+    else           return self.handvel;
+}
+
+vector(float xHand) VRGetHandAVel =
+{
+    if(xHand == 0) return self.offhandavel;
+    else           return self.handavel;
+}
+
 float(float xHand) VRMeleeHitSoundPlayed =
 {
     if(xHand == 0) return self.offhand_melee_hit_sound_played;
@@ -3080,71 +3092,90 @@ float(float xHotspot) isHolsterHotspot =
            xHotspot == 6;
 }
 
-void() axethrow_think =
+void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
+{
+    local float angle;
+    angle = xAngle - xOffset;
+
+    if(angle > 0)
+    {
+        *xOutAngle = xOffset + angle - 360;
+    }
+
+    if(angle < -360)
+    {
+        *xOutAngle = xOffset + angle + 360;
+    }
+
+    if (angle >= -360 && angle <= -270)
+    {
+        *xOutAngle = xOffset + angle + self.throwstabilize;
+        if(angle > -270)
+        {
+            *xOutAngle = xOffset + -270;
+        }
+    }
+    else if (angle > -270 && angle <= -180)
+    {
+        *xOutAngle = xOffset + angle - self.throwstabilize;
+        if(angle < -270)
+        {
+            *xOutAngle = xOffset + -270;
+        }
+    }
+    else if (angle > -180 && angle <= -90)
+    {
+        *xOutAngle = xOffset + angle + self.throwstabilize;
+        if(angle > -90)
+        {
+            *xOutAngle = xOffset + -90;
+        }
+    }
+    else if (angle > -90 && angle <= 0)
+    {
+        *xOutAngle = xOffset + angle - self.throwstabilize;
+        if(angle < -90)
+        {
+            *xOutAngle = xOffset + -90;
+        }
+    }
+    else
+    {
+        bprint(ftos(self.angles_z));
+        bprint("\n");
+    }
+
+    if (self.throwstabilize > 0)
+    {
+        self.throwstabilize = self.throwstabilize - 0.5;
+    }
+}
+
+void() wpnthrow_think =
 {
     // bprint(ftos(self.angles_z));
     // bprint("\n");
 
     if (self.throwhit == TRUE)
     {
-        if(self.angles_z >= 0)
+        if(self.throwstabilizedim == 0)
         {
-            self.angles_z = self.angles_z - 360;
+            wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
         }
-
-        if(self.angles_z < -360)
+        else if(self.throwstabilizedim == 1)
         {
-            self.angles_z = self.angles_z + 360;
+            wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
         }
-
-        if (self.angles_z >= -360 && self.angles_z < -270)
+        else if(self.throwstabilizedim == 2)
         {
-            self.angles_z = self.angles_z + self.throwstabilize;
-            if(self.angles_z > -270)
-            {
-                self.angles_z = -270;
-            }
-        }
-        else if (self.angles_z >= -270 && self.angles_z < -180)
-        {
-            self.angles_z = self.angles_z - self.throwstabilize;
-            if(self.angles_z < -270)
-            {
-                self.angles_z = -270;
-            }
-        }
-        else if (self.angles_z >= -180 && self.angles_z < -90)
-        {
-            self.angles_z = self.angles_z + self.throwstabilize;
-            if(self.angles_z > -90)
-            {
-                self.angles_z = -90;
-            }
-        }
-        else if (self.angles_z >= -90 && self.angles_z < 0)
-        {
-            self.angles_z = self.angles_z - self.throwstabilize;
-            if(self.angles_z < -90)
-            {
-                self.angles_z = -90;
-            }
-        }
-        else
-        {
-            bprint(ftos(self.angles_z));
-            bprint("\n");
-        }
-
-        if (self.throwstabilize > 0)
-        {
-            self.throwstabilize = self.throwstabilize - 0.5;
+            wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
         }
     }
 
     self.nextthink = time + 0.02;
 }
 
-void() axethrow_touch =
+void() wpnthrow_touch =
 {
     local float posDmgType;
     local float adjDmg;
@@ -3165,14 +3196,18 @@ void() axethrow_touch =
     // hit something that bleeds
     if (self.throwhit == FALSE && other.takedamage)
     {
-        sound (self, CHAN_OTHER, "player/fisthit.wav", 1, ATTN_NORM);
+        sound (self, CHAN_OTHER, "fisthit.wav", 1, ATTN_NORM);
 
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+
+        // TODO VR: calculate based on mult and velocity
         adjDmg = 20 * PositionalDamageFactor(posDmgType);
 
         spawn_touchblood (adjDmg);
         T_Damage (other, self, self.owner, adjDmg);
 
+        setsize (self, self.mins * 4, self.maxs * 4);
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
         return;
     }
@@ -3181,8 +3216,10 @@ void() axethrow_touch =
     if (self.throwhit == FALSE)
     {
         sound (self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
-        setsize (self, '-3.5 -3.5 -3.5', '3.5 3.5 3.5');
-        // self.solid = SOLID_TRIGGER;
+        particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
+
+        setsize (self, self.mins * 4, self.maxs * 4);
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
     }
 
@@ -3209,39 +3246,17 @@ void() axethrow_touch =
             self.avelocity = '0 0 0';
         }
 
-        // bprint(ftos(dir_x));
-        // bprint(", ");
-        // bprint(ftos(dir_y));
-        // bprint(", ");
-        // bprint(ftos(dir_z));
-        // bprint("\n");
-
-       // if (trace_fraction != 1.0)
-       // {
-       //     // bprint("nohit");
-       //     setorigin(self, trace_endpos - dir * 8);
-//
-       //     if ((normalize(self.velocity) * '0 0 1') < -0.5)
-       //     {
-       //         self.velocity_z = 0;
-       //     }
-       // }
-
-        // bprint("dot :");
-        // bprint(ftos(normalize(self.velocity) * '0 0 1'));
-        // bprint("\n");
     }
-
-    // remove(self);
 };
 
-void() axethrow_handtouch =
+void() wpnthrow_handtouch =
 {
     if(self.handtouch_hand == OFF_HAND &&
        self.handtouch_ent.offhand_grabbing &&
        self.handtouch_ent.weapon2 == WID_FIST)
     {
-        self.handtouch_ent.weapon2 = WID_AXE;
+        sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+        self.handtouch_ent.weapon2 = self.weapon;
         remove(self);
 
         self = self.handtouch_ent;
@@ -3251,7 +3266,8 @@ void() axethrow_handtouch =
             self.handtouch_ent.mainhand_grabbing &&
             self.handtouch_ent.weapon == WID_FIST)
     {
-        self.handtouch_ent.weapon = WID_AXE;
+        sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+        self.handtouch_ent.weapon = self.weapon;
         remove(self);
 
         self = self.handtouch_ent;
@@ -3259,11 +3275,14 @@ void() axethrow_handtouch =
     }
 }
 
-void(float xWeapon, float* xOutWeapon,
+void(float xHand,
+     float xWeapon, float* xOutWeapon,
      float xGrabbing, float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished, float xOtherGrabbing) DoHandImpl =
 {
     local float tmp;
+    local vector tmp_handavel;
+    local vector tmp_bounds;
 
     if (xWeapon != WID_FIST && !xGrabbing && time >= xAttackFinished)
     {
@@ -3277,51 +3296,46 @@ void(float xWeapon, float* xOutWeapon,
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
             // TODO VR: throwing axe lol
-            if (xWeapon == WID_AXE)
+            //if (xWeapon == WID_AXE)
             {
                 newmis = spawn ();
                 newmis.owner = self;
-                // newmis.movetype = MOVETYPE_FLYMISSILE;
                 newmis.movetype = MOVETYPE_TOSS;
                 newmis.solid = SOLID_BBOX;
 
                 newmis.throwhit = FALSE;
                 newmis.throwstabilize = 12;
+                newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
 
-                // newmis.angles = vectoangles(self.handvel);
-
-                newmis.angles = self.handrot;
+                newmis.angles = VRGetHandRot(xHand);
                 newmis.angles_x = newmis.angles_x * -1;
 
-                newmis.touch = axethrow_touch;
-                newmis.handtouch = axethrow_handtouch;
+                newmis.touch = wpnthrow_touch;
+                newmis.handtouch = wpnthrow_handtouch;
 
                 newmis.classname = "thrown_weapon";
 
-                // newmis.avelocity = self.handvel * 20;
+                makevectors(VRGetHandVel(xHand));
+                tmp_handavel = VRGetHandAVel(xHand);
+                newmis.avelocity = tmp_handavel_x * v_forward * 30
+                                 + tmp_handavel_y * v_right * -30
+                                 + tmp_handavel_z * v_up * -30;
 
-                // TODO VR: best one so far:
-                makevectors(self.handvel);
-                newmis.avelocity = self.handavel_x * v_forward * 30
-                                 + self.handavel_y * v_right * -30
-                                 + self.handavel_z * v_up * -30;
-
-                // makevectors(newmis.angles);
-                // newmis.avelocity = v_right * 200;
-                // tmp = newmis.avelocity_y;
-                // newmis.avelocity_y = newmis.avelocity_z;
-                // newmis.avelocity_z = tmp;
-
-                newmis.think = axethrow_think;
+                newmis.think = wpnthrow_think;
                 newmis.nextthink = time + 0.02;
+                newmis.weapon = xWeapon;
 
-                // newmis.nextthink = time + 6;
-                setmodel (newmis, "progs/v_axe.mdl");
-                setsize (newmis, '-1 -1 -1', '1 1 1');
-                setorigin (newmis, self.handpos);
+                tmp = WeaponIdToThrowBounds(xWeapon);
+                tmp_bounds_x = tmp;
+                tmp_bounds_y = tmp;
+                tmp_bounds_z = tmp;
 
-                makevectors(self.handvel);
-                newmis.velocity = self.handvel * 100;
+                setmodel (newmis, WeaponIdToModel(xWeapon));
+                setsize (newmis, -tmp_bounds, tmp_bounds);
+                setorigin (newmis, VRGetHandPos(xHand));
+
+                newmis.velocity = VRGetHandVel(xHand) * 120 * WeaponIdToThrowMult(xWeapon)
+                                + self.velocity;
             }
 
             *xOutWeapon = WID_FIST;
@@ -3390,11 +3404,13 @@ void() W_Frame =
     }
 
     // TODO VR:
-    DoHandImpl(self.weapon2, &self.weapon2,
+    DoHandImpl(OFF_HAND,
+               self.weapon2, &self.weapon2,
                self.offhand_grabbing, self.offhand_attack_finished, self.offhand_hotspot,
                self.weapon, &self.weapon, self.attack_finished, self.mainhand_grabbing);
 
-    DoHandImpl(self.weapon, &self.weapon,
+    DoHandImpl(MAIN_HAND,
+               self.weapon, &self.weapon,
                self.mainhand_grabbing, self.attack_finished, self.mainhand_hotspot,
                self.weapon2, &self.weapon2, self.offhand_attack_finished, self.offhand_grabbing);
 

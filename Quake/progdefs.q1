@@ -178,6 +178,7 @@ typedef struct
     float	mainhand_hotspot;
     float   throwhit;
     float   throwstabilize;
+    float   throwstabilizedim;
     float   handtouch_hand;
     int     handtouch_ent;
 } entvars_t;

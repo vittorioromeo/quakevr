@@ -13,10 +13,6 @@
 extern cvar_t r_particles;
 extern cvar_t r_particle_mult;
 
-static int vr_options_cursor = 0;
-
-
-
 [[nodiscard]] static quake::menu make_menu()
 {
     constexpr float max_turn_speed = 10.0f;
