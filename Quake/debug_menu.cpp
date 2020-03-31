@@ -38,8 +38,6 @@ extern cvar_t skill;
         "Easy", "Normal", "Hard", "Nightmare" //
     );
 
-    m.add_cvar_entry<bool>("Show Virtual Stock", vr_show_virtual_stock);
-    m.add_cvar_entry<bool>("Show Holsters", vr_show_holsters);
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
     m.add_cvar_entry<bool>("Show Shadows", r_shadows);
 

@@ -34,6 +34,7 @@ set(source_list
     "../Quake/gl_warp.cpp"
     "../Quake/host.cpp"
     "../Quake/host_cmd.cpp"
+    "../Quake/hotspot_menu.cpp"
     "../Quake/image.cpp"
     "../Quake/in_sdl.cpp"
     "../Quake/keys.cpp"
@@ -105,6 +106,7 @@ else()
     )
 endif()
 
+
 set_source_files_properties(${source_list} PROPERTIES LANGUAGE CXX )
 
 add_executable(quakespasm-sdl2 "${CMAKE_CURRENT_SOURCE_DIR}/../Quake/vr.cpp" "${source_list}")
@@ -112,7 +114,9 @@ set_target_properties(quakespasm-sdl2 PROPERTIES LINKER_LANGUAGE CXX)
 
 target_compile_features(quakespasm-sdl2 PUBLIC cxx_std_17)
 target_compile_options(quakespasm-sdl2
-    PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough -g)
+    PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough -g
+    -Wno-language-extension-token -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-deprecated-declarations -Wno-microsoft-enum-value # WIN32 only
+)
     # -fsanitize=address)
 target_compile_definitions(quakespasm-sdl2 PRIVATE USE_SDL2=1 _AMD64_=1)
 

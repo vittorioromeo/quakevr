@@ -43,14 +43,7 @@
 
     m.add_cvar_entry<float>(
         "2H Aiming Threshold", vr_2h_angle_threshold, {0.05f, -1.f, 1.f});
-    m.add_cvar_entry<float>("2H Virtual Stock Dist.",
-        vr_2h_virtual_stock_threshold, {1.f, 0.f, 50.f});
-    m.add_cvar_entry<float>(
-        "Shoulder Offset X", vr_shoulder_offset_x, {0.5f, -50.f, 50.f});
-    m.add_cvar_entry<float>(
-        "Shoulder Offset Y", vr_shoulder_offset_y, {0.5f, -50.f, 50.f});
-    m.add_cvar_entry<float>(
-        "Shoulder Offset Z", vr_shoulder_offset_z, {0.5f, -50.f, 50.f});
+
     m.add_cvar_entry<float>("2H Virtual Stock Factor",
         vr_2h_virtual_stock_factor, {0.05f, 0.f, 1.f});
     m.add_cvar_entry<bool>("Weighted Weapon Move", vr_wpn_pos_weight);

@@ -1128,21 +1128,10 @@ void R_RenderScene()
     // TODO VR: package into function
     if(vr_enabled.value)
     {
-        if(vr_crosshair.value)
-        {
-            VR_ShowCrosshair();
-        }
-
-        if(vr_show_virtual_stock.value)
-        {
-            VR_ShowVirtualStock();
-        }
-
-        if(vr_show_holsters.value)
-        {
-            VR_ShowHolsters();
-        }
-
+        VR_ShowCrosshair();
+        VR_ShowVirtualStock();
+        VR_ShowHipHolsters();
+        VR_ShowShoulderHolsters();
         VR_DrawTeleportLine();
     }
 

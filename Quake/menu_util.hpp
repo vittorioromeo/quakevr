@@ -71,14 +71,18 @@ namespace quake
             std::function<void()> _action;
         };
 
+        struct menu_entry_separator
+        {
+        };
+
         using menu_entry = std::variant<        //
             menu_entry_value<bool>,             //
             menu_entry_cvar<float>,             //
             menu_entry_cvar<int>,               //
             menu_entry_cvar<bool>,              //
             menu_entry_value_labeled_cvar<int>, //
-            menu_entry_action                   //
-            >;
+            menu_entry_action,                  //
+            menu_entry_separator>;
     } // namespace impl
 
     class menu
@@ -91,14 +95,20 @@ namespace quake
         // TODO VR: hack for map menu, make this nicer...
         bool _two_columns{false};
 
+        void assert_valid_idx(const int idx)
+        {
+            assert(idx >= 0);
+            assert(idx < static_cast<int>(_entries.size()));
+        }
+
         void key_option(const int key, const int idx)
         {
             const bool isLeft = (key == K_LEFTARROW);
             const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
             const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
 
-            assert(idx >= 0);
-            assert(idx < static_cast<int>(_entries.size()));
+            assert_valid_idx(idx);
+
             auto& e = _entries[idx];
 
             quake::util::match(
@@ -122,7 +132,15 @@ namespace quake
                     const auto& [inc, min, max] = x._bounds;
                     adjustI(*(x._cvar_getter()), inc, min, max);
                 },
-                [&](const impl::menu_entry_action& x) { x._action(); });
+                [&](const impl::menu_entry_action& x) { x._action(); },
+                [&](const impl::menu_entry_separator&) {});
+        }
+
+        [[nodiscard]] bool entry_is_selectable_at(const int idx)
+        {
+            assert_valid_idx(idx);
+            return !std::holds_alternative<impl::menu_entry_separator>(
+                _entries[idx]);
         }
 
 
@@ -190,6 +208,11 @@ namespace quake
             return std::get<impl::menu_entry_action>(v);
         }
 
+        void add_separator()
+        {
+            _entries.emplace_back(impl::menu_entry_separator{});
+        }
+
         void key(const int key)
         {
             switch(key)
@@ -207,10 +230,19 @@ namespace quake
                 {
                     S_LocalSound("misc/menu1.wav");
 
-                    _cursor_idx--;
+                    do
+                    {
+                        --_cursor_idx;
+                    } while(!entry_is_selectable_at(_cursor_idx));
+
                     if(_cursor_idx < 0)
                     {
                         _cursor_idx = static_cast<int>(_entries.size() - 1);
+
+                        while(!entry_is_selectable_at(_cursor_idx))
+                        {
+                            --_cursor_idx;
+                        }
                     }
 
                     break;
@@ -220,10 +252,19 @@ namespace quake
                 {
                     S_LocalSound("misc/menu1.wav");
 
-                    _cursor_idx++;
+                    do
+                    {
+                        ++_cursor_idx;
+                    } while(!entry_is_selectable_at(_cursor_idx));
+
                     if(_cursor_idx >= static_cast<int>(_entries.size()))
                     {
                         _cursor_idx = 0;
+
+                        while(!entry_is_selectable_at(_cursor_idx))
+                        {
+                            ++_cursor_idx;
+                        }
                     }
 
                     break;
@@ -344,7 +385,8 @@ namespace quake
                         {
                             print_as_str("(X)");
                         }
-                    });
+                    },
+                    [&](const impl::menu_entry_separator&) {});
 
                 if(_cursor_idx == idx)
                 {

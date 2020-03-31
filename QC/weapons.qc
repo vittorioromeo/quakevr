@@ -3251,6 +3251,10 @@ void() wpnthrow_touch =
 
 void() wpnthrow_handtouch =
 {
+    // bprint("handtouch: ");
+    // bprint(ftos(self.handtouch_hand));
+    // bprint("\n");
+
     if(self.handtouch_hand == OFF_HAND &&
        self.handtouch_ent.offhand_grabbing &&
        self.handtouch_ent.weapon2 == WID_FIST)
@@ -3447,3 +3451,16 @@ void() SuperDamageSound =
     }
     return;
 };
+
+
+// TODO VR: stop switching weapons automatically, it makes no sense anymore.
+// Also dont automatically switch a weapon if ammo is out, player might want to
+// melee or throw it away. Consider spawning previously obtained weapons along
+// side ammo boxes or from enemies, so that they can be recovered if player
+// throws them away.
+
+// TODO VR: remove backpack spinning animation. Consider limiting weapons to
+// 6 (4 holsters + hands) to balance gameplay and dual wielding.
+
+// TODO VR: not sure why weapons cannot be juggled. too small size? problems
+// with handtouch?

@@ -190,10 +190,13 @@ bool vr_send_teleport_msg{false};
 glm::vec3 vr_teleporting_impact{vec3_zero};
 bool vr_left_grabbing{false};
 bool vr_right_grabbing{false};
+
+// TODO VR: should these be per-gun arrays?
 bool vr_gun_colliding_with_wall{false};
 bool vr_gun_colliding_with_wall_normals[3];
-float vr_2h_aim_transition{0.f};
-float vr_2h_aim_stock_transition{0.f};
+
+float vr_2h_aim_transition[2]{0.f, 0.f};
+float vr_2h_aim_stock_transition[2]{0.f, 0.f};
 bool gotLastPlayerOrigin{false};
 glm::vec3 lastPlayerOrigin;
 float lastPlayerYaw{};
@@ -278,7 +281,7 @@ DEFINE_CVAR(vr_teleport_enabled, 1, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_teleport_range, 400, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_mode, 2, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_2h_angle_threshold, 0.65, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_2h_virtual_stock_threshold, 10, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_virtual_stock_thresh, 10, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_show_virtual_stock, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_offset_x, -1.5, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_offset_y, 1.75, CVAR_ARCHIVE);
@@ -296,7 +299,16 @@ DEFINE_CVAR(vr_wpn_dir_weight_2h_help_offset, 0.3, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandpitch, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandyaw, 0.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_show_holsters, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_hip_holsters, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_shoulder_holsters, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_hip_offset_x, -1.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_hip_offset_y, 7.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_hip_offset_z, 4.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_hip_holster_thresh, 6.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_holster_thresh, 8.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_holster_offset_x, 5.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_holster_offset_y, 1.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_holster_offset_z, 0.0, CVAR_ARCHIVE);
 
 //
 //
@@ -638,6 +650,18 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
     hdr->scale_origin *= scaleCorrect;
 }
 
+void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target)
+{
+    player->v.touchinghand = hand;
+    target->v.handtouch_hand = hand;
+    target->v.handtouch_ent = EDICT_TO_PROG(player);
+}
+
+void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target)
+{
+    VR_SetHandtouchParams(1, player, target);
+}
+
 [[nodiscard]] int VR_GetWpnCVarFromModelName(const char* name)
 {
     for(int i = 0; i < e_MAX_WEAPONS; i++)
@@ -708,6 +732,17 @@ char* CopyWithNumeral(const char* str, int i)
     // TODO VR: hardcoded hand/fist cvar number
     static int entry = vr_hardcoded_wpn_cvar_fist;
     return entry;
+}
+
+[[nodiscard]] int& VR_GetWpnCvarEntry(const int hand) noexcept
+{
+    if(hand == cVR_OffHand)
+    {
+        return VR_GetOffHandWpnCvarEntry();
+    }
+
+    assert(hand == cVR_MainHand);
+    return VR_GetMainHandWpnCvarEntry();
 }
 
 [[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept
@@ -784,6 +819,7 @@ char* CopyWithNumeral(const char* str, int i)
 
 [[nodiscard]] float VR_GetWpnLength(const int cvarEntry) noexcept
 {
+    // TODO VR: unused
     return VR_GetWpnCVarValue(cvarEntry, WpnCVar::Length);
 }
 
@@ -1304,8 +1340,8 @@ template <auto TFactorFn>
     // TODO: use cvar for left hand as well?
     return (handIndex == 0 && !vr_should_aim_2h)
                ? (*TFactorFn)(VR_GetOffHandWpnCvarEntry(), 0.f)
-               : (*TFactorFn)(
-                     VR_GetMainHandWpnCvarEntry(), vr_2h_aim_transition);
+               : (*TFactorFn)(VR_GetMainHandWpnCvarEntry(),
+                     vr_2h_aim_transition[handIndex]);
 }
 
 template <auto TFactorFn>
@@ -1581,46 +1617,92 @@ void SetHandPos(int index, entity_t* player)
            vUp * vr_height_calibration.value * oz;
 }
 
+// Relative to player.
+[[nodiscard]] static glm::vec3 VR_GetShoulderOffsets() noexcept
+{
+    return {
+        vr_shoulder_offset_x.value, //
+        vr_shoulder_offset_y.value, //
+        vr_shoulder_offset_z.value  //
+    };
+}
+
+// Relative to shoulder offset.
+[[nodiscard]] static glm::vec3 VR_GetShoulderHolsterOffsets() noexcept
+{
+    return {
+        vr_shoulder_holster_offset_x.value, //
+        vr_shoulder_holster_offset_y.value, //
+        vr_shoulder_holster_offset_z.value  //
+    };
+}
+
+// Relative to player.
+[[nodiscard]] static glm::vec3 VR_GetHipOffsets() noexcept
+{
+    return {
+        vr_hip_offset_x.value, //
+        vr_hip_offset_y.value, //
+        vr_hip_offset_z.value  //
+    };
+}
+
+[[nodiscard]] static glm::vec3 VR_NegateY(glm::vec3 v) noexcept
+{
+    v.y = -v.y;
+    return v;
+}
+
 
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderStockPos() noexcept
 {
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
-        -vr_shoulder_offset_y.value, vr_shoulder_offset_z.value});
+    return VR_GetBodyAnchor(VR_NegateY(VR_GetShoulderOffsets()));
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightShoulderStockPos() noexcept
 {
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
-        vr_shoulder_offset_y.value, vr_shoulder_offset_z.value});
+    return VR_GetBodyAnchor(VR_GetShoulderOffsets());
+}
+
+[[nodiscard]] glm::vec3 VR_GetShoulderStockPos(
+    const int holdingHand, const int helpingHand) noexcept
+{
+    (void)helpingHand;
+
+    if(holdingHand == cVR_OffHand)
+    {
+        return VR_GetLeftShoulderStockPos();
+    }
+
+    assert(holdingHand == cVR_MainHand);
+    return VR_GetRightShoulderStockPos();
 }
 
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderHolsterPos() noexcept
 {
-    // TODO VR: cvars
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value,
-        -(vr_shoulder_offset_y.value + 1.5f), vr_shoulder_offset_z.value});
+    const auto shoulderPos = VR_NegateY(VR_GetShoulderOffsets());
+    const auto holsterOff = VR_NegateY(VR_GetShoulderHolsterOffsets());
+
+    return VR_GetBodyAnchor(shoulderPos + holsterOff);
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightShoulderHolsterPos() noexcept
 {
-    // TODO VR: cvars
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value - 5.f,
-        vr_shoulder_offset_y.value + 1.5f, vr_shoulder_offset_z.value});
+    const auto shoulderPos = VR_GetShoulderOffsets();
+    const auto holsterOff = VR_GetShoulderHolsterOffsets();
+
+    return VR_GetBodyAnchor(shoulderPos + holsterOff);
 }
 
 [[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept
 {
-    // TODO VR: cvars
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value, -7.f, 4.5f});
+    return VR_GetBodyAnchor(VR_NegateY(VR_GetHipOffsets()));
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept
 {
-    // TODO VR: cvars
-    return VR_GetBodyAnchor({vr_shoulder_offset_x.value, 7.f, 4.5f});
+    return VR_GetBodyAnchor(VR_GetHipOffsets());
 }
-
-
 
 [[nodiscard]] static glm::vec3 VR_Get2HVirtualStockMix(
     const glm::vec3& viaHand, const glm::vec3& viaShoulder) noexcept
@@ -1628,25 +1710,33 @@ void SetHandPos(int index, entity_t* player)
     return glm::mix(viaHand, viaShoulder, vr_2h_virtual_stock_factor.value);
 }
 
-[[nodiscard]] static glm::vec3 VR_Get2HMainHandPos() noexcept
+[[nodiscard]] static glm::vec3 VR_Get2HHoldingHandPos(
+    const int holdingHand, const int helpingHand) noexcept
 {
-    return cl.handpos[1];
+    (void)helpingHand;
+    return cl.handpos[holdingHand];
 }
 
-[[nodiscard]] static glm::vec3 VR_Get2HOffHandPos() noexcept
+[[nodiscard]] static glm::vec3 VR_Get2HHelpingHandPos(
+    const int holdingHand, const int helpingHand) noexcept
 {
     const auto [thox, thoy, thoz] =
-        VR_GetWpn2HOffsets(VR_GetMainHandWpnCvarEntry());
-    const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
+        VR_GetWpn2HOffsets(VR_GetWpnCvarEntry(holdingHand));
 
-    return cl.handpos[0] + forward * thox + right * thoy + up * thoz;
+    const auto [forward, right, up] = getAngledVectors(cl.handrot[holdingHand]);
+
+    // TODO VR: maybe add off hand offset here if holding hand is offhand? test?
+    return cl.handpos[helpingHand] + forward * thox + right * thoy + up * thoz;
 }
 
-[[nodiscard]] static bool VR_InStockDistance(
-    const glm::vec3& shoulderPos) noexcept
+[[nodiscard]] static bool VR_InStockDistance(const int holdingHand,
+    const int helpingHand, const glm::vec3& shoulderPos) noexcept
 {
-    return glm::length(cl.handpos[1] - shoulderPos) <
-           vr_2h_virtual_stock_threshold.value;
+    (void)helpingHand;
+
+    // TODO VR: 2H change hands
+    return glm::distance(shoulderPos, cl.handpos[holdingHand]) <
+           vr_virtual_stock_thresh.value;
 }
 
 static void VR_DoTeleportation()
@@ -1665,8 +1755,10 @@ static void VR_DoTeleportation()
         const glm::vec3 mins{-oh, -oh, -oy};
         const glm::vec3 maxs{oh, oh, oy};
 
-        const auto [forward, right, up] = getAngledVectors(cl.handrot[0]);
-        const auto target = cl.handpos[0] + vr_teleport_range.value * forward;
+        const auto [forward, right, up] =
+            getAngledVectors(cl.handrot[cVR_OffHand]);
+        const auto target =
+            cl.handpos[cVR_OffHand] + vr_teleport_range.value * forward;
 
         const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
 
@@ -1840,6 +1932,9 @@ VR_UpdateDevicesOrientationPosition() noexcept
     }
 }
 
+// TODO VR: bug at beginning of level, weapon gets dropped and disappears...?
+// probably hand location is fucked, put them where the player spawns
+
 static void VR_DoWeaponDirSlerp()
 {
     if(vr_wpn_dir_weight.value != 1)
@@ -1891,44 +1986,49 @@ static void VR_DoWeaponDirSlerp()
 static void VR_DoUpdatePrevAnglesAndPlayerYaw()
 {
     lastPlayerYaw = sv_player->v.v_viewangle[YAW];
-    cl.prevhandrot[0] = cl.handrot[0];
-    cl.prevhandrot[1] = cl.handrot[1];
-    cl.aimangles = cl.handrot[1]; // Sets the shooting angle
+    cl.prevhandrot[cVR_OffHand] = cl.handrot[cVR_OffHand];
+    cl.prevhandrot[cVR_MainHand] = cl.handrot[cVR_MainHand];
+    cl.aimangles = cl.handrot[cVR_MainHand]; // Sets the shooting angle
 
-    // Con_Printf("rt: %.2f, %.2f, %.2f\n", cl.handrot[1][0], cl.handrot[1][1],
-    //     cl.handrot[1][2]);
+    // Con_Printf("rt: %.2f, %.2f, %.2f\n", cl.handrot[cVR_MainHand][0],
+    // cl.handrot[cVR_MainHand][1],
+    //     cl.handrot[cVR_MainHand][2]);
     // Con_Printf("av: %.2f, %.2f, %.2f\n", cl.handavel[1][0],
     // cl.handavel[1][1],
     //    cl.handavel[1][2]);
     //
-    // const auto [f, r, u] = getAngledVectors(cl.handrot[1]);
+    // const auto [f, r, u] = getAngledVectors(cl.handrot[cVR_MainHand]);
     //
     // Con_Printf("rf: %.2f, %.2f, %.2f\n", f[0], f[1], f[2]);
     // Con_Printf("rr: %.2f, %.2f, %.2f\n", r[0], r[1], r[2]);
     // Con_Printf("ru: %.2f, %.2f, %.2f\n", u[0], u[1], u[2]);
 }
 
-static bool VR_GoodDistanceFor2HGrab(
-    const glm::vec3& wieldingHand, const glm::vec3& helpingHand)
+static bool VR_GoodDistanceFor2HGrabImpl(
+    const glm::vec3& holdingHandPos, const glm::vec3& helpingHandPos)
 {
-    const auto handDiff = helpingHand - wieldingHand;
-
-    const bool goodDistance =
-        glm::length(handDiff) > 5.f && glm::length(handDiff) < 25.f;
+    const auto handDist = glm::distance(holdingHandPos, helpingHandPos);
+    const bool goodDistance = handDist > 5.f && handDist < 25.f;
 
     return goodDistance;
 }
 
-static bool VR_GoodDistanceForOffHand2HGrab()
+static bool VR_GoodDistanceFor2HGrab(
+    const int holdingHand, const int helpingHand)
 {
-    return VR_GoodDistanceFor2HGrab(
-        VR_Get2HMainHandPos(), VR_Get2HOffHandPos());
+    return VR_GoodDistanceFor2HGrabImpl(
+        VR_Get2HHoldingHandPos(holdingHand, helpingHand),
+        VR_Get2HHelpingHandPos(holdingHand, helpingHand));
 }
 
-// TODO VR: implement
 static bool VR_GoodDistanceForMainHand2HGrab()
 {
-    return false;
+    return VR_GoodDistanceFor2HGrab(cVR_MainHand, cVR_OffHand);
+}
+
+static bool VR_GoodDistanceForOffHand2HGrab()
+{
+    return VR_GoodDistanceFor2HGrab(cVR_OffHand, cVR_MainHand);
 }
 
 static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
@@ -1936,12 +2036,90 @@ static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
     return glm::distance(a, b) < 5.f;
 }
 
+static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
+    const glm::vec3 (&originalRots)[2], const int holdingHand,
+    const int helpingHand, const glm::vec3& shoulderStockPos)
+{
+    const auto helpingHandPos =
+        VR_Get2HHelpingHandPos(holdingHand, helpingHand);
+
+    const auto holdingHandPos =
+        VR_Get2HHoldingHandPos(holdingHand, helpingHand);
+
+    const auto handDiff = helpingHandPos - holdingHandPos;
+    const auto handDir = safeNormalize(handDiff);
+
+    const auto shoulderDiff = helpingHandPos - shoulderStockPos;
+
+    const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
+    const auto averageDir = safeNormalize(averageDiff);
+
+    const auto [origDir, right, up] =
+        getAngledVectors(originalRots[holdingHand]);
+
+    const auto diffDot = glm::dot(handDir, origDir);
+
+    const bool goodDistance =
+        VR_GoodDistanceFor2HGrab(holdingHand, helpingHand);
+
+    const float frametime = cl.time - cl.oldtime;
+
+    const auto transitionVar = [&frametime](float& var, const bool predicate,
+                                   const float speed) {
+        var += frametime * (predicate ? speed : -speed);
+        var = std::clamp(var, 0.f, 1.f);
+    };
+
+    const auto wpn2HMode = VR_GetWpn2HMode(VR_GetWpnCvarEntry(holdingHand));
+    const bool useStock =
+        VR_InStockDistance(holdingHand, helpingHand, shoulderStockPos) &&
+        vr2HMode == Vr2HMode::VirtualStock &&
+        wpn2HMode != Wpn2HMode::NoVirtualStock;
+
+    transitionVar(vr_2h_aim_stock_transition[holdingHand], useStock, 5.f);
+
+    const bool helpingHandGrabbing =
+        helpingHand == cVR_OffHand ? vr_left_grabbing : vr_right_grabbing;
+
+    const auto helpingHandWpnEntVar =
+        helpingHand == cVR_OffHand ? &entvars_t::weapon2 : &entvars_t::weapon;
+
+    const bool helpingHandIsFist =
+        (svPlayerActive() && sv_player->v.*helpingHandWpnEntVar == WID_FIST);
+
+    const bool canGrabWith2H = helpingHandGrabbing &&
+                               wpn2HMode != Wpn2HMode::Forbidden &&
+                               !vr_gun_colliding_with_wall && helpingHandIsFist;
+
+    vr_should_aim_2h =
+        canGrabWith2H && goodDistance && diffDot > vr_2h_angle_threshold.value;
+
+    transitionVar(vr_2h_aim_transition[holdingHand], vr_should_aim_2h, 5.f);
+
+    const auto mixStockDir =
+        glm::mix(handDir, averageDir, vr_2h_aim_stock_transition[holdingHand]);
+
+    const auto mixDir =
+        glm::mix(origDir, mixStockDir, vr_2h_aim_transition[holdingHand]);
+
+    const auto [pitch, yaw, roll] = pitchYawRollFromDirectionVector(up, mixDir);
+
+    const auto [oP, oY, oR] =
+        VR_GetWpn2HAngleOffsets(VR_GetWpnCvarEntry(holdingHand));
+
+    cl.handrot[holdingHand][PITCH] =
+        pitch + oP * vr_2h_aim_transition[holdingHand];
+    cl.handrot[holdingHand][YAW] = yaw + oY * vr_2h_aim_transition[holdingHand];
+    cl.handrot[holdingHand][ROLL] =
+        roll + oR * vr_2h_aim_transition[holdingHand];
+}
+
 static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 {
     const auto vr2HMode =
         static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
 
-    if(vr2HMode == Vr2HMode::Disabled)
+    if(vr2HMode == Vr2HMode::Disabled || !svPlayerActive())
     {
         return;
     }
@@ -1954,62 +2132,14 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
         return;
     }
 
-    // TODO VR: ghost hands
-    const auto offHandPos = VR_Get2HOffHandPos();
+    VR_Do2HAimingImpl(vr2HMode, originalRots, cVR_MainHand, cVR_OffHand,
+        VR_GetRightShoulderStockPos());
 
-    const auto handDiff = offHandPos - VR_Get2HMainHandPos();
-    const auto handDir = safeNormalize(handDiff);
+    VR_Do2HAimingImpl(vr2HMode, originalRots, cVR_OffHand, cVR_MainHand,
+        VR_GetLeftShoulderStockPos());
 
-    const auto shoulderPos = VR_GetRightShoulderStockPos();
-    const auto shoulderDiff = offHandPos - shoulderPos;
+    // TODO VR: consider adding ghost hands
 
-    const auto averageDiff = VR_Get2HVirtualStockMix(handDiff, shoulderDiff);
-    const auto averageDir = safeNormalize(averageDiff);
-
-    const auto [origDir, right, up] = getAngledVectors(originalRots[1]);
-
-    const auto diffDot = glm::dot(handDir, origDir);
-
-    const bool goodDistance = VR_GoodDistanceForOffHand2HGrab();
-
-    const float frametime = cl.time - cl.oldtime;
-
-    const auto transitionVar = [&frametime](float& var, const bool predicate,
-                                   const float speed) {
-        var += frametime * (predicate ? speed : -speed);
-        var = std::clamp(var, 0.f, 1.f);
-    };
-
-    const auto wpn2HMode = VR_GetWpn2HMode(VR_GetMainHandWpnCvarEntry());
-    const bool useStock = VR_InStockDistance(shoulderPos) &&
-                          vr2HMode == Vr2HMode::VirtualStock &&
-                          wpn2HMode != Wpn2HMode::NoVirtualStock;
-
-    transitionVar(vr_2h_aim_stock_transition, useStock, 5.f);
-
-    const bool canGrabWith2H = vr_left_grabbing &&
-                               wpn2HMode != Wpn2HMode::Forbidden &&
-                               !vr_gun_colliding_with_wall &&
-                               (sv_player && sv_player->v.weapon2 == WID_FIST);
-
-    vr_should_aim_2h =
-        canGrabWith2H && goodDistance && diffDot > vr_2h_angle_threshold.value;
-
-    transitionVar(vr_2h_aim_transition, vr_should_aim_2h, 5.f);
-
-    const auto mixStockDir =
-        glm::mix(handDir, averageDir, vr_2h_aim_stock_transition);
-
-    const auto mixDir = glm::mix(origDir, mixStockDir, vr_2h_aim_transition);
-
-    const auto [pitch, yaw, roll] = pitchYawRollFromDirectionVector(up, mixDir);
-
-    const auto [oP, oY, oR] =
-        VR_GetWpn2HAngleOffsets(VR_GetMainHandWpnCvarEntry());
-
-    cl.handrot[1][PITCH] = pitch + oP * vr_2h_aim_transition;
-    cl.handrot[1][YAW] = yaw + oY * vr_2h_aim_transition;
-    cl.handrot[1][ROLL] = roll + oR * vr_2h_aim_transition;
 
     // TODO VR: melee doesn't work with laser cannon
     // TODO VR: scourge of armagon music?
@@ -2263,29 +2393,40 @@ void VR_CalibrateHeight()
 
 [[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept
 {
-    return cl.handpos[1] +
+    return cl.handpos[cVR_MainHand] +
            VR_CalcWeaponMuzzlePosImpl(1, VR_GetMainHandWpnCvarEntry());
 }
 
 [[nodiscard]] glm::vec3 VR_CalcOffHandWpnMuzzlePos() noexcept
 {
-    return cl.handpos[0] +
+    return cl.handpos[cVR_OffHand] +
            VR_CalcWeaponMuzzlePosImpl(0, VR_GetOffHandWpnCvarEntry());
 }
 
-void VR_ShowVirtualStock()
+
+[[nodiscard]] static bool VR_InHipHolsterDistance(
+    const glm::vec3& hand, const glm::vec3& holster)
 {
-    if(!sv_player)
-    {
-        return;
-    }
+    return glm::distance(hand, holster) < vr_hip_holster_thresh.value;
+}
 
-    const auto mainHandPos = VR_Get2HMainHandPos();
-    const auto offHandPos = VR_Get2HOffHandPos();
-    const auto shoulderPos = VR_GetRightShoulderStockPos();
-    const auto averagePos = VR_Get2HVirtualStockMix(mainHandPos, shoulderPos);
+[[nodiscard]] static bool VR_InShoulderHolsterDistance(
+    const glm::vec3& hand, const glm::vec3& holster)
+{
+    // TODO VR: the distance was too big yesterday, it caused both shoulders to
+    // be always active
 
-    // setup gl
+    // TODO VR: consider toning animation down while aiming 2h, might need a new
+    // weapon cvar and significant work
+
+    // TODO VR: implement arbitrary 2H aim
+    return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
+}
+
+// TODO VR: reduce code repetition between all "ShowXXX" functions
+
+static void VR_ShowFnSetupGL() noexcept
+{
     glDisable(GL_DEPTH_TEST);
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     GL_PolygonOffset(OFFSET_SHOWTRIS);
@@ -2293,39 +2434,10 @@ void VR_ShowVirtualStock()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
+}
 
-    glEnable(GL_LINE_SMOOTH);
-    glShadeModel(GL_SMOOTH);
-    glBegin(GL_LINES);
-
-    glLineWidth(2.f * glwidth / vid.width);
-    glColor4f(0, 1, 0, 0.75);
-    glVertex3f(shoulderPos[0], shoulderPos[1], shoulderPos[2]);
-    glVertex3f(offHandPos[0], offHandPos[1], offHandPos[2]);
-
-    glLineWidth(2.f * glwidth / vid.width);
-    glColor4f(0, 1, 0, 0.75);
-    glVertex3f(mainHandPos[0], mainHandPos[1], mainHandPos[2]);
-    glVertex3f(offHandPos[0], offHandPos[1], offHandPos[2]);
-
-    if(VR_InStockDistance(shoulderPos))
-    {
-        glColor4f(1, 1, 0, 0.75);
-    }
-    else
-    {
-        glColor4f(0, 1, 1, 0.75);
-    }
-
-    glLineWidth(4.f * glwidth / vid.width);
-    glVertex3f(averagePos[0], averagePos[1], averagePos[2]);
-    glVertex3f(offHandPos[0], offHandPos[1], offHandPos[2]);
-
-    glEnd();
-    glShadeModel(GL_FLAT);
-    glDisable(GL_LINE_SMOOTH);
-
-    // cleanup gl
+static void VR_ShowFnCleanupGL() noexcept
+{
     glColor3f(1, 1, 1);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_CULL_FACE);
@@ -2335,48 +2447,126 @@ void VR_ShowVirtualStock()
     glEnable(GL_DEPTH_TEST);
 }
 
-[[nodiscard]] static bool VR_InHipHolsterDistance(
-    const glm::vec3& hand, const glm::vec3& holster)
+template <typename F>
+static void VR_ShowFnDrawPointsAndLines(F&& drawPrimitives) noexcept
 {
-    return glm::distance(hand, holster) < 6.f;
+    glLineWidth(2.f * glwidth / vid.width);
+
+    glEnable(GL_LINE_SMOOTH);
+    glShadeModel(GL_SMOOTH);
+    drawPrimitives(GL_LINES);
+    glShadeModel(GL_FLAT);
+    glDisable(GL_LINE_SMOOTH);
+
+    glEnable(GL_POINT_SMOOTH);
+    glPointSize(12.f);
+    drawPrimitives(GL_POINTS);
+    glDisable(GL_POINT_SMOOTH);
 }
 
-[[nodiscard]] static bool VR_InShoulderHolsterDistance(
-    const glm::vec3& hand, const glm::vec3& holster)
+static void VR_GLVertex3f(const glm::vec3& v) noexcept
 {
-    // TODO VR: the distance was too big yesterday, it caused both shoulders to
-    // be always active
-
-    // TODO VR: separate virtual stock shoulder position from holster, holster
-    // should be more back
-
-    // TODO VR: consider toning animation down while aiming 2h, might need a new
-    // weapon cvar and significant work
-
-    // TODO VR: implement arbitrary 2H aim
-    return glm::distance(hand, holster) < 8.f;
+    glVertex3f(v[0], v[1], v[2]);
 }
 
-void VR_ShowHolsters()
+static void VR_ShowVirtualStockImpl(
+    const int holdingHand, const int helpingHand)
 {
-    if(!sv_player)
+    const auto holdingHandPos =
+        VR_Get2HHoldingHandPos(holdingHand, helpingHand);
+
+    const auto helpingHandPos =
+        VR_Get2HHelpingHandPos(holdingHand, helpingHand);
+
+    const auto shoulderPos = VR_GetShoulderStockPos(holdingHand, helpingHand);
+
+    const auto averagePos =
+        VR_Get2HVirtualStockMix(holdingHandPos, shoulderPos);
+
+    glColor4f(0, 1, 0, 0.75);
+    VR_GLVertex3f(holdingHandPos);
+    VR_GLVertex3f(helpingHandPos);
+
+    glColor4f(0, 1, 0, 0.75);
+    VR_GLVertex3f(shoulderPos);
+    VR_GLVertex3f(helpingHandPos);
+
+    if(VR_InStockDistance(holdingHand, helpingHand, shoulderPos))
+    {
+        glColor4f(1, 1, 0, 0.75);
+    }
+    else
+    {
+        glColor4f(0, 1, 1, 0.75);
+    }
+
+    glLineWidth(4.f * glwidth / vid.width);
+    VR_GLVertex3f(averagePos);
+    VR_GLVertex3f(helpingHandPos);
+}
+
+// TODO VR: recoil system, 2H will reduce it
+
+void VR_ShowVirtualStock()
+{
+    if(vr_show_virtual_stock.value == 0 || !svPlayerActive())
     {
         return;
     }
 
-    const auto offHandPos = cl.handpos[0];
-    const auto mainHandPos = cl.handpos[1];
+    // TODO VR: enum
+    const bool optMainHand = vr_show_virtual_stock.value == 1;
+    const bool optOffHand = vr_show_virtual_stock.value == 2;
+    const bool optBothHands = vr_show_virtual_stock.value == 3;
+
+    // TODO VR:
+    const bool drawMainHand = optMainHand || optBothHands;
+    const bool drawOffHand = optOffHand || optBothHands;
+
+    const auto drawPrimitives = [&](const int type) {
+        glBegin(type);
+
+        if(drawMainHand)
+        {
+            VR_ShowVirtualStockImpl(cVR_MainHand, cVR_OffHand);
+        }
+
+        if(drawOffHand)
+        {
+            VR_ShowVirtualStockImpl(cVR_OffHand, cVR_MainHand);
+        }
+
+        glEnd();
+    };
+
+    VR_ShowFnSetupGL();
+    VR_ShowFnDrawPointsAndLines(drawPrimitives);
+    VR_ShowFnCleanupGL();
+}
+
+void VR_ShowHipHolsters()
+{
+    if(vr_show_hip_holsters.value == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    // TODO VR: use enum
+    const bool optMainHand = vr_show_hip_holsters.value == 1;
+    const bool optOffHand = vr_show_hip_holsters.value == 2;
+    const bool optBothHands = vr_show_hip_holsters.value == 3;
+
+    const bool drawMainHand = optMainHand || optBothHands;
+    const bool drawOffHand = optOffHand || optBothHands;
+
+    const auto offHandPos = cl.handpos[cVR_OffHand];
+    const auto mainHandPos = cl.handpos[cVR_MainHand];
 
     const auto leftHipPos = VR_GetLeftHipPos();
     const auto rightHipPos = VR_GetRightHipPos();
-    const auto leftShoulderPos = VR_GetLeftShoulderHolsterPos();
-    const auto rightShoulderPos = VR_GetRightShoulderHolsterPos();
 
     const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
-        const bool hipHolster = holster == leftHipPos || holster == rightHipPos;
-
-        if((hipHolster && VR_InHipHolsterDistance(hand, holster)) ||
-            (!hipHolster && VR_InShoulderHolsterDistance(hand, holster)))
+        if(VR_InHipHolsterDistance(hand, holster))
         {
             glColor4f(1, 1, 0, 0.95);
         }
@@ -2393,59 +2583,108 @@ void VR_ShowHolsters()
         }
     };
 
-    const auto doVertex = [](const glm::vec3& v) {
-        glVertex3f(v[0], v[1], v[2]);
+    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        doColor(hand, holster);
+        VR_GLVertex3f(hand);
+        VR_GLVertex3f(holster);
+    };
+
+    const auto drawPrimitives = [&](const int type) {
+        glBegin(type);
+
+        if(drawMainHand)
+        {
+            doLine(mainHandPos, leftHipPos);
+            doLine(mainHandPos, rightHipPos);
+        }
+
+        if(drawOffHand)
+        {
+            doLine(offHandPos, leftHipPos);
+            doLine(offHandPos, rightHipPos);
+        }
+
+        glEnd();
+    };
+
+    VR_ShowFnSetupGL();
+    VR_ShowFnDrawPointsAndLines(drawPrimitives);
+    VR_ShowFnCleanupGL();
+}
+
+void VR_ShowShoulderHolsters()
+{
+    if(vr_show_shoulder_holsters.value == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    // TODO VR: use enum
+    const bool optMainHand = vr_show_shoulder_holsters.value == 1;
+    const bool optOffHand = vr_show_shoulder_holsters.value == 2;
+    const bool optBothHands = vr_show_shoulder_holsters.value == 3;
+
+    const bool drawMainHand = optMainHand || optBothHands;
+    const bool drawOffHand = optOffHand || optBothHands;
+
+    const auto offHandPos = cl.handpos[cVR_OffHand];
+    const auto mainHandPos = cl.handpos[cVR_MainHand];
+
+    const auto leftShoulderPos = VR_GetLeftShoulderHolsterPos();
+    const auto rightShoulderPos = VR_GetRightShoulderHolsterPos();
+
+    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        if(VR_InShoulderHolsterDistance(hand, holster))
+        {
+            glColor4f(1, 1, 0, 0.95);
+        }
+        else
+        {
+            if(hand == mainHandPos)
+            {
+                glColor4f(0, 1, 1, 0.75);
+            }
+            else
+            {
+                glColor4f(0, 1, 0, 0.75);
+            }
+        }
     };
 
     const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
         doColor(hand, holster);
-        doVertex(hand);
-        doVertex(holster);
+        VR_GLVertex3f(hand);
+        VR_GLVertex3f(holster);
     };
 
-    // setup gl
-    glDisable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    GL_PolygonOffset(OFFSET_SHOWTRIS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
+    const auto drawPrimitives = [&](const int type) {
+        glBegin(type);
 
-    glEnable(GL_LINE_SMOOTH);
-    glShadeModel(GL_SMOOTH);
-    glBegin(GL_LINES);
+        if(drawMainHand)
+        {
+            doLine(mainHandPos, leftShoulderPos);
+            doLine(mainHandPos, rightShoulderPos);
+        }
 
-    glLineWidth(2.f * glwidth / vid.width);
+        if(drawOffHand)
+        {
+            doLine(offHandPos, leftShoulderPos);
+            doLine(offHandPos, rightShoulderPos);
+        }
 
-    doLine(offHandPos, leftHipPos);
-    doLine(offHandPos, rightHipPos);
-    doLine(offHandPos, leftShoulderPos);
-    doLine(offHandPos, rightShoulderPos);
+        // doLine(leftHipPos, rightHipPos);
+        // doLine(rightHipPos, rightShoulderPos);
+        // doLine(rightShoulderPos, leftShoulderPos);
+        // doLine(leftShoulderPos, leftHipPos);
 
-    doLine(mainHandPos, leftHipPos);
-    doLine(mainHandPos, rightHipPos);
-    doLine(mainHandPos, leftShoulderPos);
-    doLine(mainHandPos, rightShoulderPos);
+        glEnd();
+    };
 
-    // doLine(leftHipPos, rightHipPos);
-    // doLine(rightHipPos, rightShoulderPos);
-    // doLine(rightShoulderPos, leftShoulderPos);
-    // doLine(leftShoulderPos, leftHipPos);
-
-    glEnd();
-    glShadeModel(GL_FLAT);
-    glDisable(GL_LINE_SMOOTH);
-
-    // cleanup gl
-    glColor3f(1, 1, 1);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    GL_PolygonOffset(OFFSET_NONE);
-    glEnable(GL_DEPTH_TEST);
+    VR_ShowFnSetupGL();
+    VR_ShowFnDrawPointsAndLines(drawPrimitives);
+    VR_ShowFnCleanupGL();
 }
+
 
 static void VR_ShowCrosshairImpl(const float size, const float alpha,
     const glm::vec3& start, const glm::vec3& forward)
@@ -2476,7 +2715,7 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
             glPointSize(size * glwidth / vid.width);
 
             glBegin(GL_POINTS);
-            glVertex3f(impact[0], impact[1], impact[2]);
+            VR_GLVertex3f(impact);
             glEnd();
             glDisable(GL_POINT_SMOOTH);
             break;
@@ -2502,8 +2741,8 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
             if((int)vr_crosshair.value == VrCrosshair::e_LINE)
             {
                 glColor4f(1, 0, 0, alpha);
-                glVertex3f(start[0], start[1], start[2]);
-                glVertex3f(impact[0], impact[1], impact[2]);
+                VR_GLVertex3f(start);
+                VR_GLVertex3f(impact);
             }
             else
             {
@@ -2511,14 +2750,14 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
                 const auto midB = glm::mix(start, impact, 0.70);
 
                 glColor4f(1, 0, 0, alpha * 0.01f);
-                glVertex3f(start[0], start[1], start[2]);
+                VR_GLVertex3f(start);
 
                 glColor4f(1, 0, 0, alpha);
-                glVertex3f(midA[0], midA[1], midA[2]);
-                glVertex3f(midB[0], midB[1], midB[2]);
+                VR_GLVertex3f(midA);
+                VR_GLVertex3f(midB);
 
                 glColor4f(1, 0, 0, alpha * 0.01f);
-                glVertex3f(impact[0], impact[1], impact[2]);
+                VR_GLVertex3f(impact);
             }
 
             glEnd();
@@ -2542,7 +2781,8 @@ static void VR_ShowCrosshairMainHand(const float size, const float alpha)
         if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
         {
             const auto start = VR_CalcMainHandWpnMuzzlePos();
-            const auto [forward, right, up] = getAngledVectors(cl.handrot[1]);
+            const auto [forward, right, up] =
+                getAngledVectors(cl.handrot[cVR_MainHand]);
             return std::tuple{start, forward, right, up};
         }
 
@@ -2567,7 +2807,8 @@ static void VR_ShowCrosshairOffHand(const float size, const float alpha)
     const auto [start, forward, right, up] = [&] {
         // calc the line and draw
         const auto start = VR_CalcOffHandWpnMuzzlePos();
-        const auto [forward, right, up] = getAngledVectors(cl.handrot[0]);
+        const auto [forward, right, up] =
+            getAngledVectors(cl.handrot[cVR_OffHand]);
         return std::tuple{start, forward, right, up};
     }();
 
@@ -2576,7 +2817,7 @@ static void VR_ShowCrosshairOffHand(const float size, const float alpha)
 
 void VR_ShowCrosshair()
 {
-    if(!sv_player)
+    if(vr_crosshair.value == 0 || !svPlayerActive())
     {
         return;
     }
@@ -2589,26 +2830,12 @@ void VR_ShowCrosshair()
         return;
     }
 
-    // setup gl
-    glDisable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    GL_PolygonOffset(OFFSET_SHOWTRIS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
+    VR_ShowFnSetupGL();
 
     VR_ShowCrosshairMainHand(size, alpha);
     VR_ShowCrosshairOffHand(size, alpha);
 
-    // cleanup gl
-    glColor3f(1, 1, 1);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    GL_PolygonOffset(OFFSET_NONE);
-    glEnable(GL_DEPTH_TEST);
+    VR_ShowFnCleanupGL();
 }
 
 void VR_DrawTeleportLine()
@@ -2627,20 +2854,15 @@ void VR_DrawTeleportLine()
         return;
     }
 
-    // setup gl
-    glDisable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    GL_PolygonOffset(OFFSET_SHOWTRIS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
 
     // calc angles
-    const auto start = cl.handpos[0];
+    const auto start = cl.handpos[cVR_OffHand];
 
     // calc line
     const auto impact = vr_teleporting_impact;
+
+    const auto midA = glm::mix(start, impact, 0.15);
+    const auto midB = glm::mix(start, impact, 0.85);
 
     // draw line
     const auto setColor = [&](const float xAlpha) {
@@ -2654,36 +2876,31 @@ void VR_DrawTeleportLine()
         }
     };
 
+    VR_ShowFnSetupGL();
+
     glLineWidth(size * glwidth / vid.width);
+
     glEnable(GL_LINE_SMOOTH);
     glShadeModel(GL_SMOOTH);
+
     glBegin(GL_LINE_STRIP);
 
-    const auto midA = glm::mix(start, impact, 0.15);
-    const auto midB = glm::mix(start, impact, 0.85);
-
     setColor(alpha * 0.01f);
-    glVertex3f(start[0], start[1], start[2]);
+    VR_GLVertex3f(start);
 
     setColor(alpha);
-    glVertex3f(midA[0], midA[1], midA[2]);
-    glVertex3f(midB[0], midB[1], midB[2]);
+    VR_GLVertex3f(midA);
+    VR_GLVertex3f(midB);
 
     setColor(alpha * 0.01f);
-    glVertex3f(impact[0], impact[1], impact[2]);
+    VR_GLVertex3f(impact);
 
     glEnd();
+
     glShadeModel(GL_FLAT);
     glDisable(GL_LINE_SMOOTH);
 
-    // cleanup gl
-    glColor3f(1, 1, 1);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    GL_PolygonOffset(OFFSET_NONE);
-    glEnable(GL_DEPTH_TEST);
+    VR_ShowFnCleanupGL();
 }
 
 void VR_Draw2D()
@@ -2718,13 +2935,14 @@ void VR_Draw2D()
     // TODO VR: control with cvar
     if(false && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        std::tie(forward, right, up) = getAngledVectors(cl.handrot[1]);
+        std::tie(forward, right, up) =
+            getAngledVectors(cl.handrot[cVR_MainHand]);
 
-        menu_angles = cl.handrot[1];
+        menu_angles = cl.handrot[cVR_MainHand];
 
         std::tie(forward, right, up) = getAngledVectors(menu_angles);
 
-        target = cl.handpos[1] + 48.f * forward;
+        target = cl.handpos[cVR_MainHand] + 48.f * forward;
     }
     else
     {
@@ -2836,19 +3054,21 @@ void VR_DrawSbar()
 
         if(mode == static_cast<int>(VrSbarMode::MainHand))
         {
-            std::tie(forward, right, up) = getAngledVectors(cl.handrot[1]);
-            sbar_angles = cl.handrot[1];
+            std::tie(forward, right, up) =
+                getAngledVectors(cl.handrot[cVR_MainHand]);
+            sbar_angles = cl.handrot[cVR_MainHand];
 
             std::tie(forward, right, up) = getAngledVectors(sbar_angles);
-            target = cl.handpos[1] + -5.f * right;
+            target = cl.handpos[cVR_MainHand] + -5.f * right;
         }
         else
         {
-            std::tie(forward, right, up) = getAngledVectors(cl.handrot[0]);
-            sbar_angles = cl.handrot[0];
+            std::tie(forward, right, up) =
+                getAngledVectors(cl.handrot[cVR_OffHand]);
+            sbar_angles = cl.handrot[cVR_OffHand];
 
             std::tie(forward, right, up) = getAngledVectors(sbar_angles);
-            target = cl.handpos[0] + 0.f * right;
+            target = cl.handpos[cVR_OffHand] + 0.f * right;
         }
     }
     else
@@ -3028,7 +3248,6 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
         headPos.v[1] > vr_height_calibration.value;
 
-    // TODO VR: make nice `Menu` class with declarative syntax
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
@@ -3130,19 +3349,19 @@ void VR_Move(usercmd_t* cmd)
     }
 
     // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`, `handavel`.
-    cmd->handpos = cl.handpos[1];
-    cmd->handrot = cl.handrot[1];
-    cmd->handvel = cl.handvel[1];
-    cmd->handvelmag = cl.handvelmag[1];
-    cmd->handavel = cl.handavel[1];
+    cmd->handpos = cl.handpos[cVR_MainHand];
+    cmd->handrot = cl.handrot[cVR_MainHand];
+    cmd->handvel = cl.handvel[cVR_MainHand];
+    cmd->handvelmag = cl.handvelmag[cVR_MainHand];
+    cmd->handavel = cl.handavel[cVR_MainHand];
 
     // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`, `offhandvelmag`,
     // `offhandavel`.
-    cmd->offhandpos = cl.handpos[0];
-    cmd->offhandrot = cl.handrot[0];
-    cmd->offhandvel = cl.handvel[0];
-    cmd->offhandvelmag = cl.handvelmag[0];
-    cmd->offhandavel = cl.handavel[0];
+    cmd->offhandpos = cl.handpos[cVR_OffHand];
+    cmd->offhandrot = cl.handrot[cVR_OffHand];
+    cmd->offhandvel = cl.handvel[cVR_OffHand];
+    cmd->offhandvelmag = cl.handvelmag[cVR_OffHand];
+    cmd->offhandavel = cl.handavel[cVR_OffHand];
 
     // VR: Weapon muzzle position.
     cmd->muzzlepos = VR_CalcMainHandWpnMuzzlePos();
@@ -3185,17 +3404,19 @@ void VR_Move(usercmd_t* cmd)
             return 6;
         }
 
-        if(hand == cl.handpos[0] && VR_GoodDistanceForOffHand2HGrab())
+        if(hand == cl.handpos[cVR_OffHand] && VR_GoodDistanceForOffHand2HGrab())
         {
             return 1;
         }
 
-        if(hand == cl.handpos[1] && VR_GoodDistanceForMainHand2HGrab())
+        if(hand == cl.handpos[cVR_MainHand] &&
+            VR_GoodDistanceForMainHand2HGrab())
         {
             return 2;
         }
 
-        if(VR_GoodDistanceForHandSwitch(cl.handpos[0], cl.handpos[1]))
+        if(VR_GoodDistanceForHandSwitch(
+               cl.handpos[cVR_OffHand], cl.handpos[cVR_MainHand]))
         {
             return 7;
         }
@@ -3206,15 +3427,15 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhand_grabbing = vr_left_grabbing;
     cmd->mainhand_grabbing = vr_right_grabbing;
 
-    cmd->offhand_hotspot = computeHotSpot(cl.handpos[0]);
-    cmd->mainhand_hotspot = computeHotSpot(cl.handpos[1]);
+    cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
+    cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);
 
     if(key_dest == key_menu)
     {
         return;
     }
 
-    auto [lfwd, lright, lup] = getAngledVectors(cl.handrot[0]);
+    auto [lfwd, lright, lup] = getAngledVectors(cl.handrot[cVR_OffHand]);
 
     if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
     {
@@ -3262,7 +3483,7 @@ void VR_Move(usercmd_t* cmd)
         cmd->sidemove += cl_forwardspeed.value * right;
     }
 
-    std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[0]);
+    std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[cVR_OffHand]);
     cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
 
     if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))

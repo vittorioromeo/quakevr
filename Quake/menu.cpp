@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "debug_menu.hpp"
 #include "wpnoffset_menu.hpp"
 #include "sbaroffset_menu.hpp"
+#include "hotspot_menu.hpp"
 #include "map_menu.hpp"
 #include "menu_util.hpp"
 
@@ -1093,6 +1094,7 @@ enum
     OPT_VRGAMEPLAY,
     OPT_WPN_OFFSET,
     OPT_SBAR_OFFSET,
+    OPT_HOTSPOT,
     OPT_MAP_MENU,
     OPT_DEBUG,
 
@@ -1411,14 +1413,18 @@ void M_Options_Draw()
         M_Print(16, 32 + 8 * OPT_VIDEO, "         Video Options");
     }
 
+    // ------------------------------------------------------------------------
+    // VR: New menus.
     // clang-format off
     M_Print(16, 32 + 8 * OPT_VR,          "         VR Options");
     M_Print(16, 32 + 8 * OPT_VRGAMEPLAY,  "VR Gameplay Options");
     M_Print(16, 32 + 8 * OPT_WPN_OFFSET,  "     Weapon Offsets");
-    M_Print(16, 32 + 8 * OPT_SBAR_OFFSET, "  Status Bar Offset");
+    M_Print(16, 32 + 8 * OPT_SBAR_OFFSET, " Status Bar Offsets");
+    M_Print(16, 32 + 8 * OPT_HOTSPOT,     "   Hotspot Settings");
     M_Print(16, 32 + 8 * OPT_MAP_MENU,    "               Maps");
     M_Print(16, 32 + 8 * OPT_DEBUG,       "              Debug");
     // clang-format on
+    // ------------------------------------------------------------------------
 
     // cursor
     M_DrawCharacter(
@@ -1462,6 +1468,7 @@ void M_Options_Key(int k)
                 case OPT_VRGAMEPLAY: qmu::setMenuState(m_vrgameplay); break;
                 case OPT_WPN_OFFSET: qmu::setMenuState(m_wpn_offset); break;
                 case OPT_SBAR_OFFSET: qmu::setMenuState(m_sbar_offset); break;
+                case OPT_HOTSPOT: qmu::setMenuState(m_hotspot); break;
                 case OPT_MAP_MENU: qmu::setMenuState(m_map); break;
                 case OPT_DEBUG: qmu::setMenuState(m_debug); break;
                 // -----------------------------------------------------------
@@ -2908,6 +2915,7 @@ void M_Draw()
         case m_vrgameplay: M_VRGameplay_Draw(); break;
         case m_wpn_offset: M_WpnOffset_Draw(); return;
         case m_sbar_offset: M_SbarOffset_Draw(); return;
+        case m_hotspot: M_Hotspot_Draw(); return;
         case m_map: M_MapMenu_Draw(); return;
         case m_debug: M_Debug_Draw(); return;
         // -------------------------------------------------------------------
@@ -2959,6 +2967,7 @@ void M_Keydown(int key)
         case m_vrgameplay: M_VRGameplay_Key(key); return;
         case m_wpn_offset: M_WpnOffset_Key(key); return;
         case m_sbar_offset: M_SbarOffset_Key(key); return;
+        case m_hotspot: M_Hotspot_Key(key); return;
         case m_map: M_MapMenu_Key(key); return;
         case m_debug: M_Debug_Key(key); return;
         // -------------------------------------------------------------------

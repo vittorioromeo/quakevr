@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "util.hpp"
 #include "quakeglm.hpp"
+#include "vr.hpp"
 
 extern cvar_t vr_enabled;
 extern cvar_t vr_body_interactions;
@@ -315,10 +316,9 @@ them and risking the list getting corrupt.
 static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
     int* listcount, const int listspace)
 {
-    link_t* next;
+    const auto loopEdicts = [&](link_t& edictList) {
+        link_t* next;
 
-    // TODO VR: rename this lambda
-    const auto doIt = [&](link_t& edictList) {
         for(link_t* l = edictList.next; l != &edictList; l = next)
         {
             next = l->next;
@@ -344,6 +344,7 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
             if(*listcount == listspace)
             {
                 // TODO VR: should this be an assertion instead?
+                Con_Printf("it happened\n");
                 return false; // should never happen
             }
 
@@ -355,18 +356,14 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
     };
 
     // touch linked edicts
-    if(!doIt(node->trigger_edicts))
+    // TODO VR: hack - what is the consequence of adding this loop over solid
+    // edicts? need testing
+    const bool triggerFail = !loopEdicts(node->trigger_edicts);
+    const bool solidFail = !loopEdicts(node->solid_edicts);
+    if(triggerFail && solidFail)
     {
         // TODO VR: this prevents the other one from being ran, but the return
         // was originally there in quake's source code
-        return;
-    }
-
-    // TODO VR: hack - what is the consequence of adding this loop over solid
-    // edicts? need testing
-    if(!doIt(node->solid_edicts))
-    {
-        // TODO VR: ditto, as above
         return;
     }
 
@@ -408,10 +405,9 @@ void SV_TouchLinks(edict_t* ent)
     SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
 
     const auto doTouch = [](edict_t* ent, edict_t* target) {
-        const bool canBeTouched =
-            (target->v.touch || target->v.handtouch) &&
-            target->v.solid !=
-                SOLID_NOT; // TODO VR: target->v.solid == SOLID_TRIGGER;
+        const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
+                                  target->v.solid != SOLID_NOT;
+        // TODO VR: target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched ||
             !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
@@ -432,11 +428,14 @@ void SV_TouchLinks(edict_t* ent)
             PR_ExecuteProgram(target->v.touch);
         }
 
-        if(target->v.handtouch && vr_body_interactions.value)
+        // --------------------------------------------------------------------
+        // VR: Simulate touching with right hand if body interactions are off.
+        if(target->v.handtouch && vr_body_interactions.value == 1)
         {
-            // TODO VR: handtouch_hand and handtouch_ent ?
+            VR_SetFakeHandtouchParams(ent, target);
             PR_ExecuteProgram(target->v.handtouch);
         }
+        // --------------------------------------------------------------------
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;
@@ -451,8 +450,9 @@ void SV_TouchLinks(edict_t* ent)
         const auto offhandposmin = ent->v.offhandpos - offsets;
         const auto offhandposmax = ent->v.offhandpos + offsets;
 
-        const bool canBeHandTouched =
-            target->v.handtouch; //&& target->v.solid == SOLID_TRIGGER;
+        const bool canBeHandTouched = target->v.handtouch;
+        // TODO VR:
+        // && target->v.solid == SOLID_TRIGGER;
 
         const bool entIntersects = !quake::util::boxIntersection(
             ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);
@@ -480,19 +480,8 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
 
-        if(offHandIntersects)
-        {
-            ent->v.touchinghand = 0;
-        }
-        else if(mainHandIntersects)
-        {
-            ent->v.touchinghand = 1;
-        }
-
-        target->v.handtouch_hand = ent->v.touchinghand;
-        target->v.handtouch_ent = EDICT_TO_PROG(ent);
-
         // VR: This is for things like ammo pickups and slipgates.
+        VR_SetHandtouchParams(offHandIntersects ? 0 : 1, ent, target);
         PR_ExecuteProgram(target->v.handtouch);
 
         pr_global_struct->self = old_self;
@@ -659,7 +648,6 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
         }
     }
 
-    // TODO VR: here
     // link it in
     if(ent->v.solid == SOLID_TRIGGER)
     {
@@ -797,11 +785,13 @@ SV_RecursiveHullCheck
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const glm::vec3& p1, const glm::vec3& p2, trace_t* trace)
 {
-    // TODO VR: solves some crashes on linux
+    // ------------------------------------------------------------------------
+    // VR: Solves weird crashes, probably related to hand pos on spawn.
     if(std::isnan(p1f) || std::isnan(p2f))
     {
         return false;
     }
+    // ------------------------------------------------------------------------
 
     // check for empty
     if(num < 0)
@@ -849,11 +839,13 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         t2 = DoublePrecisionDotProduct(plane->normal, p2) - plane->dist;
     }
 
-    // TODO VR: solves some crashes on linux
+    // ------------------------------------------------------------------------
+    // VR: Solves weird crashes, probably related to hand pos on spawn.
     if(std::isnan(t1) || std::isnan(t2))
     {
         return false;
     }
+    // ------------------------------------------------------------------------
 
 #if 1
     if(t1 >= 0 && t2 >= 0)

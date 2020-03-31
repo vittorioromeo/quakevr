@@ -993,13 +993,13 @@ void V_CalcRefdef()
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(VR_GetMainHandWpnCvarEntry(), view, cl.handrot[1]);
+    CalcGunAngle(VR_GetMainHandWpnCvarEntry(), view, cl.handrot[cVR_MainHand]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
         // TODO VR: this sets the weapon model's position
-        view->origin = cl.handpos[1] + cl.vmeshoffset;
+        view->origin = cl.handpos[cVR_MainHand] + cl.vmeshoffset;
     }
     else
     {
@@ -1124,12 +1124,12 @@ void V_CalcRefdef2Test()
     entity_t* view = &cl.offhand_viewent;
 
     // set up gun position
-    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), view, cl.handrot[0]);
+    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), view, cl.handrot[cVR_OffHand]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        view->origin = cl.handpos[0] + cl.vmeshoffset;
+        view->origin = cl.handpos[cVR_OffHand] + cl.vmeshoffset;
     }
     else
     {
@@ -1309,7 +1309,7 @@ void V_RenderView()
         if(cl.viewent.model != nullptr)
         {
             SetupHandViewModel(
-                &cl.viewent, &cl.right_hand, cl.handrot[1], vec3_zero);
+                &cl.viewent, &cl.right_hand, cl.handrot[cVR_MainHand], vec3_zero);
         }
 
         if(cl.offhand_viewent.model != nullptr)
@@ -1318,7 +1318,7 @@ void V_RenderView()
                 VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
             SetupHandViewModel(&cl.offhand_viewent, &cl.left_hand,
-                cl.handrot[0], offHandOffsets);
+                cl.handrot[cVR_OffHand], offHandOffsets);
         }
 
         // TODO VR: refactor and add lerping, also hand angles?

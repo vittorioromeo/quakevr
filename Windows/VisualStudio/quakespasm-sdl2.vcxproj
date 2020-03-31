@@ -246,6 +246,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\gl_warp.cpp" />
     <ClCompile Include="..\..\Quake\host.cpp" />
     <ClCompile Include="..\..\Quake\host_cmd.cpp" />
+    <ClCompile Include="..\..\Quake\hotspot_menu.cpp" />
     <ClCompile Include="..\..\Quake\image.cpp" />
     <ClCompile Include="..\..\Quake\in_sdl.cpp" />
     <ClCompile Include="..\..\Quake\keys.cpp" />
@@ -327,6 +328,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\gl_model.hpp" />
     <ClInclude Include="..\..\Quake\gl_texmgr.hpp" />
     <ClInclude Include="..\..\Quake\gl_warp_sin.hpp" />
+    <ClInclude Include="..\..\Quake\hotspot_menu.hpp" />
     <ClInclude Include="..\..\Quake\image.hpp" />
     <ClInclude Include="..\..\Quake\input.hpp" />
     <ClInclude Include="..\..\Quake\keys.hpp" />

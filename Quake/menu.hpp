@@ -40,6 +40,7 @@ enum m_state_e
     m_vrgameplay,
     m_wpn_offset,
     m_sbar_offset,
+    m_hotspot,
     m_map,
     m_debug,
     m_keys,

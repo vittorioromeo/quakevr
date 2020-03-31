@@ -95,9 +95,6 @@ static int getIdx()
         "Default", "Ignore Virtual Stock", "Forbidden"              //
     );
 
-    // TODO VR: unused?
-    // o_wpncvar("TODO", WpnCVar::Length);
-
     return m;
 }
 

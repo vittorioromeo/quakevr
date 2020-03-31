@@ -6,6 +6,16 @@
 //
 //
 // ----------------------------------------------------------------------------
+// VR Constants
+// ----------------------------------------------------------------------------
+
+inline constexpr int cVR_OffHand = 0;
+inline constexpr int cVR_MainHand = 1;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // VR Configuration Enums
 // ----------------------------------------------------------------------------
 
@@ -93,7 +103,8 @@ void VID_VR_Disable();
 void VR_UpdateScreenContent();
 void VR_ShowCrosshair();
 void VR_ShowVirtualStock();
-void VR_ShowHolsters();
+void VR_ShowHipHolsters();
+void VR_ShowShoulderHolsters();
 void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
@@ -120,6 +131,9 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 // TODO VR: remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
+
+void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target);
+void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target);
 
 //
 //
@@ -294,7 +308,7 @@ extern cvar_t vr_teleport_enabled;
 extern cvar_t vr_teleport_range;
 extern cvar_t vr_2h_mode;
 extern cvar_t vr_2h_angle_threshold;
-extern cvar_t vr_2h_virtual_stock_threshold;
+extern cvar_t vr_virtual_stock_thresh;
 extern cvar_t vr_show_virtual_stock;
 extern cvar_t vr_shoulder_offset_x;
 extern cvar_t vr_shoulder_offset_y;
@@ -312,7 +326,16 @@ extern cvar_t vr_wpn_dir_weight_2h_help_offset;
 extern cvar_t vr_wpn_dir_weight_2h_help_mult;
 extern cvar_t vr_offhandpitch;
 extern cvar_t vr_offhandyaw;
-extern cvar_t vr_show_holsters;
+extern cvar_t vr_show_hip_holsters;
+extern cvar_t vr_show_shoulder_holsters;
+extern cvar_t vr_hip_offset_x;
+extern cvar_t vr_hip_offset_y;
+extern cvar_t vr_hip_offset_z;
+extern cvar_t vr_hip_holster_thresh;
+extern cvar_t vr_shoulder_holster_thresh;
+extern cvar_t vr_shoulder_holster_offset_x;
+extern cvar_t vr_shoulder_holster_offset_y;
+extern cvar_t vr_shoulder_holster_offset_z;
 
 // TODO VR: what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;
