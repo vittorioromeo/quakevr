@@ -3240,25 +3240,25 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         return data.bState && data.bChanged;
     };
 
-    const bool mustFire = inpFire.bState;
+    const bool mustFire = inpFire.bState; 
     const bool mustFireOffHand = inpFireOffHand.bState;
 
     const bool isRoomscaleJump =
         vr_roomscale_jump.value &&
         headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
-        headPos.v[1] > vr_height_calibration.value;
+        headPos.v[1] > vr_height_calibration.value; 
 
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
     const bool mustEscape = isRisingEdge(inpEscape);
     const bool mustSpeed = inpSpeed.bState;
-    const bool mustTeleport = inpTeleport.bState;
-    const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
+    const bool mustTeleport = inpTeleport.bState; 
+    const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand); 
 
     // TODO VR: global state mutation here, could be source of bugs
     vr_left_grabbing = inpLeftGrab.bState;
-    vr_right_grabbing = inpRightGrab.bState;
+    vr_right_grabbing = inpRightGrab.bState;  
     in_speed.state = mustSpeed;
 
     // Menu multipliers to fine-tune values.

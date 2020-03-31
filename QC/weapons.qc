@@ -3097,20 +3097,22 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     local float angle;
     angle = xAngle - xOffset;
 
+    // Bring angle in range [-360, 0]
     if(angle > 0)
     {
         *xOutAngle = xOffset + angle - 360;
     }
-
-    if(angle < -360)
+    else if(angle < -360)
     {
         *xOutAngle = xOffset + angle + 360;
     }
 
     if (angle >= -360 && angle <= -270)
     {
+        // All these offset calculations are needed because I can't read back
+        // from `xOutAngle`...
         *xOutAngle = xOffset + angle + self.throwstabilize;
-        if(angle > -270)
+        if(xAngle - xOffset + self.throwstabilize > -270)
         {
             *xOutAngle = xOffset + -270;
         }
@@ -3118,7 +3120,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     else if (angle > -270 && angle <= -180)
     {
         *xOutAngle = xOffset + angle - self.throwstabilize;
-        if(angle < -270)
+        if(xAngle - xOffset - self.throwstabilize < -270)
         {
             *xOutAngle = xOffset + -270;
         }
@@ -3126,7 +3128,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     else if (angle > -180 && angle <= -90)
     {
         *xOutAngle = xOffset + angle + self.throwstabilize;
-        if(angle > -90)
+        if(xAngle - xOffset + self.throwstabilize > -90)
         {
             *xOutAngle = xOffset + -90;
         }
@@ -3134,7 +3136,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     else if (angle > -90 && angle <= 0)
     {
         *xOutAngle = xOffset + angle - self.throwstabilize;
-        if(angle < -90)
+        if(xAngle - xOffset - self.throwstabilize < -90)
         {
             *xOutAngle = xOffset + -90;
         }
@@ -3147,7 +3149,12 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 
     if (self.throwstabilize > 0)
     {
-        self.throwstabilize = self.throwstabilize - 0.5;
+        self.throwstabilize = self.throwstabilize - 0.3;
+
+        if (self.throwstabilize < 0)
+        {
+            self.throwstabilize = 0;
+        }
     }
 }
 
@@ -3308,7 +3315,7 @@ void(float xHand,
                 newmis.solid = SOLID_BBOX;
 
                 newmis.throwhit = FALSE;
-                newmis.throwstabilize = 12;
+                newmis.throwstabilize = 8;
                 newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
 
                 newmis.angles = VRGetHandRot(xHand);
@@ -3464,3 +3471,5 @@ void() SuperDamageSound =
 
 // TODO VR: not sure why weapons cannot be juggled. too small size? problems
 // with handtouch?
+
+// TODO VR: still need to fix oldwater...
