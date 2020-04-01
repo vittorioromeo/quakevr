@@ -30,11 +30,10 @@
 
     m.add_separator();
 
-    // TODO VR: use enum
-    m.add_cvar_getter_enum_entry<int>(               //
-        "Show Shoulder Holsters",                    //
-        [] { return &vr_show_shoulder_holsters; },   //
-        "Off", "Main Hand", "Off Hand", "Both Hands" //
+    m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
+        "Show Shoulder Holsters",                        //
+        [] { return &vr_show_shoulder_holsters; },       //
+        "Off", "Main Hand", "Off Hand", "Both Hands"     //
     );
 
     m.add_cvar_entry<float>("Shoulder X", vr_shoulder_holster_offset_x, bPos);
@@ -45,11 +44,10 @@
 
     m.add_separator();
 
-    // TODO VR: use enum
-    m.add_cvar_getter_enum_entry<int>(               //
-        "Show Hip Holsters",                         //
-        [] { return &vr_show_hip_holsters; },        //
-        "Off", "Main Hand", "Off Hand", "Both Hands" //
+    m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
+        "Show Hip Holsters",                             //
+        [] { return &vr_show_hip_holsters; },            //
+        "Off", "Main Hand", "Off Hand", "Both Hands"     //
     );
 
     m.add_cvar_entry<float>("Hip X", vr_hip_offset_x, bPos);

@@ -512,7 +512,7 @@ void Hunk_Print_f()
 Hunk_AllocName
 ===================
 */
-void* Hunk_AllocName(int size, const char* name)
+void* Hunk_AllocName(int size, const char* name) noexcept 
 {
     hunk_t* h;
 
@@ -551,17 +551,17 @@ void* Hunk_AllocName(int size, const char* name)
 Hunk_Alloc
 ===================
 */
-void* Hunk_Alloc(int size)
+[[nodiscard]] void* Hunk_Alloc(const int size) noexcept
 {
     return Hunk_AllocName(size, "unknown");
 }
 
-int Hunk_LowMark()
+[[nodiscard]] int Hunk_LowMark() noexcept
 {
     return hunk_low_used;
 }
 
-void Hunk_FreeToLowMark(int mark)
+void Hunk_FreeToLowMark(const int mark) noexcept
 {
     if(mark < 0 || mark > hunk_low_used)
     {
@@ -571,7 +571,7 @@ void Hunk_FreeToLowMark(int mark)
     hunk_low_used = mark;
 }
 
-int Hunk_HighMark()
+[[nodiscard]] int Hunk_HighMark() noexcept
 {
     if(hunk_tempactive)
     {
@@ -582,7 +582,7 @@ int Hunk_HighMark()
     return hunk_high_used;
 }
 
-void Hunk_FreeToHighMark(int mark)
+void Hunk_FreeToHighMark(const int mark) noexcept
 {
     if(hunk_tempactive)
     {
@@ -603,7 +603,7 @@ void Hunk_FreeToHighMark(int mark)
 Hunk_HighAllocName
 ===================
 */
-void* Hunk_HighAllocName(int size, const char* name)
+[[nodiscard]] void* Hunk_HighAllocName(int size, const char* name) noexcept
 {
     hunk_t* h;
 
@@ -672,10 +672,10 @@ void* Hunk_TempAlloc(int size)
     return buf;
 }
 
-char* Hunk_Strdup(const char* s, const char* name)
+[[nodiscard]] char* Hunk_Strdup(const char* s, const char* name) noexcept
 {
     size_t sz = strlen(s) + 1;
-    char* ptr = (char*)Hunk_AllocName(sz, name);
+    char* ptr = (char*)(Hunk_AllocName(sz, name));
     memcpy(ptr, s, sz);
     return ptr;
 }

@@ -1448,6 +1448,7 @@ void() DropBackpack =
     setmodel (item, "progs/backpack.mdl");
     setsize (item, '-8 -8 0', '8 8 24');
     item.handtouch = BackpackTouch;
+    // TODO VR: backpack spins because of MF_ROTATE/EF_ROTATE flag in mdl file
 
     item.nextthink = time + 120;    // remove after 2 minutes
     item.think = SUB_Remove;

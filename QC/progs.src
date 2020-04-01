@@ -11,6 +11,7 @@ items.qc
 // ROGUE
 grapple.qc
 
+weaponutil.qc
 weapons.qc
 world.qc
 client.qc

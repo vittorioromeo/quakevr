@@ -232,10 +232,7 @@ SV_CreateAreaNode
 areanode_t* SV_CreateAreaNode(
     int depth, const glm::vec3& mins, const glm::vec3& maxs)
 {
-    areanode_t* anode;
-    glm::vec3 size;
-
-    anode = &sv_areanodes[sv_numareanodes];
+    areanode_t* anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
 
     ClearLink(&anode->trigger_edicts);
@@ -248,7 +245,7 @@ areanode_t* SV_CreateAreaNode(
         return anode;
     }
 
-    size = maxs - mins;
+    glm::vec3 size = maxs - mins;
     if(size[0] > size[1])
     {
         anode->axis = 0;
@@ -259,10 +256,11 @@ areanode_t* SV_CreateAreaNode(
     }
 
     anode->dist = 0.5f * (maxs[anode->axis] + mins[anode->axis]);
-    glm::vec3 mins1 = mins;
+
+    const glm::vec3& mins1 = mins;
     glm::vec3 mins2 = mins;
     glm::vec3 maxs1 = maxs;
-    glm::vec3 maxs2 = maxs;
+    const glm::vec3& maxs2 = maxs;
 
     maxs1[anode->axis] = mins2[anode->axis] = anode->dist;
 
@@ -334,9 +332,7 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
                 target->v.solid != SOLID_NOT;
             // TODO VR: target->v.solid == SOLID_TRIGGER;
 
-            if(!canBeTouched ||
-                !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
-                    target->v.absmin, target->v.absmax))
+            if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
             {
                 continue;
             }
@@ -409,9 +405,7 @@ void SV_TouchLinks(edict_t* ent)
                                   target->v.solid != SOLID_NOT;
         // TODO VR: target->v.solid == SOLID_TRIGGER;
 
-        if(!canBeTouched ||
-            !quake::util::boxIntersection(ent->v.absmin, ent->v.absmax,
-                target->v.absmin, target->v.absmax))
+        if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
         {
             return;
         }
@@ -450,12 +444,14 @@ void SV_TouchLinks(edict_t* ent)
         const auto offhandposmin = ent->v.offhandpos - offsets;
         const auto offhandposmax = ent->v.offhandpos + offsets;
 
-        const bool canBeHandTouched = target->v.handtouch;
+        const bool canBeHandTouched =
+            target->v.handtouch && target->v.solid != SOLID_NOT;
+
         // TODO VR:
         // && target->v.solid == SOLID_TRIGGER;
 
-        const bool entIntersects = !quake::util::boxIntersection(
-            ent->v.absmin, ent->v.absmax, target->v.absmin, target->v.absmax);
+        const bool entIntersects =
+            !quake::util::entBoxIntersection(ent, target);
 
         const bool offHandIntersects = quake::util::boxIntersection(
             offhandposmin, offhandposmax, target->v.absmin, target->v.absmax);
@@ -571,8 +567,6 @@ SV_LinkEdict
 */
 void SV_LinkEdict(edict_t* ent, bool touch_triggers)
 {
-    areanode_t* node;
-
     if(ent->area.prev)
     {
         SV_UnlinkEdict(ent); // unlink from old position
@@ -596,6 +590,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     // to make items easier to pick up and allow them to be grabbed off
     // of shelves, the abs sizes are expanded
     //
+    // TODO VR: interesting
     if((int)ent->v.flags & FL_ITEM)
     {
         ent->v.absmin[0] -= 15;
@@ -627,13 +622,14 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     }
 
     // find the first node that the ent's box crosses
-    node = sv_areanodes;
+    areanode_t* node = sv_areanodes;
     while(true)
     {
         if(node->axis == -1)
         {
             break;
         }
+
         if(ent->v.absmin[node->axis] > node->dist)
         {
             node = node->children[0];
@@ -752,19 +748,19 @@ This could be a lot more efficient...
 */
 edict_t* SV_TestEntityPosition(edict_t* ent)
 {
-    trace_t trace;
+    const trace_t trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs,
+        ent->v.origin, MOVE_NORMAL, ent);
 
-    using namespace quake::util;
+    return trace.startsolid ? sv.edicts : nullptr;
+}
 
-    trace =
-        SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent);
+// TODO VR:
+edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin)
+{
+    const trace_t trace = SV_Move(
+        ent->v.origin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
 
-    if(trace.startsolid)
-    {
-        return sv.edicts;
-    }
-
-    return nullptr;
+    return trace.fraction < 1.f ? sv.edicts : nullptr;
 }
 
 
@@ -975,10 +971,6 @@ eventually rotation) of the end points
 trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
     const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end)
 {
-    glm::vec3 offset;
-    glm::vec3 start_l;
-    glm::vec3 end_l;
-
     // fill in a default trace
     trace_t trace;
     memset(&trace, 0, sizeof(trace_t));
@@ -987,10 +979,11 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
     trace.endpos = end;
 
     // get the clipping hull
+    glm::vec3 offset;
     hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
 
-    start_l = start - offset;
-    end_l = end - offset;
+    const glm::vec3 start_l = start - offset;
+    const glm::vec3 end_l = end - offset;
 
     // trace a line through the apropriate clipping hull
     SV_RecursiveHullCheck(
@@ -1034,6 +1027,7 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
             continue;
         }
 
+        // TODO VR: restore?
         // if(target->v.solid == SOLID_TRIGGER)
         // {
         //     Sys_Error("Trigger in clipping list");

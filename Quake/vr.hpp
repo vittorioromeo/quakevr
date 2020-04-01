@@ -88,6 +88,14 @@ enum class Vr2HMode : int
     VirtualStock = 2
 };
 
+enum class VrOptionHandSelection : int
+{
+    Off = 0,
+    MainHand = 1,
+    OffHand = 2,
+    BothHands = 3
+};
+
 //
 //
 //

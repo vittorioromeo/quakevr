@@ -490,14 +490,9 @@ SV_MoveToGoal
 */
 void SV_MoveToGoal()
 {
-    edict_t* ent;
-
-    edict_t* goal;
-    float dist;
-
-    ent = PROG_TO_EDICT(pr_global_struct->self);
-    goal = PROG_TO_EDICT(ent->v.goalentity);
-    dist = G_FLOAT(OFS_PARM0);
+    edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
+    edict_t* goal = PROG_TO_EDICT(ent->v.goalentity);
+    float dist = G_FLOAT(OFS_PARM0);
 
     if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
     {

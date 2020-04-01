@@ -309,7 +309,7 @@ namespace quake
             constexpr int char_size = 8;
             constexpr int label_padding = 26;
 
-            const auto get_label_x = [this, &idx](const std::string_view s) {
+            const auto get_label_x = [&, this](const std::string_view s) {
                 if(_two_columns)
                 {
                     return 70 + (120 * (idx / 25));

@@ -1526,8 +1526,8 @@ void SetHandPos(int index, entity_t* player)
             (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
         const auto [vFwd, vRight, vUp] = getAngledVectors(cl.handrot[index]);
 
-        cl.handvel[index] += glm::cross(controllers[index].a_velocity,
-            (cl.handpos[index] + vUp * 0.1f) - cl.handpos[index]);
+        cl.handvel[index] +=
+            glm::cross(controllers[index].a_velocity, vUp * 0.1f);
     }
 
     if(false)
@@ -1538,6 +1538,8 @@ void SetHandPos(int index, entity_t* player)
 
     if(true)
     {
+        // TODO VR: throwing an item up with a small flick feels too strong
+
         {
             const auto [vFwd, vRight, vUp] =
                 getAngledVectors(controllers[index].orientation);
@@ -1559,9 +1561,8 @@ void SetHandPos(int index, entity_t* player)
         const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
         const auto [ox, oy, oz] = controllers[index].a_velocity;
 
-        cl.handavel[index] =
-            controllers[index]
-                .a_velocity; // vFwd * -oz + vRight * ox + vUp * oy;
+        cl.handavel[index] = controllers[index].a_velocity;
+        // vFwd * -oz + vRight * ox + vUp * oy;
     }
 
     // TODO VR: cleanup and fix
@@ -2505,6 +2506,21 @@ static void VR_ShowVirtualStockImpl(
     VR_GLVertex3f(helpingHandPos);
 }
 
+[[nodiscard]] std::pair<bool, bool> VR_GetHandsToDraw(
+    const int cvarValue) noexcept
+{
+    const auto selection = static_cast<VrOptionHandSelection>(cvarValue);
+
+    const bool optMainHand = selection == VrOptionHandSelection::MainHand;
+    const bool optOffHand = selection == VrOptionHandSelection::OffHand;
+    const bool optBothHands = selection == VrOptionHandSelection::BothHands;
+
+    const bool drawMainHand = optMainHand || optBothHands;
+    const bool drawOffHand = optOffHand || optBothHands;
+
+    return {drawMainHand, drawOffHand};
+}
+
 // TODO VR: recoil system, 2H will reduce it
 
 void VR_ShowVirtualStock()
@@ -2514,16 +2530,10 @@ void VR_ShowVirtualStock()
         return;
     }
 
-    // TODO VR: enum
-    const bool optMainHand = vr_show_virtual_stock.value == 1;
-    const bool optOffHand = vr_show_virtual_stock.value == 2;
-    const bool optBothHands = vr_show_virtual_stock.value == 3;
-
-    // TODO VR:
-    const bool drawMainHand = optMainHand || optBothHands;
-    const bool drawOffHand = optOffHand || optBothHands;
-
     const auto drawPrimitives = [&](const int type) {
+        const auto [drawMainHand, drawOffHand] =
+            VR_GetHandsToDraw(vr_show_virtual_stock.value);
+
         glBegin(type);
 
         if(drawMainHand)
@@ -2550,14 +2560,6 @@ void VR_ShowHipHolsters()
     {
         return;
     }
-
-    // TODO VR: use enum
-    const bool optMainHand = vr_show_hip_holsters.value == 1;
-    const bool optOffHand = vr_show_hip_holsters.value == 2;
-    const bool optBothHands = vr_show_hip_holsters.value == 3;
-
-    const bool drawMainHand = optMainHand || optBothHands;
-    const bool drawOffHand = optOffHand || optBothHands;
 
     const auto offHandPos = cl.handpos[cVR_OffHand];
     const auto mainHandPos = cl.handpos[cVR_MainHand];
@@ -2590,6 +2592,9 @@ void VR_ShowHipHolsters()
     };
 
     const auto drawPrimitives = [&](const int type) {
+        const auto [drawMainHand, drawOffHand] =
+            VR_GetHandsToDraw(vr_show_hip_holsters.value);
+
         glBegin(type);
 
         if(drawMainHand)
@@ -2618,14 +2623,6 @@ void VR_ShowShoulderHolsters()
     {
         return;
     }
-
-    // TODO VR: use enum
-    const bool optMainHand = vr_show_shoulder_holsters.value == 1;
-    const bool optOffHand = vr_show_shoulder_holsters.value == 2;
-    const bool optBothHands = vr_show_shoulder_holsters.value == 3;
-
-    const bool drawMainHand = optMainHand || optBothHands;
-    const bool drawOffHand = optOffHand || optBothHands;
 
     const auto offHandPos = cl.handpos[cVR_OffHand];
     const auto mainHandPos = cl.handpos[cVR_MainHand];
@@ -2658,6 +2655,9 @@ void VR_ShowShoulderHolsters()
     };
 
     const auto drawPrimitives = [&](const int type) {
+        const auto [drawMainHand, drawOffHand] =
+            VR_GetHandsToDraw(vr_show_shoulder_holsters.value);
+
         glBegin(type);
 
         if(drawMainHand)
@@ -3240,25 +3240,25 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         return data.bState && data.bChanged;
     };
 
-    const bool mustFire = inpFire.bState; 
+    const bool mustFire = inpFire.bState;
     const bool mustFireOffHand = inpFireOffHand.bState;
 
     const bool isRoomscaleJump =
         vr_roomscale_jump.value &&
         headVelocity.v[1] > vr_roomscale_jump_threshold.value &&
-        headPos.v[1] > vr_height_calibration.value; 
+        headPos.v[1] > vr_height_calibration.value;
 
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
     const bool mustEscape = isRisingEdge(inpEscape);
     const bool mustSpeed = inpSpeed.bState;
-    const bool mustTeleport = inpTeleport.bState; 
-    const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand); 
+    const bool mustTeleport = inpTeleport.bState;
+    const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
 
     // TODO VR: global state mutation here, could be source of bugs
     vr_left_grabbing = inpLeftGrab.bState;
-    vr_right_grabbing = inpRightGrab.bState;  
+    vr_right_grabbing = inpRightGrab.bState;
     in_speed.state = mustSpeed;
 
     // Menu multipliers to fine-tune values.

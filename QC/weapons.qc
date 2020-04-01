@@ -3473,3 +3473,6 @@ void() SuperDamageSound =
 // with handtouch?
 
 // TODO VR: still need to fix oldwater...
+
+// TODO VR: E2M6 elevator bug, it feels floaty, sometimes player takes damage,
+// can't pick up any item

@@ -566,6 +566,7 @@ void CL_RelinkEntities()
         }
 
         // rotate binary objects locally
+        // TODO VR: add override here for backpack or quakec field
         if(ent->model->flags & EF_ROTATE)
         {
             ent->angles[1] = bobjrotate;

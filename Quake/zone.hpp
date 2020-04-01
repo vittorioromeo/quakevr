@@ -97,16 +97,23 @@ void* Z_Malloc(int size); // returns 0 filled memory
 void* Z_Realloc(void* ptr, int size);
 char* Z_Strdup(const char* s);
 
-void* Hunk_Alloc(int size); // returns 0 filled memory
-void* Hunk_AllocName(int size, const char* name);
-void* Hunk_HighAllocName(int size, const char* name);
-char* Hunk_Strdup(const char* s, const char* name);
+[[nodiscard]] void* Hunk_Alloc(
+    const int size) noexcept; // returns 0 filled memory
+[[nodiscard]] void* Hunk_AllocName(const int size, const char* name) noexcept;
+[[nodiscard]] void* Hunk_HighAllocName(int size, const char* name) noexcept;
+[[nodiscard]] char* Hunk_Strdup(const char* s, const char* name) noexcept;
 
-int Hunk_LowMark(void);
-void Hunk_FreeToLowMark(int mark);
+template <typename T>
+[[nodiscard]] T* Hunk_Alloc(const int count) noexcept
+{
+    return (T*)Hunk_Alloc(count * sizeof(T));
+}
 
-int Hunk_HighMark(void);
-void Hunk_FreeToHighMark(int mark);
+[[nodiscard]] int Hunk_LowMark(void) noexcept;
+void Hunk_FreeToLowMark(const int mark) noexcept;
+
+[[nodiscard]] int Hunk_HighMark(void) noexcept;
+void Hunk_FreeToHighMark(const int mark) noexcept;
 
 void* Hunk_TempAlloc(int size);
 

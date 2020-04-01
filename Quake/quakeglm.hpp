@@ -21,6 +21,7 @@
 #include <gtx/quaternion.hpp>
 #include <gtx/euler_angles.hpp>
 #include <gtx/rotate_vector.hpp>
+#include <gtx/io.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
