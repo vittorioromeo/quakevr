@@ -757,10 +757,10 @@ edict_t* SV_TestEntityPosition(edict_t* ent)
 // TODO VR:
 edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin)
 {
-    const trace_t trace = SV_Move(
-        ent->v.origin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
+    const trace_t trace =
+        SV_Move(xOrigin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
 
-    return trace.fraction < 1.f ? sv.edicts : nullptr;
+    return trace.startsolid ? sv.edicts : nullptr;
 }
 
 

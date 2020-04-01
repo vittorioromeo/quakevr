@@ -534,23 +534,11 @@ SV_PushMove
 */
 void SV_PushMove(edict_t* pusher, float movetime)
 {
-    int i;
-
-    int e;
-    edict_t* check;
-
-    edict_t* block;
-    glm::vec3 mins;
-
-    glm::vec3 maxs;
-
-    glm::vec3 move;
-    glm::vec3 entorig;
-
-    glm::vec3 pushorig;
-    int num_moved;
-    edict_t** moved_edict; // johnfitz -- dynamically allocate
-    glm::vec3* moved_from; // johnfitz -- dynamically allocate
+    // TODO VR: bugs:
+    // * bouncing when going down elevator in e1m1
+    // * taking damage and floating while going down elevator in e2m6
+    // * floating when going up elevator in e1m1
+    // * going through crusher when jumping in e1m3
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -559,14 +547,11 @@ void SV_PushMove(edict_t* pusher, float movetime)
         return;
     }
 
-    for(i = 0; i < 3; i++)
-    {
-        move[i] = pusher->v.velocity[i] * movetime;
-        mins[i] = pusher->v.absmin[i] + move[i];
-        maxs[i] = pusher->v.absmax[i] + move[i];
-    }
+    const glm::vec3 move = pusher->v.velocity * movetime;
+    const glm::vec3 pusherNewMins = pusher->v.absmin + move;
+    const glm::vec3 pusherNewMaxs = pusher->v.absmax + move;
 
-    pushorig = pusher->v.origin;
+    const glm::vec3 oldPushorig = pusher->v.origin;
 
     // move the pusher to it's final position
 
@@ -576,19 +561,20 @@ void SV_PushMove(edict_t* pusher, float movetime)
 
     // johnfitz -- dynamically allocate
     const int mark = Hunk_LowMark(); // johnfitz
-    moved_edict = (edict_t**)Hunk_Alloc(sv.num_edicts * sizeof(edict_t*));
-    moved_from = (glm::vec3*)Hunk_Alloc(sv.num_edicts * sizeof(glm::vec3));
+    const auto moved_edict = Hunk_Alloc<edict_t*>(sv.num_edicts);
+    const auto moved_from = Hunk_Alloc<glm::vec3>(sv.num_edicts);
     // johnfitz
 
     // see if any solid entities are inside the final position
-    num_moved = 0;
-    check = NEXT_EDICT(sv.edicts);
-    for(e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    int num_moved = 0;
+    edict_t* check = NEXT_EDICT(sv.edicts);
+    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
             continue;
         }
+
         if(check->v.movetype == MOVETYPE_PUSH ||
             check->v.movetype == MOVETYPE_NONE ||
             check->v.movetype == MOVETYPE_NOCLIP)
@@ -600,10 +586,13 @@ void SV_PushMove(edict_t* pusher, float movetime)
         if(!(((int)check->v.flags & FL_ONGROUND) &&
                PROG_TO_EDICT(check->v.groundentity) == pusher))
         {
-            if(check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] ||
-                check->v.absmin[2] >= maxs[2] ||
-                check->v.absmax[0] <= mins[0] ||
-                check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
+            // TODO VR: boxIntersection
+            if(check->v.absmin[0] >= pusherNewMaxs[0] ||
+                check->v.absmin[1] >= pusherNewMaxs[1] ||
+                check->v.absmin[2] >= pusherNewMaxs[2] ||
+                check->v.absmax[0] <= pusherNewMins[0] ||
+                check->v.absmax[1] <= pusherNewMins[1] ||
+                check->v.absmax[2] <= pusherNewMins[2])
             {
                 continue;
             }
@@ -621,10 +610,10 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
         }
 
-        entorig = check->v.origin;
+        const glm::vec3 entorig = check->v.origin;
         moved_from[num_moved] = check->v.origin;
         moved_edict[num_moved] = check;
-        num_moved++;
+        ++num_moved;
 
         // try moving the contacted entity
         pusher->v.solid = SOLID_NOT;
@@ -632,16 +621,20 @@ void SV_PushMove(edict_t* pusher, float movetime)
         pusher->v.solid = SOLID_BSP;
 
         // if it is still inside the pusher, block
-        block = SV_TestEntityPosition(check);
+        edict_t* block = SV_TestEntityPosition(check);
         if(block)
-        { // fail the move
+        {
+            // fail the move
             if(check->v.mins[0] == check->v.maxs[0])
             {
                 continue;
             }
+
             if(check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER ||
                 check->v.solid == SOLID_NOT_BUT_TOUCHABLE)
-            { // corpse
+            {
+                // TODO VR: handtouch bug?? ammo is solid trigger
+                // corpse
                 check->v.mins[0] = check->v.mins[1] = 0;
                 check->v.maxs = check->v.mins;
                 continue;
@@ -650,7 +643,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.origin = entorig;
             SV_LinkEdict(check, true);
 
-            pusher->v.origin = pushorig;
+            pusher->v.origin = oldPushorig;
             SV_LinkEdict(pusher, false);
             pusher->v.ltime -= movetime;
 
@@ -664,7 +657,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
             }
 
             // move back any entities we already moved
-            for(i = 0; i < num_moved; i++)
+            for(int i = 0; i < num_moved; i++)
             {
                 moved_edict[i]->v.origin = moved_from[i];
                 SV_LinkEdict(moved_edict[i], false);
