@@ -98,7 +98,8 @@ void Z_Free(void* ptr)
 
     other = block->prev;
     if(!other->tag)
-    { // merge with previous free block
+    {
+        // merge with previous free block
         other->size += block->size;
         other->next = block->next;
         other->next->prev = other;
@@ -111,7 +112,8 @@ void Z_Free(void* ptr)
 
     other = block->next;
     if(!other->tag)
-    { // merge the next free block onto the end
+    {
+        // merge the next free block onto the end
         block->size += other->size;
         block->next = other->next;
         block->next->prev = block;
@@ -153,7 +155,8 @@ static void* Z_TagMalloc(int size, int tag)
     do
     {
         if(rover == start)
-        { // scaned all the way around the list
+        {
+            // scaned all the way around the list
             return nullptr;
         }
         if(rover->tag)
@@ -171,7 +174,8 @@ static void* Z_TagMalloc(int size, int tag)
     //
     extra = base->size - size;
     if(extra > MINFRAGMENT)
-    { // there will be a free fragment after the allocated block
+    {
+        // there will be a free fragment after the allocated block
         newblock = (memblock_t*)((byte*)base + size);
         newblock->size = extra;
         newblock->tag = 0; // free block
@@ -512,7 +516,7 @@ void Hunk_Print_f()
 Hunk_AllocName
 ===================
 */
-void* Hunk_AllocName(int size, const char* name) noexcept 
+void* Hunk_AllocName(int size, const char* name) noexcept
 {
     hunk_t* h;
 
@@ -866,7 +870,8 @@ cache_system_t* Cache_TryAlloc(int size, bool nobottom)
         if(!nobottom || cs != cache_head.next)
         {
             if((byte*)cs - (byte*)new_cs >= size)
-            { // found space
+            {
+                // found space
                 memset(new_cs, 0, sizeof(*new_cs));
                 new_cs->size = size;
 

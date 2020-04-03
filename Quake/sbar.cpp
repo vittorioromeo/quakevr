@@ -783,7 +783,8 @@ void Sbar_DrawInventory()
         {
             time = cl.item_gettime[17 + i];
             if(time && time > cl.time - 2 && flashon)
-            { // flash frame
+            {
+                // flash frame
                 sb_updates = 0;
             }
             else
@@ -810,7 +811,8 @@ void Sbar_DrawInventory()
             {
                 time = cl.item_gettime[24 + i];
                 if(time && time > cl.time - 2 && flashon)
-                { // flash frame
+                {
+                    // flash frame
                     sb_updates = 0;
                 }
                 else
@@ -834,7 +836,8 @@ void Sbar_DrawInventory()
             {
                 time = cl.item_gettime[29 + i];
                 if(time && time > cl.time - 2 && flashon)
-                { // flash frame
+                {
+                    // flash frame
                     sb_updates = 0;
                 }
                 else
@@ -857,7 +860,8 @@ void Sbar_DrawInventory()
             {
                 time = cl.item_gettime[28 + i];
                 if(time && time > cl.time - 2 && flashon)
-                { // flash frame
+                {
+                    // flash frame
                     sb_updates = 0;
                 }
                 else
@@ -1039,7 +1043,8 @@ void Sbar_DrawFace()
         f = cl.stats[STAT_HEALTH] / 20;
     }
     if(f < 0)
-    { // in case we ever decide to draw when health <= 0
+    {
+        // in case we ever decide to draw when health <= 0
         f = 0;
     }
 
@@ -1077,7 +1082,8 @@ void Sbar_Draw()
     if(sb_updates >= vid.numpages && !gl_clear.value &&
         scr_sbaralpha.value >= 1 // johnfitz -- gl_clear, scr_sbaralpha
         && !(gl_glsl_gamma_able && vid_gamma.value != 1))
-    { // ericw -- must draw sbar every frame if doing glsl gamma
+    {
+        // ericw -- must draw sbar every frame if doing glsl gamma
         return;
     }
 
@@ -1431,7 +1437,8 @@ void Sbar_MiniDeathmatchOverlay()
     // MAX_SCOREBOARDNAME = 32, so total width for this overlay plus sbar is
     // 632, but we can cut off some i guess
     if(glwidth / scale < 512 || scr_viewsize.value >= 120)
-    { // johnfitz -- test should consider scr_sbarscale
+    {
+        // johnfitz -- test should consider scr_sbarscale
         return;
     }
 
@@ -1451,11 +1458,13 @@ void Sbar_MiniDeathmatchOverlay()
     }
 
     if(i == scoreboardlines)
-    { // we're not there
+    {
+        // we're not there
         i = 0;
     }
     else
-    { // figure out start
+    {
+        // figure out start
         i -= numlines / 2;
     }
     if(i > scoreboardlines - numlines)

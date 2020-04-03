@@ -238,7 +238,8 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     if(!SV_CheckBottom(ent))
     {
         if((int)ent->v.flags & FL_PARTIALGROUND)
-        { // entity had floor mostly pulled out from underneath it
+        {
+            // entity had floor mostly pulled out from underneath it
             // and is trying to correct
             if(relink)
             {
@@ -298,7 +299,8 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist)
     {
         delta = ent->v.angles[YAW] - ent->v.ideal_yaw;
         if(delta > 45 && delta < 315)
-        { // not turned far enough, so don't take the step
+        {
+            // not turned far enough, so don't take the step
             ent->v.origin = oldorigin;
         }
         SV_LinkEdict(ent, true);

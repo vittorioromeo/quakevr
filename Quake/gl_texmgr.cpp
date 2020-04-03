@@ -986,7 +986,8 @@ static void TexMgr_AlphaEdgeFix(byte* data, int width, int height)
         for(j = 0; j < width; j++, dest += 4)
         {
             if(dest[3])
-            { // not transparent
+            {
+                // not transparent
                 continue;
             }
 
@@ -1380,7 +1381,8 @@ static void TexMgr_LoadImage8(gltexture_t* glt, byte* data)
         for(i = 0; i < (int)(glt->width * glt->height); i++)
         {
             if(data[i] == 255)
-            { // transparent index
+            {
+                // transparent index
                 break;
             }
         }

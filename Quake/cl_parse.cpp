@@ -108,7 +108,8 @@ entity_t* CL_EntityNum(int num)
     if(num >= cl.num_entities)
     {
         if(num >= cl_max_edicts)
-        { // johnfitz -- no more MAX_EDICTS
+        {
+            // johnfitz -- no more MAX_EDICTS
             Host_Error("CL_EntityNum: %i is an invalid number", num);
         }
         while(cl.num_entities <= num)
@@ -192,7 +193,8 @@ void CL_ParseStartSoundPacket()
     // johnfitz
 
     if(ent > cl_max_edicts)
-    { // johnfitz -- no more MAX_EDICTS
+    {
+        // johnfitz -- no more MAX_EDICTS
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
@@ -485,7 +487,8 @@ void CL_ParseUpdate(int bits)
     int skin;
 
     if(cls.signon == SIGNONS - 1)
-    { // first update is the final signon stage
+    {
+        // first update is the final signon stage
         cls.signon = SIGNONS;
         CL_SignonReply();
     }
@@ -532,7 +535,8 @@ void CL_ParseUpdate(int bits)
 
     // johnfitz -- lerping
     if(ent->msgtime + 0.2 < cl.mtime[0])
-    { // more than 0.2 seconds since the last message (most
+    {
+        // more than 0.2 seconds since the last message (most
         // entities think every 0.1 sec)
         ent->lerpflags |= LERP_RESETANIM; // if we missed a think, we'd be
     }
@@ -774,7 +778,8 @@ void CL_ParseUpdate(int bits)
     // johnfitz
 
     if(forcelink)
-    { // didn't have an update last message
+    {
+        // didn't have an update last message
         ent->msg_origins[1] = ent->msg_origins[0];
         ent->origin = ent->msg_origins[0];
         ent->msg_angles[1] = ent->msg_angles[0];
@@ -897,7 +902,8 @@ void CL_ParseClientdata()
     i = MSG_ReadLong();
 
     if(cl.items != i)
-    { // set flash times
+    {
+        // set flash times
         Sbar_Changed();
         for(j = 0; j < 32; j++)
         {
@@ -1116,7 +1122,8 @@ void CL_NewTranslation(int slot)
     for(i = 0; i < VID_GRADES; i++, dest += 256, source += 256)
     {
         if(top < 128)
-        { // the artists made some backwards ranges.  sigh.
+        {
+            // the artists made some backwards ranges.  sigh.
             memcpy(dest + TOP_RANGE, source + top, 16);
         }
         else

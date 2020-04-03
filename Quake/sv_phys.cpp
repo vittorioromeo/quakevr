@@ -180,7 +180,8 @@ bool SV_RunThinkImpl(edict_t* ent)
         {
             int i = Q_rint(((ent->v).*TNextThink - thinktime) * 255);
             if(i >= 0 && i < 256 && i != 25 && i != 26)
-            { // 25 and 26 are close enough to 0.1 to not send
+            {
+                // 25 and 26 are close enough to 0.1 to not send
                 ent->sendinterval = true;
             }
         }
@@ -1034,7 +1035,8 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
     {
         if(fabs((double)oldorg[1] - (double)ent->v.origin[1]) < 0.03125 &&
             fabs((double)oldorg[0] - (double)ent->v.origin[0]) < 0.03125)
-        { // stepping up didn't make any progress
+        {
+            // stepping up didn't make any progress
             clip = SV_TryUnstick(ent, oldvel);
         }
     }
@@ -1387,7 +1389,8 @@ void SV_CheckWaterTransition(edict_t* ent)
     cont = SV_PointContents(ent->v.origin);
 
     if(!ent->v.watertype)
-    { // just spawned here
+    {
+        // just spawned here
         ent->v.watertype = cont;
         ent->v.waterlevel = 1;
         return;
@@ -1396,7 +1399,8 @@ void SV_CheckWaterTransition(edict_t* ent)
     if(cont <= CONTENTS_WATER)
     {
         if(ent->v.watertype == CONTENTS_EMPTY)
-        { // just crossed into water
+        {
+            // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
         }
         ent->v.watertype = cont;
@@ -1405,7 +1409,8 @@ void SV_CheckWaterTransition(edict_t* ent)
     else
     {
         if(ent->v.watertype != CONTENTS_EMPTY)
-        { // just crossed into water
+        {
+            // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
         }
         ent->v.watertype = CONTENTS_EMPTY;

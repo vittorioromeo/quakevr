@@ -108,7 +108,8 @@ void R_DrawSpriteModel(entity_t* e)
     switch(psprite->type)
     {
         case SPR_VP_PARALLEL_UPRIGHT:
-        { // faces view plane, up is towards the
+        {
+            // faces view plane, up is towards the
           // heavens
             v_up[0] = 0;
             v_up[1] = 0;
@@ -116,7 +117,8 @@ void R_DrawSpriteModel(entity_t* e)
             break;
         }
         case SPR_FACING_UPRIGHT:
-        { // faces camera origin, up is towards the
+        {
+            // faces camera origin, up is towards the
           // heavens
             v_forward = currententity->origin - r_origin;
             v_forward[2] = 0;
@@ -130,14 +132,16 @@ void R_DrawSpriteModel(entity_t* e)
             break;
         }
         case SPR_VP_PARALLEL:
-        { // faces view plane, up is towards the top of the
+        {
+            // faces view plane, up is towards the top of the
           // screen
             v_up = vup;
             v_right = vright;
             break;
         }
         case SPR_ORIENTED:
-        { // pitch yaw roll are independent of camera
+        {
+            // pitch yaw roll are independent of camera
             const auto [xv_forward, xv_right, xv_up] =
                 quake::util::getAngledVectors(currententity->angles);
 
@@ -147,7 +151,8 @@ void R_DrawSpriteModel(entity_t* e)
             break;
         }
         case SPR_VP_PARALLEL_ORIENTED:
-        { // faces view plane, but obeys roll value
+        {
+            // faces view plane, but obeys roll value
             const float angle = currententity->angles[ROLL] * M_PI_DIV_180;
             const float sr = std::sin(angle);
             const float cr = std::cos(angle);

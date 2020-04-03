@@ -179,13 +179,15 @@ void ExtraMaps_Init()
         else // pakfile
         {
             if(!strstr(search->pack->filename, ignorepakdir))
-            { // don't list standard id maps
+            {
+                // don't list standard id maps
                 for(i = 0, pak = search->pack; i < pak->numfiles; i++)
                 {
                     if(!strcmp(COM_FileGetExtension(pak->files[i].name), "bsp"))
                     {
                         if(pak->files[i].filelen > 32 * 1024)
-                        { // don't list files under 32k (ammo boxes etc)
+                        {
+                            // don't list files under 32k (ammo boxes etc)
                             COM_StripExtension(pak->files[i].name + 5, mapname,
                                 sizeof(mapname));
                             ExtraMaps_Add(mapname);
@@ -385,7 +387,8 @@ void DemoList_Init()
         else // pakfile
         {
             if(!strstr(search->pack->filename, ignorepakdir))
-            { // don't list standard id demos
+            {
+                // don't list standard id demos
                 for(i = 0, pak = search->pack; i < pak->numfiles; i++)
                 {
                     if(!strcmp(COM_FileGetExtension(pak->files[i].name), "dem"))
@@ -1063,7 +1066,8 @@ This is sent just before a server changes levels
 void Host_Reconnect_f()
 {
     if(cls.demoplayback)
-    { // cross-map demo playback fix from Baker
+    {
+        // cross-map demo playback fix from Baker
         return;
     }
 
@@ -1365,11 +1369,13 @@ void Host_Loadgame_f()
         }
 
         if(entnum == -1)
-        { // parse the global vars
+        {
+            // parse the global vars
             data = ED_ParseGlobals(data);
         }
         else
-        { // parse an edict
+        {
+            // parse an edict
             ent = EDICT_NUM(entnum);
             if(entnum < sv.num_edicts)
             {
@@ -1834,7 +1840,8 @@ void Host_Spawn_f()
 
     // run the entrance script
     if(sv.loadgame)
-    { // loaded games are fully inited allready
+    {
+        // loaded games are fully inited allready
         // if this is the last client to be connected, unpause
         sv.paused = false;
     }
@@ -2047,7 +2054,8 @@ void Host_Kick_f()
             {
                 message++; // skip the #
                 while(*message == ' ')
-                { // skip white space
+                {
+                    // skip white space
                     message++;
                 }
                 message += strlen(Cmd_Argv(2)); // skip the number

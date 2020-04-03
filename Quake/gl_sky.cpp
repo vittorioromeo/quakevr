@@ -293,7 +293,8 @@ void Sky_NewMap()
             q_strlcpy(key, com_token, sizeof(key));
         }
         while(key[0] && key[strlen(key) - 1] == ' ')
-        { // remove trailing spaces
+        {
+            // remove trailing spaces
             key[strlen(key) - 1] = 0;
         }
         data = COM_Parse(data);
@@ -315,11 +316,13 @@ void Sky_NewMap()
 #if 1 // also accept non-standard keys
         }
         else if(!strcmp("skyname", key))
-        { // half-life
+        {
+            // half-life
             Sky_LoadSkyBox(value);
         }
         else if(!strcmp("qlsky", key))
-        { // quake lives
+        {
+            // quake lives
             Sky_LoadSkyBox(value);
         }
 #endif
@@ -553,7 +556,8 @@ void Sky_ClipPoly(int nump, vec3_t vecs, int stage)
     }
 
     if(!front || !back)
-    { // not clipped
+    {
+        // not clipped
         Sky_ClipPoly(nump, vecs, stage + 1);
         return;
     }

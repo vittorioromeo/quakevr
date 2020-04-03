@@ -347,7 +347,8 @@ wavinfo_t GetWavinfo(const char* name, byte* wav, int wavlength)
         if(data_p)
         {
             if(!strncmp((char*)data_p + 28, "mark", 4))
-            { // this is not a proper parse, but it works with cooledit...
+            {
+                // this is not a proper parse, but it works with cooledit...
                 data_p += 24;
                 i = GetLittleLong(); // samples in loop
                 info.samples = info.loopstart + i;

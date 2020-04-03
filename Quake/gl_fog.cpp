@@ -223,7 +223,8 @@ void Fog_ParseWorldspawn()
             q_strlcpy(key, com_token, sizeof(key));
         }
         while(key[0] && key[strlen(key) - 1] == ' ')
-        { // remove trailing spaces
+        {
+            // remove trailing spaces
             key[strlen(key) - 1] = 0;
         }
         data = COM_Parse(data);

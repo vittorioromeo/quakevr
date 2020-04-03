@@ -692,20 +692,23 @@ static bool VID_SetMode(
         draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         if(!draw_context)
-        { // scale back fsaa
+        {
+            // scale back fsaa
             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         }
         if(!draw_context)
-        { // scale back SDL_GL_DEPTH_SIZE
+        {
+            // scale back SDL_GL_DEPTH_SIZE
             SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         }
         if(!draw_context)
-        { // scale back SDL_GL_STENCIL_SIZE
+        {
+            // scale back SDL_GL_STENCIL_SIZE
             SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
@@ -795,18 +798,21 @@ static bool VID_SetMode(
 
     draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     if(!draw_context)
-    { // scale back fsaa
+    {
+        // scale back fsaa
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     }
     if(!draw_context)
-    { // scale back SDL_GL_DEPTH_SIZE
+    {
+        // scale back SDL_GL_DEPTH_SIZE
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     }
     if(!draw_context)
-    { // scale back SDL_GL_STENCIL_SIZE
+    {
+        // scale back SDL_GL_STENCIL_SIZE
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
         if(!draw_context) Sys_Error("Couldn't set video mode");

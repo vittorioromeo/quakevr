@@ -252,12 +252,14 @@ char* q_strcasestr(const char* haystack, const char* needle)
                 }
                 // complete match
                 if(!c1)
-                { // end of haystack means we can't possibly find needle
+                {
+                    // end of haystack means we can't possibly find needle
                     // in it any more
                     return nullptr;
                 }
                 if(c1 != c2)
-                { // mismatch means no match starting at haystack[0]
+                {
+                    // mismatch means no match starting at haystack[0]
                     break;
                 }
             }
@@ -1837,7 +1839,8 @@ void COM_CreatePath(char* path)
     for(ofs = path + 1; *ofs; ofs++)
     {
         if(*ofs == '/')
-        { // create the directory
+        {
+            // create the directory
             *ofs = 0;
             Sys_mkdir(path);
             *ofs = '/';
@@ -2476,7 +2479,8 @@ static void COM_Game_f()
         if(!q_strcasecmp(p, COM_SkipPath(com_gamedir))) // no change
         {
             if(com_searchpaths->path_id > 1)
-            { // current game not id1
+            {
+                // current game not id1
                 if(*p2 && com_searchpaths->path_id == 2)
                 {
                     // rely on QuakeSpasm extension treating '-game missionpack'
@@ -2551,7 +2555,8 @@ static void COM_Game_f()
                     rogue = true;
                 }
                 if(q_strcasecmp(p, &p2[1]))
-                { // don't load twice
+                {
+                    // don't load twice
                     COM_AddGameDirectory(com_basedir, p);
                 }
             }
@@ -2611,7 +2616,8 @@ static void COM_Game_f()
         }
     }
     else
-    { // Diplay the current gamedir
+    {
+        // Diplay the current gamedir
         Con_Printf("\"game\" is \"%s\"\n", COM_SkipPath(com_gamedir));
     }
 }

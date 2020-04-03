@@ -598,7 +598,8 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
         ent->v.absmax[1] += 15;
     }
     else
-    { // because movement is clipped an epsilon away from an actual edge,
+    {
+        // because movement is clipped an epsilon away from an actual edge,
         // we must fully check even when bounding boxes don't quite touch
         ent->v.absmin[0] -= 1;
         ent->v.absmin[1] -= 1;
@@ -945,7 +946,8 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
 
     while(
         SV_HullPointContents(hull, hull->firstclipnode, mid) == CONTENTS_SOLID)
-    { // shouldn't really happen, but does occasionally
+    {
+        // shouldn't really happen, but does occasionally
         frac -= 0.1;
         if(frac < 0)
         {

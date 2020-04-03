@@ -176,7 +176,8 @@ int Scrap_AllocBlock(int w, int h, int* x, int* y)
                 }
             }
             if(j == w)
-            { // this is a valid spot
+            {
+                // this is a valid spot
                 *x = i;
                 *y = best = best2;
             }
@@ -552,7 +553,8 @@ void Draw_String(int x, int y, const char* str)
     while(*str)
     {
         if(*str != 32)
-        { // don't waste verts on spaces
+        {
+            // don't waste verts on spaces
             Draw_CharacterQuad(x, y, *str);
         }
         str++;

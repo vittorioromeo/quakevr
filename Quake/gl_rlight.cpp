@@ -100,7 +100,8 @@ void R_RenderDlight(dlight_t* light)
 
     glm::vec3 v = light->origin - r_origin;
     if(glm::length(v) < rad)
-    { // view is inside the dlight
+    {
+        // view is inside the dlight
         AddLightBlend(1, 0.5, 0, light->radius * 0.0003);
         return;
     }
@@ -265,7 +266,8 @@ start:
                 surf->dlightframe = r_dlightframecount;
             }
             else
-            { // already dynamic
+            {
+                // already dynamic
                 surf->dlightbits[num >> 5] |= 1U << (num & 31);
             }
         }

@@ -608,7 +608,8 @@ void SV_AddToFatPVS(const glm::vec3& org, mnode_t* node,
             node = node->children[1];
         }
         else
-        { // go down both
+        {
+            // go down both
             SV_AddToFatPVS(org, node->children[0],
                 worldmodel); // johnfitz -- worldmodel as a parameter
             node = node->children[1];
@@ -1949,7 +1950,8 @@ void SV_SpawnServer(const char* server)
     // johnfitz -- warn if signon buffer larger than standard
     // server can handle
     if(sv.signon.cursize > 8000 - 2)
-    { // max size that will fit into 8000-sized client->message
+    {
+        // max size that will fit into 8000-sized client->message
         // buffer with 2 extra bytes on the end
         Con_DWarning(
             "%i byte signon buffer exceeds standard limit of "

@@ -811,7 +811,8 @@ void R_DrawTextureChains_Water(qmodel_t* model, entity_t* ent, texchain_t chain)
     float entalpha;
 
     if(r_drawflat_cheatsafe || r_lightmap_cheatsafe)
-    { // ericw -- !r_drawworld_cheatsafe check moved to
+    {
+        // ericw -- !r_drawworld_cheatsafe check moved to
         // R_DrawWorld_Water ()
         return;
     }

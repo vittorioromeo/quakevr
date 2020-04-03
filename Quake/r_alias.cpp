@@ -550,7 +550,8 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
         e->lerpflags -= LERP_RESETMOVE;
     }
     else if(e->origin != e->currentorigin || e->angles != e->currentangles)
-    { // origin/angles changed, start new lerp
+    {
+        // origin/angles changed, start new lerp
         e->movelerpstart = cl.time;
         e->previousorigin = e->currentorigin;
         e->currentorigin = e->origin;
@@ -767,7 +768,8 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     // set up for alpha blending
     //
     if(r_drawflat_cheatsafe || r_lightmap_cheatsafe)
-    { // no alpha in drawflat or lightmap mode
+    {
+        // no alpha in drawflat or lightmap mode
         entalpha = 1;
     }
     else

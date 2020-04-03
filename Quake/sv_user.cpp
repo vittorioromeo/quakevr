@@ -439,9 +439,9 @@ void SV_AirMove()
         wishspeed = sv_maxspeed.value;
     }
 
-    // TODO VR: grep for this comment style and fix
     if(sv_player->v.movetype == MOVETYPE_NOCLIP)
-    { // noclip
+    {
+        // noclip
         *velocity = wishvel;
     }
     else if(onground)
@@ -450,7 +450,8 @@ void SV_AirMove()
         SV_Accelerate(wishspeed, wishdir);
     }
     else
-    { // not on ground, so little effect on velocity
+    {
+        // not on ground, so little effect on velocity
         SV_AirAccelerate(wishspeed, wishvel);
     }
 }

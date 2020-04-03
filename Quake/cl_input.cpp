@@ -113,7 +113,8 @@ void KeyUp(kbutton_t* b)
         k = atoi(c);
     }
     else
-    { // typed manually at the console, assume for unsticking, so clear all
+    {
+        // typed manually at the console, assume for unsticking, so clear all
         b->down[0] = b->down[1] = 0;
         b->state = 4; // impulse up
         return;

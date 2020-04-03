@@ -974,7 +974,8 @@ void V_CalcRefdef()
     const auto [forward, right, up] = quake::util::getAngledVectors(angles);
 
     if(cl.maxclients <= 1)
-    { // johnfitz -- moved cheat-protection here from V_RenderView
+    {
+        // johnfitz -- moved cheat-protection here from V_RenderView
         for(int i = 0; i < 3; i++)
         {
             r_refdef.vieworg[i] += scr_ofsx.value * forward[i] +

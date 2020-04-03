@@ -167,7 +167,8 @@ byte* Mod_DecompressVis(byte* in, qmodel_t* model)
     outend = mod_decompressed + row;
 
     if(!in)
-    { // no vis info, so make all visible
+    {
+        // no vis info, so make all visible
         while(row)
         {
             *out++ = 0xff;
@@ -267,7 +268,8 @@ void Mod_ResetAll()
     for(i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
         if(!mod->needload)
-        { // otherwise Mod_ClearAll() did it already
+        {
+            // otherwise Mod_ClearAll() did it already
             TexMgr_FreeTexturesForOwner(mod);
         }
         memset(mod, 0, sizeof(qmodel_t));
@@ -586,7 +588,8 @@ void Mod_LoadTextures(lump_t* l)
         if(!isDedicated) // no texture uploading for dedicated server
         {
             if(!q_strncasecmp(tx->name, "sky", 3))
-            { // sky texture //also note -- was
+            {
+                // sky texture //also note -- was
                 // Q_strncmp, changed to match qbsp
                 Sky_LoadTexture(tx);
             }
@@ -1283,7 +1286,8 @@ void CalcSurfaceExtents(msurface_t* s)
         s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
 
         if(!(tex->flags & TEX_SPECIAL) && s->extents[i] > 2000)
-        { // johnfitz -- was 512 in glquake, 256 in winquake
+        {
+            // johnfitz -- was 512 in glquake, 256 in winquake
             Sys_Error("Bad surface extents");
         }
     }
@@ -2421,7 +2425,8 @@ void Mod_LoadSubmodels(lump_t* l)
     for(i = 0; i < count; i++, in++, out++)
     {
         for(j = 0; j < 3; j++)
-        { // spread the mins / maxs by a pixel
+        {
+            // spread the mins / maxs by a pixel
             out->mins[j] = LittleFloat(in->mins[j]) - 1;
             out->maxs[j] = LittleFloat(in->maxs[j]) + 1;
             out->origin[j] = LittleFloat(in->origin[j]);
@@ -2643,7 +2648,8 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
         mod->numleafs = bm->visleafs;
 
         if(i < mod->numsubmodels - 1)
-        { // duplicate the basic information
+        {
+            // duplicate the basic information
             char name[10];
 
             sprintf(name, "*%i", i + 1);

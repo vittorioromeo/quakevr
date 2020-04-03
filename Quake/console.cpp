@@ -950,7 +950,8 @@ const char* FindCompletion(
                 matched[sizeof(matched) - 1] = '\0';
             }
             else
-            { // find max common
+            {
+                // find max common
                 i_matched = matched;
                 i_name = file->name;
                 while(*i_matched && (*i_matched == *i_name))

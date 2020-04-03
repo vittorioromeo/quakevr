@@ -963,7 +963,8 @@ void R_ShowTris()
             currententity = cl_visedicts[i];
 
             if(currententity == &cl_entities[cl.viewentity])
-            { // chasecam
+            {
+                // chasecam
                 currententity->angles[0] *= 0.3;
             }
 

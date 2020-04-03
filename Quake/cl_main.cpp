@@ -492,7 +492,8 @@ void CL_RelinkEntities()
     for(i = 1, ent = cl_entities + 1; i < cl.num_entities; i++, ent++)
     {
         if(!ent->model)
-        { // empty slot
+        {
+            // empty slot
 
             // ericw -- efrags are only used for static entities in GLQuake
             // ent can't be static, so this is a no-op.
@@ -515,13 +516,15 @@ void CL_RelinkEntities()
         const auto oldorg = ent->origin;
 
         if(ent->forcelink)
-        { // the entity was not updated in the last message
+        {
+            // the entity was not updated in the last message
             // so move to the final spot
             ent->origin = ent->msg_origins[0];
             ent->angles = ent->msg_angles[0];
         }
         else
-        { // if the delta is large, assume a teleport and don't lerp
+        {
+            // if the delta is large, assume a teleport and don't lerp
             float f = frac;
             glm::vec3 delta;
 

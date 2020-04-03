@@ -387,7 +387,8 @@ channel_t* SND_PickChannel(int entnum, int entchannel)
         if(entchannel != 0 // channel 0 never overrides
             && snd_channels[ch_idx].entnum == entnum &&
             (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1))
-        { // always override sound from same entity
+        {
+            // always override sound from same entity
             first_to_die = ch_idx;
             break;
         }
@@ -1008,7 +1009,8 @@ static void GetSoundtime()
         buffers++; // buffer wrapped
 
         if(paintedtime > 0x40000000)
-        { // time to chop things off to avoid 32 bit limits
+        {
+            // time to chop things off to avoid 32 bit limits
             buffers = 0;
             paintedtime = fullsamples;
             S_StopAllSounds(true);

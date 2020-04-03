@@ -693,7 +693,8 @@ void R_RenderDynamicLightmaps(msurface_t* fa)
     int tmax;
 
     if(fa->flags & SURF_DRAWTILED)
-    { // johnfitz -- not a lightmapped surface
+    {
+        // johnfitz -- not a lightmapped surface
         return;
     }
 
@@ -809,7 +810,8 @@ int AllocBlock(int w, int h, int* x, int* y)
                 }
             }
             if(j == w)
-            { // this is a valid spot
+            {
+                // this is a valid spot
                 *x = i;
                 *y = best = best2;
             }
@@ -1455,7 +1457,8 @@ void R_RebuildAllLightmaps()
     byte* base;
 
     if(!cl.worldmodel)
-    { // is this the correct test?
+    {
+        // is this the correct test?
         return;
     }
 

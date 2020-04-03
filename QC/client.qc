@@ -848,14 +848,6 @@ void() PlayerDeathThink =
 
 void() PlayerJump =
 {
-    bprint("onground: ");
-    bprint(ftos(self.flags & FL_ONGROUND));
-
-    bprint("; jumpreleased: ");
-    bprint(ftos(self.flags & FL_JUMPRELEASED));
-
-    bprint("\n");
-
     if (self.flags & FL_WATERJUMP)
         return;
 

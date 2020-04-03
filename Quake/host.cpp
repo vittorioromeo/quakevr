@@ -698,7 +698,8 @@ bool Host_FilterTime(float time)
         host_frametime = host_framerate.value;
     }
     else
-    { // don't allow really long or short frames
+    {
+        // don't allow really long or short frames
         host_frametime =
             CLAMP(0.001, host_frametime, 0.1); // johnfitz -- use CLAMP
     }

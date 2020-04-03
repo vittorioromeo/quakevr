@@ -124,7 +124,8 @@ edict_t* ED_Alloc()
     }
 
     if(i == sv.max_edicts)
-    { // johnfitz -- use sv.max_edicts instead of
+    {
+        // johnfitz -- use sv.max_edicts instead of
         // MAX_EDICTS
         Host_Error(
             "ED_Alloc: no free edicts (max_edicts is %i)", sv.max_edicts);
@@ -965,7 +966,8 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 
     // clear it
     if(ent != sv.edicts)
-    { // hack
+    {
+        // hack
         memset(&ent->v, 0, progs->entityfields * 4);
     }
 
