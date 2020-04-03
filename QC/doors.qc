@@ -417,10 +417,8 @@ Key doors are allways wait -1.
 */
 
 void() func_door =
-
 {
-
-local vector tempVect;
+    local vector tempVect;
 
     if (world.worldtype == 0)
     {
@@ -447,6 +445,7 @@ local vector tempVect;
     {
         dprint ("no worldtype set!\n");
     }
+
     if (self.sounds == 0)
     {
         precache_sound ("misc/null.wav");
@@ -454,35 +453,34 @@ local vector tempVect;
         self.noise1 = "misc/null.wav";
         self.noise2 = "misc/null.wav";
     }
-    if (self.sounds == 1)
+    else if (self.sounds == 1)
     {
         precache_sound ("doors/drclos4.wav");
         precache_sound ("doors/doormv1.wav");
         self.noise1 = "doors/drclos4.wav";
         self.noise2 = "doors/doormv1.wav";
     }
-    if (self.sounds == 2)
+    else if (self.sounds == 2)
     {
         precache_sound ("doors/hydro1.wav");
         precache_sound ("doors/hydro2.wav");
         self.noise2 = "doors/hydro1.wav";
         self.noise1 = "doors/hydro2.wav";
     }
-    if (self.sounds == 3)
+    else if (self.sounds == 3)
     {
         precache_sound ("doors/stndr1.wav");
         precache_sound ("doors/stndr2.wav");
         self.noise2 = "doors/stndr1.wav";
         self.noise1 = "doors/stndr2.wav";
     }
-    if (self.sounds == 4)
+    else if (self.sounds == 4)
     {
         precache_sound ("doors/ddoor1.wav");
         precache_sound ("doors/ddoor2.wav");
         self.noise1 = "doors/ddoor2.wav";
         self.noise2 = "doors/ddoor1.wav";
     }
-
 
     SetMovedir ();
 
