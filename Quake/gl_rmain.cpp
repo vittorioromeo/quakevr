@@ -559,7 +559,7 @@ void R_SetupGL()
 {
     int scale;
 
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         VR_SetMatrices();
     }

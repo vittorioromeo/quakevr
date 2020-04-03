@@ -143,6 +143,10 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
 void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target);
 void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target);
 
+void VR_ModAllWeapons();
+
+[[nodiscard]] bool VR_EnabledAndNotFake() noexcept;
+
 //
 //
 //
@@ -344,6 +348,7 @@ extern cvar_t vr_shoulder_holster_thresh;
 extern cvar_t vr_shoulder_holster_offset_x;
 extern cvar_t vr_shoulder_holster_offset_y;
 extern cvar_t vr_shoulder_holster_offset_z;
+extern cvar_t vr_fakevr;
 
 // TODO VR: what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

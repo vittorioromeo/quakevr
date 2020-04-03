@@ -1049,7 +1049,15 @@ void Host_Init()
 
     if(cls.state != ca_dedicated)
     {
+        // VR: This is what reads 'config.cfg'.
         Cbuf_InsertText("exec quake.rc\n");
+
+        // TODO VR: why doesn't this work?
+        if(vr_enabled.value == 1)
+        {
+            VR_ModAllWeapons();
+        }
+
         // johnfitz -- in case the vid mode was locked during vid_init, we
         // can unlock it now. note: two leading newlines because the command
         // buffer swallows one of them.

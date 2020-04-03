@@ -420,13 +420,7 @@ void SV_AirMove()
         fmove = 0;
     }
 
-    glm::vec3 wishvel;
-
-
-    for(int i = 0; i < 3; i++)
-    {
-        wishvel[i] = forward[i] * fmove + right[i] * smove;
-    }
+    glm::vec3 wishvel = forward * fmove + right * smove;
 
     if((int)sv_player->v.movetype != MOVETYPE_WALK)
     {
@@ -445,6 +439,7 @@ void SV_AirMove()
         wishspeed = sv_maxspeed.value;
     }
 
+    // TODO VR: grep for this comment style and fix
     if(sv_player->v.movetype == MOVETYPE_NOCLIP)
     { // noclip
         *velocity = wishvel;
@@ -470,7 +465,6 @@ the angle fields specify an exact angular motion in degrees
 */
 void SV_ClientThink()
 {
-
     if(sv_player->v.movetype == MOVETYPE_NONE)
     {
         return;
@@ -646,6 +640,10 @@ void SV_ReadClientMove(usercmd_t* move)
         MSG_ReadShort();
     host_client->edict->v.mainhand_hotspot = move->mainhand_hotspot =
         MSG_ReadShort();
+
+    // roomscalemove
+    readVec(move->roomscalemove);
+    host_client->edict->v.roomscalemove = move->roomscalemove;
 
     // read buttons
     bits = MSG_ReadByte();

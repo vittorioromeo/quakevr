@@ -765,7 +765,7 @@ void GL_SetCanvas(canvastype newcanvas)
 
     currentcanvas = newcanvas;
 
-    if(vr_enabled.value && !con_forcedup)
+    if(VR_EnabledAndNotFake() && !con_forcedup)
     {
         return;
     }

@@ -315,6 +315,9 @@ struct usercmd_t
     int mainhand_grabbing;
     int offhand_hotspot;
     int mainhand_hotspot;
+
+    // VR room scale movement
+    glm::vec3 roomscalemove;
 };
 
 #endif /* _QUAKE_PROTOCOL_H */

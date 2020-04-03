@@ -1,3 +1,4 @@
+#include "console.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
 #include "vr_menu.hpp"
@@ -174,7 +175,7 @@ static glm::vec3 lastHeadOrigin{vec3_zero};
 static vr::HmdVector3_t headPos;
 static vr::HmdVector3_t headVelocity;
 
-glm::vec3 vr_room_scale_move;
+glm::vec3 vr_room_scale_move{};
 
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
@@ -309,6 +310,7 @@ DEFINE_CVAR(vr_shoulder_holster_thresh, 8.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_x, 5.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_y, 1.5, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_z, 0.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
 
 //
 //
@@ -994,6 +996,37 @@ void VID_VR_Init()
 void VR_InitGame()
 {
     InitAllWeaponCVars();
+}
+
+void VR_ModAllWeapons()
+{
+    for(int i = 0; i < e_MAX_WEAPONS; ++i)
+    {
+        const char* cvarname = CopyWithNumeral("vr_wofs_id_nn", i + 1);
+
+        const cvar_t* cvar = Cvar_FindVar(cvarname);
+        if(cvar == nullptr)
+        {
+            continue;
+        }
+
+        const char* mdlName = cvar->string;
+
+        if(strcmp(mdlName, "-1") == 0)
+        {
+            continue;
+        }
+
+        auto* model = Mod_ForName(mdlName, true);
+        auto* hdr = (aliashdr_t*)Mod_Extradata(model);
+        ApplyMod_Weapon(i, hdr);
+    }
+}
+
+// TODO VR:
+[[nodiscard]] bool VR_EnabledAndNotFake() noexcept
+{
+    return vr_enabled.value == 1 && vr_fakevr.value == 0;
 }
 
 //
@@ -1839,9 +1872,11 @@ VR_UpdateDevicesOrientationPosition() noexcept
             vr_room_scale_move =
                 Vec3RotateZ(moveInTracking, vrYaw * M_PI_DIV_180);
 
+            // ----------------------------------------------------------------
             // VR: Scale room-scale movement scaling for easier dodging and
             // improve teleportation-based gameplay experience.
             vr_room_scale_move *= vr_room_scale_move_mult.value;
+            // ----------------------------------------------------------------
 
             lastHeadOrigin = headOrigin;
             headOrigin -= lastHeadOrigin;
@@ -2148,8 +2183,12 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 
 static void VR_ControllerAiming(const glm::vec3& orientation)
 {
-    cl.viewangles[PITCH] = orientation[PITCH];
-    cl.viewangles[YAW] = orientation[YAW];
+    // TODO VR:
+    if(vr_fakevr.value == 0)
+    {
+        cl.viewangles[PITCH] = orientation[PITCH];
+        cl.viewangles[YAW] = orientation[YAW];
+    }
 
     glm::vec3 originalRots[2];
 
@@ -2183,6 +2222,10 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
     doModWeapon(0, VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
     doModWeapon(1, VR_GetMainHandWpnCvarEntry(), cl.viewent);
 
+    // TODO VR: this works when done here, but doesn't if it's only called once
+    // per game. Why? It's inefficient here.
+    VR_ModAllWeapons();
+
     entity_t* const player = &cl_entities[cl.viewentity];
 
     SetHandPos(0, player);
@@ -2193,6 +2236,39 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
     VR_Do2HAiming(originalRots);
     VR_DoWeaponDirSlerp();
+
+    // TODO VR:
+    if(vr_fakevr.value == 1)
+    {
+        glm::vec3 playerYawOnly = {0, sv_player->v.v_viewangle[YAW], 0};
+        const auto [vfwd, vright, vup] = getAngledVectors(playerYawOnly);
+
+        const auto [vwfwd, vwright, vwup] = getAngledVectors(cl.viewangles);
+
+        cl.handpos[cVR_MainHand] =
+            sv_player->v.origin + vfwd * 5.f + vright * 3.5f + vup * 5.f;
+
+        cl.handpos[cVR_OffHand] =
+            sv_player->v.origin + vfwd * 5.f - vright * 3.5f + vup * 5.f;
+
+        const trace_t trace =
+            SV_Move(sv_player->v.origin + vup * 8.f, vec3_zero, vec3_zero,
+                sv_player->v.origin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
+                sv_player);
+
+        const auto maindir =
+            glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
+
+        const auto offdir =
+            glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
+
+        const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
+        const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
+
+        cl.handrot[cVR_MainHand] = mainang;
+        cl.handrot[cVR_OffHand] = offang;
+    }
+
     VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
 }
@@ -2292,7 +2368,11 @@ void VR_UpdateScreenContent()
         }
     }
 
-    cl.viewangles[ROLL] = orientation[ROLL];
+    // TODO VR:
+    if(vr_fakevr.value == 0)
+    {
+        cl.viewangles[ROLL] = orientation[ROLL];
+    }
 
     lastOrientation = orientation;
     lastAim = cl.aimangles;
@@ -3140,6 +3220,7 @@ void VR_ResetOrientation()
 {
     cl.aimangles[YAW] = cl.viewangles[YAW];
     cl.aimangles[PITCH] = cl.viewangles[PITCH];
+
     if(vr_enabled.value)
     {
         // IVRSystem_ResetSeatedZeroPose(ovrHMD);
@@ -3164,6 +3245,12 @@ struct VRAxisResult
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude)
 {
+    // TODO VR:
+    if(vr_fakevr.value == 1)
+    {
+        return;
+    }
+
     const auto hapticTarget = hand == 0 ? vrahLeftHaptic : vrahRightHaptic;
 
     vr::VRInput()->TriggerHapticVibrationAction(hapticTarget, delay, duration,
@@ -3424,8 +3511,17 @@ void VR_Move(usercmd_t* cmd)
         return 0;
     };
 
-    cmd->offhand_grabbing = vr_left_grabbing;
-    cmd->mainhand_grabbing = vr_right_grabbing;
+    // TODO VR:
+    if(vr_fakevr.value == 1)
+    {
+        cmd->offhand_grabbing = 1;
+        cmd->mainhand_grabbing = 1;
+    }
+    else
+    {
+        cmd->offhand_grabbing = vr_left_grabbing;
+        cmd->mainhand_grabbing = vr_right_grabbing;
+    }
 
     cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
     cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);
@@ -3482,6 +3578,10 @@ void VR_Move(usercmd_t* cmd)
         cmd->forwardmove += cl_forwardspeed.value * fwd;
         cmd->sidemove += cl_forwardspeed.value * right;
     }
+
+    // roomscalemove:
+    cmd->roomscalemove =
+        vr_room_scale_move * static_cast<float>(1.0f / host_frametime);
 
     std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[cVR_OffHand]);
     cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];

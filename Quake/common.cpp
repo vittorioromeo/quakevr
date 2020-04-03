@@ -2584,24 +2584,30 @@ static void COM_Game_f()
         // clear out and reload appropriate data
         Cache_Flush();
         Mod_ResetAll();
+
         if(!isDedicated)
         {
             TexMgr_NewGame();
             Draw_NewGame();
             R_NewGame();
         }
+
         ExtraMaps_NewGame();
         DemoList_Rebuild();
 
         Con_Printf("\"game\" changed to \"%s\"\n", COM_SkipPath(com_gamedir));
 
         VID_Lock();
+
+        // VR: This is what reads 'config.cfg'.
         Cbuf_AddText("exec quake.rc\n");
+
         Cbuf_AddText("vid_unlock\n");
 
         if(vr_enabled.value)
         {
             Cbuf_AddText("map start\n");
+            VR_ModAllWeapons();
         }
     }
     else

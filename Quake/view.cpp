@@ -184,20 +184,19 @@ float V_CalcBob()
 cvar_t v_centermove = {"v_centermove", "0.15", CVAR_NONE};
 cvar_t v_centerspeed = {"v_centerspeed", "500", CVAR_NONE};
 
-
 void V_StartPitchDrift()
 {
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         VR_ResetOrientation();
         return;
     }
-#if 1
+
     if(cl.laststop == cl.time)
     {
         return; // something else is keeping it from drifting
     }
-#endif
+
     if(cl.nodrift || !cl.pitchvel)
     {
         cl.pitchvel = v_centerspeed.value;
@@ -713,22 +712,24 @@ void CalcGunAngle(
 
     float yaw = r_refdef.aimangles[YAW];
     yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
+
     if(yaw > 10)
     {
         yaw = 10;
     }
-    if(yaw < -10)
+    else if(yaw < -10)
     {
         yaw = -10;
     }
 
     float pitch = -r_refdef.aimangles[PITCH];
     pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
+
     if(pitch > 10)
     {
         pitch = 10;
     }
-    if(pitch < -10)
+    else if(pitch < -10)
     {
         pitch = -10;
     }
@@ -803,6 +804,7 @@ void V_BoundOffsets()
     {
         r_refdef.vieworg[0] = ent->origin[0] + 14;
     }
+
     if(r_refdef.vieworg[1] < ent->origin[1] - 14)
     {
         r_refdef.vieworg[1] = ent->origin[1] - 14;
@@ -811,6 +813,7 @@ void V_BoundOffsets()
     {
         r_refdef.vieworg[1] = ent->origin[1] + 14;
     }
+
     if(r_refdef.vieworg[2] < ent->origin[2] - 22)
     {
         r_refdef.vieworg[2] = ent->origin[2] - 22;
@@ -865,7 +868,7 @@ void V_CalcViewRoll()
     }
 
     if(cl.stats[STAT_HEALTH] <= 0 &&
-        !vr_enabled.value /* TODO VR: create CVAR */)
+        !VR_EnabledAndNotFake() /* TODO VR: create CVAR */)
     {
         r_refdef.viewangles[ROLL] = 80; // dead view angle
         return;
@@ -894,7 +897,7 @@ void V_CalcIntermissionRefdef()
     r_refdef.viewangles = ent->angles;
     view->model = nullptr;
 
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         r_refdef.viewangles[PITCH] = 0;
         r_refdef.aimangles = r_refdef.viewangles;
@@ -917,21 +920,16 @@ V_CalcRefdef
 */
 void V_CalcRefdef()
 {
-    entity_t* ent;
-
-    entity_t* view;
-
-    float bob;
     static float oldz = 0;
     static glm::vec3 punch{vec3_zero}; // johnfitz -- v_gunkick
-    float delta;                       // johnfitz -- v_gunkick
 
     V_DriftPitch();
 
     // ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
+    entity_t* ent = &cl_entities[cl.viewentity];
+
     // view is the weapon model (only visible from inside body)
-    view = &cl.viewent;
+    entity_t* view = &cl.viewent;
 
 
     // transform the view offset by the model's matrix to get the offset from
@@ -940,10 +938,10 @@ void V_CalcRefdef()
     ent->angles[PITCH] =
         -cl.viewangles[PITCH]; // the model should face the view dir
 
-    bob = V_CalcBob();
+    float bob = V_CalcBob();
 
     // refresh position
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         extern glm::vec3 vr_viewOffset;
         r_refdef.vieworg = ent->origin + vr_viewOffset;
@@ -1010,6 +1008,7 @@ void V_CalcRefdef()
         {
             view->origin[i] += forward[i] * bob * 0.4;
         }
+
         view->origin[2] += bob;
     }
 
@@ -1048,7 +1047,10 @@ void V_CalcRefdef()
     // johnfitz -- v_gunkick
     if(v_gunkick.value == 1 &&
         !(vr_enabled.value && !vr_viewkick.value)) // original quake kick
+    {
         r_refdef.viewangles += cl.punchangle;
+    }
+
     if(v_gunkick.value == 2 &&
         !(vr_enabled.value &&
             !vr_viewkick.value)) // lerped kick /* TODO VR: create CVAR */
@@ -1059,8 +1061,8 @@ void V_CalcRefdef()
             {
                 // speed determined by how far we need to lerp in 1/10th of
                 // a second
-                delta = (v_punchangles[0][i] - v_punchangles[1][i]) *
-                        host_frametime * 10;
+                float delta = (v_punchangles[0][i] - v_punchangles[1][i]) *
+                              host_frametime * 10;
 
                 if(delta > 0)
                 {
@@ -1308,8 +1310,8 @@ void V_RenderView()
 
         if(cl.viewent.model != nullptr)
         {
-            SetupHandViewModel(
-                &cl.viewent, &cl.right_hand, cl.handrot[cVR_MainHand], vec3_zero);
+            SetupHandViewModel(&cl.viewent, &cl.right_hand,
+                cl.handrot[cVR_MainHand], vec3_zero);
         }
 
         if(cl.offhand_viewent.model != nullptr)

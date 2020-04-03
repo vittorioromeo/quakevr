@@ -1218,7 +1218,7 @@ void SCR_UpdateScreenContent()
 {
     V_RenderView();
 
-    if(vr_enabled.value && !con_forcedup)
+    if(VR_EnabledAndNotFake() && !con_forcedup)
     {
         VR_Draw2D();
     }
@@ -1337,6 +1337,15 @@ void SCR_UpdateScreen()
         cl.viewangles = cl.aimangles;
         r_refdef.viewangles = cl.aimangles;
         r_refdef.aimangles = cl.aimangles;
+
+        SCR_UpdateScreenContent();
+    }
+
+    // TODO VR:
+    if(vr_fakevr.value == 1)
+    {
+        r_refdef.viewangles = cl.viewangles;
+        r_refdef.aimangles = cl.viewangles;
 
         SCR_UpdateScreenContent();
     }

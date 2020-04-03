@@ -591,6 +591,9 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteShort(&buf, cmd->offhand_hotspot);
     MSG_WriteShort(&buf, cmd->mainhand_hotspot);
 
+    // roomscalemove
+    writeVec(cmd->roomscalemove);
+
     //
     // send button bits
     //
