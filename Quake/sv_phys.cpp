@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_phys.c
 
+#include "console.hpp"
 #include "fwd.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
@@ -289,8 +290,9 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 {
     constexpr int numbumps = 4;
 
+    const glm::vec3 primal_velocity = ent->v.velocity;
+
     glm::vec3 planes[MAX_CLIP_PLANES];
-    glm::vec3 primal_velocity = ent->v.velocity;
     glm::vec3 original_velocity = ent->v.velocity;
     glm::vec3 new_velocity;
 
@@ -306,23 +308,21 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             break;
         }
 
-        glm::vec3 end;
-        for(int i = 0; i < 3; i++)
-        {
-            end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
-        }
+        const glm::vec3 end = ent->v.origin + time_left * ent->v.velocity;
 
         trace_t trace =
             SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
 
         if(trace.allsolid)
-        { // entity is trapped in another solid
+        {
+            // entity is trapped in another solid
             ent->v.velocity = vec3_zero;
             return 3;
         }
 
         if(trace.fraction > 0)
-        { // actually covered some distance
+        {
+            // actually covered some distance
             ent->v.origin = trace.endpos;
             original_velocity = ent->v.velocity;
             numplanes = 0;
@@ -347,6 +347,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
                 ent->v.groundentity = EDICT_TO_PROG(trace.ent);
             }
         }
+
         if(!trace.plane.normal[2])
         {
             blocked |= 2; // step
@@ -379,7 +380,8 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         // cliped to another plane
         if(numplanes >= MAX_CLIP_PLANES)
-        { // this shouldn't really happen
+        {
+            // this shouldn't really happen
             ent->v.velocity = vec3_zero;
             return 3;
         }
@@ -411,11 +413,13 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         }
 
         if(i != numplanes)
-        { // go along this plane
+        {
+            // go along this plane
             ent->v.velocity = new_velocity;
         }
         else
-        { // go along the crease
+        {
+            // go along the crease
             if(numplanes != 2)
             {
                 //				Con_Printf ("clip velocity, numplanes ==
@@ -535,10 +539,15 @@ SV_PushMove
 void SV_PushMove(edict_t* pusher, float movetime)
 {
     // TODO VR: bugs:
-    // * bouncing when going down elevator in e1m1
-    // * taking damage and floating while going down elevator in e2m6
-    // * floating when going up elevator in e1m1
-    // * going through crusher when jumping in e1m3
+    // * bouncing when going down elevator in e1m1 (seems fixed)
+    // * taking damage and floating while going down elevator in e2m6 (seems
+    // fixed)
+    // * floating when going up elevator in e1m1 (seems fixed)
+    // * going through crusher when jumping in e1m3 (seems fixed)
+    // * moving against big door in e1m3 deals damage (seems fixed)
+    // * opening rotating door in SoA start carries player around
+    // * shambler lightning sometimes not working
+    // * weapon drops are too big because Mod_Weapon was not called yet
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -598,7 +607,9 @@ void SV_PushMove(edict_t* pusher, float movetime)
             }
 
             // see if the ent's bbox is inside the pusher's final position
-            if(!SV_TestEntityPosition(check))
+            if(!SV_TestEntityPositionCustom(check, check->v.origin) &&
+                !SV_TestEntityPositionCustom(
+                    check, check->v.origin + check->v.mins))
             {
                 continue;
             }
@@ -620,8 +631,27 @@ void SV_PushMove(edict_t* pusher, float movetime)
         SV_PushEntity(check, move);
         pusher->v.solid = SOLID_BSP;
 
+        if(move[2] > 0)
+        {
+            check->v.flags = (int)check->v.flags | FL_ONGROUND;
+            check->v.groundentity = EDICT_TO_PROG(pusher);
+        }
+
+        // TODO VR: rename
+        const auto diocane = [&](edict_t* ent, const float xf, const float yf) {
+            const auto nmins = ent->v.mins * glm::vec3{xf, xf, yf};
+            const auto nmaxs = ent->v.maxs * glm::vec3{xf, xf, yf};
+
+            const trace_t trace = SV_Move(
+                ent->v.origin, nmins, nmaxs, ent->v.origin, MOVE_NORMAL, ent);
+
+            return trace.startsolid ? sv.edicts : nullptr;
+        };
+
         // if it is still inside the pusher, block
-        edict_t* block = SV_TestEntityPosition(check);
+        const auto maxHMove = std::max(std::abs(move.x), std::abs(move.y));
+        const bool verticalMove = std::abs(move.z) > maxHMove;
+        edict_t* block = diocane(check, 1.f, verticalMove ? 0.95f : 1.f);
         if(block)
         {
             // fail the move
@@ -634,9 +664,12 @@ void SV_PushMove(edict_t* pusher, float movetime)
                 check->v.solid == SOLID_NOT_BUT_TOUCHABLE)
             {
                 // TODO VR: handtouch bug?? ammo is solid trigger
+                // seems to fix it
+
+
                 // corpse
-                check->v.mins[0] = check->v.mins[1] = 0;
-                check->v.maxs = check->v.mins;
+                // check->v.mins[0] = check->v.mins[1] = 0;
+                // check->v.maxs = check->v.mins;
                 continue;
             }
 
@@ -662,6 +695,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
                 moved_edict[i]->v.origin = moved_from[i];
                 SV_LinkEdict(moved_edict[i], false);
             }
+
             Hunk_FreeToLowMark(mark); // johnfitz
             return;
         }
@@ -733,20 +767,15 @@ clipping hull.
 */
 void SV_CheckStuck(edict_t* ent)
 {
-    int i;
-
-    int j;
-    int z;
-    glm::vec3 org;
-
     if(!SV_TestEntityPosition(ent))
     {
         ent->v.oldorigin = ent->v.origin;
         return;
     }
 
-    org = ent->v.origin;
+    const glm::vec3 org = ent->v.origin;
     ent->v.origin = ent->v.oldorigin;
+
     if(!SV_TestEntityPosition(ent))
     {
         Con_DPrintf("Unstuck.\n");
@@ -754,15 +783,14 @@ void SV_CheckStuck(edict_t* ent)
         return;
     }
 
-    for(z = 0; z < 18; z++)
+    for(int z = 0; z < 18; z++)
     {
-        for(i = -1; i <= 1; i++)
+        for(int i = -1; i <= 1; i++)
         {
-            for(j = -1; j <= 1; j++)
+            for(int j = -1; j <= 1; j++)
             {
-                ent->v.origin[0] = org[0] + i;
-                ent->v.origin[1] = org[1] + j;
-                ent->v.origin[2] = org[2] + z;
+                ent->v.origin = org + glm::vec3{i, j, z};
+
                 if(!SV_TestEntityPosition(ent))
                 {
                     Con_DPrintf("Unstuck.\n");
@@ -936,20 +964,20 @@ SV_WalkMove
 Only used by players
 ======================
 */
-#define STEPSIZE 18
-void SV_WalkMove(edict_t* ent)
+void SV_WalkMove(edict_t* ent, const bool resetOnGround)
 {
     //
     // do a regular slide move unless it looks like you ran into a step
     //
     const int oldonground = (int)ent->v.flags & FL_ONGROUND;
-    ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
 
-    glm::vec3 oldorg;
-    oldorg = ent->v.origin;
+    if(resetOnGround)
+    {
+        ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+    }
 
-    glm::vec3 oldvel;
-    oldvel = ent->v.velocity;
+    const glm::vec3 oldorg = ent->v.origin;
+    const glm::vec3 oldvel = ent->v.velocity;
 
     trace_t steptrace;
     int clip = SV_FlyMove(ent, host_frametime, &steptrace);
@@ -979,24 +1007,17 @@ void SV_WalkMove(edict_t* ent)
         return;
     }
 
-    glm::vec3 nosteporg;
-    nosteporg = ent->v.origin;
-
-    glm::vec3 nostepvel;
-    nostepvel = ent->v.velocity;
+    const glm::vec3 nosteporg = ent->v.origin;
+    const glm::vec3 nostepvel = ent->v.velocity;
 
     //
     // try moving up and forward to go up a step
     //
     ent->v.origin = oldorg; // back to start pos
 
-    glm::vec3 upmove;
-    upmove = vec3_zero;
-    upmove[2] = STEPSIZE;
-
-    glm::vec3 downmove;
-    downmove = vec3_zero;
-    downmove[2] = -STEPSIZE + oldvel[2] * host_frametime;
+    constexpr float stepsize = 18.f;
+    const glm::vec3 upmove{0.f, 0.f, stepsize};
+    const glm::vec3 downmove{0.f, 0.f, -stepsize + oldvel[2] * host_frametime};
 
     // move up
     SV_PushEntity(ent, upmove); // FIXME: don't link?
@@ -1025,7 +1046,8 @@ void SV_WalkMove(edict_t* ent)
     }
 
     // move down
-    trace_t downtrace = SV_PushEntity(ent, downmove); // FIXME: don't link?
+    const trace_t downtrace =
+        SV_PushEntity(ent, downmove); // FIXME: don't link?
 
     if(downtrace.plane.normal[2] > 0.7)
     {
@@ -1216,7 +1238,7 @@ void SV_Physics_Client(edict_t* ent, int num)
                     SV_AddGravity(ent);
                 }
                 SV_CheckStuck(ent);
-                SV_WalkMove(ent);
+                SV_WalkMove(ent, true /* reset onground */);
 
 
                 break;
@@ -1247,45 +1269,54 @@ void SV_Physics_Client(edict_t* ent, int num)
                     "SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
         }
 
-        if(num == cl.viewentity && vr_enabled.value)
+        // --------------------------------------------------------------------
+        // VR: Room scale movement for entities.
         {
             const auto restoreVel = ent->v.velocity;
-            extern glm::vec3 vr_room_scale_move;
 
-            const auto newVelocity =
-                vr_room_scale_move * static_cast<float>(1.0f / host_frametime);
-            ent->v.velocity = newVelocity;
+            ent->v.velocity[0] = ent->v.roomscalemove[0];
+            ent->v.velocity[1] = ent->v.roomscalemove[1];
+            ent->v.velocity[2] = 0.f;
 
             switch((int)ent->v.movetype)
             {
-                case MOVETYPE_NONE: break;
-
                 case MOVETYPE_WALK:
-                    ent->v.velocity[2] = -1.0f;
+                {
                     SV_CheckStuck(ent);
-                    SV_WalkMove(ent);
+                    SV_WalkMove(ent, false /* reset onground */);
 
                     break;
+                }
 
-                case MOVETYPE_TOSS:
+                case MOVETYPE_NONE: [[fallthrough]];
+                case MOVETYPE_TOSS: [[fallthrough]];
                 case MOVETYPE_BOUNCE: break;
 
                 case MOVETYPE_FLY:
+                {
                     SV_FlyMove(ent, host_frametime, nullptr);
+
                     break;
+                }
 
                 case MOVETYPE_NOCLIP:
+                {
                     ent->v.origin +=
                         static_cast<float>(host_frametime) * ent->v.velocity;
+
                     break;
+                }
 
                 default:
+                {
                     Sys_Error("SV_Physics_client: bad movetype %i",
                         (int)ent->v.movetype);
+                }
             }
 
             ent->v.velocity = restoreVel;
         }
+        // --------------------------------------------------------------------
     }
 
     //

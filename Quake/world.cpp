@@ -28,9 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm.hpp"
 #include "vr.hpp"
 
-extern cvar_t vr_enabled;
-extern cvar_t vr_body_interactions;
-
 /*
 
 entities never clip against themselves, or their owner
@@ -142,16 +139,16 @@ testing object's origin to get a point to use with the returned hull.
 hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
     const glm::vec3& maxs, glm::vec3& offset)
 {
-    qmodel_t* model;
     glm::vec3 size;
     glm::vec3 hullmins;
-
     glm::vec3 hullmaxs;
+
     hull_t* hull;
 
     // decide which clipping hull to use, based on the size
     if(ent->v.solid == SOLID_BSP)
-    { // explicit hulls in the BSP model
+    {
+        // explicit hulls in the BSP model
         if(ent->v.movetype != MOVETYPE_PUSH)
         {
             Host_Error("SOLID_BSP without MOVETYPE_PUSH (%s at %f %f %f)",
@@ -159,7 +156,7 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
                 ent->v.origin[1], ent->v.origin[2]);
         }
 
-        model = sv.models[(int)ent->v.modelindex];
+        qmodel_t* const model = sv.models[(int)ent->v.modelindex];
 
         if(!model || model->type != mod_brush)
         {
@@ -169,6 +166,7 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
         }
 
         size = maxs - mins;
+
         if(size[0] < 3)
         {
             hull = &model->hulls[0];
@@ -187,7 +185,8 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
         offset += ent->v.origin;
     }
     else
-    { // create a temp hull from bounding box sizes
+    {
+        // create a temp hull from bounding box sizes
 
         hullmins = ent->v.mins - maxs;
         hullmaxs = ent->v.maxs - mins;
@@ -763,6 +762,14 @@ edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin)
     return trace.startsolid ? sv.edicts : nullptr;
 }
 
+edict_t* SV_TestEntityPositionCustom2(edict_t* ent, const float factor)
+{
+    const trace_t trace = SV_Move(ent->v.origin, ent->v.mins * factor,
+        ent->v.maxs * factor, ent->v.origin, MOVE_NORMAL, ent);
+
+    return trace.startsolid ? sv.edicts : nullptr;
+}
+
 
 /*
 ===============================================================================
@@ -1038,6 +1045,7 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
             continue;
         }
 
+        // TODO VR: boxIntersection?
         if(clip->boxmins[0] > target->v.absmax[0] ||
             clip->boxmins[1] > target->v.absmax[1] ||
             clip->boxmins[2] > target->v.absmax[2] ||
