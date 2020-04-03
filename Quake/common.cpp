@@ -2606,6 +2606,7 @@ static void COM_Game_f()
 
         // VR: This is what reads 'config.cfg'.
         Cbuf_AddText("exec quake.rc\n");
+        Cbuf_Execute();
 
         Cbuf_AddText("vid_unlock\n");
 

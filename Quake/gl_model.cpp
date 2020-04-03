@@ -285,9 +285,6 @@ Mod_FindName
 */
 qmodel_t* Mod_FindName(const char* name)
 {
-    int i;
-    qmodel_t* mod;
-
     if(!name[0])
     {
         Sys_Error("Mod_FindName: NULL name"); // johnfitz -- was "Mod_ForName"
@@ -296,6 +293,8 @@ qmodel_t* Mod_FindName(const char* name)
     //
     // search the currently loaded models
     //
+    int i;
+    qmodel_t* mod;
     for(i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
         if(!strcmp(mod->name, name))
@@ -310,6 +309,7 @@ qmodel_t* Mod_FindName(const char* name)
         {
             Sys_Error("mod_numknown == MAX_MOD_KNOWN");
         }
+
         q_strlcpy(mod->name, name, MAX_QPATH);
         mod->needload = true;
         mod_numknown++;
@@ -326,9 +326,7 @@ Mod_TouchModel
 */
 void Mod_TouchModel(const char* name)
 {
-    qmodel_t* mod;
-
-    mod = Mod_FindName(name);
+    qmodel_t* mod = Mod_FindName(name);
 
     if(!mod->needload)
     {
@@ -348,10 +346,6 @@ Loads a model into the cache
 */
 qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
 {
-    byte* buf;
-    byte stackbuf[1024]; // avoid dirtying the cache heap
-    int mod_type;
-
     if(!mod->needload)
     {
         if(mod->type == mod_alias)
@@ -377,7 +371,8 @@ qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
     //
     // load the file
     //
-    buf =
+    byte stackbuf[1024]; // avoid dirtying the cache heap
+    byte* buf =
         COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf), &mod->path_id);
     if(!buf)
     {
@@ -403,13 +398,13 @@ qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
     // call the apropriate loader
     mod->needload = false;
 
-    mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+    const int mod_type =
+        (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+
     switch(mod_type)
     {
         case IDPOLYHEADER: Mod_LoadAliasModel(mod, buf); break;
-
         case IDSPRITEHEADER: Mod_LoadSpriteModel(mod, buf); break;
-
         default: Mod_LoadBrushModel(mod, buf); break;
     }
 

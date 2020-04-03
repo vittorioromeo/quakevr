@@ -116,6 +116,7 @@ target_compile_features(quakespasm-sdl2 PUBLIC cxx_std_17)
 target_compile_options(quakespasm-sdl2
     PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough -g
     -Wno-language-extension-token -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-deprecated-declarations -Wno-microsoft-enum-value # WIN32 only
+    -Wfallthrough
 )
     # -fsanitize=address)
 target_compile_definitions(quakespasm-sdl2 PRIVATE USE_SDL2=1 _AMD64_=1)

@@ -233,7 +233,8 @@ namespace quake
                     do
                     {
                         --_cursor_idx;
-                    } while(!entry_is_selectable_at(_cursor_idx));
+                    } while(_cursor_idx >= 0 &&
+                            !entry_is_selectable_at(_cursor_idx));
 
                     if(_cursor_idx < 0)
                     {
@@ -255,7 +256,8 @@ namespace quake
                     do
                     {
                         ++_cursor_idx;
-                    } while(!entry_is_selectable_at(_cursor_idx));
+                    } while(_cursor_idx < static_cast<int>(_entries.size()) &&
+                            !entry_is_selectable_at(_cursor_idx));
 
                     if(_cursor_idx >= static_cast<int>(_entries.size()))
                     {

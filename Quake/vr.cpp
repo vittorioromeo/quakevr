@@ -207,8 +207,6 @@ bool vr_should_aim_2h{false};
 int vr_hardcoded_wpn_cvar_fist{16};
 int vr_hardcoded_wpn_cvar_grapple{17};
 
-aliashdr_t* lastWeaponHeader[2];
-
 // TODO VR: not sure what this number should actually be...
 enum
 {
@@ -683,20 +681,6 @@ void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target)
     return VR_GetWpnCVarFromModelName(model->name);
 }
 
-void Mod_Weapon(int index, int& cvarEntry, const char* name, aliashdr_t* hdr)
-{
-    if(lastWeaponHeader[index] != hdr)
-    {
-        lastWeaponHeader[index] = hdr;
-        cvarEntry = VR_GetWpnCVarFromModelName(name);
-    }
-
-    if(cvarEntry != -1)
-    {
-        ApplyMod_Weapon(cvarEntry, hdr);
-    }
-}
-
 char* CopyWithNumeral(const char* str, int i)
 {
     auto len = strlen(str);
@@ -1007,6 +991,7 @@ void VR_ModAllWeapons()
         const cvar_t* cvar = Cvar_FindVar(cvarname);
         if(cvar == nullptr)
         {
+            Con_Printf("null cvar %s\n", cvarname);
             continue;
         }
 
@@ -2187,21 +2172,17 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         originalRots[i] = cl.handrot[i] = AngleVectorFromRotMat(mat);
     }
 
-    const auto doModWeapon = [](const int index, int& cvarEntry,
-                                 entity_t& viewEntity) {
+    // TODO VR: this is weird, the weapon model name is being used as a key.
+    // Should switch to the WID instead
+    const auto setHeldWeaponCVar = [](int& cvarEntry, entity_t& viewEntity) {
         if(viewEntity.model)
         {
-            auto* hdr = (aliashdr_t*)Mod_Extradata(viewEntity.model);
-            Mod_Weapon(index, cvarEntry, viewEntity.model->name, hdr);
+            cvarEntry = VR_GetWpnCVarFromModel(viewEntity.model);
         }
     };
 
-    doModWeapon(0, VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
-    doModWeapon(1, VR_GetMainHandWpnCvarEntry(), cl.viewent);
-
-    // TODO VR: this works when done here, but doesn't if it's only called once
-    // per game. Why? It's inefficient here.
-    VR_ModAllWeapons();
+    setHeldWeaponCVar(VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
+    setHeldWeaponCVar(VR_GetMainHandWpnCvarEntry(), cl.viewent);
 
     entity_t* const player = &cl_entities[cl.viewentity];
 

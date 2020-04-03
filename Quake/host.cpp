@@ -1052,6 +1052,7 @@ void Host_Init()
     {
         // VR: This is what reads 'config.cfg'.
         Cbuf_InsertText("exec quake.rc\n");
+        Cbuf_Execute();
 
         // TODO VR: why doesn't this work?
         if(vr_enabled.value == 1)
