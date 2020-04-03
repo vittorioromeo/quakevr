@@ -3101,10 +3101,12 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     if(angle > 0)
     {
         *xOutAngle = xOffset + angle - 360;
+        angle = angle - 360;
     }
     else if(angle < -360)
     {
         *xOutAngle = xOffset + angle + 360;
+        angle = angle + 360;
     }
 
     if (angle >= -360 && angle <= -270)
@@ -3143,8 +3145,10 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
     else
     {
-        bprint(ftos(self.angles_z));
-        bprint("\n");
+        // TODO VR: still triggers sometimes
+        bprint("uncovered angle case: '");
+        bprint(ftos(angle));
+        bprint("'\n");
     }
 
     if (self.throwstabilize > 0)
@@ -3160,9 +3164,6 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 
 void() wpnthrow_think =
 {
-    // bprint(ftos(self.angles_z));
-    // bprint("\n");
-
     if (self.throwhit == TRUE)
     {
         if(self.throwstabilizedim == 0)
@@ -3213,7 +3214,7 @@ void() wpnthrow_touch =
         spawn_touchblood (adjDmg);
         T_Damage (other, self, self.owner, adjDmg);
 
-        setsize (self, self.mins * 4, self.maxs * 4);
+        setsize (self, self.mins * 5, self.maxs * 5);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
         return;
@@ -3225,7 +3226,7 @@ void() wpnthrow_touch =
         sound (self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
         particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
 
-        setsize (self, self.mins * 4, self.maxs * 4);
+        setsize (self, self.mins * 5, self.maxs * 5);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
     }
