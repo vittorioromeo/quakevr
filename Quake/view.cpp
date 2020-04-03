@@ -1036,26 +1036,23 @@ void V_CalcRefdef()
         }
     }
 
-    view->model =
-        cl.model_precache[cl.stats[STAT_WEAPON]]; // TODO VR: this is where
-                                                  // the weapon is rendered?
-                                                  // got through
-                                                  // .weaponmodel from QC
+    view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
+    // TODO VR: this is where the weapon is rendered? got through .weaponmodel
+    // from QC.
 
     view->frame = cl.stats[STAT_WEAPONFRAME];
     view->colormap = vid.colormap;
 
     // johnfitz -- v_gunkick
-    if(v_gunkick.value == 1 &&
-        !(vr_enabled.value && !vr_viewkick.value)) // original quake kick
+    if(v_gunkick.value == 1 && !(vr_enabled.value && !vr_viewkick.value))
     {
+        // original quake kick
         r_refdef.viewangles += cl.punchangle;
     }
 
-    if(v_gunkick.value == 2 &&
-        !(vr_enabled.value &&
-            !vr_viewkick.value)) // lerped kick /* TODO VR: create CVAR */
+    if(v_gunkick.value == 2 && !(vr_enabled.value && !vr_viewkick.value))
     {
+        // lerped kick
         for(int i = 0; i < 3; i++)
         {
             if(punch[i] != v_punchangles[0][i])
@@ -1083,11 +1080,12 @@ void V_CalcRefdef()
     // TODO VR: add to vr view? the onground evaluates to false, this is why
     // it doesnt work
     // smooth out stair step ups
-    if(!noclip_anglehack && cl.onground &&
-        ent->origin[2] - oldz > 0) // johnfitz -- added exception for noclip
-    // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
-    // this won't work.
+    if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
     {
+        // johnfitz -- added exception for noclip
+        // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
+        // this won't work.
+
         float steptime;
 
         steptime = cl.time - cl.oldtime;
@@ -1179,6 +1177,7 @@ void V_CalcHolsterRefdef2Test(
 // TODO VR: make a header instead?
 void R_SetupAliasFrame(
     entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
+
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 
 static void SetupHandViewModel(entity_t* const anchor, entity_t* const hand,
@@ -1324,8 +1323,8 @@ void V_RenderView()
                 cl.handrot[cVR_OffHand], offHandOffsets);
         }
 
-        // TODO VR: refactor and add lerping, also hand angles?
-        // TODO VR: some weird crash here
+        // TODO VR: animation lerping on off hand does not respect lerping flags
+        // (e.g. shooting supernailgun)
 
         R_RenderView();
     }

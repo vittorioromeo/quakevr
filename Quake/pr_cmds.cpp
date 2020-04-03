@@ -836,8 +836,7 @@ static void PF_traceline()
         v2[0] = v2[1] = v2[2] = 0;
     }
 
-    const trace_t trace =
-        SV_Move(v1, vec3_zero, vec3_zero, v2, nomonsters, ent);
+    const trace_t trace = SV_MoveTrace(v1, v2, nomonsters, ent);
 
     pr_global_struct->trace_allsolid = trace.allsolid;
     pr_global_struct->trace_startsolid = trace.startsolid;
@@ -1576,7 +1575,7 @@ static void PF_aim()
     // try sending a trace straight
     dir = pr_global_struct->v_forward;
     end = start + 2048.f * dir;
-    tr = SV_Move(start, vec3_zero, vec3_zero, end, false, ent);
+    tr = SV_MoveTrace(start, end, false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
@@ -1616,7 +1615,7 @@ static void PF_aim()
         {
             continue; // to far to turn
         }
-        tr = SV_Move(start, vec3_zero, vec3_zero, end, false, ent);
+        tr = SV_MoveTrace(start, end, false, ent);
         if(tr.ent == check)
         {
             // can shoot at this one

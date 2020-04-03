@@ -616,7 +616,7 @@ void() PutClientInServer =
     self.fixangle = TRUE;        // turn this way immediately
 
 // oh, this is a hack!
-    // TODO VR: could be problematic?
+    // TODO VR: could be problematic for people without SoA?
     setmodel (self, "progs/playham.mdl");
     modelindex_hammer = self.modelindex;
 
@@ -1129,7 +1129,7 @@ void() PlayerPreThink =
         self.velocity = '0 0 0';
     }
 
-    // TODO VR: what about weapon2? (TODO dual-wielding)
+    // TODO VR: code repetition, don't change to best weapon
     if(time > self.attack_finished &&
        self.currentammo <= 0 &&
        self.weapon != WID_FIST &&

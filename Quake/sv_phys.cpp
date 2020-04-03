@@ -664,13 +664,6 @@ void SV_PushMove(edict_t* pusher, float movetime)
             if(check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER ||
                 check->v.solid == SOLID_NOT_BUT_TOUCHABLE)
             {
-                // TODO VR: handtouch bug?? ammo is solid trigger
-                // seems to fix it
-
-
-                // corpse
-                // check->v.mins[0] = check->v.mins[1] = 0;
-                // check->v.maxs = check->v.mins;
                 continue;
             }
 

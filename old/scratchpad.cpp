@@ -741,3 +741,21 @@ float LerpDegrees(float a, float b,
 
         (void)anyGroundHit;
     }
+
+
+
+    if(false)
+    {
+        cl.handvel[index] =
+            (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
+        const auto [vFwd, vRight, vUp] = getAngledVectors(cl.handrot[index]);
+
+        cl.handvel[index] +=
+            glm::cross(controllers[index].a_velocity, vUp * 0.1f);
+    }
+
+    if(false)
+    {
+        cl.handvel[index] =
+            Vec3RotateZ(cl.handvel[index], vrYaw * M_PI_DIV_180);
+    }

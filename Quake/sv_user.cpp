@@ -92,7 +92,7 @@ void SV_SetIdealPitch()
         bottom[1] = top[1];
         bottom[2] = top[2] - 160;
 
-        tr = SV_Move(top, vec3_zero, vec3_zero, bottom, 1, sv_player);
+        tr = SV_MoveTrace(top, bottom, 1, sv_player);
         if(tr.allsolid)
         {
             return; // looking at a wall, leave ideal the way is was
@@ -173,7 +173,7 @@ void SV_UserFriction()
     start[2] = (*origin)[2] + sv_player->v.mins[2];
     stop[2] = start[2] - 34;
 
-    trace = SV_Move(start, vec3_zero, vec3_zero, stop, true, sv_player);
+    trace = SV_MoveTrace(start, stop, true, sv_player);
 
     if(trace.fraction == 1.0)
     {

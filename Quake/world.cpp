@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm.hpp"
 #include "vr.hpp"
 
+#include <cassert>
+
 /*
 
 entities never clip against themselves, or their owner
@@ -338,9 +340,9 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
 
             if(*listcount == listspace)
             {
-                // TODO VR: should this be an assertion instead?
-                Con_Printf("it happened\n");
-                return false; // should never happen
+                // should never happen
+                assert(false);
+                return false;
             }
 
             list[*listcount] = target;
@@ -1212,4 +1214,15 @@ trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
     SV_ClipToLinks(sv_areanodes, &clip);
 
     return clip.trace;
+}
+
+/*
+==================
+SV_MoveTrace
+==================
+*/
+trace_t SV_MoveTrace(const glm::vec3& start, const glm::vec3& end,
+    const int type, edict_t* const passedict)
+{
+    return SV_Move(start, vec3_zero, vec3_zero, end, type, passedict);
 }

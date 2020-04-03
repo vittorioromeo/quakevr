@@ -64,12 +64,7 @@ TODO: impact on bmodels, monsters
 [[nodiscard]] trace_t TraceLineToEntity(
     const glm::vec3& start, const glm::vec3& end, edict_t* ent)
 {
-    trace_t trace;
-    memset(&trace, 0, sizeof(trace));
-
-    trace = SV_Move(start, vec3_zero, vec3_zero, end, MOVE_NORMAL, ent);
-
-    return trace;
+    return SV_MoveTrace(start, end, MOVE_NORMAL, ent);
 }
 
 /*

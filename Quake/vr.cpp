@@ -1551,26 +1551,7 @@ void SetHandPos(int index, entity_t* player)
     if(true)
     {
         cl.handvel[index] = controllers[index].velocity;
-    }
 
-    if(false)
-    {
-        cl.handvel[index] =
-            (cl.handpos[index] - lastPlayerTranslation) - oldHandpos;
-        const auto [vFwd, vRight, vUp] = getAngledVectors(cl.handrot[index]);
-
-        cl.handvel[index] +=
-            glm::cross(controllers[index].a_velocity, vUp * 0.1f);
-    }
-
-    if(false)
-    {
-        cl.handvel[index] =
-            Vec3RotateZ(cl.handvel[index], vrYaw * M_PI_DIV_180);
-    }
-
-    if(true)
-    {
         // TODO VR: throwing an item up with a small flick feels too strong
 
         {
@@ -1579,6 +1560,7 @@ void SetHandPos(int index, entity_t* player)
 
             cl.handvel[index] +=
                 glm::cross(controllers[index].a_velocity, vUp * 0.1f);
+            // TODO VR: center of mass is different for different weapons
         }
 
         const glm::vec3 playerYawOnly{0, vrYaw, 0};
@@ -1627,6 +1609,7 @@ void SetHandPos(int index, entity_t* player)
     // the player is looking).
     // TODO VR: this still needs to be oriented to the headset's rotation,
     // otherwise diagonal punches will still not register.
+    // TODO VR: also check melee damages and values again
     const auto length = glm::length(cl.handvel[index]);
     const auto bestSingle =
         std::max({std::abs(cl.handvel[index][0]),
@@ -1768,7 +1751,6 @@ void SetHandPos(int index, entity_t* player)
 {
     (void)helpingHand;
 
-    // TODO VR: 2H change hands
     return glm::distance(shoulderPos, cl.handpos[holdingHand]) <
            vr_virtual_stock_thresh.value;
 }
@@ -1967,9 +1949,6 @@ VR_UpdateDevicesOrientationPosition() noexcept
         }
     }
 }
-
-// TODO VR: bug at beginning of level, weapon gets dropped and disappears...?
-// probably hand location is fucked, put them where the player spawns
 
 static void VR_DoWeaponDirSlerp()
 {
@@ -2175,8 +2154,6 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
         VR_GetLeftShoulderStockPos());
 
     // TODO VR: consider adding ghost hands
-
-
     // TODO VR: melee doesn't work with laser cannon
     // TODO VR: scourge of armagon music?
 }
@@ -2251,10 +2228,9 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         cl.handpos[cVR_OffHand] =
             sv_player->v.origin + vfwd * 5.f - vright * 3.5f + vup * 5.f;
 
-        const trace_t trace =
-            SV_Move(sv_player->v.origin + vup * 8.f, vec3_zero, vec3_zero,
-                sv_player->v.origin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
-                sv_player);
+        const trace_t trace = SV_MoveTrace(sv_player->v.origin + vup * 8.f,
+            sv_player->v.origin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
+            sv_player);
 
         const auto maindir =
             glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
@@ -2494,17 +2470,11 @@ void VR_CalibrateHeight()
 [[nodiscard]] static bool VR_InShoulderHolsterDistance(
     const glm::vec3& hand, const glm::vec3& holster)
 {
-    // TODO VR: the distance was too big yesterday, it caused both shoulders to
-    // be always active
-
     // TODO VR: consider toning animation down while aiming 2h, might need a new
     // weapon cvar and significant work
 
-    // TODO VR: implement arbitrary 2H aim
     return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
 }
-
-// TODO VR: reduce code repetition between all "ShowXXX" functions
 
 static void VR_ShowFnSetupGL() noexcept
 {

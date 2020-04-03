@@ -78,7 +78,10 @@ edict_t* SV_TestEntityPositionCustom2(edict_t* ent, const float factor);
 trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
     const glm::vec3& maxs, const glm::vec3& end, const int type,
     edict_t* const passedict);
-// mins and maxs are reletive
+// mins and maxs are relative
+
+trace_t SV_MoveTrace(const glm::vec3& start, const glm::vec3& end,
+    const int type, edict_t* const passedict);
 
 // if the entire move stays in a solid volume, trace.allsolid will be set
 
