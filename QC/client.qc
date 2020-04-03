@@ -648,6 +648,15 @@ void() PutClientInServer =
     self.on_hook2 = FALSE;
     self.hook_out2 = FALSE;
 
+    self.handpos = self.origin;
+    self.offhandpos = self.origin;
+
+    self.handvel = '0 0 0';
+    self.offhandvel = '0 0 0';
+
+    self.handavel = '0 0 0';
+    self.offhandavel = '0 0 0';
+
     spawn_tdeath (self.origin, self);
 };
 
@@ -839,6 +848,14 @@ void() PlayerDeathThink =
 
 void() PlayerJump =
 {
+    bprint("onground: ");
+    bprint(ftos(self.flags & FL_ONGROUND));
+
+    bprint("; jumpreleased: ");
+    bprint(ftos(self.flags & FL_JUMPRELEASED));
+
+    bprint("\n");
+
     if (self.flags & FL_WATERJUMP)
         return;
 
