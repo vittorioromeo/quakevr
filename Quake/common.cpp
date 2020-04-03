@@ -709,7 +709,8 @@ int LongNoSwap(int l)
 
 float FloatSwap(float f)
 {
-    union {
+    union
+    {
         float f;
         byte b[4];
     } dat1, dat2;
@@ -795,7 +796,8 @@ void MSG_WriteLong(sizebuf_t* sb, int c)
 
 void MSG_WriteFloat(sizebuf_t* sb, float f)
 {
-    union {
+    union
+    {
         float f;
         int l;
     } dat;
@@ -974,7 +976,8 @@ int MSG_ReadLong()
 
 float MSG_ReadFloat()
 {
-    union {
+    union
+    {
         byte b[4];
         float f;
         int l;
@@ -2352,43 +2355,29 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory(const char* base, const char* dir)
 {
-    int i;
-    unsigned int path_id;
-    searchpath_t* search;
-    pack_t* pak;
-
-    pack_t* qspak;
-    char pakfile[MAX_OSPATH];
     bool been_here = false;
 
     q_strlcpy(com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));
 
     // assign a path_id to this game directory
-    if(com_searchpaths)
-    {
-        path_id = com_searchpaths->path_id << 1;
-    }
-    else
-    {
-        path_id = 1U;
-    }
+    const unsigned int path_id =
+        com_searchpaths ? com_searchpaths->path_id << 1 : 1U;
 
 _add_path:
     // add the directory to the search path
-    search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
+    searchpath_t* search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
     search->path_id = path_id;
     q_strlcpy(search->filename, com_gamedir, sizeof(search->filename));
     search->next = com_searchpaths;
     com_searchpaths = search;
 
-    // TODO VR: could allow non-contiguous pak numbers here
-    // add any pak files in the format pak0.pak pak1.pak, ...
-    for(i = 0;; i++)
+    for(int i = 0; i < 99; i++)
     {
+        char pakfile[MAX_OSPATH];
         q_snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 
-        Con_Printf("Attempting to add pakfile to search paths '%s'\n", pakfile);
-        pak = COM_LoadPackFile(pakfile);
+        pack_t* pak = COM_LoadPackFile(pakfile);
+        pack_t* qspak;
 
         if(i != 0 || path_id != 1 || fitzmode)
         {
@@ -2413,6 +2402,8 @@ _add_path:
             search->pack = pak;
             search->next = com_searchpaths;
             com_searchpaths = search;
+
+            Con_Printf("Added pakfile to search paths: '%s'\n", pakfile);
         }
 
         if(qspak)
@@ -2426,8 +2417,8 @@ _add_path:
 
         if(!pak)
         {
-            Con_Printf("Could not add pakfile to search paths'%s'\n", pakfile);
-            break;
+            Con_Printf(
+                "Could not add pakfile to search paths: '%s'\n", pakfile);
         }
     }
 

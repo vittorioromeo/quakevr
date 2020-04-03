@@ -40,6 +40,7 @@ extern cvar_t skill;
 
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
     m.add_cvar_entry<bool>("Show Shadows", r_shadows);
+    m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
 
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
