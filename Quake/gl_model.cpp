@@ -2098,6 +2098,8 @@ void Mod_LoadClipnodes(lump_t* l, bool bsp2)
     loadmodel->clipnodes = out;
     loadmodel->numclipnodes = count;
 
+    // ------------------------------------------------------------------------
+    // VR: This is where the hardcoded hulls are.
     hull = &loadmodel->hulls[1];
     hull->clipnodes = out;
     hull->firstclipnode = 0;
@@ -2121,6 +2123,7 @@ void Mod_LoadClipnodes(lump_t* l, bool bsp2)
     hull->clip_maxs[0] = 32;
     hull->clip_maxs[1] = 32;
     hull->clip_maxs[2] = 64;
+    // ------------------------------------------------------------------------
 
     if(bsp2)
     {

@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __CONSOLE_H
 #define __CONSOLE_H
 
+#include "q_stdinc.hpp"
+
 //
 // console
 //
@@ -48,7 +50,7 @@ void Con_DPrintf2(const char* fmt, ...) FUNC_PRINTF(1, 2); // johnfitz
 void Con_SafePrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DrawNotify(void);
 void Con_ClearNotify(void);
-void Con_ToggleConsole_f(void);
+void Con_ToggleConsole_f(void); 
 
 void Con_NotifyBox(const char* text); // during startup for sound / cd warnings
 
@@ -62,6 +64,7 @@ void Con_LogCenterPrint(const char* str);
 //
 // debuglog
 //
+struct quakeparms_t; 
 void LOG_Init(quakeparms_t* parms);
 void LOG_Close(void);
 void Con_DebugLog(const char* msg);

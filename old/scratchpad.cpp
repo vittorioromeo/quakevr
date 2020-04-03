@@ -692,3 +692,52 @@ float LerpDegrees(float a, float b,
         return std::array{
             (std::string(maxLen - strlen(labels), ' ') + labels)...};
     }
+
+
+
+    // TODO VR:
+    if(false && !(clip & 1))
+    {
+        // floor not detected
+        // Con_Printf("floor not detected\n");
+
+        constexpr glm::vec3 zOff{0.f, 0.f, 1.f};
+
+        const auto traceZLine = [&](const glm::vec3& point) {
+            // TODO VR: find all these traces with two zeros and create function
+            return SV_Move(point + zOff, vec3_zero, vec3_zero, point - zOff,
+                MOVE_NORMAL, ent);
+        };
+
+        const auto doTrace = [&](const glm::vec3& point) {
+            const trace_t t = traceZLine(point);
+
+            if(!quake::util::hitSomething(t) || t.plane.normal[2] <= 0.7)
+            {
+                return false;
+            }
+
+            if(t.ent->v.solid == SOLID_BSP)
+            {
+                ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+                ent->v.groundentity = EDICT_TO_PROG(t.ent);
+            }
+
+            return true;
+        };
+
+        const auto diff = ent->v.absmax - ent->v.absmin;
+        const glm::vec3 offX{diff[0], 0.f, 0.f};
+        const glm::vec3 offY{0.f, diff[1], 0.f};
+        const glm::vec3 offXY{diff[0], diff[1], 0.f};
+        const glm::vec3 offXYHalf = offXY / 2.f;
+
+        const bool anyGroundHit =             //
+            doTrace(ent->v.absmin) ||         //
+            doTrace(ent->v.absmin + offX) ||  //
+            doTrace(ent->v.absmin + offY) ||  //
+            doTrace(ent->v.absmin + offXY) || //
+            doTrace(ent->v.absmin + offXYHalf);
+
+        (void)anyGroundHit;
+    }

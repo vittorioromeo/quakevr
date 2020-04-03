@@ -103,6 +103,7 @@ beam_t* CL_ParseBeam(qmodel_t* m)
     for(int i = 0; i < MAX_BEAMS; ++i)
     {
         beam_t& b = cl_beams[i];
+
         if(!b.model || b.endtime < cl.time)
         {
             initBeam(b);
@@ -129,8 +130,6 @@ CL_ParseTEnt
 */
 void CL_ParseTEnt()
 {
-
-
     const int type = MSG_ReadByte();
     switch(type)
     {
@@ -375,22 +374,6 @@ void CL_UpdateTEnts()
         {
             continue;
         }
-
-        // if coming from the player, update the start position
-        // TODO VR: needed?
-        /*
-        if(b.entity == cl.viewentity)
-        {
-            if(vr_enabled.value)
-            {
-                b.start = VR_CalcMainHandWpnMuzzlePos();
-            }
-            else
-            {
-                b.start = cl_entities[cl.viewentity].origin;
-            }
-        }
-        */
 
         // calculate pitch and yaw
         glm::vec3 dist = b.end - b.start;
