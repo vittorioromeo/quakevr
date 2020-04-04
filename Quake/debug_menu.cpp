@@ -30,23 +30,23 @@ extern cvar_t skill;
     m.add_action_entry("Impulse 255 (Quad)", runCmd("impulse 255"));
     m.add_action_entry("God Mode", runCmd("god"));
     m.add_action_entry("Noclip", runCmd("noclip"));
-    m.add_action_entry("Fly", runCmd("fly"));
+    m.add_action_entry("Fly", runCmd("fly")); 
 
     m.add_cvar_getter_enum_entry<int>(        //
         "Skill",                              //
-        [] { return &skill; },                //
+        [] { return &skill; },                // 
         "Easy", "Normal", "Hard", "Nightmare" //
     );
 
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
     m.add_cvar_entry<bool>("Show Shadows", r_shadows);
-    m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
-
+    m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr); 
+      
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
-    return m;
-}
-
+    return m; 
+} 
+ 
 static quake::menu g_menu = make_menu();
 
 void M_Debug_Key(int key)

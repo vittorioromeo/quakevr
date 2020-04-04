@@ -616,7 +616,9 @@ void() PutClientInServer =
     self.fixangle = TRUE;        // turn this way immediately
 
 // oh, this is a hack!
-    // TODO VR: could be problematic for people without SoA?
+
+    // VR: This works even if someone does not own SoA because it falls back to
+    // 'progs/player.mdl'. (Hardcoded in C++.)
     setmodel (self, "progs/playham.mdl");
     modelindex_hammer = self.modelindex;
 
@@ -1129,28 +1131,31 @@ void() PlayerPreThink =
         self.velocity = '0 0 0';
     }
 
+    // TODO VR: needed at all?
+    /*
     // TODO VR: code repetition, don't change to best weapon
     if(time > self.attack_finished &&
-       self.currentammo <= 0 &&
+       getCurrentAmmo(MAIN_HAND) <= 0 &&
        self.weapon != WID_FIST &&
        self.weapon != WID_AXE &&
        self.weapon != WID_MJOLNIR &&
        self.weapon != WID_GRAPPLE)
     {
-        self.weapon = W_BestWeapon ();
+        // self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
     }
 
     if(time > self.offhand_attack_finished &&
-       self.currentammo2 <= 0 &&
+       getCurrentAmmo(OFF_HAND) <= 0 &&
        self.weapon2 != WID_FIST &&
        self.weapon2 != WID_AXE &&
        self.weapon2 != WID_MJOLNIR &&
        self.weapon2 != WID_GRAPPLE)
     {
-        self.weapon2 = W_BestWeapon ();
+        // self.weapon2 = W_BestWeapon ();
         W_SetCurrentAmmo ();
     }
+    */
 
     // Track the grapple
     if (self.hook_out2)

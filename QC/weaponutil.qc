@@ -40,6 +40,10 @@ float(float it) ItemIdToWeaponId =
    if(it == IT_LASER_CANNON)     { return WID_LASER_CANNON; }
    // TODO VR: fist and grapple
 
+   bprint("`ItemIdToWeaponId`: invalid item id '");
+   bprint(ftos(it));
+   bprint("'\n");
+
    return -1;
 }
 
@@ -59,12 +63,39 @@ string(float wid) WeaponIdToModel =
    if(wid == WID_FIST)             { return "progs/hand.mdl"; }
    if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
 
+   bprint("`WeaponIdToModel`: invalid weapon id '");
+   bprint(ftos(wid));
+   bprint("'\n");
+
    return "";
+}
+
+float(float wid) WeaponIdToAmmoType =
+{
+   if(wid == WID_AXE)              { return AID_NONE; }
+   if(wid == WID_MJOLNIR)          { return AID_NONE; }
+   if(wid == WID_SHOTGUN)          { return AID_SHELLS; }
+   if(wid == WID_SUPER_SHOTGUN)    { return AID_SHELLS; }
+   if(wid == WID_NAILGUN)          { return AID_NAILS; }
+   if(wid == WID_SUPER_NAILGUN)    { return AID_NAILS; }
+   if(wid == WID_GRENADE_LAUNCHER) { return AID_ROCKETS; }
+   if(wid == WID_PROXIMITY_GUN)    { return AID_ROCKETS; }
+   if(wid == WID_ROCKET_LAUNCHER)  { return AID_ROCKETS; }
+   if(wid == WID_LIGHTNING)        { return AID_CELLS; }
+   if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
+   if(wid == WID_FIST)             { return AID_NONE; }
+   if(wid == WID_GRAPPLE)          { return AID_NONE; }
+
+   bprint("`WeaponIdToAmmoType`: invalid weapon id '");
+   bprint(ftos(wid));
+   bprint("'\n");
+
+   return AID_NONE;
 }
 
 float(float wid) WeaponIdToThrowMult =
 {
-   if(wid == WID_AXE)              { return 1; }
+   if(wid == WID_AXE)              { return 0.9; }
    if(wid == WID_MJOLNIR)          { return 0.7; }
    if(wid == WID_SHOTGUN)          { return 0.8; }
    if(wid == WID_SUPER_SHOTGUN)    { return 0.8; }
@@ -76,7 +107,11 @@ float(float wid) WeaponIdToThrowMult =
    if(wid == WID_LIGHTNING)        { return 0.5; }
    if(wid == WID_LASER_CANNON)     { return 0.2; }
    if(wid == WID_FIST)             { return 1; }
-   if(wid == WID_GRAPPLE)          { return 1; }
+   if(wid == WID_GRAPPLE)          { return 0.9; }
+
+   bprint("`WeaponIdToThrowMult`: invalid weapon id '");
+   bprint(ftos(wid));
+   bprint("'\n");
 
    return 1;
 }
@@ -97,6 +132,10 @@ float(float wid) WeaponIdToThrowStabilizeDim =
    if(wid == WID_FIST)             { return 0; }
    if(wid == WID_GRAPPLE)          { return 0; }
 
+   bprint("`WeaponIdToThrowStabilizeDim`: invalid weapon id '");
+   bprint(ftos(wid));
+   bprint("'\n");
+
    return 0;
 }
 
@@ -115,6 +154,10 @@ float(float wid) WeaponIdToThrowBounds =
    if(wid == WID_LASER_CANNON)     { return 2.2; }
    if(wid == WID_FIST)             { return 1; }
    if(wid == WID_GRAPPLE)          { return 1; }
+
+   bprint("`WeaponIdToThrowBounds`: invalid weapon id '");
+   bprint(ftos(wid));
+   bprint("'\n");
 
    return 0;
 }

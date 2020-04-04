@@ -757,18 +757,23 @@ void Sbar_DrawInventory()
     for(i = 0; i < 4; i++)
     {
         val = cl.stats[STAT_SHELLS + i];
+
         val = (val < 0)
                   ? 0
                   : q_min(999, val); // johnfitz -- cap displayed value to 999
+
         sprintf(num, "%3i", val);
+
         if(num[0] != ' ')
         {
             Sbar_DrawCharacter((6 * i + 1) * 8 + 2, -24, 18 + num[0] - '0');
         }
+
         if(num[1] != ' ')
         {
             Sbar_DrawCharacter((6 * i + 2) * 8 + 2, -24, 18 + num[1] - '0');
         }
+
         if(num[2] != ' ')
         {
             Sbar_DrawCharacter((6 * i + 3) * 8 + 2, -24, 18 + num[2] - '0');
@@ -1202,6 +1207,9 @@ void Sbar_Draw()
         Sbar_DrawNum(
             136, 0, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
 
+        constexpr int ammoPos = 248;
+        constexpr int ammo2Pos = -100;
+
         // ammo icon
         if(rogue)
         {
@@ -1236,25 +1244,39 @@ void Sbar_Draw()
         }
         else
         {
-            if(cl.items & IT_SHELLS)
-            {
-                Sbar_DrawPic(224, 0, sb_ammo[0]);
-            }
-            else if(cl.items & IT_NAILS)
-            {
-                Sbar_DrawPic(224, 0, sb_ammo[1]);
-            }
-            else if(cl.items & IT_ROCKETS)
-            {
-                Sbar_DrawPic(224, 0, sb_ammo[2]);
-            }
-            else if(cl.items & IT_CELLS)
-            {
-                Sbar_DrawPic(224, 0, sb_ammo[3]);
-            }
+            const auto drawAmmoIcon = [&](const int x, const int stat) {
+                const int aid = static_cast<int>(cl.stats[stat]);
+
+                if(aid >= AID_SHELLS && aid <= AID_NAILS)
+                {
+                    // Shells, nails, rockets, cells
+                    Sbar_DrawPic(x, 0, sb_ammo[aid]);
+                }
+                else if(aid == AID_NONE)
+                {
+                    // Nothing.
+                }
+            };
+
+            drawAmmoIcon(ammoPos - 24, STAT_AMMO);
+            drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
-        Sbar_DrawNum(248, 0, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+        const auto drawAmmoCounter = [&](const int x, const int ammoStat,
+                                         const int ammoCounterStat) {
+            const int aid = static_cast<int>(cl.stats[ammoStat]);
+            if(aid == AID_NONE)
+            {
+                return;
+            }
+
+            Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
+                cl.stats[ammoCounterStat] <= 10);
+        };
+
+        // TODO VR: ammo2 as well, make this status bar better. Two status bars?
+        drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
+        drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
     }
 
     // johnfitz -- removed the vid.width > 320 check here

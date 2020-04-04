@@ -171,7 +171,7 @@ void() weapon_mjolnir =
     self.weapon = WID_MJOLNIR;
     self.netname = "Mjolnir";
     self.items = IT_MJOLNIR;
-    self.touch = weapon_touch;
+    self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
 };
@@ -186,7 +186,7 @@ void() weapon_laser_gun =
     self.weapon = WID_LASER_CANNON;
     self.netname = "Laser Cannon";
     self.items = IT_LASER_CANNON;
-    self.touch = weapon_touch;
+    self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
 };
@@ -201,7 +201,7 @@ void() weapon_proximity_gun =
     self.weapon = WID_PROXIMITY_GUN;
     self.netname = "Proximity Gun";
     self.items = IT_PROXIMITY_GUN;
-    self.touch = weapon_touch;
+    self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem ();
 };

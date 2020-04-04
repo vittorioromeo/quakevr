@@ -2317,48 +2317,44 @@ void Host_Give_f()
             // johnfitz
     }
 
-    // johnfitz -- update currentammo to match new ammo (so statusbar updates
-    // correctly)
-    switch((int)(sv_player->v.weapon))
-    {
-        case IT_SHOTGUN:
-        case IT_SUPER_SHOTGUN:
-            sv_player->v.currentammo = sv_player->v.ammo_shells;
-            break;
-        case IT_NAILGUN:
-        case IT_SUPER_NAILGUN:
-        case RIT_LAVA_SUPER_NAILGUN:
-            sv_player->v.currentammo = sv_player->v.ammo_nails;
-            break;
-        case IT_GRENADE_LAUNCHER:
-        case IT_ROCKET_LAUNCHER:
-        case RIT_MULTI_GRENADE:
-        case RIT_MULTI_ROCKET:
-            sv_player->v.currentammo = sv_player->v.ammo_rockets;
-            break;
-        case IT_LIGHTNING:
-        case HIT_LASER_CANNON:
-        case HIT_MJOLNIR:
-            sv_player->v.currentammo = sv_player->v.ammo_cells;
-            break;
-        case RIT_LAVA_NAILGUN: // same as IT_AXE
-            if(rogue)
+    // TODO VR: docs
+    const auto updateAmmoCounter = [&](const float currentAmmo,
+                                       float& ammoCounter) {
+        switch((int)(currentAmmo))
+        {
+            case AID_SHELLS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_nails;
+                ammoCounter = sv_player->v.ammo_shells;
+                break;
             }
-            break;
-        case RIT_PLASMA_GUN: // same as HIT_PROXIMITY_GUN
-            if(rogue)
+
+            case AID_NAILS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_cells;
+                ammoCounter = sv_player->v.ammo_nails;
+                break;
             }
-            if(hipnotic)
+
+            case AID_ROCKETS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_rockets;
+                ammoCounter = sv_player->v.ammo_rockets;
+                break;
             }
-            break;
-    }
-    // johnfitz
+
+            case AID_CELLS:
+            {
+                ammoCounter = sv_player->v.ammo_cells;
+                break;
+            }
+
+            default:
+            {
+                assert(false);
+            }
+        }
+    };
+
+    updateAmmoCounter(sv_player->v.currentammo, sv_player->v.ammocounter);
+    updateAmmoCounter(sv_player->v.currentammo2, sv_player->v.ammocounter2);
 }
 
 edict_t* FindViewthing()

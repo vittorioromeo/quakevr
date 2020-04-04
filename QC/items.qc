@@ -539,8 +539,9 @@ void() weapon_touch =
 
     if (!deathmatch)
     {
-        // TODO VR: this should depend on the hand
-        self.weapon = ItemIdToWeaponId(newIt);
+        // TODO VR: test that this works
+        // TODO VR: what happens to the current weapon? we should check for fist
+        VRSetWeapon(self.touchinghand, ItemIdToWeaponId(newIt));
     }
     else
         Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
@@ -724,8 +725,10 @@ local float        best;
     {
         stemp = self;
         self = other;
-        self.weapon = W_BestWeapon();
-        W_SetCurrentAmmo ();
+
+        // self.weapon = W_BestWeapon();
+        // W_SetCurrentAmmo ();
+
         self = stemp;
     }
 
@@ -822,6 +825,7 @@ void() item_rockets =
     }
     self.weapon = 3;
     self.netname = "rockets";
+    // TODO VR: fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -848,6 +852,7 @@ void() item_cells =
     }
     self.weapon = 4;
     self.netname = "cells";
+    // TODO VR: fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -936,8 +941,10 @@ void() key_touch =
 {
     if (other.classname != "player")
         return;
+
     if (other.health <= 0)
         return;
+
     if (other.items & self.items)
         return;
 

@@ -97,7 +97,10 @@ void(float xHand)    player_stand1 =
     if (self.velocity_x || self.velocity_y)
     {
         self.walkframe=0;
-        player_run();
+
+        // TODO VR: this is the source of the animation bug, it used to be just
+        // player_run() which is undefined. Investigate.
+        // player_run(MAIN_HAND);
         return;
     }
 
@@ -361,8 +364,16 @@ void(float xHand) player_grapple5 =
 //--ZOID
 //============================================================================
 
+// TODO VR: huge code repetition below
+
 void(float xHand) player_nail1 =
 {
+    if (self.ammo_nails < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
     setHandThinkWithArg(xHand, $nailatt1, player_nail2);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
@@ -384,6 +395,12 @@ void(float xHand) player_nail1 =
 
 void(float xHand) player_nail2 =
 {
+    if (self.ammo_nails < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
     setHandThinkWithArg(xHand, $nailatt2, player_nail1);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
@@ -407,6 +424,12 @@ void(float xHand) player_nail2 =
 
 void(float xHand) player_light1 =
 {
+    if (self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
     setHandThinkWithArg(xHand, $light1, player_light2);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
@@ -428,6 +451,12 @@ void(float xHand) player_light1 =
 
 void(float xHand) player_light2 =
 {
+    if (self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
     setHandThinkWithArg(xHand, $light2, player_light1);
 
     self.effects = self.effects | EF_MUZZLEFLASH;

@@ -2204,10 +2204,10 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         const auto [vwfwd, vwright, vwup] = getAngledVectors(cl.viewangles);
 
         cl.handpos[cVR_MainHand] =
-            sv_player->v.origin + vfwd * 5.f + vright * 3.5f + vup * 5.f;
+            sv_player->v.origin + vfwd * 4.5f + vright * 4.5f + vup * 6.f;
 
         cl.handpos[cVR_OffHand] =
-            sv_player->v.origin + vfwd * 5.f - vright * 3.5f + vup * 5.f;
+            sv_player->v.origin + vfwd * 4.5f - vright * 4.5f + vup * 6.f;
 
         const trace_t trace = SV_MoveTrace(sv_player->v.origin + vup * 8.f,
             sv_player->v.origin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
@@ -3365,8 +3365,14 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     }
     else
     {
-        Key_Event(K_MOUSE1, mustFire);
-        Key_Event(K_MOUSE2, mustFireOffHand);
+        // VR: We don't want these keypresses to override the mouse buttons in
+        // fake VR mode.
+        if(vr_fakevr.value == 0)
+        {
+            Key_Event(K_MOUSE1, mustFire);
+            Key_Event(K_MOUSE2, mustFireOffHand);
+        }
+
         Key_Event(K_SPACE, mustJump);
         doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
         Key_Event('3', mustPrevWeapon);

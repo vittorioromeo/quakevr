@@ -605,6 +605,10 @@ void CL_RelinkEntities()
                     cl.viewent.lerpflags |=
                         LERP_RESETANIM |
                         LERP_RESETANIM2; // no lerping for two frames
+
+                    cl.offhand_viewent.lerpflags |=
+                        LERP_RESETANIM |
+                        LERP_RESETANIM2; // no lerping for two frames
                 }
                 else
                 {

@@ -132,6 +132,8 @@ struct entvars_t
     string_t holsterweaponmodel3;
     float currentammo;
     float currentammo2;
+    float ammocounter;
+    float ammocounter2;
     float ammo_shells;
     float ammo_nails;
     float ammo_rockets;

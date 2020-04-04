@@ -805,8 +805,8 @@ void GL_SetCanvas(canvastype newcanvas)
             }
             else
             {
-                glOrtho(0, 320, 48, 0, -99999, 99999);
-                glViewport(glx + (glwidth - 320 * s) / 2, gly, 320 * s, 48 * s);
+                glOrtho(-200, 420, 48, 0, -99999, 99999);
+                glViewport(glx + (glwidth - 420 * s) / 2, gly, 600 * s, 48 * s);
             }
             break;
         case CANVAS_WARPIMAGE:

@@ -139,6 +139,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPONMODEL1 23
 #define STAT_HOLSTERWEAPONMODEL2 24
 #define STAT_HOLSTERWEAPONMODEL3 25
+#define STAT_AMMO2 26
+#define STAT_AMMOCOUNTER 27
+#define STAT_AMMOCOUNTER2 28
 
 // stock defines
 //
@@ -221,6 +224,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WID_LASER_CANNON 10
 #define WID_FIST 11
 #define WID_GRAPPLE 12
+
+#define AID_SHELLS 0
+#define AID_NAILS 1
+#define AID_ROCKETS 2
+#define AID_CELLS 3
+#define AID_NONE 4
 
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32

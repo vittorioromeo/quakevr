@@ -162,6 +162,10 @@ void        end_sys_globals;        // flag for structure dumping
 
 .float        currentammo;
 .float        currentammo2;  // off-hand
+
+.float        ammocounter;
+.float        ammocounter2;  // off-hand
+
 .float        ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 
 .float        items;            // bit flags
@@ -388,6 +392,12 @@ float    WID_LASER_CANNON          = 10;
 float    WID_FIST                  = 11;
 float    WID_GRAPPLE               = 12;
 
+// ammo ids
+float    AID_SHELLS                = 0;
+float    AID_NAILS                 = 1;
+float    AID_ROCKETS               = 2;
+float    AID_CELLS                 = 3;
+float    AID_NONE                  = 4;
 
 // hipnotic items
 float    HIP_IT_WETSUIT           = 2;

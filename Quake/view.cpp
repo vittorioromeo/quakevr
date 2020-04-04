@@ -1323,9 +1323,6 @@ void V_RenderView()
                 cl.handrot[cVR_OffHand], offHandOffsets);
         }
 
-        // TODO VR: animation lerping on off hand does not respect lerping flags
-        // (e.g. shooting supernailgun)
-
         R_RenderView();
     }
 

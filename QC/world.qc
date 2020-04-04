@@ -350,7 +350,8 @@ void() worldspawn =
     precache_model ("progs/v_light.mdl");
 
     precache_model ("progs/hand.mdl");
-    precache_sound ("fisthit.wav");        // ax hit world
+    precache_sound ("fisthit.wav");        // fist hit world
+    precache_sound ("gunclick.wav");       // out of ammo
 
     // ROGUE
     // PGM addition

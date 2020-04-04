@@ -1128,7 +1128,8 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         {
             bits |= SU_ARMOR2;
         }
-        if((int)ent->v.currentammo & 0xFF00)
+        if((int)ent->v.currentammo & 0xFF00 ||
+            (int)ent->v.currentammo2 & 0xFF00)
         {
             bits |= SU_AMMO2;
         }
@@ -1228,6 +1229,9 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     MSG_WriteShort(msg, ent->v.health);
     MSG_WriteByte(msg, ent->v.currentammo);
+    MSG_WriteByte(msg, ent->v.currentammo2);
+    MSG_WriteShort(msg, ent->v.ammocounter);
+    MSG_WriteShort(msg, ent->v.ammocounter2);
     MSG_WriteByte(msg, ent->v.ammo_shells);
     MSG_WriteByte(msg, ent->v.ammo_nails);
     MSG_WriteByte(msg, ent->v.ammo_rockets);
@@ -1262,6 +1266,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     if(bits & SU_AMMO2)
     {
         MSG_WriteByte(msg, (int)ent->v.currentammo >> 8);
+        MSG_WriteByte(msg, (int)ent->v.currentammo2 >> 8);
     }
     if(bits & SU_SHELLS2)
     {

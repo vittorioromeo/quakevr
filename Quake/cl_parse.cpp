@@ -969,6 +969,27 @@ void CL_ParseClientdata()
         Sbar_Changed();
     }
 
+    i = MSG_ReadByte();
+    if(cl.stats[STAT_AMMO2] != i)
+    {
+        cl.stats[STAT_AMMO2] = i;
+        Sbar_Changed();
+    }
+
+    i = MSG_ReadShort();
+    if(cl.stats[STAT_AMMOCOUNTER] != i)
+    {
+        cl.stats[STAT_AMMOCOUNTER] = i;
+        Sbar_Changed();
+    }
+
+    i = MSG_ReadShort();
+    if(cl.stats[STAT_AMMOCOUNTER2] != i)
+    {
+        cl.stats[STAT_AMMOCOUNTER2] = i;
+        Sbar_Changed();
+    }
+
     for(i = 0; i < 4; i++)
     {
         j = MSG_ReadByte();
@@ -1010,6 +1031,7 @@ void CL_ParseClientdata()
     if(bits & SU_AMMO2)
     {
         cl.stats[STAT_AMMO] |= (MSG_ReadByte() << 8);
+        cl.stats[STAT_AMMO2] |= (MSG_ReadByte() << 8);
     }
     if(bits & SU_SHELLS2)
     {
