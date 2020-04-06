@@ -112,7 +112,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // stats are integers communicated to the client by the server
 //
-#define MAX_CL_STATS 32
+#define MAX_CL_STATS 64
+
 #define STAT_HEALTH 0
 #define STAT_FRAGS 1
 #define STAT_WEAPON 2
@@ -142,6 +143,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_AMMO2 26
 #define STAT_AMMOCOUNTER 27
 #define STAT_AMMOCOUNTER2 28
+#define STAT_HOLSTERWEAPON4 29
+#define STAT_HOLSTERWEAPON5 30
+#define STAT_HOLSTERWEAPONMODEL4 31
+#define STAT_HOLSTERWEAPONMODEL5 32
+
 
 // stock defines
 //
@@ -225,11 +231,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WID_FIST 11
 #define WID_GRAPPLE 12
 
+// ammo ids
 #define AID_SHELLS 0
 #define AID_NAILS 1
 #define AID_ROCKETS 2
 #define AID_CELLS 3
 #define AID_NONE 4
+
+// Quake VR hotspots
+#define QVR_HS_NONE 0
+#define QVR_HS_OFFHAND_2H_GRAB 1  // 2H grab - helper offhand
+#define QVR_HS_MAINHAND_2H_GRAB 2 // 2H grab - helper mainhand
+#define QVR_HS_LEFT_SHOULDER_HOLSTER 3
+#define QVR_HS_RIGHT_SHOULDER_HOLSTER 4
+#define QVR_HS_LEFT_HIP_HOLSTER 5
+#define QVR_HS_RIGHT_HIP_HOLSTER 6
+#define QVR_HS_HAND_SWITCH 7
+#define QVR_HS_LEFT_UPPER_HOLSTER 8
+#define QVR_HS_RIGHT_UPPER_HOLSTER 9
 
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32

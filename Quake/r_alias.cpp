@@ -638,6 +638,7 @@ void R_SetupAliasLighting(entity_t* e)
     // minimum light value on gun (24)
     if(e == &cl.viewent || e == &cl.offhand_viewent ||
         e == &cl.left_hip_holster || e == &cl.right_hip_holster ||
+        e == &cl.left_upper_holster || e == &cl.right_upper_holster ||
         e == &cl.left_hand || e == &cl.right_hand)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);

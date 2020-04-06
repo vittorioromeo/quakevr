@@ -999,6 +999,10 @@ void R_ShowTris()
         doViewmodel(&cl.left_hip_holster);
         doViewmodel(&cl.right_hip_holster);
 
+        // upper holsters
+        doViewmodel(&cl.left_upper_holster);
+        doViewmodel(&cl.right_upper_holster);
+
         // hands
         doViewmodel(&cl.left_hand);
         doViewmodel(&cl.right_hand);
@@ -1060,6 +1064,8 @@ void R_DrawShadows()
             currententity == &cl.offhand_viewent ||
             currententity == &cl.left_hip_holster ||
             currententity == &cl.right_hip_holster ||
+            currententity == &cl.left_upper_holster ||
+            currententity == &cl.right_upper_holster ||
             currententity == &cl.left_hand || currententity == &cl.right_hand)
         {
             // View entities are drawn manually below.
@@ -1082,6 +1088,8 @@ void R_DrawShadows()
     drawViewentShadow(&cl.offhand_viewent);
     drawViewentShadow(&cl.left_hip_holster);
     drawViewentShadow(&cl.right_hip_holster);
+    drawViewentShadow(&cl.left_upper_holster);
+    drawViewentShadow(&cl.right_upper_holster);
     drawViewentShadow(&cl.left_hand);
     drawViewentShadow(&cl.right_hand);
 
@@ -1133,6 +1141,7 @@ void R_RenderScene()
         VR_ShowVirtualStock();
         VR_ShowHipHolsters();
         VR_ShowShoulderHolsters();
+        VR_ShowUpperHolsters();
         VR_DrawTeleportLine();
     }
 
@@ -1145,6 +1154,10 @@ void R_RenderScene()
     // VR: This is what draws the hip holsters.
     R_DrawViewModel(&cl.left_hip_holster, true);
     R_DrawViewModel(&cl.right_hip_holster, true);
+
+    // VR: This is what draws the upper holsters.
+    R_DrawViewModel(&cl.left_upper_holster, true);
+    R_DrawViewModel(&cl.right_upper_holster, true);
 
     // TODO VR: hack/test
     R_DrawViewModel(&cl.left_hand, true);

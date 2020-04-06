@@ -1089,10 +1089,14 @@ void CL_ParseClientdata()
     cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of

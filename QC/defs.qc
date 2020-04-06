@@ -155,10 +155,14 @@ void        end_sys_globals;        // flag for structure dumping
 .float holsterweapon1;
 .float holsterweapon2;
 .float holsterweapon3;
+.float holsterweapon4;
+.float holsterweapon5;
 .string holsterweaponmodel0;
 .string holsterweaponmodel1;
 .string holsterweaponmodel2;
 .string holsterweaponmodel3;
+.string holsterweaponmodel4;
+.string holsterweaponmodel5;
 
 .float        currentammo;
 .float        currentammo2;  // off-hand
@@ -485,6 +489,18 @@ float    MSG_BROADCAST            = 0; // unreliable to all
 float    MSG_ONE                  = 1; // reliable to one (msg_entity)
 float    MSG_ALL                  = 2; // reliable to all
 float    MSG_INIT                 = 3; // write to the init string
+
+// Quake VR hotspots
+float QVR_HS_NONE                   = 0;
+float QVR_HS_OFFHAND_2H_GRAB        = 1; // 2H grab - helper offhand
+float QVR_HS_MAINHAND_2H_GRAB       = 2; // 2H grab - helper mainhand
+float QVR_HS_LEFT_SHOULDER_HOLSTER  = 3;
+float QVR_HS_RIGHT_SHOULDER_HOLSTER = 4;
+float QVR_HS_LEFT_HIP_HOLSTER       = 5;
+float QVR_HS_RIGHT_HIP_HOLSTER      = 6;
+float QVR_HS_HAND_SWITCH            = 7;
+float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
+float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 
 //================================================
 

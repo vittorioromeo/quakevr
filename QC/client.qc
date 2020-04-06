@@ -120,10 +120,14 @@ void() DecodeLevelParms =
     self.holsterweapon1 = WID_FIST;
     self.holsterweapon2 = WID_FIST;
     self.holsterweapon3 = WID_FIST;
+    self.holsterweapon4 = WID_FIST;
+    self.holsterweapon5 = WID_FIST;
     self.holsterweaponmodel0 = "";
     self.holsterweaponmodel1 = "";
     self.holsterweaponmodel2 = "";
     self.holsterweaponmodel3 = "";
+    self.holsterweaponmodel4 = "";
+    self.holsterweaponmodel5 = "";
 };
 
 /*

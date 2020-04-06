@@ -113,6 +113,7 @@ void VR_ShowCrosshair();
 void VR_ShowVirtualStock();
 void VR_ShowHipHolsters();
 void VR_ShowShoulderHolsters();
+void VR_ShowUpperHolsters();
 void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
@@ -133,8 +134,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
 [[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept;
-[[nodiscard]] glm::vec3 VR_GetLeftShoulderPos() noexcept;
-[[nodiscard]] glm::vec3 VR_GetRightShoulderPos() noexcept;
+[[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept;
+[[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept;
 
 // TODO VR: remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
@@ -339,15 +340,20 @@ extern cvar_t vr_wpn_dir_weight_2h_help_mult;
 extern cvar_t vr_offhandpitch;
 extern cvar_t vr_offhandyaw;
 extern cvar_t vr_show_hip_holsters;
-extern cvar_t vr_show_shoulder_holsters;
 extern cvar_t vr_hip_offset_x;
 extern cvar_t vr_hip_offset_y;
 extern cvar_t vr_hip_offset_z;
 extern cvar_t vr_hip_holster_thresh;
-extern cvar_t vr_shoulder_holster_thresh;
+extern cvar_t vr_show_shoulder_holsters;
 extern cvar_t vr_shoulder_holster_offset_x;
 extern cvar_t vr_shoulder_holster_offset_y;
 extern cvar_t vr_shoulder_holster_offset_z;
+extern cvar_t vr_shoulder_holster_thresh;
+extern cvar_t vr_show_upper_holsters;
+extern cvar_t vr_upper_holster_offset_x;
+extern cvar_t vr_upper_holster_offset_y;
+extern cvar_t vr_upper_holster_offset_z;
+extern cvar_t vr_upper_holster_thresh;
 extern cvar_t vr_fakevr;
 
 // TODO VR: what to do with this?

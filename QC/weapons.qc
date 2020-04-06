@@ -25,9 +25,9 @@ float() crandom =
 };
 
 // QUAKE VR
-void(float xduration, float frequency, float amplitude) VRGunHaptic =
+void(float xHand, float xduration, float frequency, float amplitude) VRGunHaptic =
 {
-    haptic(1, 0.0, xduration, frequency, amplitude);
+    haptic(xHand, 0.0, xduration, frequency, amplitude);
 }
 
 void(vector org) BroadcastGunshotEffect =
@@ -617,7 +617,7 @@ void(float xHand, float stat) HIP_FireLaser =
     }
 
     self.punchangle_x = -1;
-    VRGunHaptic(0.05, 150, 1.0);
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
@@ -1408,7 +1408,7 @@ void(float xHand) W_FireShotgun =
 
     FireBullets (xHand, 6, dir, '0.01 0.01 0');
 
-    VRGunHaptic(0.25, 70, 0.75);
+    VRGunHaptic(xHand, 0.25, 70, 0.75);
 
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
@@ -1437,7 +1437,7 @@ void(float xHand) W_FireSuperShotgun =
     dir = VRGetWeaponFireRotFwd(xHand);
     FireBullets (xHand, 14, dir, '0.035 0.025 0');
 
-    VRGunHaptic(0.55, 75, 1.0);
+    VRGunHaptic(xHand, 0.55, 75, 1.0);
 
     particle2 (VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
     particle2 (VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
@@ -1549,7 +1549,7 @@ void(float xHand) W_FireRocket =
     //MED 11/09/96
     newmis = missile;
 
-    VRGunHaptic(0.5, 75, 1.0);
+    VRGunHaptic(xHand, 0.5, 75, 1.0);
 
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 3);
 };
@@ -1660,7 +1660,7 @@ void(float xHand) W_FireLightning =
     particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
     LightningDamage (org, trace_endpos + v_forward*4, self, 30);
 
-    VRGunHaptic(0.4, 175, 1.0);
+    VRGunHaptic(xHand, 0.4, 175, 1.0);
     particle2 (org, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
@@ -1761,7 +1761,7 @@ void(float xHand) W_FireGrenade =
     setsize (missile, '0 0 0', '0 0 0');
     setorigin (missile, VRGetMuzzlePos(xHand));
 
-    VRGunHaptic(0.4, 75, 1.0);
+    VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
@@ -1944,7 +1944,7 @@ void(float xHand) W_FireProximityGrenade =
     setorigin (missile, VRGetMuzzlePos(xHand));
     setsize (missile, '-1 -1 -1', '1 1 1');
 
-    VRGunHaptic(0.4, 75, 1.0);
+    VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
@@ -2001,7 +2001,7 @@ float(float xHand) W_FireSuperSpikes =
 
     self.punchangle_x = -2;
 
-    VRGunHaptic(0.05, 150, 1.0);
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
@@ -2034,7 +2034,7 @@ void(float xHand, float ox) W_FireSpikes =
 
     self.punchangle_x = -2;
 
-    VRGunHaptic(0.05, 150, 1.0);
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2 (VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
@@ -3011,10 +3011,12 @@ void() W_OffHandWeaponFrame =
 
 float(float xHolster) getHolsterWeapon =
 {
-    if(xHolster == 3) return self.holsterweapon0;
-    if(xHolster == 4) return self.holsterweapon1;
-    if(xHolster == 5) return self.holsterweapon2;
-    if(xHolster == 6) return self.holsterweapon3;
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweapon0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweapon1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweapon2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweapon3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweapon4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweapon5;
 
     bprint("Invalid holster ID: ");
     bprint(ftos(xHolster));
@@ -3023,10 +3025,12 @@ float(float xHolster) getHolsterWeapon =
 
 void(float xHolster, float v) setHolsterWeapon =
 {
-    if(xHolster == 3) { self.holsterweapon0 = v; return; }
-    if(xHolster == 4) { self.holsterweapon1 = v; return; }
-    if(xHolster == 5) { self.holsterweapon2 = v; return; }
-    if(xHolster == 6) { self.holsterweapon3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweapon0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweapon1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweapon2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweapon3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweapon4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweapon5 = v; return; }
 
     bprint("Invalid holster ID: ");
     bprint(ftos(xHolster));
@@ -3035,10 +3039,12 @@ void(float xHolster, float v) setHolsterWeapon =
 
 string(float xHolster) getHolsterWeaponModel =
 {
-    if(xHolster == 3) return self.holsterweaponmodel0;
-    if(xHolster == 4) return self.holsterweaponmodel1;
-    if(xHolster == 5) return self.holsterweaponmodel2;
-    if(xHolster == 6) return self.holsterweaponmodel3;
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponmodel0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponmodel1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponmodel2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponmodel3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponmodel4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponmodel5;
 
     bprint("Invalid holster ID: ");
     bprint(ftos(xHolster));
@@ -3047,10 +3053,12 @@ string(float xHolster) getHolsterWeaponModel =
 
 void(float xHolster, string v) setHolsterWeaponModel =
 {
-    if(xHolster == 3) { self.holsterweaponmodel0 = v; return; }
-    if(xHolster == 4) { self.holsterweaponmodel1 = v; return; }
-    if(xHolster == 5) { self.holsterweaponmodel2 = v; return; }
-    if(xHolster == 6) { self.holsterweaponmodel3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweaponmodel0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweaponmodel1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweaponmodel2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweaponmodel3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweaponmodel4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponmodel5 = v; return; }
 
     bprint("Invalid holster ID: ");
     bprint(ftos(xHolster));
@@ -3059,10 +3067,12 @@ void(float xHolster, string v) setHolsterWeaponModel =
 
 float(float xHotspot) isHolsterHotspot =
 {
-    return xHotspot == 3 ||
-           xHotspot == 4 ||
-           xHotspot == 5 ||
-           xHotspot == 6;
+    return xHotspot == QVR_HS_LEFT_SHOULDER_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_SHOULDER_HOLSTER ||
+           xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_HIP_HOLSTER ||
+           xHotspot == QVR_HS_LEFT_UPPER_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_UPPER_HOLSTER;
 }
 
 void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
@@ -3230,6 +3240,16 @@ void() wpnthrow_touch =
     }
 };
 
+void(float* xOutEntWeapon) wpnthrow_handtouch_impl =
+{
+    sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+    *xOutEntWeapon = self.weapon;
+    remove(self);
+
+    self = self.handtouch_ent;
+    W_SetCurrentAmmo();
+}
+
 void() wpnthrow_handtouch =
 {
     // bprint("handtouch: ");
@@ -3240,23 +3260,13 @@ void() wpnthrow_handtouch =
        self.handtouch_ent.offhand_grabbing &&
        self.handtouch_ent.weapon2 == WID_FIST)
     {
-        sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
-        self.handtouch_ent.weapon2 = self.weapon;
-        remove(self);
-
-        self = self.handtouch_ent;
-        W_SetCurrentAmmo();
+        wpnthrow_handtouch_impl(&self.handtouch_ent.weapon2);
     }
     else if(self.handtouch_hand == MAIN_HAND &&
             self.handtouch_ent.mainhand_grabbing &&
             self.handtouch_ent.weapon == WID_FIST)
     {
-        sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
-        self.handtouch_ent.weapon = self.weapon;
-        remove(self);
-
-        self = self.handtouch_ent;
-        W_SetCurrentAmmo();
+        wpnthrow_handtouch_impl(&self.handtouch_ent.weapon);
     }
 }
 
@@ -3271,9 +3281,9 @@ void(float xHand,
 
     if (xWeapon != WID_FIST && !xGrabbing && time >= xAttackFinished)
     {
-        if(xHotspot == 0 /* nothing */ ||
-           xHotspot == 1 /* 2H grab - helper offhand */ ||
-           xHotspot == 2 /* 2H grab - helper mainhand */)
+        if(xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
             // 1 and 2 ignored because you can only dual wield with no weapon out
             // TODO VR: what to do?
@@ -3326,7 +3336,7 @@ void(float xHand,
             *xOutWeapon = WID_FIST;
             W_SetCurrentAmmo();
         }
-        else if(isHolsterHotspot(xHotspot)) /* [3, 4, 5, 6] holsters */
+        else if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
             {
@@ -3338,7 +3348,7 @@ void(float xHand,
                 W_SetCurrentAmmo();
             }
         }
-        else if(xHotspot == 7 /* hand swap */)
+        else if(xHotspot == QVR_HS_HAND_SWITCH)
         {
             if(xOtherGrabbing && xOtherWeapon == WID_FIST && time >= xOtherAttackFinished)
             {
@@ -3351,21 +3361,32 @@ void(float xHand,
             }
         }
     }
+    else if (xWeapon != WID_FIST && xGrabbing && time >= xAttackFinished)
+    {
+        // TODO VR: cvar to enable/disable
+        if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) == WID_FIST)
+            {
+                VRGunHaptic(xHand, 0.1, 75, 0.09);
+            }
+        }
+    }
     else if (xWeapon == WID_FIST && xGrabbing)
     {
-        if(xHotspot == 0 /* nothing */)
+        if(xHotspot == QVR_HS_NONE)
         {
             // TODO VR: what to do?
         }
-        else if(xHotspot == 1 /* 2H grab - helper offhand */)
+        else if(xHotspot == QVR_HS_OFFHAND_2H_GRAB)
         {
             // TODO VR: what to do?
         }
-        else if(xHotspot == 2 /* 2H grab - helper mainhand */)
+        else if(xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
             // TODO VR: what to do?
         }
-        else if(isHolsterHotspot(xHotspot)) /* [3, 4, 5, 6] holsters */
+        else if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
@@ -3375,6 +3396,17 @@ void(float xHand,
                 setHolsterWeapon(xHotspot, WID_FIST);
                 setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
                 W_SetCurrentAmmo();
+            }
+        }
+    }
+    else if (xWeapon == WID_FIST && !xGrabbing)
+    {
+        // TODO VR: cvar to enable/disable
+        if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) != WID_FIST)
+            {
+                VRGunHaptic(xHand, 0.1, 75, 0.09);
             }
         }
     }

@@ -1148,14 +1148,13 @@ void V_CalcRefdef2Test()
 }
 
 // TODO VR: hack, fix
-void V_CalcHolsterRefdef2Test(
-    const int modelId, const glm::vec3& pos, entity_t* view, const float roll)
+void V_CalcHolsterRefdef2Test(const int modelId, const glm::vec3& pos,
+    entity_t* view, const float pitch, const float yaw, const float roll)
 {
-    view->angles[PITCH] = -90;
-    view->angles[YAW] = 0;
+    view->angles[PITCH] = pitch;
+    view->angles[YAW] = yaw;
+    view->angles[ROLL] = roll;
 
-    // TODO VR: hack
-    view->angles[ROLL] = -sv_player->v.v_viewangle[YAW] + roll;
     view->origin = pos;
     view->model = cl.model_precache[modelId];
 
@@ -1302,11 +1301,24 @@ void V_RenderView()
         V_CalcRefdef();
         V_CalcRefdef2Test();
 
+        // TODO VR: hack
+        const auto playerYaw = sv_player->v.v_viewangle[YAW];
+
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL2],
-            VR_GetLeftHipPos(), &cl.left_hip_holster, 10);
+            VR_GetLeftHipPos(), &cl.left_hip_holster, -90.f, 0.f,
+            -playerYaw + 10.f);
 
         V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
-            VR_GetRightHipPos(), &cl.right_hip_holster, -10);
+            VR_GetRightHipPos(), &cl.right_hip_holster, -90.f, 0.f,
+            -playerYaw - 10.f);
+
+        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL4],
+            VR_GetLeftUpperPos(), &cl.left_upper_holster, -20.f,
+            playerYaw + 180.f, 0.f);
+
+        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL5],
+            VR_GetRightUpperPos(), &cl.right_upper_holster, -20.f,
+            playerYaw + 180.f, 0.f);
 
         if(cl.viewent.model != nullptr)
         {

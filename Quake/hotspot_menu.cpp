@@ -55,6 +55,19 @@
     m.add_cvar_entry<float>("Hip Z", vr_hip_offset_z, bPos);
     m.add_cvar_entry<float>("Hip Threshold", vr_hip_holster_thresh, bDst);
 
+    m.add_separator();
+
+    m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
+        "Show Upper Holsters",                           //
+        [] { return &vr_show_upper_holsters; },          //
+        "Off", "Main Hand", "Off Hand", "Both Hands"     //
+    );
+
+    m.add_cvar_entry<float>("Upper X", vr_upper_holster_offset_x, bPos);
+    m.add_cvar_entry<float>("Upper Y", vr_upper_holster_offset_y, bPos);
+    m.add_cvar_entry<float>("Upper Z", vr_upper_holster_offset_z, bPos);
+    m.add_cvar_entry<float>("Upper Threshold", vr_upper_holster_thresh, bDst);
+
     return m;
 }
 

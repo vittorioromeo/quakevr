@@ -235,14 +235,12 @@ void () GrappleAnchor =
     self.touch = SUB_Null;
 };
 
-void(float xduration, float frequency, float amplitude) VRGunHaptic;
-
 void (float xHand) W_FireGrapple =
 {
     if (getHookOut(xHand))// reject subsequent calls from player.qc
         return;
 
-    VRGunHaptic(0.55, 75, 1.0);
+    VRGunHaptic(xHand, 0.55, 75, 1.0);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 5 /* sparks preset */, 8);
     particle2 (VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 

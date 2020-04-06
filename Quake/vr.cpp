@@ -299,15 +299,20 @@ DEFINE_CVAR(vr_wpn_dir_weight_2h_help_mult, 1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandpitch, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_offhandyaw, 0.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_show_hip_holsters, 0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_show_shoulder_holsters, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hip_offset_x, -1.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hip_offset_y, 7.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hip_offset_z, 4.5, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_hip_holster_thresh, 6.0, CVAR_ARCHIVE);
-DEFINE_CVAR(vr_shoulder_holster_thresh, 8.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_shoulder_holsters, 0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_x, 5.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_y, 1.5, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_shoulder_holster_offset_z, 0.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_shoulder_holster_thresh, 8.0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_show_upper_holsters, 0, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_upper_holster_offset_x, 2.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_upper_holster_offset_y, 6.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_upper_holster_offset_z, 2.5, CVAR_ARCHIVE);
+DEFINE_CVAR(vr_upper_holster_thresh, 6.0, CVAR_ARCHIVE);
 DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
 
 //
@@ -1649,6 +1654,16 @@ void SetHandPos(int index, entity_t* player)
     };
 }
 
+// Relative to player.
+[[nodiscard]] static glm::vec3 VR_GetUpperOffsets() noexcept
+{
+    return {
+        vr_upper_holster_offset_x.value, //
+        vr_upper_holster_offset_y.value, //
+        vr_upper_holster_offset_z.value  //
+    };
+}
+
 [[nodiscard]] static glm::vec3 VR_NegateY(glm::vec3 v) noexcept
 {
     v.y = -v.y;
@@ -1705,6 +1720,17 @@ void SetHandPos(int index, entity_t* player)
 {
     return VR_GetBodyAnchor(VR_GetHipOffsets());
 }
+
+[[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept
+{
+    return VR_GetBodyAnchor(VR_NegateY(VR_GetUpperOffsets()));
+}
+
+[[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept
+{
+    return VR_GetBodyAnchor(VR_GetUpperOffsets());
+}
+
 
 [[nodiscard]] static glm::vec3 VR_Get2HVirtualStockMix(
     const glm::vec3& viaHand, const glm::vec3& viaShoulder) noexcept
@@ -2441,7 +2467,6 @@ void VR_CalibrateHeight()
            VR_CalcWeaponMuzzlePosImpl(0, VR_GetOffHandWpnCvarEntry());
 }
 
-
 [[nodiscard]] static bool VR_InHipHolsterDistance(
     const glm::vec3& hand, const glm::vec3& holster)
 {
@@ -2456,6 +2481,13 @@ void VR_CalibrateHeight()
 
     return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
 }
+
+[[nodiscard]] static bool VR_InUpperHolsterDistance(
+    const glm::vec3& hand, const glm::vec3& holster)
+{
+    return glm::distance(hand, holster) < vr_upper_holster_thresh.value;
+}
+
 
 static void VR_ShowFnSetupGL() noexcept
 {
@@ -2703,11 +2735,6 @@ void VR_ShowShoulderHolsters()
             doLine(offHandPos, rightShoulderPos);
         }
 
-        // doLine(leftHipPos, rightHipPos);
-        // doLine(rightHipPos, rightShoulderPos);
-        // doLine(rightShoulderPos, leftShoulderPos);
-        // doLine(leftShoulderPos, leftHipPos);
-
         glEnd();
     };
 
@@ -2716,6 +2743,68 @@ void VR_ShowShoulderHolsters()
     VR_ShowFnCleanupGL();
 }
 
+void VR_ShowUpperHolsters()
+{
+    if(vr_show_upper_holsters.value == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    const auto offHandPos = cl.handpos[cVR_OffHand];
+    const auto mainHandPos = cl.handpos[cVR_MainHand];
+
+    const auto leftUpperPos = VR_GetLeftUpperPos();
+    const auto rightUpperPos = VR_GetRightUpperPos();
+
+    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        if(VR_InUpperHolsterDistance(hand, holster))
+        {
+            glColor4f(1, 1, 0, 0.95);
+        }
+        else
+        {
+            if(hand == mainHandPos)
+            {
+                glColor4f(0, 1, 1, 0.75);
+            }
+            else
+            {
+                glColor4f(0, 1, 0, 0.75);
+            }
+        }
+    };
+
+    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+        doColor(hand, holster);
+        VR_GLVertex3f(hand);
+        VR_GLVertex3f(holster);
+    };
+
+    const auto drawPrimitives = [&](const int type) {
+        const auto [drawMainHand, drawOffHand] =
+            VR_GetHandsToDraw(vr_show_upper_holsters.value);
+
+        glBegin(type);
+
+        if(drawMainHand)
+        {
+            doLine(mainHandPos, leftUpperPos);
+            doLine(mainHandPos, rightUpperPos);
+        }
+
+        if(drawOffHand)
+        {
+            doLine(offHandPos, leftUpperPos);
+            doLine(offHandPos, rightUpperPos);
+        }
+
+        glEnd();
+    };
+
+    VR_ShowFnSetupGL();
+    VR_ShowFnDrawPointsAndLines(drawPrimitives);
+    VR_ShowFnCleanupGL();
+}
 
 static void VR_ShowCrosshairImpl(const float size, const float alpha,
     const glm::vec3& start, const glm::vec3& forward)
@@ -3426,46 +3515,58 @@ void VR_Move(usercmd_t* cmd)
         cmd->teleporting = 0;
     }
 
+    // TODO VR: holster haptic + cvar to enable/disable it
+
     // VR: Hands.
     const auto computeHotSpot = [](const glm::vec3& hand) {
         if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderHolsterPos()))
         {
-            return 3;
+            return QVR_HS_LEFT_SHOULDER_HOLSTER;
         }
 
         if(VR_InShoulderHolsterDistance(hand, VR_GetRightShoulderHolsterPos()))
         {
-            return 4;
+            return QVR_HS_RIGHT_SHOULDER_HOLSTER;
         }
 
         if(VR_InHipHolsterDistance(hand, VR_GetLeftHipPos()))
         {
-            return 5;
+            return QVR_HS_LEFT_HIP_HOLSTER;
         }
 
         if(VR_InHipHolsterDistance(hand, VR_GetRightHipPos()))
         {
-            return 6;
+            return QVR_HS_RIGHT_HIP_HOLSTER;
+        }
+
+        if(VR_InUpperHolsterDistance(hand, VR_GetLeftUpperPos()))
+        {
+            return QVR_HS_LEFT_UPPER_HOLSTER;
+        }
+
+        if(VR_InUpperHolsterDistance(hand, VR_GetRightUpperPos()))
+        {
+            return QVR_HS_RIGHT_UPPER_HOLSTER;
         }
 
         if(hand == cl.handpos[cVR_OffHand] && VR_GoodDistanceForOffHand2HGrab())
         {
-            return 1;
+            return QVR_HS_OFFHAND_2H_GRAB;
         }
 
         if(hand == cl.handpos[cVR_MainHand] &&
             VR_GoodDistanceForMainHand2HGrab())
         {
-            return 2;
+            return QVR_HS_MAINHAND_2H_GRAB;
         }
 
         if(VR_GoodDistanceForHandSwitch(
                cl.handpos[cVR_OffHand], cl.handpos[cVR_MainHand]))
         {
-            return 7;
+            return QVR_HS_HAND_SWITCH;
         }
 
-        return 0;
+        return QVR_HS_NONE;
     };
 
     // TODO VR:
