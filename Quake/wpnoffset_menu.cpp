@@ -103,6 +103,9 @@ static quake::menu g_menu = make_menu();
 void M_WpnOffset_Key(int key)
 {
     g_menu.key(key);
+
+    // TODO VR: hackish
+    VR_ModAllWeapons();
 }
 
 void M_WpnOffset_Draw()

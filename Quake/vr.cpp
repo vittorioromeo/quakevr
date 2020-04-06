@@ -515,8 +515,8 @@ void DeleteFBO(const fbo_t& fbo)
     u.v[2] = q.z;
 
     // Dot products of u,v and u,u
-    const float uvDot = (u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2]);
-    const float uuDot = (u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2]);
+    const float uvDot = u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2];
+    const float uuDot = u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2];
 
     // Calculate cross product of u, v
     vr::HmdVector3_t uvCross;
@@ -577,8 +577,8 @@ void DeleteFBO(const fbo_t& fbo)
 
 void HmdVec3RotateY(vr::HmdVector3_t& pos, const float angle) noexcept
 {
-    const float s = sin(angle);
-    const float c = cos(angle);
+    const float s = std::sin(angle);
+    const float c = std::cos(angle);
     const float x = c * pos.v[0] - s * pos.v[2];
     const float y = s * pos.v[0] + c * pos.v[2];
 

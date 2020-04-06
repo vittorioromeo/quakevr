@@ -8,6 +8,10 @@ Linux/CodeBlocks/Id1
 Build-qu*
 *.so
 *.dbg
+*.blend[1-9]
+*.blend10
+*.blend11
+*.blend12
 
 # Linux objects
 .vs
