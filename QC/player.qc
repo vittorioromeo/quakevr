@@ -239,38 +239,38 @@ void(float xArg, float xFrame, void(float) xFn) setThink2WithArg =
 
 void(float xHand, float v) setWeaponFrame =
 {
-    if(xHand == 0) self.weaponframe2 = v;
-    else           self.weaponframe = v;
+    if(xHand == OFF_HAND) self.weaponframe2 = v;
+    else                  self.weaponframe = v;
 }
 
 float(float xHand) getWeaponFrame =
 {
-    if(xHand == 0) return self.weaponframe2;
-    else           return self.weaponframe;
+    if(xHand == OFF_HAND) return self.weaponframe2;
+    else                  return self.weaponframe;
 }
 
 void(float xHand, float v) setAttackFinished =
 {
-    if(xHand == 0) self.offhand_attack_finished = v;
-    else           self.attack_finished = v;
+    if(xHand == OFF_HAND) self.offhand_attack_finished = v;
+    else                  self.attack_finished = v;
 }
 
 float(float xHand) getAttackFinished =
 {
-    if(xHand == 0) return self.offhand_attack_finished;
-    else           return self.attack_finished;
+    if(xHand == OFF_HAND) return self.offhand_attack_finished;
+    else                  return self.attack_finished;
 }
 
 void(float xHand, float xFrame, void(float) xFn) setHandThinkWithArg =
 {
-    if(xHand == 0) setThink2WithArg(xHand, xFrame, xFn);
-    else           setThinkWithArg(xHand, xFrame, xFn);
+    if(xHand == OFF_HAND) setThink2WithArg(xHand, xFrame, xFn);
+    else                  setThinkWithArg(xHand, xFrame, xFn);
 }
 
 void(float xHand, float xFrame, void() xFn) setHandThink =
 {
-    if(xHand == 0) setThink2(xFrame, xFn);
-    else           setThink(xFrame, xFn);
+    if(xHand == OFF_HAND) setThink2(xFrame, xFn);
+    else                  setThink(xFrame, xFn);
 }
 
 void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); setWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };

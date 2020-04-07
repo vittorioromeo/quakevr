@@ -15,68 +15,68 @@
 
 void(float xHand, entity v) setHook =
 {
-    if(xHand == 0) self.hook2 = v;
-    else           self.hook = v;
+    if(xHand == OFF_HAND) self.hook2 = v;
+    else                  self.hook = v;
 }
 
 void(float xHand, float v) setOnHook =
 {
-    if(xHand == 0) self.on_hook2 = v;
-    else           self.on_hook = v;
+    if(xHand == OFF_HAND) self.on_hook2 = v;
+    else                  self.on_hook = v;
 }
 
 void(float xHand, float v) setHookOut =
 {
-    if(xHand == 0) self.hook_out2 = v;
-    else           self.hook_out = v;
+    if(xHand == OFF_HAND) self.hook_out2 = v;
+    else                  self.hook_out = v;
 }
 
 entity(float xHand) getHook =
 {
-    if(xHand == 0) return self.hook2;
-    else           return self.hook;
+    if(xHand == OFF_HAND) return self.hook2;
+    else                  return self.hook;
 }
 
 float(float xHand) getOnHook =
 {
-    if(xHand == 0) return self.on_hook2;
-    else           return self.on_hook;
+    if(xHand == OFF_HAND) return self.on_hook2;
+    else                  return self.on_hook;
 }
 
 float(float xHand) getHookOut =
 {
-    if(xHand == 0) return self.hook_out2;
-    else           return self.hook_out;
+    if(xHand == OFF_HAND) return self.hook_out2;
+    else                  return self.hook_out;
 }
 
 void(float xHand, float v) setOwnerOnHook =
 {
-    if(xHand == 0) self.owner.on_hook2 = v;
-    else           self.owner.on_hook = v;
+    if(xHand == OFF_HAND) self.owner.on_hook2 = v;
+    else                  self.owner.on_hook = v;
 }
 
 void(float xHand, float v) setOwnerHookOut =
 {
-    if(xHand == 0) self.owner.hook_out2 = v;
-    else           self.owner.hook_out = v;
+    if(xHand == OFF_HAND) self.owner.hook_out2 = v;
+    else                  self.owner.hook_out = v;
 }
 
 float(float xHand) getOwnerOnHook =
 {
-    if(xHand == 0) return self.owner.on_hook2;
-    else           return self.owner.on_hook;
+    if(xHand == OFF_HAND) return self.owner.on_hook2;
+    else                  return self.owner.on_hook;
 }
 
 float(float xHand) getOwnerHookOut =
 {
-    if(xHand == 0) return self.owner.hook_out2;
-    else           return self.owner.hook_out;
+    if(xHand == OFF_HAND) return self.owner.hook_out2;
+    else                  return self.owner.hook_out;
 }
 
 float(float xHand) ownerFireButtonPressed =
 {
-    if(xHand == 0) return self.owner.button3;
-    else           return self.owner.button0;
+    if(xHand == OFF_HAND) return self.owner.button3;
+    else                  return self.owner.button0;
 }
 
 // prototypes for WEAPONS.QC functions

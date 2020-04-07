@@ -65,51 +65,51 @@ vector() vrProjectileVelocity =
 
 vector(float xHand) VRGetHandPos =
 {
-    if(xHand == 0) return self.offhandpos;
-    else           return self.handpos;
+    if(xHand == OFF_HAND) return self.offhandpos;
+    else                  return self.handpos;
 }
 
 vector(float xHand) VRGetHandRot =
 {
-    if(xHand == 0) return self.offhandrot;
-    else           return self.handrot;
+    if(xHand == OFF_HAND) return self.offhandrot;
+    else                  return self.handrot;
 }
 
 vector(float xHand) VRGetHandVel =
 {
-    if(xHand == 0) return self.offhandvel;
-    else           return self.handvel;
+    if(xHand == OFF_HAND) return self.offhandvel;
+    else                  return self.handvel;
 }
 
 vector(float xHand) VRGetHandAVel =
 {
-    if(xHand == 0) return self.offhandavel;
-    else           return self.handavel;
+    if(xHand == OFF_HAND) return self.offhandavel;
+    else                  return self.handavel;
 }
 
 float(float xHand) VRMeleeHitSoundPlayed =
 {
-    if(xHand == 0) return self.offhand_melee_hit_sound_played;
-    else           return self.melee_hit_sound_played;
+    if(xHand == OFF_HAND) return self.offhand_melee_hit_sound_played;
+    else                  return self.melee_hit_sound_played;
 }
 
 void(float xHand, float v) VRMeleeSetHitSoundPlayed =
 {
-    if(xHand == 0) self.offhand_melee_hit_sound_played = v;
-    else           self.melee_hit_sound_played = v;
+    if(xHand == OFF_HAND) self.offhand_melee_hit_sound_played = v;
+    else                  self.melee_hit_sound_played = v;
 }
 
 float(float xHand) VRGunChannel =
 {
-    if(xHand == 0) return CHAN_WEAPON2;
-    else           return CHAN_WEAPON;
+    if(xHand == OFF_HAND) return CHAN_WEAPON2;
+    else                  return CHAN_WEAPON;
 }
 
 // TODO VR:
 float(float xHand) isAmmolessWeapon =
 {
-    if(xHand == 0) return self.currentammo2 == AID_NONE;
-    else           return self.currentammo == AID_NONE;
+    if(xHand == OFF_HAND) return self.currentammo2 == AID_NONE;
+    else                  return self.currentammo == AID_NONE;
 }
 
 void() updateAmmoCounters =
@@ -137,8 +137,8 @@ void(float xHand, float v) setCurrentAmmo =
 {
     local float idx;
 
-    if(xHand == 0) { idx = self.currentammo2; }
-    else           { idx = self.currentammo; }
+    if(xHand == OFF_HAND) { idx = self.currentammo2; }
+    else                  { idx = self.currentammo; }
 
          if(idx == AID_SHELLS)  { self.ammo_shells = v; }
     else if(idx == AID_NAILS)   { self.ammo_nails = v; }
@@ -160,8 +160,8 @@ float(float xHand) getCurrentAmmo =
 {
     local float idx;
 
-    if(xHand == 0) { idx = self.currentammo2; }
-    else           { idx = self.currentammo; }
+    if(xHand == OFF_HAND) { idx = self.currentammo2; }
+    else                  { idx = self.currentammo; }
 
     if(idx == AID_SHELLS)  { return self.ammo_shells; }
     if(idx == AID_NAILS)   { return self.ammo_nails; }
@@ -200,8 +200,8 @@ float(float xHand, float v) VRMeleeDmg =
 {
     local float tmp;
 
-    if(xHand == 0) tmp = self.offhandvelmag;
-    else           tmp = self.handvelmag;
+    if(xHand == OFF_HAND) tmp = self.offhandvelmag;
+    else                  tmp = self.handvelmag;
 
     return (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
@@ -521,20 +521,20 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
 // TODO VR: move
 float(float xHand) VRFireButtonPressed =
 {
-    if(xHand == 0) return self.button3;
-    else           return self.button0;
+    if(xHand == OFF_HAND) return self.button3;
+    else                  return self.button0;
 }
 
 void(float xHand, float v) VRSetWeapon =
 {
-    if(xHand == 0) self.weapon2 = v;
-    else           self.weapon = v;
+    if(xHand == OFF_HAND) self.weapon2 = v;
+    else                  self.weapon = v;
 }
 
 float(entity e, float xHand) VRGetEntWeapon =
 {
-    if(xHand == 0) return e.weapon2;
-    else           return e.weapon;
+    if(xHand == OFF_HAND) return e.weapon2;
+    else                  return e.weapon;
 }
 
 float(float xHand) VRGetWeapon =
@@ -544,8 +544,8 @@ float(float xHand) VRGetWeapon =
 
 float(entity e, float xHand) VRIsEntHandGrabbing =
 {
-    if(xHand == 0) return e.offhand_grabbing;
-    else           return e.mainhand_grabbing;
+    if(xHand == OFF_HAND) return e.offhand_grabbing;
+    else                  return e.mainhand_grabbing;
 }
 
 float(float xHand) VRIsHandGrabbing =
@@ -560,8 +560,8 @@ vector(float xHand) VRGetWeaponFireRot =
 
 vector(float xHand) VRGetMuzzlePos =
 {
-    if(xHand == 0) return self.offmuzzlepos;
-    else           return self.muzzlepos;
+    if(xHand == OFF_HAND) return self.offmuzzlepos;
+    else                  return self.muzzlepos;
 }
 
 vector(float xHand) VRGetWeaponFireRotFwd =
