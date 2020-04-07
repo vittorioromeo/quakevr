@@ -1220,13 +1220,12 @@ void PR_LoadProgs()
             progs->version, PROG_VERSION);
     }
 
-    // TODO VR: fteqcc does not generate a progdefs anymore
-    // if(progs->crc != PROGHEADER_CRC)
-    // {
-    //     Host_Error(
-    //         "progs.dat system vars have been modified, progdefs.h is out of "
-    //         "date");
-    // }
+    if(progs->crc != PROGHEADER_CRC)
+    {
+        Host_Error(
+            "progs.dat system vars have been modified, progdefs.h is out of "
+            "date");
+    }
 
     pr_functions = (dfunction_t*)((byte*)progs + progs->ofs_functions);
     pr_strings = (char*)progs + progs->ofs_strings;
