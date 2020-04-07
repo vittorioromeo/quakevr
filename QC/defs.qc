@@ -262,6 +262,7 @@ void        end_sys_globals;        // flag for structure dumping
 .float        mainhand_grabbing;
 .float        offhand_hotspot;
 .float        mainhand_hotspot;
+.vector       roomscalemove;
 .float        throwhit;
 .float        throwstabilize;
 .float        throwstabilizedim;

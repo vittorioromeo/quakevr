@@ -1130,8 +1130,8 @@ void SV_Handtouch(edict_t* ent)
             }
         };
 
-        handCollisionCheck(0, ent->v.offhandpos);
-        handCollisionCheck(1, ent->v.handpos);
+        handCollisionCheck(cVR_OffHand, ent->v.offhandpos);
+        handCollisionCheck(cVR_MainHand, ent->v.handpos);
     };
 
     const auto endHandPos = [&](const glm::vec3& handPos,
