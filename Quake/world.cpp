@@ -478,7 +478,8 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->time = sv.time;
 
         // VR: This is for things like ammo pickups and slipgates.
-        VR_SetHandtouchParams(offHandIntersects ? 0 : 1, ent, target);
+        VR_SetHandtouchParams(
+            offHandIntersects ? cVR_OffHand : cVR_MainHand, ent, target);
         PR_ExecuteProgram(target->v.handtouch);
 
         pr_global_struct->self = old_self;

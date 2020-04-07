@@ -658,6 +658,7 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target)
 {
     player->v.touchinghand = hand;
+    target->v.touchinghand = hand;
     target->v.handtouch_hand = hand;
     target->v.handtouch_ent = EDICT_TO_PROG(player);
 }

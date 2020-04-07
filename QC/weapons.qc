@@ -531,10 +531,26 @@ void(float xHand, float v) VRSetWeapon =
     else           self.weapon = v;
 }
 
+float(entity e, float xHand) VRGetEntWeapon =
+{
+    if(xHand == 0) return e.weapon2;
+    else           return e.weapon;
+}
+
 float(float xHand) VRGetWeapon =
 {
-    if(xHand == 0) return self.weapon2;
-    else           return self.weapon;
+    return VRGetEntWeapon(self, xHand);
+}
+
+float(entity e, float xHand) VRIsEntHandGrabbing =
+{
+    if(xHand == 0) return e.offhand_grabbing;
+    else           return e.mainhand_grabbing;
+}
+
+float(float xHand) VRIsHandGrabbing =
+{
+    return VRIsEntHandGrabbing(self, xHand);
 }
 
 vector(float xHand) VRGetWeaponFireRot =

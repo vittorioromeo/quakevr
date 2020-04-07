@@ -423,12 +423,24 @@ float() W_BestWeapon;
 
 void() weapon_touch =
 {
+    // TODO VR: consider having monsters always drop a weapon.
+
     local    float    hadammo, best, newIt, old;
     local    entity    stemp;
     local    float    leave;
 
     if (!(other.flags & FL_CLIENT))
         return;
+
+    // Do not pick up the weapon if the touching hand is not grabbing.
+    if (cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
+    {
+        if (!VRIsEntHandGrabbing(other, self.touchinghand) ||
+            VRGetEntWeapon(other, self.touchinghand) != WID_FIST)
+        {
+            return;
+        }
+    }
 
 // if the player was using his best weapon, change up to the new one if better
     stemp = self;
