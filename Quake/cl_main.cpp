@@ -94,9 +94,7 @@ void CL_ClearState()
 
     // johnfitz -- cl_entities is now dynamically allocated
     cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-    cl_entities = (entity_t*)Hunk_AllocName(
-        cl_max_edicts * sizeof(entity_t), "cl_entities");
-    // johnfitz
+    cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
 }
 
 /*
@@ -521,6 +519,7 @@ void CL_RelinkEntities()
             // so move to the final spot
             ent->origin = ent->msg_origins[0];
             ent->angles = ent->msg_angles[0];
+            ent->scale = ent->msg_scales[0];
         }
         else
         {
@@ -550,7 +549,7 @@ void CL_RelinkEntities()
             }
             // johnfitz
 
-            // interpolate the origin and angles
+            // interpolate the origin and angles and scales
             for(int j = 0; j < 3; j++)
             {
                 ent->origin[j] = ent->msg_origins[1][j] + f * delta[j];
@@ -565,6 +564,9 @@ void CL_RelinkEntities()
                     d += 360;
                 }
                 ent->angles[j] = ent->msg_angles[1][j] + f * d;
+
+                const float sd = ent->msg_scales[0][j] - ent->msg_scales[1][j];
+                ent->scale[j] = ent->msg_scales[1][j] + f * sd;
             }
         }
 

@@ -518,8 +518,6 @@ Hunk_AllocName
 */
 void* Hunk_AllocName(int size, const char* name) noexcept
 {
-    hunk_t* h;
-
 #ifdef PARANOID
     Hunk_Check();
 #endif
@@ -536,7 +534,7 @@ void* Hunk_AllocName(int size, const char* name) noexcept
         Sys_Error("Hunk_Alloc: failed on %i bytes", size);
     }
 
-    h = (hunk_t*)(hunk_base + hunk_low_used);
+    hunk_t* h = (hunk_t*)(hunk_base + hunk_low_used);
     hunk_low_used += size;
 
     Cache_FreeLow(hunk_low_used);

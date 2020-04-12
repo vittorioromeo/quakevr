@@ -383,16 +383,16 @@ typedef struct epair_s
     char* value;
 } epair_t;
 
-typedef struct
+struct entitybsp_t
 {
     glm::vec3 origin;
     int firstbrush;
     int numbrushes;
     epair_t* epairs;
-} entity_t;
+};
 
 extern int num_entities;
-extern entity_t entities[MAX_MAP_ENTITIES];
+extern entitybsp_t entities[MAX_MAP_ENTITIES];
 
 #endif /* QUAKE_GAME */
 #endif /* __BSPFILE_H */

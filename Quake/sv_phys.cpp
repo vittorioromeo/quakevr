@@ -596,20 +596,15 @@ void SV_PushMove(edict_t* pusher, float movetime)
         if(!(((int)check->v.flags & FL_ONGROUND) &&
                PROG_TO_EDICT(check->v.groundentity) == pusher))
         {
-            // TODO VR: boxIntersection
-            if(check->v.absmin[0] >= pusherNewMaxs[0] ||
-                check->v.absmin[1] >= pusherNewMaxs[1] ||
-                check->v.absmin[2] >= pusherNewMaxs[2] ||
-                check->v.absmax[0] <= pusherNewMins[0] ||
-                check->v.absmax[1] <= pusherNewMins[1] ||
-                check->v.absmax[2] <= pusherNewMins[2])
+            if(!quake::util::boxIntersection(check->v.absmin, check->v.absmax,
+                   pusherNewMins, pusherNewMaxs))
             {
                 continue;
             }
 
             // see if the ent's bbox is inside the pusher's final position
-            if(!SV_TestEntityPositionCustom(check, check->v.origin) &&
-                !SV_TestEntityPositionCustom(
+            if(!SV_TestEntityPositionCustomOrigin(check, check->v.origin) &&
+                !SV_TestEntityPositionCustomOrigin(
                     check, check->v.origin + check->v.mins))
             {
                 continue;
@@ -1075,8 +1070,8 @@ void SV_Handtouch(edict_t* ent)
     // TODO VR: cleanup, too much unnecessary tracing and work
 
     // Utility constants
-    const glm::vec3 handMins{-2.f, -2.f, -2.f};
-    const glm::vec3 handMaxs{2.f, 2.f, 2.f};
+    const glm::vec3 handMins{-2.5f, -2.5f, -2.5f};
+    const glm::vec3 handMaxs{2.5f, 2.5f, 2.5f};
 
     // Figure out tracing boundaries
     // (Largest possible volume containing the hands and the player)

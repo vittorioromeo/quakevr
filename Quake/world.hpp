@@ -69,11 +69,8 @@ int SV_TruePointContents(const glm::vec3& p);
 // does not check any entities at all
 // the non-true version remaps the water current contents to content_water
 
+edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const glm::vec3& xOrigin);
 edict_t* SV_TestEntityPosition(edict_t* ent);
-
-// TODO VR:
-edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin);
-edict_t* SV_TestEntityPositionCustom2(edict_t* ent, const float factor);
 
 trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
     const glm::vec3& maxs, const glm::vec3& end, const int type,

@@ -109,6 +109,27 @@ template <typename T>
     return (T*)Hunk_Alloc(count * sizeof(T));
 }
 
+
+template <typename T>
+[[nodiscard]] T* Hunk_AllocName(const int count, const char* name) noexcept
+{
+    return (T*)Hunk_AllocName(count * sizeof(T), name);
+}
+
+template <typename T>
+[[nodiscard]] T* Hunk_AllocNameAndConstruct(
+    const int count, const char* name) noexcept
+{
+    auto ptr = Hunk_AllocName(count, name);
+
+    for(int i = 0; i < count; ++i)
+    {
+        new(ptr + count) T{};
+    }
+
+    return ptr;
+}
+
 [[nodiscard]] int Hunk_LowMark(void) noexcept;
 void Hunk_FreeToLowMark(const int mark) noexcept;
 

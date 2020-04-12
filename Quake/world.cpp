@@ -331,7 +331,6 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
             const bool canBeTouched =
                 (target->v.touch || target->v.handtouch) &&
                 target->v.solid != SOLID_NOT;
-            // TODO VR: target->v.solid == SOLID_TRIGGER;
 
             if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
             {
@@ -404,7 +403,6 @@ void SV_TouchLinks(edict_t* ent)
     const auto doTouch = [](edict_t* ent, edict_t* target) {
         const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
                                   target->v.solid != SOLID_NOT;
-        // TODO VR: target->v.solid == SOLID_TRIGGER;
 
         if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
         {
@@ -438,7 +436,7 @@ void SV_TouchLinks(edict_t* ent)
 
     const auto doHandtouch = [](edict_t* ent, edict_t* target) {
         // Add some size to the hands.
-        const glm::vec3 offsets{1.f, 1.f, 1.f};
+        const glm::vec3 offsets{1.5f, 1.5f, 1.5f};
 
         const auto handposmin = ent->v.handpos - offsets;
         const auto handposmax = ent->v.handpos + offsets;
@@ -749,16 +747,8 @@ SV_TestEntityPosition
 This could be a lot more efficient...
 ============
 */
-edict_t* SV_TestEntityPosition(edict_t* ent)
-{
-    const trace_t trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs,
-        ent->v.origin, MOVE_NORMAL, ent);
-
-    return trace.startsolid ? sv.edicts : nullptr;
-}
-
-// TODO VR:
-edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin)
+edict_t* SV_TestEntityPositionCustomOrigin(
+    edict_t* ent, const glm::vec3& xOrigin)
 {
     const trace_t trace =
         SV_Move(xOrigin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
@@ -766,12 +756,9 @@ edict_t* SV_TestEntityPositionCustom(edict_t* ent, const glm::vec3& xOrigin)
     return trace.startsolid ? sv.edicts : nullptr;
 }
 
-edict_t* SV_TestEntityPositionCustom2(edict_t* ent, const float factor)
+edict_t* SV_TestEntityPosition(edict_t* ent)
 {
-    const trace_t trace = SV_Move(ent->v.origin, ent->v.mins * factor,
-        ent->v.maxs * factor, ent->v.origin, MOVE_NORMAL, ent);
-
-    return trace.startsolid ? sv.edicts : nullptr;
+    return SV_TestEntityPositionCustomOrigin(ent, ent->v.origin);
 }
 
 
@@ -1039,24 +1026,18 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
             continue;
         }
 
-        // TODO VR: restore?
-        // if(target->v.solid == SOLID_TRIGGER)
-        // {
-        //     Sys_Error("Trigger in clipping list");
-        // }
+        if(target->v.solid == SOLID_TRIGGER)
+        {
+            Sys_Error("Trigger in clipping list");
+        }
 
         if(clip->type == MOVE_NOMONSTERS && target->v.solid != SOLID_BSP)
         {
             continue;
         }
 
-        // TODO VR: boxIntersection?
-        if(clip->boxmins[0] > target->v.absmax[0] ||
-            clip->boxmins[1] > target->v.absmax[1] ||
-            clip->boxmins[2] > target->v.absmax[2] ||
-            clip->boxmaxs[0] < target->v.absmin[0] ||
-            clip->boxmaxs[1] < target->v.absmin[1] ||
-            clip->boxmaxs[2] < target->v.absmin[2])
+        if(!quake::util::boxIntersection(clip->boxmins, clip->boxmaxs,
+               target->v.absmin, target->v.absmax))
         {
             continue;
         }

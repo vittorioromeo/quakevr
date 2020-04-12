@@ -30,7 +30,7 @@
     m.add_cvar_entry<float>(
         "Speed Button Multiplier", cl_movespeedkey, {0.05f, 0.1f, 1.f});
     m.add_cvar_entry<float>(
-        "Room-Scale Move Mult.", vr_room_scale_move_mult, {0.25f, 0.25f, 5.f});
+        "Room-Scale Move Mult.", vr_roomscale_move_mult, {0.25f, 0.25f, 5.f});
     m.add_cvar_entry<bool>("Teleportation", vr_teleport_enabled);
     m.add_cvar_entry<float>(
         "Teleport Range", vr_teleport_range, {10.f, 100.f, 800.f});

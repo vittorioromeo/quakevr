@@ -77,13 +77,12 @@ namespace quake::util
         const TVec3AMin& aMin, const TVec3AMax& aMax, const TVec3BMin& bMin,
         const TVec3BMax& bMax) noexcept
     {
-        // TODO VR: restore to gteq and lteq?
-        return aMin[0] < bMax[0] && //
-               aMin[1] < bMax[1] && //
-               aMin[2] < bMax[2] && //
-               aMax[0] > bMin[0] && //
-               aMax[1] > bMin[1] && //
-               aMax[2] > bMin[2];
+        return aMin[0] <= bMax[0] && //
+               aMin[1] <= bMax[1] && //
+               aMin[2] <= bMax[2] && //
+               aMax[0] >= bMin[0] && //
+               aMax[1] >= bMin[1] && //
+               aMax[2] >= bMin[2];
     }
 
     template <typename TEntA, typename TEntB>
