@@ -2317,7 +2317,7 @@ void Host_Give_f()
             // johnfitz
     }
 
-    // TODO VR: docs
+    // TODO VR: (P2) docs
     const auto updateAmmoCounter = [&](const float currentAmmo,
                                        float& ammoCounter) {
         switch((int)(currentAmmo))

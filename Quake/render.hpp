@@ -185,6 +185,14 @@ void R_TeleportSplash(const glm::vec3& org);
 
 void R_PushDlights(void);
 
+struct aliashdr_t;
+struct lerpdata_t;
+
+void R_SetupAliasFrame(
+    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
+
+void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
+
 
 //
 // surface cache related

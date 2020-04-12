@@ -13,6 +13,8 @@
 {
     quake::menu m{"VR Gameplay Options"};
 
+    // ------------------------------------------------------------------------
+
     m.add_cvar_entry<float>(
         "Melee Threshold", vr_melee_threshold, {0.5f, 4.f, 18.f});
     m.add_cvar_entry<bool>("Roomscale Jump", vr_roomscale_jump);
@@ -65,10 +67,19 @@
     m.add_cvar_entry<float>("W. W. Turn 2H Help Mult",
         vr_wpn_dir_weight_2h_help_mult, {0.1f, -5.f, 5.f});
 
+    // TODO VR: (P1) menu tooltips
+
+    // ------------------------------------------------------------------------
+
     return m;
 }
 
 static quake::menu g_menu = make_menu();
+
+quake::menu& M_VRGameplay_Menu()
+{
+    return g_menu;
+}
 
 void M_VRGameplay_Key(int key)
 {

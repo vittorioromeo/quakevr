@@ -127,10 +127,52 @@ void M_Print(int cx, int cy, const char* str)
     }
 }
 
+void M_PrintWithNewLine(int cx, int cy, const char* str)
+{
+    const int originalCx = cx;
+
+    while(*str)
+    {
+        if(*str == '\n')
+        {
+            cx = originalCx;
+            cy += 8;
+            str++;
+
+            continue;
+        }
+
+        M_DrawCharacter(cx, cy, (*str) + 128);
+        str++;
+        cx += 8;
+    }
+}
+
 void M_PrintWhite(int cx, int cy, const char* str)
 {
     while(*str)
     {
+        M_DrawCharacter(cx, cy, *str);
+        str++;
+        cx += 8;
+    }
+}
+
+void M_PrintWhiteWithNewLine(int cx, int cy, const char* str)
+{
+    const int originalCx = cx;
+
+    while(*str)
+    {
+        if(*str == '\n')
+        {
+            cx = originalCx;
+            cy += 8;
+            str++;
+
+            continue;
+        }
+
         M_DrawCharacter(cx, cy, *str);
         str++;
         cx += 8;
@@ -1467,14 +1509,46 @@ void M_Options_Key(int k)
                 case OPT_VIDEO: M_Menu_Video_f(); break;
                 // -----------------------------------------------------------
                 // VR: New menus.
-                case OPT_VR: qmu::setMenuState(m_vr); break;
-                case OPT_VRGAMEPLAY: qmu::setMenuState(m_vrgameplay); break;
-                case OPT_WPN_OFFSET: qmu::setMenuState(m_wpn_offset); break;
-                case OPT_SBAR_OFFSET: qmu::setMenuState(m_sbar_offset); break;
-                case OPT_HOTSPOT: qmu::setMenuState(m_hotspot); break;
-                case OPT_VRTORSO: qmu::setMenuState(m_vrtorso); break;
-                case OPT_MAP_MENU: qmu::setMenuState(m_map); break;
-                case OPT_DEBUG: qmu::setMenuState(m_debug); break;
+                case OPT_VR:
+                {
+                    qmu::setMenuState(M_VR_Menu(), m_vr);
+                    break;
+                }
+                case OPT_VRGAMEPLAY:
+                {
+                    qmu::setMenuState(M_VRGameplay_Menu(), m_vrgameplay);
+                    break;
+                }
+                case OPT_WPN_OFFSET:
+                {
+                    qmu::setMenuState(M_WpnOffset_Menu(), m_wpn_offset);
+                    break;
+                }
+                case OPT_SBAR_OFFSET:
+                {
+                    qmu::setMenuState(M_SbarOffset_Menu(), m_sbar_offset);
+                    break;
+                }
+                case OPT_HOTSPOT:
+                {
+                    qmu::setMenuState(M_Hotspot_Menu(), m_hotspot);
+                    break;
+                }
+                case OPT_VRTORSO:
+                {
+                    qmu::setMenuState(M_VRTorso_Menu(), m_vrtorso);
+                    break;
+                }
+                case OPT_MAP_MENU:
+                {
+                    qmu::setMenuState(M_MapMenu_Menu(), m_map);
+                    break;
+                }
+                case OPT_DEBUG:
+                {
+                    qmu::setMenuState(M_Debug_Menu(), m_debug);
+                    break;
+                }
                 // -----------------------------------------------------------
                 default: M_AdjustSliders(1); break;
             }
@@ -2870,7 +2944,7 @@ void M_Init()
     Cmd_AddCommand("menu_keys", M_Menu_Keys_f);
     Cmd_AddCommand("menu_video", M_Menu_Video_f);
 
-    // TODO VR: cmds for new menu here?
+    // TODO VR: (P2) cmds for new menu here?
 
     Cmd_AddCommand("help", M_Menu_Help_f);
     Cmd_AddCommand("menu_quit", M_Menu_Quit_f);

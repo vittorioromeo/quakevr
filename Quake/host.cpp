@@ -1054,7 +1054,6 @@ void Host_Init()
         Cbuf_InsertText("exec quake.rc\n");
         Cbuf_Execute();
 
-        // TODO VR: why doesn't this work?
         if(vr_enabled.value == 1)
         {
             VR_ModAllModels();

@@ -89,6 +89,11 @@ static const std::array maps{
 
 static quake::menu g_menu = make_menu();
 
+quake::menu& M_MapMenu_Menu()
+{
+    return g_menu;
+}
+
 void M_MapMenu_Key(int key)
 {
     g_menu.key(key);

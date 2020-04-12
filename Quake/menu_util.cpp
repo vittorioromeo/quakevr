@@ -3,7 +3,7 @@
 #include "quakeglm.hpp"
 #include "client.hpp"
 
-// TODO VR: forward declaration due to crappy quake header deps
+// TODO VR: (P2) forward declaration due to crappy quake header deps
 
 struct sfx_t;
 
@@ -35,5 +35,11 @@ namespace quake::menu_util
         m_entersound = true;
 
         playMenuDefaultSound();
+    }
+
+    void setMenuState(quake::menu& m, m_state_e state)
+    {
+        setMenuState(state);
+        m.enter();
     }
 } // namespace quake::menu_util

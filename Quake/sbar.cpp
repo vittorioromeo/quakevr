@@ -1274,7 +1274,8 @@ void Sbar_Draw()
                 cl.stats[ammoCounterStat] <= 10);
         };
 
-        // TODO VR: ammo2 as well, make this status bar better. Two status bars?
+        // TODO VR: (P1) ammo2 as well, make this status bar better. Two status
+        // bars?
         drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
         drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
     }

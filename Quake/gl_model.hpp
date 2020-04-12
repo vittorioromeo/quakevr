@@ -344,7 +344,7 @@ typedef struct mtriangle_s
 
 
 #define MAX_SKINS 32
-typedef struct
+struct aliashdr_t
 {
     int ident;
     int version;
@@ -383,7 +383,7 @@ typedef struct
     struct gltexture_s* fbtextures[MAX_SKINS][4]; // johnfitz
     int texels[MAX_SKINS];                        // only for player skins
     maliasframedesc_t frames[1];                  // variable sized
-} aliashdr_t;
+};
 
 #define MAXALIASVERTS 2000 // johnfitz -- was 1024
 #define MAXALIASFRAMES 256

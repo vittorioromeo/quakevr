@@ -9,7 +9,7 @@
 #include <cassert>
 #include <array>
 
-// TODO VR: move to other menu?
+// TODO VR: (P2) move to other menu?
 extern cvar_t r_particles;
 extern cvar_t r_particle_mult;
 
@@ -21,6 +21,8 @@ extern cvar_t r_particle_mult;
 
     int max_msaa;
     glGetIntegerv(GL_MAX_SAMPLES, &max_msaa);
+
+    // ------------------------------------------------------------------------
 
     quake::menu m{"VR Options"};
 
@@ -61,8 +63,8 @@ extern cvar_t r_particle_mult;
     m.add_cvar_entry<bool>("Enable Joystick Turn", vr_enable_joystick_turn);
 
     {
-        auto& e = m.add_cvar_entry<int>("Turn", vr_snap_turn, {5, 0, 90});
-        e._printer = [](char* buf, const int buf_size, const int x) {
+        auto e = m.add_cvar_entry<int>("Turn", vr_snap_turn, {5, 0, 90});
+        e->_printer = [](char* buf, const int buf_size, const int x) {
             if(x == 0)
             {
                 snprintf(buf, buf_size, "Smooth");
@@ -114,12 +116,19 @@ extern cvar_t r_particle_mult;
 
     m.add_cvar_entry<bool>("Holster Haptics", vr_holster_haptics);
 
-    // TODO VR: menu tooltips
+    // TODO VR: (P1) menu tooltips
+
+    // ------------------------------------------------------------------------
 
     return m;
 }
 
 static quake::menu g_menu = make_menu();
+
+quake::menu& M_VR_Menu()
+{
+    return g_menu;
+}
 
 void M_VR_Key(int key)
 {

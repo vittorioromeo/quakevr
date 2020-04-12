@@ -235,19 +235,18 @@ struct client_state_t
     qmodel_t* worldmodel; // cl_entitites[0].model
     struct efrag_s* free_efrags;
     int num_efrags;
-    int num_entities;         // held in cl_entities array
-    int num_statics;          // held in cl_staticentities array
+    int num_entities; // held in cl_entities array
+    int num_statics;  // held in cl_staticentities array
+
+    // TODO VR: (P2) all of these should be in some sort of list to avoid
+    // repetition
     entity_t viewent;         // the gun model
     entity_t offhand_viewent; // the offhand gun model
-
-    entity_t left_hip_holster;  // TODO VR:
-    entity_t right_hip_holster; // TODO VR:
-    entity_t left_upper_holster;  // TODO VR:
-    entity_t right_upper_holster; // TODO VR:
-
-    entity_t vrtorso; // TODO VR:
-
-    // TODO VR:
+    entity_t left_hip_holster;
+    entity_t right_hip_holster;
+    entity_t left_upper_holster;
+    entity_t right_upper_holster;
+    entity_t vrtorso;
     entity_t left_hand;
     entity_t right_hand;
 

@@ -794,7 +794,8 @@ void R_DrawViewModel(entity_t* viewent)
 
     if(cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
     {
-        // TODO VR: use alpha instead of not drawing viewmodel with invisibility
+        // TODO VR: (P1) use alpha instead of not drawing viewmodel with
+        // invisibility
         return;
     }
 
@@ -818,7 +819,6 @@ void R_DrawViewModel(entity_t* viewent)
         glDepthRange(0, 0.3);
     }
 
-    // TODO VR:
     R_DrawAliasModel(currententity);
 
     if(!vr_enabled.value)
@@ -1080,7 +1080,7 @@ void R_DrawShadows()
         GL_DrawAliasShadow(currententity);
     }
 
-    // TODO VR: viewent shadow looks weird
+    // TODO VR: (P1) viewent shadow looks weird
     const auto drawViewentShadow = [](entity_t* ent) {
         if(ent->model != nullptr)
         {
@@ -1098,7 +1098,7 @@ void R_DrawShadows()
     drawViewentShadow(&cl.left_hand);
     drawViewentShadow(&cl.right_hand);
 
-    // TODO VR:
+    // TODO VR: (P0) decide what player shadows to display, or add cvar
     // drawViewentShadow(&cl.vrtorso);
     drawViewentShadow(&cl_entities[cl.viewentity]);
 
@@ -1162,7 +1162,7 @@ void R_RenderScene()
     R_DrawViewModel(&cl.left_upper_holster);
     R_DrawViewModel(&cl.right_upper_holster);
 
-    // TODO VR: hack/test
+    // VR: This is what draws the hands.
     R_DrawViewModel(&cl.left_hand);
     R_DrawViewModel(&cl.right_hand);
 
@@ -1175,16 +1175,9 @@ void R_RenderScene()
     R_ShowTris(); // johnfitz
 
     R_ShowBoundingBoxes(); // johnfitz
-
-    // TODO VR: package into function
     if(vr_enabled.value)
     {
-        VR_ShowVirtualStock();
-        VR_ShowHipHolsters();
-        VR_ShowShoulderHolsters();
-        VR_ShowUpperHolsters();
-        VR_DrawTeleportLine();
-        VR_ShowVRTorsoDebugLines();
+        VR_DrawAllShowHelpers();
     }
 }
 

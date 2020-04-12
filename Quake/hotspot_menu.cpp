@@ -16,6 +16,8 @@
 
     quake::menu m{"VR Hotspot Customization"};
 
+    // ------------------------------------------------------------------------
+
     m.add_cvar_getter_enum_entry<int>(
         "Show Shoulder (Virtual Stock)",
         [] { return &vr_show_virtual_stock; },       //
@@ -28,7 +30,11 @@
     m.add_cvar_entry<float>(
         "Virtual Stock Threshold", vr_virtual_stock_thresh, bDst);
 
+    // ------------------------------------------------------------------------
+
     m.add_separator();
+
+    // ------------------------------------------------------------------------
 
     m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
         "Show Shoulder Holsters",                        //
@@ -42,7 +48,11 @@
     m.add_cvar_entry<float>(
         "Shoulder Threshold", vr_shoulder_holster_thresh, bDst);
 
+    // ------------------------------------------------------------------------
+
     m.add_separator();
+
+    // ------------------------------------------------------------------------
 
     m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
         "Show Hip Holsters",                             //
@@ -55,7 +65,11 @@
     m.add_cvar_entry<float>("Hip Z", vr_hip_offset_z, bPos);
     m.add_cvar_entry<float>("Hip Threshold", vr_hip_holster_thresh, bDst);
 
+    // ------------------------------------------------------------------------
+
     m.add_separator();
+
+    // ------------------------------------------------------------------------
 
     m.add_cvar_getter_enum_entry<VrOptionHandSelection>( //
         "Show Upper Holsters",                           //
@@ -68,10 +82,19 @@
     m.add_cvar_entry<float>("Upper Z", vr_upper_holster_offset_z, bPos);
     m.add_cvar_entry<float>("Upper Threshold", vr_upper_holster_thresh, bDst);
 
+    // TODO VR: (P1) menu tooltips
+
+    // ------------------------------------------------------------------------
+
     return m;
 }
 
 static quake::menu g_menu = make_menu();
+
+quake::menu& M_Hotspot_Menu()
+{
+    return g_menu;
+}
 
 void M_Hotspot_Key(int key)
 {

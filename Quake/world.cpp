@@ -352,14 +352,14 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
     };
 
     // touch linked edicts
-    // TODO VR: hack - what is the consequence of adding this loop over solid
-    // edicts? need testing
+    // TODO VR: (P2) hack - what is the consequence of adding this loop over
+    // solid edicts? need testing
     const bool triggerFail = !loopEdicts(node->trigger_edicts);
     const bool solidFail = !loopEdicts(node->solid_edicts);
     if(triggerFail && solidFail)
     {
-        // TODO VR: this prevents the other one from being ran, but the return
-        // was originally there in quake's source code
+        // TODO VR: (P2) this prevents the other one from being ran, but the
+        // return was originally there in quake's source code
         return;
     }
 
@@ -446,9 +446,6 @@ void SV_TouchLinks(edict_t* ent)
         const bool canBeHandTouched =
             target->v.handtouch && target->v.solid != SOLID_NOT;
 
-        // TODO VR:
-        // && target->v.solid == SOLID_TRIGGER;
-
         const bool entIntersects =
             !quake::util::entBoxIntersection(ent, target);
 
@@ -494,7 +491,7 @@ void SV_TouchLinks(edict_t* ent)
         {
             doTouch(ent, target);
 
-            // TODO VR: hack
+            // TODO VR: (P2) hack
             if(ent == sv_player)
             {
                 doHandtouch(ent, target);
@@ -590,7 +587,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     // to make items easier to pick up and allow them to be grabbed off
     // of shelves, the abs sizes are expanded
     //
-    // TODO VR: interesting
+    // TODO VR: (P2) interesting
     if((int)ent->v.flags & FL_ITEM)
     {
         ent->v.absmin[0] -= 15;

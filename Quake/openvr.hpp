@@ -3889,7 +3889,7 @@ namespace vr
          *throttle the call to 10hz to reduce the impact on that app)
          */
          #ifndef WIN32
-         // TODO VR: linux hack
+         // TODO VR: (P2) linux hack
          __attribute__((no_sanitize_address))
          #endif
         virtual EVRCompositorError WaitGetPoses(

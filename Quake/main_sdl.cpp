@@ -108,16 +108,16 @@ static quakeparms_t parms;
 #define main SDL_main
 #endif
 
-// TODO VR:
+// TODO VR: (P2) what to do with this?
 extern std::string vr_working_directory;
 
 int main(int argc, char* argv[])
 {
-    // TODO VR: more portable/reliable way of doing this
+    // TODO VR: (P2) more portable/reliable way of doing this
     assert(argc >= 1);
     vr_working_directory = argv[0];
 
-// TODO VR: linux hack
+// TODO VR: (P2) linux hack
 #ifdef WIN32
     vr_working_directory =
         vr_working_directory.substr(0, vr_working_directory.find_last_of("\\"));

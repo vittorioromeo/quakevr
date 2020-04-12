@@ -619,8 +619,8 @@ void CL_ParseUpdate(int bits)
     ent->msg_scales[1] = ent->msg_scales[0];
 
 
-    const auto doIt = [&](const auto fn, const int bit, auto& target, const auto& baselineData,
-                          const int index) {
+    const auto doIt = [&](const auto fn, const int bit, auto& target,
+                          const auto& baselineData, const int index) {
         if(bits & bit)
         {
             target[index] = fn(cl.protocolflags);
@@ -631,7 +631,7 @@ void CL_ParseUpdate(int bits)
         };
     };
 
-    // TODO VR:
+    // TODO VR: (P1) remove, this should be set only when scale changes
     bits |= U_SCALE;
 
     // clang-format off
@@ -1051,7 +1051,7 @@ void CL_ParseClientdata()
     }
     // johnfitz
 
-    // TODO VR: do we need all these bits?
+    // TODO VR: (P2) do we need all these bits?
     if(bits & SU_VR_WEAPON2)
     {
         cl.stats[STAT_WEAPON2] = MSG_ReadByte();
@@ -1072,7 +1072,9 @@ void CL_ParseClientdata()
         cl.stats[STAT_WEAPONFRAME2] = 0;
     }
 
-    // TODO VR: weapon ids in holsters
+    // TODO VR: (P2) weapon ids in holsters - not sure what this todo is
+    // checking, need to check what is being sent. I think model strings are
+    // being sent and used as keys...
     cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();

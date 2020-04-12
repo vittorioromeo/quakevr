@@ -180,7 +180,7 @@ void R_DrawSpriteModel(entity_t* e)
     mspriteframe_t* frame = R_GetSpriteFrame(e);
     GL_Bind(frame->gltexture);
 
-    // TODO VR: this could be optimized to use a single draw call...
+    // TODO VR: (P2) this could be optimized to use a single draw call...
 
     glEnable(GL_ALPHA_TEST);
     glBegin(GL_TRIANGLE_FAN); // was GL_QUADS, but changed to support r_showtris

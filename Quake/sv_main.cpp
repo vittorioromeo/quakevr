@@ -770,7 +770,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             }
         }
 
-        // TODO VR:
+        // TODO VR: (P1) remove, this should be set only when scale changes
         bits |= U_SCALE;
 
         if(ent->v.angles[0] != ent->baseline.angles[0])
@@ -1351,7 +1351,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     }
     // johnfitz
 
-    // TODO VR: do we need all these bits?
+    // TODO VR: (P2) do we need all these bits?
     if(bits & SU_VR_WEAPON2)
     {
         MSG_WriteByte(msg, (int)ent->v.weapon2);
@@ -1362,7 +1362,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         MSG_WriteByte(msg, (int)ent->v.weaponframe2);
     }
 
-    // TODO VR: weapon ids in holsters
+    // TODO VR: (P2) weapon ids in holsters
     MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
     MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
     MSG_WriteByte(msg, (int)ent->v.holsterweapon2);

@@ -423,7 +423,14 @@ qmodel_t* Mod_ForName(const char* name, bool crash)
     return Mod_LoadModel(Mod_FindName(name), crash);
 }
 
-// TODO VR:
+
+/*
+==================
+Mod_ForName_WithFallback
+
+Loads in a model for the given name, falling back to another one on failure
+==================
+*/
 qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback)
 {
     if(qmodel_t* const r = Mod_ForName(name, false /* crash */))
@@ -607,13 +614,13 @@ void Mod_LoadTextures(lump_t* l)
                 }
 
                 // now load whatever we found
-                if(data) // load external image 
+                if(data) // load external image
                 {
                     q_strlcpy(texturename, filename, sizeof(texturename));
                     tx->gltexture =
                         TexMgr_LoadImage(loadmodel, texturename, fwidth,
                             fheight, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
-                } 
+                }
                 else // use the texture from the bsp file
                 {
                     q_snprintf(texturename, sizeof(texturename), "%s:%s",

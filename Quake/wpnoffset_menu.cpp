@@ -30,8 +30,10 @@ static int getIdx()
 
     quake::menu m{"Weapon Offsets"};
 
+    // ------------------------------------------------------------------------
+
     const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
-        m.add_cvar_getter_entry<float>(                  //
+        return m.add_cvar_getter_entry<float>(           //
             title,                                       //
             [c] { return &VR_GetWpnCVar(getIdx(), c); }, //
             oBounds                                      //
@@ -39,72 +41,175 @@ static int getIdx()
     };
 
     const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
-        m.add_cvar_getter_entry<float>(                  //
+        return m.add_cvar_getter_entry<float>(           //
             title,                                       //
             [c] { return &VR_GetWpnCVar(getIdx(), c); }, //
             rBounds                                      //
         );
     };
 
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
     m.add_getter_entry<bool>(          //
         "Off-Hand",                    //
         [] { return &wpnoff_offhand; } //
     );
 
-    o_wpncvar("X", WpnCVar::OffsetX);
-    o_wpncvar("Y", WpnCVar::OffsetY);
-    o_wpncvar("Z", WpnCVar::OffsetZ);
+    // ------------------------------------------------------------------------
 
-    o_wpncvar("Scale", WpnCVar::Scale);
+    const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
+    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
+    const auto hover2HOffset =
+        makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
 
-    r_wpncvar("Roll", WpnCVar::Roll);
-    r_wpncvar("Pitch", WpnCVar::Pitch);
-    r_wpncvar("Yaw", WpnCVar::Yaw);
+    // ------------------------------------------------------------------------
 
-    o_wpncvar("Muzzle X", WpnCVar::MuzzleOffsetX);
-    o_wpncvar("Muzzle Y", WpnCVar::MuzzleOffsetY);
-    o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ);
+    const char* offsetTooltip =
+        "Offset of the weapon relative\nto the center of its model.\nDoes not "
+        "affect aiming.";
 
-    o_wpncvar("2H X", WpnCVar::TwoHOffsetX);
-    o_wpncvar("2H Y", WpnCVar::TwoHOffsetY);
-    o_wpncvar("2H Z", WpnCVar::TwoHOffsetZ);
+    o_wpncvar("X", WpnCVar::OffsetX).hover(hoverOffset).tooltip(offsetTooltip);
+    o_wpncvar("Y", WpnCVar::OffsetY).hover(hoverOffset).tooltip(offsetTooltip);
+    o_wpncvar("Z", WpnCVar::OffsetZ).hover(hoverOffset).tooltip(offsetTooltip);
 
-    r_wpncvar("2H Pitch", WpnCVar::TwoHPitch);
-    r_wpncvar("2H Yaw", WpnCVar::TwoHYaw);
-    r_wpncvar("2H Roll", WpnCVar::TwoHRoll);
+    o_wpncvar("Scale", WpnCVar::Scale).tooltip("Scale of the weapon model.");
 
-    o_wpncvar("Weight", WpnCVar::Weight);
+    // ------------------------------------------------------------------------
 
-    m.add_cvar_getter_entry<int>(                                           //
-        "Hand Anchor Vertex",                                               //
-        [] { return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex); }, //
-        {1, 0, 1024}                                                        //
-    );
+    const char* rotationTooltip =
+        "Rotation of the weapon model\nDoes not affect aiming.";
 
-    o_wpncvar("Hand X", WpnCVar::HandOffsetX);
-    o_wpncvar("Hand Y", WpnCVar::HandOffsetY);
-    o_wpncvar("Hand Z", WpnCVar::HandOffsetZ);
+    r_wpncvar("Roll", WpnCVar::Roll).tooltip(rotationTooltip);
+    r_wpncvar("Pitch", WpnCVar::Pitch).tooltip(rotationTooltip);
+    r_wpncvar("Yaw", WpnCVar::Yaw).tooltip(rotationTooltip);
 
-    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX);
-    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY);
-    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ);
+    // ------------------------------------------------------------------------
 
-    m.add_cvar_getter_enum_entry<Wpn2HMode>(                        //
-        "2H Mode",                                                  //
-        [] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //
-        "Default", "Ignore Virtual Stock", "Forbidden"              //
-    );
+    const char* muzzleTooltip =
+        "Position of the weapon muzzle.\nRelative to the XYZ offsets "
+        "above.\nAffected by the weapon model scale.\nDOES affect "
+        "aiming.\nBullets and projectiles spawn from\nthis position.";
+
+    o_wpncvar("Muzzle X", WpnCVar::MuzzleOffsetX)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+    o_wpncvar("Muzzle Y", WpnCVar::MuzzleOffsetY)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+    o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+
+    // ------------------------------------------------------------------------
+
+    const char* twoHXYZTooltip =
+        "Offset applied to the off-hand when\naiming with two hands. "
+        "Allows\ntweaking of the weapon's position\aand angle, and how close "
+        "the\noff-hand appears to the model.\nDOES affect aiming.";
+
+    o_wpncvar("2H X", WpnCVar::TwoHOffsetX)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+    o_wpncvar("2H Y", WpnCVar::TwoHOffsetY)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+    o_wpncvar("2H Z", WpnCVar::TwoHOffsetZ)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+
+    // ------------------------------------------------------------------------
+
+    const char* twoHRotTooltip =
+        "Angle offset applied to the weapon\n when aiming with two hands. "
+        "Allows\ntweaking of the weapon's angle.\nDOES affect aiming.";
+
+    r_wpncvar("2H Pitch", WpnCVar::TwoHPitch).tooltip(twoHRotTooltip);
+    r_wpncvar("2H Yaw", WpnCVar::TwoHYaw).tooltip(twoHRotTooltip);
+    r_wpncvar("2H Roll", WpnCVar::TwoHRoll).tooltip(twoHRotTooltip);
+
+    // ------------------------------------------------------------------------
+
+    o_wpncvar("Weight", WpnCVar::Weight)
+        .tooltip(
+            "How heavy the weapon 'feels'.\nValues closer to '1' are "
+            "heavier.\n'1' itself is 'infinite' weight.\nAffects weapon "
+            "movement and rotation\nspeed, and also throwing distance "
+            "and\ndamage.");
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_entry<int>(                                            //
+         "Hand Anchor Vertex",                                               //
+         [] { return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex); }, //
+         {1, 0, 1024}                                                        //
+         )
+        .tooltip(
+            "Index of the mesh vertex where the\nhand will be attached. Useful "
+            "to\nensure that the hand follows\nthe weapon animations "
+            "properly.");
+
+    // ------------------------------------------------------------------------
+
+    const char* handOffsetTooltip =
+        "Visual offset of the hand, relative\nto the anchor vertex.";
+
+    o_wpncvar("Hand X", WpnCVar::HandOffsetX).tooltip(handOffsetTooltip);
+    o_wpncvar("Hand Y", WpnCVar::HandOffsetY).tooltip(handOffsetTooltip);
+    o_wpncvar("Hand Z", WpnCVar::HandOffsetZ).tooltip(handOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+
+    const char* offHandOffsetTooltip =
+        "Visual offset of the hand, relative\nto the above hand offset.";
+
+    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
+        .tooltip(offHandOffsetTooltip);
+    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY)
+        .tooltip(offHandOffsetTooltip);
+    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ)
+        .tooltip(offHandOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<Wpn2HMode>(                         //
+         "2H Mode",                                                  //
+         [] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //
+         "Default", "Ignore Virtual Stock", "Forbidden"              //
+         )
+        .tooltip(
+            "Defines whether the weapon is\neligible for 2H aiming. "
+            "Virtual\nstock can be ignored for weapons\nlike the laser "
+            "cannon.");
+
+    // ------------------------------------------------------------------------
 
     return m;
 }
 
 static quake::menu g_menu = make_menu();
 
+quake::menu& M_WpnOffset_Menu()
+{
+    return g_menu;
+}
+
 void M_WpnOffset_Key(int key)
 {
     g_menu.key(key);
 
-    // TODO VR: hackish
+    // TODO VR: (P2) hackish
     VR_ModAllWeapons();
 }
 

@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_PARTICLES \
     4096 // default max # of particles at one
-         // time, per texture (TODO VR: should it be per texture?)
+         // time, per texture (TODO VR: (P2) should it be per texture?)
 
 #define ABSOLUTE_MIN_PARTICLES \
     512 // no fewer than this no matter what's
@@ -67,7 +67,7 @@ enum ptype_t : std::uint8_t
     pt_gunsmoke,
 };
 
-// TODO VR: optimize layout?
+// TODO VR: (P2) optimize layout?
 struct particle_t
 {
     glm::vec3 org;
@@ -336,7 +336,7 @@ ParticleTextureManager::Handle ptxGunSmoke;
 template <typename F>
 QUAKE_FORCEINLINE void forActiveParticles(F&& f) noexcept
 {
-    // TODO VR: parallelize with thread pool
+    // TODO VR: (P2) parallelize with thread pool
     pMgr.forActive(std::forward<F>(f));
 }
 
@@ -1645,7 +1645,7 @@ void R_DrawParticles()
 
     using namespace quake::util;
 
-    // TODO VR: this could be optimized a lot
+    // TODO VR: (P2) this could be optimized a lot
     // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         ParticleBuffer& pBuffer) {
@@ -1671,7 +1671,7 @@ void R_DrawParticles()
 
             const auto xFwd = p.org - r_origin;
 
-            // TODO VR: `glm::rotate` is the bottleneck in debug mode (!)
+            // TODO VR: (P2) `glm::rotate` is the bottleneck in debug mode (!)
             const auto xUp = glm::rotate(up, p.angle, xFwd);
             const auto xRight = glm::rotate(right, p.angle, xFwd);
 
@@ -1726,7 +1726,7 @@ void R_DrawParticles_ShowTris()
     forActiveParticles([&](particle_t& p) {
         (void)p;
 
-        // TODO VR: rewrite
+        // TODO VR: (P2) rewrite
         /*
         const float scale = p.scale;
 

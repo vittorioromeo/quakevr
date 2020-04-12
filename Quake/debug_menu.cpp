@@ -51,6 +51,11 @@ extern cvar_t skill;
 
 static quake::menu g_menu = make_menu();
 
+quake::menu& M_Debug_Menu()
+{
+    return g_menu;
+}
+
 void M_Debug_Key(int key)
 {
     g_menu.key(key);

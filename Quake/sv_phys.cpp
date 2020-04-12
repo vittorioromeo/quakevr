@@ -539,16 +539,9 @@ SV_PushMove
 */
 void SV_PushMove(edict_t* pusher, float movetime)
 {
-    // TODO VR: bugs:
-    // * bouncing when going down elevator in e1m1 (seems fixed)
-    // * taking damage and floating while going down elevator in e2m6 (seems
-    // fixed)
-    // * floating when going up elevator in e1m1 (seems fixed)
-    // * going through crusher when jumping in e1m3 (seems fixed)
-    // * moving against big door in e1m3 deals damage (seems fixed)
+    // TODO VR: (P0) bugs:
     // * opening rotating door in SoA start carries player around
     // * shambler lightning sometimes not working
-    // * weapon drops are too big because Mod_Weapon was not called yet
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -633,7 +626,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.groundentity = EDICT_TO_PROG(pusher);
         }
 
-        // TODO VR: rename
+        // TODO VR: (P0) rename
         const auto diocane = [&](edict_t* ent, const float xf, const float yf) {
             const auto nmins = ent->v.mins * glm::vec3{xf, xf, yf};
             const auto nmaxs = ent->v.maxs * glm::vec3{xf, xf, yf};
@@ -1067,7 +1060,7 @@ Trigger hand-touching actions (e.g. pick up an item, press a button)
 */
 void SV_Handtouch(edict_t* ent)
 {
-    // TODO VR: cleanup, too much unnecessary tracing and work
+    // TODO VR: (P2) cleanup, too much unnecessary tracing and work
 
     // Utility constants
     const glm::vec3 handMins{-2.5f, -2.5f, -2.5f};

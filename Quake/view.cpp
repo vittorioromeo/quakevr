@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "render.hpp"
 #include "util.hpp"
 
 /*
@@ -104,7 +105,7 @@ float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity)
     side = fabs(side);
 
     // VR: Don't roll view in VR.
-    if(vr_enabled.value /* TODO VR: create CVAR */)
+    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
     {
         value = 0;
     }
@@ -142,7 +143,7 @@ float V_CalcBob()
     float cycle;
 
     // VR: Don't bob if we're in VR.
-    if(vr_enabled.value /* TODO VR: create CVAR */)
+    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
     {
         return 0.f;
     }
@@ -868,7 +869,7 @@ void V_CalcViewRoll()
     }
 
     if(cl.stats[STAT_HEALTH] <= 0 &&
-        !VR_EnabledAndNotFake() /* TODO VR: create CVAR */)
+        !VR_EnabledAndNotFake() /* TODO VR: (P2) create CVAR */)
     {
         r_refdef.viewangles[ROLL] = 80; // dead view angle
         return;
@@ -999,7 +1000,7 @@ void V_CalcRefdef()
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        // TODO VR: this sets the weapon model's position
+        // VR: This sets the weapon model's position.
         view->origin = cl.handpos[cVR_MainHand] + cl.vmeshoffset;
     }
     else
@@ -1039,9 +1040,6 @@ void V_CalcRefdef()
     }
 
     view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
-    // TODO VR: this is where the weapon is rendered? got through .weaponmodel
-    // from QC.
-
     view->frame = cl.stats[STAT_WEAPONFRAME];
     view->colormap = vid.colormap;
 
@@ -1079,7 +1077,7 @@ void V_CalcRefdef()
     }
     // johnfitz
 
-    // TODO VR: add to vr view? the onground evaluates to false, this is why
+    // TODO VR: (P2) add to vr view? the onground evaluates to false, this is why
     // it doesnt work
     // smooth out stair step ups
     if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
@@ -1120,7 +1118,6 @@ void V_CalcRefdef()
     }
 }
 
-// TODO VR: hack
 void V_SetupOffHandWpnViewEnt()
 {
     // view is the weapon model (only visible from inside body)
@@ -1150,7 +1147,6 @@ void V_SetupOffHandWpnViewEnt()
     }
 }
 
-// TODO VR: hack
 void V_SetupVRTorsoViewEnt()
 {
     entity_t& view = cl.vrtorso;
@@ -1177,7 +1173,6 @@ void V_SetupVRTorsoViewEnt()
     view.origin[2] += vr_vrtorso_z_offset.value;
 }
 
-// TODO VR: hack, fix
 void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
     entity_t* view, const float pitch, const float yaw, const float roll,
     const bool horizflip)
@@ -1189,7 +1184,7 @@ void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
     view->origin = pos;
     view->model = cl.model_precache[modelId];
 
-    // TODO VR: hack
+    // TODO VR: (P2) hack
     if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
     {
         view->model = nullptr;
@@ -1205,12 +1200,6 @@ void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
         Chase_UpdateForDrawing(r_refdef, view); // johnfitz
     }
 }
-
-// TODO VR: make a header instead?
-void R_SetupAliasFrame(
-    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
-
-void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 
 static void V_SetupHandViewEnt(entity_t* const anchor, entity_t* const hand,
     const glm::vec3& handRot, const glm::vec3& extraOffset,
@@ -1299,7 +1288,7 @@ static void V_SetupHandViewEnt(entity_t* const anchor, entity_t* const hand,
     hand->colormap = vid.colormap;
     hand->horizflip = horizflip;
 
-    // TODO VR: hardcoded fist cvar number
+    // TODO VR: (P2) hardcoded fist cvar number
     {
         const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);

@@ -12,11 +12,17 @@
 #include <string_view>
 #include <functional>
 
+namespace quake
+{
+    class menu;
+}
+
 namespace quake::menu_util
 {
     void playMenuSound(const char* sound, float fvol);
     void playMenuDefaultSound();
     void setMenuState(m_state_e state);
+    void setMenuState(quake::menu& m, m_state_e state);
 } // namespace quake::menu_util
 
 namespace quake
@@ -39,10 +45,16 @@ namespace quake
 
     namespace impl
     {
+        struct menu_entry_common
+        {
+            std::string_view _label;
+            std::function<void(bool)> _hover_change;
+            std::string_view _tooltip;
+        };
+
         template <typename T>
         struct menu_entry_value
         {
-            std::string_view _label;
             std::function<T*()> _getter;
             menu_bounds<T> _bounds;
         };
@@ -50,7 +62,6 @@ namespace quake
         template <typename T>
         struct menu_entry_cvar
         {
-            std::string_view _label;
             std::function<cvar_t*()> _cvar_getter;
             menu_bounds<T> _bounds;
             std::function<void(char*, int, T)> _printer;
@@ -59,7 +70,6 @@ namespace quake
         template <typename T>
         struct menu_entry_value_labeled_cvar
         {
-            std::string_view _label;
             std::function<cvar_t*()> _cvar_getter;
             menu_bounds<T> _bounds;
             std::function<std::string_view(T)> _value_label_fn;
@@ -67,7 +77,6 @@ namespace quake
 
         struct menu_entry_action
         {
-            std::string_view _label;
             std::function<void()> _action;
         };
 
@@ -75,30 +84,117 @@ namespace quake
         {
         };
 
-        using menu_entry = std::variant<        //
-            menu_entry_value<bool>,             //
-            menu_entry_cvar<float>,             //
-            menu_entry_cvar<int>,               //
-            menu_entry_cvar<bool>,              //
-            menu_entry_value_labeled_cvar<int>, //
-            menu_entry_action,                  //
-            menu_entry_separator>;
+        using menu_entry_variant = std::variant< //
+            menu_entry_value<bool>,              //
+            menu_entry_cvar<float>,              //
+            menu_entry_cvar<int>,                //
+            menu_entry_cvar<bool>,               //
+            menu_entry_value_labeled_cvar<int>,  //
+            menu_entry_action,                   //
+            menu_entry_separator                 //
+            >;
+
+        struct menu_entry
+        {
+            menu_entry_common _common;
+            menu_entry_variant _variant;
+
+            explicit menu_entry(
+                menu_entry_common c, menu_entry_variant v) noexcept
+                : _common{std::move(c)}, _variant{std::move(v)}
+            {
+            }
+        };
     } // namespace impl
 
     class menu
     {
+    public:
+        template <typename T>
+        class entry_handle
+        {
+        private:
+            menu* _menu;
+            std::size_t _index;
+
+        public:
+            explicit entry_handle(menu& m, const std::size_t i) noexcept
+                : _menu{&m}, _index{i}
+            {
+            }
+
+            T& operator*() noexcept
+            {
+                return _menu->access_variant<T>(_index);
+            }
+
+            const T& operator*() const noexcept
+            {
+                return _menu->access_variant<T>(_index);
+            }
+
+            T* operator->() noexcept
+            {
+                return &_menu->access_variant<T>(_index);
+            }
+
+            const T* operator->() const noexcept
+            {
+                return &_menu->access_variant<T>(_index);
+            }
+
+            template <typename F>
+            entry_handle& hover(F&& f) noexcept
+            {
+                _menu->access(_index)._common._hover_change =
+                    std::forward<F>(f);
+
+                return *this;
+            }
+
+            entry_handle& tooltip(const std::string_view x) noexcept
+            {
+                _menu->access(_index)._common._tooltip = x;
+                return *this;
+            }
+        };
+
     private:
         std::vector<impl::menu_entry> _entries;
         std::string_view _title;
         int _cursor_idx{0};
 
-        // TODO VR: hack for map menu, make this nicer...
+        // TODO VR: (P2) hack for map menu, make this nicer...
         bool _two_columns{false};
 
-        void assert_valid_idx(const int idx)
+        void assert_valid_idx(const int idx) const
         {
             assert(idx >= 0);
             assert(idx < static_cast<int>(_entries.size()));
+        }
+
+        impl::menu_entry& access(const int idx) noexcept
+        {
+            assert_valid_idx(idx);
+            return _entries[idx];
+        }
+
+        const impl::menu_entry& access(const int idx) const noexcept
+        {
+            assert_valid_idx(idx);
+            return _entries[idx];
+        }
+
+        template <typename T>
+        T& access_variant(const int idx) noexcept
+        {
+            return std::get<T>(access(idx)._variant);
+        }
+
+        template <typename T>
+        const T& access_variant(const int idx) const noexcept
+        {
+            return std::get<T>(access(idx)._variant);
         }
 
         void key_option(const int key, const int idx)
@@ -112,7 +208,7 @@ namespace quake
             auto& e = _entries[idx];
 
             quake::util::match(
-                e, //
+                e._variant, //
                 [&](const impl::menu_entry_value<bool>& x) {
                     bool& v = *(x._getter());
                     v = !v;
@@ -140,7 +236,19 @@ namespace quake
         {
             assert_valid_idx(idx);
             return !std::holds_alternative<impl::menu_entry_separator>(
-                _entries[idx]);
+                _entries[idx]._variant);
+        }
+
+        template <typename T, typename... Args>
+        entry_handle<T> emplace_and_get_handle(
+            const impl::menu_entry_common& common, Args&&... args) noexcept
+        {
+            const auto index = _entries.size();
+
+            _entries.emplace_back(common,
+                impl::menu_entry_variant{T{std::forward<Args>(args)...}});
+
+            return entry_handle<T>{*this, index};
         }
 
 
@@ -151,17 +259,15 @@ namespace quake
         }
 
         template <typename T, typename CvarGetter>
-        auto& add_cvar_getter_entry(const std::string_view label,
+        auto add_cvar_getter_entry(const std::string_view label,
             CvarGetter&& cvar_getter, const menu_bounds<T> bounds = {})
         {
-            auto& v = _entries.emplace_back(impl::menu_entry_cvar<T>{
-                label, std::forward<CvarGetter>(cvar_getter), bounds});
-
-            return std::get<impl::menu_entry_cvar<T>>(v);
+            return emplace_and_get_handle<impl::menu_entry_cvar<T>>(
+                {label}, std::forward<CvarGetter>(cvar_getter), bounds);
         }
 
         template <typename T>
-        auto& add_cvar_entry(const std::string_view label, cvar_t& cvar,
+        auto add_cvar_entry(const std::string_view label, cvar_t& cvar,
             const menu_bounds<T> bounds = {})
         {
             return add_cvar_getter_entry(
@@ -169,7 +275,7 @@ namespace quake
         }
 
         template <typename T, typename CvarGetter, typename... EnumLabels>
-        auto& add_cvar_getter_enum_entry(const std::string_view label,
+        auto add_cvar_getter_enum_entry(const std::string_view label,
             CvarGetter&& cvar_getter, const EnumLabels... enum_labels)
         {
             const auto enum_labels_fn = [enum_labels...](
@@ -179,56 +285,106 @@ namespace quake
                 return strs[static_cast<int>(x)];
             };
 
-            auto& v =
-                _entries.emplace_back(impl::menu_entry_value_labeled_cvar<int>{
-                    label, std::forward<CvarGetter>(cvar_getter),
-                    menu_bounds<int>{
-                        1, 0, static_cast<int>(sizeof...(enum_labels)) - 1},
-                    enum_labels_fn});
-
-            return std::get<impl::menu_entry_value_labeled_cvar<int>>(v);
+            return emplace_and_get_handle<
+                impl::menu_entry_value_labeled_cvar<int>>({label},
+                std::forward<CvarGetter>(cvar_getter),
+                menu_bounds<int>{
+                    1, 0, static_cast<int>(sizeof...(enum_labels)) - 1},
+                enum_labels_fn);
         }
 
         template <typename T, typename Getter>
-        auto& add_getter_entry(const std::string_view label, Getter&& getter,
+        auto add_getter_entry(const std::string_view label, Getter&& getter,
             const menu_bounds<T> bounds = {})
         {
-            auto& v = _entries.emplace_back(impl::menu_entry_value<T>{
-                label, std::forward<Getter>(getter), bounds});
-
-            return std::get<impl::menu_entry_value<T>>(v);
+            return emplace_and_get_handle<impl::menu_entry_value<T>>(
+                {label}, std::forward<Getter>(getter), bounds);
         }
 
         template <typename F>
-        auto& add_action_entry(const std::string_view label, F&& f)
+        auto add_action_entry(const std::string_view label, F&& f)
         {
-            auto& v = _entries.emplace_back(
-                impl::menu_entry_action{label, std::forward<F>(f)});
-
-            return std::get<impl::menu_entry_action>(v);
+            return emplace_and_get_handle<impl::menu_entry_action>(
+                {label}, std::forward<F>(f));
         }
 
         void add_separator()
         {
-            _entries.emplace_back(impl::menu_entry_separator{});
+            // TODO VR: (P2) not nice, separator should not have a common
+            _entries.emplace_back(
+                impl::menu_entry_common{}, impl::menu_entry_separator{});
+        }
+
+        void enter()
+        {
+            // Hover current entry.
+            auto& curr_hover_change_fn =
+                access(_cursor_idx)._common._hover_change;
+
+            if(curr_hover_change_fn)
+            {
+                curr_hover_change_fn(true);
+            }
+        }
+
+        void leave()
+        {
+            // Un-hover current entry.
+            auto& curr_hover_change_fn =
+                access(_cursor_idx)._common._hover_change;
+
+            if(curr_hover_change_fn)
+            {
+                curr_hover_change_fn(false);
+            }
         }
 
         void key(const int key)
         {
+            const auto update_hover = [this](const int prev_cursor_idx,
+                                          const int curr_cursor_idx) {
+                if(curr_cursor_idx == prev_cursor_idx)
+                {
+                    return;
+                }
+
+                auto& prev_hover_change_fn =
+                    access(prev_cursor_idx)._common._hover_change;
+
+                if(prev_hover_change_fn)
+                {
+                    prev_hover_change_fn(false);
+                }
+
+                auto& curr_hover_change_fn =
+                    access(curr_cursor_idx)._common._hover_change;
+
+                if(curr_hover_change_fn)
+                {
+                    curr_hover_change_fn(true);
+                }
+            };
+
             switch(key)
             {
                 case K_ESCAPE:
                 {
-                    VID_SyncCvars(); // sync cvars before leaving menu. FIXME:
-                                     // there are other ways to leave menu
+                    VID_SyncCvars(); // sync cvars before leaving menu.
+                                     // FIXME: there are other ways to leave
+                                     // menu
                     S_LocalSound("misc/menu1.wav");
                     M_Menu_Options_f();
+
+                    leave();
+
                     break;
                 }
 
                 case K_UPARROW:
                 {
                     S_LocalSound("misc/menu1.wav");
+
+                    const auto prev_cursor_idx = _cursor_idx;
 
                     do
                     {
@@ -246,12 +402,15 @@ namespace quake
                         }
                     }
 
+                    update_hover(prev_cursor_idx, _cursor_idx);
                     break;
                 }
 
                 case K_DOWNARROW:
                 {
                     S_LocalSound("misc/menu1.wav");
+
+                    const auto prev_cursor_idx = _cursor_idx;
 
                     do
                     {
@@ -269,6 +428,7 @@ namespace quake
                         }
                     }
 
+                    update_hover(prev_cursor_idx, _cursor_idx);
                     break;
                 }
 
@@ -305,7 +465,7 @@ namespace quake
             M_PrintWhite((320 - 8 * _title.size()) / 2, y, _title.data());
             y += 16;
 
-            char buf[32]{};
+            char buf[512]{};
             int idx{0};
 
             constexpr int char_size = 8;
@@ -346,16 +506,31 @@ namespace quake
                 M_Print(240, y, buf);
             };
 
-            for(const auto& e : _entries)
+            const auto print_tooltip = [&buf](const std::string_view value) {
+                snprintf(buf, sizeof(buf), "%s", value.data());
+                M_PrintWhiteWithNewLine(335, 50, buf);
+            };
+
             {
+                const auto& curr_tooltip = access(_cursor_idx)._common._tooltip;
+                if(!curr_tooltip.empty())
+                {
+                    print_tooltip(curr_tooltip);
+                }
+            }
+
+            for(const impl::menu_entry& e : _entries)
+            {
+                const std::string_view& e_label = e._common._label;
+
                 quake::util::match(
-                    e, //
+                    e._variant, //
                     [&](const impl::menu_entry_value<bool>& x) {
-                        print_label(x._label);
+                        print_label(e_label);
                         print_as_bool_str(*(x._getter()));
                     },
                     [&](const impl::menu_entry_cvar<float>& x) {
-                        print_label(x._label);
+                        print_label(e_label);
 
                         const float value = x._cvar_getter()->value;
                         if(x._printer == nullptr)
@@ -368,20 +543,20 @@ namespace quake
                         }
                     },
                     [&](const impl::menu_entry_cvar<int>& x) {
-                        print_label(x._label);
+                        print_label(e_label);
                         print_as_int_str(x._cvar_getter()->value);
                     },
                     [&](const impl::menu_entry_cvar<bool>& x) {
-                        print_label(x._label);
+                        print_label(e_label);
                         print_as_bool_str(x._cvar_getter()->value);
                     },
                     [&](const impl::menu_entry_value_labeled_cvar<int>& x) {
-                        print_label(x._label);
+                        print_label(e_label);
                         print_as_str(x._value_label_fn(
                             static_cast<int>(x._cvar_getter()->value)));
                     },
-                    [&](const impl::menu_entry_action& x) {
-                        print_label(x._label);
+                    [&](const impl::menu_entry_action&) {
+                        print_label(e_label);
 
                         if(!_two_columns)
                         {

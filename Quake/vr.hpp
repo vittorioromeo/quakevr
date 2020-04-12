@@ -111,11 +111,7 @@ void VID_VR_Disable();
 void VR_UpdateScreenContent();
 
 void VR_ShowCrosshair();
-void VR_ShowVirtualStock();
-void VR_ShowHipHolsters();
-void VR_ShowShoulderHolsters();
-void VR_ShowUpperHolsters();
-void VR_ShowVRTorsoDebugLines();
+void VR_DrawAllShowHelpers();
 
 void VR_DrawTeleportLine();
 void VR_Draw2D();
@@ -152,7 +148,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 [[nodiscard]] float VR_GetHeadYawAngle() noexcept;
 [[nodiscard]] float VR_GetBodyYawAngle() noexcept;
 
-// TODO VR: remove?
+// TODO VR: (P2) remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
 
@@ -387,5 +383,10 @@ extern cvar_t vr_vrtorso_yaw;
 extern cvar_t vr_vrtorso_roll;
 extern cvar_t vr_holster_haptics;
 
-// TODO VR: what to do with this?
+// TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;
+
+// TODO VR: (P2) encapsulate nicely
+extern int vr_impl_draw_wpnoffset_helper_offset;
+extern int vr_impl_draw_wpnoffset_helper_muzzle;
+extern int vr_impl_draw_wpnoffset_helper_2h_offset;

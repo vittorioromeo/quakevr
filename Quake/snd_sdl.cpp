@@ -97,7 +97,7 @@ bool SNDDMA_Init(dma_t* dma)
     int val;
     char drivername[128];
 
-// TODO VR: hangs on linux
+// TODO VR: (P2) hangs on linux
 #ifdef WIN32
     if(SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
 #endif

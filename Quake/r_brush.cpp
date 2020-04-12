@@ -571,7 +571,7 @@ void R_DrawBrushModel(entity_t* e)
         e->origin[1] -= DIST_EPSILON;
         e->origin[2] -= DIST_EPSILON;
     }
-    // TODO VR: could resize bmodels here
+
     R_RotateForEntity(e->origin, e->angles);
     if(gl_zfix.value)
     {

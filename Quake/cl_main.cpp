@@ -571,7 +571,7 @@ void CL_RelinkEntities()
         }
 
         // rotate binary objects locally
-        // TODO VR: add override here for backpack or quakec field
+        // TODO VR: (P2) add override here for backpack or quakec field
         if(ent->model->flags & EF_ROTATE)
         {
             ent->angles[1] = bobjrotate;
@@ -672,7 +672,7 @@ void CL_RelinkEntities()
 
         ent->forcelink = false;
 
-        // TODO VR: this hides the player model in first person view
+        // This hides the player model in first person view.
         if(i == cl.viewentity && !chase_active.value)
         {
             continue;

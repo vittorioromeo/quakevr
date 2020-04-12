@@ -36,6 +36,11 @@
 
 static quake::menu g_menu = make_menu();
 
+quake::menu& M_SbarOffset_Menu()
+{
+    return g_menu;
+}
+
 void M_SbarOffset_Key(int key)
 {
     g_menu.key(key);

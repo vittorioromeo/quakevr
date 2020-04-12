@@ -31,7 +31,7 @@
 #endif
 #endif
 
-// TODO VR: ugly declaration
+// TODO VR: (P2) ugly declaration
 float VR_GetMenuMult() noexcept;
 
 namespace quake::util

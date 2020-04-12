@@ -1344,7 +1344,7 @@ void SCR_UpdateScreen()
         SCR_UpdateScreenContent();
     }
 
-    // TODO VR:
+    // In fake VR mode, aim and look towards view angles, not aim angles.
     if(vr_fakevr.value == 1)
     {
         r_refdef.viewangles = cl.viewangles;

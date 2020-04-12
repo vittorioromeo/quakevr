@@ -143,7 +143,7 @@ typedef struct client_s
 #define SOLID_BBOX 2              // touch on edge, block
 #define SOLID_SLIDEBOX 3          // touch on edge, but not an onground
 #define SOLID_BSP 4               // bsp clip, touch on edge, block
-#define SOLID_NOT_BUT_TOUCHABLE 5 // TODO VR: docs
+#define SOLID_NOT_BUT_TOUCHABLE 5 // TODO VR: (P2) docs
 
 // edict->deadflag values
 #define DEAD_NO 0
