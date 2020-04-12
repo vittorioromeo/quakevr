@@ -2604,7 +2604,7 @@ static void COM_Game_f()
         if(vr_enabled.value)
         {
             Cbuf_AddText("map start\n");
-            VR_ModAllWeapons();
+            VR_ModAllModels();
         }
     }
     else

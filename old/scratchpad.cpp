@@ -759,3 +759,237 @@ float LerpDegrees(float a, float b,
         cl.handvel[index] =
             Vec3RotateZ(cl.handvel[index], vrYaw * M_PI_DIV_180);
     }
+
+
+
+    const auto maxIdxBetween = [](const auto& a, const auto& b) {
+        return a > b ? 0 : 1;
+    };
+
+    const auto mapRange = [](const auto input, const auto inputMin,
+                              const auto inputMax, const auto outputMin,
+                              const auto outputMax) {
+        const double slope =
+            1.0 * (outputMax - outputMin) / (inputMax - inputMin);
+
+        return outputMin + slope * (input - inputMin);
+    };
+
+
+
+    // const auto lenH0 = glm::length(headHandDiffs[0]);
+    // const auto lenH1 = glm::length(headHandDiffs[1]);
+    //
+    // const auto longestIdx = maxIdxBetween(lenH0, lenH1);
+    // const auto shortestIdx = longestIdx == 0 ? 1 : 0;
+    //
+    // const auto longestHeadHandDiff = headHandDirs[longestIdx];
+    // const auto shortestHeadHandDiff = headHandDirs[shortestIdx];
+
+    // const auto maxDotIdx = maxIdxBetween(dotHeadHand[0], dotHeadHand[1]);
+    // const auto minDotIdx = maxDotIdx == 0 ? 1 : 0;
+    //
+    // const auto& maxDot = headHandDirs[maxDotIdx];
+    // const auto& minDot = headHandDirs[minDotIdx];
+
+    // const auto lenDiff = lenH1 - lenH0;
+    // const auto dotDiff = dotHeadHand[1] - dotHeadHand[0];
+
+    // const auto lengthCoefficient = std::clamp(
+    //     (float)mapRange(lenDiff, -1.5f, 1.5f, 0.45f, 0.65f), 0.0f, 1.f);
+
+    // const float scaling = mapRange(lenDiff, -1.0f, 20.f, 0.2f, 0.8f);
+
+    // Con_Printf("%.2f; %.2f\n", lenDiff, glm::length(mixHandDir));
+
+    // const float coefficient = mapRange(blendedDot, -1.f, 1.f, 0.f, 1.f);
+
+
+
+    // const auto turnDir = [&] {
+    //     glm::vec3 playerYawOnly = {0, VR_GetTurnYawAngle(), 0};
+    //     const auto [vfwd, vright, vup] = getAngledVectors(playerYawOnly);
+    //     return vfwd;
+    // }();
+
+
+
+    // const auto maxDotIdx = maxIdxBetween(dotHeadHand[0], dotHeadHand[1]);
+    // const auto minDotIdx = maxDotIdx == 0 ? 1 : 0;
+    //
+    // const auto& maxDot = dotHeadHand[maxDotIdx];
+    // const auto& minDot = dotHeadHand[minDotIdx];
+    // const auto blendedDot = glm::mix(minDot, maxDot, 0.5f);
+
+
+
+    // const auto& longestHLen = longestIdx == 0 ? lenH0 : lenH1;
+    // const auto& shortestHLen = longestIdx == 0 ? lenH1 : lenH0;
+
+    // const auto lenDiff = lenH1 - lenH0;
+    // const auto dotDiff = dotHeadHand[1] - dotHeadHand[0];
+
+    //  const auto lengthCoefficient = std::clamp(
+    //     (float)mapRange(lenDiff, -1.5f, 1.5f, 0.25f, 0.75f), 0.0f, 1.f);
+
+    // const auto h0lcoef = lengthCoefficient < 0.5f ? lengthCoefficient * 2.f
+    //                                              : lengthCoefficient * 0.1f;
+    // const auto h1lcoef =
+    //    lengthCoefficient > 0.5f ? lengthCoefficient : lengthCoefficient *
+    //    0.1f;
+    //
+    // const float h0coef =
+    //    glm::mix(std::clamp(dotHeadHand[0] * 1.15f, 0.1f, 1.f), h0lcoef,
+    //    0.5f);
+    // const float h1coef =
+    //    glm::mix(std::clamp(dotHeadHand[1] * 1.15f, 0.1f, 1.f), h1lcoef,
+    //    0.5f);
+    //
+    // const auto mixh0 =
+    //    glm::normalize(glm::mix(headDir, headHandDirs[0], h0coef));
+    // const auto mixh1 =
+    //    glm::normalize(glm::mix(headDir, headHandDirs[1], h1coef));
+
+
+    //    const auto mixHandDir = glm::normalize(glm::mix(mixh0, mixh1, 0.5f));
+    //
+    //    const float coefficient = mapRange(blendedDot, -1.f, 1.f, 0.f, 1.f);
+    //
+    //    const auto mixFinalDir = glm::normalize(
+    //        glm::mix(headDir, mixHandDir, std::clamp(coefficient, 0.f, 1.f)));
+    //
+    //    Con_Printf("%.2f -> %.2f || %.2f || %.2f | %.2f -> %.2f -> %.2f\n",
+    //    lenDiff,
+    //        lengthCoefficient, dotDiff, dotHeadHand[0], dotHeadHand[1],
+    //        blendedDot, coefficient);
+
+
+
+[[nodiscard]] glm::vec3 QuatToYawPitchRoll3(const vr::HmdQuaternion_t& q)
+{
+    glm::vec3 res;
+
+    // roll (x-axis rotation)
+    double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
+    double cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
+    res[PITCH] = -std::atan2(sinr_cosp, cosr_cosp);
+
+    // pitch (y-axis rotation)
+    double sinp = 2 * (q.w * q.y - q.z * q.x);
+    if(std::abs(sinp) >= 1)
+        res[YAW] =
+            std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+    else
+        res[YAW] = std::asin(sinp);
+
+    // yaw (z-axis rotation)
+    double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
+    double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
+    res[ROLL] = -std::atan2(siny_cosp, cosy_cosp);
+
+    return glm::degrees(res) + glm::vec3{0, VR_GetTurnYawAngle(), 0};
+}
+
+[[nodiscard]] float NormalizeAngle(float angle)
+{
+    while(angle > 360) angle -= 360;
+    while(angle < 0) angle += 360;
+    return angle;
+}
+
+[[nodiscard]] glm::vec3 NormalizeAngles(glm::vec3 angles)
+{
+    angles.x = NormalizeAngle(angles.x);
+    angles.y = NormalizeAngle(angles.y);
+    angles.z = NormalizeAngle(angles.z);
+    return angles;
+}
+
+[[nodiscard]] glm::vec3 QuatToYawPitchRoll4(const vr::HmdQuaternion_t& q1)
+{
+    double sqw = q1.w * q1.w;
+    double sqx = q1.x * q1.x;
+    double sqy = q1.y * q1.y;
+    double sqz = q1.z * q1.z;
+
+    // if normalised is one, otherwise is correction factor
+    double unit = sqx + sqy + sqz + sqw;
+
+    double test = q1.x * q1.w - q1.y * q1.z;
+
+    glm::vec3 v;
+
+    if(test > 0.4995f * unit)
+    {
+        // singularity at north pole
+        v.z = 2.0 * atan2(q1.y, q1.x);
+        v.x = glm::pi<double>() / 2.0;
+        v.y = 0;
+        return NormalizeAngles(glm::degrees(v));
+    }
+
+    if(test < -0.4995f * unit)
+    {
+        // singularity at south pole
+        v.z = -2.0 * atan2(q1.y, q1.x);
+        v.x = -glm::pi<double>() / 2.0;
+        v.y = 0;
+        return NormalizeAngles(glm::degrees(v));
+    }
+
+    vr::HmdQuaternion_t q{q1.w, q1.z, q1.x, q1.y};
+    v.z = (double)atan2(2.0 * q.x * q.w + 2.0 * q.y * q.z,
+        1 - 2.0 * (q.z * q.z + q.w * q.w));            // Yaw
+    v.x = (double)asin(2.0 * (q.x * q.z - q.w * q.y)); // Pitch
+    v.y = (double)atan2(2.0 * q.x * q.y + 2.0 * q.z * q.w,
+        1 - 2.0 * (q.y * q.y + q.z * q.z)); // Roll
+
+    return NormalizeAngles(
+        glm::degrees(v) + glm::vec3{0, VR_GetTurnYawAngle(), 180});
+}
+
+[[nodiscard]] glm::vec3 QuatToYawPitchRoll2(const vr::HmdQuaternion_t& q)
+{
+    // return QuatToYawPitchRoll(q);
+
+    const double test = q.x * q.y + q.z * q.w;
+
+    if(test > 0.499)
+    {
+        Con_Printf("north singularity\n");
+
+        // singularity at north pole
+        return {
+            //
+            0,                     // bank
+            2 * atan2(q.x, q.w),   // heading
+            -glm::pi<double>() / 2 // attitude
+        };                         //
+    }
+
+    if(test < -0.499)
+    {
+        Con_Printf("south singularity\n");
+
+        // singularity at south pole
+        return {
+            //
+            0,                    // bank
+            -2 * atan2(q.x, q.w), // heading
+            glm::pi<double>() / 2 // attitude
+        };                        //
+    }
+
+    const double sqx = q.x * q.x;
+    const double sqy = q.y * q.y;
+    const double sqz = q.z * q.z;
+    const double sqw = q.w * q.w;
+
+    glm::vec3 res{
+        -atan2(2 * q.x * q.w - 2 * q.y * q.z, 1 - 2 * sqx - 2 * sqz), // bank
+        atan2(2 * q.y * q.w - 2 * q.x * q.z, 1 - 2 * sqy - 2 * sqz),  // heading
+        -asin(2 * test) // attitude
+    };
+
+    return glm::degrees(res) + glm::vec3{0, VR_GetTurnYawAngle(), 0};
+}

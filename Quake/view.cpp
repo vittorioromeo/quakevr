@@ -934,9 +934,11 @@ void V_CalcRefdef()
 
     // transform the view offset by the model's matrix to get the offset from
     // model origin for the view
-    ent->angles[YAW] = cl.viewangles[YAW]; // the model should face the view dir
-    ent->angles[PITCH] =
-        -cl.viewangles[PITCH]; // the model should face the view dir
+
+    ent->angles[YAW] = VR_GetBodyYawAngle();
+
+    // the model should face the view dir
+    ent->angles[PITCH] = -cl.viewangles[PITCH];
 
     float bob = V_CalcBob();
 
@@ -1119,37 +1121,63 @@ void V_CalcRefdef()
 }
 
 // TODO VR: hack
-void V_CalcRefdef2Test()
+void V_SetupOffHandWpnViewEnt()
 {
     // view is the weapon model (only visible from inside body)
-    entity_t* view = &cl.offhand_viewent;
+    entity_t& view = cl.offhand_viewent;
 
     // set up gun position
-    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), view, cl.handrot[cVR_OffHand]);
+    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), &view, cl.handrot[cVR_OffHand]);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        view->origin = cl.handpos[cVR_OffHand] + cl.vmeshoffset;
+        view.origin = cl.handpos[cVR_OffHand] + cl.vmeshoffset;
     }
     else
     {
         // No off-hand without VR.
     }
 
-    view->model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
-    view->frame = cl.stats[STAT_WEAPONFRAME2];
-    view->colormap = vid.colormap;
+    view.model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
+    view.frame = cl.stats[STAT_WEAPONFRAME2];
+    view.colormap = vid.colormap;
+    view.horizflip = true;
 
     if(chase_active.value)
     {
-        Chase_UpdateForDrawing(r_refdef, view); // johnfitz
+        Chase_UpdateForDrawing(r_refdef, &view); // johnfitz
     }
 }
 
+// TODO VR: hack
+void V_SetupVRTorsoViewEnt()
+{
+    entity_t& view = cl.vrtorso;
+
+    const glm::vec3 playerYawOnly{0, VR_GetBodyYawAngle(), 0};
+    const auto [vFwd, vRight, vUp] =
+        quake::util::getAngledVectors(playerYawOnly);
+
+    view.angles[PITCH] = 0.f + vr_vrtorso_pitch.value;
+    view.angles[YAW] = VR_GetBodyYawAngle() + vr_vrtorso_yaw.value;
+    view.angles[ROLL] = 0.f + vr_vrtorso_roll.value;
+
+    view.model = Mod_ForName("progs/vrtorso.mdl", true);
+    view.frame = 0;
+    view.colormap = vid.colormap;
+
+    view.origin = sv_player->v.origin;
+    view.origin += vFwd * vr_vrtorso_x_offset.value;
+    view.origin += vRight * vr_vrtorso_y_offset.value;
+    view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
+    view.origin[2] += vr_vrtorso_z_offset.value;
+}
+
 // TODO VR: hack, fix
-void V_CalcHolsterRefdef2Test(const int modelId, const glm::vec3& pos,
-    entity_t* view, const float pitch, const float yaw, const float roll)
+void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
+    entity_t* view, const float pitch, const float yaw, const float roll,
+    const bool horizflip)
 {
     view->angles[PITCH] = pitch;
     view->angles[YAW] = yaw;
@@ -1167,6 +1195,8 @@ void V_CalcHolsterRefdef2Test(const int modelId, const glm::vec3& pos,
     view->frame = 0;
     view->colormap = vid.colormap;
 
+    view->horizflip = horizflip;
+
     if(chase_active.value)
     {
         Chase_UpdateForDrawing(r_refdef, view); // johnfitz
@@ -1179,8 +1209,9 @@ void R_SetupAliasFrame(
 
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 
-static void SetupHandViewModel(entity_t* const anchor, entity_t* const hand,
-    const glm::vec3& handRot, const glm::vec3& extraOffset)
+static void V_SetupHandViewEnt(entity_t* const anchor, entity_t* const hand,
+    const glm::vec3& handRot, const glm::vec3& extraOffset,
+    const bool horizflip)
 {
     assert(anchor->model != nullptr);
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
@@ -1263,6 +1294,7 @@ static void SetupHandViewModel(entity_t* const anchor, entity_t* const hand,
     hand->model = Mod_ForName("progs/hand.mdl", true);
     hand->frame = 0;
     hand->colormap = vid.colormap;
+    hand->horizflip = horizflip;
 
     // TODO VR: hardcoded fist cvar number
     {
@@ -1298,41 +1330,58 @@ void V_RenderView()
     }
     else if(!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
     {
+        // -------------------------------------------------------------------
+        // VR: Setup main hand weapon, player model entity, and refdef.
         V_CalcRefdef();
-        V_CalcRefdef2Test();
 
-        // TODO VR: hack
-        const auto playerYaw = sv_player->v.v_viewangle[YAW];
+        // -------------------------------------------------------------------
+        // VR: Setup off hand weapon.
+        V_SetupOffHandWpnViewEnt();
 
-        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL2],
+        // -------------------------------------------------------------------
+        // VR: Setup holstered weapons.
+        const auto playerBodyYaw = VR_GetBodyYawAngle();
+
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL2],
             VR_GetLeftHipPos(), &cl.left_hip_holster, -90.f, 0.f,
-            -playerYaw + 10.f);
+            -playerBodyYaw + 10.f, true);
 
-        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL3],
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL3],
             VR_GetRightHipPos(), &cl.right_hip_holster, -90.f, 0.f,
-            -playerYaw - 10.f);
+            -playerBodyYaw - 10.f, false);
 
-        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL4],
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL4],
             VR_GetLeftUpperPos(), &cl.left_upper_holster, -20.f,
-            playerYaw + 180.f, 0.f);
+            playerBodyYaw + 180.f, 0.f, true);
 
-        V_CalcHolsterRefdef2Test(cl.stats[STAT_HOLSTERWEAPONMODEL5],
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL5],
             VR_GetRightUpperPos(), &cl.right_upper_holster, -20.f,
-            playerYaw + 180.f, 0.f);
+            playerBodyYaw + 180.f, 0.f, false);
 
+        // -------------------------------------------------------------------
+        // VR: Setup main hand.
         if(cl.viewent.model != nullptr)
         {
-            SetupHandViewModel(&cl.viewent, &cl.right_hand,
-                cl.handrot[cVR_MainHand], vec3_zero);
+            V_SetupHandViewEnt(&cl.viewent, &cl.right_hand,
+                cl.handrot[cVR_MainHand], vec3_zero, false);
         }
 
+        // -------------------------------------------------------------------
+        // VR: Setup off hand.
         if(cl.offhand_viewent.model != nullptr)
         {
             const auto offHandOffsets = VR_GetWpnOffHandOffsets(
                 VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
-            SetupHandViewModel(&cl.offhand_viewent, &cl.left_hand,
-                cl.handrot[cVR_OffHand], offHandOffsets);
+            V_SetupHandViewEnt(&cl.offhand_viewent, &cl.left_hand,
+                cl.handrot[cVR_OffHand], offHandOffsets, true);
+        }
+
+        // -------------------------------------------------------------------
+        // VR: Setup VR torso.
+        if(vr_vrtorso_enabled.value == 1)
+        {
+            V_SetupVRTorsoViewEnt();
         }
 
         R_RenderView();

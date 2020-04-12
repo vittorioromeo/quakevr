@@ -302,6 +302,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
     <ClCompile Include="..\..\Quake\vrgameplay_menu.cpp" />
+    <ClCompile Include="..\..\Quake\vrtorso_menu.cpp" />
     <ClCompile Include="..\..\Quake\vr_menu.cpp" />
     <ClCompile Include="..\..\Quake\wad.cpp" />
     <ClCompile Include="..\..\Quake\world.cpp" />
@@ -380,6 +381,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
     <ClInclude Include="..\..\Quake\vrgameplay_menu.hpp" />
+    <ClInclude Include="..\..\Quake\vrtorso_menu.hpp" />
     <ClInclude Include="..\..\Quake\vr_menu.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />

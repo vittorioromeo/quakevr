@@ -639,7 +639,7 @@ void R_SetupAliasLighting(entity_t* e)
     if(e == &cl.viewent || e == &cl.offhand_viewent ||
         e == &cl.left_hip_holster || e == &cl.right_hip_holster ||
         e == &cl.left_upper_holster || e == &cl.right_upper_holster ||
-        e == &cl.left_hand || e == &cl.right_hand)
+        e == &cl.left_hand || e == &cl.right_hand || e == &cl.vrtorso)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)
@@ -705,7 +705,7 @@ void R_SetupAliasLighting(entity_t* e)
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel(entity_t* e, bool horizflip)
+void R_DrawAliasModel(entity_t* e)
 {
     aliashdr_t* paliashdr;
     int i;
@@ -741,11 +741,16 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     glPushMatrix();
     R_RotateForEntity(lerpdata.origin, lerpdata.angles);
 
-    if(horizflip)
+    if(e->horizflip)
     {
         glScalef(1.0f, -1.0f, 1.0f);
         glFrontFace(GL_CCW);
     }
+
+    // TODO VR: document why +1
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
     glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
         paliashdr->scale_origin[2]);
@@ -1021,7 +1026,7 @@ cleanup:
     glColor3f(1, 1, 1);
     glPopMatrix();
 
-    if(horizflip)
+    if(e->horizflip)
     {
         glFrontFace(GL_CW);
     }

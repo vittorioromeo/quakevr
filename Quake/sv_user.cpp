@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.hpp"
+#include "vr.hpp"
 #include "world.hpp"
 #include "util.hpp"
 #include <iostream>
@@ -409,7 +410,7 @@ SV_AirMove
 void SV_AirMove()
 {
     std::tie(forward, right, up) =
-        quake::util::getAngledVectors(sv_player->v.v_viewangle);
+        quake::util::getAngledVectors(VR_GetHeadAngles());
 
     float fmove = cmd.forwardmove;
     const float smove = cmd.sidemove;

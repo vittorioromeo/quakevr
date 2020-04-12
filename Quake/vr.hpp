@@ -109,11 +109,14 @@ bool VR_Enable();
 void VID_VR_Disable();
 
 void VR_UpdateScreenContent();
+
 void VR_ShowCrosshair();
 void VR_ShowVirtualStock();
 void VR_ShowHipHolsters();
 void VR_ShowShoulderHolsters();
 void VR_ShowUpperHolsters();
+void VR_ShowVRTorsoDebugLines();
+
 void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
@@ -126,6 +129,10 @@ void VR_SetAngles(const glm::vec3& angles) noexcept;
 void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
+void VR_ModVRTorsoModel();
+void VR_ModAllModels();
+
+[[nodiscard]] const glm::vec3& VR_GetHeadOrigin() noexcept;
 
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude);
@@ -137,6 +144,11 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 [[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept;
 
+[[nodiscard]] float VR_GetTurnYawAngle() noexcept;
+[[nodiscard]] glm::vec3 VR_GetHeadAngles() noexcept;
+[[nodiscard]] float VR_GetHeadYawAngle() noexcept;
+[[nodiscard]] float VR_GetBodyYawAngle() noexcept;
+
 // TODO VR: remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
@@ -147,6 +159,9 @@ void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target);
 void VR_ModAllWeapons();
 
 [[nodiscard]] bool VR_EnabledAndNotFake() noexcept;
+
+void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
+    aliashdr_t* const hdr) noexcept;
 
 //
 //
@@ -316,7 +331,7 @@ extern cvar_t vr_menu_distance;
 extern cvar_t vr_melee_dmg_multiplier;
 extern cvar_t vr_melee_range_multiplier;
 extern cvar_t vr_body_interactions;
-extern cvar_t vr_room_scale_move_mult;
+extern cvar_t vr_roomscale_move_mult;
 extern cvar_t vr_teleport_enabled;
 extern cvar_t vr_teleport_range;
 extern cvar_t vr_2h_mode;
@@ -355,6 +370,19 @@ extern cvar_t vr_upper_holster_offset_y;
 extern cvar_t vr_upper_holster_offset_z;
 extern cvar_t vr_upper_holster_thresh;
 extern cvar_t vr_fakevr;
+extern cvar_t vr_vrtorso_debuglines_enabled;
+extern cvar_t vr_vrtorso_enabled;
+extern cvar_t vr_vrtorso_x_offset;
+extern cvar_t vr_vrtorso_y_offset;
+extern cvar_t vr_vrtorso_z_offset;
+extern cvar_t vr_vrtorso_head_z_mult;
+extern cvar_t vr_vrtorso_x_scale;
+extern cvar_t vr_vrtorso_y_scale;
+extern cvar_t vr_vrtorso_z_scale;
+extern cvar_t vr_vrtorso_pitch;
+extern cvar_t vr_vrtorso_yaw;
+extern cvar_t vr_vrtorso_roll;
+extern cvar_t vr_holster_haptics;
 
 // TODO VR: what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

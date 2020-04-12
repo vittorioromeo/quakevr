@@ -1057,7 +1057,7 @@ void Host_Init()
         // TODO VR: why doesn't this work?
         if(vr_enabled.value == 1)
         {
-            VR_ModAllWeapons();
+            VR_ModAllModels();
         }
 
         // johnfitz -- in case the vid mode was locked during vid_init, we
