@@ -770,6 +770,9 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             }
         }
 
+        // TODO VR:
+        bits |= U_SCALE;
+
         if(ent->v.angles[0] != ent->baseline.angles[0])
         {
             bits |= U_ANGLE1;
@@ -783,6 +786,36 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         if(ent->v.angles[2] != ent->baseline.angles[2])
         {
             bits |= U_ANGLE3;
+        }
+
+        if(ent->v.scale[0] != ent->baseline.scale[0])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale[1] != ent->baseline.scale[1])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale[2] != ent->baseline.scale[2])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[0] != ent->baseline.scale_origin[0])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[1] != ent->baseline.scale_origin[1])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[2] != ent->baseline.scale_origin[2])
+        {
+            bits |= U_SCALE;
         }
 
         if(ent->v.movetype == MOVETYPE_STEP)
@@ -841,6 +874,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             if(ent->baseline.alpha != ent->alpha)
             {
                 bits |= U_ALPHA;
+            }
+            if(ent->baseline.scale != ent->v.scale)
+            {
+                bits |= U_SCALE;
             }
             if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
             {
@@ -933,6 +970,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         {
             MSG_WriteAngle(msg, ent->v.angles[0], sv.protocolflags);
         }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[0], sv.protocolflags);
+        }
         if(bits & U_ORIGIN2)
         {
             MSG_WriteCoord(msg, ent->v.origin[1], sv.protocolflags);
@@ -941,6 +982,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         {
             MSG_WriteAngle(msg, ent->v.angles[1], sv.protocolflags);
         }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[1], sv.protocolflags);
+        }
         if(bits & U_ORIGIN3)
         {
             MSG_WriteCoord(msg, ent->v.origin[2], sv.protocolflags);
@@ -948,6 +993,17 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         if(bits & U_ANGLE3)
         {
             MSG_WriteAngle(msg, ent->v.angles[2], sv.protocolflags);
+        }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[2], sv.protocolflags);
+        }
+
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale_origin[0], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.scale_origin[1], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.scale_origin[2], sv.protocolflags);
         }
 
         // johnfitz -- PROTOCOL_FITZQUAKE
@@ -1603,6 +1659,8 @@ void SV_CreateBaseline()
         //
         svent->baseline.origin = svent->v.origin;
         svent->baseline.angles = svent->v.angles;
+        svent->baseline.scale = svent->v.scale;
+        svent->baseline.scale_origin = svent->v.scale_origin;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;
         if(entnum > 0 && entnum <= svs.maxclients)

@@ -773,7 +773,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 
         switch(currententity->model->type)
         {
-            case mod_alias: R_DrawAliasModel(currententity, false); break;
+            case mod_alias: R_DrawAliasModel(currententity); break;
             case mod_brush: R_DrawBrushModel(currententity); break;
             case mod_sprite: R_DrawSpriteModel(currententity); break;
         }
@@ -785,7 +785,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 R_DrawViewModel -- johnfitz -- gutted
 =============
 */
-void R_DrawViewModel(entity_t* viewent, bool horizflip)
+void R_DrawViewModel(entity_t* viewent)
 {
     if(!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
     {
@@ -818,7 +818,8 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
         glDepthRange(0, 0.3);
     }
 
-    R_DrawAliasModel(currententity, horizflip);
+    // TODO VR:
+    R_DrawAliasModel(currententity);
 
     if(!vr_enabled.value)
     {
@@ -1006,6 +1007,9 @@ void R_ShowTris()
         // hands
         doViewmodel(&cl.left_hand);
         doViewmodel(&cl.right_hand);
+
+        // vrtorso
+        doViewmodel(&cl.vrtorso);
     }
 
     extern cvar_t r_particles;
@@ -1066,7 +1070,8 @@ void R_DrawShadows()
             currententity == &cl.right_hip_holster ||
             currententity == &cl.left_upper_holster ||
             currententity == &cl.right_upper_holster ||
-            currententity == &cl.left_hand || currententity == &cl.right_hand)
+            currententity == &cl.left_hand || currententity == &cl.right_hand ||
+            currententity == &cl.vrtorso)
         {
             // View entities are drawn manually below.
             continue;
@@ -1092,6 +1097,10 @@ void R_DrawShadows()
     drawViewentShadow(&cl.right_upper_holster);
     drawViewentShadow(&cl.left_hand);
     drawViewentShadow(&cl.right_hand);
+
+    // TODO VR:
+    // drawViewentShadow(&cl.vrtorso);
+    drawViewentShadow(&cl_entities[cl.viewentity]);
 
     if(gl_stencilbits)
     {
@@ -1134,38 +1143,49 @@ void R_RenderScene()
 
     Fog_DisableGFog(); // johnfitz
 
-    // TODO VR: package into function
     if(vr_enabled.value)
     {
         VR_ShowCrosshair();
+    }
+
+    // johnfitz -- moved here from R_RenderView
+    R_DrawViewModel(&cl.viewent);
+
+    // VR: This is what draws the offhand.
+    R_DrawViewModel(&cl.offhand_viewent);
+
+    // VR: This is what draws the hip holsters.
+    R_DrawViewModel(&cl.left_hip_holster);
+    R_DrawViewModel(&cl.right_hip_holster);
+
+    // VR: This is what draws the upper holsters.
+    R_DrawViewModel(&cl.left_upper_holster);
+    R_DrawViewModel(&cl.right_upper_holster);
+
+    // TODO VR: hack/test
+    R_DrawViewModel(&cl.left_hand);
+    R_DrawViewModel(&cl.right_hand);
+
+    // VR: This is what draws the torso.
+    if(vr_vrtorso_enabled.value == 1)
+    {
+        R_DrawViewModel(&cl.vrtorso);
+    }
+
+    R_ShowTris(); // johnfitz
+
+    R_ShowBoundingBoxes(); // johnfitz
+
+    // TODO VR: package into function
+    if(vr_enabled.value)
+    {
         VR_ShowVirtualStock();
         VR_ShowHipHolsters();
         VR_ShowShoulderHolsters();
         VR_ShowUpperHolsters();
         VR_DrawTeleportLine();
+        VR_ShowVRTorsoDebugLines();
     }
-
-    // johnfitz -- moved here from R_RenderView
-    R_DrawViewModel(&cl.viewent, false);
-
-    // VR: This is what draws the offhand.
-    R_DrawViewModel(&cl.offhand_viewent, true);
-
-    // VR: This is what draws the hip holsters.
-    R_DrawViewModel(&cl.left_hip_holster, true);
-    R_DrawViewModel(&cl.right_hip_holster, true);
-
-    // VR: This is what draws the upper holsters.
-    R_DrawViewModel(&cl.left_upper_holster, true);
-    R_DrawViewModel(&cl.right_upper_holster, true);
-
-    // TODO VR: hack/test
-    R_DrawViewModel(&cl.left_hand, true);
-    R_DrawViewModel(&cl.right_hand, false);
-
-    R_ShowTris(); // johnfitz
-
-    R_ShowBoundingBoxes(); // johnfitz
 }
 
 static GLuint r_scaleview_texture;
@@ -1292,10 +1312,6 @@ R_RenderView
 */
 void R_RenderView()
 {
-    double time1;
-
-    double time2;
-
     if(r_norefresh.value)
     {
         return;
@@ -1306,7 +1322,7 @@ void R_RenderView()
         Sys_Error("R_RenderView: NULL worldmodel");
     }
 
-    time1 = 0; /* avoid compiler warning */
+    double time1 = 0; /* avoid compiler warning */
     if(r_speeds.value)
     {
         glFinish();
@@ -1368,7 +1384,7 @@ void R_RenderView()
     R_ScaleView();
 
     // johnfitz -- modified r_speeds output
-    time2 = Sys_DoubleTime();
+    const double time2 = Sys_DoubleTime();
     if(r_pos.value)
     {
         Con_Printf("x %i y %i z %i (pitch %i yaw %i roll %i)\n",

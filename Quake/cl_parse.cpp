@@ -616,56 +616,43 @@ void CL_ParseUpdate(int bits)
     // shift the known values for interpolation
     ent->msg_origins[1] = ent->msg_origins[0];
     ent->msg_angles[1] = ent->msg_angles[0];
+    ent->msg_scales[1] = ent->msg_scales[0];
 
-    if(bits & U_ORIGIN1)
-    {
-        ent->msg_origins[0][0] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][0] = ent->baseline.origin[0];
-    }
-    if(bits & U_ANGLE1)
-    {
-        ent->msg_angles[0][0] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][0] = ent->baseline.angles[0];
-    }
 
-    if(bits & U_ORIGIN2)
-    {
-        ent->msg_origins[0][1] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][1] = ent->baseline.origin[1];
-    }
-    if(bits & U_ANGLE2)
-    {
-        ent->msg_angles[0][1] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][1] = ent->baseline.angles[1];
-    }
+    const auto doIt = [&](const auto fn, const int bit, auto& target, const auto& baselineData,
+                          const int index) {
+        if(bits & bit)
+        {
+            target[index] = fn(cl.protocolflags);
+        }
+        else
+        {
+            target[index] = baselineData[index];
+        };
+    };
 
-    if(bits & U_ORIGIN3)
+    // TODO VR:
+    bits |= U_SCALE;
+
+    // clang-format off
+    doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);
+    doIt(&MSG_ReadAngle, U_ANGLE1, ent->msg_angles[0], ent->baseline.angles, 0);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 0);
+
+    doIt(&MSG_ReadCoord, U_ORIGIN2, ent->msg_origins[0], ent->baseline.origin, 1);
+    doIt(&MSG_ReadAngle, U_ANGLE2, ent->msg_angles[0], ent->baseline.angles, 1);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 1);
+
+    doIt(&MSG_ReadCoord, U_ORIGIN3, ent->msg_origins[0], ent->baseline.origin, 2);
+    doIt(&MSG_ReadAngle, U_ANGLE3, ent->msg_angles[0], ent->baseline.angles, 2);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 2);
+    // clang-format on
+
+    if(bits & U_SCALE)
     {
-        ent->msg_origins[0][2] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][2] = ent->baseline.origin[2];
-    }
-    if(bits & U_ANGLE3)
-    {
-        ent->msg_angles[0][2] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][2] = ent->baseline.angles[2];
+        ent->scale_origin[0] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin[1] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin[2] = MSG_ReadCoord(cl.protocolflags);
     }
 
     // johnfitz -- lerping for movetype_step entities
@@ -691,18 +678,17 @@ void CL_ParseUpdate(int bits)
         {
             ent->alpha = ent->baseline.alpha;
         }
-        if(bits & U_SCALE)
-        {
-            MSG_ReadByte(); // PROTOCOL_RMQ: currently ignored
-        }
+
         if(bits & U_FRAME2)
         {
             ent->frame = (ent->frame & 0x00FF) | (MSG_ReadByte() << 8);
         }
+
         if(bits & U_MODEL2)
         {
             modnum = (modnum & 0x00FF) | (MSG_ReadByte() << 8);
         }
+
         if(bits & U_LERPFINISH)
         {
             ent->lerpfinish = ent->msgtime + ((float)(MSG_ReadByte()) / 255);
@@ -784,6 +770,8 @@ void CL_ParseUpdate(int bits)
         ent->origin = ent->msg_origins[0];
         ent->msg_angles[1] = ent->msg_angles[0];
         ent->angles = ent->msg_angles[0];
+        ent->msg_scales[1] = ent->msg_scales[0];
+        ent->scale = ent->msg_scales[0];
         ent->forcelink = true;
     }
 }

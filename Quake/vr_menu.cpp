@@ -112,6 +112,10 @@ extern cvar_t r_particle_mult;
     m.add_cvar_entry<float>(
         "Off-Hand Yaw", vr_offhandyaw, {0.25f, -90.f, 90.f});
 
+    m.add_cvar_entry<bool>("Holster Haptics", vr_holster_haptics);
+
+    // TODO VR: menu tooltips
+
     return m;
 }
 

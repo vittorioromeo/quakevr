@@ -373,7 +373,7 @@ void R_TranslateNewPlayerSkin(int playernum); // johnfitz -- this handles cases
 void R_UpdateWarpTextures(void);
 
 void R_DrawWorld(void);
-void R_DrawAliasModel(entity_t* e, bool horizflip);
+void R_DrawAliasModel(entity_t* e);
 void R_DrawBrushModel(entity_t* e);
 void R_DrawSpriteModel(entity_t* e);
 

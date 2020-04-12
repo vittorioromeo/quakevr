@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef struct efrag_s
 {
     struct efrag_s* leafnext;
-    struct entity_s* entity;
+    struct entity_t* entity;
 } efrag_t;
 
 // johnfitz -- for lerping
@@ -55,7 +55,7 @@ typedef struct efrag_s
              // interval of 0.1
 // johnfitz
 
-typedef struct entity_s
+struct entity_t
 {
     bool forcelink; // model changed
 
@@ -101,7 +101,14 @@ typedef struct entity_s
     glm::vec3 currentorigin;  // johnfitz -- transform lerping
     glm::vec3 previousangles; // johnfitz -- transform lerping
     glm::vec3 currentangles;  // johnfitz -- transform lerping
-} entity_t;
+
+    bool horizflip; // VR: horizontal flip
+
+    // VR: per-instance scaling
+    glm::vec3 msg_scales[2]; // last two updates (0 is newest)
+    glm::vec3 scale;
+    glm::vec3 scale_origin;
+};
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
@@ -151,7 +158,7 @@ void R_InitTextures(void);
 void R_InitEfrags(void);
 void R_RenderView(void); // must set r_refdef first
 void R_RenderScene(void);
-void R_DrawViewModel(entity_t* viewent, bool horizflip);
+void R_DrawViewModel(entity_t* viewent);
 void R_ViewChanged(vrect_t* pvrect, int lineadj, float aspect);
 // called whenever r_refdef or vid change
 // void R_InitSky (struct texture_s *mt);	// called at level load

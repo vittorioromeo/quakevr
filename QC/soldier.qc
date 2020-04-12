@@ -186,6 +186,9 @@ void() army_fire =
     // fire somewhat behind the player, so a dodging player is harder to hit
     en = self.enemy;
 
+    // TODO VR: this works
+    // self.scale = ((self.scale + '1 1 1') * 1.1) - '1 1 1';
+
     dir = en.origin - en.velocity*0.2;
     dir = normalize (dir - self.origin);
 
@@ -281,6 +284,10 @@ void() monster_army =
     setmodel (self, "progs/soldier.mdl");
 
     setsize (self, '-12 -12 -24', '12 12 26');
+
+    // TODO VR: this works
+    // self.scale_origin = '0 0 25';
+
     self.health = 30;
 
     self.th_stand = army_stand1;

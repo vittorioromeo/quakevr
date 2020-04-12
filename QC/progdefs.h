@@ -81,6 +81,8 @@ typedef struct entvars_s
 	vec3_t	velocity;
 	vec3_t	angles;
 	vec3_t	avelocity;
+	vec3_t	scale;
+	vec3_t	scale_origin;
 	vec3_t	punchangle;
 	string_t	classname;
 	string_t	model;
@@ -199,4 +201,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 25260
+#define PROGHEADER_CRC 19869

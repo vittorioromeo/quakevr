@@ -112,6 +112,8 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        velocity;
 .vector        angles;
 .vector        avelocity;
+.vector        scale;
+.vector        scale_origin;
 
 .vector        punchangle;        // temp angle adjust from damage or recoil
 

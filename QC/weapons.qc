@@ -200,6 +200,11 @@ float(float xHand, float v) VRMeleeDmg =
 {
     local float tmp;
 
+    if (cvar("vr_fakevr") == 1)
+    {
+        return 20;
+    }
+
     if(xHand == OFF_HAND) tmp = self.offhandvelmag;
     else                  tmp = self.handvelmag;
 
@@ -3286,6 +3291,14 @@ void() wpnthrow_handtouch =
     }
 }
 
+void(float xHand) VRHolsterHaptic =
+{
+    if(cvar("vr_holster_haptics") == 1)
+    {
+        VRGunHaptic(xHand, 0.1, 75, 0.02);
+    }
+}
+
 void(float xHand,
      float xWeapon, float* xOutWeapon,
      float xGrabbing, float xAttackFinished, float xHotspot,
@@ -3384,7 +3397,7 @@ void(float xHand,
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
             {
-                VRGunHaptic(xHand, 0.1, 75, 0.09);
+                VRHolsterHaptic(xHand);
             }
         }
     }
@@ -3422,7 +3435,7 @@ void(float xHand,
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
-                VRGunHaptic(xHand, 0.1, 75, 0.09);
+                VRHolsterHaptic(xHand);
             }
         }
     }
