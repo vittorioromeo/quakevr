@@ -139,6 +139,9 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
 [[nodiscard]] float VR_GetMenuMult() noexcept;
 
+[[nodiscard]] glm::vec3 VR_GetLastHeadOrigin() noexcept;
+[[nodiscard]] float VR_GetCrouchRatio() noexcept;
+
 [[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept;
 [[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept;

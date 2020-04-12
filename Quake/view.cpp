@@ -1159,7 +1159,9 @@ void V_SetupVRTorsoViewEnt()
     const auto [vFwd, vRight, vUp] =
         quake::util::getAngledVectors(playerYawOnly);
 
-    view.angles[PITCH] = 0.f + vr_vrtorso_pitch.value;
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0.f, 0.8f);
+
+    view.angles[PITCH] = 0.f + vr_vrtorso_pitch.value - (heightRatio * 35.f);
     view.angles[YAW] = VR_GetBodyYawAngle() + vr_vrtorso_yaw.value;
     view.angles[ROLL] = 0.f + vr_vrtorso_roll.value;
 
@@ -1169,6 +1171,7 @@ void V_SetupVRTorsoViewEnt()
 
     view.origin = sv_player->v.origin;
     view.origin += vFwd * vr_vrtorso_x_offset.value;
+    view.origin -= vFwd * (heightRatio * 14.f);
     view.origin += vRight * vr_vrtorso_y_offset.value;
     view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
     view.origin[2] += vr_vrtorso_z_offset.value;

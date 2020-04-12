@@ -462,7 +462,6 @@ void DeleteFBO(const fbo_t& fbo)
 }
 
 // TODO VR: move to util? This uses `vrYaw` inside
-// TODO VR: this craps out when looking very down, yaw returned is weird
 [[nodiscard]] glm::vec3 QuatToYawPitchRoll(
     const vr::HmdQuaternion_t& q) noexcept
 {
@@ -857,7 +856,6 @@ char* CopyWithNumeral(const char* str, int i)
     // TODO VR: unused
     return VR_GetWpnCVarValue(cvarEntry, WpnCVar::Length);
 }
-
 
 void InitWeaponCVar(cvar_t& cvar, const char* name, int i, const char* value)
 {
@@ -1691,12 +1689,20 @@ void SetHandPos(int index, entity_t* player)
         return vec3_zero;
     }
 
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0.f, 0.8f);
+
     const auto [vFwd, vRight, vUp] =
-        getAngledVectors({0.f, VR_GetBodyYawAngle(), 0.f});
+        getAngledVectors({heightRatio * -35.f, VR_GetBodyYawAngle(), 0.f});
 
     const auto& [ox, oy, oz] = offsets;
 
-    return VR_GetPlayerOrigin() + vRight * oy + vFwd * ox +
+    // Con_Printf("%.2f | %.2f\n", VR_GetPlayerOrigin()[2], lastHeadOrigin[2]);
+
+    auto origin = VR_GetPlayerOrigin();
+    origin[2] += 2.f;
+    origin[2] -= VR_GetCrouchRatio() * 18.f;
+
+    return origin + vRight * oy + vFwd * ox +
            vUp * vr_height_calibration.value * oz;
 }
 
@@ -2515,16 +2521,7 @@ void VR_UpdateScreenContent()
     // aimmode from 7 to another.
     cl.aimangles[ROLL] = 0.0;
 
-    // TODO VR: this craps out when the HMD pitch goes towards the floor a
-    // lot.
     const auto orientation = VR_GetBlendedEyesOrientation();
-
-    // TODO VR: remove
-    Con_Printf(
-        "%.2f, %.2f, %.2f\n", orientation[0], orientation[1], orientation[2]);
-
-    // TODO VR: remove
-    // if(orientation[PITCH] < 90.f) orientation[PITCH] = 90.f;
 
     if(std::exchange(readbackYaw, false))
     {
@@ -2658,13 +2655,24 @@ void VR_SetMatrices()
     glLoadMatrixf((GLfloat*)projection.m);
 }
 
+[[nodiscard]] glm::vec3 VR_GetLastHeadOrigin() noexcept
+{
+    return lastHeadOrigin;
+}
+
+[[nodiscard]] float VR_GetCrouchRatio() noexcept
+{
+    const auto maxHeight = vr_height_calibration.value;
+    const auto currHeight = VR_GetLastHeadOrigin()[2];
+    return std::clamp((maxHeight / currHeight) - 1.f, 0.f, 1.f);
+}
+
 void VR_CalibrateHeight()
 {
     const auto height = lastHeadOrigin[2];
     Cvar_SetValue("vr_height_calibration", height);
     Con_Printf("Calibrated height to %.2f\n", height);
 }
-
 
 [[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(
     const glm::vec3& angles) noexcept
@@ -2732,7 +2740,6 @@ void VR_CalibrateHeight()
 {
     return glm::distance(hand, holster) < vr_upper_holster_thresh.value;
 }
-
 
 static void VR_ShowFnSetupGL() noexcept
 {
@@ -2830,7 +2837,6 @@ static void VR_ShowVirtualStockImpl(
 }
 
 // TODO VR: recoil system, 2H will reduce it
-
 
 void VR_ShowVRTorsoDebugLines()
 {
