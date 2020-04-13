@@ -113,7 +113,8 @@ void() DecodeLevelParms =
     self.armortype = parm9 * 0.01;
     self.weapon2 = parm10;
 
-    // TODO VR:
+    // TODO VR: (P0) start with weapons in holsters instead of hands. Also what
+    // is prevweapon used for?
     self.prevweapon = parm8;
     self.prevweapon2 = parm10;
     self.holsterweapon0 = WID_FIST;
@@ -1135,9 +1136,9 @@ void() PlayerPreThink =
         self.velocity = '0 0 0';
     }
 
-    // TODO VR: needed at all?
+    // TODO VR: (P0) needed at all? Consider cvar for old style weapon cycling
     /*
-    // TODO VR: code repetition, don't change to best weapon
+    // TODO VR: (P2) code repetition, don't change to best weapon
     if(time > self.attack_finished &&
        getCurrentAmmo(MAIN_HAND) <= 0 &&
        self.weapon != WID_FIST &&
@@ -1224,7 +1225,7 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
-// TODO VR: maybe check for mission pack 1 support here
+// TODO VR: (P2) maybe check for mission pack 1 support here
 //MED 12/04/96 added mjolnir stuff
     else if (self.weapon == WID_MJOLNIR)
         self.modelindex = modelindex_hammer;   // don't use eyes
@@ -1881,49 +1882,67 @@ float(float xWpnId, string xSound, void(float xHand) xWpnFn) DoOffHandMelee =
     return FALSE;
 }
 
-void() PlayerVRMelee =
+void(float xHand, string xSound, void(float xHand) xWpnFn) DoXHandMeleeImpl =
+{
+    if(xHand == MAIN_HAND) { DoMainHandMeleeImpl(xSound, xWpnFn); return; }
+    if(xHand == OFF_HAND)  { DoOffHandMeleeImpl(xSound, xWpnFn); return; }
+
+    bprint("'DoXHandMeleeImpl': Invalid hand '");
+    bprint(ftos(xHand));
+    bprint("'");
+}
+
+float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHandMelee =
+{
+    if(xHand == MAIN_HAND) { return DoMainHandMelee(xWpnId, xSound, xWpnFn); }
+    if(xHand == OFF_HAND)  { return DoOffHandMelee(xWpnId, xSound, xWpnFn); }
+
+    bprint("'DoXHandMelee': Invalid hand '");
+    bprint(ftos(xHand));
+    bprint("'");
+}
+
+void(float xHand, float xInMelee, float xHandVelMag,
+     float* xOutMeleeAttackFinished, float* xOutInMelee, float* xMeleeHitSoundPlayed)
+     PlayerVRMeleeImpl =
 {
     local float vr_melee_threshold;
-
     vr_melee_threshold = cvar("vr_melee_threshold");
 
-    // TODO VR: code repetition
-
-    // vr main hand melee attack
-    if (cvar("vr_enabled") == 1 &&
-        time >= self.in_melee &&
-        self.handvelmag > vr_melee_threshold)
+    if (cvar("vr_enabled") == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold)
     {
-        if(!DoMainHandMelee(WID_FIST, "knight/sword1.wav", W_FistMelee))
-            if(!DoMainHandMelee(WID_AXE, "weapons/ax1.wav", W_FireAxe))
-                if(!DoMainHandMelee(WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
-                    DoMainHandMeleeImpl("knight/sword1.wav", W_GunMelee);
+        if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
+            if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
+                if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
+                    DoXHandMeleeImpl(xHand, "knight/sword1.wav", W_GunMelee);
 
-        self.mainhand_melee_attack_finished = time + 0.1;
-        self.in_melee = time + 0.02;
+        *xOutMeleeAttackFinished = time + 0.1;
+        *xOutInMelee = time + 0.02;
     }
 
-    if(self.handvelmag <= vr_melee_threshold)
+    if(xHandVelMag <= vr_melee_threshold)
     {
-        self.melee_hit_sound_played = FALSE;
+        *xMeleeHitSoundPlayed = FALSE;
     }
+}
 
-    // vr off hand melee attack
-    if (cvar("vr_enabled") == 1 &&
-        time >= self.offhand_in_melee &&
-        self.offhandvelmag > vr_melee_threshold)
-    {
-        if(!DoOffHandMelee(WID_FIST, "knight/sword1.wav", W_FistMelee))
-            if(!DoOffHandMelee(WID_AXE, "weapons/ax1.wav", W_FireAxe))
-                if(!DoOffHandMelee(WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
-                    DoOffHandMeleeImpl("knight/sword1.wav", W_GunMelee);
+void() PlayerVRMelee =
+{
+    PlayerVRMeleeImpl(
+        MAIN_HAND,
+        self.in_melee,
+        self.handvelmag,
+        &self.mainhand_melee_attack_finished,
+        &self.in_melee,
+        &self.melee_hit_sound_played
+    );
 
-        self.offhand_melee_attack_finished = time + 0.1;
-        self.offhand_in_melee = time + 0.02;
-    }
-
-    if(self.offhandvelmag <= vr_melee_threshold)
-    {
-        self.offhand_melee_hit_sound_played = FALSE;
-    }
+    PlayerVRMeleeImpl(
+        OFF_HAND,
+        self.offhand_in_melee,
+        self.offhandvelmag,
+        &self.offhand_melee_attack_finished,
+        &self.offhand_in_melee,
+        &self.offhand_melee_hit_sound_played
+    );
 }

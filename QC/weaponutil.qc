@@ -1,7 +1,7 @@
 float(float wid, float wpnFlags) PlayerHasWeapon =
 {
    if(wid == WID_FIST) return TRUE;
-   if(wid == WID_GRAPPLE) return TRUE; // TODO VR: always have grapple?
+   if(wid == WID_GRAPPLE) return TRUE; // TODO VR:(P0) always have grapple?
    return wpnFlags & WeaponIdToItemId(wid);
 }
 
@@ -19,7 +19,7 @@ float(float wid) WeaponIdToItemId =
    if(wid == WID_ROCKET_LAUNCHER)  { return IT_ROCKET_LAUNCHER; }
    if(wid == WID_LIGHTNING)        { return IT_LIGHTNING; }
    if(wid == WID_LASER_CANNON)     { return IT_LASER_CANNON; }
-   // TODO VR: fist and grapple
+   // TODO VR: (P1) fist and grapple
 
    return -1;
 }
@@ -38,7 +38,7 @@ float(float it) ItemIdToWeaponId =
    if(it == IT_ROCKET_LAUNCHER)  { return WID_ROCKET_LAUNCHER; }
    if(it == IT_LIGHTNING)        { return WID_LIGHTNING; }
    if(it == IT_LASER_CANNON)     { return WID_LASER_CANNON; }
-   // TODO VR: fist and grapple
+   // TODO VR: (P1) fist and grapple
 
    bprint("`ItemIdToWeaponId`: invalid item id '");
    bprint(ftos(it));

@@ -635,6 +635,7 @@ void R_SetupAliasLighting(entity_t* e)
         }
     }
 
+    // TODO VR: (P2) repetition here to check player view entities
     // minimum light value on gun (24)
     if(e == &cl.viewent || e == &cl.offhand_viewent ||
         e == &cl.left_hip_holster || e == &cl.right_hip_holster ||

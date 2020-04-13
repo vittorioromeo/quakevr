@@ -45,7 +45,7 @@ vector() vrProjectileVelocity =
 
     return VEC_ORIGIN;
 
-    // TODO VR: this only works when facing forwards. It needs to be revisited
+    // TODO VR: (P2) this only works when facing forwards. It needs to be revisited
     // the hand velocity vector is absolute and doesn't take the world into
     // account. It probably needs to be multiplied with the direction vector
     // of where the player is facing...?
@@ -105,8 +105,7 @@ float(float xHand) VRGunChannel =
     else                  return CHAN_WEAPON;
 }
 
-// TODO VR:
-float(float xHand) isAmmolessWeapon =
+float(float xHand) VRIsAmmolessWeapon =
 {
     if(xHand == OFF_HAND) return self.currentammo2 == AID_NONE;
     else                  return self.currentammo == AID_NONE;
@@ -273,7 +272,7 @@ float PositionalDamageFactor(float positionalDamageType)
     return 1;
 }
 
-// TODO VR: positional damage WIP, add cvar
+// TODO VR: (P0) positional damage WIP, add cvar
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
     local float supportHS;   // Target supports headshots.
@@ -523,7 +522,7 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
     newmis.count = 0;
 };
 
-// TODO VR: move
+// TODO VR: (P2) move
 float(float xHand) VRFireButtonPressed =
 {
     if(xHand == OFF_HAND) return self.button3;
@@ -615,7 +614,6 @@ void(float xHand, float stat) HIP_FireLaser =
     aofs = ofs * 0.15;
     if (stat == 0)
     {
-        // TODO VR: deal with ammo
         setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
         org = org + (aofs*v_right);
         HIP_LaunchLaser(org, dir, 0);
@@ -900,7 +898,7 @@ void(float xHand) HIP_FireMjolnir =
 
     makevectors(VRGetHandRot(xHand));
     source = VRGetHandPos(xHand);
-    // TODO VR: improve this collision detection
+    // TODO VR: (P2) improve this collision detection
     traceline (source, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
         return;
@@ -1015,7 +1013,7 @@ void(float xHand) W_FireAxe =
 
     makevectors(VRGetHandRot(xHand));
     source = VRGetHandPos(xHand);
-    // TODO VR: improve this collision detection
+    // TODO VR: (P2) improve this collision detection
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
     if (trace_fraction == 1.0)
         return;
@@ -1070,7 +1068,6 @@ void(float xHand) W_GunMelee =
     traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
     if (trace_fraction == 1.0)
     {
-        // TODO VR: try muzzle position for longer guns
         source = self.muzzlepos;
         traceline (source - v_forward*8, source + v_forward * VRMeleeRange(8), FALSE, self);
 
@@ -1126,11 +1123,6 @@ void(float xHand) W_FistMelee =
     local float  playedsound;
 
     xdmg = VRMeleeDmg(xHand, 0.75);
-
-    // TODO VR: good place to add effects
-    // particle2 (self.offhandpos, '0 0 0', 3 /* lightning preset */, 60);
-    // particle2 (self.offhandpos, '0 0 0', 4 /* smoke preset */, 1);
-    // particle2 (self.offhandpos, '0 0 0', 5 /* sparks preset */, 12);
 
     makevectors (VRGetHandRot(xHand));
     source = VRGetHandPos(xHand);
@@ -1365,8 +1357,6 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
     local float adjDmg;
     local float posDmgType;
 
-    // TODO VR: wrong?
-    // makevectors(self.v_angle);
     makevectors(vectoangles(dir));
 
     ClearMultiDamage ();
@@ -2183,12 +2173,10 @@ void() W_SetCurrentAmmo =
     player_run (MAIN_HAND); // get out of any weapon firing states
     player_run (OFF_HAND);  // get out of any weapon firing states
 
-    // TODO VR: this always sets both weaponframes, it should only set it if the weapon changed
+    // TODO VR: (P0) this always sets both weaponframes, it should only set it if the weapon changed
     // It happens when putting a gun in a holster
 
-    // TODO VR: upper body holsters like boneworks
-
-    // TODO VR: animation bug while running and shooting
+    // TODO VR: (P0) animation bug while running and shooting (? think this is the player_run one)
 
     W_SetCurrentAmmoImpl(self.weapon,
         &self.currentammo, &self.weaponmodel, &self.weaponframe);
@@ -2227,7 +2215,7 @@ float() W_BestWeapon =
 
 float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
 {
-    if (isAmmolessWeapon(xHand))
+    if (VRIsAmmolessWeapon(xHand))
     {
         return TRUE;
     }
@@ -2561,6 +2549,7 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
+// TODO VR: (P1) need to add a cvar to support this, and to use quick slot holsters
 void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
 {
     local    float    it, am;
@@ -2572,7 +2561,7 @@ void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand
     {
         am = 0;
 
-        // TODO VR: fist removed
+        // TODO VR: (P1) fist removed
         if (xWeapon == WID_FIST)
         {
             xWeapon = WID_MJOLNIR;
@@ -2632,7 +2621,7 @@ void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand
         }
         else if (xWeapon == WID_GRAPPLE)
         {
-            // TODO VR: fist removed
+            // TODO VR: (P1) fist removed
             // xWeapon = WID_FIST;
             xWeapon = WID_MJOLNIR;
         }
@@ -2725,7 +2714,7 @@ void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
         }
         else if (xWeapon == WID_MJOLNIR)
         {
-            // TODO VR: fist removed
+            // TODO VR: (P1) fist removed
             // xWeapon = WID_FIST;
             xWeapon = WID_GRAPPLE;
         }
@@ -2740,7 +2729,7 @@ void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
     }
 };
 
-// TODO VR: off hand weapon cycling (TODO dual-wielding)
+// TODO VR: (P1) remove? - off hand weapon cycling (TODO dual-wielding)
 void() CycleOffHandWeapon =
 {
     if (self.weapon2 == WID_FIST)
@@ -2903,7 +2892,7 @@ void() ImpulseCommands =
         CheatCommand ();
     }
 
-    // TODO VR:
+    // TODO VR: (P1) cvar and decide what to do
     if (self.impulse == 10 && time >= self.attack_finished)
     {
         CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
@@ -2916,11 +2905,11 @@ void() ImpulseCommands =
 
     if (self.impulse == 12 && time >= self.offhand_attack_finished)
     {
-        // TODO VR: CycleWeaponReverseCommand ();
+        // TODO VR: (P1) more steamvr bindings for CycleWeaponReverseCommand ();
         CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
     }
 
-    // TODO VR:
+    // TODO VR: (P1) remove?
     if (self.impulse == 13)
     {
         CycleOffHandWeapon ();
@@ -3001,7 +2990,7 @@ void() W_WeaponFrame =
 ============
 W_OffHandWeaponFrame
 
-// TODO VR:
+// TODO VR: (P1) code repetition with above
 ============
 */
 void() W_OffHandWeaponFrame =
@@ -3149,7 +3138,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
     else
     {
-        // TODO VR: still triggers sometimes
+        // TODO VR: (P2) still triggers sometimes
         bprint("uncovered angle case: '");
         bprint(ftos(angle));
         bprint("'\n");
@@ -3212,7 +3201,7 @@ void() wpnthrow_touch =
 
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
 
-        // TODO VR: calculate based on mult and velocity
+        // TODO VR: (P0) calculate based on mult and velocity
         adjDmg = 20 * PositionalDamageFactor(posDmgType);
 
         spawn_touchblood (adjDmg);
@@ -3315,12 +3304,11 @@ void(float xHand,
            xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
             // 1 and 2 ignored because you can only dual wield with no weapon out
-            // TODO VR: what to do?
+            // TODO VR: (P0) what to do?
 
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
-            // TODO VR: throwing axe lol
-            //if (xWeapon == WID_AXE)
+            // TODO VR: (P0) throwing weapons. refactor and cleanup
             {
                 newmis = spawn ();
                 newmis.owner = self;
@@ -3392,7 +3380,7 @@ void(float xHand,
     }
     else if (xWeapon != WID_FIST && xGrabbing && time >= xAttackFinished)
     {
-        // TODO VR: cvar to enable/disable
+        // TODO VR: (P0) cvar to enable/disable (there is one, use it)
         if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
@@ -3403,17 +3391,11 @@ void(float xHand,
     }
     else if (xWeapon == WID_FIST && xGrabbing)
     {
-        if(xHotspot == QVR_HS_NONE)
+        if(xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
-            // TODO VR: what to do?
-        }
-        else if(xHotspot == QVR_HS_OFFHAND_2H_GRAB)
-        {
-            // TODO VR: what to do?
-        }
-        else if(xHotspot == QVR_HS_MAINHAND_2H_GRAB)
-        {
-            // TODO VR: what to do?
+            // TODO VR: (P1) what to do? probably nothing
         }
         else if(isHolsterHotspot(xHotspot))
         {
@@ -3430,7 +3412,7 @@ void(float xHand,
     }
     else if (xWeapon == WID_FIST && !xGrabbing)
     {
-        // TODO VR: cvar to enable/disable
+        // TODO VR: (P0) cvar to enable/disable (there is one, use it)
         if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
@@ -3441,7 +3423,6 @@ void(float xHand,
     }
 }
 
-// TODO VR:
 void() W_Frame =
 {
     if (self.impulse)
@@ -3449,7 +3430,6 @@ void() W_Frame =
         ImpulseCommands ();
     }
 
-    // TODO VR:
     DoHandImpl(OFF_HAND,
                self.weapon2, &self.weapon2,
                self.offhand_grabbing, self.offhand_attack_finished, self.offhand_hotspot,
@@ -3495,17 +3475,19 @@ void() SuperDamageSound =
 };
 
 
-// TODO VR: stop switching weapons automatically, it makes no sense anymore.
+// TODO VR: (P0) stop switching weapons automatically, it makes no sense anymore.
 // Also dont automatically switch a weapon if ammo is out, player might want to
 // melee or throw it away. Consider spawning previously obtained weapons along
 // side ammo boxes or from enemies, so that they can be recovered if player
 // throws them away.
 
-// TODO VR: remove backpack spinning animation. Consider limiting weapons to
+// TODO VR: (P0) remove backpack spinning animation. Consider limiting weapons to
 // 6 (4 holsters + hands) to balance gameplay and dual wielding.
 
-// TODO VR: not sure why weapons cannot be juggled. too small size? problems
-// with handtouch?
+// TODO VR: (P0) keep track of number of weapons and weapons previously seen so
+// that they can be spawned near boxes and by corpses in immersive vr mode, and
+// so that you can only dual wield if you have two of one weapon
 
-// TODO VR: still need to fix oldwater...
+// TODO VR: (P0) not sure why weapons cannot be juggled. too small size? problems
+// with handtouch?
 

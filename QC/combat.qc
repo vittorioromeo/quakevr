@@ -106,7 +106,7 @@ void(entity targ, entity attacker) Killed =
     self = oself;
 };
 
-// TODO VR: rogue
+// TODO VR: (P2) rogue
 // ====
 // Function prototype for shield impact handler.
 // ====
@@ -141,7 +141,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
     IsExplosionDamage = 0;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // if (targ.items2 & IT2_SHIELD)
     // {
     //     // Allow some damage to pass through.
@@ -158,7 +158,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     if (attacker.super_damage_finished > time)
         damage = damage * 4;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // rune power up (Black Magic)
     // if (deathmatch)
     //    damage = RuneApplyBlack(damage, attacker);
@@ -183,7 +183,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
 // save damage based on the target's armor level
 
-// TODO VR: rogue
+// TODO VR: (P2) rogue
 //ZOID--
     // if (TeamArmorDam(targ, inflictor, attacker, damage))
         save = ceil(targ.armortype*damage);
@@ -258,7 +258,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         haptic(1, 0.0, 0.5, 30, 1.0);
     }
 
-// TODO VR: rogue
+// TODO VR: (P2) rogue
 // rune power up (Earth Magic)
     // if (deathmatch)
     //    take = RuneApplyEarth(take, targ);

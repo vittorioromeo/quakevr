@@ -96,6 +96,14 @@ enum class VrOptionHandSelection : int
     BothHands = 3
 };
 
+enum class VrPlayerShadows : int
+{
+    Off = 0,
+    ViewEntities = 1,
+    ThirdPerson = 2,
+    Both = 3
+};
+
 //
 //
 //
@@ -382,6 +390,7 @@ extern cvar_t vr_vrtorso_pitch;
 extern cvar_t vr_vrtorso_yaw;
 extern cvar_t vr_vrtorso_roll;
 extern cvar_t vr_holster_haptics;
+extern cvar_t vr_player_shadows;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

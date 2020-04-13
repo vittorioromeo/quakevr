@@ -7,7 +7,7 @@ KNIGHT
 */
 
 $cd id1/models/knight
-// TODO VR: rogue
+// TODO VR: (P2) rogue
 // $cd /raid/quake/id1/models/knight
 $origin 0 0 24
 $base base

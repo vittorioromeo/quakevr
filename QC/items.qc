@@ -203,7 +203,7 @@ void() health_touch =
     // Megahealth = rot down the player's super health
     if (self.healtype == 2)
     {
-// TODO VR: deal with superhealth hipnotic removal
+// TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
         other.items = other.items | IT_SUPERHEALTH;
         self.nextthink = time + 5;
@@ -237,7 +237,7 @@ void() item_megahealth_rot =
 
 // it is possible for a player to die and respawn between rots, so don't
 // just blindly subtract the flag off
-// TODO VR: deal with superhealth hipnotic removal
+// TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
     other.items = other.items - (other.items & IT_SUPERHEALTH);
 
@@ -423,7 +423,7 @@ float() W_BestWeapon;
 
 void() weapon_touch =
 {
-    // TODO VR: consider having monsters always drop a weapon.
+    // TODO VR: (P1) consider having monsters always drop a weapon.
 
     local    float    hadammo, best, newIt, old;
     local    entity    stemp;
@@ -551,12 +551,12 @@ void() weapon_touch =
 
     if (!deathmatch)
     {
-        // TODO VR: test that this works
-        // TODO VR: what happens to the current weapon? we should check for fist
         VRSetWeapon(self.touchinghand, ItemIdToWeaponId(newIt));
     }
     else
+    {
         Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
+    }
 
     W_SetCurrentAmmo();
 
@@ -837,7 +837,7 @@ void() item_rockets =
     }
     self.weapon = 3;
     self.netname = "rockets";
-    // TODO VR: fix this size
+    // TODO VR: (P1) fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -864,7 +864,7 @@ void() item_cells =
     }
     self.weapon = 4;
     self.netname = "cells";
-    // TODO VR: fix this size
+    // TODO VR: (P1) fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -1467,7 +1467,7 @@ void() DropBackpack =
     setmodel (item, "progs/backpack.mdl");
     setsize (item, '-8 -8 0', '8 8 24');
     item.handtouch = BackpackTouch;
-    // TODO VR: backpack spins because of MF_ROTATE/EF_ROTATE flag in mdl file
+    // TODO VR: (P2) backpack spins because of MF_ROTATE/EF_ROTATE flag in mdl file
 
     item.nextthink = time + 120;    // remove after 2 minutes
     item.think = SUB_Remove;

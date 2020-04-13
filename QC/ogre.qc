@@ -372,7 +372,7 @@ void()    ogre_die3    =[    $death3,    ogre_die4    ]
         self.solid = SOLID_NOT;
         if (self.spawnflags & OGRE_BOSS)
         {
-            // TODO VR: rogue
+            // TODO VR: (P2) rogue
             // self.ammo_multi_rockets = 2;
             self.ammo_rockets = 2;
         }
@@ -399,7 +399,7 @@ void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
         self.solid = SOLID_NOT;
         if (self.spawnflags & OGRE_BOSS)
         {
-            // TODO VR: rogue
+            // TODO VR: (P2) rogue
             // self.ammo_multi_rockets = 2;
             self.ammo_rockets = 2;
         }
@@ -489,7 +489,7 @@ void() monster_ogre =
 
     if (self.spawnflags & OGRE_BOSS)
     {
-        // TODO VR: rogue
+        // TODO VR: (P2) rogue
         // self.skin = 1;
     }
 

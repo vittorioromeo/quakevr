@@ -98,7 +98,7 @@ void(float xHand)    player_stand1 =
     {
         self.walkframe=0;
 
-        // TODO VR: this is the source of the animation bug, it used to be just
+        // TODO VR: (P0) this is the source of the animation bug, it used to be just
         // player_run() which is undefined. Investigate.
         // player_run(MAIN_HAND);
         return;
@@ -364,7 +364,7 @@ void(float xHand) player_grapple5 =
 //--ZOID
 //============================================================================
 
-// TODO VR: huge code repetition below
+// TODO VR: (P1) huge code repetition below
 
 void(float xHand) player_nail1 =
 {
@@ -592,21 +592,21 @@ local float        rs;
     return;
 };
 
-void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();/* TODO VR: self.weaponframe=0; */ };
+void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
 void()    player_pain2 =    [    $pain2,    player_pain3    ] {};
 void()    player_pain3 =    [    $pain3,    player_pain4    ] {};
 void()    player_pain4 =    [    $pain4,    player_pain5    ] {};
 void()    player_pain5 =    [    $pain5,    player_pain6    ] {};
 void()    player_pain6 =    [    $pain6,    player_run_no_arg    ] {};
 
-void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();/* TODO VR: self.weaponframe=0; */ };
+void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
 void()    player_axpain2 =    [    $axpain2,    player_axpain3    ] {};
 void()    player_axpain3 =    [    $axpain3,    player_axpain4    ] {};
 void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
 void()    player_axpain6 =    [    $axpain6,    player_run_no_arg    ] {};
 
-void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound(); /* TODO VR: self.weaponframe=0; */ };
+void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound(); /* TODO VR: (P2) self.weaponframe=0; */ };
 void()   player_hampain2 =  [  19,   player_hampain3 ] {};
 void()   player_hampain3 =  [  20,   player_hampain4 ] {};
 void()   player_hampain4 =  [  21,   player_hampain5 ] {};

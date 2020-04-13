@@ -190,7 +190,7 @@ void () GrappleAnchor =
     if (other.classname == "player")
     {
         // glance off of teammates
-        // TODO VR: rogue
+        // TODO VR: (P2) rogue
         // if (other.steam == self.owner.steam)
         // {
         //     GrappleReset();        // PGM - fix drift after teammate hit  01/20/97
@@ -290,7 +290,7 @@ void(float xHand) GrappleService =
     makevectors (VRGetHandRot(xHand));
 
     if (!getOnHook(xHand)) {
-        // TODO VR: still wonky position on hook , dunno why
+        // TODO VR: (P2) still wonky position on hook , dunno why
         GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
         return;
     }
@@ -298,7 +298,7 @@ void(float xHand) GrappleService =
     // drop the hook if player lets go of button
     if ((!VRFireButtonPressed(xHand)) ||
         self.teleport_time > time ||
-        VRGetWeapon(xHand) != WID_GRAPPLE) // TODO VR: assumes offhand (TODO dual-wielding)
+        VRGetWeapon(xHand) != WID_GRAPPLE)
     { // release when we get 'ported
         self = xHook;
         GrappleResetFromPlayer(xHand);

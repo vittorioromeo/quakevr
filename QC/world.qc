@@ -159,7 +159,8 @@ void() main =
 
     // HIPNOTIC
     // precache_file ("maps/start.bsp");
-    // TODO VR: conflicts with main game
+    // TODO VR: (P1) conflicts with main game, copy original start.bsp in my pak
+    // as it is shareware, OK to distribute.
 
     precache_file ("maps/hip1m1.bsp");
     precache_file ("maps/hip1m2.bsp");
@@ -356,7 +357,7 @@ void() worldspawn =
     // ROGUE
     // PGM addition
     precache_model ("progs/mervup.mdl");
-    // TODO VR: rogue...
+    // TODO VR: (P2) rogue...
 
     // ROGUE
 //ZOID--
@@ -476,6 +477,6 @@ void(entity ent) CopyToBodyQue =
     bodyque_head = bodyque_head.owner;
 };
 
-// TODO VR: ideas:
+// TODO VR: (P2) ideas:
 // * monster variants
 // * chance to spawn hipnotic monsters in normal quake

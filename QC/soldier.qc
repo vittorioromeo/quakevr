@@ -182,11 +182,11 @@ void() army_fire =
 
     sound (self, CHAN_WEAPON, "soldier/sattck1.wav", 1, ATTN_NORM);
 
-    // TODO VR: opportunity for extra difficulty
+    // TODO VR: (P2) opportunity for extra difficulty
     // fire somewhat behind the player, so a dodging player is harder to hit
     en = self.enemy;
 
-    // TODO VR: this works
+    // TODO VR: (P1) this works
     // self.scale = ((self.scale + '1 1 1') * 1.1) - '1 1 1';
 
     dir = en.origin - en.velocity*0.2;
@@ -194,7 +194,7 @@ void() army_fire =
 
     EnemyFireBullets (4, dir, '0.1 0.1 0');
 
-    // TODO VR: nail shooting variant?
+    // TODO VR: (P2) nail shooting variant?
     // makevectors(self.angles);
     // src = self.origin - '0 0 19' + v_forward*14;
     // vec = (self.enemy.origin + (200*v_forward)) - src;
@@ -285,7 +285,7 @@ void() monster_army =
 
     setsize (self, '-12 -12 -24', '12 12 26');
 
-    // TODO VR: this works
+    // TODO VR: (P1) this works
     // self.scale_origin = '0 0 25';
 
     self.health = 30;

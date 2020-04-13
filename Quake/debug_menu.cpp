@@ -32,16 +32,32 @@ extern cvar_t skill;
     m.add_action_entry("Noclip", runCmd("noclip"));
     m.add_action_entry("Fly", runCmd("fly"));
 
+    m.add_separator();
+
     m.add_cvar_getter_enum_entry<int>(        //
         "Skill",                              //
         [] { return &skill; },                //
         "Easy", "Normal", "Hard", "Nightmare" //
     );
 
+    m.add_separator();
+
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
     m.add_cvar_entry<bool>("Show Shadows", r_shadows);
+
+    m.add_cvar_getter_enum_entry<VrPlayerShadows>( //
+        "Player Shadows",                          //
+        [] { return &vr_player_shadows; },         //
+        "Off",                                     //
+        "View Entities",                           //
+        "Third Person",                            //
+        "Both");
+
+    m.add_separator();
+
     m.add_cvar_entry<bool>(
         "Show VR Torso Debug Lines", vr_vrtorso_debuglines_enabled);
+
     m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
 
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});

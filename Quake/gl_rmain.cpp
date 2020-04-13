@@ -1064,6 +1064,7 @@ void R_DrawShadows()
             continue;
         }
 
+        // TODO VR: (P2) repetition here to check player view entities
         if(currententity == &cl.viewent ||
             currententity == &cl.offhand_viewent ||
             currententity == &cl.left_hip_holster ||
@@ -1089,18 +1090,31 @@ void R_DrawShadows()
         }
     };
 
-    drawViewentShadow(&cl.viewent);
-    drawViewentShadow(&cl.offhand_viewent);
-    drawViewentShadow(&cl.left_hip_holster);
-    drawViewentShadow(&cl.right_hip_holster);
-    drawViewentShadow(&cl.left_upper_holster);
-    drawViewentShadow(&cl.right_upper_holster);
-    drawViewentShadow(&cl.left_hand);
-    drawViewentShadow(&cl.right_hand);
+    // VR: Draw view entity shadows.
+    {
+        const auto playerShadows =
+            static_cast<VrPlayerShadows>(vr_player_shadows.value);
 
-    // TODO VR: (P0) decide what player shadows to display, or add cvar
-    // drawViewentShadow(&cl.vrtorso);
-    drawViewentShadow(&cl_entities[cl.viewentity]);
+        if(playerShadows == VrPlayerShadows::ViewEntities ||
+            playerShadows == VrPlayerShadows::Both)
+        {
+            drawViewentShadow(&cl.viewent);
+            drawViewentShadow(&cl.offhand_viewent);
+            drawViewentShadow(&cl.left_hip_holster);
+            drawViewentShadow(&cl.right_hip_holster);
+            drawViewentShadow(&cl.left_upper_holster);
+            drawViewentShadow(&cl.right_upper_holster);
+            drawViewentShadow(&cl.left_hand);
+            drawViewentShadow(&cl.right_hand);
+            drawViewentShadow(&cl.vrtorso);
+        }
+
+        if(playerShadows == VrPlayerShadows::ThirdPerson ||
+            playerShadows == VrPlayerShadows::Both)
+        {
+            drawViewentShadow(&cl_entities[cl.viewentity]);
+        }
+    }
 
     if(gl_stencilbits)
     {

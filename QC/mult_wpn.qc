@@ -110,11 +110,11 @@ void() W_FireMultiGrenade =
 {
     local    entity missile;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // self.currentammo = self.ammo_multi_rockets = self.ammo_multi_rockets - 1;
     self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
     sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
@@ -331,11 +331,11 @@ void(float offset, float frameNum) MultiRocketLaunch =
 //================================
 void() W_FireMultiRocket =
 {
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // self.currentammo = self.ammo_multi_rockets = self.ammo_multi_rockets - 1;
     self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
     sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
@@ -528,7 +528,7 @@ void(vector org, vector dir) launch_plasma =
 //================================
 //================================
 
-// TODO VR: rogue
+// TODO VR: (P2) rogue
 /*
 void() W_FirePlasma =
 {
@@ -553,7 +553,7 @@ void() W_FirePlasma =
     }
     self.currentammo = self.ammo_plasma = self.ammo_plasma - 1;
 
-    // TODO VR: rogue
+    // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
     sound (self, CHAN_WEAPON, "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;

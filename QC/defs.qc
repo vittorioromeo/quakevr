@@ -150,7 +150,7 @@ void        end_sys_globals;        // flag for structure dumping
 .string       weaponmodel2;
 .float        weaponframe2;
 
-// TODO VR:
+// TODO VR: (P2) document, check meaning of prevweapon
 .float prevweapon;
 .float prevweapon2;
 .float holsterweapon0;
@@ -328,7 +328,7 @@ float    SOLID_TRIGGER            = 1;    // touch on edge, but not blocking
 float    SOLID_BBOX               = 2;    // touch on edge, block
 float    SOLID_SLIDEBOX           = 3;    // touch on edge, but not an onground
 float    SOLID_BSP                = 4;    // bsp clip, touch on edge, block
-float    SOLID_NOT_BUT_TOUCHABLE  = 5;    // TODO VR:
+float    SOLID_NOT_BUT_TOUCHABLE  = 5;    // not solid, but can be [hand]touched
 
 // range values
 float    RANGE_MELEE              = 0;
@@ -350,7 +350,7 @@ float    DAMAGE_YES               = 1;
 float    DAMAGE_AIM               = 2;
 
 // items
-// TODO VR:
+// TODO VR: (P2) decide what to do with these, as they are not enough
 float    IT_FIST                  = 0;
 float    IT_SHOTGUN               = 1;
 float    IT_SUPER_SHOTGUN         = 2;
@@ -369,10 +369,10 @@ float    IT_AXE                   = 4096;
 float    IT_ARMOR1                = 8192;
 float    IT_ARMOR2                = 16384;
 float    IT_ARMOR3                = 32768;
-// TODO VR: deal with this, hipnotic comments the line below
+// TODO VR: (P1) deal with this, hipnotic comments the line below
 //MED 11/02/96 added new hip weapon removed SUPERHEALTH
 float    IT_SUPERHEALTH           = 65536;
-// TODO VR: this conflicts with super health
+// TODO VR: (P1) this conflicts with super health
 float    IT_PROXIMITY_GUN         = 65536;
 
 float    IT_KEY1                  = 131072;
