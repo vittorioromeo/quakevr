@@ -1010,6 +1010,14 @@ void R_ShowTris()
 
         // vrtorso
         doViewmodel(&cl.vrtorso);
+
+        // hip holsters slots
+        doViewmodel(&cl.left_hip_holster_slot);
+        doViewmodel(&cl.right_hip_holster_slot);
+
+        // upper holsters slots
+        doViewmodel(&cl.left_upper_holster_slot);
+        doViewmodel(&cl.right_upper_holster_slot);
     }
 
     extern cvar_t r_particles;
@@ -1072,7 +1080,11 @@ void R_DrawShadows()
             currententity == &cl.left_upper_holster ||
             currententity == &cl.right_upper_holster ||
             currententity == &cl.left_hand || currententity == &cl.right_hand ||
-            currententity == &cl.vrtorso)
+            currententity == &cl.vrtorso ||
+            currententity == &cl.left_hip_holster_slot ||
+            currententity == &cl.right_hip_holster_slot ||
+            currententity == &cl.left_upper_holster_slot ||
+            currententity == &cl.right_upper_holster_slot)
         {
             // View entities are drawn manually below.
             continue;
@@ -1093,7 +1105,7 @@ void R_DrawShadows()
     // VR: Draw view entity shadows.
     {
         const auto playerShadows =
-            static_cast<VrPlayerShadows>(vr_player_shadows.value);
+            static_cast<VrPlayerShadows>(static_cast<int>(vr_player_shadows.value));
 
         if(playerShadows == VrPlayerShadows::ViewEntities ||
             playerShadows == VrPlayerShadows::Both)
@@ -1107,6 +1119,10 @@ void R_DrawShadows()
             drawViewentShadow(&cl.left_hand);
             drawViewentShadow(&cl.right_hand);
             drawViewentShadow(&cl.vrtorso);
+            drawViewentShadow(&cl.left_hip_holster_slot);
+            drawViewentShadow(&cl.right_hip_holster_slot);
+            drawViewentShadow(&cl.left_upper_holster_slot);
+            drawViewentShadow(&cl.right_upper_holster_slot);
         }
 
         if(playerShadows == VrPlayerShadows::ThirdPerson ||
@@ -1167,6 +1183,17 @@ void R_RenderScene()
 
     // VR: This is what draws the offhand.
     R_DrawViewModel(&cl.offhand_viewent);
+
+    if(vr_leg_holster_model_enabled.value)
+    {
+        // VR: This is what draws the hip holsters slots.
+        R_DrawViewModel(&cl.left_hip_holster_slot);
+        R_DrawViewModel(&cl.right_hip_holster_slot);
+
+        // VR: This is what draws the upper holsters slots.
+        R_DrawViewModel(&cl.left_upper_holster_slot);
+        R_DrawViewModel(&cl.right_upper_holster_slot);
+    }
 
     // VR: This is what draws the hip holsters.
     R_DrawViewModel(&cl.left_hip_holster);

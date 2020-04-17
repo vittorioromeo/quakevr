@@ -52,6 +52,19 @@
 
     // ------------------------------------------------------------------------
 
+    m.add_separator();
+
+    m.add_cvar_entry<bool>("Show Holster Slots", vr_leg_holster_model_enabled);
+    m.add_cvar_entry<float>(
+        "Holster Slot Scale", vr_leg_holster_model_scale, vrtSBounds);
+
+    m.add_cvar_entry<float>(
+        "Holster Slot X", vr_leg_holster_model_x_offset, vrtOBounds);
+    m.add_cvar_entry<float>(
+        "Holster Slot Y", vr_leg_holster_model_y_offset, vrtOBounds);
+    m.add_cvar_entry<float>(
+        "Holster Slot Z", vr_leg_holster_model_z_offset, vrtOBounds);
+
     return m;
 }
 
@@ -68,6 +81,7 @@ void M_VRTorso_Key(int key)
 
     // TODO VR: (P2) hackish
     VR_ModVRTorsoModel();
+    VR_ModVRLegHolsterModel();
 }
 
 void M_VRTorso_Draw()

@@ -1077,9 +1077,8 @@ void V_CalcRefdef()
     }
     // johnfitz
 
-    // TODO VR: (P2) add to vr view? the onground evaluates to false, this is why
-    // it doesnt work
-    // smooth out stair step ups
+    // TODO VR: (P2) add to vr view? the onground evaluates to false, this is
+    // why it doesnt work smooth out stair step ups
     if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
     {
         // johnfitz -- added exception for noclip
@@ -1171,6 +1170,27 @@ void V_SetupVRTorsoViewEnt()
     view.origin += vRight * vr_vrtorso_y_offset.value;
     view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
     view.origin[2] += vr_vrtorso_z_offset.value;
+}
+
+void V_SetupHolsterSlotViewEnt(const glm::vec3& pos, entity_t* view,
+    const float pitch, const float yaw, const float roll, const bool horizflip)
+{
+    view->angles[PITCH] = pitch;
+    view->angles[YAW] = yaw;
+    view->angles[ROLL] = roll;
+
+    view->origin = pos;
+    view->model = Mod_ForName("progs/legholster.mdl", true);
+
+    view->frame = 0;
+    view->colormap = vid.colormap;
+
+    view->horizflip = horizflip;
+
+    if(chase_active.value)
+    {
+        Chase_UpdateForDrawing(r_refdef, view); // johnfitz
+    }
 }
 
 void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
@@ -1349,6 +1369,26 @@ void V_RenderView()
         V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL5],
             VR_GetRightUpperPos(), &cl.right_upper_holster, -20.f,
             playerBodyYaw + 180.f, 0.f, false);
+
+        // TODO VR: (P2) code repetition between holsters and slots
+        if(vr_leg_holster_model_enabled.value)
+        {
+            V_SetupHolsterSlotViewEnt(VR_GetLeftHipPos(),
+                &cl.left_hip_holster_slot, -0.f, playerBodyYaw - 10.f, 0.f,
+                true);
+
+            V_SetupHolsterSlotViewEnt(VR_GetRightHipPos(),
+                &cl.right_hip_holster_slot, -0.f, playerBodyYaw + 10.f, 0.f,
+                false);
+
+            V_SetupHolsterSlotViewEnt(VR_GetLeftUpperPos(),
+                &cl.left_upper_holster_slot, -30.f, playerBodyYaw - 10.f, 0.f,
+                true);
+
+            V_SetupHolsterSlotViewEnt(VR_GetRightUpperPos(),
+                &cl.right_upper_holster_slot, -30.f, playerBodyYaw + 10.f, 0.f,
+                false);
+        }
 
         // -------------------------------------------------------------------
         // VR: Setup main hand.
