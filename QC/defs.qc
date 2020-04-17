@@ -42,7 +42,22 @@ float        killed_monsters;    // number of monsters killed
 
 // spawnparms are used to encode information about clients across server
 // level changes
-float        parm1, parm2, parm3, parm4, parm5, parm6, parm7, parm8, parm9, parm10, parm11, parm12, parm13, parm14, parm15, parm16;
+float        parm1;  // items
+float        parm2;  // health
+float        parm3;  // armorvalue
+float        parm4;  // ammo_shells
+float        parm5;  // ammo_nails
+float        parm6;  // ammo_rockets
+float        parm7;  // ammo_cells
+float        parm8;  // weapon
+float        parm9;  // armortype
+float        parm10; // weapon2
+float        parm11; // holsterweapon0
+float        parm12; // holsterweapon1
+float        parm13; // holsterweapon2
+float        parm14; // holsterweapon3
+float        parm15; // holsterweapon4
+float        parm16; // holsterweapon5
 
 //
 // global variables set by built in functions
@@ -244,6 +259,7 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        handpos;
 .vector        handrot;
 .vector        handvel;
+.vector        handthrowvel;
 .float         handvelmag;
 .vector        handavel;
 
@@ -252,6 +268,7 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        offhandpos;
 .vector        offhandrot;
 .vector        offhandvel;
+.vector        offhandthrowvel;
 .float        offhandvelmag;
 .vector        offhandavel;
 
@@ -261,7 +278,9 @@ void        end_sys_globals;        // flag for structure dumping
 .float        teleporting;
 .vector        teleport_target;
 .float        offhand_grabbing;
+.float        offhand_prevgrabbing;
 .float        mainhand_grabbing;
+.float        mainhand_prevgrabbing;
 .float        offhand_hotspot;
 .float        mainhand_hotspot;
 .vector       roomscalemove;
@@ -307,6 +326,7 @@ float    FL_ONGROUND              = 512;  // standing on something
 float    FL_PARTIALGROUND         = 1024; // not all corners are valid
 float    FL_WATERJUMP             = 2048; // player jumping out of water
 float    FL_JUMPRELEASED          = 4096; // for jump debouncing
+float    FL_EASYHANDTOUCH         = 8192; // adds bonus to boundaries for handtouch
 
 // edict.movetype values
 float    MOVETYPE_NONE            = 0;    // never moves
@@ -385,19 +405,19 @@ float    IT_QUAD                  = 4194304;
 float    IT_LASER_CANNON          = 8388608;
 
 // weapon ids
-float    WID_AXE                   = 0;
-float    WID_MJOLNIR               = 1;
-float    WID_SHOTGUN               = 2;
-float    WID_SUPER_SHOTGUN         = 3;
-float    WID_NAILGUN               = 4;
-float    WID_SUPER_NAILGUN         = 5;
-float    WID_GRENADE_LAUNCHER      = 6;
-float    WID_PROXIMITY_GUN         = 7;
-float    WID_ROCKET_LAUNCHER       = 8;
-float    WID_LIGHTNING             = 9;
-float    WID_LASER_CANNON          = 10;
-float    WID_FIST                  = 11;
-float    WID_GRAPPLE               = 12;
+float    WID_FIST                  = 0;
+float    WID_GRAPPLE               = 1;
+float    WID_AXE                   = 2;
+float    WID_MJOLNIR               = 3;
+float    WID_SHOTGUN               = 4;
+float    WID_SUPER_SHOTGUN         = 5;
+float    WID_NAILGUN               = 6;
+float    WID_SUPER_NAILGUN         = 7;
+float    WID_GRENADE_LAUNCHER      = 8;
+float    WID_PROXIMITY_GUN         = 9;
+float    WID_ROCKET_LAUNCHER       = 10;
+float    WID_LIGHTNING             = 11;
+float    WID_LASER_CANNON          = 12;
 
 // ammo ids
 float    AID_SHELLS                = 0;
@@ -523,6 +543,9 @@ entity    damage_attacker;    // set by T_Damage
 float    framecount;
 
 float        skill;
+
+float    readytime; // time after loading a map when the player is considered
+                    // ready
 
 //================================================
 

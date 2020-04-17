@@ -22,6 +22,7 @@
 #include <gtx/euler_angles.hpp>
 #include <gtx/rotate_vector.hpp>
 #include <gtx/io.hpp>
+#include <gtx/vec_swizzle.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

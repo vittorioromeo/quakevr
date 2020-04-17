@@ -559,10 +559,8 @@ void SV_ReadClientMove(usercmd_t* move)
         }
     };
 
-    const auto readVec = [&](auto& target) {
-        target[0] = MSG_ReadFloat();
-        target[1] = MSG_ReadFloat();
-        target[2] = MSG_ReadFloat();
+    const auto readVec = [&]() -> glm::vec3 {
+        return {MSG_ReadFloat(), MSG_ReadFloat(), MSG_ReadFloat()};
     };
 
     // aimangles
@@ -572,56 +570,30 @@ void SV_ReadClientMove(usercmd_t* move)
     readAngles(host_client->edict->v.v_viewangle);
 
     // ------------------------------------------------------------------------
-    // main hand: handpos, handrot, handvel, handvelmag, handavel
-    // handpos
-    readVec(move->handpos);
-    host_client->edict->v.handpos = move->handpos;
-
-    // handrot
-    readVec(move->handrot);
-    host_client->edict->v.handrot = move->handrot;
-
-    // handvel
-    readVec(move->handvel);
-    host_client->edict->v.handvel = move->handvel;
-
-    // handvelmag
+    // main hand values:
+    host_client->edict->v.handpos = move->handpos = readVec();
+    host_client->edict->v.handrot = move->handrot = readVec();
+    host_client->edict->v.handvel = move->handvel = readVec();
+    host_client->edict->v.handthrowvel = move->handthrowvel = readVec();
     host_client->edict->v.handvelmag = move->handvelmag = MSG_ReadFloat();
-
-    // handavel
-    readVec(move->handavel);
-    host_client->edict->v.handavel = move->handavel;
+    host_client->edict->v.handavel = move->handavel = readVec();
     // ------------------------------------------------------------------------
 
     // ------------------------------------------------------------------------
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag, offhandavel
-    // offhandpos
-    readVec(move->offhandpos);
-    host_client->edict->v.offhandpos = move->offhandpos;
-
-    // offhandrot
-    readVec(move->offhandrot);
-    host_client->edict->v.offhandrot = move->offhandrot;
-
-    // offhandvel
-    readVec(move->offhandvel);
-    host_client->edict->v.offhandvel = move->offhandvel;
-
-    // offhandvelmag
+    // off hand values:
+    host_client->edict->v.offhandpos = move->offhandpos = readVec();
+    host_client->edict->v.offhandrot = move->offhandrot = readVec();
+    host_client->edict->v.offhandvel = move->offhandvel = readVec();
+    host_client->edict->v.offhandthrowvel = move->offhandthrowvel = readVec();
     host_client->edict->v.offhandvelmag = move->offhandvelmag = MSG_ReadFloat();
-
-    // offhandavel
-    readVec(move->offhandavel);
-    host_client->edict->v.offhandavel = move->offhandavel;
+    host_client->edict->v.offhandavel = move->offhandavel = readVec();
     // ------------------------------------------------------------------------
 
     // muzzlepos
-    readVec(move->muzzlepos);
-    host_client->edict->v.muzzlepos = move->muzzlepos;
+    host_client->edict->v.muzzlepos = move->muzzlepos = readVec();
 
     // offmuzzlepos
-    readVec(move->offmuzzlepos);
-    host_client->edict->v.offmuzzlepos = move->offmuzzlepos;
+    host_client->edict->v.offmuzzlepos = move->offmuzzlepos = readVec();
 
     // movement
     move->forwardmove = MSG_ReadShort();
@@ -630,13 +602,16 @@ void SV_ReadClientMove(usercmd_t* move)
 
     // teleportation
     host_client->edict->v.teleporting = move->teleporting = MSG_ReadShort();
-    readVec(move->teleport_target);
-    host_client->edict->v.teleport_target = move->teleport_target;
+    host_client->edict->v.teleport_target = move->teleport_target = readVec();
 
     // hands
     host_client->edict->v.offhand_grabbing = move->offhand_grabbing =
         MSG_ReadShort();
+    host_client->edict->v.offhand_prevgrabbing = move->offhand_prevgrabbing =
+        MSG_ReadShort();
     host_client->edict->v.mainhand_grabbing = move->mainhand_grabbing =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_prevgrabbing = move->mainhand_prevgrabbing =
         MSG_ReadShort();
     host_client->edict->v.offhand_hotspot = move->offhand_hotspot =
         MSG_ReadShort();
@@ -644,8 +619,7 @@ void SV_ReadClientMove(usercmd_t* move)
         MSG_ReadShort();
 
     // roomscalemove
-    readVec(move->roomscalemove);
-    host_client->edict->v.roomscalemove = move->roomscalemove;
+    host_client->edict->v.roomscalemove = move->roomscalemove = readVec();
 
     // read buttons
     bits = MSG_ReadByte();

@@ -483,7 +483,7 @@ void() monster_scourge =
 
     setmodel (self, "progs/scor.mdl");
 
-    // TODO VR: tweak hitbox
+    // TODO VR: (P2) tweak hitbox
     setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 300;
 

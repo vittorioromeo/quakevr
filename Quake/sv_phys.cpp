@@ -626,8 +626,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.groundentity = EDICT_TO_PROG(pusher);
         }
 
-        // TODO VR: (P0) rename
-        const auto diocane = [&](edict_t* ent, const float xf, const float yf) {
+        const auto checkBlockScaled = [&](edict_t* ent, const float xf,
+                                          const float yf) {
             const auto nmins = ent->v.mins * glm::vec3{xf, xf, yf};
             const auto nmaxs = ent->v.maxs * glm::vec3{xf, xf, yf};
 
@@ -640,7 +640,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
         // if it is still inside the pusher, block
         const auto maxHMove = std::max(std::abs(move.x), std::abs(move.y));
         const bool verticalMove = std::abs(move.z) > maxHMove;
-        edict_t* block = diocane(check, 1.f, verticalMove ? 0.95f : 1.f);
+        edict_t* const block =
+            checkBlockScaled(check, 1.f, verticalMove ? 0.95f : 1.f);
         if(block)
         {
             // fail the move
@@ -1063,8 +1064,7 @@ void SV_Handtouch(edict_t* ent)
     // TODO VR: (P2) cleanup, too much unnecessary tracing and work
 
     // Utility constants
-    const glm::vec3 handMins{-2.5f, -2.5f, -2.5f};
-    const glm::vec3 handMaxs{2.5f, 2.5f, 2.5f};
+    const glm::vec3 handOffsets{2.5f, 2.5f, 2.5f};
 
     // Figure out tracing boundaries
     // (Largest possible volume containing the hands and the player)
@@ -1076,12 +1076,12 @@ void SV_Handtouch(edict_t* ent)
         const auto playerAbsMax = playerOrigin + playerMaxs;
 
         const auto& mainHandOrigin = ent->v.handpos;
-        const auto mainHandAbsMin = mainHandOrigin + handMins;
-        const auto mainHandAbsMax = mainHandOrigin + handMaxs;
+        const auto mainHandAbsMin = mainHandOrigin - handOffsets;
+        const auto mainHandAbsMax = mainHandOrigin + handOffsets;
 
         const auto& offHandOrigin = ent->v.offhandpos;
-        const auto offHandAbsMin = offHandOrigin + handMins;
-        const auto offHandAbsMax = offHandOrigin + handMaxs;
+        const auto offHandAbsMin = offHandOrigin - handOffsets;
+        const auto offHandAbsMax = offHandOrigin + handOffsets;
 
         const glm::vec3 minBound{
             std::min({playerAbsMin.x, mainHandAbsMin.x, offHandAbsMin.x}),
@@ -1106,10 +1106,18 @@ void SV_Handtouch(edict_t* ent)
 
         const auto handCollisionCheck = [&](const int hand,
                                             const glm::vec3& handPos) {
-            const glm::vec3 aMin = trace.ent->v.origin + trace.ent->v.mins;
-            const glm::vec3 aMax = trace.ent->v.origin + trace.ent->v.maxs;
-            const glm::vec3 bMin = handPos + handMins;
-            const glm::vec3 bMax = handPos + handMaxs;
+            const float bonus = ((int)trace.ent->v.flags & FL_EASYHANDTOUCH)
+                                    ? VR_GetEasyHandTouchBonus()
+                                    : 0.f;
+
+            const glm::vec3 bonusVec{bonus, bonus, bonus};
+
+            const glm::vec3 aMin =
+                trace.ent->v.origin + trace.ent->v.mins - bonusVec;
+            const glm::vec3 aMax =
+                trace.ent->v.origin + trace.ent->v.maxs + bonusVec;
+            const glm::vec3 bMin = handPos - handOffsets;
+            const glm::vec3 bMax = handPos + handOffsets;
 
             if(quake::util::boxIntersection(aMin, aMax, bMin, bMax))
             {
@@ -1143,7 +1151,7 @@ void SV_Handtouch(edict_t* ent)
         const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
         const auto end = handPos + fwd * 1.f;
 
-        return SV_Move(handPos, handMins, handMaxs, end, MOVE_NORMAL, ent);
+        return SV_Move(handPos, -handOffsets, handOffsets, end, MOVE_NORMAL, ent);
     };
 
     traceCheck(traceForHand(ent->v.handpos, ent->v.handrot));
@@ -1194,7 +1202,6 @@ void SV_Physics_Client(edict_t* ent, int num)
         }
 
         ent->v.teleport_time = sv.time + 0.3;
-        ent->v.teleport_target[2] += 12;
         ent->v.origin = ent->v.teleport_target;
         ent->v.oldorigin = ent->v.teleport_target;
     }

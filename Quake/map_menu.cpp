@@ -15,6 +15,8 @@ using namespace std::literals;
 
 // clang-format off
 static const std::array maps{
+    "orig_start"sv,
+    "start"sv,
     "e1m1"sv,
     "e1m2"sv,
     "e1m3"sv,

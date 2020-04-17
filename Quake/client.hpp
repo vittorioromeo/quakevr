@@ -183,6 +183,7 @@ struct client_state_t
     glm::vec3 handrot[2];
     glm::vec3 prevhandrot[2];
     glm::vec3 handvel[2];
+    glm::vec3 handthrowvel[2];
     float handvelmag[2];
     glm::vec3 handavel[2];
 
@@ -242,6 +243,7 @@ struct client_state_t
     // repetition
     entity_t viewent;         // the gun model
     entity_t offhand_viewent; // the offhand gun model
+
     entity_t left_hip_holster;
     entity_t right_hip_holster;
     entity_t left_upper_holster;
@@ -249,6 +251,10 @@ struct client_state_t
     entity_t vrtorso;
     entity_t left_hand;
     entity_t right_hand;
+    entity_t left_hip_holster_slot;
+    entity_t right_hip_holster_slot;
+    entity_t left_upper_holster_slot;
+    entity_t right_upper_holster_slot;
 
     int cdtrack, looptrack; // cd audio
 

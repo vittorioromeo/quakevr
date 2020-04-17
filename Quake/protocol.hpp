@@ -293,11 +293,13 @@ struct usercmd_t
     glm::vec3 handpos;
     glm::vec3 handrot;
     glm::vec3 handvel;
+    glm::vec3 handthrowvel;
     float handvelmag;
     glm::vec3 handavel;
     glm::vec3 offhandpos;
     glm::vec3 offhandrot;
     glm::vec3 offhandvel;
+    glm::vec3 offhandthrowvel;
     float offhandvelmag;
     glm::vec3 offhandavel;
     glm::vec3 muzzlepos;
@@ -314,7 +316,9 @@ struct usercmd_t
 
     // VR hands
     int offhand_grabbing;
+    int offhand_prevgrabbing;
     int mainhand_grabbing;
+    int mainhand_prevgrabbing;
     int offhand_hotspot;
     int mainhand_hotspot;
 

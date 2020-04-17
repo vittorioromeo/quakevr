@@ -87,9 +87,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     (0.03125f) // 1/32 epsilon to keep floating point happy (moved from world.c)
 
 #define MAX_MSGLEN \
-    64000 // max length of a reliable message //ericw -- was 32000
+    96000 // max length of a reliable message //ericw -- was 32000
 #define MAX_DATAGRAM \
-    32000 // max length of unreliable message //johnfitz -- was 1024
+    64000 // max length of unreliable message //johnfitz -- was 1024
 
 #define DATAGRAM_MTU \
     1400 // johnfitz -- actual limit for unreliable messages to nonlocal clients
@@ -217,19 +217,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //===========================================
 
 // weapon ids
-#define WID_AXE 0
-#define WID_MJOLNIR 1
-#define WID_SHOTGUN 2
-#define WID_SUPER_SHOTGUN 3
-#define WID_NAILGUN 4
-#define WID_SUPER_NAILGUN 5
-#define WID_GRENADE_LAUNCHER 6
-#define WID_PROXIMITY_GUN 7
-#define WID_ROCKET_LAUNCHER 8
-#define WID_LIGHTNING 9
-#define WID_LASER_CANNON 10
-#define WID_FIST 11
-#define WID_GRAPPLE 12
+#define WID_FIST 0
+#define WID_GRAPPLE 1
+#define WID_AXE 2
+#define WID_MJOLNIR 3
+#define WID_SHOTGUN 4
+#define WID_SUPER_SHOTGUN 5
+#define WID_NAILGUN 6
+#define WID_SUPER_NAILGUN 7
+#define WID_GRENADE_LAUNCHER 8
+#define WID_PROXIMITY_GUN 9
+#define WID_ROCKET_LAUNCHER 10
+#define WID_LIGHTNING 11
+#define WID_LASER_CANNON 12
 
 // ammo ids
 #define AID_SHELLS 0

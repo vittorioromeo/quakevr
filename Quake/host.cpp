@@ -56,6 +56,7 @@ int minimum_memory;
 client_t* host_client; // current client
 
 jmp_buf host_abortserver;
+bool host_abortserver_setjmp_done{false};
 
 byte* host_colormap;
 
@@ -159,6 +160,11 @@ void Host_EndGame(const char* message, ...)
         CL_Disconnect();
     }
 
+    if(!host_abortserver_setjmp_done)
+    {
+        std::terminate();
+    }
+
     longjmp(host_abortserver, 1);
 }
 
@@ -233,6 +239,11 @@ void Host_Error(const char* error, ...)
                          // (changelevel with no map found, etc.)
 
     inerror = false;
+
+    if(!host_abortserver_setjmp_done)
+    {
+        std::terminate();
+    }
 
     longjmp(host_abortserver, 1);
 }
@@ -809,9 +820,12 @@ void _Host_Frame(float time)
 
     int pass3;
 
-    if(setjmp(host_abortserver))
     {
-        return; // something bad happened, or the server disconnected
+        host_abortserver_setjmp_done = true;
+        if(setjmp(host_abortserver))
+        {
+            return; // something bad happened, or the server disconnected
+        }
     }
 
     // keep the random time dependent

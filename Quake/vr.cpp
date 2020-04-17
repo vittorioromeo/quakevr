@@ -190,7 +190,9 @@ bool vr_teleporting_impact_valid{false};
 bool vr_send_teleport_msg{false};
 glm::vec3 vr_teleporting_impact{vec3_zero};
 bool vr_left_grabbing{false};
+bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
+bool vr_right_prevgrabbing{false};
 
 // TODO VR: (P1) should these be per-gun arrays?
 bool vr_gun_colliding_with_wall{false};
@@ -220,6 +222,9 @@ int vr_impl_draw_wpnoffset_helper_offset{0};
 int vr_impl_draw_wpnoffset_helper_muzzle{0};
 int vr_impl_draw_wpnoffset_helper_2h_offset{0};
 
+float vr_debug_max_handvelmag{0.f};
+float vr_debug_max_handvelmag_timeout{0.f};
+
 //
 //
 //
@@ -245,7 +250,7 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
 
 DEFINE_CVAR_ARCHIVE(vr_crosshair, 1);
 DEFINE_CVAR_ARCHIVE(vr_crosshair_depth, 0);
@@ -335,7 +340,16 @@ DEFINE_CVAR_ARCHIVE(vr_vrtorso_pitch, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_vrtorso_yaw, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_vrtorso_roll, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_holster_haptics, 1);
-DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2);
+DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2); // TODO VR: (P0) choose default
+DEFINE_CVAR_ARCHIVE(vr_positional_damage, 1);
+DEFINE_CVAR_ARCHIVE(vr_weapon_mode, 0);
+DEFINE_CVAR_ARCHIVE(vr_debug_print_handvel, 0);
+DEFINE_CVAR_ARCHIVE(vr_debug_show_hand_pos_and_rot, 0);
+DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_enabled, 1);
+DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_scale, 1);
+DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_x_offset, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_y_offset, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_z_offset, 0.0);
 
 //
 //
@@ -697,6 +711,11 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
     hdr->scale_origin *= scaleCorrect;
 }
 
+[[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept
+{
+    return 6.f;
+}
+
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 {
     const auto [ox, oy, oz] = VR_GetWpnOffsets(cvarEntry);
@@ -1046,6 +1065,21 @@ void VR_ModVRTorsoModel()
     VR_ApplyModelMod(vrTorsoScale, vec3_zero, hdr);
 }
 
+void VR_ModVRLegHolsterModel()
+{
+    const auto factor = vr_leg_holster_model_scale.value;
+    const glm::vec3 legHolsterScale{factor, factor, factor};
+
+    auto* model = Mod_ForName("progs/legholster.mdl", true);
+    auto* hdr = (aliashdr_t*)Mod_Extradata(model);
+
+    VR_ApplyModelMod(legHolsterScale,
+        {vr_leg_holster_model_x_offset.value,
+            vr_leg_holster_model_y_offset.value,
+            vr_leg_holster_model_z_offset.value},
+        hdr);
+}
+
 void VR_ModAllWeapons()
 {
     for(int i = 0; i < e_MAX_WEAPONS; ++i)
@@ -1075,6 +1109,7 @@ void VR_ModAllWeapons()
 void VR_ModAllModels()
 {
     VR_ModVRTorsoModel();
+    VR_ModVRLegHolsterModel();
     VR_ModAllWeapons();
 }
 
@@ -1605,47 +1640,62 @@ void SetHandPos(int index, entity_t* player)
 
     // handrot is set with AngleVectorFromRotMat
 
+    // TODO VR: (P1) move and reuse throughout project
+    const auto redirectVector = [](const glm::vec3& input,
+                                    const glm::vec3& examplar) {
+        const auto [fwd, right, up] = getAngledVectors(examplar);
+        return fwd * input[0] + right * input[1] + up * input[2];
+    };
+
+    const auto openVRCoordsToQuakeCoords = [](const glm::vec3& v) {
+        return glm::vec3{-v.z, v.x, v.y};
+    };
+
+    const auto redirectVectorByYaw = [&](const glm::vec3& input,
+                                         const float exemplarYaw) {
+        return redirectVector(input, {0.f, exemplarYaw, 0.f});
+    };
+
     // handvel
-    // TODO VR: (P0) cleanup this shit, check velmag now that we have cross
-    // product, maybe introduce new throwvel instead
-    if(true)
+    // Redirect controller velocity to world velocity (based on thumbstick yaw
+    // turn angle).
+    cl.handvel[index] = redirectVectorByYaw(
+        openVRCoordsToQuakeCoords(controllers[index].velocity),
+        VR_GetTurnYawAngle());
+
+    // handavel
+    cl.handavel[index] = controllers[index].a_velocity;
+
+    // handthrowvel
     {
-        cl.handvel[index] = controllers[index].velocity;
+        cl.handthrowvel[index] = controllers[index].velocity;
 
         // TODO VR: (P0) throwing an item up with a small flick feels too strong
+        const auto up =
+            std::get<2>(getAngledVectors(controllers[index].orientation));
 
-        {
-            const auto [vFwd, vRight, vUp] =
-                getAngledVectors(controllers[index].orientation);
+        // TODO VR: (P0) center of mass is different for different weapons
+        cl.handthrowvel[index] +=
+            glm::cross(controllers[index].a_velocity, up * 0.1f);
 
-            cl.handvel[index] +=
-                glm::cross(controllers[index].a_velocity, vUp * 0.1f);
-            // TODO VR: (P0) center of mass is different for different weapons
-        }
-
-        const glm::vec3 playerYawOnly{0, VR_GetTurnYawAngle(), 0};
-        const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
-        const auto [ox, oy, oz] = cl.handvel[index];
-
-        cl.handvel[index] = vFwd * -oz + vRight * ox + vUp * oy;
+        cl.handthrowvel[index] = redirectVectorByYaw(
+            openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
+            VR_GetTurnYawAngle());
     }
 
-    if(true)
-    {
-        const glm::vec3 playerYawOnly{0, VR_GetTurnYawAngle(), 0};
-        const auto [vFwd, vRight, vUp] = getAngledVectors(playerYawOnly);
-        const auto [ox, oy, oz] = controllers[index].a_velocity;
-
-        cl.handavel[index] = controllers[index].a_velocity;
-        // vFwd * -oz + vRight * ox + vUp * oy;
-    }
-
-    // TODO VR: (P0) cleanup and fix
+    // When positional weight is enabled, scale the hand velocity and throw
+    // velocity depending on the weight.
     if(vr_wpn_pos_weight.value == 1)
     {
         const auto weaponWeight =
             VR_CalcWeaponWeight<VR_GetWeaponWeightPosFactor>(index);
-        cl.handvel[index] *= std::clamp(weaponWeight * 4.f, 0.f, 1.f);
+
+        const auto clampedWeight = std::clamp(weaponWeight, 0.f, 1.f);
+
+        const auto factor = std::clamp(clampedWeight / 2.f + 0.6f, 0.5f, 0.95f);
+
+        cl.handvel[index] *= factor;
+        cl.handthrowvel[index] *= factor;
     }
 
     // TODO VR: (P2) doesn't work due to collision resolution with wall, it
@@ -1664,18 +1714,44 @@ void SetHandPos(int index, entity_t* player)
     }
 
     // handvelmag
-    // VR: This helps direct punches being registered. This calculation
-    // works because the controller velocity is always absolute (not
-    // oriented where the player is looking).
-    // TODO VR: (P1) this still needs to be oriented to the headset's rotation,
-    // otherwise diagonal punches will still not register.
-    // TODO VR: (P0) also check melee damages and values again
-    const auto length = glm::length(cl.handvel[index]);
-    const auto bestSingle =
-        std::max({std::abs(cl.handvel[index][0]),
-            std::abs(cl.handvel[index][1]), std::abs(cl.handvel[index][2])}) *
-        1.75f;
-    cl.handvelmag[index] = std::max(length, bestSingle);
+    cl.handvelmag[index] = glm::length(cl.handvel[index]);
+
+    const auto [xdFwd, xdRight, xdUp] =
+        getAngledVectors({0.f, VR_GetBodyYawAngle(), 0.f});
+    const auto linearity =
+        glm::dot(glm::normalize(cl.handvel[index]), glm::normalize(xdFwd));
+
+    // VR: This helps direct punches (in line with the body) being registered.
+    if(linearity > 0.f)
+    {
+        cl.handvelmag[index] *= std::pow(linearity, 4.f) * 2.f;
+    }
+
+    if(index == cVR_MainHand && vr_debug_print_handvel.value)
+    {
+        if(cl.handvelmag[index] > vr_debug_max_handvelmag)
+        {
+            vr_debug_max_handvelmag = cl.handvelmag[index];
+        }
+
+        if(vr_debug_max_handvelmag_timeout > 0.f)
+        {
+            const float frametime = cl.time - cl.oldtime;
+            vr_debug_max_handvelmag_timeout -= frametime;
+        }
+        else
+        {
+            vr_debug_max_handvelmag = 0.f;
+        }
+
+        if(cl.handvelmag[index] > 3.f)
+        {
+            vr_debug_max_handvelmag_timeout = 2.5f;
+
+            Con_Printf("handvelmag: %.2f (max: %.2f) (linearity: %.2f)\n",
+                cl.handvelmag[index], vr_debug_max_handvelmag, linearity);
+        }
+    }
 }
 
 [[nodiscard]] static const glm::vec3& VR_GetPlayerOrigin() noexcept
@@ -1780,12 +1856,33 @@ void SetHandPos(int index, entity_t* player)
     return VR_GetRightShoulderStockPos();
 }
 
+[[nodiscard]] glm::vec3 VR_GetHolsterXCrouchAdjustment(
+    const float mult) noexcept
+{
+    // TODO VR: (P2) abstract this, used in view as well
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio() - 0.2f, 0.f, 0.6f);
+    const auto crouchXOffset = heightRatio * mult;
+
+    const auto [vFwd, vRight, vUp] =
+        getAngledVectors({0.f, VR_GetBodyYawAngle(), 0.f});
+
+    return vFwd * crouchXOffset;
+}
+
+
+[[nodiscard]] glm::vec3 VR_GetShoulderHolsterCrouchAdjustment() noexcept
+{
+    // TODO VR: (P2) cvar + menu entry
+    return VR_GetHolsterXCrouchAdjustment(1.5f);
+}
+
 [[nodiscard]] glm::vec3 VR_GetLeftShoulderHolsterPos() noexcept
 {
     const auto shoulderPos = VR_NegateY(VR_GetShoulderOffsets());
     const auto holsterOff = VR_NegateY(VR_GetShoulderHolsterOffsets());
 
-    return VR_GetBodyAnchor(shoulderPos + holsterOff);
+    return VR_GetBodyAnchor(shoulderPos + holsterOff) +
+           VR_GetShoulderHolsterCrouchAdjustment();
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightShoulderHolsterPos() noexcept
@@ -1793,27 +1890,45 @@ void SetHandPos(int index, entity_t* player)
     const auto shoulderPos = VR_GetShoulderOffsets();
     const auto holsterOff = VR_GetShoulderHolsterOffsets();
 
-    return VR_GetBodyAnchor(shoulderPos + holsterOff);
+    return VR_GetBodyAnchor(shoulderPos + holsterOff) +
+           VR_GetShoulderHolsterCrouchAdjustment();
+}
+
+
+[[nodiscard]] glm::vec3 VR_GetHipHolsterCrouchAdjustment() noexcept
+{
+    // TODO VR: (P2) cvar + menu entry
+    return VR_GetHolsterXCrouchAdjustment(-9.5f);
 }
 
 [[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept
 {
-    return VR_GetBodyAnchor(VR_NegateY(VR_GetHipOffsets()));
+    return VR_GetBodyAnchor(VR_NegateY(VR_GetHipOffsets())) +
+           VR_GetHipHolsterCrouchAdjustment();
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept
 {
-    return VR_GetBodyAnchor(VR_GetHipOffsets());
+    return VR_GetBodyAnchor(VR_GetHipOffsets()) +
+           VR_GetHipHolsterCrouchAdjustment();
+}
+
+[[nodiscard]] glm::vec3 VR_GetUpperHolsterCrouchAdjustment() noexcept
+{
+    // TODO VR: (P2) cvar + menu entry
+    return VR_GetHolsterXCrouchAdjustment(-1.5f);
 }
 
 [[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept
 {
-    return VR_GetBodyAnchor(VR_NegateY(VR_GetUpperOffsets()));
+    return VR_GetBodyAnchor(VR_NegateY(VR_GetUpperOffsets())) +
+           VR_GetUpperHolsterCrouchAdjustment();
 }
 
 [[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept
 {
-    return VR_GetBodyAnchor(VR_GetUpperOffsets());
+    return VR_GetBodyAnchor(VR_GetUpperOffsets()) +
+           VR_GetUpperHolsterCrouchAdjustment();
 }
 
 [[nodiscard]] float VR_GetTurnYawAngle() noexcept
@@ -1987,9 +2102,13 @@ void SetHandPos(int index, entity_t* player)
 
     const auto [forward, right, up] = getAngledVectors(cl.handrot[holdingHand]);
 
+    // Mirror Y axis when holding with the off-hand.
+    const auto mirroredRight = helpingHand == cVR_OffHand ? right : -right;
+
     // TODO VR: (P2) maybe add off hand offset here if holding hand is offhand?
     // test?
-    return cl.handpos[helpingHand] + forward * thox + right * thoy + up * thoz;
+    return cl.handpos[helpingHand] + forward * thox + mirroredRight * thoy +
+           up * thoz;
 }
 
 [[nodiscard]] static bool VR_InStockDistance(const int holdingHand,
@@ -2045,10 +2164,11 @@ static void VR_DoTeleportation()
 
         vr_teleporting_impact_valid = hitSomething(trace) && goodNormal;
         vr_teleporting_impact = trace.endpos;
+        vr_teleporting_impact[2] += 12.f; // Compensate for player height.
 
         if(vr_teleporting_impact_valid)
         {
-            R_RunParticle2Effect(vr_teleporting_impact, vec3_zero, 7, 2);
+            R_RunParticle2Effect(trace.endpos, vec3_zero, 7, 2);
         }
     }
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
@@ -3399,6 +3519,39 @@ void VR_ShowWpnoffsetHelper2HOffset()
     VR_ShowFnCleanupGL();
 }
 
+void VR_ShowHandPosAndRot()
+{
+    if(vr_debug_show_hand_pos_and_rot.value == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    VR_ShowFnSetupGL();
+    VR_ShowFnDrawPointsAndLines([&](const int type) {
+        glBegin(type);
+
+        const auto drawHand = [&](const int hand) {
+            const auto& pos = cl.handpos[hand];
+            const auto& rot = cl.handrot[hand];
+
+            const auto [fwd, right, up] = getAngledVectors(rot);
+            const auto end = pos + fwd * 1.f;
+
+            VR_GLVertex3f(pos);
+            VR_GLVertex3f(end);
+        };
+
+        glColor4f(0, 1, 0, 0.75);
+        drawHand(cVR_MainHand);
+
+        glColor4f(1, 0, 0, 0.75);
+        drawHand(cVR_OffHand);
+
+        glEnd();
+    });
+    VR_ShowFnCleanupGL();
+}
+
 void VR_DrawAllShowHelpers()
 {
     VR_ShowVirtualStock();
@@ -3410,6 +3563,7 @@ void VR_DrawAllShowHelpers()
     VR_ShowWpnoffsetHelperOffset();
     VR_ShowWpnoffsetHelperMuzzle();
     VR_ShowWpnoffsetHelper2HOffset();
+    VR_ShowHandPosAndRot();
 }
 
 void VR_Draw2D()
@@ -3773,6 +3927,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
 
     // TODO VR: (P2) global state mutation here, could be source of bugs
+    vr_left_prevgrabbing = vr_left_grabbing;
+    vr_right_prevgrabbing = vr_right_grabbing;
     vr_left_grabbing = inpLeftGrab.bState;
     vr_right_grabbing = inpRightGrab.bState;
     in_speed.state = mustSpeed;
@@ -3870,19 +4026,19 @@ void VR_Move(usercmd_t* cmd)
         return;
     }
 
-    // VR: Main hand: `handpos`, `handrot`, `handvel`, `handvelmag`,
-    // `handavel`.
+    // VR: Main hand values.
     cmd->handpos = cl.handpos[cVR_MainHand];
     cmd->handrot = cl.handrot[cVR_MainHand];
     cmd->handvel = cl.handvel[cVR_MainHand];
+    cmd->handthrowvel = cl.handthrowvel[cVR_MainHand];
     cmd->handvelmag = cl.handvelmag[cVR_MainHand];
     cmd->handavel = cl.handavel[cVR_MainHand];
 
-    // VR: Off hand: `offhandpos`, `offhandrot`, `offhandvel`,
-    // `offhandvelmag`, `offhandavel`.
+    // VR: Off hand values.
     cmd->offhandpos = cl.handpos[cVR_OffHand];
     cmd->offhandrot = cl.handrot[cVR_OffHand];
     cmd->offhandvel = cl.handvel[cVR_OffHand];
+    cmd->offhandthrowvel = cl.handthrowvel[cVR_OffHand];
     cmd->offhandvelmag = cl.handvelmag[cVR_OffHand];
     cmd->offhandavel = cl.handavel[cVR_OffHand];
 
@@ -3961,12 +4117,16 @@ void VR_Move(usercmd_t* cmd)
     {
         // In fake VR mode, hands are always grabbing.
         cmd->offhand_grabbing = 1;
+        cmd->offhand_prevgrabbing = 0;
         cmd->mainhand_grabbing = 1;
+        cmd->mainhand_prevgrabbing = 0;
     }
     else
     {
         cmd->offhand_grabbing = vr_left_grabbing;
+        cmd->offhand_prevgrabbing = vr_left_prevgrabbing;
         cmd->mainhand_grabbing = vr_right_grabbing;
+        cmd->mainhand_prevgrabbing = vr_right_prevgrabbing;
     }
 
     cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);

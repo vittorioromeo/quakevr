@@ -15,6 +15,8 @@
 
     // ------------------------------------------------------------------------
 
+    m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage);
+
     m.add_cvar_entry<float>(
         "Melee Threshold", vr_melee_threshold, {0.5f, 4.f, 18.f});
     m.add_cvar_entry<bool>("Roomscale Jump", vr_roomscale_jump);

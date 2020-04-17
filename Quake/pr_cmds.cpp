@@ -1882,6 +1882,7 @@ static void PF_setspawnparms()
     // copy spawn parms out of the client_t
     client_t* client = svs.clients + (i - 1);
 
+    // VR: Parms like `parm8` are handled specially:
     for(i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         (&pr_global_struct->parm1)[i] = client->spawn_parms[i];

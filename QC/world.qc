@@ -109,6 +109,7 @@ void() main =
     precache_sound ("ambience/wind2.wav");
 
 // shareware
+    precache_file ("maps/orig_start.bsp");
     precache_file ("maps/start.bsp");
 
     precache_file ("maps/e1m1.bsp");
@@ -156,11 +157,6 @@ void() main =
     precache_file2 ("maps/dm4.bsp");
     precache_file2 ("maps/dm5.bsp");
     precache_file2 ("maps/dm6.bsp");
-
-    // HIPNOTIC
-    // precache_file ("maps/start.bsp");
-    // TODO VR: (P1) conflicts with main game, copy original start.bsp in my pak
-    // as it is shareware, OK to distribute.
 
     precache_file ("maps/hip1m1.bsp");
     precache_file ("maps/hip1m2.bsp");

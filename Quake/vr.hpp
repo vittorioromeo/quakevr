@@ -104,6 +104,19 @@ enum class VrPlayerShadows : int
     Both = 3
 };
 
+// TODO VR: (P0) implement
+enum class VrWeaponMode : int
+{
+    // No weapon cycling. Weapons must be carried in holsters and hands.
+    // TODO VR: (P0) what if I lose a weapon? Should we have weapon drops?
+    Immersive = 0,
+
+    // Player always carries all obtained weapons. Holsters act as quick
+    // selection slots.
+    // TODO VR: (P0) how to unset holster? What does it mean to throw a weapon?
+    QuickSlotHolsters = 1,
+};
+
 //
 //
 //
@@ -134,6 +147,7 @@ void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
 void VR_ModVRTorsoModel();
+void VR_ModVRLegHolsterModel();
 void VR_ModAllModels();
 
 [[nodiscard]] const glm::vec3& VR_GetHeadOrigin() noexcept;
@@ -169,6 +183,8 @@ void VR_ModAllWeapons();
 
 void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
     aliashdr_t* const hdr) noexcept;
+
+[[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept;
 
 //
 //
@@ -391,6 +407,15 @@ extern cvar_t vr_vrtorso_yaw;
 extern cvar_t vr_vrtorso_roll;
 extern cvar_t vr_holster_haptics;
 extern cvar_t vr_player_shadows;
+extern cvar_t vr_positional_damage;
+extern cvar_t vr_weapon_mode;
+extern cvar_t vr_debug_print_handvel;
+extern cvar_t vr_debug_show_hand_pos_and_rot;
+extern cvar_t vr_leg_holster_model_enabled;
+extern cvar_t vr_leg_holster_model_scale;
+extern cvar_t vr_leg_holster_model_x_offset;
+extern cvar_t vr_leg_holster_model_y_offset;
+extern cvar_t vr_leg_holster_model_z_offset;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

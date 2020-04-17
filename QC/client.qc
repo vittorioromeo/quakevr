@@ -53,21 +53,32 @@ void() SetChangeParms =
 // cap super health
     if (self.health > 100)
         self.health = 100;
+
     if (self.health < 50)
         self.health = 50;
+
     parm1 = self.items;
     parm2 = self.health;
     parm3 = self.armorvalue;
+
     if (self.ammo_shells < 25)
         parm4 = 25;
     else
         parm4 = self.ammo_shells;
+
     parm5 = self.ammo_nails;
     parm6 = self.ammo_rockets;
     parm7 = self.ammo_cells;
     parm8 = self.weapon;
     parm9 = self.armortype * 100;
     parm10 = self.weapon2;
+
+    parm11 = self.holsterweapon0;
+    parm12 = self.holsterweapon1;
+    parm13 = self.holsterweapon2;
+    parm14 = self.holsterweapon3;
+    parm15 = self.holsterweapon4;
+    parm16 = self.holsterweapon5;
 };
 
 void() SetNewParms =
@@ -79,9 +90,16 @@ void() SetNewParms =
     parm5 = 0;
     parm6 = 0;
     parm7 = 0;
-    parm8 = WID_SHOTGUN;
+    parm8 = WID_FIST;
     parm9 = 0;
     parm10 = WID_FIST;
+
+    parm11 = WID_FIST;
+    parm12 = WID_FIST;
+    parm13 = WID_AXE;
+    parm14 = WID_SHOTGUN;
+    parm15 = WID_FIST;
+    parm16 = WID_FIST;
 };
 
 void() DecodeLevelParms =
@@ -90,17 +108,21 @@ void() DecodeLevelParms =
     {
         if (world.model == "maps/start.bsp")
             SetNewParms ();        // take away all stuff on starting new episode
+        if (world.model == "maps/orig_start.bsp")
+            SetNewParms ();        // take away all stuff on starting new episode
     }
 
 //HIPNOTIC
-   if (world.model == "maps/start.bsp")
-       SetNewParms ();      // take away all stuff on starting new episode
-   if (world.model == "maps/hip1m1.bsp")
-       SetNewParms ();      // take away all stuff on starting new episode
-   if (world.model == "maps/hip2m1.bsp")
-       SetNewParms ();      // take away all stuff on starting new episode
-   if (world.model == "maps/hip3m1.bsp")
-       SetNewParms ();      // take awa
+    if (world.model == "maps/start.bsp")
+        SetNewParms ();      // take away all stuff on starting new episode
+    if (world.model == "maps/orig_start.bsp")
+        SetNewParms ();      // take away all stuff on starting new episode
+    if (world.model == "maps/hip1m1.bsp")
+        SetNewParms ();      // take away all stuff on starting new episode
+    if (world.model == "maps/hip2m1.bsp")
+        SetNewParms ();      // take away all stuff on starting new episode
+    if (world.model == "maps/hip3m1.bsp")
+        SetNewParms ();      // take away all stuff on starting new episode
 
     self.items = parm1;
     self.health = parm2;
@@ -113,22 +135,23 @@ void() DecodeLevelParms =
     self.armortype = parm9 * 0.01;
     self.weapon2 = parm10;
 
-    // TODO VR: (P0) start with weapons in holsters instead of hands. Also what
-    // is prevweapon used for?
+    // TODO VR: (P0) ensure that holsters carry over when passing level triggers
+    // TODO VR: (P0) ensure that weapons held in hands carry over when passing level triggers
     self.prevweapon = parm8;
     self.prevweapon2 = parm10;
-    self.holsterweapon0 = WID_FIST;
-    self.holsterweapon1 = WID_FIST;
-    self.holsterweapon2 = WID_FIST;
-    self.holsterweapon3 = WID_FIST;
-    self.holsterweapon4 = WID_FIST;
-    self.holsterweapon5 = WID_FIST;
-    self.holsterweaponmodel0 = "";
-    self.holsterweaponmodel1 = "";
-    self.holsterweaponmodel2 = "";
-    self.holsterweaponmodel3 = "";
-    self.holsterweaponmodel4 = "";
-    self.holsterweaponmodel5 = "";
+
+    self.holsterweapon0 = parm11;
+    self.holsterweapon1 = parm12;
+    self.holsterweapon2 = parm13;
+    self.holsterweapon3 = parm14;
+    self.holsterweapon4 = parm15;
+    self.holsterweapon5 = parm16;
+    self.holsterweaponmodel0 = WeaponIdToModel(self.holsterweapon0);
+    self.holsterweaponmodel1 = WeaponIdToModel(self.holsterweapon1);
+    self.holsterweaponmodel2 = WeaponIdToModel(self.holsterweapon2);
+    self.holsterweaponmodel3 = WeaponIdToModel(self.holsterweapon3);
+    self.holsterweaponmodel4 = WeaponIdToModel(self.holsterweapon4);
+    self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5);
 };
 
 /*
@@ -661,10 +684,15 @@ void() PutClientInServer =
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';
 
+    self.handthrowvel = '0 0 0';
+    self.offhandthrowvel = '0 0 0';
+
     self.handavel = '0 0 0';
     self.offhandavel = '0 0 0';
 
     spawn_tdeath (self.origin, self);
+
+    readytime = time + 3;
 };
 
 
@@ -1900,6 +1928,9 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     bprint("'DoXHandMelee': Invalid hand '");
     bprint(ftos(xHand));
     bprint("'");
+
+    // Bogus, should never happen.
+    return FALSE;
 }
 
 void(float xHand, float xInMelee, float xHandVelMag,

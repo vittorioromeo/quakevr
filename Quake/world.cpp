@@ -436,7 +436,7 @@ void SV_TouchLinks(edict_t* ent)
 
     const auto doHandtouch = [](edict_t* ent, edict_t* target) {
         // Add some size to the hands.
-        const glm::vec3 offsets{1.5f, 1.5f, 1.5f};
+        const glm::vec3 offsets{2.5f, 2.5f, 2.5f};
 
         const auto handposmin = ent->v.handpos - offsets;
         const auto handposmax = ent->v.handpos + offsets;
@@ -449,12 +449,21 @@ void SV_TouchLinks(edict_t* ent)
         const bool entIntersects =
             !quake::util::entBoxIntersection(ent, target);
 
-        const bool offHandIntersects = quake::util::boxIntersection(
-            offhandposmin, offhandposmax, target->v.absmin, target->v.absmax);
+        const auto intersects = [&](const glm::vec3& handMin,
+                                    const glm::vec3& handMax) {
+            // VR: This increases the boundaries for easier hand touching.
+            const float bonus = ((int)target->v.flags & FL_EASYHANDTOUCH)
+                                    ? VR_GetEasyHandTouchBonus()
+                                    : 0.f;
 
-        const bool mainHandIntersects = quake::util::boxIntersection(
-            handposmin, handposmax, target->v.absmin, target->v.absmax);
+            const glm::vec3 bonusVec{bonus, bonus, bonus};
 
+            return quake::util::boxIntersection(handMin, handMax,
+                target->v.absmin - bonusVec, target->v.absmax + bonusVec);
+        };
+
+        const bool offHandIntersects = intersects(offhandposmin, offhandposmax);
+        const bool mainHandIntersects = intersects(handposmin, handposmax);
         const bool anyHandIntersects = offHandIntersects || mainHandIntersects;
 
         const bool anyIntersection =
@@ -594,6 +603,14 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
         ent->v.absmin[1] -= 15;
         ent->v.absmax[0] += 15;
         ent->v.absmax[1] += 15;
+    }
+    else if((int)ent->v.flags & FL_EASYHANDTOUCH)
+    {
+        const float bonus = VR_GetEasyHandTouchBonus();
+        ent->v.absmin[0] -= bonus;
+        ent->v.absmin[1] -= bonus;
+        ent->v.absmax[0] += bonus;
+        ent->v.absmax[1] += bonus;
     }
     else
     {

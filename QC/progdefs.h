@@ -176,12 +176,14 @@ typedef struct entvars_s
 	vec3_t	handpos;
 	vec3_t	handrot;
 	vec3_t	handvel;
+	vec3_t	handthrowvel;
 	float	handvelmag;
 	vec3_t	handavel;
 	vec3_t	v_viewangle;
 	vec3_t	offhandpos;
 	vec3_t	offhandrot;
 	vec3_t	offhandvel;
+	vec3_t	offhandthrowvel;
 	float	offhandvelmag;
 	vec3_t	offhandavel;
 	float	touchinghand;
@@ -190,7 +192,9 @@ typedef struct entvars_s
 	float	teleporting;
 	vec3_t	teleport_target;
 	float	offhand_grabbing;
+	float	offhand_prevgrabbing;
 	float	mainhand_grabbing;
+	float	mainhand_prevgrabbing;
 	float	offhand_hotspot;
 	float	mainhand_hotspot;
 	vec3_t	roomscalemove;
@@ -201,4 +205,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 19869
+#define PROGHEADER_CRC 24374

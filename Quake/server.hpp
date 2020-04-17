@@ -143,7 +143,7 @@ typedef struct client_s
 #define SOLID_BBOX 2              // touch on edge, block
 #define SOLID_SLIDEBOX 3          // touch on edge, but not an onground
 #define SOLID_BSP 4               // bsp clip, touch on edge, block
-#define SOLID_NOT_BUT_TOUCHABLE 5 // TODO VR: (P2) docs
+#define SOLID_NOT_BUT_TOUCHABLE 5 // not solid, but can be [hand]touched
 
 // edict->deadflag values
 #define DEAD_NO 0
@@ -169,6 +169,7 @@ typedef struct client_s
 #define FL_PARTIALGROUND 1024 // not all corners are valid
 #define FL_WATERJUMP 2048     // player jumping out of water
 #define FL_JUMPRELEASED 4096  // for jump debouncing
+#define FL_EASYHANDTOUCH 8192 // adds bonus to boundaries for handtouch
 
 // entity effects
 
