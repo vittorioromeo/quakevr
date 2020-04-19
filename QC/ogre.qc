@@ -377,7 +377,7 @@ void() OgreDrop =
     if(entPlayer != world && random() > 0.65)
     {
         if(!TryDrop(entPlayer, WID_GRENADE_LAUNCHER, 0.5))
-        if(!TryDrop(entPlayer, WID_PROIXIMITY_GUN, 0.4))
+        if(!TryDrop(entPlayer, WID_PROXIMITY_GUN, 0.4))
         if(!TryDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
         if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
         if(!TryDrop(entPlayer, WID_NAILGUN, 0.2))
