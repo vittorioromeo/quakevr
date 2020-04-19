@@ -347,11 +347,24 @@ void(entity attacker, float damage) scourge_pain =
 //============================================================================
 
 
+void() ScourgeDrop =
+{
+    local entity entPlayer;
+    entPlayer = FindEntPlayerForDrop();
 
+    self.solid = SOLID_NOT;
+
+    if(entPlayer != world && random() > 0.65)
+    {
+        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.4))
+        if(!TryDrop(entPlayer, WID_NAILGUN, 0.5))
+        { /* Intentionally empty. */ }
+    }
+}
 
 void()   scourge_die1 =[ $death1.asc, scourge_die2 ] {self.spawnsilent = 0;scourge_think();};
 void()   scourge_die2 =[ $death2.asc, scourge_die3 ] {};
-void()   scourge_die3 =[ $death3.asc, scourge_die4 ] {self.solid = SOLID_NOT;};
+void()   scourge_die3 =[ $death3.asc, scourge_die4 ] {ScourgeDrop();};
 void()   scourge_die4 =[ $death4.asc, scourge_die5 ] {};
 void()   scourge_die5 =[ $death5.asc, scourge_die5 ] {};
 

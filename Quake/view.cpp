@@ -1263,7 +1263,7 @@ static void V_SetupHandViewEnt(entity_t* const anchor, entity_t* const hand,
 
     const int anchorWpnCvar = VR_GetWpnCVarFromModel(anchor->model);
     const int anchorVertex = static_cast<int>(
-        VR_GetWpnCVar(anchorWpnCvar, WpnCVar::HandAnchorVertex).value);
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HandAnchorVertex));
     const int clampedAnchorVertex =
         std::clamp(anchorVertex, 0, anchorHdr->numverts);
 

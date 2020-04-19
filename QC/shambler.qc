@@ -292,9 +292,33 @@ void(entity attacker, float damage)    sham_pain =
 
 //============================================================================
 
+
+void() ShamblerDrop =
+{
+    local entity entPlayer;
+    entPlayer = FindEntPlayerForDrop();
+
+    self.solid = SOLID_NOT;
+
+    if(entPlayer != world && random() > 0.65)
+    {
+        if(!TryDrop(entPlayer, WID_LIGHTNING, 0.5))
+        if(!TryDrop(entPlayer, WID_PROXIMITY_GUN, 0.4))
+        if(!TryDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
+        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
+        if(!TryDrop(entPlayer, WID_NAILGUN, 0.2))
+        if(!TryDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
+        if(!TryDrop(entPlayer, WID_SHOTGUN, 0.1))
+        if(!TryDrop(entPlayer, WID_AXE, 0.1))
+        if(!TryDrop(entPlayer, WID_MJOLNIR, 0.1))
+        { /* Intentionally empty. */ }
+    }
+}
+
+
 void() sham_death1      =[      $death1,       sham_death2     ] {};
 void() sham_death2      =[      $death2,       sham_death3     ] {};
-void() sham_death3      =[      $death3,       sham_death4     ] {self.solid = SOLID_NOT;};
+void() sham_death3      =[      $death3,       sham_death4     ] {ShamblerDrop();};
 void() sham_death4      =[      $death4,       sham_death5     ] {};
 void() sham_death5      =[      $death5,       sham_death6     ] {};
 void() sham_death6      =[      $death6,       sham_death7     ] {};

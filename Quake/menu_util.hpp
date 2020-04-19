@@ -508,7 +508,7 @@ namespace quake
 
             const auto print_tooltip = [&buf](const std::string_view value) {
                 snprintf(buf, sizeof(buf), "%s", value.data());
-                M_PrintWhiteWithNewLine(335, 50, buf);
+                M_PrintWhiteWithNewLine(330, 50, buf);
             };
 
             {

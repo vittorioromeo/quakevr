@@ -200,7 +200,7 @@ float(float velmag) VRMeleeStrengthMult =
     return strength;
 }
 
-float(float xHand, float v) VRMeleeDmg =
+float(float xHand, float v, float xBase) VRMeleeDmg =
 {
     local float tmp;
 
@@ -212,7 +212,7 @@ float(float xHand, float v) VRMeleeDmg =
     if(xHand == OFF_HAND) tmp = self.offhandvelmag;
     else                  tmp = self.handvelmag;
 
-    return (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
+    return xBase + (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
@@ -940,20 +940,74 @@ void(float xHand) HIP_FireMjolnirLightning =
     HIP_SpawnMjolnirBase();
 };
 
+float(vector xHandRot, vector xHandPos, vector xMuzzlePos, float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
+{
+    local float range, muzzleRange;
+
+    range = VRMeleeRange(xRange);
+    muzzleRange = VRMeleeRange(xMuzzleRange);
+
+    makevectors(xHandRot);
+
+    // Prioritize entities taking damage:
+    traceline (xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline (xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline (xHandPos - v_up*3, xHandPos + v_up * (range / 2.0), FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline (xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 2.0), FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline (xHandPos + v_up*3, xHandPos - v_up * (range / 2.0), FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline (xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 2.0), FALSE, self);
+    if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    // Then test the same traces, but do not prioritize:
+    traceline (xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    traceline (xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    traceline (xHandPos - v_up*3, xHandPos + v_up * (range / 2.0), FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    traceline (xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 2.0), FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    traceline (xHandPos + v_up*3, xHandPos - v_up * (range / 2.0), FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    traceline (xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 2.0), FALSE, self);
+    if (trace_fraction != 1.0) { return TRUE; }
+
+    return FALSE;
+}
+
+float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
+{
+    return VRDoMeleeAttackTraceline(
+        VRGetHandRot(xHand), VRGetHandPos(xHand), VRGetMuzzlePos(xHand), xRange, xMuzzleRange);
+}
+
 void(float xHand) HIP_FireMjolnir =
 {
     local vector source;
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 1.15);
+    xdmg = VRMeleeDmg(xHand, 1.15, 5);
 
-    makevectors(VRGetHandRot(xHand));
-    source = VRGetHandPos(xHand);
-    // TODO VR: (P2) improve this collision detection
-    traceline (source, source + v_forward * VRMeleeRange(28), FALSE, self);
-    if (trace_fraction == 1.0)
+    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    {
         return;
+    }
 
     org = trace_endpos - v_forward*4;
 
@@ -1061,14 +1115,12 @@ void(float xHand) W_FireAxe =
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 0.95);
+    xdmg = VRMeleeDmg(xHand, 1.10, 7);
 
-    makevectors(VRGetHandRot(xHand));
-    source = VRGetHandPos(xHand);
-    // TODO VR: (P2) improve this collision detection
-    traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
-    if (trace_fraction == 1.0)
+    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    {
         return;
+    }
 
     org = trace_endpos - v_forward*4;
 
@@ -1113,20 +1165,11 @@ void(float xHand) W_GunMelee =
     local    vector    org;
     local    float    xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 0.5);
+    xdmg = VRMeleeDmg(xHand, 0.5, 3);
 
-    makevectors(VRGetHandRot(xHand));
-    source = VRGetHandPos(xHand);
-    traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
-    if (trace_fraction == 1.0)
+    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
     {
-        source = self.muzzlepos;
-        traceline (source - v_forward*8, source + v_forward * VRMeleeRange(8), FALSE, self);
-
-        if (trace_fraction == 1.0)
-        {
-            return;
-        }
+        return;
     }
 
     org = trace_endpos - v_forward*4;
@@ -1174,13 +1217,12 @@ void(float xHand) W_FistMelee =
     local float  xdmg;
     local float  playedsound;
 
-    xdmg = VRMeleeDmg(xHand, 0.75);
+    xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
-    makevectors (VRGetHandRot(xHand));
-    source = VRGetHandPos(xHand);
-    traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
-    if (trace_fraction == 1.0)
+    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
+    {
         return;
+    }
 
     org = trace_endpos - v_forward*4;
 
@@ -2220,8 +2262,6 @@ void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCur
     *xFrame = 0;
 };
 
-    // TODO VR: (P0) this always sets both weaponframes, it should only set it if the weapon changed
-    // It happens when putting a gun in a holster
 void() W_SetCurrentAmmo =
 {
     W_SetCurrentAmmoFor(MAIN_HAND);
@@ -2230,6 +2270,7 @@ void() W_SetCurrentAmmo =
 
 void(float xHand) W_SetCurrentAmmoFor =
 {
+    // TODO VR: (P2) code repetition between branches
     if(xHand == MAIN_HAND)
     {
         player_run(MAIN_HAND); // get out of any weapon firing states
@@ -2606,7 +2647,6 @@ void() CheatCommand =
     W_SetCurrentAmmo ();
 };
 
-// TODO VR: (P0) test and use new cycling
 float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
 {
     local float minWeapon, maxWeapon;
@@ -2617,7 +2657,7 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
     minWeapon = WID_GRAPPLE;
     maxWeapon = WID_LASER_CANNON;
 
-    // TODO VR: (P0) set this via cvar depending on weapon mode?
+    // TODO VR: (P1) set this via cvar depending on weapon mode?
     skipEmptyWeapons = FALSE;
 
     // Used to avoid infinite loops.
@@ -2658,21 +2698,22 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
     return xWeapon;
 }
 
-/*
-============
-CycleWeaponCommand
+float() getWeaponCycleMode =
+{
+    if (cvar("vr_fakevr") == 1)
+    {
+        return QVR_WEAPONCYCLEMODE_ALLOWED;
+    }
 
-Go to the next weapon with ammo
-============
-*/
-// TODO VR: (P1) need to add a cvar to support this, and to use quick slot holsters
-void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
+    return cvar("vr_weapon_cycle_mode");
+}
+
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon, float xDir) CycleWeaponCommandImpl =
 {
     local float newWeapon;
 
     self.impulse = 0;
-
-    newWeapon = GetCycledWeapon(self, 1, xWeapon);
+    newWeapon = GetCycledWeapon(self, xDir, xWeapon);
 
     if (newWeapon != xWeapon)
     {
@@ -2680,8 +2721,19 @@ void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand
         *xOutPrevWeapon = newWeapon;
 
         W_SetCurrentAmmo();
-        return;
     }
+};
+
+/*
+============
+CycleWeaponCommand
+
+Go to the next weapon with ammo
+============
+*/
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
+{
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, 1);
 };
 
 /*
@@ -2693,39 +2745,8 @@ Go to the prev weapon with ammo
 */
 void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponReverseCommand =
 {
-    local float newWeapon;
-
-    self.impulse = 0;
-    newWeapon = GetCycledWeapon(self, -1, xWeapon);
-
-    if (newWeapon != xWeapon)
-    {
-        *xOutWeapon = newWeapon;
-        *xOutPrevWeapon = newWeapon;
-
-        W_SetCurrentAmmo();
-        return;
-    }
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, -1);
 };
-
-// TODO VR: (P1) remove? - off hand weapon cycling (TODO dual-wielding)
-void() CycleOffHandWeapon =
-{
-    if (self.weapon2 == WID_FIST)
-    {
-        self.weapon2 = WID_GRAPPLE;
-    }
-    else if (self.weapon2 == WID_GRAPPLE)
-    {
-        self.weapon2 = WID_SHOTGUN;
-    }
-    else if (self.weapon2 == WID_SHOTGUN)
-    {
-        self.weapon2 = WID_FIST;
-    }
-
-    W_SetCurrentAmmo();
-}
 
 /*
 ============
@@ -2852,6 +2873,26 @@ void () DumpCoordinates =
       bprint("\n");
       }
    };
+
+
+void() CheatSpawnAllWeaponDrops =
+{
+    CheatCommand();
+
+    CreateWeaponDrop(self, WID_GRAPPLE, self.origin);
+    CreateWeaponDrop(self, WID_AXE, self.origin);
+    CreateWeaponDrop(self, WID_MJOLNIR, self.origin);
+    CreateWeaponDrop(self, WID_SHOTGUN, self.origin);
+    CreateWeaponDrop(self, WID_SUPER_SHOTGUN, self.origin);
+    CreateWeaponDrop(self, WID_NAILGUN, self.origin);
+    CreateWeaponDrop(self, WID_SUPER_NAILGUN, self.origin);
+    CreateWeaponDrop(self, WID_GRENADE_LAUNCHER, self.origin);
+    CreateWeaponDrop(self, WID_PROXIMITY_GUN, self.origin);
+    CreateWeaponDrop(self, WID_ROCKET_LAUNCHER, self.origin);
+    CreateWeaponDrop(self, WID_LIGHTNING, self.origin);
+    CreateWeaponDrop(self, WID_LASER_CANNON, self.origin);
+}
+
 /*
 ============
 ImpulseCommands
@@ -2861,10 +2902,20 @@ ImpulseCommands
 void() ImpulseCommands =
 {
     if (self.impulse >= 1 && self.impulse <= 8)
-        W_ChangeWeapon ();
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            W_ChangeWeapon ();
+        }
+    }
 
     if (self.impulse >= 225 && self.impulse <= 226)
-        W_ChangeWeapon ();
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            W_ChangeWeapon ();
+        }
+    }
 
     if (self.impulse == 9)
     {
@@ -2874,7 +2925,10 @@ void() ImpulseCommands =
     // TODO VR: (P1) cvar and decide what to do
     if (self.impulse == 10 && time >= self.attack_finished)
     {
-        CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
+        }
     }
 
     if (self.impulse == 11)
@@ -2885,13 +2939,15 @@ void() ImpulseCommands =
     if (self.impulse == 12 && time >= self.offhand_attack_finished)
     {
         // TODO VR: (P1) more steamvr bindings for CycleWeaponReverseCommand ();
-        CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+        }
     }
 
-    // TODO VR: (P1) remove?
-    if (self.impulse == 13)
+    if (self.impulse == 14)
     {
-        CycleOffHandWeapon ();
+        CheatSpawnAllWeaponDrops ();
     }
 
 //JIM
@@ -2939,18 +2995,21 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
     WriteCoord (MSG_BROADCAST, trace_endpos_z);
 }
 
+void(float xHand, float xButton) FrameDrawLightningTrail =
+{
+    // Lightning effect (per-frame)
+    if (xButton && VRGetWeapon(xHand) == WID_LIGHTNING && self.ammo_cells > 0)
+    {
+        PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
+    }
+}
+
+
 void() W_WeaponFrame =
 {
     local vector org;
 
-    if (self.button0)
-    {
-        // Lightning effect (per-frame)
-        if (self.weapon == WID_LIGHTNING && self.ammo_cells > 0)
-        {
-            PlayerLightningGunEffect(self.muzzlepos, MAIN_HAND);
-        }
-    }
+    FrameDrawLightningTrail(MAIN_HAND, self.button0);
 
     if (time < self.attack_finished)
     {
@@ -2976,14 +3035,7 @@ void() W_OffHandWeaponFrame =
 {
     local vector org;
 
-    if (self.button3)
-    {
-        // Lightning effect (per-frame)
-        if (self.weapon2 == WID_LIGHTNING && self.ammo_cells > 0)
-        {
-            PlayerLightningGunEffect(self.offmuzzlepos, OFF_HAND);
-        }
-    }
+    FrameDrawLightningTrail(OFF_HAND, self.button3);
 
     if (time < self.offhand_attack_finished)
     {
@@ -3007,7 +3059,7 @@ float(float xHolster) getHolsterWeapon =
     if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweapon4;
     if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweapon5;
 
-    bprint("Invalid holster ID: ");
+    bprint("`getHolsterWeapon`: invalid holster ID: ");
     bprint(ftos(xHolster));
     bprint("\n");
 
@@ -3024,7 +3076,7 @@ void(float xHolster, float v) setHolsterWeapon =
     if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweapon4 = v; return; }
     if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweapon5 = v; return; }
 
-    bprint("Invalid holster ID: ");
+    bprint("`setHolsterWeapon`: invalid holster ID: ");
     bprint(ftos(xHolster));
     bprint("\n");
 }
@@ -3038,7 +3090,7 @@ string(float xHolster) getHolsterWeaponModel =
     if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponmodel4;
     if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponmodel5;
 
-    bprint("Invalid holster ID: ");
+    bprint("`getHolsterWeaponModel`: invalid holster ID: ");
     bprint(ftos(xHolster));
     bprint("\n");
 
@@ -3055,7 +3107,7 @@ void(float xHolster, string v) setHolsterWeaponModel =
     if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweaponmodel4 = v; return; }
     if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponmodel5 = v; return; }
 
-    bprint("Invalid holster ID: ");
+    bprint("`setHolsterWeaponModel`: invalid holster ID: ");
     bprint(ftos(xHolster));
     bprint("\n");
 }
@@ -3165,6 +3217,7 @@ void() wpnthrow_touch =
 {
     local float posDmgType;
     local float adjDmg;
+    local float finalDmg;
     local vector dir;
 
     if (other == self.owner)
@@ -3176,39 +3229,41 @@ void() wpnthrow_touch =
     if (pointcontents(self.origin) == CONTENT_SKY)
         return;
 
-    // makevectors(self.angles);
-    // traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
-
-    // hit something that bleeds
-    if (self.throwhit == FALSE && other.takedamage)
-    {
-        sound (self, CHAN_OTHER, "fisthit.wav", 1, ATTN_NORM);
-
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-
-        // TODO VR: (P0) calculate based on mult and velocity
-        adjDmg = 20 * PositionalDamageFactor(posDmgType);
-
-        spawn_touchblood (adjDmg);
-        T_Damage (other, self, self.owner, adjDmg);
-
-        setsize (self, self.mins * 2, self.maxs * 2);
-        self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        self.throwhit = TRUE;
-        return;
-    }
-
-    // hit wall
     if (self.throwhit == FALSE)
     {
-        sound (self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
-        particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
+        finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
+                   cvar("vr_weapon_throw_damage_mult");
+
+        // hit something that bleeds
+        if (GetThrownWeaponDealDamage(self) && other.takedamage)
+        {
+            sound (self, CHAN_OTHER, "fisthit.wav", 1, ATTN_NORM);
+
+            posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+            adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
+
+            spawn_touchblood (adjDmg);
+            T_Damage (other, self, self.owner, adjDmg);
+        }
+        // hit wall
+        else
+        {
+            sound (self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
+            particle2 (self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
+
+        }
+
+        if(GetThrownWeaponDisappearOnHit(self) == TRUE)
+        {
+            remove(self);
+        }
 
         setsize (self, self.mins * 2, self.maxs * 2);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
     }
 
+    // ghetto collision detection/resolution
     if (vlen(self.velocity) > 1)
     {
         dir = normalize(self.velocity);
@@ -3231,7 +3286,6 @@ void() wpnthrow_touch =
             self.velocity = '0 0 0';
             self.avelocity = '0 0 0';
         }
-
     }
 };
 
@@ -3265,21 +3319,123 @@ void() wpnthrow_handtouch =
     }
 }
 
-void(float xHand) VRHolsterHaptic =
+// Used to trigger haptics when hovering holsters.
+float holsterhover[6];
+float holsterprevhover[6];
+
+float(float xHolster) VRHolsterToIndex =
 {
-    if(cvar("vr_holster_haptics") == 1)
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return 0; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return 1; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return 2; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return 3; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return 4; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return 5; }
+
+    bprint("`VRHolsterToIndex`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    return 0;
+}
+
+float(float xHolster) VRIsHolsterHovered =
+{
+    return holsterhover[VRHolsterToIndex(xHolster)];
+}
+
+void(float xHolster, float xValue) VRSetHolsterHovered =
+{
+    holsterhover[VRHolsterToIndex(xHolster)] = xValue;
+}
+
+float(float xHolster) VRIsHolsterPrevHovered =
+{
+    return holsterprevhover[VRHolsterToIndex(xHolster)];
+}
+
+void(float xHolster, float xValue) VRSetHolsterPrevHovered =
+{
+    holsterprevhover[VRHolsterToIndex(xHolster)] = xValue;
+}
+
+void() UpdateHolsterHover =
+{
+    local float i;
+
+    for(i = QVR_HS_LEFT_SHOULDER_HOLSTER; i <= QVR_HS_RIGHT_UPPER_HOLSTER; ++i)
     {
-        VRGunHaptic(xHand, 0.1, 75, 0.02);
+        if(!isHolsterHotspot(i))
+        {
+            continue;
+        }
+
+        VRSetHolsterPrevHovered(i, VRIsHolsterHovered(i));
+        VRSetHolsterHovered(i, FALSE);
     }
 }
 
-void(entity thrower, float xWeapon, vector xOrigin, vector xRotation, vector xThrowVel, vector xAVel) CreateThrownWeapon =
+void(float xHand, float xHolster) VRHolsterHaptic =
+{
+    local float holsterHapticsMode;
+    holsterHapticsMode = cvar("vr_holster_haptics");
+
+    if(holsterHapticsMode == 1 /* continuous */)
+    {
+        VRGunHaptic(xHand, 0.1, 75, 0.02);
+    }
+    else if(!VRIsHolsterPrevHovered(xHolster) && VRIsHolsterHovered(xHolster) && holsterHapticsMode == 2 /* once */)
+    {
+        VRGunHaptic(xHand, 0.2, 75, 0.2);
+    }
+}
+
+void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
+{
+    ent.lip = xValue;
+}
+
+float(entity ent) GetThrownWeaponDisappearOnHit =
+{
+    return ent.lip;
+}
+
+void(entity ent, float xValue) SetThrownWeaponDealDamage =
+{
+    ent.health = xValue;
+}
+
+float(entity ent) GetThrownWeaponDealDamage =
+{
+    return ent.health;
+}
+
+void(entity ent, float xValue) SetThrownWeaponBaseDamage =
+{
+    ent.frags = xValue;
+}
+
+float(entity ent) GetThrownWeaponBaseDamage =
+{
+    return ent.frags;
+}
+
+void(entity thrower, float xWeapon,
+    vector xOrigin, vector xRotation,
+    vector xThrowVel, vector xAVel,
+    float xDisappearOnHit,
+    float xDealDamage,
+    float xBaseDamage) CreateThrownWeapon =
 {
     local float tmp;
     local vector tmp_handavel;
     local vector tmp_bounds;
 
     newmis = spawn ();
+
+    SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
+    SetThrownWeaponDealDamage(newmis, xDealDamage);
+    SetThrownWeaponBaseDamage(newmis, xBaseDamage);
 
     newmis.owner = thrower;
     newmis.movetype = MOVETYPE_TOSS;
@@ -3319,55 +3475,139 @@ void(entity thrower, float xWeapon, vector xOrigin, vector xRotation, vector xTh
     setsize (newmis, -tmp_bounds, tmp_bounds);
     setorigin (newmis, xOrigin);
 
-    newmis.velocity = xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)
+    newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar("vr_weapon_throw_velocity_mult")
                     + thrower.velocity;
 }
 
+vector randomVec(float range)
+{
+    local vector res;
+
+    res_x = crandom() * range;
+    res_y = crandom() * range;
+    res_z = crandom() * range;
+
+    return res;
+}
+
+void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
+{
+    local vector throwVel;
+
+    throwVel = randomVec(2.3);
+    throwVel_z = 1.3 + random() * 1.4;
+
+    CreateThrownWeapon(thrower, xWeapon,
+        xOrigin, randomVec(180),
+        throwVel, randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon)
+    );
+}
+
+float() getWeaponMode =
+{
+    return cvar("vr_holster_mode");
+}
+
+float() getWeaponThrowMode =
+{
+    return cvar("vr_weapon_throw_mode");
+}
 
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
 {
+    local float handGrabbing, handPrevGrabbing, otherHandGrabbing;
+
+    handGrabbing = VRIsEntHandGrabbing(ent, xHand);
+    handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
+    otherHandGrabbing = VRIsEntHandGrabbing(ent, VROtherHand(xHand));
+
     if (time < readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;
     }
 
-    if (xWeapon != WID_FIST && !VRIsEntHandGrabbing(ent, xHand) && time >= xAttackFinished)
+    if(isHolsterHotspot(xHotspot))
     {
+        VRSetHolsterHovered(xHotspot, TRUE);
+    }
+
+    // Holding a weapon, but not grabbing the controller.
+    if (xWeapon != WID_FIST && !handGrabbing && time >= xAttackFinished)
+    {
+        // No hotspot, or 2H hotspot (unusable).
+        // (2H hotspots ignored because you can only dual wield with no weapon out.)
         if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
-            // 1 and 2 ignored because you can only dual wield with no weapon out
-            // TODO VR: (P0) what to do?
+            if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
+            {
+                CreateThrownWeapon(self, xWeapon,
+                    VRGetHandPos(xHand), VRGetHandRot(xHand),
+                    VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+                    FALSE /* disappear on hit */,
+                    TRUE /* deal damage */,
+                    WeaponIdToThrowDamage(xWeapon));
+            }
+            else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
+            {
+                CreateThrownWeapon(self, xWeapon,
+                    VRGetHandPos(xHand), VRGetHandRot(xHand),
+                    VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+                    TRUE /* disappear on hit */,
+                    TRUE /* deal damage */,
+                    WeaponIdToThrowDamage(xWeapon));
+            }
+            else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
+            {
+                // Intentionally left empty.
+            }
 
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
-
-            // TODO VR: (P0) throwing weapons. refactor and cleanup
-            CreateThrownWeapon(self, xWeapon,
-                VRGetHandPos(xHand), VRGetHandRot(xHand), VRGetHandThrowVel(xHand), VRGetHandAVel(xHand));
-
             *xOutWeapon = WID_FIST;
-            W_SetCurrentAmmo();
+            W_SetCurrentAmmoFor(xHand);
         }
+        // Put a weapon in a holster.
         else if(isHolsterHotspot(xHotspot))
         {
-            if(getHolsterWeapon(xHotspot) == WID_FIST)
+            // In "immersive" mode, weapons can only be placed in an empty holster.
+            // Holstering a weapon frees your hand up.
+            if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
             {
-                sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+                if(getHolsterWeapon(xHotspot) == WID_FIST)
+                {
+                    sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
-                setHolsterWeapon(xHotspot, xWeapon);
-                setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
-                *xOutWeapon = WID_FIST;
-                W_SetCurrentAmmoFor(xHand);
+                    setHolsterWeapon(xHotspot, xWeapon);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                    *xOutWeapon = WID_FIST;
+                    W_SetCurrentAmmoFor(xHand);
+                }
+            }
+            // In "quick slot" mode, weapons can be placed in any holster.
+            // Holstering a weapon does not free your hand up.
+            else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+            {
+                if(getHolsterWeapon(xHotspot) != xWeapon)
+                {
+                    sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+
+                    setHolsterWeapon(xHotspot, xWeapon);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                }
             }
         }
+        // Swap weapon between hands.
         else if(xHotspot == QVR_HS_HAND_SWITCH)
         {
-            if(VRIsEntHandGrabbing(ent, VROtherHand(xHand)) &&
+            if(otherHandGrabbing &&
                xOtherWeapon == WID_FIST && time >= xOtherAttackFinished)
             {
                 sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
@@ -3379,44 +3619,60 @@ void(entity ent, float xHand,
             }
         }
     }
-    else if (xWeapon != WID_FIST && VRIsEntHandGrabbing(ent, xHand) && time >= xAttackFinished)
+    // Holding a weapon and hovering an holster. Possible intention to holster.
+    else if (xWeapon != WID_FIST && handGrabbing && time >= xAttackFinished)
     {
         if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
             {
-                VRHolsterHaptic(xHand);
+                VRHolsterHaptic(xHand, xHotspot);
             }
         }
     }
+    // Not holding a weapon and started grabbing the controller.
     else if (xWeapon == WID_FIST && VREntStartedHandGrabbing(ent, xHand))
     {
+        // Not a holster. Do nothing.
         if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
-           xHotspot == QVR_HS_MAINHAND_2H_GRAB)
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
+           xHotspot == QVR_HS_HAND_SWITCH)
         {
-            // TODO VR: (P1) what to do? probably nothing
+            // Intentionally left empty.
         }
+        // Attempt unholstering weapon.
         else if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
                 sound (self, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
-
                 *xOutWeapon = getHolsterWeapon(xHotspot);
-                setHolsterWeapon(xHotspot, WID_FIST);
-                setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
+
+                // In "immersive" mode, unholstering removes a weapon from a holster.
+                if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+                {
+                    setHolsterWeapon(xHotspot, WID_FIST);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
+                }
+                // In "quick slot" mode, unholstering does not remove a weapon from a holster.
+                else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+                {
+                    // Intentionally left empty.
+                }
+
                 W_SetCurrentAmmoFor(xHand);
             }
         }
     }
-    else if (xWeapon == WID_FIST && !VRIsEntHandGrabbing(ent, xHand))
+    // Not holding a weapon and hovering an holster. Possible intention to unholster.
+    else if (xWeapon == WID_FIST && !handGrabbing)
     {
         if(isHolsterHotspot(xHotspot))
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
-                VRHolsterHaptic(xHand);
+                VRHolsterHaptic(xHand, xHotspot);
             }
         }
     }
@@ -3428,6 +3684,9 @@ void() W_Frame =
     {
         ImpulseCommands ();
     }
+
+
+    UpdateHolsterHover();
 
     DoHandImpl(self, OFF_HAND,
                self.weapon2, &self.weapon2,
@@ -3473,19 +3732,11 @@ void() SuperDamageSound =
     return;
 };
 
-
-// TODO VR: (P0) stop switching weapons automatically, it makes no sense anymore.
-// Also dont automatically switch a weapon if ammo is out, player might want to
-// melee or throw it away. Consider spawning previously obtained weapons along
+// TODO VR: (P0) Consider spawning previously obtained weapons along
 // side ammo boxes or from enemies, so that they can be recovered if player
 // throws them away.
 
-// TODO VR: (P0) remove backpack spinning animation. Consider limiting weapons to
-// 6 (4 holsters + hands) to balance gameplay and dual wielding.
-
-// TODO VR: (P0) keep track of number of weapons and weapons previously seen so
-// that they can be spawned near boxes and by corpses in immersive vr mode, and
-// so that you can only dual wield if you have two of one weapon
+// TODO VR: (P1) remove backpack spinning animation.
 
 // TODO VR: (P0) not sure why weapons cannot be juggled. too small size? problems
 // with handtouch?

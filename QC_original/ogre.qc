@@ -351,11 +351,33 @@ void(entity attacker, float damage)    ogre_pain =
     }
 };
 
+void() OgreDrop =
+{
+    local entity entPlayer;
+    entPlayer = FindEntPlayerForDrop();
+
+    self.solid = SOLID_NOT;
+    self.ammo_rockets = 2;
+    DropBackpack();
+
+    if(entPlayer != world && random() > 0.65)
+    {
+        if(!TryDrop(entPlayer, WID_GRENADE_LAUNCHER, 0.5))
+        if(!TryDrop(entPlayer, WID_PROIXIMITY_GUN, 0.4))
+        if(!TryDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
+        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
+        if(!TryDrop(entPlayer, WID_NAILGUN, 0.2))
+        if(!TryDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
+        if(!TryDrop(entPlayer, WID_SHOTGUN, 0.1))
+        if(!TryDrop(entPlayer, WID_AXE, 0.1))
+        { /* Intentionally empty. */ }
+    }
+}
+
 void()    ogre_die1    =[    $death1,    ogre_die2    ] {};
 void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
-{self.solid = SOLID_NOT;
-self.ammo_rockets = 2;DropBackpack();};
+{ OgreDrop(); };
 void()    ogre_die4    =[    $death4,    ogre_die5    ] {};
 void()    ogre_die5    =[    $death5,    ogre_die6    ] {};
 void()    ogre_die6    =[    $death6,    ogre_die7    ] {};
@@ -371,8 +393,7 @@ void()    ogre_die14    =[    $death14,    ogre_die14    ] {};
 void()    ogre_bdie1    =[    $bdeath1,    ogre_bdie2    ] {};
 void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
-{self.solid = SOLID_NOT;
-self.ammo_rockets = 2;DropBackpack();};
+{ OgreDrop(); };
 void()    ogre_bdie4    =[    $bdeath4,    ogre_bdie5    ] {ai_forward(1);};
 void()    ogre_bdie5    =[    $bdeath5,    ogre_bdie6    ] {ai_forward(3);};
 void()    ogre_bdie6    =[    $bdeath6,    ogre_bdie7    ] {ai_forward(7);};

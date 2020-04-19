@@ -993,3 +993,30 @@ float LerpDegrees(float a, float b,
 
     return glm::degrees(res) + glm::vec3{0, VR_GetTurnYawAngle(), 0};
 }
+
+
+    // TODO VR: (P0) needed at all? Consider cvar for old style weapon cycling
+    /*
+    // TODO VR: (P2) code repetition, don't change to best weapon
+    if(time > self.attack_finished &&
+       getCurrentAmmo(MAIN_HAND) <= 0 &&
+       self.weapon != WID_FIST &&
+       self.weapon != WID_AXE &&
+       self.weapon != WID_MJOLNIR &&
+       self.weapon != WID_GRAPPLE)
+    {
+        // self.weapon = W_BestWeapon ();
+        W_SetCurrentAmmoFor (MAIN_HAND);
+    }
+
+    if(time > self.offhand_attack_finished &&
+       getCurrentAmmo(OFF_HAND) <= 0 &&
+       self.weapon2 != WID_FIST &&
+       self.weapon2 != WID_AXE &&
+       self.weapon2 != WID_MJOLNIR &&
+       self.weapon2 != WID_GRAPPLE)
+    {
+        // self.weapon2 = W_BestWeapon ();
+        W_SetCurrentAmmoFor (OFF_HAND);
+    }
+    */

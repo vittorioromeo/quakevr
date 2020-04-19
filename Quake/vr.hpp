@@ -104,8 +104,7 @@ enum class VrPlayerShadows : int
     Both = 3
 };
 
-// TODO VR: (P0) implement
-enum class VrWeaponMode : int
+enum class VrHolsterMode : int
 {
     // No weapon cycling. Weapons must be carried in holsters and hands.
     // TODO VR: (P0) what if I lose a weapon? Should we have weapon drops?
@@ -113,8 +112,61 @@ enum class VrWeaponMode : int
 
     // Player always carries all obtained weapons. Holsters act as quick
     // selection slots.
-    // TODO VR: (P0) how to unset holster? What does it mean to throw a weapon?
     QuickSlotHolsters = 1,
+};
+
+enum class VrWeaponThrowMode : int
+{
+    // Thrown weapons can be picked back up.
+    Immersive = 0,
+
+    // Thrown weapons disappear on hit.
+    DisappearOnHit = 1,
+
+    // Weapons cannot be thrown, they will be discarded.
+    Discard = 2
+};
+
+enum class VrWeaponCycleMode : int
+{
+    // Weapon cycling disabled (immersive option).
+    Disabled = 0,
+
+    // Can always cycle between all owned weapons.
+    Allowed = 1
+};
+
+enum class VrHolsterHaptics : int
+{
+    // Never activate haptics when hovering holster slots.
+    Off = 0,
+
+    // Continuous activation.
+    Continuous = 1,
+
+    // Single buzz.
+    Once = 2
+};
+
+enum class VrMeleeBloodlust : int
+{
+    // VR melee attacks restore some of the player's health.
+    Enabled = 0,
+
+    // VR melee attacks do not restore health.
+    Disabled = 1
+};
+
+enum class VrEnemyDrops : int
+{
+    // Enemies drop weapons the player is eligible for.
+    WhenEligible = 0,
+
+    // Enemies drop weapons without checking for eligibility.
+    Always = 1,
+
+    // Enemies never drop weapons
+    Disabled = 2
 };
 
 //
@@ -408,7 +460,6 @@ extern cvar_t vr_vrtorso_roll;
 extern cvar_t vr_holster_haptics;
 extern cvar_t vr_player_shadows;
 extern cvar_t vr_positional_damage;
-extern cvar_t vr_weapon_mode;
 extern cvar_t vr_debug_print_handvel;
 extern cvar_t vr_debug_show_hand_pos_and_rot;
 extern cvar_t vr_leg_holster_model_enabled;
@@ -416,6 +467,15 @@ extern cvar_t vr_leg_holster_model_scale;
 extern cvar_t vr_leg_holster_model_x_offset;
 extern cvar_t vr_leg_holster_model_y_offset;
 extern cvar_t vr_leg_holster_model_z_offset;
+extern cvar_t vr_holster_mode;
+extern cvar_t vr_weapon_throw_mode;
+extern cvar_t vr_weapon_throw_damage_mult;
+extern cvar_t vr_weapon_throw_velocity_mult;
+extern cvar_t vr_weapon_cycle_mode;
+extern cvar_t vr_melee_bloodlust;
+extern cvar_t vr_melee_bloodlust_mult;
+extern cvar_t vr_enemy_drops;
+extern cvar_t vr_enemy_drops_chance_mult;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

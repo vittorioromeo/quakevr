@@ -27,6 +27,7 @@ extern cvar_t skill;
 
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
+    m.add_action_entry("Impulse 14 (Spawn All)", runCmd("impulse 14"));
     m.add_action_entry("Impulse 255 (Quad)", runCmd("impulse 255"));
     m.add_action_entry("God Mode", runCmd("god"));
     m.add_action_entry("Noclip", runCmd("noclip"));

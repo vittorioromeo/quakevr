@@ -20,6 +20,7 @@
 // Utilities
 // ----------------------------------------------------------------------------
 
+using quake::util::cvarToEnum;
 using quake::util::getAngledVectors;
 using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::hitSomething;
@@ -342,7 +343,6 @@ DEFINE_CVAR_ARCHIVE(vr_vrtorso_roll, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_holster_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2); // TODO VR: (P0) choose default
 DEFINE_CVAR_ARCHIVE(vr_positional_damage, 1);
-DEFINE_CVAR_ARCHIVE(vr_weapon_mode, 0);
 DEFINE_CVAR_ARCHIVE(vr_debug_print_handvel, 0);
 DEFINE_CVAR_ARCHIVE(vr_debug_show_hand_pos_and_rot, 0);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_enabled, 1);
@@ -350,6 +350,15 @@ DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_scale, 1);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_x_offset, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_y_offset, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_z_offset, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_holster_mode, 0);
+DEFINE_CVAR_ARCHIVE(vr_weapon_throw_mode, 0);
+DEFINE_CVAR_ARCHIVE(vr_weapon_throw_damage_mult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_weapon_throw_velocity_mult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_weapon_cycle_mode, 0);
+DEFINE_CVAR_ARCHIVE(vr_melee_bloodlust, 0);
+DEFINE_CVAR_ARCHIVE(vr_melee_bloodlust_mult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_enemy_drops, 0);
+DEFINE_CVAR_ARCHIVE(vr_enemy_drops_chance_mult, 1.0);
 
 //
 //
@@ -869,15 +878,14 @@ char* CopyWithNumeral(const char* str, int i)
 
 [[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept
 {
-    return static_cast<Wpn2HMode>(
-        static_cast<int>(VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHMode)));
+    return cvarToEnum<Wpn2HMode>(VR_GetWpnCVar(cvarEntry, WpnCVar::TwoHMode));
 }
 
 [[nodiscard]] WpnCrosshairMode VR_GetWpnCrosshairMode(
     const int cvarEntry) noexcept
 {
-    return static_cast<WpnCrosshairMode>(static_cast<int>(
-        VR_GetWpnCVarValue(cvarEntry, WpnCVar::CrosshairMode)));
+    return cvarToEnum<WpnCrosshairMode>(
+        VR_GetWpnCVar(cvarEntry, WpnCVar::CrosshairMode));
 }
 
 [[nodiscard]] float VR_GetWpnLength(const int cvarEntry) noexcept
@@ -1481,6 +1489,35 @@ template <auto TFactorFn>
     return lastHeadOrigin;
 }
 
+void debugPrintHandvel(const int index, const float linearity)
+{
+    if(index == cVR_MainHand && vr_debug_print_handvel.value)
+    {
+        if(cl.handvelmag[index] > vr_debug_max_handvelmag)
+        {
+            vr_debug_max_handvelmag = cl.handvelmag[index];
+        }
+
+        if(vr_debug_max_handvelmag_timeout > 0.f)
+        {
+            const float frametime = cl.time - cl.oldtime;
+            vr_debug_max_handvelmag_timeout -= frametime;
+        }
+        else
+        {
+            vr_debug_max_handvelmag = 0.f;
+        }
+
+        if(cl.handvelmag[index] > 3.f)
+        {
+            vr_debug_max_handvelmag_timeout = 2.5f;
+
+            Con_Printf("handvelmag: %.2f (max: %.2f) (linearity: %.2f)\n",
+                cl.handvelmag[index], vr_debug_max_handvelmag, linearity);
+        }
+    }
+}
+
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1692,10 +1729,14 @@ void SetHandPos(int index, entity_t* player)
 
         const auto clampedWeight = std::clamp(weaponWeight, 0.f, 1.f);
 
-        const auto factor = std::clamp(clampedWeight / 2.f + 0.6f, 0.5f, 0.95f);
+        const auto factor =
+            std::clamp(clampedWeight / 1.5f + 0.65f, 0.5f, 0.99f);
 
-        cl.handvel[index] *= factor;
-        cl.handthrowvel[index] *= factor;
+        const auto handvelFactor = std::clamp(factor + 0.1f, 0.f, 1.f);
+        const auto handthrowvelFactor = std::clamp(factor - 0.05f, 0.f, 1.f);
+
+        cl.handvel[index] *= handvelFactor;
+        cl.handthrowvel[index] *= handthrowvelFactor;
     }
 
     // TODO VR: (P2) doesn't work due to collision resolution with wall, it
@@ -1727,31 +1768,7 @@ void SetHandPos(int index, entity_t* player)
         cl.handvelmag[index] *= std::pow(linearity, 4.f) * 2.f;
     }
 
-    if(index == cVR_MainHand && vr_debug_print_handvel.value)
-    {
-        if(cl.handvelmag[index] > vr_debug_max_handvelmag)
-        {
-            vr_debug_max_handvelmag = cl.handvelmag[index];
-        }
-
-        if(vr_debug_max_handvelmag_timeout > 0.f)
-        {
-            const float frametime = cl.time - cl.oldtime;
-            vr_debug_max_handvelmag_timeout -= frametime;
-        }
-        else
-        {
-            vr_debug_max_handvelmag = 0.f;
-        }
-
-        if(cl.handvelmag[index] > 3.f)
-        {
-            vr_debug_max_handvelmag_timeout = 2.5f;
-
-            Con_Printf("handvelmag: %.2f (max: %.2f) (linearity: %.2f)\n",
-                cl.handvelmag[index], vr_debug_max_handvelmag, linearity);
-        }
-    }
+    debugPrintHandvel(index, linearity);
 }
 
 [[nodiscard]] static const glm::vec3& VR_GetPlayerOrigin() noexcept
@@ -2507,8 +2524,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
 
 static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 {
-    const auto vr2HMode =
-        static_cast<Vr2HMode>(static_cast<int>(vr_2h_mode.value));
+    const auto vr2HMode = cvarToEnum<Vr2HMode>(vr_2h_mode);
 
     if(vr2HMode == Vr2HMode::Disabled || !svPlayerActive())
     {
@@ -3712,9 +3728,9 @@ void VR_DrawSbar()
 
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        const auto mode = static_cast<int>(vr_sbar_mode.value);
+        const auto mode = cvarToEnum<VrSbarMode>(vr_sbar_mode);
 
-        if(mode == static_cast<int>(VrSbarMode::MainHand))
+        if(mode == VrSbarMode::MainHand)
         {
             std::tie(forward, right, up) =
                 getAngledVectors(cl.handrot[cVR_MainHand]);
@@ -3754,9 +3770,10 @@ void VR_DrawSbar()
 
     glTranslatef(smoothedTarget[0], smoothedTarget[1], smoothedTarget[2]);
 
+    const auto sbarmode = cvarToEnum<VrSbarMode>(vr_sbar_mode);
+
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER &&
-        static_cast<int>(vr_sbar_mode.value) ==
-            static_cast<int>(VrSbarMode::OffHand))
+        sbarmode == VrSbarMode::OffHand)
     {
         glm::fquat m;
         m = glm::quatLookAt(forward, up);

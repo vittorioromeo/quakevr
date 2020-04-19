@@ -1105,7 +1105,7 @@ void R_DrawShadows()
     // VR: Draw view entity shadows.
     {
         const auto playerShadows =
-            static_cast<VrPlayerShadows>(static_cast<int>(vr_player_shadows.value));
+            quake::util::cvarToEnum<VrPlayerShadows>(vr_player_shadows);
 
         if(playerShadows == VrPlayerShadows::ViewEntities ||
             playerShadows == VrPlayerShadows::Both)

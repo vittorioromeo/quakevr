@@ -114,7 +114,14 @@ extern cvar_t r_particle_mult;
     m.add_cvar_entry<float>(
         "Off-Hand Yaw", vr_offhandyaw, {0.25f, -90.f, 90.f});
 
-    m.add_cvar_entry<bool>("Holster Haptics", vr_holster_haptics);
+    m.add_cvar_getter_enum_entry<VrHolsterHaptics>( //
+         "Holster Haptics",                         //
+         [] { return &vr_holster_haptics; },        //
+         "Off",                                     //
+         "Continuous",                              //
+         "Once"                                     //
+         )
+        .tooltip("Haptic feedback when hovering a\nusable holster slot.");
 
     // TODO VR: (P1) menu tooltips
 

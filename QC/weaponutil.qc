@@ -19,6 +19,63 @@ float(float wid, float wpnFlags) PlayerHasWeapon =
     return wpnFlags & WeaponIdToItemId(wid);
 }
 
+float(entity ent, float wid) PlayerEligibleForWeapon =
+{
+    if(wid == WID_FIST)             { return TRUE; }
+    if(wid == WID_AXE)              { return TRUE; }
+    if(wid == WID_SHOTGUN)          { return TRUE; }
+
+    return PlayerHasWeapon(wid, ent.items);
+}
+
+float() getEnemyDrops =
+{
+    return cvar("vr_enemy_drops");
+}
+
+entity() FindEntPlayerForDrop =
+{
+    if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
+    {
+        return world;
+    }
+
+    if (self.enemy.classname == "player")
+    {
+        return self.enemy;
+    }
+
+    if (self.oldenemy.classname == "player")
+    {
+        return self.oldenemy;
+    }
+
+    return world;
+}
+
+float(entity entPlayer, float xWeapon, float xChance) TryDrop =
+{
+    local float eligible, chance;
+
+    if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
+    {
+        return FALSE;
+    }
+
+    eligible = getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS ||
+               PlayerEligibleForWeapon(entPlayer, xWeapon);
+
+    chance = xChance * cvar("vr_enemy_drops_chance_mult");
+
+    if(eligible && random() < chance)
+    {
+        CreateWeaponDrop(self, xWeapon, self.origin);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 float(float wid) WeaponIdToItemId =
 {
     if(wid == WID_FIST)             { return IT_FIST; }
@@ -179,6 +236,29 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_LASER_CANNON)     { return 0; }
 
     bprint("`WeaponIdToThrowStabilizeDim`: invalid weapon id '");
+    bprint(ftos(wid));
+    bprint("'\n");
+
+    return 0;
+}
+
+float(float wid) WeaponIdToThrowDamage =
+{
+    if(wid == WID_FIST)             { return 20; }
+    if(wid == WID_GRAPPLE)          { return 20; }
+    if(wid == WID_AXE)              { return 30; }
+    if(wid == WID_MJOLNIR)          { return 30; }
+    if(wid == WID_SHOTGUN)          { return 20; }
+    if(wid == WID_SUPER_SHOTGUN)    { return 20; }
+    if(wid == WID_NAILGUN)          { return 20; }
+    if(wid == WID_SUPER_NAILGUN)    { return 20; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 25; }
+    if(wid == WID_PROXIMITY_GUN)    { return 25; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 30; }
+    if(wid == WID_LIGHTNING)        { return 25; }
+    if(wid == WID_LASER_CANNON)     { return 40; }
+
+    bprint("`WeaponIdToThrowDamage`: invalid weapon id '");
     bprint(ftos(wid));
     bprint("'\n");
 

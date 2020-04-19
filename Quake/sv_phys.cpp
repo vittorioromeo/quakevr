@@ -502,7 +502,8 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
         trace = SV_Move(
             ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
     }
-    else if(ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
+    else if(ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT ||
+            ent->v.solid == SOLID_NOT_BUT_TOUCHABLE)
     {
         // only clip against bmodels
         trace = SV_Move(
@@ -1151,7 +1152,8 @@ void SV_Handtouch(edict_t* ent)
         const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
         const auto end = handPos + fwd * 1.f;
 
-        return SV_Move(handPos, -handOffsets, handOffsets, end, MOVE_NORMAL, ent);
+        return SV_Move(
+            handPos, -handOffsets, handOffsets, end, MOVE_NORMAL, ent);
     };
 
     traceCheck(traceForHand(ent->v.handpos, ent->v.handrot));

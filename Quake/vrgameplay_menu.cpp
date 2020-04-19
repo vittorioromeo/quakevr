@@ -69,6 +69,80 @@
     m.add_cvar_entry<float>("W. W. Turn 2H Help Mult",
         vr_wpn_dir_weight_2h_help_mult, {0.1f, -5.f, 5.f});
 
+    // ------------------------------------------------------------------------
+
+    m.add_separator();
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrHolsterMode>( //
+         "Weapon Mode",                          //
+         [] { return &vr_holster_mode; },        //
+         "Immersive", "Cycle + Quick Slots"      //
+         )
+        .tooltip(
+            "Immersive mode holsters behave like\nreal world holsters. They "
+            "can\nbe empty or full, and unholstering\na weapon empties a "
+            "holster.\nImmersive mode should be used without\n"
+            "weapon cycling to limit the amount of\nweapons the player can "
+            "carry.\nQuick slot holsters never become\nempty. They are the "
+            "recommended\nway to play if you allow weapon\ncycling and want to "
+            "carry infinite weapons.");
+
+    m.add_cvar_getter_enum_entry<VrWeaponCycleMode>( //
+         "Weapon Cycle Mode",                        //
+         [] { return &vr_weapon_cycle_mode; },       //
+         "Immersive (Disabled)", "Enabled"           //
+         )
+        .tooltip(
+            "Allows or disallows cycling weapons\nusing controller buttons.");
+
+    // ------------------------------------------------------------------------
+
+    m.add_separator();
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrWeaponThrowMode>( //
+         "Weapon Throw Mode",                        //
+         [] { return &vr_weapon_throw_mode; },       //
+         "Immersive", "Disappear on Hit", "Discard"  //
+         )
+        .tooltip(
+            "Immersive mode allows throwing and\npicking weapons back up. It "
+            "is\nthe recommended way to play if immersive\nholster mode is "
+            "enabled.\nWith quick slot mode enabled, it\nmakes more sense to "
+            "use\nother options to avoid infinite weapons\nbeing spawned on "
+            "the ground.\nThrow damage is affected by the\nweapon and the "
+            "throw velocity.");
+
+    m.add_cvar_entry<float>("Weapon Throw Damage Mult.",
+         vr_weapon_throw_damage_mult, {0.05f, 0.05f, 5.f})
+        .tooltip("Multiplier for weapon throw damage.");
+
+    m.add_cvar_entry<float>("Weapon Throw Velocity Mult.",
+         vr_weapon_throw_velocity_mult, {0.05f, 0.05f, 5.f})
+        .tooltip("Multiplier for weapon throw velocity.");
+
+    // ------------------------------------------------------------------------
+
+    m.add_separator();
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrMeleeBloodlust>( //
+         "Melee Bloodlust",                         //
+         [] { return &vr_melee_bloodlust; },        //
+         "Enabled", "Disabled"                      //
+         )
+        .tooltip(
+            "When enabled, restores the player's\nhealth when performing melee "
+            "attacks\non enemies.");
+
+    m.add_cvar_entry<float>("Melee Bloodlust Mult.", vr_melee_bloodlust_mult,
+         {0.05f, 0.05f, 5.f}) //
+        .tooltip("Multiplier for melee bloodlust health\nrestoration.");
+
     // TODO VR: (P1) menu tooltips
 
     // ------------------------------------------------------------------------

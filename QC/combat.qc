@@ -114,6 +114,12 @@ void(entity targ, entity attacker) Killed =
 
 void(vector org, float damage) SpawnBloodSplash;
 
+
+float() getVRMeleeBloodlust =
+{
+    return cvar("vr_melee_bloodlust");
+}
+
 /*
 ============
 T_Damage
@@ -270,7 +276,11 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     {
         if(isVRMelee)
         {
-            sprint(attacker, "VR melee takedown\n");
+            // VR melee takedown
+            if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
+            {
+                T_Heal(attacker, ceil(1 + take / 12), 1);
+            }
         }
 
         Killed (targ, attacker);
@@ -280,7 +290,11 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     {
         if(isVRMelee)
         {
-            sprint(attacker, "VR melee damage\n");
+            // VR melee damage
+            if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
+            {
+                T_Heal(attacker, ceil(take / 12), 1);
+            }
         }
     }
 

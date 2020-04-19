@@ -525,6 +525,28 @@ float QVR_HS_HAND_SWITCH            = 7;
 float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
 float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 
+// Quake VR Enum: `VrHolsterMode'
+float QVR_WEAPONMODE_IMMERSIVE      = 0;
+float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
+
+// Quake VR Enum: `VrWeaponThrowMode'
+float QVR_WEAPONTHROWMODE_IMMERSIVE      = 0;
+float QVR_WEAPONTHROWMODE_DISAPPEARONHIT = 1;
+float QVR_WEAPONTHROWMODE_DISCARD        = 2;
+
+// Quake VR Enum: `VrWeaponCycleMode'
+float QVR_WEAPONCYCLEMODE_DISABLED = 0;
+float QVR_WEAPONCYCLEMODE_ALLOWED  = 1;
+
+// Quake VR Enum: `VrMeleeBloodlust'
+float QVR_MELEEBLOODLUST_ENABLED  = 0;
+float QVR_MELEEBLOODLUST_DISABLED = 1;
+
+// Quake VR Enum: `VrEnemyDrops`
+float QVR_ENEMYDROPS_WHENELIGIBLE = 0;
+float QVR_ENEMYDROPS_ALWAYS = 1;
+float QVR_ENEMYDROPS_DISABLE = 2;
+
 //================================================
 
 //
@@ -587,10 +609,10 @@ float    readytime; // time after loading a map when the player is considered
 .float    search_time;
 .float    attack_state;
 
-float    AS_STRAIGHT        = 1;
-float    AS_SLIDING        = 2;
-float    AS_MELEE        = 3;
-float    AS_MISSILE        = 4;
+float    AS_STRAIGHT = 1;
+float    AS_SLIDING  = 2;
+float    AS_MELEE    = 3;
+float    AS_MISSILE  = 4;
 
 //
 // player only fields

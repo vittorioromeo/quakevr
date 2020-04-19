@@ -1035,7 +1035,9 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
     {
         next = l->next;
         edict_t* target = EDICT_FROM_AREA(l);
-        if(target->v.solid == SOLID_NOT || target == clip->passedict)
+        if(target->v.solid == SOLID_NOT ||
+            target->v.solid == SOLID_NOT_BUT_TOUCHABLE ||
+            target == clip->passedict)
         {
             continue;
         }

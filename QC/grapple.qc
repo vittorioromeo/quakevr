@@ -183,6 +183,10 @@ void () GrappleAnchor =
         return;
 
     if (pointcontents(self.origin) == CONTENT_SKY) {
+
+        // TODO VR: (P0) remove:
+        bprint("Grapple sky\n");
+
         GrappleResetFromHook();
         return;
     }

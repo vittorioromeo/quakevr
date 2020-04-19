@@ -36,6 +36,12 @@ float VR_GetMenuMult() noexcept;
 
 namespace quake::util
 {
+    template <typename T>
+    [[nodiscard]] T cvarToEnum(const cvar_t& x) noexcept
+    {
+        return static_cast<T>(static_cast<int>(x.value));
+    }
+
     template <typename... Ts>
     [[nodiscard]] std::string stringCat(const Ts&... xs)
     {

@@ -67,6 +67,23 @@ void() PlaceItem =
         remove(self);
         return;
     }
+
+    // TODO VR: (P0) spawn items next to ammo boxes
+    if(self.classname == "item_shells")
+    {
+
+    }
+    else if(self.classname == "item_spikes")
+    {
+
+    }
+    else if(self.classname == "item_rockets")
+    {
+
+    }
+    else if(self.classname == "item_cells")
+    {
+    }
 };
 
 /*
@@ -97,16 +114,20 @@ float (entity e, float healamount, float ignore) T_Heal =
 {
     if (e.health <= 0)
         return 0;
+
     if ((!ignore) && (e.health >= other.max_health))
         return 0;
+
     healamount = ceil(healamount);
 
     e.health = e.health + healamount;
+
     if ((!ignore) && (e.health >= other.max_health))
         e.health = other.max_health;
 
     if (e.health > 250)
         e.health = 250;
+
     return 1;
 };
 
@@ -787,6 +808,8 @@ void() item_shells =
     }
     self.weapon = 1;
     self.netname = "shells";
+    self.classname = "item_shells";
+
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -812,6 +835,7 @@ void() item_spikes =
     }
     self.weapon = 2;
     self.netname = "nails";
+    self.classname = "item_spikes";
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -837,6 +861,7 @@ void() item_rockets =
     }
     self.weapon = 3;
     self.netname = "rockets";
+    self.classname = "item_rockets";
     // TODO VR: (P1) fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
@@ -864,6 +889,7 @@ void() item_cells =
     }
     self.weapon = 4;
     self.netname = "cells";
+    self.classname = "item_cells";
     // TODO VR: (P1) fix this size
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
