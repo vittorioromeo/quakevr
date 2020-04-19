@@ -203,8 +203,11 @@ float() GremlinAttemptWeaponSteal =
       }
    tempself = self;
    self = victim;
+
+   // TODO VR: (P0) test gremlin behavior
    self.weapon = W_BestWeapon ();
    W_SetCurrentAmmo ();
+
    self = tempself;
 
    // tag the gremlin as having stolen a weapon
@@ -1291,7 +1294,6 @@ void() Gremlin_FireLightningGun =
       discharged = 1;
         T_RadiusDamage (self, self, 35*cells, world);
       discharged = 0;
-//      W_SetCurrentAmmo ();
         return;
     }
 

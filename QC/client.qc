@@ -135,8 +135,6 @@ void() DecodeLevelParms =
     self.armortype = parm9 * 0.01;
     self.weapon2 = parm10;
 
-    // TODO VR: (P0) ensure that holsters carry over when passing level triggers
-    // TODO VR: (P0) ensure that weapons held in hands carry over when passing level triggers
     self.prevweapon = parm8;
     self.prevweapon2 = parm10;
 
@@ -1175,7 +1173,7 @@ void() PlayerPreThink =
        self.weapon != WID_GRAPPLE)
     {
         // self.weapon = W_BestWeapon ();
-        W_SetCurrentAmmo ();
+        W_SetCurrentAmmoFor (MAIN_HAND);
     }
 
     if(time > self.offhand_attack_finished &&
@@ -1186,7 +1184,7 @@ void() PlayerPreThink =
        self.weapon2 != WID_GRAPPLE)
     {
         // self.weapon2 = W_BestWeapon ();
-        W_SetCurrentAmmo ();
+        W_SetCurrentAmmoFor (OFF_HAND);
     }
     */
 

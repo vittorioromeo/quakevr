@@ -558,7 +558,7 @@ void() weapon_touch =
         Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
     }
 
-    W_SetCurrentAmmo();
+    W_SetCurrentAmmoFor(self.touchinghand);
 
     self = stemp;
 

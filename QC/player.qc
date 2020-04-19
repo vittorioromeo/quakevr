@@ -92,15 +92,11 @@ void(float xHand)    player_stand1 =
 {
     setHandThinkWithArg(xHand, $axstnd1, player_stand1);
 
-    setWeaponFrame(xHand, 0);
-
     if (self.velocity_x || self.velocity_y)
     {
         self.walkframe=0;
 
-        // TODO VR: (P0) this is the source of the animation bug, it used to be just
-        // player_run() which is undefined. Investigate.
-        // player_run(MAIN_HAND);
+        player_run(xHand);
         return;
     }
 
@@ -125,8 +121,6 @@ void(float xHand)    player_stand1 =
 void(float xHand) player_run =
 {
     setHandThinkWithArg(xHand, $rockrun1, player_run);
-
-    setWeaponFrame(xHand, 0);
 
     if (!self.velocity_x && !self.velocity_y)
     {
@@ -368,21 +362,15 @@ void(float xHand) player_grapple5 =
 
 void(float xHand) player_nail1 =
 {
-    if (self.ammo_nails < 1)
+    if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
     {
         player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
     setHandThinkWithArg(xHand, $nailatt1, player_nail2);
-
     self.effects = self.effects | EF_MUZZLEFLASH;
-
-    if (!VRFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
 
     setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
     if (getWeaponFrame(xHand) == 9)
@@ -395,19 +383,20 @@ void(float xHand) player_nail1 =
 
 void(float xHand) player_nail2 =
 {
-    if (self.ammo_nails < 1)
+    if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
     {
         player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
     setHandThinkWithArg(xHand, $nailatt2, player_nail1);
-
     self.effects = self.effects | EF_MUZZLEFLASH;
 
     if (!VRFireButtonPressed(xHand))
     {
-        player_run (xHand);
+        player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -427,6 +416,7 @@ void(float xHand) player_light1 =
     if (self.ammo_cells < 1)
     {
         player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -436,7 +426,8 @@ void(float xHand) player_light1 =
 
     if (!VRFireButtonPressed(xHand))
     {
-        player_run (xHand);
+        player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -454,6 +445,7 @@ void(float xHand) player_light2 =
     if (self.ammo_cells < 1)
     {
         player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -463,7 +455,8 @@ void(float xHand) player_light2 =
 
     if (!VRFireButtonPressed(xHand))
     {
-        player_run (xHand);
+        player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 

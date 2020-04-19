@@ -643,14 +643,13 @@ void(float xHand, float stat) HIP_FireLaser =
 
     if (!VRFireButtonPressed(xHand))
     {
-        player_run (xHand);
+        player_run(xHand);
+        setWeaponFrame(xHand, 0);
         return;
     }
 
     if (self.ammo_cells < 1)
     {
-        // VRSetWeapon(xHand, W_BestWeapon());
-        // W_SetCurrentAmmo ();
         return;
     }
 
@@ -2221,21 +2220,33 @@ void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCur
     *xFrame = 0;
 };
 
-void() W_SetCurrentAmmo =
-{
-    player_run (MAIN_HAND); // get out of any weapon firing states
-    player_run (OFF_HAND);  // get out of any weapon firing states
-
     // TODO VR: (P0) this always sets both weaponframes, it should only set it if the weapon changed
     // It happens when putting a gun in a holster
+void() W_SetCurrentAmmo =
+{
+    W_SetCurrentAmmoFor(MAIN_HAND);
+    W_SetCurrentAmmoFor(OFF_HAND);
+};
 
-    // TODO VR: (P0) animation bug while running and shooting (? think this is the player_run one)
+void(float xHand) W_SetCurrentAmmoFor =
+{
+    if(xHand == MAIN_HAND)
+    {
+        player_run(MAIN_HAND); // get out of any weapon firing states
+        setWeaponFrame(MAIN_HAND, 0);
 
-    W_SetCurrentAmmoImpl(self.weapon,
-        &self.currentammo, &self.weaponmodel, &self.weaponframe);
+        W_SetCurrentAmmoImpl(self.weapon,
+            &self.currentammo, &self.weaponmodel, &self.weaponframe);
+    }
 
-    W_SetCurrentAmmoImpl(self.weapon2,
-        &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
+    if(xHand == OFF_HAND)
+    {
+        player_run(OFF_HAND);  // get out of any weapon firing states
+        setWeaponFrame(OFF_HAND, 0);
+
+        W_SetCurrentAmmoImpl(self.weapon2,
+            &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
+    }
 
     updateAmmoCounters();
 };
@@ -3262,15 +3273,62 @@ void(float xHand) VRHolsterHaptic =
     }
 }
 
-void(entity ent, float xHand,
-     float xWeapon, float* xOutWeapon,
-     float xAttackFinished, float xHotspot,
-     float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
+void(entity thrower, float xWeapon, vector xOrigin, vector xRotation, vector xThrowVel, vector xAVel) CreateThrownWeapon =
 {
     local float tmp;
     local vector tmp_handavel;
     local vector tmp_bounds;
 
+    newmis = spawn ();
+
+    newmis.owner = thrower;
+    newmis.movetype = MOVETYPE_TOSS;
+    newmis.solid = SOLID_BBOX;
+
+    newmis.throwhit = FALSE;
+    newmis.throwstabilize = 8;
+    newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
+
+    newmis.angles = xRotation;
+    newmis.angles_x = newmis.angles_x * -1;
+
+    newmis.touch = wpnthrow_touch;
+    newmis.handtouch = wpnthrow_handtouch;
+
+    newmis.classname = "thrown_weapon";
+
+    newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
+
+    makevectors(xThrowVel);
+    tmp_handavel = xAVel;
+    newmis.avelocity = tmp_handavel_x * v_forward * 30
+                        + tmp_handavel_y * v_right * -30
+                        + tmp_handavel_z * v_up * -30;
+
+    newmis.think = wpnthrow_think;
+    newmis.nextthink = time + 0.02;
+    newmis.weapon = xWeapon;
+
+    // TODO VR: (P0) fix laser cannon bounds
+    tmp = WeaponIdToThrowBounds(xWeapon);
+    tmp_bounds_x = tmp;
+    tmp_bounds_y = tmp;
+    tmp_bounds_z = tmp;
+
+    setmodel (newmis, WeaponIdToModel(xWeapon));
+    setsize (newmis, -tmp_bounds, tmp_bounds);
+    setorigin (newmis, xOrigin);
+
+    newmis.velocity = xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)
+                    + thrower.velocity;
+}
+
+
+void(entity ent, float xHand,
+     float xWeapon, float* xOutWeapon,
+     float xAttackFinished, float xHotspot,
+     float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
+{
     if (time < readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
@@ -3289,49 +3347,8 @@ void(entity ent, float xHand,
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
             // TODO VR: (P0) throwing weapons. refactor and cleanup
-            {
-                newmis = spawn ();
-                newmis.owner = self;
-                newmis.movetype = MOVETYPE_TOSS;
-                newmis.solid = SOLID_BBOX;
-
-                newmis.throwhit = FALSE;
-                newmis.throwstabilize = 8;
-                newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
-
-                newmis.angles = VRGetHandRot(xHand);
-                newmis.angles_x = newmis.angles_x * -1;
-
-                newmis.touch = wpnthrow_touch;
-                newmis.handtouch = wpnthrow_handtouch;
-
-                newmis.classname = "thrown_weapon";
-
-                newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
-
-                makevectors(VRGetHandThrowVel(xHand));
-                tmp_handavel = VRGetHandAVel(xHand);
-                newmis.avelocity = tmp_handavel_x * v_forward * 30
-                                 + tmp_handavel_y * v_right * -30
-                                 + tmp_handavel_z * v_up * -30;
-
-                newmis.think = wpnthrow_think;
-                newmis.nextthink = time + 0.02;
-                newmis.weapon = xWeapon;
-
-                // TODO VR: (P0) fix laser cannon bounds
-                tmp = WeaponIdToThrowBounds(xWeapon);
-                tmp_bounds_x = tmp;
-                tmp_bounds_y = tmp;
-                tmp_bounds_z = tmp;
-
-                setmodel (newmis, WeaponIdToModel(xWeapon));
-                setsize (newmis, -tmp_bounds, tmp_bounds);
-                setorigin (newmis, VRGetHandPos(xHand));
-
-                newmis.velocity = VRGetHandThrowVel(xHand) * 120 * WeaponIdToThrowMult(xWeapon)
-                                + self.velocity;
-            }
+            CreateThrownWeapon(self, xWeapon,
+                VRGetHandPos(xHand), VRGetHandRot(xHand), VRGetHandThrowVel(xHand), VRGetHandAVel(xHand));
 
             *xOutWeapon = WID_FIST;
             W_SetCurrentAmmo();
@@ -3345,7 +3362,7 @@ void(entity ent, float xHand,
                 setHolsterWeapon(xHotspot, xWeapon);
                 setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
                 *xOutWeapon = WID_FIST;
-                W_SetCurrentAmmo();
+                W_SetCurrentAmmoFor(xHand);
             }
         }
         else if(xHotspot == QVR_HS_HAND_SWITCH)
@@ -3389,7 +3406,7 @@ void(entity ent, float xHand,
                 *xOutWeapon = getHolsterWeapon(xHotspot);
                 setHolsterWeapon(xHotspot, WID_FIST);
                 setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
-                W_SetCurrentAmmo();
+                W_SetCurrentAmmoFor(xHand);
             }
         }
     }
