@@ -356,8 +356,8 @@ void() ScourgeDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.4))
-        if(!TryDrop(entPlayer, WID_NAILGUN, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.4))
+        if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.5))
         { /* Intentionally empty. */ }
     }
 }
@@ -377,11 +377,12 @@ void() scourge_die =
    scourge_think();
    if (self.health < -35)
    {
-        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+      sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_scourg.mdl", self.health);
       ThrowGib ("progs/gib1.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
-        ThrowGib ("progs/gib3.mdl", self.health);
+      ThrowGib ("progs/gib2.mdl", self.health);
+      ThrowGib ("progs/gib3.mdl", self.health);
+      ScourgeDrop();
       return;
    }
 

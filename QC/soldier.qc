@@ -214,9 +214,9 @@ void() SoldierDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryDrop(entPlayer, WID_SUPER_SHOTGUN, 0.5))
-        if(!TryDrop(entPlayer, WID_SHOTGUN, 0.5))
-        if(!TryDrop(entPlayer, WID_AXE, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_AXE, 0.2))
+        if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.4))
+        if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.6))
         { /* Intentionally empty. */ }
     }
 }
@@ -262,6 +262,7 @@ void() army_die =
         ThrowGib ("progs/gib1.mdl", self.health);
         ThrowGib ("progs/gib2.mdl", self.health);
         ThrowGib ("progs/gib3.mdl", self.health);
+        SoldierDrop();
         return;
     }
 

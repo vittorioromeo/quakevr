@@ -269,12 +269,13 @@ void() EnforcerDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryDrop(entPlayer, WID_LASER_CANNON, 0.4))
-        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.4))
-        if(!TryDrop(entPlayer, WID_NAILGUN, 0.5))
-        if(!TryDrop(entPlayer, WID_SUPER_SHOTGUN, 0.2))
-        if(!TryDrop(entPlayer, WID_SHOTGUN, 0.2))
-        if(!TryDrop(entPlayer, WID_AXE, 0.2))
+        if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_LASER_CANNON, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_LIGHTNING, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_AXE, 0.5))
+        if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.2))
+        if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.2))
         { /* Intentionally empty. */ }
     }
 }
@@ -322,6 +323,7 @@ void() enf_die =
         ThrowGib ("progs/gib1.mdl", self.health);
         ThrowGib ("progs/gib2.mdl", self.health);
         ThrowGib ("progs/gib3.mdl", self.health);
+        EnforcerDrop();
         return;
     }
 

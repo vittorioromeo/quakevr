@@ -292,6 +292,19 @@ void(entity attacker, float damage)    sham_pain =
 
 //============================================================================
 
+void(entity entPlayer) ShamblerDropImpl =
+{
+    if(!TryEnemyDrop(entPlayer, WID_LIGHTNING, 0.5))
+    if(!TryEnemyDrop(entPlayer, WID_PROXIMITY_GUN, 0.4))
+    if(!TryEnemyDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
+    if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
+    if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.2))
+    if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
+    if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.1))
+    if(!TryEnemyDrop(entPlayer, WID_AXE, 0.1))
+    if(!TryEnemyDrop(entPlayer, WID_MJOLNIR, 0.1))
+    { /* Intentionally empty. */ }
+}
 
 void() ShamblerDrop =
 {
@@ -300,18 +313,10 @@ void() ShamblerDrop =
 
     self.solid = SOLID_NOT;
 
-    if(entPlayer != world && random() > 0.65)
+    if(entPlayer != world)
     {
-        if(!TryDrop(entPlayer, WID_LIGHTNING, 0.5))
-        if(!TryDrop(entPlayer, WID_PROXIMITY_GUN, 0.4))
-        if(!TryDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
-        if(!TryDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
-        if(!TryDrop(entPlayer, WID_NAILGUN, 0.2))
-        if(!TryDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
-        if(!TryDrop(entPlayer, WID_SHOTGUN, 0.1))
-        if(!TryDrop(entPlayer, WID_AXE, 0.1))
-        if(!TryDrop(entPlayer, WID_MJOLNIR, 0.1))
-        { /* Intentionally empty. */ }
+        if(random() > 0.65) { ShamblerDropImpl(entPlayer); }
+        if(random() > 0.65) { ShamblerDropImpl(entPlayer); }
     }
 }
 
@@ -338,6 +343,7 @@ void() sham_die =
         ThrowGib ("progs/gib1.mdl", self.health);
         ThrowGib ("progs/gib2.mdl", self.health);
         ThrowGib ("progs/gib3.mdl", self.health);
+        ShamblerDrop();
         return;
     }
 
