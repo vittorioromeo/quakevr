@@ -341,7 +341,7 @@ void() lightning_fire =
     WriteByte (MSG_ALL, SVC_TEMPENTITY);
     WriteByte (MSG_ALL, TE_LIGHTNING3);
     WriteEntity (MSG_ALL, world);
-    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
+    WriteByte (MSG_ALL, 0); /* disambiguator */
     WriteCoord (MSG_ALL, p1_x);
     WriteCoord (MSG_ALL, p1_y);
     WriteCoord (MSG_ALL, p1_z);
