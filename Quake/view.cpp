@@ -914,6 +914,47 @@ void V_CalcIntermissionRefdef()
     v_idlescale.value = old;
 }
 
+static float playerOldZ = 0;
+
+// TODO VR: (P2) add to vr view? the onground evaluates to false, this is
+// why it doesnt work smooth out stair step ups - seems to work for weapon
+// viewmodel
+static void StairSmoothView(float& oldz, const entity_t* ent, entity_t* view)
+{
+    if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
+    {
+        // johnfitz -- added exception for noclip
+        // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
+        // this won't work.
+
+        float steptime = cl.time - cl.oldtime;
+        if(steptime < 0)
+        {
+            // FIXME	I_Error ("steptime < 0");
+            steptime = 0;
+        }
+
+        oldz += steptime * 80;
+
+        if(oldz > ent->origin[2])
+        {
+            oldz = ent->origin[2];
+        }
+
+        if(ent->origin[2] - oldz > 12)
+        {
+            oldz = ent->origin[2] - 12;
+        }
+
+        // r_refdef.vieworg[2] += oldz - ent->origin[2];
+        view->origin[2] += oldz - ent->origin[2];
+    }
+    else
+    {
+        oldz = ent->origin[2];
+    }
+}
+
 /*
 ==================
 V_CalcRefdef
@@ -921,7 +962,6 @@ V_CalcRefdef
 */
 void V_CalcRefdef()
 {
-    static float oldz = 0;
     static glm::vec3 punch{vec3_zero}; // johnfitz -- v_gunkick
 
     V_DriftPitch();
@@ -1077,39 +1117,7 @@ void V_CalcRefdef()
     }
     // johnfitz
 
-    // TODO VR: (P2) add to vr view? the onground evaluates to false, this is
-    // why it doesnt work smooth out stair step ups
-    if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
-    {
-        // johnfitz -- added exception for noclip
-        // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
-        // this won't work.
-
-        float steptime;
-
-        steptime = cl.time - cl.oldtime;
-        if(steptime < 0)
-        {
-            // FIXME	I_Error ("steptime < 0");
-            steptime = 0;
-        }
-
-        oldz += steptime * 80;
-        if(oldz > ent->origin[2])
-        {
-            oldz = ent->origin[2];
-        }
-        if(ent->origin[2] - oldz > 12)
-        {
-            oldz = ent->origin[2] - 12;
-        }
-        r_refdef.vieworg[2] += oldz - ent->origin[2];
-        view->origin[2] += oldz - ent->origin[2];
-    }
-    else
-    {
-        oldz = ent->origin[2];
-    }
+    StairSmoothView(playerOldZ, ent, view);
 
     if(chase_active.value)
     {
@@ -1139,6 +1147,8 @@ void V_SetupOffHandWpnViewEnt()
     view.frame = cl.stats[STAT_WEAPONFRAME2];
     view.colormap = vid.colormap;
     view.horizflip = true;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
 
     if(chase_active.value)
     {
@@ -1170,6 +1180,8 @@ void V_SetupVRTorsoViewEnt()
     view.origin += vRight * vr_vrtorso_y_offset.value;
     view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
     view.origin[2] += vr_vrtorso_z_offset.value;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
 }
 
 void V_SetupHolsterSlotViewEnt(const glm::vec3& pos, entity_t* view,
@@ -1186,6 +1198,8 @@ void V_SetupHolsterSlotViewEnt(const glm::vec3& pos, entity_t* view,
     view->colormap = vid.colormap;
 
     view->horizflip = horizflip;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], view);
 
     if(chase_active.value)
     {
