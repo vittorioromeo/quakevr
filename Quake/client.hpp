@@ -87,16 +87,16 @@ struct dlight_t
 };
 
 
-typedef struct
+struct beam_t
 {
     int entity;
-    int disambiguator{0};
+    int disambiguator;
     qmodel_t* model;
     float endtime;
     glm::vec3 start, end;
-    bool spin{true};
-    float scaleRatioX{1.f};
-} beam_t;
+    bool spin;
+    float scaleRatioX;
+} ;
 
 
 

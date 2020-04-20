@@ -1056,7 +1056,7 @@ void Host_Init()
         CL_Init();
     }
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    (void) Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;
