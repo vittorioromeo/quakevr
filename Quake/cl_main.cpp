@@ -761,11 +761,13 @@ int CL_ReadFromServer()
             num_beams++;
         }
     }
+
     if(num_beams > 24 && dev_peakstats.beams <= 24)
     {
         Con_DWarning("%i beams exceeded standard limit of 24 (max = %d).\n",
             num_beams, MAX_BEAMS);
     }
+
     dev_stats.beams = num_beams;
     dev_peakstats.beams = q_max(num_beams, dev_peakstats.beams);
 
