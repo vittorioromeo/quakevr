@@ -3494,8 +3494,8 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
 {
     local vector throwVel;
 
-    throwVel = randomVec(2.3);
-    throwVel_z = 1.3 + random() * 1.4;
+    throwVel = randomVec(0.9);
+    throwVel_z = 1.1 + random() * 1.1;
 
     CreateThrownWeapon(thrower, xWeapon,
         xOrigin, randomVec(180),
@@ -3505,6 +3505,24 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
         WeaponIdToThrowDamage(xWeapon)
     );
 }
+
+// TODO VR: (P1) improve
+void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
+{
+    local vector throwVel;
+
+    throwVel = randomVec(0.1);
+    throwVel_z = 0.2 + random() * 0.1;
+
+    CreateThrownWeapon(thrower, xWeapon,
+        xOrigin, randomVec(180),
+        throwVel, randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon)
+    );
+}
+
 
 float() getWeaponMode =
 {
@@ -3731,10 +3749,6 @@ void() SuperDamageSound =
     }
     return;
 };
-
-// TODO VR: (P0) Consider spawning previously obtained weapons along
-// side ammo boxes or from enemies, so that they can be recovered if player
-// throws them away.
 
 // TODO VR: (P1) remove backpack spinning animation.
 
