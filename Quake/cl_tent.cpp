@@ -74,7 +74,6 @@ beam_t* CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
     const int disambiguator = MSG_ReadByte();
-
     const glm::vec3 start = readVectorFromProtocolFlags();
     const glm::vec3 end = readVectorFromProtocolFlags();
 
@@ -85,6 +84,8 @@ beam_t* CL_ParseBeam(qmodel_t* m)
         b.endtime = cl.time + 0.2;
         b.start = start;
         b.end = end;
+        b.scaleRatioX = 1.f;
+        b.spin = true;
     };
 
     // override any beam with the same entity and disambiguator
@@ -370,6 +371,7 @@ void CL_UpdateTEnts()
     for(int i = 0; i < MAX_BEAMS; ++i)
     {
         beam_t& b = cl_beams[i];
+
         if(!b.model || b.endtime < cl.time)
         {
             continue;
