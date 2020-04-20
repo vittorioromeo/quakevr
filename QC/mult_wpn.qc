@@ -283,10 +283,11 @@ void(float offset, float frameNum) MultiRocketLaunch =
     missile.frame = frameNum;
     missile.touch = MultiRocketTouch;
 
-    if (deathmatch || coop)
-        setmodel (missile, "progs/rockup_d.mdl");
-    else
-        setmodel (missile, "progs/rockup.mdl");
+    // TODO VR: (P2) rogue (commented to avoid warnings)
+    // if (deathmatch || coop)
+    //     setmodel (missile, "progs/rockup_d.mdl");
+    // else
+    //     setmodel (missile, "progs/rockup.mdl");
 
     setsize (missile, '0 0 0', '0 0 0');
     setorigin (missile, self.origin + v_forward*8 + '0 0 16');
@@ -460,7 +461,9 @@ void() PlasmaTouch =
     }
 
     damg = 80 + random()*20;
-    sound (self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
+
+    // TODO VR: (P2) rogue (commented to avoid warnings)
+    // sound (self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
 
     if (other.health)
     {
@@ -512,11 +515,14 @@ void(vector org, vector dir) launch_plasma =
     missile.angles = vectoangles(missile.velocity);
     missile.touch = PlasmaTouch;
 
-    setmodel (missile, "progs/plasma.mdl");
+    // TODO VR: (P2) rogue (commented to avoid warnings)
+    // setmodel (missile, "progs/plasma.mdl");
     setsize (missile, '0 0 0', '0 0 0');
     setorigin (missile, org);
 
-    sound (missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
+    // TODO VR: (P2) rogue (commented to avoid warnings)
+    // sound (missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
+
     if (!deathmatch && !coop)
         missile.effects = EF_BRIGHTLIGHT;
 

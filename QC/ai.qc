@@ -454,15 +454,18 @@ local float    rsnd;
         sound (self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if (self.classname == "monster_vomit")
     {
-        sound (self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+        // TODO VR: (P2) unused? (commented to avoid warnings)
+        // sound (self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
     }
     else if (self.classname == "monster_eel")
     {
-        sound (self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+        // TODO VR: (P2) unused? (commented to avoid warnings)
+        // sound (self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
     }
     else if (self.classname == "monster_wrath")
     {
-        sound (self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
+        // TODO VR: (P2) unused? (commented to avoid warnings)
+        // sound (self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
     }
     else if (self.classname == "monster_enforcer")
     {
@@ -493,7 +496,10 @@ local float    rsnd;
     else if (self.classname == "monster_armagon")
         sound (self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
     else if (self.classname == "monster_dragon")
-        sound (self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
+    {
+        // TODO VR: (P2) unused? (commented to avoid warnings)
+        // sound (self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
+    }
 };
 
 void() FoundTarget =
