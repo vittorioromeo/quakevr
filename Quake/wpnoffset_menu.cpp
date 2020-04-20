@@ -77,7 +77,7 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* offsetTooltip =
-        "Offset of the weapon relative\nto the center of its model.\nDoes not "
+        "Offset of the weapon relative to the center of its model. Does not "
         "affect aiming.";
 
     o_wpncvar("X", WpnCVar::OffsetX).hover(hoverOffset).tooltip(offsetTooltip);
@@ -89,7 +89,7 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* rotationTooltip =
-        "Rotation of the weapon model\nDoes not affect aiming.";
+        "Rotation of the weapon model. Does not affect aiming.";
 
     r_wpncvar("Roll", WpnCVar::Roll).tooltip(rotationTooltip);
     r_wpncvar("Pitch", WpnCVar::Pitch).tooltip(rotationTooltip);
@@ -98,9 +98,9 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* muzzleTooltip =
-        "Position of the weapon muzzle.\nRelative to the XYZ offsets "
-        "above.\nAffected by the weapon model scale.\nDOES affect "
-        "aiming.\nBullets and projectiles spawn from\nthis position.";
+        "Position of the weapon muzzle. Relative to the XYZ offsets above. "
+        "Affected by the weapon model scale. DOES affect aiming. Bullets and "
+        "projectiles spawn from this position.";
 
     o_wpncvar("Muzzle X", WpnCVar::MuzzleOffsetX)
         .hover(hoverMuzzle)
@@ -115,9 +115,9 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* twoHXYZTooltip =
-        "Offset applied to the off-hand when\naiming with two hands. "
-        "Allows\ntweaking of the weapon's position\aand angle, and how close "
-        "the\noff-hand appears to the model.\nDOES affect aiming.";
+        "Offset applied to the off-hand when aiming with two hands. Allows "
+        "tweaking of the weapon's position and angle, and how close the "
+        "off-hand appears to the model. DOES affect aiming.";
 
     o_wpncvar("2H X", WpnCVar::TwoHOffsetX)
         .hover(hover2HOffset)
@@ -132,8 +132,8 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* twoHRotTooltip =
-        "Angle offset applied to the weapon\n when aiming with two hands. "
-        "Allows\ntweaking of the weapon's angle.\nDOES affect aiming.";
+        "Angle offset applied to the weapon when aiming with two hands. "
+        "Allows tweaking of the weapon's angle. DOES affect aiming.";
 
     r_wpncvar("2H Pitch", WpnCVar::TwoHPitch).tooltip(twoHRotTooltip);
     r_wpncvar("2H Yaw", WpnCVar::TwoHYaw).tooltip(twoHRotTooltip);
@@ -143,10 +143,9 @@ static int getIdx()
 
     o_wpncvar("Weight", WpnCVar::Weight)
         .tooltip(
-            "How heavy the weapon 'feels'.\nValues closer to '1' are "
-            "heavier.\n'1' itself is 'infinite' weight.\nAffects weapon "
-            "movement and rotation\nspeed, and also throwing distance "
-            "and\ndamage.");
+            "How heavy the weapon 'feels'. Values closer to '1' are heavier. "
+            "'1' itself is 'infinite' weight. Affects weapon movement and "
+            "rotation speed, and also throwing distance and damage.");
 
     // ------------------------------------------------------------------------
 
@@ -156,14 +155,14 @@ static int getIdx()
          {1, 0, 1024}                                                        //
          )
         .tooltip(
-            "Index of the mesh vertex where the\nhand will be attached. Useful "
-            "to\nensure that the hand follows\nthe weapon animations "
+            "Index of the mesh vertex where the hand will be attached. Useful "
+            "to ensure that the hand follows the weapon animations "
             "properly.");
 
     // ------------------------------------------------------------------------
 
     const char* handOffsetTooltip =
-        "Visual offset of the hand, relative\nto the anchor vertex.";
+        "Visual offset of the hand, relative to the anchor vertex.";
 
     o_wpncvar("Hand X", WpnCVar::HandOffsetX).tooltip(handOffsetTooltip);
     o_wpncvar("Hand Y", WpnCVar::HandOffsetY).tooltip(handOffsetTooltip);
@@ -172,7 +171,7 @@ static int getIdx()
     // ------------------------------------------------------------------------
 
     const char* offHandOffsetTooltip =
-        "Visual offset of the hand, relative\nto the above hand offset.";
+        "Visual offset of the hand, relative to the above hand offset.";
 
     o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
         .tooltip(offHandOffsetTooltip);
@@ -189,8 +188,8 @@ static int getIdx()
          "Default", "Ignore Virtual Stock", "Forbidden"              //
          )
         .tooltip(
-            "Defines whether the weapon is\neligible for 2H aiming. "
-            "Virtual\nstock can be ignored for weapons\nlike the laser "
+            "Defines whether the weapon is eligible for 2H aiming. "
+            "Virtual stock can be ignored for weapons like the laser "
             "cannon.");
 
     // ------------------------------------------------------------------------

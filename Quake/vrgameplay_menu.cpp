@@ -81,13 +81,12 @@
          "Immersive", "Cycle + Quick Slots"      //
          )
         .tooltip(
-            "Immersive mode holsters behave like\nreal world holsters. They "
-            "can\nbe empty or full, and unholstering\na weapon empties a "
-            "holster.\nImmersive mode should be used without\n"
-            "weapon cycling to limit the amount of\nweapons the player can "
-            "carry.\nQuick slot holsters never become\nempty. They are the "
-            "recommended\nway to play if you allow weapon\ncycling and want to "
-            "carry infinite weapons.");
+            "Immersive mode holsters behave like real world holsters. They can "
+            "be empty or full, and unholstering a weapon empties a holster. "
+            "Immersive mode should be used without weapon cycling to limit the "
+            "amount of weapons the player can carry. Quick slot holsters never "
+            "become empty. They are the recommended way to play if you allow "
+            "weapon cycling and want to carry infinite weapons.");
 
     m.add_cvar_getter_enum_entry<VrWeaponCycleMode>( //
          "Weapon Cycle Mode",                        //
@@ -95,7 +94,7 @@
          "Immersive (Disabled)", "Enabled"           //
          )
         .tooltip(
-            "Allows or disallows cycling weapons\nusing controller buttons.");
+            "Allows or disallows cycling weapons using controller buttons.");
 
     // ------------------------------------------------------------------------
 
@@ -109,12 +108,11 @@
          "Immersive", "Disappear on Hit", "Discard"  //
          )
         .tooltip(
-            "Immersive mode allows throwing and\npicking weapons back up. It "
-            "is\nthe recommended way to play if immersive\nholster mode is "
-            "enabled.\nWith quick slot mode enabled, it\nmakes more sense to "
-            "use\nother options to avoid infinite weapons\nbeing spawned on "
-            "the ground.\nThrow damage is affected by the\nweapon and the "
-            "throw velocity.");
+            "Immersive mode allows throwing and picking weapons back up. It is "
+            "the recommended way to play if immersive holster mode is enabled. "
+            "With quick slot mode enabled, it makes more sense to use other "
+            "options to avoid infinite weapons being spawned on the ground. "
+            "Throw damage is affected by the weapon and the throw velocity.");
 
     m.add_cvar_entry<float>("Weapon Throw Damage Mult.",
          vr_weapon_throw_damage_mult, {0.05f, 0.05f, 5.f})
@@ -136,16 +134,55 @@
          "Enabled", "Disabled"                      //
          )
         .tooltip(
-            "When enabled, restores the player's\nhealth when performing melee "
-            "attacks\non enemies.");
+            "When enabled, restores the player's health when performing melee "
+            "attacks on enemies.");
 
     m.add_cvar_entry<float>("Melee Bloodlust Mult.", vr_melee_bloodlust_mult,
          {0.05f, 0.05f, 5.f}) //
-        .tooltip("Multiplier for melee bloodlust health\nrestoration.");
+        .tooltip("Multiplier for melee bloodlust health restoration.");
 
-    // TODO VR: (P1) menu tooltips
 
     // ------------------------------------------------------------------------
+
+    m.add_separator();
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrEnemyDrops>( //
+         "Enemy Weapon Drops",                  //
+         [] { return &vr_enemy_drops; },        //
+         "When Eligible", "Always", "Disabled"  //
+         )
+        .tooltip(
+            "Controls random enemy weapon drops. 'Eligible' means that the "
+            "player has obtained a weapon before through a level weapon "
+            "pickup.");
+
+    m.add_cvar_entry<float>("Enemy W. Drops Chance Mult.",
+         vr_enemy_drops_chance_mult, {0.05f, 0.05f, 5.f}) //
+        .tooltip("Multiplier for enemy weapon drops.");
+
+    // ------------------------------------------------------------------------
+
+    m.add_separator();
+
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrAmmoBoxDrops>( //
+         "Ammo Box Weapon Drops",                 //
+         [] { return &vr_ammobox_drops; },        //
+         "When Eligible", "Always", "Disabled"    //
+         )
+        .tooltip(
+            "Controls random ammo box weapon drops. 'Eligible' means that the "
+            "player has obtained a weapon before through a level weapon "
+            "pickup.");
+
+    m.add_cvar_entry<float>("Ammo Box W. Drops Chance Mult.",
+         vr_ammobox_drops_chance_mult, {0.05f, 0.05f, 5.f}) //
+        .tooltip("Multiplier for ammo box weapon drops.");
+
+    // TODO VR: (P1) menu tooltips
 
     return m;
 }

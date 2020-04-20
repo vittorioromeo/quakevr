@@ -179,6 +179,41 @@ void M_PrintWhiteWithNewLine(int cx, int cy, const char* str)
     }
 }
 
+void M_PrintWhiteByWrapping(
+    const int wrapCount, int cx, int cy, const char* str)
+{
+    const int originalCx = cx;
+    int currPrint = 0;
+
+    while(*str)
+    {
+        if(*str == '\n')
+        {
+            cx = originalCx;
+            cy += 8;
+            str++;
+            currPrint = 0;
+
+            continue;
+        }
+
+        if(currPrint >= wrapCount)
+        {
+            cx = originalCx;
+            cy += 8;
+            currPrint = 0;
+
+            continue;
+        }
+
+        M_DrawCharacter(cx, cy, *str);
+        ++currPrint;
+
+        str++;
+        cx += 8;
+    }
+}
+
 void M_DrawTransPic(int x, int y, qpic_t* pic)
 {
     Draw_Pic(x, y,

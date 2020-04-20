@@ -208,6 +208,7 @@ float lastVrYawDiff{};
 float vr_menu_mult{0.f};
 bool vr_should_aim_2h{false};
 int vr_hardcoded_wpn_cvar_fist{16};
+glm::vec3 lastMenuAngles;
 
 // TODO VR: (P2) not sure what this number should actually be...
 enum
@@ -251,7 +252,7 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
 
 DEFINE_CVAR_ARCHIVE(vr_crosshair, 1);
 DEFINE_CVAR_ARCHIVE(vr_crosshair_depth, 0);
@@ -341,7 +342,7 @@ DEFINE_CVAR_ARCHIVE(vr_vrtorso_pitch, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_vrtorso_yaw, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_vrtorso_roll, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_holster_haptics, 1);
-DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2); // TODO VR: (P0) choose default
+DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2);
 DEFINE_CVAR_ARCHIVE(vr_positional_damage, 1);
 DEFINE_CVAR_ARCHIVE(vr_debug_print_handvel, 0);
 DEFINE_CVAR_ARCHIVE(vr_debug_show_hand_pos_and_rot, 0);
@@ -359,6 +360,9 @@ DEFINE_CVAR_ARCHIVE(vr_melee_bloodlust, 0);
 DEFINE_CVAR_ARCHIVE(vr_melee_bloodlust_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_enemy_drops, 0);
 DEFINE_CVAR_ARCHIVE(vr_enemy_drops_chance_mult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_ammobox_drops, 0);
+DEFINE_CVAR_ARCHIVE(vr_ammobox_drops_chance_mult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_menumode, 0);
 
 //
 //
@@ -1227,6 +1231,16 @@ static void VR_InitActionHandles()
 // TODO VR: (P2) reorganize
 // ----------------------------------------------------------------------------
 
+[[nodiscard]] static bool inMenu() noexcept
+{
+    return key_dest == key_menu;
+}
+
+[[nodiscard]] static bool inGame() noexcept
+{
+    return key_dest == key_game;
+}
+
 [[nodiscard]] static bool svPlayerActive() noexcept
 {
     // TODO VR: (P2) document, this is because of Host_ClearMemory and map
@@ -1520,6 +1534,9 @@ void debugPrintHandvel(const int index, const float linearity)
 
 void SetHandPos(int index, entity_t* player)
 {
+    // TODO VR: (P0) ammo weapon drops spawn on player position
+    // TODO VR: (P0) cannot pick up weapons on ledges
+
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
 
@@ -1624,7 +1641,7 @@ void SetHandPos(int index, entity_t* player)
         gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
 
     // Weight stuff
-    if(vr_wpn_pos_weight.value == 1)
+    if(!inMenu() && vr_wpn_pos_weight.value == 1)
     {
         const auto ftw =
             VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index);
@@ -2345,7 +2362,7 @@ VR_UpdateDevicesOrientationPosition() noexcept
 
 static void VR_DoWeaponDirSlerp()
 {
-    if(vr_wpn_dir_weight.value != 1)
+    if(inMenu() || vr_wpn_dir_weight.value != 1)
     {
         return;
     }
@@ -3587,9 +3604,6 @@ void VR_Draw2D()
     bool draw_sbar = false;
 
     glm::vec3 menu_angles;
-    glm::vec3 forward;
-    glm::vec3 right;
-    glm::vec3 up;
     glm::vec3 target;
 
     const float scale_hud = vr_menu_scale.value;
@@ -3611,23 +3625,33 @@ void VR_Draw2D()
                               // interferring with one another
     glEnable(GL_BLEND);
 
-    // TODO VR: (P1) control with cvar
-    if(false && vr_aimmode.value == VrAimMode::e_CONTROLLER)
+    const VrMenuMode menuMode = [&] {
+        const auto v =
+            static_cast<VrMenuMode>(static_cast<int>(vr_menumode.value));
+
+        if((v == VrMenuMode::LastHeadAngles || v == VrMenuMode::FollowHead) ||
+            (v == VrMenuMode::FollowOffHand && controllers[0].active) ||
+            (v == VrMenuMode::FollowMainHand && controllers[1].active))
+        {
+            return v;
+        }
+
+        return VrMenuMode::LastHeadAngles;
+    }();
+
+    const bool headMenuMode = menuMode == VrMenuMode::LastHeadAngles ||
+                              menuMode == VrMenuMode::FollowHead;
+
+    if(headMenuMode)
     {
-        std::tie(forward, right, up) =
-            getAngledVectors(cl.handrot[cVR_MainHand]);
-
-        menu_angles = cl.handrot[cVR_MainHand];
-
-        std::tie(forward, right, up) = getAngledVectors(menu_angles);
-
-        target = cl.handpos[cVR_MainHand] + 48.f * forward;
-    }
-    else
-    {
-        // TODO: Make the menus' position sperate from the right hand.
-        // Centered on last view dir?
-        menu_angles = cl.viewangles;
+        if(menuMode == VrMenuMode::LastHeadAngles)
+        {
+            menu_angles = inMenu() ? lastMenuAngles : cl.viewangles;
+        }
+        else
+        {
+            menu_angles = cl.viewangles;
+        }
 
         if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
             vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
@@ -3635,8 +3659,18 @@ void VR_Draw2D()
             menu_angles[PITCH] = 0;
         }
 
-        std::tie(forward, right, up) = getAngledVectors(menu_angles);
-        target = r_refdef.vieworg + vr_menu_distance.value * forward;
+        const auto [fwd, right, up] = getAngledVectors(menu_angles);
+        target = r_refdef.vieworg + vr_menu_distance.value * fwd;
+    }
+    else
+    {
+        const auto hand =
+            menuMode == VrMenuMode::FollowOffHand ? cVR_OffHand : cVR_MainHand;
+
+        menu_angles = cl.handrot[hand];
+
+        const auto [fwd, right, up] = getAngledVectors(menu_angles);
+        target = cl.handpos[hand] + vr_menu_distance.value * fwd;
     }
 
     // TODO VR: (P2) control smoothing with cvar
@@ -3645,13 +3679,16 @@ void VR_Draw2D()
 
     glTranslatef(smoothedTarget[0], smoothedTarget[1], smoothedTarget[2]);
 
-    glRotatef(menu_angles[YAW] - 90, 0, 0, 1); // rotate around z
-    glRotatef(90 + menu_angles[PITCH], -1, 0,
-        0); // keep bar at constant angled pitch towards user
-    glTranslatef(-(320.0 * scale_hud / 2), -(200.0 * scale_hud / 2),
-        0); // center the status bar
-    glScalef(scale_hud, scale_hud, scale_hud);
+    // rotate around z
+    glRotatef(menu_angles[YAW] - 90, 0, 0, 1);
 
+    // keep bar at constant angled pitch towards user
+    glRotatef(90 + menu_angles[PITCH], -1, 0, 0);
+
+    // center the status bar
+    glTranslatef(-(320.0 * scale_hud / 2), -(200.0 * scale_hud / 2), 0);
+
+    glScalef(scale_hud, scale_hud, scale_hud);
 
     if(scr_drawdialog) // new game confirm
     {
@@ -3671,11 +3708,11 @@ void VR_Draw2D()
         SCR_DrawLoading();
         draw_sbar = true; // Sbar_Draw ();
     }
-    else if(cl.intermission == 1 && key_dest == key_game) // end of level
+    else if(cl.intermission == 1 && inGame()) // end of level
     {
         Sbar_IntermissionOverlay();
     }
-    else if(cl.intermission == 2 && key_dest == key_game) // end of episode
+    else if(cl.intermission == 2 && inGame()) // end of episode
     {
         Sbar_FinaleOverlay();
         SCR_CheckDrawCenterString();
@@ -3973,9 +4010,10 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             }
 
             Key_Event(key, pressed);
+            return pressed;
         };
 
-    if(key_dest == key_menu)
+    if(inMenu())
     {
         doMenuKeyEventWithHaptic(K_ENTER, inpJump);
         doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
@@ -4025,7 +4063,12 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         }
 
         Key_Event(K_SPACE, mustJump);
-        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
+
+        if(doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape))
+        {
+            lastMenuAngles = cl.viewangles;
+        }
+
         Key_Event('3', mustPrevWeapon);
         Key_Event('1', mustNextWeapon);
         Key_Event('4', mustNextWeaponOffHand);
@@ -4149,7 +4192,7 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
     cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);
 
-    if(key_dest == key_menu)
+    if(inMenu())
     {
         return;
     }

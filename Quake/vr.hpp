@@ -107,7 +107,6 @@ enum class VrPlayerShadows : int
 enum class VrHolsterMode : int
 {
     // No weapon cycling. Weapons must be carried in holsters and hands.
-    // TODO VR: (P0) what if I lose a weapon? Should we have weapon drops?
     Immersive = 0,
 
     // Player always carries all obtained weapons. Holsters act as quick
@@ -165,8 +164,28 @@ enum class VrEnemyDrops : int
     // Enemies drop weapons without checking for eligibility.
     Always = 1,
 
-    // Enemies never drop weapons
+    // Enemies never drop weapons.
     Disabled = 2
+};
+
+enum class VrAmmoBoxDrops : int
+{
+    // Ammo boxes spawn weapons the player is eligible for.
+    WhenEligible = 0,
+
+    // Ammo boxes spawn weapons without checking for eligibility.
+    Always = 1,
+
+    // Ammo boxes never spawn weapons.
+    Disabled = 2
+};
+
+enum class VrMenuMode : int
+{
+    LastHeadAngles = 0,
+    FollowHead = 1,
+    FollowOffHand = 2,
+    FollowMainHand = 3
 };
 
 //
@@ -476,6 +495,9 @@ extern cvar_t vr_melee_bloodlust;
 extern cvar_t vr_melee_bloodlust_mult;
 extern cvar_t vr_enemy_drops;
 extern cvar_t vr_enemy_drops_chance_mult;
+extern cvar_t vr_ammobox_drops;
+extern cvar_t vr_ammobox_drops_chance_mult;
+extern cvar_t vr_menumode;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

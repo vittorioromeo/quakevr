@@ -26,6 +26,15 @@ extern cvar_t r_particle_mult;
 
     quake::menu m{"VR Options"};
 
+    m.add_cvar_getter_enum_entry<VrMenuMode>( //
+        "Menu Mode",                          //
+        [] { return &vr_menumode; },          //
+        "Fixed Head",                         //
+        "Follow Head",                        //
+        "Follow Off-Hand",                    //
+        "Follow Main Hand"                    //
+    );
+
     m.add_cvar_getter_enum_entry<VrAimMode>( //
         "Aim Mode",                          //
         [] { return &vr_aimmode; },          //
@@ -121,7 +130,7 @@ extern cvar_t r_particle_mult;
          "Continuous",                              //
          "Once"                                     //
          )
-        .tooltip("Haptic feedback when hovering a\nusable holster slot.");
+        .tooltip("Haptic feedback when hovering a usable holster slot.");
 
     // TODO VR: (P1) menu tooltips
 

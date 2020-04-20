@@ -75,6 +75,7 @@ void M_Print(int cx, int cy, const char* str);
 void M_PrintWithNewLine(int cx, int cy, const char* str);
 void M_PrintWhite(int cx, int cy, const char* str);
 void M_PrintWhiteWithNewLine(int cx, int cy, const char* str);
+void M_PrintWhiteByWrapping(const int wrapCount, int cx, int cy, const char* str);
 
 void M_Draw(void);
 void M_DrawCharacter(int cx, int line, int num);
