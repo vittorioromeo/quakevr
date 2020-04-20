@@ -691,8 +691,21 @@ void() PutClientInServer =
     spawn_tdeath (self.origin, self);
 
     readytime = time + 0.5;
+
+    SpawnAllAmmoBoxWeapons();
 };
 
+void() SpawnAllAmmoBoxWeapons =
+{
+    local entity e;
+    for(e = nextent(world); e != world; e = nextent(e))
+    {
+        if(IsAmmoBox(e))
+        {
+            SpawnAmmoBoxWeaponsImpl(e, self);
+        }
+    }
+}
 
 /*
 =============================================================================
@@ -752,6 +765,7 @@ RULES
 go to the next level for deathmatch
 only called if a time or frag limit has expired
 */
+// TODO VR: (P0) check here whether to go orig_start?
 void() NextLevel =
 {
     local entity o;

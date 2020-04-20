@@ -39,6 +39,67 @@ void() noclass =
     remove (self);
 };
 
+float(entity ent) IsAmmoBox =
+{
+    return ent.classname == "item_shells" ||
+           ent.classname == "item_spikes" ||
+           ent.classname == "item_rockets" ||
+           ent.classname == "item_cells";
+}
+
+void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
+{
+    if(random() < 0.65)
+    {
+        return;
+    }
+
+    if(ent.classname == "item_shells")
+    {
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_SHOTGUN, 0.5))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_SHOTGUN, 0.7))
+        { /* Intentionally empty. */ }
+    }
+    else if(ent.classname == "item_spikes")
+    {
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_NAILGUN, 0.4))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_NAILGUN, 0.5))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        { /* Intentionally empty. */ }
+    }
+    else if(ent.classname == "item_rockets")
+    {
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_GRENADE_LAUNCHER, 0.3))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_PROXIMITY_GUN, 0.4))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_ROCKET_LAUNCHER, 0.5))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        { /* Intentionally empty. */ }
+    }
+    else if(ent.classname == "item_cells")
+    {
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_LIGHTNING, 0.3))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_LASER_CANNON, 0.4))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_MJOLNIR, 0.4))
+        if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        { /* Intentionally empty. */ }
+    }
+}
+
+void(entity ent) SpawnAmmoBoxWeapons =
+{
+    local entity entPlayer;
+
+    entPlayer = find(world, classname, "player");
+
+    if(entPlayer == world)
+    {
+        bprint("`SpawnAmmoBoxWeapons`: player entity not found\n");
+        return;
+    }
+
+    SpawnAmmoBoxWeaponsImpl(ent, entPlayer);
+}
 
 
 /*
@@ -68,22 +129,7 @@ void() PlaceItem =
         return;
     }
 
-    // TODO VR: (P0) spawn items next to ammo boxes
-    if(self.classname == "item_shells")
-    {
-
-    }
-    else if(self.classname == "item_spikes")
-    {
-
-    }
-    else if(self.classname == "item_rockets")
-    {
-
-    }
-    else if(self.classname == "item_cells")
-    {
-    }
+    SpawnAmmoBoxWeapons(self);
 };
 
 /*
@@ -95,6 +141,8 @@ Sets the clipping size and plants the object on the floor
 */
 void() StartItem =
 {
+    // TODO VR: (P2) doesn't seem to ever be called?
+
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -1374,13 +1422,14 @@ void() BackpackTouch =
     other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
     other.ammo_cells = other.ammo_cells + self.ammo_cells;
 
-    newIt = self.items;
-    if (!newIt)
-        newIt = WeaponIdToItemId(other.weapon);
-    old = other.items;
-    other.items = other.items | newIt;
-
     bound_other_ammo ();
+
+    // VR: Do not change weapons.
+    // newIt = self.items;
+    // if (!newIt)
+    //     newIt = WeaponIdToItemId(other.weapon);
+    // old = other.items;
+    // other.items = other.items | newIt;
 
     if (self.ammo_shells)
     {
@@ -1428,11 +1477,12 @@ void() BackpackTouch =
     remove(self);
     self = other;
 
-// change to the weapon
-    if (!deathmatch)
-        self.weapon = ItemIdToWeaponId(newIt);
-    else
-        Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
+    // change to the weapon
+    // VR: Do not change weapons.
+    // if (!deathmatch)
+    //     self.weapon = ItemIdToWeaponId(newIt);
+    // else
+    //     Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
 
     W_SetCurrentAmmo ();
 };

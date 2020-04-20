@@ -547,6 +547,11 @@ float QVR_ENEMYDROPS_WHENELIGIBLE = 0;
 float QVR_ENEMYDROPS_ALWAYS = 1;
 float QVR_ENEMYDROPS_DISABLE = 2;
 
+// Quake VR Enum: `VrAmmoBoxDrops`
+float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
+float QVR_AMMOBOXDROPS_ALWAYS = 1;
+float QVR_AMMOBOXDROPS_DISABLE = 2;
+
 //================================================
 
 //

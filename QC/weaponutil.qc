@@ -33,6 +33,11 @@ float() getEnemyDrops =
     return cvar("vr_enemy_drops");
 }
 
+float() getAmmoBoxDrops =
+{
+    return cvar("vr_ammobox_drops");
+}
+
 entity() FindEntPlayerForDrop =
 {
     if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
@@ -40,36 +45,74 @@ entity() FindEntPlayerForDrop =
         return world;
     }
 
-    if (self.enemy.classname == "player")
-    {
-        return self.enemy;
-    }
-
-    if (self.oldenemy.classname == "player")
-    {
-        return self.oldenemy;
-    }
-
-    return world;
+    return find(world, classname, "player");
 }
 
-float(entity entPlayer, float xWeapon, float xChance) TryDrop =
+float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
-    local float eligible, chance;
+    local float eligible, chance, roll;
 
     if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
         return FALSE;
     }
 
-    eligible = getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS ||
+    // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
+    eligible = (getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
                PlayerEligibleForWeapon(entPlayer, xWeapon);
 
     chance = xChance * cvar("vr_enemy_drops_chance_mult");
 
-    if(eligible && random() < chance)
+    roll = random();
+
+    // bprint("weapon: ");
+    // bprint(ftos(xWeapon));
+    // bprint(" | eligible ps: ");
+    // bprint(ftos(getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS));
+    // bprint(" or ");
+    // bprint(ftos(PlayerEligibleForWeapon(entPlayer, xWeapon)));
+    // bprint(" | chance: ");
+    // bprint(ftos(chance));
+    // bprint(" | roll: ");
+    // bprint(ftos(roll));
+    // bprint(" | eligible: ");
+    // bprint(ftos(eligible));
+    // bprint(" | rollpass: ");
+    // bprint(ftos(roll < chance));
+    // bprint(" | cond: ");
+    // bprint(ftos(eligible && (roll < chance)));
+    // bprint("\n");
+
+    if(eligible && (roll < chance))
     {
         CreateWeaponDrop(self, xWeapon, self.origin);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+// TODO VR: (P2) code repetition, but create ammo box uses player ent
+float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
+{
+    local float eligible, chance, roll;
+
+    if(getAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
+    {
+        return FALSE;
+    }
+
+    // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
+    eligible = (getAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
+               PlayerEligibleForWeapon(entPlayer, xWeapon);
+
+    chance = xChance * cvar("vr_ammobox_drops_chance_mult");
+
+    roll = random();
+
+    if(eligible && (roll < chance))
+    {
+        CreateAmmoBoxWeaponDrop(entPlayer, xWeapon, entAmmoBox.origin);
         return TRUE;
     }
 
