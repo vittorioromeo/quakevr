@@ -492,8 +492,6 @@ float() W_BestWeapon;
 
 void() weapon_touch =
 {
-    // TODO VR: (P1) consider having monsters always drop a weapon.
-
     local    float    hadammo, best, newIt, old;
     local    entity    stemp;
     local    float    leave;
@@ -911,7 +909,7 @@ void() item_rockets =
     self.netname = "rockets";
     self.classname = "item_rockets";
     // TODO VR: (P1) fix this size
-    setsize (self, '0 0 0', '24 24 24');
+    setsize (self, '0 0 0', '16 16 32');
     StartItem ();
 };
 

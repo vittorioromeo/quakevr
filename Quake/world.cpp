@@ -332,7 +332,11 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
                 (target->v.touch || target->v.handtouch) &&
                 target->v.solid != SOLID_NOT;
 
-            if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
+            // TODO VR: (P2) consequences of this? Seems to fix handtouch on
+            // ledges
+            // if(!canBeTouched || !quake::util::entBoxIntersection(ent,
+            // target))
+            if(!canBeTouched)
             {
                 continue;
             }
@@ -481,7 +485,8 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = EDICT_TO_PROG(ent);
         pr_global_struct->time = sv.time;
 
-        // VR: This is for things like ammo pickups and slipgates.
+        // VR: This is for things like ammo pickups and slipgates, and
+        // dropped/thrown weapons.
         VR_SetHandtouchParams(
             offHandIntersects ? cVR_OffHand : cVR_MainHand, ent, target);
         PR_ExecuteProgram(target->v.handtouch);
@@ -500,8 +505,7 @@ void SV_TouchLinks(edict_t* ent)
         {
             doTouch(ent, target);
 
-            // TODO VR: (P2) hack
-            if(ent == sv_player)
+            if((int)ent->v.flags & FL_CLIENT)
             {
                 doHandtouch(ent, target);
             }

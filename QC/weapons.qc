@@ -3747,11 +3747,8 @@ void() SuperDamageSound =
             sound (self, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
         }
     }
-    return;
 };
 
 // TODO VR: (P1) remove backpack spinning animation.
 
-// TODO VR: (P0) not sure why weapons cannot be juggled. too small size? problems
-// with handtouch?
 
