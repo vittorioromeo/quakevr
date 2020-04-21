@@ -11,7 +11,7 @@
 
 [[nodiscard]] static quake::menu make_menu()
 {
-    quake::menu m{"VR Gameplay Options"};
+    quake::menu m{"VR Gameplay Options", &M_Menu_QuakeVRSettings_f};
 
     // ------------------------------------------------------------------------
 

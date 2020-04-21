@@ -24,7 +24,7 @@ extern cvar_t r_particle_mult;
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"VR Options"};
+    quake::menu m{"VR Options", &M_Menu_QuakeVRSettings_f};
 
     m.add_cvar_getter_enum_entry<VrMenuMode>( //
         "Menu Mode",                          //

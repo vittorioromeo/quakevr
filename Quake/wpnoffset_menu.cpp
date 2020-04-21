@@ -28,7 +28,7 @@ static int getIdx()
     const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
     const quake::menu_bounds<float> wBounds{wInc, 0.f, wBound};
 
-    quake::menu m{"Weapon Offsets"};
+    quake::menu m{"Weapon Offsets", &M_Menu_QuakeVRSettings_f};
 
     // ------------------------------------------------------------------------
 

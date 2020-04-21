@@ -14,7 +14,7 @@
     constexpr quake::menu_bounds<float> bPos{0.5f, -50.f, 50.f};
     constexpr quake::menu_bounds<float> bDst{0.1f, 0.f, 30.f};
 
-    quake::menu m{"VR Hotspot Customization"};
+    quake::menu m{"VR Hotspot Customization", &M_Menu_QuakeVRSettings_f};
 
     // ------------------------------------------------------------------------
 

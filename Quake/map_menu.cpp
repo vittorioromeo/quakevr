@@ -77,7 +77,7 @@ static const std::array maps{
         };
     };
 
-    quake::menu m{"Maps", true};
+    quake::menu m{"Maps", &M_Menu_QuakeVRSettings_f, true};
 
     int idx{0};
     for(const auto& map : maps)

@@ -84,6 +84,12 @@ namespace quake
         {
         };
 
+        struct menu_entry_action_slider
+        {
+            std::function<void(int)> _action_slide;
+            std::function<float()> _range;
+        };
+
         using menu_entry_variant = std::variant< //
             menu_entry_value<bool>,              //
             menu_entry_cvar<float>,              //
@@ -91,6 +97,7 @@ namespace quake
             menu_entry_cvar<bool>,               //
             menu_entry_value_labeled_cvar<int>,  //
             menu_entry_action,                   //
+            menu_entry_action_slider,            //
             menu_entry_separator                 //
             >;
 
@@ -163,6 +170,7 @@ namespace quake
         std::vector<impl::menu_entry> _entries;
         std::string_view _title;
         int _cursor_idx{0};
+        std::function<void()> _escape_fn;
 
         // TODO VR: (P2) hack for map menu, make this nicer...
         bool _two_columns{false};
@@ -229,6 +237,9 @@ namespace quake
                     adjustI(*(x._cvar_getter()), inc, min, max);
                 },
                 [&](const impl::menu_entry_action& x) { x._action(); },
+                [&](const impl::menu_entry_action_slider& x) {
+                    x._action_slide(isLeft ? -1 : 1);
+                },
                 [&](const impl::menu_entry_separator&) {});
         }
 
@@ -253,8 +264,10 @@ namespace quake
 
 
     public:
-        menu(const std::string_view title, bool two_columns = false) noexcept
-            : _title{title}, _two_columns{two_columns}
+        menu(const std::string_view title, std::function<void()> escape_fn,
+            bool two_columns = false) noexcept
+            : _title{title}, _escape_fn{std::move(escape_fn)}, _two_columns{
+                                                                   two_columns}
         {
         }
 
@@ -306,6 +319,15 @@ namespace quake
         {
             return emplace_and_get_handle<impl::menu_entry_action>(
                 {label}, std::forward<F>(f));
+        }
+
+        template <typename FAction, typename FRange>
+        auto add_action_slider_entry(
+            const std::string_view label, FAction&& fAction, FRange&& fRange)
+        {
+            return emplace_and_get_handle<impl::menu_entry_action_slider>(
+                {label}, std::forward<FAction>(fAction),
+                std::forward<FRange>(fRange));
         }
 
         void add_separator()
@@ -373,7 +395,10 @@ namespace quake
                                      // FIXME: there are other ways to leave
                                      // menu
                     S_LocalSound("misc/menu1.wav");
-                    M_Menu_Options_f();
+
+                    // TODO VR: (P2) have some sort of menu stack instead of
+                    // going back manually
+                    _escape_fn();
 
                     leave();
 
@@ -454,11 +479,12 @@ namespace quake
             int y = 4;
 
             // plaque
-            M_DrawTransPic(16, y, Draw_CachePic("gfx/qplaque.lmp"));
+            // M_DrawTransPic(16, y, Draw_CachePic("gfx/qplaque.lmp"));
 
             // customize header
-            qpic_t* p = Draw_CachePic("gfx/ttl_cstm.lmp");
-            M_DrawPic((320 - p->width) / 2, y, p);
+            // qpic_t* p = Draw_CachePic("gfx/ttl_cstm.lmp");
+            // M_DrawPic((320 - p->width) / 2, y, p);
+
             y += 28;
 
             // title
@@ -563,6 +589,10 @@ namespace quake
                             print_as_str("(X)");
                         }
                     },
+                    [&](const impl::menu_entry_action_slider& x) {
+                        print_label(e_label);
+                        M_DrawSlider(250, y, x._range());
+                    },
                     [&](const impl::menu_entry_separator&) {});
 
                 if(_cursor_idx == idx)
@@ -589,6 +619,11 @@ namespace quake
                     }
                 }
             }
+        }
+
+        [[nodiscard]] auto cursor_idx() noexcept
+        {
+            return _cursor_idx;
         }
     };
 } // namespace quake

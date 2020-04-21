@@ -35,6 +35,7 @@ enum m_state_e
     m_setup,
     m_net,
     m_options,
+    m_quakevrsettings,
     m_video,
     m_vr,
     m_vrgameplay,
@@ -69,6 +70,7 @@ void M_ToggleMenu_f(void);
 
 void M_Menu_Main_f(void);
 void M_Menu_Options_f(void);
+void M_Menu_QuakeVRSettings_f();
 void M_Menu_Quit_f(void);
 
 void M_Print(int cx, int cy, const char* str);
@@ -80,6 +82,7 @@ void M_PrintWhiteByWrapping(const int wrapCount, int cx, int cy, const char* str
 void M_Draw(void);
 void M_DrawCharacter(int cx, int line, int num);
 
+void M_DrawSlider(int x, int y, float range);
 void M_DrawPic(int x, int y, qpic_t* pic);
 void M_DrawTransPic(int x, int y, qpic_t* pic);
 void M_DrawCheckbox(int x, int y, int on);

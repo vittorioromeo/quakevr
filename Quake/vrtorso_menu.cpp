@@ -10,7 +10,7 @@
     constexpr quake::menu_bounds<float> vrtSBounds{0.05f, 0.1f, 2.f};
     constexpr quake::menu_bounds<float> vrtRBounds{1.f, -180.f, 180.f};
 
-    quake::menu m{"VR Torso Settings"};
+    quake::menu m{"VR Torso Settings", &M_Menu_QuakeVRSettings_f};
 
     // ------------------------------------------------------------------------
 

@@ -21,7 +21,7 @@
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
     const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
 
-    quake::menu m{"Status Bar Offsets"};
+    quake::menu m{"Status Bar Offsets", &M_Menu_QuakeVRSettings_f};
 
     m.add_cvar_entry<float>("Offset X", vr_sbar_offset_x, oBounds);
     m.add_cvar_entry<float>("Offset Y", vr_sbar_offset_y, oBounds);

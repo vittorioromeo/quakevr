@@ -41,6 +41,7 @@ enum m_state_e m_state;
 
 
 void M_Menu_SinglePlayer_f();
+void M_Menu_NewGame_f();
 void M_Menu_Load_f();
 void M_Menu_Save_f();
 void M_Menu_MultiPlayer_f();
@@ -68,6 +69,7 @@ void M_GameOptions_Draw();
 void M_Search_Draw();
 void M_ServerList_Draw();
 void M_Options_Draw();
+void M_QuakeVRSettings_Draw();
 void M_Keys_Draw();
 void M_Video_Draw();
 void M_Help_Draw();
@@ -85,6 +87,7 @@ void M_GameOptions_Key(int key);
 void M_Search_Key(int key);
 void M_ServerList_Key(int key);
 void M_Options_Key(int key);
+void M_QuakeVRSettings_Key(int key);
 void M_Keys_Key(int key);
 void M_Video_Key(int key);
 void M_Help_Key(int key);
@@ -98,8 +101,9 @@ enum m_state_e m_return_state;
 bool m_return_onerror;
 char m_return_reason[32];
 
-#define StartingGame (m_multiplayer_cursor == 1)
-#define JoiningGame (m_multiplayer_cursor == 0)
+// TODO VR: (P2) hackish
+#define StartingGame ((multiPlayerMenu.cursor_idx()) == 1)
+#define JoiningGame ((multiPlayerMenu.cursor_idx()) == 0)
 #define IPXConfig (m_net_cursor == 0)
 #define TCPIPConfig (m_net_cursor == 1)
 
@@ -197,6 +201,8 @@ void M_PrintWhiteByWrapping(
             continue;
         }
 
+        // TODO VR: (P2) code repetition
+        // TODO VR: (P2) improve wrapping logic (find word ends?)
         if(currPrint >= wrapCount)
         {
             cx = originalCx;
@@ -216,43 +222,39 @@ void M_PrintWhiteByWrapping(
 
 void M_DrawTransPic(int x, int y, qpic_t* pic)
 {
-    Draw_Pic(x, y,
-        pic); // johnfitz -- simplified becuase centering is handled elsewhere
+    // johnfitz -- simplified becuase centering is handled elsewhere
+    Draw_Pic(x, y, pic);
 }
 
 void M_DrawPic(int x, int y, qpic_t* pic)
 {
-    Draw_Pic(x, y,
-        pic); // johnfitz -- simplified becuase centering is handled elsewhere
+    // johnfitz -- simplified becuase centering is handled elsewhere
+    Draw_Pic(x, y, pic);
 }
 
 void M_DrawTransPicTranslate(int x, int y, qpic_t* pic, int top,
     int bottom) // johnfitz -- more parameters
 {
-    Draw_TransPicTranslate(
-        x, y, pic, top, bottom); // johnfitz -- simplified becuase centering is
-                                 // handled elsewhere
+    // johnfitz -- simplified becuase centering is handled elsewhere
+    Draw_TransPicTranslate(x, y, pic, top, bottom);
 }
 
 void M_DrawTextBox(int x, int y, int width, int lines)
 {
-    qpic_t* p;
-    int cx;
-
-    int cy;
-    int n;
+    int cx = x;
+    int cy = y;
 
     // draw left side
-    cx = x;
-    cy = y;
-    p = Draw_CachePic("gfx/box_tl.lmp");
+    qpic_t* p = Draw_CachePic("gfx/box_tl.lmp");
     M_DrawTransPic(cx, cy, p);
+
     p = Draw_CachePic("gfx/box_ml.lmp");
-    for(n = 0; n < lines; n++)
+    for(int n = 0; n < lines; n++)
     {
         cy += 8;
         M_DrawTransPic(cx, cy, p);
     }
+
     p = Draw_CachePic("gfx/box_bl.lmp");
     M_DrawTransPic(cx, cy + 8, p);
 
@@ -261,10 +263,12 @@ void M_DrawTextBox(int x, int y, int width, int lines)
     while(width > 0)
     {
         cy = y;
+
         p = Draw_CachePic("gfx/box_tm.lmp");
         M_DrawTransPic(cx, cy, p);
+
         p = Draw_CachePic("gfx/box_mm.lmp");
-        for(n = 0; n < lines; n++)
+        for(int n = 0; n < lines; n++)
         {
             cy += 8;
             if(n == 1)
@@ -273,22 +277,27 @@ void M_DrawTextBox(int x, int y, int width, int lines)
             }
             M_DrawTransPic(cx, cy, p);
         }
+
         p = Draw_CachePic("gfx/box_bm.lmp");
         M_DrawTransPic(cx, cy + 8, p);
+
         width -= 2;
         cx += 16;
     }
 
     // draw right side
     cy = y;
+
     p = Draw_CachePic("gfx/box_tr.lmp");
     M_DrawTransPic(cx, cy, p);
+
     p = Draw_CachePic("gfx/box_mr.lmp");
-    for(n = 0; n < lines; n++)
+    for(int n = 0; n < lines; n++)
     {
         cy += 8;
         M_DrawTransPic(cx, cy, p);
     }
+
     p = Draw_CachePic("gfx/box_br.lmp");
     M_DrawTransPic(cx, cy + 8, p);
 }
@@ -319,6 +328,7 @@ void M_ToggleMenu_f()
         m_state = m_none;
         return;
     }
+
     if(key_dest == key_console)
     {
         Con_ToggleConsole_f();
@@ -333,9 +343,21 @@ void M_ToggleMenu_f()
 //=============================================================================
 /* MAIN MENU */
 
-int m_main_cursor;
-#define MAIN_ITEMS 5
+[[nodiscard]] static quake::menu makeMainMenu()
+{
+    quake::menu m{"Main Menu", [] {}};
 
+    m.add_action_entry("Single Player", &M_Menu_SinglePlayer_f);
+    m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
+    m.add_action_entry("Options", &M_Menu_Options_f);
+    m.add_action_entry("Quake VR Settings", &M_Menu_QuakeVRSettings_f);
+    m.add_action_entry("Help/Ordering", &M_Menu_Help_f);
+    m.add_action_entry("Quit", &M_Menu_Quit_f);
+
+    return m;
+}
+
+static quake::menu mainMenu = makeMainMenu();
 
 void M_Menu_Main_f()
 {
@@ -344,36 +366,27 @@ void M_Menu_Main_f()
         m_save_demonum = cls.demonum;
         cls.demonum = -1;
     }
+
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_main;
     m_entersound = true;
 }
 
-
 void M_Main_Draw()
 {
-    int f;
-    qpic_t* p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/ttl_main.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-    M_DrawTransPic(72, 32, Draw_CachePic("gfx/mainmenu.lmp"));
-
-    f = (int)(realtime * 10) % 6;
-
-    M_DrawTransPic(54, 32 + m_main_cursor * 20,
-        Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
+    mainMenu.draw();
 }
-
 
 void M_Main_Key(int key)
 {
+    mainMenu.key(key);
+
     switch(key)
     {
-        case K_ESCAPE:
+        case K_ESCAPE: [[fallthrough]];
         case K_BBUTTON:
+        {
             IN_Activate();
             key_dest = key_game;
             m_state = m_none;
@@ -388,45 +401,25 @@ void M_Main_Key(int key)
                 CL_NextDemo();
             }
             break;
-
-        case K_DOWNARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(++m_main_cursor >= MAIN_ITEMS)
-            {
-                m_main_cursor = 0;
-            }
-            break;
-
-        case K_UPARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(--m_main_cursor < 0)
-            {
-                m_main_cursor = MAIN_ITEMS - 1;
-            }
-            break;
-
-        case K_ENTER:
-        case K_KP_ENTER:
-        case K_ABUTTON:
-            m_entersound = true;
-
-            switch(m_main_cursor)
-            {
-                case 0: M_Menu_SinglePlayer_f(); break;
-                case 1: M_Menu_MultiPlayer_f(); break;
-                case 2: M_Menu_Options_f(); break;
-                case 3: M_Menu_Help_f(); break;
-                case 4: M_Menu_Quit_f(); break;
-            }
+        }
     }
 }
 
 //=============================================================================
 /* SINGLE PLAYER MENU */
 
-int m_singleplayer_cursor;
-#define SINGLEPLAYER_ITEMS 3
+[[nodiscard]] static quake::menu makeSinglePlayerMenu()
+{
+    quake::menu m{"Single Player", &M_Menu_Main_f};
 
+    m.add_action_entry("New Game", &M_Menu_NewGame_f);
+    m.add_action_entry("Load", &M_Menu_Load_f);
+    m.add_action_entry("Save", &M_Menu_Save_f);
+
+    return m;
+}
+
+static quake::menu singlePlayerMenu = makeSinglePlayerMenu();
 
 void M_Menu_SinglePlayer_f()
 {
@@ -436,72 +429,14 @@ void M_Menu_SinglePlayer_f()
     m_entersound = true;
 }
 
-
 void M_SinglePlayer_Draw()
 {
-    int f;
-    qpic_t* p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/ttl_sgl.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-    M_DrawTransPic(72, 32, Draw_CachePic("gfx/sp_menu.lmp"));
-
-    f = (int)(realtime * 10) % 6;
-
-    M_DrawTransPic(54, 32 + m_singleplayer_cursor * 20,
-        Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
+    singlePlayerMenu.draw();
 }
-
 
 void M_SinglePlayer_Key(int key)
 {
-    switch(key)
-    {
-        case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Main_f(); break;
-
-        case K_DOWNARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(++m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
-            {
-                m_singleplayer_cursor = 0;
-            }
-            break;
-
-        case K_UPARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(--m_singleplayer_cursor < 0)
-            {
-                m_singleplayer_cursor = SINGLEPLAYER_ITEMS - 1;
-            }
-            break;
-
-        case K_ENTER:
-        case K_KP_ENTER:
-        case K_ABUTTON:
-            m_entersound = true;
-
-            switch(m_singleplayer_cursor)
-            {
-                case 0:
-                    IN_Activate();
-                    key_dest = key_game;
-                    if(sv.active)
-                    {
-                        Cbuf_AddText("disconnect\n");
-                    }
-                    Cbuf_AddText("maxplayers 1\n");
-                    Cbuf_AddText("deathmatch 0\n"); // johnfitz
-                    Cbuf_AddText("coop 0\n");       // johnfitz
-                    Cbuf_AddText("map start\n");
-                    break;
-
-                case 1: M_Menu_Load_f(); break;
-
-                case 2: M_Menu_Save_f(); break;
-            }
-    }
+    singlePlayerMenu.key(key);
 }
 
 //=============================================================================
@@ -549,6 +484,20 @@ void M_ScanSaves()
     }
 }
 
+void M_Menu_NewGame_f()
+{
+    IN_Activate();
+    key_dest = key_game;
+    if(sv.active)
+    {
+        Cbuf_AddText("disconnect\n");
+    }
+    Cbuf_AddText("maxplayers 1\n");
+    Cbuf_AddText("deathmatch 0\n"); // johnfitz
+    Cbuf_AddText("coop 0\n");       // johnfitz
+    Cbuf_AddText("map start\n");
+}
+
 void M_Menu_Load_f()
 {
     m_entersound = true;
@@ -558,7 +507,6 @@ void M_Menu_Load_f()
     key_dest = key_menu;
     M_ScanSaves();
 }
-
 
 void M_Menu_Save_f()
 {
@@ -710,9 +658,18 @@ void M_Save_Key(int k)
 //=============================================================================
 /* MULTIPLAYER MENU */
 
-int m_multiplayer_cursor;
-#define MULTIPLAYER_ITEMS 3
+[[nodiscard]] static quake::menu makeMultiPlayerMenu()
+{
+    quake::menu m{"Multi Player", &M_Menu_Main_f};
 
+    m.add_action_entry("Join a Game", &M_Menu_Net_f);
+    m.add_action_entry("New Game", &M_Menu_Net_f);
+    m.add_action_entry("Setup", &M_Menu_Setup_f);
+
+    return m;
+}
+
+static quake::menu multiPlayerMenu = makeMultiPlayerMenu();
 
 void M_Menu_MultiPlayer_f()
 {
@@ -722,77 +679,21 @@ void M_Menu_MultiPlayer_f()
     m_entersound = true;
 }
 
-
 void M_MultiPlayer_Draw()
 {
-    int f;
-    qpic_t* p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/p_multi.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-    M_DrawTransPic(72, 32, Draw_CachePic("gfx/mp_menu.lmp"));
-
-    f = (int)(realtime * 10) % 6;
-
-    M_DrawTransPic(54, 32 + m_multiplayer_cursor * 20,
-        Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
-
-    if(ipxAvailable || tcpipAvailable)
+    if(!ipxAvailable && !tcpipAvailable)
     {
+        M_PrintWhite(
+            (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
         return;
     }
-    M_PrintWhite(
-        (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
-}
 
+    multiPlayerMenu.draw();
+}
 
 void M_MultiPlayer_Key(int key)
 {
-    switch(key)
-    {
-        case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Main_f(); break;
-
-        case K_DOWNARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(++m_multiplayer_cursor >= MULTIPLAYER_ITEMS)
-            {
-                m_multiplayer_cursor = 0;
-            }
-            break;
-
-        case K_UPARROW:
-            S_LocalSound("misc/menu1.wav");
-            if(--m_multiplayer_cursor < 0)
-            {
-                m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
-            }
-            break;
-
-        case K_ENTER:
-        case K_KP_ENTER:
-        case K_ABUTTON:
-            m_entersound = true;
-            switch(m_multiplayer_cursor)
-            {
-                case 0:
-                    if(ipxAvailable || tcpipAvailable)
-                    {
-                        M_Menu_Net_f();
-                    }
-                    break;
-
-                case 1:
-                    if(ipxAvailable || tcpipAvailable)
-                    {
-                        M_Menu_Net_f();
-                    }
-                    break;
-
-                case 2: M_Menu_Setup_f(); break;
-            }
-    }
+    multiPlayerMenu.key(key);
 }
 
 //=============================================================================
@@ -821,7 +722,6 @@ void M_Menu_Setup_f()
     setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
     setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
 }
-
 
 void M_Setup_Draw()
 {
@@ -1145,52 +1045,115 @@ again:
 //=============================================================================
 /* OPTIONS MENU */
 
-enum
+[[nodiscard]] static quake::menu makeOptionsMenu()
 {
-    OPT_CUSTOMIZE = 0,
-    OPT_CONSOLE,
-    OPT_DEFAULTS,
-    OPT_SCALE,
-    OPT_SCRSIZE,
-    OPT_GAMMA,
-    OPT_CONTRAST,
-    OPT_MOUSESPEED,
-    OPT_SBALPHA,
-    OPT_SNDVOL,
-    OPT_MUSICVOL,
-    OPT_MUSICEXT,
-    OPT_ALWAYRUN,
-    OPT_INVMOUSE,
-    OPT_ALWAYSMLOOK,
-    OPT_LOOKSPRING,
-    OPT_LOOKSTRAFE,
-    //#ifdef _WIN32
-    //	OPT_USEMOUSE,
-    //#endif
-    OPT_VIDEO, // This is the last before OPTIONS_ITEMS
-    OPT_VR,
-    OPT_VRGAMEPLAY,
-    OPT_WPN_OFFSET,
-    OPT_SBAR_OFFSET,
-    OPT_HOTSPOT,
-    OPT_VRTORSO,
-    OPT_MAP_MENU,
-    OPT_DEBUG,
+    namespace qmu = ::quake::menu_util;
 
-    OPTIONS_ITEMS
-};
+    quake::menu m{"Options", &M_Menu_Main_f};
 
-enum
-{
-    ALWAYSRUN_OFF = 0,
-    ALWAYSRUN_VANILLA,
-    // ALWAYSRUN_QUAKESPASM,
-    ALWAYSRUN_ITEMS
-};
+    m.add_action_entry("Controls", &M_Menu_Keys_f);
+    m.add_action_entry("Goto Console", [] {
+        m_state = m_none;
+        Con_ToggleConsole_f();
+    });
+    m.add_action_entry("Reset Config", [] {
+        if(SCR_ModalMessage("This will reset all controls\n"
+                            "and stored cvars. Continue? (y/n)\n",
+               15.0f))
+        {
+            Cbuf_AddText("resetcfg\n");
+            Cbuf_AddText("exec default.cfg\n");
+        }
+    });
+    m.add_action_slider_entry(
+        "Scale",
+        [](int dir) {
+            const float l = ((vid.width + 31) / 32) / 10.0;
+            const float f = std::clamp(scr_conscale.value + dir * 0.1f, 1.f, l);
 
-#define SLIDER_RANGE 10
+            Cvar_SetValue("scr_conscale", f);
+            Cvar_SetValue("scr_menuscale", f);
+            Cvar_SetValue("scr_sbarscale", f);
+        },
+        [] {
+            const float l = (vid.width / 320.0) - 1;
+            return l > 0 ? (scr_conscale.value - 1) / l : 0;
+        });
+    m.add_action_slider_entry(
+        "Screen Size",
+        [](int dir) {
+            const float f =
+                std::clamp(scr_viewsize.value + dir * 10, 30.f, 120.f);
+            Cvar_SetValue("viewsize", f);
+        },
+        [] { return (scr_viewsize.value - 30) / (120 - 30); });
+    m.add_action_slider_entry(
+        "Brightness",
+        [](int dir) {
+            const float f =
+                std::clamp(vid_gamma.value - dir * 0.05f, 0.5f, 1.f);
+            Cvar_SetValue("gamma", f);
+        },
+        [] { return (1.0 - vid_gamma.value) / 0.5; });
+    m.add_action_slider_entry(
+        "Contrast",
+        [](int dir) {
+            const float f =
+                std::clamp(vid_contrast.value + dir * 0.1f, 1.f, 2.f);
+            Cvar_SetValue("contrast", f);
+        },
+        [] { return vid_contrast.value - 1.0; });
+    m.add_action_slider_entry(
+        "Mouse Speed",
+        [](int dir) {
+            const float f =
+                std::clamp(sensitivity.value + dir * 0.5f, 1.f, 11.f);
+            Cvar_SetValue("sensitivity", f);
+        },
+        [] { return (sensitivity.value - 1) / 10; });
+    m.add_action_slider_entry(
+        "Statusbar Alpha",
+        [](int dir) {
+            const float f =
+                std::clamp(scr_sbaralpha.value - dir * 0.05f, 0.f, 1.f);
+            Cvar_SetValue("scr_sbaralpha", f);
+        },
+        [] { return (1.0 - scr_sbaralpha.value); });
+    m.add_action_slider_entry(
+        "Sound Volume",
+        [](int dir) {
+            const float f = std::clamp(sfxvolume.value + dir * 0.1f, 0.f, 1.f);
+            Cvar_SetValue("volume", f);
+        },
+        [] { return sfxvolume.value; });
+    m.add_action_slider_entry(
+        "Music Volume",
+        [](int dir) {
+            const float f = std::clamp(bgmvolume.value + dir * 0.1f, 0.f, 1.f);
+            Cvar_SetValue("bgmvolume", f);
+        },
+        [] { return bgmvolume.value; });
+    m.add_cvar_entry<bool>("External Music", bgm_extmusic);
+    m.add_cvar_entry<bool>("Always Run", cl_alwaysrun);
+    m.add_action_entry("Toggle Invert Mouse",
+        [] { Cvar_SetValue("m_pitch", -m_pitch.value); });
+    m.add_action_entry("Toggle Mouse Look", [] {
+        if(in_mlook.state & 1)
+        {
+            Cbuf_AddText("-mlook");
+        }
+        else
+        {
+            Cbuf_AddText("+mlook");
+        }
+    });
+    m.add_cvar_entry<bool>("Lookspring", lookspring);
+    m.add_cvar_entry<bool>("Lookstrafe", lookstrafe);
 
-int options_cursor;
+    return m;
+}
+
+static quake::menu optionsMenu = makeOptionsMenu();
 
 void M_Menu_Options_f()
 {
@@ -1200,164 +1163,10 @@ void M_Menu_Options_f()
     m_entersound = true;
 }
 
-
-void M_AdjustSliders(int dir)
-{
-    int target_alwaysrun;
-    float f;
-
-    float l;
-
-    S_LocalSound("misc/menu3.wav");
-
-    switch(options_cursor)
-    {
-        case OPT_SCALE: // console and menu scale
-            l = ((vid.width + 31) / 32) / 10.0;
-            f = scr_conscale.value + dir * .1;
-            if(f < 1)
-            {
-                f = 1;
-            }
-            else if(f > l)
-            {
-                f = l;
-            }
-            Cvar_SetValue("scr_conscale", f);
-            Cvar_SetValue("scr_menuscale", f);
-            Cvar_SetValue("scr_sbarscale", f);
-            break;
-        case OPT_SCRSIZE: // screen size
-            f = scr_viewsize.value + dir * 10;
-            if(f > 120)
-            {
-                f = 120;
-            }
-            else if(f < 30)
-            {
-                f = 30;
-            }
-            Cvar_SetValue("viewsize", f);
-            break;
-        case OPT_GAMMA: // gamma
-            f = vid_gamma.value - dir * 0.05;
-            if(f < 0.5)
-            {
-                f = 0.5;
-            }
-            else if(f > 1)
-            {
-                f = 1;
-            }
-            Cvar_SetValue("gamma", f);
-            break;
-        case OPT_CONTRAST: // contrast
-            f = vid_contrast.value + dir * 0.1;
-            if(f < 1)
-            {
-                f = 1;
-            }
-            else if(f > 2)
-            {
-                f = 2;
-            }
-            Cvar_SetValue("contrast", f);
-            break;
-        case OPT_MOUSESPEED: // mouse speed
-            f = sensitivity.value + dir * 0.5;
-            if(f > 11)
-            {
-                f = 11;
-            }
-            else if(f < 1)
-            {
-                f = 1;
-            }
-            Cvar_SetValue("sensitivity", f);
-            break;
-        case OPT_SBALPHA: // statusbar alpha
-            f = scr_sbaralpha.value - dir * 0.05;
-            if(f < 0)
-            {
-                f = 0;
-            }
-            else if(f > 1)
-            {
-                f = 1;
-            }
-            Cvar_SetValue("scr_sbaralpha", f);
-            break;
-        case OPT_MUSICVOL: // music volume
-            f = bgmvolume.value + dir * 0.1;
-            if(f < 0)
-            {
-                f = 0;
-            }
-            else if(f > 1)
-            {
-                f = 1;
-            }
-            Cvar_SetValue("bgmvolume", f);
-            break;
-        case OPT_MUSICEXT: // enable external music vs cdaudio
-            Cvar_Set("bgm_extmusic", bgm_extmusic.value ? "0" : "1");
-            break;
-        case OPT_SNDVOL: // sfx volume
-            f = sfxvolume.value + dir * 0.1;
-            if(f < 0)
-            {
-                f = 0;
-            }
-            else if(f > 1)
-            {
-                f = 1;
-            }
-            Cvar_SetValue("volume", f);
-            break;
-
-        case OPT_ALWAYRUN: // always run
-            target_alwaysrun =
-                (ALWAYSRUN_ITEMS + (int)cl_alwaysrun.value + dir) %
-                ALWAYSRUN_ITEMS;
-
-            if(target_alwaysrun == ALWAYSRUN_VANILLA)
-            {
-                Cvar_SetValue("cl_alwaysrun", 1);
-            }
-            else // ALWAYSRUN_OFF
-            {
-                Cvar_SetValue("cl_alwaysrun", 0);
-            }
-            break;
-
-        case OPT_INVMOUSE: // invert mouse
-            Cvar_SetValue("m_pitch", -m_pitch.value);
-            break;
-
-        case OPT_ALWAYSMLOOK:
-            if(in_mlook.state & 1)
-            {
-                Cbuf_AddText("-mlook");
-            }
-            else
-            {
-                Cbuf_AddText("+mlook");
-            }
-            break;
-
-        case OPT_LOOKSPRING: // lookspring
-            Cvar_Set("lookspring", lookspring.value ? "0" : "1");
-            break;
-
-        case OPT_LOOKSTRAFE: // lookstrafe
-            Cvar_Set("lookstrafe", lookstrafe.value ? "0" : "1");
-            break;
-    }
-}
-
-
 void M_DrawSlider(int x, int y, float range)
 {
+    const int SLIDER_RANGE = 10;
+
     int i;
 
     if(range < 0)
@@ -1397,221 +1206,14 @@ void M_DrawCheckbox(int x, int y, int on)
 
 void M_Options_Draw()
 {
-    float r;
-
-    float l;
-    qpic_t* p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/p_option.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-
-    // Draw the items in the order of the enum defined above:
-    // OPT_CUSTOMIZE:
-    M_Print(16, 32, "              Controls");
-    // OPT_CONSOLE:
-    M_Print(16, 32 + 8 * OPT_CONSOLE, "          Goto console");
-    // OPT_DEFAULTS:
-    M_Print(16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
-
-    // OPT_SCALE:
-    M_Print(16, 32 + 8 * OPT_SCALE, "                 Scale");
-    l = (vid.width / 320.0) - 1;
-    r = l > 0 ? (scr_conscale.value - 1) / l : 0;
-    M_DrawSlider(220, 32 + 8 * OPT_SCALE, r);
-
-    // OPT_SCRSIZE:
-    M_Print(16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
-    r = (scr_viewsize.value - 30) / (120 - 30);
-    M_DrawSlider(220, 32 + 8 * OPT_SCRSIZE, r);
-
-    // OPT_GAMMA:
-    M_Print(16, 32 + 8 * OPT_GAMMA, "            Brightness");
-    r = (1.0 - vid_gamma.value) / 0.5;
-    M_DrawSlider(220, 32 + 8 * OPT_GAMMA, r);
-
-    // OPT_CONTRAST:
-    M_Print(16, 32 + 8 * OPT_CONTRAST, "              Contrast");
-    r = vid_contrast.value - 1.0;
-    M_DrawSlider(220, 32 + 8 * OPT_CONTRAST, r);
-
-    // OPT_MOUSESPEED:
-    M_Print(16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
-    r = (sensitivity.value - 1) / 10;
-    M_DrawSlider(220, 32 + 8 * OPT_MOUSESPEED, r);
-
-    // OPT_SBALPHA:
-    M_Print(16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
-    r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
-    M_DrawSlider(220, 32 + 8 * OPT_SBALPHA, r);
-
-    // OPT_SNDVOL:
-    M_Print(16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
-    r = sfxvolume.value;
-    M_DrawSlider(220, 32 + 8 * OPT_SNDVOL, r);
-
-    // OPT_MUSICVOL:
-    M_Print(16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
-    r = bgmvolume.value;
-    M_DrawSlider(220, 32 + 8 * OPT_MUSICVOL, r);
-
-    // OPT_MUSICEXT:
-    M_Print(16, 32 + 8 * OPT_MUSICEXT, "        External Music");
-    M_DrawCheckbox(220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
-
-    // OPT_ALWAYRUN:
-    M_Print(16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
-    if(cl_alwaysrun.value)
-    {
-        M_Print(220, 32 + 8 * OPT_ALWAYRUN, "on");
-    }
-    else
-    {
-        M_Print(220, 32 + 8 * OPT_ALWAYRUN, "off");
-    }
-
-    // OPT_INVMOUSE:
-    M_Print(16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
-    M_DrawCheckbox(220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
-
-    // OPT_ALWAYSMLOOK:
-    M_Print(16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
-    M_DrawCheckbox(220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
-
-    // OPT_LOOKSPRING:
-    M_Print(16, 32 + 8 * OPT_LOOKSPRING, "            Lookspring");
-    M_DrawCheckbox(220, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
-
-    // OPT_LOOKSTRAFE:
-    M_Print(16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
-    M_DrawCheckbox(220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
-
-    // OPT_VIDEO:
-    if(vid_menudrawfn)
-    {
-        M_Print(16, 32 + 8 * OPT_VIDEO, "         Video Options");
-    }
-
-    // ------------------------------------------------------------------------
-    // VR: New menus.
-    // clang-format off
-    M_Print(16, 32 + 8 * OPT_VR,          "         VR Options");
-    M_Print(16, 32 + 8 * OPT_VRGAMEPLAY,  "VR Gameplay Options");
-    M_Print(16, 32 + 8 * OPT_WPN_OFFSET,  "     Weapon Offsets");
-    M_Print(16, 32 + 8 * OPT_SBAR_OFFSET, " Status Bar Offsets");
-    M_Print(16, 32 + 8 * OPT_HOTSPOT,     "   Hotspot Settings");
-    M_Print(16, 32 + 8 * OPT_VRTORSO,     "  VR Torso Settings");
-    M_Print(16, 32 + 8 * OPT_MAP_MENU,    "               Maps");
-    M_Print(16, 32 + 8 * OPT_DEBUG,       "              Debug");
-    // clang-format on
-    // ------------------------------------------------------------------------
-
-    // cursor
-    M_DrawCharacter(
-        200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+    optionsMenu.draw();
 }
-
 
 void M_Options_Key(int k)
 {
-    namespace qmu = ::quake::menu_util;
+    optionsMenu.key(k);
 
-    switch(k)
-    {
-        case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Main_f(); break;
-
-        case K_ENTER:
-        case K_KP_ENTER:
-        case K_ABUTTON:
-            m_entersound = true;
-            switch(options_cursor)
-            {
-                case OPT_CUSTOMIZE: M_Menu_Keys_f(); break;
-                case OPT_CONSOLE:
-                    m_state = m_none;
-                    Con_ToggleConsole_f();
-                    break;
-                case OPT_DEFAULTS:
-                    if(SCR_ModalMessage("This will reset all controls\n"
-                                        "and stored cvars. Continue? (y/n)\n",
-                           15.0f))
-                    {
-                        Cbuf_AddText("resetcfg\n");
-                        Cbuf_AddText("exec default.cfg\n");
-                    }
-                    break;
-                case OPT_VIDEO: M_Menu_Video_f(); break;
-                // -----------------------------------------------------------
-                // VR: New menus.
-                case OPT_VR:
-                {
-                    qmu::setMenuState(M_VR_Menu(), m_vr);
-                    break;
-                }
-                case OPT_VRGAMEPLAY:
-                {
-                    qmu::setMenuState(M_VRGameplay_Menu(), m_vrgameplay);
-                    break;
-                }
-                case OPT_WPN_OFFSET:
-                {
-                    qmu::setMenuState(M_WpnOffset_Menu(), m_wpn_offset);
-                    break;
-                }
-                case OPT_SBAR_OFFSET:
-                {
-                    qmu::setMenuState(M_SbarOffset_Menu(), m_sbar_offset);
-                    break;
-                }
-                case OPT_HOTSPOT:
-                {
-                    qmu::setMenuState(M_Hotspot_Menu(), m_hotspot);
-                    break;
-                }
-                case OPT_VRTORSO:
-                {
-                    qmu::setMenuState(M_VRTorso_Menu(), m_vrtorso);
-                    break;
-                }
-                case OPT_MAP_MENU:
-                {
-                    qmu::setMenuState(M_MapMenu_Menu(), m_map);
-                    break;
-                }
-                case OPT_DEBUG:
-                {
-                    qmu::setMenuState(M_Debug_Menu(), m_debug);
-                    break;
-                }
-                // -----------------------------------------------------------
-                default: M_AdjustSliders(1); break;
-            }
-            return;
-
-        case K_UPARROW:
-            S_LocalSound("misc/menu1.wav");
-            options_cursor--;
-            if(options_cursor < 0)
-            {
-                options_cursor = OPTIONS_ITEMS - 1;
-            }
-            break;
-
-        case K_DOWNARROW:
-            S_LocalSound("misc/menu1.wav");
-            options_cursor++;
-            if(options_cursor >= OPTIONS_ITEMS)
-            {
-                options_cursor = 0;
-            }
-            break;
-
-        case K_LEFTARROW: M_AdjustSliders(-1); break;
-
-        case K_RIGHTARROW: M_AdjustSliders(1); break;
-    }
-
+    /*
     if(options_cursor == OPTIONS_ITEMS - 1 && vid_menudrawfn == nullptr)
     {
         if(k == K_UPARROW)
@@ -1623,6 +1225,54 @@ void M_Options_Key(int k)
             options_cursor = 0;
         }
     }
+    */
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU */
+
+[[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
+{
+    namespace qmu = ::quake::menu_util;
+
+    quake::menu m{"Quake VR Settings", &M_Menu_Main_f};
+
+    m.add_action_entry("VR Gameplay Options",
+        [] { qmu::setMenuState(M_VRGameplay_Menu(), m_vrgameplay); });
+    m.add_action_entry("Weapon Offsets",
+        [] { qmu::setMenuState(M_WpnOffset_Menu(), m_wpn_offset); });
+    m.add_action_entry("Status Bar Offsets",
+        [] { qmu::setMenuState(M_SbarOffset_Menu(), m_sbar_offset); });
+    m.add_action_entry("Hotspot Settings",
+        [] { qmu::setMenuState(M_Hotspot_Menu(), m_hotspot); });
+    m.add_action_entry("VR Torso Settings",
+        [] { qmu::setMenuState(M_VRTorso_Menu(), m_vrtorso); });
+    m.add_action_entry(
+        "Maps", [] { qmu::setMenuState(M_MapMenu_Menu(), m_map); });
+    m.add_action_entry(
+        "Debug", [] { qmu::setMenuState(M_Debug_Menu(), m_debug); });
+
+    return m;
+}
+
+static quake::menu quakeVRSettingsMenu = makeQuakeVRSettingsMenu();
+
+void M_Menu_QuakeVRSettings_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrsettings;
+    m_entersound = true;
+}
+
+void M_QuakeVRSettings_Draw()
+{
+    quakeVRSettingsMenu.draw();
+}
+
+void M_QuakeVRSettings_Key(int k)
+{
+    quakeVRSettingsMenu.key(k);
 }
 
 //=============================================================================
@@ -3025,6 +2675,7 @@ void M_Draw()
         case m_video: M_Video_Draw(); break;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
         case m_vr: M_VR_Draw(); break;
         case m_vrgameplay: M_VRGameplay_Draw(); break;
         case m_wpn_offset: M_WpnOffset_Draw(); return;
@@ -3078,6 +2729,7 @@ void M_Keydown(int key)
         case m_video: M_Video_Key(key); return;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
         case m_vr: M_VR_Key(key); return;
         case m_vrgameplay: M_VRGameplay_Key(key); return;
         case m_wpn_offset: M_WpnOffset_Key(key); return;

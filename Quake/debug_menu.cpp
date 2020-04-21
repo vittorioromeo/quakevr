@@ -23,7 +23,7 @@ extern cvar_t skill;
         };
     };
 
-    quake::menu m{"Debug"};
+    quake::menu m{"Debug", &M_Menu_QuakeVRSettings_f};
 
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
