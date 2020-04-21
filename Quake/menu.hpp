@@ -51,7 +51,23 @@ enum m_state_e
     m_lanconfig,
     m_gameoptions,
     m_search,
-    m_slist
+    m_slist,
+    m_qvrs_menu,
+    m_qvrs_crosshair,
+    m_qvrs_particle,
+    m_qvrs_locomotion,
+    m_qvrs_handguncalibration,
+    m_qvrs_playercalibration,
+    m_qvrs_melee,
+    m_qvrs_aiming,
+    m_qvrs_immersion,
+    m_qvrs_graphical,
+    m_qvrs_weaponconfiguration,
+    m_qvrs_hudconfiguration,
+    m_qvrs_hotspot,
+    m_qvrs_torso,
+    m_qvrs_changemap,
+    m_qvrs_debugutilities,
 };
 
 extern enum m_state_e m_state;

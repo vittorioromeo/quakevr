@@ -171,6 +171,7 @@ namespace quake
         std::string_view _title;
         int _cursor_idx{0};
         std::function<void()> _escape_fn;
+        std::function<void(int)> _key_fn;
 
         // TODO VR: (P2) hack for map menu, make this nicer...
         bool _two_columns{false};
@@ -269,6 +270,12 @@ namespace quake
             : _title{title}, _escape_fn{std::move(escape_fn)}, _two_columns{
                                                                    two_columns}
         {
+        }
+
+        template <typename F>
+        void on_key(F&& f)
+        {
+            _key_fn = std::forward<F>(f);
         }
 
         template <typename T, typename CvarGetter>
@@ -387,6 +394,11 @@ namespace quake
                 }
             };
 
+            if(_key_fn)
+            {
+                _key_fn(key);
+            }
+
             switch(key)
             {
                 case K_ESCAPE:
@@ -398,6 +410,7 @@ namespace quake
 
                     // TODO VR: (P2) have some sort of menu stack instead of
                     // going back manually
+                    assert(_escape_fn);
                     _escape_fn();
 
                     leave();
@@ -621,9 +634,14 @@ namespace quake
             }
         }
 
-        [[nodiscard]] auto cursor_idx() noexcept
+        [[nodiscard]] int cursor_idx() noexcept
         {
             return _cursor_idx;
+        }
+
+        [[nodiscard]] const std::string_view& title() noexcept
+        {
+            return _title;
         }
     };
 } // namespace quake

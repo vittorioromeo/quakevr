@@ -230,7 +230,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\console.cpp" />
     <ClCompile Include="..\..\Quake\crc.cpp" />
     <ClCompile Include="..\..\Quake\cvar.cpp" />
-    <ClCompile Include="..\..\Quake\debug_menu.cpp" />
     <ClCompile Include="..\..\Quake\gl_draw.cpp" />
     <ClCompile Include="..\..\Quake\gl_fog.cpp" />
     <ClCompile Include="..\..\Quake\gl_mesh.cpp" />
@@ -246,12 +245,10 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\gl_warp.cpp" />
     <ClCompile Include="..\..\Quake\host.cpp" />
     <ClCompile Include="..\..\Quake\host_cmd.cpp" />
-    <ClCompile Include="..\..\Quake\hotspot_menu.cpp" />
     <ClCompile Include="..\..\Quake\image.cpp" />
     <ClCompile Include="..\..\Quake\in_sdl.cpp" />
     <ClCompile Include="..\..\Quake\keys.cpp" />
     <ClCompile Include="..\..\Quake\main_sdl.cpp" />
-    <ClCompile Include="..\..\Quake\map_menu.cpp" />
     <ClCompile Include="..\..\Quake\mathlib.cpp" />
     <ClCompile Include="..\..\Quake\menu.cpp" />
     <ClCompile Include="..\..\Quake\menu_util.cpp" />
@@ -277,7 +274,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\r_sprite.cpp" />
     <ClCompile Include="..\..\Quake\r_world.cpp" />
     <ClCompile Include="..\..\Quake\sbar.cpp" />
-    <ClCompile Include="..\..\Quake\sbaroffset_menu.cpp" />
     <ClCompile Include="..\..\Quake\snd_codec.cpp" />
     <ClCompile Include="..\..\Quake\snd_dma.cpp" />
     <ClCompile Include="..\..\Quake\snd_flac.cpp" />
@@ -301,12 +297,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
-    <ClCompile Include="..\..\Quake\vrgameplay_menu.cpp" />
-    <ClCompile Include="..\..\Quake\vrtorso_menu.cpp" />
-    <ClCompile Include="..\..\Quake\vr_menu.cpp" />
     <ClCompile Include="..\..\Quake\wad.cpp" />
     <ClCompile Include="..\..\Quake\world.cpp" />
-    <ClCompile Include="..\..\Quake\wpnoffset_menu.cpp" />
     <ClCompile Include="..\..\Quake\zone.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -323,17 +315,14 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\console.hpp" />
     <ClInclude Include="..\..\Quake\crc.hpp" />
     <ClInclude Include="..\..\Quake\cvar.hpp" />
-    <ClInclude Include="..\..\Quake\debug_menu.hpp" />
     <ClInclude Include="..\..\Quake\draw.hpp" />
     <ClInclude Include="..\..\Quake\glquake.hpp" />
     <ClInclude Include="..\..\Quake\gl_model.hpp" />
     <ClInclude Include="..\..\Quake\gl_texmgr.hpp" />
     <ClInclude Include="..\..\Quake\gl_warp_sin.hpp" />
-    <ClInclude Include="..\..\Quake\hotspot_menu.hpp" />
     <ClInclude Include="..\..\Quake\image.hpp" />
     <ClInclude Include="..\..\Quake\input.hpp" />
     <ClInclude Include="..\..\Quake\keys.hpp" />
-    <ClInclude Include="..\..\Quake\map_menu.hpp" />
     <ClInclude Include="..\..\Quake\mathlib.hpp" />
     <ClInclude Include="..\..\Quake\menu.hpp" />
     <ClInclude Include="..\..\Quake\menu_util.hpp" />
@@ -360,7 +349,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\render.hpp" />
     <ClInclude Include="..\..\Quake\resource.hpp" />
     <ClInclude Include="..\..\Quake\sbar.hpp" />
-    <ClInclude Include="..\..\Quake\sbaroffset_menu.hpp" />
     <ClInclude Include="..\..\Quake\screen.hpp" />
     <ClInclude Include="..\..\Quake\server.hpp" />
     <ClInclude Include="..\..\Quake\snd_codec.hpp" />
@@ -380,12 +368,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\vid.hpp" />
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
-    <ClInclude Include="..\..\Quake\vrgameplay_menu.hpp" />
-    <ClInclude Include="..\..\Quake\vrtorso_menu.hpp" />
-    <ClInclude Include="..\..\Quake\vr_menu.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />
-    <ClInclude Include="..\..\Quake\wpnoffset_menu.hpp" />
     <ClInclude Include="..\..\Quake\wsaerror.hpp" />
     <ClInclude Include="..\..\Quake\zone.hpp" />
   </ItemGroup>
