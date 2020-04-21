@@ -1174,7 +1174,7 @@ void V_SetupVRTorsoViewEnt()
     view.frame = 0;
     view.colormap = vid.colormap;
 
-    view.origin = sv_player->v.origin;
+    view.origin = cl_entities[cl.viewentity].origin;
     view.origin += vFwd * vr_vrtorso_x_offset.value;
     view.origin -= vFwd * (heightRatio * 14.f);
     view.origin += vRight * vr_vrtorso_y_offset.value;

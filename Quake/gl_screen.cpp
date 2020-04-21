@@ -1333,6 +1333,9 @@ void SCR_UpdateScreen()
 
     if(vr_enabled.value && !con_forcedup)
     {
+        // TODO VR: (P2) this is client side, but does use server logic. Should
+        // be split accordingly and cleaned up.
+
         VR_UpdateScreenContent(); // phoboslab
     }
     else

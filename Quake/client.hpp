@@ -228,12 +228,12 @@ struct client_state_t
 
     char mapname[128];
     char levelname[128]; // for display on solo scoreboard //johnfitz -- was 40.
-    int viewentity;      // cl_entitites[cl.viewentity] = player
+    int viewentity;      // cl_entities[cl.viewentity] = player
     int maxclients;
     int gametype;
 
     // refresh related state
-    qmodel_t* worldmodel; // cl_entitites[0].model
+    qmodel_t* worldmodel; // cl_entities[0].model
     struct efrag_s* free_efrags;
     int num_efrags;
     int num_entities; // held in cl_entities array
