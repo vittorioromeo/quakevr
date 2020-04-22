@@ -147,7 +147,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPON5 30
 #define STAT_HOLSTERWEAPONMODEL4 31
 #define STAT_HOLSTERWEAPONMODEL5 32
-
+#define STAT_MAINHAND_WID 33
+#define STAT_OFFHAND_WID 34
 
 // stock defines
 //

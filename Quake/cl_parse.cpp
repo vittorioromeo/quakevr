@@ -1088,6 +1088,10 @@ void CL_ParseClientdata()
     cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
     cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
 
+    // TODO VR: (P2) some data is sent twice, can optimize for MP
+    cl.stats[STAT_MAINHAND_WID] = MSG_ReadByte();
+    cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
+
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of
     // cl.stats[STAT_WEAPON] were filled in, breaking on large maps like

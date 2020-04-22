@@ -1,7 +1,6 @@
 #include "console.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
-#include "vr_menu.hpp"
 #include "util.hpp"
 #include "render.hpp"
 #include "openvr.hpp"
@@ -195,9 +194,13 @@ bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
 bool vr_right_prevgrabbing{false};
 
-// TODO VR: (P1) should these be per-gun arrays?
-bool vr_gun_colliding_with_wall{false};
-bool vr_gun_colliding_with_wall_normals[3];
+struct VrGunWallCollision
+{
+    bool _colliding{false};
+    bool _normals[3]{};
+};
+
+VrGunWallCollision vr_gun_wall_collision[2];
 
 float vr_2h_aim_transition[2]{0.f, 0.f};
 float vr_2h_aim_stock_transition[2]{0.f, 0.f};
@@ -726,7 +729,7 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept
 {
-    return 6.f;
+    return 4.f;
 }
 
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
@@ -1534,8 +1537,10 @@ void debugPrintHandvel(const int index, const float linearity)
 
 void SetHandPos(int index, entity_t* player)
 {
-    // TODO VR: (P0) ammo weapon drops spawn on player position
-    // TODO VR: (P0) cannot pick up weapons on ledges
+    if(!svPlayerActive())
+    {
+        return;
+    }
 
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
@@ -1621,10 +1626,10 @@ void SetHandPos(int index, entity_t* player)
         // TODO VR: (P2) haptics cancel each other
         // VR_DoHaptic(index, 0.f, 0.1f, 50, 1.f - gunTrace.fraction);
 
-        vr_gun_colliding_with_wall = true;
+        vr_gun_wall_collision[index]._colliding = true;
         for(int i = 0; i < 3; ++i)
         {
-            vr_gun_colliding_with_wall_normals[i] =
+            vr_gun_wall_collision[index]._normals[i] =
                 gunTrace.plane.normal[i] != 0;
 
             finalVec[i] = resolvedHandMuzzlePos[i];
@@ -1632,7 +1637,7 @@ void SetHandPos(int index, entity_t* player)
     }
     else
     {
-        vr_gun_colliding_with_wall = false;
+        vr_gun_wall_collision[index]._colliding = false;
     }
 
     const auto oldHandpos = cl.handpos[index];
@@ -1760,11 +1765,11 @@ void SetHandPos(int index, entity_t* player)
     // jumps up cl.handvel[index] = (cl.handpos[index] - lastPlayerTranslation)
     // - oldHandpos;
 
-    if(vr_gun_colliding_with_wall)
+    if(vr_gun_wall_collision[index]._colliding)
     {
         for(int i = 0; i < 3; ++i)
         {
-            if(vr_gun_colliding_with_wall_normals[i])
+            if(vr_gun_wall_collision[index]._normals[i])
             {
                 cl.handpos[index][i] = finalVec[i];
             }
@@ -1790,7 +1795,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] static const glm::vec3& VR_GetPlayerOrigin() noexcept
 {
-    return sv_player->v.origin;
+    return cl_entities[cl.viewentity].origin;
 }
 
 [[nodiscard]] glm::vec3 VR_GetBodyAnchor(const glm::vec3& offsets) noexcept
@@ -1808,8 +1813,6 @@ void SetHandPos(int index, entity_t* player)
         getAngledVectors({heightRatio * -35.f, VR_GetBodyYawAngle(), 0.f});
 
     const auto& [ox, oy, oz] = offsets;
-
-    // Con_Printf("%.2f | %.2f\n", VR_GetPlayerOrigin()[2], lastHeadOrigin[2]);
 
     auto origin = VR_GetPlayerOrigin();
     origin[2] += 2.f;
@@ -1970,11 +1973,9 @@ void SetHandPos(int index, entity_t* player)
     return vrYaw;
 }
 
-[[nodiscard]] static glm::vec3 VR_GetBlendedEyesOrientation() noexcept
+[[nodiscard]] static glm::vec3 VR_GetEyesOrientation() noexcept
 {
-    const auto o0 = QuatToYawPitchRoll(eyes[0].orientation);
-    const auto o1 = QuatToYawPitchRoll(eyes[1].orientation);
-    return glm::mix(o0, o1, 0.5f);
+    return QuatToYawPitchRoll(eyes[0].orientation);
 }
 
 [[nodiscard]] glm::vec3 VR_GetHeadAngles() noexcept
@@ -1999,7 +2000,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] static float VR_GetHeadFwdAngleBlended() noexcept
 {
-    const auto [eyePitch, eyeYaw, eyeRoll] = VR_GetBlendedEyesOrientation();
+    const auto [eyePitch, eyeYaw, eyeRoll] = VR_GetEyesOrientation();
     const auto [headFwd, headRight, headUp] = VR_GetHeadDirs();
 
     const auto isBetween = [](const auto x, const auto min, const auto max) {
@@ -2154,17 +2155,9 @@ void SetHandPos(int index, entity_t* player)
            vr_virtual_stock_thresh.value;
 }
 
-static void VR_SetPlayerOrigin(const glm::vec3& v)
-{
-    entity_t& playerEnt = cl_entities[cl.viewentity];
-
-    playerEnt.origin = v;
-    sv_player->v.origin = v;
-}
-
 static void VR_DoTeleportation()
 {
-    if(!vr_teleport_enabled.value)
+    if(!vr_teleport_enabled.value) // || !svPlayerActive())
     {
         return;
     }
@@ -2200,7 +2193,7 @@ static void VR_DoTeleportation()
         vr_teleporting_impact = trace.endpos;
         vr_teleporting_impact[2] += 12.f; // Compensate for player height.
 
-        if(vr_teleporting_impact_valid)
+        if(vr_teleporting_impact_valid && inGame())
         {
             R_RunParticle2Effect(trace.endpos, vec3_zero, 7, 2);
         }
@@ -2208,8 +2201,7 @@ static void VR_DoTeleportation()
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
     {
         vr_send_teleport_msg = true;
-
-        VR_SetPlayerOrigin(vr_teleporting_impact);
+        player->origin = vr_teleporting_impact;
     }
 
     vr_was_teleporting = vr_teleporting;
@@ -2465,6 +2457,11 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
     const glm::vec3 (&originalRots)[2], const int holdingHand,
     const int helpingHand, const glm::vec3& shoulderStockPos)
 {
+    // if(!svPlayerActive())
+    // {
+    //     return;
+    // }
+
     const auto helpingHandPos =
         VR_Get2HHelpingHandPos(holdingHand, helpingHand);
 
@@ -2506,15 +2503,15 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
     const bool helpingHandGrabbing =
         helpingHand == cVR_OffHand ? vr_left_grabbing : vr_right_grabbing;
 
-    const auto helpingHandWpnEntVar =
-        helpingHand == cVR_OffHand ? &entvars_t::weapon2 : &entvars_t::weapon;
+    const auto helpingHandStatIdx =
+        helpingHand == cVR_OffHand ? STAT_OFFHAND_WID : STAT_MAINHAND_WID;
 
     const bool helpingHandIsFist =
-        (svPlayerActive() && sv_player->v.*helpingHandWpnEntVar == WID_FIST);
+        (svPlayerActive() && cl.stats[helpingHandStatIdx] == WID_FIST);
 
-    const bool canGrabWith2H = helpingHandGrabbing &&
-                               wpn2HMode != Wpn2HMode::Forbidden &&
-                               !vr_gun_colliding_with_wall && helpingHandIsFist;
+    const bool canGrabWith2H =
+        helpingHandGrabbing && wpn2HMode != Wpn2HMode::Forbidden &&
+        !vr_gun_wall_collision[holdingHand]._colliding && helpingHandIsFist;
 
     vr_should_aim_2h =
         canGrabWith2H && goodDistance && diffDot > vr_2h_angle_threshold.value;
@@ -2569,6 +2566,11 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 
 static void VR_FakeVRControllerAiming()
 {
+    // if(!svPlayerActive())
+    // {
+    //     return;
+    // }
+
     const auto [vfwd, vright, vup] =
         getAngledVectors({0.f, cl.viewangles[YAW], 0.f});
 
@@ -2676,7 +2678,7 @@ void VR_UpdateScreenContent()
     // aimmode from 7 to another.
     cl.aimangles[ROLL] = 0.0;
 
-    const auto orientation = VR_GetBlendedEyesOrientation();
+    const auto orientation = VR_GetEyesOrientation();
 
     if(std::exchange(readbackYaw, false))
     {
@@ -2749,6 +2751,8 @@ void VR_UpdateScreenContent()
         // 7: Controller Aiming;
         case VrAimMode::e_CONTROLLER:
         {
+            // TODO VR: (P1) this uses server-side data, but is called in
+            // client-side. Breaks multiplayer.
             VR_ControllerAiming(orientation);
             break;
         }
@@ -3400,7 +3404,7 @@ void VR_ShowCrosshair()
 
 void VR_DrawTeleportLine()
 {
-    if(!vr_teleport_enabled.value || !sv_player || !vr_teleporting ||
+    if(!vr_teleport_enabled.value /*|| !svPlayerActive()*/ || !vr_teleporting ||
         vr_aimmode.value != VrAimMode::e_CONTROLLER)
     {
         return;
@@ -4276,3 +4280,7 @@ void VR_Move(usercmd_t* cmd)
         }
     }
 }
+
+// TODO VR: (P0) armagon boss bugged
+// TODO VR: (P0) remove existing sv_player usages, or chhange to to svs.client
+// edicts.  I believe that, by definition, svs.clients[0] is the local player

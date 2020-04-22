@@ -1381,6 +1381,9 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
     MSG_WriteByte(
         msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+
+    MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
+    MSG_WriteByte(msg, (int)ent->v.weapon2); // STAT_OFFHAND_WID
 }
 
 /*
