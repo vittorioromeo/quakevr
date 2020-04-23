@@ -153,7 +153,7 @@ namespace quake::util
     }
 
     [[nodiscard]] QUAKE_FORCEINLINE std::tuple<glm::vec3, glm::vec3, glm::vec3>
-    getAngledVectors(const glm::vec3& v)
+    getAngledVectors(const glm::vec3& v) noexcept
     {
         glm::vec3 forward, right, up;
         AngleVectors(v, forward, right, up);
@@ -161,9 +161,16 @@ namespace quake::util
     }
 
     [[nodiscard]] QUAKE_FORCEINLINE glm::vec3
-    getDirectionVectorFromPitchYawRoll(const glm::vec3& v)
+    getDirectionVectorFromPitchYawRoll(const glm::vec3& v) noexcept
     {
-        return std::get<0>(getAngledVectors(v));
+        return AngleVectorsOnlyFwd(v);
+    }
+
+    // TODO VR: (P2) same as above, use one or the other
+    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3 getFwdVecFromPitchYawRoll(
+        const glm::vec3& v) noexcept
+    {
+        return AngleVectorsOnlyFwd(v);
     }
 
     template <typename T>
@@ -171,7 +178,9 @@ namespace quake::util
     {
         return [isLeft](
                    const cvar_t& cvar, const T incr, const T min, const T max) {
-            const T adjIncr = incr * static_cast<T>(VR_GetMenuMult());
+            const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
+
+            const T adjIncr = incr * static_cast<T>(factor);
 
             const auto newVal = static_cast<T>(
                 isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
@@ -207,6 +216,14 @@ namespace quake::util
     {
         return std::visit(
             overload_set{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
+    }
+
+    // TODO VR: (P1) reuse throughout project
+    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3 redirectVector(
+        const glm::vec3& input, const glm::vec3& examplar) noexcept
+    {
+        const auto [fwd, right, up] = getAngledVectors(examplar);
+        return fwd * input[0] + right * input[1] + up * input[2];
     }
 } // namespace quake::util
 

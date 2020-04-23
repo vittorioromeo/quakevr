@@ -46,7 +46,8 @@ inline constexpr glm::vec3 vec3_zero{0.f, 0.f, 0.f};
 #else
 static inline int IS_NAN(float x)
 {
-    union {
+    union
+    {
         float f;
         int i;
     } num;
@@ -94,6 +95,25 @@ float VectorLength(vec3_t v);
 [[nodiscard]] glm::mat3 R_ConcatRotations(
     const glm::mat3& in1, const glm::mat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
+
+inline glm::vec3 AngleVectorsOnlyFwd(const glm::vec3& angles) noexcept
+{
+    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    assert(!std::isnan(yawRadians));
+    assert(!std::isinf(yawRadians));
+
+    const float sy = std::sin(yawRadians);
+    const float cy = std::cos(yawRadians);
+
+    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    assert(!std::isnan(pitchRadians));
+    assert(!std::isinf(pitchRadians));
+
+    const float sp = std::sin(pitchRadians);
+    const float cp = std::cos(pitchRadians);
+
+    return {cp * cy, cp * sy, -sp};
+}
 
 inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward,
     glm::vec3& right, glm::vec3& up) noexcept
