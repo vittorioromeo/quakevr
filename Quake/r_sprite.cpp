@@ -110,7 +110,7 @@ void R_DrawSpriteModel(entity_t* e)
         case SPR_VP_PARALLEL_UPRIGHT:
         {
             // faces view plane, up is towards the
-          // heavens
+            // heavens
             v_up[0] = 0;
             v_up[1] = 0;
             v_up[2] = 1;
@@ -119,7 +119,7 @@ void R_DrawSpriteModel(entity_t* e)
         case SPR_FACING_UPRIGHT:
         {
             // faces camera origin, up is towards the
-          // heavens
+            // heavens
             v_forward = currententity->origin - r_origin;
             v_forward[2] = 0;
             v_forward = safeNormalize(v_forward);
@@ -134,7 +134,7 @@ void R_DrawSpriteModel(entity_t* e)
         case SPR_VP_PARALLEL:
         {
             // faces view plane, up is towards the top of the
-          // screen
+            // screen
             v_up = vup;
             v_right = vright;
             break;
@@ -142,12 +142,9 @@ void R_DrawSpriteModel(entity_t* e)
         case SPR_ORIENTED:
         {
             // pitch yaw roll are independent of camera
-            const auto [xv_forward, xv_right, xv_up] =
+            std::tie(v_forward, v_right, v_up) =
                 quake::util::getAngledVectors(currententity->angles);
 
-            v_forward = xv_forward;
-            v_right = xv_right;
-            v_up = xv_up;
             break;
         }
         case SPR_VP_PARALLEL_ORIENTED:

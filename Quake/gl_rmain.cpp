@@ -658,11 +658,8 @@ void R_SetupView()
     // build the transformation matrix for the given view angles
     r_origin = r_refdef.vieworg;
 
-    const auto [xvpn, xvright, xvup] =
+    std::tie(vpn, vright, vup) =
         quake::util::getAngledVectors(r_refdef.viewangles);
-    vpn = xvpn;
-    vright = xvright;
-    vup = xvup;
 
     // current viewleaf
     r_oldviewleaf = r_viewleaf;
@@ -787,7 +784,8 @@ R_DrawViewModel -- johnfitz -- gutted
 */
 void R_DrawViewModel(entity_t* viewent)
 {
-    if(!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+    if(!r_drawviewmodel.value || !r_drawentities.value || chase_active.value ||
+        viewent->hidden)
     {
         return;
     }
@@ -1203,6 +1201,8 @@ void R_RenderScene()
     R_DrawViewModel(&cl.left_upper_holster);
     R_DrawViewModel(&cl.right_upper_holster);
 
+    // TODO VR: (P0) when fist is out, hand is double drawn. Don't draw the fist
+    // model as a weapon!
     // VR: This is what draws the hands.
     R_DrawViewModel(&cl.left_hand);
     R_DrawViewModel(&cl.right_hand);
@@ -1381,11 +1381,8 @@ void R_RenderView()
         float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
         float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
-        const auto [xvpn, xvright, xvup] =
+        std::tie(vpn, vright, vup) =
             quake::util::getAngledVectors(r_refdef.viewangles);
-        vpn = xvpn;
-        vright = xvright;
-        vpn = xvup;
 
         // render left eye (red)
         glColorMask(1, 0, 0, 1);

@@ -836,10 +836,8 @@ SV_WallFriction
 */
 void SV_WallFriction(edict_t* ent, trace_t* trace)
 {
-    const auto [forward, right, up] =
-        quake::util::getAngledVectors(ent->v.v_angle);
-
-    float d = DotProduct(trace->plane.normal, forward);
+    const auto fwd = quake::util::getFwdVecFromPitchYawRoll(ent->v.v_angle);
+    float d = DotProduct(trace->plane.normal, fwd);
 
     d += 0.5;
     if(d >= 0)
@@ -1133,7 +1131,7 @@ void SV_Handtouch(edict_t* ent)
 
     const auto endHandPos = [&](const glm::vec3& handPos,
                                 const glm::vec3& handRot) {
-        const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
+        const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         return handPos + fwd * 1.f;
     };
 
@@ -1149,7 +1147,7 @@ void SV_Handtouch(edict_t* ent)
 
     const auto traceForHand = [&](const glm::vec3& handPos,
                                   const glm::vec3& handRot) {
-        const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
+        const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         const auto end = handPos + fwd * 1.f;
 
         return SV_Move(

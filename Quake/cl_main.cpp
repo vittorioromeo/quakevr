@@ -590,8 +590,7 @@ void CL_RelinkEntities()
             dl->origin = ent->origin;
             dl->origin[2] += 16;
 
-            const auto [fv, rv, uv] =
-                quake::util::getAngledVectors(ent->angles);
+            const auto fv = quake::util::getFwdVecFromPitchYawRoll(ent->angles);
 
             dl->origin += 18.f * fv;
             dl->radius = 200 + (rand() & 31);
