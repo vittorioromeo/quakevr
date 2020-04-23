@@ -644,7 +644,6 @@ void(float xHand, float stat) HIP_FireLaser =
     if (!VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -2116,7 +2115,7 @@ void(float xHand, float ox) W_FireSpikes =
 
     makevectors (VRGetWeaponFireRot(xHand));
 
-    if (self.ammo_nails >= 2 && self.weapon == WID_SUPER_NAILGUN)
+    if (self.ammo_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
         W_FireSuperSpikes (xHand);
         return;
@@ -2642,7 +2641,7 @@ void() CheatCommand =
     self.items = self.items | IT_MJOLNIR;
     self.items = self.items | IT_PROXIMITY_GUN;
 
-    self.weapon = WID_ROCKET_LAUNCHER;
+    // self.weapon = WID_ROCKET_LAUNCHER;
     self.impulse = 0;
     W_SetCurrentAmmo ();
 };
@@ -3258,7 +3257,7 @@ void() wpnthrow_touch =
             remove(self);
         }
 
-        setsize (self, self.mins * 2, self.maxs * 2);
+        setsize (self, self.mins * 1.5, self.maxs * 1.5);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
     }

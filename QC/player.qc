@@ -120,6 +120,8 @@ void(float xHand)    player_stand1 =
 
 void(float xHand) player_run =
 {
+    setWeaponFrame(xHand, 0);
+
     setHandThinkWithArg(xHand, $rockrun1, player_run);
 
     if (!self.velocity_x && !self.velocity_y)
@@ -352,7 +354,6 @@ void(float xHand) player_grapple4 =
 void(float xHand) player_grapple5 =
 {
     setHandThinkWithArg(xHand, $axattd4, player_run);
-    setWeaponFrame(xHand, 0);
 };
 
 //--ZOID
@@ -365,7 +366,6 @@ void(float xHand) player_nail1 =
     if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -386,7 +386,6 @@ void(float xHand) player_nail2 =
     if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -396,7 +395,6 @@ void(float xHand) player_nail2 =
     if (!VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -416,7 +414,6 @@ void(float xHand) player_light1 =
     if (self.ammo_cells < 1)
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -427,7 +424,6 @@ void(float xHand) player_light1 =
     if (!VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -445,7 +441,6 @@ void(float xHand) player_light2 =
     if (self.ammo_cells < 1)
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
@@ -456,7 +451,6 @@ void(float xHand) player_light2 =
     if (!VRFireButtonPressed(xHand))
     {
         player_run(xHand);
-        setWeaponFrame(xHand, 0);
         return;
     }
 
