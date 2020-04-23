@@ -241,6 +241,24 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 [[nodiscard]] float VR_GetHeadYawAngle() noexcept;
 [[nodiscard]] float VR_GetBodyYawAngle() noexcept;
 
+[[nodiscard]] glm::vec3 VR_GetAliasVertexOffsets(
+    entity_t* const anchor, const int anchorVertex) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
+    const int anchorVertex, const glm::vec3& extraOffsets) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexOffsets(
+    entity_t* const anchor, const int anchorVertex,
+    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexPosition(
+    entity_t* const anchor, const int anchorVertex,
+    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
+    const int cvarEntry, const bool horizflip, const glm::vec3& extraOffset,
+    const glm::vec3& handRot) noexcept;
+
 // TODO VR: (P2) remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr);
@@ -256,6 +274,9 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
     aliashdr_t* const hdr) noexcept;
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept;
+[[nodiscard]] int VR_OtherHand(const int hand) noexcept;
+
+[[nodiscard]] bool VR_IsActive2HHelpingHand(const int hand) noexcept;
 
 //
 //
@@ -283,6 +304,15 @@ enum class WpnCrosshairMode : std::uint8_t
 
     // Never shows crosshair. Useful for melee weapons.
     Forbidden = 1,
+};
+
+enum class Wpn2HDisplayMode : std::uint8_t
+{
+    // Off-hand model moves freely.
+    Dynamic = 0,
+
+    // Off-hand model is fixed to a particular vertex.
+    Fixed = 1,
 };
 
 enum class WpnCVar : std::uint8_t
@@ -315,48 +345,44 @@ enum class WpnCVar : std::uint8_t
     OffHandOffsetY = 25,
     OffHandOffsetZ = 26,
     CrosshairMode = 27,
+    HideHand = 28,
+    TwoHDisplayMode = 29,
+    TwoHHandAnchorVertex = 30,
+    TwoHFixedOffsetX = 31,
+    TwoHFixedOffsetY = 32,
+    TwoHFixedOffsetZ = 33,
+    GunOffsetX = 34,
+    GunOffsetY = 35,
+    GunOffsetZ = 36,
+    TwoHFixedHandPitch = 37,
+    TwoHFixedHandYaw = 38,
+    TwoHFixedHandRoll = 39,
+    TwoHFixedMainHandOffsetX = 40,
+    TwoHFixedMainHandOffsetY = 41,
+    TwoHFixedMainHandOffsetZ = 42,
 
     k_Max
 };
 
 // ----------------------------------------------------------------------------
 
-struct WeaponOffsets
-{
-    float _x;
-    float _y;
-    float _z;
-};
-
-[[nodiscard]] WeaponOffsets VR_GetWpnOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] WeaponOffsets VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
-
-// ----------------------------------------------------------------------------
-
-struct WeaponAngleOffsets
-{
-    float _pitch;
-    float _yaw;
-    float _roll;
-};
-
-[[nodiscard]] WeaponAngleOffsets VR_GetWpnAngleOffsets(
+[[nodiscard]] glm::vec3 VR_GetWpnOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnFixed2HHandAngles(
     const int cvarEntry) noexcept;
-
-[[nodiscard]] WeaponAngleOffsets VR_GetWpn2HAngleOffsets(
+[[nodiscard]] glm::vec3 VR_GetWpnFixed2HMainHandOffsets(
     const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 
-struct WeaponMuzzleOffsets
-{
-    float _x;
-    float _y;
-    float _z;
-};
+[[nodiscard]] glm::vec3 VR_GetWpnAngleOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept;
 
-[[nodiscard]] WeaponAngleOffsets VR_GetWpnMuzzleOffsets(
-    const int cvarEntry) noexcept;
+// ----------------------------------------------------------------------------
+
+[[nodiscard]] glm::vec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept;
 
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
     const int index, const int cvarEntry) noexcept;
@@ -373,8 +399,8 @@ struct WeaponMuzzleOffsets
 [[nodiscard]] float VR_GetWpnCVarValue(
     const int cvarEntry, WpnCVar setting) noexcept;
 
+[[nodiscard]] int& VR_GetWpnCvarEntry(const int hand) noexcept;
 [[nodiscard]] int& VR_GetMainHandWpnCvarEntry() noexcept;
-
 [[nodiscard]] int& VR_GetOffHandWpnCvarEntry() noexcept;
 
 [[nodiscard]] Wpn2HMode VR_GetWpn2HMode(const int cvarEntry) noexcept;
@@ -506,3 +532,6 @@ extern int vr_hardcoded_wpn_cvar_fist;
 extern int vr_impl_draw_wpnoffset_helper_offset;
 extern int vr_impl_draw_wpnoffset_helper_muzzle;
 extern int vr_impl_draw_wpnoffset_helper_2h_offset;
+extern int vr_impl_draw_hand_anchor_vertex;
+extern int vr_impl_draw_2h_hand_anchor_vertex;
+extern float vr_2h_aim_transition[2];

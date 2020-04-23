@@ -108,6 +108,8 @@ struct entity_t
     glm::vec3 msg_scales[2]; // last two updates (0 is newest)
     glm::vec3 scale;
     glm::vec3 scale_origin;
+
+    bool hidden; // TODO VR: (P1) hack
 };
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

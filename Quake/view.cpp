@@ -693,13 +693,19 @@ float angledelta(float a)
 CalcGunAngle
 ==================
 */
-void CalcGunAngle(
-    const int wpnCvarEntry, entity_t* viewent, const glm::vec3& handrot)
+void CalcGunAngle(const int wpnCvarEntry, entity_t* viewent,
+    const glm::vec3& handrot, bool horizFlip)
 {
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        const auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
+        auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
+
+        if(horizFlip)
+        {
+            oYaw *= -1.f;
+            oRoll *= -1.f;
+        }
 
         viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch;
         viewent->angles[YAW] = handrot[YAW] + oYaw;
@@ -960,7 +966,7 @@ static void StairSmoothView(float& oldz, const entity_t* ent, entity_t* view)
 V_CalcRefdef
 ==================
 */
-void V_CalcRefdef()
+void V_CalcRefdef(const glm::vec3& handpos, const glm::vec3& gunOffset)
 {
     static glm::vec3 punch{vec3_zero}; // johnfitz -- v_gunkick
 
@@ -1035,13 +1041,14 @@ void V_CalcRefdef()
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(VR_GetMainHandWpnCvarEntry(), view, cl.handrot[cVR_MainHand]);
+    CalcGunAngle(
+        VR_GetMainHandWpnCvarEntry(), view, cl.handrot[cVR_MainHand], false);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
         // VR: This sets the weapon model's position.
-        view->origin = cl.handpos[cVR_MainHand] + cl.vmeshoffset;
+        view->origin = handpos + cl.vmeshoffset + gunOffset;
     }
     else
     {
@@ -1080,6 +1087,17 @@ void V_CalcRefdef()
     }
 
     view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
+
+    // TODO VR: (P2) hack
+    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    {
+        view->hidden = true;
+    }
+    else
+    {
+        view->hidden = false;
+    }
+
     view->frame = cl.stats[STAT_WEAPONFRAME];
     view->colormap = vid.colormap;
 
@@ -1125,18 +1143,20 @@ void V_CalcRefdef()
     }
 }
 
-void V_SetupOffHandWpnViewEnt()
+void V_SetupOffHandWpnViewEnt(
+    const glm::vec3& handpos, const glm::vec3& gunOffset)
 {
     // view is the weapon model (only visible from inside body)
     entity_t& view = cl.offhand_viewent;
 
     // set up gun position
-    CalcGunAngle(VR_GetOffHandWpnCvarEntry(), &view, cl.handrot[cVR_OffHand]);
+    CalcGunAngle(
+        VR_GetOffHandWpnCvarEntry(), &view, cl.handrot[cVR_OffHand], true);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        view.origin = cl.handpos[cVR_OffHand] + cl.vmeshoffset;
+        view.origin = handpos + cl.vmeshoffset + gunOffset;
     }
     else
     {
@@ -1144,6 +1164,17 @@ void V_SetupOffHandWpnViewEnt()
     }
 
     view.model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
+
+    // TODO VR: (P2) hack
+    if(view.model && !strcmp(view.model->name, "progs/hand.mdl"))
+    {
+        view.hidden = true;
+    }
+    else
+    {
+        view.hidden = false;
+    }
+
     view.frame = cl.stats[STAT_WEAPONFRAME2];
     view.colormap = vid.colormap;
     view.horizflip = true;
@@ -1235,100 +1266,99 @@ void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
     }
 }
 
-static void V_SetupHandViewEnt(entity_t* const anchor, entity_t* const hand,
-    const glm::vec3& handRot, const glm::vec3& extraOffset,
-    const bool horizflip)
+static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
+    entity_t* const hand, const glm::vec3& handRot,
+    const glm::vec3& extraOffset, const bool horizflip)
 {
     assert(anchor->model != nullptr);
-    const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
-    lerpdata_t lerpdata;
-    R_SetupAliasFrame(anchor, anchorHdr, anchor->frame, &lerpdata);
-    R_SetupEntityTransform(anchor, &lerpdata);
+    const auto extraOffsets = VR_GetWpnHandOffsets(anchorWpnCvar) + extraOffset;
 
-    // ------------------------------------------------------------------------
-    // VR: Mostly taken from `GL_DrawAliasFrame`.
-    trivertx_t* verts1;
-    trivertx_t* verts2;
-    float blend;
-    float iblend;
-    bool lerping;
-
-    if(lerpdata.pose1 != lerpdata.pose2)
-    {
-        lerping = true;
-        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
-        verts2 = verts1;
-        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
-        verts2 += lerpdata.pose2 * anchorHdr->poseverts;
-        blend = lerpdata.blend;
-        iblend = 1.0f - blend;
-    }
-    else // poses the same means either 1. the entity has paused its animation,
-         // or 2. r_lerpmodels is disabled
-    {
-        lerping = false;
-        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
-        verts2 = verts1; // avoid bogus compiler warning
-        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
-        blend = iblend = 0; // avoid bogus compiler warning
-    }
-    // ------------------------------------------------------------------------
-
-    const int anchorWpnCvar = VR_GetWpnCVarFromModel(anchor->model);
     const int anchorVertex = static_cast<int>(
         VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HandAnchorVertex));
-    const int clampedAnchorVertex =
-        std::clamp(anchorVertex, 0, anchorHdr->numverts);
 
-    verts1 += clampedAnchorVertex;
-    verts2 += clampedAnchorVertex;
+    const bool hideHand =
+        static_cast<bool>(VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HideHand));
 
-    const auto vertexOffsets = [&]() -> glm::vec3 {
-        if(lerping)
-        {
-            return {//
-                verts1->v[0] * iblend + verts2->v[0] * blend,
-                verts1->v[2] * iblend + verts2->v[2] * blend,
-                verts1->v[1] * iblend + verts2->v[1] * blend};
-        }
+    const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot);
 
-        return {verts1->v[0], verts1->v[2], verts1->v[1]};
-    }();
+    const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+    const int otherHandIdx = VR_OtherHand(handIdx);
+    const auto otherWpnCvar = VR_GetWpnCvarEntry(otherHandIdx);
 
-    const auto finalOffsets = [&]() {
-        glm::vec3 result{vertexOffsets};
+    const bool otherWpnTwoHDisplayModeFixed =
+        quake::util::cvarToEnum<Wpn2HDisplayMode>(VR_GetWpnCVar(
+            otherWpnCvar, WpnCVar::TwoHDisplayMode)) == Wpn2HDisplayMode::Fixed;
 
-        result *= anchorHdr->scale;
-        result[0] += anchorHdr->scale_origin[0];
-        result[1] -= anchorHdr->scale_origin[1];
-        result[2] += anchorHdr->scale_origin[2];
-        result += VR_GetWpnHandOffsets(anchorWpnCvar);
-        result += extraOffset;
+    if(otherWpnTwoHDisplayModeFixed && vr_2h_aim_transition[otherHandIdx] > 0.f)
+    {
+        entity_t* const otherAnchor =
+            anchor == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
 
-        return result;
-    }();
+        const glm::vec3 twoHFixedPos =
+            VR_GetWpnFixed2HFinalPosition(otherAnchor, otherWpnCvar, horizflip,
+                extraOffset, cl.handrot[otherHandIdx]);
 
-    const auto [fwd, right, up] = quake::util::getAngledVectors(handRot);
+        hand->origin =
+            glm::mix(pos, twoHFixedPos, vr_2h_aim_transition[otherHandIdx]);
+    }
+    else
+    {
+        hand->origin = pos;
+    }
 
-    const glm::vec3 angledOffsets =
-        fwd * finalOffsets[0] + right * finalOffsets[1] + up * finalOffsets[2];
+    hand->model = Mod_ForName("progs/hand.mdl", true);
+    hand->hidden = hideHand;
+    hand->frame = 0;
+    hand->colormap = vid.colormap;
+    hand->horizflip = horizflip;
 
-    const glm::vec3 pos = anchor->origin + angledOffsets;
+    // TODO VR: (P2) hardcoded fist cvar number
+    // if(hand->model != nullptr)
+    {
+        const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+        ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
+    }
 
-    hand->origin = pos;
+    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, handRot, horizflip);
+}
+
+static void V_SetupFixedHelpingHandViewEnt(const int helpingHand,
+    const int otherWpnCvar, entity_t* const anchor, entity_t* const hand,
+    const glm::vec3& handRot, const glm::vec3& otherHandRot,
+    const glm::vec3& extraOffset, const bool horizflip)
+{
+    assert(anchor->model != nullptr);
+
+    const glm::vec3 pos = VR_GetWpnFixed2HFinalPosition(
+        anchor, otherWpnCvar, horizflip, extraOffset, otherHandRot);
+
+    hand->origin = glm::mix(cl.handpos[helpingHand], pos,
+        vr_2h_aim_transition[VR_OtherHand(helpingHand)]);
+
     hand->model = Mod_ForName("progs/hand.mdl", true);
     hand->frame = 0;
     hand->colormap = vid.colormap;
     hand->horizflip = horizflip;
 
     // TODO VR: (P2) hardcoded fist cvar number
+    if(hand->model != nullptr)
     {
         const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, handRot);
+    auto [rPitch, rYaw, rRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
+
+    if(!horizflip)
+    {
+        rYaw *= -1.f;
+        rRoll *= -1.f;
+    }
+
+    hand->angles = otherHandRot + glm::vec3{rPitch, rYaw, rRoll};
+    hand->angles[PITCH] *= -1.f;
 }
 
 
@@ -1358,11 +1388,21 @@ void V_RenderView()
     {
         // -------------------------------------------------------------------
         // VR: Setup main hand weapon, player model entity, and refdef.
-        V_CalcRefdef();
+        {
+            const auto gunOffset =
+                VR_GetWpnGunOffsets(VR_GetMainHandWpnCvarEntry());
+
+            V_CalcRefdef(cl.handpos[cVR_MainHand], gunOffset);
+        }
 
         // -------------------------------------------------------------------
         // VR: Setup off hand weapon.
-        V_SetupOffHandWpnViewEnt();
+        {
+            auto gunOffset = VR_GetWpnGunOffsets(VR_GetOffHandWpnCvarEntry());
+            gunOffset[1] *= -1.f;
+
+            V_SetupOffHandWpnViewEnt(cl.handpos[cVR_OffHand], gunOffset);
+        }
 
         // -------------------------------------------------------------------
         // VR: Setup holstered weapons.
@@ -1404,24 +1444,62 @@ void V_RenderView()
                 false);
         }
 
+        const auto doHand = [&](entity_t* wpnEnt, entity_t* handEnt,
+                                const int hand, const glm::vec3& extraOffset,
+                                const bool horizFlip) {
+            if(wpnEnt->model == nullptr)
+            {
+                return;
+            }
+
+            const int wpnCvar = VR_GetWpnCVarFromModel(wpnEnt->model);
+
+            const auto otherWpnEnt =
+                wpnEnt == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
+
+            if(otherWpnEnt->model != nullptr)
+            {
+                const int otherWpnCvar =
+                    VR_GetWpnCVarFromModel(otherWpnEnt->model);
+
+                const bool twoHDisplayModeFixed =
+                    quake::util::cvarToEnum<Wpn2HDisplayMode>(VR_GetWpnCVar(
+                        otherWpnCvar, WpnCVar::TwoHDisplayMode)) ==
+                    Wpn2HDisplayMode::Fixed;
+
+                const bool inFixed2HAiming =
+                    VR_IsActive2HHelpingHand(hand) && twoHDisplayModeFixed;
+
+                if(inFixed2HAiming)
+                {
+                    const auto otherHand = VR_OtherHand(hand);
+
+                    V_SetupFixedHelpingHandViewEnt(hand, otherWpnCvar,
+                        otherWpnEnt, handEnt, cl.handrot[hand],
+                        cl.handrot[otherHand], extraOffset, horizFlip);
+
+                    return;
+                }
+            }
+
+            V_SetupHandViewEnt(wpnCvar, wpnEnt, handEnt, cl.handrot[hand],
+                extraOffset, horizFlip);
+        };
+
         // -------------------------------------------------------------------
         // VR: Setup main hand.
-        if(cl.viewent.model != nullptr)
-        {
-            V_SetupHandViewEnt(&cl.viewent, &cl.right_hand,
-                cl.handrot[cVR_MainHand], vec3_zero, false);
-        }
+        doHand(&cl.viewent, &cl.right_hand, cVR_MainHand, vec3_zero, false);
 
         // -------------------------------------------------------------------
         // VR: Setup off hand.
-        if(cl.offhand_viewent.model != nullptr)
-        {
-            const auto offHandOffsets = VR_GetWpnOffHandOffsets(
-                VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
+        const auto offHandOffsets =
+            cl.offhand_viewent.model == nullptr
+                ? vec3_zero
+                : VR_GetWpnOffHandOffsets(
+                      VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
-            V_SetupHandViewEnt(&cl.offhand_viewent, &cl.left_hand,
-                cl.handrot[cVR_OffHand], offHandOffsets, true);
-        }
+        doHand(&cl.offhand_viewent, &cl.left_hand, cVR_OffHand, offHandOffsets,
+            true);
 
         // -------------------------------------------------------------------
         // VR: Setup VR torso.

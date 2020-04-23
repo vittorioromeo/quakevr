@@ -1767,13 +1767,13 @@ void M_Options_Key(int k)
                               : VR_GetMainHandWpnCvarEntry();
     };
 
-    const float oInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
+    const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = VR_GetMenuMult() == 2 ? 1.5f : 0.1f;
+    const float rInc = 0.1f;
     constexpr float rBound = 90.f;
 
-    const float wInc = VR_GetMenuMult() == 2 ? 1.5f : 0.01f;
+    const float wInc = 0.01f;
     constexpr float wBound = 1.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -1922,9 +1922,102 @@ void M_Options_Key(int k)
             "'1' itself is 'infinite' weight. Affects weapon movement and "
             "rotation speed, and also throwing distance and damage.");
 
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsWeaponConfigurationMenu()
+{
+    static quake::menu res = makeQVRSWeaponConfigurationMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - WEAPON CONFIGURATION 2 */
+
+[[nodiscard]] static quake::menu makeQVRSWeaponConfiguration2Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.1f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRSettings_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto b_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<bool>(                   //
+            title,                                              //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); } //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
+
+    const auto hoverHandAnchorVertex =
+        makeHoverFn(vr_impl_draw_hand_anchor_vertex);
+    const auto hover2HHandAnchorVertex =
+        makeHoverFn(vr_impl_draw_2h_hand_anchor_vertex);
+
+    // ------------------------------------------------------------------------
+
+    b_wpncvar("Hide Hand", WpnCVar::HideHand)
+        .tooltip("Hide the hand model when this weapon is wielded.");
 
     m.add_cvar_getter_entry<int>( //
          "Hand Anchor Vertex",    //
@@ -1933,10 +2026,41 @@ void M_Options_Key(int k)
          },           //
          {1, 0, 1024} //
          )
+        .hover(hoverHandAnchorVertex)
         .tooltip(
             "Index of the mesh vertex where the hand will be attached. Useful "
             "to ensure that the hand follows the weapon animations "
             "properly.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<Wpn2HMode>( //
+         "2H Display Mode",                  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHDisplayMode);
+         },                 //
+         "Dynamic", "Fixed" //
+         )
+        .tooltip(
+            "Display mode for the 2H aiming helping hand. When 'dynamic', the "
+            "helping hand can move freely. When 'fixed', the helping hand "
+            "stays locked to a particular vertex.");
+
+    m.add_cvar_getter_entry<int>( //
+         "2H Hand Anchor Vertex", //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
+         },           //
+         {1, 0, 1024} //
+         )
+        .hover(hover2HHandAnchorVertex)
+        .tooltip(
+            "Index of the mesh vertex where the 2H aiming helping hand will be "
+            "attached. Useful ensure that the hand follows the weapon "
+            "animations properly. Only enabled when 2H Display Mode is set to "
+            "'fixed'.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -1977,12 +2101,62 @@ void M_Options_Key(int k)
             "Virtual stock can be ignored for weapons like the laser "
             "cannon.");
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HTooltip =
+        "Visual offset of the helping hand when aiming two-handed in fixed "
+        "mode.";
+
+    o_wpncvar("Fixed 2H X", WpnCVar::TwoHFixedOffsetX).tooltip(fixed2HTooltip);
+    o_wpncvar("Fixed 2H Y", WpnCVar::TwoHFixedOffsetY).tooltip(fixed2HTooltip);
+    o_wpncvar("Fixed 2H Z", WpnCVar::TwoHFixedOffsetZ).tooltip(fixed2HTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HHandRotTooltip =
+        "Visual rotation of the helping hand when aiming two-handed in fixed "
+        "mode.";
+
+    r_wpncvar("Fixed 2H Hand Pitch", WpnCVar::TwoHFixedHandPitch)
+        .tooltip(fixed2HHandRotTooltip);
+    r_wpncvar("Fixed 2H Hand Yaw", WpnCVar::TwoHFixedHandYaw)
+        .tooltip(fixed2HHandRotTooltip);
+    r_wpncvar("Fixed 2H Hand Roll", WpnCVar::TwoHFixedHandRoll)
+        .tooltip(fixed2HHandRotTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HMainHandTooltip =
+        "Visual offset of the helping hand when aiming two-handed in fixed "
+        "mode, only appliyed when the helping hand is the right one.";
+
+    o_wpncvar("Fixed 2H Right Hand X", WpnCVar::TwoHFixedMainHandOffsetX)
+        .tooltip(fixed2HMainHandTooltip);
+    o_wpncvar("Fixed 2H Right Hand Y", WpnCVar::TwoHFixedMainHandOffsetY)
+        .tooltip(fixed2HMainHandTooltip);
+    o_wpncvar("Fixed 2H Right Hand Z", WpnCVar::TwoHFixedMainHandOffsetZ)
+        .tooltip(fixed2HMainHandTooltip);
+
+    // TODO VR: (P0) bugged
+    // const char* gunOffsetTooltip =
+    //     "Visual offset of the gun model. Does not affect hand positioning.";
+    //
+    // o_wpncvar("Gun X", WpnCVar::GunOffsetX).tooltip(gunOffsetTooltip);
+    // o_wpncvar("Gun Y", WpnCVar::GunOffsetY).tooltip(gunOffsetTooltip);
+    // o_wpncvar("Gun Z", WpnCVar::GunOffsetZ).tooltip(gunOffsetTooltip);
+
     return m;
 }
 
-[[nodiscard]] static quake::menu& qvrsWeaponConfigurationMenu()
+[[nodiscard]] static quake::menu& qvrsWeaponConfiguration2Menu()
 {
-    static quake::menu res = makeQVRSWeaponConfigurationMenu();
+    static quake::menu res = makeQVRSWeaponConfiguration2Menu();
     return res;
 }
 
@@ -2337,6 +2511,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsImmersionMenu(), m_qvrs_immersion);
     f(qvrsGraphicalMenu(), m_qvrs_graphical);
     f(qvrsWeaponConfigurationMenu(), m_qvrs_weaponconfiguration);
+    f(qvrsWeaponConfiguration2Menu(), m_qvrs_weaponconfiguration2);
     f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
