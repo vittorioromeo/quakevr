@@ -698,10 +698,6 @@ SV_HullPointContents
 */
 int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p)
 {
-    float d;
-    mclipnode_t* node; // johnfitz -- was dclipnode_t
-    mplane_t* plane;
-
     while(num >= 0)
     {
         if(num < hull->firstclipnode || num > hull->lastclipnode)
@@ -709,25 +705,15 @@ int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p)
             Sys_Error("SV_HullPointContents: bad node number");
         }
 
-        node = hull->clipnodes + num;
-        plane = hull->planes + node->planenum;
+        mclipnode_t* node = hull->clipnodes + num;
+        mplane_t* plane = hull->planes + node->planenum;
 
-        if(plane->type < 3)
-        {
-            d = p[plane->type] - plane->dist;
-        }
-        else
-        {
-            d = DoublePrecisionDotProduct(plane->normal, p) - plane->dist;
-        }
-        if(d < 0)
-        {
-            num = node->children[1];
-        }
-        else
-        {
-            num = node->children[0];
-        }
+        float d =
+            plane->type < 3
+                ? p[plane->type] - plane->dist
+                : DoublePrecisionDotProduct(plane->normal, p) - plane->dist;
+
+        num = d < 0 ? node->children[1] : node->children[0];
     }
 
     return num;
