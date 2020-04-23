@@ -1201,8 +1201,6 @@ void R_RenderScene()
     R_DrawViewModel(&cl.left_upper_holster);
     R_DrawViewModel(&cl.right_upper_holster);
 
-    // TODO VR: (P0) when fist is out, hand is double drawn. Don't draw the fist
-    // model as a weapon!
     // VR: This is what draws the hands.
     R_DrawViewModel(&cl.left_hand);
     R_DrawViewModel(&cl.right_hand);

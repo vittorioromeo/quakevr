@@ -765,7 +765,7 @@ RULES
 go to the next level for deathmatch
 only called if a time or frag limit has expired
 */
-// TODO VR: (P0) check here whether to go orig_start?
+// TODO VR: (P2) check here whether to go orig_start?
 void() NextLevel =
 {
     local entity o;

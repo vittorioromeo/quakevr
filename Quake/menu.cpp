@@ -2143,7 +2143,7 @@ void M_Options_Key(int k)
     o_wpncvar("Fixed 2H Right Hand Z", WpnCVar::TwoHFixedMainHandOffsetZ)
         .tooltip(fixed2HMainHandTooltip);
 
-    // TODO VR: (P0) bugged
+    // TODO VR: (P1) bugged
     // const char* gunOffsetTooltip =
     //     "Visual offset of the gun model. Does not affect hand positioning.";
     //

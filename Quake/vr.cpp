@@ -1924,6 +1924,11 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
     const int anchorVertex, const glm::vec3& extraOffsets) noexcept
 {
+    if (anchor->model == nullptr)
+    {
+        return vec3_zero;
+    }
+
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     glm::vec3 result = VR_GetAliasVertexOffsets(anchor, anchorVertex);
@@ -4647,6 +4652,6 @@ void VR_Move(usercmd_t* cmd)
 }
 
 // TODO VR: (P0) armagon boss bugged
-// TODO VR: (P0) remove existing sv_player usages, or chhange to to
+// TODO VR: (P1) remove existing sv_player usages, or chhange to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
