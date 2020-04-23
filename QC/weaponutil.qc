@@ -193,7 +193,7 @@ float(float wid) WeaponIdToAmmoId =
     if(wid == WID_FIST)             { return AID_NONE; }
     if(wid == WID_GRAPPLE)          { return AID_NONE; }
     if(wid == WID_AXE)              { return AID_NONE; }
-    if(wid == WID_MJOLNIR)          { return AID_NONE; }
+    if(wid == WID_MJOLNIR)          { return AID_CELLS; }
     if(wid == WID_SHOTGUN)          { return AID_SHELLS; }
     if(wid == WID_SUPER_SHOTGUN)    { return AID_SHELLS; }
     if(wid == WID_NAILGUN)          { return AID_NAILS; }
@@ -322,7 +322,7 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_PROXIMITY_GUN)    { return 1.5; }
     if(wid == WID_ROCKET_LAUNCHER)  { return 1.7; }
     if(wid == WID_LIGHTNING)        { return 1.5; }
-    if(wid == WID_LASER_CANNON)     { return 2.2; }
+    if(wid == WID_LASER_CANNON)     { return 2.4; }
 
     bprint("`WeaponIdToThrowBounds`: invalid weapon id '");
     bprint(ftos(wid));
