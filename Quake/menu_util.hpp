@@ -394,11 +394,6 @@ namespace quake
                 }
             };
 
-            if(_key_fn)
-            {
-                _key_fn(key);
-            }
-
             switch(key)
             {
                 case K_ESCAPE:
@@ -484,6 +479,11 @@ namespace quake
                     key_option(key, _cursor_idx);
                     break;
                 }
+            }
+
+            if(_key_fn)
+            {
+                _key_fn(key);
             }
         }
 
