@@ -118,26 +118,26 @@ inline glm::vec3 AngleVectorsOnlyFwd(const glm::vec3& angles) noexcept
 inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward,
     glm::vec3& right, glm::vec3& up) noexcept
 {
-    float angle = angles[YAW] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
+    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    assert(!std::isnan(yawRadians));
+    assert(!std::isinf(yawRadians));
 
-    const float sy = std::sin(angle);
-    const float cy = std::cos(angle);
+    const float sy = std::sin(yawRadians);
+    const float cy = std::cos(yawRadians);
 
-    angle = angles[PITCH] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
+    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    assert(!std::isnan(pitchRadians));
+    assert(!std::isinf(pitchRadians));
 
-    const float sp = std::sin(angle);
-    const float cp = std::cos(angle);
+    const float sp = std::sin(pitchRadians);
+    const float cp = std::cos(pitchRadians);
 
-    angle = angles[ROLL] * (M_PI * 2 / 360);
-    assert(!std::isnan(angle));
-    assert(!std::isinf(angle));
+    const float rollRadians = angles[ROLL] * (M_PI / 180.f);
+    assert(!std::isnan(rollRadians));
+    assert(!std::isinf(rollRadians));
 
-    const float sr = std::sin(angle);
-    const float cr = std::cos(angle);
+    const float sr = std::sin(rollRadians);
+    const float cr = std::cos(rollRadians);
 
     forward[0] = cp * cy;
     forward[1] = cp * sy;

@@ -843,6 +843,7 @@ float(float base, float exp) pow = #80; // power function
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #81; // VR haptics function
 float(float a, float b) min = #82;
 float(float a, float b) max = #83;
+void(vector ang) makeforward = #84;        // sets v_forward
 
 //============================================================================
 

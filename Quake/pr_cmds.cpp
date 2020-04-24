@@ -160,6 +160,22 @@ static void PF_makevectors()
         pr_global_struct->v_up) = quake::util::getAngledVectors(org);
 }
 
+
+/*
+==============
+PF_makeforward
+
+Writes new value for v_forward based on angles
+makeforward(vector)
+==============
+*/
+static void PF_makeforward()
+{
+    const auto org = extractVector(OFS_PARM0);
+
+    pr_global_struct->v_forward = quake::util::getFwdVecFromPitchYawRoll(org);
+}
+
 /*
 =================
 PF_setorigin
@@ -846,6 +862,7 @@ static void PF_traceline()
     pr_global_struct->trace_endpos = trace.endpos;
     pr_global_struct->trace_plane_normal = trace.plane.normal;
     pr_global_struct->trace_plane_dist = trace.plane.dist;
+
     if(trace.ent)
     {
         pr_global_struct->trace_ent = EDICT_TO_PROG(trace.ent);
@@ -1976,6 +1993,7 @@ static builtin_t pr_builtin[] = {
     PF_haptic,    // #81
     PF_min,       // #82
     PF_max,       // #83
+    PF_makeforward, // #84
 };
 
 builtin_t* pr_builtins = pr_builtin;
