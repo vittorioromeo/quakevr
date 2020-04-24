@@ -360,6 +360,12 @@ enum class WpnCVar : std::uint8_t
     TwoHFixedMainHandOffsetX = 40,
     TwoHFixedMainHandOffsetY = 41,
     TwoHFixedMainHandOffsetZ = 42,
+    WeightPosMult = 43,
+    WeightDirMult = 44,
+    WeightHandVelMult = 45,
+    WeightHandThrowVelMult = 46,
+    Weight2HPosMult = 47,
+    Weight2HDirMult = 48,
 
     k_Max
 };

@@ -37,6 +37,16 @@ float VR_GetMenuMult() noexcept;
 namespace quake::util
 {
     template <typename T>
+    [[nodiscard]] constexpr T mapRange(const T input, const T inputMin,
+        const T inputMax, const T outputMin, const T outputMax) noexcept
+    {
+        const T slope =
+            T(1.0) * (outputMax - outputMin) / (inputMax - inputMin);
+
+        return outputMin + slope * (input - inputMin);
+    }
+
+    template <typename T>
     [[nodiscard]] T cvarToEnum(const cvar_t& x) noexcept
     {
         return static_cast<T>(static_cast<int>(x.value));

@@ -549,16 +549,31 @@ float(float xHand) VRFireButtonPressed =
     else                  return self.button0;
 }
 
+void(entity e, float xHand, float v) VRSetEntWeapon =
+{
+    if(xHand == OFF_HAND) e.weapon2 = v;
+    else                  e.weapon = v;
+}
+
 void(float xHand, float v) VRSetWeapon =
 {
-    if(xHand == OFF_HAND) self.weapon2 = v;
-    else                  self.weapon = v;
+    VRSetEntWeapon(self, xHand, v);
 }
 
 float(entity e, float xHand) VRGetEntWeapon =
 {
     if(xHand == OFF_HAND) return e.weapon2;
     else                  return e.weapon;
+}
+
+float(entity e, float xHand) IsHandEmpty =
+{
+    return VRGetEntWeapon(e, xHand) == WID_FIST;
+}
+
+void(entity e, float xHand) SetHandEmpty =
+{
+    VRSetEntWeapon(e, xHand, WID_FIST);
 }
 
 float(float xHand) VRGetWeapon =
@@ -3174,7 +3189,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
     else
     {
-        // TODO VR: (P2) still triggers sometimes
+        // TODO VR: (P0) still triggers sometimes
         bprint("uncovered angle case: '");
         bprint(ftos(angle));
         bprint("'\n");
@@ -3306,13 +3321,13 @@ void() wpnthrow_handtouch =
 
     if(self.handtouch_hand == OFF_HAND &&
        VREntStartedHandGrabbing(self.handtouch_ent, OFF_HAND) &&
-       self.handtouch_ent.weapon2 == WID_FIST)
+       IsHandEmpty(self.handtouch_ent, OFF_HAND))
     {
         wpnthrow_handtouch_impl(&self.handtouch_ent.weapon2);
     }
     else if(self.handtouch_hand == MAIN_HAND &&
             VREntStartedHandGrabbing(self.handtouch_ent, MAIN_HAND) &&
-            self.handtouch_ent.weapon == WID_FIST)
+            IsHandEmpty(self.handtouch_ent, MAIN_HAND))
     {
         wpnthrow_handtouch_impl(&self.handtouch_ent.weapon);
     }
@@ -3457,8 +3472,8 @@ void(entity thrower, float xWeapon,
     makevectors(xThrowVel);
     tmp_handavel = xAVel;
     newmis.avelocity = tmp_handavel_x * v_forward * 30
-                        + tmp_handavel_y * v_right * -30
-                        + tmp_handavel_z * v_up * -30;
+                     + tmp_handavel_y * v_right * -30
+                     + tmp_handavel_z * v_up * -30;
 
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
@@ -3538,11 +3553,14 @@ void(entity ent, float xHand,
      float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
 {
-    local float handGrabbing, handPrevGrabbing, otherHandGrabbing;
+    local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
+                handEmpty, otherHandEmpty;
 
     handGrabbing = VRIsEntHandGrabbing(ent, xHand);
     handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
     otherHandGrabbing = VRIsEntHandGrabbing(ent, VROtherHand(xHand));
+    handEmpty = IsHandEmpty(self, xHand);
+    otherHandEmpty = IsHandEmpty(self, VROtherHand(xHand));
 
     if (time < readytime)
     {
@@ -3556,7 +3574,7 @@ void(entity ent, float xHand,
     }
 
     // Holding a weapon, but not grabbing the controller.
-    if (xWeapon != WID_FIST && !handGrabbing && time >= xAttackFinished)
+    if (!handEmpty && !handGrabbing && time >= xAttackFinished)
     {
         // No hotspot, or 2H hotspot (unusable).
         // (2H hotspots ignored because you can only dual wield with no weapon out.)
@@ -3588,7 +3606,7 @@ void(entity ent, float xHand,
             }
 
             sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
-            *xOutWeapon = WID_FIST;
+            SetHandEmpty(self, xHand);
             W_SetCurrentAmmoFor(xHand);
         }
         // Put a weapon in a holster.
@@ -3604,7 +3622,7 @@ void(entity ent, float xHand,
 
                     setHolsterWeapon(xHotspot, xWeapon);
                     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
-                    *xOutWeapon = WID_FIST;
+                    SetHandEmpty(self, xHand);
                     W_SetCurrentAmmoFor(xHand);
                 }
             }
@@ -3624,20 +3642,19 @@ void(entity ent, float xHand,
         // Swap weapon between hands.
         else if(xHotspot == QVR_HS_HAND_SWITCH)
         {
-            if(otherHandGrabbing &&
-               xOtherWeapon == WID_FIST && time >= xOtherAttackFinished)
+            if(otherHandGrabbing && otherHandEmpty && time >= xOtherAttackFinished)
             {
                 sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
                 *xOutOtherWeapon = xWeapon;
-                *xOutWeapon = WID_FIST;
+                SetHandEmpty(self, xHand);
 
                 W_SetCurrentAmmo();
             }
         }
     }
     // Holding a weapon and hovering an holster. Possible intention to holster.
-    else if (xWeapon != WID_FIST && handGrabbing && time >= xAttackFinished)
+    else if (!handEmpty && handGrabbing && time >= xAttackFinished)
     {
         if(isHolsterHotspot(xHotspot))
         {
@@ -3648,7 +3665,7 @@ void(entity ent, float xHand,
         }
     }
     // Not holding a weapon and started grabbing the controller.
-    else if (xWeapon == WID_FIST && VREntStartedHandGrabbing(ent, xHand))
+    else if (handEmpty && VREntStartedHandGrabbing(ent, xHand))
     {
         // Not a holster. Do nothing.
         if(xHotspot == QVR_HS_NONE ||
@@ -3683,7 +3700,7 @@ void(entity ent, float xHand,
         }
     }
     // Not holding a weapon and hovering an holster. Possible intention to unholster.
-    else if (xWeapon == WID_FIST && !handGrabbing)
+    else if (handEmpty && !handGrabbing)
     {
         if(isHolsterHotspot(xHotspot))
         {

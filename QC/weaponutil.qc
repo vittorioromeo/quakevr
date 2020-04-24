@@ -241,6 +241,9 @@ float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
 
 float(float wid) WeaponIdToThrowMult =
 {
+    // TODO VR: (P2) used for velocity, but weight is used on the calculations
+    // on the C++ side of things
+
     if(wid == WID_FIST)             { return 1; }
     if(wid == WID_GRAPPLE)          { return 0.9; }
     if(wid == WID_AXE)              { return 0.9; }
@@ -248,12 +251,12 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_SHOTGUN)          { return 0.8; }
     if(wid == WID_SUPER_SHOTGUN)    { return 0.8; }
     if(wid == WID_NAILGUN)          { return 0.8; }
-    if(wid == WID_SUPER_NAILGUN)    { return 0.4; }
+    if(wid == WID_SUPER_NAILGUN)    { return 0.6; }
     if(wid == WID_GRENADE_LAUNCHER) { return 0.6; }
     if(wid == WID_PROXIMITY_GUN)    { return 0.6; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 0.4; }
-    if(wid == WID_LIGHTNING)        { return 0.5; }
-    if(wid == WID_LASER_CANNON)     { return 0.2; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 0.6; }
+    if(wid == WID_LIGHTNING)        { return 0.6; }
+    if(wid == WID_LASER_CANNON)     { return 0.4; }
 
     bprint("`WeaponIdToThrowMult`: invalid weapon id '");
     bprint(ftos(wid));
@@ -289,17 +292,17 @@ float(float wid) WeaponIdToThrowDamage =
 {
     if(wid == WID_FIST)             { return 20; }
     if(wid == WID_GRAPPLE)          { return 20; }
-    if(wid == WID_AXE)              { return 30; }
+    if(wid == WID_AXE)              { return 35; }
     if(wid == WID_MJOLNIR)          { return 30; }
     if(wid == WID_SHOTGUN)          { return 20; }
     if(wid == WID_SUPER_SHOTGUN)    { return 20; }
     if(wid == WID_NAILGUN)          { return 20; }
-    if(wid == WID_SUPER_NAILGUN)    { return 20; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 25; }
-    if(wid == WID_PROXIMITY_GUN)    { return 25; }
+    if(wid == WID_SUPER_NAILGUN)    { return 25; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 30; }
+    if(wid == WID_PROXIMITY_GUN)    { return 30; }
     if(wid == WID_ROCKET_LAUNCHER)  { return 30; }
     if(wid == WID_LIGHTNING)        { return 25; }
-    if(wid == WID_LASER_CANNON)     { return 40; }
+    if(wid == WID_LASER_CANNON)     { return 45; }
 
     bprint("`WeaponIdToThrowDamage`: invalid weapon id '");
     bprint(ftos(wid));

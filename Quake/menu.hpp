@@ -64,6 +64,7 @@ enum m_state_e
     m_qvrs_graphical,
     m_qvrs_weaponconfiguration,
     m_qvrs_weaponconfiguration2,
+    m_qvrs_weaponconfiguration3,
     m_qvrs_hudconfiguration,
     m_qvrs_hotspot,
     m_qvrs_torso,

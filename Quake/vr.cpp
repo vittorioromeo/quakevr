@@ -25,6 +25,7 @@ using quake::util::getDirectionVectorFromPitchYawRoll;
 using quake::util::getFwdVecFromPitchYawRoll;
 using quake::util::hitSomething;
 using quake::util::lerp;
+using quake::util::mapRange;
 using quake::util::pitchYawRollFromDirectionVector;
 using quake::util::redirectVector;
 
@@ -993,50 +994,61 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* twoHDisplayMode = "0.0",
     const char* twoHHandAnchorVertex = "0.0")
 {
+    const auto init = [&](const WpnCVar wpnCVar, const char* name,
+                          const char* defaultVal) {
+        InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal);
+    };
+
     // clang-format off
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetX),                  "vr_wofs_x_nn",            i, offsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetY),                  "vr_wofs_y_nn",            i, offsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffsetZ),                  "vr_wofs_z_nn",            i, offsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Scale),                    "vr_wofs_scale_nn",        i, scale);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::ID),                       "vr_wofs_id_nn",           i, id);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Roll),                     "vr_wofs_roll_nn",         i, roll);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Yaw),                      "vr_wofs_yaw_nn",          i, yaw);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Pitch),                    "vr_wofs_pitch_nn",        i, pitch);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetX),            "vr_wofs_muzzle_x_nn",     i, muzzleOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetY),            "vr_wofs_muzzle_y_nn",     i, muzzleOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::MuzzleOffsetZ),            "vr_wofs_muzzle_z_nn",     i, muzzleOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetX),              "vr_wofs_2h_x_nn",         i, twoHOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetY),              "vr_wofs_2h_y_nn",         i, twoHOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHOffsetZ),              "vr_wofs_2h_z_nn",         i, twoHOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHPitch),                "vr_wofs_2h_pitch_nn",     i, twoHPitch);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHYaw),                  "vr_wofs_2h_yaw_nn",       i, twoHYaw);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHRoll),                 "vr_wofs_2h_roll_nn",      i, twoHRoll);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHMode),                 "vr_wofs_2h_mode_nn",      i, twoHMode);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Length),                   "vr_wofs_length_nn",       i, length);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::Weight),                   "vr_wofs_weight_nn",       i, weight);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetX),              "vr_wofs_hand_x_nn",       i, handOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetY),              "vr_wofs_hand_y_nn",       i, handOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandOffsetZ),              "vr_wofs_hand_z_nn",       i, handOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HandAnchorVertex),         "vr_wofs_hand_av_nn",      i, handAnchorVertex);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetX),           "vr_wofs_offhand_x_nn",    i, offHandOffsetX);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetY),           "vr_wofs_offhand_y_nn",    i, offHandOffsetY);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::OffHandOffsetZ),           "vr_wofs_offhand_z_nn",    i, offHandOffsetZ);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::CrosshairMode),            "vr_wofs_ch_mode_z_nn",    i, crosshairMode);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::HideHand),                 "vr_wofs_hide_hand_nn",    i, hideHand);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHDisplayMode),          "vr_wofs_2h_dispmd_nn",    i, twoHDisplayMode);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHHandAnchorVertex),     "vr_wofs_2h_hand_av_nn",   i, twoHHandAnchorVertex);
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedOffsetX),         "vr_wofs_2h_fxd_ox_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedOffsetY),         "vr_wofs_2h_fxd_oy_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedOffsetZ),         "vr_wofs_2h_fxd_oz_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::GunOffsetX),               "vr_wofs_gunoff_x_nn",     i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::GunOffsetY),               "vr_wofs_gunoff_y_nn",     i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::GunOffsetZ),               "vr_wofs_gunoff_z_nn",     i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedHandPitch),       "vr_wofs_2h_fxd_hp_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedHandYaw),         "vr_wofs_2h_fxd_hy_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedHandRoll),        "vr_wofs_2h_fxd_hr_nn",    i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedMainHandOffsetX), "vr_wofs_2h_fxd_mh_ox_nn", i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedMainHandOffsetY), "vr_wofs_2h_fxd_mh_oy_nn", i, "0.0");
-    InitWeaponCVar(VR_GetWpnCVar(i, WpnCVar::TwoHFixedMainHandOffsetZ), "vr_wofs_2h_fxd_mh_oz_nn", i, "0.0");
+    init(WpnCVar::OffsetX,                  "vr_wofs_x_nn",            offsetX);
+    init(WpnCVar::OffsetY,                  "vr_wofs_y_nn",            offsetY);
+    init(WpnCVar::OffsetZ,                  "vr_wofs_z_nn",            offsetZ);
+    init(WpnCVar::Scale,                    "vr_wofs_scale_nn",        scale);
+    init(WpnCVar::ID,                       "vr_wofs_id_nn",           id);
+    init(WpnCVar::Roll,                     "vr_wofs_roll_nn",         roll);
+    init(WpnCVar::Yaw,                      "vr_wofs_yaw_nn",          yaw);
+    init(WpnCVar::Pitch,                    "vr_wofs_pitch_nn",        pitch);
+    init(WpnCVar::MuzzleOffsetX,            "vr_wofs_muzzle_x_nn",     muzzleOffsetX);
+    init(WpnCVar::MuzzleOffsetY,            "vr_wofs_muzzle_y_nn",     muzzleOffsetY);
+    init(WpnCVar::MuzzleOffsetZ,            "vr_wofs_muzzle_z_nn",     muzzleOffsetZ);
+    init(WpnCVar::TwoHOffsetX,              "vr_wofs_2h_x_nn",         twoHOffsetX);
+    init(WpnCVar::TwoHOffsetY,              "vr_wofs_2h_y_nn",         twoHOffsetY);
+    init(WpnCVar::TwoHOffsetZ,              "vr_wofs_2h_z_nn",         twoHOffsetZ);
+    init(WpnCVar::TwoHPitch,                "vr_wofs_2h_pitch_nn",     twoHPitch);
+    init(WpnCVar::TwoHYaw,                  "vr_wofs_2h_yaw_nn",       twoHYaw);
+    init(WpnCVar::TwoHRoll,                 "vr_wofs_2h_roll_nn",      twoHRoll);
+    init(WpnCVar::TwoHMode,                 "vr_wofs_2h_mode_nn",      twoHMode);
+    init(WpnCVar::Length,                   "vr_wofs_length_nn",       length);
+    init(WpnCVar::Weight,                   "vr_wofs_weight_nn",       weight);
+    init(WpnCVar::HandOffsetX,              "vr_wofs_hand_x_nn",       handOffsetX);
+    init(WpnCVar::HandOffsetY,              "vr_wofs_hand_y_nn",       handOffsetY);
+    init(WpnCVar::HandOffsetZ,              "vr_wofs_hand_z_nn",       handOffsetZ);
+    init(WpnCVar::HandAnchorVertex,         "vr_wofs_hand_av_nn",      handAnchorVertex);
+    init(WpnCVar::OffHandOffsetX,           "vr_wofs_offhand_x_nn",    offHandOffsetX);
+    init(WpnCVar::OffHandOffsetY,           "vr_wofs_offhand_y_nn",    offHandOffsetY);
+    init(WpnCVar::OffHandOffsetZ,           "vr_wofs_offhand_z_nn",    offHandOffsetZ);
+    init(WpnCVar::CrosshairMode,            "vr_wofs_ch_mode_z_nn",    crosshairMode);
+    init(WpnCVar::HideHand,                 "vr_wofs_hide_hand_nn",    hideHand);
+    init(WpnCVar::TwoHDisplayMode,          "vr_wofs_2h_dispmd_nn",    twoHDisplayMode);
+    init(WpnCVar::TwoHHandAnchorVertex,     "vr_wofs_2h_hand_av_nn",   twoHHandAnchorVertex);
+    init(WpnCVar::TwoHFixedOffsetX,         "vr_wofs_2h_fxd_ox_nn",    "0.0");
+    init(WpnCVar::TwoHFixedOffsetY,         "vr_wofs_2h_fxd_oy_nn",    "0.0");
+    init(WpnCVar::TwoHFixedOffsetZ,         "vr_wofs_2h_fxd_oz_nn",    "0.0");
+    init(WpnCVar::GunOffsetX,               "vr_wofs_gunoff_x_nn",     "0.0");
+    init(WpnCVar::GunOffsetY,               "vr_wofs_gunoff_y_nn",     "0.0");
+    init(WpnCVar::GunOffsetZ,               "vr_wofs_gunoff_z_nn",     "0.0");
+    init(WpnCVar::TwoHFixedHandPitch,       "vr_wofs_2h_fxd_hp_nn",    "0.0");
+    init(WpnCVar::TwoHFixedHandYaw,         "vr_wofs_2h_fxd_hy_nn",    "0.0");
+    init(WpnCVar::TwoHFixedHandRoll,        "vr_wofs_2h_fxd_hr_nn",    "0.0");
+    init(WpnCVar::TwoHFixedMainHandOffsetX, "vr_wofs_2h_fxd_mh_ox_nn", "0.0");
+    init(WpnCVar::TwoHFixedMainHandOffsetY, "vr_wofs_2h_fxd_mh_oy_nn", "0.0");
+    init(WpnCVar::TwoHFixedMainHandOffsetZ, "vr_wofs_2h_fxd_mh_oz_nn", "0.0");
+    init(WpnCVar::WeightPosMult,            "vr_wofs_w_posmult_nn",    "1.0");
+    init(WpnCVar::WeightDirMult,            "vr_wofs_w_dirmult_nn",    "1.0");
+    init(WpnCVar::WeightHandVelMult,        "vr_wofs_w_hvelmult_nn",   "1.0");
+    init(WpnCVar::WeightHandThrowVelMult,   "vr_wofs_w_htvelmult_nn",  "1.0");
+    init(WpnCVar::Weight2HPosMult,          "vr_wofs_w_2hposmult_nn",  "1.0");
+    init(WpnCVar::Weight2HDirMult,          "vr_wofs_w_2hdirmult_nn",  "1.0");
     // clang-format on
 
     return i;
@@ -1523,7 +1535,8 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 
 [[nodiscard]] static float VR_GetWeaponWeightFactorImpl(const int cvarEntry,
     const float aiming2H, const float weightOffset, const float weightMult,
-    const float twoHHelpOffset, const float twoHHelpMult)
+    const float twoHHelpOffset, const float twoHHelpMult,
+    const float wpnTwoHMult)
 {
     assert(aiming2H >= 0.f && aiming2H <= 1.f);
 
@@ -1531,7 +1544,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     const auto withOffset = initial + weightOffset;
     const auto withMult = withOffset * weightMult;
     const auto with2HHelpOffset = withOffset + twoHHelpOffset;
-    const auto with2HHelpMult = with2HHelpOffset * twoHHelpMult;
+    const auto with2HHelpMult = (with2HHelpOffset * twoHHelpMult) * wpnTwoHMult;
 
     const float finalFactor = lerp(withMult, with2HHelpMult, aiming2H);
     return std::clamp(finalFactor, 0.f, 1.f);
@@ -1540,27 +1553,30 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 [[nodiscard]] float VR_GetWeaponWeightPosFactor(
     const int cvarEntry, const float aiming2H)
 {
-    return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H, //
-        vr_wpn_pos_weight_offset.value,                      //
-        vr_wpn_pos_weight_mult.value,                        //
-        vr_wpn_pos_weight_2h_help_offset.value,              //
-        vr_wpn_pos_weight_2h_help_mult.value);
+    return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H,    //
+        vr_wpn_pos_weight_offset.value,                         //
+        vr_wpn_pos_weight_mult.value,                           //
+        vr_wpn_pos_weight_2h_help_offset.value,                 //
+        vr_wpn_pos_weight_2h_help_mult.value,                   //
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Weight2HPosMult) //
+    );
 }
 
 [[nodiscard]] float VR_GetWeaponWeightDirFactor(
     const int cvarEntry, const float aiming2H)
 {
-    return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H, //
-        vr_wpn_dir_weight_offset.value,                      //
-        vr_wpn_dir_weight_mult.value,                        //
-        vr_wpn_dir_weight_2h_help_offset.value,              //
-        vr_wpn_dir_weight_2h_help_mult.value);
+    return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H,    //
+        vr_wpn_dir_weight_offset.value,                         //
+        vr_wpn_dir_weight_mult.value,                           //
+        vr_wpn_dir_weight_2h_help_offset.value,                 //
+        vr_wpn_dir_weight_2h_help_mult.value,                   //
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Weight2HDirMult) //
+    );
 }
 
 template <auto TFactorFn>
 [[nodiscard]] static float VR_CalcWeaponWeight(const int handIndex) noexcept
 {
-    // TODO: use cvar for left hand as well?
     return (handIndex == 0 && !vr_should_aim_2h[handIndex])
                ? (*TFactorFn)(VR_GetOffHandWpnCvarEntry(), 0.f)
                : (*TFactorFn)(VR_GetMainHandWpnCvarEntry(),
@@ -1722,8 +1738,11 @@ void SetHandPos(int index, entity_t* player)
     // Weight stuff
     if(!inMenu() && vr_wpn_pos_weight.value == 1)
     {
+        const auto wpnCvarEntry = VR_GetWpnCvarEntry(index);
+
         const auto ftw =
-            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index);
+            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index) *
+            VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightPosMult);
 
         const auto rotate_point = [](const glm::vec2& center, const float angle,
                                       glm::vec2 p) {
@@ -1802,7 +1821,7 @@ void SetHandPos(int index, entity_t* player)
 
         // TODO VR: (P0) center of mass is different for different weapons
         cl.handthrowvel[index] +=
-            glm::cross(controllers[index].a_velocity, up * 0.1f);
+            glm::cross(controllers[index].a_velocity, up * 0.05f);
 
         cl.handthrowvel[index] = redirectVectorByYaw(
             openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
@@ -1813,16 +1832,20 @@ void SetHandPos(int index, entity_t* player)
     // velocity depending on the weight.
     if(vr_wpn_pos_weight.value == 1)
     {
+        const auto wpnCvarEntry = VR_GetWpnCvarEntry(index);
+
         const auto weaponWeight =
             VR_CalcWeaponWeight<VR_GetWeaponWeightPosFactor>(index);
 
-        const auto clampedWeight = std::clamp(weaponWeight, 0.f, 1.f);
+        const auto clampedWeight = std::clamp(weaponWeight, 0.4f, 1.f);
 
-        const auto factor =
-            std::clamp(clampedWeight / 1.5f + 0.65f, 0.5f, 0.99f);
+        const auto handvelFactor =
+            mapRange(clampedWeight, 0.4f, 1.f, 1.f, 0.6f) *
+            VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandVelMult);
 
-        const auto handvelFactor = std::clamp(factor + 0.1f, 0.f, 1.f);
-        const auto handthrowvelFactor = std::clamp(factor - 0.05f, 0.f, 1.f);
+        const auto handthrowvelFactor =
+            mapRange(clampedWeight, 0.4f, 1.f, 1.f, 0.5f) *
+            VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandThrowVelMult);
 
         cl.handvel[index] *= handvelFactor;
         cl.handthrowvel[index] *= handthrowvelFactor;
@@ -1924,7 +1947,7 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
     const int anchorVertex, const glm::vec3& extraOffsets) noexcept
 {
-    if (anchor->model == nullptr)
+    if(anchor->model == nullptr)
     {
         return vec3_zero;
     }
@@ -2558,8 +2581,11 @@ static void VR_DoWeaponDirSlerp()
         const auto nNewFwd = safeNormalize(newFwd);
         const auto nNewUp = safeNormalize(newUp);
 
+        const auto wpnCvarEntry = VR_GetWpnCvarEntry(index);
+
         const auto ftw =
-            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightDirFactor>(index);
+            VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightDirFactor>(index) *
+            VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightDirMult);
 
         const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
         const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);

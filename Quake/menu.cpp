@@ -1912,16 +1912,6 @@ void M_Options_Key(int k)
     r_wpncvar("2H Yaw", WpnCVar::TwoHYaw).tooltip(twoHRotTooltip);
     r_wpncvar("2H Roll", WpnCVar::TwoHRoll).tooltip(twoHRotTooltip);
 
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    o_wpncvar("Weight", WpnCVar::Weight)
-        .tooltip(
-            "How heavy the weapon 'feels'. Values closer to '1' are heavier. "
-            "'1' itself is 'infinite' weight. Affects weapon movement and "
-            "rotation speed, and also throwing distance and damage.");
-
     return m;
 }
 
@@ -2157,6 +2147,103 @@ void M_Options_Key(int k)
 [[nodiscard]] static quake::menu& qvrsWeaponConfiguration2Menu()
 {
     static quake::menu res = makeQVRSWeaponConfiguration2Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - WEAPON CONFIGURATION (3) */
+
+[[nodiscard]] static quake::menu makeQVRSWeaponConfiguration3Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float wInc = 0.01f;
+    constexpr float wBound = 1.f;
+
+    const quake::menu_bounds<float> wBounds{wInc, 0.f, wBound};
+    const quake::menu_bounds<float> wmBounds{wInc, 0.f, 10.f};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRSettings_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto w_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            wBounds                                              //
+        );
+    };
+
+    const auto wm_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            wmBounds                                             //
+        );
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    w_wpncvar("Weight", WpnCVar::Weight)
+        .tooltip(
+            "How heavy the weapon 'feels'. Values closer to '1' are heavier. "
+            "'1' itself is 'infinite' weight. Affects weapon movement and "
+            "rotation speed, and also throwing distance and damage.");
+
+    wm_wpncvar("Weight Pos. Mult.", WpnCVar::WeightPosMult)
+        .tooltip("Weight multiplier for movement only.");
+
+    wm_wpncvar("Weight Dir. Mult.", WpnCVar::WeightDirMult)
+        .tooltip("Weight multiplier for direction only.");
+
+    wm_wpncvar("Weight Hand Vel. Mult.", WpnCVar::WeightHandVelMult)
+        .tooltip(
+            "Weight multiplier for hand velocity calculations (e.g. melee "
+            "attacks) only.");
+
+    wm_wpncvar("Weight Hand Throw Vel. Mult.", WpnCVar::WeightHandThrowVelMult)
+        .tooltip(
+            "Weight multiplier for hand throw velocity calculations (e.g. "
+            "throwing weapons) only.");
+
+    wm_wpncvar("Weight 2H Pos. Mult.", WpnCVar::Weight2HPosMult)
+        .tooltip(
+            "Weight multiplier for two-handed movement (how much it helps to "
+            "use two hands).");
+
+    wm_wpncvar("Weight 2H Dir. Mult.", WpnCVar::Weight2HDirMult)
+        .tooltip(
+            "Weight multiplier for two-handed direction (how much it helps to "
+            "use two hands).");
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsWeaponConfiguration3Menu()
+{
+    static quake::menu res = makeQVRSWeaponConfiguration3Menu();
     return res;
 }
 
@@ -2512,6 +2599,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsGraphicalMenu(), m_qvrs_graphical);
     f(qvrsWeaponConfigurationMenu(), m_qvrs_weaponconfiguration);
     f(qvrsWeaponConfiguration2Menu(), m_qvrs_weaponconfiguration2);
+    f(qvrsWeaponConfiguration3Menu(), m_qvrs_weaponconfiguration3);
     f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
