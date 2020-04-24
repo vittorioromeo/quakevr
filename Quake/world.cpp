@@ -797,6 +797,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         if(num != CONTENTS_SOLID)
         {
             trace->allsolid = false;
+
             if(num == CONTENTS_EMPTY)
             {
                 trace->inopen = true;
@@ -810,6 +811,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         {
             trace->startsolid = true;
         }
+
         return true; // empty
     }
 
@@ -851,6 +853,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         return SV_RecursiveHullCheck(
             hull, node->children[0], p1f, p2f, p1, p2, trace);
     }
+
     if(t1 < 0 && t2 < 0)
     {
         return SV_RecursiveHullCheck(
@@ -860,6 +863,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     if((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0))
         return SV_RecursiveHullCheck(
             hull, node->children[0], p1f, p2f, p1, p2, trace);
+
     if((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0))
         return SV_RecursiveHullCheck(
             hull, node->children[1], p1f, p2f, p1, p2, trace);
@@ -867,6 +871,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
 
     // put the crosspoint DIST_EPSILON pixels on the near side
     float frac;
+
     if(t1 < 0)
     {
         frac = (t1 + DIST_EPSILON) / (t1 - t2);
@@ -875,11 +880,12 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     {
         frac = (t1 - DIST_EPSILON) / (t1 - t2);
     }
+
     if(frac < 0)
     {
         frac = 0;
     }
-    if(frac > 1)
+    else if(frac > 1)
     {
         frac = 1;
     }
