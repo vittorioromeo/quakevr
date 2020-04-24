@@ -65,8 +65,8 @@ void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
     int j;
     float* v;
 
-    mins[0] = mins[1] = mins[2] = 999999999;
-    maxs[0] = maxs[1] = maxs[2] = -999999999;
+    mins[0] = mins[1] = mins[2] = FLT_MAX;
+    maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
     v = verts;
     for(i = 0; i < numverts; i++)
     {

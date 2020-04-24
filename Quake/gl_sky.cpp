@@ -36,7 +36,7 @@ extern qmodel_t* loadmodel;
 float skyflatcolor[3];
 float skymins[2][6], skymaxs[2][6];
 
-char skybox_name[32] = ""; // name of current skybox, or "" if no skybox
+char skybox_name[1024]; // name of current skybox, or "" if no skybox
 
 gltexture_t* skybox_textures[6];
 gltexture_t *solidskytexture, *alphaskytexture;
@@ -225,7 +225,7 @@ void Sky_LoadSkyBox(const char* name)
         return;
     }
 
-    strcpy(skybox_name, name);
+    q_strlcpy(skybox_name, name, sizeof(skybox_name));
 }
 
 /*
@@ -372,6 +372,7 @@ void Sky_Init()
 
     Cmd_AddCommand("sky", Sky_SkyCommand_f);
 
+    skybox_name[0] = 0;
     for(i = 0; i < 6; i++)
     {
         skybox_textures[i] = nullptr;
@@ -1197,8 +1198,8 @@ void Sky_DrawSky()
     //
     for(i = 0; i < 6; i++)
     {
-        skymins[0][i] = skymins[1][i] = 9999;
-        skymaxs[0][i] = skymaxs[1][i] = -9999;
+        skymins[0][i] = skymins[1][i] = FLT_MAX;
+        skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
     }
 
     //
