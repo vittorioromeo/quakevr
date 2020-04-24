@@ -28,7 +28,7 @@ void() wallsprite =
 
    // Pull the sprite away from the wall slightly to
    // get rid of z sort errors.
-   makevectors(self.angles);
+   makeforward(self.angles);
    setorigin( self, self.origin - ( v_forward * 0.2 ) );
     makestatic (self);
    };
@@ -97,7 +97,11 @@ void( vector pos ) placebullethole =
        lastbulletholeroll = 0;
     }
 
-    makevectors(self.angles);
+    makeforward(self.angles);
+
+    // TODO VR: (P2) why is it necessary to invert this?
+    v_forward_z = v_forward_z * -1;
+
     setorigin( new, pos - ( v_forward * (0.03 + new.angles_z / 450) ) );
         // try to avoid z-fighting for overlapping sprites
 

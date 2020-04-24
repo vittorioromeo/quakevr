@@ -309,8 +309,8 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 
     if (xTarget.classname == "monster_army")
     {
-        headpos_z = xTarget.origin_z + 24;
-        headsize = 3.2;
+        headpos_z = xTarget.origin_z + 25;
+        headsize = 3.4;
         head_hdepth = 12;
         supportHS = 1;
         supportCD = 1;
@@ -452,7 +452,7 @@ void() HIP_LaserTouch =
 
         spawn_touchblood (self.dmg);
 
-        makevectors (self.angles);
+        makeforward (self.angles);
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
@@ -638,7 +638,7 @@ vector(float xHand) VRGetMuzzlePos =
 
 vector(float xHand) VRGetWeaponFireRotFwd =
 {
-    makevectors (VRGetWeaponFireRot(xHand));
+    makeforward (VRGetWeaponFireRot(xHand));
     return v_forward;
 }
 
@@ -1772,7 +1772,7 @@ void(float xHand) W_FireLightning =
 
     org = VRGetMuzzlePos(xHand);
 
-    makevectors (VRGetHandRot(xHand));
+    makeforward (VRGetHandRot(xHand));
     traceline (org, org + v_forward*600, TRUE, self);
     particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
     particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
@@ -1804,12 +1804,18 @@ void() GrenadeTouch =
 {
     if (other == self.owner)
         return;        // don't explode on owner
+
     if (other.takedamage == DAMAGE_AIM)
     {
         GrenadeExplode();
         return;
     }
-    sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);    // bounce sound
+
+    if(vlen(self.velocity) > 10)
+    {
+        sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);    // bounce sound
+    }
+
     if (self.velocity == '0 0 0')
         self.avelocity = '0 0 0';
 };
@@ -1941,7 +1947,9 @@ void() ProximityGrenadeTouch =
       self.think();
       return;
       }
-   sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM); // bounce sound
+
+        sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM); // bounce sound
+
    self.movetype = MOVETYPE_NONE;
    setsize (self, '-8 -8 -8', '8 8 8');
    self.state = 1;
@@ -2108,7 +2116,7 @@ void(float xHand) W_FireSuperSpikes =
     setAttackFinished(xHand, time + 0.2);
     setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 2);
 
-    makevectors (VRGetWeaponFireRot(xHand));
+    makeforward (VRGetWeaponFireRot(xHand));
     dir = v_forward;
 
     launch_spike (VRGetMuzzlePos(xHand), dir);
@@ -2183,7 +2191,11 @@ void() spike_touch =
         return;
     }
 
-    makevectors(self.angles);
+    makeforward(self.angles);
+
+    // TODO VR: (P2) why is it necessary to invert this?
+    v_forward_z = v_forward_z * -1;
+
     traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
@@ -2234,7 +2246,11 @@ void() superspike_touch =
         return;
     }
 
-    makevectors(self.angles);
+    makeforward(self.angles);
+
+    // TODO VR: (P2) why is it necessary to invert this?
+    v_forward_z = v_forward_z * -1;
+
     traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
@@ -2994,7 +3010,7 @@ Called every frame so impulse events can be handled as well as possible
 */
 void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 {
-    makevectors(VRGetWeaponFireRot(xHand));
+    makeforward(VRGetWeaponFireRot(xHand));
     traceline (xOrigin, xOrigin + v_forward*600, TRUE, self);
 
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
@@ -3272,13 +3288,13 @@ void() wpnthrow_touch =
             remove(self);
         }
 
-        setsize (self, self.mins * 1.5, self.maxs * 1.5);
+       //  setsize (self, self.mins * 1.5, self.maxs * 1.5);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = TRUE;
     }
 
     // ghetto collision detection/resolution
-    if (vlen(self.velocity) > 1)
+    if (!(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2)
     {
         dir = normalize(self.velocity);
         dir_z = 0;
@@ -3554,13 +3570,20 @@ void(entity ent, float xHand,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
 {
     local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
-                handEmpty, otherHandEmpty;
+                handEmpty, otherHandEmpty, triggerPressed;
+
+    local vector handPos, handRot, tmpVec;
+
+    local entity tmpEnt;
 
     handGrabbing = VRIsEntHandGrabbing(ent, xHand);
     handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
     otherHandGrabbing = VRIsEntHandGrabbing(ent, VROtherHand(xHand));
     handEmpty = IsHandEmpty(self, xHand);
     otherHandEmpty = IsHandEmpty(self, VROtherHand(xHand));
+    triggerPressed = VRFireButtonPressed(xHand);
+    handPos = VRGetHandPos(xHand);
+    handRot = VRGetHandRot(xHand);
 
     if (time < readytime)
     {
@@ -3696,6 +3719,63 @@ void(entity ent, float xHand,
                 }
 
                 W_SetCurrentAmmoFor(xHand);
+            }
+        }
+    }
+    // Not holding a weapon, grabbing the controller, and pressing the trigger.
+    else if (handEmpty && handGrabbing && triggerPressed)
+    {
+        // TODO VR: (P0) finish, add cvars and alternatives, add menu
+
+        makeforward(handRot);
+        traceline(handPos, handPos + v_forward * 128, FALSE, self);
+
+        for (tmpEnt = findradius(trace_endpos, 32); tmpEnt; tmpEnt = tmpEnt.chain)
+        {
+            if (tmpEnt.classname == "thrown_weapon")
+            {
+                if(vlen(tmpEnt.velocity) < 10.f)
+                {
+                    if(tmpEnt.flags & FL_ONGROUND)
+                    {
+                        bprint("found ent\n");
+
+                        tmpVec = normalize(handPos - tmpEnt.origin);
+
+                        // tmpEnt.flags = tmpEnt.flags - FL_ONGROUND;
+                        tmpEnt.origin += tmpVec * 0.1f;
+
+                        tmpVec = handPos - tmpEnt.origin;
+                        tmpVec_x = tmpVec_x / 2.0;
+                        tmpVec_y = tmpVec_y / 2.0;
+                        tmpVec_z = tmpVec_z * 2.0;
+                        tmpVec = normalize(tmpVec);
+
+                        bprint("vlen: ");
+                        bprint(ftos(vlen(handPos - tmpEnt.origin)));
+                        bprint("\n");
+
+                        tmpEnt.velocity = tmpVec * (vlen(handPos - tmpEnt.origin) * 3.f);
+                    }
+                    else
+                    {
+                        bprint("not on ground\n");
+                    }
+
+                    // break;
+                }
+                else
+                {
+                    bprint("v: ");
+                    bprint(ftos(tmpEnt.velocity_x));
+                    bprint("  ");
+                    bprint(ftos(tmpEnt.velocity_y));
+                    bprint("  ");
+                    bprint(ftos(tmpEnt.velocity_z));
+                    bprint(" | ong: ");
+                    bprint(ftos(tmpEnt.flags & FL_ONGROUND));
+                    bprint("\n");
+                }
             }
         }
     }

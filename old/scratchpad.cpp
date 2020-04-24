@@ -1014,3 +1014,12 @@ if(hand == cVR_OffHand)
         oh, vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
     vr::VROverlay()->ShowOverlay(oh);
 }
+
+
+thing = findradius(spot.origin, 32);
+while(thing)
+{
+    if (thing.classname == "player")
+        pcount = pcount + 1;
+    thing = thing.chain;
+}
