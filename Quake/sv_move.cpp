@@ -130,42 +130,37 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 {
-    float dz;
-    glm::vec3 oldorg;
 
-    glm::vec3 neworg;
-
-    glm::vec3 end;
-    trace_t trace;
-    int i;
-    edict_t* enemy;
 
     // try the move
-    oldorg = ent->v.origin;
-    neworg = ent->v.origin + move;
+    glm::vec3 oldorg = ent->v.origin;
+    glm::vec3 neworg = ent->v.origin + move;
 
     // flying monsters don't step up
     if((int)ent->v.flags & (FL_SWIM | FL_FLY))
     {
         // try one move with vertical motion, then one without
-        for(i = 0; i < 2; i++)
+        for(int i = 0; i < 2; i++)
         {
             neworg = ent->v.origin + move;
-            enemy = PROG_TO_EDICT(ent->v.enemy);
+            edict_t* enemy = PROG_TO_EDICT(ent->v.enemy);
+
             if(i == 0 && enemy != sv.edicts)
             {
-                dz =
+                const float dz =
                     ent->v.origin[2] - PROG_TO_EDICT(ent->v.enemy)->v.origin[2];
+
                 if(dz > 40)
                 {
                     neworg[2] -= 8;
                 }
-                if(dz < 30)
+                else if(dz < 30)
                 {
                     neworg[2] += 8;
                 }
             }
-            trace = SV_Move(
+
+            trace_t trace = SV_Move(
                 ent->v.origin, ent->v.mins, ent->v.maxs, neworg, false, ent);
 
             if(trace.fraction == 1)
@@ -195,10 +190,11 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 
     // push down from a step height above the wished position
     neworg[2] += STEPSIZE;
-    end = neworg;
+
+    glm::vec3 end = neworg;
     end[2] -= STEPSIZE * 2;
 
-    trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
+    trace_t trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
 
     if(trace.allsolid)
     {
@@ -214,6 +210,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
             return false;
         }
     }
+
     if(trace.fraction == 1)
     {
         // if monster had the ground pulled out, go ahead and fall
@@ -256,6 +253,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
         //		Con_Printf ("back on ground\n");
         ent->v.flags = (int)ent->v.flags & ~FL_PARTIALGROUND;
     }
+
     ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 
     // the move is ok
@@ -263,6 +261,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     {
         SV_LinkEdict(ent, true);
     }
+
     return true;
 }
 
