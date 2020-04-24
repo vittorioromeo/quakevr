@@ -53,6 +53,30 @@
             "type": "boolean"
         },
         {
+            "name": "/actions/default/in/BMoveForward",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/BMoveBackward",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/BMoveLeft",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/BMoveRight",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/BTurnLeft",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/BTurnRight",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/default/out/LeftHaptic",
             "type": "vibration"
         },
@@ -79,6 +103,18 @@
         {
             "controller_type": "generic",
             "binding_url": "bindings_generic.json"
+        },
+        {
+            "controller_type": "vive_cosmos_controller",
+            "binding_url": "bindings_cosmos.json"
+        },
+        {
+            "controller_type": "vive_controller",
+            "binding_url": "bindings_vive.json"
+        },
+        {
+            "controller_type": "holographic_controller",
+            "binding_url": "bindings_holographic.json"
         }
     ],
     "localization": [
@@ -97,6 +133,12 @@
             "/actions/default/in/LeftGrab": "Left Hand Grab",
             "/actions/default/in/RightGrab": "Right Hand Grab",
             "/actions/default/in/NextWeaponOffHand": "Next Weapon (Off-Hand)",
+            "/actions/default/in/BMoveForward": "(Boolean) Move Forward",
+            "/actions/default/in/BMoveBackward": "(Boolean) Move Backward",
+            "/actions/default/in/BMoveLeft": "(Boolean) Move Left",
+            "/actions/default/in/BMoveRight": "(Boolean) Move Right",
+            "/actions/default/in/BTurnLeft": "(Boolean) Turn Left",
+            "/actions/default/in/BTurnRight": "(Boolean) Turn Right",
             "/actions/default/out/LeftHaptic": "Left Hand Haptic",
             "/actions/default/out/RightHaptic": "Right Hand Haptic"
         }

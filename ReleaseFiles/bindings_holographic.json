@@ -1,0 +1,7 @@
+{
+    "action_manifest_version": 0,
+    "controller_type": "holographic_controller",
+    "bindings": {
+        // TODO VR: (P0) implement
+    }
+}
