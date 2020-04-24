@@ -1309,13 +1309,14 @@ void() item_artifact_invulnerability =
     setmodel (self, "progs/invulner.mdl");
     self.netname = "Pentagram of Protection";
     self.items = IT_INVULNERABILITY;
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
 /*QUAKED item_artifact_envirosuit (0 .5 .8) (-16 -16 -24) (16 16 32)
 Player takes no damage from water or slime for 30 seconds
 */
+
 void() item_artifact_envirosuit =
 {
     self.handtouch = powerup_touch;
@@ -1327,7 +1328,8 @@ void() item_artifact_envirosuit =
     setmodel (self, "progs/suit.mdl");
     self.netname = "Biosuit";
     self.items = IT_SUIT;
-    setsize (self, '-8 -8 -24', '8 8 32');
+    // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
+    setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
@@ -1347,7 +1349,7 @@ void() item_artifact_invisibility =
     setmodel (self, "progs/invisibl.mdl");
     self.netname = "Ring of Shadows";
     self.items = IT_INVISIBILITY;
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
@@ -1367,7 +1369,7 @@ void() item_artifact_super_damage =
     setmodel (self, "progs/quaddama.mdl");
     self.netname = "Quad Damage";
     self.items = IT_QUAD;
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
