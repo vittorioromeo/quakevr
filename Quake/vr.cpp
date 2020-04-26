@@ -373,6 +373,10 @@ DEFINE_CVAR_ARCHIVE(vr_enemy_drops_chance_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_ammobox_drops, 0);
 DEFINE_CVAR_ARCHIVE(vr_ammobox_drops_chance_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_menumode, 0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_parabola_powermult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_mode, 1);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_range, 128.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 16.0);
 
 //
 //
@@ -736,7 +740,7 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept
 {
-    return 4.f;
+    return 5.f;
 }
 
 [[nodiscard]] int VR_OtherHand(const int hand) noexcept
@@ -1244,6 +1248,12 @@ vr::VRActionHandle_t vrahTeleport;
 vr::VRActionHandle_t vrahLeftGrab;
 vr::VRActionHandle_t vrahRightGrab;
 vr::VRActionHandle_t vrahNextWeaponOffHand;
+vr::VRActionHandle_t vrahBMoveForward;
+vr::VRActionHandle_t vrahBMoveBackward;
+vr::VRActionHandle_t vrahBMoveLeft;
+vr::VRActionHandle_t vrahBMoveRight;
+vr::VRActionHandle_t vrahBTurnLeft;
+vr::VRActionHandle_t vrahBTurnRight;
 vr::VRActionHandle_t vrahLeftHaptic;
 vr::VRActionHandle_t vrahRightHaptic;
 
@@ -1277,8 +1287,11 @@ static void VR_InitActionHandles()
         }
     };
 
+    // Analog joystick options.
     readHandle("/actions/default/in/Locomotion", vrahLocomotion);
     readHandle("/actions/default/in/Turn", vrahTurn);
+
+    // Boolean options.
     readHandle("/actions/default/in/Fire", vrahFire);
     readHandle("/actions/default/in/FireOffHand", vrahFireOffHand);
     readHandle("/actions/default/in/Jump", vrahJump);
@@ -1290,6 +1303,16 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/LeftGrab", vrahLeftGrab);
     readHandle("/actions/default/in/RightGrab", vrahRightGrab);
     readHandle("/actions/default/in/NextWeaponOffHand", vrahNextWeaponOffHand);
+
+    // Boolean locomotion options (useful for accessibility and legacy HMDs).
+    readHandle("/actions/default/in/BMoveForward", vrahBMoveForward);
+    readHandle("/actions/default/in/BMoveBackward", vrahBMoveBackward);
+    readHandle("/actions/default/in/BMoveLeft", vrahBMoveLeft);
+    readHandle("/actions/default/in/BMoveRight", vrahBMoveRight);
+    readHandle("/actions/default/in/BTurnLeft", vrahBTurnLeft);
+    readHandle("/actions/default/in/BTurnRight", vrahBTurnRight);
+
+    // Haptics.
     readHandle("/actions/default/out/LeftHaptic", vrahLeftHaptic);
     readHandle("/actions/default/out/RightHaptic", vrahRightHaptic);
 
@@ -1735,7 +1758,8 @@ void SetHandPos(int index, entity_t* player)
     const glm::vec3 lastPlayerTranslation =
         gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
 
-    // Weight stuff
+    // ------------------------------------------------------------------------
+    // VR: Interpolate hand position depending on weapon weight.
     if(!inMenu() && vr_wpn_pos_weight.value == 1)
     {
         const auto wpnCvarEntry = VR_GetWpnCvarEntry(index);
@@ -1780,6 +1804,7 @@ void SetHandPos(int index, entity_t* player)
         cl.handpos[index] = finalVec;
     }
 
+    // ------------------------------------------------------------------------
     // If hands get too far, bring them closer to the player.
     const auto currHandPos = cl.handpos[index];
     constexpr auto maxHandPlayerDiff = 50.f;
@@ -1837,14 +1862,14 @@ void SetHandPos(int index, entity_t* player)
         const auto weaponWeight =
             VR_CalcWeaponWeight<VR_GetWeaponWeightPosFactor>(index);
 
-        const auto clampedWeight = std::clamp(weaponWeight, 0.4f, 1.f);
+        const auto clampedWeight = std::clamp(weaponWeight, 0.f, 0.4f);
 
         const auto handvelFactor =
-            mapRange(clampedWeight, 0.4f, 1.f, 1.f, 0.6f) *
+            mapRange(clampedWeight, 0.0f, 0.4f, 0.55f, 1.f) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandVelMult);
 
         const auto handthrowvelFactor =
-            mapRange(clampedWeight, 0.4f, 1.f, 1.f, 0.5f) *
+            mapRange(clampedWeight, 0.0f, 0.4f, 0.45f, 1.f) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandThrowVelMult);
 
         cl.handvel[index] *= handvelFactor;
@@ -4278,6 +4303,31 @@ struct VRAxisResult
     return {locomotion.y, locomotion.x, turn.x};
 }
 
+[[nodiscard]] static VRAxisResult VR_GetInputAxesFromBooleanInputs(
+    const bool bMoveForward, const bool bMoveBackward, const bool bMoveLeft,
+    const bool bMoveRight, const bool bTurnLeft, const bool bTurnRight)
+{
+    const auto getAxis = [](const bool left, const bool right) {
+        if(left)
+        {
+            return -1.f;
+        }
+
+        if(right)
+        {
+            return 1.f;
+        }
+
+        return 0.f;
+    };
+
+    const float x = getAxis(bMoveForward, bMoveBackward);
+    const float y = getAxis(bMoveRight, bMoveLeft);
+    const float turn = getAxis(bTurnLeft, bTurnRight);
+
+    return {x, y, turn};
+}
+
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude)
 {
@@ -4348,6 +4398,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
     const auto inpLocomotion = readAnalogAction(vrahLocomotion);
     const auto inpTurn = readAnalogAction(vrahTurn);
+
     const auto inpFire = readDigitalAction(vrahFire);
     const auto inpFireOffHand = readDigitalAction(vrahFireOffHand);
     const auto inpJump = readDigitalAction(vrahJump);
@@ -4359,6 +4410,13 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto inpLeftGrab = readDigitalAction(vrahLeftGrab);
     const auto inpRightGrab = readDigitalAction(vrahRightGrab);
     const auto inpNextWeaponOffHand = readDigitalAction(vrahNextWeaponOffHand);
+
+    const auto inpBMoveForward = readDigitalAction(vrahBMoveForward);
+    const auto inpBMoveBackward = readDigitalAction(vrahBMoveBackward);
+    const auto inpBMoveLeft = readDigitalAction(vrahBMoveLeft);
+    const auto inpBMoveRight = readDigitalAction(vrahBMoveRight);
+    const auto inpBTurnLeft = readDigitalAction(vrahBTurnLeft);
+    const auto inpBTurnRight = readDigitalAction(vrahBTurnRight);
 
     const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
         return data.bState && data.bChanged;
@@ -4380,11 +4438,30 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const bool mustTeleport = inpTeleport.bState;
     const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
 
+    const auto mustBMoveForward = inpBMoveForward.bState;
+    const auto mustBMoveBackward = inpBMoveBackward.bState;
+    const auto mustBMoveLeft = inpBMoveLeft.bState;
+    const auto mustBMoveRight = inpBMoveRight.bState;
+    const auto mustBTurnLeft = inpBTurnLeft.bState;
+    const auto mustBTurnRight = inpBTurnRight.bState;
+
     // TODO VR: (P2) global state mutation here, could be source of bugs
     vr_left_prevgrabbing = vr_left_grabbing;
     vr_right_prevgrabbing = vr_right_grabbing;
-    vr_left_grabbing = inpLeftGrab.bState;
-    vr_right_grabbing = inpRightGrab.bState;
+
+    if(vr_fakevr.value == 0)
+    {
+        Key_Event('k', inpLeftGrab.bState);
+        Key_Event('l', inpRightGrab.bState);
+        vr_left_grabbing = (in_grableft.state & 1);
+        vr_right_grabbing = (in_grabright.state & 1);
+    }
+    else
+    {
+        vr_left_grabbing = !(in_grableft.state & 1);
+        vr_right_grabbing = !(in_grabright.state & 1);
+    }
+
     in_speed.state = mustSpeed;
 
     // Menu multipliers to fine-tune values.
@@ -4451,6 +4528,21 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         };
 
         doAxis(K_UPARROW, K_DOWNARROW);
+
+        const auto doBooleanInput = [&](const auto& inp, const int quakeKey) {
+            if(inp.bChanged)
+            {
+                if(inp.bState)
+                {
+                    doMenuHaptic(inp.activeOrigin);
+                }
+
+                Key_Event(quakeKey, inp.bState);
+            }
+        };
+
+        doBooleanInput(inpBMoveForward, K_UPARROW);
+        doBooleanInput(inpBMoveBackward, K_DOWNARROW);
     }
     else
     {
@@ -4476,7 +4568,20 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         vr_teleporting = mustTeleport;
     }
 
-    return VR_GetInputAxes(inpLocomotion, inpTurn);
+    const auto anyBooleanLocomotion = mustBMoveForward || mustBMoveBackward ||
+                                      mustBMoveLeft || mustBMoveRight ||
+                                      mustBTurnLeft || mustBTurnRight;
+
+    if(anyBooleanLocomotion)
+    {
+        return VR_GetInputAxesFromBooleanInputs(mustBMoveForward,
+            mustBMoveBackward, mustBMoveLeft, mustBMoveRight, mustBTurnLeft,
+            mustBTurnRight);
+    }
+    else
+    {
+        return VR_GetInputAxes(inpLocomotion, inpTurn);
+    }
 }
 
 void VR_Move(usercmd_t* cmd)
@@ -4573,21 +4678,10 @@ void VR_Move(usercmd_t* cmd)
         return QVR_HS_NONE;
     };
 
-    if(vr_fakevr.value == 1)
-    {
-        // In fake VR mode, hands are always grabbing.
-        cmd->offhand_grabbing = 1;
-        cmd->offhand_prevgrabbing = 0;
-        cmd->mainhand_grabbing = 1;
-        cmd->mainhand_prevgrabbing = 0;
-    }
-    else
-    {
-        cmd->offhand_grabbing = vr_left_grabbing;
-        cmd->offhand_prevgrabbing = vr_left_prevgrabbing;
-        cmd->mainhand_grabbing = vr_right_grabbing;
-        cmd->mainhand_prevgrabbing = vr_right_prevgrabbing;
-    }
+    cmd->offhand_grabbing = vr_left_grabbing;
+    cmd->offhand_prevgrabbing = vr_left_prevgrabbing;
+    cmd->mainhand_grabbing = vr_right_grabbing;
+    cmd->mainhand_prevgrabbing = vr_right_prevgrabbing;
 
     cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
     cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);

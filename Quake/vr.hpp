@@ -188,6 +188,14 @@ enum class VrMenuMode : int
     FollowMainHand = 3
 };
 
+enum class VrForceGrabMode : int
+{
+    Disabled = 0,
+    Parabola = 1,
+    Linear = 2,
+    Instant = 3,
+};
+
 //
 //
 //
@@ -530,6 +538,10 @@ extern cvar_t vr_enemy_drops_chance_mult;
 extern cvar_t vr_ammobox_drops;
 extern cvar_t vr_ammobox_drops_chance_mult;
 extern cvar_t vr_menumode;
+extern cvar_t vr_forcegrab_parabola_powermult;
+extern cvar_t vr_forcegrab_mode;
+extern cvar_t vr_forcegrab_range;
+extern cvar_t vr_forcegrab_radius;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;
