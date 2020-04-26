@@ -57,6 +57,7 @@ kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
 kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack;
 kbutton_t in_up, in_down;
+kbutton_t in_grableft, in_grabright;
 
 int in_impulse;
 
@@ -245,6 +246,7 @@ void IN_MoverightUp()
 {
     KeyUp(&in_moveright);
 }
+
 
 void IN_SpeedDown()
 {
@@ -695,4 +697,8 @@ void CL_InitInput()
     Cmd_AddCommand("-klook", IN_KLookUp);
     Cmd_AddCommand("+mlook", IN_MLookDown);
     Cmd_AddCommand("-mlook", IN_MLookUp);
+    Cmd_AddCommand("+grableft", [] { KeyDown(&in_grableft); });
+    Cmd_AddCommand("-grableft", [] { KeyUp(&in_grableft); });
+    Cmd_AddCommand("+grabright", [] { KeyDown(&in_grabright); });
+    Cmd_AddCommand("-grabright", [] { KeyUp(&in_grabright); });
 }

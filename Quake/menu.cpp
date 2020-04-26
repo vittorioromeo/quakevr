@@ -1704,6 +1704,29 @@ void M_Options_Key(int k)
          vr_ammobox_drops_chance_mult, {0.05f, 0.05f, 5.f}) //
         .tooltip("Multiplier for ammo box weapon drops.");
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrForceGrabMode>(   //
+         "Force Grab",                               //
+         [] { return &vr_forcegrab_mode; },          //
+         "Disabled", "Parabola", "Linear", "Instant" //
+         )
+        .tooltip(
+            "When enabled, allows the player to force grab thrown weapons from "
+            "a distance.");
+
+    m.add_cvar_entry<float>(
+         "Force Grab Max Range", vr_forcegrab_range, {1.f, 1.f, 512.f}) //
+        .tooltip("Maximum range for a force grab.");
+
+    m.add_cvar_entry<float>(
+         "Force Grab Radius", vr_forcegrab_radius, {0.1f, 0.1f, 64.f}) //
+        .tooltip(
+            "Search radius for weapon force grab (applied at trace end "
+            "position based on max range).");
+
     return m;
 }
 
@@ -2519,6 +2542,9 @@ void M_Options_Key(int k)
     // ------------------------------------------------------------------------
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRSettings_f};
+
+    m.add_cvar_entry<float>("Force Grab Parabola Power Mult.",
+        vr_forcegrab_parabola_powermult, {0.1f, 0.f, 10.f});
 
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));

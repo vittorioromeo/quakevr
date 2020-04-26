@@ -525,6 +525,11 @@ float QVR_HS_HAND_SWITCH            = 7;
 float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
 float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 
+// Quake VR throwhit values
+float QVR_THROWHIT_NEVER_HIT = 0;
+float QVR_THROWHIT_HIT = 1;
+float QVR_THROWHIT_FORCEGRAB = 2;
+
 // Quake VR Enum: `VrHolsterMode'
 float QVR_WEAPONMODE_IMMERSIVE      = 0;
 float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
@@ -551,6 +556,12 @@ float QVR_ENEMYDROPS_DISABLE = 2;
 float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
 float QVR_AMMOBOXDROPS_ALWAYS = 1;
 float QVR_AMMOBOXDROPS_DISABLE = 2;
+
+// Quake VR Enum: `VrForceGrabMode`
+float QVR_VRFORCEGRABMODE_DISABLED = 0;
+float QVR_VRFORCEGRABMODE_PARABOLA = 1;
+float QVR_VRFORCEGRABMODE_LINEAR = 2;
+float QVR_VRFORCEGRABMODE_INSTANT = 3;
 
 //================================================
 
@@ -844,6 +855,7 @@ void(float hand, float delay, float duration, float frequency, float amplitude) 
 float(float a, float b) min = #82;
 float(float a, float b) max = #83;
 void(vector ang) makeforward = #84;        // sets v_forward
+float(float input, float inputmin, float inputMax, float outputMin, float outputMax) maprange = #85;        // sets v_forward
 
 //============================================================================
 
