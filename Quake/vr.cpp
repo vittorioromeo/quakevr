@@ -375,8 +375,8 @@ DEFINE_CVAR_ARCHIVE(vr_ammobox_drops_chance_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_menumode, 0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_parabola_powermult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_mode, 1);
-DEFINE_CVAR_ARCHIVE(vr_forcegrab_range, 128.0);
-DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 16.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_range, 150.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 20.0);
 
 //
 //
@@ -470,6 +470,8 @@ void RecreateTextures(
 void CreateMSAA(fbo_t* const fbo, const int width, const int height,
     const int msaa) noexcept
 {
+    assert(msaa <= quake::util::getMaxMSAALevel());
+
     fbo->msaa = msaa;
 
     if(fbo->msaa_framebuffer)
@@ -1489,6 +1491,15 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     if(newTextures)
     {
         RecreateTextures(&eye.fbo, glwidth, glheight);
+    }
+
+    if(const int maxMsaa = quake::util::getMaxMSAALevel();
+        vr_msaa.value > maxMsaa)
+    {
+        Con_Printf(
+            "Unsupported MSAA level. Changing to supported max '%d'.", maxMsaa);
+
+        Cvar_SetValueQuick(&vr_msaa, maxMsaa);
     }
 
     if(newTextures || vr_msaa.value != eye.fbo.msaa)

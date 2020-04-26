@@ -1743,11 +1743,7 @@ void M_Options_Key(int k)
 {
     extern cvar_t r_shadows;
 
-    const int max_msaa = [] {
-        int res;
-        glGetIntegerv(GL_MAX_SAMPLES, &res);
-        return res;
-    }();
+    const int max_msaa = quake::util::getMaxMSAALevel();
 
     // ------------------------------------------------------------------------
 

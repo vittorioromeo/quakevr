@@ -235,6 +235,19 @@ namespace quake::util
         const auto [fwd, right, up] = getAngledVectors(examplar);
         return fwd * input[0] + right * input[1] + up * input[2];
     }
+
+    template <typename TTrace>
+    [[nodiscard]] QUAKE_FORCEINLINE bool traceHitGround(const TTrace& trace)
+    {
+        return trace.plane.normal[2] > 0.7;
+    }
+
+    [[nodiscard]] inline int getMaxMSAALevel() noexcept
+    {
+        int res;
+        glGetIntegerv(GL_MAX_SAMPLES, &res);
+        return res;
+    }
 } // namespace quake::util
 
 namespace std
