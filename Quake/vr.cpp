@@ -4783,6 +4783,7 @@ void VR_Move(usercmd_t* cmd)
 }
 
 // TODO VR: (P0) armagon boss bugged
+
 // TODO VR: (P1) remove existing sv_player usages, or chhange to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
