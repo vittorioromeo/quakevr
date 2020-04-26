@@ -176,6 +176,28 @@ static void PF_makeforward()
     pr_global_struct->v_forward = quake::util::getFwdVecFromPitchYawRoll(org);
 }
 
+
+/*
+==============
+PF_maprange
+
+TODO VR: (P2) docs
+maprange(vector)
+==============
+*/
+static void PF_maprange()
+{
+    const auto input = G_FLOAT(OFS_PARM0);
+    const auto inputMin = G_FLOAT(OFS_PARM1);
+    const auto inputMax = G_FLOAT(OFS_PARM2);
+    const auto outputMin = G_FLOAT(OFS_PARM3);
+    const auto outputMax = G_FLOAT(OFS_PARM4);
+
+    G_FLOAT(OFS_RETURN) = quake::util::mapRange<float>(
+        input, inputMin, inputMax, outputMin, outputMax);
+}
+
+
 /*
 =================
 PF_setorigin
@@ -1988,12 +2010,13 @@ static builtin_t pr_builtin[] = {
     PF_precache_file,
 
     PF_setspawnparms,
-    PF_particle2, // #79
-    PF_pow,       // #80
-    PF_haptic,    // #81
-    PF_min,       // #82
-    PF_max,       // #83
+    PF_particle2,   // #79
+    PF_pow,         // #80
+    PF_haptic,      // #81
+    PF_min,         // #82
+    PF_max,         // #83
     PF_makeforward, // #84
+    PF_maprange,    // #85
 };
 
 builtin_t* pr_builtins = pr_builtin;
