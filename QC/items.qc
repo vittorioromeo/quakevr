@@ -208,8 +208,7 @@ void() item_health =
         self.healtype = 0;
         setsize (self, '0 0 0', '32 32 16');
     }
-    else
-    if (self.spawnflags & H_MEGA)
+    else if (self.spawnflags & H_MEGA)
     {
         precache_model("maps/b_bh100.bsp");
         precache_sound("items/r_item2.wav");
@@ -1103,11 +1102,13 @@ void() item_key1 =
         setmodel (self, "progs/b_s_key.mdl");
         self.netname = "silver keycard";
     }
+
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY1;
 
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
+
     StartItem ();
 };
 
@@ -1130,23 +1131,30 @@ void() item_key2 =
         setmodel (self, "progs/w_g_key.mdl");
         self.netname = "gold key";
     }
-    if (world.worldtype == 1)
+    else if (world.worldtype == 1)
     {
         precache_model ("progs/m_g_key.mdl");
         setmodel (self, "progs/m_g_key.mdl");
         self.netname = "gold runekey";
     }
-    if (world.worldtype == 2)
+    else if (world.worldtype == 2)
     {
         precache_model2 ("progs/b_g_key.mdl");
         setmodel (self, "progs/b_g_key.mdl");
         self.netname = "gold keycard";
     }
+
     key_setsounds();
     self.handtouch = key_touch;
     self.items = IT_KEY2;
 
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
+
+    // TODO VR: (P2) these cannot be made smaller otherwise they get OOB in
+    // some maps. Need to fix up origin but haven't figured out how.
+    // setsize (self, '-8 -8 -24', '8 8 32');
+    // self.origin = self.origin + '0 -16 0';
+
     StartItem ();
 };
 
@@ -1198,16 +1206,19 @@ void() item_sigil =
         precache_model ("progs/end1.mdl");
         setmodel (self, "progs/end1.mdl");
     }
+
     if (self.spawnflags & 2)
     {
         precache_model2 ("progs/end2.mdl");
         setmodel (self, "progs/end2.mdl");
     }
+
     if (self.spawnflags & 4)
     {
         precache_model2 ("progs/end3.mdl");
         setmodel (self, "progs/end3.mdl");
     }
+
     if (self.spawnflags & 8)
     {
         precache_model2 ("progs/end4.mdl");
@@ -1216,7 +1227,7 @@ void() item_sigil =
 
     self.handtouch = sigil_touch;
 
-    setsize (self, '-8 -8 -24', '8 8 32');
+    setsize (self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
