@@ -1023,3 +1023,187 @@ while(thing)
         pcount = pcount + 1;
     thing = thing.chain;
 }
+
+
+/*
+=============
+SV_Physics_Toss
+
+Toss, bounce, and fly movement.  When onground, do nothing.
+=============
+*/
+void SV_Physics_Toss(edict_t* ent)
+{
+    // regular thinking
+    if(!SV_RunThink(ent))
+    {
+        return;
+    }
+
+    glm::vec3 offsetBuffer;
+
+    const auto checkGroundCollision = [&](trace_t& traceBuffer,
+                                          const glm::vec3& move) {
+        const auto checkCorner = [&](const glm::vec3& pos) {
+            const glm::vec3 end = pos + move;
+            traceBuffer = SV_MoveTrace(pos, end, MOVE_NOMONSTERS, ent);
+
+            const auto hit = quake::util::hitSomething(traceBuffer);
+            const auto goodNormal = traceBuffer.plane.normal[2] > 0.7;
+
+            if(!strcmp(PR_GetString(ent->v.classname), "thrown_weapon"))
+            {
+                // Con_Printf("h: %d | n: %d\n", hit, goodNormal);
+            }
+
+            return hit && goodNormal;
+        };
+
+        const glm::vec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
+
+        // return checkCorner(bottomOrigin);
+
+        const auto left = ent->v.mins[0];
+        const auto right = ent->v.maxs[0];
+        const auto fwd = ent->v.mins[1];
+        const auto back = ent->v.maxs[1];
+
+        offsetBuffer = glm::vec3{left, fwd, 0.f};
+        if(checkCorner(bottomOrigin + offsetBuffer))
+        {
+            return true;
+        }
+
+        offsetBuffer = glm::vec3{left, back, 0.f};
+        if(checkCorner(bottomOrigin + offsetBuffer))
+        {
+            return true;
+        }
+
+        offsetBuffer = glm::vec3{right, fwd, 0.f};
+        if(checkCorner(bottomOrigin + offsetBuffer))
+        {
+            return true;
+        }
+
+        offsetBuffer = glm::vec3{right, back, 0.f};
+        if(checkCorner(bottomOrigin + offsetBuffer))
+        {
+            return true;
+        }
+
+        /*
+        const auto v0 = bottomOrigin +glm::vec3{left, fwd, 0.f} ;
+        const auto v1 = bottomOrigin + glm::vec3{left, back, 0.f};
+        const auto v2 = bottomOrigin + glm::vec3{right, fwd, 0.f};
+        const auto v3 = bottomOrigin + glm::vec3{right, back, 0.f};
+
+        return checkCorner(v0) || checkCorner(v1) || checkCorner(v2) ||
+               checkCorner(v3);
+        */
+
+        return false;
+    };
+
+    // if onground, return without moving
+    // if((int)ent->v.flags & FL_ONGROUND)
+    {
+        auto vel = ent->v.velocity;
+        vel[2] -= SV_AddGravityImpl(ent);
+
+        const glm::vec3 move = vel * static_cast<float>(host_frametime);
+
+        if(trace_t traceBuffer; !checkGroundCollision(traceBuffer, move))
+        {
+            // if(!strcmp(PR_GetString(ent->v.classname), "thrown_weapon"))
+            //     Con_Printf("F\n");
+
+            if((int)ent->v.flags & FL_ONGROUND)
+            {
+                Con_Printf("Removing on ground\n");
+                ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+            }
+        }
+        else
+        {
+            // if(!strcmp(PR_GetString(ent->v.classname), "thrown_weapon"))
+            //     Con_Printf("T\n");
+
+            const float backoff =
+                ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
+
+            ClipVelocity(ent->v.velocity, traceBuffer.plane.normal,
+                ent->v.velocity, backoff);
+
+            if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
+            {
+                // Con_Printf("RRR\n");
+                if(!((int)ent->v.flags & FL_ONGROUND))
+                {
+                    Con_Printf("Setting on ground\n");
+                    ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+
+                    ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
+                    ent->v.velocity = vec3_zero;
+                    ent->v.avelocity = vec3_zero;
+                    ent->v.origin =
+                        traceBuffer.endpos - ent->v.mins[2] - offsetBuffer;
+
+                    SV_LinkEdict(ent, true);
+                    SV_PushEntityImpact(ent, traceBuffer);
+                }
+
+                return;
+            }
+        }
+    }
+
+    SV_CheckVelocity(ent);
+
+    // add gravity
+    if(ent->v.movetype != MOVETYPE_FLY &&
+        ent->v.movetype != MOVETYPE_FLYMISSILE)
+    {
+        SV_AddGravity(ent);
+    }
+
+    // move angles
+    ent->v.angles += static_cast<float>(host_frametime) * ent->v.avelocity;
+
+    // move origin
+    const glm::vec3 move = ent->v.velocity * static_cast<float>(host_frametime);
+    // SV_PushEntity(ent, move);
+
+    const trace_t trace = SV_PushEntity(ent, move);
+
+    if(!quake::util::hitSomething(trace) || ent->free)
+    {
+        return;
+    }
+
+    const float backoff = ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
+    ClipVelocity(ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
+
+    // stop if on ground
+    /*
+    if(checkGroundCollision({0.f, 0.f, 0.f}))
+    {
+        if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
+        {
+            if(!((int)ent->v.flags & FL_ONGROUND))
+            {
+                Con_Printf("Setting on ground DOWN\n");
+                ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+            }
+
+            ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+            ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+            ent->v.velocity = vec3_zero;
+            ent->v.avelocity = vec3_zero;
+        }
+    }
+    */
+
+    // check for in water
+    SV_CheckWaterTransition(ent);
+}
