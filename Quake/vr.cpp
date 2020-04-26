@@ -4786,3 +4786,22 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) remove existing sv_player usages, or chhange to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
+
+// TODO VR: (P0) test continuous holsters, seem to be bugged
+
+// TODO VR: (P1) add tooltip to off-hand option menu in wpn config
+
+// TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
+
+// TODO VR: (P1) add option to press buttons with weapons, not just hands
+
+// TODO VR: (P2) consider new particle effect for shootable weapons and walls
+// instead of blood
+
+// TODO VR: (P1) clicking shoot to trigger new level during intermission fires a
+// shot in next level. maybe use the readytime here?
+
+// TODO VR: (P1) walking into doors drags player along with the door, same bug
+// as door in SoA start
+
+// TODO VR: (P2) add general cvars for health and damage multipliers
