@@ -61,9 +61,6 @@ cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
 
-
-#define MOVE_EPSILON 0.01
-
 void SV_Physics_Toss(edict_t* ent);
 
 /*
@@ -73,17 +70,15 @@ SV_CheckAllEnts
 */
 void SV_CheckAllEnts()
 {
-    int e;
-    edict_t* check;
-
     // see if any solid entities are inside the final position
-    check = NEXT_EDICT(sv.edicts);
-    for(e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    edict_t* check = NEXT_EDICT(sv.edicts);
+    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
             continue;
         }
+
         if(check->v.movetype == MOVETYPE_PUSH ||
             check->v.movetype == MOVETYPE_NONE ||
             check->v.movetype == MOVETYPE_NOCLIP)
@@ -105,12 +100,10 @@ SV_CheckVelocity
 */
 void SV_CheckVelocity(edict_t* ent)
 {
-    int i;
-
     //
     // bound velocity
     //
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         if(IS_NAN(ent->v.velocity[i]))
         {
@@ -118,20 +111,16 @@ void SV_CheckVelocity(edict_t* ent)
                 "Got a NaN velocity on %s\n", PR_GetString(ent->v.classname));
             ent->v.velocity[i] = 0;
         }
+
         if(IS_NAN(ent->v.origin[i]))
         {
             Con_Printf(
                 "Got a NaN origin on %s\n", PR_GetString(ent->v.classname));
             ent->v.origin[i] = 0;
         }
-        if(ent->v.velocity[i] > sv_maxvelocity.value)
-        {
-            ent->v.velocity[i] = sv_maxvelocity.value;
-        }
-        else if(ent->v.velocity[i] < -sv_maxvelocity.value)
-        {
-            ent->v.velocity[i] = -sv_maxvelocity.value;
-        }
+
+        ent->v.velocity[i] = std::clamp(
+            ent->v.velocity[i], -sv_maxvelocity.value, sv_maxvelocity.value);
     }
 }
 
@@ -243,27 +232,25 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 int ClipVelocity(const glm::vec3& in, const glm::vec3& normal, glm::vec3& out,
     float overbounce)
 {
-    float backoff;
-    float change;
+    int blocked = 0;
 
-    int blocked;
-
-    blocked = 0;
     if(normal[2] > 0)
     {
         blocked |= 1; // floor
     }
+
     if(!normal[2])
     {
         blocked |= 2; // step
     }
 
-    backoff = DotProduct(in, normal) * overbounce;
+    const float backoff = DotProduct(in, normal) * overbounce;
 
     for(int i = 0; i < 3; i++)
     {
-        change = normal[i] * backoff;
+        const float change = normal[i] * backoff;
         out[i] = in[i] - change;
+
         if(out[i] > -STOP_EPSILON && out[i] < STOP_EPSILON)
         {
             out[i] = 0;
@@ -339,7 +326,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             Sys_Error("SV_FlyMove: !trace.ent");
         }
 
-        if(trace.plane.normal[2] > 0.7)
+        if(quake::util::traceHitGround(trace))
         {
             blocked |= 1; // floor
             if(trace.ent->v.solid == SOLID_BSP)
@@ -455,25 +442,23 @@ SV_AddGravity
 
 ============
 */
-void SV_AddGravity(edict_t* ent)
+float SV_AddGravityImpl(const float ent_gravity)
 {
-    float ent_gravity;
-    eval_t* val;
-
-    val = GetEdictFieldValue(ent, "gravity");
-    if(val && val->_float)
-    {
-        ent_gravity = val->_float;
-    }
-    else
-    {
-        ent_gravity = 1.0;
-    }
-
-    ent->v.velocity[2] -=
-        (double)ent_gravity * (double)sv_gravity.value * host_frametime;
+    return (double)ent_gravity * (double)sv_gravity.value * host_frametime;
 }
 
+float SV_AddGravityImpl(edict_t* ent)
+{
+    eval_t* val = GetEdictFieldValue(ent, "gravity");
+    const float ent_gravity = (val && val->_float) ? val->_float : 1.0;
+
+    return SV_AddGravityImpl(ent_gravity);
+}
+
+void SV_AddGravity(edict_t* ent)
+{
+    ent->v.velocity[2] -= SV_AddGravityImpl(ent);
+}
 
 /*
 ===============================================================================
@@ -482,6 +467,22 @@ PUSHMOVE
 
 ===============================================================================
 */
+
+static void SV_PushEntityImpact(edict_t* ent, const trace_t& trace)
+{
+    if(!trace.ent)
+    {
+        return;
+    }
+
+    SV_Impact(ent, trace.ent, &entvars_t::touch);
+
+    if(!vr_enabled.value || vr_body_interactions.value == 1)
+    {
+        VR_SetFakeHandtouchParams(ent, trace.ent);
+        SV_Impact(ent, trace.ent, &entvars_t::handtouch);
+    }
+}
 
 /*
 ============
@@ -492,11 +493,9 @@ Does not change the entities velocity at all
 */
 trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
 {
+    const glm::vec3 end = ent->v.origin + push;
+
     trace_t trace;
-    glm::vec3 end;
-
-    end = ent->v.origin + push;
-
     if(ent->v.movetype == MOVETYPE_FLYMISSILE)
     {
         trace = SV_Move(
@@ -516,18 +515,9 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
     }
 
     ent->v.origin = trace.endpos;
+
     SV_LinkEdict(ent, true);
-
-    if(trace.ent)
-    {
-        SV_Impact(ent, trace.ent, &entvars_t::touch);
-
-        if(!vr_enabled.value || vr_body_interactions.value == 1)
-        {
-            VR_SetFakeHandtouchParams(ent, trace.ent);
-            SV_Impact(ent, trace.ent, &entvars_t::handtouch);
-        }
-    }
+    SV_PushEntityImpact(ent, trace);
 
     return trace;
 }
@@ -542,7 +532,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
 {
     // TODO VR: (P0) opening rotating door in SoA start carries player around
     // TODO VR: (P0) cant see dropped weapons underwater (graphic bug)
-    // TODO VR: (P0) floating weapons after hitting something
+    // TODO VR: (P0) floating weapons stay in the air after hitting something
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -696,10 +686,10 @@ SV_Physics_Pusher
 */
 void SV_Physics_Pusher(edict_t* ent)
 {
-    float movetime;
-    float oldltime = ent->v.ltime;
-    float thinktime = ent->v.nextthink;
+    const float oldltime = ent->v.ltime;
+    const float thinktime = ent->v.nextthink;
 
+    float movetime;
     if(thinktime < ent->v.ltime + host_frametime)
     {
         movetime = thinktime - ent->v.ltime;
@@ -868,7 +858,6 @@ This is a hack, but in the interest of good gameplay...
 */
 int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
 {
-    int i;
     glm::vec3 oldorg;
     glm::vec3 dir;
     int clip;
@@ -877,7 +866,7 @@ int SV_TryUnstick(edict_t* ent, glm::vec3 oldvel)
     oldorg = ent->v.origin;
     dir = vec3_zero;
 
-    for(i = 0; i < 8; i++)
+    for(int i = 0; i < 8; i++)
     {
         // try pushing a little in an axial direction
         switch(i)
@@ -1032,7 +1021,7 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
     const trace_t downtrace =
         SV_PushEntity(ent, downmove); // FIXME: don't link?
 
-    if(downtrace.plane.normal[2] > 0.7)
+    if(quake::util::traceHitGround(downtrace))
     {
         if(ent->v.solid == SOLID_BSP)
         {
@@ -1210,11 +1199,14 @@ void SV_Physics_Client(edict_t* ent, int num)
         switch((int)ent->v.movetype)
         {
             case MOVETYPE_NONE:
+            {
                 if(!SV_RunThink(ent))
                 {
                     return;
                 }
+
                 break;
+            }
 
             case MOVETYPE_WALK:
             {
@@ -1227,36 +1219,48 @@ void SV_Physics_Client(edict_t* ent, int num)
                 {
                     SV_AddGravity(ent);
                 }
+
                 SV_CheckStuck(ent);
                 SV_WalkMove(ent, true /* reset onground */);
-
 
                 break;
             }
 
-            case MOVETYPE_TOSS:
-            case MOVETYPE_BOUNCE: SV_Physics_Toss(ent); break;
+            case MOVETYPE_TOSS: [[fallthrough]];
+            case MOVETYPE_BOUNCE:
+            {
+                SV_Physics_Toss(ent);
+                break;
+            }
 
             case MOVETYPE_FLY:
+            {
                 if(!SV_RunThink(ent))
                 {
                     return;
                 }
+
                 SV_FlyMove(ent, host_frametime, nullptr);
                 break;
+            }
 
             case MOVETYPE_NOCLIP:
+            {
                 if(!SV_RunThink(ent))
                 {
                     return;
                 }
+
                 ent->v.origin +=
                     static_cast<float>(host_frametime) * ent->v.velocity;
                 break;
+            }
 
             default:
+            {
                 Sys_Error(
                     "SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+            }
         }
 
         // --------------------------------------------------------------------
@@ -1372,9 +1376,7 @@ SV_CheckWaterTransition
 */
 void SV_CheckWaterTransition(edict_t* ent)
 {
-    int cont;
-
-    cont = SV_PointContents(ent->v.origin);
+    const int cont = SV_PointContents(ent->v.origin);
 
     if(!ent->v.watertype)
     {
@@ -1391,6 +1393,7 @@ void SV_CheckWaterTransition(edict_t* ent)
             // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
         }
+
         ent->v.watertype = cont;
         ent->v.waterlevel = 1;
     }
@@ -1401,6 +1404,7 @@ void SV_CheckWaterTransition(edict_t* ent)
             // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
         }
+
         ent->v.watertype = CONTENTS_EMPTY;
         ent->v.waterlevel = cont;
     }
@@ -1421,10 +1425,83 @@ void SV_Physics_Toss(edict_t* ent)
         return;
     }
 
-    // if onground, return without moving
-    if(((int)ent->v.flags & FL_ONGROUND))
+    const auto checkGroundCollision = [&](trace_t& traceBuffer,
+                                          glm::vec3& offsetBuffer,
+                                          const glm::vec3& move) {
+        const auto checkCorner = [&](const glm::vec3& pos) {
+            const glm::vec3 end = pos + move;
+
+            traceBuffer = SV_MoveTrace(pos, end, MOVE_NOMONSTERS, ent);
+
+            return quake::util::hitSomething(traceBuffer) &&
+                   quake::util::traceHitGround(traceBuffer);
+        };
+
+        const glm::vec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
+
+        const auto left = ent->v.mins[0];
+        const auto right = ent->v.maxs[0];
+        const auto fwd = ent->v.mins[1];
+        const auto back = ent->v.maxs[1];
+
+        const auto testCorner = [&](const float x, const float y) {
+            offsetBuffer = glm::vec3{x, y, 0.f};
+            return checkCorner(bottomOrigin + offsetBuffer);
+        };
+
+        return testCorner(left, fwd) || testCorner(left, back) ||
+               testCorner(right, fwd) || testCorner(right, fwd);
+    };
+
+    // update "on ground" status, stop/bounce if on ground
     {
-        return;
+        auto vel = ent->v.velocity;
+
+        if(ent->v.movetype != MOVETYPE_FLY &&
+            ent->v.movetype != MOVETYPE_FLYMISSILE)
+        {
+            vel[2] -= SV_AddGravityImpl(ent);
+        }
+
+        const glm::vec3 move = vel * static_cast<float>(host_frametime);
+
+        trace_t traceBuffer;
+        glm::vec3 offsetBuffer;
+
+        if(!checkGroundCollision(traceBuffer, offsetBuffer, move))
+        {
+            if((int)ent->v.flags & FL_ONGROUND)
+            {
+                // remove on ground, if entity is not on ground anymore
+                ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+            }
+        }
+        else
+        {
+            const float backoff =
+                ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
+
+            ClipVelocity(ent->v.velocity, traceBuffer.plane.normal,
+                ent->v.velocity, backoff);
+
+            if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
+            {
+                if(!((int)ent->v.flags & FL_ONGROUND))
+                {
+                    ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+
+                    ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
+                    ent->v.velocity = ent->v.avelocity = vec3_zero;
+                    ent->v.origin =
+                        traceBuffer.endpos - ent->v.mins[2] - offsetBuffer;
+
+                    SV_LinkEdict(ent, true);
+                    SV_PushEntityImpact(ent, traceBuffer);
+                }
+
+                return;
+            }
+        }
     }
 
     SV_CheckVelocity(ent);
@@ -1440,42 +1517,16 @@ void SV_Physics_Toss(edict_t* ent)
     ent->v.angles += static_cast<float>(host_frametime) * ent->v.avelocity;
 
     // move origin
-    glm::vec3 move = ent->v.velocity * static_cast<float>(host_frametime);
+    const glm::vec3 move = ent->v.velocity * static_cast<float>(host_frametime);
+
     const trace_t trace = SV_PushEntity(ent, move);
-
-    if(trace.fraction == 1)
+    if(!quake::util::hitSomething(trace) || ent->free)
     {
         return;
     }
 
-    if(ent->free)
-    {
-        return;
-    }
-
-    float backoff;
-    if(ent->v.movetype == MOVETYPE_BOUNCE)
-    {
-        backoff = 1.5;
-    }
-    else
-    {
-        backoff = 1;
-    }
-
+    const float backoff = ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
     ClipVelocity(ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
-
-    // stop if on ground
-    if(trace.plane.normal[2] > 0.7)
-    {
-        if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
-        {
-            ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-            ent->v.groundentity = EDICT_TO_PROG(trace.ent);
-            ent->v.velocity = vec3_zero;
-            ent->v.avelocity = vec3_zero;
-        }
-    }
 
     // check for in water
     SV_CheckWaterTransition(ent);
