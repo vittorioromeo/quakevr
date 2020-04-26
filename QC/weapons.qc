@@ -1742,8 +1742,6 @@ void(float xHand) W_FireLightning =
 
     if (self.ammo_cells < 1)
     {
-        // VRSetWeapon(xHand, W_BestWeapon());
-        // W_SetCurrentAmmo ();
         return;
     }
 // explode if under water
@@ -2146,8 +2144,6 @@ void(float xHand, float ox) W_FireSpikes =
 
     if (self.ammo_nails < 1)
     {
-        // VRSetWeapon(xHand, W_BestWeapon ());
-        // W_SetCurrentAmmo ();
         return;
     }
 
@@ -2173,6 +2169,20 @@ void() spike_bullethole =
     }
 }
 
+// According to Spike, mdls render wrongly in Quake 1. Their pitch angles are
+// flipped (relative to the view, bsp models, or sprites).
+void(vector ang) makevectors_mdl =
+{
+    ang_x *= -1;
+    makevectors(ang);
+}
+
+void(vector ang) makeforward_mdl =
+{
+    ang_x *= -1;
+    makeforward(ang);
+}
+
 .float hit_z;
 void() spike_touch =
 {
@@ -2191,11 +2201,7 @@ void() spike_touch =
         return;
     }
 
-    makeforward(self.angles);
-
-    // TODO VR: (P2) why is it necessary to invert this?
-    v_forward_z = v_forward_z * -1;
-
+    makeforward_mdl(self.angles);
     traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
@@ -2246,11 +2252,7 @@ void() superspike_touch =
         return;
     }
 
-    makeforward(self.angles);
-
-    // TODO VR: (P2) why is it necessary to invert this?
-    v_forward_z = v_forward_z * -1;
-
+    makeforward_mdl(self.angles);
     traceline (self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
@@ -3224,7 +3226,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 
 void() wpnthrow_think =
 {
-    if (self.throwhit == TRUE)
+    if (self.throwhit == QVR_THROWHIT_HIT)
     {
         if(self.throwstabilizedim == 0)
         {
@@ -3259,7 +3261,7 @@ void() wpnthrow_touch =
     if (pointcontents(self.origin) == CONTENT_SKY)
         return;
 
-    if (self.throwhit == FALSE)
+    if (self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
         finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
                    cvar("vr_weapon_throw_damage_mult");
@@ -3288,9 +3290,15 @@ void() wpnthrow_touch =
             remove(self);
         }
 
-       //  setsize (self, self.mins * 1.5, self.maxs * 1.5);
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        self.throwhit = TRUE;
+        self.throwhit = QVR_THROWHIT_HIT;
+    }
+    else if (self.throwhit == QVR_THROWHIT_FORCEGRAB)
+    {
+        // After a linear forcegrab, restore the movement type to "toss".
+
+        self.throwhit = QVR_THROWHIT_HIT;
+        self.movetype = MOVETYPE_TOSS;
     }
 
     // ghetto collision detection/resolution
@@ -3319,34 +3327,49 @@ void() wpnthrow_touch =
     }
 };
 
-void(float* xOutEntWeapon) wpnthrow_handtouch_impl =
+void(entity ent, entity entPlayer, float* xOutEntWeapon) wpnthrow_handtouch_impl =
 {
-    sound (self, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
-    *xOutEntWeapon = self.weapon;
-    remove(self);
+    sound (ent, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+    *xOutEntWeapon = ent.weapon;
+    remove(ent);
 
-    self = self.handtouch_ent;
+    self = entPlayer;
     W_SetCurrentAmmo();
+}
+
+void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
+{
+    if(xHand == OFF_HAND && IsHandEmpty(entPlayer, OFF_HAND))
+    {
+        wpnthrow_handtouch_impl(ent, entPlayer, &entPlayer.weapon2);
+    }
+    else if(xHand == MAIN_HAND && IsHandEmpty(entPlayer, MAIN_HAND))
+    {
+        wpnthrow_handtouch_impl(ent, entPlayer, &entPlayer.weapon);
+    }
+}
+
+void(entity ent) wpnthrow_handtouch_ent =
+{
+    if(ent.handtouch_hand == OFF_HAND &&
+       (VREntStartedHandGrabbing(ent.handtouch_ent, OFF_HAND)
+        || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
+       IsHandEmpty(ent.handtouch_ent, OFF_HAND))
+    {
+        wpnthrow_handtouch_impl(ent, ent.handtouch_ent, &ent.handtouch_ent.weapon2);
+    }
+    else if(ent.handtouch_hand == MAIN_HAND &&
+            (VREntStartedHandGrabbing(ent.handtouch_ent, MAIN_HAND)
+             || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
+            IsHandEmpty(ent.handtouch_ent, MAIN_HAND))
+    {
+        wpnthrow_handtouch_impl(ent, ent.handtouch_ent, &ent.handtouch_ent.weapon);
+    }
 }
 
 void() wpnthrow_handtouch =
 {
-    // bprint("handtouch: ");
-    // bprint(ftos(self.handtouch_hand));
-    // bprint("\n");
-
-    if(self.handtouch_hand == OFF_HAND &&
-       VREntStartedHandGrabbing(self.handtouch_ent, OFF_HAND) &&
-       IsHandEmpty(self.handtouch_ent, OFF_HAND))
-    {
-        wpnthrow_handtouch_impl(&self.handtouch_ent.weapon2);
-    }
-    else if(self.handtouch_hand == MAIN_HAND &&
-            VREntStartedHandGrabbing(self.handtouch_ent, MAIN_HAND) &&
-            IsHandEmpty(self.handtouch_ent, MAIN_HAND))
-    {
-        wpnthrow_handtouch_impl(&self.handtouch_ent.weapon);
-    }
+    wpnthrow_handtouch_ent(self);
 }
 
 // Used to trigger haptics when hovering holsters.
@@ -3471,7 +3494,7 @@ void(entity thrower, float xWeapon,
     newmis.movetype = MOVETYPE_TOSS;
     newmis.solid = SOLID_BBOX;
 
-    newmis.throwhit = FALSE;
+    newmis.throwhit = QVR_THROWHIT_NEVER_HIT;
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
 
@@ -3564,6 +3587,170 @@ float() getWeaponThrowMode =
     return cvar("vr_weapon_throw_mode");
 }
 
+float() getForcegrabMode =
+{
+    return cvar("vr_forcegrab_mode");
+}
+
+void(float xHand, vector handPos, vector handRot) DoForceGrabImplParabola =
+{
+    local float range;
+    range = cvar("vr_forcegrab_range");
+
+    local float radius;
+    radius = cvar("vr_forcegrab_radius");
+
+    makeforward(handRot);
+    traceline(handPos, handPos + v_forward * range, FALSE, self);
+
+    local entity tmpEnt;
+    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
+    {
+        if (tmpEnt.classname != "thrown_weapon")
+        {
+            continue;
+        }
+
+        if((!(tmpEnt.flags & FL_ONGROUND)) || vlen(tmpEnt.velocity) > 10.f)
+        {
+            continue;
+        }
+
+        local vector tmpVec;
+        tmpVec = normalize(handPos - tmpEnt.origin);
+
+        tmpEnt.origin += tmpVec * 0.1f;
+
+        tmpVec = handPos - tmpEnt.origin;
+
+        local float zdist;
+        zdist = tmpVec_z;
+
+        local float zmult;
+
+        if(zdist >= 30.0)
+        {
+            zmult = pow(fabs(zdist) / 40.0, 0.2);
+        }
+        else
+        {
+            zmult = pow((10 + fabs(zdist)) / 40.0, 0.13);
+        }
+
+        tmpVec_x = tmpVec_x / 2.0;
+        tmpVec_y = tmpVec_y / 2.0;
+        tmpVec_z = tmpVec_z * 2.0;
+
+        if(tmpVec_z < 80)
+        {
+            tmpVec_z = 80;
+        }
+
+        tmpVec = normalize(tmpVec);
+
+        local float dist;
+        dist = vlen(handPos - tmpEnt.origin);
+
+        local float power;
+
+        power = (-0.00231424 * pow(dist, 2.0))
+                + (2.07623 * dist)
+                + 164.076;
+
+        power *= zmult;
+        power *= cvar("vr_forcegrab_parabola_powermult");
+
+        tmpEnt.velocity = tmpVec * power;
+
+        sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
+        sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
+
+        break;
+    }
+}
+
+void(float xHand, vector handPos, vector handRot) DoForceGrabImplLinear =
+{
+    local float range;
+    range = cvar("vr_forcegrab_range");
+
+    local float radius;
+    radius = cvar("vr_forcegrab_radius");
+
+    makeforward(handRot);
+    traceline(handPos, handPos + v_forward * range, FALSE, self);
+
+    local entity tmpEnt;
+    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
+    {
+        if (tmpEnt.classname != "thrown_weapon")
+        {
+            continue;
+        }
+
+        if(tmpEnt.throwhit == QVR_THROWHIT_HIT)
+        {
+            if(tmpEnt.flags & FL_ONGROUND)
+            {
+                tmpEnt.throwhit = QVR_THROWHIT_FORCEGRAB;
+                tmpEnt.movetype = MOVETYPE_FLYMISSILE;
+
+                local vector tmpVec;
+                tmpVec = normalize(handPos - tmpEnt.origin);
+                tmpEnt.origin += tmpVec * 0.1f;
+
+                sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
+                sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
+            }
+        }
+
+        if(tmpEnt.throwhit == QVR_THROWHIT_FORCEGRAB)
+        {
+            local vector tmpVec;
+            tmpVec = normalize(handPos - tmpEnt.origin);
+
+            local float power;
+            power = 700;
+
+            tmpEnt.velocity = tmpVec * power;
+            break;
+        }
+    }
+}
+
+void(float xHand, vector handPos, vector handRot) DoForceGrabImplInstant =
+{
+    local float range;
+    range = cvar("vr_forcegrab_range");
+
+    local float radius;
+    radius = cvar("vr_forcegrab_radius");
+
+    makeforward(handRot);
+    traceline(handPos, handPos + v_forward * range, FALSE, self);
+
+    local entity tmpEnt;
+    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
+    {
+        if (tmpEnt.classname != "thrown_weapon")
+        {
+            continue;
+        }
+
+        if((!(tmpEnt.flags & FL_ONGROUND)) || vlen(tmpEnt.velocity) > 10.f)
+        {
+            continue;
+        }
+
+        wpnthrow_forcegrab_instant_ent(tmpEnt, self, xHand);
+
+        sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
+        sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
+
+        break;
+    }
+}
+
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xAttackFinished, float xHotspot,
@@ -3579,8 +3766,8 @@ void(entity ent, float xHand,
     handGrabbing = VRIsEntHandGrabbing(ent, xHand);
     handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
     otherHandGrabbing = VRIsEntHandGrabbing(ent, VROtherHand(xHand));
-    handEmpty = IsHandEmpty(self, xHand);
-    otherHandEmpty = IsHandEmpty(self, VROtherHand(xHand));
+    handEmpty = IsHandEmpty(ent, xHand);
+    otherHandEmpty = IsHandEmpty(ent, VROtherHand(xHand));
     triggerPressed = VRFireButtonPressed(xHand);
     handPos = VRGetHandPos(xHand);
     handRot = VRGetHandRot(xHand);
@@ -3607,7 +3794,7 @@ void(entity ent, float xHand,
         {
             if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
             {
-                CreateThrownWeapon(self, xWeapon,
+                CreateThrownWeapon(ent, xWeapon,
                     VRGetHandPos(xHand), VRGetHandRot(xHand),
                     VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
                     FALSE /* disappear on hit */,
@@ -3616,7 +3803,7 @@ void(entity ent, float xHand,
             }
             else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
             {
-                CreateThrownWeapon(self, xWeapon,
+                CreateThrownWeapon(ent, xWeapon,
                     VRGetHandPos(xHand), VRGetHandRot(xHand),
                     VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
                     TRUE /* disappear on hit */,
@@ -3628,8 +3815,8 @@ void(entity ent, float xHand,
                 // Intentionally left empty.
             }
 
-            sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
-            SetHandEmpty(self, xHand);
+            sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+            SetHandEmpty(ent, xHand);
             W_SetCurrentAmmoFor(xHand);
         }
         // Put a weapon in a holster.
@@ -3641,11 +3828,11 @@ void(entity ent, float xHand,
             {
                 if(getHolsterWeapon(xHotspot) == WID_FIST)
                 {
-                    sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+                    sound (ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
                     setHolsterWeapon(xHotspot, xWeapon);
                     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
-                    SetHandEmpty(self, xHand);
+                    SetHandEmpty(ent, xHand);
                     W_SetCurrentAmmoFor(xHand);
                 }
             }
@@ -3655,7 +3842,7 @@ void(entity ent, float xHand,
             {
                 if(getHolsterWeapon(xHotspot) != xWeapon)
                 {
-                    sound (self, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+                    sound (ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
                     setHolsterWeapon(xHotspot, xWeapon);
                     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
@@ -3667,10 +3854,10 @@ void(entity ent, float xHand,
         {
             if(otherHandGrabbing && otherHandEmpty && time >= xOtherAttackFinished)
             {
-                sound (self, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+                sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
                 *xOutOtherWeapon = xWeapon;
-                SetHandEmpty(self, xHand);
+                SetHandEmpty(ent, xHand);
 
                 W_SetCurrentAmmo();
             }
@@ -3703,7 +3890,7 @@ void(entity ent, float xHand,
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
-                sound (self, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
+                sound (ent, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
                 *xOutWeapon = getHolsterWeapon(xHotspot);
 
                 // In "immersive" mode, unholstering removes a weapon from a holster.
@@ -3726,57 +3913,21 @@ void(entity ent, float xHand,
     else if (handEmpty && handGrabbing && triggerPressed)
     {
         // TODO VR: (P0) finish, add cvars and alternatives, add menu
-
-        makeforward(handRot);
-        traceline(handPos, handPos + v_forward * 128, FALSE, self);
-
-        for (tmpEnt = findradius(trace_endpos, 32); tmpEnt; tmpEnt = tmpEnt.chain)
+        if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
         {
-            if (tmpEnt.classname == "thrown_weapon")
-            {
-                if(vlen(tmpEnt.velocity) < 10.f)
-                {
-                    if(tmpEnt.flags & FL_ONGROUND)
-                    {
-                        bprint("found ent\n");
-
-                        tmpVec = normalize(handPos - tmpEnt.origin);
-
-                        // tmpEnt.flags = tmpEnt.flags - FL_ONGROUND;
-                        tmpEnt.origin += tmpVec * 0.1f;
-
-                        tmpVec = handPos - tmpEnt.origin;
-                        tmpVec_x = tmpVec_x / 2.0;
-                        tmpVec_y = tmpVec_y / 2.0;
-                        tmpVec_z = tmpVec_z * 2.0;
-                        tmpVec = normalize(tmpVec);
-
-                        bprint("vlen: ");
-                        bprint(ftos(vlen(handPos - tmpEnt.origin)));
-                        bprint("\n");
-
-                        tmpEnt.velocity = tmpVec * (vlen(handPos - tmpEnt.origin) * 3.f);
-                    }
-                    else
-                    {
-                        bprint("not on ground\n");
-                    }
-
-                    // break;
-                }
-                else
-                {
-                    bprint("v: ");
-                    bprint(ftos(tmpEnt.velocity_x));
-                    bprint("  ");
-                    bprint(ftos(tmpEnt.velocity_y));
-                    bprint("  ");
-                    bprint(ftos(tmpEnt.velocity_z));
-                    bprint(" | ong: ");
-                    bprint(ftos(tmpEnt.flags & FL_ONGROUND));
-                    bprint("\n");
-                }
-            }
+            // Intentionally left empty.
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
+        {
+            DoForceGrabImplParabola(xHand, handPos, handRot);
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
+        {
+            DoForceGrabImplLinear(xHand, handPos, handRot);
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
+        {
+            DoForceGrabImplInstant(xHand, handPos, handRot);
         }
     }
     // Not holding a weapon and hovering an holster. Possible intention to unholster.
@@ -3799,7 +3950,6 @@ void() W_Frame =
         ImpulseCommands ();
     }
 
-
     UpdateHolsterHover();
 
     DoHandImpl(self, OFF_HAND,
@@ -3811,19 +3961,6 @@ void() W_Frame =
                self.weapon, &self.weapon,
                self.attack_finished, self.mainhand_hotspot,
                self.weapon2, &self.weapon2, self.offhand_attack_finished);
-
-    // bprint(ftos(self.offhand_grabbing));
-    // bprint(" | ");
-    // bprint(ftos(self.mainhand_grabbing));
-    // bprint(" ||| ");
-    // bprint(ftos(self.offhand_hotspot));
-    // bprint(" | ");
-    // bprint(ftos(self.mainhand_hotspot));
-    // bprint(" ||| ");
-    // bprint(ftos(self.weapon2));
-    // bprint(" | ");
-    // bprint(ftos(self.weapon));
-    // bprint("\n");
 }
 
 /*
@@ -3846,5 +3983,4 @@ void() SuperDamageSound =
 };
 
 // TODO VR: (P1) remove backpack spinning animation.
-
 

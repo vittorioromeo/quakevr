@@ -97,11 +97,7 @@ void( vector pos ) placebullethole =
        lastbulletholeroll = 0;
     }
 
-    makeforward(self.angles);
-
-    // TODO VR: (P2) why is it necessary to invert this?
-    v_forward_z = v_forward_z * -1;
-
+    makeforward_mdl(self.angles);
     setorigin( new, pos - ( v_forward * (0.03 + new.angles_z / 450) ) );
         // try to avoid z-fighting for overlapping sprites
 
