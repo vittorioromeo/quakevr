@@ -221,11 +221,11 @@ float(float v) VRMeleeRange =
 
     if (self.super_damage_finished > time)
     {
-        mult = 1.25;
+        mult = 1.35;
     }
     else
     {
-        mult = 1;
+        mult = 1.10;
     }
 
     if (cvar("vr_fakevr") == 1)
@@ -970,16 +970,16 @@ float(vector xHandRot, vector xHandPos, vector xMuzzlePos, float xRange, float x
     traceline (xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
     if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
 
-    traceline (xHandPos - v_up*3, xHandPos + v_up * (range / 2.0), FALSE, self);
+    traceline (xHandPos - v_up*3, xHandPos + v_up * (range / 1.5), FALSE, self);
     if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
 
-    traceline (xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 2.0), FALSE, self);
+    traceline (xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 1.5), FALSE, self);
     if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
 
-    traceline (xHandPos + v_up*3, xHandPos - v_up * (range / 2.0), FALSE, self);
+    traceline (xHandPos + v_up*3, xHandPos - v_up * (range / 1.5), FALSE, self);
     if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
 
-    traceline (xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 2.0), FALSE, self);
+    traceline (xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 1.5), FALSE, self);
     if (trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
 
     // Then test the same traces, but do not prioritize:
