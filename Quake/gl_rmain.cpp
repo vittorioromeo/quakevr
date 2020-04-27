@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm.hpp"
 #include "vr.hpp"
 #include "util.hpp"
+#include "opengl_ext.hpp"
 
 bool r_cache_thrash; // compatability
 
@@ -202,10 +203,6 @@ GLSLGamma_GammaCorrect
 */
 void GLSLGamma_GammaCorrect()
 {
-    float smax;
-
-    float tmax;
-
     if(!gl_glsl_gamma_able)
     {
         return;
@@ -256,6 +253,12 @@ void GLSLGamma_GammaCorrect()
     // copy the framebuffer to the texture
     GL_DisableMultitexture();
     glBindTexture(GL_TEXTURE_2D, r_gamma_texture);
+
+    // TODO VR: (P2) this only affects 2D rendering, doesn't affect HMD
+    // rendering
+    glBindFramebufferEXT(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
+    glReadBuffer(GL_FRONT);
+
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
 
     // draw the texture back to the framebuffer with a fragment shader
@@ -270,8 +273,8 @@ void GLSLGamma_GammaCorrect()
 
     glViewport(glx, gly, glwidth, glheight);
 
-    smax = glwidth / (float)r_gamma_texture_width;
-    tmax = glheight / (float)r_gamma_texture_height;
+    const float smax = glwidth / (float)r_gamma_texture_width;
+    const float tmax = glheight / (float)r_gamma_texture_height;
 
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);

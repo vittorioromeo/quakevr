@@ -5,6 +5,7 @@
 #include "render.hpp"
 #include "openvr.hpp"
 #include "quakeglm.hpp"
+#include "opengl_ext.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -36,17 +37,6 @@ using quake::util::redirectVector;
 // VR Rendering Structs
 // ----------------------------------------------------------------------------
 
-struct fbo_t
-{
-    GLuint framebuffer, depth_texture, texture;
-    GLuint msaa_framebuffer, msaa_texture, msaa_depth_texture;
-    int msaa;
-    struct
-    {
-        float width, height;
-    } size;
-};
-
 struct vr_eye_t
 {
     int index;
@@ -75,48 +65,6 @@ struct vr_controller
     vr::HmdVector3_t rawvector;
     vr::HmdQuaternion_t raworientation;
     bool active{false};
-};
-
-//
-//
-//
-// ----------------------------------------------------------------------------
-// OpenGL Extensions
-// ----------------------------------------------------------------------------
-
-#define GL_READ_FRAMEBUFFER_EXT 0x8CA8
-#define GL_DRAW_FRAMEBUFFER_EXT 0x8CA9
-#define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9
-
-typedef void(APIENTRYP PFNGLBLITFRAMEBUFFEREXTPROC)(
-    GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum);
-typedef bool(APIENTRYP PFNWGLSWAPINTERVALEXTPROC)(int);
-
-static PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT;
-static PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC glCheckFramebufferStatusEXT;
-static PFNGLBLITFRAMEBUFFEREXTPROC glBlitFramebufferEXT;
-static PFNGLDELETEFRAMEBUFFERSEXTPROC glDeleteFramebuffersEXT;
-static PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT;
-static PFNGLFRAMEBUFFERTEXTURE2DEXTPROC glFramebufferTexture2DEXT;
-static PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbufferEXT;
-static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
-static PFNGLTEXIMAGE2DMULTISAMPLEPROC glTexImage2DMultisampleEXT;
-
-struct
-{
-    void* func;
-    const char* name;
-} gl_extensions[] = {
-    {&glBindFramebufferEXT, "glBindFramebufferEXT"},
-    {&glBlitFramebufferEXT, "glBlitFramebufferEXT"},
-    {&glDeleteFramebuffersEXT, "glDeleteFramebuffersEXT"},
-    {&glGenFramebuffersEXT, "glGenFramebuffersEXT"},
-    {&glTexImage2DMultisampleEXT, "glTexImage2DMultisample"},
-    {&glFramebufferTexture2DEXT, "glFramebufferTexture2DEXT"},
-    {&glFramebufferRenderbufferEXT, "glFramebufferRenderbufferEXT"},
-    {&glCheckFramebufferStatusEXT, "glCheckFramebufferStatusEXT"},
-    {&wglSwapIntervalEXT, "wglSwapIntervalEXT"},
-    {nullptr, nullptr},
 };
 
 //
@@ -385,30 +333,6 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 20.0);
 // VR Rendering
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] static bool InitOpenGLExtensions() noexcept
-{
-    static bool extensions_initialized{false};
-
-    if(extensions_initialized)
-    {
-        return true;
-    }
-
-    for(int i = 0; gl_extensions[i].func; ++i)
-    {
-        void* const func = SDL_GL_GetProcAddress(gl_extensions[i].name);
-        if(!func)
-        {
-            return false;
-        }
-
-        *((void**)gl_extensions[i].func) = func;
-    }
-
-    extensions_initialized = true;
-    return extensions_initialized;
-}
-
 void RecreateTextures(
     fbo_t* const fbo, const int width, const int height) noexcept
 {
@@ -465,6 +389,11 @@ void RecreateTextures(
     fbo.msaa_texture = 0;
 
     return fbo;
+}
+
+[[nodiscard]] fbo_t& VR_GetEyeFBO(const int index) noexcept
+{
+    return eyes[index].fbo;
 }
 
 void CreateMSAA(fbo_t* const fbo, const int width, const int height,
@@ -1402,7 +1331,7 @@ bool VR_Enable()
         }
     }
 
-    if(!InitOpenGLExtensions())
+    if(!quake::gl::InitOpenGLExtensions())
     {
         Con_Printf("Failed to initialize OpenGL extensions");
         return false;
@@ -4806,3 +4735,26 @@ void VR_Move(usercmd_t* cmd)
 // as door in SoA start
 
 // TODO VR: (P2) add general cvars for health and damage multipliers
+
+// TODO VR: (P1) remove/fix prevweapon binding, and off-hand cycle binding
+
+// TODO VR: (P0) investigate interactions between "vr body interactions" and
+// thrown weapons
+
+// TODO VR: (P1) "Picking up a weapon whilst gripping a weapon overwrites the
+// weapon gripped in the main hand", with "VR Body Interaction ON, and Quick
+// Slot + Cycle mode"
+
+// TODO VR: (P2) add option to disable ogre mirvs?
+
+// TODO VR: (P2) add option to pause game on SteamVR dash open
+
+// TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
+// weapons? I much prefer the weapon pickup by hand, due to the inventory
+// management aspect, where as items have no such concern"
+
+// TODO VR: (P1) visual feedback when hovering holster, e.g. weapon comes out a
+// bit, or glow, or bloom effect on vision edge (complementary to haptics)
+
+// TODO VR: (P1) give dropped weapons some sort of visual effect (e.g. glow),
+// especially in water, or make them float in water

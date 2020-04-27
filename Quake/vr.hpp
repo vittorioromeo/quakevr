@@ -229,6 +229,21 @@ void VR_ModVRTorsoModel();
 void VR_ModVRLegHolsterModel();
 void VR_ModAllModels();
 
+// TODO VR: (P2) move
+
+struct fbo_t
+{
+    GLuint framebuffer, depth_texture, texture;
+    GLuint msaa_framebuffer, msaa_texture, msaa_depth_texture;
+    int msaa;
+    struct
+    {
+        float width, height;
+    } size;
+};
+
+[[nodiscard]] fbo_t& VR_GetEyeFBO(const int index) noexcept;
+
 [[nodiscard]] const glm::vec3& VR_GetHeadOrigin() noexcept;
 
 void VR_DoHaptic(const int hand, const float delay, const float duration,
