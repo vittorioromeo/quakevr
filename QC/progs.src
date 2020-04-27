@@ -11,6 +11,8 @@ items.qc
 // ROGUE
 grapple.qc
 
+vrutil.qc
+wpnforcegrab.qc
 weaponutil.qc
 weapons.qc
 world.qc

@@ -817,6 +817,7 @@ void R_DrawTextureChains_Water(qmodel_t* model, entity_t* ent, texchain_t chain)
         return;
     }
 
+    // TODO VR: (P1) flipping this renders in oldwater=0
     if(r_oldwater.value)
     {
         for(i = 0; i < model->numtextures; i++)

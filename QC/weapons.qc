@@ -63,65 +63,6 @@ vector() vrProjectileVelocity =
     return VEC_ORIGIN;
 };
 
-vector(float xHand) VRGetHandPos =
-{
-    if(xHand == OFF_HAND) return self.offhandpos;
-    else                  return self.handpos;
-}
-
-vector(float xHand) VRGetHandRot =
-{
-    if(xHand == OFF_HAND) return self.offhandrot;
-    else                  return self.handrot;
-}
-
-vector(float xHand) VRGetHandVel =
-{
-    if(xHand == OFF_HAND) return self.offhandvel;
-    else                  return self.handvel;
-}
-
-float(float xHand) VRGetHandVelMag =
-{
-    if(xHand == OFF_HAND) return self.offhandvelmag;
-    else                  return self.handvelmag;
-}
-
-vector(float xHand) VRGetHandThrowVel =
-{
-    if(xHand == OFF_HAND) return self.offhandthrowvel;
-    else                  return self.handthrowvel;
-}
-
-vector(float xHand) VRGetHandAVel =
-{
-    if(xHand == OFF_HAND) return self.offhandavel;
-    else                  return self.handavel;
-}
-
-float(float xHand) VRMeleeHitSoundPlayed =
-{
-    if(xHand == OFF_HAND) return self.offhand_melee_hit_sound_played;
-    else                  return self.melee_hit_sound_played;
-}
-
-void(float xHand, float v) VRMeleeSetHitSoundPlayed =
-{
-    if(xHand == OFF_HAND) self.offhand_melee_hit_sound_played = v;
-    else                  self.melee_hit_sound_played = v;
-}
-
-float(float xHand) VRGunChannel =
-{
-    if(xHand == OFF_HAND) return CHAN_WEAPON2;
-    else                  return CHAN_WEAPON;
-}
-
-float(float xHand) VRIsAmmolessWeapon =
-{
-    if(xHand == OFF_HAND) return self.currentammo2 == AID_NONE;
-    else                  return self.currentammo == AID_NONE;
-}
 
 void() updateAmmoCounters =
 {
@@ -535,113 +476,6 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
     newmis.touch = HIP_LaserTouch;
     newmis.count = 0;
 };
-
-// TODO VR: (P2) move
-float(float xHand) VROtherHand =
-{
-    if(xHand == OFF_HAND) return MAIN_HAND;
-    else                  return OFF_HAND;
-}
-
-float(float xHand) VRFireButtonPressed =
-{
-    if(xHand == OFF_HAND) return self.button3;
-    else                  return self.button0;
-}
-
-void(entity e, float xHand, float v) VRSetEntWeapon =
-{
-    if(xHand == OFF_HAND) e.weapon2 = v;
-    else                  e.weapon = v;
-}
-
-void(float xHand, float v) VRSetWeapon =
-{
-    VRSetEntWeapon(self, xHand, v);
-}
-
-float(entity e, float xHand) VRGetEntWeapon =
-{
-    if(xHand == OFF_HAND) return e.weapon2;
-    else                  return e.weapon;
-}
-
-float(entity e, float xHand) IsHandEmpty =
-{
-    return VRGetEntWeapon(e, xHand) == WID_FIST;
-}
-
-void(entity e, float xHand) SetHandEmpty =
-{
-    VRSetEntWeapon(e, xHand, WID_FIST);
-}
-
-float(float xHand) VRGetWeapon =
-{
-    return VRGetEntWeapon(self, xHand);
-}
-
-float(entity e, float xHand) VRIsEntHandGrabbing =
-{
-    if(xHand == OFF_HAND) return e.offhand_grabbing;
-    else                  return e.mainhand_grabbing;
-}
-
-float(entity e, float xHand) VRIsEntHandPrevGrabbing =
-{
-    if(xHand == OFF_HAND) return e.offhand_prevgrabbing;
-    else                  return e.mainhand_prevgrabbing;
-}
-
-float(entity e, float xHand) VREntStartedHandGrabbing =
-{
-    return VRIsEntHandPrevGrabbing(e, xHand) == FALSE &&
-           VRIsEntHandGrabbing(e, xHand) == TRUE;
-}
-
-float(entity e, float xHand) VREntStoppedHandGrabbing =
-{
-    return VRIsEntHandPrevGrabbing(e, xHand) == TRUE &&
-           VRIsEntHandGrabbing(e, xHand) == FALSE;
-}
-
-float(float xHand) VRIsHandGrabbing =
-{
-    return VRIsEntHandGrabbing(self, xHand);
-}
-
-float(float xHand) VRIsHandPrevGrabbing =
-{
-    return VRIsEntHandPrevGrabbing(self, xHand);
-}
-
-float(float xHand) VRStartedHandGrabbing =
-{
-    return VREntStartedHandGrabbing(self, xHand);
-}
-
-float(float xHand) VRStoppedHandGrabbing =
-{
-    return VREntStoppedHandGrabbing(self, xHand);
-}
-
-vector(float xHand) VRGetWeaponFireRot =
-{
-    return VRGetHandRot(xHand);
-}
-
-vector(float xHand) VRGetMuzzlePos =
-{
-    if(xHand == OFF_HAND) return self.offmuzzlepos;
-    else                  return self.muzzlepos;
-}
-
-vector(float xHand) VRGetWeaponFireRotFwd =
-{
-    makeforward (VRGetWeaponFireRot(xHand));
-    return v_forward;
-}
-
 
 /*
 =================
@@ -3160,14 +2994,15 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     angle = xAngle - xOffset;
 
     // Bring angle in range [-360, 0]
-    if(angle > 0)
+    while(angle > 0)
     {
-        *xOutAngle = xOffset + angle - 360;
+        *xOutAngle = (xOffset + angle) - 360;
         angle = angle - 360;
     }
-    else if(angle < -360)
+
+    while(angle < -360)
     {
-        *xOutAngle = xOffset + angle + 360;
+        *xOutAngle = (xOffset + angle) + 360;
         angle = angle + 360;
     }
 
@@ -3175,40 +3010,40 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     {
         // All these offset calculations are needed because I can't read back
         // from `xOutAngle`...
-        *xOutAngle = xOffset + angle + self.throwstabilize;
-        if(xAngle - xOffset + self.throwstabilize > -270)
+        *xOutAngle = (xOffset + angle) + self.throwstabilize;
+        if((xAngle - xOffset) + self.throwstabilize > -270)
         {
             *xOutAngle = xOffset + -270;
         }
     }
     else if (angle > -270 && angle <= -180)
     {
-        *xOutAngle = xOffset + angle - self.throwstabilize;
-        if(xAngle - xOffset - self.throwstabilize < -270)
+        *xOutAngle = (xOffset + angle) - self.throwstabilize;
+        if((xAngle - xOffset) - self.throwstabilize < -270)
         {
             *xOutAngle = xOffset + -270;
         }
     }
     else if (angle > -180 && angle <= -90)
     {
-        *xOutAngle = xOffset + angle + self.throwstabilize;
-        if(xAngle - xOffset + self.throwstabilize > -90)
+        *xOutAngle = (xOffset + angle) + self.throwstabilize;
+        if((xAngle - xOffset) + self.throwstabilize > -90)
         {
             *xOutAngle = xOffset + -90;
         }
     }
     else if (angle > -90 && angle <= 0)
     {
-        *xOutAngle = xOffset + angle - self.throwstabilize;
-        if(xAngle - xOffset - self.throwstabilize < -90)
+        *xOutAngle = (xOffset + angle) - self.throwstabilize;
+        if((xAngle - xOffset) - self.throwstabilize < -90)
         {
             *xOutAngle = xOffset + -90;
         }
     }
     else
     {
-        // TODO VR: (P0) still triggers sometimes
-        bprint("uncovered angle case: '");
+        // TODO VR: (P1) still triggers sometimes
+        bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
         bprint(ftos(angle));
         bprint("'\n");
     }
@@ -3339,11 +3174,11 @@ void(entity ent, entity entPlayer, float* xOutEntWeapon) wpnthrow_handtouch_impl
 
 void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
 {
-    if(xHand == OFF_HAND && IsHandEmpty(entPlayer, OFF_HAND))
+    if(xHand == OFF_HAND && VRIsHandEmpty(entPlayer, OFF_HAND))
     {
         wpnthrow_handtouch_impl(ent, entPlayer, &entPlayer.weapon2);
     }
-    else if(xHand == MAIN_HAND && IsHandEmpty(entPlayer, MAIN_HAND))
+    else if(xHand == MAIN_HAND && VRIsHandEmpty(entPlayer, MAIN_HAND))
     {
         wpnthrow_handtouch_impl(ent, entPlayer, &entPlayer.weapon);
     }
@@ -3354,14 +3189,14 @@ void(entity ent) wpnthrow_handtouch_ent =
     if(ent.handtouch_hand == OFF_HAND &&
        (VREntStartedHandGrabbing(ent.handtouch_ent, OFF_HAND)
         || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
-       IsHandEmpty(ent.handtouch_ent, OFF_HAND))
+       VRIsHandEmpty(ent.handtouch_ent, OFF_HAND))
     {
         wpnthrow_handtouch_impl(ent, ent.handtouch_ent, &ent.handtouch_ent.weapon2);
     }
     else if(ent.handtouch_hand == MAIN_HAND &&
             (VREntStartedHandGrabbing(ent.handtouch_ent, MAIN_HAND)
              || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
-            IsHandEmpty(ent.handtouch_ent, MAIN_HAND))
+            VRIsHandEmpty(ent.handtouch_ent, MAIN_HAND))
     {
         wpnthrow_handtouch_impl(ent, ent.handtouch_ent, &ent.handtouch_ent.weapon);
     }
@@ -3576,7 +3411,6 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
     );
 }
 
-
 float() getWeaponMode =
 {
     return cvar("vr_holster_mode");
@@ -3587,170 +3421,6 @@ float() getWeaponThrowMode =
     return cvar("vr_weapon_throw_mode");
 }
 
-float() getForcegrabMode =
-{
-    return cvar("vr_forcegrab_mode");
-}
-
-void(float xHand, vector handPos, vector handRot) DoForceGrabImplParabola =
-{
-    local float range;
-    range = cvar("vr_forcegrab_range");
-
-    local float radius;
-    radius = cvar("vr_forcegrab_radius");
-
-    makeforward(handRot);
-    traceline(handPos, handPos + v_forward * range, FALSE, self);
-
-    local entity tmpEnt;
-    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
-    {
-        if (tmpEnt.classname != "thrown_weapon")
-        {
-            continue;
-        }
-
-        if((!(tmpEnt.flags & FL_ONGROUND)) || vlen(tmpEnt.velocity) > 10.f)
-        {
-            continue;
-        }
-
-        local vector tmpVec;
-        tmpVec = normalize(handPos - tmpEnt.origin);
-
-        tmpEnt.origin += tmpVec * 0.1f;
-
-        tmpVec = handPos - tmpEnt.origin;
-
-        local float zdist;
-        zdist = tmpVec_z;
-
-        local float zmult;
-
-        if(zdist >= 30.0)
-        {
-            zmult = pow(fabs(zdist) / 40.0, 0.2);
-        }
-        else
-        {
-            zmult = pow((10 + fabs(zdist)) / 40.0, 0.13);
-        }
-
-        tmpVec_x = tmpVec_x / 2.0;
-        tmpVec_y = tmpVec_y / 2.0;
-        tmpVec_z = tmpVec_z * 2.0;
-
-        if(tmpVec_z < 80)
-        {
-            tmpVec_z = 80;
-        }
-
-        tmpVec = normalize(tmpVec);
-
-        local float dist;
-        dist = vlen(handPos - tmpEnt.origin);
-
-        local float power;
-
-        power = (-0.00231424 * pow(dist, 2.0))
-                + (2.07623 * dist)
-                + 164.076;
-
-        power *= zmult;
-        power *= cvar("vr_forcegrab_parabola_powermult");
-
-        tmpEnt.velocity = tmpVec * power;
-
-        sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
-        sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
-
-        break;
-    }
-}
-
-void(float xHand, vector handPos, vector handRot) DoForceGrabImplLinear =
-{
-    local float range;
-    range = cvar("vr_forcegrab_range");
-
-    local float radius;
-    radius = cvar("vr_forcegrab_radius");
-
-    makeforward(handRot);
-    traceline(handPos, handPos + v_forward * range, FALSE, self);
-
-    local entity tmpEnt;
-    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
-    {
-        if (tmpEnt.classname != "thrown_weapon")
-        {
-            continue;
-        }
-
-        if(tmpEnt.throwhit == QVR_THROWHIT_HIT)
-        {
-            if(tmpEnt.flags & FL_ONGROUND)
-            {
-                tmpEnt.throwhit = QVR_THROWHIT_FORCEGRAB;
-                tmpEnt.movetype = MOVETYPE_FLYMISSILE;
-
-                local vector tmpVec;
-                tmpVec = normalize(handPos - tmpEnt.origin);
-                tmpEnt.origin += tmpVec * 0.1f;
-
-                sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
-                sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
-            }
-        }
-
-        if(tmpEnt.throwhit == QVR_THROWHIT_FORCEGRAB)
-        {
-            local vector tmpVec;
-            tmpVec = normalize(handPos - tmpEnt.origin);
-
-            local float power;
-            power = 700;
-
-            tmpEnt.velocity = tmpVec * power;
-            break;
-        }
-    }
-}
-
-void(float xHand, vector handPos, vector handRot) DoForceGrabImplInstant =
-{
-    local float range;
-    range = cvar("vr_forcegrab_range");
-
-    local float radius;
-    radius = cvar("vr_forcegrab_radius");
-
-    makeforward(handRot);
-    traceline(handPos, handPos + v_forward * range, FALSE, self);
-
-    local entity tmpEnt;
-    for (tmpEnt = findradius(trace_endpos, radius); tmpEnt; tmpEnt = tmpEnt.chain)
-    {
-        if (tmpEnt.classname != "thrown_weapon")
-        {
-            continue;
-        }
-
-        if((!(tmpEnt.flags & FL_ONGROUND)) || vlen(tmpEnt.velocity) > 10.f)
-        {
-            continue;
-        }
-
-        wpnthrow_forcegrab_instant_ent(tmpEnt, self, xHand);
-
-        sound (tmpEnt, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
-        sound (self, VRGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
-
-        break;
-    }
-}
-
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xAttackFinished, float xHotspot,
@@ -3759,16 +3429,15 @@ void(entity ent, float xHand,
     local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
                 handEmpty, otherHandEmpty, triggerPressed;
 
-    local vector handPos, handRot, tmpVec;
-
-    local entity tmpEnt;
-
     handGrabbing = VRIsEntHandGrabbing(ent, xHand);
     handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
     otherHandGrabbing = VRIsEntHandGrabbing(ent, VROtherHand(xHand));
-    handEmpty = IsHandEmpty(ent, xHand);
-    otherHandEmpty = IsHandEmpty(ent, VROtherHand(xHand));
+    handEmpty = VRIsHandEmpty(ent, xHand);
+    otherHandEmpty = VRIsHandEmpty(ent, VROtherHand(xHand));
     triggerPressed = VRFireButtonPressed(xHand);
+
+    local vector handPos, handRot;
+
     handPos = VRGetHandPos(xHand);
     handRot = VRGetHandRot(xHand);
 
@@ -3798,7 +3467,7 @@ void(entity ent, float xHand,
                     VRGetHandPos(xHand), VRGetHandRot(xHand),
                     VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
                     FALSE /* disappear on hit */,
-                    TRUE /* deal damage */,
+                    TRUE  /* deal damage */,
                     WeaponIdToThrowDamage(xWeapon));
             }
             else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
@@ -3816,7 +3485,7 @@ void(entity ent, float xHand,
             }
 
             sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
-            SetHandEmpty(ent, xHand);
+            VRSetHandEmpty(ent, xHand);
             W_SetCurrentAmmoFor(xHand);
         }
         // Put a weapon in a holster.
@@ -3832,7 +3501,7 @@ void(entity ent, float xHand,
 
                     setHolsterWeapon(xHotspot, xWeapon);
                     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
-                    SetHandEmpty(ent, xHand);
+                    VRSetHandEmpty(ent, xHand);
                     W_SetCurrentAmmoFor(xHand);
                 }
             }
@@ -3857,7 +3526,7 @@ void(entity ent, float xHand,
                 sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
                 *xOutOtherWeapon = xWeapon;
-                SetHandEmpty(ent, xHand);
+                VRSetHandEmpty(ent, xHand);
 
                 W_SetCurrentAmmo();
             }

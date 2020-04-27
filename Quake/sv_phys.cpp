@@ -531,8 +531,11 @@ SV_PushMove
 void SV_PushMove(edict_t* pusher, float movetime)
 {
     // TODO VR: (P0) opening rotating door in SoA start carries player around
+
     // TODO VR: (P0) cant see dropped weapons underwater (graphic bug)
-    // TODO VR: (P0) floating weapons stay in the air after hitting something
+
+    // TODO VR: (P0) floating weapons stay in the air after hitting something -
+    // this might be fixed, test again
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])

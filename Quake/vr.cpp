@@ -810,7 +810,7 @@ char* CopyWithNumeral(const char* str, int i)
 
 [[nodiscard]] glm::vec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept
 {
-    // TODO VR: (P0) bugged at the moment, need to use angles and stop hand from
+    // TODO VR: (P1) bugged at the moment, need to use angles and stop hand from
     // moving
 
     return {//
@@ -1734,8 +1734,10 @@ void SetHandPos(int index, entity_t* player)
         const auto diffWithNew = newPos - oldHandpos;
 
         // TODO VR: (P1) seems good now. Cvar everything
+
         // TODO VR: (P1) rotation fix too strong for light guns, while smooth
         // rotating it is noticeable
+
         cl.handpos[index] +=
             diffWithNew + (lastPlayerTranslation * (1.f - ftw)) - diffWithOld;
     }
@@ -1780,11 +1782,11 @@ void SetHandPos(int index, entity_t* player)
     {
         cl.handthrowvel[index] = controllers[index].velocity;
 
-        // TODO VR: (P0) throwing an item up with a small flick feels too strong
+        // TODO VR: (P1) throwing an item up with a small flick feels too strong
         const auto up =
             std::get<2>(getAngledVectors(controllers[index].orientation));
 
-        // TODO VR: (P0) center of mass is different for different weapons
+        // TODO VR: (P1) center of mass is different for different weapons
         cl.handthrowvel[index] +=
             glm::cross(controllers[index].a_velocity, up * 0.05f);
 
@@ -2599,7 +2601,7 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
     // Con_Printf("ru: %.2f, %.2f, %.2f\n", u[0], u[1], u[2]);
 }
 
-static bool VR_GoodDistanceFor2HGrabImpl(
+static bool VR_GoodDistanceForDynamic2HGrabImpl(
     const glm::vec3& holdingHandPos, const glm::vec3& helpingHandPos)
 {
     // TODO VR: (P1) weapon cvar for this!
@@ -2622,7 +2624,7 @@ static bool VR_GoodDistanceFor2HGrab(
 
     if(!twoHDisplayModeFixed)
     {
-        return VR_GoodDistanceFor2HGrabImpl(
+        return VR_GoodDistanceForDynamic2HGrabImpl(
             VR_Get2HHoldingHandPos(holdingHand, helpingHand),
             VR_Get2HHelpingHandPos(holdingHand, helpingHand));
     }
@@ -2813,10 +2815,6 @@ static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
 
     VR_Do2HAimingImpl(vr2HMode, originalRots, cVR_OffHand, cVR_MainHand,
         VR_GetLeftShoulderStockPos());
-
-    // TODO VR: (P2) consider adding ghost hands
-    // TODO VR: (P1) melee doesn't work with laser cannon
-    // TODO VR: (P2) scourge of armagon music?
 }
 
 static void VR_FakeVRControllerAiming()
@@ -3105,9 +3103,6 @@ void VR_CalibrateHeight()
 [[nodiscard]] static bool VR_InShoulderHolsterDistance(
     const glm::vec3& hand, const glm::vec3& holster)
 {
-    // TODO VR: (P1) consider toning animation down while aiming 2h, might
-    // need a new weapon cvar and significant work
-
     return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
 }
 
@@ -4713,20 +4708,23 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P0) armagon boss bugged
 
+// TODO VR: (P0) test continuous holsters, seem to be bugged
+
+// TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
+
+// TODO VR: (P0) investigate interactions between "vr body interactions" and
+// thrown weapons
+
+// TODO VR: (P1) consider toning animation down while aiming 2h, might
+// need a new weapon cvar and significant work
+
 // TODO VR: (P1) remove existing sv_player usages, or chhange to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
 
-// TODO VR: (P0) test continuous holsters, seem to be bugged
-
 // TODO VR: (P1) add tooltip to off-hand option menu in wpn config
 
-// TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
-
 // TODO VR: (P1) add option to press buttons with weapons, not just hands
-
-// TODO VR: (P2) consider new particle effect for shootable weapons and walls
-// instead of blood
 
 // TODO VR: (P1) clicking shoot to trigger new level during intermission fires a
 // shot in next level. maybe use the readytime here?
@@ -4734,20 +4732,11 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) walking into doors drags player along with the door, same bug
 // as door in SoA start
 
-// TODO VR: (P2) add general cvars for health and damage multipliers
-
 // TODO VR: (P1) remove/fix prevweapon binding, and off-hand cycle binding
-
-// TODO VR: (P0) investigate interactions between "vr body interactions" and
-// thrown weapons
 
 // TODO VR: (P1) "Picking up a weapon whilst gripping a weapon overwrites the
 // weapon gripped in the main hand", with "VR Body Interaction ON, and Quick
 // Slot + Cycle mode"
-
-// TODO VR: (P2) add option to disable ogre mirvs?
-
-// TODO VR: (P2) add option to pause game on SteamVR dash open
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
@@ -4758,3 +4747,18 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) give dropped weapons some sort of visual effect (e.g. glow),
 // especially in water, or make them float in water
+
+// TODO VR: (P1) melee doesn't work with laser cannon - intended? test
+
+// TODO VR: (P2) consider adding ghost hands
+
+// TODO VR: (P2) scourge of armagon music?
+
+// TODO VR: (P2) consider new particle effect for shootable weapons and walls
+// instead of blood
+
+// TODO VR: (P2) add general cvars for health and damage multipliers
+
+// TODO VR: (P2) add option to disable ogre mirvs?
+
+// TODO VR: (P2) add option to pause game on SteamVR dash open

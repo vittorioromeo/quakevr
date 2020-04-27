@@ -228,7 +228,7 @@ namespace quake::util
             overload_set{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
     }
 
-    // TODO VR: (P1) reuse throughout project
+    // TODO VR: (P2) reuse throughout project
     [[nodiscard]] QUAKE_FORCEINLINE glm::vec3 redirectVector(
         const glm::vec3& input, const glm::vec3& examplar) noexcept
     {
