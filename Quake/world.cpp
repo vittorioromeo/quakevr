@@ -328,9 +328,7 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
                 continue;
             }
 
-            const bool canBeTouched =
-                (target->v.touch || target->v.handtouch) &&
-                target->v.solid != SOLID_NOT;
+            const bool canBeTouched = quake::util::canBeTouched(target);
 
             // TODO VR: (P2) consequences of this? Seems to fix handtouch on
             // ledges
@@ -405,8 +403,7 @@ void SV_TouchLinks(edict_t* ent)
     SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
 
     const auto doTouch = [](edict_t* ent, edict_t* target) {
-        const bool canBeTouched = (target->v.touch || target->v.handtouch) &&
-                                  target->v.solid != SOLID_NOT;
+        const bool canBeTouched = quake::util::canBeTouched(target);
 
         if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
         {
@@ -447,8 +444,7 @@ void SV_TouchLinks(edict_t* ent)
         const auto offhandposmin = ent->v.offhandpos - offsets;
         const auto offhandposmax = ent->v.offhandpos + offsets;
 
-        const bool canBeHandTouched =
-            target->v.handtouch && target->v.solid != SOLID_NOT;
+        const bool canBeHandTouched = quake::util::canBeHandTouched(target);
 
         const bool entIntersects =
             !quake::util::entBoxIntersection(ent, target);
@@ -456,7 +452,7 @@ void SV_TouchLinks(edict_t* ent)
         const auto intersects = [&](const glm::vec3& handMin,
                                     const glm::vec3& handMax) {
             // VR: This increases the boundaries for easier hand touching.
-            const float bonus = ((int)target->v.flags & FL_EASYHANDTOUCH)
+            const float bonus = quake::util::hasFlag(target, FL_EASYHANDTOUCH)
                                     ? VR_GetEasyHandTouchBonus()
                                     : 0.f;
 
@@ -505,7 +501,7 @@ void SV_TouchLinks(edict_t* ent)
         {
             doTouch(ent, target);
 
-            if((int)ent->v.flags & FL_CLIENT)
+            if(quake::util::hasFlag(ent, FL_CLIENT))
             {
                 doHandtouch(ent, target);
             }
@@ -601,14 +597,14 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     // of shelves, the abs sizes are expanded
     //
     // TODO VR: (P2) interesting
-    if((int)ent->v.flags & FL_ITEM)
+    if(quake::util::hasFlag(ent, FL_ITEM))
     {
         ent->v.absmin[0] -= 15;
         ent->v.absmin[1] -= 15;
         ent->v.absmax[0] += 15;
         ent->v.absmax[1] += 15;
     }
-    else if((int)ent->v.flags & FL_EASYHANDTOUCH)
+    else if(quake::util::hasFlag(ent, FL_EASYHANDTOUCH))
     {
         const float bonus = VR_GetEasyHandTouchBonus();
         ent->v.absmin[0] -= bonus;
@@ -1079,7 +1075,7 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
         }
 
         trace_t trace;
-        if((int)target->v.flags & FL_MONSTER)
+        if(quake::util::hasFlag(target, FL_MONSTER))
         {
             // VR: This branch here is also a hack in the original source code,
             // taken only for projectiles.

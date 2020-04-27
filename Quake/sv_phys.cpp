@@ -260,6 +260,20 @@ int ClipVelocity(const glm::vec3& in, const glm::vec3& normal, glm::vec3& out,
     return blocked;
 }
 
+static void doFakeHandtouch(edict_t* player, edict_t* target)
+{
+    VR_SetFakeHandtouchParams(player, target);
+    SV_Impact(player, target, &entvars_t::handtouch);
+}
+
+static void doFakeHandtouchIfBodyInteractionsEnabled(
+    edict_t* player, edict_t* target)
+{
+    if(!vr_enabled.value || vr_body_interactions.value == 1)
+    {
+        doFakeHandtouch(player, target);
+    }
+}
 
 /*
 ============
@@ -331,7 +345,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
             blocked |= 1; // floor
             if(trace.ent->v.solid == SOLID_BSP)
             {
-                ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+                quake::util::addFlag(ent, FL_ONGROUND);
                 ent->v.groundentity = EDICT_TO_PROG(trace.ent);
             }
         }
@@ -352,11 +366,7 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
         // --------------------------------------------------------------------
         // VR: Simulate touching with right hand if body interactions are off.
-        if(!vr_enabled.value || vr_body_interactions.value == 1)
-        {
-            VR_SetFakeHandtouchParams(ent, trace.ent);
-            SV_Impact(ent, trace.ent, &entvars_t::handtouch);
-        }
+        doFakeHandtouchIfBodyInteractionsEnabled(ent, trace.ent);
         // --------------------------------------------------------------------
 
         if(ent->free)
@@ -476,12 +486,7 @@ static void SV_PushEntityImpact(edict_t* ent, const trace_t& trace)
     }
 
     SV_Impact(ent, trace.ent, &entvars_t::touch);
-
-    if(!vr_enabled.value || vr_body_interactions.value == 1)
-    {
-        VR_SetFakeHandtouchParams(ent, trace.ent);
-        SV_Impact(ent, trace.ent, &entvars_t::handtouch);
-    }
+    doFakeHandtouchIfBodyInteractionsEnabled(ent, trace.ent);
 }
 
 /*
@@ -522,6 +527,34 @@ trace_t SV_PushEntity(edict_t* ent, const glm::vec3& push)
     return trace;
 }
 
+[[nodiscard]] static bool checkGroundCollision(edict_t* ent,
+    trace_t& traceBuffer, glm::vec3& offsetBuffer, const glm::vec3& move,
+    const float xBias, const float yBias)
+{
+    const auto checkCorner = [&](const glm::vec3& pos) {
+        const glm::vec3 end = pos + move;
+
+        traceBuffer = SV_MoveTrace(pos, end, MOVE_NOMONSTERS, ent);
+
+        return quake::util::hitSomething(traceBuffer) &&
+               quake::util::traceHitGround(traceBuffer);
+    };
+
+    const glm::vec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
+
+    const auto left = ent->v.mins[0] + xBias;
+    const auto right = ent->v.maxs[0] - xBias;
+    const auto fwd = ent->v.mins[1] + yBias;
+    const auto back = ent->v.maxs[1] - yBias;
+
+    const auto testCorner = [&](const float x, const float y) {
+        offsetBuffer = glm::vec3{x, y, 0.f};
+        return checkCorner(bottomOrigin + offsetBuffer);
+    };
+
+    return testCorner(left, fwd) || testCorner(left, back) ||
+           testCorner(right, fwd) || testCorner(right, back);
+}
 
 /*
 ============
@@ -530,12 +563,7 @@ SV_PushMove
 */
 void SV_PushMove(edict_t* pusher, float movetime)
 {
-    // TODO VR: (P0) opening rotating door in SoA start carries player around
-
     // TODO VR: (P0) cant see dropped weapons underwater (graphic bug)
-
-    // TODO VR: (P0) floating weapons stay in the air after hitting something -
-    // this might be fixed, test again
 
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
@@ -579,9 +607,9 @@ void SV_PushMove(edict_t* pusher, float movetime)
             continue;
         }
 
-        // if the entity is standing on the pusher, it will definately be moved
-        if(!(((int)check->v.flags & FL_ONGROUND) &&
-               PROG_TO_EDICT(check->v.groundentity) == pusher))
+        // if the entity is standing on the pusher, it will definitely be moved
+        if(!quake::util::hasFlag(check, FL_ONGROUND) ||
+            PROG_TO_EDICT(check->v.groundentity) != pusher)
         {
             if(!quake::util::boxIntersection(check->v.absmin, check->v.absmax,
                    pusherNewMins, pusherNewMaxs))
@@ -590,9 +618,21 @@ void SV_PushMove(edict_t* pusher, float movetime)
             }
 
             // see if the ent's bbox is inside the pusher's final position
-            if(!SV_TestEntityPositionCustomOrigin(check, check->v.origin) &&
-                !SV_TestEntityPositionCustomOrigin(
-                    check, check->v.origin + check->v.mins))
+
+            const glm::vec3 minBottom{0.f, 0.f, -1.f};
+
+            const bool checkIntoSolid =
+                SV_TestEntityPositionCustomOrigin(check, check->v.origin);
+
+            trace_t traceBuffer;
+            glm::vec3 offsetBuffer;
+
+            const bool checkOnTopOfPusher =
+                checkGroundCollision(
+                    check, traceBuffer, offsetBuffer, minBottom, 0.f, 0.f) &&
+                traceBuffer.ent == pusher;
+
+            if(!checkIntoSolid && !checkOnTopOfPusher)
             {
                 continue;
             }
@@ -601,7 +641,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
         // remove the onground flag for non-players
         if(check->v.movetype != MOVETYPE_WALK)
         {
-            check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
+            quake::util::removeFlag(check, FL_ONGROUND);
         }
 
         const glm::vec3 entorig = check->v.origin;
@@ -616,7 +656,7 @@ void SV_PushMove(edict_t* pusher, float movetime)
 
         if(move[2] > 0)
         {
-            check->v.flags = (int)check->v.flags | FL_ONGROUND;
+            quake::util::addFlag(check, FL_ONGROUND);
             check->v.groundentity = EDICT_TO_PROG(pusher);
         }
 
@@ -943,11 +983,11 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
     //
     // do a regular slide move unless it looks like you ran into a step
     //
-    const int oldonground = (int)ent->v.flags & FL_ONGROUND;
+    const int oldonground = quake::util::hasFlag(ent, FL_ONGROUND);
 
     if(resetOnGround)
     {
-        ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+        quake::util::removeFlag(ent, FL_ONGROUND);
     }
 
     const glm::vec3 oldorg = ent->v.origin;
@@ -976,7 +1016,7 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
         return;
     }
 
-    if((int)sv_player->v.flags & FL_WATERJUMP)
+    if(quake::util::hasFlag(sv_player, FL_WATERJUMP))
     {
         return;
     }
@@ -1028,7 +1068,7 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
     {
         if(ent->v.solid == SOLID_BSP)
         {
-            ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+            quake::util::addFlag(ent, FL_ONGROUND);
             ent->v.groundentity = EDICT_TO_PROG(downtrace.ent);
         }
     }
@@ -1097,9 +1137,10 @@ void SV_Handtouch(edict_t* ent)
 
         const auto handCollisionCheck = [&](const int hand,
                                             const glm::vec3& handPos) {
-            const float bonus = ((int)trace.ent->v.flags & FL_EASYHANDTOUCH)
-                                    ? VR_GetEasyHandTouchBonus()
-                                    : 0.f;
+            const float bonus =
+                (quake::util::hasFlag(trace.ent, FL_EASYHANDTOUCH))
+                    ? VR_GetEasyHandTouchBonus()
+                    : 0.f;
 
             const glm::vec3 bonusVec{bonus, bonus, bonus};
 
@@ -1150,6 +1191,33 @@ void SV_Handtouch(edict_t* ent)
     traceCheck(traceForHand(ent->v.offhandpos, ent->v.offhandrot));
 }
 
+void SV_VRWpntouch(edict_t* ent)
+{
+// TODO VR: (P2) code repetition with vr.cpp setHandPos
+
+    const auto doHand = [&](const int handIndex) {
+        const auto& playerOrigin = ent->v.origin;
+
+        const auto worldHandPos = VR_GetWorldHandPos(handIndex, playerOrigin);
+        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(playerOrigin);
+
+        const auto resolvedHandPos =
+            VR_GetResolvedHandPos(worldHandPos, adjPlayerOrigin);
+
+        VrGunWallCollision collisionData;
+        VR_UpdateGunWallCollisions(handIndex, collisionData, resolvedHandPos);
+
+        if(collisionData._ent != nullptr && collisionData._ent->v.vr_wpntouch)
+        {
+            VR_SetHandtouchParams(handIndex, ent, collisionData._ent);
+            SV_Impact(ent, collisionData._ent, &entvars_t::vr_wpntouch);
+        }
+    };
+
+    doHand(cVR_MainHand);
+    doHand(cVR_OffHand);
+}
+
 
 
 /*
@@ -1182,6 +1250,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     // VR hands
     //
     SV_Handtouch(ent);
+    SV_VRWpntouch(ent);
 
     //
     // decide which move function to call
@@ -1218,7 +1287,8 @@ void SV_Physics_Client(edict_t* ent, int num)
                     return;
                 }
 
-                if(!SV_CheckWater(ent) && !((int)ent->v.flags & FL_WATERJUMP))
+                if(!SV_CheckWater(ent) &&
+                    !(quake::util::hasFlag(ent, FL_WATERJUMP)))
                 {
                     SV_AddGravity(ent);
                 }
@@ -1428,34 +1498,6 @@ void SV_Physics_Toss(edict_t* ent)
         return;
     }
 
-    const auto checkGroundCollision = [&](trace_t& traceBuffer,
-                                          glm::vec3& offsetBuffer,
-                                          const glm::vec3& move) {
-        const auto checkCorner = [&](const glm::vec3& pos) {
-            const glm::vec3 end = pos + move;
-
-            traceBuffer = SV_MoveTrace(pos, end, MOVE_NOMONSTERS, ent);
-
-            return quake::util::hitSomething(traceBuffer) &&
-                   quake::util::traceHitGround(traceBuffer);
-        };
-
-        const glm::vec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
-
-        const auto left = ent->v.mins[0];
-        const auto right = ent->v.maxs[0];
-        const auto fwd = ent->v.mins[1];
-        const auto back = ent->v.maxs[1];
-
-        const auto testCorner = [&](const float x, const float y) {
-            offsetBuffer = glm::vec3{x, y, 0.f};
-            return checkCorner(bottomOrigin + offsetBuffer);
-        };
-
-        return testCorner(left, fwd) || testCorner(left, back) ||
-               testCorner(right, fwd) || testCorner(right, fwd);
-    };
-
     // update "on ground" status, stop/bounce if on ground
     {
         auto vel = ent->v.velocity;
@@ -1471,12 +1513,13 @@ void SV_Physics_Toss(edict_t* ent)
         trace_t traceBuffer;
         glm::vec3 offsetBuffer;
 
-        if(!checkGroundCollision(traceBuffer, offsetBuffer, move))
+        if(!checkGroundCollision(
+               ent, traceBuffer, offsetBuffer, move, 0.f, 0.f))
         {
-            if((int)ent->v.flags & FL_ONGROUND)
+            if(quake::util::hasFlag(ent, FL_ONGROUND))
             {
                 // remove on ground, if entity is not on ground anymore
-                ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+                quake::util::removeFlag(ent, FL_ONGROUND);
             }
         }
         else
@@ -1489,9 +1532,9 @@ void SV_Physics_Toss(edict_t* ent)
 
             if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
             {
-                if(!((int)ent->v.flags & FL_ONGROUND))
+                if(!(quake::util::hasFlag(ent, FL_ONGROUND)))
                 {
-                    ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+                    quake::util::addFlag(ent, FL_ONGROUND);
 
                     ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
                     ent->v.velocity = ent->v.avelocity = vec3_zero;
@@ -1559,7 +1602,7 @@ void SV_Physics_Step(edict_t* ent)
     bool hitsound;
 
     // freefall if not onground
-    if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+    if(!quake::util::hasAnyFlag(ent, FL_ONGROUND, FL_FLY, FL_SWIM))
     {
         if(ent->v.velocity[2] < sv_gravity.value * -0.1)
         {
@@ -1575,7 +1618,7 @@ void SV_Physics_Step(edict_t* ent)
         SV_FlyMove(ent, host_frametime, nullptr);
         SV_LinkEdict(ent, true);
 
-        if((int)ent->v.flags & FL_ONGROUND) // just hit ground
+        if(quake::util::hasFlag(ent, FL_ONGROUND)) // just hit ground
         {
             if(hitsound)
             {

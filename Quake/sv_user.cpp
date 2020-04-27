@@ -74,7 +74,7 @@ void SV_SetIdealPitch()
 
     int steps;
 
-    if(!((int)sv_player->v.flags & FL_ONGROUND))
+    if(!quake::util::hasFlag(sv_player, FL_ONGROUND))
     {
         return;
     }
@@ -370,7 +370,7 @@ void SV_WaterJump()
 {
     if(sv.time > sv_player->v.teleport_time || !sv_player->v.waterlevel)
     {
-        sv_player->v.flags = (int)sv_player->v.flags & ~FL_WATERJUMP;
+        quake::util::removeFlag(sv_player, FL_WATERJUMP);
         sv_player->v.teleport_time = 0;
     }
 
@@ -472,7 +472,7 @@ void SV_ClientThink()
         return;
     }
 
-    onground = (int)sv_player->v.flags & FL_ONGROUND;
+    onground = quake::util::hasFlag(sv_player, FL_ONGROUND);
 
     origin = &sv_player->v.origin;
     velocity = &sv_player->v.velocity;
@@ -502,7 +502,7 @@ void SV_ClientThink()
         sv_player->v.angles[YAW] = v_angle[YAW];
     }
 
-    if((int)sv_player->v.flags & FL_WATERJUMP)
+    if(quake::util::hasFlag(sv_player, FL_WATERJUMP))
     {
         SV_WaterJump();
         return;

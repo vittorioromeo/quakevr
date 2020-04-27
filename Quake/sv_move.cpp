@@ -137,7 +137,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     glm::vec3 neworg = ent->v.origin + move;
 
     // flying monsters don't step up
-    if((int)ent->v.flags & (FL_SWIM | FL_FLY))
+    if(quake::util::hasAnyFlag(ent, FL_SWIM, FL_FLY))
     {
         // try one move with vertical motion, then one without
         for(int i = 0; i < 2; i++)
@@ -165,7 +165,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 
             if(trace.fraction == 1)
             {
-                if(((int)ent->v.flags & FL_SWIM) &&
+                if((quake::util::hasFlag(ent, FL_SWIM)) &&
                     SV_PointContents(trace.endpos) == CONTENTS_EMPTY)
                 {
                     return false; // swim monster left water
@@ -214,14 +214,14 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     if(trace.fraction == 1)
     {
         // if monster had the ground pulled out, go ahead and fall
-        if((int)ent->v.flags & FL_PARTIALGROUND)
+        if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
         {
             ent->v.origin += move;
             if(relink)
             {
                 SV_LinkEdict(ent, true);
             }
-            ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+            quake::util::removeFlag(ent, FL_ONGROUND);
             //	Con_Printf ("fall down\n");
             return true;
         }
@@ -234,7 +234,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 
     if(!SV_CheckBottom(ent))
     {
-        if((int)ent->v.flags & FL_PARTIALGROUND)
+        if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
         {
             // entity had floor mostly pulled out from underneath it
             // and is trying to correct
@@ -248,10 +248,10 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
         return false;
     }
 
-    if((int)ent->v.flags & FL_PARTIALGROUND)
+    if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
     {
         //		Con_Printf ("back on ground\n");
-        ent->v.flags = (int)ent->v.flags & ~FL_PARTIALGROUND;
+        quake::util::removeFlag(ent, FL_PARTIALGROUND);
     }
 
     ent->v.groundentity = EDICT_TO_PROG(trace.ent);
@@ -320,7 +320,7 @@ void SV_FixCheckBottom(edict_t* ent)
 {
     //	Con_Printf ("SV_FixCheckBottom\n");
 
-    ent->v.flags = (int)ent->v.flags | FL_PARTIALGROUND;
+    quake::util::addFlag(ent, FL_PARTIALGROUND);
 }
 
 
@@ -495,7 +495,7 @@ void SV_MoveToGoal()
     edict_t* goal = PROG_TO_EDICT(ent->v.goalentity);
     float dist = G_FLOAT(OFS_PARM0);
 
-    if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+    if(!quake::util::hasAnyFlag(ent, FL_ONGROUND, FL_FLY, FL_SWIM))
     {
         G_FLOAT(OFS_RETURN) = 0;
         return;

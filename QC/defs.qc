@@ -143,6 +143,7 @@ void        end_sys_globals;        // flag for structure dumping
 
 .void()        touch;
 .void()        handtouch;        // touched by VR hand
+.void()        vr_wpntouch;      // touched by VR weapon
 .void()        use;
 .void()        think;
 .void()        think2;
@@ -309,6 +310,7 @@ void        end_sys_fields;            // flag for structure dumping
 
 float OFF_HAND = 0;
 float MAIN_HAND = 1;
+float FAKE_HAND = 2;
 
 float    FALSE                    = 0;
 float     TRUE                    = 1;

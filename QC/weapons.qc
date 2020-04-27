@@ -2877,6 +2877,12 @@ void() W_WeaponFrame =
 
     FrameDrawLightningTrail(MAIN_HAND, self.button0);
 
+    if (time < readytime)
+    {
+        // Do not do anything if the player is not "ready" yet, after spawning.
+        return;
+    }
+
     if (time < self.attack_finished)
     {
         return;
@@ -2902,6 +2908,12 @@ void() W_OffHandWeaponFrame =
     local vector org;
 
     FrameDrawLightningTrail(OFF_HAND, self.button3);
+
+    if (time < readytime)
+    {
+        // Do not do anything if the player is not "ready" yet, after spawning.
+        return;
+    }
 
     if (time < self.offhand_attack_finished)
     {
@@ -3186,14 +3198,22 @@ void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
 
 void(entity ent) wpnthrow_handtouch_ent =
 {
-    if(ent.handtouch_hand == OFF_HAND &&
+    if(VRHandtouchHandIsBody(ent))
+    {
+        // Happens with VR Body Interactions enabled.
+
+        // TODO VR: (P2) cvar to choose what happens?
+        return;
+    }
+
+    if(VRHandtouchHand(ent) == OFF_HAND &&
        (VREntStartedHandGrabbing(ent.handtouch_ent, OFF_HAND)
         || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
        VRIsHandEmpty(ent.handtouch_ent, OFF_HAND))
     {
         wpnthrow_handtouch_impl(ent, ent.handtouch_ent, &ent.handtouch_ent.weapon2);
     }
-    else if(ent.handtouch_hand == MAIN_HAND &&
+    else if(VRHandtouchHand(ent) == MAIN_HAND &&
             (VREntStartedHandGrabbing(ent.handtouch_ent, MAIN_HAND)
              || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
             VRIsHandEmpty(ent.handtouch_ent, MAIN_HAND))
@@ -3421,6 +3441,36 @@ float() getWeaponThrowMode =
     return cvar("vr_weapon_throw_mode");
 }
 
+void(entity ent, float xHand, float xWeapon) DropWeaponInHand =
+{
+    if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
+    {
+        CreateThrownWeapon(ent, xWeapon,
+            VRGetHandPos(xHand), VRGetHandRot(xHand),
+            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            FALSE /* disappear on hit */,
+            TRUE  /* deal damage */,
+            WeaponIdToThrowDamage(xWeapon));
+    }
+    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
+    {
+        CreateThrownWeapon(ent, xWeapon,
+            VRGetHandPos(xHand), VRGetHandRot(xHand),
+            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            TRUE /* disappear on hit */,
+            TRUE /* deal damage */,
+            WeaponIdToThrowDamage(xWeapon));
+    }
+    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
+    {
+        // Intentionally left empty.
+    }
+
+    sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+    VRSetHandEmpty(ent, xHand);
+    W_SetCurrentAmmoFor(xHand);
+}
+
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xAttackFinished, float xHotspot,
@@ -3461,32 +3511,7 @@ void(entity ent, float xHand,
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
-            if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
-            {
-                CreateThrownWeapon(ent, xWeapon,
-                    VRGetHandPos(xHand), VRGetHandRot(xHand),
-                    VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
-                    FALSE /* disappear on hit */,
-                    TRUE  /* deal damage */,
-                    WeaponIdToThrowDamage(xWeapon));
-            }
-            else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
-            {
-                CreateThrownWeapon(ent, xWeapon,
-                    VRGetHandPos(xHand), VRGetHandRot(xHand),
-                    VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
-                    TRUE /* disappear on hit */,
-                    TRUE /* deal damage */,
-                    WeaponIdToThrowDamage(xWeapon));
-            }
-            else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
-            {
-                // Intentionally left empty.
-            }
-
-            sound (ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
-            VRSetHandEmpty(ent, xHand);
-            W_SetCurrentAmmoFor(xHand);
+            DropWeaponInHand(ent, xHand, xWeapon);
         }
         // Put a weapon in a holster.
         else if(isHolsterHotspot(xHotspot))

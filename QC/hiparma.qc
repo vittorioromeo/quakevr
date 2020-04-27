@@ -870,7 +870,7 @@ float()  ArmagonCheckAttack =
 
 /*QUAKED monster_armagon (1 0 0) (-32 -32 -24) (32 32 64) Ambush
 */
-void() monster_armagon =
+void() monster_armagon
 {
    local entity body;
    local float sk;

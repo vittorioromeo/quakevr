@@ -248,6 +248,79 @@ namespace quake::util
         glGetIntegerv(GL_MAX_SAMPLES, &res);
         return res;
     }
+
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasFlag(
+        const float flags, const int x) noexcept
+    {
+        return static_cast<int>(flags) & x;
+    }
+
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasFlag(
+        const edict_t* edict, const int x) noexcept
+    {
+        return hasFlag(edict->v.flags, x);
+    }
+
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE int removeFlag(
+        const float flags, const int x) noexcept
+    {
+        return static_cast<int>(flags) & ~x;
+    }
+
+    constexpr QUAKE_FORCEINLINE void removeFlag(
+        edict_t* edict, const int x) noexcept
+    {
+        edict->v.flags = removeFlag(edict->v.flags, x);
+    }
+
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE int addFlag(
+        const float flags, const int x) noexcept
+    {
+        return static_cast<int>(flags) | x;
+    }
+
+    constexpr QUAKE_FORCEINLINE void addFlag(
+        edict_t* edict, const int x) noexcept
+    {
+        edict->v.flags = addFlag(edict->v.flags, x);
+    }
+
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE int toggleFlag(
+        const float flags, const int x) noexcept
+    {
+        return static_cast<int>(flags) ^ x;
+    }
+
+    constexpr QUAKE_FORCEINLINE void toggleFlag(
+        edict_t* edict, const int x) noexcept
+    {
+        edict->v.flags = toggleFlag(edict->v.flags, x);
+    }
+
+    template <typename... TFlags>
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasAnyFlag(
+        const float flags, const TFlags... xs) noexcept
+    {
+        return static_cast<int>(flags) & (xs | ...);
+    }
+
+    template <typename... TFlags>
+    [[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasAnyFlag(
+        edict_t* edict, const TFlags... xs) noexcept
+    {
+        return hasAnyFlag(edict->v.flags, xs...);
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE bool canBeTouched(const edict_t* edict)
+    {
+        return (edict->v.touch || edict->v.handtouch) &&
+               edict->v.solid != SOLID_NOT;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE bool canBeHandTouched(const edict_t* edict)
+    {
+        return edict->v.handtouch && edict->v.solid != SOLID_NOT;
+    }
 } // namespace quake::util
 
 namespace std

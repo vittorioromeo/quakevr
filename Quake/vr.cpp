@@ -145,12 +145,6 @@ bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
 bool vr_right_prevgrabbing{false};
 
-struct VrGunWallCollision
-{
-    bool _colliding{false};
-    bool _normals[3]{};
-};
-
 VrGunWallCollision vr_gun_wall_collision[2];
 
 float vr_2h_aim_transition[2]{0.f, 0.f};
@@ -189,7 +183,7 @@ float vr_debug_max_handvelmag_timeout{0.f};
 //
 //
 // ----------------------------------------------------------------------------
-// VR CVar ition and Registration
+// VR CVar Initialization and Registration
 // ----------------------------------------------------------------------------
 
 static std::vector<cvar_t*> cvarsToRegister;
@@ -704,14 +698,13 @@ void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target)
 {
     player->v.touchinghand = hand;
-    target->v.touchinghand = hand;
     target->v.handtouch_hand = hand;
     target->v.handtouch_ent = EDICT_TO_PROG(player);
 }
 
 void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target)
 {
-    VR_SetHandtouchParams(1, player, target);
+    VR_SetHandtouchParams(2, player, target);
 }
 
 [[nodiscard]] int VR_GetWpnCVarFromModelName(const char* name)
@@ -1483,17 +1476,17 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 }
 
 // Get a reasonable height around where hands should be when aiming a gun.
-[[nodiscard]] float VR_GetHandZOrigin(entity_t* player) noexcept
+[[nodiscard]] float VR_GetHandZOrigin(const glm::vec3& playerOrigin) noexcept
 {
-    return player->origin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
+    return playerOrigin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
 }
 
 // Get the player origin vector, but adjusted to the upper torso on the Z axis.
-[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(entity_t* player) noexcept
+[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(
+    glm::vec3 playerOrigin) noexcept
 {
-    glm::vec3 res = player->origin;
-    res[2] = VR_GetHandZOrigin(player) + 40;
-    return res;
+    playerOrigin[2] = VR_GetHandZOrigin(playerOrigin) + 40;
+    return playerOrigin;
 }
 
 [[nodiscard]] static float VR_GetWeaponWeightFactorImpl(const int cvarEntry,
@@ -1589,6 +1582,105 @@ void debugPrintHandvel(const int index, const float linearity)
     }
 }
 
+glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
+    VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept
+{
+    constexpr glm::vec3 handMins{-1.f, -1.f, -1.f};
+    constexpr glm::vec3 handMaxs{1.f, 1.f, 1.f};
+
+    // Local position of the gun's muzzle. Takes orientation into
+    // account.
+    const auto localMuzzlePos =
+        VR_CalcWeaponMuzzlePosImpl(handIndex, VR_GetWpnCvarEntry(handIndex));
+
+    // World position of the gun's muzzle.
+    const auto muzzlePos = resolvedHandPos + localMuzzlePos;
+
+    // Check for collisions between the muzzle and geometry/entities.
+    const trace_t gunTrace = SV_Move(
+        resolvedHandPos, handMins, handMaxs, muzzlePos, MOVE_NORMAL, sv_player);
+
+    // Position of the hand after resolving collisions with the gun
+    // muzzle.
+    const auto resolvedHandMuzzlePos = gunTrace.endpos - localMuzzlePos;
+
+    if(hitSomething(gunTrace))
+    {
+        // TODO VR: (P2) haptics cancel each other
+        // VR_DoHaptic(index, 0.f, 0.1f, 50, 1.f - gunTrace.fraction);
+
+        out._colliding = true;
+        out._ent = gunTrace.ent;
+
+        for(int i = 0; i < 3; ++i)
+        {
+            out._normals[i] = gunTrace.plane.normal[i] != 0;
+            resolvedHandPos[i] = resolvedHandMuzzlePos[i];
+        }
+    }
+    else
+    {
+        out._colliding = false;
+        out._ent = nullptr;
+    }
+
+    return resolvedHandPos;
+}
+
+[[nodiscard]] glm::vec3 VR_GetWorldHandPos(
+    const int handIndex, const glm::vec3& playerOrigin) noexcept
+{
+    // Position of the hand relative to the head.
+    const auto headLocalPreRot = controllers[handIndex].position - headOrigin;
+    const auto headLocal =
+        Vec3RotateZ(headLocalPreRot, VR_GetTurnYawAngle() * M_PI_DIV_180) +
+        headOrigin;
+
+    // Position of the hand in the game world, prior to any collision
+    // detection or resolution.
+    const glm::vec3 worldHandPos{
+        -headLocal[0] + playerOrigin[0],               //
+        -headLocal[1] + playerOrigin[1],               //
+        headLocal[2] + VR_GetHandZOrigin(playerOrigin) //
+    };
+
+    return worldHandPos;
+}
+
+[[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
+    const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept
+{
+    // Size of hand hitboxes.
+    constexpr glm::vec3 mins{-1.f, -1.f, -1.f};
+    constexpr glm::vec3 maxs{1.f, 1.f, 1.f};
+
+    // Trace from upper torso to desired final location. `SV_Move` detects
+    // entities as well, not just geometry.
+    const trace_t trace = SV_Move(
+        adjPlayerOrigin, mins, maxs, worldHandPos, MOVE_NORMAL, sv_player);
+
+    // Compute final collision resolution position, starting from the
+    // desired position and resolving only against the collision plane's
+    // normal vector.
+    if(!hitSomething(trace))
+    {
+        return worldHandPos;
+    }
+
+    // Resolve collision along trace normals.
+    glm::vec3 res = worldHandPos;
+
+    for(int i = 0; i < 3; ++i)
+    {
+        if(trace.plane.normal[i] != 0)
+        {
+            res[i] = trace.endpos[i];
+        }
+    }
+
+    return res;
+}
+
 void SetHandPos(int index, entity_t* player)
 {
     if(!svPlayerActive())
@@ -1599,29 +1691,14 @@ void SetHandPos(int index, entity_t* player)
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
 
-    // Position of the hand relative to the head.
-    const auto headLocalPreRot = controllers[index].position - headOrigin;
-    const auto headLocal =
-        Vec3RotateZ(headLocalPreRot, VR_GetTurnYawAngle() * M_PI_DIV_180) +
-        headOrigin;
-
-    // Position of the hand in the game world, prior to any collision
-    // detection or resolution.
-    const glm::vec3 worldHandPos{
-        -headLocal[0] + player->origin[0],       //
-        -headLocal[1] + player->origin[1],       //
-        headLocal[2] + VR_GetHandZOrigin(player) //
-    };
+    const auto worldHandPos = VR_GetWorldHandPos(index, player->origin);
 
     // -----------------------------------------------------------------------
     // VR: Detect & resolve hand collisions against the world or entities.
 
     // Start around the upper torso, not actual center of the player.
-    const glm::vec3 adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
-
-    // Size of hand hitboxes.
-    constexpr glm::vec3 mins{-1.f, -1.f, -1.f};
-    constexpr glm::vec3 maxs{1.f, 1.f, 1.f};
+    const glm::vec3 adjPlayerOrigin =
+        VR_GetAdjustedPlayerOrigin(player->origin);
 
     // TODO VR: (P2) cvar to enable/disable muzzle collisions
     glm::vec3 finalVec = worldHandPos;
@@ -1630,68 +1707,13 @@ void SetHandPos(int index, entity_t* player)
     // const float gunLength = index == 0 ? 0.f :
     // VR_GetWpnLength(VR_GetMainHandWpnCvarEntry());
 
-    // Trace from upper torso to desired final location. `SV_Move` detects
-    // entities as well, not just geometry.
-    const trace_t trace = SV_Move(
-        adjPlayerOrigin, mins, maxs, worldHandPos, MOVE_NORMAL, sv_player);
-
-    // Compute final collision resolution position, starting from the
-    // desired position and resolving only against the collision plane's
-    // normal vector.
-    const auto resolvedHandPos = [&] {
-        if(!hitSomething(trace))
-        {
-            return worldHandPos;
-        }
-
-        // Resolve collision along trace normals.
-        glm::vec3 res = worldHandPos;
-
-        for(int i = 0; i < 3; ++i)
-        {
-            if(trace.plane.normal[i] != 0)
-            {
-                res[i] = trace.endpos[i];
-            }
-        }
-
-        return res;
-    }();
+    const auto resolvedHandPos =
+        VR_GetResolvedHandPos(worldHandPos, adjPlayerOrigin);
 
     finalVec = resolvedHandPos;
 
-    // Local position of the gun's muzzle. Takes orientation into account.
-    const auto localMuzzlePos =
-        VR_CalcWeaponMuzzlePosImpl(index, VR_GetWpnCvarEntry(index));
-
-    // World position of the gun's muzzle.
-    const auto muzzlePos = resolvedHandPos + localMuzzlePos;
-
-    // Check for collisions between the muzzle and geometry/entities.
-    const trace_t gunTrace =
-        SV_Move(resolvedHandPos, mins, maxs, muzzlePos, MOVE_NORMAL, sv_player);
-
-    // Position of the hand after resolving collisions with the gun muzzle.
-    const auto resolvedHandMuzzlePos = gunTrace.endpos - localMuzzlePos;
-
-    if(hitSomething(gunTrace))
-    {
-        // TODO VR: (P2) haptics cancel each other
-        // VR_DoHaptic(index, 0.f, 0.1f, 50, 1.f - gunTrace.fraction);
-
-        vr_gun_wall_collision[index]._colliding = true;
-        for(int i = 0; i < 3; ++i)
-        {
-            vr_gun_wall_collision[index]._normals[i] =
-                gunTrace.plane.normal[i] != 0;
-
-            finalVec[i] = resolvedHandMuzzlePos[i];
-        }
-    }
-    else
-    {
-        vr_gun_wall_collision[index]._colliding = false;
-    }
+    finalVec = VR_UpdateGunWallCollisions(
+        index, vr_gun_wall_collision[index], finalVec);
 
     const auto oldHandpos = cl.handpos[index];
 
@@ -2353,7 +2375,7 @@ static void VR_DoTeleportation()
         const auto target =
             cl.handpos[cVR_OffHand] + vr_teleport_range.value * fwd;
 
-        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player);
+        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
 
         const trace_t trace = SV_Move(
             adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, sv_player);
@@ -4706,14 +4728,8 @@ void VR_Move(usercmd_t* cmd)
     }
 }
 
-// TODO VR: (P0) armagon boss bugged
-
-// TODO VR: (P0) test continuous holsters, seem to be bugged
-
 // TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
-
-// TODO VR: (P0) investigate interactions between "vr body interactions" and
-// thrown weapons
+// (seems better now, but test more)
 
 // TODO VR: (P1) consider toning animation down while aiming 2h, might
 // need a new weapon cvar and significant work
@@ -4724,19 +4740,7 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) add tooltip to off-hand option menu in wpn config
 
-// TODO VR: (P1) add option to press buttons with weapons, not just hands
-
-// TODO VR: (P1) clicking shoot to trigger new level during intermission fires a
-// shot in next level. maybe use the readytime here?
-
-// TODO VR: (P1) walking into doors drags player along with the door, same bug
-// as door in SoA start
-
 // TODO VR: (P1) remove/fix prevweapon binding, and off-hand cycle binding
-
-// TODO VR: (P1) "Picking up a weapon whilst gripping a weapon overwrites the
-// weapon gripped in the main hand", with "VR Body Interaction ON, and Quick
-// Slot + Cycle mode"
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
@@ -4762,3 +4766,5 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P2) add option to disable ogre mirvs?
 
 // TODO VR: (P2) add option to pause game on SteamVR dash open
+
+// TODO VR: (P2) immersive swimming

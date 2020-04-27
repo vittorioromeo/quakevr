@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -1137,7 +1138,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     bits |= SU_ITEMS;
 
-    if((int)ent->v.flags & FL_ONGROUND)
+    if(quake::util::hasFlag(ent, FL_ONGROUND))
     {
         bits |= SU_ONGROUND;
     }

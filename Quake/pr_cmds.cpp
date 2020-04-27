@@ -965,7 +965,7 @@ static int PF_newcheckclient(int check)
         {
             continue;
         }
-        if((int)ent->v.flags & FL_NOTARGET)
+        if(quake::util::hasFlag(ent, FL_NOTARGET))
         {
             continue;
         }
@@ -1393,7 +1393,7 @@ static void PF_walkmove()
     yaw = G_FLOAT(OFS_PARM0);
     dist = G_FLOAT(OFS_PARM1);
 
-    if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+    if(!quake::util::hasAnyFlag(ent, FL_ONGROUND, FL_FLY, FL_SWIM))
     {
         G_FLOAT(OFS_RETURN) = 0;
         return;
@@ -1442,7 +1442,7 @@ static void PF_droptofloor()
     {
         ent->v.origin = trace.endpos;
         SV_LinkEdict(ent, false);
-        ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+        quake::util::addFlag(ent, FL_ONGROUND);
         ent->v.groundentity = EDICT_TO_PROG(trace.ent);
         G_FLOAT(OFS_RETURN) = 1;
     }

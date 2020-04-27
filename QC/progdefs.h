@@ -94,6 +94,7 @@ typedef struct entvars_s
 	vec3_t	size;
 	func_t	touch;
 	func_t	handtouch;
+	func_t	vr_wpntouch;
 	func_t	use;
 	func_t	think;
 	func_t	think2;
@@ -205,4 +206,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 24374
+#define PROGHEADER_CRC 53975

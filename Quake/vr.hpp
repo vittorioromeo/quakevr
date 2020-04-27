@@ -11,6 +11,7 @@
 
 inline constexpr int cVR_OffHand = 0;
 inline constexpr int cVR_MainHand = 1;
+inline constexpr int cVR_FakeHand = 2;
 
 //
 //
@@ -228,6 +229,25 @@ void VR_CalibrateHeight();
 void VR_ModVRTorsoModel();
 void VR_ModVRLegHolsterModel();
 void VR_ModAllModels();
+
+struct VrGunWallCollision
+{
+    bool _colliding{false};
+    bool _normals[3]{};
+    edict_t* _ent{nullptr};
+};
+
+[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(
+    glm::vec3 playerOrigin) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetWorldHandPos(
+    const int handIndex, const glm::vec3& playerOrigin) noexcept;
+
+[[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
+    const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept;
+
+glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
+    VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept;
 
 // TODO VR: (P2) move
 

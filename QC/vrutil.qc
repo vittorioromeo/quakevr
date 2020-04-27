@@ -189,3 +189,33 @@ float(float xHand) VRStoppedHandGrabbing =
 {
     return VREntStoppedHandGrabbing(self, xHand);
 }
+
+float(entity entPlayer) VRTouchingHandIsBody =
+{
+    return entPlayer.touchinghand == FAKE_HAND;
+}
+
+float(entity entPlayer) VRTouchingHand =
+{
+    if(VRTouchingHandIsBody(entPlayer))
+    {
+        return MAIN_HAND;
+    }
+
+    return entPlayer.touchinghand;
+}
+
+float(entity entTarget) VRHandtouchHandIsBody =
+{
+    return entTarget.handtouch_hand == FAKE_HAND;
+}
+
+float(entity entTarget) VRHandtouchHand =
+{
+    if(VRHandtouchHandIsBody(entTarget))
+    {
+        return MAIN_HAND;
+    }
+
+    return entTarget.handtouch_hand;
+}

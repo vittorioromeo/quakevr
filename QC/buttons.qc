@@ -1,16 +1,15 @@
 // button and multiple button
 
-void(entity e) VRButtonPressHaptic =
+void(entity entPlayer) VRButtonPressHaptic =
 {
-    if (cvar("vr_body_interactions") == 0)
-    {
-        haptic(e.touchinghand, 0.0, 0.3, 75, 1.0);
-    }
-    else
+    if(VRTouchingHandIsBody(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);
         haptic(1, 0.0, 0.3, 75, 1.0);
+        return;
     }
+
+    haptic(VRTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
 }
 
 void() button_wait;
@@ -168,6 +167,7 @@ void() func_button =
         }
 
         self.handtouch = button_touch;
+        self.vr_wpntouch = button_touch;
     }
 
     if (!self.speed)

@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <dirent.h>
 #endif
 #include "vr.hpp"
+#include "util.hpp"
 
 extern cvar_t pausable;
 
@@ -547,8 +548,8 @@ void Host_God_f()
     switch(Cmd_Argc())
     {
         case 1:
-            sv_player->v.flags = (int)sv_player->v.flags ^ FL_GODMODE;
-            if(!((int)sv_player->v.flags & FL_GODMODE))
+            quake::util::toggleFlag(sv_player, FL_GODMODE);
+            if(!(quake::util::hasFlag(sv_player, FL_GODMODE)))
             {
                 SV_ClientPrintf("godmode OFF\n");
             }
@@ -560,12 +561,12 @@ void Host_God_f()
         case 2:
             if(Q_atof(Cmd_Argv(1)))
             {
-                sv_player->v.flags = (int)sv_player->v.flags | FL_GODMODE;
+                quake::util::addFlag(sv_player, FL_GODMODE);
                 SV_ClientPrintf("godmode ON\n");
             }
             else
             {
-                sv_player->v.flags = (int)sv_player->v.flags & ~FL_GODMODE;
+                quake::util::removeFlag(sv_player, FL_GODMODE);
                 SV_ClientPrintf("godmode OFF\n");
             }
             break;
@@ -599,8 +600,8 @@ void Host_Notarget_f()
     switch(Cmd_Argc())
     {
         case 1:
-            sv_player->v.flags = (int)sv_player->v.flags ^ FL_NOTARGET;
-            if(!((int)sv_player->v.flags & FL_NOTARGET))
+            quake::util::toggleFlag(sv_player, FL_NOTARGET);
+            if(!(quake::util::hasFlag(sv_player, FL_NOTARGET)))
             {
                 SV_ClientPrintf("notarget OFF\n");
             }
@@ -612,12 +613,12 @@ void Host_Notarget_f()
         case 2:
             if(Q_atof(Cmd_Argv(1)))
             {
-                sv_player->v.flags = (int)sv_player->v.flags | FL_NOTARGET;
+                quake::util::addFlag(sv_player, FL_NOTARGET);
                 SV_ClientPrintf("notarget ON\n");
             }
             else
             {
-                sv_player->v.flags = (int)sv_player->v.flags & ~FL_NOTARGET;
+                quake::util::removeFlag(sv_player, FL_NOTARGET);
                 SV_ClientPrintf("notarget OFF\n");
             }
             break;

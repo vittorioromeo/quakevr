@@ -5,17 +5,16 @@ BE .8 .3 .4 IN COLOR */
 float(float wid) WeaponIdToItemId;
 float(float it) ItemIdToWeaponId;
 
-void(entity e) VRItemPickupHaptic =
+void(entity entPlayer) VRItemPickupHaptic =
 {
-    if (cvar("vr_body_interactions") == 0)
-    {
-        haptic(e.touchinghand, 0.0, 0.3, 75, 1.0);
-    }
-    else
+    if(VRTouchingHandIsBody(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);
         haptic(1, 0.0, 0.3, 75, 1.0);
+        return;
     }
+
+    haptic(VRTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
 }
 
 void() SUB_regen =
@@ -501,8 +500,8 @@ void() weapon_touch =
     // Do not pick up the weapon if the touching hand is not grabbing.
     if (cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
     {
-        if (!VRIsEntHandGrabbing(other, self.touchinghand) ||
-            VRGetEntWeapon(other, self.touchinghand) != WID_FIST)
+        if (!VRIsEntHandGrabbing(other, VRTouchingHand(other)) ||
+            VRGetEntWeapon(other, VRTouchingHand(other)) != WID_FIST)
         {
             return;
         }
@@ -615,16 +614,30 @@ void() weapon_touch =
     stemp = self;
     self = other;
 
+    local float touchinghandIsBody;
+    touchinghandIsBody = VRTouchingHandIsBody(other);
+
+    local float touchinghand;
+    touchinghand = VRTouchingHand(other);
+
     if (!deathmatch)
     {
-        VRSetWeapon(self.touchinghand, ItemIdToWeaponId(newIt));
+        if(touchinghandIsBody && VRGetEntWeapon(other, touchinghand) != WID_FIST)
+        {
+            // This can happen if VR body interactions is on.
+            DropWeaponInHand(other, touchinghand,
+                             VRGetEntWeapon(other, touchinghand));
+        }
+
+        VRSetWeapon(touchinghand, ItemIdToWeaponId(newIt));
     }
     else
     {
+        // TODO VR: (P2) what should this do?
         Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
     }
 
-    W_SetCurrentAmmoFor(self.touchinghand);
+    W_SetCurrentAmmoFor(touchinghand);
 
     self = stemp;
 
