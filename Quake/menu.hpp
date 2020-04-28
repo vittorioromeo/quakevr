@@ -36,6 +36,7 @@ enum m_state_e
     m_net,
     m_options,
     m_quakevrsettings,
+    m_quakevrdevtools,
     m_video,
     m_vr,
     m_vrgameplay,
@@ -62,15 +63,15 @@ enum m_state_e
     m_qvrs_aiming,
     m_qvrs_immersion,
     m_qvrs_graphical,
-    m_qvrs_weaponconfiguration,
-    m_qvrs_weaponconfiguration2,
-    m_qvrs_weaponconfiguration3,
     m_qvrs_hudconfiguration,
     m_qvrs_hotspot,
     m_qvrs_torso,
     m_qvrs_changemap,
-    m_qvrs_debugutilities,
     m_qvrs_transparencyoptions,
+    m_qvrdt_weaponconfiguration,
+    m_qvrdt_weaponconfiguration2,
+    m_qvrdt_weaponconfiguration3,
+    m_qvrdt_debugutilities,
 };
 
 extern enum m_state_e m_state;
@@ -90,6 +91,7 @@ void M_ToggleMenu_f(void);
 void M_Menu_Main_f(void);
 void M_Menu_Options_f(void);
 void M_Menu_QuakeVRSettings_f();
+void M_Menu_QuakeVRDevTools_f();
 void M_Menu_Quit_f(void);
 
 void M_Print(int cx, int cy, const char* str);

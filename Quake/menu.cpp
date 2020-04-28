@@ -21,8 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-// TODO VR: (P0) split into "Quake VR Settings" and "Quake VR Dev Tools"
-
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
@@ -72,7 +70,6 @@ void M_GameOptions_Draw();
 void M_Search_Draw();
 void M_ServerList_Draw();
 void M_Options_Draw();
-void M_QuakeVRSettings_Draw();
 void M_Keys_Draw();
 void M_Video_Draw();
 void M_Help_Draw();
@@ -90,7 +87,6 @@ void M_GameOptions_Key(int key);
 void M_Search_Key(int key);
 void M_ServerList_Key(int key);
 void M_Options_Key(int key);
-void M_QuakeVRSettings_Key(int key);
 void M_Keys_Key(int key);
 void M_Video_Key(int key);
 void M_Help_Key(int key);
@@ -354,6 +350,7 @@ void M_ToggleMenu_f()
     m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
     m.add_action_entry("Options", &M_Menu_Options_f);
     m.add_action_entry("Quake VR Settings", &M_Menu_QuakeVRSettings_f);
+    m.add_action_entry("Quake VR Dev Tools", &M_Menu_QuakeVRDevTools_f);
     m.add_action_entry("Help/Ordering", &M_Menu_Help_f);
     m.add_action_entry("Quit", &M_Menu_Quit_f);
 
@@ -1802,494 +1799,6 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - WEAPON CONFIGURATION */
-
-[[nodiscard]] static quake::menu makeQVRSWeaponConfigurationMenu()
-{
-    static bool wpnoff_offhand = false;
-
-    const auto getIdx = [] {
-        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
-                              : VR_GetMainHandWpnCvarEntry();
-    };
-
-    const float oInc = 0.1f;
-    constexpr float oBound = 100.f;
-
-    const float rInc = 0.1f;
-    constexpr float rBound = 90.f;
-
-    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
-    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
-
-    // ------------------------------------------------------------------------
-
-    quake::menu m{"Weapon Configuration", &M_Menu_QuakeVRSettings_f};
-
-    m.on_key([](int) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
-
-    // ------------------------------------------------------------------------
-
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            oBounds                                              //
-        );
-    };
-
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            rBounds                                              //
-        );
-    };
-
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
-            if(!x)
-            {
-                implVar = 0;
-                return;
-            }
-
-            implVar = wpnoff_offhand ? 2 : 1;
-        };
-    };
-
-    // ------------------------------------------------------------------------
-
-    m.add_getter_entry<bool>(          //
-        "Off-Hand",                    //
-        [] { return &wpnoff_offhand; } //
-    );
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
-    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
-    const auto hover2HOffset =
-        makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
-
-    // ------------------------------------------------------------------------
-
-    const char* offsetTooltip =
-        "Offset of the weapon relative to the center of its model. Does not "
-        "affect aiming.";
-
-    o_wpncvar("X", WpnCVar::OffsetX).hover(hoverOffset).tooltip(offsetTooltip);
-    o_wpncvar("Y", WpnCVar::OffsetY).hover(hoverOffset).tooltip(offsetTooltip);
-    o_wpncvar("Z", WpnCVar::OffsetZ).hover(hoverOffset).tooltip(offsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    o_wpncvar("Scale", WpnCVar::Scale).tooltip("Scale of the weapon model.");
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* rotationTooltip =
-        "Rotation of the weapon model. Does not affect aiming.";
-
-    r_wpncvar("Roll", WpnCVar::Roll).tooltip(rotationTooltip);
-    r_wpncvar("Pitch", WpnCVar::Pitch).tooltip(rotationTooltip);
-    r_wpncvar("Yaw", WpnCVar::Yaw).tooltip(rotationTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* muzzleTooltip =
-        "Position of the weapon muzzle. Relative to the XYZ offsets above. "
-        "Affected by the weapon model scale. DOES affect aiming. Bullets and "
-        "projectiles spawn from this position.";
-
-    o_wpncvar("Muzzle X", WpnCVar::MuzzleOffsetX)
-        .hover(hoverMuzzle)
-        .tooltip(muzzleTooltip);
-    o_wpncvar("Muzzle Y", WpnCVar::MuzzleOffsetY)
-        .hover(hoverMuzzle)
-        .tooltip(muzzleTooltip);
-    o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ)
-        .hover(hoverMuzzle)
-        .tooltip(muzzleTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* twoHXYZTooltip =
-        "Offset applied to the off-hand when aiming with two hands. Allows "
-        "tweaking of the weapon's position and angle, and how close the "
-        "off-hand appears to the model. DOES affect aiming.";
-
-    o_wpncvar("2H X", WpnCVar::TwoHOffsetX)
-        .hover(hover2HOffset)
-        .tooltip(twoHXYZTooltip);
-    o_wpncvar("2H Y", WpnCVar::TwoHOffsetY)
-        .hover(hover2HOffset)
-        .tooltip(twoHXYZTooltip);
-    o_wpncvar("2H Z", WpnCVar::TwoHOffsetZ)
-        .hover(hover2HOffset)
-        .tooltip(twoHXYZTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* twoHRotTooltip =
-        "Angle offset applied to the weapon when aiming with two hands. "
-        "Allows tweaking of the weapon's angle. DOES affect aiming.";
-
-    r_wpncvar("2H Pitch", WpnCVar::TwoHPitch).tooltip(twoHRotTooltip);
-    r_wpncvar("2H Yaw", WpnCVar::TwoHYaw).tooltip(twoHRotTooltip);
-    r_wpncvar("2H Roll", WpnCVar::TwoHRoll).tooltip(twoHRotTooltip);
-
-    return m;
-}
-
-[[nodiscard]] static quake::menu& qvrsWeaponConfigurationMenu()
-{
-    static quake::menu res = makeQVRSWeaponConfigurationMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - WEAPON CONFIGURATION 2 */
-
-[[nodiscard]] static quake::menu makeQVRSWeaponConfiguration2Menu()
-{
-    static bool wpnoff_offhand = false;
-
-    const auto getIdx = [] {
-        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
-                              : VR_GetMainHandWpnCvarEntry();
-    };
-
-    const float oInc = 0.1f;
-    constexpr float oBound = 100.f;
-
-    const float rInc = 0.1f;
-    constexpr float rBound = 180.f;
-
-    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
-    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
-
-    // ------------------------------------------------------------------------
-
-    quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRSettings_f};
-
-    m.on_key([](int) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
-
-    // ------------------------------------------------------------------------
-
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            oBounds                                              //
-        );
-    };
-
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            rBounds                                              //
-        );
-    };
-
-    const auto b_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<bool>(                   //
-            title,                                              //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); } //
-        );
-    };
-
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
-            if(!x)
-            {
-                implVar = 0;
-                return;
-            }
-
-            implVar = wpnoff_offhand ? 2 : 1;
-        };
-    };
-
-    // ------------------------------------------------------------------------
-
-    m.add_getter_entry<bool>(          //
-        "Off-Hand",                    //
-        [] { return &wpnoff_offhand; } //
-    );
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const auto hoverHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_hand_anchor_vertex);
-    const auto hover2HHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_2h_hand_anchor_vertex);
-
-    // ------------------------------------------------------------------------
-
-    b_wpncvar("Hide Hand", WpnCVar::HideHand)
-        .tooltip("Hide the hand model when this weapon is wielded.");
-
-    m.add_cvar_getter_entry<int>( //
-         "Hand Anchor Vertex",    //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex);
-         },           //
-         {1, 0, 1024} //
-         )
-        .hover(hoverHandAnchorVertex)
-        .tooltip(
-            "Index of the mesh vertex where the hand will be attached. Useful "
-            "to ensure that the hand follows the weapon animations "
-            "properly.");
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    m.add_cvar_getter_enum_entry<Wpn2HMode>( //
-         "2H Display Mode",                  //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHDisplayMode);
-         },                 //
-         "Dynamic", "Fixed" //
-         )
-        .tooltip(
-            "Display mode for the 2H aiming helping hand. When 'dynamic', the "
-            "helping hand can move freely. When 'fixed', the helping hand "
-            "stays locked to a particular vertex.");
-
-    m.add_cvar_getter_entry<int>( //
-         "2H Hand Anchor Vertex", //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
-         },           //
-         {1, 0, 1024} //
-         )
-        .hover(hover2HHandAnchorVertex)
-        .tooltip(
-            "Index of the mesh vertex where the 2H aiming helping hand will be "
-            "attached. Useful ensure that the hand follows the weapon "
-            "animations properly. Only enabled when 2H Display Mode is set to "
-            "'fixed'.");
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* handOffsetTooltip =
-        "Visual offset of the hand, relative to the anchor vertex.";
-
-    o_wpncvar("Hand X", WpnCVar::HandOffsetX).tooltip(handOffsetTooltip);
-    o_wpncvar("Hand Y", WpnCVar::HandOffsetY).tooltip(handOffsetTooltip);
-    o_wpncvar("Hand Z", WpnCVar::HandOffsetZ).tooltip(handOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* offHandOffsetTooltip =
-        "Visual offset of the hand, relative to the above hand offset.";
-
-    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ)
-        .tooltip(offHandOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    m.add_cvar_getter_enum_entry<Wpn2HMode>(                               //
-         "2H Mode",                                                        //
-         [getIdx] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //
-         "Default", "Ignore Virtual Stock", "Forbidden"                    //
-         )
-        .tooltip(
-            "Defines whether the weapon is eligible for 2H aiming. "
-            "Virtual stock can be ignored for weapons like the laser "
-            "cannon.");
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* fixed2HTooltip =
-        "Visual offset of the helping hand when aiming two-handed in fixed "
-        "mode.";
-
-    o_wpncvar("Fixed 2H X", WpnCVar::TwoHFixedOffsetX).tooltip(fixed2HTooltip);
-    o_wpncvar("Fixed 2H Y", WpnCVar::TwoHFixedOffsetY).tooltip(fixed2HTooltip);
-    o_wpncvar("Fixed 2H Z", WpnCVar::TwoHFixedOffsetZ).tooltip(fixed2HTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* fixed2HHandRotTooltip =
-        "Visual rotation of the helping hand when aiming two-handed in fixed "
-        "mode.";
-
-    r_wpncvar("Fixed 2H Hand Pitch", WpnCVar::TwoHFixedHandPitch)
-        .tooltip(fixed2HHandRotTooltip);
-    r_wpncvar("Fixed 2H Hand Yaw", WpnCVar::TwoHFixedHandYaw)
-        .tooltip(fixed2HHandRotTooltip);
-    r_wpncvar("Fixed 2H Hand Roll", WpnCVar::TwoHFixedHandRoll)
-        .tooltip(fixed2HHandRotTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* fixed2HMainHandTooltip =
-        "Visual offset of the helping hand when aiming two-handed in fixed "
-        "mode, only appliyed when the helping hand is the right one.";
-
-    o_wpncvar("Fixed 2H Right Hand X", WpnCVar::TwoHFixedMainHandOffsetX)
-        .tooltip(fixed2HMainHandTooltip);
-    o_wpncvar("Fixed 2H Right Hand Y", WpnCVar::TwoHFixedMainHandOffsetY)
-        .tooltip(fixed2HMainHandTooltip);
-    o_wpncvar("Fixed 2H Right Hand Z", WpnCVar::TwoHFixedMainHandOffsetZ)
-        .tooltip(fixed2HMainHandTooltip);
-
-    // TODO VR: (P1) bugged
-    // const char* gunOffsetTooltip =
-    //     "Visual offset of the gun model. Does not affect hand positioning.";
-    //
-    // o_wpncvar("Gun X", WpnCVar::GunOffsetX).tooltip(gunOffsetTooltip);
-    // o_wpncvar("Gun Y", WpnCVar::GunOffsetY).tooltip(gunOffsetTooltip);
-    // o_wpncvar("Gun Z", WpnCVar::GunOffsetZ).tooltip(gunOffsetTooltip);
-
-    return m;
-}
-
-[[nodiscard]] static quake::menu& qvrsWeaponConfiguration2Menu()
-{
-    static quake::menu res = makeQVRSWeaponConfiguration2Menu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - WEAPON CONFIGURATION (3) */
-
-[[nodiscard]] static quake::menu makeQVRSWeaponConfiguration3Menu()
-{
-    static bool wpnoff_offhand = false;
-
-    const auto getIdx = [] {
-        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
-                              : VR_GetMainHandWpnCvarEntry();
-    };
-
-    const float wInc = 0.01f;
-    constexpr float wBound = 1.f;
-
-    const quake::menu_bounds<float> wBounds{wInc, 0.f, wBound};
-    const quake::menu_bounds<float> wmBounds{wInc, 0.f, 10.f};
-
-    // ------------------------------------------------------------------------
-
-    quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRSettings_f};
-
-    m.on_key([](int) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
-
-    // ------------------------------------------------------------------------
-
-    const auto w_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            wBounds                                              //
-        );
-    };
-
-    const auto wm_wpncvar = [&](const char* title, const WpnCVar c) {
-        return m.add_cvar_getter_entry<float>(                   //
-            title,                                               //
-            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
-            wmBounds                                             //
-        );
-    };
-
-    // ------------------------------------------------------------------------
-
-    m.add_getter_entry<bool>(          //
-        "Off-Hand",                    //
-        [] { return &wpnoff_offhand; } //
-    );
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    w_wpncvar("Weight", WpnCVar::Weight)
-        .tooltip(
-            "How heavy the weapon 'feels'. Values closer to '1' are heavier. "
-            "'1' itself is 'infinite' weight. Affects weapon movement and "
-            "rotation speed, and also throwing distance and damage.");
-
-    wm_wpncvar("Weight Pos. Mult.", WpnCVar::WeightPosMult)
-        .tooltip("Weight multiplier for movement only.");
-
-    wm_wpncvar("Weight Dir. Mult.", WpnCVar::WeightDirMult)
-        .tooltip("Weight multiplier for direction only.");
-
-    wm_wpncvar("Weight Hand Vel. Mult.", WpnCVar::WeightHandVelMult)
-        .tooltip(
-            "Weight multiplier for hand velocity calculations (e.g. melee "
-            "attacks) only.");
-
-    wm_wpncvar("Weight Hand Throw Vel. Mult.", WpnCVar::WeightHandThrowVelMult)
-        .tooltip(
-            "Weight multiplier for hand throw velocity calculations (e.g. "
-            "throwing weapons) only.");
-
-    wm_wpncvar("Weight 2H Pos. Mult.", WpnCVar::Weight2HPosMult)
-        .tooltip(
-            "Weight multiplier for two-handed movement (how much it helps to "
-            "use two hands).");
-
-    wm_wpncvar("Weight 2H Dir. Mult.", WpnCVar::Weight2HDirMult)
-        .tooltip(
-            "Weight multiplier for two-handed direction (how much it helps to "
-            "use two hands).");
-
-    return m;
-}
-
-[[nodiscard]] static quake::menu& qvrsWeaponConfiguration3Menu()
-{
-    static quake::menu res = makeQVRSWeaponConfiguration3Menu();
-    return res;
-}
-
-//=============================================================================
 /* QUAKE VR SETTINGS MENU - HUD CONFIGURATION  */
 
 [[nodiscard]] static quake::menu makeQVRSHudConfigurationMenu()
@@ -2543,9 +2052,599 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - DEBUG UTILITIES  */
+/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS  */
 
-[[nodiscard]] static quake::menu makeQVRSDebugUtilitiesMenu()
+[[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
+{
+    quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
+
+    extern cvar_t r_novis;
+    m.add_cvar_entry<bool>("(!) No Vis", r_novis)
+        .tooltip(
+            "NOT RECOMMENDED. Allows water transparency to work in "
+            "non-vispatched maps, but will render the entire map every frame. "
+            "Will likely kill your FPS. Prefer 'vispatching' your maps "
+            "instead. Also, entities won't still be visible below water level "
+            "without vispatched maps.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    extern cvar_t r_wateralpha;
+    m.add_cvar_entry<float>("Water Alpha", r_wateralpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_lavaalpha;
+    m.add_cvar_entry<float>("Lava Alpha", r_lavaalpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_telealpha;
+    m.add_cvar_entry<float>("Tele Alpha", r_telealpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_slimealpha;
+    m.add_cvar_entry<float>("Slime Alpha", r_slimealpha, {0.1f, 0.f, 1.f});
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsTransparencyOptionsMenu()
+{
+    static quake::menu res = makeQVRSTransparencyOptionsMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU */
+
+template <typename F>
+static void forQVRSMenus(F&& f)
+{
+    f(qvrsMenuMenu(), m_qvrs_menu);
+    f(qvrsCrosshairMenu(), m_qvrs_crosshair);
+    f(qvrsParticleMenu(), m_qvrs_particle);
+    f(qvrsLocomotionMenu(), m_qvrs_locomotion);
+    f(qvrsHandGunCalibrationMenu(), m_qvrs_handguncalibration);
+    f(qvrsPlayerCalibrationMenu(), m_qvrs_playercalibration);
+    f(qvrsMeleeMenu(), m_qvrs_melee);
+    f(qvrsAimingMenu(), m_qvrs_aiming);
+    f(qvrsImmersionMenu(), m_qvrs_immersion);
+    f(qvrsGraphicalMenu(), m_qvrs_graphical);
+    f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
+    f(qvrsHotspotMenu(), m_qvrs_hotspot);
+    f(qvrsTorsoMenu(), m_qvrs_torso);
+    f(qvrsChangeMapMenu(), m_qvrs_changemap);
+    f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
+}
+
+[[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
+{
+    quake::menu m{"Quake VR Settings", &M_Menu_Main_f};
+
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+        m.add_action_entry(
+            xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
+    };
+
+    forQVRSMenus(makeGotoMenu);
+    return m;
+}
+
+[[nodiscard]] static quake::menu& quakeVRSettingsMenu()
+{
+    static quake::menu res = makeQuakeVRSettingsMenu();
+    return res;
+}
+
+void M_Menu_QuakeVRSettings_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrsettings;
+    m_entersound = true;
+}
+
+void M_QuakeVRSettings_Draw()
+{
+    quakeVRSettingsMenu().draw();
+}
+
+void M_QuakeVRSettings_Key(int k)
+{
+    quakeVRSettingsMenu().key(k);
+}
+
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfigurationMenu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.1f;
+    constexpr float rBound = 90.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
+    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
+    const auto hover2HOffset =
+        makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
+
+    // ------------------------------------------------------------------------
+
+    const char* offsetTooltip =
+        "Offset of the weapon relative to the center of its model. Does not "
+        "affect aiming.";
+
+    o_wpncvar("X", WpnCVar::OffsetX).hover(hoverOffset).tooltip(offsetTooltip);
+    o_wpncvar("Y", WpnCVar::OffsetY).hover(hoverOffset).tooltip(offsetTooltip);
+    o_wpncvar("Z", WpnCVar::OffsetZ).hover(hoverOffset).tooltip(offsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    o_wpncvar("Scale", WpnCVar::Scale).tooltip("Scale of the weapon model.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* rotationTooltip =
+        "Rotation of the weapon model. Does not affect aiming.";
+
+    r_wpncvar("Roll", WpnCVar::Roll).tooltip(rotationTooltip);
+    r_wpncvar("Pitch", WpnCVar::Pitch).tooltip(rotationTooltip);
+    r_wpncvar("Yaw", WpnCVar::Yaw).tooltip(rotationTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* muzzleTooltip =
+        "Position of the weapon muzzle. Relative to the XYZ offsets above. "
+        "Affected by the weapon model scale. DOES affect aiming. Bullets and "
+        "projectiles spawn from this position.";
+
+    o_wpncvar("Muzzle X", WpnCVar::MuzzleOffsetX)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+    o_wpncvar("Muzzle Y", WpnCVar::MuzzleOffsetY)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+    o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ)
+        .hover(hoverMuzzle)
+        .tooltip(muzzleTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* twoHXYZTooltip =
+        "Offset applied to the off-hand when aiming with two hands. Allows "
+        "tweaking of the weapon's position and angle, and how close the "
+        "off-hand appears to the model. DOES affect aiming.";
+
+    o_wpncvar("2H X", WpnCVar::TwoHOffsetX)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+    o_wpncvar("2H Y", WpnCVar::TwoHOffsetY)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+    o_wpncvar("2H Z", WpnCVar::TwoHOffsetZ)
+        .hover(hover2HOffset)
+        .tooltip(twoHXYZTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* twoHRotTooltip =
+        "Angle offset applied to the weapon when aiming with two hands. "
+        "Allows tweaking of the weapon's angle. DOES affect aiming.";
+
+    r_wpncvar("2H Pitch", WpnCVar::TwoHPitch).tooltip(twoHRotTooltip);
+    r_wpncvar("2H Yaw", WpnCVar::TwoHYaw).tooltip(twoHRotTooltip);
+    r_wpncvar("2H Roll", WpnCVar::TwoHRoll).tooltip(twoHRotTooltip);
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfigurationMenu()
+{
+    static quake::menu res = makeQVRDTWeaponConfigurationMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION 2 */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration2Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.1f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto b_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<bool>(                   //
+            title,                                              //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); } //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverHandAnchorVertex =
+        makeHoverFn(vr_impl_draw_hand_anchor_vertex);
+    const auto hover2HHandAnchorVertex =
+        makeHoverFn(vr_impl_draw_2h_hand_anchor_vertex);
+
+    // ------------------------------------------------------------------------
+
+    b_wpncvar("Hide Hand", WpnCVar::HideHand)
+        .tooltip("Hide the hand model when this weapon is wielded.");
+
+    m.add_cvar_getter_entry<int>( //
+         "Hand Anchor Vertex",    //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex);
+         },           //
+         {1, 0, 1024} //
+         )
+        .hover(hoverHandAnchorVertex)
+        .tooltip(
+            "Index of the mesh vertex where the hand will be attached. Useful "
+            "to ensure that the hand follows the weapon animations "
+            "properly.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<Wpn2HMode>( //
+         "2H Display Mode",                  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHDisplayMode);
+         },                 //
+         "Dynamic", "Fixed" //
+         )
+        .tooltip(
+            "Display mode for the 2H aiming helping hand. When 'dynamic', the "
+            "helping hand can move freely. When 'fixed', the helping hand "
+            "stays locked to a particular vertex.");
+
+    m.add_cvar_getter_entry<int>( //
+         "2H Hand Anchor Vertex", //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
+         },           //
+         {1, 0, 1024} //
+         )
+        .hover(hover2HHandAnchorVertex)
+        .tooltip(
+            "Index of the mesh vertex where the 2H aiming helping hand will be "
+            "attached. Useful ensure that the hand follows the weapon "
+            "animations properly. Only enabled when 2H Display Mode is set to "
+            "'fixed'.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* handOffsetTooltip =
+        "Visual offset of the hand, relative to the anchor vertex.";
+
+    o_wpncvar("Hand X", WpnCVar::HandOffsetX).tooltip(handOffsetTooltip);
+    o_wpncvar("Hand Y", WpnCVar::HandOffsetY).tooltip(handOffsetTooltip);
+    o_wpncvar("Hand Z", WpnCVar::HandOffsetZ).tooltip(handOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* offHandOffsetTooltip =
+        "Visual offset of the hand, relative to the above hand offset.";
+
+    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
+        .tooltip(offHandOffsetTooltip);
+    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY)
+        .tooltip(offHandOffsetTooltip);
+    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ)
+        .tooltip(offHandOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<Wpn2HMode>(                               //
+         "2H Mode",                                                        //
+         [getIdx] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //
+         "Default", "Ignore Virtual Stock", "Forbidden"                    //
+         )
+        .tooltip(
+            "Defines whether the weapon is eligible for 2H aiming. "
+            "Virtual stock can be ignored for weapons like the laser "
+            "cannon.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HTooltip =
+        "Visual offset of the helping hand when aiming two-handed in fixed "
+        "mode.";
+
+    o_wpncvar("Fixed 2H X", WpnCVar::TwoHFixedOffsetX).tooltip(fixed2HTooltip);
+    o_wpncvar("Fixed 2H Y", WpnCVar::TwoHFixedOffsetY).tooltip(fixed2HTooltip);
+    o_wpncvar("Fixed 2H Z", WpnCVar::TwoHFixedOffsetZ).tooltip(fixed2HTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HHandRotTooltip =
+        "Visual rotation of the helping hand when aiming two-handed in fixed "
+        "mode.";
+
+    r_wpncvar("Fixed 2H Hand Pitch", WpnCVar::TwoHFixedHandPitch)
+        .tooltip(fixed2HHandRotTooltip);
+    r_wpncvar("Fixed 2H Hand Yaw", WpnCVar::TwoHFixedHandYaw)
+        .tooltip(fixed2HHandRotTooltip);
+    r_wpncvar("Fixed 2H Hand Roll", WpnCVar::TwoHFixedHandRoll)
+        .tooltip(fixed2HHandRotTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* fixed2HMainHandTooltip =
+        "Visual offset of the helping hand when aiming two-handed in fixed "
+        "mode, only appliyed when the helping hand is the right one.";
+
+    o_wpncvar("Fixed 2H Right Hand X", WpnCVar::TwoHFixedMainHandOffsetX)
+        .tooltip(fixed2HMainHandTooltip);
+    o_wpncvar("Fixed 2H Right Hand Y", WpnCVar::TwoHFixedMainHandOffsetY)
+        .tooltip(fixed2HMainHandTooltip);
+    o_wpncvar("Fixed 2H Right Hand Z", WpnCVar::TwoHFixedMainHandOffsetZ)
+        .tooltip(fixed2HMainHandTooltip);
+
+    // TODO VR: (P1) bugged
+    // const char* gunOffsetTooltip =
+    //     "Visual offset of the gun model. Does not affect hand positioning.";
+    //
+    // o_wpncvar("Gun X", WpnCVar::GunOffsetX).tooltip(gunOffsetTooltip);
+    // o_wpncvar("Gun Y", WpnCVar::GunOffsetY).tooltip(gunOffsetTooltip);
+    // o_wpncvar("Gun Z", WpnCVar::GunOffsetZ).tooltip(gunOffsetTooltip);
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration2Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration2Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (3) */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration3Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float wInc = 0.01f;
+    constexpr float wBound = 1.f;
+
+    const quake::menu_bounds<float> wBounds{wInc, 0.f, wBound};
+    const quake::menu_bounds<float> wmBounds{wInc, 0.f, 10.f};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto w_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            wBounds                                              //
+        );
+    };
+
+    const auto wm_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            wmBounds                                             //
+        );
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    w_wpncvar("Weight", WpnCVar::Weight)
+        .tooltip(
+            "How heavy the weapon 'feels'. Values closer to '1' are heavier. "
+            "'1' itself is 'infinite' weight. Affects weapon movement and "
+            "rotation speed, and also throwing distance and damage.");
+
+    wm_wpncvar("Weight Pos. Mult.", WpnCVar::WeightPosMult)
+        .tooltip("Weight multiplier for movement only.");
+
+    wm_wpncvar("Weight Dir. Mult.", WpnCVar::WeightDirMult)
+        .tooltip("Weight multiplier for direction only.");
+
+    wm_wpncvar("Weight Hand Vel. Mult.", WpnCVar::WeightHandVelMult)
+        .tooltip(
+            "Weight multiplier for hand velocity calculations (e.g. melee "
+            "attacks) only.");
+
+    wm_wpncvar("Weight Hand Throw Vel. Mult.", WpnCVar::WeightHandThrowVelMult)
+        .tooltip(
+            "Weight multiplier for hand throw velocity calculations (e.g. "
+            "throwing weapons) only.");
+
+    wm_wpncvar("Weight 2H Pos. Mult.", WpnCVar::Weight2HPosMult)
+        .tooltip(
+            "Weight multiplier for two-handed movement (how much it helps to "
+            "use two hands).");
+
+    wm_wpncvar("Weight 2H Dir. Mult.", WpnCVar::Weight2HDirMult)
+        .tooltip(
+            "Weight multiplier for two-handed direction (how much it helps to "
+            "use two hands).");
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration3Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration3Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES  */
+
+[[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
 {
     const auto runCmd = [](const char* cmd) {
         return [cmd] {
@@ -2556,7 +2655,7 @@ void M_Options_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Debug Utilities", &M_Menu_QuakeVRSettings_f};
+    quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
@@ -2616,115 +2715,59 @@ void M_Options_Key(int k)
     return m;
 }
 
-[[nodiscard]] static quake::menu& qvrsDebugUtilitiesMenu()
+[[nodiscard]] static quake::menu& qvrdtDebugUtilitiesMenu()
 {
-    static quake::menu res = makeQVRSDebugUtilitiesMenu();
+    static quake::menu res = makeQVRDTDebugUtilitiesMenu();
     return res;
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS  */
-
-[[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
-{
-    quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
-
-    extern cvar_t r_novis;
-    m.add_cvar_entry<bool>("(!) No Vis", r_novis)
-        .tooltip(
-            "NOT RECOMMENDED. Allows water transparency to work in "
-            "non-vispatched maps, but will render the entire map every frame. "
-            "Will likely kill your FPS. Prefer 'vispatching' your maps "
-            "instead. Also, entities won't still be visible below water level "
-            "without vispatched maps.");
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    extern cvar_t r_wateralpha;
-    m.add_cvar_entry<float>("Water Alpha", r_wateralpha, {0.1f, 0.f, 1.f});
-
-    extern cvar_t r_lavaalpha;
-    m.add_cvar_entry<float>("Lava Alpha", r_lavaalpha, {0.1f, 0.f, 1.f});
-
-    extern cvar_t r_telealpha;
-    m.add_cvar_entry<float>("Tele Alpha", r_telealpha, {0.1f, 0.f, 1.f});
-
-    extern cvar_t r_slimealpha;
-    m.add_cvar_entry<float>("Slime Alpha", r_slimealpha, {0.1f, 0.f, 1.f});
-
-    return m;
-}
-
-[[nodiscard]] static quake::menu& qvrsTransparencyOptionsMenu()
-{
-    static quake::menu res = makeQVRSTransparencyOptionsMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU */
+/* QUAKE VR DEV TOOLS MENU */
 
 template <typename F>
-static void forQVRSMenus(F&& f)
+static void forQVRDTMenus(F&& f)
 {
-    f(qvrsMenuMenu(), m_qvrs_menu);
-    f(qvrsCrosshairMenu(), m_qvrs_crosshair);
-    f(qvrsParticleMenu(), m_qvrs_particle);
-    f(qvrsLocomotionMenu(), m_qvrs_locomotion);
-    f(qvrsHandGunCalibrationMenu(), m_qvrs_handguncalibration);
-    f(qvrsPlayerCalibrationMenu(), m_qvrs_playercalibration);
-    f(qvrsMeleeMenu(), m_qvrs_melee);
-    f(qvrsAimingMenu(), m_qvrs_aiming);
-    f(qvrsImmersionMenu(), m_qvrs_immersion);
-    f(qvrsGraphicalMenu(), m_qvrs_graphical);
-    f(qvrsWeaponConfigurationMenu(), m_qvrs_weaponconfiguration);
-    f(qvrsWeaponConfiguration2Menu(), m_qvrs_weaponconfiguration2);
-    f(qvrsWeaponConfiguration3Menu(), m_qvrs_weaponconfiguration3);
-    f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
-    f(qvrsHotspotMenu(), m_qvrs_hotspot);
-    f(qvrsTorsoMenu(), m_qvrs_torso);
-    f(qvrsChangeMapMenu(), m_qvrs_changemap);
-    f(qvrsDebugUtilitiesMenu(), m_qvrs_debugutilities);
-    f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
+    f(qvrdtWeaponConfigurationMenu(), m_qvrdt_weaponconfiguration);
+    f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
+    f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
+    f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }
 
-[[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
+[[nodiscard]] static quake::menu makeQuakeVRDevToolsMenu()
 {
-    quake::menu m{"Quake VR Settings", &M_Menu_Main_f};
+    quake::menu m{"Quake VR Dev Tools", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
             xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
     };
 
-    forQVRSMenus(makeGotoMenu);
+    forQVRDTMenus(makeGotoMenu);
     return m;
 }
 
-[[nodiscard]] static quake::menu& quakeVRSettingsMenu()
+[[nodiscard]] static quake::menu& quakeVRDevToolsMenu()
 {
-    static quake::menu res = makeQuakeVRSettingsMenu();
+    static quake::menu res = makeQuakeVRDevToolsMenu();
     return res;
 }
 
-void M_Menu_QuakeVRSettings_f()
+void M_Menu_QuakeVRDevTools_f()
 {
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
-    m_state = m_quakevrsettings;
+    m_state = m_quakevrdevtools;
     m_entersound = true;
 }
 
-void M_QuakeVRSettings_Draw()
+void M_QuakeVRDevTools_Draw()
 {
-    quakeVRSettingsMenu().draw();
+    quakeVRDevToolsMenu().draw();
 }
 
-void M_QuakeVRSettings_Key(int k)
+void M_QuakeVRDevTools_Key(int k)
 {
-    quakeVRSettingsMenu().key(k);
+    quakeVRDevToolsMenu().key(k);
 }
 
 //=============================================================================
@@ -4112,7 +4155,6 @@ void M_Draw()
 
     GL_SetCanvas(CANVAS_MENU); // johnfitz
 
-
     // -----------------------------------------------------------------------
     // VR: Process nested "Quake VR Settings" menus.
     forQVRSMenus([&](quake::menu& xm, m_state_e s) {
@@ -4121,7 +4163,15 @@ void M_Draw()
             xm.draw();
         }
     });
+
     // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Dev Tools" menus.
+    forQVRDTMenus([&](quake::menu& xm, m_state_e s) {
+        if(m_state == s)
+        {
+            xm.draw();
+        }
+    });
 
     switch(m_state)
     {
@@ -4139,6 +4189,7 @@ void M_Draw()
         // -------------------------------------------------------------------
         // VR: New menus.
         case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
+        case m_quakevrdevtools: M_QuakeVRDevTools_Draw(); break;
         // -------------------------------------------------------------------
         case m_help: M_Help_Draw(); break;
         case m_lanconfig: M_LanConfig_Draw(); break;
@@ -4187,7 +4238,26 @@ void M_Keydown(int key)
             return;
         }
     }
+
     // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Dev Tools" menus.
+    {
+        bool processedAny = false;
+
+        forQVRDTMenus([&](quake::menu& xm, m_state_e s) {
+            if(m_state == s)
+            {
+                xm.key(key);
+                processedAny = true;
+            }
+        });
+
+        if(processedAny)
+        {
+            return;
+        }
+    }
+
 
     switch(m_state)
     {
@@ -4205,6 +4275,7 @@ void M_Keydown(int key)
         // -------------------------------------------------------------------
         // VR: New menus.
         case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
+        case m_quakevrdevtools: M_QuakeVRDevTools_Key(key); return;
         // -------------------------------------------------------------------
         case m_help: M_Help_Key(key); return;
         case m_quit: M_Quit_Key(key); return;
