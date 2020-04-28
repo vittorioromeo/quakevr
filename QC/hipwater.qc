@@ -10,7 +10,7 @@ void() bobbingwater_think =
    local vector ang;
 
    self.count = self.count + self.speed * ( time - self.ltime );
-   if ( self.count > 360 )
+   if( self.count > 360 )
       {
       self.count = self.count - 360;
       }
@@ -41,7 +41,7 @@ void() func_bobbingwater =
 
    self.count = 0;
    self.cnt = self.size_z / 2;
-   if ( !self.speed )
+   if( !self.speed )
       {
       self.speed = 4;
       }

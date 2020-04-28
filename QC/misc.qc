@@ -20,7 +20,7 @@ float START_OFF = 1;
 
 void() light_use =
 {
-    if (self.spawnflags & START_OFF)
+    if(self.spawnflags & START_OFF)
     {
         lightstyle(self.style, "m");
         self.spawnflags = self.spawnflags - START_OFF;
@@ -40,16 +40,16 @@ If targeted, it will toggle between on or off.
 */
 void() light =
 {
-    if (!self.targetname)
+    if(!self.targetname)
     {    // inert light
         remove(self);
         return;
     }
 
-    if (self.style >= 32)
+    if(self.style >= 32)
     {
         self.use = light_use;
-        if (self.spawnflags & START_OFF)
+        if(self.spawnflags & START_OFF)
             lightstyle(self.style, "a");
         else
             lightstyle(self.style, "m");
@@ -65,10 +65,10 @@ Makes steady fluorescent humming sound
 */
 void() light_fluoro =
 {
-    if (self.style >= 32)
+    if(self.style >= 32)
     {
         self.use = light_use;
-        if (self.spawnflags & START_OFF)
+        if(self.spawnflags & START_OFF)
             lightstyle(self.style, "a");
         else
             lightstyle(self.style, "m");
@@ -86,7 +86,7 @@ Makes sparking, broken fluorescent sound
 */
 void() light_fluorospark =
 {
-    if (!self.style)
+    if(!self.style)
         self.style = 10;
 
     precache_sound ("ambience/buzz1.wav");
@@ -175,7 +175,7 @@ void() misc_fireball =
     self.classname = "fireball";
     self.nextthink = time + (random() * 5);
     self.think = fire_fly;
-    if (!self.speed)
+    if(!self.speed)
         self.speed = 1000;
 };
 
@@ -219,7 +219,7 @@ void() barrel_explode =
     // did say self.owner
     T_RadiusDamage (self, self, 160, world);
     sound (self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
-    particle2 (self.origin, '0 0 0', 2 /* explosion preset */, 1);
+    particle2(self.origin, '0 0 0', 2 /* explosion preset */, 1);
 
     self.origin_z = self.origin_z + 32;
     BecomeExplosion ();
@@ -247,7 +247,7 @@ void() misc_explobox =
     self.origin_z = self.origin_z + 2;
     oldz = self.origin_z;
     droptofloor();
-    if (oldz - self.origin_z > 250)
+    if(oldz - self.origin_z > 250)
     {
         dprint ("item fell out of level at ");
         dprint (vtos(self.origin));
@@ -279,7 +279,7 @@ void() misc_explobox2 =
     self.origin_z = self.origin_z + 2;
     oldz = self.origin_z;
     droptofloor();
-    if (oldz - self.origin_z > 250)
+    if(oldz - self.origin_z > 250)
     {
         dprint ("item fell out of level at ");
         dprint (vtos(self.origin));
@@ -297,16 +297,16 @@ void(vector org, vector vec) LaunchLaser;
 void() spikeshooter_use =
 {
     local entity lavaball;
-    if (self.spawnflags & SPAWNFLAG_LASER)
+    if(self.spawnflags & SPAWNFLAG_LASER)
     {
-        if (!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!self.spawnflags & SPAWNFLAG_SILENT)
             sound (self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
         LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
     }
-    else if (self.spawnflags & SPAWNFLAG_LAVABALL)
+    else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
-        if (!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!self.spawnflags & SPAWNFLAG_SILENT)
              sound (self, CHAN_VOICE, "misc/spike.wav", 1, ATTN_NORM);
         lavaball = spawn();
         lavaball.movetype = MOVETYPE_FLYMISSILE;
@@ -324,22 +324,22 @@ void() spikeshooter_use =
         lavaball.nextthink = time + 5;
         lavaball.think = SUB_Remove;
     }
-    else if (self.spawnflags & SPAWNFLAG_ROCKET)
+    else if(self.spawnflags & SPAWNFLAG_ROCKET)
     {
-        if (!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!self.spawnflags & SPAWNFLAG_SILENT)
             sound (self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
-        W_FireRocket(MAIN_HAND); // TODO VR: (P2) this will spawn particles at the gun position
+        W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
         newmis.velocity = self.movedir*1000;
         newmis.angles = vectoangles(newmis.velocity);
         setorigin (newmis, self.origin + self.movedir*8);
     }
     else
     {
-        if (!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!self.spawnflags & SPAWNFLAG_SILENT)
             sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
-        if (self.spawnflags & SPAWNFLAG_SUPERSPIKE)
+        if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
             newmis.touch = superspike_touch;
     }
 };
@@ -347,7 +347,7 @@ void() spikeshooter_use =
 //MED 11/01/96 added state capability
 void() shooter_think =
 {
-    if (self.state)
+    if(self.state)
     {
         spikeshooter_use ();
     }
@@ -366,19 +366,19 @@ void() trap_spikeshooter =
 {
     SetMovedir ();
     self.use = spikeshooter_use;
-    if (self.spawnflags & SPAWNFLAG_LASER)
+    if(self.spawnflags & SPAWNFLAG_LASER)
     {
         precache_model2 ("progs/laser.mdl");
 
         precache_sound2 ("enforcer/enfire.wav");
         precache_sound2 ("enforcer/enfstop.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_LAVABALL)
+    else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
         precache_model ("progs/lavarock.mdl");
         precache_sound2 ("misc/spike.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_ROCKET)
+    else if(self.spawnflags & SPAWNFLAG_ROCKET)
     {
         precache_model ("progs/missile.mdl");
         precache_sound ("weapons/sgun1.wav");
@@ -397,7 +397,7 @@ void() trap_shooter =
 {
     trap_spikeshooter ();
 
-    if (self.wait == 0)
+    if(self.wait == 0)
         self.wait = 1;
 //MED 11/01/96 added state capability
     self.state = 1;
@@ -422,7 +422,7 @@ void() trap_switched_shooter =
 {
     trap_spikeshooter ();
 
-    if (self.wait == 0)
+    if(self.wait == 0)
         self.wait = 1;
 //MED 11/01/96 added state capability
     self.nextthink = self.nextthink + self.wait + self.ltime;
@@ -451,7 +451,7 @@ testing air bubbles
 void() air_bubbles =
 
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove (self);
         return;
@@ -500,13 +500,13 @@ local entity    bubble;
     setsize (bubble, '-8 -8 -8', '8 8 8');
     self.frame = 1;
     self.cnt = 10;
-    if (self.waterlevel != 3)
+    if(self.waterlevel != 3)
         remove (self);
 };
 
 void() bubble_remove =
 {
-    if (other.classname == self.classname)
+    if(other.classname == self.classname)
     {
 //        dprint ("bump");
         return;
@@ -520,38 +520,38 @@ void() bubble_bob =
 
     // PGM fix - 02/25/97 so bubbles won't go through walls
     rnd1 = pointcontents(self.origin);
-    if (rnd1 == CONTENT_SOLID)
+    if(rnd1 == CONTENT_SOLID)
         remove(self);
     // PGM fix - 02/25/97 so bubbles pop 2 seconds after leaving water
-    else if (rnd1 == CONTENT_EMPTY)
+    else if(rnd1 == CONTENT_EMPTY)
     {
-        if (self.cnt < 16)
+        if(self.cnt < 16)
             self.cnt = 16;
     }
 
     self.cnt = self.cnt + 1;
-    if (self.cnt == 4)
+    if(self.cnt == 4)
         bubble_split();
-    if (self.cnt == 20)
+    if(self.cnt == 20)
         remove(self);
 
     rnd1 = self.velocity_x + (-10 + (random() * 20));
     rnd2 = self.velocity_y + (-10 + (random() * 20));
     rnd3 = self.velocity_z + 10 + random() * 10;
 
-    if (rnd1 > 10)
+    if(rnd1 > 10)
         rnd1 = 5;
-    if (rnd1 < -10)
+    if(rnd1 < -10)
         rnd1 = -5;
 
-    if (rnd2 > 10)
+    if(rnd2 > 10)
         rnd2 = 5;
-    if (rnd2 < -10)
+    if(rnd2 < -10)
         rnd2 = -5;
 
-    if (rnd3 < 10)
+    if(rnd3 < 10)
         rnd3 = 15;
-    if (rnd3 > 30)
+    if(rnd3 > 30)
         rnd3 = 25;
 
     self.velocity_x = rnd1;
@@ -625,7 +625,7 @@ This bmodel will appear if the episode has allready been completed, so players c
 void() func_episodegate =
 
 {
-    if (!(serverflags & self.spawnflags))
+    if(!(serverflags & self.spawnflags))
         return;            // can still enter episode
 
     self.angles = '0 0 0';
@@ -641,7 +641,7 @@ This bmodel appears unless players have all of the episode sigils.
 void() func_bossgate =
 
 {
-    if ( (serverflags & 15) == 15)
+    if( (serverflags & 15) == 15)
         return;        // all episodes completed
     self.angles = '0 0 0';
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything

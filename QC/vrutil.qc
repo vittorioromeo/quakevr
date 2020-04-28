@@ -16,8 +16,8 @@ void(string fnName, float xHand) VRImpl_InvalidHandIdMessage =
 
 vector(string fnName, float xHand, vector xOff, vector xMain) VRImpl_VectorGetter =
 {
-    if(xHand == OFF_HAND)  return xOff;
-    if(xHand == MAIN_HAND) return xMain;
+    if(xHand == cVR_OffHand)  return xOff;
+    if(xHand == cVR_MainHand) return xMain;
 
     VRImpl_InvalidHandIdMessage(fnName, xHand);
     return '0 0 0';
@@ -25,11 +25,20 @@ vector(string fnName, float xHand, vector xOff, vector xMain) VRImpl_VectorGette
 
 float(string fnName, float xHand, float xOff, float xMain) VRImpl_FloatGetter =
 {
-    if(xHand == OFF_HAND)  return xOff;
-    if(xHand == MAIN_HAND) return xMain;
+    if(xHand == cVR_OffHand)  return xOff;
+    if(xHand == cVR_MainHand) return xMain;
 
     VRImpl_InvalidHandIdMessage(fnName, xHand);
     return 0.f;
+}
+
+void(string fnName, float xHand,
+      float* xOutOff, float* xOutMain, float xValue) VRImpl_FloatSetter =
+{
+    if(xHand == cVR_OffHand)  { *xOutOff = xValue; return; }
+    if(xHand == cVR_MainHand) { *xOutMain = xValue; return; }
+
+    VRImpl_InvalidHandIdMessage(fnName, xHand);
 }
 
 #define VR_IMPL_MAKE_VECTOR_GETTER(xFnName, xOff, xMain) \
@@ -44,6 +53,12 @@ float(string fnName, float xHand, float xOff, float xMain) VRImpl_FloatGetter =
         return VRImpl_FloatGetter(#xFnName, xHand, xOff, xMain); \
     }
 
+#define VR_IMPL_MAKE_FLOAT_SETTER(xFnName, xOff, xMain) \
+    void(float xHand, float xValue) xFnName = \
+    { \
+        VRImpl_FloatSetter(#xFnName, xHand, xOff, xMain, xValue); \
+    }
+
 //
 //
 //
@@ -51,14 +66,33 @@ float(string fnName, float xHand, float xOff, float xMain) VRImpl_FloatGetter =
 // VR Getters
 // ----------------------------------------------------------------------------
 
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandPos,      self.offhandpos,      self.handpos);
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandRot,      self.offhandrot,      self.handrot);
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandVel,      self.offhandvel,      self.handvel);
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandThrowVel, self.offhandthrowvel, self.handthrowvel);
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandAVel,     self.offhandavel,     self.handavel);
-VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,    self.offmuzzlepos,    self.muzzlepos);
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandPos,
+                           self.offhandpos,
+                           self.handpos);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,    self.offhandvelmag,   self.handvelmag);
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandRot,
+                           self.offhandrot,
+                           self.handrot);
+
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandVel,
+                           self.offhandvel,
+                           self.handvel);
+
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandThrowVel,
+                           self.offhandthrowvel,
+                           self.handthrowvel);
+
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandAVel,
+                           self.offhandavel,
+                           self.handavel);
+
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,
+                           self.offmuzzlepos,
+                           self.muzzlepos);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,
+                          self.offhandvelmag,
+                          self.handvelmag);
 
 vector(float xHand) VRGetWeaponFireRot =
 {
@@ -78,45 +112,64 @@ vector(float xHand) VRGetWeaponFireRotFwd =
 // TODO VR: (P2) refactor like above
 // ----------------------------------------------------------------------------
 
-float(float xHand) VRMeleeHitSoundPlayed =
-{
-    if(xHand == OFF_HAND) return self.offhand_melee_hit_sound_played;
-    else                  return self.melee_hit_sound_played;
-}
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetMeleeHitSoundPlayed,
+                          self.offhand_melee_hit_sound_played,
+                          self.melee_hit_sound_played);
 
-void(float xHand, float v) VRMeleeSetHitSoundPlayed =
-{
-    if(xHand == OFF_HAND) self.offhand_melee_hit_sound_played = v;
-    else                  self.melee_hit_sound_played = v;
-}
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetMeleeHitSoundPlayed,
+                          &self.offhand_melee_hit_sound_played,
+                          &self.melee_hit_sound_played);
 
-float(float xHand) VRGunChannel =
-{
-    if(xHand == OFF_HAND) return CHAN_WEAPON2;
-    else                  return CHAN_WEAPON;
-}
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetGunChannel,
+                          CHAN_WEAPON2,
+                          CHAN_WEAPON);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetCurrentAmmo,
+                          self.currentammo2,
+                          self.currentammo);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetFireButtonPressed,
+                          self.button3,
+                          self.button0);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetAttackFinished,
+                          self.offhand_attack_finished,
+                          self.attack_finished);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetAttackFinished,
+                          &self.offhand_attack_finished,
+                          &self.attack_finished);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponFrame,
+                          self.weaponframe2,
+                          self.weaponframe);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFrame,
+                          &self.weaponframe2,
+                          &self.weaponframe);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetForceGrabbing,
+                          self.offhand_forcegrabbing,
+                          self.mainhand_forcegrabbing);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetForceGrabbing,
+                          &self.offhand_forcegrabbing,
+                          &self.mainhand_forcegrabbing);
 
 float(float xHand) VRIsAmmolessWeapon =
 {
-    if(xHand == OFF_HAND) return self.currentammo2 == AID_NONE;
-    else                  return self.currentammo == AID_NONE;
+    return VRGetCurrentAmmo(xHand) == AID_NONE;
 }
 
-float(float xHand) VROtherHand =
+float(float xHand) VRGetOtherHand =
 {
-    if(xHand == OFF_HAND) return MAIN_HAND;
-    else                  return OFF_HAND;
-}
-
-float(float xHand) VRFireButtonPressed =
-{
-    if(xHand == OFF_HAND) return self.button3;
-    else                  return self.button0;
+    if(xHand == cVR_OffHand) return cVR_MainHand;
+    else                  return cVR_OffHand;
 }
 
 void(entity e, float xHand, float v) VRSetEntWeapon =
 {
-    if(xHand == OFF_HAND) e.weapon2 = v;
+    if(xHand == cVR_OffHand) e.weapon2 = v;
     else                  e.weapon = v;
 }
 
@@ -127,7 +180,7 @@ void(float xHand, float v) VRSetWeapon =
 
 float(entity e, float xHand) VRGetEntWeapon =
 {
-    if(xHand == OFF_HAND) return e.weapon2;
+    if(xHand == cVR_OffHand) return e.weapon2;
     else                  return e.weapon;
 }
 
@@ -148,13 +201,13 @@ float(float xHand) VRGetWeapon =
 
 float(entity e, float xHand) VRIsEntHandGrabbing =
 {
-    if(xHand == OFF_HAND) return e.offhand_grabbing;
+    if(xHand == cVR_OffHand) return e.offhand_grabbing;
     else                  return e.mainhand_grabbing;
 }
 
 float(entity e, float xHand) VRIsEntHandPrevGrabbing =
 {
-    if(xHand == OFF_HAND) return e.offhand_prevgrabbing;
+    if(xHand == cVR_OffHand) return e.offhand_prevgrabbing;
     else                  return e.mainhand_prevgrabbing;
 }
 
@@ -190,31 +243,31 @@ float(float xHand) VRStoppedHandGrabbing =
     return VREntStoppedHandGrabbing(self, xHand);
 }
 
-float(entity entPlayer) VRTouchingHandIsBody =
+float(entity entPlayer) VRIsTouchingHandFake =
 {
-    return entPlayer.touchinghand == FAKE_HAND;
+    return entPlayer.touchinghand == cVR_FakeHand;
 }
 
-float(entity entPlayer) VRTouchingHand =
+float(entity entPlayer) VRGetTouchingHand =
 {
-    if(VRTouchingHandIsBody(entPlayer))
+    if(VRIsTouchingHandFake(entPlayer))
     {
-        return MAIN_HAND;
+        return cVR_MainHand;
     }
 
     return entPlayer.touchinghand;
 }
 
-float(entity entTarget) VRHandtouchHandIsBody =
+float(entity entTarget) VRIsHandtouchHandFake =
 {
-    return entTarget.handtouch_hand == FAKE_HAND;
+    return entTarget.handtouch_hand == cVR_FakeHand;
 }
 
-float(entity entTarget) VRHandtouchHand =
+float(entity entTarget) VRGetHandtouchHand =
 {
-    if(VRHandtouchHandIsBody(entTarget))
+    if(VRIsHandtouchHandFake(entTarget))
     {
-        return MAIN_HAND;
+        return cVR_MainHand;
     }
 
     return entTarget.handtouch_hand;

@@ -86,13 +86,13 @@ void(float offset) hknight_shot =
 void() CheckForCharge =
 {
 // check for mad charge
-if (!enemy_vis)
+if(!enemy_vis)
     return;
-if (time < self.attack_finished)
+if(time < self.attack_finished)
     return;
-if ( fabs(self.origin_z - self.enemy.origin_z) > 20)
+if( fabs(self.origin_z - self.enemy.origin_z) > 20)
     return;        // too much height change
-if ( vlen (self.origin - self.enemy.origin) < 80)
+if( vlen (self.origin - self.enemy.origin) < 80)
     return;        // use regular attack
 
 // charge
@@ -103,13 +103,13 @@ if ( vlen (self.origin - self.enemy.origin) < 80)
 
 void() CheckContinueCharge =
 {
-    if (time > self.attack_finished)
+    if(time > self.attack_finished)
     {
         SUB_AttackFinished (3);
         hknight_run1 ();
         return;        // done charging
     }
-    if (random() > 0.5)
+    if(random() > 0.5)
         sound (self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
     else
         sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
@@ -169,7 +169,7 @@ void()    hknight_run8    =[    $run8,        hknight_run1    ] {ai_run(13);};
 
 void()    hknight_pain1    =[    $pain1,        hknight_pain2    ]
     {
-        if (self.spawnflags & 2) // statue
+        if(self.spawnflags & 2) // statue
             sound (self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
         else
             sound (self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
@@ -209,12 +209,12 @@ void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {};
 void() hknight_die =
 {
 // check for gib
-    if (self.health < -40)
+    if(self.health < -40)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_hellkn.mdl", self.health);
 
-    if (self.spawnflags & 2) // statue
+    if(self.spawnflags & 2) // statue
         {
             ThrowGib ( "progs/statgib1.mdl", self.health);
             ThrowGib ( "progs/statgib2.mdl", self.health);
@@ -231,12 +231,12 @@ void() hknight_die =
 
 // regular death
 
-    if (self.spawnflags & 2) // statue
+    if(self.spawnflags & 2) // statue
         sound (self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
     else
         sound (self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
 
-    if (random() > 0.5)
+    if(random() > 0.5)
         hknight_die1 ();
     else
         hknight_dieb1 ();
@@ -375,9 +375,9 @@ void()    hknight_watk22    =[    $w_attack22,    hknight_run1    ] {ai_charge(3
 
 void() hk_idle_sound =
 {
-    if (random() < 0.2)
+    if(random() < 0.2)
     {
-        if (self.spawnflags & 2) // statue
+        if(self.spawnflags & 2) // statue
             sound (self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
         else
             sound (self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
@@ -386,22 +386,22 @@ void() hk_idle_sound =
 
 void(entity attacker, float damage)    hknight_pain =
 {
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
-    if (self.spawnflags & 2) // statue
+    if(self.spawnflags & 2) // statue
         sound (self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
     else
         sound (self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
 
-    if (time - self.pain_finished > 5)
+    if(time - self.pain_finished > 5)
     {    // allways go into pain frame if it has been a while
         hknight_pain1 ();
         self.pain_finished = time + 1;
         return;
     }
 
-    if ((random()*30 > damage) )
+    if((random()*30 > damage) )
         return;        // didn't flinch
 
     self.pain_finished = time + 1;
@@ -415,11 +415,11 @@ void() hknight_melee =
     hknight_type = hknight_type + 1;
 
     sound (self, CHAN_WEAPON, "hknight/slash1.wav", 1, ATTN_NORM);
-    if (hknight_type == 1)
+    if(hknight_type == 1)
         hknight_slice1 ();
-    else if (hknight_type == 2)
+    else if(hknight_type == 2)
         hknight_smash1 ();
-    else if (hknight_type == 3)
+    else if(hknight_type == 3)
     {
         hknight_watk1 ();
         hknight_type = 0;
@@ -464,7 +464,7 @@ frame: frame to be frozen in. (default 73)
 */
 void() monster_hell_knight =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -473,7 +473,7 @@ void() monster_hell_knight =
     precache_model2 ("progs/k_spike.mdl");
     precache_model2 ("progs/h_hellkn.mdl");
 
-    if (self.spawnflags & 2) // statue
+    if(self.spawnflags & 2) // statue
     {
         precache_model ( "progs/statgib1.mdl");
         precache_model ( "progs/statgib2.mdl");
@@ -508,13 +508,13 @@ void() monster_hell_knight =
     setsize (self, '-12 -12 -24', '12 12 36');
     self.health = 250;
 
-    if (self.spawnflags & 2) // statue
+    if(self.spawnflags & 2) // statue
     {
-        if (self.frame == 0)
+        if(self.frame == 0)
             self.frame = 73;
         self.skin = 1;
 
-        if (!self.targetname)
+        if(!self.targetname)
         {
             dprint ("statue not targeted\n");
             dprint (self.classname);

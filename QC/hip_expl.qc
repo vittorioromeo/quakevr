@@ -18,7 +18,7 @@ void() exploder_fire =
     SUB_UseTargets ();
     self = temp;
     other = self;
-   if (self.dmg<120)
+   if(self.dmg<120)
       {
       sound (self , CHAN_AUTO, "misc/shortexp.wav", self.volume, self.speed);
       }
@@ -27,7 +27,7 @@ void() exploder_fire =
       sound (self , CHAN_AUTO, "misc/longexpl.wav", self.volume, self.speed);
       }
    T_RadiusDamage (self, self.owner, self.dmg, other);
-   if (self.spawnflags & USE_PARTICLES)
+   if(self.spawnflags & USE_PARTICLES)
       {
       WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte (MSG_BROADCAST, TE_EXPLOSION);
@@ -40,7 +40,7 @@ void() exploder_fire =
 
 void() exploder_use =
     {
-    if (self.delay)
+    if(self.delay)
         {
         self.nextthink = time + self.delay;
         self.delay = 0;
@@ -66,19 +66,19 @@ void() func_exploder =
    precache_sound ("misc/longexpl.wav");
     self.classname = "exploder";
     self.use = exploder_use;
-    if ( self.dmg == 0 )
+    if( self.dmg == 0 )
        {
        self.dmg = 120;
        }
-    if ( self.dmg < 0 )
+    if( self.dmg < 0 )
        {
        self.dmg = 0;
        }
-   if ( self.speed == 0 )
+   if( self.speed == 0 )
        {
       self.speed = 1;
        }
-   if ( self.volume == 0 )
+   if( self.volume == 0 )
        {
       self.volume = 1.0;
        }
@@ -90,7 +90,7 @@ void() multi_exploder_fire =
    local entity expl;
 
    self.nextthink = time + self.wait;
-   if (self.state == 0)
+   if(self.state == 0)
       {
       self.state = 1;
       self.duration = time + self.duration;
@@ -100,7 +100,7 @@ void() multi_exploder_fire =
       self = temp;
       other = self;
       }
-   if (time > self.duration)
+   if(time > self.duration)
       {
       remove(self);
       return;
@@ -113,7 +113,7 @@ void() multi_exploder_fire =
    expl.origin_z = self.absmin_z + (random() * (self.absmax_z - self.absmin_z));
    sound (expl , CHAN_VOICE, "misc/shortexp.wav", self.volume, self.speed);
    T_RadiusDamage (expl, self.owner, self.dmg, other);
-   if (self.spawnflags & USE_PARTICLES)
+   if(self.spawnflags & USE_PARTICLES)
       {
       WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte (MSG_BROADCAST, TE_EXPLOSION);
@@ -148,7 +148,7 @@ void( vector loc, float rad, float damage, float dur, float pause, float vol) mu
 
 void() multi_exploder_use =
     {
-   if (self.delay)
+   if(self.delay)
         {
         self.nextthink = time + self.delay;
         self.delay = 0;
@@ -168,7 +168,7 @@ void() multi_exploder_use =
   "dmg" specifies how much damage to cause from each explosion
   Negative values indicate no damage.  Default or 0 indicates 120.
   "delay" delay before exploding (Default 0 seconds)
-  "duration" how long to explode for (Default 1 second)
+  "duration" how long to explode for(Default 1 second)
   "wait" time between each explosion (default 0.25 seconds)
   "volume" volume to play explosion sound at (default 0.5)
   "speed" attenuation for explosions (default normal)
@@ -184,21 +184,21 @@ void() func_multi_exploder =
    self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
    self.model = "";
-    if ( self.dmg == 0 )
+    if( self.dmg == 0 )
        {
        self.dmg = 120;
        }
-    if ( self.dmg < 0 )
+    if( self.dmg < 0 )
        {
        self.dmg = 0;
        }
-   if (self.duration == 0)
+   if(self.duration == 0)
       self.duration = 1.0;
-   if (self.speed == 0)
+   if(self.speed == 0)
       self.speed = 1.0;
-   if (self.volume == 0)
+   if(self.volume == 0)
       self.volume = 0.5;
-   if (self.wait == 0)
+   if(self.wait == 0)
       self.wait = 0.25;
    self.state = 0;
    };

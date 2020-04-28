@@ -48,7 +48,7 @@ void()    demon1_stand12    =[    $stand12,    demon1_stand13    ] {ai_stand();}
 void()    demon1_stand13    =[    $stand13,    demon1_stand1    ] {ai_stand();};
 
 void()    demon1_walk1    =[    $walk1,        demon1_walk2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "demon/idle1.wav", 1, ATTN_IDLE);
 ai_walk(8);
 };
@@ -61,7 +61,7 @@ void()    demon1_walk7    =[    $walk7,        demon1_walk8    ] {ai_walk(10);};
 void()    demon1_walk8    =[    $walk8,        demon1_walk1    ] {ai_walk(10);};
 
 void()    demon1_run1    =[    $run1,        demon1_run2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "demon/idle1.wav", 1, ATTN_IDLE);
 ai_run(20);};
 void()    demon1_run2    =[    $run2,        demon1_run3    ] {ai_run(15);};
@@ -81,7 +81,7 @@ void()    demon1_jump4    =[    $leap4,        demon1_jump5    ]
     makevectors (self.angles);
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 600 + '0 0 250';
-    if (self.flags & FL_ONGROUND)
+    if(self.flags & FL_ONGROUND)
         self.flags = self.flags - FL_ONGROUND;
 };
 void()    demon1_jump5    =[    $leap5,        demon1_jump6    ] {};
@@ -123,16 +123,16 @@ void()    demon1_pain6    =[    $pain6,        demon1_run1    ] {};
 
 void(entity attacker, float damage)    demon1_pain =
 {
-    if (self.touch == Demon_JumpTouch)
+    if(self.touch == Demon_JumpTouch)
         return;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     self.pain_finished = time + 1;
     sound (self, CHAN_VOICE, "demon/dpain1.wav", 1, ATTN_NORM);
 
-    if (random()*200 > damage)
+    if(random()*200 > damage)
         return;        // didn't flinch
 
     demon1_pain1 ();
@@ -153,7 +153,7 @@ void()    demon1_die9        =[    $death9,        demon1_die9 ] {};
 void() demon_die =
 {
 // check for gib
-    if (self.health < -80)
+    if(self.health < -80)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_demon.mdl", self.health);
@@ -179,7 +179,7 @@ void() Demon_MeleeAttack =
 */
 void() monster_demon1 =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -231,7 +231,7 @@ Returns TRUE if a melee attack would hit right now
 */
 float()    CheckDemonMelee =
 {
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {    // FIXME: check canreach
         self.attack_state = AS_MELEE;
         return TRUE;
@@ -250,11 +250,11 @@ float()    CheckDemonJump =
     local    vector    dist;
     local    float    d;
 
-    if (self.origin_z + self.mins_z > self.enemy.origin_z + self.enemy.mins_z
+    if(self.origin_z + self.mins_z > self.enemy.origin_z + self.enemy.mins_z
     + 0.75 * self.enemy.size_z)
         return FALSE;
 
-    if (self.origin_z + self.maxs_z < self.enemy.origin_z + self.enemy.mins_z
+    if(self.origin_z + self.maxs_z < self.enemy.origin_z + self.enemy.mins_z
     + 0.25 * self.enemy.size_z)
         return FALSE;
 
@@ -263,12 +263,12 @@ float()    CheckDemonJump =
 
     d = vlen(dist);
 
-    if (d < 100)
+    if(d < 100)
         return FALSE;
 
-    if (d > 200)
+    if(d > 200)
     {
-        if (random() < 0.9)
+        if(random() < 0.9)
             return FALSE;
     }
 
@@ -278,13 +278,13 @@ float()    CheckDemonJump =
 float()    DemonCheckAttack =
 {
     // if close enough for slashing, go for it
-    if (CheckDemonMelee ())
+    if(CheckDemonMelee ())
     {
         self.attack_state = AS_MELEE;
         return TRUE;
     }
 
-    if (CheckDemonJump ())
+    if(CheckDemonJump ())
     {
         self.attack_state = AS_MISSILE;
         sound (self, CHAN_VOICE, "demon/djump.wav", 1, ATTN_NORM);
@@ -307,9 +307,9 @@ void(float side)    Demon_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     sound (self, CHAN_WEAPON, "demon/dhit2.wav", 1, ATTN_NORM);
@@ -325,21 +325,21 @@ void()    Demon_JumpTouch =
 {
     local    float    ldmg;
 
-    if (self.health <= 0)
+    if(self.health <= 0)
         return;
 
-    if (other.takedamage)
+    if(other.takedamage)
     {
-        if ( vlen(self.velocity) > 400 )
+        if( vlen(self.velocity) > 400 )
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);
         }
     }
 
-    if (!checkbottom(self))
+    if(!checkbottom(self))
     {
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
 //dprint ("popjump\n");
     self.touch = SUB_Null;

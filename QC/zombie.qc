@@ -75,7 +75,7 @@ void() zombie_stand14    =[    $stand14,        zombie_stand15    ] {ai_stand();
 void() zombie_stand15    =[    $stand15,        zombie_stand1    ] {ai_stand();};
 
 void() zombie_cruc1    =    [    $cruc_1,        zombie_cruc2    ] {
-if (random() < 0.1)
+if(random() < 0.1)
     sound (self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);};
 void() zombie_cruc2    =    [    $cruc_2,        zombie_cruc3    ] {self.nextthink = time + 0.1 + random()*0.1;};
 void() zombie_cruc3    =    [    $cruc_3,        zombie_cruc4    ] {self.nextthink = time + 0.1 + random()*0.1;};
@@ -103,7 +103,7 @@ void() zombie_walk17    =[    $walk17,    zombie_walk18    ] {ai_walk(0);};
 void() zombie_walk18    =[    $walk18,    zombie_walk19    ] {ai_walk(0);};
 void() zombie_walk19    =[    $walk19,    zombie_walk1    ] {
 ai_walk(0);
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);};
 
 void() zombie_run1        =[    $run1,        zombie_run2    ] {ai_run(1);self.inpain = 0;};
@@ -125,9 +125,9 @@ void() zombie_run16        =[    $run16,        zombie_run17    ] {ai_run(7);};
 void() zombie_run17        =[    $run17,        zombie_run18    ] {ai_run(3);};
 void() zombie_run18        =[    $run18,        zombie_run1    ] {
 ai_run(8);
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
-if (random() > 0.8)
+if(random() > 0.8)
     sound (self, CHAN_VOICE, "zombie/z_idle1.wav", 1, ATTN_IDLE);
 };
 
@@ -141,9 +141,9 @@ ATTACKS
 
 void() ZombieGrenadeTouch =
 {
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
-    if (other.takedamage)
+    if(other.takedamage)
     {
         T_Damage (other, self, self.owner, 10 );
         sound (self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
@@ -246,9 +246,9 @@ void() zombie_missile =
 
     r = random();
 
-    if (r < 0.3)
+    if(r < 0.3)
         zombie_atta1 ();
-    else if (r < 0.6)
+    else if(r < 0.6)
         zombie_attb1 ();
     else
         zombie_attc1 ();
@@ -360,7 +360,7 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]{
 self.health = 60;
 sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
 self.solid = SOLID_SLIDEBOX;
-if (!walkmove (0, 0))
+if(!walkmove (0, 0))
 {
     self.think = zombie_paine11;
     self.solid = SOLID_NOT;
@@ -420,28 +420,28 @@ void(entity attacker, float take) zombie_pain =
 
     self.health = 60;        // allways reset health
 
-    if (take < 9)
+    if(take < 9)
         return;                // totally ignore
 
-    if (self.inpain == 2)
+    if(self.inpain == 2)
         return;            // down on ground, so don't reset any counters
 
 // go down immediately if a big enough hit
-    if (take >= 25)
+    if(take >= 25)
     {
         self.inpain = 2;
         zombie_paine1 ();
         return;
     }
 
-    if (self.inpain)
+    if(self.inpain)
     {
 // if hit again in next gre seconds while not in pain frames, definately drop
         self.pain_finished = time + 3;
         return;            // currently going through an animation, don't change
     }
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
     {
 // hit again, so drop down
         self.inpain = 2;
@@ -453,11 +453,11 @@ void(entity attacker, float take) zombie_pain =
     self.inpain = 1;
 
     r = random();
-    if (r < 0.25)
+    if(r < 0.25)
         zombie_paina1 ();
-    else if (r <  0.5)
+    else if(r <  0.5)
         zombie_painb1 ();
-    else if (r <  0.75)
+    else if(r <  0.75)
         zombie_painc1 ();
     else
         zombie_paind1 ();
@@ -480,7 +480,7 @@ void() zombie_lay   =[ $paine11,   zombie_lay ]
    self.nextthink = self.nextthink + 0.1;
    self.health = 60;
 
-   if (FindTarget ())
+   if(FindTarget ())
       {
       zombie_lay12();
       return;
@@ -498,7 +498,7 @@ when awakened by the player.
 */
 void() monster_zombie =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -534,7 +534,7 @@ void() monster_zombie =
     self.th_die = zombie_die;
     self.th_missile = zombie_missile;
 
-    if (self.spawnflags & SPAWN_CRUCIFIED)
+    if(self.spawnflags & SPAWN_CRUCIFIED)
     {
         self.movetype = MOVETYPE_NONE;
         zombie_cruc1 ();
@@ -543,7 +543,7 @@ void() monster_zombie =
         walkmonster_start();
 
    //HIPNOTIC
-   if (self.spawnflags & SPAWN_LYINGDOWN)
+   if(self.spawnflags & SPAWN_LYINGDOWN)
       {
       self.th_stand = zombie_lay;
       }

@@ -6,9 +6,9 @@
 
 void() play_sound_use =
    {
-   if (self.spawnflags & 1)
+   if(self.spawnflags & 1)
       {
-      if (self.state == 0)
+      if(self.state == 0)
          {
          self.state = 1;
          sound (self, self.impulse, self.noise, self.volume, self.speed);
@@ -29,7 +29,7 @@ void() PlaySoundThink =
    {
    local float t;
    t = self.wait * random();
-   if (t < self.delay)
+   if(t < self.delay)
       t = self.delay;
    self.nextthink = time + t;
    play_sound_use();
@@ -51,14 +51,14 @@ void() play_sound_triggered =
    {
    precache_sound (self.noise);
    precache_sound ("misc/null.wav");
-   if (self.volume == 0)
+   if(self.volume == 0)
       self.volume = 1;
-   if (self.speed == 0)
+   if(self.speed == 0)
       self.speed = 1;
-   if (self.speed == -1)
+   if(self.speed == -1)
       self.speed = 0;
-   if (self.spawnflags & 1)
-      if (self.impulse == 0)
+   if(self.spawnflags & 1)
+      if(self.impulse == 0)
          self.impulse = 7;
    self.use = play_sound_use;
    };
@@ -81,13 +81,13 @@ void() play_sound =
    local float t;
 
    play_sound_triggered();
-   if (self.wait == 0)
+   if(self.wait == 0)
       self.wait = 20;
-   if (self.delay == 0)
+   if(self.delay == 0)
       self.delay = 2;
    self.think = PlaySoundThink;
    t = self.wait * random();
-   if (t < self.delay)
+   if(t < self.delay)
       t = self.delay;
    self.nextthink = time + t;
    };
@@ -130,7 +130,7 @@ void() random_thunder_triggered =
 */
 void() ambient_humming =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/humming.wav");
    ambientsound (self.origin, "ambient/humming.wav", self.volume, ATTN_STATIC);
@@ -141,7 +141,7 @@ void() ambient_humming =
 */
 void() ambient_rushing =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/rushing.wav");
    ambientsound (self.origin, "ambient/rushing.wav", self.volume, ATTN_STATIC);
@@ -152,7 +152,7 @@ void() ambient_rushing =
 */
 void() ambient_running_water =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/runwater.wav");
    ambientsound (self.origin, "ambient/runwater.wav", self.volume, ATTN_STATIC);
@@ -163,7 +163,7 @@ void() ambient_running_water =
 */
 void() ambient_fan_blowing =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/fanblow.wav");
    ambientsound (self.origin, "ambient/fanblow.wav", self.volume, ATTN_STATIC);
@@ -174,7 +174,7 @@ void() ambient_fan_blowing =
 */
 void() ambient_waterfall =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/waterfal.wav");
    ambientsound (self.origin, "ambient/waterfal.wav", self.volume, ATTN_STATIC);
@@ -185,7 +185,7 @@ void() ambient_waterfall =
 */
 void() ambient_riftpower =
 {
-   if (self.volume==0)
+   if(self.volume==0)
       self.volume = 0.5;
    precache_sound ("ambient/riftpowr.wav");
    ambientsound (self.origin, "ambient/riftpowr.wav", self.volume, ATTN_STATIC);
@@ -201,7 +201,7 @@ void() ambient_riftpower =
 
 void() info_command =
    {
-   if ( self.message )
+   if( self.message )
       localcmd( self.message );
    };
 
@@ -246,7 +246,7 @@ void() camerathink =
    local float    timeelapsed;
 
    timeelapsed = (time - self.cnt) * self.duration;
-   if ( timeelapsed > 1 )
+   if( timeelapsed > 1 )
       timeelapsed = 1;
 
    p = self.oldorigin + (timeelapsed * (self.movetarget.origin - self.oldorigin));
@@ -277,13 +277,13 @@ void() camerachase =
 
 
    timeelapsed = time - self.cnt;
-   if ( timeelapsed > 1 )
+   if( timeelapsed > 1 )
       timeelapsed = 1;
    self.cnt = time;
 
    self.velocity = (self.movetarget.origin - self.oldorigin)*(1/timeelapsed);
    self.oldorigin = self.movetarget.origin;
-   if (self.state == 0) // setup
+   if(self.state == 0) // setup
       {
       self.velocity = '0 0 0';
       self.cnt = time;
@@ -349,7 +349,7 @@ void() t_cameratarget =
 {
 local entity    temp;
 
-    if (other.movetarget != self)
+    if(other.movetarget != self)
         return;
 
     temp = self;
@@ -358,7 +358,7 @@ local entity    temp;
 
    self.angles = self.movetarget.mangle;
    self.movetarget = find (world, targetname, other.target);
-   if (!self.movetarget)
+   if(!self.movetarget)
       {
       self.nextthink = time + 999999;
       }
@@ -379,7 +379,7 @@ local entity    temp;
       self.mangles = self.angles;
       a_diff = self.movetarget.mangle - self.mangle;
       self.avelocity = a_diff*self.duration;
-      if (other.delay)
+      if(other.delay)
          {
          self.nextthink = time + other.delay;
          self.cnt = time + other.delay;
@@ -400,7 +400,7 @@ void() path_camera =
 {
     self.solid = SOLID_TRIGGER;
    self.touch = t_cameratarget;
-   if (!self.duration)
+   if(!self.duration)
       self.duration = 10;
     setsize (self, '-8 -8 -8', '8 8 8');
 };
@@ -436,7 +436,7 @@ void() effect_finale_use =
 {
    local entity   pos, pl, targ;
 
-   if (self.state == 1)
+   if(self.state == 1)
       return;
 
 //   intermission_exittime = time + 10000000;  // never allow exit
@@ -445,7 +445,7 @@ void() effect_finale_use =
 
     // find the intermission spot
    pos = find (world, targetname, self.target);
-   if (!pos)
+   if(!pos)
       error ("no target in finale");
 
 //   WriteByte (MSG_ALL, SVC_FINALE);
@@ -453,9 +453,9 @@ void() effect_finale_use =
    WriteString (MSG_ALL, "");
 
    //setup decoy
-   if (!self.spawnflags & 2)
+   if(!self.spawnflags & 2)
       {
-      if (self.spawnflags & 1)
+      if(self.spawnflags & 1)
          {
          pl = find (world, classname, "player");
          targ = find (world, targetname, self.mdl);
@@ -469,7 +469,7 @@ void() effect_finale_use =
       }
 
     pl = find (world, classname, "player");
-    while (pl != world)
+    while(pl != world)
     {
       pl.view_ofs = '0 0 0';
         pl.angles = other.v_angle = pos.mangle;
@@ -490,7 +490,7 @@ void() effect_finale_use =
     }
 
    // wait for next sequence
-   if (self.spawnfunction)
+   if(self.spawnfunction)
       {
       self.nextthink = time + self.wait;
       self.think = self.spawnfunction;
@@ -524,7 +524,7 @@ void() effect_finale_use =
 
 void() effect_finale =
    {
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;

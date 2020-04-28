@@ -203,7 +203,7 @@ void() worldspawn =
    InitBulletHoles();
 
 // custom map attributes
-    if (self.model == "maps/e1m8.bsp")
+    if(self.model == "maps/e1m8.bsp")
         cvar_set ("sv_gravity", "100");
     else
         cvar_set ("sv_gravity", "800");
@@ -416,7 +416,7 @@ void() worldspawn =
 //JIM
     StopEarthQuake();
 //MED
-   // if (cvar("crosshair") == 2)
+   // if(cvar("crosshair") == 2)
       footsteps = 1;
    // else
       // footsteps = 0;

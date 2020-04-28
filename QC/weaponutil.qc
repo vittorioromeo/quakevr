@@ -16,6 +16,7 @@ float(float wid, float wpnFlags) PlayerHasWeapon =
 
     if(wid == WID_FIST) return TRUE;
     if(wid == WID_GRAPPLE) return TRUE; // TODO VR: (P0) always have grapple?
+
     return wpnFlags & WeaponIdToItemId(wid);
 }
 
@@ -231,7 +232,7 @@ float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
 
     ammoId = WeaponIdToAmmoId(wid);
 
-    if (ammoId == AID_NONE)
+    if(ammoId == AID_NONE)
     {
         return TRUE;
     }

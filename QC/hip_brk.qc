@@ -18,7 +18,7 @@ void() damagethreshold_killed =
     SUB_UseTargets ();
     self.takedamage = DAMAGE_YES;
 
-    if ( !( self.spawnflags & MULTI_USE ) )
+    if( !( self.spawnflags & MULTI_USE ) )
        {
        remove( self );
        }
@@ -56,12 +56,12 @@ void() trigger_damagethreshold =
    setorigin (self, self.origin);
     setmodel (self, self.model);
     setsize (self, self.mins , self.maxs);
-   if ( self.spawnflags & INVISIBLE )
+   if( self.spawnflags & INVISIBLE )
       {
       self.model = string_null;
       }
 
-    if (!self.health)
+    if(!self.health)
         {
         self.health = 60;
         }

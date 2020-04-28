@@ -196,6 +196,8 @@ typedef struct entvars_s
 	float	offhand_prevgrabbing;
 	float	mainhand_grabbing;
 	float	mainhand_prevgrabbing;
+	float	offhand_forcegrabbing;
+	float	mainhand_forcegrabbing;
 	float	offhand_hotspot;
 	float	mainhand_hotspot;
 	vec3_t	roomscalemove;
@@ -206,4 +208,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 53975
+#define PROGHEADER_CRC 62066

@@ -9,48 +9,48 @@ float USE_GOLD_KEY = 1;
 
 void() keytrigger_use =
    {
-   if (activator.classname != "player")
+   if(activator.classname != "player")
         return;
-   if (self.attack_finished > time)
+   if(self.attack_finished > time)
         return;
 
    self.attack_finished = time + 2;
 
 // FIXME: blink key on player's status bar
-   if ( (self.items & activator.items) != self.items )
+   if( (self.items & activator.items) != self.items )
       {
-      if (self.message != "")
+      if(self.message != "")
          {
          centerprint (activator, self.message);
          }
       else
          {
-         if (self.owner.items == IT_KEY1)
+         if(self.owner.items == IT_KEY1)
             {
-            if (world.worldtype == 2)
+            if(world.worldtype == 2)
                {
                centerprint (activator, "You need the silver keycard");
                }
-            else if (world.worldtype == 1)
+            else if(world.worldtype == 1)
                {
                centerprint (activator, "You need the silver runekey");
                }
-            else if (world.worldtype == 0)
+            else if(world.worldtype == 0)
                {
                centerprint (activator, "You need the silver key");
                }
             }
          else
             {
-            if (world.worldtype == 2)
+            if(world.worldtype == 2)
                {
                centerprint (activator, "You need the gold keycard");
                }
-            else if (world.worldtype == 1)
+            else if(world.worldtype == 1)
                {
                centerprint (activator, "You need the gold runekey");
                }
-            else if (world.worldtype == 0)
+            else if(world.worldtype == 0)
                {
                centerprint (activator, "You need the gold key");
                }
@@ -89,21 +89,21 @@ Variable sized single use trigger that requires a key to trigger targets.  Must 
 
 void() trigger_usekey =
     {
-   if (world.worldtype == 0)
+   if(world.worldtype == 0)
     {
         precache_sound ("doors/medtry.wav");
         precache_sound ("doors/meduse.wav");
         self.noise3 = "doors/medtry.wav";
         self.noise4 = "doors/meduse.wav";
     }
-    else if (world.worldtype == 1)
+    else if(world.worldtype == 1)
     {
         precache_sound ("doors/runetry.wav");
         precache_sound ("doors/runeuse.wav");
         self.noise3 = "doors/runetry.wav";
         self.noise4 = "doors/runeuse.wav";
     }
-    else if (world.worldtype == 2)
+    else if(world.worldtype == 2)
     {
         precache_sound ("doors/basetry.wav");
         precache_sound ("doors/baseuse.wav");
@@ -115,7 +115,7 @@ void() trigger_usekey =
         dprint ("no worldtype set!\n");
     }
 
-   if (self.spawnflags & USE_GOLD_KEY)
+   if(self.spawnflags & USE_GOLD_KEY)
       self.items = IT_KEY2;
    else
       self.items = IT_KEY1;
@@ -128,7 +128,7 @@ void() trigger_usekey =
 
 void() remove_touch =
    {
-   if (other.flags & self.cnt)
+   if(other.flags & self.cnt)
       return;
    other.touch = SUB_Null;
    other.model = "";
@@ -145,9 +145,9 @@ players.
 void() trigger_remove =
    {
    self.cnt = FL_CLIENT|FL_MONSTER;
-   if (self.spawnflags & 1)
+   if(self.spawnflags & 1)
       self.cnt = self.cnt - FL_MONSTER;
-   if (self.spawnflags & 2)
+   if(self.spawnflags & 2)
       self.cnt = self.cnt - FL_CLIENT;
    InitTrigger ();
    self.touch = remove_touch;
@@ -162,9 +162,9 @@ trigger_setgravity
 
 void() trigger_gravity_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-   if (self.gravity == -1)
+   if(self.gravity == -1)
       other.gravity = 1.0;
    else
       other.gravity = self.gravity;
@@ -186,7 +186,7 @@ void() trigger_setgravity =
 {
     InitTrigger ();
    self.touch = trigger_gravity_touch;
-   if (!self.gravity)
+   if(!self.gravity)
       {
       self.gravity = -1;
       }
@@ -198,7 +198,7 @@ void() trigger_setgravity =
 
 void() trigger_command_use =
    {
-   if ( self.message )
+   if( self.message )
       localcmd( self.message );
    };
 
@@ -217,7 +217,7 @@ void() trigger_command =
 
 void() trigger_decoy_touch =
    {
-   if (other.classname != "monster_decoy")
+   if(other.classname != "monster_decoy")
       return;
    self.touch = SUB_Null;
    self.nextthink = time + 0.1;
@@ -232,7 +232,7 @@ void() trigger_decoy_touch =
 
 void() trigger_decoy_use =
    {
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;
@@ -244,7 +244,7 @@ void() trigger_decoy_use =
 void() trigger_waterfall_touch =
    {
    // only affect players
-   if (!(other.flags & FL_CLIENT))
+   if(!(other.flags & FL_CLIENT))
       {
       return;
       }
@@ -266,12 +266,12 @@ void() trigger_waterfall =
    InitTrigger ();
    self.touch = trigger_waterfall_touch;
 
-   if ( self.count == 0 )
+   if( self.count == 0 )
       {
       self.count = 100;
       }
 
-   if ( self.speed == 0 )
+   if( self.speed == 0 )
       {
       self.movedir = self.movedir * 50;
       }

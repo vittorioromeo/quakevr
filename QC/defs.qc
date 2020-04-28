@@ -278,10 +278,16 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        offmuzzlepos;
 .float        teleporting;
 .vector        teleport_target;
+
 .float        offhand_grabbing;
 .float        offhand_prevgrabbing;
+
 .float        mainhand_grabbing;
 .float        mainhand_prevgrabbing;
+
+.float        offhand_forcegrabbing;
+.float        mainhand_forcegrabbing;
+
 .float        offhand_hotspot;
 .float        mainhand_hotspot;
 .vector       roomscalemove;
@@ -308,9 +314,9 @@ void        end_sys_fields;            // flag for structure dumping
 // constants
 //
 
-float OFF_HAND = 0;
-float MAIN_HAND = 1;
-float FAKE_HAND = 2;
+float cVR_OffHand = 0;
+float cVR_MainHand = 1;
+float cVR_FakeHand = 2;
 
 float    FALSE                    = 0;
 float     TRUE                    = 1;

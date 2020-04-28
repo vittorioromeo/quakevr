@@ -55,7 +55,7 @@ void()    army_stand7    =[    $stand7,    army_stand8    ] {ai_stand();};
 void()    army_stand8    =[    $stand8,    army_stand1    ] {ai_stand();};
 
 void()    army_walk1    =[    $prowl_1,    army_walk2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "soldier/idle.wav", 1, ATTN_IDLE);
 ai_walk(1);};
 void()    army_walk2    =[    $prowl_2,    army_walk3    ] {ai_walk(1);};
@@ -83,7 +83,7 @@ void()    army_walk23    =[    $prowl_23,    army_walk24    ] {ai_walk(1);};
 void()    army_walk24    =[    $prowl_24,    army_walk1    ] {ai_walk(1);};
 
 void()    army_run1    =[    $run1,        army_run2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "soldier/idle.wav", 1, ATTN_IDLE);
 ai_run(11);};
 void()    army_run2    =[    $run2,        army_run3    ] {ai_run(15);};
@@ -146,18 +146,18 @@ void(entity attacker, float damage)    army_pain =
 {
     local float r;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     r = random();
 
-    if (r < 0.2)
+    if(r < 0.2)
     {
         self.pain_finished = time + 0.6;
         army_pain1 ();
         sound (self, CHAN_VOICE, "soldier/pain1.wav", 1, ATTN_NORM);
     }
-    else if (r < 0.6)
+    else if(r < 0.6)
     {
         self.pain_finished = time + 1.1;
         army_painb1 ();
@@ -186,7 +186,7 @@ void() army_fire =
     // fire somewhat behind the player, so a dodging player is harder to hit
     en = self.enemy;
 
-    // TODO VR: (P1) this works
+    // TODO VR: (P2) this works
     // self.scale = ((self.scale + '1 1 1') * 1.1) - '1 1 1';
 
     dir = en.origin - en.velocity*0.2;
@@ -255,7 +255,7 @@ void()    army_cdie11    =[    $deathc11,    army_cdie11    ] {};
 void() army_die =
 {
 // check for gib
-    if (self.health < -35)
+    if(self.health < -35)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_guard.mdl", self.health);
@@ -268,7 +268,7 @@ void() army_die =
 
 // regular death
     sound (self, CHAN_VOICE, "soldier/death1.wav", 1, ATTN_NORM);
-    if (random() < 0.5)
+    if(random() < 0.5)
         army_die1 ();
     else
         army_cdie1 ();
@@ -279,7 +279,7 @@ void() army_die =
 */
 void() monster_army =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -307,7 +307,7 @@ void() monster_army =
 
     setsize (self, '-12 -12 -24', '12 12 26');
 
-    // TODO VR: (P1) this works
+    // TODO VR: (P2) this works
     // self.scale_origin = '0 0 25';
 
     self.health = 30;

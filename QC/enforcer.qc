@@ -42,10 +42,10 @@ void() Laser_Touch =
 {
     local vector org;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
@@ -53,11 +53,11 @@ void() Laser_Touch =
 
 //MED 01/16/97 added silent command
 
-    if (!(self.spawnflags & SPAWNFLAG_SILENT))
+    if(!(self.spawnflags & SPAWNFLAG_SILENT))
         sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     org = self.origin - 8*normalize(self.velocity);
 
-    if (other.health)
+    if(other.health)
     {
         SpawnBlood (org, self.velocity*0.2, 15);
         T_Damage (other, self, self.owner, 15);
@@ -76,7 +76,7 @@ void() Laser_Touch =
 
 void(vector org, vector vec) LaunchLaser =
 {
-    if (self.classname == "monster_enforcer")
+    if(self.classname == "monster_enforcer")
         sound (self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
     vec = normalize(vec);
@@ -91,9 +91,9 @@ void(vector org, vector vec) LaunchLaser =
     setmodel (newmis, "progs/laser.mdl");
     setsize (newmis, '0 0 0', '0 0 0');
 
-    if (self.classname == "monster_morph")
+    if(self.classname == "monster_morph")
     {
-        if (!self.owner)
+        if(!self.owner)
             newmis.skin = 1;
     }
 
@@ -132,7 +132,7 @@ void()    enf_stand6    =[    $stand6,    enf_stand7    ] {ai_stand();};
 void()    enf_stand7    =[    $stand7,    enf_stand1    ] {ai_stand();};
 
 void()    enf_walk1    =[    $walk1 ,    enf_walk2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "enforcer/idle1.wav", 1, ATTN_IDLE);
 ai_walk(2);};
 void()    enf_walk2    =[    $walk2 ,    enf_walk3    ] {ai_walk(4);};
@@ -152,7 +152,7 @@ void()    enf_walk15    =[    $walk15,    enf_walk16    ] {ai_walk(4);};
 void()    enf_walk16    =[    $walk16,    enf_walk1    ] {ai_walk(2);};
 
 void()    enf_run1    =[    $run1  ,    enf_run2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "enforcer/idle1.wav", 1, ATTN_IDLE);
 ai_run(18);};
 void()    enf_run2    =[    $run2  ,    enf_run3    ] {ai_run(14);};
@@ -225,26 +225,26 @@ void(entity attacker, float damage)    enf_pain =
     local float r;
 
     r = random ();
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
 
-    if (r < 0.5)
+    if(r < 0.5)
         sound (self, CHAN_VOICE, "enforcer/pain1.wav", 1, ATTN_NORM);
     else
         sound (self, CHAN_VOICE, "enforcer/pain2.wav", 1, ATTN_NORM);
 
-    if (r < 0.2)
+    if(r < 0.2)
     {
         self.pain_finished = time + 1;
         enf_paina1 ();
     }
-    else if (r < 0.4)
+    else if(r < 0.4)
     {
         self.pain_finished = time + 1;
         enf_painb1 ();
     }
-    else if (r < 0.7)
+    else if(r < 0.7)
     {
         self.pain_finished = time + 1;
         enf_painc1 ();
@@ -316,7 +316,7 @@ void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] {};
 void() enf_die =
 {
 // check for gib
-    if (self.health < -35)
+    if(self.health < -35)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_mega.mdl", self.health);
@@ -329,7 +329,7 @@ void() enf_die =
 
 // regular death
     sound (self, CHAN_VOICE, "enforcer/death1.wav", 1, ATTN_NORM);
-    if (random() > 0.5)
+    if(random() > 0.5)
         enf_die1 ();
     else
         enf_fdie1 ();
@@ -341,7 +341,7 @@ void() enf_die =
 */
 void() monster_enforcer =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

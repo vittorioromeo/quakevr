@@ -41,10 +41,10 @@ void() boss_face =
 {
 
 // go for another player if multi player
-    if (self.enemy.health <= 0 || random() < 0.02)
+    if(self.enemy.health <= 0 || random() < 0.02)
     {
         self.enemy = find(self.enemy, classname, "player");
-        if (!self.enemy)
+        if(!self.enemy)
             self.enemy = find(self.enemy, classname, "player");
     }
     ai_face();
@@ -200,7 +200,7 @@ void(float r, vector p) boss_missile =
     local    float    vel;
 
     // VR: Predicted direction attack.
-    if (r == 0)
+    if(r == 0)
     {
         vel = 450 + random() * 150;
     }
@@ -215,10 +215,10 @@ void(float r, vector p) boss_missile =
     org = self.origin + p_x*v_forward + p_y*v_right + p_z*'0 0 1';
 
 // lead the player on hard mode
-    if (skill > 1)
+    if(skill > 1)
     {
         // VR: Predicted direction attack.
-        if (r == 0)
+        if(r == 0)
         {
             t = vlen(self.enemy.origin - org) / vel;
             vec = self.enemy.velocity;
@@ -240,7 +240,7 @@ void(float r, vector p) boss_missile =
     newmis.velocity = vec * vel;
 
     // VR: Randomized direction attack.
-    if (r == 1)
+    if(r == 1)
     {
         newmis.velocity_x = newmis.velocity_x + crandom() * 100;
         newmis.velocity_y = newmis.velocity_y + crandom() * 100;
@@ -251,7 +251,7 @@ void(float r, vector p) boss_missile =
     sound (self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
 
 // check for dead enemy
-    if (self.enemy.health <= 0)
+    if(self.enemy.health <= 0)
         boss_idle1 ();
 };
 
@@ -265,7 +265,7 @@ void() boss_awake =
     setmodel (self, "progs/boss.mdl");
     setsize (self, '-128 -128 -24', '128 128 256');
 
-    if (skill == 0)
+    if(skill == 0)
         self.health = 1;
     else
         self.health = 3;
@@ -287,7 +287,7 @@ void() boss_awake =
 */
 void() monster_boss =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -317,7 +317,7 @@ void() lightning_fire =
 {
     local vector p1, p2;
 
-    if (time >= lightning_end)
+    if(time >= lightning_end)
     {    // done here, put the terminals back up
         self = le1;
         door_go_down ();
@@ -352,18 +352,18 @@ void() lightning_fire =
 
 void() lightning_use =
 {
-    if (lightning_end >= time + 1)
+    if(lightning_end >= time + 1)
         return;
 
     le1 = find( world, target, "lightning");
     le2 = find( le1, target, "lightning");
-    if (!le1 || !le2)
+    if(!le1 || !le2)
     {
         dprint ("missing lightning targets\n");
         return;
     }
 
-    if (
+    if(
      (le1.state != STATE_TOP && le1.state != STATE_BOTTOM)
     || (le2.state != STATE_TOP && le2.state != STATE_BOTTOM)
     || (le1.state != le2.state) )
@@ -382,18 +382,18 @@ void() lightning_use =
 
 // advance the boss pain if down
     self = find (world, classname, "monster_boss");
-    if (!self)
+    if(!self)
         return;
     self.enemy = activator;
-    if (le1.state == STATE_TOP && self.health > 0)
+    if(le1.state == STATE_TOP && self.health > 0)
     {
         sound (self, CHAN_VOICE, "boss1/pain.wav", 1, ATTN_NORM);
         self.health = self.health - 1;
-        if (self.health >= 2)
+        if(self.health >= 2)
             boss_shocka1();
-        else if (self.health == 1)
+        else if(self.health == 1)
             boss_shockb1();
-        else if (self.health == 0)
+        else if(self.health == 0)
             boss_shockc1();
     }
 };

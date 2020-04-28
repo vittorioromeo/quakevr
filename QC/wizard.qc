@@ -92,14 +92,14 @@ float()    WizardCheckAttack =
     local entity    targ;
     local float        chance;
 
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
-    if (!enemy_vis)
+    if(!enemy_vis)
         return FALSE;
 
-    if (enemy_range == RANGE_FAR)
+    if(enemy_range == RANGE_FAR)
     {
-        if (self.attack_state != AS_STRAIGHT)
+        if(self.attack_state != AS_STRAIGHT)
         {
             self.attack_state = AS_STRAIGHT;
             wiz_run1 ();
@@ -115,9 +115,9 @@ float()    WizardCheckAttack =
 
     traceline (spot1, spot2, FALSE, self);
 
-    if (trace_ent != targ)
+    if(trace_ent != targ)
     {    // don't have a clear shot, so move to a side
-        if (self.attack_state != AS_STRAIGHT)
+        if(self.attack_state != AS_STRAIGHT)
         {
             self.attack_state = AS_STRAIGHT;
             wiz_run1 ();
@@ -125,24 +125,24 @@ float()    WizardCheckAttack =
         return FALSE;
     }
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
         chance = 0.9;
-    else if (enemy_range == RANGE_NEAR)
+    else if(enemy_range == RANGE_NEAR)
         chance = 0.6;
-    else if (enemy_range == RANGE_MID)
+    else if(enemy_range == RANGE_MID)
         chance = 0.2;
     else
         chance = 0;
 
-    if (random () < chance)
+    if(random () < chance)
     {
         self.attack_state = AS_MISSILE;
         return TRUE;
     }
 
-    if (enemy_range == RANGE_MID)
+    if(enemy_range == RANGE_MID)
     {
-        if (self.attack_state != AS_STRAIGHT)
+        if(self.attack_state != AS_STRAIGHT)
         {
             self.attack_state = AS_STRAIGHT;
             wiz_run1 ();
@@ -150,7 +150,7 @@ float()    WizardCheckAttack =
     }
     else
     {
-        if (self.attack_state != AS_SLIDING)
+        if(self.attack_state != AS_SLIDING)
         {
             self.attack_state = AS_SLIDING;
             wiz_side1 ();
@@ -167,7 +167,7 @@ WizardAttackFinished
 */
 void()    WizardAttackFinished =
 {
-    if (enemy_range >= RANGE_MID || !enemy_vis)
+    if(enemy_range >= RANGE_MID || !enemy_vis)
     {
         self.attack_state = AS_STRAIGHT;
         self.think = wiz_run1;
@@ -192,7 +192,7 @@ void() Wiz_FastFire =
     local vector        vec;
     local vector        dst;
 
-    if (self.owner.health > 0)
+    if(self.owner.health > 0)
     {
         self.owner.effects = self.owner.effects | EF_MUZZLEFLASH;
 
@@ -249,12 +249,12 @@ void() Wiz_idlesound =
 local float wr;
     wr = random() * 5;
 
-    if (self.waitmin < time)
+    if(self.waitmin < time)
     {
          self.waitmin = time + 2;
-         if (wr > 4.5)
+         if(wr > 4.5)
              sound (self, CHAN_VOICE, "wizard/widle1.wav", 1,  ATTN_IDLE);
-         if (wr < 1.5)
+         if(wr < 1.5)
              sound (self, CHAN_VOICE, "wizard/widle2.wav", 1, ATTN_IDLE);
     }
     return;
@@ -341,7 +341,7 @@ void()    wiz_death8    =[    $death8,        wiz_death8    ] {};
 void() wiz_die =
 {
 // check for gib
-    if (self.health < -40)
+    if(self.health < -40)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_wizard.mdl", self.health);
@@ -358,7 +358,7 @@ void() wiz_die =
 void(entity attacker, float damage) Wiz_Pain =
 {
     sound (self, CHAN_VOICE, "wizard/wpain.wav", 1, ATTN_NORM);
-    if (random()*70 > damage)
+    if(random()*70 > damage)
         return;        // didn't flinch
 
     wiz_pain1 ();
@@ -374,7 +374,7 @@ void() Wiz_Missile =
 */
 void() monster_wizard =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

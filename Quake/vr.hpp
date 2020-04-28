@@ -573,10 +573,13 @@ extern cvar_t vr_enemy_drops_chance_mult;
 extern cvar_t vr_ammobox_drops;
 extern cvar_t vr_ammobox_drops_chance_mult;
 extern cvar_t vr_menumode;
-extern cvar_t vr_forcegrab_parabola_powermult;
+extern cvar_t vr_forcegrab_powermult;
 extern cvar_t vr_forcegrab_mode;
 extern cvar_t vr_forcegrab_range;
 extern cvar_t vr_forcegrab_radius;
+extern cvar_t vr_weapondrop_particles;
+extern cvar_t vr_forcegrab_eligible_particles;
+extern cvar_t vr_forcegrab_eligible_haptics;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

@@ -12,7 +12,7 @@ Places a sprite on a wall.  Angles should be opposite of face.
 */
 void() wallsprite =
    {
-   if ( !self.model )
+   if( !self.model )
       {
       self.model = "progs/s_blood1.spr";
       }
@@ -21,9 +21,9 @@ void() wallsprite =
    setmodel (self, self.model );
 
    // QuakeEd doesn't save up and down angles properly.
-   if (self.angles == '0 -1 0')
+   if(self.angles == '0 -1 0')
       self.angles = '-90 0 0';
-    else if (self.angles == '0 -2 0')
+    else if(self.angles == '0 -2 0')
       self.angles = '90 0 0';
 
    // Pull the sprite away from the wall slightly to
@@ -51,20 +51,20 @@ void() remove_bullethole =
    // in the list, but it doesn't really matter.  All that
    // matters is there is one less bullet.  Just make sure
    // we don't remove the world!
-   if ( bulletholes == nullentity )
+   if( bulletholes == nullentity )
       {
       objerror("remove_bullethole: bulletholes == nullentity! " );
       }
 
    ent = bulletholes;
-   if ( ent.classname != "bullethole" )
+   if( ent.classname != "bullethole" )
       {
       objerror("remove_bullethole: Tried to remove non-bullethole!" );
       }
 
    bulletholes = bulletholes.lastvictim;
    remove( ent );
-   if ( lastbullet == ent )
+   if( lastbullet == ent )
       {
       lastbullet = nullentity;
       }
@@ -105,12 +105,12 @@ void( vector pos ) placebullethole =
     new.nextthink = time + 250 + (150 * random());
 
     numbulletholes = numbulletholes + 1;
-    if ( numbulletholes > 64 )
+    if( numbulletholes > 64 )
     {
         remove_bullethole();
     }
 
-    if ( lastbullet != nullentity )
+    if( lastbullet != nullentity )
     {
         lastbullet.lastvictim = new;
     }

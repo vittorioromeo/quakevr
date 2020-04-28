@@ -26,7 +26,7 @@ void() spawn_use =
 {
     local entity spawnentity;
 
-    if ((self.spawnmulti == 1) || (horn_active))
+    if((self.spawnmulti == 1) || (horn_active))
       {
       // spawn the new entity
       spawnentity = spawn();
@@ -49,17 +49,17 @@ void() spawn_use =
    spawnentity.maxs = spawnentity.spawnmaxs;
    setsize (spawnentity, spawnentity.mins, spawnentity.maxs);
    // spawn the teleport effect
-   if (self.spawnsilent == 0)
+   if(self.spawnsilent == 0)
       spawn_tfog (spawnentity.origin);
 //   horn_active = 0;
 //   horn_charmer = find( world, classname, "player" );
    // call spawnentity think function
-   if (horn_active)
+   if(horn_active)
       {
       spawnentity.charmer = horn_charmer;
       spawnentity.charmed = 1;
       }
-//   if (spawnentity.think)
+//   if(spawnentity.think)
 //      {
 //      spawnentity.nextthink = time+0.1;
 //      tempself = self;
@@ -68,13 +68,13 @@ void() spawn_use =
 //      self = tempself;
 //      spawnentity.nextthink = time+0.1;
 //      self.nextthink = 1;
-//      if (spawnentity.nextthink < time)
+//      if(spawnentity.nextthink < time)
 //         spawnentity.nextthink = 1;
 //      }
    // check to see if it is a monster
-   if (spawnentity.flags & FL_MONSTER)
+   if(spawnentity.flags & FL_MONSTER)
       {
-      if ((self.spawnmulti != 0) && (horn_active == 0))
+      if((self.spawnmulti != 0) && (horn_active == 0))
          {
          total_monsters = total_monsters + 1;
          WriteByte (MSG_BROADCAST, SVC_UPDATESTAT);
@@ -82,15 +82,15 @@ void() spawn_use =
          WriteLong (MSG_BROADCAST, total_monsters);
          }
       // spawn the telefrag effect
-//      if (self.spawnsilent == 0)
+//      if(self.spawnsilent == 0)
 //         spawn_tdeath(spawnentity.origin, spawnentity);
-      if (horn_active)
+      if(horn_active)
          {
          spawnentity.effects = spawnentity.effects | EF_DIMLIGHT;
 //         spawnentity.effects = spawnentity.effects | EF_BRIGHTFIELD;
          }
       }
-   if ((self.spawnmulti == 0) && (horn_active == 0))
+   if((self.spawnmulti == 0) && (horn_active == 0))
       {
       remove(self);
       }
@@ -123,7 +123,7 @@ void() func_spawn =
    tempself = self;
    tempdeathmatch = deathmatch;
    deathmatch = 0;
-   if (!self.spawnfunction)
+   if(!self.spawnfunction)
       {
       local float spawnchance;
 
@@ -158,7 +158,7 @@ void() func_spawn =
       self.think = spawn_think;
       self.nextthink = time + 1;
 
-      if (spawnchance<0.5 && monster==tempself)
+      if(spawnchance<0.5 && monster==tempself)
          {
          monster = self;
          }
@@ -188,7 +188,7 @@ void() func_spawn =
       self.think = spawn_think;
       self.nextthink = time + 1;
 
-      if (spawnchance<0.8 && monster==tempself)
+      if(spawnchance<0.8 && monster==tempself)
          {
          monster = self;
          }
@@ -218,7 +218,7 @@ void() func_spawn =
       self.think = spawn_think;
       self.nextthink = time + 1;
 
-      if (spawnchance<0.92 && monster==tempself)
+      if(spawnchance<0.92 && monster==tempself)
          {
          monster = self;
          }
@@ -248,7 +248,7 @@ void() func_spawn =
       self.think = spawn_think;
       self.nextthink = time + 1;
 
-      if (spawnchance<0.97 && monster==tempself)
+      if(spawnchance<0.97 && monster==tempself)
          {
          monster = self;
          }
@@ -278,7 +278,7 @@ void() func_spawn =
       self.think = spawn_think;
       self.nextthink = time + 1;
 
-      if (monster==tempself)
+      if(monster==tempself)
          {
          monster = self;
          }
@@ -294,14 +294,14 @@ void() func_spawn =
 
       // save off monster count so it doesn't get f'ed up
       temptotal_monsters = total_monsters;
-      if (self.spawnclassname == string_null)
+      if(self.spawnclassname == string_null)
          {
          objerror("No spawnclassname defined");
          }
       self.classname = self.spawnclassname;
       // call the named spawn function
       self.spawnfunction();
-      if (self.spawnmulti != 0)
+      if(self.spawnmulti != 0)
          {
          // make sure monster count is correct
          total_monsters = temptotal_monsters;

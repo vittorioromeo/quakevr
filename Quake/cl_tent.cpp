@@ -315,6 +315,9 @@ void CL_ParseTEnt()
             R_ParticleExplosion(pos);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
+            (void)colorStart; // still need to read the byte to avoid issues
+            (void)colorLength; // still need to read the byte to avoid issues
+                
             // TODO VR: (P2) unused above ^
             // R_ParticleExplosion2(pos, colorStart, colorLength);
             dlight_t* dl = CL_AllocDlight(0);

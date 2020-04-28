@@ -83,28 +83,28 @@ float() GremlinAttemptWeaponSteal =
    local entity victim;
    local float amount;
 
-   if (self.stoleweapon)
+   if(self.stoleweapon)
       {
       dprint("gremlin trying to steal a weapon again\n");
       return FALSE;
       }
-   if (!(self.enemy.flags & FL_CLIENT))
+   if(!(self.enemy.flags & FL_CLIENT))
       {
       return FALSE;
       }
 
    delta = (self.enemy.origin - self.origin);
 
-   if (vlen(delta) > 100)
+   if(vlen(delta) > 100)
       return FALSE;
-   if (random() < 0.5)
+   if(random() < 0.5)
       return FALSE;
    //
    // we are within range so lets go for it
    //
    victim = self.enemy;
    best = victim.weapon;
-   if (best == WID_AXE || best == WID_SHOTGUN || best == WID_MJOLNIR)
+   if(best == WID_AXE || best == WID_SHOTGUN || best == WID_MJOLNIR)
       return FALSE;
    // take that weapon from the entity
    victim.items = victim.items - (victim.items & WeaponIdToItemId(best));
@@ -113,10 +113,10 @@ float() GremlinAttemptWeaponSteal =
    self.weapon = best;
    // take some ammo while we are at it
    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
-   if (best == WID_SUPER_SHOTGUN)
+   if(best == WID_SUPER_SHOTGUN)
       {
       amount = victim.ammo_shells;
-      if (amount > 20)
+      if(amount > 20)
          amount = 20;
       victim.ammo_shells = victim.ammo_shells - amount;
       self.ammo_shells = self.ammo_shells + amount;
@@ -124,10 +124,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_shells;
       sprint (victim, "Gremlin stole your Super Shotgun\n");
       }
-   else if (best == WID_NAILGUN)
+   else if(best == WID_NAILGUN)
       {
       amount = victim.ammo_nails;
-      if (amount > 40)
+      if(amount > 40)
          amount = 40;
       victim.ammo_nails = victim.ammo_nails - amount;
       self.ammo_nails = self.ammo_nails + amount;
@@ -135,10 +135,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_nails;
       sprint (victim, "Gremlin stole your Nailgun\n");
       }
-   else if (best == WID_SUPER_NAILGUN)
+   else if(best == WID_SUPER_NAILGUN)
       {
       amount = victim.ammo_nails;
-      if (amount > 40)
+      if(amount > 40)
          amount = 40;
       victim.ammo_nails = victim.ammo_nails - amount;
       self.ammo_nails = self.ammo_nails + amount;
@@ -146,10 +146,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_nails;
       sprint (victim, "Gremlin stole your Super Nailgun\n");
       }
-   else if (best == WID_GRENADE_LAUNCHER)
+   else if(best == WID_GRENADE_LAUNCHER)
       {
       amount = victim.ammo_rockets;
-      if (amount > 5)
+      if(amount > 5)
          amount = 5;
       victim.ammo_rockets = victim.ammo_rockets - amount;
       self.ammo_rockets = self.ammo_rockets + amount;
@@ -157,10 +157,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_rockets;
       sprint (victim, "Gremlin stole your Grenade Launcher\n");
       }
-   else if (best == WID_ROCKET_LAUNCHER)
+   else if(best == WID_ROCKET_LAUNCHER)
       {
       amount = victim.ammo_rockets;
-      if (amount > 5)
+      if(amount > 5)
          amount = 5;
       victim.ammo_rockets = victim.ammo_rockets - amount;
       self.ammo_rockets = self.ammo_rockets + amount;
@@ -168,10 +168,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_rockets;
       sprint (victim, "Gremlin stole your Rocket Launcher\n");
       }
-   else if (best == WID_LIGHTNING)
+   else if(best == WID_LIGHTNING)
       {
       amount = victim.ammo_cells;
-      if (amount > 40)
+      if(amount > 40)
          amount = 40;
       victim.ammo_cells = victim.ammo_cells - amount;
       self.ammo_cells = self.ammo_cells + amount;
@@ -179,10 +179,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_cells;
       sprint (victim, "Gremlin stole your Lightning Gun\n");
       }
-   else if (best == WID_LASER_CANNON)
+   else if(best == WID_LASER_CANNON)
       {
       amount = victim.ammo_cells;
-      if (amount > 40)
+      if(amount > 40)
          amount = 40;
       victim.ammo_cells = victim.ammo_cells - amount;
       self.ammo_cells = self.ammo_cells + amount;
@@ -190,10 +190,10 @@ float() GremlinAttemptWeaponSteal =
       self.currentammo = self.ammo_cells;
       sprint (victim, "Gremlin stole your Laser Cannon\n");
       }
-   else if (best == WID_PROXIMITY_GUN)
+   else if(best == WID_PROXIMITY_GUN)
       {
       amount = victim.ammo_rockets;
-      if (amount > 5)
+      if(amount > 5)
          amount = 5;
       victim.ammo_rockets = victim.ammo_rockets - amount;
       self.ammo_rockets = self.ammo_rockets + amount;
@@ -215,14 +215,14 @@ float() GremlinAttemptWeaponSteal =
    self.attack_finished = time;
    // don't fire the first shot at the person we stole the weapon from
    // all the time
-   if (random()>0.65)
+   if(random()>0.65)
       self.lastvictim = victim;
    else
       self.lastvictim = self;
 //   self.attack_state = AS_STRAIGHT;
    // find a recipient
    victim = GremlinFindVictim();
-   if (victim != world)
+   if(victim != world)
       {
       self.enemy = victim;
       FoundTarget();
@@ -249,18 +249,18 @@ float() GremlinFindTarget =
    local float    dist;
    local float    result;
 
-   if ((self.stoleweapon==0) && time > self.wait)
+   if((self.stoleweapon==0) && time > self.wait)
       {
       self.wait = time + 1.0;
       dist = 2000;
       gorge = world;
       head = nextent(world);
-      while (head!=world)
+      while(head!=world)
          {
-         if ((head.health < 1) && (head.flags & (FL_MONSTER|FL_CLIENT)))
+         if((head.health < 1) && (head.flags & (FL_MONSTER|FL_CLIENT)))
             {
             result = fabs(head.origin_z - self.origin_z);
-            if ((visible(head)) && (result<80) && (head.gorging == FALSE) && (visible_distance<dist))
+            if((visible(head)) && (result<80) && (head.gorging == FALSE) && (visible_distance<dist))
                {
                dist = visible_distance;
                gorge = head;
@@ -268,7 +268,7 @@ float() GremlinFindTarget =
             }
          head = nextent(head);
          }
-      if ((gorge != world) && (dist < (700*random())))
+      if((gorge != world) && (dist < (700*random())))
          {
 //         dprint("starting to gorge on ");
 //         dprint(gorge.classname);
@@ -281,10 +281,10 @@ float() GremlinFindTarget =
          return TRUE;
          }
       }
-   else if (self.stoleweapon)
+   else if(self.stoleweapon)
       {
       head = GremlinFindVictim();
-      if (head != world)
+      if(head != world)
          {
          self.enemy = head;
          FoundTarget();
@@ -310,7 +310,7 @@ void(float dist) gremlin_walk =
     movedist = dist;
 
     // check for noticing a player
-   if (GremlinFindTarget ())
+   if(GremlinFindTarget ())
         return;
 
     movetogoal (dist);
@@ -327,10 +327,10 @@ The monster is staying in one place for a while, with slight angle turns
 */
 void() gremlin_stand =
    {
-   if (FindTarget ())
+   if(FindTarget ())
         return;
 
-    if (time > self.pausetime)
+    if(time > self.pausetime)
       {
         self.th_walk ();
         return;
@@ -352,38 +352,38 @@ void(float dist) gremlin_run =
    local float r;
    local vector d;
 
-   if (self.watertype == CONTENT_LAVA)
+   if(self.watertype == CONTENT_LAVA)
       {  // do damage
       T_Damage (self, world, world, 2000);
       }
    movedist = dist;
-   if (self.stoleweapon)
+   if(self.stoleweapon)
       self.frame = self.frame + $grun1.asc - $run1.asc;
 
-   if (self.gorging)
+   if(self.gorging)
       {
       traceline(self.origin, self.enemy.origin, TRUE, self);
-      if (trace_fraction != 1.0)
+      if(trace_fraction != 1.0)
          {
          self.gorging = FALSE;
          return;
          }
-      if (!visible(self.enemy))
+      if(!visible(self.enemy))
          {
          self.gorging = FALSE;
          return;
          }
       r = vlen(self.enemy.origin - self.origin);
-      if (r < 130)
+      if(r < 130)
          {
          ai_face();
-         if (r < 45)
+         if(r < 45)
             {
             self.th_melee ();
             self.attack_state = AS_STRAIGHT;
             return;
             }
-         else if (walkmove (self.angles_y, dist) == FALSE)
+         else if(walkmove (self.angles_y, dist) == FALSE)
             {
             self.gorging = FALSE;
             return;
@@ -394,22 +394,22 @@ void(float dist) gremlin_run =
       }
    else
       {
-      if (random()>0.97)
+      if(random()>0.97)
          {
-         if (GremlinFindTarget())
+         if(GremlinFindTarget())
             return;
          }
       // get away from player if we stole a weapon
-      if (self.stoleweapon)
+      if(self.stoleweapon)
          {
-         if (self.enemy.health < 0 && self.enemy.classname == "player")
+         if(self.enemy.health < 0 && self.enemy.classname == "player")
             {
             gremlin_glook1();
             return;
             }
-         if (!GremlinCheckNoAmmo())
+         if(!GremlinCheckNoAmmo())
             {
-            if (self.t_length==1)
+            if(self.t_length==1)
                {
                remove(self.trigger_field);
                self.goalentity = self.enemy;
@@ -419,18 +419,18 @@ void(float dist) gremlin_run =
             }
          r = vlen(self.enemy.origin - self.origin);
          d = normalize(self.origin-self.enemy.origin);
-         if (self.t_length == 0)
+         if(self.t_length == 0)
             {
-            if (r<150)
+            if(r<150)
                {
                self.trigger_field = spawn();
                setsize(self.trigger_field,'-1 -1 -1','1 1 1');
                self.t_length = 1;
                }
             }
-         if (self.t_length==1)
+         if(self.t_length==1)
             {
-            if (r > 250)
+            if(r > 250)
                {
                remove(self.trigger_field);
                self.goalentity = self.enemy;
@@ -439,7 +439,7 @@ void(float dist) gremlin_run =
                }
             else
                {
-               if (r < 160)
+               if(r < 160)
                   {
                   local vector ang;
                   local float done;
@@ -449,20 +449,20 @@ void(float dist) gremlin_run =
                   ang = vectoangles(d);
                   done = 0;
                   c = 0;
-                  while (done == 0)
+                  while(done == 0)
                      {
                      makevectors(ang);
                      end = self.enemy.origin + v_forward * 350;
                      traceline(self.enemy.origin,end,FALSE,self);
-                     if (trace_fraction == 1.0)
+                     if(trace_fraction == 1.0)
                         {
                         traceline(self.origin,end,FALSE,self);
-                        if (trace_fraction == 1.0)
+                        if(trace_fraction == 1.0)
                            done = 1;
                         }
                      ang_y = anglemod(ang_y + 36);
                      c = c + 1;
-                     if (c == 10)
+                     if(c == 10)
                         {
                         done = 1;
                         }
@@ -509,7 +509,7 @@ void()   gremlin_stand16 =[ $stand16.asc,   gremlin_stand17 ] {gremlin_stand();s
 void()   gremlin_stand17 =[ $stand17.asc,   gremlin_stand1  ] {gremlin_stand();self.nextthink = time + 0.2;};
 
 void()   gremlin_walk1 =[ $walk1.asc,      gremlin_walk2 ] {
-if (random() < 0.1)
+if(random() < 0.1)
     sound (self, CHAN_VOICE, "grem/idle.wav", 1, ATTN_IDLE);
 gremlin_walk(8);};
 void()   gremlin_walk2 =[ $walk2.asc,      gremlin_walk3 ] {gremlin_walk(8);};
@@ -525,7 +525,7 @@ void()   gremlin_walk11 =[ $walk11.asc,      gremlin_walk12 ] {gremlin_walk(8);}
 void()   gremlin_walk12 =[ $walk12.asc,      gremlin_walk1 ] {gremlin_walk(8);};
 
 void()   gremlin_run1 =[ $run1.asc,      gremlin_run2 ] {
-if (random() < 0.1)
+if(random() < 0.1)
     sound (self, CHAN_VOICE, "grem/idle.wav", 1, ATTN_IDLE);
 gremlin_run(0);};
 void()   gremlin_run2 =[ $run2.asc,      gremlin_run3 ] {gremlin_run(8);};
@@ -551,7 +551,7 @@ void()   gremlin_jump5   =[ $jump5.asc,     gremlin_jump6   ]
 {
     ai_face();
 
-   if (self.flags & FL_ONGROUND)
+   if(self.flags & FL_ONGROUND)
       {
       self.touch = Gremlin_JumpTouch;
       makevectors (self.angles);
@@ -737,14 +737,14 @@ void()   gremlin_look7   =[ $look7.asc,     gremlin_look8] {self.nextthink = tim
 void()   gremlin_look8   =[ $look8.asc,     gremlin_look9] {self.nextthink = time + 0.2;};
 void()   gremlin_look9   =[ $look9.asc,     gremlin_run1]
    {
-   if (self.oldenemy.health > 0)
+   if(self.oldenemy.health > 0)
       {
       self.enemy = self.oldenemy;
       HuntTarget ();
       }
    else
       {
-      if (self.movetarget)
+      if(self.movetarget)
          self.th_walk ();
       else
          self.th_stand ();
@@ -776,14 +776,14 @@ void()   gremlin_glook20   =[ $glook20.asc,     gremlin_glook20]
    {
    GremlinDropBackpack();
    self.stoleweapon = FALSE;
-   if (self.oldenemy.health > 0)
+   if(self.oldenemy.health > 0)
       {
       self.enemy = self.oldenemy;
       HuntTarget ();
       }
    else
       {
-      if (self.movetarget)
+      if(self.movetarget)
          self.th_walk ();
       else
          self.th_stand ();
@@ -803,31 +803,31 @@ void(entity attacker, float damage) gremlin_pain =
 {
    local float r;
 
-   if (random()<0.8)
+   if(random()<0.8)
       {
       self.gorging = FALSE;
       self.enemy = attacker;
       FoundTarget();
       }
-   if (self.touch == Gremlin_JumpTouch)
+   if(self.touch == Gremlin_JumpTouch)
         return;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     self.pain_finished = time + 1;
-//   if (random()<0.5)
+//   if(random()<0.5)
 //      sound (self, CHAN_VOICE, "grem/pain2.wav", 1, ATTN_NORM);
 //   else
    r = random();
-   if (r<0.33)
+   if(r<0.33)
       sound (self, CHAN_VOICE, "grem/pain1.wav", 1, ATTN_NORM);
-   else if (r<0.66)
+   else if(r<0.66)
       sound (self, CHAN_VOICE, "grem/pain2.wav", 1, ATTN_NORM);
    else
       sound (self, CHAN_VOICE, "grem/pain3.wav", 1, ATTN_NORM);
 
-   if (self.stoleweapon)
+   if(self.stoleweapon)
       {
       gremlin_gunpain1 ();
       }
@@ -879,7 +879,7 @@ void()   gremlin_flip1    =[ $flip1.asc,    gremlin_flip2 ]
     makevectors (self.angles);
    self.origin_z = self.origin_z + 1;
    self.velocity = '0 0 350' - (v_forward * 200);
-    if (self.flags & FL_ONGROUND)
+    if(self.flags & FL_ONGROUND)
         self.flags = self.flags - FL_ONGROUND;
    sound (self, CHAN_VOICE, "grem/death.wav", 1, ATTN_NORM);
    };
@@ -913,27 +913,27 @@ void() GremlinDropBackpack =
    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
    item.items = self.items;
 
-   if (item.items & IT_AXE)
+   if(item.items & IT_AXE)
         item.netname = "Axe";
-   else if (item.items & IT_SHOTGUN)
+   else if(item.items & IT_SHOTGUN)
         item.netname = "Shotgun";
-   else if (item.items & IT_SUPER_SHOTGUN)
+   else if(item.items & IT_SUPER_SHOTGUN)
         item.netname = "Double-barrelled Shotgun";
-   else if (item.items & IT_NAILGUN)
+   else if(item.items & IT_NAILGUN)
         item.netname = "Nailgun";
-   else if (item.items & IT_SUPER_NAILGUN)
+   else if(item.items & IT_SUPER_NAILGUN)
         item.netname = "Super Nailgun";
-   else if (item.items & IT_GRENADE_LAUNCHER)
+   else if(item.items & IT_GRENADE_LAUNCHER)
         item.netname = "Grenade Launcher";
-   else if (item.items & IT_ROCKET_LAUNCHER)
+   else if(item.items & IT_ROCKET_LAUNCHER)
         item.netname = "Rocket Launcher";
-   else if (item.items & IT_LIGHTNING)
+   else if(item.items & IT_LIGHTNING)
         item.netname = "Thunderbolt";
-   else if (item.items & IT_LASER_CANNON)
+   else if(item.items & IT_LASER_CANNON)
       item.netname = "Laser Cannon";
-   else if (item.items & IT_PROXIMITY_GUN)
+   else if(item.items & IT_PROXIMITY_GUN)
       item.netname = "Proximity Gun";
-   else if (item.items & IT_MJOLNIR)
+   else if(item.items & IT_MJOLNIR)
       item.netname = "Mjolnir";
    else
         item.netname = "";
@@ -942,10 +942,10 @@ void() GremlinDropBackpack =
     item.ammo_nails = self.ammo_nails;
     item.ammo_rockets = self.ammo_rockets;
     item.ammo_cells = self.ammo_cells;
-   if (item.ammo_shells < 0) item.ammo_shells = 0;
-   if (item.ammo_nails < 0) item.ammo_nails = 0;
-   if (item.ammo_rockets < 0) item.ammo_rockets = 0;
-   if (item.ammo_cells < 0) item.ammo_cells = 0;
+   if(item.ammo_shells < 0) item.ammo_shells = 0;
+   if(item.ammo_nails < 0) item.ammo_nails = 0;
+   if(item.ammo_rockets < 0) item.ammo_rockets = 0;
+   if(item.ammo_cells < 0) item.ammo_cells = 0;
 
     item.velocity_z = 300;
     item.velocity_x = -100 + (random() * 200);
@@ -968,7 +968,7 @@ void() gremlin_die =
     local float        dot;
 
 // check for gib
-   if (self.items & (IT_SUPER_SHOTGUN|IT_NAILGUN|IT_SUPER_NAILGUN|IT_GRENADE_LAUNCHER|IT_ROCKET_LAUNCHER|IT_LIGHTNING|IT_LASER_CANNON|IT_PROXIMITY_GUN))
+   if(self.items & (IT_SUPER_SHOTGUN|IT_NAILGUN|IT_SUPER_NAILGUN|IT_GRENADE_LAUNCHER|IT_ROCKET_LAUNCHER|IT_LIGHTNING|IT_LASER_CANNON|IT_PROXIMITY_GUN))
       {
       GremlinDropBackpack();
       self.stoleweapon = FALSE;
@@ -978,7 +978,7 @@ void() gremlin_die =
    vec = normalize (damage_attacker.origin - self.origin);
     dot = vec * v_forward;
 
-   if (self.health < -35)
+   if(self.health < -35)
       {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_grem.mdl", self.health);
@@ -987,7 +987,7 @@ void() gremlin_die =
         ThrowGib ("progs/gib1.mdl", self.health);
         return;
       }
-   else if (dot>0.7 && (random()<0.5) && (self.flags & FL_ONGROUND))
+   else if(dot>0.7 && (random()<0.5) && (self.flags & FL_ONGROUND))
       {
       gremlin_flip1();
       return;
@@ -1001,27 +1001,27 @@ float() GremlinWeaponAttack;
 void() Gremlin_MeleeAttack =
    {
    local float num;
-   if (self.gorging)
+   if(self.gorging)
       {
       gremlin_gorge1();
       }
    else
       {
-      if (self.stoleweapon == 1)
+      if(self.stoleweapon == 1)
          {
          objerror("gremlin meleeing with stolen weapon");
          }
-      else if ((self.enemy.flags & FL_CLIENT) && random() < 0.4)
+      else if((self.enemy.flags & FL_CLIENT) && random() < 0.4)
          {
-         if (GremlinAttemptWeaponSteal())
+         if(GremlinAttemptWeaponSteal())
             return;
          }
       num = random();
-      if (num<0.3)
+      if(num<0.3)
          {
          gremlin_claw1 ();
          }
-      else if (num < 0.6)
+      else if(num < 0.6)
          {
          gremlin_lunge1 ();
          }
@@ -1042,7 +1042,7 @@ void() gremlin_recoil =
    {
    self.nextthink = time + 0.1;
    self.flags = self.flags - FL_ONGROUND;
-   if (vlen(self.velocity)<2)
+   if(vlen(self.velocity)<2)
       {
       self.movetype = self.spawnsolidtype;
       self.think = self.spawnthink;
@@ -1077,7 +1077,7 @@ attack with a weapon
 */
 float() GremlinCheckNoAmmo =
    {
-    if (self.currentammo > 0)
+    if(self.currentammo > 0)
         return TRUE;
    else
       {
@@ -1110,16 +1110,16 @@ entity() GremlinFindVictim =
       {
       if(!(head.flags & FL_NOTARGET) && ((head.flags & FL_MONSTER) || (head.flags & FL_CLIENT)))
          {
-         if (visible(head) && (head.health > 0) && (head !=self))
+         if(visible(head) && (head.health > 0) && (head !=self))
             {
             head_dist = vlen(head.origin-self.origin);
-            if (head == self.lastvictim)
+            if(head == self.lastvictim)
                head_dist = head_dist * 2;
-            if (head.flags & FL_CLIENT)
+            if(head.flags & FL_CLIENT)
                head_dist = head_dist / 1.5;
-            if (head.classname == self.classname)
+            if(head.classname == self.classname)
                head_dist = head_dist * 1.5;
-            if (head_dist < dist)
+            if(head_dist < dist)
                {
                selected = head;
                dist = head_dist;
@@ -1287,7 +1287,7 @@ void() Gremlin_FireLightningGun =
    local float cells;
 
 // explode if under water
-   if (self.watertype <= CONTENT_WATER)
+   if(self.watertype <= CONTENT_WATER)
     {
         cells = self.ammo_cells;
         self.ammo_cells = 0;
@@ -1394,58 +1394,58 @@ void()   gremlin_rocket1;
 
 float() GremlinWeaponAttack =
 {
-    if (!GremlinCheckNoAmmo ())
+    if(!GremlinCheckNoAmmo ())
        return FALSE;
 
     self.show_hostile = time + 1; // wake monsters up
 
-    if (self.weapon == WID_SHOTGUN)
+    if(self.weapon == WID_SHOTGUN)
       {
       gremlin_shot1 ();
       Gremlin_FireShotGun();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_SUPER_SHOTGUN)
+    else if(self.weapon == WID_SUPER_SHOTGUN)
       {
       gremlin_shot1 ();
       Gremlin_FireSuperShotGun();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_NAILGUN)
+    else if(self.weapon == WID_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_SUPER_NAILGUN)
+    else if(self.weapon == WID_SUPER_NAILGUN)
       {
       gremlin_nail3 ();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_GRENADE_LAUNCHER)
+    else if(self.weapon == WID_GRENADE_LAUNCHER)
       {
       gremlin_rocket1();
       OgreFireGrenade();
       self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_ROCKET_LAUNCHER)
+    else if(self.weapon == WID_ROCKET_LAUNCHER)
       {
       gremlin_rocket1();
       Gremlin_FireRocket();
       SUB_AttackFinished(1);
       }
-    else if (self.weapon == WID_LIGHTNING)
+    else if(self.weapon == WID_LIGHTNING)
       {
       gremlin_light1();
       SUB_AttackFinished(1);
       sound (self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
       }
-   else if (self.weapon == WID_LASER_CANNON)
+   else if(self.weapon == WID_LASER_CANNON)
       {
       gremlin_laser3();
       SUB_AttackFinished(1);
       }
-   else if (self.weapon == WID_PROXIMITY_GUN)
+   else if(self.weapon == WID_PROXIMITY_GUN)
       {
       gremlin_rocket1();
       GremlinFireProximityGrenade();
@@ -1456,17 +1456,17 @@ float() GremlinWeaponAttack =
 
 void() Gremlin_MissileAttack =
    {
-   if (self.stoleweapon)
+   if(self.stoleweapon)
       {
-      if (GremlinWeaponAttack())
+      if(GremlinWeaponAttack())
          return;
-      else if ((random()<0.1) && (self.flags & FL_ONGROUND))
+      else if((random()<0.1) && (self.flags & FL_ONGROUND))
          {
          gremlin_jump1();
          return;
          }
       }
-   if (self.flags & FL_ONGROUND)
+   if(self.flags & FL_ONGROUND)
       gremlin_jump1();
    };
 
@@ -1475,7 +1475,7 @@ void() Gremlin_MissileAttack =
 */
 void() monster_gremlin =
 {
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;
@@ -1523,21 +1523,21 @@ float()  GremlinCheckAttack =
 
     targ = self.enemy;
 
-   if (time < self.attack_finished)
+   if(time < self.attack_finished)
       return FALSE;
 
 // see if any entities are in the way of the shot
    spot1 = self.origin;// + self.view_ofs;
    spot2 = targ.origin;// + targ.view_ofs;
 
-   if ((vlen(spot2 - spot1) <= 90) && (self.stoleweapon == 0))
+   if((vlen(spot2 - spot1) <= 90) && (self.stoleweapon == 0))
       {
       self.attack_state = AS_MELEE;
       return TRUE;
       }
 // missile attack
    chance = 0.03 + self.stoleweapon;
-   if (random() < chance)
+   if(random() < chance)
       {
       self.attack_state = AS_MISSILE;
       return TRUE;
@@ -1560,9 +1560,9 @@ void(float side)  Gremlin_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     sound (self, CHAN_WEAPON, "grem/attack.wav", 1, ATTN_NORM);
@@ -1577,33 +1577,33 @@ void(float side)  Gremlin_Melee =
 void(float dm) Gremlin_ThrowHead =
    {
    local string gibname;
-   if (self.classname == "monster_ogre")
+   if(self.classname == "monster_ogre")
       gibname = "progs/h_ogre.mdl";
-    else if (self.classname == "monster_knight")
+    else if(self.classname == "monster_knight")
       gibname = "progs/h_knight.mdl";
-   else if (self.classname == "monster_shambler")
+   else if(self.classname == "monster_shambler")
       gibname = "progs/h_shams.mdl";
-   else if (self.classname == "monster_demon1")
+   else if(self.classname == "monster_demon1")
       gibname = "progs/h_demon.mdl";
-   else if (self.classname == "monster_wizard")
+   else if(self.classname == "monster_wizard")
       gibname = "progs/h_wizard.mdl";
-   else if (self.classname == "monster_zombie")
+   else if(self.classname == "monster_zombie")
       gibname = "progs/h_zombie.mdl";
-   else if (self.classname == "monster_dog")
+   else if(self.classname == "monster_dog")
       gibname = "progs/h_dog.mdl";
-   else if (self.classname == "monster_hell_knight")
+   else if(self.classname == "monster_hell_knight")
       gibname = "progs/h_hellkn.mdl";
-   else if (self.classname == "monster_enforcer")
+   else if(self.classname == "monster_enforcer")
       gibname = "progs/h_mega.mdl";
-   else if (self.classname == "monster_army")
+   else if(self.classname == "monster_army")
       gibname = "progs/h_guard.mdl";
-   else if (self.classname == "monster_shalrath")
+   else if(self.classname == "monster_shalrath")
       gibname = "progs/h_shal.mdl";
-   else if (self.classname == "monster_gremlin")
+   else if(self.classname == "monster_gremlin")
       gibname = "progs/h_grem.mdl";
-   else if (self.classname == "monster_scourge")
+   else if(self.classname == "monster_scourge")
       gibname = "progs/h_scourg.mdl";
-   else if (self.classname == "monster_fish")
+   else if(self.classname == "monster_fish")
       gibname = "progs/gib1.mdl";
    else
       gibname = "progs/h_player.mdl";
@@ -1621,11 +1621,11 @@ The damage is coming from inflictor, but get mad at attacker
 void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damage=
 {
 // check for godmode or invincibility
-    if (targ.flags & FL_GODMODE)
+    if(targ.flags & FL_GODMODE)
         return;
-    if (targ.invincible_finished >= time)
+    if(targ.invincible_finished >= time)
     {
-        if (self.invincible_sound < time)
+        if(self.invincible_sound < time)
         {
             sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
             self.invincible_sound = time + 2;
@@ -1634,7 +1634,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damag
     }
 
 // team play damage avoidance
-    if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
+    if( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
         return;
 
 // do the damage
@@ -1652,37 +1652,37 @@ void() Gremlin_Split =
    local vector pos;
    local float proceed;
 
-   if (NumSpawnGremlins >= (NumGremlins*2))
+   if(NumSpawnGremlins >= (NumGremlins*2))
       return;
    done = 0;
    c = 0;
    ang = self.angles;
-   while (done == 0)
+   while(done == 0)
       {
       makevectors(ang);
       pos = self.origin + (80 * v_forward);
       head = findradius(pos, 35);
       proceed = 1;
-      while (head)
+      while(head)
          {
-         if ((head.health > 0) && (head.flags & (FL_MONSTER | FL_CLIENT)))
+         if((head.health > 0) && (head.flags & (FL_MONSTER | FL_CLIENT)))
             proceed = 0;
          head = head.chain;
          }
       traceline(self.origin,pos,FALSE,self);
-      if (trace_fraction == 1 && (proceed == 1))
+      if(trace_fraction == 1 && (proceed == 1))
          {
          traceline(self.origin,(pos-'40 40 0'),FALSE,self);
-         if (trace_fraction == 1)
+         if(trace_fraction == 1)
             {
             traceline(self.origin,(pos+'40 40 0'),FALSE,self);
-            if (trace_fraction == 1)
+            if(trace_fraction == 1)
                {
                traceline(self.origin,(pos + '0 0 64'),FALSE,self);
-               if (trace_fraction == 1)
+               if(trace_fraction == 1)
                   {
                   traceline(self.origin,(pos - '0 0 64'),FALSE,self);
-                  if (trace_fraction != 1)
+                  if(trace_fraction != 1)
                      {
                      done = 1;
                      }
@@ -1690,11 +1690,11 @@ void() Gremlin_Split =
                }
             }
          }
-      if (done == 0)
+      if(done == 0)
          {
          ang_y = ang_y + 36;
          c = c + 1;
-         if (c==10)
+         if(c==10)
             {
             return;
             }
@@ -1707,7 +1707,7 @@ void() Gremlin_Split =
    grem.movetype = MOVETYPE_STEP;
    setmodel (grem, "progs/grem.mdl");
    setsize (grem, '-12 -12 -18', '12 12 18');
-   if (self.health < 100) self.health = 100;
+   if(self.health < 100) self.health = 100;
    grem.health = self.health / 2;
    self.health = self.health / 2;
 //   grem.max_health = 101;
@@ -1746,9 +1746,9 @@ void(float side)  Gremlin_Gorge =
 
     makevectors (self.angles);
     SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
-   if (self.enemy.health < -200.0)
+   if(self.enemy.health < -200.0)
       {
-      if (self.enemy.gorging==FALSE)
+      if(self.enemy.gorging==FALSE)
          {
          self.enemy.gorging = TRUE;
          sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
@@ -1761,16 +1761,16 @@ void(float side)  Gremlin_Gorge =
          self = temp;
          ldmg = 150 + 100*random();
          T_Heal(self,ldmg,FALSE);
-//         if (self.health >= self.max_health)
+//         if(self.health >= self.max_health)
             Gremlin_Split();
          }
       self.enemy = world;
       self.gorging = FALSE;
 /*
-      if (self.stoleweapon)
+      if(self.stoleweapon)
          {
          temp = GremlinFindVictim();
-         if (temp != world)
+         if(temp != world)
             {
             self.enemy = temp;
             FoundTarget();
@@ -1781,14 +1781,14 @@ void(float side)  Gremlin_Gorge =
 */
 //      FindTarget();
 /*
-      if (self.oldenemy.health > 0)
+      if(self.oldenemy.health > 0)
          {
          self.enemy = self.oldenemy;
          HuntTarget ();
          }
       else
          {
-         if (self.movetarget)
+         if(self.movetarget)
             self.th_walk ();
          else
             self.th_stand ();
@@ -1801,22 +1801,22 @@ void(float side)  Gremlin_Gorge =
 
 void()   Gremlin_JumpTouch =
 {
-    if (self.health <= 0)
+    if(self.health <= 0)
         return;
 
 /*
-    if (other.takedamage)
+    if(other.takedamage)
     {
-        if ( vlen(self.velocity) > 400 )
+        if( vlen(self.velocity) > 400 )
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);
         }
     }
 */
-    if (!checkbottom(self))
+    if(!checkbottom(self))
       {
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
          {
          self.touch = SUB_Null;
          self.think = gremlin_jump1;
@@ -1832,9 +1832,9 @@ void()   Gremlin_JumpTouch =
 
 void()   Gremlin_FlipTouch =
 {
-    if (!checkbottom(self))
+    if(!checkbottom(self))
       {
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
          {
          self.touch = SUB_Null;
          self.think = gremlin_flip1;

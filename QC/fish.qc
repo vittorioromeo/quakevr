@@ -59,7 +59,7 @@ void() f_walk17 =[      $swim17, f_walk18 ] {ai_walk(8);};
 void() f_walk18 =[      $swim18, f_walk1 ] {ai_walk(8);};
 
 void() f_run1  =[      $swim1, f_run2 ] {ai_run(12);
-    if (random() < 0.5)
+    if(random() < 0.5)
         sound (self, CHAN_VOICE, "fish/idle.wav", 1, ATTN_NORM);
 };
 void() f_run2  =[      $swim3, f_run3 ] {ai_run(12);};
@@ -76,12 +76,12 @@ void() fish_melee =
     local vector    delta;
     local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;        // removed before stroke
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 60)
+    if(vlen(delta) > 60)
         return;
 
     sound (self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
@@ -139,7 +139,7 @@ void() f_death21 =[      $death21,       f_death21       ] {};
 void() fish_die =
 {
 // check for gib
-   if (self.health < -20)
+   if(self.health < -20)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowGib ("progs/gib1.mdl", self.health);
@@ -177,7 +177,7 @@ void(entity attacker, float damage)    fish_pain =
 */
 void() monster_fish =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

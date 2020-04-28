@@ -65,6 +65,7 @@ enum ptype_t : std::uint8_t
     pt_teleport,
     pt_rock,
     pt_gunsmoke,
+    pt_gunpickup,
 };
 
 // TODO VR: (P2) optimize layout?
@@ -1076,6 +1077,56 @@ void R_RunParticleEffect_Teleport(
     });
 }
 
+void R_RunParticleEffect_GunPickup(
+    const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxSpark, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = rnd(150, 200);
+        p.die = cl.time + 0.3;
+        p.color = rndi(12, 16);
+        p.scale = rnd(1.55f, 2.87f) * 0.35f;
+        p.type = pt_gunpickup;
+        p.param0 = rndi(0, 2); // rotation direction
+        setAccGrav(p, -0.2f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 3) - 2);
+            p.vel[j] = rnd(-16, 16);
+        }
+
+        p.vel[2] = rnd(-10, 30);
+    });
+}
+
+void R_RunParticleEffect_GunForceGrab(
+    const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxSpark, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = rnd(180, 225);
+        p.die = cl.time + 0.3;
+        p.color = rndi(106, 111);
+        p.scale = rnd(1.55f, 2.87f) * 0.35f;
+        p.type = pt_gunpickup;
+        p.param0 = rndi(0, 2); // rotation direction
+        setAccGrav(p, -0.3f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + ((rand() & 4) - 2);
+            p.vel[j] = rnd(-24, 24);
+        }
+
+        p.vel[2] = rnd(0, 40);
+    });
+}
+
 /*
 ===============
 R_RunParticle2Effect
@@ -1093,7 +1144,9 @@ void R_RunParticle2Effect(
         Smoke = 4,
         Sparks = 5,
         GunSmoke = 6,
-        Teleport = 7
+        Teleport = 7,
+        GunPickup = 8,
+        GunForceGrab = 9,
     };
 
     switch(static_cast<Preset>(preset))
@@ -1136,6 +1189,16 @@ void R_RunParticle2Effect(
         case Preset::Teleport:
         {
             R_RunParticleEffect_Teleport(org, dir, count);
+            break;
+        }
+        case Preset::GunPickup:
+        {
+            R_RunParticleEffect_GunPickup(org, dir, count);
+            break;
+        }
+        case Preset::GunForceGrab:
+        {
+            R_RunParticleEffect_GunForceGrab(org, dir, count);
             break;
         }
         default:
@@ -1615,6 +1678,14 @@ void CL_RunParticles()
                 p.alpha -= 105.f * frametime;
                 p.scale += 68.f * frametime;
                 p.org[2] += 18.f * frametime;
+
+                break;
+            }
+
+            case pt_gunpickup:
+            {
+                p.alpha -= 120.f * frametime;
+                p.scale -= 0.2f * frametime;
 
                 break;
             }

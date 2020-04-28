@@ -16,7 +16,7 @@ void() StopEarthQuake =
 void( float value ) EarthQuakeTime =
    {
    value = value + time;
-   if ( value > earthquake )
+   if( value > earthquake )
       {
       earthquake = value;
       }
@@ -24,7 +24,7 @@ void( float value ) EarthQuakeTime =
 
 void() earthquake_prethink =
    {
-//   if ( lastearthquake )
+//   if( lastearthquake )
 //      {
 //      self.view_ofs_z = self.savedz;
 //      lastearthquake = 0;
@@ -33,16 +33,16 @@ void() earthquake_prethink =
 
 void() earthquake_postthink =
     {
-    if ( earthquake > time )
+    if( earthquake > time )
         {
-      if (quakeactive == 0)
+      if(quakeactive == 0)
          {
          sound (self, CHAN_VOICE, "misc/quake.wav", 1, ATTN_NONE);
          quakeactive = 1;
          }
 //      lastearthquake = 1;
 //      self.savedz = self.view_ofs_z;
-        if ( self.flags & FL_ONGROUND )
+        if( self.flags & FL_ONGROUND )
             {
 //         self.view_ofs_z = self.view_ofs_z - 5 + random() * 10;
          self.velocity = self.velocity + (random() * '0 0 150');
@@ -50,7 +50,7 @@ void() earthquake_postthink =
         }
    else
       {
-      if (quakeactive == 1)
+      if(quakeactive == 1)
          {
          sound (self, CHAN_VOICE, "misc/quakeend.wav", 1, ATTN_NONE);
          quakeactive = 0;
@@ -77,7 +77,7 @@ void() func_earthquake =
    self.classname = "earthquake";
     self.use = earthquake_use;
     self.think = SUB_Null;
-    if ( !self.dmg )
+    if( !self.dmg )
        {
        self.dmg = 0.8;
        }

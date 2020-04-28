@@ -38,7 +38,7 @@ void() knight_attack =
 // decide if now is a good swing time
     len = vlen(self.enemy.origin+self.enemy.view_ofs - (self.origin+self.view_ofs));
 
-    if (len<80)
+    if(len<80)
         knight_atk1 ();
     else
         knight_runatk1 ();
@@ -69,17 +69,17 @@ float() CheckAttack =
     traceline (spot1, spot2, FALSE, self);
 
 //MED 10/17/96 added charmed stuff
-    if ((trace_ent != targ) && (!self.charmed))
+    if((trace_ent != targ) && (!self.charmed))
         return FALSE;     // don't have a clear shot
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {    // melee attack
-        if (self.th_melee)
+        if(self.th_melee)
         {
-            if (self.classname == "monster_knight")
+            if(self.classname == "monster_knight")
                 knight_attack ();
             else
                 self.th_melee ();
@@ -88,30 +88,30 @@ float() CheckAttack =
     }
 
 // missile attack
-    if (!self.th_missile)
+    if(!self.th_missile)
         return FALSE;
 
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (enemy_range == RANGE_FAR)
+    if(enemy_range == RANGE_FAR)
         return FALSE;
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {
         chance = 0.9;
         self.attack_finished = 0;
     }
-    else if (enemy_range == RANGE_NEAR)
+    else if(enemy_range == RANGE_NEAR)
     {
-        if (self.th_melee)
+        if(self.th_melee)
             chance = 0.2;
         else
             chance = 0.4;
     }
-    else if (enemy_range == RANGE_MID)
+    else if(enemy_range == RANGE_MID)
     {
-        if (self.th_melee)
+        if(self.th_melee)
             chance = 0.05;
         else
             chance = 0.1;
@@ -119,7 +119,7 @@ float() CheckAttack =
     else
         chance = 0;
 
-    if (random () < chance)
+    if(random () < chance)
     {
         self.th_missile ();
         SUB_AttackFinished (2*random());
@@ -189,12 +189,12 @@ void() ai_melee =
     local vector    delta;
     local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;        // removed before stroke
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 60)
+    if(vlen(delta) > 60)
         return;
 
     ldmg = (random() + random() + random()) * 3;
@@ -207,16 +207,16 @@ void() ai_melee_side =
     local vector    delta;
     local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;        // removed before stroke
 
     ai_charge_side();
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 60)
+    if(vlen(delta) > 60)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
     ldmg = (random() + random() + random()) * 3;
     T_Damage (self.enemy, self, self, ldmg);
@@ -247,34 +247,34 @@ float() SoldierCheckAttack =
 
     traceline (spot1, spot2, FALSE, self);
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if (trace_ent != targ)
+    if(trace_ent != targ)
         return FALSE;    // don't have a clear shot
 
 
 // missile attack
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (enemy_range == RANGE_FAR)
+    if(enemy_range == RANGE_FAR)
         return FALSE;
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
         chance = 0.9;
-    else if (enemy_range == RANGE_NEAR)
+    else if(enemy_range == RANGE_NEAR)
         chance = 0.4;
-    else if (enemy_range == RANGE_MID)
+    else if(enemy_range == RANGE_MID)
         chance = 0.05;
     else
         chance = 0;
 
-    if (random () < chance)
+    if(random () < chance)
     {
         self.th_missile ();
         SUB_AttackFinished (1 + random());
-        if (random() < 0.3)
+        if(random() < 0.3)
             self.lefty = !self.lefty;
 
         return TRUE;
@@ -297,19 +297,19 @@ float() ShamCheckAttack =
     local vector    spot1, spot2;
     local entity    targ;
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {
-        if (CanDamage (self.enemy, self))
+        if(CanDamage (self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;
         }
     }
 
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (!enemy_vis)
+    if(!enemy_vis)
         return FALSE;
 
     targ = self.enemy;
@@ -318,21 +318,21 @@ float() ShamCheckAttack =
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    if (vlen(spot1 - spot2) > 600)
+    if(vlen(spot1 - spot2) > 600)
         return FALSE;
 
     traceline (spot1, spot2, FALSE, self);
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if (trace_ent != targ)
+    if(trace_ent != targ)
     {
         return FALSE;    // don't have a clear shot
     }
 
 // missile attack
-    if (enemy_range == RANGE_FAR)
+    if(enemy_range == RANGE_FAR)
         return FALSE;
 
     self.attack_state = AS_MISSILE;
@@ -356,19 +356,19 @@ float() OgreCheckAttack =
     local entity    targ;
     local float        chance;
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {
-        if (CanDamage (self.enemy, self))
+        if(CanDamage (self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;
         }
     }
 
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (!enemy_vis)
+    if(!enemy_vis)
         return FALSE;
 
     targ = self.enemy;
@@ -379,24 +379,24 @@ float() OgreCheckAttack =
 
     traceline (spot1, spot2, FALSE, self);
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if (trace_ent != targ)
+    if(trace_ent != targ)
     {
         return FALSE;    // don't have a clear shot
     }
 
 // missile attack
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (enemy_range == RANGE_FAR)
+    if(enemy_range == RANGE_FAR)
         return FALSE;
 
-    else if (enemy_range == RANGE_NEAR)
+    else if(enemy_range == RANGE_NEAR)
         chance = 0.10;
-    else if (enemy_range == RANGE_MID)
+    else if(enemy_range == RANGE_MID)
         chance = 0.05;
     else
         chance = 0;

@@ -7,14 +7,14 @@ float(float it) ItemIdToWeaponId;
 
 void(entity entPlayer) VRItemPickupHaptic =
 {
-    if(VRTouchingHandIsBody(entPlayer))
+    if(VRIsTouchingHandFake(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);
         haptic(1, 0.0, 0.3, 75, 1.0);
         return;
     }
 
-    haptic(VRTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
+    haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
 }
 
 void() SUB_regen =
@@ -119,7 +119,7 @@ void() PlaceItem =
     self.velocity = '0 0 0';
     self.origin_z = self.origin_z + 6;
     oldz = self.origin_z;
-    if (!droptofloor())
+    if(!droptofloor())
     {
         dprint ("Bonus item fell out of level at ");
         dprint (vtos(self.origin));
@@ -159,20 +159,20 @@ HEALTH BOX
 //
 float (entity e, float healamount, float ignore) T_Heal =
 {
-    if (e.health <= 0)
+    if(e.health <= 0)
         return 0;
 
-    if ((!ignore) && (e.health >= other.max_health))
+    if((!ignore) && (e.health >= other.max_health))
         return 0;
 
     healamount = ceil(healamount);
 
     e.health = e.health + healamount;
 
-    if ((!ignore) && (e.health >= other.max_health))
+    if((!ignore) && (e.health >= other.max_health))
         e.health = other.max_health;
 
-    if (e.health > 250)
+    if(e.health > 250)
         e.health = 250;
 
     return 1;
@@ -196,7 +196,7 @@ void() item_health =
 {
     self.handtouch = health_touch;
 
-    if (self.spawnflags & H_ROTTEN)
+    if(self.spawnflags & H_ROTTEN)
     {
         precache_model("maps/b_bh10.bsp");
 
@@ -207,7 +207,7 @@ void() item_health =
         self.healtype = 0;
         setsize (self, '0 0 0', '32 32 16');
     }
-    else if (self.spawnflags & H_MEGA)
+    else if(self.spawnflags & H_MEGA)
     {
         precache_model("maps/b_bh100.bsp");
         precache_sound("items/r_item2.wav");
@@ -236,19 +236,19 @@ void() health_touch =
 {
     local    string    s;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
-    if (self.healtype == 2) // Megahealth?  Ignore max_health...
+    if(self.healtype == 2) // Megahealth?  Ignore max_health...
     {
-        if (other.health >= 250)
+        if(other.health >= 250)
             return;
-        if (!T_Heal(other, self.healamount, 1))
+        if(!T_Heal(other, self.healamount, 1))
             return;
     }
     else
     {
-        if (!T_Heal(other, self.healamount, 0))
+        if(!T_Heal(other, self.healamount, 0))
             return;
     }
 
@@ -268,7 +268,7 @@ void() health_touch =
     self.solid = SOLID_NOT;
 
     // Megahealth = rot down the player's super health
-    if (self.healtype == 2)
+    if(self.healtype == 2)
     {
 // TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
@@ -279,9 +279,9 @@ void() health_touch =
     }
     else
     {
-        if (deathmatch != 2)        // deathmatch 2 is the silly old rules
+        if(deathmatch != 2)        // deathmatch 2 is the silly old rules
         {
-            if (deathmatch)
+            if(deathmatch)
                 self.nextthink = time + 20;
             self.think = SUB_regen;
         }
@@ -295,7 +295,7 @@ void() item_megahealth_rot =
 {
     other = self.owner;
 
-    if (other.health > other.max_health)
+    if(other.health > other.max_health)
     {
         other.health = other.health - 1;
         self.nextthink = time + 1;
@@ -308,7 +308,7 @@ void() item_megahealth_rot =
 // 11/02/96 removed SUPERHEALTH from defs.qc
     other.items = other.items - (other.items & IT_SUPERHEALTH);
 
-    if (deathmatch == 1)    // deathmatch 2 is silly old rules
+    if(deathmatch == 1)    // deathmatch 2 is silly old rules
     {
         self.nextthink = time + 20;
         self.think = SUB_regen;
@@ -329,30 +329,30 @@ void() armor_touch =
 {
     local    float    type, value, bit;
 
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
-    if (self.classname == "item_armor1")
+    if(self.classname == "item_armor1")
     {
         type = 0.3;
         value = 100;
         bit = IT_ARMOR1;
     }
-    if (self.classname == "item_armor2")
+    if(self.classname == "item_armor2")
     {
         type = 0.6;
         value = 150;
         bit = IT_ARMOR2;
     }
-    if (self.classname == "item_armorInv")
+    if(self.classname == "item_armorInv")
     {
         type = 0.8;
         value = 200;
         bit = IT_ARMOR3;
     }
-    if (other.armortype*other.armorvalue >= type*value)
+    if(other.armortype*other.armorvalue >= type*value)
         return;
 
     other.armortype = type;
@@ -361,7 +361,7 @@ void() armor_touch =
 
     self.solid = SOLID_NOT;
     self.model = string_null;
-    if (deathmatch == 1)
+    if(deathmatch == 1)
         self.nextthink = time + 20;
     self.think = SUB_regen;
 
@@ -426,13 +426,13 @@ WEAPONS
 
 void() bound_other_ammo =
 {
-    if (other.ammo_shells > 100)
+    if(other.ammo_shells > 100)
         other.ammo_shells = 100;
-    if (other.ammo_nails > 200)
+    if(other.ammo_nails > 200)
         other.ammo_nails = 200;
-    if (other.ammo_rockets > 100)
+    if(other.ammo_rockets > 100)
         other.ammo_rockets = 100;
-    if (other.ammo_cells > 100)
+    if(other.ammo_cells > 100)
         other.ammo_cells = 100;
 };
 
@@ -440,23 +440,23 @@ void() bound_other_ammo =
 //MED 01/06/97 added hipnotic weapons into rankings
 float(float w) RankForWeapon =
 {
-    if (w == WID_LIGHTNING)
+    if(w == WID_LIGHTNING)
         return 1;
-    if (w == WID_ROCKET_LAUNCHER)
+    if(w == WID_ROCKET_LAUNCHER)
         return 2;
-    if (w == WID_LASER_CANNON)
+    if(w == WID_LASER_CANNON)
         return 3;
-    if (w == WID_SUPER_NAILGUN)
+    if(w == WID_SUPER_NAILGUN)
         return 4;
-    if (w == WID_PROXIMITY_GUN)
+    if(w == WID_PROXIMITY_GUN)
         return 5;
-    if (w == WID_GRENADE_LAUNCHER)
+    if(w == WID_GRENADE_LAUNCHER)
         return 6;
-    if (w == WID_SUPER_SHOTGUN)
+    if(w == WID_SUPER_SHOTGUN)
         return 7;
-    if (w == WID_NAILGUN)
+    if(w == WID_NAILGUN)
         return 8;
-    if (w == WID_MJOLNIR)
+    if(w == WID_MJOLNIR)
         return 9;
    return 10;
 };
@@ -477,7 +477,7 @@ void(float old, float new) Deathmatch_Weapon =
 // change self.weapon if desired
     or = RankForWeapon (self.weapon);
     nr = RankForWeapon (new);
-    if ( nr < or )
+    if( nr < or )
         self.weapon = new;
 };
 
@@ -494,14 +494,14 @@ void() weapon_touch =
     local    entity    stemp;
     local    float    leave;
 
-    if (!(other.flags & FL_CLIENT))
+    if(!(other.flags & FL_CLIENT))
         return;
 
     // Do not pick up the weapon if the touching hand is not grabbing.
-    if (cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
+    if(cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
     {
-        if (!VRIsEntHandGrabbing(other, VRTouchingHand(other)) ||
-            VRGetEntWeapon(other, VRTouchingHand(other)) != WID_FIST)
+        if(!VRIsEntHandGrabbing(other, VRGetTouchingHand(other)) ||
+            VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
         {
             return;
         }
@@ -513,81 +513,81 @@ void() weapon_touch =
     best = W_BestWeapon();
     self = stemp;
 
-    if (deathmatch == 2 || coop)
+    if(deathmatch == 2 || coop)
         leave = 1;
     else
         leave = 0;
 
-    if (self.classname == "weapon_nailgun")
+    if(self.classname == "weapon_nailgun")
     {
-        if (leave && (other.items & IT_NAILGUN) )
+        if(leave && (other.items & IT_NAILGUN) )
             return;
         hadammo = other.ammo_nails;
         newIt = IT_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
-    else if (self.classname == "weapon_supernailgun")
+    else if(self.classname == "weapon_supernailgun")
     {
-        if (leave && (other.items & IT_SUPER_NAILGUN) )
+        if(leave && (other.items & IT_SUPER_NAILGUN) )
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_SUPER_NAILGUN;
         other.ammo_nails = other.ammo_nails + 30;
     }
-    else if (self.classname == "weapon_supershotgun")
+    else if(self.classname == "weapon_supershotgun")
     {
-        if (leave && (other.items & IT_SUPER_SHOTGUN) )
+        if(leave && (other.items & IT_SUPER_SHOTGUN) )
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_SUPER_SHOTGUN;
         other.ammo_shells = other.ammo_shells + 5;
     }
-    else if (self.classname == "weapon_rocketlauncher")
+    else if(self.classname == "weapon_rocketlauncher")
     {
-        if (leave && (other.items & IT_ROCKET_LAUNCHER) )
+        if(leave && (other.items & IT_ROCKET_LAUNCHER) )
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_ROCKET_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
-    else if (self.classname == "weapon_grenadelauncher")
+    else if(self.classname == "weapon_grenadelauncher")
     {
-        if (leave && (other.items & IT_GRENADE_LAUNCHER) )
+        if(leave && (other.items & IT_GRENADE_LAUNCHER) )
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_GRENADE_LAUNCHER;
         other.ammo_rockets = other.ammo_rockets + 5;
     }
-    else if (self.classname == "weapon_lightning")
+    else if(self.classname == "weapon_lightning")
     {
-        if (leave && (other.items & IT_LIGHTNING) )
+        if(leave && (other.items & IT_LIGHTNING) )
             return;
         hadammo = other.ammo_rockets;
         newIt = IT_LIGHTNING;
         other.ammo_cells = other.ammo_cells + 15;
     }
 //MED
-    else if (self.classname == "weapon_laser_gun")
+    else if(self.classname == "weapon_laser_gun")
     {
-      if (leave && (other.items & IT_LASER_CANNON) )
+      if(leave && (other.items & IT_LASER_CANNON) )
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_LASER_CANNON;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
-    else if (self.classname == "weapon_mjolnir")
+    else if(self.classname == "weapon_mjolnir")
     {
-      if (leave && (other.items & IT_MJOLNIR) )
+      if(leave && (other.items & IT_MJOLNIR) )
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_MJOLNIR;
       other.ammo_cells = other.ammo_cells + 30;
     }
 //MED
-    else if (self.classname == "weapon_proximity_gun")
+    else if(self.classname == "weapon_proximity_gun")
     {
-      if (leave && (other.hipnotic_items & IT_PROXIMITY_GUN) )
+      if(leave && (other.hipnotic_items & IT_PROXIMITY_GUN) )
             return;
         hadammo = other.ammo_rockets;
       newIt = IT_PROXIMITY_GUN;
@@ -615,12 +615,12 @@ void() weapon_touch =
     self = other;
 
     local float touchinghandIsBody;
-    touchinghandIsBody = VRTouchingHandIsBody(other);
+    touchinghandIsBody = VRIsTouchingHandFake(other);
 
     local float touchinghand;
-    touchinghand = VRTouchingHand(other);
+    touchinghand = VRGetTouchingHand(other);
 
-    if (!deathmatch)
+    if(!deathmatch)
     {
         if(touchinghandIsBody && VRGetEntWeapon(other, touchinghand) != WID_FIST)
         {
@@ -641,13 +641,13 @@ void() weapon_touch =
 
     self = stemp;
 
-    if (leave)
+    if(leave)
         return;
 
 // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
-    if (deathmatch == 1)
+    if(deathmatch == 1)
         self.nextthink = time + 30;
     self.think = SUB_regen;
 
@@ -755,9 +755,9 @@ void() ammo_touch =
 local entity    stemp;
 local float        best;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
 // if the player was using his best weapon, change up to the new one if better
@@ -768,33 +768,33 @@ local float        best;
 
 
 // shotgun
-    if (self.weapon == 1)
+    if(self.weapon == 1)
     {
-        if (other.ammo_shells >= 100)
+        if(other.ammo_shells >= 100)
             return;
         other.ammo_shells = other.ammo_shells + self.aflag;
     }
 
 // spikes
-    if (self.weapon == 2)
+    if(self.weapon == 2)
     {
-        if (other.ammo_nails >= 200)
+        if(other.ammo_nails >= 200)
             return;
         other.ammo_nails = other.ammo_nails + self.aflag;
     }
 
 //    rockets
-    if (self.weapon == 3)
+    if(self.weapon == 3)
     {
-        if (other.ammo_rockets >= 100)
+        if(other.ammo_rockets >= 100)
             return;
         other.ammo_rockets = other.ammo_rockets + self.aflag;
     }
 
 //    cells
-    if (self.weapon == 4)
+    if(self.weapon == 4)
     {
-        if (other.ammo_cells >= 100)
+        if(other.ammo_cells >= 100)
             return;
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
@@ -812,7 +812,7 @@ local float        best;
 
 // change to a better weapon if appropriate
 
-    if ( other.weapon == best )
+    if( other.weapon == best )
     {
         stemp = self;
         self = other;
@@ -832,7 +832,7 @@ local float        best;
 // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
-    if (deathmatch == 1)
+    if(deathmatch == 1)
         self.nextthink = time + 30;
     self.think = SUB_regen;
 
@@ -852,7 +852,7 @@ void() item_shells =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_shell1.bsp");
         setmodel (self, "maps/b_shell1.bsp");
@@ -879,7 +879,7 @@ void() item_spikes =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_nail1.bsp");
         setmodel (self, "maps/b_nail1.bsp");
@@ -905,7 +905,7 @@ void() item_rockets =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_rock1.bsp");
         setmodel (self, "maps/b_rock1.bsp");
@@ -920,7 +920,7 @@ void() item_rockets =
     self.weapon = 3;
     self.netname = "rockets";
     self.classname = "item_rockets";
-    // TODO VR: (P1) fix this size
+
     setsize (self, '0 0 0', '16 16 32');
     StartItem ();
 };
@@ -933,7 +933,7 @@ void() item_cells =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_batt1.bsp");
         setmodel (self, "maps/b_batt1.bsp");
@@ -948,7 +948,7 @@ void() item_cells =
     self.weapon = 4;
     self.netname = "cells";
     self.classname = "item_cells";
-    // TODO VR: (P1) fix this size
+
     setsize (self, '0 0 0', '24 24 24');
     StartItem ();
 };
@@ -966,9 +966,9 @@ void() item_weapon =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_SHOTGUN)
+    if(self.spawnflags & WEAPON_SHOTGUN)
     {
-        if (self.spawnflags & WEAPON_BIG)
+        if(self.spawnflags & WEAPON_BIG)
         {
             precache_model ("maps/b_shell1.bsp");
             setmodel (self, "maps/b_shell1.bsp");
@@ -984,9 +984,9 @@ void() item_weapon =
         self.netname = "shells";
     }
 
-    if (self.spawnflags & WEAPON_SPIKES)
+    if(self.spawnflags & WEAPON_SPIKES)
     {
-        if (self.spawnflags & WEAPON_BIG)
+        if(self.spawnflags & WEAPON_BIG)
         {
             precache_model ("maps/b_nail1.bsp");
             setmodel (self, "maps/b_nail1.bsp");
@@ -1002,9 +1002,9 @@ void() item_weapon =
         self.netname = "spikes";
     }
 
-    if (self.spawnflags & WEAPON_ROCKET)
+    if(self.spawnflags & WEAPON_ROCKET)
     {
-        if (self.spawnflags & WEAPON_BIG)
+        if(self.spawnflags & WEAPON_BIG)
         {
             precache_model ("maps/b_rock1.bsp");
             setmodel (self, "maps/b_rock1.bsp");
@@ -1035,13 +1035,13 @@ KEYS
 
 void() key_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
-    if (other.items & self.items)
+    if(other.items & self.items)
         return;
 
     VRItemPickupHaptic(other);
@@ -1054,7 +1054,7 @@ void() key_touch =
     stuffcmd (other, "bf\n");
     other.items = other.items | self.items;
 
-    if (!coop)
+    if(!coop)
     {
         self.solid = SOLID_NOT;
         self.model = string_null;
@@ -1067,17 +1067,17 @@ void() key_touch =
 
 void() key_setsounds =
 {
-    if (world.worldtype == 0)
+    if(world.worldtype == 0)
     {
         precache_sound ("misc/medkey.wav");
         self.noise = "misc/medkey.wav";
     }
-    if (world.worldtype == 1)
+    if(world.worldtype == 1)
     {
         precache_sound ("misc/runekey.wav");
         self.noise = "misc/runekey.wav";
     }
-    if (world.worldtype == 2)
+    if(world.worldtype == 2)
     {
         precache_sound2 ("misc/basekey.wav");
         self.noise = "misc/basekey.wav";
@@ -1097,19 +1097,19 @@ following:
 
 void() item_key1 =
 {
-    if (world.worldtype == 0)
+    if(world.worldtype == 0)
     {
         precache_model ("progs/w_s_key.mdl");
         setmodel (self, "progs/w_s_key.mdl");
         self.netname = "silver key";
     }
-    else if (world.worldtype == 1)
+    else if(world.worldtype == 1)
     {
         precache_model ("progs/m_s_key.mdl");
         setmodel (self, "progs/m_s_key.mdl");
         self.netname = "silver runekey";
     }
-    else if (world.worldtype == 2)
+    else if(world.worldtype == 2)
     {
         precache_model2 ("progs/b_s_key.mdl");
         setmodel (self, "progs/b_s_key.mdl");
@@ -1138,19 +1138,19 @@ following:
 
 void() item_key2 =
 {
-    if (world.worldtype == 0)
+    if(world.worldtype == 0)
     {
         precache_model ("progs/w_g_key.mdl");
         setmodel (self, "progs/w_g_key.mdl");
         self.netname = "gold key";
     }
-    else if (world.worldtype == 1)
+    else if(world.worldtype == 1)
     {
         precache_model ("progs/m_g_key.mdl");
         setmodel (self, "progs/m_g_key.mdl");
         self.netname = "gold runekey";
     }
-    else if (world.worldtype == 2)
+    else if(world.worldtype == 2)
     {
         precache_model2 ("progs/b_g_key.mdl");
         setmodel (self, "progs/b_g_key.mdl");
@@ -1183,9 +1183,9 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     centerprint (other, "You got the rune!");
@@ -1208,31 +1208,31 @@ End of level sigil, pick up to end episode and return to jrstart.
 
 void() item_sigil =
 {
-    if (!self.spawnflags)
+    if(!self.spawnflags)
         objerror ("no spawnflags");
 
     precache_sound ("misc/runekey.wav");
     self.noise = "misc/runekey.wav";
 
-    if (self.spawnflags & 1)
+    if(self.spawnflags & 1)
     {
         precache_model ("progs/end1.mdl");
         setmodel (self, "progs/end1.mdl");
     }
 
-    if (self.spawnflags & 2)
+    if(self.spawnflags & 2)
     {
         precache_model2 ("progs/end2.mdl");
         setmodel (self, "progs/end2.mdl");
     }
 
-    if (self.spawnflags & 4)
+    if(self.spawnflags & 4)
     {
         precache_model2 ("progs/end3.mdl");
         setmodel (self, "progs/end3.mdl");
     }
 
-    if (self.spawnflags & 8)
+    if(self.spawnflags & 8)
     {
         precache_model2 ("progs/end4.mdl");
         setmodel (self, "progs/end4.mdl");
@@ -1257,9 +1257,9 @@ void() powerup_touch;
 
 void() powerup_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     VRItemPickupHaptic(other);
@@ -1268,11 +1268,11 @@ void() powerup_touch =
     sprint (other, self.netname);
     sprint (other,"\n");
 
-    if (deathmatch)
+    if(deathmatch)
     {
         self.mdl = self.model;
 
-        if ((self.classname == "item_artifact_invulnerability") ||
+        if((self.classname == "item_artifact_invulnerability") ||
             (self.classname == "item_artifact_invisibility"))
             self.nextthink = time + 60*5;
         else
@@ -1288,25 +1288,25 @@ void() powerup_touch =
     self.model = string_null;
 
 // do the apropriate action
-    if (self.classname == "item_artifact_envirosuit")
+    if(self.classname == "item_artifact_envirosuit")
     {
         other.rad_time = 1;
         other.radsuit_finished = time + 30;
     }
 
-    if (self.classname == "item_artifact_invulnerability")
+    if(self.classname == "item_artifact_invulnerability")
     {
         other.invincible_time = 1;
         other.invincible_finished = time + 30;
     }
 
-    if (self.classname == "item_artifact_invisibility")
+    if(self.classname == "item_artifact_invisibility")
     {
         other.invisible_time = 1;
         other.invisible_finished = time + 30;
     }
 
-    if (self.classname == "item_artifact_super_damage")
+    if(self.classname == "item_artifact_super_damage")
     {
         other.super_time = 1;
         other.super_damage_finished = time + 30;
@@ -1414,9 +1414,9 @@ void() BackpackTouch =
     local entity stemp;
     local    float    acount;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     VRItemPickupHaptic(other);
@@ -1424,9 +1424,9 @@ void() BackpackTouch =
     acount = 0;
     sprint (other, "You get ");
 
-    if (self.items)
+    if(self.items)
     {
-        if ((other.items & self.items) == 0)
+        if((other.items & self.items) == 0)
         {
             acount = 1;
             sprint (other, "the ");
@@ -1450,41 +1450,41 @@ void() BackpackTouch =
 
     // VR: Do not change weapons.
     // newIt = self.items;
-    // if (!newIt)
+    // if(!newIt)
     //     newIt = WeaponIdToItemId(other.weapon);
     // old = other.items;
     // other.items = other.items | newIt;
 
-    if (self.ammo_shells)
+    if(self.ammo_shells)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_shells);
         sprint (other, s);
         sprint (other, " shells");
     }
-    if (self.ammo_nails)
+    if(self.ammo_nails)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_nails);
         sprint (other, s);
         sprint (other, " nails");
     }
-    if (self.ammo_rockets)
+    if(self.ammo_rockets)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_rockets);
         sprint (other, s);
         sprint (other, " rockets");
     }
-    if (self.ammo_cells)
+    if(self.ammo_cells)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_cells);
@@ -1503,7 +1503,7 @@ void() BackpackTouch =
 
     // change to the weapon
     // VR: Do not change weapons.
-    // if (!deathmatch)
+    // if(!deathmatch)
     //     self.weapon = ItemIdToWeaponId(newIt);
     // else
     //     Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
@@ -1520,34 +1520,34 @@ void() DropBackpack =
 {
     local entity    item;
 
-    if (!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells))
+    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells))
         return;    // nothing in it
 
     item = spawn();
     item.origin = self.origin - '0 0 24';
 
     item.items = self.weapon;
-    if (item.items == IT_AXE)
+    if(item.items == IT_AXE)
         item.netname = "Axe";
-    else if (item.items == IT_SHOTGUN)
+    else if(item.items == IT_SHOTGUN)
         item.netname = "Shotgun";
-    else if (item.items == IT_SUPER_SHOTGUN)
+    else if(item.items == IT_SUPER_SHOTGUN)
         item.netname = "Double-barrelled Shotgun";
-    else if (item.items == IT_NAILGUN)
+    else if(item.items == IT_NAILGUN)
         item.netname = "Nailgun";
-    else if (item.items == IT_SUPER_NAILGUN)
+    else if(item.items == IT_SUPER_NAILGUN)
         item.netname = "Super Nailgun";
-    else if (item.items == IT_GRENADE_LAUNCHER)
+    else if(item.items == IT_GRENADE_LAUNCHER)
         item.netname = "Grenade Launcher";
-    else if (item.items == IT_ROCKET_LAUNCHER)
+    else if(item.items == IT_ROCKET_LAUNCHER)
         item.netname = "Rocket Launcher";
-    else if (item.items == IT_LIGHTNING)
+    else if(item.items == IT_LIGHTNING)
         item.netname = "Thunderbolt";
-    else if (item.items == IT_LASER_CANNON)
+    else if(item.items == IT_LASER_CANNON)
         item.netname = "Laser Cannon";
-    else if (item.items == IT_PROXIMITY_GUN)
+    else if(item.items == IT_PROXIMITY_GUN)
         item.netname = "Proximity Gun";
-    else if (item.items == IT_MJOLNIR)
+    else if(item.items == IT_MJOLNIR)
         item.netname = "Mjolnir";
     else
         item.netname = "";

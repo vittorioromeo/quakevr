@@ -92,9 +92,9 @@ void()    Tar_JumpTouch =
 {
     local    float    ldmg;
 
-    if (other.takedamage && other.classname != self.classname)
+    if(other.takedamage && other.classname != self.classname)
     {
-        if ( vlen(self.velocity) > 400 )
+        if( vlen(self.velocity) > 400 )
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);
@@ -105,9 +105,9 @@ void()    Tar_JumpTouch =
         sound (self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
 
 
-    if (!checkbottom(self))
+    if(!checkbottom(self))
     {
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
 //dprint ("popjump\n");
     self.touch = SUB_Null;
@@ -135,7 +135,7 @@ void()    tbaby_fly2        =[    $fly2,    tbaby_fly3    ] {};
 void()    tbaby_fly3        =[    $fly3,    tbaby_fly4    ] {};
 void()    tbaby_fly4        =[    $fly4,    tbaby_fly1    ] {
 self.cnt = self.cnt + 1;
-if (self.cnt == 4)
+if(self.cnt == 4)
 {
 //dprint ("spawn hop\n");
 tbaby_jump5 ();
@@ -154,7 +154,7 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 600 + '0 0 200';
     self.velocity_z = self.velocity_z + random()*150;
-    if (self.flags & FL_ONGROUND)
+    if(self.flags & FL_ONGROUND)
         self.flags = self.flags - FL_ONGROUND;
     self.cnt = 0;
 };
@@ -190,7 +190,7 @@ void()    tbaby_die2    =[    $exp,        tbaby_run1    ]
 */
 void() monster_tarbaby =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

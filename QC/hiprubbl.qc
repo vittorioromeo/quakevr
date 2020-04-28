@@ -7,10 +7,10 @@
 
 void() hipRubbleTouch =
     {
-    if ( self.ltime < self.pausetime )
+    if( self.ltime < self.pausetime )
        return;
 
-    if (other.takedamage)
+    if(other.takedamage)
         {
         T_Damage (other, self, self.owner, 10 );
         sound (self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
@@ -53,16 +53,16 @@ void() rubble_use =
     do
        {
         which = self.cnt;
-        if ( self.cnt == 0 )
+        if( self.cnt == 0 )
             {
             which = 1 + 3*random();
             which = floor( which );
             }
-        if ( which == 1 )
+        if( which == 1 )
            {
            hipThrowRubble( "progs/rubble1.mdl" );
            }
-        else if ( which == 2 )
+        else if( which == 2 )
            {
            hipThrowRubble( "progs/rubble3.mdl" );
            }

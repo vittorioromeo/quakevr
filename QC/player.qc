@@ -92,7 +92,7 @@ void(float xHand)    player_stand1 =
 {
     setHandThinkWithArg(xHand, $axstnd1, player_stand1);
 
-    if (self.velocity_x || self.velocity_y)
+    if(self.velocity_x || self.velocity_y)
     {
         self.walkframe=0;
 
@@ -100,19 +100,19 @@ void(float xHand)    player_stand1 =
         return;
     }
 
-    if (self.weapon == WID_AXE)
+    if(self.weapon == WID_AXE)
     {
-        if (self.walkframe >= 12) { self.walkframe = 0; }
+        if(self.walkframe >= 12) { self.walkframe = 0; }
         self.frame = $axstnd1 + self.walkframe;
     }
-    else if (self.weapon == WID_MJOLNIR)
+    else if(self.weapon == WID_MJOLNIR)
     {
-        if (self.walkframe >= 12) { self.walkframe = 0; }
+        if(self.walkframe >= 12) { self.walkframe = 0; }
         self.frame = 6 + self.walkframe;
     }
     else
     {
-        if (self.walkframe >= 5) { self.walkframe = 0; }
+        if(self.walkframe >= 5) { self.walkframe = 0; }
         self.frame = $stand1 + self.walkframe;
     }
     self.walkframe = self.walkframe + 1;
@@ -120,60 +120,60 @@ void(float xHand)    player_stand1 =
 
 void(float xHand) player_run =
 {
-    setWeaponFrame(xHand, 0);
+    VRSetWeaponFrame(xHand, 0);
 
     setHandThinkWithArg(xHand, $rockrun1, player_run);
 
-    if (!self.velocity_x && !self.velocity_y)
+    if(!self.velocity_x && !self.velocity_y)
     {
         self.walkframe=0;
         player_stand1(xHand);
         return;
     }
 
-    if (self.weapon == WID_AXE)
+    if(self.weapon == WID_AXE)
     {
-        if (self.walkframe == 6) { self.walkframe = 0; }
+        if(self.walkframe == 6) { self.walkframe = 0; }
         self.frame = $axrun1 + self.walkframe;
     }
-    else if (self.weapon == WID_MJOLNIR)
+    else if(self.weapon == WID_MJOLNIR)
     {
-        if (self.walkframe == 6) { self.walkframe = 0; }
+        if(self.walkframe == 6) { self.walkframe = 0; }
         self.frame = self.walkframe;
     }
     else
     {
-        if (self.walkframe == 6) { self.walkframe = 0; }
+        if(self.walkframe == 6) { self.walkframe = 0; }
         self.frame = self.frame + self.walkframe;
     }
 
-    if (footsteps == 1)
+    if(footsteps == 1)
     {
         self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
         self.old_velocity = self.origin;
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
         {
-            if (self.spawnsilent > 95)
+            if(self.spawnsilent > 95)
             {
                 local float r;
-                if (self.spawnsilent > 190)
+                if(self.spawnsilent > 190)
                    self.spawnsilent = 0;
                 else
                    {
                    self.spawnsilent = 0.5*(self.spawnsilent - 95);
                    }
                 r = random();
-                if (r < 0.14)
+                if(r < 0.14)
                    sound (self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
-                else if (r < 0.29)
+                else if(r < 0.29)
                    sound (self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
-                else if (r < 0.43)
+                else if(r < 0.43)
                    sound (self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
-                else if (r < 0.58)
+                else if(r < 0.58)
                    sound (self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
-                else if (r < 0.72)
+                else if(r < 0.72)
                    sound (self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
-                else if (r < 0.86)
+                else if(r < 0.86)
                    sound (self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
                 else
                    sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
@@ -185,7 +185,7 @@ void(float xHand) player_run =
 
 void() player_run_no_arg =
 {
-    player_run(MAIN_HAND);
+    player_run(cVR_MainHand);
 };
 
 .void(float) thinkArgFn;
@@ -233,68 +233,44 @@ void(float xArg, float xFrame, void(float) xFn) setThink2WithArg =
     setThink2(xFrame, doThink2ArgFn);
 }
 
-void(float xHand, float v) setWeaponFrame =
-{
-    if(xHand == OFF_HAND) self.weaponframe2 = v;
-    else                  self.weaponframe = v;
-}
-
-float(float xHand) getWeaponFrame =
-{
-    if(xHand == OFF_HAND) return self.weaponframe2;
-    else                  return self.weaponframe;
-}
-
-void(float xHand, float v) setAttackFinished =
-{
-    if(xHand == OFF_HAND) self.offhand_attack_finished = v;
-    else                  self.attack_finished = v;
-}
-
-float(float xHand) getAttackFinished =
-{
-    if(xHand == OFF_HAND) return self.offhand_attack_finished;
-    else                  return self.attack_finished;
-}
-
 void(float xHand, float xFrame, void(float) xFn) setHandThinkWithArg =
 {
-    if(xHand == OFF_HAND) setThink2WithArg(xHand, xFrame, xFn);
+    if(xHand == cVR_OffHand) setThink2WithArg(xHand, xFrame, xFn);
     else                  setThinkWithArg(xHand, xFrame, xFn);
 }
 
 void(float xHand, float xFrame, void() xFn) setHandThink =
 {
-    if(xHand == OFF_HAND) setThink2(xFrame, xFn);
+    if(xHand == cVR_OffHand) setThink2(xFrame, xFn);
     else                  setThink(xFrame, xFn);
 }
 
-void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); setWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
-void(float xHand) player_shot2 = { setHandThinkWithArg(xHand, $shotatt2, player_shot3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_shot3 = { setHandThinkWithArg(xHand, $shotatt3, player_shot4); setWeaponFrame(xHand, 3); };
-void(float xHand) player_shot4 = { setHandThinkWithArg(xHand, $shotatt4, player_shot5); setWeaponFrame(xHand, 4); };
-void(float xHand) player_shot5 = { setHandThinkWithArg(xHand, $shotatt5, player_shot6); setWeaponFrame(xHand, 5); };
-void(float xHand) player_shot6 = { setHandThinkWithArg(xHand, $shotatt6, player_run); setWeaponFrame(xHand, 6); };
+void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
+void(float xHand) player_shot2 = { setHandThinkWithArg(xHand, $shotatt2, player_shot3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_shot3 = { setHandThinkWithArg(xHand, $shotatt3, player_shot4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_shot4 = { setHandThinkWithArg(xHand, $shotatt4, player_shot5); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_shot5 = { setHandThinkWithArg(xHand, $shotatt5, player_shot6); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_shot6 = { setHandThinkWithArg(xHand, $shotatt6, player_run); VRSetWeaponFrame(xHand, 6); };
 
-void(float xHand) player_axe1 = { setHandThinkWithArg(xHand, $axatt1, player_axe2); setWeaponFrame(xHand, 1); };
-void(float xHand) player_axe2 = { setHandThinkWithArg(xHand, $axatt2, player_axe3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_axe3 = { setHandThinkWithArg(xHand, $axatt3, player_axe4); setWeaponFrame(xHand, 3); W_FireAxe(xHand); };
-void(float xHand) player_axe4 = { setHandThinkWithArg(xHand, $axatt4, player_run); setWeaponFrame(xHand, 4); };
+void(float xHand) player_axe1 = { setHandThinkWithArg(xHand, $axatt1, player_axe2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_axe2 = { setHandThinkWithArg(xHand, $axatt2, player_axe3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_axe3 = { setHandThinkWithArg(xHand, $axatt3, player_axe4); VRSetWeaponFrame(xHand, 3); W_FireAxe(xHand); };
+void(float xHand) player_axe4 = { setHandThinkWithArg(xHand, $axatt4, player_run); VRSetWeaponFrame(xHand, 4); };
 
-void(float xHand) player_axeb1 = { setHandThinkWithArg(xHand, $axattb1, player_axeb2); setWeaponFrame(xHand, 5); };
-void(float xHand) player_axeb2 = { setHandThinkWithArg(xHand, $axattb2, player_axeb3); setWeaponFrame(xHand, 6); };
-void(float xHand) player_axeb3 = { setHandThinkWithArg(xHand, $axattb3, player_axeb4); setWeaponFrame(xHand, 7); W_FireAxe(xHand); };
-void(float xHand) player_axeb4 = { setHandThinkWithArg(xHand, $axattb4, player_run); setWeaponFrame(xHand, 8); };
+void(float xHand) player_axeb1 = { setHandThinkWithArg(xHand, $axattb1, player_axeb2); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_axeb2 = { setHandThinkWithArg(xHand, $axattb2, player_axeb3); VRSetWeaponFrame(xHand, 6); };
+void(float xHand) player_axeb3 = { setHandThinkWithArg(xHand, $axattb3, player_axeb4); VRSetWeaponFrame(xHand, 7); W_FireAxe(xHand); };
+void(float xHand) player_axeb4 = { setHandThinkWithArg(xHand, $axattb4, player_run); VRSetWeaponFrame(xHand, 8); };
 
-void(float xHand) player_axec1 = { setHandThinkWithArg(xHand, $axattc1, player_axec2); setWeaponFrame(xHand, 1); };
-void(float xHand) player_axec2 = { setHandThinkWithArg(xHand, $axattc2, player_axec3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_axec3 = { setHandThinkWithArg(xHand, $axattc3, player_axec4); setWeaponFrame(xHand, 3); W_FireAxe(xHand); };
-void(float xHand) player_axec4 = { setHandThinkWithArg(xHand, $axattc4, player_run); setWeaponFrame(xHand, 4); };
+void(float xHand) player_axec1 = { setHandThinkWithArg(xHand, $axattc1, player_axec2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_axec2 = { setHandThinkWithArg(xHand, $axattc2, player_axec3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_axec3 = { setHandThinkWithArg(xHand, $axattc3, player_axec4); VRSetWeaponFrame(xHand, 3); W_FireAxe(xHand); };
+void(float xHand) player_axec4 = { setHandThinkWithArg(xHand, $axattc4, player_run); VRSetWeaponFrame(xHand, 4); };
 
-void(float xHand) player_axed1 = { setHandThinkWithArg(xHand, $axattd1, player_axed2); setWeaponFrame(xHand, 5); };
-void(float xHand) player_axed2 = { setHandThinkWithArg(xHand, $axattd2, player_axed3); setWeaponFrame(xHand, 6); };
-void(float xHand) player_axed3 = { setHandThinkWithArg(xHand, $axattd3, player_axed4); setWeaponFrame(xHand, 7); W_FireAxe(xHand); };
-void(float xHand) player_axed4 = { setHandThinkWithArg(xHand, $axattd4, player_run); setWeaponFrame(xHand, 8); };
+void(float xHand) player_axed1 = { setHandThinkWithArg(xHand, $axattd1, player_axed2); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_axed2 = { setHandThinkWithArg(xHand, $axattd2, player_axed3); VRSetWeaponFrame(xHand, 6); };
+void(float xHand) player_axed3 = { setHandThinkWithArg(xHand, $axattd3, player_axed4); VRSetWeaponFrame(xHand, 7); W_FireAxe(xHand); };
+void(float xHand) player_axed4 = { setHandThinkWithArg(xHand, $axattd4, player_run); VRSetWeaponFrame(xHand, 8); };
 
 // ROGUE
 //============================================================================
@@ -302,30 +278,30 @@ void(float xHand) player_axed4 = { setHandThinkWithArg(xHand, $axattd4, player_r
 void(float xHand) player_grapple1 =
 {
     setHandThinkWithArg(xHand, $axattd1, player_grapple2);
-    setWeaponFrame(xHand, 1);
+    VRSetWeaponFrame(xHand, 1);
     W_FireGrapple(xHand);
 };
 
 void(float xHand) player_grapple2 =
 {
     setHandThinkWithArg(xHand, $axattd2, player_grapple3);
-    setWeaponFrame(xHand, 2);
+    VRSetWeaponFrame(xHand, 2);
 };
 
 void(float xHand) player_grapple3 =
 {
     setHandThinkWithArg(xHand, $axattd3, player_grapple3);
-    setWeaponFrame(xHand, 2);
+    VRSetWeaponFrame(xHand, 2);
 
-    if (!getHookOut(xHand))
+    if(!getHookOut(xHand))
     {
         player_grapple5(xHand);
         return;
     }
 
-    if (vlen(getHook(xHand).origin - self.origin) >= 50)
+    if(vlen(getHook(xHand).origin - self.origin) >= 50)
     {
-        if (getOnHook(xHand))
+        if(getOnHook(xHand))
         {
             player_grapple4(xHand);
             return;
@@ -336,15 +312,15 @@ void(float xHand) player_grapple3 =
 void(float xHand) player_grapple4 =
 {
     setHandThinkWithArg(xHand, $deathc4, player_grapple4);
-    setWeaponFrame(xHand, 2);
+    VRSetWeaponFrame(xHand, 2);
 
-    if (!getHookOut(xHand))
+    if(!getHookOut(xHand))
     {
         player_grapple5(xHand);
         return;
     }
 
-    if (vlen(getHook(xHand).origin - self.origin) < 50 || !getOnHook(xHand))
+    if(vlen(getHook(xHand).origin - self.origin) < 50 || !getOnHook(xHand))
     {
         player_grapple3(xHand);
         return;
@@ -359,59 +335,41 @@ void(float xHand) player_grapple5 =
 //--ZOID
 //============================================================================
 
-// TODO VR: (P1) huge code repetition below
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
+{
+    if(self.ammo_nails < 1 || !VRGetFireButtonPressed(xHand))
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, xNailAtt, xNailFn);
+    self.effects = self.effects | EF_MUZZLEFLASH;
+
+    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
+    if(VRGetWeaponFrame(xHand) == 9)
+        VRSetWeaponFrame(xHand, 1);
+
+    SuperDamageSound();
+    W_FireSpikes (xHand, xOffset);
+    VRSetAttackFinished(xHand, time + 0.2);
+}
 
 void(float xHand) player_nail1 =
 {
-    if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $nailatt1, player_nail2);
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
-    if (getWeaponFrame(xHand) == 9)
-        setWeaponFrame(xHand, 1);
-
-    SuperDamageSound();
-    W_FireSpikes (xHand, 2.35);
-    setAttackFinished(xHand, time + 0.2);
-};
+    player_nail_Impl(xHand, 2.35, $nailatt1, player_nail2);
+}
 
 void(float xHand) player_nail2 =
 {
-    if (self.ammo_nails < 1 || !VRFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $nailatt2, player_nail1);
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    if (!VRFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
-    if (getWeaponFrame(xHand) == 9)
-        setWeaponFrame(xHand, 1);
-
-    SuperDamageSound();
-    W_FireSpikes (xHand, -2.35);
-    setAttackFinished(xHand, time + 0.2);
-};
+    player_nail_Impl(xHand, -2.35, $nailatt2, player_nail1);
+}
 
 //============================================================================
 
 void(float xHand) player_light1 =
 {
-    if (self.ammo_cells < 1)
+    if(self.ammo_cells < 1)
     {
         player_run(xHand);
         return;
@@ -421,24 +379,24 @@ void(float xHand) player_light1 =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!VRFireButtonPressed(xHand))
+    if(!VRGetFireButtonPressed(xHand))
     {
         player_run(xHand);
         return;
     }
 
-    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
-    if (getWeaponFrame(xHand) == 5)
-        setWeaponFrame(xHand, 1);
+    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
+    if(VRGetWeaponFrame(xHand) == 5)
+        VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
     W_FireLightning(xHand);
-    setAttackFinished(xHand, time + 0.2);
+    VRSetAttackFinished(xHand, time + 0.2);
 };
 
 void(float xHand) player_light2 =
 {
-    if (self.ammo_cells < 1)
+    if(self.ammo_cells < 1)
     {
         player_run(xHand);
         return;
@@ -448,71 +406,71 @@ void(float xHand) player_light2 =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!VRFireButtonPressed(xHand))
+    if(!VRGetFireButtonPressed(xHand))
     {
         player_run(xHand);
         return;
     }
 
-    setWeaponFrame(xHand, getWeaponFrame(xHand) + 1);
-    if (getWeaponFrame(xHand) == 5)
-        setWeaponFrame(xHand, 1);
+    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
+    if(VRGetWeaponFrame(xHand) == 5)
+        VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
     W_FireLightning(xHand);
-    setAttackFinished(xHand, time + 0.2);
+    VRSetAttackFinished(xHand, time + 0.2);
 };
 
 //MED 10/18/96 added HIPWEAPONS
 //============================================================================
 
-void(float xHand) player_hammer1 = { setHandThinkWithArg(xHand, 32, player_hammer2); setWeaponFrame(xHand, 1); };
-void(float xHand) player_hammer2 = { setHandThinkWithArg(xHand, 33, player_hammer3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_hammer3 = { setHandThinkWithArg(xHand, 34, player_hammer4); setWeaponFrame(xHand, 3); };
-void(float xHand) player_hammer4 = { setHandThinkWithArg(xHand, 35, player_hammer5); setWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
-void(float xHand) player_hammer5 = { setHandThinkWithArg(xHand, 36, player_hammer6); setWeaponFrame(xHand, 4); };
-void(float xHand) player_hammer6 = { setHandThinkWithArg(xHand, 37, player_run); setWeaponFrame(xHand, 4); };
-void(float xHand) player_mjolnir1 = { setHandThinkWithArg(xHand, 38, player_mjolnir2); setWeaponFrame(xHand, 1); };
-void(float xHand) player_mjolnir2 = { setHandThinkWithArg(xHand, 39, player_mjolnir3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_mjolnir3 = { setHandThinkWithArg(xHand, 40, player_mjolnir4); setWeaponFrame(xHand, 3); };
-void(float xHand) player_mjolnir4 = { setHandThinkWithArg(xHand, 41, player_mjolnir5); setWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
-void(float xHand) player_mjolnir5 = { setHandThinkWithArg(xHand, 42, player_mjolnir6); setWeaponFrame(xHand, 4); };
-void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run); setWeaponFrame(xHand, 4); };
+void(float xHand) player_hammer1 = { setHandThinkWithArg(xHand, 32, player_hammer2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_hammer2 = { setHandThinkWithArg(xHand, 33, player_hammer3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_hammer3 = { setHandThinkWithArg(xHand, 34, player_hammer4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_hammer4 = { setHandThinkWithArg(xHand, 35, player_hammer5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_hammer5 = { setHandThinkWithArg(xHand, 36, player_hammer6); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_hammer6 = { setHandThinkWithArg(xHand, 37, player_run); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir1 = { setHandThinkWithArg(xHand, 38, player_mjolnir2); VRSetWeaponFrame(xHand, 1); };
+void(float xHand) player_mjolnir2 = { setHandThinkWithArg(xHand, 39, player_mjolnir3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_mjolnir3 = { setHandThinkWithArg(xHand, 40, player_mjolnir4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_mjolnir4 = { setHandThinkWithArg(xHand, 41, player_mjolnir5); VRSetWeaponFrame(xHand, 4); HIP_FireMjolnir(xHand); };
+void(float xHand) player_mjolnir5 = { setHandThinkWithArg(xHand, 42, player_mjolnir6); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run); VRSetWeaponFrame(xHand, 4); };
 
 //============================================================================
 
 //MED 10/18/96 added HIPSWEAPONS
-void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
-void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 2); };
-void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };
-void(float xHand) player_laser4 = { setHandThinkWithArg(xHand, $nailatt1, player_laser1); setAttackFinished(xHand, time + 0.1); setWeaponFrame(xHand, 5); };
+void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
+void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };
+void(float xHand) player_laser4 = { setHandThinkWithArg(xHand, $nailatt1, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 5); };
 //============================================================================
-void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); setWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
-void(float xHand) player_rocket2 = { setHandThinkWithArg(xHand, $rockatt2, player_rocket3); setWeaponFrame(xHand, 2); };
-void(float xHand) player_rocket3 = { setHandThinkWithArg(xHand, $rockatt3, player_rocket4); setWeaponFrame(xHand, 3); };
-void(float xHand) player_rocket4 = { setHandThinkWithArg(xHand, $rockatt4, player_rocket5); setWeaponFrame(xHand, 4); };
-void(float xHand) player_rocket5 = { setHandThinkWithArg(xHand, $rockatt5, player_rocket6); setWeaponFrame(xHand, 5); };
-void(float xHand) player_rocket6 = { setHandThinkWithArg(xHand, $rockatt6, player_run); setWeaponFrame(xHand, 6); };
+void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
+void(float xHand) player_rocket2 = { setHandThinkWithArg(xHand, $rockatt2, player_rocket3); VRSetWeaponFrame(xHand, 2); };
+void(float xHand) player_rocket3 = { setHandThinkWithArg(xHand, $rockatt3, player_rocket4); VRSetWeaponFrame(xHand, 3); };
+void(float xHand) player_rocket4 = { setHandThinkWithArg(xHand, $rockatt4, player_rocket5); VRSetWeaponFrame(xHand, 4); };
+void(float xHand) player_rocket5 = { setHandThinkWithArg(xHand, $rockatt5, player_rocket6); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_rocket6 = { setHandThinkWithArg(xHand, $rockatt6, player_run); VRSetWeaponFrame(xHand, 6); };
 void(float num_bubbles) DeathBubbles;
 
 void() PainSound =
 {
 local float        rs;
 
-    if (self.health < 0)
+    if(self.health < 0)
         return;
 
-    if (damage_attacker.classname == "teledeath")
+    if(damage_attacker.classname == "teledeath")
     {
         sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
 // water pain sounds
-    if (self.watertype == CONTENT_WATER && self.waterlevel == 3)
+    if(self.watertype == CONTENT_WATER && self.waterlevel == 3)
     {
         DeathBubbles(1);
-        if (random() > 0.5)
+        if(random() > 0.5)
             sound (self, CHAN_VOICE, "player/drown1.wav", 1, ATTN_NORM);
         else
             sound (self, CHAN_VOICE, "player/drown2.wav", 1, ATTN_NORM);
@@ -520,28 +478,28 @@ local float        rs;
     }
 
 // slime pain sounds
-    if (self.watertype == CONTENT_SLIME)
+    if(self.watertype == CONTENT_SLIME)
     {
 // FIX ME    put in some steam here
-        if (self.waterlevel == 3)
+        if(self.waterlevel == 3)
             DeathBubbles(1);
-        if (random() > 0.5)
+        if(random() > 0.5)
             sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
         else
             sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
         return;
     }
 
-    if (self.watertype == CONTENT_LAVA)
+    if(self.watertype == CONTENT_LAVA)
     {
-        if (random() > 0.5)
+        if(random() > 0.5)
             sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
         else
             sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
         return;
     }
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
     {
         self.axhitme = 0;
         return;
@@ -551,7 +509,7 @@ local float        rs;
 // don't make multiple pain sounds right after each other
 
 // ax pain sound
-    if (self.axhitme == 1)
+    if(self.axhitme == 1)
     {
         self.axhitme = 0;
         sound (self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
@@ -562,15 +520,15 @@ local float        rs;
     rs = rint((random() * 5) + 1);
 
     self.noise = "";
-    if (rs == 1)
+    if(rs == 1)
         self.noise = "player/pain1.wav";
-    else if (rs == 2)
+    else if(rs == 2)
         self.noise = "player/pain2.wav";
-    else if (rs == 3)
+    else if(rs == 3)
         self.noise = "player/pain3.wav";
-    else if (rs == 4)
+    else if(rs == 4)
         self.noise = "player/pain4.wav";
-    else if (rs == 5)
+    else if(rs == 5)
         self.noise = "player/pain5.wav";
     else
         self.noise = "player/pain6.wav";
@@ -602,15 +560,15 @@ void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
 
 void(entity attacker, float damage) player_pain =
 {
-    if (self.weaponframe || self.weaponframe2)
+    if(self.weaponframe || self.weaponframe2)
         return;
 
-    if (self.invisible_finished > time)
+    if(self.invisible_finished > time)
         return;        // eyes don't have pain frames
 
-    if (self.weapon == WID_AXE)
+    if(self.weapon == WID_AXE)
         player_axpain1 ();
-    else if (self.weapon == WID_MJOLNIR)
+    else if(self.weapon == WID_MJOLNIR)
         player_hampain1 ();
     else
         player_pain1 ();
@@ -627,7 +585,7 @@ void() player_die_ham1;
 void() DeathBubblesSpawn =
 {
     local entity    bubble;
-    if ((self.owner.waterlevel != 3) && (self.owner.health > 0))
+    if((self.owner.waterlevel != 3) && (self.owner.health > 0))
     {
         remove(self);    // remove bubble spawner
         return;
@@ -648,7 +606,7 @@ void() DeathBubblesSpawn =
     self.nextthink = time + 0.01;
     self.think = DeathBubblesSpawn;
     self.air_finished = self.air_finished + 1;
-    if (self.air_finished >= self.bubble_count)
+    if(self.air_finished >= self.bubble_count)
         remove(self);
 };
 
@@ -673,7 +631,7 @@ void() DeathSound =
 local float        rs;
 
     // water death sounds
-    if (self.waterlevel == 3)
+    if(self.waterlevel == 3)
     {
         DeathBubbles(20);
         sound (self, CHAN_VOICE, "player/h2odeath.wav", 1, ATTN_NONE);
@@ -681,15 +639,15 @@ local float        rs;
     }
 
     rs = rint ((random() * 4) + 1);
-    if (rs == 1)
+    if(rs == 1)
         self.noise = "player/death1.wav";
-    if (rs == 2)
+    if(rs == 2)
         self.noise = "player/death2.wav";
-    if (rs == 3)
+    if(rs == 3)
         self.noise = "player/death3.wav";
-    if (rs == 4)
+    if(rs == 4)
         self.noise = "player/death4.wav";
-    if (rs == 5)
+    if(rs == 5)
         self.noise = "player/death5.wav";
 
     sound (self, CHAN_VOICE, self.noise, 1, ATTN_NONE);
@@ -709,7 +667,7 @@ vector(float dm) VelocityForDamage =
     local vector v;
 
 //MED 01/17/97
-    if (vlen(damage_inflictor.velocity)>0)
+    if(vlen(damage_inflictor.velocity)>0)
     {
         v = 0.2 * damage_inflictor.velocity;
         v = v + (25 * normalize(self.origin-damage_inflictor.origin));
@@ -724,12 +682,12 @@ vector(float dm) VelocityForDamage =
         v_z = 200 + 100 * random();
     }
 
-    if (dm > -50)
+    if(dm > -50)
     {
 //        dprint ("level 1\n");
         v = v * 0.7;
     }
-    else if (dm > -200)
+    else if(dm > -200)
     {
 //        dprint ("level 3\n");
         v = v * 2;
@@ -760,16 +718,16 @@ void(string gibname, float dm) ThrowGib =
     new.frame = 0;
     new.flags = 0;
 
-    particle2 (self.origin, new.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, new.velocity, 1 /* blood preset */, 40);
 };
 
 //MED
 void() HeadThink =
    {
    self.nextthink = -1;
-   if (world.worldtype != 2)
+   if(world.worldtype != 2)
       {
-      if (random()<0.1)
+      if(random()<0.1)
          sound (self, 6, "misc/flys.wav", 0.7, ATTN_STATIC);
       }
    };
@@ -794,7 +752,7 @@ void(string gibname, float dm) ThrowHead =
     self.gorging = TRUE;
     self.think = HeadThink;
 
-    particle2 (self.origin, self.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, self.velocity, 1 /* blood preset */, 40);
 };
 
 
@@ -807,19 +765,19 @@ void() GibPlayer =
 
     self.deadflag = DEAD_DEAD;
 
-    if (damage_attacker.classname == "teledeath")
+    if(damage_attacker.classname == "teledeath")
     {
         sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
-    if (damage_attacker.classname == "teledeath2")
+    if(damage_attacker.classname == "teledeath2")
     {
         sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
-    if (random() < 0.5)
+    if(random() < 0.5)
         sound (self, CHAN_VOICE, "player/gib.wav", 1, ATTN_NONE);
     else
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NONE);
@@ -844,7 +802,7 @@ void() PlayerDie =
     self.empathy_finished = 0;
     self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items & HIP_IT_EMPATHY_SHIELDS);
 
-    if (deathmatch || coop)
+    if(deathmatch || coop)
         DropBackpack();
 
     self.weaponmodel="";
@@ -854,10 +812,10 @@ void() PlayerDie =
     self.solid = SOLID_NOT;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.movetype = MOVETYPE_TOSS;
-    if (self.velocity_z < 10)
+    if(self.velocity_z < 10)
         self.velocity_z = self.velocity_z + random()*300;
 
-    if (self.health < -40)
+    if(self.health < -40)
     {
         GibPlayer ();
         return;
@@ -868,13 +826,13 @@ void() PlayerDie =
     self.angles_x = 0;
     self.angles_z = 0;
 
-    if (self.weapon == WID_AXE)
+    if(self.weapon == WID_AXE)
     {
         player_die_ax1 ();
         return;
     }
     //MED 12/04/96
-    else if (self.weapon == WID_MJOLNIR)
+    else if(self.weapon == WID_MJOLNIR)
     {
         self.modelindex = modelindex_hammer; // use hammer model
         player_die_ham1();
@@ -882,16 +840,16 @@ void() PlayerDie =
     }
 
     i = cvar("temp1");
-    if (!i)
+    if(!i)
         i = 1 + floor(random()*6);
 
-    if (i == 1)
+    if(i == 1)
         player_diea1();
-    else if (i == 2)
+    else if(i == 2)
         player_dieb1();
-    else if (i == 3)
+    else if(i == 3)
         player_diec1();
-    else if (i == 4)
+    else if(i == 4)
         player_died1();
     else
         player_diee1();
@@ -900,7 +858,7 @@ void() PlayerDie =
 
 void() set_suicide_frame =
 {    // used by klill command and diconnect command
-    if (self.model != "progs/player.mdl")
+    if(self.model != "progs/player.mdl")
         return;    // allready gibbed
     self.frame = $deatha11;
     self.solid = SOLID_NOT;

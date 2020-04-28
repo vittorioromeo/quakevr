@@ -12,9 +12,9 @@ just constant angles.
 */
 void() SetMovedir =
 {
-    if (self.angles == '0 -1 0')
+    if(self.angles == '0 -1 0')
         self.movedir = '0 0 1';
-    else if (self.angles == '0 -2 0')
+    else if(self.angles == '0 -2 0')
         self.movedir = '0 0 -1';
     else
     {
@@ -34,7 +34,7 @@ void() InitTrigger =
 {
 // trigger angles are used for one-way touches.  An angle of 0 is assumed
 // to mean no restrictions, so use a yaw of 360 instead.
-    if (self.angles != '0 0 0')
+    if(self.angles != '0 0 0')
         SetMovedir ();
     self.solid = SOLID_TRIGGER;
     setmodel (self, self.model);    // set size and link into world
@@ -66,14 +66,14 @@ void(vector tdest, float tspeed, void() func) SUB_CalcMove =
 local vector    vdestdelta;
 local float        len, traveltime;
 
-    if (!tspeed)
+    if(!tspeed)
         objerror("No speed is defined!");
 
     self.think1 = func;
     self.finaldest = tdest;
     self.think = SUB_CalcMoveDone;
 
-    if (tdest == self.origin)
+    if(tdest == self.origin)
     {
         self.velocity = '0 0 0';
         self.nextthink = self.ltime + 0.1;
@@ -89,7 +89,7 @@ local float        len, traveltime;
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
 
-    if (traveltime < 0.1)
+    if(traveltime < 0.1)
     {
         self.velocity = '0 0 0';
         self.nextthink = self.ltime + 0.1;
@@ -113,7 +113,7 @@ void()  SUB_CalcMoveDone =
     setorigin(self, self.finaldest);
     self.velocity = '0 0 0';
     self.nextthink = -1;
-    if (self.think1)
+    if(self.think1)
         self.think1();
 };
 
@@ -142,7 +142,7 @@ void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove =
 local vector    destdelta;
 local float        len, traveltime;
 
-    if (!tspeed)
+    if(!tspeed)
         objerror("No speed is defined!");
 
 // set destdelta to the vector needed to move
@@ -175,7 +175,7 @@ void() SUB_CalcAngleMoveDone =
     self.angles = self.finalangle;
     self.avelocity = '0 0 0';
     self.nextthink = -1;
-    if (self.think1)
+    if(self.think1)
         self.think1();
 };
 
@@ -203,7 +203,7 @@ Centerprints any self.message to the activator.
 Removes all entities with a targetname that match self.killtarget,
 and removes them, so some events can remove other triggers.
 
-Search for (string)targetname in all entities that
+Search for(string)targetname in all entities that
 match (string)self.target and call their .use function
 
 ==============================
@@ -215,7 +215,7 @@ void() SUB_UseTargets =
 //
 // check for a delay
 //
-    if (self.delay)
+    if(self.delay)
     {
     // create a temp object to fire at a later time
         t = spawn();
@@ -233,39 +233,39 @@ void() SUB_UseTargets =
 //
 // print the message
 //
-    if (activator.classname == "player" && self.message != "")
+    if(activator.classname == "player" && self.message != "")
     {
         centerprint (activator, self.message);
-        if (!self.noise)
+        if(!self.noise)
             sound (activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
 
 //
 // kill the killtagets
 //
-    if (self.killtarget)
+    if(self.killtarget)
     {
         t = world;
         do
         {
             t = find (t, targetname, self.killtarget);
-            if (!t)
+            if(!t)
                 return;
             remove (t);
-        } while ( 1 );
+        } while( 1 );
     }
 
 //
 // fire targets
 //
-    if (self.target)
+    if(self.target)
     {
         act = activator;
         t = world;
         do
         {
             t = find (t, targetname, self.target);
-            if (!t)
+            if(!t)
             {
                 return;
             }
@@ -273,15 +273,15 @@ void() SUB_UseTargets =
             otemp = other;
             self = t;
             other = stemp;
-            if (self.use != SUB_Null)
+            if(self.use != SUB_Null)
             {
-                if (self.use)
+                if(self.use)
                     self.use ();
             }
             self = stemp;
             other = otemp;
             activator = act;
-        } while ( 1 );
+        } while( 1 );
     }
 
 
@@ -298,7 +298,7 @@ some monsters refire twice automatically
 void(float normal) SUB_AttackFinished =
 {
     self.cnt = 0;        // refire count for nightmare
-    if (skill != 3)
+    if(skill != 3)
         self.attack_finished = time + normal;
 };
 
@@ -306,11 +306,11 @@ float (entity targ) visible;
 
 void (void() thinkst) SUB_CheckRefire =
 {
-    if (skill != 3)
+    if(skill != 3)
         return;
-    if (self.cnt == 1)
+    if(self.cnt == 1)
         return;
-    if (!visible (self.enemy))
+    if(!visible (self.enemy))
         return;
     self.cnt = 1;
     self.think = thinkst;

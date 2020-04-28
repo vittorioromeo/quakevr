@@ -45,45 +45,45 @@ float() ScourgeCheckAttack =
    spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-   if (vlen(spot1 - spot2) <= 100 )
+   if(vlen(spot1 - spot2) <= 100 )
       {
-         if (CanDamage (self.enemy, self))
+         if(CanDamage (self.enemy, self))
          {
             self.attack_state = AS_MELEE;
             return TRUE;
          }
       }
-   if (time < self.attack_finished)
+   if(time < self.attack_finished)
         return FALSE;
 
-   if (!enemy_vis)
+   if(!enemy_vis)
         return FALSE;
 
 
    chance = spot2_z - spot1_z;
-   if (chance > 64)
+   if(chance > 64)
       return FALSE;
-   else if (chance < -200)
+   else if(chance < -200)
       return FALSE;
 
-   if (vlen(spot1 - spot2) > 1000)
+   if(vlen(spot1 - spot2) > 1000)
         return FALSE;
 
-   if (vlen(spot1 - spot2) < 150)
+   if(vlen(spot1 - spot2) < 150)
         return FALSE;
 
     traceline (spot1, spot2, FALSE, self);
 
-   if (trace_inopen && trace_inwater)
+   if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-   if (trace_ent != targ)
+   if(trace_ent != targ)
       {
         return FALSE;    // don't have a clear shot
       }
 
 // missile attack
-//   if (enemy_range == RANGE_FAR)
+//   if(enemy_range == RANGE_FAR)
 //      return FALSE;
 
    self.attack_state = AS_MISSILE;
@@ -117,9 +117,9 @@ void() Attack_With_Tail =
 
    delta = self.enemy.origin - self.origin;
 
-   if (vlen(delta) > 100)
+   if(vlen(delta) > 100)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ldmg = (random() + random() + random()) * 40;
@@ -134,7 +134,7 @@ void() ScourgeTriggerTouch;
 void() scourge_think =
    {
    local entity trig;
-   if (!self.state)
+   if(!self.state)
       {
       trig = spawn();
       trig.angles = '0 0 0';
@@ -152,11 +152,11 @@ void() scourge_think =
       self.lastvictim = trig;
       self.state = 1;
       }
-   if ((self.spawnsilent == 0) && (self.spawnmulti == 1))
+   if((self.spawnsilent == 0) && (self.spawnmulti == 1))
       {
       sound (self, CHAN_BODY, "misc/null.wav", 1, ATTN_IDLE);
       }
-   else if ((self.spawnsilent == 1) && (self.spawnmulti == 0))
+   else if((self.spawnsilent == 1) && (self.spawnmulti == 0))
       {
       sound (self, CHAN_BODY, "scourge/walk.wav", 1, ATTN_IDLE);
       }
@@ -189,7 +189,7 @@ void()   scourge_stand11  =[ $stand11.asc, scourge_stand12  ] {self.spawnsilent 
 void()   scourge_stand12  =[ $stand12.asc, scourge_stand1  ] {self.spawnsilent = 0;ai_stand();scourge_think();};
 
 void()   scourge_walk1   =[ $walk1.asc , scourge_walk2   ] {
-if (random() < 0.1)
+if(random() < 0.1)
    sound (self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
 self.spawnsilent = 1;
 scourge_think();
@@ -201,7 +201,7 @@ void()   scourge_walk5   =[ $walk5.asc , scourge_walk6   ] {ai_walk(8);};
 void()   scourge_walk6   =[ $walk6.asc , scourge_walk1   ] {ai_walk(8);};
 
 void()   scourge_run1 =[ $walk1.asc  , scourge_run2 ] {
-if (random() < 0.1)
+if(random() < 0.1)
    sound (self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
 self.spawnsilent = 1;
 scourge_think();
@@ -330,10 +330,10 @@ void(entity attacker, float damage) scourge_pain =
     local float r;
 
 
-   if (random()*50 > damage)
+   if(random()*50 > damage)
         return;        // didn't flinch
 
-   if (self.pain_finished > time)
+   if(self.pain_finished > time)
         return;
 
 
@@ -375,7 +375,7 @@ void() scourge_die =
    remove (self.lastvictim);
    self.spawnsilent = 0;
    scourge_think();
-   if (self.health < -35)
+   if(self.health < -35)
    {
       sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_scourg.mdl", self.health);
@@ -407,7 +407,7 @@ void() ScourgeTriggerThink =
    {
    local entity targ;
 
-   if (self.lastvictim.health<=0)
+   if(self.lastvictim.health<=0)
       {
       remove(self);
       return;
@@ -427,29 +427,29 @@ void() ScourgeTriggerTouch =
    local entity tempent;
    local vector dir;
 
-   if (other.flags & (FL_MONSTER|FL_CLIENT))
+   if(other.flags & (FL_MONSTER|FL_CLIENT))
       return;
-   if (other.movetype != MOVETYPE_FLYMISSILE)
+   if(other.movetype != MOVETYPE_FLYMISSILE)
       return;
    targ = self.lastvictim;
-   if (targ.health<=0)
+   if(targ.health<=0)
       {
       remove(self);
       return;
       }
    dir = targ.origin - other.origin;
    dir = normalize(dir);
-   if ((dir * normalize(other.velocity))<0.8)
+   if((dir * normalize(other.velocity))<0.8)
       return;
 
 //   targ.think = targ.th_run;
-//   if (targ.flags & FL_ONGROUND)
+//   if(targ.flags & FL_ONGROUND)
 //      {
-      if (time > self.duration)
+      if(time > self.duration)
          {
          tempent = self;
          self = targ;
-         if (random()<0.5)
+         if(random()<0.5)
             scourge_strafeleft1();
          else
             scourge_straferight1();
@@ -470,7 +470,7 @@ void() ScourgeTriggerTouch =
 */
 void() monster_scourge =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

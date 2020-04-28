@@ -27,3 +27,9 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+
+extern template struct glm::vec<4, signed char, glm::packed_highp>;
+extern template struct glm::vec<4, unsigned char, glm::packed_highp>;
+extern template struct glm::vec<4, float, glm::packed_highp>;
+extern template struct glm::vec<3, float, glm::packed_highp>;
+extern template struct glm::vec<2, float, glm::packed_highp>;

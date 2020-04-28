@@ -21,30 +21,30 @@ explosions and melee attacks.
 float(entity targ, entity inflictor) CanDamage =
 {
 // bmodels need special checking because their origin is 0,0,0
-    if (targ.movetype == MOVETYPE_PUSH)
+    if(targ.movetype == MOVETYPE_PUSH)
     {
         traceline(inflictor.origin, 0.5 * (targ.absmin + targ.absmax), TRUE, self);
-        if (trace_fraction == 1)
+        if(trace_fraction == 1)
             return TRUE;
-        if (trace_ent == targ)
+        if(trace_ent == targ)
             return TRUE;
         return FALSE;
     }
 
     traceline(inflictor.origin, targ.origin, TRUE, self);
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return TRUE;
     traceline(inflictor.origin, targ.origin + '15 15 0', TRUE, self);
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return TRUE;
     traceline(inflictor.origin, targ.origin + '-15 -15 0', TRUE, self);
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return TRUE;
     traceline(inflictor.origin, targ.origin + '-15 15 0', TRUE, self);
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return TRUE;
     traceline(inflictor.origin, targ.origin + '15 -15 0', TRUE, self);
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return TRUE;
 
     return FALSE;
@@ -63,15 +63,15 @@ void(entity targ, entity attacker) Killed =
     oself = self;
     self = targ;
 
-    if (self.health < -99)
+    if(self.health < -99)
         self.health = -99;        // don't let sbar look bad if a player
 //MED
-    if (self.charmed)
+    if(self.charmed)
     {
         self.effects = self.effects - (self.effects & EF_DIMLIGHT);
     }
 
-    if (self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
+    if(self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
     {    // doors, triggers, etc
         self.th_die ();
         self = oself;
@@ -81,14 +81,14 @@ void(entity targ, entity attacker) Killed =
     self.enemy = attacker;
 
 // bump the monster counter
-    if (self.flags & FL_MONSTER)
+    if(self.flags & FL_MONSTER)
     {
         killed_monsters = killed_monsters + 1;
         WriteByte (MSG_ALL, SVC_KILLEDMONSTER);
     }
 
 // PGM - guarantee gib if killed by buzzsaw.
-    if (attacker.classname == "buzzsaw" ||
+    if(attacker.classname == "buzzsaw" ||
         attacker.classname == "Vengeance" ||
         attacker.classname == "pendulum")
         self.health = -99;
@@ -137,42 +137,42 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     local    float    save;
     local    float    take;
 
-    if (!targ.takedamage)
+    if(!targ.takedamage)
         return;
 
-    if (targ.classname == "trigger_explosion")
+    if(targ.classname == "trigger_explosion")
     {
-        if ( IsExplosionDamage != 1)
+        if( IsExplosionDamage != 1)
             return;
     }
     IsExplosionDamage = 0;
 
     // TODO VR: (P2) rogue
-    // if (targ.items2 & IT2_SHIELD)
+    // if(targ.items2 & IT2_SHIELD)
     // {
     //     // Allow some damage to pass through.
     //     damage = shield_hit(targ, inflictor, attacker, damage);
-    //     if (damage == 0)
+    //     if(damage == 0)
     //         return;
     // }
 
-   if (discharged && targ.wetsuit_finished )
+   if(discharged && targ.wetsuit_finished )
       return;
 //MED moved damage_attacker down a bit
 
 // check for quad damage powerup on the attacker
-    if (attacker.super_damage_finished > time)
+    if(attacker.super_damage_finished > time)
         damage = damage * 4;
 
     // TODO VR: (P2) rogue
     // rune power up (Black Magic)
-    // if (deathmatch)
+    // if(deathmatch)
     //    damage = RuneApplyBlack(damage, attacker);
 
 
 //MED
 //check for empathy shields
-   if ((targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
+   if((targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
       {
       empathyused = 1;
       damage = damage/2;
@@ -191,13 +191,13 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
 // TODO VR: (P2) rogue
 //ZOID--
-    // if (TeamArmorDam(targ, inflictor, attacker, damage))
+    // if(TeamArmorDam(targ, inflictor, attacker, damage))
         save = ceil(targ.armortype*damage);
     // else
     //    save = 0;
 //--ZOID
 
-    if (save >= targ.armorvalue)
+    if(save >= targ.armorvalue)
     {
         save = targ.armorvalue;
         targ.armortype = 0;    // lost all armor
@@ -210,7 +210,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 // add to the damage total for clients, which will be sent as a single
 // message at the end of the frame
 // FIXME: remove after combining shotgun blasts?
-    if (targ.flags & FL_CLIENT)
+    if(targ.flags & FL_CLIENT)
     {
         targ.dmg_take = targ.dmg_take + take;
         targ.dmg_save = targ.dmg_save + save;
@@ -218,7 +218,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
 
 // figure momentum add
-    if ( (inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
+    if( (inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
     {
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
         dir = normalize(dir);
@@ -226,11 +226,11 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
 
 // check for godmode or invincibility
-    if (targ.flags & FL_GODMODE)
+    if(targ.flags & FL_GODMODE)
         return;
-    if (targ.invincible_finished >= time)
+    if(targ.invincible_finished >= time)
     {
-        if (targ.invincible_sound < time)
+        if(targ.invincible_sound < time)
         {
             sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
             targ.invincible_sound = time + 2;
@@ -238,9 +238,9 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         return;
     }
 //MED
-    if (targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS)
+    if(targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS)
     {
-        if (self.empathy_sound < time)
+        if(self.empathy_sound < time)
         {
             sound (targ, CHAN_ITEM, "hipitems/empathy2.wav", 1, ATTN_NORM);
             self.empathy_sound = time + 0.5;
@@ -248,14 +248,14 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
 
 // team play damage avoidance
-//    if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
-    if ( (teamplay == 1) && (targ.team > 0) && (targ.team == attacker.team)
+//    if( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
+    if( (teamplay == 1) && (targ.team > 0) && (targ.team == attacker.team)
     && (targ != attacker)
     && (attacker.classname == "player")
     && (inflictor.classname != "door") )    // because squishing a teammate is still possible
         return;
 
-    if (targ.classname == "player")
+    if(targ.classname == "player")
     {
         SpawnBloodSplash(targ.origin, take / 2.0);
         SpawnBloodSplash(targ.handpos, take / 2.0);
@@ -266,13 +266,13 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
 // TODO VR: (P2) rogue
 // rune power up (Earth Magic)
-    // if (deathmatch)
+    // if(deathmatch)
     //    take = RuneApplyEarth(take, targ);
 
 // do the damage
     targ.health = targ.health - take;
 
-    if (targ.health <= 0)
+    if(targ.health <= 0)
     {
         if(isVRMelee)
         {
@@ -303,17 +303,17 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     self = targ;
 
 //MED 10/17/96 added charmed stuff
-    if ( (self.flags & FL_MONSTER) && attacker != world)
+    if( (self.flags & FL_MONSTER) && attacker != world)
     {
     // get mad unless of the same class (except for soldiers)
-        if (self != attacker && attacker != self.enemy && (self.charmer!=attacker))
+        if(self != attacker && attacker != self.enemy && (self.charmer!=attacker))
         {
-            if ( (self.classname != attacker.classname)
+            if( (self.classname != attacker.classname)
             || (self.classname == "monster_army" ) || (self.classname == "monster_armagon" ) )
             {
-                if ( self.classname != "monster_dragon")
+                if( self.classname != "monster_dragon")
                 {
-                    if (self.enemy.classname == "player")
+                    if(self.enemy.classname == "player")
                         self.oldenemy = self.enemy;
                     self.enemy = attacker;
                     FoundTarget ();
@@ -322,11 +322,11 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         }
     }
 
-    if (self.th_pain)
+    if(self.th_pain)
     {
         self.th_pain (attacker, take);
     // nightmare mode monsters don't go into pain frames often
-        if (skill == 3)
+        if(skill == 3)
             self.pain_finished = time + 5;
     }
 
@@ -356,22 +356,22 @@ void(entity inflictor, entity attacker, float damage) T_EELZap =
 
     head = findradius(inflictor.origin, damage+40);
 
-    while (head)
+    while(head)
     {
-        if (head.takedamage)
+        if(head.takedamage)
         {
             org = head.origin + (head.mins + head.maxs)*0.5;
             points = 0.5*vlen (inflictor.origin - org);
-            if (points < 0)
+            if(points < 0)
                 points = 0;
             points = damage - points;
-            if (head == attacker)
+            if(head == attacker)
                 points = points * 0.5;
-            if (points > 0)
+            if(points > 0)
             {
-                if (CanDamage (head, inflictor))
+                if(CanDamage (head, inflictor))
                 {    // eels take no damage from this attack
-                    if (head.classname != "monster_eel" &&
+                    if(head.classname != "monster_eel" &&
                         (head.flags & FL_INWATER))
                         T_Damage (head, inflictor, attacker, points);
                 }
@@ -396,24 +396,24 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
 
     head = findradius(inflictor.origin, damage+40);
 
-    while (head)
+    while(head)
     {
-        if (head != ignore)
+        if(head != ignore)
         {
-            if (head.takedamage)
+            if(head.takedamage)
             {
                 org = head.origin + (head.mins + head.maxs)*0.5;
                 points = 0.5*vlen (inflictor.origin - org);
-                if (points < 0)
+                if(points < 0)
                     points = 0;
                 points = damage - points;
-                if (head == attacker)
+                if(head == attacker)
                     points = points * 0.5;
-                if (points > 0)
+                if(points > 0)
                 {
-                    if (CanDamage (head, inflictor))
+                    if(CanDamage (head, inflictor))
                     {    // shambler takes half damage from all explosions
-                        if (head.classname == "monster_shambler")
+                        if(head.classname == "monster_shambler")
                             T_Damage (head, inflictor, attacker, points*0.5);
                         else
                             T_Damage (head, inflictor, attacker, points);
@@ -437,21 +437,21 @@ void(entity attacker, float damage) T_BeamDamage =
 
     head = findradius(attacker.origin, damage+40);
 
-    while (head)
+    while(head)
     {
-        if (head.takedamage)
+        if(head.takedamage)
         {
             points = 0.5*vlen (attacker.origin - head.origin);
-            if (points < 0)
+            if(points < 0)
                 points = 0;
             points = damage - points;
-            if (head == attacker)
+            if(head == attacker)
                 points = points * 0.5;
-            if (points > 0)
+            if(points > 0)
             {
-                if (CanDamage (head, attacker))
+                if(CanDamage (head, attacker))
                 {
-                    if (head.classname == "monster_shambler")
+                    if(head.classname == "monster_shambler")
                         T_Damage (head, attacker, attacker, points*0.5);
                     else
                         T_Damage (head, attacker, attacker, points);

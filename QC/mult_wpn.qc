@@ -11,7 +11,7 @@ void() MultiGrenadeTouch;
 //================================
 void() MiniGrenadeExplode =
 {
-    if ( self.owner.classname == "player")
+    if( self.owner.classname == "player")
         T_RadiusDamage (self, self.owner, 90, world);
     else
         T_RadiusDamage (self, self.owner, 60, world);
@@ -83,15 +83,15 @@ void() MultiGrenadeExplode =
 //================================
 void() MultiGrenadeTouch =
 {
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
-    if (other.takedamage == DAMAGE_AIM)
+    if(other.takedamage == DAMAGE_AIM)
     {
-        if (self.classname == "MiniGrenade")
+        if(self.classname == "MiniGrenade")
             MiniGrenadeExplode();
         else
         {
-            if (self.owner.classname == "player")
+            if(self.owner.classname == "player")
                 GrenadeExplode();
             else
                 MiniGrenadeExplode();
@@ -100,7 +100,7 @@ void() MultiGrenadeTouch =
     }
     // bounce sound
     sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
-    if (self.velocity == '0 0 0')
+    if(self.velocity == '0 0 0')
         self.avelocity = '0 0 0';
 };
 
@@ -129,7 +129,7 @@ void() W_FireMultiGrenade =
 
 // set missile speed
     makevectors (self.v_angle);
-    if (self.v_angle_x)
+    if(self.v_angle_x)
         missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
     else
     {
@@ -166,11 +166,11 @@ void() MultiRocketExplode =
 
     damg = 60 + random()*15;
 
-    if (other.health)
+    if(other.health)
     {
-        if (other.classname == "monster_shambler")
+        if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        if (other.classname == "monster_dragon")
+        if(other.classname == "monster_dragon")
             damg = damg * 0.5;    // mostly immune
         T_Damage (other, self, self.owner, damg );
     }
@@ -198,10 +198,10 @@ void() MultiRocketExplode =
 //================================
 void() MultiRocketTouch =
 {
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
@@ -217,7 +217,7 @@ void() HomingMissileThink =
 {
     local vector    dir;
 
-    if (self.enemy.health < 1)
+    if(self.enemy.health < 1)
     {
         remove(self);
         return;
@@ -237,7 +237,7 @@ void() HomingMissileAcquire =
     local vector    oldVelocity;
     local vector    aimangle;
 
-    if ( self.delay < time )
+    if( self.delay < time )
     {
         MultiRocketExplode ();
         return;
@@ -250,9 +250,9 @@ void() HomingMissileAcquire =
 
     aimangle = self.origin + self.velocity;
     traceline ( self.origin, aimangle, FALSE, self );
-    if (trace_fraction < 1)
+    if(trace_fraction < 1)
     {
-        if (trace_ent.flags & FL_MONSTER)
+        if(trace_ent.flags & FL_MONSTER)
         {
             self.enemy = trace_ent;
             HomingMissileThink();
@@ -284,7 +284,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
     missile.touch = MultiRocketTouch;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // if (deathmatch || coop)
+    // if(deathmatch || coop)
     //     setmodel (missile, "progs/rockup_d.mdl");
     // else
     //     setmodel (missile, "progs/rockup.mdl");
@@ -292,7 +292,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
     setsize (missile, '0 0 0', '0 0 0');
     setorigin (missile, self.origin + v_forward*8 + '0 0 16');
 
-    if ( coop || deathmatch)
+    if( coop || deathmatch)
     {
         aimangle = self.v_angle;
         aimangle_y = aimangle_y + (offset * 0.66);
@@ -313,9 +313,9 @@ void(float offset, float frameNum) MultiRocketLaunch =
 
         aimangle = missile.origin + missile.velocity;
         traceline ( missile.origin, aimangle, FALSE, self );
-        if (trace_fraction < 1)
+        if(trace_fraction < 1)
         {
-            if (trace_ent.flags & FL_MONSTER)
+            if(trace_ent.flags & FL_MONSTER)
             {
                 missile.enemy = trace_ent;
                 missile.think = HomingMissileThink;
@@ -367,20 +367,20 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     e1 = e2 = world;
 
     traceline (p1, p2, FALSE, self);
-    if (trace_ent.takedamage)
+    if(trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
         T_Damage (trace_ent, from, from.owner, damage);
-        if (self.classname == "player")
+        if(self.classname == "player")
         {
-            if (other.classname == "player")
+            if(other.classname == "player")
                 trace_ent.velocity_z = trace_ent.velocity_z + 400;
         }
     }
     e1 = trace_ent;
 
     traceline (p1 + f, p2 + f, FALSE, self);
-    if (trace_ent != e1 && trace_ent.takedamage)
+    if(trace_ent != e1 && trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
         T_Damage (trace_ent, from, from.owner, damage);
@@ -388,7 +388,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     e2 = trace_ent;
 
     traceline (p1 - f, p2 - f, FALSE, self);
-    if (trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
+    if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
         T_Damage (trace_ent, from, from.owner, damage);
@@ -411,7 +411,7 @@ void(entity current, float doDamage) PlasmaDischarge =
     WriteCoord (MSG_BROADCAST, self.origin_z);
 
     sound (self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
-    if (doDamage == 1)
+    if(doDamage == 1)
         PlasmaDamage (self.origin, current.origin, self, 50);
 };
 
@@ -425,14 +425,14 @@ void() PlasmaGroundOut =
     monstersHit = 0;
     current = findradius ( self.origin, 320 );
     start = current;
-    while ( monstersHit < 5 )
+    while( monstersHit < 5 )
     {
-        if ( current.flags & FL_MONSTER || current.classname == "player")
+        if( current.flags & FL_MONSTER || current.classname == "player")
         {
-            if ( current != self.owner )
+            if( current != self.owner )
             {
                 traceline ( self.origin, current.origin, TRUE, world );
-                if (trace_fraction == 1)
+                if(trace_fraction == 1)
                 {
                     monstersHit = monstersHit + 1;
                     PlasmaDischarge ( current, 1 );
@@ -440,7 +440,7 @@ void() PlasmaGroundOut =
             }
         }
         current = current.chain;
-        if (start == current || !current)
+        if(start == current || !current)
             return;
     }
 };
@@ -451,10 +451,10 @@ void() PlasmaTouch =
 {
     local float    damg;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
@@ -465,9 +465,9 @@ void() PlasmaTouch =
     // TODO VR: (P2) rogue (commented to avoid warnings)
     // sound (self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
 
-    if (other.health)
+    if(other.health)
     {
-        if (other.classname == "monster_shambler")
+        if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
         T_Damage (other, self, self.owner, damg );
     }
@@ -523,7 +523,7 @@ void(vector org, vector dir) launch_plasma =
     // TODO VR: (P2) rogue (commented to avoid warnings)
     // sound (missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
 
-    if (!deathmatch && !coop)
+    if(!deathmatch && !coop)
         missile.effects = EF_BRIGHTLIGHT;
 
 // set missile duration
@@ -541,7 +541,7 @@ void() W_FirePlasma =
     local float        cells;
     local vector     dir;
 
-    if (self.ammo_plasma < 1)
+    if(self.ammo_plasma < 1)
     {
         self.weapon = W_BestWeapon ();
         W_SetCurrentAmmo ();
@@ -549,7 +549,7 @@ void() W_FirePlasma =
     }
 
 // explode if under water
-    if (self.waterlevel > 1)
+    if(self.waterlevel > 1)
     {
         cells = self.ammo_plasma;
         self.ammo_plasma = 0;

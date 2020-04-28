@@ -2,14 +2,14 @@
 
 void(entity entPlayer) VRButtonPressHaptic =
 {
-    if(VRTouchingHandIsBody(entPlayer))
+    if(VRIsTouchingHandFake(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);
         haptic(1, 0.0, 0.3, 75, 1.0);
         return;
     }
 
-    haptic(VRTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
+    haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
 }
 
 void() button_wait;
@@ -37,14 +37,14 @@ void() button_return =
     porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
     porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
     porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
-    particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
+    particle2(porg, '0 0 0', 5 /* sparks preset */, 64);
 
     self.state = STATE_DOWN;
 
     SUB_CalcMove (self.pos1, self.speed, button_done);
 
     self.frame = 0;            // use normal textures
-    if (self.health)
+    if(self.health)
         self.takedamage = DAMAGE_YES;    // can be shot again
 };
 
@@ -58,7 +58,7 @@ void() button_fire =
 {
     local vector porg;
 
-    if (self.state == STATE_UP || self.state == STATE_TOP)
+    if(self.state == STATE_UP || self.state == STATE_TOP)
     {
         return;
     }
@@ -67,7 +67,7 @@ void() button_fire =
     porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
     porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
     porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
-    particle2 (porg, '0 0 0', 5 /* sparks preset */, 64);
+    particle2(porg, '0 0 0', 5 /* sparks preset */, 64);
 
     sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
@@ -84,7 +84,7 @@ void() button_use =
 
 void() button_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
     {
         return;
     }
@@ -121,22 +121,22 @@ When a button is touched, it moves some distance in the direction of it's angle,
 */
 void() func_button =
 {
-    if (self.sounds == 0)
+    if(self.sounds == 0)
     {
         precache_sound ("buttons/airbut1.wav");
         self.noise = "buttons/airbut1.wav";
     }
-    else if (self.sounds == 1)
+    else if(self.sounds == 1)
     {
         precache_sound ("buttons/switch21.wav");
         self.noise = "buttons/switch21.wav";
     }
-    else if (self.sounds == 2)
+    else if(self.sounds == 2)
     {
         precache_sound ("buttons/switch02.wav");
         self.noise = "buttons/switch02.wav";
     }
-    else if (self.sounds == 3)
+    else if(self.sounds == 3)
     {
         precache_sound ("buttons/switch04.wav");
         self.noise = "buttons/switch04.wav";
@@ -151,7 +151,7 @@ void() func_button =
     self.blocked = button_blocked;
     self.use = button_use;
 
-    if (self.health)
+    if(self.health)
     {
         self.max_health = self.health;
         self.th_die = button_killed;
@@ -161,7 +161,7 @@ void() func_button =
     {
         // VR: For vertical button, let's enable normal touch as well so that
         // they can activated by stepping on them.
-        if (self.movedir_z == -1 || self.movedir_z == -2)
+        if(self.movedir_z == -1 || self.movedir_z == -2)
         {
             self.touch = button_touch;
         }
@@ -170,11 +170,11 @@ void() func_button =
         self.vr_wpntouch = button_touch;
     }
 
-    if (!self.speed)
+    if(!self.speed)
         self.speed = 40;
-    if (!self.wait)
+    if(!self.wait)
         self.wait = 1;
-    if (!self.lip)
+    if(!self.lip)
         self.lip = 4;
 
     self.state = STATE_BOTTOM;

@@ -31,7 +31,7 @@ $frame attacka9 attacka10 attacka11 attacka12 attacka13 attacka14 attacka15
 
 void() monster_spikemine =
 {
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;

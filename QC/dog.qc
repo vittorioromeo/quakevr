@@ -45,17 +45,17 @@ void() dog_bite =
 local vector    delta;
 local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
 
     ai_charge(10);
 
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
 
     ldmg = (random() + random() + random()) * 8;
@@ -66,21 +66,21 @@ void()    Dog_JumpTouch =
 {
     local    float    ldmg;
 
-    if (self.health <= 0)
+    if(self.health <= 0)
         return;
 
-    if (other.takedamage)
+    if(other.takedamage)
     {
-        if ( vlen(self.velocity) > 300 )
+        if( vlen(self.velocity) > 300 )
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);
         }
     }
 
-    if (!checkbottom(self))
+    if(!checkbottom(self))
     {
-        if (self.flags & FL_ONGROUND)
+        if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
 //dprint ("popjump\n");
     self.touch = SUB_Null;
@@ -112,7 +112,7 @@ void() dog_stand8    =[    $stand8,    dog_stand9    ] {ai_stand();};
 void() dog_stand9    =[    $stand9,    dog_stand1    ] {ai_stand();};
 
 void() dog_walk1    =[    $walk1 ,    dog_walk2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "dog/idle.wav", 1, ATTN_IDLE);
 ai_walk(8);};
 void() dog_walk2    =[    $walk2 ,    dog_walk3    ] {ai_walk(8);};
@@ -124,7 +124,7 @@ void() dog_walk7    =[    $walk7 ,    dog_walk8    ] {ai_walk(8);};
 void() dog_walk8    =[    $walk8 ,    dog_walk1    ] {ai_walk(8);};
 
 void() dog_run1        =[    $run1  ,    dog_run2    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "dog/idle.wav", 1, ATTN_IDLE);
 ai_run(16);};
 void() dog_run2        =[    $run2  ,    dog_run3    ] {ai_run(32);};
@@ -159,7 +159,7 @@ void() dog_leap2    =[    $leap2,        dog_leap3    ]
     makevectors (self.angles);
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 300 + '0 0 200';
-    if (self.flags & FL_ONGROUND)
+    if(self.flags & FL_ONGROUND)
         self.flags = self.flags - FL_ONGROUND;
 };
 
@@ -199,7 +199,7 @@ void(entity attacker, float damage) dog_pain =
 {
     sound (self, CHAN_VOICE, "dog/dpain1.wav", 1, ATTN_NORM);
 
-    if (random() > 0.5)
+    if(random() > 0.5)
         dog_pain1 ();
     else
         dog_painb1 ();
@@ -229,7 +229,7 @@ void() dog_dieb9        =[    $deathb9,    dog_dieb9    ] {};
 void() dog_die =
 {
 // check for gib
-    if (self.health < -35)
+    if(self.health < -35)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowGib ("progs/gib3.mdl", self.health);
@@ -243,7 +243,7 @@ void() dog_die =
     sound (self, CHAN_VOICE, "dog/ddeath.wav", 1, ATTN_NORM);
     self.solid = SOLID_NOT;
 
-    if (random() > 0.5)
+    if(random() > 0.5)
         dog_die1 ();
     else
         dog_dieb1 ();
@@ -260,7 +260,7 @@ Returns TRUE if a melee attack would hit right now
 */
 float()    CheckDogMelee =
 {
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {    // FIXME: check canreach
         self.attack_state = AS_MELEE;
         return TRUE;
@@ -279,11 +279,11 @@ float()    CheckDogJump =
     local    vector    dist;
     local    float    d;
 
-    if (self.origin_z + self.mins_z > self.enemy.origin_z + self.enemy.mins_z
+    if(self.origin_z + self.mins_z > self.enemy.origin_z + self.enemy.mins_z
     + 0.75 * self.enemy.size_z)
         return FALSE;
 
-    if (self.origin_z + self.maxs_z < self.enemy.origin_z + self.enemy.mins_z
+    if(self.origin_z + self.maxs_z < self.enemy.origin_z + self.enemy.mins_z
     + 0.25 * self.enemy.size_z)
         return FALSE;
 
@@ -292,10 +292,10 @@ float()    CheckDogJump =
 
     d = vlen(dist);
 
-    if (d < 80)
+    if(d < 80)
         return FALSE;
 
-    if (d > 150)
+    if(d > 150)
         return FALSE;
 
     return TRUE;
@@ -304,13 +304,13 @@ float()    CheckDogJump =
 float()    DogCheckAttack =
 {
     // if close enough for slashing, go for it
-    if (CheckDogMelee ())
+    if(CheckDogMelee ())
     {
         self.attack_state = AS_MELEE;
         return TRUE;
     }
 
-    if (CheckDogJump ())
+    if(CheckDogJump ())
     {
         self.attack_state = AS_MISSILE;
         return TRUE;
@@ -327,7 +327,7 @@ float()    DogCheckAttack =
 */
 void() monster_dog =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

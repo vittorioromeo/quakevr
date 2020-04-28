@@ -52,18 +52,18 @@ void(float ofs, float turn) armagon_launch_missile =
 
    ang = self.angles;
    ang_y = ang_y + self.fixangle;
-   if (turn==1)
+   if(turn==1)
       {
       ang_y = ang_y + 165;
       }
-   else if (turn==2)
+   else if(turn==2)
       {
       ang_y = ang_y - 165;
       }
    makevectors(ang);
    src = self.origin + '0 0 66' + v_right*ofs + v_forward*84;
    targ = self.enemy.origin + self.enemy.view_ofs;
-   if (skill!=0)
+   if(skill!=0)
       {
       dist = vlen(targ-src);
       targ = targ + (self.enemy.velocity * (dist/1000));
@@ -71,7 +71,7 @@ void(float ofs, float turn) armagon_launch_missile =
    vec = (targ - src);
    vec = normalize(vec);
    dist = vec*v_forward;
-   if (dist<self.worldtype)
+   if(dist<self.worldtype)
       vec=v_forward;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -110,7 +110,7 @@ void(float ofs) armagon_launch_laser =
    makevectors(ang);
    src = self.origin + '0 0 66' + v_right*ofs + v_forward*84;
    targ = self.enemy.origin + self.enemy.view_ofs;
-   if (skill!=0)
+   if(skill!=0)
       {
       dist = vlen(targ-src);
       targ = targ + (self.enemy.velocity * (dist/1000));
@@ -118,7 +118,7 @@ void(float ofs) armagon_launch_laser =
    vec = (targ - src);
    vec = normalize(vec);
    dist = vec*v_forward;
-   if (dist<self.worldtype)
+   if(dist<self.worldtype)
       vec=v_forward;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -127,15 +127,15 @@ void(float ofs) armagon_launch_laser =
 
 void(float angdelta, float delta) armagon_turn =
    {
-   if (fabs(angdelta)<10)
+   if(fabs(angdelta)<10)
       self.fixangle = delta;
    else
       {
-      if (angdelta > 5)
+      if(angdelta > 5)
          {
          self.fixangle = self.fixangle + 9;
          }
-      else if (angdelta < -5)
+      else if(angdelta < -5)
          {
          self.fixangle = self.fixangle - 9;
          }
@@ -160,9 +160,9 @@ void() armagon_think =
    self.ideal_yaw = enemy_yaw;
    delta = self.ideal_yaw - self.angles_y;
    self.cnt = 0;
-   if (delta > 180) delta = delta - 360;
-   if (delta < -180) delta = delta + 360;
-   if (fabs(delta) > 90)
+   if(delta > 180) delta = delta - 360;
+   if(delta < -180) delta = delta + 360;
+   if(fabs(delta) > 90)
       {
       delta = 0;
       self.cnt = 1;
@@ -170,21 +170,21 @@ void() armagon_think =
    angdelta = delta-self.fixangle;
    armagon_turn(angdelta,delta);
 //   self.nextthink = time + 0.1;
-   if (self.health < 0)
+   if(self.health < 0)
       return;
-   if (time > self.super_time)
+   if(time > self.super_time)
       {
       local float r;
 
       self.super_time = time + 3;
-      if (random() < 0.5)
+      if(random() < 0.5)
          {
          r = random();
-         if (r < 0.25)
+         if(r < 0.25)
             sound (self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
-         else if (r < 0.5)
+         else if(r < 0.5)
             sound (self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
-         else if (r < 0.75)
+         else if(r < 0.75)
             sound (self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
          else
             sound (self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
@@ -204,39 +204,39 @@ void() armagon_walkthink =
    ChangeYaw();
    delta = 0;
    self.cnt = 0;
-   if (delta > 180) delta = delta - 360;
-   if (delta < -180) delta = delta + 360;
-   if (fabs(delta) > 90)
+   if(delta > 180) delta = delta - 360;
+   if(delta < -180) delta = delta + 360;
+   if(fabs(delta) > 90)
       {
       delta = 0;
       self.cnt = 1;
       }
    angdelta = delta-self.fixangle;
    armagon_turn(angdelta,delta);
-   if (self.health < 0)
+   if(self.health < 0)
       return;
-   if (time > self.super_time)
+   if(time > self.super_time)
       {
       local float r;
 
       self.super_time = time + 3;
-      if (random() < 0.5)
+      if(random() < 0.5)
          {
          r = random();
-         if (r < 0.25)
+         if(r < 0.25)
             sound (self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
-         else if (r < 0.5)
+         else if(r < 0.5)
             sound (self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
-         else if (r < 0.75)
+         else if(r < 0.75)
             sound (self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
          else
             sound (self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
          }
       }
    client = checkclient ();
-   if (!client)
+   if(!client)
       return;  // current check entity isn't in PVS
-   if (visible(client))
+   if(visible(client))
       {
       self.enemy = client;
       FoundTarget();
@@ -254,16 +254,16 @@ void() armagon_overleft_think =
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
-   if (self.count == 0)
+   if(self.count == 0)
       {
       enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
       self.ideal_yaw = enemy_yaw;
       delta = self.ideal_yaw - self.angles_y - 165;
-      if (delta > 180) delta = delta - 360;
-      if (delta < -180) delta = delta + 360;
+      if(delta > 180) delta = delta - 360;
+      if(delta < -180) delta = delta + 360;
       angdelta = delta-self.fixangle;
       }
-   else if (self.count == 1)
+   else if(self.count == 1)
       {
       armagon_launch_missile(40,1);
       return;
@@ -288,16 +288,16 @@ void() armagon_overright_think =
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
-   if (self.count == 0)
+   if(self.count == 0)
       {
       enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
       self.ideal_yaw = enemy_yaw;
       delta = self.ideal_yaw - self.angles_y + 165;
-      if (delta > 180) delta = delta - 360;
-      if (delta < -180) delta = delta + 360;
+      if(delta > 180) delta = delta - 360;
+      if(delta < -180) delta = delta + 360;
       angdelta = delta-self.fixangle;
       }
-   else if (self.count == 1)
+   else if(self.count == 1)
       {
       armagon_launch_missile(-40,2);
       return;
@@ -486,19 +486,19 @@ void()   armagon_run12    =[ $lwalk12.asc  , armagon_run1    ]
    RUN_STRAIGHT = 1;
    ai_run(14);
    armagon_think();
-   if ((self.cnt == 1) && (time > self.attack_finished))
+   if((self.cnt == 1) && (time > self.attack_finished))
       {
       local float delta;
       delta = self.ideal_yaw - self.angles_y;
-      if (delta > 180) delta = delta - 360;
-      if (delta < -180) delta = delta + 360;
-      if (delta>0)
+      if(delta > 180) delta = delta - 360;
+      if(delta < -180) delta = delta + 360;
+      if(delta>0)
          self.think = armagon_overleft1;
       else
          self.think = armagon_overright1;
       return;
       }
-   if (self.lefty == 1)
+   if(self.lefty == 1)
       {
       self.lefty = 0;
       self.think = self.th_missile;
@@ -685,13 +685,13 @@ void()   armagon_body_explode1 =
 
    self.think = armagon_body_explode1;
    self.nextthink = time + 0.1;
-   if (self.cnt == 0)
+   if(self.cnt == 0)
       {
       self.count = 0;
       }
-   if (self.cnt < 25)
+   if(self.cnt < 25)
       {
-      if (self.cnt > self.count)
+      if(self.cnt > self.count)
          {
          ThrowGib ("progs/gib1.mdl", -100);
          ThrowGib ("progs/gib2.mdl", -100);
@@ -709,12 +709,12 @@ void()   armagon_body_explode1 =
 
 void(entity attacker, float damage) armagon_pain =
    {
-   if (self.health <= 0)
+   if(self.health <= 0)
         return;        // allready dying, don't go into pain frame
 
-   if (damage < 25)
+   if(damage < 25)
       return;
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
     self.pain_finished = time + 2;
 
@@ -725,7 +725,7 @@ void(entity attacker, float damage) armagon_pain =
 
 void() armagon_missile_attack =
    {
-   if (random()<0.5)
+   if(random()<0.5)
       armagon_watk1();
    else
       armagon_wlaseratk1();
@@ -735,14 +735,14 @@ void() armagon_missile_attack =
 void() armagon_repulse_attack =
    {
    armagon_think();
-   if (self.state == 0)
+   if(self.state == 0)
       {
       SUB_AttackFinished (0.5);
       sound (self, CHAN_BODY, "armagon/repel.wav", 1, ATTN_NORM);
       self.state = 1;
       return;
       }
-   else if (self.state == 1)
+   else if(self.state == 1)
       {
       local entity head;
       local vector dir;
@@ -753,7 +753,7 @@ void() armagon_repulse_attack =
          {
          if(!(head.flags & FL_NOTARGET) && (head.flags & FL_CLIENT))
             {
-            if (visible(head) && (head.health > 0))
+            if(visible(head) && (head.health > 0))
                {
                dir = head.origin - (self.origin - '0 0 24');
                dir = normalize(dir);
@@ -779,24 +779,24 @@ void() armagon_stand_attack =
 
    traceline (spot1, spot2, FALSE, self);
 
-   if (trace_ent != self.enemy)
+   if(trace_ent != self.enemy)
       {
       armagon_run1();
       return;
       }
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
       {
       armagon_run1();
       return;
       }
 
-   if (time < self.attack_finished)
+   if(time < self.attack_finished)
       {
       return;
       }
 
-   if ((vlen(spot2-spot1) < 200) && (self.enemy.classname == "player"))
+   if((vlen(spot2-spot1) < 200) && (self.enemy.classname == "player"))
       {
       armagon_repulse_attack();
       return;
@@ -804,18 +804,18 @@ void() armagon_stand_attack =
 
    self.state = 0;
 
-   if (vlen(spot2-spot1) > 450)
+   if(vlen(spot2-spot1) > 450)
       {
       armagon_run1();
       return;
       }
 
-   if (random()<0.5)
+   if(random()<0.5)
       armagon_satk1();
    else
       armagon_slaser1();
 
-   if (self.cnt == 1)
+   if(self.cnt == 1)
       {
       armagon_run1();
       return;
@@ -841,21 +841,21 @@ float()  ArmagonCheckAttack =
 
     traceline (spot1, spot2, FALSE, self);
 
-   if ((trace_ent != targ) && (!self.charmed))
+   if((trace_ent != targ) && (!self.charmed))
       return FALSE;     // don't have a clear shot
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-   if (time < self.attack_finished)
+   if(time < self.attack_finished)
         return FALSE;
 
    ang = self.angles_y + self.fixangle;
    delta = self.ideal_yaw - ang;
    dist = vlen(spot2-spot1);
-   if ((fabs(delta) > 10 && (dist > 200)) || (self.enemy.classname != "player"))
+   if((fabs(delta) > 10 && (dist > 200)) || (self.enemy.classname != "player"))
       return FALSE;
-   if (dist < 400)
+   if(dist < 400)
       {  // melee attack
       self.th_melee ();
       return TRUE;
@@ -874,7 +874,7 @@ void() monster_armagon
 {
    local entity body;
    local float sk;
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;
@@ -920,13 +920,13 @@ void() monster_armagon
    setsize (self, '-48 -48 -24', '48 48 84' );
    setorigin (self, self.origin);
    setorigin (body, body.origin);
-   if (sk==0)
+   if(sk==0)
       {
       self.yaw_speed = 5;
       self.health = 2000;
       self.worldtype = 0.9;
       }
-   else if (sk==1)
+   else if(sk==1)
       {
       self.yaw_speed = 9;
       self.health = 2500;

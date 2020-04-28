@@ -1321,13 +1321,12 @@ void M_Options_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRSParticleMenu()
 {
-    extern cvar_t r_particles;
-    extern cvar_t r_particle_mult;
-
     quake::menu m{"Particle Settings", &M_Menu_QuakeVRSettings_f};
 
+    extern cvar_t r_particles;
     m.add_cvar_entry<bool>("Particle Effects", r_particles);
 
+    extern cvar_t r_particle_mult;
     m.add_cvar_entry<float>(
         "Particle Multiplier", r_particle_mult, {0.25f, 0.25f, 10.f});
 
@@ -1345,8 +1344,6 @@ void M_Options_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRSLocomotionMenu()
 {
-    constexpr float max_turn_speed = 10.0f;
-
     quake::menu m{"Locomotion Settings", &M_Menu_QuakeVRSettings_f};
 
     m.add_cvar_getter_enum_entry<int>(    //
@@ -1381,6 +1378,7 @@ void M_Options_Key(int k)
         };
     }
 
+    constexpr float max_turn_speed = 10.0f;
     m.add_cvar_entry<float>(
         "Turn Speed", vr_turn_speed, {0.25f, 0.f, max_turn_speed});
 
@@ -1428,10 +1426,9 @@ void M_Options_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRSHandGunCalibrationMenu()
 {
-    constexpr float max_gunangle = 180.0f;
-
     quake::menu m{"Hand/Gun Calibration", &M_Menu_QuakeVRSettings_f};
 
+    constexpr float max_gunangle = 180.0f;
     m.add_cvar_entry<float>(
         "Gun Angle", vr_gunangle, {0.75f, -max_gunangle, max_gunangle});
 
@@ -1602,9 +1599,17 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Immersion Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage);
+    m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage)
+        .tooltip(
+            "Enables positional damage multipliers for headshots and leg "
+            "shots. Only applies to humanoid enemies.");
 
-    m.add_cvar_entry<bool>("Body-Item Interactions", vr_body_interactions);
+    m.add_cvar_entry<bool>("Body-Item Interactions", vr_body_interactions)
+        .tooltip(
+            "When enabled, items and level weapons can be picked up by walking "
+            "over them (instead of using your hands). Thrown and dropped "
+            "weapons are not affected - they still need to be grabbed with "
+            "your hand.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -1668,6 +1673,11 @@ void M_Options_Key(int k)
          vr_weapon_throw_velocity_mult, {0.05f, 0.05f, 5.f})
         .tooltip("Multiplier for weapon throw velocity.");
 
+    m.add_cvar_entry<bool>("Dropped Weapon Particles", vr_weapondrop_particles)
+        .tooltip(
+            "Enable particle effects for weapons dropped/thrown on the "
+            "ground.");
+
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
@@ -1727,6 +1737,23 @@ void M_Options_Key(int k)
             "Search radius for weapon force grab (applied at trace end "
             "position based on max range).");
 
+    m.add_cvar_entry<float>(
+         "Force Grab Power Mult.", vr_forcegrab_powermult, {0.05f, 0.f, 10.f})
+        .tooltip(
+            "Multiplier for the strength of a weapon force grab. Tweak this if "
+            "your grabs are either too strong or too weak.");
+
+    m.add_cvar_entry<bool>(
+         "Force Grab Particles", vr_forcegrab_eligible_particles)
+        .tooltip(
+            "Enable particle effects when aiming towards weapons that can be "
+            "force grabbed.");
+
+    m.add_cvar_entry<bool>("Force Grab Haptics", vr_forcegrab_eligible_haptics)
+        .tooltip(
+            "Enable haptic effects when aiming towards weapons that can be "
+            "force grabbed.");
+
     return m;
 }
 
@@ -1741,20 +1768,18 @@ void M_Options_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRSGraphicalMenu()
 {
-    extern cvar_t r_shadows;
-
-    const int max_msaa = quake::util::getMaxMSAALevel();
-
     // ------------------------------------------------------------------------
 
     quake::menu m{"Graphical Settings", &M_Menu_QuakeVRSettings_f};
 
+    const int max_msaa = quake::util::getMaxMSAALevel();
     m.add_cvar_entry<int>("MSAA Samples", vr_msaa, {1, 0, max_msaa});
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
+    extern cvar_t r_shadows;
     m.add_cvar_entry<bool>("Show Shadows", r_shadows);
 
     m.add_cvar_getter_enum_entry<VrPlayerShadows>( //
@@ -1792,12 +1817,8 @@ void M_Options_Key(int k)
     const float rInc = 0.1f;
     constexpr float rBound = 90.f;
 
-    const float wInc = 0.01f;
-    constexpr float wBound = 1.f;
-
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
     const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
-    const quake::menu_bounds<float> wBounds{wInc, 0.f, wBound};
 
     // ------------------------------------------------------------------------
 
@@ -2524,10 +2545,6 @@ void M_Options_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRSDebugUtilitiesMenu()
 {
-    extern cvar_t host_timescale;
-    extern cvar_t skill;
-    extern cvar_t r_showbboxes;
-
     const auto runCmd = [](const char* cmd) {
         return [cmd] {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
@@ -2538,9 +2555,6 @@ void M_Options_Key(int k)
     // ------------------------------------------------------------------------
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRSettings_f};
-
-    m.add_cvar_entry<float>("Force Grab Parabola Power Mult.",
-        vr_forcegrab_parabola_powermult, {0.1f, 0.f, 10.f});
 
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
@@ -2554,6 +2568,7 @@ void M_Options_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
+    extern cvar_t skill;
     m.add_cvar_getter_enum_entry<int>(        //
         "Skill",                              //
         [] { return &skill; },                //
@@ -2564,6 +2579,7 @@ void M_Options_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
+    extern cvar_t r_showbboxes;
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
 
     m.add_cvar_entry<bool>(
@@ -2571,6 +2587,7 @@ void M_Options_Key(int k)
 
     m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
 
+    extern cvar_t host_timescale;
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
     m.add_cvar_entry<bool>("Print Handvel", vr_debug_print_handvel);

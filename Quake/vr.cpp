@@ -315,10 +315,13 @@ DEFINE_CVAR_ARCHIVE(vr_enemy_drops_chance_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_ammobox_drops, 0);
 DEFINE_CVAR_ARCHIVE(vr_ammobox_drops_chance_mult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_menumode, 0);
-DEFINE_CVAR_ARCHIVE(vr_forcegrab_parabola_powermult, 1.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_powermult, 1.0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_mode, 1);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_range, 150.0);
-DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 20.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 18.0);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_particles, 1);
+DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
+DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
 
 //
 //
@@ -4390,7 +4393,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
     const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
     const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
-    const bool mustEscape = isRisingEdge(inpEscape);
+    // const bool mustEscape = isRisingEdge(inpEscape);
     const bool mustSpeed = inpSpeed.bState;
     const bool mustTeleport = inpTeleport.bState;
     const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
@@ -4657,8 +4660,7 @@ void VR_Move(usercmd_t* cmd)
     }
     else
     {
-        glm::vec3 playerYawOnly = {0, VR_GetHeadYawAngle(), 0};
-        const auto [vfwd, vright, vup] = getAngledVectors(playerYawOnly);
+        const auto [vfwd, vright, vup] = VR_GetHeadYawDirs();
 
         // avoid gimbal by using up if we are point up/down
         if(fabsf(lfwd[2]) > 0.8f)
@@ -4731,6 +4733,14 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
 // (seems better now, but test more)
 
+// TODO VR: (P0) "Force grab pulls multiple weapons rather than picking the best
+// option"
+
+// TODO VR: (P0) "Most of the time force grabbing on CV1 results in the weapon
+// shooting once it enters the hand due to holding the trigger."
+
+// TODO VR: (P1) "A visual indicator of force grab lock would be useful"
+
 // TODO VR: (P1) consider toning animation down while aiming 2h, might
 // need a new weapon cvar and significant work
 
@@ -4754,6 +4764,9 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) melee doesn't work with laser cannon - intended? test
 
+// TODO VR: (P2) "it seems to be a bit strange to me that I can hold down the
+// trigger on the shotguns"
+
 // TODO VR: (P2) consider adding ghost hands
 
 // TODO VR: (P2) scourge of armagon music?
@@ -4768,3 +4781,8 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P2) add option to pause game on SteamVR dash open
 
 // TODO VR: (P2) immersive swimming
+
+// TODO VR: (P2): "the problem with turning up the QuakeVR particle
+// system is that beyond a certain point it all starts to overlap. It would be
+// nice if the value also somewhat increased the spread or distance of the
+// particles too, just to make it a bit messier"

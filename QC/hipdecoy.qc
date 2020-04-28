@@ -30,11 +30,11 @@ $frame axstnd7 axstnd8 axstnd9 axstnd10 axstnd11 axstnd12
 void()   decoy_stand1 =[  $axstnd1,   decoy_stand1  ]
    {
    ChangeYaw();
-   if (self.walkframe >= 5)
+   if(self.walkframe >= 5)
       self.walkframe = 0;
    self.frame = $stand1 + self.walkframe;
     self.walkframe = self.walkframe + 1;
-    if (time > self.pausetime)
+    if(time > self.pausetime)
         self.th_walk ();
    };
 
@@ -52,23 +52,23 @@ void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
 //   makevectors(a);
 //   self.velocity = 1*v_forward;
    self.weaponframe=0;
-   if (self.walkframe == 6)
+   if(self.walkframe == 6)
       self.walkframe = 0;
-   if (self.walkframe == 2 || self.walkframe == 5)
+   if(self.walkframe == 2 || self.walkframe == 5)
       {
       local float r;
       r = random();
-      if (r < 0.14)
+      if(r < 0.14)
          sound (self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
-      else if (r < 0.29)
+      else if(r < 0.29)
          sound (self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
-      else if (r < 0.43)
+      else if(r < 0.43)
          sound (self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
-      else if (r < 0.58)
+      else if(r < 0.58)
          sound (self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
-      else if (r < 0.72)
+      else if(r < 0.72)
          sound (self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
-      else if (r < 0.86)
+      else if(r < 0.86)
          sound (self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
       else
          sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
@@ -106,7 +106,7 @@ void(entity decoy) setup_decoy =
 */
 void() monster_decoy =
 {
-   if (deathmatch)
+   if(deathmatch)
     {
         remove(self);
         return;
@@ -138,24 +138,24 @@ void(string targ, vector orig) become_decoy =
    decoy.takedamage = DAMAGE_AIM;
 
    decoy.ideal_yaw = decoy.angles * '0 1 0';
-   if (!decoy.yaw_speed)
+   if(!decoy.yaw_speed)
       decoy.yaw_speed = 20;
    decoy.use = monster_use;
 
    decoy.flags = decoy.flags | FL_MONSTER;
 
-   if (decoy.target)
+   if(decoy.target)
     {
       decoy.goalentity = decoy.movetarget = find(world, targetname, decoy.target);
       decoy.ideal_yaw = vectoyaw(decoy.goalentity.origin - decoy.origin);
-      if (!decoy.movetarget)
+      if(!decoy.movetarget)
         {
             dprint ("Monster can't find target at ");
          dprint (vtos(decoy.origin));
             dprint ("\n");
         }
 // this used to be an objerror
-      if (decoy.movetarget.classname == "path_corner")
+      if(decoy.movetarget.classname == "path_corner")
          decoy.th_walk ();
         else
          decoy.pausetime = 99999999;

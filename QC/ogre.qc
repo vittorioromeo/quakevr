@@ -72,15 +72,15 @@ void() OgreGrenadeExplode =
 
 void() OgreGrenadeTouch =
 {
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
-    if (other.takedamage == DAMAGE_AIM)
+    if(other.takedamage == DAMAGE_AIM)
     {
         OgreGrenadeExplode();
         return;
     }
     sound (self, CHAN_VOICE, "weapons/bounce.wav", 1, ATTN_NORM);    // bounce sound
-    if (self.velocity == '0 0 0')
+    if(self.velocity == '0 0 0')
         self.avelocity = '0 0 0';
 };
 
@@ -152,25 +152,25 @@ void(float side) chainsaw =
 local vector    delta;
 local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ai_charge(10);
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
 
     ldmg = (random() + random() + random()) * 4;
     T_Damage (self.enemy, self, self, ldmg);
 
-    if (side)
+    if(side)
     {
         makevectors (self.angles);
-        if (side == 1)
+        if(side == 1)
             SpawnMeatSpray (self.origin + v_forward*16, crandom() * 100 * v_right);
         else
             SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
@@ -183,7 +183,7 @@ void() ogre_stand2    =[    $stand2,    ogre_stand3    ] {ai_stand();};
 void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
 void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ] {
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
 ai_stand();
 };
@@ -196,14 +196,14 @@ void() ogre_walk1    =[    $walk1,        ogre_walk2    ] {ai_walk(3);};
 void() ogre_walk2    =[    $walk2,        ogre_walk3    ] {ai_walk(2);};
 void() ogre_walk3    =[    $walk3,        ogre_walk4    ] {
 ai_walk(2);
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
 };
 void() ogre_walk4    =[    $walk4,        ogre_walk5    ] {ai_walk(2);};
 void() ogre_walk5    =[    $walk5,        ogre_walk6    ] {ai_walk(2);};
 void() ogre_walk6    =[    $walk6,        ogre_walk7    ] {
 ai_walk(5);
-if (random() < 0.1)
+if(random() < 0.1)
     sound (self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);
 };
 void() ogre_walk7    =[    $walk7,        ogre_walk8    ] {ai_walk(3);};
@@ -218,7 +218,7 @@ void() ogre_walk15    =[    $walk15,    ogre_walk16    ] {ai_walk(3);};
 void() ogre_walk16    =[    $walk16,    ogre_walk1    ] {ai_walk(4);};
 
 void() ogre_run1    =[    $run1,        ogre_run2    ] {ai_run(9);
-if (random() < 0.2)
+if(random() < 0.2)
     sound (self, CHAN_VOICE, "ogre/ogidle2.wav", 1, ATTN_IDLE);
 };
 void() ogre_run2    =[    $run2,        ogre_run3    ] {ai_run(12);};
@@ -331,29 +331,29 @@ void(entity attacker, float damage)    ogre_pain =
     local float    r;
 
 // don't make multiple pain sounds right after each other
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     sound (self, CHAN_VOICE, "ogre/ogpain1.wav", 1, ATTN_NORM);
 
     r = random();
 
-    if (r < 0.25)
+    if(r < 0.25)
     {
         ogre_pain1 ();
         self.pain_finished = time + 1;
     }
-    else if (r < 0.5)
+    else if(r < 0.5)
     {
         ogre_painb1 ();
         self.pain_finished = time + 1;
     }
-    else if (r < 0.75)
+    else if(r < 0.75)
     {
         ogre_painc1 ();
         self.pain_finished = time + 1;
     }
-    else if (r < 0.88)
+    else if(r < 0.88)
     {
         ogre_paind1 ();
         self.pain_finished = time + 2;
@@ -394,7 +394,7 @@ void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
     {
         self.solid = SOLID_NOT;
-        if (self.spawnflags & OGRE_BOSS)
+        if(self.spawnflags & OGRE_BOSS)
         {
             // TODO VR: (P2) rogue
             // self.ammo_multi_rockets = 2;
@@ -421,7 +421,7 @@ void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
     {
         self.solid = SOLID_NOT;
-        if (self.spawnflags & OGRE_BOSS)
+        if(self.spawnflags & OGRE_BOSS)
         {
             // TODO VR: (P2) rogue
             // self.ammo_multi_rockets = 2;
@@ -442,7 +442,7 @@ void()    ogre_bdie10    =[    $bdeath10,    ogre_bdie10    ] {};
 void() ogre_die =
 {
 // check for gib
-    if (self.health < -80)
+    if(self.health < -80)
     {
         sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_ogre.mdl", self.health);
@@ -455,7 +455,7 @@ void() ogre_die =
 
     sound (self, CHAN_VOICE, "ogre/ogdth.wav", 1, ATTN_NORM);
 
-    if (random() < 0.5)
+    if(random() < 0.5)
         ogre_die1 ();
     else
         ogre_bdie1 ();
@@ -463,7 +463,7 @@ void() ogre_die =
 
 void() ogre_melee =
 {
-    if (random() > 0.5)
+    if(random() > 0.5)
         ogre_smash1 ();
     else
         ogre_swing1 ();
@@ -478,7 +478,7 @@ Normal: use the original skin and fire normal grenades.
 */
 void() monster_ogre =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -501,18 +501,18 @@ void() monster_ogre =
     setmodel (self, "progs/ogre.mdl");
 
     // none specified - choose random. 25% boss on normal, hard, bloodbath
-    if (self.spawnflags <= 1)
+    if(self.spawnflags <= 1)
     {
-        if (cvar("skill") > 0)
+        if(cvar("skill") > 0)
         {
-            if ( random() <= 0.25 )
+            if( random() <= 0.25 )
             {
                 self.spawnflags = self.spawnflags | OGRE_BOSS;
             }
         }
     }
 
-    if (self.spawnflags & OGRE_BOSS)
+    if(self.spawnflags & OGRE_BOSS)
     {
         // TODO VR: (P2) rogue
         // self.skin = 1;

@@ -20,15 +20,15 @@ Using a monster makes it angry at the current activator
 */
 void() monster_use =
 {
-    if (self.enemy)
+    if(self.enemy)
         return;
-    if (self.health <= 0)
+    if(self.health <= 0)
         return;
-    if (activator.items & IT_INVISIBILITY)
+    if(activator.items & IT_INVISIBILITY)
         return;
-    if (activator.flags & FL_NOTARGET)
+    if(activator.flags & FL_NOTARGET)
         return;
-    if (activator.classname != "player")
+    if(activator.classname != "player")
         return;
 
 // delay reaction so if the monster is teleported, its sound is still
@@ -49,12 +49,12 @@ enemy as activator.
 void() monster_death_use =
 {
     // fall to ground
-    if (self.flags & FL_FLY)
+    if(self.flags & FL_FLY)
         self.flags = self.flags - FL_FLY;
-    if (self.flags & FL_SWIM)
+    if(self.flags & FL_SWIM)
         self.flags = self.flags - FL_SWIM;
 
-    if (!self.target)
+    if(!self.target)
         return;
 
     activator = self.enemy;
@@ -69,7 +69,7 @@ void() walkmonster_start_go =
     self.origin_z = self.origin_z + 1;    // raise off floor a bit
     droptofloor();
 
-    if (!walkmove(0,0))
+    if(!walkmove(0,0))
     {
         dprint ("walkmonster in wall!\n");
         dprint (self.classname);
@@ -81,25 +81,25 @@ void() walkmonster_start_go =
     self.takedamage = DAMAGE_AIM;
 
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 20;
     self.view_ofs = '0 0 25';
     self.use = monster_use;
 
     self.flags = self.flags | FL_MONSTER;
 
-    if (self.target)
+    if(self.target)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
-        if (!self.movetarget)
+        if(!self.movetarget)
         {
             dprint ("Monster can't find target at ");
             dprint (vtos(self.origin));
             dprint ("\n");
         }
 // this used to be an objerror
-        if (self.movetarget.classname == "path_corner")
+        if(self.movetarget.classname == "path_corner")
             self.th_walk ();
         else
             self.pausetime = 99999999;
@@ -133,7 +133,7 @@ void() flymonster_start_go =
     self.takedamage = DAMAGE_AIM;
 
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 10;
     self.view_ofs = '0 0 25';
     self.use = monster_use;
@@ -141,7 +141,7 @@ void() flymonster_start_go =
     self.flags = self.flags | FL_FLY;
     self.flags = self.flags | FL_MONSTER;
 
-    if (!walkmove(0,0))
+    if(!walkmove(0,0))
     {
         dprint ("flymonster in wall!\n");
         dprint (self.classname);
@@ -150,17 +150,17 @@ void() flymonster_start_go =
         dprint ("\n");
     }
 
-    if (self.target)
+    if(self.target)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
-        if (!self.movetarget)
+        if(!self.movetarget)
         {
             dprint ("Monster can't find target at ");
             dprint (vtos(self.origin));
             dprint ("\n");
         }
 // this used to be an objerror
-        if (self.movetarget.classname == "path_corner")
+        if(self.movetarget.classname == "path_corner")
             self.th_walk ();
         else
             self.pausetime = 99999999;
@@ -185,7 +185,7 @@ void() flymonster_start =
 
 void() swimmonster_start_go =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -194,7 +194,7 @@ void() swimmonster_start_go =
     self.takedamage = DAMAGE_AIM;
 
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 10;
     self.view_ofs = '0 0 10';
     self.use = monster_use;
@@ -202,10 +202,10 @@ void() swimmonster_start_go =
     self.flags = self.flags | FL_SWIM;
     self.flags = self.flags | FL_MONSTER;
 
-    if (self.target)
+    if(self.target)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
-        if (!self.movetarget)
+        if(!self.movetarget)
         {
             dprint ("Monster can't find target at ");
             dprint (vtos(self.origin));
