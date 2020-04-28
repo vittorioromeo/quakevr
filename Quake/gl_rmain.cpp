@@ -795,7 +795,7 @@ void R_DrawViewModel(entity_t* viewent)
 
     if(cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
     {
-        // TODO VR: (P1) use alpha instead of not drawing viewmodel with
+        // TODO VR: (P0) use alpha instead of not drawing viewmodel with
         // invisibility
         return;
     }

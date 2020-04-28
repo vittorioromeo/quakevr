@@ -15,7 +15,7 @@ float(float wid, float wpnFlags) PlayerHasWeapon =
     }
 
     if(wid == WID_FIST) return TRUE;
-    if(wid == WID_GRAPPLE) return TRUE; // TODO VR: (P0) always have grapple?
+    if(wid == WID_GRAPPLE) return cvar("vr_enable_grapple");
 
     return wpnFlags & WeaponIdToItemId(wid);
 }
@@ -333,4 +333,26 @@ float(float wid) WeaponIdToThrowBounds =
     bprint("'\n");
 
     return 0;
+}
+
+// TODO VR: (P1) use for DropBackpack, GremlinDropBackpack, netname, etc
+string(float it) ItemIdToWeaponName =
+{
+    if(it == IT_AXE)              { return "Axe"; }
+    if(it == IT_SHOTGUN)          { return "Shotgun"; }
+    if(it == IT_SUPER_SHOTGUN)    { return "Double-barrelled Shotgun"; }
+    if(it == IT_NAILGUN)          { return "Nailgun"; }
+    if(it == IT_SUPER_NAILGUN)    { return "Super Nailgun"; }
+    if(it == IT_GRENADE_LAUNCHER) { return "Grenade Launcher"; }
+    if(it == IT_ROCKET_LAUNCHER)  { return "Rocket Launcher"; }
+    if(it == IT_LIGHTNING)        { return "Thunderbolt"; }
+    if(it == IT_LASER_CANNON)     { return "Laser Cannon"; }
+    if(it == IT_PROXIMITY_GUN)    { return "Proximity Gun"; }
+    if(it == IT_MJOLNIR)          { return "Mjolnir"; }
+
+    bprint("`ItemIdToWeaponName`: invalid item id '");
+    bprint(ftos(it));
+    bprint("'\n");
+
+    return "";
 }

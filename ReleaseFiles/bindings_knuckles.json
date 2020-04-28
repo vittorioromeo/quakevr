@@ -1,7 +1,7 @@
 {
    "action_manifest_version": 0,
    "alias_info": {},
-   "app_key": "system.generated.quakespasm-sdl2-release.exe",
+   "app_key": "system.generated.quakevr.exe",
    "bindings": {
       "/actions/default": {
          "chords": [],
@@ -42,7 +42,7 @@
             {
                "inputs": {
                   "click": {
-                     "output": "/actions/default/in/Fire"
+                     "output": "/actions/default/in/FireMainHand"
                   }
                },
                "mode": "button",
@@ -60,7 +60,7 @@
             {
                "inputs": {
                   "click": {
-                     "output": "/actions/default/in/NextWeapon"
+                     "output": "/actions/default/in/NextWeaponMainHand"
                   }
                },
                "mode": "button",
@@ -70,9 +70,6 @@
                "inputs": {
                   "click": {
                      "output": "/actions/default/in/Escape"
-                  },
-                  "long": {
-                     "output": "/actions/default/in/nextweaponoffhand"
                   }
                },
                "mode": "button",
@@ -81,7 +78,7 @@
             {
                "inputs": {
                   "click": {
-                     "output": "/actions/default/in/PrevWeapon"
+                     "output": "/actions/default/in/NextWeaponOffHand"
                   }
                },
                "mode": "button",

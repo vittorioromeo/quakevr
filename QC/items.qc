@@ -1410,19 +1410,24 @@ PLAYER BACKPACKS
 void() BackpackTouch =
 {
     local string s;
-    local float  best, old, newIt;
+    local float best, old, newIt;
     local entity stemp;
-    local    float    acount;
+    local float acount;
 
     if(other.classname != "player")
+    {
         return;
+    }
+
     if(other.health <= 0)
+    {
         return;
+    }
 
     VRItemPickupHaptic(other);
 
     acount = 0;
-    sprint (other, "You get ");
+    sprint(other, "You get ");
 
     if(self.items)
     {
@@ -1434,13 +1439,13 @@ void() BackpackTouch =
         }
     }
 
-// if the player was using his best weapon, change up to the new one if better
+    // if the player was using his best weapon, change up to the new one if better
     stemp = self;
     self = other;
     best = W_BestWeapon();
     self = stemp;
 
-// change weapons
+    // change weapons
     other.ammo_shells = other.ammo_shells + self.ammo_shells;
     other.ammo_nails = other.ammo_nails + self.ammo_nails;
     other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
@@ -1449,11 +1454,13 @@ void() BackpackTouch =
     bound_other_ammo();
 
     // VR: Do not change weapons.
-    // newIt = self.items;
-    // if(!newIt)
-    //     newIt = WeaponIdToItemId(other.weapon);
-    // old = other.items;
-    // other.items = other.items | newIt;
+    /*
+    newIt = self.items;
+    if(!newIt)
+        newIt = WeaponIdToItemId(other.weapon);
+    old = other.items;
+    other.items = other.items | newIt;
+    */
 
     if(self.ammo_shells)
     {
@@ -1464,6 +1471,7 @@ void() BackpackTouch =
         sprint (other, s);
         sprint (other, " shells");
     }
+
     if(self.ammo_nails)
     {
         if(acount)
@@ -1473,6 +1481,7 @@ void() BackpackTouch =
         sprint (other, s);
         sprint (other, " nails");
     }
+
     if(self.ammo_rockets)
     {
         if(acount)
@@ -1482,6 +1491,7 @@ void() BackpackTouch =
         sprint (other, s);
         sprint (other, " rockets");
     }
+
     if(self.ammo_cells)
     {
         if(acount)
@@ -1493,20 +1503,23 @@ void() BackpackTouch =
     }
 
     sprint (other, "\n");
-// backpack touch sound
+    // backpack touch sound
     sound(other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
-// remove the backpack, change self to the player
+    // remove the backpack, change self to the player
     remove(self);
     self = other;
 
     // change to the weapon
     // VR: Do not change weapons.
-    // if(!deathmatch)
-    //     self.weapon = ItemIdToWeaponId(newIt);
-    // else
-    //     Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
+
+    /*
+    if(!deathmatch)
+        self.weapon = ItemIdToWeaponId(newIt);
+    else
+        Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
+    */
 
     W_SetCurrentAmmo();
 };
@@ -1527,6 +1540,7 @@ void() DropBackpack =
     item.origin = self.origin - '0 0 24';
 
     item.items = self.weapon;
+
     if(item.items == IT_AXE)
         item.netname = "Axe";
     else if(item.items == IT_SHOTGUN)

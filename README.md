@@ -13,6 +13,7 @@
 ## Main Features
 
 * Smooth locomotion
+* Teleportation
 * Fully room-scale *(including jumping)*
 * Hand tracking
 * Weapon models with hands and ironsights
@@ -89,7 +90,13 @@ Once your maps are patched, go through the options in the *"Transparency Options
 
 ## First Steps
 
-The first thing you should do after starting Quake VR is go through all the options in *"Quake VR Settings"*, and tweak the game to your liking. Do not forget to:
+### SteamVR Bindings
+
+The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers.
+
+### In-Game Configuration
+
+After setting up your bindings, please go through all the options in *"Quake VR Settings"*, and tweak the game to your liking. Do not forget to:
 
 * Calibrate your height;
 * Tweak the position of the *"VR torso"* and of the holsters (*"hotspots"*);

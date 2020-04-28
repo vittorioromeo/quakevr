@@ -2788,7 +2788,18 @@ void() ImpulseCommands =
         CheatCommand();
     }
 
-    // TODO VR: (P1) cvar and decide what to do
+    if(self.impulse == 11)
+    {
+        ServerflagsCommand();
+    }
+
+    if(self.impulse == 14)
+    {
+        CheatSpawnAllWeaponDrops();
+    }
+
+
+
     if(self.impulse == 10 && time >= self.attack_finished)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
@@ -2797,23 +2808,28 @@ void() ImpulseCommands =
         }
     }
 
-    if(self.impulse == 11)
-    {
-        ServerflagsCommand();
-    }
-
     if(self.impulse == 12 && time >= self.offhand_attack_finished)
     {
-        // TODO VR: (P1) more steamvr bindings for CycleWeaponReverseCommand();
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
             CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
         }
     }
 
-    if(self.impulse == 14)
+    if(self.impulse == 15 && time >= self.attack_finished)
     {
-        CheatSpawnAllWeaponDrops();
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponReverseCommand (self.weapon, &self.weapon, &self.prevweapon);
+        }
+    }
+
+    if(self.impulse == 16 && time >= self.offhand_attack_finished)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponReverseCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+        }
     }
 
 //JIM
@@ -3043,10 +3059,6 @@ void() wpnthrow_think =
 {
     if(self.waterlevel == 1)
     {
-        // bprint("waterlevel: ");
-        // bprint(ftos(self.waterlevel));
-        // bprint("\n");
-
         if(fabs(self.velocity_x) > 10)
         {
             self.velocity_x *= 0.85;
@@ -3066,19 +3078,19 @@ void() wpnthrow_think =
         }
 
         self.velocity_z = 45;
-        self.flags = self.flags + FL_INWATER;
+        self.flags = self.flags | FL_INWATER;
         self.throwhit = QVR_THROWHIT_HIT;
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.avelocity = '0 0 0';
     }
-    else
+    else if((time - self.lastwatertime) > 0.15)
     {
-        self.flags = self.flags - FL_INWATER;
+        self.flags = self.flags & ~FL_INWATER;
     }
 
     if(cvar("vr_weapondrop_particles") && (self.flags & (FL_ONGROUND | FL_INWATER)))
     {
-        if(random() < 0.23)
+        if(random() < 0.2)
         {
             particle2(self.origin, '0 0 0', 8 /* gunpickup preset */, 1);
         }
@@ -3619,7 +3631,6 @@ void(entity ent, float xHand,
     // Not holding a weapon, grabbing the controller, and pressing the trigger.
     else if(handEmpty && handGrabbing && triggerPressed)
     {
-        // TODO VR: (P0) finish, add cvars and alternatives, add menu
         if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
         {
             // Intentionally left empty.

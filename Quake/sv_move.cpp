@@ -38,6 +38,7 @@ is not a staircase.
 */
 int c_yes, c_no;
 
+// TODO VR: (P2) could have used this to detect onground?
 bool SV_CheckBottom(edict_t* ent)
 {
     glm::vec3 mins, maxs, start, stop;

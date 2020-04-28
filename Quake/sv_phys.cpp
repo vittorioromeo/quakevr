@@ -563,8 +563,6 @@ SV_PushMove
 */
 void SV_PushMove(edict_t* pusher, float movetime)
 {
-    // TODO VR: (P0) cant see dropped weapons underwater (graphic bug)
-
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
     {

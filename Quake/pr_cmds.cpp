@@ -1525,10 +1525,7 @@ PF_checkbottom
 */
 static void PF_checkbottom()
 {
-    edict_t* ent;
-
-    ent = G_EDICT(OFS_PARM0);
-
+    edict_t* ent = G_EDICT(OFS_PARM0);
     G_FLOAT(OFS_RETURN) = SV_CheckBottom(ent);
 }
 

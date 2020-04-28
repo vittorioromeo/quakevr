@@ -1085,7 +1085,7 @@ void R_RunParticleEffect_GunPickup(
     makeNParticles(ptxSpark, count, [&](particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = rnd(150, 200);
-        p.die = cl.time + 0.3;
+        p.die = cl.time + 0.5;
         p.color = rndi(12, 16);
         p.scale = rnd(1.55f, 2.87f) * 0.35f;
         p.type = pt_gunpickup;
@@ -1110,7 +1110,7 @@ void R_RunParticleEffect_GunForceGrab(
     makeNParticles(ptxSpark, count, [&](particle_t& p) {
         p.angle = rnd(0.f, 360.f);
         p.alpha = rnd(180, 225);
-        p.die = cl.time + 0.3;
+        p.die = cl.time + 0.6;
         p.color = rndi(106, 111);
         p.scale = rnd(1.55f, 2.87f) * 0.35f;
         p.type = pt_gunpickup;

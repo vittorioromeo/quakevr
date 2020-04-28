@@ -9,7 +9,7 @@
             "type": "vector2"
         },
         {
-            "name": "/actions/default/in/Fire",
+            "name": "/actions/default/in/FireMainHand",
             "type": "boolean"
         },
         {
@@ -21,11 +21,19 @@
             "type": "boolean"
         },
         {
-            "name": "/actions/default/in/PrevWeapon",
+            "name": "/actions/default/in/PrevWeaponMainHand",
             "type": "boolean"
         },
         {
-            "name": "/actions/default/in/NextWeapon",
+            "name": "/actions/default/in/NextWeaponMainHand",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/PrevWeaponOffHand",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/NextWeaponOffHand",
             "type": "boolean"
         },
         {
@@ -46,10 +54,6 @@
         },
         {
             "name": "/actions/default/in/RightGrab",
-            "type": "boolean"
-        },
-        {
-            "name": "/actions/default/in/NextWeaponOffHand",
             "type": "boolean"
         },
         {
@@ -122,17 +126,18 @@
             "language_tag": "en_US",
             "/actions/default/in/Locomotion": "Locomotion",
             "/actions/default/in/Turn": "Turn",
-            "/actions/default/in/Fire": "Fire",
+            "/actions/default/in/FireMainHand": "Fire (Main Hand)",
             "/actions/default/in/FireOffHand": "Fire (Off-Hand)",
             "/actions/default/in/Jump": "Jump",
-            "/actions/default/in/PrevWeapon": "Previous Weapon",
-            "/actions/default/in/NextWeapon": "Next Weapon",
+            "/actions/default/in/PrevWeaponMainHand": "Previous Weapon (Main Hand)",
+            "/actions/default/in/NextWeaponMainHand": "Next Weapon (Main Hand)",
             "/actions/default/in/Escape": "Escape",
             "/actions/default/in/Speed": "Speed Modifier",
             "/actions/default/in/Teleport": "Teleport",
             "/actions/default/in/LeftGrab": "Left Hand Grab",
             "/actions/default/in/RightGrab": "Right Hand Grab",
             "/actions/default/in/NextWeaponOffHand": "Next Weapon (Off-Hand)",
+            "/actions/default/in/PrevWeaponOffHand": "Previous Weapon (Off-Hand)",
             "/actions/default/in/BMoveForward": "(Boolean) Move Forward",
             "/actions/default/in/BMoveBackward": "(Boolean) Move Backward",
             "/actions/default/in/BMoveLeft": "(Boolean) Move Left",

@@ -580,6 +580,7 @@ extern cvar_t vr_forcegrab_radius;
 extern cvar_t vr_weapondrop_particles;
 extern cvar_t vr_forcegrab_eligible_particles;
 extern cvar_t vr_forcegrab_eligible_haptics;
+extern cvar_t vr_enable_grapple;
 
 // TODO VR: (P2) what to do with this?
 extern int vr_hardcoded_wpn_cvar_fist;

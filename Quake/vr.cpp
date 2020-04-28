@@ -206,6 +206,9 @@ DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
 DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
 
+// TODO VR: (P1) decide what to do with this
+DEFINE_CVAR(vr_enable_grapple, 0, CVAR_NONE);
+
 DEFINE_CVAR_ARCHIVE(vr_crosshair, 1);
 DEFINE_CVAR_ARCHIVE(vr_crosshair_depth, 0);
 DEFINE_CVAR_ARCHIVE(vr_crosshair_size, 3.0);
@@ -1164,16 +1167,17 @@ vr::VRActionSetHandle_t vrashDefault;
 
 vr::VRActionHandle_t vrahLocomotion;
 vr::VRActionHandle_t vrahTurn;
-vr::VRActionHandle_t vrahFire;
+vr::VRActionHandle_t vrahFireMainHand;
 vr::VRActionHandle_t vrahFireOffHand;
 vr::VRActionHandle_t vrahJump;
-vr::VRActionHandle_t vrahPrevWeapon;
-vr::VRActionHandle_t vrahNextWeapon;
+vr::VRActionHandle_t vrahPrevWeaponMainHand;
+vr::VRActionHandle_t vrahNextWeaponMainHand;
 vr::VRActionHandle_t vrahEscape;
 vr::VRActionHandle_t vrahSpeed;
 vr::VRActionHandle_t vrahTeleport;
 vr::VRActionHandle_t vrahLeftGrab;
 vr::VRActionHandle_t vrahRightGrab;
+vr::VRActionHandle_t vrahPrevWeaponOffHand;
 vr::VRActionHandle_t vrahNextWeaponOffHand;
 vr::VRActionHandle_t vrahBMoveForward;
 vr::VRActionHandle_t vrahBMoveBackward;
@@ -1219,16 +1223,19 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/Turn", vrahTurn);
 
     // Boolean options.
-    readHandle("/actions/default/in/Fire", vrahFire);
+    readHandle("/actions/default/in/FireMainHand", vrahFireMainHand);
     readHandle("/actions/default/in/FireOffHand", vrahFireOffHand);
     readHandle("/actions/default/in/Jump", vrahJump);
-    readHandle("/actions/default/in/PrevWeapon", vrahPrevWeapon);
-    readHandle("/actions/default/in/NextWeapon", vrahNextWeapon);
+    readHandle(
+        "/actions/default/in/PrevWeaponMainHand", vrahPrevWeaponMainHand);
+    readHandle(
+        "/actions/default/in/NextWeaponMainHand", vrahNextWeaponMainHand);
     readHandle("/actions/default/in/Escape", vrahEscape);
     readHandle("/actions/default/in/Speed", vrahSpeed);
     readHandle("/actions/default/in/Teleport", vrahTeleport);
     readHandle("/actions/default/in/LeftGrab", vrahLeftGrab);
     readHandle("/actions/default/in/RightGrab", vrahRightGrab);
+    readHandle("/actions/default/in/PrevWeaponOffHand", vrahPrevWeaponOffHand);
     readHandle("/actions/default/in/NextWeaponOffHand", vrahNextWeaponOffHand);
 
     // Boolean locomotion options (useful for accessibility and legacy HMDs).
@@ -3029,7 +3036,7 @@ void VR_UpdateScreenContent()
         // 7: Controller Aiming;
         case VrAimMode::e_CONTROLLER:
         {
-            // TODO VR: (P1) this uses server-side data, but is called in
+            // TODO VR: (P0) this uses server-side data, but is called in
             // client-side. Breaks multiplayer.
             VR_ControllerAiming(orientation);
             break;
@@ -4359,16 +4366,19 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto inpLocomotion = readAnalogAction(vrahLocomotion);
     const auto inpTurn = readAnalogAction(vrahTurn);
 
-    const auto inpFire = readDigitalAction(vrahFire);
+    const auto inpFireMainHand = readDigitalAction(vrahFireMainHand);
     const auto inpFireOffHand = readDigitalAction(vrahFireOffHand);
     const auto inpJump = readDigitalAction(vrahJump);
-    const auto inpPrevWeapon = readDigitalAction(vrahPrevWeapon);
-    const auto inpNextWeapon = readDigitalAction(vrahNextWeapon);
+    const auto inpPrevWeaponMainHand =
+        readDigitalAction(vrahPrevWeaponMainHand);
+    const auto inpNextWeaponMainHand =
+        readDigitalAction(vrahNextWeaponMainHand);
     const auto inpEscape = readDigitalAction(vrahEscape);
     const auto inpSpeed = readDigitalAction(vrahSpeed);
     const auto inpTeleport = readDigitalAction(vrahTeleport);
     const auto inpLeftGrab = readDigitalAction(vrahLeftGrab);
     const auto inpRightGrab = readDigitalAction(vrahRightGrab);
+    const auto inpPrevWeaponOffHand = readDigitalAction(vrahPrevWeaponOffHand);
     const auto inpNextWeaponOffHand = readDigitalAction(vrahNextWeaponOffHand);
 
     const auto inpBMoveForward = readDigitalAction(vrahBMoveForward);
@@ -4382,7 +4392,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         return data.bState && data.bChanged;
     };
 
-    const bool mustFire = inpFire.bState;
+    const bool mustFireMainHand = inpFireMainHand.bState;
     const bool mustFireOffHand = inpFireOffHand.bState;
 
     const bool isRoomscaleJump =
@@ -4391,11 +4401,12 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         lastHeadOrigin[2] > vr_height_calibration.value;
 
     const bool mustJump = isRisingEdge(inpJump) || isRoomscaleJump;
-    const bool mustPrevWeapon = isRisingEdge(inpPrevWeapon);
-    const bool mustNextWeapon = isRisingEdge(inpNextWeapon);
+    const bool mustPrevWeaponMainHand = isRisingEdge(inpPrevWeaponMainHand);
+    const bool mustNextWeaponMainHand = isRisingEdge(inpNextWeaponMainHand);
     // const bool mustEscape = isRisingEdge(inpEscape);
     const bool mustSpeed = inpSpeed.bState;
     const bool mustTeleport = inpTeleport.bState;
+    const bool mustPrevWeaponOffHand = isRisingEdge(inpPrevWeaponOffHand);
     const bool mustNextWeaponOffHand = isRisingEdge(inpNextWeaponOffHand);
 
     const auto mustBMoveForward = inpBMoveForward.bState;
@@ -4426,7 +4437,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
     // Menu multipliers to fine-tune values.
     vr_menu_mult = mustTeleport ? 0.5f : 1.f;
-    vr_menu_mult += static_cast<int>(mustFire);
+    vr_menu_mult += static_cast<int>(mustFireMainHand);
     vr_menu_mult += static_cast<int>(mustFireOffHand);
 
     const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
@@ -4454,8 +4465,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     {
         doMenuKeyEventWithHaptic(K_ENTER, inpJump);
         doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
-        doMenuKeyEventWithHaptic(K_LEFTARROW, inpPrevWeapon);
-        doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeapon);
+        doMenuKeyEventWithHaptic(K_LEFTARROW, inpNextWeaponOffHand);
+        doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeaponMainHand);
 
         const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
             const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
@@ -4510,7 +4521,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         // in fake VR mode.
         if(vr_fakevr.value == 0)
         {
-            Key_Event(K_MOUSE1, mustFire);
+            Key_Event(K_MOUSE1, mustFireMainHand);
             Key_Event(K_MOUSE2, mustFireOffHand);
         }
 
@@ -4521,9 +4532,10 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             lastMenuAngles = cl.viewangles;
         }
 
-        Key_Event('3', mustPrevWeapon);
-        Key_Event('1', mustNextWeapon);
-        Key_Event('4', mustNextWeaponOffHand);
+        Key_Event('1', mustNextWeaponMainHand); // impulse 10
+        Key_Event('3', mustNextWeaponOffHand);  // impulse 12
+        Key_Event('4', mustPrevWeaponMainHand); // impulse 15
+        Key_Event('5', mustPrevWeaponOffHand);  // impulse 16
 
         vr_teleporting = mustTeleport;
     }
@@ -4736,13 +4748,13 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) consider toning animation down while aiming 2h, might
 // need a new weapon cvar and significant work
 
-// TODO VR: (P1) remove existing sv_player usages, or chhange to to
+// TODO VR: (P0) remove existing sv_player usages, or chhange to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
 
 // TODO VR: (P1) add tooltip to off-hand option menu in wpn config
 
-// TODO VR: (P1) remove/fix prevweapon binding, and off-hand cycle binding
+// TODO VR: (P0) remove/fix prevweapon binding, and off-hand cycle binding
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
@@ -4750,9 +4762,6 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) visual feedback when hovering holster, e.g. weapon comes out a
 // bit, or glow, or bloom effect on vision edge (complementary to haptics)
-
-// TODO VR: (P1) give dropped weapons some sort of visual effect (e.g. glow),
-// especially in water, or make them float in water
 
 // TODO VR: (P1) melee doesn't work with laser cannon - intended? test
 

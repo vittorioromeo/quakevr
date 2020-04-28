@@ -80,8 +80,8 @@ float(float dist, float zmult) getForcegrabParabolaPower =
     local float power;
 
     power = (-0.00231424 * pow(dist, 2.0))
-            + (2.07623 * dist)
-            + 164.076;
+            + (2.01 * dist)
+            + 172.0;
 
     power *= zmult;
     power *= getForcegrabPowermult();
@@ -198,7 +198,6 @@ DoForceGrabImplLinear_Logic =
     local entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
-        // TODO VR: (P0) test, it didnt have the velocity requirement before
         if(!isEligibleForForceGrab(e))
         {
             continue;
@@ -293,9 +292,6 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
     doParticles = getForcegrabEligibleParticles();
     doHaptics = getForcegrabEligibleHaptics();
 
-    local float foundAny;
-    foundAny = FALSE;
-
     local entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
@@ -303,8 +299,6 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
         {
             continue;
         }
-
-        foundAny = TRUE;
 
         if(doParticles)
         {
@@ -318,9 +312,11 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
         {
             VRForceGrabEligibleHaptic(xHand);
         }
+
+        return TRUE;
     }
 
-    return foundAny;
+    return FALSE;
 }
 
 float(float xHand, vector handPos, vector handRot) ParticlesAndHapticsForEligibleForceGrabWeapons =

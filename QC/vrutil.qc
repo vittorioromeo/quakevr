@@ -164,13 +164,13 @@ float(float xHand) VRIsAmmolessWeapon =
 float(float xHand) VRGetOtherHand =
 {
     if(xHand == cVR_OffHand) return cVR_MainHand;
-    else                  return cVR_OffHand;
+    else                     return cVR_OffHand;
 }
 
 void(entity e, float xHand, float v) VRSetEntWeapon =
 {
     if(xHand == cVR_OffHand) e.weapon2 = v;
-    else                  e.weapon = v;
+    else                     e.weapon = v;
 }
 
 void(float xHand, float v) VRSetWeapon =
@@ -202,13 +202,13 @@ float(float xHand) VRGetWeapon =
 float(entity e, float xHand) VRIsEntHandGrabbing =
 {
     if(xHand == cVR_OffHand) return e.offhand_grabbing;
-    else                  return e.mainhand_grabbing;
+    else                     return e.mainhand_grabbing;
 }
 
 float(entity e, float xHand) VRIsEntHandPrevGrabbing =
 {
     if(xHand == cVR_OffHand) return e.offhand_prevgrabbing;
-    else                  return e.mainhand_prevgrabbing;
+    else                     return e.mainhand_prevgrabbing;
 }
 
 float(entity e, float xHand) VREntStartedHandGrabbing =

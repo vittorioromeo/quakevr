@@ -750,7 +750,7 @@ void R_DrawAliasModel(entity_t* e)
         glFrontFace(GL_CCW);
     }
 
-    // TODO VR: (P1) document why +1
+    // TODO VR: (P1) document why we have +1
     glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
     glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
     glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);

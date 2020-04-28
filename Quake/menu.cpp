@@ -2688,6 +2688,8 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
 
+    m.add_cvar_entry<bool>("Enable Grapple Gun", vr_enable_grapple);
+
     extern cvar_t host_timescale;
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
