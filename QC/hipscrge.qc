@@ -72,7 +72,7 @@ float() ScourgeCheckAttack =
    if(vlen(spot1 - spot2) < 150)
         return FALSE;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -100,7 +100,7 @@ void(float ox) SCOURGE_FireSpikes =
    src = self.origin - '0 0 19' + v_right*ox + v_forward*14;
    vec = (self.enemy.origin + (200*v_forward)) - src;
    vec = normalize(vec);
-   sound (self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
+   sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
    launch_spike (src, vec);
 
    self.attack_finished = time + 0.2;
@@ -113,7 +113,7 @@ void() Attack_With_Tail =
    local float ldmg;
    local vector   delta;
 
-   ai_face ();
+   ai_face();
 
    delta = self.enemy.origin - self.origin;
 
@@ -124,7 +124,7 @@ void() Attack_With_Tail =
 
     ldmg = (random() + random() + random()) * 40;
     T_Damage (self.enemy, self, self, ldmg);
-   sound (self, CHAN_WEAPON, "shambler/smack.wav", 1, ATTN_NORM);
+   sound(self, CHAN_WEAPON, "shambler/smack.wav", 1, ATTN_NORM);
 
    SpawnMeatSpray (self.origin + v_forward*16, crandom() * 50 * v_right);
    };
@@ -154,11 +154,11 @@ void() scourge_think =
       }
    if((self.spawnsilent == 0) && (self.spawnmulti == 1))
       {
-      sound (self, CHAN_BODY, "misc/null.wav", 1, ATTN_IDLE);
+      sound(self, CHAN_BODY, "misc/null.wav", 1, ATTN_IDLE);
       }
    else if((self.spawnsilent == 1) && (self.spawnmulti == 0))
       {
-      sound (self, CHAN_BODY, "scourge/walk.wav", 1, ATTN_IDLE);
+      sound(self, CHAN_BODY, "scourge/walk.wav", 1, ATTN_IDLE);
       }
    self.spawnmulti = self.spawnsilent;
    };
@@ -190,7 +190,7 @@ void()   scourge_stand12  =[ $stand12.asc, scourge_stand1  ] {self.spawnsilent =
 
 void()   scourge_walk1   =[ $walk1.asc , scourge_walk2   ] {
 if(random() < 0.1)
-   sound (self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
+   sound(self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
 self.spawnsilent = 1;
 scourge_think();
 ai_walk(8);};
@@ -202,7 +202,7 @@ void()   scourge_walk6   =[ $walk6.asc , scourge_walk1   ] {ai_walk(8);};
 
 void()   scourge_run1 =[ $walk1.asc  , scourge_run2 ] {
 if(random() < 0.1)
-   sound (self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
+   sound(self, CHAN_VOICE, "scourge/idle.wav", 1, ATTN_IDLE);
 self.spawnsilent = 1;
 scourge_think();
 ai_run(18);};
@@ -304,7 +304,7 @@ void()   scourge_melee3 =[ $sting3.asc,   scourge_melee4 ] {ai_charge(2);};
 void()   scourge_melee4 =[ $sting4.asc,   scourge_melee5 ] {ai_charge(2);};
 void()   scourge_melee5 =[ $sting5.asc,   scourge_melee6 ]
    {
-   sound (self, CHAN_WEAPON, "scourge/tailswng.wav", 1, ATTN_NORM);
+   sound(self, CHAN_WEAPON, "scourge/tailswng.wav", 1, ATTN_NORM);
    ai_charge(3);
    };
 void()   scourge_melee6 =[ $sting6.asc,   scourge_melee7 ] {ai_charge(1);};
@@ -337,11 +337,11 @@ void(entity attacker, float damage) scourge_pain =
         return;
 
 
-   r = random ();
-   sound (self, CHAN_VOICE, "scourge/pain.wav", 1, ATTN_NORM);
+   r = random();
+   sound(self, CHAN_VOICE, "scourge/pain.wav", 1, ATTN_NORM);
 
    self.pain_finished = time + 2.0;
-   scourge_pain1 ();
+   scourge_pain1();
 };
 
 //============================================================================
@@ -377,7 +377,7 @@ void() scourge_die =
    scourge_think();
    if(self.health < -35)
    {
-      sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
       ThrowHead ("progs/h_scourg.mdl", self.health);
       ThrowGib ("progs/gib1.mdl", self.health);
       ThrowGib ("progs/gib2.mdl", self.health);
@@ -387,8 +387,8 @@ void() scourge_die =
    }
 
 // regular death
-   sound (self, CHAN_VOICE, "scourge/pain2.wav", 1, ATTN_NORM);
-   scourge_die1 ();
+   sound(self, CHAN_VOICE, "scourge/pain2.wav", 1, ATTN_NORM);
+   scourge_die1();
 };
 
 //
@@ -482,13 +482,13 @@ void() monster_scourge =
     precache_model2 ("progs/s_light.mdl");
     precache_model2 ("progs/spike.mdl");
 
-    precache_sound ("misc/null.wav");
-    precache_sound ("scourge/idle.wav");
-    precache_sound ("scourge/pain.wav");
-    precache_sound ("scourge/pain2.wav");
-    precache_sound ("scourge/sight.wav");
-    precache_sound ("scourge/tailswng.wav");
-    precache_sound ("scourge/walk.wav");
+    precache_sound("misc/null.wav");
+    precache_sound("scourge/idle.wav");
+    precache_sound("scourge/pain.wav");
+    precache_sound("scourge/pain2.wav");
+    precache_sound("scourge/sight.wav");
+    precache_sound("scourge/tailswng.wav");
+    precache_sound("scourge/walk.wav");
     precache_sound2 ("shambler/smack.wav");
     precache_sound2 ("weapons/rocket1i.wav");
 

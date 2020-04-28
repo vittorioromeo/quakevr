@@ -830,32 +830,38 @@ SV_CheckWater
 */
 bool SV_CheckWater(edict_t* ent)
 {
-    glm::vec3 point;
-    int cont;
+    const auto prevWaterlevel = ent->v.waterlevel;
 
-    point[0] = ent->v.origin[0];
-    point[1] = ent->v.origin[1];
-    point[2] = ent->v.origin[2] + ent->v.mins[2] + 1;
+    glm::vec3 point = ent->v.origin;
+    point[2] += ent->v.mins[2] + 1;
 
     ent->v.waterlevel = 0;
     ent->v.watertype = CONTENTS_EMPTY;
-    cont = SV_PointContents(point);
+
+    int cont = SV_PointContents(point);
     if(cont <= CONTENTS_WATER)
     {
         ent->v.watertype = cont;
         ent->v.waterlevel = 1;
         point[2] = ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2]) * 0.5f;
+
         cont = SV_PointContents(point);
         if(cont <= CONTENTS_WATER)
         {
             ent->v.waterlevel = 2;
             point[2] = ent->v.origin[2] + ent->v.view_ofs[2];
+
             cont = SV_PointContents(point);
             if(cont <= CONTENTS_WATER)
             {
                 ent->v.waterlevel = 3;
             }
         }
+    }
+
+    if(ent->v.waterlevel != prevWaterlevel)
+    {
+        ent->v.lastwatertime = sv.time;
     }
 
     return ent->v.waterlevel > 1;
@@ -1193,7 +1199,7 @@ void SV_Handtouch(edict_t* ent)
 
 void SV_VRWpntouch(edict_t* ent)
 {
-// TODO VR: (P2) code repetition with vr.cpp setHandPos
+    // TODO VR: (P2) code repetition with vr.cpp setHandPos
 
     const auto doHand = [&](const int handIndex) {
         const auto& playerOrigin = ent->v.origin;
@@ -1450,6 +1456,7 @@ SV_CheckWaterTransition
 void SV_CheckWaterTransition(edict_t* ent)
 {
     const int cont = SV_PointContents(ent->v.origin);
+    const auto prevWaterlevel = ent->v.waterlevel;
 
     if(!ent->v.watertype)
     {
@@ -1459,9 +1466,11 @@ void SV_CheckWaterTransition(edict_t* ent)
         return;
     }
 
+    const float watertimeDiff = sv.time - ent->v.lastwatertime;
+
     if(cont <= CONTENTS_WATER)
     {
-        if(ent->v.watertype == CONTENTS_EMPTY)
+        if(ent->v.watertype == CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
@@ -1469,10 +1478,15 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         ent->v.watertype = cont;
         ent->v.waterlevel = 1;
+
+        if(ent->v.waterlevel != prevWaterlevel)
+        {
+            ent->v.lastwatertime = sv.time;
+        }
     }
     else
     {
-        if(ent->v.watertype != CONTENTS_EMPTY)
+        if(ent->v.watertype != CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
             SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
@@ -1480,6 +1494,11 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         ent->v.watertype = CONTENTS_EMPTY;
         ent->v.waterlevel = cont;
+
+        if(ent->v.waterlevel != prevWaterlevel)
+        {
+            ent->v.lastwatertime = sv.time;
+        }
     }
 }
 
@@ -1566,13 +1585,12 @@ void SV_Physics_Toss(edict_t* ent)
     const glm::vec3 move = ent->v.velocity * static_cast<float>(host_frametime);
 
     const trace_t trace = SV_PushEntity(ent, move);
-    if(!quake::util::hitSomething(trace) || ent->free)
+    if(quake::util::hitSomething(trace) && !ent->free)
     {
-        return;
+        const float backoff = ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
+        ClipVelocity(
+            ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
     }
-
-    const float backoff = ent->v.movetype == MOVETYPE_BOUNCE ? 1.5f : 1.f;
-    ClipVelocity(ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
 
     // check for in water
     SV_CheckWaterTransition(ent);

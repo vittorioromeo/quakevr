@@ -38,16 +38,16 @@ void() door_blocked =
     if(self.wait >= 0)
     {
         if(self.state == STATE_DOWN)
-            door_go_up ();
+            door_go_up();
         else
-            door_go_down ();
+            door_go_down();
     }
 };
 
 
 void() door_hit_top =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
     if(self.spawnflags & DOOR_TOGGLE)
         return;        // don't come down automatically
@@ -57,13 +57,13 @@ void() door_hit_top =
 
 void() door_hit_bottom =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
 };
 
 void() door_go_down =
 {
-    sound (self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
     if(self.max_health)
     {
         self.takedamage = DAMAGE_YES;
@@ -85,7 +85,7 @@ void() door_go_up =
         return;
     }
 
-    sound (self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.pos2, self.speed, door_hit_top);
 
@@ -112,7 +112,7 @@ void() door_fire =
 // play use key sound
 
     if(self.items)
-        sound (self, CHAN_ITEM, self.noise4, 1, ATTN_NORM);
+        sound(self, CHAN_ITEM, self.noise4, 1, ATTN_NORM);
 
     self.message = string_null;        // no more message
     oself = self;
@@ -124,7 +124,7 @@ void() door_fire =
             starte = self;
             do
             {
-                door_go_down ();
+                door_go_down();
                 self = self.enemy;
             } while( (self != starte) && (self != world) );
             self = oself;
@@ -136,7 +136,7 @@ void() door_fire =
     starte = self;
     do
     {
-        door_go_up ();
+        door_go_up();
         self = self.enemy;
     } while( (self != starte) && (self != world) );
     self = oself;
@@ -152,7 +152,7 @@ void() door_use =
     self.enemy.message = "";
     oself = self;
     self = self.owner;
-    door_fire ();
+    door_fire();
     self = oself;
 };
 
@@ -169,7 +169,7 @@ void() door_trigger_touch =
     activator = other;
 
     self = self.owner;
-    door_use ();
+    door_use();
 };
 
 
@@ -181,7 +181,7 @@ void() door_killed =
     self = self.owner;
     self.health = self.max_health;
     self.takedamage = DAMAGE_NO;    // wil be reset upon return
-    door_use ();
+    door_use();
     self = oself;
 };
 
@@ -205,7 +205,7 @@ void() door_touch =
     if(self.owner.message != "")
     {
         centerprint (other, self.owner.message);
-        sound (other, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+        sound(other, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
 
 // key door stuff
@@ -220,17 +220,17 @@ void() door_touch =
             if(world.worldtype == 2)
             {
                 centerprint (other, "You need the silver keycard");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 1)
             {
                 centerprint (other, "You need the silver runekey");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 0)
             {
                 centerprint (other, "You need the silver key");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
         }
         else
@@ -238,17 +238,17 @@ void() door_touch =
             if(world.worldtype == 2)
             {
                 centerprint (other, "You need the gold keycard");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 1)
             {
                 centerprint (other, "You need the gold runekey");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 0)
             {
                 centerprint (other, "You need the gold key");
-                sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+                sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
         }
         return;
@@ -258,7 +258,7 @@ void() door_touch =
     self.touch = SUB_Null;
     if(self.enemy)
         self.enemy.touch = SUB_Null;    // get paired door
-    door_use ();
+    door_use();
 };
 
 /*
@@ -422,22 +422,22 @@ void() func_door =
 
     if(world.worldtype == 0)
     {
-        precache_sound ("doors/medtry.wav");
-        precache_sound ("doors/meduse.wav");
+        precache_sound("doors/medtry.wav");
+        precache_sound("doors/meduse.wav");
         self.noise3 = "doors/medtry.wav";
         self.noise4 = "doors/meduse.wav";
     }
     else if(world.worldtype == 1)
     {
-        precache_sound ("doors/runetry.wav");
-        precache_sound ("doors/runeuse.wav");
+        precache_sound("doors/runetry.wav");
+        precache_sound("doors/runeuse.wav");
         self.noise3 = "doors/runetry.wav";
         self.noise4 = "doors/runeuse.wav";
     }
     else if(world.worldtype == 2)
     {
-        precache_sound ("doors/basetry.wav");
-        precache_sound ("doors/baseuse.wav");
+        precache_sound("doors/basetry.wav");
+        precache_sound("doors/baseuse.wav");
         self.noise3 = "doors/basetry.wav";
         self.noise4 = "doors/baseuse.wav";
     }
@@ -448,41 +448,41 @@ void() func_door =
 
     if(self.sounds == 0)
     {
-        precache_sound ("misc/null.wav");
-        precache_sound ("misc/null.wav");
+        precache_sound("misc/null.wav");
+        precache_sound("misc/null.wav");
         self.noise1 = "misc/null.wav";
         self.noise2 = "misc/null.wav";
     }
     else if(self.sounds == 1)
     {
-        precache_sound ("doors/drclos4.wav");
-        precache_sound ("doors/doormv1.wav");
+        precache_sound("doors/drclos4.wav");
+        precache_sound("doors/doormv1.wav");
         self.noise1 = "doors/drclos4.wav";
         self.noise2 = "doors/doormv1.wav";
     }
     else if(self.sounds == 2)
     {
-        precache_sound ("doors/hydro1.wav");
-        precache_sound ("doors/hydro2.wav");
+        precache_sound("doors/hydro1.wav");
+        precache_sound("doors/hydro2.wav");
         self.noise2 = "doors/hydro1.wav";
         self.noise1 = "doors/hydro2.wav";
     }
     else if(self.sounds == 3)
     {
-        precache_sound ("doors/stndr1.wav");
-        precache_sound ("doors/stndr2.wav");
+        precache_sound("doors/stndr1.wav");
+        precache_sound("doors/stndr2.wav");
         self.noise2 = "doors/stndr1.wav";
         self.noise1 = "doors/stndr2.wav";
     }
     else if(self.sounds == 4)
     {
-        precache_sound ("doors/ddoor1.wav");
-        precache_sound ("doors/ddoor2.wav");
+        precache_sound("doors/ddoor1.wav");
+        precache_sound("doors/ddoor2.wav");
         self.noise1 = "doors/ddoor2.wav";
         self.noise2 = "doors/ddoor1.wav";
     }
 
-    SetMovedir ();
+    SetMovedir();
 
     self.max_health = self.health;
     self.solid = SOLID_BSP;
@@ -714,7 +714,7 @@ void() secret_touch =
     if(self.message)
     {
         centerprint (other, self.message);
-        sound (other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
+        sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
     }
 };
 
@@ -742,25 +742,25 @@ void () func_door_secret =
         self.sounds = 3;
     if(self.sounds == 1)
     {
-        precache_sound ("doors/latch2.wav");
-        precache_sound ("doors/winch2.wav");
-        precache_sound ("doors/drclos4.wav");
+        precache_sound("doors/latch2.wav");
+        precache_sound("doors/winch2.wav");
+        precache_sound("doors/drclos4.wav");
         self.noise1 = "doors/latch2.wav";
         self.noise2 = "doors/winch2.wav";
         self.noise3 = "doors/drclos4.wav";
     }
     if(self.sounds == 2)
     {
-        precache_sound ("doors/airdoor1.wav");
-        precache_sound ("doors/airdoor2.wav");
+        precache_sound("doors/airdoor1.wav");
+        precache_sound("doors/airdoor2.wav");
         self.noise2 = "doors/airdoor1.wav";
         self.noise1 = "doors/airdoor2.wav";
         self.noise3 = "doors/airdoor2.wav";
     }
     if(self.sounds == 3)
     {
-        precache_sound ("doors/basesec1.wav");
-        precache_sound ("doors/basesec2.wav");
+        precache_sound("doors/basesec1.wav");
+        precache_sound("doors/basesec2.wav");
         self.noise2 = "doors/basesec1.wav";
         self.noise1 = "doors/basesec2.wav";
         self.noise3 = "doors/basesec2.wav";

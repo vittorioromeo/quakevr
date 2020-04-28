@@ -4733,14 +4733,6 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
 // (seems better now, but test more)
 
-// TODO VR: (P0) "Force grab pulls multiple weapons rather than picking the best
-// option"
-
-// TODO VR: (P0) "Most of the time force grabbing on CV1 results in the weapon
-// shooting once it enters the hand due to holding the trigger."
-
-// TODO VR: (P1) "A visual indicator of force grab lock would be useful"
-
 // TODO VR: (P1) consider toning animation down while aiming 2h, might
 // need a new weapon cvar and significant work
 

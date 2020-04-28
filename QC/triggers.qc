@@ -39,11 +39,11 @@ void() multi_trigger =
         if(self.enemy.classname != "player")
             return;
         found_secrets = found_secrets + 1;
-        WriteByte (MSG_ALL, SVC_FOUNDSECRET);
+        WriteByte(MSG_ALL, SVC_FOUNDSECRET);
     }
 
     if(self.noise)
-        sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
 // don't trigger again until reset
     self.takedamage = DAMAGE_NO;
@@ -105,7 +105,7 @@ void() multi_touch =
     }
 
     self.enemy = other;
-    multi_trigger ();
+    multi_trigger();
 };
 
 //MED 12/01/96 added count field
@@ -127,17 +127,17 @@ void() trigger_multiple =
 {
     if(self.sounds == 1)
     {
-        precache_sound ("misc/secret.wav");
+        precache_sound("misc/secret.wav");
         self.noise = "misc/secret.wav";
     }
     else if(self.sounds == 2)
     {
-        precache_sound ("misc/talk.wav");
+        precache_sound("misc/talk.wav");
         self.noise = "misc/talk.wav";
     }
     else if(self.sounds == 3)
     {
-        precache_sound ("misc/trigger1.wav");
+        precache_sound("misc/trigger1.wav");
         self.noise = "misc/trigger1.wav";
     }
 
@@ -145,7 +145,7 @@ void() trigger_multiple =
         self.wait = 0.2;
     self.use = multi_use;
 
-    InitTrigger ();
+    InitTrigger();
 
     if(self.health)
     {
@@ -224,16 +224,16 @@ void() trigger_secret =
 
     if(self.sounds == 1)
     {
-        precache_sound ("misc/secret.wav");
+        precache_sound("misc/secret.wav");
         self.noise = "misc/secret.wav";
     }
     else if(self.sounds == 2)
     {
-        precache_sound ("misc/talk.wav");
+        precache_sound("misc/talk.wav");
         self.noise = "misc/talk.wav";
     }
 
-    trigger_multiple ();
+    trigger_multiple();
 };
 
 //=============================================================================
@@ -266,7 +266,7 @@ void() counter_use =
     && (self.spawnflags & SPAWNFLAG_NOMESSAGE) == 0)
         centerprint(activator, "Sequence completed!");
     self.enemy = activator;
-    multi_trigger ();
+    multi_trigger();
 };
 
 /*QUAKED trigger_counter (.5 .5 .5) ? nomessage
@@ -314,22 +314,22 @@ void() play_teleport =
     else
         tmpstr = "misc/r_tele5.wav";
 
-    sound (self, CHAN_VOICE, tmpstr, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, tmpstr, 1, ATTN_NORM);
     remove (self);
 };
 
 void(vector org) spawn_tfog =
 {
-    s = spawn ();
+    s = spawn();
     s.origin = org;
     s.nextthink = time + 0.2;
     s.think = play_teleport;
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TELEPORT);
-    WriteCoord (MSG_BROADCAST, org_x);
-    WriteCoord (MSG_BROADCAST, org_y);
-    WriteCoord (MSG_BROADCAST, org_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_TELEPORT);
+    WriteCoord(MSG_BROADCAST, org_x);
+    WriteCoord(MSG_BROADCAST, org_y);
+    WriteCoord(MSG_BROADCAST, org_z);
 };
 
 
@@ -400,7 +400,7 @@ local vector    org;
     if(other.health <= 0 || other.solid != SOLID_SLIDEBOX)
         return;
 
-    SUB_UseTargets ();
+    SUB_UseTargets();
 
 // put a tfog where the player was
     spawn_tfog (other.origin);
@@ -467,7 +467,7 @@ void() trigger_teleport =
 {
     local vector o;
 
-    InitTrigger ();
+    InitTrigger();
     self.touch = teleport_touch;
     // find the destination
     if(!self.target)
@@ -476,9 +476,9 @@ void() trigger_teleport =
 
     if(!(self.spawnflags & SILENT))
     {
-        precache_sound ("ambience/hum1.wav");
+        precache_sound("ambience/hum1.wav");
         o = (self.mins + self.maxs)*0.5;
-        ambientsound (o, "ambience/hum1.wav",0.5 , ATTN_STATIC);
+        ambientsound(o, "ambience/hum1.wav",0.5 , ATTN_STATIC);
     }
 };
 
@@ -504,7 +504,7 @@ Only used on start map.
 */
 void() trigger_setskill =
 {
-    InitTrigger ();
+    InitTrigger();
     self.touch = trigger_skill_touch;
 };
 
@@ -528,7 +528,7 @@ void() trigger_onlyregistered_touch =
     if(cvar("registered"))
     {
         self.message = "";
-        SUB_UseTargets ();
+        SUB_UseTargets();
         remove (self);
     }
     else
@@ -536,7 +536,7 @@ void() trigger_onlyregistered_touch =
         if(self.message != "")
         {
             centerprint (other, self.message);
-            sound (other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
+            sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
         }
     }
 };
@@ -546,8 +546,8 @@ Only fires if playing the registered version, otherwise prints the message
 */
 void() trigger_onlyregistered =
 {
-    precache_sound ("misc/talk.wav");
-    InitTrigger ();
+    precache_sound("misc/talk.wav");
+    InitTrigger();
     self.touch = trigger_onlyregistered_touch;
 };
 
@@ -610,7 +610,7 @@ defalt dmg = 5
 */
 void() trigger_hurt =
 {
-    InitTrigger ();
+    InitTrigger();
     self.touch = hurt_touch;
     if(!self.dmg)
         self.dmg = 5;
@@ -637,7 +637,7 @@ void() trigger_push_touch =
             if(other.fly_sound < time)
             {
                 other.fly_sound = time + 1.5;
-                sound (other, CHAN_AUTO, "ambience/windfly.wav", 1, ATTN_NORM);
+                sound(other, CHAN_AUTO, "ambience/windfly.wav", 1, ATTN_NORM);
             }
         }
     }
@@ -651,8 +651,8 @@ Pushes the player
 */
 void() trigger_push =
 {
-    InitTrigger ();
-    precache_sound ("ambience/windfly.wav");
+    InitTrigger();
+    precache_sound("ambience/windfly.wav");
     self.touch = trigger_push_touch;
     if(!self.speed)
         self.speed = 1000;
@@ -710,6 +710,6 @@ void() trigger_monsterjump =
 //MED 12/01/96 added count stuff
    if(self.cnt == 0)
       self.cnt = -1;
-    InitTrigger ();
+    InitTrigger();
     self.touch = trigger_monsterjump_touch;
 };

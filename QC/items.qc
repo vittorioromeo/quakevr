@@ -21,7 +21,7 @@ void() SUB_regen =
 {
     self.model = self.mdl;        // restore original model
     self.solid = SOLID_TRIGGER;    // allow it to be touched again
-    sound (self, CHAN_VOICE, "items/itembk2.wav", 1, ATTN_NORM);    // play respawn sound
+    sound(self, CHAN_VOICE, "items/itembk2.wav", 1, ATTN_NORM);    // play respawn sound
     setorigin (self, self.origin);
 };
 
@@ -228,7 +228,7 @@ void() item_health =
         setsize (self, '0 0 0', '32 32 16');
     }
 
-    StartItem ();
+    StartItem();
 };
 
 
@@ -387,7 +387,7 @@ void() item_armor1 =
     setmodel (self, "progs/armor.mdl");
     self.skin = 0;
     setsize (self, '-10 -10 0', '10 10 28');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_armor2 (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -400,7 +400,7 @@ void() item_armor2 =
     setmodel (self, "progs/armor.mdl");
     self.skin = 1;
     setsize (self, '-10 -10 0', '10 10 28');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_armorInv (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -413,7 +413,7 @@ void() item_armorInv =
     setmodel (self, "progs/armor.mdl");
     self.skin = 2;
     setsize (self, '-10 -10 0', '10 10 28');
-    StartItem ();
+    StartItem();
 };
 
 /*
@@ -602,10 +602,10 @@ void() weapon_touch =
     sprint (other, self.netname);
     sprint (other, "\n");
 // weapon touch sound
-    sound (other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
-    bound_other_ammo ();
+    bound_other_ammo();
 
 // change to the weapon
     old = other.items;
@@ -667,7 +667,7 @@ void() weapon_supershotgun =
     self.netname = "Double-barrelled Shotgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_nailgun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -681,7 +681,7 @@ void() weapon_nailgun =
     self.netname = "nailgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_supernailgun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -695,7 +695,7 @@ void() weapon_supernailgun =
     self.netname = "Super Nailgun";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_grenadelauncher (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -709,7 +709,7 @@ void() weapon_grenadelauncher =
     self.netname = "Grenade Launcher";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_rocketlauncher (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -723,7 +723,7 @@ void() weapon_rocketlauncher =
     self.netname = "Rocket Launcher";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -738,7 +738,7 @@ void() weapon_lightning =
     self.netname = "Thunderbolt";
     self.handtouch = weapon_touch;
     setsize (self, '-8 -8 16', '8 8 38');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -799,7 +799,7 @@ local float        best;
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
 
-    bound_other_ammo ();
+    bound_other_ammo();
 
     VRItemPickupHaptic(other);
 
@@ -807,7 +807,7 @@ local float        best;
     sprint (other, self.netname);
     sprint (other, "\n");
 // ammo touch sound
-    sound (other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
 // change to a better weapon if appropriate
@@ -818,7 +818,7 @@ local float        best;
         self = other;
 
         // self.weapon = W_BestWeapon();
-        // W_SetCurrentAmmo ();
+        // W_SetCurrentAmmo();
 
         self = stemp;
     }
@@ -869,7 +869,7 @@ void() item_shells =
     self.classname = "item_shells";
 
     setsize (self, '0 0 0', '24 24 24');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_spikes (0 .5 .8) (0 0 0) (32 32 32) big
@@ -895,7 +895,7 @@ void() item_spikes =
     self.netname = "nails";
     self.classname = "item_spikes";
     setsize (self, '0 0 0', '24 24 24');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_rockets (0 .5 .8) (0 0 0) (32 32 32) big
@@ -922,7 +922,7 @@ void() item_rockets =
     self.classname = "item_rockets";
 
     setsize (self, '0 0 0', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -950,7 +950,7 @@ void() item_cells =
     self.classname = "item_cells";
 
     setsize (self, '0 0 0', '24 24 24');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1021,7 +1021,7 @@ void() item_weapon =
     }
 
     setsize (self, '0 0 0', '24 24 24');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1050,7 +1050,7 @@ void() key_touch =
     sprint (other, self.netname);
     sprint (other,"\n");
 
-    sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     other.items = other.items | self.items;
 
@@ -1069,12 +1069,12 @@ void() key_setsounds =
 {
     if(world.worldtype == 0)
     {
-        precache_sound ("misc/medkey.wav");
+        precache_sound("misc/medkey.wav");
         self.noise = "misc/medkey.wav";
     }
     if(world.worldtype == 1)
     {
-        precache_sound ("misc/runekey.wav");
+        precache_sound("misc/runekey.wav");
         self.noise = "misc/runekey.wav";
     }
     if(world.worldtype == 2)
@@ -1122,7 +1122,7 @@ void() item_key1 =
 
     setsize (self, '-16 -16 -24', '16 16 32');
 
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_key2 (0 .5 .8) (-16 -16 -24) (16 16 32)
@@ -1168,7 +1168,7 @@ void() item_key2 =
     // setsize (self, '-8 -8 -24', '8 8 32');
     // self.origin = self.origin + '0 -16 0';
 
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1190,7 +1190,7 @@ void() sigil_touch =
 
     centerprint (other, "You got the rune!");
 
-    sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
     self.model = string_null;
@@ -1211,7 +1211,7 @@ void() item_sigil =
     if(!self.spawnflags)
         objerror ("no spawnflags");
 
-    precache_sound ("misc/runekey.wav");
+    precache_sound("misc/runekey.wav");
     self.noise = "misc/runekey.wav";
 
     if(self.spawnflags & 1)
@@ -1241,7 +1241,7 @@ void() item_sigil =
     self.handtouch = sigil_touch;
 
     setsize (self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 /*
@@ -1281,7 +1281,7 @@ void() powerup_touch =
         self.think = SUB_regen;
     }
 
-    sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
     other.items = other.items | self.items;
@@ -1326,15 +1326,15 @@ void() item_artifact_invulnerability =
     self.handtouch = powerup_touch;
 
     precache_model ("progs/invulner.mdl");
-    precache_sound ("items/protect.wav");
-    precache_sound ("items/protect2.wav");
-    precache_sound ("items/protect3.wav");
+    precache_sound("items/protect.wav");
+    precache_sound("items/protect2.wav");
+    precache_sound("items/protect3.wav");
     self.noise = "items/protect.wav";
     setmodel (self, "progs/invulner.mdl");
     self.netname = "Pentagram of Protection";
     self.items = IT_INVULNERABILITY;
     setsize (self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_artifact_envirosuit (0 .5 .8) (-16 -16 -24) (16 16 32)
@@ -1346,15 +1346,15 @@ void() item_artifact_envirosuit =
     self.handtouch = powerup_touch;
 
     precache_model ("progs/suit.mdl");
-    precache_sound ("items/suit.wav");
-    precache_sound ("items/suit2.wav");
+    precache_sound("items/suit.wav");
+    precache_sound("items/suit2.wav");
     self.noise = "items/suit.wav";
     setmodel (self, "progs/suit.mdl");
     self.netname = "Biosuit";
     self.items = IT_SUIT;
     // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
     setsize (self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1366,15 +1366,15 @@ void() item_artifact_invisibility =
     self.handtouch = powerup_touch;
 
     precache_model ("progs/invisibl.mdl");
-    precache_sound ("items/inv1.wav");
-    precache_sound ("items/inv2.wav");
-    precache_sound ("items/inv3.wav");
+    precache_sound("items/inv1.wav");
+    precache_sound("items/inv2.wav");
+    precache_sound("items/inv3.wav");
     self.noise = "items/inv1.wav";
     setmodel (self, "progs/invisibl.mdl");
     self.netname = "Ring of Shadows";
     self.items = IT_INVISIBILITY;
     setsize (self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1386,15 +1386,15 @@ void() item_artifact_super_damage =
     self.handtouch = powerup_touch;
 
     precache_model ("progs/quaddama.mdl");
-    precache_sound ("items/damage.wav");
-    precache_sound ("items/damage2.wav");
-    precache_sound ("items/damage3.wav");
+    precache_sound("items/damage.wav");
+    precache_sound("items/damage2.wav");
+    precache_sound("items/damage3.wav");
     self.noise = "items/damage.wav";
     setmodel (self, "progs/quaddama.mdl");
     self.netname = "Quad Damage";
     self.items = IT_QUAD;
     setsize (self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -1446,7 +1446,7 @@ void() BackpackTouch =
     other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
     other.ammo_cells = other.ammo_cells + self.ammo_cells;
 
-    bound_other_ammo ();
+    bound_other_ammo();
 
     // VR: Do not change weapons.
     // newIt = self.items;
@@ -1494,7 +1494,7 @@ void() BackpackTouch =
 
     sprint (other, "\n");
 // backpack touch sound
-    sound (other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
 // remove the backpack, change self to the player
@@ -1508,7 +1508,7 @@ void() BackpackTouch =
     // else
     //     Deathmatch_Weapon (old, ItemIdToWeaponId(newIt));
 
-    W_SetCurrentAmmo ();
+    W_SetCurrentAmmo();
 };
 
 /*

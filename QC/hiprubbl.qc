@@ -13,7 +13,7 @@ void() hipRubbleTouch =
     if(other.takedamage)
         {
         T_Damage (other, self, self.owner, 10 );
-        sound (self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
         self.pausetime = self.ltime + 0.1;
         }
     };
@@ -85,7 +85,7 @@ void() func_rubble =
     precache_model ("progs/rubble1.mdl");
     precache_model ("progs/rubble2.mdl");
     precache_model ("progs/rubble3.mdl");
-    precache_sound ("zombie/z_hit.wav");
+    precache_sound("zombie/z_hit.wav");
     self.classname = "rubble";
     self.cnt = 0;
     self.use = rubble_use;
@@ -99,7 +99,7 @@ void() func_rubble =
 void() func_rubble1 =
     {
     precache_model ("progs/rubble1.mdl");
-    precache_sound ("zombie/z_hit.wav");
+    precache_sound("zombie/z_hit.wav");
     self.classname = "rubble1";
     self.cnt = 1;
     self.use = rubble_use;
@@ -113,7 +113,7 @@ void() func_rubble1 =
 void() func_rubble2 =
     {
     precache_model ("progs/rubble3.mdl");
-    precache_sound ("zombie/z_hit.wav");
+    precache_sound("zombie/z_hit.wav");
     self.classname = "rubble2";
     self.cnt = 2;
     self.use = rubble_use;
@@ -127,7 +127,7 @@ void() func_rubble2 =
 void() func_rubble3 =
     {
     precache_model ("progs/rubble2.mdl");
-    precache_sound ("zombie/z_hit.wav");
+    precache_sound("zombie/z_hit.wav");
     self.classname = "rubble3";
     self.cnt = 3;
     self.use = rubble_use;

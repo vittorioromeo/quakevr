@@ -69,7 +69,7 @@ void() button_fire =
     porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
     particle2(porg, '0 0 0', 5 /* sparks preset */, 64);
 
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
     self.state = STATE_UP;
     SUB_CalcMove (self.pos2, self.speed, button_wait);
@@ -79,7 +79,7 @@ void() button_fire =
 void() button_use =
 {
     self.enemy = activator;
-    button_fire ();
+    button_fire();
 };
 
 void() button_touch =
@@ -92,7 +92,7 @@ void() button_touch =
     VRButtonPressHaptic(other);
 
     self.enemy = other;
-    button_fire ();
+    button_fire();
 };
 
 void() button_killed =
@@ -100,7 +100,7 @@ void() button_killed =
     self.enemy = damage_attacker;
     self.health = self.max_health;
     self.takedamage = DAMAGE_NO;    // wil be reset upon return
-    button_fire ();
+    button_fire();
 };
 
 
@@ -123,26 +123,26 @@ void() func_button =
 {
     if(self.sounds == 0)
     {
-        precache_sound ("buttons/airbut1.wav");
+        precache_sound("buttons/airbut1.wav");
         self.noise = "buttons/airbut1.wav";
     }
     else if(self.sounds == 1)
     {
-        precache_sound ("buttons/switch21.wav");
+        precache_sound("buttons/switch21.wav");
         self.noise = "buttons/switch21.wav";
     }
     else if(self.sounds == 2)
     {
-        precache_sound ("buttons/switch02.wav");
+        precache_sound("buttons/switch02.wav");
         self.noise = "buttons/switch02.wav";
     }
     else if(self.sounds == 3)
     {
-        precache_sound ("buttons/switch04.wav");
+        precache_sound("buttons/switch04.wav");
         self.noise = "buttons/switch04.wav";
     }
 
-    SetMovedir ();
+    SetMovedir();
 
     self.movetype = MOVETYPE_PUSH;
     self.solid = SOLID_BSP;

@@ -11,17 +11,17 @@ void() play_sound_use =
       if(self.state == 0)
          {
          self.state = 1;
-         sound (self, self.impulse, self.noise, self.volume, self.speed);
+         sound(self, self.impulse, self.noise, self.volume, self.speed);
          }
       else
          {
          self.state = 0;
-         sound (self, self.impulse, "misc/null.wav", self.volume, self.speed);
+         sound(self, self.impulse, "misc/null.wav", self.volume, self.speed);
          }
       }
    else
       {
-      sound (self, self.impulse, self.noise, self.volume, self.speed);
+      sound(self, self.impulse, self.noise, self.volume, self.speed);
       }
    };
 
@@ -40,7 +40,7 @@ play a sound when it is used
 "toggle" determines whether sound should be stopped when triggered again
 "volume" how loud (1 default full volume)
 "noise" sound to play
-"impulse" channel on which to play sound (0-7) (0 automatic is default)
+"impulse" channel on which to play sound(0-7) (0 automatic is default)
 "speed" attenuation factor
    -1 - no attenuation
     1 - normal
@@ -49,8 +49,8 @@ play a sound when it is used
 */
 void() play_sound_triggered =
    {
-   precache_sound (self.noise);
-   precache_sound ("misc/null.wav");
+   precache_sound(self.noise);
+   precache_sound("misc/null.wav");
    if(self.volume == 0)
       self.volume = 1;
    if(self.speed == 0)
@@ -63,13 +63,13 @@ void() play_sound_triggered =
    self.use = play_sound_use;
    };
 
-/*QUAKED play_sound (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
+/*QUAKED play_sound(0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
 play a sound on a periodic basis
 "volume" how loud (1 default full volume)
 "noise" sound to play
 "wait" random time between sounds (default 20)
 "delay" minimum delay between sounds (default 2)
-"impulse" channel on which to play sound (0-7) (0 automatic is default)
+"impulse" channel on which to play sound(0-7) (0 automatic is default)
 "speed" attenuation factor
    -1 - no attenuation
     1 - normal
@@ -132,8 +132,8 @@ void() ambient_humming =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/humming.wav");
-   ambientsound (self.origin, "ambient/humming.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/humming.wav");
+   ambientsound(self.origin, "ambient/humming.wav", self.volume, ATTN_STATIC);
 };
 
 /*QUAKED ambient_rushing (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -143,8 +143,8 @@ void() ambient_rushing =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/rushing.wav");
-   ambientsound (self.origin, "ambient/rushing.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/rushing.wav");
+   ambientsound(self.origin, "ambient/rushing.wav", self.volume, ATTN_STATIC);
 };
 
 /*QUAKED ambient_running_water (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -154,8 +154,8 @@ void() ambient_running_water =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/runwater.wav");
-   ambientsound (self.origin, "ambient/runwater.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/runwater.wav");
+   ambientsound(self.origin, "ambient/runwater.wav", self.volume, ATTN_STATIC);
 };
 
 /*QUAKED ambient_fan_blowing (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -165,8 +165,8 @@ void() ambient_fan_blowing =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/fanblow.wav");
-   ambientsound (self.origin, "ambient/fanblow.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/fanblow.wav");
+   ambientsound(self.origin, "ambient/fanblow.wav", self.volume, ATTN_STATIC);
 };
 
 /*QUAKED ambient_waterfall (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -176,8 +176,8 @@ void() ambient_waterfall =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/waterfal.wav");
-   ambientsound (self.origin, "ambient/waterfal.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/waterfal.wav");
+   ambientsound(self.origin, "ambient/waterfal.wav", self.volume, ATTN_STATIC);
 };
 
 /*QUAKED ambient_riftpower (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -187,8 +187,8 @@ void() ambient_riftpower =
 {
    if(self.volume==0)
       self.volume = 0.5;
-   precache_sound ("ambient/riftpowr.wav");
-   ambientsound (self.origin, "ambient/riftpowr.wav", self.volume, ATTN_STATIC);
+   precache_sound("ambient/riftpowr.wav");
+   ambientsound(self.origin, "ambient/riftpowr.wav", self.volume, ATTN_STATIC);
 };
 
 
@@ -207,13 +207,13 @@ void() info_command =
 
 void() effect_teleport_use =
    {
-   WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TELEPORT);
-   WriteCoord (MSG_BROADCAST, self.origin_x);
-   WriteCoord (MSG_BROADCAST, self.origin_y);
-   WriteCoord (MSG_BROADCAST, self.origin_z);
+   WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_TELEPORT);
+   WriteCoord(MSG_BROADCAST, self.origin_x);
+   WriteCoord(MSG_BROADCAST, self.origin_y);
+   WriteCoord(MSG_BROADCAST, self.origin_z);
 
-   sound (self, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
+   sound(self, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
    };
 
 /*QUAKED effect_teleport (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
@@ -409,8 +409,8 @@ float SVC_UPDATEENTITY = 128; // Net.Protocol 0x80
 void(entity me, entity camera) UpdateCamera =
 {
   msg_entity = me;                         // target of message
-  WriteByte (MSG_ONE, SVC_UPDATEENTITY|15); // 0x80|1|2|4|8
-  WriteByte (MSG_ONE, 64); // 0x40
+  WriteByte(MSG_ONE, SVC_UPDATEENTITY|15); // 0x80|1|2|4|8
+  WriteByte(MSG_ONE, 64); // 0x40
   WriteEntity(MSG_ONE,camera);
   WriteCoord(MSG_ONE,camera.origin_x);
   WriteCoord(MSG_ONE,camera.origin_y);
@@ -448,8 +448,8 @@ void() effect_finale_use =
    if(!pos)
       error ("no target in finale");
 
-//   WriteByte (MSG_ALL, SVC_FINALE);
-   WriteByte (MSG_ALL, SVC_CUTSCENE);
+//   WriteByte(MSG_ALL, SVC_FINALE);
+   WriteByte(MSG_ALL, SVC_CUTSCENE);
    WriteString (MSG_ALL, "");
 
    //setup decoy
@@ -534,7 +534,7 @@ void() effect_finale =
    self.use = effect_finale_use;
 //   setsize(self,'-16 -16 -16','16 16 16');
 //   self.touch = effect_finale_use;
-//   InitTrigger ();
+//   InitTrigger();
    self.state = 0;
    };
 

@@ -73,7 +73,7 @@ void(entity targ, entity attacker) Killed =
 
     if(self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
     {    // doors, triggers, etc
-        self.th_die ();
+        self.th_die();
         self = oself;
         return;
     }
@@ -84,7 +84,7 @@ void(entity targ, entity attacker) Killed =
     if(self.flags & FL_MONSTER)
     {
         killed_monsters = killed_monsters + 1;
-        WriteByte (MSG_ALL, SVC_KILLEDMONSTER);
+        WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
     }
 
 // PGM - guarantee gib if killed by buzzsaw.
@@ -101,7 +101,7 @@ void(entity targ, entity attacker) Killed =
     self.touch = SUB_Null;
 
     monster_death_use();
-    self.th_die ();
+    self.th_die();
 
     self = oself;
 };
@@ -232,7 +232,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     {
         if(targ.invincible_sound < time)
         {
-            sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
+            sound(targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
             targ.invincible_sound = time + 2;
         }
         return;
@@ -242,7 +242,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     {
         if(self.empathy_sound < time)
         {
-            sound (targ, CHAN_ITEM, "hipitems/empathy2.wav", 1, ATTN_NORM);
+            sound(targ, CHAN_ITEM, "hipitems/empathy2.wav", 1, ATTN_NORM);
             self.empathy_sound = time + 0.5;
         }
     }
@@ -316,7 +316,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
                     if(self.enemy.classname == "player")
                         self.oldenemy = self.enemy;
                     self.enemy = attacker;
-                    FoundTarget ();
+                    FoundTarget();
                 }
             }
         }

@@ -156,6 +156,7 @@ typedef struct entvars_s
 	float	armorvalue;
 	float	waterlevel;
 	float	watertype;
+	float	lastwatertime;
 	float	ideal_yaw;
 	float	yaw_speed;
 	int	aiment;
@@ -208,4 +209,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 62066
+#define PROGHEADER_CRC 47192

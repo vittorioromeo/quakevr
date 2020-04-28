@@ -164,19 +164,19 @@ void(float xHand) player_run =
                    }
                 r = random();
                 if(r < 0.14)
-                   sound (self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
                 else if(r < 0.29)
-                   sound (self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
                 else if(r < 0.43)
-                   sound (self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
                 else if(r < 0.58)
-                   sound (self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
                 else if(r < 0.72)
-                   sound (self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
                 else if(r < 0.86)
-                   sound (self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
                 else
-                   sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
+                   sound(self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
             }
         }
     }
@@ -462,7 +462,7 @@ local float        rs;
 
     if(damage_attacker.classname == "teledeath")
     {
-        sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
@@ -471,9 +471,9 @@ local float        rs;
     {
         DeathBubbles(1);
         if(random() > 0.5)
-            sound (self, CHAN_VOICE, "player/drown1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/drown1.wav", 1, ATTN_NORM);
         else
-            sound (self, CHAN_VOICE, "player/drown2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/drown2.wav", 1, ATTN_NORM);
         return;
     }
 
@@ -484,18 +484,18 @@ local float        rs;
         if(self.waterlevel == 3)
             DeathBubbles(1);
         if(random() > 0.5)
-            sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
         else
-            sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
         return;
     }
 
     if(self.watertype == CONTENT_LAVA)
     {
         if(random() > 0.5)
-            sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
         else
-            sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
         return;
     }
 
@@ -512,7 +512,7 @@ local float        rs;
     if(self.axhitme == 1)
     {
         self.axhitme = 0;
-        sound (self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
         return;
     }
 
@@ -533,7 +533,7 @@ local float        rs;
     else
         self.noise = "player/pain6.wav";
 
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     return;
 };
 
@@ -567,11 +567,11 @@ void(entity attacker, float damage) player_pain =
         return;        // eyes don't have pain frames
 
     if(self.weapon == WID_AXE)
-        player_axpain1 ();
+        player_axpain1();
     else if(self.weapon == WID_MJOLNIR)
-        player_hampain1 ();
+        player_hampain1();
     else
-        player_pain1 ();
+        player_pain1();
 };
 
 void() player_diea1;
@@ -634,7 +634,7 @@ local float        rs;
     if(self.waterlevel == 3)
     {
         DeathBubbles(20);
-        sound (self, CHAN_VOICE, "player/h2odeath.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/h2odeath.wav", 1, ATTN_NONE);
         return;
     }
 
@@ -650,7 +650,7 @@ local float        rs;
     if(rs == 5)
         self.noise = "player/death5.wav";
 
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NONE);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NONE);
     return;
 };
 
@@ -728,7 +728,7 @@ void() HeadThink =
    if(world.worldtype != 2)
       {
       if(random()<0.1)
-         sound (self, 6, "misc/flys.wav", 0.7, ATTN_STATIC);
+         sound(self, 6, "misc/flys.wav", 0.7, ATTN_STATIC);
       }
    };
 
@@ -767,20 +767,20 @@ void() GibPlayer =
 
     if(damage_attacker.classname == "teledeath")
     {
-        sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
     if(damage_attacker.classname == "teledeath2")
     {
-        sound (self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/teledth1.wav", 1, ATTN_NONE);
         return;
     }
 
     if(random() < 0.5)
-        sound (self, CHAN_VOICE, "player/gib.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/gib.wav", 1, ATTN_NONE);
     else
-        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NONE);
 };
 
 void() PlayerDie =
@@ -817,7 +817,7 @@ void() PlayerDie =
 
     if(self.health < -40)
     {
-        GibPlayer ();
+        GibPlayer();
         return;
     }
 
@@ -828,7 +828,7 @@ void() PlayerDie =
 
     if(self.weapon == WID_AXE)
     {
-        player_die_ax1 ();
+        player_die_ax1();
         return;
     }
     //MED 12/04/96

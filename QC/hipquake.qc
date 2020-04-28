@@ -37,7 +37,7 @@ void() earthquake_postthink =
         {
       if(quakeactive == 0)
          {
-         sound (self, CHAN_VOICE, "misc/quake.wav", 1, ATTN_NONE);
+         sound(self, CHAN_VOICE, "misc/quake.wav", 1, ATTN_NONE);
          quakeactive = 1;
          }
 //      lastearthquake = 1;
@@ -52,7 +52,7 @@ void() earthquake_postthink =
       {
       if(quakeactive == 1)
          {
-         sound (self, CHAN_VOICE, "misc/quakeend.wav", 1, ATTN_NONE);
+         sound(self, CHAN_VOICE, "misc/quakeend.wav", 1, ATTN_NONE);
          quakeactive = 0;
          }
       }

@@ -112,7 +112,7 @@ void() finale_1 =
     local entity    timer;
 
     killed_monsters = killed_monsters + 1;
-    WriteByte (MSG_ALL, SVC_KILLEDMONSTER);    // FIXME: reliable broadcast
+    WriteByte(MSG_ALL, SVC_KILLEDMONSTER);    // FIXME: reliable broadcast
 
     intermission_exittime = time + 10000000;    // never allow exit
     intermission_running = 1;
@@ -126,7 +126,7 @@ void() finale_1 =
         error ("no teleporttrain");
     remove (pl);
 
-    WriteByte (MSG_ALL, SVC_FINALE);
+    WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "");
 
     pl = find (world, classname, "player");
@@ -161,13 +161,13 @@ void() finale_2 =
     // start a teleport splash inside shub
 
     o = shub.origin - '0 100 0';
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TELEPORT);
-    WriteCoord (MSG_BROADCAST, o_x);
-    WriteCoord (MSG_BROADCAST, o_y);
-    WriteCoord (MSG_BROADCAST, o_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_TELEPORT);
+    WriteCoord(MSG_BROADCAST, o_x);
+    WriteCoord(MSG_BROADCAST, o_y);
+    WriteCoord(MSG_BROADCAST, o_z);
 
-    sound (shub, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
+    sound(shub, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
 
     self.nextthink = time + 2;
     self.think = finale_3;
@@ -177,7 +177,7 @@ void() finale_3 =
 {
     // start shub thrashing wildly
     shub.think = old_thrash1;
-    sound (shub, CHAN_VOICE, "boss2/death.wav", 1, ATTN_NORM);
+    sound(shub, CHAN_VOICE, "boss2/death.wav", 1, ATTN_NORM);
     lightstyle(0, "abcdefghijklmlkjihgfedcb");
 };
 
@@ -189,7 +189,7 @@ void() finale_4 =
     local    float    r;
     local entity    n;
 
-    sound (self, CHAN_VOICE, "boss2/pop2.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "boss2/pop2.wav", 1, ATTN_NORM);
 
     oldo = self.origin;
 
@@ -220,7 +220,7 @@ void() finale_4 =
         z = z + 96;
     }
     // start the end text
-    WriteByte (MSG_ALL, SVC_FINALE);
+    WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "Congratulations and well done! You have\nbeaten the hideous Shub-Niggurath, and\nher hundreds of ugly changelings and\nmonsters. You have proven that your\nskill and your cunning are greater than\nall the powers of Quake. You are the\nmaster now. Id Software salutes you.");
 
 // put a player model down
@@ -234,9 +234,9 @@ void() finale_4 =
     remove (self);
 
 // switch cd track
-    WriteByte (MSG_ALL, SVC_CDTRACK);
-    WriteByte (MSG_ALL, 3);
-    WriteByte (MSG_ALL, 3);
+    WriteByte(MSG_ALL, SVC_CDTRACK);
+    WriteByte(MSG_ALL, 3);
+    WriteByte(MSG_ALL, 3);
     lightstyle(0, "m");
 };
 

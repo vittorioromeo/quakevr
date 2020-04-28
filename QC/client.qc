@@ -34,7 +34,7 @@ void() SetChangeParms =
 {
     if(self.health <= 0)
     {
-        SetNewParms ();
+        SetNewParms();
         return;
     }
 
@@ -105,22 +105,22 @@ void() DecodeLevelParms =
     if(!deathmatch)
     {
         if(world.model == "maps/start.bsp")
-            SetNewParms ();        // take away all stuff on starting new episode
+            SetNewParms();        // take away all stuff on starting new episode
         if(world.model == "maps/orig_start.bsp")
-            SetNewParms ();        // take away all stuff on starting new episode
+            SetNewParms();        // take away all stuff on starting new episode
     }
 
 //HIPNOTIC
     if(world.model == "maps/start.bsp")
-        SetNewParms ();      // take away all stuff on starting new episode
+        SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/orig_start.bsp")
-        SetNewParms ();      // take away all stuff on starting new episode
+        SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip1m1.bsp")
-        SetNewParms ();      // take away all stuff on starting new episode
+        SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip2m1.bsp")
-        SetNewParms ();      // take away all stuff on starting new episode
+        SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip3m1.bsp")
-        SetNewParms ();      // take away all stuff on starting new episode
+        SetNewParms();      // take away all stuff on starting new episode
 
     self.items = parm1;
     self.health = parm2;
@@ -208,7 +208,7 @@ void() ExitIntermission =
 // skip any text in deathmatch
     if(deathmatch)
     {
-        GotoNextMap ();
+        GotoNextMap();
         return;
     }
 
@@ -222,48 +222,48 @@ void() ExitIntermission =
     {
         if(world.model == "maps/e1m7.bsp")
         {
-            WriteByte (MSG_ALL, SVC_CDTRACK);
-            WriteByte (MSG_ALL, 2);
-            WriteByte (MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_CDTRACK);
+            WriteByte(MSG_ALL, 2);
+            WriteByte(MSG_ALL, 3);
             if(!cvar("registered"))
             {
-                WriteByte (MSG_ALL, SVC_FINALE);
+                WriteByte(MSG_ALL, SVC_FINALE);
                 WriteString (MSG_ALL, "As the corpse of the monstrous entity\nChthon sinks back into the lava whence\nit rose, you grip the Rune of Earth\nMagic tightly. Now that you have\nconquered the Dimension of the Doomed,\nrealm of Earth Magic, you are ready to\ncomplete your task in the other three\nhaunted lands of Quake. Or are you? If\nyou don't register Quake, you'll never\nknow what awaits you in the Realm of\nBlack Magic, the Netherworld, and the\nElder World!");
             }
             else
             {
-                WriteByte (MSG_ALL, SVC_FINALE);
+                WriteByte(MSG_ALL, SVC_FINALE);
                 WriteString (MSG_ALL, "As the corpse of the monstrous entity\nChthon sinks back into the lava whence\nit rose, you grip the Rune of Earth\nMagic tightly. Now that you have\nconquered the Dimension of the Doomed,\nrealm of Earth Magic, you are ready to\ncomplete your task. A Rune of magic\npower lies at the end of each haunted\nland of Quake. Go forth, seek the\ntotality of the four Runes!");
             }
             return;
         }
         else if(world.model == "maps/e2m6.bsp")
         {
-            WriteByte (MSG_ALL, SVC_CDTRACK);
-            WriteByte (MSG_ALL, 2);
-            WriteByte (MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_CDTRACK);
+            WriteByte(MSG_ALL, 2);
+            WriteByte(MSG_ALL, 3);
 
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
             WriteString (MSG_ALL, "The Rune of Black Magic throbs evilly in\nyour hand and whispers dark thoughts\ninto your brain. You learn the inmost\nlore of the Hell-Mother; Shub-Niggurath!\nYou now know that she is behind all the\nterrible plotting which has led to so\nmuch death and horror. But she is not\ninviolate! Armed with this Rune, you\nrealize that once all four Runes are\ncombined, the gate to Shub-Niggurath's\nPit will open, and you can face the\nWitch-Goddess herself in her frightful\notherworld cathedral.");
             return;
         }
         else if(world.model == "maps/e3m6.bsp")
         {
-            WriteByte (MSG_ALL, SVC_CDTRACK);
-            WriteByte (MSG_ALL, 2);
-            WriteByte (MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_CDTRACK);
+            WriteByte(MSG_ALL, 2);
+            WriteByte(MSG_ALL, 3);
 
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
             WriteString (MSG_ALL, "The charred viscera of diabolic horrors\nbubble viscously as you seize the Rune\nof Hell Magic. Its heat scorches your\nhand, and its terrible secrets blight\nyour mind. Gathering the shreds of your\ncourage, you shake the devil's shackles\nfrom your soul, and become ever more\nhard and determined to destroy the\nhideous creatures whose mere existence\nthreatens the souls and psyches of all\nthe population of Earth.");
             return;
         }
         else if(world.model == "maps/e4m7.bsp")
         {
-            WriteByte (MSG_ALL, SVC_CDTRACK);
-            WriteByte (MSG_ALL, 2);
-            WriteByte (MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_CDTRACK);
+            WriteByte(MSG_ALL, 2);
+            WriteByte(MSG_ALL, 3);
 
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
             WriteString (MSG_ALL, "Despite the awful might of the Elder\nWorld, you have achieved the Rune of\nElder Magic, capstone of all types of\narcane wisdom. Beyond good and evil,\nbeyond life and death, the Rune\npulsates, heavy with import. Patient and\npotent, the Elder Being Shub-Niggurath\nweaves her dire plans to clear off all\nlife from the Earth, and bring her own\nfoul offspring to our world! For all the\ndwellers in these nightmare dimensions\nare her descendants! Once all Runes of\nmagic power are united, the energy\nbehind them will blast open the Gateway\nto Shub-Niggurath, and you can travel\nthere to foil the Hell-Mother's plots\nin person.");
             return;
         }
@@ -271,10 +271,10 @@ void() ExitIntermission =
 //HIPNOTIC
       if(world.model == "maps/hip1m4.bsp")
       {
-            WriteByte (MSG_ALL, SVC_CDTRACK);
-            WriteByte (MSG_ALL, 6);
-            WriteByte (MSG_ALL, 3);
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_CDTRACK);
+            WriteByte(MSG_ALL, 6);
+            WriteByte(MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_FINALE);
 
          WriteString (MSG_ALL, "Deep within the bowels of the\nResearch Facility, you discover the\npassage that the followers of Quake\nhave used to enter our world.\nThe bastards used some type of\ngigantic teleporter to overload\none of our own slipgates!  As long as\nthis portal exists, Earth will never\nbe safe from Quake's cruel minions." );
          //WriteString (MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake." );
@@ -282,22 +282,22 @@ void() ExitIntermission =
         }
         else if(world.model == "maps/hip2m5.bsp")
         {
-         WriteByte (MSG_ALL, SVC_CDTRACK);
-         WriteByte (MSG_ALL, 6);
-            WriteByte (MSG_ALL, 3);
+         WriteByte(MSG_ALL, SVC_CDTRACK);
+         WriteByte(MSG_ALL, 6);
+            WriteByte(MSG_ALL, 3);
 
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
          WriteString (MSG_ALL, "After destroying the power generator,\nyou pass beyond the gate of Mortum's\nKeep.  A wave of nausea suddenly flows\nover you and you find yourself cast\nout into a liquid void.  You float\nlifelessly, yet aware, in a lavender\nsea of energy." );
          return;
         }
       else if(world.model == "maps/hipend.bsp")
       {
 
-         WriteByte (MSG_ALL, SVC_CDTRACK);
-         WriteByte (MSG_ALL, 2);
-            WriteByte (MSG_ALL, 3);
+         WriteByte(MSG_ALL, SVC_CDTRACK);
+         WriteByte(MSG_ALL, 2);
+            WriteByte(MSG_ALL, 3);
 
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
          WriteString (MSG_ALL, "After the last echoes of Armagon's\ndeath yell fade away, you breathe a\nheavy sigh of relief.  With the loss\nof his magic, Armagon's fortress\nbegins to collapse.  The rift he\ncreated to send his grisly troops\nthrough time slowly closes and seals\nitself forever.  In the chaos that\nensues, a wall collapses, revealing\none remaining time portal.  With your\nchances to escape rapidly growing\nslim, you race for the portal,\nmindless of your destination.  In a\nflash of light, you find yourself\nback at Command HQ, safe and sound." );
             return;
         }
@@ -308,13 +308,13 @@ void() ExitIntermission =
     {
         if(!cvar("registered"))
         {    // shareware episode has been completed, go to sell screen
-            WriteByte (MSG_ALL, SVC_SELLSCREEN);
+            WriteByte(MSG_ALL, SVC_SELLSCREEN);
             return;
         }
 
         if( (serverflags&15) == 15)
         {
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
             WriteString (MSG_ALL, "Now, you have all four Runes. You sense\ntremendous invisible forces moving to\nunseal ancient barriers. Shub-Niggurath\nhad hoped to use the Runes Herself to\nclear off the Earth, but now instead,\nyou will use them to enter her home and\nconfront her as an avatar of avenging\nEarth-life. If you defeat her, you will\nbe remembered forever as the savior of\nthe planet. If she conquers, it will be\nas if you had never been born.");
             return;
         }
@@ -322,19 +322,19 @@ void() ExitIntermission =
     //HIPNOTIC
       if(world.model == "maps/hip1m4.bsp")
       {
-         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteByte(MSG_ALL, SVC_FINALE);
          WriteString (MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake." );
          return;
         }
         else if(world.model == "maps/hip2m5.bsp")
         {
-         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteByte(MSG_ALL, SVC_FINALE);
          WriteString (MSG_ALL, "After what seems like an eternity,\nyou feel the presence of a diabolical\nintelligence.  You are held helpless\nfor a moment as your mind is open to\nthat of Armagon--Quake's General and\nmaster of this realm.  Recognizing\nyou as the one who foiled his\nattempt to conquer Earth, a hellish\nhowl fills your mind and blots out\nall consciousness.  When you awake,\nyou find yourself on the shores of\nreality, but in a time and place\nunknown to you." );
          return;
         }
       else if(world.model == "maps/hipend.bsp")
       {
-         WriteByte (MSG_ALL, SVC_FINALE);
+         WriteByte(MSG_ALL, SVC_FINALE);
          WriteString (MSG_ALL, "Congratulations!  You are victorious!\nThe minions of Quake have once again\nfallen before your mighty hand.\nIs this the last you will see of\nQuake's hellions?\n\nOnly time will tell..." );
          intermission_exittime = time + 10000000;  // never allow exit
             return;
@@ -359,7 +359,7 @@ void() IntermissionThink =
     if(!self.button0 && !self.button1 && !self.button2)
         return;
 
-    ExitIntermission ();
+    ExitIntermission();
 };
 
 void() execute_changelevel =
@@ -374,11 +374,11 @@ void() execute_changelevel =
     else
         intermission_exittime = time + 2;
 
-    WriteByte (MSG_ALL, SVC_CDTRACK);
-    WriteByte (MSG_ALL, 3);
-    WriteByte (MSG_ALL, 3);
+    WriteByte(MSG_ALL, SVC_CDTRACK);
+    WriteByte(MSG_ALL, 3);
+    WriteByte(MSG_ALL, 3);
 
-    pos = FindIntermission ();
+    pos = FindIntermission();
 
     other = find (world, classname, "player");
     while(other != world)
@@ -395,7 +395,7 @@ void() execute_changelevel =
         other = find (other, classname, "player");
     }
 
-    WriteByte (MSG_ALL, SVC_INTERMISSION);
+    WriteByte(MSG_ALL, SVC_INTERMISSION);
 };
 
 
@@ -418,7 +418,7 @@ void() changelevel_touch =
 
     nextmap = self.map;
 
-    SUB_UseTargets ();
+    SUB_UseTargets();
 
     if( (self.spawnflags & 1) && (deathmatch == 0) )
     {    // NO_INTERMISSION
@@ -442,7 +442,7 @@ void() trigger_changelevel =
     if(!self.map)
         objerror ("changelevel trigger doesn't have map");
 
-    InitTrigger ();
+    InitTrigger();
     self.touch = changelevel_touch;
 };
 
@@ -467,16 +467,16 @@ void() respawn =
         // get the spawn parms as they were at level start
         setspawnparms (self);
         // respawn
-        PutClientInServer ();
+        PutClientInServer();
     }
     else if(deathmatch)
     {
         // make a copy of the dead body for appearances sake
         CopyToBodyQue (self);
         // set default spawn parms
-        SetNewParms ();
+        SetNewParms();
         // respawn
-        PutClientInServer ();
+        PutClientInServer();
     }
     else
     {    // restart the entire server
@@ -498,10 +498,10 @@ void() ClientKill =
         return;
     bprint (self.netname);
     bprint (" suicides\n");
-    set_suicide_frame ();
+    set_suicide_frame();
     self.modelindex = modelindex_player;
     self.frags = self.frags - 2;    // extra penalty
-    respawn ();
+    respawn();
 };
 
 float(vector v) CheckSpawnPoint =
@@ -592,7 +592,7 @@ void() PutClientInServer =
 {
     local    entity spot;
 
-    spot = SelectSpawnPoint ();
+    spot = SelectSpawnPoint();
 
     self.classname = "player";
     self.health = 100;
@@ -618,9 +618,9 @@ void() PutClientInServer =
     self.hipnotic_items = 0;
     self.gravity = 1.0;
 
-    DecodeLevelParms ();
+    DecodeLevelParms();
 
-    W_SetCurrentAmmo ();
+    W_SetCurrentAmmo();
 
     self.attack_finished = time;
     self.offhand_attack_finished = time;
@@ -633,7 +633,7 @@ void() PutClientInServer =
 // paustime is set by teleporters to keep the player from moving a while
     self.pausetime = 0;
 
-//    spot = SelectSpawnPoint ();
+//    spot = SelectSpawnPoint();
 
     self.origin = self.oldorigin = spot.origin + '0 0 1';    // 1998-07-21 Respawning where player died fix by Robert Field
     self.angles = spot.angles;
@@ -852,14 +852,14 @@ void() CheckRules =
 //    if(timelimit && time >= timelimit)
     if(deathmatch && timelimit && time >= timelimit)    // 1998-07-27 Timelimit/Fraglimit fix by Maddes
     {
-        NextLevel ();
+        NextLevel();
         return;
     }
 
 //    if(fraglimit && self.frags >= fraglimit)
     if(deathmatch && fraglimit && self.frags >= fraglimit)    // 1998-07-27 Timelimit/Fraglimit fix by Maddes
     {
-        NextLevel ();
+        NextLevel();
         return;
     }
 };
@@ -919,9 +919,9 @@ void() PlayerJump =
         {
             self.swim_flag = time + 1;
             if(random() < 0.5)
-                sound (self, CHAN_BODY, "misc/water1.wav", 1, ATTN_NORM);
+                sound(self, CHAN_BODY, "misc/water1.wav", 1, ATTN_NORM);
             else
-                sound (self, CHAN_BODY, "misc/water2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_BODY, "misc/water2.wav", 1, ATTN_NORM);
         }
 
         return;
@@ -939,7 +939,7 @@ void() PlayerJump =
 
     self.button2 = 0;
 // player jumping sound
-    sound (self, CHAN_BODY, "player/plyrjmp8.wav", 1, ATTN_NORM);
+    sound(self, CHAN_BODY, "player/plyrjmp8.wav", 1, ATTN_NORM);
     self.velocity_z = self.velocity_z + 270;
 };
 
@@ -963,9 +963,9 @@ void() WaterMove =
     if(self.waterlevel != 3)
     {
         if(self.air_finished < time)
-            sound (self, CHAN_VOICE, "player/gasp2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/gasp2.wav", 1, ATTN_NORM);
         else if(self.air_finished < time + 9)
-            sound (self, CHAN_VOICE, "player/gasp1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/gasp1.wav", 1, ATTN_NORM);
         self.air_finished = time + 12;
         self.dmg = 2;
     }
@@ -986,7 +986,7 @@ void() WaterMove =
         if(self.flags & FL_INWATER)
         {
             // play leave water sound
-            sound (self, CHAN_BODY, "misc/outwater.wav", 1, ATTN_NORM);
+            sound(self, CHAN_BODY, "misc/outwater.wav", 1, ATTN_NORM);
             self.flags = self.flags - FL_INWATER;
         }
         return;
@@ -1019,11 +1019,11 @@ void() WaterMove =
 // player enter water sound
 
         if(self.watertype == CONTENT_LAVA)
-            sound (self, CHAN_BODY, "player/inlava.wav", 1, ATTN_NORM);
+            sound(self, CHAN_BODY, "player/inlava.wav", 1, ATTN_NORM);
         if(self.watertype == CONTENT_WATER)
-            sound (self, CHAN_BODY, "player/inh2o.wav", 1, ATTN_NORM);
+            sound(self, CHAN_BODY, "player/inh2o.wav", 1, ATTN_NORM);
         if(self.watertype == CONTENT_SLIME)
-            sound (self, CHAN_BODY, "player/slimbrn2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_BODY, "player/slimbrn2.wav", 1, ATTN_NORM);
 
         self.flags = self.flags + FL_INWATER;
         self.dmgtime = 0;
@@ -1044,13 +1044,13 @@ void() CheckWaterJump =
     v_forward_z = 0;
     normalize(v_forward);
     end = start + v_forward*24;
-    traceline (start, end, TRUE, self);
+    traceline(start, end, TRUE, self);
     if(trace_fraction < 1)
     {    // solid at waist
         start_z = start_z + self.maxs_z - 8;
         end = start + v_forward*24;
         self.movedir = trace_plane_normal * -50;
-        traceline (start, end, TRUE, self);
+        traceline(start, end, TRUE, self);
         if(trace_fraction == 1)
         {    // open at eye level
             self.flags = self.flags | FL_WATERJUMP;
@@ -1089,7 +1089,7 @@ void() doWetsuit =
             if(self.swim_flag < time)
             {
                 self.swim_flag = time + 7;
-                sound (self, CHAN_BODY, "misc/wetsuit.wav", 1, ATTN_NORM);
+                sound(self, CHAN_BODY, "misc/wetsuit.wav", 1, ATTN_NORM);
             }
             //MED 01/17/97
             else
@@ -1117,7 +1117,7 @@ void() PlayerPreThink =
     if(intermission_running)
     {
         earthquake_prethink();
-        IntermissionThink ();    // otherwise a button could be missed between
+        IntermissionThink();    // otherwise a button could be missed between
         return;                    // the think tics
     }
 
@@ -1147,8 +1147,8 @@ void() PlayerPreThink =
 
     makevectors (self.v_angle);        // is this still used
 
-    CheckRules ();
-    WaterMove ();
+    CheckRules();
+    WaterMove();
 
     //JIM
     //WETSUIT
@@ -1156,12 +1156,12 @@ void() PlayerPreThink =
 
     if(self.waterlevel == 2)
     {
-        CheckWaterJump ();
+        CheckWaterJump();
     }
 
     if(self.deadflag >= DEAD_DEAD)
     {
-        PlayerDeathThink ();
+        PlayerDeathThink();
         return;
     }
 
@@ -1170,7 +1170,7 @@ void() PlayerPreThink =
 
     if(self.button2)
     {
-        PlayerJump ();
+        PlayerJump();
     }
     else
     {
@@ -1213,7 +1213,7 @@ void() CheckPowerups =
 // sound and screen flash when items starts to run out
         if(self.invisible_sound < time)
         {
-            sound (self, CHAN_AUTO, "items/inv3.wav", 0.5, ATTN_IDLE);
+            sound(self, CHAN_AUTO, "items/inv3.wav", 0.5, ATTN_IDLE);
             self.invisible_sound = time + ((random() * 3) + 1);
         }
 
@@ -1224,7 +1224,7 @@ void() CheckPowerups =
             {
                 sprint (self, "Ring of Shadows magic is fading\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/inv2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/inv2.wav", 1, ATTN_NORM);
                 self.invisible_time = time + 1;
             }
 
@@ -1263,7 +1263,7 @@ void() CheckPowerups =
             {
                 sprint (self, "Protection is almost burned out\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/protect2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/protect2.wav", 1, ATTN_NORM);
                 self.invincible_time = time + 1;
             }
 
@@ -1298,7 +1298,7 @@ void() CheckPowerups =
             {
                 sprint (self, "Quad Damage is wearing off\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
                 self.super_time = time + 1;
             }
 
@@ -1333,7 +1333,7 @@ void() CheckPowerups =
             {
                 sprint (self, "Air supply in Biosuit expiring\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
                 self.rad_time = time + 1;
             }
 
@@ -1365,7 +1365,7 @@ void() CheckPowerups =
             {
                 sprint (self, "Air supply in Wetsuit is running out\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
                 self.wetsuit_time = time + 1;
             }
 
@@ -1396,7 +1396,7 @@ void() CheckPowerups =
             {
             sprint (self, "Empathy Shields are running out\n");
                 stuffcmd (self, "bf\n");
-                sound (self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
             self.empathy_time = time + 1;
             }
 
@@ -1466,21 +1466,21 @@ void() PlayerPostThink =
 
     W_WeaponFrameImpl(cVR_MainHand);
     W_WeaponFrameImpl(cVR_OffHand);
-    W_Frame ();
+    W_Frame();
 
 // check to see if player landed and play landing sound
     if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
         if(self.watertype == CONTENT_WATER)
-            sound (self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
+            sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
         else if(self.jump_flag < -650)
         {
             T_Damage (self, world, world, 5);
-            sound (self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
             self.deathtype = "falling";
         }
         else
-            sound (self, CHAN_VOICE, "player/land.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "player/land.wav", 1, ATTN_NORM);
 
         self.jump_flag = 0;
     }
@@ -1488,7 +1488,7 @@ void() PlayerPostThink =
     if(!(self.flags & FL_ONGROUND))
         self.jump_flag = self.velocity_z;
 
-    CheckPowerups ();
+    CheckPowerups();
 };
 
 
@@ -1506,7 +1506,7 @@ void() ClientConnect =
 
 // a client connecting during an intermission can cause problems
     if(intermission_running)
-        ExitIntermission ();
+        ExitIntermission();
 };
 
 
@@ -1529,8 +1529,8 @@ void() ClientDisconnect =
     bprint (" left the game with ");
     bprint (ftos(self.frags));
     bprint (" frags\n");
-    sound (self, CHAN_BODY, "player/tornoff2.wav", 1, ATTN_NONE);
-    set_suicide_frame ();
+    sound(self, CHAN_BODY, "player/tornoff2.wav", 1, ATTN_NONE);
+    set_suicide_frame();
 };
 
 /*
@@ -1865,7 +1865,7 @@ void(string xSound, void(float xHand) xWpnFn) DoMainHandMeleeImpl =
 {
     if(time >= self.mainhand_melee_attack_finished)
     {
-        sound (self, CHAN_WEAPON, xSound, 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, xSound, 1, ATTN_NORM);
     }
 
     xWpnFn(cVR_MainHand);
@@ -1886,7 +1886,7 @@ void(string xSound, void(float xHand) xWpnFn) DoOffHandMeleeImpl =
 {
     if(time >= self.offhand_melee_attack_finished)
     {
-        sound (self, CHAN_WEAPON2, xSound, 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON2, xSound, 1, ATTN_NORM);
     }
 
     xWpnFn(cVR_OffHand);

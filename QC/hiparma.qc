@@ -75,11 +75,11 @@ void(float ofs, float turn) armagon_launch_missile =
       vec=v_forward;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
-    sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -181,13 +181,13 @@ void() armagon_think =
          {
          r = random();
          if(r < 0.25)
-            sound (self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
          else if(r < 0.5)
-            sound (self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
          else if(r < 0.75)
-            sound (self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
          else
-            sound (self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
          }
       }
    };
@@ -224,16 +224,16 @@ void() armagon_walkthink =
          {
          r = random();
          if(r < 0.25)
-            sound (self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle1.wav", 1, ATTN_ARMAGON);
          else if(r < 0.5)
-            sound (self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle2.wav", 1, ATTN_ARMAGON);
          else if(r < 0.75)
-            sound (self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle3.wav", 1, ATTN_ARMAGON);
          else
-            sound (self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
+            sound(self, CHAN_VOICE, "armagon/idle4.wav", 1, ATTN_ARMAGON);
          }
       }
-   client = checkclient ();
+   client = checkclient();
    if(!client)
       return;  // current check entity isn't in PVS
    if(visible(client))
@@ -346,7 +346,7 @@ void()   armagon_walk2    =[ $lwalk2.asc  , armagon_walk3    ]
    };
 void()   armagon_walk3    =[ $lwalk3.asc  , armagon_walk4    ]
    {
-   sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
+   sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
    movetogoal(14);
    armagon_walkthink();
    };
@@ -357,7 +357,7 @@ void()   armagon_walk4    =[ $lwalk4.asc  , armagon_walk5    ]
    };
 void()   armagon_walk5    =[ $lwalk5.asc  , armagon_walk6    ]
    {
-   sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
+   sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
    movetogoal(14);
    armagon_walkthink();
    };
@@ -378,7 +378,7 @@ void()   armagon_walk8    =[ $lwalk8.asc  , armagon_walk9    ]
    };
 void()   armagon_walk9    =[ $lwalk9.asc  , armagon_walk10    ]
    {
-   sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
+   sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
    movetogoal(14);
    armagon_walkthink();
    };
@@ -389,7 +389,7 @@ void()   armagon_walk10    =[ $lwalk10.asc  , armagon_walk11    ]
    };
 void()   armagon_walk11    =[ $lwalk11.asc  , armagon_walk12    ]
    {
-   sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
+   sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
    movetogoal(14);
    armagon_walkthink();
    };
@@ -415,7 +415,7 @@ void()   armagon_run2    =[ $lwalk2.asc  , armagon_run3    ]
    };
 void()   armagon_run3    =[ $lwalk3.asc  , armagon_run4    ]
    {
-   sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
+   sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
    ChangeYaw();
    RUN_STRAIGHT = 1;
    ai_run(14);
@@ -430,7 +430,7 @@ void()   armagon_run4    =[ $lwalk4.asc  , armagon_run5    ]
    };
 void()   armagon_run5    =[ $lwalk5.asc  , armagon_run6    ]
    {
-   sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
+   sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
    ChangeYaw();
    RUN_STRAIGHT = 1;
    ai_run(14);
@@ -459,7 +459,7 @@ void()   armagon_run8    =[ $lwalk8.asc  , armagon_run9    ]
    };
 void()   armagon_run9    =[ $lwalk9.asc  , armagon_run10    ]
    {
-   sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
+   sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);
    ChangeYaw();
    RUN_STRAIGHT = 1;
    ai_run(14);
@@ -474,7 +474,7 @@ void()   armagon_run10    =[ $lwalk10.asc  , armagon_run11    ]
    };
 void()   armagon_run11    =[ $lwalk11.asc  , armagon_run12    ]
    {
-   sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
+   sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);
    ChangeYaw();
    RUN_STRAIGHT = 1;
    ai_run(14);
@@ -506,43 +506,43 @@ void()   armagon_run12    =[ $lwalk12.asc  , armagon_run1    ]
    };
 
 void()   armagon_watk1    =[ $lw0fir1.asc, armagon_watk2  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk2    =[ $lw0fir2.asc, armagon_watk3  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_watk2    =[ $lw0fir2.asc, armagon_watk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk3    =[ $lw0fir3.asc, armagon_watk4  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk4    =[ $lw0fir4.asc, armagon_watk5  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_watk4    =[ $lw0fir4.asc, armagon_watk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk5    =[ $lw0fir5.asc, armagon_watk6  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk6    =[ $lw0fir6.asc, armagon_watk7  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_missile(40,0);};
 void()   armagon_watk7    =[ $lw0fir7.asc, armagon_watk8  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk8    =[ $lw0fir8.asc, armagon_watk9  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_watk8    =[ $lw0fir8.asc, armagon_watk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk9    =[ $lw0fir9.asc, armagon_watk10  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk10    =[ $lw0fir10.asc, armagon_watk11  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_watk10    =[ $lw0fir10.asc, armagon_watk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk11    =[ $lw0fir11.asc, armagon_watk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_missile(-40,0);};
 //void()   armagon_watk12    =[ $lw0fir12.asc, armagon_watk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_watk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
 
 void()   armagon_wlaseratk1    =[ $lw0fir1.asc, armagon_wlaseratk2  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk2    =[ $lw0fir2.asc, armagon_wlaseratk3  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk2    =[ $lw0fir2.asc, armagon_wlaseratk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk3    =[ $lw0fir3.asc, armagon_wlaseratk4  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk4    =[ $lw0fir4.asc, armagon_wlaseratk5  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk4    =[ $lw0fir4.asc, armagon_wlaseratk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk5    =[ $lw0fir5.asc, armagon_wlaseratk6  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk6    =[ $lw0fir6.asc, armagon_wlaseratk7  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_laser(40);};
 void()   armagon_wlaseratk7    =[ $lw0fir7.asc, armagon_wlaseratk8  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk8    =[ $lw0fir8.asc, armagon_wlaseratk9  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk8    =[ $lw0fir8.asc, armagon_wlaseratk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk9    =[ $lw0fir9.asc, armagon_wlaseratk10  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk10    =[ $lw0fir10.asc, armagon_wlaseratk11  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk10    =[ $lw0fir10.asc, armagon_wlaseratk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk11    =[ $lw0fir11.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_laser(-40);};
 //void()   armagon_wlaseratk12    =[ $lw0fir12.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
 void()   armagon_wlaseratk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
 
 void()   armagon_overleft1    =[ $lw1fir1.asc, armagon_overleft2  ] {self.count=0;armagon_overleft_think();};
 void()   armagon_overleft2    =[ $lw1fir2.asc, armagon_overleft3  ] {armagon_overleft_think();};
-void()   armagon_overleft3    =[ $lw1fir3.asc, armagon_overleft4  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overleft_think();};
+void()   armagon_overleft3    =[ $lw1fir3.asc, armagon_overleft4  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overleft_think();};
 void()   armagon_overleft4    =[ $lw1fir4.asc, armagon_overleft5  ] {armagon_overleft_think();};
-void()   armagon_overleft5    =[ $lw1fir5.asc, armagon_overleft6  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overleft_think();};
+void()   armagon_overleft5    =[ $lw1fir5.asc, armagon_overleft6  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overleft_think();};
 void()   armagon_overleft6    =[ $lw1fir6.asc, armagon_overleft7  ] {armagon_overleft_think();};
 void()   armagon_overleft7    =[ $lw1fir7.asc, armagon_overleft8  ] {armagon_overleft_think();};
-void()   armagon_overleft8    =[ $lw1fir8.asc, armagon_overleft9  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overleft_think();};
+void()   armagon_overleft8    =[ $lw1fir8.asc, armagon_overleft9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overleft_think();};
 void()   armagon_overleft9    =[ $lw1fir9.asc, armagon_overleft10  ] {armagon_overleft_think();};
-void()   armagon_overleft10    =[ $lw1fir10.asc, armagon_overleft11  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overleft_think();};
+void()   armagon_overleft10    =[ $lw1fir10.asc, armagon_overleft11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overleft_think();};
 void()   armagon_overleft11    =[ $lw1fir11.asc, armagon_overleft12  ] {self.count=1;armagon_overleft_think();};
 void()   armagon_overleft12    =[ $lw1fir12.asc, armagon_overleft13  ] {self.count=2;armagon_overleft_think();};
 void()   armagon_overleft13    =[ $lw1fir13.asc, armagon_overleft14  ] {armagon_overleft_think();};
@@ -551,21 +551,21 @@ void()   armagon_overleft15    =[ $lw1fir15.asc, armagon_run1  ] {armagon_overle
 
 void()   armagon_overright1    =[ $lw2fir1.asc, armagon_overright2  ] {self.count=0;armagon_overright_think();};
 void()   armagon_overright2    =[ $lw2fir2.asc, armagon_overright3  ] {armagon_overright_think();};
-void()   armagon_overright3    =[ $lw2fir3.asc, armagon_overright4  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overright_think();};
+void()   armagon_overright3    =[ $lw2fir3.asc, armagon_overright4  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overright_think();};
 void()   armagon_overright4    =[ $lw2fir4.asc, armagon_overright5  ] {armagon_overright_think();};
-void()   armagon_overright5    =[ $lw2fir5.asc, armagon_overright6  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);self.count=1;armagon_overright_think();};
+void()   armagon_overright5    =[ $lw2fir5.asc, armagon_overright6  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);self.count=1;armagon_overright_think();};
 void()   armagon_overright6    =[ $lw2fir6.asc, armagon_overright7  ] {self.count=2;armagon_overright_think();};
 void()   armagon_overright7    =[ $lw2fir7.asc, armagon_overright8  ] {armagon_overright_think();};
-void()   armagon_overright8    =[ $lw2fir8.asc, armagon_overright9  ] {sound (self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overright_think();};
+void()   armagon_overright8    =[ $lw2fir8.asc, armagon_overright9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);armagon_overright_think();};
 void()   armagon_overright9    =[ $lw2fir9.asc, armagon_overright10  ] {armagon_overright_think();};
-void()   armagon_overright10    =[ $lw2fir10.asc, armagon_overright11  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overright_think();};
+void()   armagon_overright10    =[ $lw2fir10.asc, armagon_overright11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_overright_think();};
 void()   armagon_overright11    =[ $lw2fir11.asc, armagon_overright12  ] {armagon_overright_think();};
 void()   armagon_overright12    =[ $lw2fir12.asc, armagon_run1  ] {armagon_overright_think();SUB_AttackFinished (1.0);};
 
 void()   armagon_plant1  =[ $lstand1.asc, armagon_plant1  ] {armagon_stand_attack();armagon_think();};
 
 void()   armagon_stop1  =[ $tranl1.asc, armagon_stop2  ] {armagon_think();};
-void()   armagon_stop2  =[ $tranl2.asc, armagon_plant1  ] {sound (self, 6, "armagon/footfall.wav",1,ATTN_ARMAGON);armagon_think();};
+void()   armagon_stop2  =[ $tranl2.asc, armagon_plant1  ] {sound(self, 6, "armagon/footfall.wav",1,ATTN_ARMAGON);armagon_think();};
 
 
 
@@ -574,7 +574,7 @@ void()   armagon_satk2    =[ $lsfire2.asc, armagon_satk3  ] {armagon_think();};
 void()   armagon_satk3    =[ $lsfire3.asc, armagon_satk4  ] {armagon_think();};
 void()   armagon_satk4    =[ $lsfire4.asc, armagon_satk5  ] {armagon_think();};
 void()   armagon_satk5    =[ $lsfire5.asc, armagon_satk6  ] {armagon_think();};
-void()   armagon_satk6    =[ $lsfire6.asc, armagon_satk7  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_think();};
+void()   armagon_satk6    =[ $lsfire6.asc, armagon_satk7  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_think();};
 void()   armagon_satk7    =[ $lsfire7.asc, armagon_satk8  ] {armagon_think();};
 void()   armagon_satk8    =[ $lsfire8.asc, armagon_satk9  ] {armagon_think();};
 void()   armagon_satk9    =[ $lsfire9.asc, armagon_satk10 ] {armagon_think();armagon_launch_missile(40,0);armagon_launch_missile(-40,0);};
@@ -591,7 +591,7 @@ void()   armagon_slaser2    =[ $lsfire2.asc, armagon_slaser3  ] {armagon_think()
 void()   armagon_slaser3    =[ $lsfire3.asc, armagon_slaser4  ] {armagon_think();};
 void()   armagon_slaser4    =[ $lsfire4.asc, armagon_slaser5  ] {armagon_think();};
 void()   armagon_slaser5    =[ $lsfire5.asc, armagon_slaser6  ] {armagon_think();};
-void()   armagon_slaser6    =[ $lsfire6.asc, armagon_slaser7  ] {sound (self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_think();};
+void()   armagon_slaser6    =[ $lsfire6.asc, armagon_slaser7  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);armagon_think();};
 void()   armagon_slaser7    =[ $lsfire7.asc, armagon_slaser8  ] {armagon_think();};
 void()   armagon_slaser8    =[ $lsfire8.asc, armagon_slaser9  ] {armagon_think();};
 void()   armagon_slaser9    =[ $lsfire9.asc, armagon_slaser10 ] {armagon_think();armagon_launch_laser(40);armagon_launch_laser(-40);};
@@ -616,7 +616,7 @@ void()   armagon_die4    =[ $ldie2.asc, armagon_die5    ]
    {
    armagon_think();
    multi_explosion( self.origin + '0 0 48', 48, 10, 6, 0.3, 0.3);
-   sound (self, CHAN_AUTO, "armagon/death.wav", 1, ATTN_NONE);
+   sound(self, CHAN_AUTO, "armagon/death.wav", 1, ATTN_NONE);
    self.nextthink = time + 0.2;
    };
 void()   armagon_die5    =[ $ldie3.asc, armagon_die6    ] {armagon_think();self.nextthink = time + 0.2;};
@@ -662,7 +662,7 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
 
 void()   armagon_body_explode2 =
    {
-   sound (self , CHAN_AUTO, "misc/longexpl.wav", 1, ATTN_ARMAGON);
+   sound(self , CHAN_AUTO, "misc/longexpl.wav", 1, ATTN_ARMAGON);
    self.think = armagon_body_explode2;
    ThrowGib ("progs/gib1.mdl", -200);
    ThrowGib ("progs/gib2.mdl", -200);
@@ -677,7 +677,7 @@ void()   armagon_body_explode2 =
    setmodel (self, "progs/s_explod.spr");
    self.solid = SOLID_NOT;
    self.nextthink = time + 0.1;
-   s_explode1 ();
+   s_explode1();
    };
 
 void()   armagon_body_explode1 =
@@ -718,7 +718,7 @@ void(entity attacker, float damage) armagon_pain =
         return;
     self.pain_finished = time + 2;
 
-   sound (self, CHAN_VOICE, "armagon/pain.wav", 1, ATTN_NORM);
+   sound(self, CHAN_VOICE, "armagon/pain.wav", 1, ATTN_NORM);
    };
 
 
@@ -738,7 +738,7 @@ void() armagon_repulse_attack =
    if(self.state == 0)
       {
       SUB_AttackFinished (0.5);
-      sound (self, CHAN_BODY, "armagon/repel.wav", 1, ATTN_NORM);
+      sound(self, CHAN_BODY, "armagon/repel.wav", 1, ATTN_NORM);
       self.state = 1;
       return;
       }
@@ -777,7 +777,7 @@ void() armagon_stand_attack =
    spot1 = self.origin + self.view_ofs;
    spot2 = self.enemy.origin + self.enemy.view_ofs;
 
-   traceline (spot1, spot2, FALSE, self);
+   traceline(spot1, spot2, FALSE, self);
 
    if(trace_ent != self.enemy)
       {
@@ -839,7 +839,7 @@ float()  ArmagonCheckAttack =
    spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
    if((trace_ent != targ) && (!self.charmed))
       return FALSE;     // don't have a clear shot
@@ -857,12 +857,12 @@ float()  ArmagonCheckAttack =
       return FALSE;
    if(dist < 400)
       {  // melee attack
-      self.th_melee ();
+      self.th_melee();
       return TRUE;
         }
 // missile attack
    self.lefty = 1;
-//   self.th_missile ();
+//   self.th_missile();
 //   SUB_AttackFinished (1.5*random());
    return FALSE;
    };
@@ -887,19 +887,19 @@ void() monster_armagon
    precache_model ("progs/armabody.mdl");
    precache_model ("progs/armalegs.mdl");
 
-   precache_sound ("armagon/footfall.wav");
-   precache_sound ("armagon/servo.wav");
-//   precache_sound ("armagon/footfall2.wav");
-   precache_sound ("armagon/death.wav");
-//   precache_sound ("armagon/death2.wav");
-   precache_sound ("armagon/pain.wav");
-   precache_sound ("armagon/repel.wav");
-//   precache_sound ("armagon/idle.wav");
-   precache_sound ("armagon/sight.wav");
-   precache_sound ("armagon/idle1.wav");
-   precache_sound ("armagon/idle2.wav");
-   precache_sound ("armagon/idle3.wav");
-   precache_sound ("armagon/idle4.wav");
+   precache_sound("armagon/footfall.wav");
+   precache_sound("armagon/servo.wav");
+//   precache_sound("armagon/footfall2.wav");
+   precache_sound("armagon/death.wav");
+//   precache_sound("armagon/death2.wav");
+   precache_sound("armagon/pain.wav");
+   precache_sound("armagon/repel.wav");
+//   precache_sound("armagon/idle.wav");
+   precache_sound("armagon/sight.wav");
+   precache_sound("armagon/idle1.wav");
+   precache_sound("armagon/idle2.wav");
+   precache_sound("armagon/idle3.wav");
+   precache_sound("armagon/idle4.wav");
 
    body = spawn();
    body.origin = self.origin;

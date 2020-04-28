@@ -80,7 +80,7 @@ void(float offset) hknight_shot =
     setmodel (newmis, "progs/k_spike.mdl");
     setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
     newmis.velocity = vec*300;
-    sound (self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
 };
 
 void() CheckForCharge =
@@ -97,7 +97,7 @@ if( vlen (self.origin - self.enemy.origin) < 80)
 
 // charge
     SUB_AttackFinished (2);
-    hknight_char_a1 ();
+    hknight_char_a1();
 
 };
 
@@ -106,13 +106,13 @@ void() CheckContinueCharge =
     if(time > self.attack_finished)
     {
         SUB_AttackFinished (3);
-        hknight_run1 ();
+        hknight_run1();
         return;        // done charging
     }
     if(random() > 0.5)
-        sound (self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
     else
-        sound (self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
 };
 
 //===========================================================================
@@ -156,7 +156,7 @@ void()    hknight_walk20    =[    $walk20,    hknight_walk1    ] {ai_walk(2);};
 
 void()    hknight_run1    =[    $run1,        hknight_run2    ] {
 hk_idle_sound();
-ai_run (20); CheckForCharge (); };
+ai_run (20); CheckForCharge(); };
 void()    hknight_run2    =[    $run2,        hknight_run3    ] {ai_run(25);};
 void()    hknight_run3    =[    $run3,        hknight_run4    ] {ai_run(18);};
 void()    hknight_run4    =[    $run4,        hknight_run5    ] {ai_run(16);};
@@ -170,9 +170,9 @@ void()    hknight_run8    =[    $run8,        hknight_run1    ] {ai_run(13);};
 void()    hknight_pain1    =[    $pain1,        hknight_pain2    ]
     {
         if(self.spawnflags & 2) // statue
-            sound (self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
         else
-            sound (self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
     };
 void()    hknight_pain2    =[    $pain2,        hknight_pain3    ] {};
 void()    hknight_pain3    =[    $pain3,        hknight_pain4    ] {};
@@ -211,7 +211,7 @@ void() hknight_die =
 // check for gib
     if(self.health < -40)
     {
-        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_hellkn.mdl", self.health);
 
     if(self.spawnflags & 2) // statue
@@ -232,14 +232,14 @@ void() hknight_die =
 // regular death
 
     if(self.spawnflags & 2) // statue
-        sound (self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
     else
-        sound (self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
 
     if(random() > 0.5)
-        hknight_die1 ();
+        hknight_die1();
     else
-        hknight_dieb1 ();
+        hknight_dieb1();
 };
 
 
@@ -312,7 +312,7 @@ void()    hknight_char_a16=[    $char_a16,    hknight_run1    ] {ai_charge(13);}
 //===========================================================================
 
 void()    hknight_char_b1    =[    $char_b1,    hknight_char_b2    ]
-{CheckContinueCharge (); ai_charge(23); ai_melee();};
+{CheckContinueCharge(); ai_charge(23); ai_melee();};
 void()    hknight_char_b2    =[    $char_b2,    hknight_char_b3    ] {ai_charge(17); ai_melee();};
 void()    hknight_char_b3    =[    $char_b3,    hknight_char_b4    ] {ai_charge(12); ai_melee();};
 void()    hknight_char_b4    =[    $char_b4,    hknight_char_b5    ] {ai_charge(22); ai_melee();};
@@ -378,9 +378,9 @@ void() hk_idle_sound =
     if(random() < 0.2)
     {
         if(self.spawnflags & 2) // statue
-            sound (self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
+            sound(self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
         else
-            sound (self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
     }
 };
 
@@ -390,13 +390,13 @@ void(entity attacker, float damage)    hknight_pain =
         return;
 
     if(self.spawnflags & 2) // statue
-        sound (self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
     else
-        sound (self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
 
     if(time - self.pain_finished > 5)
     {    // allways go into pain frame if it has been a while
-        hknight_pain1 ();
+        hknight_pain1();
         self.pain_finished = time + 1;
         return;
     }
@@ -405,7 +405,7 @@ void(entity attacker, float damage)    hknight_pain =
         return;        // didn't flinch
 
     self.pain_finished = time + 1;
-    hknight_pain1 ();
+    hknight_pain1();
 };
 
 float    hknight_type;
@@ -414,21 +414,21 @@ void() hknight_melee =
 {
     hknight_type = hknight_type + 1;
 
-    sound (self, CHAN_WEAPON, "hknight/slash1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "hknight/slash1.wav", 1, ATTN_NORM);
     if(hknight_type == 1)
-        hknight_slice1 ();
+        hknight_slice1();
     else if(hknight_type == 2)
-        hknight_smash1 ();
+        hknight_smash1();
     else if(hknight_type == 3)
     {
-        hknight_watk1 ();
+        hknight_watk1();
         hknight_type = 0;
     }
 };
 
 void() hknight_pause =
 {
-    sound ( self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
+    sound( self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
 
     self.takedamage = DAMAGE_AIM;
     self.th_stand = hknight_stand1;
@@ -478,10 +478,10 @@ void() monster_hell_knight =
         precache_model ( "progs/statgib1.mdl");
         precache_model ( "progs/statgib2.mdl");
         precache_model ( "progs/statgib3.mdl");
-        precache_sound ( "statue/see.wav");
-        precache_sound ( "statue/idle.wav");
-        precache_sound ( "statue/pain.wav");
-        precache_sound ( "statue/death.wav");
+        precache_sound( "statue/see.wav");
+        precache_sound( "statue/idle.wav");
+        precache_sound( "statue/pain.wav");
+        precache_sound( "statue/death.wav");
     }
     else
     {
@@ -493,12 +493,12 @@ void() monster_hell_knight =
     }
 
     precache_sound2 ("hknight/attack1.wav");
-    precache_sound ("hknight/hit.wav");        // used by C code, so don't sound2
+    precache_sound("hknight/hit.wav");        // used by C code, so don't sound2
     precache_sound2 ("hknight/slash1.wav");
     precache_sound2 ("hknight/grunt.wav");
 
-    precache_sound ("knight/sword1.wav");
-    precache_sound ("knight/sword2.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
@@ -528,7 +528,7 @@ void() monster_hell_knight =
         self.th_stand = hknight_pause1;
         self.th_walk = hknight_pause1;
         self.th_run = hknight_pause1;
-        walkmonster_start ();
+        walkmonster_start();
     }
     else
     {
@@ -540,6 +540,6 @@ void() monster_hell_knight =
         self.th_pain = hknight_pain;
         self.th_die = hknight_die;
 
-        walkmonster_start ();
+        walkmonster_start();
     }
 };

@@ -15,25 +15,25 @@ void() exploder_fire =
 
     temp = self;
     activator = other;
-    SUB_UseTargets ();
+    SUB_UseTargets();
     self = temp;
     other = self;
    if(self.dmg<120)
       {
-      sound (self , CHAN_AUTO, "misc/shortexp.wav", self.volume, self.speed);
+      sound(self , CHAN_AUTO, "misc/shortexp.wav", self.volume, self.speed);
       }
    else
       {
-      sound (self , CHAN_AUTO, "misc/longexpl.wav", self.volume, self.speed);
+      sound(self , CHAN_AUTO, "misc/longexpl.wav", self.volume, self.speed);
       }
    T_RadiusDamage (self, self.owner, self.dmg, other);
    if(self.spawnflags & USE_PARTICLES)
       {
-      WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-      WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord (MSG_BROADCAST, self.origin_x);
-      WriteCoord (MSG_BROADCAST, self.origin_y);
-      WriteCoord (MSG_BROADCAST, self.origin_z);
+      WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+      WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+      WriteCoord(MSG_BROADCAST, self.origin_x);
+      WriteCoord(MSG_BROADCAST, self.origin_y);
+      WriteCoord(MSG_BROADCAST, self.origin_z);
       }
    BecomeExplosion();
     };
@@ -62,8 +62,8 @@ void() exploder_use =
 */
 void() func_exploder =
     {
-   precache_sound ("misc/shortexp.wav");
-   precache_sound ("misc/longexpl.wav");
+   precache_sound("misc/shortexp.wav");
+   precache_sound("misc/longexpl.wav");
     self.classname = "exploder";
     self.use = exploder_use;
     if( self.dmg == 0 )
@@ -96,7 +96,7 @@ void() multi_exploder_fire =
       self.duration = time + self.duration;
       temp = self;
       activator = other;
-      SUB_UseTargets ();
+      SUB_UseTargets();
       self = temp;
       other = self;
       }
@@ -111,15 +111,15 @@ void() multi_exploder_fire =
    expl.origin_x = self.absmin_x + (random() * (self.absmax_x - self.absmin_x));
    expl.origin_y = self.absmin_y + (random() * (self.absmax_y - self.absmin_y));
    expl.origin_z = self.absmin_z + (random() * (self.absmax_z - self.absmin_z));
-   sound (expl , CHAN_VOICE, "misc/shortexp.wav", self.volume, self.speed);
+   sound(expl , CHAN_VOICE, "misc/shortexp.wav", self.volume, self.speed);
    T_RadiusDamage (expl, self.owner, self.dmg, other);
    if(self.spawnflags & USE_PARTICLES)
       {
-      WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-      WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord (MSG_BROADCAST, expl.origin_x);
-      WriteCoord (MSG_BROADCAST, expl.origin_y);
-      WriteCoord (MSG_BROADCAST, expl.origin_z);
+      WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+      WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+      WriteCoord(MSG_BROADCAST, expl.origin_x);
+      WriteCoord(MSG_BROADCAST, expl.origin_y);
+      WriteCoord(MSG_BROADCAST, expl.origin_z);
       }
    temp = self;
    self = expl;
@@ -176,8 +176,8 @@ void() multi_exploder_use =
 */
 void() func_multi_exploder =
     {
-   precache_sound ("misc/shortexp.wav");
-   precache_sound ("misc/longexpl.wav");
+   precache_sound("misc/shortexp.wav");
+   precache_sound("misc/longexpl.wav");
     self.classname = "exploder";
    self.use = multi_exploder_use;
    setmodel(self,self.model);

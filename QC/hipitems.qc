@@ -41,7 +41,7 @@ void() HIP_powerup_touch =
         self.think = SUB_regen;
     }
 
-    sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
    other.hipnotic_items = other.hipnotic_items | self.hipnotic_items;
@@ -72,16 +72,16 @@ void() item_artifact_wetsuit =
    self.touch = HIP_powerup_touch;
 
    precache_model ("progs/wetsuit.mdl");
-   precache_sound ("misc/wetsuit.wav");
-   precache_sound ("misc/weton.wav");
-   precache_sound ("items/suit2.wav");
+   precache_sound("misc/wetsuit.wav");
+   precache_sound("misc/weton.wav");
+   precache_sound("items/suit2.wav");
    self.noise = "misc/weton.wav";
    setmodel (self, "progs/wetsuit.mdl");
     self.netname = "Wetsuit";
    self.hipnotic_items = HIP_IT_WETSUIT;
    setsize (self, '-16 -16 -24', '16 16 32');
 
-    StartItem ();
+    StartItem();
 };
 
 /*
@@ -109,7 +109,7 @@ void() horn_touch =
     self.solid = SOLID_NOT;
     self.model = string_null;
    sprint (other, "You got the Horn of Conjuring\n");
-   sound (other, CHAN_VOICE, self.noise, 1, ATTN_NONE);
+   sound(other, CHAN_VOICE, self.noise, 1, ATTN_NONE);
     stuffcmd (other, "bf\n");
    activator = other;
    horn_active = 1;
@@ -132,7 +132,7 @@ void() item_hornofconjuring =
    setmodel(self, "progs/horn.mdl");
    self.noise = "hipitems/horn.wav";
    setsize (self, '-16 -16 0', '16 16 32');
-    StartItem ();
+    StartItem();
    };
 
 /*QUAKED item_artifact_empathy_shields (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -145,13 +145,13 @@ void() item_artifact_empathy_shields =
    precache_model("progs/empathy.mdl");
    precache_sound("hipitems/empathy.wav");
    precache_sound("hipitems/empathy2.wav");
-   precache_sound ("items/suit2.wav");
+   precache_sound("items/suit2.wav");
    setmodel(self, "progs/empathy.mdl");
    self.noise = "hipitems/empathy.wav";
    self.netname = "Empathy Shields";
    self.hipnotic_items = HIP_IT_EMPATHY_SHIELDS;
    setsize (self, '-16 -16 0', '16 16 32');
-    StartItem ();
+    StartItem();
    };
 /*
 ===============================================================================
@@ -173,7 +173,7 @@ void() weapon_mjolnir =
     self.items = IT_MJOLNIR;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_laser_gun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -188,7 +188,7 @@ void() weapon_laser_gun =
     self.items = IT_LASER_CANNON;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED weapon_proximity_gun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -203,7 +203,7 @@ void() weapon_proximity_gun =
     self.items = IT_PROXIMITY_GUN;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
-    StartItem ();
+    StartItem();
 };
 
 /*
@@ -252,13 +252,13 @@ void() spikemine_Home =
          }
 //      if(selected != world && selected != self.enemy)
       if(selected != world)
-         sound (self, CHAN_VOICE, "hipitems/spikmine.wav", 1, ATTN_NORM);
+         sound(self, CHAN_VOICE, "hipitems/spikmine.wav", 1, ATTN_NORM);
       self.enemy = selected;
       self.search_time = time + 1.3;
       }
    if(self.enemy == world)
       {
-      sound (self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
       self.velocity = '0 0 0';
       return;
       }
@@ -291,25 +291,25 @@ void() spikemine_Touch =
 
       T_Damage(self,self,self,self.health+10);
 //      killed_monsters = killed_monsters + 1;
-//      WriteByte (MSG_ALL, SVC_KILLEDMONSTER);
+//      WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
       }
 //   self.effects = self.effects | EF_MUZZLEFLASH;
 
    T_RadiusDamage (self, self, 110, world);
-    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-   sound (self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
+   sound(self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
    self.velocity = '0 0 0';
     self.touch = SUB_Null;
     setmodel (self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
-    s_explode1 ();
+    s_explode1();
    };
 
 /*
@@ -336,9 +336,9 @@ void() trap_spike_mine =
         return;
     }
    precache_model ("progs/spikmine.mdl");
-   precache_sound ("weapons/r_exp3.wav");
-   precache_sound ("hipitems/spikmine.wav");
-   precache_sound ("misc/null.wav");
+   precache_sound("weapons/r_exp3.wav");
+   precache_sound("hipitems/spikmine.wav");
+   precache_sound("misc/null.wav");
    setmodel (self, "progs/spikmine.mdl");
 //   setmodel (self, "progs/spike.mdl");
    setsize (self, self.mins, self.maxs);
@@ -381,16 +381,16 @@ void() SpawnLightningThink =
    self.think = SpawnLightningThink;
    if(checkclient())
       {
-      WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-      WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-      WriteEntity (MSG_BROADCAST, self);
-      WriteByte (MSG_BROADCAST, 0); /* disambiguator */
-      WriteCoord (MSG_BROADCAST, self.origin_x);
-      WriteCoord (MSG_BROADCAST, self.origin_y);
-      WriteCoord (MSG_BROADCAST, self.origin_z);
-      WriteCoord (MSG_BROADCAST, self.oldorigin_x);
-      WriteCoord (MSG_BROADCAST, self.oldorigin_y);
-      WriteCoord (MSG_BROADCAST, self.oldorigin_z);
+      WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+      WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+      WriteEntity(MSG_BROADCAST, self);
+      WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+      WriteCoord(MSG_BROADCAST, self.origin_x);
+      WriteCoord(MSG_BROADCAST, self.origin_y);
+      WriteCoord(MSG_BROADCAST, self.origin_z);
+      WriteCoord(MSG_BROADCAST, self.oldorigin_x);
+      WriteCoord(MSG_BROADCAST, self.oldorigin_y);
+      WriteCoord(MSG_BROADCAST, self.oldorigin_z);
       }
    LightningDamage(self.origin, self.oldorigin, self.lastvictim, self.dmg);
    self.nextthink = time + 0.1;
@@ -406,9 +406,9 @@ void() trap_lightning_use =
    if(time >= self.pausetime)
       {
       if(self.spawnflags & LIGHTNING_BOOM)
-         sound (self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
+         sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
       else
-         sound (self, CHAN_AUTO, "weapons/lhit.wav", 1, ATTN_NORM);
+         sound(self, CHAN_AUTO, "weapons/lhit.wav", 1, ATTN_NORM);
       if(self.classname == "trap_lightning_triggered")
          self.pausetime = time + 0.1;
       }
@@ -421,7 +421,7 @@ void() trap_lightning_use =
       {
       makevectors (self.angles);
       self.movedir = v_forward;
-      traceline (self.origin, self.origin + self.movedir*600, TRUE, self);
+      traceline(self.origin, self.origin + self.movedir*600, TRUE, self);
       p1 = self.origin;
       p2 = trace_endpos;
       }
@@ -455,16 +455,16 @@ void() trap_lightning_use =
       }
    else if(checkclient())
       {
-      WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-      WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-      WriteEntity (MSG_BROADCAST, self);
-      WriteByte (MSG_BROADCAST, 0); /* disambiguator */
-      WriteCoord (MSG_BROADCAST, p1_x);
-      WriteCoord (MSG_BROADCAST, p1_y);
-      WriteCoord (MSG_BROADCAST, p1_z);
-      WriteCoord (MSG_BROADCAST, p2_x);
-      WriteCoord (MSG_BROADCAST, p2_y);
-      WriteCoord (MSG_BROADCAST, p2_z);
+      WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+      WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+      WriteEntity(MSG_BROADCAST, self);
+      WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+      WriteCoord(MSG_BROADCAST, p1_x);
+      WriteCoord(MSG_BROADCAST, p1_y);
+      WriteCoord(MSG_BROADCAST, p1_z);
+      WriteCoord(MSG_BROADCAST, p2_x);
+      WriteCoord(MSG_BROADCAST, p2_y);
+      WriteCoord(MSG_BROADCAST, p2_z);
       LightningDamage(p1, p2, self, self.dmg);
       }
    else
@@ -545,8 +545,8 @@ void() trap_lightning_triggered =
       self.duration = 0.1;
    self.cnt = 0;
    self.use = trap_lightning_use;
-   precache_sound ("weapons/lhit.wav");
-   precache_sound ("weapons/lstart.wav");
+   precache_sound("weapons/lhit.wav");
+   precache_sound("weapons/lstart.wav");
    self.huntingcharmer = self.nextthink;
    self.think = lightning_firstthink;
    self.nextthink = time + 0.25;
@@ -564,7 +564,7 @@ Continuously fire lightning.
 */
 void() trap_lightning =
    {
-   trap_lightning_triggered ();
+   trap_lightning_triggered();
    self.state = 1;
    };
 
@@ -585,7 +585,7 @@ Continuously fires lightning.
 */
 void() trap_lightning_switched =
    {
-   trap_lightning_triggered ();
+   trap_lightning_triggered();
    self.use = trap_lightning_switched_use;
    };
 
@@ -634,7 +634,7 @@ void() TeslaLightningThink =
       remove(self);
       return;
       }
-   traceline (self.origin, self.enemy.origin, TRUE, self);
+   traceline(self.origin, self.enemy.origin, TRUE, self);
 
    if(trace_fraction != 1.0 || self.enemy.health<=0 || vlen(self.origin-self.enemy.origin) > (self.distance+10))
       {
@@ -642,16 +642,16 @@ void() TeslaLightningThink =
       remove(self);
       return;
       }
-   WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-   WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-   WriteEntity (MSG_BROADCAST, self);
-   WriteByte (MSG_BROADCAST, 0); /* disambiguator */
-   WriteCoord (MSG_BROADCAST, self.origin_x);
-   WriteCoord (MSG_BROADCAST, self.origin_y);
-   WriteCoord (MSG_BROADCAST, self.origin_z);
-   WriteCoord (MSG_BROADCAST, trace_endpos_x);
-   WriteCoord (MSG_BROADCAST, trace_endpos_y);
-   WriteCoord (MSG_BROADCAST, trace_endpos_z);
+   WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+   WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+   WriteEntity(MSG_BROADCAST, self);
+   WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+   WriteCoord(MSG_BROADCAST, self.origin_x);
+   WriteCoord(MSG_BROADCAST, self.origin_y);
+   WriteCoord(MSG_BROADCAST, self.origin_z);
+   WriteCoord(MSG_BROADCAST, trace_endpos_x);
+   WriteCoord(MSG_BROADCAST, trace_endpos_y);
+   WriteCoord(MSG_BROADCAST, trace_endpos_z);
    LightningDamage(self.origin, trace_endpos, self.lastvictim, self.dmg);
    self.nextthink = time + 0.1;
    };
@@ -695,7 +695,7 @@ void() trap_tesla_think =
       if(tesla_numtargets > 0)
          {
          if(self.wait > 0)
-            sound (self, CHAN_AUTO, "misc/tesla.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "misc/tesla.wav", 1, ATTN_NORM);
          self.attack_state = 1;
          self.nextthink = time + self.wait;
          return;
@@ -714,7 +714,7 @@ void() trap_tesla_think =
       trap_tesla_scan();
       while(tesla_numtargets > 0)
          {
-         sound (self, CHAN_AUTO, "hipweap/mjolhit.wav", 1, ATTN_NORM);
+         sound(self, CHAN_AUTO, "hipweap/mjolhit.wav", 1, ATTN_NORM);
          SpawnTeslaLightning (tesla_target);
          tesla_target = tesla_target.next_ent;
          tesla_numtargets = tesla_numtargets - 1;
@@ -749,8 +749,8 @@ targets enemies in vicinity and fires at them
 */
 void() trap_tesla_coil =
    {
-   precache_sound ("misc/tesla.wav");
-   precache_sound ("hipweap/mjolhit.wav");   // lightning sound
+   precache_sound("misc/tesla.wav");
+   precache_sound("hipweap/mjolhit.wav");   // lightning sound
    if(self.wait == 0)
       self.wait = 2;
    if(self.dmg == 0)

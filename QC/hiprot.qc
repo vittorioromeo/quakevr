@@ -435,11 +435,11 @@ void() rotate_train_wait =
 
    if( self.goalentity.noise )
       {
-      sound (self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
       }
    else
       {
-      sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       }
    if( self.goalentity.spawnflags & ANGLES )
       {
@@ -460,11 +460,11 @@ void() rotate_train_stop =
 
    if( self.goalentity.noise )
       {
-      sound (self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
       }
    else
       {
-      sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       }
    if( self.goalentity.spawnflags & ANGLES )
       {
@@ -499,7 +499,7 @@ void() rotate_train_next =
       {
       self.noise1 = self.goalentity.noise1;
       }
-   sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+   sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
 
    self.goalentity = targ;
    self.path = targ.target;
@@ -1087,25 +1087,25 @@ void() func_rotate_door =
       self.sounds = 1;
     if(self.sounds == 1)
     {
-        precache_sound ("doors/latch2.wav");
-        precache_sound ("doors/winch2.wav");
-        precache_sound ("doors/drclos4.wav");
+        precache_sound("doors/latch2.wav");
+        precache_sound("doors/winch2.wav");
+        precache_sound("doors/drclos4.wav");
         self.noise1 = "doors/latch2.wav";
         self.noise2 = "doors/winch2.wav";
         self.noise3 = "doors/drclos4.wav";
     }
     if(self.sounds == 2)
     {
-        precache_sound ("doors/airdoor1.wav");
-        precache_sound ("doors/airdoor2.wav");
+        precache_sound("doors/airdoor1.wav");
+        precache_sound("doors/airdoor2.wav");
         self.noise2 = "doors/airdoor1.wav";
         self.noise1 = "doors/airdoor2.wav";
         self.noise3 = "doors/airdoor2.wav";
     }
     if(self.sounds == 3)
     {
-        precache_sound ("doors/basesec1.wav");
-        precache_sound ("doors/basesec2.wav");
+        precache_sound("doors/basesec1.wav");
+        precache_sound("doors/basesec2.wav");
         self.noise2 = "doors/basesec1.wav";
         self.noise1 = "doors/basesec2.wav";
         self.noise3 = "doors/basesec2.wav";

@@ -86,7 +86,7 @@ Monsters will continue walking towards the next target corner.
 */
 void() path_corner =
 {
-    movetarget_f ();
+    movetarget_f();
 };
 
 
@@ -113,7 +113,7 @@ local entity    temp;
     other = temp;
 
     if(self.classname == "monster_ogre")
-        sound (self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);// play chainsaw drag sound
+        sound(self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);// play chainsaw drag sound
 
 //dprint ("t_movetarget\n");
 //MED
@@ -124,20 +124,20 @@ local entity    temp;
       if(!self.movetarget)
          {
          self.pausetime = time + 999999;
-         self.th_stand ();
+         self.th_stand();
          return;
          }
    //MED 01/20/97
       else if(other.delay)
          {
          self.pausetime = time + other.delay;
-         self.th_stand ();
+         self.th_stand();
          }
       }
    else
       {
       self.pausetime = time + 999999;
-      self.th_stand ();
+      self.th_stand();
       return;
       }
 };
@@ -174,7 +174,7 @@ void() t_followtarget =
    spot1 = other.origin + other.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-   traceline (spot1, spot2, FALSE, other);
+   traceline(spot1, spot2, FALSE, other);
    if(trace_fraction == 1)
       return;
 
@@ -212,7 +212,7 @@ void() t_followtarget =
          }
       else
          {
-         client = checkclient ();
+         client = checkclient();
          if(!client)
             {
             self.enemy = client;
@@ -220,7 +220,7 @@ void() t_followtarget =
             return;
             }
          self.pausetime = time + 999999;
-         self.th_stand ();
+         self.th_stand();
          }
       }
 };
@@ -246,7 +246,7 @@ Monsters will stop what they are doing and follow to the path
 
 void() path_follow =
 {
-   followtarget_f ();
+   followtarget_f();
 };
 
 /*QUAKED path_follow2 (0.5 0.3 0) (-8 -8 -8) (8 8 8)
@@ -304,7 +304,7 @@ float (entity targ) visible =
 
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
-    traceline (spot1, spot2, TRUE, self);    // see through other monsters
+    traceline(spot1, spot2, TRUE, self);    // see through other monsters
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -432,73 +432,73 @@ void() SightSound =
 local float    rsnd;
 
     if(self.classname == "monster_ogre")
-        sound (self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_knight")
-        sound (self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_shambler")
-        sound (self, CHAN_VOICE, "shambler/ssight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "shambler/ssight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_demon1")
-        sound (self, CHAN_VOICE, "demon/sight2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "demon/sight2.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_wizard")
-        sound (self, CHAN_VOICE, "wizard/wsight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "wizard/wsight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_zombie")
-        sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_dog")
-        sound (self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_hell_knight")
     {
         if(self.skin == 0)
-            sound (self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_tarbaby")
-        sound (self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_vomit")
     {
         // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound (self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+        // sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_eel")
     {
         // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound (self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+        // sound(self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_wrath")
     {
         // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound (self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
+        // sound(self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_enforcer")
     {
         rsnd = rint(random() * 3);
         if(rsnd == 1)
-            sound (self, CHAN_VOICE, "enforcer/sight1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "enforcer/sight1.wav", 1, ATTN_NORM);
         else if(rsnd == 2)
-            sound (self, CHAN_VOICE, "enforcer/sight2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "enforcer/sight2.wav", 1, ATTN_NORM);
         else if(rsnd == 0)
-            sound (self, CHAN_VOICE, "enforcer/sight3.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "enforcer/sight3.wav", 1, ATTN_NORM);
         else
-            sound (self, CHAN_VOICE, "enforcer/sight4.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "enforcer/sight4.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_army")
-        sound (self, CHAN_VOICE, "soldier/sight1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "soldier/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_shalrath")
-        sound (self, CHAN_VOICE, "shalrath/sight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "shalrath/sight.wav", 1, ATTN_NORM);
 //MED
    else if(self.classname == "monster_gremlin")
       {
       if(self.stoleweapon == 0)
-         sound (self, CHAN_VOICE, "grem/sight1.wav", 1, ATTN_NORM);
+         sound(self, CHAN_VOICE, "grem/sight1.wav", 1, ATTN_NORM);
       }
 //MED
     else if(self.classname == "monster_scourge")
-        sound (self, CHAN_VOICE, "scourge/sight.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "scourge/sight.wav", 1, ATTN_NORM);
 //MED
     else if(self.classname == "monster_armagon")
-        sound (self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
+        sound(self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
     else if(self.classname == "monster_dragon")
     {
         // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound (self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
+        // sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
     }
 };
 
@@ -530,8 +530,8 @@ void() FoundTarget =
 
     self.show_hostile = time + 1;        // wake up other monsters
 
-    SightSound ();
-    HuntTarget ();
+    SightSound();
+    HuntTarget();
 };
 
 /*
@@ -635,7 +635,7 @@ float() FindTarget =
       }
    else
     {
-        client = checkclient ();
+        client = checkclient();
       if(!client)
             return FALSE;    // current check entity isn't in PVS
     }
@@ -695,7 +695,7 @@ float() FindTarget =
 
 // PGM hack
     if(self.classname != "dragon")
-        FoundTarget ();
+        FoundTarget();
 
     return TRUE;
 };
@@ -788,7 +788,7 @@ void() ai_stand =
 
     if(time > self.pausetime)
     {
-        self.th_walk ();
+        self.th_walk();
         return;
     }
 
@@ -808,7 +808,7 @@ void() ai_turn =
     if(FindTarget ())
         return;
 
-    ChangeYaw ();
+    ChangeYaw();
 };
 
 //MED 11/10/96 added ai_turn_in_place
@@ -900,24 +900,24 @@ float() CheckAnyAttack =
     if(!enemy_vis)
         return FALSE;
    if(self.classname == "monster_army")
-        return SoldierCheckAttack ();
+        return SoldierCheckAttack();
    if(self.classname == "monster_ogre")
-        return OgreCheckAttack ();
+        return OgreCheckAttack();
    if(self.classname == "monster_shambler")
-        return ShamCheckAttack ();
+        return ShamCheckAttack();
     if(self.classname == "monster_demon1")
-        return DemonCheckAttack ();
+        return DemonCheckAttack();
     if(self.classname == "monster_dog")
-        return DogCheckAttack ();
+        return DogCheckAttack();
     if(self.classname == "monster_wizard")
-        return WizardCheckAttack ();
+        return WizardCheckAttack();
    if(self.classname == "monster_gremlin")
-      return GremlinCheckAttack ();
+      return GremlinCheckAttack();
    if(self.classname == "monster_scourge")
-      return ScourgeCheckAttack ();
+      return ScourgeCheckAttack();
    if(self.classname == "monster_armagon")
-      return ArmagonCheckAttack ();
-   return CheckAttack ();
+      return ArmagonCheckAttack();
+   return CheckAttack();
 };
 
 
@@ -931,11 +931,11 @@ Turn and close until within an angle to launch a melee attack
 void() ai_run_melee =
 {
     self.ideal_yaw = enemy_yaw;
-    ChangeYaw ();
+    ChangeYaw();
 
     if(FacingIdeal())
     {
-        self.th_melee ();
+        self.th_melee();
         self.attack_state = AS_STRAIGHT;
     }
 };
@@ -951,10 +951,10 @@ Turn in place until within an angle to launch a missile attack
 void() ai_run_missile =
 {
     self.ideal_yaw = enemy_yaw;
-    ChangeYaw ();
+    ChangeYaw();
     if(FacingIdeal())
     {
-        self.th_missile ();
+        self.th_missile();
         self.attack_state = AS_STRAIGHT;
     }
 };
@@ -972,7 +972,7 @@ void() ai_run_slide =
     local float    ofs;
 
     self.ideal_yaw = enemy_yaw;
-    ChangeYaw ();
+    ChangeYaw();
     if(self.lefty)
         ofs = 90;
     else
@@ -1016,7 +1016,7 @@ void() ai_run_dodge =
    self.ideal_yaw = enemy_yaw;
    if(walkmove (newyaw, movedist))
       {
-      ChangeYaw ();
+      ChangeYaw();
       return;
       }
 
@@ -1025,7 +1025,7 @@ void() ai_run_dodge =
    newyaw = enemy_yaw - ofs;
    self.ideal_yaw = enemy_yaw;
    walkmove (newyaw, movedist);
-   ChangeYaw ();
+   ChangeYaw();
 };
 
 /*
@@ -1055,14 +1055,14 @@ void(float dist) ai_run =
         if(self.oldenemy.health > 0)
         {
             self.enemy = self.oldenemy;
-            HuntTarget ();
+            HuntTarget();
         }
         else
         {
             if(self.movetarget)
-                self.th_walk ();
+                self.th_walk();
             else
-                self.th_stand ();
+                self.th_stand();
             return;
         }
     }
@@ -1101,13 +1101,13 @@ void(float dist) ai_run =
     if(self.attack_state == AS_MISSILE)
     {
 //dprint ("ai_run_missile\n");
-        ai_run_missile ();
+        ai_run_missile();
         return;
     }
     if(self.attack_state == AS_MELEE)
     {
 //dprint ("ai_run_melee\n");
-        ai_run_melee ();
+        ai_run_melee();
         return;
     }
 
@@ -1118,13 +1118,13 @@ void(float dist) ai_run =
 
     if(self.attack_state == AS_SLIDING)
     {
-        ai_run_slide ();
+        ai_run_slide();
         return;
     }
 
    if(self.attack_state == AS_DODGING)
     {
-        ai_run_dodge ();
+        ai_run_dodge();
         return;
     }
 

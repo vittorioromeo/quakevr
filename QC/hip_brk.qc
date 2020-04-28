@@ -15,7 +15,7 @@ void() damagethreshold_killed =
 //   self.solid = SOLID_NOT;
    activator = damage_attacker;
     self.takedamage = DAMAGE_NO;
-    SUB_UseTargets ();
+    SUB_UseTargets();
     self.takedamage = DAMAGE_YES;
 
     if( !( self.spawnflags & MULTI_USE ) )

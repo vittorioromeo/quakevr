@@ -39,9 +39,9 @@ void() knight_attack =
     len = vlen(self.enemy.origin+self.enemy.view_ofs - (self.origin+self.view_ofs));
 
     if(len<80)
-        knight_atk1 ();
+        knight_atk1();
     else
-        knight_runatk1 ();
+        knight_runatk1();
 };
 
 //=============================================================================
@@ -66,7 +66,7 @@ float() CheckAttack =
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
 //MED 10/17/96 added charmed stuff
     if((trace_ent != targ) && (!self.charmed))
@@ -80,9 +80,9 @@ float() CheckAttack =
         if(self.th_melee)
         {
             if(self.classname == "monster_knight")
-                knight_attack ();
+                knight_attack();
             else
-                self.th_melee ();
+                self.th_melee();
             return TRUE;
         }
     }
@@ -121,7 +121,7 @@ float() CheckAttack =
 
     if(random () < chance)
     {
-        self.th_missile ();
+        self.th_missile();
         SUB_AttackFinished (2*random());
         return TRUE;
     }
@@ -140,7 +140,7 @@ Stay facing the enemy
 void() ai_face =
 {
     self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
-    ChangeYaw ();
+    ChangeYaw();
 };
 
 /*
@@ -156,7 +156,7 @@ float(entity targ) range;
 
 void(float d) ai_charge =
 {
-    ai_face ();
+    ai_face();
     movetogoal (d);        // done in C code...
 };
 
@@ -168,7 +168,7 @@ void() ai_charge_side =
 // aim to the left of the enemy for a flyby
 
     self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
-    ChangeYaw ();
+    ChangeYaw();
 
     makevectors (self.angles);
     dtemp = self.enemy.origin - 30*v_right;
@@ -245,7 +245,7 @@ float() SoldierCheckAttack =
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -272,7 +272,7 @@ float() SoldierCheckAttack =
 
     if(random () < chance)
     {
-        self.th_missile ();
+        self.th_missile();
         SUB_AttackFinished (1 + random());
         if(random() < 0.3)
             self.lefty = !self.lefty;
@@ -321,7 +321,7 @@ float() ShamCheckAttack =
     if(vlen(spot1 - spot2) > 600)
         return FALSE;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -377,7 +377,7 @@ float() OgreCheckAttack =
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    traceline (spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents

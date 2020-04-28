@@ -24,7 +24,7 @@ void() HIP_train_wait =
     {
     if(self.wait)
         {
-      sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       if( self.wait != -1 )
             {
             self.nextthink = self.ltime + self.wait;
@@ -57,7 +57,7 @@ void() HIP_train_next =
     if(!self.target)
         objerror ("HIP_train_next: no next target");
 
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
 
     self.wait = targ.wait;
      if(targ.wait)

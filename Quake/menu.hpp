@@ -70,6 +70,7 @@ enum m_state_e
     m_qvrs_torso,
     m_qvrs_changemap,
     m_qvrs_debugutilities,
+    m_qvrs_transparencyoptions,
 };
 
 extern enum m_state_e m_state;

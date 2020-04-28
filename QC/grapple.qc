@@ -86,16 +86,16 @@ void(vector org, vector vel, float damage) SpawnBlood;
 void(entity h, vector startPos, vector endPos) GrappleTrail =
 {
     // draw a line to the hook
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_BEAM);
-    WriteEntity (MSG_BROADCAST, h);
-    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
-    WriteCoord (MSG_BROADCAST, startPos_x);
-    WriteCoord (MSG_BROADCAST, startPos_y);
-    WriteCoord (MSG_BROADCAST, startPos_z);
-    WriteCoord (MSG_BROADCAST, endPos_x);
-    WriteCoord (MSG_BROADCAST, endPos_y);
-    WriteCoord (MSG_BROADCAST, endPos_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_BEAM);
+    WriteEntity(MSG_BROADCAST, h);
+    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+    WriteCoord(MSG_BROADCAST, startPos_x);
+    WriteCoord(MSG_BROADCAST, startPos_y);
+    WriteCoord(MSG_BROADCAST, startPos_z);
+    WriteCoord(MSG_BROADCAST, endPos_x);
+    WriteCoord(MSG_BROADCAST, endPos_y);
+    WriteCoord(MSG_BROADCAST, endPos_z);
 };
 
 void() GrappleResetFromHook =
@@ -153,8 +153,8 @@ void() GrappleTrack =
         // we need this to make the sound come from the right spot
         setorigin(self, self.enemy.origin);
 
-//        sound (self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
-        sound (self, CHAN_WEAPON, "pendulum/hit.wav", 1, ATTN_NORM);
+//        sound(self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "pendulum/hit.wav", 1, ATTN_NORM);
         T_Damage (self.enemy, self, self.owner, 1);
         makevectors (self.v_angle);
         spray_x = 100 * crandom();
@@ -201,10 +201,10 @@ void () GrappleAnchor =
         //     return;
         // }
 
-        sound (self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
         T_Damage (other, self, self.owner, 10);
     } else {
-        sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 
         // One point of damage inflicted upon impact. Subsequent
         // damage will only be done to PLAYERS... this way secret
@@ -220,7 +220,7 @@ void () GrappleAnchor =
 
     self.frame = 2; // anchored
 
-    sound (self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
+    sound(self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
     particle2(self.origin, '0 0 0', 0 /* bullet puff preset */, 48);
 
     if(!ownerFireButtonPressed(xHand)) {
@@ -250,8 +250,8 @@ void (float xHand) W_FireGrapple =
 
     self.punchangle_x = -2; // bump him
 
-    // chain out sound (loops)
-    sound (self, CHAN_WEAPON, "weapons/chain1.wav", 1, ATTN_NORM);
+    // chain out sound(loops)
+    sound(self, CHAN_WEAPON, "weapons/chain1.wav", 1, ATTN_NORM);
 
     newmis = spawn();
     newmis.handParm = xHand;

@@ -35,7 +35,7 @@ void()   decoy_stand1 =[  $axstnd1,   decoy_stand1  ]
    self.frame = $stand1 + self.walkframe;
     self.walkframe = self.walkframe + 1;
     if(time > self.pausetime)
-        self.th_walk ();
+        self.th_walk();
    };
 
 void(entity attacker, float damage) decoy_stand1_pain =
@@ -59,19 +59,19 @@ void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
       local float r;
       r = random();
       if(r < 0.14)
-         sound (self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
       else if(r < 0.29)
-         sound (self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
       else if(r < 0.43)
-         sound (self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
       else if(r < 0.58)
-         sound (self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
       else if(r < 0.72)
-         sound (self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
       else if(r < 0.86)
-         sound (self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
       else
-         sound (self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
+         sound(self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
       }
    self.frame = self.frame + self.walkframe;
     self.walkframe = self.walkframe + 1;
@@ -113,7 +113,7 @@ void() monster_decoy =
     }
    setup_decoy(self);
 
-   walkmonster_start ();
+   walkmonster_start();
    total_monsters = total_monsters - 1;
 };
 
@@ -156,15 +156,15 @@ void(string targ, vector orig) become_decoy =
         }
 // this used to be an objerror
       if(decoy.movetarget.classname == "path_corner")
-         decoy.th_walk ();
+         decoy.th_walk();
         else
          decoy.pausetime = 99999999;
-         decoy.th_stand ();
+         decoy.th_stand();
     }
     else
     {
       decoy.pausetime = 99999999;
-      decoy.th_stand ();
+      decoy.th_stand();
     }
 
 // spread think times so they don't all happen at same time

@@ -228,7 +228,8 @@ void        end_sys_globals;        // flag for structure dumping
 .float        armorvalue;
 
 .float        waterlevel;        // 0 = not in, 1 = feet, 2 = wast, 3 = eyes
-.float        watertype;        // a contents value
+.float        watertype;         // a contents value
+.float        lastwatertime;     // time of last water transition
 
 .float        ideal_yaw;
 .float        yaw_speed;

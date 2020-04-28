@@ -98,11 +98,11 @@ void()    Tar_JumpTouch =
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);
-            sound (self, CHAN_WEAPON, "blob/hit1.wav", 1, ATTN_NORM);
+            sound(self, CHAN_WEAPON, "blob/hit1.wav", 1, ATTN_NORM);
         }
     }
     else
-        sound (self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
 
 
     if(!checkbottom(self))
@@ -138,7 +138,7 @@ self.cnt = self.cnt + 1;
 if(self.cnt == 4)
 {
 //dprint ("spawn hop\n");
-tbaby_jump5 ();
+tbaby_jump5();
 }
 };
 
@@ -171,16 +171,16 @@ void()    tbaby_die2    =[    $exp,        tbaby_run1    ]
 {
     T_RadiusDamage (self, self, 120, world);
 
-    sound (self, CHAN_VOICE, "blob/death1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "blob/death1.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TAREXPLOSION);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_TAREXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-    BecomeExplosion ();
+    BecomeExplosion();
 };
 
 //=============================================================================
@@ -217,6 +217,6 @@ void() monster_tarbaby =
     self.th_melee = tbaby_jump1;
     self.th_die = tbaby_die1;
 
-    walkmonster_start ();
+    walkmonster_start();
 };
 

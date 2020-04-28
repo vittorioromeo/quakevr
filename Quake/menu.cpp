@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+// TODO VR: (P0) split into "Quake VR Settings" and "Quake VR Dev Tools"
+
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
@@ -2621,6 +2623,47 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS  */
+
+[[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
+{
+    quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
+
+    extern cvar_t r_novis;
+    m.add_cvar_entry<bool>("(!) No Vis", r_novis)
+        .tooltip(
+            "NOT RECOMMENDED. Allows water transparency to work in "
+            "non-vispatched maps, but will render the entire map every frame. "
+            "Will likely kill your FPS. Prefer 'vispatching' your maps "
+            "instead. Also, entities won't still be visible below water level "
+            "without vispatched maps.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    extern cvar_t r_wateralpha;
+    m.add_cvar_entry<float>("Water Alpha", r_wateralpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_lavaalpha;
+    m.add_cvar_entry<float>("Lava Alpha", r_lavaalpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_telealpha;
+    m.add_cvar_entry<float>("Tele Alpha", r_telealpha, {0.1f, 0.f, 1.f});
+
+    extern cvar_t r_slimealpha;
+    m.add_cvar_entry<float>("Slime Alpha", r_slimealpha, {0.1f, 0.f, 1.f});
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsTransparencyOptionsMenu()
+{
+    static quake::menu res = makeQVRSTransparencyOptionsMenu();
+    return res;
+}
+
+//=============================================================================
 /* QUAKE VR SETTINGS MENU */
 
 template <typename F>
@@ -2644,6 +2687,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsTorsoMenu(), m_qvrs_torso);
     f(qvrsChangeMapMenu(), m_qvrs_changemap);
     f(qvrsDebugUtilitiesMenu(), m_qvrs_debugutilities);
+    f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
 }
 
 [[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()

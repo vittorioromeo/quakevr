@@ -16,15 +16,15 @@ void() MiniGrenadeExplode =
     else
         T_RadiusDamage (self, self.owner, 60, world);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 230);
-    WriteByte (MSG_BROADCAST, 5);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 230);
+    WriteByte(MSG_BROADCAST, 5);
 
-    BecomeExplosion ();
+    BecomeExplosion();
 };
 
 //================================
@@ -34,7 +34,7 @@ void(float offsetAngle) MiniGrenadeLaunch =
     local    entity missile;
     local    float    tempRand;
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self.owner;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -99,7 +99,7 @@ void() MultiGrenadeTouch =
         return;
     }
     // bounce sound
-    sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
     if(self.velocity == '0 0 0')
         self.avelocity = '0 0 0';
 };
@@ -117,11 +117,11 @@ void() W_FireMultiGrenade =
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
-    sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -182,16 +182,16 @@ void() MultiRocketExplode =
 
     T_RadiusDamage (self, self.owner, 75, other);
 
-//    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+//    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-    BecomeExplosion ();
+    BecomeExplosion();
 };
 
 //================================
@@ -207,7 +207,7 @@ void() MultiRocketTouch =
         return;
     }
 
-    MultiRocketExplode ();
+    MultiRocketExplode();
 };
 
 
@@ -239,7 +239,7 @@ void() HomingMissileAcquire =
 
     if( self.delay < time )
     {
-        MultiRocketExplode ();
+        MultiRocketExplode();
         return;
     }
 
@@ -249,7 +249,7 @@ void() HomingMissileAcquire =
     self.velocity = self.velocity * 1000;
 
     aimangle = self.origin + self.velocity;
-    traceline ( self.origin, aimangle, FALSE, self );
+    traceline( self.origin, aimangle, FALSE, self );
     if(trace_fraction < 1)
     {
         if(trace_ent.flags & FL_MONSTER)
@@ -274,7 +274,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
     local entity     missile;
     local vector    aimangle;
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -312,7 +312,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
         missile.v_angle = self.v_angle;
 
         aimangle = missile.origin + missile.velocity;
-        traceline ( missile.origin, aimangle, FALSE, self );
+        traceline( missile.origin, aimangle, FALSE, self );
         if(trace_fraction < 1)
         {
             if(trace_ent.flags & FL_MONSTER)
@@ -339,7 +339,7 @@ void() W_FireMultiRocket =
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
-    sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
@@ -366,7 +366,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 
     e1 = e2 = world;
 
-    traceline (p1, p2, FALSE, self);
+    traceline(p1, p2, FALSE, self);
     if(trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
@@ -379,7 +379,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     }
     e1 = trace_ent;
 
-    traceline (p1 + f, p2 + f, FALSE, self);
+    traceline(p1 + f, p2 + f, FALSE, self);
     if(trace_ent != e1 && trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
@@ -387,7 +387,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     }
     e2 = trace_ent;
 
-    traceline (p1 - f, p2 - f, FALSE, self);
+    traceline(p1 - f, p2 - f, FALSE, self);
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
@@ -399,18 +399,18 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 //================================
 void(entity current, float doDamage) PlasmaDischarge =
 {
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity (MSG_BROADCAST, current);
-    WriteByte (MSG_BROADCAST, 0); /* disambiguator */
-    WriteCoord (MSG_BROADCAST, current.origin_x);
-    WriteCoord (MSG_BROADCAST, current.origin_y);
-    WriteCoord (MSG_BROADCAST, current.origin_z);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+    WriteEntity(MSG_BROADCAST, current);
+    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+    WriteCoord(MSG_BROADCAST, current.origin_x);
+    WriteCoord(MSG_BROADCAST, current.origin_y);
+    WriteCoord(MSG_BROADCAST, current.origin_z);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-    sound (self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
     if(doDamage == 1)
         PlasmaDamage (self.origin, current.origin, self, 50);
 };
@@ -431,7 +431,7 @@ void() PlasmaGroundOut =
         {
             if( current != self.owner )
             {
-                traceline ( self.origin, current.origin, TRUE, world );
+                traceline( self.origin, current.origin, TRUE, world );
                 if(trace_fraction == 1)
                 {
                     monstersHit = monstersHit + 1;
@@ -463,7 +463,7 @@ void() PlasmaTouch =
     damg = 80 + random()*20;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // sound (self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
+    // sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
 
     if(other.health)
     {
@@ -476,13 +476,13 @@ void() PlasmaTouch =
     // was done in the impact
     T_RadiusDamage (self, self.owner, 70, other);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 244);
-    WriteByte (MSG_BROADCAST, 3);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 244);
+    WriteByte(MSG_BROADCAST, 3);
 
     PlasmaGroundOut();
     remove (self);
@@ -503,7 +503,7 @@ void(vector org, vector dir) launch_plasma =
 {
     local entity    missile;
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -521,7 +521,7 @@ void(vector org, vector dir) launch_plasma =
     setorigin (missile, org);
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // sound (missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
+    // sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
 
     if(!deathmatch && !coop)
         missile.effects = EF_BRIGHTLIGHT;
@@ -543,8 +543,8 @@ void() W_FirePlasma =
 
     if(self.ammo_plasma < 1)
     {
-        self.weapon = W_BestWeapon ();
-        W_SetCurrentAmmo ();
+        self.weapon = W_BestWeapon();
+        W_SetCurrentAmmo();
         return;
     }
 
@@ -553,7 +553,7 @@ void() W_FirePlasma =
     {
         cells = self.ammo_plasma;
         self.ammo_plasma = 0;
-        W_SetCurrentAmmo ();
+        W_SetCurrentAmmo();
         T_RadiusDamage (self, self, 35*cells, world);
         return;
     }
@@ -561,7 +561,7 @@ void() W_FirePlasma =
 
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
-    sound (self, CHAN_WEAPON, "plasma/fire.wav", 0.5, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;
 
     makevectors (self.v_angle);

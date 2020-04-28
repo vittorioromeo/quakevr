@@ -35,7 +35,7 @@ void() InitTrigger =
 // trigger angles are used for one-way touches.  An angle of 0 is assumed
 // to mean no restrictions, so use a yaw of 360 instead.
     if(self.angles != '0 0 0')
-        SetMovedir ();
+        SetMovedir();
     self.solid = SOLID_TRIGGER;
     setmodel (self, self.model);    // set size and link into world
     self.movetype = MOVETYPE_NONE;
@@ -185,7 +185,7 @@ void() SUB_CalcAngleMoveDone =
 void() DelayThink =
 {
     activator = self.enemy;
-    SUB_UseTargets ();
+    SUB_UseTargets();
     remove(self);
 };
 
@@ -237,7 +237,7 @@ void() SUB_UseTargets =
     {
         centerprint (activator, self.message);
         if(!self.noise)
-            sound (activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+            sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
 
 //
@@ -276,7 +276,7 @@ void() SUB_UseTargets =
             if(self.use != SUB_Null)
             {
                 if(self.use)
-                    self.use ();
+                    self.use();
             }
             self = stemp;
             other = otemp;

@@ -171,26 +171,18 @@ float GL_WaterAlphaForSurface(msurface_t* fa)
     {
         return map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha;
     }
+
     if(fa->flags & SURF_DRAWTELE)
-
     {
-
         return map_telealpha > 0 ? map_telealpha : map_wateralpha;
     }
 
-    else if(fa->flags & SURF_DRAWSLIME)
-
+    if(fa->flags & SURF_DRAWSLIME)
     {
-
         return map_slimealpha > 0 ? map_slimealpha : map_wateralpha;
     }
 
-    else
-
-    {
-
-        return map_wateralpha;
-    }
+    return map_wateralpha;
 }
 
 

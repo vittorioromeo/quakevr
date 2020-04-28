@@ -869,6 +869,7 @@ static void PF_traceline()
     {
         v1[0] = v1[1] = v1[2] = 0;
     }
+
     if(IS_NAN(v2[0]) || IS_NAN(v2[1]) || IS_NAN(v2[2]))
     {
         v2[0] = v2[1] = v2[2] = 0;

@@ -51,10 +51,10 @@ void() boss_face =
 };
 
 void() boss_rise1    =[    $rise1, boss_rise2 ] {
-sound (self, CHAN_WEAPON, "boss1/out1.wav", 1, ATTN_NORM);
+sound(self, CHAN_WEAPON, "boss1/out1.wav", 1, ATTN_NORM);
 };
 void() boss_rise2    =[    $rise2, boss_rise3 ] {
-sound (self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM);
+sound(self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM);
 };
 void() boss_rise3    =[    $rise3, boss_rise4 ] {};
 void() boss_rise4    =[    $rise4, boss_rise5 ] {};
@@ -165,7 +165,7 @@ void() boss_shockc9 =[    $shockc9, boss_shockc10 ] {};
 void() boss_shockc10 =[    $shockc10, boss_death1 ] {};
 
 void() boss_death1 = [$death1, boss_death2] {
-sound (self, CHAN_VOICE, "boss1/death.wav", 1, ATTN_NORM);
+sound(self, CHAN_VOICE, "boss1/death.wav", 1, ATTN_NORM);
 };
 void() boss_death2 = [$death2, boss_death3] {};
 void() boss_death3 = [$death3, boss_death4] {};
@@ -176,19 +176,19 @@ void() boss_death7 = [$death7, boss_death8] {};
 void() boss_death8 = [$death8, boss_death9] {};
 void() boss_death9 = [$death9, boss_death10]
 {
-    sound (self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    sound(self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 };
 
 void() boss_death10 = [$death9, boss_death10]
 {
     killed_monsters = killed_monsters + 1;
-    WriteByte (MSG_ALL, SVC_KILLEDMONSTER);    // FIXME: reliable broadcast
-    SUB_UseTargets ();
+    WriteByte(MSG_ALL, SVC_KILLEDMONSTER);    // FIXME: reliable broadcast
+    SUB_UseTargets();
     remove (self);
 };
 
@@ -248,11 +248,11 @@ void(float r, vector p) boss_missile =
     }
 
     newmis.touch = T_MissileTouch; // rocket explosion
-    sound (self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
 
 // check for dead enemy
     if(self.enemy.health <= 0)
-        boss_idle1 ();
+        boss_idle1();
 };
 
 
@@ -272,14 +272,14 @@ void() boss_awake =
 
     self.enemy = activator;
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
     self.yaw_speed = 20;
-    boss_rise1 ();
+    boss_rise1();
 };
 
 
@@ -295,13 +295,13 @@ void() monster_boss =
     precache_model ("progs/boss.mdl");
     precache_model ("progs/lavaball.mdl");
 
-    precache_sound ("weapons/rocket1i.wav");
-    precache_sound ("boss1/out1.wav");
-    precache_sound ("boss1/sight1.wav");
-    precache_sound ("misc/power.wav");
-    precache_sound ("boss1/throw.wav");
-    precache_sound ("boss1/pain.wav");
-    precache_sound ("boss1/death.wav");
+    precache_sound("weapons/rocket1i.wav");
+    precache_sound("boss1/out1.wav");
+    precache_sound("boss1/sight1.wav");
+    precache_sound("misc/power.wav");
+    precache_sound("boss1/throw.wav");
+    precache_sound("boss1/pain.wav");
+    precache_sound("boss1/death.wav");
 
     total_monsters = total_monsters + 1;
 
@@ -320,9 +320,9 @@ void() lightning_fire =
     if(time >= lightning_end)
     {    // done here, put the terminals back up
         self = le1;
-        door_go_down ();
+        door_go_down();
         self = le2;
-        door_go_down ();
+        door_go_down();
         return;
     }
 
@@ -338,16 +338,16 @@ void() lightning_fire =
     self.nextthink = time + 0.1;
     self.think = lightning_fire;
 
-    WriteByte (MSG_ALL, SVC_TEMPENTITY);
-    WriteByte (MSG_ALL, TE_LIGHTNING3);
-    WriteEntity (MSG_ALL, world);
-    WriteByte (MSG_ALL, 0); /* disambiguator */
-    WriteCoord (MSG_ALL, p1_x);
-    WriteCoord (MSG_ALL, p1_y);
-    WriteCoord (MSG_ALL, p1_z);
-    WriteCoord (MSG_ALL, p2_x);
-    WriteCoord (MSG_ALL, p2_y);
-    WriteCoord (MSG_ALL, p2_z);
+    WriteByte(MSG_ALL, SVC_TEMPENTITY);
+    WriteByte(MSG_ALL, TE_LIGHTNING3);
+    WriteEntity(MSG_ALL, world);
+    WriteByte(MSG_ALL, 0); /* disambiguator */
+    WriteCoord(MSG_ALL, p1_x);
+    WriteCoord(MSG_ALL, p1_y);
+    WriteCoord(MSG_ALL, p1_z);
+    WriteCoord(MSG_ALL, p2_x);
+    WriteCoord(MSG_ALL, p2_y);
+    WriteCoord(MSG_ALL, p2_z);
 };
 
 void() lightning_use =
@@ -377,8 +377,8 @@ void() lightning_use =
     le2.nextthink = -1;
     lightning_end = time + 1;
 
-    sound (self, CHAN_VOICE, "misc/power.wav", 1, ATTN_NORM);
-    lightning_fire ();
+    sound(self, CHAN_VOICE, "misc/power.wav", 1, ATTN_NORM);
+    lightning_fire();
 
 // advance the boss pain if down
     self = find (world, classname, "monster_boss");
@@ -387,7 +387,7 @@ void() lightning_use =
     self.enemy = activator;
     if(le1.state == STATE_TOP && self.health > 0)
     {
-        sound (self, CHAN_VOICE, "boss1/pain.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "boss1/pain.wav", 1, ATTN_NORM);
         self.health = self.health - 1;
         if(self.health >= 2)
             boss_shocka1();

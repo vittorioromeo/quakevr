@@ -56,7 +56,7 @@ void() keytrigger_use =
                }
             }
          }
-      sound (self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
+      sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
       return;
       }
 
@@ -70,7 +70,7 @@ void() keytrigger_use =
    self.think = SUB_Remove;
    self.message = "";
 
-   sound (self, CHAN_VOICE, self.noise4, 1, ATTN_NORM);
+   sound(self, CHAN_VOICE, self.noise4, 1, ATTN_NORM);
 
    SUB_UseTargets();
    };
@@ -91,22 +91,22 @@ void() trigger_usekey =
     {
    if(world.worldtype == 0)
     {
-        precache_sound ("doors/medtry.wav");
-        precache_sound ("doors/meduse.wav");
+        precache_sound("doors/medtry.wav");
+        precache_sound("doors/meduse.wav");
         self.noise3 = "doors/medtry.wav";
         self.noise4 = "doors/meduse.wav";
     }
     else if(world.worldtype == 1)
     {
-        precache_sound ("doors/runetry.wav");
-        precache_sound ("doors/runeuse.wav");
+        precache_sound("doors/runetry.wav");
+        precache_sound("doors/runeuse.wav");
         self.noise3 = "doors/runetry.wav";
         self.noise4 = "doors/runeuse.wav";
     }
     else if(world.worldtype == 2)
     {
-        precache_sound ("doors/basetry.wav");
-        precache_sound ("doors/baseuse.wav");
+        precache_sound("doors/basetry.wav");
+        precache_sound("doors/baseuse.wav");
         self.noise3 = "doors/basetry.wav";
         self.noise4 = "doors/baseuse.wav";
     }
@@ -123,7 +123,7 @@ void() trigger_usekey =
    self.use = keytrigger_use;
    self.touch = keytrigger_touch;
 
-    InitTrigger ();
+    InitTrigger();
    };
 
 void() remove_touch =
@@ -149,7 +149,7 @@ void() trigger_remove =
       self.cnt = self.cnt - FL_MONSTER;
    if(self.spawnflags & 2)
       self.cnt = self.cnt - FL_CLIENT;
-   InitTrigger ();
+   InitTrigger();
    self.touch = remove_touch;
    };
 /*
@@ -184,7 +184,7 @@ set the gravity of a player
 */
 void() trigger_setgravity =
 {
-    InitTrigger ();
+    InitTrigger();
    self.touch = trigger_gravity_touch;
    if(!self.gravity)
       {
@@ -237,7 +237,7 @@ void() trigger_decoy_use =
         remove(self);
         return;
     }
-   InitTrigger ();
+   InitTrigger();
    self.touch = trigger_decoy_touch;
    };
 
@@ -263,7 +263,7 @@ void() trigger_waterfall_touch =
 
 void() trigger_waterfall =
    {
-   InitTrigger ();
+   InitTrigger();
    self.touch = trigger_waterfall_touch;
 
    if( self.count == 0 )

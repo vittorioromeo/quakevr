@@ -44,7 +44,7 @@ void() plat_spawn_inside_trigger =
 
 void() plat_hit_top =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
     self.think = plat_go_down;
     self.nextthink = self.ltime + 3;
@@ -52,20 +52,20 @@ void() plat_hit_top =
 
 void() plat_hit_bottom =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
 };
 
 void() plat_go_down =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_DOWN;
     SUB_CalcMove (self.pos2, self.speed, plat_hit_bottom);
 };
 
 void() plat_go_up =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.pos1, self.speed, plat_hit_top);
 };
@@ -80,7 +80,7 @@ void() plat_center_touch =
 
     self = self.enemy;
     if(self.state == STATE_BOTTOM)
-        plat_go_up ();
+        plat_go_up();
     else if(self.state == STATE_TOP)
         self.nextthink = self.ltime + 1;    // delay going down
 };
@@ -96,7 +96,7 @@ void() plat_outside_touch =
 //dprint ("plat_outside_touch\n");
     self = self.enemy;
     if(self.state == STATE_TOP)
-        plat_go_down ();
+        plat_go_down();
 };
 
 void() plat_trigger_use =
@@ -114,9 +114,9 @@ void() plat_crush =
     T_Damage (other, self, self, 1);
 
     if(self.state == STATE_UP)
-        plat_go_down ();
+        plat_go_down();
     else if(self.state == STATE_DOWN)
-        plat_go_up ();
+        plat_go_up();
     else
         objerror ("plat_crush: bad self.state\n");
 };
@@ -156,16 +156,16 @@ void() func_plat =
 
     if(self.sounds == 1)
     {
-        precache_sound ("plats/plat1.wav");
-        precache_sound ("plats/plat2.wav");
+        precache_sound("plats/plat1.wav");
+        precache_sound("plats/plat2.wav");
         self.noise = "plats/plat1.wav";
         self.noise1 = "plats/plat2.wav";
     }
 
     if(self.sounds == 2)
     {
-        precache_sound ("plats/medplat1.wav");
-        precache_sound ("plats/medplat2.wav");
+        precache_sound("plats/medplat1.wav");
+        precache_sound("plats/medplat2.wav");
         self.noise = "plats/medplat1.wav";
         self.noise1 = "plats/medplat2.wav";
     }
@@ -195,7 +195,7 @@ void() func_plat =
 
     self.use = plat_trigger_use;
 
-    plat_spawn_inside_trigger ();    // the "start moving" trigger
+    plat_spawn_inside_trigger();    // the "start moving" trigger
 
     if(self.targetname)
     {
@@ -233,7 +233,7 @@ void() train_wait =
     if(self.wait)
     {
         self.nextthink = self.ltime + self.wait;
-        sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     }
     else
         self.nextthink = self.ltime + 0.1;
@@ -253,7 +253,7 @@ void() train_next =
         self.wait = targ.wait;
     else
         self.wait = 0;
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     SUB_CalcMove (targ.origin - self.mins, self.speed, train_wait);
 };
 
@@ -295,17 +295,17 @@ void() func_train =
     if(self.sounds == 0)
     {
         self.noise = ("misc/null.wav");
-        precache_sound ("misc/null.wav");
+        precache_sound("misc/null.wav");
         self.noise1 = ("misc/null.wav");
-        precache_sound ("misc/null.wav");
+        precache_sound("misc/null.wav");
     }
 
     if(self.sounds == 1)
     {
         self.noise = ("plats/train2.wav");
-        precache_sound ("plats/train2.wav");
+        precache_sound("plats/train2.wav");
         self.noise1 = ("plats/train1.wav");
-        precache_sound ("plats/train1.wav");
+        precache_sound("plats/train1.wav");
     }
 
     self.cnt = 1;
@@ -343,9 +343,9 @@ void() misc_teleporttrain =
     self.avelocity = '100 200 300';
 
     self.noise = ("misc/null.wav");
-    precache_sound ("misc/null.wav");
+    precache_sound("misc/null.wav");
     self.noise1 = ("misc/null.wav");
-    precache_sound ("misc/null.wav");
+    precache_sound("misc/null.wav");
 
     precache_model2 ("progs/teleport.mdl");
     setmodel (self, "progs/teleport.mdl");

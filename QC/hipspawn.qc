@@ -77,8 +77,8 @@ void() spawn_use =
       if((self.spawnmulti != 0) && (horn_active == 0))
          {
          total_monsters = total_monsters + 1;
-         WriteByte (MSG_BROADCAST, SVC_UPDATESTAT);
-         WriteByte (MSG_BROADCAST, STAT_TOTALMONSTERS);
+         WriteByte(MSG_BROADCAST, SVC_UPDATESTAT);
+         WriteByte(MSG_BROADCAST, STAT_TOTALMONSTERS);
          WriteLong (MSG_BROADCAST, total_monsters);
          }
       // spawn the telefrag effect

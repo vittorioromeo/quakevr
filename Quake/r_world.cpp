@@ -784,16 +784,12 @@ Returns the water alpha to use for the entity and surface combination.
 */
 float GL_WaterAlphaForEntitySurface(entity_t* ent, msurface_t* s)
 {
-    float entalpha;
     if(ent == nullptr || ent->alpha == ENTALPHA_DEFAULT)
     {
-        entalpha = GL_WaterAlphaForSurface(s);
+        return GL_WaterAlphaForSurface(s);
     }
-    else
-    {
-        entalpha = ENTALPHA_DECODE(ent->alpha);
-    }
-    return entalpha;
+
+    return ENTALPHA_DECODE(ent->alpha);
 }
 
 /*
