@@ -401,7 +401,8 @@ float    IT_ARMOR3                = 32768;
 // TODO VR: (P1) deal with this, hipnotic comments the line below
 //MED 11/02/96 added new hip weapon removed SUPERHEALTH
 float    IT_SUPERHEALTH           = 65536;
-// TODO VR: (P1) this conflicts with super health
+// TODO VR: (P1) this conflicts with super health, grabbing super health gives
+// the player proximity gun
 float    IT_PROXIMITY_GUN         = 65536;
 
 float    IT_KEY1                  = 131072;
