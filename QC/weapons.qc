@@ -850,7 +850,7 @@ void(float xHand) HIP_FireMjolnir =
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 1.15, 5);
+    xdmg = VRMeleeDmg(xHand, 1.10, 5);
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
     {
@@ -963,7 +963,7 @@ void(float xHand) W_FireAxe =
     local vector org;
     local float  xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 1.10, 7);
+    xdmg = VRMeleeDmg(xHand, 1.00, 7);
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
     {
@@ -1013,7 +1013,7 @@ void(float xHand) W_GunMelee =
     local    vector    org;
     local    float    xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 0.5, 3);
+    xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
     {
