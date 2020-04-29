@@ -2683,6 +2683,9 @@ void M_QuakeVRSettings_Key(int k)
     extern cvar_t r_showbboxes;
     m.add_cvar_entry<bool>("Show BBoxes", r_showbboxes);
 
+    extern cvar_t r_showbboxes_player;
+    m.add_cvar_entry<bool>("Show Player BBoxes", r_showbboxes_player);
+
     m.add_cvar_entry<bool>(
         "Show VR Torso Debug Lines", vr_vrtorso_debuglines_enabled);
 

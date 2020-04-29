@@ -3039,9 +3039,9 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     else
     {
         // TODO VR: (P1) still triggers sometimes
-        bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
-        bprint(ftos(angle));
-        bprint("'\n");
+        // bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
+        // bprint(ftos(angle));
+        // bprint("'\n");
     }
 
     if(self.throwstabilize > 0)

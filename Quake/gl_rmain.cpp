@@ -100,6 +100,7 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
+cvar_t r_showbboxes_player = {"r_showbboxes_player", "0", CVAR_NONE};
 cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t r_nolerp_list = {"r_nolerp_list",
@@ -835,7 +836,7 @@ R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 */
 void R_EmitWirePoint(const glm::vec3& origin)
 {
-    int size = 8;
+    constexpr int size = 4;
 
     glBegin(GL_LINES);
     glVertex3f(origin[0] - size, origin[1], origin[2]);
@@ -877,9 +878,6 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 */
 void R_ShowBoundingBoxes()
 {
-    edict_t* ed;
-    int i;
-
     if(!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value ||
         !sv.active)
     {
@@ -893,17 +891,19 @@ void R_ShowBoundingBoxes()
     glDisable(GL_CULL_FACE);
     glColor3f(1, 1, 1);
 
+    int i;
+    edict_t* ed;
     for(i = 0, ed = NEXT_EDICT(sv.edicts); i < sv.num_edicts;
         i++, ed = NEXT_EDICT(ed))
     {
-        if(ed == sv_player)
+        if(ed == sv_player && !r_showbboxes_player.value)
         {
             continue; // don't draw player's own bbox
         }
 
-        //		if (r_showbboxes.value != 2)
-        //			if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
-        //				continue; //don't draw if not in pvs
+        // if (r_showbboxes.value != 2)
+        //     if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
+        //         continue; // don't draw if not in pvs
 
         if(ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] &&
             ed->v.mins[2] == ed->v.maxs[2])

@@ -1296,6 +1296,12 @@ static void VR_InitActionHandles()
            cls.signon == SIGNONS;
 }
 
+[[nodiscard]] static edict_t* getPlayerEdict() noexcept
+{
+    assert(svPlayerActive());
+    return sv_player;
+}
+
 bool VR_Enable()
 {
     if(vr_initialized)
@@ -1595,6 +1601,12 @@ void debugPrintHandvel(const int index, const float linearity)
 glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept
 {
+    if (!svPlayerActive())
+    {
+        out._ent = nullptr;
+        return resolvedHandPos;
+    }
+
     constexpr glm::vec3 handMins{-1.f, -1.f, -1.f};
     constexpr glm::vec3 handMaxs{1.f, 1.f, 1.f};
 
@@ -1607,8 +1619,8 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     const auto muzzlePos = resolvedHandPos + localMuzzlePos;
 
     // Check for collisions between the muzzle and geometry/entities.
-    const trace_t gunTrace = SV_Move(
-        resolvedHandPos, handMins, handMaxs, muzzlePos, MOVE_NORMAL, sv_player);
+    const trace_t gunTrace = SV_Move(resolvedHandPos, handMins, handMaxs,
+        muzzlePos, MOVE_NORMAL, getPlayerEdict());
 
     // Position of the hand after resolving collisions with the gun
     // muzzle.
@@ -1660,14 +1672,19 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
 [[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
     const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept
 {
+    if (!svPlayerActive())
+    {
+        return worldHandPos;
+    }
+
     // Size of hand hitboxes.
     constexpr glm::vec3 mins{-1.f, -1.f, -1.f};
     constexpr glm::vec3 maxs{1.f, 1.f, 1.f};
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
-    const trace_t trace = SV_Move(
-        adjPlayerOrigin, mins, maxs, worldHandPos, MOVE_NORMAL, sv_player);
+    const trace_t trace = SV_Move(adjPlayerOrigin, mins, maxs, worldHandPos,
+        MOVE_NORMAL, getPlayerEdict());
 
     // Compute final collision resolution position, starting from the
     // desired position and resolving only against the collision plane's
@@ -2388,7 +2405,7 @@ static void VR_DoTeleportation()
         const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
 
         const trace_t trace = SV_Move(
-            adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, sv_player);
+            adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, getPlayerEdict());
 
         const auto between = [](const float value, const float min,
                                  const float max) {
@@ -2870,7 +2887,8 @@ static void VR_FakeVRControllerAiming()
         playerOrigin + vfwd * 4.5f - vright * 4.5f + vup * 6.f;
 
     const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8.f,
-        playerOrigin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL, sv_player);
+        playerOrigin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
+        getPlayerEdict());
 
     const auto maindir =
         glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
@@ -3550,7 +3568,8 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
 
             // trace to first entity
             const auto end = start + depth * forward;
-            const trace_t trace = TraceLineToEntity(start, end, sv_player);
+            const trace_t trace =
+                TraceLineToEntity(start, end, getPlayerEdict());
             auto impact = hitSomething(trace) ? trace.endpos : end;
             impact[2] += vr_crosshairy.value * 10.f;
 
@@ -4748,7 +4767,7 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) consider toning animation down while aiming 2h, might
 // need a new weapon cvar and significant work
 
-// TODO VR: (P0) remove existing sv_player usages, or chhange to to
+// TODO VR: (P0) remove existing sv_player usages, or change to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
 
@@ -4787,3 +4806,17 @@ void VR_Move(usercmd_t* cmd)
 // system is that beyond a certain point it all starts to overlap. It would be
 // nice if the value also somewhat increased the spread or distance of the
 // particles too, just to make it a bit messier"
+
+// TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
+// below, it seems like you need to position your body over the ledge
+// specifically so that a specific point of your body has a direct line of sight
+// to the weapon" - this might be related to water
+
+// TODO VR: (P1): "I had let go of weapon grabs between a level end and next
+// level start and upon next level spawn the main hand weapon was nowhere to be
+// found, the offhand weapon was on the floor"
+
+// TODO VR: (P1): "I did find it quite confusing at times being unable to
+// holster to my shoulder, because something was already there. I guess some
+// sort of buzz or something to indicate the holster is full could be helpful."
+// text message should be good enough

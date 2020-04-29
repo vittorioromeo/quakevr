@@ -440,6 +440,7 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 //============================================================================
 
 //MED 10/18/96 added HIPSWEAPONS
+// TODO VR: (P1) laser animation keeps playing when ammo=0
 void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
 void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 2); };
 void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };

@@ -11541,6 +11541,11 @@
                 $("#btndonate").html("Thank you!");
             });
 
+            $(".donationlink").on('click', function () {
+                $("#btndownload").prop('disabled', false);
+                $("#btndownload").removeClass('isDisabled');
+            });
+
             templateScripts();
         });
     </script>
@@ -11580,7 +11585,17 @@
                     <div class="input-group mb-3 w-25 mx-auto" style="zoom: 150%; width: 150px !important">
                         <a style="width: 100%!important" target="_blank" id="btndonate" type="button"
                             class="isDisabled btn btn-secondary" disabled>Donate</a>
+
+                        <div style="text-align: center; width: 100%;">
+                            <p style="font-size: 8px;">
+                                Also via
+                                <a class="donationlink" target="_blank" href="https://github.com/sponsors/SuperV1234">GitHub Sponsors</a>
+                                or
+                                <a class="donationlink" target="_blank" href="https://www.patreon.com/vittorioromeo">Patreon</a>.
+                            </p>
+                        </div>
                     </div>
+
                 </div>
                 <div class="modal-footer">
                     <a target="_blank" id="btndownload" type="button" class="isDisabled btn btn-primary" disabled

@@ -65,7 +65,7 @@ float(float xHand, vector handPos, vector handRot,
     local float i;
     for(i = 0; i <= nTraces * 2; ++i)
     {
-        traceline(handPos, handPos + v_forward * ((nTraces / 2.0) * i), TRUE, self);
+        traceline(handPos, handPos + v_forward * ((getForcegrabRadius() / 2.0) * i), TRUE, self);
         if(logicFn(trace_endpos, xHand, handPos, handRot))
         {
             return TRUE;
