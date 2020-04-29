@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "modelgen.hpp"
 #include "spritegn.hpp"
 #include "client.hpp"
+#include "quakeglm.hpp"
 
 /*
 
@@ -58,7 +59,7 @@ BRUSH MODELS
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
 {
-    vec3_t position;
+    glm::vec3 position;
 } mvertex_t;
 
 #define SIDE_FRONT 0
@@ -70,7 +71,7 @@ typedef struct
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct mplane_s
 {
-    vec3_t normal;
+    glm::vec3 normal;
     float dist;
     byte type;     // for texture axis selection and fast side tests
     byte signbits; // signx + signy<<1 + signz<<1
@@ -92,7 +93,7 @@ typedef struct texture_s
     struct gltexture_s* gltexture;       // johnfitz -- pointer to gltexture
     struct gltexture_s* fullbright;      // johnfitz -- fullbright mask texture
     struct gltexture_s* warpimage;       // johnfitz -- for water animation
-    bool update_warp;                // johnfitz -- update warp this frame
+    bool update_warp;                    // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
@@ -143,10 +144,10 @@ typedef struct glpoly_s
 
 typedef struct msurface_s
 {
-    int visframe;    // should be drawn when node is crossed
-    bool culled; // johnfitz -- for frustum culling
-    float mins[3];   // johnfitz -- for frustum culling
-    float maxs[3];   // johnfitz -- for frustum culling
+    int visframe;   // should be drawn when node is crossed
+    bool culled;    // johnfitz -- for frustum culling
+    glm::vec3 mins; // johnfitz -- for frustum culling
+    glm::vec3 maxs; // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;
@@ -174,7 +175,7 @@ typedef struct msurface_s
     int lightmaptexturenum;
     byte styles[MAXLIGHTMAPS];
     int cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
-    bool cached_dlight;         // true if dynamic light in cache
+    bool cached_dlight;             // true if dynamic light in cache
     byte* samples;                  // [numstyles*surfsize]
 } msurface_t;
 
@@ -233,8 +234,8 @@ typedef struct
     mplane_t* planes;
     int firstclipnode;
     int lastclipnode;
-    vec3_t clip_mins;
-    vec3_t clip_maxs;
+    glm::vec3 clip_mins;
+    glm::vec3 clip_maxs;
 } hull_t;
 
 /*
@@ -343,14 +344,14 @@ typedef struct mtriangle_s
 
 
 #define MAX_SKINS 32
-typedef struct
+struct aliashdr_t
 {
     int ident;
     int version;
-    vec3_t scale;
-    vec3_t scale_origin;
+    glm::vec3 scale;
+    glm::vec3 scale_origin;
     float boundingradius;
-    vec3_t eyeposition;
+    glm::vec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;
@@ -362,8 +363,8 @@ typedef struct
     float size;
 
     // For vr - we modify these, so keep the originals
-    vec3_t original_scale;
-    vec3_t original_scale_origin;
+    glm::vec3 original_scale;
+    glm::vec3 original_scale_origin;
 
     // ericw -- used to populate vbo
     int numverts_vbo;  // number of verts with unique x,y,z,s,t
@@ -382,7 +383,7 @@ typedef struct
     struct gltexture_s* fbtextures[MAX_SKINS][4]; // johnfitz
     int texels[MAX_SKINS];                        // only for player skins
     maliasframedesc_t frames[1];                  // variable sized
-} aliashdr_t;
+};
 
 #define MAXALIASVERTS 2000 // johnfitz -- was 1024
 #define MAXALIASFRAMES 256
@@ -423,12 +424,12 @@ typedef enum
          // brighter
 // johnfitz
 
-typedef struct qmodel_s
+struct qmodel_t
 {
     char name[MAX_QPATH];
     unsigned int path_id; // path id of the game directory
                           // that this model came from
-    bool needload;    // bmodels and sprites don't cache normally
+    bool needload;        // bmodels and sprites don't cache normally
 
     modtype_t type;
     int numframes;
@@ -439,9 +440,9 @@ typedef struct qmodel_s
     //
     // volume occupied by the model graphics
     //
-    vec3_t mins, maxs;
-    vec3_t ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
-    vec3_t rmins,
+    glm::vec3 mins, maxs;
+    glm::vec3 ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
+    glm::vec3 rmins,
         rmaxs; // johnfitz -- bounds for entities with nonzero pitch or roll
     // johnfitz -- removed float radius;
 
@@ -449,7 +450,7 @@ typedef struct qmodel_s
     // solid volume for clipping
     //
     bool clipbox;
-    vec3_t clipmins, clipmaxs;
+    glm::vec3 clipmins, clipmaxs;
 
     //
     // brush model
@@ -516,8 +517,7 @@ typedef struct qmodel_s
     // additional model data
     //
     cache_user_t cache; // only access through Mod_Extradata
-
-} qmodel_t;
+};
 
 //============================================================================
 
@@ -525,10 +525,11 @@ void Mod_Init(void);
 void Mod_ClearAll(void);
 void Mod_ResetAll(void); // for gamedir changes (Host_Game_f)
 qmodel_t* Mod_ForName(const char* name, bool crash);
+qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback);
 void* Mod_Extradata(qmodel_t* mod); // handles caching
 void Mod_TouchModel(const char* name);
 
-mleaf_t* Mod_PointInLeaf(float* p, qmodel_t* model);
+mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model);
 byte* Mod_LeafPVS(mleaf_t* leaf, qmodel_t* model);
 byte* Mod_NoVisPVS(qmodel_t* model);
 

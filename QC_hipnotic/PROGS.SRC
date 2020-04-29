@@ -1,0 +1,62 @@
+../progs.dat
+
+defs.qc
+hipdefs.qc   //JIM
+subs.qc
+fight.qc
+ai.qc
+combat.qc
+items.qc
+weapons.qc
+world.qc
+client.qc
+player.qc
+monsters.qc
+doors.qc
+buttons.qc
+triggers.qc
+plats.qc
+misc.qc
+
+ogre.qc
+demon.qc
+shambler.qc
+knight.qc
+soldier.qc
+wizard.qc
+dog.qc
+zombie.qc
+boss.qc
+
+tarbaby.qc  // registered
+hknight.qc  // registered
+fish.qc   // registered
+shalrath.qc  // registered
+enforcer.qc  // registered
+oldone.qc  // registered
+
+// Hipnotic Quake additions
+
+hipsubs.qc
+hip_brk.qc
+hiptrain.qc
+hip_expl.qc
+hipquake.qc
+hipcount.qc
+hipitems.qc
+hiprubbl.qc
+hip_push.qc
+hip_part.qc
+hipspawn.qc
+hipgrem.qc
+hiparma.qc
+hipspike.qc
+hiprot.qc
+hipscrge.qc
+hipholes.qc
+hipclock.qc
+hiptrig.qc
+hipmisc.qc
+hipwater.qc
+hipdecoy.qc
+

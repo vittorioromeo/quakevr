@@ -104,28 +104,14 @@ namespace glm
 	GLM_FUNC_QUALIFIER GLM_CONSTEXPR T & vec<2, T, Q>::operator[](typename vec<2, T, Q>::length_type i)
 	{
 		assert(i >= 0 && i < this->length());
-		switch(i)
-		{
-		default:
-		case 0:
-			return x;
-		case 1:
-			return y;
-		}
+		return this->data.data[i];
 	}
 
 	template<typename T, qualifier Q>
 	GLM_FUNC_QUALIFIER GLM_CONSTEXPR T const& vec<2, T, Q>::operator[](typename vec<2, T, Q>::length_type i) const
 	{
 		assert(i >= 0 && i < this->length());
-		switch(i)
-		{
-		default:
-		case 0:
-			return x;
-		case 1:
-			return y;
-		}
+		return this->data.data[i];
 	}
 
 	// -- Unary arithmetic operators --

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -146,6 +147,26 @@ EVENT MESSAGES
 =============================================================================
 */
 
+static void writeCommonParticleData(const glm::vec3& org, const glm::vec3& dir)
+{
+    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
+    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    for(int i = 0; i < 3; i++)
+    {
+        int v = dir[i] * 16;
+        if(v > 127)
+        {
+            v = 127;
+        }
+        else if(v < -128)
+        {
+            v = -128;
+        }
+        MSG_WriteChar(&sv.datagram, v);
+    }
+}
+
 /*
 ==================
 SV_StartParticle
@@ -153,8 +174,8 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(
-    const vec3_t org, const vec3_t dir, const int color, const int count)
+void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
+    const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -162,27 +183,11 @@ void SV_StartParticle(
     }
 
     MSG_WriteByte(&sv.datagram, svc_particle);
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(int i = 0; i < 3; i++)
-    {
-        int v = dir[i] * 16;
-        if(v > 127)
-        {
-            v = 127;
-        }
-        else if(v < -128)
-        {
-            v = -128;
-        }
-        MSG_WriteChar(&sv.datagram, v);
-    }
+    writeCommonParticleData(org, dir);
     MSG_WriteByte(&sv.datagram, count);
     MSG_WriteByte(&sv.datagram, color);
 }
 
-// TODO VR: repetition with above
 /*
 ==================
 SV_StartParticle2
@@ -190,8 +195,8 @@ SV_StartParticle2
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle2(
-    const vec3_t org, const vec3_t dir, const int preset, const int count)
+void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
+    const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -199,22 +204,7 @@ void SV_StartParticle2(
     }
 
     MSG_WriteByte(&sv.datagram, svc_particle2);
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
-    for(int i = 0; i < 3; i++)
-    {
-        int v = dir[i] * 16;
-        if(v > 127)
-        {
-            v = 127;
-        }
-        else if(v < -128)
-        {
-            v = -128;
-        }
-        MSG_WriteChar(&sv.datagram, v);
-    }
+    writeCommonParticleData(org, dir);
     MSG_WriteByte(&sv.datagram, preset);
     MSG_WriteShort(&sv.datagram, count);
 }
@@ -372,7 +362,7 @@ This will be sent on the initial connection and upon each server load.
 void SV_SendServerinfo(client_t* client)
 {
     const char** s;
-    char message[2048];
+    char message[4096];
     int i; // johnfitz
 
     MSG_WriteByte(&client->message, svc_print);
@@ -583,7 +573,7 @@ static int fatbytes;
 static byte* fatpvs;
 static int fatpvs_capacity;
 
-void SV_AddToFatPVS(vec3_t org, mnode_t* node,
+void SV_AddToFatPVS(const glm::vec3& org, mnode_t* node,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     int i;
@@ -619,7 +609,8 @@ void SV_AddToFatPVS(vec3_t org, mnode_t* node,
             node = node->children[1];
         }
         else
-        { // go down both
+        {
+            // go down both
             SV_AddToFatPVS(org, node->children[0],
                 worldmodel); // johnfitz -- worldmodel as a parameter
             node = node->children[1];
@@ -635,7 +626,7 @@ Calculates a PVS that is the inclusive or of all leafs within 8 pixels of
 the given point.
 =============
 */
-byte* SV_FatPVS(vec3_t org,
+byte* SV_FatPVS(const glm::vec3& org,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     fatbytes = (worldmodel->numleafs + 7) >>
@@ -664,14 +655,13 @@ SV_VisibleToClient -- johnfitz
 PVS test encapsulated in a nice function
 =============
 */
-bool SV_VisibleToClient(
-    edict_t* client, edict_t* test, qmodel_t* worldmodel)
+bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
-    vec3_t org;
+    glm::vec3 org;
     int i;
 
-    VectorAdd(client->v.origin, client->v.view_ofs, org);
+    org = client->v.origin + client->v.view_ofs;
     pvs = SV_FatPVS(org, worldmodel);
 
     for(i = 0; i < test->num_leafs; i++)
@@ -700,12 +690,12 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
     int i;
     int bits;
     byte* pvs;
-    vec3_t org;
+    glm::vec3 org;
     float miss;
     edict_t* ent;
 
     // find the client's PVS
-    VectorAdd(clent->v.origin, clent->v.view_ofs, org);
+    org = clent->v.origin + clent->v.view_ofs;
     pvs = SV_FatPVS(org, sv.worldmodel);
 
     // send over all entities (excpet the client) that touch the pvs
@@ -781,6 +771,9 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             }
         }
 
+        // TODO VR: (P1) remove, this should be set only when scale changes
+        bits |= U_SCALE;
+
         if(ent->v.angles[0] != ent->baseline.angles[0])
         {
             bits |= U_ANGLE1;
@@ -794,6 +787,36 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         if(ent->v.angles[2] != ent->baseline.angles[2])
         {
             bits |= U_ANGLE3;
+        }
+
+        if(ent->v.scale[0] != ent->baseline.scale[0])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale[1] != ent->baseline.scale[1])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale[2] != ent->baseline.scale[2])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[0] != ent->baseline.scale_origin[0])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[1] != ent->baseline.scale_origin[1])
+        {
+            bits |= U_SCALE;
+        }
+
+        if(ent->v.scale_origin[2] != ent->baseline.scale_origin[2])
+        {
+            bits |= U_SCALE;
         }
 
         if(ent->v.movetype == MOVETYPE_STEP)
@@ -852,6 +875,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             if(ent->baseline.alpha != ent->alpha)
             {
                 bits |= U_ALPHA;
+            }
+            if(ent->baseline.scale != ent->v.scale)
+            {
+                bits |= U_SCALE;
             }
             if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
             {
@@ -944,6 +971,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         {
             MSG_WriteAngle(msg, ent->v.angles[0], sv.protocolflags);
         }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[0], sv.protocolflags);
+        }
         if(bits & U_ORIGIN2)
         {
             MSG_WriteCoord(msg, ent->v.origin[1], sv.protocolflags);
@@ -952,6 +983,10 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         {
             MSG_WriteAngle(msg, ent->v.angles[1], sv.protocolflags);
         }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[1], sv.protocolflags);
+        }
         if(bits & U_ORIGIN3)
         {
             MSG_WriteCoord(msg, ent->v.origin[2], sv.protocolflags);
@@ -959,6 +994,17 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         if(bits & U_ANGLE3)
         {
             MSG_WriteAngle(msg, ent->v.angles[2], sv.protocolflags);
+        }
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale[2], sv.protocolflags);
+        }
+
+        if(bits & U_SCALE)
+        {
+            MSG_WriteCoord(msg, ent->v.scale_origin[0], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.scale_origin[1], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.scale_origin[2], sv.protocolflags);
         }
 
         // johnfitz -- PROTOCOL_FITZQUAKE
@@ -1092,7 +1138,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     bits |= SU_ITEMS;
 
-    if((int)ent->v.flags & FL_ONGROUND)
+    if(quake::util::hasFlag(ent, FL_ONGROUND))
     {
         bits |= SU_ONGROUND;
     }
@@ -1139,7 +1185,8 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         {
             bits |= SU_ARMOR2;
         }
-        if((int)ent->v.currentammo & 0xFF00)
+        if((int)ent->v.currentammo & 0xFF00 ||
+            (int)ent->v.currentammo2 & 0xFF00)
         {
             bits |= SU_AMMO2;
         }
@@ -1177,13 +1224,16 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         {
             bits |= SU_EXTEND2;
         }
+
+        bits |= SU_VR_WEAPON2;
+        bits |= SU_VR_WEAPONFRAME2;
     }
     // johnfitz
 
     // send the data
 
     MSG_WriteByte(msg, svc_clientdata);
-    MSG_WriteShort(msg, bits);
+    MSG_WriteLong(msg, bits);
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -1236,6 +1286,9 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     MSG_WriteShort(msg, ent->v.health);
     MSG_WriteByte(msg, ent->v.currentammo);
+    MSG_WriteByte(msg, ent->v.currentammo2);
+    MSG_WriteShort(msg, ent->v.ammocounter);
+    MSG_WriteShort(msg, ent->v.ammocounter2);
     MSG_WriteByte(msg, ent->v.ammo_shells);
     MSG_WriteByte(msg, ent->v.ammo_nails);
     MSG_WriteByte(msg, ent->v.ammo_rockets);
@@ -1270,6 +1323,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     if(bits & SU_AMMO2)
     {
         MSG_WriteByte(msg, (int)ent->v.currentammo >> 8);
+        MSG_WriteByte(msg, (int)ent->v.currentammo2 >> 8);
     }
     if(bits & SU_SHELLS2)
     {
@@ -1297,6 +1351,40 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
                                         // client entity alpha
     }
     // johnfitz
+
+    // TODO VR: (P2) do we need all these bits?
+    if(bits & SU_VR_WEAPON2)
+    {
+        MSG_WriteByte(msg, (int)ent->v.weapon2);
+        MSG_WriteByte(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel2)));
+    }
+    if(bits & SU_VR_WEAPONFRAME2)
+    {
+        MSG_WriteByte(msg, (int)ent->v.weaponframe2);
+    }
+
+    // TODO VR: (P2) weapon ids in holsters
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
+    MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
+    MSG_WriteByte(
+        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+
+    MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
+    MSG_WriteByte(msg, (int)ent->v.weapon2); // STAT_OFFHAND_WID
 }
 
 /*
@@ -1523,14 +1611,13 @@ SV_ModelIndex
 */
 int SV_ModelIndex(const char* name)
 {
-    int i;
-
     if(!name || !name[0])
     {
         return 0;
     }
 
-    for(i = 0; i < MAX_MODELS && sv.model_precache[i]; i++)
+    int i;
+    for(i = 0; i < MAX_MODELS && sv.model_precache[i]; ++i)
     {
         if(!strcmp(sv.model_precache[i], name))
         {
@@ -1574,8 +1661,10 @@ void SV_CreateBaseline()
         //
         // create entity baseline
         //
-        VectorCopy(svent->v.origin, svent->baseline.origin);
-        VectorCopy(svent->v.angles, svent->baseline.angles);
+        svent->baseline.origin = svent->v.origin;
+        svent->baseline.angles = svent->v.angles;
+        svent->baseline.scale = svent->v.scale;
+        svent->baseline.scale_origin = svent->v.scale_origin;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;
         if(entnum > 0 && entnum <= svs.maxclients)
@@ -1934,7 +2023,8 @@ void SV_SpawnServer(const char* server)
     // johnfitz -- warn if signon buffer larger than standard
     // server can handle
     if(sv.signon.cursize > 8000 - 2)
-    { // max size that will fit into 8000-sized client->message
+    {
+        // max size that will fit into 8000-sized client->message
         // buffer with 2 extra bytes on the end
         Con_DWarning(
             "%i byte signon buffer exceeds standard limit of "

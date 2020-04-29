@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.hpp"
+#include "util.hpp"
+#include "quakeglm.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags
@@ -83,9 +85,7 @@ Caches the data if needed
 */
 void* Mod_Extradata(qmodel_t* mod)
 {
-    void* r;
-
-    r = Cache_Check(&mod->cache);
+    void* r = Cache_Check(&mod->cache);
     if(r)
     {
         return r;
@@ -105,7 +105,7 @@ void* Mod_Extradata(qmodel_t* mod)
 Mod_PointInLeaf
 ===============
 */
-mleaf_t* Mod_PointInLeaf(vec3_t p, qmodel_t* model)
+mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model)
 {
     mnode_t* node;
     float d;
@@ -167,7 +167,8 @@ byte* Mod_DecompressVis(byte* in, qmodel_t* model)
     outend = mod_decompressed + row;
 
     if(!in)
-    { // no vis info, so make all visible
+    {
+        // no vis info, so make all visible
         while(row)
         {
             *out++ = 0xff;
@@ -267,7 +268,8 @@ void Mod_ResetAll()
     for(i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
         if(!mod->needload)
-        { // otherwise Mod_ClearAll() did it already
+        {
+            // otherwise Mod_ClearAll() did it already
             TexMgr_FreeTexturesForOwner(mod);
         }
         memset(mod, 0, sizeof(qmodel_t));
@@ -283,9 +285,6 @@ Mod_FindName
 */
 qmodel_t* Mod_FindName(const char* name)
 {
-    int i;
-    qmodel_t* mod;
-
     if(!name[0])
     {
         Sys_Error("Mod_FindName: NULL name"); // johnfitz -- was "Mod_ForName"
@@ -294,6 +293,8 @@ qmodel_t* Mod_FindName(const char* name)
     //
     // search the currently loaded models
     //
+    int i;
+    qmodel_t* mod;
     for(i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
     {
         if(!strcmp(mod->name, name))
@@ -308,6 +309,7 @@ qmodel_t* Mod_FindName(const char* name)
         {
             Sys_Error("mod_numknown == MAX_MOD_KNOWN");
         }
+
         q_strlcpy(mod->name, name, MAX_QPATH);
         mod->needload = true;
         mod_numknown++;
@@ -324,9 +326,7 @@ Mod_TouchModel
 */
 void Mod_TouchModel(const char* name)
 {
-    qmodel_t* mod;
-
-    mod = Mod_FindName(name);
+    qmodel_t* mod = Mod_FindName(name);
 
     if(!mod->needload)
     {
@@ -346,10 +346,6 @@ Loads a model into the cache
 */
 qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
 {
-    byte* buf;
-    byte stackbuf[1024]; // avoid dirtying the cache heap
-    int mod_type;
-
     if(!mod->needload)
     {
         if(mod->type == mod_alias)
@@ -375,7 +371,8 @@ qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
     //
     // load the file
     //
-    buf =
+    byte stackbuf[1024]; // avoid dirtying the cache heap
+    byte* buf =
         COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf), &mod->path_id);
     if(!buf)
     {
@@ -401,13 +398,13 @@ qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
     // call the apropriate loader
     mod->needload = false;
 
-    mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+    const int mod_type =
+        (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+
     switch(mod_type)
     {
         case IDPOLYHEADER: Mod_LoadAliasModel(mod, buf); break;
-
         case IDSPRITEHEADER: Mod_LoadSpriteModel(mod, buf); break;
-
         default: Mod_LoadBrushModel(mod, buf); break;
     }
 
@@ -423,11 +420,28 @@ Loads in a model for the given name
 */
 qmodel_t* Mod_ForName(const char* name, bool crash)
 {
-    qmodel_t* mod;
+    return Mod_LoadModel(Mod_FindName(name), crash);
+}
 
-    mod = Mod_FindName(name);
 
-    return Mod_LoadModel(mod, crash);
+/*
+==================
+Mod_ForName_WithFallback
+
+Loads in a model for the given name, falling back to another one on failure
+==================
+*/
+qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback)
+{
+    if(qmodel_t* const r = Mod_ForName(name, false /* crash */))
+    {
+        return r;
+    }
+
+    Host_Warn(
+        "Mod_LoadModel: %s not found, falling back to %s", name, fallback);
+
+    return Mod_ForName(fallback, true);
 }
 
 
@@ -576,7 +590,8 @@ void Mod_LoadTextures(lump_t* l)
         if(!isDedicated) // no texture uploading for dedicated server
         {
             if(!q_strncasecmp(tx->name, "sky", 3))
-            { // sky texture //also note -- was
+            {
+                // sky texture //also note -- was
                 // Q_strncmp, changed to match qbsp
                 Sky_LoadTexture(tx);
             }
@@ -618,9 +633,9 @@ void Mod_LoadTextures(lump_t* l)
 
                 // now create the warpimage, using dummy data from the
                 // hunk to create the initial image
-                Hunk_Alloc(gl_warpimagesize * gl_warpimagesize *
-                           4); // make sure hunk is big enough so we
-                               // don't reach an illegal address
+                (void)Hunk_Alloc(gl_warpimagesize * gl_warpimagesize *
+                                 4); // make sure hunk is big enough so we
+                                     // don't reach an illegal address
                 Hunk_FreeToLowMark(mark);
                 q_snprintf(
                     texturename, sizeof(texturename), "%s_warp", texturename);
@@ -795,7 +810,7 @@ void Mod_LoadTextures(lump_t* l)
             }
             else if(num >= 'A' && num <= 'J')
             {
-                num = num - 'A';
+                num -= 'A';
                 altanims[num] = tx2;
                 if(num + 1 > altmax)
                 {
@@ -1214,8 +1229,8 @@ void CalcSurfaceExtents(msurface_t* s)
 
     int bmaxs[2];
 
-    mins[0] = mins[1] = 999999;
-    maxs[0] = maxs[1] = -999999; // FIXME: change these two to FLT_MAX/-FLT_MAX
+    mins[0] = mins[1] = FLT_MAX;
+    maxs[0] = maxs[1] = -FLT_MAX;
 
     tex = s->texinfo;
 
@@ -1273,7 +1288,8 @@ void CalcSurfaceExtents(msurface_t* s)
         s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
 
         if(!(tex->flags & TEX_SPECIAL) && s->extents[i] > 2000)
-        { // johnfitz -- was 512 in glquake, 256 in winquake
+        {
+            // johnfitz -- was 512 in glquake, 256 in winquake
             Sys_Error("Bad surface extents");
         }
     }
@@ -1291,9 +1307,7 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 {
     vec3_t verts[64];
     int numverts;
-
     int i;
-
     int lindex;
     float* vec;
     glpoly_t* poly;
@@ -1316,11 +1330,13 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 
         if(lindex > 0)
         {
-            vec = loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position;
+            vec = glm::value_ptr(
+                loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
         }
         else
         {
-            vec = loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position;
+            vec = glm::value_ptr(
+                loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
         }
         VectorCopy(vec, verts[numverts]);
         numverts++;
@@ -1353,8 +1369,8 @@ void Mod_CalcSurfaceBounds(msurface_t* s)
     int e;
     mvertex_t* v;
 
-    s->mins[0] = s->mins[1] = s->mins[2] = 9999;
-    s->maxs[0] = s->maxs[1] = s->maxs[2] = -9999;
+    s->mins[0] = s->mins[1] = s->mins[2] = FLT_MAX;
+    s->maxs[0] = s->maxs[1] = s->maxs[2] = -FLT_MAX;
 
     for(i = 0; i < s->numedges; i++)
     {
@@ -2088,6 +2104,8 @@ void Mod_LoadClipnodes(lump_t* l, bool bsp2)
     loadmodel->clipnodes = out;
     loadmodel->numclipnodes = count;
 
+    // ------------------------------------------------------------------------
+    // VR: This is where the hardcoded hulls are.
     hull = &loadmodel->hulls[1];
     hull->clipnodes = out;
     hull->firstclipnode = 0;
@@ -2111,6 +2129,7 @@ void Mod_LoadClipnodes(lump_t* l, bool bsp2)
     hull->clip_maxs[0] = 32;
     hull->clip_maxs[1] = 32;
     hull->clip_maxs[2] = 64;
+    // ------------------------------------------------------------------------
 
     if(bsp2)
     {
@@ -2366,18 +2385,17 @@ void Mod_LoadPlanes(lump_t* l)
 RadiusFromBounds
 =================
 */
-float RadiusFromBounds(vec3_t mins, vec3_t maxs)
+float RadiusFromBounds(const glm::vec3& mins, const glm::vec3& maxs)
 {
-    int i;
-    vec3_t corner;
+    glm::vec3 corner;
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         corner[i] =
             fabs(mins[i]) > fabs(maxs[i]) ? fabs(mins[i]) : fabs(maxs[i]);
     }
 
-    return VectorLength(corner);
+    return glm::length(corner);
 }
 
 /*
@@ -2409,7 +2427,8 @@ void Mod_LoadSubmodels(lump_t* l)
     for(i = 0; i < count; i++, in++, out++)
     {
         for(j = 0; j < 3; j++)
-        { // spread the mins / maxs by a pixel
+        {
+            // spread the mins / maxs by a pixel
             out->mins[j] = LittleFloat(in->mins[j]) - 1;
             out->maxs[j] = LittleFloat(in->maxs[j]) + 1;
             out->origin[j] = LittleFloat(in->origin[j]);
@@ -2617,8 +2636,8 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
                            // the actual world
         {
             // start with the hull0 bounds
-            VectorCopy(mod->maxs, mod->clipmaxs);
-            VectorCopy(mod->mins, mod->clipmins);
+            mod->clipmaxs = mod->maxs;
+            mod->clipmins = mod->mins;
 
             // process hull1 (we don't need to process hull2 becuase
             // there's no such thing as a brush that appears in hull2
@@ -2631,7 +2650,8 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
         mod->numleafs = bm->visleafs;
 
         if(i < mod->numsubmodels - 1)
-        { // duplicate the basic information
+        {
+            // duplicate the basic information
             char name[10];
 
             sprintf(name, "*%i", i + 1);
@@ -2674,6 +2694,11 @@ void* Mod_LoadAliasFrame(void* pin, maliasframedesc_t* frame)
     trivertx_t* pinframe;
     int i;
     daliasframe_t* pdaliasframe;
+
+    if(posenum >= MAXALIASFRAMES)
+    {
+        Sys_Error("posenum >= MAXALIASFRAMES");
+    }
 
     pdaliasframe = (daliasframe_t*)pin;
 
@@ -2741,6 +2766,11 @@ void* Mod_LoadAliasGroup(void* pin, maliasframedesc_t* frame)
 
     for(i = 0; i < numframes; i++)
     {
+        if(posenum >= MAXALIASFRAMES)
+        {
+            Sys_Error("posenum >= MAXALIASFRAMES");
+        }
+
         poseverts[posenum] = (trivertx_t*)((daliasframe_t*)ptemp + 1);
         posenum++;
 
@@ -3005,44 +3035,38 @@ nonrotated, yawrotated, and fullrotated cases
 */
 void Mod_CalcAliasBounds(aliashdr_t* a)
 {
-    int i;
-
-    int j;
-
-    int k;
-    float dist;
-
     float yawradius;
-
     float radius;
-    vec3_t v;
+    glm::vec3 v;
 
     // clear out all data
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        loadmodel->mins[i] = loadmodel->ymins[i] = loadmodel->rmins[i] = 999999;
+        loadmodel->mins[i] = loadmodel->ymins[i] = loadmodel->rmins[i] =
+            FLT_MAX;
         loadmodel->maxs[i] = loadmodel->ymaxs[i] = loadmodel->rmaxs[i] =
-            -999999;
+            -FLT_MAX;
+
         radius = yawradius = 0;
     }
 
     // process verts
-    for(i = 0; i < a->numposes; i++)
+    for(int i = 0; i < a->numposes; i++)
     {
-        for(j = 0; j < a->numverts; j++)
+        for(int j = 0; j < a->numverts; j++)
         {
-            for(k = 0; k < 3; k++)
+            for(int k = 0; k < 3; k++)
             {
                 v[k] = poseverts[i][j].v[k] * pheader->scale[k] +
                        pheader->scale_origin[k];
             }
 
-            for(k = 0; k < 3; k++)
+            for(int k = 0; k < 3; k++)
             {
                 loadmodel->mins[k] = q_min(loadmodel->mins[k], v[k]);
                 loadmodel->maxs[k] = q_max(loadmodel->maxs[k], v[k]);
             }
-            dist = v[0] * v[0] + v[1] * v[1];
+            float dist = v[0] * v[0] + v[1] * v[1];
             if(yawradius < dist)
             {
                 yawradius = dist;
@@ -3249,8 +3273,8 @@ void Mod_LoadAliasModel(qmodel_t* mod, void* buffer)
         pheader->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
-    VectorCopy(pheader->scale, pheader->original_scale);
-    VectorCopy(pheader->scale_origin, pheader->original_scale_origin);
+    pheader->original_scale = pheader->scale;
+    pheader->original_scale_origin = pheader->scale_origin;
 
     //
     // load the skins

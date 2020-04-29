@@ -33,6 +33,8 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
+struct qmodel_t;
+
 qmodel_t* aliasmodel;
 aliashdr_t* paliashdr;
 

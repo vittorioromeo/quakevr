@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#ifndef _CLIENT_H_
+#define _CLIENT_H_
+
 #define CSHIFT_CONTENTS 0
 #define CSHIFT_DAMAGE 1
 #define CSHIFT_BONUS 2
@@ -29,16 +32,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NAME_LENGTH 64
 #define SIGNONS 4      // signon messages to receive before connected
 #define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 32   // johnfitz -- was 24
+#define MAX_BEAMS 128  // johnfitz -- was 24
 #define MAX_MAPSTRING 2048
 #define MAX_DEMOS 8
 #define MAX_DEMONAME 16
-#define MAX_TEMP_ENTITIES 256    // johnfitz -- was 64
+#define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
 #define MAX_VISEDICTS 4096       // larger, now we support BSP2
 
-#ifndef _CLIENT_H_
-#define _CLIENT_H_
+#include "quakeglm.hpp"
+#include "quakedef.hpp"
 
 // client.h
 
@@ -74,23 +77,26 @@ typedef struct
 
 struct dlight_t
 {
-    vec3_t origin;
+    glm::vec3 origin;
     float radius;
     float die;      // stop lighting after this time
     float decay;    // drop this each second
     float minlight; // don't add when contributing less
     int key;
-    vec3_t color; // johnfitz -- lit support via lordhavoc
+    glm::vec3 color; // johnfitz -- lit support via lordhavoc
 };
 
 
-typedef struct
+struct beam_t
 {
     int entity;
-    struct qmodel_s* model;
+    int disambiguator;
+    qmodel_t* model;
     float endtime;
-    vec3_t start, end;
-} beam_t;
+    glm::vec3 start, end;
+    bool spin;
+    float scaleRatioX;
+} ;
 
 
 
@@ -167,22 +173,25 @@ struct client_state_t
     // sent to the server each frame.  The server sets punchangle when
     // the view is temporarliy offset, and an angle reset commands at the start
     // of each level and after teleporting.
-    vec3_t mviewangles[2]; // during demo playback viewangles is lerped
-                           // between these
-    vec3_t viewangles;
+    glm::vec3 mviewangles[2]; // during demo playback viewangles is lerped
+                              // between these
+    glm::vec3 viewangles;
 
-    vec3_t aimangles;
-    vec3_t vmeshoffset;
-    vec3_t handpos[2];
-    vec3_t handrot[2];
-    vec3_t handvel[2];
+    glm::vec3 aimangles;
+    glm::vec3 vmeshoffset;
+    glm::vec3 handpos[2];
+    glm::vec3 handrot[2];
+    glm::vec3 prevhandrot[2];
+    glm::vec3 handvel[2];
+    glm::vec3 handthrowvel[2];
     float handvelmag[2];
+    glm::vec3 handavel[2];
 
-    vec3_t mvelocity[2]; // update by server, used for lean+bob
-                         // (0 is newest)
-    vec3_t velocity;     // lerped between mvelocity[0] and [1]
+    glm::vec3 mvelocity[2]; // update by server, used for lean+bob
+                            // (0 is newest)
+    glm::vec3 velocity;     // lerped between mvelocity[0] and [1]
 
-    vec3_t punchangle; // temporary offset
+    glm::vec3 punchangle; // temporary offset
 
     // pitch drifting vars
     float idealpitch;
@@ -214,23 +223,38 @@ struct client_state_t
     //
     // information that is static for the entire time connected to a server
     //
-    struct qmodel_s* model_precache[MAX_MODELS];
-    struct sfx_s* sound_precache[MAX_SOUNDS];
+    qmodel_t* model_precache[MAX_MODELS];
+    struct sfx_t* sound_precache[MAX_SOUNDS];
 
     char mapname[128];
     char levelname[128]; // for display on solo scoreboard //johnfitz -- was 40.
-    int viewentity;      // cl_entitites[cl.viewentity] = player
+    int viewentity;      // cl_entities[cl.viewentity] = player
     int maxclients;
     int gametype;
 
     // refresh related state
-    struct qmodel_s* worldmodel; // cl_entitites[0].model
+    qmodel_t* worldmodel; // cl_entities[0].model
     struct efrag_s* free_efrags;
     int num_efrags;
-    int num_entities;         // held in cl_entities array
-    int num_statics;          // held in cl_staticentities array
+    int num_entities; // held in cl_entities array
+    int num_statics;  // held in cl_staticentities array
+
+    // TODO VR: (P2) all of these should be in some sort of list to avoid
+    // repetition
     entity_t viewent;         // the gun model
     entity_t offhand_viewent; // the offhand gun model
+
+    entity_t left_hip_holster;
+    entity_t right_hip_holster;
+    entity_t left_upper_holster;
+    entity_t right_upper_holster;
+    entity_t vrtorso;
+    entity_t left_hand;
+    entity_t right_hand;
+    entity_t left_hip_holster_slot;
+    entity_t right_hip_holster_slot;
+    entity_t left_upper_holster_slot;
+    entity_t right_upper_holster_slot;
 
     int cdtrack, looptrack; // cd audio
 
@@ -327,6 +351,7 @@ typedef struct
 extern kbutton_t in_mlook, in_klook;
 extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
+extern kbutton_t in_grableft, in_grabright;
 
 void CL_InitInput(void);
 void CL_SendCmd(void);
@@ -382,8 +407,9 @@ extern cvar_t chase_active;
 void Chase_Init(void);
 
 struct trace_t;
-trace_t TraceLine(vec3_t start, vec3_t end, vec3_t impact);
-trace_t TraceLineToEntity(vec3_t start, vec3_t end, vec3_t impact, edict_t* ent);
+[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end);
+[[nodiscard]] trace_t TraceLineToEntity(
+    const glm::vec3& start, const glm::vec3& end, edict_t* ent);
 void Chase_UpdateForClient(void);                                 // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz
 

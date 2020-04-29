@@ -35,11 +35,15 @@ enum m_state_e
     m_setup,
     m_net,
     m_options,
+    m_quakevrsettings,
+    m_quakevrdevtools,
     m_video,
     m_vr,
     m_vrgameplay,
     m_wpn_offset,
     m_sbar_offset,
+    m_hotspot,
+    m_vrtorso,
     m_map,
     m_debug,
     m_keys,
@@ -48,7 +52,26 @@ enum m_state_e
     m_lanconfig,
     m_gameoptions,
     m_search,
-    m_slist
+    m_slist,
+    m_qvrs_menu,
+    m_qvrs_crosshair,
+    m_qvrs_particle,
+    m_qvrs_locomotion,
+    m_qvrs_handguncalibration,
+    m_qvrs_playercalibration,
+    m_qvrs_melee,
+    m_qvrs_aiming,
+    m_qvrs_immersion,
+    m_qvrs_graphical,
+    m_qvrs_hudconfiguration,
+    m_qvrs_hotspot,
+    m_qvrs_torso,
+    m_qvrs_changemap,
+    m_qvrs_transparencyoptions,
+    m_qvrdt_weaponconfiguration,
+    m_qvrdt_weaponconfiguration2,
+    m_qvrdt_weaponconfiguration3,
+    m_qvrdt_debugutilities,
 };
 
 extern enum m_state_e m_state;
@@ -67,14 +90,20 @@ void M_ToggleMenu_f(void);
 
 void M_Menu_Main_f(void);
 void M_Menu_Options_f(void);
+void M_Menu_QuakeVRSettings_f();
+void M_Menu_QuakeVRDevTools_f();
 void M_Menu_Quit_f(void);
 
 void M_Print(int cx, int cy, const char* str);
+void M_PrintWithNewLine(int cx, int cy, const char* str);
 void M_PrintWhite(int cx, int cy, const char* str);
+void M_PrintWhiteWithNewLine(int cx, int cy, const char* str);
+void M_PrintWhiteByWrapping(const int wrapCount, int cx, int cy, const char* str);
 
 void M_Draw(void);
 void M_DrawCharacter(int cx, int line, int num);
 
+void M_DrawSlider(int x, int y, float range);
 void M_DrawPic(int x, int y, qpic_t* pic);
 void M_DrawTransPic(int x, int y, qpic_t* pic);
 void M_DrawCheckbox(int x, int y, int on);

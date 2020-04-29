@@ -206,7 +206,7 @@ static short GetLittleShort()
 {
     short val = 0;
     val = *data_p;
-    val = val + (*(data_p + 1) << 8);
+    val += (*(data_p + 1) << 8);
     data_p += 2;
     return val;
 }
@@ -215,9 +215,9 @@ static int GetLittleLong()
 {
     int val = 0;
     val = *data_p;
-    val = val + (*(data_p + 1) << 8);
-    val = val + (*(data_p + 2) << 16);
-    val = val + (*(data_p + 3) << 24);
+    val += (*(data_p + 1) << 8);
+    val += (*(data_p + 2) << 16);
+    val += (*(data_p + 3) << 24);
     data_p += 4;
     return val;
 }
@@ -347,7 +347,8 @@ wavinfo_t GetWavinfo(const char* name, byte* wav, int wavlength)
         if(data_p)
         {
             if(!strncmp((char*)data_p + 28, "mark", 4))
-            { // this is not a proper parse, but it works with cooledit...
+            {
+                // this is not a proper parse, but it works with cooledit...
                 data_p += 24;
                 i = GetLittleLong(); // samples in loop
                 info.samples = info.loopstart + i;

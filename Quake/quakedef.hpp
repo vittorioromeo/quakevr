@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define FITZQUAKE_VERSION 0.85 // johnfitz
 #define QUAKESPASM_VERSION 0.93
-#define QUAKEVR_VERSION "0.0.3"
+#define QUAKEVR_VERSION "0.0.4"
 #define QUAKESPASM_VER_PATCH 2 // helper to print a string like 0.93.2
 #ifndef QUAKESPASM_VER_SUFFIX
 #define QUAKESPASM_VER_SUFFIX // optional version suffix string literal like
@@ -48,10 +48,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QS_STRINGIFY(x) QS_STRINGIFY_(x)
 
 // combined version string like "0.92.1-beta1"
-#define QUAKESPASM_VER_STRING        \
-    QS_STRINGIFY(QUAKESPASM_VERSION) \
+#define QUAKESPASM_VER_STRING                                    \
+    QS_STRINGIFY(QUAKESPASM_VERSION)                             \
     "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX \
-    " | Quake VR " QUAKEVR_VERSION
+        " | Quake VR " QUAKEVR_VERSION
 
 // define	PARANOID			// speed sapping error checking
 
@@ -87,9 +87,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     (0.03125f) // 1/32 epsilon to keep floating point happy (moved from world.c)
 
 #define MAX_MSGLEN \
-    64000 // max length of a reliable message //ericw -- was 32000
+    96000 // max length of a reliable message //ericw -- was 32000
 #define MAX_DATAGRAM \
-    32000 // max length of unreliable message //johnfitz -- was 1024
+    64000 // max length of unreliable message //johnfitz -- was 1024
 
 #define DATAGRAM_MTU \
     1400 // johnfitz -- actual limit for unreliable messages to nonlocal clients
@@ -112,7 +112,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // stats are integers communicated to the client by the server
 //
-#define MAX_CL_STATS 32
+#define MAX_CL_STATS 64
+
 #define STAT_HEALTH 0
 #define STAT_FRAGS 1
 #define STAT_WEAPON 2
@@ -128,6 +129,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_TOTALMONSTERS 12
 #define STAT_SECRETS 13  // bumped on client side by svc_foundsecret
 #define STAT_MONSTERS 14 // bumped by svc_killedmonster
+#define STAT_WEAPON2 15
+#define STAT_WEAPONMODEL2 16
+#define STAT_WEAPONFRAME2 17
+#define STAT_HOLSTERWEAPON0 18
+#define STAT_HOLSTERWEAPON1 19
+#define STAT_HOLSTERWEAPON2 20
+#define STAT_HOLSTERWEAPON3 21
+#define STAT_HOLSTERWEAPONMODEL0 22
+#define STAT_HOLSTERWEAPONMODEL1 23
+#define STAT_HOLSTERWEAPONMODEL2 24
+#define STAT_HOLSTERWEAPONMODEL3 25
+#define STAT_AMMO2 26
+#define STAT_AMMOCOUNTER 27
+#define STAT_AMMOCOUNTER2 28
+#define STAT_HOLSTERWEAPON4 29
+#define STAT_HOLSTERWEAPON5 30
+#define STAT_HOLSTERWEAPONMODEL4 31
+#define STAT_HOLSTERWEAPONMODEL5 32
+#define STAT_MAINHAND_WID 33
+#define STAT_OFFHAND_WID 34
 
 // stock defines
 //
@@ -188,7 +209,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define HIT_PROXIMITY_GUN_BIT 16
 #define HIT_MJOLNIR_BIT 7
 #define HIT_LASER_CANNON_BIT 23
-#define HIT_PROXIMITY_GUN (1 << HIT_PROXIMITY_GUN_BIT)
+#define HIT_PROXIMITY_GUN (1 << HIT_PROXIMITY_GUN_BIT) // 65536
 #define HIT_MJOLNIR (1 << HIT_MJOLNIR_BIT)
 #define HIT_LASER_CANNON (1 << HIT_LASER_CANNON_BIT)
 #define HIT_WETSUIT (1 << (23 + 2))
@@ -196,12 +217,46 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //===========================================
 
+// weapon ids
+#define WID_FIST 0
+#define WID_GRAPPLE 1
+#define WID_AXE 2
+#define WID_MJOLNIR 3
+#define WID_SHOTGUN 4
+#define WID_SUPER_SHOTGUN 5
+#define WID_NAILGUN 6
+#define WID_SUPER_NAILGUN 7
+#define WID_GRENADE_LAUNCHER 8
+#define WID_PROXIMITY_GUN 9
+#define WID_ROCKET_LAUNCHER 10
+#define WID_LIGHTNING 11
+#define WID_LASER_CANNON 12
+
+// ammo ids
+#define AID_SHELLS 0
+#define AID_NAILS 1
+#define AID_ROCKETS 2
+#define AID_CELLS 3
+#define AID_NONE 4
+
+// Quake VR hotspots
+#define QVR_HS_NONE 0
+#define QVR_HS_OFFHAND_2H_GRAB 1  // 2H grab - helper offhand
+#define QVR_HS_MAINHAND_2H_GRAB 2 // 2H grab - helper mainhand
+#define QVR_HS_LEFT_SHOULDER_HOLSTER 3
+#define QVR_HS_RIGHT_SHOULDER_HOLSTER 4
+#define QVR_HS_LEFT_HIP_HOLSTER 5
+#define QVR_HS_RIGHT_HIP_HOLSTER 6
+#define QVR_HS_HAND_SWITCH 7
+#define QVR_HS_LEFT_UPPER_HOLSTER 8
+#define QVR_HS_RIGHT_UPPER_HOLSTER 9
+
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32
 
 #define SOUND_CHANNELS 8
 
-typedef struct
+struct quakeparms_t
 {
     const char* basedir;
     const char* userdir; // user's directory on UNIX platforms.
@@ -214,7 +269,7 @@ typedef struct
     int memsize;
     int numcpus;
     int errstate;
-} quakeparms_t;
+};
 
 #include "common.hpp"
 #include "bspfile.hpp"
@@ -314,6 +369,7 @@ void Host_InitCommands(void);
 void Host_Init(void);
 void Host_Shutdown(void);
 void Host_Callback_Notify(cvar_t* var); /* callback function for CVAR_NOTIFY */
+void Host_Warn(const char* error, ...) FUNC_PRINTF(1, 2);
 [[noreturn]] void Host_Error(const char* error, ...) FUNC_PRINTF(1, 2);
 [[noreturn]] void Host_EndGame(const char* message, ...) FUNC_PRINTF(1, 2);
 #ifdef __WATCOMC__
@@ -339,5 +395,17 @@ extern int current_skill; // skill level for currently loaded level (in case
 extern bool isDedicated;
 
 extern int minimum_memory;
+
+// johnfitz -- struct for passing lerp information to drawing functions
+struct lerpdata_t
+{
+    short pose1;
+    short pose2;
+    float blend;
+    glm::vec3 origin;
+    glm::vec3 angles;
+};
+// johnfitz
+
 
 #endif /* QUAKEDEFS_H */

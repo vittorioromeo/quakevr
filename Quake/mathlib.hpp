@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.h
 
 #include <math.h>
+#include "quakeglm.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 // matches value in gcc v2 math.h
@@ -37,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct mplane_s;
 
-extern vec3_t vec3_origin;
+inline constexpr glm::vec3 vec3_zero{0.f, 0.f, 0.f};
 
 #define nanmask (255 << 23) /* 7F800000 */
 #if 0                       /* macro is violating strict aliasing rules */
@@ -79,72 +80,86 @@ static inline int IS_NAN(float x)
         b[1] = a[1];     \
         b[2] = a[2];     \
     }
-#define VectorSwap(a, b) \
-    {                    \
-        float tmp;       \
-        tmp = a[0];      \
-        a[0] = b[0];     \
-        b[0] = tmp;      \
-        tmp = a[1];      \
-        a[1] = b[1];     \
-        b[1] = tmp;      \
-        tmp = a[2];      \
-        a[2] = b[2];     \
-        b[2] = tmp;      \
-    }
 
-// johnfitz -- courtesy of lordhavoc
-// QuakeSpasm: To avoid strict aliasing violations, use a float/int union
-// instead of type punning.
-#define VectorNormalizeFast(_v)                                      \
-    {                                                                \
-        union                                                        \
-        {                                                            \
-            float f;                                                 \
-            int i;                                                   \
-        } _y, _number;                                               \
-        _number.f = DotProduct(_v, _v);                              \
-        if(_number.f != 0.0)                                         \
-        {                                                            \
-            _y.i = 0x5f3759df - (_number.i >> 1);                    \
-            _y.f = _y.f * (1.5f - (_number.f * 0.5f * _y.f * _y.f)); \
-            VectorScale(_v, _y.f, _v);                               \
-        }                                                            \
-    }
+[[nodiscard]] inline glm::vec3 safeNormalize(const glm::vec3& in)
+{
+    const auto length = glm::length(in);
+    return length != 0.f ? in / length : in;
+}
 
-void TurnVector(vec3_t out, const vec3_t forward, const vec3_t side,
-    float angle);                                       // johnfitz
-void VectorAngles(const vec3_t forward, vec3_t angles); // johnfitz
+[[nodiscard]] glm::vec3 VectorAngles(
+    const glm::vec3& forward) noexcept; // johnfitz
 
-void VectorMA(vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
+float VectorLength(vec3_t v);
 
-vec_t _DotProduct(vec3_t v1, vec3_t v2);
-void _VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out);
-void _VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out);
-void _VectorCopy(vec3_t in, vec3_t out);
-
-int VectorCompare(vec3_t v1, vec3_t v2);
-vec_t VectorLength(vec3_t v);
-void CrossProduct(vec3_t v1, vec3_t v2, vec3_t cross);
-float VectorNormalize(vec3_t v); // returns vector length
-void VectorInverse(vec3_t v);
-void VectorScale(vec3_t in, vec_t scale, vec3_t out);
-int Q_log2(int val);
-
-void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3]);
+[[nodiscard]] glm::mat3 R_ConcatRotations(
+    const glm::mat3& in1, const glm::mat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
 
-void FloorDivMod(double numer, double denom, int* quotient, int* rem);
-fixed16_t Invert24To16(fixed16_t val);
-int GreatestCommonDivisor(int i1, int i2);
+inline glm::vec3 AngleVectorsOnlyFwd(const glm::vec3& angles) noexcept
+{
+    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    assert(!std::isnan(yawRadians));
+    assert(!std::isinf(yawRadians));
 
-void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s* plane);
+    const float sy = std::sin(yawRadians);
+    const float cy = std::cos(yawRadians);
+
+    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    assert(!std::isnan(pitchRadians));
+    assert(!std::isinf(pitchRadians));
+
+    const float sp = std::sin(pitchRadians);
+    const float cp = std::cos(pitchRadians);
+
+    return {cp * cy, cp * sy, -sp};
+}
+
+inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward,
+    glm::vec3& right, glm::vec3& up) noexcept
+{
+    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    assert(!std::isnan(yawRadians));
+    assert(!std::isinf(yawRadians));
+
+    const float sy = std::sin(yawRadians);
+    const float cy = std::cos(yawRadians);
+
+    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    assert(!std::isnan(pitchRadians));
+    assert(!std::isinf(pitchRadians));
+
+    const float sp = std::sin(pitchRadians);
+    const float cp = std::cos(pitchRadians);
+
+    const float rollRadians = angles[ROLL] * (M_PI / 180.f);
+    assert(!std::isnan(rollRadians));
+    assert(!std::isinf(rollRadians));
+
+    const float sr = std::sin(rollRadians);
+    const float cr = std::cos(rollRadians);
+
+    forward[0] = cp * cy;
+    forward[1] = cp * sy;
+    forward[2] = -sp;
+
+    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
+    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
+    right[2] = -1 * sr * cp;
+
+    up[0] = (cr * sp * cy + -sr * -sy);
+    up[1] = (cr * sp * sy + -sr * cy);
+    up[2] = cr * cp;
+}
+
+int BoxOnPlaneSide(
+    const glm::vec3& emins, const glm::vec3& emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
-void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3]);
-void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles);
-void CreateRotMat(int axis, float angle, vec3_t mat[3]);
+[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;
+[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept;
+[[nodiscard]] glm::mat3 CreateRotMat(
+    const int axis, const float angle) noexcept;
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)                                    \
     (((p)->type < 3) ? (((p)->dist <= (emins)[(p)->type])                     \

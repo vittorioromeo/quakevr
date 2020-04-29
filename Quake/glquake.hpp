@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __GLQUAKE_H
 
 #include <cstdint>
+#include "quakeglm.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
 void GL_EndRendering(void);
@@ -88,7 +89,7 @@ typedef struct
 //====================================================
 
 extern bool r_cache_thrash; // compatability
-extern vec3_t modelorg, r_entorigin;
+extern glm::vec3 modelorg, r_entorigin;
 extern entity_t* currententity;
 extern int r_visframecount; // ??? what difs?
 extern int r_framecount;
@@ -97,10 +98,10 @@ extern mplane_t frustum[4];
 //
 // view origin
 //
-extern vec3_t vup;
-extern vec3_t vpn;
-extern vec3_t vright;
-extern vec3_t r_origin;
+extern glm::vec3 vup;
+extern glm::vec3 vpn;
+extern glm::vec3 vright;
+extern glm::vec3 r_origin;
 
 //
 // screen size info
@@ -323,8 +324,8 @@ extern int lightmap_count; // allocated lightmaps
 
 extern int gl_warpimagesize; // johnfitz -- for water warp
 
-extern bool r_drawflat_cheatsafe, r_fullbright_cheatsafe,
-    r_lightmap_cheatsafe, r_drawworld_cheatsafe; // johnfitz
+extern bool r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
+    r_drawworld_cheatsafe; // johnfitz
 
 typedef struct glsl_attrib_binding_s
 {
@@ -355,10 +356,10 @@ struct dlight_t;
 void R_AnimateLight(void);
 void R_MarkSurfaces(void);
 void R_CullSurfaces(void);
-bool R_CullBox(vec3_t emins, vec3_t emaxs);
+bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
-void R_RotateForEntity(vec3_t origin, vec3_t angles);
+void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles);
 void R_MarkLights(dlight_t* light, int num, mnode_t* node);
 
 void R_InitParticles(void);
@@ -372,7 +373,7 @@ void R_TranslateNewPlayerSkin(int playernum); // johnfitz -- this handles cases
 void R_UpdateWarpTextures(void);
 
 void R_DrawWorld(void);
-void R_DrawAliasModel(entity_t* e, bool horizflip);
+void R_DrawAliasModel(entity_t* e);
 void R_DrawBrushModel(entity_t* e);
 void R_DrawSpriteModel(entity_t* e);
 
@@ -387,7 +388,7 @@ void GLMesh_LoadVertexBuffers(void);
 void GLMesh_DeleteVertexBuffers(void);
 void R_RebuildAllLightmaps(void);
 
-int R_LightPoint(vec3_t p);
+int R_LightPoint(const glm::vec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);

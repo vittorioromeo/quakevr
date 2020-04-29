@@ -43,6 +43,7 @@ extern cvar_t r_oldskyleaf;
 
 extern cvar_t r_showtris;
 extern cvar_t r_showbboxes;
+extern cvar_t r_showbboxes_player;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_nolerp_list;
@@ -171,26 +172,18 @@ float GL_WaterAlphaForSurface(msurface_t* fa)
     {
         return map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha;
     }
+
     if(fa->flags & SURF_DRAWTELE)
-
     {
-
         return map_telealpha > 0 ? map_telealpha : map_wateralpha;
     }
 
-    else if(fa->flags & SURF_DRAWSLIME)
-
+    if(fa->flags & SURF_DRAWSLIME)
     {
-
         return map_slimealpha > 0 ? map_slimealpha : map_wateralpha;
     }
 
-    else
-
-    {
-
-        return map_wateralpha;
-    }
+    return map_wateralpha;
 }
 
 
@@ -245,6 +238,7 @@ void R_Init()
     Cvar_RegisterVariable(&r_drawworld);
     Cvar_RegisterVariable(&r_showtris);
     Cvar_RegisterVariable(&r_showbboxes);
+    Cvar_RegisterVariable(&r_showbboxes_player);
     Cvar_RegisterVariable(&gl_farclip);
     Cvar_RegisterVariable(&gl_fullbrights);
     Cvar_RegisterVariable(&gl_overbright);
@@ -416,7 +410,8 @@ static void R_ParseWorldspawn()
             q_strlcpy(key, com_token, sizeof(key));
         }
         while(key[0] && key[strlen(key) - 1] == ' ')
-        { // remove trailing spaces
+        {
+            // remove trailing spaces
             key[strlen(key) - 1] = 0;
         }
         data = COM_Parse(data);

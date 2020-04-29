@@ -19,9 +19,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __PROGDEFS_H
-#define __PROGDEFS_H
+#pragma once
 
-#include "progdefs.q1"
+#include "quakeglm.hpp"
 
-#endif /* __PROGDEFS_H */
+#define vec3_t glm::vec3
+
+#include "progdefs_generated.hpp"
+
+#undef vec3_t

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_move.c -- monster movement
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 #define STEPSIZE 18
 
@@ -37,15 +38,11 @@ is not a staircase.
 */
 int c_yes, c_no;
 
+// TODO VR: (P2) could have used this to detect onground?
 bool SV_CheckBottom(edict_t* ent)
 {
-    vec3_t mins;
+    glm::vec3 mins, maxs, start, stop;
 
-    vec3_t maxs;
-
-    vec3_t start;
-
-    vec3_t stop;
     trace_t trace;
     int x;
 
@@ -54,8 +51,8 @@ bool SV_CheckBottom(edict_t* ent)
 
     float bottom;
 
-    VectorAdd(ent->v.origin, ent->v.mins, mins);
-    VectorAdd(ent->v.origin, ent->v.maxs, maxs);
+    mins = ent->v.origin + ent->v.mins;
+    maxs = ent->v.origin + ent->v.maxs;
 
     // if all of the points under the corners are solid world, don't bother
     // with the tougher checks
@@ -88,7 +85,7 @@ realcheck:
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
     stop[2] = start[2] - 2 * STEPSIZE;
-    trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
+    trace = SV_MoveTrace(start, stop, true, ent);
 
     if(trace.fraction == 1.0)
     {
@@ -104,7 +101,7 @@ realcheck:
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-            trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, ent);
+            trace = SV_MoveTrace(start, stop, true, ent);
 
             if(trace.fraction != 1.0 && trace.endpos[2] > bottom)
             {
@@ -132,55 +129,50 @@ possible, no move is done, false is returned, and
 pr_global_struct->trace_normal is set to the normal of the blocking wall
 =============
 */
-bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
+bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
 {
-    float dz;
-    vec3_t oldorg;
 
-    vec3_t neworg;
-
-    vec3_t end;
-    trace_t trace;
-    int i;
-    edict_t* enemy;
 
     // try the move
-    VectorCopy(ent->v.origin, oldorg);
-    VectorAdd(ent->v.origin, move, neworg);
+    glm::vec3 oldorg = ent->v.origin;
+    glm::vec3 neworg = ent->v.origin + move;
 
     // flying monsters don't step up
-    if((int)ent->v.flags & (FL_SWIM | FL_FLY))
+    if(quake::util::hasAnyFlag(ent, FL_SWIM, FL_FLY))
     {
         // try one move with vertical motion, then one without
-        for(i = 0; i < 2; i++)
+        for(int i = 0; i < 2; i++)
         {
-            VectorAdd(ent->v.origin, move, neworg);
-            enemy = PROG_TO_EDICT(ent->v.enemy);
+            neworg = ent->v.origin + move;
+            edict_t* enemy = PROG_TO_EDICT(ent->v.enemy);
+
             if(i == 0 && enemy != sv.edicts)
             {
-                dz =
+                const float dz =
                     ent->v.origin[2] - PROG_TO_EDICT(ent->v.enemy)->v.origin[2];
+
                 if(dz > 40)
                 {
                     neworg[2] -= 8;
                 }
-                if(dz < 30)
+                else if(dz < 30)
                 {
                     neworg[2] += 8;
                 }
             }
-            trace = SV_Move(
+
+            trace_t trace = SV_Move(
                 ent->v.origin, ent->v.mins, ent->v.maxs, neworg, false, ent);
 
             if(trace.fraction == 1)
             {
-                if(((int)ent->v.flags & FL_SWIM) &&
+                if((quake::util::hasFlag(ent, FL_SWIM)) &&
                     SV_PointContents(trace.endpos) == CONTENTS_EMPTY)
                 {
                     return false; // swim monster left water
                 }
 
-                VectorCopy(trace.endpos, ent->v.origin);
+                ent->v.origin = trace.endpos;
                 if(relink)
                 {
                     SV_LinkEdict(ent, true);
@@ -199,10 +191,11 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 
     // push down from a step height above the wished position
     neworg[2] += STEPSIZE;
-    VectorCopy(neworg, end);
+
+    glm::vec3 end = neworg;
     end[2] -= STEPSIZE * 2;
 
-    trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
+    trace_t trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
 
     if(trace.allsolid)
     {
@@ -218,17 +211,18 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
             return false;
         }
     }
+
     if(trace.fraction == 1)
     {
         // if monster had the ground pulled out, go ahead and fall
-        if((int)ent->v.flags & FL_PARTIALGROUND)
+        if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
         {
-            VectorAdd(ent->v.origin, move, ent->v.origin);
+            ent->v.origin += move;
             if(relink)
             {
                 SV_LinkEdict(ent, true);
             }
-            ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+            quake::util::removeFlag(ent, FL_ONGROUND);
             //	Con_Printf ("fall down\n");
             return true;
         }
@@ -237,12 +231,13 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
     }
 
     // check point traces down for dangling corners
-    VectorCopy(trace.endpos, ent->v.origin);
+    ent->v.origin = trace.endpos;
 
     if(!SV_CheckBottom(ent))
     {
-        if((int)ent->v.flags & FL_PARTIALGROUND)
-        { // entity had floor mostly pulled out from underneath it
+        if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
+        {
+            // entity had floor mostly pulled out from underneath it
             // and is trying to correct
             if(relink)
             {
@@ -250,15 +245,16 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
             }
             return true;
         }
-        VectorCopy(oldorg, ent->v.origin);
+        ent->v.origin = oldorg;
         return false;
     }
 
-    if((int)ent->v.flags & FL_PARTIALGROUND)
+    if(quake::util::hasFlag(ent, FL_PARTIALGROUND))
     {
         //		Con_Printf ("back on ground\n");
-        ent->v.flags = (int)ent->v.flags & ~FL_PARTIALGROUND;
+        quake::util::removeFlag(ent, FL_PARTIALGROUND);
     }
+
     ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 
     // the move is ok
@@ -266,6 +262,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
     {
         SV_LinkEdict(ent, true);
     }
+
     return true;
 }
 
@@ -284,9 +281,9 @@ facing it.
 void PF_changeyaw();
 bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
-    vec3_t move;
+    glm::vec3 move;
 
-    vec3_t oldorigin;
+    glm::vec3 oldorigin;
     float delta;
 
     ent->v.ideal_yaw = yaw;
@@ -297,13 +294,14 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist)
     move[1] = sin(yaw) * dist;
     move[2] = 0;
 
-    VectorCopy(ent->v.origin, oldorigin);
+    oldorigin = ent->v.origin;
     if(SV_movestep(ent, move, false))
     {
         delta = ent->v.angles[YAW] - ent->v.ideal_yaw;
         if(delta > 45 && delta < 315)
-        { // not turned far enough, so don't take the step
-            VectorCopy(oldorigin, ent->v.origin);
+        {
+            // not turned far enough, so don't take the step
+            ent->v.origin = oldorigin;
         }
         SV_LinkEdict(ent, true);
         return true;
@@ -323,7 +321,7 @@ void SV_FixCheckBottom(edict_t* ent)
 {
     //	Con_Printf ("SV_FixCheckBottom\n");
 
-    ent->v.flags = (int)ent->v.flags | FL_PARTIALGROUND;
+    quake::util::addFlag(ent, FL_PARTIALGROUND);
 }
 
 
@@ -494,16 +492,11 @@ SV_MoveToGoal
 */
 void SV_MoveToGoal()
 {
-    edict_t* ent;
+    edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
+    edict_t* goal = PROG_TO_EDICT(ent->v.goalentity);
+    float dist = G_FLOAT(OFS_PARM0);
 
-    edict_t* goal;
-    float dist;
-
-    ent = PROG_TO_EDICT(pr_global_struct->self);
-    goal = PROG_TO_EDICT(ent->v.goalentity);
-    dist = G_FLOAT(OFS_PARM0);
-
-    if(!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+    if(!quake::util::hasAnyFlag(ent, FL_ONGROUND, FL_FLY, FL_SWIM))
     {
         G_FLOAT(OFS_RETURN) = 0;
         return;

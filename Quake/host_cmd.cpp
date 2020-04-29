@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <dirent.h>
 #endif
 #include "vr.hpp"
+#include "util.hpp"
 
 extern cvar_t pausable;
 
@@ -179,13 +180,15 @@ void ExtraMaps_Init()
         else // pakfile
         {
             if(!strstr(search->pack->filename, ignorepakdir))
-            { // don't list standard id maps
+            {
+                // don't list standard id maps
                 for(i = 0, pak = search->pack; i < pak->numfiles; i++)
                 {
                     if(!strcmp(COM_FileGetExtension(pak->files[i].name), "bsp"))
                     {
                         if(pak->files[i].filelen > 32 * 1024)
-                        { // don't list files under 32k (ammo boxes etc)
+                        {
+                            // don't list files under 32k (ammo boxes etc)
                             COM_StripExtension(pak->files[i].name + 5, mapname,
                                 sizeof(mapname));
                             ExtraMaps_Add(mapname);
@@ -385,7 +388,8 @@ void DemoList_Init()
         else // pakfile
         {
             if(!strstr(search->pack->filename, ignorepakdir))
-            { // don't list standard id demos
+            {
+                // don't list standard id demos
                 for(i = 0, pak = search->pack; i < pak->numfiles; i++)
                 {
                     if(!strcmp(COM_FileGetExtension(pak->files[i].name), "dem"))
@@ -544,8 +548,8 @@ void Host_God_f()
     switch(Cmd_Argc())
     {
         case 1:
-            sv_player->v.flags = (int)sv_player->v.flags ^ FL_GODMODE;
-            if(!((int)sv_player->v.flags & FL_GODMODE))
+            quake::util::toggleFlag(sv_player, FL_GODMODE);
+            if(!(quake::util::hasFlag(sv_player, FL_GODMODE)))
             {
                 SV_ClientPrintf("godmode OFF\n");
             }
@@ -557,12 +561,12 @@ void Host_God_f()
         case 2:
             if(Q_atof(Cmd_Argv(1)))
             {
-                sv_player->v.flags = (int)sv_player->v.flags | FL_GODMODE;
+                quake::util::addFlag(sv_player, FL_GODMODE);
                 SV_ClientPrintf("godmode ON\n");
             }
             else
             {
-                sv_player->v.flags = (int)sv_player->v.flags & ~FL_GODMODE;
+                quake::util::removeFlag(sv_player, FL_GODMODE);
                 SV_ClientPrintf("godmode OFF\n");
             }
             break;
@@ -596,8 +600,8 @@ void Host_Notarget_f()
     switch(Cmd_Argc())
     {
         case 1:
-            sv_player->v.flags = (int)sv_player->v.flags ^ FL_NOTARGET;
-            if(!((int)sv_player->v.flags & FL_NOTARGET))
+            quake::util::toggleFlag(sv_player, FL_NOTARGET);
+            if(!(quake::util::hasFlag(sv_player, FL_NOTARGET)))
             {
                 SV_ClientPrintf("notarget OFF\n");
             }
@@ -609,12 +613,12 @@ void Host_Notarget_f()
         case 2:
             if(Q_atof(Cmd_Argv(1)))
             {
-                sv_player->v.flags = (int)sv_player->v.flags | FL_NOTARGET;
+                quake::util::addFlag(sv_player, FL_NOTARGET);
                 SV_ClientPrintf("notarget ON\n");
             }
             else
             {
-                sv_player->v.flags = (int)sv_player->v.flags & ~FL_NOTARGET;
+                quake::util::removeFlag(sv_player, FL_NOTARGET);
                 SV_ClientPrintf("notarget OFF\n");
             }
             break;
@@ -1063,7 +1067,8 @@ This is sent just before a server changes levels
 void Host_Reconnect_f()
 {
     if(cls.demoplayback)
-    { // cross-map demo playback fix from Baker
+    {
+        // cross-map demo playback fix from Baker
         return;
     }
 
@@ -1365,11 +1370,13 @@ void Host_Loadgame_f()
         }
 
         if(entnum == -1)
-        { // parse the global vars
+        {
+            // parse the global vars
             data = ED_ParseGlobals(data);
         }
         else
-        { // parse an edict
+        {
+            // parse an edict
             ent = EDICT_NUM(entnum);
             if(entnum < sv.num_edicts)
             {
@@ -1834,7 +1841,8 @@ void Host_Spawn_f()
 
     // run the entrance script
     if(sv.loadgame)
-    { // loaded games are fully inited allready
+    {
+        // loaded games are fully inited allready
         // if this is the last client to be connected, unpause
         sv.paused = false;
     }
@@ -2047,7 +2055,8 @@ void Host_Kick_f()
             {
                 message++; // skip the #
                 while(*message == ' ')
-                { // skip white space
+                {
+                    // skip white space
                     message++;
                 }
                 message += strlen(Cmd_Argv(2)); // skip the number
@@ -2309,48 +2318,44 @@ void Host_Give_f()
             // johnfitz
     }
 
-    // johnfitz -- update currentammo to match new ammo (so statusbar updates
-    // correctly)
-    switch((int)(sv_player->v.weapon))
-    {
-        case IT_SHOTGUN:
-        case IT_SUPER_SHOTGUN:
-            sv_player->v.currentammo = sv_player->v.ammo_shells;
-            break;
-        case IT_NAILGUN:
-        case IT_SUPER_NAILGUN:
-        case RIT_LAVA_SUPER_NAILGUN:
-            sv_player->v.currentammo = sv_player->v.ammo_nails;
-            break;
-        case IT_GRENADE_LAUNCHER:
-        case IT_ROCKET_LAUNCHER:
-        case RIT_MULTI_GRENADE:
-        case RIT_MULTI_ROCKET:
-            sv_player->v.currentammo = sv_player->v.ammo_rockets;
-            break;
-        case IT_LIGHTNING:
-        case HIT_LASER_CANNON:
-        case HIT_MJOLNIR:
-            sv_player->v.currentammo = sv_player->v.ammo_cells;
-            break;
-        case RIT_LAVA_NAILGUN: // same as IT_AXE
-            if(rogue)
+    // TODO VR: (P2) docs
+    const auto updateAmmoCounter = [&](const float currentAmmo,
+                                       float& ammoCounter) {
+        switch((int)(currentAmmo))
+        {
+            case AID_SHELLS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_nails;
+                ammoCounter = sv_player->v.ammo_shells;
+                break;
             }
-            break;
-        case RIT_PLASMA_GUN: // same as HIT_PROXIMITY_GUN
-            if(rogue)
+
+            case AID_NAILS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_cells;
+                ammoCounter = sv_player->v.ammo_nails;
+                break;
             }
-            if(hipnotic)
+
+            case AID_ROCKETS:
             {
-                sv_player->v.currentammo = sv_player->v.ammo_rockets;
+                ammoCounter = sv_player->v.ammo_rockets;
+                break;
             }
-            break;
-    }
-    // johnfitz
+
+            case AID_CELLS:
+            {
+                ammoCounter = sv_player->v.ammo_cells;
+                break;
+            }
+
+            default:
+            {
+                assert(false);
+            }
+        }
+    };
+
+    updateAmmoCounter(sv_player->v.currentammo, sv_player->v.ammocounter);
+    updateAmmoCounter(sv_player->v.currentammo2, sv_player->v.ammocounter2);
 }
 
 edict_t* FindViewthing()
@@ -2457,7 +2462,7 @@ void Host_Viewnext_f()
     }
     m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame = e->v.frame + 1;
+    e->v.frame += 1;
     if(e->v.frame >= m->numframes)
     {
         e->v.frame = m->numframes - 1;
@@ -2473,18 +2478,15 @@ Host_Viewprev_f
 */
 void Host_Viewprev_f()
 {
-    edict_t* e;
-    qmodel_t* m;
-
-    e = FindViewthing();
+    edict_t* e = FindViewthing();
     if(!e)
     {
         return;
     }
 
-    m = cl.model_precache[(int)e->v.modelindex];
+    qmodel_t* m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame = e->v.frame - 1;
+    e->v.frame -= 1;
     if(e->v.frame < 0)
     {
         e->v.frame = 0;

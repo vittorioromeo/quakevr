@@ -583,7 +583,8 @@ void PR_ExecuteProgram(func_t fnum)
                 }
                 newf = &pr_functions[OPA->function];
                 if(newf->first_statement < 0)
-                { // Built-in function
+                {
+                    // Built-in function
                     int i = -newf->first_statement;
                     if(i >= pr_numbuiltins)
                     {
@@ -608,7 +609,8 @@ void PR_ExecuteProgram(func_t fnum)
                     pr_globals[(unsigned short)st->a + 2];
                 st = &pr_statements[PR_LeaveFunction()];
                 if(pr_depth == exitdepth)
-                { // Done
+                {
+                    // Done
                     return;
                 }
                 break;
@@ -618,6 +620,8 @@ void PR_ExecuteProgram(func_t fnum)
                 ed->v.nextthink = pr_global_struct->time + 0.1;
                 ed->v.frame = OPA->_float;
                 ed->v.think = OPB->function;
+                // TODO VR: (P2) think2? unsure when this is called
+                // ed->v.nextthink2 = pr_global_struct->time + 0.1;
                 break;
 
             default:

@@ -3888,6 +3888,10 @@ namespace vr
          *	- DoNotHaveFocus (some other app has taken focus - this will
          *throttle the call to 10hz to reduce the impact on that app)
          */
+         #ifndef WIN32
+         // TODO VR: (P2) linux hack
+         __attribute__((no_sanitize_address))
+         #endif
         virtual EVRCompositorError WaitGetPoses(
             VR_ARRAY_COUNT(unRenderPoseArrayCount)
                 TrackedDevicePose_t* pRenderPoseArray,

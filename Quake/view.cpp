@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "render.hpp"
+#include "util.hpp"
 
 /*
 
@@ -77,9 +79,9 @@ float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 extern int in_forward, in_forward2, in_back;
 
-vec3_t v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
-                         // current, 1 is previous value. never the same unless
-                         // map just loaded
+glm::vec3 v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
+                            // current, 1 is previous value. never the same
+                            // unless map just loaded
 
 
 
@@ -90,24 +92,20 @@ V_CalcRoll
 Used by view and sv_user
 ===============
 */
-float V_CalcRoll(vec3_t angles, vec3_t velocity)
+float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity)
 {
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
     float sign;
     float side;
     float value;
 
-    AngleVectors(angles, forward, right, up);
+    const auto [forward, right, up] = quake::util::getAngledVectors(angles);
+
     side = DotProduct(velocity, right);
     sign = side < 0 ? -1 : 1;
     side = fabs(side);
 
     // VR: Don't roll view in VR.
-    if(vr_enabled.value /* TODO VR: create CVAR */)
+    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
     {
         value = 0;
     }
@@ -145,7 +143,7 @@ float V_CalcBob()
     float cycle;
 
     // VR: Don't bob if we're in VR.
-    if(vr_enabled.value /* TODO VR: create CVAR */)
+    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
     {
         return 0.f;
     }
@@ -167,7 +165,7 @@ float V_CalcBob()
     bob = sqrt(cl.velocity[0] * cl.velocity[0] +
                cl.velocity[1] * cl.velocity[1]) *
           cl_bob.value;
-    // Con_Printf ("speed: %5.1f\n", VectorLength(cl.velocity));
+    // Con_Printf ("speed: %5.1f\n", glm::length(cl.velocity));
     bob = bob * 0.3 + bob * 0.7 * sin(cycle);
     if(bob > 4)
     {
@@ -187,20 +185,19 @@ float V_CalcBob()
 cvar_t v_centermove = {"v_centermove", "0.15", CVAR_NONE};
 cvar_t v_centerspeed = {"v_centerspeed", "500", CVAR_NONE};
 
-
 void V_StartPitchDrift()
 {
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         VR_ResetOrientation();
         return;
     }
-#if 1
+
     if(cl.laststop == cl.time)
     {
         return; // something else is keeping it from drifting
     }
-#endif
+
     if(cl.nodrift || !cl.pitchvel)
     {
         cl.pitchvel = v_centerspeed.value;
@@ -327,13 +324,9 @@ void V_ParseDamage()
     int armor;
 
     int blood;
-    vec3_t from;
+    glm::vec3 from;
     int i;
-    vec3_t forward;
 
-    vec3_t right;
-
-    vec3_t up;
     entity_t* ent;
     float side;
     float count;
@@ -390,10 +383,11 @@ void V_ParseDamage()
     {
         ent = &cl_entities[cl.viewentity];
 
-        VectorSubtract(from, ent->origin, from);
-        VectorNormalize(from);
+        from -= ent->origin;
+        from = glm::normalize(from);
 
-        AngleVectors(ent->angles, forward, right, up);
+        const auto [forward, right, up] =
+            quake::util::getAngledVectors(ent->angles);
 
         side = DotProduct(from, right);
         v_dmg_roll = count * side * v_kickroll.value;
@@ -546,7 +540,7 @@ void V_CalcBlend()
         {
             continue;
         }
-        a = a + a2 * (1 - a);
+        a += a2 * (1 - a);
         a2 = a2 / a;
         r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
         g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
@@ -699,23 +693,23 @@ float angledelta(float a)
 CalcGunAngle
 ==================
 */
-void CalcGunAngle(
-    const int wpnCvarEntry, entity_t* viewent, const vec3_t& handrot)
+void CalcGunAngle(const int wpnCvarEntry, entity_t* viewent,
+    const glm::vec3& handrot, bool horizFlip)
 {
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        // TODO VR: ofs repetition
-        vec3_t rotOfs = {
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 5].value +
-                vr_gunmodelpitch.value,                                 // Pitch
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 6].value, // Yaw
-            vr_weapon_offset[wpnCvarEntry * VARS_PER_WEAPON + 7].value  // Roll
-        };
+        auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
 
-        viewent->angles[PITCH] = -(handrot[PITCH]) + rotOfs[0];
-        viewent->angles[YAW] = handrot[YAW] + rotOfs[1];
-        viewent->angles[ROLL] = handrot[ROLL] + rotOfs[2];
+        if(horizFlip)
+        {
+            oYaw *= -1.f;
+            oRoll *= -1.f;
+        }
+
+        viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch;
+        viewent->angles[YAW] = handrot[YAW] + oYaw;
+        viewent->angles[ROLL] = handrot[ROLL] + oRoll;
 
         return;
     }
@@ -725,22 +719,24 @@ void CalcGunAngle(
 
     float yaw = r_refdef.aimangles[YAW];
     yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
+
     if(yaw > 10)
     {
         yaw = 10;
     }
-    if(yaw < -10)
+    else if(yaw < -10)
     {
         yaw = -10;
     }
 
     float pitch = -r_refdef.aimangles[PITCH];
     pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
+
     if(pitch > 10)
     {
         pitch = 10;
     }
-    if(pitch < -10)
+    else if(pitch < -10)
     {
         pitch = -10;
     }
@@ -815,6 +811,7 @@ void V_BoundOffsets()
     {
         r_refdef.vieworg[0] = ent->origin[0] + 14;
     }
+
     if(r_refdef.vieworg[1] < ent->origin[1] - 14)
     {
         r_refdef.vieworg[1] = ent->origin[1] - 14;
@@ -823,6 +820,7 @@ void V_BoundOffsets()
     {
         r_refdef.vieworg[1] = ent->origin[1] + 14;
     }
+
     if(r_refdef.vieworg[2] < ent->origin[2] - 22)
     {
         r_refdef.vieworg[2] = ent->origin[2] - 22;
@@ -877,7 +875,7 @@ void V_CalcViewRoll()
     }
 
     if(cl.stats[STAT_HEALTH] <= 0 &&
-        !vr_enabled.value /* TODO VR: create CVAR */)
+        !VR_EnabledAndNotFake() /* TODO VR: (P2) create CVAR */)
     {
         r_refdef.viewangles[ROLL] = 80; // dead view angle
         return;
@@ -902,15 +900,16 @@ void V_CalcIntermissionRefdef()
     // view is the weapon model (only visible from inside body)
     view = &cl.viewent;
 
-    VectorCopy(ent->origin, r_refdef.vieworg);
-    VectorCopy(ent->angles, r_refdef.viewangles);
+    r_refdef.vieworg = ent->origin;
+    r_refdef.viewangles = ent->angles;
     view->model = nullptr;
 
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         r_refdef.viewangles[PITCH] = 0;
-        VectorCopy(r_refdef.viewangles, r_refdef.aimangles);
-        VR_AddOrientationToViewAngles(r_refdef.viewangles);
+        r_refdef.aimangles = r_refdef.viewangles;
+        r_refdef.viewangles =
+            VR_AddOrientationToViewAngles(r_refdef.viewangles);
         VR_SetAngles(r_refdef.viewangles);
     }
 
@@ -921,53 +920,84 @@ void V_CalcIntermissionRefdef()
     v_idlescale.value = old;
 }
 
+static float playerOldZ = 0;
+
+// TODO VR: (P2) add to vr view? the onground evaluates to false, this is
+// why it doesnt work smooth out stair step ups - seems to work for weapon
+// viewmodel
+static void StairSmoothView(float& oldz, const entity_t* ent, entity_t* view)
+{
+    if(!noclip_anglehack && cl.onground && ent->origin[2] - oldz > 0)
+    {
+        // johnfitz -- added exception for noclip
+        // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
+        // this won't work.
+
+        float steptime = cl.time - cl.oldtime;
+        if(steptime < 0)
+        {
+            // FIXME	I_Error ("steptime < 0");
+            steptime = 0;
+        }
+
+        oldz += steptime * 80;
+
+        if(oldz > ent->origin[2])
+        {
+            oldz = ent->origin[2];
+        }
+
+        if(ent->origin[2] - oldz > 12)
+        {
+            oldz = ent->origin[2] - 12;
+        }
+
+        // r_refdef.vieworg[2] += oldz - ent->origin[2];
+        view->origin[2] += oldz - ent->origin[2];
+    }
+    else
+    {
+        oldz = ent->origin[2];
+    }
+}
+
 /*
 ==================
 V_CalcRefdef
 ==================
 */
-void V_CalcRefdef()
+void V_CalcRefdef(const glm::vec3& handpos, const glm::vec3& gunOffset)
 {
-    entity_t* ent;
-
-    entity_t* view;
-    int i;
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
-    vec3_t angles;
-    float bob;
-    static float oldz = 0;
-    static vec3_t punch = {0, 0, 0}; // johnfitz -- v_gunkick
-    float delta;                     // johnfitz -- v_gunkick
+    static glm::vec3 punch{vec3_zero}; // johnfitz -- v_gunkick
 
     V_DriftPitch();
 
     // ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
+    entity_t* ent = &cl_entities[cl.viewentity];
+
     // view is the weapon model (only visible from inside body)
-    view = &cl.viewent;
+    entity_t* view = &cl.viewent;
 
 
     // transform the view offset by the model's matrix to get the offset from
     // model origin for the view
-    ent->angles[YAW] = cl.viewangles[YAW]; // the model should face the view dir
-    ent->angles[PITCH] =
-        -cl.viewangles[PITCH]; // the model should face the view dir
 
-    bob = V_CalcBob();
+    ent->angles[YAW] = VR_GetBodyYawAngle();
+
+    // the model should face the view dir
+    ent->angles[PITCH] = -cl.viewangles[PITCH];
+
+    float bob = V_CalcBob();
 
     // refresh position
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
-        extern vec3_t vr_viewOffset;
-        _VectorAdd(ent->origin, vr_viewOffset, r_refdef.vieworg);
+        extern glm::vec3 vr_viewOffset;
+        r_refdef.vieworg = ent->origin + vr_viewOffset;
     }
     else
     {
-        VectorCopy(ent->origin, r_refdef.vieworg);
+        r_refdef.vieworg = ent->origin;
         r_refdef.vieworg[2] += cl.viewheight + bob;
     }
 
@@ -979,21 +1009,23 @@ void V_CalcRefdef()
     r_refdef.vieworg[1] += 1.0 / 32;
     r_refdef.vieworg[2] += 1.0 / 32;
 
-    VectorCopy(cl.viewangles, r_refdef.viewangles);
+    r_refdef.viewangles = cl.viewangles;
     V_CalcViewRoll();
     V_AddIdle();
 
     // offsets
+    glm::vec3 angles;
     angles[PITCH] =
         -ent->angles[PITCH]; // because entity pitches are actually backward
     angles[YAW] = ent->angles[YAW];
     angles[ROLL] = ent->angles[ROLL];
 
-    AngleVectors(angles, forward, right, up);
+    const auto [forward, right, up] = quake::util::getAngledVectors(angles);
 
     if(cl.maxclients <= 1)
-    { // johnfitz -- moved cheat-protection here from V_RenderView
-        for(i = 0; i < 3; i++)
+    {
+        // johnfitz -- moved cheat-protection here from V_RenderView
+        for(int i = 0; i < 3; i++)
         {
             r_refdef.vieworg[i] += scr_ofsx.value * forward[i] +
                                    scr_ofsy.value * right[i] +
@@ -1007,26 +1039,27 @@ void V_CalcRefdef()
     }
 
     // set up gun position
-    VectorCopy(cl.viewangles, view->angles);
+    view->angles = cl.viewangles;
 
-    CalcGunAngle(weaponCVarEntry, view, cl.handrot[1]);
+    CalcGunAngle(
+        VR_GetMainHandWpnCvarEntry(), view, cl.handrot[cVR_MainHand], false);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        // TODO VR: this sets the weapon model's position
-        VectorAdd(cl.handpos[1], cl.vmeshoffset, view->origin);
+        // VR: This sets the weapon model's position.
+        view->origin = handpos + cl.vmeshoffset + gunOffset;
     }
     else
     {
-        VectorCopy(ent->origin, view->origin)
+        view->origin = ent->origin;
+        view->origin[2] += cl.viewheight;
 
-            view->origin[2] += cl.viewheight;
-
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             view->origin[i] += forward[i] * bob * 0.4;
         }
+
         view->origin[2] += bob;
     }
 
@@ -1053,31 +1086,39 @@ void V_CalcRefdef()
         }
     }
 
-    view->model =
-        cl.model_precache[cl.stats[STAT_WEAPON]]; // TODO VR: this is where
-                                                  // the weapon is rendered?
-                                                  // got through
-                                                  // .weaponmodel from QC
+    view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
+
+    // TODO VR: (P2) hack
+    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    {
+        view->hidden = true;
+    }
+    else
+    {
+        view->hidden = false;
+    }
 
     view->frame = cl.stats[STAT_WEAPONFRAME];
     view->colormap = vid.colormap;
 
     // johnfitz -- v_gunkick
-    if(v_gunkick.value == 1 &&
-        !(vr_enabled.value && !vr_viewkick.value)) // original quake kick
-        VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
-    if(v_gunkick.value == 2 &&
-        !(vr_enabled.value &&
-            !vr_viewkick.value)) // lerped kick /* TODO VR: create CVAR */
+    if(v_gunkick.value == 1 && !(vr_enabled.value && !vr_viewkick.value))
     {
-        for(i = 0; i < 3; i++)
+        // original quake kick
+        r_refdef.viewangles += cl.punchangle;
+    }
+
+    if(v_gunkick.value == 2 && !(vr_enabled.value && !vr_viewkick.value))
+    {
+        // lerped kick
+        for(int i = 0; i < 3; i++)
         {
             if(punch[i] != v_punchangles[0][i])
             {
                 // speed determined by how far we need to lerp in 1/10th of
                 // a second
-                delta = (v_punchangles[0][i] - v_punchangles[1][i]) *
-                        host_frametime * 10;
+                float delta = (v_punchangles[0][i] - v_punchangles[1][i]) *
+                              host_frametime * 10;
 
                 if(delta > 0)
                 {
@@ -1090,41 +1131,11 @@ void V_CalcRefdef()
             }
         }
 
-        VectorAdd(r_refdef.viewangles, punch, r_refdef.viewangles);
+        r_refdef.viewangles += punch;
     }
     // johnfitz
 
-    // smooth out stair step ups
-    if(!noclip_anglehack && cl.onground &&
-        ent->origin[2] - oldz > 0) // johnfitz -- added exception for noclip
-    // FIXME: noclip_anglehack is set on the server, so in a nonlocal game
-    // this won't work.
-    {
-        float steptime;
-
-        steptime = cl.time - cl.oldtime;
-        if(steptime < 0)
-        {
-            // FIXME	I_Error ("steptime < 0");
-            steptime = 0;
-        }
-
-        oldz += steptime * 80;
-        if(oldz > ent->origin[2])
-        {
-            oldz = ent->origin[2];
-        }
-        if(ent->origin[2] - oldz > 12)
-        {
-            oldz = ent->origin[2] - 12;
-        }
-        r_refdef.vieworg[2] += oldz - ent->origin[2];
-        view->origin[2] += oldz - ent->origin[2];
-    }
-    else
-    {
-        oldz = ent->origin[2];
-    }
+    StairSmoothView(playerOldZ, ent, view);
 
     if(chase_active.value)
     {
@@ -1132,37 +1143,224 @@ void V_CalcRefdef()
     }
 }
 
-// TODO VR: hack
-void V_CalcRefdef2Test()
+void V_SetupOffHandWpnViewEnt(
+    const glm::vec3& handpos, const glm::vec3& gunOffset)
 {
     // view is the weapon model (only visible from inside body)
-    entity_t* view = &cl.offhand_viewent;
+    entity_t& view = cl.offhand_viewent;
 
     // set up gun position
-    VectorCopy(cl.viewangles, view->angles);
-
-    // TODO VR: hardcoded fist cvar entry (16)
-    CalcGunAngle(16, view, cl.handrot[0]);
+    CalcGunAngle(
+        VR_GetOffHandWpnCvarEntry(), &view, cl.handrot[cVR_OffHand], true);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
-        VectorAdd(cl.handpos[0], cl.vmeshoffset, view->origin);
+        view.origin = handpos + cl.vmeshoffset + gunOffset;
     }
     else
     {
         // No off-hand without VR.
     }
 
-    view->model = Mod_ForName("progs/hand.mdl", true);
-    view->frame = cl.stats[STAT_WEAPONFRAME];
+    view.model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
+
+    // TODO VR: (P2) hack
+    if(view.model && !strcmp(view.model->name, "progs/hand.mdl"))
+    {
+        view.hidden = true;
+    }
+    else
+    {
+        view.hidden = false;
+    }
+
+    view.frame = cl.stats[STAT_WEAPONFRAME2];
+    view.colormap = vid.colormap;
+    view.horizflip = true;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+
+    if(chase_active.value)
+    {
+        Chase_UpdateForDrawing(r_refdef, &view); // johnfitz
+    }
+}
+
+void V_SetupVRTorsoViewEnt()
+{
+    entity_t& view = cl.vrtorso;
+
+    const glm::vec3 playerYawOnly{0, VR_GetBodyYawAngle(), 0};
+    const auto [vFwd, vRight, vUp] =
+        quake::util::getAngledVectors(playerYawOnly);
+
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0.f, 0.8f);
+
+    view.angles[PITCH] = 0.f + vr_vrtorso_pitch.value - (heightRatio * 35.f);
+    view.angles[YAW] = VR_GetBodyYawAngle() + vr_vrtorso_yaw.value;
+    view.angles[ROLL] = 0.f + vr_vrtorso_roll.value;
+
+    view.model = Mod_ForName("progs/vrtorso.mdl", true);
+    view.frame = 0;
+    view.colormap = vid.colormap;
+
+    view.origin = cl_entities[cl.viewentity].origin;
+    view.origin += vFwd * vr_vrtorso_x_offset.value;
+    view.origin -= vFwd * (heightRatio * 14.f);
+    view.origin += vRight * vr_vrtorso_y_offset.value;
+    view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
+    view.origin[2] += vr_vrtorso_z_offset.value;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+}
+
+void V_SetupHolsterSlotViewEnt(const glm::vec3& pos, entity_t* view,
+    const float pitch, const float yaw, const float roll, const bool horizflip)
+{
+    view->angles[PITCH] = pitch;
+    view->angles[YAW] = yaw;
+    view->angles[ROLL] = roll;
+
+    view->origin = pos;
+    view->model = Mod_ForName("progs/legholster.mdl", true);
+
+    view->frame = 0;
     view->colormap = vid.colormap;
+
+    view->horizflip = horizflip;
+
+    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], view);
 
     if(chase_active.value)
     {
         Chase_UpdateForDrawing(r_refdef, view); // johnfitz
     }
 }
+
+void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
+    entity_t* view, const float pitch, const float yaw, const float roll,
+    const bool horizflip)
+{
+    view->angles[PITCH] = pitch;
+    view->angles[YAW] = yaw;
+    view->angles[ROLL] = roll;
+
+    view->origin = pos;
+    view->model = cl.model_precache[modelId];
+
+    // TODO VR: (P2) hack
+    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    {
+        view->model = nullptr;
+    }
+
+    view->frame = 0;
+    view->colormap = vid.colormap;
+
+    view->horizflip = horizflip;
+
+    if(chase_active.value)
+    {
+        Chase_UpdateForDrawing(r_refdef, view); // johnfitz
+    }
+}
+
+static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
+    entity_t* const hand, const glm::vec3& handRot,
+    const glm::vec3& extraOffset, const bool horizflip)
+{
+    assert(anchor->model != nullptr);
+
+    const auto extraOffsets = VR_GetWpnHandOffsets(anchorWpnCvar) + extraOffset;
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HandAnchorVertex));
+
+    const bool hideHand =
+        static_cast<bool>(VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HideHand));
+
+    const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot);
+
+    const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+    const int otherHandIdx = VR_OtherHand(handIdx);
+    const auto otherWpnCvar = VR_GetWpnCvarEntry(otherHandIdx);
+
+    const bool otherWpnTwoHDisplayModeFixed =
+        quake::util::cvarToEnum<Wpn2HDisplayMode>(VR_GetWpnCVar(
+            otherWpnCvar, WpnCVar::TwoHDisplayMode)) == Wpn2HDisplayMode::Fixed;
+
+    if(otherWpnTwoHDisplayModeFixed && vr_2h_aim_transition[otherHandIdx] > 0.f)
+    {
+        entity_t* const otherAnchor =
+            anchor == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
+
+        const glm::vec3 twoHFixedPos =
+            VR_GetWpnFixed2HFinalPosition(otherAnchor, otherWpnCvar, horizflip,
+                extraOffset, cl.handrot[otherHandIdx]);
+
+        hand->origin =
+            glm::mix(pos, twoHFixedPos, vr_2h_aim_transition[otherHandIdx]);
+    }
+    else
+    {
+        hand->origin = pos;
+    }
+
+    hand->model = Mod_ForName("progs/hand.mdl", true);
+    hand->hidden = hideHand;
+    hand->frame = 0;
+    hand->colormap = vid.colormap;
+    hand->horizflip = horizflip;
+
+    // TODO VR: (P2) hardcoded fist cvar number
+    // if(hand->model != nullptr)
+    {
+        const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+        ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
+    }
+
+    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, handRot, horizflip);
+}
+
+static void V_SetupFixedHelpingHandViewEnt(const int helpingHand,
+    const int otherWpnCvar, entity_t* const anchor, entity_t* const hand,
+    const glm::vec3& handRot, const glm::vec3& otherHandRot,
+    const glm::vec3& extraOffset, const bool horizflip)
+{
+    assert(anchor->model != nullptr);
+
+    const glm::vec3 pos = VR_GetWpnFixed2HFinalPosition(
+        anchor, otherWpnCvar, horizflip, extraOffset, otherHandRot);
+
+    hand->origin = glm::mix(cl.handpos[helpingHand], pos,
+        vr_2h_aim_transition[VR_OtherHand(helpingHand)]);
+
+    hand->model = Mod_ForName("progs/hand.mdl", true);
+    hand->frame = 0;
+    hand->colormap = vid.colormap;
+    hand->horizflip = horizflip;
+
+    // TODO VR: (P2) hardcoded fist cvar number
+    if(hand->model != nullptr)
+    {
+        const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+        ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
+    }
+
+    auto [rPitch, rYaw, rRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
+
+    if(!horizflip)
+    {
+        rYaw *= -1.f;
+        rRoll *= -1.f;
+    }
+
+    hand->angles = otherHandRot + glm::vec3{rPitch, rYaw, rRoll};
+    hand->angles[PITCH] *= -1.f;
+}
+
 
 /*
 ==================
@@ -1188,18 +1386,132 @@ void V_RenderView()
     }
     else if(!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
     {
-        V_CalcRefdef();
-        R_RenderView();
+        // -------------------------------------------------------------------
+        // VR: Setup main hand weapon, player model entity, and refdef.
+        {
+            const auto gunOffset =
+                VR_GetWpnGunOffsets(VR_GetMainHandWpnCvarEntry());
 
-        // VR: This is what draws the offhand.
-        V_CalcRefdef2Test();
-        R_DrawViewModel(&cl.offhand_viewent, true);
+            V_CalcRefdef(cl.handpos[cVR_MainHand], gunOffset);
+        }
+
+        // -------------------------------------------------------------------
+        // VR: Setup off hand weapon.
+        {
+            auto gunOffset = VR_GetWpnGunOffsets(VR_GetOffHandWpnCvarEntry());
+            gunOffset[1] *= -1.f;
+
+            V_SetupOffHandWpnViewEnt(cl.handpos[cVR_OffHand], gunOffset);
+        }
+
+        // -------------------------------------------------------------------
+        // VR: Setup holstered weapons.
+        const auto playerBodyYaw = VR_GetBodyYawAngle();
+
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL2],
+            VR_GetLeftHipPos(), &cl.left_hip_holster, -90.f, 0.f,
+            -playerBodyYaw + 10.f, true);
+
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL3],
+            VR_GetRightHipPos(), &cl.right_hip_holster, -90.f, 0.f,
+            -playerBodyYaw - 10.f, false);
+
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL4],
+            VR_GetLeftUpperPos(), &cl.left_upper_holster, -20.f,
+            playerBodyYaw + 180.f, 0.f, true);
+
+        V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL5],
+            VR_GetRightUpperPos(), &cl.right_upper_holster, -20.f,
+            playerBodyYaw + 180.f, 0.f, false);
+
+        // TODO VR: (P2) code repetition between holsters and slots
+        if(vr_leg_holster_model_enabled.value)
+        {
+            V_SetupHolsterSlotViewEnt(VR_GetLeftHipPos(),
+                &cl.left_hip_holster_slot, -0.f, playerBodyYaw - 10.f, 0.f,
+                true);
+
+            V_SetupHolsterSlotViewEnt(VR_GetRightHipPos(),
+                &cl.right_hip_holster_slot, -0.f, playerBodyYaw + 10.f, 0.f,
+                false);
+
+            V_SetupHolsterSlotViewEnt(VR_GetLeftUpperPos(),
+                &cl.left_upper_holster_slot, -30.f, playerBodyYaw - 10.f, 0.f,
+                true);
+
+            V_SetupHolsterSlotViewEnt(VR_GetRightUpperPos(),
+                &cl.right_upper_holster_slot, -30.f, playerBodyYaw + 10.f, 0.f,
+                false);
+        }
+
+        const auto doHand = [&](entity_t* wpnEnt, entity_t* handEnt,
+                                const int hand, const glm::vec3& extraOffset,
+                                const bool horizFlip) {
+            if(wpnEnt->model == nullptr)
+            {
+                return;
+            }
+
+            const int wpnCvar = VR_GetWpnCVarFromModel(wpnEnt->model);
+
+            const auto otherWpnEnt =
+                wpnEnt == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
+
+            if(otherWpnEnt->model != nullptr)
+            {
+                const int otherWpnCvar =
+                    VR_GetWpnCVarFromModel(otherWpnEnt->model);
+
+                const bool twoHDisplayModeFixed =
+                    quake::util::cvarToEnum<Wpn2HDisplayMode>(VR_GetWpnCVar(
+                        otherWpnCvar, WpnCVar::TwoHDisplayMode)) ==
+                    Wpn2HDisplayMode::Fixed;
+
+                const bool inFixed2HAiming =
+                    VR_IsActive2HHelpingHand(hand) && twoHDisplayModeFixed;
+
+                if(inFixed2HAiming)
+                {
+                    const auto otherHand = VR_OtherHand(hand);
+
+                    V_SetupFixedHelpingHandViewEnt(hand, otherWpnCvar,
+                        otherWpnEnt, handEnt, cl.handrot[hand],
+                        cl.handrot[otherHand], extraOffset, horizFlip);
+
+                    return;
+                }
+            }
+
+            V_SetupHandViewEnt(wpnCvar, wpnEnt, handEnt, cl.handrot[hand],
+                extraOffset, horizFlip);
+        };
+
+        // -------------------------------------------------------------------
+        // VR: Setup main hand.
+        doHand(&cl.viewent, &cl.right_hand, cVR_MainHand, vec3_zero, false);
+
+        // -------------------------------------------------------------------
+        // VR: Setup off hand.
+        const auto offHandOffsets =
+            cl.offhand_viewent.model == nullptr
+                ? vec3_zero
+                : VR_GetWpnOffHandOffsets(
+                      VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
+
+        doHand(&cl.offhand_viewent, &cl.left_hand, cVR_OffHand, offHandOffsets,
+            true);
+
+        // -------------------------------------------------------------------
+        // VR: Setup VR torso.
+        if(vr_vrtorso_enabled.value == 1)
+        {
+            V_SetupVRTorsoViewEnt();
+        }
+
+        R_RenderView();
     }
 
     // johnfitz -- removed lcd code
-
-
-
     V_PolyBlend(); // johnfitz -- moved here from R_Renderview ();
 }
 

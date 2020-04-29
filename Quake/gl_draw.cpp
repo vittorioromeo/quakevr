@@ -176,7 +176,8 @@ int Scrap_AllocBlock(int w, int h, int* x, int* y)
                 }
             }
             if(j == w)
-            { // this is a valid spot
+            {
+                // this is a valid spot
                 *x = i;
                 *y = best = best2;
             }
@@ -552,7 +553,8 @@ void Draw_String(int x, int y, const char* str)
     while(*str)
     {
         if(*str != 32)
-        { // don't waste verts on spaces
+        {
+            // don't waste verts on spaces
             Draw_CharacterQuad(x, y, *str);
         }
         str++;
@@ -765,7 +767,7 @@ void GL_SetCanvas(canvastype newcanvas)
 
     currentcanvas = newcanvas;
 
-    if(vr_enabled.value && !con_forcedup)
+    if(VR_EnabledAndNotFake() && !con_forcedup)
     {
         return;
     }
@@ -787,12 +789,12 @@ void GL_SetCanvas(canvastype newcanvas)
             glViewport(glx, gly, glwidth, glheight);
             break;
         case CANVAS_MENU:
-            s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
+            s = q_min((float)glwidth / 800.0, (float)glheight / 600.0);
             s = CLAMP(1.0, scr_menuscale.value, s);
             // ericw -- doubled width to 640 to accommodate long keybindings
-            glOrtho(0, 640, 200, 0, -99999, 99999);
-            glViewport(glx + (glwidth - 320 * s) / 2,
-                gly + (glheight - 200 * s) / 2, 640 * s, 200 * s);
+            glOrtho(0, 800, 600, 0, -99999, 99999);
+            glViewport(glx + (glwidth - 800 * s) / 2,
+                gly + (glheight - 600 * s) / 2, 800 * s, 600 * s);
             break;
         case CANVAS_SBAR:
             s = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
@@ -803,8 +805,8 @@ void GL_SetCanvas(canvastype newcanvas)
             }
             else
             {
-                glOrtho(0, 320, 48, 0, -99999, 99999);
-                glViewport(glx + (glwidth - 320 * s) / 2, gly, 320 * s, 48 * s);
+                glOrtho(-200, 420, 48, 0, -99999, 99999);
+                glViewport(glx + (glwidth - 420 * s) / 2, gly, 600 * s, 48 * s);
             }
             break;
         case CANVAS_WARPIMAGE:

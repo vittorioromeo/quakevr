@@ -1,4 +1,6 @@
 Windows/build
+.fuse*
+Windows/buildlx
 Debug/id1
 Debug/Id1
 Linux/CodeBlocks/id1
@@ -6,6 +8,10 @@ Linux/CodeBlocks/Id1
 Build-qu*
 *.so
 *.dbg
+*.blend[1-9]
+*.blend10
+*.blend11
+*.blend12
 
 # Linux objects
 .vs

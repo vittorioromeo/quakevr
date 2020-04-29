@@ -597,7 +597,8 @@ const char* Key_KeynumToString(int keynum)
         return "<KEY NOT FOUND>";
     }
     if(keynum > 32 && keynum < 127)
-    { // printable ascii
+    {
+        // printable ascii
         tinystr[0] = keynum;
         tinystr[1] = 0;
         return tinystr;
@@ -877,7 +878,8 @@ void Key_Init()
     // initialize consolekeys[]
     //
     for(i = 32; i < 127; i++)
-    { // ascii characters
+    {
+        // ascii characters
         consolekeys[i] = true;
     }
     consolekeys['`'] = false;
@@ -1109,7 +1111,8 @@ void Key_Event(int key, bool down)
         if(kb)
         {
             if(kb[0] == '+')
-            { // button commands add keynum as a parm
+            {
+                // button commands add keynum as a parm
                 sprintf(cmd, "%s %i\n", kb, key);
                 Cbuf_AddText(cmd);
             }
@@ -1258,7 +1261,7 @@ void Key_UpdateForDest()
                 key_dest = key_console;
                 break;
             }
-        [[fallthrough]];
+            [[fallthrough]];
         default: forced = false; break;
     }
 }

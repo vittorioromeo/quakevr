@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_RENDER_H
 #define _QUAKE_RENDER_H
 
+#include "quakeglm.hpp"
+
 // refresh.h -- public interface to refresh functions
 
 #define MAXCLIPPLANES 11
@@ -36,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef struct efrag_s
 {
     struct efrag_s* leafnext;
-    struct entity_s* entity;
+    struct entity_t* entity;
 } efrag_t;
 
 // johnfitz -- for lerping
@@ -53,7 +55,7 @@ typedef struct efrag_s
              // interval of 0.1
 // johnfitz
 
-typedef struct entity_s
+struct entity_t
 {
     bool forcelink; // model changed
 
@@ -61,13 +63,13 @@ typedef struct entity_s
 
     entity_state_t baseline; // to fill in defaults in updates
 
-    double msgtime;        // time of last update
-    vec3_t msg_origins[2]; // last two updates (0 is newest)
-    vec3_t origin;
-    vec3_t msg_angles[2]; // last two updates (0 is newest)
-    vec3_t angles;
-    struct qmodel_s* model; // nullptr = no model
-    struct efrag_s* efrag;  // linked list of efrags
+    double msgtime;           // time of last update
+    glm::vec3 msg_origins[2]; // last two updates (0 is newest)
+    glm::vec3 origin;
+    glm::vec3 msg_angles[2]; // last two updates (0 is newest)
+    glm::vec3 angles;
+    qmodel_t* model;       // nullptr = no model
+    struct efrag_s* efrag; // linked list of efrags
     int frame;
     float syncbase; // for client-side animations
     byte* colormap;
@@ -94,12 +96,21 @@ typedef struct entity_s
     short previouspose; // johnfitz -- animation lerping
     short currentpose;  // johnfitz -- animation lerping
     //	short					futurepose;		//johnfitz -- animation lerping
-    float movelerpstart;   // johnfitz -- transform lerping
-    vec3_t previousorigin; // johnfitz -- transform lerping
-    vec3_t currentorigin;  // johnfitz -- transform lerping
-    vec3_t previousangles; // johnfitz -- transform lerping
-    vec3_t currentangles;  // johnfitz -- transform lerping
-} entity_t;
+    float movelerpstart;      // johnfitz -- transform lerping
+    glm::vec3 previousorigin; // johnfitz -- transform lerping
+    glm::vec3 currentorigin;  // johnfitz -- transform lerping
+    glm::vec3 previousangles; // johnfitz -- transform lerping
+    glm::vec3 currentangles;  // johnfitz -- transform lerping
+
+    bool horizflip; // VR: horizontal flip
+
+    // VR: per-instance scaling
+    glm::vec3 msg_scales[2]; // last two updates (0 is newest)
+    glm::vec3 scale;
+    glm::vec3 scale_origin;
+
+    bool hidden; // TODO VR: (P1) hack
+};
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
@@ -124,9 +135,9 @@ typedef struct
     float xOrigin;               // should probably allways be 0.5
     float yOrigin;               // between be around 0.3 to 0.5
 
-    vec3_t vieworg;
-    vec3_t viewangles;
-    vec3_t aimangles;
+    glm::vec3 vieworg;
+    glm::vec3 viewangles;
+    glm::vec3 aimangles;
 
     float fov_x, fov_y;
 
@@ -141,7 +152,7 @@ extern int reinit_surfcache;
 
 
 extern refdef_t r_refdef;
-extern vec3_t r_origin, vpn, vright, vup;
+extern glm::vec3 r_origin, vpn, vright, vup;
 
 
 void R_Init(void);
@@ -149,7 +160,7 @@ void R_InitTextures(void);
 void R_InitEfrags(void);
 void R_RenderView(void); // must set r_refdef first
 void R_RenderScene(void);
-void R_DrawViewModel(entity_t* viewent, bool horizflip);
+void R_DrawViewModel(entity_t* viewent);
 void R_ViewChanged(vrect_t* pvrect, int lineadj, float aspect);
 // called whenever r_refdef or vid change
 // void R_InitSky (struct texture_s *mt);	// called at level load
@@ -162,24 +173,34 @@ void R_NewMap(void);
 
 void R_ParseParticleEffect(void);
 void R_ParseParticle2Effect(void);
-void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count);
-void R_RunParticle2Effect(vec3_t org, vec3_t dir, int preset, int count);
-void R_RunParticleEffect_BulletPuff(vec3_t org, vec3_t dir, int color, int count);
-void R_RocketTrail(vec3_t start, vec3_t end, int type);
+void R_RunParticle2Effect(
+    const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+void R_RunParticleEffect_BulletPuff(
+    const glm::vec3& org, const glm::vec3& dir, int color, int count);
+void R_RocketTrail(glm::vec3 start, const glm::vec3& end, int type);
 void R_EntityParticles(entity_t* ent);
-void R_ParticleExplosion(vec3_t org);
-void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength);
-void R_LavaSplash(vec3_t org);
-void R_TeleportSplash(vec3_t org);
+void R_ParticleExplosion(const glm::vec3& org);
+void R_ParticleExplosion2(
+    const glm::vec3& org, int colorStart, int colorLength);
+void R_LavaSplash(const glm::vec3& org);
+void R_TeleportSplash(const glm::vec3& org);
 
 void R_PushDlights(void);
+
+struct aliashdr_t;
+struct lerpdata_t;
+
+void R_SetupAliasFrame(
+    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
+
+void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 
 
 //
 // surface cache related
 //
-extern int reinit_surfcache;    // if 1, surface cache is currently empty and
-extern bool r_cache_thrash; // set if thrashing the surface cache
+extern int reinit_surfcache; // if 1, surface cache is currently empty and
+extern bool r_cache_thrash;  // set if thrashing the surface cache
 
 int D_SurfaceCacheForRes(int width, int height);
 void D_FlushCaches(void);

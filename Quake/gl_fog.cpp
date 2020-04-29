@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_fog.c -- global and volumetric fog
 
 #include "quakedef.hpp"
+#include "quakeglm.hpp"
 
 //==============================================================================
 //
@@ -222,7 +223,8 @@ void Fog_ParseWorldspawn()
             q_strlcpy(key, com_token, sizeof(key));
         }
         while(key[0] && key[strlen(key) - 1] == ' ')
-        { // remove trailing spaces
+        {
+            // remove trailing spaces
             key[strlen(key) - 1] = 0;
         }
         data = COM_Parse(data);
@@ -351,11 +353,9 @@ called before drawing stuff that is additive blended -- sets fog color to black
 */
 void Fog_StartAdditive()
 {
-    vec3_t color = {0, 0, 0};
-
     if(Fog_GetDensity() > 0)
     {
-        glFogfv(GL_FOG_COLOR, color);
+        glFogfv(GL_FOG_COLOR, glm::value_ptr(vec3_zero));
     }
 }
 

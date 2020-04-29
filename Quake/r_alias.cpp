@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // r_alias.c -- alias model rendering
 
+#include "quakeglm.hpp"
 #include "quakedef.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,
@@ -38,8 +39,8 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.hpp"
 };
 
-extern vec3_t
-    lightcolor; // johnfitz -- replaces "float shadelight" for lit support
+// johnfitz -- replaces "float shadelight" for lit support
+extern glm::vec3 lightcolor;
 
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
@@ -47,29 +48,17 @@ float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
 #include "anorm_dots.hpp"
 };
 
-extern vec3_t lightspot;
+extern glm::vec3 lightspot;
 
 float* shadedots = r_avertexnormal_dots[0];
-vec3_t shadevector;
+glm::vec3 shadevector;
 
 float entalpha; // johnfitz
 
 bool overbright; // johnfitz
 
-bool shading =
-    true; // johnfitz -- if false, disable vertex shading for various reasons
-          // (fullbright, r_lightmap, showtris, etc)
-
-// johnfitz -- struct for passing lerp information to drawing functions
-typedef struct
-{
-    short pose1;
-    short pose2;
-    float blend;
-    vec3_t origin;
-    vec3_t angles;
-} lerpdata_t;
-// johnfitz
+bool shading = true; // johnfitz -- if false, disable vertex shading for various
+                     // reasons (fullbright, r_lightmap, showtris, etc)
 
 static GLuint r_alias_program;
 
@@ -332,15 +321,9 @@ entalpha, multitexture, and r_drawflat
 */
 void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 {
-    float vertcolor[4];
     trivertx_t* verts1;
-
     trivertx_t* verts2;
-    int* commands;
-    int count;
-    float u;
 
-    float v;
     float blend;
 
     float iblend;
@@ -366,15 +349,16 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
         blend = iblend = 0; // avoid bogus compiler warning
     }
 
-    commands = (int*)((byte*)paliashdr + paliashdr->commands);
+    int* commands = (int*)((byte*)paliashdr + paliashdr->commands);
 
+    float vertcolor[4];
     vertcolor[3] = entalpha; // never changes, so there's no need to put this
                              // inside the loop
 
     while(true)
     {
         // get the vertex count and primitive type
-        count = *commands++;
+        int count = *commands++;
         if(!count)
         {
             break; // done
@@ -392,8 +376,8 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 
         do
         {
-            u = ((float*)commands)[0];
-            v = ((float*)commands)[1];
+            float u = ((float*)commands)[0];
+            float v = ((float*)commands)[1];
             if(mtexenabled)
             {
                 GL_MTexCoord2fFunc(GL_TEXTURE0_ARB, u, v);
@@ -468,9 +452,9 @@ void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
-void R_SetupAliasFrame(aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
+void R_SetupAliasFrame(
+    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
 {
-    entity_t* e = currententity;
     int posenum;
 
     int numposes;
@@ -552,28 +536,27 @@ R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
 {
     float blend;
-    vec3_t d;
+    glm::vec3 d;
     int i;
 
     // if LERP_RESETMOVE, kill any lerps in progress
     if(e->lerpflags & LERP_RESETMOVE)
     {
         e->movelerpstart = 0;
-        VectorCopy(e->origin, e->previousorigin);
-        VectorCopy(e->origin, e->currentorigin);
-        VectorCopy(e->angles, e->previousangles);
-        VectorCopy(e->angles, e->currentangles);
+        e->previousorigin = e->origin;
+        e->currentorigin = e->origin;
+        e->previousangles = e->angles;
+        e->currentangles = e->angles;
         e->lerpflags -= LERP_RESETMOVE;
     }
-    else if(!VectorCompare(e->origin, e->currentorigin) ||
-            !VectorCompare(e->angles,
-                e->currentangles)) // origin/angles changed, start new lerp
+    else if(e->origin != e->currentorigin || e->angles != e->currentangles)
     {
+        // origin/angles changed, start new lerp
         e->movelerpstart = cl.time;
-        VectorCopy(e->currentorigin, e->previousorigin);
-        VectorCopy(e->origin, e->currentorigin);
-        VectorCopy(e->currentangles, e->previousangles);
-        VectorCopy(e->angles, e->currentangles);
+        e->previousorigin = e->currentorigin;
+        e->currentorigin = e->origin;
+        e->previousangles = e->currentangles;
+        e->currentangles = e->angles;
     }
 
     // set up values
@@ -592,13 +575,13 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
         }
 
         // translation
-        VectorSubtract(e->currentorigin, e->previousorigin, d);
+        d = e->currentorigin - e->previousorigin;
         lerpdata->origin[0] = e->previousorigin[0] + d[0] * blend;
         lerpdata->origin[1] = e->previousorigin[1] + d[1] * blend;
         lerpdata->origin[2] = e->previousorigin[2] + d[2] * blend;
 
         // rotation
-        VectorSubtract(e->currentangles, e->previousangles, d);
+        d = e->currentangles - e->previousangles;
         for(i = 0; i < 3; i++)
         {
             if(d[i] > 180)
@@ -616,8 +599,8 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
     }
     else // don't lerp
     {
-        VectorCopy(e->origin, lerpdata->origin);
-        VectorCopy(e->angles, lerpdata->angles);
+        lerpdata->origin = e->origin;
+        lerpdata->angles = e->angles;
     }
 }
 
@@ -629,7 +612,7 @@ rewritten
 */
 void R_SetupAliasLighting(entity_t* e)
 {
-    vec3_t dist;
+    glm::vec3 dist;
     float add;
     int i;
     int quantizedangle;
@@ -642,17 +625,24 @@ void R_SetupAliasLighting(entity_t* e)
     {
         if(cl_dlights[i].die >= cl.time)
         {
-            VectorSubtract(currententity->origin, cl_dlights[i].origin, dist);
-            add = cl_dlights[i].radius - VectorLength(dist);
+            dist = currententity->origin - cl_dlights[i].origin;
+            add = cl_dlights[i].radius - glm::length(dist);
+
             if(add > 0)
             {
-                VectorMA(lightcolor, add, cl_dlights[i].color, lightcolor);
+                lightcolor += add * cl_dlights[i].color;
             }
         }
     }
 
+    // TODO VR: (P2) repetition here to check player view entities
     // minimum light value on gun (24)
-    if(e == &cl.viewent || e == &cl.offhand_viewent)
+    if(e == &cl.viewent || e == &cl.offhand_viewent ||
+        e == &cl.left_hip_holster || e == &cl.right_hip_holster ||
+        e == &cl.left_upper_holster || e == &cl.right_upper_holster ||
+        e == &cl.left_hand || e == &cl.right_hand || e == &cl.vrtorso ||
+        e == &cl.left_hip_holster_slot || e == &cl.right_hip_holster_slot ||
+        e == &cl.left_upper_holster_slot || e == &cl.right_upper_holster_slot)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)
@@ -682,7 +672,7 @@ void R_SetupAliasLighting(entity_t* e)
         add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add < 1.0f)
         {
-            VectorScale(lightcolor, add, lightcolor);
+            lightcolor *= add;
         }
     }
 
@@ -706,11 +696,11 @@ void R_SetupAliasLighting(entity_t* e)
     shadevector[0] = cos(-radiansangle);
     shadevector[1] = sin(-radiansangle);
     shadevector[2] = 1;
-    VectorNormalize(shadevector);
+    shadevector = safeNormalize(shadevector);
     // ericw --
 
     shadedots = r_avertexnormal_dots[quantizedangle];
-    VectorScale(lightcolor, 1.0f / 200.0f, lightcolor);
+    lightcolor *= 1.0f / 200.0f;
 }
 
 /*
@@ -718,7 +708,7 @@ void R_SetupAliasLighting(entity_t* e)
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel(entity_t* e, bool horizflip)
+void R_DrawAliasModel(entity_t* e)
 {
     aliashdr_t* paliashdr;
     int i;
@@ -737,7 +727,7 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     // culling
     //
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     //
@@ -754,11 +744,16 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     glPushMatrix();
     R_RotateForEntity(lerpdata.origin, lerpdata.angles);
 
-    if(horizflip)
+    if(e->horizflip)
     {
         glScalef(1.0f, -1.0f, 1.0f);
         glFrontFace(GL_CCW);
     }
+
+    // TODO VR: (P1) document why we have +1
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
     glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
         paliashdr->scale_origin[2]);
@@ -782,7 +777,8 @@ void R_DrawAliasModel(entity_t* e, bool horizflip)
     // set up for alpha blending
     //
     if(r_drawflat_cheatsafe || r_lightmap_cheatsafe)
-    { // no alpha in drawflat or lightmap mode
+    {
+        // no alpha in drawflat or lightmap mode
         entalpha = 1;
     }
     else
@@ -1033,7 +1029,7 @@ cleanup:
     glColor3f(1, 1, 1);
     glPopMatrix();
 
-    if(horizflip)
+    if(e->horizflip)
     {
         glFrontFace(GL_CW);
     }
@@ -1066,7 +1062,8 @@ void GL_DrawAliasShadow(entity_t* e)
         return;
     }
 
-    if(e == &cl.viewent || e->model->flags & MOD_NOSHADOW)
+    // TODO VR: (P2) viewent shadow looks weird
+    if(/*e == &cl.viewent ||*/ e->model->flags & MOD_NOSHADOW)
     {
         return;
     }
@@ -1078,7 +1075,7 @@ void GL_DrawAliasShadow(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
     R_LightPoint(e->origin);
     lheight = currententity->origin[2] - lightspot[2];
@@ -1128,7 +1125,7 @@ void R_DrawAliasModel_ShowTris(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     glPushMatrix();

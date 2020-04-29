@@ -521,7 +521,8 @@ void Cvar_Set(const char* var_name, const char* value)
 
     var = Cvar_FindVar(var_name);
     if(!var)
-    { // there is an error in C code if this happens
+    {
+        // there is an error in C code if this happens
         Con_Printf("Cvar_Set: variable %s not found\n", var_name);
         return;
     }

@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __BSPFILE_H
 #define __BSPFILE_H
 
+#include "quakeglm.hpp"
+
 // upper design bounds
 
 #define MAX_MAP_HULLS 4
@@ -374,7 +376,6 @@ void PrintBSPFileSizes(void);
 
 //===============
 
-
 typedef struct epair_s
 {
     struct epair_s* next;
@@ -382,29 +383,16 @@ typedef struct epair_s
     char* value;
 } epair_t;
 
-typedef struct
+struct entitybsp_t
 {
-    vec3_t origin;
+    glm::vec3 origin;
     int firstbrush;
     int numbrushes;
     epair_t* epairs;
-} entity_t;
+};
 
 extern int num_entities;
-extern entity_t entities[MAX_MAP_ENTITIES];
-
-void ParseEntities(void);
-void UnparseEntities(void);
-
-void SetKeyValue(entity_t* ent, char* key, char* value);
-char* ValueForKey(entity_t* ent, char* key);
-// will return "" if not present
-
-vec_t FloatForKey(entity_t* ent, char* key);
-void GetVectorForKey(entity_t* ent, char* key, vec3_t vec);
-
-epair_t* ParseEpair(void);
+extern entitybsp_t entities[MAX_MAP_ENTITIES];
 
 #endif /* QUAKE_GAME */
-
 #endif /* __BSPFILE_H */

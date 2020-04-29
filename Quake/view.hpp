@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_VIEW_H
 #define _QUAKE_VIEW_H
 
+#include "quakeglm.hpp"
+
 extern cvar_t vid_gamma;
 extern cvar_t vid_contrast;
 
@@ -33,7 +35,7 @@ void V_Init(void);
 void V_RenderView(void);
 void V_CalcBlend(void);
 void V_UpdateBlend(void);
-float V_CalcRoll(vec3_t angles, vec3_t velocity);
+float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity);
 // void V_UpdatePalette (void); //johnfitz
 
 #endif /* _QUAKE_VIEW_H */
