@@ -252,12 +252,14 @@ char* q_strcasestr(const char* haystack, const char* needle)
                 }
                 // complete match
                 if(!c1)
-                { // end of haystack means we can't possibly find needle
+                {
+                    // end of haystack means we can't possibly find needle
                     // in it any more
                     return nullptr;
                 }
                 if(c1 != c2)
-                { // mismatch means no match starting at haystack[0]
+                {
+                    // mismatch means no match starting at haystack[0]
                     break;
                 }
             }
@@ -745,7 +747,7 @@ void MSG_WriteChar(sizebuf_t* sb, int c)
     byte* buf;
 
 #ifdef PARANOID
-    // TODO VR: always fires
+    // TODO VR: (P2) always fires
     // if(c < -128 || c > 127) Sys_Error("MSG_WriteChar: range error");
 #endif
 
@@ -758,7 +760,7 @@ void MSG_WriteByte(sizebuf_t* sb, int c)
     byte* buf;
 
 #ifdef PARANOID
-    // TODO VR: always fires
+    // TODO VR: (P2) always fires
     // if(c < 0 || c > 255) Sys_Error("MSG_WriteByte: range error");
 #endif
 
@@ -771,7 +773,7 @@ void MSG_WriteShort(sizebuf_t* sb, int c)
     byte* buf;
 
 #ifdef PARANOID
-    // TODO VR: always fires
+    // TODO VR: (P2) always fires
     // if(c < ((short)0x8000) || c > (short)0x7fff)
     //    Sys_Error("MSG_WriteShort: range error");
 #endif
@@ -1840,7 +1842,8 @@ void COM_CreatePath(char* path)
     for(ofs = path + 1; *ofs; ofs++)
     {
         if(*ofs == '/')
-        { // create the directory
+        {
+            // create the directory
             *ofs = 0;
             Sys_mkdir(path);
             *ofs = '/';
@@ -1908,29 +1911,30 @@ static int COM_FindFile(
                 {
                     continue;
                 }
+
                 // found it!
                 com_filesize = pak->files[i].filelen;
                 file_from_pak = 1;
+
                 if(path_id)
                 {
                     *path_id = search->path_id;
                 }
+
                 if(handle)
                 {
                     *handle = pak->handle;
                     Sys_FileSeek(pak->handle, pak->files[i].filepos);
                     return com_filesize;
                 }
-                if(file)
 
+                if(file)
                 { /* open a new file on the pakfile */
 
                     *file = fopen(pak->filename, "rb");
 
                     if(*file)
-
                     {
-
                         fseek(*file, pak->files[i].filepos, SEEK_SET);
                     }
 
@@ -1938,25 +1942,16 @@ static int COM_FindFile(
                 }
 
                 else /* for COM_FileExists() */
-
                 {
-
                     return com_filesize;
                 }
             }
         }
         else /* check a file in the directory tree */
         {
-            if(!registered.value)
-            { /* if not a registered version, don't ever go beyond base */
-                if(strchr(filename, '/') || strchr(filename, '\\'))
-                {
-                    continue;
-                }
-            }
-
             q_snprintf(
                 netpath, sizeof(netpath), "%s/%s", search->filename, filename);
+
             findtime = Sys_FileTime(netpath);
             if(findtime == -1)
             {
@@ -1967,27 +1962,22 @@ static int COM_FindFile(
             {
                 *path_id = search->path_id;
             }
+
             if(handle)
             {
                 com_filesize = Sys_FileOpenRead(netpath, &i);
                 *handle = i;
                 return com_filesize;
             }
+
             if(file)
-
             {
-
                 *file = fopen(netpath, "rb");
-
                 com_filesize = (*file == nullptr) ? -1 : COM_filelength(*file);
-
                 return com_filesize;
             }
-
             else
-
             {
-
                 return 0; /* dummy valid value for COM_FileExists() */
             }
         }
@@ -2365,40 +2355,30 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory(const char* base, const char* dir)
 {
-    int i;
-    unsigned int path_id;
-    searchpath_t* search;
-    pack_t* pak;
-
-    pack_t* qspak;
-    char pakfile[MAX_OSPATH];
     bool been_here = false;
 
     q_strlcpy(com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));
 
     // assign a path_id to this game directory
-    if(com_searchpaths)
-    {
-        path_id = com_searchpaths->path_id << 1;
-    }
-    else
-    {
-        path_id = 1U;
-    }
+    const unsigned int path_id =
+        com_searchpaths ? com_searchpaths->path_id << 1 : 1U;
 
 _add_path:
     // add the directory to the search path
-    search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
+    searchpath_t* search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
     search->path_id = path_id;
     q_strlcpy(search->filename, com_gamedir, sizeof(search->filename));
     search->next = com_searchpaths;
     com_searchpaths = search;
 
-    // add any pak files in the format pak0.pak pak1.pak, ...
-    for(i = 0;; i++)
+    for(int i = 0; i < 99; i++)
     {
+        char pakfile[MAX_OSPATH];
         q_snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
-        pak = COM_LoadPackFile(pakfile);
+
+        pack_t* pak = COM_LoadPackFile(pakfile);
+        pack_t* qspak;
+
         if(i != 0 || path_id != 1 || fitzmode)
         {
             qspak = nullptr;
@@ -2414,6 +2394,7 @@ _add_path:
             qspak = COM_LoadPackFile(pakfile);
             com_modified = old;
         }
+
         if(pak)
         {
             search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
@@ -2421,7 +2402,10 @@ _add_path:
             search->pack = pak;
             search->next = com_searchpaths;
             com_searchpaths = search;
+
+            Con_Printf("Added pakfile to search paths: '%s'\n", pakfile);
         }
+
         if(qspak)
         {
             search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
@@ -2430,9 +2414,11 @@ _add_path:
             search->next = com_searchpaths;
             com_searchpaths = search;
         }
+
         if(!pak)
         {
-            break;
+            Con_Printf(
+                "Could not add pakfile to search paths: '%s'\n", pakfile);
         }
     }
 
@@ -2457,13 +2443,6 @@ static void COM_Game_f()
         const char* p = Cmd_Argv(1);
         const char* p2 = Cmd_Argv(2);
         searchpath_t* search;
-
-        if(!registered.value) // disable shareware quake
-        {
-            Con_Printf(
-                "You must have the registered version to use modified games\n");
-            return;
-        }
 
         if(!*p || !strcmp(p, ".") || strstr(p, "..") || strstr(p, "/") ||
             strstr(p, "\\") || strstr(p, ":"))
@@ -2491,7 +2470,8 @@ static void COM_Game_f()
         if(!q_strcasecmp(p, COM_SkipPath(com_gamedir))) // no change
         {
             if(com_searchpaths->path_id > 1)
-            { // current game not id1
+            {
+                // current game not id1
                 if(*p2 && com_searchpaths->path_id == 2)
                 {
                     // rely on QuakeSpasm extension treating '-game missionpack'
@@ -2566,7 +2546,8 @@ static void COM_Game_f()
                     rogue = true;
                 }
                 if(q_strcasecmp(p, &p2[1]))
-                { // don't load twice
+                {
+                    // don't load twice
                     COM_AddGameDirectory(com_basedir, p);
                 }
             }
@@ -2599,28 +2580,36 @@ static void COM_Game_f()
         // clear out and reload appropriate data
         Cache_Flush();
         Mod_ResetAll();
+
         if(!isDedicated)
         {
             TexMgr_NewGame();
             Draw_NewGame();
             R_NewGame();
         }
+
         ExtraMaps_NewGame();
         DemoList_Rebuild();
 
         Con_Printf("\"game\" changed to \"%s\"\n", COM_SkipPath(com_gamedir));
 
         VID_Lock();
+
+        // VR: This is what reads 'config.cfg'.
         Cbuf_AddText("exec quake.rc\n");
+        Cbuf_Execute();
+
         Cbuf_AddText("vid_unlock\n");
 
         if(vr_enabled.value)
         {
             Cbuf_AddText("map start\n");
+            VR_ModAllModels();
         }
     }
     else
-    { // Diplay the current gamedir
+    {
+        // Diplay the current gamedir
         Con_Printf("\"game\" is \"%s\"\n", COM_SkipPath(com_gamedir));
     }
 }

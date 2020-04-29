@@ -85,7 +85,7 @@ const char* svc_strings[] = {
 
 bool warn_about_nehahra_protocol; // johnfitz
 
-extern vec3_t v_punchangles[2]; // johnfitz
+extern glm::vec3 v_punchangles[2]; // johnfitz
 
 //=============================================================================
 
@@ -108,7 +108,8 @@ entity_t* CL_EntityNum(int num)
     if(num >= cl.num_entities)
     {
         if(num >= cl_max_edicts)
-        { // johnfitz -- no more MAX_EDICTS
+        {
+            // johnfitz -- no more MAX_EDICTS
             Host_Error("CL_EntityNum: %i is an invalid number", num);
         }
         while(cl.num_entities <= num)
@@ -131,7 +132,7 @@ CL_ParseStartSoundPacket
 */
 void CL_ParseStartSoundPacket()
 {
-    vec3_t pos;
+    glm::vec3 pos;
     int channel;
 
     int ent;
@@ -192,7 +193,8 @@ void CL_ParseStartSoundPacket()
     // johnfitz
 
     if(ent > cl_max_edicts)
-    { // johnfitz -- no more MAX_EDICTS
+    {
+        // johnfitz -- no more MAX_EDICTS
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
@@ -424,7 +426,8 @@ void CL_ParseServerInfo()
 
     for(i = 1; i < nummodels; i++)
     {
-        cl.model_precache[i] = Mod_ForName(model_precache[i], false);
+        cl.model_precache[i] =
+            Mod_ForName_WithFallback(model_precache[i], "progs/player.mdl");
         if(cl.model_precache[i] == nullptr)
         {
             Host_Error("Model %s not found", model_precache[i]);
@@ -484,7 +487,8 @@ void CL_ParseUpdate(int bits)
     int skin;
 
     if(cls.signon == SIGNONS - 1)
-    { // first update is the final signon stage
+    {
+        // first update is the final signon stage
         cls.signon = SIGNONS;
         CL_SignonReply();
     }
@@ -531,7 +535,8 @@ void CL_ParseUpdate(int bits)
 
     // johnfitz -- lerping
     if(ent->msgtime + 0.2 < cl.mtime[0])
-    { // more than 0.2 seconds since the last message (most
+    {
+        // more than 0.2 seconds since the last message (most
         // entities think every 0.1 sec)
         ent->lerpflags |= LERP_RESETANIM; // if we missed a think, we'd be
     }
@@ -609,58 +614,45 @@ void CL_ParseUpdate(int bits)
     }
 
     // shift the known values for interpolation
-    VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-    VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
+    ent->msg_origins[1] = ent->msg_origins[0];
+    ent->msg_angles[1] = ent->msg_angles[0];
+    ent->msg_scales[1] = ent->msg_scales[0];
 
-    if(bits & U_ORIGIN1)
-    {
-        ent->msg_origins[0][0] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][0] = ent->baseline.origin[0];
-    }
-    if(bits & U_ANGLE1)
-    {
-        ent->msg_angles[0][0] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][0] = ent->baseline.angles[0];
-    }
 
-    if(bits & U_ORIGIN2)
-    {
-        ent->msg_origins[0][1] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][1] = ent->baseline.origin[1];
-    }
-    if(bits & U_ANGLE2)
-    {
-        ent->msg_angles[0][1] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][1] = ent->baseline.angles[1];
-    }
+    const auto doIt = [&](const auto fn, const int bit, auto& target,
+                          const auto& baselineData, const int index) {
+        if(bits & bit)
+        {
+            target[index] = fn(cl.protocolflags);
+        }
+        else
+        {
+            target[index] = baselineData[index];
+        };
+    };
 
-    if(bits & U_ORIGIN3)
+    // TODO VR: (P1) remove, this should be set only when scale changes
+    bits |= U_SCALE;
+
+    // clang-format off
+    doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);
+    doIt(&MSG_ReadAngle, U_ANGLE1, ent->msg_angles[0], ent->baseline.angles, 0);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 0);
+
+    doIt(&MSG_ReadCoord, U_ORIGIN2, ent->msg_origins[0], ent->baseline.origin, 1);
+    doIt(&MSG_ReadAngle, U_ANGLE2, ent->msg_angles[0], ent->baseline.angles, 1);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 1);
+
+    doIt(&MSG_ReadCoord, U_ORIGIN3, ent->msg_origins[0], ent->baseline.origin, 2);
+    doIt(&MSG_ReadAngle, U_ANGLE3, ent->msg_angles[0], ent->baseline.angles, 2);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 2);
+    // clang-format on
+
+    if(bits & U_SCALE)
     {
-        ent->msg_origins[0][2] = MSG_ReadCoord(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_origins[0][2] = ent->baseline.origin[2];
-    }
-    if(bits & U_ANGLE3)
-    {
-        ent->msg_angles[0][2] = MSG_ReadAngle(cl.protocolflags);
-    }
-    else
-    {
-        ent->msg_angles[0][2] = ent->baseline.angles[2];
+        ent->scale_origin[0] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin[1] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin[2] = MSG_ReadCoord(cl.protocolflags);
     }
 
     // johnfitz -- lerping for movetype_step entities
@@ -686,18 +678,17 @@ void CL_ParseUpdate(int bits)
         {
             ent->alpha = ent->baseline.alpha;
         }
-        if(bits & U_SCALE)
-        {
-            MSG_ReadByte(); // PROTOCOL_RMQ: currently ignored
-        }
+
         if(bits & U_FRAME2)
         {
             ent->frame = (ent->frame & 0x00FF) | (MSG_ReadByte() << 8);
         }
+
         if(bits & U_MODEL2)
         {
             modnum = (modnum & 0x00FF) | (MSG_ReadByte() << 8);
         }
+
         if(bits & U_LERPFINISH)
         {
             ent->lerpfinish = ent->msgtime + ((float)(MSG_ReadByte()) / 255);
@@ -773,11 +764,14 @@ void CL_ParseUpdate(int bits)
     // johnfitz
 
     if(forcelink)
-    { // didn't have an update last message
-        VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-        VectorCopy(ent->msg_origins[0], ent->origin);
-        VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
-        VectorCopy(ent->msg_angles[0], ent->angles);
+    {
+        // didn't have an update last message
+        ent->msg_origins[1] = ent->msg_origins[0];
+        ent->origin = ent->msg_origins[0];
+        ent->msg_angles[1] = ent->msg_angles[0];
+        ent->angles = ent->msg_angles[0];
+        ent->msg_scales[1] = ent->msg_scales[0];
+        ent->scale = ent->msg_scales[0];
         ent->forcelink = true;
     }
 }
@@ -828,8 +822,7 @@ void CL_ParseClientdata()
     int j;
     int bits; // johnfitz
 
-    bits =
-        (unsigned short)MSG_ReadShort(); // johnfitz -- read bits here isntead
+    bits = (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
                                          // of in CL_ParseServerMessage()
 
     // johnfitz -- PROTOCOL_FITZQUAKE
@@ -861,7 +854,7 @@ void CL_ParseClientdata()
         cl.idealpitch = 0;
     }
 
-    VectorCopy(cl.mvelocity[0], cl.mvelocity[1]);
+    cl.mvelocity[1] = cl.mvelocity[0];
     for(i = 0; i < 3; i++)
     {
         if(bits & (SU_PUNCH1 << i))
@@ -888,8 +881,8 @@ void CL_ParseClientdata()
         v_punchangles[0][1] != cl.punchangle[1] ||
         v_punchangles[0][2] != cl.punchangle[2])
     {
-        VectorCopy(v_punchangles[0], v_punchangles[1]);
-        VectorCopy(cl.punchangle, v_punchangles[0]);
+        v_punchangles[1] = v_punchangles[0];
+        v_punchangles[0] = cl.punchangle;
     }
     // johnfitz
 
@@ -897,7 +890,8 @@ void CL_ParseClientdata()
     i = MSG_ReadLong();
 
     if(cl.items != i)
-    { // set flash times
+    {
+        // set flash times
         Sbar_Changed();
         for(j = 0; j < 32; j++)
         {
@@ -963,6 +957,27 @@ void CL_ParseClientdata()
         Sbar_Changed();
     }
 
+    i = MSG_ReadByte();
+    if(cl.stats[STAT_AMMO2] != i)
+    {
+        cl.stats[STAT_AMMO2] = i;
+        Sbar_Changed();
+    }
+
+    i = MSG_ReadShort();
+    if(cl.stats[STAT_AMMOCOUNTER] != i)
+    {
+        cl.stats[STAT_AMMOCOUNTER] = i;
+        Sbar_Changed();
+    }
+
+    i = MSG_ReadShort();
+    if(cl.stats[STAT_AMMOCOUNTER2] != i)
+    {
+        cl.stats[STAT_AMMOCOUNTER2] = i;
+        Sbar_Changed();
+    }
+
     for(i = 0; i < 4; i++)
     {
         j = MSG_ReadByte();
@@ -1004,6 +1019,7 @@ void CL_ParseClientdata()
     if(bits & SU_AMMO2)
     {
         cl.stats[STAT_AMMO] |= (MSG_ReadByte() << 8);
+        cl.stats[STAT_AMMO2] |= (MSG_ReadByte() << 8);
     }
     if(bits & SU_SHELLS2)
     {
@@ -1035,6 +1051,47 @@ void CL_ParseClientdata()
     }
     // johnfitz
 
+    // TODO VR: (P2) do we need all these bits?
+    if(bits & SU_VR_WEAPON2)
+    {
+        cl.stats[STAT_WEAPON2] = MSG_ReadByte();
+        cl.stats[STAT_WEAPONMODEL2] = MSG_ReadByte();
+    }
+    else
+    {
+        cl.stats[STAT_WEAPON2] = 0;
+        cl.stats[STAT_WEAPONMODEL2] = 0;
+    }
+
+    if(bits & SU_VR_WEAPONFRAME2)
+    {
+        cl.stats[STAT_WEAPONFRAME2] = MSG_ReadByte();
+    }
+    else
+    {
+        cl.stats[STAT_WEAPONFRAME2] = 0;
+    }
+
+    // TODO VR: (P2) weapon ids in holsters - not sure what this todo is
+    // checking, need to check what is being sent. I think model strings are
+    // being sent and used as keys...
+    cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
+    cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+
+    // TODO VR: (P2) some data is sent twice, can optimize for MP
+    cl.stats[STAT_MAINHAND_WID] = MSG_ReadByte();
+    cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
+
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of
     // cl.stats[STAT_WEAPON] were filled in, breaking on large maps like
@@ -1042,6 +1099,13 @@ void CL_ParseClientdata()
     if(cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
     {
         cl.viewent.lerpflags |=
+            LERP_RESETANIM; // don't lerp animation across model changes
+    }
+
+    if(cl.offhand_viewent.model !=
+        cl.model_precache[cl.stats[STAT_WEAPONMODEL2]])
+    {
+        cl.offhand_viewent.lerpflags |=
             LERP_RESETANIM; // don't lerp animation across model changes
     }
     // johnfitz
@@ -1078,7 +1142,8 @@ void CL_NewTranslation(int slot)
     for(i = 0; i < VID_GRADES; i++, dest += 256, source += 256)
     {
         if(top < 128)
-        { // the artists made some backwards ranges.  sigh.
+        {
+            // the artists made some backwards ranges.  sigh.
             memcpy(dest + TOP_RANGE, source + top, 16);
         }
         else
@@ -1134,8 +1199,8 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
     ent->effects = ent->baseline.effects;
     ent->alpha = ent->baseline.alpha; // johnfitz -- alpha
 
-    VectorCopy(ent->baseline.origin, ent->origin);
-    VectorCopy(ent->baseline.angles, ent->angles);
+    ent->origin = ent->baseline.origin;
+    ent->angles = ent->baseline.angles;
     R_AddEfrags(ent);
 }
 
@@ -1146,7 +1211,7 @@ CL_ParseStaticSound
 */
 void CL_ParseStaticSound(int version) // johnfitz -- added argument
 {
-    vec3_t org;
+    glm::vec3 org;
     int sound_num;
 
     int vol;

@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // chase.c -- chase camera code
 
 #include "quakedef.hpp"
+#include "mathlib.hpp"
+#include "util.hpp"
 
 cvar_t chase_back = {"chase_back", "100", CVAR_NONE};
 cvar_t chase_up = {"chase_up", "16", CVAR_NONE};
@@ -49,26 +51,20 @@ TraceLine
 TODO: impact on bmodels, monsters
 ==============
 */
-trace_t TraceLine(vec3_t start, vec3_t end, vec3_t impact)
+[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end)
 {
     trace_t trace;
     memset(&trace, 0, sizeof(trace));
 
     SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0, 1, start, end, &trace);
-    VectorCopy(trace.endpos, impact);
 
     return trace;
 }
 
-trace_t TraceLineToEntity(vec3_t start, vec3_t end, vec3_t impact, edict_t* ent)
+[[nodiscard]] trace_t TraceLineToEntity(
+    const glm::vec3& start, const glm::vec3& end, edict_t* ent)
 {
-    trace_t trace;
-    memset(&trace, 0, sizeof(trace));
-
-    trace = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, ent);
-    VectorCopy(trace.endpos, impact);
-
-    return trace;
+    return SV_MoveTrace(start, end, MOVE_NORMAL, ent);
 }
 
 /*
@@ -98,11 +94,11 @@ TODO: stay at least 8 units away from all walls in this leaf
 */
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
 {
-    vec3_t forward, right, up;
-    AngleVectors(cl.viewangles, forward, right, up);
+    const auto [forward, right, up] =
+        quake::util::getAngledVectors(cl.viewangles);
 
     // calc ideal camera location before checking for walls
-    vec3_t ideal;
+    glm::vec3 ideal;
     for(int i = 0; i < 3; i++)
     {
         ideal[i] = viewent->origin[i] - forward[i] * chase_back.value +
@@ -112,22 +108,23 @@ void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
     ideal[2] = viewent->origin[2] + chase_up.value;
 
     // make sure camera is not in or behind a wall
-    vec3_t temp;
-    TraceLine(refdef.vieworg, ideal, temp);
-    if(VectorLength(temp) != 0) VectorCopy(temp, ideal);
+    glm::vec3 temp = TraceLine(refdef.vieworg, ideal).endpos;
+    if(glm::length(temp) != 0.f)
+    {
+        ideal = temp;
+    }
 
     // place camera
-    VectorCopy(ideal, refdef.vieworg);
+    refdef.vieworg = ideal;
 
     // find the spot the player is looking at
-    VectorMA(viewent->origin, 4096, forward, temp);
+    temp = viewent->origin + 4096.f * forward;
 
-    vec3_t crosshair;
-    TraceLine(viewent->origin, temp, crosshair);
+    const auto crosshair = TraceLine(viewent->origin, temp).endpos;
 
     // calculate camera angles to look at the same spot
-    VectorSubtract(crosshair, refdef.vieworg, temp);
-    VectorAngles(temp, refdef.viewangles);
+    temp = crosshair - refdef.vieworg;
+    refdef.viewangles = VectorAngles(temp);
     if(refdef.viewangles[PITCH] == 90 || refdef.viewangles[PITCH] == -90)
     {
         refdef.viewangles[YAW] = cl.viewangles[YAW];

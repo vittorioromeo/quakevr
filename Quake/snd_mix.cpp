@@ -436,7 +436,8 @@ void S_PaintChannels(int endtime)
             ltime = paintedtime;
 
             while(ltime < end)
-            { // paint up to end
+            {
+                // paint up to end
                 if(ch->end < end)
                 {
                     count = ch->end - ltime;
@@ -473,7 +474,8 @@ void S_PaintChannels(int endtime)
                         ch->end = ltime + sc->length - ch->pos;
                     }
                     else
-                    { // channel just stopped
+                    {
+                        // channel just stopped
                         ch->sfx = nullptr;
                         break;
                     }
@@ -505,7 +507,8 @@ void S_PaintChannels(int endtime)
 
         // paint in the music
         if(s_rawend >= paintedtime)
-        { // copy from the streaming sound source
+        {
+            // copy from the streaming sound source
             int s;
             int stop;
 

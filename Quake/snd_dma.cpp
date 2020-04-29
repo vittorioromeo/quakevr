@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
+#include "quakeglm.hpp"
 
 static void S_Play();
 static void S_PlayVol();
@@ -49,10 +50,10 @@ static bool snd_initialized = false;
 static dma_t sn;
 volatile dma_t* shm = nullptr;
 
-vec3_t listener_origin;
-vec3_t listener_forward;
-vec3_t listener_right;
-vec3_t listener_up;
+glm::vec3 listener_origin;
+glm::vec3 listener_forward;
+glm::vec3 listener_right;
+glm::vec3 listener_up;
 
 #define sound_nominal_clip_dist 1000.0
 
@@ -386,7 +387,8 @@ channel_t* SND_PickChannel(int entnum, int entchannel)
         if(entchannel != 0 // channel 0 never overrides
             && snd_channels[ch_idx].entnum == entnum &&
             (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1))
-        { // always override sound from same entity
+        {
+            // always override sound from same entity
             first_to_die = ch_idx;
             break;
         }
@@ -427,14 +429,14 @@ spatializes a channel
 */
 void SND_Spatialize(channel_t* ch)
 {
-    vec_t dot;
-    vec_t dist;
-    vec_t lscale;
+    float dot;
+    float dist;
+    float lscale;
 
-    vec_t rscale;
+    float rscale;
 
-    vec_t scale;
-    vec3_t source_vec;
+    float scale;
+    glm::vec3 source_vec;
 
     // anything coming from the view entity will always be full volume
     if(ch->entnum == cl.viewentity)
@@ -445,8 +447,9 @@ void SND_Spatialize(channel_t* ch)
     }
 
     // calculate stereo seperation and distance attenuation
-    VectorSubtract(ch->origin, listener_origin, source_vec);
-    dist = VectorNormalize(source_vec) * ch->dist_mult;
+    source_vec = ch->origin - listener_origin;
+    dist = glm::length(source_vec) * ch->dist_mult;
+    source_vec = safeNormalize(source_vec);
     dot = DotProduct(listener_right, source_vec);
 
     if(shm->channels == 1)
@@ -481,8 +484,8 @@ void SND_Spatialize(channel_t* ch)
 // Start a sound effect
 // =======================================================================
 
-void S_StartSound(int entnum, int entchannel, sfx_t* sfx, vec3_t origin,
-    float fvol, float attenuation)
+void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
+    const glm::vec3& origin, float fvol, float attenuation)
 {
     channel_t* target_chan;
 
@@ -515,7 +518,7 @@ void S_StartSound(int entnum, int entchannel, sfx_t* sfx, vec3_t origin,
 
     // spatialize
     memset(target_chan, 0, sizeof(*target_chan));
-    VectorCopy(origin, target_chan->origin);
+    target_chan->origin = origin;
     target_chan->dist_mult = attenuation / sound_nominal_clip_dist;
     target_chan->master_vol = (int)(fvol * 255);
     target_chan->entnum = entnum;
@@ -658,7 +661,8 @@ void S_ClearBuffer()
 S_StaticSound
 =================
 */
-void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation)
+void S_StaticSound(
+    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
 {
     channel_t* ss;
     sfxcache_t* sc;
@@ -690,7 +694,7 @@ void S_StaticSound(sfx_t* sfx, vec3_t origin, float vol, float attenuation)
     }
 
     ss->sfx = sfx;
-    VectorCopy(origin, ss->origin);
+    ss->origin = origin;
     ss->master_vol = (int)vol;
     ss->dist_mult = (attenuation / 64) / sound_nominal_clip_dist;
     ss->end = paintedtime + sc->length;
@@ -881,7 +885,8 @@ S_Update
 Called once each time through the main loop
 ============
 */
-void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
+void S_Update(const glm::vec3& origin, const glm::vec3& forward,
+    const glm::vec3& right, const glm::vec3& up)
 {
     int i;
 
@@ -895,10 +900,10 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
         return;
     }
 
-    VectorCopy(origin, listener_origin);
-    VectorCopy(forward, listener_forward);
-    VectorCopy(right, listener_right);
-    VectorCopy(up, listener_up);
+    listener_origin = origin;
+    listener_forward = forward;
+    listener_right = right;
+    listener_up = up;
 
     // update general area ambient sound sources
     S_UpdateAmbientSounds();
@@ -1004,7 +1009,8 @@ static void GetSoundtime()
         buffers++; // buffer wrapped
 
         if(paintedtime > 0x40000000)
-        { // time to chop things off to avoid 32 bit limits
+        {
+            // time to chop things off to avoid 32 bit limits
             buffers = 0;
             paintedtime = fullsamples;
             S_StopAllSounds(true);
@@ -1196,7 +1202,7 @@ void S_LocalSound(const char* name)
         Con_Printf("S_LocalSound: can't cache %s\n", name);
         return;
     }
-    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, 1, 1);
+    S_StartSound(cl.viewentity, -1, sfx, vec3_zero, 1, 1);
 }
 
 

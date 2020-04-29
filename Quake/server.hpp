@@ -24,15 +24,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_SERVER_H
 #define _QUAKE_SERVER_H
 
+struct qmodel_t;
+
 // server.h
 
 typedef struct
 {
     int maxclients;
     int maxclientslimit;
-    struct client_s* clients;    // [maxclients]
-    int serverflags;             // episode completion information
-    bool changelevel_issued; // cleared when at SV_SpawnServer
+    struct client_s* clients; // [maxclients]
+    int serverflags;          // episode completion information
+    bool changelevel_issued;  // cleared when at SV_SpawnServer
 } server_static_t;
 
 //=============================================================================
@@ -57,9 +59,9 @@ typedef struct
 
     char name[64];      // map name
     char modelname[64]; // maps/<name>.bsp, for model_precache[0]
-    struct qmodel_s* worldmodel;
+    qmodel_t* worldmodel;
     const char* model_precache[MAX_MODELS]; // nullptr terminated
-    struct qmodel_s* models[MAX_MODELS];
+    qmodel_t* models[MAX_MODELS];
     const char* sound_precache[MAX_SOUNDS]; // nullptr terminated
     const char* lightstyles[MAX_LIGHTSTYLES];
     int num_edicts;
@@ -99,8 +101,8 @@ typedef struct client_s
 
     struct qsocket_s* netconnection; // communications handle
 
-    usercmd_t cmd;  // movement
-    vec3_t wishdir; // intended motion calced from cmd
+    usercmd_t cmd;     // movement
+    glm::vec3 wishdir; // intended motion calced from cmd
 
     sizebuf_t message; // can be added to at any time,
                        // copied and clear once per frame
@@ -136,11 +138,12 @@ typedef struct client_s
 #define MOVETYPE_BOUNCE 10
 
 // edict->solid values
-#define SOLID_NOT 0      // no interaction with other objects
-#define SOLID_TRIGGER 1  // touch on edge, but not blocking
-#define SOLID_BBOX 2     // touch on edge, block
-#define SOLID_SLIDEBOX 3 // touch on edge, but not an onground
-#define SOLID_BSP 4      // bsp clip, touch on edge, block
+#define SOLID_NOT 0               // no interaction with other objects
+#define SOLID_TRIGGER 1           // touch on edge, but not blocking
+#define SOLID_BBOX 2              // touch on edge, block
+#define SOLID_SLIDEBOX 3          // touch on edge, but not an onground
+#define SOLID_BSP 4               // bsp clip, touch on edge, block
+#define SOLID_NOT_BUT_TOUCHABLE 5 // not solid, but can be [hand]touched
 
 // edict->deadflag values
 #define DEAD_NO 0
@@ -166,6 +169,7 @@ typedef struct client_s
 #define FL_PARTIALGROUND 1024 // not all corners are valid
 #define FL_WATERJUMP 2048     // player jumping out of water
 #define FL_JUMPRELEASED 4096  // for jump debouncing
+#define FL_EASYHANDTOUCH 8192 // adds bonus to boundaries for handtouch
 
 // entity effects
 
@@ -199,10 +203,10 @@ extern edict_t* sv_player;
 
 void SV_Init(void);
 
-void SV_StartParticle(
-    const vec3_t org, const vec3_t dir, const int color, const int count);
-void SV_StartParticle2(
-    const vec3_t org, const vec3_t dir, const int preset, const int count);
+void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
+    const int color, const int count);
+void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
+    const int preset, const int count);
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation);
 
@@ -226,7 +230,7 @@ void SV_BroadcastPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void SV_Physics(void);
 
 bool SV_CheckBottom(edict_t* ent);
-bool SV_movestep(edict_t* ent, vec3_t move, bool relink);
+bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink);
 
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 

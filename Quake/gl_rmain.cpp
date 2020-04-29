@@ -23,11 +23,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.hpp"
+#include "quakeglm.hpp"
 #include "vr.hpp"
+#include "util.hpp"
+#include "opengl_ext.hpp"
 
 bool r_cache_thrash; // compatability
 
-vec3_t modelorg, r_entorigin;
+glm::vec3 modelorg, r_entorigin;
 entity_t* currententity;
 
 int r_visframecount; // bumped when going to a new PVS
@@ -43,10 +46,10 @@ float rs_megatexels;
 //
 // view origin
 //
-vec3_t vup;
-vec3_t vpn;
-vec3_t vright;
-vec3_t r_origin;
+glm::vec3 vup;
+glm::vec3 vpn;
+glm::vec3 vright;
+glm::vec3 r_origin;
 
 float r_fovx, r_fovy; // johnfitz -- rendering fov may be different becuase of
                       // r_waterwarp and r_stereo
@@ -68,7 +71,7 @@ cvar_t r_speeds = {"r_speeds", "0", CVAR_NONE};
 cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
-cvar_t r_shadows = {"r_shadows", "0", CVAR_ARCHIVE};
+cvar_t r_shadows = {"r_shadows", "1", CVAR_ARCHIVE};
 cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "0", CVAR_ARCHIVE};
@@ -97,6 +100,7 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
+cvar_t r_showbboxes_player = {"r_showbboxes_player", "0", CVAR_NONE};
 cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t r_nolerp_list = {"r_nolerp_list",
@@ -114,9 +118,9 @@ extern cvar_t r_vfog;
 
 cvar_t gl_zfix = {"gl_zfix", "0", CVAR_NONE}; // QuakeSpasm z-fighting fix
 
-cvar_t r_lavaalpha = {"r_lavaalpha", "0", CVAR_NONE};
-cvar_t r_telealpha = {"r_telealpha", "0", CVAR_NONE};
-cvar_t r_slimealpha = {"r_slimealpha", "0", CVAR_NONE};
+cvar_t r_lavaalpha = {"r_lavaalpha", "0", CVAR_ARCHIVE};
+cvar_t r_telealpha = {"r_telealpha", "0", CVAR_ARCHIVE};
+cvar_t r_slimealpha = {"r_slimealpha", "0", CVAR_ARCHIVE};
 
 float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 
@@ -200,10 +204,6 @@ GLSLGamma_GammaCorrect
 */
 void GLSLGamma_GammaCorrect()
 {
-    float smax;
-
-    float tmax;
-
     if(!gl_glsl_gamma_able)
     {
         return;
@@ -254,6 +254,12 @@ void GLSLGamma_GammaCorrect()
     // copy the framebuffer to the texture
     GL_DisableMultitexture();
     glBindTexture(GL_TEXTURE_2D, r_gamma_texture);
+
+    // TODO VR: (P2) this only affects 2D rendering, doesn't affect HMD
+    // rendering
+    glBindFramebufferEXT(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
+    glReadBuffer(GL_FRONT);
+
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
 
     // draw the texture back to the framebuffer with a fragment shader
@@ -268,8 +274,8 @@ void GLSLGamma_GammaCorrect()
 
     glViewport(glx, gly, glwidth, glheight);
 
-    smax = glwidth / (float)r_gamma_texture_width;
-    tmax = glheight / (float)r_gamma_texture_height;
+    const float smax = glwidth / (float)r_gamma_texture_width;
+    const float tmax = glheight / (float)r_gamma_texture_height;
 
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
@@ -297,7 +303,7 @@ R_CullBox -- johnfitz -- replaced with new function from lordhavoc
 Returns true if the box is completely outside the frustum
 =================
 */
-bool R_CullBox(vec3_t emins, vec3_t emaxs)
+bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs)
 {
     int i;
     mplane_t* p;
@@ -382,24 +388,23 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 */
 bool R_CullModelForEntity(entity_t* e)
 {
-    vec3_t mins;
-
-    vec3_t maxs;
+    glm::vec3 mins;
+    glm::vec3 maxs;
 
     if(e->angles[0] || e->angles[2]) // pitch or roll
     {
-        VectorAdd(e->origin, e->model->rmins, mins);
-        VectorAdd(e->origin, e->model->rmaxs, maxs);
+        mins = e->origin + e->model->rmins;
+        maxs = e->origin + e->model->rmaxs;
     }
     else if(e->angles[1]) // yaw
     {
-        VectorAdd(e->origin, e->model->ymins, mins);
-        VectorAdd(e->origin, e->model->ymaxs, maxs);
+        mins = e->origin + e->model->ymins;
+        maxs = e->origin + e->model->ymaxs;
     }
     else // no rotation
     {
-        VectorAdd(e->origin, e->model->mins, mins);
-        VectorAdd(e->origin, e->model->maxs, maxs);
+        mins = e->origin + e->model->mins;
+        maxs = e->origin + e->model->maxs;
     }
 
     return R_CullBox(mins, maxs);
@@ -411,7 +416,7 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
 pointer to entity
 ===============
 */
-void R_RotateForEntity(vec3_t origin, vec3_t angles)
+void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
     glRotatef(angles[YAW], 0, 0, 1);
@@ -483,19 +488,17 @@ to turn away from side, use a negative angle
 ===============
 */
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
-void TurnVector(
-    vec3_t out, const vec3_t forward, const vec3_t side, float angle)
+[[nodiscard]] glm::vec3 TurnVector(
+    const glm::vec3& forward, const glm::vec3& side, const float angle) noexcept
 {
-    float scale_forward;
+    const float scale_forward = cos(DEG2RAD(angle));
+    const float scale_side = sin(DEG2RAD(angle));
 
-    float scale_side;
-
-    scale_forward = cos(DEG2RAD(angle));
-    scale_side = sin(DEG2RAD(angle));
-
-    out[0] = scale_forward * forward[0] + scale_side * side[0];
-    out[1] = scale_forward * forward[1] + scale_side * side[1];
-    out[2] = scale_forward * forward[2] + scale_side * side[2];
+    glm::vec3 res;
+    res[0] = scale_forward * forward[0] + scale_side * side[0];
+    res[1] = scale_forward * forward[1] + scale_side * side[1];
+    res[2] = scale_forward * forward[2] + scale_side * side[2];
+    return res;
 }
 
 /*
@@ -519,10 +522,10 @@ void R_SetFrustum(float fovx, float fovy)
         fovx += 25;
     }
 
-    TurnVector(frustum[0].normal, vpn, vright, fovx / 2 - 90); // left plane
-    TurnVector(frustum[1].normal, vpn, vright, 90 - fovx / 2); // right plane
-    TurnVector(frustum[2].normal, vpn, vup, 90 - fovy / 2);    // bottom plane
-    TurnVector(frustum[3].normal, vpn, vup, fovy / 2 - 90);    // top plane
+    frustum[0].normal = TurnVector(vpn, vright, fovx / 2 - 90); // left plane
+    frustum[1].normal = TurnVector(vpn, vright, 90 - fovx / 2); // right plane
+    frustum[2].normal = TurnVector(vpn, vup, 90 - fovy / 2);    // bottom plane
+    frustum[3].normal = TurnVector(vpn, vup, fovy / 2 - 90);    // top plane
 
     for(i = 0; i < 4; i++)
     {
@@ -560,7 +563,7 @@ void R_SetupGL()
 {
     int scale;
 
-    if(vr_enabled.value)
+    if(VR_EnabledAndNotFake())
     {
         VR_SetMatrices();
     }
@@ -657,8 +660,10 @@ void R_SetupView()
     Fog_SetupFrame(); // johnfitz
 
     // build the transformation matrix for the given view angles
-    VectorCopy(r_refdef.vieworg, r_origin);
-    AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+    r_origin = r_refdef.vieworg;
+
+    std::tie(vpn, vright, vup) =
+        quake::util::getAngledVectors(r_refdef.viewangles);
 
     // current viewleaf
     r_oldviewleaf = r_viewleaf;
@@ -769,7 +774,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 
         switch(currententity->model->type)
         {
-            case mod_alias: R_DrawAliasModel(currententity, false); break;
+            case mod_alias: R_DrawAliasModel(currententity); break;
             case mod_brush: R_DrawBrushModel(currententity); break;
             case mod_sprite: R_DrawSpriteModel(currententity); break;
         }
@@ -781,21 +786,19 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 R_DrawViewModel -- johnfitz -- gutted
 =============
 */
-void R_DrawViewModel(entity_t* viewent, bool horizflip)
+void R_DrawViewModel(entity_t* viewent)
 {
-    if(!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+    if(!r_drawviewmodel.value || !r_drawentities.value || chase_active.value ||
+        viewent->hidden)
     {
         return;
     }
 
     if(cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
     {
+        // TODO VR: (P0) use alpha instead of not drawing viewmodel with
+        // invisibility
         return;
-    }
-
-    if(vr_enabled.value && vr_crosshair.value)
-    {
-        VR_ShowCrosshair();
     }
 
     currententity = viewent;
@@ -818,7 +821,7 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
         glDepthRange(0, 0.3);
     }
 
-    R_DrawAliasModel(currententity, horizflip);
+    R_DrawAliasModel(currententity);
 
     if(!vr_enabled.value)
     {
@@ -831,9 +834,9 @@ void R_DrawViewModel(entity_t* viewent, bool horizflip)
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 ================
 */
-void R_EmitWirePoint(vec3_t origin)
+void R_EmitWirePoint(const glm::vec3& origin)
 {
-    int size = 8;
+    constexpr int size = 4;
 
     glBegin(GL_LINES);
     glVertex3f(origin[0] - size, origin[1], origin[2]);
@@ -850,7 +853,7 @@ void R_EmitWirePoint(vec3_t origin)
 R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 ================
 */
-void R_EmitWireBox(vec3_t mins, vec3_t maxs)
+void R_EmitWireBox(const glm::vec3& mins, const glm::vec3& maxs)
 {
     glBegin(GL_QUAD_STRIP);
     glVertex3f(mins[0], mins[1], mins[2]);
@@ -875,13 +878,6 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 */
 void R_ShowBoundingBoxes()
 {
-
-    vec3_t mins;
-
-    vec3_t maxs;
-    edict_t* ed;
-    int i;
-
     if(!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value ||
         !sv.active)
     {
@@ -895,17 +891,19 @@ void R_ShowBoundingBoxes()
     glDisable(GL_CULL_FACE);
     glColor3f(1, 1, 1);
 
+    int i;
+    edict_t* ed;
     for(i = 0, ed = NEXT_EDICT(sv.edicts); i < sv.num_edicts;
         i++, ed = NEXT_EDICT(ed))
     {
-        if(ed == sv_player)
+        if(ed == sv_player && !r_showbboxes_player.value)
         {
             continue; // don't draw player's own bbox
         }
 
-        //		if (r_showbboxes.value != 2)
-        //			if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
-        //				continue; //don't draw if not in pvs
+        // if (r_showbboxes.value != 2)
+        //     if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
+        //         continue; // don't draw if not in pvs
 
         if(ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] &&
             ed->v.mins[2] == ed->v.maxs[2])
@@ -916,8 +914,8 @@ void R_ShowBoundingBoxes()
         else
         {
             // box entity
-            VectorAdd(ed->v.mins, ed->v.origin, mins);
-            VectorAdd(ed->v.maxs, ed->v.origin, maxs);
+            const glm::vec3 mins = ed->v.mins + ed->v.origin;
+            const glm::vec3 maxs = ed->v.maxs + ed->v.origin;
             R_EmitWireBox(mins, maxs);
         }
     }
@@ -967,7 +965,8 @@ void R_ShowTris()
             currententity = cl_visedicts[i];
 
             if(currententity == &cl_entities[cl.viewentity])
-            { // chasecam
+            {
+                // chasecam
                 currententity->angles[0] *= 0.3;
             }
 
@@ -980,13 +979,11 @@ void R_ShowTris()
             }
         }
 
-        const auto doViewmodel =
-            [&](entity_t* ent) {
+        const auto doViewmodel = [&](entity_t* ent) {
             currententity = ent;
-            if (r_drawviewmodel.value && !chase_active.value &&
-                cl.stats[STAT_HEALTH] > 0 &&
-                !(cl.items & IT_INVISIBILITY) && currententity->model &&
-                currententity->model->type == mod_alias)
+            if(r_drawviewmodel.value && !chase_active.value &&
+                cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
+                currententity->model && currententity->model->type == mod_alias)
             {
                 glDepthRange(0, 0.3);
                 R_DrawAliasModel_ShowTris(currententity);
@@ -999,6 +996,29 @@ void R_ShowTris()
 
         // offhand viewmodel
         doViewmodel(&cl.offhand_viewent);
+
+        // hip holsters
+        doViewmodel(&cl.left_hip_holster);
+        doViewmodel(&cl.right_hip_holster);
+
+        // upper holsters
+        doViewmodel(&cl.left_upper_holster);
+        doViewmodel(&cl.right_upper_holster);
+
+        // hands
+        doViewmodel(&cl.left_hand);
+        doViewmodel(&cl.right_hand);
+
+        // vrtorso
+        doViewmodel(&cl.vrtorso);
+
+        // hip holsters slots
+        doViewmodel(&cl.left_hip_holster_slot);
+        doViewmodel(&cl.right_hip_holster_slot);
+
+        // upper holsters slots
+        doViewmodel(&cl.left_upper_holster_slot);
+        doViewmodel(&cl.right_upper_holster_slot);
     }
 
     extern cvar_t r_particles;
@@ -1053,12 +1073,64 @@ void R_DrawShadows()
             continue;
         }
 
-        if(currententity == &cl.viewent)
+        // TODO VR: (P2) repetition here to check player view entities
+        if(currententity == &cl.viewent ||
+            currententity == &cl.offhand_viewent ||
+            currententity == &cl.left_hip_holster ||
+            currententity == &cl.right_hip_holster ||
+            currententity == &cl.left_upper_holster ||
+            currententity == &cl.right_upper_holster ||
+            currententity == &cl.left_hand || currententity == &cl.right_hand ||
+            currententity == &cl.vrtorso ||
+            currententity == &cl.left_hip_holster_slot ||
+            currententity == &cl.right_hip_holster_slot ||
+            currententity == &cl.left_upper_holster_slot ||
+            currententity == &cl.right_upper_holster_slot)
         {
-            return;
+            // View entities are drawn manually below.
+            continue;
         }
 
         GL_DrawAliasShadow(currententity);
+    }
+
+    // TODO VR: (P1) viewent shadow looks weird
+    const auto drawViewentShadow = [](entity_t* ent) {
+        if(ent->model != nullptr)
+        {
+            currententity = ent;
+            GL_DrawAliasShadow(ent);
+        }
+    };
+
+    // VR: Draw view entity shadows.
+    {
+        const auto playerShadows =
+            quake::util::cvarToEnum<VrPlayerShadows>(vr_player_shadows);
+
+        if(playerShadows == VrPlayerShadows::ViewEntities ||
+            playerShadows == VrPlayerShadows::Both)
+        {
+            drawViewentShadow(&cl.viewent);
+            drawViewentShadow(&cl.offhand_viewent);
+            drawViewentShadow(&cl.left_hip_holster);
+            drawViewentShadow(&cl.right_hip_holster);
+            drawViewentShadow(&cl.left_upper_holster);
+            drawViewentShadow(&cl.right_upper_holster);
+            drawViewentShadow(&cl.left_hand);
+            drawViewentShadow(&cl.right_hand);
+            drawViewentShadow(&cl.vrtorso);
+            drawViewentShadow(&cl.left_hip_holster_slot);
+            drawViewentShadow(&cl.right_hip_holster_slot);
+            drawViewentShadow(&cl.left_upper_holster_slot);
+            drawViewentShadow(&cl.right_upper_holster_slot);
+        }
+
+        if(playerShadows == VrPlayerShadows::ThirdPerson ||
+            playerShadows == VrPlayerShadows::Both)
+        {
+            drawViewentShadow(&cl_entities[cl.viewentity]);
+        }
     }
 
     if(gl_stencilbits)
@@ -1102,12 +1174,53 @@ void R_RenderScene()
 
     Fog_DisableGFog(); // johnfitz
 
-    R_DrawViewModel(
-        &cl.viewent, false); // johnfitz -- moved here from R_RenderView
+    if(vr_enabled.value)
+    {
+        VR_ShowCrosshair();
+    }
+
+    // johnfitz -- moved here from R_RenderView
+    R_DrawViewModel(&cl.viewent);
+
+    // VR: This is what draws the offhand.
+    R_DrawViewModel(&cl.offhand_viewent);
+
+    if(vr_leg_holster_model_enabled.value)
+    {
+        // VR: This is what draws the hip holsters slots.
+        R_DrawViewModel(&cl.left_hip_holster_slot);
+        R_DrawViewModel(&cl.right_hip_holster_slot);
+
+        // VR: This is what draws the upper holsters slots.
+        R_DrawViewModel(&cl.left_upper_holster_slot);
+        R_DrawViewModel(&cl.right_upper_holster_slot);
+    }
+
+    // VR: This is what draws the hip holsters.
+    R_DrawViewModel(&cl.left_hip_holster);
+    R_DrawViewModel(&cl.right_hip_holster);
+
+    // VR: This is what draws the upper holsters.
+    R_DrawViewModel(&cl.left_upper_holster);
+    R_DrawViewModel(&cl.right_upper_holster);
+
+    // VR: This is what draws the hands.
+    R_DrawViewModel(&cl.left_hand);
+    R_DrawViewModel(&cl.right_hand);
+
+    // VR: This is what draws the torso.
+    if(vr_vrtorso_enabled.value == 1)
+    {
+        R_DrawViewModel(&cl.vrtorso);
+    }
 
     R_ShowTris(); // johnfitz
 
     R_ShowBoundingBoxes(); // johnfitz
+    if(vr_enabled.value)
+    {
+        VR_DrawAllShowHelpers();
+    }
 }
 
 static GLuint r_scaleview_texture;
@@ -1234,10 +1347,6 @@ R_RenderView
 */
 void R_RenderView()
 {
-    double time1;
-
-    double time2;
-
     if(r_norefresh.value)
     {
         return;
@@ -1248,15 +1357,15 @@ void R_RenderView()
         Sys_Error("R_RenderView: NULL worldmodel");
     }
 
-    time1 = 0; /* avoid compiler warning */
+    double time1 = 0; /* avoid compiler warning */
     if(r_speeds.value)
     {
         glFinish();
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys =
-            rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_fogpolys =
+            rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }
     else if(gl_finish.value)
@@ -1273,11 +1382,12 @@ void R_RenderView()
         float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
         float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
-        AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+        std::tie(vpn, vright, vup) =
+            quake::util::getAngledVectors(r_refdef.viewangles);
 
         // render left eye (red)
         glColorMask(1, 0, 0, 1);
-        VectorMA(r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg += (-0.5f * eyesep) * vright;
         frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1286,7 +1396,7 @@ void R_RenderView()
         // render right eye (cyan)
         glClear(GL_DEPTH_BUFFER_BIT);
         glColorMask(0, 1, 1, 1);
-        VectorMA(r_refdef.vieworg, 1.0f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg += (1.0f * eyesep) * vright;
         frustum_skew = -frustum_skew;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1294,7 +1404,7 @@ void R_RenderView()
 
         // restore
         glColorMask(1, 1, 1, 1);
-        VectorMA(r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
+        r_refdef.vieworg += (-0.5f * eyesep) * vright;
         frustum_skew = 0.0f;
     }
     else
@@ -1306,7 +1416,7 @@ void R_RenderView()
     R_ScaleView();
 
     // johnfitz -- modified r_speeds output
-    time2 = Sys_DoubleTime();
+    const double time2 = Sys_DoubleTime();
     if(r_pos.value)
     {
         Con_Printf("x %i y %i z %i (pitch %i yaw %i roll %i)\n",

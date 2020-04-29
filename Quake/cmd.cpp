@@ -207,7 +207,8 @@ void Cbuf_Execute()
         Cmd_ExecuteString(line, src_command);
 
         if(cmd_wait)
-        { // skip out while text still remains in buffer, leaving it
+        {
+            // skip out while text still remains in buffer, leaving it
             // for next frame
             cmd_wait = false;
             break;
@@ -259,7 +260,8 @@ void Cmd_StuffCmds_f()
         }
         else if(cmdline.string[i] == '-' &&
                 (i == 0 || cmdline.string[i - 1] == ' '))
-        { // johnfitz -- allow hypenated map names with +map
+        {
+            // johnfitz -- allow hypenated map names with +map
             plus = false;
         }
         else if(plus)
@@ -700,7 +702,8 @@ void Cmd_TokenizeString(const char* text)
         }
 
         if(*text == '\n')
-        { // a newline seperates commands in the buffer
+        {
+            // a newline seperates commands in the buffer
             text++;
             break;
         }
@@ -742,7 +745,8 @@ void Cmd_AddCommand(const char* cmd_name, xcommand_t function)
     cmd_function_t* prev; // johnfitz -- sorted list insert
 
     if(host_initialized)
-    { // because hunk allocation would get stomped
+    {
+        // because hunk allocation would get stomped
         Sys_Error("Cmd_AddCommand after host_initialized");
     }
 

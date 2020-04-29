@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater,
     r_oldskyleaf, r_showtris; // johnfitz
 
-byte* SV_FatPVS(vec3_t org, qmodel_t* worldmodel);
+byte* SV_FatPVS(const glm::vec3& org, qmodel_t* worldmodel);
 
 int vis_changed; // if true, force pvs to be refreshed
 
@@ -784,16 +784,12 @@ Returns the water alpha to use for the entity and surface combination.
 */
 float GL_WaterAlphaForEntitySurface(entity_t* ent, msurface_t* s)
 {
-    float entalpha;
     if(ent == nullptr || ent->alpha == ENTALPHA_DEFAULT)
     {
-        entalpha = GL_WaterAlphaForSurface(s);
+        return GL_WaterAlphaForSurface(s);
     }
-    else
-    {
-        entalpha = ENTALPHA_DECODE(ent->alpha);
-    }
-    return entalpha;
+
+    return ENTALPHA_DECODE(ent->alpha);
 }
 
 /*
@@ -811,11 +807,13 @@ void R_DrawTextureChains_Water(qmodel_t* model, entity_t* ent, texchain_t chain)
     float entalpha;
 
     if(r_drawflat_cheatsafe || r_lightmap_cheatsafe)
-    { // ericw -- !r_drawworld_cheatsafe check moved to
+    {
+        // ericw -- !r_drawworld_cheatsafe check moved to
         // R_DrawWorld_Water ()
         return;
     }
 
+    // TODO VR: (P1) flipping this renders in oldwater=0
     if(r_oldwater.value)
     {
         for(i = 0; i < model->numtextures; i++)

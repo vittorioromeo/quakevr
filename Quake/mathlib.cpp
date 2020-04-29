@@ -24,8 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.c -- math primitives
 
 #include "quakedef.hpp"
-
-vec3_t vec3_origin = {0, 0, 0};
+#include "util.hpp"
 
 /*-----------------------------------------------------------------*/
 
@@ -33,10 +32,10 @@ vec3_t vec3_origin = {0, 0, 0};
 //#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
 #define DEG2RAD(a) ((a)*M_PI_DIV_180) // johnfitz
 
-void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
+glm::vec3 ProjectPointOnPlane(const glm::vec3& p, const glm::vec3& normal)
 {
     float d;
-    vec3_t n;
+    glm::vec3 n;
     float inv_denom;
 
     inv_denom = 1.0F / DotProduct(normal, normal);
@@ -47,48 +46,12 @@ void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
     n[1] = normal[1] * inv_denom;
     n[2] = normal[2] * inv_denom;
 
+    glm::vec3 dst;
     dst[0] = p[0] - d * n[0];
     dst[1] = p[1] - d * n[1];
     dst[2] = p[2] - d * n[2];
+    return dst;
 }
-
-/*
-** assumes "src" is normalized
-*/
-void PerpendicularVector(vec3_t dst, const vec3_t src)
-{
-    int pos;
-    int i;
-    float minelem = 1.0F;
-    vec3_t tempvec;
-
-    /*
-    ** find the smallest magnitude axially aligned vector
-    */
-    for(pos = 0, i = 0; i < 3; i++)
-    {
-        if(fabs(src[i]) < minelem)
-        {
-            pos = i;
-            minelem = fabs(src[i]);
-        }
-    }
-    tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
-    tempvec[pos] = 1.0F;
-
-    /*
-    ** project the point onto the plane defined by src
-    */
-    ProjectPointOnPlane(dst, tempvec, src);
-
-    /*
-    ** normalize the result
-    */
-    VectorNormalize(dst);
-}
-
-// johnfitz -- removed RotatePointAroundVector() becuase it's no longer used and
-// my compiler fucked it up anyway
 
 /*-----------------------------------------------------------------*/
 
@@ -113,7 +76,7 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t* p)
+int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
 {
     float dist1;
 
@@ -192,7 +155,7 @@ int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t* p)
 
 #if 0
 	int		i;
-	vec3_t	corners[2];
+	glm::vec3	corners[2];
 
 	for (i=0 ; i<3 ; i++)
 	{
@@ -236,194 +199,63 @@ int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t* p)
 // johnfitz -- the opposite of AngleVectors.  this takes forward and generates
 // pitch yaw roll
 // TODO: take right and up vectors to properly set yaw and roll
-void VectorAngles(const vec3_t forward, vec3_t angles)
+[[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept
 {
-    vec3_t temp;
+    glm::vec3 temp, res;
 
     temp[0] = forward[0];
     temp[1] = forward[1];
     temp[2] = 0;
-    angles[PITCH] = -atan2(forward[2], VectorLength(temp)) / M_PI_DIV_180;
-    angles[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
-    angles[ROLL] = 0;
+    res[PITCH] = -atan2(forward[2], glm::length(temp)) / M_PI_DIV_180;
+    res[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
+    res[ROLL] = 0;
+
+    return res;
 }
 
-void AngleVectors(vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
-{
-    float angle;
-    float sr;
-
-    float sp;
-
-    float sy;
-
-    float cr;
-
-    float cp;
-
-    float cy;
-
-    angle = angles[YAW] * (M_PI * 2 / 360);
-    sy = sin(angle);
-    cy = cos(angle);
-    angle = angles[PITCH] * (M_PI * 2 / 360);
-    sp = sin(angle);
-    cp = cos(angle);
-    angle = angles[ROLL] * (M_PI * 2 / 360);
-    sr = sin(angle);
-    cr = cos(angle);
-
-    forward[0] = cp * cy;
-    forward[1] = cp * sy;
-    forward[2] = -sp;
-    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
-    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
-    right[2] = -1 * sr * cp;
-    up[0] = (cr * sp * cy + -sr * -sy);
-    up[1] = (cr * sp * sy + -sr * cy);
-    up[2] = cr * cp;
-}
-
-int VectorCompare(vec3_t v1, vec3_t v2)
-{
-    int i;
-
-    for(i = 0; i < 3; i++)
-    {
-        if(v1[i] != v2[i])
-        {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-void VectorMA(vec3_t veca, float scale, vec3_t vecb, vec3_t vecc)
-{
-    vecc[0] = veca[0] + scale * vecb[0];
-    vecc[1] = veca[1] + scale * vecb[1];
-    vecc[2] = veca[2] + scale * vecb[2];
-}
-
-
-vec_t _DotProduct(vec3_t v1, vec3_t v2)
-{
-    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-}
-
-void _VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out)
-{
-    out[0] = veca[0] - vecb[0];
-    out[1] = veca[1] - vecb[1];
-    out[2] = veca[2] - vecb[2];
-}
-
-void _VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out)
-{
-    out[0] = veca[0] + vecb[0];
-    out[1] = veca[1] + vecb[1];
-    out[2] = veca[2] + vecb[2];
-}
-
-void _VectorCopy(vec3_t in, vec3_t out)
-{
-    out[0] = in[0];
-    out[1] = in[1];
-    out[2] = in[2];
-}
-
-void CrossProduct(vec3_t v1, vec3_t v2, vec3_t cross)
-{
-    cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
-    cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
-    cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
-}
-
-vec_t VectorLength(vec3_t v)
+float VectorLength(vec3_t v)
 {
     return sqrt(DotProduct(v, v));
 }
 
-float VectorNormalize(vec3_t v)
+[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept
 {
-    float length;
+    const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
 
-    float ilength;
-
-    length = sqrt(DotProduct(v, v));
-
-    if(length)
-    {
-        ilength = 1 / length;
-        v[0] *= ilength;
-        v[1] *= ilength;
-        v[2] *= ilength;
-    }
-
-    return length;
+    glm::mat3 res;
+    res[0] = fwd;
+    res[1] = right * -1.f; // flip y so (0,0,0) produces identity!
+    res[2] = up;
+    return res;
 }
 
-void VectorInverse(vec3_t v)
+[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept
 {
-    v[0] = -v[0];
-    v[1] = -v[1];
-    v[2] = -v[2];
-}
+    glm::vec3 out;
 
-void VectorScale(vec3_t in, vec_t scale, vec3_t out)
-{
-    out[0] = in[0] * scale;
-    out[1] = in[1] * scale;
-    out[2] = in[2] * scale;
-}
-
-
-int Q_log2(int val)
-{
-    int answer = 0;
-    while(val >>= 1)
-    {
-        answer++;
-    }
-    return answer;
-}
-
-
-void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3])
-{
-    AngleVectors(angles, mat[0], mat[1], mat[2]);
-
-    // flip y so (0,0,0) produces identity!
-    mat[1][0] *= -1;
-    mat[1][1] *= -1;
-    mat[1][2] *= -1;
-}
-
-void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles)
-{
-    angles[1] = -atan2(mat[0][0], mat[0][1]) / M_PI_DIV_180 + 90;
-    angles[0] =
+    out[1] = -atan2(mat[0][0], mat[0][1]) / M_PI_DIV_180 + 90;
+    out[0] =
         atan2(sqrt(mat[0][0] * mat[0][0] + mat[0][1] * mat[0][1]), mat[0][2]) /
             M_PI_DIV_180 -
         90;
-    angles[2] = 0;
+    out[2] = 0;
 
-    vec3_t unrolled[3];
+    const auto unrolled = RotMatFromAngleVector(out);
 
-    RotMatFromAngleVector(angles, unrolled);
+    out[2] =
+        -atan2(glm::dot(unrolled[1], mat[1]), glm::dot(unrolled[2], mat[1])) /
+            M_PI_DIV_180 +
+        90;
 
-    angles[2] = -atan2(_DotProduct(unrolled[1], mat[1]),
-                    _DotProduct(unrolled[2], mat[1])) /
-                    M_PI_DIV_180 +
-                90;
+    return out;
 }
 
-void CreateRotMat(int axis, float angle, vec3_t mat[3])
+[[nodiscard]] glm::mat3 CreateRotMat(const int axis, const float angle) noexcept
 {
-    vec3_t angles = {
+    const glm::vec3 angles{
         axis == 0 ? angle : 0, axis == 1 ? angle : 0, axis == 2 ? angle : 0};
-    RotMatFromAngleVector(angles, mat);
+
+    return RotMatFromAngleVector(angles);
 }
 
 /*
@@ -431,28 +263,32 @@ void CreateRotMat(int axis, float angle, vec3_t mat[3])
 R_ConcatRotations
 ================
 */
-void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3])
+[[nodiscard]] glm::mat3 R_ConcatRotations(
+    const glm::mat3& in1, const glm::mat3& in2) noexcept
 {
-    out[0][0] =
-        in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
-    out[0][1] =
-        in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
-    out[0][2] =
-        in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
-    out[1][0] =
-        in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0];
-    out[1][1] =
-        in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1];
-    out[1][2] =
-        in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2];
-    out[2][0] =
-        in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0];
-    out[2][1] =
-        in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1];
-    out[2][2] =
-        in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
-}
+    glm::mat3 res;
 
+    res[0][0] =
+        in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
+    res[0][1] =
+        in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
+    res[0][2] =
+        in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
+    res[1][0] =
+        in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0];
+    res[1][1] =
+        in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1];
+    res[1][2] =
+        in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2];
+    res[2][0] =
+        in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0];
+    res[2][1] =
+        in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1];
+    res[2][2] =
+        in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
+
+    return res;
+}
 
 /*
 ================
@@ -485,107 +321,4 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
         in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
     out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] +
                 in1[2][2] * in2[2][3] + in1[2][3];
-}
-
-
-/*
-===================
-FloorDivMod
-
-Returns mathematically correct (floor-based) quotient and remainder for
-numer and denom, both of which should contain no fractional part. The
-quotient must fit in 32 bits.
-====================
-*/
-
-void FloorDivMod(double numer, double denom, int* quotient, int* rem)
-{
-    int q;
-
-    int r;
-    double x;
-
-#ifndef PARANOID
-    if(denom <= 0.0)
-    {
-        Sys_Error("FloorDivMod: bad denominator %f\n", denom);
-    }
-
-//	if ((floor(numer) != numer) || (floor(denom) != denom))
-//		Sys_Error ("FloorDivMod: non-integer numer or denom %f %f\n",
-//				numer, denom);
-#endif
-
-    if(numer >= 0.0)
-    {
-
-        x = floor(numer / denom);
-        q = (int)x;
-        r = (int)floor(numer - (x * denom));
-    }
-    else
-    {
-        //
-        // perform operations with positive values, and fix mod to make
-        // floor-based
-        //
-        x = floor(-numer / denom);
-        q = -(int)x;
-        r = (int)floor(-numer - (x * denom));
-        if(r != 0)
-        {
-            q--;
-            r = (int)denom - r;
-        }
-    }
-
-    *quotient = q;
-    *rem = r;
-}
-
-
-/*
-===================
-GreatestCommonDivisor
-====================
-*/
-int GreatestCommonDivisor(int i1, int i2)
-{
-    if(i1 > i2)
-    {
-        if(i2 == 0)
-        {
-            return (i1);
-        }
-        return GreatestCommonDivisor(i2, i1 % i2);
-    }
-
-    if(i1 == 0)
-
-    {
-
-        return (i2);
-    }
-
-    return GreatestCommonDivisor(i1, i2 % i1);
-}
-
-
-/*
-===================
-Invert24To16
-
-Inverts an 8.24 value to a 16.16 value
-====================
-*/
-
-fixed16_t Invert24To16(fixed16_t val)
-{
-    if(val < 256)
-    {
-        return (0xFFFFFFFF);
-    }
-
-    return (fixed16_t)(
-        ((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
 }

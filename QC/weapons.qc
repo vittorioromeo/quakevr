@@ -1,189 +1,1002 @@
 /*
 */
+
+// HIPNOTIC
+//JIM
+void( vector pos ) placebullethole
 void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
-void () player_run;
+void (entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee;
+void (float xHand) player_run;
 void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
 void(vector org, vector vel, float damage) SpawnBlood;
-void(vector org, float damage) SpawnBloodSplash;
 void() SuperDamageSound;
+
+// QUAKE VR
+void(vector org, float damage) SpawnBloodSplash;
 void() PainSound;
+
+float(float it) ItemIdToWeaponId;
+float(float wid) WeaponIdToItemId;
+float(float wid, float wpnFlags) PlayerHasWeapon;
+
+float() crandom =
+{
+    return 2 * (random() - 0.5);
+};
+
+// QUAKE VR
+void(float xHand, float xduration, float frequency, float amplitude) VRGunHaptic =
+{
+    haptic(xHand, 0.0, xduration, frequency, amplitude);
+}
+
+void(vector org) BroadcastGunshotEffect =
+{
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_GUNSHOT);
+    WriteCoord(MSG_BROADCAST, org_x);
+    WriteCoord(MSG_BROADCAST, org_y);
+    WriteCoord(MSG_BROADCAST, org_z);
+}
+
+vector() vrProjectileVelocity =
+{
+    local vector handv;
+
+    return VEC_ORIGIN;
+
+    // TODO VR: (P2) this only works when facing forwards. It needs to be revisited
+    // the hand velocity vector is absolute and doesn't take the world into
+    // account. It probably needs to be multiplied with the direction vector
+    // of where the player is facing...?
+
+    if(cvar("vr_enabled") == 1)
+    {
+        // VR: add hand velocity and player velocity to the final projectile
+        // velocity, in order to carry momentum
+        handv_x = self.handvel_x;
+        handv_y = self.handvel_z  * -1;
+        handv_z = self.handvel_y;
+        return (handv * 50) + (self.velocity);
+    }
+
+    return VEC_ORIGIN;
+};
+
+
+void() updateAmmoCounters =
+{
+    if(self.currentammo != AID_NONE)
+    {
+        self.ammocounter = getCurrentAmmo(cVR_MainHand);
+    }
+    else
+    {
+        self.ammocounter = 0;
+    }
+
+    if(self.currentammo2 != AID_NONE)
+    {
+        self.ammocounter2 = getCurrentAmmo(cVR_OffHand);
+    }
+    else
+    {
+        self.ammocounter2 = 0;
+    }
+}
+
+void(float xHand, float v) setCurrentAmmo =
+{
+    local float idx;
+
+    if(xHand == cVR_OffHand) { idx = self.currentammo2; }
+    else                  { idx = self.currentammo; }
+
+         if(idx == AID_SHELLS)  { self.ammo_shells = v; }
+    else if(idx == AID_NAILS)   { self.ammo_nails = v; }
+    else if(idx == AID_ROCKETS) { self.ammo_rockets = v; }
+    else if(idx == AID_CELLS)   { self.ammo_cells = v; }
+    else
+    {
+        bprint("Attempting to set ammo of invalid type '");
+        bprint(ftos(idx));
+        bprint("', value '");
+        bprint(ftos(v));
+        bprint("'\n");
+    }
+
+    updateAmmoCounters();
+}
+
+float(float xHand) getCurrentAmmo =
+{
+    local float idx;
+
+    if(xHand == cVR_OffHand) { idx = self.currentammo2; }
+    else                  { idx = self.currentammo; }
+
+    return GetAmmoCountByAmmoId(self, idx);
+}
+
+float() VRMeleeDmgQuadMult =
+{
+    if(self.super_damage_finished > time)
+    {
+        return 2.75;
+    }
+
+    return 1;
+}
+
+float(float velmag) VRMeleeStrengthMult =
+{
+    local float strength;
+    strength = velmag - cvar("vr_melee_threshold");
+
+    if(strength > 1.0)
+    {
+        strength = pow(strength, 1.5);
+    }
+
+    return strength;
+}
+
+float(float xHand, float v, float xBase) VRMeleeDmg =
+{
+    local float tmp;
+
+    if(cvar("vr_fakevr") == 1)
+    {
+        return 20;
+    }
+
+    if(xHand == cVR_OffHand) tmp = self.offhandvelmag;
+    else                  tmp = self.handvelmag;
+
+    return xBase + (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
+}
+
+float(float v) VRMeleeRange =
+{
+    local float mult;
+
+    if(self.super_damage_finished > time)
+    {
+        mult = 1.35;
+    }
+    else
+    {
+        mult = 1.10;
+    }
+
+    if(cvar("vr_fakevr") == 1)
+    {
+        mult = mult * 3.5;
+    }
+
+    return v * cvar("vr_melee_range_multiplier") * mult;
+}
+
+void(float hand, float velmag) VRMeleeHaptic =
+{
+    local float power, amplitude, xduration;
+    power = VRMeleeStrengthMult(velmag);
+
+    amplitude = power / 10.0;
+    if(amplitude > 1.0) { amplitude = 1.0; }
+    else if(amplitude < 0.45) { amplitude = 0.45; }
+
+    xduration = 0.35 + power / 18.0;
+    if(xduration < 0.35) { xduration = 0.35; }
+    else if(xduration > 0.9) { xduration = 0.9; }
+
+    haptic(hand, 0.0, xduration, 75.0, amplitude);
+}
+
+void (float xHand) VRMeleeHapticByHand =
+{
+    VRMeleeHaptic(xHand, VRGetHandVelMag(xHand));
+};
+
+float PositionalDamageFactor(float positionalDamageType)
+{
+    if(positionalDamageType == 0) // standard
+    {
+        return 1;
+    }
+
+    if(positionalDamageType == 1) // headshot
+    {
+        return 1.5;
+    }
+
+    if(positionalDamageType == 2) // extremities
+    {
+        return 0.35;
+    }
+
+    if(positionalDamageType == 3) // legs
+    {
+        return 0.6;
+    }
+
+    return 1;
+}
+
+float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
+{
+    local float supportHS;   // Target supports headshots.
+    local float supportCD;   // Target supports core distance.
+    local float maxh;        // Max horizontal dimension.
+    local float diagonality; // How "diagonal" the hit was.
+    local float headsize;    // Size of target head.
+    local float head_hdepth; // Depth of head center in the model (horizontal).
+    local float head_vdepth; // Depth of head center in the model (vertical).
+    local vector headpos;    // Position of target head.
+    local vector hitpos;     // Tweaked hit position.
+    local vector hitdiff;    // Temp vector for hit differences.
+
+    if(cvar("vr_positional_damage") == 0)
+    {
+        return 0;
+    }
+
+    supportHS = 0;
+    supportCD = 0;
+
+    headpos_x = xTarget.origin_x;
+    headpos_y = xTarget.origin_y;
+    head_vdepth = 0;
+
+    if(xTarget.classname == "monster_army")
+    {
+        headpos_z = xTarget.origin_z + 25;
+        headsize = 3.4;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_ogre")
+    {
+        headpos_z = xTarget.origin_z + 37;
+        headsize = 5;
+        head_hdepth = 24;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_enforcer")
+    {
+        headpos_z = xTarget.origin_z + 26;
+        headsize = 3.6;
+        head_hdepth = 14;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_gremlin")
+    {
+        headpos_z = xTarget.origin_z + 16;
+        headsize = 3.2;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_hell_knight")
+    {
+        headpos_z = xTarget.origin_z + 34;
+        headsize = 3.6;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_knight")
+    {
+        headpos_z = xTarget.origin_z + 24;
+        headsize = 3.1;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_shambler")
+    {
+        headpos_z = xTarget.origin_z + 60;
+        headsize = 6;
+        head_hdepth = 32;
+        supportHS = 1;
+        supportCD = 1;
+    }
+    else if(xTarget.classname == "monster_shalrath")
+    {
+        headpos_z = xTarget.origin_z + 54;
+        headsize = 4.5;
+        head_hdepth = 32;
+        supportHS = 1;
+        supportCD = 1;
+    }
+
+    // Since `xEndpos` is from a trace, it always hits one of the AABB planes,
+    // so to compensate we check how "diagonal" the hit was and move the hit
+    // position more to reach the center and check distance from the head more
+    // accurately. This helps shots coming at a 45 degree angle to the AABB.
+    maxh = max(fabs(xDirection_x), fabs(xDirection_y));
+    maxh = max(maxh, fabs(xDirection_z));
+    diagonality = (1 - max(maxh, 0.7)) * 3.33; // Returns a value closer to 1 the more diagonal the shot is.
+    hitpos_x = xEndpos_x + xDirection_x * (head_hdepth + (1.414 * diagonality)); // Approx of square diagonal ratio.
+    hitpos_y = xEndpos_y + xDirection_y * (head_hdepth + (1.414 * diagonality));
+    hitpos_z = xEndpos_z + xDirection_z * head_vdepth;
+
+    // Check for headshot.
+    if(supportHS && vlen(hitpos - headpos) < headsize * 2)
+    {
+        return 1; // headshot
+    }
+
+    if(!supportCD)
+    {
+        return 0; // standard
+    }
+
+    // Check for core shot.
+    hitdiff = hitpos - xTarget.origin;
+    hitdiff_z = 0;
+
+    if(vlen(hitdiff) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
+    {
+        return 2; // extremities
+    }
+
+    if(hitpos_z < xTarget.origin_z)
+    {
+        return 3; // legs
+    }
+
+    return 0; // standard
+}
+
+// HIPNOTIC
+//MED 10/18/96
+void(float damage) spawn_touchblood;
+/*
+================
+HIPNOTIC WEAPONS
+================
+*/
+void() HIP_LaserTouch =
+{
+    local vector org;
+    local vector spot1,spot2;
+    local vector oldvel;
+    local float r;
+    local float adjDmg;
+    local float posDmgType;
+
+    self.owner = world;
+    self.cnt = self.cnt + 1;
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+    oldvel = normalize(self.old_velocity);
+    spot1 = self.origin - (16*oldvel);
+    spot2 = self.origin + (16*oldvel);
+    traceline(spot1, spot2, FALSE, self);  // see through other monsters
+    self.origin = trace_endpos;
+
+    org = self.origin;
+
+    if(other.health)
+    {
+        if(self.lastvictim == other)
+        {
+            self.dmg = self.dmg / 2;
+        }
+
+        spawn_touchblood (self.dmg);
+
+        makeforward (self.angles);
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
+
+        T_Damage (other, self, self.lastvictim, adjDmg);
+    }
+    else if((self.cnt == 3) || (random()<0.15))
+    {
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_GUNSHOT);
+        WriteCoord(MSG_BROADCAST, org_x);
+        WriteCoord(MSG_BROADCAST, org_y);
+        WriteCoord(MSG_BROADCAST, org_z);
+    }
+    else
+    {
+       self.dmg = 0.9 * self.dmg;
+       self.velocity = oldvel+(2*trace_plane_normal);
+       self.velocity = normalize(self.velocity);
+       self.velocity = self.speed * self.velocity;
+       self.old_velocity = self.velocity;
+       if(self.flags & FL_ONGROUND)
+           self.flags = self.flags - FL_ONGROUND;
+       r = random();
+       sound(self, CHAN_WEAPON, "hipweap/laserric.wav", 1, ATTN_STATIC);
+       return;
+    }
+
+    sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
+    remove(self);
+};
+
+void() HIP_LaserThink =
+{
+    if(time > self.attack_finished)
+    {
+        remove(self);
+        return;
+    }
+
+    if(self.flags & FL_ONGROUND)
+    {
+        self.flags = self.flags - FL_ONGROUND;
+    }
+
+    self.velocity = self.old_velocity;
+    self.angles = vectoangles(self.velocity);
+    self.nextthink = time + 0.1;
+};
+
+void(vector org, vector vec, float light) HIP_LaunchLaser =
+{
+    sound(self ,CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
+
+    vec = normalize(vec);
+
+    newmis = spawn();
+    newmis.owner = self;
+    newmis.classname = "hiplaser";
+    newmis.lastvictim = self;
+    newmis.movetype = MOVETYPE_FLYMISSILE;
+    newmis.solid = SOLID_BBOX;
+    if(light)
+       newmis.effects = EF_DIMLIGHT;
+
+    setmodel (newmis, "progs/lasrspik.mdl");
+    setsize (newmis, '0 0 0', '0 0 0');
+
+    setorigin (newmis, org);
+
+    newmis.speed = 1750;
+    newmis.dmg = 18;
+    newmis.velocity = vec * newmis.speed;
+    newmis.old_velocity = newmis.velocity;
+    newmis.angles = vectoangles(newmis.velocity);
+    newmis.avelocity = '0 0 400';
+
+    newmis.nextthink = time;
+    newmis.attack_finished = time + 5;
+    newmis.think = HIP_LaserThink;
+    newmis.touch = HIP_LaserTouch;
+    newmis.count = 0;
+};
+
+/*
+=================
+HIP_FireLaser
+=================
+*/
+void(float xHand, float stat) HIP_FireLaser =
+{
+    local vector org;
+    local vector dir;
+    local vector out;
+    local float ofs;
+    local float aofs;
+
+    if(!VRGetFireButtonPressed(xHand))
+    {
+        player_run(xHand);
+        return;
+    }
+
+    if(self.ammo_cells < 1)
+    {
+        return;
+    }
+
+    SuperDamageSound();
+    self.effects = self.effects | EF_MUZZLEFLASH;
+    makevectors (VRGetWeaponFireRot(xHand));
+
+    ofs = 6;
+    out = v_forward;
+    out_z = 0;
+    out = normalize(out);
+    org = VRGetMuzzlePos(xHand) + ((-1) * v_up) + (2*out);
+    dir = aim (self, 1000);
+    aofs = ofs * 0.15;
+    if(stat == 0)
+    {
+        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        org = org + (aofs*v_right);
+        HIP_LaunchLaser(org, dir, 0);
+        org = org - (2*aofs*v_right);
+        HIP_LaunchLaser(org, dir, 0);
+    }
+    else if(stat == 1)
+    {
+        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        org = org + (ofs*(v_up * 0.4));
+        if(random()<0.1)
+        {
+            HIP_LaunchLaser(org, dir, 1);
+            newmis.dmg = 25;
+        }
+        else
+        {
+            HIP_LaunchLaser(org, dir, 0);
+        }
+    }
+
+    self.punchangle_x = -1;
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+};
+
+/*
+=================
+HIP_HammerDamage
+=================
+*/
+void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
+{
+    local entity        e1, e2;
+    local vector        f;
+
+    f = p2 - p1;
+    normalize (f);
+    f_x = 0 - f_y;
+    f_y = f_x;
+    f_z = 0;
+    f = f*16;
+
+    e1 = e2 = world;
+
+    traceline(p1, p2, FALSE, self);
+//JIM
+    if(trace_ent.takedamage && !trace_ent.wetsuit_finished )
+    {
+        particle (trace_endpos, '0 0 100', 225, damage*4);
+        T_Damage (trace_ent, from, from, damage);
+        if(self.classname == "player")
+        {
+            if(other.classname == "player")
+                trace_ent.velocity_z = trace_ent.velocity_z + 400;
+        }
+    }
+    e1 = trace_ent;
+
+    traceline(p1 + f, p2 + f, FALSE, self);
+//JIM
+    if(trace_ent != e1 && trace_ent.takedamage &&
+        !trace_ent.wetsuit_finished )
+    {
+        particle (trace_endpos, '0 0 100', 225, damage*4);
+        T_Damage (trace_ent, from, from, damage);
+    }
+    e2 = trace_ent;
+
+    traceline(p1 - f, p2 - f, FALSE, self);
+//JIM
+    if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
+        !trace_ent.wetsuit_finished )
+    {
+        particle (trace_endpos, '0 0 100', 225, damage*4);
+        T_Damage (trace_ent, from, from, damage);
+    }
+};
+
+void(vector vStart, vector vEnd) LightningParticles =
+{
+    particle2(vStart, '0 0 0', 3 /* lightning preset */, 20);
+    particle2(vStart, '0 0 0', 4 /* smoke preset */, 1);
+    particle2(vStart, '0 0 0', 5 /* sparks preset */, 4);
+
+    particle2(vEnd, '0 0 0', 3 /* lightning preset */, 60);
+    particle2(vEnd, '0 0 0', 4 /* smoke preset */, 1);
+    particle2(vEnd, '0 0 0', 5 /* sparks preset */, 12);
+}
+
+
+void() HIP_LightningThink =
+   {
+   local vector org;
+   local vector dst;
+   local entity head;
+   local entity selected;
+   local float cur_dist;
+   local float head_dist;
+   local vector vec;
+   local float dot;
+   local float oldstate;
+   local float dam;
+
+
+   if(time > self.delay)
+      {
+      if(self.enemy != world)
+         self.enemy.struck_by_mjolnir = 0;
+      remove(self);
+      return;
+      }
+   oldstate = self.state;
+   if(self.state==0)
+      {
+      // look in our immediate vicinity
+      self.enemy = world;
+      selected = world;
+      cur_dist = self.distance;
+      head = findradius(self.owner.origin, self.distance);
+      while(head)
+         {
+         if(!(head.flags & FL_NOTARGET) && ((head.flags & FL_MONSTER) || (head.flags & FL_CLIENT)))
+            {
+//            if(visible(head) && (head!=self.owner.owner) && (head.health>0))
+            if((visible(head)) && (head!=self.owner.owner) && (head.health>0))
+               {
+               head_dist = vlen(head.origin - self.lastvictim.origin);
+               if((head_dist<cur_dist) && (head.struck_by_mjolnir==0))
+                  {
+                  selected = head;
+                  cur_dist = head_dist;
+                  }
+               }
+            }
+         head = head.chain;
+         }
+      if(selected != world)
+         {
+         self.state = 1;
+         self.enemy = selected;
+         self.enemy.struck_by_mjolnir = 1;
+         }
+      else
+         {
+         local vector   end;
+
+         makevectors(self.v_angle);
+         org = self.owner.origin;
+         end = org + v_forward*200;
+         end = end + (((400*random()) - 200) * v_right);
+
+         traceline(org, end, TRUE, self);
+
+         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+         WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+         WriteEntity(MSG_BROADCAST, self);
+         WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+         WriteCoord(MSG_BROADCAST, org_x);
+         WriteCoord(MSG_BROADCAST, org_y);
+         WriteCoord(MSG_BROADCAST, org_z);
+         WriteCoord(MSG_BROADCAST, trace_endpos_x);
+         WriteCoord(MSG_BROADCAST, trace_endpos_y);
+         WriteCoord(MSG_BROADCAST, trace_endpos_z);
+
+        LightningParticles(org, trace_endpos);
+
+         self.nextthink = time + 0.1;
+         return;
+         }
+      }
+   org = self.lastvictim.origin;
+   dst = self.enemy.absmin + 0.25*(self.enemy.absmax-self.enemy.absmin);
+   dst = dst + (random()*0.5*(self.enemy.absmax-self.enemy.absmin));
+   traceline(org, dst, TRUE, self.owner.owner);
+
+   if(trace_fraction != 1.0 || self.enemy.health<=0)
+      {
+      self.enemy.struck_by_mjolnir = 0;
+      self.state = 0;
+      self.nextthink = time + 0.1;
+      return;
+      }
+   WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+   WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+   WriteEntity(MSG_BROADCAST, self);
+   WriteByte(MSG_BROADCAST, 0); /* disambiguator */
+   WriteCoord(MSG_BROADCAST, org_x);
+   WriteCoord(MSG_BROADCAST, org_y);
+   WriteCoord(MSG_BROADCAST, org_z);
+   WriteCoord(MSG_BROADCAST, trace_endpos_x);
+   WriteCoord(MSG_BROADCAST, trace_endpos_y);
+   WriteCoord(MSG_BROADCAST, trace_endpos_z);
+
+   LightningParticles(org, trace_endpos);
+
+   vec = normalize(self.enemy.origin - self.owner.origin);
+   dot = vec * self.owner.movedir;
+   head = self;
+   self = self.owner.owner;
+   if(oldstate==0)
+      dam = 80;
+   else
+      dam = 30;
+   if(dot>0.3)
+      HIP_HammerDamage (org, trace_endpos, self, dam);
+   else
+      HIP_HammerDamage (org, trace_endpos, self, dam*0.5);
+   self = head;
+
+   self.nextthink = time + 0.2;
+   };
+
+void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
+   {
+   local entity light;
+   // spawn actual lightning
+   light = spawn();
+   light.delay = time + 0.8;
+   light.state = 0;
+   light.lastvictim = prev;
+   light.distance = dst;
+   light.owner = own;
+   light.v_angle = self.angles;
+   light.v_angle_x = 0;
+   light.v_angle_z = 0;
+   light.origin = own.origin;
+   light.think = HIP_LightningThink;
+   light.nextthink = time;
+   };
+
+void() HIP_SpawnMjolnirBase =
+   {
+   local entity light;
+   // spawn lightning base
+   light = spawn();
+//   light.origin = self.origin - '0 0 24' + (32*v_forward);
+   light.origin = trace_endpos;
+   light.flags = 0;
+   light.owner = self;
+   light.struck_by_mjolnir = 1;
+   light.think = SUB_Remove;
+   light.nextthink = time + 1;
+   sound(light, CHAN_AUTO, "hipweap/mjolslap.wav", 1, ATTN_NORM);
+   sound(light, CHAN_WEAPON, "hipweap/mjolhit.wav", 1, ATTN_NORM);
+   makevectors(self.v_angle);
+   light.movedir = v_forward;
+   HIP_SpawnMjolnirLightning( light, light, 350 );
+   HIP_SpawnMjolnirLightning( light, light, 350 );
+   HIP_SpawnMjolnirLightning( light, light, 350 );
+   HIP_SpawnMjolnirLightning( light, light, 350 );
+   };
+
+void(float xHand) HIP_FireMjolnirLightning =
+{
+    local float cells;
+
+    // explode if under water
+    if(self.waterlevel > 1)
+    {
+        cells = self.ammo_cells;
+        self.ammo_cells = 0;
+        discharged = 1;
+        T_RadiusDamage (self, self, 35*cells, world);
+        discharged = 0;
+        W_SetCurrentAmmo();
+        return;
+    }
+
+    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 15);
+
+    HIP_SpawnMjolnirBase();
+};
+
+float(vector xHandRot, vector xHandPos, vector xMuzzlePos, float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
+{
+    local float range, muzzleRange;
+
+    range = VRMeleeRange(xRange);
+    muzzleRange = VRMeleeRange(xMuzzleRange);
+
+    makevectors(xHandRot);
+
+    // Prioritize entities taking damage:
+    traceline(xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline(xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline(xHandPos - v_up*3, xHandPos + v_up * (range / 1.5), FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline(xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 1.5), FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline(xHandPos + v_up*3, xHandPos - v_up * (range / 1.5), FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    traceline(xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 1.5), FALSE, self);
+    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+
+    // Then test the same traces, but do not prioritize:
+    traceline(xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    traceline(xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    traceline(xHandPos - v_up*3, xHandPos + v_up * (range / 2.0), FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    traceline(xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 2.0), FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    traceline(xHandPos + v_up*3, xHandPos - v_up * (range / 2.0), FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    traceline(xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 2.0), FALSE, self);
+    if(trace_fraction != 1.0) { return TRUE; }
+
+    return FALSE;
+}
+
+float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
+{
+    return VRDoMeleeAttackTraceline(
+        VRGetHandRot(xHand), VRGetHandPos(xHand), VRGetMuzzlePos(xHand), xRange, xMuzzleRange);
+}
+
+void(float xHand) HIP_FireMjolnir =
+{
+    local vector source;
+    local vector org;
+    local float  xdmg;
+
+    xdmg = VRMeleeDmg(xHand, 1.10, 5);
+
+    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    {
+        return;
+    }
+
+    org = trace_endpos - v_forward*4;
+
+    if(trace_ent.takedamage)
+    {
+        VRMeleeHapticByHand(xHand);
+
+        if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
+        {
+            HIP_FireMjolnirLightning(xHand);
+            VRSetAttackFinished(xHand, time + 0.5);
+        }
+
+        if(trace_ent.classname == "monster_zombie")
+            xdmg *= 1.25;
+
+        trace_ent.axhitme = 1;
+        SpawnBlood (org, v_forward, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
+    }
+    else
+    {
+        // hit wall
+        if(trace_fraction != 1.0)
+        {
+            if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
+            {
+                HIP_FireMjolnirLightning(xHand);
+                VRSetAttackFinished(xHand, time + 0.5);
+            }
+
+            if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+            {
+                VRMeleeHapticByHand(xHand);
+                sound(self, VRGetGunChannel(xHand), "hipweap/mjoltink.wav", 1, ATTN_NORM);
+                BroadcastGunshotEffect(org);
+                VRSetMeleeHitSoundPlayed(xHand, TRUE);
+            }
+        }
+        else
+        {
+            if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+            {
+                VRMeleeHapticByHand(xHand);
+                sound(self, VRGetGunChannel(xHand), "knight/sword1.wav", 1, ATTN_NORM);
+                VRSetMeleeHitSoundPlayed(xHand, TRUE);
+            }
+        }
+    }
+};
 
 
 // called by worldspawn
 void() W_Precache =
 {
-	precache_sound ("weapons/r_exp3.wav");	// new rocket explosion
-	precache_sound ("weapons/rocket1i.wav");	// spike gun
-	precache_sound ("weapons/sgun1.wav");
-	precache_sound ("weapons/guncock.wav");	// player shotgun
-	precache_sound ("weapons/ric1.wav");	// ricochet (used in c code)
-	precache_sound ("weapons/ric2.wav");	// ricochet (used in c code)
-	precache_sound ("weapons/ric3.wav");	// ricochet (used in c code)
-	precache_sound ("weapons/spike2.wav");	// super spikes
-	precache_sound ("weapons/tink1.wav");	// spikes tink (used in c code)
-	precache_sound ("weapons/grenade.wav");	// grenade launcher
-	precache_sound ("weapons/bounce.wav");		// grenade bounce
-	precache_sound ("weapons/shotgn2.wav");	// super shotgun
-	precache_sound ("knight/sword1.wav");	// gun melee
+    precache_sound("weapons/r_exp3.wav");    // new rocket explosion
+    precache_sound("weapons/rocket1i.wav");    // spike gun
+    precache_sound("weapons/sgun1.wav");
+    precache_sound("weapons/guncock.wav");    // player shotgun
+    precache_sound("weapons/ric1.wav");    // ricochet (used in c code)
+    precache_sound("weapons/ric2.wav");    // ricochet (used in c code)
+    precache_sound("weapons/ric3.wav");    // ricochet (used in c code)
+    precache_sound("weapons/spike2.wav");    // super spikes
+    precache_sound("weapons/tink1.wav");    // spikes tink (used in c code)
+    precache_sound("weapons/grenade.wav");    // grenade launcher
+    precache_sound("weapons/bounce.wav");        // grenade bounce
+    precache_sound("weapons/shotgn2.wav");    // super shotgun
+    precache_sound("knight/sword1.wav");    // gun melee
+
+    // HIPNOTIC
+    //MED
+   precache_sound("enforcer/enfstop.wav");   // laser cannon
+//MED 11/06/96
+   precache_sound("hipweap/laserg.wav");   // laser cannon
+   precache_sound("hipweap/laserric.wav");   // laser cannon ricochet
+   precache_sound("hipweap/proxwarn.wav");   // proximity bomb
+   precache_sound("hipweap/proxbomb.wav");   // proximity bomb
+//MED 11/19/96
+   precache_sound("hipweap/mjolhit.wav");   // mjolnir
+   precache_sound("hipweap/mjolslap.wav");   // mjolnir
+   precache_sound("hipweap/mjoltink.wav");   // mjolnir
+
+    // ROGUE
+    //ZOID--
+    // grapple
+    precache_sound("weapons/chain1.wav");
+    precache_sound("pendulum/hit.wav");
+//--ZOID
+
+    // QUAKE VR
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
+    precache_sound("weapons/holster0.wav");
+    precache_sound("weapons/holster1.wav");
 };
-
-float() crandom =
-{
-	return 2*(random() - 0.5);
-};
-
-vector() vrProjectileVelocity =
-{
-	local vector handv;
-
-	return VEC_ORIGIN;
-
-	// TODO VR: this only works when facing forwards. It needs to be revisited
-	// the hand velocity vector is absolute and doesn't take the world into
-	// account. It probably needs to be multiplied with the direction vector
-	// of where the player is facing...?
-
-	if (cvar("vr_enabled") == 1)
-	{
-		// VR: add hand velocity and player velocity to the final projectile
-		// velocity, in order to carry momentum
-		handv_x = self.handvel_x;
-		handv_y = self.handvel_z  * -1;
-		handv_z = self.handvel_y;
-		return (handv * 50) + (self.velocity);
-	}
-
-	return VEC_ORIGIN;
-};
-
-float() VRMeleeDmgQuadMult =
-{
-	if (self.super_damage_finished > time)
-	{
-		return 2.75;
-	}
-
-	return 1;
-}
-
-float(float velmag) VRMeleeStrengthMult =
-{
-	local float strength;
-	strength = velmag - cvar("vr_melee_threshold");
-
-	if (strength > 1.0)
-	{
-		strength = pow(strength, 1.5);
-	}
-
-	return strength;
-}
-
-
-float(float v) VRMeleeDmg =
-{
-	return (v * VRMeleeStrengthMult(self.handvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
-}
-
-float(float v) VRMeleeOffHandDmg =
-{
-	return (v * VRMeleeStrengthMult(self.offhandvelmag)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
-}
-
-float(float v) VRMeleeRange =
-{
-	local float mult;
-
-	if (self.super_damage_finished > time)
-	{
-		mult = 1.25;
-	}
-	else
-	{
-		mult = 1;
-	}
-
-	return v * cvar("vr_melee_range_multiplier") * mult;
-}
-
-void(float hand, float velmag) VRMeleeHaptic =
-{
-	local float power, amplitude, duration;
-	power = VRMeleeStrengthMult(velmag);
-
-	amplitude = power / 10.0;
-	if (amplitude > 1.0) { amplitude = 1.0; }
-	else if (amplitude < 0.45) { amplitude = 0.45; }
-
-	duration = 0.35 + power / 18.0;
-	if (duration < 0.35) { duration = 0.35; }
-	else if (duration > 0.9) { duration = 0.9; }
-
-	haptic(hand, 0.0, duration, 75.0, amplitude);
-}
-
-void(float duration, float frequency, float amplitude) VRGunHaptic =
-{
-	haptic(1, 0.0, duration, frequency, amplitude);
-}
-
-void(vector org) BroadcastGunshotEffect =
-{
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_GUNSHOT);
-	WriteCoord (MSG_BROADCAST, org_x);
-	WriteCoord (MSG_BROADCAST, org_y);
-	WriteCoord (MSG_BROADCAST, org_z);
-}
 
 /*
 ================
 W_FireAxe
 ================
 */
-void() W_FireAxe =
+void(float xHand) W_FireAxe =
 {
-	local	vector	source;
-	local	vector	org;
-	local	float	xdmg;
-	local	string	s;
+    local vector source;
+    local vector org;
+    local float  xdmg;
 
-	xdmg = VRMeleeDmg(0.95);
+    xdmg = VRMeleeDmg(xHand, 1.00, 7);
 
-	makevectors (self.v_angle);
-	source = self.handpos + '0 0 0';
-	// TODO VR: improve this collision detection
-	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(28), FALSE, self);
-	if (trace_fraction == 1.0)
-		return;
+    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    {
+        return;
+    }
 
-	org = trace_endpos - v_forward*4;
+    org = trace_endpos - v_forward*4;
 
-	if (trace_ent.takedamage)
-	{
-		trace_ent.axhitme = 1;
-		SpawnBloodSplash (org, xdmg);
-		T_Damage (trace_ent, self, self, xdmg);
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        SpawnBloodSplash (org, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
-		if (self.melee_hit_sound_played == FALSE)
-		{
-			VRMeleeHaptic(1, self.handvelmag);
-			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			self.melee_hit_sound_played = TRUE;
-		}
-	}
-	else
-	{
-		// hit wall
-		if (self.melee_hit_sound_played == FALSE)
-		{
-			VRMeleeHaptic(1, self.handvelmag);
-			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			self.melee_hit_sound_played = TRUE;
-		}
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
+    }
+    else
+    {
+        // hit wall
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
 
-		BroadcastGunshotEffect(org);
-	}
+        BroadcastGunshotEffect(org);
+    }
 };
 
 
@@ -194,48 +1007,46 @@ void() W_FireAxe =
 W_GunMelee
 ================
 */
-void() W_GunMelee =
+void(float xHand) W_GunMelee =
 {
-	local	vector	source;
-	local	vector	org;
-	local	float	xdmg;
-	local	string	s;
+    local    vector    source;
+    local    vector    org;
+    local    float    xdmg;
 
-	xdmg = VRMeleeDmg(0.5);
+    xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
-	makevectors (self.v_angle);
-	source = self.handpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
-	if (trace_fraction == 1.0)
-		return;
+    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
+    {
+        return;
+    }
 
-	org = trace_endpos - v_forward*4;
+    org = trace_endpos - v_forward*4;
 
-	if (trace_ent.takedamage)
-	{
-		trace_ent.axhitme = 1;
-		SpawnBloodSplash (org, xdmg);
-		T_Damage (trace_ent, self, self, xdmg);
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        SpawnBloodSplash (org, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
-		if (self.melee_hit_sound_played == FALSE)
-		{
-			VRMeleeHaptic(1, self.handvelmag);
-			sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-			self.melee_hit_sound_played = TRUE;
-		}
-	}
-	else
-	{
-		// hit wall
-		if (self.melee_hit_sound_played == FALSE)
-		{
-			VRMeleeHaptic(1, self.handvelmag);
-			sound (self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
-			self.melee_hit_sound_played = TRUE;
-		}
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
+    }
+    else
+    {
+        // hit wall
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
 
-		BroadcastGunshotEffect(org);
-	}
+        BroadcastGunshotEffect(org);
+    }
 };
 
 
@@ -247,55 +1058,53 @@ void() W_GunMelee =
 W_FistMelee
 ================
 */
-void() W_FistMelee =
+void(float xHand) W_FistMelee =
 {
-	local	vector	source;
-	local	vector	org;
-	local	float	xdmg;
-	local	string	s;
-	local	float	playedsound;
+    local vector source;
+    local vector org;
+    local float  xdmg;
+    local float  playedsound;
 
-	xdmg = VRMeleeOffHandDmg(0.75);
+    xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
-	makevectors (self.v_angle);
-	source = self.offhandpos + '0 0 0';
-	traceline (source - v_forward*24, source + v_forward * VRMeleeRange(26), FALSE, self);
-	if (trace_fraction == 1.0)
-		return;
+    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
+    {
+        return;
+    }
 
-	org = trace_endpos - v_forward*4;
+    org = trace_endpos - v_forward*4;
 
-	if (self.offhand_melee_hit_sound_played == FALSE)
-	{
-		sound (self, CHAN_WEAPON, "fisthit.wav", 1.0, ATTN_NORM);
-		playedsound = TRUE;
-	}
+    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+    {
+        sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+        playedsound = TRUE;
+    }
 
-	if (trace_ent.takedamage)
-	{
-		VRMeleeHaptic(0, self.offhandvelmag);
-		trace_ent.axhitme = 1;
-		SpawnBloodSplash (org, xdmg);
-		T_Damage (trace_ent, self, self, xdmg);
-	}
-	else
-	{
-		// hit wall
-		if (self.offhand_melee_hit_sound_played == FALSE)
-		{
-			VRMeleeHaptic(0, self.offhandvelmag);
-			PainSound();
-			SpawnBloodSplash (org, xdmg);
-			playedsound = TRUE;
-		}
+    if(trace_ent.takedamage)
+    {
+        VRMeleeHapticByHand(xHand);
+        trace_ent.axhitme = 1;
+        SpawnBloodSplash (org, xdmg);
+        T_Damage_VRMelee (trace_ent, self, self, xdmg);
+    }
+    else
+    {
+        // hit wall
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            PainSound();
+            SpawnBloodSplash (org, xdmg);
+            playedsound = TRUE;
+        }
 
-		BroadcastGunshotEffect(org);
-	}
+        BroadcastGunshotEffect(org);
+    }
 
-	if (playedsound)
-	{
-		self.offhand_melee_hit_sound_played = TRUE;
-	}
+    if(playedsound)
+    {
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
 };
 
 
@@ -305,14 +1114,14 @@ void() W_FistMelee =
 
 vector() wall_velocity =
 {
-	local vector	vel;
+    local vector    vel;
 
-	vel = normalize (self.velocity);
-	vel = normalize(vel + v_up*(random()- 0.5) + v_right*(random()- 0.5));
-	vel = vel + 2*trace_plane_normal;
-	vel = vel * 200;
+    vel = normalize (self.velocity);
+    vel = normalize(vel + v_up*(random()- 0.5) + v_right*(random()- 0.5));
+    vel = vel + 2*trace_plane_normal;
+    vel = vel * 200;
 
-	return vel;
+    return vel;
 };
 
 
@@ -323,28 +1132,27 @@ SpawnMeatSpray
 */
 void(vector org, vector vel) SpawnMeatSpray =
 {
-	local	entity missile, mpuff;
-//	local	vector	org;
+    local    entity missile;
 
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_BOUNCE;
-	missile.solid = SOLID_NOT;
+    missile = spawn();
+    missile.owner = self;
+    missile.movetype = MOVETYPE_BOUNCE;
+    missile.solid = SOLID_NOT;
 
-	makevectors (self.angles);
+    makevectors (self.angles);
 
-	missile.velocity = vel;
-	missile.velocity_z = missile.velocity_z + 250 + 50*random();
+    missile.velocity = vel;
+    missile.velocity_z = missile.velocity_z + 250 + 50*random();
 
-	missile.avelocity = '3000 1000 2000';
+    missile.avelocity = '3000 1000 2000';
 
 // set missile duration
-	missile.nextthink = time + 1;
-	missile.think = SUB_Remove;
+    missile.nextthink = time + 1;
+    missile.think = SUB_Remove;
 
-	setmodel (missile, "progs/zom_gib.mdl");
-	setsize (missile, '0 0 0', '0 0 0');
-	setorigin (missile, org);
+    setmodel (missile, "progs/zom_gib.mdl");
+    setsize (missile, '0 0 0', '0 0 0');
+    setorigin (missile, org);
 };
 
 /*
@@ -354,9 +1162,10 @@ SpawnBlood
 */
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-	particle2 (org, vel * 0.2, 1 /* blood preset */, damage);
+    particle2(org, vel * 0.2, 1 /* blood preset */, damage);
 };
 
+// QUAKE VR
 /*
 ================
 SpawnBloodSplash
@@ -364,13 +1173,13 @@ SpawnBloodSplash
 */
 void(vector org, float damage) SpawnBloodSplash =
 {
-	local vector		pvel;
+    local vector        pvel;
 
-	pvel_x = crandom() * 240;
-	pvel_y = crandom() * 240;
-	pvel_z = random() * 120 + 100;
+    pvel_x = crandom() * 240;
+    pvel_y = crandom() * 240;
+    pvel_z = random() * 120 + 100;
 
-	SpawnBlood(org, pvel, damage);
+    SpawnBlood(org, pvel, damage);
 };
 
 
@@ -383,10 +1192,10 @@ spawn_touchblood
 */
 void(float damage) spawn_touchblood =
 {
-	local vector	vel;
+    local vector    vel;
 
-	vel = wall_velocity () * 0.2;
-	SpawnBlood (self.origin + vel * 0.01, vel, damage);
+    vel = wall_velocity () * 0.2;
+    SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
 
@@ -397,7 +1206,7 @@ SpawnChunk
 */
 void(vector org, vector vel) SpawnChunk =
 {
-	particle (org, vel * 0.02, 0, 10);
+    particle (org, vel * 0.02, 0, 10);
 };
 
 /*
@@ -410,35 +1219,35 @@ Collects multiple small damages into a single damage
 ==============================================================================
 */
 
-entity	multi_ent;
-float	multi_damage;
+entity    multi_ent;
+float    multi_damage;
 
 void() ClearMultiDamage =
 {
-	multi_ent = world;
-	multi_damage = 0;
+    multi_ent = world;
+    multi_damage = 0;
 };
 
 void() ApplyMultiDamage =
 {
-	if (!multi_ent)
-		return;
-	T_Damage (multi_ent, self, self, multi_damage);
+    if(!multi_ent)
+        return;
+    T_Damage (multi_ent, self, self, multi_damage);
 };
 
 void(entity hit, float damage) AddMultiDamage =
 {
-	if (!hit)
-		return;
+    if(!hit)
+        return;
 
-	if (hit != multi_ent)
-	{
-		ApplyMultiDamage ();
-		multi_damage = damage;
-		multi_ent = hit;
-	}
-	else
-		multi_damage = multi_damage + damage;
+    if(hit != multi_ent)
+    {
+        ApplyMultiDamage();
+        multi_damage = damage;
+        multi_ent = hit;
+    }
+    else
+        multi_damage = multi_damage + damage;
 };
 
 /*
@@ -456,24 +1265,25 @@ TraceAttack
 */
 void(float damage, vector dir) TraceAttack =
 {
-	local	vector	vel, org;
+    local    vector    vel, org;
 
-	vel = normalize(dir + v_up*crandom() + v_right*crandom());
-	vel = vel + 2*trace_plane_normal;
-	vel = vel * 200;
+    vel = normalize(dir + v_up*crandom() + v_right*crandom());
+    vel = vel + 2*trace_plane_normal;
+    vel = vel * 200;
 
-	org = trace_endpos - dir*4;
+    org = trace_endpos - dir*4;
 
-	if (trace_ent.takedamage)
-	{
-		SpawnBlood (org, vel*0.2, damage);
-		AddMultiDamage (trace_ent, damage);
-	}
-	else
-	{
-		BroadcastGunshotEffect(org);
-	}
+    if(trace_ent.takedamage)
+    {
+        SpawnBlood (org, vel*0.2, damage);
+        AddMultiDamage (trace_ent, damage);
+    }
+    else
+    {
+        BroadcastGunshotEffect(org);
+    }
 };
+
 
 /*
 ================
@@ -483,61 +1293,53 @@ Used by shotgun, and super shotgun
 Go to the trouble of combining multiple pellets into a single damage call.
 ================
 */
-void(float shotcount, vector dir, vector spread) FireBullets =
+void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 {
-	local	vector direction;
-	local	vector	src;
+    local vector direction;
+    local float adjDmg;
+    local float posDmgType;
 
-	makevectors(self.v_angle);
+    makevectors(vectoangles(dir));
 
-	src = self.handpos; // + v_forward*10;
-	// src_z = self.absmin_z + self.size_z * 0.7;
+    ClearMultiDamage();
+    while(shotcount > 0)
+    {
+        direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-	ClearMultiDamage ();
-	while (shotcount > 0)
-	{
-		direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
+        traceline(src, src + direction*2048, FALSE, self);
+        if(trace_fraction != 1.0)
+        //JIM
+        {
+            posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            adjDmg = 4 * PositionalDamageFactor(posDmgType);
 
-		traceline (src, src + direction*2048, FALSE, self);
-		if (trace_fraction != 1.0)
-			TraceAttack (4, direction);
+            TraceAttack (adjDmg, direction);
 
-		shotcount = shotcount - 1;
-	}
-	ApplyMultiDamage ();
+            // HIPNOTIC
+            if(trace_ent == world)
+            {
+                placebullethole( trace_endpos );
+            }
+        }
+
+        shotcount = shotcount - 1;
+    }
+    ApplyMultiDamage();
 };
 
+void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
+{
+    FireBulletsImpl(shotcount, dir, spread, VRGetMuzzlePos(xHand));
+}
 
-/*
-================
-EnemyFireBullets
-
-Used by enemy soldier firing
-Go to the trouble of combining multiple pellets into a single damage call.
-================
-*/
 void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 {
-	local	vector direction;
-	local	vector	src;
+    local    vector    src;
 
-	makevectors(self.v_angle);
+    src = self.origin + v_forward*10;
+    src_z = self.absmin_z + self.size_z * 0.7;
 
-	src = self.origin + v_forward*10;
-	src_z = self.absmin_z + self.size_z * 0.7;
-
-	ClearMultiDamage ();
-	while (shotcount > 0)
-	{
-		direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
-
-		traceline (src, src + direction*2048, FALSE, self);
-		if (trace_fraction != 1.0)
-			TraceAttack (4, direction);
-
-		shotcount = shotcount - 1;
-	}
-	ApplyMultiDamage ();
+    FireBulletsImpl(shotcount, dir, spread, src);
 };
 
 /*
@@ -545,21 +1347,23 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 W_FireShotgun
 ================
 */
-void() W_FireShotgun =
+void(float xHand) W_FireShotgun =
 {
-	local vector dir;
+    local vector dir;
 
-	sound (self, CHAN_WEAPON, "weapons/guncock.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	self.currentammo = self.ammo_shells = self.ammo_shells - 1;
-	dir = aim (self, 100000);
-	FireBullets (6, dir, '0.01 0.01 0');
+    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 1);
 
-	VRGunHaptic(0.25, 70, 0.75);
+    dir = VRGetWeaponFireRotFwd(xHand);
 
-	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    FireBullets (xHand, 6, dir, '0.01 0.01 0');
+
+    VRGunHaptic(xHand, 0.25, 70, 0.75);
+
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -568,28 +1372,28 @@ void() W_FireShotgun =
 W_FireSuperShotgun
 ================
 */
-void() W_FireSuperShotgun =
+void(float xHand) W_FireSuperShotgun =
 {
-	local vector dir;
+    local vector dir;
 
-	if (self.currentammo == 1)
-	{
-		W_FireShotgun ();
-		return;
-	}
+    if(getCurrentAmmo(xHand) == 1)
+    {
+        W_FireShotgun (xHand);
+        return;
+    }
 
-	sound (self ,CHAN_WEAPON, "weapons/shotgn2.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -4;
+    self.punchangle_x = -4;
 
-	self.currentammo = self.ammo_shells = self.ammo_shells - 2;
-	dir = aim (self, 100000);
-	FireBullets (14, dir, '0.035 0.025 0');
+    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 2);
+    dir = VRGetWeaponFireRotFwd(xHand);
+    FireBullets (xHand, 14, dir, '0.035 0.025 0');
 
-	VRGunHaptic(0.55, 75, 1.0);
+    VRGunHaptic(xHand, 0.55, 75, 1.0);
 
-	particle2 (self.muzzlepos - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
-	particle2 (self.muzzlepos + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -601,59 +1405,59 @@ ROCKETS
 ==============================================================================
 */
 
-void()	s_explode1	=	[0,		s_explode2] {};
-void()	s_explode2	=	[1,		s_explode3] {};
-void()	s_explode3	=	[2,		s_explode4] {};
-void()	s_explode4	=	[3,		s_explode5] {};
-void()	s_explode5	=	[4,		s_explode6] {};
-void()	s_explode6	=	[5,		SUB_Remove] {};
+void()    s_explode1    =    [0,        s_explode2] {};
+void()    s_explode2    =    [1,        s_explode3] {};
+void()    s_explode3    =    [2,        s_explode4] {};
+void()    s_explode4    =    [3,        s_explode5] {};
+void()    s_explode5    =    [4,        s_explode6] {};
+void()    s_explode6    =    [5,        SUB_Remove] {};
 
 void() BecomeExplosion =
 {
-	self.movetype = MOVETYPE_NONE;
-	self.velocity = '0 0 0';
-	self.touch = SUB_Null;
-	setmodel (self, "progs/s_explod.spr");
-	self.solid = SOLID_NOT;
-	s_explode1 ();
+    self.movetype = MOVETYPE_NONE;
+    self.velocity = '0 0 0';
+    self.touch = SUB_Null;
+    setmodel (self, "progs/s_explod.spr");
+    self.solid = SOLID_NOT;
+    s_explode1();
 };
 
 void() T_MissileTouch =
 {
-	local float	damg;
+    local float    damg;
 
-	if (other == self.owner)
-		return;		// don't explode on owner
+    if(other == self.owner)
+        return;        // don't explode on owner
 
-	if (pointcontents(self.origin) == CONTENT_SKY)
-	{
-		remove(self);
-		return;
-	}
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
 
-	damg = 100 + random()*20;
+    damg = 100 + random()*20;
 
-	if (other.health)
-	{
-		if (other.classname == "monster_shambler")
-			damg = damg * 0.5;	// mostly immune
-		T_Damage (other, self, self.owner, damg );
-	}
+    if(other.health)
+    {
+        if(other.classname == "monster_shambler")
+            damg = damg * 0.5;    // mostly immune
+        T_Damage (other, self, self.owner, damg );
+    }
 
-	// don't do radius damage to the other, because all the damage
-	// was done in the impact
-	T_RadiusDamage (self, self.owner, 120, other);
+    // don't do radius damage to the other, because all the damage
+    // was done in the impact
+    T_RadiusDamage (self, self.owner, 120, other);
 
-//	sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
-	self.origin = self.origin - 8*normalize(self.velocity);
+//    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+    self.origin = self.origin - 8*normalize(self.velocity);
 
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-	WriteCoord (MSG_BROADCAST, self.origin_x);
-	WriteCoord (MSG_BROADCAST, self.origin_y);
-	WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-	BecomeExplosion ();
+    BecomeExplosion();
 };
 
 
@@ -663,44 +1467,44 @@ void() T_MissileTouch =
 W_FireRocket
 ================
 */
-void() W_FireRocket =
+void(float xHand) W_FireRocket =
 {
-	local	entity missile, mpuff;
+    local    entity missile;
 
-	self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
 
-	sound (self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_FLYMISSILE;
-	missile.solid = SOLID_BBOX;
-	missile.classname = "missile";
+    missile = spawn();
+    missile.owner = self;
+    missile.movetype = MOVETYPE_FLYMISSILE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "missile";
 
-// set missile speed
+    // set missile speed
+    missile.velocity = VRGetWeaponFireRotFwd(xHand) * 1000;
+    missile.angles = vectoangles(missile.velocity);
 
-	makevectors (self.v_angle);
-	missile.velocity = aim(self, 1000);
-	missile.velocity = missile.velocity * 1000;
-	missile.angles = vectoangles(missile.velocity);
+    missile.touch = T_MissileTouch;
+    missile.velocity = missile.velocity + vrProjectileVelocity();
 
-	missile.touch = T_MissileTouch;
-	missile.velocity = missile.velocity + vrProjectileVelocity();
+    // set missile duration
+    missile.nextthink = time + 5;
+    missile.think = SUB_Remove;
 
-// set missile duration
-	missile.nextthink = time + 5;
-	missile.think = SUB_Remove;
+    setmodel (missile, "progs/missile.mdl");
+    setsize (missile, '0 0 0', '0 0 0');
+    setorigin (missile, VRGetMuzzlePos(xHand));
 
-	setmodel (missile, "progs/missile.mdl");
-	setsize (missile, '0 0 0', '0 0 0');
-	setorigin (missile, self.handpos + '0 0 0');
-	//setorigin (missile, self.handpos + v_forward*8 + '0 0 16');
+    // HIPNOTIC
+    //MED 11/09/96
+    newmis = missile;
 
-	VRGunHaptic(0.5, 75, 1.0);
+    VRGunHaptic(xHand, 0.5, 75, 1.0);
 
-	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 3);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 3);
 };
 
 /*
@@ -718,90 +1522,97 @@ LightningDamage
 */
 void(vector p1, vector p2, entity from, float damage) LightningDamage =
 {
-	local entity		e1, e2;
-	local vector		f;
+    local entity        e1, e2;
+    local vector        f;
 
-	f = p2 - p1;
-	normalize (f);
-	f_x = 0 - f_y;
-	f_y = f_x;
-	f_z = 0;
-	f = f*16;
+    f = p2 - p1;
+    normalize (f);
+    f_x = 0 - f_y;
+    f_y = f_x;
+    f_z = 0;
+    f = f*16;
 
-	e1 = e2 = world;
+    e1 = e2 = world;
 
-	traceline (p1, p2, FALSE, self);
-	if (trace_ent.takedamage)
-	{
-		SpawnBloodSplash (trace_endpos, damage*5);
-		T_Damage (trace_ent, from, from, damage);
-		if (self.classname == "player")
-		{
-			if (other.classname == "player")
-				trace_ent.velocity_z = trace_ent.velocity_z + 400;
-		}
-	}
-	e1 = trace_ent;
+    traceline(p1, p2, FALSE, self);
+//JIM
+    if(trace_ent.takedamage && !trace_ent.wetsuit_finished )
+    {
+        SpawnBloodSplash (trace_endpos, damage*5);
+        T_Damage (trace_ent, from, from, damage);
+        if(self.classname == "player")
+        {
+            if(other.classname == "player")
+                trace_ent.velocity_z = trace_ent.velocity_z + 400;
+        }
+    }
+    e1 = trace_ent;
 
-	traceline (p1 + f, p2 + f, FALSE, self);
-	if (trace_ent != e1 && trace_ent.takedamage)
-	{
-		SpawnBloodSplash (trace_endpos, damage*5);
-		T_Damage (trace_ent, from, from, damage);
-	}
-	e2 = trace_ent;
+    traceline(p1 + f, p2 + f, FALSE, self);
+//JIM
+    if(trace_ent != e1 && trace_ent.takedamage &&
+    !trace_ent.wetsuit_finished )
+    {
+        SpawnBloodSplash (trace_endpos, damage*5);
+        T_Damage (trace_ent, from, from, damage);
+    }
+    e2 = trace_ent;
 
-	traceline (p1 - f, p2 - f, FALSE, self);
-	if (trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
-	{
-		SpawnBloodSplash (trace_endpos, damage*5);
-		T_Damage (trace_ent, from, from, damage);
-	}
+    traceline(p1 - f, p2 - f, FALSE, self);
+//JIM
+    if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
+        !trace_ent.wetsuit_finished )
+    {
+        SpawnBloodSplash (trace_endpos, damage*5);
+        T_Damage (trace_ent, from, from, damage);
+    }
 };
 
 
-void() W_FireLightning =
+void(float xHand) W_FireLightning =
 {
-	local	vector		org;
-	local	float		cells;
+    local    vector        org;
+    local    float        cells;
 
-	if (self.ammo_cells < 1)
-	{
-		self.weapon = W_BestWeapon ();
-		W_SetCurrentAmmo ();
-		return;
-	}
-
+    if(self.ammo_cells < 1)
+    {
+        return;
+    }
 // explode if under water
-	if (self.waterlevel > 1)
-	{
-		cells = self.ammo_cells;
-		self.ammo_cells = 0;
-		W_SetCurrentAmmo ();
-		T_RadiusDamage (self, self, 35*cells, world);
-		return;
-	}
+    if(self.waterlevel > 1)
+    {
+        cells = self.ammo_cells;
+        self.ammo_cells = 0;
 
-	if (self.t_width < time)
-	{
-		sound (self, CHAN_WEAPON, "weapons/lhit.wav", 1, ATTN_NORM);
-		self.t_width = time + 0.6;
-	}
-	self.punchangle_x = -2;
+    // HIPNOTIC
+//MED 01/05/97 added discharge flag
+        discharged = 1;
+        T_RadiusDamage (self, self, 35*cells, world);
+        discharged = 0;
+        W_SetCurrentAmmo();
+        return;
+    }
 
-	self.currentammo = self.ammo_cells = self.ammo_cells - 1;
+    if(self.t_width < time)
+    {
+        sound(self, VRGetGunChannel(xHand), "weapons/lhit.wav", 1, ATTN_NORM);
+        self.t_width = time + 0.6;
+    }
 
-	// org = self.handpos + '0 0 16';
-	org = self.handpos + '0 0 0';
+    self.punchangle_x = -2;
+    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
 
-	traceline (org, org + v_forward*600, TRUE, self);
-	particle2 (trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
-	particle2 (trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
-	particle2 (trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
-	LightningDamage (self.handpos, trace_endpos + v_forward*4, self, 30);
+    org = VRGetMuzzlePos(xHand);
 
-	VRGunHaptic(0.4, 175, 1.0);
-	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    makeforward (VRGetHandRot(xHand));
+    traceline(org, org + v_forward*600, TRUE, self);
+    particle2(trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
+    particle2(trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
+    particle2(trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
+    LightningDamage (org, trace_endpos + v_forward*4, self, 30);
+
+    VRGunHaptic(xHand, 0.4, 175, 1.0);
+    particle2(org, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 
@@ -810,29 +1621,35 @@ void() W_FireLightning =
 
 void() GrenadeExplode =
 {
-	T_RadiusDamage (self, self.owner, 120, world);
+    T_RadiusDamage (self, self.owner, 120, world);
 
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-	WriteCoord (MSG_BROADCAST, self.origin_x);
-	WriteCoord (MSG_BROADCAST, self.origin_y);
-	WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
-	BecomeExplosion ();
+    BecomeExplosion();
 };
 
 void() GrenadeTouch =
 {
-	if (other == self.owner)
-		return;		// don't explode on owner
-	if (other.takedamage == DAMAGE_AIM)
-	{
-		GrenadeExplode();
-		return;
-	}
-	sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);	// bounce sound
-	if (self.velocity == '0 0 0')
-		self.avelocity = '0 0 0';
+    if(other == self.owner)
+        return;        // don't explode on owner
+
+    if(other.takedamage == DAMAGE_AIM)
+    {
+        GrenadeExplode();
+        return;
+    }
+
+    if(vlen(self.velocity) > 10)
+    {
+        sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);    // bounce sound
+    }
+
+    if(self.velocity == '0 0 0')
+        self.avelocity = '0 0 0';
 };
 
 /*
@@ -840,72 +1657,255 @@ void() GrenadeTouch =
 W_FireGrenade
 ================
 */
-void() W_FireGrenade =
+void(float xHand) W_FireGrenade =
 {
-	local	entity missile, mpuff;
+    local entity missile;
+    local vector tmpAngles;
 
-	self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
 
-	sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_BOUNCE;
-	missile.solid = SOLID_BBOX;
-	missile.classname = "grenade";
+    missile = spawn();
+    missile.owner = self;
+    missile.movetype = MOVETYPE_BOUNCE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "grenade";
 
-// set missile speed
+    // set missile speed
+    tmpAngles = VRGetWeaponFireRot(xHand);
+    makevectors (tmpAngles);
 
-	makevectors (self.v_angle);
+    if(cvar("vr_enabled") == 1)
+    {
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+        }
 
-	if (cvar("vr_enabled") == 1)
-	{
-		if (self.v_angle_x)
-		{
-			missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
-		}
-		else
-		{
-			missile.velocity = aim(self, 10000);
-			missile.velocity = missile.velocity * 600;
-		}
+        missile.velocity = missile.velocity + vrProjectileVelocity();
+    }
+    else
+    {
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+            missile.velocity_z = 200;
+        }
+    }
 
-		missile.velocity = missile.velocity + vrProjectileVelocity();
-	}
-	else
-	{
-		if (self.v_angle_x)
-		{
-			missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
-		}
-		else
-		{
-			missile.velocity = aim(self, 10000);
-			missile.velocity = missile.velocity * 600;
-			missile.velocity_z = 200;
-		}
-	}
+    missile.avelocity = '300 300 300';
 
-	missile.avelocity = '300 300 300';
+    missile.angles = vectoangles(missile.velocity);
 
-	missile.angles = vectoangles(missile.velocity);
-
-	missile.touch = GrenadeTouch;
+    missile.touch = GrenadeTouch;
 
 // set missile duration
-	missile.nextthink = time + 2.5;
-	missile.think = GrenadeExplode;
+    missile.nextthink = time + 2.5;
+    missile.think = GrenadeExplode;
 
-	setmodel (missile, "progs/grenade.mdl");
-	setsize (missile, '0 0 0', '0 0 0');
-	setorigin (missile, self.handpos);
+    setmodel (missile, "progs/grenade.mdl");
+    setsize (missile, '0 0 0', '0 0 0');
+    setorigin (missile, VRGetMuzzlePos(xHand));
 
-	VRGunHaptic(0.4, 75, 1.0);
-	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 2);
+    VRGunHaptic(xHand, 0.4, 75, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
+
+void() ProximityExplode =
+{
+    T_RadiusDamage (self, self.owner, 95, world);
+
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+
+    BecomeExplosion();
+};
+
+//MED 10/31/96
+float NumProximityGrenades;
+/*
+================
+ProximityGrenadeExplode
+================
+*/
+void() ProximityGrenadeExplode =
+   {
+   self.takedamage = DAMAGE_NO;
+   NumProximityGrenades = NumProximityGrenades - 1;
+   self.deathtype = "exploding";
+   self.nextthink = time + 0.1;
+   self.owner = self.lastvictim;
+   self.think = ProximityExplode;
+   };
+
+/*
+================
+ProximityGrenadeTouch
+================
+*/
+void() ProximityGrenadeTouch =
+   {
+   if(other == self)
+      return;
+   if(other.classname == self.classname)
+      return;
+   self.movetype = MOVETYPE_TOSS;
+   if(self.state == 1)
+      return;
+   if(vlen(other.velocity) > 0)
+      {
+      ProximityGrenadeExplode();
+      self.think();
+      return;
+      }
+   if(other.takedamage == DAMAGE_AIM)
+      {
+      ProximityGrenadeExplode();
+      self.think();
+      return;
+      }
+
+        sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM); // bounce sound
+
+   self.movetype = MOVETYPE_NONE;
+   setsize (self, '-8 -8 -8', '8 8 8');
+   self.state = 1;
+   self.spawnmaster = other;
+   };
+
+/*
+================
+ProximityBomb
+================
+*/
+void() ProximityBomb =
+   {
+   local entity   head;
+   local float    blowup;
+
+   if((time > self.delay) || (NumProximityGrenades > 15) || (vlen(self.spawnmaster.velocity)>0) )
+      {
+      ProximityGrenadeExplode();
+      self.think();
+      return;
+      }
+   self.owner = world;
+   self.takedamage = DAMAGE_YES;
+   head = findradius(self.origin, 140);
+   blowup = 0;
+
+   while(head)
+      {
+      if((head != self) && (head.health > 0) && (head.flags & (FL_CLIENT|FL_MONSTER)) && (head.classname!=self.classname))
+         blowup = 1;
+      if((head.classname == self.classname) && (head.state==0))
+         blowup = 1;
+      traceline(self.origin,head.origin,TRUE,self);
+      if(trace_fraction != 1.0)
+         blowup = 0;
+      if(blowup==1)
+         {
+         sound(self, CHAN_WEAPON, "hipweap/proxwarn.wav", 1, ATTN_NORM);
+         ProximityGrenadeExplode();
+         self.nextthink = time + 0.5;
+         return;
+         }
+      head = head.chain;
+      }
+   self.nextthink = time + 0.25;
+   };
+
+/*
+================
+W_FireProximityGrenade
+================
+*/
+void(float xHand) W_FireProximityGrenade =
+{
+    local entity missile;
+    local vector tmpAngles;
+
+    NumProximityGrenades = NumProximityGrenades + 1;
+    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
+
+    sound(self, VRGetGunChannel(xHand), "hipweap/proxbomb.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    missile = spawn();
+    missile.owner = self;
+    missile.lastvictim = self;
+    missile.movetype = MOVETYPE_TOSS;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "proximity_grenade";
+    missile.takedamage = DAMAGE_NO;
+    missile.health = 5;
+    missile.state = 0;
+
+    // set missile speed
+    tmpAngles = VRGetWeaponFireRot(xHand);
+    makevectors (tmpAngles);
+
+    if(cvar("vr_enabled") == 1)
+    {
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+        }
+
+        missile.velocity = missile.velocity + vrProjectileVelocity();
+    }
+    else
+    {
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+            missile.velocity_z = 200;
+        }
+    }
+
+    missile.avelocity = '100 600 100';
+
+    missile.angles = vectoangles(missile.velocity);
+
+    missile.touch = ProximityGrenadeTouch;
+
+    // set missile duration
+    missile.nextthink = time + 2;
+    missile.delay = time + 15 + (10*random());
+    missile.think = ProximityBomb;
+    missile.th_die = ProximityGrenadeExplode;
+
+    setmodel (missile, "progs/proxbomb.mdl");
+    setorigin (missile, VRGetMuzzlePos(xHand));
+    setsize (missile, '-1 -1 -1', '1 1 1');
+
+    VRGunHaptic(xHand, 0.4, 75, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
+};
 
 //=============================================================================
 
@@ -922,156 +1922,193 @@ Used for both the player and the ogre
 */
 void(vector org, vector dir) launch_spike =
 {
-	newmis = spawn ();
-	newmis.owner = self;
-	newmis.movetype = MOVETYPE_FLYMISSILE;
-	newmis.solid = SOLID_BBOX;
+    newmis = spawn();
+    newmis.owner = self;
+    newmis.movetype = MOVETYPE_FLYMISSILE;
+    newmis.solid = SOLID_BBOX;
 
-	newmis.angles = vectoangles(dir);
+    newmis.angles = vectoangles(dir);
 
-	newmis.touch = spike_touch;
-	newmis.classname = "spike";
-	newmis.think = SUB_Remove;
-	newmis.nextthink = time + 6;
-	setmodel (newmis, "progs/spike.mdl");
-	setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
-	setorigin (newmis, org);
+    newmis.touch = spike_touch;
+    newmis.classname = "spike";
+    newmis.think = SUB_Remove;
+    newmis.nextthink = time + 6;
+    setmodel (newmis, "progs/spike.mdl");
+    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+    setorigin (newmis, org);
 
-	newmis.velocity = dir * 1750;
+    newmis.velocity = dir * 1750;
 };
 
-void() W_FireSuperSpikes =
+void(float xHand) W_FireSuperSpikes =
 {
-	local vector	dir;
-	local entity	old;
+    local vector dir;
 
-	sound (self, CHAN_WEAPON, "weapons/spike2.wav", 1, ATTN_NORM);
-	self.attack_finished = time + 0.2;
-	self.currentammo = self.ammo_nails = self.ammo_nails - 2;
-	dir = aim (self, 1000);
-	// launch_spike (self.handpos + '0 0 16', dir);
-	launch_spike (self.handpos + '0 0 0', dir);
-	newmis.touch = superspike_touch;
-	setmodel (newmis, "progs/s_spike.mdl");
-	setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+    sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
+    VRSetAttackFinished(xHand, time + 0.2);
+    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 2);
 
-	newmis.velocity = newmis.velocity + vrProjectileVelocity();
+    makeforward (VRGetWeaponFireRot(xHand));
+    dir = v_forward;
 
-	self.punchangle_x = -2;
+    launch_spike (VRGetMuzzlePos(xHand), dir);
+    newmis.touch = superspike_touch;
+    setmodel (newmis, "progs/s_spike.mdl");
+    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
 
-	VRGunHaptic(0.05, 150, 1.0);
-	particle2 (self.muzzlepos, '0 0 0', 6 /* gun smoke preset */, 1);
+    newmis.velocity = newmis.velocity + vrProjectileVelocity();
+
+    self.punchangle_x = -2;
+
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
-void(float ox) W_FireSpikes =
+void(float xHand, float ox) W_FireSpikes =
 {
-	local vector	dir;
-	local entity	old;
+    local vector    dir;
 
-	makevectors (self.v_angle);
+    makevectors (VRGetWeaponFireRot(xHand));
 
-	if (self.ammo_nails >= 2 && self.weapon == IT_SUPER_NAILGUN)
-	{
-		W_FireSuperSpikes ();
-		return;
-	}
+    if(self.ammo_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
+    {
+        W_FireSuperSpikes (xHand);
+        return;
+    }
 
-	if (self.ammo_nails < 1)
-	{
-		self.weapon = W_BestWeapon ();
-		W_SetCurrentAmmo ();
-		return;
-	}
+    if(self.ammo_nails < 1)
+    {
+        return;
+    }
 
-	sound (self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
-	self.attack_finished = time + 0.2;
-	self.currentammo = self.ammo_nails = self.ammo_nails - 1;
-	dir = aim (self, 1000);
-	// launch_spike (self.handpos + '0 0 16' + v_right*ox, dir);
-	launch_spike (self.handpos + '0 0 0' + v_right*ox, dir);
+    sound(self, VRGetGunChannel(xHand), "weapons/rocket1i.wav", 1, ATTN_NORM);
+    VRSetAttackFinished(xHand, time + 0.2);
+    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 1);
+    dir = v_forward;
+    launch_spike (VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
-	newmis.velocity = newmis.velocity + vrProjectileVelocity();
+    newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
-	self.punchangle_x = -2;
+    self.punchangle_x = -2;
 
-	VRGunHaptic(0.05, 150, 1.0);
-	particle2 (self.muzzlepos + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
+    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
+void() spike_bullethole =
+{
+    if(trace_ent == world)
+    {
+        placebullethole(trace_endpos);
+    }
+}
 
+// According to Spike, mdls render wrongly in Quake 1. Their pitch angles are
+// flipped (relative to the view, bsp models, or sprites).
+void(vector ang) makevectors_mdl =
+{
+    ang_x *= -1;
+    makevectors(ang);
+}
+
+void(vector ang) makeforward_mdl =
+{
+    ang_x *= -1;
+    makeforward(ang);
+}
 
 .float hit_z;
 void() spike_touch =
 {
-local float rand;
-	if (other == self.owner)
-		return;
+    local float posDmgType;
+    local float adjDmg;
 
-	if (other.solid == SOLID_TRIGGER)
-		return;	// trigger field, do nothing
+    if(other == self.owner)
+        return;
 
-	if (pointcontents(self.origin) == CONTENT_SKY)
-	{
-		remove(self);
-		return;
-	}
+    if(other.solid == SOLID_TRIGGER)
+        return;    // trigger field, do nothing
+
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+
+    makeforward_mdl(self.angles);
+    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
-	if (other.takedamage)
-	{
-		spawn_touchblood (9);
-		T_Damage (other, self, self.owner, 9);
-	}
-	else
-	{
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+    if(other.takedamage)
+    {
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
-		if (self.classname == "wizspike")
-			WriteByte (MSG_BROADCAST, TE_WIZSPIKE);
-		else if (self.classname == "knightspike")
-			WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
-		else
-			WriteByte (MSG_BROADCAST, TE_SPIKE);
-		WriteCoord (MSG_BROADCAST, self.origin_x);
-		WriteCoord (MSG_BROADCAST, self.origin_y);
-		WriteCoord (MSG_BROADCAST, self.origin_z);
-	}
+        spawn_touchblood (adjDmg);
+        T_Damage (other, self, self.owner, adjDmg);
+    }
+    else
+    {
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
 
-	remove(self);
+        if(self.classname == "wizspike")
+            WriteByte(MSG_BROADCAST, TE_WIZSPIKE);
+        else if(self.classname == "knightspike")
+            WriteByte(MSG_BROADCAST, TE_KNIGHTSPIKE);
+        else
+        {
+            spike_bullethole();
+            WriteByte(MSG_BROADCAST, TE_SPIKE);
+        }
 
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
+    }
+
+    remove(self);
 };
 
 void() superspike_touch =
 {
-local float rand;
-	if (other == self.owner)
-		return;
+    local float posDmgType;
+    local float adjDmg;
 
-	if (other.solid == SOLID_TRIGGER)
-		return;	// trigger field, do nothing
+    if(other == self.owner)
+        return;
 
-	if (pointcontents(self.origin) == CONTENT_SKY)
-	{
-		remove(self);
-		return;
-	}
+    if(other.solid == SOLID_TRIGGER)
+        return;    // trigger field, do nothing
+
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+
+    makeforward_mdl(self.angles);
+    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
 // hit something that bleeds
-	if (other.takedamage)
-	{
-		spawn_touchblood (18);
-		T_Damage (other, self, self.owner, 18);
-	}
-	else
-	{
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_SUPERSPIKE);
-		WriteCoord (MSG_BROADCAST, self.origin_x);
-		WriteCoord (MSG_BROADCAST, self.origin_y);
-		WriteCoord (MSG_BROADCAST, self.origin_z);
-	}
+    if(other.takedamage)
+    {
+        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
-	remove(self);
+        spawn_touchblood (adjDmg);
+        T_Damage (other, self, self.owner, adjDmg);
+    }
+    else
+    {
+        spike_bullethole();
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_SUPERSPIKE);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
+    }
+
+    remove(self);
 
 };
 
@@ -1084,108 +2121,86 @@ PLAYER WEAPON USE
 ===============================================================================
 */
 
+void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
+{
+    *xCurrentAmmo = WeaponIdToAmmoId(xWeapon);
+    *xModel = WeaponIdToModel(xWeapon);
+    *xFrame = 0;
+};
+
 void() W_SetCurrentAmmo =
 {
-	player_run ();		// get out of any weapon firing states
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    W_SetCurrentAmmoFor(cVR_OffHand);
+};
 
-	self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS) );
+void(float xHand) W_SetCurrentAmmoFor =
+{
+    // TODO VR: (P2) code repetition between branches
+    if(xHand == cVR_MainHand)
+    {
+        player_run(cVR_MainHand); // get out of any weapon firing states
+        VRSetWeaponFrame(cVR_MainHand, 0);
 
-	if (self.weapon == IT_AXE)
-	{
-		self.currentammo = 0;
-		self.weaponmodel = "progs/v_axe.mdl";
-		self.weaponframe = 0;
-	}
-	else if (self.weapon == IT_SHOTGUN)
-	{
-		self.currentammo = self.ammo_shells;
-		self.weaponmodel = "progs/v_shot.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_SHELLS;
-	}
-	else if (self.weapon == IT_SUPER_SHOTGUN)
-	{
-		self.currentammo = self.ammo_shells;
-		self.weaponmodel = "progs/v_shot2.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_SHELLS;
-	}
-	else if (self.weapon == IT_NAILGUN)
-	{
-		self.currentammo = self.ammo_nails;
-		self.weaponmodel = "progs/v_nail.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_NAILS;
-	}
-	else if (self.weapon == IT_SUPER_NAILGUN)
-	{
-		self.currentammo = self.ammo_nails;
-		self.weaponmodel = "progs/v_nail2.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_NAILS;
-	}
-	else if (self.weapon == IT_GRENADE_LAUNCHER)
-	{
-		self.currentammo = self.ammo_rockets;
-		self.weaponmodel = "progs/v_rock.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_ROCKETS;
-	}
-	else if (self.weapon == IT_ROCKET_LAUNCHER)
-	{
-		self.currentammo = self.ammo_rockets;
-		self.weaponmodel = "progs/v_rock2.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_ROCKETS;
-	}
-	else if (self.weapon == IT_LIGHTNING)
-	{
-		self.currentammo = self.ammo_cells;
-		self.weaponmodel = "progs/v_light.mdl";
-		self.weaponframe = 0;
-		self.items = self.items | IT_CELLS;
-	}
-	else
-	{
-		self.currentammo = 0;
-		self.weaponmodel = "";
-		self.weaponframe = 0;
-	}
+        W_SetCurrentAmmoImpl(self.weapon,
+            &self.currentammo, &self.weaponmodel, &self.weaponframe);
+    }
+
+    if(xHand == cVR_OffHand)
+    {
+        player_run(cVR_OffHand);  // get out of any weapon firing states
+        VRSetWeaponFrame(cVR_OffHand, 0);
+
+        W_SetCurrentAmmoImpl(self.weapon2,
+            &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
+    }
+
+    updateAmmoCounters();
 };
 
 float() W_BestWeapon =
 {
-	local	float	it;
+    local    float    it;
 
-	it = self.items;
+    it = self.items;
 
-	if (self.waterlevel <= 1 && self.ammo_cells >= 1 && (it & IT_LIGHTNING) )
-			return IT_LIGHTNING;
-	if(self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN) )
-		return IT_SUPER_NAILGUN;
-	if(self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN) )
-		return IT_SUPER_SHOTGUN;
-	if(self.ammo_nails >= 1 && (it & IT_NAILGUN) )
-		return IT_NAILGUN;
-	if(self.ammo_shells >= 1 && (it & IT_SHOTGUN) )
-		return IT_SHOTGUN;
-	return IT_AXE;
+    if(self.waterlevel <= 1 && self.ammo_cells >= 1 && (it & IT_LIGHTNING) )
+        return WID_LIGHTNING;
+//MED
+    if(self.ammo_cells >= 1 && (it & IT_LASER_CANNON) )
+        return WID_LASER_CANNON;
+    if(self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN) )
+        return WID_SUPER_NAILGUN;
+    if(self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN) )
+        return WID_SUPER_SHOTGUN;
+    if(self.ammo_nails >= 1 && (it & IT_NAILGUN) )
+        return WID_NAILGUN;
+    if(self.ammo_shells >= 1 && (it & IT_SHOTGUN) )
+        return WID_SHOTGUN;
+//MED
+    if( it & IT_MJOLNIR )
+        return WID_MJOLNIR;
+
+    return WID_AXE;
 };
 
-float() W_CheckNoAmmo =
+float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
 {
-	if (self.currentammo > 0)
-		return TRUE;
+    if(VRIsAmmolessWeapon(xHand))
+    {
+        return TRUE;
+    }
 
-	if (self.weapon == IT_AXE)
-		return TRUE;
+    if(getCurrentAmmo(xHand) > 0)
+    {
+        return TRUE;
+    }
 
-	self.weapon = W_BestWeapon ();
+    // *xOutWeapon = W_BestWeapon();
+    // W_SetCurrentAmmo();
 
-	W_SetCurrentAmmo ();
-
-// drop the weapon down
-	return FALSE;
+    // drop the weapon down
+    return FALSE;
 };
 
 /*
@@ -1195,80 +2210,147 @@ W_Attack
 An attack impulse can be triggered now
 ============
 */
-void()	player_axe1;
-void()	player_axeb1;
-void()	player_axec1;
-void()	player_axed1;
-void()	player_shot1;
-void()	player_nail1;
-void()	player_light1;
-void()	player_rocket1;
+void(float xHand)    player_axe1;
+void(float xHand)    player_axeb1;
+void(float xHand)    player_axec1;
+void(float xHand)    player_axed1;
+void(float xHand)    player_shot1;
+void(float xHand)    player_nail1;
+void(float xHand)    player_light1;
+void(float xHand)    player_rocket1;
+// HIPNOTIC
+//MED
+void(float xHand)   player_laser1;
+void(float xHand)   player_hammer1;
+void(float xHand)   player_mjolnir1;
+// ROGUE
+//ZOID--
+void(float xHand)  player_grapple1;
+void(float xHand)  player_grapple3;
+//--ZOID
+
+
+void(float xHand, float xWeapon, float xAttackFinished,
+     float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
+{
+    local float r;
+
+    if(!W_CheckNoAmmo (xHand, xWeapon, xOutWeapon))
+    {
+        if(time > xAttackFinished)
+        {
+            sound(self, VRGetGunChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            *xOutAttackFinished = time + 0.5;
+        }
+
+        return;
+    }
+
+    makevectors(VRGetWeaponFireRot(xHand)); // calculate forward angle for velocity
+    self.show_hostile = time + 1; // wake monsters up
+
+    if(xWeapon == WID_AXE)
+    {
+        if(cvar("vr_enabled") == 0 || cvar("vr_fakevr") == 1)
+        {
+            sound(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+            r = random();
+            if(r < 0.25)
+                player_axe1 (xHand);
+            else if(r<0.5)
+                player_axeb1 (xHand);
+            else if(r<0.75)
+                player_axec1 (xHand);
+            else
+                player_axed1 (xHand);
+            *xOutAttackFinished = time + 0.5;
+        }
+    }
+    else if(xWeapon == WID_SHOTGUN)
+    {
+        player_shot1 (xHand);
+        W_FireShotgun (xHand);
+        *xOutAttackFinished = time + 0.5;
+    }
+    else if(xWeapon == WID_SUPER_SHOTGUN)
+    {
+        player_shot1 (xHand);
+        W_FireSuperShotgun (xHand);
+        *xOutAttackFinished = time + 0.7;
+    }
+    else if(xWeapon == WID_NAILGUN)
+    {
+        player_nail1 (xHand);
+    }
+    else if(xWeapon == WID_SUPER_NAILGUN)
+    {
+        player_nail1 (xHand);
+    }
+    else if(xWeapon == WID_GRENADE_LAUNCHER)
+    {
+        player_rocket1(xHand);
+        W_FireGrenade(xHand);
+        *xOutAttackFinished = time + 0.6;
+    }
+    else if(xWeapon == WID_ROCKET_LAUNCHER)
+    {
+        player_rocket1(xHand);
+        W_FireRocket(xHand);
+        *xOutAttackFinished = time + 0.8;
+    }
+    else if(xWeapon == WID_LIGHTNING)
+    {
+        player_light1(xHand);
+        *xOutAttackFinished = time + 0.1;
+        sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
+    }
+    // HYPNOTIC
+//MED
+    else if(xWeapon == WID_LASER_CANNON)
+    {
+        player_laser1(xHand);
+    }
+//MED
+   else if(xWeapon == WID_MJOLNIR)
+   {
+        if(cvar("vr_enabled") == 0 || cvar("vr_fakevr") == 1)
+        {
+            if(self.ammo_cells < 30)
+                player_hammer1(xHand);
+            else
+                player_mjolnir1(xHand);
+
+            *xOutAttackFinished = time + 0.8;
+        }
+   }
+//MED
+    else if(xWeapon == WID_PROXIMITY_GUN)
+    {
+        player_rocket1(xHand);
+        W_FireProximityGrenade(xHand);
+        *xOutAttackFinished = time + 0.6;
+    }
+    else if(xWeapon == WID_GRAPPLE)
+    {
+        if(!getHookOut(xHand))
+            player_grapple1(xHand);
+        else
+            player_grapple3(xHand);
+
+        *xOutAttackFinished = time + 0.1;
+    }
+};
 
 void() W_Attack =
 {
-	local	float	r;
+    W_AttackImpl(cVR_MainHand, self.weapon, self.attack_finished,
+        &self.weapon, &self.attack_finished);
+};
 
-	if (!W_CheckNoAmmo ())
-		return;
-
-	makevectors	(self.v_angle);			// calculate forward angle for velocity
-	self.show_hostile = time + 1;	// wake monsters up
-
-	if (self.weapon == IT_AXE)
-	{
-		if(cvar("vr_enabled") == 0)
-		{
-			sound (self, CHAN_WEAPON, "weapons/ax1.wav", 1, ATTN_NORM);
-			r = random();
-			if (r < 0.25)
-				player_axe1 ();
-			else if (r<0.5)
-				player_axeb1 ();
-			else if (r<0.75)
-				player_axec1 ();
-			else
-				player_axed1 ();
-			self.attack_finished = time + 0.5;
-		}
-	}
-	else if (self.weapon == IT_SHOTGUN)
-	{
-		player_shot1 ();
-		W_FireShotgun ();
-		self.attack_finished = time + 0.5;
-	}
-	else if (self.weapon == IT_SUPER_SHOTGUN)
-	{
-		player_shot1 ();
-		W_FireSuperShotgun ();
-		self.attack_finished = time + 0.7;
-	}
-	else if (self.weapon == IT_NAILGUN)
-	{
-		player_nail1 ();
-	}
-	else if (self.weapon == IT_SUPER_NAILGUN)
-	{
-		player_nail1 ();
-	}
-	else if (self.weapon == IT_GRENADE_LAUNCHER)
-	{
-		player_rocket1();
-		W_FireGrenade();
-		self.attack_finished = time + 0.6;
-	}
-	else if (self.weapon == IT_ROCKET_LAUNCHER)
-	{
-		player_rocket1();
-		W_FireRocket();
-		self.attack_finished = time + 0.8;
-	}
-	else if (self.weapon == IT_LIGHTNING)
-	{
-		player_light1();
-		self.attack_finished = time + 0.1;
-		sound (self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
-	}
+void() W_OffHandAttack =
+{
+    W_AttackImpl(cVR_OffHand, self.weapon2, self.offhand_attack_finished,
+        &self.weapon2, &self.offhand_attack_finished);
 };
 
 /*
@@ -1277,79 +2359,122 @@ W_ChangeWeapon
 
 ============
 */
+//MED 10/18/96 added hipweapons
 void() W_ChangeWeapon =
 {
-	local	float	it, am, fl;
+    local float it, am, fl;
+    local float oldimpulse;
 
-	it = self.items;
-	am = 0;
+    it = self.items;
+    am = 0;
 
-	if (self.impulse == 1)
-	{
-		fl = IT_AXE;
-	}
-	else if (self.impulse == 2)
-	{
-		fl = IT_SHOTGUN;
-		if (self.ammo_shells < 1)
-			am = 1;
-	}
-	else if (self.impulse == 3)
-	{
-		fl = IT_SUPER_SHOTGUN;
-		if (self.ammo_shells < 2)
-			am = 1;
-	}
-	else if (self.impulse == 4)
-	{
-		fl = IT_NAILGUN;
-		if (self.ammo_nails < 1)
-			am = 1;
-	}
-	else if (self.impulse == 5)
-	{
-		fl = IT_SUPER_NAILGUN;
-		if (self.ammo_nails < 2)
-			am = 1;
-	}
-	else if (self.impulse == 6)
-	{
-		fl = IT_GRENADE_LAUNCHER;
-		if (self.ammo_rockets < 1)
-			am = 1;
-	}
-	else if (self.impulse == 7)
-	{
-		fl = IT_ROCKET_LAUNCHER;
-		if (self.ammo_rockets < 1)
-			am = 1;
-	}
-	else if (self.impulse == 8)
-	{
-		fl = IT_LIGHTNING;
-		if (self.ammo_cells < 1)
-			am = 1;
-	}
+//MED
+    if(self.impulse == 1)
+    {
+        fl = IT_AXE;
+    }
+    else if(self.impulse == 2)
+    {
+        fl = IT_SHOTGUN;
+        if(self.ammo_shells < 1)
+            am = 1;
+    }
+    else if(self.impulse == 3)
+    {
+        fl = IT_SUPER_SHOTGUN;
+        if(self.ammo_shells < 2)
+            am = 1;
+    }
+    else if(self.impulse == 4)
+    {
+        fl = IT_NAILGUN;
+        if(self.ammo_nails < 1)
+            am = 1;
+    }
+//MED
+    else if(self.impulse == 5)
+    {
+        fl = IT_SUPER_NAILGUN;
+        if(self.ammo_nails < 2)
+            am = 1;
 
-	self.impulse = 0;
+    }
+//MED
+    else if(self.impulse == 6)
+    {
+      if(self.weapon == WID_GRENADE_LAUNCHER)
+      {
+         fl = IT_PROXIMITY_GUN;
+      }
+      else
+      {
+         fl = IT_GRENADE_LAUNCHER;
+      }
+      if(self.ammo_rockets < 1)
+          am = 1;
+    }
+    else if(self.impulse == 7)
+    {
+        fl = IT_ROCKET_LAUNCHER;
+        if(self.ammo_rockets < 1)
+            am = 1;
+    }
+//MED
+    else if(self.impulse == 8)
+    {
+        fl = IT_LIGHTNING;
+        if(self.ammo_cells < 1)
+            am = 1;
+    }
+    else if(self.impulse == 225)
+    {
+        fl = IT_LASER_CANNON;
+        if(self.ammo_cells < 1)
+            am = 1;
+    }
+    else if(self.impulse == 226)
+    {
+        fl = IT_MJOLNIR;
+    }
 
-	if (!(self.items & fl))
-	{	// don't have the weapon or the ammo
-		sprint (self, "no weapon.\n");
-		return;
-	}
+//MED
+    oldimpulse = self.impulse;
+    self.impulse = 0;
 
-	if (am)
-	{	// don't have the ammo
-		sprint (self, "not enough ammo.\n");
-		return;
-	}
+    if(!(self.items & fl))
+    {
+//MED
+        if(fl == IT_GRENADE_LAUNCHER)
+        {
+            fl = IT_PROXIMITY_GUN;
+            if(!(self.items & fl))
+            {
+                sprint (self, "no weapon.\n");
+                return;
+            }
+            if(self.ammo_rockets < 1)
+                am = 1;
+            else
+                am = 0;
+        }
+        else
+        {
+            sprint (self, "no weapon.\n");
+            return;
+        }
+    }
+
+    if(am)
+    {    // don't have the ammo
+        sprint (self, "not enough ammo.\n");
+        return;
+    }
 
 //
 // set weapon, set ammo
 //
-	self.weapon = fl;
-	W_SetCurrentAmmo ();
+    self.weapon = ItemIdToWeaponId(fl);
+    W_SetCurrentAmmo();
 };
 
 /*
@@ -1359,28 +2484,110 @@ CheatCommand
 */
 void() CheatCommand =
 {
-	if (deathmatch)
-		return;
+    if(deathmatch)
+        return;
 
-	self.ammo_rockets = 100;
-	self.ammo_nails = 200;
-	self.ammo_shells = 100;
-	self.items = self.items |
-		IT_AXE |
-		IT_SHOTGUN |
-		IT_SUPER_SHOTGUN |
-		IT_NAILGUN |
-		IT_SUPER_NAILGUN |
-		IT_GRENADE_LAUNCHER |
-		IT_ROCKET_LAUNCHER |
-		IT_KEY1 | IT_KEY2;
+    self.ammo_rockets = 100;
+    self.ammo_nails = 200;
+    self.ammo_shells = 100;
+    self.items = self.items |
+        IT_AXE |
+        IT_SHOTGUN |
+        IT_SUPER_SHOTGUN |
+        IT_NAILGUN |
+        IT_SUPER_NAILGUN |
+        IT_GRENADE_LAUNCHER |
+        IT_ROCKET_LAUNCHER |
+        IT_KEY1 | IT_KEY2;
 
-	self.ammo_cells = 200;
-	self.items = self.items | IT_LIGHTNING;
+    self.ammo_cells = 200;
+    self.items = self.items | IT_LIGHTNING;
 
-	self.weapon = IT_ROCKET_LAUNCHER;
-	self.impulse = 0;
-	W_SetCurrentAmmo ();
+//MED
+    self.items = self.items | IT_LASER_CANNON;
+    self.items = self.items | IT_MJOLNIR;
+    self.items = self.items | IT_PROXIMITY_GUN;
+
+    // self.weapon = WID_ROCKET_LAUNCHER;
+    self.impulse = 0;
+    W_SetCurrentAmmo();
+};
+
+float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
+{
+    local float minWeapon, maxWeapon;
+    local float skipEmptyWeapons;
+    local float originalWeapon;
+
+    // Inclusive boundaries of cyclable weapon ids.
+    minWeapon = WID_GRAPPLE;
+    maxWeapon = WID_LASER_CANNON;
+
+    // TODO VR: (P1) set this via cvar depending on weapon mode?
+    skipEmptyWeapons = FALSE;
+
+    // Used to avoid infinite loops.
+    originalWeapon = xWeapon;
+    if(originalWeapon > maxWeapon)      { originalWeapon = minWeapon; }
+    else if(originalWeapon < minWeapon) { originalWeapon = maxWeapon; }
+
+    // Find the next suitable weapon.
+    while(TRUE)
+    {
+        xWeapon = xWeapon + xDir;
+
+        if(xWeapon > maxWeapon)      { xWeapon = minWeapon; }
+        else if(xWeapon < minWeapon) { xWeapon = maxWeapon; }
+
+        // If we get to the original weapon after cycling, break.
+        if(xWeapon == originalWeapon)
+        {
+            break;
+        }
+
+        // Do not select unavailable weapons.
+        if(!PlayerHasWeapon(xWeapon, xPlayer.items))
+        {
+            continue;
+        }
+
+        // Skip weapons without ammo if desired.
+        if(skipEmptyWeapons && !PlayerHasAmmoForWeapon(xPlayer, xWeapon))
+        {
+            continue;
+        }
+
+        // At this point, we have a suitable weapon.
+        break;
+    }
+
+    return xWeapon;
+}
+
+float() getWeaponCycleMode =
+{
+    if(cvar("vr_fakevr") == 1)
+    {
+        return QVR_WEAPONCYCLEMODE_ALLOWED;
+    }
+
+    return cvar("vr_weapon_cycle_mode");
+}
+
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon, float xDir) CycleWeaponCommandImpl =
+{
+    local float newWeapon;
+
+    self.impulse = 0;
+    newWeapon = GetCycledWeapon(self, xDir, xWeapon);
+
+    if(newWeapon != xWeapon)
+    {
+        *xOutWeapon = newWeapon;
+        *xOutPrevWeapon = newWeapon;
+
+        W_SetCurrentAmmo();
+    }
 };
 
 /*
@@ -1390,71 +2597,9 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void() CycleWeaponCommand =
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
 {
-	local	float	it, am;
-
-	it = self.items;
-	self.impulse = 0;
-
-	while (1)
-	{
-		am = 0;
-
-		if (self.weapon == IT_LIGHTNING)
-		{
-			self.weapon = IT_AXE;
-		}
-		else if (self.weapon == IT_AXE)
-		{
-			self.weapon = IT_SHOTGUN;
-			if (self.ammo_shells < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_SHOTGUN)
-		{
-			self.weapon = IT_SUPER_SHOTGUN;
-			if (self.ammo_shells < 2)
-				am = 1;
-		}
-		else if (self.weapon == IT_SUPER_SHOTGUN)
-		{
-			self.weapon = IT_NAILGUN;
-			if (self.ammo_nails < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_NAILGUN)
-		{
-			self.weapon = IT_SUPER_NAILGUN;
-			if (self.ammo_nails < 2)
-				am = 1;
-		}
-		else if (self.weapon == IT_SUPER_NAILGUN)
-		{
-			self.weapon = IT_GRENADE_LAUNCHER;
-			if (self.ammo_rockets < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_GRENADE_LAUNCHER)
-		{
-			self.weapon = IT_ROCKET_LAUNCHER;
-			if (self.ammo_rockets < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_ROCKET_LAUNCHER)
-		{
-			self.weapon = IT_LIGHTNING;
-			if (self.ammo_cells < 1)
-				am = 1;
-		}
-
-		if ( (it & self.weapon) && am == 0)
-		{
-			W_SetCurrentAmmo ();
-			return;
-		}
-	}
-
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, 1);
 };
 
 /*
@@ -1464,71 +2609,9 @@ CycleWeaponReverseCommand
 Go to the prev weapon with ammo
 ============
 */
-void() CycleWeaponReverseCommand =
+void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponReverseCommand =
 {
-	local	float	it, am;
-
-	it = self.items;
-	self.impulse = 0;
-
-	while (1)
-	{
-		am = 0;
-
-		if (self.weapon == IT_LIGHTNING)
-		{
-			self.weapon = IT_ROCKET_LAUNCHER;
-			if (self.ammo_rockets < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_ROCKET_LAUNCHER)
-		{
-			self.weapon = IT_GRENADE_LAUNCHER;
-			if (self.ammo_rockets < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_GRENADE_LAUNCHER)
-		{
-			self.weapon = IT_SUPER_NAILGUN;
-			if (self.ammo_nails < 2)
-				am = 1;
-		}
-		else if (self.weapon == IT_SUPER_NAILGUN)
-		{
-			self.weapon = IT_NAILGUN;
-			if (self.ammo_nails < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_NAILGUN)
-		{
-			self.weapon = IT_SUPER_SHOTGUN;
-			if (self.ammo_shells < 2)
-				am = 1;
-		}
-		else if (self.weapon == IT_SUPER_SHOTGUN)
-		{
-			self.weapon = IT_SHOTGUN;
-			if (self.ammo_shells < 1)
-				am = 1;
-		}
-		else if (self.weapon == IT_SHOTGUN)
-		{
-			self.weapon = IT_AXE;
-		}
-		else if (self.weapon == IT_AXE)
-		{
-			self.weapon = IT_LIGHTNING;
-			if (self.ammo_cells < 1)
-				am = 1;
-		}
-
-		if ( (it & self.weapon) && am == 0)
-		{
-			W_SetCurrentAmmo ();
-			return;
-		}
-	}
-
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, -1);
 };
 
 /*
@@ -1540,20 +2623,141 @@ Just for development
 */
 void() ServerflagsCommand =
 {
-	if (deathmatch)
-		return;
-	serverflags = serverflags * 2 + 1;
+    if(deathmatch)
+        return;
+    serverflags = serverflags * 2 + 1;
 };
 
 void() QuadCheat =
 {
-	if (deathmatch)
-		return;
-	self.super_time = 1;
-	self.super_damage_finished = time + 30;
-	self.items = self.items | IT_QUAD;
-	dprint ("quad cheat\n");
+    if(deathmatch)
+        return;
+    self.super_time = 1;
+    self.super_damage_finished = time + 30;
+    self.items = self.items | IT_QUAD;
+    dprint ("quad cheat\n");
 };
+
+// HYPNOTIC
+//MED
+void() WetsuitCheat =
+    {
+   if(deathmatch || coop)
+        return;
+   self.hipnotic_items = self.hipnotic_items | HIP_IT_WETSUIT;
+    self.wetsuit_time = 1;
+    self.wetsuit_finished = time + 30;
+   bprint( "wetsuit cheat\n" );
+    };
+
+//MED
+void() EmpathyShieldsCheat =
+    {
+   if(deathmatch || coop)
+        return;
+   self.hipnotic_items = self.hipnotic_items | HIP_IT_EMPATHY_SHIELDS;
+   self.empathy_time = 1;
+   self.empathy_finished = time + 30;
+   bprint( "empathy shields cheat\n" );
+    };
+
+void() DumpEntities =
+   {
+   local entity   head;
+   local float i;
+
+   i = 1;
+   head = nextent(world);
+   while(head!=world)
+      {
+      dprint(ftos(i));
+      dprint(" ");
+      dprint(head.classname);
+      dprint("\n");
+      head = nextent(head);
+      i = i + 1;
+      }
+   };
+
+void() DumpLiveEntities =
+   {
+   local entity   head;
+   local float i;
+
+   i = 1;
+   head = nextent(world);
+   while(head!=world)
+      {
+      if(head.health > 0)
+         {
+         dprint(ftos(i));
+         dprint(" ");
+         dprint(head.classname);
+         dprint(" ");
+         dprint(vtos(head.origin));
+         dprint("\n");
+         dprint("--------------------\n");
+         }
+      head = nextent(head);
+      i = i + 1;
+      }
+   };
+
+void() Genocide =
+   {
+   local entity   head;
+
+   if(deathmatch || coop)
+        return;
+   bprint("Genocide!\n");
+   head = nextent(world);
+   while(head!=world)
+      {
+      if((head.health > 0) && (head.flags & FL_MONSTER))
+         {
+         T_Damage(head,world,world,head.health+10);
+         }
+      head = nextent(head);
+      }
+   };
+
+float dump_coord;
+void () ToggleDump =
+   {
+   dump_coord = 1 - dump_coord;
+   if(dump_coord == 1)
+      bprint("Dumping Player Location\n");
+   };
+void () DumpCoordinates =
+   {
+   local entity pl;
+   pl = checkclient();
+   if(pl)
+      {
+      bprint("Player: ");
+      bprint(vtos(pl.origin));
+      bprint("\n");
+      }
+   };
+
+
+void() CheatSpawnAllWeaponDrops =
+{
+    CheatCommand();
+
+    CreateWeaponDrop(self, WID_GRAPPLE, self.origin);
+    CreateWeaponDrop(self, WID_AXE, self.origin);
+    CreateWeaponDrop(self, WID_MJOLNIR, self.origin);
+    CreateWeaponDrop(self, WID_SHOTGUN, self.origin);
+    CreateWeaponDrop(self, WID_SUPER_SHOTGUN, self.origin);
+    CreateWeaponDrop(self, WID_NAILGUN, self.origin);
+    CreateWeaponDrop(self, WID_SUPER_NAILGUN, self.origin);
+    CreateWeaponDrop(self, WID_GRENADE_LAUNCHER, self.origin);
+    CreateWeaponDrop(self, WID_PROXIMITY_GUN, self.origin);
+    CreateWeaponDrop(self, WID_ROCKET_LAUNCHER, self.origin);
+    CreateWeaponDrop(self, WID_LIGHTNING, self.origin);
+    CreateWeaponDrop(self, WID_LASER_CANNON, self.origin);
+}
 
 /*
 ============
@@ -1563,71 +2767,948 @@ ImpulseCommands
 */
 void() ImpulseCommands =
 {
-	if (self.impulse >= 1 && self.impulse <= 8)
-		W_ChangeWeapon ();
+    if(self.impulse >= 1 && self.impulse <= 8)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            W_ChangeWeapon();
+        }
+    }
 
-	if (self.impulse == 9)
-		CheatCommand ();
-	if (self.impulse == 10)
-		CycleWeaponCommand ();
-	if (self.impulse == 11)
-		ServerflagsCommand ();
-	if (self.impulse == 12)
-		CycleWeaponReverseCommand ();
+    if(self.impulse >= 225 && self.impulse <= 226)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            W_ChangeWeapon();
+        }
+    }
 
-	if (self.impulse == 255)
-		QuadCheat ();
+    if(self.impulse == 9)
+    {
+        CheatCommand();
+    }
 
-	self.impulse = 0;
+    if(self.impulse == 11)
+    {
+        ServerflagsCommand();
+    }
+
+    if(self.impulse == 14)
+    {
+        CheatSpawnAllWeaponDrops();
+    }
+
+
+
+    if(self.impulse == 10 && time >= self.attack_finished)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
+        }
+    }
+
+    if(self.impulse == 12 && time >= self.offhand_attack_finished)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+        }
+    }
+
+    if(self.impulse == 15 && time >= self.attack_finished)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponReverseCommand (self.weapon, &self.weapon, &self.prevweapon);
+        }
+    }
+
+    if(self.impulse == 16 && time >= self.offhand_attack_finished)
+    {
+        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        {
+            CycleWeaponReverseCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+        }
+    }
+
+//JIM
+    if( self.impulse == 200 )
+        WetsuitCheat();
+//MED
+    if( self.impulse == 201 )
+        EmpathyShieldsCheat();
+    if( self.impulse == 205 )
+        Genocide();
+    if( self.impulse == 206 )
+        ToggleDump();
+    if( self.impulse == 202 )
+        DumpEntities();
+    if( self.impulse == 203 )
+        DumpLiveEntities();
+    if(self.impulse == 255)
+        QuadCheat();
+    if(dump_coord == 1)
+        DumpCoordinates();
+    self.impulse = 0;
 };
 
-/*
-============
-W_WeaponFrame
-
-Called every frame so impulse events can be handled as well as possible
-============
-*/
-void() W_WeaponFrame =
+void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 {
-	local	vector		org;
+    makeforward(VRGetWeaponFireRot(xHand));
+    traceline(xOrigin, xOrigin + v_forward*600, TRUE, self);
 
-	if (self.button0)
-	{
-		// Lightning effect (per-frame)
-		if (self.weapon == IT_LIGHTNING)
-		{
-			org = self.handpos + '0 0 0';
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+    WriteEntity(MSG_BROADCAST, self);
+    WriteByte(MSG_BROADCAST, xHand); /* disambiguator */
+    WriteCoord(MSG_BROADCAST, xOrigin_x);
+    WriteCoord(MSG_BROADCAST, xOrigin_y);
+    WriteCoord(MSG_BROADCAST, xOrigin_z);
+    WriteCoord(MSG_BROADCAST, trace_endpos_x);
+    WriteCoord(MSG_BROADCAST, trace_endpos_y);
+    WriteCoord(MSG_BROADCAST, trace_endpos_z);
+}
 
-			makevectors(self.v_angle);
-			traceline (org, org + v_forward*600, TRUE, self);
+void(float xHand, float xButton) FrameDrawLightningTrail =
+{
+    // Lightning effect (per-frame)
+    if(xButton && VRGetWeapon(xHand) == WID_LIGHTNING && self.ammo_cells > 0)
+    {
+        PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
+    }
+}
 
-			WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-			WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
-			WriteEntity (MSG_BROADCAST, self);
-			WriteCoord (MSG_BROADCAST, org_x);
-			WriteCoord (MSG_BROADCAST, org_y);
-			WriteCoord (MSG_BROADCAST, org_z);
-			WriteCoord (MSG_BROADCAST, trace_endpos_x);
-			WriteCoord (MSG_BROADCAST, trace_endpos_y);
-			WriteCoord (MSG_BROADCAST, trace_endpos_z);
-		}
-	}
+void(float xHand) W_WeaponFrameImpl =
+{
+    FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
 
-	if (time < self.attack_finished)
-		return;
+    if(time < readytime)
+    {
+        // Do not do anything if the player is not "ready" yet, after spawning.
+        return;
+    }
 
-	if (self.impulse)
-		ImpulseCommands ();
+    if(time < VRGetAttackFinished(xHand))
+    {
+        return;
+    }
 
-// check for attack
+    // check for attack
+    if(VRGetFireButtonPressed(xHand) && !VRGetForceGrabbing(xHand))
+    {
+        // TODO VR: (P2) what about when we don't have any weapon equipped? Or
+        // when we have axe equipped?
+        SuperDamageSound();
 
-	if (self.button0)
-	{
-		SuperDamageSound ();
-		W_Attack ();
-	}
+        if(xHand == cVR_OffHand)
+        {
+            W_OffHandAttack();
+        }
+        else
+        {
+            W_Attack();
+        }
+    }
+}
+
+float(float xHolster) getHolsterWeapon =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweapon0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweapon1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweapon2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweapon3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweapon4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweapon5;
+
+    bprint("`getHolsterWeapon`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    // Bogus, should never happen.
+    return self.holsterweapon0;
+}
+
+void(float xHolster, float v) setHolsterWeapon =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweapon0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweapon1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweapon2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweapon3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweapon4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweapon5 = v; return; }
+
+    bprint("`setHolsterWeapon`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+string(float xHolster) getHolsterWeaponModel =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponmodel0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponmodel1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponmodel2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponmodel3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponmodel4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponmodel5;
+
+    bprint("`getHolsterWeaponModel`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    // Bogus, should never happen.
+    return self.holsterweaponmodel0;
+}
+
+void(float xHolster, string v) setHolsterWeaponModel =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweaponmodel0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweaponmodel1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweaponmodel2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweaponmodel3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweaponmodel4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponmodel5 = v; return; }
+
+    bprint("`setHolsterWeaponModel`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+float(float xHotspot) isHolsterHotspot =
+{
+    return xHotspot == QVR_HS_LEFT_SHOULDER_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_SHOULDER_HOLSTER ||
+           xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_HIP_HOLSTER ||
+           xHotspot == QVR_HS_LEFT_UPPER_HOLSTER ||
+           xHotspot == QVR_HS_RIGHT_UPPER_HOLSTER;
+}
+
+void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
+{
+    local float angle;
+    angle = xAngle - xOffset;
+
+    // Bring angle in range [-360, 0]
+    while(angle > 0)
+    {
+        *xOutAngle = (xOffset + angle) - 360;
+        angle = angle - 360;
+    }
+
+    while(angle < -360)
+    {
+        *xOutAngle = (xOffset + angle) + 360;
+        angle = angle + 360;
+    }
+
+    if(angle >= -360 && angle <= -270)
+    {
+        // All these offset calculations are needed because I can't read back
+        // from `xOutAngle`...
+        *xOutAngle = (xOffset + angle) + self.throwstabilize;
+        if((xAngle - xOffset) + self.throwstabilize > -270)
+        {
+            *xOutAngle = xOffset + -270;
+        }
+    }
+    else if(angle > -270 && angle <= -180)
+    {
+        *xOutAngle = (xOffset + angle) - self.throwstabilize;
+        if((xAngle - xOffset) - self.throwstabilize < -270)
+        {
+            *xOutAngle = xOffset + -270;
+        }
+    }
+    else if(angle > -180 && angle <= -90)
+    {
+        *xOutAngle = (xOffset + angle) + self.throwstabilize;
+        if((xAngle - xOffset) + self.throwstabilize > -90)
+        {
+            *xOutAngle = xOffset + -90;
+        }
+    }
+    else if(angle > -90 && angle <= 0)
+    {
+        *xOutAngle = (xOffset + angle) - self.throwstabilize;
+        if((xAngle - xOffset) - self.throwstabilize < -90)
+        {
+            *xOutAngle = xOffset + -90;
+        }
+    }
+    else
+    {
+        // TODO VR: (P1) still triggers sometimes
+        // bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
+        // bprint(ftos(angle));
+        // bprint("'\n");
+    }
+
+    if(self.throwstabilize > 0)
+    {
+        self.throwstabilize = self.throwstabilize - 0.3;
+
+        if(self.throwstabilize < 0)
+        {
+            self.throwstabilize = 0;
+        }
+    }
+}
+
+void() wpnthrow_think =
+{
+    if(self.waterlevel == 1)
+    {
+        if(fabs(self.velocity_x) > 10)
+        {
+            self.velocity_x *= 0.85;
+        }
+        else
+        {
+            self.velocity_x = 0;
+        }
+
+        if(fabs(self.velocity_y) > 10)
+        {
+            self.velocity_y *= 0.85;
+        }
+        else
+        {
+            self.velocity_y = 0;
+        }
+
+        self.velocity_z = 45;
+        self.flags = self.flags | FL_INWATER;
+        self.throwhit = QVR_THROWHIT_HIT;
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        self.avelocity = '0 0 0';
+    }
+    else if((time - self.lastwatertime) > 0.15)
+    {
+        self.flags = self.flags & ~FL_INWATER;
+    }
+
+    if(cvar("vr_weapondrop_particles") && (self.flags & (FL_ONGROUND | FL_INWATER)))
+    {
+        if(random() < 0.2)
+        {
+            particle2(self.origin, '0 0 0', 8 /* gunpickup preset */, 1);
+        }
+    }
+
+    if(self.throwhit == QVR_THROWHIT_HIT)
+    {
+        if(self.throwstabilizedim == 0)
+        {
+            wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
+        }
+        else if(self.throwstabilizedim == 1)
+        {
+            wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
+        }
+        else if(self.throwstabilizedim == 2)
+        {
+            wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
+        }
+    }
+
+    self.nextthink = time + 0.02;
+}
+
+void() wpnthrow_touch =
+{
+    local float posDmgType;
+    local float adjDmg;
+    local float finalDmg;
+    local vector dir;
+
+    if(other == self.owner)
+        return;
+
+    if(other.solid == SOLID_TRIGGER)
+        return;    // trigger field, do nothing
+
+    if(pointcontents(self.origin) == CONTENT_SKY)
+        return;
+
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
+    {
+        finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
+                   cvar("vr_weapon_throw_damage_mult");
+
+        // hit something that bleeds
+        if(GetThrownWeaponDealDamage(self) && other.takedamage)
+        {
+            sound(self, CHAN_OTHER, "fisthit.wav", 1, ATTN_NORM);
+
+            posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+            adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
+
+            spawn_touchblood (adjDmg);
+            T_Damage (other, self, self.owner, adjDmg);
+        }
+        // hit wall
+        else
+        {
+            sound(self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
+            particle2(self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
+
+        }
+
+        if(GetThrownWeaponDisappearOnHit(self) == TRUE)
+        {
+            remove(self);
+        }
+
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        self.throwhit = QVR_THROWHIT_HIT;
+    }
+    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB)
+    {
+        // After a linear forcegrab, restore the movement type to "toss".
+
+        self.throwhit = QVR_THROWHIT_HIT;
+        self.movetype = MOVETYPE_TOSS;
+    }
+
+    // ghetto collision detection/resolution
+    if(!(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2.0)
+    {
+        dir = normalize(self.velocity);
+        dir_z = 0;
+
+        traceline(self.origin - dir * 2, self.origin + dir * 8, FALSE, self);
+        if(trace_fraction != 1.0)
+        {
+            setorigin(self, trace_endpos - dir * 8);
+        }
+
+        dir = normalize(self.velocity);
+        dir_x = 0;
+        dir_y = 0;
+
+        traceline(self.origin - dir * 2, self.origin + dir * 2, FALSE, self);
+        if(trace_fraction != 1.0)
+        {
+            setorigin(self, trace_endpos - dir * 2);
+            self.velocity = '0 0 0';
+            self.avelocity = '0 0 0';
+        }
+    }
 };
+
+void(float xHand, entity ent, entity entPlayer, float* xOutEntWeapon) wpnthrow_handtouch_impl =
+{
+    sound(ent, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+    haptic(xHand, 0.0, 0.3, 75, 1.0);
+
+    *xOutEntWeapon = ent.weapon;
+    remove(ent);
+
+    self = entPlayer;
+    W_SetCurrentAmmo();
+}
+
+void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
+{
+    if(xHand == cVR_OffHand && VRIsHandEmpty(entPlayer, cVR_OffHand))
+    {
+        wpnthrow_handtouch_impl(cVR_OffHand, ent, entPlayer, &entPlayer.weapon2);
+    }
+    else if(xHand == cVR_MainHand && VRIsHandEmpty(entPlayer, cVR_MainHand))
+    {
+        wpnthrow_handtouch_impl(cVR_MainHand, ent, entPlayer, &entPlayer.weapon);
+    }
+}
+
+void(entity ent) wpnthrow_handtouch_ent =
+{
+    if(VRIsHandtouchHandFake(ent))
+    {
+        // Happens with VR Body Interactions enabled.
+
+        // TODO VR: (P2) cvar to choose what happens?
+        return;
+    }
+
+    if(VRGetHandtouchHand(ent) == cVR_OffHand &&
+       (VREntStartedHandGrabbing(ent.handtouch_ent, cVR_OffHand)
+        || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
+       VRIsHandEmpty(ent.handtouch_ent, cVR_OffHand))
+    {
+        wpnthrow_handtouch_impl(cVR_OffHand, ent, ent.handtouch_ent, &ent.handtouch_ent.weapon2);
+    }
+    else if(VRGetHandtouchHand(ent) == cVR_MainHand &&
+            (VREntStartedHandGrabbing(ent.handtouch_ent, cVR_MainHand)
+             || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
+            VRIsHandEmpty(ent.handtouch_ent, cVR_MainHand))
+    {
+        wpnthrow_handtouch_impl(cVR_MainHand, ent, ent.handtouch_ent, &ent.handtouch_ent.weapon);
+    }
+}
+
+void() wpnthrow_handtouch =
+{
+    wpnthrow_handtouch_ent(self);
+}
+
+// Used to trigger haptics when hovering holsters.
+float holsterhover[6];
+float holsterprevhover[6];
+
+float(float xHolster) VRHolsterToIndex =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return 0; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return 1; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return 2; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return 3; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return 4; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return 5; }
+
+    bprint("`VRHolsterToIndex`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    return 0;
+}
+
+float(float xHolster) VRIsHolsterHovered =
+{
+    return holsterhover[VRHolsterToIndex(xHolster)];
+}
+
+void(float xHolster, float xValue) VRSetHolsterHovered =
+{
+    holsterhover[VRHolsterToIndex(xHolster)] = xValue;
+}
+
+float(float xHolster) VRIsHolsterPrevHovered =
+{
+    return holsterprevhover[VRHolsterToIndex(xHolster)];
+}
+
+void(float xHolster, float xValue) VRSetHolsterPrevHovered =
+{
+    holsterprevhover[VRHolsterToIndex(xHolster)] = xValue;
+}
+
+void() UpdateHolsterHover =
+{
+    local float i;
+
+    for(i = QVR_HS_LEFT_SHOULDER_HOLSTER; i <= QVR_HS_RIGHT_UPPER_HOLSTER; ++i)
+    {
+        if(!isHolsterHotspot(i))
+        {
+            continue;
+        }
+
+        VRSetHolsterPrevHovered(i, VRIsHolsterHovered(i));
+        VRSetHolsterHovered(i, FALSE);
+    }
+}
+
+void(float xHand, float xHolster) VRHolsterHaptic =
+{
+    local float holsterHapticsMode;
+    holsterHapticsMode = cvar("vr_holster_haptics");
+
+    if(holsterHapticsMode == 1 /* continuous */)
+    {
+        VRGunHaptic(xHand, 0.1, 75, 0.02);
+    }
+    else if(!VRIsHolsterPrevHovered(xHolster) && VRIsHolsterHovered(xHolster) && holsterHapticsMode == 2 /* once */)
+    {
+        VRGunHaptic(xHand, 0.2, 75, 0.2);
+    }
+}
+
+void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
+{
+    ent.lip = xValue;
+}
+
+float(entity ent) GetThrownWeaponDisappearOnHit =
+{
+    return ent.lip;
+}
+
+void(entity ent, float xValue) SetThrownWeaponDealDamage =
+{
+    ent.health = xValue;
+}
+
+float(entity ent) GetThrownWeaponDealDamage =
+{
+    return ent.health;
+}
+
+void(entity ent, float xValue) SetThrownWeaponBaseDamage =
+{
+    ent.frags = xValue;
+}
+
+float(entity ent) GetThrownWeaponBaseDamage =
+{
+    return ent.frags;
+}
+
+void(entity thrower, float xWeapon,
+    vector xOrigin, vector xRotation,
+    vector xThrowVel, vector xAVel,
+    float xDisappearOnHit,
+    float xDealDamage,
+    float xBaseDamage) CreateThrownWeapon =
+{
+    local float tmp;
+    local vector tmp_handavel;
+    local vector tmp_bounds;
+
+    newmis = spawn();
+
+    SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
+    SetThrownWeaponDealDamage(newmis, xDealDamage);
+    SetThrownWeaponBaseDamage(newmis, xBaseDamage);
+
+    newmis.owner = thrower;
+    newmis.movetype = MOVETYPE_TOSS;
+    newmis.solid = SOLID_BBOX;
+
+    newmis.throwhit = QVR_THROWHIT_NEVER_HIT;
+    newmis.throwstabilize = 8;
+    newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
+
+    newmis.angles = xRotation;
+    newmis.angles_x = newmis.angles_x * -1;
+
+    newmis.touch = wpnthrow_touch;
+    newmis.handtouch = wpnthrow_handtouch;
+
+    newmis.classname = "thrown_weapon";
+
+    newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
+
+    makevectors(xThrowVel);
+    tmp_handavel = xAVel;
+    newmis.avelocity = tmp_handavel_x * v_forward * 30
+                     + tmp_handavel_y * v_right * -30
+                     + tmp_handavel_z * v_up * -30;
+
+    newmis.think = wpnthrow_think;
+    newmis.nextthink = time + 0.02;
+    newmis.weapon = xWeapon;
+
+    // TODO VR: (P0) fix laser cannon bounds
+    tmp = WeaponIdToThrowBounds(xWeapon);
+    tmp_bounds_x = tmp;
+    tmp_bounds_y = tmp;
+    tmp_bounds_z = tmp;
+
+    setmodel (newmis, WeaponIdToModel(xWeapon));
+    setsize (newmis, -tmp_bounds, tmp_bounds);
+    setorigin (newmis, xOrigin);
+
+    newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar("vr_weapon_throw_velocity_mult")
+                    + thrower.velocity;
+}
+
+vector randomVec(float range)
+{
+    local vector res;
+
+    res_x = crandom() * range;
+    res_y = crandom() * range;
+    res_z = crandom() * range;
+
+    return res;
+}
+
+void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
+{
+    local vector throwVel;
+
+    throwVel = randomVec(0.9);
+    throwVel_z = 1.1 + random() * 1.1;
+
+    CreateThrownWeapon(thrower, xWeapon,
+        xOrigin, randomVec(180),
+        throwVel, randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon)
+    );
+}
+
+// TODO VR: (P1) improve
+void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
+{
+    local vector throwVel;
+
+    throwVel = randomVec(0.1);
+    throwVel_z = 0.2 + random() * 0.1;
+
+    CreateThrownWeapon(thrower, xWeapon,
+        xOrigin, randomVec(180),
+        throwVel, randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon)
+    );
+}
+
+float() getWeaponMode =
+{
+    return cvar("vr_holster_mode");
+}
+
+float() getWeaponThrowMode =
+{
+    return cvar("vr_weapon_throw_mode");
+}
+
+void(entity ent, float xHand, float xWeapon) DropWeaponInHand =
+{
+    if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
+    {
+        CreateThrownWeapon(ent, xWeapon,
+            VRGetHandPos(xHand), VRGetHandRot(xHand),
+            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            FALSE /* disappear on hit */,
+            TRUE  /* deal damage */,
+            WeaponIdToThrowDamage(xWeapon));
+    }
+    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
+    {
+        CreateThrownWeapon(ent, xWeapon,
+            VRGetHandPos(xHand), VRGetHandRot(xHand),
+            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            TRUE /* disappear on hit */,
+            TRUE /* deal damage */,
+            WeaponIdToThrowDamage(xWeapon));
+    }
+    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
+    {
+        // Intentionally left empty.
+    }
+
+    sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+    VRSetHandEmpty(ent, xHand);
+    W_SetCurrentAmmoFor(xHand);
+}
+
+void(entity ent, float xHand,
+     float xWeapon, float* xOutWeapon,
+     float xAttackFinished, float xHotspot,
+     float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
+{
+    local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
+                handEmpty, otherHandEmpty, triggerPressed;
+
+    handGrabbing = VRIsEntHandGrabbing(ent, xHand);
+    handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
+    otherHandGrabbing = VRIsEntHandGrabbing(ent, VRGetOtherHand(xHand));
+    handEmpty = VRIsHandEmpty(ent, xHand);
+    otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
+    triggerPressed = VRGetFireButtonPressed(xHand);
+
+    local vector handPos, handRot;
+
+    handPos = VRGetHandPos(xHand);
+    handRot = VRGetHandRot(xHand);
+
+    if(time < readytime)
+    {
+        // Do not do anything if the player is not "ready" yet, after spawning.
+        return;
+    }
+
+    if(isHolsterHotspot(xHotspot))
+    {
+        VRSetHolsterHovered(xHotspot, TRUE);
+    }
+
+    // Holding a weapon, but not grabbing the controller.
+    if(!handEmpty && !handGrabbing && time >= xAttackFinished)
+    {
+        // No hotspot, or 2H hotspot (unusable).
+        // (2H hotspots ignored because you can only dual wield with no weapon out.)
+        if(xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB)
+        {
+            DropWeaponInHand(ent, xHand, xWeapon);
+        }
+        // Put a weapon in a holster.
+        else if(isHolsterHotspot(xHotspot))
+        {
+            // In "immersive" mode, weapons can only be placed in an empty holster.
+            // Holstering a weapon frees your hand up.
+            if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+            {
+                if(getHolsterWeapon(xHotspot) == WID_FIST)
+                {
+                    sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+
+                    setHolsterWeapon(xHotspot, xWeapon);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                    VRSetHandEmpty(ent, xHand);
+                    W_SetCurrentAmmoFor(xHand);
+                }
+            }
+            // In "quick slot" mode, weapons can be placed in any holster.
+            // Holstering a weapon does not free your hand up.
+            else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+            {
+                if(getHolsterWeapon(xHotspot) != xWeapon)
+                {
+                    sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+
+                    setHolsterWeapon(xHotspot, xWeapon);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                }
+            }
+        }
+        // Swap weapon between hands.
+        else if(xHotspot == QVR_HS_HAND_SWITCH)
+        {
+            if(otherHandGrabbing && otherHandEmpty && time >= xOtherAttackFinished)
+            {
+                sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+
+                *xOutOtherWeapon = xWeapon;
+                VRSetHandEmpty(ent, xHand);
+
+                W_SetCurrentAmmo();
+            }
+        }
+    }
+    // Holding a weapon and hovering an holster. Possible intention to holster.
+    else if(!handEmpty && handGrabbing && time >= xAttackFinished)
+    {
+        if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) == WID_FIST)
+            {
+                VRHolsterHaptic(xHand, xHotspot);
+            }
+        }
+    }
+    // Not holding a weapon and started grabbing the controller.
+    else if(handEmpty && VREntStartedHandGrabbing(ent, xHand))
+    {
+        // Not a holster. Do nothing.
+        if(xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
+           xHotspot == QVR_HS_HAND_SWITCH)
+        {
+            // Intentionally left empty.
+        }
+        // Attempt unholstering weapon.
+        else if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) != WID_FIST)
+            {
+                sound(ent, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
+                *xOutWeapon = getHolsterWeapon(xHotspot);
+
+                // In "immersive" mode, unholstering removes a weapon from a holster.
+                if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+                {
+                    setHolsterWeapon(xHotspot, WID_FIST);
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
+                }
+                // In "quick slot" mode, unholstering does not remove a weapon from a holster.
+                else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+                {
+                    // Intentionally left empty.
+                }
+
+                W_SetCurrentAmmoFor(xHand);
+            }
+        }
+    }
+    // Not holding a weapon, grabbing the controller, and pressing the trigger.
+    else if(handEmpty && handGrabbing && triggerPressed)
+    {
+        if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
+        {
+            // Intentionally left empty.
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
+        {
+            DoForceGrabImplParabola(xHand, handPos, handRot);
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
+        {
+            DoForceGrabImplLinear(xHand, handPos, handRot);
+        }
+        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
+        {
+            DoForceGrabImplInstant(xHand, handPos, handRot);
+        }
+    }
+    // Not holding a weapon and hovering an holster. Possible intention to unholster.
+    else if(handEmpty && !handGrabbing)
+    {
+        if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) != WID_FIST)
+            {
+                VRHolsterHaptic(xHand, xHotspot);
+            }
+        }
+    }
+}
+
+void(float xHand) W_Frame_Forcegrab_Impl =
+{
+    if(!VRGetForceGrabbing(xHand))
+    {
+        ParticlesAndHapticsForEligibleForceGrabWeapons(
+            xHand, VRGetHandPos(xHand), VRGetHandRot(xHand));
+    }
+
+    if(!VRGetFireButtonPressed(xHand))
+    {
+        VRSetForceGrabbing(xHand, FALSE);
+    }
+}
+
+void() W_Frame_Forcegrab =
+{
+    if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
+    {
+        VRSetForceGrabbing(cVR_MainHand, FALSE);
+        VRSetForceGrabbing(cVR_OffHand, FALSE);
+        return;
+    }
+
+    W_Frame_Forcegrab_Impl(cVR_MainHand);
+    W_Frame_Forcegrab_Impl(cVR_OffHand);
+}
+
+void() W_Frame =
+{
+    if(self.impulse)
+    {
+        ImpulseCommands();
+    }
+
+    UpdateHolsterHover();
+
+    DoHandImpl(self, cVR_OffHand,
+               self.weapon2, &self.weapon2,
+               self.offhand_attack_finished, self.offhand_hotspot,
+               self.weapon, &self.weapon, self.attack_finished);
+
+    DoHandImpl(self, cVR_MainHand,
+               self.weapon, &self.weapon,
+               self.attack_finished, self.mainhand_hotspot,
+               self.weapon2, &self.weapon2, self.offhand_attack_finished);
+
+    W_Frame_Forcegrab();
+}
 
 /*
 ========
@@ -1638,15 +3719,15 @@ Plays sound if needed
 */
 void() SuperDamageSound =
 {
-	if (self.super_damage_finished > time)
-	{
-		if (self.super_sound < time)
-		{
-			self.super_sound = time + 1;
-			sound (self, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
-		}
-	}
-	return;
+    if(self.super_damage_finished > time)
+    {
+        if(self.super_sound < time)
+        {
+            self.super_sound = time + 1;
+            sound(self, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
+        }
+    }
 };
 
+// TODO VR: (P1) remove backpack spinning animation.
 

@@ -23,20 +23,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.hpp"
+#include "vr.hpp"
+#include "world.hpp"
+#include "util.hpp"
 #include <iostream>
 
-edict_t* sv_player;
+edict_t* sv_player{nullptr};
 
 extern cvar_t sv_friction;
 cvar_t sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern cvar_t sv_stopspeed;
 
-static vec3_t forward, right, up;
+static glm::vec3 forward, right, up;
 
 // world
-float* angles;
-float* origin;
-float* velocity;
+glm::vec3* origin{nullptr};
+glm::vec3* velocity{nullptr};
 
 bool onground;
 
@@ -59,9 +61,9 @@ void SV_SetIdealPitch()
 
     float cosval;
     trace_t tr;
-    vec3_t top;
+    glm::vec3 top;
 
-    vec3_t bottom;
+    glm::vec3 bottom;
     float z[MAX_FORWARD];
     int i;
 
@@ -72,7 +74,7 @@ void SV_SetIdealPitch()
 
     int steps;
 
-    if(!((int)sv_player->v.flags & FL_ONGROUND))
+    if(!quake::util::hasFlag(sv_player, FL_ONGROUND))
     {
         return;
     }
@@ -91,7 +93,7 @@ void SV_SetIdealPitch()
         bottom[1] = top[1];
         bottom[2] = top[2] - 160;
 
-        tr = SV_Move(top, vec3_origin, vec3_origin, bottom, 1, sv_player);
+        tr = SV_MoveTrace(top, bottom, 1, sv_player);
         if(tr.allsolid)
         {
             return; // looking at a wall, leave ideal the way is was
@@ -146,33 +148,33 @@ SV_UserFriction
 */
 void SV_UserFriction()
 {
-    float* vel;
+    glm::vec3* vel;
     float speed;
 
     float newspeed;
 
     float control;
-    vec3_t start;
+    glm::vec3 start;
 
-    vec3_t stop;
+    glm::vec3 stop;
     float friction;
     trace_t trace;
 
     vel = velocity;
 
-    speed = sqrt(vel[0] * vel[0] + vel[1] * vel[1]);
+    speed = sqrt((*vel)[0] * (*vel)[0] + (*vel)[1] * (*vel)[1]);
     if(!speed)
     {
         return;
     }
 
     // if the leading edge is over a dropoff, increase friction
-    start[0] = stop[0] = origin[0] + vel[0] / speed * 16;
-    start[1] = stop[1] = origin[1] + vel[1] / speed * 16;
-    start[2] = origin[2] + sv_player->v.mins[2];
+    start[0] = stop[0] = (*origin)[0] + (*vel)[0] / speed * 16;
+    start[1] = stop[1] = (*origin)[1] + (*vel)[1] / speed * 16;
+    start[2] = (*origin)[2] + sv_player->v.mins[2];
     stop[2] = start[2] - 34;
 
-    trace = SV_Move(start, vec3_origin, vec3_origin, stop, true, sv_player);
+    trace = SV_MoveTrace(start, stop, true, sv_player);
 
     if(trace.fraction == 1.0)
     {
@@ -192,10 +194,7 @@ void SV_UserFriction()
         newspeed = 0;
     }
     newspeed /= speed;
-
-    vel[0] = vel[0] * newspeed;
-    vel[1] = vel[1] * newspeed;
-    vel[2] = vel[2] * newspeed;
+    (*vel) *= newspeed;
 }
 
 /*
@@ -205,81 +204,72 @@ SV_Accelerate
 */
 cvar_t sv_maxspeed = {"sv_maxspeed", "320", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
-void SV_Accelerate(float wishspeed, const vec3_t wishdir)
+
+void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
 {
-    int i;
-    float addspeed;
+    const float currentspeed = DotProduct((*velocity), wishdir);
+    const float addspeed = wishspeed - currentspeed;
 
-    float accelspeed;
-
-    float currentspeed;
-
-    currentspeed = DotProduct(velocity, wishdir);
-    addspeed = wishspeed - currentspeed;
     if(addspeed <= 0)
     {
         return;
     }
-    accelspeed = sv_accelerate.value * host_frametime * wishspeed;
+
+    float accelspeed = sv_accelerate.value * host_frametime * wishspeed;
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
     }
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        velocity[i] += accelspeed * wishdir[i];
+        (*velocity)[i] += accelspeed * wishdir[i];
     }
 }
 
-void SV_AirAccelerate(float wishspeed, vec3_t wishveloc)
+void SV_AirAccelerate(float wishspeed, const glm::vec3& wishveloc)
 {
-    int i;
-    float addspeed;
+    float wishspd = glm::length(wishveloc);
 
-    float wishspd;
-
-    float accelspeed;
-
-    float currentspeed;
-
-    wishspd = VectorNormalize(wishveloc);
     if(wishspd > 30)
     {
         wishspd = 30;
     }
-    currentspeed = DotProduct(velocity, wishveloc);
-    addspeed = wishspd - currentspeed;
+
+    const auto wishvelocdir = safeNormalize(wishveloc);
+    const float currentspeed = DotProduct((*velocity), wishvelocdir);
+    const float addspeed = wishspd - currentspeed;
+
     if(addspeed <= 0)
     {
         return;
     }
-    //	accelspeed = sv_accelerate.value * host_frametime;
-    accelspeed = sv_accelerate.value * wishspeed * host_frametime;
+
+    float accelspeed = sv_accelerate.value * wishspeed * host_frametime;
     if(accelspeed > addspeed)
     {
         accelspeed = addspeed;
     }
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
-        velocity[i] += accelspeed * wishveloc[i];
+        (*velocity)[i] += accelspeed * wishvelocdir[i];
     }
 }
 
 
 void DropPunchAngle()
 {
-    float len;
-
-    len = VectorNormalize(sv_player->v.punchangle);
+    float len = glm::length(sv_player->v.punchangle);
+    sv_player->v.punchangle = safeNormalize(sv_player->v.punchangle);
 
     len -= 10 * host_frametime;
     if(len < 0)
     {
         len = 0;
     }
-    VectorScale(sv_player->v.punchangle, len, sv_player->v.punchangle);
+
+    sv_player->v.punchangle *= len;
 }
 
 /*
@@ -291,7 +281,7 @@ SV_WaterMove
 void SV_WaterMove()
 {
     int i;
-    vec3_t wishvel;
+    glm::vec3 wishvel;
     float speed;
 
     float newspeed;
@@ -305,7 +295,8 @@ void SV_WaterMove()
     //
     // user intentions
     //
-    AngleVectors(sv_player->v.v_angle, forward, right, up);
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(sv_player->v.v_angle);
 
     for(i = 0; i < 3; i++)
     {
@@ -321,10 +312,10 @@ void SV_WaterMove()
         wishvel[2] += cmd.upmove;
     }
 
-    wishspeed = VectorLength(wishvel);
+    wishspeed = glm::length(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
-        VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
+        wishvel *= sv_maxspeed.value / wishspeed;
         wishspeed = sv_maxspeed.value;
     }
     wishspeed *= 0.7;
@@ -332,7 +323,7 @@ void SV_WaterMove()
     //
     // water friction
     //
-    speed = VectorLength(velocity);
+    speed = glm::length(*velocity);
     if(speed)
     {
         newspeed = speed - host_frametime * speed * sv_friction.value;
@@ -340,7 +331,8 @@ void SV_WaterMove()
         {
             newspeed = 0;
         }
-        VectorScale(velocity, newspeed / speed, velocity);
+
+        *velocity *= newspeed / speed;
     }
     else
     {
@@ -361,7 +353,7 @@ void SV_WaterMove()
         return;
     }
 
-    VectorNormalize(wishvel);
+    wishvel = safeNormalize(wishvel);
     accelspeed = sv_accelerate.value * wishspeed * host_frametime;
     if(accelspeed > addspeed)
     {
@@ -370,7 +362,7 @@ void SV_WaterMove()
 
     for(i = 0; i < 3; i++)
     {
-        velocity[i] += accelspeed * wishvel[i];
+        (*velocity)[i] += accelspeed * wishvel[i];
     }
 }
 
@@ -378,9 +370,10 @@ void SV_WaterJump()
 {
     if(sv.time > sv_player->v.teleport_time || !sv_player->v.waterlevel)
     {
-        sv_player->v.flags = (int)sv_player->v.flags & ~FL_WATERJUMP;
+        quake::util::removeFlag(sv_player, FL_WATERJUMP);
         sv_player->v.teleport_time = 0;
     }
+
     sv_player->v.velocity[0] = sv_player->v.movedir[0];
     sv_player->v.velocity[1] = sv_player->v.movedir[1];
 }
@@ -394,17 +387,18 @@ new, alternate noclip. old noclip is still handled in SV_AirMove
 */
 void SV_NoclipMove()
 {
-    AngleVectors(sv_player->v.v_angle, forward, right, up);
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(sv_player->v.v_angle);
 
-    velocity[0] = forward[0] * cmd.forwardmove + right[0] * cmd.sidemove;
-    velocity[1] = forward[1] * cmd.forwardmove + right[1] * cmd.sidemove;
-    velocity[2] = forward[2] * cmd.forwardmove + right[2] * cmd.sidemove;
-    velocity[2] += cmd.upmove * 2; // doubled to match running speed
+    (*velocity)[0] = forward[0] * cmd.forwardmove + right[0] * cmd.sidemove;
+    (*velocity)[1] = forward[1] * cmd.forwardmove + right[1] * cmd.sidemove;
+    (*velocity)[2] = forward[2] * cmd.forwardmove + right[2] * cmd.sidemove;
+    (*velocity)[2] += cmd.upmove * 2; // doubled to match running speed
 
-    if(VectorLength(velocity) > sv_maxspeed.value)
+    if(glm::length(*velocity) > sv_maxspeed.value)
     {
-        VectorNormalize(velocity);
-        VectorScale(velocity, sv_maxspeed.value, velocity);
+        *velocity = safeNormalize(*velocity);
+        *velocity *= sv_maxspeed.value;
     }
 }
 
@@ -415,19 +409,11 @@ SV_AirMove
 */
 void SV_AirMove()
 {
-    int i;
-    vec3_t wishvel;
+    std::tie(forward, right, up) =
+        quake::util::getAngledVectors(VR_GetHeadAngles());
 
-    vec3_t wishdir;
-    float wishspeed;
-    float fmove;
-
-    float smove;
-
-    AngleVectors(sv_player->v.v_viewangle, forward, right, up);
-
-    fmove = cmd.forwardmove;
-    smove = cmd.sidemove;
+    float fmove = cmd.forwardmove;
+    const float smove = cmd.sidemove;
 
     // hack to not let you back into teleporter
     if(sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -435,10 +421,7 @@ void SV_AirMove()
         fmove = 0;
     }
 
-    for(i = 0; i < 3; i++)
-    {
-        wishvel[i] = forward[i] * fmove + right[i] * smove;
-    }
+    glm::vec3 wishvel = forward * fmove + right * smove;
 
     if((int)sv_player->v.movetype != MOVETYPE_WALK)
     {
@@ -449,17 +432,18 @@ void SV_AirMove()
         wishvel[2] = 0;
     }
 
-    VectorCopy(wishvel, wishdir);
-    wishspeed = VectorNormalize(wishdir);
+    float wishspeed = glm::length(wishvel);
+    const auto wishdir = safeNormalize(wishvel);
     if(wishspeed > sv_maxspeed.value)
     {
-        VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
+        wishvel *= sv_maxspeed.value / wishspeed;
         wishspeed = sv_maxspeed.value;
     }
 
     if(sv_player->v.movetype == MOVETYPE_NOCLIP)
-    { // noclip
-        VectorCopy(wishvel, velocity);
+    {
+        // noclip
+        *velocity = wishvel;
     }
     else if(onground)
     {
@@ -467,7 +451,8 @@ void SV_AirMove()
         SV_Accelerate(wishspeed, wishdir);
     }
     else
-    { // not on ground, so little effect on velocity
+    {
+        // not on ground, so little effect on velocity
         SV_AirAccelerate(wishspeed, wishvel);
     }
 }
@@ -482,17 +467,15 @@ the angle fields specify an exact angular motion in degrees
 */
 void SV_ClientThink()
 {
-    vec3_t v_angle;
-
     if(sv_player->v.movetype == MOVETYPE_NONE)
     {
         return;
     }
 
-    onground = (int)sv_player->v.flags & FL_ONGROUND;
+    onground = quake::util::hasFlag(sv_player, FL_ONGROUND);
 
-    origin = sv_player->v.origin;
-    velocity = sv_player->v.velocity;
+    origin = &sv_player->v.origin;
+    velocity = &sv_player->v.velocity;
 
     DropPunchAngle();
 
@@ -508,17 +491,18 @@ void SV_ClientThink()
     // angles
     // show 1/3 the pitch angle and all the roll angle
     cmd = host_client->cmd;
-    angles = sv_player->v.angles;
 
-    VectorAdd(sv_player->v.v_angle, sv_player->v.punchangle, v_angle);
-    angles[ROLL] = V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
+    glm::vec3 v_angle;
+    v_angle = sv_player->v.v_angle + sv_player->v.punchangle;
+    sv_player->v.angles[ROLL] =
+        V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
     if(!sv_player->v.fixangle)
     {
-        angles[PITCH] = -v_angle[PITCH] / 3;
-        angles[YAW] = v_angle[YAW];
+        sv_player->v.angles[PITCH] = -v_angle[PITCH] / 3;
+        sv_player->v.angles[YAW] = v_angle[YAW];
     }
 
-    if((int)sv_player->v.flags & FL_WATERJUMP)
+    if(quake::util::hasFlag(sv_player, FL_WATERJUMP))
     {
         SV_WaterJump();
         return;
@@ -575,10 +559,8 @@ void SV_ReadClientMove(usercmd_t* move)
         }
     };
 
-    const auto readVec = [&](auto& target) {
-        target[0] = MSG_ReadFloat();
-        target[1] = MSG_ReadFloat();
-        target[2] = MSG_ReadFloat();
+    const auto readVec = [&]() -> glm::vec3 {
+        return {MSG_ReadFloat(), MSG_ReadFloat(), MSG_ReadFloat()};
     };
 
     // aimangles
@@ -587,53 +569,63 @@ void SV_ReadClientMove(usercmd_t* move)
     // viewangles
     readAngles(host_client->edict->v.v_viewangle);
 
-    // main hand: handpos, handrot, handvel, handvelmag
-    // handpos
-    readVec(move->handpos);
-    VectorCopy(move->handpos, host_client->edict->v.handpos);
+    // ------------------------------------------------------------------------
+    // main hand values:
+    host_client->edict->v.handpos = move->handpos = readVec();
+    host_client->edict->v.handrot = move->handrot = readVec();
+    host_client->edict->v.handvel = move->handvel = readVec();
+    host_client->edict->v.handthrowvel = move->handthrowvel = readVec();
+    host_client->edict->v.handvelmag = move->handvelmag = MSG_ReadFloat();
+    host_client->edict->v.handavel = move->handavel = readVec();
+    // ------------------------------------------------------------------------
 
-    // handrot
-    readVec(move->handrot);
-    VectorCopy(move->handrot, host_client->edict->v.handrot);
-
-    // handvel
-    readVec(move->handvel);
-    VectorCopy(move->handvel, host_client->edict->v.handvel);
-
-    // handvelmag
-    move->handvelmag = MSG_ReadFloat();
-    host_client->edict->v.handvelmag = move->handvelmag;
-
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
-    // offhandpos
-    readVec(move->offhandpos);
-    VectorCopy(move->offhandpos, host_client->edict->v.offhandpos);
-
-    // offhandrot
-    readVec(move->offhandrot);
-    VectorCopy(move->offhandrot, host_client->edict->v.offhandrot);
-
-    // offhandvel
-    readVec(move->offhandvel);
-    VectorCopy(move->offhandvel, host_client->edict->v.offhandvel);
-
-    // offhandvelmag
-    move->offhandvelmag = MSG_ReadFloat();
-    host_client->edict->v.offhandvelmag = move->offhandvelmag;
+    // ------------------------------------------------------------------------
+    // off hand values:
+    host_client->edict->v.offhandpos = move->offhandpos = readVec();
+    host_client->edict->v.offhandrot = move->offhandrot = readVec();
+    host_client->edict->v.offhandvel = move->offhandvel = readVec();
+    host_client->edict->v.offhandthrowvel = move->offhandthrowvel = readVec();
+    host_client->edict->v.offhandvelmag = move->offhandvelmag = MSG_ReadFloat();
+    host_client->edict->v.offhandavel = move->offhandavel = readVec();
+    // ------------------------------------------------------------------------
 
     // muzzlepos
-    readVec(move->muzzlepos);
-    VectorCopy(move->muzzlepos, host_client->edict->v.muzzlepos);
+    host_client->edict->v.muzzlepos = move->muzzlepos = readVec();
 
-    // read movement
+    // offmuzzlepos
+    host_client->edict->v.offmuzzlepos = move->offmuzzlepos = readVec();
+
+    // movement
     move->forwardmove = MSG_ReadShort();
     move->sidemove = MSG_ReadShort();
     move->upmove = MSG_ReadShort();
+
+    // teleportation
+    host_client->edict->v.teleporting = move->teleporting = MSG_ReadShort();
+    host_client->edict->v.teleport_target = move->teleport_target = readVec();
+
+    // hands
+    host_client->edict->v.offhand_grabbing = move->offhand_grabbing =
+        MSG_ReadShort();
+    host_client->edict->v.offhand_prevgrabbing = move->offhand_prevgrabbing =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_grabbing = move->mainhand_grabbing =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_prevgrabbing = move->mainhand_prevgrabbing =
+        MSG_ReadShort();
+    host_client->edict->v.offhand_hotspot = move->offhand_hotspot =
+        MSG_ReadShort();
+    host_client->edict->v.mainhand_hotspot = move->mainhand_hotspot =
+        MSG_ReadShort();
+
+    // roomscalemove
+    host_client->edict->v.roomscalemove = move->roomscalemove = readVec();
 
     // read buttons
     bits = MSG_ReadByte();
     host_client->edict->v.button0 = bits & 1;
     host_client->edict->v.button2 = (bits & 2) >> 1;
+    host_client->edict->v.button3 = (bits & 4) >> 2;
 
     i = MSG_ReadByte();
     if(i)

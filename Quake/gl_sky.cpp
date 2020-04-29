@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_sky.c
 
 #include "quakedef.hpp"
+#include "util.hpp"
 
 #define MAX_CLIP_VERTS 64
 
@@ -35,7 +36,7 @@ extern qmodel_t* loadmodel;
 float skyflatcolor[3];
 float skymins[2][6], skymaxs[2][6];
 
-char skybox_name[32] = ""; // name of current skybox, or "" if no skybox
+char skybox_name[1024]; // name of current skybox, or "" if no skybox
 
 gltexture_t* skybox_textures[6];
 gltexture_t *solidskytexture, *alphaskytexture;
@@ -224,7 +225,7 @@ void Sky_LoadSkyBox(const char* name)
         return;
     }
 
-    strcpy(skybox_name, name);
+    q_strlcpy(skybox_name, name, sizeof(skybox_name));
 }
 
 /*
@@ -292,7 +293,8 @@ void Sky_NewMap()
             q_strlcpy(key, com_token, sizeof(key));
         }
         while(key[0] && key[strlen(key) - 1] == ' ')
-        { // remove trailing spaces
+        {
+            // remove trailing spaces
             key[strlen(key) - 1] = 0;
         }
         data = COM_Parse(data);
@@ -314,11 +316,13 @@ void Sky_NewMap()
 #if 1 // also accept non-standard keys
         }
         else if(!strcmp("skyname", key))
-        { // half-life
+        {
+            // half-life
             Sky_LoadSkyBox(value);
         }
         else if(!strcmp("qlsky", key))
-        { // quake lives
+        {
+            // quake lives
             Sky_LoadSkyBox(value);
         }
 #endif
@@ -368,6 +372,7 @@ void Sky_Init()
 
     Cmd_AddCommand("sky", Sky_SkyCommand_f);
 
+    skybox_name[0] = 0;
     for(i = 0; i < 6; i++)
     {
         skybox_textures[i] = nullptr;
@@ -390,11 +395,8 @@ update sky bounds
 void Sky_ProjectPoly(int nump, vec3_t vecs)
 {
     int i;
-
     int j;
-    vec3_t v;
 
-    vec3_t av;
     float s;
 
     float t;
@@ -404,11 +406,13 @@ void Sky_ProjectPoly(int nump, vec3_t vecs)
     float* vp;
 
     // decide which face it maps to
-    VectorCopy(vec3_origin, v);
+    glm::vec3 v = vec3_zero;
     for(i = 0, vp = vecs; i < nump; i++, vp += 3)
     {
         VectorAdd(vp, v, v);
     }
+
+    glm::vec3 av;
     av[0] = fabs(v[0]);
     av[1] = fabs(v[1]);
     av[2] = fabs(v[2]);
@@ -553,7 +557,8 @@ void Sky_ClipPoly(int nump, vec3_t vecs, int stage)
     }
 
     if(!front || !back)
-    { // not clipped
+    {
+        // not clipped
         Sky_ClipPoly(nump, vecs, stage + 1);
         return;
     }
@@ -683,13 +688,11 @@ void Sky_ProcessEntities()
     int mark;
     float dot;
     bool rotated;
-    vec3_t temp;
 
-    vec3_t forward;
-
-    vec3_t right;
-
-    vec3_t up;
+    glm::vec3 temp;
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
 
     if(!r_drawentities.value)
     {
@@ -715,12 +718,15 @@ void Sky_ProcessEntities()
             continue;
         }
 
-        VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
+        modelorg = r_refdef.vieworg - e->origin;
         if(e->angles[0] || e->angles[1] || e->angles[2])
         {
             rotated = true;
-            AngleVectors(e->angles, forward, right, up);
-            VectorCopy(modelorg, temp);
+
+            std::tie(forward, right, up) =
+                quake::util::getAngledVectors(e->angles);
+
+            temp = modelorg;
             modelorg[0] = DotProduct(temp, forward);
             modelorg[1] = -DotProduct(temp, right);
             modelorg[2] = DotProduct(temp, up);
@@ -1082,13 +1088,13 @@ void Sky_DrawFace(int axis)
     float dj;
 
     float qj;
-    vec3_t vup;
+    glm::vec3 vup;
 
-    vec3_t vright;
+    glm::vec3 vright;
 
-    vec3_t temp;
+    glm::vec3 temp;
 
-    vec3_t temp2;
+    glm::vec3 temp2;
 
     Sky_SetBoxVert(-1.0, -1.0, axis, verts[0]);
     Sky_SetBoxVert(-1.0, 1.0, axis, verts[1]);
@@ -1120,15 +1126,15 @@ void Sky_DrawFace(int axis)
             }
 
             // if (i&1 ^ j&1) continue; //checkerboard test
-            VectorScale(vright, qi * i, temp);
-            VectorScale(vup, qj * j, temp2);
-            VectorAdd(temp, temp2, temp);
+            temp = vright * (qi * i);
+            temp2 = vup * (qj * j);
+            temp += temp2;
             VectorAdd(verts[0], temp, p->verts[0]);
 
-            VectorScale(vup, qj, temp);
+            temp = vup * qj;
             VectorAdd(p->verts[0], temp, p->verts[1]);
 
-            VectorScale(vright, qi, temp);
+            temp = vright * qi;
             VectorAdd(p->verts[1], temp, p->verts[2]);
 
             VectorAdd(p->verts[0], temp, p->verts[3]);
@@ -1192,8 +1198,8 @@ void Sky_DrawSky()
     //
     for(i = 0; i < 6; i++)
     {
-        skymins[0][i] = skymins[1][i] = 9999;
-        skymaxs[0][i] = skymaxs[1][i] = -9999;
+        skymins[0][i] = skymins[1][i] = FLT_MAX;
+        skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
     }
 
     //

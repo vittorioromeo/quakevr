@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 #include "vr.hpp"
+#include "menu_util.hpp"
 #include <cassert>
 
 // ericw -- for putting the driver into multithreaded mode
@@ -105,11 +106,11 @@ bool gl_texture_env_combine = false; // johnfitz
 bool gl_texture_env_add = false;     // johnfitz
 bool gl_swap_control = false;        // johnfitz
 bool gl_anisotropy_able = false;     // johnfitz
-float gl_max_anisotropy;                 // johnfitz
+float gl_max_anisotropy;             // johnfitz
 bool gl_texture_NPOT = false;        // ericw
 bool gl_vbo_able = false;            // ericw
 bool gl_glsl_able = false;           // ericw
-GLint gl_max_texture_units = 0;          // ericw
+GLint gl_max_texture_units = 0;      // ericw
 bool gl_glsl_gamma_able = false;     // ericw
 bool gl_glsl_alias_able = false;     // ericw
 int gl_stencilbits;
@@ -691,20 +692,23 @@ static bool VID_SetMode(
         draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         if(!draw_context)
-        { // scale back fsaa
+        {
+            // scale back fsaa
             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
             SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         }
         if(!draw_context)
-        { // scale back SDL_GL_DEPTH_SIZE
+        {
+            // scale back SDL_GL_DEPTH_SIZE
             SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
         }
         if(!draw_context)
-        { // scale back SDL_GL_STENCIL_SIZE
+        {
+            // scale back SDL_GL_STENCIL_SIZE
             SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
             draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED, width, height, flags);
@@ -794,18 +798,21 @@ static bool VID_SetMode(
 
     draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     if(!draw_context)
-    { // scale back fsaa
+    {
+        // scale back fsaa
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     }
     if(!draw_context)
-    { // scale back SDL_GL_DEPTH_SIZE
+    {
+        // scale back SDL_GL_DEPTH_SIZE
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
     }
     if(!draw_context)
-    { // scale back SDL_GL_STENCIL_SIZE
+    {
+        // scale back SDL_GL_STENCIL_SIZE
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
         draw_context = SDL_SetVideoMode(width, height, bpp, flags);
         if(!draw_context) Sys_Error("Couldn't set video mode");
@@ -2665,10 +2672,7 @@ VID_Menu_f
 */
 static void VID_Menu_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
-    key_dest = key_menu;
-    m_state = m_video;
-    m_entersound = true;
+    quake::menu_util::setMenuState(m_video);
 
     // set all the cvars to match the current mode when entering the
     // menu

@@ -255,7 +255,8 @@ void SCR_CheckDrawCenterString()
         return;
     }
     if(cl.paused)
-    { // johnfitz -- don't show centerprint during a pause
+    {
+        // johnfitz -- don't show centerprint during a pause
         return;
     }
 
@@ -363,7 +364,8 @@ static void SCR_CalcRefdef()
     scale = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
     if(size >= 120 || cl.intermission || scr_sbaralpha.value < 1)
-    { // johnfitz -- scr_sbaralpha.value
+    {
+        // johnfitz -- scr_sbaralpha.value
         sb_lines = 0;
     }
     else if(size >= 110)
@@ -728,7 +730,8 @@ void SCR_DrawPause()
     }
 
     if(!scr_showpause.value)
-    { // turn off for screenshots
+    {
+        // turn off for screenshots
         return;
     }
 
@@ -1218,7 +1221,7 @@ void SCR_UpdateScreenContent()
 {
     V_RenderView();
 
-    if(vr_enabled.value && !con_forcedup)
+    if(VR_EnabledAndNotFake() && !con_forcedup)
     {
         VR_Draw2D();
     }
@@ -1330,13 +1333,25 @@ void SCR_UpdateScreen()
 
     if(vr_enabled.value && !con_forcedup)
     {
+        // TODO VR: (P2) this is client side, but does use server logic. Should
+        // be split accordingly and cleaned up.
+
         VR_UpdateScreenContent(); // phoboslab
     }
     else
     {
-        VectorCopy(cl.aimangles, cl.viewangles);
-        VectorCopy(cl.aimangles, r_refdef.viewangles);
-        VectorCopy(cl.aimangles, r_refdef.aimangles);
+        cl.viewangles = cl.aimangles;
+        r_refdef.viewangles = cl.aimangles;
+        r_refdef.aimangles = cl.aimangles;
+
+        SCR_UpdateScreenContent();
+    }
+
+    // In fake VR mode, aim and look towards view angles, not aim angles.
+    if(vr_fakevr.value == 1)
+    {
+        r_refdef.viewangles = cl.viewangles;
+        r_refdef.aimangles = cl.viewangles;
 
         SCR_UpdateScreenContent();
     }

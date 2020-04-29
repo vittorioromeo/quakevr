@@ -98,7 +98,8 @@ void Z_Free(void* ptr)
 
     other = block->prev;
     if(!other->tag)
-    { // merge with previous free block
+    {
+        // merge with previous free block
         other->size += block->size;
         other->next = block->next;
         other->next->prev = other;
@@ -111,7 +112,8 @@ void Z_Free(void* ptr)
 
     other = block->next;
     if(!other->tag)
-    { // merge the next free block onto the end
+    {
+        // merge the next free block onto the end
         block->size += other->size;
         block->next = other->next;
         block->next->prev = block;
@@ -153,7 +155,8 @@ static void* Z_TagMalloc(int size, int tag)
     do
     {
         if(rover == start)
-        { // scaned all the way around the list
+        {
+            // scaned all the way around the list
             return nullptr;
         }
         if(rover->tag)
@@ -171,7 +174,8 @@ static void* Z_TagMalloc(int size, int tag)
     //
     extra = base->size - size;
     if(extra > MINFRAGMENT)
-    { // there will be a free fragment after the allocated block
+    {
+        // there will be a free fragment after the allocated block
         newblock = (memblock_t*)((byte*)base + size);
         newblock->size = extra;
         newblock->tag = 0; // free block
@@ -512,10 +516,8 @@ void Hunk_Print_f()
 Hunk_AllocName
 ===================
 */
-void* Hunk_AllocName(int size, const char* name)
+void* Hunk_AllocName(int size, const char* name) noexcept
 {
-    hunk_t* h;
-
 #ifdef PARANOID
     Hunk_Check();
 #endif
@@ -532,7 +534,7 @@ void* Hunk_AllocName(int size, const char* name)
         Sys_Error("Hunk_Alloc: failed on %i bytes", size);
     }
 
-    h = (hunk_t*)(hunk_base + hunk_low_used);
+    hunk_t* h = (hunk_t*)(hunk_base + hunk_low_used);
     hunk_low_used += size;
 
     Cache_FreeLow(hunk_low_used);
@@ -551,17 +553,17 @@ void* Hunk_AllocName(int size, const char* name)
 Hunk_Alloc
 ===================
 */
-void* Hunk_Alloc(int size)
+[[nodiscard]] void* Hunk_Alloc(const int size) noexcept
 {
     return Hunk_AllocName(size, "unknown");
 }
 
-int Hunk_LowMark()
+[[nodiscard]] int Hunk_LowMark() noexcept
 {
     return hunk_low_used;
 }
 
-void Hunk_FreeToLowMark(int mark)
+void Hunk_FreeToLowMark(const int mark) noexcept
 {
     if(mark < 0 || mark > hunk_low_used)
     {
@@ -571,7 +573,7 @@ void Hunk_FreeToLowMark(int mark)
     hunk_low_used = mark;
 }
 
-int Hunk_HighMark()
+[[nodiscard]] int Hunk_HighMark() noexcept
 {
     if(hunk_tempactive)
     {
@@ -582,7 +584,7 @@ int Hunk_HighMark()
     return hunk_high_used;
 }
 
-void Hunk_FreeToHighMark(int mark)
+void Hunk_FreeToHighMark(const int mark) noexcept
 {
     if(hunk_tempactive)
     {
@@ -603,7 +605,7 @@ void Hunk_FreeToHighMark(int mark)
 Hunk_HighAllocName
 ===================
 */
-void* Hunk_HighAllocName(int size, const char* name)
+[[nodiscard]] void* Hunk_HighAllocName(int size, const char* name) noexcept
 {
     hunk_t* h;
 
@@ -672,10 +674,10 @@ void* Hunk_TempAlloc(int size)
     return buf;
 }
 
-char* Hunk_Strdup(const char* s, const char* name)
+[[nodiscard]] char* Hunk_Strdup(const char* s, const char* name) noexcept
 {
     size_t sz = strlen(s) + 1;
-    char* ptr = (char*)Hunk_AllocName(sz, name);
+    char* ptr = (char*)(Hunk_AllocName(sz, name));
     memcpy(ptr, s, sz);
     return ptr;
 }
@@ -866,7 +868,8 @@ cache_system_t* Cache_TryAlloc(int size, bool nobottom)
         if(!nobottom || cs != cache_head.next)
         {
             if((byte*)cs - (byte*)new_cs >= size)
-            { // found space
+            {
+                // found space
                 memset(new_cs, 0, sizeof(*new_cs));
                 new_cs->size = size;
 

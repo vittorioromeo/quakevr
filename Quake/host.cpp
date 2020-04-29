@@ -56,6 +56,7 @@ int minimum_memory;
 client_t* host_client; // current client
 
 jmp_buf host_abortserver;
+bool host_abortserver_setjmp_done{false};
 
 byte* host_colormap;
 
@@ -159,7 +160,41 @@ void Host_EndGame(const char* message, ...)
         CL_Disconnect();
     }
 
+    if(!host_abortserver_setjmp_done)
+    {
+        std::terminate();
+    }
+
     longjmp(host_abortserver, 1);
+}
+
+/*
+================
+Host_Warn
+
+Prints a warning without shutting down
+================
+*/
+void Host_Warn(const char* error, ...)
+{
+    va_list argptr;
+    char string[1024];
+    static bool inwarn = false;
+
+    if(inwarn)
+    {
+        Sys_Error("Host_Warn: recursively entered");
+    }
+    inwarn = true;
+
+    SCR_EndLoadingPlaque(); // reenable screen updates
+
+    va_start(argptr, error);
+    q_vsnprintf(string, sizeof(string), error, argptr);
+    va_end(argptr);
+    Con_Printf("Host_Warn: %s\n", string);
+
+    inwarn = false;
 }
 
 /*
@@ -204,6 +239,11 @@ void Host_Error(const char* error, ...)
                          // (changelevel with no map found, etc.)
 
     inerror = false;
+
+    if(!host_abortserver_setjmp_done)
+    {
+        std::terminate();
+    }
 
     longjmp(host_abortserver, 1);
 }
@@ -669,7 +709,8 @@ bool Host_FilterTime(float time)
         host_frametime = host_framerate.value;
     }
     else
-    { // don't allow really long or short frames
+    {
+        // don't allow really long or short frames
         host_frametime =
             CLAMP(0.001, host_frametime, 0.1); // johnfitz -- use CLAMP
     }
@@ -779,9 +820,12 @@ void _Host_Frame(float time)
 
     int pass3;
 
-    if(setjmp(host_abortserver))
     {
-        return; // something bad happened, or the server disconnected
+        host_abortserver_setjmp_done = true;
+        if(setjmp(host_abortserver))
+        {
+            return; // something bad happened, or the server disconnected
+        }
     }
 
     // keep the random time dependent
@@ -869,7 +913,7 @@ void _Host_Frame(float time)
     }
     else
     {
-        S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
+        S_Update(vec3_zero, vec3_zero, vec3_zero, vec3_zero);
     }
 
     CDAudio_Update();
@@ -1012,7 +1056,7 @@ void Host_Init()
         CL_Init();
     }
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    (void) Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;
@@ -1020,7 +1064,15 @@ void Host_Init()
 
     if(cls.state != ca_dedicated)
     {
+        // VR: This is what reads 'config.cfg'.
         Cbuf_InsertText("exec quake.rc\n");
+        Cbuf_Execute();
+
+        if(vr_enabled.value == 1)
+        {
+            VR_ModAllModels();
+        }
+
         // johnfitz -- in case the vid mode was locked during vid_init, we
         // can unlock it now. note: two leading newlines because the command
         // buffer swallows one of them.

@@ -47,7 +47,7 @@ http://forums.insideqc.com/viewtopic.php?t=1930
 ===============================================================================
 */
 
-vec3_t r_emins, r_emaxs;
+glm::vec3 r_emins, r_emaxs;
 
 entity_t* r_addent;
 

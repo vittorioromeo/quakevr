@@ -1,0 +1,66 @@
+progs.dat
+
+defs.qc
+teamplay.qc		// ZOID - teamplay stuff
+runes.qc
+motd.qc
+subs.qc
+fight.qc
+ai.qc
+combat.qc
+items.qc
+grapple.qc		// ZOID - grappling hook
+weapons.qc
+world.qc
+client.qc
+player.qc
+monsters.qc
+doors.qc
+buttons.qc
+triggers.qc
+plats.qc
+misc.qc
+
+ogre.qc
+demon.qc
+shambler.qc
+knight.qc
+soldier.qc
+wizard.qc
+dog.qc
+zombie.qc
+boss.qc
+
+tarbaby.qc		// registered
+hknight.qc		// registered
+fish.qc			// registered
+shalrath.qc		// registered
+enforcer.qc		// registered
+oldone.qc		// registered
+
+new_ai.qc
+eel.qc
+invis_sw.qc
+newitems.qc
+newplats.qc
+newmisc.qc
+elevatr.qc
+pendulum.qc
+lightnin.qc
+wrath.qc
+shield.qc
+lava_wpn.qc
+mult_wpn.qc
+dragon.qc
+s_wrath.qc
+random.qc
+earthq.qc
+lavaman.qc
+sphere.qc
+buzzsaw.qc
+dmatch.qc
+morph.qc
+
+ending.qc
+mummy.qc
+timemach.qc

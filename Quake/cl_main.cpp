@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
+#include "util.hpp"
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -93,9 +94,7 @@ void CL_ClearState()
 
     // johnfitz -- cl_entities is now dynamically allocated
     cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-    cl_entities = (entity_t*)Hunk_AllocName(
-        cl_max_edicts * sizeof(entity_t), "cl_entities");
-    // johnfitz
+    cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
 }
 
 /*
@@ -491,7 +490,8 @@ void CL_RelinkEntities()
     for(i = 1, ent = cl_entities + 1; i < cl.num_entities; i++, ent++)
     {
         if(!ent->model)
-        { // empty slot
+        {
+            // empty slot
 
             // ericw -- efrags are only used for static entities in GLQuake
             // ent can't be static, so this is a no-op.
@@ -511,19 +511,21 @@ void CL_RelinkEntities()
             continue;
         }
 
-        vec3_t oldorg;
-        VectorCopy(ent->origin, oldorg);
+        const auto oldorg = ent->origin;
 
         if(ent->forcelink)
-        { // the entity was not updated in the last message
+        {
+            // the entity was not updated in the last message
             // so move to the final spot
-            VectorCopy(ent->msg_origins[0], ent->origin);
-            VectorCopy(ent->msg_angles[0], ent->angles);
+            ent->origin = ent->msg_origins[0];
+            ent->angles = ent->msg_angles[0];
+            ent->scale = ent->msg_scales[0];
         }
         else
-        { // if the delta is large, assume a teleport and don't lerp
+        {
+            // if the delta is large, assume a teleport and don't lerp
             float f = frac;
-            vec3_t delta;
+            glm::vec3 delta;
 
             for(int j = 0; j < 3; j++)
             {
@@ -547,7 +549,7 @@ void CL_RelinkEntities()
             }
             // johnfitz
 
-            // interpolate the origin and angles
+            // interpolate the origin and angles and scales
             for(int j = 0; j < 3; j++)
             {
                 ent->origin[j] = ent->msg_origins[1][j] + f * delta[j];
@@ -562,10 +564,14 @@ void CL_RelinkEntities()
                     d += 360;
                 }
                 ent->angles[j] = ent->msg_angles[1][j] + f * d;
+
+                const float sd = ent->msg_scales[0][j] - ent->msg_scales[1][j];
+                ent->scale[j] = ent->msg_scales[1][j] + f * sd;
             }
         }
 
         // rotate binary objects locally
+        // TODO VR: (P2) add override here for backpack or quakec field
         if(ent->model->flags & EF_ROTATE)
         {
             ent->angles[1] = bobjrotate;
@@ -579,18 +585,14 @@ void CL_RelinkEntities()
         dlight_t* dl;
         if(ent->effects & EF_MUZZLEFLASH)
         {
-            vec3_t fv;
-
-            vec3_t rv;
-
-            vec3_t uv;
 
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->origin[2] += 16;
-            AngleVectors(ent->angles, fv, rv, uv);
 
-            VectorMA(dl->origin, 18, fv, dl->origin);
+            const auto fv = quake::util::getFwdVecFromPitchYawRoll(ent->angles);
+
+            dl->origin += 18.f * fv;
             dl->radius = 200 + (rand() & 31);
             dl->minlight = 32;
             dl->die = cl.time + 0.1;
@@ -602,6 +604,10 @@ void CL_RelinkEntities()
                 if(ent == &cl_entities[cl.viewentity])
                 {
                     cl.viewent.lerpflags |=
+                        LERP_RESETANIM |
+                        LERP_RESETANIM2; // no lerping for two frames
+
+                    cl.offhand_viewent.lerpflags |=
                         LERP_RESETANIM |
                         LERP_RESETANIM2; // no lerping for two frames
                 }
@@ -617,7 +623,7 @@ void CL_RelinkEntities()
         if(ent->effects & EF_BRIGHTLIGHT)
         {
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->origin[2] += 16;
             dl->radius = 400 + (rand() & 31);
             dl->die = cl.time + 0.001;
@@ -625,7 +631,7 @@ void CL_RelinkEntities()
         if(ent->effects & EF_DIMLIGHT)
         {
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->radius = 200 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
@@ -650,7 +656,7 @@ void CL_RelinkEntities()
         {
             R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
             dl = CL_AllocDlight(i);
-            VectorCopy(ent->origin, dl->origin);
+            dl->origin = ent->origin;
             dl->radius = 200;
             dl->die = cl.time + 0.01;
         }
@@ -665,7 +671,7 @@ void CL_RelinkEntities()
 
         ent->forcelink = false;
 
-        // TODO VR: this hides the player model in first person view
+        // This hides the player model in first person view.
         if(i == cl.viewentity && !chase_active.value)
         {
             continue;
@@ -754,11 +760,13 @@ int CL_ReadFromServer()
             num_beams++;
         }
     }
+
     if(num_beams > 24 && dev_peakstats.beams <= 24)
     {
         Con_DWarning("%i beams exceeded standard limit of 24 (max = %d).\n",
             num_beams, MAX_BEAMS);
     }
+
     dev_stats.beams = num_beams;
     dev_peakstats.beams = q_max(num_beams, dev_peakstats.beams);
 
@@ -849,24 +857,21 @@ display impact point of trace along VPN
 */
 void CL_Tracepos_f(refdef_t& refdef)
 {
-    vec3_t v;
-
-    vec3_t w;
-
     if(cls.state != ca_connected)
     {
         return;
     }
 
-    VectorMA(refdef.vieworg, 8192.0, vpn, v);
-    TraceLine(refdef.vieworg, v, w);
+    const auto v = refdef.vieworg + 8192.f * vpn;
+    const auto trace = TraceLine(refdef.vieworg, v);
 
-    if(VectorLength(w) == 0)
+    if(!quake::util::hitSomething(trace))
     {
         Con_Printf("Tracepos: trace didn't hit anything\n");
     }
     else
     {
+        const auto& w = trace.endpos;
         Con_Printf("Tracepos: (%i %i %i)\n", (int)w[0], (int)w[1], (int)w[2]);
     }
 }
@@ -950,7 +955,6 @@ void CL_Init()
     Cmd_AddCommand("playdemo", CL_PlayDemo_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);
 
-    // TODO VR:
     Cmd_AddCommand("tracepos", [] { CL_Tracepos_f(r_refdef); }); // johnfitz
     Cmd_AddCommand("viewpos", [] { CL_Viewpos_f(r_refdef); });   // johnfitz
 }

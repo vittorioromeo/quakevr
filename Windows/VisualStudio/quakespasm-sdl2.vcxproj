@@ -44,7 +44,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>ClangCL</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -85,7 +85,7 @@
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>$(ProjectName)-release</TargetName>
+    <TargetName>quakevr</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -160,6 +160,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>-ftime-trace</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -197,6 +198,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
+      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -230,7 +232,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\console.cpp" />
     <ClCompile Include="..\..\Quake\crc.cpp" />
     <ClCompile Include="..\..\Quake\cvar.cpp" />
-    <ClCompile Include="..\..\Quake\debug_menu.cpp" />
     <ClCompile Include="..\..\Quake\gl_draw.cpp" />
     <ClCompile Include="..\..\Quake\gl_fog.cpp" />
     <ClCompile Include="..\..\Quake\gl_mesh.cpp" />
@@ -250,19 +251,21 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\in_sdl.cpp" />
     <ClCompile Include="..\..\Quake\keys.cpp" />
     <ClCompile Include="..\..\Quake\main_sdl.cpp" />
-    <ClCompile Include="..\..\Quake\map_menu.cpp" />
     <ClCompile Include="..\..\Quake\mathlib.cpp" />
     <ClCompile Include="..\..\Quake\menu.cpp" />
+    <ClCompile Include="..\..\Quake\menu_util.cpp" />
     <ClCompile Include="..\..\Quake\net_dgrm.cpp" />
     <ClCompile Include="..\..\Quake\net_loop.cpp" />
     <ClCompile Include="..\..\Quake\net_main.cpp" />
     <ClCompile Include="..\..\Quake\net_win.cpp" />
     <ClCompile Include="..\..\Quake\net_wins.cpp" />
     <ClCompile Include="..\..\Quake\net_wipx.cpp" />
+    <ClCompile Include="..\..\Quake\opengl_ext.cpp" />
     <ClCompile Include="..\..\Quake\pl_win.cpp" />
     <ClCompile Include="..\..\Quake\pr_cmds.cpp" />
     <ClCompile Include="..\..\Quake\pr_edict.cpp" />
     <ClCompile Include="..\..\Quake\pr_exec.cpp" />
+    <ClCompile Include="..\..\Quake\quakeglm.cpp" />
     <ClCompile Include="..\..\Quake\r_alias.cpp" />
     <ClCompile Include="..\..\Quake\r_brush.cpp" />
     <ClCompile Include="..\..\Quake\r_part.cpp">
@@ -275,7 +278,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\r_sprite.cpp" />
     <ClCompile Include="..\..\Quake\r_world.cpp" />
     <ClCompile Include="..\..\Quake\sbar.cpp" />
-    <ClCompile Include="..\..\Quake\sbaroffset_menu.cpp" />
     <ClCompile Include="..\..\Quake\snd_codec.cpp" />
     <ClCompile Include="..\..\Quake\snd_dma.cpp" />
     <ClCompile Include="..\..\Quake\snd_flac.cpp" />
@@ -299,11 +301,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
-    <ClCompile Include="..\..\Quake\vrgameplay_menu.cpp" />
-    <ClCompile Include="..\..\Quake\vr_menu.cpp" />
     <ClCompile Include="..\..\Quake\wad.cpp" />
     <ClCompile Include="..\..\Quake\world.cpp" />
-    <ClCompile Include="..\..\Quake\wpnoffset_menu.cpp" />
     <ClCompile Include="..\..\Quake\zone.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -320,7 +319,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\console.hpp" />
     <ClInclude Include="..\..\Quake\crc.hpp" />
     <ClInclude Include="..\..\Quake\cvar.hpp" />
-    <ClInclude Include="..\..\Quake\debug_menu.hpp" />
     <ClInclude Include="..\..\Quake\draw.hpp" />
     <ClInclude Include="..\..\Quake\glquake.hpp" />
     <ClInclude Include="..\..\Quake\gl_model.hpp" />
@@ -329,9 +327,9 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\image.hpp" />
     <ClInclude Include="..\..\Quake\input.hpp" />
     <ClInclude Include="..\..\Quake\keys.hpp" />
-    <ClInclude Include="..\..\Quake\map_menu.hpp" />
     <ClInclude Include="..\..\Quake\mathlib.hpp" />
     <ClInclude Include="..\..\Quake\menu.hpp" />
+    <ClInclude Include="..\..\Quake\menu_util.hpp" />
     <ClInclude Include="..\..\Quake\modelgen.hpp" />
     <ClInclude Include="..\..\Quake\net.hpp" />
     <ClInclude Include="..\..\Quake\net_defs.hpp" />
@@ -340,6 +338,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\net_sys.hpp" />
     <ClInclude Include="..\..\Quake\net_wins.hpp" />
     <ClInclude Include="..\..\Quake\net_wipx.hpp" />
+    <ClInclude Include="..\..\Quake\opengl_ext.hpp" />
     <ClInclude Include="..\..\Quake\openvr.hpp" />
     <ClInclude Include="..\..\Quake\openvr_driver.hpp" />
     <ClInclude Include="..\..\Quake\platform.hpp" />
@@ -349,12 +348,12 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\pr_comp.hpp" />
     <ClInclude Include="..\..\Quake\qs_bmp.hpp" />
     <ClInclude Include="..\..\Quake\quakedef.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm.hpp" />
     <ClInclude Include="..\..\Quake\q_sound.hpp" />
     <ClInclude Include="..\..\Quake\q_stdinc.hpp" />
     <ClInclude Include="..\..\Quake\render.hpp" />
     <ClInclude Include="..\..\Quake\resource.hpp" />
     <ClInclude Include="..\..\Quake\sbar.hpp" />
-    <ClInclude Include="..\..\Quake\sbaroffset_menu.hpp" />
     <ClInclude Include="..\..\Quake\screen.hpp" />
     <ClInclude Include="..\..\Quake\server.hpp" />
     <ClInclude Include="..\..\Quake\snd_codec.hpp" />
@@ -374,11 +373,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\vid.hpp" />
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
-    <ClInclude Include="..\..\Quake\vrgameplay_menu.hpp" />
-    <ClInclude Include="..\..\Quake\vr_menu.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />
-    <ClInclude Include="..\..\Quake\wpnoffset_menu.hpp" />
     <ClInclude Include="..\..\Quake\wsaerror.hpp" />
     <ClInclude Include="..\..\Quake\zone.hpp" />
   </ItemGroup>

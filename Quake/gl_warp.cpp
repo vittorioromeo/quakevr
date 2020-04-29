@@ -22,10 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_warp.c -- warping animation support
 
 #include "quakedef.hpp"
+#include "quakeglm.hpp"
 
 extern cvar_t r_drawflat;
 
-cvar_t r_oldwater = {"r_oldwater", "0", CVAR_ARCHIVE};
+// TODO VR: (P1) oldwater 0 is broken
+cvar_t r_oldwater = {"r_oldwater", "1", CVAR_ARCHIVE};
 cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
 cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_NONE};
 
@@ -56,15 +58,15 @@ msurface_t* warpface;
 
 cvar_t gl_subdivide_size = {"gl_subdivide_size", "128", CVAR_ARCHIVE};
 
-void BoundPoly(int numverts, float* verts, vec3_t mins, vec3_t maxs)
+void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
 {
     int i;
 
     int j;
     float* v;
 
-    mins[0] = mins[1] = mins[2] = 999999999;
-    maxs[0] = maxs[1] = maxs[2] = -999999999;
+    mins[0] = mins[1] = mins[2] = FLT_MAX;
+    maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
     v = verts;
     for(i = 0; i < numverts; i++)
     {
@@ -89,14 +91,14 @@ void SubdividePolygon(int numverts, float* verts)
     int j;
 
     int k;
-    vec3_t mins;
+    glm::vec3 mins;
 
-    vec3_t maxs;
+    glm::vec3 maxs;
     float m;
     float* v;
-    vec3_t front[64];
+    glm::vec3 front[64];
 
-    vec3_t back[64];
+    glm::vec3 back[64];
     int f;
 
     int b;
@@ -170,8 +172,8 @@ void SubdividePolygon(int numverts, float* verts)
             }
         }
 
-        SubdividePolygon(f, front[0]);
-        SubdividePolygon(b, back[0]);
+        SubdividePolygon(f, glm::value_ptr(front[0]));
+        SubdividePolygon(b, glm::value_ptr(back[0]));
         return;
     }
 
@@ -197,7 +199,7 @@ GL_SubdivideSurface
 */
 void GL_SubdivideSurface(msurface_t* fa)
 {
-    vec3_t verts[64];
+    glm::vec3 verts[64];
     int i;
 
     warpface = fa;
@@ -207,7 +209,7 @@ void GL_SubdivideSurface(msurface_t* fa)
     for(i = 0; i < fa->polys->numverts; i++)
         VectorCopy(fa->polys->verts[i], verts[i]);
 
-    SubdividePolygon(fa->polys->numverts, verts[0]);
+    SubdividePolygon(fa->polys->numverts, glm::value_ptr(verts[0]));
 }
 
 /*

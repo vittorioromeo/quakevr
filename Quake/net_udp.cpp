@@ -75,7 +75,7 @@ sys_socket_t UDP_Init()
 #endif
             if(!(local = gethostbyname(buff)))
         {
-// TODO VR: mingw hack
+// TODO VR: (P2) mingw hack
 #ifdef __MINGW32__
 #define hstrerror(x) strerror((x))
 #endif
@@ -301,7 +301,7 @@ sys_socket_t UDP_CheckNewConnections()
         return INVALID_SOCKET;
     }
 
-// TODO VR: mingw hack
+// TODO VR: (P2) mingw hack
 #ifndef __MINGW32__
     if(ioctl(net_acceptsocket, FIONREAD, &available) == -1)
     {
@@ -326,7 +326,7 @@ int UDP_Read(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr)
     socklen_t addrlen = sizeof(struct qsockaddr);
     int ret;
 
-    // TODO VR: mingw hack (reinterpret_cast)
+    // TODO VR: (P2) mingw hack (reinterpret_cast)
     ret = recvfrom(socketid, reinterpret_cast<char*>(buf), len, 0,
         (struct sockaddr*)addr, &addrlen);
     if(ret == SOCKET_ERROR)

@@ -55,8 +55,9 @@ state bit 2 is edge triggered on the down to up transition
 kbutton_t in_mlook, in_klook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack;
+kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack;
 kbutton_t in_up, in_down;
+kbutton_t in_grableft, in_grabright;
 
 int in_impulse;
 
@@ -113,7 +114,8 @@ void KeyUp(kbutton_t* b)
         k = atoi(c);
     }
     else
-    { // typed manually at the console, assume for unsticking, so clear all
+    {
+        // typed manually at the console, assume for unsticking, so clear all
         b->down[0] = b->down[1] = 0;
         b->state = 4; // impulse up
         return;
@@ -245,6 +247,7 @@ void IN_MoverightUp()
     KeyUp(&in_moveright);
 }
 
+
 void IN_SpeedDown()
 {
     KeyDown(&in_speed);
@@ -269,6 +272,15 @@ void IN_AttackDown()
 void IN_AttackUp()
 {
     KeyUp(&in_attack);
+}
+
+void IN_OffHandAttackDown()
+{
+    KeyDown(&in_offhandattack);
+}
+void IN_OffHandAttackUp()
+{
+    KeyUp(&in_offhandattack);
 }
 
 void IN_UseDown()
@@ -547,24 +559,47 @@ void CL_SendMove(const usercmd_t* cmd)
     // viewangles
     writeAngles(cl.viewangles);
 
-    // main hand: handpos, handrot, handvel, handvelmag
+    // main hand values:
     writeVec(cmd->handpos);
     writeVec(cmd->handrot);
     writeVec(cmd->handvel);
+    writeVec(cmd->handthrowvel);
     MSG_WriteFloat(&buf, cmd->handvelmag);
+    writeVec(cmd->handavel);
 
-    // off hand: offhandpos, offhandrot, offhandvel, offhandvelmag
+    // off hand values:
     writeVec(cmd->offhandpos);
     writeVec(cmd->offhandrot);
     writeVec(cmd->offhandvel);
+    writeVec(cmd->offhandthrowvel);
     MSG_WriteFloat(&buf, cmd->offhandvelmag);
+    writeVec(cmd->offhandavel);
 
     // muzzlepos
     writeVec(cmd->muzzlepos);
 
+    // offmuzzlepos
+    writeVec(cmd->offmuzzlepos);
+
+    // movement
     MSG_WriteShort(&buf, cmd->forwardmove);
     MSG_WriteShort(&buf, cmd->sidemove);
     MSG_WriteShort(&buf, cmd->upmove);
+
+    // teleportation
+    MSG_WriteShort(&buf, cmd->teleporting);
+    writeVec(cmd->teleport_target);
+
+    // hands
+    MSG_WriteShort(&buf, cmd->offhand_grabbing);
+    MSG_WriteShort(&buf, cmd->offhand_prevgrabbing);
+    MSG_WriteShort(&buf, cmd->mainhand_grabbing);
+    MSG_WriteShort(&buf, cmd->mainhand_prevgrabbing);
+    MSG_WriteShort(&buf, cmd->offhand_hotspot);
+    MSG_WriteShort(&buf, cmd->mainhand_hotspot);
+
+    // roomscalemove
+    writeVec(cmd->roomscalemove);
 
     //
     // send button bits
@@ -582,6 +617,12 @@ void CL_SendMove(const usercmd_t* cmd)
         bits |= 2;
     }
     in_jump.state &= ~2;
+
+    if(in_offhandattack.state & 3)
+    {
+        bits |= 4;
+    }
+    in_offhandattack.state &= ~2;
 
     MSG_WriteByte(&buf, bits);
 
@@ -645,6 +686,8 @@ void CL_InitInput()
     Cmd_AddCommand("-speed", IN_SpeedUp);
     Cmd_AddCommand("+attack", IN_AttackDown);
     Cmd_AddCommand("-attack", IN_AttackUp);
+    Cmd_AddCommand("+offhandattack", IN_OffHandAttackDown);
+    Cmd_AddCommand("-offhandattack", IN_OffHandAttackUp);
     Cmd_AddCommand("+use", IN_UseDown);
     Cmd_AddCommand("-use", IN_UseUp);
     Cmd_AddCommand("+jump", IN_JumpDown);
@@ -654,4 +697,8 @@ void CL_InitInput()
     Cmd_AddCommand("-klook", IN_KLookUp);
     Cmd_AddCommand("+mlook", IN_MLookDown);
     Cmd_AddCommand("-mlook", IN_MLookUp);
+    Cmd_AddCommand("+grableft", [] { KeyDown(&in_grableft); });
+    Cmd_AddCommand("-grableft", [] { KeyUp(&in_grableft); });
+    Cmd_AddCommand("+grabright", [] { KeyDown(&in_grabright); });
+    Cmd_AddCommand("-grabright", [] { KeyUp(&in_grabright); });
 }

@@ -124,7 +124,8 @@ edict_t* ED_Alloc()
     }
 
     if(i == sv.max_edicts)
-    { // johnfitz -- use sv.max_edicts instead of
+    {
+        // johnfitz -- use sv.max_edicts instead of
         // MAX_EDICTS
         Host_Error(
             "ED_Alloc: no free edicts (max_edicts is %i)", sv.max_edicts);
@@ -158,9 +159,10 @@ void ED_Free(edict_t* ed)
     ed->v.colormap = 0;
     ed->v.skin = 0;
     ed->v.frame = 0;
-    VectorCopy(vec3_origin, ed->v.origin);
-    VectorCopy(vec3_origin, ed->v.angles);
+    ed->v.origin = vec3_zero;
+    ed->v.angles = vec3_zero;
     ed->v.nextthink = -1;
+    ed->v.nextthink2 = -1;
     ed->v.solid = 0;
     ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
 
@@ -964,7 +966,8 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 
     // clear it
     if(ent != sv.edicts)
-    { // hack
+    {
+        // hack
         memset(&ent->v, 0, progs->entityfields * 4);
     }
 
@@ -1216,6 +1219,7 @@ void PR_LoadProgs()
         Host_Error("progs.dat has wrong version number (%i should be %i)",
             progs->version, PROG_VERSION);
     }
+
     if(progs->crc != PROGHEADER_CRC)
     {
         Host_Error(

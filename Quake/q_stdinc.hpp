@@ -34,7 +34,7 @@
 #include <limits.h>
 
 #define GLM_FORCE_INLINE
-#include <glm.hpp>
+#include "quakeglm.hpp"
 
 #ifndef _WIN32 /* others we support without sys/param.h? */
 #include <sys/param.h>
@@ -68,6 +68,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <float.h>
 
 /*==========================================================================*/
 
@@ -75,13 +76,11 @@
 #define Q_MAXSHORT ((short)0x7fff)
 #define Q_MAXINT ((int)0x7fffffff)
 #define Q_MAXLONG ((int)0x7fffffff)
-#define Q_MAXFLOAT ((int)0x7fffffff)
 
 #define Q_MINCHAR ((char)0x80)
 #define Q_MINSHORT ((short)0x8000)
 #define Q_MININT ((int)0x80000000)
 #define Q_MINLONG ((int)0x80000000)
-#define Q_MINFLOAT ((int)0x7fffffff)
 
 /* Make sure the types really have the right
  * sizes: These macros are from SDL headers.
@@ -115,7 +114,6 @@ typedef unsigned char byte;
 #undef true
 #undef false
 
-// TODO VR: seems to work...
 /* some structures have bool members and the x86 asm code expect
  * those members to be 4 bytes long. therefore, bool must be 32
  * bits and it can NOT be binary compatible with the 8 bit C++ bool.  */
@@ -123,23 +121,8 @@ typedef unsigned char byte;
 /*==========================================================================*/
 
 /* math */
-using vec_t = float;
-using vec3_t = vec_t[3];
-
-// TODO VR:
-/*
-struct vec3_t : glm::vec3
-{
-    using glm::vec3::vec3;
-    operator vec_t* () { return reinterpret_cast<float*>(this); }
-};
-*/
-
-using vec4_t = vec_t[4];
-using vec5_t = vec_t[5];
-using fixed4_t = int;
+using vec3_t = float[3];
 using fixed8_t = int;
-using fixed16_t = int;
 
 
 /*==========================================================================*/
