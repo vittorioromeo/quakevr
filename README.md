@@ -142,7 +142,7 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
 
 * VHS Productions's [gameplay video](https://www.youtube.com/watch?v=fwyHMHvGOiI) with commentary and webcam.
 
-* Sly VR's gameplay videos: [part 1](https://www.youtube.com/watch?v=lAlJubb64g0), [part 2](https://www.youtube.com/watch?v=M0Pv66638Hc), [part 3](https://www.youtube.com/watch?v=ST9w7dwW6Rw), and [part 4](https://www.youtube.com/watch?v=pzSvgJWMnr8). With commentary.
+* Sly VR's gameplay videos: [part 1](https://www.youtube.com/watch?v=lAlJubb64g0), [part 2](https://www.youtube.com/watch?v=M0Pv66638Hc), [part 3](https://www.youtube.com/watch?v=ST9w7dwW6Rw), [part 4](https://www.youtube.com/watch?v=pzSvgJWMnr8), and [part 5](https://www.youtube.com/watch?v=-gXMjqcgPdE). With commentary.
 
 * UploadVR [article](https://uploadvr.com/new-quake-vr-mod/) and [gameplay video](https://www.youtube.com/watch?v=fBzCdMSF2-U).
 
@@ -158,3 +158,4 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
 
 * Tom's [gameplay video](https://www.youtube.com/watch?v=96xC_khtrUE).
 
+* GmanLives's [classic FPS in VR video](https://www.youtube.com/watch?v=FukJelV3-Yk), which also includes Quake VR.
