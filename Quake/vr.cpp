@@ -1601,7 +1601,7 @@ void debugPrintHandvel(const int index, const float linearity)
 glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept
 {
-    if (!svPlayerActive())
+    if(!svPlayerActive())
     {
         out._ent = nullptr;
         return resolvedHandPos;
@@ -1672,7 +1672,7 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
 [[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
     const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept
 {
-    if (!svPlayerActive())
+    if(!svPlayerActive())
     {
         return worldHandPos;
     }
@@ -1784,11 +1784,9 @@ void SetHandPos(int index, entity_t* player)
 
         // TODO VR: (P1) seems good now. Cvar everything
 
-        // TODO VR: (P1) rotation fix too strong for light guns, while smooth
-        // rotating it is noticeable
-
-        cl.handpos[index] +=
-            diffWithNew + (lastPlayerTranslation * (1.f - ftw)) - diffWithOld;
+        cl.handpos[index] += diffWithNew +
+                             (lastPlayerTranslation * (1.f - ftw)) -
+                             (diffWithOld * (1.f - ftw));
     }
     else
     {
