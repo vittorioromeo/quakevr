@@ -1259,16 +1259,20 @@ void M_Options_Key(int k)
     quake::menu m{"Menu Settings", &M_Menu_QuakeVRSettings_f};
 
     m.add_cvar_getter_enum_entry<VrMenuMode>( //
-        "Menu Mode",                          //
-        [] { return &vr_menumode; },          //
-        "Fixed Head",                         //
-        "Follow Head",                        //
-        "Follow Off-Hand",                    //
-        "Follow Main Hand"                    //
-    );
+         "Menu Mode",                         //
+         [] { return &vr_menumode; },         //
+         "Fixed Head",                        //
+         "Follow Head",                       //
+         "Follow Off-Hand",                   //
+         "Follow Main Hand"                   //
+         )
+        .tooltip("Control where the menu is anchored/displayed.");
 
-    m.add_cvar_entry<float>("Menu Scale", vr_menu_scale, {0.01f, 0.05f, 0.6f});
-    m.add_cvar_entry<float>("Menu Distance", vr_menu_distance, {1, 24, 256});
+    m.add_cvar_entry<float>("Menu Scale", vr_menu_scale, {0.01f, 0.05f, 0.6f})
+        .tooltip("Scale multiplier for the menu.");
+
+    m.add_cvar_entry<float>("Menu Distance", vr_menu_distance, {1, 24, 256})
+        .tooltip("Distance of the menu from the anchor point.");
 
     // TODO VR: (P1) menu lerp amount, menu distance follow hand?
 
@@ -1359,25 +1363,31 @@ void M_Options_Key(int k)
     quake::menu m{"Locomotion Settings", &M_Menu_QuakeVRSettings_f};
 
     m.add_cvar_getter_enum_entry<VrMovementMode>( //
-        "Movement Mode",                          //
-        [] { return &vr_movement_mode; },         //
-        "Follow Hand", "Follow Head"              //
-    );
+         "Movement Mode",                         //
+         [] { return &vr_movement_mode; },        //
+         "Follow Hand", "Follow Head"             //
+         )
+        .tooltip("Movement options for smooth locomotion.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<float>("Deadzone", vr_deadzone, {5.f, 0.f, 180.f});
+    m.add_cvar_entry<float>("Deadzone", vr_deadzone, {5.f, 0.f, 180.f})
+        .tooltip("Controller thumbstick deadzone.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<bool>("Enable Joystick Turn", vr_enable_joystick_turn);
+    m.add_cvar_entry<bool>("Enable Joystick Turn", vr_enable_joystick_turn)
+        .tooltip(
+            "Allows turning using the controller. Keep enabled unless you want "
+            "to force yourself to turn in real life.");
 
     {
         auto e = m.add_cvar_entry<int>("Turn", vr_snap_turn, {5, 0, 90});
+        e.tooltip("Joystick turn smooth mode or snap turn degrees.");
         e->_printer = [](char* buf, const int buf_size, const int x) {
             if(x == 0)
             {
@@ -1392,37 +1402,56 @@ void M_Options_Key(int k)
 
     constexpr float max_turn_speed = 10.0f;
     m.add_cvar_entry<float>(
-        "Turn Speed", vr_turn_speed, {0.25f, 0.f, max_turn_speed});
+         "Turn Speed", vr_turn_speed, {0.25f, 0.f, max_turn_speed})
+        .tooltip("How quickly you turn with the joystick.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<bool>("Teleportation", vr_teleport_enabled);
+    m.add_cvar_entry<bool>("Teleportation", vr_teleport_enabled)
+        .tooltip(
+            "Enables or disables teleportation. A controller binding is "
+            "required to use teleportation.");
 
     m.add_cvar_entry<float>(
-        "Teleport Range", vr_teleport_range, {10.f, 100.f, 800.f});
+         "Teleport Range", vr_teleport_range, {10.f, 100.f, 800.f})
+        .tooltip("How far you can teleport.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<bool>("Roomscale Jump", vr_roomscale_jump);
+    m.add_cvar_entry<bool>("Roomscale Jump", vr_roomscale_jump)
+        .tooltip(
+            "When enabled and after calibrating your height, you'll be able to "
+            "jump in-game by jumping in real life.");
 
     m.add_cvar_entry<float>("Roomscale Jump Threshold",
-        vr_roomscale_jump_threshold, {0.05f, 0.05f, 3.f});
+         vr_roomscale_jump_threshold, {0.05f, 0.05f, 3.f})
+        .tooltip(
+            "Z velocity threshold to trigger a roomscale jump. Increase if you "
+            "find yourself jumping when looking up or standing on your toes.");
 
     m.add_cvar_entry<float>(
-        "Room-Scale Move Mult.", vr_roomscale_move_mult, {0.25f, 0.25f, 5.f});
+         "Roomscale Move Mult.", vr_roomscale_move_mult, {0.25f, 0.25f, 5.f})
+        .tooltip(
+            "Roomscale movement multiplier. Allows you to cover more or less "
+            "distance in-game compared to real life. Consider increasing if "
+            "playing with teleportation and/or have limited space.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<int>("Movement Speed", cl_forwardspeed, {25, 100, 400});
+    m.add_cvar_entry<int>("Movement Speed", cl_forwardspeed, {25, 100, 400})
+        .tooltip("In-game movement speed.");
 
     m.add_cvar_entry<float>(
-        "Speed Button Multiplier", cl_movespeedkey, {0.05f, 0.1f, 1.f});
+         "Speed Button Multiplier", cl_movespeedkey, {0.05f, 0.1f, 1.f})
+        .tooltip(
+            "In-game movement speed multiplier applied when pressing the "
+            "'speed button', which needs to be bound to your controllers.");
 
     return m;
 }
@@ -1441,28 +1470,47 @@ void M_Options_Key(int k)
     quake::menu m{"Hand/Gun Calibration", &M_Menu_QuakeVRSettings_f};
 
     constexpr float max_gunangle = 180.0f;
-    m.add_cvar_entry<float>(
-        "Gun Angle", vr_gunangle, {0.75f, -max_gunangle, max_gunangle});
 
     m.add_cvar_entry<float>(
-        "Gun Model Pitch", vr_gunmodelpitch, {0.25f, -90.f, 90.f});
+         "Gun Angle", vr_gunangle, {0.75f, -max_gunangle, max_gunangle})
+        .tooltip(
+            "Pitch offset for the guns/hands. Affects aiming. Change if your "
+            "controller is not 'aligned' to your gun.");
 
     m.add_cvar_entry<float>(
-        "Gun Model Scale", vr_gunmodelscale, {0.05f, 0.1f, 2.f});
+         "Gun Model Pitch", vr_gunmodelpitch, {0.25f, -90.f, 90.f})
+        .tooltip("Pitch offset for gun models. Does NOT affect aiming.");
 
     m.add_cvar_entry<float>(
-        "Gun Model Z Offset", vr_gunmodely, {0.1f, -5.0f, 5.f});
-
-    m.add_cvar_entry<float>("Gun Yaw", vr_gunyaw, {0.25f, -90.f, 90.f});
-
-    m.add_cvar_entry<float>(
-        "Gun Z Offset", vr_gun_z_offset, {0.25f, -30.f, 30.f});
-
-    m.add_cvar_entry<float>(
-        "Off-Hand Pitch", vr_offhandpitch, {0.25f, -90.f, 90.f});
+         "Gun Model Scale", vr_gunmodelscale, {0.05f, 0.1f, 2.f})
+        .tooltip(
+            "Scale multiplier for gun models. Does NOT affect aiming, but does "
+            "affect muzzle position (where bullets and projectiles come "
+            "from).");
 
     m.add_cvar_entry<float>(
-        "Off-Hand Yaw", vr_offhandyaw, {0.25f, -90.f, 90.f});
+         "Gun Model Z Offset", vr_gunmodely, {0.1f, -5.0f, 5.f})
+        .tooltip("Z offset for gun models. Does NOT affect aiming.");
+
+    m.add_cvar_entry<float>("Gun Yaw", vr_gunyaw, {0.25f, -90.f, 90.f})
+        .tooltip(
+            "Yaw offset for the guns/hands. Affects aiming. Change if your "
+            "controller is not 'aligned' to your gun.");
+
+    m.add_cvar_entry<float>(
+         "Gun Z Offset", vr_gun_z_offset, {0.25f, -30.f, 30.f})
+        .tooltip("Z offset for guns/hands. Affects aiming.");
+
+    m.add_cvar_entry<float>(
+         "Off-Hand Pitch", vr_offhandpitch, {0.25f, -90.f, 90.f})
+        .tooltip(
+            "Pitch offset for the guns/hands. Only for off-hand. Affects "
+            "aiming.");
+
+    m.add_cvar_entry<float>("Off-Hand Yaw", vr_offhandyaw, {0.25f, -90.f, 90.f})
+        .tooltip(
+            "Yaw offset for the guns/hands. Only for off-hand. Affects "
+            "aiming.");
 
     return m;
 }
@@ -1482,12 +1530,21 @@ void M_Options_Key(int k)
 
     quake::menu m{"Player Calibration", &M_Menu_QuakeVRSettings_f};
 
-    m.add_action_entry("Calibrate Height", &VR_CalibrateHeight);
+    m.add_action_entry("Calibrate Height", &VR_CalibrateHeight)
+        .tooltip(
+            "When clicked, the game will calibrate your standing height. "
+            "Please stand straight and look ahead.");
 
-    m.add_cvar_entry<float>("World Scale", vr_world_scale, {0.05f, 0.f, 2.f});
+    m.add_cvar_entry<float>("World Scale", vr_world_scale, {0.05f, 0.f, 2.f})
+        .tooltip(
+            "Scale of the world. Affects movement, height, and hand "
+            "positions.");
 
     m.add_cvar_entry<float>("Floor Offset", vr_floor_offset,
-        {2.5f, -max_floor_offset, max_floor_offset});
+         {2.5f, -max_floor_offset, max_floor_offset})
+        .tooltip(
+            "Offset from the floor. Change if you feel like you're floating or "
+            "stuck in the floor.");
 
     return m;
 }
@@ -1509,10 +1566,12 @@ void M_Options_Key(int k)
         "Melee Threshold", vr_melee_threshold, {0.5f, 4.f, 18.f});
 
     m.add_cvar_entry<float>("Melee Damage Multiplier", vr_melee_dmg_multiplier,
-        {0.25f, 0.25f, 15.f});
+         {0.25f, 0.25f, 15.f})
+        .tooltip("Damage multiplier for melee attacks.");
 
     m.add_cvar_entry<float>("Melee Range Multiplier", vr_melee_range_multiplier,
-        {0.25f, 0.25f, 15.f});
+         {0.25f, 0.25f, 15.f})
+        .tooltip("Range multiplier for melee attacks.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -1547,23 +1606,38 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Aiming Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.add_cvar_getter_enum_entry<Vr2HMode>(  //
-        "2H Aiming",                         //
-        [] { return &vr_2h_mode; },          //
-        "Disabled", "Basic", "Virtual Stock" //
-    );
+    m.add_cvar_getter_enum_entry<Vr2HMode>(   //
+         "2H Aiming",                         //
+         [] { return &vr_2h_mode; },          //
+         "Disabled", "Basic", "Virtual Stock" //
+         )
+        .tooltip(
+            "Two-handed aiming mode. 'Basic' does not provide a virtual stock, "
+            "it only considers the two hands for interpolation. 'Virtual "
+            "Stock' considers the shoulder's position for interpolation as "
+            "well, if the weapon is close enough. The shoulder position can be "
+            "tweaked in 'Hotspot Settings'.");
 
     m.add_cvar_entry<float>(
-        "2H Aiming Threshold", vr_2h_angle_threshold, {0.05f, -1.f, 1.f});
+         "2H Aiming Threshold", vr_2h_angle_threshold, {0.05f, -1.f, 1.f})
+        .tooltip(
+            "How much your hands have to be out of line with each other before "
+            "two-handed aiming stops. Increase the value for a more strict "
+            "two-handed aiming experience.");
 
     m.add_cvar_entry<float>("2H Virtual Stock Factor",
-        vr_2h_virtual_stock_factor, {0.05f, 0.f, 1.f});
+         vr_2h_virtual_stock_factor, {0.05f, 0.f, 1.f})
+        .tooltip(
+            "How much the virtual stock matters in the final angle calculation "
+            "for two-handed aiming. Decrease if you want your hands to matter "
+            "more.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<bool>("Weighted Weapon Move", vr_wpn_pos_weight);
+    m.add_cvar_entry<bool>("Weighted Weapon Move", vr_wpn_pos_weight)
+        .tooltip("Enable weight simulation for weapon movement.");
 
     m.add_cvar_entry<float>(
         "W. Weapon Move Off.", vr_wpn_pos_weight_offset, {0.05f, 0.05f, 1.f});
@@ -1581,7 +1655,8 @@ void M_Options_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_entry<bool>("Weighted Weapon Turn", vr_wpn_dir_weight);
+    m.add_cvar_entry<bool>("Weighted Weapon Turn", vr_wpn_dir_weight)
+        .tooltip("Enable weight simulation for weapon turning.");
 
     m.add_cvar_entry<float>(
         "W. Weapon Turn Off.", vr_wpn_dir_weight_offset, {0.05f, 0.05f, 1.f});

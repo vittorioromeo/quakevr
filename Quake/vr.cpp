@@ -1834,8 +1834,9 @@ void SetHandPos(int index, entity_t* player)
             std::get<2>(getAngledVectors(controllers[index].orientation));
 
         // TODO VR: (P1) center of mass is different for different weapons
+        // TODO VR: (P1) cvar this 0.1f
         cl.handthrowvel[index] +=
-            glm::cross(controllers[index].a_velocity, up * 0.05f);
+            glm::cross(controllers[index].a_velocity, up * 0.1f);
 
         cl.handthrowvel[index] = redirectVectorByYaw(
             openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
@@ -4485,9 +4486,13 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         doMenuKeyEventWithHaptic(K_LEFTARROW, inpNextWeaponOffHand);
         doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeaponMainHand);
 
-        const auto doAxis = [&](const int quakeKeyNeg, const int quakeKeyPos) {
-            const float lastVal = inpLocomotion.y - inpLocomotion.deltaY;
-            const float val = inpLocomotion.y;
+        const auto doAxis = [&](const int axis, const auto& inp,
+                                const int quakeKeyNeg, const int quakeKeyPos) {
+            const float lastVal =
+                axis == 0 ? (inp.x - inp.deltaX) : (inp.y - inp.deltaY);
+
+            const float val = axis == 0 ? inp.x : inp.y;
+
             const float deadzone = 0.025f;
 
             const bool posWasDown = lastVal > deadzone;
@@ -4496,7 +4501,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             {
                 if(posDown)
                 {
-                    doMenuHaptic(inpLocomotion.activeOrigin);
+                    doMenuHaptic(inp.activeOrigin);
                 }
 
                 Key_Event(quakeKeyNeg, posDown);
@@ -4508,14 +4513,15 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             {
                 if(negDown)
                 {
-                    doMenuHaptic(inpLocomotion.activeOrigin);
+                    doMenuHaptic(inp.activeOrigin);
                 }
 
                 Key_Event(quakeKeyPos, negDown);
             }
         };
 
-        doAxis(K_UPARROW, K_DOWNARROW);
+        doAxis(1 /* Y axis */, inpLocomotion, K_UPARROW, K_DOWNARROW);
+        doAxis(0 /* X axis */, inpTurn, K_RIGHTARROW, K_LEFTARROW);
 
         const auto doBooleanInput = [&](const auto& inp, const int quakeKey) {
             if(inp.bChanged)

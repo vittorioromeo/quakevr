@@ -27,7 +27,7 @@
 * Two-handed weapon aiming *(with virtual stock support)*
 * Weapon weight simulation
 * Grappling hook *(from Dissolution of Eternity)*
-* Positional damage *(headshots)*
+* Positional damage *(headshots, leg shots)*
 * Dual-wielding
 * Weapon holster system *(hip and shoulders, fully customizable)*
 * Weapon throwing & force grabbing
