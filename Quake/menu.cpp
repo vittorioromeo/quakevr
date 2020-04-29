@@ -1295,16 +1295,27 @@ void M_Options_Key(int k)
     );
 
     m.add_cvar_entry<float>(
-        "Crosshair Depth", vr_crosshair_depth, {16.f, 0.f, 4096.f});
+         "Crosshair Depth", vr_crosshair_depth, {16.f, 0.f, 4096.f})
+        .tooltip(
+            "When zero, the crosshair will be projected to the closest wall. "
+            "Otherwise, the crosshair will be projected at a fixed depth.");
 
     m.add_cvar_entry<float>(
-        "Crosshair Size", vr_crosshair_size, {0.5f, 0.f, 32.f});
+         "Crosshair Size", vr_crosshair_size, {0.5f, 0.f, 32.f})
+        .tooltip("Size of the crosshair.");
 
     m.add_cvar_entry<float>(
-        "Crosshair Alpha", vr_crosshair_alpha, {0.05f, 0.f, 1.f});
+         "Crosshair Alpha", vr_crosshair_alpha, {0.05f, 0.f, 1.f})
+        .tooltip(
+            "Transparency of the crosshair. '1' means fully visible, '0' means "
+            "fully transparent.");
 
     m.add_cvar_entry<float>(
-        "Crosshair Z Offset", vr_crosshairy, {0.05f, -10.0f, 10.f});
+         "Crosshair Z Offset", vr_crosshairy, {0.05f, -10.0f, 10.f})
+        .tooltip(
+            "Z offset applied to the crosshair. Does not affect aiming. Leave "
+            "to zero unless you changed other weapon options and your aim is "
+            "off.");
 
     return m;
 }
@@ -1323,11 +1334,13 @@ void M_Options_Key(int k)
     quake::menu m{"Particle Settings", &M_Menu_QuakeVRSettings_f};
 
     extern cvar_t r_particles;
-    m.add_cvar_entry<bool>("Particle Effects", r_particles);
+    m.add_cvar_entry<bool>("Particle Effects", r_particles)
+        .tooltip("Enable or disable all particle effects.");
 
     extern cvar_t r_particle_mult;
     m.add_cvar_entry<float>(
-        "Particle Multiplier", r_particle_mult, {0.25f, 0.25f, 10.f});
+         "Particle Multiplier", r_particle_mult, {0.25f, 0.25f, 10.f})
+        .tooltip("Multiplier for the number of spawned particles.");
 
     return m;
 }
@@ -1345,10 +1358,10 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Locomotion Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.add_cvar_getter_enum_entry<int>(    //
-        "Movement Mode",                  //
-        [] { return &vr_movement_mode; }, //
-        "Follow Hand", "Raw Input"        //
+    m.add_cvar_getter_enum_entry<VrMovementMode>( //
+        "Movement Mode",                          //
+        [] { return &vr_movement_mode; },         //
+        "Follow Hand", "Follow Head"              //
     );
 
     // ------------------------------------------------------------------------

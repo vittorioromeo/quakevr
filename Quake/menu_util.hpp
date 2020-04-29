@@ -579,11 +579,22 @@ namespace quake
                         else
                         {
                             x._printer(buf, sizeof(buf), value);
+                            M_Print(240, y, buf);
                         }
                     },
                     [&](const impl::menu_entry_cvar<int>& x) {
                         print_label(e_label);
-                        print_as_int_str(x._cvar_getter()->value);
+
+                        const int value = x._cvar_getter()->value;
+                        if(x._printer == nullptr)
+                        {
+                            print_as_int_str(value);
+                        }
+                        else
+                        {
+                            x._printer(buf, sizeof(buf), value);
+                            M_Print(240, y, buf);
+                        }
                     },
                     [&](const impl::menu_entry_cvar<bool>& x) {
                         print_label(e_label);

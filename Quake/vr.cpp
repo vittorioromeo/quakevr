@@ -4686,6 +4686,9 @@ void VR_Move(usercmd_t* cmd)
     {
         cmd->forwardmove += cl_forwardspeed.value * fwdMove;
         cmd->sidemove += cl_forwardspeed.value * sideMove;
+
+        // TODO VR: (P1) avoid gimbal by using up if we are point up/down like
+        // below, this is actually raw input but label in menu is "Follow Head"
     }
     else
     {
