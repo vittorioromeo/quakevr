@@ -59,7 +59,7 @@ local float     ldmg;
         return;
 
     ldmg = (random() + random() + random()) * 8;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 };
 
 void()    Dog_JumpTouch =
@@ -74,7 +74,7 @@ void()    Dog_JumpTouch =
         if( vlen(self.velocity) > 300 )
         {
             ldmg = 10 + 10*random();
-            T_Damage (other, self, self, ldmg);
+            T_Damage(other, self, self, ldmg);
         }
     }
 
@@ -299,24 +299,6 @@ float()    CheckDogJump =
         return FALSE;
 
     return TRUE;
-};
-
-float()    DogCheckAttack =
-{
-    // if close enough for slashing, go for it
-    if(CheckDogMelee ())
-    {
-        self.attack_state = AS_MELEE;
-        return TRUE;
-    }
-
-    if(CheckDogJump ())
-    {
-        self.attack_state = AS_MISSILE;
-        return TRUE;
-    }
-
-    return FALSE;
 };
 
 

@@ -406,7 +406,7 @@ void() changelevel_touch =
 
     if((cvar("noexit") == 1) || ((cvar("noexit") == 2) && (mapname != "start")))
     {
-        T_Damage (other, self, self, 50000);
+        T_Damage(other, self, self, 50000);
         return;
     }
 
@@ -976,7 +976,7 @@ void() WaterMove =
             self.dmg = self.dmg + 2;
             if(self.dmg > 15)
                 self.dmg = 10;
-            T_Damage (self, world, world, self.dmg);
+            T_Damage(self, world, world, self.dmg);
             self.pain_finished = time + 1;
         }
     }
@@ -1001,7 +1001,7 @@ void() WaterMove =
             else
                 self.dmgtime = time + 0.2;
 
-            T_Damage (self, world, world, 10*self.waterlevel);
+            T_Damage(self, world, world, 10*self.waterlevel);
         }
     }
     else if(self.watertype == CONTENT_SLIME)
@@ -1009,7 +1009,7 @@ void() WaterMove =
         if(self.dmgtime < time && self.radsuit_finished < time)
         {
             self.dmgtime = time + 1;
-            T_Damage (self, world, world, 4*self.waterlevel);
+            T_Damage(self, world, world, 4*self.waterlevel);
         }
     }
 
@@ -1139,7 +1139,7 @@ void() PlayerPreThink =
               self.invincible_finished = 0;
            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
            }
-        T_Damage( self, self, world, self.health + 1000 );
+        T_Damage( self, self, world, self.health + 1000,DAMARMOR );
     }
 
     //JIM
@@ -1475,7 +1475,7 @@ void() PlayerPostThink =
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
         else if(self.jump_flag < -650)
         {
-            T_Damage (self, world, world, 5);
+            T_Damage(self, world, world, 5);
             sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
             self.deathtype = "falling";
         }

@@ -65,17 +65,17 @@ float        parm16; // holsterweapon5
 vector        v_forward, v_up, v_right;    // set by makevectors()
 
 // set by traceline / tracebox
-float        trace_allsolid;
-float        trace_startsolid;
-float        trace_fraction;
-vector        trace_endpos;
-vector        trace_plane_normal;
-float        trace_plane_dist;
-entity        trace_ent;
-float        trace_inopen;
-float        trace_inwater;
+float        trace_allsolid;        // both start and end vectors were in a solid (in the void)
+float        trace_startsolid;    // the start point was in a solid
+float        trace_fraction;        // how much of the vector (% from 0 to 1) was traced before it hit something
+vector        trace_endpos;        // the final position (if it didn't hit anything, then this is the same as vec2, otherwise it's the impact point
+vector        trace_plane_normal;    // the normal of the surface it hit
+float        trace_plane_dist;    // used for angled surfaces
+entity        trace_ent;            // the entity it hit (or world if it hit nothing)
+float        trace_inopen;        // if some portion of the trace is in the air
+float        trace_inwater;        // if some portion of the trace is in water (if it's in both air and water, both are set)
 
-entity        msg_entity;                // destination of single entity writes
+entity        msg_entity;            // destination of single entity writes
 
 //
 // required prog functions
@@ -145,13 +145,13 @@ void        end_sys_globals;        // flag for structure dumping
 .void()        handtouch;        // touched by VR hand
 .void()        vr_wpntouch;      // touched by VR weapon
 .void()        use;
-.void()        think;
+.void()        think;            // Next function to execute
 .void()        think2;
 .void()        blocked;        // for doors or plats, called when can't push other
 
 .float        nextthink;
 .float        nextthink2;
-.entity        groundentity;
+.entity        groundentity;    // Do not re-use, engine resets value all the time
 
 // stats
 .float        health;
@@ -192,11 +192,11 @@ void        end_sys_globals;        // flag for structure dumping
 
 .float        items;            // bit flags
 
-.float        takedamage;
-.entity        chain;
-.float        deadflag;
+.float        takedamage;        // Check by many functions for damage
+.entity        chain;            // Can be overwritten by find command
+.float        deadflag;        // Used by client functions
 
-.vector        view_ofs;            // add to origin to get eye point
+.vector        view_ofs;        // add to origin to get eye point
 
 
 .float        button0;        // fire
@@ -206,19 +206,19 @@ void        end_sys_globals;        // flag for structure dumping
 
 .float        impulse;        // weapon changes
 
-.float        fixangle;
+.float        fixangle;        // Make an entity instantly turn
 .vector        v_angle;        // view / targeting angle for players
 .float        idealpitch;        // calculated pitch angle for lookup up slopes
 
 
-.string        netname;
+.string        netname;        // Used mostly for MP
 
-.entity     enemy;
+.entity     enemy;            // Pointer to current entity enemy
 
-.float        flags;
+.float        flags;            // FL bitflag operations
 
 .float        colormap;
-.float        team;
+.float        team;            // Used mostly for Coop
 
 .float        max_health;        // players maximum health is stored here
 
@@ -227,18 +227,18 @@ void        end_sys_globals;        // flag for structure dumping
 .float        armortype;        // save this fraction of incoming damage
 .float        armorvalue;
 
-.float        waterlevel;        // 0 = not in, 1 = feet, 2 = wast, 3 = eyes
-.float        watertype;         // a contents value
+.float        waterlevel;        // 0 = not in, 1 = feet, 2 = waist, 3 = eyes
+.float        watertype;        // a contents value
 .float        lastwatertime;     // time of last water transition
 
-.float        ideal_yaw;
-.float        yaw_speed;
+.float        ideal_yaw;        // Ideal direction for entity to face
+.float        yaw_speed;        // Speed (in degrees) turning towards ideal
 
 .entity        aiment;
 
 .entity     goalentity;        // a movetarget or an enemy
 
-.float        spawnflags;
+.float        spawnflags;        // Mostly custom options for each entity
 
 .string        target;
 .string        targetname;
@@ -321,7 +321,7 @@ float cVR_FakeHand = 2;
 
 float    FALSE                    = 0;
 float     TRUE                    = 1;
-
+float NEGATIVE    = -1;
 // edict.flags
 float    FL_FLY                   = 1;
 float    FL_SWIM                  = 2;
@@ -366,12 +366,13 @@ float    RANGE_MID                = 2;
 float    RANGE_FAR                = 3;
 
 // deadflag values
-
-float    DEAD_NO                  = 0;
-float    DEAD_DYING               = 1;
-float    DEAD_DEAD                = 2;
-float    DEAD_RESPAWNABLE         = 3;
-
+float    DEAD_NO                = 0;
+float    DEAD_DYING            = 1;
+float    DEAD_DEAD            = 2;
+float    DEAD_RESPAWNABLE    = 3;
+float    DEAD_REMOVE            = 4;
+float    DEAD_EXPLODE        = 5;
+float    DEAD_FINISHED        = 6;
 // takedamage values
 
 float    DAMAGE_NO                = 0;
@@ -454,22 +455,46 @@ float    STATE_TOP                = 0;
 float    STATE_BOTTOM             = 1;
 float    STATE_UP                 = 2;
 float    STATE_DOWN               = 3;
+float    STATE_DISABLED    = 4;
+float    STATE_ENABLED    = 5;
+float    STATE_DELETE    = 6;
+float    STATE_MOVING    = 7;
+float    STATE_ONE        = 1;
+float    STATE_TWO        = 2;
+
+// Minion Eggs = Scorpions, Spiders and Voreling
+vector    VEC_HULLE_MIN = '-2 -2 -2';
+vector    VEC_HULLE_MAX = '2 2 2';
+vector    VEC_HULLT_MIN = '-24 -24 0';
+vector    VEC_HULLT_MAX = '24 24 40';
 
 vector   VEC_ORIGIN               = '0 0 0';
 vector   VEC_HULL_MIN             = '-16 -16 -24';
 vector   VEC_HULL_MAX             = '16 16 32';
+vector    VEC_HULLSHORT_MIN = '-16 -16 -24';
+vector    VEC_HULLSHORT_MAX = '16 16 32';
 
 vector   VEC_HULL2_MIN            = '-32 -32 -24';
 vector   VEC_HULL2_MAX            = '32 32 64';
 
 // protocol bytes
-float    SVC_TEMPENTITY           = 23;
-float    SVC_KILLEDMONSTER        = 27;
-float    SVC_FOUNDSECRET          = 28;
-float    SVC_INTERMISSION         = 30;
-float    SVC_FINALE               = 31;
-float    SVC_CDTRACK              = 32;
-float    SVC_SELLSCREEN           = 33;
+//----------------------------------------------------------------------
+float    SVC_DISCONNECT        = 2;    // Mainly used in client.qc
+float    SVC_UPDATESTAT        = 3;    // Force update of stats
+float    SVC_SETVIEW            = 5;    // Set camera viewpoint entity
+float    STAT_TOTALSECRETS     = 11;    //added total monster message
+float    STAT_TOTALMONSTERS     = 12;
+float    SVC_TEMPENTITY        = 23;
+float    SVC_SETPAUSE        = 24;
+float    SVC_CENTERPRINT        = 26;
+float    SVC_KILLEDMONSTER    = 27;
+float    SVC_FOUNDSECRET        = 28;
+float    SVC_SPAWNSTATICSOUND= 29;
+float    SVC_INTERMISSION    = 30;
+float    SVC_FINALE            = 31;
+float    SVC_CDTRACK            = 32;
+float    SVC_SELLSCREEN        = 33;
+float    SVC_CUTSCENE        = 34;
 
 float    TE_SPIKE                 = 0;
 float    TE_SUPERSPIKE            = 1;
@@ -496,11 +521,22 @@ float    CHAN_ITEM                = 3;
 float    CHAN_BODY                = 4;
 float    CHAN_WEAPON2             = 5;
 float    CHAN_OTHER               = 6;
+float    CHAN_FEET                = 7;
+float    CHAN_EXTRA1              = 8;
+float    CHAN_EXTRA2              = 9;
 
-float    ATTN_NONE                = 0;
-float    ATTN_NORM                = 1;
-float    ATTN_IDLE                = 2;
-float    ATTN_STATIC              = 3;
+float    ATTN_NONE    = 0;
+float    ATTN_NORM    = 1;
+float    ATTN_FEETL    = 1.5;
+float    ATTN_FEET    = 2;
+float    ATTN_IDLE    = 2;
+float    ATTN_ARMOUR    = 2;
+float    ATTN_GIB    = 2;
+float    ATTN_BREAK  = 2;
+float    ATTN_WEAPON = 2.3;
+float    ATTN_LOW    = 3;
+float    ATTN_STATIC    = 3;
+float    ATTN_QUIET    = 3.99;
 
 // update types
 
@@ -591,6 +627,7 @@ entity    damage_attacker;    // set by T_Damage
 float    framecount;
 
 float        skill;
+float     developer;
 
 float    readytime; // time after loading a map when the player is considered
                     // ready
@@ -623,7 +660,7 @@ float    readytime; // time after loading a map when the player is considered
 .void()        th_run;
 .void()        th_missile;
 .void()        th_melee;
-.void(entity attacker, float damage)        th_pain;
+.void(entity inflictor, entity attacker, float damage) th_pain;
 .void()        th_die;
 
 .entity        oldenemy;        // mad at this player before taking damage
@@ -635,10 +672,15 @@ float    readytime; // time after loading a map when the player is considered
 .float    search_time;
 .float    attack_state;
 
-float    AS_STRAIGHT = 1;
-float    AS_SLIDING  = 2;
-float    AS_MELEE    = 3;
-float    AS_MISSILE  = 4;
+float AS_RUNNING   = 0; // Hunt mode (find player)
+float AS_STRAIGHT  = 1; // Running at player
+float AS_SLIDING   = 2; // Straft attack
+float AS_MELEE     = 3; // Melee attack
+float AS_MISSILE   = 4; // Range attack
+float AS_JUMP      = 5; // Jumping attack
+float AS_TURRET    = 6; // Turret Range attack
+float AS_SIDESTEP  = 7; // Turn 90 degrees and move to the side
+float AS_BACKWARD  = 8; // Turn 180 degrees and move backwards
 
 //
 // player only fields
@@ -691,7 +733,7 @@ float    AS_MISSILE  = 4;
 //
 // doors, etc
 //
-.vector        dest, dest1, dest2;
+.vector        dest, dest0, dest1, dest2;
 .float        wait;            // time from firing to restarting
 .float        delay;            // time from activation to firing
 .entity        trigger_field;    // door's trigger entity
@@ -702,6 +744,7 @@ float    AS_MISSILE  = 4;
 //
 .float         pausetime;
 .entity     movetarget;
+.float         inpain;            // Originally defined in zombie.qc
 
 
 //
@@ -732,13 +775,13 @@ float    AS_MISSILE  = 4;
 //
 .float        lip;
 .float        state;
-.vector        pos1, pos2;        // top and bottom positions
+.vector        pos1, pos2, pos3;        // top and bottom positions
 .float        height;
 
 //
 // sounds
 //
-.float        waitmin, waitmax;
+.float        waitmin, waitmax, waitmin2;
 .float        distance;
 .float        volume;
 
@@ -790,7 +833,17 @@ void() coredump                        = #28;        // prints all edicts
 void() traceon                        = #29;        // turns statment trace on
 void() traceoff                        = #30;
 void(entity e) eprint                = #31;        // prints an entire edict
-float(float yaw, float dist) walkmove    = #32;    // returns TRUE or FALSE
+//----------------------------------------------------------------------
+.float movespeed;        // Movement speed (linked to skill)
+.float tetherlock;        // Is the monster locked from movement
+float(float yaw, float dist) walkmove_builtin = #32; // returns TRUE or FALSE
+float(float yaw, float dist) walkmove = {
+    if (self.attack_state == AS_TURRET) return FALSE;
+    if (self.movespeed < 0) return FALSE;
+    if (self.tetherlock == TRUE) return FALSE;
+    return walkmove_builtin(yaw,dist);
+};
+//----------------------------------------------------------------------
 // #33 was removed
 float() droptofloor= #34;    // TRUE if landed on floor
 void(float style, string value) lightstyle = #35;
@@ -811,10 +864,8 @@ void() ChangeYaw = #49;                        // turn towards self.ideal_yaw
                                             // at self.yaw_speed
 // #50 was removed
 vector(vector v) vectoangles            = #51;
-
-//
+//----------------------------------------------------------------------
 // direct client message generation
-//
 void(float to, float f) WriteByte        = #52;
 void(float to, float f) WriteChar        = #53;
 void(float to, float f) WriteShort        = #54;
@@ -823,11 +874,8 @@ void(float to, float f) WriteCoord        = #56;
 void(float to, float f) WriteAngle        = #57;
 void(float to, string s) WriteString    = #58;
 void(float to, entity s) WriteEntity    = #59;
-
-//
+//----------------------------------------------------------------------
 // broadcast client message generation
-//
-
 // void(float f) bWriteByte        = #59;
 // void(float f) bWriteChar        = #60;
 // void(float f) bWriteShort        = #61;
@@ -836,28 +884,74 @@ void(float to, entity s) WriteEntity    = #59;
 // void(float f) bWriteAngle        = #64;
 // void(string s) bWriteString    = #65;
 // void(entity e) bWriteEntity = #66;
-
-void(float step) movetogoal                = #67;
-
-string(string s) precache_file        = #68;    // no effect except for -copy
+//----------------------------------------------------------------------
+void(float step) movetogoal_builtin = #67;
+void(float step) movetogoal = {
+    if (self.attack_state == AS_TURRET) return;
+    if (self.movespeed < 0) return;
+    if (self.tetherlock == TRUE) return;
+    movetogoal_builtin(step);
+};
+//----------------------------------------------------------------------
+string(string s) precache_file        = #68;        // no effect except for -copy
 void(entity e) makestatic        = #69;
 void(string s) changelevel = #70;
-
-//#71 was removed
-
 void(string var, string val) cvar_set = #72;    // sets cvar.value
-
-void(entity client, string s) centerprint = #73;    // sprint, but in middle
-
+void(string var, string s, string s) cvar_setlong = #72; // sets cvar.value
+//----------------------------------------------------------------------
+.float suppressCenterPrint;
+void(entity client, string s1) centerprint_builtin = #73;
+void(entity client, string s1, string s2) centerprint_msg = #73;
+void(entity client, string s1) centerprint = {
+    // Is the centerprint message being used by something else?
+    if (!client.suppressCenterPrint)
+        centerprint_builtin(client, s1);
+    else {
+        // Send message to client console instead
+        sprint(client, "(centerprint) ");
+        sprint(client, s1);
+        sprint(client, "\n");
+    }
+}
+void(entity client, string s1, string s2, string s3) centerprint_msg3 = #73;
+void(entity client, string s1, string s2, string s3) centerprint3 = {
+    // Is the centerprint message being used by something else?
+    if (!client.suppressCenterPrint)
+        centerprint_msg3(client, s1, s2, s3);
+    else {
+        // Send message to client console instead
+        sprint(client, "(centerprint) ");
+        sprint(client, s1);
+        sprint(client, s2);
+        sprint(client, s3);
+        sprint(client, "\n");
+    }
+}
+void(entity client, string s1, string s2, string s3, string s4) centerprint_msg4 = #73;
+void(entity client, string s1, string s2, string s3, string s4, string s5, string s6, string s7) centerprint_msg7 = #73;
+void(entity client, string s1, string s2, string s3, string s4, string s5, string s6, string s7) centerprint7 = {
+    // Is the centerprint message being used by something else?
+    if (!client.suppressCenterPrint)
+        centerprint_msg7(client, s1, s2, s3, s4, s5, s6, s7);
+    else {
+        // Send message to client console instead
+        sprint(client, "(centerprint) ");
+        sprint(client, s1);
+        sprint(client, s2);
+        sprint(client, s3);
+        sprint(client, s4);
+        sprint(client, s5);
+        sprint(client, s6);
+        sprint(client, s7);
+        sprint(client, "\n");
+    }
+}
+//----------------------------------------------------------------------
 void(vector pos, string samp, float vol, float atten) ambientsound = #74;
-
-string(string s) precache_model2    = #75;        // registered version only
-string(string s) precache_sound2    = #76;        // registered version only
-string(string s) precache_file2        = #77;        // registered version only
-
-void(entity e) setspawnparms        = #78;        // set parm1... to the
-                                                // values at level start
-                                                // for coop respawn
+string(string s) precache_model2    = #75;    // not used anymore
+string(string s) precache_sound2    = #76;    // registered version only
+string(string s) precache_file2        = #77;    // not used anymore
+void(entity e) setspawnparms        = #78;    // set parm1... to the values at level start for coop respawn
 
 void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
 float(float base, float exp) pow = #80; // power function
@@ -869,25 +963,42 @@ float(float input, float inputmin, float inputMax, float outputMin, float output
 
 //============================================================================
 
-//
-// subs.qc
-//
-void(vector tdest, float tspeed, void() func) SUB_CalcMove;
-void(entity ent, vector tdest, float tspeed, void() func) SUB_CalcMoveEnt;
-void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove;
-void()  SUB_CalcMoveDone;
-void() SUB_CalcAngleMoveDone;
-void() SUB_Null;
-void(entity attacker, float damage) SUB_NullPain;
-void() SUB_UseTargets;
-void() SUB_Remove;
+/*======================================================================
+ All global variables and func definitions from all other QC files
+======================================================================*/
+// ai.qc
+entity sight_entity;        // Highlight an angry monster
+float sight_entity_time;    // Time got angry
+
+// client.qc
+string nextmap;                // Used by GotoNextMap()
+.float dmgtime;                // Used by WaterMove()
+.float poisonous;
 
 //
 //    combat.qc
 //
-void(entity targ, entity inflictor, entity attacker, float damage) T_Damage;
+float DAMARMOR = 1;
+float NOARMOR = 2;
+float DAMAGEALL = 4;
+float IGNORECLASS = 8;
 
+// fight.qc
+float enemy_vis, enemy_infront, enemy_range;
+float enemy_yaw;
 
-float (entity e, float healamount, float ignore) T_Heal; // health function
+// items.qc
+.float healamount, healtype;
 
-float(entity targ, entity inflictor) CanDamage;
+// weapon.qc
+entity multi_ent;
+float multi_damage;
+
+//======================================================================
+void() DummyFunction = //gets rid of the last compiler warnings ; - )
+{
+    local string w;
+    local float l;
+    w = self.wad;
+    l = self.light_lev;
+}

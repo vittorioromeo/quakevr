@@ -144,7 +144,7 @@ void () particlefield_touch =
     if(time < self.attack_finished)
         return;
     self.attack_finished = time + 0.5;
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
    };
 
 /*QUAKED func_particlefield (0 .5 .8) ? USE_COUNT
@@ -241,7 +241,7 @@ void () blocker_touch =
     if(time < self.attack_finished)
         return;
     self.attack_finished = time + 0.5;
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
    };
 
 void () blocker_use =

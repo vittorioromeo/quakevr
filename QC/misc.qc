@@ -205,7 +205,7 @@ local entity    fireball;
 
 void() fire_touch =
 {
-    T_Damage (other, self, self, 20);
+    T_Damage(other, self, self, 20);
     remove(self);
 };
 

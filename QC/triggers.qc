@@ -297,85 +297,8 @@ TELEPORT TRIGGERS
 float    PLAYER_ONLY    = 1;
 float    SILENT = 2;
 
-void() play_teleport =
-{
-    local    float v;
-    local    string tmpstr;
-
-    v = random() * 5;
-    if(v < 1)
-        tmpstr = "misc/r_tele1.wav";
-    else if(v < 2)
-        tmpstr = "misc/r_tele2.wav";
-    else if(v < 3)
-        tmpstr = "misc/r_tele3.wav";
-    else if(v < 4)
-        tmpstr = "misc/r_tele4.wav";
-    else
-        tmpstr = "misc/r_tele5.wav";
-
-    sound(self, CHAN_VOICE, tmpstr, 1, ATTN_NORM);
-    remove (self);
-};
-
-void(vector org) spawn_tfog =
-{
-    s = spawn();
-    s.origin = org;
-    s.nextthink = time + 0.2;
-    s.think = play_teleport;
-
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_TELEPORT);
-    WriteCoord(MSG_BROADCAST, org_x);
-    WriteCoord(MSG_BROADCAST, org_y);
-    WriteCoord(MSG_BROADCAST, org_z);
-};
 
 
-void() tdeath_touch =
-{
-    if(other == self.owner)
-        return;
-
-// frag anyone who teleports in on top of an invincible player
-    if(other.classname == "player")
-    {
-        if(other.invincible_finished > time)
-            self.classname = "teledeath2";
-        if(self.owner.classname != "player")
-        {    // other monsters explode themselves
-            T_Damage (self.owner, self, self, 50000);
-            return;
-        }
-
-    }
-
-    if(other.health)
-    {
-        T_Damage (other, self, self, 50000);
-    }
-};
-
-
-void(vector org, entity death_owner) spawn_tdeath =
-{
-local entity    death;
-
-    death = spawn();
-    death.classname = "teledeath";
-    death.movetype = MOVETYPE_NONE;
-    death.solid = SOLID_TRIGGER;
-    death.angles = '0 0 0';
-    setsize (death, death_owner.mins - '1 1 1', death_owner.maxs + '1 1 1');
-    setorigin (death, org);
-    death.touch = tdeath_touch;
-    death.nextthink = time + 0.2;
-    death.think = SUB_Remove;
-    death.owner = death_owner;
-
-    force_retouch = 2;        // make sure even still objects get hit
-};
 
 void() teleport_touch =
 {
@@ -580,7 +503,7 @@ void() hurt_touch =
     if(other.takedamage)
     {
         self.solid = SOLID_NOT;
-        T_Damage (other, self, self, self.dmg);
+        T_Damage(other, self, self, self.dmg);
         self.think = hurt_on;
         self.nextthink = time + 1;
 

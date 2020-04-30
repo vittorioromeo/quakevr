@@ -1,28 +1,4 @@
-/*
-*/
 
-// HIPNOTIC
-//JIM
-void( vector pos ) placebullethole
-void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
-void (entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee;
-void (float xHand) player_run;
-void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
-void(vector org, vector vel, float damage) SpawnBlood;
-void() SuperDamageSound;
-
-// QUAKE VR
-void(vector org, float damage) SpawnBloodSplash;
-void() PainSound;
-
-float(float it) ItemIdToWeaponId;
-float(float wid) WeaponIdToItemId;
-float(float wid, float wpnFlags) PlayerHasWeapon;
-
-float() crandom =
-{
-    return 2 * (random() - 0.5);
-};
 
 // QUAKE VR
 void(float xHand, float xduration, float frequency, float amplitude) VRGunHaptic =
@@ -397,7 +373,7 @@ void() HIP_LaserTouch =
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
-        T_Damage (other, self, self.lastvictim, adjDmg);
+        T_Damage(other, self, self.lastvictim, adjDmg, DAMARMOR);
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -564,7 +540,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished )
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
         if(self.classname == "player")
         {
             if(other.classname == "player")
@@ -579,7 +555,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
         !trace_ent.wetsuit_finished )
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
     }
     e2 = trace_ent;
 
@@ -589,7 +565,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
         !trace_ent.wetsuit_finished )
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
     }
 };
 
@@ -1232,7 +1208,7 @@ void() ApplyMultiDamage =
 {
     if(!multi_ent)
         return;
-    T_Damage (multi_ent, self, self, multi_damage);
+    T_Damage(multi_ent, self, self, multi_damage, DAMARMOR);
 };
 
 void(entity hit, float damage) AddMultiDamage =
@@ -1405,22 +1381,6 @@ ROCKETS
 ==============================================================================
 */
 
-void()    s_explode1    =    [0,        s_explode2] {};
-void()    s_explode2    =    [1,        s_explode3] {};
-void()    s_explode3    =    [2,        s_explode4] {};
-void()    s_explode4    =    [3,        s_explode5] {};
-void()    s_explode5    =    [4,        s_explode6] {};
-void()    s_explode6    =    [5,        SUB_Remove] {};
-
-void() BecomeExplosion =
-{
-    self.movetype = MOVETYPE_NONE;
-    self.velocity = '0 0 0';
-    self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
-    self.solid = SOLID_NOT;
-    s_explode1();
-};
 
 void() T_MissileTouch =
 {
@@ -1441,7 +1401,7 @@ void() T_MissileTouch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg );
+        T_Damage(other, self, self.owner, damg, DAMARMOR);
     }
 
     // don't do radius damage to the other, because all the damage
@@ -1539,7 +1499,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished )
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
         if(self.classname == "player")
         {
             if(other.classname == "player")
@@ -1554,7 +1514,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     !trace_ent.wetsuit_finished )
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
     }
     e2 = trace_ent;
 
@@ -1564,7 +1524,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
         !trace_ent.wetsuit_finished )
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage, DAMARMOR);
     }
 };
 
@@ -2045,7 +2005,7 @@ void() spike_touch =
         adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
         spawn_touchblood (adjDmg);
-        T_Damage (other, self, self.owner, adjDmg);
+        T_Damage(other, self, self.owner, adjDmg, DAMARMOR);
     }
     else
     {
@@ -2096,7 +2056,7 @@ void() superspike_touch =
         adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
         spawn_touchblood (adjDmg);
-        T_Damage (other, self, self.owner, adjDmg);
+        T_Damage(other, self, self.owner, adjDmg, DAMARMOR);
     }
     else
     {
@@ -2477,41 +2437,6 @@ void() W_ChangeWeapon =
     W_SetCurrentAmmo();
 };
 
-/*
-============
-CheatCommand
-============
-*/
-void() CheatCommand =
-{
-    if(deathmatch)
-        return;
-
-    self.ammo_rockets = 100;
-    self.ammo_nails = 200;
-    self.ammo_shells = 100;
-    self.items = self.items |
-        IT_AXE |
-        IT_SHOTGUN |
-        IT_SUPER_SHOTGUN |
-        IT_NAILGUN |
-        IT_SUPER_NAILGUN |
-        IT_GRENADE_LAUNCHER |
-        IT_ROCKET_LAUNCHER |
-        IT_KEY1 | IT_KEY2;
-
-    self.ammo_cells = 200;
-    self.items = self.items | IT_LIGHTNING;
-
-//MED
-    self.items = self.items | IT_LASER_CANNON;
-    self.items = self.items | IT_MJOLNIR;
-    self.items = self.items | IT_PROXIMITY_GUN;
-
-    // self.weapon = WID_ROCKET_LAUNCHER;
-    self.impulse = 0;
-    W_SetCurrentAmmo();
-};
 
 float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
 {
@@ -2715,7 +2640,7 @@ void() Genocide =
       {
       if((head.health > 0) && (head.flags & FL_MONSTER))
          {
-         T_Damage(head,world,world,head.health+10);
+         T_Damage(head,world,world,head.health+10,DAMARMOR);
          }
       head = nextent(head);
       }
@@ -3145,7 +3070,7 @@ void() wpnthrow_touch =
             adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood (adjDmg);
-            T_Damage (other, self, self.owner, adjDmg);
+            T_Damage(other, self, self.owner, adjDmg, DAMARMOR);
         }
         // hit wall
         else

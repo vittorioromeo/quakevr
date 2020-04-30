@@ -289,7 +289,7 @@ void() spikemine_Touch =
       if(other.classname == "proximity_grenade")
          return;
 
-      T_Damage(self,self,self,self.health+10);
+      T_Damage(self,self,self,self.health+10,DAMARMOR);
 //      killed_monsters = killed_monsters + 1;
 //      WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
       }
@@ -813,7 +813,7 @@ void() trap_gravity_touch =
 
    if(other.takedamage)
       {
-      T_Damage (other, self, self, self.dmg );
+      T_Damage(other, self, self, self.dmg );
       self.attack_finished = time + 0.2;
       }
    };

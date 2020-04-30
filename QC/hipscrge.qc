@@ -123,7 +123,7 @@ void() Attack_With_Tail =
         return;
 
     ldmg = (random() + random() + random()) * 40;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
    sound(self, CHAN_WEAPON, "shambler/smack.wav", 1, ATTN_NORM);
 
    SpawnMeatSpray (self.origin + v_forward*16, crandom() * 50 * v_right);

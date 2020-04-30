@@ -1,9 +1,4 @@
-void() movetarget_f;
-void() t_movetarget;
-void() knight_walk1;
-void() knight_bow6;
-void() knight_bow1;
-void(entity etemp, entity stemp, entity stemp, float dmg) T_Damage;
+
 /*
 
 .enemy
@@ -38,7 +33,6 @@ walkmove(angle, speed) primitive is all or nothing
 //
 entity    sight_entity;
 float    sight_entity_time;
-void() FoundTarget;
 
 float(float v) anglemod =
 {
@@ -263,84 +257,6 @@ void() path_follow2 =
 
 //============================================================================
 
-/*
-=============
-range
-
-returns the range catagorization of an entity reletive to self
-0    melee range, will become hostile even if back is turned
-1    visibility and infront, or visibility and show hostile
-2    infront and show hostile
-3    only triggered by damage
-=============
-*/
-float(entity targ) range =
-{
-local vector    spot1, spot2;
-local float        r;
-    spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
-
-    r = vlen (spot1 - spot2);
-    if(r < 120)
-        return RANGE_MELEE;
-    if(r < 500)
-        return RANGE_NEAR;
-    if(r < 1000)
-        return RANGE_MID;
-    return RANGE_FAR;
-};
-
-/*
-=============
-visible
-
-returns 1 if the entity is visible to self, even if not infront ()
-=============
-*/
-float (entity targ) visible =
-{
-    local vector    spot1, spot2;
-
-    spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
-    traceline(spot1, spot2, TRUE, self);    // see through other monsters
-
-    if(trace_inopen && trace_inwater)
-        return FALSE;            // sight line crossed contents
-
-//MED 11/21/96
-    if(trace_fraction == 1)
-      {
-      visible_distance = vlen(spot2-spot1);
-      return TRUE;
-      }
-    return FALSE;
-};
-
-
-/*
-=============
-infront
-
-returns 1 if the entity is in front (in sight) of self
-=============
-*/
-float(entity targ) infront =
-{
-    local vector    vec;
-    local float        dot;
-
-    makevectors (self.angles);
-    vec = normalize (targ.origin - self.origin);
-    dot = vec * v_forward;
-
-    if( dot > 0.3)
-    {
-        return TRUE;
-    }
-    return FALSE;
-};
 
 
 //============================================================================
@@ -418,14 +334,6 @@ void() StopHuntingCharmer =
 
 //============================================================================
 
-void() HuntTarget =
-{
-    self.goalentity = self.enemy;
-    self.think = self.th_run;
-    self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
-    self.nextthink = time + 0.1;
-    SUB_AttackFinished (1);    // wait a while before first attack
-};
 
 void() SightSound =
 {
@@ -888,12 +796,6 @@ float() FacingIdeal =
 
 //=============================================================================
 
-float()    WizardCheckAttack;
-float()    DogCheckAttack;
-//MED
-float()  GremlinCheckAttack;
-float()  ScourgeCheckAttack;
-float()  ArmagonCheckAttack;
 
 float() CheckAnyAttack =
 {

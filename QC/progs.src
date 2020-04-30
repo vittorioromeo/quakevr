@@ -1,10 +1,45 @@
 progs.dat
 
 defs.qc
-hipdefs.qc   //JIM
+
+// AD
+defscustom.qc
+dpextensions.qc
+mathlib.qc
+
+subs_ac.qc
+subs_soc.qc
+hiprot.qc
+estate.qc
+globalfog.qc
+settings.qc
+breakable.qc
+pushable.qc
+
+part_manage.qc
+part_generate.qc
+part_emitter.qc
+
+//JIM
+hipdefs.qc
 subs.qc
 fight.qc
+
 ai.qc
+
+// AD
+ai_gibs.qc
+ai_enemytarget.qc
+ai_pathcorner.qc
+ai_tether.qc
+ai_checkattack.qc
+ai_explosion.qc
+ai_ammoresist.qc
+ai_subs.qc
+ai_states.qc
+ai_combat.qc
+ai_minions.qc
+
 combat.qc
 items.qc
 
