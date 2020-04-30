@@ -203,21 +203,17 @@ DoForceGrabImplLinear_Logic =
             continue;
         }
 
-        if(e.throwhit == QVR_THROWHIT_HIT)
+        if(e.throwhit != QVR_THROWHIT_FORCEGRAB)
         {
-            // TODO VR: (P2) remove this if condition?
-            if(e.flags & (FL_ONGROUND | FL_INWATER))
-            {
-                e.throwhit = QVR_THROWHIT_FORCEGRAB;
-                e.movetype = MOVETYPE_FLYMISSILE;
+            e.throwhit = QVR_THROWHIT_FORCEGRAB;
+            e.movetype = MOVETYPE_FLYMISSILE;
 
-                local vector tmpVec;
-                tmpVec = normalize(handPos - e.origin);
-                e.origin += tmpVec * 0.1f;
+            local vector tmpVec;
+            tmpVec = normalize(handPos - e.origin);
+            e.origin += tmpVec * 0.1f;
 
-                sound(e, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
-                sound(self, VRGetGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
-            }
+            sound(e, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
         }
 
         if(e.throwhit == QVR_THROWHIT_FORCEGRAB)

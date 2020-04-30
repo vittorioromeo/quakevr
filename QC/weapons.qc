@@ -49,6 +49,7 @@ vector() vrProjectileVelocity =
     // the hand velocity vector is absolute and doesn't take the world into
     // account. It probably needs to be multiplied with the direction vector
     // of where the player is facing...?
+    // Just use RedirectVector to fix
 
     if(cvar("vr_enabled") == 1)
     {
@@ -2158,32 +2159,6 @@ void(float xHand) W_SetCurrentAmmoFor =
     updateAmmoCounters();
 };
 
-float() W_BestWeapon =
-{
-    local    float    it;
-
-    it = self.items;
-
-    if(self.waterlevel <= 1 && self.ammo_cells >= 1 && (it & IT_LIGHTNING) )
-        return WID_LIGHTNING;
-//MED
-    if(self.ammo_cells >= 1 && (it & IT_LASER_CANNON) )
-        return WID_LASER_CANNON;
-    if(self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN) )
-        return WID_SUPER_NAILGUN;
-    if(self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN) )
-        return WID_SUPER_SHOTGUN;
-    if(self.ammo_nails >= 1 && (it & IT_NAILGUN) )
-        return WID_NAILGUN;
-    if(self.ammo_shells >= 1 && (it & IT_SHOTGUN) )
-        return WID_SHOTGUN;
-//MED
-    if( it & IT_MJOLNIR )
-        return WID_MJOLNIR;
-
-    return WID_AXE;
-};
-
 float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
 {
     if(VRIsAmmolessWeapon(xHand))
@@ -2195,9 +2170,6 @@ float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
     {
         return TRUE;
     }
-
-    // *xOutWeapon = W_BestWeapon();
-    // W_SetCurrentAmmo();
 
     // drop the weapon down
     return FALSE;
@@ -2235,7 +2207,7 @@ void(float xHand, float xWeapon, float xAttackFinished,
 {
     local float r;
 
-    if(!W_CheckNoAmmo (xHand, xWeapon, xOutWeapon))
+    if(!W_CheckNoAmmo(xHand, xWeapon, xOutWeapon))
     {
         if(time > xAttackFinished)
         {
@@ -2574,7 +2546,7 @@ float() getWeaponCycleMode =
     return cvar("vr_weapon_cycle_mode");
 }
 
-void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon, float xDir) CycleWeaponCommandImpl =
+void(float xWeapon, float* xOutWeapon, float xDir) CycleWeaponCommandImpl =
 {
     local float newWeapon;
 
@@ -2584,7 +2556,6 @@ void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon, float xDir) CycleW
     if(newWeapon != xWeapon)
     {
         *xOutWeapon = newWeapon;
-        *xOutPrevWeapon = newWeapon;
 
         W_SetCurrentAmmo();
     }
@@ -2597,9 +2568,9 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponCommand =
+void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
 {
-    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, 1);
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, 1);
 };
 
 /*
@@ -2609,9 +2580,9 @@ CycleWeaponReverseCommand
 Go to the prev weapon with ammo
 ============
 */
-void(float xWeapon, float* xOutWeapon, float* xOutPrevWeapon) CycleWeaponReverseCommand =
+void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
 {
-    CycleWeaponCommandImpl(xWeapon, xOutWeapon, xOutPrevWeapon, -1);
+    CycleWeaponCommandImpl(xWeapon, xOutWeapon, -1);
 };
 
 /*
@@ -2804,7 +2775,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand (self.weapon, &self.weapon, &self.prevweapon);
+            CycleWeaponCommand (self.weapon, &self.weapon);
         }
     }
 
@@ -2812,7 +2783,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+            CycleWeaponCommand (self.weapon2, &self.weapon2);
         }
     }
 
@@ -2820,7 +2791,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand (self.weapon, &self.weapon, &self.prevweapon);
+            CycleWeaponReverseCommand (self.weapon, &self.weapon);
         }
     }
 
@@ -2828,7 +2799,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand (self.weapon2, &self.weapon2, &self.prevweapon2);
+            CycleWeaponReverseCommand (self.weapon2, &self.weapon2);
         }
     }
 

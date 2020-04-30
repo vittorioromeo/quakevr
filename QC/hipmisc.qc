@@ -453,7 +453,7 @@ void() effect_finale_use =
    WriteString (MSG_ALL, "");
 
    //setup decoy
-   if(!self.spawnflags & 2)
+   if(!(self.spawnflags & 2))
       {
       if(self.spawnflags & 1)
          {

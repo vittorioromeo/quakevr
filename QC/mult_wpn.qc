@@ -543,7 +543,6 @@ void() W_FirePlasma =
 
     if(self.ammo_plasma < 1)
     {
-        self.weapon = W_BestWeapon();
         W_SetCurrentAmmo();
         return;
     }

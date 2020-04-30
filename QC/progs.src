@@ -1,7 +1,10 @@
 progs.dat
 
+
 defs.qc
 hipdefs.qc   //JIM
+
+
 subs.qc
 fight.qc
 ai.qc

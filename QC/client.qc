@@ -71,6 +71,7 @@ void() SetChangeParms =
     parm9 = self.armortype * 100;
     parm10 = self.weapon2;
 
+    // Holster weapon ids:
     parm11 = self.holsterweapon0;
     parm12 = self.holsterweapon1;
     parm13 = self.holsterweapon2;
@@ -92,6 +93,7 @@ void() SetNewParms =
     parm9 = 0;
     parm10 = WID_FIST;
 
+    // Holster weapon ids:
     parm11 = WID_FIST;
     parm12 = WID_FIST;
     parm13 = WID_AXE;
@@ -133,9 +135,7 @@ void() DecodeLevelParms =
     self.armortype = parm9 * 0.01;
     self.weapon2 = parm10;
 
-    self.prevweapon = parm8;
-    self.prevweapon2 = parm10;
-
+    // Holster weapon ids:
     self.holsterweapon0 = parm11;
     self.holsterweapon1 = parm12;
     self.holsterweapon2 = parm13;

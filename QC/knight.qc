@@ -32,7 +32,7 @@ $frame painb10 painb11
 //frame attack1 attack2 attack3 attack4 attack5 attack6 attack7
 //frame attack8 attack9 attack10 attack11
 
-$frame attackb1 attackb1 attackb2 attackb3 attackb4 attackb5
+$frame attackb1 attackb2 attackb3 attackb4 attackb5
 $frame attackb6 attackb7 attackb8 attackb9 attackb10
 
 $frame walk1 walk2 walk3 walk4 walk5 walk6 walk7 walk8 walk9
