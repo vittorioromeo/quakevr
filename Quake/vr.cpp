@@ -4827,3 +4827,7 @@ void VR_Move(usercmd_t* cmd)
 // holster to my shoulder, because something was already there. I guess some
 // sort of buzz or something to indicate the holster is full could be helpful."
 // text message should be good enough
+
+// TODO VR: (P1): "Reason I ask is the force grab just sucks with them. You have
+// to squeeze and pull the trigger at the same time perfectly to get your gun to
+// you. It should just be squeeze, that's how it works in hla"

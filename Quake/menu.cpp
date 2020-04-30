@@ -1248,7 +1248,7 @@ void M_Options_Key(int k)
             options_cursor = 0;
         }
     }
-    */
+   */
 }
 
 //=============================================================================
@@ -1851,7 +1851,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - GRAPHICAL SETTINGS  */
+/* QUAKE VR SETTINGS MENU - GRAPHICAL SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSGraphicalMenu()
 {
@@ -1887,7 +1887,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - HUD CONFIGURATION  */
+/* QUAKE VR SETTINGS MENU - HUD CONFIGURATION */
 
 [[nodiscard]] static quake::menu makeQVRSHudConfigurationMenu()
 {
@@ -1946,7 +1946,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - HOTSPOT SETTINGS  */
+/* QUAKE VR SETTINGS MENU - HOTSPOT SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSHotspotMenu()
 {
@@ -2025,7 +2025,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - TORSO SETTINGS  */
+/* QUAKE VR SETTINGS MENU - TORSO SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSTorsoMenu()
 {
@@ -2097,20 +2097,13 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP  */
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - IMPL */
 
-[[nodiscard]] static quake::menu makeQVRSChangeMapMenu()
+template <typename... Ts>
+[[nodiscard]] static quake::menu makeQVRSChangeMapMenuImpl(
+    const std::string_view name, const Ts&... mapNames)
 {
-    using namespace std::literals;
-
-    static const std::array maps{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
-        "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
-        "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
-        "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
-        "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
-        "end"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv, "hip1m4"sv, "hip1m5"sv,
-        "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv, "hip2m5"sv, "hip2m6"sv,
-        "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv, "hipdm1"sv, "hipend"sv};
+    static const std::array<std::string_view, sizeof...(Ts)> maps{mapNames...};
 
     const auto changeMap = [](const int option) {
         return [option] {
@@ -2121,7 +2114,7 @@ void M_Options_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Change Map", &M_Menu_QuakeVRSettings_f, true};
+    quake::menu m{name, &M_Menu_QuakeVRSettings_f, true};
 
     int idx{0};
     for(const auto& map : maps)
@@ -2133,14 +2126,67 @@ void M_Options_Key(int k)
     return m;
 }
 
-[[nodiscard]] static quake::menu& qvrsChangeMapMenu()
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - VANILLA */
+
+[[nodiscard]] static quake::menu makeQVRSChangeMapVanillaMenu()
 {
-    static quake::menu res = makeQVRSChangeMapMenu();
+    using namespace std::literals;
+
+    return makeQVRSChangeMapMenuImpl("Change Map - Vanilla", //
+        "orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv, "e1m3"sv, "e1m4"sv,
+        "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv, "e2m2"sv, "e2m3"sv,
+        "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv, "e3m2"sv, "e3m3"sv,
+        "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv, "e4m2"sv, "e4m3"sv,
+        "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv, "end"sv);
+}
+
+[[nodiscard]] static quake::menu& qvrsChangeMapVanillaMenu()
+{
+    static quake::menu res = makeQVRSChangeMapVanillaMenu();
     return res;
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS  */
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - SOA */
+
+[[nodiscard]] static quake::menu makeQVRSChangeMapSoaMenu()
+{
+    using namespace std::literals;
+
+    return makeQVRSChangeMapMenuImpl("Change Map - Scourge of Armagon", //
+        "orig_start"sv, "start"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv,
+        "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv,
+        "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv,
+        "hipdm1"sv, "hipend"sv);
+}
+
+[[nodiscard]] static quake::menu& qvrsChangeMapSoaMenu()
+{
+    static quake::menu res = makeQVRSChangeMapSoaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - DOPA */
+
+[[nodiscard]] static quake::menu makeQVRSChangeMapDopaMenu()
+{
+    using namespace std::literals;
+
+    return makeQVRSChangeMapMenuImpl("Change Map - Dimensions of the Past", //
+        "orig_start"sv, "start"sv, "e5m1"sv, "e5m2"sv, "e5m3"sv, "e5m4"sv,
+        "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv, "e5dm"sv);
+}
+
+[[nodiscard]] static quake::menu& qvrsChangeMapDopaMenu()
+{
+    static quake::menu res = makeQVRSChangeMapDopaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS */
 
 [[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
 {
@@ -2199,7 +2245,9 @@ static void forQVRSMenus(F&& f)
     f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
-    f(qvrsChangeMapMenu(), m_qvrs_changemap);
+    f(qvrsChangeMapVanillaMenu(), m_qvrs_changemap_vanilla);
+    f(qvrsChangeMapSoaMenu(), m_qvrs_changemap_soa);
+    f(qvrsChangeMapDopaMenu(), m_qvrs_changemap_dopa);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
 }
 
@@ -2730,7 +2778,7 @@ void M_QuakeVRSettings_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES  */
+/* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES */
 
 [[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
 {
