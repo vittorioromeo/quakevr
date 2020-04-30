@@ -9,6 +9,14 @@ float cVR_FakeHand = 2;
 //
 //
 // ----------------------------------------------------------------------------
+// VR: Item ID categories.
+float IID_CATEGORY_INVALID = -1;
+float IID_CATEGORY_ITEMS = 0;
+float IID_CATEGORY_HIPNOTIC_ITEMS = 1;
+
+//
+//
+// ----------------------------------------------------------------------------
 // VR: Item IDs.
 // TODO VR: (P1) use:
 float IID_ARMOR1            = 0;
@@ -24,6 +32,22 @@ float IID_QUAD              = 9;
 float IID_WETSUIT           = 10; // Scourge of Armagon (`hipnotic`).
 float IID_EMPATHY_SHIELDS   = 11; // Scourge of Armagon (`hipnotic`).
 float IID_HORN_OF_CONJURING = 12; // Scourge of Armagon (`hipnotic`).
+float IID_FIST              = 13;
+float IID_SHOTGUN           = 14;
+float IID_SUPER_SHOTGUN     = 15;
+float IID_NAILGUN           = 16;
+float IID_SUPER_NAILGUN     = 17;
+float IID_GRENADE_LAUNCHER  = 18;
+float IID_ROCKET_LAUNCHER   = 19;
+float IID_LIGHTNING         = 20;
+float IID_MJOLNIR           = 21;
+float IID_SHELLS            = 22;
+float IID_NAILS             = 23;
+float IID_ROCKETS           = 24;
+float IID_CELLS             = 25;
+float IID_AXE               = 26;
+float IID_PROXIMITY_GUN     = 27;
+float IID_LASER_CANNON      = 28;
 
 //
 //

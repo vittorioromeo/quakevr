@@ -1,24 +1,14 @@
-
-// prototypes
-void() W_SetCurrentAmmo;
-void(entity attacker, float damage) player_pain;
-void(float xHand) player_stand1;
-void (vector org) spawn_tfog;
-void (vector org, entity death_owner) spawn_tdeath;
-
 float modelindex_eyes, modelindex_player, modelindex_hammer;
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Level changing / Intermission
+// ----------------------------------------------------------------------------
 
-/*
-=============================================================================
-
-                LEVEL CHANGING / INTERMISSION
-
-=============================================================================
-*/
-
-float    intermission_running;
-float    intermission_exittime;
+float intermission_running;
+float intermission_exittime;
 
 /*QUAKED info_intermission (1 0.5 0.5) (-16 -16 -16) (16 16 16)
 This is the camera point for the intermission.
@@ -28,8 +18,6 @@ void() info_intermission =
 {
 };
 
-
-
 void() SetChangeParms =
 {
     if(self.health <= 0)
@@ -38,14 +26,16 @@ void() SetChangeParms =
         return;
     }
 
-//JIM
-// remove items
-    self.items = self.items - (self.items &
-        (IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD ) );
-//MED
-    self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items &
-        (HIP_IT_WETSUIT | HIP_IT_EMPATHY_SHIELDS ) );
-//MED
+    VR_ItemUtil_EntDelItem(self, IID_KEY1);
+    VR_ItemUtil_EntDelItem(self, IID_KEY2);
+    VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
+    VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
+    VR_ItemUtil_EntDelItem(self, IID_SUIT);
+    VR_ItemUtil_EntDelItem(self, IID_QUAD);
+
+    VR_ItemUtil_EntDelItem(self, IID_WETSUIT);
+    VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
+
     self.gravity = 1.0;
 
 // cap super health
@@ -1134,7 +1124,9 @@ void() PlayerPreThink =
         if(self.invincible_finished >= time)
            {
            self.invincible_finished = 0;
-           self.items = self.items - (self.items & IT_INVULNERABILITY);
+
+           VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
+
            self.invincible_time = 0;
               self.invincible_finished = 0;
            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
@@ -1237,7 +1229,7 @@ void() CheckPowerups =
 
         if(self.invisible_finished < time)
         {    // just stopped
-            self.items = self.items - IT_INVISIBILITY;
+            VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
             self.invisible_finished = 0;
             self.invisible_time = 0;
         }
@@ -1276,7 +1268,7 @@ void() CheckPowerups =
 
         if(self.invincible_finished < time)
         {    // just stopped
-            self.items = self.items - IT_INVULNERABILITY;
+            VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
             self.invincible_time = 0;
             self.invincible_finished = 0;
         }
@@ -1311,7 +1303,7 @@ void() CheckPowerups =
 
         if(self.super_damage_finished < time)
         {    // just stopped
-            self.items = self.items - IT_QUAD;
+            VR_ItemUtil_EntDelItem(self, IID_QUAD);
             self.super_damage_finished = 0;
             self.super_time = 0;
         }
@@ -1346,7 +1338,7 @@ void() CheckPowerups =
 
         if(self.radsuit_finished < time)
         {    // just stopped
-            self.items = self.items - IT_SUIT;
+            VR_ItemUtil_EntDelItem(self, IID_SUIT);
             self.rad_time = 0;
             self.radsuit_finished = 0;
         }
@@ -1378,8 +1370,7 @@ void() CheckPowerups =
 
         if(self.wetsuit_finished < time)
         {    // just stopped
-//MED
-         self.hipnotic_items = self.hipnotic_items - HIP_IT_WETSUIT;
+            VR_ItemUtil_EntDelItem(self, IID_WETSUIT);
             self.wetsuit_time = 0;
             self.wetsuit_finished = 0;
         }
@@ -1409,8 +1400,7 @@ void() CheckPowerups =
 
       if(self.empathy_finished < time)
         {    // just stopped
-//MED
-         self.hipnotic_items = self.hipnotic_items - HIP_IT_EMPATHY_SHIELDS;
+         VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
          self.empathy_time = 0;
          self.empathy_finished = 0;
         }

@@ -1,6 +1,7 @@
 float(float wid) IsValidWeaponId =
 {
-    return wid >= WID_FIST && wid <= WID_LASER_CANNON;
+    return wid >= WID_FIST
+        && wid <= WID_LASER_CANNON;
 }
 
 float(float wid, float wpnFlags) PlayerHasWeapon =
@@ -228,6 +229,18 @@ float(entity xPlayer, float xAid) GetAmmoCountByAmmoId =
     return 0;
 }
 
+void(entity xPlayer, float xAid, float v) SetAmmoCountByAmmoId =
+{
+    if(xAid == AID_SHELLS)  { xPlayer.ammo_shells = v; return; }
+    if(xAid == AID_NAILS)   { xPlayer.ammo_nails = v; return; }
+    if(xAid == AID_ROCKETS) { xPlayer.ammo_rockets = v; return; }
+    if(xAid == AID_CELLS)   { xPlayer.ammo_cells = v; return; }
+
+    bprint("`SetAmmoCountByAmmoId`: invalid ammo id '");
+    bprint(ftos(xAid));
+    bprint("'\n");
+}
+
 float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
 {
     local float ammoId;
@@ -335,6 +348,48 @@ float(float wid) WeaponIdToThrowBounds =
     bprint("'\n");
 
     return 0;
+}
+
+float(string wpnClassname) WeaponClassNameToWeaponId =
+{
+    if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
+    if(wpnClassname == "weapon_supernailgun")    { return WID_SUPER_NAILGUN; }
+    if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
+    if(wpnClassname == "weapon_rocketlauncher")  { return WID_ROCKET_LAUNCHER; }
+    if(wpnClassname == "weapon_grenadelauncher") { return WID_GRENADE_LAUNCHER; }
+    if(wpnClassname == "weapon_lightning")       { return WID_LIGHTNING; }
+    if(wpnClassname == "weapon_laser_gun")       { return WID_LASER_CANNON; }
+    if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
+    if(wpnClassname == "weapon_proximity_gun")   { return WID_PROXIMITY_GUN; }
+
+    bprint("`WeaponClassNameToWeaponId`: invalid weapon class name '");
+    bprint(wpnClassname);
+    bprint("'\n");
+
+    return WID_FIST;
+}
+
+float(float wid) WeaponIdToInitialAmmoCount =
+{
+    if(wid == WID_FIST)             { return 0; }
+    if(wid == WID_AXE)              { return 0; }
+    if(wid == WID_MJOLNIR)          { return 30; }
+    if(wid == WID_SHOTGUN)          { return 5; }
+    if(wid == WID_SUPER_SHOTGUN)    { return 5; }
+    if(wid == WID_NAILGUN)          { return 30; }
+    if(wid == WID_SUPER_NAILGUN)    { return 30; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 5; }
+    if(wid == WID_PROXIMITY_GUN)    { return 6; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 5; }
+    if(wid == WID_LIGHTNING)        { return 15; }
+    if(wid == WID_LASER_CANNON)     { return 30; }
+    // TODO VR: (P1) fist and grapple
+
+    bprint("`WeaponIdToInitialAmmoCount`: invalid weapon id '");
+    bprint(ftos(wid));
+    bprint("'\n");
+
+    return -1;
 }
 
 // TODO VR: (P1) use for DropBackpack, GremlinDropBackpack, netname, etc

@@ -650,7 +650,8 @@ float() FindTarget =
       if(client.flags & FL_NOTARGET)
          return FALSE;
       }
-   if(client.items & IT_INVISIBILITY)
+
+   if(VR_ItemUtil_EntHasItem(client, IID_INVISIBILITY))
       return FALSE;
 
     r = range (client);
