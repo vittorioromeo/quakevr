@@ -1847,25 +1847,24 @@ This is called at the start of each level
 ================
 */
 extern float scr_centertime_off;
+
 void SV_SpawnServer(const char* server)
 {
     static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    edict_t* ent;
-    int i;
 
     // let's not have any servers with no name
     if(hostname.string[0] == 0)
     {
         Cvar_Set("hostname", "UNNAMED");
     }
+
     scr_centertime_off = 0;
 
     Con_DPrintf("SpawnServer: %s\n", server);
     svs.changelevel_issued = false; // now safe to issue another
 
     //
-    // tell all connected clients that we are going to a new
-    // level
+    // tell all connected clients that we are going to a new level
     //
     if(sv.active)
     {
@@ -1879,22 +1878,13 @@ void SV_SpawnServer(const char* server)
     {
         Cvar_Set("deathmatch", "0");
     }
-    current_skill = (int)(skill.value + 0.5);
-    if(current_skill < 0)
-    {
-        current_skill = 0;
-    }
-    if(current_skill > 3)
-    {
-        current_skill = 3;
-    }
 
+    current_skill = std::clamp((int)(skill.value + 0.5), 0, 3);
     Cvar_SetValue("skill", (float)current_skill);
 
     //
     // set up the new server
     //
-    // memset (&sv, 0, sizeof(sv));
     Host_ClearMemory();
 
     q_strlcpy(sv.name, server, sizeof(sv.name));
@@ -1943,9 +1933,9 @@ void SV_SpawnServer(const char* server)
     memset(sv.edicts, 0,
         sv.num_edicts * pr_edict_size); // ericw -- sv.edicts
                                         // switched to use malloc()
-    for(i = 0; i < svs.maxclients; i++)
+    for(int i = 0; i < svs.maxclients; i++)
     {
-        ent = EDICT_NUM(i + 1);
+        edict_t* ent = EDICT_NUM(i + 1);
         svs.clients[i].edict = ent;
     }
 
@@ -1954,8 +1944,11 @@ void SV_SpawnServer(const char* server)
 
     sv.time = 1.0;
 
+    // TODO VR: (P1): hijack "start.bsp", figure out how to get list of maps
+    // VR: This is where the map is changed upon creation of a server.
     q_strlcpy(sv.name, server, sizeof(sv.name));
     q_snprintf(sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
+
     sv.worldmodel = Mod_ForName(sv.modelname, false);
     if(!sv.worldmodel)
     {
@@ -1963,6 +1956,7 @@ void SV_SpawnServer(const char* server)
         sv.active = false;
         return;
     }
+
     sv.models[1] = sv.worldmodel;
 
     //
@@ -1973,7 +1967,7 @@ void SV_SpawnServer(const char* server)
     sv.sound_precache[0] = dummy;
     sv.model_precache[0] = dummy;
     sv.model_precache[1] = sv.modelname;
-    for(i = 1; i < sv.worldmodel->numsubmodels; i++)
+    for(int i = 1; i < sv.worldmodel->numsubmodels; i++)
     {
         sv.model_precache[1 + i] = localmodels[i];
         sv.models[i + 1] = Mod_ForName(localmodels[i], false);
@@ -1982,7 +1976,7 @@ void SV_SpawnServer(const char* server)
     //
     // load the rest of the entities
     //
-    ent = EDICT_NUM(0);
+    edict_t* ent = EDICT_NUM(0);
     memset(&ent->v, 0, progs->entityfields * 4);
     ent->free = false;
     ent->v.model = PR_SetEngineString(sv.worldmodel->name);
@@ -2035,12 +2029,16 @@ void SV_SpawnServer(const char* server)
     // johnfitz
 
     // send serverinfo to all connected clients
-    for(i = 0, host_client = svs.clients; i < svs.maxclients;
-        i++, host_client++)
     {
-        if(host_client->active)
+        int i;
+
+        for(i = 0, host_client = svs.clients; i < svs.maxclients;
+            i++, host_client++)
         {
-            SV_SendServerinfo(host_client);
+            if(host_client->active)
+            {
+                SV_SendServerinfo(host_client);
+            }
         }
     }
 

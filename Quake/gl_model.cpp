@@ -318,6 +318,16 @@ qmodel_t* Mod_FindName(const char* name)
     return mod;
 }
 
+void Mod_ForAllKnownNames(void (*f)(const char*)) noexcept
+{
+    int i;
+    qmodel_t* mod;
+    for(i = 0, mod = mod_known; i < mod_numknown; ++i, ++mod)
+    {
+        f(mod->name);
+    }
+}
+
 /*
 ==================
 Mod_TouchModel
