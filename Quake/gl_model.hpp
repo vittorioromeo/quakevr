@@ -535,4 +535,6 @@ byte* Mod_NoVisPVS(qmodel_t* model);
 
 void Mod_SetExtraFlags(qmodel_t* mod);
 
+void Mod_ForAllKnownNames(void (*f)(const char*)) noexcept;
+
 #endif // __MODEL__

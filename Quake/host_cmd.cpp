@@ -864,11 +864,6 @@ command from the console.  Active clients are kicked off.
 */
 void Host_Map_f()
 {
-    int i;
-    char name[MAX_QPATH];
-
-    char* p;
-
     if(Cmd_Argc() < 2) // no map name given
     {
         if(cls.state == ca_dedicated)
@@ -890,6 +885,7 @@ void Host_Map_f()
         {
             Con_Printf("map <levelname>: start a new server\n");
         }
+
         return;
     }
 
@@ -907,17 +903,22 @@ void Host_Map_f()
     {
         IN_Activate();
     }
+
     key_dest = key_game; // remove console or menu
     SCR_BeginLoadingPlaque();
 
     svs.serverflags = 0; // haven't completed an episode yet
+
+    char name[MAX_QPATH];
     q_strlcpy(name, Cmd_Argv(1), sizeof(name));
+
     // remove (any) trailing ".bsp" from mapname -- S.A.
-    p = strstr(name, ".bsp");
+    char* p = strstr(name, ".bsp");
     if(p && p[4] == '\0')
     {
         *p = '\0';
     }
+
     SV_SpawnServer(name);
     if(!sv.active)
     {
@@ -927,7 +928,7 @@ void Host_Map_f()
     if(cls.state != ca_dedicated)
     {
         memset(cls.spawnparms, 0, MAX_MAPSTRING);
-        for(i = 2; i < Cmd_Argc(); i++)
+        for(int i = 2; i < Cmd_Argc(); i++)
         {
             q_strlcat(cls.spawnparms, Cmd_Argv(i), MAX_MAPSTRING);
             q_strlcat(cls.spawnparms, " ", MAX_MAPSTRING);
@@ -991,13 +992,12 @@ Goes to a new map, taking all clients along
 */
 void Host_Changelevel_f()
 {
-    char level[MAX_QPATH];
-
     if(Cmd_Argc() != 2)
     {
         Con_Printf("changelevel <levelname> : continue game on a new level\n");
         return;
     }
+
     if(!sv.active || cls.demoplayback)
     {
         Con_Printf("Only the server may changelevel\n");
@@ -1005,7 +1005,9 @@ void Host_Changelevel_f()
     }
 
     // johnfitz -- check for client having map before anything else
+    char level[MAX_QPATH];
     q_snprintf(level, sizeof(level), "maps/%s.bsp", Cmd_Argv(1));
+
     if(!COM_FileExists(level, nullptr))
     {
         Host_Error("cannot find map %s", level);
@@ -1016,10 +1018,13 @@ void Host_Changelevel_f()
     {
         IN_Activate(); // -- S.A.
     }
+
     key_dest = key_game; // remove console or menu
     SV_SaveSpawnparms();
+
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
     SV_SpawnServer(level);
+
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
     {
