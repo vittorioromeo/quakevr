@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <array>
 #include <tuple>
 #include <cstddef>
+#include <algorithm>
 
 void (*vid_menucmdfn)(); // johnfitz
 void (*vid_menudrawfn)();
@@ -2099,14 +2100,13 @@ void M_Options_Key(int k)
 //=============================================================================
 /* QUAKE VR SETTINGS MENU - CHANGE MAP - IMPL */
 
-template <typename... Ts>
+template <typename Range>
 [[nodiscard]] static quake::menu makeQVRSChangeMapMenuImpl(
-    const std::string_view name, const Ts&... mapNames)
+    const std::string_view name, const Range& maps)
 {
-    static const std::array<std::string_view, sizeof...(Ts)> maps{mapNames...};
-
-    const auto changeMap = [](const int option) {
-        return [option] {
+    const auto changeMap = [&maps](const int option) {
+        // TODO VR: (P1) should this be changelevel?
+        return [&maps, option] {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
             Cmd_ExecuteString(va("map %s", maps[option].data()), src_command);
         };
@@ -2126,19 +2126,30 @@ template <typename... Ts>
     return m;
 }
 
+using namespace std::literals;
+
+constexpr std::array mapsVanilla{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
+    "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
+    "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
+    "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
+    "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
+    "end"sv};
+
+constexpr std::array mapsSoa{"orig_start"sv, "start"sv, "hip1m1"sv, "hip1m2"sv,
+    "hip1m3"sv, "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv,
+    "hip2m4"sv, "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv,
+    "hip3m4"sv, "hipdm1"sv, "hipend"sv};
+
+constexpr std::array mapsDopa{"orig_start"sv, "start"sv, "e5m1"sv, "e5m2"sv,
+    "e5m3"sv, "e5m4"sv, "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv,
+    "e5dm"sv};
+
 //=============================================================================
 /* QUAKE VR SETTINGS MENU - CHANGE MAP - VANILLA */
 
 [[nodiscard]] static quake::menu makeQVRSChangeMapVanillaMenu()
 {
-    using namespace std::literals;
-
-    return makeQVRSChangeMapMenuImpl("Change Map - Vanilla", //
-        "orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv, "e1m3"sv, "e1m4"sv,
-        "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv, "e2m2"sv, "e2m3"sv,
-        "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv, "e3m2"sv, "e3m3"sv,
-        "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv, "e4m2"sv, "e4m3"sv,
-        "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv, "end"sv);
+    return makeQVRSChangeMapMenuImpl("Change Map - Vanilla", mapsVanilla);
 }
 
 [[nodiscard]] static quake::menu& qvrsChangeMapVanillaMenu()
@@ -2152,13 +2163,7 @@ template <typename... Ts>
 
 [[nodiscard]] static quake::menu makeQVRSChangeMapSoaMenu()
 {
-    using namespace std::literals;
-
-    return makeQVRSChangeMapMenuImpl("Change Map - Scourge of Armagon", //
-        "orig_start"sv, "start"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv,
-        "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv,
-        "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv,
-        "hipdm1"sv, "hipend"sv);
+    return makeQVRSChangeMapMenuImpl("Change Map - SOA", mapsSoa);
 }
 
 [[nodiscard]] static quake::menu& qvrsChangeMapSoaMenu()
@@ -2172,11 +2177,7 @@ template <typename... Ts>
 
 [[nodiscard]] static quake::menu makeQVRSChangeMapDopaMenu()
 {
-    using namespace std::literals;
-
-    return makeQVRSChangeMapMenuImpl("Change Map - Dimensions of the Past", //
-        "orig_start"sv, "start"sv, "e5m1"sv, "e5m2"sv, "e5m3"sv, "e5m4"sv,
-        "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv, "e5dm"sv);
+    return makeQVRSChangeMapMenuImpl("Change Map - DOPA", mapsDopa);
 }
 
 [[nodiscard]] static quake::menu& qvrsChangeMapDopaMenu()
@@ -2184,6 +2185,31 @@ template <typename... Ts>
     static quake::menu res = makeQVRSChangeMapDopaMenu();
     return res;
 }
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - EXTRA */
+
+[[nodiscard]] static quake::menu makeQVRSChangeMapExtraMenu()
+{
+    static std::vector<std::string_view> mapsExtra{"orig_start"sv};
+
+    int i;
+    filelist_item_t* level;
+
+    for(level = extralevels, i = 0; level; level = level->next, i++)
+    {
+        mapsExtra.emplace_back(level->name);
+    }
+
+    return makeQVRSChangeMapMenuImpl("Change Map - Extra", mapsExtra);
+}
+
+[[nodiscard]] static quake::menu& qvrsChangeMapExtraMenu()
+{
+    static quake::menu res = makeQVRSChangeMapExtraMenu();
+    return res;
+}
+
 
 //=============================================================================
 /* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS */
@@ -2248,6 +2274,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsChangeMapVanillaMenu(), m_qvrs_changemap_vanilla);
     f(qvrsChangeMapSoaMenu(), m_qvrs_changemap_soa);
     f(qvrsChangeMapDopaMenu(), m_qvrs_changemap_dopa);
+    f(qvrsChangeMapExtraMenu(), m_qvrs_changemap_extra);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
 }
 

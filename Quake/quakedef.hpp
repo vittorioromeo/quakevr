@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define FITZQUAKE_VERSION 0.85 // johnfitz
 #define QUAKESPASM_VERSION 0.93
-#define QUAKEVR_VERSION "0.0.4"
+#define QUAKEVR_VERSION "0.0.5"
 #define QUAKESPASM_VER_PATCH 2 // helper to print a string like 0.93.2
 #ifndef QUAKESPASM_VER_SUFFIX
 #define QUAKESPASM_VER_SUFFIX // optional version suffix string literal like
@@ -79,7 +79,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ROLL 2
 
 
-#define MAX_QPATH 64 // max length of a quake game pathname
+#define MAX_QPATH 128 // max length of a quake game pathname
 
 #define ON_EPSILON 0.1 // point on plane side epsilon
 

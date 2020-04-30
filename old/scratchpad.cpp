@@ -1207,3 +1207,55 @@ void SV_Physics_Toss(edict_t* ent)
     // check for in water
     SV_CheckWaterTransition(ent);
 }
+
+
+    Mod_ForAllKnownNames([](const char* name) {
+        const std::string_view s{name};
+
+        const auto endsWith = [&s](const std::string_view sv) {
+            return s.size() >= sv.size() &&
+                   s.compare(s.size() - sv.size(), std::string::npos, sv) == 0;
+        };
+
+        if(!endsWith(".bsp"))
+        {
+            return;
+        }
+
+        const auto isAnyOf = [&s](const auto& range) {
+            return std::any_of(std::begin(range), std::end(range),
+                [&s](const auto& x) { return x == s; });
+        };
+
+        const auto alreadySeen =
+            isAnyOf(mapsVanilla) || isAnyOf(mapsSoa) || isAnyOf(mapsDopa);
+
+        if(!alreadySeen)
+        {
+            mapsExtra.emplace_back(s);
+        }
+    });
+
+
+// by Qmaster
+Wrist flick::
+=========
+Should be doable if you know the hand location with both time and distance check.  Pseudocode:
+float lasthandpos; //store hand position every flicktime tick
+float flicktime = 0.200; // or reasonable time in secs for flick check..,should probably get from cvar
+float flickthreshholddistance = 4; // again, should be using a cvar for testing ease and player customizability
+float flickfinished;
+
+Then wherever you normally check hand position call this:
+bool() FlickCheck = {
+if (!grab button is pressed) return false;
+
+// typical check every time interval
+if (flickfinished<time)  {
+float dist = handpos - lasthandpos;
+lasthandpos = handpos;
+flickfinished = time + flicktime; // typical time interval code
+if (dist > flickthreshholddistance) return true;
+}
+}
+};

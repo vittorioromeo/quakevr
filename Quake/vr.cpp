@@ -204,7 +204,7 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
 
 // TODO VR: (P1) decide what to do with this
 DEFINE_CVAR(vr_enable_grapple, 0, CVAR_NONE);
@@ -3268,8 +3268,6 @@ static void VR_ShowVirtualStockImpl(
     return {drawMainHand, drawOffHand};
 }
 
-// TODO VR: (P2) recoil system, 2H will reduce it
-
 void VR_ShowVRTorsoDebugLines()
 {
     if(vr_vrtorso_debuglines_enabled.value == 0 || !svPlayerActive())
@@ -4831,3 +4829,6 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1): "Reason I ask is the force grab just sucks with them. You have
 // to squeeze and pull the trigger at the same time perfectly to get your gun to
 // you. It should just be squeeze, that's how it works in hla"
+
+// TODO VR: (P1) recoil system, 2H will reduce it, or accuracy change for
+// shotgun/ssg, reduce spread
