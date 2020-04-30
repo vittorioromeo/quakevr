@@ -172,7 +172,9 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
 //MED
 //check for empathy shields
-   if((targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && !(inflictor.hipnotic_items & HIP_IT_EMPATHY_SHIELDS) && (targ != attacker))
+     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&
+        !VR_ItemUtil_EntHasItem(inflictor, IID_EMPATHY_SHIELDS) &&
+        (targ != attacker))
       {
       empathyused = 1;
       damage = damage/2;
@@ -201,7 +203,10 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     {
         save = targ.armorvalue;
         targ.armortype = 0;    // lost all armor
-        targ.items = targ.items - (targ.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3));
+
+        VR_ItemUtil_EntDelItem(targ, IID_ARMOR1);
+        VR_ItemUtil_EntDelItem(targ, IID_ARMOR2);
+        VR_ItemUtil_EntDelItem(targ, IID_ARMOR3);
     }
 
     targ.armorvalue = targ.armorvalue - save;
@@ -238,7 +243,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         return;
     }
 //MED
-    if(targ.hipnotic_items & HIP_IT_EMPATHY_SHIELDS)
+    if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS))
     {
         if(self.empathy_sound < time)
         {

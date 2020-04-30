@@ -91,21 +91,9 @@ void(float xHand, float v) setCurrentAmmo =
     local float idx;
 
     if(xHand == cVR_OffHand) { idx = self.currentammo2; }
-    else                  { idx = self.currentammo; }
+    else                     { idx = self.currentammo; }
 
-         if(idx == AID_SHELLS)  { self.ammo_shells = v; }
-    else if(idx == AID_NAILS)   { self.ammo_nails = v; }
-    else if(idx == AID_ROCKETS) { self.ammo_rockets = v; }
-    else if(idx == AID_CELLS)   { self.ammo_cells = v; }
-    else
-    {
-        bprint("Attempting to set ammo of invalid type '");
-        bprint(ftos(idx));
-        bprint("', value '");
-        bprint(ftos(v));
-        bprint("'\n");
-    }
-
+    SetAmmoCountByAmmoId(self, idx, v);
     updateAmmoCounters();
 }
 
@@ -2337,6 +2325,7 @@ void() W_ChangeWeapon =
     local float it, am, fl;
     local float oldimpulse;
 
+    // TODO VR: (P1) use new item API
     it = self.items;
     am = 0;
 
@@ -2462,25 +2451,23 @@ void() CheatCommand =
     self.ammo_rockets = 100;
     self.ammo_nails = 200;
     self.ammo_shells = 100;
-    self.items = self.items |
-        IT_AXE |
-        IT_SHOTGUN |
-        IT_SUPER_SHOTGUN |
-        IT_NAILGUN |
-        IT_SUPER_NAILGUN |
-        IT_GRENADE_LAUNCHER |
-        IT_ROCKET_LAUNCHER |
-        IT_KEY1 | IT_KEY2;
-
     self.ammo_cells = 200;
-    self.items = self.items | IT_LIGHTNING;
 
-//MED
-    self.items = self.items | IT_LASER_CANNON;
-    self.items = self.items | IT_MJOLNIR;
-    self.items = self.items | IT_PROXIMITY_GUN;
+    VR_ItemUtil_EntAddItem(self, IID_AXE);
+    VR_ItemUtil_EntAddItem(self, IID_SHOTGUN);
+    VR_ItemUtil_EntAddItem(self, IID_SUPER_SHOTGUN);
+    VR_ItemUtil_EntAddItem(self, IID_NAILGUN);
+    VR_ItemUtil_EntAddItem(self, IID_SUPER_NAILGUN);
+    VR_ItemUtil_EntAddItem(self, IID_GRENADE_LAUNCHER);
+    VR_ItemUtil_EntAddItem(self, IID_ROCKET_LAUNCHER);
+    VR_ItemUtil_EntAddItem(self, IID_KEY1);
+    VR_ItemUtil_EntAddItem(self, IID_KEY2);
 
-    // self.weapon = WID_ROCKET_LAUNCHER;
+    VR_ItemUtil_EntAddItem(self, IID_LIGHTNING);
+    VR_ItemUtil_EntAddItem(self, IID_LASER_CANNON);
+    VR_ItemUtil_EntAddItem(self, IID_MJOLNIR);
+    VR_ItemUtil_EntAddItem(self, IID_PROXIMITY_GUN);
+
     self.impulse = 0;
     W_SetCurrentAmmo();
 };
@@ -2605,7 +2592,7 @@ void() QuadCheat =
         return;
     self.super_time = 1;
     self.super_damage_finished = time + 30;
-    self.items = self.items | IT_QUAD;
+    VR_ItemUtil_EntAddItem(self, IID_QUAD);
     dprint ("quad cheat\n");
 };
 
@@ -2615,7 +2602,8 @@ void() WetsuitCheat =
     {
    if(deathmatch || coop)
         return;
-   self.hipnotic_items = self.hipnotic_items | HIP_IT_WETSUIT;
+    VR_ItemUtil_EntAddItem(self, IID_WETSUIT);
+
     self.wetsuit_time = 1;
     self.wetsuit_finished = time + 30;
    bprint( "wetsuit cheat\n" );
@@ -2626,7 +2614,7 @@ void() EmpathyShieldsCheat =
     {
    if(deathmatch || coop)
         return;
-   self.hipnotic_items = self.hipnotic_items | HIP_IT_EMPATHY_SHIELDS;
+    VR_ItemUtil_EntAddItem(self, IID_EMPATHY_SHIELDS);
    self.empathy_time = 1;
    self.empathy_finished = time + 30;
    bprint( "empathy shields cheat\n" );

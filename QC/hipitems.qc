@@ -44,7 +44,7 @@ void() HIP_powerup_touch =
     sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
-   other.hipnotic_items = other.hipnotic_items | self.hipnotic_items;
+    VR_ItemUtil_EntAddItem(other, self.items);
     self.model = string_null;
 
 // do the apropriate action
@@ -69,17 +69,17 @@ Player takes no damage from electrical attacks and swims faster for 30 seconds
 */
 void() item_artifact_wetsuit =
 {
-   self.touch = HIP_powerup_touch;
+    self.handtouch = HIP_powerup_touch;
 
-   precache_model ("progs/wetsuit.mdl");
-   precache_sound("misc/wetsuit.wav");
-   precache_sound("misc/weton.wav");
-   precache_sound("items/suit2.wav");
-   self.noise = "misc/weton.wav";
-   setmodel (self, "progs/wetsuit.mdl");
+    precache_model ("progs/wetsuit.mdl");
+    precache_sound("misc/wetsuit.wav");
+    precache_sound("misc/weton.wav");
+    precache_sound("items/suit2.wav");
+    self.noise = "misc/weton.wav";
+    setmodel (self, "progs/wetsuit.mdl");
     self.netname = "Wetsuit";
-   self.hipnotic_items = HIP_IT_WETSUIT;
-   setsize (self, '-16 -16 -24', '16 16 32');
+    self.items = IID_WETSUIT;
+    setsize (self, '-16 -16 -24', '16 16 32');
 
     StartItem();
 };
@@ -140,7 +140,7 @@ Empathy Shield.
 */
 void() item_artifact_empathy_shields =
    {
-   self.touch = HIP_powerup_touch;
+   self.handtouch = HIP_powerup_touch;
 
    precache_model("progs/empathy.mdl");
    precache_sound("hipitems/empathy.wav");
@@ -149,7 +149,7 @@ void() item_artifact_empathy_shields =
    setmodel(self, "progs/empathy.mdl");
    self.noise = "hipitems/empathy.wav";
    self.netname = "Empathy Shields";
-   self.hipnotic_items = HIP_IT_EMPATHY_SHIELDS;
+   self.items = IID_EMPATHY_SHIELDS;
    setsize (self, '-16 -16 0', '16 16 32');
     StartItem();
    };
@@ -170,7 +170,7 @@ void() weapon_mjolnir =
     setmodel (self, "progs/g_hammer.mdl");
     self.weapon = WID_MJOLNIR;
     self.netname = "Mjolnir";
-    self.items = IT_MJOLNIR;
+    self.items = IID_MJOLNIR;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem();
@@ -185,7 +185,9 @@ void() weapon_laser_gun =
     setmodel (self, "progs/g_laserg.mdl");
     self.weapon = WID_LASER_CANNON;
     self.netname = "Laser Cannon";
-    self.items = IT_LASER_CANNON;
+    // TODO VR: (P1) should use another field for all of these, or maybe even
+    // remove it since we are using the weapon id as well?
+    self.items = IID_LASER_CANNON;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem();
@@ -200,7 +202,7 @@ void() weapon_proximity_gun =
     setmodel (self, "progs/g_prox.mdl");
     self.weapon = WID_PROXIMITY_GUN;
     self.netname = "Proximity Gun";
-    self.items = IT_PROXIMITY_GUN;
+    self.items = IID_PROXIMITY_GUN;
     self.handtouch = weapon_touch;
     setsize (self, '-16 -16 0', '16 16 56');
     StartItem();

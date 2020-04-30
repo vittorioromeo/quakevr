@@ -144,6 +144,7 @@ float() GremlinAttemptWeaponSteal =
     // take that weapon from the entity
     if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
     {
+        // TODO VR: (P1) use new item API
         victim.items = victim.items - (victim.items & WeaponIdToItemId(best));
     }
 
@@ -188,11 +189,15 @@ float() GremlinAttemptWeaponSteal =
     sound(victim, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
     // give it to our gremlin
+    // TODO VR: (P1) use new item API
     self.items = self.items | WeaponIdToItemId(best);
     self.weapon = best;
 
     // take some ammo while we are at it
-    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
+    VR_ItemUtil_EntDelItem(self, IID_SHELLS);
+    VR_ItemUtil_EntDelItem(self, IID_NAILS);
+    VR_ItemUtil_EntDelItem(self, IID_ROCKETS);
+    VR_ItemUtil_EntDelItem(self, IID_CELLS);
 
     // TODO VR: (P1) huge code repetition
     if(best == WID_AXE)

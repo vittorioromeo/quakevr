@@ -272,7 +272,7 @@ void() health_touch =
     {
 // TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
-        other.items = other.items | IT_SUPERHEALTH;
+        VR_ItemUtil_EntAddItem(self, IID_SUPERHEALTH);
         self.nextthink = time + 5;
         self.think = item_megahealth_rot;
         self.owner = other;
@@ -306,7 +306,7 @@ void() item_megahealth_rot =
 // just blindly subtract the flag off
 // TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
-    other.items = other.items - (other.items & IT_SUPERHEALTH);
+    VR_ItemUtil_EntDelItem(self, IID_SUPERHEALTH);
 
     if(deathmatch == 1)    // deathmatch 2 is silly old rules
     {
@@ -327,10 +327,11 @@ void() armor_touch;
 
 void() armor_touch =
 {
-    local    float    type, value, bit;
+    local float type, value, itemId;
 
     if(other.health <= 0)
         return;
+
     if(other.classname != "player")
         return;
 
@@ -338,26 +339,32 @@ void() armor_touch =
     {
         type = 0.3;
         value = 100;
-        bit = IT_ARMOR1;
+        itemId = IID_ARMOR1;
     }
-    if(self.classname == "item_armor2")
+    else if(self.classname == "item_armor2")
     {
         type = 0.6;
         value = 150;
-        bit = IT_ARMOR2;
+        itemId = IID_ARMOR2;
     }
-    if(self.classname == "item_armorInv")
+    else if(self.classname == "item_armorInv")
     {
         type = 0.8;
         value = 200;
-        bit = IT_ARMOR3;
+        itemId = IID_ARMOR3;
     }
+
     if(other.armortype*other.armorvalue >= type*value)
         return;
 
     other.armortype = type;
     other.armorvalue = value;
-    other.items = other.items - (other.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + bit;
+
+    VR_ItemUtil_EntDelItem(self, IID_ARMOR1);
+    VR_ItemUtil_EntDelItem(self, IID_ARMOR2);
+    VR_ItemUtil_EntDelItem(self, IID_ARMOR3);
+
+    VR_ItemUtil_EntAddItem(self, itemId);
 
     self.solid = SOLID_NOT;
     self.model = string_null;
@@ -510,83 +517,26 @@ void() weapon_touch =
     else
         leave = 0;
 
-    if(self.classname == "weapon_nailgun")
+    local float weaponId;
+    weaponId = WeaponClassNameToWeaponId(self.classname);
+
+    if(weaponId == WID_FIST)
     {
-        if(leave && (other.items & IT_NAILGUN) )
-            return;
-        hadammo = other.ammo_nails;
-        newIt = IT_NAILGUN;
-        other.ammo_nails = other.ammo_nails + 30;
-    }
-    else if(self.classname == "weapon_supernailgun")
-    {
-        if(leave && (other.items & IT_SUPER_NAILGUN) )
-            return;
-        hadammo = other.ammo_rockets;
-        newIt = IT_SUPER_NAILGUN;
-        other.ammo_nails = other.ammo_nails + 30;
-    }
-    else if(self.classname == "weapon_supershotgun")
-    {
-        if(leave && (other.items & IT_SUPER_SHOTGUN) )
-            return;
-        hadammo = other.ammo_rockets;
-        newIt = IT_SUPER_SHOTGUN;
-        other.ammo_shells = other.ammo_shells + 5;
-    }
-    else if(self.classname == "weapon_rocketlauncher")
-    {
-        if(leave && (other.items & IT_ROCKET_LAUNCHER) )
-            return;
-        hadammo = other.ammo_rockets;
-        newIt = IT_ROCKET_LAUNCHER;
-        other.ammo_rockets = other.ammo_rockets + 5;
-    }
-    else if(self.classname == "weapon_grenadelauncher")
-    {
-        if(leave && (other.items & IT_GRENADE_LAUNCHER) )
-            return;
-        hadammo = other.ammo_rockets;
-        newIt = IT_GRENADE_LAUNCHER;
-        other.ammo_rockets = other.ammo_rockets + 5;
-    }
-    else if(self.classname == "weapon_lightning")
-    {
-        if(leave && (other.items & IT_LIGHTNING) )
-            return;
-        hadammo = other.ammo_rockets;
-        newIt = IT_LIGHTNING;
-        other.ammo_cells = other.ammo_cells + 15;
-    }
-//MED
-    else if(self.classname == "weapon_laser_gun")
-    {
-      if(leave && (other.items & IT_LASER_CANNON) )
-            return;
-        hadammo = other.ammo_rockets;
-      newIt = IT_LASER_CANNON;
-      other.ammo_cells = other.ammo_cells + 30;
-    }
-//MED
-    else if(self.classname == "weapon_mjolnir")
-    {
-      if(leave && (other.items & IT_MJOLNIR) )
-            return;
-        hadammo = other.ammo_rockets;
-      newIt = IT_MJOLNIR;
-      other.ammo_cells = other.ammo_cells + 30;
-    }
-//MED
-    else if(self.classname == "weapon_proximity_gun")
-    {
-      if(leave && (other.hipnotic_items & IT_PROXIMITY_GUN) )
-            return;
-        hadammo = other.ammo_rockets;
-      newIt = IT_PROXIMITY_GUN;
-      other.ammo_rockets = other.ammo_rockets + 6;
-    }
-    else
         objerror ("weapon_touch: unknown classname");
+    }
+
+    if(leave && PlayerHasWeapon(weaponId, other.items))
+    {
+        return;
+    }
+
+    local float ammoId;
+    ammoId = WeaponIdToAmmoId(weaponId);
+
+    hadammo = GetAmmoCountByAmmoId(other, ammoId);
+    newIt = WeaponIdToItemId(weaponId);
+    SetAmmoCountByAmmoId(other, WeaponIdToAmmoId(weaponId),
+                         hadammo + WeaponIdToInitialAmmoCount(weaponId));
 
     VRItemPickupHaptic(other);
 
@@ -1013,7 +963,7 @@ void() key_touch =
     if(other.health <= 0)
         return;
 
-    if(other.items & self.items)
+    if(VR_ItemUtil_EntHasItem(other, self.items))
         return;
 
     VRItemPickupHaptic(other);
@@ -1024,7 +974,8 @@ void() key_touch =
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
-    other.items = other.items | self.items;
+
+    VR_ItemUtil_EntAddItem(other, self.items);
 
     if(!coop)
     {
@@ -1044,12 +995,12 @@ void() key_setsounds =
         precache_sound("misc/medkey.wav");
         self.noise = "misc/medkey.wav";
     }
-    if(world.worldtype == 1)
+    else if(world.worldtype == 1)
     {
         precache_sound("misc/runekey.wav");
         self.noise = "misc/runekey.wav";
     }
-    if(world.worldtype == 2)
+    else if(world.worldtype == 2)
     {
         precache_sound2 ("misc/basekey.wav");
         self.noise = "misc/basekey.wav";
@@ -1090,7 +1041,7 @@ void() item_key1 =
 
     key_setsounds();
     self.handtouch = key_touch;
-    self.items = IT_KEY1;
+    self.items = IID_KEY1;
 
     setsize (self, '-16 -16 -24', '16 16 32');
 
@@ -1131,7 +1082,7 @@ void() item_key2 =
 
     key_setsounds();
     self.handtouch = key_touch;
-    self.items = IT_KEY2;
+    self.items = IID_KEY2;
 
     setsize (self, '-16 -16 -24', '16 16 32');
 
@@ -1224,13 +1175,11 @@ POWERUPS
 ===============================================================================
 */
 
-void() powerup_touch;
-
-
 void() powerup_touch =
 {
     if(other.classname != "player")
         return;
+
     if(other.health <= 0)
         return;
 
@@ -1256,7 +1205,7 @@ void() powerup_touch =
     sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
-    other.items = other.items | self.items;
+    VR_ItemUtil_EntAddItem(other, self.items);
     self.model = string_null;
 
 // do the apropriate action
@@ -1304,7 +1253,7 @@ void() item_artifact_invulnerability =
     self.noise = "items/protect.wav";
     setmodel (self, "progs/invulner.mdl");
     self.netname = "Pentagram of Protection";
-    self.items = IT_INVULNERABILITY;
+    self.items = IID_INVULNERABILITY;
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem();
 };
@@ -1323,7 +1272,7 @@ void() item_artifact_envirosuit =
     self.noise = "items/suit.wav";
     setmodel (self, "progs/suit.mdl");
     self.netname = "Biosuit";
-    self.items = IT_SUIT;
+    self.items = IID_SUIT;
     // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem();
@@ -1344,7 +1293,7 @@ void() item_artifact_invisibility =
     self.noise = "items/inv1.wav";
     setmodel (self, "progs/invisibl.mdl");
     self.netname = "Ring of Shadows";
-    self.items = IT_INVISIBILITY;
+    self.items = IID_INVISIBILITY;
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem();
 };
@@ -1364,7 +1313,7 @@ void() item_artifact_super_damage =
     self.noise = "items/damage.wav";
     setmodel (self, "progs/quaddama.mdl");
     self.netname = "Quad Damage";
-    self.items = IT_QUAD;
+    self.items = IID_QUAD;
     setsize (self, '-16 -16 -24', '16 16 32');
     StartItem();
 };
@@ -1403,7 +1352,8 @@ void() BackpackTouch =
 
     if(self.items)
     {
-        if((other.items & self.items) == 0)
+        // TODO VR: (P1) weapon thing
+        if(!VR_ItemUtil_EntHasItem(other, self.items))
         {
             acount = 1;
             sprint (other, "the ");
@@ -1506,32 +1456,12 @@ void() DropBackpack =
     item = spawn();
     item.origin = self.origin - '0 0 24';
 
+    // TODO VR: (P1) multiplayer, what should this be? weapon id?
     item.items = self.weapon;
-
-    if(item.items == IT_AXE)
-        item.netname = "Axe";
-    else if(item.items == IT_SHOTGUN)
-        item.netname = "Shotgun";
-    else if(item.items == IT_SUPER_SHOTGUN)
-        item.netname = "Double-barrelled Shotgun";
-    else if(item.items == IT_NAILGUN)
-        item.netname = "Nailgun";
-    else if(item.items == IT_SUPER_NAILGUN)
-        item.netname = "Super Nailgun";
-    else if(item.items == IT_GRENADE_LAUNCHER)
-        item.netname = "Grenade Launcher";
-    else if(item.items == IT_ROCKET_LAUNCHER)
-        item.netname = "Rocket Launcher";
-    else if(item.items == IT_LIGHTNING)
-        item.netname = "Thunderbolt";
-    else if(item.items == IT_LASER_CANNON)
-        item.netname = "Laser Cannon";
-    else if(item.items == IT_PROXIMITY_GUN)
-        item.netname = "Proximity Gun";
-    else if(item.items == IT_MJOLNIR)
-        item.netname = "Mjolnir";
-    else
-        item.netname = "";
+    if(IsValidWeaponId(self.weapon) && self.weapon != WID_FIST)
+    {
+        item.netname = WeaponIdToWeaponName(self.weapon);
+    }
 
     item.ammo_shells = self.ammo_shells;
     item.ammo_nails = self.ammo_nails;

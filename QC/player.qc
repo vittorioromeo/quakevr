@@ -788,9 +788,11 @@ void() PlayerDie =
 {
     local    float    i;
 
-//    self.items = self.items - (self.items & IT_INVISIBILITY);
-    self.items = self.items - (self.items &
-    (IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD) );
+    VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
+    VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
+    VR_ItemUtil_EntDelItem(self, IID_SUIT);
+    VR_ItemUtil_EntDelItem(self, IID_QUAD);
+
     self.invisible_finished = 0;    // don't die as eyes
     self.invincible_finished = 0;
     self.super_damage_finished = 0;
@@ -801,10 +803,14 @@ void() PlayerDie =
     self.modelindex = modelindex_player;    // don't use eyes
     //JIM
     self.empathy_finished = 0;
-    self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items & HIP_IT_EMPATHY_SHIELDS);
+
+    VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
 
     if(deathmatch || coop)
+    {
         DropBackpack();
+        // TODO VR: (P1) drop weapons separately, ensure no weapon is in backpack
+    }
 
     self.weaponmodel="";
     self.weaponmodel2="";

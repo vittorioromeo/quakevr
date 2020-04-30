@@ -22,12 +22,16 @@ void() monster_use =
 {
     if(self.enemy)
         return;
+
     if(self.health <= 0)
         return;
-    if(activator.items & IT_INVISIBILITY)
+
+    if(VR_ItemUtil_EntHasItem(activator, IID_INVISIBILITY))
         return;
+
     if(activator.flags & FL_NOTARGET)
         return;
+
     if(activator.classname != "player")
         return;
 

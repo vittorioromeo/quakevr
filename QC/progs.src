@@ -17,6 +17,7 @@ grapple.qc
 vrutil.qc
 wpnforcegrab.qc
 weaponutil.qc
+itemutil.qc
 weapons.qc
 world.qc
 client.qc
