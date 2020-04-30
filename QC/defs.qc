@@ -1,12 +1,3 @@
-
-/*
-==============================================================================
-
-            SOURCE FOR GLOBALVARS_T C STRUCTURE
-
-==============================================================================
-*/
-
 //
 // system globals
 //
@@ -42,22 +33,22 @@ float        killed_monsters;    // number of monsters killed
 
 // spawnparms are used to encode information about clients across server
 // level changes
-float        parm1;  // items
-float        parm2;  // health
-float        parm3;  // armorvalue
-float        parm4;  // ammo_shells
-float        parm5;  // ammo_nails
-float        parm6;  // ammo_rockets
-float        parm7;  // ammo_cells
-float        parm8;  // weapon
-float        parm9;  // armortype
-float        parm10; // weapon2
-float        parm11; // holsterweapon0
-float        parm12; // holsterweapon1
-float        parm13; // holsterweapon2
-float        parm14; // holsterweapon3
-float        parm15; // holsterweapon4
-float        parm16; // holsterweapon5
+float parm1;  // Spawnparm for `.items`.
+float parm2;  // Spawnparm for `.health`.
+float parm3;  // Spawnparm for `.armorvalue`.
+float parm4;  // Spawnparm for `.ammo_shells`.
+float parm5;  // Spawnparm for `.ammo_nails`.
+float parm6;  // Spawnparm for `.ammo_rockets`.
+float parm7;  // Spawnparm for `.ammo_cells`.
+float parm8;  // Spawnparm for `.weapon`.
+float parm9;  // Spawnparm for `.armortype`.
+float parm10; // Spawnparm for `.weapon2`.
+float parm11; // Spawnparm for `.holsterweapon0`.
+float parm12; // Spawnparm for `.holsterweapon1`.
+float parm13; // Spawnparm for `.holsterweapon2`.
+float parm14; // Spawnparm for `.holsterweapon3`.
+float parm15; // Spawnparm for `.holsterweapon4`.
+float parm16; // Spawnparm for `.holsterweapon5`.
 
 //
 // global variables set by built in functions
@@ -127,8 +118,6 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        velocity;
 .vector        angles;
 .vector        avelocity;
-.vector        scale;
-.vector        scale_origin;
 
 .vector        punchangle;        // temp angle adjust from damage or recoil
 
@@ -142,15 +131,11 @@ void        end_sys_globals;        // flag for structure dumping
 .vector        size;            // maxs - mins
 
 .void()        touch;
-.void()        handtouch;        // touched by VR hand
-.void()        vr_wpntouch;      // touched by VR weapon
 .void()        use;
 .void()        think;
-.void()        think2;
 .void()        blocked;        // for doors or plats, called when can't push other
 
 .float        nextthink;
-.float        nextthink2;
 .entity        groundentity;
 
 // stats
@@ -161,32 +146,9 @@ void        end_sys_globals;        // flag for structure dumping
 .string       weaponmodel;
 .float        weaponframe;
 
-// QUAKE VR
-.float        weapon2;            // WID
-.string       weaponmodel2;
-.float        weaponframe2;
-
-// TODO VR: (P2) document, check meaning of prevweapon
-.float prevweapon;
-.float prevweapon2;
-.float holsterweapon0;
-.float holsterweapon1;
-.float holsterweapon2;
-.float holsterweapon3;
-.float holsterweapon4;
-.float holsterweapon5;
-.string holsterweaponmodel0;
-.string holsterweaponmodel1;
-.string holsterweaponmodel2;
-.string holsterweaponmodel3;
-.string holsterweaponmodel4;
-.string holsterweaponmodel5;
-
 .float        currentammo;
-.float        currentammo2;  // off-hand
 
 .float        ammocounter;
-.float        ammocounter2;  // off-hand
 
 .float        ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 
@@ -202,7 +164,6 @@ void        end_sys_globals;        // flag for structure dumping
 .float        button0;        // fire
 .float        button1;        // use
 .float        button2;        // jump
-.float        button3;        // off-hand fire
 
 .float        impulse;        // weapon changes
 
@@ -258,45 +219,9 @@ void        end_sys_globals;        // flag for structure dumping
 
 .string        noise, noise1, noise2, noise3;    // contains names of wavs to play
 
-.vector        handpos;
-.vector        handrot;
-.vector        handvel;
-.vector        handthrowvel;
-.float         handvelmag;
-.vector        handavel;
-
 .vector        v_viewangle;
 
-.vector        offhandpos;
-.vector        offhandrot;
-.vector        offhandvel;
-.vector        offhandthrowvel;
-.float        offhandvelmag;
-.vector        offhandavel;
-
-.float        touchinghand;
-.vector        muzzlepos;
-.vector        offmuzzlepos;
-.float        teleporting;
-.vector        teleport_target;
-
-.float        offhand_grabbing;
-.float        offhand_prevgrabbing;
-
-.float        mainhand_grabbing;
-.float        mainhand_prevgrabbing;
-
-.float        offhand_forcegrabbing;
-.float        mainhand_forcegrabbing;
-
-.float        offhand_hotspot;
-.float        mainhand_hotspot;
-.vector       roomscalemove;
-.float        throwhit;
-.float        throwstabilize;
-.float        throwstabilizedim;
-.float      handtouch_hand;
-.entity     handtouch_ent;
+#include "vrfields.qc"
 
 //================================================
 void        end_sys_fields;            // flag for structure dumping
@@ -314,11 +239,6 @@ void        end_sys_fields;            // flag for structure dumping
 //
 // constants
 //
-
-float cVR_OffHand = 0;
-float cVR_MainHand = 1;
-float cVR_FakeHand = 2;
-
 float    FALSE                    = 0;
 float     TRUE                    = 1;
 
@@ -414,27 +334,6 @@ float    IT_SUIT                  = 2097152;
 float    IT_QUAD                  = 4194304;
 float    IT_LASER_CANNON          = 8388608;
 
-// weapon ids
-float    WID_FIST                  = 0;
-float    WID_GRAPPLE               = 1;
-float    WID_AXE                   = 2;
-float    WID_MJOLNIR               = 3;
-float    WID_SHOTGUN               = 4;
-float    WID_SUPER_SHOTGUN         = 5;
-float    WID_NAILGUN               = 6;
-float    WID_SUPER_NAILGUN         = 7;
-float    WID_GRENADE_LAUNCHER      = 8;
-float    WID_PROXIMITY_GUN         = 9;
-float    WID_ROCKET_LAUNCHER       = 10;
-float    WID_LIGHTNING             = 11;
-float    WID_LASER_CANNON          = 12;
-
-// ammo ids
-float    AID_SHELLS                = 0;
-float    AID_NAILS                 = 1;
-float    AID_ROCKETS               = 2;
-float    AID_CELLS                 = 3;
-float    AID_NONE                  = 4;
 
 // hipnotic items
 float    HIP_IT_WETSUIT           = 2;
@@ -523,55 +422,6 @@ float    MSG_ONE                  = 1; // reliable to one (msg_entity)
 float    MSG_ALL                  = 2; // reliable to all
 float    MSG_INIT                 = 3; // write to the init string
 
-// Quake VR hotspots
-float QVR_HS_NONE                   = 0;
-float QVR_HS_OFFHAND_2H_GRAB        = 1; // 2H grab - helper offhand
-float QVR_HS_MAINHAND_2H_GRAB       = 2; // 2H grab - helper mainhand
-float QVR_HS_LEFT_SHOULDER_HOLSTER  = 3;
-float QVR_HS_RIGHT_SHOULDER_HOLSTER = 4;
-float QVR_HS_LEFT_HIP_HOLSTER       = 5;
-float QVR_HS_RIGHT_HIP_HOLSTER      = 6;
-float QVR_HS_HAND_SWITCH            = 7;
-float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
-float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
-
-// Quake VR throwhit values
-float QVR_THROWHIT_NEVER_HIT = 0;
-float QVR_THROWHIT_HIT = 1;
-float QVR_THROWHIT_FORCEGRAB = 2;
-
-// Quake VR Enum: `VrHolsterMode'
-float QVR_WEAPONMODE_IMMERSIVE      = 0;
-float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
-
-// Quake VR Enum: `VrWeaponThrowMode'
-float QVR_WEAPONTHROWMODE_IMMERSIVE      = 0;
-float QVR_WEAPONTHROWMODE_DISAPPEARONHIT = 1;
-float QVR_WEAPONTHROWMODE_DISCARD        = 2;
-
-// Quake VR Enum: `VrWeaponCycleMode'
-float QVR_WEAPONCYCLEMODE_DISABLED = 0;
-float QVR_WEAPONCYCLEMODE_ALLOWED  = 1;
-
-// Quake VR Enum: `VrMeleeBloodlust'
-float QVR_MELEEBLOODLUST_ENABLED  = 0;
-float QVR_MELEEBLOODLUST_DISABLED = 1;
-
-// Quake VR Enum: `VrEnemyDrops`
-float QVR_ENEMYDROPS_WHENELIGIBLE = 0;
-float QVR_ENEMYDROPS_ALWAYS = 1;
-float QVR_ENEMYDROPS_DISABLE = 2;
-
-// Quake VR Enum: `VrAmmoBoxDrops`
-float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
-float QVR_AMMOBOXDROPS_ALWAYS = 1;
-float QVR_AMMOBOXDROPS_DISABLE = 2;
-
-// Quake VR Enum: `VrForceGrabMode`
-float QVR_VRFORCEGRABMODE_DISABLED = 0;
-float QVR_VRFORCEGRABMODE_PARABOLA = 1;
-float QVR_VRFORCEGRABMODE_LINEAR = 2;
-float QVR_VRFORCEGRABMODE_INSTANT = 3;
 
 //================================================
 
@@ -592,8 +442,7 @@ float    framecount;
 
 float        skill;
 
-float    readytime; // time after loading a map when the player is considered
-                    // ready
+#include "vrdefs.qc"
 
 //================================================
 
@@ -646,13 +495,6 @@ float    AS_MISSILE  = 4;
 .float        walkframe;
 
 .float         attack_finished;
-.float         offhand_attack_finished;
-.float         mainhand_melee_attack_finished;
-.float         offhand_melee_attack_finished;
-.float        in_melee;
-.float        offhand_in_melee;
-.float        melee_hit_sound_played;
-.float        offhand_melee_hit_sound_played;
 .float        pain_finished;
 
 .float        invincible_finished;
@@ -742,152 +584,4 @@ float    AS_MISSILE  = 4;
 .float        distance;
 .float        volume;
 
-
-
-
-//===========================================================================
-
-
-//
-// builtin functions
-//
-
-void(vector ang)    makevectors        = #1;        // sets v_forward, etc globals
-void(entity e, vector o) setorigin    = #2;
-void(entity e, string m) setmodel    = #3;        // set movetype and solid first
-void(entity e, vector min, vector max) setsize = #4;
-// #5 was removed
-void() break                        = #6;
-float() random                        = #7;        // returns 0 - 1
-void(entity e, float chan, string samp, float vol, float atten) sound = #8;
-vector(vector v) normalize            = #9;
-void(string e) error                = #10;
-void(string e) objerror                = #11;
-float(vector v) vlen                = #12;
-float(vector v) vectoyaw            = #13;
-entity() spawn                        = #14;
-void(entity e) remove                = #15;
-
-// sets trace_* globals
-// nomonsters can be:
-// An entity will also be ignored for testing if forent == test,
-// forent->owner == test, or test->owner == forent
-// a forent of world is ignored
-void(vector v1, vector v2, float nomonsters, entity forent) traceline = #16;
-
-entity() checkclient                = #17;    // returns a client to look for
-entity(entity start, .string fld, string match) find = #18;
-string(string s) precache_sound        = #19;
-string(string s) precache_model        = #20;
-void(entity client, string s)stuffcmd = #21;
-entity(vector org, float rad) findradius = #22;
-void(string s) bprint                = #23;
-void(entity client, string s) sprint = #24;
-void(string s) dprint                = #25;
-string(float f) ftos                = #26;
-string(vector v) vtos                = #27;
-void() coredump                        = #28;        // prints all edicts
-void() traceon                        = #29;        // turns statment trace on
-void() traceoff                        = #30;
-void(entity e) eprint                = #31;        // prints an entire edict
-float(float yaw, float dist) walkmove    = #32;    // returns TRUE or FALSE
-// #33 was removed
-float() droptofloor= #34;    // TRUE if landed on floor
-void(float style, string value) lightstyle = #35;
-float(float v) rint                    = #36;        // round to nearest int
-float(float v) floor                = #37;        // largest integer <= v
-float(float v) ceil                    = #38;        // smallest integer >= v
-// #39 was removed
-float(entity e) checkbottom            = #40;        // true if self is on ground
-float(vector v) pointcontents        = #41;        // returns a CONTENT_*
-// #42 was removed
-float(float f) fabs = #43;
-vector(entity e, float speed) aim = #44;        // returns the shooting vector
-float(string s) cvar = #45;                        // return cvar.value
-void(string s) localcmd = #46;                    // put string into local que
-entity(entity e) nextent = #47;                    // for looping through all ents
-void(vector o, vector d, float color, float count) particle = #48;// start a particle effect
-void() ChangeYaw = #49;                        // turn towards self.ideal_yaw
-                                            // at self.yaw_speed
-// #50 was removed
-vector(vector v) vectoangles            = #51;
-
-//
-// direct client message generation
-//
-void(float to, float f) WriteByte        = #52;
-void(float to, float f) WriteChar        = #53;
-void(float to, float f) WriteShort        = #54;
-void(float to, float f) WriteLong        = #55;
-void(float to, float f) WriteCoord        = #56;
-void(float to, float f) WriteAngle        = #57;
-void(float to, string s) WriteString    = #58;
-void(float to, entity s) WriteEntity    = #59;
-
-//
-// broadcast client message generation
-//
-
-// void(float f) bWriteByte        = #59;
-// void(float f) bWriteChar        = #60;
-// void(float f) bWriteShort        = #61;
-// void(float f) bWriteLong        = #62;
-// void(float f) bWriteCoord        = #63;
-// void(float f) bWriteAngle        = #64;
-// void(string s) bWriteString    = #65;
-// void(entity e) bWriteEntity = #66;
-
-void(float step) movetogoal                = #67;
-
-string(string s) precache_file        = #68;    // no effect except for -copy
-void(entity e) makestatic        = #69;
-void(string s) changelevel = #70;
-
-//#71 was removed
-
-void(string var, string val) cvar_set = #72;    // sets cvar.value
-
-void(entity client, string s) centerprint = #73;    // sprint, but in middle
-
-void(vector pos, string samp, float vol, float atten) ambientsound = #74;
-
-string(string s) precache_model2    = #75;        // registered version only
-string(string s) precache_sound2    = #76;        // registered version only
-string(string s) precache_file2        = #77;        // registered version only
-
-void(entity e) setspawnparms        = #78;        // set parm1... to the
-                                                // values at level start
-                                                // for coop respawn
-
-void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
-float(float base, float exp) pow = #80; // power function
-void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #81; // VR haptics function
-float(float a, float b) min = #82;
-float(float a, float b) max = #83;
-void(vector ang) makeforward = #84;        // sets v_forward
-float(float input, float inputmin, float inputMax, float outputMin, float outputMax) maprange = #85;        // sets v_forward
-
-//============================================================================
-
-//
-// subs.qc
-//
-void(vector tdest, float tspeed, void() func) SUB_CalcMove;
-void(entity ent, vector tdest, float tspeed, void() func) SUB_CalcMoveEnt;
-void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove;
-void()  SUB_CalcMoveDone;
-void() SUB_CalcAngleMoveDone;
-void() SUB_Null;
-void(entity attacker, float damage) SUB_NullPain;
-void() SUB_UseTargets;
-void() SUB_Remove;
-
-//
-//    combat.qc
-//
-void(entity targ, entity inflictor, entity attacker, float damage) T_Damage;
-
-
-float (entity e, float healamount, float ignore) T_Heal; // health function
-
-float(entity targ, entity inflictor) CanDamage;
+#include "builtins.qc"

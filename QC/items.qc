@@ -486,11 +486,9 @@ void(float old, float new) Deathmatch_Weapon =
 weapon_touch
 =============
 */
-float() W_BestWeapon;
-
 void() weapon_touch =
 {
-    local    float    hadammo, best, newIt, old;
+    local    float    hadammo, newIt, old;
     local    entity    stemp;
     local    float    leave;
 
@@ -506,12 +504,6 @@ void() weapon_touch =
             return;
         }
     }
-
-// if the player was using his best weapon, change up to the new one if better
-    stemp = self;
-    self = other;
-    best = W_BestWeapon();
-    self = stemp;
 
     if(deathmatch == 2 || coop)
         leave = 1;
@@ -753,18 +745,11 @@ AMMO
 void() ammo_touch =
 {
 local entity    stemp;
-local float        best;
 
     if(other.classname != "player")
         return;
     if(other.health <= 0)
         return;
-
-// if the player was using his best weapon, change up to the new one if better
-    stemp = self;
-    self = other;
-    best = W_BestWeapon();
-    self = stemp;
 
 
 // shotgun
@@ -809,19 +794,6 @@ local float        best;
 // ammo touch sound
     sound(other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
-
-// change to a better weapon if appropriate
-
-    if( other.weapon == best )
-    {
-        stemp = self;
-        self = other;
-
-        // self.weapon = W_BestWeapon();
-        // W_SetCurrentAmmo();
-
-        self = stemp;
-    }
 
 // if changed current ammo, update it
     stemp = self;
@@ -1410,7 +1382,7 @@ PLAYER BACKPACKS
 void() BackpackTouch =
 {
     local string s;
-    local float best, old, newIt;
+    local float old, newIt;
     local entity stemp;
     local float acount;
 
@@ -1439,11 +1411,6 @@ void() BackpackTouch =
         }
     }
 
-    // if the player was using his best weapon, change up to the new one if better
-    stemp = self;
-    self = other;
-    best = W_BestWeapon();
-    self = stemp;
 
     // change weapons
     other.ammo_shells = other.ammo_shells + self.ammo_shells;

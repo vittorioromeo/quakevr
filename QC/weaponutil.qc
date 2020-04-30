@@ -120,6 +120,7 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     return FALSE;
 }
 
+// TODO VR: (P2) what to do with multiple `items` fields?
 float(float wid) WeaponIdToItemId =
 {
     if(wid == WID_FIST)             { return IT_FIST; }
@@ -143,6 +144,7 @@ float(float wid) WeaponIdToItemId =
     return -1;
 }
 
+// TODO VR: (P2) what to do with multiple `items` fields?
 float(float it) ItemIdToWeaponId =
 {
     if(it == IT_FIST)             { return WID_FIST; }
@@ -336,23 +338,28 @@ float(float wid) WeaponIdToThrowBounds =
 }
 
 // TODO VR: (P1) use for DropBackpack, GremlinDropBackpack, netname, etc
-string(float it) ItemIdToWeaponName =
+string(float wid) WeaponIdToWeaponName =
 {
-    if(it == IT_AXE)              { return "Axe"; }
-    if(it == IT_SHOTGUN)          { return "Shotgun"; }
-    if(it == IT_SUPER_SHOTGUN)    { return "Double-barrelled Shotgun"; }
-    if(it == IT_NAILGUN)          { return "Nailgun"; }
-    if(it == IT_SUPER_NAILGUN)    { return "Super Nailgun"; }
-    if(it == IT_GRENADE_LAUNCHER) { return "Grenade Launcher"; }
-    if(it == IT_ROCKET_LAUNCHER)  { return "Rocket Launcher"; }
-    if(it == IT_LIGHTNING)        { return "Thunderbolt"; }
-    if(it == IT_LASER_CANNON)     { return "Laser Cannon"; }
-    if(it == IT_PROXIMITY_GUN)    { return "Proximity Gun"; }
-    if(it == IT_MJOLNIR)          { return "Mjolnir"; }
+    if(wid == WID_AXE)              { return "Axe"; }
+    if(wid == WID_SHOTGUN)          { return "Shotgun"; }
+    if(wid == WID_SUPER_SHOTGUN)    { return "Double-barrelled Shotgun"; }
+    if(wid == WID_NAILGUN)          { return "Nailgun"; }
+    if(wid == WID_SUPER_NAILGUN)    { return "Super Nailgun"; }
+    if(wid == WID_GRENADE_LAUNCHER) { return "Grenade Launcher"; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return "Rocket Launcher"; }
+    if(wid == WID_LIGHTNING)        { return "Thunderbolt"; }
+    if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
+    if(wid == WID_PROXIMITY_GUN)    { return "Proximity Gun"; }
+    if(wid == WID_MJOLNIR)          { return "Mjolnir"; }
 
-    bprint("`ItemIdToWeaponName`: invalid item id '");
-    bprint(ftos(it));
+    bprint("`WeaponIdToWeaponName`: invalid weapon id '");
+    bprint(ftos(wid));
     bprint("'\n");
 
     return "";
+}
+
+string(float it) ItemIdToWeaponName =
+{
+    // TODO VR: (P2) why? stop using item ids
 }

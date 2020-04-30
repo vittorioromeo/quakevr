@@ -299,14 +299,14 @@ void() spikeshooter_use =
     local entity lavaball;
     if(self.spawnflags & SPAWNFLAG_LASER)
     {
-        if(!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
         LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
-        if(!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!(self.spawnflags & SPAWNFLAG_SILENT))
              sound(self, CHAN_VOICE, "misc/spike.wav", 1, ATTN_NORM);
         lavaball = spawn();
         lavaball.movetype = MOVETYPE_FLYMISSILE;
@@ -326,7 +326,7 @@ void() spikeshooter_use =
     }
     else if(self.spawnflags & SPAWNFLAG_ROCKET)
     {
-        if(!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
         W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
         newmis.velocity = self.movedir*1000;
@@ -335,7 +335,7 @@ void() spikeshooter_use =
     }
     else
     {
-        if(!self.spawnflags & SPAWNFLAG_SILENT)
+        if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;

@@ -1,0 +1,19 @@
+rogue to merge:
+* ai.qc
+* defs.qc
+* combat.qc
+* doors.qc
+* enforcer.qc
+* hknight.qc
+* items.qc
+* knight.qc
+* misc.qc
+* monsters.qc
+* ogre.qc
+* player.qc
+* progs.src
+* tarbaby.qc
+* triggers.qc
+* weapons.qc
+* world.qc
+* zombie.qc
