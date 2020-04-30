@@ -1,0 +1,7 @@
+../../csprogs.dat
+qsextensions.qc	//builtins and lots of extensions
+
+csqc_hud_vanilla.qc				//The actual hud code. self-contained, except for qc extensions.
+csqc_scoreboard.qc				//Code for the deathmatch scoreboard overlay. self-contained except for qc extensions
+
+csqc_legacycompat.qc			//And because non-simple csqc isn't simple, this file needed for getting old versions of FTE, or DP to behave. comment out if you don't care about old engines.
