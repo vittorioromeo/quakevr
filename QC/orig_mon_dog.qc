@@ -152,7 +152,7 @@ void() dog_leap2    =[    $leap2,        dog_leap3    ]
     ai_face();
 
     self.touch = Dog_JumpTouch;
-    makevectors (self.angles);
+    makevectors(self.angles);
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 300 + '0 0 200';
     if(self.flags & FL_ONGROUND)

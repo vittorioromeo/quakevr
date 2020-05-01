@@ -58,7 +58,10 @@ void(entity targ, entity attacker) Killed =
     self = targ;
 
     if(self.health < -99)
+    {
         self.health = -99;        // don't let sbar look bad if a player
+    }
+
 //MED
     if(self.charmed)
     {
@@ -100,15 +103,6 @@ void(entity targ, entity attacker) Killed =
     self = oself;
 };
 
-// TODO VR: (P2) rogue
-// ====
-// Function prototype for shield impact handler.
-// ====
-// float(entity targ, entity inflictor, entity attacker, float damage) shield_hit;
-
-void(vector org, float damage) SpawnBloodSplash;
-
-
 float() getVRMeleeBloodlust =
 {
     return cvar("vr_melee_bloodlust");
@@ -132,66 +126,83 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     local    float    take;
 
     if(!targ.takedamage)
+    {
         return;
+    }
 
     if(targ.classname == "trigger_explosion")
     {
-        if( IsExplosionDamage != 1)
+        if(IsExplosionDamage != 1)
+        {
             return;
+        }
     }
+
     IsExplosionDamage = 0;
 
-    // TODO VR: (P2) rogue
-    // if(targ.items2 & IT2_SHIELD)
-    // {
-    //     // Allow some damage to pass through.
-    //     damage = shield_hit(targ, inflictor, attacker, damage);
-    //     if(damage == 0)
-    //         return;
-    // }
+    if(VR_ItemUtil_EntHasItem(targ, IID_SHIELD))
+    {
+        // Allow some damage to pass through.
+        damage = shield_hit(targ, inflictor, attacker, damage);
 
-   if(discharged && targ.wetsuit_finished )
-      return;
-//MED moved damage_attacker down a bit
+        if(damage == 0)
+        {
+            return;
+        }
+    }
 
-// check for quad damage powerup on the attacker
+    if(discharged && targ.wetsuit_finished)
+    {
+        return;
+    }
+
+    //MED
+    // moved damage_attacker down a bit
+
+    // check for quad damage powerup on the attacker
     if(attacker.super_damage_finished > time)
+    {
         damage = damage * 4;
+    }
 
-    // TODO VR: (P2) rogue
     // rune power up (Black Magic)
-    // if(deathmatch)
-    //    damage = RuneApplyBlack(damage, attacker);
+    if(deathmatch)
+    {
+        damage = RuneApplyBlack(damage, attacker);
+    }
 
+    //MED
+    //check for empathy shields
+    if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&
+       !VR_ItemUtil_EntHasItem(inflictor, IID_EMPATHY_SHIELDS) &&
+       (targ != attacker))
+    {
+        empathyused = 1;
+        damage = damage/2;
+        T_DamageImpl (attacker,targ,targ,damage,isVRMelee);
+        empathyused = 0;
+    }
 
-//MED
-//check for empathy shields
-     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&
-        !VR_ItemUtil_EntHasItem(inflictor, IID_EMPATHY_SHIELDS) &&
-        (targ != attacker))
-      {
-      empathyused = 1;
-      damage = damage/2;
-      T_DamageImpl (attacker,targ,targ,damage,isVRMelee);
-      empathyused = 0;
-      }
-//MED
-// used by buttons and triggers to set activator for target firing
+    //MED
+    // used by buttons and triggers to set activator for target firing
     damage_attacker = attacker;
 
-//MED
-// used to keep track of what hit us
-   damage_inflictor = inflictor;
+    //MED
+    // used to keep track of what hit us
+    damage_inflictor = inflictor;
 
 // save damage based on the target's armor level
 
-// TODO VR: (P2) rogue
-//ZOID--
-    // if(TeamArmorDam(targ, inflictor, attacker, damage))
-        save = ceil(targ.armortype*damage);
-    // else
-    //    save = 0;
-//--ZOID
+    //ZOID--
+    if(TeamArmorDam(targ, inflictor, attacker, damage))
+    {
+        save = ceil(targ.armortype * damage);
+    }
+    else
+    {
+        save = 0;
+    }
+    //--ZOID
 
     if(save >= targ.armorvalue)
     {
@@ -206,9 +217,9 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     targ.armorvalue = targ.armorvalue - save;
     take = ceil(damage-save);
 
-// add to the damage total for clients, which will be sent as a single
-// message at the end of the frame
-// FIXME: remove after combining shotgun blasts?
+    // add to the damage total for clients, which will be sent as a single
+    // message at the end of the frame
+    // FIXME: remove after combining shotgun blasts?
     if(targ.flags & FL_CLIENT)
     {
         targ.dmg_take = targ.dmg_take + take;
@@ -216,7 +227,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         targ.dmg_inflictor = inflictor;
     }
 
-// figure momentum add
+    // figure momentum add
     if( (inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
     {
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
@@ -224,9 +235,12 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         targ.velocity = targ.velocity + dir*damage*8;
     }
 
-// check for godmode or invincibility
+    // check for godmode or invincibility
     if(targ.flags & FL_GODMODE)
+    {
         return;
+    }
+
     if(targ.invincible_finished >= time)
     {
         if(targ.invincible_sound < time)
@@ -234,9 +248,11 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
             sound(targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
             targ.invincible_sound = time + 2;
         }
+
         return;
     }
-//MED
+
+    //MED
     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS))
     {
         if(self.empathy_sound < time)
@@ -246,13 +262,13 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         }
     }
 
-// team play damage avoidance
-//    if( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
-    if( (teamplay == 1) && (targ.team > 0) && (targ.team == attacker.team)
-    && (targ != attacker)
-    && (attacker.classname == "player")
-    && (inflictor.classname != "door") )    // because squishing a teammate is still possible
-        return;
+    // team play damage avoidance
+    //ZOID--
+    if (!TeamHealthDam(targ, inflictor, attacker, damage))
+    {
+        return; // same team
+    }
+    //--ZOID
 
     if(targ.classname == "player")
     {
@@ -263,12 +279,13 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         haptic(1, 0.0, 0.5, 30, 1.0);
     }
 
-// TODO VR: (P2) rogue
-// rune power up (Earth Magic)
-    // if(deathmatch)
-    //    take = RuneApplyEarth(take, targ);
+    // rune power up (Earth Magic)
+    if(deathmatch)
+    {
+        take = RuneApplyEarth(take, targ);
+    }
 
-// do the damage
+    // do the damage
     targ.health = targ.health - take;
 
     if(targ.health <= 0)
@@ -297,23 +314,26 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         }
     }
 
-// react to the damage
+    // react to the damage
     oldself = self;
     self = targ;
 
-//MED 10/17/96 added charmed stuff
+    //MED 10/17/96 added charmed stuff
     if( (self.flags & FL_MONSTER) && attacker != world)
     {
-    // get mad unless of the same class (except for soldiers)
-        if(self != attacker && attacker != self.enemy && (self.charmer!=attacker))
+        // get mad unless of the same class (except for soldiers)
+        if(self != attacker && attacker != self.enemy && (self.charmer != attacker))
         {
             if( (self.classname != attacker.classname)
             || (self.classname == "monster_army" ) || (self.classname == "monster_armagon" ) )
             {
-                if( self.classname != "monster_dragon")
+                if(self.classname != "monster_dragon")
                 {
                     if(self.enemy.classname == "player")
+                    {
                         self.oldenemy = self.enemy;
+                    }
+
                     self.enemy = attacker;
                     FoundTarget();
                 }
@@ -340,44 +360,6 @@ void(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 void(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     T_DamageImpl(targ, inflictor, attacker, damage, 1);
-};
-
-/*
-============
-T_EELZap
-============
-*/
-void(entity inflictor, entity attacker, float damage) T_EELZap =
-{
-    local    float     points;
-    local    entity    head;
-    local    vector    org;
-
-    head = findradius(inflictor.origin, damage+40);
-
-    while(head)
-    {
-        if(head.takedamage)
-        {
-            org = head.origin + (head.mins + head.maxs)*0.5;
-            points = 0.5*vlen (inflictor.origin - org);
-            if(points < 0)
-                points = 0;
-            points = damage - points;
-            if(head == attacker)
-                points = points * 0.5;
-            if(points > 0)
-            {
-                if(CanDamage (head, inflictor))
-                {    // eels take no damage from this attack
-                    if(head.classname != "monster_eel" &&
-                        (head.flags & FL_INWATER))
-                        T_Damage (head, inflictor, attacker, points);
-                }
-            }
-        }
-        head = head.chain;
-    }
 };
 
 /*

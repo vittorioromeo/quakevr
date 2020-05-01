@@ -512,12 +512,9 @@ void() func_door =
     if(!self.dmg)   { self.dmg = 2; }
 
     self.pos1 = self.origin;
-    //    self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
 
-// PGM fix for cameron's door problem - 02/19/97
-
+    // PGM fix for cameron's door problem - 02/19/97
     local vector tempVect;
-
     tempVect = self.movedir;
 
     if(tempVect_x < 0)
@@ -530,13 +527,10 @@ void() func_door =
         tempVect_y = 0 - tempVect_y;
     }
 
-//    if(tempVect_z < 0)
-//        tempVect_z = 0 - tempVect_z;
-//    self.pos2 = self.pos1 + self.movedir*(tempVect*self.size - self.lip);
     self.pos2 = self.pos1 + self.movedir*(fabs(tempVect*self.size) - self.lip);
 
-// DOOR_START_OPEN is to allow an entity to be lighted in the closed position
-// but spawn in the open position
+    // DOOR_START_OPEN is to allow an entity to be lighted in the closed position
+    // but spawn in the open position
     if(self.spawnflags & DOOR_START_OPEN)
     {
         setorigin(self, self.pos2);

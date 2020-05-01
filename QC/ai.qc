@@ -32,7 +32,6 @@ walkmove(angle, speed) primitive is all or nothing
 //
 entity    sight_entity;
 float    sight_entity_time;
-void() FoundTarget;
 
 float(float v) anglemod =
 {
@@ -326,7 +325,7 @@ float(entity targ) infront =
     local vector    vec;
     local float        dot;
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     vec = normalize (targ.origin - self.origin);
     dot = vec * v_forward;
 
@@ -429,7 +428,11 @@ local float    rsnd;
     if(self.classname == "monster_ogre")
         sound(self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_knight")
-        sound(self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+    {
+        // ROGUE
+        if(self.skin == 0)
+            sound (self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+    }
     else if(self.classname == "monster_shambler")
         sound(self, CHAN_VOICE, "shambler/ssight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_demon1")
@@ -442,6 +445,7 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_hell_knight")
     {
+        // ROGUE
         if(self.skin == 0)
             sound(self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
     }
@@ -449,18 +453,15 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_vomit")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_eel")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_wrath")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_enforcer")
     {
@@ -492,8 +493,7 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
     else if(self.classname == "monster_dragon")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
     }
 };
 
@@ -689,9 +689,11 @@ float() FindTarget =
          }
       }
 
-// PGM hack
+    // PGM hack
     if(self.classname != "dragon")
+    {
         FoundTarget();
+    }
 
     return TRUE;
 };

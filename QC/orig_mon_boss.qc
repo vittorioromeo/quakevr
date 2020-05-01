@@ -207,7 +207,7 @@ void(float r, vector p) boss_missile =
     }
 
     offang = vectoangles (self.enemy.origin - self.origin);
-    makevectors (offang);
+    makevectors(offang);
 
     org = self.origin + p_x*v_forward + p_y*v_right + p_z*'0 0 1';
 

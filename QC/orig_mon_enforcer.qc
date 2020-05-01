@@ -94,7 +94,9 @@ void(vector org, vector vec) LaunchLaser =
     if(self.classname == "monster_morph")
     {
         if(!self.owner)
+        {
             newmis.skin = 1;
+        }
     }
 
     setorigin(newmis, org);
@@ -114,7 +116,7 @@ void() enforcer_fire =
     local vector org;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
 

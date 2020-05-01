@@ -19,6 +19,7 @@ float cVR_FakeHand = 2;
 float IID_CATEGORY_INVALID = 0;
 float IID_CATEGORY_ITEMS = 1;
 float IID_CATEGORY_HIPNOTIC_ITEMS = 2;
+float IID_CATEGORY_ROGUE_ITEMS = 3;
 
 //
 //
@@ -27,36 +28,49 @@ float IID_CATEGORY_HIPNOTIC_ITEMS = 2;
 // Item IDs
 // ----------------------------------------------------------------------------
 
-float IID_NONE              = 0;
-float IID_ARMOR1            = 1;
-float IID_ARMOR2            = 2;
-float IID_ARMOR3            = 3;
-float IID_SUPERHEALTH       = 4;
-float IID_KEY1              = 5;
-float IID_KEY2              = 6;
-float IID_INVISIBILITY      = 7;
-float IID_INVULNERABILITY   = 8;
-float IID_SUIT              = 9;
-float IID_QUAD              = 10;
-float IID_WETSUIT           = 11; // Scourge of Armagon (`hipnotic`).
-float IID_EMPATHY_SHIELDS   = 12; // Scourge of Armagon (`hipnotic`).
-float IID_HORN_OF_CONJURING = 13; // Scourge of Armagon (`hipnotic`).
-float IID_FIST              = 14;
-float IID_SHOTGUN           = 15;
-float IID_SUPER_SHOTGUN     = 16;
-float IID_NAILGUN           = 17;
-float IID_SUPER_NAILGUN     = 18;
-float IID_GRENADE_LAUNCHER  = 19;
-float IID_ROCKET_LAUNCHER   = 20;
-float IID_LIGHTNING         = 21;
-float IID_MJOLNIR           = 22;
-float IID_SHELLS            = 23;
-float IID_NAILS             = 24;
-float IID_ROCKETS           = 25;
-float IID_CELLS             = 26;
-float IID_AXE               = 27;
-float IID_PROXIMITY_GUN     = 28;
-float IID_LASER_CANNON      = 29;
+float IID_NONE               = 0;
+float IID_ARMOR1             = 1;
+float IID_ARMOR2             = 2;
+float IID_ARMOR3             = 3;
+float IID_SUPERHEALTH        = 4;
+float IID_KEY1               = 5;
+float IID_KEY2               = 6;
+float IID_INVISIBILITY       = 7;
+float IID_INVULNERABILITY    = 8;
+float IID_SUIT               = 9;
+float IID_QUAD               = 10;
+float IID_WETSUIT            = 11; // HIPNOTIC
+float IID_EMPATHY_SHIELDS    = 12; // HIPNOTIC
+float IID_HORN_OF_CONJURING  = 13; // HIPNOTIC
+float IID_FIST               = 14;
+float IID_SHOTGUN            = 15;
+float IID_SUPER_SHOTGUN      = 16;
+float IID_NAILGUN            = 17;
+float IID_SUPER_NAILGUN      = 18;
+float IID_GRENADE_LAUNCHER   = 19;
+float IID_ROCKET_LAUNCHER    = 20;
+float IID_LIGHTNING          = 21;
+float IID_MJOLNIR            = 22;
+float IID_SHELLS             = 23;
+float IID_NAILS              = 24;
+float IID_ROCKETS            = 25;
+float IID_CELLS              = 26;
+float IID_AXE                = 27;
+float IID_PROXIMITY_GUN      = 28;
+float IID_LASER_CANNON       = 29;
+float IID_LAVA_NAILGUN       = 30; // ROGUE.
+float IID_LAVA_SUPER_NAILGUN = 31; // ROGUE.
+float IID_MULTI_GRENADE      = 32; // ROGUE.
+float IID_MULTI_ROCKET       = 33; // ROGUE.
+float IID_PLASMA_GUN         = 34; // ROGUE.
+float IID_GRAPPLE            = 35; // ROGUE.
+float IID_LAVA_NAILS         = 36; // ROGUE.
+float IID_PLASMA_AMMO        = 37; // ROGUE.
+float IID_MULTI_ROCKETS      = 38; // ROGUE.
+float IID_SHIELD             = 39; // ROGUE.
+float IID_ANTIGRAV           = 40; // ROGUE.
+float IID_EARTHQUAKE         = 41; // ROGUE.
+float IID_V_SPHERE           = 42; // ROGUE.
 
 //
 //
@@ -68,16 +82,16 @@ float IID_LASER_CANNON      = 29;
 float WID_FIST             = 0;
 float WID_GRAPPLE          = 1;
 float WID_AXE              = 2;
-float WID_MJOLNIR          = 3;
+float WID_MJOLNIR          = 3;  // HIPNOTIC.
 float WID_SHOTGUN          = 4;
 float WID_SUPER_SHOTGUN    = 5;
 float WID_NAILGUN          = 6;
 float WID_SUPER_NAILGUN    = 7;
 float WID_GRENADE_LAUNCHER = 8;
-float WID_PROXIMITY_GUN    = 9;
+float WID_PROXIMITY_GUN    = 9;  // HIPNOTIC.
 float WID_ROCKET_LAUNCHER  = 10;
 float WID_LIGHTNING        = 11;
-float WID_LASER_CANNON     = 12;
+float WID_LASER_CANNON     = 12; // HIPNOTIC.
 
 //
 //
@@ -86,11 +100,14 @@ float WID_LASER_CANNON     = 12;
 // Ammo IDs
 // ----------------------------------------------------------------------------
 
-float AID_SHELLS  = 0;
-float AID_NAILS   = 1;
-float AID_ROCKETS = 2;
-float AID_CELLS   = 3;
-float AID_NONE    = 4;
+float AID_NONE          = 0;
+float AID_SHELLS        = 1;
+float AID_NAILS         = 2;
+float AID_ROCKETS       = 3;
+float AID_CELLS         = 4;
+float AID_LAVA_NAILS    = 5; // ROGUE. // TODO VR (P0): implement
+float AID_MULTI_ROCKETS = 6; // ROGUE. // TODO VR (P0): implement
+float AID_PLASMA        = 7; // ROGUE. // TODO VR (P0): implement
 
 //
 //

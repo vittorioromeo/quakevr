@@ -147,7 +147,7 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
 {
     self.movetype = MOVETYPE_BOUNCE;
     self.touch = Tar_JumpTouch;
-    makevectors (self.angles);
+    makevectors(self.angles);
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 600 + '0 0 200';
     self.velocity_z = self.velocity_z + random()*150;

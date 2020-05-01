@@ -298,7 +298,7 @@ void() item_megahealth_rot =
 
     // it is possible for a player to die and respawn between rots, so don't
     // just blindly subtract the flag off
-    VR_ItemUtil_EntDelItem(self, IID_SUPERHEALTH);
+    VR_ItemUtil_EntDelItem(other, IID_SUPERHEALTH);
 
     if(deathmatch == 1)    // deathmatch 2 is silly old rules
     {
@@ -467,7 +467,7 @@ weapon_touch
 */
 void() weapon_touch =
 {
-    local    float    hadammo, newIt;
+    local    float    hadammo;
     local    entity    stemp;
     local    float    leave;
 
@@ -506,7 +506,6 @@ void() weapon_touch =
     ammoId = WeaponIdToAmmoId(weaponId);
 
     hadammo = GetAmmoCountByAmmoId(other, ammoId);
-    newIt = WeaponIdToItemId(weaponId);
     SetAmmoCountByAmmoId(other, WeaponIdToAmmoId(weaponId),
                          hadammo + WeaponIdToInitialAmmoCount(weaponId));
 
@@ -522,7 +521,7 @@ void() weapon_touch =
 
     bound_other_ammo();
 
-    VR_ItemUtil_EntAddItem(other, newIt);
+    VR_WeaponUtil_EntAddWeapon(other, weaponId);
 
     stemp = self;
     self = other;
@@ -540,7 +539,7 @@ void() weapon_touch =
                          VRGetEntWeapon(other, touchinghand));
     }
 
-    VRSetWeapon(touchinghand, ItemIdToWeaponId(newIt));
+    VRSetWeapon(touchinghand, weaponId);
 
     W_SetCurrentAmmoFor(touchinghand);
 
@@ -1294,7 +1293,7 @@ PLAYER BACKPACKS
 void() BackpackTouch =
 {
     local string s;
-    local float old, newIt;
+    local float old;
     local entity stemp;
     local float acount;
 

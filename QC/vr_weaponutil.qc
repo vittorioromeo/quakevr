@@ -39,8 +39,18 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
         return FALSE;
     }
 
-    if(xWeaponId == WID_FIST)    { return TRUE; }
-    if(xWeaponId == WID_GRAPPLE) { return cvar("vr_enable_grapple"); }
+    if(xWeaponId == WID_FIST)
+    {
+        return TRUE;
+    }
+
+    // TODO VR: (P0) replace this cvar with some cheat that gives the item
+    /*
+    if(xWeaponId == WID_GRAPPLE)
+    {
+        return cvar("vr_enable_grapple");
+    }
+    */
 
     return VR_ItemUtil_EntHasItem(xEnt, WeaponIdToItemId(xWeaponId));
 }
@@ -52,6 +62,16 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntIsEligibleForWeapon =
     if(xWeaponId == WID_SHOTGUN) { return TRUE; }
 
     return VR_WeaponUtil_EntHasWeapon(xEnt, xWeaponId);
+}
+
+void(entity xEnt, float xWeaponId) VR_WeaponUtil_EntAddWeapon =
+{
+    VR_ItemUtil_EntAddItem(self, WeaponIdToItemId(xWeaponId));
+}
+
+void(entity xEnt, float xWeaponId) VR_WeaponUtil_EntDelWeapon =
+{
+    VR_ItemUtil_EntDelItem(self, WeaponIdToItemId(xWeaponId));
 }
 
 entity() FindEntPlayerForDrop =
@@ -139,6 +159,7 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
 float(float wid) WeaponIdToItemId =
 {
     if(wid == WID_FIST)             { return IID_FIST; }
+    if(wid == WID_GRAPPLE)          { return IID_GRAPPLE; }
     if(wid == WID_AXE)              { return IID_AXE; }
     if(wid == WID_MJOLNIR)          { return IID_MJOLNIR; }
     if(wid == WID_SHOTGUN)          { return IID_SHOTGUN; }
@@ -150,7 +171,6 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_ROCKET_LAUNCHER)  { return IID_ROCKET_LAUNCHER; }
     if(wid == WID_LIGHTNING)        { return IID_LIGHTNING; }
     if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
-    // TODO VR: (P1) fist and grapple
 
     bprint("`WeaponIdToItemId`: invalid weapon id '");
     bprint(ftos(wid));
@@ -163,6 +183,7 @@ float(float wid) WeaponIdToItemId =
 float(float it) ItemIdToWeaponId =
 {
     if(it == IID_FIST)              { return WID_FIST; }
+    if(it == IID_GRAPPLE)           { return WID_GRAPPLE; }
     if(it == IID_AXE)               { return WID_AXE; }
     if(it == IID_MJOLNIR)           { return WID_MJOLNIR; }
     if(it == IID_SHOTGUN)           { return WID_SHOTGUN; }
@@ -174,7 +195,6 @@ float(float it) ItemIdToWeaponId =
     if(it == IID_ROCKET_LAUNCHER)   { return WID_ROCKET_LAUNCHER; }
     if(it == IID_LIGHTNING)         { return WID_LIGHTNING; }
     if(it == IID_LASER_CANNON)      { return WID_LASER_CANNON; }
-    // TODO VR: (P1) fist and grapple
 
     bprint("`ItemIdToWeaponId`: invalid item id '");
     bprint(ftos(it));
@@ -206,6 +226,7 @@ string(float wid) WeaponIdToModel =
     return "";
 }
 
+// TODO VR: (P0) how to deal with ammo modifiers here? (rogue)
 float(float wid) WeaponIdToAmmoId =
 {
     if(wid == WID_FIST)             { return AID_NONE; }
@@ -229,12 +250,15 @@ float(float wid) WeaponIdToAmmoId =
     return AID_NONE;
 }
 
-float(entity xPlayer, float xAid) GetAmmoCountByAmmoId =
+float(entity xEnt, float xAid) GetAmmoCountByAmmoId =
 {
-    if(xAid == AID_SHELLS)  { return xPlayer.ammo_shells; }
-    if(xAid == AID_NAILS)   { return xPlayer.ammo_nails; }
-    if(xAid == AID_ROCKETS) { return xPlayer.ammo_rockets; }
-    if(xAid == AID_CELLS)   { return xPlayer.ammo_cells; }
+    if(xAid == AID_SHELLS)        { return xEnt.ammo_shells; }
+    if(xAid == AID_NAILS)         { return xEnt.ammo_nails; }
+    if(xAid == AID_ROCKETS)       { return xEnt.ammo_rockets; }
+    if(xAid == AID_CELLS)         { return xEnt.ammo_cells; }
+    if(xAid == AID_LAVA_NAILS)    { return xEnt.ammo_lava_nails; }
+    if(xAid == AID_MULTI_ROCKETS) { return xEnt.ammo_multi_rockets; }
+    if(xAid == AID_PLASMA)        { return xEnt.ammo_plasma; }
 
     bprint("`GetAmmoCountByAmmoId`: invalid ammo id '");
     bprint(ftos(xAid));
@@ -243,12 +267,15 @@ float(entity xPlayer, float xAid) GetAmmoCountByAmmoId =
     return 0;
 }
 
-void(entity xPlayer, float xAid, float v) SetAmmoCountByAmmoId =
+void(entity xEnt, float xAid, float v) SetAmmoCountByAmmoId =
 {
-    if(xAid == AID_SHELLS)  { xPlayer.ammo_shells = v; return; }
-    if(xAid == AID_NAILS)   { xPlayer.ammo_nails = v; return; }
-    if(xAid == AID_ROCKETS) { xPlayer.ammo_rockets = v; return; }
-    if(xAid == AID_CELLS)   { xPlayer.ammo_cells = v; return; }
+    if(xAid == AID_SHELLS)        { xEnt.ammo_shells = v; return; }
+    if(xAid == AID_NAILS)         { xEnt.ammo_nails = v; return; }
+    if(xAid == AID_ROCKETS)       { xEnt.ammo_rockets = v; return; }
+    if(xAid == AID_CELLS)         { xEnt.ammo_cells = v; return; }
+    if(xAid == AID_LAVA_NAILS)    { xEnt.ammo_lava_nails = v; return; }
+    if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = v; return; }
+    if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = v; return; }
 
     bprint("`SetAmmoCountByAmmoId`: invalid ammo id '");
     bprint(ftos(xAid));
@@ -258,7 +285,6 @@ void(entity xPlayer, float xAid, float v) SetAmmoCountByAmmoId =
 float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
 {
     local float ammoId;
-
     ammoId = WeaponIdToAmmoId(wid);
 
     if(ammoId == AID_NONE)
@@ -386,6 +412,7 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
 float(float wid) WeaponIdToInitialAmmoCount =
 {
     if(wid == WID_FIST)             { return 0; }
+    if(wid == WID_GRAPPLE)          { return 0; }
     if(wid == WID_AXE)              { return 0; }
     if(wid == WID_MJOLNIR)          { return 30; }
     if(wid == WID_SHOTGUN)          { return 5; }
@@ -397,7 +424,6 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_ROCKET_LAUNCHER)  { return 5; }
     if(wid == WID_LIGHTNING)        { return 15; }
     if(wid == WID_LASER_CANNON)     { return 30; }
-    // TODO VR: (P1) fist and grapple
 
     bprint("`WeaponIdToInitialAmmoCount`: invalid weapon id '");
     bprint(ftos(wid));
@@ -409,17 +435,19 @@ float(float wid) WeaponIdToInitialAmmoCount =
 // TODO VR: (P1) use for DropBackpack, GremlinDropBackpack, netname, etc
 string(float wid) WeaponIdToWeaponName =
 {
+    if(wid == WID_FIST)             { return "Fist"; }
+    if(wid == WID_GRAPPLE)          { return "Grapple"; }
     if(wid == WID_AXE)              { return "Axe"; }
+    if(wid == WID_MJOLNIR)          { return "Mjolnir"; }
     if(wid == WID_SHOTGUN)          { return "Shotgun"; }
     if(wid == WID_SUPER_SHOTGUN)    { return "Double-barrelled Shotgun"; }
     if(wid == WID_NAILGUN)          { return "Nailgun"; }
     if(wid == WID_SUPER_NAILGUN)    { return "Super Nailgun"; }
     if(wid == WID_GRENADE_LAUNCHER) { return "Grenade Launcher"; }
+    if(wid == WID_PROXIMITY_GUN)    { return "Proximity Gun"; }
     if(wid == WID_ROCKET_LAUNCHER)  { return "Rocket Launcher"; }
     if(wid == WID_LIGHTNING)        { return "Thunderbolt"; }
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
-    if(wid == WID_PROXIMITY_GUN)    { return "Proximity Gun"; }
-    if(wid == WID_MJOLNIR)          { return "Mjolnir"; }
 
     bprint("`WeaponIdToWeaponName`: invalid weapon id '");
     bprint(ftos(wid));

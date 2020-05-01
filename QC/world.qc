@@ -2,97 +2,94 @@ void() main =
 {
     dprint("main function\n");
 
-// these are just commands the the prog compiler to copy these files
+    // these are just commands the the prog compiler to copy these files
+    precache_file("progs.dat");
+    precache_file("gfx.wad");
+    precache_file("quake.rc");
+    precache_file("default.cfg");
 
-    precache_file ("progs.dat");
-    precache_file ("gfx.wad");
-    precache_file ("quake.rc");
-    precache_file ("default.cfg");
+    precache_file("end1.bin");
+    precache_file2("end2.bin");
 
-    precache_file ("end1.bin");
-    precache_file2 ("end2.bin");
+    precache_file("demo1.dem");
+    precache_file("demo2.dem");
+    precache_file("demo3.dem");
 
-    precache_file ("demo1.dem");
-    precache_file ("demo2.dem");
-    precache_file ("demo3.dem");
+    // these are all of the lumps from the cached.ls files
+    precache_file("gfx/palette.lmp");
+    precache_file("gfx/colormap.lmp");
 
-//
-// these are all of the lumps from the cached.ls files
-//
-    precache_file ("gfx/palette.lmp");
-    precache_file ("gfx/colormap.lmp");
+    precache_file2("gfx/pop.lmp");
 
-    precache_file2 ("gfx/pop.lmp");
+    precache_file("gfx/complete.lmp");
+    precache_file("gfx/inter.lmp");
 
-    precache_file ("gfx/complete.lmp");
-    precache_file ("gfx/inter.lmp");
+    precache_file("gfx/ranking.lmp");
+    precache_file("gfx/vidmodes.lmp");
+    precache_file("gfx/finale.lmp");
+    precache_file("gfx/conback.lmp");
+    precache_file("gfx/qplaque.lmp");
 
-    precache_file ("gfx/ranking.lmp");
-    precache_file ("gfx/vidmodes.lmp");
-    precache_file ("gfx/finale.lmp");
-    precache_file ("gfx/conback.lmp");
-    precache_file ("gfx/qplaque.lmp");
+    precache_file("gfx/menudot1.lmp");
+    precache_file("gfx/menudot2.lmp");
+    precache_file("gfx/menudot3.lmp");
+    precache_file("gfx/menudot4.lmp");
+    precache_file("gfx/menudot5.lmp");
+    precache_file("gfx/menudot6.lmp");
 
-    precache_file ("gfx/menudot1.lmp");
-    precache_file ("gfx/menudot2.lmp");
-    precache_file ("gfx/menudot3.lmp");
-    precache_file ("gfx/menudot4.lmp");
-    precache_file ("gfx/menudot5.lmp");
-    precache_file ("gfx/menudot6.lmp");
+    precache_file("gfx/menuplyr.lmp");
+    precache_file("gfx/bigbox.lmp");
+    precache_file("gfx/dim_modm.lmp");
+    precache_file("gfx/dim_drct.lmp");
+    precache_file("gfx/dim_ipx.lmp");
+    precache_file("gfx/dim_tcp.lmp");
+    precache_file("gfx/dim_mult.lmp");
+    precache_file("gfx/mainmenu.lmp");
 
-    precache_file ("gfx/menuplyr.lmp");
-    precache_file ("gfx/bigbox.lmp");
-    precache_file ("gfx/dim_modm.lmp");
-    precache_file ("gfx/dim_drct.lmp");
-    precache_file ("gfx/dim_ipx.lmp");
-    precache_file ("gfx/dim_tcp.lmp");
-    precache_file ("gfx/dim_mult.lmp");
-    precache_file ("gfx/mainmenu.lmp");
+    precache_file("gfx/box_tl.lmp");
+    precache_file("gfx/box_tm.lmp");
+    precache_file("gfx/box_tr.lmp");
 
-    precache_file ("gfx/box_tl.lmp");
-    precache_file ("gfx/box_tm.lmp");
-    precache_file ("gfx/box_tr.lmp");
+    precache_file("gfx/box_ml.lmp");
+    precache_file("gfx/box_mm.lmp");
+    precache_file("gfx/box_mm2.lmp");
+    precache_file("gfx/box_mr.lmp");
 
-    precache_file ("gfx/box_ml.lmp");
-    precache_file ("gfx/box_mm.lmp");
-    precache_file ("gfx/box_mm2.lmp");
-    precache_file ("gfx/box_mr.lmp");
+    precache_file("gfx/box_bl.lmp");
+    precache_file("gfx/box_bm.lmp");
+    precache_file("gfx/box_br.lmp");
 
-    precache_file ("gfx/box_bl.lmp");
-    precache_file ("gfx/box_bm.lmp");
-    precache_file ("gfx/box_br.lmp");
+    precache_file("gfx/sp_menu.lmp");
+    precache_file("gfx/ttl_sgl.lmp");
+    precache_file("gfx/ttl_main.lmp");
+    precache_file("gfx/ttl_cstm.lmp");
 
-    precache_file ("gfx/sp_menu.lmp");
-    precache_file ("gfx/ttl_sgl.lmp");
-    precache_file ("gfx/ttl_main.lmp");
-    precache_file ("gfx/ttl_cstm.lmp");
+    precache_file("gfx/mp_menu.lmp");
 
-    precache_file ("gfx/mp_menu.lmp");
+    precache_file("gfx/netmen1.lmp");
+    precache_file("gfx/netmen2.lmp");
+    precache_file("gfx/netmen3.lmp");
+    precache_file("gfx/netmen4.lmp");
+    precache_file("gfx/netmen5.lmp");
 
-    precache_file ("gfx/netmen1.lmp");
-    precache_file ("gfx/netmen2.lmp");
-    precache_file ("gfx/netmen3.lmp");
-    precache_file ("gfx/netmen4.lmp");
-    precache_file ("gfx/netmen5.lmp");
+    precache_file("gfx/sell.lmp");
 
-    precache_file ("gfx/sell.lmp");
+    precache_file("gfx/help0.lmp");
+    precache_file("gfx/help1.lmp");
+    precache_file("gfx/help2.lmp");
+    precache_file("gfx/help3.lmp");
+    precache_file("gfx/help4.lmp");
+    precache_file("gfx/help5.lmp");
 
-    precache_file ("gfx/help0.lmp");
-    precache_file ("gfx/help1.lmp");
-    precache_file ("gfx/help2.lmp");
-    precache_file ("gfx/help3.lmp");
-    precache_file ("gfx/help4.lmp");
-    precache_file ("gfx/help5.lmp");
+    precache_file("gfx/pause.lmp");
+    precache_file("gfx/loading.lmp");
 
-    precache_file ("gfx/pause.lmp");
-    precache_file ("gfx/loading.lmp");
+    precache_file("gfx/p_option.lmp");
+    precache_file("gfx/p_load.lmp");
+    precache_file("gfx/p_save.lmp");
+    precache_file("gfx/p_multi.lmp");
 
-    precache_file ("gfx/p_option.lmp");
-    precache_file ("gfx/p_load.lmp");
-    precache_file ("gfx/p_save.lmp");
-    precache_file ("gfx/p_multi.lmp");
-
-// sounds loaded by C code
+    // sounds loaded by C code
     precache_sound("misc/menu1.wav");
     precache_sound("misc/menu2.wav");
     precache_sound("misc/menu3.wav");
@@ -100,77 +97,77 @@ void() main =
     precache_sound("ambience/water1.wav");
     precache_sound("ambience/wind2.wav");
 
-// shareware
-    precache_file ("maps/orig_start.bsp");
-    precache_file ("maps/start.bsp");
+    // shareware
+    precache_file("maps/orig_start.bsp");
+    precache_file("maps/start.bsp");
 
-    precache_file ("maps/e1m1.bsp");
-    precache_file ("maps/e1m2.bsp");
-    precache_file ("maps/e1m3.bsp");
-    precache_file ("maps/e1m4.bsp");
-    precache_file ("maps/e1m5.bsp");
-    precache_file ("maps/e1m6.bsp");
-    precache_file ("maps/e1m7.bsp");
-    precache_file ("maps/e1m8.bsp");
+    precache_file("maps/e1m1.bsp");
+    precache_file("maps/e1m2.bsp");
+    precache_file("maps/e1m3.bsp");
+    precache_file("maps/e1m4.bsp");
+    precache_file("maps/e1m5.bsp");
+    precache_file("maps/e1m6.bsp");
+    precache_file("maps/e1m7.bsp");
+    precache_file("maps/e1m8.bsp");
 
-// registered
-    precache_file2 ("gfx/pop.lmp");
+    // registered
+    precache_file2("gfx/pop.lmp");
 
-    precache_file2 ("maps/e2m1.bsp");
-    precache_file2 ("maps/e2m2.bsp");
-    precache_file2 ("maps/e2m3.bsp");
-    precache_file2 ("maps/e2m4.bsp");
-    precache_file2 ("maps/e2m5.bsp");
-    precache_file2 ("maps/e2m6.bsp");
-    precache_file2 ("maps/e2m7.bsp");
+    precache_file2("maps/e2m1.bsp");
+    precache_file2("maps/e2m2.bsp");
+    precache_file2("maps/e2m3.bsp");
+    precache_file2("maps/e2m4.bsp");
+    precache_file2("maps/e2m5.bsp");
+    precache_file2("maps/e2m6.bsp");
+    precache_file2("maps/e2m7.bsp");
 
-    precache_file2 ("maps/e3m1.bsp");
-    precache_file2 ("maps/e3m2.bsp");
-    precache_file2 ("maps/e3m3.bsp");
-    precache_file2 ("maps/e3m4.bsp");
-    precache_file2 ("maps/e3m5.bsp");
-    precache_file2 ("maps/e3m6.bsp");
-    precache_file2 ("maps/e3m7.bsp");
+    precache_file2("maps/e3m1.bsp");
+    precache_file2("maps/e3m2.bsp");
+    precache_file2("maps/e3m3.bsp");
+    precache_file2("maps/e3m4.bsp");
+    precache_file2("maps/e3m5.bsp");
+    precache_file2("maps/e3m6.bsp");
+    precache_file2("maps/e3m7.bsp");
 
-    precache_file2 ("maps/e4m1.bsp");
-    precache_file2 ("maps/e4m2.bsp");
-    precache_file2 ("maps/e4m3.bsp");
-    precache_file2 ("maps/e4m4.bsp");
-    precache_file2 ("maps/e4m5.bsp");
-    precache_file2 ("maps/e4m6.bsp");
-    precache_file2 ("maps/e4m7.bsp");
-    precache_file2 ("maps/e4m8.bsp");
+    precache_file2("maps/e4m1.bsp");
+    precache_file2("maps/e4m2.bsp");
+    precache_file2("maps/e4m3.bsp");
+    precache_file2("maps/e4m4.bsp");
+    precache_file2("maps/e4m5.bsp");
+    precache_file2("maps/e4m6.bsp");
+    precache_file2("maps/e4m7.bsp");
+    precache_file2("maps/e4m8.bsp");
 
-    precache_file2 ("maps/end.bsp");
+    precache_file2("maps/end.bsp");
 
-    precache_file2 ("maps/dm1.bsp");
-    precache_file2 ("maps/dm2.bsp");
-    precache_file2 ("maps/dm3.bsp");
-    precache_file2 ("maps/dm4.bsp");
-    precache_file2 ("maps/dm5.bsp");
-    precache_file2 ("maps/dm6.bsp");
+    precache_file2("maps/dm1.bsp");
+    precache_file2("maps/dm2.bsp");
+    precache_file2("maps/dm3.bsp");
+    precache_file2("maps/dm4.bsp");
+    precache_file2("maps/dm5.bsp");
+    precache_file2("maps/dm6.bsp");
 
-    precache_file ("maps/hip1m1.bsp");
-    precache_file ("maps/hip1m2.bsp");
-    precache_file ("maps/hip1m3.bsp");
-    precache_file ("maps/hip1m4.bsp");
-    precache_file ("maps/hip1m5.bsp");
-    precache_file ("maps/hip2m1.bsp");
-    precache_file ("maps/hip2m2.bsp");
-    precache_file ("maps/hip2m3.bsp");
-    precache_file ("maps/hip2m4.bsp");
-    precache_file ("maps/hip2m5.bsp");
-    precache_file ("maps/hip2m6.bsp");
-    precache_file ("maps/hip3m1.bsp");
-    precache_file ("maps/hip3m2.bsp");
-    precache_file ("maps/hip3m3.bsp");
-    precache_file ("maps/hip3m4.bsp");
-    precache_file ("maps/hipdm1.bsp");
-    precache_file ("maps/hipend.bsp");
+    // HIPNOTIC
+    precache_file("maps/hip1m1.bsp");
+    precache_file("maps/hip1m2.bsp");
+    precache_file("maps/hip1m3.bsp");
+    precache_file("maps/hip1m4.bsp");
+    precache_file("maps/hip1m5.bsp");
+    precache_file("maps/hip2m1.bsp");
+    precache_file("maps/hip2m2.bsp");
+    precache_file("maps/hip2m3.bsp");
+    precache_file("maps/hip2m4.bsp");
+    precache_file("maps/hip2m5.bsp");
+    precache_file("maps/hip2m6.bsp");
+    precache_file("maps/hip3m1.bsp");
+    precache_file("maps/hip3m2.bsp");
+    precache_file("maps/hip3m3.bsp");
+    precache_file("maps/hip3m4.bsp");
+    precache_file("maps/hipdm1.bsp");
+    precache_file("maps/hipend.bsp");
 };
 
-
-entity    lastspawn;
+entity lastspawn;
 
 //=======================
 /*QUAKED worldspawn (0 0 0) ?
@@ -190,26 +187,31 @@ void() worldspawn =
     lastspawn = world;
     InitBodyQue();
 
-// HIPNOTIC
-//JIM
+    // HIPNOTIC
+    //JIM
    InitBulletHoles();
 
-// custom map attributes
+    // custom map attributes
     if(self.model == "maps/e1m8.bsp")
-        cvar_set ("sv_gravity", "100");
+    {
+        cvar_set("sv_gravity", "100");
+    }
     else
-        cvar_set ("sv_gravity", "800");
+    {
+        cvar_set("sv_gravity", "800");
+    }
 
-// the area based ambient sounds MUST be the first precache_sounds
+    // the area based ambient sounds MUST be the first precache_sounds
 
-// player precaches
-    W_Precache();            // get weapon precaches
+    // player precaches
+    W_Precache();   // get weapon precaches
+    RunePrecache(); // precache the runes
 
-// sounds used from C physics code
+    // sounds used from C physics code
     precache_sound("demon/dland2.wav");        // landing thud
     precache_sound("misc/h2ohit1.wav");        // landing splash
 
-// setup precaches allways needed
+    // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
     precache_sound("player/plyrjmp8.wav");        // player jump
     precache_sound("player/land.wav");            // player landing
@@ -236,13 +238,12 @@ void() worldspawn =
 
     precache_sound("misc/power.wav");            //lightning for boss
 
-// player gib sounds
+    // player gib sounds
     precache_sound("player/gib.wav");            // player gib sound
     precache_sound("player/udeath.wav");        // player gib sound
     precache_sound("player/tornoff2.wav");        // gib sound
 
-// player pain sounds
-
+    // player pain sounds
     precache_sound("player/pain1.wav");
     precache_sound("player/pain2.wav");
     precache_sound("player/pain3.wav");
@@ -250,14 +251,14 @@ void() worldspawn =
     precache_sound("player/pain5.wav");
     precache_sound("player/pain6.wav");
 
-// player death sounds
+    // player death sounds
     precache_sound("player/death1.wav");
     precache_sound("player/death2.wav");
     precache_sound("player/death3.wav");
     precache_sound("player/death4.wav");
     precache_sound("player/death5.wav");
 
-// ax sounds
+    // ax sounds
     precache_sound("weapons/ax1.wav");            // ax swoosh
     precache_sound("player/axhit1.wav");        // ax hit meat
     precache_sound("player/axhit2.wav");        // ax hit world
@@ -274,10 +275,10 @@ void() worldspawn =
     precache_sound("misc/water1.wav");            // swimming
     precache_sound("misc/water2.wav");            // swimming
 
-// HIPNOTIC
-//MED 10/21/96 added flies sound
+    // HIPNOTIC
+    //MED 10/21/96 added flies sound
     precache_sound("misc/flys.wav");
-//MED 01/13/97 added explosion sounds
+    //MED 01/13/97 added explosion sounds
     precache_sound("misc/shortexp.wav");
     precache_sound("misc/longexpl.wav");
     precache_sound("misc/foot1.wav");
@@ -343,6 +344,22 @@ void() worldspawn =
     precache_sound("gunclick.wav");       // out of ammo
     precache_sound("forcegrab.wav");      // force grab
 
+    // ROGUE
+    // PGM Addition Sounds
+    precache_sound("enforcer/enfstop.wav");    // shield impact
+    precache_sound("plasma/explode.wav");
+    precache_sound("plasma/flight.wav");
+    precache_sound("plasma/fire.wav");
+    precache_sound("shield/hit.wav");
+    precache_sound("belt/use.wav");
+    precache_sound("items/damage2.wav");
+
+    // ROGUE
+    // Lava Gun models - pgm change
+    precache_model("progs/v_lava.mdl");
+    precache_model("progs/v_lava2.mdl");
+    precache_model("progs/v_multi.mdl");
+    precache_model("progs/v_multi2.mdl");
 
     // ROGUE
     // PGM addition
@@ -350,17 +367,23 @@ void() worldspawn =
     // TODO VR: (P2) rogue...
 
     // ROGUE
-//ZOID--
+    precache_model("progs/rockup.mdl");
+    precache_model("progs/rockup_d.mdl");
+    precache_model("progs/lspike.mdl");
+    precache_model("progs/shield.mdl");
+    precache_model("progs/p_shield.mdl");
+    precache_model("progs/plasma.mdl");
+    precache_model("progs/v_plasma.mdl");
+
+    // ROGUE
+    //ZOID--
     // hook for CTF
     precache_model("progs/hook.mdl");
     precache_model("progs/v_grpple.mdl");
-//    precache_model("progs/bit.mdl");
-//--ZOID
+    //--ZOID
 
 
-//
-// Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
-//
+    // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 
     // 0 normal
     lightstyle(0, "m");
@@ -405,13 +428,11 @@ void() worldspawn =
 
     // HIPNOTIC
 
-//JIM
+    //JIM
     StopEarthQuake();
-//MED
-   // if(cvar("crosshair") == 2)
-      footsteps = 1;
-   // else
-      // footsteps = 0;
+
+    //MED
+    footsteps = 1;
 };
 
 void() StartFrame =
@@ -454,6 +475,10 @@ void() InitBodyQue =
 // respawned elsewhere
 void(entity ent) CopyToBodyQue =
 {
+    // ROGUE
+    // PGM - support for new deathmatch skins on corpses too!
+    bodyque_head.skin = ent.skin;
+
     bodyque_head.angles = ent.angles;
     bodyque_head.model = ent.model;
     bodyque_head.modelindex = ent.modelindex;

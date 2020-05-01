@@ -30,7 +30,7 @@ void() wallsprite =
    // get rid of z sort errors.
    makeforward(self.angles);
    setorigin( self, self.origin - ( v_forward * 0.2 ) );
-    makestatic (self);
+    makestatic(self);
    };
 
 void() InitBulletHoles =
