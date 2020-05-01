@@ -61,7 +61,7 @@ void() RotateTargets =
    local vector vz;
    local vector org;
 
-   makevectors (self.angles);
+   makevectors(self.angles);
 
    ent = find( world, targetname, self.target);
    while( ent )

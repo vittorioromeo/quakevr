@@ -70,6 +70,7 @@ float() CheckAttack =
 
     if (trace_ent != targ)
         return FALSE;        // don't have a clear shot
+
     if (trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
@@ -405,3 +406,4 @@ float() OgreCheckAttack =
     SUB_AttackFinished (1 + 2*random());
     return TRUE;
 };
+

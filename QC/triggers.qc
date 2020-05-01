@@ -99,7 +99,7 @@ void() multi_touch =
 // if the trigger has an angles field, check player's facing direction
     if(self.movedir != '0 0 0')
     {
-        makevectors (other.angles);
+        makevectors(other.angles);
         if(v_forward * self.movedir < 0)
             return;        // not facing the right way
     }
@@ -410,7 +410,7 @@ local vector    org;
         objerror ("couldn't find target");
 
 // spawn a tfog flash in front of the destination
-    makevectors (t.mangle);
+    makevectors(t.mangle);
     org = t.origin + 32 * v_forward;
 
     spawn_tfog (org);

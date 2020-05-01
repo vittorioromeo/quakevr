@@ -1813,12 +1813,9 @@ transition to another level
 */
 void SV_SaveSpawnparms()
 {
-    int i;
-
-    int j;
-
     svs.serverflags = pr_global_struct->serverflags;
 
+    int i;
     for(i = 0, host_client = svs.clients; i < svs.maxclients;
         i++, host_client++)
     {
@@ -1831,7 +1828,7 @@ void SV_SaveSpawnparms()
         // client
         pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
         PR_ExecuteProgram(pr_global_struct->SetChangeParms);
-        for(j = 0; j < NUM_SPAWN_PARMS; j++)
+        for(int j = 0; j < NUM_SPAWN_PARMS; j++)
         {
             host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
         }

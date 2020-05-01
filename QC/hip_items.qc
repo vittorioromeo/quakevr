@@ -419,7 +419,7 @@ void() trap_lightning_use =
       }
    else
       {
-      makevectors (self.angles);
+      makevectors(self.angles);
       self.movedir = v_forward;
       traceline(self.origin, self.origin + self.movedir*600, TRUE, self);
       p1 = self.origin;

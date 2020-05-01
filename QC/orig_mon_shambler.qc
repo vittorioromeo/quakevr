@@ -137,7 +137,7 @@ local float     ldmg;
 
     if(side)
     {
-        makevectors (self.angles);
+        makevectors(self.angles);
         SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
     }
 };

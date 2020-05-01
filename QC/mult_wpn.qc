@@ -42,7 +42,7 @@ void(float offsetAngle) MiniGrenadeLaunch =
 // set missile speed
     missile.v_angle = self.v_angle;
     missile.v_angle_y = missile.v_angle_y + offsetAngle;
-    makevectors (missile.v_angle);
+    makevectors(missile.v_angle);
 
         missile.velocity = v_forward*100 + v_up*400;
         tempRand = (crandom()*60) - 30;
@@ -127,7 +127,7 @@ void() W_FireMultiGrenade =
     missile.classname = "MultiGrenade";
 
 // set missile speed
-    makevectors (self.v_angle);
+    makevectors(self.v_angle);
     if(self.v_angle_x)
         missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
     else
@@ -243,7 +243,7 @@ void() HomingMissileAcquire =
     }
 
     oldVelocity = self.velocity;
-    makevectors (self.v_angle);
+    makevectors(self.v_angle);
     self.velocity = aim (self, 1000);
     self.velocity = self.velocity * 1000;
 
@@ -295,7 +295,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
     {
         aimangle = self.v_angle;
         aimangle_y = aimangle_y + (offset * 0.66);
-        makevectors (aimangle);
+        makevectors(aimangle);
         missile.velocity = aim(self, 1000);
         missile.velocity = missile.velocity * 1000;
         missile.angles = vectoangles(missile.velocity);
@@ -305,7 +305,7 @@ void(float offset, float frameNum) MultiRocketLaunch =
     }
     else
     {
-        makevectors (self.v_angle);
+        makevectors(self.v_angle);
         missile.velocity = v_forward * 1000 - v_right*offset*8;
         missile.angles = vectoangles(missile.velocity);
         missile.v_angle = self.v_angle;
@@ -562,7 +562,7 @@ void() W_FirePlasma =
     sound(self, CHAN_WEAPON, "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;
 
-    makevectors (self.v_angle);
+    makevectors(self.v_angle);
     dir = aim ( self, 1000 );
     launch_plasma (self.origin + v_forward*24 + '0 0 16', dir);
 };

@@ -76,7 +76,7 @@ void()    demon1_jump4    =[    $leap4,        demon1_jump5    ]
     ai_face();
 
     self.touch = Demon_JumpTouch;
-    makevectors (self.angles);
+    makevectors(self.angles);
     self.origin_z = self.origin_z + 1;
     self.velocity = v_forward * 600 + '0 0 250';
     if(self.flags & FL_ONGROUND)
@@ -314,7 +314,7 @@ void(float side)    Demon_Melee =
     ldmg = 10 + 5*random();
     T_Damage (self.enemy, self, self, ldmg);
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
 };
 

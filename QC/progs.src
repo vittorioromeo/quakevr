@@ -25,21 +25,21 @@ triggers.qc
 weapons.qc
 world.qc
 
-mon_boss.qc
-mon_demon.qc
-mon_dog.qc
-mon_enforcer.qc
-mon_fish.qc
-mon_hknight.qc
-mon_knight.qc
-mon_ogre.qc
-mon_oldone.qc
-mon_shalrath.qc
-mon_shambler.qc
-mon_soldier.qc
-mon_tarbaby.qc
-mon_wizard.qc
-mon_zombie.qc
+orig_mon_boss.qc
+orig_mon_demon.qc
+orig_mon_dog.qc
+orig_mon_enforcer.qc
+orig_mon_fish.qc
+orig_mon_hknight.qc
+orig_mon_knight.qc
+orig_mon_ogre.qc
+orig_mon_oldone.qc
+orig_mon_shalrath.qc
+orig_mon_shambler.qc
+orig_mon_soldier.qc
+orig_mon_tarbaby.qc
+orig_mon_wizard.qc
+orig_mon_zombie.qc
 
 hip_brk.qc
 hip_clock.qc
@@ -65,8 +65,17 @@ hip_train.qc
 hip_trig.qc
 hip_water.qc
 
-// Rogue Quake additions
-
+rogue_combat.qc
+rogue_defs.qc
+rogue_dmatch.qc
+rogue_dragon.qc
+rogue_ending.qc
+rogue_motd.qc
+rogue_new_ai.qc
+rogue_shield.qc
+rogue_runes.qc
+rogue_teamplay.qc
+rogue_timemach.qc
 mult_wpn.qc
 
 

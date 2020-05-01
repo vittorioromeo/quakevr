@@ -108,7 +108,7 @@ void() OgreFireGrenade =
 
 // set missile speed
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     missile.velocity = normalize(self.enemy.origin - self.origin);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
@@ -169,7 +169,7 @@ local float     ldmg;
 
     if(side)
     {
-        makevectors (self.angles);
+        makevectors(self.angles);
         if(side == 1)
             SpawnMeatSpray (self.origin + v_forward*16, crandom() * 100 * v_right);
         else

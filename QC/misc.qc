@@ -102,7 +102,7 @@ void() light_globe =
 {
     precache_model("progs/s_light.spr");
     setmodel(self, "progs/s_light.spr");
-    makestatic (self);
+    makestatic(self);
 };
 
 void() FireAmbient =
@@ -112,17 +112,20 @@ void() FireAmbient =
     ambientsound(self.origin, "ambience/fire1.wav", 0.5, ATTN_STATIC);
 };
 
-/*QUAKED light_torch_small_walltorch (0 .5 0) (-10 -10 -20) (10 10 20)
+/*QUAKED light_torch_small_walltorch (0 .5 0) (-10 -10 -20) (10 10 20) Quiet
 Short wall torch
-Default light value is 200
+Default light value is 300
 Default style is 0
 */
 void() light_torch_small_walltorch =
 {
     precache_model("progs/flame.mdl");
     setmodel(self, "progs/flame.mdl");
-    FireAmbient();
-    makestatic (self);
+
+    if(!(self.spawnflags & 1))
+        FireAmbient();
+
+    makestatic(self);
 };
 
 /*QUAKED light_flame_large_yellow (0 1 0) (-10 -10 -12) (12 12 18)
@@ -134,7 +137,7 @@ void() light_flame_large_yellow =
     setmodel(self, "progs/flame2.mdl");
     self.frame = 1;
     FireAmbient();
-    makestatic (self);
+    makestatic(self);
 };
 
 /*QUAKED light_flame_small_yellow (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
@@ -145,7 +148,7 @@ void() light_flame_small_yellow =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     FireAmbient();
-    makestatic (self);
+    makestatic(self);
 };
 
 /*QUAKED light_flame_small_white (0 1 0) (-10 -10 -40) (10 10 40) START_OFF
@@ -156,7 +159,7 @@ void() light_flame_small_white =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     FireAmbient();
-    makestatic (self);
+    makestatic(self);
 };
 
 //============================================================================
@@ -290,19 +293,28 @@ void() misc_explobox2 =
 
 //============================================================================
 
-
-void(vector org, vector vec) LaunchLaser;
-
 //MED 11/09/96 added lava ball and rocket
 void() spikeshooter_use =
 {
     local entity lavaball;
-    if(self.spawnflags & SPAWNFLAG_LASER)
+    if (self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
+    {
+        sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        launch_spike (self.origin, self.movedir);
+        newmis.velocity = self.movedir * 500;
+        if (self.spawnflags & SPAWNFLAG_SUPERSPIKE)
+            newmis.touch = superspike_touch;
+    }
+    else if(self.spawnflags & SPAWNFLAG_LASER)
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
         LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
+    }
+    else if (self.spawnflags & SPAWNFLAG_FIREBALL)
+    {
+        launch_fireball (self.origin, self.movedir);
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
@@ -333,6 +345,16 @@ void() spikeshooter_use =
         newmis.angles = vectoangles(newmis.velocity);
         setorigin(newmis, self.origin + self.movedir*8);
     }
+    else if(self.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
+    {
+        sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        launch_lava_spike (self.origin, self.movedir);
+        newmis.velocity = self.movedir * 500;
+        if (self.spawnflags & SPAWNFLAG_SUPERLAVA)
+            newmis.touch = superlavaspike_touch;
+        else if((self.spawnflags & SPAWNFLAG_LAVASKILL) && (skill > 1))
+            newmis.touch = superlavaspike_touch;
+    }
     else
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
@@ -356,9 +378,9 @@ void() shooter_think =
 };
 
 
-/*QUAKED trap_spikeshooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lavaball rocket silent
+/*QUAKED trap_spikeshooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lava superlava skilllava fireball
 When triggered, fires a spike in the direction set in QuakeEd.
-Laser is only for REGISTERED.
+Laser, Lava and SuperLava are only for REGISTERED.
 */
 
 //MED 11/01/96 commented out setmovedir
@@ -372,6 +394,29 @@ void() trap_spikeshooter =
 
         precache_sound2 ("enforcer/enfire.wav");
         precache_sound2 ("enforcer/enfstop.wav");
+    }
+    else if (self.spawnflags & SPAWNFLAG_LAVASPIKE)
+    {
+        precache_model2 ("progs/lspike.mdl");
+        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2 ("weapons/rocket1i.wav");
+    }
+    else if (self.spawnflags & SPAWNFLAG_SUPERLAVA)
+    {
+        precache_model2 ("progs/lspike.mdl");
+        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2 ("weapons/spike2.wav");
+    }
+    else if (self.spawnflags & SPAWNFLAG_LAVASKILL)
+    {
+        precache_model2 ("progs/lspike.mdl");
+        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2 ("weapons/rocket1i.wav");
+        precache_sound2 ("weapons/spike2.wav");
+    }
+    else if (self.spawnflags & SPAWNFLAG_FIREBALL)
+    {
+        precache_model ("progs/fireball.mdl");
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
@@ -438,10 +483,6 @@ void() trap_switched_shooter =
 ===============================================================================
 */
 
-
-void() make_bubbles;
-void() bubble_remove;
-void() bubble_bob;
 
 /*QUAKED air_bubbles (0 .5 .8) (-8 -8 -8) (8 8 8)
 
@@ -518,6 +559,7 @@ void() bubble_bob =
 {
     local float rnd1, rnd2, rnd3;
 
+    // ROGUE
     // PGM fix - 02/25/97 so bubbles won't go through walls
     rnd1 = pointcontents(self.origin);
     if(rnd1 == CONTENT_SOLID)
@@ -616,7 +658,7 @@ void() func_illusionary =
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
     setmodel(self, self.model);
-    makestatic (self);
+    makestatic(self);
 };
 
 /*QUAKED func_episodegate (0 .5 .8) ? E1 E2 E3 E4

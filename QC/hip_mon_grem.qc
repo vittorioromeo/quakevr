@@ -142,7 +142,7 @@ float() GremlinAttemptWeaponSteal =
     // take that weapon from the entity
     if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
     {
-        VR_ItemUtil_EntDelItem(victim, WeaponIdToItemId(best));
+        VR_WeaponUtil_EntDelWeapon(victim, best);
     }
 
     // deal with stolen holster weapon
@@ -186,7 +186,7 @@ float() GremlinAttemptWeaponSteal =
     sound(victim, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
     // give it to our gremlin
-    VR_ItemUtil_EntAddItem(self, WeaponIdToItemId(best));
+    VR_WeaponUtil_EntAddWeapon(self, best);
     self.weapon = best;
 
     // take some ammo while we are at it
@@ -677,7 +677,7 @@ void()   gremlin_jump5   =[ $jump5.asc,     gremlin_jump6   ]
    if(self.flags & FL_ONGROUND)
       {
       self.touch = Gremlin_JumpTouch;
-      makevectors (self.angles);
+      makevectors(self.angles);
       self.origin_z = self.origin_z + 1;
       self.velocity = v_forward * 300 + '0 0 300';
       self.flags = self.flags - FL_ONGROUND;
@@ -999,7 +999,7 @@ void() gremlin_gib=
 void()   gremlin_flip1    =[ $flip1.asc,    gremlin_flip2 ]
    {
    ai_face();
-    makevectors (self.angles);
+    makevectors(self.angles);
    self.origin_z = self.origin_z + 1;
    self.velocity = '0 0 350' - (v_forward * 200);
     if(self.flags & FL_ONGROUND)
@@ -1693,7 +1693,7 @@ void(float side) Gremlin_Melee =
     ldmg = 10 + 5*random();
     T_Damage (self.enemy, self, self, ldmg);
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
 };
 

@@ -471,7 +471,7 @@ void(float xHand, float stat) HIP_FireLaser =
 
     SuperDamageSound();
     self.effects = self.effects | EF_MUZZLEFLASH;
-    makevectors (VRGetWeaponFireRot(xHand));
+    makevectors(VRGetWeaponFireRot(xHand));
 
     ofs = 6;
     out = v_forward;
@@ -1107,7 +1107,7 @@ void(vector org, vector vel) SpawnMeatSpray =
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_NOT;
 
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     missile.velocity = vel;
     missile.velocity_z = missile.velocity_z + 250 + 50*random();
@@ -1644,7 +1644,7 @@ void(float xHand) W_FireGrenade =
 
     // set missile speed
     tmpAngles = VRGetWeaponFireRot(xHand);
-    makevectors (tmpAngles);
+    makevectors(tmpAngles);
 
     if(cvar("vr_enabled") == 1)
     {
@@ -1827,7 +1827,7 @@ void(float xHand) W_FireProximityGrenade =
 
     // set missile speed
     tmpAngles = VRGetWeaponFireRot(xHand);
-    makevectors (tmpAngles);
+    makevectors(tmpAngles);
 
     if(cvar("vr_enabled") == 1)
     {
@@ -1936,7 +1936,7 @@ void(float xHand, float ox) W_FireSpikes =
 {
     local vector    dir;
 
-    makevectors (VRGetWeaponFireRot(xHand));
+    makevectors(VRGetWeaponFireRot(xHand));
 
     if(self.ammo_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
@@ -2091,6 +2091,7 @@ PLAYER WEAPON USE
 
 void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
 {
+    // TODO VR: (P0) how to deal with ammo modifiers here?
     *xCurrentAmmo = WeaponIdToAmmoId(xWeapon);
     *xModel = WeaponIdToModel(xWeapon);
     *xFrame = 0;
@@ -2422,20 +2423,20 @@ void() CheatCommand =
     self.ammo_shells = 100;
     self.ammo_cells = 200;
 
-    VR_ItemUtil_EntAddItem(self, IID_AXE);
-    VR_ItemUtil_EntAddItem(self, IID_SHOTGUN);
-    VR_ItemUtil_EntAddItem(self, IID_SUPER_SHOTGUN);
-    VR_ItemUtil_EntAddItem(self, IID_NAILGUN);
-    VR_ItemUtil_EntAddItem(self, IID_SUPER_NAILGUN);
-    VR_ItemUtil_EntAddItem(self, IID_GRENADE_LAUNCHER);
-    VR_ItemUtil_EntAddItem(self, IID_ROCKET_LAUNCHER);
+    VR_WeaponUtil_EntAddWeapon(self, WID_AXE);
+    VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_SHOTGUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_NAILGUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_GRENADE_LAUNCHER);
+    VR_WeaponUtil_EntAddWeapon(self, WID_ROCKET_LAUNCHER);
+    VR_WeaponUtil_EntAddWeapon(self, WID_LIGHTNING);
+    VR_WeaponUtil_EntAddWeapon(self, WID_LASER_CANNON);
+    VR_WeaponUtil_EntAddWeapon(self, WID_MJOLNIR);
+    VR_WeaponUtil_EntAddWeapon(self, WID_PROXIMITY_GUN);
+
     VR_ItemUtil_EntAddItem(self, IID_KEY1);
     VR_ItemUtil_EntAddItem(self, IID_KEY2);
-
-    VR_ItemUtil_EntAddItem(self, IID_LIGHTNING);
-    VR_ItemUtil_EntAddItem(self, IID_LASER_CANNON);
-    VR_ItemUtil_EntAddItem(self, IID_MJOLNIR);
-    VR_ItemUtil_EntAddItem(self, IID_PROXIMITY_GUN);
 
     self.impulse = 0;
     W_SetCurrentAmmo();

@@ -43,6 +43,22 @@ typedef struct globalvars_s
 	float	parm14;
 	float	parm15;
 	float	parm16;
+	float	parm17;
+	float	parm18;
+	float	parm19;
+	float	parm20;
+	float	parm21;
+	float	parm22;
+	float	parm23;
+	float	parm24;
+	float	parm25;
+	float	parm26;
+	float	parm27;
+	float	parm28;
+	float	parm29;
+	float	parm30;
+	float	parm31;
+	float	parm32;
 	vec3_t	v_forward;
 	vec3_t	v_up;
 	vec3_t	v_right;
@@ -215,4 +231,4 @@ typedef struct entvars_s
 	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 22188
+#define PROGHEADER_CRC 64982

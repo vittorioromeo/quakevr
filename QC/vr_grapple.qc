@@ -156,7 +156,7 @@ void() GrappleTrack =
 //        sound(self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
         sound(self, CHAN_WEAPON, "pendulum/hit.wav", 1, ATTN_NORM);
         T_Damage (self.enemy, self, self.owner, 1);
-        makevectors (self.v_angle);
+        makevectors(self.v_angle);
         spray_x = 100 * crandom();
         spray_y = 100 * crandom();
         spray_z = 100 * crandom() + 50;
@@ -261,7 +261,7 @@ void (float xHand) W_FireGrapple =
     setHook(xHand, newmis);            // This is my newmis
     newmis.classname = "hook";
 
-    makevectors (VRGetHandRot(xHand));
+    makevectors(VRGetHandRot(xHand));
     newmis.velocity = v_forward * 1500;
 //    newmis.avelocity = '0 0 -500';
     newmis.angles = vectoangles(v_forward);
@@ -288,10 +288,10 @@ void(float xHand) GrappleService =
 
     xHook = getHook(xHand);
 
-    makevectors (xHook.angles);
+    makevectors(xHook.angles);
     hookfwd = v_forward;
 
-    makevectors (VRGetHandRot(xHand));
+    makevectors(VRGetHandRot(xHand));
 
     if(!getOnHook(xHand)) {
         // TODO VR: (P2) still wonky position on hook , dunno why

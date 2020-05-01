@@ -69,6 +69,23 @@ float parm13; // Field: `.holsterweapon2`.
 float parm14; // Field: `.holsterweapon3`.
 float parm15; // Field: `.holsterweapon4`.
 float parm16; // Field: `.holsterweapon5`.
+float parm17; // Field: `.hipnotic_items`.
+float parm18; // Field: `.rogue_items`.
+float parm19; // Field: `.ammo_lava_nails`.
+float parm20; // Field: `.ammo_multi_rockets`.
+float parm21; // Field: `.ammo_plasma`.
+float parm22; // Field: `.steam`.
+float parm23; // Unused.
+float parm24; // Unused.
+float parm25; // Unused.
+float parm26; // Unused.
+float parm27; // Unused.
+float parm28; // Unused.
+float parm29; // Unused.
+float parm30; // Unused.
+float parm31; // Unused.
+float parm32; // Unused.
+// TODO VR: (P0) spawnparm for hipnotic and rogue items and rogue extra ammo types
 
 //
 //
@@ -383,7 +400,7 @@ float IT_SUPER_NAILGUN    = VRUTIL_POWER_OF_TWO(3);
 float IT_GRENADE_LAUNCHER = VRUTIL_POWER_OF_TWO(4);
 float IT_ROCKET_LAUNCHER  = VRUTIL_POWER_OF_TWO(5);
 float IT_LIGHTNING        = VRUTIL_POWER_OF_TWO(6);
-float IT_MJOLNIR          = VRUTIL_POWER_OF_TWO(7);
+float IT_MJOLNIR          = VRUTIL_POWER_OF_TWO(7);  // HIPNOTIC.
 float IT_SHELLS           = VRUTIL_POWER_OF_TWO(8);
 float IT_NAILS            = VRUTIL_POWER_OF_TWO(9);
 float IT_ROCKETS          = VRUTIL_POWER_OF_TWO(10);
@@ -399,7 +416,7 @@ float IT_INVISIBILITY     = VRUTIL_POWER_OF_TWO(19);
 float IT_INVULNERABILITY  = VRUTIL_POWER_OF_TWO(20);
 float IT_SUIT             = VRUTIL_POWER_OF_TWO(21);
 float IT_QUAD             = VRUTIL_POWER_OF_TWO(22);
-float IT_LASER_CANNON     = VRUTIL_POWER_OF_TWO(23);
+float IT_LASER_CANNON     = VRUTIL_POWER_OF_TWO(23); // HIPNOTIC.
 
 //
 //
@@ -408,10 +425,31 @@ float IT_LASER_CANNON     = VRUTIL_POWER_OF_TWO(23);
 // Edict `.hipnotic_items` flag values
 // ----------------------------------------------------------------------------
 
-float HIP_IT_WETSUIT           = VRUTIL_POWER_OF_TWO(1);
-float HIP_IT_EMPATHY_SHIELDS   = VRUTIL_POWER_OF_TWO(2);
-float HIP_IT_HORN_OF_CONJURING = VRUTIL_POWER_OF_TWO(3);
-float HIP_IT_PROXIMITY_GUN     = VRUTIL_POWER_OF_TWO(4);
+float HIP_IT_WETSUIT           = VRUTIL_POWER_OF_TWO(1); // HIPNOTIC.
+float HIP_IT_EMPATHY_SHIELDS   = VRUTIL_POWER_OF_TWO(2); // HIPNOTIC.
+float HIP_IT_HORN_OF_CONJURING = VRUTIL_POWER_OF_TWO(3); // HIPNOTIC.
+float HIP_IT_PROXIMITY_GUN     = VRUTIL_POWER_OF_TWO(4); // HIPNOTIC.
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Edict `.rogue_items` flag values
+// ----------------------------------------------------------------------------
+
+float ROGUE_IT_LAVA_NAILGUN       = VRUTIL_POWER_OF_TWO(1);  // ROGUE.
+float ROGUE_IT_LAVA_SUPER_NAILGUN = VRUTIL_POWER_OF_TWO(2);  // ROGUE.
+float ROGUE_IT_MULTI_GRENADE      = VRUTIL_POWER_OF_TWO(3);  // ROGUE.
+float ROGUE_IT_MULTI_ROCKET       = VRUTIL_POWER_OF_TWO(4);  // ROGUE.
+float ROGUE_IT_PLASMA_GUN         = VRUTIL_POWER_OF_TWO(5);  // ROGUE.
+float ROGUE_IT_GRAPPLE            = VRUTIL_POWER_OF_TWO(6);  // ROGUE.
+float ROGUE_IT_LAVA_NAILS         = VRUTIL_POWER_OF_TWO(7);  // ROGUE.
+float ROGUE_IT_PLASMA_AMMO        = VRUTIL_POWER_OF_TWO(8);  // ROGUE.
+float ROGUE_IT_MULTI_ROCKETS      = VRUTIL_POWER_OF_TWO(9);  // ROGUE.
+float ROGUE_IT_SHIELD             = VRUTIL_POWER_OF_TWO(10); // ROGUE.
+float ROGUE_IT_ANTIGRAV           = VRUTIL_POWER_OF_TWO(11); // ROGUE.
+float ROGUE_IT_EARTHQUAKE         = VRUTIL_POWER_OF_TWO(12); // ROGUE.
+float ROGUE_IT_V_SPHERE           = VRUTIL_POWER_OF_TWO(13); // ROGUE.
 
 //
 //
@@ -459,6 +497,7 @@ vector VEC_HULL2_MAX = '32 32 64';
 // Protocol bytes
 // ----------------------------------------------------------------------------
 
+float SVC_UPDATESTAT    = 3;  // ROGUE (Dissolution of Eternity). [pgm black magic]
 float SVC_TEMPENTITY    = 23;
 float SVC_KILLEDMONSTER = 27;
 float SVC_FOUNDSECRET   = 28;
@@ -466,6 +505,7 @@ float SVC_INTERMISSION  = 30;
 float SVC_FINALE        = 31;
 float SVC_CDTRACK       = 32;
 float SVC_SELLSCREEN    = 33;
+float SVC_CUTSCENE      = 34; // ROGUE (Dissolution of Eternity).
 
 float TE_SPIKE        = 0;
 float TE_SUPERSPIKE   = 1;

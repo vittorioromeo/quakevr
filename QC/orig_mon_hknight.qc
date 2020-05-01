@@ -62,7 +62,7 @@ void(float offset) hknight_shot =
     offang = vectoangles (self.enemy.origin - self.origin);
     offang_y = offang_y + offset * 6;
 
-    makevectors (offang);
+    makevectors(offang);
 
     org = self.origin + self.mins + self.size*0.5 + v_forward * 20;
 
@@ -85,9 +85,9 @@ if(!enemy_vis)
     return;
 if(time < self.attack_finished)
     return;
-if( fabs(self.origin_z - self.enemy.origin_z) > 20)
+if(fabs(self.origin_z - self.enemy.origin_z) > 20)
     return;        // too much height change
-if( vlen (self.origin - self.enemy.origin) < 80)
+if(vlen (self.origin - self.enemy.origin) < 80)
     return;        // use regular attack
 
 // charge
@@ -203,29 +203,29 @@ void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {};
 
 void() hknight_die =
 {
-// check for gib
+    // check for gib
     if(self.health < -40)
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
-        ThrowHead ("progs/h_hellkn.mdl", self.health);
+        ThrowHead("progs/h_hellkn.mdl", self.health);
 
-    if(self.spawnflags & 2) // statue
+        if(self.spawnflags & 2) // statue
         {
-            ThrowGib ( "progs/statgib1.mdl", self.health);
-            ThrowGib ( "progs/statgib2.mdl", self.health);
-            ThrowGib ( "progs/statgib3.mdl", self.health);
+            ThrowGib("progs/statgib1.mdl", self.health);
+            ThrowGib("progs/statgib2.mdl", self.health);
+            ThrowGib("progs/statgib3.mdl", self.health);
         }
         else
         {
-            ThrowGib ("progs/gib1.mdl", self.health);
-            ThrowGib ("progs/gib2.mdl", self.health);
-            ThrowGib ("progs/gib3.mdl", self.health);
+            ThrowGib("progs/gib1.mdl", self.health);
+            ThrowGib("progs/gib2.mdl", self.health);
+            ThrowGib("progs/gib3.mdl", self.health);
         }
+
         return;
     }
 
-// regular death
-
+    // regular death
     if(self.spawnflags & 2) // statue
         sound(self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
     else
@@ -379,7 +379,7 @@ void() hk_idle_sound =
     }
 };
 
-void(entity attacker, float damage)    hknight_pain =
+void(entity attacker, float damage) hknight_pain =
 {
     if(self.pain_finished > time)
         return;
@@ -423,7 +423,7 @@ void() hknight_melee =
 
 void() hknight_pause =
 {
-    sound( self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
 
     self.takedamage = DAMAGE_AIM;
     self.th_stand = hknight_stand1;
@@ -464,33 +464,33 @@ void() monster_hell_knight =
         remove(self);
         return;
     }
-    precache_model2 ("progs/hknight.mdl");
-    precache_model2 ("progs/k_spike.mdl");
-    precache_model2 ("progs/h_hellkn.mdl");
+    precache_model2("progs/hknight.mdl");
+    precache_model2("progs/k_spike.mdl");
+    precache_model2("progs/h_hellkn.mdl");
 
     if(self.spawnflags & 2) // statue
     {
-        precache_model( "progs/statgib1.mdl");
-        precache_model( "progs/statgib2.mdl");
-        precache_model( "progs/statgib3.mdl");
-        precache_sound( "statue/see.wav");
-        precache_sound( "statue/idle.wav");
-        precache_sound( "statue/pain.wav");
-        precache_sound( "statue/death.wav");
+        precache_model("progs/statgib1.mdl");
+        precache_model("progs/statgib2.mdl");
+        precache_model("progs/statgib3.mdl");
+        precache_sound("statue/see.wav");
+        precache_sound("statue/idle.wav");
+        precache_sound("statue/pain.wav");
+        precache_sound("statue/death.wav");
     }
     else
     {
-        precache_sound2 ("hknight/death1.wav");
-        precache_sound2 ("hknight/pain1.wav");
-        precache_sound2 ("hknight/sight1.wav");
-        precache_sound2 ("hknight/idle.wav");
+        precache_sound2("hknight/death1.wav");
+        precache_sound2("hknight/pain1.wav");
+        precache_sound2("hknight/sight1.wav");
+        precache_sound2("hknight/idle.wav");
 
     }
 
-    precache_sound2 ("hknight/attack1.wav");
+    precache_sound2("hknight/attack1.wav");
     precache_sound("hknight/hit.wav");        // used by C code, so don't sound2
-    precache_sound2 ("hknight/slash1.wav");
-    precache_sound2 ("hknight/grunt.wav");
+    precache_sound2("hknight/slash1.wav");
+    precache_sound2("hknight/grunt.wav");
 
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
