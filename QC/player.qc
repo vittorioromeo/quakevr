@@ -362,6 +362,38 @@ void(float xHand) player_nail2 =
     player_nail_Impl(xHand, -2.35, $nailatt2, player_nail1);
 }
 
+// TODO VR: (P0) fix rogue weapons
+void() player_lava_nail1   =[$nailatt1, player_lava_nail2  ]
+{
+    /*
+    self.effects = self.effects | EF_MUZZLEFLASH;
+
+    if (!self.button0)
+        {player_run ();return;}
+    self.weaponframe = self.weaponframe + 1;
+    if (self.weaponframe == 9)
+        self.weaponframe = 1;
+    SuperDamageSound();
+    W_FireLavaSpikes (4);
+    self.attack_finished = time + 0.2;
+    */
+};
+void() player_lava_nail2   =[$nailatt2, player_lava_nail1  ]
+{
+    /*
+    self.effects = self.effects | EF_MUZZLEFLASH;
+
+    if (!self.button0)
+        {player_run ();return;}
+    self.weaponframe = self.weaponframe + 1;
+    if (self.weaponframe == 9)
+        self.weaponframe = 1;
+    SuperDamageSound();
+    W_FireLavaSpikes (-4);
+    self.attack_finished = time + 0.2;
+    */
+};
+
 //============================================================================
 
 // TODO VR: (P2) code repetition
@@ -388,8 +420,19 @@ void(float xHand) player_light1 =
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
-    W_FireLightning(xHand);
-    VRSetAttackFinished(xHand, time + 0.2);
+
+    // TODO VR: (P0) fix rogue weapons
+    // if (self.weapon == IT_LIGHTNING)
+    // {
+        W_FireLightning(xHand);
+        VRSetAttackFinished(xHand, time + 0.2);
+    // }
+    // else if (self.weapon == IT_PLASMA_GUN)
+    // {
+    //     W_FirePlasma(xHand);
+    //     player_run(xHand);
+    //     return;
+    // }
 };
 
 void(float xHand) player_light2 =
@@ -415,8 +458,13 @@ void(float xHand) player_light2 =
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
+
+    // TODO VR: (P0) fix rogue weapons
+    // if (self.weapon == IT_LIGHTNING)
+    // {
     W_FireLightning(xHand);
     VRSetAttackFinished(xHand, time + 0.2);
+    // }
 };
 
 //MED 10/18/96 added HIPWEAPONS
@@ -852,11 +900,20 @@ void() PlayerDie =
     //JIM
     self.empathy_finished = 0;
 
+    // ROGUE
+    self.gravity = 1.0;
+    self.shield_finished = 0;
+    self.antigrav_finished = 0;
+
     VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
 
     if(deathmatch || coop)
     {
         DropBackpack();
+
+        // ROGUE
+        TeamDropFlagOfPlayer(self);
+        DropRune();
 
         if(self.weapon != WID_FIST)         { CreateWeaponDrop(self, self.weapon, self.origin); }
         if(self.weapon2 != WID_FIST)        { CreateWeaponDrop(self, self.weapon2, self.origin); }
@@ -868,8 +925,17 @@ void() PlayerDie =
         if(self.holsterweapon5 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon5, self.origin); }
     }
 
-    self.weaponmodel="";
-    self.weaponmodel2="";
+    if (self.ctf_killed == 2)
+    {
+        self.ctf_killed = 0;
+    }
+    else
+    {
+        self.ctf_killed = 1;
+    }
+
+    self.weaponmodel = "";
+    self.weaponmodel2 = "";
     self.view_ofs = '0 0 -8';
     self.deadflag = DEAD_DYING;
     self.solid = SOLID_NOT;
@@ -1007,3 +1073,55 @@ void()   player_die_ham5 =  [ 28 ,   player_die_ham6 ] {};
 void()   player_die_ham6 =  [ 29 ,   player_die_ham7 ] {};
 void()   player_die_ham7 =  [ 30 ,   player_die_ham8 ] {};
 void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead(); };
+
+void() player_touch =
+{
+    local vector vec;
+    local float  dot;
+    local float  doDamage;
+
+    if(VR_ItemUtil_EntHasItem(self, IID_SHIELD))
+    {
+        if ( other.classname == "player")
+        {
+            makevectors ( self.angles );
+            vec = normalize (other.origin - self.origin);
+            dot = vec * v_forward;
+            if (dot < 0.3)
+                return;
+
+            makevectors ( self.angles );
+            other.velocity = v_forward * 500;
+            other.velocity_z = 250;
+
+            doDamage = FALSE;
+            if (TeamArmorDam(other, self, self, 15))
+            {
+                if(self.shield_death_time < time)
+                    doDamage = TRUE;
+            }
+
+            // if shield has timed out, respawn it.
+            // don't do particles more than twice a second.
+            if ( self.shield_death_time < time)
+            {
+                sound(self,CHAN_WEAPON,"enforcer/enfstop.wav", 1, ATTN_NORM);
+
+                WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+                WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
+                WriteCoord (MSG_BROADCAST, other.origin_x);
+                WriteCoord (MSG_BROADCAST, other.origin_y);
+                WriteCoord (MSG_BROADCAST, other.origin_z);
+                WriteByte (MSG_BROADCAST, 230);
+                WriteByte (MSG_BROADCAST, 5);
+
+                shield_spawn ( self, v_forward );
+            }
+
+            if (doDamage)
+                T_Damage (other, self.shield_entity, self.shield_entity, 15);
+
+//            self.shield_death_time = time + 0.5;
+        }
+    }
+};

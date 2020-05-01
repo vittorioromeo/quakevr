@@ -49,8 +49,8 @@ $frame pull1 pull2 pull3 pull4 pull5 pull6 pull7 pull8 pull9 pull10 pull11
 
 //=============================================================================
 
-float    OGRE_BOSS    = 2;
-float    OGRE_NORMAL    = 4;
+float OGRE_BOSS   = 2;
+float OGRE_NORMAL = 4;
 
 void() OgreGrenadeExplode =
 {
@@ -89,9 +89,6 @@ void() OgreGrenadeTouch =
 OgreFireGrenade
 ================
 */
-void() MultiGrenadeTouch;
-void() MultiGrenadeExplode;
-
 void() OgreFireGrenade =
 {
     local    entity missile;
@@ -115,7 +112,7 @@ void() OgreFireGrenade =
     missile.avelocity = '300 300 300';
     missile.angles = vectoangles(missile.velocity);
 
-// set missile duration
+    // set missile duration
     if(self.spawnflags & OGRE_BOSS)
     {
         missile.touch = MultiGrenadeTouch;
@@ -396,12 +393,12 @@ void()    ogre_die3    =[    $death3,    ogre_die4    ]
         self.solid = SOLID_NOT;
         if(self.spawnflags & OGRE_BOSS)
         {
-            // TODO VR: (P2) rogue
-            // self.ammo_multi_rockets = 2;
-            self.ammo_rockets = 2;
+            self.ammo_multi_rockets = 2;
         }
         else
+        {
             self.ammo_rockets = 2;
+        }
         OgreDrop();
     };
 void()    ogre_die4    =[    $death4,    ogre_die5    ] {};
@@ -423,12 +420,12 @@ void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
         self.solid = SOLID_NOT;
         if(self.spawnflags & OGRE_BOSS)
         {
-            // TODO VR: (P2) rogue
-            // self.ammo_multi_rockets = 2;
-            self.ammo_rockets = 2;
+            self.ammo_multi_rockets = 2;
         }
         else
+        {
             self.ammo_rockets = 2;
+        }
         OgreDrop();
     };
 void()    ogre_bdie4    =[    $bdeath4,    ogre_bdie5    ] {ai_forward(1);};
@@ -505,7 +502,7 @@ void() monster_ogre =
     {
         if(cvar("skill") > 0)
         {
-            if( random() <= 0.25 )
+            if(random() <= 0.25)
             {
                 self.spawnflags = self.spawnflags | OGRE_BOSS;
             }
@@ -514,7 +511,7 @@ void() monster_ogre =
 
     if(self.spawnflags & OGRE_BOSS)
     {
-        // TODO VR: (P2) rogue
+        // TODO VR: (P2) rogue skins
         // self.skin = 1;
     }
 

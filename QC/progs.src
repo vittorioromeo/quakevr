@@ -70,10 +70,11 @@ rogue_defs.qc
 rogue_dmatch.qc
 rogue_dragon.qc
 rogue_ending.qc
+rogue_lava_wpn.qc
 rogue_motd.qc
 rogue_new_ai.qc
-rogue_shield.qc
 rogue_runes.qc
+rogue_shield.qc
 rogue_teamplay.qc
 rogue_timemach.qc
 mult_wpn.qc
