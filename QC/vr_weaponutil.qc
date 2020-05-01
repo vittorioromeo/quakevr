@@ -42,7 +42,7 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
     if(xWeaponId == WID_FIST)    { return TRUE; }
     if(xWeaponId == WID_GRAPPLE) { return cvar("vr_enable_grapple"); }
 
-    return xEnt.items & WeaponIdToItemId(xWeaponId);
+    return VR_ItemUtil_EntHasItem(xEnt, WeaponIdToItemId(xWeaponId));
 }
 
 float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntIsEligibleForWeapon =
@@ -138,18 +138,18 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
 // TODO VR: (P2) what to do with multiple `items` fields?
 float(float wid) WeaponIdToItemId =
 {
-    if(wid == WID_FIST)             { return IT_FIST; }
-    if(wid == WID_AXE)              { return IT_AXE; }
-    if(wid == WID_MJOLNIR)          { return IT_MJOLNIR; }
-    if(wid == WID_SHOTGUN)          { return IT_SHOTGUN; }
-    if(wid == WID_SUPER_SHOTGUN)    { return IT_SUPER_SHOTGUN; }
-    if(wid == WID_NAILGUN)          { return IT_NAILGUN; }
-    if(wid == WID_SUPER_NAILGUN)    { return IT_SUPER_NAILGUN; }
-    if(wid == WID_GRENADE_LAUNCHER) { return IT_GRENADE_LAUNCHER; }
-    if(wid == WID_PROXIMITY_GUN)    { return IT_PROXIMITY_GUN; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return IT_ROCKET_LAUNCHER; }
-    if(wid == WID_LIGHTNING)        { return IT_LIGHTNING; }
-    if(wid == WID_LASER_CANNON)     { return IT_LASER_CANNON; }
+    if(wid == WID_FIST)             { return IID_FIST; }
+    if(wid == WID_AXE)              { return IID_AXE; }
+    if(wid == WID_MJOLNIR)          { return IID_MJOLNIR; }
+    if(wid == WID_SHOTGUN)          { return IID_SHOTGUN; }
+    if(wid == WID_SUPER_SHOTGUN)    { return IID_SUPER_SHOTGUN; }
+    if(wid == WID_NAILGUN)          { return IID_NAILGUN; }
+    if(wid == WID_SUPER_NAILGUN)    { return IID_SUPER_NAILGUN; }
+    if(wid == WID_GRENADE_LAUNCHER) { return IID_GRENADE_LAUNCHER; }
+    if(wid == WID_PROXIMITY_GUN)    { return IID_PROXIMITY_GUN; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return IID_ROCKET_LAUNCHER; }
+    if(wid == WID_LIGHTNING)        { return IID_LIGHTNING; }
+    if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
     // TODO VR: (P1) fist and grapple
 
     bprint("`WeaponIdToItemId`: invalid weapon id '");
@@ -162,18 +162,18 @@ float(float wid) WeaponIdToItemId =
 // TODO VR: (P2) what to do with multiple `items` fields?
 float(float it) ItemIdToWeaponId =
 {
-    if(it == IT_FIST)             { return WID_FIST; }
-    if(it == IT_AXE)              { return WID_AXE; }
-    if(it == IT_MJOLNIR)          { return WID_MJOLNIR; }
-    if(it == IT_SHOTGUN)          { return WID_SHOTGUN; }
-    if(it == IT_SUPER_SHOTGUN)    { return WID_SUPER_SHOTGUN; }
-    if(it == IT_NAILGUN)          { return WID_NAILGUN; }
-    if(it == IT_SUPER_NAILGUN)    { return WID_SUPER_NAILGUN; }
-    if(it == IT_GRENADE_LAUNCHER) { return WID_GRENADE_LAUNCHER; }
-    if(it == IT_PROXIMITY_GUN)    { return WID_PROXIMITY_GUN; }
-    if(it == IT_ROCKET_LAUNCHER)  { return WID_ROCKET_LAUNCHER; }
-    if(it == IT_LIGHTNING)        { return WID_LIGHTNING; }
-    if(it == IT_LASER_CANNON)     { return WID_LASER_CANNON; }
+    if(it == IID_FIST)              { return WID_FIST; }
+    if(it == IID_AXE)               { return WID_AXE; }
+    if(it == IID_MJOLNIR)           { return WID_MJOLNIR; }
+    if(it == IID_SHOTGUN)           { return WID_SHOTGUN; }
+    if(it == IID_SUPER_SHOTGUN)     { return WID_SUPER_SHOTGUN; }
+    if(it == IID_NAILGUN)           { return WID_NAILGUN; }
+    if(it == IID_SUPER_NAILGUN)     { return WID_SUPER_NAILGUN; }
+    if(it == IID_GRENADE_LAUNCHER)  { return WID_GRENADE_LAUNCHER; }
+    if(it == IID_PROXIMITY_GUN)     { return WID_PROXIMITY_GUN; }
+    if(it == IID_ROCKET_LAUNCHER)   { return WID_ROCKET_LAUNCHER; }
+    if(it == IID_LIGHTNING)         { return WID_LIGHTNING; }
+    if(it == IID_LASER_CANNON)      { return WID_LASER_CANNON; }
     // TODO VR: (P1) fist and grapple
 
     bprint("`ItemIdToWeaponId`: invalid item id '");
