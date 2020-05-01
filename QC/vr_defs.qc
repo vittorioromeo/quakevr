@@ -27,7 +27,6 @@ float IID_CATEGORY_HIPNOTIC_ITEMS = 2;
 // Item IDs
 // ----------------------------------------------------------------------------
 
-// TODO VR: (P1) use:
 float IID_NONE              = 0;
 float IID_ARMOR1            = 1;
 float IID_ARMOR2            = 2;
