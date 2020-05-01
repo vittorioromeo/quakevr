@@ -272,7 +272,7 @@ void() health_touch =
     {
 // TODO VR: (P1) deal with superhealth hipnotic removal
 // 11/02/96 removed SUPERHEALTH from defs.qc
-        VR_ItemUtil_EntAddItem(self, IID_SUPERHEALTH);
+        VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
         self.think = item_megahealth_rot;
         self.owner = other;
@@ -360,11 +360,11 @@ void() armor_touch =
     other.armortype = type;
     other.armorvalue = value;
 
-    VR_ItemUtil_EntDelItem(self, IID_ARMOR1);
-    VR_ItemUtil_EntDelItem(self, IID_ARMOR2);
-    VR_ItemUtil_EntDelItem(self, IID_ARMOR3);
+    VR_ItemUtil_EntDelItem(other, IID_ARMOR1);
+    VR_ItemUtil_EntDelItem(other, IID_ARMOR2);
+    VR_ItemUtil_EntDelItem(other, IID_ARMOR3);
 
-    VR_ItemUtil_EntAddItem(self, itemId);
+    VR_ItemUtil_EntAddItem(other, itemId);
 
     self.solid = SOLID_NOT;
     self.model = string_null;
@@ -530,7 +530,6 @@ void() weapon_touch =
 
     bound_other_ammo();
 
-    // change to the weapon
     VR_ItemUtil_EntAddItem(other, newIt);
 
     stemp = self;

@@ -2096,12 +2096,6 @@ void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCur
     *xFrame = 0;
 };
 
-void() W_SetCurrentAmmo =
-{
-    W_SetCurrentAmmoFor(cVR_MainHand);
-    W_SetCurrentAmmoFor(cVR_OffHand);
-};
-
 void(float xHand) W_SetCurrentAmmoFor =
 {
     // TODO VR: (P2) code repetition between branches
@@ -2124,6 +2118,12 @@ void(float xHand) W_SetCurrentAmmoFor =
     }
 
     updateAmmoCounters();
+};
+
+void() W_SetCurrentAmmo =
+{
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    W_SetCurrentAmmoFor(cVR_OffHand);
 };
 
 float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
@@ -2446,22 +2446,27 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
     local float minWeapon, maxWeapon;
     local float skipEmptyWeapons;
     local float originalWeapon;
+    local float iterations, maxIterations;
 
     // Inclusive boundaries of cyclable weapon ids.
     minWeapon = WID_GRAPPLE;
     maxWeapon = WID_LASER_CANNON;
+
+    // Just for safety.
+    iterations = 0;
+    maxIterations = maxWeapon + 1;
 
     // TODO VR: (P1) set this via cvar depending on weapon mode?
     skipEmptyWeapons = FALSE;
 
     // Used to avoid infinite loops.
     originalWeapon = xWeapon;
-    if(originalWeapon > maxWeapon)      { originalWeapon = minWeapon; }
-    else if(originalWeapon < minWeapon) { originalWeapon = maxWeapon; }
 
     // Find the next suitable weapon.
-    while(TRUE)
+    while(iterations < maxIterations)
     {
+        ++iterations;
+
         xWeapon = xWeapon + xDir;
 
         if(xWeapon > maxWeapon)      { xWeapon = minWeapon; }
@@ -2486,10 +2491,10 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
         }
 
         // At this point, we have a suitable weapon.
-        break;
+        return xWeapon;
     }
 
-    return xWeapon;
+    return originalWeapon;
 }
 
 float() getWeaponCycleMode =
@@ -2502,7 +2507,7 @@ float() getWeaponCycleMode =
     return cvar("vr_weapon_cycle_mode");
 }
 
-void(float xWeapon, float* xOutWeapon, float xDir) CycleWeaponCommandImpl =
+void(float xHand, float xWeapon, float* xOutWeapon, float xDir) CycleWeaponCommandImpl =
 {
     local float newWeapon;
 
@@ -2513,7 +2518,7 @@ void(float xWeapon, float* xOutWeapon, float xDir) CycleWeaponCommandImpl =
     {
         *xOutWeapon = newWeapon;
 
-        W_SetCurrentAmmo();
+        W_SetCurrentAmmoFor(xHand);
     }
 };
 
@@ -2524,9 +2529,9 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void(float xWeapon, float* xOutWeapon) CycleWeaponCommand =
+void(float xHand, float xWeapon, float* xOutWeapon) CycleWeaponCommand =
 {
-    CycleWeaponCommandImpl(xWeapon, xOutWeapon, 1);
+    CycleWeaponCommandImpl(xHand, xWeapon, xOutWeapon, 1);
 };
 
 /*
@@ -2536,9 +2541,9 @@ CycleWeaponReverseCommand
 Go to the prev weapon with ammo
 ============
 */
-void(float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
+void(float xHand, float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
 {
-    CycleWeaponCommandImpl(xWeapon, xOutWeapon, -1);
+    CycleWeaponCommandImpl(xHand, xWeapon, xOutWeapon, -1);
 };
 
 /*
@@ -2732,7 +2737,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand (self.weapon, &self.weapon);
+            CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon);
         }
     }
 
@@ -2740,7 +2745,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand (self.weapon2, &self.weapon2);
+            CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2);
         }
     }
 
@@ -2748,7 +2753,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand (self.weapon, &self.weapon);
+            CycleWeaponReverseCommand(cVR_MainHand, self.weapon, &self.weapon);
         }
     }
 
@@ -2756,7 +2761,7 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand (self.weapon2, &self.weapon2);
+            CycleWeaponReverseCommand(cVR_OffHand, self.weapon2, &self.weapon2);
         }
     }
 
