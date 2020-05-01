@@ -375,7 +375,6 @@ float DAMAGE_AIM = 2;
 // Edict `.item` flag values
 // ----------------------------------------------------------------------------
 
-// TODO VR: (P2) decide what to do with these, as they are not enough
 float IT_FIST             = 0;
 float IT_SHOTGUN          = VRUTIL_POWER_OF_TWO(0);
 float IT_SUPER_SHOTGUN    = VRUTIL_POWER_OF_TWO(1);

@@ -185,8 +185,6 @@ void() weapon_laser_gun =
     setmodel(self, "progs/g_laserg.mdl");
     self.weapon = WID_LASER_CANNON;
     self.netname = "Laser Cannon";
-    // TODO VR: (P1) should use another field for all of these, or maybe even
-    // remove it since we are using the weapon id as well?
     self.vr_itemId = IID_LASER_CANNON;
     self.handtouch = weapon_touch;
     setsize(self, '-16 -16 0', '16 16 56');

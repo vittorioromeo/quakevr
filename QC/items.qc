@@ -266,8 +266,6 @@ void() health_touch =
     // Megahealth = rot down the player's super health
     if(self.healtype == 2)
     {
-// TODO VR: (P1) deal with superhealth hipnotic removal
-// 11/02/96 removed SUPERHEALTH from defs.qc
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
         self.think = item_megahealth_rot;
@@ -298,10 +296,8 @@ void() item_megahealth_rot =
         return;
     }
 
-// it is possible for a player to die and respawn between rots, so don't
-// just blindly subtract the flag off
-// TODO VR: (P1) deal with superhealth hipnotic removal
-// 11/02/96 removed SUPERHEALTH from defs.qc
+    // it is possible for a player to die and respawn between rots, so don't
+    // just blindly subtract the flag off
     VR_ItemUtil_EntDelItem(self, IID_SUPERHEALTH);
 
     if(deathmatch == 1)    // deathmatch 2 is silly old rules
