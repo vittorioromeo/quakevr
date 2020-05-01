@@ -367,6 +367,7 @@ void(float xHand) player_nail2 =
 
 //============================================================================
 
+// TODO VR: (P2) code repetition
 void(float xHand) player_light1 =
 {
     if(self.ammo_cells < 1)
@@ -439,12 +440,62 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 
 //============================================================================
 
+// TODO VR: (P2) code repetition
 //MED 10/18/96 added HIPSWEAPONS
-// TODO VR: (P1) laser animation keeps playing when ammo=0
-void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
-void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 2); };
-void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };
-void(float xHand) player_laser4 = { setHandThinkWithArg(xHand, $nailatt1, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_laser1 =
+{
+    if(self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, $nailatt1, player_laser3);
+    VRSetAttackFinished(xHand, time + 0.1);
+    VRSetWeaponFrame(xHand, 1);
+    HIP_FireLaser(xHand, 0);
+}
+
+void(float xHand) player_laser2 =
+{
+    if(self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, $nailatt2, player_laser3);
+    VRSetAttackFinished(xHand, time + 0.1);
+    VRSetWeaponFrame(xHand, 2);
+}
+
+void(float xHand) player_laser3 =
+{
+    if(self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, $nailatt2, player_laser1);
+    VRSetAttackFinished(xHand, time + 0.1);
+    VRSetWeaponFrame(xHand, 4);
+    HIP_FireLaser(xHand, 1);
+}
+
+void(float xHand) player_laser4 =
+{
+    if(self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, $nailatt1, player_laser1);
+    VRSetAttackFinished(xHand, time + 0.1);
+    VRSetWeaponFrame(xHand, 5);
+}
+
 //============================================================================
 void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
 void(float xHand) player_rocket2 = { setHandThinkWithArg(xHand, $rockatt2, player_rocket3); VRSetWeaponFrame(xHand, 2); };

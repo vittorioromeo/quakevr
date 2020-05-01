@@ -256,7 +256,7 @@ void  end_sys_globals; // Flag for structure dumping.
 
 .vector v_viewangle;
 
-#include "vrfields.qc"
+#include "vr_fields.qc"
 
 //
 //
@@ -568,7 +568,7 @@ entity damage_attacker; // Set by `T_Damage`.
 float framecount;
 float skill;
 
-#include "vrdefs.qc"
+#include "vr_defs.qc"
 
 
 //

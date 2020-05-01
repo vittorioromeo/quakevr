@@ -1,76 +1,69 @@
 progs.dat
 
-
 defs.qc
-hipdefs.qc   //JIM
 
-
-subs.qc
-fight.qc
 ai.qc
 combat.qc
+fight.qc
 items.qc
+subs.qc
 
-// ROGUE
-grapple.qc
+vr_grapple.qc
+vr_itemutil.qc
+vr_util.qc
+vr_weaponutil.qc
+vr_wpnforcegrab.qc
 
-vrutil.qc
-wpnforcegrab.qc
-weaponutil.qc
-itemutil.qc
+buttons.qc
+client.qc
+doors.qc
+misc.qc
+monsters.qc
+plats.qc
+player.qc
+triggers.qc
 weapons.qc
 world.qc
-client.qc
-player.qc
-monsters.qc
-doors.qc
-buttons.qc
-triggers.qc
-plats.qc
-misc.qc
 
-ogre.qc
-demon.qc
-shambler.qc
-knight.qc
-soldier.qc
-wizard.qc
-dog.qc
-zombie.qc
-boss.qc
+mon_boss.qc
+mon_demon.qc
+mon_dog.qc
+mon_enforcer.qc
+mon_fish.qc
+mon_hknight.qc
+mon_knight.qc
+mon_ogre.qc
+mon_oldone.qc
+mon_shalrath.qc
+mon_shambler.qc
+mon_soldier.qc
+mon_tarbaby.qc
+mon_wizard.qc
+mon_zombie.qc
 
-tarbaby.qc  // registered
-hknight.qc  // registered
-fish.qc   // registered
-shalrath.qc  // registered
-enforcer.qc  // registered
-oldone.qc  // registered
-
-// HIPNOTIC
-// Hipnotic Quake additions
-
-hipsubs.qc
 hip_brk.qc
-hiptrain.qc
+hip_clock.qc
+hip_count.qc
+hip_decoy.qc
+hip_defs.qc
 hip_expl.qc
-hipquake.qc
-hipcount.qc
-hipitems.qc
-hiprubbl.qc
-hip_push.qc
+hip_holes.qc
+hip_items.qc
+hip_misc.qc
+hip_mon_arma.qc
+hip_mon_grem.qc
+hip_mon_scrge.qc
+hip_mon_spike.qc
 hip_part.qc
-hipspawn.qc
-hipgrem.qc
-hiparma.qc
-hipspike.qc
-hiprot.qc
-hipscrge.qc
-hipholes.qc
-hipclock.qc
-hiptrig.qc
-hipmisc.qc
-hipwater.qc
-hipdecoy.qc
+hip_push.qc
+hip_quake.qc
+hip_rot.qc
+hip_rubbl.qc
+hip_spawn.qc
+hip_subs.qc
+hip_train.qc
+hip_trig.qc
+hip_water.qc
 
 // Rogue Quake additions
 
