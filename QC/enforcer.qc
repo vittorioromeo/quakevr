@@ -88,8 +88,8 @@ void(vector org, vector vec) LaunchLaser =
     newmis.effects = EF_DIMLIGHT;
     newmis.classname = "enforcer_laser";
 
-    setmodel (newmis, "progs/laser.mdl");
-    setsize (newmis, '0 0 0', '0 0 0');
+    setmodel(newmis, "progs/laser.mdl");
+    setsize(newmis, '0 0 0', '0 0 0');
 
     if(self.classname == "monster_morph")
     {
@@ -97,7 +97,7 @@ void(vector org, vector vec) LaunchLaser =
             newmis.skin = 1;
     }
 
-    setorigin (newmis, org);
+    setorigin(newmis, org);
 
     newmis.velocity = vec * 600;
     newmis.angles = vectoangles(newmis.velocity);
@@ -364,9 +364,9 @@ void() monster_enforcer =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/enforcer.mdl");
+    setmodel(self, "progs/enforcer.mdl");
 
-    setsize (self, '-14 -14 -24', '14 14 28');
+    setsize(self, '-14 -14 -24', '14 14 28');
     self.health = 80;
 
     self.th_stand = enf_stand1;

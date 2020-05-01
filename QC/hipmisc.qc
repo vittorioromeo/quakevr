@@ -402,7 +402,7 @@ void() path_camera =
    self.touch = t_cameratarget;
    if(!self.duration)
       self.duration = 10;
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setsize(self, '-8 -8 -8', '8 8 8');
 };
 */
 float SVC_UPDATEENTITY = 128; // Net.Protocol 0x80
@@ -481,7 +481,7 @@ void() effect_finale_use =
         pl.solid = SOLID_NOT;
       pl.movetype = MOVETYPE_NONE;
         pl.modelindex = 0;
-      setorigin (pl, pos.origin);
+      setorigin(pl, pos.origin);
       pl.origin = pos.origin;
       pl.oldorigin = pos.origin;
       UpdateCamera(pl,pl);

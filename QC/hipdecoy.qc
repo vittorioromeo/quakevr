@@ -82,8 +82,8 @@ void(entity decoy) setup_decoy =
    local entity pl;
 
    decoy.classname = "monster_decoy";
-   setmodel (decoy, "progs/player.mdl");
-   setsize (decoy, VEC_HULL_MIN, VEC_HULL_MAX);
+   setmodel(decoy, "progs/player.mdl");
+   setsize(decoy, VEC_HULL_MIN, VEC_HULL_MAX);
    decoy.view_ofs = '0 0 22';
 
    decoy.solid = SOLID_SLIDEBOX;
@@ -150,9 +150,9 @@ void(string targ, vector orig) become_decoy =
       decoy.ideal_yaw = vectoyaw(decoy.goalentity.origin - decoy.origin);
       if(!decoy.movetarget)
         {
-            dprint ("Monster can't find target at ");
-         dprint (vtos(decoy.origin));
-            dprint ("\n");
+            dprint("Monster can't find target at ");
+         dprint(vtos(decoy.origin));
+            dprint("\n");
         }
 // this used to be an objerror
       if(decoy.movetarget.classname == "path_corner")

@@ -111,8 +111,10 @@ void() door_fire =
 
 // play use key sound
 
-    if(self.items)
+    if(self.vr_itemId)
+    {
         sound(self, CHAN_ITEM, self.noise4, 1, ATTN_NORM);
+    }
 
     self.message = string_null;        // no more message
     oself = self;
@@ -197,6 +199,7 @@ void() door_touch =
 {
     if(other.classname != "player")
         return;
+
     if(self.owner.attack_finished > time)
         return;
 
@@ -209,13 +212,13 @@ void() door_touch =
     }
 
 // key door stuff
-    if(!self.items)
+    if(!self.vr_itemId)
         return;
 
 // FIXME: blink key on player's status bar
-    if( (self.items & other.items) != self.items )
+    if(!VR_ItemUtil_EntHasItem(other, self.vr_itemId))
     {
-        if(self.owner.items == IT_KEY1)
+        if(self.owner.vr_itemId == IID_KEY1)
         {
             if(world.worldtype == 2)
             {
@@ -254,10 +257,14 @@ void() door_touch =
         return;
     }
 
-    other.items = other.items - self.items;
+    VR_ItemUtil_EntDelItem(other, self.vr_itemId);
     self.touch = SUB_Null;
+
     if(self.enemy)
+    {
         self.enemy.touch = SUB_Null;    // get paired door
+    }
+
     door_use();
 };
 
@@ -283,7 +290,7 @@ entity(vector fmins, vector fmaxs) spawn_field =
 
     t1 = fmins;
     t2 = fmaxs;
-    setsize (trigger, t1 - '60 60 8', t2 + '60 60 8');
+    setsize(trigger, t1 - '60 60 8', t2 + '60 60 8');
     return (trigger);
 };
 
@@ -357,7 +364,7 @@ void() LinkDoors =
                 return;
             if(self.targetname)
                 return;
-            if(self.items)
+            if(self.vr_itemId)
                 return;
 
             self.owner.trigger_field = spawn_field(cmins, cmaxs);
@@ -418,8 +425,6 @@ Key doors are allways wait -1.
 
 void() func_door =
 {
-    local vector tempVect;
-
     if(world.worldtype == 0)
     {
         precache_sound("doors/medtry.wav");
@@ -443,7 +448,7 @@ void() func_door =
     }
     else
     {
-        dprint ("no worldtype set!\n");
+        dprint("no worldtype set!\n");
     }
 
     if(self.sounds == 0)
@@ -487,37 +492,47 @@ void() func_door =
     self.max_health = self.health;
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
     self.classname = "door";
 
     self.blocked = door_blocked;
     self.use = door_use;
 
     if(self.spawnflags & DOOR_SILVER_KEY)
-        self.items = IT_KEY1;
-    if(self.spawnflags & DOOR_GOLD_KEY)
-        self.items = IT_KEY2;
+    {
+        self.vr_itemId = IID_KEY1;
+    }
 
-    if(!self.speed)
-        self.speed = 100;
-    if(!self.wait)
-        self.wait = 3;
-    if(!self.lip)
-        self.lip = 8;
-    if(!self.dmg)
-        self.dmg = 2;
+    if(self.spawnflags & DOOR_GOLD_KEY)
+    {
+        self.vr_itemId = IID_KEY2;
+    }
+
+    if(!self.speed) { self.speed = 100; }
+    if(!self.wait)  { self.wait = 3; }
+    if(!self.lip)   { self.lip = 8; }
+    if(!self.dmg)   { self.dmg = 2; }
 
     self.pos1 = self.origin;
     //    self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
 
 // PGM fix for cameron's door problem - 02/19/97
 
+    local vector tempVect;
+
     tempVect = self.movedir;
+
     if(tempVect_x < 0)
+    {
         tempVect_x = 0 - tempVect_x;
+    }
+
     if(tempVect_y < 0)
+    {
         tempVect_y = 0 - tempVect_y;
+    }
+
 //    if(tempVect_z < 0)
 //        tempVect_z = 0 - tempVect_z;
 //    self.pos2 = self.pos1 + self.movedir*(tempVect*self.size - self.lip);
@@ -527,7 +542,7 @@ void() func_door =
 // but spawn in the open position
     if(self.spawnflags & DOOR_START_OPEN)
     {
-        setorigin (self, self.pos2);
+        setorigin(self, self.pos2);
         self.pos2 = self.pos1;
         self.pos1 = self.origin;
     }
@@ -540,8 +555,10 @@ void() func_door =
         self.th_die = door_killed;
     }
 
-    if(self.items)
+    if(self.vr_itemId)
+    {
         self.wait = -1;
+    }
 
     self.touch = door_touch;
 
@@ -775,8 +792,8 @@ void () func_door_secret =
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
     self.classname = "door";
-    setmodel (self, self.model);
-    setorigin (self, self.origin);
+    setmodel(self, self.model);
+    setorigin(self, self.origin);
 
     self.touch = secret_touch;
     self.blocked = secret_blocked;

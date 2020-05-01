@@ -24,8 +24,8 @@ void(string rubblename) hipThrowRubble =
 
     new = spawn();
     new.origin = self.origin;
-    setmodel (new, rubblename );
-    setsize (new, '0 0 0', '0 0 0');
+    setmodel(new, rubblename );
+    setsize(new, '0 0 0', '0 0 0');
     new.velocity_x = 70 * crandom();
     new.velocity_y = 70 * crandom();
     new.velocity_z = 140 + 70 * random();
@@ -82,9 +82,9 @@ void() rubble_use =
 */
 void() func_rubble =
     {
-    precache_model ("progs/rubble1.mdl");
-    precache_model ("progs/rubble2.mdl");
-    precache_model ("progs/rubble3.mdl");
+    precache_model("progs/rubble1.mdl");
+    precache_model("progs/rubble2.mdl");
+    precache_model("progs/rubble3.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble";
     self.cnt = 0;
@@ -98,7 +98,7 @@ void() func_rubble =
 */
 void() func_rubble1 =
     {
-    precache_model ("progs/rubble1.mdl");
+    precache_model("progs/rubble1.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble1";
     self.cnt = 1;
@@ -112,7 +112,7 @@ void() func_rubble1 =
 */
 void() func_rubble2 =
     {
-    precache_model ("progs/rubble3.mdl");
+    precache_model("progs/rubble3.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble2";
     self.cnt = 2;
@@ -126,7 +126,7 @@ void() func_rubble2 =
 */
 void() func_rubble3 =
     {
-    precache_model ("progs/rubble2.mdl");
+    precache_model("progs/rubble2.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble3";
     self.cnt = 3;

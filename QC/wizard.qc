@@ -205,8 +205,8 @@ void() Wiz_FastFire =
         newmis.velocity = vec*600;
         newmis.owner = self.owner;
         newmis.classname = "wizspike";
-        setmodel (newmis, "progs/w_spike.mdl");
-        setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+        setmodel(newmis, "progs/w_spike.mdl");
+        setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     }
 
     remove (self);
@@ -224,8 +224,8 @@ void() Wiz_StartFast =
     missile = spawn();
     missile.owner = self;
     missile.nextthink = time + 0.6;
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin + '0 0 30' + v_forward*14 + v_right*14);
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin + '0 0 30' + v_forward*14 + v_right*14);
     missile.enemy = self.enemy;
     missile.nextthink = time + 0.8;
     missile.think = Wiz_FastFire;
@@ -234,8 +234,8 @@ void() Wiz_StartFast =
     missile = spawn();
     missile.owner = self;
     missile.nextthink = time + 1;
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin + '0 0 30' + v_forward*14 + v_right* -14);
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin + '0 0 30' + v_forward*14 + v_right* -14);
     missile.enemy = self.enemy;
     missile.nextthink = time + 0.3;
     missile.think = Wiz_FastFire;
@@ -379,9 +379,9 @@ void() monster_wizard =
         remove(self);
         return;
     }
-    precache_model ("progs/wizard.mdl");
-    precache_model ("progs/h_wizard.mdl");
-    precache_model ("progs/w_spike.mdl");
+    precache_model("progs/wizard.mdl");
+    precache_model("progs/h_wizard.mdl");
+    precache_model("progs/w_spike.mdl");
 
     precache_sound("wizard/hit.wav");        // used by c code
     precache_sound("wizard/wattack.wav");
@@ -394,9 +394,9 @@ void() monster_wizard =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/wizard.mdl");
+    setmodel(self, "progs/wizard.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 40');
+    setsize(self, '-12 -12 -24', '12 12 40');
     self.health = 80;
 
     self.th_stand = wiz_stand1;

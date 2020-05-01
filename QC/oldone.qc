@@ -141,7 +141,7 @@ void() finale_1 =
         pl.solid = SOLID_NOT;
         pl.movetype = MOVETYPE_NONE;
         pl.modelindex = 0;
-        setorigin (pl, pos.origin);
+        setorigin(pl, pos.origin);
         pl = find (pl, classname, "player");
     }
 
@@ -225,9 +225,9 @@ void() finale_4 =
 
 // put a player model down
     n = spawn();
-    setmodel (n, "progs/player.mdl");
+    setmodel(n, "progs/player.mdl");
     oldo = oldo - '32 264 0';
-    setorigin (n, oldo);
+    setorigin(n, oldo);
     n.angles = '0 290 0';
     n.frame = 1;
 
@@ -270,8 +270,8 @@ void() monster_oldone =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/oldone.mdl");
-    setsize (self, '-160 -128 -24', '160 128 256');
+    setmodel(self, "progs/oldone.mdl");
+    setsize(self, '-160 -128 -24', '160 128 256');
 
     self.health = 40000;        // kill by telefrag
     self.think = old_idle1;

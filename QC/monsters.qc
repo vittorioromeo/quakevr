@@ -75,11 +75,11 @@ void() walkmonster_start_go =
 
     if(!walkmove(0,0))
     {
-        dprint ("walkmonster in wall!\n");
-        dprint (self.classname);
-        dprint (" at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("walkmonster in wall!\n");
+        dprint(self.classname);
+        dprint(" at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
     }
 
     self.takedamage = DAMAGE_AIM;
@@ -98,9 +98,9 @@ void() walkmonster_start_go =
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
         if(!self.movetarget)
         {
-            dprint ("Monster can't find target at ");
-            dprint (vtos(self.origin));
-            dprint ("\n");
+            dprint("Monster can't find target at ");
+            dprint(vtos(self.origin));
+            dprint("\n");
         }
 // this used to be an objerror
         if(self.movetarget.classname == "path_corner")
@@ -147,11 +147,11 @@ void() flymonster_start_go =
 
     if(!walkmove(0,0))
     {
-        dprint ("flymonster in wall!\n");
-        dprint (self.classname);
-        dprint (" at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("flymonster in wall!\n");
+        dprint(self.classname);
+        dprint(" at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
     }
 
     if(self.target)
@@ -159,9 +159,9 @@ void() flymonster_start_go =
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         if(!self.movetarget)
         {
-            dprint ("Monster can't find target at ");
-            dprint (vtos(self.origin));
-            dprint ("\n");
+            dprint("Monster can't find target at ");
+            dprint(vtos(self.origin));
+            dprint("\n");
         }
 // this used to be an objerror
         if(self.movetarget.classname == "path_corner")
@@ -211,9 +211,9 @@ void() swimmonster_start_go =
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         if(!self.movetarget)
         {
-            dprint ("Monster can't find target at ");
-            dprint (vtos(self.origin));
-            dprint ("\n");
+            dprint("Monster can't find target at ");
+            dprint(vtos(self.origin));
+            dprint("\n");
         }
 // this used to be an objerror
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);

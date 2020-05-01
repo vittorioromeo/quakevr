@@ -71,13 +71,13 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 // Public API
 // ----------------------------------------------------------------------------
 
-float(float xItemId) VR_ItemUtil_IsValidItemId
+float(float xItemId) VR_ItemUtil_IsValidItemId =
 {
-    return xItemId >= IID_ARMOR1
-        && xItemId <= IID_HORN_OF_CONJURING;
+    return (xItemId >= IID_ARMOR1)
+        && (xItemId <= IID_HORN_OF_CONJURING);
 }
 
-float(float xItemId) VR_ItemUtil_ItemIdToItemCategory
+float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 {
     // `IID_CATEGORY_ITEMS`
     if(xItemId == IID_FIST)              { return IID_CATEGORY_ITEMS; }
@@ -118,7 +118,7 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory
     return IID_CATEGORY_INVALID;
 }
 
-float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem
+float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
 {
     local float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
@@ -140,7 +140,7 @@ float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem
     return FALSE;
 }
 
-void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem
+void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem =
 {
     local float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
@@ -178,12 +178,18 @@ void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem
                                               xItemId);
 }
 
-void(entity xEnt, float xItemId) VR_ItemUtil_EntAddItem
+void(entity xEnt, float xItemId) VR_ItemUtil_EntAddItem =
 {
     VR_ItemUtil_EntSetItem(xEnt, xItemId, TRUE);
 }
 
-void(entity xEnt, float xItemId) VR_ItemUtil_EntDelItem
+void(entity xEnt, float xItemId) VR_ItemUtil_EntDelItem =
 {
     VR_ItemUtil_EntSetItem(xEnt, xItemId, FALSE);
+}
+
+void(entity xEnt) VR_ItemUtil_EntClearItems =
+{
+    xEnt.items = 0;
+    xEnt.hipnotic_items = 0;
 }

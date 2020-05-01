@@ -234,9 +234,9 @@ void(float r, vector p) boss_missile =
     vec = normalize (d - org);
 
     launch_spike (org, vec);
-    setmodel (newmis, "progs/lavaball.mdl");
+    setmodel(newmis, "progs/lavaball.mdl");
     newmis.avelocity = '200 100 300';
-    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+    setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     newmis.velocity = vec * vel;
 
     // VR: Randomized direction attack.
@@ -262,8 +262,8 @@ void() boss_awake =
     self.movetype = MOVETYPE_STEP;
     self.takedamage = DAMAGE_NO;
 
-    setmodel (self, "progs/boss.mdl");
-    setsize (self, '-128 -128 -24', '128 128 256');
+    setmodel(self, "progs/boss.mdl");
+    setsize(self, '-128 -128 -24', '128 128 256');
 
     if(skill == 0)
         self.health = 1;
@@ -292,8 +292,8 @@ void() monster_boss =
         remove(self);
         return;
     }
-    precache_model ("progs/boss.mdl");
-    precache_model ("progs/lavaball.mdl");
+    precache_model("progs/boss.mdl");
+    precache_model("progs/lavaball.mdl");
 
     precache_sound("weapons/rocket1i.wav");
     precache_sound("boss1/out1.wav");
@@ -359,7 +359,7 @@ void() lightning_use =
     le2 = find( le1, target, "lightning");
     if(!le1 || !le2)
     {
-        dprint ("missing lightning targets\n");
+        dprint("missing lightning targets\n");
         return;
     }
 
@@ -368,7 +368,7 @@ void() lightning_use =
     || (le2.state != STATE_TOP && le2.state != STATE_BOTTOM)
     || (le1.state != le2.state) )
     {
-//        dprint ("not aligned\n");
+//        dprint("not aligned\n");
         return;
     }
 

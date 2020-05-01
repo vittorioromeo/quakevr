@@ -146,7 +146,7 @@ void() func_button =
 
     self.movetype = MOVETYPE_PUSH;
     self.solid = SOLID_BSP;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 
     self.blocked = button_blocked;
     self.use = button_use;

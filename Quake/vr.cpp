@@ -204,7 +204,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
+DEFINE_CVAR(vr_novrinit, 1, CVAR_NONE);
 
 // TODO VR: (P1) decide what to do with this
 DEFINE_CVAR(vr_enable_grapple, 0, CVAR_NONE);
@@ -1304,6 +1305,11 @@ static void VR_InitActionHandles()
 
 bool VR_Enable()
 {
+    if(vr_fakevr.value && vr_novrinit.value)
+    {
+        return true;
+    }
+
     if(vr_initialized)
     {
         return true;
@@ -1412,6 +1418,11 @@ void VID_VR_Disable()
 
 static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 {
+    if(vr_fakevr.value && vr_novrinit.value)
+    {
+        return;
+    }
+
     // Remember the current glwidth/height; we have to modify it here for
     // each eye
     const int oldglheight = glheight;
@@ -2439,6 +2450,11 @@ __attribute__((no_sanitize_address))
 static void
 VR_UpdateDevicesOrientationPosition() noexcept
 {
+    if(vr_fakevr.value && vr_novrinit.value)
+    {
+        return;
+    }
+
     controllers[0].active = false;
     controllers[1].active = false;
 
@@ -3070,6 +3086,11 @@ void VR_UpdateScreenContent()
 
     r_refdef.viewangles = cl.viewangles;
     r_refdef.aimangles = cl.aimangles;
+
+    if(vr_fakevr.value && vr_novrinit.value)
+    {
+        return;
+    }
 
     // Render the scene for each eye into their FBOs
     for(vr_eye_t& eye : eyes)
@@ -4334,6 +4355,13 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
+    if(vr_fakevr.value && vr_novrinit.value)
+    {
+        vr_left_grabbing = !(in_grableft.state & 1);
+        vr_right_grabbing = !(in_grabright.state & 1);
+        return {0.f, 0.f, 0.f};
+    }
+
     {
         const auto rc = vr::VRInput()->UpdateActionState(
             &vrActiveActionSet, sizeof(vr::VRActiveActionSet_t), 1);
@@ -4835,3 +4863,5 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) "Is there an option to not drop the weapon I'm holding when I
 // release the grip button?"
+
+// TODO VR: (P1) add system to load multiple folders at once (like paks)

@@ -230,8 +230,8 @@ self.effects = self.effects | EF_MUZZLEFLASH;
 ai_face();
 self.owner = spawn();
 o = self.owner;
-setmodel (o, "progs/s_light.mdl");
-setorigin (o, self.origin);
+setmodel(o, "progs/s_light.mdl");
+setorigin(o, self.origin);
 o.angles = self.angles;
 o.nextthink = time + 0.7;
 o.think = SUB_Remove;
@@ -364,10 +364,10 @@ void() monster_shambler =
         remove(self);
         return;
     }
-    precache_model ("progs/shambler.mdl");
-    precache_model ("progs/s_light.mdl");
-    precache_model ("progs/h_shams.mdl");
-    precache_model ("progs/bolt.mdl");
+    precache_model("progs/shambler.mdl");
+    precache_model("progs/s_light.mdl");
+    precache_model("progs/h_shams.mdl");
+    precache_model("progs/bolt.mdl");
 
     precache_sound("shambler/sattck1.wav");
     precache_sound("shambler/sboom.wav");
@@ -381,9 +381,9 @@ void() monster_shambler =
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
-    setmodel (self, "progs/shambler.mdl");
+    setmodel(self, "progs/shambler.mdl");
 
-    setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 600;
 
     self.th_stand = sham_stand1;

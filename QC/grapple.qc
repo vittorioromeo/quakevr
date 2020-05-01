@@ -272,8 +272,8 @@ void (float xHand) W_FireGrapple =
     newmis.nextthink = time + 1.8;
     newmis.frame = 1; // hook spread
 
-    setmodel (newmis,"progs/hook.mdl");
-    setorigin (newmis, VRGetMuzzlePos(xHand) + v_forward * 6);
+    setmodel(newmis,"progs/hook.mdl");
+    setorigin(newmis, VRGetMuzzlePos(xHand) + v_forward * 6);
     setsize(newmis, '0 0 0' , '0 0 0 ');
 
     setHookOut(xHand, TRUE);

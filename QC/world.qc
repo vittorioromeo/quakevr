@@ -8,7 +8,7 @@ void() InitBulletHoles;
 
 void() main =
 {
-    dprint ("main function\n");
+    dprint("main function\n");
 
 // these are just commands the the prog compiler to copy these files
 
@@ -296,57 +296,57 @@ void() worldspawn =
     precache_sound("misc/foot6.wav");
     precache_sound("misc/foot7.wav");
 
-    precache_model ("progs/player.mdl");
-    precache_model ("progs/eyes.mdl");
-    precache_model ("progs/h_player.mdl");
+    precache_model("progs/player.mdl");
+    precache_model("progs/eyes.mdl");
+    precache_model("progs/h_player.mdl");
 
     //HIPNOTIC
     //MED 12/03/96 added player with hammer
-    precache_model ("progs/playham.mdl");
+    precache_model("progs/playham.mdl");
 
-    precache_model ("progs/gib1.mdl");
-    precache_model ("progs/gib2.mdl");
-    precache_model ("progs/gib3.mdl");
+    precache_model("progs/gib1.mdl");
+    precache_model("progs/gib2.mdl");
+    precache_model("progs/gib3.mdl");
 
-    precache_model ("progs/s_bubble.spr");    // drowning bubbles
-    precache_model ("progs/s_explod.spr");    // sprite explosion
+    precache_model("progs/s_bubble.spr");    // drowning bubbles
+    precache_model("progs/s_explod.spr");    // sprite explosion
 
-    precache_model ("progs/v_axe.mdl");
-    precache_model ("progs/v_shot.mdl");
-    precache_model ("progs/v_nail.mdl");
-    precache_model ("progs/v_rock.mdl");
-    precache_model ("progs/v_shot2.mdl");
-    precache_model ("progs/v_nail2.mdl");
-    precache_model ("progs/v_rock2.mdl");
+    precache_model("progs/v_axe.mdl");
+    precache_model("progs/v_shot.mdl");
+    precache_model("progs/v_nail.mdl");
+    precache_model("progs/v_rock.mdl");
+    precache_model("progs/v_shot2.mdl");
+    precache_model("progs/v_nail2.mdl");
+    precache_model("progs/v_rock2.mdl");
 
     // HIPNOTIC
     //MED 10/31/96 added precache for hip view models
-    precache_model ("progs/v_laserg.mdl");
-    precache_model ("progs/v_hammer.mdl");
-    precache_model ("progs/v_prox.mdl");
-    precache_model ("progs/proxbomb.mdl");
+    precache_model("progs/v_laserg.mdl");
+    precache_model("progs/v_hammer.mdl");
+    precache_model("progs/v_prox.mdl");
+    precache_model("progs/proxbomb.mdl");
 
-    precache_model ("progs/bolt.mdl");        // for lightning gun
-    precache_model ("progs/bolt2.mdl");        // for lightning gun
-    precache_model ("progs/bolt3.mdl");        // for boss shock
-    precache_model ("progs/lavaball.mdl");    // for testing
+    precache_model("progs/bolt.mdl");        // for lightning gun
+    precache_model("progs/bolt2.mdl");        // for lightning gun
+    precache_model("progs/bolt3.mdl");        // for boss shock
+    precache_model("progs/lavaball.mdl");    // for testing
 
     // HIPNOTIC
     //MED 10/18/96 added precache for laser cannon
-    precache_model ("progs/lasrspik.mdl");
+    precache_model("progs/lasrspik.mdl");
 
-    precache_model ("progs/missile.mdl");
-    precache_model ("progs/grenade.mdl");
-    precache_model ("progs/spike.mdl");
-    precache_model ("progs/s_spike.mdl");
+    precache_model("progs/missile.mdl");
+    precache_model("progs/grenade.mdl");
+    precache_model("progs/spike.mdl");
+    precache_model("progs/s_spike.mdl");
 
-    precache_model ("progs/backpack.mdl");
+    precache_model("progs/backpack.mdl");
 
-    precache_model ("progs/zom_gib.mdl");
+    precache_model("progs/zom_gib.mdl");
 
-    precache_model ("progs/v_light.mdl");
+    precache_model("progs/v_light.mdl");
 
-    precache_model ("progs/hand.mdl");
+    precache_model("progs/hand.mdl");
     precache_sound("fisthit.wav");        // fist hit world
     precache_sound("gunclick.wav");       // out of ammo
     precache_sound("forcegrab.wav");      // force grab
@@ -354,15 +354,15 @@ void() worldspawn =
 
     // ROGUE
     // PGM addition
-    precache_model ("progs/mervup.mdl");
+    precache_model("progs/mervup.mdl");
     // TODO VR: (P2) rogue...
 
     // ROGUE
 //ZOID--
     // hook for CTF
-    precache_model ("progs/hook.mdl");
-    precache_model ("progs/v_grpple.mdl");
-//    precache_model ("progs/bit.mdl");
+    precache_model("progs/hook.mdl");
+    precache_model("progs/v_grpple.mdl");
+//    precache_model("progs/bit.mdl");
 //--ZOID
 
 
@@ -470,8 +470,8 @@ void(entity ent) CopyToBodyQue =
     bodyque_head.movetype = ent.movetype;
     bodyque_head.velocity = ent.velocity;
     bodyque_head.flags = 0;
-    setorigin (bodyque_head, ent.origin);
-    setsize (bodyque_head, ent.mins, ent.maxs);
+    setorigin(bodyque_head, ent.origin);
+    setsize(bodyque_head, ent.mins, ent.maxs);
     bodyque_head = bodyque_head.owner;
 };
 

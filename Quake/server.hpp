@@ -154,22 +154,26 @@ typedef struct client_s
 #define DAMAGE_YES 1
 #define DAMAGE_AIM 2
 
+// TODO VR: (P2) move
+#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
+
 // edict->flags
-#define FL_FLY 1
-#define FL_SWIM 2
-//#define	FL_GLIMPSE				4
-#define FL_CONVEYOR 4
-#define FL_CLIENT 8
-#define FL_INWATER 16
-#define FL_MONSTER 32
-#define FL_GODMODE 64
-#define FL_NOTARGET 128
-#define FL_ITEM 256
-#define FL_ONGROUND 512
-#define FL_PARTIALGROUND 1024 // not all corners are valid
-#define FL_WATERJUMP 2048     // player jumping out of water
-#define FL_JUMPRELEASED 4096  // for jump debouncing
-#define FL_EASYHANDTOUCH 8192 // adds bonus to boundaries for handtouch
+// clang-format off
+#define FL_FLY           VRUTIL_POWER_OF_TWO(0)
+#define FL_SWIM          VRUTIL_POWER_OF_TWO(1)
+#define FL_CONVEYOR      VRUTIL_POWER_OF_TWO(2)
+#define FL_CLIENT        VRUTIL_POWER_OF_TWO(3)
+#define FL_INWATER       VRUTIL_POWER_OF_TWO(4)
+#define FL_MONSTER       VRUTIL_POWER_OF_TWO(5)
+#define FL_GODMODE       VRUTIL_POWER_OF_TWO(6)
+#define FL_NOTARGET      VRUTIL_POWER_OF_TWO(7)
+#define FL_ITEM          VRUTIL_POWER_OF_TWO(8)
+#define FL_ONGROUND      VRUTIL_POWER_OF_TWO(9)
+#define FL_PARTIALGROUND VRUTIL_POWER_OF_TWO(10) // not all corners are valid
+#define FL_WATERJUMP     VRUTIL_POWER_OF_TWO(11) // player jumping out of water
+#define FL_JUMPRELEASED  VRUTIL_POWER_OF_TWO(12) // for jump debouncing
+#define FL_EASYHANDTOUCH VRUTIL_POWER_OF_TWO(13) // adds bonus to boundaries for handtouch
+// clang-format on
 
 // entity effects
 

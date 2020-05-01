@@ -69,7 +69,7 @@ void() push_use =
         }
 
     delta = self.origin - self.oldorigin;
-    setorigin (self.owner, self.owner.oldorigin + delta );
+    setorigin(self.owner, self.owner.oldorigin + delta );
     };
 
 /*QUAKED func_pushable (0 .5 .8) ?
@@ -87,9 +87,9 @@ void() func_pushable =
     self.classname = "pushablewall";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
     setorigin( self, self.origin );
-    setsize (self, self.mins, self.maxs );
+    setsize(self, self.mins, self.maxs );
     self.oldorigin = self.origin;
 
     new = spawn();

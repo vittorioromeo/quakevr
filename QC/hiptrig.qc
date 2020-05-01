@@ -8,16 +8,17 @@
 float USE_GOLD_KEY = 1;
 
 void() keytrigger_use =
-   {
+{
    if(activator.classname != "player")
         return;
+
    if(self.attack_finished > time)
         return;
 
    self.attack_finished = time + 2;
 
 // FIXME: blink key on player's status bar
-   if( (self.items & activator.items) != self.items )
+   if(!VR_ItemUtil_EntHasItem(activator, self.vr_itemId))
       {
       if(self.message != "")
          {
@@ -25,7 +26,7 @@ void() keytrigger_use =
          }
       else
          {
-         if(self.owner.items == IT_KEY1)
+         if(self.owner.vr_itemId == IID_KEY1)
             {
             if(world.worldtype == 2)
                {
@@ -60,7 +61,7 @@ void() keytrigger_use =
       return;
       }
 
-   activator.items = activator.items - self.items;
+   VR_ItemUtil_EntDelItem(activator, self.vr_itemId);
 
    // we can't just remove (self) here, because this is a touch function
    // called while C code is looping through area links...
@@ -112,13 +113,17 @@ void() trigger_usekey =
     }
     else
     {
-        dprint ("no worldtype set!\n");
+        dprint("no worldtype set!\n");
     }
 
    if(self.spawnflags & USE_GOLD_KEY)
-      self.items = IT_KEY2;
+   {
+      self.vr_itemId = IID_KEY2;
+   }
    else
-      self.items = IT_KEY1;
+   {
+      self.vr_itemId = IID_KEY1;
+   }
 
    self.use = keytrigger_use;
    self.touch = keytrigger_touch;

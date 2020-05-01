@@ -175,15 +175,15 @@ void() func_particlefield =
    self.classname = "particlefield";
    self.solid = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;
-   setmodel (self, self.model);
+   setmodel(self, self.model);
    self.model = string_null;
 
    self.origin = ( self.mins + self.maxs ) * 0.5;
-   setorigin (self, self.origin);
+   setorigin(self, self.origin);
    self.dest = self.maxs - self.mins - '16 16 16';
    self.dest1 = self.mins + '8 8 8' - self.origin;
    self.dest2 = self.maxs + '7.9 7.9 7.9' - self.origin;
-   setsize (self, self.mins, self.maxs);
+   setsize(self, self.mins, self.maxs);
    self.touch = particlefield_touch;
 //   dprint( vtos( self.dest ) );
 //   dprint( "  " );
@@ -275,9 +275,9 @@ void() func_togglewall =
    self.classname = "togglewall";
    self.movetype = MOVETYPE_PUSH;
    self.mdl = self.model;
-   setmodel (self, self.model);
-   setsize (self, self.mins, self.maxs);
-   setorigin (self, self.origin);
+   setmodel(self, self.model);
+   setsize(self, self.mins, self.maxs);
+   setorigin(self, self.origin);
    self.touch = blocker_touch;
    self.use = blocker_use;
    if( !self.noise )

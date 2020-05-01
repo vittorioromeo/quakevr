@@ -257,8 +257,11 @@ void GLSLGamma_GammaCorrect()
 
     // TODO VR: (P2) this only affects 2D rendering, doesn't affect HMD
     // rendering
-    glBindFramebufferEXT(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
-    glReadBuffer(GL_FRONT);
+    if(vr_fakevr.value == 0 && vr_novrinit.value == 0)
+    {
+        glBindFramebufferEXT(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
+        glReadBuffer(GL_FRONT);
+    }
 
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
 

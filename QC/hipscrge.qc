@@ -495,10 +495,10 @@ void() monster_scourge =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/scor.mdl");
+    setmodel(self, "progs/scor.mdl");
 
     // TODO VR: (P2) tweak hitbox
-    setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 300;
 
     self.th_stand = scourge_stand1;

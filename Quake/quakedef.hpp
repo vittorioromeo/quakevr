@@ -150,31 +150,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_MAINHAND_WID 33
 #define STAT_OFFHAND_WID 34
 
+// TODO VR: (P2) move
+#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
+
 // stock defines
 //
-#define IT_SHOTGUN 1
-#define IT_SUPER_SHOTGUN 2
-#define IT_NAILGUN 4
-#define IT_SUPER_NAILGUN 8
-#define IT_GRENADE_LAUNCHER 16
-#define IT_ROCKET_LAUNCHER 32
-#define IT_LIGHTNING 64
-#define IT_SUPER_LIGHTNING 128
-#define IT_SHELLS 256
-#define IT_NAILS 512
-#define IT_ROCKETS 1024
-#define IT_CELLS 2048
-#define IT_AXE 4096
-#define IT_ARMOR1 8192
-#define IT_ARMOR2 16384
-#define IT_ARMOR3 32768
-#define IT_SUPERHEALTH 65536
-#define IT_KEY1 131072
-#define IT_KEY2 262144
-#define IT_INVISIBILITY 524288
-#define IT_INVULNERABILITY 1048576
-#define IT_SUIT 2097152
-#define IT_QUAD 4194304
+// clang-format off
+#define IT_SHOTGUN          VRUTIL_POWER_OF_TWO(0)
+#define IT_SUPER_SHOTGUN    VRUTIL_POWER_OF_TWO(1)
+#define IT_NAILGUN          VRUTIL_POWER_OF_TWO(2)
+#define IT_SUPER_NAILGUN    VRUTIL_POWER_OF_TWO(3)
+#define IT_GRENADE_LAUNCHER VRUTIL_POWER_OF_TWO(4)
+#define IT_ROCKET_LAUNCHER  VRUTIL_POWER_OF_TWO(5)
+#define IT_LIGHTNING        VRUTIL_POWER_OF_TWO(6)
+#define IT_SUPER_LIGHTNING  VRUTIL_POWER_OF_TWO(7)
+#define IT_SHELLS           VRUTIL_POWER_OF_TWO(8)
+#define IT_NAILS            VRUTIL_POWER_OF_TWO(9)
+#define IT_ROCKETS          VRUTIL_POWER_OF_TWO(10)
+#define IT_CELLS            VRUTIL_POWER_OF_TWO(11)
+#define IT_AXE              VRUTIL_POWER_OF_TWO(12)
+#define IT_ARMOR1           VRUTIL_POWER_OF_TWO(13)
+#define IT_ARMOR2           VRUTIL_POWER_OF_TWO(14)
+#define IT_ARMOR3           VRUTIL_POWER_OF_TWO(15)
+#define IT_SUPERHEALTH      VRUTIL_POWER_OF_TWO(16)
+#define IT_KEY1             VRUTIL_POWER_OF_TWO(17)
+#define IT_KEY2             VRUTIL_POWER_OF_TWO(18)
+#define IT_INVISIBILITY     VRUTIL_POWER_OF_TWO(19)
+#define IT_INVULNERABILITY  VRUTIL_POWER_OF_TWO(20)
+#define IT_SUIT             VRUTIL_POWER_OF_TWO(21)
+#define IT_QUAD             VRUTIL_POWER_OF_TWO(22)
+// clang-format on
 #define IT_SIGIL1 (1 << 28)
 #define IT_SIGIL2 (1 << 29)
 #define IT_SIGIL3 (1 << 30)

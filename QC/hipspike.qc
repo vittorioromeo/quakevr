@@ -36,8 +36,8 @@ void() monster_spikemine =
         remove(self);
         return;
     }
-   precache_model ("progs/demon.mdl");
-   precache_model ("progs/h_demon.mdl");
+   precache_model("progs/demon.mdl");
+   precache_model("progs/h_demon.mdl");
 
    precache_sound("demon/ddeath.wav");
    precache_sound("demon/dhit2.wav");
@@ -49,8 +49,8 @@ void() monster_spikemine =
    self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-   setmodel (self, "progs/demon.mdl");
+   setmodel(self, "progs/demon.mdl");
 
    // TODO VR: (P2) tweak hitbox
-   setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+   setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
 };

@@ -1,24 +1,3 @@
-/*
-*/
-
-// HIPNOTIC
-//JIM
-void( vector pos ) placebullethole
-void (entity targ, entity inflictor, entity attacker, float damage) T_Damage;
-void (entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee;
-void (float xHand) player_run;
-void(entity bomb, entity attacker, float rad, entity ignore) T_RadiusDamage;
-void(vector org, vector vel, float damage) SpawnBlood;
-void() SuperDamageSound;
-
-// QUAKE VR
-void(vector org, float damage) SpawnBloodSplash;
-void() PainSound;
-
-float(float it) ItemIdToWeaponId;
-float(float wid) WeaponIdToItemId;
-float(float wid, float wpnFlags) PlayerHasWeapon;
-
 float() crandom =
 {
     return 2 * (random() - 0.5);
@@ -447,10 +426,10 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
     if(light)
        newmis.effects = EF_DIMLIGHT;
 
-    setmodel (newmis, "progs/lasrspik.mdl");
-    setsize (newmis, '0 0 0', '0 0 0');
+    setmodel(newmis, "progs/lasrspik.mdl");
+    setsize(newmis, '0 0 0', '0 0 0');
 
-    setorigin (newmis, org);
+    setorigin(newmis, org);
 
     newmis.speed = 1750;
     newmis.dmg = 18;
@@ -1139,9 +1118,9 @@ void(vector org, vector vel) SpawnMeatSpray =
     missile.nextthink = time + 1;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/zom_gib.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, org);
+    setmodel(missile, "progs/zom_gib.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, org);
 };
 
 /*
@@ -1406,7 +1385,7 @@ void() BecomeExplosion =
     self.movetype = MOVETYPE_NONE;
     self.velocity = '0 0 0';
     self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
+    setmodel(self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
     s_explode1();
 };
@@ -1483,9 +1462,9 @@ void(float xHand) W_FireRocket =
     missile.nextthink = time + 5;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/missile.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, VRGetMuzzlePos(xHand));
+    setmodel(missile, "progs/missile.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, VRGetMuzzlePos(xHand));
 
     // HIPNOTIC
     //MED 11/09/96
@@ -1703,9 +1682,9 @@ void(float xHand) W_FireGrenade =
     missile.nextthink = time + 2.5;
     missile.think = GrenadeExplode;
 
-    setmodel (missile, "progs/grenade.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, VRGetMuzzlePos(xHand));
+    setmodel(missile, "progs/grenade.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, VRGetMuzzlePos(xHand));
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
@@ -1772,7 +1751,7 @@ void() ProximityGrenadeTouch =
         sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM); // bounce sound
 
    self.movetype = MOVETYPE_NONE;
-   setsize (self, '-8 -8 -8', '8 8 8');
+   setsize(self, '-8 -8 -8', '8 8 8');
    self.state = 1;
    self.spawnmaster = other;
    };
@@ -1888,9 +1867,9 @@ void(float xHand) W_FireProximityGrenade =
     missile.think = ProximityBomb;
     missile.th_die = ProximityGrenadeExplode;
 
-    setmodel (missile, "progs/proxbomb.mdl");
-    setorigin (missile, VRGetMuzzlePos(xHand));
-    setsize (missile, '-1 -1 -1', '1 1 1');
+    setmodel(missile, "progs/proxbomb.mdl");
+    setorigin(missile, VRGetMuzzlePos(xHand));
+    setsize(missile, '-1 -1 -1', '1 1 1');
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
@@ -1922,9 +1901,9 @@ void(vector org, vector dir) launch_spike =
     newmis.classname = "spike";
     newmis.think = SUB_Remove;
     newmis.nextthink = time + 6;
-    setmodel (newmis, "progs/spike.mdl");
-    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
-    setorigin (newmis, org);
+    setmodel(newmis, "progs/spike.mdl");
+    setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
+    setorigin(newmis, org);
 
     newmis.velocity = dir * 1750;
 };
@@ -1942,8 +1921,8 @@ void(float xHand) W_FireSuperSpikes =
 
     launch_spike (VRGetMuzzlePos(xHand), dir);
     newmis.touch = superspike_touch;
-    setmodel (newmis, "progs/s_spike.mdl");
-    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+    setmodel(newmis, "progs/s_spike.mdl");
+    setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
@@ -2320,121 +2299,111 @@ W_ChangeWeapon
 ============
 */
 //MED 10/18/96 added hipweapons
+// TODO VR: (P1) rewrite to use new item system
 void() W_ChangeWeapon =
 {
-    local float it, am, fl;
+    local float am, wid;
     local float oldimpulse;
 
-    // TODO VR: (P1) use new item API
-    it = self.items;
     am = 0;
 
-//MED
     if(self.impulse == 1)
     {
-        fl = IT_AXE;
+        wid = WID_AXE;
     }
     else if(self.impulse == 2)
     {
-        fl = IT_SHOTGUN;
-        if(self.ammo_shells < 1)
-            am = 1;
+        wid = WID_SHOTGUN;
+        if(self.ammo_shells < 1) { am = 1; }
     }
     else if(self.impulse == 3)
     {
-        fl = IT_SUPER_SHOTGUN;
-        if(self.ammo_shells < 2)
-            am = 1;
+        wid = WID_SUPER_SHOTGUN;
+        if(self.ammo_shells < 2) { am = 1; }
     }
     else if(self.impulse == 4)
     {
-        fl = IT_NAILGUN;
-        if(self.ammo_nails < 1)
-            am = 1;
+        wid = WID_NAILGUN;
+        if(self.ammo_nails < 1) { am = 1; }
     }
-//MED
     else if(self.impulse == 5)
     {
-        fl = IT_SUPER_NAILGUN;
-        if(self.ammo_nails < 2)
-            am = 1;
-
+        wid = WID_SUPER_NAILGUN;
+        if(self.ammo_nails < 2) { am = 1; }
     }
-//MED
     else if(self.impulse == 6)
     {
-      if(self.weapon == WID_GRENADE_LAUNCHER)
-      {
-         fl = IT_PROXIMITY_GUN;
-      }
-      else
-      {
-         fl = IT_GRENADE_LAUNCHER;
-      }
-      if(self.ammo_rockets < 1)
-          am = 1;
-    }
-    else if(self.impulse == 7)
-    {
-        fl = IT_ROCKET_LAUNCHER;
-        if(self.ammo_rockets < 1)
-            am = 1;
-    }
-//MED
-    else if(self.impulse == 8)
-    {
-        fl = IT_LIGHTNING;
-        if(self.ammo_cells < 1)
-            am = 1;
-    }
-    else if(self.impulse == 225)
-    {
-        fl = IT_LASER_CANNON;
-        if(self.ammo_cells < 1)
-            am = 1;
-    }
-    else if(self.impulse == 226)
-    {
-        fl = IT_MJOLNIR;
-    }
-
-//MED
-    oldimpulse = self.impulse;
-    self.impulse = 0;
-
-    if(!(self.items & fl))
-    {
-//MED
-        if(fl == IT_GRENADE_LAUNCHER)
+        if(self.weapon == WID_GRENADE_LAUNCHER)
         {
-            fl = IT_PROXIMITY_GUN;
-            if(!(self.items & fl))
-            {
-                sprint (self, "no weapon.\n");
-                return;
-            }
-            if(self.ammo_rockets < 1)
-                am = 1;
-            else
-                am = 0;
+           wid = WID_PROXIMITY_GUN;
         }
         else
         {
-            sprint (self, "no weapon.\n");
+           wid = WID_GRENADE_LAUNCHER;
+        }
+
+        if(self.ammo_rockets < 1) { am = 1; }
+    }
+    else if(self.impulse == 7)
+    {
+        wid = WID_ROCKET_LAUNCHER;
+        if(self.ammo_rockets < 1) { am = 1; }
+    }
+    else if(self.impulse == 8)
+    {
+        wid = WID_LIGHTNING;
+        if(self.ammo_cells < 1) { am = 1; }
+    }
+    else if(self.impulse == 225)
+    {
+        wid = WID_LASER_CANNON;
+        if(self.ammo_cells < 1) { am = 1; }
+    }
+    else if(self.impulse == 226)
+    {
+        wid = WID_MJOLNIR;
+    }
+
+    oldimpulse = self.impulse;
+    self.impulse = 0;
+
+    if(!VR_ItemUtil_EntHasItem(self, WeaponIdToItemId(wid)))
+    {
+        if(wid == WID_GRENADE_LAUNCHER)
+        {
+            wid = WID_PROXIMITY_GUN;
+
+            if(!VR_ItemUtil_EntHasItem(self, WeaponIdToItemId(wid)))
+            {
+                sprint(self, "no weapon.\n");
+                return;
+            }
+
+            if(self.ammo_rockets < 1)
+            {
+                am = 1;
+            }
+            else
+            {
+                am = 0;
+            }
+        }
+        else
+        {
+            sprint(self, "no weapon.\n");
             return;
         }
     }
 
     if(am)
-    {    // don't have the ammo
-        sprint (self, "not enough ammo.\n");
+    {
+        // don't have the ammo
+        sprint(self, "not enough ammo.\n");
         return;
     }
 
-//
-// set weapon, set ammo
-//
-    self.weapon = ItemIdToWeaponId(fl);
+    // set weapon, set ammo
+    self.weapon = wid;
     W_SetCurrentAmmo();
 };
 
@@ -2505,7 +2474,7 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
         }
 
         // Do not select unavailable weapons.
-        if(!PlayerHasWeapon(xWeapon, xPlayer.items))
+        if(!VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
         {
             continue;
         }
@@ -2593,7 +2562,7 @@ void() QuadCheat =
     self.super_time = 1;
     self.super_damage_finished = time + 30;
     VR_ItemUtil_EntAddItem(self, IID_QUAD);
-    dprint ("quad cheat\n");
+    dprint("quad cheat\n");
 };
 
 // HYPNOTIC
@@ -3363,9 +3332,9 @@ void(entity thrower, float xWeapon,
     tmp_bounds_y = tmp;
     tmp_bounds_z = tmp;
 
-    setmodel (newmis, WeaponIdToModel(xWeapon));
-    setsize (newmis, -tmp_bounds, tmp_bounds);
-    setorigin (newmis, xOrigin);
+    setmodel(newmis, WeaponIdToModel(xWeapon));
+    setsize(newmis, -tmp_bounds, tmp_bounds);
+    setorigin(newmis, xOrigin);
 
     newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar("vr_weapon_throw_velocity_mult")
                     + thrower.velocity;

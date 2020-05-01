@@ -155,7 +155,7 @@ void() trigger_multiple =
         self.th_die = multi_killed;
         self.takedamage = DAMAGE_YES;
         self.solid = SOLID_BBOX;
-        setorigin (self, self.origin);    // make sure it links into the world
+        setorigin(self, self.origin);    // make sure it links into the world
     }
     else
     {
@@ -367,8 +367,8 @@ local entity    death;
     death.movetype = MOVETYPE_NONE;
     death.solid = SOLID_TRIGGER;
     death.angles = '0 0 0';
-    setsize (death, death_owner.mins - '1 1 1', death_owner.maxs + '1 1 1');
-    setorigin (death, org);
+    setsize(death, death_owner.mins - '1 1 1', death_owner.maxs + '1 1 1');
+    setorigin(death, org);
     death.touch = tdeath_touch;
     death.nextthink = time + 0.2;
     death.think = SUB_Remove;
@@ -424,7 +424,7 @@ local vector    org;
         return;
     }
 
-    setorigin (other, t.origin);
+    setorigin(other, t.origin);
     other.angles = t.mangle;
     if(other.classname == "player")
     {

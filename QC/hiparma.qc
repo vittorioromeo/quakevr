@@ -94,9 +94,9 @@ void(float ofs, float turn) armagon_launch_missile =
     missile.nextthink = time + 5;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/missile.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-   setorigin (missile, src);
+    setmodel(missile, "progs/missile.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+   setorigin(missile, src);
    };
 
 void(float ofs) armagon_launch_laser =
@@ -152,7 +152,7 @@ void() armagon_think =
    {
    local float delta;
    local float angdelta;
-   setorigin (self.trigger_field, self.origin);
+   setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
@@ -197,7 +197,7 @@ void() armagon_walkthink =
    local float delta;
    local float angdelta;
    local entity client;
-   setorigin (self.trigger_field, self.origin);
+   setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
@@ -250,7 +250,7 @@ void() armagon_overleft_think =
 
    ChangeYaw();
    walkmove (self.angles_y, 14);
-   setorigin (self.trigger_field, self.origin);
+   setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
@@ -284,7 +284,7 @@ void() armagon_overright_think =
 
    ChangeYaw();
    walkmove (self.angles_y, 14);
-   setorigin (self.trigger_field, self.origin);
+   setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
@@ -643,7 +643,7 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    self.movetype = MOVETYPE_NONE;
     self.takedamage = DAMAGE_NO;
    self.solid = SOLID_NOT;
-   setsize (self, '-32 -32 -24', '32 32 32' );
+   setsize(self, '-32 -32 -24', '32 32 32' );
    self.flags = 0;
    self.gorging = TRUE;
    self.wait = time + 5;
@@ -654,7 +654,7 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    self.movetype = MOVETYPE_NONE;
    body.takedamage = DAMAGE_NO;
    body.solid = SOLID_NOT;
-//   setsize (body, '-32 -32 30', '32 32 64' );
+//   setsize(body, '-32 -32 30', '32 32 64' );
    body.think = armagon_body_explode1;
    body.nextthink = time + 0.1;
    body.gorging = TRUE;
@@ -674,7 +674,7 @@ void()   armagon_body_explode2 =
    ThrowGib ("progs/gib2.mdl", -200);
    ThrowGib ("progs/gib3.mdl", -200);
    self.movetype = MOVETYPE_NONE;
-   setmodel (self, "progs/s_explod.spr");
+   setmodel(self, "progs/s_explod.spr");
    self.solid = SOLID_NOT;
    self.nextthink = time + 0.1;
    s_explode1();
@@ -884,8 +884,8 @@ void() monster_armagon
 
    sk = cvar("skill");
 
-   precache_model ("progs/armabody.mdl");
-   precache_model ("progs/armalegs.mdl");
+   precache_model("progs/armabody.mdl");
+   precache_model("progs/armalegs.mdl");
 
    precache_sound("armagon/footfall.wav");
    precache_sound("armagon/servo.wav");
@@ -914,12 +914,12 @@ void() monster_armagon
    self.trigger_field = body;
    body.trigger_field = self;
 
-   setmodel (body, "progs/armabody.mdl");
-   setmodel (self, "progs/armalegs.mdl");
+   setmodel(body, "progs/armabody.mdl");
+   setmodel(self, "progs/armalegs.mdl");
 
-   setsize (self, '-48 -48 -24', '48 48 84' );
-   setorigin (self, self.origin);
-   setorigin (body, body.origin);
+   setsize(self, '-48 -48 -24', '48 48 84' );
+   setorigin(self, self.origin);
+   setorigin(body, body.origin);
    if(sk==0)
       {
       self.yaw_speed = 5;

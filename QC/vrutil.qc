@@ -1,3 +1,11 @@
+// TODO VR: (P2) move
+
+
+float(float xExponent) VRUtil_PowerOfTwo =
+{
+    return (1 << xExponent);
+}
+
 //
 //
 //

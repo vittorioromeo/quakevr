@@ -381,7 +381,7 @@ void() execute_changelevel =
         other.solid = SOLID_NOT;
         other.movetype = MOVETYPE_NONE;
         other.modelindex = 0;
-        setorigin (other, pos.origin);
+        setorigin(other, pos.origin);
         other = find (other, classname, "player");
     }
 
@@ -633,16 +633,16 @@ void() PutClientInServer =
 
     // VR: This works even if someone does not own SoA because it falls back to
     // 'progs/player.mdl'. (Hardcoded in C++.)
-    setmodel (self, "progs/playham.mdl");
+    setmodel(self, "progs/playham.mdl");
     modelindex_hammer = self.modelindex;
 
-    setmodel (self, "progs/eyes.mdl");
+    setmodel(self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;
 
-    setmodel (self, "progs/player.mdl");
+    setmodel(self, "progs/player.mdl");
     modelindex_player = self.modelindex;
 
-    setsize (self, '-16 -16 -24', '16 16 26');
+    setsize(self, '-16 -16 -24', '16 16 26');
 
     self.view_ofs = '0 0 22';
 
@@ -944,7 +944,7 @@ WaterMove
 
 void() WaterMove =
 {
-//dprint (ftos(self.waterlevel));
+//dprint(ftos(self.waterlevel));
     if(self.movetype == MOVETYPE_NOCLIP)
         return;
     if(self.health < 0)
@@ -1214,8 +1214,8 @@ void() CheckPowerups =
         {
             if(self.invisible_time == 1)
             {
-                sprint (self, "Ring of Shadows magic is fading\n");
-                stuffcmd (self, "bf\n");
+                sprint(self, "Ring of Shadows magic is fading\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/inv2.wav", 1, ATTN_NORM);
                 self.invisible_time = time + 1;
             }
@@ -1223,7 +1223,7 @@ void() CheckPowerups =
             if(self.invisible_time < time)
             {
                 self.invisible_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
@@ -1253,8 +1253,8 @@ void() CheckPowerups =
         {
             if(self.invincible_time == 1)
             {
-                sprint (self, "Protection is almost burned out\n");
-                stuffcmd (self, "bf\n");
+                sprint(self, "Protection is almost burned out\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/protect2.wav", 1, ATTN_NORM);
                 self.invincible_time = time + 1;
             }
@@ -1262,7 +1262,7 @@ void() CheckPowerups =
             if(self.invincible_time < time)
             {
                 self.invincible_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
@@ -1288,8 +1288,8 @@ void() CheckPowerups =
         {
             if(self.super_time == 1)
             {
-                sprint (self, "Quad Damage is wearing off\n");
-                stuffcmd (self, "bf\n");
+                sprint(self, "Quad Damage is wearing off\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
                 self.super_time = time + 1;
             }
@@ -1297,7 +1297,7 @@ void() CheckPowerups =
             if(self.super_time < time)
             {
                 self.super_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
@@ -1323,8 +1323,8 @@ void() CheckPowerups =
         {
             if(self.rad_time == 1)
             {
-                sprint (self, "Air supply in Biosuit expiring\n");
-                stuffcmd (self, "bf\n");
+                sprint(self, "Air supply in Biosuit expiring\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
                 self.rad_time = time + 1;
             }
@@ -1332,7 +1332,7 @@ void() CheckPowerups =
             if(self.rad_time < time)
             {
                 self.rad_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
@@ -1355,8 +1355,8 @@ void() CheckPowerups =
         {
             if(self.wetsuit_time == 1)
             {
-                sprint (self, "Air supply in Wetsuit is running out\n");
-                stuffcmd (self, "bf\n");
+                sprint(self, "Air supply in Wetsuit is running out\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
                 self.wetsuit_time = time + 1;
             }
@@ -1364,7 +1364,7 @@ void() CheckPowerups =
             if(self.wetsuit_time < time)
             {
                 self.wetsuit_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
@@ -1385,8 +1385,8 @@ void() CheckPowerups =
         {
          if(self.empathy_time == 1)
             {
-            sprint (self, "Empathy Shields are running out\n");
-                stuffcmd (self, "bf\n");
+            sprint(self, "Empathy Shields are running out\n");
+                stuffcmd(self, "bf\n");
                 sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
             self.empathy_time = time + 1;
             }
@@ -1394,7 +1394,7 @@ void() CheckPowerups =
          if(self.empathy_time < time)
             {
             self.empathy_time = time + 1;
-                stuffcmd (self, "bf\n");
+                stuffcmd(self, "bf\n");
             }
         }
 
