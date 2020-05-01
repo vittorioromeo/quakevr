@@ -17,10 +17,6 @@ float ELV_BUTN_DIR;
 // down N and wait code
 // ==================================
 
-void() dn_and_wait_go_up;
-void() dn_and_wait_go_down;
-void() dn_and_wait_crush;
-
 void() dn_and_wait_hit_top =
 {
     sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);

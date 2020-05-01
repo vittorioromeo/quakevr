@@ -79,6 +79,8 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
+
+    // TODO VR: (P0) handle rogue ammo boxes
 }
 
 void(entity ent) SpawnAmmoBoxWeapons =
@@ -117,9 +119,11 @@ void() PlaceItem =
     oldz = self.origin_z;
     if(!droptofloor())
     {
-        dprint("Bonus item fell out of level at ");
-        dprint(vtos(self.origin));
-        dprint("\n");
+        dprint ("Bonus item fell out of level!\n");
+        dprint (self.classname);
+        dprint (" at ");
+        dprint (vtos(self.origin));
+        dprint ("\n");
         remove(self);
         return;
     }
@@ -264,7 +268,7 @@ void() health_touch =
     self.solid = SOLID_NOT;
 
     // Megahealth = rot down the player's super health
-    if(self.healtype == 2)
+    if(self.healtype == 2 && !RuneHasElder(other))
     {
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
@@ -433,6 +437,15 @@ void() bound_other_ammo =
         other.ammo_rockets = 100;
     if(other.ammo_cells > 100)
         other.ammo_cells = 100;
+
+    // ROGUE
+    // PGM addition
+    if (other.ammo_lava_nails > 200)
+        other.ammo_lava_nails = 200;
+    if (other.ammo_multi_rockets > 100)
+        other.ammo_multi_rockets = 100;
+    if (other.ammo_plasma > 100)
+        other.ammo_plasma = 100;
 };
 
 
@@ -459,6 +472,64 @@ float(float w) RankForWeapon =
         return 9;
    return 10;
 };
+
+// ROGUE
+// TODO VR: (P0) decide what to do
+/*
+void(entity comboOwner) EnableComboWeapons =
+{
+    if (comboOwner.classname != "player")
+        return;
+
+    if (!(comboOwner.items & IT_LAVA_NAILGUN))
+    {
+        if (comboOwner.ammo_lava_nails > 0 && (comboOwner.items & IT_NAILGUN))
+        {
+            sprint (comboOwner, "Lava Enabled\n");
+            comboOwner.items = comboOwner.items | IT_LAVA_NAILGUN;
+        }
+    }
+
+    if (!(comboOwner.items & IT_LAVA_SUPER_NAILGUN))
+    {
+        if (comboOwner.ammo_lava_nails > 0 &&
+                            (comboOwner.items & IT_SUPER_NAILGUN))
+        {
+            sprint (comboOwner, "Super Lava Enabled\n");
+            comboOwner.items = comboOwner.items | IT_LAVA_SUPER_NAILGUN;
+        }
+    }
+
+    if (!(comboOwner.items & IT_MULTI_GRENADE))
+    {
+        if (comboOwner.ammo_multi_rockets > 0 &&
+                            (comboOwner.items & IT_GRENADE_LAUNCHER))
+        {
+            sprint (comboOwner, "Multi Grenades Enabled\n");
+            comboOwner.items = comboOwner.items | IT_MULTI_GRENADE;
+        }
+    }
+
+    if (!(comboOwner.items & IT_MULTI_ROCKET))
+    {
+        if (comboOwner.ammo_multi_rockets > 0 &&
+                            (comboOwner.items & IT_ROCKET_LAUNCHER))
+        {
+            sprint (comboOwner, "Multi Rockets Enabled\n");
+            comboOwner.items = comboOwner.items | IT_MULTI_ROCKET;
+        }
+    }
+
+    if (!(comboOwner.items & IT_PLASMA_GUN))
+    {
+        if (comboOwner.ammo_plasma > 0 && (comboOwner.items & IT_LIGHTNING))
+        {
+            sprint (comboOwner, "Plasma Gun Enabled\n");
+            comboOwner.items = comboOwner.items | IT_PLASMA_GUN;
+        }
+    }
+};
+*/
 
 /*
 =============
@@ -696,6 +767,35 @@ local entity    stemp;
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
 
+//    lava spikes
+    if (self.weapon == 5)
+    {
+        if(other.ammo_lava_nails >= 200)
+            return;
+        other.ammo_lava_nails = other.ammo_lava_nails + self.aflag;
+    }
+
+//    multi grenades
+    if (self.weapon == 6)
+    {
+        if(other.ammo_multi_rockets >= 100)
+            return;
+        other.ammo_multi_rockets = other.ammo_multi_rockets + self.aflag;
+    }
+
+//    plasma
+    if (self.weapon == 7)
+    {
+        if(other.ammo_plasma >= 100)
+            return;
+        other.ammo_plasma = other.ammo_plasma + self.aflag;
+    }
+
+    // TODO VR: (P2) needed?
+    // ROGUE
+    // EnableComboWeapons ( other );
+    // UpdateAmmoCounts ( other );
+
     bound_other_ammo();
 
     VRItemPickupHaptic(other);
@@ -730,6 +830,7 @@ local entity    stemp;
 float WEAPON_BIG2 = 1;
 
 /*QUAKED item_shells (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 20, Big box is 40.
 */
 
 void() item_shells =
@@ -757,6 +858,7 @@ void() item_shells =
 };
 
 /*QUAKED item_spikes (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 25, Big box is 50.
 */
 
 void() item_spikes =
@@ -782,7 +884,36 @@ void() item_spikes =
     StartItem();
 };
 
+/*QUAKED item_lava_spikes (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 25, Big box is 50.
+*/
+
+void() item_lava_spikes =
+{
+    self.handtouch = ammo_touch;
+
+    if (self.spawnflags & WEAPON_BIG2)
+    {
+        precache_model ("maps/b_lnail1.bsp");
+        setmodel (self, "maps/b_lnail1.bsp");
+        self.aflag = 50;
+    }
+    else
+    {
+        precache_model ("maps/b_lnail0.bsp");
+        setmodel (self, "maps/b_lnail0.bsp");
+        self.aflag = 25;
+    }
+    self.weapon = 5;
+    self.netname = "lava nails";
+    self.classname = "item_lava_nails";
+    setsize (self, '0 0 0', '32 32 56');
+    StartItem ();
+};
+
+
 /*QUAKED item_rockets (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 5, Big box is 10.
 */
 
 void() item_rockets =
@@ -809,8 +940,35 @@ void() item_rockets =
     StartItem();
 };
 
+/*QUAKED item_multi_rockets (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 5, Big box is 10.
+*/
+
+void() item_multi_rockets =
+{
+    self.handtouch = ammo_touch;
+
+    if (self.spawnflags & WEAPON_BIG2)
+    {
+        precache_model ("maps/b_mrock1.bsp");
+        setmodel (self, "maps/b_mrock1.bsp");
+        self.aflag = 10;
+    }
+    else
+    {
+        precache_model ("maps/b_mrock0.bsp");
+        setmodel (self, "maps/b_mrock0.bsp");
+        self.aflag = 5;
+    }
+    self.weapon = 6;
+    self.netname = "multi rockets";
+    self.classname = "item_multi_rockets";
+    setsize (self, '0 0 0', '32 32 56');
+    StartItem ();
+};
 
 /*QUAKED item_cells (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 6, Big box is 12.
 */
 
 void() item_cells =
@@ -837,6 +995,32 @@ void() item_cells =
     StartItem();
 };
 
+/*QUAKED item_plasma (0 .5 .8) (0 0 0) (32 32 32) big
+Small box is 6, Big box is 12.
+*/
+void() item_plasma =
+{
+    self.handtouch = ammo_touch;
+
+    if (self.spawnflags & WEAPON_BIG2)
+    {
+        precache_model ("maps/b_plas1.bsp");
+        setmodel (self, "maps/b_plas1.bsp");
+        self.aflag = 12;
+    }
+    else
+    {
+        precache_model ("maps/b_plas0.bsp");
+        setmodel (self, "maps/b_plas0.bsp");
+        self.aflag = 6;
+    }
+    self.weapon = 7;
+    self.netname = "plasma";
+    self.classname = "item_plasma";
+
+    setsize (self, '0 0 0', '32 32 56');
+    StartItem ();
+};
 
 /*QUAKED item_weapon (0 .5 .8) (0 0 0) (32 32 32) shotgun rocket spikes big
 DO NOT USE THIS!!!! IT WILL BE REMOVED!
@@ -1155,13 +1339,21 @@ void() powerup_touch =
     {
         self.mdl = self.model;
 
-        if((self.classname == "item_artifact_invulnerability") ||
-            (self.classname == "item_artifact_invisibility"))
-            self.nextthink = time + 60*5;
+        if (self.classname == "item_random_powerup")
+        {
+            self.nextthink = time + 30;
+            self.think = random_regen;
+        }
         else
-            self.nextthink = time + 60;
+        {
+            if ((self.classname == "item_artifact_invulnerability") ||
+                (self.classname == "item_artifact_invisibility"))
+                self.nextthink = time + 60*5;
+            else
+                self.nextthink = time + 60;
 
-        self.think = SUB_regen;
+            self.think = SUB_regen;
+        }
     }
 
     sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
@@ -1214,6 +1406,7 @@ void() item_artifact_invulnerability =
     precache_sound("items/protect3.wav");
     self.noise = "items/protect.wav";
     setmodel(self, "progs/invulner.mdl");
+    self.classname = "item_artifact_invulnerability";
     self.netname = "Pentagram of Protection";
     self.vr_itemId = IID_INVULNERABILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
@@ -1233,6 +1426,7 @@ void() item_artifact_envirosuit =
     precache_sound("items/suit2.wav");
     self.noise = "items/suit.wav";
     setmodel(self, "progs/suit.mdl");
+    self.classname = "item_artifact_envirosuit";
     self.netname = "Biosuit";
     self.vr_itemId = IID_SUIT;
     // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
@@ -1254,6 +1448,7 @@ void() item_artifact_invisibility =
     precache_sound("items/inv3.wav");
     self.noise = "items/inv1.wav";
     setmodel(self, "progs/invisibl.mdl");
+    self.classname = "item_artifact_invisibility";
     self.netname = "Ring of Shadows";
     self.vr_itemId = IID_INVISIBILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
@@ -1274,6 +1469,7 @@ void() item_artifact_super_damage =
     precache_sound("items/damage3.wav");
     self.noise = "items/damage.wav";
     setmodel(self, "progs/quaddama.mdl");
+    self.classname = "item_artifact_super_damage";
     self.netname = "Quad Damage";
     self.vr_itemId = IID_QUAD;
     setsize(self, '-16 -16 -24', '16 16 32');
@@ -1307,6 +1503,12 @@ void() BackpackTouch =
         return;
     }
 
+    //ZOID--
+    // Don't let the owner pick up his own backpack for a second.
+    if ((other == self.owner) && ((self.nextthink - time) > 119))
+        return;
+    //--ZOID
+
     VRItemPickupHaptic(other);
 
     acount = 0;
@@ -1316,6 +1518,10 @@ void() BackpackTouch =
     other.ammo_nails = other.ammo_nails + self.ammo_nails;
     other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
     other.ammo_cells = other.ammo_cells + self.ammo_cells;
+
+    other.ammo_lava_nails = other.ammo_lava_nails + self.ammo_lava_nails;
+    other.ammo_multi_rockets = other.ammo_multi_rockets + self.ammo_multi_rockets;
+    other.ammo_plasma = other.ammo_plasma + self.ammo_plasma;
 
     bound_other_ammo();
 
@@ -1359,6 +1565,36 @@ void() BackpackTouch =
         sprint(other, " cells");
     }
 
+    if (self.ammo_lava_nails)
+    {
+        if (acount)
+            sprint(other, ", ");
+        acount = 1;
+        s = ftos(self.ammo_lava_nails);
+        sprint (other, s);
+        sprint (other, " lava nails");
+    }
+
+    if (self.ammo_multi_rockets)
+    {
+        if (acount)
+            sprint(other, ", ");
+        acount = 1;
+        s = ftos(self.ammo_multi_rockets);
+        sprint (other, s);
+        sprint (other, " multi rockets");
+    }
+
+    if (self.ammo_plasma)
+    {
+        if (acount)
+            sprint(other, ", ");
+        acount = 1;
+        s = ftos(self.ammo_plasma);
+        sprint (other, s);
+        sprint (other, " plasma balls");
+    }
+
     sprint(other, "\n");
 
     // backpack touch sound
@@ -1368,6 +1604,11 @@ void() BackpackTouch =
     // remove the backpack, change self to the player
     remove(self);
     self = other;
+
+// TODO VR: (P0) decide what to do
+// fixme -- move this to after weapon choice if problematic.
+    // EnableComboWeapons ( self );
+    // UpdateAmmoCounts (self);
 
     W_SetCurrentAmmo();
 };
@@ -1381,7 +1622,8 @@ void() DropBackpack =
 {
     local entity    item;
 
-    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells))
+    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
+    + self.ammo_lava_nails + self.ammo_multi_rockets + self.ammo_plasma))
         return;    // nothing in it
 
     item = spawn();

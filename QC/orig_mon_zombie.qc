@@ -48,11 +48,19 @@ $frame paine11 paine12 paine13 paine14 paine15 paine16 paine17 paine18 paine19
 $frame paine20 paine21 paine22 paine23 paine24 paine25 paine26 paine27 paine28
 $frame paine29 paine30
 
-$frame cruc_1 cruc_2 cruc_3 cruc_4 cruc_5 cruc_6
+$frame cruc_1 cruc_2 cruc_3 cruc_4 cruc_5 cruc_6 cruc_7
+$frame cruc_8 cruc_9 cruc_10 cruc_11 cruc_12 cruc_13
+$frame cruc_14 cruc_15 cruc_16
 
-float    SPAWN_CRUCIFIED    = 1;
+float SPAWN_CRUCIFIED    = 1;
+
+// ROGUE
+float SPAWN_LYING = 2;
+float SPAWN_AMBUSH = 4;
+float SPAWN_SNEAKY = 8;
+
 //HIPNOTIC
-float SPAWN_LYINGDOWN   = 4;
+float SPAWN_LYINGDOWN   = 16;
 
 //=============================================================================
 
@@ -74,14 +82,43 @@ void() zombie_stand13    =[    $stand13,        zombie_stand14    ] {ai_stand();
 void() zombie_stand14    =[    $stand14,        zombie_stand15    ] {ai_stand();};
 void() zombie_stand15    =[    $stand15,        zombie_stand1    ] {ai_stand();};
 
-void() zombie_cruc1    =    [    $cruc_1,        zombie_cruc2    ] {
-if(random() < 0.1)
-    sound(self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);};
-void() zombie_cruc2    =    [    $cruc_2,        zombie_cruc3    ] {self.nextthink = time + 0.1 + random()*0.1;};
-void() zombie_cruc3    =    [    $cruc_3,        zombie_cruc4    ] {self.nextthink = time + 0.1 + random()*0.1;};
-void() zombie_cruc4    =    [    $cruc_4,        zombie_cruc5    ] {self.nextthink = time + 0.1 + random()*0.1;};
-void() zombie_cruc5    =    [    $cruc_5,        zombie_cruc6    ] {self.nextthink = time + 0.1 + random()*0.1;};
-void() zombie_cruc6    =    [    $cruc_6,        zombie_cruc1    ] {self.nextthink = time + 0.1 + random()*0.1;};
+// zombie_lurk is an improved version of what zombie did in zombie_crucXX
+// with an added check for enemies if they're sneaky types...
+void() zombie_lurk =
+{
+    if (self.spawnflags & SPAWN_SNEAKY)
+    {
+        // not pausing before attack, but looking for player.
+        if (!self.pain_finished)
+        {
+            if(FindTarget ())
+                return;
+        }
+        else
+        {
+            // if we've waited long enough, pounce!
+            if ( self.pain_finished < time )
+            {
+                self.think = zombie_escape1;
+                self.nextthink = time + 0.1;
+                return;
+            }
+        }
+    }
+    self.nextthink = time + 0.1 + random()*0.1;
+};
+
+void() zombie_cruc1    = [ $cruc_1, zombie_cruc2 ]
+    {
+    zombie_lurk();
+    if (random() < 0.1)
+        sound (self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);
+    };
+void() zombie_cruc2    = [ $cruc_2, zombie_cruc3 ] { zombie_lurk(); };
+void() zombie_cruc3    = [ $cruc_3, zombie_cruc4 ] { zombie_lurk(); };
+void() zombie_cruc4    = [ $cruc_4, zombie_cruc5 ] { zombie_lurk(); };
+void() zombie_cruc5    = [ $cruc_5, zombie_cruc6 ] { zombie_lurk(); };
+void() zombie_cruc6    = [ $cruc_6, zombie_cruc1 ] { zombie_lurk(); };
 
 void() zombie_walk1        =[    $walk1,        zombie_walk2    ] {ai_walk(0);};
 void() zombie_walk2        =[    $walk2,        zombie_walk3    ] {ai_walk(2);};
@@ -244,6 +281,7 @@ void() zombie_missile =
 {
     local float    r;
 
+    droptofloor();
     r = random();
 
     if(r < 0.3)
@@ -324,7 +362,11 @@ void() zombie_painc16    =[    $painc16,    zombie_painc17    ] {};
 void() zombie_painc17    =[    $painc17,    zombie_painc18    ] {};
 void() zombie_painc18    =[    $painc18,    zombie_run1    ] {};
 
-void() zombie_paind1    =[    $paind1,    zombie_paind2    ] {sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);};
+void() zombie_paind1    =[    $paind1,    zombie_paind2    ]
+{
+    sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+    droptofloor();
+};
 void() zombie_paind2    =[    $paind2,    zombie_paind3    ] {};
 void() zombie_paind3    =[    $paind3,    zombie_paind4    ] {};
 void() zombie_paind4    =[    $paind4,    zombie_paind5    ] {};
@@ -338,9 +380,10 @@ void() zombie_paind11    =[    $paind11,    zombie_paind12    ] {};
 void() zombie_paind12    =[    $paind12,    zombie_paind13    ] {};
 void() zombie_paind13    =[    $paind13,    zombie_run1    ] {};
 
-void() zombie_paine1    =[    $paine1,    zombie_paine2    ] {
-sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
-self.health = 60;
+void() zombie_paine1    =[    $paine1,    zombie_paine2    ]
+{
+    sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+    self.health = 60;
 };
 void() zombie_paine2    =[    $paine2,    zombie_paine3    ] {ai_pain(8);};
 void() zombie_paine3    =[    $paine3,    zombie_paine4    ] {ai_pain(5);};
@@ -350,22 +393,31 @@ void() zombie_paine6    =[    $paine6,    zombie_paine7    ] {ai_pain(2);};
 void() zombie_paine7    =[    $paine7,    zombie_paine8    ] {ai_pain(1);};
 void() zombie_paine8    =[    $paine8,    zombie_paine9    ] {ai_pain(1);};
 void() zombie_paine9    =[    $paine9,    zombie_paine10    ] {ai_pain(2);};
-void() zombie_paine10    =[    $paine10,    zombie_paine11    ] {
-sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
-self.solid = SOLID_NOT;
-};
-void() zombie_paine11    =[    $paine11,    zombie_paine12    ] {self.nextthink = self.nextthink + 5;self.health = 60;};
-void() zombie_paine12    =[    $paine12,    zombie_paine13    ]{
-// see if ok to stand up
-self.health = 60;
-sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
-self.solid = SOLID_SLIDEBOX;
-if(!walkmove (0, 0))
+void() zombie_paine10    =[    $paine10,    zombie_paine11    ]
 {
-    self.think = zombie_paine11;
+    sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
     self.solid = SOLID_NOT;
-    return;
-}
+};
+void() zombie_paine11    =[    $paine11,    zombie_paine12    ]
+{
+    droptofloor();
+    self.nextthink = self.nextthink + 5;
+    self.health = 60;
+};
+void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
+{
+    // see if ok to stand up
+    droptofloor();
+    self.health = 60;
+    sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    self.solid = SOLID_SLIDEBOX;
+    if (!walkmove (0, 0))
+    {
+        self.think = zombie_paine11;
+        self.solid = SOLID_NOT;
+        return;
+    }
 };
 void() zombie_paine13    =[    $paine13,    zombie_paine14    ] {};
 void() zombie_paine14    =[    $paine14,    zombie_paine15    ] {};
@@ -463,6 +515,75 @@ void(entity attacker, float take) zombie_pain =
         zombie_paind1();
 };
 
+// ROGUE
+void() zombie_sleep = [ $paine11, zombie_sleep ] { ai_stand(); };
+
+void() zombie_wake =
+{
+    self.th_stand = zombie_stand1;
+    self.th_walk = zombie_walk1;
+    self.th_pain = zombie_pain;
+    self.th_run = zombie_run1;
+    self.th_missile = zombie_missile;
+
+//    paine12 will handle setting solid, just make the size box correct.
+//    self.solid = SOLID_SLIDEBOX;
+//    setsize (self, '-16 -16 -24', '16 16 40');
+
+    zombie_paine12();
+};
+
+void() zombie_escape1=[ $cruc_1, zombie_escape2 ] {self.nextthink=time+0.20;};
+void() zombie_escape2=[ $cruc_2, zombie_escape3 ] {self.nextthink=time+0.20;};
+void() zombie_escape3=[ $cruc_3, zombie_escape4 ] {self.nextthink=time+0.20;};
+void() zombie_escape4=[ $cruc_4, zombie_escape5 ] {self.nextthink=time+0.20;};
+void() zombie_escape5=[ $cruc_5, zombie_escape6 ] {self.nextthink=time+0.15;};
+void() zombie_escape6=[ $cruc_6, zombie_escape7 ] {self.nextthink=time+0.15;};
+void() zombie_escape7=[ $cruc_7, zombie_escape8 ] {self.nextthink=time+0.15;};
+void() zombie_escape8=[ $cruc_8, zombie_escape9 ] {self.nextthink=time+0.15;};
+void() zombie_escape9=[ $cruc_9, zombie_escape10 ] {self.nextthink=time+0.15;};
+void() zombie_escape10=[$cruc_10, zombie_escape11] {self.nextthink=time+0.15;};
+void() zombie_escape11=[$cruc_11, zombie_escape12] {self.nextthink=time+0.10;};
+void() zombie_escape12=[$cruc_12, zombie_escape13] {self.nextthink=time+0.10;};
+void() zombie_escape13=[$cruc_13, zombie_escape14] {self.nextthink=time+0.10;};
+void() zombie_escape14=[$cruc_14, zombie_escape15]
+{
+    makevectors (self.angles);
+    setorigin ( self, self.origin + v_forward * 8);
+    self.nextthink=time+0.15;
+};
+void() zombie_escape15=[ $cruc_15, zombie_escape16]
+{
+    makevectors (self.angles);
+    setorigin ( self, self.origin + v_forward * 8);
+    self.nextthink=time+0.15;
+};
+void() zombie_escape16 = [ $cruc_16, zombie_run1 ]
+{
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+    self.takedamage = DAMAGE_AIM;
+    self.th_stand = zombie_stand1;
+    self.th_walk = zombie_walk1;
+    self.th_pain = zombie_pain;
+    self.th_run = zombie_run1;
+    self.th_missile = zombie_missile;
+    self.health = 60;
+    sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+
+    droptofloor();
+};
+
+void() zombie_escape =
+{
+    if (!self.pain_finished)
+    {
+        self.pain_finished = time + self.delay;
+    }
+    self.think = zombie_cruc1;
+    self.nextthink = time + 0.1;
+};
+
 //HIPNOTIC
 void() zombie_lay12   =[ $paine12,   zombie_paine13 ]
    {self.th_pain = zombie_pain;};
@@ -490,11 +611,14 @@ void() zombie_lay   =[ $paine11,   zombie_lay ]
 //HIPNOTIC
 //============================================================================
 
-/*QUAKED monster_zombie (1 0 0) (-16 -16 -24) (16 16 32) Crucified ambush lying_down
+/*QUAKED monster_zombie (1 0 0) (-16 -16 -24) (16 16 32) Crucified Lying ambush Sneaky
+
+Crucified - Zombie stays stuck in the wall, moans and writhes.
+Lying - Zombie will start lying down, and stand when player spotted.
+Ambush - Just like all the other ambush flags.
+Sneaky - Zombie stays stuck in the wall, but breaks his chains, hops off the wall, and attacks after seeing the player.
 
 If crucified, stick the bounding box 12 pixels back into a wall to look right.
-If lying_down, the zombie will be lying down when spawned and will rise up
-when awakened by the player.
 */
 void() monster_zombie =
 {
@@ -539,8 +663,50 @@ void() monster_zombie =
         self.movetype = MOVETYPE_NONE;
         zombie_cruc1();
     }
-    else
+    else if (self.spawnflags & SPAWN_LYING)
+    {
+        self.solid = SOLID_NOT;
+        self.th_stand = zombie_sleep;
+        self.th_run = zombie_wake;
+        self.th_walk = zombie_wake;
+        self.th_pain = asPainFn(zombie_wake);
+        self.th_missile = zombie_wake;
+        setsize (self, '-16 -16 -24', '16 16 -16');
+
+        // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
+        if ( self.spawnflags & SPAWN_AMBUSH)
+            self.spawnflags = SPAWN_LYING;
+
         walkmonster_start();
+    }
+    else if (self.spawnflags & SPAWN_SNEAKY)
+    {
+        self.movetype = MOVETYPE_NONE;
+        self.solid = SOLID_NOT;
+        self.th_stand = zombie_cruc1;
+        self.th_run = zombie_escape;
+        self.th_walk = zombie_escape;
+        self.th_pain = asPainFn(zombie_escape);
+        self.th_missile = zombie_escape;
+
+        if (!self.delay)
+            self.delay = 3;
+
+        self.ideal_yaw = self.angles * '0 1 0';
+        if (!self.yaw_speed)
+            self.yaw_speed = 20;
+        self.view_ofs = '0 0 25';
+        self.flags = self.flags | FL_MONSTER;
+        self.th_stand ();
+        self.nextthink = self.nextthink + random()*0.5;
+        total_monsters = total_monsters + 1;
+    }
+    else
+    {
+        if (self.spawnflags & SPAWN_AMBUSH)
+            self.spawnflags = SPAWN_LYING;
+        walkmonster_start();
+    }
 
    //HIPNOTIC
    if(self.spawnflags & SPAWN_LYINGDOWN)

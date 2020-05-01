@@ -43,7 +43,7 @@ void(string rubblename) hipThrowRubble =
     new.flags = 0;
 };
 
-void() rubble_use =
+void() hip_rubble_use =
     {
     local float which;
     local float index;
@@ -88,7 +88,7 @@ void() func_rubble =
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble";
     self.cnt = 0;
-    self.use = rubble_use;
+    self.use = hip_rubble_use;
     };
 
 /*QUAKED func_rubble1 (0.4 0.4 0.2) (0 0 0) (8 8 8)
@@ -102,7 +102,7 @@ void() func_rubble1 =
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble1";
     self.cnt = 1;
-    self.use = rubble_use;
+    self.use = hip_rubble_use;
     };
 
 /*QUAKED func_rubble2 (0.4 0.4 0.2) (0 0 0) (16 16 16)
@@ -116,7 +116,7 @@ void() func_rubble2 =
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble2";
     self.cnt = 2;
-    self.use = rubble_use;
+    self.use = hip_rubble_use;
     };
 
 /*QUAKED func_rubble3 (0.4 0.4 0.2) (0 0 0) (32 32 32)
@@ -130,6 +130,6 @@ void() func_rubble3 =
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble3";
     self.cnt = 3;
-    self.use = rubble_use;
+    self.use = hip_rubble_use;
     };
 

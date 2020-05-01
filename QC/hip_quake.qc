@@ -5,20 +5,20 @@
    Do not distribute.
 */
 //JIM
-float       earthquake;
+float hip_earthquake;
 float quakeactive;
 
 void() StopEarthQuake =
    {
-   earthquake = 0;
+   hip_earthquake = 0;
    };
 
 void( float value ) EarthQuakeTime =
    {
    value = value + time;
-   if( value > earthquake )
+   if( value > hip_earthquake )
       {
-      earthquake = value;
+      hip_earthquake = value;
       }
    };
 
@@ -33,7 +33,7 @@ void() earthquake_prethink =
 
 void() earthquake_postthink =
     {
-    if( earthquake > time )
+    if( hip_earthquake > time )
         {
       if(quakeactive == 0)
          {
@@ -58,7 +58,7 @@ void() earthquake_postthink =
       }
     };
 
-void() earthquake_use =
+void() hip_earthquake_use =
     {
     EarthQuakeTime( self.dmg );
     };
@@ -75,7 +75,7 @@ void() func_earthquake =
    precache_sound("misc/quake.wav");
    precache_sound("misc/quakeend.wav");
    self.classname = "earthquake";
-    self.use = earthquake_use;
+    self.use = hip_earthquake_use;
     self.think = SUB_Null;
     if( !self.dmg )
        {
