@@ -9,9 +9,9 @@ X * hknight.qc (DONE)
 * items.qc
 X * knight.qc (DONE)
 X * misc.qc (DONE)
-* monsters.qc
-* ogre.qc
-* player.qc
+X * monsters.qc (DONE)
+X * ogre.qc (DONE)
+X * player.qc (DONE)
 * progs.src
 * tarbaby.qc
 * triggers.qc
@@ -29,3 +29,4 @@ X * runes.qc
 X * shield.qc
 X * teamplay.qc
 X * timemach.qc
+X * lava_wpn.qc
