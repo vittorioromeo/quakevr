@@ -191,10 +191,10 @@ void() monster_fish =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/fish.mdl");
+    setmodel(self, "progs/fish.mdl");
 
     // TODO VR: (P2) tweak hitbox
-    setsize (self, '-16 -16 -24', '16 16 24');
+    setsize(self, '-16 -16 -24', '16 16 24');
     self.health = 25;
 
     self.th_stand = f_stand1;

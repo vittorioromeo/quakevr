@@ -100,8 +100,8 @@ Default style is 0
 */
 void() light_globe =
 {
-    precache_model ("progs/s_light.spr");
-    setmodel (self, "progs/s_light.spr");
+    precache_model("progs/s_light.spr");
+    setmodel(self, "progs/s_light.spr");
     makestatic (self);
 };
 
@@ -119,8 +119,8 @@ Default style is 0
 */
 void() light_torch_small_walltorch =
 {
-    precache_model ("progs/flame.mdl");
-    setmodel (self, "progs/flame.mdl");
+    precache_model("progs/flame.mdl");
+    setmodel(self, "progs/flame.mdl");
     FireAmbient();
     makestatic (self);
 };
@@ -130,8 +130,8 @@ Large yellow flame ball
 */
 void() light_flame_large_yellow =
 {
-    precache_model ("progs/flame2.mdl");
-    setmodel (self, "progs/flame2.mdl");
+    precache_model("progs/flame2.mdl");
+    setmodel(self, "progs/flame2.mdl");
     self.frame = 1;
     FireAmbient();
     makestatic (self);
@@ -142,8 +142,8 @@ Small yellow flame ball
 */
 void() light_flame_small_yellow =
 {
-    precache_model ("progs/flame2.mdl");
-    setmodel (self, "progs/flame2.mdl");
+    precache_model("progs/flame2.mdl");
+    setmodel(self, "progs/flame2.mdl");
     FireAmbient();
     makestatic (self);
 };
@@ -153,8 +153,8 @@ Small white flame ball
 */
 void() light_flame_small_white =
 {
-    precache_model ("progs/flame2.mdl");
-    setmodel (self, "progs/flame2.mdl");
+    precache_model("progs/flame2.mdl");
+    setmodel(self, "progs/flame2.mdl");
     FireAmbient();
     makestatic (self);
 };
@@ -171,7 +171,7 @@ void() fire_touch;
 void() misc_fireball =
 {
 
-    precache_model ("progs/lavaball.mdl");
+    precache_model("progs/lavaball.mdl");
     self.classname = "fireball";
     self.nextthink = time + (random() * 5);
     self.think = fire_fly;
@@ -191,9 +191,9 @@ local entity    fireball;
     fireball.velocity_y = (random() * 100) - 50;
     fireball.velocity_z = self.speed + (random() * 200);
     fireball.classname = "fireball";
-    setmodel (fireball, "progs/lavaball.mdl");
-    setsize (fireball, '0 0 0', '0 0 0');
-    setorigin (fireball, self.origin);
+    setmodel(fireball, "progs/lavaball.mdl");
+    setsize(fireball, '0 0 0', '0 0 0');
+    setorigin(fireball, self.origin);
     fireball.nextthink = time + 5;
     fireball.think = SUB_Remove;
     fireball.touch = fire_touch;
@@ -237,8 +237,8 @@ void() misc_explobox =
 
     self.solid = SOLID_BBOX;
     self.movetype = MOVETYPE_NONE;
-    precache_model ("maps/b_explob.bsp");
-    setmodel (self, "maps/b_explob.bsp");
+    precache_model("maps/b_explob.bsp");
+    setmodel(self, "maps/b_explob.bsp");
     precache_sound("weapons/r_exp3.wav");
     self.health = 20;
     self.th_die = barrel_explode;
@@ -249,9 +249,9 @@ void() misc_explobox =
     droptofloor();
     if(oldz - self.origin_z > 250)
     {
-        dprint ("item fell out of level at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("item fell out of level at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
         remove(self);
     }
 };
@@ -270,7 +270,7 @@ void() misc_explobox2 =
     self.solid = SOLID_BBOX;
     self.movetype = MOVETYPE_NONE;
     precache_model2 ("maps/b_exbox2.bsp");
-    setmodel (self, "maps/b_exbox2.bsp");
+    setmodel(self, "maps/b_exbox2.bsp");
     precache_sound("weapons/r_exp3.wav");
     self.health = 20;
     self.th_die = barrel_explode;
@@ -281,9 +281,9 @@ void() misc_explobox2 =
     droptofloor();
     if(oldz - self.origin_z > 250)
     {
-        dprint ("item fell out of level at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("item fell out of level at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
         remove(self);
     }
 };
@@ -317,9 +317,9 @@ void() spikeshooter_use =
         lavaball.angles = vectoangles(lavaball.velocity);
         lavaball.owner = self;
         lavaball.touch = T_MissileTouch;
-        setmodel (lavaball, "progs/lavarock.mdl");
-        setsize (lavaball, '-4 -4 -4', '4 4 4');
-        setorigin (lavaball, self.origin);
+        setmodel(lavaball, "progs/lavarock.mdl");
+        setsize(lavaball, '-4 -4 -4', '4 4 4');
+        setorigin(lavaball, self.origin);
         lavaball.avelocity = '0 0 400';
         lavaball.nextthink = time + 5;
         lavaball.think = SUB_Remove;
@@ -331,7 +331,7 @@ void() spikeshooter_use =
         W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
         newmis.velocity = self.movedir*1000;
         newmis.angles = vectoangles(newmis.velocity);
-        setorigin (newmis, self.origin + self.movedir*8);
+        setorigin(newmis, self.origin + self.movedir*8);
     }
     else
     {
@@ -375,12 +375,12 @@ void() trap_spikeshooter =
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
-        precache_model ("progs/lavarock.mdl");
+        precache_model("progs/lavarock.mdl");
         precache_sound2 ("misc/spike.wav");
     }
     else if(self.spawnflags & SPAWNFLAG_ROCKET)
     {
-        precache_model ("progs/missile.mdl");
+        precache_model("progs/missile.mdl");
         precache_sound("weapons/sgun1.wav");
     }
     else
@@ -456,7 +456,7 @@ void() air_bubbles =
         remove (self);
         return;
     }
-    precache_model ("progs/s_bubble.spr");
+    precache_model("progs/s_bubble.spr");
     self.nextthink = time + 1;
     self.think = make_bubbles;
 };
@@ -466,8 +466,8 @@ void() make_bubbles =
 local entity    bubble;
 
     bubble = spawn();
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.origin);
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
     bubble.velocity = '0 0 15';
@@ -477,7 +477,7 @@ local entity    bubble;
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+    setsize(bubble, '-8 -8 -8', '8 8 8');
     self.nextthink = time + random() + 0.5;
     self.think = make_bubbles;
 };
@@ -486,8 +486,8 @@ void() bubble_split =
 {
 local entity    bubble;
     bubble = spawn();
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.origin);
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
     bubble.velocity = self.velocity;
@@ -497,7 +497,7 @@ local entity    bubble;
     bubble.classname = "bubble";
     bubble.frame = 1;
     bubble.cnt = 10;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+    setsize(bubble, '-8 -8 -8', '8 8 8');
     self.frame = 1;
     self.cnt = 10;
     if(self.waterlevel != 3)
@@ -508,7 +508,7 @@ void() bubble_remove =
 {
     if(other.classname == self.classname)
     {
-//        dprint ("bump");
+//        dprint("bump");
         return;
     }
     remove(self);
@@ -575,8 +575,8 @@ void() viewthing =
 {
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
-    precache_model ("progs/player.mdl");
-    setmodel (self, "progs/player.mdl");
+    precache_model("progs/player.mdl");
+    setmodel(self, "progs/player.mdl");
 };
 
 
@@ -602,7 +602,7 @@ void() func_wall =
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
     self.solid = SOLID_BSP;
     self.use = func_wall_use;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 };
 
 
@@ -615,7 +615,7 @@ void() func_illusionary =
     self.angles = '0 0 0';
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
     makestatic (self);
 };
 
@@ -632,7 +632,7 @@ void() func_episodegate =
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
     self.solid = SOLID_BSP;
     self.use = func_wall_use;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 };
 
 /*QUAKED func_bossgate (0 .5 .8) ?
@@ -647,7 +647,7 @@ void() func_bossgate =
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
     self.solid = SOLID_BSP;
     self.use = func_wall_use;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 };
 
 //============================================================================

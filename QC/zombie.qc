@@ -192,9 +192,9 @@ void(vector st) ZombieFireGrenade =
     missile.nextthink = time + 2.5;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/zom_gib.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, org);
+    setmodel(missile, "progs/zom_gib.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, org);
 };
 
 
@@ -504,9 +504,9 @@ void() monster_zombie =
         return;
     }
 
-    precache_model ("progs/zombie.mdl");
-    precache_model ("progs/h_zombie.mdl");
-    precache_model ("progs/zom_gib.mdl");
+    precache_model("progs/zombie.mdl");
+    precache_model("progs/h_zombie.mdl");
+    precache_model("progs/zom_gib.mdl");
 
     precache_sound("zombie/z_idle.wav");
     precache_sound("zombie/z_idle1.wav");
@@ -522,9 +522,9 @@ void() monster_zombie =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/zombie.mdl");
+    setmodel(self, "progs/zombie.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 24');
+    setsize(self, '-12 -12 -24', '12 12 24');
     self.health = 60;
 
     self.th_stand = zombie_stand1;

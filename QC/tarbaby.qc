@@ -109,7 +109,7 @@ void()    Tar_JumpTouch =
     {
         if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
-//dprint ("popjump\n");
+//dprint("popjump\n");
     self.touch = SUB_Null;
     self.think = tbaby_run1;
     self.movetype = MOVETYPE_STEP;
@@ -137,7 +137,7 @@ void()    tbaby_fly4        =[    $fly4,    tbaby_fly1    ] {
 self.cnt = self.cnt + 1;
 if(self.cnt == 4)
 {
-//dprint ("spawn hop\n");
+//dprint("spawn hop\n");
 tbaby_jump5();
 }
 };
@@ -205,9 +205,9 @@ void() monster_tarbaby =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/tarbaby.mdl");
+    setmodel(self, "progs/tarbaby.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 24');
+    setsize(self, '-12 -12 -24', '12 12 24');
     self.health = 80;
 
     self.th_stand = tbaby_stand1;

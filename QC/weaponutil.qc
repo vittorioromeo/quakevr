@@ -1,48 +1,62 @@
-float(float wid) IsValidWeaponId =
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Implementation utilities
+// ----------------------------------------------------------------------------
+
+float() VR_WeaponUtil_Impl_GetEnemyDrops =
 {
-    return wid >= WID_FIST
-        && wid <= WID_LASER_CANNON;
+    return cvar("vr_enemy_drops");
 }
 
-float(float wid, float wpnFlags) PlayerHasWeapon =
+float() VR_WeaponUtil_Impl_GetAmmoBoxDrops =
 {
-    if(!IsValidWeaponId(wid))
+    return cvar("vr_ammobox_drops");
+}
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Public API
+// ----------------------------------------------------------------------------
+
+float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
+{
+    return (xWeaponId >= WID_FIST)
+        && (xWeaponId <= WID_LASER_CANNON);
+}
+
+float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
+{
+    if(!VR_WeaponUtil_IsValidWeaponId(xWeaponId))
     {
-        bprint("`PlayerHasWeapon`: invalid weapon id '");
-        bprint(ftos(wid));
+        bprint("`VR_WeaponUtil_EntHasWeapon`: invalid weapon id '");
+        bprint(ftos(xWeaponId));
         bprint("'\n");
 
         return FALSE;
     }
 
-    if(wid == WID_FIST) return TRUE;
-    if(wid == WID_GRAPPLE) return cvar("vr_enable_grapple");
+    if(xWeaponId == WID_FIST)    { return TRUE; }
+    if(xWeaponId == WID_GRAPPLE) { return cvar("vr_enable_grapple"); }
 
-    return wpnFlags & WeaponIdToItemId(wid);
+    return xEnt.items & WeaponIdToItemId(xWeaponId);
 }
 
-float(entity ent, float wid) PlayerEligibleForWeapon =
+float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntIsEligibleForWeapon =
 {
-    if(wid == WID_FIST)             { return TRUE; }
-    if(wid == WID_AXE)              { return TRUE; }
-    if(wid == WID_SHOTGUN)          { return TRUE; }
+    if(xWeaponId == WID_FIST)    { return TRUE; }
+    if(xWeaponId == WID_AXE)     { return TRUE; }
+    if(xWeaponId == WID_SHOTGUN) { return TRUE; }
 
-    return PlayerHasWeapon(wid, ent.items);
-}
-
-float() getEnemyDrops =
-{
-    return cvar("vr_enemy_drops");
-}
-
-float() getAmmoBoxDrops =
-{
-    return cvar("vr_ammobox_drops");
+    return VR_WeaponUtil_EntHasWeapon(xEnt, xWeaponId);
 }
 
 entity() FindEntPlayerForDrop =
 {
-    if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
+    if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
         return world;
     }
@@ -54,14 +68,14 @@ float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
     local float eligible, chance, roll;
 
-    if(getEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
+    if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
         return FALSE;
     }
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
-    eligible = (getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
-               PlayerEligibleForWeapon(entPlayer, xWeapon);
+    eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
+               VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon);
 
     chance = xChance * cvar("vr_enemy_drops_chance_mult");
 
@@ -70,9 +84,9 @@ float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
     // bprint("weapon: ");
     // bprint(ftos(xWeapon));
     // bprint(" | eligible ps: ");
-    // bprint(ftos(getEnemyDrops() == QVR_ENEMYDROPS_ALWAYS));
+    // bprint(ftos(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS));
     // bprint(" or ");
-    // bprint(ftos(PlayerEligibleForWeapon(entPlayer, xWeapon)));
+    // bprint(ftos(VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon)));
     // bprint(" | chance: ");
     // bprint(ftos(chance));
     // bprint(" | roll: ");
@@ -99,14 +113,14 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
 {
     local float eligible, chance, roll;
 
-    if(getAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
+    if(VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
     {
         return FALSE;
     }
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
-    eligible = (getAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
-               PlayerEligibleForWeapon(entPlayer, xWeapon);
+    eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
+               VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon);
 
     chance = xChance * cvar("vr_ammobox_drops_chance_mult");
 

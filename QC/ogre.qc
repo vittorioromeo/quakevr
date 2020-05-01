@@ -65,7 +65,7 @@ void() OgreGrenadeExplode =
 
     self.velocity = '0 0 0';
     self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
+    setmodel(self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
     s_explode1();
 };
@@ -121,9 +121,9 @@ void() OgreFireGrenade =
         missile.touch = MultiGrenadeTouch;
         missile.nextthink = time + 2.5;
         missile.think = MultiGrenadeExplode;
-        setmodel (missile, "progs/mervup.mdl");
-        setsize (missile, '0 0 0', '0 0 0');
-        setorigin (missile, self.origin);
+        setmodel(missile, "progs/mervup.mdl");
+        setsize(missile, '0 0 0', '0 0 0');
+        setorigin(missile, self.origin);
         missile.classname = "MultiGrenade";
     }
     else
@@ -131,9 +131,9 @@ void() OgreFireGrenade =
         missile.touch = OgreGrenadeTouch;
         missile.nextthink = time + 2.5;
         missile.think = OgreGrenadeExplode;
-        setmodel (missile, "progs/grenade.mdl");
-        setsize (missile, '0 0 0', '0 0 0');
-        setorigin (missile, self.origin);
+        setmodel(missile, "progs/grenade.mdl");
+        setsize(missile, '0 0 0', '0 0 0');
+        setorigin(missile, self.origin);
     }
 };
 
@@ -483,9 +483,9 @@ void() monster_ogre =
         remove(self);
         return;
     }
-    precache_model ("progs/ogre.mdl");
-    precache_model ("progs/h_ogre.mdl");
-    precache_model ("progs/grenade.mdl");
+    precache_model("progs/ogre.mdl");
+    precache_model("progs/h_ogre.mdl");
+    precache_model("progs/grenade.mdl");
 
     precache_sound("ogre/ogdrag.wav");
     precache_sound("ogre/ogdth.wav");
@@ -498,7 +498,7 @@ void() monster_ogre =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/ogre.mdl");
+    setmodel(self, "progs/ogre.mdl");
 
     // none specified - choose random. 25% boss on normal, hard, bloodbath
     if(self.spawnflags <= 1)
@@ -518,7 +518,7 @@ void() monster_ogre =
         // self.skin = 1;
     }
 
-    setsize (self, '-24 -24 -24', '24 24 40');
+    setsize(self, '-24 -24 -24', '24 24 40');
     self.health = 200;
 
     self.th_stand = ogre_stand1;

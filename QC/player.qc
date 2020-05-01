@@ -593,8 +593,8 @@ void() DeathBubblesSpawn =
     }
 
     bubble = spawn();
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.owner.origin + '0 0 24');
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.owner.origin + '0 0 24');
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
     bubble.velocity = '0 0 15';
@@ -603,7 +603,7 @@ void() DeathBubblesSpawn =
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+    setsize(bubble, '-8 -8 -8', '8 8 8');
     self.nextthink = time + 0.01;
     self.think = DeathBubblesSpawn;
     self.air_finished = self.air_finished + 1;
@@ -616,7 +616,7 @@ void(float num_bubbles) DeathBubbles =
 local entity    bubble_spawner;
 
     bubble_spawner = spawn();
-    setorigin (bubble_spawner, self.origin);
+    setorigin(bubble_spawner, self.origin);
     bubble_spawner.movetype = MOVETYPE_NONE;
     bubble_spawner.solid = SOLID_NOT;
     bubble_spawner.nextthink = time + 0.01;
@@ -685,12 +685,12 @@ vector(float dm) VelocityForDamage =
 
     if(dm > -50)
     {
-//        dprint ("level 1\n");
+//        dprint("level 1\n");
         v = v * 0.7;
     }
     else if(dm > -200)
     {
-//        dprint ("level 3\n");
+//        dprint("level 3\n");
         v = v * 2;
     }
     else
@@ -705,8 +705,8 @@ void(string gibname, float dm) ThrowGib =
 
     new = spawn();
     new.origin = self.origin;
-    setmodel (new, gibname);
-    setsize (new, '0 0 0', '0 0 0');
+    setmodel(new, gibname);
+    setsize(new, '0 0 0', '0 0 0');
     new.velocity = VelocityForDamage (dm);
     new.movetype = MOVETYPE_BOUNCE;
     new.solid = SOLID_NOT;
@@ -735,7 +735,7 @@ void() HeadThink =
 
 void(string gibname, float dm) ThrowHead =
 {
-    setmodel (self, gibname);
+    setmodel(self, gibname);
     self.frame = 0;
 //   self.nextthink = -1;
 //MED
@@ -744,7 +744,7 @@ void(string gibname, float dm) ThrowHead =
     self.takedamage = DAMAGE_NO;
     self.solid = SOLID_NOT;
     self.view_ofs = '0 0 8';
-    setsize (self, '-16 -16 0', '16 16 56');
+    setsize(self, '-16 -16 0', '16 16 56');
     self.velocity = VelocityForDamage (dm);
     self.origin_z = self.origin_z - 24;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
@@ -809,7 +809,15 @@ void() PlayerDie =
     if(deathmatch || coop)
     {
         DropBackpack();
-        // TODO VR: (P1) drop weapons separately, ensure no weapon is in backpack
+
+        if(self.weapon != WID_FIST)         { CreateWeaponDrop(self, self.weapon, self.origin); }
+        if(self.weapon2 != WID_FIST)        { CreateWeaponDrop(self, self.weapon2, self.origin); }
+        if(self.holsterweapon0 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon0, self.origin); }
+        if(self.holsterweapon1 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon1, self.origin); }
+        if(self.holsterweapon2 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon2, self.origin); }
+        if(self.holsterweapon3 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon3, self.origin); }
+        if(self.holsterweapon4 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon4, self.origin); }
+        if(self.holsterweapon5 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon5, self.origin); }
     }
 
     self.weaponmodel="";

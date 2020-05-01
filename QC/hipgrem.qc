@@ -144,8 +144,7 @@ float() GremlinAttemptWeaponSteal =
     // take that weapon from the entity
     if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
     {
-        // TODO VR: (P1) use new item API
-        victim.items = victim.items - (victim.items & WeaponIdToItemId(best));
+        VR_ItemUtil_EntDelItem(victim, WeaponIdToItemId(best));
     }
 
     // deal with stolen holster weapon
@@ -189,8 +188,7 @@ float() GremlinAttemptWeaponSteal =
     sound(victim, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
     // give it to our gremlin
-    // TODO VR: (P1) use new item API
-    self.items = self.items | WeaponIdToItemId(best);
+    VR_ItemUtil_EntAddItem(self, WeaponIdToItemId(best));
     self.weapon = best;
 
     // take some ammo while we are at it
@@ -202,7 +200,7 @@ float() GremlinAttemptWeaponSteal =
     // TODO VR: (P1) huge code repetition
     if(best == WID_AXE)
     {
-        sprint (victim, "Gremlin stole your Axe\n");
+        sprint(victim, "Gremlin stole your Axe\n");
     }
     else if(best == WID_SHOTGUN)
     {
@@ -213,9 +211,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_shells = victim.ammo_shells - amount;
         self.ammo_shells = self.ammo_shells + amount;
-        self.items = self.items | IT_SHELLS;
+        VR_ItemUtil_EntAddItem(self, IID_SHELLS);
         self.currentammo = self.ammo_shells;
-        sprint (victim, "Gremlin stole your Shotgun\n");
+        sprint(victim, "Gremlin stole your Shotgun\n");
     }
     else if(best == WID_SUPER_SHOTGUN)
     {
@@ -226,9 +224,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_shells = victim.ammo_shells - amount;
         self.ammo_shells = self.ammo_shells + amount;
-        self.items = self.items | IT_SHELLS;
+        VR_ItemUtil_EntAddItem(self, IID_SHELLS);
         self.currentammo = self.ammo_shells;
-        sprint (victim, "Gremlin stole your Super Shotgun\n");
+        sprint(victim, "Gremlin stole your Super Shotgun\n");
     }
     else if(best == WID_NAILGUN)
     {
@@ -239,9 +237,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_nails = victim.ammo_nails - amount;
         self.ammo_nails = self.ammo_nails + amount;
-        self.items = self.items | IT_NAILS;
+        VR_ItemUtil_EntAddItem(self, IID_NAILS);
         self.currentammo = self.ammo_nails;
-        sprint (victim, "Gremlin stole your Nailgun\n");
+        sprint(victim, "Gremlin stole your Nailgun\n");
     }
     else if(best == WID_SUPER_NAILGUN)
     {
@@ -252,9 +250,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_nails = victim.ammo_nails - amount;
         self.ammo_nails = self.ammo_nails + amount;
-        self.items = self.items | IT_NAILS;
+        VR_ItemUtil_EntAddItem(self, IID_NAILS);
         self.currentammo = self.ammo_nails;
-        sprint (victim, "Gremlin stole your Super Nailgun\n");
+        sprint(victim, "Gremlin stole your Super Nailgun\n");
     }
     else if(best == WID_GRENADE_LAUNCHER)
     {
@@ -265,9 +263,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_rockets = victim.ammo_rockets - amount;
         self.ammo_rockets = self.ammo_rockets + amount;
-        self.items = self.items | IT_ROCKETS;
+        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
         self.currentammo = self.ammo_rockets;
-        sprint (victim, "Gremlin stole your Grenade Launcher\n");
+        sprint(victim, "Gremlin stole your Grenade Launcher\n");
     }
     else if(best == WID_ROCKET_LAUNCHER)
     {
@@ -278,9 +276,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_rockets = victim.ammo_rockets - amount;
         self.ammo_rockets = self.ammo_rockets + amount;
-        self.items = self.items | IT_ROCKETS;
+        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
         self.currentammo = self.ammo_rockets;
-        sprint (victim, "Gremlin stole your Rocket Launcher\n");
+        sprint(victim, "Gremlin stole your Rocket Launcher\n");
     }
     else if(best == WID_LIGHTNING)
     {
@@ -291,9 +289,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_cells = victim.ammo_cells - amount;
         self.ammo_cells = self.ammo_cells + amount;
-        self.items = self.items | IT_CELLS;
+        VR_ItemUtil_EntAddItem(self, IID_CELLS);
         self.currentammo = self.ammo_cells;
-        sprint (victim, "Gremlin stole your Lightning Gun\n");
+        sprint(victim, "Gremlin stole your Lightning Gun\n");
     }
     else if(best == WID_LASER_CANNON)
     {
@@ -304,9 +302,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_cells = victim.ammo_cells - amount;
         self.ammo_cells = self.ammo_cells + amount;
-        self.items = self.items | IT_CELLS;
+        VR_ItemUtil_EntAddItem(self, IID_CELLS);
         self.currentammo = self.ammo_cells;
-        sprint (victim, "Gremlin stole your Laser Cannon\n");
+        sprint(victim, "Gremlin stole your Laser Cannon\n");
     }
     else if(best == WID_PROXIMITY_GUN)
     {
@@ -317,9 +315,9 @@ float() GremlinAttemptWeaponSteal =
 
         victim.ammo_rockets = victim.ammo_rockets - amount;
         self.ammo_rockets = self.ammo_rockets + amount;
-        self.items = self.items | IT_ROCKETS;
+        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
         self.currentammo = self.ammo_rockets;
-        sprint (victim, "Gremlin stole your Proximity Gun\n");
+        sprint(victim, "Gremlin stole your Proximity Gun\n");
     }
 
     // tag the gremlin as having stolen a weapon
@@ -1040,36 +1038,6 @@ void() GremlinDropBackpack =
     item = spawn();
     item.origin = self.origin - '0 0 24';
 
-    /*
-    self.items = self.items - ( self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS ) );
-    item.items = self.items;
-
-    if(item.items & IT_AXE)
-        item.netname = "Axe";
-    else if(item.items & IT_SHOTGUN)
-        item.netname = "Shotgun";
-    else if(item.items & IT_SUPER_SHOTGUN)
-        item.netname = "Double-barrelled Shotgun";
-    else if(item.items & IT_NAILGUN)
-        item.netname = "Nailgun";
-    else if(item.items & IT_SUPER_NAILGUN)
-        item.netname = "Super Nailgun";
-    else if(item.items & IT_GRENADE_LAUNCHER)
-        item.netname = "Grenade Launcher";
-    else if(item.items & IT_ROCKET_LAUNCHER)
-        item.netname = "Rocket Launcher";
-    else if(item.items & IT_LIGHTNING)
-        item.netname = "Thunderbolt";
-    else if(item.items & IT_LASER_CANNON)
-        item.netname = "Laser Cannon";
-    else if(item.items & IT_PROXIMITY_GUN)
-        item.netname = "Proximity Gun";
-    else if(item.items & IT_MJOLNIR)
-        item.netname = "Mjolnir";
-    else
-        item.netname = "";
-    */
-
     item.ammo_shells = self.ammo_shells;
     item.ammo_nails = self.ammo_nails;
     item.ammo_rockets = self.ammo_rockets;
@@ -1087,8 +1055,8 @@ void() GremlinDropBackpack =
     item.flags = FL_ITEM;
     item.solid = SOLID_TRIGGER;
     item.movetype = MOVETYPE_TOSS;
-    setmodel (item, "progs/backpack.mdl");
-    setsize (item, '-8 -8 0', '8 8 24');
+    setmodel(item, "progs/backpack.mdl");
+    setsize(item, '-8 -8 0', '8 8 24');
     item.touch = BackpackTouch;
 
     item.nextthink = time + 120;    // remove after 2 minutes
@@ -1324,9 +1292,9 @@ void() Gremlin_FireRocket =
     missile.nextthink = time + 5;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/missile.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin + v_forward*8 + '0 0 16');
+    setmodel(missile, "progs/missile.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin + v_forward*8 + '0 0 16');
 //   GremlinRecoil(dir,-1000);
 };
 
@@ -1636,8 +1604,8 @@ void() monster_gremlin =
     }
 
     NumGremlins = NumGremlins + 1;
-    precache_model ("progs/grem.mdl");
-    precache_model ("progs/h_grem.mdl");
+    precache_model("progs/grem.mdl");
+    precache_model("progs/h_grem.mdl");
 
     precache_sound("grem/death.wav");
     precache_sound("grem/attack.wav");
@@ -1652,9 +1620,9 @@ void() monster_gremlin =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/grem.mdl");
+    setmodel(self, "progs/grem.mdl");
 
-    setsize (self, '-12 -12 -18', '12 12 18');
+    setsize(self, '-12 -12 -18', '12 12 18');
     self.health = 100;
     self.max_health = 101;
     self.yaw_speed = 40;
@@ -1874,15 +1842,15 @@ void() Gremlin_Split =
     SUB_CopyEntity(self,grem);
     grem.solid = SOLID_SLIDEBOX;
     grem.movetype = MOVETYPE_STEP;
-    setmodel (grem, "progs/grem.mdl");
-    setsize (grem, '-12 -12 -18', '12 12 18');
+    setmodel(grem, "progs/grem.mdl");
+    setsize(grem, '-12 -12 -18', '12 12 18');
     if(self.health < 100) self.health = 100;
     grem.health = self.health / 2;
     self.health = self.health / 2;
     // grem.max_health = 101;
     // grem.gorging = FALSE;
     grem.stoleweapon = FALSE;
-    grem.items = 0;
+    VR_ItemUtil_EntClearItems(grem);
     total_monsters = total_monsters + 1;
     WriteByte(MSG_BROADCAST, SVC_UPDATESTAT);
     WriteByte(MSG_BROADCAST, STAT_TOTALMONSTERS);

@@ -57,9 +57,9 @@ void(float offsetAngle) MiniGrenadeLaunch =
     missile.angles = vectoangles(missile.velocity);
     missile.touch = MultiGrenadeTouch;
 
-    setmodel (missile, "progs/mervup.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin);
+    setmodel(missile, "progs/mervup.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin);
 
 // set missile duration
     missile.nextthink = time + 1 + (crandom() * 0.5);
@@ -146,9 +146,9 @@ void() W_FireMultiGrenade =
     missile.nextthink = time + 1;
     missile.think = MultiGrenadeExplode;
 
-    setmodel (missile, "progs/mervup.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin);
+    setmodel(missile, "progs/mervup.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin);
 };
 
 //=============================================================================
@@ -285,12 +285,12 @@ void(float offset, float frameNum) MultiRocketLaunch =
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
     // if(deathmatch || coop)
-    //     setmodel (missile, "progs/rockup_d.mdl");
+    //     setmodel(missile, "progs/rockup_d.mdl");
     // else
-    //     setmodel (missile, "progs/rockup.mdl");
+    //     setmodel(missile, "progs/rockup.mdl");
 
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin + v_forward*8 + '0 0 16');
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin + v_forward*8 + '0 0 16');
 
     if( coop || deathmatch)
     {
@@ -516,9 +516,9 @@ void(vector org, vector dir) launch_plasma =
     missile.touch = PlasmaTouch;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // setmodel (missile, "progs/plasma.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, org);
+    // setmodel(missile, "progs/plasma.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, org);
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
     // sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);

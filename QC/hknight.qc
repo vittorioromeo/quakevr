@@ -77,8 +77,8 @@ void(float offset) hknight_shot =
 
     launch_spike (org, vec);
     newmis.classname = "knightspike";
-    setmodel (newmis, "progs/k_spike.mdl");
-    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
+    setmodel(newmis, "progs/k_spike.mdl");
+    setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     newmis.velocity = vec*300;
     sound(self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
 };
@@ -475,9 +475,9 @@ void() monster_hell_knight =
 
     if(self.spawnflags & 2) // statue
     {
-        precache_model ( "progs/statgib1.mdl");
-        precache_model ( "progs/statgib2.mdl");
-        precache_model ( "progs/statgib3.mdl");
+        precache_model( "progs/statgib1.mdl");
+        precache_model( "progs/statgib2.mdl");
+        precache_model( "progs/statgib3.mdl");
         precache_sound( "statue/see.wav");
         precache_sound( "statue/idle.wav");
         precache_sound( "statue/pain.wav");
@@ -503,9 +503,9 @@ void() monster_hell_knight =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/hknight.mdl");
+    setmodel(self, "progs/hknight.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 36');
+    setsize(self, '-12 -12 -24', '12 12 36');
     self.health = 250;
 
     if(self.spawnflags & 2) // statue
@@ -516,11 +516,11 @@ void() monster_hell_knight =
 
         if(!self.targetname)
         {
-            dprint ("statue not targeted\n");
-            dprint (self.classname);
-            dprint (" at ");
-            dprint (vtos(self.origin));
-            dprint ("\n");
+            dprint("statue not targeted\n");
+            dprint(self.classname);
+            dprint(" at ");
+            dprint(vtos(self.origin));
+            dprint("\n");
             return;
         }
 

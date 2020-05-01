@@ -143,9 +143,9 @@ void() ShalMissile =
 
     missile.solid = SOLID_BBOX;
     missile.movetype = MOVETYPE_FLYMISSILE;
-    setmodel (missile, "progs/v_spike.mdl");
+    setmodel(missile, "progs/v_spike.mdl");
 
-    setsize (missile, '0 0 0', '0 0 0');
+    setsize(missile, '0 0 0', '0 0 0');
 
     missile.origin = self.origin + '0 0 10';
     missile.velocity = dir * 400;
@@ -192,7 +192,7 @@ void() ShalMissileTouch =
 
     self.velocity = '0 0 0';
     self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
+    setmodel(self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
     s_explode1();
 };
@@ -222,8 +222,8 @@ void() monster_shalrath =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/shalrath.mdl");
-    setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setmodel(self, "progs/shalrath.mdl");
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 400;
 
     self.th_stand = shal_stand;

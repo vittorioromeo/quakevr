@@ -152,6 +152,7 @@ typedef struct entvars_s
 	vec3_t	v_viewangle;
 	vec3_t	scale;
 	vec3_t	scale_origin;
+	float	vr_itemId;
 	func_t	handtouch;
 	func_t	vr_wpntouch;
 	func_t	think2;
@@ -214,4 +215,4 @@ typedef struct entvars_s
 	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 42051
+#define PROGHEADER_CRC 22188

@@ -37,7 +37,7 @@ void() InitTrigger =
     if(self.angles != '0 0 0')
         SetMovedir();
     self.solid = SOLID_TRIGGER;
-    setmodel (self, self.model);    // set size and link into world
+    setmodel(self, self.model);    // set size and link into world
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
     self.model = "";

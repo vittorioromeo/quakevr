@@ -18,7 +18,7 @@ void() wallsprite =
       }
 
    precache_model( self.model );
-   setmodel (self, self.model );
+   setmodel(self, self.model );
 
    // QuakeEd doesn't save up and down angles properly.
    if(self.angles == '0 -1 0')
@@ -35,7 +35,7 @@ void() wallsprite =
 
 void() InitBulletHoles =
    {
-   precache_model ("progs/s_bullet.spr");
+   precache_model("progs/s_bullet.spr");
 
    bulletholes = nullentity;
    lastbullet = nullentity;
@@ -82,7 +82,7 @@ void( vector pos ) placebullethole =
     new.solid = SOLID_NOT;
     new.classname = "bullethole";
     setmodel( new, "progs/s_bullet.spr" );
-    setsize (new, '0 0 0', '0 0 0');
+    setsize(new, '0 0 0', '0 0 0');
 
     norm = trace_plane_normal;
     norm_x = 0 - norm_x;

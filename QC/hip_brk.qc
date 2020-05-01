@@ -53,9 +53,9 @@ void() trigger_damagethreshold =
     self.classname = "damagethreshold";
    self.solid = SOLID_BSP;
    self.movetype = MOVETYPE_PUSH;
-   setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+   setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
    if( self.spawnflags & INVISIBLE )
       {
       self.model = string_null;
@@ -85,8 +85,8 @@ void() func_breakawaywall =
     self.classname = "breakaway";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
     self.use = SUB_Remove;
     };

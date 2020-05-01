@@ -24,9 +24,9 @@ void() HIP_powerup_touch =
     if(other.health <= 0)
         return;
 
-    sprint (other, "You got the ");
-    sprint (other, self.netname);
-    sprint (other,"\n");
+    sprint(other, "You got the ");
+    sprint(other, self.netname);
+    sprint(other,"\n");
 
     if(deathmatch)
     {
@@ -42,9 +42,9 @@ void() HIP_powerup_touch =
     }
 
     sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
-    stuffcmd (other, "bf\n");
+    stuffcmd(other, "bf\n");
     self.solid = SOLID_NOT;
-    VR_ItemUtil_EntAddItem(other, self.items);
+    VR_ItemUtil_EntAddItem(other, self.vr_itemId);
     self.model = string_null;
 
 // do the apropriate action
@@ -71,15 +71,15 @@ void() item_artifact_wetsuit =
 {
     self.handtouch = HIP_powerup_touch;
 
-    precache_model ("progs/wetsuit.mdl");
+    precache_model("progs/wetsuit.mdl");
     precache_sound("misc/wetsuit.wav");
     precache_sound("misc/weton.wav");
     precache_sound("items/suit2.wav");
     self.noise = "misc/weton.wav";
-    setmodel (self, "progs/wetsuit.mdl");
+    setmodel(self, "progs/wetsuit.mdl");
     self.netname = "Wetsuit";
-    self.items = IID_WETSUIT;
-    setsize (self, '-16 -16 -24', '16 16 32');
+    self.vr_itemId = IID_WETSUIT;
+    setsize(self, '-16 -16 -24', '16 16 32');
 
     StartItem();
 };
@@ -108,9 +108,9 @@ void() horn_touch =
 
     self.solid = SOLID_NOT;
     self.model = string_null;
-   sprint (other, "You got the Horn of Conjuring\n");
+   sprint(other, "You got the Horn of Conjuring\n");
    sound(other, CHAN_VOICE, self.noise, 1, ATTN_NONE);
-    stuffcmd (other, "bf\n");
+    stuffcmd(other, "bf\n");
    activator = other;
    horn_active = 1;
    horn_charmer = other;
@@ -131,7 +131,7 @@ void() item_hornofconjuring =
    precache_sound("hipitems/horn.wav");
    setmodel(self, "progs/horn.mdl");
    self.noise = "hipitems/horn.wav";
-   setsize (self, '-16 -16 0', '16 16 32');
+   setsize(self, '-16 -16 0', '16 16 32');
     StartItem();
    };
 
@@ -149,8 +149,8 @@ void() item_artifact_empathy_shields =
    setmodel(self, "progs/empathy.mdl");
    self.noise = "hipitems/empathy.wav";
    self.netname = "Empathy Shields";
-   self.items = IID_EMPATHY_SHIELDS;
-   setsize (self, '-16 -16 0', '16 16 32');
+   self.vr_itemId = IID_EMPATHY_SHIELDS;
+   setsize(self, '-16 -16 0', '16 16 32');
     StartItem();
    };
 /*
@@ -166,13 +166,13 @@ HIPNOTIC WEAPONS
 
 void() weapon_mjolnir =
 {
-    precache_model ("progs/g_hammer.mdl");
-    setmodel (self, "progs/g_hammer.mdl");
+    precache_model("progs/g_hammer.mdl");
+    setmodel(self, "progs/g_hammer.mdl");
     self.weapon = WID_MJOLNIR;
     self.netname = "Mjolnir";
-    self.items = IID_MJOLNIR;
+    self.vr_itemId = IID_MJOLNIR;
     self.handtouch = weapon_touch;
-    setsize (self, '-16 -16 0', '16 16 56');
+    setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
 };
 
@@ -181,15 +181,15 @@ void() weapon_mjolnir =
 
 void() weapon_laser_gun =
 {
-    precache_model ("progs/g_laserg.mdl");
-    setmodel (self, "progs/g_laserg.mdl");
+    precache_model("progs/g_laserg.mdl");
+    setmodel(self, "progs/g_laserg.mdl");
     self.weapon = WID_LASER_CANNON;
     self.netname = "Laser Cannon";
     // TODO VR: (P1) should use another field for all of these, or maybe even
     // remove it since we are using the weapon id as well?
-    self.items = IID_LASER_CANNON;
+    self.vr_itemId = IID_LASER_CANNON;
     self.handtouch = weapon_touch;
-    setsize (self, '-16 -16 0', '16 16 56');
+    setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
 };
 
@@ -198,13 +198,13 @@ void() weapon_laser_gun =
 
 void() weapon_proximity_gun =
 {
-    precache_model ("progs/g_prox.mdl");
-    setmodel (self, "progs/g_prox.mdl");
+    precache_model("progs/g_prox.mdl");
+    setmodel(self, "progs/g_prox.mdl");
     self.weapon = WID_PROXIMITY_GUN;
     self.netname = "Proximity Gun";
-    self.items = IID_PROXIMITY_GUN;
+    self.vr_itemId = IID_PROXIMITY_GUN;
     self.handtouch = weapon_touch;
-    setsize (self, '-16 -16 0', '16 16 56');
+    setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
 };
 
@@ -309,7 +309,7 @@ void() spikemine_Touch =
    sound(self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
    self.velocity = '0 0 0';
     self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
+    setmodel(self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
     s_explode1();
    };
@@ -337,17 +337,17 @@ void() trap_spike_mine =
         remove(self);
         return;
     }
-   precache_model ("progs/spikmine.mdl");
+   precache_model("progs/spikmine.mdl");
    precache_sound("weapons/r_exp3.wav");
    precache_sound("hipitems/spikmine.wav");
    precache_sound("misc/null.wav");
-   setmodel (self, "progs/spikmine.mdl");
-//   setmodel (self, "progs/spike.mdl");
-   setsize (self, self.mins, self.maxs);
+   setmodel(self, "progs/spikmine.mdl");
+//   setmodel(self, "progs/spike.mdl");
+   setsize(self, self.mins, self.maxs);
    self.classname = "trap_spike_mine";
    self.solid = SOLID_BBOX;
    self.movetype = MOVETYPE_FLYMISSILE;
-//   setsize (self, '0 0 0', '0 0 0');
+//   setsize(self, '0 0 0', '0 0 0');
 //   self.avelocity = '-100 100 -100';
    self.avelocity = '-50 100 150';
    if(cvar("skill") <= 1)

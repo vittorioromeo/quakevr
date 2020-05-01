@@ -184,8 +184,8 @@ void() monster_demon1 =
         remove(self);
         return;
     }
-    precache_model ("progs/demon.mdl");
-    precache_model ("progs/h_demon.mdl");
+    precache_model("progs/demon.mdl");
+    precache_model("progs/h_demon.mdl");
 
     precache_sound("demon/ddeath.wav");
     precache_sound("demon/dhit2.wav");
@@ -197,9 +197,9 @@ void() monster_demon1 =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/demon.mdl");
+    setmodel(self, "progs/demon.mdl");
 
-    setsize (self, '-16 -16 -24', '16 16 24');
+    setsize(self, '-16 -16 -24', '16 16 24');
     self.health = 300;
 
     self.th_stand = demon1_stand1;
@@ -341,7 +341,7 @@ void()    Demon_JumpTouch =
     {
         if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
-//dprint ("popjump\n");
+//dprint("popjump\n");
     self.touch = SUB_Null;
     self.think = demon1_jump1;
     self.nextthink = time + 0.1;

@@ -539,6 +539,7 @@ extern cvar_t vr_upper_holster_offset_y;
 extern cvar_t vr_upper_holster_offset_z;
 extern cvar_t vr_upper_holster_thresh;
 extern cvar_t vr_fakevr;
+extern cvar_t vr_novrinit;
 extern cvar_t vr_vrtorso_debuglines_enabled;
 extern cvar_t vr_vrtorso_enabled;
 extern cvar_t vr_vrtorso_x_offset;

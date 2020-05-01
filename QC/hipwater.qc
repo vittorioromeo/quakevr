@@ -36,7 +36,7 @@ void() func_bobbingwater =
    self.angles = '0 0 0';
    self.movetype = MOVETYPE_STEP;
    self.solid = SOLID_NOT;
-   setmodel (self,self.model);
+   setmodel(self,self.model);
    self.think = bobbingwater_think;
 
    self.count = 0;

@@ -76,7 +76,7 @@ void() movetarget_f =
 
     self.solid = SOLID_TRIGGER;
     self.touch = t_movetarget;
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setsize(self, '-8 -8 -8', '8 8 8');
 
 };
 
@@ -115,7 +115,7 @@ local entity    temp;
     if(self.classname == "monster_ogre")
         sound(self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);// play chainsaw drag sound
 
-//dprint ("t_movetarget\n");
+//dprint("t_movetarget\n");
 //MED
    if(other.target)
       {
@@ -233,11 +233,11 @@ void() followtarget_f =
 
     self.solid = SOLID_TRIGGER;
    self.touch = t_followtarget;
-   setmodel (self, self.model);  // set size and link into world
+   setmodel(self, self.model);  // set size and link into world
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
     self.model = "";
-//   setsize (self, '-8 -8 -8', '8 8 8');
+//   setsize(self, '-8 -8 -8', '8 8 8');
 
 };
 
@@ -258,7 +258,7 @@ void() path_follow2 =
 {
    self.solid = SOLID_TRIGGER;
    self.touch = t_followtarget;
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setsize(self, '-8 -8 -8', '8 8 8');
 };
 
 
@@ -1102,13 +1102,13 @@ void(float dist) ai_run =
 
     if(self.attack_state == AS_MISSILE)
     {
-//dprint ("ai_run_missile\n");
+//dprint("ai_run_missile\n");
         ai_run_missile();
         return;
     }
     if(self.attack_state == AS_MELEE)
     {
-//dprint ("ai_run_melee\n");
+//dprint("ai_run_melee\n");
         ai_run_melee();
         return;
     }

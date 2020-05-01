@@ -39,7 +39,7 @@ void() plat_spawn_inside_trigger =
         tmax_y = tmin_y + 1;
     }
 
-    setsize (trigger, tmin, tmax);
+    setsize(trigger, tmin, tmax);
 };
 
 void() plat_hit_top =
@@ -93,7 +93,7 @@ void() plat_outside_touch =
     if(other.health <= 0)
         return;
 
-//dprint ("plat_outside_touch\n");
+//dprint("plat_outside_touch\n");
     self = self.enemy;
     if(self.state == STATE_TOP)
         plat_go_down();
@@ -109,7 +109,7 @@ void() plat_trigger_use =
 
 void() plat_crush =
 {
-//dprint ("plat_crush\n");
+//dprint("plat_crush\n");
 
     T_Damage (other, self, self, 1);
 
@@ -177,9 +177,9 @@ void() func_plat =
     self.classname = "plat";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
 
     self.blocked = plat_crush;
     if(!self.speed)
@@ -204,7 +204,7 @@ void() func_plat =
     }
     else
     {
-        setorigin (self, self.pos2);
+        setorigin(self, self.pos2);
         self.state = STATE_BOTTOM;
     }
 };
@@ -264,7 +264,7 @@ void() func_train_find =
 
     targ = find (world, targetname, self.target);
     self.target = targ.target;
-    setorigin (self, targ.origin - self.mins);
+    setorigin(self, targ.origin - self.mins);
     if(!self.targetname)
     {    // not triggered, so start immediately
         self.nextthink = self.ltime + 0.1;
@@ -315,9 +315,9 @@ void() func_train =
     self.use = train_use;
     self.classname = "train";
 
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
-    setorigin (self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn
@@ -348,9 +348,9 @@ void() misc_teleporttrain =
     precache_sound("misc/null.wav");
 
     precache_model2 ("progs/teleport.mdl");
-    setmodel (self, "progs/teleport.mdl");
-    setsize (self, self.mins , self.maxs);
-    setorigin (self, self.origin);
+    setmodel(self, "progs/teleport.mdl");
+    setsize(self, self.mins , self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn

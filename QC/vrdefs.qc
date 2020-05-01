@@ -1,58 +1,71 @@
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Hand constants.
+// Hand constants
+// ----------------------------------------------------------------------------
+
 float cVR_OffHand  = 0;
 float cVR_MainHand = 1;
 float cVR_FakeHand = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Item ID categories.
-float IID_CATEGORY_INVALID = -1;
-float IID_CATEGORY_ITEMS = 0;
-float IID_CATEGORY_HIPNOTIC_ITEMS = 1;
+// Item ID categories
+// ----------------------------------------------------------------------------
+
+float IID_CATEGORY_INVALID = 0;
+float IID_CATEGORY_ITEMS = 1;
+float IID_CATEGORY_HIPNOTIC_ITEMS = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Item IDs.
+// Item IDs
+// ----------------------------------------------------------------------------
+
 // TODO VR: (P1) use:
-float IID_ARMOR1            = 0;
-float IID_ARMOR2            = 1;
-float IID_ARMOR3            = 2;
-float IID_SUPERHEALTH       = 3;
-float IID_KEY1              = 4;
-float IID_KEY2              = 5;
-float IID_INVISIBILITY      = 6;
-float IID_INVULNERABILITY   = 7;
-float IID_SUIT              = 8;
-float IID_QUAD              = 9;
-float IID_WETSUIT           = 10; // Scourge of Armagon (`hipnotic`).
-float IID_EMPATHY_SHIELDS   = 11; // Scourge of Armagon (`hipnotic`).
-float IID_HORN_OF_CONJURING = 12; // Scourge of Armagon (`hipnotic`).
-float IID_FIST              = 13;
-float IID_SHOTGUN           = 14;
-float IID_SUPER_SHOTGUN     = 15;
-float IID_NAILGUN           = 16;
-float IID_SUPER_NAILGUN     = 17;
-float IID_GRENADE_LAUNCHER  = 18;
-float IID_ROCKET_LAUNCHER   = 19;
-float IID_LIGHTNING         = 20;
-float IID_MJOLNIR           = 21;
-float IID_SHELLS            = 22;
-float IID_NAILS             = 23;
-float IID_ROCKETS           = 24;
-float IID_CELLS             = 25;
-float IID_AXE               = 26;
-float IID_PROXIMITY_GUN     = 27;
-float IID_LASER_CANNON      = 28;
+float IID_NONE              = 0;
+float IID_ARMOR1            = 1;
+float IID_ARMOR2            = 2;
+float IID_ARMOR3            = 3;
+float IID_SUPERHEALTH       = 4;
+float IID_KEY1              = 5;
+float IID_KEY2              = 6;
+float IID_INVISIBILITY      = 7;
+float IID_INVULNERABILITY   = 8;
+float IID_SUIT              = 9;
+float IID_QUAD              = 10;
+float IID_WETSUIT           = 11; // Scourge of Armagon (`hipnotic`).
+float IID_EMPATHY_SHIELDS   = 12; // Scourge of Armagon (`hipnotic`).
+float IID_HORN_OF_CONJURING = 13; // Scourge of Armagon (`hipnotic`).
+float IID_FIST              = 14;
+float IID_SHOTGUN           = 15;
+float IID_SUPER_SHOTGUN     = 16;
+float IID_NAILGUN           = 17;
+float IID_SUPER_NAILGUN     = 18;
+float IID_GRENADE_LAUNCHER  = 19;
+float IID_ROCKET_LAUNCHER   = 20;
+float IID_LIGHTNING         = 21;
+float IID_MJOLNIR           = 22;
+float IID_SHELLS            = 23;
+float IID_NAILS             = 24;
+float IID_ROCKETS           = 25;
+float IID_CELLS             = 26;
+float IID_AXE               = 27;
+float IID_PROXIMITY_GUN     = 28;
+float IID_LASER_CANNON      = 29;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Weapon IDs.
+// Weapon IDs
+// ----------------------------------------------------------------------------
+
 float WID_FIST             = 0;
 float WID_GRAPPLE          = 1;
 float WID_AXE              = 2;
@@ -69,8 +82,11 @@ float WID_LASER_CANNON     = 12;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Ammo IDs.
+// Ammo IDs
+// ----------------------------------------------------------------------------
+
 float AID_SHELLS  = 0;
 float AID_NAILS   = 1;
 float AID_ROCKETS = 2;
@@ -79,8 +95,11 @@ float AID_NONE    = 4;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Hotspots.
+// Hotspots
+// ----------------------------------------------------------------------------
+
 float QVR_HS_NONE                   = 0;
 float QVR_HS_OFFHAND_2H_GRAB        = 1; // 2H grab - helper offhand
 float QVR_HS_MAINHAND_2H_GRAB       = 2; // 2H grab - helper mainhand
@@ -94,61 +113,85 @@ float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: `.throwhit` values for thrown weapons.
+// `.throwhit` values for thrown weapons
+// ----------------------------------------------------------------------------
+
 float QVR_THROWHIT_NEVER_HIT = 0;
 float QVR_THROWHIT_HIT       = 1;
 float QVR_THROWHIT_FORCEGRAB = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrHolsterMode'.
+// Enum values for `VrHolsterMode'
+// ----------------------------------------------------------------------------
+
 float QVR_WEAPONMODE_IMMERSIVE      = 0;
 float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrWeaponThrowMode'.
+// Enum values for `VrWeaponThrowMode'
+// ----------------------------------------------------------------------------
+
 float QVR_WEAPONTHROWMODE_IMMERSIVE      = 0;
 float QVR_WEAPONTHROWMODE_DISAPPEARONHIT = 1;
 float QVR_WEAPONTHROWMODE_DISCARD        = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrWeaponCycleMode'.
+// Enum values for `VrWeaponCycleMode'
+// ----------------------------------------------------------------------------
+
 float QVR_WEAPONCYCLEMODE_DISABLED = 0;
 float QVR_WEAPONCYCLEMODE_ALLOWED  = 1;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrMeleeBloodlust'.
+// Enum values for `VrMeleeBloodlust'
+// ----------------------------------------------------------------------------
+
 float QVR_MELEEBLOODLUST_ENABLED  = 0;
 float QVR_MELEEBLOODLUST_DISABLED = 1;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrEnemyDrops`.
+// Enum values for `VrEnemyDrops`
+// ----------------------------------------------------------------------------
+
 float QVR_ENEMYDROPS_WHENELIGIBLE = 0;
 float QVR_ENEMYDROPS_ALWAYS = 1;
 float QVR_ENEMYDROPS_DISABLE = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrAmmoBoxDrops`.
+// Enum values for `VrAmmoBoxDrops`
+// ----------------------------------------------------------------------------
+
 float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
 float QVR_AMMOBOXDROPS_ALWAYS = 1;
 float QVR_AMMOBOXDROPS_DISABLE = 2;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Enum values for `VrForceGrabMode`.
+// Enum values for `VrForceGrabMode`
+// ----------------------------------------------------------------------------
+
 float QVR_VRFORCEGRABMODE_DISABLED = 0;
 float QVR_VRFORCEGRABMODE_PARABOLA = 1;
 float QVR_VRFORCEGRABMODE_LINEAR = 2;
@@ -156,7 +199,10 @@ float QVR_VRFORCEGRABMODE_INSTANT = 3;
 
 //
 //
+//
 // ----------------------------------------------------------------------------
-// VR: Globals.
+// Globals
+// ----------------------------------------------------------------------------
+
 float readytime; // Time after loading when the player is considered ready.
                  // TODO VR: (P2) what does this affect?

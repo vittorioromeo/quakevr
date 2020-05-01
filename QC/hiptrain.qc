@@ -86,7 +86,7 @@ void() HIP_train_next =
     if( current == -1 )
         {
         // Warp to the next path_corner
-      setorigin (self, targ.origin - self.mins );
+      setorigin(self, targ.origin - self.mins );
         self.nextthink = self.ltime + 0.01;
         }
     else
@@ -114,7 +114,7 @@ void() HIP_func_train_find =
     self.cnt = targ.speed;
 
     self.target = targ.target;
-    setorigin (self, targ.origin - self.mins);
+    setorigin(self, targ.origin - self.mins);
     if(!self.targetname)
     {    // not triggered, so start immediately
         self.nextthink = self.ltime + 0.1;
@@ -194,9 +194,9 @@ void() func_train2 =
    self.use = HIP_train_use;
     self.classname = "train2";
 
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
-    setorigin (self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn

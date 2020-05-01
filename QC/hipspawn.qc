@@ -43,11 +43,11 @@ void() spawn_use =
    spawnentity.solid = spawnentity.spawnsolidtype;
    //restore thinking function
    spawnentity.think = spawnentity.spawnthink;
-   setmodel (spawnentity, spawnentity.model);
-   setorigin (spawnentity, spawnentity.origin);
+   setmodel(spawnentity, spawnentity.model);
+   setorigin(spawnentity, spawnentity.origin);
    spawnentity.mins = spawnentity.spawnmins;
    spawnentity.maxs = spawnentity.spawnmaxs;
-   setsize (spawnentity, spawnentity.mins, spawnentity.maxs);
+   setsize(spawnentity, spawnentity.mins, spawnentity.maxs);
    // spawn the teleport effect
    if(self.spawnsilent == 0)
       spawn_tfog (spawnentity.origin);
@@ -147,8 +147,8 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setmodel(self, "");
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -177,8 +177,8 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setmodel(self, "");
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -207,8 +207,8 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setmodel(self, "");
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -237,8 +237,8 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setmodel(self, "");
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -267,8 +267,8 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setmodel(self, "");
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -309,9 +309,9 @@ void() func_spawn =
       self.spawnmodel = self.model;
       self.spawnmins = self.mins;
       self.spawnmaxs = self.maxs;
-      setmodel (self, "");
+      setmodel(self, "");
       self.model = "";
-      setsize (self, self.spawnmins, self.spawnmaxs);
+      setsize(self, self.spawnmins, self.spawnmaxs);
       //save off solid flag
       self.spawnsolidtype = self.solid;
       self.solid = SOLID_NOT;
@@ -328,7 +328,7 @@ void() func_spawn =
    self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
     self.model = "";
-   setmodel (self, self.model);  // set size and link into world
+   setmodel(self, self.model);  // set size and link into world
    self.use = spawn_use;
    self.spawnmaster = monster;
    };

@@ -324,7 +324,7 @@ void() func_rotate_entity =
    self.solid    = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;
 
-   setmodel (self, self.model);
+   setmodel(self, self.model);
    setsize( self, self.mins, self.maxs );
 
    if( self.speed != 0 )
@@ -666,7 +666,7 @@ void() rotate_train_find =
       }
 
    self.path = targ.target;
-   setorigin (self, targ.origin );
+   setorigin(self, targ.origin );
    SetTargetOrigin();
    RotateTargetsFinal();
    self.think1 = rotate_train_next;
@@ -758,9 +758,9 @@ void() func_rotate_train =
    self.movetype = MOVETYPE_STEP;
    self.use = rotate_train_use;
 
-   setmodel (self, self.model);
-   setsize (self, self.mins, self.maxs);
-    setorigin (self, self.origin);
+   setmodel(self, self.model);
+   setsize(self, self.mins, self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn
@@ -869,7 +869,7 @@ void() func_movewall =
       {
       self.touch = movewall_touch;
       }
-   setmodel (self,self.model);
+   setmodel(self,self.model);
    if( !( self.spawnflags & VISIBLE ) )
       {
       self.model = string_null;
@@ -887,7 +887,7 @@ void() rotate_object =
    self.classname = "rotate_object";
    self.solid = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;
-   setmodel (self,self.model);
+   setmodel(self,self.model);
    setsize( self, self.mins, self.maxs );
    self.think = SUB_Null;
    };
@@ -1113,7 +1113,7 @@ void() func_rotate_door =
 
    self.solid = SOLID_NOT;
    self.movetype = MOVETYPE_NONE;
-   setmodel (self, self.model);
+   setmodel(self, self.model);
    setorigin( self, self.origin );
    setsize( self, self.mins, self.maxs );
    self.state = STATE_CLOSED;

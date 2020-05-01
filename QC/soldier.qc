@@ -284,11 +284,11 @@ void() monster_army =
         remove(self);
         return;
     }
-    precache_model ("progs/soldier.mdl");
-    precache_model ("progs/h_guard.mdl");
-    precache_model ("progs/gib1.mdl");
-    precache_model ("progs/gib2.mdl");
-    precache_model ("progs/gib3.mdl");
+    precache_model("progs/soldier.mdl");
+    precache_model("progs/h_guard.mdl");
+    precache_model("progs/gib1.mdl");
+    precache_model("progs/gib2.mdl");
+    precache_model("progs/gib3.mdl");
 
     precache_sound("soldier/death1.wav");
     precache_sound("soldier/idle.wav");
@@ -303,9 +303,9 @@ void() monster_army =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/soldier.mdl");
+    setmodel(self, "progs/soldier.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 26');
+    setsize(self, '-12 -12 -24', '12 12 26');
 
     // TODO VR: (P2) this works
     // self.scale_origin = '0 0 25';

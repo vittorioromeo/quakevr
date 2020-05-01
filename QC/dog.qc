@@ -82,7 +82,7 @@ void()    Dog_JumpTouch =
     {
         if(self.flags & FL_ONGROUND)
         {    // jump randomly to not get hung up
-//dprint ("popjump\n");
+//dprint("popjump\n");
     self.touch = SUB_Null;
     self.think = dog_leap1;
     self.nextthink = time + 0.1;
@@ -332,8 +332,8 @@ void() monster_dog =
         remove(self);
         return;
     }
-    precache_model ("progs/h_dog.mdl");
-    precache_model ("progs/dog.mdl");
+    precache_model("progs/h_dog.mdl");
+    precache_model("progs/dog.mdl");
 
     precache_sound("dog/dattack1.wav");
     precache_sound("dog/ddeath.wav");
@@ -344,9 +344,9 @@ void() monster_dog =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/dog.mdl");
+    setmodel(self, "progs/dog.mdl");
 
-    setsize (self, '-12 -12 -24', '12 12 16');
+    setsize(self, '-12 -12 -24', '12 12 16');
     self.health = 25;
 
     self.th_stand = dog_stand1;
