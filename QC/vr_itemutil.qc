@@ -44,7 +44,6 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
     if(xItemId == IID_ARMOR2)            { return IT_ARMOR2; }
     if(xItemId == IID_ARMOR3)            { return IT_ARMOR3; }
     if(xItemId == IID_SUPERHEALTH)       { return IT_SUPERHEALTH; }
-    if(xItemId == IID_PROXIMITY_GUN)     { return IT_PROXIMITY_GUN; }
     if(xItemId == IID_KEY1)              { return IT_KEY1; }
     if(xItemId == IID_KEY2)              { return IT_KEY2; }
     if(xItemId == IID_INVISIBILITY)      { return IT_INVISIBILITY; }
@@ -57,6 +56,7 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
     if(xItemId == IID_WETSUIT)           { return HIP_IT_WETSUIT; }
     if(xItemId == IID_EMPATHY_SHIELDS)   { return HIP_IT_EMPATHY_SHIELDS; }
     if(xItemId == IID_HORN_OF_CONJURING) { return HIP_IT_HORN_OF_CONJURING; }
+    if(xItemId == IID_PROXIMITY_GUN)     { return HIP_IT_PROXIMITY_GUN; }
 
     VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_Impl_ItemIdToFlag",
                                         xItemId);
@@ -98,7 +98,6 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
     if(xItemId == IID_ARMOR2)            { return IID_CATEGORY_ITEMS; }
     if(xItemId == IID_ARMOR3)            { return IID_CATEGORY_ITEMS; }
     if(xItemId == IID_SUPERHEALTH)       { return IID_CATEGORY_ITEMS; }
-    if(xItemId == IID_PROXIMITY_GUN)     { return IID_CATEGORY_ITEMS; }
     if(xItemId == IID_KEY1)              { return IID_CATEGORY_ITEMS; }
     if(xItemId == IID_KEY2)              { return IID_CATEGORY_ITEMS; }
     if(xItemId == IID_INVISIBILITY)      { return IID_CATEGORY_ITEMS; }
@@ -111,6 +110,7 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
     if(xItemId == IID_WETSUIT)           { return IID_CATEGORY_HIPNOTIC_ITEMS; }
     if(xItemId == IID_EMPATHY_SHIELDS)   { return IID_CATEGORY_HIPNOTIC_ITEMS; }
     if(xItemId == IID_HORN_OF_CONJURING) { return IID_CATEGORY_HIPNOTIC_ITEMS; }
+    if(xItemId == IID_PROXIMITY_GUN)     { return IID_CATEGORY_HIPNOTIC_ITEMS; }
 
     VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_ItemIdToItemCategory",
                                         xItemId);

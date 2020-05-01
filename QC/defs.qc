@@ -393,16 +393,9 @@ float IT_AXE              = VRUTIL_POWER_OF_TWO(12);
 float IT_ARMOR1           = VRUTIL_POWER_OF_TWO(13);
 float IT_ARMOR2           = VRUTIL_POWER_OF_TWO(14);
 float IT_ARMOR3           = VRUTIL_POWER_OF_TWO(15);
-// TODO VR: (P1) deal with this, hipnotic comments the line below
-//MED 11/02/96 added new hip weapon removed SUPERHEALTH
 float IT_SUPERHEALTH      = VRUTIL_POWER_OF_TWO(16);
-// TODO VR: (P1) this conflicts with super health, grabbing super health gives
-// the player proximity gun
-float IT_PROXIMITY_GUN    = VRUTIL_POWER_OF_TWO(16);
-
 float IT_KEY1             = VRUTIL_POWER_OF_TWO(17);
 float IT_KEY2             = VRUTIL_POWER_OF_TWO(18);
-
 float IT_INVISIBILITY     = VRUTIL_POWER_OF_TWO(19);
 float IT_INVULNERABILITY  = VRUTIL_POWER_OF_TWO(20);
 float IT_SUIT             = VRUTIL_POWER_OF_TWO(21);
@@ -419,6 +412,7 @@ float IT_LASER_CANNON     = VRUTIL_POWER_OF_TWO(23);
 float HIP_IT_WETSUIT           = VRUTIL_POWER_OF_TWO(1);
 float HIP_IT_EMPATHY_SHIELDS   = VRUTIL_POWER_OF_TWO(2);
 float HIP_IT_HORN_OF_CONJURING = VRUTIL_POWER_OF_TWO(3);
+float HIP_IT_PROXIMITY_GUN     = VRUTIL_POWER_OF_TWO(4);
 
 //
 //
