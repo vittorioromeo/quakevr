@@ -4832,3 +4832,6 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) recoil system, 2H will reduce it, or accuracy change for
 // shotgun/ssg, reduce spread
+
+// TODO VR: (P1) "Is there an option to not drop the weapon I'm holding when I
+// release the grip button?"
