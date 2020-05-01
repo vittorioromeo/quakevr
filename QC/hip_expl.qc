@@ -6,7 +6,6 @@
 */
 
 float USE_PARTICLES = 1;
-
 void() BecomeExplosion;
 
 void() exploder_fire =

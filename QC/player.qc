@@ -1,6 +1,4 @@
 
-void() bubble_bob;
-
 /*
 ==============================================================================
 
@@ -85,8 +83,6 @@ $frame axattd1 axattd2 axattd3 axattd4 axattd5 axattd6
 PLAYER
 ==============================================================================
 */
-
-void(float xHand) player_run;
 
 void(float xHand)    player_stand1 =
 {
@@ -188,6 +184,7 @@ void() player_run_no_arg =
     player_run(cVR_MainHand);
 };
 
+// TODO VR: (P1) move
 .void(float) thinkArgFn;
 .void(float) think2ArgFn;
 .float thinkArg;

@@ -13,9 +13,6 @@ float COUNTER_RANDOM = 16;
 float COUNTER_FINISHCOUNT = 32;
 float COUNTER_START_ON = 64;
 
-void() counter_on_use;
-void() counter_off_use;
-
 void() counter_think =
     {
     self.cnt = self.cnt + 1;

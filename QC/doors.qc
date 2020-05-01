@@ -26,9 +26,6 @@ THINK FUNCTIONS
 =============================================================================
 */
 
-void() door_go_down;
-void() door_go_up;
-
 void() door_blocked =
 {
     T_Damage (other, self, self, self.dmg);

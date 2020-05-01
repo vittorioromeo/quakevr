@@ -5,11 +5,6 @@
    Do not distribute.
 */
 
-void() train_blocked;
-void() func_train;
-void() HIP_train_next;
-void() HIP_func_train_find;
-
 void() HIP_train_use =
 {
     if(self.think != HIP_func_train_find)

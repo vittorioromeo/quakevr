@@ -18,8 +18,6 @@ $frame swim18
 $frame pain1 pain2 pain3 pain4 pain5 pain6 pain7 pain8
 $frame pain9
 
-void() swimmonster_start;
-
 void() f_stand1  =[      $swim1, f_stand2 ] {ai_stand();};
 void() f_stand2  =[      $swim2, f_stand3 ] {ai_stand();};
 void() f_stand3  =[      $swim3, f_stand4 ] {ai_stand();};
