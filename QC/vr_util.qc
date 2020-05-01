@@ -113,6 +113,11 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
+void(entity, float) asPainFn(void() fn) =
+{
+    return fn;
+}
+
 //
 //
 //

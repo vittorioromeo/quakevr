@@ -296,6 +296,7 @@ TELEPORT TRIGGERS
 
 float    PLAYER_ONLY    = 1;
 float    SILENT = 2;
+float    CTF_ONLY = 4;
 
 void() play_teleport =
 {
@@ -458,7 +459,7 @@ void() teleport_use =
     self.think = SUB_Null;
 };
 
-/*QUAKED trigger_teleport (.5 .5 .5) ? PLAYER_ONLY SILENT
+/*QUAKED trigger_teleport (.5 .5 .5) ? PLAYER_ONLY SILENT CTF_ONLY
 Any object touching this will be transported to the corresponding info_teleport_destination entity. You must set the "target" field, and create an object with a "targetname" field that matches.
 
 If the trigger_teleport has a targetname, it will only teleport entities when it has been fired.
@@ -466,6 +467,15 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 void() trigger_teleport =
 {
     local vector o;
+
+    if (self.spawnflags & CTF_ONLY)
+    {
+        if (teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
+        {
+            remove (self);
+            return;
+        }
+    }
 
     InitTrigger();
     self.touch = teleport_touch;
@@ -623,12 +633,22 @@ void() trigger_hurt =
 
 //============================================================================
 
-float PUSH_ONCE = 1;
+float PUSH_ONCE =     1;
+float PUSH_TOGL =     2;
+float PUSH_ACTIVE =    4;
 
 void() trigger_push_touch =
 {
+    if (!(self.spawnflags & PUSH_ACTIVE))
+        return;
+
     if(other.classname == "grenade")
         other.velocity = self.speed * self.movedir * 10;
+    else if (other.classname == "MiniGrenade")
+        other.velocity = self.speed * self.movedir * 10;
+    else if (other.classname == "MultiGrenade")
+        other.velocity = self.speed * self.movedir * 10;
+
     else if(other.health > 0)
     {
         other.velocity = self.speed * self.movedir * 10;
@@ -645,12 +665,27 @@ void() trigger_push_touch =
         remove(self);
 };
 
+void() trigger_push_use =
+{
+    if (self.spawnflags & PUSH_ACTIVE)
+        self.spawnflags = self.spawnflags - PUSH_ACTIVE;
+    else
+        self.spawnflags = self.spawnflags + PUSH_ACTIVE;
+};
 
-/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE
-Pushes the player
+
+/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE PUSH_TOGL PUSH_ACTIVE
+Pushes the player.
+
+speed: velocity of push. (default 1000)
 */
 void() trigger_push =
 {
+    if (self.spawnflags & PUSH_TOGL)
+        self.use = trigger_push_use;
+    else
+        self.spawnflags = self.spawnflags + PUSH_ACTIVE;
+
     InitTrigger();
     precache_sound("ambience/windfly.wav");
     self.touch = trigger_push_touch;

@@ -541,7 +541,7 @@ void() dragon_painF1 = [ $drgpan6a, dragon_painF2 ] {dragon_move(12);};
 void() dragon_painF2 = [ $drgpan6b, dragon_painF3 ] {dragon_move(12);};
 void() dragon_painF3 = [ $drgpan6c, dragon_walk2 ] {dragon_move(12);};
 
-void() dragon_pain =
+void(entity attacker, float damage) dragon_pain =
 {
     local float r;
 

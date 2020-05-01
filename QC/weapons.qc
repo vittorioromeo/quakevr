@@ -1,3 +1,5 @@
+float lavaGunFired;
+
 float() crandom =
 {
     return 2 * (random() - 0.5);
@@ -2150,25 +2152,6 @@ W_Attack
 An attack impulse can be triggered now
 ============
 */
-void(float xHand)    player_axe1;
-void(float xHand)    player_axeb1;
-void(float xHand)    player_axec1;
-void(float xHand)    player_axed1;
-void(float xHand)    player_shot1;
-void(float xHand)    player_nail1;
-void(float xHand)    player_light1;
-void(float xHand)    player_rocket1;
-// HIPNOTIC
-//MED
-void(float xHand)   player_laser1;
-void(float xHand)   player_hammer1;
-void(float xHand)   player_mjolnir1;
-// ROGUE
-//ZOID--
-void(float xHand)  player_grapple1;
-void(float xHand)  player_grapple3;
-//--ZOID
-
 
 void(float xHand, float xWeapon, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
@@ -2189,6 +2172,10 @@ void(float xHand, float xWeapon, float xAttackFinished,
     makevectors(VRGetWeaponFireRot(xHand)); // calculate forward angle for velocity
     self.show_hostile = time + 1; // wake monsters up
 
+    // ZOID--
+    RuneApplyBlackNoise(self); // make rune noise
+    //--ZOID
+
     if(xWeapon == WID_AXE)
     {
         if(cvar("vr_enabled") == 0 || cvar("vr_fakevr") == 1)
@@ -2203,20 +2190,20 @@ void(float xHand, float xWeapon, float xAttackFinished,
                 player_axec1 (xHand);
             else
                 player_axed1 (xHand);
-            *xOutAttackFinished = time + 0.5;
+            *xOutAttackFinished = time + RuneApplyHell(0.5, self);
         }
     }
     else if(xWeapon == WID_SHOTGUN)
     {
         player_shot1 (xHand);
         W_FireShotgun (xHand);
-        *xOutAttackFinished = time + 0.5;
+        *xOutAttackFinished = time + RuneApplyHell(0.5, self);
     }
     else if(xWeapon == WID_SUPER_SHOTGUN)
     {
         player_shot1 (xHand);
         W_FireSuperShotgun (xHand);
-        *xOutAttackFinished = time + 0.7;
+        *xOutAttackFinished = time + RuneApplyHell(0.7, self);
     }
     else if(xWeapon == WID_NAILGUN)
     {
@@ -2230,13 +2217,13 @@ void(float xHand, float xWeapon, float xAttackFinished,
     {
         player_rocket1(xHand);
         W_FireGrenade(xHand);
-        *xOutAttackFinished = time + 0.6;
+        *xOutAttackFinished = time + RuneApplyHell(0.6, self);
     }
     else if(xWeapon == WID_ROCKET_LAUNCHER)
     {
         player_rocket1(xHand);
         W_FireRocket(xHand);
-        *xOutAttackFinished = time + 0.8;
+        *xOutAttackFinished = time + RuneApplyHell(0.8, self);
     }
     else if(xWeapon == WID_LIGHTNING)
     {
@@ -2422,6 +2409,11 @@ void() CheatCommand =
     self.ammo_nails = 200;
     self.ammo_shells = 100;
     self.ammo_cells = 200;
+
+    // ROGUE
+    self.ammo_lava_nails = 200;
+    self.ammo_multi_rockets = 100;
+    self.ammo_plasma = 100;
 
     VR_WeaponUtil_EntAddWeapon(self, WID_AXE);
     VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
@@ -2766,6 +2758,25 @@ void() ImpulseCommands =
         }
     }
 
+    // TODO VR: (P1)
+    /*
+    // ROGUE
+    //ZOID--
+    //teamplay stuff
+    else if (self.impulse == 20)
+        TossBackpack();
+    else if (self.impulse == 21)
+        TossWeapon();
+    else if (self.impulse == 22)
+    {
+        if (deathmatch && teamplay >= TEAM_CTF)
+            W_ChangeWeapon();
+    }
+    else if (self.impulse == 23)
+        TeamFlagStatusReport();
+    //--ZOID
+    */
+
 //JIM
     if( self.impulse == 200 )
         WetsuitCheat();
@@ -2826,6 +2837,18 @@ void(float xHand) W_WeaponFrameImpl =
     if(time < VRGetAttackFinished(xHand))
     {
         return;
+    }
+
+    if (lavaGunFired)
+    {
+        // TODO VR: (P0) what to do?
+        // if (self.weapon == IT_LAVA_NAILGUN ||
+        //     self.weapon == IT_LAVA_SUPER_NAILGUN)
+        {
+            sound (self, CHAN_WEAPON, "lavagun/snail.wav", 1, ATTN_NORM);
+        }
+
+        lavaGunFired = 0;
     }
 
     // check for attack
