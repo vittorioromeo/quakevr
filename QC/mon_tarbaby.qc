@@ -85,9 +85,6 @@ void()    tbaby_run25    =[    $run25,        tbaby_run1    ] {ai_run(2);};
 
 //============================================================================
 
-
-void()    tbaby_jump1;
-
 void()    Tar_JumpTouch =
 {
     local    float    ldmg;

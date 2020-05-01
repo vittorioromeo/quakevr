@@ -1,9 +1,3 @@
-void() movetarget_f;
-void() t_movetarget;
-void() knight_walk1;
-void() knight_bow6;
-void() knight_bow1;
-void(entity etemp, entity stemp, entity stemp, float dmg) T_Damage;
 /*
 
 .enemy

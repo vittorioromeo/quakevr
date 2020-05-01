@@ -34,9 +34,6 @@ $frame shockb1 shockb2 shockb3 shockb4 shockb5 shockb6
 $frame shockc1 shockc2 shockc3 shockc4 shockc5 shockc6 shockc7 shockc8
 $frame shockc9 shockc10
 
-
-void(float r, vector p) boss_missile;
-
 void() boss_face =
 {
 

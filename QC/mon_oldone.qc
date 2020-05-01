@@ -11,12 +11,6 @@ $base base
 $skin skin
 $scale 1
 
-void() finale_1;
-void() finale_2;
-void() finale_3;
-void() finale_4;
-
-
 entity    shub;
 
 $frame old1 old2 old3 old4 old5 old6 old7 old8 old9

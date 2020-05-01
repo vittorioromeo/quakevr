@@ -12,9 +12,6 @@ void(entity entPlayer) VRButtonPressHaptic =
     haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
 }
 
-void() button_wait;
-void() button_return;
-
 void() button_wait =
 {
     self.state = STATE_TOP;

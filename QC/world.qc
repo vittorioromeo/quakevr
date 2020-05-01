@@ -1,11 +1,3 @@
-
-void() InitBodyQue;
-
-// HIPNOTIC
-//JIM
-void() InitBulletHoles;
-
-
 void() main =
 {
     dprint("main function\n");

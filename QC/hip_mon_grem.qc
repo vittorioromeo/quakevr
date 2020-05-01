@@ -72,8 +72,6 @@ see if we can steal enemy's weapon
 
 ============
 */
-entity()GremlinFindVictim;
-float() GremlinFindTarget;
 
 float() GremlinAttemptWeaponSteal =
 {

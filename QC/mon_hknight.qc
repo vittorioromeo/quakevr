@@ -54,11 +54,6 @@ $frame w_attack21 w_attack22
 $frame magicc1 magicc2 magicc3 magicc4 magicc5 magicc6 magicc7 magicc8
 $frame magicc9 magicc10 magicc11
 
-
-void() hknight_char_a1;
-void() hknight_run1;
-void() hk_idle_sound;
-
 void(float offset) hknight_shot =
 {
     local    vector    offang;

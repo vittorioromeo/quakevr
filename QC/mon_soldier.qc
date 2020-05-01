@@ -43,8 +43,6 @@ SOLDIER CODE
 ==============================================================================
 */
 
-void() army_fire;
-
 void()    army_stand1    =[    $stand1,    army_stand2    ] {ai_stand();};
 void()    army_stand2    =[    $stand2,    army_stand3    ] {ai_stand();};
 void()    army_stand3    =[    $stand3,    army_stand4    ] {ai_stand();};
