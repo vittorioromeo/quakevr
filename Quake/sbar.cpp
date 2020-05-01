@@ -1247,10 +1247,10 @@ void Sbar_Draw()
             const auto drawAmmoIcon = [&](const int x, const int stat) {
                 const int aid = static_cast<int>(cl.stats[stat]);
 
-                if(aid >= AID_SHELLS && aid <= AID_NAILS)
+                if(aid >= AID_SHELLS && aid <= AID_CELLS)
                 {
                     // Shells, nails, rockets, cells
-                    Sbar_DrawPic(x, 0, sb_ammo[aid]);
+                    Sbar_DrawPic(x, 0, sb_ammo[aid - 1]);
                 }
                 else if(aid == AID_NONE)
                 {
