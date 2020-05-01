@@ -238,11 +238,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WID_LASER_CANNON 12
 
 // ammo ids
-#define AID_SHELLS 0
-#define AID_NAILS 1
-#define AID_ROCKETS 2
-#define AID_CELLS 3
-#define AID_NONE 4
+#define AID_NONE 0
+#define AID_SHELLS 1
+#define AID_NAILS 2
+#define AID_ROCKETS 3
+#define AID_CELLS 4
+#define AID_LAVA_NAILS 5
+#define AID_MULTI_ROCKETS 6
+#define AID_PLASMA 7
 
 // Quake VR hotspots
 #define QVR_HS_NONE 0

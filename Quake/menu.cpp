@@ -2140,6 +2140,10 @@ constexpr std::array mapsSoa{"orig_start"sv, "start"sv, "hip1m1"sv, "hip1m2"sv,
     "hip2m4"sv, "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv,
     "hip3m4"sv, "hipdm1"sv, "hipend"sv};
 
+constexpr std::array mapsDoe{"orig_start"sv, "start"sv, "r1m1"sv, "r1m2"sv,
+    "r1m3"sv, "r1m4"sv, "r1m5"sv, "r1m6"sv, "r1m7"sv, "r2m1"sv, "r2m2"sv,
+    "r2m3"sv, "r2m4"sv, "r2m5"sv, "r2m6"sv, "r2m7"sv, "r2m8"sv, "ctf1"sv};
+
 constexpr std::array mapsDopa{"orig_start"sv, "start"sv, "e5m1"sv, "e5m2"sv,
     "e5m3"sv, "e5m4"sv, "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv,
     "e5dm"sv};
@@ -2169,6 +2173,20 @@ constexpr std::array mapsDopa{"orig_start"sv, "start"sv, "e5m1"sv, "e5m2"sv,
 [[nodiscard]] static quake::menu& qvrsChangeMapSoaMenu()
 {
     static quake::menu res = makeQVRSChangeMapSoaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - CHANGE MAP - DOE */
+
+[[nodiscard]] static quake::menu makeQVRSChangeMapDoeMenu()
+{
+    return makeQVRSChangeMapMenuImpl("Change Map - DOE", mapsDoe);
+}
+
+[[nodiscard]] static quake::menu& qvrsChangeMapDoeMenu()
+{
+    static quake::menu res = makeQVRSChangeMapDoeMenu();
     return res;
 }
 
@@ -2273,6 +2291,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsTorsoMenu(), m_qvrs_torso);
     f(qvrsChangeMapVanillaMenu(), m_qvrs_changemap_vanilla);
     f(qvrsChangeMapSoaMenu(), m_qvrs_changemap_soa);
+    f(qvrsChangeMapDoeMenu(), m_qvrs_changemap_doe);
     f(qvrsChangeMapDopaMenu(), m_qvrs_changemap_dopa);
     f(qvrsChangeMapExtraMenu(), m_qvrs_changemap_extra);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);

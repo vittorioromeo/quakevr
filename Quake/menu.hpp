@@ -68,6 +68,7 @@ enum m_state_e
     m_qvrs_torso,
     m_qvrs_changemap_vanilla,
     m_qvrs_changemap_soa,
+    m_qvrs_changemap_doe,
     m_qvrs_changemap_dopa,
     m_qvrs_changemap_extra,
     m_qvrs_transparencyoptions,
