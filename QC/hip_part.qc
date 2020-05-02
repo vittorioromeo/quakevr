@@ -14,7 +14,7 @@ void () particlefield_XZ =
    local vector start;
    local vector end;
 
-   if( ( self.spawnflags & USE_COUNT ) &&
+   if(( self.spawnflags & USE_COUNT ) &&
       ( counter_GetCount( other ) != self.cnt ) )
       {
       return;
@@ -22,7 +22,7 @@ void () particlefield_XZ =
 //   dprint( "XZ\n" );
 
    self.ltime = time + 0.25;
-   if( self.noise )
+   if(self.noise )
       {
       sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       }
@@ -54,7 +54,7 @@ void () particlefield_YZ =
    local vector start;
    local vector end;
 
-   if( ( self.spawnflags & USE_COUNT ) &&
+   if(( self.spawnflags & USE_COUNT ) &&
       ( counter_GetCount( other ) != self.cnt ) )
       {
       return;
@@ -66,7 +66,7 @@ void () particlefield_YZ =
 //   dprint( vtos( self.dest2 ) );
 //   dprint( "\n" );
    self.ltime = time + 0.25;
-   if( self.noise )
+   if(self.noise )
       {
       sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       }
@@ -98,7 +98,7 @@ void () particlefield_XY =
    local vector start;
    local vector end;
 
-   if( ( self.spawnflags & USE_COUNT ) &&
+   if(( self.spawnflags & USE_COUNT ) &&
       ( counter_GetCount( other ) != self.cnt ) )
       {
       return;
@@ -106,7 +106,7 @@ void () particlefield_XY =
 
 //   dprint( "XY\n" );
    self.ltime = time + 0.25;
-   if( self.noise )
+   if(self.noise )
       {
       sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
       }
@@ -135,10 +135,10 @@ void () particlefield_XY =
 
 void () particlefield_touch =
     {
-   if( !self.dmg )
+   if(!self.dmg )
       return;
 
-   if( time > self.ltime)
+   if(time > self.ltime)
       return;
 
     if(time < self.attack_finished)
@@ -164,11 +164,11 @@ USE_COUNT when the activator is a func_counter, the field will only
 
 void() func_particlefield =
     {
-   if( !self.color )
+   if(!self.color )
        {
       self.color = 192;
        }
-   if( self.count == 0 )
+   if(self.count == 0 )
        {
       self.count = 2;
        }
@@ -187,9 +187,9 @@ void() func_particlefield =
    self.touch = particlefield_touch;
 //   dprint( vtos( self.dest ) );
 //   dprint( "  " );
-   if( self.dest_x > self.dest_z )
+   if(self.dest_x > self.dest_z )
         {
-      if( self.dest_y > self.dest_z )
+      if(self.dest_y > self.dest_z )
             {
 //         dprint( "XY1 - " );
 //         dprint( ftos( self.cnt ) );
@@ -208,7 +208,7 @@ void() func_particlefield =
         }
     else
         {
-      if( self.dest_y > self.dest_x )
+      if(self.dest_y > self.dest_x )
          {
 //         dprint( "YZ2 - " );
 //         dprint( ftos( self.cnt ) );
@@ -226,7 +226,7 @@ void() func_particlefield =
             }
         }
 
-   if( self.noise )
+   if(self.noise )
       {
       precache_sound( self.noise );
       }
@@ -235,7 +235,7 @@ void() func_particlefield =
 
 void () blocker_touch =
     {
-   if( !self.dmg )
+   if(!self.dmg )
       return;
 
     if(time < self.attack_finished)
@@ -246,7 +246,7 @@ void () blocker_touch =
 
 void () blocker_use =
     {
-   if( !self.state )
+   if(!self.state )
       {
       self.state = 1;
       setorigin( self, self.origin - '8000 8000 8000' );
@@ -280,11 +280,11 @@ void() func_togglewall =
    setorigin(self, self.origin);
    self.touch = blocker_touch;
    self.use = blocker_use;
-   if( !self.noise )
+   if(!self.noise )
       {
       self.noise = ("misc/null.wav");
       }
-   if( !self.noise1 )
+   if(!self.noise1 )
       {
       self.noise1 = ("misc/null.wav");
       }
@@ -294,7 +294,7 @@ void() func_togglewall =
 
    self.solid = SOLID_BSP;
    self.model = string_null;
-   if( self.spawnflags & START_OFF )
+   if(self.spawnflags & START_OFF )
       {
       self.state = 0;
       setorigin( self, self.origin + '8000 8000 8000' );

@@ -119,7 +119,7 @@ void() sword_die =
 {
 // regular death
     self.effects=0;
-    if (random() < 0.5)
+    if(random() < 0.5)
         sword_die1 ();
     else
         sword_dieb1 ();
@@ -149,7 +149,7 @@ delay - seconds after first sighting before it attacks (default 10)
 */
 void() monster_sword =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -169,7 +169,7 @@ void() monster_sword =
     setsize (self, '-16 -16 -24', '16 16 40');
     self.health = 150;  // 75;
 
-    if ( !self.delay)
+    if( !self.delay)
         self.delay = 10;
 
     self.th_stand = sword_stand1;

@@ -48,12 +48,12 @@ void() HIP_powerup_touch =
     self.model = string_null;
 
 // do the apropriate action
-   if( self.classname == "item_artifact_wetsuit" )
+   if(self.classname == "item_artifact_wetsuit" )
     {
         other.wetsuit_time = 1;
         other.wetsuit_finished = time + 30;
     }
-   if( self.classname == "item_artifact_empathy_shields" )
+   if(self.classname == "item_artifact_empathy_shields" )
     {
       other.empathy_time = 1;
       other.empathy_finished = time + 30;
@@ -295,7 +295,7 @@ void() spikemine_Touch =
       }
 //   self.effects = self.effects | EF_MUZZLEFLASH;
 
-   T_RadiusDamage (self, self, 110, world);
+   T_RadiusDamage(self, self, 110, world);
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
@@ -808,7 +808,7 @@ void() trap_gods_wrath =
 
 void() trap_gravity_touch =
    {
-   if( self.attack_finished > time )
+   if(self.attack_finished > time )
       return;
 
    if(other.takedamage)
@@ -831,7 +831,7 @@ void() trap_gravity_think =
       delta = self.origin - tesla_target.origin;
       dir = normalize( delta );
       vel = dir * self.speed;
-      if( ( tesla_target.wetsuit_finished > time ) &&
+      if(( tesla_target.wetsuit_finished > time ) &&
          ( self.spawnflags & UNDERWATER ) )
          {
          vel = vel * 0.6;
@@ -859,11 +859,11 @@ void() trap_gravity_well =
    self.solid = SOLID_TRIGGER;
    self.movetype = MOVETYPE_NONE;
    setsize( self, '-16 -16 -16','16 16 16');
-   if( self.dmg == 0 )
+   if(self.dmg == 0 )
       {
       self.dmg = 10000;
       }
-   if( self.speed == 0 )
+   if(self.speed == 0 )
       self.speed = 210;
    if(self.distance == 0)
       self.distance = 600;

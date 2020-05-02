@@ -7,7 +7,7 @@
 
 void() hipRubbleTouch =
     {
-    if( self.ltime < self.pausetime )
+    if(self.ltime < self.pausetime )
        return;
 
     if(other.takedamage)
@@ -53,16 +53,16 @@ void() hip_rubble_use =
     do
        {
         which = self.cnt;
-        if( self.cnt == 0 )
+        if(self.cnt == 0 )
             {
             which = 1 + 3*random();
             which = floor( which );
             }
-        if( which == 1 )
+        if(which == 1 )
            {
            hipThrowRubble( "progs/rubble1.mdl" );
            }
-        else if( which == 2 )
+        else if(which == 2 )
            {
            hipThrowRubble( "progs/rubble3.mdl" );
            }

@@ -118,7 +118,7 @@ void() finale_1 =
     pl = find (world, classname, "misc_teleporttrain");
     if(!pl)
         error ("no teleporttrain");
-    remove (pl);
+    remove(pl);
 
     WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "");
@@ -225,7 +225,7 @@ void() finale_4 =
     n.angles = '0 290 0';
     n.frame = 1;
 
-    remove (self);
+    remove(self);
 
 // switch cd track
     WriteByte(MSG_ALL, SVC_CDTRACK);
@@ -254,12 +254,12 @@ void() monster_oldone =
         return;
     }
 
-    precache_model2 ("progs/oldone.mdl");
+    precache_model2("progs/oldone.mdl");
 
-    precache_sound2 ("boss2/death.wav");
-    precache_sound2 ("boss2/idle.wav");
-    precache_sound2 ("boss2/sight.wav");
-    precache_sound2 ("boss2/pop2.wav");
+    precache_sound2("boss2/death.wav");
+    precache_sound2("boss2/idle.wav");
+    precache_sound2("boss2/sight.wav");
+    precache_sound2("boss2/pop2.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;

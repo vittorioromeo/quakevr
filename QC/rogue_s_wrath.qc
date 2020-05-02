@@ -45,30 +45,30 @@ float(entity thePoint) isSpawnPointEmpty =
     local entity    start;
 
     neighbors = findradius ( thePoint.origin, 64 );
-    if (neighbors == world)
+    if(neighbors == world)
         return 1;
 
     start = neighbors;
     while (neighbors)
     {
-        if (neighbors != thePoint)
+        if(neighbors != thePoint)
         {
-            if (neighbors.flags & FL_MONSTER)
+            if(neighbors.flags & FL_MONSTER)
             {
                 return 0;
             }
-            else if (neighbors.classname == "player")
+            else if(neighbors.classname == "player")
             {
                 return 0;
             }
-            else if (neighbors.think)
+            else if(neighbors.think)
             {
                 return 0;
             }
         }
 
         neighbors = neighbors.chain;
-        if (neighbors == start)
+        if(neighbors == start)
             return 1;
     }
     return 1;
@@ -96,29 +96,29 @@ entity() overlord_find_dest3 =
     while (1)
     {
         curDest = find ( curDest, classname, "info_overlord_destination");
-        if ( curDest == world )
+        if( curDest == world )
         {
-            if (bestDest != world)
+            if(bestDest != world)
                 return bestDest;
 
             return furthestDest;
         }
 
-        if (isSpawnPointEmpty(curDest))
+        if(isSpawnPointEmpty(curDest))
         {
             curVector = curDest.origin - thePlayer.origin;
             curDist = vlen ( curVector );
             curVector = normalize (curVector);
             dot = curVector * v_forward;
-            if ( dot > 0.6 )
+            if( dot > 0.6 )
             {
-                if (curDist > 150)
+                if(curDist > 150)
                 {
                     bestDest = curDest;
                 }
             }
 
-            if (curDist > theDist )
+            if(curDist > theDist )
             {
                     furthestDest = curDest;
                     theDist = curDist;
@@ -138,7 +138,7 @@ entity() overlord_find_dest =
     local float     loopCount;
 
     curDest = find ( world, classname, "info_overlord_destination");
-    if (curDest != world)
+    if(curDest != world)
     {
         lastDest = curDest;
         loopCount = random()*5;
@@ -146,9 +146,9 @@ entity() overlord_find_dest =
         {
             curDest = nextent ( curDest );
             curDest = find ( curDest, classname, "info_overlord_destination");
-            if (curDest != world)
+            if(curDest != world)
             {
-                if (isSpawnPointEmpty(curDest))
+                if(isSpawnPointEmpty(curDest))
                 {
                     loopCount = loopCount - 1;
                     lastDest = curDest;
@@ -173,16 +173,16 @@ void() overlord_teleport =
     local entity    theDest;
     local vector    org;
 
-    if (!(self.spawnflags & 2))
+    if(!(self.spawnflags & 2))
         return;
 
     chance = random();
-    if (chance > 0.75)
+    if(chance > 0.75)
         return;
 
 //    theDest = overlord_find_dest();
     theDest = overlord_find_dest3();
-    if (theDest == world)
+    if(theDest == world)
         return;
 
 // put a tfog where the player was
@@ -285,16 +285,16 @@ void() overlord_smash =
     local vector    delta;
     local float        smashDmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ai_charge(10);
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
 
     smashDmg = 20 + random () * 10;
@@ -311,11 +311,11 @@ void() overlord_melee =
 
     r = random();
 
-    if (r < 0.33)
+    if(r < 0.33)
     {
         overlord_at_a01 ();
     }
-    else if (r < 0.66)
+    else if(r < 0.66)
     {
         overlord_at_b01 ();
     }
@@ -375,15 +375,15 @@ void(entity attacker, float damage) overlord_pain =
 {
     local float r;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     r = random();
 
-    if (r > 0.2)
+    if(r > 0.2)
         return;
 
-    if (r < 0.15)
+    if(r < 0.15)
         overlord_pn_a01 ();
     else
         overlord_pn_b01 ();
@@ -498,7 +498,7 @@ BossMode enables the superwrath's powershield and the random teleporting.
 */
 void() monster_super_wrath =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

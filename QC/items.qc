@@ -31,7 +31,7 @@ void() noclass =
     dprint("noclass spawned at");
     dprint(vtos(self.origin));
     dprint("\n");
-    remove (self);
+    remove(self);
 };
 
 float(entity ent) IsAmmoBox =
@@ -440,11 +440,11 @@ void() bound_other_ammo =
 
     // ROGUE
     // PGM addition
-    if (other.ammo_lava_nails > 200)
+    if(other.ammo_lava_nails > 200)
         other.ammo_lava_nails = 200;
-    if (other.ammo_multi_rockets > 100)
+    if(other.ammo_multi_rockets > 100)
         other.ammo_multi_rockets = 100;
-    if (other.ammo_plasma > 100)
+    if(other.ammo_plasma > 100)
         other.ammo_plasma = 100;
 };
 
@@ -478,21 +478,21 @@ float(float w) RankForWeapon =
 /*
 void(entity comboOwner) EnableComboWeapons =
 {
-    if (comboOwner.classname != "player")
+    if(comboOwner.classname != "player")
         return;
 
-    if (!(comboOwner.items & IT_LAVA_NAILGUN))
+    if(!(comboOwner.items & IT_LAVA_NAILGUN))
     {
-        if (comboOwner.ammo_lava_nails > 0 && (comboOwner.items & IT_NAILGUN))
+        if(comboOwner.ammo_lava_nails > 0 && (comboOwner.items & IT_NAILGUN))
         {
             sprint (comboOwner, "Lava Enabled\n");
             comboOwner.items = comboOwner.items | IT_LAVA_NAILGUN;
         }
     }
 
-    if (!(comboOwner.items & IT_LAVA_SUPER_NAILGUN))
+    if(!(comboOwner.items & IT_LAVA_SUPER_NAILGUN))
     {
-        if (comboOwner.ammo_lava_nails > 0 &&
+        if(comboOwner.ammo_lava_nails > 0 &&
                             (comboOwner.items & IT_SUPER_NAILGUN))
         {
             sprint (comboOwner, "Super Lava Enabled\n");
@@ -500,9 +500,9 @@ void(entity comboOwner) EnableComboWeapons =
         }
     }
 
-    if (!(comboOwner.items & IT_MULTI_GRENADE))
+    if(!(comboOwner.items & IT_MULTI_GRENADE))
     {
-        if (comboOwner.ammo_multi_rockets > 0 &&
+        if(comboOwner.ammo_multi_rockets > 0 &&
                             (comboOwner.items & IT_GRENADE_LAUNCHER))
         {
             sprint (comboOwner, "Multi Grenades Enabled\n");
@@ -510,9 +510,9 @@ void(entity comboOwner) EnableComboWeapons =
         }
     }
 
-    if (!(comboOwner.items & IT_MULTI_ROCKET))
+    if(!(comboOwner.items & IT_MULTI_ROCKET))
     {
-        if (comboOwner.ammo_multi_rockets > 0 &&
+        if(comboOwner.ammo_multi_rockets > 0 &&
                             (comboOwner.items & IT_ROCKET_LAUNCHER))
         {
             sprint (comboOwner, "Multi Rockets Enabled\n");
@@ -520,9 +520,9 @@ void(entity comboOwner) EnableComboWeapons =
         }
     }
 
-    if (!(comboOwner.items & IT_PLASMA_GUN))
+    if(!(comboOwner.items & IT_PLASMA_GUN))
     {
-        if (comboOwner.ammo_plasma > 0 && (comboOwner.items & IT_LIGHTNING))
+        if(comboOwner.ammo_plasma > 0 && (comboOwner.items & IT_LIGHTNING))
         {
             sprint (comboOwner, "Plasma Gun Enabled\n");
             comboOwner.items = comboOwner.items | IT_PLASMA_GUN;
@@ -576,8 +576,8 @@ void() weapon_touch =
     local float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId);
 
-    hadammo = GetAmmoCountByAmmoId(other, ammoId);
-    SetAmmoCountByAmmoId(other, WeaponIdToAmmoId(weaponId),
+    hadammo = VR_WeaponUtil_GetAmmoCountByAmmoId(other, ammoId);
+    VR_WeaponUtil_SetAmmoCountByAmmoId(other, WeaponIdToAmmoId(weaponId),
                          hadammo + WeaponIdToInitialAmmoCount(weaponId));
 
     VRItemPickupHaptic(other);
@@ -768,7 +768,7 @@ local entity    stemp;
     }
 
 //    lava spikes
-    if (self.weapon == 5)
+    if(self.weapon == 5)
     {
         if(other.ammo_lava_nails >= 200)
             return;
@@ -776,7 +776,7 @@ local entity    stemp;
     }
 
 //    multi grenades
-    if (self.weapon == 6)
+    if(self.weapon == 6)
     {
         if(other.ammo_multi_rockets >= 100)
             return;
@@ -784,7 +784,7 @@ local entity    stemp;
     }
 
 //    plasma
-    if (self.weapon == 7)
+    if(self.weapon == 7)
     {
         if(other.ammo_plasma >= 100)
             return;
@@ -892,7 +892,7 @@ void() item_lava_spikes =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_lnail1.bsp");
         setmodel (self, "maps/b_lnail1.bsp");
@@ -948,7 +948,7 @@ void() item_multi_rockets =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_mrock1.bsp");
         setmodel (self, "maps/b_mrock1.bsp");
@@ -1002,7 +1002,7 @@ void() item_plasma =
 {
     self.handtouch = ammo_touch;
 
-    if (self.spawnflags & WEAPON_BIG2)
+    if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_plas1.bsp");
         setmodel (self, "maps/b_plas1.bsp");
@@ -1148,7 +1148,7 @@ void() key_setsounds =
     }
     else if(world.worldtype == 2)
     {
-        precache_sound2 ("misc/basekey.wav");
+        precache_sound2("misc/basekey.wav");
         self.noise = "misc/basekey.wav";
     }
 };
@@ -1180,7 +1180,7 @@ void() item_key1 =
     }
     else if(world.worldtype == 2)
     {
-        precache_model2 ("progs/b_s_key.mdl");
+        precache_model2("progs/b_s_key.mdl");
         setmodel(self, "progs/b_s_key.mdl");
         self.netname = "silver keycard";
     }
@@ -1221,7 +1221,7 @@ void() item_key2 =
     }
     else if(world.worldtype == 2)
     {
-        precache_model2 ("progs/b_g_key.mdl");
+        precache_model2("progs/b_g_key.mdl");
         setmodel(self, "progs/b_g_key.mdl");
         self.netname = "gold keycard";
     }
@@ -1291,19 +1291,19 @@ void() item_sigil =
 
     if(self.spawnflags & 2)
     {
-        precache_model2 ("progs/end2.mdl");
+        precache_model2("progs/end2.mdl");
         setmodel(self, "progs/end2.mdl");
     }
 
     if(self.spawnflags & 4)
     {
-        precache_model2 ("progs/end3.mdl");
+        precache_model2("progs/end3.mdl");
         setmodel(self, "progs/end3.mdl");
     }
 
     if(self.spawnflags & 8)
     {
-        precache_model2 ("progs/end4.mdl");
+        precache_model2("progs/end4.mdl");
         setmodel(self, "progs/end4.mdl");
     }
 
@@ -1339,14 +1339,14 @@ void() powerup_touch =
     {
         self.mdl = self.model;
 
-        if (self.classname == "item_random_powerup")
+        if(self.classname == "item_random_powerup")
         {
             self.nextthink = time + 30;
             self.think = random_regen;
         }
         else
         {
-            if ((self.classname == "item_artifact_invulnerability") ||
+            if((self.classname == "item_artifact_invulnerability") ||
                 (self.classname == "item_artifact_invisibility"))
                 self.nextthink = time + 60*5;
             else
@@ -1505,7 +1505,7 @@ void() BackpackTouch =
 
     //ZOID--
     // Don't let the owner pick up his own backpack for a second.
-    if ((other == self.owner) && ((self.nextthink - time) > 119))
+    if((other == self.owner) && ((self.nextthink - time) > 119))
         return;
     //--ZOID
 
@@ -1565,9 +1565,9 @@ void() BackpackTouch =
         sprint(other, " cells");
     }
 
-    if (self.ammo_lava_nails)
+    if(self.ammo_lava_nails)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_lava_nails);
@@ -1575,9 +1575,9 @@ void() BackpackTouch =
         sprint (other, " lava nails");
     }
 
-    if (self.ammo_multi_rockets)
+    if(self.ammo_multi_rockets)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_multi_rockets);
@@ -1585,9 +1585,9 @@ void() BackpackTouch =
         sprint (other, " multi rockets");
     }
 
-    if (self.ammo_plasma)
+    if(self.ammo_plasma)
     {
-        if (acount)
+        if(acount)
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_plasma);

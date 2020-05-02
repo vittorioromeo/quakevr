@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 #include "util.hpp"
 #include "opengl_ext.hpp"
 

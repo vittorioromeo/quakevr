@@ -94,7 +94,7 @@ void()    Tar_JumpTouch =
 
     if(other.takedamage && other.classname != self.classname)
     {
-        if( vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400 )
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);
@@ -169,7 +169,7 @@ self.takedamage = DAMAGE_NO;
 };
 void()    tbaby_die2    =[    $exp,        tbaby_run1    ]
 {
-    T_RadiusDamage (self, self, 120, world);
+    T_RadiusDamage(self, self, 120, world);
 
     sound(self, CHAN_VOICE, "blob/death1.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -188,7 +188,7 @@ void()    tbaby_die2    =[    $exp,        tbaby_run1    ]
 
 void() tbaby_checknew =
 {
-    if (!walkmove(0,0))
+    if(!walkmove(0,0))
     {
         remove(self);
         return;
@@ -204,7 +204,7 @@ void() tbaby_checknew =
     self.origin_z = self.origin_z + 1;      // raise off floor a bit
     droptofloor();
 
-    if (!walkmove(0,0))
+    if(!walkmove(0,0))
     {
         self.owner.th_pain = tbaby_mitosis;
         remove(self);
@@ -213,7 +213,7 @@ void() tbaby_checknew =
 
     self.takedamage = DAMAGE_AIM;
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 20;
     self.view_ofs = '0 0 25';
     self.use = monster_use;
@@ -233,16 +233,16 @@ void(entity attacker, float damage) tbaby_mitosis =
 {
     local entity    newSpawn;
 
-    if ( random() < 0.35 )
+    if( random() < 0.35 )
     {
         newSpawn = spawn();
         newSpawn.classname = self.classname;
         newSpawn.movetype = MOVETYPE_STEP;
         setsize (newSpawn, '-16 -16 -24', '16 16 40');
         newSpawn.health = 80;
-        if (self.skin == 1)
+        if(self.skin == 1)
             newSpawn.health = 60;
-        else if (self.skin == 2)
+        else if(self.skin == 2)
             newSpawn.health = 100;
 
         newSpawn.owner = self;
@@ -276,13 +276,13 @@ void() monster_tarbaby =
         remove(self);
         return;
     }
-    precache_model2 ("progs/tarbaby.mdl");
+    precache_model2("progs/tarbaby.mdl");
 
-    precache_sound2 ("blob/death1.wav");
-    precache_sound2 ("blob/hit1.wav");
-    precache_sound2 ("blob/land1.wav");
-    precache_sound2 ("blob/sight1.wav");
-    precache_sound2 ("blob/mytosis.wav");
+    precache_sound2("blob/death1.wav");
+    precache_sound2("blob/hit1.wav");
+    precache_sound2("blob/land1.wav");
+    precache_sound2("blob/sight1.wav");
+    precache_sound2("blob/mytosis.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
@@ -301,19 +301,19 @@ void() monster_tarbaby =
 
     // TODO VR: (P0) might need to control with cvar due to missing resources
     // ROGUE
-    if (self.spawnflags & 8)
+    if(self.spawnflags & 8)
     {
         self.th_pain = tbaby_mitosis;
         self.skin = 2;
         self.health = 100;
     }
-    else if (self.spawnflags & 4)
+    else if(self.spawnflags & 4)
     {
         self.th_pain = tbaby_mitosis;
         self.skin = 1;
         self.health = 60;
     }
-    else if (self.spawnflags & 2)
+    else if(self.spawnflags & 2)
     {
         self.skin = 0;
     }
@@ -323,13 +323,13 @@ void() monster_tarbaby =
         myRand = skillLevel * 0.2;
         myRand = myRand + random();
 
-        if (myRand > 0.8 && skillLevel > 1)
+        if(myRand > 0.8 && skillLevel > 1)
         {
             self.th_pain = tbaby_mitosis;
             self.skin = 2;
             self.health = 100;
         }
-        else if (myRand > 0.5)
+        else if(myRand > 0.5)
         {
             self.th_pain = tbaby_mitosis;
             self.skin = 1;

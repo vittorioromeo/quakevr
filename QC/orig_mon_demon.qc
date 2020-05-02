@@ -328,7 +328,7 @@ void()    Demon_JumpTouch =
 
     if(other.takedamage)
     {
-        if( vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400 )
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);

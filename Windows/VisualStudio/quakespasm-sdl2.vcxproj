@@ -301,6 +301,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
+    <ClCompile Include="..\..\Quake\vr_cvars.cpp" />
     <ClCompile Include="..\..\Quake\wad.cpp" />
     <ClCompile Include="..\..\Quake\world.cpp" />
     <ClCompile Include="..\..\Quake\zone.cpp" />
@@ -373,6 +374,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\vid.hpp" />
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
+    <ClInclude Include="..\..\Quake\vr_cvars.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />
     <ClInclude Include="..\..\Quake\wsaerror.hpp" />

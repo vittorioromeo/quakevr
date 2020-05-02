@@ -13,19 +13,19 @@ void() push_use =
 
 //    walkmove (other.angles_y, 16 * frametime);
 /*
-    if( (other.angles_y >= 315) || (other.angles_y < 45))
+    if((other.angles_y >= 315) || (other.angles_y < 45))
         {
         walkmove ( 0, 16 * frametime);
         }
-    else if( (other.angles_y >= 45) && (other.angles_y < 135))
+    else if((other.angles_y >= 45) && (other.angles_y < 135))
         {
         walkmove ( 90, 16 * frametime);
         }
-    else if( (other.angles_y >= 135) && (other.angles_y < 225))
+    else if((other.angles_y >= 135) && (other.angles_y < 225))
         {
         walkmove ( 180, 16 * frametime);
         }
-    else if( (other.angles_y >= 225) && (other.angles_y < 315))
+    else if((other.angles_y >= 225) && (other.angles_y < 315))
         {
         walkmove ( 270, 16 * frametime);
         }
@@ -43,10 +43,10 @@ void() push_use =
     dprint( ftos( x ) );
     dprint( ", " );
     dprint( ftos( y ) );
-    if( x > y )
+    if(x > y )
         {
         dprint( " x move\n\n\n\n" );
-        if( other.velocity_x > 0 )
+        if(other.velocity_x > 0 )
             {
             walkmove ( 0, 16 * frametime);
             }
@@ -58,7 +58,7 @@ void() push_use =
     else
         {
         dprint( " y move\n\n\n\n" );
-        if( other.velocity_y > 0 )
+        if(other.velocity_y > 0 )
             {
             walkmove ( 90, 16 * frametime);
             }

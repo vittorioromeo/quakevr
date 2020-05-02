@@ -6,14 +6,16 @@
 // Multi Grenade Code
 //=============================================================================
 
-//================================
-//================================
 void() MiniGrenadeExplode =
 {
-    if( self.owner.classname == "player")
-        T_RadiusDamage (self, self.owner, 90, world);
+    if(self.owner.classname == "player")
+    {
+        T_RadiusDamage(self, self.owner, 90, world);
+    }
     else
-        T_RadiusDamage (self, self.owner, 60, world);
+    {
+        T_RadiusDamage(self, self.owner, 60, world);
+    }
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
@@ -26,8 +28,6 @@ void() MiniGrenadeExplode =
     BecomeExplosion();
 };
 
-//================================
-//================================
 void(float offsetAngle) MiniGrenadeLaunch =
 {
     local    entity missile;
@@ -39,18 +39,18 @@ void(float offsetAngle) MiniGrenadeLaunch =
     missile.solid = SOLID_BBOX;
     missile.classname = "MiniGrenade";
 
-// set missile speed
+    // set missile speed
     missile.v_angle = self.v_angle;
     missile.v_angle_y = missile.v_angle_y + offsetAngle;
     makevectors(missile.v_angle);
 
-        missile.velocity = v_forward*100 + v_up*400;
-        tempRand = (crandom()*60) - 30;
-        missile.velocity = missile.velocity + tempRand * v_forward;
-        tempRand = (crandom()*40) - 20;
-        missile.velocity = missile.velocity + tempRand * v_right;
-        tempRand = (crandom()*60) - 30;
-        missile.velocity = missile.velocity + tempRand * v_up;
+    missile.velocity = v_forward*100 + v_up*400;
+    tempRand = (crandom()*60) - 30;
+    missile.velocity = missile.velocity + tempRand * v_forward;
+    tempRand = (crandom()*40) - 20;
+    missile.velocity = missile.velocity + tempRand * v_right;
+    tempRand = (crandom()*60) - 30;
+    missile.velocity = missile.velocity + tempRand * v_up;
 
     missile.avelocity = '300 300 300';
     missile.angles = vectoangles(missile.velocity);
@@ -60,13 +60,11 @@ void(float offsetAngle) MiniGrenadeLaunch =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, self.origin);
 
-// set missile duration
+    // set missile duration
     missile.nextthink = time + 1 + (crandom() * 0.5);
     missile.think = MiniGrenadeExplode;
 };
 
-//================================
-//================================
 void() MultiGrenadeExplode =
 {
     MiniGrenadeLaunch(0);
@@ -75,15 +73,17 @@ void() MultiGrenadeExplode =
     MiniGrenadeLaunch(216);
     MiniGrenadeLaunch(288);
 
-    remove (self);
+    remove(self);
 };
 
-//================================
-//================================
 void() MultiGrenadeTouch =
 {
     if(other == self.owner)
-        return;        // don't explode on owner
+    {
+        // don't explode on owner
+        return;
+    }
+
     if(other.takedamage == DAMAGE_AIM)
     {
         if(self.classname == "MiniGrenade")
@@ -91,32 +91,38 @@ void() MultiGrenadeTouch =
         else
         {
             if(self.owner.classname == "player")
+            {
                 GrenadeExplode();
+            }
             else
+            {
                 MiniGrenadeExplode();
+            }
         }
+
         return;
     }
+
     // bounce sound
     sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
+
     if(self.velocity == '0 0 0')
+    {
         self.avelocity = '0 0 0';
+    }
 };
 
-//================================
-//================================
-void() W_FireMultiGrenade =
+void(float xHand) W_FireMultiGrenade =
 {
-    local    entity missile;
+    local entity missile;
+    local vector tmpAngles;
 
-    // TODO VR: (P2) rogue
-    // self.currentammo = self.ammo_multi_rockets = self.ammo_multi_rockets - 1;
-    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
-    sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
@@ -126,39 +132,59 @@ void() W_FireMultiGrenade =
     missile.solid = SOLID_BBOX;
     missile.classname = "MultiGrenade";
 
-// set missile speed
-    makevectors(self.v_angle);
-    if(self.v_angle_x)
-        missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
+    // set missile speed
+    tmpAngles = VRGetWeaponFireRot(xHand);
+    makevectors(tmpAngles);
+
+    if(cvar("vr_enabled") == 1)
+    {
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+        }
+
+        missile.velocity = missile.velocity + vrProjectileVelocity();
+    }
     else
     {
-        missile.velocity = aim(self, 10000);
-        missile.velocity = missile.velocity * 600;
-        missile.velocity_z = 200;
+        if(tmpAngles_x)
+        {
+            missile.velocity = v_forward*600 + v_up * 200 + crandom()*v_right*10 + crandom()*v_up*10;
+        }
+        else
+        {
+            missile.velocity = v_forward * 600;
+            missile.velocity_z = 200;
+        }
     }
 
     missile.avelocity = '300 300 300';
     missile.angles = vectoangles(missile.velocity);
     missile.touch = MultiGrenadeTouch;
 
-// set missile duration
+    // set missile duration
     missile.nextthink = time + 1;
     missile.think = MultiGrenadeExplode;
 
     setmodel(missile, "progs/mervup.mdl");
     setsize(missile, '0 0 0', '0 0 0');
-    setorigin(missile, self.origin);
+    setorigin(missile, VRGetMuzzlePos(xHand));
+
+    VRGunHaptic(xHand, 0.4, 75, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
 //=============================================================================
 // Multi Rocket Code
 //=============================================================================
 
-//================================
-//================================
 void() MultiRocketExplode =
 {
-    local float    damg;
+    local float damg;
 
 //    Stock Single Rocket Damage...
 //    damg = 100 + random()*20;
@@ -177,9 +203,9 @@ void() MultiRocketExplode =
     // don't do radius damage to the other, because all the damage
     // was done in the impact
 //    Stock single rocket damage.
-//    T_RadiusDamage (self, self.owner, 120, other);
+//    T_RadiusDamage(self, self.owner, 120, other);
 
-    T_RadiusDamage (self, self.owner, 75, other);
+    T_RadiusDamage(self, self.owner, 75, other);
 
 //    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -193,11 +219,12 @@ void() MultiRocketExplode =
     BecomeExplosion();
 };
 
-//================================
-//================================
 void() MultiRocketTouch =
 {
     if(other == self.owner)
+        return;        // don't explode on owner
+
+    if(other.owner == self.owner)
         return;        // don't explode on owner
 
     if(pointcontents(self.origin) == CONTENT_SKY)
@@ -210,8 +237,6 @@ void() MultiRocketTouch =
 };
 
 
-//================================
-//================================
 void() HomingMissileThink =
 {
     local vector    dir;
@@ -229,14 +254,12 @@ void() HomingMissileThink =
 };
 
 
-//================================
-//================================
 void() HomingMissileAcquire =
 {
     local vector    oldVelocity;
     local vector    aimangle;
 
-    if( self.delay < time )
+    if(self.delay < time )
     {
         MultiRocketExplode();
         return;
@@ -266,12 +289,10 @@ void() HomingMissileAcquire =
     self.nextthink = time + 0.2;
 };
 
-//================================
-//================================
-void(float offset, float frameNum) MultiRocketLaunch =
+void(float xHand, float offset, float frameNum) MultiRocketLaunch =
 {
-    local entity     missile;
-    local vector    aimangle;
+    local entity missile;
+    local vector aimangle;
 
     missile = spawn();
     missile.owner = self;
@@ -282,22 +303,24 @@ void(float offset, float frameNum) MultiRocketLaunch =
     missile.frame = frameNum;
     missile.touch = MultiRocketTouch;
 
-    // TODO VR: (P2) rogue (commented to avoid warnings)
-    // if(deathmatch || coop)
-    //     setmodel(missile, "progs/rockup_d.mdl");
-    // else
-    //     setmodel(missile, "progs/rockup.mdl");
+    if(deathmatch || coop)
+    {
+        setmodel(missile, "progs/rockup_d.mdl");
+    }
+    else
+    {
+        setmodel(missile, "progs/rockup.mdl");
+    }
 
     setsize(missile, '0 0 0', '0 0 0');
-    setorigin(missile, self.origin + v_forward*8 + '0 0 16');
+    setorigin(missile, VRGetMuzzlePos(xHand));
 
-    if( coop || deathmatch)
+    if(coop || deathmatch)
     {
-        aimangle = self.v_angle;
+        aimangle = VRGetWeaponFireRot(xHand);
         aimangle_y = aimangle_y + (offset * 0.66);
         makevectors(aimangle);
-        missile.velocity = aim(self, 1000);
-        missile.velocity = missile.velocity * 1000;
+        missile.velocity = VRGetWeaponFireRotFwd(xHand) * 1000;
         missile.angles = vectoangles(missile.velocity);
 
         missile.think = MultiRocketExplode;
@@ -305,13 +328,14 @@ void(float offset, float frameNum) MultiRocketLaunch =
     }
     else
     {
-        makevectors(self.v_angle);
+        makevectors(VRGetWeaponFireRot(xHand));
         missile.velocity = v_forward * 1000 - v_right*offset*8;
         missile.angles = vectoangles(missile.velocity);
         missile.v_angle = self.v_angle;
 
         aimangle = missile.origin + missile.velocity;
-        traceline( missile.origin, aimangle, FALSE, self );
+        traceline(missile.origin, aimangle, FALSE, self);
+
         if(trace_fraction < 1)
         {
             if(trace_ent.flags & FL_MONSTER)
@@ -327,25 +351,21 @@ void(float offset, float frameNum) MultiRocketLaunch =
     }
 };
 
-//================================
-//================================
-void() W_FireMultiRocket =
+void(float xHand) W_FireMultiRocket =
 {
-    // TODO VR: (P2) rogue
-    // self.currentammo = self.ammo_multi_rockets = self.ammo_multi_rockets - 1;
-    self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
+    delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
 
-    sound(self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
 
-    MultiRocketLaunch ( -10, 2 );
-    MultiRocketLaunch ( -5, 3 );
-    MultiRocketLaunch ( 5, 0 );
-    MultiRocketLaunch ( 10, 1 );
+    MultiRocketLaunch(xHand, -10, 2);
+    MultiRocketLaunch(xHand, -5, 3);
+    MultiRocketLaunch(xHand, 5, 0);
+    MultiRocketLaunch(xHand, 10, 1);
 };
 
 //=============================================================================
@@ -353,8 +373,8 @@ void() W_FireMultiRocket =
 //=============================================================================
 void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 {
-    local entity        e1, e2;
-    local vector        f;
+    local entity e1, e2;
+    local vector f;
 
     f = p2 - p1;
     normalize (f);
@@ -394,8 +414,6 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     }
 };
 
-//================================
-//================================
 void(entity current, float doDamage) PlasmaDischarge =
 {
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
@@ -414,8 +432,6 @@ void(entity current, float doDamage) PlasmaDischarge =
         PlasmaDamage (self.origin, current.origin, self, 50);
 };
 
-//================================
-//================================
 void() PlasmaGroundOut =
 {
     local entity     current, start;
@@ -426,9 +442,9 @@ void() PlasmaGroundOut =
     start = current;
     while( monstersHit < 5 )
     {
-        if( current.flags & FL_MONSTER || current.classname == "player")
+        if(current.flags & FL_MONSTER || current.classname == "player")
         {
-            if( current != self.owner )
+            if(current != self.owner )
             {
                 traceline( self.origin, current.origin, TRUE, world );
                 if(trace_fraction == 1)
@@ -444,11 +460,9 @@ void() PlasmaGroundOut =
     }
 };
 
-//================================
-//================================
 void() PlasmaTouch =
 {
-    local float    damg;
+    local float damg;
 
     if(other == self.owner)
         return;        // don't explode on owner
@@ -462,7 +476,7 @@ void() PlasmaTouch =
     damg = 80 + random()*20;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
 
     if(other.health)
     {
@@ -473,7 +487,7 @@ void() PlasmaTouch =
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage (self, self.owner, 70, other);
+    T_RadiusDamage(self, self.owner, 70, other);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
@@ -484,11 +498,9 @@ void() PlasmaTouch =
     WriteByte(MSG_BROADCAST, 3);
 
     PlasmaGroundOut();
-    remove (self);
+    remove(self);
 };
 
-//================================
-//================================
 void() PlasmaLaunch =
 {
     self.velocity = normalize(self.velocity);
@@ -500,7 +512,7 @@ void() PlasmaLaunch =
 
 void(vector org, vector dir) launch_plasma =
 {
-    local entity    missile;
+    local entity missile;
 
     missile = spawn();
     missile.owner = self;
@@ -508,62 +520,63 @@ void(vector org, vector dir) launch_plasma =
     missile.solid = SOLID_BBOX;
     missile.classname = "plasma";
 
-// set missile speed
+    // set missile speed
     missile.velocity = dir * 0.01;
     missile.avelocity = '300 300 300';
     missile.angles = vectoangles(missile.velocity);
     missile.touch = PlasmaTouch;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // setmodel(missile, "progs/plasma.mdl");
+    setmodel(missile, "progs/plasma.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, org);
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
-    // sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
+    sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
 
     if(!deathmatch && !coop)
+    {
         missile.effects = EF_BRIGHTLIGHT;
+    }
 
-// set missile duration
+    // set missile duration
     missile.think = PlasmaLaunch;
     missile.nextthink = time + 0.1;
 };
 
-//================================
-//================================
-
-// TODO VR: (P2) rogue
-/*
-void() W_FirePlasma =
+void(float xHand) W_FirePlasma =
 {
-    local float        cells;
-    local vector     dir;
+    local float  cells;
+    local vector dir;
 
     if(self.ammo_plasma < 1)
     {
-        W_SetCurrentAmmo();
         return;
     }
 
-// explode if under water
+    // explode if under water
     if(self.waterlevel > 1)
     {
         cells = self.ammo_plasma;
         self.ammo_plasma = 0;
+
+        discharged = 1;
+        T_RadiusDamage(self, self, 35*cells, world);
+        discharged = 0;
+
         W_SetCurrentAmmo();
-        T_RadiusDamage (self, self, 35*cells, world);
         return;
     }
-    self.currentammo = self.ammo_plasma = self.ammo_plasma - 1;
+
+    delAmmoAndUpdateCounter(xHand, AID_PLASMA, 1);
 
     // TODO VR: (P2) rogue
     // UpdateAmmoCounts (self);
-    sound(self, CHAN_WEAPON, "plasma/fire.wav", 0.5, ATTN_NORM);
+
+    sound(self, VRGetGunChannel(xHand), "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;
 
-    makevectors(self.v_angle);
-    dir = aim ( self, 1000 );
-    launch_plasma (self.origin + v_forward*24 + '0 0 16', dir);
+    makevectors(VRGetWeaponFireRot(xHand));
+    dir = v_forward;
+    launch_plasma(VRGetMuzzlePos(xHand), dir);
 };
-*/

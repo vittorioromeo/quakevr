@@ -609,7 +609,7 @@ void() ClientKill =
         {
             if(vSphere.owner == self)
             {
-                remove (vSphere);
+                remove(vSphere);
             }
 
             vSphere = find(vSphere, classname, "Vengeance");
@@ -1910,7 +1910,7 @@ void(entity targ, entity attacker) ClientObituary =
                 //gibbed for changing teams
                 else if(teamplay && (targ.team != targ.steam))
                 {
-                    if (cvar("gamecfg") & GAMECFG_ALLOW_CHG)
+                    if(cvar("gamecfg") & GAMECFG_ALLOW_CHG)
                     {
                         bprint(" changed teams\n");
                     }
@@ -2052,18 +2052,18 @@ void(entity targ, entity attacker) ClientObituary =
                 // ROGUE
                 // TODO VR: (P0) decide how to handle these
                 /*
-                if (rnum == IT_LAVA_NAILGUN ||
+                if(rnum == IT_LAVA_NAILGUN ||
                         rnum == IT_LAVA_SUPER_NAILGUN)
                 {
                     deathstring = " was burned by ";
                     deathstring2 = "\n";
                 }
-                else if (rnum == IT_PLASMA_GUN)
+                else if(rnum == IT_PLASMA_GUN)
                 {
                     deathstring = " was fused by ";
                     deathstring2 = "\n";
                 }
-                else if (rnum == IT_MULTI_GRENADE ||
+                else if(rnum == IT_MULTI_GRENADE ||
                             rnum == IT_MULTI_ROCKET)
                 {
                     deathstring = " was blasted to bits by ";

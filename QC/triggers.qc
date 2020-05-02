@@ -58,7 +58,7 @@ void() multi_trigger =
         self.nextthink = time + self.wait;
     }
     else
-    {    // we can't just remove (self) here, because this is a touch function
+    {    // we can't just remove(self) here, because this is a touch function
         // called wheil C code is looping through area links...
         self.touch = SUB_Null;
         self.nextthink = time + 0.1;
@@ -159,7 +159,7 @@ void() trigger_multiple =
     }
     else
     {
-        if( !(self.spawnflags & SPAWNFLAG_NOTOUCH) )
+        if(!(self.spawnflags & SPAWNFLAG_NOTOUCH) )
         {
             self.touch = multi_touch;
         }
@@ -316,7 +316,7 @@ void() play_teleport =
         tmpstr = "misc/r_tele5.wav";
 
     sound(self, CHAN_VOICE, tmpstr, 1, ATTN_NORM);
-    remove (self);
+    remove(self);
 };
 
 void(vector org) spawn_tfog =
@@ -468,11 +468,11 @@ void() trigger_teleport =
 {
     local vector o;
 
-    if (self.spawnflags & CTF_ONLY)
+    if(self.spawnflags & CTF_ONLY)
     {
-        if (teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
+        if(teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
         {
-            remove (self);
+            remove(self);
             return;
         }
     }
@@ -539,7 +539,7 @@ void() trigger_onlyregistered_touch =
     {
         self.message = "";
         SUB_UseTargets();
-        remove (self);
+        remove(self);
     }
     else
     {
@@ -568,7 +568,7 @@ void() trigger_onlyregistered =
 void( entity ent, float amount ) hurt_setdamage =
    {
    ent.dmg = amount;
-   if( !amount )
+   if(!amount )
       {
       ent.solid = SOLID_NOT;
       }
@@ -639,14 +639,14 @@ float PUSH_ACTIVE =    4;
 
 void() trigger_push_touch =
 {
-    if (!(self.spawnflags & PUSH_ACTIVE))
+    if(!(self.spawnflags & PUSH_ACTIVE))
         return;
 
     if(other.classname == "grenade")
         other.velocity = self.speed * self.movedir * 10;
-    else if (other.classname == "MiniGrenade")
+    else if(other.classname == "MiniGrenade")
         other.velocity = self.speed * self.movedir * 10;
-    else if (other.classname == "MultiGrenade")
+    else if(other.classname == "MultiGrenade")
         other.velocity = self.speed * self.movedir * 10;
 
     else if(other.health > 0)
@@ -667,7 +667,7 @@ void() trigger_push_touch =
 
 void() trigger_push_use =
 {
-    if (self.spawnflags & PUSH_ACTIVE)
+    if(self.spawnflags & PUSH_ACTIVE)
         self.spawnflags = self.spawnflags - PUSH_ACTIVE;
     else
         self.spawnflags = self.spawnflags + PUSH_ACTIVE;
@@ -681,7 +681,7 @@ speed: velocity of push. (default 1000)
 */
 void() trigger_push =
 {
-    if (self.spawnflags & PUSH_TOGL)
+    if(self.spawnflags & PUSH_TOGL)
         self.use = trigger_push_use;
     else
         self.spawnflags = self.spawnflags + PUSH_ACTIVE;
@@ -697,14 +697,14 @@ void() trigger_push =
 
 void() trigger_monsterjump_touch =
 {
-    if( other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER )
+    if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER )
         return;
 
 // set XY even if not on ground, so the jump will clear lips
     other.velocity_x = self.movedir_x * self.speed;
     other.velocity_y = self.movedir_y * self.speed;
 
-    if( !(other.flags & FL_ONGROUND) )
+    if(!(other.flags & FL_ONGROUND) )
         return;
 
     other.flags = other.flags - FL_ONGROUND;

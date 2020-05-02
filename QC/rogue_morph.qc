@@ -108,9 +108,9 @@ void() morph_stab2 =
     local float        attackDamage;
     local vector    org, dir;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ai_face();
@@ -120,7 +120,7 @@ void() morph_stab2 =
     dir = normalize ( dir );
     makevectors (self.angles);
 
-    if ( dist <= 90 )
+    if( dist <= 90 )
     {
         sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
         attackDamage = (random() * 10) + 20;
@@ -132,7 +132,7 @@ void() morph_stab2 =
         self.effects = self.effects | EF_MUZZLEFLASH;
         org = self.origin + v_forward * 80 + v_right * 4 + '0 0 4';
         LaunchLaser(org, dir);
-        if ( dist )
+        if( dist )
         {
             LaunchLaser(org, (dir + v_right * 0.04));
             LaunchLaser(org, (dir - v_right * 0.04));
@@ -185,16 +185,16 @@ void() morph_smack =
     local vector    delta;
     local float     ldmg;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ai_face();
 
     delta = self.enemy.origin - self.origin;
 
-    if (vlen(delta) > 100)
+    if(vlen(delta) > 100)
         return;
 
     ldmg = (random() * 10) + 10;
@@ -223,9 +223,9 @@ void() morph_attack =
 
     attackChoice = random();
 
-    if (attackChoice < 0.50)
+    if(attackChoice < 0.50)
         morph_bigattack01();
-    else if (attackChoice < 0.75)
+    else if(attackChoice < 0.75)
         morph_attack01();
     else
         morph_knockback01();
@@ -246,7 +246,7 @@ void() morph_fire =
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
     dir = normalize ( self.enemy.origin - self.origin ) ;
     LaunchLaser(org, dir);
-    if ( vlen (self.enemy.origin - self.origin) > 400 )
+    if( vlen (self.enemy.origin - self.origin) > 400 )
     {
         LaunchLaser(org, (dir + v_right * 0.04));
         LaunchLaser(org, (dir - v_right * 0.04));
@@ -295,16 +295,16 @@ void(entity attacker, float damage) morph_pain =
 {
     local float painChoice;
 
-    if (skill == 3)
+    if(skill == 3)
     {
-        if (random() > 0.5)
+        if(random() > 0.5)
             morph_teleport();
         return;
     }
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
-    if (random() > 0.25)
+    if(random() > 0.25)
         return;
 
     painChoice = random();
@@ -312,7 +312,7 @@ void(entity attacker, float damage) morph_pain =
 
     sound (self, CHAN_VOICE, "guard/pain1.wav", 1, ATTN_NORM );
 
-    if ( painChoice > 0.6)
+    if( painChoice > 0.6)
         self.think = morph_painB1;
     else
         self.think = morph_painA1;
@@ -412,7 +412,7 @@ void() morph_wake31 = [ $start31, morph_stand1 ]
     self.solid = SOLID_SLIDEBOX;
     self.takedamage = DAMAGE_AIM;
     self.skin = self.skin - 1;
-    if ( self.owner )
+    if( self.owner )
     {
         self.think = morph_run1;
         self.nextthink = time + 0.1;
@@ -426,7 +426,7 @@ void(entity theMorph) morph_setup =
     theMorph.takedamage = DAMAGE_NO;
     theMorph.flags = theMorph.flags | FL_MONSTER;
     theMorph.ideal_yaw = theMorph.angles * '0 1 0';
-    if (!theMorph.yaw_speed)
+    if(!theMorph.yaw_speed)
         theMorph.yaw_speed = 20;
     theMorph.view_ofs = '0 0 25';
     theMorph.frame = $start01;
@@ -444,7 +444,7 @@ void(entity theMorph) morph_setup =
     theMorph.th_pain = morph_pain;
     theMorph.th_die = morph_die;
 
-    if ( theMorph.owner )
+    if( theMorph.owner )
     {
         theMorph.effects = 0;
         theMorph.health = 200;
@@ -462,7 +462,7 @@ void(entity theMorph) morph_setup =
 
 void() morph_wake =
 {
-    if (isSpawnPointEmpty(self))
+    if(isSpawnPointEmpty(self))
     {
         morph_setup(self);
         self.think = morph_wake1;
@@ -478,7 +478,7 @@ void() morph_wake =
 void() morph_use =
 {
 //    self.enemy = activator;
-    if ( self.delay )
+    if( self.delay )
     {
         self.think = morph_wake;
         self.nextthink = time + self.delay;
@@ -497,14 +497,14 @@ void() morph_teleport =
     local entity    theChild;
     local entity    selfTemp;
 
-    if (self.owner)
+    if(self.owner)
         return;
 
-    if (self.childrenSpawned > (1+skill))
+    if(self.childrenSpawned > (1+skill))
         return;
 
     theDest = overlord_find_dest3();
-    if (theDest == world)
+    if(theDest == world)
         return;
 
     theChild = spawn();
@@ -532,24 +532,24 @@ If the monster has a targetname (triggered by something) he will rise up out of 
 */
 void() monster_morph =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
     }
 
-    if (self.spawnflags & MORPH_AZTEC)        // Aztec
+    if(self.spawnflags & MORPH_AZTEC)        // Aztec
     {
         precache_model ("progs/morph_az.mdl");
         self.model = "progs/morph_az.mdl";
     }
-    else if (self.spawnflags & MORPH_EGYPT)
+    else if(self.spawnflags & MORPH_EGYPT)
     // Egyptian
     {
         precache_model ("progs/morph_eg.mdl");
         self.model = "progs/morph_eg.mdl";
     }
-    else if (self.spawnflags & MORPH_GREEK)    // greek
+    else if(self.spawnflags & MORPH_GREEK)    // greek
     {
         precache_model ("progs/morph_gr.mdl");
         self.model = "progs/morph_gr.mdl";
@@ -557,11 +557,11 @@ void() monster_morph =
     else
         objerror ( "monster_morph: no skin selection!");
 
-    precache_model2 ("progs/laser.mdl");
-    precache_sound2 ("enforcer/enfire.wav");
-    precache_sound2 ("guard/death.wav");
-    precache_sound2 ("guard/pain1.wav");
-    precache_sound2 ("guard/see1.wav");
+    precache_model2("progs/laser.mdl");
+    precache_sound2("enforcer/enfire.wav");
+    precache_sound2("guard/death.wav");
+    precache_sound2("guard/pain1.wav");
+    precache_sound2("guard/see1.wav");
 
     total_monsters = total_monsters + 1;
     if(self.targetname)

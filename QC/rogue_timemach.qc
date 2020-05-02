@@ -35,7 +35,7 @@ void() time_chunk =
 void() time_stop_shake =
 {
     SUB_UseTargets();
-    remove (self);
+    remove(self);
 };
 
 void() time_boom =
@@ -46,7 +46,7 @@ void() time_boom =
 
     if(self.owner.health < 1250 && self.owner.frame > 0)
     {
-        if ( self.owner.skin < 2)
+        if( self.owner.skin < 2)
         {
             self.owner.frame = 2;
             self.owner.skin = 2;
@@ -54,7 +54,7 @@ void() time_boom =
     }
     else if(self.owner.health < 1500)
     {
-        if ( self.owner.frame == 0 )
+        if( self.owner.frame == 0 )
         {
             time_chunk();
             self.owner.frame = 1;
@@ -64,7 +64,7 @@ void() time_boom =
 
     sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
 
-    if (random() < 0.5)
+    if(random() < 0.5)
     {
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_EXPLOSION);
@@ -92,9 +92,9 @@ void() time_boom =
 
 void() time_fall =
 {
-    if (!self.pain_finished)
+    if(!self.pain_finished)
     {
-        if ( self.origin_z < -20 )
+        if( self.origin_z < -20 )
         {
             WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
             WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
@@ -103,7 +103,7 @@ void() time_fall =
             WriteCoord (MSG_BROADCAST, self.origin_z - 80);
             self.pain_finished = 1;
         }
-        else if (random() < 0.3)
+        else if(random() < 0.3)
         {
             WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
             WriteByte (MSG_BROADCAST, TE_EXPLOSION);
@@ -154,8 +154,8 @@ void() time_pain_impl =
     local vector    painOrg;
     local float     painRnd;
 
-    if ( self.health > 1100 )
-        if ( self.pain_finished > time )
+    if( self.health > 1100 )
+        if( self.pain_finished > time )
             return;
 
     painRnd = random();
@@ -165,9 +165,9 @@ void() time_pain_impl =
         painRnd = random();
         makevectors ( self.angles );
         painEnt = spawn();
-        if ( painRnd < 0.33 )
+        if( painRnd < 0.33 )
             painEnt.origin = self.origin + v_forward*80 - v_up*64;
-        else if (painRnd < 0.66)
+        else if(painRnd < 0.66)
             painEnt.origin = self.origin + v_right*80 - v_up*24;
         else
             painEnt.origin = self.origin + v_forward*64 - v_up*48 - v_right*48;
@@ -176,7 +176,7 @@ void() time_pain_impl =
         painEnt.think = time_boom;
         painEnt.nextthink = time + 0.2 + random() * 0.3;
     }
-    if ( self.health < 1000 )
+    if( self.health < 1000 )
     {
         self.pain_finished = 0;
         self.th_pain = SUB_NullPain;
@@ -201,9 +201,9 @@ void() time_pain_die =
 */
 void() item_time_machine =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
-        remove (self);
+        remove(self);
         return;
     }
 
@@ -234,9 +234,9 @@ void() item_time_machine =
 */
 void() item_time_core =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
-        remove (self);
+        remove(self);
         return;
     }
 

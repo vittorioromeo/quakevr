@@ -67,7 +67,7 @@ void()    Dog_JumpTouch =
 
     if(other.takedamage)
     {
-        if( vlen(self.velocity) > 300 )
+        if(vlen(self.velocity) > 300 )
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);

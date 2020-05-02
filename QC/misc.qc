@@ -220,7 +220,7 @@ void() barrel_explode =
     self.takedamage = DAMAGE_NO;
     self.classname = "explo_box";
     // did say self.owner
-    T_RadiusDamage (self, self, 160, world);
+    T_RadiusDamage(self, self, 160, world);
     sound(self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
     particle2(self.origin, '0 0 0', 2 /* explosion preset */, 1);
 
@@ -272,7 +272,7 @@ void() misc_explobox2 =
 
     self.solid = SOLID_BBOX;
     self.movetype = MOVETYPE_NONE;
-    precache_model2 ("maps/b_exbox2.bsp");
+    precache_model2("maps/b_exbox2.bsp");
     setmodel(self, "maps/b_exbox2.bsp");
     precache_sound("weapons/r_exp3.wav");
     self.health = 20;
@@ -297,12 +297,12 @@ void() misc_explobox2 =
 void() spikeshooter_use =
 {
     local entity lavaball;
-    if (self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
+    if(self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
     {
         sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
-        if (self.spawnflags & SPAWNFLAG_SUPERSPIKE)
+        if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
             newmis.touch = superspike_touch;
     }
     else if(self.spawnflags & SPAWNFLAG_LASER)
@@ -312,7 +312,7 @@ void() spikeshooter_use =
         LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
     }
-    else if (self.spawnflags & SPAWNFLAG_FIREBALL)
+    else if(self.spawnflags & SPAWNFLAG_FIREBALL)
     {
         launch_fireball (self.origin, self.movedir);
     }
@@ -350,7 +350,7 @@ void() spikeshooter_use =
         sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         launch_lava_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
-        if (self.spawnflags & SPAWNFLAG_SUPERLAVA)
+        if(self.spawnflags & SPAWNFLAG_SUPERLAVA)
             newmis.touch = superlavaspike_touch;
         else if((self.spawnflags & SPAWNFLAG_LAVASKILL) && (skill > 1))
             newmis.touch = superlavaspike_touch;
@@ -390,38 +390,38 @@ void() trap_spikeshooter =
     self.use = spikeshooter_use;
     if(self.spawnflags & SPAWNFLAG_LASER)
     {
-        precache_model2 ("progs/laser.mdl");
+        precache_model2("progs/laser.mdl");
 
-        precache_sound2 ("enforcer/enfire.wav");
-        precache_sound2 ("enforcer/enfstop.wav");
+        precache_sound2("enforcer/enfire.wav");
+        precache_sound2("enforcer/enfstop.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_LAVASPIKE)
+    else if(self.spawnflags & SPAWNFLAG_LAVASPIKE)
     {
-        precache_model2 ("progs/lspike.mdl");
-        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2 ("weapons/rocket1i.wav");
+        precache_model2("progs/lspike.mdl");
+        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2("weapons/rocket1i.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_SUPERLAVA)
+    else if(self.spawnflags & SPAWNFLAG_SUPERLAVA)
     {
-        precache_model2 ("progs/lspike.mdl");
-        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2 ("weapons/spike2.wav");
+        precache_model2("progs/lspike.mdl");
+        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2("weapons/spike2.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_LAVASKILL)
+    else if(self.spawnflags & SPAWNFLAG_LAVASKILL)
     {
-        precache_model2 ("progs/lspike.mdl");
-        precache_sound2 ("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2 ("weapons/rocket1i.wav");
-        precache_sound2 ("weapons/spike2.wav");
+        precache_model2("progs/lspike.mdl");
+        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2("weapons/rocket1i.wav");
+        precache_sound2("weapons/spike2.wav");
     }
-    else if (self.spawnflags & SPAWNFLAG_FIREBALL)
+    else if(self.spawnflags & SPAWNFLAG_FIREBALL)
     {
         precache_model ("progs/fireball.mdl");
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
         precache_model("progs/lavarock.mdl");
-        precache_sound2 ("misc/spike.wav");
+        precache_sound2("misc/spike.wav");
     }
     else if(self.spawnflags & SPAWNFLAG_ROCKET)
     {
@@ -494,7 +494,7 @@ void() air_bubbles =
 {
     if(deathmatch)
     {
-        remove (self);
+        remove(self);
         return;
     }
     precache_model("progs/s_bubble.spr");
@@ -542,7 +542,7 @@ local entity    bubble;
     self.frame = 1;
     self.cnt = 10;
     if(self.waterlevel != 3)
-        remove (self);
+        remove(self);
 };
 
 void() bubble_remove =
@@ -683,7 +683,7 @@ This bmodel appears unless players have all of the episode sigils.
 void() func_bossgate =
 
 {
-    if( (serverflags & 15) == 15)
+    if((serverflags & 15) == 15)
         return;        // all episodes completed
     self.angles = '0 0 0';
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
@@ -781,16 +781,16 @@ For optimzation testing, starts a lot of sounds.
 void() misc_noisemaker =
 
 {
-    precache_sound2 ("enforcer/enfire.wav");
-    precache_sound2 ("enforcer/enfstop.wav");
-    precache_sound2 ("enforcer/sight1.wav");
-    precache_sound2 ("enforcer/sight2.wav");
-    precache_sound2 ("enforcer/sight3.wav");
-    precache_sound2 ("enforcer/sight4.wav");
-    precache_sound2 ("enforcer/pain1.wav");
-    precache_sound2 ("enforcer/pain2.wav");
-    precache_sound2 ("enforcer/death1.wav");
-    precache_sound2 ("enforcer/idle1.wav");
+    precache_sound2("enforcer/enfire.wav");
+    precache_sound2("enforcer/enfstop.wav");
+    precache_sound2("enforcer/sight1.wav");
+    precache_sound2("enforcer/sight2.wav");
+    precache_sound2("enforcer/sight3.wav");
+    precache_sound2("enforcer/sight4.wav");
+    precache_sound2("enforcer/pain1.wav");
+    precache_sound2("enforcer/pain2.wav");
+    precache_sound2("enforcer/death1.wav");
+    precache_sound2("enforcer/idle1.wav");
 
     self.nextthink = time + 0.1 + random();
     self.think = noise_think;

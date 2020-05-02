@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "menu_util.hpp"
 #include "util.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 
 #include <string>
 #include <string_view>
@@ -1512,6 +1513,49 @@ void M_Options_Key(int k)
         .tooltip(
             "Yaw offset for the guns/hands. Only for off-hand. Affects "
             "aiming.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    constexpr float oInc = 0.1f;
+    constexpr float oBound = 200.f;
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+
+    constexpr auto openhandOffsetTooltip =
+        "Visual position offset applied to the hand model only when it is "
+        "open.";
+
+    m.add_cvar_entry<float>("Open Hand Offset X", vr_openhand_offset_x, oBounds)
+        .tooltip(openhandOffsetTooltip);
+
+    m.add_cvar_entry<float>("Open Hand Offset Y", vr_openhand_offset_y, oBounds)
+        .tooltip(openhandOffsetTooltip);
+
+    m.add_cvar_entry<float>("Open Hand Offset Z", vr_openhand_offset_z, oBounds)
+        .tooltip(openhandOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    constexpr float rInc = 0.25f;
+    constexpr float rBound = 90.f;
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    constexpr auto openhandRotationTooltip =
+        "Visual rotation offset applied to the hand model only when it is "
+        "open.";
+
+    m.add_cvar_entry<float>("Open Hand Pitch", vr_openhand_pitch, rBounds)
+        .tooltip(openhandRotationTooltip);
+
+    m.add_cvar_entry<float>("Open Hand Yaw", vr_openhand_yaw, rBounds)
+        .tooltip(openhandRotationTooltip);
+
+    m.add_cvar_entry<float>("Open Hand Roll", vr_openhand_roll, rBounds)
+        .tooltip(openhandRotationTooltip);
+
 
     return m;
 }

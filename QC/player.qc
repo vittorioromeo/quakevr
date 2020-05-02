@@ -348,7 +348,7 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nai
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
-    W_FireSpikes (xHand, xOffset);
+    W_FireSpikes(xHand, xOffset);
     VRSetAttackFinished(xHand, time + 0.2);
 }
 
@@ -363,36 +363,36 @@ void(float xHand) player_nail2 =
 }
 
 // TODO VR: (P0) fix rogue weapons
-void() player_lava_nail1   =[$nailatt1, player_lava_nail2  ]
+// TODO VR: (P2) repetition with above
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_lava_nail_Impl =
 {
-    /*
+    if(self.ammo_lava_nails < 1 || !VRGetFireButtonPressed(xHand))
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, xNailAtt, xNailFn);
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 9)
-        self.weaponframe = 1;
-    SuperDamageSound();
-    W_FireLavaSpikes (4);
-    self.attack_finished = time + 0.2;
-    */
-};
-void() player_lava_nail2   =[$nailatt2, player_lava_nail1  ]
-{
-    /*
-    self.effects = self.effects | EF_MUZZLEFLASH;
+    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
+    if(VRGetWeaponFrame(xHand) == 9)
+        VRSetWeaponFrame(xHand, 1);
 
-    if (!self.button0)
-        {player_run ();return;}
-    self.weaponframe = self.weaponframe + 1;
-    if (self.weaponframe == 9)
-        self.weaponframe = 1;
     SuperDamageSound();
-    W_FireLavaSpikes (-4);
-    self.attack_finished = time + 0.2;
-    */
-};
+    W_FireLavaSpikes(xHand, xOffset);
+    VRSetAttackFinished(xHand, time + 0.2);
+}
+
+void(float xHand) player_lava_nail1 =
+{
+    player_lava_nail_Impl(xHand, 2.35, $nailatt1, player_lava_nail2);
+}
+
+void(float xHand) player_lava_nail2 =
+{
+    player_lava_nail_Impl(xHand, -2.35, $nailatt2, player_lava_nail1);
+}
 
 //============================================================================
 
@@ -422,12 +422,12 @@ void(float xHand) player_light1 =
     SuperDamageSound();
 
     // TODO VR: (P0) fix rogue weapons
-    // if (self.weapon == IT_LIGHTNING)
+    // if(self.weapon == IT_LIGHTNING)
     // {
         W_FireLightning(xHand);
         VRSetAttackFinished(xHand, time + 0.2);
     // }
-    // else if (self.weapon == IT_PLASMA_GUN)
+    // else if(self.weapon == IT_PLASMA_GUN)
     // {
     //     W_FirePlasma(xHand);
     //     player_run(xHand);
@@ -460,7 +460,7 @@ void(float xHand) player_light2 =
     SuperDamageSound();
 
     // TODO VR: (P0) fix rogue weapons
-    // if (self.weapon == IT_LIGHTNING)
+    // if(self.weapon == IT_LIGHTNING)
     // {
     W_FireLightning(xHand);
     VRSetAttackFinished(xHand, time + 0.2);
@@ -925,7 +925,7 @@ void() PlayerDie =
         if(self.holsterweapon5 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon5, self.origin); }
     }
 
-    if (self.ctf_killed == 2)
+    if(self.ctf_killed == 2)
     {
         self.ctf_killed = 0;
     }
@@ -1082,12 +1082,12 @@ void() player_touch =
 
     if(VR_ItemUtil_EntHasItem(self, IID_SHIELD))
     {
-        if ( other.classname == "player")
+        if( other.classname == "player")
         {
             makevectors ( self.angles );
             vec = normalize (other.origin - self.origin);
             dot = vec * v_forward;
-            if (dot < 0.3)
+            if(dot < 0.3)
                 return;
 
             makevectors ( self.angles );
@@ -1095,7 +1095,7 @@ void() player_touch =
             other.velocity_z = 250;
 
             doDamage = FALSE;
-            if (TeamArmorDam(other, self, self, 15))
+            if(TeamArmorDam(other, self, self, 15))
             {
                 if(self.shield_death_time < time)
                     doDamage = TRUE;
@@ -1103,7 +1103,7 @@ void() player_touch =
 
             // if shield has timed out, respawn it.
             // don't do particles more than twice a second.
-            if ( self.shield_death_time < time)
+            if( self.shield_death_time < time)
             {
                 sound(self,CHAN_WEAPON,"enforcer/enfstop.wav", 1, ATTN_NORM);
 
@@ -1118,7 +1118,7 @@ void() player_touch =
                 shield_spawn ( self, v_forward );
             }
 
-            if (doDamage)
+            if(doDamage)
                 T_Damage (other, self.shield_entity, self.shield_entity, 15);
 
 //            self.shield_death_time = time + 0.5;

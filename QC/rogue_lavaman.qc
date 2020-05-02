@@ -50,13 +50,13 @@ float() LavaManCheckAttack =
 
     traceline (spot1, targ.origin, FALSE, self);
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
-    if (trace_ent != targ)
+    if(trace_ent != targ)
         return FALSE;            // don't have a clear shot
 
 // missile attack
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
     self.th_missile ();
@@ -72,15 +72,15 @@ void() lavaman_hunt =
     local vector    viewPoint;
 
 // go for another player if multi player
-    if (self.enemy.health <= 0)
+    if(self.enemy.health <= 0)
     {
         viewPoint = self.origin + '0 0 96';
         possibleEnemy = find(self.enemy, classname, "player");
         traceline ( viewPoint, possibleEnemy.origin, TRUE, world );
-        if (trace_fraction == 1)
+        if(trace_fraction == 1)
             self.enemy = possibleEnemy;
     }
-    if (self.enemy)
+    if(self.enemy)
     {
         ai_face();
         self.movetarget = self.enemy;
@@ -121,7 +121,7 @@ void() lavaman_rise17    =[    $rise17, lavaman_fire1 ] {};
 // ============
 void() lavaman_stand =
 {
-    if (self.enemy)
+    if(self.enemy)
         LavaManCheckAttack();
     else
         lavaman_hunt();
@@ -131,7 +131,7 @@ void() lavaman_stand =
 
 void() lavaman_idle1    =[    $walk1, lavaman_idle2 ]
 {
-    if ( random() < 0.2 )
+    if( random() < 0.2 )
         sound (self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM);
 // look for other players
 };
@@ -148,7 +148,7 @@ void() lavaman_idle9    =[    $walk1, lavaman_idle1 ] {lavaman_stand();};
 // ============
 void() lavaman_walk =
 {
-    if (self.enemy)
+    if(self.enemy)
         LavaManCheckAttack();
     else
         lavaman_hunt();
@@ -189,7 +189,7 @@ void() lavaman_walk31    =[    $walk31, lavaman_walk1 ] {};
 
 void() lavaman_run =
 {
-    if (self.enemy)
+    if(self.enemy)
         LavaManCheckAttack();
     else
         lavaman_hunt();
@@ -265,10 +265,10 @@ void() lavaman_shocka10 =[ $shocka10, lavaman_run1 ] {};
 
 void(entity attacker, float damage) lavaman_pain =
 {
-    if ( self.pain_finished > time )
+    if( self.pain_finished > time )
         return;
 
-    if (random() < 0.05)
+    if(random() < 0.05)
     {
         self.pain_finished = time + 2;
         lavaman_shocka1();
@@ -298,33 +298,33 @@ void() lavaman_death9 = [$death9, lavaman_death10]
 
 void() lavaman_death10 = [$death9, lavaman_death10]
 {
-    remove (self);
+    remove(self);
 };
 
 void() lavaman_touch =
 {
     local float    damg;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
     }
 
     damg = 40;
-    if (other.health)
+    if(other.health)
     {
-        if (other.classname == "monster_shambler")
+        if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
         T_Damage (other, self, self.owner, damg );
     }
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage (self, self.owner, 40, other);
+    T_RadiusDamage(self, self.owner, 40, other);
 
 //    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -349,13 +349,13 @@ void(float AttackNumber) lavaman_missile =
     makevectors (self.angles);
 
     // Right handed throw
-    if ( AttackNumber == 1)
+    if( AttackNumber == 1)
     {
 //        org = self.origin - v_forward*40 + v_right*90 + v_up*110;
         org = self.origin + v_forward*40 + v_right*65 + v_up*130;
     }
     // Left handed throw
-    else if ( AttackNumber == 2)
+    else if( AttackNumber == 2)
     {
 //        org = self.origin - v_forward*40 - v_right*90 + v_up*110;
         org = self.origin + v_forward*40 - v_right*75 + v_up*125;
@@ -364,9 +364,9 @@ void(float AttackNumber) lavaman_missile =
     d = self.enemy.origin;
     t = vlen ( d - org );
     t = t / 380;
-    if ( t > 1.75 )
+    if( t > 1.75 )
         t = 1.75;
-    if ( t < 1 )
+    if( t < 1 )
         t = 1;
 
     vec = normalize (d - org);
@@ -394,7 +394,7 @@ void(float AttackNumber) lavaman_missile =
     sound (self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
 
 // check for dead enemy
-    if (self.enemy.health <= 0)
+    if(self.enemy.health <= 0)
         lavaman_idle1 ();
 };
 
@@ -405,7 +405,7 @@ void() lavaman_awake =
     self.takedamage = DAMAGE_AIM;
     self.flags = self.flags | FL_MONSTER;
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 20;
 
     setmodel (self, "progs/lavaman.mdl");
@@ -434,9 +434,9 @@ void() lavaman_awake =
 
     if(!VR_ItemUtil_EntHasItem(activator, IID_INVISIBILITY))
     {
-        if (!(activator.flags & FL_NOTARGET))
+        if(!(activator.flags & FL_NOTARGET))
         {
-            if (activator.classname == "player")
+            if(activator.classname == "player")
                 self.enemy = activator;
         }
     }
@@ -450,7 +450,7 @@ void() lavaman_awake =
 */
 void() monster_lava_man =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -470,7 +470,7 @@ void() monster_lava_man =
     total_monsters = total_monsters + 1;
 
     // cause the lavaman to rise from the lava when triggered.
-    if (self.spawnflags & 2)
+    if(self.spawnflags & 2)
     {
         self.use = lavaman_awake;
         return;

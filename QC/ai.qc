@@ -329,7 +329,7 @@ float(entity targ) infront =
     vec = normalize (targ.origin - self.origin);
     dot = vec * v_forward;
 
-    if( dot > 0.3)
+    if(dot > 0.3)
     {
         return TRUE;
     }
@@ -665,7 +665,7 @@ float() FindTarget =
          }
       else if(r == RANGE_MID)
          {
-         if( /* client.show_hostile < time || */ !infront (client))
+         if(/* client.show_hostile < time || */ !infront (client))
             return FALSE;
          }
       }

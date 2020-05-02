@@ -18,7 +18,7 @@ void() ltrail_fire =
 {
     local entity myTarget;
 
-    if (self.classname != "ltrail_end")
+    if(self.classname != "ltrail_end")
     {
         sound (self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
         myTarget = find(world, targetname, self.target);
@@ -35,7 +35,7 @@ void() ltrail_fire =
         LightningDamage (self.origin, myTarget.origin, self, self.currentammo);
     }
 
-    if ( self.items < time)
+    if( self.items < time)
     {
         self.think = ltrail_chain;
         self.nextthink = time + self.frags;
@@ -51,12 +51,12 @@ void() ltrail_start_fire =
 {
     // if it's a toggle ltrail, we ignore triggers from ltrail_end's
     // when toggled off.
-    if (self.spawnflags & LT_TOGGLE)
+    if(self.spawnflags & LT_TOGGLE)
     {
         // user is not a lightning trail - change activity state.
-        if ( other.classname != "ltrail_end" )
+        if( other.classname != "ltrail_end" )
         {
-            if (self.spawnflags & LT_ACTIVE)
+            if(self.spawnflags & LT_ACTIVE)
             // currently active
             {
                 self.spawnflags = self.spawnflags - LT_ACTIVE;
@@ -70,17 +70,17 @@ void() ltrail_start_fire =
         }
         // user is lightning trail, but trail has been turned off.
         // ignore the message.
-        else if (!(self.spawnflags & LT_ACTIVE))
+        else if(!(self.spawnflags & LT_ACTIVE))
             return;
     }
 
-    if (self.classname ==  "ltrail_start")
+    if(self.classname ==  "ltrail_start")
     {
         self.items = time + self.weapon;
         ltrail_fire();
         self.ltrailLastUsed = time;
     }
-    else if (self.classname == "ltrail_relay")
+    else if(self.classname == "ltrail_relay")
     {
         self.items = time + self.weapon;
         ltrail_fire();
@@ -114,16 +114,16 @@ void() ltrail_start =
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;
 
-    if (self.currentammo == 0)
+    if(self.currentammo == 0)
         self.currentammo = 25;
 
-    if (self.weapon == 0)
+    if(self.weapon == 0)
         self.weapon = 0.3;
 
-    if (self.frags == 0)
+    if(self.frags == 0)
         self.frags = 0.3;
 
-    if (self.spawnflags & LT_ACTIVE)
+    if(self.spawnflags & LT_ACTIVE)
     {
         self.items = time + 99999999;
         self.think = ltrail_fire;
@@ -149,13 +149,13 @@ void() ltrail_relay =
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;
 
-    if (self.currentammo == 0)
+    if(self.currentammo == 0)
         self.currentammo = 25;
 
-    if (self.weapon == 0)
+    if(self.weapon == 0)
         self.weapon = 0.3;
 
-    if (self.frags == 0)
+    if(self.frags == 0)
         self.frags = 0.3;
 };
 
@@ -173,12 +173,12 @@ void() ltrail_end =
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;
 
-    if (self.currentammo == 0)
+    if(self.currentammo == 0)
         self.currentammo = 25;
 
-    if (self.weapon == 0)
+    if(self.weapon == 0)
         self.weapon = 0.3;
 
-    if (self.frags == 0)
+    if(self.frags == 0)
         self.frags = 0.3;
 };

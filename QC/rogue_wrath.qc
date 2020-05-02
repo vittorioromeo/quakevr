@@ -105,11 +105,11 @@ void() wrath_attack =
 
     r = random();
 
-    if (r < 0.25)
+    if(r < 0.25)
     {
         wrath_at_a01 ();
     }
-    else if (r < 0.65)
+    else if(r < 0.65)
     {
         wrath_at_b01 ();
     }
@@ -144,18 +144,18 @@ void(entity attacker, float damage) wrath_pain =
 {
     local float r;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     r = random();
 
-    if (r > 0.1)
+    if(r > 0.1)
     {
         self.pain_finished = time + 0.5;
         return;
     }
 
-    if (r < 0.07)
+    if(r < 0.07)
         wrath_pn_a01 ();
     else
         wrath_pn_b01 ();
@@ -178,7 +178,7 @@ void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
     ThrowGib ("progs/wrthgib1.mdl", self.health);
     ThrowGib ("progs/wrthgib2.mdl", self.health);
     ThrowGib ("progs/wrthgib3.mdl", self.health);
-    T_RadiusDamage (self, self, 80, world);
+    T_RadiusDamage(self, self, 80, world);
 
     self.origin = self.origin + '0 0 24';
 
@@ -190,14 +190,14 @@ void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
     WriteByte (MSG_BROADCAST, 0);
     WriteByte (MSG_BROADCAST, 4);
 
-    remove (self);
+    remove(self);
 };
 
 /*QUAKED monster_wrath (1 0 0) (-16 -16 -24) (16 16 32) Ambush
 */
 void() monster_wrath =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -247,7 +247,7 @@ void(float AttackNumber) WrathMissile =
     dir = normalize((self.enemy.origin + '0 0 10') - self.origin);
     dist = vlen (self.enemy.origin - self.origin);
     flytime = dist * 0.002;
-    if (flytime < 0.1)
+    if(flytime < 0.1)
         flytime = 0.1;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
@@ -262,20 +262,20 @@ void(float AttackNumber) WrathMissile =
 
     setsize (missile, '0 0 0', '0 0 0');
 
-    if ( AttackNumber == 1)
+    if( AttackNumber == 1)
     {
         org = self.origin + v_forward*20 + v_up*12; // 20 // 44;
     }
-    else if ( AttackNumber == 2)
+    else if( AttackNumber == 2)
     {
         org = self.origin + v_forward*18 + v_up*10; // 18 // 42;
     }
-    else if ( AttackNumber == 3)
+    else if( AttackNumber == 3)
     {
         org = self.origin + v_forward*12 + v_up*12 + v_right*20;
 // up20
     }
-    else if ( AttackNumber == 4)
+    else if( AttackNumber == 4)
     {
         org = self.origin + v_forward*20 + v_up*16;
     }
@@ -293,13 +293,13 @@ void(float AttackNumber) WrathMissile =
 
 void() WrathHome =
 {
-    if (self.enemy.health < 1)
+    if(self.enemy.health < 1)
     {
         remove(self);
         return;
     }
 
-    if (skill == 3)
+    if(skill == 3)
         ai_track (self.enemy, 550);
     else
         ai_track (self.enemy, 400);
@@ -310,7 +310,7 @@ void() WrathHome =
 
 void() WrathMissileTouch =
 {
-    if (other == self.owner ||
+    if(other == self.owner ||
         other.classname == "monster_wrath" ||
         other.classname == "monster_super_wrath")
     {
@@ -319,10 +319,10 @@ void() WrathMissileTouch =
 
     }
 
-    if (other.classname == "monster_zombie")
+    if(other.classname == "monster_zombie")
         T_Damage (other, self, self, 110);
 
-    T_RadiusDamage (self, self.owner, 20, world);
+    T_RadiusDamage(self, self.owner, 20, world);
     sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);

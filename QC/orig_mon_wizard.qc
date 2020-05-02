@@ -205,7 +205,7 @@ void() Wiz_FastFire =
         setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     }
 
-    remove (self);
+    remove(self);
 };
 
 

@@ -6,7 +6,7 @@
 /*
 void(entity theEntity) UpdateAmmoCounts =
 {
-    if ( self.weapon >= IT_LAVA_NAILGUN )
+    if( self.weapon >= IT_LAVA_NAILGUN )
     {
         theEntity.ammo_shells = theEntity.ammo_shells1;
         theEntity.ammo_nails = theEntity.ammo_lava_nails;
@@ -25,16 +25,16 @@ void(entity theEntity) UpdateAmmoCounts =
 
 void() newitems_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     // only one per person, please.
-    if (self.classname == "item_sphere")
+    if(self.classname == "item_sphere")
     {
-        if (VR_ItemUtil_EntHasItem(other, IID_V_SPHERE))
+        if(VR_ItemUtil_EntHasItem(other, IID_V_SPHERE))
         {
             return;
         }
@@ -44,14 +44,14 @@ void() newitems_touch =
     sprint (other, self.netname);
     sprint (other,"\n");
 
-    if (deathmatch)
+    if(deathmatch)
     {
-        if (self.classname == "item_random_powerup")
+        if(self.classname == "item_random_powerup")
         {
             self.nextthink = time + 60;
             self.think = random_regen;
         }
-        else if (self.classname == "item_sphere")
+        else if(self.classname == "item_sphere")
         {
             self.mdl = self.model;
             self.nextthink = time + 60*3;
@@ -72,18 +72,18 @@ void() newitems_touch =
     self.model = string_null;
 
 // do the apropriate action
-    if (self.netname == "Power Shield")
+    if(self.netname == "Power Shield")
     {
         other.shield_time = 1;
         other.shield_finished = time + 30;
     }
-    else if (self.netname == "Anti-Grav Belt")
+    else if(self.netname == "Anti-Grav Belt")
     {
         other.antigrav_time = 1;
         other.antigrav_finished = time + 45;
         other.gravity = 0.25;
     }
-    else if (self.classname == "item_sphere")
+    else if(self.classname == "item_sphere")
     {
         VR_ItemUtil_EntAddItem(other, IID_V_SPHERE);
         sphere_spawn();

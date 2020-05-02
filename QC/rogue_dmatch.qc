@@ -56,9 +56,9 @@ void() tag_token_drop =
 // =======================================
 void() tag_token_think =
 {
-    if ( self.owner.health > 0)
+    if( self.owner.health > 0)
     {
-        if ( self.tag_message_time < time )
+        if( self.tag_message_time < time )
         {
             bprint ( self.owner.netname );
             bprint ( " has the tag token!\n");
@@ -79,7 +79,7 @@ void() tag_token_think =
 // =======================================
 void() tag_token_touch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
     tag_token_owner = other;
@@ -103,9 +103,9 @@ The deathmatch tag token.
 */
 void() dmatch_tag_token =
 {
-    if ( cvar("teamplay") != TEAM_DMATCH_TAG )
+    if( cvar("teamplay") != TEAM_DMATCH_TAG )
     {
-        remove (self);
+        remove(self);
         return;
     }
 
@@ -125,7 +125,7 @@ void(entity targ, entity attacker) dmatch_score =
 {
     local entity tagToken;
 
-    if ( teamplay == TEAM_DMATCH_TAG )
+    if( teamplay == TEAM_DMATCH_TAG )
     {
         tagToken = find (world, classname, "dmatch_tag_token");
         if(tagToken == world)
@@ -134,11 +134,11 @@ void(entity targ, entity attacker) dmatch_score =
             return;
         }
 
-        if ( attacker == tag_token_owner)
+        if( attacker == tag_token_owner)
         {
             tagToken.tag_frags = tagToken.tag_frags + 1;
             attacker.frags = attacker.frags + 3;
-            if ( tagToken.tag_frags == 5 )
+            if( tagToken.tag_frags == 5 )
             {
                 sprint (attacker, "You got the Quad Damage\n");
                 VR_ItemUtil_EntAddItem(attacker, IID_QUAD);
@@ -147,7 +147,7 @@ void(entity targ, entity attacker) dmatch_score =
                 attacker.super_time = 1;
                 attacker.super_damage_finished = time + 30;
             }
-            else if (tagToken.tag_frags == 10)
+            else if(tagToken.tag_frags == 10)
             {
                 bprint ( attacker.netname );
                 bprint ( " lost the tag token\n" );
@@ -159,11 +159,11 @@ void(entity targ, entity attacker) dmatch_score =
         }
         else
         {
-            if (targ == tag_token_owner)
+            if(targ == tag_token_owner)
             {
                 attacker.frags = attacker.frags + 5;
                 sound ( self, CHAN_AUTO, "runes/end1.wav", 1, ATTN_NORM);
-                if (attacker.classname == "player")
+                if(attacker.classname == "player")
                 {
                     tag_token_owner = attacker;
 
