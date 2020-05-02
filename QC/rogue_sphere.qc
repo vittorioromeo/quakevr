@@ -5,14 +5,14 @@
 // ==============================
 void() sphere_impact =
 {
-    if (other.health)
+    if(other.health)
     {
         T_Damage (other, self, self, 1000 );
     }
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage (self, self, 300, other);
+    T_RadiusDamage(self, self, 300, other);
 
 //    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -37,7 +37,7 @@ void(entity ownerEntity) sphere_remove =
         {
             bprint ( theSphere.owner.netname );
             bprint ( " is denied Vengeance.\n" );
-            remove (theSphere);
+            remove(theSphere);
             theSphere = find(world, classname, "Vengeance");
         }
         else
@@ -53,7 +53,7 @@ void() sphere_attack =
     self.solid = SOLID_TRIGGER;
     self.touch = sphere_impact;
 
-    if (self.enemy.health < 1)
+    if(self.enemy.health < 1)
     {
         sprint ( self.owner, "You are denied Vengeance");
         remove(self);
@@ -70,38 +70,38 @@ void() sphere_attack =
 // ==============================
 void() sphere_think =
 {
-    if (self.shieldSoundTime < time)
+    if(self.shieldSoundTime < time)
     {
         sound ( self, CHAN_VOICE, "sphere/sphere.wav", 1, ATTN_NORM);
         self.shieldSoundTime = time + 4;
     }
 
-    if (time > self.delay)
+    if(time > self.delay)
     {
         VR_ItemUtil_EntDelItem(self.owner, IID_V_SPHERE);
 
         sprint ( self.owner, "Vengeance Sphere Lost\n");
-        remove (self);
+        remove(self);
         return;
     }
 
-    if (self.owner.health < 1)
+    if(self.owner.health < 1)
     {
         VR_ItemUtil_EntDelItem(self.owner, IID_V_SPHERE);
 
-        if ( self.owner.enemy.classname == "player" )
+        if( self.owner.enemy.classname == "player" )
         {
             self.enemy = self.owner.enemy;
             sphere_attack();
             return;
         }
-        if ( self.owner.enemy.owner.classname == "player")
+        if( self.owner.enemy.owner.classname == "player")
         {
             self.enemy = self.owner.enemy.owner;
             sphere_attack();
             return;
         }
-        remove (self);
+        remove(self);
         return;
     }
 
@@ -139,7 +139,7 @@ The Vengeance Sphere. DEATHMATCH ONLY.
 */
 void() item_sphere =
 {
-    if (!deathmatch)
+    if(!deathmatch)
     {
         remove(self);
         return;

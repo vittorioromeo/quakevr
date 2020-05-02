@@ -16,30 +16,30 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
     local vector dir;
     local float dist;
 
-    if (self.orbitPosition > 3)
+    if(self.orbitPosition > 3)
         self.orbitPosition = 0;
-    else if (self.orbitPosition < 0)
+    else if(self.orbitPosition < 0)
         self.orbitPosition = 0;
 
     traceline ( self.origin, destEnt.origin + offset, TRUE, world);
-    if ( trace_fraction < 1 )
+    if( trace_fraction < 1 )
     {
         setorigin (self, destEnt.origin + offset);
         self.orbitPosition = self.orbitPosition + 1;
         return;
     }
 
-    if ( self.orbitPosition == 0)
+    if( self.orbitPosition == 0)
     {
         dir = (destEnt.origin + offset) - self.origin;
         dir_x = dir_x + radius;
     }
-    else if ( self.orbitPosition == 1)
+    else if( self.orbitPosition == 1)
     {
         dir = (destEnt.origin + offset) - self.origin;
          dir_y = dir_y + radius;
     }
-    else if ( self.orbitPosition == 2)
+    else if( self.orbitPosition == 2)
     {
         dir = (destEnt.origin + offset) - self.origin;
         dir_x = dir_x - radius;
@@ -52,11 +52,11 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
 
     dist = vlen(dir);
 
-    if( dist < 8 )
+    if(dist < 8 )
     {
         self.orbitPosition = self.orbitPosition + 1;
     }
-    else if( dist < 50 )
+    else if(dist < 50 )
     {
         self.velocity = normalize(dir);
         self.velocity = self.velocity * 150;

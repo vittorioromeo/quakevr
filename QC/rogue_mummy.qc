@@ -90,7 +90,7 @@ void() mummy_walk18    =[  $walk18,    mummy_walk19   ] {ai_walk(0);};
 void() mummy_walk19    =[  $walk19,    mummy_walk1    ]
     {
     ai_walk(0);
-    if (random() < 0.2)
+    if(random() < 0.2)
         sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
     };
 
@@ -114,9 +114,9 @@ void() mummy_run17     =[  $run17,     mummy_run18    ] {ai_run(6);};
 void() mummy_run18     =[  $run18,     mummy_run1 ]
     {
     ai_run(16);
-    if (random() < 0.2)
+    if(random() < 0.2)
         sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
-    if (random() > 0.8)
+    if(random() > 0.8)
         sound (self, CHAN_VOICE, "zombie/z_idle1.wav", 1, ATTN_IDLE);
     };
 
@@ -132,15 +132,15 @@ void() mummyGrenadeTouch =
 {
     local float     mummyDamage;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;     // don't explode on owner
-    if (other.takedamage)
+    if(other.takedamage)
     {
         mummyDamage = 15 + random() * 15;
 
         T_Damage (other, self, self.owner, mummyDamage );
         sound (self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
-        remove (self);
+        remove(self);
         return;
     }
     sound (self, CHAN_WEAPON, "zombie/z_miss.wav", 1, ATTN_NORM);   // bounce sound
@@ -242,9 +242,9 @@ void() mummy_missile =
 
     r = random();
 
-    if (r < 0.3)
+    if(r < 0.3)
         mummy_atta1 ();
-    else if (r < 0.6)
+    else if(r < 0.6)
         mummy_attb1 ();
     else
         mummy_attc1 ();
@@ -362,7 +362,7 @@ void() mummy_paine12   =[  $paine12,   mummy_paine13  ]
         sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
         setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
         self.solid = SOLID_SLIDEBOX;
-        if (!walkmove (0, 0))
+        if(!walkmove (0, 0))
         {
             self.think = mummy_paine11;
             self.solid = SOLID_NOT;
@@ -408,20 +408,20 @@ void(entity attacker, float take) mummy_pain =
 {
     local float     r;
 
-    if ( self.pain_finished > time )
+    if( self.pain_finished > time )
         return;
 
     r = random();
-    if (r > 0.24)
+    if(r > 0.24)
         return;
 
     self.pain_finished = time + 2.5;
 
-    if (r < 0.06)
+    if(r < 0.06)
         mummy_paina1 ();
-    else if (r <  0.12)
+    else if(r <  0.12)
         mummy_painb1 ();
-    else if (r <  0.18)
+    else if(r <  0.18)
         mummy_painc1 ();
     else
         mummy_paind1 ();
@@ -451,7 +451,7 @@ Stronger - mummy starts with 1000 hitpoints, rather than 500.
 */
 void() monster_mummy =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -478,7 +478,7 @@ void() monster_mummy =
     setmodel (self, "progs/mummy.mdl");
 
     setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
-    if (self.spawnflags & MUMMY_STRONG)
+    if(self.spawnflags & MUMMY_STRONG)
         self.health = 1000;
     else
         self.health = 500;
@@ -490,7 +490,7 @@ void() monster_mummy =
     self.th_die = mummy_die;
     self.th_missile = mummy_missile;
 
-    if (self.spawnflags & SPAWN_LYING)
+    if(self.spawnflags & SPAWN_LYING)
     {
         setsize (self, '-16 -16 -24', '16 16 -16');
         self.solid = SOLID_NOT;

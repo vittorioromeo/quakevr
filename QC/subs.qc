@@ -251,7 +251,7 @@ void() SUB_UseTargets =
             t = find (t, targetname, self.killtarget);
             if(!t)
                 return;
-            remove (t);
+            remove(t);
         } while( 1 );
     }
 

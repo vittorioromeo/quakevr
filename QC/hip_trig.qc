@@ -63,7 +63,7 @@ void() keytrigger_use =
 
    VR_ItemUtil_EntDelItem(activator, self.vr_itemId);
 
-   // we can't just remove (self) here, because this is a touch function
+   // we can't just remove(self) here, because this is a touch function
    // called while C code is looping through area links...
    self.touch = SUB_Null;
    self.use = SUB_Null;
@@ -142,7 +142,7 @@ void() remove_touch =
 //   other.think = SUB_Remove;
    };
 
-/*QUAKED trigger_remove (.5 .5 .5) ? ignoremonsters ignoreplayers
+/*QUAKED trigger_remove(.5 .5 .5) ? ignoremonsters ignoreplayers
 Variable sized trigger that removes the thing
 that touches it.  Does not affect monsters or
 players.
@@ -203,7 +203,7 @@ void() trigger_setgravity =
 
 void() trigger_command_use =
    {
-   if( self.message )
+   if(self.message )
       localcmd( self.message );
    };
 
@@ -271,12 +271,12 @@ void() trigger_waterfall =
    InitTrigger();
    self.touch = trigger_waterfall_touch;
 
-   if( self.count == 0 )
+   if(self.count == 0 )
       {
       self.count = 100;
       }
 
-   if( self.speed == 0 )
+   if(self.speed == 0 )
       {
       self.movedir = self.movedir * 50;
       }

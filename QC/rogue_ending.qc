@@ -72,7 +72,7 @@ void() xpackEnding =
 {
     local entity cameraview;
 
-    if (coop)
+    if(coop)
     {
         ending_for_coop();
         return;
@@ -85,7 +85,7 @@ void() xpackEnding =
     WriteString (MSG_ALL, "");
 
     cameraview = find ( world, targetname, "cameraview");
-    if (cameraview == world)
+    if(cameraview == world)
     {
         ending_for_coop();
         return;
@@ -116,7 +116,7 @@ void(entity playerEnt) move_camera =
     local vector    cameraAngle;
 
     cameraPoint = find ( world, targetname, "cameraview");
-    if ( cameraPoint == world )
+    if( cameraPoint == world )
         objerror ("Could not find camerapoint!");
 
     self.model = "";
@@ -170,21 +170,21 @@ void() actor_run =
     local float        ang;
     local entity    pointOne;
 
-    if ( pointcontents (self.origin) == CONTENT_LAVA )
+    if( pointcontents (self.origin) == CONTENT_LAVA )
     {
         pointOne = find ( world, targetname, "point1" );
-        if (pointOne != world)
+        if(pointOne != world)
             setorigin ( self, pointOne.origin );
     }
 
-    if ( self.goalentity.targetname == "endpoint1")
+    if( self.goalentity.targetname == "endpoint1")
     {
         actorStage = STAGE_AT_POINT1;
         self.think = actor_control;
         self.nextthink = time + 0.1;
         return;
     }
-    if ( self.goalentity.targetname == "endpoint2")
+    if( self.goalentity.targetname == "endpoint2")
     {
         actorStage = STAGE_AT_POINT2;
         self.think = actor_control;
@@ -193,7 +193,7 @@ void() actor_run =
     }
 
     self.frame = self.frame + 1;
-    if (self.frame > 11)
+    if(self.frame > 11)
         self.frame = 6;
 
     dist = self.goalentity.origin - self.origin;
@@ -231,7 +231,7 @@ void() actor_fire5 =[$rockatt5, actor_fire6 ]
     {
         self.nextthink=time+0.15;
         ending_remove_stuff();
-        if (theMachine.health > 0)
+        if(theMachine.health > 0)
         {
             theMachine.think = time_crash_think;
             theMachine.nextthink = time + 0.1;
@@ -271,36 +271,36 @@ void() actor_control =
 {
     local entity    timepod;
 
-    if (actorStage == STAGE_START)
+    if(actorStage == STAGE_START)
     {
         self.target = "point1";
         self.movetarget = find (world, targetname, self.target);
         self.goalentity = self.movetarget;
-        if ( self.goalentity == world )
+        if( self.goalentity == world )
             objerror ("End Sequence point1 placing screwed up!");
         self.frame = 6;
         self.think = actor_run;
         self.nextthink = time + 0.1;
         actorStage = STAGE_TO_POINT1;
     }
-    else if (actorStage == STAGE_AT_POINT1)
+    else if(actorStage == STAGE_AT_POINT1)
     {
         self.target = "machine";
         self.movetarget = find (world, targetname, self.target);
         self.goalentity = self.movetarget;
-        if ( self.goalentity == world )
+        if( self.goalentity == world )
             objerror ("End Sequence machine placing screwed up!");
         actorStage = STAGE_FIRING;
         self.think = actor_fire1;
         self.nextthink = time + 0.1;
     }
-    else if (actorStage == STAGE_AT_POINT2)
+    else if(actorStage == STAGE_AT_POINT2)
     {
         self.frame = $stand1;
         self.think = actor_teleport;
         self.nextthink = time + 2;
     }
-    else if (actorStage == STAGE_TO_POINT2)
+    else if(actorStage == STAGE_TO_POINT2)
     {
         self.target = "timepod";
         SUB_UseTargets();
@@ -308,7 +308,7 @@ void() actor_control =
         self.target = "point2";
         self.movetarget = find (world, targetname, self.target);
         self.goalentity = self.movetarget;
-        if ( self.goalentity == world )
+        if( self.goalentity == world )
             objerror ("End Sequence point2 placing screwed up!");
         self.frame = 6;
         self.think = actor_run;
@@ -336,16 +336,16 @@ void(entity thePlayer) spawn_actor =
     theActor.view_ofs = '0 0 22';
     theActor.angles = self.angles;
     theActor.ideal_yaw = theActor.angles * '0 1 0';
-    if (!theActor.yaw_speed)
+    if(!theActor.yaw_speed)
         theActor.yaw_speed = 20;
     theActor.view_ofs = '0 0 25';
     theActor.flags = theActor.flags | FL_MONSTER;
     actorStage = STAGE_START;
 
-    if ( pointcontents (theActor.origin) == CONTENT_LAVA )
+    if( pointcontents (theActor.origin) == CONTENT_LAVA )
     {
         pointOne = find ( world, targetname, "point1" );
-        if (pointOne != world)
+        if(pointOne != world)
             setorigin ( theActor, pointOne.origin );
     }
 

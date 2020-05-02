@@ -26,7 +26,7 @@ void() random_pick_type =
         self.netname = "Power Shield";
         self.vr_itemId = IID_SHIELD;
     }
-    else if (randItem < 0.4)
+    else if(randItem < 0.4)
     {
         self.touch = newitems_touch;
         self.noise = "belt/pickup.wav";
@@ -34,7 +34,7 @@ void() random_pick_type =
         self.netname = "Anti-Grav Belt";
         self.vr_itemId = IID_ANTIGRAV;
     }
-    else if (randItem < 0.6)
+    else if(randItem < 0.6)
     {
         self.noise = "items/protect.wav";
         setmodel (self, "progs/invulner.mdl");
@@ -42,7 +42,7 @@ void() random_pick_type =
         self.netname = "Pentagram of Protection";
         self.vr_itemId = IID_INVULNERABILITY;
     }
-    else if (randItem < 0.8)
+    else if(randItem < 0.8)
     {
         self.noise = "items/inv1.wav";
         setmodel (self, "progs/invisibl.mdl");
@@ -67,7 +67,7 @@ Contains a random powerup.
 */
 void() item_random_powerup =
 {
-    if (!deathmatch)
+    if(!deathmatch)
     {
         remove(self);
         return;

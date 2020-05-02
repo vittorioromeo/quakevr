@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 #include "menu_util.hpp"
 #include <cassert>
 

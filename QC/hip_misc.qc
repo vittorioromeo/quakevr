@@ -201,7 +201,7 @@ void() ambient_riftpower =
 
 void() info_command =
    {
-   if( self.message )
+   if(self.message )
       localcmd( self.message );
    };
 
@@ -246,7 +246,7 @@ void() camerathink =
    local float    timeelapsed;
 
    timeelapsed = (time - self.cnt) * self.duration;
-   if( timeelapsed > 1 )
+   if(timeelapsed > 1 )
       timeelapsed = 1;
 
    p = self.oldorigin + (timeelapsed * (self.movetarget.origin - self.oldorigin));
@@ -277,7 +277,7 @@ void() camerachase =
 
 
    timeelapsed = time - self.cnt;
-   if( timeelapsed > 1 )
+   if(timeelapsed > 1 )
       timeelapsed = 1;
    self.cnt = time;
 

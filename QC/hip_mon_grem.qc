@@ -123,7 +123,7 @@ float() GremlinAttemptWeaponSteal =
         idx = ceil(random() * 7.1);
 
         if(idx < 0)       { idx = 0; }
-        else if (idx > 7) { idx = 7; }
+        else if(idx > 7) { idx = 7; }
 
         if(victimWeapons[idx] == WID_FIST)
         {
@@ -1408,7 +1408,7 @@ void() Gremlin_FireLightningGun =
         cells = self.ammo_cells;
         self.ammo_cells = 0;
       discharged = 1;
-        T_RadiusDamage (self, self, 35*cells, world);
+        T_RadiusDamage(self, self, 35*cells, world);
       discharged = 0;
         return;
     }
@@ -1766,7 +1766,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damag
     }
 
     // team play damage avoidance
-    if( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
+    if((teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
     {
         return;
     }
@@ -1950,7 +1950,7 @@ void() Gremlin_JumpTouch =
     /*
     if(other.takedamage)
     {
-        if( vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400 )
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);

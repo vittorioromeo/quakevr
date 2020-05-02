@@ -372,7 +372,7 @@ void() scourge_die =
 {
 // check for gib
    // stop sound
-   remove (self.lastvictim);
+   remove(self.lastvictim);
    self.spawnsilent = 0;
    scourge_think();
    if(self.health < -35)
@@ -476,11 +476,11 @@ void() monster_scourge =
         return;
     }
 
-    precache_model2 ("progs/scor.mdl");
-    precache_model2 ("progs/h_scourg.mdl");
-    precache_model2 ("progs/laser.mdl");
-    precache_model2 ("progs/s_light.mdl");
-    precache_model2 ("progs/spike.mdl");
+    precache_model2("progs/scor.mdl");
+    precache_model2("progs/h_scourg.mdl");
+    precache_model2("progs/laser.mdl");
+    precache_model2("progs/s_light.mdl");
+    precache_model2("progs/spike.mdl");
 
     precache_sound("misc/null.wav");
     precache_sound("scourge/idle.wav");
@@ -489,8 +489,8 @@ void() monster_scourge =
     precache_sound("scourge/sight.wav");
     precache_sound("scourge/tailswng.wav");
     precache_sound("scourge/walk.wav");
-    precache_sound2 ("shambler/smack.wav");
-    precache_sound2 ("weapons/rocket1i.wav");
+    precache_sound2("shambler/smack.wav");
+    precache_sound2("weapons/rocket1i.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;

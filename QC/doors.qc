@@ -790,7 +790,7 @@ void () func_door_secret =
     self.blocked = secret_blocked;
     self.speed = 50;
     self.use = fd_secret_use;
-    if( !self.targetname || self.spawnflags&SECRET_YES_SHOOT)
+    if(!self.targetname || self.spawnflags&SECRET_YES_SHOOT)
     {
         self.health = 10000;
         self.takedamage = DAMAGE_YES;

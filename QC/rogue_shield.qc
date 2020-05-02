@@ -6,14 +6,14 @@
 // ===================
 void() shield_think =
 {
-    if ( self.owner.shield_death_time < time)
+    if( self.owner.shield_death_time < time)
     {
         self.owner.shield_entity = world;
-        remove (self);
+        remove(self);
         return;
     }
 
-    if ( (self.owner.shield_death_time - 0.25) <= time)
+    if( (self.owner.shield_death_time - 0.25) <= time)
     {
         self.model = string_null;
     }
@@ -35,7 +35,7 @@ void(entity shieldOwner, vector dir) shield_spawn =
 {
     local entity newShield;
 
-    if ( shieldOwner.shield_death_time > time)
+    if( shieldOwner.shield_death_time > time)
     {
         return;
     }
@@ -88,13 +88,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) shield_hit=
 
     shield_spawn ( targ, dir);
 
-    if (targ.shieldSoundTime < time)
+    if(targ.shieldSoundTime < time)
     {
         sound (targ, CHAN_ITEM, "shield/hit.wav", 1, ATTN_NORM);
         targ.shieldSoundTime = time + 0.5;
     }
 
-    if (inflictor.classname == "lava_spike")
+    if(inflictor.classname == "lava_spike")
         save = damage * 0.70;
     else
         save = damage * 0.30;

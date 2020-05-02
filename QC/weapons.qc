@@ -43,50 +43,39 @@ vector() vrProjectileVelocity =
     }
 
     return VEC_ORIGIN;
-};
+}
 
+void(float xHand, float xAid) updateAmmoCounter =
+{
+    if(xAid == AID_NONE)
+    {
+        VRSetAmmoCounter(xHand, 0);
+    }
+    else
+    {
+        VRSetAmmoCounter(xHand, VR_WeaponUtil_GetAmmoCountByAmmoId(self, xAid));
+    }
+}
+
+float(float xHand) getCurrentAmmoCount =
+{
+    return VR_WeaponUtil_GetAmmoCountByAmmoId(self, VRGetCurrentAmmo(xHand));
+}
 
 void() updateAmmoCounters =
 {
-    if(self.currentammo != AID_NONE)
-    {
-        self.ammocounter = getCurrentAmmo(cVR_MainHand);
-    }
-    else
-    {
-        self.ammocounter = 0;
-    }
-
-    if(self.currentammo2 != AID_NONE)
-    {
-        self.ammocounter2 = getCurrentAmmo(cVR_OffHand);
-    }
-    else
-    {
-        self.ammocounter2 = 0;
-    }
+    updateAmmoCounter(cVR_OffHand, VRGetCurrentAmmo(cVR_OffHand));
+    updateAmmoCounter(cVR_MainHand, VRGetCurrentAmmo(cVR_MainHand));
 }
 
-void(float xHand, float v) setCurrentAmmo =
+void(float xHand, float xAid, float xValue) delAmmoAndUpdateCounter =
 {
-    local float idx;
-
-    if(xHand == cVR_OffHand) { idx = self.currentammo2; }
-    else                     { idx = self.currentammo; }
-
-    SetAmmoCountByAmmoId(self, idx, v);
+    VR_WeaponUtil_DelAmmoCountByAmmoId(self, xAid, xValue);
     updateAmmoCounters();
+    // updateAmmoCounter(xHand, xAid);
 }
 
-float(float xHand) getCurrentAmmo =
-{
-    local float idx;
 
-    if(xHand == cVR_OffHand) { idx = self.currentammo2; }
-    else                  { idx = self.currentammo; }
-
-    return GetAmmoCountByAmmoId(self, idx);
-}
 
 float() VRMeleeDmgQuadMult =
 {
@@ -121,7 +110,7 @@ float(float xHand, float v, float xBase) VRMeleeDmg =
     }
 
     if(xHand == cVR_OffHand) tmp = self.offhandvelmag;
-    else                  tmp = self.handvelmag;
+    else                     tmp = self.handvelmag;
 
     return xBase + (v * VRMeleeStrengthMult(tmp)) * cvar("vr_melee_dmg_multiplier") * VRMeleeDmgQuadMult();
 }
@@ -153,11 +142,11 @@ void(float hand, float velmag) VRMeleeHaptic =
     power = VRMeleeStrengthMult(velmag);
 
     amplitude = power / 10.0;
-    if(amplitude > 1.0) { amplitude = 1.0; }
+    if(amplitude > 1.0)       { amplitude = 1.0; }
     else if(amplitude < 0.45) { amplitude = 0.45; }
 
     xduration = 0.35 + power / 18.0;
-    if(xduration < 0.35) { xduration = 0.35; }
+    if(xduration < 0.35)     { xduration = 0.35; }
     else if(xduration > 0.9) { xduration = 0.9; }
 
     haptic(hand, 0.0, xduration, 75.0, amplitude);
@@ -221,7 +210,7 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     if(xTarget.classname == "monster_army")
     {
         headpos_z = xTarget.origin_z + 25;
-        headsize = 3.4;
+        headsize = 3.6;
         head_hdepth = 12;
         supportHS = 1;
         supportCD = 1;
@@ -237,7 +226,7 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     else if(xTarget.classname == "monster_enforcer")
     {
         headpos_z = xTarget.origin_z + 26;
-        headsize = 3.6;
+        headsize = 3.7;
         head_hdepth = 14;
         supportHS = 1;
         supportCD = 1;
@@ -324,7 +313,6 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 
 // HIPNOTIC
 //MED 10/18/96
-void(float damage) spawn_touchblood;
 /*
 ================
 HIPNOTIC WEAPONS
@@ -361,9 +349,9 @@ void() HIP_LaserTouch =
             self.dmg = self.dmg / 2;
         }
 
-        spawn_touchblood (self.dmg);
+        spawn_touchblood(self.dmg);
 
-        makeforward (self.angles);
+        makeforward(self.angles);
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
@@ -480,11 +468,12 @@ void(float xHand, float stat) HIP_FireLaser =
     out_z = 0;
     out = normalize(out);
     org = VRGetMuzzlePos(xHand) + ((-1) * v_up) + (2*out);
-    dir = aim (self, 1000);
+    dir = aim(self, 1000);
     aofs = ofs * 0.15;
     if(stat == 0)
     {
-        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
+
         org = org + (aofs*v_right);
         HIP_LaunchLaser(org, dir, 0);
         org = org - (2*aofs*v_right);
@@ -492,7 +481,8 @@ void(float xHand, float stat) HIP_FireLaser =
     }
     else if(stat == 1)
     {
-        setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+        delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
+
         org = org + (ofs*(v_up * 0.4));
         if(random()<0.1)
         {
@@ -747,13 +737,13 @@ void(float xHand) HIP_FireMjolnirLightning =
         cells = self.ammo_cells;
         self.ammo_cells = 0;
         discharged = 1;
-        T_RadiusDamage (self, self, 35*cells, world);
+        T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
         return;
     }
 
-    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 15);
+    delAmmoAndUpdateCounter(xHand, AID_CELLS, 15);
 
     HIP_SpawnMjolnirBase();
 };
@@ -913,6 +903,7 @@ void() W_Precache =
     // grapple
     precache_sound("weapons/chain1.wav");
     precache_sound("pendulum/hit.wav");
+    precache_sound("lavagun/snail.wav");        // lava nail gun cooldown
 //--ZOID
 
     // QUAKE VR
@@ -1325,7 +1316,7 @@ void(float xHand) W_FireShotgun =
 
     self.punchangle_x = -2;
 
-    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 1);
+    delAmmoAndUpdateCounter(xHand, AID_SHELLS, 1);
 
     dir = VRGetWeaponFireRotFwd(xHand);
 
@@ -1346,9 +1337,9 @@ void(float xHand) W_FireSuperShotgun =
 {
     local vector dir;
 
-    if(getCurrentAmmo(xHand) == 1)
+    if(VR_WeaponUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) == 1)
     {
-        W_FireShotgun (xHand);
+        W_FireShotgun(xHand);
         return;
     }
 
@@ -1356,7 +1347,7 @@ void(float xHand) W_FireSuperShotgun =
 
     self.punchangle_x = -4;
 
-    setCurrentAmmo(xHand, self.ammo_shells = self.ammo_shells - 2);
+    delAmmoAndUpdateCounter(xHand, AID_SHELLS, 2);
     dir = VRGetWeaponFireRotFwd(xHand);
     FireBullets (xHand, 14, dir, '0.035 0.025 0');
 
@@ -1416,7 +1407,7 @@ void() T_MissileTouch =
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage (self, self.owner, 120, other);
+    T_RadiusDamage(self, self.owner, 120, other);
 
 //    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -1439,9 +1430,9 @@ W_FireRocket
 */
 void(float xHand) W_FireRocket =
 {
-    local    entity missile;
+    local entity missile;
 
-    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
+    delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
 
     sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
 
@@ -1548,16 +1539,17 @@ void(float xHand) W_FireLightning =
     {
         return;
     }
-// explode if under water
+
+    // explode if under water
     if(self.waterlevel > 1)
     {
         cells = self.ammo_cells;
         self.ammo_cells = 0;
 
-    // HIPNOTIC
-//MED 01/05/97 added discharge flag
+        // HIPNOTIC
+        //MED 01/05/97 added discharge flag
         discharged = 1;
-        T_RadiusDamage (self, self, 35*cells, world);
+        T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
         return;
@@ -1570,7 +1562,7 @@ void(float xHand) W_FireLightning =
     }
 
     self.punchangle_x = -2;
-    setCurrentAmmo(xHand, self.ammo_cells = self.ammo_cells - 1);
+    delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
 
     org = VRGetMuzzlePos(xHand);
 
@@ -1591,7 +1583,7 @@ void(float xHand) W_FireLightning =
 
 void() GrenadeExplode =
 {
-    T_RadiusDamage (self, self.owner, 120, world);
+    T_RadiusDamage(self, self.owner, 120, world);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
@@ -1632,7 +1624,7 @@ void(float xHand) W_FireGrenade =
     local entity missile;
     local vector tmpAngles;
 
-    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
+    delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
 
     sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
 
@@ -1675,12 +1667,10 @@ void(float xHand) W_FireGrenade =
     }
 
     missile.avelocity = '300 300 300';
-
     missile.angles = vectoangles(missile.velocity);
-
     missile.touch = GrenadeTouch;
 
-// set missile duration
+    // set missile duration
     missile.nextthink = time + 2.5;
     missile.think = GrenadeExplode;
 
@@ -1692,10 +1682,9 @@ void(float xHand) W_FireGrenade =
     particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
 };
 
-
 void() ProximityExplode =
 {
-    T_RadiusDamage (self, self.owner, 95, world);
+    T_RadiusDamage(self, self.owner, 95, world);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
@@ -1811,7 +1800,7 @@ void(float xHand) W_FireProximityGrenade =
     local vector tmpAngles;
 
     NumProximityGrenades = NumProximityGrenades + 1;
-    setCurrentAmmo(xHand, self.ammo_rockets = self.ammo_rockets - 1);
+    delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
 
     sound(self, VRGetGunChannel(xHand), "hipweap/proxbomb.wav", 1, ATTN_NORM);
 
@@ -1879,10 +1868,6 @@ void(float xHand) W_FireProximityGrenade =
 
 //=============================================================================
 
-void() spike_touch;
-void() superspike_touch;
-
-
 /*
 ===============
 launch_spike
@@ -1916,12 +1901,12 @@ void(float xHand) W_FireSuperSpikes =
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
-    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 2);
+    delAmmoAndUpdateCounter(xHand, AID_NAILS, 2);
 
-    makeforward (VRGetWeaponFireRot(xHand));
+    makeforward(VRGetWeaponFireRot(xHand));
     dir = v_forward;
 
-    launch_spike (VRGetMuzzlePos(xHand), dir);
+    launch_spike(VRGetMuzzlePos(xHand), dir);
     newmis.touch = superspike_touch;
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -1936,13 +1921,13 @@ void(float xHand) W_FireSuperSpikes =
 
 void(float xHand, float ox) W_FireSpikes =
 {
-    local vector    dir;
+    local vector dir;
 
     makevectors(VRGetWeaponFireRot(xHand));
 
     if(self.ammo_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
-        W_FireSuperSpikes (xHand);
+        W_FireSuperSpikes(xHand);
         return;
     }
 
@@ -1953,9 +1938,9 @@ void(float xHand, float ox) W_FireSpikes =
 
     sound(self, VRGetGunChannel(xHand), "weapons/rocket1i.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
-    setCurrentAmmo(xHand, self.ammo_nails = self.ammo_nails - 1);
+    delAmmoAndUpdateCounter(xHand, AID_NAILS, 1);
     dir = v_forward;
-    launch_spike (VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
@@ -2136,7 +2121,7 @@ float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
         return TRUE;
     }
 
-    if(getCurrentAmmo(xHand) > 0)
+    if(getCurrentAmmoCount(xHand) > 0)
     {
         return TRUE;
     }
@@ -2207,27 +2192,48 @@ void(float xHand, float xWeapon, float xAttackFinished,
     }
     else if(xWeapon == WID_NAILGUN)
     {
-        player_nail1 (xHand);
+        player_nail1(xHand);
+
+        // TODO VR: (P1) rogue weapons
+        // lavaGunFired = 1;
+        // player_lava_nail1(xHand);
     }
     else if(xWeapon == WID_SUPER_NAILGUN)
     {
-        player_nail1 (xHand);
+        player_nail1(xHand);
+
+        // TODO VR: (P1) rogue weapons
+        // lavaGunFired = 1;
+        // player_lava_nail1(xHand);
     }
     else if(xWeapon == WID_GRENADE_LAUNCHER)
     {
         player_rocket1(xHand);
         W_FireGrenade(xHand);
+
+        // TODO VR: (P1) rogue weapons
+        // W_FireMultiGrenade(xHand);
+
         *xOutAttackFinished = time + RuneApplyHell(0.6, self);
     }
     else if(xWeapon == WID_ROCKET_LAUNCHER)
     {
         player_rocket1(xHand);
         W_FireRocket(xHand);
+
+        // TODO VR: (P1) rogue weapons
+        // W_FireMultiRocket(xHand);
+
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
     }
     else if(xWeapon == WID_LIGHTNING)
     {
         player_light1(xHand);
+
+        // TODO VR: (P1) rogue weapons
+        // plasma handled in player_light
+        // *xOutAttackFinished = time + RuneApplyHell(1.0, self);
+
         *xOutAttackFinished = time + 0.1;
         sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
     }
@@ -2763,33 +2769,33 @@ void() ImpulseCommands =
     // ROGUE
     //ZOID--
     //teamplay stuff
-    else if (self.impulse == 20)
+    else if(self.impulse == 20)
         TossBackpack();
-    else if (self.impulse == 21)
+    else if(self.impulse == 21)
         TossWeapon();
-    else if (self.impulse == 22)
+    else if(self.impulse == 22)
     {
-        if (deathmatch && teamplay >= TEAM_CTF)
+        if(deathmatch && teamplay >= TEAM_CTF)
             W_ChangeWeapon();
     }
-    else if (self.impulse == 23)
+    else if(self.impulse == 23)
         TeamFlagStatusReport();
     //--ZOID
     */
 
 //JIM
-    if( self.impulse == 200 )
+    if(self.impulse == 200 )
         WetsuitCheat();
 //MED
-    if( self.impulse == 201 )
+    if(self.impulse == 201 )
         EmpathyShieldsCheat();
-    if( self.impulse == 205 )
+    if(self.impulse == 205 )
         Genocide();
-    if( self.impulse == 206 )
+    if(self.impulse == 206 )
         ToggleDump();
-    if( self.impulse == 202 )
+    if(self.impulse == 202 )
         DumpEntities();
-    if( self.impulse == 203 )
+    if(self.impulse == 203 )
         DumpLiveEntities();
     if(self.impulse == 255)
         QuadCheat();
@@ -2818,6 +2824,7 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
     // Lightning effect (per-frame)
+    // TODO VR: (P0) rogue - do not do for plasma gun
     if(xButton && VRGetWeapon(xHand) == WID_LIGHTNING && self.ammo_cells > 0)
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
@@ -2839,16 +2846,15 @@ void(float xHand) W_WeaponFrameImpl =
         return;
     }
 
-    if (lavaGunFired)
+    if(lavaGunFired)
     {
-        // TODO VR: (P0) what to do?
-        // if (self.weapon == IT_LAVA_NAILGUN ||
-        //     self.weapon == IT_LAVA_SUPER_NAILGUN)
+        if(!VRGetFireButtonPressed(xHand) &&
+           (VRGetWeapon(xHand) == WID_NAILGUN || VRGetWeapon(xHand) == WID_SUPER_NAILGUN))
         {
-            sound (self, CHAN_WEAPON, "lavagun/snail.wav", 1, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), "lavagun/snail.wav", 1, ATTN_NORM);
+            particle2(VRGetMuzzlePos(xHand), '0 0 0', 4 /* smoke preset */, 6);
+            lavaGunFired = 0;
         }
-
-        lavaGunFired = 0;
     }
 
     // check for attack

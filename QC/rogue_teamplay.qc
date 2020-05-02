@@ -107,9 +107,9 @@ string(float Team) GetTeamColor =
 
 string(float Team) GetCTFTeam =
 {
-    if (Team == TEAM1) return "���";
-    else if (Team == TEAM2) return "����";
-    else if (Team == TEAM3) return "����";
+    if(Team == TEAM1) return "���";
+    else if(Team == TEAM2) return "����";
+    else if(Team == TEAM3) return "����";
     return "UNKNOWN";
 
 };
@@ -124,11 +124,11 @@ Return TRUE if the target's armor can take damage from this attacker.
 
 float(entity targ, entity inflictor, entity attacker, float damage) TeamArmorDam =
 {
-    if (teamplay <= 0)
+    if(teamplay <= 0)
         return TRUE;    // PGM bug? fix
 
     // teamplay modes 4,5,6 protect armor
-    if ((teamplay == TEAM_CTF ||
+    if((teamplay == TEAM_CTF ||
         teamplay == TEAM_CTF_ONEFLAG ||
         teamplay == TEAM_CTF_ALT) &&
         attacker.steam == targ.steam &&
@@ -150,14 +150,14 @@ Return TRUE if the target can take health damage from this attacker.
 
 float(entity targ, entity inflictor, entity attacker, float damage) TeamHealthDam =
 {
-    if (teamplay <= 0)
+    if(teamplay <= 0)
         return TRUE;
 
-    if (teamplay == TEAM_NORMAL_NODAMAGE && attacker.steam == targ.steam)
+    if(teamplay == TEAM_NORMAL_NODAMAGE && attacker.steam == targ.steam)
         return FALSE;
 
     // teamplay modes 4,5,6 protect health
-    if ((teamplay == TEAM_CTF ||
+    if((teamplay == TEAM_CTF ||
         teamplay == TEAM_CTF_ONEFLAG ||
         teamplay == TEAM_CTF_ALT) &&
         attacker.steam == targ.steam &&
@@ -177,13 +177,13 @@ void(entity who) TeamResetCarrier =
     // all players on the opposite team from the flag carrier.  The carrier
     // has been killed, so there is no longer a reason to award points for
     // killing off his assailants
-    if (teamplay >= TEAM_CTF &&
+    if(teamplay >= TEAM_CTF &&
         (who.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2))) {
 
         head = find(world, classname, "player");
 
         while (head != world) {
-            if (teamplay == TEAM_CTF_ONEFLAG ||
+            if(teamplay == TEAM_CTF_ONEFLAG ||
                 ((who.ctf_flags & CTF_FLAG_TEAM1) && head.steam == TEAM1) ||
                 ((who.ctf_flags & CTF_FLAG_TEAM2) && head.steam == TEAM2))
                 head.ctf_lasthurtcarrier = -10;
@@ -199,7 +199,7 @@ void(entity targ, entity attacker) TeamAssists =
     local string s;
     local entity head;
 
-    if ((targ.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
+    if((targ.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
         targ.steam != attacker.steam) {
         //ZOID: one team fragged the other team's flag carrier
 
@@ -211,7 +211,7 @@ void(entity targ, entity attacker) TeamAssists =
         // if the carrier has only had the flag for a few seconds, to
         // prevent ppl intentionally allowing enemies to grab the flag,
         // then immediately fragging them
-        if (targ.ctf_flagsince + CTF_CARRIER_FLAG_SINCE_TIMEOUT > time) {
+        if(targ.ctf_flagsince + CTF_CARRIER_FLAG_SINCE_TIMEOUT > time) {
             sprint(attacker, "Enemy flag carrier killed, no bonus\n");
         } else {
             attacker.frags = attacker.frags + CTF_FRAG_CARRIER_BONUS;
@@ -235,7 +235,7 @@ void(entity targ, entity attacker) TeamAssists =
     // get a string for the attacker's team now, for later announcements
     s = GetCTFTeam(attacker.steam);
 
-    if ((targ.ctf_lasthurtcarrier + CTF_CARRIER_DANGER_PROTECT_TIMEOUT > time) &&
+    if((targ.ctf_lasthurtcarrier + CTF_CARRIER_DANGER_PROTECT_TIMEOUT > time) &&
         !(attacker.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2))) {
         // a player on the same team as the flag carrier killed
         // someone who recently shot the flag carrier
@@ -262,8 +262,8 @@ void(entity targ, entity attacker) TeamAssists =
     head = findradius(attacker.origin, CTF_ATTACKER_PROTECT_RADIUS);
 
     while (head) {
-        if (head.classname == "player") {
-            if ( (head.steam == attacker.steam) &&
+        if(head.classname == "player") {
+            if( (head.steam == attacker.steam) &&
                  (head.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
                  (head != attacker) && // self defense
                  (!flag_carrier_radius) ) {
@@ -276,7 +276,7 @@ void(entity targ, entity attacker) TeamAssists =
                 bprint("'s flag carrier\n");
             }
         }
-        if ((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
+        if((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
             (attacker.steam == TEAM2 && head.classname == "item_flag_team2") ||
             head.classname == "item_flag") {  // one flag mode
             // attacker was near his own flag
@@ -284,7 +284,7 @@ void(entity targ, entity attacker) TeamAssists =
             flag_radius = 1;
             bprint(attacker.netname);
             bprint(" defends the");
-            if (teamplay != TEAM_CTF_ONEFLAG) {
+            if(teamplay != TEAM_CTF_ONEFLAG) {
                 bprint(" ");
                 bprint(s);
             }
@@ -296,8 +296,8 @@ void(entity targ, entity attacker) TeamAssists =
     // find flags or flag carriers within a radius from the target
     head = findradius(targ.origin, CTF_TARGET_PROTECT_RADIUS);
     while (head) {
-        if (head.classname == "player") {
-            if ( (head.steam == attacker.steam) &&
+        if(head.classname == "player") {
+            if( (head.steam == attacker.steam) &&
                  (head.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
                  (head != attacker) &&
                  (!flag_carrier_radius)) { // prevents redundant points awarded
@@ -310,7 +310,7 @@ void(entity targ, entity attacker) TeamAssists =
                 bprint("'s flag carrier\n");
             }
         }
-        if ((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
+        if((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
             (attacker.steam == TEAM2 && head.classname == "item_flag_team2") ||
             head.classname == "item_flag" &&  // one flag mode
             (!flag_radius)) { // prevents redundant points awarded
@@ -319,7 +319,7 @@ void(entity targ, entity attacker) TeamAssists =
             flag_radius = 1;
             bprint(attacker.netname);
             bprint(" defends the");
-            if (teamplay != TEAM_CTF_ONEFLAG) {
+            if(teamplay != TEAM_CTF_ONEFLAG) {
                 bprint(" ");
                 bprint(s);
             }
@@ -339,22 +339,22 @@ Return TRUE if the indicated color is legal
 float(float color) TeamColorIsLegal =
 {
     // All colors are legal if teamplay is not CTF
-    if( teamplay < TEAM_CTF) {
-        if (color > 0)
+    if(teamplay < TEAM_CTF) {
+        if(color > 0)
             return TRUE;
         return FALSE;
     }
 
     // In regular CTF and CTF_ONEFLAG, only two colors are legal
-    if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG)
-        if (color == TEAM1 || color == TEAM2)
+    if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG)
+        if(color == TEAM1 || color == TEAM2)
             return TRUE;
         else
             return FALSE;
 
     // In ALT CTF, three colors are legal
-    if (teamplay == TEAM_CTF_ALT)
-        if (color == TEAM1 || color == TEAM2 || color == TEAM3)
+    if(teamplay == TEAM_CTF_ALT)
+        if(color == TEAM1 || color == TEAM2 || color == TEAM3)
             return TRUE;
         else
             return FALSE;
@@ -369,30 +369,30 @@ float(float color) TeamColorIsLegal =
 void() TeamSetSkin =
 {
     self.skin = 0;
-    if (deathmatch)
+    if(deathmatch)
     {
-        if (teamplay >= TEAM_CTF)
+        if(teamplay >= TEAM_CTF)
             self.skin = 1;
     }
 /*
-    if ( deathmatch )
+    if( deathmatch )
     {
-        if ( teamplay >= TEAM_CTF )
+        if( teamplay >= TEAM_CTF )
         {
-//            if (self.team == TEAM3)
+//            if(self.team == TEAM3)
 //                self.skin = 2;
 //            else
                 self.skin = 1;
         }
-        if ( teamplay < TEAM_CTF )
+        if( teamplay < TEAM_CTF )
             self.skin = 1;
         else
         {
-            if (self.team == TEAM1)
+            if(self.team == TEAM1)
                 self.skin = 2;
-            else if (self.team == TEAM2)
+            else if(self.team == TEAM2)
                 self.skin = 3;
-            else if (self.team == TEAM3)
+            else if(self.team == TEAM3)
                 self.skin = 4;
         }
     }
@@ -416,7 +416,7 @@ void() TeamCheckTeam =
     local entity p;
     local string n;
 
-    if (self.steam >= 0 || teamplay < TEAM_CTF) {
+    if(self.steam >= 0 || teamplay < TEAM_CTF) {
         if(TeamColorIsLegal(self.team)) {
             self.steam = self.team;
             TeamSetSkin();
@@ -434,12 +434,12 @@ void() TeamCheckTeam =
     p = find (world, classname, "player");
 
     while(p) {
-        if (p != self) {
-            if (p.steam == TEAM1)
+        if(p != self) {
+            if(p.steam == TEAM1)
                 team1count = team1count + 1;
-            else if (p.steam == TEAM2)
+            else if(p.steam == TEAM2)
                 team2count = team2count + 1;
-            else if (p.steam == TEAM3)
+            else if(p.steam == TEAM3)
                 team3count = team3count + 1;
         }
         p = find(p, classname, "player");
@@ -449,14 +449,14 @@ void() TeamCheckTeam =
     newcolor = TEAM1;
     t = team1count;
 
-    if (team2count < t || (team2count == t && random() < 0.5)) {
+    if(team2count < t || (team2count == t && random() < 0.5)) {
         newcolor = TEAM2;
         t = team2count;
     }
 
     // in CTF_ALT, there's three teams
     team3count = team3count * 2; // grey team only gets half as many players
-    if (teamplay == TEAM_CTF_ALT && team3count < t) {
+    if(teamplay == TEAM_CTF_ALT && team3count < t) {
         newcolor = TEAM3;
         t = team3count;
     }
@@ -480,13 +480,13 @@ void() TeamCheckLock =
     local   float   n;
     local   string  s;
 
-    if (!deathmatch || teamplay < TEAM_CTF) {
+    if(!deathmatch || teamplay < TEAM_CTF) {
         // all colors are legal, no force
         self.steam = self.team;
         return;
     }
 
-    if (self.ctf_flags & CTF_FLAG_STUFF_COLOR) {
+    if(self.ctf_flags & CTF_FLAG_STUFF_COLOR) {
         self.ctf_flags = self.ctf_flags - CTF_FLAG_STUFF_COLOR;
         stuffcmd(self, "color ");
         n = self.steam - 1;
@@ -497,27 +497,27 @@ void() TeamCheckLock =
         return;
     }
 
-    if (!TeamColorIsLegal(self.team) && self.team == self.steam)
+    if(!TeamColorIsLegal(self.team) && self.team == self.steam)
         self.steam = -1; // full reset
 
     // Check to see if the player has changed colors
-    if (self.team != self.steam) {
-        if (self.steam >= 0) {
-            if (TeamColorIsLegal(self.steam)) {
+    if(self.team != self.steam) {
+        if(self.steam >= 0) {
+            if(TeamColorIsLegal(self.steam)) {
 
-                if (!(cvar("gamecfg") & GAMECFG_ALLOW_CHG)) {
+                if(!(cvar("gamecfg") & GAMECFG_ALLOW_CHG)) {
                     // changing teams sucks, kill him
 
                     // if he has tried to change teams several
                     // times, kick him off the server.
-                    if (self.suicide_count > 3) {
+                    if(self.suicide_count > 3) {
                         sprint(self, "You were told you can't change teams.\nGo play color games somewhere else.\n");
                         stuffcmd(self, "disconnect\n");
                         bprint(self.netname);
                         bprint(" has bad color sense\n");
                     }
                     // case base respawn
-                    if (self.ctf_killed != 1)
+                    if(self.ctf_killed != 1)
                         self.ctf_killed = 2;
                     T_Damage(self,self,self,1000);  // Kill the player
                     // trying to change teams counts as a suicide
@@ -538,9 +538,9 @@ void() TeamCheckLock =
             }
         }
 
-        if (self.steam > 0) {
+        if(self.steam > 0) {
             // case base respawn
-            if (self.ctf_killed != 1)
+            if(self.ctf_killed != 1)
                 self.ctf_killed = 2;
             T_Damage(self,self,self,1000);  // Kill the player
         }
@@ -561,7 +561,7 @@ void() TossBackpack =
         return;
 
     // only valid in teamplay modes
-    if (teamplay < 1)
+    if(teamplay < 1)
         return;
 
     item = spawn();
@@ -570,8 +570,8 @@ void() TossBackpack =
     /*
 
     // See if you have the Shotgun or Super Shotgun on
-    if ((self.weapon == IT_SHOTGUN) || (self.weapon == IT_SUPER_SHOTGUN)) {
-        if( self.ammo_shells >= 20 ) {
+    if((self.weapon == IT_SHOTGUN) || (self.weapon == IT_SUPER_SHOTGUN)) {
+        if(self.ammo_shells >= 20 ) {
             item.ammo_shells = 20;
             self.ammo_shells = self.ammo_shells - 20;
         }
@@ -583,8 +583,8 @@ void() TossBackpack =
     }
 
     // See if you have neither the Shotgun or Super Shotgun
-    if ( !(self.items & IT_SHOTGUN) && !(self.items & IT_SUPER_SHOTGUN)) {
-        if( self.ammo_shells >= 20 ) {
+    if( !(self.items & IT_SHOTGUN) && !(self.items & IT_SUPER_SHOTGUN)) {
+        if(self.ammo_shells >= 20 ) {
             item.ammo_shells = 20;
             self.ammo_shells = self.ammo_shells - 20;
         } else {
@@ -594,8 +594,8 @@ void() TossBackpack =
     }
 
     // See if we are using a nailgun
-    if ((self.weapon == IT_NAILGUN) || (self.weapon == IT_SUPER_NAILGUN) ) {
-        if( self.ammo_nails >= 20 ) {
+    if((self.weapon == IT_NAILGUN) || (self.weapon == IT_SUPER_NAILGUN) ) {
+        if(self.ammo_nails >= 20 ) {
             item.ammo_nails = 20;
             self.ammo_nails = self.ammo_nails - 20;
         } else {
@@ -605,8 +605,8 @@ void() TossBackpack =
     }
 
     // See if we are using the lava nailguns
-    if ((self.weapon == IT_LAVA_NAILGUN) || (self.weapon == IT_LAVA_SUPER_NAILGUN) ) {
-        if( self.ammo_lava_nails >= 20 ) {
+    if((self.weapon == IT_LAVA_NAILGUN) || (self.weapon == IT_LAVA_SUPER_NAILGUN) ) {
+        if(self.ammo_lava_nails >= 20 ) {
             item.ammo_lava_nails = 20;
             self.ammo_lava_nails = self.ammo_lava_nails - 20;
         } else {
@@ -616,16 +616,16 @@ void() TossBackpack =
     }
 
     // Check to see if we have neither nailgun
-    if (!(self.items & IT_NAILGUN) && !(self.items & IT_SUPER_NAILGUN)) {
+    if(!(self.items & IT_NAILGUN) && !(self.items & IT_SUPER_NAILGUN)) {
         // put both regular and lava nails in
-        if (self.ammo_nails >= 20) {
+        if(self.ammo_nails >= 20) {
             item.ammo_nails = 20;
             self.ammo_nails = self.ammo_nails - 20;
         } else {
             item.ammo_nails = self.ammo_nails;
             self.ammo_nails = 0;
         }
-        if( self.ammo_lava_nails >= 20 ) {
+        if(self.ammo_lava_nails >= 20 ) {
             item.ammo_lava_nails = 20;
             self.ammo_lava_nails = self.ammo_lava_nails - 20;
         } else {
@@ -635,8 +635,8 @@ void() TossBackpack =
     }
 
     // See if we are using a grenade or rocket launcher
-    if ((self.weapon == IT_GRENADE_LAUNCHER) || (self.weapon == IT_ROCKET_LAUNCHER)) {
-        if( self.ammo_rockets >= 10 ) {
+    if((self.weapon == IT_GRENADE_LAUNCHER) || (self.weapon == IT_ROCKET_LAUNCHER)) {
+        if(self.ammo_rockets >= 10 ) {
             item.ammo_rockets = 10;
             self.ammo_rockets = self.ammo_rockets - 10;
         } else {
@@ -646,8 +646,8 @@ void() TossBackpack =
     }
 
     // See if we are using the multi grenade or rocket launcher
-    if ((self.weapon == IT_MULTI_GRENADE) || (self.weapon == IT_MULTI_ROCKET)) {
-        if (self.ammo_multi_rockets >= 10 ) {
+    if((self.weapon == IT_MULTI_GRENADE) || (self.weapon == IT_MULTI_ROCKET)) {
+        if(self.ammo_multi_rockets >= 10 ) {
             item.ammo_multi_rockets = 10;
             self.ammo_multi_rockets = self.ammo_multi_rockets - 10;
         } else {
@@ -657,15 +657,15 @@ void() TossBackpack =
     }
 
     // See if we have neither the Grenade or rocket launcher
-    if ( !(self.items & IT_GRENADE_LAUNCHER) && !(self.items & IT_ROCKET_LAUNCHER) ) {
-        if( self.ammo_rockets >= 10 ) {
+    if( !(self.items & IT_GRENADE_LAUNCHER) && !(self.items & IT_ROCKET_LAUNCHER) ) {
+        if(self.ammo_rockets >= 10 ) {
             item.ammo_rockets = 10;
             self.ammo_rockets = self.ammo_rockets - 10;
         } else {
             item.ammo_rockets = self.ammo_rockets;
             self.ammo_rockets = 0;
         }
-        if (self.ammo_multi_rockets >= 10 ) {
+        if(self.ammo_multi_rockets >= 10 ) {
             item.ammo_multi_rockets = 10;
             self.ammo_multi_rockets = self.ammo_multi_rockets - 10;
         } else {
@@ -675,8 +675,8 @@ void() TossBackpack =
     }
 
     // See if we're using the lightning gun
-    if (self.weapon == IT_LIGHTNING) {
-        if( self.ammo_cells >= 20 ) {
+    if(self.weapon == IT_LIGHTNING) {
+        if(self.ammo_cells >= 20 ) {
             item.ammo_cells = 20;
             self.ammo_cells = self.ammo_cells - 20;
         } else {
@@ -686,8 +686,8 @@ void() TossBackpack =
     }
 
     // see if we are using the plasma gun
-    if (self.weapon == IT_PLASMA_GUN) {
-        if( self.ammo_plasma >= 10 ) {
+    if(self.weapon == IT_PLASMA_GUN) {
+        if(self.ammo_plasma >= 10 ) {
             item.ammo_plasma = 10;
             self.ammo_plasma = self.ammo_plasma - 10;
         } else {
@@ -697,15 +697,15 @@ void() TossBackpack =
     }
 
     // see if we don't have the lightning gun
-    if (!(self.items & IT_LIGHTNING)) {
-        if( self.ammo_cells >= 20 ) {
+    if(!(self.items & IT_LIGHTNING)) {
+        if(self.ammo_cells >= 20 ) {
             item.ammo_cells = 20;
             self.ammo_cells = self.ammo_cells - 20;
         } else {
             item.ammo_cells = self.ammo_cells;
             self.ammo_cells = 0;
         }
-        if( self.ammo_plasma >= 10 ) {
+        if(self.ammo_plasma >= 10 ) {
             item.ammo_plasma = 10;
             self.ammo_plasma = self.ammo_plasma - 10;
         } else {
@@ -714,7 +714,7 @@ void() TossBackpack =
         }
     }
 
-    if (item.ammo_shells + item.ammo_nails + item.ammo_lava_nails +
+    if(item.ammo_shells + item.ammo_nails + item.ammo_lava_nails +
         item.ammo_rockets + item.ammo_multi_rockets + item.ammo_cells +
         item.ammo_plasma == 0) {
         sprint(self, "No ammo available!\n");
@@ -751,10 +751,10 @@ void() Team_weapon_touch =
     local    float    hadammo, best, new, old;
     local entity stemp;
 
-    if (!(other.flags & FL_CLIENT))
+    if(!(other.flags & FL_CLIENT))
         return;
     // Don't let the owner pick up his own weapon for a second.
-    if ((other == self.owner) && ((self.nextthink - time) > 119))
+    if((other == self.owner) && ((self.nextthink - time) > 119))
         return;
 
 // if the player was using his best weapon, change up to the new one if better
@@ -763,17 +763,17 @@ void() Team_weapon_touch =
     best = W_BestWeapon();
     self = stemp;
 
-    if (self.classname == "weapon_nailgun")
+    if(self.classname == "weapon_nailgun")
         new = IT_NAILGUN;
-    else if (self.classname == "weapon_supernailgun")
+    else if(self.classname == "weapon_supernailgun")
         new = IT_SUPER_NAILGUN;
-    else if (self.classname == "weapon_supershotgun")
+    else if(self.classname == "weapon_supershotgun")
         new = IT_SUPER_SHOTGUN;
-    else if (self.classname == "weapon_rocketlauncher")
+    else if(self.classname == "weapon_rocketlauncher")
         new = IT_ROCKET_LAUNCHER;
-    else if (self.classname == "weapon_grenadelauncher")
+    else if(self.classname == "weapon_grenadelauncher")
         new = IT_GRENADE_LAUNCHER;
-    else if (self.classname == "weapon_lightning")
+    else if(self.classname == "weapon_lightning")
         new = IT_LIGHTNING;
     else
         objerror ("Team_weapon_touch: unknown classname");
@@ -794,7 +794,7 @@ void() Team_weapon_touch =
     remove(self);
     self = other;
 
-    if (!deathmatch)
+    if(!deathmatch)
         self.weapon = new;
     else
         Deathmatch_Weapon (old, new);
@@ -819,11 +819,11 @@ void() TossWeapon =
 
     local entity item;
 
-    if (deathmatch != 1)
+    if(deathmatch != 1)
         return;  // only in deathmatch 1
 
     // only valid in teamplay modes
-    if (teamplay < 1)
+    if(teamplay < 1)
         return;
 
     if((self.weapon == IT_AXE) || (self.weapon == IT_SHOTGUN) ||
@@ -851,7 +851,7 @@ void() TossWeapon =
         self.items = self.items - IT_SUPER_SHOTGUN;
     }
 
-    if( self.weapon == IT_NAILGUN || self.weapon == IT_LAVA_NAILGUN )
+    if(self.weapon == IT_NAILGUN || self.weapon == IT_LAVA_NAILGUN )
     {
         setmodel (item, "progs/g_nail.mdl");
         item.weapon = IT_NAILGUN;
@@ -860,7 +860,7 @@ void() TossWeapon =
         self.items = self.items - (self.items & (IT_NAILGUN | IT_LAVA_NAILGUN));
     }
 
-    if( self.weapon == IT_SUPER_NAILGUN || self.weapon == IT_LAVA_SUPER_NAILGUN)
+    if(self.weapon == IT_SUPER_NAILGUN || self.weapon == IT_LAVA_SUPER_NAILGUN)
     {
         setmodel (item, "progs/g_nail2.mdl");
         item.weapon = IT_SUPER_NAILGUN;
@@ -869,7 +869,7 @@ void() TossWeapon =
         self.items = self.items - (self.items & (IT_SUPER_NAILGUN | IT_LAVA_SUPER_NAILGUN));
     }
 
-    if( self.weapon == IT_GRENADE_LAUNCHER || self.weapon == IT_MULTI_GRENADE)
+    if(self.weapon == IT_GRENADE_LAUNCHER || self.weapon == IT_MULTI_GRENADE)
     {
         setmodel (item, "progs/g_rock.mdl");
         item.weapon = IT_GRENADE_LAUNCHER;
@@ -878,7 +878,7 @@ void() TossWeapon =
         self.items = self.items - (self.items & (IT_GRENADE_LAUNCHER | IT_MULTI_GRENADE));
     }
 
-    if( self.weapon == IT_ROCKET_LAUNCHER || self.weapon == IT_MULTI_ROCKET)
+    if(self.weapon == IT_ROCKET_LAUNCHER || self.weapon == IT_MULTI_ROCKET)
     {
         setmodel (item, "progs/g_rock2.mdl");
         item.weapon = IT_ROCKET_LAUNCHER;
@@ -887,7 +887,7 @@ void() TossWeapon =
         self.items = self.items - (self.items & (IT_ROCKET_LAUNCHER | IT_MULTI_ROCKET));
     }
 
-    if( self.weapon == IT_LIGHTNING || self.weapon == IT_PLASMA_GUN)
+    if(self.weapon == IT_LIGHTNING || self.weapon == IT_PLASMA_GUN)
     {
         setmodel (item, "progs/g_light.mdl");
         item.weapon = IT_LIGHTNING;
@@ -926,20 +926,20 @@ void(entity flg) TeamReturnFlag =
 
     p = find(world, classname, "player");
     while (p != world) {
-        if (teamplay == TEAM_CTF_ONEFLAG) // one flag mode?
+        if(teamplay == TEAM_CTF_ONEFLAG) // one flag mode?
             centerprint(p, "The flag has been returned!\n");
         else {
-            if (teamplay == TEAM_CTF_ALT) {
-                if (flg.team == TEAM1)
+            if(teamplay == TEAM_CTF_ALT) {
+                if(flg.team == TEAM1)
                     centerprint(p, "��� flag has been returned to base!\n");
-                else if (flg.team == TEAM2)
+                else if(flg.team == TEAM2)
                     centerprint(p, "���� flag has been returned to base!\n");
                 else
                     centerprint(p, "Some flag has been returned to base!\n");
             } else {
-                if (p.steam != flg.team)
+                if(p.steam != flg.team)
                     centerprint(p, "Enemy flag has been returned to base!\n");
-                else if (p.steam == flg.team)
+                else if(p.steam == flg.team)
                     centerprint(p, "Your flag has been returned to base!\n");
             }
         }
@@ -951,18 +951,18 @@ void () TeamRegenFlags =
 {
     local entity f;
 
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         f = find(world, classname, "item_flag");
-        if (f != world)
+        if(f != world)
             RegenFlag(f);
         return;
     }
 
     f = find(world, classname, "item_flag_team1");
-    if (f != world)
+    if(f != world)
         RegenFlag(f);
     f = find(world, classname, "item_flag_team2");
-    if (f != world)
+    if(f != world)
         RegenFlag(f);
 };
 
@@ -974,10 +974,10 @@ void(entity flg) TeamDropFlag =
     p = flg.owner;
 
     bprint(p.netname);
-    if (teamplay == TEAM_CTF_ONEFLAG)
+    if(teamplay == TEAM_CTF_ONEFLAG)
         bprint(" ���� the flag!\n");
     else {
-        if (flg.team == TEAM1)
+        if(flg.team == TEAM1)
             bprint(" ���� the ��� flag!\n"); // red
         else
             bprint(" ���� the ���� flag!\n"); // blue
@@ -1001,18 +1001,18 @@ void(entity player) TeamDropFlagOfPlayer =
     local string kn;
     local entity e;
 
-    if (teamplay == TEAM_CTF_ONEFLAG && (player.ctf_flags & CTF_FLAG_FLAG))
+    if(teamplay == TEAM_CTF_ONEFLAG && (player.ctf_flags & CTF_FLAG_FLAG))
         kn = "item_flag";
-    else if (player.ctf_flags & CTF_FLAG_TEAM1)
+    else if(player.ctf_flags & CTF_FLAG_TEAM1)
         kn = "item_flag_team1";
-    else if (player.ctf_flags & CTF_FLAG_TEAM2)
+    else if(player.ctf_flags & CTF_FLAG_TEAM2)
         kn = "item_flag_team2";
     else
         return; // doesn't have a flg
     player.ctf_flags = player.ctf_flags -
         (player.ctf_flags & (CTF_FLAG_FLAG | CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2));
     e = find(world, classname, kn);
-    if (e != world)
+    if(e != world)
         TeamDropFlag(e);
 };
 
@@ -1025,24 +1025,24 @@ void() TeamFlagTouch =
 {
     local entity p, oself;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
-    if (other.team != other.steam)
+    if(other.team != other.steam)
         return; // something is fishy, somebody is playing with colors
 
-    if (self.cnt == FLAG_CARRIED)
+    if(self.cnt == FLAG_CARRIED)
         return; // huh?
 
     // Ok, first up, let's do it for one flag mode
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         // in one flag mode, we always pick up the flag.  The touch of the
         // flagbase entities does the scoring
         bprint(other.netname);
         bprint(" ��� the flag!\n");
-        if (CTF_FLAG_BONUS)
+        if(CTF_FLAG_BONUS)
             other.frags = other.frags + CTF_FLAG_BONUS;
         //centerprint(other, "YOU GOT THE FLAG\n\nTAKE IT TO ENEMY BASE\n");
           centerprint(other, "��� ��� ��� ����\n\n���� �� �� ����� ����\n");
@@ -1061,7 +1061,7 @@ void() TeamFlagTouch =
 
         p = find(world, classname, "player");
         while (p != world) {
-            if (p != other)
+            if(p != other)
                 centerprint(p, "The flag has been taken!\n");
             p = find(p, classname, "player");
         }
@@ -1069,19 +1069,19 @@ void() TeamFlagTouch =
     }
 
     // Regular and Alt CTF mode
-    if (teamplay != TEAM_CTF && teamplay != TEAM_CTF_ALT)
+    if(teamplay != TEAM_CTF && teamplay != TEAM_CTF_ALT)
         return; // odd, but ignore it
 
-    if (self.team == other.steam) {
+    if(self.team == other.steam) {
         // same team, if the flag is *not* at the base, return
         // it to base.  we overload the 'cnt' field for this
-        if (self.cnt == FLAG_AT_BASE) {
+        if(self.cnt == FLAG_AT_BASE) {
             // the flag is at home base.  if the player has the enemy
             // flag, he's just won!
-            if ((self.team == TEAM1 && (other.ctf_flags & CTF_FLAG_TEAM2)) ||
+            if((self.team == TEAM1 && (other.ctf_flags & CTF_FLAG_TEAM2)) ||
                 (self.team == TEAM2 && (other.ctf_flags & CTF_FLAG_TEAM1))) {
                 bprint(other.netname);
-                if (other.team == TEAM1)
+                if(other.team == TEAM1)
                     bprint(" �������� the ���� flag!\n"); // blue
                 else
                     bprint(" �������� the ��� flag!\n"); // red
@@ -1096,11 +1096,11 @@ void() TeamFlagTouch =
                 p = find(world, classname, "player");
                 while (p != world) {
                     self = p;
-                    if (self.team == other.team && self != other)
+                    if(self.team == other.team && self != other)
                         self.frags = self.frags + CTF_TEAM_BONUS;
-                    if (self.team != other.team) {
-                        if (self.team == TEAM3)
-                            if (other.team == TEAM1)
+                    if(self.team != other.team) {
+                        if(self.team == TEAM3)
+                            if(other.team == TEAM1)
                                 centerprint(self, "���� flag was captured!\n");
                             else
                                 centerprint(self, "��� flag was captured!\n");
@@ -1110,19 +1110,19 @@ void() TeamFlagTouch =
                         // bonuses for defending the flag carrier if the flag carrier has already
                         // completed a capture
                         self.ctf_lasthurtcarrier = -5;
-                    } else if (self.team == other.team) {
+                    } else if(self.team == other.team) {
                         // done to all players on the capturing team
                         centerprint(self, "Your team captured the flag!\n");
                         // award extra points for capture assists
-                        if (self.ctf_lastreturnedflag + CTF_RETURN_FLAG_ASSIST_TIMEOUT > time) {
+                        if(self.ctf_lastreturnedflag + CTF_RETURN_FLAG_ASSIST_TIMEOUT > time) {
                             bprint(self.netname);
-                            if (self.team == TEAM1)
+                            if(self.team == TEAM1)
                                 bprint(" gets an assist for returning the ��� flag!\n");
                             else
                                 bprint(" gets an assist for returning the ���� flag!\n");
                             self.frags = self.frags + CTF_RETURN_FLAG_ASSIST_BONUS;
                         }
-                        if (self.ctf_lastfraggedcarrier + CTF_FRAG_CARRIER_ASSIST_TIMEOUT > time) {
+                        if(self.ctf_lastfraggedcarrier + CTF_FRAG_CARRIER_ASSIST_TIMEOUT > time) {
                             bprint(self.netname);
                             bprint(" gets an assist for fragging the flag carrier!\n");
                             self.frags = self.frags + CTF_FRAG_CARRIER_ASSIST_BONUS;
@@ -1140,7 +1140,7 @@ void() TeamFlagTouch =
         }
         // hey, its not home.  return it by teleporting it back
         bprint(other.netname);
-        if (other.team == TEAM1)
+        if(other.team == TEAM1)
             bprint(" �������� the ��� flag!\n"); // red
         else
             bprint(" �������� the ���� flag!\n"); // blue
@@ -1152,19 +1152,19 @@ void() TeamFlagTouch =
     }
 
     // if we have any flags, leave now
-    if (other.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2))
+    if(other.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2))
         return;
 
     // hey, its not our flag, pick it up
     bprint(other.netname);
-    if (self.team == TEAM1)
+    if(self.team == TEAM1)
         bprint(" ��� the ��� flag!\n"); // red
     else
         bprint(" ��� the ���� flag!\n"); // blue
     other.frags = other.frags + CTF_FLAG_BONUS;
 
     // if in three team, messages are a little different
-    if (other.team == TEAM3) {
+    if(other.team == TEAM3) {
 //        centerprint(other, "YOU GOT THE ENEMY FLAG\n\nRETURN IT TO THE OTHER BASE!\n");
         centerprint(other, "��� ��� ��� ����� ����\n\n������ �� �� ��� ����� ����\n");
     } else {
@@ -1173,7 +1173,7 @@ void() TeamFlagTouch =
     }
     sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
 
-    if (self.team == TEAM1)
+    if(self.team == TEAM1)
         other.ctf_flags = other.ctf_flags | CTF_FLAG_TEAM1;
     else
         other.ctf_flags = other.ctf_flags | CTF_FLAG_TEAM2;
@@ -1191,28 +1191,28 @@ void() TeamFlagTouch =
     p = find(world, classname, "player");
     while (p != world)
     {
-        if (p != other)
+        if(p != other)
         {
-            if (p.steam == self.team)
+            if(p.steam == self.team)
             {
                 centerprint(p, "Your flag has been taken!\n");
             }
-            else if (p.steam == other.team)
+            else if(p.steam == other.team)
             {
-                if (self.team == TEAM1)
+                if(self.team == TEAM1)
                     centerprint(p, "Your team has the ��� flag!\n");    // Red Flag
                 else
                     centerprint(p, "Your team has the ���� flag!\n");    // Blue Flag
             }
             else
             {
-                if (self.team == TEAM1)
-                    if (other.steam == TEAM2)
+                if(self.team == TEAM1)
+                    if(other.steam == TEAM2)
                         centerprint(p, "���� team has the ��� flag!\n"); // Blue has red
                     else // must be team3
                         centerprint(p, "���� team has the ��� flag!\n"); // grey has red
                 else
-                    if (other.steam == TEAM1)
+                    if(other.steam == TEAM1)
                         centerprint(p, "��� team has the ���� flag!\n"); // red has blue
                     else // must be team3
                         centerprint(p, "���� team has the ���� flag!\n");// grey has blue
@@ -1229,18 +1229,18 @@ void() TeamFlagBaseTouch =
 {
     local entity p, oself, f;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
-    if (other.team != other.steam)
+    if(other.team != other.steam)
         return; // something is fishy, somebody is playing with colors
 
     // Ok, first up, let's do it for one flag mode
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         // ok, if they guy touching it has the flag and this is his
         // base, capture!
-        if (((self.team == TEAM1 && other.steam == TEAM2) ||
+        if(((self.team == TEAM1 && other.steam == TEAM2) ||
             (self.team == TEAM2 && other.steam == TEAM1)) &&
             (other.ctf_flags & CTF_FLAG_FLAG)) {
             // he just touched enemy base, capture it
@@ -1256,13 +1256,13 @@ void() TeamFlagBaseTouch =
             p = find(world, classname, "player");
             while (p != world) {
                 self = p;
-                if (self.team == other.team && self != other)
+                if(self.team == other.team && self != other)
                     self.frags = self.frags + CTF_TEAM_BONUS;
-                if (self.team != other.team) {
+                if(self.team != other.team) {
                     self.ctf_lasthurtcarrier = -5;
-                } else if (self.team == other.team) {
+                } else if(self.team == other.team) {
                     // award extra points for capture assists
-                    if (self.ctf_lastfraggedcarrier + CTF_FRAG_CARRIER_ASSIST_TIMEOUT > time) {
+                    if(self.ctf_lastfraggedcarrier + CTF_FRAG_CARRIER_ASSIST_TIMEOUT > time) {
                         bprint(self.netname);
                         bprint(" gets an assist for fragging the flag carrier!\n");
                         self.frags = self.frags + CTF_FRAG_CARRIER_ASSIST_BONUS;
@@ -1278,15 +1278,15 @@ void() TeamFlagBaseTouch =
     }
 
     // in three team mode (TEAM_CTF_ALT) and we're on team3, see if we capture
-    if (teamplay != TEAM_CTF_ALT || other.steam != TEAM3)
+    if(teamplay != TEAM_CTF_ALT || other.steam != TEAM3)
         return;
 
-    if (((other.ctf_flags & CTF_FLAG_TEAM1) && (self.team == TEAM2)) ||
+    if(((other.ctf_flags & CTF_FLAG_TEAM1) && (self.team == TEAM2)) ||
         ((other.ctf_flags & CTF_FLAG_TEAM2) && (self.team == TEAM1))) {
         // third team captured
 
         bprint(other.netname);
-        if (self.team == TEAM1)
+        if(self.team == TEAM1)
             bprint(" �������� the ���� flag!\n"); // blue
         else
             bprint(" �������� the ��� flag!\n"); // red
@@ -1301,31 +1301,31 @@ void() TeamFlagBaseTouch =
         p = find(world, classname, "player");
         while (p != world) {
             self = p;
-            if (self.team == other.team && self != other)
+            if(self.team == other.team && self != other)
                 self.frags = self.frags + CTF_ALT_TEAM_BONUS;
-            if (self.team != other.team) {
-                if ((other.ctf_flags & CTF_FLAG_TEAM1) && self.team == TEAM1)
+            if(self.team != other.team) {
+                if((other.ctf_flags & CTF_FLAG_TEAM1) && self.team == TEAM1)
                     centerprint(self, "Your flag was captured!\n");
-                else if ((other.ctf_flags & CTF_FLAG_TEAM2) && self.team == TEAM2)
+                else if((other.ctf_flags & CTF_FLAG_TEAM2) && self.team == TEAM2)
                     centerprint(self, "The enemy flag was captured!\n");
                 // reset the last_hurt_carrier variable in all enemy players, so that you don't get
                 // bonuses for defending the flag carrier if the flag carrier has already
                 // completed a capture
                 self.ctf_lasthurtcarrier = -5;
-            } else if (self.team == other.team) {
+            } else if(self.team == other.team) {
                 // done to all players on the capturing team
                 centerprint(self, "Your team captured the flag!\n");
             }
             p = find(p, classname, "player");
         }
         // respawn flags
-        if (other.ctf_flags & CTF_FLAG_TEAM1) {
+        if(other.ctf_flags & CTF_FLAG_TEAM1) {
             f = find(world, classname, "item_flag_team1");
-            if (f != world)
+            if(f != world)
                 RegenFlag(f);
         } else { // must be flag2
             f = find(world, classname, "item_flag_team2");
-            if (f != world)
+            if(f != world)
                 RegenFlag(f);
         }
         other.ctf_flags = other.ctf_flags - (other.ctf_flags &
@@ -1344,30 +1344,30 @@ void() TeamFlagThink =
 
     self.nextthink = time + 0.1;
 
-    if (self.cnt == FLAG_AT_BASE)
+    if(self.cnt == FLAG_AT_BASE)
         return; // just sitting around waiting to be picked up
 
-    if (self.cnt == FLAG_DROPPED) {
-        if (time - self.super_time > CTF_FLAG_RETURN_TIME)
+    if(self.cnt == FLAG_DROPPED) {
+        if(time - self.super_time > CTF_FLAG_RETURN_TIME)
             TeamReturnFlag(self);
         return;
     }
 
-    if (self.cnt != FLAG_CARRIED)
+    if(self.cnt != FLAG_CARRIED)
         objerror("Flag in invalid state\n");
 
     e = self.owner;
-    if (e.classname != "player" || e.deadflag) {
+    if(e.classname != "player" || e.deadflag) {
         TeamDropFlag(self);
         return;
     }
 
-    if (teamplay == TEAM_CTF_ONEFLAG && !(e.ctf_flags & CTF_FLAG_FLAG)) {
+    if(teamplay == TEAM_CTF_ONEFLAG && !(e.ctf_flags & CTF_FLAG_FLAG)) {
         TeamDropFlag(self);
         return;
     }
     // must be TEAM_CTF or TEAM_CTF_ALT
-    if ((!(e.ctf_flags & CTF_FLAG_TEAM1) && self.team == TEAM1) ||
+    if((!(e.ctf_flags & CTF_FLAG_TEAM1) && self.team == TEAM1) ||
         (!(e.ctf_flags & CTF_FLAG_TEAM2) && self.team == TEAM2)) {
         TeamDropFlag(self);
         return;
@@ -1378,27 +1378,27 @@ void() TeamFlagThink =
     v_z = (-1) * v_z; // reverse z component
 
     f = 14;
-    if (self.owner.frame >= 29 && self.owner.frame <= 40) {
-        if (self.owner.frame >= 29 && self.owner.frame <= 34) { //axpain
+    if(self.owner.frame >= 29 && self.owner.frame <= 40) {
+        if(self.owner.frame >= 29 && self.owner.frame <= 34) { //axpain
             if      (self.owner.frame == 29) f = f + 2;
-            else if (self.owner.frame == 30) f = f + 8;
-            else if (self.owner.frame == 31) f = f + 12;
-            else if (self.owner.frame == 32) f = f + 11;
-            else if (self.owner.frame == 33) f = f + 10;
-            else if (self.owner.frame == 34) f = f + 4;
-        } else if (self.owner.frame >= 35 && self.owner.frame <= 40) { // pain
+            else if(self.owner.frame == 30) f = f + 8;
+            else if(self.owner.frame == 31) f = f + 12;
+            else if(self.owner.frame == 32) f = f + 11;
+            else if(self.owner.frame == 33) f = f + 10;
+            else if(self.owner.frame == 34) f = f + 4;
+        } else if(self.owner.frame >= 35 && self.owner.frame <= 40) { // pain
             if      (self.owner.frame == 35) f = f + 2;
-            else if (self.owner.frame == 36) f = f + 10;
-            else if (self.owner.frame == 37) f = f + 10;
-            else if (self.owner.frame == 38) f = f + 8;
-            else if (self.owner.frame == 39) f = f + 4;
-            else if (self.owner.frame == 40) f = f + 2;
+            else if(self.owner.frame == 36) f = f + 10;
+            else if(self.owner.frame == 37) f = f + 10;
+            else if(self.owner.frame == 38) f = f + 8;
+            else if(self.owner.frame == 39) f = f + 4;
+            else if(self.owner.frame == 40) f = f + 2;
         }
-    } else if (self.owner.frame >= 103 && self.owner.frame <= 118) {
+    } else if(self.owner.frame >= 103 && self.owner.frame <= 118) {
         if      (self.owner.frame >= 103 && self.owner.frame <= 104) f = f + 6;  //nailattack
-        else if (self.owner.frame >= 105 && self.owner.frame <= 106) f = f + 6;  //light
-        else if (self.owner.frame >= 107 && self.owner.frame <= 112) f = f + 7;  //rocketattack
-        else if (self.owner.frame >= 112 && self.owner.frame <= 118) f = f + 7;  //shotattack
+        else if(self.owner.frame >= 105 && self.owner.frame <= 106) f = f + 6;  //light
+        else if(self.owner.frame >= 107 && self.owner.frame <= 112) f = f + 7;  //rocketattack
+        else if(self.owner.frame >= 112 && self.owner.frame <= 118) f = f + 7;  //shotattack
     }
     self.origin = e.origin + '0 0 -16' - f*v + v_right * 22;
     self.angles = e.angles + '0 0 -45';
@@ -1411,25 +1411,25 @@ void() TeamFlagStatusReport =
     local entity flag1, flag2, p;
     local string n;
 
-    if (!deathmatch)
+    if(!deathmatch)
         return;
 
-    if (teamplay != TEAM_CTF && teamplay != TEAM_CTF_ONEFLAG &&
+    if(teamplay != TEAM_CTF && teamplay != TEAM_CTF_ONEFLAG &&
         teamplay != TEAM_CTF_ALT) {
         sprint(self, "Capture the Flag is not enabled.\n");
         return;
     }
 
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         flag1 = find (world, classname, "item_flag");
-        if (flag1 == world)
+        if(flag1 == world)
             sprint(self, "The flag is missing!\n");
-        else if (flag1.cnt == FLAG_AT_BASE)
+        else if(flag1.cnt == FLAG_AT_BASE)
             sprint(self, "The flag is at base!\n");
-        else if (flag1.cnt == FLAG_DROPPED)
+        else if(flag1.cnt == FLAG_DROPPED)
             sprint(self, "The flag is lying about!\n");
-        else if (flag1.cnt == FLAG_CARRIED) {
-            if (flag1.owner == self)
+        else if(flag1.cnt == FLAG_CARRIED) {
+            if(flag1.owner == self)
                 sprint(self, "You have the flag!\n");
             else {
                 sprint(self, flag1.owner.netname);
@@ -1444,35 +1444,35 @@ void() TeamFlagStatusReport =
     }
 
     // normal CTF
-    if (teamplay == TEAM_CTF) {
+    if(teamplay == TEAM_CTF) {
         // Find the flags at home base
         flag1 = find (world,classname, "item_flag_team1");
         flag2 = find (world,classname, "item_flag_team2");
 
         // If on team 2 switch meanings of flags
-        if (self.team != TEAM1) {
+        if(self.team != TEAM1) {
             p = flag1;
             flag1 = flag2;
             flag2 = p;
         }
 
-        if (flag1 != world && flag1.cnt == FLAG_CARRIED) {
+        if(flag1 != world && flag1.cnt == FLAG_CARRIED) {
             sprint(self, flag1.owner.netname);
             sprint(self, " has your flag. ");
         } else {
             sprint(self, "Your flag is ");
-            if (flag1 == world)
+            if(flag1 == world)
                 sprint(self, "missing!\n");
-            if (flag1.cnt == FLAG_AT_BASE)
+            if(flag1.cnt == FLAG_AT_BASE)
                 sprint(self, "in your base.\n");
-            else if (flag1.cnt == FLAG_DROPPED)
+            else if(flag1.cnt == FLAG_DROPPED)
                 sprint(self, "lying about.\n");
             else
                 sprint(self, " corrupt.\n");
         }
 
-        if (flag2 != world && flag2.cnt == FLAG_CARRIED) {
-            if (self == flag2.owner)
+        if(flag2 != world && flag2.cnt == FLAG_CARRIED) {
+            if(self == flag2.owner)
                 sprint(self, "You have the enemy flag.\n");
             else {
                 sprint(self, flag2.owner.netname);
@@ -1480,11 +1480,11 @@ void() TeamFlagStatusReport =
             }
         } else {
             sprint(self, "The enemy flag is ");
-            if (flag2 == world)
+            if(flag2 == world)
                 sprint(self, "missing!\n");
-            if (flag2.cnt == FLAG_AT_BASE)
+            if(flag2.cnt == FLAG_AT_BASE)
                 sprint(self, "in their base.\n");
-            else if (flag2.cnt == FLAG_DROPPED)
+            else if(flag2.cnt == FLAG_DROPPED)
                 sprint(self, "lying about.\n");
             else
                 sprint(self, " corrupt.\n");
@@ -1492,13 +1492,13 @@ void() TeamFlagStatusReport =
     }
 
     // three team CTF
-    if (teamplay == TEAM_CTF_ALT) {
+    if(teamplay == TEAM_CTF_ALT) {
         // Find the flags at home base
         flag1 = find (world,classname, "item_flag_team1");
         flag2 = find (world,classname, "item_flag_team2");
 
-        if (flag1 != world && flag1.cnt == FLAG_CARRIED) {
-            if (flag1.owner == self)
+        if(flag1 != world && flag1.cnt == FLAG_CARRIED) {
+            if(flag1.owner == self)
                 sprint(self, "You have the ��� flag!\n");
             else {
                 sprint(self, flag1.owner.netname);
@@ -1508,22 +1508,22 @@ void() TeamFlagStatusReport =
                 sprint(self, " team has the ��� flag.\n");
             }
         } else {
-            if (self.steam == flag1.team)
+            if(self.steam == flag1.team)
                 sprint(self, "Your flag is ");
             else
                 sprint(self, "��� flag is ");
-            if (flag1 == world)
+            if(flag1 == world)
                 sprint(self, "missing!\n");
-            if (flag1.cnt == FLAG_AT_BASE)
+            if(flag1.cnt == FLAG_AT_BASE)
                 sprint(self, "at base.\n");
-            else if (flag1.cnt == FLAG_DROPPED)
+            else if(flag1.cnt == FLAG_DROPPED)
                 sprint(self, "lying about.\n");
             else
                 sprint(self, " corrupt.\n");
         }
 
-        if (flag2 != world && flag2.cnt == FLAG_CARRIED) {
-            if (flag2.owner == self)
+        if(flag2 != world && flag2.cnt == FLAG_CARRIED) {
+            if(flag2.owner == self)
                 sprint(self, "You have the ���� flag.\n");
             else {
                 sprint(self, flag2.owner.netname);
@@ -1533,15 +1533,15 @@ void() TeamFlagStatusReport =
                 sprint(self, " team has the ���� flag.\n");
             }
         } else {
-            if (self.steam == flag1.team)
+            if(self.steam == flag1.team)
                 sprint(self, "Your flag is ");
             else
                 sprint(self, "���� flag is ");
-            if (flag2 == world)
+            if(flag2 == world)
                 sprint(self, "missing!\n");
-            if (flag2.cnt == FLAG_AT_BASE)
+            if(flag2.cnt == FLAG_AT_BASE)
                 sprint(self, "at base.\n");
-            else if (flag2.cnt == FLAG_DROPPED)
+            else if(flag2.cnt == FLAG_DROPPED)
                 sprint(self, "lying about.\n");
             else
                 sprint(self, " corrupt.\n");
@@ -1568,7 +1568,7 @@ void() place_flag = {
     self.cnt = FLAG_AT_BASE;
     self.mangle = self.angles;
     self.effects = self.effects | EF_DIMLIGHT;
-    if (!droptofloor()) {
+    if(!droptofloor()) {
         dprint ("Flag fell out of level at ");
         dprint (vtos(self.origin));
         dprint ("\n");
@@ -1599,12 +1599,12 @@ void(entity flg, string cname) place_flagbase =
     self.movetype = MOVETYPE_TOSS;
     self.velocity = '0 0 0';
     self.origin_z = self.origin_z + 6;
-    if (teamplay == TEAM_CTF_ONEFLAG || teamplay == TEAM_CTF_ALT) {
+    if(teamplay == TEAM_CTF_ONEFLAG || teamplay == TEAM_CTF_ALT) {
         self.solid = SOLID_TRIGGER;
         self.touch = TeamFlagBaseTouch;
     } else
         self.solid = SOLID_NOT;
-    if (!droptofloor()) {
+    if(!droptofloor()) {
         dprint ("Flagbase fell out of level at ");
         dprint (vtos(self.origin));
         dprint ("\n");
@@ -1626,14 +1626,14 @@ to 90.
 */
 void() item_flag_team1 =
 {
-    if (!deathmatch) {
+    if(!deathmatch) {
         remove(self);
         return;
     }
 
     teamplay = cvar("teamplay");
 
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         precache_sound ("misc/flagtk.wav");        // flag taken
         precache_sound ("misc/flagcap.wav");    // flag capture
         self.skin = 0;
@@ -1643,7 +1643,7 @@ void() item_flag_team1 =
         return;
     }
 
-    if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
+    if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
         self.team = TEAM1;
         self.items = IT_KEY2;
         precache_model ("progs/ctfmodel.mdl");
@@ -1673,14 +1673,14 @@ to 90.
 */
 void() item_flag_team2 =
 {
-    if (!deathmatch) {
+    if(!deathmatch) {
         remove(self);
         return;
     }
 
     teamplay = cvar("teamplay");
 
-    if (teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF_ONEFLAG) {
         precache_sound ("misc/flagtk.wav");        // flag taken
         precache_sound ("misc/flagcap.wav");    // flag capture
         self.team = TEAM2;
@@ -1690,7 +1690,7 @@ void() item_flag_team2 =
         return;
     }
 
-    if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
+    if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
         self.team = TEAM2;
         self.items = IT_KEY1;
         precache_model ("progs/ctfmodel.mdl");
@@ -1720,7 +1720,7 @@ to 90.
 */
 void() item_flag =
 {
-    if (cvar("teamplay") != TEAM_CTF_ONEFLAG) {
+    if(cvar("teamplay") != TEAM_CTF_ONEFLAG) {
         remove(self);
         return;
     }
@@ -1768,7 +1768,7 @@ void() TeamCheckUpdate =
     local string s;
     local string ts1, ts2, ts3;
 
-    if (nextteamupdtime > time || teamplay < 1 || !deathmatch)
+    if(nextteamupdtime > time || teamplay < 1 || !deathmatch)
         return;
 
     TeamSetUpdate();
@@ -1780,26 +1780,26 @@ void() TeamCheckUpdate =
     ts2 = GetCTFTeam(TEAM2);
     ts3 = GetCTFTeam(TEAM3);
 
-    if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT || teamplay == TEAM_CTF_ONEFLAG) {
+    if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT || teamplay == TEAM_CTF_ONEFLAG) {
         p = find(world, classname, "player");
         while (p != world) {
-            if (p.steam == TEAM1)
+            if(p.steam == TEAM1)
                 total1 = total1 + p.frags;
-            else if (p.steam == TEAM2)
+            else if(p.steam == TEAM2)
                 total2 = total2 + p.frags;
-            else if (p.steam == TEAM3)
+            else if(p.steam == TEAM3)
                 total3 = total3 + p.frags;
             p = find(p, classname, "player");
         }
 
-        if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG) {
-            if (total1 > total2) {
+        if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG) {
+            if(total1 > total2) {
                 bprint(ts1);
                 bprint(" team is leading by ");
                 s = ftos(total1 - total2);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total1 < total2) {
+            } else if(total1 < total2) {
                 bprint(ts2);
                 bprint(" team is leading by ");
                 s = ftos(total2 - total1);
@@ -1814,35 +1814,35 @@ void() TeamCheckUpdate =
                 bprint(s);
                 bprint(" points!\n");
             }
-        } else if (teamplay == TEAM_CTF_ALT) {
-            if (total1 > total2 && total1 > total3) {
+        } else if(teamplay == TEAM_CTF_ALT) {
+            if(total1 > total2 && total1 > total3) {
                 bprint(ts1);
                 bprint(" team is leading by ");
-                if (total2 > total3)
+                if(total2 > total3)
                     s = ftos(total1 - total2);
                 else
                     s = ftos(total1 - total3);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total2 > total1 && total2 > total3) {
+            } else if(total2 > total1 && total2 > total3) {
                 bprint(ts2);
                 bprint(" team is leading by ");
-                if (total1 > total3)
+                if(total1 > total3)
                     s = ftos(total2 - total1);
                 else
                     s = ftos(total2 - total3);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total3 > total1 && total3 > total2) {
+            } else if(total3 > total1 && total3 > total2) {
                 bprint(ts3);
                 bprint(" team is leading by ");
-                if (total1 > total2)
+                if(total1 > total2)
                     s = ftos(total3 - total1);
                 else
                     s = ftos(total3 - total2);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total1 == total2) {
+            } else if(total1 == total2) {
                 bprint(ts1);
                 bprint(" and ");
                 bprint(ts2);
@@ -1850,7 +1850,7 @@ void() TeamCheckUpdate =
                 s = ftos(total1);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total3 == total2) {
+            } else if(total3 == total2) {
                 bprint(ts2);
                 bprint(" and ");
                 bprint(ts3);
@@ -1858,7 +1858,7 @@ void() TeamCheckUpdate =
                 s = ftos(total3);
                 bprint(s);
                 bprint(" points!\n");
-            } else if (total3 == total1) {
+            } else if(total3 == total1) {
                 bprint(ts1);
                 bprint(" and ");
                 bprint(ts3);
@@ -1888,7 +1888,7 @@ Only appears in CTF teamplay
 void() func_ctf_wall =
 {
     teamplay = cvar("teamplay");
-    if (teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG ||
+    if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG ||
         teamplay == TEAM_CTF_ALT) {
         self.angles = '0 0 0';
         self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything

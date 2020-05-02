@@ -86,10 +86,10 @@ void() zombie_stand15    =[    $stand15,        zombie_stand1    ] {ai_stand();}
 // with an added check for enemies if they're sneaky types...
 void() zombie_lurk =
 {
-    if (self.spawnflags & SPAWN_SNEAKY)
+    if(self.spawnflags & SPAWN_SNEAKY)
     {
         // not pausing before attack, but looking for player.
-        if (!self.pain_finished)
+        if(!self.pain_finished)
         {
             if(FindTarget ())
                 return;
@@ -97,7 +97,7 @@ void() zombie_lurk =
         else
         {
             // if we've waited long enough, pounce!
-            if ( self.pain_finished < time )
+            if( self.pain_finished < time )
             {
                 self.think = zombie_escape1;
                 self.nextthink = time + 0.1;
@@ -111,7 +111,7 @@ void() zombie_lurk =
 void() zombie_cruc1    = [ $cruc_1, zombie_cruc2 ]
     {
     zombie_lurk();
-    if (random() < 0.1)
+    if(random() < 0.1)
         sound (self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);
     };
 void() zombie_cruc2    = [ $cruc_2, zombie_cruc3 ] { zombie_lurk(); };
@@ -184,7 +184,7 @@ void() ZombieGrenadeTouch =
     {
         T_Damage (other, self, self.owner, 10 );
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
-        remove (self);
+        remove(self);
         return;
     }
     sound(self, CHAN_WEAPON, "zombie/z_miss.wav", 1, ATTN_NORM);    // bounce sound
@@ -412,7 +412,7 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
     sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
     setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.solid = SOLID_SLIDEBOX;
-    if (!walkmove (0, 0))
+    if(!walkmove (0, 0))
     {
         self.think = zombie_paine11;
         self.solid = SOLID_NOT;
@@ -576,7 +576,7 @@ void() zombie_escape16 = [ $cruc_16, zombie_run1 ]
 
 void() zombie_escape =
 {
-    if (!self.pain_finished)
+    if(!self.pain_finished)
     {
         self.pain_finished = time + self.delay;
     }
@@ -663,7 +663,7 @@ void() monster_zombie =
         self.movetype = MOVETYPE_NONE;
         zombie_cruc1();
     }
-    else if (self.spawnflags & SPAWN_LYING)
+    else if(self.spawnflags & SPAWN_LYING)
     {
         self.solid = SOLID_NOT;
         self.th_stand = zombie_sleep;
@@ -674,12 +674,12 @@ void() monster_zombie =
         setsize (self, '-16 -16 -24', '16 16 -16');
 
         // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
-        if ( self.spawnflags & SPAWN_AMBUSH)
+        if( self.spawnflags & SPAWN_AMBUSH)
             self.spawnflags = SPAWN_LYING;
 
         walkmonster_start();
     }
-    else if (self.spawnflags & SPAWN_SNEAKY)
+    else if(self.spawnflags & SPAWN_SNEAKY)
     {
         self.movetype = MOVETYPE_NONE;
         self.solid = SOLID_NOT;
@@ -689,11 +689,11 @@ void() monster_zombie =
         self.th_pain = asPainFn(zombie_escape);
         self.th_missile = zombie_escape;
 
-        if (!self.delay)
+        if(!self.delay)
             self.delay = 3;
 
         self.ideal_yaw = self.angles * '0 1 0';
-        if (!self.yaw_speed)
+        if(!self.yaw_speed)
             self.yaw_speed = 20;
         self.view_ofs = '0 0 25';
         self.flags = self.flags | FL_MONSTER;
@@ -703,7 +703,7 @@ void() monster_zombie =
     }
     else
     {
-        if (self.spawnflags & SPAWN_AMBUSH)
+        if(self.spawnflags & SPAWN_AMBUSH)
             self.spawnflags = SPAWN_LYING;
         walkmonster_start();
     }

@@ -24,67 +24,69 @@ void(vector org, vector dir) launch_lava_spike =
     setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
     setorigin (newmis, org);
 
-    newmis.velocity = dir * 1000;
+    newmis.velocity = dir * 1750;
 };
 
-void() W_FireSuperLavaSpikes =
+void(float xHand) W_FireSuperLavaSpikes =
 {
-    local vector    dir;
-    local entity    old;
+    local vector dir;
 
-    sound (self, CHAN_WEAPON, "weapons/spike2.wav", 1, ATTN_NORM);
-    self.attack_finished = time + 0.2;
-    self.currentammo = self.ammo_lava_nails = self.ammo_lava_nails - 2;
+    sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
+    VRSetAttackFinished(xHand, time + 0.2);
+    delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 2);
 
     // TODO VR: (P0) I don't think I want this
     // UpdateAmmoCounts (self);
 
-    dir = aim (self, 1000);
-    launch_lava_spike (self.origin + '0 0 16', dir);
+    makeforward(VRGetWeaponFireRot(xHand));
+    dir = v_forward;
+
+    launch_lava_spike(VRGetMuzzlePos(xHand), dir);
     newmis.touch = superlavaspike_touch;
 
-//    setmodel (newmis, "progs/lspike.mdl");
+    setmodel(newmis, "progs/lspike.mdl");
+    setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
-    setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
     self.punchangle_x = -2;
+
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
-void(float ox) W_FireLavaSpikes =
+void(float xHand, float ox) W_FireLavaSpikes =
 {
-    local vector    dir;
-    local entity    old;
+    local vector dir;
 
-    makevectors (self.v_angle);
+    makevectors(VRGetWeaponFireRot(xHand));
 
     // TODO VR: (P0) not sure what to do with this yet
-    // if (self.ammo_lava_nails >= 2 && self.weapon == IT_LAVA_SUPER_NAILGUN)
+    // if(self.ammo_lava_nails >= 2 && self.weapon == IT_LAVA_SUPER_NAILGUN)
 
-    if (self.ammo_lava_nails >= 2)
+    if(self.ammo_lava_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
-        W_FireSuperLavaSpikes ();
+        W_FireSuperLavaSpikes(xHand);
         return;
     }
 
-    if (self.ammo_lava_nails < 1)
+    if(self.ammo_lava_nails < 1)
     {
-        // TODO VR: (P1) should be ok to comment these
-        // sprint (self, "Out of Lava Nails\n");
-        // self.weapon = W_BestWeapon ();
-        // W_SetCurrentAmmo ();
         return;
     }
 
-    sound (self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
-    self.attack_finished = time + 0.2;
-    self.currentammo = self.ammo_lava_nails = self.ammo_lava_nails - 1;
+    sound(self, VRGetGunChannel(xHand), "weapons/rocket1i.wav", 1, ATTN_NORM);
+    VRSetAttackFinished(xHand, time + 0.2);
+    delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 1);
 
     // TODO VR: (P0) I don't think I want this
     // UpdateAmmoCounts (self);
 
-    dir = aim (self, 1000);
-    launch_lava_spike (self.origin + '0 0 16' + v_right*ox, dir);
+    dir = v_forward;
+    launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
     self.punchangle_x = -2;
+
+    VRGunHaptic(xHand, 0.05, 150, 1.0);
+    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
 };
 
 // =============== Lava Spike Touch Routines
@@ -96,20 +98,20 @@ local float old_armortype;
 local float old_armorvalue;
 local float old_armormask;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;
 
-    if (other.solid == SOLID_TRIGGER)
+    if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
     }
 
 // hit something that bleeds
-    if (other.takedamage)
+    if(other.takedamage)
     {
         spawn_touchblood (9);
         if(other.classname == "player")
@@ -129,7 +131,7 @@ local float old_armormask;
         }
         else        // is a monster
         {
-            if ( other.classname != "monster_lava_man")
+            if( other.classname != "monster_lava_man")
             {
                 T_Damage (other, self, self.owner, 15);
             }
@@ -139,9 +141,9 @@ local float old_armormask;
     {
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 
-        if (self.classname == "wizspike")
+        if(self.classname == "wizspike")
             WriteByte (MSG_BROADCAST, TE_WIZSPIKE);
-        else if (self.classname == "knightspike")
+        else if(self.classname == "knightspike")
             WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
         else
             WriteByte (MSG_BROADCAST, TE_SPIKE);
@@ -160,20 +162,20 @@ local float rand;
 local float old_armortype;
 //local float old_armorvalue;
 
-    if (other == self.owner)
+    if(other == self.owner)
         return;
 
-    if (other.solid == SOLID_TRIGGER)
+    if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
-    if (pointcontents(self.origin) == CONTENT_SKY)
+    if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
         return;
     }
 
 // hit something that bleeds
-    if (other.takedamage)
+    if(other.takedamage)
     {
         spawn_touchblood (18);
 
@@ -196,7 +198,7 @@ local float old_armortype;
         }
         else        // is a monster, do 50% more damage
         {
-            if ( other.classname != "monster_lava_man")
+            if( other.classname != "monster_lava_man")
             {
                 T_Damage (other, self, self.owner, 30);
             }

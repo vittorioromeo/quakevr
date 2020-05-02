@@ -61,7 +61,7 @@ void() dragon_stop_attack =
 {
     local entity tempDest;
 
-    if (self.dragonAttacking == FALSE)
+    if(self.dragonAttacking == FALSE)
         return;
 
 //    skill ramp?
@@ -71,7 +71,7 @@ void() dragon_stop_attack =
     self.dragonAttacking = FALSE;
     traceline (self.origin, self.movetarget.origin, TRUE, world);
 
-    if (trace_fraction == 1)
+    if(trace_fraction == 1)
         return;
     else
         bprint ("Error: Dragon cannot get to next target!\n");
@@ -85,32 +85,32 @@ void() dragon_check_attack =
     local vector    vec;
     local float        dot;
 
-    if ( self.dragonAttacking == TRUE)
+    if( self.dragonAttacking == TRUE)
         return;
-    if ( self.th_missile == SUB_Null)
+    if( self.th_missile == SUB_Null)
         return;
-    if ( self.attack_finished > time )
+    if( self.attack_finished > time )
         return;
-    if ( self.enemy.health < 0)
+    if( self.enemy.health < 0)
         self.enemy = world;
-    if ( self.enemy.flags & FL_NOTARGET )
+    if( self.enemy.flags & FL_NOTARGET )
         return;
 
-    if (self.enemy == world)
+    if(self.enemy == world)
         FindTarget();
     else
     {
         makevectors (self.angles);
         vec = normalize (self.enemy.origin - self.origin);
         dot = vec * v_forward;
-//        if ( dot > 0.55 )
-        if ( dot > 0.3 )
+//        if( dot > 0.55 )
+        if( dot > 0.3 )
         {
             traceline (self.origin, self.enemy.origin, TRUE, world);
-            if (trace_fraction == 1)
+            if(trace_fraction == 1)
             {
                 dot = vlen ( self.enemy.origin - self.origin );
-                if (dot < 350)
+                if(dot < 350)
                 {
                     self.dragonAttacking = TRUE;
                     self.think = dragon_melee1;
@@ -138,17 +138,17 @@ void(float dist) dragon_move =
     local float  leftTurn, rightTurn, turnOffset;
     local entity oldEnemy;
 
-    if ( self.health < 1 )
+    if( self.health < 1 )
     {
         remove(self);
         return;
     }
 
-    if (self.dragonAttacking == FALSE) // && self.dragonInTransit == FALSE)
+    if(self.dragonAttacking == FALSE) // && self.dragonInTransit == FALSE)
         dragon_check_attack();
 
     oldEnemy = self.enemy;
-    if ( self.dragonAttacking == FALSE )
+    if( self.dragonAttacking == FALSE )
     {
         moveDir = self.movetarget.origin - self.origin;
         moveAngles = vectoangles ( moveDir );
@@ -161,68 +161,68 @@ void(float dist) dragon_move =
     }
 
     turnOffset = self.angles_y - moveAngles_y;
-    if (turnOffset != 0)
+    if(turnOffset != 0)
     {
         turnOffset = 180 - self.angles_y;
         leftTurn = anglemod ( moveAngles_y + turnOffset ) - 180;
         rightTurn = 180 - anglemod ( moveAngles_y + turnOffset );
 
-        if (leftTurn < 0)
+        if(leftTurn < 0)
             leftTurn = 360;
-        else if (rightTurn < 0)
+        else if(rightTurn < 0)
             rightTurn = 360;
 
         self.yaw_speed = 10;
-        if (rightTurn < 180)
+        if(rightTurn < 180)
         {
-            if ( self.yaw_speed < rightTurn )
+            if( self.yaw_speed < rightTurn )
                 self.angles_y = self.angles_y - self.yaw_speed;
             else
                 self.angles_y = moveAngles_y;
 
-            if ( rightTurn > 5 )
+            if( rightTurn > 5 )
             {
                 self.angles_z = self.angles_z + 5;
-                if (self.angles_z > 30)
+                if(self.angles_z > 30)
                     self.angles_z = 30;
             }
             turnOffset = rightTurn;
         }
         else
         {
-            if ( self.yaw_speed < rightTurn )
+            if( self.yaw_speed < rightTurn )
                 self.angles_y = self.angles_y + self.yaw_speed;
             else
                 self.angles_y = moveAngles_y;
 
-            if ( leftTurn > 5 )
+            if( leftTurn > 5 )
             {
                 self.angles_z = self.angles_z - 5;
-                if (self.angles_z < -30)
+                if(self.angles_z < -30)
                     self.angles_z = -30;
             }
             turnOffset = leftTurn;
         }
     }
-    else if (self.angles_z != 0)
+    else if(self.angles_z != 0)
     {
-        if (self.angles_z < -5)
+        if(self.angles_z < -5)
             self.angles_z = self.angles_z + 5;
-        else if (self.angles_z < 5)
+        else if(self.angles_z < 5)
             self.angles_z = 0;
-        else if (self.angles_z > 5)
+        else if(self.angles_z > 5)
             self.angles_z = self.angles_z - 5;
     }
 
-    if ( moveDir_z > 5)
+    if( moveDir_z > 5)
         setorigin ( self, self.origin + '0 0 5');
-    else if ( moveDir_z < -5)
+    else if( moveDir_z < -5)
         setorigin ( self, self.origin - '0 0 5');
 
     moveAngles = self.origin;
     walkmove ( self.angles_y, dist );
 
-    if (moveAngles == self.origin)
+    if(moveAngles == self.origin)
     {
 //        bprint ( "Cannot move smoothly. movetogoal..\n");
         movetogoal ( dist );
@@ -299,13 +299,13 @@ void() dragon_atk_f4=[$drgfix6c, dragon_walk3 ]
 // ===================================
 void() dragon_walk1 =[ $drgfly01, dragon_walk2 ]
     {
-        if (self.dragonAttacking)
+        if(self.dragonAttacking)
             dragon_stop_attack();
 
         self.th_missile=dragon_atk_a1;
         self.dragonPainSequence = 1;
         dragon_move(17);
-        if (random() < 0.2)
+        if(random() < 0.2)
             sound (self, CHAN_VOICE, "dragon/active.wav", 0.6, ATTN_IDLE);
     };
 void() dragon_walk2 =[ $drgfly02, dragon_walk3 ]
@@ -354,13 +354,13 @@ void() dragon_walk13 =[ $drgfly13, dragon_walk1 ]
 
 void() FireballTouch =
 {
-    if (other == self.owner)
+    if(other == self.owner)
         return;        // don't explode on owner
 
-    if (self.owner.classname == "monster_dragon")
-        T_RadiusDamage (self, self.owner, 90, self.owner);
+    if(self.owner.classname == "monster_dragon")
+        T_RadiusDamage(self, self.owner, 90, self.owner);
     else
-        T_RadiusDamage (self, self.owner, 30, world);
+        T_RadiusDamage(self, self.owner, 30, world);
 
     sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
@@ -416,10 +416,10 @@ void() dragon_fireball =
     makevectors (self.angles);
     org = self.origin + v_forward*112 + v_up*32;
 
-    if (random() > 0.66)
+    if(random() > 0.66)
     {
         fireCount = 1;
-        if ( skill > 1)
+        if( skill > 1)
             fireCount = 2;
         fireType = FIRE_PLASMA;
     }
@@ -438,7 +438,7 @@ void() dragon_fireball =
         makevectors (dir);
         dir = dir + v_right * distortion;
 
-         if (fireType == FIRE_FIREBALL)
+         if(fireType == FIRE_FIREBALL)
             launch_fireball(org, dir);
         else
             launch_plasma(org, dir);
@@ -456,16 +456,16 @@ void() dragon_tail_touch =
     local vector    delta;
     local float        tailDamage;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     ai_charge(10);
 
     delta = self.enemy.origin - self.origin;
     tailDamage = vlen(delta);
-    if (vlen(delta) > 150)
+    if(vlen(delta) > 150)
     {
         return;
     }
@@ -479,16 +479,16 @@ void() dragon_tail =
     local float dist;
     local vector dir;
 
-    if (!self.enemy)
+    if(!self.enemy)
         return;
-    if (!CanDamage (self.enemy, self))
+    if(!CanDamage (self.enemy, self))
         return;
 
     dragon_move(10);
 
     dir = self.enemy.origin - self.origin;
     dist = vlen ( dir );
-    if ( dist < 250 )
+    if( dist < 250 )
     {
         T_Damage ( self.enemy, self, self, 30 );
         dir = normalize (dir);
@@ -545,29 +545,29 @@ void(entity attacker, float damage) dragon_pain =
 {
     local float r;
 
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     r = random();
 
-    if (r < 0.25)
+    if(r < 0.25)
     {
         dragon_stop_attack();
 
         sound (self, CHAN_VOICE, "dragon/pain.wav", 1, ATTN_NORM);
         self.pain_finished = time + 2;
 
-        if (self.dragonPainSequence == 1)
+        if(self.dragonPainSequence == 1)
             self.think = dragon_painA1;
-        else if (self.dragonPainSequence == 2)
+        else if(self.dragonPainSequence == 2)
             self.think = dragon_painF1;
-        else if (self.dragonPainSequence == 3)
+        else if(self.dragonPainSequence == 3)
             self.think = dragon_painE1;
-        else if (self.dragonPainSequence == 4)
+        else if(self.dragonPainSequence == 4)
             self.think = dragon_painD1;
-        else if (self.dragonPainSequence == 5)
+        else if(self.dragonPainSequence == 5)
             self.think = dragon_painC1;
-        else if (self.dragonPainSequence == 6)
+        else if(self.dragonPainSequence == 6)
             self.think = dragon_painB1;
     }
 };
@@ -586,7 +586,7 @@ void() dragon_boom2 =
 
 void() dragon_boom1 =
 {
-    if ( self.dragonDeathState > DDIE_STOPPED )
+    if( self.dragonDeathState > DDIE_STOPPED )
 //        objerror ( "dragon_boom1");
         return;
 
@@ -601,11 +601,11 @@ void() dragon_boom1 =
 
 void() dragon_explode =
 {
-    if ( self.dragonDeathState > DDIE_FALLING )
+    if( self.dragonDeathState > DDIE_FALLING )
 //        objerror ( "dragon_explode");
         return;
 
-    if (vlen(self.velocity) < 100 || self.flags & FL_INWATER)
+    if(vlen(self.velocity) < 100 || self.flags & FL_INWATER)
     {
         self.dragonDeathState = DDIE_STOPPED;
         dragon_boom1();
@@ -620,12 +620,12 @@ void() dragon_explode =
 
 void() dragon_squish =
 {
-    if (other.classname == "player")
+    if(other.classname == "player")
     {
         self.classname = "monster_dragon_dead";
         T_Damage( other, self, self, 200);
     }
-    if (other == world)
+    if(other == world)
     {
         self.velocity = '0 0 0';
         dragon_explode();
@@ -634,7 +634,7 @@ void() dragon_squish =
 
 void() dragon_death1 = [ $drgdth01, dragon_death2 ]
     {
-    if ( self.dragonDeathState > 0)
+    if( self.dragonDeathState > 0)
 //        objerror ( "dragon_death1");
         return;
 
@@ -681,7 +681,7 @@ void() dragon_death21 = [ $drgdth21, dragon_death21 ]
 // ===================================
 void() dragon_use =
 {
-    if (self.health < 1)
+    if(self.health < 1)
     {
         self.use = SUB_Null;
         return;
@@ -700,14 +700,14 @@ void() dragon_activate =
 {
     self.takedamage = DAMAGE_AIM;
     self.ideal_yaw = self.angles * '0 1 0';
-    if (!self.yaw_speed)
+    if(!self.yaw_speed)
         self.yaw_speed = 10;
     self.view_ofs = '0 0 25';
 
     self.flags = self.flags | FL_FLY;
     self.flags = self.flags | FL_MONSTER;
 
-    if (!walkmove(0,0))
+    if(!walkmove(0,0))
     {
         dprint ("flymonster in wall!\n");
         dprint (self.classname);
@@ -716,11 +716,11 @@ void() dragon_activate =
         dprint ("\n");
     }
 
-    if (self.target)
+    if(self.target)
     {
         self.movetarget = find(world, targetname, self.target);
         self.goalentity = self.movetarget;
-        if (!self.movetarget)
+        if(!self.movetarget)
         {
             dprint ("Monster can't find target at ");
             dprint (vtos(self.origin));
@@ -728,7 +728,7 @@ void() dragon_activate =
         }
     }
 
-    if (self.targetname)
+    if(self.targetname)
         self.use = dragon_use;
     else
         dragon_use();
@@ -739,7 +739,7 @@ void() dragon_activate =
 */
 void() monster_dragon =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -804,17 +804,17 @@ void() trigger_dragon =
 // =================================================
 void() dragon_corner_touch =
 {
-    if (other.movetarget != self)
+    if(other.movetarget != self)
         return;
 
-    if (other.classname != "monster_dragon")
+    if(other.classname != "monster_dragon")
         return;
 
     other.movetarget = find (world, targetname, self.target);
     other.goalentity = other.movetarget;
     other.target = self.target;
 
-    if (!other.movetarget)
+    if(!other.movetarget)
     {
         objerror ("dragon_corner: no target found");
     }
@@ -826,7 +826,7 @@ between rooms.
 */
 void() dragon_corner =
 {
-    if (!self.targetname)
+    if(!self.targetname)
         objerror ("dragon_corner: no targetname");
 
     self.solid = SOLID_TRIGGER;

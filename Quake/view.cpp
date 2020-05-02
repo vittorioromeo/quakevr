@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 #include "render.hpp"
 #include "util.hpp"
 
@@ -1089,7 +1090,12 @@ void V_CalcRefdef(const glm::vec3& handpos, const glm::vec3& gunOffset)
     view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 
     // TODO VR: (P2) hack
-    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    const auto isHandMdl = [](const char* mdlname) {
+        return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
+               (strcmp(mdlname, "progs/openhand.mdl") == 0);
+    };
+
+    if(view->model && isHandMdl(view->model->name))
     {
         view->hidden = true;
     }
@@ -1166,7 +1172,12 @@ void V_SetupOffHandWpnViewEnt(
     view.model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
 
     // TODO VR: (P2) hack
-    if(view.model && !strcmp(view.model->name, "progs/hand.mdl"))
+    const auto isHandMdl = [](const char* mdlname) {
+        return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
+               (strcmp(mdlname, "progs/openhand.mdl") == 0);
+    };
+
+    if(view.model && isHandMdl(view.model->name))
     {
         view.hidden = true;
     }
@@ -1250,7 +1261,13 @@ void V_SetupHolsterViewEnt(const int modelId, const glm::vec3& pos,
     view->model = cl.model_precache[modelId];
 
     // TODO VR: (P2) hack
-    if(view->model && !strcmp(view->model->name, "progs/hand.mdl"))
+    const auto isHandMdl = [](const char* mdlname) {
+        return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
+               (strcmp(mdlname, "progs/openhand.mdl") == 0);
+    };
+
+
+    if(view->model && isHandMdl(view->model->name))
     {
         view->model = nullptr;
     }
@@ -1291,6 +1308,8 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
         quake::util::cvarToEnum<Wpn2HDisplayMode>(VR_GetWpnCVar(
             otherWpnCvar, WpnCVar::TwoHDisplayMode)) == Wpn2HDisplayMode::Fixed;
 
+    const bool closedHand = VR_IsHandGrabbing(handIdx);
+
     if(otherWpnTwoHDisplayModeFixed && vr_2h_aim_transition[otherHandIdx] > 0.f)
     {
         entity_t* const otherAnchor =
@@ -1306,9 +1325,18 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
     else
     {
         hand->origin = pos;
+
+        if(!closedHand)
+        {
+            hand->origin +=
+                quake::util::redirectVector(VR_GetOpenHandOffsets(), handRot);
+        }
     }
 
-    hand->model = Mod_ForName("progs/hand.mdl", true);
+    const auto closedModel = Mod_ForName("progs/hand.mdl", true);
+    const auto openModel = Mod_ForName("progs/openhand.mdl", true);
+
+    hand->model = closedHand ? closedModel : openModel;
     hand->hidden = hideHand;
     hand->frame = 0;
     hand->colormap = vid.colormap;
@@ -1321,7 +1349,8 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, handRot, horizflip);
+    const auto rotation = closedHand ? handRot : handRot + VR_GetOpenHandAngles();
+    CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, rotation, horizflip);
 }
 
 static void V_SetupFixedHelpingHandViewEnt(const int helpingHand,
@@ -1337,6 +1366,8 @@ static void V_SetupFixedHelpingHandViewEnt(const int helpingHand,
     hand->origin = glm::mix(cl.handpos[helpingHand], pos,
         vr_2h_aim_transition[VR_OtherHand(helpingHand)]);
 
+    // TODO VR: (P2) open hand model here? Maybe control with weapon cvar, could
+    // look good on some weapons
     hand->model = Mod_ForName("progs/hand.mdl", true);
     hand->frame = 0;
     hand->colormap = vid.colormap;

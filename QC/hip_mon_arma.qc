@@ -762,7 +762,7 @@ void() armagon_repulse_attack =
             }
          head = head.chain;
          }
-      T_RadiusDamage (self, self, 60, self);
+      T_RadiusDamage(self, self, 60, self);
       self.state = 0;
       SUB_AttackFinished (0.1);
       }

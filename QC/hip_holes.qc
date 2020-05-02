@@ -12,7 +12,7 @@ Places a sprite on a wall.  Angles should be opposite of face.
 */
 void() wallsprite =
    {
-   if( !self.model )
+   if(!self.model )
       {
       self.model = "progs/s_blood1.spr";
       }
@@ -51,20 +51,20 @@ void() remove_bullethole =
    // in the list, but it doesn't really matter.  All that
    // matters is there is one less bullet.  Just make sure
    // we don't remove the world!
-   if( bulletholes == nullentity )
+   if(bulletholes == nullentity )
       {
       objerror("remove_bullethole: bulletholes == nullentity! " );
       }
 
    ent = bulletholes;
-   if( ent.classname != "bullethole" )
+   if(ent.classname != "bullethole" )
       {
       objerror("remove_bullethole: Tried to remove non-bullethole!" );
       }
 
    bulletholes = bulletholes.lastvictim;
    remove( ent );
-   if( lastbullet == ent )
+   if(lastbullet == ent )
       {
       lastbullet = nullentity;
       }
@@ -105,12 +105,12 @@ void( vector pos ) placebullethole =
     new.nextthink = time + 250 + (150 * random());
 
     numbulletholes = numbulletholes + 1;
-    if( numbulletholes > 64 )
+    if(numbulletholes > 64 )
     {
         remove_bullethole();
     }
 
-    if( lastbullet != nullentity )
+    if(lastbullet != nullentity )
     {
         lastbullet.lastvictim = new;
     }

@@ -228,7 +228,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
 
     // figure momentum add
-    if( (inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
+    if((inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
     {
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
         dir = normalize(dir);
@@ -264,7 +264,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
     // team play damage avoidance
     //ZOID--
-    if (!TeamHealthDam(targ, inflictor, attacker, damage))
+    if(!TeamHealthDam(targ, inflictor, attacker, damage))
     {
         return; // same team
     }
@@ -319,12 +319,12 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     self = targ;
 
     //MED 10/17/96 added charmed stuff
-    if( (self.flags & FL_MONSTER) && attacker != world)
+    if((self.flags & FL_MONSTER) && attacker != world)
     {
         // get mad unless of the same class (except for soldiers)
         if(self != attacker && attacker != self.enemy && (self.charmer != attacker))
         {
-            if( (self.classname != attacker.classname)
+            if((self.classname != attacker.classname)
             || (self.classname == "monster_army" ) || (self.classname == "monster_armagon" ) )
             {
                 if(self.classname != "monster_dragon")

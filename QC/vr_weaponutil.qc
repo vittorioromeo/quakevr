@@ -74,6 +74,69 @@ void(entity xEnt, float xWeaponId) VR_WeaponUtil_EntDelWeapon =
     VR_ItemUtil_EntDelItem(self, WeaponIdToItemId(xWeaponId));
 }
 
+// TODO VR: (P2) move to ammoutil
+float(entity xEnt, float xAid) VR_WeaponUtil_GetAmmoCountByAmmoId =
+{
+    if(xAid == AID_SHELLS)        { return xEnt.ammo_shells; }
+    if(xAid == AID_NAILS)         { return xEnt.ammo_nails; }
+    if(xAid == AID_ROCKETS)       { return xEnt.ammo_rockets; }
+    if(xAid == AID_CELLS)         { return xEnt.ammo_cells; }
+    if(xAid == AID_LAVA_NAILS)    { return xEnt.ammo_lava_nails; }
+    if(xAid == AID_MULTI_ROCKETS) { return xEnt.ammo_multi_rockets; }
+    if(xAid == AID_PLASMA)        { return xEnt.ammo_plasma; }
+
+    bprint("`VR_WeaponUtil_GetAmmoCountByAmmoId`: invalid ammo id '");
+    bprint(ftos(xAid));
+    bprint("'\n");
+
+    return 0;
+}
+
+// TODO VR: (P2) move to ammoutil
+void(entity xEnt, float xAid, float xValue) VR_WeaponUtil_SetAmmoCountByAmmoId =
+{
+    if(xAid == AID_SHELLS)        { xEnt.ammo_shells = xValue; return; }
+    if(xAid == AID_NAILS)         { xEnt.ammo_nails = xValue; return; }
+    if(xAid == AID_ROCKETS)       { xEnt.ammo_rockets = xValue; return; }
+    if(xAid == AID_CELLS)         { xEnt.ammo_cells = xValue; return; }
+    if(xAid == AID_LAVA_NAILS)    { xEnt.ammo_lava_nails = xValue; return; }
+    if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = xValue; return; }
+    if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = xValue; return; }
+
+    bprint("`VR_WeaponUtil_SetAmmoCountByAmmoId`: invalid ammo id '");
+    bprint(ftos(xAid));
+    bprint("'\n");
+}
+
+// TODO VR: (P2) move to ammoutil
+void(entity xEnt, float xAid, float xValue) VR_WeaponUtil_AddAmmoCountByAmmoId =
+{
+    if(xAid == AID_SHELLS)        { xEnt.ammo_shells = xEnt.ammo_shells + xValue; return; }
+    if(xAid == AID_NAILS)         { xEnt.ammo_nails = xEnt.ammo_nails + xValue; return; }
+    if(xAid == AID_ROCKETS)       { xEnt.ammo_rockets = xEnt.ammo_rockets + xValue; return; }
+    if(xAid == AID_CELLS)         { xEnt.ammo_cells = xEnt.ammo_cells + xValue; return; }
+    if(xAid == AID_LAVA_NAILS)    { xEnt.ammo_lava_nails = xEnt.ammo_lava_nails + xValue; return; }
+    if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = xEnt.ammo_multi_rockets + xValue; return; }
+    if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = xEnt.ammo_plasma + xValue; return; }
+
+    bprint("`VR_WeaponUtil_AddAmmoCountByAmmoId`: invalid ammo id '");
+    bprint(ftos(xAid));
+    bprint("'\n");
+}
+
+// TODO VR: (P2) move to ammoutil
+void(entity xEnt, float xAid, float xValue) VR_WeaponUtil_DelAmmoCountByAmmoId =
+{
+    VR_WeaponUtil_AddAmmoCountByAmmoId(xEnt, xAid, -xValue);
+}
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// TODO: cleanup
+// ----------------------------------------------------------------------------
+
 entity() FindEntPlayerForDrop =
 {
     if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
@@ -155,7 +218,6 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     return FALSE;
 }
 
-// TODO VR: (P2) what to do with multiple `items` fields?
 float(float wid) WeaponIdToItemId =
 {
     if(wid == WID_FIST)             { return IID_FIST; }
@@ -179,7 +241,6 @@ float(float wid) WeaponIdToItemId =
     return -1;
 }
 
-// TODO VR: (P2) what to do with multiple `items` fields?
 float(float it) ItemIdToWeaponId =
 {
     if(it == IID_FIST)              { return WID_FIST; }
@@ -250,37 +311,7 @@ float(float wid) WeaponIdToAmmoId =
     return AID_NONE;
 }
 
-float(entity xEnt, float xAid) GetAmmoCountByAmmoId =
-{
-    if(xAid == AID_SHELLS)        { return xEnt.ammo_shells; }
-    if(xAid == AID_NAILS)         { return xEnt.ammo_nails; }
-    if(xAid == AID_ROCKETS)       { return xEnt.ammo_rockets; }
-    if(xAid == AID_CELLS)         { return xEnt.ammo_cells; }
-    if(xAid == AID_LAVA_NAILS)    { return xEnt.ammo_lava_nails; }
-    if(xAid == AID_MULTI_ROCKETS) { return xEnt.ammo_multi_rockets; }
-    if(xAid == AID_PLASMA)        { return xEnt.ammo_plasma; }
 
-    bprint("`GetAmmoCountByAmmoId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
-
-    return 0;
-}
-
-void(entity xEnt, float xAid, float v) SetAmmoCountByAmmoId =
-{
-    if(xAid == AID_SHELLS)        { xEnt.ammo_shells = v; return; }
-    if(xAid == AID_NAILS)         { xEnt.ammo_nails = v; return; }
-    if(xAid == AID_ROCKETS)       { xEnt.ammo_rockets = v; return; }
-    if(xAid == AID_CELLS)         { xEnt.ammo_cells = v; return; }
-    if(xAid == AID_LAVA_NAILS)    { xEnt.ammo_lava_nails = v; return; }
-    if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = v; return; }
-    if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = v; return; }
-
-    bprint("`SetAmmoCountByAmmoId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
-}
 
 float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
 {
@@ -292,7 +323,7 @@ float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
         return TRUE;
     }
 
-    return GetAmmoCountByAmmoId(xPlayer, ammoId) > 0;
+    return VR_WeaponUtil_GetAmmoCountByAmmoId(xPlayer, ammoId) > 0;
 }
 
 float(float wid) WeaponIdToThrowMult =

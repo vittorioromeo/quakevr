@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.hpp"
 #include <errno.h>
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 
 static char* largv[MAX_NUM_ARGVS + 1];
 static char argvdummy[] = " ";

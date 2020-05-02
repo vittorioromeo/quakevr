@@ -109,7 +109,7 @@ vector(float xHand) VRGetWeaponFireRot =
 
 vector(float xHand) VRGetWeaponFireRotFwd =
 {
-    makeforward (VRGetWeaponFireRot(xHand));
+    makeforward(VRGetWeaponFireRot(xHand));
     return v_forward;
 }
 
@@ -137,13 +137,17 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetGunChannel,
                           CHAN_WEAPON2,
                           CHAN_WEAPON);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetFireButtonPressed,
+                          self.button3,
+                          self.button0);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetCurrentAmmo,
                           self.currentammo2,
                           self.currentammo);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetFireButtonPressed,
-                          self.button3,
-                          self.button0);
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetCurrentAmmo,
+                          &self.currentammo2,
+                          &self.currentammo);
 
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetAttackFinished,
                           self.offhand_attack_finished,
@@ -168,6 +172,14 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetForceGrabbing,
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetForceGrabbing,
                           &self.offhand_forcegrabbing,
                           &self.mainhand_forcegrabbing);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetAmmoCounter,
+                          self.ammocounter2,
+                          self.ammocounter);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetAmmoCounter,
+                          &self.ammocounter2,
+                          &self.ammocounter);
 
 float(float xHand) VRIsAmmolessWeapon =
 {

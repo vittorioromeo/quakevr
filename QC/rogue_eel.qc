@@ -9,22 +9,22 @@ $frame eeldth6 eeldth7 eeldth8 eeldth9 eeldth10
 
 void() eel_pitch_change =
 {
-    if ( pointcontents ( self.origin ) != CONTENT_WATER )
+    if( pointcontents ( self.origin ) != CONTENT_WATER )
     {
         droptofloor();
         T_Damage ( self, world, world, 6);
         return;
     }
 
-    if ( time < self.delay )
+    if( time < self.delay )
         return;
 
-    if ( self.weapon > 10 )
+    if( self.weapon > 10 )
         self.weapon = -10;
 
-    if ( self.weapon < 0 )
+    if( self.weapon < 0 )
         self.angles_x = self.angles_x - 1.5;
-    else if ( self.weapon > 0)
+    else if( self.weapon > 0)
         self.angles_x = self.angles_x + 1.5;
 
     self.weapon = self.weapon + 1;
@@ -45,7 +45,7 @@ void() eel_stand6  =[ $eelswim6, eel_stand1 ]
 
 void() eel_walk1  =[ $eelswim1, eel_walk2 ]
 {
-    if (random() < 0.2)
+    if(random() < 0.2)
         sound (self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
     ai_walk(6);
     eel_pitch_change();
@@ -58,7 +58,7 @@ void() eel_walk6  =[ $eelswim6, eel_walk1 ] {ai_walk(6);eel_pitch_change();};
 
 void() eel_run1  =[      $eelswim1, eel_run2 ]
 {
-    if (random() < 0.4)
+    if(random() < 0.4)
         sound (self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
     ai_run(10);
     eel_pitch_change();
@@ -77,12 +77,12 @@ void() eel_melee =
 
     traceline (self.origin, self.enemy.origin, FALSE, self);
 
-    if (trace_ent != self.enemy)
+    if(trace_ent != self.enemy)
         attackOK = FALSE;       // don't have a clear shot
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         attackOK = FALSE;           // sight line crossed contents
 
-    if (attackOK)
+    if(attackOK)
         T_EELZap (self, self, 45);
     self.skin=0;
     self.effects=0;
@@ -147,7 +147,7 @@ void() eel_death =
     setsize (self, '0 0 0', '0 0 0');
 
 //    self.skin = 1;        // change to bloody eel skin!
-    if (self.health < -12)
+    if(self.health < -12)
     {
         self.skin = 0;
         self.effects = 0;
@@ -170,7 +170,7 @@ void(entity attacker, float damage) eel_pain =
 
 void() eel_pain1  =[    $eeldth1, eel_pain2 ]
 {
-    if (self.pain_finished > time)
+    if(self.pain_finished > time)
         return;
 
     self.pain_finished = time + 1;
@@ -188,7 +188,7 @@ void() eel_pain7  =[    $eeldth1, eel_run1 ] {};
 */
 void() monster_eel =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;

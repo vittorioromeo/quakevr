@@ -6,7 +6,7 @@ $frame bzzrot01 bzzrot02 bzzrot03 bzzrot04 bzzrot05 bzzrot06
 
 void() buzzsaw_stand1 = [ $buzzsaw, buzzsaw_stand1 ]
 {
-    if ( self.pain_finished < time)
+    if( self.pain_finished < time)
     {
         sound ( self, CHAN_VOICE, "buzz/buzz1.wav", 0.2, ATTN_NORM);
         self.pain_finished = time + 1;
@@ -20,7 +20,7 @@ void() buzzsaw_fly =
 {
     local vector     dir;
 
-    if ( self.pain_finished < time)
+    if( self.pain_finished < time)
     {
         sound ( self, CHAN_VOICE, "buzz/buzz1.wav", 0.2, ATTN_NORM);
         self.pain_finished = time + 1;
@@ -49,9 +49,9 @@ void() buzzsaw_touch =
 {
     local vector sprayDir;
 
-    if ( other.classname == "player" || other.flags & FL_MONSTER)
+    if( other.classname == "player" || other.flags & FL_MONSTER)
     {
-        if ( self.attack_finished < time )
+        if( self.attack_finished < time )
         {
             sound (self, CHAN_WEAPON, "buzz/buzz.wav", 1, ATTN_NORM);
             self.attack_finished = time + 2;
@@ -70,7 +70,7 @@ void() buzzsaw_touch =
 void() buzzsaw_use =
 {
     self.touch = buzzsaw_touch;
-    if (self.target)
+    if(self.target)
     {
         self.movetarget = find(world, targetname, self.target);
         self.goalentity = self.movetarget;
@@ -125,14 +125,14 @@ void() buzzsaw =
 
     setorigin (self, self.origin);
 
-    if (!self.speed)
+    if(!self.speed)
         self.speed = 10;
-    if (!self.currentammo)
+    if(!self.currentammo)
         self.currentammo = 10;
 
     self.pain_finished = time + random()*2;
 
-    if (!self.targetname)
+    if(!self.targetname)
     {
         self.think = buzzsaw_use;
         self.nextthink = time + 0.2;
