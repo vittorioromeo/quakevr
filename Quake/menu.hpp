@@ -72,9 +72,10 @@ enum m_state_e
     m_qvrs_changemap_dopa,
     m_qvrs_changemap_extra,
     m_qvrs_transparencyoptions,
-    m_qvrdt_weaponconfiguration,
+    m_qvrdt_weaponconfiguration1,
     m_qvrdt_weaponconfiguration2,
     m_qvrdt_weaponconfiguration3,
+    m_qvrdt_weaponconfiguration4,
     m_qvrdt_debugutilities,
 };
 

@@ -1,4 +1,17 @@
-float lavaGunFired;
+float mainHandLavaGunFired;
+float offHandLavaGunFired;
+
+float(float xHand) VRGetLavaGunFired
+{
+    if(xHand == cVR_MainHand) { return mainHandLavaGunFired; }
+    else                      { return offHandLavaGunFired; }
+}
+
+void(float xHand, float xValue) VRSetLavaGunFired
+{
+    if(xHand == cVR_MainHand) { mainHandLavaGunFired = xValue; }
+    else                      { offHandLavaGunFired = xValue; }
+}
 
 float() crandom =
 {
@@ -2195,7 +2208,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
         {
-            lavaGunFired = 1;
+            VRSetLavaGunFired(xHand, 1);
             player_lava_nail1(xHand);
         }
         else
@@ -2727,7 +2740,7 @@ ImpulseCommands
 */
 void() ImpulseCommands =
 {
-    if(self.impulse >= 1 && self.impulse <= 7)
+    if(self.impulse >= 1 && self.impulse <= 6)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -2735,11 +2748,18 @@ void() ImpulseCommands =
         }
     }
 
-    // TODO VR: (P0) remove, or make better
-    if(self.impulse == 8)
+    // TODO VR: (P0) remove, or make better, check if gun supports it
+    if(self.impulse == 7)
     {
+        sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
+
         VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
         W_SetCurrentAmmoFor(cVR_OffHand);
+    }
+
+    if(self.impulse == 8)
+    {
+        sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
         W_SetCurrentAmmoFor(cVR_MainHand);
@@ -2892,14 +2912,14 @@ void(float xHand) W_WeaponFrameImpl =
         return;
     }
 
-    if(lavaGunFired)
+    if(VRGetLavaGunFired(xHand))
     {
         if(!VRGetFireButtonPressed(xHand) &&
            (VRGetWeapon(xHand) == WID_NAILGUN || VRGetWeapon(xHand) == WID_SUPER_NAILGUN))
         {
             sound(self, VRGetGunChannel(xHand), "lavagun/snail.wav", 1, ATTN_NORM);
             particle2(VRGetMuzzlePos(xHand), '0 0 0', 4 /* smoke preset */, 6);
-            lavaGunFired = 0;
+            VRSetLavaGunFired(xHand, 0);
         }
     }
 

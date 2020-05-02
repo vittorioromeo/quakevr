@@ -284,7 +284,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_SUPER_SHOTGUN)    { return "progs/v_shot2.mdl"; }
     if(wid == WID_NAILGUN)          { return SelectModelByFlags(xWeaponFlags, "progs/v_nail.mdl", "progs/v_lava.mdl"); }
     if(wid == WID_SUPER_NAILGUN)    { return SelectModelByFlags(xWeaponFlags, "progs/v_nail2.mdl", "progs/v_lava2.mdl"); }
-    if(wid == WID_GRENADE_LAUNCHER) {return SelectModelByFlags(xWeaponFlags, "progs/v_rock.mdl", "progs/v_multi.mdl"); }
+    if(wid == WID_GRENADE_LAUNCHER) { return SelectModelByFlags(xWeaponFlags, "progs/v_rock.mdl", "progs/v_multi.mdl"); }
     if(wid == WID_PROXIMITY_GUN)    { return "progs/v_prox.mdl"; }
     if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }

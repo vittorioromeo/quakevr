@@ -1,6 +1,18 @@
 {
     "actions": [
         {
+            "name": "/actions/default/in/LeftHandAnim",
+            "type": "skeleton",
+            "skeleton": "/skeleton/hand/left",
+            "requirement": "suggested"
+        },
+        {
+            "name": "/actions/default/in/RightHandAnim",
+            "type": "skeleton",
+            "skeleton": "/skeleton/hand/right",
+            "requirement": "suggested"
+        },
+        {
             "name": "/actions/default/in/Locomotion",
             "type": "vector2"
         },
@@ -145,7 +157,9 @@
             "/actions/default/in/BTurnLeft": "(Boolean) Turn Left",
             "/actions/default/in/BTurnRight": "(Boolean) Turn Right",
             "/actions/default/out/LeftHaptic": "Left Hand Haptic",
-            "/actions/default/out/RightHaptic": "Right Hand Haptic"
+            "/actions/default/out/RightHaptic": "Right Hand Haptic",
+            "/actions/default/in/LeftHandAnim": "Left Hand Skeleton",
+            "/actions/default/in/RightHandAnim": "Right Hand Skeleton"
         }
     ]
 }

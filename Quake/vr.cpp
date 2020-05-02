@@ -145,6 +145,8 @@ bool vr_left_grabbing{false};
 bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
 bool vr_right_prevgrabbing{false};
+VrHandAnimation vr_handanimation_left{VrHandAnimation::Open};
+VrHandAnimation vr_handanimation_right{VrHandAnimation::Open};
 
 VrGunWallCollision vr_gun_wall_collision[2];
 
@@ -159,6 +161,15 @@ bool vr_should_aim_2h[2]{};
 bool vr_active_2h_helping_hand[2]{};
 int vr_hardcoded_wpn_cvar_fist{16};
 glm::vec3 lastMenuAngles;
+
+struct WpnButtonState
+{
+    bool _hover{false};
+    bool _prevHover{false};
+    float _lastTime{0.f};
+};
+
+WpnButtonState vr_wpnbutton_state[2];
 
 // TODO VR: (P2) not sure what this number should actually be...
 enum
@@ -175,6 +186,7 @@ int vr_impl_draw_wpnoffset_helper_muzzle{0};
 int vr_impl_draw_wpnoffset_helper_2h_offset{0};
 int vr_impl_draw_hand_anchor_vertex{0};
 int vr_impl_draw_2h_hand_anchor_vertex{0};
+int vr_impl_draw_wpnbutton_anchor_vertex{0};
 int vr_impl_draw_wpnoffset_helper_length{0};
 
 float vr_debug_max_handvelmag{0.f};
@@ -728,6 +740,30 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetZ)};
 }
 
+[[nodiscard]] glm::vec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonZ)};
+}
+
+[[nodiscard]] glm::vec3 VR_GetWpnButtonOffHandOffsets(
+    const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonOffHandX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonOffHandY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonOffHandZ)};
+}
+
+[[nodiscard]] glm::vec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonPitch),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonYaw),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonRoll)};
+}
 
 [[nodiscard]] glm::vec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept
 {
@@ -860,6 +896,17 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     init(WpnCVar::WeightHandThrowVelMult,   "vr_wofs_w_htvelmult_nn",  "1.0");
     init(WpnCVar::Weight2HPosMult,          "vr_wofs_w_2hposmult_nn",  "1.0");
     init(WpnCVar::Weight2HDirMult,          "vr_wofs_w_2hdirmult_nn",  "1.0");
+    init(WpnCVar::WpnButtonMode,            "vr_wofs_wpnbtnmode_nn",   "0.0");
+    init(WpnCVar::WpnButtonX,               "vr_wofs_wpnbtn_x_nn",     "0.0");
+    init(WpnCVar::WpnButtonY,               "vr_wofs_wpnbtn_y_nn",     "0.0");
+    init(WpnCVar::WpnButtonZ,               "vr_wofs_wpnbtn_z_nn",     "0.0");
+    init(WpnCVar::WpnButtonAnchorVertex,    "vr_wofs_wpnbtn_av_nn",    "0.0");
+    init(WpnCVar::WpnButtonOffHandX,        "vr_wofs_wpnbtn_oh_x_nn",  "0.0");
+    init(WpnCVar::WpnButtonOffHandY,        "vr_wofs_wpnbtn_oh_y_nn",  "0.0");
+    init(WpnCVar::WpnButtonOffHandZ,        "vr_wofs_wpnbtn_oh_z_nn",  "0.0");
+    init(WpnCVar::WpnButtonPitch,           "vr_wofs_wpnbtn_pitch_nn", "0.0");
+    init(WpnCVar::WpnButtonYaw,             "vr_wofs_wpnbtn_yaw_nn",   "0.0");
+    init(WpnCVar::WpnButtonRoll,            "vr_wofs_wpnbtn_roll_nn",  "0.0");
     // clang-format on
 
     return i;
@@ -1038,6 +1085,8 @@ vr::VRActiveActionSet_t vrActiveActionSet;
 
 vr::VRActionSetHandle_t vrashDefault;
 
+vr::VRActionHandle_t vrahLeftHandAnim;
+vr::VRActionHandle_t vrahRightHandAnim;
 vr::VRActionHandle_t vrahLocomotion;
 vr::VRActionHandle_t vrahTurn;
 vr::VRActionHandle_t vrahFireMainHand;
@@ -1090,6 +1139,10 @@ static void VR_InitActionHandles()
                 "Failed to read Steam VR action handle, rc = %d\n", (int)rc);
         }
     };
+
+    // Skeleton options.
+    readHandle("/actions/default/in/LeftHandAnim", vrahLeftHandAnim);
+    readHandle("/actions/default/in/RightHandAnim", vrahRightHandAnim);
 
     // Analog joystick options.
     readHandle("/actions/default/in/Locomotion", vrahLocomotion);
@@ -1843,7 +1896,8 @@ void SetHandPos(int index, entity_t* player)
 }
 
 [[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
-    const int anchorVertex, const glm::vec3& extraOffsets) noexcept
+    const int anchorVertex, const glm::vec3& extraOffsets,
+    const bool horizFlip) noexcept
 {
     if(anchor->model == nullptr)
     {
@@ -1853,6 +1907,11 @@ void SetHandPos(int index, entity_t* player)
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     glm::vec3 result = VR_GetAliasVertexOffsets(anchor, anchorVertex);
+
+    if(horizFlip)
+    {
+        result[1] *= -1.f;
+    }
 
     result *= anchorHdr->scale;
     result[0] += anchorHdr->scale_origin[0];
@@ -1865,20 +1924,22 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept
+    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const bool horizFlip) noexcept
 {
-    const auto finalVertexOffsets =
-        VR_GetScaledAliasVertexOffsets(anchor, anchorVertex, extraOffsets);
+    auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
+        anchor, anchorVertex, extraOffsets, horizFlip);
 
     return quake::util::redirectVector(finalVertexOffsets, rotation);
 }
 
 [[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexPosition(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept
+    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const bool horizFlip) noexcept
 {
     const glm::vec3 angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
-        anchor, anchorVertex, extraOffsets, rotation);
+        anchor, anchorVertex, extraOffsets, rotation, horizFlip);
 
     return anchor->origin + angledOffsets;
 }
@@ -1904,7 +1965,7 @@ void SetHandPos(int index, entity_t* player)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHHandAnchorVertex));
 
     return VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot);
+        anchor, anchorVertex, extraOffsets, handRot, false);
 }
 
 [[nodiscard]] glm::vec3 VR_GetBodyAnchor(const glm::vec3& offsets) noexcept
@@ -2603,15 +2664,15 @@ static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
     return glm::distance(a, b) < 5.f;
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
-    const int index, const int cvarEntry) noexcept
+[[nodiscard]] glm::vec3 VR_CalcWeaponAttachmentPosImpl(
+    const int index, const int cvarEntry, const glm::vec3& attachmentOffsets)
 {
     glm::vec3 finalOffsets{VR_GetWpnOffsets(cvarEntry)};
     finalOffsets[1] *= -1.f;
 
     finalOffsets /= VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
 
-    finalOffsets += VR_GetWpnMuzzleOffsets(cvarEntry);
+    finalOffsets += attachmentOffsets;
 
     finalOffsets *=
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale) * VR_GetScaleCorrect();
@@ -2619,18 +2680,31 @@ static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
     return redirectVector(finalOffsets, cl.handrot[index]);
 }
 
-[[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept
+[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
+    const int index, const int cvarEntry) noexcept
 {
-    return cl.handpos[cVR_MainHand] + VR_CalcWeaponMuzzlePosImpl(cVR_MainHand,
-                                          VR_GetMainHandWpnCvarEntry());
+    return VR_CalcWeaponAttachmentPosImpl(
+        index, cvarEntry, VR_GetWpnMuzzleOffsets(cvarEntry));
 }
 
-[[nodiscard]] glm::vec3 VR_CalcOffHandWpnMuzzlePos() noexcept
+[[nodiscard]] glm::vec3 VR_CalcWeaponButtonPosImpl(
+    const int index, const int cvarEntry) noexcept
 {
-    return cl.handpos[cVR_OffHand] +
-           VR_CalcWeaponMuzzlePosImpl(cVR_OffHand, VR_GetOffHandWpnCvarEntry());
+    return VR_CalcWeaponAttachmentPosImpl(
+        index, cvarEntry, VR_GetWpnButtonOffsets(cvarEntry));
 }
 
+[[nodiscard]] glm::vec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
+{
+    return cl.handpos[index] +
+           VR_CalcWeaponMuzzlePosImpl(index, VR_GetWpnCvarEntry(index));
+}
+
+[[nodiscard]] glm::vec3 VR_CalcFinalWpnButtonPos(const int index) noexcept
+{
+    return cl.handpos[index] +
+           VR_CalcWeaponButtonPosImpl(index, VR_GetWpnCvarEntry(index));
+}
 
 static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
     const glm::vec3 (&originalRots)[2], const int holdingHand,
@@ -2689,9 +2763,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
         (svPlayerActive() && cl.stats[helpingHandStatIdx] == WID_FIST);
 
     const bool beforeMuzzle = [&] {
-        const auto muzzlePos = holdingHand == cVR_MainHand
-                                   ? VR_CalcMainHandWpnMuzzlePos()
-                                   : VR_CalcOffHandWpnMuzzlePos();
+        const auto muzzlePos = VR_CalcFinalWpnMuzzlePos(holdingHand);
 
         const auto gunLength = glm::distance(holdingHandPos, muzzlePos);
         return glm::distance(holdingHandPos, helpingHandPos) <= gunLength;
@@ -2848,6 +2920,33 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
     VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
+
+    // TODO VR: (P0) Move and refactor
+    const auto doWpnButton = [](const int handIdx,
+                                 const entity_t& wpnButtonEntity,
+                                 const char key) {
+        // const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
+        const bool hasWpnButton = !wpnButtonEntity.hidden;
+
+        WpnButtonState& state = vr_wpnbutton_state[handIdx];
+
+        if(hasWpnButton && (cl.time - state._lastTime) > 0.2f)
+        {
+            // TODO VR: (P0) improve this collision detection
+            const auto handPos = cl.handpos[VR_OtherHand(handIdx)];
+            const auto dist = glm::distance(handPos, wpnButtonEntity.origin);
+
+            state._prevHover = state._hover;
+            state._hover = dist < 2.5f;
+            state._lastTime = cl.time;
+
+            const bool risingEdge = !state._prevHover && state._hover;
+            Key_Event(key, risingEdge);
+        }
+    };
+
+    doWpnButton(cVR_OffHand, cl.offhand_wpn_button, '7');
+    doWpnButton(cVR_MainHand, cl.mainhand_wpn_button, '8');
 }
 
 void VR_UpdateScreenContent()
@@ -3510,7 +3609,7 @@ static void VR_ShowCrosshairMainHand(const float size, const float alpha)
         // calc the line and draw
         if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
         {
-            const auto start = VR_CalcMainHandWpnMuzzlePos();
+            const auto start = VR_CalcFinalWpnMuzzlePos(cVR_MainHand);
             const auto [forward, right, up] =
                 getAngledVectors(cl.handrot[cVR_MainHand]);
             return std::tuple{start, forward, right, up};
@@ -3536,7 +3635,7 @@ static void VR_ShowCrosshairOffHand(const float size, const float alpha)
 
     const auto [start, forward, right, up] = [&] {
         // calc the line and draw
-        const auto start = VR_CalcOffHandWpnMuzzlePos();
+        const auto start = VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
         const auto [forward, right, up] =
             getAngledVectors(cl.handrot[cVR_OffHand]);
         return std::tuple{start, forward, right, up};
@@ -3683,8 +3782,8 @@ void VR_ShowWpnoffsetHelperMuzzle()
         glBegin(type);
 
         const auto muzzlePos = vr_impl_draw_wpnoffset_helper_muzzle == 1
-                                   ? VR_CalcMainHandWpnMuzzlePos()
-                                   : VR_CalcOffHandWpnMuzzlePos();
+                                   ? VR_CalcFinalWpnMuzzlePos(cVR_MainHand)
+                                   : VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
 
         glColor4f(0, 1, 1, 0.75);
         VR_GLVertex3f(muzzlePos);
@@ -3773,8 +3872,8 @@ void VR_ShowHandAnchorVertex()
         VR_GetWpnCvarEntry(hand), WpnCVar::HandAnchorVertex));
 
     const auto drawVertex = [&](const int idxOffset) {
-        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
-            anchor, anchorVertex + idxOffset, vec3_zero, cl.handrot[hand]);
+        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
 
         VR_GLVertex3f(pos);
     };
@@ -3840,8 +3939,75 @@ void VR_Show2HHandAnchorVertex()
         VR_GetWpnCvarEntry(hand), WpnCVar::TwoHHandAnchorVertex));
 
     const auto drawVertex = [&](const int idxOffset) {
-        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
-            anchor, anchorVertex + idxOffset, vec3_zero, cl.handrot[hand]);
+        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
+
+        VR_GLVertex3f(pos);
+    };
+
+    VR_ShowFnSetupGL();
+
+    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 1.0);
+        drawVertex(0);
+
+        glEnd();
+    });
+
+    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 0.95);
+        drawVertex(1);
+        drawVertex(-1);
+
+        glEnd();
+    });
+
+    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 0.9);
+
+        for(int i = 0; i < 500; ++i)
+        {
+            drawVertex(i);
+            drawVertex(-i);
+        }
+
+        glEnd();
+    });
+
+    VR_ShowFnCleanupGL();
+}
+
+// TODO VR: (P1) code repetition
+void VR_ShowWpnButtonAnchorVertex()
+{
+    if(vr_impl_draw_wpnbutton_anchor_vertex == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    const auto hand =
+        vr_impl_draw_wpnbutton_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+
+    const auto anchor =
+        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+
+    if(anchor->model == nullptr)
+    {
+        return;
+    }
+
+    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
+        VR_GetWpnCvarEntry(hand), WpnCVar::WpnButtonAnchorVertex));
+
+    const auto drawVertex = [&](const int idxOffset) {
+        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
 
         VR_GLVertex3f(pos);
     };
@@ -3898,6 +4064,7 @@ void VR_DrawAllShowHelpers()
     VR_ShowHandPosAndRot();
     VR_ShowHandAnchorVertex();
     VR_Show2HHandAnchorVertex();
+    VR_ShowWpnButtonAnchorVertex();
 }
 
 void VR_Draw2D()
@@ -4279,6 +4446,62 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             return out;
         };
 
+    const auto readSkeletalSummary =
+        [](const vr::VRActionHandle_t& actionHandle) {
+            vr::InputSkeletalActionData_t outActionData;
+            vr::VRInput()->GetSkeletalActionData(actionHandle, &outActionData,
+                sizeof(vr::InputSkeletalActionData_t));
+
+            if(!outActionData.bActive)
+            {
+                // TODO VR: (P0) what to do in this case? what about non-index
+                // controllers?
+                return vr::VRSkeletalSummaryData_t{};
+            }
+
+            vr::VRSkeletalSummaryData_t outSummary;
+            vr::VRInput()->GetSkeletalSummaryData(actionHandle,
+                vr::EVRSummaryType::VRSummaryType_FromDevice, &outSummary);
+
+            return outSummary;
+        };
+
+    const auto ssLeftHand = readSkeletalSummary(vrahLeftHandAnim);
+    const auto ssRightHand = readSkeletalSummary(vrahRightHandAnim);
+
+    const auto toHandAnimation =
+        [](const vr::VRSkeletalSummaryData_t& summary) {
+            const auto curls = summary.flFingerCurl;
+
+            // const float thumbCurl = curls[vr::EVRFinger::VRFinger_Thumb];
+            const float indexCurl = curls[vr::EVRFinger::VRFinger_Index];
+            const float middleCurl = curls[vr::EVRFinger::VRFinger_Middle];
+            const float ringCurl = curls[vr::EVRFinger::VRFinger_Ring];
+            const float pinkyCurl = curls[vr::EVRFinger::VRFinger_Pinky];
+
+            const float lastThreeAvgCurl =
+                (middleCurl + ringCurl + pinkyCurl) / 3.f;
+
+            if(indexCurl > 0.70f)
+            {
+                return (lastThreeAvgCurl > 0.5f) ? VrHandAnimation::Fist
+                                                 : VrHandAnimation::OkSign;
+            }
+
+            if(indexCurl > 0.30f)
+            {
+                return (lastThreeAvgCurl > 0.5f)
+                           ? VrHandAnimation::AlmostPointing
+                           : VrHandAnimation::OkSign;
+            }
+
+            return (lastThreeAvgCurl > 0.5f) ? VrHandAnimation::Pointing
+                                             : VrHandAnimation::Open;
+        };
+
+    vr_handanimation_left = toHandAnimation(ssLeftHand);
+    vr_handanimation_right = toHandAnimation(ssRightHand);
+
     const auto inpLocomotion = readAnalogAction(vrahLocomotion);
     const auto inpTurn = readAnalogAction(vrahTurn);
 
@@ -4501,8 +4724,8 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhandavel = cl.handavel[cVR_OffHand];
 
     // VR: Weapon muzzle position.
-    cmd->muzzlepos = VR_CalcMainHandWpnMuzzlePos();
-    cmd->offmuzzlepos = VR_CalcOffHandWpnMuzzlePos();
+    cmd->muzzlepos = VR_CalcFinalWpnMuzzlePos(cVR_MainHand);
+    cmd->offmuzzlepos = VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
 
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.
@@ -4754,3 +4977,5 @@ void VR_Move(usercmd_t* cmd)
 // their spawn location is not correct anymore due to the changed hitboxes.
 // Their origin needs to be fixed as well. This is the same bug as the biosuit
 // one
+
+// TODO VR: (P0) credit Crazy as "Trevor Roach" for hand models!

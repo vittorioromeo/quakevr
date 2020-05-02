@@ -197,6 +197,15 @@ enum class VrForceGrabMode : int
     Instant = 3,
 };
 
+enum class VrHandAnimation : int
+{
+    Open = 0,
+    Pointing = 1,
+    Fist = 2,
+    OkSign = 3,
+    AlmostPointing = 4,
+};
+
 //
 //
 //
@@ -288,15 +297,18 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     entity_t* const anchor, const int anchorVertex) noexcept;
 
 [[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
-    const int anchorVertex, const glm::vec3& extraOffsets) noexcept;
+    const int anchorVertex, const glm::vec3& extraOffsets,
+    const bool horizFlip) noexcept;
 
 [[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept;
+    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const bool horizFlip) noexcept;
 
 [[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexPosition(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation) noexcept;
+    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const bool horizFlip) noexcept;
 
 [[nodiscard]] glm::vec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
     const int cvarEntry, const bool horizflip, const glm::vec3& extraOffset,
@@ -363,6 +375,15 @@ enum class Wpn2HDisplayMode : std::uint8_t
     Fixed = 1,
 };
 
+enum class WpnButtonMode : int
+{
+    // The weapon does not have a button.
+    None = 0,
+
+    // The weapon has a button to change ammunition type.
+    ChangeAmmo = 1,
+};
+
 enum class WpnCVar : std::uint8_t
 {
     OffsetX = 0,
@@ -414,6 +435,17 @@ enum class WpnCVar : std::uint8_t
     WeightHandThrowVelMult = 46,
     Weight2HPosMult = 47,
     Weight2HDirMult = 48,
+    WpnButtonMode = 49,
+    WpnButtonX = 50,
+    WpnButtonY = 51,
+    WpnButtonZ = 52,
+    WpnButtonAnchorVertex = 53,
+    WpnButtonOffHandX = 54,
+    WpnButtonOffHandY = 55,
+    WpnButtonOffHandZ = 56,
+    WpnButtonPitch = 57,
+    WpnButtonYaw = 58,
+    WpnButtonRoll = 59,
 
     k_Max
 };
@@ -441,6 +473,14 @@ enum class WpnCVar : std::uint8_t
 [[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
     const int index, const int cvarEntry) noexcept;
 [[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
+
+// ----------------------------------------------------------------------------
+
+[[nodiscard]] glm::vec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnButtonOffHandOffsets(
+    const int cvarEntry) noexcept;
+[[nodiscard]] glm::vec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
+
 
 // ----------------------------------------------------------------------------
 
@@ -475,4 +515,7 @@ extern int vr_impl_draw_wpnoffset_helper_muzzle;
 extern int vr_impl_draw_wpnoffset_helper_2h_offset;
 extern int vr_impl_draw_hand_anchor_vertex;
 extern int vr_impl_draw_2h_hand_anchor_vertex;
+extern int vr_impl_draw_wpnbutton_anchor_vertex;
 extern float vr_2h_aim_transition[2];
+extern VrHandAnimation vr_handanimation_left;
+extern VrHandAnimation vr_handanimation_right;

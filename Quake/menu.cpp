@@ -2380,9 +2380,9 @@ void M_QuakeVRSettings_Key(int k)
 
 
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION */
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (1) */
 
-[[nodiscard]] static quake::menu makeQVRDTWeaponConfigurationMenu()
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration1Menu()
 {
     static bool wpnoff_offhand = false;
 
@@ -2402,7 +2402,7 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{"Weapon Configuration (1)", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int) {
         // TODO VR: (P2) hackish
@@ -2535,14 +2535,14 @@ void M_QuakeVRSettings_Key(int k)
     return m;
 }
 
-[[nodiscard]] static quake::menu& qvrdtWeaponConfigurationMenu()
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration1Menu()
 {
-    static quake::menu res = makeQVRDTWeaponConfigurationMenu();
+    static quake::menu res = makeQVRDTWeaponConfiguration1Menu();
     return res;
 }
 
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION 2 */
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (2) */
 
 [[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration2Menu()
 {
@@ -2634,7 +2634,7 @@ void M_QuakeVRSettings_Key(int k)
          [getIdx] {
              return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex);
          },           //
-         {1, 0, 1024} //
+         {1, 0, 4096} //
          )
         .hover(hoverHandAnchorVertex)
         .tooltip(
@@ -2663,7 +2663,7 @@ void M_QuakeVRSettings_Key(int k)
          [getIdx] {
              return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
          },           //
-         {1, 0, 1024} //
+         {1, 0, 4096} //
          )
         .hover(hover2HHandAnchorVertex)
         .tooltip(
@@ -2868,6 +2868,146 @@ void M_QuakeVRSettings_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (4) */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration4Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.1f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (4)", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<WpnButtonMode>( //
+         "Button Mode",                          //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonMode);
+         },                             //
+         "Disabled", "Ammo Type Change" //
+         )
+        .tooltip("TODO VR (P0): aa");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnOffsetTooltip = "Offset of the weapon button.";
+
+    o_wpncvar("Button X", WpnCVar::WpnButtonX).tooltip(btnOffsetTooltip);
+    o_wpncvar("Button Y", WpnCVar::WpnButtonY).tooltip(btnOffsetTooltip);
+    o_wpncvar("Button Z", WpnCVar::WpnButtonZ).tooltip(btnOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnOffhandOffsetTooltip =
+        "Off-hand offset of the weapon button.";
+
+    o_wpncvar("Button Off-Hand X", WpnCVar::WpnButtonOffHandX)
+        .tooltip(btnOffhandOffsetTooltip);
+    o_wpncvar("Button Off-Hand Y", WpnCVar::WpnButtonOffHandY)
+        .tooltip(btnOffhandOffsetTooltip);
+    o_wpncvar("Button Off-Hand Z", WpnCVar::WpnButtonOffHandZ)
+        .tooltip(btnOffhandOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnAngleTooltip = "Angle offset of the weapon button.";
+
+    r_wpncvar("Button Pitch", WpnCVar::WpnButtonPitch).tooltip(btnAngleTooltip);
+    r_wpncvar("Button Yaw", WpnCVar::WpnButtonYaw).tooltip(btnAngleTooltip);
+    r_wpncvar("Button Roll", WpnCVar::WpnButtonRoll).tooltip(btnAngleTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverWpnButtonAnchorVertex =
+        makeHoverFn(vr_impl_draw_wpnbutton_anchor_vertex);
+
+    m.add_cvar_getter_entry<int>( //
+         "Button Anchor Vertex",  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverWpnButtonAnchorVertex)
+        .tooltip("Index of the mesh vertex where the button will be attached.");
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration4Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration4Menu();
+    return res;
+}
+
+//=============================================================================
 /* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES */
 
 [[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
@@ -2958,9 +3098,10 @@ void M_QuakeVRSettings_Key(int k)
 template <typename F>
 static void forQVRDTMenus(F&& f)
 {
-    f(qvrdtWeaponConfigurationMenu(), m_qvrdt_weaponconfiguration);
+    f(qvrdtWeaponConfiguration1Menu(), m_qvrdt_weaponconfiguration1);
     f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
     f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
+    f(qvrdtWeaponConfiguration4Menu(), m_qvrdt_weaponconfiguration4);
     f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }
 

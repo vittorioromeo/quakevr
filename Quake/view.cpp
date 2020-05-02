@@ -1298,7 +1298,7 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
         static_cast<bool>(VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HideHand));
 
     const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot);
+        anchor, anchorVertex, extraOffsets, handRot, false);
 
     const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
     const int otherHandIdx = VR_OtherHand(handIdx);
@@ -1333,12 +1333,36 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
         }
     }
 
-    const auto closedModel = Mod_ForName("progs/hand.mdl", true);
-    const auto openModel = Mod_ForName("progs/openhand.mdl", true);
+    const auto handAnimationToFrame = [](const VrHandAnimation x) {
+        if(x == VrHandAnimation::Open)
+        {
+            return 9;
+        }
 
-    hand->model = closedHand ? closedModel : openModel;
+        if(x == VrHandAnimation::Pointing)
+        {
+            return 3;
+        }
+
+        if(x == VrHandAnimation::Fist)
+        {
+            return 6;
+        }
+
+        if(x == VrHandAnimation::AlmostPointing)
+        {
+            return 2;
+        }
+
+        assert(x == VrHandAnimation::OkSign);
+        return 15;
+    };
+
+    hand->model = Mod_ForName("progs/hand.mdl", true);
     hand->hidden = hideHand;
-    hand->frame = 0;
+    hand->frame =
+        handAnimationToFrame(handIdx == cVR_OffHand ? vr_handanimation_left
+                                                    : vr_handanimation_right);
     hand->colormap = vid.colormap;
     hand->horizflip = horizflip;
 
@@ -1349,7 +1373,8 @@ static void V_SetupHandViewEnt(const int anchorWpnCvar, entity_t* const anchor,
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    const auto rotation = closedHand ? handRot : handRot + VR_GetOpenHandAngles();
+    const auto rotation =
+        closedHand ? handRot : handRot + VR_GetOpenHandAngles();
     CalcGunAngle(vr_hardcoded_wpn_cvar_fist, hand, rotation, horizflip);
 }
 
@@ -1392,6 +1417,54 @@ static void V_SetupFixedHelpingHandViewEnt(const int helpingHand,
     hand->angles[PITCH] *= -1.f;
 }
 
+static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
+    entity_t* const anchor, entity_t* const wpnButton, const glm::vec3& handRot,
+    const glm::vec3& extraOffset, const bool horizflip)
+{
+    assert(anchor->model != nullptr);
+
+    auto extraOffsets = VR_GetWpnButtonOffsets(anchorWpnCvar) + extraOffset;
+
+    if(horizflip)
+    {
+        extraOffsets[1] *= -1.f;
+    }
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::WpnButtonAnchorVertex));
+
+    const bool hideButton =
+        static_cast<WpnButtonMode>(VR_GetWpnCVarValue(
+            anchorWpnCvar, WpnCVar::WpnButtonMode)) == WpnButtonMode::None;
+
+    const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot, horizflip);
+
+    // const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+
+    glm::vec3 angles = VR_GetWpnButtonAngles(anchorWpnCvar);
+    if(horizflip)
+    {
+        angles[ROLL] *= -1.f;
+    }
+
+    wpnButton->origin = pos;
+    wpnButton->model = Mod_ForName("progs/wpnbutton.mdl", true);
+    wpnButton->hidden = hideButton;
+    wpnButton->frame = 0;
+    wpnButton->colormap = vid.colormap;
+    wpnButton->horizflip = horizflip;
+    wpnButton->angles = handRot + angles;
+    wpnButton->angles[PITCH] *= -1.f;
+
+
+    // TODO VR: (P2) hardcoded fist cvar number
+    // if(hand->model != nullptr)
+    // {
+    //     const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+    //     ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
+    // }
+}
 
 /*
 ==================
@@ -1538,6 +1611,33 @@ void V_RenderView()
         {
             V_SetupVRTorsoViewEnt();
         }
+
+        // -------------------------------------------------------------------
+        // VR: Setup weapon buttons.
+        const auto doWpnButton =
+            [&](entity_t* wpnEnt, entity_t* buttonEnt, const int hand,
+                const glm::vec3& extraOffset, const bool horizFlip) {
+                if(wpnEnt->model == nullptr)
+                {
+                    return;
+                }
+
+                const int wpnCvar = VR_GetWpnCVarFromModel(wpnEnt->model);
+
+                V_SetupWpnButtonViewEnt(wpnCvar, wpnEnt, buttonEnt,
+                    cl.handrot[hand], extraOffset, horizFlip);
+            };
+
+        const auto wpnButtonOffHandOffsets =
+            cl.offhand_viewent.model == nullptr
+                ? vec3_zero
+                : VR_GetWpnButtonOffHandOffsets(
+                      VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
+
+        doWpnButton(&cl.viewent, &cl.mainhand_wpn_button, cVR_MainHand,
+            vec3_zero, false);
+        doWpnButton(&cl.offhand_viewent, &cl.offhand_wpn_button, cVR_OffHand,
+            wpnButtonOffHandOffsets, true);
 
         R_RenderView();
     }
