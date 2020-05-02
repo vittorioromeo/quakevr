@@ -94,6 +94,7 @@ void() main =
     precache_sound("misc/menu2.wav");
     precache_sound("misc/menu3.wav");
 
+
     precache_sound("ambience/water1.wav");
     precache_sound("ambience/wind2.wav");
 
@@ -236,6 +237,8 @@ void() worldspawn =
     precache_sound("weapons/lstart.wav");        //lightning start
     precache_sound("items/damage3.wav");
 
+    precache_sound("buttons/switch02.wav");
+
     precache_sound("misc/power.wav");            //lightning for boss
 
     // player gib sounds
@@ -340,7 +343,7 @@ void() worldspawn =
     precache_model("progs/v_light.mdl");
 
     precache_model("progs/hand.mdl");
-    precache_model("progs/openhand.mdl");
+    precache_model("progs/wpnbutton.mdl");
 
     precache_sound("fisthit.wav");        // fist hit world
     precache_sound("gunclick.wav");       // out of ammo

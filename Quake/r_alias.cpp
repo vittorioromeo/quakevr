@@ -642,7 +642,8 @@ void R_SetupAliasLighting(entity_t* e)
         e == &cl.left_upper_holster || e == &cl.right_upper_holster ||
         e == &cl.left_hand || e == &cl.right_hand || e == &cl.vrtorso ||
         e == &cl.left_hip_holster_slot || e == &cl.right_hip_holster_slot ||
-        e == &cl.left_upper_holster_slot || e == &cl.right_upper_holster_slot)
+        e == &cl.left_upper_holster_slot || e == &cl.right_upper_holster_slot ||
+        e == &cl.mainhand_wpn_button || e == &cl.offhand_wpn_button)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)

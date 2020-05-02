@@ -256,6 +256,9 @@ struct client_state_t
     entity_t left_upper_holster_slot;
     entity_t right_upper_holster_slot;
 
+    entity_t mainhand_wpn_button;
+    entity_t offhand_wpn_button;
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard

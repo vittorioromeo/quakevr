@@ -1023,6 +1023,10 @@ void R_ShowTris()
         // upper holsters slots
         doViewmodel(&cl.left_upper_holster_slot);
         doViewmodel(&cl.right_upper_holster_slot);
+
+        // weapon buttons
+        doViewmodel(&cl.mainhand_wpn_button);
+        doViewmodel(&cl.offhand_wpn_button);
     }
 
     extern cvar_t r_particles;
@@ -1089,7 +1093,9 @@ void R_DrawShadows()
             currententity == &cl.left_hip_holster_slot ||
             currententity == &cl.right_hip_holster_slot ||
             currententity == &cl.left_upper_holster_slot ||
-            currententity == &cl.right_upper_holster_slot)
+            currententity == &cl.right_upper_holster_slot ||
+            currententity == &cl.mainhand_wpn_button ||
+            currententity == &cl.offhand_wpn_button)
         {
             // View entities are drawn manually below.
             continue;
@@ -1128,6 +1134,8 @@ void R_DrawShadows()
             drawViewentShadow(&cl.right_hip_holster_slot);
             drawViewentShadow(&cl.left_upper_holster_slot);
             drawViewentShadow(&cl.right_upper_holster_slot);
+            drawViewentShadow(&cl.mainhand_wpn_button);
+            drawViewentShadow(&cl.offhand_wpn_button);
         }
 
         if(playerShadows == VrPlayerShadows::ThirdPerson ||
@@ -1188,6 +1196,10 @@ void R_RenderScene()
 
     // VR: This is what draws the offhand.
     R_DrawViewModel(&cl.offhand_viewent);
+
+    // VR: This is what draws the weapon buttons.
+    R_DrawViewModel(&cl.mainhand_wpn_button);
+    R_DrawViewModel(&cl.offhand_wpn_button);
 
     if(vr_leg_holster_model_enabled.value)
     {
