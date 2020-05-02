@@ -1385,6 +1385,21 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
     MSG_WriteByte(msg, (int)ent->v.weapon2); // STAT_OFFHAND_WID
+
+    MSG_WriteByte(msg, (int)ent->v.weaponflags);  // STAT_WEAPONFLAGS
+    MSG_WriteByte(msg, (int)ent->v.weaponflags2); // STAT_WEAPONFLAGS2
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags0); // STAT_HOLSTERWEAPONFLAGS0
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags1); // STAT_HOLSTERWEAPONFLAGS1
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags2); // STAT_HOLSTERWEAPONFLAGS2
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags3); // STAT_HOLSTERWEAPONFLAGS3
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
+    MSG_WriteByte(
+        msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
 }
 
 /*

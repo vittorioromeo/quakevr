@@ -173,9 +173,11 @@ typedef struct entvars_s
 	func_t	vr_wpntouch;
 	func_t	think2;
 	float	nextthink2;
+	float	weaponflags;
 	float	weapon2;
 	string_t	weaponmodel2;
 	float	weaponframe2;
+	float	weaponflags2;
 	float	holsterweapon0;
 	float	holsterweapon1;
 	float	holsterweapon2;
@@ -188,6 +190,12 @@ typedef struct entvars_s
 	string_t	holsterweaponmodel3;
 	string_t	holsterweaponmodel4;
 	string_t	holsterweaponmodel5;
+	float	holsterweaponflags0;
+	float	holsterweaponflags1;
+	float	holsterweaponflags2;
+	float	holsterweaponflags3;
+	float	holsterweaponflags4;
+	float	holsterweaponflags5;
 	float	currentammo2;
 	float	ammocounter2;
 	float	button3;
@@ -231,4 +239,4 @@ typedef struct entvars_s
 	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 64982
+#define PROGHEADER_CRC 37547

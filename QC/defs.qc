@@ -75,14 +75,14 @@ float parm19; // Field: `.ammo_lava_nails`.
 float parm20; // Field: `.ammo_multi_rockets`.
 float parm21; // Field: `.ammo_plasma`.
 float parm22; // Field: `.steam`.
-float parm23; // Unused.
-float parm24; // Unused.
-float parm25; // Unused.
-float parm26; // Unused.
-float parm27; // Unused.
-float parm28; // Unused.
-float parm29; // Unused.
-float parm30; // Unused.
+float parm23; // Field: `.weaponflags`.
+float parm24; // Field: `.weaponflags2`.
+float parm25; // Field: `.holsterweaponflags0`.
+float parm26; // Field: `.holsterweaponflags1`.
+float parm27; // Field: `.holsterweaponflags2`.
+float parm28; // Field: `.holsterweaponflags3`.
+float parm29; // Field: `.holsterweaponflags4`.
+float parm30; // Field: `.holsterweaponflags5`.
 float parm31; // Unused.
 float parm32; // Unused.
 // TODO VR: (P0) spawnparm for hipnotic and rogue items and rogue extra ammo types

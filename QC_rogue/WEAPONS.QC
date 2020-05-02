@@ -1311,7 +1311,8 @@ void() CheatCommand =
         IT_SUPER_NAILGUN |
         IT_GRENADE_LAUNCHER |
         IT_ROCKET_LAUNCHER |
-        IT_LAVA_NAILGUN |
+
+        IT_LAVA_NAILGUN |
         IT_LAVA_SUPER_NAILGUN |
         IT_MULTI_GRENADE |
         IT_MULTI_ROCKET |

@@ -2076,11 +2076,12 @@ PLAYER WEAPON USE
 ===============================================================================
 */
 
-void(float xWeapon, float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
+void(float xWeapon, float xWeaponFlags,
+     float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
 {
     // TODO VR: (P0) how to deal with ammo modifiers here?
-    *xCurrentAmmo = WeaponIdToAmmoId(xWeapon);
-    *xModel = WeaponIdToModel(xWeapon);
+    *xCurrentAmmo = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
+    *xModel = WeaponIdToModel(xWeapon, xWeaponFlags);
     *xFrame = 0;
 };
 
@@ -2092,7 +2093,7 @@ void(float xHand) W_SetCurrentAmmoFor =
         player_run(cVR_MainHand); // get out of any weapon firing states
         VRSetWeaponFrame(cVR_MainHand, 0);
 
-        W_SetCurrentAmmoImpl(self.weapon,
+        W_SetCurrentAmmoImpl(self.weapon, self.weaponflags,
             &self.currentammo, &self.weaponmodel, &self.weaponframe);
     }
 
@@ -2101,7 +2102,7 @@ void(float xHand) W_SetCurrentAmmoFor =
         player_run(cVR_OffHand);  // get out of any weapon firing states
         VRSetWeaponFrame(cVR_OffHand, 0);
 
-        W_SetCurrentAmmoImpl(self.weapon2,
+        W_SetCurrentAmmoImpl(self.weapon2, self.weaponflags2,
             &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
     }
 
@@ -2138,7 +2139,7 @@ An attack impulse can be triggered now
 ============
 */
 
-void(float xHand, float xWeapon, float xAttackFinished,
+void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
 {
     local float r;
@@ -2190,39 +2191,43 @@ void(float xHand, float xWeapon, float xAttackFinished,
         W_FireSuperShotgun (xHand);
         *xOutAttackFinished = time + RuneApplyHell(0.7, self);
     }
-    else if(xWeapon == WID_NAILGUN)
+    else if(xWeapon == WID_NAILGUN || xWeapon == WID_SUPER_NAILGUN)
     {
-        player_nail1(xHand);
-
-        // TODO VR: (P1) rogue weapons
-        // lavaGunFired = 1;
-        // player_lava_nail1(xHand);
-    }
-    else if(xWeapon == WID_SUPER_NAILGUN)
-    {
-        player_nail1(xHand);
-
-        // TODO VR: (P1) rogue weapons
-        // lavaGunFired = 1;
-        // player_lava_nail1(xHand);
+        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+        {
+            lavaGunFired = 1;
+            player_lava_nail1(xHand);
+        }
+        else
+        {
+            player_nail1(xHand);
+        }
     }
     else if(xWeapon == WID_GRENADE_LAUNCHER)
     {
-        player_rocket1(xHand);
-        W_FireGrenade(xHand);
-
-        // TODO VR: (P1) rogue weapons
-        // W_FireMultiGrenade(xHand);
+        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+        {
+            W_FireMultiGrenade(xHand);
+        }
+        else
+        {
+            player_rocket1(xHand);
+            W_FireGrenade(xHand);
+        }
 
         *xOutAttackFinished = time + RuneApplyHell(0.6, self);
     }
     else if(xWeapon == WID_ROCKET_LAUNCHER)
     {
-        player_rocket1(xHand);
-        W_FireRocket(xHand);
-
-        // TODO VR: (P1) rogue weapons
-        // W_FireMultiRocket(xHand);
+        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+        {
+            W_FireMultiRocket(xHand);
+        }
+        else
+        {
+            player_rocket1(xHand);
+            W_FireRocket(xHand);
+        }
 
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
     }
@@ -2230,11 +2235,15 @@ void(float xHand, float xWeapon, float xAttackFinished,
     {
         player_light1(xHand);
 
-        // TODO VR: (P1) rogue weapons
-        // plasma handled in player_light
-        // *xOutAttackFinished = time + RuneApplyHell(1.0, self);
+        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+        {
+            *xOutAttackFinished = time + RuneApplyHell(1.0, self);
+        }
+        else
+        {
+            *xOutAttackFinished = time + 0.1;
+        }
 
-        *xOutAttackFinished = time + 0.1;
         sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
     }
     // HYPNOTIC
@@ -2276,13 +2285,13 @@ void(float xHand, float xWeapon, float xAttackFinished,
 
 void() W_Attack =
 {
-    W_AttackImpl(cVR_MainHand, self.weapon, self.attack_finished,
+    W_AttackImpl(cVR_MainHand, self.weapon, self.weaponflags, self.attack_finished,
         &self.weapon, &self.attack_finished);
 };
 
 void() W_OffHandAttack =
 {
-    W_AttackImpl(cVR_OffHand, self.weapon2, self.offhand_attack_finished,
+    W_AttackImpl(cVR_OffHand, self.weapon2, self.weaponflags2, self.offhand_attack_finished,
         &self.weapon2, &self.offhand_attack_finished);
 };
 
@@ -2440,7 +2449,8 @@ void() CheatCommand =
     W_SetCurrentAmmo();
 };
 
-float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
+float(entity xPlayer, float xDir, float xWeapon,
+      float xWeaponFlags, float* xOutWeaponFlags) GetCycledWeapon
 {
     local float minWeapon, maxWeapon;
     local float skipEmptyWeapons;
@@ -2484,15 +2494,18 @@ float(entity xPlayer, float xDir, float xWeapon) GetCycledWeapon
         }
 
         // Skip weapons without ammo if desired.
-        if(skipEmptyWeapons && !PlayerHasAmmoForWeapon(xPlayer, xWeapon))
+        if(skipEmptyWeapons &&
+           !PlayerHasAmmoForWeapon(xPlayer, xWeapon, 0 /* weaponflags */))
         {
             continue;
         }
 
         // At this point, we have a suitable weapon.
+        *xOutWeaponFlags = 0;
         return xWeapon;
     }
 
+    *xOutWeaponFlags = 0;
     return originalWeapon;
 }
 
@@ -2506,12 +2519,15 @@ float() getWeaponCycleMode =
     return cvar("vr_weapon_cycle_mode");
 }
 
-void(float xHand, float xWeapon, float* xOutWeapon, float xDir) CycleWeaponCommandImpl =
+void(float xHand,
+     float xWeapon, float* xOutWeapon,
+     float xWeaponFlags, float* xOutWeaponFlags,
+     float xDir) CycleWeaponCommandImpl =
 {
     local float newWeapon;
 
     self.impulse = 0;
-    newWeapon = GetCycledWeapon(self, xDir, xWeapon);
+    newWeapon = GetCycledWeapon(self, xDir, xWeapon, xWeaponFlags, xOutWeaponFlags);
 
     if(newWeapon != xWeapon)
     {
@@ -2528,9 +2544,14 @@ CycleWeaponCommand
 Go to the next weapon with ammo
 ============
 */
-void(float xHand, float xWeapon, float* xOutWeapon) CycleWeaponCommand =
+void(float xHand,
+     float xWeapon, float* xOutWeapon,
+     float xWeaponFlags, float *xOutWeaponFlags) CycleWeaponCommand =
 {
-    CycleWeaponCommandImpl(xHand, xWeapon, xOutWeapon, 1);
+    CycleWeaponCommandImpl(xHand,
+        xWeapon, xOutWeapon,
+        xWeaponFlags, xOutWeaponFlags,
+        1);
 };
 
 /*
@@ -2540,9 +2561,14 @@ CycleWeaponReverseCommand
 Go to the prev weapon with ammo
 ============
 */
-void(float xHand, float xWeapon, float* xOutWeapon) CycleWeaponReverseCommand =
+void(float xHand,
+     float xWeapon, float* xOutWeapon,
+     float xWeaponFlags, float *xOutWeaponFlags) CycleWeaponReverseCommand =
 {
-    CycleWeaponCommandImpl(xHand, xWeapon, xOutWeapon, -1);
+    CycleWeaponCommandImpl(xHand,
+        xWeapon, xOutWeapon,
+        xWeaponFlags, xOutWeaponFlags,
+        -1);
 };
 
 /*
@@ -2699,12 +2725,22 @@ ImpulseCommands
 */
 void() ImpulseCommands =
 {
-    if(self.impulse >= 1 && self.impulse <= 8)
+    if(self.impulse >= 1 && self.impulse <= 7)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
             W_ChangeWeapon();
         }
+    }
+
+    // TODO VR: (P0) remove, or make better
+    if(self.impulse == 8)
+    {
+        VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
+        W_SetCurrentAmmoFor(cVR_OffHand);
+
+        VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
+        W_SetCurrentAmmoFor(cVR_MainHand);
     }
 
     if(self.impulse >= 225 && self.impulse <= 226)
@@ -2736,7 +2772,9 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon);
+            CycleWeaponCommand(cVR_MainHand,
+                self.weapon, &self.weapon,
+                self.weaponflags, &self.weaponflags);
         }
     }
 
@@ -2744,7 +2782,9 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2);
+            CycleWeaponCommand(cVR_OffHand,
+                self.weapon2, &self.weapon2,
+                self.weaponflags2, &self.weaponflags2);
         }
     }
 
@@ -2752,7 +2792,9 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand(cVR_MainHand, self.weapon, &self.weapon);
+            CycleWeaponReverseCommand(cVR_MainHand,
+                self.weapon, &self.weapon,
+                self.weaponflags, &self.weaponflags);
         }
     }
 
@@ -2760,7 +2802,9 @@ void() ImpulseCommands =
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
-            CycleWeaponReverseCommand(cVR_OffHand, self.weapon2, &self.weapon2);
+            CycleWeaponReverseCommand(cVR_OffHand,
+                self.weapon2, &self.weapon2,
+                self.weaponflags2, &self.weaponflags2);
         }
     }
 
@@ -2875,6 +2919,8 @@ void(float xHand) W_WeaponFrameImpl =
     }
 }
 
+// ---
+
 float(float xHolster) getHolsterWeapon =
 {
     if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweapon0;
@@ -2906,6 +2952,8 @@ void(float xHolster, float v) setHolsterWeapon =
     bprint("\n");
 }
 
+// ---
+
 string(float xHolster) getHolsterWeaponModel =
 {
     if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponmodel0;
@@ -2933,6 +2981,39 @@ void(float xHolster, string v) setHolsterWeaponModel =
     if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponmodel5 = v; return; }
 
     bprint("`setHolsterWeaponModel`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+// ---
+
+float(float xHolster) getHolsterWeaponFlags =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponflags0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponflags1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponflags2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponflags3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponflags4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponflags5;
+
+    bprint("`getHolsterWeaponFlags`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    // Bogus, should never happen.
+    return self.holsterweaponflags0;
+}
+
+void(float xHolster, float v) setHolsterWeaponFlags =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweaponflags0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweaponflags1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweaponflags2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweaponflags3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweaponflags4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponflags5 = v; return; }
+
+    bprint("`setHolsterWeaponFlags`: invalid holster ID: ");
     bprint(ftos(xHolster));
     bprint("\n");
 }
@@ -3160,12 +3241,14 @@ void() wpnthrow_touch =
     }
 };
 
-void(float xHand, entity ent, entity entPlayer, float* xOutEntWeapon) wpnthrow_handtouch_impl =
+void(float xHand, entity ent, entity entPlayer,
+     float* xOutEntWeapon, float* xOutEntWeaponFlags) wpnthrow_handtouch_impl =
 {
     sound(ent, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
     haptic(xHand, 0.0, 0.3, 75, 1.0);
 
     *xOutEntWeapon = ent.weapon;
+    *xOutEntWeaponFlags = ent.weaponflags;
     remove(ent);
 
     self = entPlayer;
@@ -3176,11 +3259,13 @@ void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
 {
     if(xHand == cVR_OffHand && VRIsHandEmpty(entPlayer, cVR_OffHand))
     {
-        wpnthrow_handtouch_impl(cVR_OffHand, ent, entPlayer, &entPlayer.weapon2);
+        wpnthrow_handtouch_impl(cVR_OffHand, ent, entPlayer,
+            &entPlayer.weapon2, &entPlayer.weaponflags2);
     }
     else if(xHand == cVR_MainHand && VRIsHandEmpty(entPlayer, cVR_MainHand))
     {
-        wpnthrow_handtouch_impl(cVR_MainHand, ent, entPlayer, &entPlayer.weapon);
+        wpnthrow_handtouch_impl(cVR_MainHand, ent, entPlayer,
+            &entPlayer.weapon, &entPlayer.weaponflags);
     }
 }
 
@@ -3199,14 +3284,16 @@ void(entity ent) wpnthrow_handtouch_ent =
         || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
        VRIsHandEmpty(ent.handtouch_ent, cVR_OffHand))
     {
-        wpnthrow_handtouch_impl(cVR_OffHand, ent, ent.handtouch_ent, &ent.handtouch_ent.weapon2);
+        wpnthrow_handtouch_impl(cVR_OffHand, ent, ent.handtouch_ent,
+            &ent.handtouch_ent.weapon2, &ent.handtouch_ent.weaponflags2);
     }
     else if(VRGetHandtouchHand(ent) == cVR_MainHand &&
             (VREntStartedHandGrabbing(ent.handtouch_ent, cVR_MainHand)
              || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
             VRIsHandEmpty(ent.handtouch_ent, cVR_MainHand))
     {
-        wpnthrow_handtouch_impl(cVR_MainHand, ent, ent.handtouch_ent, &ent.handtouch_ent.weapon);
+        wpnthrow_handtouch_impl(cVR_MainHand, ent, ent.handtouch_ent,
+            &ent.handtouch_ent.weapon, &ent.handtouch_ent.weaponflags);
     }
 }
 
@@ -3316,7 +3403,7 @@ float(entity ent) GetThrownWeaponBaseDamage =
     return ent.frags;
 }
 
-void(entity thrower, float xWeapon,
+void(entity thrower, float xWeapon, float xWeaponFlags,
     vector xOrigin, vector xRotation,
     vector xThrowVel, vector xAVel,
     float xDisappearOnHit,
@@ -3360,6 +3447,7 @@ void(entity thrower, float xWeapon,
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
     newmis.weapon = xWeapon;
+    newmis.weaponflags = xWeaponFlags;
 
     // TODO VR: (P0) fix laser cannon bounds
     tmp = WeaponIdToThrowBounds(xWeapon);
@@ -3367,7 +3455,7 @@ void(entity thrower, float xWeapon,
     tmp_bounds_y = tmp;
     tmp_bounds_z = tmp;
 
-    setmodel(newmis, WeaponIdToModel(xWeapon));
+    setmodel(newmis, WeaponIdToModel(xWeapon, xWeaponFlags));
     setsize(newmis, -tmp_bounds, tmp_bounds);
     setorigin(newmis, xOrigin);
 
@@ -3393,7 +3481,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     throwVel = randomVec(0.9);
     throwVel_z = 1.1 + random() * 1.1;
 
-    CreateThrownWeapon(thrower, xWeapon,
+    CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
         xOrigin, randomVec(180),
         throwVel, randomVec(20),
         FALSE /* disappear on hit */,
@@ -3410,7 +3498,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
     throwVel = randomVec(0.1);
     throwVel_z = 0.2 + random() * 0.1;
 
-    CreateThrownWeapon(thrower, xWeapon,
+    CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
         xOrigin, randomVec(180),
         throwVel, randomVec(20),
         FALSE /* disappear on hit */,
@@ -3429,11 +3517,11 @@ float() getWeaponThrowMode =
     return cvar("vr_weapon_throw_mode");
 }
 
-void(entity ent, float xHand, float xWeapon) DropWeaponInHand =
+void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHand =
 {
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
-        CreateThrownWeapon(ent, xWeapon,
+        CreateThrownWeapon(ent, xWeapon, xWeaponFlags,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
             VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
             FALSE /* disappear on hit */,
@@ -3442,7 +3530,7 @@ void(entity ent, float xHand, float xWeapon) DropWeaponInHand =
     }
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
     {
-        CreateThrownWeapon(ent, xWeapon,
+        CreateThrownWeapon(ent, xWeapon, xWeaponFlags,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
             VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
             TRUE /* disappear on hit */,
@@ -3461,6 +3549,7 @@ void(entity ent, float xHand, float xWeapon) DropWeaponInHand =
 
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
+     float xWeaponFlags, float* xOutWeaponFlags,
      float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
 {
@@ -3499,7 +3588,7 @@ void(entity ent, float xHand,
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB)
         {
-            DropWeaponInHand(ent, xHand, xWeapon);
+            DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags);
         }
         // Put a weapon in a holster.
         else if(isHolsterHotspot(xHotspot))
@@ -3513,7 +3602,9 @@ void(entity ent, float xHand,
                     sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
                     setHolsterWeapon(xHotspot, xWeapon);
-                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
+                    setHolsterWeaponFlags(xHotspot, xWeaponFlags);
+
                     VRSetHandEmpty(ent, xHand);
                     W_SetCurrentAmmoFor(xHand);
                 }
@@ -3527,7 +3618,8 @@ void(entity ent, float xHand,
                     sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
                     setHolsterWeapon(xHotspot, xWeapon);
-                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon));
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
+                    setHolsterWeaponFlags(xHotspot, xWeaponFlags);
                 }
             }
         }
@@ -3574,12 +3666,14 @@ void(entity ent, float xHand,
             {
                 sound(ent, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
                 *xOutWeapon = getHolsterWeapon(xHotspot);
+                *xOutWeaponFlags = getHolsterWeaponFlags(xHotspot);
 
                 // In "immersive" mode, unholstering removes a weapon from a holster.
                 if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
                 {
                     setHolsterWeapon(xHotspot, WID_FIST);
-                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST));
+                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST, 0 /* weaponflags */));
+                    setHolsterWeaponFlags(xHotspot, 0);
                 }
                 // In "quick slot" mode, unholstering does not remove a weapon from a holster.
                 else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
@@ -3662,11 +3756,13 @@ void() W_Frame =
 
     DoHandImpl(self, cVR_OffHand,
                self.weapon2, &self.weapon2,
+               self.weaponflags2, &self.weaponflags2,
                self.offhand_attack_finished, self.offhand_hotspot,
                self.weapon, &self.weapon, self.attack_finished);
 
     DoHandImpl(self, cVR_MainHand,
                self.weapon, &self.weapon,
+               self.weaponflags, &self.weaponflags,
                self.attack_finished, self.mainhand_hotspot,
                self.weapon2, &self.weapon2, self.offhand_attack_finished);
 

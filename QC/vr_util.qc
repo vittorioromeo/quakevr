@@ -181,6 +181,14 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetAmmoCounter,
                           &self.ammocounter2,
                           &self.ammocounter);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponFlags,
+                          self.weaponflags2,
+                          self.weaponflags);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFlags,
+                          &self.weaponflags2,
+                          &self.weaponflags);
+
 float(float xHand) VRIsAmmolessWeapon =
 {
     return VRGetCurrentAmmo(xHand) == AID_NONE;
@@ -206,7 +214,13 @@ void(float xHand, float v) VRSetWeapon =
 float(entity e, float xHand) VRGetEntWeapon =
 {
     if(xHand == cVR_OffHand) return e.weapon2;
-    else                  return e.weapon;
+    else                     return e.weapon;
+}
+
+float(entity e, float xHand) VRGetEntWeaponFlags =
+{
+    if(xHand == cVR_OffHand) return e.weaponflags2;
+    else                     return e.weaponflags;
 }
 
 float(entity e, float xHand) VRIsHandEmpty =

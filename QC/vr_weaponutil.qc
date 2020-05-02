@@ -264,7 +264,17 @@ float(float it) ItemIdToWeaponId =
     return -1;
 }
 
-string(float wid) WeaponIdToModel =
+string(float xWeaponFlags, string xPrimaryModel, string xSecondaryModel) SelectModelByFlags =
+{
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        return xSecondaryModel;
+    }
+
+    return xPrimaryModel;
+}
+
+string(float wid, float xWeaponFlags) WeaponIdToModel =
 {
     if(wid == WID_FIST)             { return "progs/hand.mdl"; }
     if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
@@ -272,12 +282,12 @@ string(float wid) WeaponIdToModel =
     if(wid == WID_MJOLNIR)          { return "progs/v_hammer.mdl"; }
     if(wid == WID_SHOTGUN)          { return "progs/v_shot.mdl"; }
     if(wid == WID_SUPER_SHOTGUN)    { return "progs/v_shot2.mdl"; }
-    if(wid == WID_NAILGUN)          { return "progs/v_nail.mdl"; }
-    if(wid == WID_SUPER_NAILGUN)    { return "progs/v_nail2.mdl"; }
+    if(wid == WID_NAILGUN)          { return SelectModelByFlags(xWeaponFlags, "progs/v_nail.mdl", "progs/v_lava.mdl"); }
+    if(wid == WID_SUPER_NAILGUN)    { return SelectModelByFlags(xWeaponFlags, "progs/v_nail2.mdl", "progs/v_lava2.mdl"); }
     if(wid == WID_GRENADE_LAUNCHER) { return "progs/v_rock.mdl"; }
     if(wid == WID_PROXIMITY_GUN)    { return "progs/v_prox.mdl"; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return "progs/v_rock2.mdl"; }
-    if(wid == WID_LIGHTNING)        { return "progs/v_light.mdl"; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
+    if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
 
     bprint("`WeaponIdToModel`: invalid weapon id '");
@@ -287,8 +297,18 @@ string(float wid) WeaponIdToModel =
     return "";
 }
 
+float(float xWeaponFlags, float xPrimaryAid, float xSecondaryAid) SelectAmmoByFlags =
+{
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        return xSecondaryAid;
+    }
+
+    return xPrimaryAid;
+}
+
 // TODO VR: (P0) how to deal with ammo modifiers here? (rogue)
-float(float wid) WeaponIdToAmmoId =
+float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
 {
     if(wid == WID_FIST)             { return AID_NONE; }
     if(wid == WID_GRAPPLE)          { return AID_NONE; }
@@ -296,12 +316,12 @@ float(float wid) WeaponIdToAmmoId =
     if(wid == WID_MJOLNIR)          { return AID_CELLS; }
     if(wid == WID_SHOTGUN)          { return AID_SHELLS; }
     if(wid == WID_SUPER_SHOTGUN)    { return AID_SHELLS; }
-    if(wid == WID_NAILGUN)          { return AID_NAILS; }
-    if(wid == WID_SUPER_NAILGUN)    { return AID_NAILS; }
-    if(wid == WID_GRENADE_LAUNCHER) { return AID_ROCKETS; }
+    if(wid == WID_NAILGUN)          { return SelectAmmoByFlags(xWeaponFlags, AID_NAILS, AID_LAVA_NAILS); }
+    if(wid == WID_SUPER_NAILGUN)    { return SelectAmmoByFlags(xWeaponFlags, AID_NAILS, AID_LAVA_NAILS); }
+    if(wid == WID_GRENADE_LAUNCHER) { return SelectAmmoByFlags(xWeaponFlags, AID_ROCKETS, AID_MULTI_ROCKETS); }
     if(wid == WID_PROXIMITY_GUN)    { return AID_ROCKETS; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return AID_ROCKETS; }
-    if(wid == WID_LIGHTNING)        { return AID_CELLS; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return SelectAmmoByFlags(xWeaponFlags, AID_ROCKETS, AID_MULTI_ROCKETS); }
+    if(wid == WID_LIGHTNING)        { return SelectAmmoByFlags(xWeaponFlags, AID_CELLS, AID_PLASMA); }
     if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
 
     bprint("`WeaponIdToAmmoId`: invalid weapon id '");
@@ -313,10 +333,10 @@ float(float wid) WeaponIdToAmmoId =
 
 
 
-float(entity xPlayer, float wid) PlayerHasAmmoForWeapon =
+float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
 {
     local float ammoId;
-    ammoId = WeaponIdToAmmoId(wid);
+    ammoId = WeaponIdToAmmoId(wid, xWeaponFlags);
 
     if(ammoId == AID_NONE)
     {

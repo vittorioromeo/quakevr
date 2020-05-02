@@ -421,18 +421,17 @@ void(float xHand) player_light1 =
 
     SuperDamageSound();
 
-    // TODO VR: (P0) fix rogue weapons
-    // if(self.weapon == IT_LIGHTNING)
-    // {
+    if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        W_FirePlasma(xHand);
+        player_run(xHand);
+        return;
+    }
+    else
+    {
         W_FireLightning(xHand);
         VRSetAttackFinished(xHand, time + 0.2);
-    // }
-    // else if(self.weapon == IT_PLASMA_GUN)
-    // {
-    //     W_FirePlasma(xHand);
-    //     player_run(xHand);
-    //     return;
-    // }
+    }
 };
 
 void(float xHand) player_light2 =
@@ -459,12 +458,14 @@ void(float xHand) player_light2 =
 
     SuperDamageSound();
 
-    // TODO VR: (P0) fix rogue weapons
-    // if(self.weapon == IT_LIGHTNING)
-    // {
-    W_FireLightning(xHand);
-    VRSetAttackFinished(xHand, time + 0.2);
-    // }
+    if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+    }
+    else
+    {
+        W_FireLightning(xHand);
+        VRSetAttackFinished(xHand, time + 0.2);
+    }
 };
 
 //MED 10/18/96 added HIPWEAPONS
