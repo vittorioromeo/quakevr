@@ -2205,13 +2205,14 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_GRENADE_LAUNCHER)
     {
+        player_rocket1(xHand);
+
         if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
         {
             W_FireMultiGrenade(xHand);
         }
         else
         {
-            player_rocket1(xHand);
             W_FireGrenade(xHand);
         }
 
@@ -2219,13 +2220,14 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_ROCKET_LAUNCHER)
     {
+        player_rocket1(xHand);
+
         if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
         {
             W_FireMultiRocket(xHand);
         }
         else
         {
-            player_rocket1(xHand);
             W_FireRocket(xHand);
         }
 
