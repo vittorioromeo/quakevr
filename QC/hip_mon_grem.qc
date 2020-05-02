@@ -163,7 +163,7 @@ float() GremlinAttemptWeaponSteal =
         tmpSelf = self;
         self = victim;
         setHolsterWeapon(hotspot, WID_FIST);
-        setHolsterWeaponModel(hotspot, WeaponIdToModel(WID_FIST));
+        setHolsterWeaponModel(hotspot, WeaponIdToModel(WID_FIST, 0 /* weaponflags */));
         self = tmpSelf;
     }
     else

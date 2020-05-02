@@ -538,9 +538,9 @@ weapon_touch
 */
 void() weapon_touch =
 {
-    local    float    hadammo;
-    local    entity    stemp;
-    local    float    leave;
+    local float  hadammo;
+    local entity stemp;
+    local float  leave;
 
     if(!(other.flags & FL_CLIENT))
         return;
@@ -574,11 +574,12 @@ void() weapon_touch =
     }
 
     local float ammoId;
-    ammoId = WeaponIdToAmmoId(weaponId);
+    ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
     hadammo = VR_WeaponUtil_GetAmmoCountByAmmoId(other, ammoId);
-    VR_WeaponUtil_SetAmmoCountByAmmoId(other, WeaponIdToAmmoId(weaponId),
-                         hadammo + WeaponIdToInitialAmmoCount(weaponId));
+
+    VR_WeaponUtil_SetAmmoCountByAmmoId(other, ammoId,
+        hadammo + WeaponIdToInitialAmmoCount(weaponId));
 
     VRItemPickupHaptic(other);
 
@@ -607,7 +608,8 @@ void() weapon_touch =
     {
         // This can happen if VR body interactions is on.
         DropWeaponInHand(other, touchinghand,
-                         VRGetEntWeapon(other, touchinghand));
+                         VRGetEntWeapon(other, touchinghand),
+                         VRGetEntWeaponFlags(other, touchinghand));
     }
 
     VRSetWeapon(touchinghand, weaponId);

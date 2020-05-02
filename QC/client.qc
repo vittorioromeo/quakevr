@@ -107,6 +107,17 @@ void() SetChangeParms =
 
     // ROGUE
     parm22 = self.steam; // Save team setting
+
+    // ------------------------------------------------------------------------
+    // Weapon flags:
+    parm23 = self.weaponflags;
+    parm24 = self.weaponflags2;
+    parm25 = self.holsterweaponflags0;
+    parm26 = self.holsterweaponflags1;
+    parm27 = self.holsterweaponflags2;
+    parm28 = self.holsterweaponflags3;
+    parm29 = self.holsterweaponflags4;
+    parm30 = self.holsterweaponflags5;
 };
 
 void() SetNewParms =
@@ -153,6 +164,17 @@ void() SetNewParms =
 
     // ROGUE
     parm22 = -1; // CTF: reset current team selection
+
+    // ------------------------------------------------------------------------
+    // Weapon flags:
+    parm23 = 0;
+    parm24 = 0;
+    parm25 = 0;
+    parm26 = 0;
+    parm27 = 0;
+    parm28 = 0;
+    parm29 = 0;
+    parm30 = 0;
 };
 
 void() DecodeLevelParms =
@@ -200,12 +222,12 @@ void() DecodeLevelParms =
     self.holsterweapon3 = parm14;
     self.holsterweapon4 = parm15;
     self.holsterweapon5 = parm16;
-    self.holsterweaponmodel0 = WeaponIdToModel(self.holsterweapon0);
-    self.holsterweaponmodel1 = WeaponIdToModel(self.holsterweapon1);
-    self.holsterweaponmodel2 = WeaponIdToModel(self.holsterweapon2);
-    self.holsterweaponmodel3 = WeaponIdToModel(self.holsterweapon3);
-    self.holsterweaponmodel4 = WeaponIdToModel(self.holsterweapon4);
-    self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5);
+    self.holsterweaponmodel0 = WeaponIdToModel(self.holsterweapon0, parm25);
+    self.holsterweaponmodel1 = WeaponIdToModel(self.holsterweapon1, parm26);
+    self.holsterweaponmodel2 = WeaponIdToModel(self.holsterweapon2, parm27);
+    self.holsterweaponmodel3 = WeaponIdToModel(self.holsterweapon3, parm28);
+    self.holsterweaponmodel4 = WeaponIdToModel(self.holsterweapon4, parm29);
+    self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5, parm30);
 
     // ------------------------------------------------------------------------
     // Mission packs:
@@ -225,6 +247,17 @@ void() DecodeLevelParms =
         TeamSetSkin();
     }
     //--ZOID
+
+    // ------------------------------------------------------------------------
+    // Weapon flags:
+    self.weaponflags = parm23;
+    self.weaponflags2 = parm24;
+    self.holsterweaponflags0 = parm25;
+    self.holsterweaponflags1 = parm26;
+    self.holsterweaponflags2 = parm27;
+    self.holsterweaponflags3 = parm28;
+    self.holsterweaponflags4 = parm29;
+    self.holsterweaponflags5 = parm30;
 };
 
 /*

@@ -41,12 +41,22 @@
 //
 //
 // ----------------------------------------------------------------------------
+// Main hand weapon fields
+// ----------------------------------------------------------------------------
+
+.float weaponflags;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Off-hand weapon fields
 // ----------------------------------------------------------------------------
 
 .float  weapon2;            // WID
 .string weaponmodel2;
 .float  weaponframe2;
+.float  weaponflags2;
 
 //
 //
@@ -77,6 +87,20 @@
 .string holsterweaponmodel3;
 .string holsterweaponmodel4;
 .string holsterweaponmodel5;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Holster weapon flags fields
+// ----------------------------------------------------------------------------
+
+.float holsterweaponflags0; // Hotspot: `QVR_HS_LEFT_SHOULDER_HOLSTER`.
+.float holsterweaponflags1; // Hotspot: `QVR_HS_RIGHT_SHOULDER_HOLSTER`.
+.float holsterweaponflags2; // Hotspot: `QVR_HS_LEFT_HIP_HOLSTER`.
+.float holsterweaponflags3; // Hotspot: `QVR_HS_RIGHT_HIP_HOLSTER`.
+.float holsterweaponflags4; // Hotspot: `QVR_HS_LEFT_UPPER_HOLSTER`.
+.float holsterweaponflags5; // Hotspot: `QVR_HS_RIGHT_UPPER_HOLSTER`.
 
 //
 //
