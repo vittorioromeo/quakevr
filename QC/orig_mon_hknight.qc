@@ -58,6 +58,7 @@ void(float offset) hknight_shot =
 {
     local    vector    offang;
     local    vector    org, vec;
+    local     entity     newmis;
 
     offang = vectoangles (self.enemy.origin - self.origin);
     offang_y = offang_y + offset * 6;
@@ -70,7 +71,7 @@ void(float offset) hknight_shot =
     vec = normalize (v_forward);
     vec_z = 0 - vec_z + (random() - 0.5)*0.1;
 
-    launch_spike (org, vec);
+    newmis = launch_spike (org, vec);
     newmis.classname = "knightspike";
     setmodel(newmis, "progs/k_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -188,7 +189,7 @@ void()    hknight_die8    =[    $death8,    hknight_die9    ] {ai_forward(10);};
 void()    hknight_die9    =[    $death9,    hknight_die10    ] {ai_forward(11);};
 void()    hknight_die10    =[    $death10,    hknight_die11    ] {};
 void()    hknight_die11    =[    $death11,    hknight_die12    ] {};
-void()    hknight_die12    =[    $death12,    hknight_die12    ] {};
+void()    hknight_die12    =[    $death12,    hknight_die12    ] {monster_check_remove_corpse();};
 
 void()    hknight_dieb1    =[    $deathb1,    hknight_dieb2    ] {};
 void()    hknight_dieb2    =[    $deathb2,    hknight_dieb3    ] {};
@@ -199,7 +200,7 @@ void()    hknight_dieb5    =[    $deathb5,    hknight_dieb6    ] {};
 void()    hknight_dieb6    =[    $deathb6,    hknight_dieb7    ] {};
 void()    hknight_dieb7    =[    $deathb7,    hknight_dieb8    ] {};
 void()    hknight_dieb8    =[    $deathb8,    hknight_dieb9    ] {};
-void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {};
+void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {monster_check_remove_corpse();};
 
 void() hknight_die =
 {
@@ -495,13 +496,27 @@ void() monster_hell_knight =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
 
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
+
+    self.health = 250;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = hell_knight_start;
+        return;
+    }
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
     setmodel(self, "progs/hknight.mdl");
-
     setsize(self, '-12 -12 -24', '12 12 36');
-    self.health = 250;
 
     if(self.spawnflags & 2) // statue
     {
@@ -523,6 +538,7 @@ void() monster_hell_knight =
         self.th_stand = hknight_pause1;
         self.th_walk = hknight_pause1;
         self.th_run = hknight_pause1;
+
         walkmonster_start();
     }
     else

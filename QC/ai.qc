@@ -40,7 +40,7 @@ float(float v) anglemod =
     while(v < 0)
         v = v + 360;
     return v;
-};
+}
 
 /*
 ==============================================================================
@@ -71,7 +71,7 @@ void() movetarget_f =
     self.touch = t_movetarget;
     setsize(self, '-8 -8 -8', '8 8 8');
 
-};
+}
 
 /*QUAKED path_corner (0.5 0.3 0) (-8 -8 -8) (8 8 8)
 Monsters will continue walking towards the next target corner.
@@ -80,7 +80,7 @@ Monsters will continue walking towards the next target corner.
 void() path_corner =
 {
     movetarget_f();
-};
+}
 
 
 /*
@@ -133,7 +133,7 @@ local entity    temp;
       self.th_stand();
       return;
       }
-};
+}
 
 
 //MED 01/20/97
@@ -270,20 +270,30 @@ returns the range catagorization of an entity reletive to self
 */
 float(entity targ) range =
 {
-local vector    spot1, spot2;
-local float        r;
+    local vector spot1, spot2;
+    local float  r;
+    local float  scale; // HONEY.
+
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
     r = vlen (spot1 - spot2);
+
+    // HONEY.
+    if(self.rangescale) { scale = self.rangescale; }
+    else                { scale = 1; }
+
     if(r < 120)
         return RANGE_MELEE;
+
     if(r < 500)
         return RANGE_NEAR;
-    if(r < 1000)
+
+    if(r < 1000 * scale)
         return RANGE_MID;
+
     return RANGE_FAR;
-};
+}
 
 /*
 =============
@@ -292,25 +302,16 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
-float (entity targ) visible =
+float (entity client) visible =
 {
-    local vector    spot1, spot2;
+    local vector spot1, spot2;
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
-    traceline(spot1, spot2, TRUE, self);    // see through other monsters
+    spot2 = client.origin + client.view_ofs;
 
-    if(trace_inopen && trace_inwater)
-        return FALSE;            // sight line crossed contents
-
-//MED 11/21/96
-    if(trace_fraction == 1)
-      {
-      visible_distance = vlen(spot2-spot1);
-      return TRUE;
-      }
-    return FALSE;
-};
+    if(self.spawnflags & SF_AI_BBOX_CHECK) { return bbox_visible(self, spot2); }
+    else                                   { return point_visible(spot1, spot2); }
+}
 
 
 /*
@@ -322,17 +323,18 @@ returns 1 if the entity is in front (in sight) of self
 */
 float(entity targ) infront =
 {
-    local vector    vec;
-    local float        dot;
+    local vector vec;
+    local float  dot;
 
     makevectors(self.angles);
-    vec = normalize (targ.origin - self.origin);
+    vec = normalize(targ.origin - self.origin);
     dot = vec * v_forward;
 
     if(dot > 0.3)
     {
         return TRUE;
     }
+
     return FALSE;
 };
 
@@ -415,7 +417,19 @@ void() StopHuntingCharmer =
 void() HuntTarget =
 {
     self.goalentity = self.enemy;
-    self.think = self.th_run;
+
+    // HONEY
+    // cg: tarbabies can now spawn really angry and start jumping around
+    // without even having a clear view of player
+    if(self.classname == "monster_tarbaby" && self.spawnflags & TBABY_LIVID)
+    {
+        self.think = self.th_missile;
+    }
+    else
+    {
+        self.think = self.th_run;
+    }
+
     self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
     self.nextthink = time + 0.1;
     SUB_AttackFinished (1);    // wait a while before first attack
@@ -423,7 +437,13 @@ void() HuntTarget =
 
 void() SightSound =
 {
-local float    rsnd;
+    local float rsnd;
+
+    // HONEY
+    if(self.spawnflags & SF_SILENT_WAKEUP)
+    {
+        return;
+    }
 
     if(self.classname == "monster_ogre")
         sound(self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
@@ -548,8 +568,8 @@ slower noticing monsters.
 */
 float() FindTarget =
 {
-    local entity    client;
-    local float        r;
+    local entity client;
+    local float  r;
 
 // if the first spawnflag bit is set, the monster will only wake up on
 // really seeing the player, not another monster getting angry
@@ -649,7 +669,7 @@ float() FindTarget =
       return FALSE;
 
     r = range (client);
-    if(r == RANGE_FAR)
+    if(r == RANGE_FAR && /* HONEY */ self.classname != "monster_ogre_marksman") // can see really far
         return FALSE;
 
     if(!visible (client))
@@ -897,25 +917,38 @@ float() CheckAnyAttack =
 {
     if(!enemy_vis)
         return FALSE;
-   if(self.classname == "monster_army")
+
+    if(self.classname == "monster_army")
         return SoldierCheckAttack();
-   if(self.classname == "monster_ogre")
+
+    if(self.classname == "monster_ogre")
         return OgreCheckAttack();
-   if(self.classname == "monster_shambler")
+
+    if(self.classname == "monster_ogre_marksman")
+        return OgreMarksmanCheckAttack();
+
+    if(self.classname == "monster_shambler")
         return ShamCheckAttack();
+
     if(self.classname == "monster_demon1")
         return DemonCheckAttack();
+
     if(self.classname == "monster_dog")
         return DogCheckAttack();
+
     if(self.classname == "monster_wizard")
         return WizardCheckAttack();
-   if(self.classname == "monster_gremlin")
-      return GremlinCheckAttack();
-   if(self.classname == "monster_scourge")
-      return ScourgeCheckAttack();
-   if(self.classname == "monster_armagon")
-      return ArmagonCheckAttack();
-   return CheckAttack();
+
+    if(self.classname == "monster_gremlin")
+        return GremlinCheckAttack();
+
+    if(self.classname == "monster_scourge")
+        return ScourgeCheckAttack();
+
+    if(self.classname == "monster_armagon")
+        return ArmagonCheckAttack();
+
+    return CheckAttack();
 };
 
 

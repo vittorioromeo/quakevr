@@ -146,7 +146,7 @@ void()    demon1_die6        =[    $death6,        demon1_die7    ]
 {self.solid = SOLID_NOT;};
 void()    demon1_die7        =[    $death7,        demon1_die8    ] {};
 void()    demon1_die8        =[    $death8,        demon1_die9    ] {};
-void()    demon1_die9        =[    $death9,        demon1_die9 ] {};
+void()    demon1_die9        =[    $death9,        demon1_die9 ] { monster_check_remove_corpse(); };
 
 void() demon_die =
 {
@@ -192,12 +192,11 @@ void() monster_demon1 =
     precache_sound("demon/idle1.wav");
     precache_sound("demon/sight2.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/demon.mdl");
-
-    setsize(self, '-16 -16 -24', '16 16 24');
     self.health = 300;
 
     self.th_stand = demon1_stand1;
@@ -207,6 +206,21 @@ void() monster_demon1 =
     self.th_melee = Demon_MeleeAttack;        // one of two attacks
     self.th_missile = demon1_jump1;            // jump attack
     self.th_pain = demon1_pain;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if(self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = demon1_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/demon.mdl");
+    setsize(self, '-16 -16 -24', '16 16 24');
 
     walkmonster_start();
 };

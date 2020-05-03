@@ -74,8 +74,10 @@ void() Laser_Touch =
     remove(self);
 };
 
-void(vector org, vector vec) LaunchLaser =
+entity(vector org, vector vec) LaunchLaser =
 {
+    local entity newmis;
+
     if(self.classname == "monster_enforcer")
         sound(self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
@@ -107,6 +109,8 @@ void(vector org, vector vec) LaunchLaser =
     newmis.nextthink = time + 5;
     newmis.think = SUB_Remove;
     newmis.touch = Laser_Touch;
+
+    return newmis;
 };
 
 
@@ -297,7 +301,7 @@ void()    enf_die10    =[    $death10,    enf_die11    ] {ai_forward(5);};
 void()    enf_die11    =[    $death11,    enf_die12    ] {ai_forward(5);};
 void()    enf_die12    =[    $death12,    enf_die13    ] {ai_forward(5);};
 void()    enf_die13    =[    $death13,    enf_die14    ] {};
-void()    enf_die14    =[    $death14,    enf_die14    ] {};
+void()    enf_die14    =[    $death14,    enf_die14    ] { monster_check_remove_corpse(); };
 
 void()    enf_fdie1    =[    $fdeath1,    enf_fdie2    ] {
 
@@ -312,7 +316,7 @@ void()    enf_fdie7    =[    $fdeath7,    enf_fdie8    ] {};
 void()    enf_fdie8    =[    $fdeath8,    enf_fdie9    ] {};
 void()    enf_fdie9    =[    $fdeath9,    enf_fdie10    ] {};
 void()    enf_fdie10    =[    $fdeath10,    enf_fdie11    ] {};
-void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] {};
+void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] { monster_check_remove_corpse(); };
 
 
 void() enf_die =
@@ -363,12 +367,11 @@ void() monster_enforcer =
     precache_sound2("enforcer/sight3.wav");
     precache_sound2("enforcer/sight4.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/enforcer.mdl");
-
-    setsize(self, '-14 -14 -24', '14 14 28');
     self.health = 80;
 
     self.th_stand = enf_stand1;
@@ -377,6 +380,21 @@ void() monster_enforcer =
     self.th_pain = enf_pain;
     self.th_die = enf_die;
     self.th_missile = enf_atk1;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = enforcer_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/enforcer.mdl");
+    setsize(self, '-14 -14 -24', '14 14 28');
 
     walkmonster_start();
 };

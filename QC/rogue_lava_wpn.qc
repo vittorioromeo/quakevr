@@ -7,8 +7,10 @@ launch_lava_spike
 Used for both the player and the ogre
 ===============
 */
-void(vector org, vector dir) launch_lava_spike =
+entity(vector org, vector dir) launch_lava_spike =
 {
+    local entity newmis;
+
     newmis = spawn ();
     newmis.owner = self;
     newmis.movetype = MOVETYPE_FLYMISSILE;
@@ -25,11 +27,14 @@ void(vector org, vector dir) launch_lava_spike =
     setorigin (newmis, org);
 
     newmis.velocity = dir * 1750;
+
+    return newmis;
 };
 
 void(float xHand) W_FireSuperLavaSpikes =
 {
     local vector dir;
+    local entity newmis;
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
@@ -38,7 +43,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     makeforward(VRGetWeaponFireRot(xHand));
     dir = v_forward;
 
-    launch_lava_spike(VRGetMuzzlePos(xHand), dir);
+    newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
     newmis.touch = superlavaspike_touch;
 
     setmodel(newmis, "progs/lspike.mdl");

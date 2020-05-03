@@ -375,7 +375,7 @@ void() FireballTouch =
 //    BecomeExplosion();
 };
 
-void(vector org, vector dir) launch_fireball =
+entity(vector org, vector dir) launch_fireball =
 {
     local entity    fireball;
     local float        fireSpeed;
@@ -399,6 +399,8 @@ void(vector org, vector dir) launch_fireball =
     fireball.touch = FireballTouch;
     fireball.nextthink = time + 6;
     fireball.think = SUB_Remove;
+
+    return fireball;
 };
 
 // ===========================================

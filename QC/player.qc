@@ -658,6 +658,10 @@ void() DeathBubblesSpawn =
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
+
+    // HONEY
+    bubble.count = 20;
+
     setsize(bubble, '-8 -8 -8', '8 8 8');
     self.nextthink = time + 0.01;
     self.think = DeathBubblesSpawn;
@@ -780,7 +784,9 @@ void(string gibname, float dm) ThrowGib =
 //MED
 void() HeadThink =
    {
-   self.nextthink = -1;
+    self.nextthink = time + 10;
+    self.think = monster_check_remove_corpse;
+
    if(world.worldtype != 2)
       {
       if(random()<0.1)

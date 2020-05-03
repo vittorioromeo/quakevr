@@ -55,7 +55,7 @@ void() button_fire =
 {
     local vector porg;
 
-    if(self.state == STATE_UP || self.state == STATE_TOP)
+    if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
     {
         return;
     }
@@ -174,9 +174,19 @@ void() func_button =
     if(!self.lip)
         self.lip = 4;
 
+    // HONEY
+    if(self.items) {
+        self.flags = self.flags | FL_SPECIFICDAMAGE;
+    }
+
     self.state = STATE_BOTTOM;
 
     self.pos1 = self.origin;
     self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
+
+    // HONEY
+    if(self.spawnflags & START_DISABLED) {
+        button_disable(self);
+    }
 };
 

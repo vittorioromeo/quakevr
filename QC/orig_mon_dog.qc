@@ -209,7 +209,7 @@ void() dog_die5        =[    $death5,    dog_die6    ] {};
 void() dog_die6        =[    $death6,    dog_die7    ] {};
 void() dog_die7        =[    $death7,    dog_die8    ] {};
 void() dog_die8        =[    $death8,    dog_die9    ] {};
-void() dog_die9        =[    $death9,    dog_die9    ] {};
+void() dog_die9        =[    $death9,    dog_die9    ] { monster_check_remove_corpse(); };
 
 void() dog_dieb1        =[    $deathb1,    dog_dieb2    ] {};
 void() dog_dieb2        =[    $deathb2,    dog_dieb3    ] {};
@@ -219,7 +219,7 @@ void() dog_dieb5        =[    $deathb5,    dog_dieb6    ] {};
 void() dog_dieb6        =[    $deathb6,    dog_dieb7    ] {};
 void() dog_dieb7        =[    $deathb7,    dog_dieb8    ] {};
 void() dog_dieb8        =[    $deathb8,    dog_dieb9    ] {};
-void() dog_dieb9        =[    $deathb9,    dog_dieb9    ] {};
+void() dog_dieb9        =[    $deathb9,    dog_dieb9    ] { monster_check_remove_corpse(); };
 
 
 void() dog_die =
@@ -337,12 +337,10 @@ void() monster_dog =
     precache_sound("dog/dsight.wav");
     precache_sound("dog/idle.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/dog.mdl");
-
-    setsize(self, '-12 -12 -24', '12 12 16');
     self.health = 25;
 
     self.th_stand = dog_stand1;
@@ -352,6 +350,21 @@ void() monster_dog =
     self.th_die = dog_die;
     self.th_melee = dog_atta1;
     self.th_missile = dog_leap1;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if(self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = dog_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/dog.mdl");
+    setsize(self, '-12 -12 -24', '12 12 16');
 
     walkmonster_start();
 };

@@ -185,8 +185,9 @@ FAST ATTACKS
 
 void() Wiz_FastFire =
 {
-    local vector        vec;
-    local vector        dst;
+    local vector vec;
+    local vector dst;
+    local entity newmis;
 
     if(self.owner.health > 0)
     {
@@ -197,7 +198,7 @@ void() Wiz_FastFire =
 
         vec = normalize(dst - self.origin);
         sound(self, CHAN_WEAPON, "wizard/wattack.wav", 1, ATTN_NORM);
-        launch_spike (self.origin, vec);
+        newmis = launch_spike (self.origin, vec);
         newmis.velocity = vec*600;
         newmis.owner = self.owner;
         newmis.classname = "wizspike";

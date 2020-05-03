@@ -1,9 +1,12 @@
+// TODO VR: (P2) move
+#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
 
-float DOOR_START_OPEN = 1;
-float DOOR_DONT_LINK = 4;
-float DOOR_GOLD_KEY = 8;
-float DOOR_SILVER_KEY = 16;
-float DOOR_TOGGLE = 32;
+float DOOR_START_OPEN     = VRUTIL_POWER_OF_TWO(0);
+float DOOR_DONT_LINK      = VRUTIL_POWER_OF_TWO(2); // This was 2^2, not sure why not 2^1
+float DOOR_GOLD_KEY       = VRUTIL_POWER_OF_TWO(3);
+float DOOR_SILVER_KEY     = VRUTIL_POWER_OF_TWO(4);
+float DOOR_TOGGLE         = VRUTIL_POWER_OF_TWO(5);
+float DOOR_TRIGGER_ON_END = VRUTIL_POWER_OF_TWO(6); // HONEY
 
 /*
 
@@ -46,8 +49,14 @@ void() door_hit_top =
 {
     sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
+
+    // HONEY
+    if(self.spawnflags & DOOR_TRIGGER_ON_END)
+        SUB_UseTargets();
+
     if(self.spawnflags & DOOR_TOGGLE)
         return;        // don't come down automatically
+
     self.think = door_go_down;
     self.nextthink = self.ltime + self.wait;
 };
@@ -60,6 +69,8 @@ void() door_hit_bottom =
 
 void() door_go_down =
 {
+    local float speed2; // HONEY
+
     sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
     if(self.max_health)
     {
@@ -67,8 +78,12 @@ void() door_go_down =
         self.health = self.max_health;
     }
 
+    // HONEY
+    if(self.cnt) { speed2 = self.speed * self.cnt; }
+    else { speed2 = self.speed; }
+
     self.state = STATE_DOWN;
-    SUB_CalcMove (self.pos1, self.speed, door_hit_bottom);
+    SUB_CalcMove(self.pos1, speed2, door_hit_bottom);
 };
 
 void() door_go_up =
@@ -86,7 +101,9 @@ void() door_go_up =
     self.state = STATE_UP;
     SUB_CalcMove (self.pos2, self.speed, door_hit_top);
 
-    SUB_UseTargets();
+    if(!(self.spawnflags & DOOR_TRIGGER_ON_END)) { // HONEY
+        SUB_UseTargets();
+    }
 };
 
 
@@ -111,7 +128,25 @@ void() door_fire =
     if(self.vr_itemId)
     {
         sound(self, CHAN_ITEM, self.noise4, 1, ATTN_NORM);
+
+        // HONEY
+        if(self.lefty)
+        {
+            self.vr_itemId = 0;
+            self.touch = SUB_Null;
+            self.goalentity = activator; // Save activator here
+            SUB_DoLater(door_fire, self.lefty); // Delay opening
+            return;
+        }
     }
+
+    // HONEY
+    if(self.lefty)
+    {
+        activator = self.goalentity; //Restore activator here
+        self.lefty = 0;
+    }
+
 
     self.message = string_null;        // no more message
     oself = self;
@@ -262,6 +297,9 @@ void() door_touch =
         self.enemy.touch = SUB_Null;    // get paired door
     }
 
+    // HONEY
+    activator = other;
+
     door_use();
 };
 
@@ -282,8 +320,17 @@ entity(vector fmins, vector fmaxs) spawn_field =
     trigger = spawn();
     trigger.movetype = MOVETYPE_NONE;
     trigger.solid = SOLID_TRIGGER;
-    trigger.owner = self;
-    trigger.touch = door_trigger_touch;
+    trigger.owner = self; //Always the master door...
+
+    // HONEY
+    if(self.cnt)
+    {
+        trigger.touch = door_temp_trigger_touch;
+    }
+    else
+    {
+        trigger.touch = door_trigger_touch;
+    }
 
     t1 = fmins;
     t2 = fmaxs;
@@ -314,6 +361,7 @@ float (entity e1, entity e2) EntitiesTouching =
 =============
 LinkDoors
 
+cg: self.owner always is the master door and self.enemy is always the next door in the chain
 
 =============
 */
@@ -324,7 +372,8 @@ void() LinkDoors =
 
     if(self.enemy)
         return;        // already linked by another door
-    if(self.spawnflags & 4)
+
+    if(self.spawnflags & DOOR_DONT_LINK)
     {
         self.owner = self.enemy = self;
         return;        // don't want to link this door
@@ -342,8 +391,18 @@ void() LinkDoors =
 
         if(self.health)
             starte.health = self.health;
+
+        // HONEY
+        if (self.cnt)
+            starte.cnt = self.cnt;
+
+        // HONEY
+        if (self.lefty)
+            starte.lefty = self.lefty;
+
         if(self.targetname)
             starte.targetname = self.targetname;
+
         if(self.message != "")
             starte.message = self.message;
 
@@ -359,8 +418,10 @@ void() LinkDoors =
 
             if(self.health)
                 return;
-            if(self.targetname)
+
+            if(self.targetname != "" && /* HONEY */ !self.cnt)
                 return;
+
             if(self.vr_itemId)
                 return;
 
@@ -484,7 +545,8 @@ void() func_door =
         self.noise2 = "doors/ddoor1.wav";
     }
 
-    SetMovedir();
+    if(!self.movedir)
+        SetMovedir();
 
     self.max_health = self.health;
     self.solid = SOLID_BSP;
@@ -511,6 +573,9 @@ void() func_door =
     if(!self.lip)   { self.lip = 8; }
     if(!self.dmg)   { self.dmg = 2; }
 
+    // HONEY
+    if(!self.lefty) { self.lefty = 1; }
+
     self.pos1 = self.origin;
 
     // PGM fix for cameron's door problem - 02/19/97
@@ -527,7 +592,14 @@ void() func_door =
         tempVect_y = 0 - tempVect_y;
     }
 
-    self.pos2 = self.pos1 + self.movedir*(fabs(tempVect*self.size) - self.lip);
+    if(!self.pos2) // HONEY
+    {
+        self.pos2 = self.pos1 + self.movedir*(fabs(tempVect*self.size) - self.lip);
+    }
+    else
+    {
+        self.pos2 = self.pos1 + self.pos2;
+    }
 
     // DOOR_START_OPEN is to allow an entity to be lighted in the closed position
     // but spawn in the open position
@@ -622,12 +694,19 @@ void () fd_secret_use =
     if(!self.t_length)
         self. t_length = fabs(v_forward * self.size);
 
-    if(self.spawnflags & SECRET_1ST_DOWN)
-        self.dest1 = self.origin - v_up * self.t_width;
-    else
-        self.dest1 = self.origin + v_right * (self.t_width * temp);
+    if(!(self.dest1_x|self.dest1_y|self.dest1_z)) // HONEY
+    {
+        if(self.spawnflags & SECRET_1ST_DOWN)
+            self.dest1 = self.origin - v_up * self.t_width;
+        else
+            self.dest1 = self.origin + v_right * (self.t_width * temp);
+    }
 
-    self.dest2 = self.dest1 + v_forward * self.t_length;
+    if(!(self.dest2_x|self.dest2_y|self.dest2_z)) // HONEY
+    {
+        self.dest2 = self.dest1 + v_forward * self.t_length;
+    }
+
     SUB_CalcMove(self.dest1, self.speed, fd_secret_move1);
     sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
 };
@@ -786,9 +865,20 @@ void () func_door_secret =
     setmodel(self, self.model);
     setorigin(self, self.origin);
 
+    // HONEY
+    if(self.dest2_x|self.dest2_y|self.dest2_z)
+        self.dest2 = self.origin + self.dest2 + self.dest1;
+
+    // HONEY
+    if(self.dest1_x|self.dest1_y|self.dest1_z)
+        self.dest1 = self.origin + self.dest1;
+
     self.touch = secret_touch;
     self.blocked = secret_blocked;
-    self.speed = 50;
+
+    if(!self.speed) // HONEY
+        self.speed = 50;
+
     self.use = fd_secret_use;
     if(!self.targetname || self.spawnflags&SECRET_YES_SHOOT)
     {

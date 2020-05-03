@@ -207,7 +207,7 @@ void()    knight_die6    =[    $death6,    knight_die7    ] {};
 void()    knight_die7    =[    $death7,    knight_die8    ] {};
 void()    knight_die8    =[    $death8,    knight_die9    ] {};
 void()    knight_die9    =[    $death9,    knight_die10] {};
-void()    knight_die10=[    $death10,    knight_die10] {};
+void()    knight_die10=[    $death10,    knight_die10] {monster_check_remove_corpse();};
 
 
 void()    knight_dieb1    =[    $deathb1,    knight_dieb2    ] {};
@@ -221,7 +221,7 @@ void()    knight_dieb7    =[    $deathb7,    knight_dieb8    ] {};
 void()    knight_dieb8    =[    $deathb8,    knight_dieb9    ] {};
 void()    knight_dieb9    =[    $deathb9,    knight_dieb10] {};
 void()    knight_dieb10 = [    $deathb10,    knight_dieb11] {};
-void()    knight_dieb11 = [    $deathb11,    knight_dieb11] {};
+void()    knight_dieb11 = [    $deathb11,    knight_dieb11] {monster_check_remove_corpse();};
 
 
 void() knight_die =
@@ -327,13 +327,26 @@ void() monster_knight =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
 
+    if(self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
+
+    self.health = 75;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = knight_start;
+        return;
+    }
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
     setmodel(self, "progs/knight.mdl");
-
     setsize(self, '-12 -12 -24', '12 12 26');
-    self.health = 75;
 
     if(self.spawnflags & 2) // statue
     {

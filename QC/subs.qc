@@ -182,10 +182,17 @@ void() SUB_CalcAngleMoveDone =
 
 //=============================================================================
 
+// HONEY
+.entity delayedThink;
+
 void() DelayThink =
 {
     activator = self.enemy;
     SUB_UseTargets();
+
+    // HONEY
+    self.owner.delayedThink = world;
+
     remove(self);
 };
 
@@ -226,6 +233,11 @@ void() SUB_UseTargets =
         t.message = self.message;
         t.killtarget = self.killtarget;
         t.target = self.target;
+
+        // HONEY
+        t.owner = self;
+        self.delayedThink = t;
+
         return;
     }
 
@@ -243,16 +255,32 @@ void() SUB_UseTargets =
 //
 // kill the killtagets
 //
-    if(self.killtarget)
+    if (self.killtarget)
     {
-        t = world;
-        do
+        t = find (world, targetname, self.killtarget);
+        while(t)
         {
+            // HONEY
+            if(t.delayedThink) remove(t.delayedThink);
+            if(t.classname == "func_button"){
+                if(t.spawnflags & 1){ //Disableable button spawnflag
+                    button_disable(t);
+                }else{
+                    remove(t);
+                }
+            }else if(t.classname == "func_door_secret"){
+                //Honey hack to stop a secret door killed mid-move to play its noise endlessly
+                //dprint("killed func_door_secret\n");
+                if(t.velocity != '0 0 0')
+                    sound(t, CHAN_VOICE, t.noise3, 1, ATTN_NORM);
+                remove(t);
+            }else if(t.flags & FL_MONSTER && t.health > 0){
+                Killed (t, activator);
+            }else{
+                remove (t);
+            }
             t = find (t, targetname, self.killtarget);
-            if(!t)
-                return;
-            remove(t);
-        } while( 1 );
+        }
     }
 
 //
@@ -267,7 +295,7 @@ void() SUB_UseTargets =
             t = find (t, targetname, self.target);
             if(!t)
             {
-                return;
+                break;
             }
             stemp = self;
             otemp = other;
