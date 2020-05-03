@@ -56,14 +56,14 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_SHOTGUN, 0.7))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_spikes")
+    else if(ent.classname == "item_spikes" || ent.classname == "item_lava_nails")
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_NAILGUN, 0.4))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_NAILGUN, 0.5))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_rockets")
+    else if(ent.classname == "item_rockets" || ent.classname == "item_multi_rockets")
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_GRENADE_LAUNCHER, 0.3))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_PROXIMITY_GUN, 0.4))
@@ -71,7 +71,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_cells")
+    else if(ent.classname == "item_cells" || ent.classname == "item_plasma")
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_LIGHTNING, 0.3))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_LASER_CANNON, 0.4))
@@ -79,8 +79,6 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
-
-    // TODO VR: (P0) handle rogue ammo boxes
 }
 
 void(entity ent) SpawnAmmoBoxWeapons =
@@ -473,64 +471,6 @@ float(float w) RankForWeapon =
    return 10;
 };
 
-// ROGUE
-// TODO VR: (P0) decide what to do
-/*
-void(entity comboOwner) EnableComboWeapons =
-{
-    if(comboOwner.classname != "player")
-        return;
-
-    if(!(comboOwner.items & IT_LAVA_NAILGUN))
-    {
-        if(comboOwner.ammo_lava_nails > 0 && (comboOwner.items & IT_NAILGUN))
-        {
-            sprint (comboOwner, "Lava Enabled\n");
-            comboOwner.items = comboOwner.items | IT_LAVA_NAILGUN;
-        }
-    }
-
-    if(!(comboOwner.items & IT_LAVA_SUPER_NAILGUN))
-    {
-        if(comboOwner.ammo_lava_nails > 0 &&
-                            (comboOwner.items & IT_SUPER_NAILGUN))
-        {
-            sprint (comboOwner, "Super Lava Enabled\n");
-            comboOwner.items = comboOwner.items | IT_LAVA_SUPER_NAILGUN;
-        }
-    }
-
-    if(!(comboOwner.items & IT_MULTI_GRENADE))
-    {
-        if(comboOwner.ammo_multi_rockets > 0 &&
-                            (comboOwner.items & IT_GRENADE_LAUNCHER))
-        {
-            sprint (comboOwner, "Multi Grenades Enabled\n");
-            comboOwner.items = comboOwner.items | IT_MULTI_GRENADE;
-        }
-    }
-
-    if(!(comboOwner.items & IT_MULTI_ROCKET))
-    {
-        if(comboOwner.ammo_multi_rockets > 0 &&
-                            (comboOwner.items & IT_ROCKET_LAUNCHER))
-        {
-            sprint (comboOwner, "Multi Rockets Enabled\n");
-            comboOwner.items = comboOwner.items | IT_MULTI_ROCKET;
-        }
-    }
-
-    if(!(comboOwner.items & IT_PLASMA_GUN))
-    {
-        if(comboOwner.ammo_plasma > 0 && (comboOwner.items & IT_LIGHTNING))
-        {
-            sprint (comboOwner, "Plasma Gun Enabled\n");
-            comboOwner.items = comboOwner.items | IT_PLASMA_GUN;
-        }
-    }
-};
-*/
-
 /*
 =============
 weapon_touch
@@ -576,9 +516,9 @@ void() weapon_touch =
     local float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
-    hadammo = VR_WeaponUtil_GetAmmoCountByAmmoId(other, ammoId);
+    hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
 
-    VR_WeaponUtil_SetAmmoCountByAmmoId(other, ammoId,
+    VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
         hadammo + WeaponIdToInitialAmmoCount(weaponId));
 
     VRItemPickupHaptic(other);
@@ -729,74 +669,60 @@ AMMO
 
 void() ammo_touch =
 {
-local entity    stemp;
+    local entity stemp;
 
     if(other.classname != "player")
+    {
         return;
+    }
+
     if(other.health <= 0)
+    {
         return;
+    }
 
-
-// shotgun
+    // shotgun
     if(self.weapon == 1)
     {
-        if(other.ammo_shells >= 100)
-            return;
+        if(other.ammo_shells >= 100) { return; }
         other.ammo_shells = other.ammo_shells + self.aflag;
     }
-
-// spikes
-    if(self.weapon == 2)
+    // spikes
+    else if(self.weapon == 2)
     {
-        if(other.ammo_nails >= 200)
-            return;
+        if(other.ammo_nails >= 200) { return; }
         other.ammo_nails = other.ammo_nails + self.aflag;
     }
-
-//    rockets
-    if(self.weapon == 3)
+    // rockets
+    else if(self.weapon == 3)
     {
-        if(other.ammo_rockets >= 100)
-            return;
+        if(other.ammo_rockets >= 100) { return; }
         other.ammo_rockets = other.ammo_rockets + self.aflag;
     }
-
-//    cells
-    if(self.weapon == 4)
+    // cells
+    else if(self.weapon == 4)
     {
-        if(other.ammo_cells >= 100)
-            return;
+        if(other.ammo_cells >= 100) { return; }
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
-
-//    lava spikes
-    if(self.weapon == 5)
+    // lava spikes
+    else if(self.weapon == 5)
     {
-        if(other.ammo_lava_nails >= 200)
-            return;
+        if(other.ammo_lava_nails >= 200) { return; }
         other.ammo_lava_nails = other.ammo_lava_nails + self.aflag;
     }
-
-//    multi grenades
-    if(self.weapon == 6)
+    // multi grenades
+    else if(self.weapon == 6)
     {
-        if(other.ammo_multi_rockets >= 100)
-            return;
+        if(other.ammo_multi_rockets >= 100) { return; }
         other.ammo_multi_rockets = other.ammo_multi_rockets + self.aflag;
     }
-
-//    plasma
-    if(self.weapon == 7)
+    // plasma
+    else if(self.weapon == 7)
     {
-        if(other.ammo_plasma >= 100)
-            return;
+        if(other.ammo_plasma >= 100) { return; }
         other.ammo_plasma = other.ammo_plasma + self.aflag;
     }
-
-    // TODO VR: (P2) needed?
-    // ROGUE
-    // EnableComboWeapons ( other );
-    // UpdateAmmoCounts ( other );
 
     bound_other_ammo();
 
@@ -805,17 +731,18 @@ local entity    stemp;
     sprint(other, "You got the ");
     sprint(other, self.netname);
     sprint(other, "\n");
-// ammo touch sound
+
+    // ammo touch sound
     sound(other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
     stuffcmd(other, "bf\n");
 
-// if changed current ammo, update it
+    // if changed current ammo, update it
     stemp = self;
     self = other;
     W_SetCurrentAmmo();
     self = stemp;
 
-// remove it in single player, or setup for respawning in deathmatch
+    // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
     if(deathmatch == 1)
@@ -1433,6 +1360,8 @@ void() item_artifact_envirosuit =
     self.vr_itemId = IID_SUIT;
     // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
     setsize(self, '-16 -16 -24', '16 16 32');
+    // setsize(self, '-8 -8 -24', '8 8 32');
+    // setorigin(self, self.origin + '-8 -8 0');
     StartItem();
 };
 
@@ -1606,11 +1535,6 @@ void() BackpackTouch =
     // remove the backpack, change self to the player
     remove(self);
     self = other;
-
-// TODO VR: (P0) decide what to do
-// fixme -- move this to after weapon choice if problematic.
-    // EnableComboWeapons ( self );
-    // UpdateAmmoCounts (self);
 
     W_SetCurrentAmmo();
 };

@@ -26,21 +26,6 @@ float visible_distance;
 entity damage_inflictor;
 float footsteps;
 
-
-//MED 11/09/96 added new spawnflags
-float SPAWNFLAG_SUPERSPIKE    = 1;
-float SPAWNFLAG_LASER         = 2;
-float SPAWNFLAG_LAVABALL      = 4;
-float SPAWNFLAG_ROCKET        = 8;
-float SPAWNFLAG_SILENT        = 16;
-
-// TODO VR: (P1) move, use macro
-// ROGUE
-float SPAWNFLAG_LAVASPIKE = 32;
-float SPAWNFLAG_SUPERLAVA = 64;
-float SPAWNFLAG_LAVASKILL = 128;
-float SPAWNFLAG_FIREBALL = 256;
-
 // Hipnotic Constants
 float MIN_ANGLE_DELTA = 10;
 

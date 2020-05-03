@@ -166,7 +166,7 @@ struct WpnButtonState
 {
     bool _hover{false};
     bool _prevHover{false};
-    float _lastTime{0.f};
+    float _lastClTime{0.f};
 };
 
 WpnButtonState vr_wpnbutton_state[2];
@@ -537,7 +537,7 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept
 {
-    return 5.f;
+    return 4.5f;
 }
 
 [[nodiscard]] int VR_OtherHand(const int hand) noexcept
@@ -2930,15 +2930,23 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
         WpnButtonState& state = vr_wpnbutton_state[handIdx];
 
-        if(hasWpnButton && (cl.time - state._lastTime) > 0.2f)
+        if(hasWpnButton && (cl.time - state._lastClTime) > 0.2f)
         {
             // TODO VR: (P0) improve this collision detection
-            const auto handPos = cl.handpos[VR_OtherHand(handIdx)];
-            const auto dist = glm::distance(handPos, wpnButtonEntity.origin);
+            const auto otherHandIdx = VR_OtherHand(handIdx);
+
+            const auto handPos = cl.handpos[otherHandIdx];
+
+            const auto [fwd, right, up] =
+                getAngledVectors(cl.handrot[otherHandIdx]);
+
+            const auto adjHandPos = handPos + fwd * 2.f + up * -2.5f;
+
+            const auto dist = glm::distance(adjHandPos, wpnButtonEntity.origin);
 
             state._prevHover = state._hover;
             state._hover = dist < 2.5f;
-            state._lastTime = cl.time;
+            state._lastClTime = cl.time;
 
             const bool risingEdge = !state._prevHover && state._hover;
             Key_Event(key, risingEdge);
@@ -2947,6 +2955,24 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
 
     doWpnButton(cVR_OffHand, cl.offhand_wpn_button, '7');
     doWpnButton(cVR_MainHand, cl.mainhand_wpn_button, '8');
+}
+
+static void VR_ResetGlobals()
+{
+    for(int handIdx = 0; handIdx < 2; ++handIdx)
+    {
+        vr_wpnbutton_state[handIdx] = WpnButtonState{};
+    }
+}
+
+void VR_OnSpawnServer()
+{
+    VR_ResetGlobals();
+}
+
+void VR_OnClientClearState()
+{
+    VR_ResetGlobals();
 }
 
 void VR_UpdateScreenContent()
@@ -4979,3 +5005,13 @@ void VR_Move(usercmd_t* cmd)
 // one
 
 // TODO VR: (P0) credit Crazy as "Trevor Roach" for hand models!
+
+// TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from the
+// mission packs, it uses the same soundtrack for all of them (eg if you were
+// playing SOA, it would still play the original quake soundtrack unless you
+// replaced the files manually)"
+
+// TODO VR: (P2) "Hopefully that can be fixed, along with merging the start map
+// together into one giant hubworld"
+
+// TODO VR: (P1) Swimming direction - what controller to follow?

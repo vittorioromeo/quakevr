@@ -8,6 +8,7 @@ fight.qc
 items.qc
 subs.qc
 
+vr_ammoutil.qc
 vr_grapple.qc
 vr_itemutil.qc
 vr_util.qc

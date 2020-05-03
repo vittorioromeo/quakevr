@@ -2,27 +2,6 @@
 //
 // Items added for the Rogue XPACK.
 
-// TODO VR: (P0) probably not needed, decide how to handle this
-/*
-void(entity theEntity) UpdateAmmoCounts =
-{
-    if( self.weapon >= IT_LAVA_NAILGUN )
-    {
-        theEntity.ammo_shells = theEntity.ammo_shells1;
-        theEntity.ammo_nails = theEntity.ammo_lava_nails;
-        theEntity.ammo_rockets = theEntity.ammo_multi_rockets;
-        theEntity.ammo_cells = theEntity.ammo_plasma;
-    }
-    else
-    {
-        theEntity.ammo_shells = theEntity.ammo_shells1;
-        theEntity.ammo_nails = theEntity.ammo_nails1;
-        theEntity.ammo_rockets = theEntity.ammo_rockets1;
-        theEntity.ammo_cells = theEntity.ammo_cells1;
-    }
-};
-*/
-
 void() newitems_touch =
 {
     if(other.classname != "player")

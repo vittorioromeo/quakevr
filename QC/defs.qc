@@ -85,7 +85,6 @@ float parm29; // Field: `.holsterweaponflags4`.
 float parm30; // Field: `.holsterweaponflags5`.
 float parm31; // Unused.
 float parm32; // Unused.
-// TODO VR: (P0) spawnparm for hipnotic and rogue items and rogue extra ammo types
 
 //
 //

@@ -124,9 +124,26 @@ float AID_SHELLS        = 1;
 float AID_NAILS         = 2;
 float AID_ROCKETS       = 3;
 float AID_CELLS         = 4;
-float AID_LAVA_NAILS    = 5; // ROGUE. // TODO VR (P0): implement
-float AID_MULTI_ROCKETS = 6; // ROGUE. // TODO VR (P0): implement
-float AID_PLASMA        = 7; // ROGUE. // TODO VR (P0): implement
+float AID_LAVA_NAILS    = 5; // ROGUE.
+float AID_MULTI_ROCKETS = 6; // ROGUE.
+float AID_PLASMA        = 7; // ROGUE.
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Spawnflags
+// ----------------------------------------------------------------------------
+
+float SPAWNFLAG_SUPERSPIKE = VRUTIL_POWER_OF_TWO(0); // HIPNOTIC.
+float SPAWNFLAG_LASER      = VRUTIL_POWER_OF_TWO(1); // HIPNOTIC.
+float SPAWNFLAG_LAVABALL   = VRUTIL_POWER_OF_TWO(2); // HIPNOTIC.
+float SPAWNFLAG_ROCKET     = VRUTIL_POWER_OF_TWO(3); // HIPNOTIC.
+float SPAWNFLAG_SILENT     = VRUTIL_POWER_OF_TWO(4); // HIPNOTIC.
+float SPAWNFLAG_LAVASPIKE  = VRUTIL_POWER_OF_TWO(5); // ROGUE.
+float SPAWNFLAG_SUPERLAVA  = VRUTIL_POWER_OF_TWO(6); // ROGUE.
+float SPAWNFLAG_LAVASKILL  = VRUTIL_POWER_OF_TWO(7); // ROGUE.
+float SPAWNFLAG_FIREBALL   = VRUTIL_POWER_OF_TWO(8); // ROGUE.
 
 //
 //

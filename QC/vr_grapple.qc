@@ -194,12 +194,11 @@ void () GrappleAnchor =
     if(other.classname == "player")
     {
         // glance off of teammates
-        // TODO VR: (P2) rogue
-        // if(other.steam == self.owner.steam)
-        // {
-        //     GrappleReset();        // PGM - fix drift after teammate hit  01/20/97
-        //     return;
-        // }
+        if(other.steam == self.owner.steam)
+        {
+            GrappleResetFromHook();        // PGM - fix drift after teammate hit  01/20/97
+            return;
+        }
 
         sound(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
         T_Damage (other, self, self.owner, 10);

@@ -2055,4 +2055,5 @@ void SV_SpawnServer(const char* server)
     }
 
     Con_DPrintf("Server spawned.\n");
+    VR_OnSpawnServer();
 }

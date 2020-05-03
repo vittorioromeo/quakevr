@@ -635,15 +635,12 @@ void R_SetupAliasLighting(entity_t* e)
         }
     }
 
+    const bool isViewmodel =
+        anyViewmodel(cl, [&](entity_t& ent) { return e == &ent; });
+
     // TODO VR: (P2) repetition here to check player view entities
     // minimum light value on gun (24)
-    if(e == &cl.viewent || e == &cl.offhand_viewent ||
-        e == &cl.left_hip_holster || e == &cl.right_hip_holster ||
-        e == &cl.left_upper_holster || e == &cl.right_upper_holster ||
-        e == &cl.left_hand || e == &cl.right_hand || e == &cl.vrtorso ||
-        e == &cl.left_hip_holster_slot || e == &cl.right_hip_holster_slot ||
-        e == &cl.left_upper_holster_slot || e == &cl.right_upper_holster_slot ||
-        e == &cl.mainhand_wpn_button || e == &cl.offhand_wpn_button)
+    if(isViewmodel)
     {
         add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
         if(add > 0.0f)

@@ -66,13 +66,13 @@ void(float xHand, float xAid) updateAmmoCounter =
     }
     else
     {
-        VRSetAmmoCounter(xHand, VR_WeaponUtil_GetAmmoCountByAmmoId(self, xAid));
+        VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
     }
 }
 
 float(float xHand) getCurrentAmmoCount =
 {
-    return VR_WeaponUtil_GetAmmoCountByAmmoId(self, VRGetCurrentAmmo(xHand));
+    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, VRGetCurrentAmmo(xHand));
 }
 
 void() updateAmmoCounters =
@@ -83,7 +83,7 @@ void() updateAmmoCounters =
 
 void(float xHand, float xAid, float xValue) delAmmoAndUpdateCounter =
 {
-    VR_WeaponUtil_DelAmmoCountByAmmoId(self, xAid, xValue);
+    VR_AmmoUtil_DelAmmoCountByAmmoId(self, xAid, xValue);
     updateAmmoCounters();
     // updateAmmoCounter(xHand, xAid);
 }
@@ -1350,7 +1350,7 @@ void(float xHand) W_FireSuperShotgun =
 {
     local vector dir;
 
-    if(VR_WeaponUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) == 1)
+    if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) == 1)
     {
         W_FireShotgun(xHand);
         return;
@@ -2092,7 +2092,6 @@ PLAYER WEAPON USE
 void(float xWeapon, float xWeaponFlags,
      float* xCurrentAmmo, string* xModel, float* xFrame) W_SetCurrentAmmoImpl =
 {
-    // TODO VR: (P0) how to deal with ammo modifiers here?
     *xCurrentAmmo = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
     *xModel = WeaponIdToModel(xWeapon, xWeaponFlags);
     *xFrame = 0;
@@ -2445,6 +2444,7 @@ void() CheatCommand =
     self.ammo_multi_rockets = 100;
     self.ammo_plasma = 100;
 
+    VR_WeaponUtil_EntAddWeapon(self, WID_GRAPPLE);
     VR_WeaponUtil_EntAddWeapon(self, WID_AXE);
     VR_WeaponUtil_EntAddWeapon(self, WID_SHOTGUN);
     VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_SHOTGUN);
@@ -2732,6 +2732,11 @@ void() CheatSpawnAllWeaponDrops =
     CreateWeaponDrop(self, WID_LASER_CANNON, self.origin);
 }
 
+void(float wid) CheatSpawnWeaponDrop =
+{
+    CreateWeaponDrop(self, wid, self.origin);
+}
+
 /*
 ============
 ImpulseCommands
@@ -2751,6 +2756,7 @@ void() ImpulseCommands =
     // TODO VR: (P0) remove, or make better, check if gun supports it
     if(self.impulse == 7)
     {
+        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -2759,6 +2765,7 @@ void() ImpulseCommands =
 
     if(self.impulse == 8)
     {
+        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -2787,6 +2794,12 @@ void() ImpulseCommands =
     {
         CheatSpawnAllWeaponDrops();
     }
+
+    if(self.impulse == 17)
+    {
+        CheatSpawnWeaponDrop(WID_GRAPPLE);
+    }
+
 
 
 
@@ -2830,7 +2843,7 @@ void() ImpulseCommands =
         }
     }
 
-    // TODO VR: (P1)
+    // TODO VR: (P1) rogue teamplay impulses
     /*
     // ROGUE
     //ZOID--
@@ -2890,8 +2903,10 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
     // Lightning effect (per-frame)
-    // TODO VR: (P0) rogue - do not do for plasma gun
-    if(xButton && VRGetWeapon(xHand) == WID_LIGHTNING && self.ammo_cells > 0)
+    if(xButton &&
+       VRGetWeapon(xHand) == WID_LIGHTNING &&
+       (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
+       self.ammo_cells > 0)
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
     }
@@ -3573,7 +3588,9 @@ void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xWeaponFlags, float* xOutWeaponFlags,
      float xAttackFinished, float xHotspot,
-     float xOtherWeapon, float* xOutOtherWeapon, float xOtherAttackFinished) DoHandImpl =
+     float xOtherWeapon, float* xOutOtherWeapon,
+     float xOtherWeaponFlags, float* xOutOtherWeaponFlags,
+     float xOtherAttackFinished) DoHandImpl =
 {
     local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
                 handEmpty, otherHandEmpty, triggerPressed;
@@ -3653,6 +3670,7 @@ void(entity ent, float xHand,
                 sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
                 *xOutOtherWeapon = xWeapon;
+                *xOutOtherWeaponFlags = xWeaponFlags;
                 VRSetHandEmpty(ent, xHand);
 
                 W_SetCurrentAmmo();
@@ -3780,13 +3798,17 @@ void() W_Frame =
                self.weapon2, &self.weapon2,
                self.weaponflags2, &self.weaponflags2,
                self.offhand_attack_finished, self.offhand_hotspot,
-               self.weapon, &self.weapon, self.attack_finished);
+               self.weapon, &self.weapon,
+               self.weaponflags, &self.weaponflags,
+               self.attack_finished);
 
     DoHandImpl(self, cVR_MainHand,
                self.weapon, &self.weapon,
                self.weaponflags, &self.weaponflags,
                self.attack_finished, self.mainhand_hotspot,
-               self.weapon2, &self.weapon2, self.offhand_attack_finished);
+               self.weapon2, &self.weapon2,
+               self.weaponflags2, &self.weaponflags2,
+               self.offhand_attack_finished);
 
     W_Frame_Forcegrab();
 }

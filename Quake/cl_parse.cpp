@@ -304,6 +304,7 @@ void CL_ParseServerInfo()
     // wipe the client_state_t struct
     //
     CL_ClearState();
+    VR_OnClientClearState();
 
     // parse protocol version number
     i = MSG_ReadLong();

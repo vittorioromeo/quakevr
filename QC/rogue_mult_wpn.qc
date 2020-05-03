@@ -119,9 +119,6 @@ void(float xHand) W_FireMultiGrenade =
 
     delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
-    // TODO VR: (P2) rogue
-    // UpdateAmmoCounts (self);
-
     sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
@@ -355,9 +352,6 @@ void(float xHand) W_FireMultiRocket =
 {
     delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
-    // TODO VR: (P2) rogue
-    // UpdateAmmoCounts (self);
-
     sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
 
     self.punchangle_x = -2;
@@ -569,9 +563,6 @@ void(float xHand) W_FirePlasma =
     }
 
     delAmmoAndUpdateCounter(xHand, AID_PLASMA, 1);
-
-    // TODO VR: (P2) rogue
-    // UpdateAmmoCounts (self);
 
     sound(self, VRGetGunChannel(xHand), "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;

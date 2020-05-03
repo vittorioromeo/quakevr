@@ -35,9 +35,6 @@ void(float xHand) W_FireSuperLavaSpikes =
     VRSetAttackFinished(xHand, time + 0.2);
     delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 2);
 
-    // TODO VR: (P0) I don't think I want this
-    // UpdateAmmoCounts (self);
-
     makeforward(VRGetWeaponFireRot(xHand));
     dir = v_forward;
 
@@ -59,9 +56,6 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     makevectors(VRGetWeaponFireRot(xHand));
 
-    // TODO VR: (P0) not sure what to do with this yet
-    // if(self.ammo_lava_nails >= 2 && self.weapon == IT_LAVA_SUPER_NAILGUN)
-
     if(self.ammo_lava_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
         W_FireSuperLavaSpikes(xHand);
@@ -76,9 +70,6 @@ void(float xHand, float ox) W_FireLavaSpikes =
     sound(self, VRGetGunChannel(xHand), "weapons/rocket1i.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
     delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 1);
-
-    // TODO VR: (P0) I don't think I want this
-    // UpdateAmmoCounts (self);
 
     dir = v_forward;
     launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
@@ -131,7 +122,7 @@ local float old_armormask;
         }
         else        // is a monster
         {
-            if( other.classname != "monster_lava_man")
+            if(other.classname != "monster_lava_man")
             {
                 T_Damage (other, self, self.owner, 15);
             }

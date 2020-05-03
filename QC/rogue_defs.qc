@@ -27,7 +27,6 @@ entity tag_token_owner;
 // ----------------------------------------------------------------------------
 
 .float rogue_items; // Renamed from `.items2`.
-// .float ammo_shells1, ammo_nails1, ammo_rockets1, ammo_cells1; // TODO VR: (P0) needed?
 .float ammo_lava_nails;
 .float ammo_multi_rockets;
 .float ammo_plasma;

@@ -983,8 +983,8 @@ void R_ShowTris()
             }
         }
 
-        const auto doViewmodel = [&](entity_t* ent) {
-            currententity = ent;
+        const auto doViewmodel = [&](entity_t& ent) {
+            currententity = &ent;
             if(r_drawviewmodel.value && !chase_active.value &&
                 cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
                 currententity->model && currententity->model->type == mod_alias)
@@ -995,38 +995,7 @@ void R_ShowTris()
             }
         };
 
-        // viewmodel
-        doViewmodel(&cl.viewent);
-
-        // offhand viewmodel
-        doViewmodel(&cl.offhand_viewent);
-
-        // hip holsters
-        doViewmodel(&cl.left_hip_holster);
-        doViewmodel(&cl.right_hip_holster);
-
-        // upper holsters
-        doViewmodel(&cl.left_upper_holster);
-        doViewmodel(&cl.right_upper_holster);
-
-        // hands
-        doViewmodel(&cl.left_hand);
-        doViewmodel(&cl.right_hand);
-
-        // vrtorso
-        doViewmodel(&cl.vrtorso);
-
-        // hip holsters slots
-        doViewmodel(&cl.left_hip_holster_slot);
-        doViewmodel(&cl.right_hip_holster_slot);
-
-        // upper holsters slots
-        doViewmodel(&cl.left_upper_holster_slot);
-        doViewmodel(&cl.right_upper_holster_slot);
-
-        // weapon buttons
-        doViewmodel(&cl.mainhand_wpn_button);
-        doViewmodel(&cl.offhand_wpn_button);
+        forAllViewmodels(cl, doViewmodel);
     }
 
     extern cvar_t r_particles;
@@ -1081,21 +1050,11 @@ void R_DrawShadows()
             continue;
         }
 
+        const bool isViewmodel =
+            anyViewmodel(cl, [&](entity_t& e) { return currententity == &e; });
+
         // TODO VR: (P2) repetition here to check player view entities
-        if(currententity == &cl.viewent ||
-            currententity == &cl.offhand_viewent ||
-            currententity == &cl.left_hip_holster ||
-            currententity == &cl.right_hip_holster ||
-            currententity == &cl.left_upper_holster ||
-            currententity == &cl.right_upper_holster ||
-            currententity == &cl.left_hand || currententity == &cl.right_hand ||
-            currententity == &cl.vrtorso ||
-            currententity == &cl.left_hip_holster_slot ||
-            currententity == &cl.right_hip_holster_slot ||
-            currententity == &cl.left_upper_holster_slot ||
-            currententity == &cl.right_upper_holster_slot ||
-            currententity == &cl.mainhand_wpn_button ||
-            currententity == &cl.offhand_wpn_button)
+        if(isViewmodel)
         {
             // View entities are drawn manually below.
             continue;
@@ -1105,11 +1064,11 @@ void R_DrawShadows()
     }
 
     // TODO VR: (P1) viewent shadow looks weird
-    const auto drawViewentShadow = [](entity_t* ent) {
-        if(ent->model != nullptr)
+    const auto drawViewentShadow = [](entity_t& ent) {
+        if(ent.model != nullptr)
         {
-            currententity = ent;
-            GL_DrawAliasShadow(ent);
+            currententity = &ent;
+            GL_DrawAliasShadow(&ent);
         }
     };
 
@@ -1121,27 +1080,13 @@ void R_DrawShadows()
         if(playerShadows == VrPlayerShadows::ViewEntities ||
             playerShadows == VrPlayerShadows::Both)
         {
-            drawViewentShadow(&cl.viewent);
-            drawViewentShadow(&cl.offhand_viewent);
-            drawViewentShadow(&cl.left_hip_holster);
-            drawViewentShadow(&cl.right_hip_holster);
-            drawViewentShadow(&cl.left_upper_holster);
-            drawViewentShadow(&cl.right_upper_holster);
-            drawViewentShadow(&cl.left_hand);
-            drawViewentShadow(&cl.right_hand);
-            drawViewentShadow(&cl.vrtorso);
-            drawViewentShadow(&cl.left_hip_holster_slot);
-            drawViewentShadow(&cl.right_hip_holster_slot);
-            drawViewentShadow(&cl.left_upper_holster_slot);
-            drawViewentShadow(&cl.right_upper_holster_slot);
-            drawViewentShadow(&cl.mainhand_wpn_button);
-            drawViewentShadow(&cl.offhand_wpn_button);
+            forAllViewmodels(cl, drawViewentShadow);
         }
 
         if(playerShadows == VrPlayerShadows::ThirdPerson ||
             playerShadows == VrPlayerShadows::Both)
         {
-            drawViewentShadow(&cl_entities[cl.viewentity]);
+            drawViewentShadow(cl_entities[cl.viewentity]);
         }
     }
 

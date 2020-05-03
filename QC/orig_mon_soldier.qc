@@ -303,7 +303,7 @@ void() monster_army =
 
     setmodel(self, "progs/soldier.mdl");
 
-    setsize(self, '-12 -12 -24', '12 12 26');
+    setsize(self, '-12 -12 -24', '12 12 27');
 
     // TODO VR: (P2) this works
     // self.scale_origin = '0 0 25';

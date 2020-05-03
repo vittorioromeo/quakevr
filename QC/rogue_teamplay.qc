@@ -1,4 +1,4 @@
-// TODO VR: (P0) most of the item management and weapon management here needs to
+// TODO VR: (P1) most of the item management and weapon management here needs to
 // be rewritten for VR
 
 // Rogue Teamplay Variants
@@ -566,7 +566,7 @@ void() TossBackpack =
 
     item = spawn();
 
-    // TODO VR: (P0) rewrite for VR
+    // TODO VR: (P1) rewrite for VR
     /*
 
     // See if you have the Shotgun or Super Shotgun on
@@ -745,7 +745,7 @@ void() TossBackpack =
 
 void() Team_weapon_touch =
 {
-    // TODO VR: (P0) rewrite for VR
+    // TODO VR: (P1) rewrite for VR
     /*
 
     local    float    hadammo, best, new, old;
@@ -801,9 +801,6 @@ void() Team_weapon_touch =
 
     EnableComboWeapons(self);
 
-    // TODO VR: (P0) I don't think I want this
-    // UpdateAmmoCounts(self);
-
     W_SetCurrentAmmo();
 
     // dropped weapon doesn't target, so no need to call UseTargets
@@ -813,7 +810,7 @@ void() Team_weapon_touch =
 
 void() TossWeapon =
 {
-    // TODO VR: (P0) rewrite for VR
+    // TODO VR: (P1) rewrite for VR
 
     /*
 

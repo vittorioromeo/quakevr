@@ -72,13 +72,30 @@ see if we can steal enemy's weapon
 
 ============
 */
+void(entity xEntVictim, entity xEntGremlin,
+    float xWeaponId, float xAmmoId, float xAmmoLimit) GremlinDoAmmoAndWeaponSteal =
+{
+    local float amount;
+    amount = VR_AmmoUtil_GetAmmoCountByAmmoId(xEntVictim, xAmmoId);
+
+    if(amount > xAmmoLimit) { amount = xAmmoLimit; }
+
+    VR_AmmoUtil_DelAmmoCountByAmmoId(xEntVictim, xAmmoId, amount);
+    VR_AmmoUtil_AddAmmoCountByAmmoId(xEntGremlin, xAmmoId, amount);
+    VR_ItemUtil_EntAddItem(xEntGremlin, VR_AmmoUtil_AmmoIdToItemId(xAmmoId));
+    xEntGremlin.currentammo = VR_AmmoUtil_GetAmmoCountByAmmoId(xEntGremlin, xAmmoId);
+
+    sprint(xEntVictim, "Gremlin stole your ");
+    sprint(xEntVictim, WeaponIdToWeaponName(xWeaponId));
+    sprint(xEntVictim, "!\n");
+}
+
 
 float() GremlinAttemptWeaponSteal =
 {
     local vector delta;
     local float best;
     local entity victim;
-    local float amount;
 
     if(self.stoleweapon)
     {
@@ -195,127 +212,47 @@ float() GremlinAttemptWeaponSteal =
     VR_ItemUtil_EntDelItem(self, IID_ROCKETS);
     VR_ItemUtil_EntDelItem(self, IID_CELLS);
 
-    // TODO VR: (P1) huge code repetition
     if(best == WID_AXE)
     {
-        sprint(victim, "Gremlin stole your Axe\n");
+        sprint(victim, "Gremlin stole your ");
+        sprint(victim, WeaponIdToWeaponName(best));
+        sprint(victim, "!\n");
     }
     else if(best == WID_SHOTGUN)
     {
-        amount = victim.ammo_shells;
-
-        if(amount > 10)
-            amount = 10;
-
-        victim.ammo_shells = victim.ammo_shells - amount;
-        self.ammo_shells = self.ammo_shells + amount;
-        VR_ItemUtil_EntAddItem(self, IID_SHELLS);
-        self.currentammo = self.ammo_shells;
-        sprint(victim, "Gremlin stole your Shotgun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_SHOTGUN, AID_SHELLS, 10);
     }
     else if(best == WID_SUPER_SHOTGUN)
     {
-        amount = victim.ammo_shells;
-
-        if(amount > 20)
-            amount = 20;
-
-        victim.ammo_shells = victim.ammo_shells - amount;
-        self.ammo_shells = self.ammo_shells + amount;
-        VR_ItemUtil_EntAddItem(self, IID_SHELLS);
-        self.currentammo = self.ammo_shells;
-        sprint(victim, "Gremlin stole your Super Shotgun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_SUPER_SHOTGUN, AID_SHELLS, 20);
     }
     else if(best == WID_NAILGUN)
     {
-        amount = victim.ammo_nails;
-
-        if(amount > 40)
-            amount = 40;
-
-        victim.ammo_nails = victim.ammo_nails - amount;
-        self.ammo_nails = self.ammo_nails + amount;
-        VR_ItemUtil_EntAddItem(self, IID_NAILS);
-        self.currentammo = self.ammo_nails;
-        sprint(victim, "Gremlin stole your Nailgun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_NAILGUN, AID_NAILS, 40);
     }
     else if(best == WID_SUPER_NAILGUN)
     {
-        amount = victim.ammo_nails;
-
-        if(amount > 40)
-            amount = 40;
-
-        victim.ammo_nails = victim.ammo_nails - amount;
-        self.ammo_nails = self.ammo_nails + amount;
-        VR_ItemUtil_EntAddItem(self, IID_NAILS);
-        self.currentammo = self.ammo_nails;
-        sprint(victim, "Gremlin stole your Super Nailgun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_SUPER_NAILGUN, AID_NAILS, 40);
     }
     else if(best == WID_GRENADE_LAUNCHER)
     {
-        amount = victim.ammo_rockets;
-
-        if(amount > 5)
-            amount = 5;
-
-        victim.ammo_rockets = victim.ammo_rockets - amount;
-        self.ammo_rockets = self.ammo_rockets + amount;
-        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
-        self.currentammo = self.ammo_rockets;
-        sprint(victim, "Gremlin stole your Grenade Launcher\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_GRENADE_LAUNCHER, AID_ROCKETS, 5);
     }
     else if(best == WID_ROCKET_LAUNCHER)
     {
-        amount = victim.ammo_rockets;
-
-        if(amount > 5)
-            amount = 5;
-
-        victim.ammo_rockets = victim.ammo_rockets - amount;
-        self.ammo_rockets = self.ammo_rockets + amount;
-        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
-        self.currentammo = self.ammo_rockets;
-        sprint(victim, "Gremlin stole your Rocket Launcher\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_ROCKET_LAUNCHER, AID_ROCKETS, 5);
     }
     else if(best == WID_LIGHTNING)
     {
-        amount = victim.ammo_cells;
-
-        if(amount > 40)
-            amount = 40;
-
-        victim.ammo_cells = victim.ammo_cells - amount;
-        self.ammo_cells = self.ammo_cells + amount;
-        VR_ItemUtil_EntAddItem(self, IID_CELLS);
-        self.currentammo = self.ammo_cells;
-        sprint(victim, "Gremlin stole your Lightning Gun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_LIGHTNING, AID_CELLS, 40);
     }
     else if(best == WID_LASER_CANNON)
     {
-        amount = victim.ammo_cells;
-
-        if(amount > 40)
-            amount = 40;
-
-        victim.ammo_cells = victim.ammo_cells - amount;
-        self.ammo_cells = self.ammo_cells + amount;
-        VR_ItemUtil_EntAddItem(self, IID_CELLS);
-        self.currentammo = self.ammo_cells;
-        sprint(victim, "Gremlin stole your Laser Cannon\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_LASER_CANNON, AID_CELLS, 40);
     }
     else if(best == WID_PROXIMITY_GUN)
     {
-        amount = victim.ammo_rockets;
-
-        if(amount > 5)
-            amount = 5;
-
-        victim.ammo_rockets = victim.ammo_rockets - amount;
-        self.ammo_rockets = self.ammo_rockets + amount;
-        VR_ItemUtil_EntAddItem(self, IID_ROCKETS);
-        self.currentammo = self.ammo_rockets;
-        sprint(victim, "Gremlin stole your Proximity Gun\n");
+        GremlinDoAmmoAndWeaponSteal(victim, self, WID_PROXIMITY_GUN, AID_ROCKETS, 5);
     }
 
     // tag the gremlin as having stolen a weapon

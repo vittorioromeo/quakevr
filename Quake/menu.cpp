@@ -2394,7 +2394,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.1f;
+    const float rInc = 0.2f;
     constexpr float rBound = 90.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -2556,7 +2556,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.1f;
+    const float rInc = 0.2f;
     constexpr float rBound = 180.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -2882,7 +2882,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.1f;
+    const float rInc = 0.2f;
     constexpr float rBound = 180.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -2945,7 +2945,7 @@ void M_QuakeVRSettings_Key(int k)
          },                             //
          "Disabled", "Ammo Type Change" //
          )
-        .tooltip("TODO VR (P0): aa");
+        .tooltip("Type of button.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -3026,6 +3026,7 @@ void M_QuakeVRSettings_Key(int k)
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
     m.add_action_entry("Impulse 14 (Spawn All)", runCmd("impulse 14"));
+    m.add_action_entry("Impulse 17 (Spawn Grapple)", runCmd("impulse 17"));
     m.add_action_entry("Impulse 255 (Quad)", runCmd("impulse 255"));
     m.add_action_entry("God Mode", runCmd("god"));
     m.add_action_entry("Noclip", runCmd("noclip"));
@@ -3056,8 +3057,6 @@ void M_QuakeVRSettings_Key(int k)
         "Show VR Torso Debug Lines", vr_vrtorso_debuglines_enabled);
 
     m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
-
-    m.add_cvar_entry<bool>("Enable Grapple Gun", vr_enable_grapple);
 
     extern cvar_t host_timescale;
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
