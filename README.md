@@ -74,6 +74,11 @@ Quake VR supports the "Scourge of Armagon" official mission pack. It can be inst
 
 When Scourge of Armagon is installed, it overwrites Quake 1's `start.bsp` with its own starting map. In order to play Quake 1 maps, use the *"Change Map"* functionality under *"Quake VR Settings"*.
 
+
+### Mission Pack 2: Dissolution of Eternity
+
+Quake VR supports the "Dissolution of Eternity" official mission pack. The instructions above apply here as well. Take `pak0.pak` from the `rogue` folder, rename it to somethhing unique (e.g. `pak4.pak` if you installed Scourge of Armagon), and place it in your `Id1` folder.
+
 ### Highly Recommended Addons
 
 The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view) addon is highly recommended to improve immersion.
