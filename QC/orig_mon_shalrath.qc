@@ -82,7 +82,7 @@ void() shal_death3      =[      $death3,        shal_death4     ] {};
 void() shal_death4      =[      $death4,        shal_death5     ] {};
 void() shal_death5      =[      $death5,        shal_death6     ] {};
 void() shal_death6      =[      $death6,        shal_death7     ] {};
-void() shal_death7      =[      $death7,        shal_death7    ] {};
+void() shal_death7      =[      $death7,        shal_death7    ] {monster_check_remove_corpse();};
 
 
 void(entity attacker, float damage) shalrath_pain =
@@ -217,11 +217,11 @@ void() monster_shalrath =
     precache_sound2("shalrath/pain.wav");
     precache_sound2("shalrath/sight.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/shalrath.mdl");
-    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 400;
 
     self.th_stand = shal_stand;
@@ -231,7 +231,20 @@ void() monster_shalrath =
     self.th_pain = shalrath_pain;
     self.th_missile = shal_attack1;
 
-    self.think = walkmonster_start;
-    self.nextthink = time + 0.1 + random ()*0.1;
+    // HONEY
+    monster_add_to_counter();
 
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = shalrath_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/shalrath.mdl");
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+
+    walkmonster_start();
 };

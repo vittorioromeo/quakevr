@@ -114,6 +114,13 @@ honey_mon_enforcer.qc
 honey_mon_fish.qc
 honey_mon_hknight.qc
 honey_mon_knight.qc
+honey_mon_ogre.qc
+honey_mon_shalrath.qc
+honey_mon_shambler.qc
+honey_mon_soldier.qc
+honey_mon_tarbaby.qc
+honey_mon_wizard.qc
+honey_mon_zombie.qc
 honey_monsters.qc
 honey_sknight_debug.qc
 honey_sknight_tbl.qc
