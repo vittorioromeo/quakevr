@@ -331,7 +331,7 @@ void() sham_death7      =[      $death7,       sham_death8     ] {};
 void() sham_death8      =[      $death8,       sham_death9     ] {};
 void() sham_death9      =[      $death9,       sham_death10    ] {};
 void() sham_death10     =[      $death10,      sham_death11    ] {};
-void() sham_death11     =[      $death11,      sham_death11    ] {};
+void() sham_death11     =[      $death11,      sham_death11    ] {monster_check_remove_corpse();};
 
 void() sham_die =
 {
@@ -379,11 +379,11 @@ void() monster_shambler =
     precache_sound("shambler/melee2.wav");
     precache_sound("shambler/smack.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
-    setmodel(self, "progs/shambler.mdl");
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 600;
 
     self.th_stand = sham_stand1;
@@ -393,6 +393,21 @@ void() monster_shambler =
     self.th_melee = sham_melee;
     self.th_missile = sham_magic1;
     self.th_pain = sham_pain;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = shambler_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/shambler.mdl");
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
 
     walkmonster_start();
 };

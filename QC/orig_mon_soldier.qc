@@ -199,6 +199,10 @@ void() army_fire =
     // vec = normalize(vec);
     // sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
     // launch_spike (src, vec);
+
+    // HONEY
+    // TODO VR: (P0) check how this works
+    self.damage_weapon = IT_SHOTGUN;
 };
 
 void() SoldierDrop =
@@ -231,7 +235,7 @@ void()    army_die6    =[    $death6,    army_die7    ] {};
 void()    army_die7    =[    $death7,    army_die8    ] {};
 void()    army_die8    =[    $death8,    army_die9    ] {};
 void()    army_die9    =[    $death9,    army_die10    ] {};
-void()    army_die10    =[    $death10,    army_die10    ] {};
+void()    army_die10    =[    $death10,    army_die10    ] {monster_check_remove_corpse();};
 
 void()    army_cdie1    =[    $deathc1,    army_cdie2    ] {};
 void()    army_cdie2    =[    $deathc2,    army_cdie3    ] {ai_back(5);};
@@ -247,7 +251,7 @@ void()    army_cdie7    =[    $deathc7,    army_cdie8    ] {};
 void()    army_cdie8    =[    $deathc8,    army_cdie9    ] {};
 void()    army_cdie9    =[    $deathc9,    army_cdie10    ] {};
 void()    army_cdie10    =[    $deathc10,    army_cdie11    ] {};
-void()    army_cdie11    =[    $deathc11,    army_cdie11    ] {};
+void()    army_cdie11    =[    $deathc11,    army_cdie11    ] {monster_check_remove_corpse();};
 
 
 void() army_die =
@@ -297,13 +301,10 @@ void() monster_army =
 
     precache_sound("player/udeath.wav");        // gib death
 
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
-
-    setmodel(self, "progs/soldier.mdl");
-
-    setsize(self, '-12 -12 -24', '12 12 27');
 
     // TODO VR: (P2) this works
     // self.scale_origin = '0 0 25';
@@ -316,6 +317,21 @@ void() monster_army =
     self.th_missile = army_atk1;
     self.th_pain = army_pain;
     self.th_die = army_die;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = army_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/soldier.mdl");
+    setsize(self, '-12 -12 -24', '12 12 27');
 
     walkmonster_start();
 };

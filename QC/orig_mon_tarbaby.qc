@@ -128,8 +128,6 @@ void()    Tar_JumpTouch =
     self.nextthink = time + 0.1;
 };
 
-void()    tbaby_jump5;
-
 void()    tbaby_fly1        =[    $fly1,    tbaby_fly2    ] {};
 void()    tbaby_fly2        =[    $fly2,    tbaby_fly3    ] {};
 void()    tbaby_fly3        =[    $fly3,    tbaby_fly4    ] {};
@@ -148,11 +146,30 @@ void()    tbaby_jump3        =[    $jump3,    tbaby_jump4        ] {ai_face();};
 void()    tbaby_jump4        =[    $jump4,    tbaby_jump5        ] {ai_face();};
 void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
 {
+    // HONEY
+    local vector power;
+    if(self.spawnflags & TBABY_LIVID){
+        self.th_missile = tbaby_jump1; //Reset
+        self.spawnflags = self.spawnflags - TBABY_LIVID;
+    }
+
     self.movetype = MOVETYPE_BOUNCE;
     self.touch = Tar_JumpTouch;
     makevectors(self.angles);
     self.origin_z = self.origin_z + 1;
-    self.velocity = v_forward * 600 + '0 0 200';
+
+    // HONEY
+    if(self.spawnflags & TBABY_HIPHOP){// Makes it start off by jumping really high the first time
+        self.velocity = v_forward * 150 + '0 0 700';
+        self.spawnflags = self.spawnflags - TBABY_HIPHOP;
+    }else{
+        power = '0 0 0' ;
+        power_z = self.distance;
+        self.velocity = v_forward * 600 + power;
+        self.velocity_z = self.velocity_z + random()*150;
+        self.distance = 200;
+    }
+
     self.velocity_z = self.velocity_z + random()*150;
     if(self.flags & FL_ONGROUND)
         self.flags = self.flags - FL_ONGROUND;
@@ -284,18 +301,21 @@ void() monster_tarbaby =
     precache_sound2("blob/sight1.wav");
     precache_sound2("blob/mytosis.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
 
-    setmodel(self, "progs/tarbaby.mdl");
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    setsize(self, '-12 -12 -24', '12 12 24');
     self.health = 80;
 
     self.th_stand = tbaby_stand1;
     self.th_walk = tbaby_walk1;
     self.th_run = tbaby_run1;
-    self.th_missile = tbaby_jump1;
+
+    // HONEY
+    if(self.spawnflags & TBABY_LIVID) { self.th_missile = tbaby_jump5; } //Really go flying
+    else                              { self.th_missile = tbaby_jump1; }
+
     self.th_melee = tbaby_jump1;
     self.th_die = tbaby_die1;
 
@@ -340,6 +360,22 @@ void() monster_tarbaby =
             self.skin = 0;
         }
     }
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = tarbaby_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/tarbaby.mdl");
+    setsize(self, '-12 -12 -24', '12 12 24');
+
 
     walkmonster_start();
 };
