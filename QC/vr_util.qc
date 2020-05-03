@@ -206,6 +206,12 @@ void(entity e, float xHand, float v) VRSetEntWeapon =
     else                     e.weapon = v;
 }
 
+void(entity e, float xHand, float v) VRSetEntWeaponFlags =
+{
+    if(xHand == cVR_OffHand) e.weaponflags2 = v;
+    else                     e.weaponflags = v;
+}
+
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -231,6 +237,7 @@ float(entity e, float xHand) VRIsHandEmpty =
 void(entity e, float xHand) VRSetHandEmpty =
 {
     VRSetEntWeapon(e, xHand, WID_FIST);
+    VRSetEntWeaponFlags(e, xHand, 0);
 }
 
 float(float xHand) VRGetWeapon =

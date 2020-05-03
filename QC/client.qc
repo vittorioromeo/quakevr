@@ -1889,8 +1889,8 @@ called when a player dies
 */
 void(entity targ, entity attacker) ClientObituary =
 {
-    local    float rnum;
-    local    string deathstring, deathstring2;
+    local float rnum;
+    local string deathstring, deathstring2;
     rnum = random();
 
     if(targ.classname == "player")
@@ -2021,91 +2021,111 @@ void(entity targ, entity attacker) ClientObituary =
                     deathstring = " was punched by ";
                     deathstring2 = "\n";
                 }
-                if(rnum == WID_AXE)
+                else if(rnum == WID_AXE)
                 {
                     deathstring = " was ax-murdered by ";
                     deathstring2 = "\n";
                 }
                 //ZOID--
-                if(rnum == WID_GRAPPLE)
+                else if(rnum == WID_GRAPPLE)
                 {
                     deathstring = " was grappled by ";
                     deathstring2 = "\n";
                 }
                 //--ZOID
-                if(rnum == WID_SHOTGUN)
+                else if(rnum == WID_SHOTGUN)
                 {
                     deathstring = " chewed on ";
                     deathstring2 = "'s boomstick\n";
                 }
-                if(rnum == WID_SUPER_SHOTGUN)
+                else if(rnum == WID_SUPER_SHOTGUN)
                 {
                     deathstring = " ate 2 loads of ";
                     deathstring2 = "'s buckshot\n";
                 }
-                if(rnum == WID_NAILGUN)
+                else if(rnum == WID_NAILGUN)
                 {
-                    deathstring = " was nailed by ";
-                    deathstring2 = "\n";
+                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    {
+                        deathstring = " was burned by ";
+                        deathstring2 = "\n";
+                    }
+                    else
+                    {
+                        deathstring = " was nailed by ";
+                        deathstring2 = "\n";
+                    }
                 }
-                if(rnum == WID_SUPER_NAILGUN)
+                else if(rnum == WID_SUPER_NAILGUN)
                 {
-                    deathstring = " was punctured by ";
-                    deathstring2 = "\n";
+                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    {
+                        deathstring = " was burned by ";
+                        deathstring2 = "\n";
+                    }
+                    else
+                    {
+                        deathstring = " was punctured by ";
+                        deathstring2 = "\n";
+                    }
                 }
-                if(rnum == WID_GRENADE_LAUNCHER)
+                else if(rnum == WID_GRENADE_LAUNCHER)
                 {
-                    deathstring = " eats ";
-                    deathstring2 = "'s pineapple\n";
+                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    {
+                        deathstring = " was blasted to bits by ";
+                        deathstring2 = "\n";
+                    }
+                    else
+                    {
+                        deathstring = " eats ";
+                        deathstring2 = "'s pineapple\n";
+                    }
+
                     if(targ.health < -40)
                     {
                         deathstring = " was gibbed by ";
                         deathstring2 = "'s grenade\n";
                     }
+
                 }
-                if(rnum == WID_ROCKET_LAUNCHER)
+                else if(rnum == WID_ROCKET_LAUNCHER)
                 {
-                    deathstring = " rides ";
-                    deathstring2 = "'s rocket\n";
+                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    {
+                        deathstring = " was blasted to bits by ";
+                        deathstring2 = "\n";
+                    }
+                    else
+                    {
+                        deathstring = " rides ";
+                        deathstring2 = "'s rocket\n";
+                    }
+
                     if(targ.health < -40)
                     {
                         deathstring = " was gibbed by ";
                         deathstring2 = "'s rocket\n" ;
                     }
                 }
-                if(rnum == WID_LIGHTNING)
+                else if(rnum == WID_LIGHTNING)
                 {
-                    deathstring = " accepts ";
-                    if(attacker.waterlevel > 1)
-                        deathstring2 = "'s discharge\n";
+                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    {
+                        deathstring = " was fused by ";
+                        deathstring2 = "\n";
+                    }
                     else
-                        deathstring2 = "'s shaft\n";
+                    {
+                        deathstring = " accepts ";
+                        if(attacker.waterlevel > 1)
+                            deathstring2 = "'s discharge\n";
+                        else
+                            deathstring2 = "'s shaft\n";
+                    }
                 }
-
-                // ROGUE
-                // TODO VR: (P0) decide how to handle these
-                /*
-                if(rnum == IT_LAVA_NAILGUN ||
-                        rnum == IT_LAVA_SUPER_NAILGUN)
-                {
-                    deathstring = " was burned by ";
-                    deathstring2 = "\n";
-                }
-                else if(rnum == IT_PLASMA_GUN)
-                {
-                    deathstring = " was fused by ";
-                    deathstring2 = "\n";
-                }
-                else if(rnum == IT_MULTI_GRENADE ||
-                            rnum == IT_MULTI_ROCKET)
-                {
-                    deathstring = " was blasted to bits by ";
-                    deathstring2 = "\n";
-                }
-                */
-
-//MED
-            if(rnum == WID_LASER_CANNON)
+    //MED
+            else if(rnum == WID_LASER_CANNON)
                 {
                if(random()<0.5)
                   {

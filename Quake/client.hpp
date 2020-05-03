@@ -96,7 +96,7 @@ struct beam_t
     glm::vec3 start, end;
     bool spin;
     float scaleRatioX;
-} ;
+};
 
 
 
@@ -267,6 +267,37 @@ struct client_state_t
     unsigned protocol; // johnfitz
     unsigned protocolflags;
 };
+
+template <typename F>
+bool anyViewmodel(client_state_t& clientState, F&& f)
+{
+    return                                         //
+        f(clientState.viewent)                     //
+        || f(clientState.offhand_viewent)          //
+        || f(clientState.left_hip_holster)         //
+        || f(clientState.right_hip_holster)        //
+        || f(clientState.left_upper_holster)       //
+        || f(clientState.right_upper_holster)      //
+        || f(clientState.left_hand)                //
+        || f(clientState.right_hand)               //
+        || f(clientState.vrtorso)                  //
+        || f(clientState.left_hip_holster_slot)    //
+        || f(clientState.right_hip_holster_slot)   //
+        || f(clientState.left_upper_holster_slot)  //
+        || f(clientState.right_upper_holster_slot) //
+        || f(clientState.mainhand_wpn_button)      //
+        || f(clientState.offhand_wpn_button);
+}
+
+template <typename F>
+void forAllViewmodels(client_state_t& clientState, F&& f)
+{
+    anyViewmodel(clientState, [&](entity_t& e) {
+        f(e);
+        return false;
+    });
+}
+
 
 
 //

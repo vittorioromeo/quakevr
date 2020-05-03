@@ -239,6 +239,9 @@ void VR_ModVRTorsoModel();
 void VR_ModVRLegHolsterModel();
 void VR_ModAllModels();
 
+void VR_OnSpawnServer();
+void VR_OnClientClearState();
+
 struct VrGunWallCollision
 {
     bool _colliding{false};

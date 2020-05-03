@@ -516,6 +516,9 @@ void() monster_ogre =
     }
 
     setsize(self, '-24 -24 -24', '24 24 40');
+    // TODO VR: (P0) this seems to help with stuck ogres, but verify.
+    // It seems incosistent between quad/biosuit
+    setorigin(self, self.origin + '-12 -12 0');
     self.health = 200;
 
     self.th_stand = ogre_stand1;

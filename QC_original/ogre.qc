@@ -459,6 +459,8 @@ void() monster_ogre =
 
     setmodel (self, "progs/ogre.mdl");
 
+    // vector    VEC_HULL2_MIN = '-32 -32 -24';
+    // vector    VEC_HULL2_MAX = '32 32 64';
     setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 200;
 

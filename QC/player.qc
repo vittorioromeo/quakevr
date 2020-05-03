@@ -332,9 +332,10 @@ void(float xHand) player_grapple5 =
 //--ZOID
 //============================================================================
 
-void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
+     float xAmmoCount, void(float, float) xFireFn) player_nail_BaseImpl =
 {
-    if(self.ammo_nails < 1 || !VRGetFireButtonPressed(xHand))
+    if(xAmmoCount < 1 || !VRGetFireButtonPressed(xHand))
     {
         player_run(xHand);
         return;
@@ -348,8 +349,14 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nai
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
-    W_FireSpikes(xHand, xOffset);
+    xFireFn(xHand, xOffset);
     VRSetAttackFinished(xHand, time + 0.2);
+}
+
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
+{
+    player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
+                         self.ammo_nails, W_FireSpikes);
 }
 
 void(float xHand) player_nail1 =
@@ -362,26 +369,10 @@ void(float xHand) player_nail2 =
     player_nail_Impl(xHand, -2.35, $nailatt2, player_nail1);
 }
 
-// TODO VR: (P0) fix rogue weapons
-// TODO VR: (P2) repetition with above
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_lava_nail_Impl =
 {
-    if(self.ammo_lava_nails < 1 || !VRGetFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, xNailAtt, xNailFn);
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
-    if(VRGetWeaponFrame(xHand) == 9)
-        VRSetWeaponFrame(xHand, 1);
-
-    SuperDamageSound();
-    W_FireLavaSpikes(xHand, xOffset);
-    VRSetAttackFinished(xHand, time + 0.2);
+    player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
+                         self.ammo_lava_nails, W_FireLavaSpikes);
 }
 
 void(float xHand) player_lava_nail1 =
@@ -396,8 +387,7 @@ void(float xHand) player_lava_nail2 =
 
 //============================================================================
 
-// TODO VR: (P2) code repetition
-void(float xHand) player_light1 =
+void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
 {
     if(self.ammo_cells < 1)
     {
@@ -405,7 +395,7 @@ void(float xHand) player_light1 =
         return;
     }
 
-    setHandThinkWithArg(xHand, $light1, player_light2);
+    setHandThinkWithArg(xHand, xLightAtt, xLightFn);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -420,6 +410,11 @@ void(float xHand) player_light1 =
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
+}
+
+void(float xHand) player_light1 =
+{
+    player_light_Impl(xHand, $light1, player_light2);
 
     if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
     {
@@ -436,27 +431,7 @@ void(float xHand) player_light1 =
 
 void(float xHand) player_light2 =
 {
-    if(self.ammo_cells < 1)
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $light2, player_light1);
-
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    if(!VRGetFireButtonPressed(xHand))
-    {
-        player_run(xHand);
-        return;
-    }
-
-    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
-    if(VRGetWeaponFrame(xHand) == 5)
-        VRSetWeaponFrame(xHand, 1);
-
-    SuperDamageSound();
+    player_light_Impl(xHand, $light2, player_light1);
 
     if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
     {
@@ -486,9 +461,7 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 
 //============================================================================
 
-// TODO VR: (P2) code repetition
-//MED 10/18/96 added HIPSWEAPONS
-void(float xHand) player_laser1 =
+void(float xHand, float xLaserAtt, void(float) xLaserFn) player_laser_Impl =
 {
     if(self.ammo_cells < 1)
     {
@@ -496,49 +469,34 @@ void(float xHand) player_laser1 =
         return;
     }
 
-    setHandThinkWithArg(xHand, $nailatt1, player_laser3);
+    setHandThinkWithArg(xHand, xLaserAtt, xLaserFn);
     VRSetAttackFinished(xHand, time + 0.1);
+}
+
+//MED 10/18/96 added HIPSWEAPONS
+void(float xHand) player_laser1 =
+{
+    player_laser_Impl(xHand, $nailatt1, player_laser3);
     VRSetWeaponFrame(xHand, 1);
     HIP_FireLaser(xHand, 0);
 }
 
 void(float xHand) player_laser2 =
 {
-    if(self.ammo_cells < 1)
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $nailatt2, player_laser3);
-    VRSetAttackFinished(xHand, time + 0.1);
+    player_laser_Impl(xHand, $nailatt2, player_laser3);
     VRSetWeaponFrame(xHand, 2);
 }
 
 void(float xHand) player_laser3 =
 {
-    if(self.ammo_cells < 1)
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $nailatt2, player_laser1);
-    VRSetAttackFinished(xHand, time + 0.1);
+    player_laser_Impl(xHand, $nailatt2, player_laser1);
     VRSetWeaponFrame(xHand, 4);
     HIP_FireLaser(xHand, 1);
 }
 
 void(float xHand) player_laser4 =
 {
-    if(self.ammo_cells < 1)
-    {
-        player_run(xHand);
-        return;
-    }
-
-    setHandThinkWithArg(xHand, $nailatt1, player_laser1);
-    VRSetAttackFinished(xHand, time + 0.1);
+    player_laser_Impl(xHand, $nailatt1, player_laser1);
     VRSetWeaponFrame(xHand, 5);
 }
 
@@ -635,21 +593,21 @@ local float        rs;
     return;
 };
 
-void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
+void()    player_pain1 =    [    $pain1,    player_pain2    ] { PainSound(); };
 void()    player_pain2 =    [    $pain2,    player_pain3    ] {};
 void()    player_pain3 =    [    $pain3,    player_pain4    ] {};
 void()    player_pain4 =    [    $pain4,    player_pain5    ] {};
 void()    player_pain5 =    [    $pain5,    player_pain6    ] {};
 void()    player_pain6 =    [    $pain6,    player_run_no_arg    ] {};
 
-void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
+void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] { PainSound(); };
 void()    player_axpain2 =    [    $axpain2,    player_axpain3    ] {};
 void()    player_axpain3 =    [    $axpain3,    player_axpain4    ] {};
 void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
 void()    player_axpain6 =    [    $axpain6,    player_run_no_arg    ] {};
 
-void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound(); /* TODO VR: (P2) self.weaponframe=0; */ };
+void()   player_hampain1 =  [  18,   player_hampain2 ] { PainSound(); };
 void()   player_hampain2 =  [  19,   player_hampain3 ] {};
 void()   player_hampain3 =  [  20,   player_hampain4 ] {};
 void()   player_hampain4 =  [  21,   player_hampain5 ] {};
