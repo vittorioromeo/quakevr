@@ -825,7 +825,6 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
 
 void(float xHand) HIP_FireMjolnir =
 {
-    local vector source;
     local vector org;
     local float  xdmg;
 
@@ -939,11 +938,38 @@ W_FireAxe
 */
 void(float xHand) W_FireAxe =
 {
-    local vector source;
     local vector org;
     local float  xdmg;
 
+    // HONEY
+    local entity zombie, oself;
+    local float  zombie_dist;
+    local float  bleed; // TODO VR: (P1) apply bleed mechanic to other melee attacks
+    bleed = FALSE;
+
     xdmg = VRMeleeDmg(xHand, 1.00, 7);
+
+    // HONEY
+    // Check if we maybe should gib some zombies for fun!
+
+    // Why on earth did I choose .wad?
+    zombie = find(world, wad, ZOMBIE_ONGROUND);
+
+    while(zombie){
+        if(zombie.classname == "monster_zombie"){
+            zombie_dist = vlen(self.origin  - zombie.origin);
+            if( zombie_dist <= 64){
+                if(infront(zombie)){
+                    zombie.wad = "";
+                    SpawnBloodSplash(zombie.origin, 20);
+                    zombie.health = 0;
+                    Killed(zombie, self);
+                    bleed = TRUE;
+                }
+            }
+        }
+        zombie = find(zombie, wad, ZOMBIE_ONGROUND);
+    }
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
     {
@@ -955,8 +981,15 @@ void(float xHand) W_FireAxe =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
-        SpawnBloodSplash (org, xdmg);
-        T_Damage_VRMelee (trace_ent, self, self, xdmg);
+
+        // HONEY
+        self.damage_weapon = IT_AXE;
+
+        if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
+        {
+            SpawnBloodSplash(org, xdmg);
+            bleed = TRUE;
+        }
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -965,7 +998,8 @@ void(float xHand) W_FireAxe =
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
-    else
+
+    if(!bleed)
     {
         // hit wall
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
@@ -989,7 +1023,6 @@ W_GunMelee
 */
 void(float xHand) W_GunMelee =
 {
-    local    vector    source;
     local    vector    org;
     local    float    xdmg;
 
@@ -1040,7 +1073,6 @@ W_FistMelee
 */
 void(float xHand) W_FistMelee =
 {
-    local vector source;
     local vector org;
     local float  xdmg;
     local float  playedsound;
@@ -1215,10 +1247,10 @@ void() ApplyMultiDamage =
     T_Damage (multi_ent, self, self, multi_damage);
 };
 
-void(entity hit, float damage) AddMultiDamage =
+float(entity hit, float damage) AddMultiDamage =
 {
     if(!hit)
-        return;
+        return FALSE;
 
     if(hit != multi_ent)
     {
@@ -1228,6 +1260,9 @@ void(entity hit, float damage) AddMultiDamage =
     }
     else
         multi_damage = multi_damage + damage;
+
+    // HONEY
+    return !((hit.flags & FL_SPECIFICDAMAGE) && !(hit.items & self.damage_weapon) );
 };
 
 /*
@@ -1245,7 +1280,11 @@ TraceAttack
 */
 void(float damage, vector dir) TraceAttack =
 {
-    local    vector    vel, org;
+    local vector vel, org;
+
+    // HONEY
+    local float bleed;
+    bleed = FALSE;
 
     vel = normalize(dir + v_up*crandom() + v_right*crandom());
     vel = vel + 2*trace_plane_normal;
@@ -1255,10 +1294,14 @@ void(float damage, vector dir) TraceAttack =
 
     if(trace_ent.takedamage)
     {
-        SpawnBlood (org, vel*0.2, damage);
-        AddMultiDamage (trace_ent, damage);
+        if(AddMultiDamage (trace_ent, damage))
+        {
+            SpawnBlood (org, vel*0.2, damage);
+            bleed = TRUE;
+        }
     }
-    else
+
+    if(!bleed)
     {
         BroadcastGunshotEffect(org);
     }
@@ -1344,6 +1387,9 @@ void(float xHand) W_FireShotgun =
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+
+    // HONEY
+    self.damage_weapon = IT_SHOTGUN;
 };
 
 
@@ -1374,6 +1420,9 @@ void(float xHand) W_FireSuperShotgun =
 
     particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
     particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+
+    // HONEY
+    self.damage_weapon = IT_SUPER_SHOTGUN;
 };
 
 
@@ -1416,6 +1465,9 @@ void() T_MissileTouch =
     }
 
     damg = 100 + random()*20;
+
+    // HONEY
+    self.owner.damage_weapon = IT_ROCKET_LAUNCHER;
 
     if(other.health)
     {
@@ -1515,12 +1567,18 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
     e1 = e2 = world;
 
+    // HONEY
+    self.damage_weapon = IT_LIGHTNING;
+
     traceline(p1, p2, FALSE, self);
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished )
     {
-        SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        if(T_Damage (trace_ent, from, from, damage))
+        {
+            SpawnBloodSplash (trace_endpos, damage*5);
+        }
+
         if(self.classname == "player")
         {
             if(other.classname == "player")
@@ -1534,8 +1592,10 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished )
     {
-        SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        if(T_Damage (trace_ent, from, from, damage))
+        {
+            SpawnBloodSplash (trace_endpos, damage*5);
+        }
     }
     e2 = trace_ent;
 
@@ -1544,8 +1604,10 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished )
     {
-        SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from, damage);
+        if(T_Damage (trace_ent, from, from, damage))
+        {
+            SpawnBloodSplash (trace_endpos, damage*5);
+        }
     }
 };
 
@@ -1572,6 +1634,10 @@ void(float xHand) W_FireLightning =
         T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
+
+        // HONEY
+        self.damage_weapon = IT_LIGHTNING;
+
         return;
     }
 
@@ -1619,9 +1685,16 @@ void() GrenadeTouch =
     if(other == self.owner)
         return;        // don't explode on owner
 
+    // HONEY
+    self.owner.damage_weapon = IT_GRENADE_LAUNCHER;
+
     if(other.takedamage == DAMAGE_AIM)
     {
-        GrenadeExplode();
+        if(!((other.flags & FL_SPECIFICDAMAGE) && !(other.items & IT_GRENADE_LAUNCHER) ) ) // HONEY
+        {
+            GrenadeExplode();
+        }
+
         return;
     }
 
@@ -2003,6 +2076,10 @@ void() spike_touch =
     local float posDmgType;
     local float adjDmg;
 
+    // HONEY
+    local float bleed;
+    bleed = FALSE;
+
     if(other == self.owner)
         return;
 
@@ -2018,16 +2095,20 @@ void() spike_touch =
     makeforward_mdl(self.angles);
     traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
-// hit something that bleeds
+    // hit something that maybe bleeds
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
-        spawn_touchblood (adjDmg);
-        T_Damage (other, self, self.owner, adjDmg);
+        if(T_Damage (other, self, self.owner, adjDmg))
+        {
+            spawn_touchblood (adjDmg);
+            bleed = TRUE;
+        }
     }
-    else
+
+    if(!bleed)
     {
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
 
@@ -2054,6 +2135,10 @@ void() superspike_touch =
     local float posDmgType;
     local float adjDmg;
 
+    // HONEY
+    local float bleed;
+    bleed = FALSE;
+
     if(other == self.owner)
         return;
 
@@ -2069,16 +2154,19 @@ void() superspike_touch =
     makeforward_mdl(self.angles);
     traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
 
-// hit something that bleeds
+    // hit something that maybe bleeds
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
-        spawn_touchblood (adjDmg);
-        T_Damage (other, self, self.owner, adjDmg);
+        if(T_Damage (other, self, self.owner, adjDmg))
+        {
+            spawn_touchblood (adjDmg);
+        }
     }
-    else
+
+    if(!bleed)
     {
         spike_bullethole();
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);

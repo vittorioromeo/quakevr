@@ -213,6 +213,9 @@ void() monster_wrath =
     precache_sound ("wrath/wpain.wav");
     precache_sound ("wrath/wdthc.wav");
 
+    // HONEY
+    monster_add_to_counter();
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 

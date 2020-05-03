@@ -70,8 +70,7 @@ void() monster_death_use =
 
 void() walkmonster_start_go =
 {
-    local string    stemp;
-    local entity    etemp;
+    local string stemp;
 
     self.origin_z = self.origin_z + 1;    // raise off floor a bit
 

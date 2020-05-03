@@ -467,7 +467,8 @@ void() monster_lava_man =
     precache_sound ("boss1/pain.wav");
     precache_sound ("boss1/death.wav");
 
-    total_monsters = total_monsters + 1;
+    // HONEY
+    monster_add_to_counter();
 
     // cause the lavaman to rise from the lava when triggered.
     if(self.spawnflags & 2)

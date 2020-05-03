@@ -1552,6 +1552,9 @@ void() monster_gremlin =
     precache_sound("grem/idle.wav");
     precache_sound("grem/sight1.wav");
 
+    // HONEY
+    monster_add_to_counter();
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 

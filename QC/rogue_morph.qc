@@ -563,7 +563,9 @@ void() monster_morph =
     precache_sound2("guard/pain1.wav");
     precache_sound2("guard/see1.wav");
 
-    total_monsters = total_monsters + 1;
+    // HONEY
+    monster_add_to_counter();
+
     if(self.targetname)
     {
         self.use = morph_use;

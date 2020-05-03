@@ -492,6 +492,9 @@ void() monster_scourge =
     precache_sound2("shambler/smack.wav");
     precache_sound2("weapons/rocket1i.wav");
 
+    // HONEY
+    monster_add_to_counter();
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
