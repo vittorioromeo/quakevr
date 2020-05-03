@@ -300,20 +300,21 @@ float TRUE  = 1;
 // Edict `.flags` flag values
 // ----------------------------------------------------------------------------
 
-float FL_FLY           = VRUTIL_POWER_OF_TWO(0);
-float FL_SWIM          = VRUTIL_POWER_OF_TWO(1);
-float FL_CONVEYOR      = VRUTIL_POWER_OF_TWO(2);
-float FL_CLIENT        = VRUTIL_POWER_OF_TWO(3);  // Set for all client edicts.
-float FL_INWATER       = VRUTIL_POWER_OF_TWO(4);  // For enter / leave water splash.
-float FL_MONSTER       = VRUTIL_POWER_OF_TWO(5);
-float FL_GODMODE       = VRUTIL_POWER_OF_TWO(6);  // Player cheat.
-float FL_NOTARGET      = VRUTIL_POWER_OF_TWO(7);  // Player cheat.
-float FL_ITEM          = VRUTIL_POWER_OF_TWO(8);  // Extra wide size for bonus items.
-float FL_ONGROUND      = VRUTIL_POWER_OF_TWO(9);  // Standing on something.
-float FL_PARTIALGROUND = VRUTIL_POWER_OF_TWO(10); // Not all corners are valid.
-float FL_WATERJUMP     = VRUTIL_POWER_OF_TWO(11); // Player jumping out of water.
-float FL_JUMPRELEASED  = VRUTIL_POWER_OF_TWO(12); // For jump debouncing.
-float FL_EASYHANDTOUCH = VRUTIL_POWER_OF_TWO(13); // Adds bonus to boundaries for handtouch.
+float FL_FLY            = VRUTIL_POWER_OF_TWO(0);
+float FL_SWIM           = VRUTIL_POWER_OF_TWO(1);
+float FL_CONVEYOR       = VRUTIL_POWER_OF_TWO(2);
+float FL_CLIENT         = VRUTIL_POWER_OF_TWO(3);  // Set for all client edicts.
+float FL_INWATER        = VRUTIL_POWER_OF_TWO(4);  // For enter / leave water splash.
+float FL_MONSTER        = VRUTIL_POWER_OF_TWO(5);
+float FL_GODMODE        = VRUTIL_POWER_OF_TWO(6);  // Player cheat.
+float FL_NOTARGET       = VRUTIL_POWER_OF_TWO(7);  // Player cheat.
+float FL_ITEM           = VRUTIL_POWER_OF_TWO(8);  // Extra wide size for bonus items.
+float FL_ONGROUND       = VRUTIL_POWER_OF_TWO(9);  // Standing on something.
+float FL_PARTIALGROUND  = VRUTIL_POWER_OF_TWO(10); // Not all corners are valid.
+float FL_WATERJUMP      = VRUTIL_POWER_OF_TWO(11); // Player jumping out of water.
+float FL_JUMPRELEASED   = VRUTIL_POWER_OF_TWO(12); // For jump debouncing.
+float FL_EASYHANDTOUCH  = VRUTIL_POWER_OF_TWO(13); // Adds bonus to boundaries for handtouch.
+float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY.
 
 //
 //
@@ -471,10 +472,12 @@ float CONTENT_SKY   = -6;
 // Edict `.state` values
 // ----------------------------------------------------------------------------
 
-float STATE_TOP    = 0;
-float STATE_BOTTOM = 1;
-float STATE_UP     = 2;
-float STATE_DOWN   = 3;
+float STATE_TOP      = 0;
+float STATE_BOTTOM   = 1;
+float STATE_UP       = 2;
+float STATE_DOWN     = 3;
+float STATE_FALLING  = 4; // HONEY.
+float STATE_DISABLED = 5; // HONEY.
 
 //
 //
@@ -496,15 +499,18 @@ vector VEC_HULL2_MAX = '32 32 64';
 // Protocol bytes
 // ----------------------------------------------------------------------------
 
-float SVC_UPDATESTAT    = 3;  // ROGUE (Dissolution of Eternity). [pgm black magic]
-float SVC_TEMPENTITY    = 23;
-float SVC_KILLEDMONSTER = 27;
+float SVC_CDTRACK       = 32;
+float SVC_CUTSCENE      = 34; // ROGUE.
+float SVC_FINALE        = 31;
 float SVC_FOUNDSECRET   = 28;
 float SVC_INTERMISSION  = 30;
-float SVC_FINALE        = 31;
-float SVC_CDTRACK       = 32;
+float SVC_KILLEDMONSTER = 27;
 float SVC_SELLSCREEN    = 33;
-float SVC_CUTSCENE      = 34; // ROGUE (Dissolution of Eternity).
+float SVC_SERVERINFO    = 11; // HONEY.
+float SVC_SETANGLES     = 10; // HONEY.
+float SVC_SETVIEWPORT   = 5;  // HONEY.
+float SVC_TEMPENTITY    = 23;
+float SVC_UPDATESTAT    = 3;  // ROGUE, HONEY. [pgm black magic]
 
 float TE_SPIKE        = 0;
 float TE_SUPERSPIKE   = 1;
@@ -591,7 +597,8 @@ float gameover; // Set when a rule exits.
 
 string string_null; // Null string, nothing should be held here.
 
-entity newmis; // `launch_spike` sets this after spawning it.
+// TODO VR: (P1) ?
+// entity newmis; // `launch_spike` sets this after spawning it.
 
 entity activator; // The entity that activated a trigger or brush.
 

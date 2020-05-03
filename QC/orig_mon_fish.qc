@@ -131,7 +131,7 @@ void() f_death19 =[      $death19,       f_death20       ] {};
 void() f_death20 =[      $death20,       f_death21       ] {};
 //MED 01/15/97 removed solid from here
 //void() f_death21 =[      $death21,       f_death21       ] {self.solid = SOLID_NOT;};
-void() f_death21 =[      $death21,       f_death21       ] {};
+void() f_death21 =[      $death21,       f_death21       ] {monster_check_remove_corpse();};
 
 //MED 01/15/97 added fish_die
 void() fish_die =
@@ -186,13 +186,12 @@ void() monster_fish =
     precache_sound2("fish/bite.wav");
     precache_sound2("fish/idle.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/fish.mdl");
 
-    // TODO VR: (P2) tweak hitbox
-    setsize(self, '-16 -16 -24', '16 16 24');
     self.health = 25;
 
     self.th_stand = f_stand1;
@@ -202,6 +201,23 @@ void() monster_fish =
     self.th_die = fish_die;
     self.th_pain = fish_pain;
     self.th_melee = f_attack1;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = fish_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/fish.mdl");
+
+    // TODO VR: (P2) tweak hitbox
+    setsize(self, '-16 -16 -24', '16 16 24');
 
     swimmonster_start();
 };

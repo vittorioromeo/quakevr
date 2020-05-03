@@ -46,7 +46,7 @@ void() monster_use =
 ================
 monster_death_use
 
-When a mosnter dies, it fires all of its targets with the current
+When a monster dies, it fires all of its targets with the current
 enemy as activator.
 ================
 */
@@ -58,7 +58,7 @@ void() monster_death_use =
     if(self.flags & FL_SWIM)
         self.flags = self.flags - FL_SWIM;
 
-    if(!self.target)
+    if(!self.target && /* HONEY */ !self.killtarget)
         return;
 
     activator = self.enemy;
@@ -70,17 +70,19 @@ void() monster_death_use =
 
 void() walkmonster_start_go =
 {
-    self.origin_z = self.origin_z + 1;    // raise off floor a bit
-    droptofloor();
+    local string    stemp;
+    local entity    etemp;
 
-    if(!walkmove(0,0))
-    {
-        dprint("walkmonster in wall!\n");
-        dprint(self.classname);
-        dprint(" at ");
-        dprint(vtos(self.origin));
-        dprint("\n");
+    self.origin_z = self.origin_z + 1;    // raise off floor a bit
+
+    // HONEY
+    if(self.classname == "monster_tarbaby" && self.spawnflags & TBABY_HIPHOP){
+        stemp = stemp;
+        //Don't do anything..
+    }else{
+        droptofloor();
     }
+
 
     self.takedamage = DAMAGE_AIM;
 
@@ -115,6 +117,19 @@ void() walkmonster_start_go =
         self.th_stand();
     }
 
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_ANGRY){
+        if (activator.items & IT_INVISIBILITY)
+            return;
+        if (activator.flags & FL_NOTARGET)
+            return;
+        self.enemy = activator;
+        self.nextthink = time + 0.1;
+        self.think = FoundTarget;
+    }else{
+        self.enemy = world;
+    }
+
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
 };
@@ -127,7 +142,16 @@ void() walkmonster_start =
     self.nextthink = self.nextthink + random()*0.5;
     self.flags = self.flags | FL_MONSTER;
     self.think = walkmonster_start_go;
-    total_monsters = total_monsters + 1;
+
+    // total_monsters = total_monsters + 1;
+
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN && !intermission_running)
+    {
+        WriteByte (MSG_ALL, SVC_UPDATESTAT);
+        WriteByte (MSG_ALL, 12);
+        WriteLong (MSG_ALL, total_monsters);
+    }
 };
 
 
@@ -175,15 +199,40 @@ void() flymonster_start_go =
         self.pausetime = 99999999;
         self.th_stand();
     }
+
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_ANGRY){
+        if (activator.items & IT_INVISIBILITY)
+            return;
+        if (activator.flags & FL_NOTARGET)
+            return;
+
+        //self.enemy = activator;
+        self.nextthink = time + 0.1;
+        self.think = FoundTarget;
+    }else{
+        self.enemy = world;
+    }
 };
 
 void() flymonster_start =
 {
+    self.enemy = activator;
+
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
     self.flags = self.flags | FL_MONSTER;
     self.think = flymonster_start_go;
-    total_monsters = total_monsters + 1;
+
+    // total_monsters = total_monsters + 1;
+
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN && !intermission_running)
+    {
+        WriteByte (MSG_ALL, SVC_UPDATESTAT);
+        WriteByte (MSG_ALL, 12);
+        WriteLong (MSG_ALL, total_monsters);
+    }
 };
 
 
@@ -225,15 +274,39 @@ void() swimmonster_start_go =
         self.th_stand();
     }
 
-// spread think times so they don't all happen at same time
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN_ANGRY){
+        if (activator.items & IT_INVISIBILITY)
+            return;
+        if (activator.flags & FL_NOTARGET)
+            return;
+
+        //self.enemy = activator;
+        self.nextthink = time + 0.1;
+        self.think = FoundTarget;
+    }else{
+        self.enemy = world;
+    }
+
+    // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
 };
 
 void() swimmonster_start =
 {
-// spread think times so they don't all happen at same time
+    self.enemy = activator;
+
+    // spread think times so they don't all happen at same time
     self.flags = self.flags | FL_MONSTER;
     self.nextthink = self.nextthink + random()*0.5;
     self.think = swimmonster_start_go;
-    total_monsters = total_monsters + 1;
+
+    // total_monsters = total_monsters + 1;
+
+    if (self.spawnflags & TRIGGER_SPAWN && !intermission_running)
+    {
+        WriteByte (MSG_ALL, SVC_UPDATESTAT);
+        WriteByte (MSG_ALL, 12);
+        WriteLong (MSG_ALL, total_monsters);
+    }
 };

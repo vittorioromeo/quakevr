@@ -179,6 +179,11 @@ void() func_plat =
 
 // pos1 is the top position, pos2 is the bottom
     self.pos1 = self.origin;
+
+    // HONEY
+    if (self.distance)
+        self.pos1_z = self.origin_z + self.distance;
+
     self.pos2 = self.origin;
     if(self.height)
         self.pos2_z = self.origin_z - self.height;

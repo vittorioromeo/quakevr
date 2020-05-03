@@ -191,10 +191,11 @@ void() boss_death10 = [$death9, boss_death10]
 
 void(float r, vector p) boss_missile =
 {
-    local    vector    offang;
-    local    vector    org, vec, d;
-    local    float    t;
-    local    float    vel;
+    local vector offang;
+    local vector org, vec, d;
+    local float  t;
+    local float  vel;
+    local entity newmis;
 
     // VR: Predicted direction attack.
     if(r == 0)
@@ -230,7 +231,7 @@ void(float r, vector p) boss_missile =
 
     vec = normalize (d - org);
 
-    launch_spike (org, vec);
+    newmis = launch_spike(org, vec);
     setmodel(newmis, "progs/lavaball.mdl");
     newmis.avelocity = '200 100 300';
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -356,7 +357,7 @@ void() lightning_use =
     le2 = find( le1, target, "lightning");
     if(!le1 || !le2)
     {
-        dprint("missing lightning targets\n");
+        objerror("missing lightning targets\n");
         return;
     }
 
@@ -372,7 +373,7 @@ void() lightning_use =
 // don't let the electrodes go back up until the bolt is done
     le1.nextthink = -1;
     le2.nextthink = -1;
-    lightning_end = time + 1;
+    lightning_end = time + 2;
 
     sound(self, CHAN_VOICE, "misc/power.wav", 1, ATTN_NORM);
     lightning_fire();

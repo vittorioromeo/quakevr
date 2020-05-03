@@ -240,6 +240,8 @@ void () GrappleAnchor =
 
 void (float xHand) W_FireGrapple =
 {
+    local entity newmis;
+
     if(getHookOut(xHand))// reject subsequent calls from player.qc
         return;
 

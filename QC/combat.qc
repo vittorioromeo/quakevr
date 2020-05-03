@@ -118,7 +118,7 @@ This should be the only function that ever reduces health.
 */
 //MED 01/10/97 added empathyused variable
 float empathyused;
-void(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
     local    vector    dir;
     local    entity    oldself;
@@ -127,14 +127,14 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
     if(!targ.takedamage)
     {
-        return;
+        return FALSE;
     }
 
     if(targ.classname == "trigger_explosion")
     {
         if(IsExplosionDamage != 1)
         {
-            return;
+            return FALSE;
         }
     }
 
@@ -147,17 +147,23 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 
         if(damage == 0)
         {
-            return;
+            return FALSE;
         }
     }
 
     if(discharged && targ.wetsuit_finished)
     {
-        return;
+        return FALSE;
     }
 
     //MED
     // moved damage_attacker down a bit
+
+    // HONEY
+    // cg: check if this needs a specific damage type
+    if ((targ.flags & FL_SPECIFICDAMAGE) && !(attacker.damage_weapon & targ.items)) {
+        return FALSE;
+    }
 
     // check for quad damage powerup on the attacker
     if(attacker.super_damage_finished > time)
@@ -238,7 +244,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     // check for godmode or invincibility
     if(targ.flags & FL_GODMODE)
     {
-        return;
+        return FALSE;
     }
 
     if(targ.invincible_finished >= time)
@@ -249,7 +255,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
             targ.invincible_sound = time + 2;
         }
 
-        return;
+        return TRUE;
     }
 
     //MED
@@ -266,7 +272,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     //ZOID--
     if(!TeamHealthDam(targ, inflictor, attacker, damage))
     {
-        return; // same team
+        return TRUE; // same team
     }
     //--ZOID
 
@@ -300,7 +306,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         }
 
         Killed (targ, attacker);
-        return;
+        return TRUE;
     }
     else
     {
@@ -350,16 +356,17 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
 
     self = oldself;
+    return TRUE;
 };
 
-void(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
+float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
-    T_DamageImpl(targ, inflictor, attacker, damage, 0);
+    return T_DamageImpl(targ, inflictor, attacker, damage, 0);
 };
 
-void(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
+float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
-    T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    return T_DamageImpl(targ, inflictor, attacker, damage, 1);
 };
 
 /*

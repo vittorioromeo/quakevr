@@ -122,6 +122,10 @@ void() SetChangeParms =
 
 void() SetNewParms =
 {
+    // HONEY
+    // The secret count doesn't get updated when using the restart command for some reason.
+    SUB_DoLater(updateSecrets, 0.2);
+
     parm1 = IT_SHOTGUN | IT_AXE;
     parm2 = 100;
     parm3 = 0;
@@ -479,11 +483,14 @@ void() IntermissionThink =
 
 void() execute_changelevel =
 {
-    local entity    pos;
+    local entity pos;
+
+    // HONEY
+    local entity fogsettings;
 
     intermission_running = 1;
 
-// enforce a wait time before allowing changelevel
+    // enforce a wait time before allowing changelevel
     if(deathmatch)
         intermission_exittime = time + 5;
     else
@@ -494,6 +501,14 @@ void() execute_changelevel =
     WriteByte(MSG_ALL, 3);
 
     pos = FindIntermission();
+
+    // HONEY
+    if(pos.target != "") {
+        fogsettings = find(world, targetname, pos.target);
+        if(fogsettings.classname == "trigger_fogcontroller") {
+            fogsettings = fogsettings.owner;
+        }
+    }
 
     other = find (world, classname, "player");
     while(other != world)
@@ -507,6 +522,12 @@ void() execute_changelevel =
         other.movetype = MOVETYPE_NONE;
         other.modelindex = 0;
         setorigin(other, pos.origin);
+
+        // HONEY
+        if(fogsettings.classname == "trigger_fogcontroller") {
+            fog_setOverrideConditional(other, fogsettings.view_ofs, fogsettings.ideal_yaw, 1);
+        }
+
         other = find (other, classname, "player");
     }
 
@@ -578,25 +599,35 @@ void() respawn =
     if(coop)
     {
         // make a copy of the dead body for appearances sake
-        CopyToBodyQue (self);
+        // Unless the player died from falling in a pit!
+        if(!self.enemy) // HONEY
+            CopyToBodyQue(self);
+
         // get the spawn parms as they were at level start
-        setspawnparms (self);
+        setspawnparms(self);
+
         // respawn
         PutClientInServer();
     }
     else if(deathmatch)
     {
         // make a copy of the dead body for appearances sake
-        CopyToBodyQue (self);
+        // Unless the player died from falling in a pit!
+        if(!self.enemy) // HONEY
+            CopyToBodyQue(self);
+
         // set default spawn parms
         SetNewParms();
+
         // respawn
         PutClientInServer();
+
         // set the skin correctly.
         TeamSetSkin();
     }
     else
-    {    // restart the entire server
+    {
+        // restart the entire server
         localcmd ("restart\n");
     }
 };
@@ -780,8 +811,15 @@ entity() SelectSpawnPoint =
     }
 
     spot = find (world, classname, "info_player_start");
+
     if(!spot)
-        error ("PutClientInServer: no info_player_start on level");
+    {
+        dprint("WARNING: PutClientInServer: no info_player_start on level");
+
+        // HONEY
+        spot = spawn();
+        setorigin(spot, '0 0 0');
+    }
 
     return spot;
 };
@@ -830,6 +868,13 @@ void() PutClientInServer =
     self.ctf_flagsince = -10;
     self.ctf_lasthurtcarrier = -10;
     //--ZOID
+
+    // HONEY
+    self.enemy = world;
+    // A hack: This doesn't work at level load, so if time is < 2 try again a bit later.
+    if(time < 2){
+        SUB_DoLater(info_stuffcmd_do, 0.1);
+    }
 
     DecodeLevelParms();
 
@@ -1333,6 +1378,9 @@ void() doWetsuit =
 
 void() PlayerPreThink =
 {
+    // HONEY
+    fog_updateAll();
+
     if(intermission_running)
     {
         earthquake_prethink();
@@ -2166,6 +2214,8 @@ void(entity targ, entity attacker) ClientObituary =
             return;
             }
 
+            // TODO VR: (P2) elses...
+
             if(attacker.flags & FL_MONSTER)
             {
                 if(attacker.classname == "monster_army")
@@ -2260,6 +2310,17 @@ void(entity targ, entity attacker) ClientObituary =
             if(attacker.classname == "trigger_changelevel")
             {
                 bprint(" tried to leave\n");
+                return;
+            }
+            if (attacker.classname == "trigger_deathpit") // HONEY
+            {
+                if (attacker.message) {
+                    bprint(attacker.message);
+                } else {
+                    bprint(" fell into a deep and dark crevasse");
+                }
+
+                bprint("\n");
                 return;
             }
 

@@ -106,24 +106,54 @@ plants the object on the floor
 */
 void() PlaceItem =
 {
-    local float    oldz;
+    local float oldz;
 
     self.mdl = self.model;        // so it can be restored on respawn
     self.flags = FL_ITEM;        // make extra wide
     self.solid = SOLID_TRIGGER;
     self.movetype = MOVETYPE_TOSS;
     self.velocity = '0 0 0';
-    self.origin_z = self.origin_z + 6;
-    oldz = self.origin_z;
-    if(!droptofloor())
+
+    if(self.spawnflags & ITEM_FLOATING) // HONEY
     {
-        dprint ("Bonus item fell out of level!\n");
-        dprint (self.classname);
-        dprint (" at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
-        remove(self);
-        return;
+        self.movetype = MOVETYPE_NONE;
+        setorigin(self, self.origin);
+    }
+    else
+    {
+        self.origin_z = self.origin_z + 6;
+        oldz = self.origin_z;
+        if(!droptofloor())
+        {
+            dprint ("Bonus item fell out of level!\n");
+            dprint (self.classname);
+            dprint (" at ");
+            dprint (vtos(self.origin));
+            dprint ("\n");
+            remove(self);
+            return;
+        }
+    }
+
+    // HONEY
+    if(self.spawnflags & ITEM_SECRET)
+    {
+        total_secrets = total_secrets + 1;
+        if(!self.message)
+            self.message = "You found a secret item!";
+        if(skill == 0 || world.model == "maps/start.bsp"){
+            ambient_secret_think();
+        }
+    }
+
+    // HONEY
+    self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
+    self.handtouch = itemTouch;
+
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN)
+    {
+        item_unspawn();
     }
 
     SpawnAmmoBoxWeapons(self);
@@ -187,8 +217,6 @@ one point per second.
 float    H_ROTTEN = 1;
 float    H_MEGA = 2;
 .float    healamount, healtype;
-void() health_touch;
-void() item_megahealth_rot;
 
 void() item_health =
 {
@@ -226,6 +254,10 @@ void() item_health =
         setsize(self, '0 0 0', '32 32 16');
     }
 
+    if (deathmatch == 1) {
+        self.wait = 20;
+    }
+
     StartItem();
 };
 
@@ -233,9 +265,6 @@ void() item_health =
 void() health_touch =
 {
     local    string    s;
-
-    if(other.classname != "player")
-        return;
 
     if(self.healtype == 2) // Megahealth?  Ignore max_health...
     {
@@ -273,18 +302,6 @@ void() health_touch =
         self.think = item_megahealth_rot;
         self.owner = other;
     }
-    else
-    {
-        if(deathmatch != 2)        // deathmatch 2 is the silly old rules
-        {
-            if(deathmatch)
-                self.nextthink = time + 20;
-            self.think = SUB_regen;
-        }
-    }
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 void() item_megahealth_rot =
@@ -301,12 +318,6 @@ void() item_megahealth_rot =
     // it is possible for a player to die and respawn between rots, so don't
     // just blindly subtract the flag off
     VR_ItemUtil_EntDelItem(other, IID_SUPERHEALTH);
-
-    if(deathmatch == 1)    // deathmatch 2 is silly old rules
-    {
-        self.nextthink = time + 20;
-        self.think = SUB_regen;
-    }
 };
 
 /*
@@ -317,17 +328,9 @@ ARMOR
 ===============================================================================
 */
 
-void() armor_touch;
-
 void() armor_touch =
 {
-    local float type, value, itemId;
-
-    if(other.health <= 0)
-        return;
-
-    if(other.classname != "player")
-        return;
+    local float type, value, itemId, isASecret;
 
     if(self.classname == "item_armor1")
     {
@@ -349,7 +352,9 @@ void() armor_touch =
     }
 
     if(other.armortype*other.armorvalue >= type*value)
+    {
         return;
+    }
 
     other.armortype = type;
     other.armorvalue = value;
@@ -362,9 +367,6 @@ void() armor_touch =
 
     self.solid = SOLID_NOT;
     self.model = string_null;
-    if(deathmatch == 1)
-        self.nextthink = time + 20;
-    self.think = SUB_regen;
 
     VRItemPickupHaptic(other);
 
@@ -372,9 +374,6 @@ void() armor_touch =
 // armor touch sound
     sound(other, CHAN_ITEM, "items/armor1.wav", 1, ATTN_NORM);
     stuffcmd(other, "bf\n");
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -388,6 +387,7 @@ void() item_armor1 =
     setmodel(self, "progs/armor.mdl");
     self.skin = 0;
     setsize(self, '-10 -10 0', '10 10 28');
+    if(deathmatch == 1) { self.wait = 20; }
     StartItem();
 };
 
@@ -401,6 +401,7 @@ void() item_armor2 =
     setmodel(self, "progs/armor.mdl");
     self.skin = 1;
     setsize(self, '-10 -10 0', '10 10 28');
+    if(deathmatch == 1) { self.wait = 20; }
     StartItem();
 };
 
@@ -414,8 +415,14 @@ void() item_armorInv =
     setmodel(self, "progs/armor.mdl");
     self.skin = 2;
     setsize(self, '-10 -10 0', '10 10 28');
+    if(deathmatch == 1) { self.wait = 20; }
     StartItem();
 };
+
+void() item_armorinv =
+{
+    item_armorInv();
+}
 
 /*
 ===============================================================================
@@ -481,9 +488,6 @@ void() weapon_touch =
     local float  hadammo;
     local entity stemp;
     local float  leave;
-
-    if(!(other.flags & FL_CLIENT))
-        return;
 
     // Do not pick up the weapon if the touching hand is not grabbing.
     if(cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
@@ -564,12 +568,6 @@ void() weapon_touch =
 // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
-    if(deathmatch == 1)
-        self.nextthink = time + 30;
-    self.think = SUB_regen;
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -584,6 +582,7 @@ void() weapon_supershotgun =
     self.netname = "Double-barrelled Shotgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -598,6 +597,7 @@ void() weapon_nailgun =
     self.netname = "nailgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -612,6 +612,7 @@ void() weapon_supernailgun =
     self.netname = "Super Nailgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -626,6 +627,7 @@ void() weapon_grenadelauncher =
     self.netname = "Grenade Launcher";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -640,6 +642,7 @@ void() weapon_rocketlauncher =
     self.netname = "Rocket Launcher";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -655,6 +658,7 @@ void() weapon_lightning =
     self.netname = "Thunderbolt";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -670,16 +674,6 @@ AMMO
 void() ammo_touch =
 {
     local entity stemp;
-
-    if(other.classname != "player")
-    {
-        return;
-    }
-
-    if(other.health <= 0)
-    {
-        return;
-    }
 
     // shotgun
     if(self.weapon == 1)
@@ -745,12 +739,6 @@ void() ammo_touch =
     // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
-    if(deathmatch == 1)
-        self.nextthink = time + 30;
-    self.think = SUB_regen;
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -778,11 +766,13 @@ void() item_shells =
         setmodel(self, "maps/b_shell0.bsp");
         self.aflag = 20;
     }
+
     self.weapon = 1;
     self.netname = "shells";
     self.classname = "item_shells";
 
     setsize(self, '0 0 0', '24 24 24');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -806,10 +796,13 @@ void() item_spikes =
         setmodel(self, "maps/b_nail0.bsp");
         self.aflag = 25;
     }
+
     self.weapon = 2;
     self.netname = "nails";
     self.classname = "item_spikes";
+
     setsize(self, '0 0 0', '24 24 24');
+    if(deathmatch == 1) { self.wait = 30; }
     StartItem();
 };
 
@@ -833,9 +826,12 @@ void() item_lava_spikes =
         setmodel (self, "maps/b_lnail0.bsp");
         self.aflag = 25;
     }
+
     self.weapon = 5;
     self.netname = "lava nails";
     self.classname = "item_lava_nails";
+
+    if(deathmatch == 1) { self.wait = 30; }
     setsize (self, '0 0 0', '32 32 56');
     StartItem ();
 };
@@ -861,10 +857,12 @@ void() item_rockets =
         setmodel(self, "maps/b_rock0.bsp");
         self.aflag = 5;
     }
+
     self.weapon = 3;
     self.netname = "rockets";
     self.classname = "item_rockets";
 
+    if(deathmatch == 1) { self.wait = 30; }
     setsize(self, '0 0 0', '16 16 32');
     StartItem();
 };
@@ -889,9 +887,12 @@ void() item_multi_rockets =
         setmodel (self, "maps/b_mrock0.bsp");
         self.aflag = 5;
     }
+
     self.weapon = 6;
     self.netname = "multi rockets";
     self.classname = "item_multi_rockets";
+
+    if(deathmatch == 1) { self.wait = 30; }
     setsize (self, '0 0 0', '32 32 56');
     StartItem ();
 };
@@ -916,10 +917,12 @@ void() item_cells =
         setmodel(self, "maps/b_batt0.bsp");
         self.aflag = 6;
     }
+
     self.weapon = 4;
     self.netname = "cells";
     self.classname = "item_cells";
 
+    if(deathmatch == 1) { self.wait = 30; }
     setsize(self, '0 0 0', '24 24 24');
     StartItem();
 };
@@ -943,10 +946,12 @@ void() item_plasma =
         setmodel (self, "maps/b_plas0.bsp");
         self.aflag = 6;
     }
+
     self.weapon = 7;
     self.netname = "plasma";
     self.classname = "item_plasma";
 
+    if(deathmatch == 1) { self.wait = 30; }
     setsize (self, '0 0 0', '32 32 56');
     StartItem ();
 };
@@ -955,6 +960,7 @@ void() item_plasma =
 DO NOT USE THIS!!!! IT WILL BE REMOVED!
 */
 
+/*
 float WEAPON_SHOTGUN = 1;
 float WEAPON_ROCKET = 2;
 float WEAPON_SPIKES = 4;
@@ -1020,7 +1026,7 @@ void() item_weapon =
     setsize(self, '0 0 0', '24 24 24');
     StartItem();
 };
-
+*/
 
 /*
 ===============================================================================
@@ -1032,12 +1038,6 @@ KEYS
 
 void() key_touch =
 {
-    if(other.classname != "player")
-        return;
-
-    if(other.health <= 0)
-        return;
-
     if(VR_ItemUtil_EntHasItem(other, self.vr_itemId))
         return;
 
@@ -1057,9 +1057,6 @@ void() key_touch =
         self.solid = SOLID_NOT;
         self.model = string_null;
     }
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -1181,11 +1178,6 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
-    if(other.classname != "player")
-        return;
-    if(other.health <= 0)
-        return;
-
     centerprint (other, "You got the rune!");
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
@@ -1194,9 +1186,6 @@ void() sigil_touch =
     self.model = string_null;
     serverflags = serverflags | (self.spawnflags & 15);
     self.classname = "";        // so rune doors won't find it
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -1252,12 +1241,6 @@ POWERUPS
 
 void() powerup_touch =
 {
-    if(other.classname != "player")
-        return;
-
-    if(other.health <= 0)
-        return;
-
     VRItemPickupHaptic(other);
 
     sprint(other, "You got the ");
@@ -1315,9 +1298,6 @@ void() powerup_touch =
         other.super_time = 1;
         other.super_damage_finished = time + 30;
     }
-
-    activator = other;
-    SUB_UseTargets();                // fire all targets / killtargets
 };
 
 
@@ -1339,6 +1319,7 @@ void() item_artifact_invulnerability =
     self.netname = "Pentagram of Protection";
     self.vr_itemId = IID_INVULNERABILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
+    if(deathmatch == 1) { self.wait = 60*5; }
     StartItem();
 };
 
@@ -1362,6 +1343,7 @@ void() item_artifact_envirosuit =
     setsize(self, '-16 -16 -24', '16 16 32');
     // setsize(self, '-8 -8 -24', '8 8 32');
     // setorigin(self, self.origin + '-8 -8 0');
+    if(deathmatch == 1) { self.wait = 60; }
     StartItem();
 };
 
@@ -1383,6 +1365,7 @@ void() item_artifact_invisibility =
     self.netname = "Ring of Shadows";
     self.vr_itemId = IID_INVISIBILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
+    if(deathmatch == 1) { self.wait = 60*5; }
     StartItem();
 };
 
@@ -1404,6 +1387,7 @@ void() item_artifact_super_damage =
     self.netname = "Quad Damage";
     self.vr_itemId = IID_QUAD;
     setsize(self, '-16 -16 -24', '16 16 32');
+    if(deathmatch == 1) { self.wait = 60; }
     StartItem();
 };
 

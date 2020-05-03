@@ -17,22 +17,36 @@ void() info_notnull =
 //============================================================================
 
 float START_OFF = 1;
+float SWITCH_TO_FLICKER = 2; // HONEY
+float SWITCH_TO_FADE = 4;    // HONEY
 
 void() light_use =
 {
     if(self.spawnflags & START_OFF)
     {
-        lightstyle(self.style, "m");
+        if(self.spawnflags & SWITCH_TO_FADE){ // HONEY
+            self.think = light_fade_in;
+            light_fade_in();
+        }else{
+            lightstyle(self.style, "m");
+        }
         self.spawnflags = self.spawnflags - START_OFF;
     }
     else
     {
-        lightstyle(self.style, "a");
+        if(self.spawnflags & SWITCH_TO_FLICKER) // HONEY
+            lightstyle(self.style, "cbaabktsdtbccbrtbklcdfbabcbacacbclkkquakeacbcbcbbklklc");
+        else if(self.spawnflags & SWITCH_TO_FADE){
+            self.think = light_fade_out;
+            light_fade_out();
+        }else{
+            lightstyle(self.style, "a");
+        }
         self.spawnflags = self.spawnflags + START_OFF;
     }
 };
 
-/*QUAKED light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
+/*QUAKED light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF SWITCH_TO_FLICKER SWITCH_TO_FADE
 Non-displayed light.
 Default light value is 300
 Default style is 0
@@ -40,19 +54,40 @@ If targeted, it will toggle between on or off.
 */
 void() light =
 {
+    local entity e;
+
     if(!self.targetname)
     {    // inert light
         remove(self);
         return;
     }
 
-    if(self.style >= 32)
+    // HONEY
+    if(!self.waitmin) { self.waitmin = 0.1; }
+
+    if (self.style >= 32)
     {
+        // HONEY
+        //make sure there only is ONE light per light style, dunno why :|
+        e = find(world, targetname, self.targetname);
+        while(e.classname != "light"){
+            e = find(e, targetname, self.targetname);
+        }
+
+        // HONEY
+        if(e.style == self.style && e != self) {
+            remove(self);
+            return;
+        }
+
         self.use = light_use;
-        if(self.spawnflags & START_OFF)
+        if (self.spawnflags & START_OFF){
             lightstyle(self.style, "a");
-        else
+
+        }else{
             lightstyle(self.style, "m");
+            self.cnt = 11; //for fading
+        }
     }
 };
 
@@ -252,7 +287,7 @@ void() misc_explobox =
     droptofloor();
     if(oldz - self.origin_z > 250)
     {
-        dprint("item fell out of level at ");
+        dprint("explobox fell out of level at ");
         dprint(vtos(self.origin));
         dprint("\n");
         remove(self);
@@ -284,7 +319,7 @@ void() misc_explobox2 =
     droptofloor();
     if(oldz - self.origin_z > 250)
     {
-        dprint("item fell out of level at ");
+        dprint("explobox fell out of level at ");
         dprint(vtos(self.origin));
         dprint("\n");
         remove(self);
@@ -296,11 +331,13 @@ void() misc_explobox2 =
 //MED 11/09/96 added lava ball and rocket
 void() spikeshooter_use =
 {
+    local entity newmis;
     local entity lavaball;
+
     if(self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
     {
         sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
-        launch_spike (self.origin, self.movedir);
+        newmis = launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
             newmis.touch = superspike_touch;
@@ -309,12 +346,12 @@ void() spikeshooter_use =
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
-        LaunchLaser (self.origin, self.movedir);
+        newmis = LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
     }
     else if(self.spawnflags & SPAWNFLAG_FIREBALL)
     {
-        launch_fireball (self.origin, self.movedir);
+        newmis = launch_fireball (self.origin, self.movedir);
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
@@ -340,7 +377,7 @@ void() spikeshooter_use =
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
-        W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
+        newmis = W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
         newmis.velocity = self.movedir*1000;
         newmis.angles = vectoangles(newmis.velocity);
         setorigin(newmis, self.origin + self.movedir*8);
@@ -348,7 +385,7 @@ void() spikeshooter_use =
     else if(self.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
     {
         sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
-        launch_lava_spike (self.origin, self.movedir);
+        newmis = launch_lava_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if(self.spawnflags & SPAWNFLAG_SUPERLAVA)
             newmis.touch = superlavaspike_touch;
@@ -359,7 +396,7 @@ void() spikeshooter_use =
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
-        launch_spike (self.origin, self.movedir);
+        newmis = launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
             newmis.touch = superspike_touch;
@@ -374,7 +411,7 @@ void() shooter_think =
         spikeshooter_use();
     }
     self.nextthink = time + self.wait;
-    newmis.velocity = self.movedir * 500;
+    // newmis.velocity = self.movedir * 500;
 };
 
 
@@ -490,59 +527,99 @@ testing air bubbles
 */
 
 void() air_bubbles =
-
 {
-    if(deathmatch)
+    if (deathmatch)
     {
-        remove(self);
+        remove (self);
         return;
     }
-    precache_model("progs/s_bubble.spr");
-    self.nextthink = time + 1;
+
+    precache_model ("progs/s_bubble.spr");
+
+    // HONEY
+    if(!self.speed) self.speed = 15;
+    if(!self.count) self.count = 20;
+    self.count = ceil(self.count);
+    if(!self.waitmin) self.waitmin = 1;
+
+    // HONEY
+    //cg: changed to make the bubbles toggleable
+    self.use = air_bubbles_use;
+
     self.think = make_bubbles;
+
+    // HONEY
+    self.state = self.state & 1;
+    if(self.targetname == "" || self.state){
+        self.nextthink = time + 1;
+        self.state = 1;
+    }
 };
 
 void() make_bubbles =
 {
-local entity    bubble;
+    local entity bubble;
 
     bubble = spawn();
-    setmodel(bubble, "progs/s_bubble.spr");
-    setorigin(bubble, self.origin);
+
+    // HONEY
+    bubble.owner = self;
+
+    setmodel (bubble, "progs/s_bubble.spr");
+    setorigin (bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
-    bubble.velocity = '0 0 15';
-    bubble.nextthink = time + 0.5;
+
+    // HONEY
+    bubble.velocity = '0 0 0';
+    bubble.velocity_z = self.speed;
+    bubble.nextthink = time +  0.5 * random();
+
     bubble.think = bubble_bob;
     bubble.touch = bubble_remove;
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
-    setsize(bubble, '-8 -8 -8', '8 8 8');
-    self.nextthink = time + random() + 0.5;
+    setsize (bubble, '-8 -8 -8', '8 8 8');
+
+    // HONEY
+    self.nextthink = time + self.owner.waitmin + random();
+
     self.think = make_bubbles;
 };
 
 void() bubble_split =
 {
-local entity    bubble;
+    local entity    bubble;
+
     bubble = spawn();
-    setmodel(bubble, "progs/s_bubble.spr");
-    setorigin(bubble, self.origin);
+
+    // HONEY
+    bubble.owner = self.owner;
+
+    setmodel (bubble, "progs/s_bubble.spr");
+    setorigin (bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
+
+    // HONEY
     bubble.velocity = self.velocity;
-    bubble.nextthink = time + 0.5;
+    bubble.velocity_z = bubble.velocity_z * 0.9;
+    bubble.alpha = self.alpha;
+    bubble.nextthink = time + 0.5 * random();
+
     bubble.think = bubble_bob;
     bubble.touch = bubble_remove;
     bubble.classname = "bubble";
     bubble.frame = 1;
-    bubble.cnt = 10;
-    setsize(bubble, '-8 -8 -8', '8 8 8');
     self.frame = 1;
-    self.cnt = 10;
-    if(self.waterlevel != 3)
-        remove(self);
+
+    // HONEY
+    self.cnt = bubble.cnt = self.owner.count * 0.5;
+    setsize (bubble, '-8 -8 -8', '8 8 8');
+
+    // HONEY
+    bubble_bob();
 };
 
 void() bubble_remove =
@@ -558,6 +635,7 @@ void() bubble_remove =
 void() bubble_bob =
 {
     local float rnd1, rnd2, rnd3;
+    local float        maxz, minz;
 
     // ROGUE
     // PGM fix - 02/25/97 so bubbles won't go through walls
@@ -572,10 +650,11 @@ void() bubble_bob =
     }
 
     self.cnt = self.cnt + 1;
-    if(self.cnt == 4)
+    if (self.cnt == ceil(self.count * 0.2)) // HONEY
         bubble_split();
-    if(self.cnt == 20)
+    if (self.cnt >= self.owner.count) { // HONEY
         remove(self);
+    }
 
     rnd1 = self.velocity_x + (-10 + (random() * 20));
     rnd2 = self.velocity_y + (-10 + (random() * 20));
@@ -591,16 +670,28 @@ void() bubble_bob =
     if(rnd2 < -10)
         rnd2 = -5;
 
-    if(rnd3 < 10)
-        rnd3 = 15;
-    if(rnd3 > 30)
-        rnd3 = 25;
+    // HONEY
+    if(self.owner.speed){
+        maxz = self.owner.speed + 15;
+        minz = self.owner.speed - 5;
+    }else{
+        maxz = 30;
+        minz = 10;
+    }
+
+    // HONEY
+    if (rnd3 < minz)
+        rnd3 = minz + 5;
+    if (rnd3 > maxz)
+        rnd3 = maxz - 5;
 
     self.velocity_x = rnd1;
     self.velocity_y = rnd2;
     self.velocity_z = rnd3;
 
-    self.nextthink = time + 0.5;
+    // HONEY
+    self.nextthink = time  + 0.5 * random();
+
     self.think = bubble_bob;
 };
 
@@ -698,7 +789,8 @@ void() func_bossgate =
 void() ambient_suck_wind =
 {
     precache_sound("ambience/suck1.wav");
-    ambientsound(self.origin, "ambience/suck1.wav", 1, ATTN_STATIC);
+    ambientsound(self.origin, "ambience/suck1.wav", 1, ATTN_IDLE);
+    SUB_Remove();
 };
 
 /*QUAKED ambient_drone (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -707,6 +799,7 @@ void() ambient_drone =
 {
     precache_sound("ambience/drone6.wav");
     ambientsound(self.origin, "ambience/drone6.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
 
 /*QUAKED ambient_flouro_buzz (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -715,6 +808,7 @@ void() ambient_flouro_buzz =
 {
     precache_sound("ambience/buzz1.wav");
     ambientsound(self.origin, "ambience/buzz1.wav", 1, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_drip (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -722,6 +816,7 @@ void() ambient_drip =
 {
     precache_sound("ambience/drip1.wav");
     ambientsound(self.origin, "ambience/drip1.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_comp_hum (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -729,6 +824,7 @@ void() ambient_comp_hum =
 {
     precache_sound("ambience/comp1.wav");
     ambientsound(self.origin, "ambience/comp1.wav", 1, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_thunder (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -736,6 +832,7 @@ void() ambient_thunder =
 {
     precache_sound("ambience/thunder1.wav");
     ambientsound(self.origin, "ambience/thunder1.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_light_buzz (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -743,6 +840,7 @@ void() ambient_light_buzz =
 {
     precache_sound("ambience/fl_hum1.wav");
     ambientsound(self.origin, "ambience/fl_hum1.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_swamp1 (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -750,6 +848,7 @@ void() ambient_swamp1 =
 {
     precache_sound("ambience/swamp1.wav");
     ambientsound(self.origin, "ambience/swamp1.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
 /*QUAKED ambient_swamp2 (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
 */
@@ -757,7 +856,10 @@ void() ambient_swamp2 =
 {
     precache_sound("ambience/swamp2.wav");
     ambientsound(self.origin, "ambience/swamp2.wav", 0.5, ATTN_STATIC);
+    SUB_Remove();
 };
+
+
 
 //============================================================================
 

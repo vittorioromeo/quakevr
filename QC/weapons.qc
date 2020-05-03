@@ -414,12 +414,13 @@ void() HIP_LaserThink =
     self.nextthink = time + 0.1;
 };
 
-void(vector org, vector vec, float light) HIP_LaunchLaser =
+entity(vector org, vector vec, float light) HIP_LaunchLaser =
 {
     sound(self ,CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
 
     vec = normalize(vec);
 
+    local entity newmis;
     newmis = spawn();
     newmis.owner = self;
     newmis.classname = "hiplaser";
@@ -446,6 +447,8 @@ void(vector org, vector vec, float light) HIP_LaunchLaser =
     newmis.think = HIP_LaserThink;
     newmis.touch = HIP_LaserTouch;
     newmis.count = 0;
+
+    return newmis;
 };
 
 /*
@@ -483,6 +486,9 @@ void(float xHand, float stat) HIP_FireLaser =
     org = VRGetMuzzlePos(xHand) + ((-1) * v_up) + (2*out);
     dir = aim(self, 1000);
     aofs = ofs * 0.15;
+
+    local entity newmis;
+
     if(stat == 0)
     {
         delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
@@ -499,12 +505,12 @@ void(float xHand, float stat) HIP_FireLaser =
         org = org + (ofs*(v_up * 0.4));
         if(random()<0.1)
         {
-            HIP_LaunchLaser(org, dir, 1);
+            newmis = HIP_LaunchLaser(org, dir, 1);
             newmis.dmg = 25;
         }
         else
         {
-            HIP_LaunchLaser(org, dir, 0);
+            newmis = HIP_LaunchLaser(org, dir, 0);
         }
     }
 
@@ -1441,7 +1447,7 @@ void() T_MissileTouch =
 W_FireRocket
 ================
 */
-void(float xHand) W_FireRocket =
+entity(float xHand) W_FireRocket =
 {
     local entity missile;
 
@@ -1474,11 +1480,12 @@ void(float xHand) W_FireRocket =
 
     // HIPNOTIC
     //MED 11/09/96
-    newmis = missile;
 
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 3);
+
+    return missile;
 };
 
 /*
@@ -1888,8 +1895,10 @@ launch_spike
 Used for both the player and the ogre
 ===============
 */
-void(vector org, vector dir) launch_spike =
+entity(vector org, vector dir) launch_spike =
 {
+    local entity newmis;
+
     newmis = spawn();
     newmis.owner = self;
     newmis.movetype = MOVETYPE_FLYMISSILE;
@@ -1906,11 +1915,13 @@ void(vector org, vector dir) launch_spike =
     setorigin(newmis, org);
 
     newmis.velocity = dir * 1750;
+    return newmis;
 };
 
 void(float xHand) W_FireSuperSpikes =
 {
     local vector dir;
+    local entity newmis;
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
@@ -1919,7 +1930,7 @@ void(float xHand) W_FireSuperSpikes =
     makeforward(VRGetWeaponFireRot(xHand));
     dir = v_forward;
 
-    launch_spike(VRGetMuzzlePos(xHand), dir);
+    newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
     newmis.touch = superspike_touch;
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -1935,6 +1946,7 @@ void(float xHand) W_FireSuperSpikes =
 void(float xHand, float ox) W_FireSpikes =
 {
     local vector dir;
+    local entity newmis;
 
     makevectors(VRGetWeaponFireRot(xHand));
 
@@ -1953,7 +1965,7 @@ void(float xHand, float ox) W_FireSpikes =
     VRSetAttackFinished(xHand, time + 0.2);
     delAmmoAndUpdateCounter(xHand, AID_NAILS, 1);
     dir = v_forward;
-    launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
     newmis.velocity = newmis.velocity + vrProjectileVelocity();
 
@@ -3440,7 +3452,7 @@ float(entity ent) GetThrownWeaponBaseDamage =
     return ent.frags;
 }
 
-void(entity thrower, float xWeapon, float xWeaponFlags,
+entity(entity thrower, float xWeapon, float xWeaponFlags,
     vector xOrigin, vector xRotation,
     vector xThrowVel, vector xAVel,
     float xDisappearOnHit,
@@ -3450,6 +3462,7 @@ void(entity thrower, float xWeapon, float xWeaponFlags,
     local float tmp;
     local vector tmp_handavel;
     local vector tmp_bounds;
+    local entity newmis;
 
     newmis = spawn();
 
@@ -3498,6 +3511,8 @@ void(entity thrower, float xWeapon, float xWeaponFlags,
 
     newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar("vr_weapon_throw_velocity_mult")
                     + thrower.velocity;
+
+    return newmis;
 }
 
 vector randomVec(float range)
