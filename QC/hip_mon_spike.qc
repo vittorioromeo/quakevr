@@ -46,6 +46,9 @@ void() monster_spikemine =
    precache_sound("demon/idle1.wav");
    precache_sound("demon/sight2.wav");
 
+    // HONEY
+    monster_add_to_counter();
+
    self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 

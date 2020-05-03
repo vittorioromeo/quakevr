@@ -1,7 +1,3 @@
-
-entity s;
-
-
 void() trigger_reactivate =
 {
     self.solid = SOLID_TRIGGER;
@@ -40,6 +36,13 @@ void() multi_trigger =
             return;
         found_secrets = found_secrets + 1;
         WriteByte(MSG_ALL, SVC_FOUNDSECRET);
+
+        // HONEY
+        self.think = SUB_Null;
+        if(skill == 0){
+
+            remove(self.oldenemy);
+        }
     }
 
     if(self.noise)
@@ -59,7 +62,7 @@ void() multi_trigger =
     }
     else
     {    // we can't just remove(self) here, because this is a touch function
-        // called wheil C code is looping through area links...
+        // called while C code is looping through area links...
         self.touch = SUB_Null;
         self.nextthink = time + 0.1;
         self.think = SUB_Remove;
@@ -167,8 +170,17 @@ void() trigger_multiple =
 
     // HIPNOTIC
     //MED 12/01/96 added cnt stuff
-   if(self.cnt == 0)
-      self.cnt = -1;
+    if(self.cnt == 0)
+    {
+        self.cnt = -1;
+    }
+
+    // HONEY
+    // Stupid hack
+    if(self.target == "" && self.message != "" && self.wait != 2)
+    {
+        self.wait = 2;
+    }
 };
 
 
@@ -215,6 +227,10 @@ set "message" to text string
 */
 void() trigger_secret =
 {
+    local vector o;
+    local entity secamb;
+    local float sk;
+
     total_secrets = total_secrets + 1;
     self.wait = -1;
     if(!self.message)
@@ -234,6 +250,14 @@ void() trigger_secret =
     }
 
     trigger_multiple();
+
+    // HONEY
+    sk = cvar("skill"); //Stupid hack because the skill global isn't set until in the first StartFrame call
+    if(sk == 0){
+        o = (self.mins + self.maxs)*0.5;
+        secamb = ambient_secret_spawn(o);
+        self.oldenemy = secamb;
+    }
 };
 
 //=============================================================================
@@ -297,6 +321,7 @@ TELEPORT TRIGGERS
 float    PLAYER_ONLY    = 1;
 float    SILENT = 2;
 float    CTF_ONLY = 4;
+float    IGNORE_TARGETNAME = 8; // HONEY
 
 void() play_teleport =
 {
@@ -321,6 +346,7 @@ void() play_teleport =
 
 void(vector org) spawn_tfog =
 {
+    local entity s;
     s = spawn();
     s.origin = org;
     s.nextthink = time + 0.2;
@@ -385,7 +411,7 @@ local vector    org;
 
     if(self.targetname)
     {
-        if(self.nextthink < time)
+        if (/* HONEY */ !(self.spawnflags & IGNORE_TARGETNAME) && self.nextthink < time)
         {
             return;        // not fired yet
         }
@@ -467,6 +493,13 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 void() trigger_teleport =
 {
     local vector o;
+
+    // HONEY
+    if(self.spawnflags & TRIGGER_SPAWN){
+        self.use = trigger_teleport;
+        self.spawnflags = (self.spawnflags & PLAYER_ONLY) | SILENT | IGNORE_TARGETNAME;
+        return;
+    }
 
     if(self.spawnflags & CTF_ONLY)
     {
@@ -583,6 +616,9 @@ void() hurt_on =
 {
     self.solid = SOLID_TRIGGER;
     self.nextthink = -1;
+
+    // HONEY
+    force_retouch = 2;
 };
 
 void() hurt_touch =
@@ -695,21 +731,40 @@ void() trigger_push =
 
 //============================================================================
 
+// HONEY
+float ALWAYS_JUMP = 2;
+float NO_VELOCITY = 4;
+
+
 void() trigger_monsterjump_touch =
 {
     if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER )
+        return;
+
+    // HONEY
+    if (self.message != "" && other.classname != self.message)
         return;
 
 // set XY even if not on ground, so the jump will clear lips
     other.velocity_x = self.movedir_x * self.speed;
     other.velocity_y = self.movedir_y * self.speed;
 
-    if(!(other.flags & FL_ONGROUND) )
+    if ( !(other.flags & FL_ONGROUND) ){
         return;
+    }
 
     other.flags = other.flags - FL_ONGROUND;
 
     other.velocity_z = self.height;
+
+    // HONEY
+    if(self.spawnflags & PUSH_ONCE){
+        if(self.delay){
+            SUB_DoLater(SUB_Remove, self.delay);
+        }else{
+            SUB_Remove();
+        }
+    }
 
     // HIPNOTIC
     //MED 12/01/96 added count stuff

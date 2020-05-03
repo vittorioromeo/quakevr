@@ -202,6 +202,10 @@ void() worldspawn =
         cvar_set("sv_gravity", "800");
     }
 
+    // HONEY
+    fog_global_density = world.ideal_yaw;
+    fog_global_color  = world.view_ofs;
+
     // the area based ambient sounds MUST be the first precache_sounds
 
     // player precaches
@@ -237,6 +241,14 @@ void() worldspawn =
     precache_sound("weapons/lstart.wav");        //lightning start
     precache_sound("items/damage3.wav");
 
+    // HONEY
+    precache_sound ("misc/secret.wav");
+    precache_sound ("honey/ting1.wav");
+    precache_sound ("honey/ting2.wav");
+    precache_sound ("honey/ting3.wav");
+    precache_sound ("honey/ting4.wav");
+
+    // VR: For weapon buttons
     precache_sound("buttons/switch02.wav");
 
     precache_sound("misc/power.wav");            //lightning for boss

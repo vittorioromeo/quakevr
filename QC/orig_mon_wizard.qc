@@ -333,7 +333,7 @@ void()    wiz_death4    =[    $death4,        wiz_death5    ] {};
 void()    wiz_death5    =[    $death5,        wiz_death6    ] {};
 void()    wiz_death6    =[    $death6,        wiz_death7    ] {};
 void()    wiz_death7    =[    $death7,        wiz_death8    ] {};
-void()    wiz_death8    =[    $death8,        wiz_death8    ] {};
+void()    wiz_death8    =[    $death8,        wiz_death8    ] {SUB_DoLaterSelf(monster_check_remove_corpse, 5);};
 
 void() wiz_die =
 {
@@ -388,12 +388,11 @@ void() monster_wizard =
     precache_sound("wizard/wpain.wav");
     precache_sound("wizard/wsight.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/wizard.mdl");
-
-    setsize(self, '-12 -12 -24', '12 12 40');
     self.health = 80;
 
     self.th_stand = wiz_stand1;
@@ -402,6 +401,21 @@ void() monster_wizard =
     self.th_missile = Wiz_Missile;
     self.th_pain = Wiz_Pain;
     self.th_die = wiz_die;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = scrag_start;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/wizard.mdl");
+    setsize(self, '-12 -12 -24', '12 12 40');
 
     flymonster_start();
 };

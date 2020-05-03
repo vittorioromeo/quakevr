@@ -206,6 +206,7 @@ void(vector st) ZombieFireGrenade =
     sound(self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
 
     missile = spawn();
+    missile.classname = "zgrenade";
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -322,10 +323,19 @@ void() zombie_painb5    =[    $painb5,    zombie_painb6    ] {ai_pain(2);};
 void() zombie_painb6    =[    $painb6,    zombie_painb7    ] {};
 void() zombie_painb7    =[    $painb7,    zombie_painb8    ] {};
 void() zombie_painb8    =[    $painb8,    zombie_painb9    ] {};
-void() zombie_painb9    =[    $painb9,    zombie_painb10    ] {sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);};
+void() zombie_painb9    =[    $painb9,    zombie_painb10    ] {
+    sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
+
+    // HONEY
+    self.wad = ZOMBIE_ONGROUND;
+};
 void() zombie_painb10    =[    $painb10,    zombie_painb11    ] {};
 void() zombie_painb11    =[    $painb11,    zombie_painb12    ] {};
-void() zombie_painb12    =[    $painb12,    zombie_painb13    ] {};
+void() zombie_painb12    =[    $painb12,    zombie_painb13    ]
+{
+    // HONEY
+    self.wad = "";
+};
 void() zombie_painb13    =[    $painb13,    zombie_painb14    ] {};
 void() zombie_painb14    =[    $painb14,    zombie_painb15    ] {};
 void() zombie_painb15    =[    $painb15,    zombie_painb16    ] {};
@@ -397,6 +407,9 @@ void() zombie_paine10    =[    $paine10,    zombie_paine11    ]
 {
     sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
     self.solid = SOLID_NOT;
+
+    // HONEY
+    self.wad = ZOMBIE_ONGROUND;
 };
 void() zombie_paine11    =[    $paine11,    zombie_paine12    ]
 {
@@ -418,6 +431,9 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
         self.solid = SOLID_NOT;
         return;
     }
+
+    // HONEY
+    self.wad = "";
 };
 void() zombie_paine13    =[    $paine13,    zombie_paine14    ] {};
 void() zombie_paine14    =[    $paine14,    zombie_paine15    ] {};
@@ -643,12 +659,11 @@ void() monster_zombie =
     precache_sound("zombie/z_hit.wav");
     precache_sound("zombie/idle_w2.wav");
 
-    self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    // HONEY
+    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+        self.cnt = -1;
+    }
 
-    setmodel(self, "progs/zombie.mdl");
-
-    setsize(self, '-12 -12 -24', '12 12 24');
     self.health = 60;
 
     self.th_stand = zombie_stand1;
@@ -657,6 +672,21 @@ void() monster_zombie =
     self.th_pain = zombie_pain;
     self.th_die = zombie_die;
     self.th_missile = zombie_missile;
+
+    // HONEY
+    monster_add_to_counter();
+
+    if (self.spawnflags & TRIGGER_SPAWN)
+    {
+        self.use = zombie_start2;
+        return;
+    }
+
+    self.solid = SOLID_SLIDEBOX;
+    self.movetype = MOVETYPE_STEP;
+
+    setmodel(self, "progs/zombie.mdl");
+    setsize(self, '-12 -12 -24', '12 12 24');
 
     if(self.spawnflags & SPAWN_CRUCIFIED)
     {

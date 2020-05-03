@@ -472,6 +472,9 @@ void() monster_mummy =
     precache_sound ("zombie/z_hit.wav");
     precache_sound ("zombie/idle_w2.wav");
 
+    // HONEY
+    monster_add_to_counter();
+
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 

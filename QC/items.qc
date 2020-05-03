@@ -330,7 +330,7 @@ ARMOR
 
 void() armor_touch =
 {
-    local float type, value, itemId, isASecret;
+    local float type, value, itemId;
 
     if(self.classname == "item_armor1")
     {
