@@ -41,7 +41,7 @@ int c_yes, c_no;
 // TODO VR: (P2) could have used this to detect onground?
 bool SV_CheckBottom(edict_t* ent)
 {
-    glm::vec3 mins, maxs, start, stop;
+    qvec3 mins, maxs, start, stop;
 
     trace_t trace;
     int x;
@@ -129,13 +129,11 @@ possible, no move is done, false is returned, and
 pr_global_struct->trace_normal is set to the normal of the blocking wall
 =============
 */
-bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
+bool SV_movestep(edict_t* ent, qfvec3 move, bool relink)
 {
-
-
     // try the move
-    glm::vec3 oldorg = ent->v.origin;
-    glm::vec3 neworg = ent->v.origin + move;
+    auto oldorg = ent->v.origin;
+    auto neworg = ent->v.origin + move;
 
     // flying monsters don't step up
     if(quake::util::hasAnyFlag(ent, FL_SWIM, FL_FLY))
@@ -192,7 +190,7 @@ bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink)
     // push down from a step height above the wished position
     neworg[2] += STEPSIZE;
 
-    glm::vec3 end = neworg;
+    qvec3 end = neworg;
     end[2] -= STEPSIZE * 2;
 
     trace_t trace = SV_Move(neworg, ent->v.mins, ent->v.maxs, end, false, ent);
@@ -281,9 +279,9 @@ facing it.
 void PF_changeyaw();
 bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
-    glm::vec3 move;
+    qvec3 move;
 
-    glm::vec3 oldorigin;
+    qvec3 oldorigin;
     float delta;
 
     ent->v.ideal_yaw = yaw;

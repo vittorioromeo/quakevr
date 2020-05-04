@@ -77,13 +77,13 @@ typedef struct
 
 struct dlight_t
 {
-    glm::vec3 origin;
+    qvec3 origin;
     float radius;
     float die;      // stop lighting after this time
     float decay;    // drop this each second
     float minlight; // don't add when contributing less
     int key;
-    glm::vec3 color; // johnfitz -- lit support via lordhavoc
+    qvec3 color; // johnfitz -- lit support via lordhavoc
 };
 
 
@@ -93,7 +93,7 @@ struct beam_t
     int disambiguator;
     qmodel_t* model;
     float endtime;
-    glm::vec3 start, end;
+    qvec3 start, end;
     bool spin;
     float scaleRatioX;
 };
@@ -173,25 +173,25 @@ struct client_state_t
     // sent to the server each frame.  The server sets punchangle when
     // the view is temporarliy offset, and an angle reset commands at the start
     // of each level and after teleporting.
-    glm::vec3 mviewangles[2]; // during demo playback viewangles is lerped
+    qvec3 mviewangles[2]; // during demo playback viewangles is lerped
                               // between these
-    glm::vec3 viewangles;
+    qvec3 viewangles;
 
-    glm::vec3 aimangles;
-    glm::vec3 vmeshoffset;
-    glm::vec3 handpos[2];
-    glm::vec3 handrot[2];
-    glm::vec3 prevhandrot[2];
-    glm::vec3 handvel[2];
-    glm::vec3 handthrowvel[2];
+    qvec3 aimangles;
+    qvec3 vmeshoffset;
+    qvec3 handpos[2];
+    qvec3 handrot[2];
+    qvec3 prevhandrot[2];
+    qvec3 handvel[2];
+    qvec3 handthrowvel[2];
     float handvelmag[2];
-    glm::vec3 handavel[2];
+    qvec3 handavel[2];
 
-    glm::vec3 mvelocity[2]; // update by server, used for lean+bob
+    qvec3 mvelocity[2]; // update by server, used for lean+bob
                             // (0 is newest)
-    glm::vec3 velocity;     // lerped between mvelocity[0] and [1]
+    qvec3 velocity;     // lerped between mvelocity[0] and [1]
 
-    glm::vec3 punchangle; // temporary offset
+    qvec3 punchangle; // temporary offset
 
     // pitch drifting vars
     float idealpitch;
@@ -259,6 +259,19 @@ struct client_state_t
     entity_t mainhand_wpn_button;
     entity_t offhand_wpn_button;
 
+    struct hand_entities
+    {
+        entity_t base;
+        entity_t f_thumb;
+        entity_t f_index;
+        entity_t f_middle;
+        entity_t f_ring;
+        entity_t f_pinky;
+    };
+
+    hand_entities left_hand_entities;
+    hand_entities right_hand_entities;
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard
@@ -271,22 +284,34 @@ struct client_state_t
 template <typename F>
 bool anyViewmodel(client_state_t& clientState, F&& f)
 {
-    return                                         //
-        f(clientState.viewent)                     //
-        || f(clientState.offhand_viewent)          //
-        || f(clientState.left_hip_holster)         //
-        || f(clientState.right_hip_holster)        //
-        || f(clientState.left_upper_holster)       //
-        || f(clientState.right_upper_holster)      //
-        || f(clientState.left_hand)                //
-        || f(clientState.right_hand)               //
-        || f(clientState.vrtorso)                  //
-        || f(clientState.left_hip_holster_slot)    //
-        || f(clientState.right_hip_holster_slot)   //
-        || f(clientState.left_upper_holster_slot)  //
-        || f(clientState.right_upper_holster_slot) //
-        || f(clientState.mainhand_wpn_button)      //
-        || f(clientState.offhand_wpn_button);
+    return                                            //
+        f(clientState.viewent)                        //
+        || f(clientState.offhand_viewent)             //
+        || f(clientState.left_hip_holster)            //
+        || f(clientState.right_hip_holster)           //
+        || f(clientState.left_upper_holster)          //
+        || f(clientState.right_upper_holster)         //
+        || f(clientState.left_hand)                   //
+        || f(clientState.right_hand)                  //
+        || f(clientState.vrtorso)                     //
+        || f(clientState.left_hip_holster_slot)       //
+        || f(clientState.right_hip_holster_slot)      //
+        || f(clientState.left_upper_holster_slot)     //
+        || f(clientState.right_upper_holster_slot)    //
+        || f(clientState.mainhand_wpn_button)         //
+        || f(clientState.offhand_wpn_button)          //
+        || f(clientState.left_hand_entities.base)     //
+        || f(clientState.left_hand_entities.f_thumb)  //
+        || f(clientState.left_hand_entities.f_index)  //
+        || f(clientState.left_hand_entities.f_middle) //
+        || f(clientState.left_hand_entities.f_ring)   //
+        || f(clientState.left_hand_entities.f_pinky)  //
+        || f(clientState.right_hand_entities.base)     //
+        || f(clientState.right_hand_entities.f_thumb)  //
+        || f(clientState.right_hand_entities.f_index)  //
+        || f(clientState.right_hand_entities.f_middle) //
+        || f(clientState.right_hand_entities.f_ring)   //
+        || f(clientState.right_hand_entities.f_pinky);
 }
 
 template <typename F>
@@ -441,9 +466,9 @@ extern cvar_t chase_active;
 void Chase_Init(void);
 
 struct trace_t;
-[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end);
+[[nodiscard]] trace_t TraceLine(const qvec3& start, const qvec3& end);
 [[nodiscard]] trace_t TraceLineToEntity(
-    const glm::vec3& start, const glm::vec3& end, edict_t* ent);
+    const qvec3& start, const qvec3& end, edict_t* ent);
 void Chase_UpdateForClient(void);                                 // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz
 

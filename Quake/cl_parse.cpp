@@ -85,7 +85,7 @@ const char* svc_strings[] = {
 
 bool warn_about_nehahra_protocol; // johnfitz
 
-extern glm::vec3 v_punchangles[2]; // johnfitz
+extern qvec3 v_punchangles[2]; // johnfitz
 
 //=============================================================================
 
@@ -132,7 +132,7 @@ CL_ParseStartSoundPacket
 */
 void CL_ParseStartSoundPacket()
 {
-    glm::vec3 pos;
+    qvec3 pos;
     int channel;
 
     int ent;
@@ -1220,7 +1220,7 @@ CL_ParseStaticSound
 */
 void CL_ParseStaticSound(int version) // johnfitz -- added argument
 {
-    glm::vec3 org;
+    qvec3 org;
     int sound_num;
 
     int vol;

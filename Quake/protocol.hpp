@@ -275,10 +275,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct entity_state_t
 {
-    glm::vec3 origin;
-    glm::vec3 angles;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qfvec3 origin;
+    qfvec3 angles;
+    qfvec3 scale;
+    qfvec3 scale_origin;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned char colormap;    // johnfitz -- was int
@@ -289,21 +289,21 @@ struct entity_state_t
 
 struct usercmd_t
 {
-    glm::vec3 viewangles;
-    glm::vec3 handpos;
-    glm::vec3 handrot;
-    glm::vec3 handvel;
-    glm::vec3 handthrowvel;
+    qfvec3 viewangles;
+    qfvec3 handpos;
+    qfvec3 handrot;
+    qfvec3 handvel;
+    qfvec3 handthrowvel;
     float handvelmag;
-    glm::vec3 handavel;
-    glm::vec3 offhandpos;
-    glm::vec3 offhandrot;
-    glm::vec3 offhandvel;
-    glm::vec3 offhandthrowvel;
+    qfvec3 handavel;
+    qfvec3 offhandpos;
+    qfvec3 offhandrot;
+    qfvec3 offhandvel;
+    qfvec3 offhandthrowvel;
     float offhandvelmag;
-    glm::vec3 offhandavel;
-    glm::vec3 muzzlepos;
-    glm::vec3 offmuzzlepos;
+    qfvec3 offhandavel;
+    qfvec3 muzzlepos;
+    qfvec3 offmuzzlepos;
 
     // intended velocities
     float forwardmove;
@@ -312,7 +312,7 @@ struct usercmd_t
 
     // VR teleportation
     int teleporting;
-    glm::vec3 teleport_target;
+    qfvec3 teleport_target;
 
     // VR hands
     int offhand_grabbing;
@@ -323,7 +323,7 @@ struct usercmd_t
     int mainhand_hotspot;
 
     // VR room scale movement
-    glm::vec3 roomscalemove;
+    qfvec3 roomscalemove;
 };
 
 #endif /* _QUAKE_PROTOCOL_H */

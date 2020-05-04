@@ -59,7 +59,7 @@ BRUSH MODELS
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
 {
-    glm::vec3 position;
+    qvec3 position;
 } mvertex_t;
 
 #define SIDE_FRONT 0
@@ -71,7 +71,7 @@ typedef struct
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct mplane_s
 {
-    glm::vec3 normal;
+    qvec3 normal;
     float dist;
     byte type;     // for texture axis selection and fast side tests
     byte signbits; // signx + signy<<1 + signz<<1
@@ -146,8 +146,8 @@ typedef struct msurface_s
 {
     int visframe;   // should be drawn when node is crossed
     bool culled;    // johnfitz -- for frustum culling
-    glm::vec3 mins; // johnfitz -- for frustum culling
-    glm::vec3 maxs; // johnfitz -- for frustum culling
+    qvec3 mins; // johnfitz -- for frustum culling
+    qvec3 maxs; // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;
@@ -234,8 +234,8 @@ typedef struct
     mplane_t* planes;
     int firstclipnode;
     int lastclipnode;
-    glm::vec3 clip_mins;
-    glm::vec3 clip_maxs;
+    qfvec3 clip_mins;
+    qfvec3 clip_maxs;
 } hull_t;
 
 /*
@@ -251,8 +251,8 @@ SPRITE MODELS
 typedef struct mspriteframe_s
 {
     int width, height;
-    float up, down, left, right;
-    float smax, tmax; // johnfitz -- image might be padded
+    qfloat up, down, left, right;
+    qfloat smax, tmax; // johnfitz -- image might be padded
     struct gltexture_s* gltexture;
 } mspriteframe_t;
 
@@ -348,10 +348,10 @@ struct aliashdr_t
 {
     int ident;
     int version;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qvec3 scale;
+    qvec3 scale_origin;
     float boundingradius;
-    glm::vec3 eyeposition;
+    qvec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;
@@ -363,8 +363,8 @@ struct aliashdr_t
     float size;
 
     // For vr - we modify these, so keep the originals
-    glm::vec3 original_scale;
-    glm::vec3 original_scale_origin;
+    qvec3 original_scale;
+    qvec3 original_scale_origin;
 
     // ericw -- used to populate vbo
     int numverts_vbo;  // number of verts with unique x,y,z,s,t
@@ -440,9 +440,9 @@ struct qmodel_t
     //
     // volume occupied by the model graphics
     //
-    glm::vec3 mins, maxs;
-    glm::vec3 ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
-    glm::vec3 rmins,
+    qvec3 mins, maxs;
+    qvec3 ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
+    qvec3 rmins,
         rmaxs; // johnfitz -- bounds for entities with nonzero pitch or roll
     // johnfitz -- removed float radius;
 
@@ -450,7 +450,7 @@ struct qmodel_t
     // solid volume for clipping
     //
     bool clipbox;
-    glm::vec3 clipmins, clipmaxs;
+    qvec3 clipmins, clipmaxs;
 
     //
     // brush model
@@ -529,7 +529,7 @@ qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback);
 void* Mod_Extradata(qmodel_t* mod); // handles caching
 void Mod_TouchModel(const char* name);
 
-mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model);
+mleaf_t* Mod_PointInLeaf(const qvec3& p, qmodel_t* model);
 byte* Mod_LeafPVS(mleaf_t* leaf, qmodel_t* model);
 byte* Mod_NoVisPVS(qmodel_t* model);
 

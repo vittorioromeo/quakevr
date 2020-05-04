@@ -3025,6 +3025,52 @@ void M_QuakeVRSettings_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR DEV TOOLS MENU - FINGER CONFIGURATION */
+
+[[nodiscard]] static quake::menu makeQVRDTFingerConfigurationMenu()
+{
+    const float oInc = 0.025f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.2f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Finger Configuration", &M_Menu_QuakeVRDevTools_f};
+
+    // ------------------------------------------------------------------------
+
+#define MAKE_XYZ_CONTROLS(name, cvar_family_prefix)                          \
+    {                                                                        \
+        m.add_cvar_entry<float>(name " X", cvar_family_prefix##_x, oBounds); \
+        m.add_cvar_entry<float>(name " Y", cvar_family_prefix##_y, oBounds); \
+        m.add_cvar_entry<float>(name " Z", cvar_family_prefix##_z, oBounds); \
+        m.add_separator();                                                   \
+    }
+
+    MAKE_XYZ_CONTROLS("All Fingers And Base", vr_fingers_and_base);
+    MAKE_XYZ_CONTROLS("All Fingers", vr_fingers);
+    MAKE_XYZ_CONTROLS("Thumb", vr_finger_thumb);
+    MAKE_XYZ_CONTROLS("Index", vr_finger_index);
+    MAKE_XYZ_CONTROLS("Middle", vr_finger_middle);
+    MAKE_XYZ_CONTROLS("Ring", vr_finger_ring);
+    MAKE_XYZ_CONTROLS("Pinky", vr_finger_pinky);
+    MAKE_XYZ_CONTROLS("Base", vr_finger_base);
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtFingerConfigurationMenu()
+{
+    static quake::menu res = makeQVRDTFingerConfigurationMenu();
+    return res;
+}
+
+//=============================================================================
 /* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES */
 
 [[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
@@ -3118,6 +3164,7 @@ static void forQVRDTMenus(F&& f)
     f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
     f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
     f(qvrdtWeaponConfiguration4Menu(), m_qvrdt_weaponconfiguration4);
+    f(qvrdtFingerConfigurationMenu(), m_qvrdt_fingerconfiguration);
     f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }
 

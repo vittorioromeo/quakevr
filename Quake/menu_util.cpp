@@ -10,7 +10,7 @@ struct sfx_t;
 sfx_t* S_PrecacheSound(const char* name);
 
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const glm::vec3& origin, float fvol, float attenuation);
+    const qvec3& origin, float fvol, float attenuation);
 
 namespace quake::menu_util
 {

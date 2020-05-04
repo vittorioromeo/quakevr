@@ -75,7 +75,7 @@ typedef struct
     int looping;  /* where to loop, -1 = no looping		*/
     int entnum;   /* to allow overriding a specific sound		*/
     int entchannel;
-    glm::vec3 origin; /* origin of sound effect			*/
+    qvec3 origin; /* origin of sound effect			*/
     float dist_mult;  /* distance multiplier (attenuation/clipK)	*/
     int master_vol;   /* 0-255 master volume				*/
 } channel_t;
@@ -96,14 +96,14 @@ void S_Init(void);
 void S_Startup(void);
 void S_Shutdown(void);
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const glm::vec3& origin, float fvol, float attenuation);
+    const qvec3& origin, float fvol, float attenuation);
 void S_StaticSound(
-    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation);
+    sfx_t* sfx, const qvec3& origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
 void S_ClearBuffer(void);
-void S_Update(const glm::vec3& origin, const glm::vec3& forward,
-    const glm::vec3& right, const glm::vec3& up);
+void S_Update(const qvec3& origin, const qvec3& forward,
+    const qvec3& right, const qvec3& up);
 void S_ExtraUpdate(void);
 
 void S_BlockSound(void);
@@ -170,10 +170,10 @@ extern int soundtime;
 extern int paintedtime;
 extern int s_rawend;
 
-extern glm::vec3 listener_origin;
-extern glm::vec3 listener_forward;
-extern glm::vec3 listener_right;
-extern glm::vec3 listener_up;
+extern qvec3 listener_origin;
+extern qvec3 listener_forward;
+extern qvec3 listener_right;
+extern qvec3 listener_up;
 
 extern cvar_t sndspeed;
 extern cvar_t snd_mixspeed;

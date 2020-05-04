@@ -44,7 +44,7 @@ static char* PR_GetTempString()
 #define MSG_ALL 2       // reliable to all
 #define MSG_INIT 3      // write to the init string
 
-[[nodiscard]] static QUAKE_FORCEINLINE glm::vec3 extractVector(
+[[nodiscard]] static QUAKE_FORCEINLINE qvec3 extractVector(
     const int parm) noexcept
 {
     float* const ptr = G_VECTOR(parm);
@@ -220,19 +220,19 @@ static void PF_setorigin()
 }
 
 static void SetMinMaxSize(
-    edict_t* e, const glm::vec3& minvec, const glm::vec3& maxvec, bool rotate)
+    edict_t* e, const qvec3& minvec, const qvec3& maxvec, bool rotate)
 {
-    glm::vec3 rmin;
+    qvec3 rmin;
 
-    glm::vec3 rmax;
+    qvec3 rmax;
     float bounds[2][3];
     float xvector[2];
 
     float yvector[2];
     float a;
-    glm::vec3 base;
+    qvec3 base;
 
-    glm::vec3 transformed;
+    qvec3 transformed;
     int i;
 
     int j;
@@ -481,7 +481,7 @@ static void PF_normalize()
     else
     {
         new_temp = 1 / new_temp;
-        const auto res = v * static_cast<float>(new_temp);
+        const auto res = v * static_cast<qfloat>(new_temp);
         VectorCopy(res, G_VECTOR(OFS_RETURN));
     }
 }
@@ -976,7 +976,7 @@ static int PF_newcheckclient(int check)
     }
 
     // get the PVS for the entity
-    glm::vec3 org = ent->v.origin + ent->v.view_ofs;
+    qvec3 org = ent->v.origin + ent->v.view_ofs;
 
     mleaf_t* leaf = Mod_PointInLeaf(org, sv.worldmodel);
     byte* pvs = Mod_LeafPVS(leaf, sv.worldmodel);
@@ -1039,7 +1039,7 @@ static void PF_checkclient()
 
     // if current entity can't possibly see the check entity, return 0
     self = PROG_TO_EDICT(pr_global_struct->self);
-    const glm::vec3 view = self->v.origin + self->v.view_ofs;
+    const qvec3 view = self->v.origin + self->v.view_ofs;
     leaf = Mod_PointInLeaf(view, sv.worldmodel);
     l = (leaf - sv.worldmodel->leafs) - 1;
     if((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7))))
@@ -1165,7 +1165,7 @@ static void PF_findradius()
             continue;
         }
 
-        glm::vec3 eorg;
+        qvec3 eorg;
         for(int j = 0; j < 3; j++)
         {
             eorg[j] = org[j] - (ent->v.origin[j] +
@@ -1386,7 +1386,7 @@ static void PF_walkmove()
     float yaw;
 
     float dist;
-    glm::vec3 move;
+    qvec3 move;
     dfunction_t* oldf;
     int oldself;
 
@@ -1429,7 +1429,7 @@ static void PF_droptofloor()
 {
     edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
 
-    glm::vec3 end = ent->v.origin;
+    qvec3 end = ent->v.origin;
     end[2] -= 256;
 
     trace_t trace =
@@ -1587,17 +1587,17 @@ static void PF_aim()
     edict_t* check;
 
     edict_t* bestent;
-    glm::vec3 start;
+    qvec3 start;
 
-    glm::vec3 dir;
+    qvec3 dir;
 
-    glm::vec3 end;
+    qvec3 end;
 
     int i;
 
     int j;
     trace_t tr;
-    float dist;
+    qfloat dist;
 
     float bestdist;
     float speed;
@@ -1611,7 +1611,7 @@ static void PF_aim()
 
     // try sending a trace straight
     dir = pr_global_struct->v_forward;
-    end = start + 2048.f * dir;
+    end = start + 2048._qf * dir;
     tr = SV_MoveTrace(start, end, false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
@@ -1621,7 +1621,7 @@ static void PF_aim()
     }
 
     // try all possible entities
-    glm::vec3 bestdir = dir;
+    qvec3 bestdir = dir;
     bestdist = sv_aim.value;
     bestent = nullptr;
 
@@ -1665,7 +1665,7 @@ static void PF_aim()
     {
         dir = bestent->v.origin - ent->v.origin;
         dist = DotProduct(dir, pr_global_struct->v_forward);
-        end = pr_global_struct->v_forward * dist;
+        end = pr_global_struct->v_forward * float(dist);
         end[2] = dir[2];
         end = safeNormalize(end);
         VectorCopy(end, G_VECTOR(OFS_RETURN));

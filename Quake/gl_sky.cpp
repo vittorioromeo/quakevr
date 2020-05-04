@@ -406,13 +406,13 @@ void Sky_ProjectPoly(int nump, vec3_t vecs)
     float* vp;
 
     // decide which face it maps to
-    glm::vec3 v = vec3_zero;
+    qvec3 v = vec3_zero;
     for(i = 0, vp = vecs; i < nump; i++, vp += 3)
     {
         VectorAdd(vp, v, v);
     }
 
-    glm::vec3 av;
+    qvec3 av;
     av[0] = fabs(v[0]);
     av[1] = fabs(v[1]);
     av[2] = fabs(v[2]);
@@ -689,10 +689,10 @@ void Sky_ProcessEntities()
     float dot;
     bool rotated;
 
-    glm::vec3 temp;
-    glm::vec3 forward;
-    glm::vec3 right;
-    glm::vec3 up;
+    qvec3 temp;
+    qvec3 forward;
+    qvec3 right;
+    qvec3 up;
 
     if(!r_drawentities.value)
     {
@@ -1081,20 +1081,20 @@ void Sky_DrawFace(int axis)
     int j;
 
     int start;
-    float di;
+    qfloat di;
 
-    float qi;
+    qfloat qi;
 
-    float dj;
+    qfloat dj;
 
-    float qj;
-    glm::vec3 vup;
+    qfloat qj;
+    qvec3 vup;
 
-    glm::vec3 vright;
+    qvec3 vright;
 
-    glm::vec3 temp;
+    qvec3 temp;
 
-    glm::vec3 temp2;
+    qvec3 temp2;
 
     Sky_SetBoxVert(-1.0, -1.0, axis, verts[0]);
     Sky_SetBoxVert(-1.0, 1.0, axis, verts[1]);

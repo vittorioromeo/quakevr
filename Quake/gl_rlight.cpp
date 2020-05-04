@@ -98,7 +98,7 @@ void R_RenderDlight(dlight_t* light)
 
     float rad = light->radius * 0.35;
 
-    glm::vec3 v = light->origin - r_origin;
+    qvec3 v = light->origin - r_origin;
     if(glm::length(v) < rad)
     {
         // view is inside the dlight
@@ -112,7 +112,7 @@ void R_RenderDlight(dlight_t* light)
     {
         v[i] = light->origin[i] - vpn[i] * rad;
     }
-    glVertex3fv(glm::value_ptr(v));
+    glVertex3fv(toGlVec(v));
     glColor3f(0, 0, 0);
     for(int i = 16; i >= 0; i--)
     {
@@ -122,7 +122,7 @@ void R_RenderDlight(dlight_t* light)
             v[j] = light->origin[j] + vright[j] * cos(a) * rad +
                    vup[j] * sin(a) * rad;
         }
-        glVertex3fv(glm::value_ptr(v));
+        glVertex3fv(toGlVec(v));
     }
     glEnd();
 }
@@ -322,8 +322,8 @@ LIGHT SAMPLING
 */
 
 mplane_t* lightplane;
-glm::vec3 lightspot;
-glm::vec3 lightcolor; // johnfitz -- lit support via lordhavoc
+qvec3 lightspot;
+qvec3 lightcolor; // johnfitz -- lit support via lordhavoc
 
 /*
 =============
@@ -331,8 +331,8 @@ RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via
 lordhavoc
 =============
 */
-int RecursiveLightPoint(glm::vec3& color, mnode_t* node, const glm::vec3& start,
-    const glm::vec3& end)
+int RecursiveLightPoint(qvec3& color, mnode_t* node, const qvec3& start,
+    const qvec3& end)
 {
     float front;
     float back;
@@ -367,7 +367,7 @@ loc0:
 
     frac = front / (front - back);
 
-    glm::vec3 mid;
+    qvec3 mid;
     mid[0] = start[0] + (end[0] - start[0]) * frac;
     mid[1] = start[1] + (end[1] - start[1]) * frac;
     mid[2] = start[2] + (end[2] - start[2]) * frac;
@@ -495,7 +495,7 @@ R_LightPoint -- johnfitz -- replaced entire function for lit support via
 lordhavoc
 =============
 */
-int R_LightPoint(const glm::vec3& p)
+int R_LightPoint(const qvec3& p)
 {
     if(!cl.worldmodel->lightdata)
     {
@@ -503,7 +503,7 @@ int R_LightPoint(const glm::vec3& p)
         return 255;
     }
 
-    glm::vec3 end;
+    qvec3 end;
     end[0] = p[0];
     end[1] = p[1];
     end[2] = p[2] - 8192; // johnfitz -- was 2048

@@ -56,9 +56,9 @@ void CL_InitTEnts()
     cl_sfx_r_exp3 = S_PrecacheSound("weapons/r_exp3.wav");
 }
 
-[[nodiscard]] static glm::vec3 readVectorFromProtocolFlags() noexcept
+[[nodiscard]] static qfvec3 readVectorFromProtocolFlags() noexcept
 {
-    glm::vec3 res;
+    qfvec3 res;
     res[0] = MSG_ReadCoord(cl.protocolflags);
     res[1] = MSG_ReadCoord(cl.protocolflags);
     res[2] = MSG_ReadCoord(cl.protocolflags);
@@ -74,8 +74,8 @@ beam_t* CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
     const int disambiguator = MSG_ReadByte();
-    const glm::vec3 start = readVectorFromProtocolFlags();
-    const glm::vec3 end = readVectorFromProtocolFlags();
+    const auto start = readVectorFromProtocolFlags();
+    const auto end = readVectorFromProtocolFlags();
 
     const auto initBeam = [&](beam_t& b) {
         b.entity = ent;
@@ -136,7 +136,7 @@ void CL_ParseTEnt()
     {
         case TE_WIZSPIKE: // spike hitting wall
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
@@ -144,7 +144,7 @@ void CL_ParseTEnt()
 
         case TE_KNIGHTSPIKE: // spike hitting wall
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
@@ -152,7 +152,7 @@ void CL_ParseTEnt()
 
         case TE_SPIKE: // spike hitting wall
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             if(rand() % 5)
             {
@@ -179,7 +179,7 @@ void CL_ParseTEnt()
 
         case TE_SUPERSPIKE: // super spike hitting wall
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 20);
 
             if(rand() % 5)
@@ -207,14 +207,14 @@ void CL_ParseTEnt()
 
         case TE_GUNSHOT: // bullet hitting wall
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             break;
         }
 
         case TE_EXPLOSION: // rocket explosion
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
             dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;
@@ -227,7 +227,7 @@ void CL_ParseTEnt()
 
         case TE_TAREXPLOSION: // tarbaby explosion
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
@@ -248,8 +248,8 @@ void CL_ParseTEnt()
         {
             qmodel_t* model = Mod_ForName("progs/bolt2.mdl", true);
             auto* hdr = (aliashdr_t*)Mod_Extradata(model);
-            hdr->scale_origin = hdr->original_scale_origin * 0.5f;
-            hdr->scale = hdr->original_scale * 0.5f;
+            hdr->scale_origin = hdr->original_scale_origin * 0.5_qf;
+            hdr->scale = hdr->original_scale * 0.5_qf;
 
             if(beam_t* b = CL_ParseBeam(model))
             {
@@ -277,11 +277,11 @@ void CL_ParseTEnt()
         {
             qmodel_t* model = Mod_ForName("progs/beam.mdl", true);
             auto* hdr = (aliashdr_t*)Mod_Extradata(model);
-            hdr->scale_origin = hdr->original_scale_origin * 0.25f;
-            hdr->scale = hdr->original_scale * 0.25f;
+            hdr->scale_origin = hdr->original_scale_origin * 0.25_qf;
+            hdr->scale = hdr->original_scale * 0.25_qf;
 
-            hdr->scale[0] = hdr->original_scale[0] * 0.12f;
-            hdr->scale_origin[0] = hdr->original_scale_origin[0] * 0.12f;
+            hdr->scale[0] = hdr->original_scale[0] * 0.12_qf;
+            hdr->scale_origin[0] = hdr->original_scale_origin[0] * 0.12_qf;
 
             if(beam_t* b = CL_ParseBeam(model))
             {
@@ -297,27 +297,27 @@ void CL_ParseTEnt()
 
         case TE_LAVASPLASH:
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_LavaSplash(pos);
             break;
         }
 
         case TE_TELEPORT:
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_TeleportSplash(pos);
             break;
         }
 
         case TE_EXPLOSION2: // color mapped explosion
         {
-            const glm::vec3 pos = readVectorFromProtocolFlags();
+            const auto pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
             (void)colorStart; // still need to read the byte to avoid issues
             (void)colorLength; // still need to read the byte to avoid issues
-                
+
             // TODO VR: (P2) unused above ^
             // R_ParticleExplosion2(pos, colorStart, colorLength);
             dlight_t* dl = CL_AllocDlight(0);
@@ -381,7 +381,7 @@ void CL_UpdateTEnts()
         }
 
         // calculate pitch and yaw
-        glm::vec3 dist = b.end - b.start;
+        auto dist = b.end - b.start;
 
         float pitch;
         float yaw;
@@ -415,8 +415,8 @@ void CL_UpdateTEnts()
         }
 
         // add new entities for the lightning
-        glm::vec3 org = b.start;
-        float d = glm::length(dist);
+        auto org = b.start;
+        auto d = glm::length(dist);
         dist = safeNormalize(dist);
 
         const float incr = 30.f * b.scaleRatioX;

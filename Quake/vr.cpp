@@ -59,10 +59,10 @@ struct vr_controller
 {
     vr::VRControllerState_t state;
     vr::VRControllerState_t lastState;
-    glm::vec3 position;
-    glm::vec3 orientation;
-    glm::vec3 velocity;
-    glm::vec3 a_velocity;
+    qvec3 position;
+    qvec3 orientation;
+    qvec3 velocity;
+    qvec3 a_velocity;
     vr::HmdVector3_t rawvector;
     vr::HmdQuaternion_t raworientation;
     bool active{false};
@@ -108,9 +108,9 @@ static bool readbackYaw;
 
 std::string vr_working_directory;
 
-glm::vec3 vr_viewOffset;
-glm::vec3 lastHudPosition{};
-glm::vec3 lastMenuPosition{};
+qvec3 vr_viewOffset;
+qvec3 lastHudPosition{};
+qvec3 lastMenuPosition{};
 
 vr::IVRSystem* ovrHMD;
 vr::TrackedDevicePose_t ovr_DevicePose[vr::k_unMaxTrackedDeviceCount];
@@ -118,16 +118,16 @@ vr::TrackedDevicePose_t ovr_DevicePose[vr::k_unMaxTrackedDeviceCount];
 static vr_eye_t eyes[2];
 static vr_eye_t* current_eye = nullptr;
 static vr_controller controllers[2];
-static glm::vec3 lastOrientation{vec3_zero};
-static glm::vec3 lastAim{vec3_zero};
+static qvec3 lastOrientation{vec3_zero};
+static qvec3 lastAim{vec3_zero};
 
 static bool vr_initialized = false;
 
-static glm::vec3 headOrigin{vec3_zero};
-static glm::vec3 lastHeadOrigin{vec3_zero};
+static qvec3 headOrigin{vec3_zero};
+static qvec3 lastHeadOrigin{vec3_zero};
 static vr::HmdVector3_t headVelocity;
 
-glm::vec3 vr_roomscale_move{};
+qvec3 vr_roomscale_move{};
 
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
@@ -140,7 +140,7 @@ bool vr_was_teleporting{false};
 bool vr_teleporting{false};
 bool vr_teleporting_impact_valid{false};
 bool vr_send_teleport_msg{false};
-glm::vec3 vr_teleporting_impact{vec3_zero};
+qvec3 vr_teleporting_impact{vec3_zero};
 bool vr_left_grabbing{false};
 bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
@@ -148,19 +148,22 @@ bool vr_right_prevgrabbing{false};
 VrHandAnimation vr_handanimation_left{VrHandAnimation::Open};
 VrHandAnimation vr_handanimation_right{VrHandAnimation::Open};
 
+vr::VRSkeletalSummaryData_t vr_ss_lefthand;
+vr::VRSkeletalSummaryData_t vr_ss_righthand;
+
 VrGunWallCollision vr_gun_wall_collision[2];
 
 float vr_2h_aim_transition[2]{0.f, 0.f};
 float vr_2h_aim_stock_transition[2]{0.f, 0.f};
 bool gotLastPlayerOrigin{false};
-glm::vec3 lastPlayerOrigin;
+qvec3 lastPlayerOrigin;
 float lastPlayerHeadYaw{};
 float lastVrYawDiff{};
 float vr_menu_mult{0.f};
 bool vr_should_aim_2h[2]{};
 bool vr_active_2h_helping_hand[2]{};
 int vr_hardcoded_wpn_cvar_fist{16};
-glm::vec3 lastMenuAngles;
+qvec3 lastMenuAngles;
 
 struct WpnButtonState
 {
@@ -310,15 +313,14 @@ void DeleteFBO(const fbo_t& fbo)
 }
 
 // TODO VR: (P2) move to util? This uses `vrYaw` inside
-[[nodiscard]] glm::vec3 QuatToYawPitchRoll(
-    const vr::HmdQuaternion_t& q) noexcept
+[[nodiscard]] qvec3 QuatToYawPitchRoll(const vr::HmdQuaternion_t& q) noexcept
 {
     const auto sqw = q.w * q.w;
     const auto sqx = q.x * q.x;
     const auto sqy = q.y * q.y;
     const auto sqz = q.z * q.z;
 
-    glm::vec3 out;
+    qvec3 out;
 
     out[PITCH] = -asin(-2 * (q.y * q.z - q.w * q.x)) / M_PI_DIV_180;
     out[YAW] = atan2(2 * (q.x * q.z + q.w * q.y), sqw - sqx - sqy + sqz) /
@@ -330,8 +332,7 @@ void DeleteFBO(const fbo_t& fbo)
     return out;
 }
 
-[[nodiscard]] glm::vec3 Vec3RotateZ(
-    const glm::vec3& in, const float angle) noexcept
+[[nodiscard]] static qvec3 Vec3RotateZ(const qvec3& in, const qfloat angle) noexcept
 {
     return {
         in[0] * std::cos(angle) - in[1] * std::sin(angle), //
@@ -380,8 +381,8 @@ void DeleteFBO(const fbo_t& fbo)
     u.v[2] = q.z;
 
     // Dot products of u,v and u,u
-    const float uvDot = u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2];
-    const float uuDot = u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2];
+    const auto uvDot = u.v[0] * v.v[0] + u.v[1] * v.v[1] + u.v[2] * v.v[2];
+    const auto uuDot = u.v[0] * u.v[0] + u.v[1] * u.v[1] + u.v[2] * u.v[2];
 
     // Calculate cross product of u, v
     vr::HmdVector3_t uvCross;
@@ -391,7 +392,7 @@ void DeleteFBO(const fbo_t& fbo)
 
     // Calculate each vectors' result individually because there aren't
     // arthimetic functions for HmdVector3_t dsahfkldhsaklfhklsadh
-    const float s = q.w;
+    const auto s = q.w;
     vr::HmdVector3_t result;
 
     result.v[0] = u.v[0] * 2.0f * uvDot + (s * s - uuDot) * v.v[0] +
@@ -463,12 +464,12 @@ void DeleteFBO(const fbo_t& fbo)
     return q;
 }
 
-void HmdVec3RotateY(vr::HmdVector3_t& pos, const float angle) noexcept
+static void HmdVec3RotateY(vr::HmdVector3_t& pos, const qfloat angle) noexcept
 {
-    const float s = std::sin(angle);
-    const float c = std::cos(angle);
-    const float x = c * pos.v[0] - s * pos.v[2];
-    const float y = s * pos.v[0] + c * pos.v[2];
+    const auto s = std::sin(angle);
+    const auto c = std::cos(angle);
+    const auto x = c * pos.v[0] - s * pos.v[2];
+    const auto y = s * pos.v[0] + c * pos.v[2];
 
     pos.v[0] = x;
     pos.v[2] = y;
@@ -518,17 +519,17 @@ static void VR_Deadzone_f(cvar_t* var) noexcept
 // Weapon CVars
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] static float VR_GetScaleCorrect() noexcept
+[[nodiscard]] static qfloat VR_GetScaleCorrect() noexcept
 {
     // Initial version had 0.75 default world scale, so weapons reflect
     // that.
-    return (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
+    return (vr_world_scale.value / 0.75_qf) * vr_gunmodelscale.value;
 }
 
-void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
-    aliashdr_t* const hdr) noexcept
+void VR_ApplyModelMod(
+    const qvec3& scale, const qvec3& offsets, aliashdr_t* const hdr) noexcept
 {
-    const float scaleCorrect = VR_GetScaleCorrect();
+    const qfloat scaleCorrect = VR_GetScaleCorrect();
 
     hdr->scale = hdr->original_scale * scale * scaleCorrect;
     hdr->scale_origin = hdr->original_scale_origin + offsets;
@@ -570,13 +571,13 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
     return vr_right_grabbing;
 }
 
-[[nodiscard]] glm::vec3 VR_GetOpenHandOffsets() noexcept
+[[nodiscard]] qvec3 VR_GetOpenHandOffsets() noexcept
 {
     return {vr_openhand_offset_x.value, vr_openhand_offset_y.value,
         vr_openhand_offset_z.value};
 }
 
-[[nodiscard]] glm::vec3 VR_GetOpenHandAngles() noexcept
+[[nodiscard]] qvec3 VR_GetOpenHandAngles() noexcept
 {
     return {
         vr_openhand_pitch.value, vr_openhand_yaw.value, vr_openhand_roll.value};
@@ -584,7 +585,7 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
 
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 {
-    const glm::vec3 ofs = VR_GetWpnOffsets(cvarEntry);
+    const qvec3 ofs = VR_GetWpnOffsets(cvarEntry);
     const auto scale = VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
 
     VR_ApplyModelMod({scale, scale, scale}, ofs, hdr);
@@ -672,7 +673,7 @@ char* CopyWithNumeral(const char* str, int i)
     return VR_GetMainHandWpnCvarEntry();
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffsetX),
@@ -680,7 +681,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffsetZ) + vr_gunmodely.value};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHOffsetX),
@@ -688,7 +689,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHFixedOffsetX),
@@ -696,7 +697,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHFixedOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept
 {
     // TODO VR: (P1) bugged at the moment, need to use angles and stop hand from
     // moving
@@ -707,7 +708,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::GunOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HHandAngles(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnFixed2HHandAngles(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHFixedHandPitch),
@@ -715,7 +716,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHFixedHandRoll)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HMainHandOffsets(
+[[nodiscard]] qvec3 VR_GetWpnFixed2HMainHandOffsets(
     const int cvarEntry) noexcept
 {
     return {//
@@ -724,7 +725,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHFixedMainHandOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnAngleOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnAngleOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::Pitch) + vr_gunmodelpitch.value,
@@ -732,7 +733,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::Roll)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetX),
@@ -740,7 +741,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::MuzzleOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonX),
@@ -748,8 +749,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnButtonOffHandOffsets(
-    const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnButtonOffHandOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonOffHandX),
@@ -757,7 +757,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonOffHandZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonPitch),
@@ -765,7 +765,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonRoll)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHPitch),
@@ -773,7 +773,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHRoll)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::HandOffsetX),
@@ -781,7 +781,7 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::HandOffsetZ)};
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept
+[[nodiscard]] qvec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept
 {
     return {//
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::OffHandOffsetX),
@@ -1012,8 +1012,8 @@ void VR_InitGame()
 
 void VR_ModVRTorsoModel()
 {
-    const glm::vec3 vrTorsoScale{vr_vrtorso_x_scale.value,
-        vr_vrtorso_y_scale.value, vr_vrtorso_z_scale.value};
+    const qvec3 vrTorsoScale{vr_vrtorso_x_scale.value, vr_vrtorso_y_scale.value,
+        vr_vrtorso_z_scale.value};
 
     auto* model = Mod_ForName("progs/vrtorso.mdl", true);
     auto* hdr = (aliashdr_t*)Mod_Extradata(model);
@@ -1024,7 +1024,7 @@ void VR_ModVRTorsoModel()
 void VR_ModVRLegHolsterModel()
 {
     const auto factor = vr_leg_holster_model_scale.value;
-    const glm::vec3 legHolsterScale{factor, factor, factor};
+    const qvec3 legHolsterScale{factor, factor, factor};
 
     auto* model = Mod_ForName("progs/legholster.mdl", true);
     auto* hdr = (aliashdr_t*)Mod_Extradata(model);
@@ -1428,20 +1428,19 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 }
 
 // Get a reasonable height around where hands should be when aiming a gun.
-[[nodiscard]] float VR_GetHandZOrigin(const glm::vec3& playerOrigin) noexcept
+[[nodiscard]] float VR_GetHandZOrigin(const qvec3& playerOrigin) noexcept
 {
     return playerOrigin[2] + vr_floor_offset.value + vr_gun_z_offset.value;
 }
 
 // Get the player origin vector, but adjusted to the upper torso on the Z axis.
-[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(
-    glm::vec3 playerOrigin) noexcept
+[[nodiscard]] qvec3 VR_GetAdjustedPlayerOrigin(qvec3 playerOrigin) noexcept
 {
     playerOrigin[2] = VR_GetHandZOrigin(playerOrigin) + 40;
     return playerOrigin;
 }
 
-[[nodiscard]] static float VR_GetWeaponWeightFactorImpl(const int cvarEntry,
+[[nodiscard]] static qfloat VR_GetWeaponWeightFactorImpl(const int cvarEntry,
     const float aiming2H, const float weightOffset, const float weightMult,
     const float twoHHelpOffset, const float twoHHelpMult,
     const float wpnTwoHMult)
@@ -1458,7 +1457,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     return std::clamp(finalFactor, 0.f, 1.f);
 }
 
-[[nodiscard]] float VR_GetWeaponWeightPosFactor(
+[[nodiscard]] qfloat VR_GetWeaponWeightPosFactor(
     const int cvarEntry, const float aiming2H)
 {
     return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H,    //
@@ -1470,7 +1469,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     );
 }
 
-[[nodiscard]] float VR_GetWeaponWeightDirFactor(
+[[nodiscard]] qfloat VR_GetWeaponWeightDirFactor(
     const int cvarEntry, const float aiming2H)
 {
     return VR_GetWeaponWeightFactorImpl(cvarEntry, aiming2H,    //
@@ -1483,7 +1482,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 }
 
 template <auto TFactorFn>
-[[nodiscard]] static float VR_CalcWeaponWeight(const int handIndex) noexcept
+[[nodiscard]] static qfloat VR_CalcWeaponWeight(const int handIndex) noexcept
 {
     return (handIndex == 0 && !vr_should_aim_2h[handIndex])
                ? (*TFactorFn)(VR_GetOffHandWpnCvarEntry(), 0.f)
@@ -1492,15 +1491,15 @@ template <auto TFactorFn>
 }
 
 template <auto TFactorFn>
-[[nodiscard]] static float VR_CalcWeaponWeightFTAdjusted(
+[[nodiscard]] static qfloat VR_CalcWeaponWeightFTAdjusted(
     const int handIndex) noexcept
 {
     const auto weaponWeight = VR_CalcWeaponWeight<TFactorFn>(handIndex);
-    const float frametime = cl.time - cl.oldtime;
+    const auto frametime = cl.time - cl.oldtime;
     return (weaponWeight * frametime) * 100.f;
 }
 
-[[nodiscard]] const glm::vec3& VR_GetHeadOrigin() noexcept
+[[nodiscard]] const qvec3& VR_GetHeadOrigin() noexcept
 {
     return lastHeadOrigin;
 }
@@ -1516,7 +1515,7 @@ void debugPrintHandvel(const int index, const float linearity)
 
         if(vr_debug_max_handvelmag_timeout > 0.f)
         {
-            const float frametime = cl.time - cl.oldtime;
+            const auto frametime = cl.time - cl.oldtime;
             vr_debug_max_handvelmag_timeout -= frametime;
         }
         else
@@ -1534,8 +1533,8 @@ void debugPrintHandvel(const int index, const float linearity)
     }
 }
 
-glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
-    VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept
+qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
+    qvec3 resolvedHandPos) noexcept
 {
     if(!svPlayerActive())
     {
@@ -1543,8 +1542,8 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
         return resolvedHandPos;
     }
 
-    constexpr glm::vec3 handMins{-1.f, -1.f, -1.f};
-    constexpr glm::vec3 handMaxs{1.f, 1.f, 1.f};
+    constexpr qvec3 handMins{-1.f, -1.f, -1.f};
+    constexpr qvec3 handMaxs{1.f, 1.f, 1.f};
 
     // Local position of the gun's muzzle. Takes orientation into
     // account.
@@ -1585,8 +1584,8 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     return resolvedHandPos;
 }
 
-[[nodiscard]] glm::vec3 VR_GetWorldHandPos(
-    const int handIndex, const glm::vec3& playerOrigin) noexcept
+[[nodiscard]] qvec3 VR_GetWorldHandPos(
+    const int handIndex, const qvec3& playerOrigin) noexcept
 {
     // Position of the hand relative to the head.
     const auto headLocalPreRot = controllers[handIndex].position - headOrigin;
@@ -1596,7 +1595,7 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
 
     // Position of the hand in the game world, prior to any collision
     // detection or resolution.
-    const glm::vec3 worldHandPos{
+    const qvec3 worldHandPos{
         -headLocal[0] + playerOrigin[0],               //
         -headLocal[1] + playerOrigin[1],               //
         headLocal[2] + VR_GetHandZOrigin(playerOrigin) //
@@ -1605,8 +1604,8 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     return worldHandPos;
 }
 
-[[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
-    const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept
+[[nodiscard]] qvec3 VR_GetResolvedHandPos(
+    const qvec3& worldHandPos, const qvec3& adjPlayerOrigin) noexcept
 {
     if(!svPlayerActive())
     {
@@ -1614,8 +1613,8 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     }
 
     // Size of hand hitboxes.
-    constexpr glm::vec3 mins{-1.f, -1.f, -1.f};
-    constexpr glm::vec3 maxs{1.f, 1.f, 1.f};
+    constexpr qvec3 mins{-1.f, -1.f, -1.f};
+    constexpr qvec3 maxs{1.f, 1.f, 1.f};
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
@@ -1631,7 +1630,7 @@ glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
     }
 
     // Resolve collision along trace normals.
-    glm::vec3 res = worldHandPos;
+    qvec3 res = worldHandPos;
 
     for(int i = 0; i < 3; ++i)
     {
@@ -1660,11 +1659,10 @@ void SetHandPos(int index, entity_t* player)
     // VR: Detect & resolve hand collisions against the world or entities.
 
     // Start around the upper torso, not actual center of the player.
-    const glm::vec3 adjPlayerOrigin =
-        VR_GetAdjustedPlayerOrigin(player->origin);
+    const qvec3 adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
 
     // TODO VR: (P2) cvar to enable/disable muzzle collisions
-    glm::vec3 finalVec = worldHandPos;
+    qvec3 finalVec = worldHandPos;
 
     // TODO VR: (P2) reintroduce as modifier
     // const float gunLength = index == 0 ? 0.f :
@@ -1680,7 +1678,7 @@ void SetHandPos(int index, entity_t* player)
 
     const auto oldHandpos = cl.handpos[index];
 
-    const glm::vec3 lastPlayerTranslation =
+    const qvec3 lastPlayerTranslation =
         gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
 
     // ------------------------------------------------------------------------
@@ -1693,15 +1691,15 @@ void SetHandPos(int index, entity_t* player)
             VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightPosMult);
 
-        const auto rotate_point = [](const glm::vec2& center, const float angle,
-                                      glm::vec2 p) {
+        const auto rotate_point = [](const qvec2& center, const qfloat angle,
+                                      qvec2 p) {
             // translate point back to origin:
             p -= center;
 
             // rotate point
-            const float s = std::sin(angle);
-            const float c = std::cos(angle);
-            const glm::vec2 rotated{p.x * c - p.y * s, p.x * s + p.y * c};
+            const qfloat s = std::sin(angle);
+            const qfloat c = std::cos(angle);
+            const qvec2 rotated{p.x * c - p.y * s, p.x * s + p.y * c};
 
             // translate point back
             return rotated + center;
@@ -1710,7 +1708,7 @@ void SetHandPos(int index, entity_t* player)
         const auto oldadjxy = rotate_point(
             player->origin.xy, glm::radians(-lastVrYawDiff), oldHandpos.xy);
 
-        const glm::vec3 oldadj{oldadjxy[0], oldadjxy[1], oldHandpos[2]};
+        const qvec3 oldadj{oldadjxy[0], oldadjxy[1], oldHandpos[2]};
 
         const auto diffWithOld = oldHandpos - oldadj;
 
@@ -1732,7 +1730,7 @@ void SetHandPos(int index, entity_t* player)
     // ------------------------------------------------------------------------
     // If hands get too far, bring them closer to the player.
     const auto currHandPos = cl.handpos[index];
-    constexpr auto maxHandPlayerDiff = 50.f;
+    constexpr qfloat maxHandPlayerDiff = 50.f;
     const auto handPlayerDiff = currHandPos - adjPlayerOrigin;
     if(glm::length(handPlayerDiff) > maxHandPlayerDiff)
     {
@@ -1742,12 +1740,12 @@ void SetHandPos(int index, entity_t* player)
 
     // handrot is set with AngleVectorFromRotMat
 
-    const auto openVRCoordsToQuakeCoords = [](const glm::vec3& v) {
-        return glm::vec3{-v.z, v.x, v.y};
+    const auto openVRCoordsToQuakeCoords = [](const qvec3& v) {
+        return qvec3{-v.z, v.x, v.y};
     };
 
-    const auto redirectVectorByYaw = [&](const glm::vec3& input,
-                                         const float exemplarYaw) {
+    const auto redirectVectorByYaw = [&](const qvec3& input,
+                                         const qfloat exemplarYaw) {
         return redirectVector(input, {0.f, exemplarYaw, 0.f});
     };
 
@@ -1772,7 +1770,7 @@ void SetHandPos(int index, entity_t* player)
         // TODO VR: (P1) center of mass is different for different weapons
         // TODO VR: (P1) cvar this 0.1f
         cl.handthrowvel[index] +=
-            glm::cross(controllers[index].a_velocity, up * 0.1f);
+            glm::cross(controllers[index].a_velocity, up * 0.1_qf);
 
         cl.handthrowvel[index] = redirectVectorByYaw(
             openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
@@ -1788,14 +1786,14 @@ void SetHandPos(int index, entity_t* player)
         const auto weaponWeight =
             VR_CalcWeaponWeight<VR_GetWeaponWeightPosFactor>(index);
 
-        const auto clampedWeight = std::clamp(weaponWeight, 0.f, 0.4f);
+        const auto clampedWeight = std::clamp(weaponWeight, 0._qf, 0.4_qf);
 
         const auto handvelFactor =
-            mapRange(clampedWeight, 0.0f, 0.4f, 0.55f, 1.f) *
+            mapRange(clampedWeight, 0.0_qf, 0.4_qf, 0.55_qf, 1._qf) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandVelMult);
 
         const auto handthrowvelFactor =
-            mapRange(clampedWeight, 0.0f, 0.4f, 0.45f, 1.f) *
+            mapRange(clampedWeight, 0.0_qf, 0.4_qf, 0.45_qf, 1._qf) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandThrowVelMult);
 
         cl.handvel[index] *= handvelFactor;
@@ -1835,12 +1833,12 @@ void SetHandPos(int index, entity_t* player)
     debugPrintHandvel(index, linearity);
 }
 
-[[nodiscard]] static const glm::vec3& VR_GetPlayerOrigin() noexcept
+[[nodiscard]] static const qvec3& VR_GetPlayerOrigin() noexcept
 {
     return cl_entities[cl.viewentity].origin;
 }
 
-[[nodiscard]] glm::vec3 VR_GetAliasVertexOffsets(
+[[nodiscard]] qvec3 VR_GetAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex) noexcept
 {
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
@@ -1895,8 +1893,8 @@ void SetHandPos(int index, entity_t* player)
     return {verts1->v[0], verts1->v[1], verts1->v[2]};
 }
 
-[[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
-    const int anchorVertex, const glm::vec3& extraOffsets,
+[[nodiscard]] qvec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
+    const int anchorVertex, const qvec3& extraOffsets,
     const bool horizFlip) noexcept
 {
     if(anchor->model == nullptr)
@@ -1906,7 +1904,7 @@ void SetHandPos(int index, entity_t* player)
 
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
-    glm::vec3 result = VR_GetAliasVertexOffsets(anchor, anchorVertex);
+    qvec3 result = VR_GetAliasVertexOffsets(anchor, anchorVertex);
 
     if(horizFlip)
     {
@@ -1922,10 +1920,9 @@ void SetHandPos(int index, entity_t* player)
     return result;
 }
 
-[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexOffsets(
-    entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation,
-    const bool horizFlip) noexcept
+[[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexOffsets(
+    entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
+    const qvec3& rotation, const bool horizFlip) noexcept
 {
     auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, horizFlip);
@@ -1933,20 +1930,19 @@ void SetHandPos(int index, entity_t* player)
     return quake::util::redirectVector(finalVertexOffsets, rotation);
 }
 
-[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexPosition(
-    entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation,
-    const bool horizFlip) noexcept
+[[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexPosition(
+    entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
+    const qvec3& rotation, const bool horizFlip) noexcept
 {
-    const glm::vec3 angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
+    const qvec3 angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, rotation, horizFlip);
 
     return anchor->origin + angledOffsets;
 }
 
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
-    const int cvarEntry, const bool horizflip, const glm::vec3& extraOffset,
-    const glm::vec3& handRot) noexcept
+[[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
+    const int cvarEntry, const bool horizflip, const qvec3& extraOffset,
+    const qvec3& handRot) noexcept
 {
     auto fixed2HOffsets = VR_GetWpnFixed2HOffsets(cvarEntry);
 
@@ -1968,7 +1964,7 @@ void SetHandPos(int index, entity_t* player)
         anchor, anchorVertex, extraOffsets, handRot, false);
 }
 
-[[nodiscard]] glm::vec3 VR_GetBodyAnchor(const glm::vec3& offsets) noexcept
+[[nodiscard]] qvec3 VR_GetBodyAnchor(const qvec3& offsets) noexcept
 {
     // TODO VR: (P2) maybe we should assert here and ensure this is not called
     // if player is not active
@@ -1977,23 +1973,23 @@ void SetHandPos(int index, entity_t* player)
         return vec3_zero;
     }
 
-    const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0.f, 0.8f);
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0._qf, 0.8_qf);
 
     const auto [vFwd, vRight, vUp] =
-        getAngledVectors({heightRatio * -35.f, VR_GetBodyYawAngle(), 0.f});
+        getAngledVectors({heightRatio * -35._qf, VR_GetBodyYawAngle(), 0._qf});
 
     const auto& [ox, oy, oz] = offsets;
 
     auto origin = VR_GetPlayerOrigin();
-    origin[2] += 2.f;
-    origin[2] -= VR_GetCrouchRatio() * 18.f;
+    origin[2] += 2._qf;
+    origin[2] -= VR_GetCrouchRatio() * 18._qf;
 
     return origin + vRight * oy + vFwd * ox +
-           vUp * vr_height_calibration.value * oz;
+           vUp * qfloat(vr_height_calibration.value) * oz;
 }
 
 // Relative to player.
-[[nodiscard]] static glm::vec3 VR_GetShoulderOffsets() noexcept
+[[nodiscard]] static qvec3 VR_GetShoulderOffsets() noexcept
 {
     return {
         vr_shoulder_offset_x.value, //
@@ -2003,7 +1999,7 @@ void SetHandPos(int index, entity_t* player)
 }
 
 // Relative to shoulder offset.
-[[nodiscard]] static glm::vec3 VR_GetShoulderHolsterOffsets() noexcept
+[[nodiscard]] static qvec3 VR_GetShoulderHolsterOffsets() noexcept
 {
     return {
         vr_shoulder_holster_offset_x.value, //
@@ -2013,7 +2009,7 @@ void SetHandPos(int index, entity_t* player)
 }
 
 // Relative to player.
-[[nodiscard]] static glm::vec3 VR_GetHipOffsets() noexcept
+[[nodiscard]] static qvec3 VR_GetHipOffsets() noexcept
 {
     return {
         vr_hip_offset_x.value, //
@@ -2023,7 +2019,7 @@ void SetHandPos(int index, entity_t* player)
 }
 
 // Relative to player.
-[[nodiscard]] static glm::vec3 VR_GetUpperOffsets() noexcept
+[[nodiscard]] static qvec3 VR_GetUpperOffsets() noexcept
 {
     return {
         vr_upper_holster_offset_x.value, //
@@ -2032,24 +2028,24 @@ void SetHandPos(int index, entity_t* player)
     };
 }
 
-[[nodiscard]] static glm::vec3 VR_NegateY(glm::vec3 v) noexcept
+[[nodiscard]] static qvec3 VR_NegateY(qvec3 v) noexcept
 {
     v.y = -v.y;
     return v;
 }
 
 
-[[nodiscard]] glm::vec3 VR_GetLeftShoulderStockPos() noexcept
+[[nodiscard]] qvec3 VR_GetLeftShoulderStockPos() noexcept
 {
     return VR_GetBodyAnchor(VR_NegateY(VR_GetShoulderOffsets()));
 }
 
-[[nodiscard]] glm::vec3 VR_GetRightShoulderStockPos() noexcept
+[[nodiscard]] qvec3 VR_GetRightShoulderStockPos() noexcept
 {
     return VR_GetBodyAnchor(VR_GetShoulderOffsets());
 }
 
-[[nodiscard]] glm::vec3 VR_GetShoulderStockPos(
+[[nodiscard]] qvec3 VR_GetShoulderStockPos(
     const int holdingHand, const int helpingHand) noexcept
 {
     (void)helpingHand;
@@ -2063,11 +2059,10 @@ void SetHandPos(int index, entity_t* player)
     return VR_GetRightShoulderStockPos();
 }
 
-[[nodiscard]] glm::vec3 VR_GetHolsterXCrouchAdjustment(
-    const float mult) noexcept
+[[nodiscard]] qvec3 VR_GetHolsterXCrouchAdjustment(const float mult) noexcept
 {
     // TODO VR: (P2) abstract this, used in view as well
-    const auto heightRatio = std::clamp(VR_GetCrouchRatio() - 0.2f, 0.f, 0.6f);
+    const auto heightRatio = std::clamp(VR_GetCrouchRatio() - 0.2_qf, 0._qf, 0.6_qf);
     const auto crouchXOffset = heightRatio * mult;
 
     const auto vFwd =
@@ -2077,13 +2072,13 @@ void SetHandPos(int index, entity_t* player)
 }
 
 
-[[nodiscard]] glm::vec3 VR_GetShoulderHolsterCrouchAdjustment() noexcept
+[[nodiscard]] qvec3 VR_GetShoulderHolsterCrouchAdjustment() noexcept
 {
     // TODO VR: (P2) cvar + menu entry
     return VR_GetHolsterXCrouchAdjustment(1.5f);
 }
 
-[[nodiscard]] glm::vec3 VR_GetLeftShoulderHolsterPos() noexcept
+[[nodiscard]] qvec3 VR_GetLeftShoulderHolsterPos() noexcept
 {
     const auto shoulderPos = VR_NegateY(VR_GetShoulderOffsets());
     const auto holsterOff = VR_NegateY(VR_GetShoulderHolsterOffsets());
@@ -2092,7 +2087,7 @@ void SetHandPos(int index, entity_t* player)
            VR_GetShoulderHolsterCrouchAdjustment();
 }
 
-[[nodiscard]] glm::vec3 VR_GetRightShoulderHolsterPos() noexcept
+[[nodiscard]] qvec3 VR_GetRightShoulderHolsterPos() noexcept
 {
     const auto shoulderPos = VR_GetShoulderOffsets();
     const auto holsterOff = VR_GetShoulderHolsterOffsets();
@@ -2102,58 +2097,58 @@ void SetHandPos(int index, entity_t* player)
 }
 
 
-[[nodiscard]] glm::vec3 VR_GetHipHolsterCrouchAdjustment() noexcept
+[[nodiscard]] qvec3 VR_GetHipHolsterCrouchAdjustment() noexcept
 {
     // TODO VR: (P2) cvar + menu entry
     return VR_GetHolsterXCrouchAdjustment(-9.5f);
 }
 
-[[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept
+[[nodiscard]] qvec3 VR_GetLeftHipPos() noexcept
 {
     return VR_GetBodyAnchor(VR_NegateY(VR_GetHipOffsets())) +
            VR_GetHipHolsterCrouchAdjustment();
 }
 
-[[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept
+[[nodiscard]] qvec3 VR_GetRightHipPos() noexcept
 {
     return VR_GetBodyAnchor(VR_GetHipOffsets()) +
            VR_GetHipHolsterCrouchAdjustment();
 }
 
-[[nodiscard]] glm::vec3 VR_GetUpperHolsterCrouchAdjustment() noexcept
+[[nodiscard]] qvec3 VR_GetUpperHolsterCrouchAdjustment() noexcept
 {
     // TODO VR: (P2) cvar + menu entry
     return VR_GetHolsterXCrouchAdjustment(-1.5f);
 }
 
-[[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept
+[[nodiscard]] qvec3 VR_GetLeftUpperPos() noexcept
 {
     return VR_GetBodyAnchor(VR_NegateY(VR_GetUpperOffsets())) +
            VR_GetUpperHolsterCrouchAdjustment();
 }
 
-[[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept
+[[nodiscard]] qvec3 VR_GetRightUpperPos() noexcept
 {
     return VR_GetBodyAnchor(VR_GetUpperOffsets()) +
            VR_GetUpperHolsterCrouchAdjustment();
 }
 
-[[nodiscard]] float VR_GetTurnYawAngle() noexcept
+[[nodiscard]] qfloat VR_GetTurnYawAngle() noexcept
 {
     return vrYaw;
 }
 
-[[nodiscard]] static glm::vec3 VR_GetEyesOrientation() noexcept
+[[nodiscard]] static qvec3 VR_GetEyesOrientation() noexcept
 {
     return QuatToYawPitchRoll(eyes[0].orientation);
 }
 
-[[nodiscard]] glm::vec3 VR_GetHeadAngles() noexcept
+[[nodiscard]] qvec3 VR_GetHeadAngles() noexcept
 {
     return cl.viewangles;
 }
 
-[[nodiscard]] float VR_GetHeadYawAngle() noexcept
+[[nodiscard]] qfloat VR_GetHeadYawAngle() noexcept
 {
     return VR_GetHeadAngles()[YAW];
 }
@@ -2197,21 +2192,21 @@ void SetHandPos(int index, entity_t* player)
 }
 
 [[nodiscard]] static auto VR_GetBodyYawAdjPlayerOrigins(
-    const glm::vec3& headFwdDir, const glm::vec3& headRightDir) noexcept
+    const qvec3& headFwdDir, const qvec3& headRightDir) noexcept
 {
-    const auto adjPlayerOrigin = VR_GetPlayerOrigin() - headFwdDir * 10.f;
-    const auto adjPlayerOriginLeft = adjPlayerOrigin - headRightDir * 6.5f;
-    const auto adjPlayerOriginRight = adjPlayerOrigin + headRightDir * 6.5f;
+    const auto adjPlayerOrigin = VR_GetPlayerOrigin() - headFwdDir * 10._qf;
+    const auto adjPlayerOriginLeft = adjPlayerOrigin - headRightDir * 6.5_qf;
+    const auto adjPlayerOriginRight = adjPlayerOrigin + headRightDir * 6.5_qf;
 
     return std::tuple{
         adjPlayerOrigin, adjPlayerOriginLeft, adjPlayerOriginRight};
 }
 
 [[nodiscard]] static auto VR_GetFixedZHeadHandDiffs(
-    const glm::vec3& adjPlayerOriginLeft,
-    const glm::vec3& adjPlayerOriginRight) noexcept
+    const qvec3& adjPlayerOriginLeft,
+    const qvec3& adjPlayerOriginRight) noexcept
 {
-    const auto fixZ = [&](glm::vec3 v) {
+    const auto fixZ = [&](qvec3 v) {
         v[2] = adjPlayerOriginLeft[2];
         return v;
     };
@@ -2222,9 +2217,8 @@ void SetHandPos(int index, entity_t* player)
     };
 }
 
-[[nodiscard]] static glm::vec3 VR_GetBodyYawMixHandDir(
-    const std::array<glm::vec3, 2>& headHandDiffs,
-    const glm::vec3& headFwdDir) noexcept
+[[nodiscard]] static qvec3 VR_GetBodyYawMixHandDir(
+    const std::array<qvec3, 2>& headHandDiffs, const qvec3& headFwdDir) noexcept
 {
     auto result = glm::mix(headHandDiffs[0], headHandDiffs[1], 0.5f);
     result /= 10.f;
@@ -2243,8 +2237,8 @@ void SetHandPos(int index, entity_t* player)
     return result;
 }
 
-[[nodiscard]] static glm::vec3 VR_GetBodyYawMixFinalDir(
-    const glm::vec3& headFwdDir, const glm::vec3& mixHandDir) noexcept
+[[nodiscard]] static qvec3 VR_GetBodyYawMixFinalDir(
+    const qvec3& headFwdDir, const qvec3& mixHandDir) noexcept
 {
     return glm::normalize(glm::mix(headFwdDir, mixHandDir, 0.8f));
 }
@@ -2269,7 +2263,7 @@ void SetHandPos(int index, entity_t* player)
         mixFinalDir};
 }
 
-[[nodiscard]] float VR_GetBodyYawAngle() noexcept
+[[nodiscard]] qfloat VR_GetBodyYawAngle() noexcept
 {
     if(!controllers[0].active || !controllers[1].active || !svPlayerActive())
     {
@@ -2286,20 +2280,20 @@ void SetHandPos(int index, entity_t* player)
 }
 
 
-[[nodiscard]] static glm::vec3 VR_Get2HVirtualStockMix(
-    const glm::vec3& viaHand, const glm::vec3& viaShoulder) noexcept
+[[nodiscard]] static qvec3 VR_Get2HVirtualStockMix(
+    const qvec3& viaHand, const qvec3& viaShoulder) noexcept
 {
     return glm::mix(viaHand, viaShoulder, vr_2h_virtual_stock_factor.value);
 }
 
-[[nodiscard]] static glm::vec3 VR_Get2HHoldingHandPos(
+[[nodiscard]] static qvec3 VR_Get2HHoldingHandPos(
     const int holdingHand, const int helpingHand) noexcept
 {
     (void)helpingHand;
     return cl.handpos[holdingHand];
 }
 
-[[nodiscard]] static glm::vec3 VR_Get2HHelpingHandPos(
+[[nodiscard]] static qvec3 VR_Get2HHelpingHandPos(
     const int holdingHand, const int helpingHand) noexcept
 {
     const auto [thox, thoy, thoz] =
@@ -2317,7 +2311,7 @@ void SetHandPos(int index, entity_t* player)
 }
 
 [[nodiscard]] static bool VR_InStockDistance(const int holdingHand,
-    const int helpingHand, const glm::vec3& shoulderPos) noexcept
+    const int helpingHand, const qvec3& shoulderPos) noexcept
 {
     (void)helpingHand;
 
@@ -2338,12 +2332,12 @@ static void VR_DoTeleportation()
     {
         constexpr float oh = 6.f;
         constexpr float oy = 12.f;
-        const glm::vec3 mins{-oh, -oh, -oy};
-        const glm::vec3 maxs{oh, oh, oy};
+        const qvec3 mins{-oh, -oh, -oy};
+        const qvec3 maxs{oh, oh, oy};
 
         const auto fwd = getFwdVecFromPitchYawRoll(cl.handrot[cVR_OffHand]);
         const auto target =
-            cl.handpos[cVR_OffHand] + vr_teleport_range.value * fwd;
+            cl.handpos[cVR_OffHand] + qfloat(vr_teleport_range.value) * fwd;
 
         const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
 
@@ -2420,7 +2414,7 @@ VR_UpdateDevicesOrientationPosition() noexcept
             // TODO VR: (P2) this should use the player's appoximated body
             // origin instead of the head origin, taking controllers into
             // account. See comment below for more info.
-            glm::vec3 moveInTracking = headOrigin - lastHeadOrigin;
+            qvec3 moveInTracking = headOrigin - lastHeadOrigin;
             moveInTracking[0] *= -meters_to_units;
             moveInTracking[1] *= -meters_to_units;
             moveInTracking[2] = 0;
@@ -2554,7 +2548,7 @@ static void VR_DoWeaponDirSlerp()
         const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
         const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
 
-        const auto anyNan = [](const glm::vec3& v) {
+        const auto anyNan = [](const qvec3& v) {
             return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]);
         };
 
@@ -2599,7 +2593,7 @@ static void VR_DoUpdatePrevAnglesAndPlayerYaw()
 }
 
 static bool VR_GoodDistanceForDynamic2HGrabImpl(
-    const glm::vec3& holdingHandPos, const glm::vec3& helpingHandPos)
+    const qvec3& holdingHandPos, const qvec3& helpingHandPos)
 {
     // TODO VR: (P1) weapon cvar for this!
     const auto handDist = glm::distance(holdingHandPos, helpingHandPos);
@@ -2634,13 +2628,13 @@ static bool VR_GoodDistanceFor2HGrab(
             : VR_GetWpnOffHandOffsets(
                   VR_GetWpnCVarFromModel(cl.offhand_viewent.model));
 
-    const glm::vec3 extraOffset =
+    const qvec3 extraOffset =
         holdingHand == cVR_MainHand ? offHandOffsets : vec3_zero;
 
     entity_t* const anchor =
         holdingHand == cVR_OffHand ? &cl.offhand_viewent : &cl.viewent;
 
-    const glm::vec3 pos = VR_GetWpnFixed2HFinalPosition(
+    const qvec3 pos = VR_GetWpnFixed2HFinalPosition(
         anchor, wpnCvarEntry, horizflip, extraOffset, cl.handrot[holdingHand]);
 
     const bool alreadyAiming = vr_should_aim_2h[holdingHand];
@@ -2659,15 +2653,15 @@ static bool VR_GoodDistanceForOffHand2HGrab()
     return VR_GoodDistanceFor2HGrab(cVR_OffHand, cVR_MainHand);
 }
 
-static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
+static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
 {
     return glm::distance(a, b) < 5.f;
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponAttachmentPosImpl(
-    const int index, const int cvarEntry, const glm::vec3& attachmentOffsets)
+[[nodiscard]] qvec3 VR_CalcWeaponAttachmentPosImpl(
+    const int index, const int cvarEntry, const qvec3& attachmentOffsets)
 {
-    glm::vec3 finalOffsets{VR_GetWpnOffsets(cvarEntry)};
+    qvec3 finalOffsets{VR_GetWpnOffsets(cvarEntry)};
     finalOffsets[1] *= -1.f;
 
     finalOffsets /= VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
@@ -2680,35 +2674,34 @@ static bool VR_GoodDistanceForHandSwitch(const glm::vec3& a, const glm::vec3& b)
     return redirectVector(finalOffsets, cl.handrot[index]);
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
+[[nodiscard]] qvec3 VR_CalcWeaponMuzzlePosImpl(
     const int index, const int cvarEntry) noexcept
 {
     return VR_CalcWeaponAttachmentPosImpl(
         index, cvarEntry, VR_GetWpnMuzzleOffsets(cvarEntry));
 }
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponButtonPosImpl(
+[[nodiscard]] qvec3 VR_CalcWeaponButtonPosImpl(
     const int index, const int cvarEntry) noexcept
 {
     return VR_CalcWeaponAttachmentPosImpl(
         index, cvarEntry, VR_GetWpnButtonOffsets(cvarEntry));
 }
 
-[[nodiscard]] glm::vec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
+[[nodiscard]] qvec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
 {
     return cl.handpos[index] +
            VR_CalcWeaponMuzzlePosImpl(index, VR_GetWpnCvarEntry(index));
 }
 
-[[nodiscard]] glm::vec3 VR_CalcFinalWpnButtonPos(const int index) noexcept
+[[nodiscard]] qvec3 VR_CalcFinalWpnButtonPos(const int index) noexcept
 {
     return cl.handpos[index] +
            VR_CalcWeaponButtonPosImpl(index, VR_GetWpnCvarEntry(index));
 }
 
-static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
-    const glm::vec3 (&originalRots)[2], const int holdingHand,
-    const int helpingHand, const glm::vec3& shoulderStockPos)
+static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
+    const int holdingHand, const int helpingHand, const qvec3& shoulderStockPos)
 {
     // if(!svPlayerActive())
     // {
@@ -2737,7 +2730,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
     const bool goodDistanceOrAlreadyAiming =
         VR_GoodDistanceFor2HGrab(holdingHand, helpingHand);
 
-    const float frametime = cl.time - cl.oldtime;
+    const auto frametime = cl.time - cl.oldtime;
 
     const auto transitionVar = [&frametime](float& var, const bool predicate,
                                    const float speed) {
@@ -2801,7 +2794,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode,
         roll + oR * vr_2h_aim_transition[holdingHand];
 }
 
-static void VR_Do2HAiming(const glm::vec3 (&originalRots)[2])
+static void VR_Do2HAiming(const qvec3 (&originalRots)[2])
 {
     const auto vr2HMode = cvarToEnum<Vr2HMode>(vr_2h_mode);
 
@@ -2840,13 +2833,13 @@ static void VR_FakeVRControllerAiming()
     const auto& playerOrigin = VR_GetPlayerOrigin();
 
     cl.handpos[cVR_MainHand] =
-        playerOrigin + vfwd * 4.5f + vright * 4.5f + vup * 6.f;
+        playerOrigin + vfwd * 4.5_qf + vright * 4.5_qf + vup * 6._qf;
 
     cl.handpos[cVR_OffHand] =
-        playerOrigin + vfwd * 4.5f - vright * 4.5f + vup * 6.f;
+        playerOrigin + vfwd * 4.5_qf - vright * 4.5_qf + vup * 6._qf;
 
-    const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8.f,
-        playerOrigin + vup * 8.f + vwfwd * 1000.f, MOVE_NORMAL,
+    const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
+        playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
         getPlayerEdict());
 
     const auto maindir =
@@ -2861,7 +2854,7 @@ static void VR_FakeVRControllerAiming()
     cl.handrot[cVR_OffHand] = offang;
 }
 
-static void VR_ControllerAiming(const glm::vec3& orientation)
+static void VR_ControllerAiming(const qvec3& orientation)
 {
     // In fake VR mode, aim is controlled with the mouse.
     if(vr_fakevr.value == 0)
@@ -2870,13 +2863,13 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
         cl.viewangles[YAW] = orientation[YAW];
     }
 
-    glm::vec3 originalRots[2];
+    qvec3 originalRots[2];
 
     for(int i = 0; i < 2; i++)
     {
         const auto rotOfs =
-            i == 0 ? glm::vec3{vr_offhandpitch.value, vr_offhandyaw.value, 0.f}
-                   : glm::vec3{vr_gunangle.value, vr_gunyaw.value, 0.f};
+            i == 0 ? qvec3{vr_offhandpitch.value, vr_offhandyaw.value, 0.f}
+                   : qvec3{vr_gunangle.value, vr_gunyaw.value, 0.f};
 
         const auto gunMatPitch = CreateRotMat(0, rotOfs[0]);
         const auto gunMatYaw = CreateRotMat(1, rotOfs[1]);
@@ -2940,12 +2933,12 @@ static void VR_ControllerAiming(const glm::vec3& orientation)
             const auto [fwd, right, up] =
                 getAngledVectors(cl.handrot[otherHandIdx]);
 
-            const auto adjHandPos = handPos + fwd * 2.f + up * -2.5f;
+            const auto adjHandPos = handPos + fwd * 2._qf + up * -2.5_qf;
 
             const auto dist = glm::distance(adjHandPos, wpnButtonEntity.origin);
 
             state._prevHover = state._hover;
-            state._hover = dist < 2.5f;
+            state._hover = dist < 2.5_qf;
             state._lastClTime = cl.time;
 
             const bool risingEdge = !state._prevHover && state._hover;
@@ -3036,10 +3029,10 @@ void VR_UpdateScreenContent()
         case VrAimMode::e_BLENDED: [[fallthrough]];
         case VrAimMode::e_BLENDED_NOPITCH:
         {
-            const float diffHMDYaw = orientation[YAW] - lastOrientation[YAW];
-            const float diffHMDPitch =
+            const auto diffHMDYaw = orientation[YAW] - lastOrientation[YAW];
+            const auto diffHMDPitch =
                 orientation[PITCH] - lastOrientation[PITCH];
-            const float diffAimYaw = cl.aimangles[YAW] - lastAim[YAW];
+            const auto diffAimYaw = cl.aimangles[YAW] - lastAim[YAW];
             float diffYaw;
 
             // find new view position based on orientation delta
@@ -3100,8 +3093,7 @@ void VR_UpdateScreenContent()
         // rotate it by the current input angles (viewangle - eye
         // orientation)
         const auto orientation = QuatToYawPitchRoll(eye.orientation);
-        glm::vec3 temp{
-            -eye.position.v[2], -eye.position.v[0], eye.position.v[1]};
+        qvec3 temp{-eye.position.v[2], -eye.position.v[0], eye.position.v[1]};
         temp *= meters_to_units;
         vr_viewOffset = Vec3RotateZ(
             temp, (r_refdef.viewangles[YAW] - orientation[YAW]) * M_PI_DIV_180);
@@ -3133,16 +3125,16 @@ void VR_SetMatrices()
     glLoadMatrixf((GLfloat*)projection.m);
 }
 
-[[nodiscard]] glm::vec3 VR_GetLastHeadOrigin() noexcept
+[[nodiscard]] qvec3 VR_GetLastHeadOrigin() noexcept
 {
     return lastHeadOrigin;
 }
 
-[[nodiscard]] float VR_GetCrouchRatio() noexcept
+[[nodiscard]] qfloat VR_GetCrouchRatio() noexcept
 {
     const auto maxHeight = vr_height_calibration.value;
     const auto currHeight = VR_GetLastHeadOrigin()[2];
-    return std::clamp((maxHeight / currHeight) - 1.f, 0.f, 1.f);
+    return std::clamp((maxHeight / currHeight) - 1._qf, 0._qf, 1._qf);
 }
 
 void VR_CalibrateHeight()
@@ -3152,8 +3144,7 @@ void VR_CalibrateHeight()
     Con_Printf("Calibrated height to %.2f\n", height);
 }
 
-[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(
-    const glm::vec3& angles) noexcept
+[[nodiscard]] qvec3 VR_AddOrientationToViewAngles(const qvec3& angles) noexcept
 {
     const auto [pitch, yaw, roll] =
         QuatToYawPitchRoll(current_eye->orientation);
@@ -3162,19 +3153,19 @@ void VR_CalibrateHeight()
 }
 
 [[nodiscard]] static bool VR_InHipHolsterDistance(
-    const glm::vec3& hand, const glm::vec3& holster)
+    const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_hip_holster_thresh.value;
 }
 
 [[nodiscard]] static bool VR_InShoulderHolsterDistance(
-    const glm::vec3& hand, const glm::vec3& holster)
+    const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
 }
 
 [[nodiscard]] static bool VR_InUpperHolsterDistance(
-    const glm::vec3& hand, const glm::vec3& holster)
+    const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_upper_holster_thresh.value;
 }
@@ -3230,7 +3221,7 @@ static void VR_ShowFnDrawPointsAndLines(F&& drawPrimitives) noexcept
     VR_ShowFnDrawPoints(drawPrimitives);
 }
 
-static void VR_GLVertex3f(const glm::vec3& v) noexcept
+static void VR_GLVertex3f(const qvec3& v) noexcept
 {
     glVertex3f(v[0], v[1], v[2]);
 }
@@ -3295,7 +3286,7 @@ void VR_ShowVRTorsoDebugLines()
 
     VR_ShowFnSetupGL();
     VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto len = 20.f;
+        const auto len = 20._qf;
 
         const auto [adjPlayerOrigin, adjPlayerOriginLeft, adjPlayerOriginRight,
             headFwdDir, headRightDir, headUpDir, mixHandDir, mixFinalDir] =
@@ -3321,7 +3312,7 @@ void VR_ShowVRTorsoDebugLines()
 
         glColor4f(1, 0, 0, 0.75);
         VR_GLVertex3f(adjPlayerOrigin);
-        VR_GLVertex3f(adjPlayerOrigin + mixFinalDir * len * 1.25f);
+        VR_GLVertex3f(adjPlayerOrigin + mixFinalDir * len * 1.25_qf);
 
         glEnd();
     });
@@ -3370,7 +3361,7 @@ void VR_ShowHipHolsters()
     const auto leftHipPos = VR_GetLeftHipPos();
     const auto rightHipPos = VR_GetRightHipPos();
 
-    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
         if(VR_InHipHolsterDistance(hand, holster))
         {
             glColor4f(1, 1, 0, 0.95);
@@ -3388,7 +3379,7 @@ void VR_ShowHipHolsters()
         }
     };
 
-    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
         doColor(hand, holster);
         VR_GLVertex3f(hand);
         VR_GLVertex3f(holster);
@@ -3431,7 +3422,7 @@ void VR_ShowShoulderHolsters()
     const auto leftShoulderPos = VR_GetLeftShoulderHolsterPos();
     const auto rightShoulderPos = VR_GetRightShoulderHolsterPos();
 
-    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
         if(VR_InShoulderHolsterDistance(hand, holster))
         {
             glColor4f(1, 1, 0, 0.95);
@@ -3449,7 +3440,7 @@ void VR_ShowShoulderHolsters()
         }
     };
 
-    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
         doColor(hand, holster);
         VR_GLVertex3f(hand);
         VR_GLVertex3f(holster);
@@ -3492,7 +3483,7 @@ void VR_ShowUpperHolsters()
     const auto leftUpperPos = VR_GetLeftUpperPos();
     const auto rightUpperPos = VR_GetRightUpperPos();
 
-    const auto doColor = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
         if(VR_InUpperHolsterDistance(hand, holster))
         {
             glColor4f(1, 1, 0, 0.95);
@@ -3510,7 +3501,7 @@ void VR_ShowUpperHolsters()
         }
     };
 
-    const auto doLine = [&](const glm::vec3& hand, const glm::vec3& holster) {
+    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
         doColor(hand, holster);
         VR_GLVertex3f(hand);
         VR_GLVertex3f(holster);
@@ -3541,19 +3532,19 @@ void VR_ShowUpperHolsters()
 }
 
 static void VR_ShowCrosshairImpl(const float size, const float alpha,
-    const glm::vec3& start, const glm::vec3& forward)
+    const qvec3& start, const qvec3& forward)
 {
     switch((int)vr_crosshair.value)
     {
         default:
         case VrCrosshair::e_POINT:
         {
-            glm::vec3 end, impact;
+            qvec3 end, impact;
 
             if(vr_crosshair_depth.value <= 0)
             {
                 // trace to first wall
-                end = start + 4096.f * forward;
+                end = start + 4096._qf * forward;
                 end[2] += vr_crosshairy.value;
 
                 impact = TraceLine(start, end).endpos;
@@ -3561,7 +3552,7 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
             else
             {
                 // fix crosshair to specific depth
-                impact = start + vr_crosshair_depth.value * forward;
+                impact = start + qfloat(vr_crosshair_depth.value) * forward;
             }
 
             glEnable(GL_POINT_SMOOTH);
@@ -3578,7 +3569,7 @@ static void VR_ShowCrosshairImpl(const float size, const float alpha,
         case VrCrosshair::e_LINE: [[fallthrough]];
         case VrCrosshair::e_LINE_SMOOTH:
         {
-            const float depth =
+            const qfloat depth =
                 vr_crosshair_depth.value <= 0 ? 4096 : vr_crosshair_depth.value;
 
             // trace to first entity
@@ -3767,7 +3758,7 @@ void VR_ShowWpnoffsetHelperOffset()
 
     const auto doColor = [&] { glColor4f(0, 1, 1, 0.75); };
 
-    const auto doLine = [&](const glm::vec3& a, const glm::vec3& b) {
+    const auto doLine = [&](const qvec3& a, const qvec3& b) {
         doColor();
         VR_GLVertex3f(a);
         VR_GLVertex3f(b);
@@ -3859,7 +3850,7 @@ void VR_ShowHandPosAndRot()
             const auto& rot = cl.handrot[hand];
 
             const auto fwd = getFwdVecFromPitchYawRoll(rot);
-            const auto end = pos + fwd * 1.f;
+            const auto end = pos + fwd * 1._qf;
 
             VR_GLVertex3f(pos);
             VR_GLVertex3f(end);
@@ -3898,7 +3889,7 @@ void VR_ShowHandAnchorVertex()
         VR_GetWpnCvarEntry(hand), WpnCVar::HandAnchorVertex));
 
     const auto drawVertex = [&](const int idxOffset) {
-        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
             anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
 
         VR_GLVertex3f(pos);
@@ -3965,7 +3956,7 @@ void VR_Show2HHandAnchorVertex()
         VR_GetWpnCvarEntry(hand), WpnCVar::TwoHHandAnchorVertex));
 
     const auto drawVertex = [&](const int idxOffset) {
-        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
             anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
 
         VR_GLVertex3f(pos);
@@ -4032,7 +4023,7 @@ void VR_ShowWpnButtonAnchorVertex()
         VR_GetWpnCvarEntry(hand), WpnCVar::WpnButtonAnchorVertex));
 
     const auto drawVertex = [&](const int idxOffset) {
-        const glm::vec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
             anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
 
         VR_GLVertex3f(pos);
@@ -4097,8 +4088,8 @@ void VR_Draw2D()
 {
     bool draw_sbar = false;
 
-    glm::vec3 menu_angles;
-    glm::vec3 target;
+    qvec3 menu_angles;
+    qvec3 target;
 
     const float scale_hud = vr_menu_scale.value;
 
@@ -4154,7 +4145,7 @@ void VR_Draw2D()
         }
 
         const auto fwd = getFwdVecFromPitchYawRoll(menu_angles);
-        target = r_refdef.vieworg + vr_menu_distance.value * fwd;
+        target = r_refdef.vieworg + qfloat(vr_menu_distance.value) * fwd;
     }
     else
     {
@@ -4164,7 +4155,7 @@ void VR_Draw2D()
         menu_angles = cl.handrot[hand];
 
         const auto fwd = getFwdVecFromPitchYawRoll(menu_angles);
-        target = cl.handpos[hand] + vr_menu_distance.value * fwd;
+        target = cl.handpos[hand] + qfloat(vr_menu_distance.value) * fwd;
     }
 
     // TODO VR: (P2) control smoothing with cvar
@@ -4245,11 +4236,11 @@ void VR_Draw2D()
 
 void VR_DrawSbar()
 {
-    glm::vec3 sbar_angles;
-    glm::vec3 forward;
-    glm::vec3 right;
-    glm::vec3 up;
-    glm::vec3 target;
+    qvec3 sbar_angles;
+    qvec3 forward;
+    qvec3 right;
+    qvec3 up;
+    qvec3 target;
 
     const float scale_hud = vr_hud_scale.value;
 
@@ -4268,7 +4259,7 @@ void VR_DrawSbar()
             sbar_angles = cl.handrot[cVR_MainHand];
 
             std::tie(forward, right, up) = getAngledVectors(sbar_angles);
-            target = cl.handpos[cVR_MainHand] + -5.f * right;
+            target = cl.handpos[cVR_MainHand] + -5._qf * right;
         }
         else
         {
@@ -4277,7 +4268,7 @@ void VR_DrawSbar()
             sbar_angles = cl.handrot[cVR_OffHand];
 
             std::tie(forward, right, up) = getAngledVectors(sbar_angles);
-            target = cl.handpos[cVR_OffHand] + 0.f * right;
+            target = cl.handpos[cVR_OffHand] + 0._qf * right;
         }
     }
     else
@@ -4292,7 +4283,7 @@ void VR_DrawSbar()
 
         std::tie(forward, right, up) = getAngledVectors(sbar_angles);
 
-        target = cl.viewent.origin + 1.f * forward;
+        target = cl.viewent.origin + 1._qf * forward;
     }
 
     // TODO VR: (P2) 1.0? Attach to off hand?
@@ -4306,14 +4297,14 @@ void VR_DrawSbar()
     if(vr_aimmode.value == VrAimMode::e_CONTROLLER &&
         sbarmode == VrSbarMode::OffHand)
     {
-        glm::fquat m;
+        qquat m;
         m = glm::quatLookAt(forward, up);
-        m = glm::rotate(m, vr_sbar_offset_pitch.value, glm::vec3{1, 0, 0});
-        m = glm::rotate(m, vr_sbar_offset_yaw.value, glm::vec3{0, 1, 0});
-        m = glm::rotate(m, vr_sbar_offset_roll.value, glm::vec3{0, 0, 1});
+        m = glm::rotate(m, qfloat(vr_sbar_offset_pitch.value), qvec3{1, 0, 0});
+        m = glm::rotate(m, qfloat(vr_sbar_offset_yaw.value), qvec3{0, 1, 0});
+        m = glm::rotate(m, qfloat(vr_sbar_offset_roll.value), qvec3{0, 0, 1});
         m = glm::normalize(m);
 
-        glMultMatrixf(&glm::mat4_cast(m)[0][0]);
+        glMultMatrixf(toGlMat(m));
 
         const auto ox = vr_sbar_offset_x.value;
         const auto oy = vr_sbar_offset_y.value;
@@ -4339,7 +4330,7 @@ void VR_DrawSbar()
     glPopMatrix();
 }
 
-void VR_SetAngles(const glm::vec3& angles) noexcept
+void VR_SetAngles(const qvec3& angles) noexcept
 {
     cl.aimangles = angles;
     cl.viewangles = angles;
@@ -4495,6 +4486,10 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto ssLeftHand = readSkeletalSummary(vrahLeftHandAnim);
     const auto ssRightHand = readSkeletalSummary(vrahRightHandAnim);
 
+    vr_ss_lefthand = ssLeftHand;
+    vr_ss_righthand = ssRightHand;
+
+    // TODO VR: (P0) remove
     const auto toHandAnimation =
         [](const vr::VRSkeletalSummaryData_t& summary) {
             const auto curls = summary.flFingerCurl;
@@ -4769,7 +4764,7 @@ void VR_Move(usercmd_t* cmd)
     }
 
     // VR: Hands.
-    const auto computeHotSpot = [](const glm::vec3& hand) {
+    const auto computeHotSpot = [](const qvec3& hand) {
         if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderHolsterPos()))
         {
             return QVR_HS_LEFT_SHOULDER_HOLSTER;
@@ -4848,7 +4843,7 @@ void VR_Move(usercmd_t* cmd)
         const auto [vfwd, vright, vup] = VR_GetHeadYawDirs();
 
         // avoid gimbal by using up if we are point up/down
-        if(fabsf(lfwd[2]) > 0.8f)
+        if(fabs(lfwd[2]) > 0.8f)
         {
             if(lfwd[2] < -0.8f)
             {
@@ -4867,9 +4862,9 @@ void VR_Move(usercmd_t* cmd)
         lfwd *= fac;
         lright *= fac;
 
-        const glm::vec3 move = (fwdMove * lfwd) + (sideMove * lright);
-        const float fwd = DotProduct(move, vfwd);
-        const float right = DotProduct(move, vright);
+        const qvec3 move = (qfloat(fwdMove) * lfwd) + (qfloat(sideMove) * lright);
+        const auto fwd = DotProduct(move, vfwd);
+        const auto right = DotProduct(move, vright);
 
         // Quake run doesn't affect the value of cl_sidespeed.value, so
         // just use forward speed here for consistency
@@ -4879,7 +4874,7 @@ void VR_Move(usercmd_t* cmd)
 
     // roomscalemove:
     cmd->roomscalemove =
-        vr_roomscale_move * static_cast<float>(1.0f / host_frametime);
+        vr_roomscale_move * static_cast<qfloat>(1._qf / host_frametime);
 
     std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[cVR_OffHand]);
     cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
@@ -5015,3 +5010,19 @@ void VR_Move(usercmd_t* cmd)
 // together into one giant hubworld"
 
 // TODO VR: (P1) Swimming direction - what controller to follow?
+
+// TODO VR: (P1) "no one wants to be faced with giant space shuttle like control
+// panels full of semi-cryptic technical parameters to tweak right before one
+// can start playing. That's just generally means the developer offloads the
+// burden of setting the right defaults for many variables to the user, and the
+// user experience suffers in consequence. "
+//
+// "These games are best enjoyed as plug and play experiences. And having to
+// tweak various multipliers for all sorts of obscure parameters usually ruins
+// that."
+
+// TODO VR: (P1) "hey i just was wondering how to use the soundtrack for mission
+// pack 1? do i need to swap out the original soundtrack before launching? "
+
+// TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
+// the future Frikbot could be added its a pretty straightforward add to QuakeC"
