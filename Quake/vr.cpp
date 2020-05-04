@@ -332,7 +332,8 @@ void DeleteFBO(const fbo_t& fbo)
     return out;
 }
 
-[[nodiscard]] static qvec3 Vec3RotateZ(const qvec3& in, const qfloat angle) noexcept
+[[nodiscard]] static qvec3 Vec3RotateZ(
+    const qvec3& in, const qfloat angle) noexcept
 {
     return {
         in[0] * std::cos(angle) - in[1] * std::sin(angle), //
@@ -529,7 +530,7 @@ static void VR_Deadzone_f(cvar_t* var) noexcept
 void VR_ApplyModelMod(
     const qvec3& scale, const qvec3& offsets, aliashdr_t* const hdr) noexcept
 {
-    const qfloat scaleCorrect = VR_GetScaleCorrect();
+    const auto scaleCorrect = VR_GetScaleCorrect();
 
     hdr->scale = hdr->original_scale * scale * scaleCorrect;
     hdr->scale_origin = hdr->original_scale_origin + offsets;
@@ -585,7 +586,7 @@ void VR_ApplyModelMod(
 
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 {
-    const qvec3 ofs = VR_GetWpnOffsets(cvarEntry);
+    const auto ofs = VR_GetWpnOffsets(cvarEntry);
     const auto scale = VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
 
     VR_ApplyModelMod({scale, scale, scale}, ofs, hdr);
@@ -1838,6 +1839,7 @@ void SetHandPos(int index, entity_t* player)
     return cl_entities[cl.viewentity].origin;
 }
 
+// TODO VR: (P1) code repetition with r_alias
 [[nodiscard]] qvec3 VR_GetAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex) noexcept
 {
@@ -1845,7 +1847,8 @@ void SetHandPos(int index, entity_t* player)
 
     lerpdata_t lerpdata;
     R_SetupAliasFrame(anchor, anchorHdr, anchor->frame, &lerpdata);
-    R_SetupEntityTransform(anchor, &lerpdata);
+    R_SetupEntityTransform(
+        anchor, &lerpdata); // TODO VR: (P0) probably not needed
 
     // ------------------------------------------------------------------------
     // VR: Mostly taken from `GL_DrawAliasFrame`.
@@ -1911,11 +1914,31 @@ void SetHandPos(int index, entity_t* player)
         result[1] *= -1.f;
     }
 
+    // const auto scaleCorrect = VR_GetScaleCorrect();
+    //
+    // auto scale = anchorHdr->original_scale * scale * scaleCorrect;
+    // auto scale_origin = anchorHdr->original_scale_origin + offsets;
+    // scale_origin *= scaleCorrect;
+
+    const auto offsets = anchorHdr->scale_origin;
+
     result *= anchorHdr->scale;
-    result[0] += anchorHdr->scale_origin[0];
-    result[1] -= anchorHdr->scale_origin[1];
-    result[2] += anchorHdr->scale_origin[2];
-    result += extraOffsets;
+
+    const auto scaleratio = anchorHdr->scale / anchorHdr->original_scale;
+
+    result += offsets; // * scaleratio;
+    // result += offsets * 3.f;
+
+    // result[0] -=
+    //     anchorHdr->scale_origin[0] - anchorHdr->original_scale_origin[0];
+    // result[1] -=
+    //     anchorHdr->scale_origin[1] - anchorHdr->original_scale_origin[1];
+    // result[2] -=
+    //     anchorHdr->scale_origin[2] - anchorHdr->original_scale_origin[2];
+
+
+    //  result += extraOffsets;
+    // result *= 0.f;
 
     return result;
 }
@@ -1924,8 +1947,9 @@ void SetHandPos(int index, entity_t* player)
     entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
     const qvec3& rotation, const bool horizFlip) noexcept
 {
-    auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
+    const auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, horizFlip);
+    const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     return quake::util::redirectVector(finalVertexOffsets, rotation);
 }
@@ -1934,10 +1958,63 @@ void SetHandPos(int index, entity_t* player)
     entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
     const qvec3& rotation, const bool horizFlip) noexcept
 {
-    const qvec3 angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
+
+    const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
+    qvec3 c = VR_GetAliasVertexOffsets(anchor, anchorVertex);
+
+    glm::mat4 trMat = glm::translate(anchor->origin);
+
+    trMat *= glm::rotate(glm::radians(anchor->angles[YAW]), qvec3{0, 0, 1});
+    trMat *= glm::rotate(glm::radians(-anchor->angles[PITCH]), qvec3{0, 1, 0});
+    trMat *= glm::rotate(glm::radians(anchor->angles[ROLL]), qvec3{1, 0, 0});
+
+    if(horizFlip)
+    {
+        trMat *= glm::scale(qvec3{1._qf, -1._qf, 1._qf});
+    }
+
+    // auto a = anchor->angles;
+    // a[PITCH] *= -1._qf;
+    // a[PITCH] -= 90._qf;
+    // // a[ROLL] *= -1.f;
+    // a[ROLL] -= 90._qf;
+    // // a[ROLL] += 180._qf;
+    // const auto [fwd, right, up] = getAngledVectors(a);
+
+    // qquat m;
+    // m = glm::quatLookAtLH(fwd, up);
+    // // m = glm::rotate(m, qfloat(vr_sbar_offset_pitch.value), qvec3{1, 0,
+    // 0});
+    // // m = glm::rotate(m, qfloat(vr_sbar_offset_yaw.value), qvec3{0, 1, 0});
+    // // m = glm::rotate(m, qfloat(vr_sbar_offset_roll.value), qvec3{0, 0, 1});
+    // m = glm::normalize(m);
+    //
+    // trMat *= glm::toMat4(m);
+
+    // trMat *= glm::yawPitchRoll(glm::radians(anchor->angles[YAW]),
+    //     glm::radians(anchor->angles[PITCH]),
+    //     glm::radians(anchor->angles[ROLL]));
+
+    trMat *= glm::translate(extraOffsets);
+
+    trMat *= glm::translate(anchorHdr->scale_origin);
+    trMat *= glm::scale(anchorHdr->scale);
+
+
+
+    return trMat * glm::vec4(c, 1.f);
+
+
+
+    const auto angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, rotation, horizFlip);
 
-    return anchor->origin + angledOffsets;
+    const auto offsets = anchorHdr->scale_origin;
+
+    const auto scaleratio = anchorHdr->scale / anchorHdr->original_scale;
+
+    return anchor->origin + angledOffsets; // +
+    quake::util::redirectVector(offsets, rotation);
 }
 
 [[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
@@ -2062,7 +2139,8 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] qvec3 VR_GetHolsterXCrouchAdjustment(const float mult) noexcept
 {
     // TODO VR: (P2) abstract this, used in view as well
-    const auto heightRatio = std::clamp(VR_GetCrouchRatio() - 0.2_qf, 0._qf, 0.6_qf);
+    const auto heightRatio =
+        std::clamp(VR_GetCrouchRatio() - 0.2_qf, 0._qf, 0.6_qf);
     const auto crouchXOffset = heightRatio * mult;
 
     const auto vFwd =
@@ -2658,13 +2736,20 @@ static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
     return glm::distance(a, b) < 5.f;
 }
 
+// TODO VR: (P0) use anchor vertex here as well
 [[nodiscard]] qvec3 VR_CalcWeaponAttachmentPosImpl(
-    const int index, const int cvarEntry, const qvec3& attachmentOffsets)
+    const int index, const int cvarEntry, qvec3 attachmentOffsets)
 {
     qvec3 finalOffsets{VR_GetWpnOffsets(cvarEntry)};
     finalOffsets[1] *= -1.f;
 
     finalOffsets /= VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
+
+    // TODO VR: (P2) hack?
+    if(index == cVR_OffHand)
+    {
+        attachmentOffsets[1] *= -1.f;
+    }
 
     finalOffsets += attachmentOffsets;
 
@@ -2677,15 +2762,20 @@ static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
 [[nodiscard]] qvec3 VR_CalcWeaponMuzzlePosImpl(
     const int index, const int cvarEntry) noexcept
 {
-    return VR_CalcWeaponAttachmentPosImpl(
+    auto res = VR_CalcWeaponAttachmentPosImpl(
         index, cvarEntry, VR_GetWpnMuzzleOffsets(cvarEntry));
+
+    return res;
 }
 
+// TODO VR: (P1) unused
 [[nodiscard]] qvec3 VR_CalcWeaponButtonPosImpl(
     const int index, const int cvarEntry) noexcept
 {
-    return VR_CalcWeaponAttachmentPosImpl(
+    auto res = VR_CalcWeaponAttachmentPosImpl(
         index, cvarEntry, VR_GetWpnButtonOffsets(cvarEntry));
+
+    return res;
 }
 
 [[nodiscard]] qvec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
@@ -3867,30 +3957,31 @@ void VR_ShowHandPosAndRot()
     VR_ShowFnCleanupGL();
 }
 
-void VR_ShowHandAnchorVertex()
+static void VR_ShowHandAnchorVertexImpl(const int handIdx)
 {
-    if(vr_impl_draw_hand_anchor_vertex == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto hand =
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+    assert(svPlayerActive());
 
     const auto anchor =
-        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+        handIdx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
 
     if(anchor->model == nullptr)
     {
         return;
     }
 
-    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
-        VR_GetWpnCvarEntry(hand), WpnCVar::HandAnchorVertex));
+    const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::HandAnchorVertex));
+
+    const auto rots = VR_GetWpnAngleOffsets(wpnCvarEntry);
+
+    const bool horizFlip = handIdx == cVR_MainHand ? false : true;
 
     const auto drawVertex = [&](const int idxOffset) {
-        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
+        const auto pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[handIdx] + rots,
+            horizFlip);
 
         VR_GLVertex3f(pos);
     };
@@ -3931,6 +4022,20 @@ void VR_ShowHandAnchorVertex()
     });
 
     VR_ShowFnCleanupGL();
+}
+
+void VR_ShowHandAnchorVertex()
+{
+    VR_ShowHandAnchorVertexImpl(cVR_MainHand);
+    VR_ShowHandAnchorVertexImpl(cVR_OffHand);
+
+    if(vr_impl_draw_hand_anchor_vertex == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    VR_ShowHandAnchorVertexImpl(
+        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand);
 }
 
 // TODO VR: (P1) code repetition
@@ -4304,7 +4409,7 @@ void VR_DrawSbar()
         m = glm::rotate(m, qfloat(vr_sbar_offset_roll.value), qvec3{0, 0, 1});
         m = glm::normalize(m);
 
-        glMultMatrixf(toGlMat(m));
+        glMultMatrixf(&toGlMat(m)[0][0]);
 
         const auto ox = vr_sbar_offset_x.value;
         const auto oy = vr_sbar_offset_y.value;
@@ -4862,7 +4967,8 @@ void VR_Move(usercmd_t* cmd)
         lfwd *= fac;
         lright *= fac;
 
-        const qvec3 move = (qfloat(fwdMove) * lfwd) + (qfloat(sideMove) * lright);
+        const qvec3 move =
+            (qfloat(fwdMove) * lfwd) + (qfloat(sideMove) * lright);
         const auto fwd = DotProduct(move, vfwd);
         const auto right = DotProduct(move, vright);
 

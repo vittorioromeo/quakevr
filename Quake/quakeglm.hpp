@@ -46,12 +46,14 @@ using qquat = glm::dquat;
 
 [[nodiscard]] inline const GLfloat* toGlVec(const qvec3& v) noexcept
 {
+    // TODO VR: (P2) UB? stack ptr
     glm::vec3 fv(v);
     return glm::value_ptr(fv);
 }
 
 [[nodiscard]] inline const GLfloat* toGlMat(const qquat& q) noexcept
 {
+    // TODO VR: (P2) UB? stack ptr
     glm::fquat fq(q);
     return &glm::mat4_cast(fq)[0][0];
 }
@@ -64,9 +66,9 @@ using qvec3 = glm::vec3;
 using qmat3 = glm::mat3;
 using qquat = glm::quat;
 
-[[nodiscard]] inline const GLfloat* toGlMat(const qquat& q) noexcept
+[[nodiscard]] inline const auto toGlMat(const qquat& q) noexcept
 {
-    return &glm::mat4_cast(q)[0][0];
+    return glm::mat4_cast(q);
 }
 
 #endif

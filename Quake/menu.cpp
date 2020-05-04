@@ -3053,6 +3053,7 @@ void M_QuakeVRSettings_Key(int k)
     }
 
     MAKE_XYZ_CONTROLS("All Fingers And Base", vr_fingers_and_base);
+    MAKE_XYZ_CONTROLS("All Fingers And Base (Off-Hand)", vr_fingers_and_base_offhand);
     MAKE_XYZ_CONTROLS("All Fingers", vr_fingers);
     MAKE_XYZ_CONTROLS("Thumb", vr_finger_thumb);
     MAKE_XYZ_CONTROLS("Index", vr_finger_index);
