@@ -181,6 +181,11 @@ DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_x, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_y, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_z, 0.0);
 
+// All fingers and base (off-hand only)
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_offhand_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_offhand_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_offhand_z, 0.0);
+
 // All fingers
 DEFINE_CVAR_ARCHIVE(vr_fingers_x, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_fingers_y, 0.0);
@@ -258,6 +263,11 @@ namespace quake::vr
     [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept
     {
         return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base);
+    }
+
+    [[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base_offhand);
     }
 
     [[nodiscard]] qvec3 get_fingers_xyz() noexcept

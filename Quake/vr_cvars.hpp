@@ -150,6 +150,11 @@ extern cvar_t vr_fingers_and_base_x;
 extern cvar_t vr_fingers_and_base_y;
 extern cvar_t vr_fingers_and_base_z;
 
+// All fingers and base (off-hand only)
+extern cvar_t vr_fingers_and_base_offhand_x;
+extern cvar_t vr_fingers_and_base_offhand_y;
+extern cvar_t vr_fingers_and_base_offhand_z;
+
 // All fingers
 extern cvar_t vr_fingers_x;
 extern cvar_t vr_fingers_y;
@@ -207,6 +212,7 @@ namespace quake::vr
 namespace quake::vr
 {
     [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept;
+    [[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept;
     [[nodiscard]] qvec3 get_fingers_xyz() noexcept;
     [[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept;
     [[nodiscard]] qvec3 get_finger_index_xyz() noexcept;

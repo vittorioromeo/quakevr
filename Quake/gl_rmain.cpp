@@ -1183,6 +1183,9 @@ void R_RenderScene()
     drawHand(cl.left_hand_entities);
     drawHand(cl.right_hand_entities);
 
+    drawHand(cl.left_hand_ghost_entities);
+    drawHand(cl.right_hand_ghost_entities);
+
     // VR: This is what draws the torso.
     if(vr_vrtorso_enabled.value == 1)
     {

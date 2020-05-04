@@ -174,7 +174,7 @@ struct client_state_t
     // the view is temporarliy offset, and an angle reset commands at the start
     // of each level and after teleporting.
     qvec3 mviewangles[2]; // during demo playback viewangles is lerped
-                              // between these
+                          // between these
     qvec3 viewangles;
 
     qvec3 aimangles;
@@ -188,7 +188,7 @@ struct client_state_t
     qvec3 handavel[2];
 
     qvec3 mvelocity[2]; // update by server, used for lean+bob
-                            // (0 is newest)
+                        // (0 is newest)
     qvec3 velocity;     // lerped between mvelocity[0] and [1]
 
     qvec3 punchangle; // temporary offset
@@ -272,6 +272,9 @@ struct client_state_t
     hand_entities left_hand_entities;
     hand_entities right_hand_entities;
 
+    hand_entities left_hand_ghost_entities;
+    hand_entities right_hand_ghost_entities;
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard
@@ -284,34 +287,46 @@ struct client_state_t
 template <typename F>
 bool anyViewmodel(client_state_t& clientState, F&& f)
 {
-    return                                            //
-        f(clientState.viewent)                        //
-        || f(clientState.offhand_viewent)             //
-        || f(clientState.left_hip_holster)            //
-        || f(clientState.right_hip_holster)           //
-        || f(clientState.left_upper_holster)          //
-        || f(clientState.right_upper_holster)         //
-        || f(clientState.left_hand)                   //
-        || f(clientState.right_hand)                  //
-        || f(clientState.vrtorso)                     //
-        || f(clientState.left_hip_holster_slot)       //
-        || f(clientState.right_hip_holster_slot)      //
-        || f(clientState.left_upper_holster_slot)     //
-        || f(clientState.right_upper_holster_slot)    //
-        || f(clientState.mainhand_wpn_button)         //
-        || f(clientState.offhand_wpn_button)          //
-        || f(clientState.left_hand_entities.base)     //
-        || f(clientState.left_hand_entities.f_thumb)  //
-        || f(clientState.left_hand_entities.f_index)  //
-        || f(clientState.left_hand_entities.f_middle) //
-        || f(clientState.left_hand_entities.f_ring)   //
-        || f(clientState.left_hand_entities.f_pinky)  //
-        || f(clientState.right_hand_entities.base)     //
-        || f(clientState.right_hand_entities.f_thumb)  //
-        || f(clientState.right_hand_entities.f_index)  //
-        || f(clientState.right_hand_entities.f_middle) //
-        || f(clientState.right_hand_entities.f_ring)   //
-        || f(clientState.right_hand_entities.f_pinky);
+    return                                                   //
+        f(clientState.viewent)                               //
+        || f(clientState.offhand_viewent)                    //
+        || f(clientState.left_hip_holster)                   //
+        || f(clientState.right_hip_holster)                  //
+        || f(clientState.left_upper_holster)                 //
+        || f(clientState.right_upper_holster)                //
+        || f(clientState.left_hand)                          //
+        || f(clientState.right_hand)                         //
+        || f(clientState.vrtorso)                            //
+        || f(clientState.left_hip_holster_slot)              //
+        || f(clientState.right_hip_holster_slot)             //
+        || f(clientState.left_upper_holster_slot)            //
+        || f(clientState.right_upper_holster_slot)           //
+        || f(clientState.mainhand_wpn_button)                //
+        || f(clientState.offhand_wpn_button)                 //
+        || f(clientState.left_hand_entities.base)            //
+        || f(clientState.left_hand_entities.f_thumb)         //
+        || f(clientState.left_hand_entities.f_index)         //
+        || f(clientState.left_hand_entities.f_middle)        //
+        || f(clientState.left_hand_entities.f_ring)          //
+        || f(clientState.left_hand_entities.f_pinky)         //
+        || f(clientState.right_hand_entities.base)           //
+        || f(clientState.right_hand_entities.f_thumb)        //
+        || f(clientState.right_hand_entities.f_index)        //
+        || f(clientState.right_hand_entities.f_middle)       //
+        || f(clientState.right_hand_entities.f_ring)         //
+        || f(clientState.right_hand_entities.f_pinky)        //
+        || f(clientState.left_hand_ghost_entities.base)      //
+        || f(clientState.left_hand_ghost_entities.f_thumb)   //
+        || f(clientState.left_hand_ghost_entities.f_index)   //
+        || f(clientState.left_hand_ghost_entities.f_middle)  //
+        || f(clientState.left_hand_ghost_entities.f_ring)    //
+        || f(clientState.left_hand_ghost_entities.f_pinky)   //
+        || f(clientState.right_hand_ghost_entities.base)     //
+        || f(clientState.right_hand_ghost_entities.f_thumb)  //
+        || f(clientState.right_hand_ghost_entities.f_index)  //
+        || f(clientState.right_hand_ghost_entities.f_middle) //
+        || f(clientState.right_hand_ghost_entities.f_ring)   //
+        || f(clientState.right_hand_ghost_entities.f_pinky);
 }
 
 template <typename F>

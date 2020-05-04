@@ -455,10 +455,6 @@ R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 void R_SetupAliasFrame(
     entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
 {
-    int posenum;
-
-    int numposes;
-
     if((frame >= paliashdr->numframes) || (frame < 0))
     {
         Con_DPrintf("R_AliasSetupFrame: no such frame %d for '%s'\n", frame,
@@ -466,8 +462,8 @@ void R_SetupAliasFrame(
         frame = 0;
     }
 
-    posenum = paliashdr->frames[frame].firstpose;
-    numposes = paliashdr->frames[frame].numposes;
+    int posenum = paliashdr->frames[frame].firstpose;
+    const int numposes = paliashdr->frames[frame].numposes;
 
     if(numposes > 1)
     {
@@ -536,8 +532,6 @@ R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
 {
     float blend;
-    qvec3 d;
-    int i;
 
     // if LERP_RESETMOVE, kill any lerps in progress
     if(e->lerpflags & LERP_RESETMOVE)
@@ -575,14 +569,14 @@ void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
         }
 
         // translation
-        d = e->currentorigin - e->previousorigin;
+        qvec3 d = e->currentorigin - e->previousorigin;
         lerpdata->origin[0] = e->previousorigin[0] + d[0] * blend;
         lerpdata->origin[1] = e->previousorigin[1] + d[1] * blend;
         lerpdata->origin[2] = e->previousorigin[2] + d[2] * blend;
 
         // rotation
         d = e->currentangles - e->previousangles;
-        for(i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++)
         {
             if(d[i] > 180)
             {
@@ -708,23 +702,14 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 */
 void R_DrawAliasModel(entity_t* e)
 {
-    aliashdr_t* paliashdr;
-    int i;
-
-    int anim;
-
-    int skinnum;
-    gltexture_t* tx;
-
-    gltexture_t* fb;
-    lerpdata_t lerpdata;
     bool alphatest = !!(e->model->flags & MF_HOLEY);
 
     //
     // setup pose/lerp data -- do it first so we don't miss updates due to
     // culling
     //
-    paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
+    aliashdr_t* paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
+    lerpdata_t lerpdata;
     R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
@@ -812,8 +797,8 @@ void R_DrawAliasModel(entity_t* e)
     // set up textures
     //
     GL_DisableMultitexture();
-    anim = (int)(cl.time * 10) & 3;
-    skinnum = e->skinnum;
+    const int anim = (int)(cl.time * 10) & 3;
+    int skinnum = e->skinnum;
     if((skinnum >= paliashdr->numskins) || (skinnum < 0))
     {
         Con_DPrintf("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum,
@@ -821,11 +806,11 @@ void R_DrawAliasModel(entity_t* e)
         // ericw -- display skin 0 for winquake compatibility
         skinnum = 0;
     }
-    tx = paliashdr->gltextures[skinnum][anim];
-    fb = paliashdr->fbtextures[skinnum][anim];
+    gltexture_t* tx = paliashdr->gltextures[skinnum][anim];
+    gltexture_t* fb = paliashdr->fbtextures[skinnum][anim];
     if(e->colormap != vid.colormap && !gl_nocolors.value)
     {
-        i = e - cl_entities;
+        const int i = e - cl_entities;
         if (i >= 1 && i<=cl.maxclients /* && !strcmp (currententity->model->name, "progs/player.mdl") */)
         {
             tx = playertextures[i - 1];

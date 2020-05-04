@@ -1259,3 +1259,30 @@ if (dist > flickthreshholddistance) return true;
 }
 }
 };
+
+
+
+    const auto handAnimationToFrame = [](const VrHandAnimation x) {
+        if(x == VrHandAnimation::Open)
+        {
+            return 9;
+        }
+
+        if(x == VrHandAnimation::Pointing)
+        {
+            return 3;
+        }
+
+        if(x == VrHandAnimation::Fist)
+        {
+            return 6;
+        }
+
+        if(x == VrHandAnimation::AlmostPointing)
+        {
+            return 2;
+        }
+
+        assert(x == VrHandAnimation::OkSign);
+        return 15;
+    };
