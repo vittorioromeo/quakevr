@@ -78,10 +78,10 @@ typedef struct
 {
     int ident;
     int version;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qfvec3 scale;
+    qfvec3 scale_origin;
     float boundingradius;
-    glm::vec3 eyeposition;
+    qfvec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;

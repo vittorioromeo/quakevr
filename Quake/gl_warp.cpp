@@ -58,12 +58,12 @@ msurface_t* warpface;
 
 cvar_t gl_subdivide_size = {"gl_subdivide_size", "128", CVAR_ARCHIVE};
 
-void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
+void BoundPoly(int numverts, qfloat* verts, qvec3& mins, qvec3& maxs)
 {
     int i;
 
     int j;
-    float* v;
+    qfloat* v;
 
     mins[0] = mins[1] = mins[2] = FLT_MAX;
     maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
@@ -84,30 +84,30 @@ void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
     }
 }
 
-void SubdividePolygon(int numverts, float* verts)
+void SubdividePolygon(int numverts, qfloat* verts)
 {
     int i;
 
     int j;
 
     int k;
-    glm::vec3 mins;
+    qvec3 mins;
 
-    glm::vec3 maxs;
-    float m;
-    float* v;
-    glm::vec3 front[64];
+    qvec3 maxs;
+    qfloat m;
+    qfloat* v;
+    qvec3 front[64];
 
-    glm::vec3 back[64];
+    qvec3 back[64];
     int f;
 
     int b;
-    float dist[64];
-    float frac;
+    qfloat dist[64];
+    qfloat frac;
     glpoly_t* poly;
-    float s;
+    qfloat s;
 
-    float t;
+    qfloat t;
 
     if(numverts > 60)
     {
@@ -199,7 +199,7 @@ GL_SubdivideSurface
 */
 void GL_SubdivideSurface(msurface_t* fa)
 {
-    glm::vec3 verts[64];
+    qvec3 verts[64];
     int i;
 
     warpface = fa;

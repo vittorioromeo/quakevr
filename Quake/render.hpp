@@ -64,10 +64,10 @@ struct entity_t
     entity_state_t baseline; // to fill in defaults in updates
 
     double msgtime;           // time of last update
-    glm::vec3 msg_origins[2]; // last two updates (0 is newest)
-    glm::vec3 origin;
-    glm::vec3 msg_angles[2]; // last two updates (0 is newest)
-    glm::vec3 angles;
+    qvec3 msg_origins[2]; // last two updates (0 is newest)
+    qvec3 origin;
+    qvec3 msg_angles[2]; // last two updates (0 is newest)
+    qvec3 angles;
     qmodel_t* model;       // nullptr = no model
     struct efrag_s* efrag; // linked list of efrags
     int frame;
@@ -97,17 +97,17 @@ struct entity_t
     short currentpose;  // johnfitz -- animation lerping
     //	short					futurepose;		//johnfitz -- animation lerping
     float movelerpstart;      // johnfitz -- transform lerping
-    glm::vec3 previousorigin; // johnfitz -- transform lerping
-    glm::vec3 currentorigin;  // johnfitz -- transform lerping
-    glm::vec3 previousangles; // johnfitz -- transform lerping
-    glm::vec3 currentangles;  // johnfitz -- transform lerping
+    qvec3 previousorigin; // johnfitz -- transform lerping
+    qvec3 currentorigin;  // johnfitz -- transform lerping
+    qvec3 previousangles; // johnfitz -- transform lerping
+    qvec3 currentangles;  // johnfitz -- transform lerping
 
     bool horizflip; // VR: horizontal flip
 
     // VR: per-instance scaling
-    glm::vec3 msg_scales[2]; // last two updates (0 is newest)
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qvec3 msg_scales[2]; // last two updates (0 is newest)
+    qvec3 scale;
+    qvec3 scale_origin;
 
     bool hidden; // TODO VR: (P1) hack
 };
@@ -135,9 +135,9 @@ typedef struct
     float xOrigin;               // should probably allways be 0.5
     float yOrigin;               // between be around 0.3 to 0.5
 
-    glm::vec3 vieworg;
-    glm::vec3 viewangles;
-    glm::vec3 aimangles;
+    qvec3 vieworg;
+    qvec3 viewangles;
+    qvec3 aimangles;
 
     float fov_x, fov_y;
 
@@ -152,7 +152,7 @@ extern int reinit_surfcache;
 
 
 extern refdef_t r_refdef;
-extern glm::vec3 r_origin, vpn, vright, vup;
+extern qvec3 r_origin, vpn, vright, vup;
 
 
 void R_Init(void);
@@ -174,16 +174,16 @@ void R_NewMap(void);
 void R_ParseParticleEffect(void);
 void R_ParseParticle2Effect(void);
 void R_RunParticle2Effect(
-    const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+    const qvec3& org, const qvec3& dir, int preset, int count);
 void R_RunParticleEffect_BulletPuff(
-    const glm::vec3& org, const glm::vec3& dir, int color, int count);
-void R_RocketTrail(glm::vec3 start, const glm::vec3& end, int type);
+    const qvec3& org, const qvec3& dir, int color, int count);
+void R_RocketTrail(qvec3 start, const qvec3& end, int type);
 void R_EntityParticles(entity_t* ent);
-void R_ParticleExplosion(const glm::vec3& org);
+void R_ParticleExplosion(const qvec3& org);
 void R_ParticleExplosion2(
-    const glm::vec3& org, int colorStart, int colorLength);
-void R_LavaSplash(const glm::vec3& org);
-void R_TeleportSplash(const glm::vec3& org);
+    const qvec3& org, int colorStart, int colorLength);
+void R_LavaSplash(const qvec3& org);
+void R_TeleportSplash(const qvec3& org);
 
 void R_PushDlights(void);
 

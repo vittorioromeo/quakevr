@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 bool r_cache_thrash; // compatability
 
-glm::vec3 modelorg, r_entorigin;
+qvec3 modelorg, r_entorigin;
 entity_t* currententity;
 
 int r_visframecount; // bumped when going to a new PVS
@@ -47,10 +47,10 @@ float rs_megatexels;
 //
 // view origin
 //
-glm::vec3 vup;
-glm::vec3 vpn;
-glm::vec3 vright;
-glm::vec3 r_origin;
+qvec3 vup;
+qvec3 vpn;
+qvec3 vright;
+qvec3 r_origin;
 
 float r_fovx, r_fovy; // johnfitz -- rendering fov may be different becuase of
                       // r_waterwarp and r_stereo
@@ -307,7 +307,7 @@ R_CullBox -- johnfitz -- replaced with new function from lordhavoc
 Returns true if the box is completely outside the frustum
 =================
 */
-bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs)
+bool R_CullBox(const qvec3& emins, const qvec3& emaxs)
 {
     int i;
     mplane_t* p;
@@ -392,8 +392,8 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 */
 bool R_CullModelForEntity(entity_t* e)
 {
-    glm::vec3 mins;
-    glm::vec3 maxs;
+    qvec3 mins;
+    qvec3 maxs;
 
     if(e->angles[0] || e->angles[2]) // pitch or roll
     {
@@ -420,7 +420,7 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
 pointer to entity
 ===============
 */
-void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles)
+void R_RotateForEntity(const qvec3& origin, const qvec3& angles)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
     glRotatef(angles[YAW], 0, 0, 1);
@@ -492,13 +492,13 @@ to turn away from side, use a negative angle
 ===============
 */
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
-[[nodiscard]] glm::vec3 TurnVector(
-    const glm::vec3& forward, const glm::vec3& side, const float angle) noexcept
+[[nodiscard]] qvec3 TurnVector(
+    const qvec3& forward, const qvec3& side, const float angle) noexcept
 {
     const float scale_forward = cos(DEG2RAD(angle));
     const float scale_side = sin(DEG2RAD(angle));
 
-    glm::vec3 res;
+    qvec3 res;
     res[0] = scale_forward * forward[0] + scale_side * side[0];
     res[1] = scale_forward * forward[1] + scale_side * side[1];
     res[2] = scale_forward * forward[2] + scale_side * side[2];
@@ -838,7 +838,7 @@ void R_DrawViewModel(entity_t* viewent)
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 ================
 */
-void R_EmitWirePoint(const glm::vec3& origin)
+void R_EmitWirePoint(const qvec3& origin)
 {
     constexpr int size = 4;
 
@@ -857,7 +857,7 @@ void R_EmitWirePoint(const glm::vec3& origin)
 R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 ================
 */
-void R_EmitWireBox(const glm::vec3& mins, const glm::vec3& maxs)
+void R_EmitWireBox(const qvec3& mins, const qvec3& maxs)
 {
     glBegin(GL_QUAD_STRIP);
     glVertex3f(mins[0], mins[1], mins[2]);
@@ -918,8 +918,8 @@ void R_ShowBoundingBoxes()
         else
         {
             // box entity
-            const glm::vec3 mins = ed->v.mins + ed->v.origin;
-            const glm::vec3 maxs = ed->v.maxs + ed->v.origin;
+            const qvec3 mins = ed->v.mins + ed->v.origin;
+            const qvec3 maxs = ed->v.maxs + ed->v.origin;
             R_EmitWireBox(mins, maxs);
         }
     }
@@ -1166,8 +1166,22 @@ void R_RenderScene()
     R_DrawViewModel(&cl.right_upper_holster);
 
     // VR: This is what draws the hands.
-    R_DrawViewModel(&cl.left_hand);
-    R_DrawViewModel(&cl.right_hand);
+    // TODO VR: (P0) remove
+    // R_DrawViewModel(&cl.left_hand);
+    // R_DrawViewModel(&cl.right_hand);
+
+    const auto drawHand = [](auto& handEntities)
+    {
+        R_DrawViewModel(&handEntities.base);
+        R_DrawViewModel(&handEntities.f_thumb);
+        R_DrawViewModel(&handEntities.f_index);
+        R_DrawViewModel(&handEntities.f_middle);
+        R_DrawViewModel(&handEntities.f_ring);
+        R_DrawViewModel(&handEntities.f_pinky);
+    };
+
+    drawHand(cl.left_hand_entities);
+    drawHand(cl.right_hand_entities);
 
     // VR: This is what draws the torso.
     if(vr_vrtorso_enabled.value == 1)
@@ -1340,15 +1354,15 @@ void R_RenderView()
     // johnfitz -- stereo rendering -- full of hacky goodness
     if(r_stereo.value)
     {
-        float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
-        float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
+        qfloat eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
+        qfloat fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
 
         std::tie(vpn, vright, vup) =
             quake::util::getAngledVectors(r_refdef.viewangles);
 
         // render left eye (red)
         glColorMask(1, 0, 0, 1);
-        r_refdef.vieworg += (-0.5f * eyesep) * vright;
+        r_refdef.vieworg += (-0.5_qf * eyesep) * vright;
         frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1357,7 +1371,7 @@ void R_RenderView()
         // render right eye (cyan)
         glClear(GL_DEPTH_BUFFER_BIT);
         glColorMask(0, 1, 1, 1);
-        r_refdef.vieworg += (1.0f * eyesep) * vright;
+        r_refdef.vieworg += (1.0_qf * eyesep) * vright;
         frustum_skew = -frustum_skew;
         srand((int)(cl.time * 1000)); // sync random stuff between eyes
 
@@ -1365,7 +1379,7 @@ void R_RenderView()
 
         // restore
         glColorMask(1, 1, 1, 1);
-        r_refdef.vieworg += (-0.5f * eyesep) * vright;
+        r_refdef.vieworg += (-0.5_qf * eyesep) * vright;
         frustum_skew = 0.0f;
     }
     else

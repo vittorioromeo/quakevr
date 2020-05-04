@@ -105,7 +105,7 @@ void* Mod_Extradata(qmodel_t* mod)
 Mod_PointInLeaf
 ===============
 */
-mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model)
+mleaf_t* Mod_PointInLeaf(const qvec3& p, qmodel_t* model)
 {
     mnode_t* node;
     float d;
@@ -1319,7 +1319,7 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
     int numverts;
     int i;
     int lindex;
-    float* vec;
+    qfloat* vec;
     glpoly_t* poly;
     float texscale;
 
@@ -1358,11 +1358,13 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
     poly->next = nullptr;
     fa->polys = poly;
     poly->numverts = numverts;
-    for(i = 0, vec = (float*)verts; i < numverts; i++, vec += 3)
+
+    float* fvec;
+    for(i = 0, fvec = (float*)verts; i < numverts; i++, fvec += 3)
     {
-        VectorCopy(vec, poly->verts[i]);
-        poly->verts[i][3] = DotProduct(vec, fa->texinfo->vecs[0]) * texscale;
-        poly->verts[i][4] = DotProduct(vec, fa->texinfo->vecs[1]) * texscale;
+        VectorCopy(fvec, poly->verts[i]);
+        poly->verts[i][3] = DotProduct(fvec, fa->texinfo->vecs[0]) * texscale;
+        poly->verts[i][4] = DotProduct(fvec, fa->texinfo->vecs[1]) * texscale;
     }
 }
 
@@ -2395,9 +2397,9 @@ void Mod_LoadPlanes(lump_t* l)
 RadiusFromBounds
 =================
 */
-float RadiusFromBounds(const glm::vec3& mins, const glm::vec3& maxs)
+float RadiusFromBounds(const qvec3& mins, const qvec3& maxs)
 {
-    glm::vec3 corner;
+    qvec3 corner;
 
     for(int i = 0; i < 3; i++)
     {
@@ -3047,7 +3049,7 @@ void Mod_CalcAliasBounds(aliashdr_t* a)
 {
     float yawradius;
     float radius;
-    glm::vec3 v;
+    qvec3 v;
 
     // clear out all data
     for(int i = 0; i < 3; i++)

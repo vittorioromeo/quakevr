@@ -40,7 +40,7 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 };
 
 // johnfitz -- replaces "float shadelight" for lit support
-extern glm::vec3 lightcolor;
+extern qvec3 lightcolor;
 
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
@@ -48,10 +48,10 @@ float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
 #include "anorm_dots.hpp"
 };
 
-extern glm::vec3 lightspot;
+extern qvec3 lightspot;
 
 float* shadedots = r_avertexnormal_dots[0];
-glm::vec3 shadevector;
+qvec3 shadevector;
 
 float entalpha; // johnfitz
 
@@ -536,7 +536,7 @@ R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata)
 {
     float blend;
-    glm::vec3 d;
+    qvec3 d;
     int i;
 
     // if LERP_RESETMOVE, kill any lerps in progress
@@ -612,8 +612,8 @@ rewritten
 */
 void R_SetupAliasLighting(entity_t* e)
 {
-    glm::vec3 dist;
-    float add;
+    qvec3 dist;
+    qfloat add;
     int i;
     int quantizedangle;
     float radiansangle;

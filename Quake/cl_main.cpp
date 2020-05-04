@@ -525,7 +525,7 @@ void CL_RelinkEntities()
         {
             // if the delta is large, assume a teleport and don't lerp
             float f = frac;
-            glm::vec3 delta;
+            qvec3 delta;
 
             for(int j = 0; j < 3; j++)
             {
@@ -585,14 +585,13 @@ void CL_RelinkEntities()
         dlight_t* dl;
         if(ent->effects & EF_MUZZLEFLASH)
         {
-
             dl = CL_AllocDlight(i);
             dl->origin = ent->origin;
             dl->origin[2] += 16;
 
             const auto fv = quake::util::getFwdVecFromPitchYawRoll(ent->angles);
 
-            dl->origin += 18.f * fv;
+            dl->origin += 18._qf * fv;
             dl->radius = 200 + (rand() & 31);
             dl->minlight = 32;
             dl->die = cl.time + 0.1;
@@ -862,7 +861,7 @@ void CL_Tracepos_f(refdef_t& refdef)
         return;
     }
 
-    const auto v = refdef.vieworg + 8192.f * vpn;
+    const auto v = refdef.vieworg + 8192._qf * vpn;
     const auto trace = TraceLine(refdef.vieworg, v);
 
     if(!quake::util::hitSomething(trace))

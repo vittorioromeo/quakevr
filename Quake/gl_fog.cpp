@@ -355,7 +355,7 @@ void Fog_StartAdditive()
 {
     if(Fog_GetDensity() > 0)
     {
-        glFogfv(GL_FOG_COLOR, glm::value_ptr(vec3_zero));
+        glFogfv(GL_FOG_COLOR, toGlVec(vec3_zero));
     }
 }
 

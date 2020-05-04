@@ -89,7 +89,7 @@ typedef struct
 //====================================================
 
 extern bool r_cache_thrash; // compatability
-extern glm::vec3 modelorg, r_entorigin;
+extern qvec3 modelorg, r_entorigin;
 extern entity_t* currententity;
 extern int r_visframecount; // ??? what difs?
 extern int r_framecount;
@@ -98,10 +98,10 @@ extern mplane_t frustum[4];
 //
 // view origin
 //
-extern glm::vec3 vup;
-extern glm::vec3 vpn;
-extern glm::vec3 vright;
-extern glm::vec3 r_origin;
+extern qvec3 vup;
+extern qvec3 vpn;
+extern qvec3 vright;
+extern qvec3 r_origin;
 
 //
 // screen size info
@@ -356,10 +356,10 @@ struct dlight_t;
 void R_AnimateLight(void);
 void R_MarkSurfaces(void);
 void R_CullSurfaces(void);
-bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs);
+bool R_CullBox(const qvec3& emins, const qvec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
-void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles);
+void R_RotateForEntity(const qvec3& origin, const qvec3& angles);
 void R_MarkLights(dlight_t* light, int num, mnode_t* node);
 
 void R_InitParticles(void);
@@ -388,7 +388,7 @@ void GLMesh_LoadVertexBuffers(void);
 void GLMesh_DeleteVertexBuffers(void);
 void R_RebuildAllLightmaps(void);
 
-int R_LightPoint(const glm::vec3& p);
+int R_LightPoint(const qvec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);

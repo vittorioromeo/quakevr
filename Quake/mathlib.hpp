@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct mplane_s;
 
-inline constexpr glm::vec3 vec3_zero{0.f, 0.f, 0.f};
+inline constexpr qvec3 vec3_zero{0.f, 0.f, 0.f};
 
 #define nanmask (255 << 23) /* 7F800000 */
 #if 0                       /* macro is violating strict aliasing rules */
@@ -81,71 +81,70 @@ static inline int IS_NAN(float x)
         b[2] = a[2];     \
     }
 
-[[nodiscard]] inline glm::vec3 safeNormalize(const glm::vec3& in)
+[[nodiscard]] inline qvec3 safeNormalize(const qvec3& in)
 {
     const auto length = glm::length(in);
     return length != 0.f ? in / length : in;
 }
 
-[[nodiscard]] glm::vec3 VectorAngles(
-    const glm::vec3& forward) noexcept; // johnfitz
+[[nodiscard]] qvec3 VectorAngles(const qvec3& forward) noexcept; // johnfitz
 
 float VectorLength(vec3_t v);
 
-[[nodiscard]] glm::mat3 R_ConcatRotations(
-    const glm::mat3& in1, const glm::mat3& in2) noexcept;
+[[nodiscard]] qmat3 R_ConcatRotations(
+    const qmat3& in1, const qmat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
 
-inline glm::vec3 AngleVectorsOnlyFwd(const glm::vec3& angles) noexcept
+inline qvec3 AngleVectorsOnlyFwd(const qvec3& angles) noexcept
 {
-    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    const auto yawRadians = glm::radians(angles[YAW]);
     assert(!std::isnan(yawRadians));
     assert(!std::isinf(yawRadians));
 
-    const float sy = std::sin(yawRadians);
-    const float cy = std::cos(yawRadians);
+    const auto sy = std::sin(yawRadians);
+    const auto cy = std::cos(yawRadians);
 
-    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    const auto pitchRadians = glm::radians(angles[PITCH]);
     assert(!std::isnan(pitchRadians));
     assert(!std::isinf(pitchRadians));
 
-    const float sp = std::sin(pitchRadians);
-    const float cp = std::cos(pitchRadians);
+    const auto sp = std::sin(pitchRadians);
+    const auto cp = std::cos(pitchRadians);
 
     return {cp * cy, cp * sy, -sp};
 }
 
-inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward,
-    glm::vec3& right, glm::vec3& up) noexcept
+inline void AngleVectors(
+    const qvec3& angles, qvec3& forward, qvec3& right, qvec3& up) noexcept
 {
-    const float yawRadians = angles[YAW] * (M_PI / 180.f);
+    const auto yawRadians = glm::radians(angles[YAW]);
     assert(!std::isnan(yawRadians));
     assert(!std::isinf(yawRadians));
 
-    const float sy = std::sin(yawRadians);
-    const float cy = std::cos(yawRadians);
+    const auto sy = std::sin(yawRadians);
+    const auto cy = std::cos(yawRadians);
 
-    const float pitchRadians = angles[PITCH] * (M_PI / 180.f);
+    const auto pitchRadians = glm::radians(angles[PITCH]);
     assert(!std::isnan(pitchRadians));
     assert(!std::isinf(pitchRadians));
 
-    const float sp = std::sin(pitchRadians);
-    const float cp = std::cos(pitchRadians);
+    const auto sp = std::sin(pitchRadians);
+    const auto cp = std::cos(pitchRadians);
 
-    const float rollRadians = angles[ROLL] * (M_PI / 180.f);
+    const auto rollRadians = glm::radians(angles[ROLL]);
     assert(!std::isnan(rollRadians));
     assert(!std::isinf(rollRadians));
 
-    const float sr = std::sin(rollRadians);
-    const float cr = std::cos(rollRadians);
+    const auto sr = std::sin(rollRadians);
+    const auto cr = std::cos(rollRadians);
 
     forward[0] = cp * cy;
     forward[1] = cp * sy;
     forward[2] = -sp;
 
-    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
-    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
-    right[2] = -1 * sr * cp;
+    right[0] = (-1.f * sr * sp * cy + -1.f * cr * -sy);
+    right[1] = (-1.f * sr * sp * sy + -1.f * cr * cy);
+    right[2] = -1.f * sr * cp;
 
     up[0] = (cr * sp * cy + -sr * -sy);
     up[1] = (cr * sp * sy + -sr * cy);
@@ -153,13 +152,12 @@ inline void AngleVectors(const glm::vec3& angles, glm::vec3& forward,
 }
 
 int BoxOnPlaneSide(
-    const glm::vec3& emins, const glm::vec3& emaxs, struct mplane_s* plane);
+    const qvec3& emins, const qvec3& emaxs, struct mplane_s* plane);
 float anglemod(float a);
 
-[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept;
-[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept;
-[[nodiscard]] glm::mat3 CreateRotMat(
-    const int axis, const float angle) noexcept;
+[[nodiscard]] qmat3 RotMatFromAngleVector(const qvec3& angles) noexcept;
+[[nodiscard]] qvec3 AngleVectorFromRotMat(const qmat3& mat) noexcept;
+[[nodiscard]] qmat3 CreateRotMat(const int axis, const qfloat angle) noexcept;
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)                                    \
     (((p)->type < 3) ? (((p)->dist <= (emins)[(p)->type])                     \

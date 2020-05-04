@@ -147,7 +147,7 @@ EVENT MESSAGES
 =============================================================================
 */
 
-static void writeCommonParticleData(const glm::vec3& org, const glm::vec3& dir)
+static void writeCommonParticleData(const qfvec3& org, const qfvec3& dir)
 {
     MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
     MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
@@ -174,7 +174,7 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
+void SV_StartParticle(const qfvec3& org, const qfvec3& dir,
     const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
@@ -195,7 +195,7 @@ SV_StartParticle2
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
+void SV_StartParticle2(const qfvec3& org, const qfvec3& dir,
     const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
@@ -573,7 +573,7 @@ static int fatbytes;
 static byte* fatpvs;
 static int fatpvs_capacity;
 
-void SV_AddToFatPVS(const glm::vec3& org, mnode_t* node,
+void SV_AddToFatPVS(const qvec3& org, mnode_t* node,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     int i;
@@ -626,7 +626,7 @@ Calculates a PVS that is the inclusive or of all leafs within 8 pixels of
 the given point.
 =============
 */
-byte* SV_FatPVS(const glm::vec3& org,
+byte* SV_FatPVS(const qvec3& org,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     fatbytes = (worldmodel->numleafs + 7) >>
@@ -658,7 +658,7 @@ PVS test encapsulated in a nice function
 bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
-    glm::vec3 org;
+    qvec3 org;
     int i;
 
     org = client->v.origin + client->v.view_ofs;
@@ -690,7 +690,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
     int i;
     int bits;
     byte* pvs;
-    glm::vec3 org;
+    qvec3 org;
     float miss;
     edict_t* ent;
 

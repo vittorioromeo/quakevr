@@ -50,10 +50,10 @@ static bool snd_initialized = false;
 static dma_t sn;
 volatile dma_t* shm = nullptr;
 
-glm::vec3 listener_origin;
-glm::vec3 listener_forward;
-glm::vec3 listener_right;
-glm::vec3 listener_up;
+qvec3 listener_origin;
+qvec3 listener_forward;
+qvec3 listener_right;
+qvec3 listener_up;
 
 #define sound_nominal_clip_dist 1000.0
 
@@ -436,7 +436,7 @@ void SND_Spatialize(channel_t* ch)
     float rscale;
 
     float scale;
-    glm::vec3 source_vec;
+    qvec3 source_vec;
 
     // anything coming from the view entity will always be full volume
     if(ch->entnum == cl.viewentity)
@@ -485,7 +485,7 @@ void SND_Spatialize(channel_t* ch)
 // =======================================================================
 
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const glm::vec3& origin, float fvol, float attenuation)
+    const qvec3& origin, float fvol, float attenuation)
 {
     channel_t* target_chan;
 
@@ -662,7 +662,7 @@ S_StaticSound
 =================
 */
 void S_StaticSound(
-    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
+    sfx_t* sfx, const qvec3& origin, float vol, float attenuation)
 {
     channel_t* ss;
     sfxcache_t* sc;
@@ -885,8 +885,8 @@ S_Update
 Called once each time through the main loop
 ============
 */
-void S_Update(const glm::vec3& origin, const glm::vec3& forward,
-    const glm::vec3& right, const glm::vec3& up)
+void S_Update(const qvec3& origin, const qvec3& forward,
+    const qvec3& right, const qvec3& up)
 {
     int i;
 

@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater,
     r_oldskyleaf, r_showtris; // johnfitz
 
-byte* SV_FatPVS(const glm::vec3& org, qmodel_t* worldmodel);
+byte* SV_FatPVS(const qvec3& org, qmodel_t* worldmodel);
 
 int vis_changed; // if true, force pvs to be refreshed
 

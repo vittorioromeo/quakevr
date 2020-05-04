@@ -418,8 +418,8 @@ struct lerpdata_t
     short pose1;
     short pose2;
     float blend;
-    glm::vec3 origin;
-    glm::vec3 angles;
+    qvec3 origin;
+    qvec3 angles;
 };
 // johnfitz
 

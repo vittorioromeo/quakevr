@@ -99,9 +99,9 @@ void R_DrawSpriteModel(entity_t* e)
 {
     // TODO: frustum cull it?
 
-    glm::vec3 v_forward;
-    glm::vec3 v_right;
-    glm::vec3 v_up;
+    qvec3 v_forward;
+    qvec3 v_right;
+    qvec3 v_up;
 
     msprite_t* psprite = (msprite_t*)currententity->model->cache.data;
 
@@ -183,24 +183,24 @@ void R_DrawSpriteModel(entity_t* e)
     glBegin(GL_TRIANGLE_FAN); // was GL_QUADS, but changed to support r_showtris
 
     glTexCoord2f(0, frame->tmax);
-    glm::vec3 point = e->origin + (frame->down * v_up);
+    qvec3 point = e->origin + (frame->down * v_up);
     point += (frame->left * v_right);
-    glVertex3fv(glm::value_ptr(point));
+    glVertex3fv(toGlVec(point));
 
     glTexCoord2f(0, 0);
     point = e->origin + (frame->up * v_up);
     point += (frame->left * v_right);
-    glVertex3fv(glm::value_ptr(point));
+    glVertex3fv(toGlVec(point));
 
     glTexCoord2f(frame->smax, 0);
     point = e->origin + (frame->up * v_up);
     point += (frame->right * v_right);
-    glVertex3fv(glm::value_ptr(point));
+    glVertex3fv(toGlVec(point));
 
     glTexCoord2f(frame->smax, frame->tmax);
     point = e->origin + (frame->down * v_up);
     point += (frame->right * v_right);
-    glVertex3fv(glm::value_ptr(point));
+    glVertex3fv(toGlVec(point));
 
     glEnd();
     glDisable(GL_ALPHA_TEST);

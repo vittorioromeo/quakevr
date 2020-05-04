@@ -546,7 +546,7 @@ void R_DrawBrushModel(entity_t* e)
     modelorg = r_refdef.vieworg - e->origin;
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        glm::vec3 temp = modelorg;
+        qvec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -636,7 +636,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     modelorg = r_refdef.vieworg - e->origin;
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        glm::vec3 temp = modelorg;
+        qvec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -889,10 +889,10 @@ void BuildSurfaceDisplayList(msurface_t* fa)
     medge_t* pedges;
 
     medge_t* r_pedge;
-    float* vec;
-    float s;
+    qfloat* vec;
+    qfloat s;
 
-    float t;
+    qfloat t;
     glpoly_t* poly;
 
     // reconstruct the polygon
@@ -1171,9 +1171,9 @@ void R_AddDynamicLights(msurface_t* surf)
     float rad;
 
     float minlight;
-    glm::vec3 impact;
+    qvec3 impact;
 
-    glm::vec3 local;
+    qvec3 local;
     int s;
 
     int t;

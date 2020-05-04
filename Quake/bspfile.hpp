@@ -385,7 +385,7 @@ typedef struct epair_s
 
 struct entitybsp_t
 {
-    glm::vec3 origin;
+    qvec3 origin;
     int firstbrush;
     int numbrushes;
     epair_t* epairs;

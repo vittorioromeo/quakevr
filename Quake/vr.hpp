@@ -1,6 +1,7 @@
 #pragma once // 2016 Dominic Szablewski - phoboslab.org
 
 #include "quakedef.hpp"
+#include "openvr.hpp"
 
 //
 //
@@ -229,9 +230,9 @@ void VR_Move(usercmd_t* cmd);
 void VR_InitGame();
 void VR_PushYaw();
 void VR_DrawSbar();
-[[nodiscard]] glm::vec3 VR_AddOrientationToViewAngles(
-    const glm::vec3& angles) noexcept;
-void VR_SetAngles(const glm::vec3& angles) noexcept;
+[[nodiscard]] qvec3 VR_AddOrientationToViewAngles(
+    const qvec3& angles) noexcept;
+void VR_SetAngles(const qvec3& angles) noexcept;
 void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_CalibrateHeight();
@@ -249,17 +250,17 @@ struct VrGunWallCollision
     edict_t* _ent{nullptr};
 };
 
-[[nodiscard]] glm::vec3 VR_GetAdjustedPlayerOrigin(
-    glm::vec3 playerOrigin) noexcept;
+[[nodiscard]] qvec3 VR_GetAdjustedPlayerOrigin(
+    qvec3 playerOrigin) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetWorldHandPos(
-    const int handIndex, const glm::vec3& playerOrigin) noexcept;
+[[nodiscard]] qvec3 VR_GetWorldHandPos(
+    const int handIndex, const qvec3& playerOrigin) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetResolvedHandPos(
-    const glm::vec3& worldHandPos, const glm::vec3& adjPlayerOrigin) noexcept;
+[[nodiscard]] qvec3 VR_GetResolvedHandPos(
+    const qvec3& worldHandPos, const qvec3& adjPlayerOrigin) noexcept;
 
-glm::vec3 VR_UpdateGunWallCollisions(const int handIndex,
-    VrGunWallCollision& out, glm::vec3 resolvedHandPos) noexcept;
+qvec3 VR_UpdateGunWallCollisions(const int handIndex,
+    VrGunWallCollision& out, qvec3 resolvedHandPos) noexcept;
 
 // TODO VR: (P2) move
 
@@ -276,46 +277,46 @@ struct fbo_t
 
 [[nodiscard]] fbo_t& VR_GetEyeFBO(const int index) noexcept;
 
-[[nodiscard]] const glm::vec3& VR_GetHeadOrigin() noexcept;
+[[nodiscard]] const qvec3& VR_GetHeadOrigin() noexcept;
 
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude);
 
 [[nodiscard]] float VR_GetMenuMult() noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetLastHeadOrigin() noexcept;
-[[nodiscard]] float VR_GetCrouchRatio() noexcept;
+[[nodiscard]] qvec3 VR_GetLastHeadOrigin() noexcept;
+[[nodiscard]] qfloat VR_GetCrouchRatio() noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetLeftHipPos() noexcept;
-[[nodiscard]] glm::vec3 VR_GetRightHipPos() noexcept;
-[[nodiscard]] glm::vec3 VR_GetLeftUpperPos() noexcept;
-[[nodiscard]] glm::vec3 VR_GetRightUpperPos() noexcept;
+[[nodiscard]] qvec3 VR_GetLeftHipPos() noexcept;
+[[nodiscard]] qvec3 VR_GetRightHipPos() noexcept;
+[[nodiscard]] qvec3 VR_GetLeftUpperPos() noexcept;
+[[nodiscard]] qvec3 VR_GetRightUpperPos() noexcept;
 
-[[nodiscard]] float VR_GetTurnYawAngle() noexcept;
-[[nodiscard]] glm::vec3 VR_GetHeadAngles() noexcept;
-[[nodiscard]] float VR_GetHeadYawAngle() noexcept;
-[[nodiscard]] float VR_GetBodyYawAngle() noexcept;
+[[nodiscard]] qfloat VR_GetTurnYawAngle() noexcept;
+[[nodiscard]] qvec3 VR_GetHeadAngles() noexcept;
+[[nodiscard]] qfloat VR_GetHeadYawAngle() noexcept;
+[[nodiscard]] qfloat VR_GetBodyYawAngle() noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetAliasVertexOffsets(
+[[nodiscard]] qvec3 VR_GetAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
-    const int anchorVertex, const glm::vec3& extraOffsets,
+[[nodiscard]] qvec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,
+    const int anchorVertex, const qvec3& extraOffsets,
     const bool horizFlip) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexOffsets(
+[[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexOffsets(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const qvec3& extraOffsets, const qvec3& rotation,
     const bool horizFlip) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetScaledAndAngledAliasVertexPosition(
+[[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexPosition(
     entity_t* const anchor, const int anchorVertex,
-    const glm::vec3& extraOffsets, const glm::vec3& rotation,
+    const qvec3& extraOffsets, const qvec3& rotation,
     const bool horizFlip) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
-    const int cvarEntry, const bool horizflip, const glm::vec3& extraOffset,
-    const glm::vec3& handRot) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
+    const int cvarEntry, const bool horizflip, const qvec3& extraOffset,
+    const qvec3& handRot) noexcept;
 
 // TODO VR: (P2) remove?
 [[nodiscard]] int VR_GetWpnCVarFromModel(qmodel_t* model);
@@ -328,7 +329,7 @@ void VR_ModAllWeapons();
 
 [[nodiscard]] bool VR_EnabledAndNotFake() noexcept;
 
-void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
+void VR_ApplyModelMod(const qvec3& scale, const qvec3& offsets,
     aliashdr_t* const hdr) noexcept;
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept;
@@ -338,8 +339,8 @@ void VR_ApplyModelMod(const glm::vec3& scale, const glm::vec3& offsets,
 
 [[nodiscard]] bool VR_IsHandGrabbing(const int hand) noexcept;
 
-[[nodiscard]] glm::vec3 VR_GetOpenHandOffsets() noexcept;
-[[nodiscard]] glm::vec3 VR_GetOpenHandAngles() noexcept;
+[[nodiscard]] qvec3 VR_GetOpenHandOffsets() noexcept;
+[[nodiscard]] qvec3 VR_GetOpenHandAngles() noexcept;
 
 //
 //
@@ -455,40 +456,40 @@ enum class WpnCVar : std::uint8_t
 
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] glm::vec3 VR_GetWpnOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HHandAngles(
+[[nodiscard]] qvec3 VR_GetWpnOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnFixed2HHandAngles(
     const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnFixed2HMainHandOffsets(
+[[nodiscard]] qvec3 VR_GetWpnFixed2HMainHandOffsets(
     const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] glm::vec3 VR_GetWpnAngleOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnAngleOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] glm::vec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept;
 
-[[nodiscard]] glm::vec3 VR_CalcWeaponMuzzlePosImpl(
+[[nodiscard]] qvec3 VR_CalcWeaponMuzzlePosImpl(
     const int index, const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
+[[nodiscard]] qvec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
 
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] glm::vec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnButtonOffHandOffsets(
+[[nodiscard]] qvec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnButtonOffHandOffsets(
     const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
 
 
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] glm::vec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] glm::vec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept;
 
 [[nodiscard]] cvar_t& VR_GetWpnCVar(
     const int cvarEntry, WpnCVar setting) noexcept;
@@ -520,5 +521,10 @@ extern int vr_impl_draw_hand_anchor_vertex;
 extern int vr_impl_draw_2h_hand_anchor_vertex;
 extern int vr_impl_draw_wpnbutton_anchor_vertex;
 extern float vr_2h_aim_transition[2];
+
+// TODO VR: (P0) remove?
 extern VrHandAnimation vr_handanimation_left;
 extern VrHandAnimation vr_handanimation_right;
+
+extern vr::VRSkeletalSummaryData_t vr_ss_lefthand;
+extern vr::VRSkeletalSummaryData_t vr_ss_righthand;

@@ -34,11 +34,11 @@ extern cvar_t sv_friction;
 cvar_t sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern cvar_t sv_stopspeed;
 
-static glm::vec3 forward, right, up;
+static qvec3 forward, right, up;
 
 // world
-glm::vec3* origin{nullptr};
-glm::vec3* velocity{nullptr};
+qfvec3* origin{nullptr};
+qfvec3* velocity{nullptr};
 
 bool onground;
 
@@ -61,9 +61,9 @@ void SV_SetIdealPitch()
 
     float cosval;
     trace_t tr;
-    glm::vec3 top;
+    qvec3 top;
 
-    glm::vec3 bottom;
+    qvec3 bottom;
     float z[MAX_FORWARD];
     int i;
 
@@ -148,15 +148,15 @@ SV_UserFriction
 */
 void SV_UserFriction()
 {
-    glm::vec3* vel;
+    qfvec3* vel;
     float speed;
 
     float newspeed;
 
     float control;
-    glm::vec3 start;
+    qfvec3 start;
 
-    glm::vec3 stop;
+    qfvec3 stop;
     float friction;
     trace_t trace;
 
@@ -205,7 +205,7 @@ SV_Accelerate
 cvar_t sv_maxspeed = {"sv_maxspeed", "320", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
 
-void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
+void SV_Accelerate(float wishspeed, const qvec3& wishdir)
 {
     const float currentspeed = DotProduct((*velocity), wishdir);
     const float addspeed = wishspeed - currentspeed;
@@ -227,7 +227,7 @@ void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
     }
 }
 
-void SV_AirAccelerate(float wishspeed, const glm::vec3& wishveloc)
+void SV_AirAccelerate(float wishspeed, const qvec3& wishveloc)
 {
     float wishspd = glm::length(wishveloc);
 
@@ -281,7 +281,7 @@ SV_WaterMove
 void SV_WaterMove()
 {
     int i;
-    glm::vec3 wishvel;
+    qvec3 wishvel;
     float speed;
 
     float newspeed;
@@ -412,8 +412,8 @@ void SV_AirMove()
     std::tie(forward, right, up) =
         quake::util::getAngledVectors(VR_GetHeadAngles());
 
-    float fmove = cmd.forwardmove;
-    const float smove = cmd.sidemove;
+    qfloat fmove = cmd.forwardmove;
+    const qfloat smove = cmd.sidemove;
 
     // hack to not let you back into teleporter
     if(sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -421,7 +421,7 @@ void SV_AirMove()
         fmove = 0;
     }
 
-    glm::vec3 wishvel = forward * fmove + right * smove;
+    qvec3 wishvel = forward * fmove + right * smove;
 
     if((int)sv_player->v.movetype != MOVETYPE_WALK)
     {
@@ -492,7 +492,7 @@ void SV_ClientThink()
     // show 1/3 the pitch angle and all the roll angle
     cmd = host_client->cmd;
 
-    glm::vec3 v_angle;
+    qvec3 v_angle;
     v_angle = sv_player->v.v_angle + sv_player->v.punchangle;
     sv_player->v.angles[ROLL] =
         V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
@@ -559,7 +559,7 @@ void SV_ReadClientMove(usercmd_t* move)
         }
     };
 
-    const auto readVec = [&]() -> glm::vec3 {
+    const auto readVec = [&]() -> qfvec3 {
         return {MSG_ReadFloat(), MSG_ReadFloat(), MSG_ReadFloat()};
     };
 

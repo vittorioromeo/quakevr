@@ -35,7 +35,7 @@ void V_Init(void);
 void V_RenderView(void);
 void V_CalcBlend(void);
 void V_UpdateBlend(void);
-float V_CalcRoll(const glm::vec3& angles, const glm::vec3& velocity);
+qfloat V_CalcRoll(const qvec3& angles, const qvec3& velocity);
 // void V_UpdatePalette (void); //johnfitz
 
 #endif /* _QUAKE_VIEW_H */

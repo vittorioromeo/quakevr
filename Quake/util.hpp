@@ -135,15 +135,15 @@ namespace quake::util
         return std::atan2(y, x);
     }
 
-    [[nodiscard]] inline glm::vec3 pitchYawRollFromDirectionVector(
-        const glm::vec3& up, const glm::vec3& dir)
+    [[nodiscard]] inline qvec3 pitchYawRollFromDirectionVector(
+        const qvec3& up, const qvec3& dir)
     {
         // From: https://stackoverflow.com/a/21627251/598696
 
         const auto pitch = safeAsin(dir[2]);
         const auto yaw = safeAtan2(dir[1], dir[0]);
 
-        const auto w0 = glm::vec3{-dir[1], dir[0], 0};
+        const auto w0 = qvec3{-dir[1], dir[0], 0};
         const auto u0 = glm::cross(w0, dir);
 
         const auto w0len = glm::length(w0);
@@ -155,29 +155,29 @@ namespace quake::util
         const auto roll =
             safeAtan2(glm::dot(w0, up) / w0len, glm::dot(u0, up) / u0len);
 
-        auto res = glm::degrees(glm::vec3{pitch, yaw, roll});
+        auto res = glm::degrees(qvec3{pitch, yaw, roll});
         res[0 /* PITCH */] *= -1.f;
         res[2 /* ROLL */] -= 180.f;
         return res;
     }
 
-    [[nodiscard]] QUAKE_FORCEINLINE std::tuple<glm::vec3, glm::vec3, glm::vec3>
-    getAngledVectors(const glm::vec3& v) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE std::tuple<qvec3, qvec3, qvec3>
+    getAngledVectors(const qvec3& v) noexcept
     {
-        glm::vec3 forward, right, up;
+        qvec3 forward, right, up;
         AngleVectors(v, forward, right, up);
         return std::tuple{forward, right, up};
     }
 
-    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3
-    getDirectionVectorFromPitchYawRoll(const glm::vec3& v) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3
+    getDirectionVectorFromPitchYawRoll(const qvec3& v) noexcept
     {
         return AngleVectorsOnlyFwd(v);
     }
 
     // TODO VR: (P2) same as above, use one or the other
-    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3 getFwdVecFromPitchYawRoll(
-        const glm::vec3& v) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3 getFwdVecFromPitchYawRoll(
+        const qvec3& v) noexcept
     {
         return AngleVectorsOnlyFwd(v);
     }
@@ -228,8 +228,8 @@ namespace quake::util
     }
 
     // TODO VR: (P2) reuse throughout project
-    [[nodiscard]] QUAKE_FORCEINLINE glm::vec3 redirectVector(
-        const glm::vec3& input, const glm::vec3& examplar) noexcept
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3 redirectVector(
+        const qvec3& input, const qvec3& examplar) noexcept
     {
         const auto [fwd, right, up] = getAngledVectors(examplar);
         return fwd * input[0] + right * input[1] + up * input[2];

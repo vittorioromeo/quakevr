@@ -160,12 +160,61 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 18.0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_particles, 1);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
+
+// TODO VR: (P0) used?
 DEFINE_CVAR_ARCHIVE(vr_openhand_offset_x, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_openhand_offset_y, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_openhand_offset_z, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_openhand_pitch, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_openhand_yaw, 0.0);
 DEFINE_CVAR_ARCHIVE(vr_openhand_roll, 0.0);
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Finger tracking offsets
+// ----------------------------------------------------------------------------
+
+// All fingers and base
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_and_base_z, 0.0);
+
+// All fingers
+DEFINE_CVAR_ARCHIVE(vr_fingers_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_fingers_z, 0.0);
+
+// Thumb
+DEFINE_CVAR_ARCHIVE(vr_finger_thumb_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_thumb_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_thumb_z, 0.0);
+
+// Index
+DEFINE_CVAR_ARCHIVE(vr_finger_index_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_index_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_index_z, 0.0);
+
+// Middle
+DEFINE_CVAR_ARCHIVE(vr_finger_middle_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_middle_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_middle_z, 0.0);
+
+// Ring
+DEFINE_CVAR_ARCHIVE(vr_finger_ring_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_ring_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_ring_z, 0.0);
+
+// Pinky
+DEFINE_CVAR_ARCHIVE(vr_finger_pinky_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_pinky_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_pinky_z, 0.0);
+
+// Base
+DEFINE_CVAR_ARCHIVE(vr_finger_base_x, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_base_y, 0.0);
+DEFINE_CVAR_ARCHIVE(vr_finger_base_z, 0.0);
 
 #undef DEFINE_CVAR_ARCHIVE
 #undef DEFINE_CVAR
@@ -190,3 +239,61 @@ namespace quake::vr
         cvarsToRegister.shrink_to_fit();
     }
 } // namespace quake::vr
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Getters
+// ----------------------------------------------------------------------------
+
+#define QVR_CVAR_VEC3_XYZ(cvar_family_prefix)                       \
+    {                                                               \
+        cvar_family_prefix##_x.value, cvar_family_prefix##_y.value, \
+            cvar_family_prefix##_z.value                            \
+    }
+
+namespace quake::vr
+{
+    [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base);
+    }
+
+    [[nodiscard]] qvec3 get_fingers_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_fingers);
+    }
+
+    [[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_thumb);
+    }
+
+    [[nodiscard]] qvec3 get_finger_index_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_index);
+    }
+
+    [[nodiscard]] qvec3 get_finger_middle_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_middle);
+    }
+
+    [[nodiscard]] qvec3 get_finger_ring_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_ring);
+    }
+
+    [[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_pinky);
+    }
+
+    [[nodiscard]] qvec3 get_finger_base_xyz() noexcept
+    {
+        return QVR_CVAR_VEC3_XYZ(vr_finger_base);
+    }
+} // namespace quake::vr
+
+#undef QVR_CVAR_VEC3_XYZ

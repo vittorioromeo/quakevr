@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cvar.hpp"
+#include "quakeglm.hpp"
 
 //
 //
@@ -141,6 +142,53 @@ extern cvar_t vr_openhand_roll;
 //
 //
 // ----------------------------------------------------------------------------
+// Finger tracking offsets
+// ----------------------------------------------------------------------------
+
+// All fingers and base
+extern cvar_t vr_fingers_and_base_x;
+extern cvar_t vr_fingers_and_base_y;
+extern cvar_t vr_fingers_and_base_z;
+
+// All fingers
+extern cvar_t vr_fingers_x;
+extern cvar_t vr_fingers_y;
+extern cvar_t vr_fingers_z;
+
+// Thumb
+extern cvar_t vr_finger_thumb_x;
+extern cvar_t vr_finger_thumb_y;
+extern cvar_t vr_finger_thumb_z;
+
+// Index
+extern cvar_t vr_finger_index_x;
+extern cvar_t vr_finger_index_y;
+extern cvar_t vr_finger_index_z;
+
+// Middle
+extern cvar_t vr_finger_middle_x;
+extern cvar_t vr_finger_middle_y;
+extern cvar_t vr_finger_middle_z;
+
+// Ring
+extern cvar_t vr_finger_ring_x;
+extern cvar_t vr_finger_ring_y;
+extern cvar_t vr_finger_ring_z;
+
+// Pinky
+extern cvar_t vr_finger_pinky_x;
+extern cvar_t vr_finger_pinky_y;
+extern cvar_t vr_finger_pinky_z;
+
+// Base
+extern cvar_t vr_finger_base_x;
+extern cvar_t vr_finger_base_y;
+extern cvar_t vr_finger_base_z;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Registration
 // ----------------------------------------------------------------------------
 
@@ -148,3 +196,22 @@ namespace quake::vr
 {
     void register_all_cvars() noexcept;
 }
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Getters
+// ----------------------------------------------------------------------------
+
+namespace quake::vr
+{
+    [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept;
+    [[nodiscard]] qvec3 get_fingers_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_index_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_middle_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_ring_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept;
+    [[nodiscard]] qvec3 get_finger_base_xyz() noexcept;
+} // namespace quake::vr
