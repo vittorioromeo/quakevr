@@ -1433,6 +1433,8 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
 
     if(otherWpnTwoHDisplayModeFixed && vr_2h_aim_transition[otherHandIdx] > 0.f)
     {
+        // Blend when leaving 2H mode
+
         entity_t* const otherAnchor =
             anchor == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
 
@@ -1445,15 +1447,15 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     else
     {
         hand->origin = pos;
-
-        auto foff = fingerIdxToOffset(fingerIdx, handIdx);
-        if(horizflip)
-        {
-            foff[1] *= -1.f;
-        }
-
-        hand->origin += quake::util::redirectVector(foff, handRot);
     }
+
+    auto foff = fingerIdxToOffset(fingerIdx, handIdx);
+    if(horizflip)
+    {
+        foff[1] *= -1.f;
+    }
+
+    hand->origin += quake::util::redirectVector(foff, handRot);
 
     const auto handSkeletalToFrame =
         [](const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss) {
@@ -1483,42 +1485,80 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
 
 static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
     const int helpingHand, const int otherWpnCvar, entity_t* const anchor,
-    entity_t* const hand, const qvec3& handRot, const qvec3& otherHandRot,
+    entity_t* const hand, const qvec3& handRot, qvec3 otherHandRot,
     const qvec3& extraOffset, const bool horizflip)
 {
     assert(anchor->model != nullptr);
 
-    const qvec3 pos = VR_GetWpnFixed2HFinalPosition(
-        anchor, otherWpnCvar, horizflip, extraOffset, otherHandRot);
+    auto [oPitch, oYaw, oRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
+
+    if(!horizflip)
+    {
+        oYaw *= -1.f;
+        oRoll *= -1.f;
+    }
+
+    otherHandRot[PITCH] += oPitch;
+    otherHandRot[YAW] += oYaw;
+    otherHandRot[ROLL] += oRoll;
+
+    auto fixed2HOffsets = VR_GetWpnFixed2HOffsets(otherWpnCvar);
+
+    auto extraOffsets =
+        VR_GetWpnHandOffsets(otherWpnCvar) + extraOffset + fixed2HOffsets;
+
+    // if(horizflip)
+    // {
+    //     const auto mhofs = VR_GetWpnFixed2HMainHandOffsets(otherWpnCvar);
+    //     extraOffsets += mhofs;
+    // }
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(otherWpnCvar, WpnCVar::TwoHHandAnchorVertex));
+
+    auto pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, otherHandRot, horizflip);
+
+    // const qvec3 pos = VR_GetWpnFixed2HFinalPosition(
+    //     anchor, otherWpnCvar, horizflip, extraOffset, otherHandRot);
 
     hand->origin = glm::mix(cl.handpos[helpingHand], pos,
         vr_2h_aim_transition[VR_OtherHand(helpingHand)]);
 
-    // TODO VR: (P2) open hand model here? Maybe control with weapon cvar, could
-    // look good on some weapons
-    // hand->model = Mod_ForName("progs/hand.mdl", true);
-    hand->model = Mod_ForName(fingerIdxToModelName(fingerIdx), true);
-    hand->frame = 0;
-    hand->colormap = vid.colormap;
-    hand->horizflip = horizflip;
+    const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
 
-    // TODO VR: (P2) hardcoded fist cvar number
-    if(hand->model != nullptr)
+    auto foff = fingerIdxToOffset(fingerIdx, handIdx);
+    if(horizflip)
+    {
+        foff[1] *= -1.f;
+    }
+
+    hand->origin += quake::util::redirectVector(foff, otherHandRot);
+
+
+    const auto handSkeletalToFrame =
+        [](const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss) {
+            // TODO VR: (P1) add configurable bias
+            return std::floor(ss.flFingerCurl[(int)fingerIdx] * 5.f);
+        };
+
+    hand->model = Mod_ForName(fingerIdxToModelName(fingerIdx), true);
+
     {
         const auto handHdr = (aliashdr_t*)Mod_Extradata(hand->model);
+        // TODO VR: (P2) hardcoded fist cvar number
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    auto [rPitch, rYaw, rRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
+    hand->frame = handSkeletalToFrame(
+        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
 
-    if(!horizflip)
-    {
-        rYaw *= -1.f;
-        rRoll *= -1.f;
-    }
+    hand->colormap = vid.colormap;
+    hand->horizflip = horizflip;
 
-    hand->angles = otherHandRot + qvec3{rPitch, rYaw, rRoll};
-    hand->angles[PITCH] *= -1.f;
+    hand->angles[PITCH] = -otherHandRot[PITCH];
+    hand->angles[YAW] = otherHandRot[YAW];
+    hand->angles[ROLL] = otherHandRot[ROLL];
 }
 
 static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
@@ -1706,8 +1746,11 @@ static void V_RenderView_HandModels()
     doHandEntities(cl.right_hand_entities, cl.viewent, cVR_MainHand, vec3_zero,
         false, false);
 
-    doHandEntities(cl.right_hand_ghost_entities, cl.viewent, cVR_MainHand,
-        vec3_zero, false, true);
+    if(true)
+    { // TODO VR: (P1) cvar, transparency
+        doHandEntities(cl.right_hand_ghost_entities, cl.viewent, cVR_MainHand,
+            vec3_zero, false, true);
+    }
 
     // -------------------------------------------------------------------
     // VR: Setup off hand.
@@ -1720,8 +1763,11 @@ static void V_RenderView_HandModels()
     doHandEntities(cl.left_hand_entities, cl.offhand_viewent, cVR_OffHand,
         offHandOffsets, true, false);
 
-    doHandEntities(cl.left_hand_ghost_entities, cl.offhand_viewent, cVR_OffHand,
-        offHandOffsets, true, true);
+    if(true)
+    { // TODO VR: (P1) cvar, transparency
+        doHandEntities(cl.left_hand_ghost_entities, cl.offhand_viewent,
+            cVR_OffHand, offHandOffsets, true, true);
+    }
 }
 
 static void V_RenderView_VRTorsoModel()

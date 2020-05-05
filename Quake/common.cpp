@@ -2356,6 +2356,8 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory(const char* base, const char* dir)
 {
+    // TODO VR: (P0) check how this loads files
+
     bool been_here = false;
 
     q_strlcpy(com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));
@@ -2372,6 +2374,7 @@ _add_path:
     search->next = com_searchpaths;
     com_searchpaths = search;
 
+    // VR: This was changed to support non-contiguous `.pak` files.
     for(int i = 0; i < 99; i++)
     {
         char pakfile[MAX_OSPATH];
@@ -2651,6 +2654,7 @@ void COM_InitFilesystem() // johnfitz -- modified based on topaz's tutorial
         com_basedir[j - 1] = 0;
     }
 
+    // VR: This starts loading all the `.pak` files.
     // start up with GAMENAME by default (id1)
     COM_AddGameDirectory(com_basedir, GAMENAME);
 

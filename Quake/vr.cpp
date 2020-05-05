@@ -908,6 +908,7 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     init(WpnCVar::WpnButtonPitch,           "vr_wofs_wpnbtn_pitch_nn", "0.0");
     init(WpnCVar::WpnButtonYaw,             "vr_wofs_wpnbtn_yaw_nn",   "0.0");
     init(WpnCVar::WpnButtonRoll,            "vr_wofs_wpnbtn_roll_nn",  "0.0");
+    init(WpnCVar::MuzzleAnchorVertex,       "vr_wofs_muzzle_av_nn",    "0.0");
     // clang-format on
 
     return i;
@@ -1534,6 +1535,33 @@ void debugPrintHandvel(const int index, const float linearity)
     }
 }
 
+
+[[nodiscard]] qvec3 VR_CalcLocalWpnMuzzlePos(const int index) noexcept
+{
+    const auto anchor =
+        index == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+
+    if(anchor->model == nullptr)
+    {
+        return vec3_zero;
+    }
+
+    const auto anchorWpnCvar = VR_GetWpnCvarEntry(index);
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::MuzzleAnchorVertex));
+
+    const bool horizFlip = index == cVR_MainHand ? false : true;
+
+    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+        anchorVertex, VR_GetWpnMuzzleOffsets(anchorWpnCvar), cl.handrot[index],
+        horizFlip);
+
+    return pos - anchor->origin;
+
+    // TODO VR: (P0) test, cleanup
+}
+
 qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
     qvec3 resolvedHandPos) noexcept
 {
@@ -1548,8 +1576,9 @@ qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
 
     // Local position of the gun's muzzle. Takes orientation into
     // account.
-    const auto localMuzzlePos =
-        VR_CalcWeaponMuzzlePosImpl(handIndex, VR_GetWpnCvarEntry(handIndex));
+    // TODO VR: (P0) fix now that we have muzzle anchor vertex
+    const auto localMuzzlePos = VR_CalcLocalWpnMuzzlePos(handIndex);
+    // VR_CalcWeaponMuzzlePosImpl(handIndex, VR_GetWpnCvarEntry(handIndex));
 
     // World position of the gun's muzzle.
     const auto muzzlePos = resolvedHandPos + localMuzzlePos;
@@ -1947,6 +1976,11 @@ void SetHandPos(int index, entity_t* player)
     entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
     const qvec3& rotation, const bool horizFlip) noexcept
 {
+    if(anchor == nullptr || anchor->model == nullptr)
+    {
+        return vec3_zero;
+    }
+
     const auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, horizFlip);
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
@@ -1958,7 +1992,6 @@ void SetHandPos(int index, entity_t* player)
     entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
     const qvec3& rotation, const bool horizFlip) noexcept
 {
-
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
     qvec3 c = VR_GetAliasVertexOffsets(anchor, anchorVertex);
 
@@ -1973,48 +2006,11 @@ void SetHandPos(int index, entity_t* player)
         trMat *= glm::scale(qvec3{1._qf, -1._qf, 1._qf});
     }
 
-    // auto a = anchor->angles;
-    // a[PITCH] *= -1._qf;
-    // a[PITCH] -= 90._qf;
-    // // a[ROLL] *= -1.f;
-    // a[ROLL] -= 90._qf;
-    // // a[ROLL] += 180._qf;
-    // const auto [fwd, right, up] = getAngledVectors(a);
-
-    // qquat m;
-    // m = glm::quatLookAtLH(fwd, up);
-    // // m = glm::rotate(m, qfloat(vr_sbar_offset_pitch.value), qvec3{1, 0,
-    // 0});
-    // // m = glm::rotate(m, qfloat(vr_sbar_offset_yaw.value), qvec3{0, 1, 0});
-    // // m = glm::rotate(m, qfloat(vr_sbar_offset_roll.value), qvec3{0, 0, 1});
-    // m = glm::normalize(m);
-    //
-    // trMat *= glm::toMat4(m);
-
-    // trMat *= glm::yawPitchRoll(glm::radians(anchor->angles[YAW]),
-    //     glm::radians(anchor->angles[PITCH]),
-    //     glm::radians(anchor->angles[ROLL]));
-
     trMat *= glm::translate(extraOffsets);
-
     trMat *= glm::translate(anchorHdr->scale_origin);
     trMat *= glm::scale(anchorHdr->scale);
 
-
-
     return trMat * glm::vec4(c, 1.f);
-
-
-
-    const auto angledOffsets = VR_GetScaledAndAngledAliasVertexOffsets(
-        anchor, anchorVertex, extraOffsets, rotation, horizFlip);
-
-    const auto offsets = anchorHdr->scale_origin;
-
-    const auto scaleratio = anchorHdr->scale / anchorHdr->original_scale;
-
-    return anchor->origin + angledOffsets; // +
-    quake::util::redirectVector(offsets, rotation);
 }
 
 [[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
@@ -2023,13 +2019,13 @@ void SetHandPos(int index, entity_t* player)
 {
     auto fixed2HOffsets = VR_GetWpnFixed2HOffsets(cvarEntry);
 
-    if(!horizflip)
-    {
-        fixed2HOffsets[1] *= -1.f;
-
-        const auto mhofs = VR_GetWpnFixed2HMainHandOffsets(cvarEntry);
-        fixed2HOffsets += mhofs;
-    }
+    // if(!horizflip)
+    // {
+    //     fixed2HOffsets[1] *= -1.f;
+    //
+    //     const auto mhofs = VR_GetWpnFixed2HMainHandOffsets(cvarEntry);
+    //     fixed2HOffsets += mhofs;
+    // }
 
     const auto extraOffsets =
         VR_GetWpnHandOffsets(cvarEntry) + extraOffset + fixed2HOffsets;
@@ -2038,7 +2034,7 @@ void SetHandPos(int index, entity_t* player)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHHandAnchorVertex));
 
     return VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot, false);
+        anchor, anchorVertex, extraOffsets, handRot, horizflip);
 }
 
 [[nodiscard]] qvec3 VR_GetBodyAnchor(const qvec3& offsets) noexcept
@@ -2780,6 +2776,29 @@ static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
 
 [[nodiscard]] qvec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
 {
+    const auto anchor =
+        index == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+
+    if(anchor->model == nullptr)
+    {
+        return vec3_zero;
+    }
+
+    const auto anchorWpnCvar = VR_GetWpnCvarEntry(index);
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::MuzzleAnchorVertex));
+
+    const bool horizFlip = index == cVR_MainHand ? false : true;
+
+    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+        anchorVertex, VR_GetWpnMuzzleOffsets(anchorWpnCvar), cl.handrot[index],
+        horizFlip);
+
+    return pos;
+
+    // TODO VR: (P0) test, cleanup
+
     return cl.handpos[index] +
            VR_CalcWeaponMuzzlePosImpl(index, VR_GetWpnCvarEntry(index));
 }
@@ -4026,8 +4045,9 @@ static void VR_ShowHandAnchorVertexImpl(const int handIdx)
 
 void VR_ShowHandAnchorVertex()
 {
-    VR_ShowHandAnchorVertexImpl(cVR_MainHand);
-    VR_ShowHandAnchorVertexImpl(cVR_OffHand);
+    // TODO VR: (P1) cvar to always show all vertices
+    // VR_ShowHandAnchorVertexImpl(cVR_MainHand);
+    // VR_ShowHandAnchorVertexImpl(cVR_OffHand);
 
     if(vr_impl_draw_hand_anchor_vertex == 0 || !svPlayerActive())
     {
@@ -4038,31 +4058,29 @@ void VR_ShowHandAnchorVertex()
         vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand);
 }
 
-// TODO VR: (P1) code repetition
-void VR_Show2HHandAnchorVertex()
+void VR_Show2HHandAnchorVertexImpl(const int handIdx)
 {
-    if(vr_impl_draw_2h_hand_anchor_vertex == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto hand =
-        vr_impl_draw_2h_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+    assert(svPlayerActive());
 
     const auto anchor =
-        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+        handIdx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
 
     if(anchor->model == nullptr)
     {
         return;
     }
 
-    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
-        VR_GetWpnCvarEntry(hand), WpnCVar::TwoHHandAnchorVertex));
+    const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::TwoHHandAnchorVertex));
+
+    const bool horizFlip = handIdx == cVR_MainHand ? false : true;
 
     const auto drawVertex = [&](const int idxOffset) {
         const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[handIdx],
+            horizFlip);
 
         VR_GLVertex3f(pos);
     };
@@ -4103,6 +4121,22 @@ void VR_Show2HHandAnchorVertex()
     });
 
     VR_ShowFnCleanupGL();
+}
+
+// TODO VR: (P1) code repetition
+void VR_Show2HHandAnchorVertex()
+{
+    // TODO VR: (P1) cvar to always show all vertices
+    VR_Show2HHandAnchorVertexImpl(cVR_MainHand);
+    VR_Show2HHandAnchorVertexImpl(cVR_OffHand);
+
+    if(vr_impl_draw_2h_hand_anchor_vertex == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    VR_Show2HHandAnchorVertexImpl(
+        vr_impl_draw_2h_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand);
 }
 
 // TODO VR: (P1) code repetition
@@ -4172,6 +4206,73 @@ void VR_ShowWpnButtonAnchorVertex()
     VR_ShowFnCleanupGL();
 }
 
+// TODO VR: (P1) code repetition
+void VR_ShowMuzzleAnchorVertex()
+{
+    if(vr_impl_draw_wpnoffset_helper_muzzle == 0 || !svPlayerActive())
+    {
+        return;
+    }
+
+    const auto hand =
+        vr_impl_draw_wpnoffset_helper_muzzle == 1 ? cVR_MainHand : cVR_OffHand;
+
+    const auto anchor =
+        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+
+    if(anchor->model == nullptr)
+    {
+        return;
+    }
+
+    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
+        VR_GetWpnCvarEntry(hand), WpnCVar::MuzzleAnchorVertex));
+
+    const auto drawVertex = [&](const int idxOffset) {
+        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
+            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
+
+        VR_GLVertex3f(pos);
+    };
+
+    VR_ShowFnSetupGL();
+
+    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 1.0);
+        drawVertex(0);
+
+        glEnd();
+    });
+
+    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 0.95);
+        drawVertex(1);
+        drawVertex(-1);
+
+        glEnd();
+    });
+
+    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
+        glBegin(type);
+
+        glColor4f(0, 0, 1, 0.9);
+
+        for(int i = 0; i < 500; ++i)
+        {
+            drawVertex(i);
+            drawVertex(-i);
+        }
+
+        glEnd();
+    });
+
+    VR_ShowFnCleanupGL();
+}
+
 void VR_DrawAllShowHelpers()
 {
     VR_ShowVirtualStock();
@@ -4187,6 +4288,7 @@ void VR_DrawAllShowHelpers()
     VR_ShowHandAnchorVertex();
     VR_Show2HHandAnchorVertex();
     VR_ShowWpnButtonAnchorVertex();
+    VR_ShowMuzzleAnchorVertex();
 }
 
 void VR_Draw2D()
@@ -5132,3 +5234,6 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
 // the future Frikbot could be added its a pretty straightforward add to QuakeC"
+
+// TODO VR: (P0) lava nails do not make bullet holes. They could also use a
+// trail particle

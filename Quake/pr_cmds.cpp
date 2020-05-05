@@ -1933,6 +1933,9 @@ PF_changelevel
 */
 static void PF_changelevel()
 {
+    // TODO VR: (P0) verify that this is called when using a slipgate, and
+    // hijack the "start.bsp" string
+
     // make sure we don't issue two changelevels
     if(svs.changelevel_issued)
     {

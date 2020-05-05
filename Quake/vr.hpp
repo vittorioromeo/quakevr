@@ -450,6 +450,7 @@ enum class WpnCVar : std::uint8_t
     WpnButtonPitch = 57,
     WpnButtonYaw = 58,
     WpnButtonRoll = 59,
+    MuzzleAnchorVertex = 60,
 
     k_Max
 };
