@@ -2468,7 +2468,6 @@ void M_QuakeVRSettings_Key(int k)
     // ------------------------------------------------------------------------
 
     const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
-    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
     const auto hover2HOffset =
         makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
 
@@ -2503,6 +2502,8 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
+    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
+
     const char* muzzleTooltip =
         "Position of the weapon muzzle. Relative to the XYZ offsets above. "
         "Affected by the weapon model scale. DOES affect aiming. Bullets and "
@@ -2517,6 +2518,16 @@ void M_QuakeVRSettings_Key(int k)
     o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ)
         .hover(hoverMuzzle)
         .tooltip(muzzleTooltip);
+
+    m.add_cvar_getter_entry<int>( //
+         "Muzzle Anchor Vertex",  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::MuzzleAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverMuzzle)
+        .tooltip("Index of the mesh vertex where the muzzle will be attached.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -3053,7 +3064,8 @@ void M_QuakeVRSettings_Key(int k)
     }
 
     MAKE_XYZ_CONTROLS("All Fingers And Base", vr_fingers_and_base);
-    MAKE_XYZ_CONTROLS("All Fingers And Base (Off-Hand)", vr_fingers_and_base_offhand);
+    MAKE_XYZ_CONTROLS(
+        "All Fingers And Base (Off-Hand)", vr_fingers_and_base_offhand);
     MAKE_XYZ_CONTROLS("All Fingers", vr_fingers);
     MAKE_XYZ_CONTROLS("Thumb", vr_finger_thumb);
     MAKE_XYZ_CONTROLS("Index", vr_finger_index);
