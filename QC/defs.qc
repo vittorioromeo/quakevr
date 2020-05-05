@@ -568,10 +568,11 @@ float UPDATE_TEMP    = 3;
 // Edict `.effects` flag values
 // ----------------------------------------------------------------------------
 
-float EF_BRIGHTFIELD = VRUTIL_POWER_OF_TWO(0);
-float EF_MUZZLEFLASH = VRUTIL_POWER_OF_TWO(1);
-float EF_BRIGHTLIGHT = VRUTIL_POWER_OF_TWO(2);
-float EF_DIMLIGHT    = VRUTIL_POWER_OF_TWO(3);
+float EF_BRIGHTFIELD  = VRUTIL_POWER_OF_TWO(0);
+float EF_MUZZLEFLASH  = VRUTIL_POWER_OF_TWO(1);
+float EF_BRIGHTLIGHT  = VRUTIL_POWER_OF_TWO(2);
+float EF_DIMLIGHT     = VRUTIL_POWER_OF_TWO(3);
+float EF_VERYDIMLIGHT = VRUTIL_POWER_OF_TWO(3);
 
 //
 //
@@ -596,9 +597,6 @@ float movedist;
 float gameover; // Set when a rule exits.
 
 string string_null; // Null string, nothing should be held here.
-
-// TODO VR: (P1) ?
-// entity newmis; // `launch_spike` sets this after spawning it.
 
 entity activator; // The entity that activated a trigger or brush.
 

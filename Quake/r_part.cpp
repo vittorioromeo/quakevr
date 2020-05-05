@@ -176,8 +176,8 @@ public:
         return _textures[handle];
     }
 
-    [[nodiscard]] const ImageData& getImageData(const Handle handle) const
-        noexcept
+    [[nodiscard]] const ImageData& getImageData(
+        const Handle handle) const noexcept
     {
         assert(handle < _next);
         return _imageData[handle];
@@ -214,8 +214,8 @@ public:
         return _textureMgr.get(handle);
     }
 
-    [[nodiscard]] const ImageData& getImageData(const Handle handle) const
-        noexcept
+    [[nodiscard]] const ImageData& getImageData(
+        const Handle handle) const noexcept
     {
         return _textureMgr.getImageData(handle);
     }
@@ -898,8 +898,7 @@ void R_RunParticleEffect_BulletPuff(
     });
 }
 
-void R_RunParticleEffect_Blood(
-    const qvec3& org, const qvec3& dir, int count)
+void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
 {
     constexpr int bloodColors[]{247, 248, 249, 250, 251};
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
@@ -966,8 +965,8 @@ void R_RunParticleEffect_Lightning(
 
     makeNParticles(ptxLightning, count, [&](particle_t& p) {
         p.angle = rnd(0.f, 360.f);
-        p.alpha = 180;
-        p.die = cl.time + 1.3 * (rand() % 3);
+        p.alpha = rnd(180, 220);
+        p.die = cl.time + 1.6 * (rand() % 3);
         p.color = 254;
         p.scale = rnd(0.35f, 0.6f) * 6.2f;
         p.type = pt_lightning;
@@ -981,8 +980,7 @@ void R_RunParticleEffect_Lightning(
     });
 }
 
-void R_RunParticleEffect_Smoke(
-    const qvec3& org, const qvec3& dir, int count)
+void R_RunParticleEffect_Smoke(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
@@ -1003,8 +1001,7 @@ void R_RunParticleEffect_Smoke(
     });
 }
 
-void R_RunParticleEffect_Sparks(
-    const qvec3& org, const qvec3& dir, int count)
+void R_RunParticleEffect_Sparks(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
@@ -1028,8 +1025,7 @@ void R_RunParticleEffect_Sparks(
     });
 }
 
-void R_RunParticleEffect_GunSmoke(
-    const qvec3& org, const qvec3& dir, int count)
+void R_RunParticleEffect_GunSmoke(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
@@ -1052,8 +1048,7 @@ void R_RunParticleEffect_GunSmoke(
     });
 }
 
-void R_RunParticleEffect_Teleport(
-    const qvec3& org, const qvec3& dir, int count)
+void R_RunParticleEffect_Teleport(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
@@ -1089,7 +1084,6 @@ void R_RunParticleEffect_GunPickup(
         p.color = rndi(12, 16);
         p.scale = rnd(1.55f, 2.87f) * 0.35f;
         p.type = pt_gunpickup;
-        p.param0 = rndi(0, 2); // rotation direction
         setAccGrav(p, -0.2f);
 
         for(int j = 0; j < 3; j++)
@@ -1114,7 +1108,6 @@ void R_RunParticleEffect_GunForceGrab(
         p.color = rndi(106, 111);
         p.scale = rnd(1.55f, 2.87f) * 0.35f;
         p.type = pt_gunpickup;
-        p.param0 = rndi(0, 2); // rotation direction
         setAccGrav(p, -0.3f);
 
         for(int j = 0; j < 3; j++)
@@ -1124,6 +1117,28 @@ void R_RunParticleEffect_GunForceGrab(
         }
 
         p.vel[2] = rnd(0, 40);
+    });
+}
+
+void R_RunParticleEffect_LavaSpike(
+    const qvec3& org, const qvec3& dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxSpark, count, [&](particle_t& p) {
+        p.angle = rnd(0.f, 360.f);
+        p.alpha = rnd(180, 225);
+        p.die = cl.time + 0.5;
+        p.color = rndi(247, 254);
+        p.scale = rnd(1.55f, 2.87f) * 0.17f;
+        p.type = pt_gunpickup;
+        setAccGrav(p, 0.17f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org[j] = org[j] + static_cast<float>(((rand() & 2) - 1)) * 0.3f;
+            p.vel[j] = rnd(-2, 2);
+        }
     });
 }
 
@@ -1147,6 +1162,7 @@ void R_RunParticle2Effect(
         Teleport = 7,
         GunPickup = 8,
         GunForceGrab = 9,
+        LavaSpike = 10
     };
 
     switch(static_cast<Preset>(preset))
@@ -1201,6 +1217,11 @@ void R_RunParticle2Effect(
             R_RunParticleEffect_GunForceGrab(org, dir, count);
             break;
         }
+        case Preset::LavaSpike:
+        {
+            R_RunParticleEffect_LavaSpike(org, dir, count);
+            break;
+        }
         default:
         {
             assert(false);
@@ -1229,7 +1250,7 @@ void R_LavaSplash(const qvec3& org)
                 p.type = pt_static;
                 setAccGrav(p);
 
-                const qvec3 dir{      //
+                const qvec3 dir{          //
                     j * 8 + (rand() & 7), //
                     i * 8 + (rand() & 7), //
                     256};
@@ -1653,8 +1674,8 @@ void CL_RunParticles()
 
             case pt_lightning:
             {
-                p.alpha -= 87.f * frametime;
-                p.scale -= 33.f * frametime;
+                p.alpha -= 84.f * frametime;
+                p.scale -= 32.f * frametime;
 
                 break;
             }

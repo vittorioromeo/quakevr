@@ -109,7 +109,7 @@ struct entity_t
     qvec3 scale;
     qvec3 scale_origin;
 
-    bool hidden; // TODO VR: (P1) hack
+    bool hidden; // TODO VR: (P1) hack? or document
 };
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

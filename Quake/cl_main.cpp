@@ -627,11 +627,20 @@ void CL_RelinkEntities()
             dl->radius = 400 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
+
         if(ent->effects & EF_DIMLIGHT)
         {
             dl = CL_AllocDlight(i);
             dl->origin = ent->origin;
             dl->radius = 200 + (rand() & 31);
+            dl->die = cl.time + 0.001;
+        }
+
+        if(ent->effects & EF_VERYDIMLIGHT)
+        {
+            dl = CL_AllocDlight(i);
+            dl->origin = ent->origin;
+            dl->radius = 50 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
 

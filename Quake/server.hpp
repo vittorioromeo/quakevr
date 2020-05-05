@@ -182,6 +182,7 @@ typedef struct client_s
 #define EF_MUZZLEFLASH 2
 #define EF_BRIGHTLIGHT 4
 #define EF_DIMLIGHT 8
+#define EF_VERYDIMLIGHT 16
 
 #define SPAWNFLAG_NOT_EASY 256
 #define SPAWNFLAG_NOT_MEDIUM 512

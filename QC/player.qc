@@ -184,12 +184,6 @@ void() player_run_no_arg =
     player_run(cVR_MainHand);
 };
 
-// TODO VR: (P1) move
-.void(float) thinkArgFn;
-.void(float) think2ArgFn;
-.float thinkArg;
-.float think2Arg;
-
 void() doThinkArgFn =
 {
     self.thinkArgFn(self.thinkArg);

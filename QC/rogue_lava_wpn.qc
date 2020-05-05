@@ -1,5 +1,18 @@
 // LAVA Weapon Routines
 
+
+void() lavaspike_think =
+{
+    self.nextthink = time + 0.01;
+
+    particle2(self.origin, '0 0 0', 10 /* lava spike preset */, 5);
+
+    if(time >= self.lip)
+    {
+        SUB_Remove();
+    }
+}
+
 /*
 ===============
 launch_lava_spike
@@ -20,8 +33,13 @@ entity(vector org, vector dir) launch_lava_spike =
 
     newmis.touch = lavaspike_touch;
     newmis.classname = "lava_spike";
-    newmis.think = SUB_Remove;
-    newmis.nextthink = time + 6;
+
+    newmis.think = lavaspike_think;
+    newmis.nextthink = time + 0.01;
+    newmis.lip = time + 6; // deletion time
+
+    newmis.effects = EF_VERYDIMLIGHT;
+
     setmodel (newmis, "progs/lspike.mdl");
     setsize (newmis, VEC_ORIGIN, VEC_ORIGIN);
     setorigin (newmis, org);
@@ -106,7 +124,10 @@ local float old_armormask;
         return;
     }
 
-// hit something that bleeds
+    makeforward_mdl(self.angles);
+    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+
+    // hit something that bleeds
     if(other.takedamage)
     {
         spawn_touchblood (9);
@@ -142,7 +163,10 @@ local float old_armormask;
         else if(self.classname == "knightspike")
             WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
         else
+        {
+            spike_bullethole();
             WriteByte (MSG_BROADCAST, TE_SPIKE);
+        }
         WriteCoord (MSG_BROADCAST, self.origin_x);
         WriteCoord (MSG_BROADCAST, self.origin_y);
         WriteCoord (MSG_BROADCAST, self.origin_z);
@@ -170,7 +194,10 @@ local float old_armortype;
         return;
     }
 
-// hit something that bleeds
+    makeforward_mdl(self.angles);
+    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+
+    // hit something that bleeds
     if(other.takedamage)
     {
         spawn_touchblood (18);
@@ -202,6 +229,7 @@ local float old_armortype;
     }
     else
     {
+        spike_bullethole();
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_SUPERSPIKE);
         WriteCoord (MSG_BROADCAST, self.origin_x);

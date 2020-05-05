@@ -131,12 +131,6 @@ extern cvar_t vr_forcegrab_radius;
 extern cvar_t vr_weapondrop_particles;
 extern cvar_t vr_forcegrab_eligible_particles;
 extern cvar_t vr_forcegrab_eligible_haptics;
-extern cvar_t vr_openhand_offset_x;
-extern cvar_t vr_openhand_offset_y;
-extern cvar_t vr_openhand_offset_z;
-extern cvar_t vr_openhand_pitch;
-extern cvar_t vr_openhand_yaw;
-extern cvar_t vr_openhand_roll;
 
 //
 //

@@ -270,3 +270,15 @@
 .float offhand_melee_attack_finished;
 .float offhand_in_melee;
 .float offhand_melee_hit_sound_played;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Think closures
+// ----------------------------------------------------------------------------
+
+.void(float) thinkArgFn;
+.void(float) think2ArgFn;
+.float thinkArg;
+.float think2Arg;

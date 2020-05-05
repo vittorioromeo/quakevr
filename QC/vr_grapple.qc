@@ -182,11 +182,11 @@ void () GrappleAnchor =
     if(other == self.owner) // don't hook the guy that fired it
         return;
 
-    if(pointcontents(self.origin) == CONTENT_SKY) {
-
-        // TODO VR: (P1) never prints:
-        bprint("Grapple sky\n");
-
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        // TODO VR: (P2) see below
+        // This does happen, but only in certain maps. Not sure if the problem
+        // is map support, or something with `pointcontents`.
         GrappleResetFromHook();
         return;
     }

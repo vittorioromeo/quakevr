@@ -1166,10 +1166,6 @@ void R_RenderScene()
     R_DrawViewModel(&cl.right_upper_holster);
 
     // VR: This is what draws the hands.
-    // TODO VR: (P0) remove
-    // R_DrawViewModel(&cl.left_hand);
-    // R_DrawViewModel(&cl.right_hand);
-
     const auto drawHand = [](auto& handEntities)
     {
         R_DrawViewModel(&handEntities.base);

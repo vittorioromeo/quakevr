@@ -311,11 +311,14 @@ void CL_ParseTEnt()
 
         case TE_EXPLOSION2: // color mapped explosion
         {
+            // TODO VR: (P0) restore color coding, explosions like the plasma
+            // ball use it
+
             const auto pos = readVectorFromProtocolFlags();
             R_ParticleExplosion(pos);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
-            (void)colorStart; // still need to read the byte to avoid issues
+            (void)colorStart;  // still need to read the byte to avoid issues
             (void)colorLength; // still need to read the byte to avoid issues
 
             // TODO VR: (P2) unused above ^

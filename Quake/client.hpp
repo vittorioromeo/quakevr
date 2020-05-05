@@ -96,6 +96,8 @@ struct beam_t
     qvec3 start, end;
     bool spin;
     float scaleRatioX;
+    // SomeEnum special; // TODO VR: (P1) consider adding this and experiment
+    // with particles/dlights
 };
 
 
@@ -249,8 +251,6 @@ struct client_state_t
     entity_t left_upper_holster;
     entity_t right_upper_holster;
     entity_t vrtorso;
-    entity_t left_hand;
-    entity_t right_hand;
     entity_t left_hip_holster_slot;
     entity_t right_hip_holster_slot;
     entity_t left_upper_holster_slot;
@@ -294,8 +294,6 @@ bool anyViewmodel(client_state_t& clientState, F&& f)
         || f(clientState.right_hip_holster)                  //
         || f(clientState.left_upper_holster)                 //
         || f(clientState.right_upper_holster)                //
-        || f(clientState.left_hand)                          //
-        || f(clientState.right_hand)                         //
         || f(clientState.vrtorso)                            //
         || f(clientState.left_hip_holster_slot)              //
         || f(clientState.right_hip_holster_slot)             //
