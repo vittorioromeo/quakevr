@@ -2423,7 +2423,6 @@ W_ChangeWeapon
 void() W_ChangeWeapon =
 {
     local float am, wid;
-    local float oldimpulse;
 
     am = 0;
 
@@ -2434,22 +2433,22 @@ void() W_ChangeWeapon =
     else if(self.impulse == 2)
     {
         wid = WID_SHOTGUN;
-        if(self.ammo_shells < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) < 1) { am = 1; }
     }
     else if(self.impulse == 3)
     {
         wid = WID_SUPER_SHOTGUN;
-        if(self.ammo_shells < 2) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) < 2) { am = 1; }
     }
     else if(self.impulse == 4)
     {
         wid = WID_NAILGUN;
-        if(self.ammo_nails < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) < 1) { am = 1; }
     }
     else if(self.impulse == 5)
     {
         wid = WID_SUPER_NAILGUN;
-        if(self.ammo_nails < 2) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) < 2) { am = 1; }
     }
     else if(self.impulse == 6)
     {
@@ -2462,29 +2461,28 @@ void() W_ChangeWeapon =
            wid = WID_GRENADE_LAUNCHER;
         }
 
-        if(self.ammo_rockets < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) < 1) { am = 1; }
     }
     else if(self.impulse == 7)
     {
         wid = WID_ROCKET_LAUNCHER;
-        if(self.ammo_rockets < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) < 1) { am = 1; }
     }
     else if(self.impulse == 8)
     {
         wid = WID_LIGHTNING;
-        if(self.ammo_cells < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS) < 1) { am = 1; }
     }
     else if(self.impulse == 225)
     {
         wid = WID_LASER_CANNON;
-        if(self.ammo_cells < 1) { am = 1; }
+        if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS) < 1) { am = 1; }
     }
     else if(self.impulse == 226)
     {
         wid = WID_MJOLNIR;
     }
 
-    oldimpulse = self.impulse;
     self.impulse = 0;
 
     if(!VR_ItemUtil_EntHasItem(self, WeaponIdToItemId(wid)))
@@ -2499,7 +2497,7 @@ void() W_ChangeWeapon =
                 return;
             }
 
-            if(self.ammo_rockets < 1)
+            if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) < 1)
             {
                 am = 1;
             }
@@ -2848,7 +2846,7 @@ ImpulseCommands
 */
 void() ImpulseCommands =
 {
-    if(self.impulse >= 1 && self.impulse <= 6)
+    if(self.impulse >= 1 && self.impulse <= 8)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -2857,7 +2855,7 @@ void() ImpulseCommands =
     }
 
     // TODO VR: (P0) remove, or make better, check if gun supports it
-    if(self.impulse == 7)
+    if(self.impulse == 42)
     {
         haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
@@ -2866,7 +2864,7 @@ void() ImpulseCommands =
         W_SetCurrentAmmoFor(cVR_OffHand);
     }
 
-    if(self.impulse == 8)
+    if(self.impulse == 43)
     {
         haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
