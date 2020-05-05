@@ -42,8 +42,6 @@ cvar_t cmdline = {
 
 static bool com_modified; // set true if using non-id files
 
-bool fitzmode;
-
 static void COM_Path_f();
 
 // if a packfile directory differs from this, it is assumed to be hacked
@@ -62,6 +60,7 @@ char** com_argv;
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
 char com_cmdline[CMDLINE_LENGTH];
 
+// TODO VR: (P0) remove rogue/hipnotic special cases
 bool standard_quake = true, rogue, hipnotic;
 
 // this graphic needs to be in the pak file to use registered features
@@ -1699,10 +1698,6 @@ void COM_Init()
         LittleFloat = FloatNoSwap;
     }
 
-    if(COM_CheckParm("-fitz"))
-    {
-        fitzmode = true;
-    }
 #ifdef _DEBUG
     Cmd_AddCommand("fitztest", FitzTest_f); // johnfitz
 #endif
@@ -2383,7 +2378,7 @@ _add_path:
         pack_t* pak = COM_LoadPackFile(pakfile);
         pack_t* qspak;
 
-        if(i != 0 || path_id != 1 || fitzmode)
+        if(i != 0 || path_id != 1)
         {
             qspak = nullptr;
         }

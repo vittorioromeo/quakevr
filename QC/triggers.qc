@@ -495,7 +495,7 @@ void() trigger_teleport =
     local vector o;
 
     // HONEY
-    if(self.spawnflags & TRIGGER_SPAWN){
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN){
         self.use = trigger_teleport;
         self.spawnflags = (self.spawnflags & PLAYER_ONLY) | SILENT | IGNORE_TARGETNAME;
         return;

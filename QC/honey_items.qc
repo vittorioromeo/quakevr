@@ -47,8 +47,8 @@ void() item_spawn =
 
     force_retouch = 2;
 
-    if(self.spawnflags & TRIGGER_SPAWN_TFOG){
-        self.spawnflags = self.spawnflags - TRIGGER_SPAWN_TFOG;
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_TFOG){
+        self.spawnflags = self.spawnflags - SPAWNFLAG_TRIGGER_SPAWN_TFOG;
         spawn_tfog(self.origin);
     }
 

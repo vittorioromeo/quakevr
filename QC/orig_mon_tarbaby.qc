@@ -148,9 +148,9 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
 {
     // HONEY
     local vector power;
-    if(self.spawnflags & TBABY_LIVID){
+    if(self.spawnflags & SPAWNFLAG_TBABY_LIVID){
         self.th_missile = tbaby_jump1; //Reset
-        self.spawnflags = self.spawnflags - TBABY_LIVID;
+        self.spawnflags = self.spawnflags - SPAWNFLAG_TBABY_LIVID;
     }
 
     self.movetype = MOVETYPE_BOUNCE;
@@ -159,9 +159,9 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
     self.origin_z = self.origin_z + 1;
 
     // HONEY
-    if(self.spawnflags & TBABY_HIPHOP){// Makes it start off by jumping really high the first time
+    if(self.spawnflags & SPAWNFLAG_TBABY_HIPHOP){// Makes it start off by jumping really high the first time
         self.velocity = v_forward * 150 + '0 0 700';
-        self.spawnflags = self.spawnflags - TBABY_HIPHOP;
+        self.spawnflags = self.spawnflags - SPAWNFLAG_TBABY_HIPHOP;
     }else{
         power = '0 0 0' ;
         power_z = self.distance;
@@ -302,7 +302,7 @@ void() monster_tarbaby =
     precache_sound2("blob/mytosis.wav");
 
 
-    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
 
@@ -313,7 +313,7 @@ void() monster_tarbaby =
     self.th_run = tbaby_run1;
 
     // HONEY
-    if(self.spawnflags & TBABY_LIVID) { self.th_missile = tbaby_jump5; } //Really go flying
+    if(self.spawnflags & SPAWNFLAG_TBABY_LIVID) { self.th_missile = tbaby_jump5; } //Really go flying
     else                              { self.th_missile = tbaby_jump1; }
 
     self.th_melee = tbaby_jump1;
@@ -364,7 +364,7 @@ void() monster_tarbaby =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & TRIGGER_SPAWN)
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = tarbaby_start;
         return;

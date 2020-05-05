@@ -606,21 +606,15 @@ rewritten
 */
 void R_SetupAliasLighting(entity_t* e)
 {
-    qvec3 dist;
-    qfloat add;
-    int i;
-    int quantizedangle;
-    float radiansangle;
-
     R_LightPoint(e->origin);
 
     // add dlights
-    for(i = 0; i < MAX_DLIGHTS; i++)
+    for(int i = 0; i < MAX_DLIGHTS; i++)
     {
         if(cl_dlights[i].die >= cl.time)
         {
-            dist = currententity->origin - cl_dlights[i].origin;
-            add = cl_dlights[i].radius - glm::length(dist);
+            const qvec3 dist = currententity->origin - cl_dlights[i].origin;
+            const qfloat add = cl_dlights[i].radius - glm::length(dist);
 
             if(add > 0)
             {
@@ -636,12 +630,13 @@ void R_SetupAliasLighting(entity_t* e)
     // minimum light value on gun (24)
     if(isViewmodel)
     {
-        add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
-        if(add > 0.0f)
+        const qfloat add =
+            72.0_qf - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+        if(add > 0.0_qf)
         {
-            lightcolor[0] += add / 3.0f;
-            lightcolor[1] += add / 3.0f;
-            lightcolor[2] += add / 3.0f;
+            lightcolor[0] += add / 3.0_qf;
+            lightcolor[1] += add / 3.0_qf;
+            lightcolor[2] += add / 3.0_qf;
         }
     }
 
@@ -649,20 +644,22 @@ void R_SetupAliasLighting(entity_t* e)
     if(currententity > cl_entities &&
         currententity <= cl_entities + cl.maxclients)
     {
-        add = 24.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
-        if(add > 0.0f)
+        const qfloat add =
+            24.0_qf - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+        if(add > 0.0_qf)
         {
-            lightcolor[0] += add / 3.0f;
-            lightcolor[1] += add / 3.0f;
-            lightcolor[2] += add / 3.0f;
+            lightcolor[0] += add / 3.0_qf;
+            lightcolor[1] += add / 3.0_qf;
+            lightcolor[2] += add / 3.0_qf;
         }
     }
 
     // clamp lighting so it doesn't overbright as much (96)
     if(overbright)
     {
-        add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
-        if(add < 1.0f)
+        const qfloat add =
+            288.0_qf / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+        if(add < 1.0_qf)
         {
             lightcolor *= add;
         }
@@ -673,18 +670,18 @@ void R_SetupAliasLighting(entity_t* e)
     {
         if(e->model->flags & MOD_FBRIGHTHACK)
         {
-            lightcolor[0] = 256.0f;
-            lightcolor[1] = 256.0f;
-            lightcolor[2] = 256.0f;
+            lightcolor[0] = 256.0_qf;
+            lightcolor[1] = 256.0_qf;
+            lightcolor[2] = 256.0_qf;
         }
     }
 
-    quantizedangle =
+    const int quantizedangle =
         ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
 
     // ericw -- shadevector is passed to the shader to compute shadedots inside
     // the shader, see GLAlias_CreateShaders()
-    radiansangle = (quantizedangle / 16.0) * 2.0 * 3.14159;
+    const float radiansangle = (quantizedangle / 16.0) * 2.0 * 3.14159;
     shadevector[0] = cos(-radiansangle);
     shadevector[1] = sin(-radiansangle);
     shadevector[2] = 1;

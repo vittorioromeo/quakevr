@@ -66,7 +66,7 @@ using qvec3 = glm::vec3;
 using qmat3 = glm::mat3;
 using qquat = glm::quat;
 
-[[nodiscard]] inline const auto toGlMat(const qquat& q) noexcept
+[[nodiscard]] inline auto toGlMat(const qquat& q) noexcept
 {
     return glm::mat4_cast(q);
 }

@@ -20,7 +20,7 @@ IndentCaseLabels: true
 IndentWidth: 4
 IndentWrappedFunctionNames: false
 MaxEmptyLinesToKeep: 3
-NamespaceIndentation: All
+NamespaceIndentation: None
 PenaltyBreakBeforeFirstCallParameter: 1000000000
 PointerAlignment: "Left"
 PointerBindsToType: true

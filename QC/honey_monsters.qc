@@ -1,7 +1,7 @@
 void() teleport_glitter =
 {
     spawn_tdeath(self.origin, self);
-    if(self.spawnflags & TRIGGER_SPAWN_TFOG)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_TFOG)
     {
         spawn_tfog(self.origin);
     }
@@ -9,7 +9,7 @@ void() teleport_glitter =
 
 void() monster_add_to_counter =
 {
-    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE){
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE){
         if(self.cnt != -1){
                 total_monsters = total_monsters + self.cnt + 1;
         }else{
@@ -24,11 +24,11 @@ void() monster_add_to_counter =
 
 /*
 ================
-monster_remove_corpse
+monster_SPAWNFLAG_REMOVE_CORPSE
 
 ================
 */
-void() monster_remove_corpse =
+void() monster_SPAWNFLAG_REMOVE_CORPSE =
 {
     //Screw this, just delete it, it's not visible.
     /*
@@ -50,7 +50,7 @@ void() monster_check_remove_corpse =
 {
     local entity player;
 
-    if(!(self.spawnflags & REMOVE_CORPSE)) { return; }
+    if(!(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
 
     player = find (world, classname, "player");
     while (player)
@@ -63,7 +63,7 @@ void() monster_check_remove_corpse =
         player = find (player, classname, "player");
     }
 
-    monster_remove_corpse();
+    monster_SPAWNFLAG_REMOVE_CORPSE();
 
 
 }

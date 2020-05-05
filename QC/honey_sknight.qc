@@ -326,7 +326,7 @@ void() monster_sknight =
     precache_sound ("knight/sword1.wav");
     precache_sound ("knight/sword2.wav");
 
-    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
     self.health = 250;

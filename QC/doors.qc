@@ -1,5 +1,4 @@
-// TODO VR: (P2) move
-#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
+#include "vr_macros.qc"
 
 float DOOR_START_OPEN     = VRUTIL_POWER_OF_TWO(0);
 float DOOR_DONT_LINK      = VRUTIL_POWER_OF_TWO(2); // This was 2^2, not sure why not 2^1

@@ -1,12 +1,4 @@
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Implementation utilities
-// ----------------------------------------------------------------------------
-
-// TODO VR: (P2) move
-#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
+#include "vr_macros.qc"
 
 //
 //
@@ -135,26 +127,24 @@ float AID_PLASMA        = 7; // ROGUE.
 // Spawnflags
 // ----------------------------------------------------------------------------
 
-float SPAWNFLAG_SUPERSPIKE   = VRUTIL_POWER_OF_TWO(0);  // HIPNOTIC.
-float SPAWNFLAG_LASER        = VRUTIL_POWER_OF_TWO(1);  // HIPNOTIC.
-float SPAWNFLAG_LAVABALL     = VRUTIL_POWER_OF_TWO(2);  // HIPNOTIC.
-float SPAWNFLAG_ROCKET       = VRUTIL_POWER_OF_TWO(3);  // HIPNOTIC.
-float SPAWNFLAG_SILENT       = VRUTIL_POWER_OF_TWO(4);  // HIPNOTIC.
-float SPAWNFLAG_LAVASPIKE    = VRUTIL_POWER_OF_TWO(5);  // ROGUE.
-float SPAWNFLAG_SUPERLAVA    = VRUTIL_POWER_OF_TWO(6);  // ROGUE.
-float SPAWNFLAG_LAVASKILL    = VRUTIL_POWER_OF_TWO(7);  // ROGUE.
-float SPAWNFLAG_FIREBALL     = VRUTIL_POWER_OF_TWO(8);  // ROGUE.
-
-// TODO VR: (P2) improve names
-float TBABY_HIPHOP           = VRUTIL_POWER_OF_TWO(9);  // HONEY.
-float TBABY_LIVID            = VRUTIL_POWER_OF_TWO(10); // HONEY.
-float TRIGGER_SPAWN_TFOG     = VRUTIL_POWER_OF_TWO(11); // HONEY.
-float REMOVE_CORPSE          = VRUTIL_POWER_OF_TWO(12); // HONEY.
-float TRIGGER_SPAWN_ANGRY    = VRUTIL_POWER_OF_TWO(13); // HONEY.
-float TRIGGER_SPAWN          = VRUTIL_POWER_OF_TWO(14); // HONEY.
-float TRIGGER_SPAWN_MULTIPLE = VRUTIL_POWER_OF_TWO(15); // HONEY.
-float SF_SILENT_WAKEUP       = VRUTIL_POWER_OF_TWO(16); // HONEY.
-float SF_AI_BBOX_CHECK       = VRUTIL_POWER_OF_TWO(17); // HONEY.
+float SPAWNFLAG_SUPERSPIKE             = VRUTIL_POWER_OF_TWO(0);  // HIPNOTIC.
+float SPAWNFLAG_LASER                  = VRUTIL_POWER_OF_TWO(1);  // HIPNOTIC.
+float SPAWNFLAG_LAVABALL               = VRUTIL_POWER_OF_TWO(2);  // HIPNOTIC.
+float SPAWNFLAG_ROCKET                 = VRUTIL_POWER_OF_TWO(3);  // HIPNOTIC.
+float SPAWNFLAG_SILENT                 = VRUTIL_POWER_OF_TWO(4);  // HIPNOTIC.
+float SPAWNFLAG_LAVASPIKE              = VRUTIL_POWER_OF_TWO(5);  // ROGUE.
+float SPAWNFLAG_SUPERLAVA              = VRUTIL_POWER_OF_TWO(6);  // ROGUE.
+float SPAWNFLAG_LAVASKILL              = VRUTIL_POWER_OF_TWO(7);  // ROGUE.
+float SPAWNFLAG_FIREBALL               = VRUTIL_POWER_OF_TWO(8);  // ROGUE.
+float SPAWNFLAG_TBABY_HIPHOP           = VRUTIL_POWER_OF_TWO(9);  // HONEY.
+float SPAWNFLAG_TBABY_LIVID            = VRUTIL_POWER_OF_TWO(10); // HONEY.
+float SPAWNFLAG_TRIGGER_SPAWN_TFOG     = VRUTIL_POWER_OF_TWO(11); // HONEY.
+float SPAWNFLAG_REMOVE_CORPSE          = VRUTIL_POWER_OF_TWO(12); // HONEY.
+float SPAWNFLAG_TRIGGER_SPAWN_ANGRY    = VRUTIL_POWER_OF_TWO(13); // HONEY.
+float SPAWNFLAG_TRIGGER_SPAWN          = VRUTIL_POWER_OF_TWO(14); // HONEY.
+float SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE = VRUTIL_POWER_OF_TWO(15); // HONEY.
+float SPAWNFLAG_SF_SILENT_WAKEUP       = VRUTIL_POWER_OF_TWO(16); // HONEY.
+float SPAWNFLAG_SF_AI_BBOX_CHECK       = VRUTIL_POWER_OF_TWO(17); // HONEY.
 
 //
 //
@@ -268,4 +258,4 @@ float QVR_VRFORCEGRABMODE_INSTANT = 3;
 // ----------------------------------------------------------------------------
 
 float readytime; // Time after loading when the player is considered ready.
-                 // TODO VR: (P2) what does this affect?
+                 // Prevents shooting, grabbing/dropping weapons.

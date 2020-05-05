@@ -116,8 +116,8 @@ qfloat V_CalcRoll(const qvec3& angles, const qvec3& velocity)
     }
 
 
-    //	if (cl.inwater)
-    //		value *= 6;
+    //  if (cl.inwater)
+    //     value *= 6;
 
     if(side < cl_rollspeed.value)
     {

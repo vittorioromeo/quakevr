@@ -2542,6 +2542,7 @@ void Host_Startdemos_f()
     if(!sv.active && cls.demonum != -1 && !cls.demoplayback)
     {
         cls.demonum = 0;
+
         if(vr_enabled.value)
         {
             // Start a new game when vr_enabled
@@ -2551,13 +2552,18 @@ void Host_Startdemos_f()
             Cbuf_AddText("map start\n");
             Cbuf_AddText("centerview\n");
         }
+
+        /*
         else if(!fitzmode)
-        { /* QuakeSpasm customization: */
-            /* go straight to menu, no CL_NextDemo */
+        {
+            // QuakeSpasm customization:
+            // go straight to menu, no CL_NextDemo
             cls.demonum = -1;
             Cbuf_InsertText("menu_main\n");
             return;
         }
+        */
+
         CL_NextDemo();
     }
     else
