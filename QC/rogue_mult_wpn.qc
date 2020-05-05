@@ -379,10 +379,13 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 
     e1 = e2 = world;
 
+    // HONEY
+    self.damage_weapon = IT_LIGHTNING;
+
     traceline(p1, p2, FALSE, self);
     if(trace_ent.takedamage)
     {
-        particle (trace_endpos, '0 0 100', 225, damage*4);
+        SpawnBloodSplash (trace_endpos, damage*5);
         T_Damage (trace_ent, from, from.owner, damage);
         if(self.classname == "player")
         {
@@ -395,7 +398,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     traceline(p1 + f, p2 + f, FALSE, self);
     if(trace_ent != e1 && trace_ent.takedamage)
     {
-        particle (trace_endpos, '0 0 100', 225, damage*4);
+        SpawnBloodSplash (trace_endpos, damage*5);
         T_Damage (trace_ent, from, from.owner, damage);
     }
     e2 = trace_ent;
@@ -403,7 +406,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     traceline(p1 - f, p2 - f, FALSE, self);
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
     {
-        particle (trace_endpos, '0 0 100', 225, damage*4);
+        SpawnBloodSplash (trace_endpos, damage*5);
         T_Damage (trace_ent, from, from.owner, damage);
     }
 };
@@ -432,9 +435,9 @@ void() PlasmaGroundOut =
     local float        monstersHit;
 
     monstersHit = 0;
-    current = findradius ( self.origin, 320 );
+    current = findradius ( self.origin, 420 );
     start = current;
-    while( monstersHit < 5 )
+    while( monstersHit < 6 )
     {
         if(current.flags & FL_MONSTER || current.classname == "player")
         {
@@ -445,6 +448,10 @@ void() PlasmaGroundOut =
                 {
                     monstersHit = monstersHit + 1;
                     PlasmaDischarge ( current, 1 );
+
+                    LightningParticles(self.origin, trace_endpos);
+                    LightningParticles(self.origin, trace_endpos);
+                    LightningParticles(self.origin, trace_endpos);
                 }
             }
         }
@@ -495,13 +502,28 @@ void() PlasmaTouch =
     remove(self);
 };
 
+void() PlasmaThink =
+{
+    self.nextthink = time + 0.01;
+
+    particle2(self.origin, '0 0 0', 3 /* lightning preset */, 25);
+    particle2(self.origin, '0 0 0', 5 /* sparks preset */, 6);
+
+    if(time >= self.lip)
+    {
+        SUB_Remove();
+    }
+}
+
 void() PlasmaLaunch =
 {
     self.velocity = normalize(self.velocity);
     self.velocity = self.velocity * 1250;
 
-    self.nextthink = time + 5;
-    self.think = SUB_Remove;
+    self.lip = time + 5; // deletion time
+
+    self.think = PlasmaThink;
+    self.nextthink = time + 0.01;
 };
 
 void(vector org, vector dir) launch_plasma =
@@ -528,14 +550,14 @@ void(vector org, vector dir) launch_plasma =
     // TODO VR: (P2) rogue (commented to avoid warnings)
     sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
 
-    if(!deathmatch && !coop)
-    {
-        missile.effects = EF_BRIGHTLIGHT;
-    }
+    missile.effects = EF_BRIGHTLIGHT;
 
     // set missile duration
     missile.think = PlasmaLaunch;
     missile.nextthink = time + 0.1;
+
+    particle2(missile.origin, '0 0 0', 3 /* lightning preset */, 25);
+    particle2(missile.origin, '0 0 0', 5 /* sparks preset */, 6);
 };
 
 void(float xHand) W_FirePlasma =

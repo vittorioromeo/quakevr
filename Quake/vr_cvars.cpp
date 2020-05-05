@@ -161,14 +161,6 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_particles, 1);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
 
-// TODO VR: (P0) used?
-DEFINE_CVAR_ARCHIVE(vr_openhand_offset_x, 0.0);
-DEFINE_CVAR_ARCHIVE(vr_openhand_offset_y, 0.0);
-DEFINE_CVAR_ARCHIVE(vr_openhand_offset_z, 0.0);
-DEFINE_CVAR_ARCHIVE(vr_openhand_pitch, 0.0);
-DEFINE_CVAR_ARCHIVE(vr_openhand_yaw, 0.0);
-DEFINE_CVAR_ARCHIVE(vr_openhand_roll, 0.0);
-
 //
 //
 //

@@ -944,10 +944,13 @@ void(float xHand) W_FireAxe =
     // HONEY
     local entity zombie, oself;
     local float  zombie_dist;
-    local float  bleed; // TODO VR: (P1) apply bleed mechanic to other melee attacks
+    local float  bleed; // TODO VR: (P1) apply bleed mechanic to other attacks
     bleed = FALSE;
 
     xdmg = VRMeleeDmg(xHand, 1.00, 7);
+
+    // TODO VR: (P0) this should only be enabled in HONEY, or controlled with a
+    // CVAR. Also should use `findradius` for performance
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -2416,7 +2419,7 @@ W_ChangeWeapon
 ============
 */
 //MED 10/18/96 added hipweapons
-// TODO VR: (P1) rewrite to use new item system
+// TODO VR: (P1) rewrite to use new item system or remove
 void() W_ChangeWeapon =
 {
     local float am, wid;
@@ -2856,7 +2859,7 @@ void() ImpulseCommands =
     // TODO VR: (P0) remove, or make better, check if gun supports it
     if(self.impulse == 7)
     {
-        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
+        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -2865,7 +2868,7 @@ void() ImpulseCommands =
 
     if(self.impulse == 8)
     {
-        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
+        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -3220,9 +3223,9 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     else
     {
         // TODO VR: (P1) still triggers sometimes
-        // bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
-        // bprint(ftos(angle));
-        // bprint("'\n");
+        bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
+        bprint(ftos(angle));
+        bprint("'\n");
     }
 
     if(self.throwstabilize > 0)

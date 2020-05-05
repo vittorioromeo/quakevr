@@ -1514,49 +1514,6 @@ void M_Options_Key(int k)
             "Yaw offset for the guns/hands. Only for off-hand. Affects "
             "aiming.");
 
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    constexpr float oInc = 0.1f;
-    constexpr float oBound = 200.f;
-    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
-
-    constexpr auto openhandOffsetTooltip =
-        "Visual position offset applied to the hand model only when it is "
-        "open.";
-
-    m.add_cvar_entry<float>("Open Hand Offset X", vr_openhand_offset_x, oBounds)
-        .tooltip(openhandOffsetTooltip);
-
-    m.add_cvar_entry<float>("Open Hand Offset Y", vr_openhand_offset_y, oBounds)
-        .tooltip(openhandOffsetTooltip);
-
-    m.add_cvar_entry<float>("Open Hand Offset Z", vr_openhand_offset_z, oBounds)
-        .tooltip(openhandOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    constexpr float rInc = 0.25f;
-    constexpr float rBound = 90.f;
-    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
-
-    constexpr auto openhandRotationTooltip =
-        "Visual rotation offset applied to the hand model only when it is "
-        "open.";
-
-    m.add_cvar_entry<float>("Open Hand Pitch", vr_openhand_pitch, rBounds)
-        .tooltip(openhandRotationTooltip);
-
-    m.add_cvar_entry<float>("Open Hand Yaw", vr_openhand_yaw, rBounds)
-        .tooltip(openhandRotationTooltip);
-
-    m.add_cvar_entry<float>("Open Hand Roll", vr_openhand_roll, rBounds)
-        .tooltip(openhandRotationTooltip);
-
-
     return m;
 }
 
@@ -2149,7 +2106,7 @@ template <typename Range>
     const std::string_view name, const Range& maps)
 {
     const auto changeMap = [&maps](const int option) {
-        // TODO VR: (P1) should this be changelevel?
+        // TODO VR: (P1) should this be changelevel? very likely
         return [&maps, option] {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
             Cmd_ExecuteString(va("map %s", maps[option].data()), src_command);
@@ -2715,20 +2672,6 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    const char* offHandOffsetTooltip =
-        "Visual offset of the hand, relative to the above hand offset.";
-
-    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ)
-        .tooltip(offHandOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
     m.add_cvar_getter_enum_entry<Wpn2HMode>(                               //
          "2H Mode",                                                        //
          [getIdx] { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHMode); }, //
@@ -2984,20 +2927,6 @@ void M_QuakeVRSettings_Key(int k)
     o_wpncvar("Button X", WpnCVar::WpnButtonX).tooltip(btnOffsetTooltip);
     o_wpncvar("Button Y", WpnCVar::WpnButtonY).tooltip(btnOffsetTooltip);
     o_wpncvar("Button Z", WpnCVar::WpnButtonZ).tooltip(btnOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* btnOffhandOffsetTooltip =
-        "Off-hand offset of the weapon button.";
-
-    o_wpncvar("Button Off-Hand X", WpnCVar::WpnButtonOffHandX)
-        .tooltip(btnOffhandOffsetTooltip);
-    o_wpncvar("Button Off-Hand Y", WpnCVar::WpnButtonOffHandY)
-        .tooltip(btnOffhandOffsetTooltip);
-    o_wpncvar("Button Off-Hand Z", WpnCVar::WpnButtonOffHandZ)
-        .tooltip(btnOffhandOffsetTooltip);
 
     // ------------------------------------------------------------------------
     m.add_separator();

@@ -198,15 +198,6 @@ enum class VrForceGrabMode : int
     Instant = 3,
 };
 
-enum class VrHandAnimation : int
-{
-    Open = 0,
-    Pointing = 1,
-    Fist = 2,
-    OkSign = 3,
-    AlmostPointing = 4,
-};
-
 //
 //
 //
@@ -339,9 +330,6 @@ void VR_ApplyModelMod(const qvec3& scale, const qvec3& offsets,
 
 [[nodiscard]] bool VR_IsHandGrabbing(const int hand) noexcept;
 
-[[nodiscard]] qvec3 VR_GetOpenHandOffsets() noexcept;
-[[nodiscard]] qvec3 VR_GetOpenHandAngles() noexcept;
-
 //
 //
 //
@@ -414,9 +402,9 @@ enum class WpnCVar : std::uint8_t
     HandOffsetY = 21,
     HandOffsetZ = 22,
     HandAnchorVertex = 23,
-    OffHandOffsetX = 24,
-    OffHandOffsetY = 25,
-    OffHandOffsetZ = 26,
+    // OffHandOffsetX = 24, // TODO VR: (P1) deprecated
+    // OffHandOffsetY = 25, // TODO VR: (P1) deprecated
+    // OffHandOffsetZ = 26, // TODO VR: (P1) deprecated
     CrosshairMode = 27,
     HideHand = 28,
     TwoHDisplayMode = 29,
@@ -444,9 +432,9 @@ enum class WpnCVar : std::uint8_t
     WpnButtonY = 51,
     WpnButtonZ = 52,
     WpnButtonAnchorVertex = 53,
-    WpnButtonOffHandX = 54,
-    WpnButtonOffHandY = 55,
-    WpnButtonOffHandZ = 56,
+    // WpnButtonOffHandX = 54, // TODO VR: (P1) deprecated
+    // WpnButtonOffHandY = 55, // TODO VR: (P1) deprecated
+    // WpnButtonOffHandZ = 56, // TODO VR: (P1) deprecated
     WpnButtonPitch = 57,
     WpnButtonYaw = 58,
     WpnButtonRoll = 59,
@@ -482,15 +470,12 @@ enum class WpnCVar : std::uint8_t
 // ----------------------------------------------------------------------------
 
 [[nodiscard]] qvec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] qvec3 VR_GetWpnButtonOffHandOffsets(
-    const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
 
 
 // ----------------------------------------------------------------------------
 
 [[nodiscard]] qvec3 VR_GetWpnHandOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] qvec3 VR_GetWpnOffHandOffsets(const int cvarEntry) noexcept;
 
 [[nodiscard]] cvar_t& VR_GetWpnCVar(
     const int cvarEntry, WpnCVar setting) noexcept;
@@ -522,10 +507,6 @@ extern int vr_impl_draw_hand_anchor_vertex;
 extern int vr_impl_draw_2h_hand_anchor_vertex;
 extern int vr_impl_draw_wpnbutton_anchor_vertex;
 extern float vr_2h_aim_transition[2];
-
-// TODO VR: (P0) remove?
-extern VrHandAnimation vr_handanimation_left;
-extern VrHandAnimation vr_handanimation_right;
 
 extern vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 extern vr::VRSkeletalSummaryData_t vr_ss_righthand;

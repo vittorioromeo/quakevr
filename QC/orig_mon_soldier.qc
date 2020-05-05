@@ -201,7 +201,8 @@ void() army_fire =
     // launch_spike (src, vec);
 
     // HONEY
-    // TODO VR: (P0) check how this works
+    // TODO VR: (P0) check how this works, also might be wrong in plasma and
+    // other missile fns
     self.damage_weapon = IT_SHOTGUN;
 };
 

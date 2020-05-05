@@ -237,6 +237,10 @@ typedef struct entvars_s
 	float	offhand_melee_attack_finished;
 	float	offhand_in_melee;
 	float	offhand_melee_hit_sound_played;
+	func_t	thinkArgFn;
+	func_t	think2ArgFn;
+	float	thinkArg;
+	float	think2Arg;
 } entvars_t;
 
-#define PROGHEADER_CRC 37547
+#define PROGHEADER_CRC 34720
