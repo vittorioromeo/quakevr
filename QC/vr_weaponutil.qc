@@ -94,29 +94,11 @@ float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
     eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
-               VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon);
+               (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
     chance = xChance * cvar("vr_enemy_drops_chance_mult");
 
     roll = random();
-
-    // bprint("weapon: ");
-    // bprint(ftos(xWeapon));
-    // bprint(" | eligible ps: ");
-    // bprint(ftos(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS));
-    // bprint(" or ");
-    // bprint(ftos(VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon)));
-    // bprint(" | chance: ");
-    // bprint(ftos(chance));
-    // bprint(" | roll: ");
-    // bprint(ftos(roll));
-    // bprint(" | eligible: ");
-    // bprint(ftos(eligible));
-    // bprint(" | rollpass: ");
-    // bprint(ftos(roll < chance));
-    // bprint(" | cond: ");
-    // bprint(ftos(eligible && (roll < chance)));
-    // bprint("\n");
 
     if(eligible && (roll < chance))
     {
@@ -139,7 +121,7 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
     eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
-               VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon);
+               (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
     chance = xChance * cvar("vr_ammobox_drops_chance_mult");
 
@@ -440,9 +422,4 @@ string(float wid) WeaponIdToWeaponName =
     bprint("'\n");
 
     return "";
-}
-
-string(float it) ItemIdToWeaponName =
-{
-    // TODO VR: (P2) why? stop using item ids
 }

@@ -289,13 +289,14 @@ void(float xHand) GrappleService =
 
     xHook = getHook(xHand);
 
-    makevectors(xHook.angles);
+    makevectors_mdl(xHook.angles);
     hookfwd = v_forward;
 
     makevectors(VRGetHandRot(xHand));
 
-    if(!getOnHook(xHand)) {
-        // TODO VR: (P2) still wonky position on hook , dunno why
+    if(!getOnHook(xHand))
+    {
+        // TODO VR: (P0) still wonky position on hook, dunno why - TEST, added mdl
         GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
         return;
     }

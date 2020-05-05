@@ -2200,24 +2200,27 @@ void(float xWeapon, float xWeaponFlags,
     *xFrame = 0;
 };
 
+void(float xHand, float xWeapon, float xWeaponFlags,
+     float* xOutCurrentAmmo, string* xOutWeaponModel, float* xOutWeaponFrame)
+     W_SetCurrentAmmoForImpl =
+{
+    player_run(xHand); // get out of any weapon firing states
+    VRSetWeaponFrame(xHand, 0);
+
+    W_SetCurrentAmmoImpl(xWeapon, xWeaponFlags,
+        xOutCurrentAmmo, xOutWeaponModel, xOutWeaponFrame);
+}
+
 void(float xHand) W_SetCurrentAmmoFor =
 {
-    // TODO VR: (P2) code repetition between branches
     if(xHand == cVR_MainHand)
     {
-        player_run(cVR_MainHand); // get out of any weapon firing states
-        VRSetWeaponFrame(cVR_MainHand, 0);
-
-        W_SetCurrentAmmoImpl(self.weapon, self.weaponflags,
+        W_SetCurrentAmmoForImpl(xHand, self.weapon, self.weaponflags,
             &self.currentammo, &self.weaponmodel, &self.weaponframe);
     }
-
-    if(xHand == cVR_OffHand)
+    else if(xHand == cVR_OffHand)
     {
-        player_run(cVR_OffHand);  // get out of any weapon firing states
-        VRSetWeaponFrame(cVR_OffHand, 0);
-
-        W_SetCurrentAmmoImpl(self.weapon2, self.weaponflags2,
+        W_SetCurrentAmmoForImpl(xHand, self.weapon2, self.weaponflags2,
             &self.currentammo2, &self.weaponmodel2, &self.weaponframe2);
     }
 
@@ -3631,7 +3634,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     );
 }
 
-// TODO VR: (P1) improve
+// TODO VR: (P1) improve?
 void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
 {
     local vector throwVel;

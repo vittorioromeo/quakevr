@@ -1200,17 +1200,17 @@ void SV_VRWpntouch(edict_t* ent)
 {
     // TODO VR: (P2) code repetition with vr.cpp setHandPos
 
-    const auto doHand = [&](const int handIndex) {
+    const auto doHand = [&](const HandIdx handIndex) {
         const auto& playerOrigin = ent->v.origin;
 
         const auto worldHandPos = VR_GetWorldHandPos(handIndex, playerOrigin);
         const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(playerOrigin);
 
         const auto resolvedHandPos =
-            VR_GetResolvedHandPos(worldHandPos, adjPlayerOrigin);
+            VR_GetResolvedHandPos(ent, worldHandPos, adjPlayerOrigin);
 
         VrGunWallCollision collisionData;
-        VR_UpdateGunWallCollisions(handIndex, collisionData, resolvedHandPos);
+        VR_UpdateGunWallCollisions(ent, handIndex, collisionData, resolvedHandPos);
 
         if(collisionData._ent != nullptr && collisionData._ent->v.vr_wpntouch)
         {

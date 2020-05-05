@@ -1,4 +1,4 @@
-#pragma once // 2016 Dominic Szablewski - phoboslab.org
+#pragma once
 
 #include "quakedef.hpp"
 #include "openvr.hpp"
@@ -7,12 +7,23 @@
 //
 //
 // ----------------------------------------------------------------------------
+// VR Typedef
+// ----------------------------------------------------------------------------
+
+using HandIdx = int; // TODO VR: (P2) should be strong typedef?
+using WpnCvarEntry = int;
+using VertexIdx = int;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // VR Constants
 // ----------------------------------------------------------------------------
 
-inline constexpr int cVR_OffHand = 0;
-inline constexpr int cVR_MainHand = 1;
-inline constexpr int cVR_FakeHand = 2;
+inline constexpr HandIdx cVR_OffHand = 0;
+inline constexpr HandIdx cVR_MainHand = 1;
+inline constexpr HandIdx cVR_FakeHand = 2;
 
 //
 //
@@ -212,17 +223,12 @@ void VID_VR_Disable();
 
 void VR_UpdateScreenContent();
 
-void VR_ShowCrosshair();
-void VR_DrawAllShowHelpers();
-
-void VR_DrawTeleportLine();
 void VR_Draw2D();
 void VR_Move(usercmd_t* cmd);
 void VR_InitGame();
 void VR_PushYaw();
 void VR_DrawSbar();
-[[nodiscard]] qvec3 VR_AddOrientationToViewAngles(
-    const qvec3& angles) noexcept;
+[[nodiscard]] qvec3 VR_AddOrientationToViewAngles(const qvec3& angles) noexcept;
 void VR_SetAngles(const qvec3& angles) noexcept;
 void VR_ResetOrientation();
 void VR_SetMatrices();
@@ -234,6 +240,8 @@ void VR_ModAllModels();
 void VR_OnSpawnServer();
 void VR_OnClientClearState();
 
+
+
 struct VrGunWallCollision
 {
     bool _colliding{false};
@@ -241,16 +249,15 @@ struct VrGunWallCollision
     edict_t* _ent{nullptr};
 };
 
-[[nodiscard]] qvec3 VR_GetAdjustedPlayerOrigin(
-    qvec3 playerOrigin) noexcept;
+[[nodiscard]] qvec3 VR_GetAdjustedPlayerOrigin(qvec3 playerOrigin) noexcept;
 
 [[nodiscard]] qvec3 VR_GetWorldHandPos(
     const int handIndex, const qvec3& playerOrigin) noexcept;
 
-[[nodiscard]] qvec3 VR_GetResolvedHandPos(
+[[nodiscard]] qvec3 VR_GetResolvedHandPos(edict_t* edict,
     const qvec3& worldHandPos, const qvec3& adjPlayerOrigin) noexcept;
 
-qvec3 VR_UpdateGunWallCollisions(const int handIndex,
+qvec3 VR_UpdateGunWallCollisions(edict_t* edict, const int handIndex,
     VrGunWallCollision& out, qvec3 resolvedHandPos) noexcept;
 
 // TODO VR: (P2) move
@@ -296,14 +303,12 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const bool horizFlip) noexcept;
 
 [[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexOffsets(
-    entity_t* const anchor, const int anchorVertex,
-    const qvec3& extraOffsets, const qvec3& rotation,
-    const bool horizFlip) noexcept;
+    entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
+    const qvec3& rotation, const bool horizFlip) noexcept;
 
 [[nodiscard]] qvec3 VR_GetScaledAndAngledAliasVertexPosition(
-    entity_t* const anchor, const int anchorVertex,
-    const qvec3& extraOffsets, const qvec3& rotation,
-    const bool horizFlip) noexcept;
+    entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
+    const qvec3& rotation, const bool horizFlip) noexcept;
 
 [[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
     const int cvarEntry, const bool horizflip, const qvec3& extraOffset,
@@ -320,8 +325,8 @@ void VR_ModAllWeapons();
 
 [[nodiscard]] bool VR_EnabledAndNotFake() noexcept;
 
-void VR_ApplyModelMod(const qvec3& scale, const qvec3& offsets,
-    aliashdr_t* const hdr) noexcept;
+void VR_ApplyModelMod(
+    const qvec3& scale, const qvec3& offsets, aliashdr_t* const hdr) noexcept;
 
 [[nodiscard]] float VR_GetEasyHandTouchBonus() noexcept;
 [[nodiscard]] int VR_OtherHand(const int hand) noexcept;
@@ -449,8 +454,7 @@ enum class WpnCVar : std::uint8_t
 [[nodiscard]] qvec3 VR_GetWpn2HOffsets(const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnFixed2HOffsets(const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnGunOffsets(const int cvarEntry) noexcept;
-[[nodiscard]] qvec3 VR_GetWpnFixed2HHandAngles(
-    const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnFixed2HHandAngles(const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnFixed2HMainHandOffsets(
     const int cvarEntry) noexcept;
 
@@ -500,13 +504,49 @@ enum class WpnCVar : std::uint8_t
 extern int vr_hardcoded_wpn_cvar_fist;
 
 // TODO VR: (P2) encapsulate nicely
-extern int vr_impl_draw_wpnoffset_helper_offset;
-extern int vr_impl_draw_wpnoffset_helper_muzzle;
-extern int vr_impl_draw_wpnoffset_helper_2h_offset;
-extern int vr_impl_draw_hand_anchor_vertex;
-extern int vr_impl_draw_2h_hand_anchor_vertex;
-extern int vr_impl_draw_wpnbutton_anchor_vertex;
 extern float vr_2h_aim_transition[2];
-
+extern bool vr_teleporting;
+extern qvec3 vr_teleporting_impact;
+extern bool vr_teleporting_impact_valid;
 extern vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 extern vr::VRSkeletalSummaryData_t vr_ss_righthand;
+
+// TODO VR: (P1) used by show fns
+[[nodiscard]] qvec3 VR_Get2HHoldingHandPos(
+    const int holdingHand, const int helpingHand) noexcept;
+
+[[nodiscard]] qvec3 VR_Get2HHelpingHandPos(
+    const int holdingHand, const int helpingHand) noexcept;
+
+[[nodiscard]] qvec3 VR_GetShoulderStockPos(
+    const int holdingHand, const int helpingHand) noexcept;
+
+[[nodiscard]] qvec3 VR_Get2HVirtualStockMix(
+    const qvec3& viaHand, const qvec3& viaShoulder) noexcept;
+
+[[nodiscard]] bool VR_InStockDistance(const int holdingHand,
+    const int helpingHand, const qvec3& shoulderPos) noexcept;
+
+[[nodiscard]] std::tuple<qvec3, qvec3, qvec3, qvec3, qvec3, qvec3, qvec3, qvec3>
+VR_GetBodyYawAngleCalculations() noexcept;
+
+[[nodiscard]] bool VR_InHipHolsterDistance(
+    const qvec3& hand, const qvec3& holster);
+
+[[nodiscard]] bool VR_InShoulderHolsterDistance(
+    const qvec3& hand, const qvec3& holster);
+
+[[nodiscard]] bool VR_InUpperHolsterDistance(
+    const qvec3& hand, const qvec3& holster);
+
+[[nodiscard]] qvec3 VR_GetLeftShoulderHolsterPos() noexcept;
+
+[[nodiscard]] qvec3 VR_GetRightShoulderHolsterPos() noexcept;
+
+[[nodiscard]] WpnCrosshairMode VR_GetWpnCrosshairMode(
+    const int cvarEntry) noexcept;
+
+[[nodiscard]] qvec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept;
+
+[[nodiscard]] bool svPlayerActive() noexcept;
+[[nodiscard]] edict_t* getPlayerEdict() noexcept;

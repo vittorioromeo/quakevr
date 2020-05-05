@@ -151,7 +151,7 @@ void() PlaceItem =
     self.handtouch = itemTouch;
 
     // HONEY
-    if(self.spawnflags & TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         item_unspawn();
     }

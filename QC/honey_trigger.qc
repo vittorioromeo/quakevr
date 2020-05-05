@@ -1,4 +1,4 @@
-void() trigger_spawn_use =
+void() SPAWNFLAG_TRIGGER_SPAWN_use =
 {
     self.sounds = 0;
     self.targetname = "";
@@ -8,19 +8,19 @@ void() trigger_spawn_use =
 void() trigger_once_spawn =
 {
     self.think1 = trigger_once;
-    self.use = trigger_spawn_use;
+    self.use = SPAWNFLAG_TRIGGER_SPAWN_use;
 }
 
 void() trigger_multiple_spawn =
 {
     self.think1 = trigger_multiple;
-    self.use = trigger_spawn_use;
+    self.use = SPAWNFLAG_TRIGGER_SPAWN_use;
 }
 
 void() trigger_monsterjump_spawn =
 {
     self.think1 = trigger_monsterjump;
-    self.use = trigger_spawn_use;
+    self.use = SPAWNFLAG_TRIGGER_SPAWN_use;
 }
 
 void() relay_many_think =

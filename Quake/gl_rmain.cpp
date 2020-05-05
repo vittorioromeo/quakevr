@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
 #include "vr.hpp"
+#include "vr_showfn.hpp"
 #include "vr_cvars.hpp"
 #include "util.hpp"
 #include "opengl_ext.hpp"
@@ -1133,7 +1134,7 @@ void R_RenderScene()
 
     if(vr_enabled.value)
     {
-        VR_ShowCrosshair();
+        quake::vr::showfn::show_crosshair();
     }
 
     // johnfitz -- moved here from R_RenderView
@@ -1193,7 +1194,7 @@ void R_RenderScene()
     R_ShowBoundingBoxes(); // johnfitz
     if(vr_enabled.value)
     {
-        VR_DrawAllShowHelpers();
+        quake::vr::showfn::draw_all_show_helpers();
     }
 }
 

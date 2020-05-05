@@ -303,7 +303,6 @@ long FS_filelength(fshandle_t* fh);
 
 extern struct cvar_s registered;
 extern bool standard_quake, rogue, hipnotic;
-extern bool fitzmode;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
 
 #endif /* _Q_COMMON_H */

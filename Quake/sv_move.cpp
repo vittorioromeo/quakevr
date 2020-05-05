@@ -41,26 +41,19 @@ int c_yes, c_no;
 // TODO VR: (P2) could have used this to detect onground?
 bool SV_CheckBottom(edict_t* ent)
 {
-    qvec3 mins, maxs, start, stop;
+    qvec3 start, stop;
 
-    trace_t trace;
-    int x;
 
-    int y;
-    float mid;
-
-    float bottom;
-
-    mins = ent->v.origin + ent->v.mins;
-    maxs = ent->v.origin + ent->v.maxs;
+    const qvec3 mins = ent->v.origin + ent->v.mins;
+    const qvec3 maxs = ent->v.origin + ent->v.maxs;
 
     // if all of the points under the corners are solid world, don't bother
     // with the tougher checks
     // the corners must be within 16 of the midpoint
     start[2] = mins[2] - 1;
-    for(x = 0; x <= 1; x++)
+    for(int x = 0; x <= 1; x++)
     {
-        for(y = 0; y <= 1; y++)
+        for(int y = 0; y <= 1; y++)
         {
             start[0] = x ? maxs[0] : mins[0];
             start[1] = y ? maxs[1] : mins[1];
@@ -85,18 +78,21 @@ realcheck:
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
     stop[2] = start[2] - 2 * STEPSIZE;
-    trace = SV_MoveTrace(start, stop, true, ent);
+    trace_t trace = SV_MoveTrace(start, stop, true, ent);
 
     if(trace.fraction == 1.0)
     {
         return false;
     }
+
+    float mid;
+    float bottom;
     mid = bottom = trace.endpos[2];
 
     // the corners must be within 16 of the midpoint
-    for(x = 0; x <= 1; x++)
+    for(int x = 0; x <= 1; x++)
     {
-        for(y = 0; y <= 1; y++)
+        for(int y = 0; y <= 1; y++)
         {
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];

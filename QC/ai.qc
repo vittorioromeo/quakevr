@@ -309,7 +309,7 @@ float (entity client) visible =
     spot1 = self.origin + self.view_ofs;
     spot2 = client.origin + client.view_ofs;
 
-    if(self.spawnflags & SF_AI_BBOX_CHECK) { return bbox_visible(self, spot2); }
+    if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { return bbox_visible(self, spot2); }
     else                                   { return point_visible(spot1, spot2); }
 }
 
@@ -421,7 +421,7 @@ void() HuntTarget =
     // HONEY
     // cg: tarbabies can now spawn really angry and start jumping around
     // without even having a clear view of player
-    if(self.classname == "monster_tarbaby" && self.spawnflags & TBABY_LIVID)
+    if(self.classname == "monster_tarbaby" && self.spawnflags & SPAWNFLAG_TBABY_LIVID)
     {
         self.think = self.th_missile;
     }
@@ -440,7 +440,7 @@ void() SightSound =
     local float rsnd;
 
     // HONEY
-    if(self.spawnflags & SF_SILENT_WAKEUP)
+    if(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)
     {
         return;
     }

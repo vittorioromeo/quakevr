@@ -295,6 +295,9 @@ void SV_WaterMove()
     //
     // user intentions
     //
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style,
+    // TODO VR: (P0) this causes the swimming inconsistency
     std::tie(forward, right, up) =
         quake::util::getAngledVectors(sv_player->v.v_angle);
 
@@ -387,6 +390,8 @@ new, alternate noclip. old noclip is still handled in SV_AirMove
 */
 void SV_NoclipMove()
 {
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style
     std::tie(forward, right, up) =
         quake::util::getAngledVectors(sv_player->v.v_angle);
 
@@ -409,8 +414,12 @@ SV_AirMove
 */
 void SV_AirMove()
 {
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style
+    // TODO VR: (P0) test with HMD, changed
     std::tie(forward, right, up) =
-        quake::util::getAngledVectors(VR_GetHeadAngles());
+        quake::util::getAngledVectors(sv_player->v.v_viewangle);
+    // quake::util::getAngledVectors(VR_GetHeadAngles());
 
     qfloat fmove = cmd.forwardmove;
     const qfloat smove = cmd.sidemove;
@@ -653,7 +662,8 @@ bool SV_ReadClientMessage()
         ret = NET_GetMessage(host_client->netconnection);
         if(ret == -1)
         {
-            Sys_Printf("SV_ReadClientMessage: NET_GetMessage failed\n");
+            Sys_Printf(
+                "SV_ReadClientMessage: NET_GetMessage failed. rc= %d\n", ret);
             return false;
         }
         if(!ret)

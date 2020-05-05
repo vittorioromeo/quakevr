@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
+#include "vr_showfn.hpp"
 
 #include <string>
 #include <string_view>
@@ -397,16 +398,16 @@ void M_Main_Key(int key)
             key_dest = key_game;
             m_state = m_none;
             cls.demonum = m_save_demonum;
-            if(!fitzmode)
-            { /* QuakeSpasm customization: */
-                break;
-            }
+            break;
+
+            /*
             if(cls.demonum != -1 && !cls.demoplayback &&
                 cls.state != ca_connected)
             {
                 CL_NextDemo();
             }
             break;
+            */
         }
     }
 }
@@ -2424,9 +2425,10 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
+    const auto hoverOffset =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_offset);
     const auto hover2HOffset =
-        makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_2h_offset);
 
     // ------------------------------------------------------------------------
 
@@ -2459,7 +2461,8 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
+    const auto hoverMuzzle =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_muzzle);
 
     const char* muzzleTooltip =
         "Position of the weapon muzzle. Relative to the XYZ offsets above. "
@@ -2605,9 +2608,9 @@ void M_QuakeVRSettings_Key(int k)
     // ------------------------------------------------------------------------
 
     const auto hoverHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_hand_anchor_vertex);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_hand_anchor_vertex);
     const auto hover2HHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_2h_hand_anchor_vertex);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_2h_hand_anchor_vertex);
 
     // ------------------------------------------------------------------------
 
@@ -2943,7 +2946,7 @@ void M_QuakeVRSettings_Key(int k)
     // ------------------------------------------------------------------------
 
     const auto hoverWpnButtonAnchorVertex =
-        makeHoverFn(vr_impl_draw_wpnbutton_anchor_vertex);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnbutton_anchor_vertex);
 
     m.add_cvar_getter_entry<int>( //
          "Button Anchor Vertex",  //
@@ -3475,6 +3478,12 @@ void M_Quit_Key(int key)
             key_dest = key_game;
             m_state = m_none;
         }
+    }
+    else
+    {
+        IN_Deactivate(modestate == MS_WINDOWED);
+        key_dest = key_console;
+        Host_Quit_f();
     }
 }
 
@@ -4575,8 +4584,10 @@ void M_Draw()
         case m_slist: M_ServerList_Draw(); break;
 
         case m_quit:
-            if(!fitzmode)
-            { /* QuakeSpasm customization: */
+            // if(!fitzmode)
+            if(false)
+            {
+                /* QuakeSpasm customization: */
                 /* Quit now! S.A. */
                 key_dest = key_console;
                 Host_Quit_f();

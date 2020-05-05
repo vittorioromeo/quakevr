@@ -181,15 +181,6 @@ enum
 cvar_t
     vr_weapon_offset[e_MAX_WEAPONS * static_cast<std::size_t>(WpnCVar::k_Max)];
 
-// TODO VR: (P2) organize and encapsulate
-int vr_impl_draw_wpnoffset_helper_offset{0};
-int vr_impl_draw_wpnoffset_helper_muzzle{0};
-int vr_impl_draw_wpnoffset_helper_2h_offset{0};
-int vr_impl_draw_hand_anchor_vertex{0};
-int vr_impl_draw_2h_hand_anchor_vertex{0};
-int vr_impl_draw_wpnbutton_anchor_vertex{0};
-int vr_impl_draw_wpnoffset_helper_length{0};
-
 float vr_debug_max_handvelmag{0.f};
 float vr_debug_max_handvelmag_timeout{0.f};
 
@@ -1192,18 +1183,29 @@ static void VR_InitActionHandles()
     return key_dest == key_game;
 }
 
-[[nodiscard]] static bool svPlayerActive() noexcept
+[[nodiscard]] edict_t* getPlayerEdictUnchecked() noexcept
+{
+    return svs.clients[0].edict;
+    // return sv_player;
+}
+
+[[nodiscard]] bool svPlayerActive() noexcept
 {
     // TODO VR: (P2) document, this is because of Host_ClearMemory and map
     // change callback
-    return sv_player != nullptr && sv.active == true && sv.state == ss_active &&
-           cls.signon == SIGNONS;
+    // return getPlayerEdictUnchecked() != nullptr && cls.signon == SIGNONS;
+
+    // sv.active == true && sv.state == ss_active
+
+    return svs.clients != nullptr && svs.clients[0].active &&
+           svs.clients[0].spawned && getPlayerEdictUnchecked() != nullptr &&
+           sv.active == true && sv.state == ss_active && cls.signon == SIGNONS;
 }
 
-[[nodiscard]] static edict_t* getPlayerEdict() noexcept
+[[nodiscard]] edict_t* getPlayerEdict() noexcept
 {
     assert(svPlayerActive());
-    return sv_player;
+    return getPlayerEdictUnchecked();
 }
 
 bool VR_Enable()
@@ -1538,15 +1540,9 @@ void debugPrintHandvel(const int index, const float linearity)
     // TODO VR: (P0) test, cleanup
 }
 
-qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
-    qvec3 resolvedHandPos) noexcept
+qvec3 VR_UpdateGunWallCollisions(edict_t* edict, const int handIndex,
+    VrGunWallCollision& out, qvec3 resolvedHandPos) noexcept
 {
-    if(!svPlayerActive())
-    {
-        out._ent = nullptr;
-        return resolvedHandPos;
-    }
-
     constexpr qvec3 handMins{-1.f, -1.f, -1.f};
     constexpr qvec3 handMaxs{1.f, 1.f, 1.f};
 
@@ -1560,8 +1556,8 @@ qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
     const auto muzzlePos = resolvedHandPos + localMuzzlePos;
 
     // Check for collisions between the muzzle and geometry/entities.
-    const trace_t gunTrace = SV_Move(resolvedHandPos, handMins, handMaxs,
-        muzzlePos, MOVE_NORMAL, getPlayerEdict());
+    const trace_t gunTrace = SV_Move(
+        resolvedHandPos, handMins, handMaxs, muzzlePos, MOVE_NORMAL, edict);
 
     // Position of the hand after resolving collisions with the gun
     // muzzle.
@@ -1610,22 +1606,17 @@ qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
     return worldHandPos;
 }
 
-[[nodiscard]] qvec3 VR_GetResolvedHandPos(
+[[nodiscard]] qvec3 VR_GetResolvedHandPos(edict_t* edict,
     const qvec3& worldHandPos, const qvec3& adjPlayerOrigin) noexcept
 {
-    if(!svPlayerActive())
-    {
-        return worldHandPos;
-    }
-
     // Size of hand hitboxes.
     constexpr qvec3 mins{-1.f, -1.f, -1.f};
     constexpr qvec3 maxs{1.f, 1.f, 1.f};
 
     // Trace from upper torso to desired final location. `SV_Move` detects
     // entities as well, not just geometry.
-    const trace_t trace = SV_Move(adjPlayerOrigin, mins, maxs, worldHandPos,
-        MOVE_NORMAL, getPlayerEdict());
+    const trace_t trace =
+        SV_Move(adjPlayerOrigin, mins, maxs, worldHandPos, MOVE_NORMAL, edict);
 
     // Compute final collision resolution position, starting from the
     // desired position and resolving only against the collision plane's
@@ -1651,11 +1642,6 @@ qvec3 VR_UpdateGunWallCollisions(const int handIndex, VrGunWallCollision& out,
 
 void SetHandPos(int index, entity_t* player)
 {
-    if(!svPlayerActive())
-    {
-        return;
-    }
-
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
 
@@ -1674,13 +1660,18 @@ void SetHandPos(int index, entity_t* player)
     // const float gunLength = index == 0 ? 0.f :
     // VR_GetWpnLength(VR_GetMainHandWpnCvarEntry());
 
-    const auto resolvedHandPos =
-        VR_GetResolvedHandPos(worldHandPos, adjPlayerOrigin);
+    if(svPlayerActive())
+    {
+        edict_t* playerEdict = getPlayerEdict();
 
-    finalVec = resolvedHandPos;
+        const auto resolvedHandPos =
+            VR_GetResolvedHandPos(playerEdict, worldHandPos, adjPlayerOrigin);
 
-    finalVec = VR_UpdateGunWallCollisions(
-        index, vr_gun_wall_collision[index], finalVec);
+        finalVec = resolvedHandPos;
+
+        finalVec = VR_UpdateGunWallCollisions(
+            playerEdict, index, vr_gun_wall_collision[index], finalVec);
+    }
 
     const auto oldHandpos = cl.handpos[index];
 
@@ -2051,13 +2042,6 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] qvec3 VR_GetBodyAnchor(const qvec3& offsets) noexcept
 {
-    // TODO VR: (P2) maybe we should assert here and ensure this is not called
-    // if player is not active
-    if(!svPlayerActive())
-    {
-        return vec3_zero;
-    }
-
     const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0._qf, 0.8_qf);
 
     const auto [vFwd, vRight, vUp] =
@@ -2120,12 +2104,12 @@ void SetHandPos(int index, entity_t* player)
 }
 
 
-[[nodiscard]] qvec3 VR_GetLeftShoulderStockPos() noexcept
+[[nodiscard]] static qvec3 VR_GetLeftShoulderStockPos() noexcept
 {
     return VR_GetBodyAnchor(VR_NegateY(VR_GetShoulderOffsets()));
 }
 
-[[nodiscard]] qvec3 VR_GetRightShoulderStockPos() noexcept
+[[nodiscard]] static qvec3 VR_GetRightShoulderStockPos() noexcept
 {
     return VR_GetBodyAnchor(VR_GetShoulderOffsets());
 }
@@ -2329,7 +2313,8 @@ void SetHandPos(int index, entity_t* player)
     return glm::normalize(glm::mix(headFwdDir, mixHandDir, 0.8f));
 }
 
-[[nodiscard]] static auto VR_GetBodyYawAngleCalculations() noexcept
+[[nodiscard]] std::tuple<qvec3, qvec3, qvec3, qvec3, qvec3, qvec3, qvec3, qvec3>
+VR_GetBodyYawAngleCalculations() noexcept
 {
     // const auto [headFwdDir, headRightDir, headUpDir] = VR_GetHeadYawDirs();
     const auto [headFwdDir, headRightDir, headUpDir] =
@@ -2351,7 +2336,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] qfloat VR_GetBodyYawAngle() noexcept
 {
-    if(!controllers[0].active || !controllers[1].active || !svPlayerActive())
+    if(!controllers[0].active || !controllers[1].active)
     {
         // If any controller is off or player is inactive, return head yaw.
         return VR_GetHeadFwdAngleBlended();
@@ -2366,20 +2351,20 @@ void SetHandPos(int index, entity_t* player)
 }
 
 
-[[nodiscard]] static qvec3 VR_Get2HVirtualStockMix(
+[[nodiscard]] qvec3 VR_Get2HVirtualStockMix(
     const qvec3& viaHand, const qvec3& viaShoulder) noexcept
 {
     return glm::mix(viaHand, viaShoulder, vr_2h_virtual_stock_factor.value);
 }
 
-[[nodiscard]] static qvec3 VR_Get2HHoldingHandPos(
+[[nodiscard]] qvec3 VR_Get2HHoldingHandPos(
     const int holdingHand, const int helpingHand) noexcept
 {
     (void)helpingHand;
     return cl.handpos[holdingHand];
 }
 
-[[nodiscard]] static qvec3 VR_Get2HHelpingHandPos(
+[[nodiscard]] qvec3 VR_Get2HHelpingHandPos(
     const int holdingHand, const int helpingHand) noexcept
 {
     const auto [thox, thoy, thoz] =
@@ -2396,7 +2381,7 @@ void SetHandPos(int index, entity_t* player)
            up * thoz;
 }
 
-[[nodiscard]] static bool VR_InStockDistance(const int holdingHand,
+[[nodiscard]] bool VR_InStockDistance(const int holdingHand,
     const int helpingHand, const qvec3& shoulderPos) noexcept
 {
     (void)helpingHand;
@@ -2407,7 +2392,7 @@ void SetHandPos(int index, entity_t* player)
 
 static void VR_DoTeleportation()
 {
-    if(!vr_teleport_enabled.value) // || !svPlayerActive())
+    if(!vr_teleport_enabled.value || !svPlayerActive())
     {
         return;
     }
@@ -2815,11 +2800,6 @@ static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
 static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
     const int holdingHand, const int helpingHand, const qvec3& shoulderStockPos)
 {
-    // if(!svPlayerActive())
-    // {
-    //     return;
-    // }
-
     const auto helpingHandPos =
         VR_Get2HHelpingHandPos(holdingHand, helpingHand);
 
@@ -2864,8 +2844,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
     const auto helpingHandStatIdx =
         helpingHand == cVR_OffHand ? STAT_OFFHAND_WID : STAT_MAINHAND_WID;
 
-    const bool helpingHandIsFist =
-        (svPlayerActive() && cl.stats[helpingHandStatIdx] == WID_FIST);
+    const bool helpingHandIsFist = cl.stats[helpingHandStatIdx] == WID_FIST;
 
     const bool beforeMuzzle = [&] {
         const auto muzzlePos = VR_CalcFinalWpnMuzzlePos(holdingHand);
@@ -2923,7 +2902,7 @@ static void VR_Do2HAiming(const qvec3 (&originalRots)[2])
 {
     const auto vr2HMode = cvarToEnum<Vr2HMode>(vr_2h_mode);
 
-    if(vr2HMode == Vr2HMode::Disabled || !svPlayerActive())
+    if(vr2HMode == Vr2HMode::Disabled)
     {
         return;
     }
@@ -2945,11 +2924,6 @@ static void VR_Do2HAiming(const qvec3 (&originalRots)[2])
 
 static void VR_FakeVRControllerAiming()
 {
-    // if(!svPlayerActive())
-    // {
-    //     return;
-    // }
-
     const auto [vfwd, vright, vup] =
         getAngledVectors({0.f, cl.viewangles[YAW], 0.f});
 
@@ -2963,17 +2937,28 @@ static void VR_FakeVRControllerAiming()
     cl.handpos[cVR_OffHand] =
         playerOrigin + vfwd * 4.5_qf - vright * 4.5_qf + vup * 6._qf;
 
-    const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
-        playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
-        getPlayerEdict());
+    const auto [mainang, offang] = [&, vup = vup, vfwd = vfwd, vwfwd = vwfwd] {
+        if(svPlayerActive())
+        {
+            const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
+                playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
+                getPlayerEdict());
 
-    const auto maindir =
-        glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
+            const auto maindir =
+                glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
 
-    const auto offdir = glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
+            const auto offdir =
+                glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
 
-    const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
-    const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
+            const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
+            const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
+
+            return std::tuple{mainang, offang};
+        }
+
+        const auto a = pitchYawRollFromDirectionVector(vup, vfwd);
+        return std::tuple{a, a};
+    }();
 
     cl.handrot[cVR_MainHand] = mainang;
     cl.handrot[cVR_OffHand] = offang;
@@ -3277,1034 +3262,22 @@ void VR_CalibrateHeight()
     return {angles[PITCH] + pitch, angles[YAW] + yaw, roll};
 }
 
-[[nodiscard]] static bool VR_InHipHolsterDistance(
+[[nodiscard]] bool VR_InHipHolsterDistance(
     const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_hip_holster_thresh.value;
 }
 
-[[nodiscard]] static bool VR_InShoulderHolsterDistance(
+[[nodiscard]] bool VR_InShoulderHolsterDistance(
     const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_shoulder_holster_thresh.value;
 }
 
-[[nodiscard]] static bool VR_InUpperHolsterDistance(
+[[nodiscard]] bool VR_InUpperHolsterDistance(
     const qvec3& hand, const qvec3& holster)
 {
     return glm::distance(hand, holster) < vr_upper_holster_thresh.value;
-}
-
-static void VR_ShowFnSetupGL() noexcept
-{
-    glDisable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    GL_PolygonOffset(OFFSET_SHOWTRIS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
-}
-
-static void VR_ShowFnCleanupGL() noexcept
-{
-    glColor3f(1, 1, 1);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    GL_PolygonOffset(OFFSET_NONE);
-    glEnable(GL_DEPTH_TEST);
-}
-
-template <typename F>
-static void VR_ShowFnDrawPointsWithSize(float size, F&& drawPrimitives) noexcept
-{
-    glEnable(GL_POINT_SMOOTH);
-    glPointSize(size);
-    drawPrimitives(GL_POINTS);
-    glDisable(GL_POINT_SMOOTH);
-}
-
-template <typename F>
-static void VR_ShowFnDrawPoints(F&& drawPrimitives) noexcept
-{
-    VR_ShowFnDrawPointsWithSize(12.f, drawPrimitives);
-}
-
-template <typename F>
-static void VR_ShowFnDrawPointsAndLines(F&& drawPrimitives) noexcept
-{
-    glLineWidth(2.f * glwidth / vid.width);
-
-    glEnable(GL_LINE_SMOOTH);
-    glShadeModel(GL_SMOOTH);
-    drawPrimitives(GL_LINES);
-    glShadeModel(GL_FLAT);
-    glDisable(GL_LINE_SMOOTH);
-
-    VR_ShowFnDrawPoints(drawPrimitives);
-}
-
-static void VR_GLVertex3f(const qvec3& v) noexcept
-{
-    glVertex3f(v[0], v[1], v[2]);
-}
-
-static void VR_ShowVirtualStockImpl(
-    const int holdingHand, const int helpingHand)
-{
-    const auto holdingHandPos =
-        VR_Get2HHoldingHandPos(holdingHand, helpingHand);
-
-    const auto helpingHandPos =
-        VR_Get2HHelpingHandPos(holdingHand, helpingHand);
-
-    const auto shoulderPos = VR_GetShoulderStockPos(holdingHand, helpingHand);
-
-    const auto averagePos =
-        VR_Get2HVirtualStockMix(holdingHandPos, shoulderPos);
-
-    glColor4f(0, 1, 0, 0.75);
-    VR_GLVertex3f(holdingHandPos);
-    VR_GLVertex3f(helpingHandPos);
-
-    glColor4f(0, 1, 0, 0.75);
-    VR_GLVertex3f(shoulderPos);
-    VR_GLVertex3f(helpingHandPos);
-
-    if(VR_InStockDistance(holdingHand, helpingHand, shoulderPos))
-    {
-        glColor4f(1, 1, 0, 0.75);
-    }
-    else
-    {
-        glColor4f(0, 1, 1, 0.75);
-    }
-
-    glLineWidth(4.f * glwidth / vid.width);
-    VR_GLVertex3f(averagePos);
-    VR_GLVertex3f(helpingHandPos);
-}
-
-[[nodiscard]] std::pair<bool, bool> VR_GetHandsToDraw(
-    const int cvarValue) noexcept
-{
-    const auto selection = static_cast<VrOptionHandSelection>(cvarValue);
-
-    const bool optMainHand = selection == VrOptionHandSelection::MainHand;
-    const bool optOffHand = selection == VrOptionHandSelection::OffHand;
-    const bool optBothHands = selection == VrOptionHandSelection::BothHands;
-
-    const bool drawMainHand = optMainHand || optBothHands;
-    const bool drawOffHand = optOffHand || optBothHands;
-
-    return {drawMainHand, drawOffHand};
-}
-
-void VR_ShowVRTorsoDebugLines()
-{
-    if(vr_vrtorso_debuglines_enabled.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto len = 20._qf;
-
-        const auto [adjPlayerOrigin, adjPlayerOriginLeft, adjPlayerOriginRight,
-            headFwdDir, headRightDir, headUpDir, mixHandDir, mixFinalDir] =
-            VR_GetBodyYawAngleCalculations();
-
-        glBegin(type);
-
-        glColor4f(0, 1, 0, 0.75);
-        VR_GLVertex3f(adjPlayerOriginLeft);
-        VR_GLVertex3f(cl.handpos[0]);
-
-        glColor4f(0, 1, 0, 0.75);
-        VR_GLVertex3f(adjPlayerOriginRight);
-        VR_GLVertex3f(cl.handpos[1]);
-
-        glColor4f(0, 1, 0, 0.75);
-        VR_GLVertex3f(adjPlayerOrigin);
-        VR_GLVertex3f(adjPlayerOrigin + headFwdDir * len);
-
-        glColor4f(0, 0, 1, 0.75);
-        VR_GLVertex3f(adjPlayerOrigin);
-        VR_GLVertex3f(adjPlayerOrigin + mixHandDir * len);
-
-        glColor4f(1, 0, 0, 0.75);
-        VR_GLVertex3f(adjPlayerOrigin);
-        VR_GLVertex3f(adjPlayerOrigin + mixFinalDir * len * 1.25_qf);
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowVirtualStock()
-{
-    if(vr_show_virtual_stock.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto [drawMainHand, drawOffHand] =
-            VR_GetHandsToDraw(vr_show_virtual_stock.value);
-
-        glBegin(type);
-
-        if(drawMainHand)
-        {
-            VR_ShowVirtualStockImpl(cVR_MainHand, cVR_OffHand);
-        }
-
-        if(drawOffHand)
-        {
-            VR_ShowVirtualStockImpl(cVR_OffHand, cVR_MainHand);
-        }
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowHipHolsters()
-{
-    if(vr_show_hip_holsters.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto offHandPos = cl.handpos[cVR_OffHand];
-    const auto mainHandPos = cl.handpos[cVR_MainHand];
-
-    const auto leftHipPos = VR_GetLeftHipPos();
-    const auto rightHipPos = VR_GetRightHipPos();
-
-    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
-        if(VR_InHipHolsterDistance(hand, holster))
-        {
-            glColor4f(1, 1, 0, 0.95);
-        }
-        else
-        {
-            if(hand == mainHandPos)
-            {
-                glColor4f(0, 1, 1, 0.75);
-            }
-            else
-            {
-                glColor4f(0, 1, 0, 0.75);
-            }
-        }
-    };
-
-    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
-        doColor(hand, holster);
-        VR_GLVertex3f(hand);
-        VR_GLVertex3f(holster);
-    };
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto [drawMainHand, drawOffHand] =
-            VR_GetHandsToDraw(vr_show_hip_holsters.value);
-
-        glBegin(type);
-
-        if(drawMainHand)
-        {
-            doLine(mainHandPos, leftHipPos);
-            doLine(mainHandPos, rightHipPos);
-        }
-
-        if(drawOffHand)
-        {
-            doLine(offHandPos, leftHipPos);
-            doLine(offHandPos, rightHipPos);
-        }
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowShoulderHolsters()
-{
-    if(vr_show_shoulder_holsters.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto offHandPos = cl.handpos[cVR_OffHand];
-    const auto mainHandPos = cl.handpos[cVR_MainHand];
-
-    const auto leftShoulderPos = VR_GetLeftShoulderHolsterPos();
-    const auto rightShoulderPos = VR_GetRightShoulderHolsterPos();
-
-    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
-        if(VR_InShoulderHolsterDistance(hand, holster))
-        {
-            glColor4f(1, 1, 0, 0.95);
-        }
-        else
-        {
-            if(hand == mainHandPos)
-            {
-                glColor4f(0, 1, 1, 0.75);
-            }
-            else
-            {
-                glColor4f(0, 1, 0, 0.75);
-            }
-        }
-    };
-
-    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
-        doColor(hand, holster);
-        VR_GLVertex3f(hand);
-        VR_GLVertex3f(holster);
-    };
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto [drawMainHand, drawOffHand] =
-            VR_GetHandsToDraw(vr_show_shoulder_holsters.value);
-
-        glBegin(type);
-
-        if(drawMainHand)
-        {
-            doLine(mainHandPos, leftShoulderPos);
-            doLine(mainHandPos, rightShoulderPos);
-        }
-
-        if(drawOffHand)
-        {
-            doLine(offHandPos, leftShoulderPos);
-            doLine(offHandPos, rightShoulderPos);
-        }
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowUpperHolsters()
-{
-    if(vr_show_upper_holsters.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto offHandPos = cl.handpos[cVR_OffHand];
-    const auto mainHandPos = cl.handpos[cVR_MainHand];
-
-    const auto leftUpperPos = VR_GetLeftUpperPos();
-    const auto rightUpperPos = VR_GetRightUpperPos();
-
-    const auto doColor = [&](const qvec3& hand, const qvec3& holster) {
-        if(VR_InUpperHolsterDistance(hand, holster))
-        {
-            glColor4f(1, 1, 0, 0.95);
-        }
-        else
-        {
-            if(hand == mainHandPos)
-            {
-                glColor4f(0, 1, 1, 0.75);
-            }
-            else
-            {
-                glColor4f(0, 1, 0, 0.75);
-            }
-        }
-    };
-
-    const auto doLine = [&](const qvec3& hand, const qvec3& holster) {
-        doColor(hand, holster);
-        VR_GLVertex3f(hand);
-        VR_GLVertex3f(holster);
-    };
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        const auto [drawMainHand, drawOffHand] =
-            VR_GetHandsToDraw(vr_show_upper_holsters.value);
-
-        glBegin(type);
-
-        if(drawMainHand)
-        {
-            doLine(mainHandPos, leftUpperPos);
-            doLine(mainHandPos, rightUpperPos);
-        }
-
-        if(drawOffHand)
-        {
-            doLine(offHandPos, leftUpperPos);
-            doLine(offHandPos, rightUpperPos);
-        }
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-static void VR_ShowCrosshairImpl(const float size, const float alpha,
-    const qvec3& start, const qvec3& forward)
-{
-    switch((int)vr_crosshair.value)
-    {
-        default:
-        case VrCrosshair::e_POINT:
-        {
-            qvec3 end, impact;
-
-            if(vr_crosshair_depth.value <= 0)
-            {
-                // trace to first wall
-                end = start + 4096._qf * forward;
-                end[2] += vr_crosshairy.value;
-
-                impact = TraceLine(start, end).endpos;
-            }
-            else
-            {
-                // fix crosshair to specific depth
-                impact = start + qfloat(vr_crosshair_depth.value) * forward;
-            }
-
-            glEnable(GL_POINT_SMOOTH);
-            glColor4f(1, 0, 0, alpha);
-            glPointSize(size * glwidth / vid.width);
-
-            glBegin(GL_POINTS);
-            VR_GLVertex3f(impact);
-            glEnd();
-            glDisable(GL_POINT_SMOOTH);
-            break;
-        }
-
-        case VrCrosshair::e_LINE: [[fallthrough]];
-        case VrCrosshair::e_LINE_SMOOTH:
-        {
-            const qfloat depth =
-                vr_crosshair_depth.value <= 0 ? 4096 : vr_crosshair_depth.value;
-
-            // trace to first entity
-            const auto end = start + depth * forward;
-            const trace_t trace =
-                TraceLineToEntity(start, end, getPlayerEdict());
-            auto impact = hitSomething(trace) ? trace.endpos : end;
-            impact[2] += vr_crosshairy.value * 10.f;
-
-            glLineWidth(size * glwidth / vid.width);
-            glEnable(GL_LINE_SMOOTH);
-            glShadeModel(GL_SMOOTH);
-            glBegin(GL_LINE_STRIP);
-
-            if((int)vr_crosshair.value == VrCrosshair::e_LINE)
-            {
-                glColor4f(1, 0, 0, alpha);
-                VR_GLVertex3f(start);
-                VR_GLVertex3f(impact);
-            }
-            else
-            {
-                const auto midA = glm::mix(start, impact, 0.15);
-                const auto midB = glm::mix(start, impact, 0.70);
-
-                glColor4f(1, 0, 0, alpha * 0.01f);
-                VR_GLVertex3f(start);
-
-                glColor4f(1, 0, 0, alpha);
-                VR_GLVertex3f(midA);
-                VR_GLVertex3f(midB);
-
-                glColor4f(1, 0, 0, alpha * 0.01f);
-                VR_GLVertex3f(impact);
-            }
-
-            glEnd();
-            glShadeModel(GL_FLAT);
-            glDisable(GL_LINE_SMOOTH);
-            break;
-        }
-    }
-}
-
-static void VR_ShowCrosshairMainHand(const float size, const float alpha)
-{
-    if(VR_GetWpnCrosshairMode(VR_GetMainHandWpnCvarEntry()) ==
-        WpnCrosshairMode::Forbidden)
-    {
-        return;
-    }
-
-    const auto [start, forward, right, up] = [&] {
-        // calc the line and draw
-        if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
-        {
-            const auto start = VR_CalcFinalWpnMuzzlePos(cVR_MainHand);
-            const auto [forward, right, up] =
-                getAngledVectors(cl.handrot[cVR_MainHand]);
-            return std::tuple{start, forward, right, up};
-        }
-
-        auto start = cl.viewent.origin;
-        start[2] -= cl.viewheight - 10;
-
-        const auto [forward, right, up] = getAngledVectors(cl.aimangles);
-        return std::tuple{start, forward, right, up};
-    }();
-
-    VR_ShowCrosshairImpl(size, alpha, start, forward);
-}
-
-static void VR_ShowCrosshairOffHand(const float size, const float alpha)
-{
-    if(VR_GetWpnCrosshairMode(VR_GetOffHandWpnCvarEntry()) ==
-        WpnCrosshairMode::Forbidden)
-    {
-        return;
-    }
-
-    const auto [start, forward, right, up] = [&] {
-        // calc the line and draw
-        const auto start = VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
-        const auto [forward, right, up] =
-            getAngledVectors(cl.handrot[cVR_OffHand]);
-        return std::tuple{start, forward, right, up};
-    }();
-
-    VR_ShowCrosshairImpl(size, alpha, start, forward);
-}
-
-void VR_ShowCrosshair()
-{
-    if(vr_crosshair.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const float size = CLAMP(0.0, vr_crosshair_size.value, 32.0);
-    const float alpha = CLAMP(0.0, vr_crosshair_alpha.value, 1.0);
-
-    if(size <= 0 || alpha <= 0)
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-
-    VR_ShowCrosshairMainHand(size, alpha);
-    VR_ShowCrosshairOffHand(size, alpha);
-
-    VR_ShowFnCleanupGL();
-}
-
-void VR_DrawTeleportLine()
-{
-    if(!vr_teleport_enabled.value /*|| !svPlayerActive()*/ || !vr_teleporting ||
-        vr_aimmode.value != VrAimMode::e_CONTROLLER)
-    {
-        return;
-    }
-
-    const float size = 2.f;
-    const float alpha = 0.5f;
-
-    if(size <= 0 || alpha <= 0)
-    {
-        return;
-    }
-
-
-    // calc angles
-    const auto start = cl.handpos[cVR_OffHand];
-
-    // calc line
-    const auto impact = vr_teleporting_impact;
-
-    const auto midA = glm::mix(start, impact, 0.15);
-    const auto midB = glm::mix(start, impact, 0.85);
-
-    // draw line
-    const auto setColor = [&](const float xAlpha) {
-        if(vr_teleporting_impact_valid)
-        {
-            glColor4f(0, 0, 1, xAlpha);
-        }
-        else
-        {
-            glColor4f(1, 0, 0, xAlpha);
-        }
-    };
-
-    VR_ShowFnSetupGL();
-
-    glLineWidth(size * glwidth / vid.width);
-
-    glEnable(GL_LINE_SMOOTH);
-    glShadeModel(GL_SMOOTH);
-
-    glBegin(GL_LINE_STRIP);
-
-    setColor(alpha * 0.01f);
-    VR_GLVertex3f(start);
-
-    setColor(alpha);
-    VR_GLVertex3f(midA);
-    VR_GLVertex3f(midB);
-
-    setColor(alpha * 0.01f);
-    VR_GLVertex3f(impact);
-
-    glEnd();
-
-    glShadeModel(GL_FLAT);
-    glDisable(GL_LINE_SMOOTH);
-
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowWpnoffsetHelperOffset()
-{
-    if(vr_impl_draw_wpnoffset_helper_offset == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto doColor = [&] { glColor4f(0, 1, 1, 0.75); };
-
-    const auto doLine = [&](const qvec3& a, const qvec3& b) {
-        doColor();
-        VR_GLVertex3f(a);
-        VR_GLVertex3f(b);
-    };
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        glBegin(type);
-
-        const auto [handPos, handRot, cvarEntry] = [&] {
-            const auto hand = vr_impl_draw_wpnoffset_helper_offset == 1
-                                  ? cVR_MainHand
-                                  : cVR_OffHand;
-
-            return std::tuple{
-                cl.handpos[hand], cl.handrot[hand], VR_GetWpnCvarEntry(hand)};
-        }();
-
-        const auto offsetPos =
-            redirectVector(VR_GetWpnOffsets(cvarEntry), handRot);
-
-        doLine(handPos, handPos + offsetPos);
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowWpnoffsetHelperMuzzle()
-{
-    if(vr_impl_draw_wpnoffset_helper_muzzle == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        glBegin(type);
-
-        const auto muzzlePos = vr_impl_draw_wpnoffset_helper_muzzle == 1
-                                   ? VR_CalcFinalWpnMuzzlePos(cVR_MainHand)
-                                   : VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
-
-        glColor4f(0, 1, 1, 0.75);
-        VR_GLVertex3f(muzzlePos);
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowWpnoffsetHelper2HOffset()
-{
-    if(vr_impl_draw_wpnoffset_helper_2h_offset == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        glBegin(type);
-
-        const auto pos =
-            vr_impl_draw_wpnoffset_helper_2h_offset == 1
-                ? VR_Get2HHelpingHandPos(cVR_MainHand, cVR_OffHand)
-                : VR_Get2HHelpingHandPos(cVR_OffHand, cVR_MainHand);
-
-        glColor4f(0, 1, 1, 0.75);
-        VR_GLVertex3f(pos);
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowHandPosAndRot()
-{
-    if(vr_debug_show_hand_pos_and_rot.value == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowFnSetupGL();
-    VR_ShowFnDrawPointsAndLines([&](const int type) {
-        glBegin(type);
-
-        const auto drawHand = [&](const int hand) {
-            const auto& pos = cl.handpos[hand];
-            const auto& rot = cl.handrot[hand];
-
-            const auto fwd = getFwdVecFromPitchYawRoll(rot);
-            const auto end = pos + fwd * 1._qf;
-
-            VR_GLVertex3f(pos);
-            VR_GLVertex3f(end);
-        };
-
-        glColor4f(0, 1, 0, 0.75);
-        drawHand(cVR_MainHand);
-
-        glColor4f(1, 0, 0, 0.75);
-        drawHand(cVR_OffHand);
-
-        glEnd();
-    });
-    VR_ShowFnCleanupGL();
-}
-
-static void VR_ShowHandAnchorVertexImpl(const int handIdx)
-{
-    assert(svPlayerActive());
-
-    const auto anchor =
-        handIdx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
-
-    if(anchor->model == nullptr)
-    {
-        return;
-    }
-
-    const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
-
-    const int anchorVertex = static_cast<int>(
-        VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::HandAnchorVertex));
-
-    const auto rots = VR_GetWpnAngleOffsets(wpnCvarEntry);
-
-    const bool horizFlip = handIdx == cVR_MainHand ? false : true;
-
-    const auto drawVertex = [&](const int idxOffset) {
-        const auto pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[handIdx] + rots,
-            horizFlip);
-
-        VR_GLVertex3f(pos);
-    };
-
-    VR_ShowFnSetupGL();
-
-    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 1.0);
-        drawVertex(0);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.95);
-        drawVertex(1);
-        drawVertex(-1);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.9);
-
-        for(int i = 0; i < 500; ++i)
-        {
-            drawVertex(i);
-            drawVertex(-i);
-        }
-
-        glEnd();
-    });
-
-    VR_ShowFnCleanupGL();
-}
-
-void VR_ShowHandAnchorVertex()
-{
-    // TODO VR: (P2) cvar to always show all vertices
-    // VR_ShowHandAnchorVertexImpl(cVR_MainHand);
-    // VR_ShowHandAnchorVertexImpl(cVR_OffHand);
-
-    if(vr_impl_draw_hand_anchor_vertex == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_ShowHandAnchorVertexImpl(
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand);
-}
-
-void VR_Show2HHandAnchorVertexImpl(const int handIdx)
-{
-    assert(svPlayerActive());
-
-    const auto anchor =
-        handIdx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
-
-    if(anchor->model == nullptr)
-    {
-        return;
-    }
-
-    const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
-
-    const int anchorVertex = static_cast<int>(
-        VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::TwoHHandAnchorVertex));
-
-    const bool horizFlip = handIdx == cVR_MainHand ? false : true;
-
-    const auto drawVertex = [&](const int idxOffset) {
-        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[handIdx],
-            horizFlip);
-
-        VR_GLVertex3f(pos);
-    };
-
-    VR_ShowFnSetupGL();
-
-    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 1.0);
-        drawVertex(0);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.95);
-        drawVertex(1);
-        drawVertex(-1);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.9);
-
-        for(int i = 0; i < 500; ++i)
-        {
-            drawVertex(i);
-            drawVertex(-i);
-        }
-
-        glEnd();
-    });
-
-    VR_ShowFnCleanupGL();
-}
-
-// TODO VR: (P1) code repetition, move all Show functions to some other file
-void VR_Show2HHandAnchorVertex()
-{
-    // TODO VR: (P2) cvar to always show all vertices
-    // VR_Show2HHandAnchorVertexImpl(cVR_MainHand);
-    // VR_Show2HHandAnchorVertexImpl(cVR_OffHand);
-
-    if(vr_impl_draw_2h_hand_anchor_vertex == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    VR_Show2HHandAnchorVertexImpl(
-        vr_impl_draw_2h_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand);
-}
-
-// TODO VR: (P1) code repetition
-void VR_ShowWpnButtonAnchorVertex()
-{
-    if(vr_impl_draw_wpnbutton_anchor_vertex == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto hand =
-        vr_impl_draw_wpnbutton_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
-
-    const auto anchor =
-        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
-
-    if(anchor->model == nullptr)
-    {
-        return;
-    }
-
-    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
-        VR_GetWpnCvarEntry(hand), WpnCVar::WpnButtonAnchorVertex));
-
-    const auto drawVertex = [&](const int idxOffset) {
-        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
-
-        VR_GLVertex3f(pos);
-    };
-
-    VR_ShowFnSetupGL();
-
-    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 1.0);
-        drawVertex(0);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.95);
-        drawVertex(1);
-        drawVertex(-1);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.9);
-
-        for(int i = 0; i < 500; ++i)
-        {
-            drawVertex(i);
-            drawVertex(-i);
-        }
-
-        glEnd();
-    });
-
-    VR_ShowFnCleanupGL();
-}
-
-// TODO VR: (P1) code repetition
-void VR_ShowMuzzleAnchorVertex()
-{
-    if(vr_impl_draw_wpnoffset_helper_muzzle == 0 || !svPlayerActive())
-    {
-        return;
-    }
-
-    const auto hand =
-        vr_impl_draw_wpnoffset_helper_muzzle == 1 ? cVR_MainHand : cVR_OffHand;
-
-    const auto anchor =
-        hand == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
-
-    if(anchor->model == nullptr)
-    {
-        return;
-    }
-
-    const int anchorVertex = static_cast<int>(VR_GetWpnCVarValue(
-        VR_GetWpnCvarEntry(hand), WpnCVar::MuzzleAnchorVertex));
-
-    const auto drawVertex = [&](const int idxOffset) {
-        const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-            anchorVertex + idxOffset, vec3_zero, cl.handrot[hand], false);
-
-        VR_GLVertex3f(pos);
-    };
-
-    VR_ShowFnSetupGL();
-
-    VR_ShowFnDrawPointsWithSize(12.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 1.0);
-        drawVertex(0);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(6.f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.95);
-        drawVertex(1);
-        drawVertex(-1);
-
-        glEnd();
-    });
-
-    VR_ShowFnDrawPointsWithSize(3.25f, [&](const int type) {
-        glBegin(type);
-
-        glColor4f(0, 0, 1, 0.9);
-
-        for(int i = 0; i < 500; ++i)
-        {
-            drawVertex(i);
-            drawVertex(-i);
-        }
-
-        glEnd();
-    });
-
-    VR_ShowFnCleanupGL();
-}
-
-void VR_DrawAllShowHelpers()
-{
-    VR_ShowVirtualStock();
-    VR_ShowHipHolsters();
-    VR_ShowShoulderHolsters();
-    VR_ShowUpperHolsters();
-    VR_ShowVRTorsoDebugLines();
-    VR_DrawTeleportLine();
-    VR_ShowWpnoffsetHelperOffset();
-    VR_ShowWpnoffsetHelperMuzzle();
-    VR_ShowWpnoffsetHelper2HOffset();
-    VR_ShowHandPosAndRot();
-    VR_ShowHandAnchorVertex();
-    VR_Show2HHandAnchorVertex();
-    VR_ShowWpnButtonAnchorVertex();
-    VR_ShowMuzzleAnchorVertex();
 }
 
 void VR_Draw2D()
@@ -5019,61 +3992,65 @@ void VR_Move(usercmd_t* cmd)
 
     auto [lfwd, lright, lup] = getAngledVectors(cl.handrot[cVR_OffHand]);
 
-    if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
+    if(vr_fakevr.value == 0)
     {
-        cmd->forwardmove += cl_forwardspeed.value * fwdMove;
-        cmd->sidemove += cl_forwardspeed.value * sideMove;
-
-        // TODO VR: (P1) avoid gimbal by using up if we are point up/down like
-        // below, this is actually raw input but label in menu is "Follow Head"
-    }
-    else
-    {
-        const auto [vfwd, vright, vup] = VR_GetHeadYawDirs();
-
-        // avoid gimbal by using up if we are point up/down
-        if(fabs(lfwd[2]) > 0.8f)
+        if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
         {
-            if(lfwd[2] < -0.8f)
+            cmd->forwardmove += cl_forwardspeed.value * fwdMove;
+            cmd->sidemove += cl_forwardspeed.value * sideMove;
+
+            // TODO VR: (P1) avoid gimbal by using up if we are point up/down
+            // like below, this is actually raw input but label in menu is
+            // "Follow Head"
+        }
+        else
+        {
+            const auto [vfwd, vright, vup] = VR_GetHeadYawDirs();
+
+            // avoid gimbal by using up if we are point up/down
+            if(fabs(lfwd[2]) > 0.8f)
             {
-                lfwd *= -1.f;
-            }
-            else
-            {
-                lup *= -1.f;
+                if(lfwd[2] < -0.8f)
+                {
+                    lfwd *= -1.f;
+                }
+                else
+                {
+                    lup *= -1.f;
+                }
+
+                std::swap(lup, lfwd);
             }
 
-            std::swap(lup, lfwd);
+            // Scale up directions so tilting doesn't affect speed
+            const float fac = 1.0f / lup[2];
+            lfwd *= fac;
+            lright *= fac;
+
+            const qvec3 move =
+                (qfloat(fwdMove) * lfwd) + (qfloat(sideMove) * lright);
+            const auto fwd = DotProduct(move, vfwd);
+            const auto right = DotProduct(move, vright);
+
+            // Quake run doesn't affect the value of cl_sidespeed.value, so
+            // just use forward speed here for consistency
+            cmd->forwardmove += cl_forwardspeed.value * fwd;
+            cmd->sidemove += cl_forwardspeed.value * right;
         }
 
-        // Scale up directions so tilting doesn't affect speed
-        const float fac = 1.0f / lup[2];
-        lfwd *= fac;
-        lright *= fac;
+        // roomscalemove:
+        cmd->roomscalemove =
+            vr_roomscale_move * static_cast<qfloat>(1._qf / host_frametime);
 
-        const qvec3 move =
-            (qfloat(fwdMove) * lfwd) + (qfloat(sideMove) * lright);
-        const auto fwd = DotProduct(move, vfwd);
-        const auto right = DotProduct(move, vright);
+        std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[cVR_OffHand]);
+        cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
 
-        // Quake run doesn't affect the value of cl_sidespeed.value, so
-        // just use forward speed here for consistency
-        cmd->forwardmove += cl_forwardspeed.value * fwd;
-        cmd->sidemove += cl_forwardspeed.value * right;
-    }
-
-    // roomscalemove:
-    cmd->roomscalemove =
-        vr_roomscale_move * static_cast<qfloat>(1._qf / host_frametime);
-
-    std::tie(lfwd, lright, lup) = getAngledVectors(cl.handrot[cVR_OffHand]);
-    cmd->upmove += cl_upspeed.value * fwdMove * lfwd[2];
-
-    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
-    {
-        cmd->forwardmove *= cl_movespeedkey.value;
-        cmd->sidemove *= cl_movespeedkey.value;
-        cmd->upmove *= cl_movespeedkey.value;
+        if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
+        {
+            cmd->forwardmove *= cl_movespeedkey.value;
+            cmd->sidemove *= cl_movespeedkey.value;
+            cmd->upmove *= cl_movespeedkey.value;
+        }
     }
 
     lastVrYawDiff = 0.f;
@@ -5221,3 +4198,8 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
 // the future Frikbot could be added its a pretty straightforward add to QuakeC"
+
+// TODO VR: (P1): Spoike: "may I make a suggestion? stop using progs.dat use a
+// different filename instead, considering you're mutually incompatible and all
+// then you don't have to worry about the progs.dat in the hipnotic/rogue
+// subdirs taking precidence."

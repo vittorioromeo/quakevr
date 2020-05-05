@@ -660,7 +660,7 @@ void() monster_zombie =
     precache_sound("zombie/idle_w2.wav");
 
     // HONEY
-    if (self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
 
@@ -676,7 +676,7 @@ void() monster_zombie =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & TRIGGER_SPAWN)
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = zombie_start2;
         return;

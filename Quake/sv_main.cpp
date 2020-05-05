@@ -174,8 +174,8 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(const qfvec3& org, const qfvec3& dir,
-    const int color, const int count)
+void SV_StartParticle(
+    const qfvec3& org, const qfvec3& dir, const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -195,8 +195,8 @@ SV_StartParticle2
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle2(const qfvec3& org, const qfvec3& dir,
-    const int preset, const int count)
+void SV_StartParticle2(
+    const qfvec3& org, const qfvec3& dir, const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -366,8 +366,10 @@ void SV_SendServerinfo(client_t* client)
     int i; // johnfitz
 
     MSG_WriteByte(&client->message, svc_print);
-    sprintf(message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2,
-        FITZQUAKE_VERSION, pr_crc); // johnfitz -- include fitzquake version
+
+    sprintf(message, "%c\nQUAKE VR %s SERVER (%i CRC)\n", 2, QUAKEVR_VERSION,
+        pr_crc); // johnfitz -- include fitzquake version
+
     MSG_WriteString(&client->message, message);
 
     MSG_WriteByte(&client->message, svc_serverinfo);
@@ -752,6 +754,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             if(!dev_overflows.packetsize ||
                 dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime)
             {
+                // TODO VR: (P0) this happens in MP
                 Con_Printf("Packet overflow!\n");
                 dev_overflows.packetsize = realtime;
             }
@@ -1400,6 +1403,30 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
     MSG_WriteByte(
         msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+
+    // TODO VR: (P1) experiment with this
+#if 0
+    {
+        VrGunWallCollision outGunWallCollision[2];
+
+        const auto doHandAndGunCollisions = [&](const HandIdx index) {
+            const auto worldHandPos = VR_GetWorldHandPos(index, ent->v.origin);
+
+            const qvec3 adjPlayerOrigin =
+                VR_GetAdjustedPlayerOrigin(ent->v.origin);
+
+            qvec3 finalVec = worldHandPos;
+
+            const auto resolvedHandPos =
+                VR_GetResolvedHandPos(ent, worldHandPos, adjPlayerOrigin);
+
+            finalVec = resolvedHandPos;
+
+            finalVec = VR_UpdateGunWallCollisions(
+                ent, index, outGunWallCollision[index], finalVec);
+        };
+    }
+#endif
 }
 
 /*

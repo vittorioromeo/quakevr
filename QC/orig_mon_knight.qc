@@ -327,7 +327,7 @@ void() monster_knight =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
 
-    if(self.spawnflags & TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -336,7 +336,7 @@ void() monster_knight =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & TRIGGER_SPAWN)
+    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = knight_start;
         return;
