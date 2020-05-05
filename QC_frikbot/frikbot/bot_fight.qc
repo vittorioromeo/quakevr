@@ -359,14 +359,21 @@ void() bot_shoot =
 {
     // quick little function to stop making him shoot the wrong way ! Argh
     local float g;
+
     g = angcomp(self.v_angle_x, self.b_angle_x);
     if (fabs(g) > 30)
         return; // argh, too far away
+
     g = angcomp(self.v_angle_y, self.b_angle_y);
     if (fabs(g) > 30)
         return; // not again!
 
-    // TODO VR: (P0) this should copy v_angle to handrot, or something like that
+    // TODO VR: (P0) this should copy v_angle to handrot, or something like that, test.
+    self.handrot = self.v_angle;
+    self.offhand_handrot = self.v_angle;
+
+    self.handpos = self.origin;
+    self.offhand_handpos = self.origin;
 
     self.button0 = TRUE;
 };

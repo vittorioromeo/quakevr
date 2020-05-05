@@ -1,10 +1,28 @@
-TODO VR: (P0) finish up this list, link from main readme
+<a href="https://vittorioromeo.info/quakevr">
+    <p align="center">
+        <img width="460" height="250" src="https://vittorioromeo.info/Misc/quakevrlogo.png">
+    </p>
+</a>
 
-Confirmed working:
+# [quakevr](https://vittorioromeo.info/quakevr)
+
+## Recommended Custom Maps
+
+In general, any map that doesn't have a custom `progs.dat` will be compatible.
+
+A good starting point is to visit <https://www.quaddicted.com/reviews/>, sort by rating, and check if the map you're looking at doesn't have a custom `progs.dat`. There is an icon towards the bottom of each map's page that will tell you. Also, the map should not have any "dependency".
+
+For maps with `.pak`: extracting any `.pak` to the `Id1` folder is the recommended way to install custom maps, but you can also rename the `XX` in `.pakXX` to some unique number which comes before the Quake VR `.pak` files and after the regular Quake ones.
+
+If you try any of the maps below, please let me know if they work and we can list them under "confirmed working".
+
+### Confirmed Working
+
 - https://www.quaddicted.com/reviews/dopa.html
 - https://www.quaddicted.com/reviews/honey.html
 
-Should work:
+### Should Work
+
 - https://www.quaddicted.com/reviews/ac.html
 - https://www.quaddicted.com/reviews/bindingtower2.html
 - https://www.quaddicted.com/reviews/could.html
@@ -41,7 +59,8 @@ Should work:
 - https://www.quaddicted.com/reviews/winbbcoh.html
 - https://www.quaddicted.com/reviews/zendar1d.html
 
-Might work with some tweaks/PAK changes:
+### Likely Not Working (Needs Minor Tweaking)
+
 - https://www.quaddicted.com/reviews/copper.html
 - https://www.quaddicted.com/reviews/udob.html
 

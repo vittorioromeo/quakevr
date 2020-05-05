@@ -85,6 +85,10 @@ The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_h
 
 * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
 
+### Custom Maps
+
+For supported custom maps, please see [CUSTOM_MAPS.md](https://github.com/SuperV1234/quakevr/blob/master/CUSTOM_MAPS.md).
+
 ### Vispatching
 
 The Quake VR engine supports transparent water, however original Quake maps need to be patched in order for it to work properly. It is therefore highly recommended that you "vispatch" your Quake (and Scourge of Armagon) maps.
