@@ -411,7 +411,7 @@ local vector    org;
 
     if(self.targetname)
     {
-        if (/* HONEY */ !(self.spawnflags & IGNORE_TARGETNAME) && self.nextthink < time)
+        if(/* HONEY */ !(self.spawnflags & IGNORE_TARGETNAME) && self.nextthink < time)
         {
             return;        // not fired yet
         }
@@ -742,14 +742,14 @@ void() trigger_monsterjump_touch =
         return;
 
     // HONEY
-    if (self.message != "" && other.classname != self.message)
+    if(self.message != "" && other.classname != self.message)
         return;
 
 // set XY even if not on ground, so the jump will clear lips
     other.velocity_x = self.movedir_x * self.speed;
     other.velocity_y = self.movedir_y * self.speed;
 
-    if (!(other.flags & FL_ONGROUND)){
+    if(!(other.flags & FL_ONGROUND)){
         return;
     }
 

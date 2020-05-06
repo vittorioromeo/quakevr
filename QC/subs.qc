@@ -255,7 +255,7 @@ void() SUB_UseTargets =
 //
 // kill the killtagets
 //
-    if (self.killtarget)
+    if(self.killtarget)
     {
         t = find(world, targetname, self.killtarget);
         while(t)

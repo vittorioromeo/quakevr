@@ -3,10 +3,15 @@ BE .8 .3 .4 IN COLOR */
 
 void(entity entPlayer) VRItemPickupHaptic =
 {
+    if(!entPlayer.ishuman)
+    {
+        return;
+    }
+
     if(VRIsTouchingHandFake(entPlayer))
     {
-        haptic(0, 0.0, 0.3, 75, 1.0);
-        haptic(1, 0.0, 0.3, 75, 1.0);
+        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
+        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
         return;
     }
 
@@ -254,7 +259,7 @@ void() item_health =
         setsize(self, '0 0 0', '32 32 16');
     }
 
-    if (deathmatch == 1) {
+    if(deathmatch == 1) {
         self.wait = 20;
     }
 
@@ -490,7 +495,9 @@ void() weapon_touch =
     local float  leave;
 
     // Do not pick up the weapon if the touching hand is not grabbing.
-    if(cvar_hget(cvarh_vr_body_interactions) == 0 && cvar_hget(cvarh_vr_enabled) == 1)
+    if(cvar_hget(cvarh_vr_body_interactions) == 0 &&
+        cvar_hget(cvarh_vr_enabled) == 1 &&
+        other.ishuman)
     {
         if(!VRIsEntHandGrabbing(other, VRGetTouchingHand(other)) ||
             VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
@@ -545,20 +552,37 @@ void() weapon_touch =
     local float touchinghandIsBody;
     touchinghandIsBody = VRIsTouchingHandFake(other);
 
-    local float touchinghand;
-    touchinghand = VRGetTouchingHand(other);
-
-    if(touchinghandIsBody && VRGetEntWeapon(other, touchinghand) != WID_FIST)
+    if(touchinghandIsBody)
     {
-        // This can happen if VR body interactions is on.
-        DropWeaponInHand(other, touchinghand,
-                         VRGetEntWeapon(other, touchinghand),
-                         VRGetEntWeaponFlags(other, touchinghand));
+        if(other.ishuman)
+        {
+            if(VRIsHandEmpty(other, cVR_MainHand))
+            {
+                VRSetWeapon(cVR_MainHand, weaponId);
+                W_SetCurrentAmmoFor(cVR_MainHand);
+            }
+            else if(VRIsHandEmpty(other, cVR_OffHand))
+            {
+                VRSetWeapon(cVR_OffHand, weaponId);
+                W_SetCurrentAmmoFor(cVR_OffHand);
+            }
+        }
+        else
+        {
+            DropWeaponInHand(other, cVR_MainHand,
+                VRGetEntWeapon(other, cVR_MainHand),
+                VRGetEntWeaponFlags(other, cVR_MainHand));
+        }
+    }
+    else
+    {
+        local float touchinghand;
+        touchinghand = VRGetTouchingHand(other);
+
+        VRSetWeapon(touchinghand, weaponId);
+        W_SetCurrentAmmoFor(touchinghand);
     }
 
-    VRSetWeapon(touchinghand, weaponId);
-
-    W_SetCurrentAmmoFor(touchinghand);
 
     self = stemp;
 

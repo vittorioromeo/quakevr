@@ -181,7 +181,7 @@ void() func_plat =
     self.pos1 = self.origin;
 
     // HONEY
-    if (self.distance)
+    if(self.distance)
         self.pos1_z = self.origin_z + self.distance;
 
     self.pos2 = self.origin;

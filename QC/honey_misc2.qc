@@ -505,7 +505,7 @@ void deathpit_touch() =
         other.touch = deathpit_ZombieGrenadeTouch;
 
 
-    }else if (other.flags & FL_MONSTER){
+    }else if(other.flags & FL_MONSTER){
 
         if(other.trigger_field) return;
 
@@ -543,10 +543,10 @@ void() trigger_deathpit =
 
     InitTrigger ();
 
-    if (!self.height)
+    if(!self.height)
         self.height = self.absmax_z;
 
-    if (!self.lip)
+    if(!self.lip)
         self.lip = self.absmin_z + 160;
 
         //??????????????????????????????????????
@@ -604,7 +604,7 @@ void() door_temp_trigger_check =
         if(self.state == DTT_STATE_ENTERED){
             self.state = DTT_STATE_OPENING;
             self = self.owner;
-            if (self.message != "")
+            if(self.message != "")
             {
                 centerprint(activator, self.message);
                 sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
@@ -655,7 +655,7 @@ void() door_temp_trigger_touch =
 
     if(self.state != DTT_STATE_CLOSED) //Already started opening it
         return;
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     self.state = DTT_STATE_ENTERED;
@@ -689,35 +689,35 @@ void() func_door_temp =
 
 {
 
-    if (self.sounds == 0)
+    if(self.sounds == 0)
     {
         precache_sound("misc/null.wav");
         precache_sound("misc/null.wav");
         self.noise1 = "misc/null.wav";
         self.noise2 = "misc/null.wav";
     }
-    if (self.sounds == 1)
+    if(self.sounds == 1)
     {
         precache_sound("doors/drclos4.wav");
         precache_sound("doors/doormv1.wav");
         self.noise1 = "doors/drclos4.wav";
         self.noise2 = "doors/doormv1.wav";
     }
-    if (self.sounds == 2)
+    if(self.sounds == 2)
     {
         precache_sound("doors/hydro1.wav");
         precache_sound("doors/hydro2.wav");
         self.noise2 = "doors/hydro1.wav";
         self.noise1 = "doors/hydro2.wav";
     }
-    if (self.sounds == 3)
+    if(self.sounds == 3)
     {
         precache_sound("doors/stndr1.wav");
         precache_sound("doors/stndr2.wav");
         self.noise2 = "doors/stndr1.wav";
         self.noise1 = "doors/stndr2.wav";
     }
-    if (self.sounds == 4)
+    if(self.sounds == 4)
     {
         precache_sound("doors/ddoor1.wav");
         precache_sound("doors/ddoor2.wav");
@@ -738,15 +738,15 @@ void() func_door_temp =
 
     self.blocked = door_blocked;
 
-    if (!self.speed)
+    if(!self.speed)
         self.speed = 100;
     self.wait = -1;
 
-    if (!self.lip)
+    if(!self.lip)
         self.lip = 8;
-    if (!self.cnt)
+    if(!self.cnt)
         self.cnt = 5; //How many times faster it closes than opens
-    if (!self.dmg)
+    if(!self.dmg)
         self.dmg = 2;
 
     self.pos1 = self.origin;
@@ -757,7 +757,7 @@ void() func_door_temp =
 
 // DOOR_START_OPEN is to allow an entity to be lighted in the closed position
 // but spawn in the open position
-    if (self.spawnflags & DOOR_START_OPEN)
+    if(self.spawnflags & DOOR_START_OPEN)
     {
         setorigin(self, self.pos2);
         self.pos2 = self.pos1;
@@ -786,19 +786,19 @@ void() hublevel_touch =
 {
     local entity    pos;
 
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
     local float noexit;
     noexit = cvar_hget(cvarh_noexit);
 
-    if ((noexit == 1) || ((noexit == 2) && (mapname != "start")))
+    if((noexit == 1) || ((noexit == 2) && (mapname != "start")))
     {
         T_Damage (other, self, self, 50000);
         return;
     }
 
-    if (coop || deathmatch)
+    if(coop || deathmatch)
     {
         bprint(other.netname);
         bprint(" exited the level\n");
@@ -816,7 +816,7 @@ void() hublevel_touch =
 
     SUB_UseTargets ();
 
-    if ((self.spawnflags & 1) && (deathmatch == 0))
+    if((self.spawnflags & 1) && (deathmatch == 0))
     {    // NO_INTERMISSION
         GotoNextMap();
         return;
@@ -839,7 +839,7 @@ void() trigger_backtohub =
     precache_sound("misc/null.wav"); //Don't ask
     precache_sound("misc/runekey.wav"); //Don't ask
 
-    if (!self.spawnflags)
+    if(!self.spawnflags)
         objerror ("backtohub without level flag set");
 
     InitTrigger ();
@@ -930,11 +930,11 @@ void() ghost_think_OLD =
 void() ghost_touch =
 {
     entity oself;
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
-    if (self.attack_finished > time)
+    if(self.attack_finished > time)
         return;
-    if (self.message == "")
+    if(self.message == "")
         return;
 
     oself = self;

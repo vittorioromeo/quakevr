@@ -279,7 +279,7 @@ void(entity sknight) sknight_setup_spears =
 void() sknight_die =
 {
 // check for gib
-    if (self.health < -40)
+    if(self.health < -40)
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_hellkn.mdl", self.health);
@@ -300,7 +300,7 @@ void() sknight_die =
 */
 void() monster_sknight =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove(self);
         return;
@@ -326,7 +326,7 @@ void() monster_sknight =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
     self.health = 250;

@@ -41,7 +41,7 @@ void() light_fade_out=
 void() model_candle_think =
 {
     self.frame = self.frame + 1;
-    if (self.frame > 3)
+    if(self.frame > 3)
         self.frame = 0;
     self.nextthink = time + 0.1;
 };

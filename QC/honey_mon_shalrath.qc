@@ -3,7 +3,7 @@ void() shalrath_start =
 {
     local entity n;
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && self.cnt != 0)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && self.cnt != 0)
     {
         self.cnt = self.cnt - 1;
         n = spawn();

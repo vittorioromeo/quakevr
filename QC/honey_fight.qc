@@ -12,19 +12,19 @@ float() OgreMarksmanCheckAttack =
     local entity    targ;
 //    local float        chance;
 
-    if (enemy_range == RANGE_MELEE)
+    if(enemy_range == RANGE_MELEE)
     {
-        if (CanDamage (self.enemy, self))
+        if(CanDamage (self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;
         }
     }
 
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
-    if (!enemy_vis)
+    if(!enemy_vis)
         return FALSE;
 
     targ = self.enemy;
@@ -35,16 +35,16 @@ float() OgreMarksmanCheckAttack =
 
     traceline (spot1, spot2, FALSE, self);
 
-    if (trace_inopen && trace_inwater)
+    if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if (trace_ent != targ)
+    if(trace_ent != targ)
     {
         return FALSE;    // don't have a clear shot
     }
 
 // missile attack
-    if (time < self.attack_finished)
+    if(time < self.attack_finished)
         return FALSE;
 
     self.attack_state = AS_MISSILE;

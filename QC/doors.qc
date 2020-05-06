@@ -392,11 +392,11 @@ void() LinkDoors =
             starte.health = self.health;
 
         // HONEY
-        if (self.cnt)
+        if(self.cnt)
             starte.cnt = self.cnt;
 
         // HONEY
-        if (self.lefty)
+        if(self.lefty)
             starte.lefty = self.lefty;
 
         if(self.targetname)

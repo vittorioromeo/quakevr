@@ -65,7 +65,7 @@ void() light =
     // HONEY
     if(!self.waitmin) { self.waitmin = 0.1; }
 
-    if (self.style >= 32)
+    if(self.style >= 32)
     {
         // HONEY
         //make sure there only is ONE light per light style, dunno why :|
@@ -81,7 +81,7 @@ void() light =
         }
 
         self.use = light_use;
-        if (self.spawnflags & START_OFF){
+        if(self.spawnflags & START_OFF){
             lightstyle(self.style, "a");
 
         }else{
@@ -528,7 +528,7 @@ testing air bubbles
 
 void() air_bubbles =
 {
-    if (deathmatch)
+    if(deathmatch)
     {
         remove (self);
         return;
@@ -650,9 +650,9 @@ void() bubble_bob =
     }
 
     self.cnt = self.cnt + 1;
-    if (self.cnt == ceil(self.count * 0.2)) // HONEY
+    if(self.cnt == ceil(self.count * 0.2)) // HONEY
         bubble_split();
-    if (self.cnt >= self.owner.count) { // HONEY
+    if(self.cnt >= self.owner.count) { // HONEY
         remove(self);
     }
 
@@ -680,9 +680,9 @@ void() bubble_bob =
     }
 
     // HONEY
-    if (rnd3 < minz)
+    if(rnd3 < minz)
         rnd3 = minz + 5;
-    if (rnd3 > maxz)
+    if(rnd3 > maxz)
         rnd3 = maxz - 5;
 
     self.velocity_x = rnd1;

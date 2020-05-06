@@ -135,6 +135,7 @@ void() SpawnRunes =
 
     if(!deathmatch || !(cvar_hget(cvarh_gamecfg) & GAMECFG_ENABLE_RUNES) || runespawn)
         return;
+
     runespawn = 1;
     spawner = spawn();
     spawner.think = DoSpawnRunes;

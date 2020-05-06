@@ -3,10 +3,10 @@ float ITEM_FLOATING = 16;
 
 void() itemTouch =
 {
-    if (other.classname != "player")
+    if(other.classname != "player")
         return;
 
-    if (other.health <= 0)
+    if(other.health <= 0)
         return;
 
     //self.touch = self.th_die;

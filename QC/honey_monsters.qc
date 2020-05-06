@@ -9,7 +9,7 @@ void() teleport_glitter =
 
 void() monster_add_to_counter =
 {
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE){
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE){
         if(self.cnt != -1){
                 total_monsters = total_monsters + self.cnt + 1;
         }else{

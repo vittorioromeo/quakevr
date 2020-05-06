@@ -118,9 +118,9 @@ void() walkmonster_start_go =
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
-        if (activator.items & IT_INVISIBILITY)
+        if(activator.items & IT_INVISIBILITY)
             return;
-        if (activator.flags & FL_NOTARGET)
+        if(activator.flags & FL_NOTARGET)
             return;
         self.enemy = activator;
         self.nextthink = time + 0.1;
@@ -145,7 +145,7 @@ void() walkmonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
         WriteByte (MSG_ALL, SVC_UPDATESTAT);
         WriteByte (MSG_ALL, 12);
@@ -201,9 +201,9 @@ void() flymonster_start_go =
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
-        if (activator.items & IT_INVISIBILITY)
+        if(activator.items & IT_INVISIBILITY)
             return;
-        if (activator.flags & FL_NOTARGET)
+        if(activator.flags & FL_NOTARGET)
             return;
 
         //self.enemy = activator;
@@ -226,7 +226,7 @@ void() flymonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
         WriteByte (MSG_ALL, SVC_UPDATESTAT);
         WriteByte (MSG_ALL, 12);
@@ -275,9 +275,9 @@ void() swimmonster_start_go =
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
-        if (activator.items & IT_INVISIBILITY)
+        if(activator.items & IT_INVISIBILITY)
             return;
-        if (activator.flags & FL_NOTARGET)
+        if(activator.flags & FL_NOTARGET)
             return;
 
         //self.enemy = activator;
@@ -302,7 +302,7 @@ void() swimmonster_start =
 
     // total_monsters = total_monsters + 1;
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
         WriteByte (MSG_ALL, SVC_UPDATESTAT);
         WriteByte (MSG_ALL, 12);

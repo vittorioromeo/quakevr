@@ -21,6 +21,11 @@ float() crandom =
 // QUAKE VR
 void(float xHand, float xduration, float frequency, float amplitude) VRGunHaptic =
 {
+    if(!self.ishuman)
+    {
+        return;
+    }
+
     haptic(xHand, 0.0, xduration, frequency, amplitude);
 }
 
@@ -117,7 +122,7 @@ float(float xHand, float v, float xBase) VRMeleeDmg =
 {
     local float tmp;
 
-    if(cvar_hget(cvarh_vr_fakevr) == 1)
+    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
     {
         return 20;
     }
@@ -141,7 +146,7 @@ float(float v) VRMeleeRange =
         mult = 1.10;
     }
 
-    if(cvar_hget(cvarh_vr_fakevr) == 1)
+    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
     {
         mult = mult * 3.5;
     }
@@ -151,6 +156,11 @@ float(float v) VRMeleeRange =
 
 void(float hand, float velmag) VRMeleeHaptic =
 {
+    if(!self.ishuman)
+    {
+        return;
+    }
+
     local float power, amplitude, xduration;
     power = VRMeleeStrengthMult(velmag);
 
@@ -162,7 +172,7 @@ void(float hand, float velmag) VRMeleeHaptic =
     if(xduration < 0.35)     { xduration = 0.35; }
     else if(xduration > 0.9) { xduration = 0.9; }
 
-    haptic(hand, 0.0, xduration, 75.0, amplitude);
+    VRGunHaptic(hand, xduration, 75.0, amplitude);
 }
 
 void (float xHand) VRMeleeHapticByHand =
@@ -1385,7 +1395,7 @@ void(float xHand) W_FireShotgun =
 
     dir = VRGetWeaponFireRotFwd(xHand);
 
-    FireBullets (xHand, 6, dir, '0.01 0.01 0');
+    FireBullets(xHand, 6, dir, '0.01 0.01 0');
 
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
@@ -2233,7 +2243,7 @@ void() W_SetCurrentAmmo =
     W_SetCurrentAmmoFor(cVR_OffHand);
 };
 
-float(float xHand, float xWeapon, float* xOutWeapon) W_CheckNoAmmo =
+float(float xHand) W_CheckNoAmmo =
 {
     if(VRIsAmmolessWeapon(xHand))
     {
@@ -2262,7 +2272,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 {
     local float r;
 
-    if(!W_CheckNoAmmo(xHand, xWeapon, xOutWeapon))
+    if(!W_CheckNoAmmo(xHand))
     {
         if(time > xAttackFinished)
         {
@@ -2282,7 +2292,9 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 
     if(xWeapon == WID_AXE)
     {
-        if(cvar_hget(cvarh_vr_enabled) == 0 || cvar_hget(cvarh_vr_fakevr) == 1)
+        if(cvar_hget(cvarh_vr_enabled) == 0 ||
+           cvar_hget(cvarh_vr_fakevr) == 1 ||
+           !self.ishuman)
         {
             sound(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
             r = random();
@@ -2375,7 +2387,9 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 //MED
    else if(xWeapon == WID_MJOLNIR)
    {
-        if(cvar_hget(cvarh_vr_enabled) == 0 || cvar_hget(cvarh_vr_fakevr) == 1)
+        if(cvar_hget(cvarh_vr_enabled) == 0 ||
+           cvar_hget(cvarh_vr_fakevr) == 1 ||
+           !self.ishuman)
         {
             if(self.ammo_cells < 30)
                 player_hammer1(xHand);
@@ -2630,7 +2644,7 @@ float(entity xPlayer, float xDir, float xWeapon,
 
 float() getWeaponCycleMode =
 {
-    if(cvar_hget(cvarh_vr_fakevr) == 1)
+    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
     {
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
@@ -2860,7 +2874,7 @@ void() ImpulseCommands =
     // TODO VR: (P0) remove, or make better, check if gun supports it
     if(self.impulse == 42)
     {
-        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
+        VRGunHaptic(cVR_MainHand, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -2869,7 +2883,7 @@ void() ImpulseCommands =
 
     if(self.impulse == 43)
     {
-        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
+        VRGunHaptic(cVR_OffHand, 0.3, 75, 1.0);
         sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
 
         VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
@@ -3242,6 +3256,12 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 
 void() wpnthrow_think =
 {
+    if(time > self.lip)
+    {
+        SUB_Remove();
+        return;
+    }
+
     if(self.waterlevel == 1)
     {
         if(fabs(self.velocity_x) > 10)
@@ -3386,7 +3406,7 @@ void(float xHand, entity ent, entity entPlayer,
      float* xOutEntWeapon, float* xOutEntWeaponFlags) wpnthrow_handtouch_impl =
 {
     sound(ent, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
-    haptic(xHand, 0.0, 0.3, 75, 1.0);
+    VRGunHaptic(xHand, 0.3, 75, 1.0);
 
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = ent.weaponflags;
@@ -3588,6 +3608,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
 
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
+    newmis.lip = time + 10; // removal tiem (timeout) in deathmatch
     newmis.weapon = xWeapon;
     newmis.weaponflags = xWeaponFlags;
 
@@ -3691,6 +3712,15 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
     W_SetCurrentAmmoFor(xHand);
 }
 
+void(entity entPlayer, float xHotspot, float xWeapon, float xWeaponFlags) PutWeaponInHolster =
+{
+    sound(entPlayer, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+
+    setHolsterWeapon(xHotspot, xWeapon);
+    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
+    setHolsterWeaponFlags(xHotspot, xWeaponFlags);
+}
+
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xWeaponFlags, float* xOutWeaponFlags,
@@ -3745,11 +3775,7 @@ void(entity ent, float xHand,
             {
                 if(getHolsterWeapon(xHotspot) == WID_FIST)
                 {
-                    sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
-
-                    setHolsterWeapon(xHotspot, xWeapon);
-                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
-                    setHolsterWeaponFlags(xHotspot, xWeaponFlags);
+                    PutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
 
                     VRSetHandEmpty(ent, xHand);
                     W_SetCurrentAmmoFor(xHand);
@@ -3763,9 +3789,7 @@ void(entity ent, float xHand,
                 {
                     sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
-                    setHolsterWeapon(xHotspot, xWeapon);
-                    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
-                    setHolsterWeaponFlags(xHotspot, xWeaponFlags);
+                    PutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
                 }
             }
         }
