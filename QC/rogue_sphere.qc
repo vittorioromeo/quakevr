@@ -7,14 +7,14 @@ void() sphere_impact =
 {
     if(other.health)
     {
-        T_Damage (other, self, self, 1000 );
+        T_Damage (other, self, self, 1000);
     }
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
     T_RadiusDamage(self, self, 300, other);
 
-//    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+//    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
 
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
@@ -35,8 +35,8 @@ void(entity ownerEntity) sphere_remove =
     {
         if(theSphere.owner == self)
         {
-            bprint ( theSphere.owner.netname );
-            bprint ( " is denied Vengeance.\n" );
+            bprint(theSphere.owner.netname);
+            bprint(" is denied Vengeance.\n");
             remove(theSphere);
             theSphere = find(world, classname, "Vengeance");
         }
@@ -55,7 +55,7 @@ void() sphere_attack =
 
     if(self.enemy.health < 1)
     {
-        sprint ( self.owner, "You are denied Vengeance");
+        sprint(self.owner, "You are denied Vengeance");
         remove(self);
         return;
     }
@@ -72,7 +72,7 @@ void() sphere_think =
 {
     if(self.shieldSoundTime < time)
     {
-        sound ( self, CHAN_VOICE, "sphere/sphere.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "sphere/sphere.wav", 1, ATTN_NORM);
         self.shieldSoundTime = time + 4;
     }
 
@@ -80,7 +80,7 @@ void() sphere_think =
     {
         VR_ItemUtil_EntDelItem(self.owner, IID_V_SPHERE);
 
-        sprint ( self.owner, "Vengeance Sphere Lost\n");
+        sprint(self.owner, "Vengeance Sphere Lost\n");
         remove(self);
         return;
     }
@@ -89,13 +89,13 @@ void() sphere_think =
     {
         VR_ItemUtil_EntDelItem(self.owner, IID_V_SPHERE);
 
-        if( self.owner.enemy.classname == "player" )
+        if(self.owner.enemy.classname == "player")
         {
             self.enemy = self.owner.enemy;
             sphere_attack();
             return;
         }
-        if( self.owner.enemy.owner.classname == "player")
+        if(self.owner.enemy.owner.classname == "player")
         {
             self.enemy = self.owner.enemy.owner;
             sphere_attack();
@@ -128,7 +128,7 @@ void() sphere_spawn =
     missile.delay = time + 30;
     setmodel (missile, "progs/sphere.mdl");
     setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin );
+    setorigin (missile, self.origin);
     missile.avelocity = '40 40 40';
     missile.think = sphere_think;
     missile.nextthink = time + 0.1;
@@ -146,7 +146,7 @@ void() item_sphere =
     }
 
     precache_model ("progs/sphere.mdl");
-    precache_sound ("sphere/sphere.wav");
+    precache_sound("sphere/sphere.wav");
 
     self.noise = "sphere/sphere.wav";
     self.netname = "Vengeance Sphere";

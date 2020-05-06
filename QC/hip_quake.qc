@@ -13,10 +13,10 @@ void() StopEarthQuake =
    hip_earthquake = 0;
    };
 
-void( float value ) EarthQuakeTime =
+void(float value) EarthQuakeTime =
    {
    value = value + time;
-   if(value > hip_earthquake )
+   if(value > hip_earthquake)
       {
       hip_earthquake = value;
       }
@@ -24,7 +24,7 @@ void( float value ) EarthQuakeTime =
 
 void() earthquake_prethink =
    {
-//   if(lastearthquake )
+//   if(lastearthquake)
 //      {
 //      self.view_ofs_z = self.savedz;
 //      lastearthquake = 0;
@@ -33,7 +33,7 @@ void() earthquake_prethink =
 
 void() earthquake_postthink =
     {
-    if(hip_earthquake > time )
+    if(hip_earthquake > time)
         {
       if(quakeactive == 0)
          {
@@ -42,7 +42,7 @@ void() earthquake_postthink =
          }
 //      lastearthquake = 1;
 //      self.savedz = self.view_ofs_z;
-        if(self.flags & FL_ONGROUND )
+        if(self.flags & FL_ONGROUND)
             {
 //         self.view_ofs_z = self.view_ofs_z - 5 + random() * 10;
          self.velocity = self.velocity + (random() * '0 0 150');
@@ -60,7 +60,7 @@ void() earthquake_postthink =
 
 void() hip_earthquake_use =
     {
-    EarthQuakeTime( self.dmg );
+    EarthQuakeTime(self.dmg);
     };
 
 /*QUAKED func_earthquake (0 0 0.5) (0 0 0) (32 32 32)
@@ -77,7 +77,7 @@ void() func_earthquake =
    self.classname = "earthquake";
     self.use = hip_earthquake_use;
     self.think = SUB_Null;
-    if(!self.dmg )
+    if(!self.dmg)
        {
        self.dmg = 0.8;
        }

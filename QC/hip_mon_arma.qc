@@ -249,7 +249,7 @@ void() armagon_overleft_think =
    local float angdelta;
 
    ChangeYaw();
-   walkmove (self.angles_y, 14);
+   walkmove(self.angles_y, 14);
    setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
@@ -283,7 +283,7 @@ void() armagon_overright_think =
    local float angdelta;
 
    ChangeYaw();
-   walkmove (self.angles_y, 14);
+   walkmove(self.angles_y, 14);
    setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
@@ -505,33 +505,33 @@ void()   armagon_run12    =[ $lwalk12.asc  , armagon_run1    ]
       }
    };
 
-void()   armagon_watk1    =[ $lw0fir1.asc, armagon_watk2  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk2    =[ $lw0fir2.asc, armagon_watk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk3    =[ $lw0fir3.asc, armagon_watk4  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk4    =[ $lw0fir4.asc, armagon_watk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk5    =[ $lw0fir5.asc, armagon_watk6  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk6    =[ $lw0fir6.asc, armagon_watk7  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_missile(40,0);};
-void()   armagon_watk7    =[ $lw0fir7.asc, armagon_watk8  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk8    =[ $lw0fir8.asc, armagon_watk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk9    =[ $lw0fir9.asc, armagon_watk10  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk10    =[ $lw0fir10.asc, armagon_watk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk11    =[ $lw0fir11.asc, armagon_watk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_missile(-40,0);};
-//void()   armagon_watk12    =[ $lw0fir12.asc, armagon_watk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_watk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
+void()   armagon_watk1    =[ $lw0fir1.asc, armagon_watk2  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk2    =[ $lw0fir2.asc, armagon_watk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk3    =[ $lw0fir3.asc, armagon_watk4  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk4    =[ $lw0fir4.asc, armagon_watk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk5    =[ $lw0fir5.asc, armagon_watk6  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk6    =[ $lw0fir6.asc, armagon_watk7  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();armagon_launch_missile(40,0);};
+void()   armagon_watk7    =[ $lw0fir7.asc, armagon_watk8  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk8    =[ $lw0fir8.asc, armagon_watk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk9    =[ $lw0fir9.asc, armagon_watk10  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk10    =[ $lw0fir10.asc, armagon_watk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk11    =[ $lw0fir11.asc, armagon_watk13  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();armagon_launch_missile(-40,0);};
+//void()   armagon_watk12    =[ $lw0fir12.asc, armagon_watk13  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_watk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
 
-void()   armagon_wlaseratk1    =[ $lw0fir1.asc, armagon_wlaseratk2  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk2    =[ $lw0fir2.asc, armagon_wlaseratk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk3    =[ $lw0fir3.asc, armagon_wlaseratk4  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk4    =[ $lw0fir4.asc, armagon_wlaseratk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk5    =[ $lw0fir5.asc, armagon_wlaseratk6  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk6    =[ $lw0fir6.asc, armagon_wlaseratk7  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_laser(40);};
-void()   armagon_wlaseratk7    =[ $lw0fir7.asc, armagon_wlaseratk8  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk8    =[ $lw0fir8.asc, armagon_wlaseratk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk9    =[ $lw0fir9.asc, armagon_wlaseratk10  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk10    =[ $lw0fir10.asc, armagon_wlaseratk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk11    =[ $lw0fir11.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();armagon_launch_laser(-40);};
-//void()   armagon_wlaseratk12    =[ $lw0fir12.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();};
-void()   armagon_wlaseratk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove (self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
+void()   armagon_wlaseratk1    =[ $lw0fir1.asc, armagon_wlaseratk2  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk2    =[ $lw0fir2.asc, armagon_wlaseratk3  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk3    =[ $lw0fir3.asc, armagon_wlaseratk4  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk4    =[ $lw0fir4.asc, armagon_wlaseratk5  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk5    =[ $lw0fir5.asc, armagon_wlaseratk6  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk6    =[ $lw0fir6.asc, armagon_wlaseratk7  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();armagon_launch_laser(40);};
+void()   armagon_wlaseratk7    =[ $lw0fir7.asc, armagon_wlaseratk8  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk8    =[ $lw0fir8.asc, armagon_wlaseratk9  ] {sound(self, 7, "armagon/servo.wav", SERVO_VOLUME, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk9    =[ $lw0fir9.asc, armagon_wlaseratk10  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk10    =[ $lw0fir10.asc, armagon_wlaseratk11  ] {sound(self, 6, "armagon/footfall.wav", 1, ATTN_ARMAGON);ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk11    =[ $lw0fir11.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();armagon_launch_laser(-40);};
+//void()   armagon_wlaseratk12    =[ $lw0fir12.asc, armagon_wlaseratk13  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();};
+void()   armagon_wlaseratk13    =[ $lw0fir12.asc, armagon_run1  ] {ChangeYaw();walkmove(self.angles_y, 14);armagon_think();SUB_AttackFinished (1.0);};
 
 void()   armagon_overleft1    =[ $lw1fir1.asc, armagon_overleft2  ] {self.count=0;armagon_overleft_think();};
 void()   armagon_overleft2    =[ $lw1fir2.asc, armagon_overleft3  ] {armagon_overleft_think();};
@@ -615,7 +615,7 @@ void()   armagon_die3    =[ $ldie1.asc, armagon_die4    ] {armagon_think();self.
 void()   armagon_die4    =[ $ldie2.asc, armagon_die5    ]
    {
    armagon_think();
-   multi_explosion( self.origin + '0 0 48', 48, 10, 6, 0.3, 0.3);
+   multi_explosion(self.origin + '0 0 48', 48, 10, 6, 0.3, 0.3);
    sound(self, CHAN_AUTO, "armagon/death.wav", 1, ATTN_NONE);
    self.nextthink = time + 0.2;
    };
@@ -637,13 +637,13 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    local entity body;
 
    armagon_think();
-   multi_explosion( self.origin + '0 0 80', 20, 10, 3, 0.1, 0.5);
+   multi_explosion(self.origin + '0 0 80', 20, 10, 3, 0.1, 0.5);
    // legs
    self.nextthink = -1;
    self.movetype = MOVETYPE_NONE;
     self.takedamage = DAMAGE_NO;
    self.solid = SOLID_NOT;
-   setsize(self, '-32 -32 -24', '32 32 32' );
+   setsize(self, '-32 -32 -24', '32 32 32');
    self.flags = 0;
    self.gorging = TRUE;
    self.wait = time + 5;
@@ -654,7 +654,7 @@ void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    self.movetype = MOVETYPE_NONE;
    body.takedamage = DAMAGE_NO;
    body.solid = SOLID_NOT;
-//   setsize(body, '-32 -32 30', '32 32 64' );
+//   setsize(body, '-32 -32 30', '32 32 64');
    body.think = armagon_body_explode1;
    body.nextthink = time + 0.1;
    body.gorging = TRUE;
@@ -882,7 +882,7 @@ void() monster_armagon
 
    self.lefty = 0;
 
-   sk = cvar("skill");
+   sk = cvar_hget(cvarh_skill);
 
    precache_model("progs/armabody.mdl");
    precache_model("progs/armalegs.mdl");
@@ -917,7 +917,7 @@ void() monster_armagon
    setmodel(body, "progs/armabody.mdl");
    setmodel(self, "progs/armalegs.mdl");
 
-   setsize(self, '-48 -48 -24', '48 48 84' );
+   setsize(self, '-48 -48 -24', '48 48 84');
    setorigin(self, self.origin);
    setorigin(body, body.origin);
    if(sk==0)

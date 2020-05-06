@@ -7,12 +7,12 @@
 
 void() hipRubbleTouch =
     {
-    if(self.ltime < self.pausetime )
+    if(self.ltime < self.pausetime)
        return;
 
     if(other.takedamage)
         {
-        T_Damage (other, self, self.owner, 10 );
+        T_Damage (other, self, self.owner, 10);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
         self.pausetime = self.ltime + 0.1;
         }
@@ -24,7 +24,7 @@ void(string rubblename) hipThrowRubble =
 
     new = spawn();
     new.origin = self.origin;
-    setmodel(new, rubblename );
+    setmodel(new, rubblename);
     setsize(new, '0 0 0', '0 0 0');
     new.velocity_x = 70 * crandom();
     new.velocity_y = 70 * crandom();
@@ -53,26 +53,26 @@ void() hip_rubble_use =
     do
        {
         which = self.cnt;
-        if(self.cnt == 0 )
+        if(self.cnt == 0)
             {
             which = 1 + 3*random();
-            which = floor( which );
+            which = floor(which);
             }
-        if(which == 1 )
+        if(which == 1)
            {
-           hipThrowRubble( "progs/rubble1.mdl" );
+           hipThrowRubble("progs/rubble1.mdl");
            }
-        else if(which == 2 )
+        else if(which == 2)
            {
-           hipThrowRubble( "progs/rubble3.mdl" );
+           hipThrowRubble("progs/rubble3.mdl");
            }
         else
            {
-           hipThrowRubble( "progs/rubble2.mdl" );
+           hipThrowRubble("progs/rubble2.mdl");
            }
         index = index + 1;
         }
-    while( index < self.count );
+    while(index < self.count);
     };
 
 /*QUAKED func_rubble (0.4 0.4 0.2) (0 0 0) (32 32 32)

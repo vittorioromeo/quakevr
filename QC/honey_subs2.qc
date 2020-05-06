@@ -27,8 +27,8 @@ vector(vector v, float m) modvec =
 
 float(float v, float min, float max) clamp =
 {
-    if( v < min) return min;
-    if( v > max) return max;
+    if(v < min) return min;
+    if(v > max) return max;
     return v;
 }
 
@@ -41,9 +41,9 @@ vector (vector from, vector to, float fraction) tween_v =
 {
     local vector res;
 
-    res_x = tween_f( from_x, to_x, fraction );
-    res_y = tween_f( from_y, to_y, fraction );
-    res_z = tween_f( from_z, to_z, fraction );
+    res_x = tween_f(from_x, to_x, fraction);
+    res_y = tween_f(from_y, to_y, fraction);
+    res_z = tween_f(from_z, to_z, fraction);
 
     return res;
 }
@@ -62,9 +62,9 @@ vector (vector from, vector to, float fraction) tween_v_sq =
 {
     local vector res;
 
-    res_x = tween_f_sq( from_x, to_x, fraction );
-    res_y = tween_f_sq( from_y, to_y, fraction );
-    res_z = tween_f_sq( from_z, to_z, fraction );
+    res_x = tween_f_sq(from_x, to_x, fraction);
+    res_y = tween_f_sq(from_y, to_y, fraction);
+    res_z = tween_f_sq(from_z, to_z, fraction);
 
     return res;
 }
@@ -77,7 +77,7 @@ stuffcmd_float
 This is a horrible hack that I am ashamed of!
 ===============
 */
-void stuffcmd_digit( entity client, float f) =
+void stuffcmd_digit(entity client, float f) =
 {
     float d;
     d = floor(f);
@@ -106,20 +106,20 @@ void stuffcmd_digit( entity client, float f) =
         stuffcmd(client, "9");
 }
 
-void stuffcmd_int( entity client, float f, float numdigits) =
+void stuffcmd_int(entity client, float f, float numdigits) =
 {
 
     float tmp;
 
 
     if(f == 0){
-        stuffcmd( client, "0");
+        stuffcmd(client, "0");
         return;
     }
 
     if(f < 0){
         // Yeah sure.
-        stuffcmd( client, "-");
+        stuffcmd(client, "-");
         f = fabs(f);
     }
 
@@ -135,25 +135,25 @@ void stuffcmd_int( entity client, float f, float numdigits) =
     //I don't know what I'm thinking here...
     //I need to do this to get zero-padding to work.
 
-    while( numdigits > 1 ){
+    while(numdigits > 1){
 
         numdigits = numdigits / 10;
         tmp = f / numdigits;
-        stuffcmd_digit( client, tmp);
+        stuffcmd_digit(client, tmp);
 
     }
 
 
 }
 
-void stuffcmd_float( entity client, float f) =
+void stuffcmd_float(entity client, float f) =
 {
     float intpart, decpart, mul, isNegative;
 
     isNegative = FALSE;
 
     if(f == 0){
-        stuffcmd( client, "0");
+        stuffcmd(client, "0");
         return;
     }
 
@@ -167,18 +167,18 @@ void stuffcmd_float( entity client, float f) =
     // 1: stuff the integer part.
     intpart = floor(f);
     if(isNegative)
-        stuffcmd( client, "-");
-    stuffcmd_int( client, intpart, 0);
+        stuffcmd(client, "-");
+    stuffcmd_int(client, intpart, 0);
 
 
     // 2: stuff the decimal point.
-    stuffcmd( client, ".");
+    stuffcmd(client, ".");
 
 
     // 3: stuff the decimal part.
-    decpart = mod( f, 1);
+    decpart = mod(f, 1);
     decpart = decpart * 10000;
-    stuffcmd_int( client, decpart, 10000);
+    stuffcmd_int(client, decpart, 10000);
 
 }
 
@@ -218,7 +218,7 @@ void dprint_digit(float f) =
         dprint("9");
 }
 
-void dprint_int( float f, float numdigits) =
+void dprint_int(float f, float numdigits) =
 {
 
     float tmp;
@@ -247,7 +247,7 @@ void dprint_int( float f, float numdigits) =
     //I don't know what I'm thinking here...
     //I need to do this to get zero-padding to work.
 
-    while( numdigits > 1 ){
+    while(numdigits > 1){
 
         numdigits = numdigits / 10;
         tmp = f / numdigits;
@@ -258,14 +258,14 @@ void dprint_int( float f, float numdigits) =
 
 }
 
-void dprint_float( float f) =
+void dprint_float(float f) =
 {
     float intpart, decpart, mul, isNegative;
 
     isNegative = FALSE;
 
     if(f == 0){
-        dprint( "0");
+        dprint("0");
         return;
     }
 
@@ -279,18 +279,18 @@ void dprint_float( float f) =
     // 1: stuff the integer part.
     intpart = floor(f);
     if(isNegative)
-        dprint( "-");
-    dprint_int( intpart, 0);
+        dprint("-");
+    dprint_int(intpart, 0);
 
 
     // 2: stuff the decimal point.
-    dprint( ".");
+    dprint(".");
 
 
     // 3: stuff the decimal part.
-    decpart = mod( f, 1);
+    decpart = mod(f, 1);
     decpart = decpart * 10000;
-    dprint_int( decpart, 10000);
+    dprint_int(decpart, 10000);
 
 }
 
@@ -423,7 +423,7 @@ void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate 
     vdestdelta = tdest - self.origin;
 
     // calculate length of vector
-    len = vlen (vdestdelta);
+    len = vlen(vdestdelta);
     // divide by speed to get time to reach dest
     traveltime = len / tspeed;
 
@@ -489,7 +489,7 @@ void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTi
     vdestdelta = tdest - self.origin;
 
     // calculate length of vector
-    len = vlen (vdestdelta);
+    len = vlen(vdestdelta);
     // divide by time to get speed to reach dest
     travelspeed = len / ttime;
 
@@ -528,7 +528,7 @@ void(vector tdest, float ttime, void() func) SUB_CalcMoveTime =
     vdestdelta = tdest - self.origin;
 
     // calculate length of vector
-    len = vlen (vdestdelta);
+    len = vlen(vdestdelta);
     // divide by time to get speed to reach dest
     travelspeed = len / ttime;
 
@@ -884,49 +884,49 @@ float sin_tbl (float v) =
     local float r;
     v = mod(v, 20);
 //*
-         if(v <=    1 ) r =  0;
-    else if(v <=    2 ) r =  0.30901699437495;
-    else if(v <=    3 ) r =  0.58778525229247;
-    else if(v <=    4 )    r =  0.80901699437495;
-    else if(v <=    5 )    r =  0.95105651629515;
-    else if(v <=    6 )    r =  1;
-    else if(v <=    7 )    r =  0.95105651629515;
-    else if(v <=    8 )    r =  0.80901699437495;
-    else if(v <=    9 )    r =  0.58778525229247;
-    else if(v <=   10 )    r =  0.30901699437495;
-    else if(v <=   11 ) r =  0;
-    else if(v <=   12 )    r = -0.30901699437495;
-    else if(v <=   13 )    r = -0.58778525229247;
-    else if(v <=   14 )    r = -0.80901699437495;
-    else if(v <=   15 )    r = -0.95105651629515;
-    else if(v <=   16 )    r = -1;
-    else if(v <=   17 )    r = -0.95105651629515;
-    else if(v <=   18 )    r = -0.80901699437495;
-    else if(v <=   19 )    r = -0.58778525229247;
-    else if(v <=   20 )    r = -0.30901699437495;
+         if(v <=    1) r =  0;
+    else if(v <=    2) r =  0.30901699437495;
+    else if(v <=    3) r =  0.58778525229247;
+    else if(v <=    4)    r =  0.80901699437495;
+    else if(v <=    5)    r =  0.95105651629515;
+    else if(v <=    6)    r =  1;
+    else if(v <=    7)    r =  0.95105651629515;
+    else if(v <=    8)    r =  0.80901699437495;
+    else if(v <=    9)    r =  0.58778525229247;
+    else if(v <=   10)    r =  0.30901699437495;
+    else if(v <=   11) r =  0;
+    else if(v <=   12)    r = -0.30901699437495;
+    else if(v <=   13)    r = -0.58778525229247;
+    else if(v <=   14)    r = -0.80901699437495;
+    else if(v <=   15)    r = -0.95105651629515;
+    else if(v <=   16)    r = -1;
+    else if(v <=   17)    r = -0.95105651629515;
+    else if(v <=   18)    r = -0.80901699437495;
+    else if(v <=   19)    r = -0.58778525229247;
+    else if(v <=   20)    r = -0.30901699437495;
     else                r =  0;
 //*/
 /* //Doesn't work?
-         if(v <=    1 ) r =  1;
-    else if(v <=    2 ) r =  0.95105651629515;
-    else if(v <=    3 ) r =  0.80901699437495;
-    else if(v <=    4 )    r =  0.58778525229247;
-    else if(v <=    5 )    r =  0.30901699437495;
-    else if(v <=    6 )    r =  0;
-    else if(v <=    7 )    r = -0.30901699437495;
-    else if(v <=    8 )    r = -0.58778525229247;
-    else if(v <=    9 )    r = -0.80901699437495;
-    else if(v <=   10 )    r = -0.95105651629515;
-    else if(v <=   11 ) r = -1;
-    else if(v <=   12 )    r = -0.95105651629515;
-    else if(v <=   13 )    r = -0.80901699437495;
-    else if(v <=   14 )    r = -0.58778525229247;
-    else if(v <=   15 )    r = -0.30901699437495;
-    else if(v <=   16 )    r =  0;
-    else if(v <=   27 )    r =  0.30901699437495;
-    else if(v <=   18 )    r =  0.58778525229247;
-    else if(v <=   19 )    r =  0.80901699437495;
-    else if(v <=   20 )    r =  0.95105651629515;
+         if(v <=    1) r =  1;
+    else if(v <=    2) r =  0.95105651629515;
+    else if(v <=    3) r =  0.80901699437495;
+    else if(v <=    4)    r =  0.58778525229247;
+    else if(v <=    5)    r =  0.30901699437495;
+    else if(v <=    6)    r =  0;
+    else if(v <=    7)    r = -0.30901699437495;
+    else if(v <=    8)    r = -0.58778525229247;
+    else if(v <=    9)    r = -0.80901699437495;
+    else if(v <=   10)    r = -0.95105651629515;
+    else if(v <=   11) r = -1;
+    else if(v <=   12)    r = -0.95105651629515;
+    else if(v <=   13)    r = -0.80901699437495;
+    else if(v <=   14)    r = -0.58778525229247;
+    else if(v <=   15)    r = -0.30901699437495;
+    else if(v <=   16)    r =  0;
+    else if(v <=   27)    r =  0.30901699437495;
+    else if(v <=   18)    r =  0.58778525229247;
+    else if(v <=   19)    r =  0.80901699437495;
+    else if(v <=   20)    r =  0.95105651629515;
     else                r =  1;
 */
     return r;

@@ -52,15 +52,15 @@ void() monster_check_remove_corpse =
 
     if(!(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
 
-    player = find (world, classname, "player");
+    player = find(world, classname, "player");
     while (player)
     {
-        if( canSee(player, self) ) {
+        if(canSee(player, self)) {
             self.think = monster_check_remove_corpse;
             self.nextthink = time + 5;
             return;
         }
-        player = find (player, classname, "player");
+        player = find(player, classname, "player");
     }
 
     monster_SPAWNFLAG_REMOVE_CORPSE();

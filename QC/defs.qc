@@ -128,6 +128,8 @@ void() SetNewParms; // Called when a client first connects to
 void() SetChangeParms; // Call to set parms for self so they can
                        // be saved for a level transition.
 
+void() OnSpawnServer; // Called when a new server is spawned.
+
 //
 //
 //

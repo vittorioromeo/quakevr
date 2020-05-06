@@ -69,8 +69,8 @@ void() ogre_crown_update =
 
     ogr_ang = '0 0 0';
     ogr_ang_x = (4 * random()) - 2;
-    if(self.owner.enemy)    ogr_ang_y = self.owner.angles_y + ( (40 * random()) - 20 );
-    else                    ogr_ang_y = self.angles_y + ( (20 * random()) - 10 ) + 180;
+    if(self.owner.enemy)    ogr_ang_y = self.owner.angles_y + ((40 * random()) - 20);
+    else                    ogr_ang_y = self.angles_y + ((20 * random()) - 10) + 180;
 
     ogr_org = self.owner.origin + ogre_crownheight;
     ogr_org_x = ogr_org_x + (random() * offs_x) - (offs_x / 2);

@@ -82,6 +82,7 @@ typedef struct globalvars_s
 	func_t	ClientDisconnect;
 	func_t	SetNewParms;
 	func_t	SetChangeParms;
+	func_t	OnSpawnServer;
 } globalvars_t;
 
 typedef struct entvars_s
@@ -239,4 +240,4 @@ typedef struct entvars_s
 	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 37547
+#define PROGHEADER_CRC 25643

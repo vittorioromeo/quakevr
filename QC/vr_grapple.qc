@@ -312,7 +312,7 @@ void(float xHand) GrappleService =
     }
 
     vel = xHook.origin - VRGetMuzzlePos(xHand);
-    v = vlen (vel);
+    v = vlen(vel);
 
     // if(v <= 250)
     // {

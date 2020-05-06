@@ -12,13 +12,13 @@ Places a sprite on a wall.  Angles should be opposite of face.
 */
 void() wallsprite =
    {
-   if(!self.model )
+   if(!self.model)
       {
       self.model = "progs/s_blood1.spr";
       }
 
-   precache_model( self.model );
-   setmodel(self, self.model );
+   precache_model(self.model);
+   setmodel(self, self.model);
 
    // QuakeEd doesn't save up and down angles properly.
    if(self.angles == '0 -1 0')
@@ -29,7 +29,7 @@ void() wallsprite =
    // Pull the sprite away from the wall slightly to
    // get rid of z sort errors.
    makeforward(self.angles);
-   setorigin( self, self.origin - ( v_forward * 0.2 ) );
+   setorigin(self, self.origin - (v_forward * 0.2));
     makestatic(self);
    };
 
@@ -51,27 +51,27 @@ void() remove_bullethole =
    // in the list, but it doesn't really matter.  All that
    // matters is there is one less bullet.  Just make sure
    // we don't remove the world!
-   if(bulletholes == nullentity )
+   if(bulletholes == nullentity)
       {
-      objerror("remove_bullethole: bulletholes == nullentity! " );
+      objerror("remove_bullethole: bulletholes == nullentity! ");
       }
 
    ent = bulletholes;
-   if(ent.classname != "bullethole" )
+   if(ent.classname != "bullethole")
       {
-      objerror("remove_bullethole: Tried to remove non-bullethole!" );
+      objerror("remove_bullethole: Tried to remove non-bullethole!");
       }
 
    bulletholes = bulletholes.lastvictim;
-   remove( ent );
-   if(lastbullet == ent )
+   remove(ent);
+   if(lastbullet == ent)
       {
       lastbullet = nullentity;
       }
    numbulletholes = numbulletholes - 1;
    };
 
-void( vector pos ) placebullethole =
+void(vector pos) placebullethole =
 {
     local entity new;
     local vector norm;
@@ -81,13 +81,13 @@ void( vector pos ) placebullethole =
     new.movetype = MOVETYPE_NONE;
     new.solid = SOLID_NOT;
     new.classname = "bullethole";
-    setmodel( new, "progs/s_bullet.spr" );
+    setmodel(new, "progs/s_bullet.spr");
     setsize(new, '0 0 0', '0 0 0');
 
     norm = trace_plane_normal;
     norm_x = 0 - norm_x;
     norm_y = 0 - norm_y;
-    new.angles = vectoangles( norm );
+    new.angles = vectoangles(norm);
     new.angles_z = lastbulletholeroll;
 
     lastbulletholeroll = lastbulletholeroll + 35 + 15 * random();
@@ -98,19 +98,19 @@ void( vector pos ) placebullethole =
     }
 
     makeforward_mdl(self.angles);
-    setorigin( new, pos - ( v_forward * (0.03 + new.angles_z / 450) ) );
+    setorigin(new, pos - (v_forward * (0.03 + new.angles_z / 450)));
         // try to avoid z-fighting for overlapping sprites
 
     new.think = remove_bullethole;
     new.nextthink = time + 250 + (150 * random());
 
     numbulletholes = numbulletholes + 1;
-    if(numbulletholes > 64 )
+    if(numbulletholes > 64)
     {
         remove_bullethole();
     }
 
-    if(lastbullet != nullentity )
+    if(lastbullet != nullentity)
     {
         lastbullet.lastvictim = new;
     }

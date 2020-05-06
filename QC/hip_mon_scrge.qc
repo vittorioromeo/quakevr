@@ -45,7 +45,7 @@ float() ScourgeCheckAttack =
    spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-   if(vlen(spot1 - spot2) <= 100 )
+   if(vlen(spot1 - spot2) <= 100)
       {
          if(CanDamage (self.enemy, self))
          {
@@ -139,7 +139,7 @@ void() scourge_think =
       trig = spawn();
       trig.angles = '0 0 0';
       trig.solid = SOLID_TRIGGER;
-      setsize( trig, '-64 -64 -24', '64 64 64');
+      setsize(trig, '-64 -64 -24', '64 64 64');
       trig.takedamage = DAMAGE_NO;
       trig.movetype = MOVETYPE_NONE;
       trig.modelindex = 0;
@@ -165,12 +165,12 @@ void() scourge_think =
 
 void(float dist) ai_right =
 {
-   walkmove ( (self.angles_y+90), dist);
+   walkmove((self.angles_y+90), dist);
 };
 
 void(float dist) ai_left =
 {
-   walkmove ( (self.angles_y+270), dist);
+   walkmove((self.angles_y+270), dist);
 };
 //============================================================================
 
@@ -414,7 +414,7 @@ void() ScourgeTriggerThink =
       }
    targ = self.lastvictim;
    makevectors(targ.angles);
-   setorigin(self, targ.origin + (v_forward*300) );
+   setorigin(self, targ.origin + (v_forward*300));
    self.nextthink = time + 0.1;
    };
 

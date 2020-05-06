@@ -162,7 +162,7 @@ void() trigger_multiple =
     }
     else
     {
-        if(!(self.spawnflags & SPAWNFLAG_NOTOUCH) )
+        if(!(self.spawnflags & SPAWNFLAG_NOTOUCH))
         {
             self.touch = multi_touch;
         }
@@ -252,7 +252,7 @@ void() trigger_secret =
     trigger_multiple();
 
     // HONEY
-    sk = cvar("skill"); //Stupid hack because the skill global isn't set until in the first StartFrame call
+    sk = cvar_hget(cvarh_skill); //Stupid hack because the skill global isn't set until in the first StartFrame call
     if(sk == 0){
         o = (self.mins + self.maxs)*0.5;
         secamb = ambient_secret_spawn(o);
@@ -275,13 +275,13 @@ void() counter_use =
         && (self.spawnflags & SPAWNFLAG_NOMESSAGE) == 0)
         {
             if(self.count >= 4)
-                centerprint (activator, "There are more to go...");
+                centerprint(activator, "There are more to go...");
             else if(self.count == 3)
-                centerprint (activator, "Only 3 more to go...");
+                centerprint(activator, "Only 3 more to go...");
             else if(self.count == 2)
-                centerprint (activator, "Only 2 more to go...");
+                centerprint(activator, "Only 2 more to go...");
             else
-                centerprint (activator, "Only 1 more to go...");
+                centerprint(activator, "Only 1 more to go...");
         }
         return;
     }
@@ -432,7 +432,7 @@ local vector    org;
 // put a tfog where the player was
     spawn_tfog (other.origin);
 
-    t = find (world, targetname, self.target);
+    t = find(world, targetname, self.target);
     if(!t)
         objerror ("couldn't find target");
 
@@ -568,7 +568,7 @@ void() trigger_onlyregistered_touch =
         return;
 
     self.attack_finished = time + 2;
-    if(cvar("registered"))
+    if(cvar_hget(cvarh_registered))
     {
         self.message = "";
         SUB_UseTargets();
@@ -578,7 +578,7 @@ void() trigger_onlyregistered_touch =
     {
         if(self.message != "")
         {
-            centerprint (other, self.message);
+            centerprint(other, self.message);
             sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
         }
     }
@@ -598,10 +598,10 @@ void() trigger_onlyregistered =
 
 // HIPNOTIC
 //JIM
-void( entity ent, float amount ) hurt_setdamage =
+void(entity ent, float amount) hurt_setdamage =
    {
    ent.dmg = amount;
-   if(!amount )
+   if(!amount)
       {
       ent.solid = SOLID_NOT;
       }
@@ -738,7 +738,7 @@ float NO_VELOCITY = 4;
 
 void() trigger_monsterjump_touch =
 {
-    if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER )
+    if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER)
         return;
 
     // HONEY
@@ -749,7 +749,7 @@ void() trigger_monsterjump_touch =
     other.velocity_x = self.movedir_x * self.speed;
     other.velocity_y = self.movedir_y * self.speed;
 
-    if ( !(other.flags & FL_ONGROUND) ){
+    if (!(other.flags & FL_ONGROUND)){
         return;
     }
 

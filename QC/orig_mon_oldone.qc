@@ -112,10 +112,10 @@ void() finale_1 =
     intermission_running = 1;
 
     // find the intermission spot
-    pos = find (world, classname, "info_intermission");
+    pos = find(world, classname, "info_intermission");
     if(!pos)
         error ("no info_intermission");
-    pl = find (world, classname, "misc_teleporttrain");
+    pl = find(world, classname, "misc_teleporttrain");
     if(!pl)
         error ("no teleporttrain");
     remove(pl);
@@ -123,7 +123,7 @@ void() finale_1 =
     WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "");
 
-    pl = find (world, classname, "player");
+    pl = find(world, classname, "player");
     while(pl != world)
     {
         pl.view_ofs = '0 0 0';
@@ -136,7 +136,7 @@ void() finale_1 =
         pl.movetype = MOVETYPE_NONE;
         pl.modelindex = 0;
         setorigin(pl, pos.origin);
-        pl = find (pl, classname, "player");
+        pl = find(pl, classname, "player");
     }
 
     // make fake versions of all players as standins, and move the real

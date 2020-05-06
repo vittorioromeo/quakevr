@@ -107,17 +107,17 @@ void() wrath_attack =
 
     if(r < 0.25)
     {
-        wrath_at_a01 ();
+        wrath_at_a01();
     }
     else if(r < 0.65)
     {
-        wrath_at_b01 ();
+        wrath_at_b01();
     }
     else
     {
-        wrath_at_c01 ();
+        wrath_at_c01();
     }
-    sound (self, CHAN_VOICE, "wrath/watt.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "wrath/watt.wav", 1, ATTN_NORM);
 };
 
 void()    wrath_pn_a01    =[    $wrthpa01,    wrath_pn_a02    ] {};
@@ -156,16 +156,16 @@ void(entity attacker, float damage) wrath_pain =
     }
 
     if(r < 0.07)
-        wrath_pn_a01 ();
+        wrath_pn_a01();
     else
-        wrath_pn_b01 ();
+        wrath_pn_b01();
 
     self.pain_finished = time + 3;
-    sound (self, CHAN_VOICE, "wrath/wpain.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "wrath/wpain.wav", 1, ATTN_NORM);
 };
 
 void()    wrath_die02 =[ $wrthdt02, wrath_die03 ]
-    { sound (self, CHAN_VOICE, "wrath/wdthc.wav", 1, ATTN_NORM); };
+    { sound(self, CHAN_VOICE, "wrath/wdthc.wav", 1, ATTN_NORM); };
 void()    wrath_die03 =[ $wrthdt03, wrath_die04 ] {};
 void()    wrath_die04 =[ $wrthdt04, wrath_die05 ] {};
 void()    wrath_die05 =[ $wrthdt05, wrath_die07 ] {};
@@ -208,10 +208,10 @@ void() monster_wrath =
     precache_model ("progs/wrthgib2.mdl");
     precache_model ("progs/wrthgib3.mdl");
 
-    precache_sound ("wrath/wsee.wav");
-    precache_sound ("wrath/watt.wav");
-    precache_sound ("wrath/wpain.wav");
-    precache_sound ("wrath/wdthc.wav");
+    precache_sound("wrath/wsee.wav");
+    precache_sound("wrath/watt.wav");
+    precache_sound("wrath/wpain.wav");
+    precache_sound("wrath/wdthc.wav");
 
     // HONEY
     monster_add_to_counter();
@@ -248,7 +248,7 @@ void(float AttackNumber) WrathMissile =
     local    float    dist, flytime;
 
     dir = normalize((self.enemy.origin + '0 0 10') - self.origin);
-    dist = vlen (self.enemy.origin - self.origin);
+    dist = vlen(self.enemy.origin - self.origin);
     flytime = dist * 0.002;
     if(flytime < 0.1)
         flytime = 0.1;
@@ -265,25 +265,25 @@ void(float AttackNumber) WrathMissile =
 
     setsize (missile, '0 0 0', '0 0 0');
 
-    if( AttackNumber == 1)
+    if(AttackNumber == 1)
     {
         org = self.origin + v_forward*20 + v_up*12; // 20 // 44;
     }
-    else if( AttackNumber == 2)
+    else if(AttackNumber == 2)
     {
         org = self.origin + v_forward*18 + v_up*10; // 18 // 42;
     }
-    else if( AttackNumber == 3)
+    else if(AttackNumber == 3)
     {
         org = self.origin + v_forward*12 + v_up*12 + v_right*20;
 // up20
     }
-    else if( AttackNumber == 4)
+    else if(AttackNumber == 4)
     {
         org = self.origin + v_forward*20 + v_up*16;
     }
 
-    setorigin ( missile, org );
+    setorigin (missile, org);
     missile.velocity = dir * 400;
     missile.avelocity = '300 300 300';
     missile.enemy = self.enemy;
@@ -326,7 +326,7 @@ void() WrathMissileTouch =
         T_Damage (other, self, self, 110);
 
     T_RadiusDamage(self, self.owner, 20, world);
-    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_EXPLOSION);
@@ -338,5 +338,5 @@ void() WrathMissileTouch =
     self.touch = SUB_Null;
     setmodel (self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
-    s_explode1 ();
+    s_explode1();
 };

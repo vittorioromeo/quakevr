@@ -52,7 +52,7 @@ void() spawn_use =
    if(self.spawnsilent == 0)
       spawn_tfog (spawnentity.origin);
 //   horn_active = 0;
-//   horn_charmer = find( world, classname, "player" );
+//   horn_charmer = find(world, classname, "player");
    // call spawnentity think function
    if(horn_active)
       {

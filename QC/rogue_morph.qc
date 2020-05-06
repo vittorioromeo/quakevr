@@ -82,14 +82,14 @@ void() morph_walk13 = [ $mfwlk13, morph_walk1  ] {ai_walk(3);};
 // 8 6 4 10 13 13 11 10
 // 11 15 10 10 8 15 10 8 8 8 8
 // 6 9 13 13 9 6 9 13 15 13 9
-void() morph_run1 = [ $mfrun01, morph_run2 ] { ai_run( 7);};
+void() morph_run1 = [ $mfrun01, morph_run2 ] { ai_run(7);};
     // 33
 void() morph_run2 = [ $mfrun02, morph_run3 ] { ai_run(11);};
 void() morph_run3 = [ $mfrun03, morph_run4 ] { ai_run(16);};
 void() morph_run4 = [ $mfrun04, morph_run5 ] { ai_run(16);};
     // 36
 void() morph_run5 = [ $mfrun05, morph_run6 ] { ai_run(11);};
-void() morph_run6 = [ $mfrun06, morph_run7 ] { ai_run( 7);};
+void() morph_run6 = [ $mfrun06, morph_run7 ] { ai_run(7);};
     // 38
 void() morph_run7 = [ $mfrun07, morph_run8 ] { ai_run(11);};
 void() morph_run8 = [ $mfrun08, morph_run9 ] { ai_run(15);};
@@ -116,23 +116,23 @@ void() morph_stab2 =
     ai_face();
 
     dir = self.enemy.origin - self.origin + self.enemy.view_ofs;
-    dist = vlen ( dir );
-    dir = normalize ( dir );
+    dist = vlen(dir);
+    dir = normalize(dir);
     makevectors (self.angles);
 
-    if( dist <= 90 )
+    if(dist <= 90)
     {
-        sound (self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
+        sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
         attackDamage = (random() * 10) + 20;
         T_Damage (self.enemy, self, self, attackDamage);
-        SpawnBlood ( self.enemy.origin, v_forward * 150, 14);
+        SpawnBlood (self.enemy.origin, v_forward * 150, 14);
     }
     else
     {
         self.effects = self.effects | EF_MUZZLEFLASH;
         org = self.origin + v_forward * 80 + v_right * 4 + '0 0 4';
         LaunchLaser(org, dir);
-        if( dist )
+        if(dist)
         {
             LaunchLaser(org, (dir + v_right * 0.04));
             LaunchLaser(org, (dir - v_right * 0.04));
@@ -244,9 +244,9 @@ void() morph_fire =
 
     makevectors (self.angles);
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
-    dir = normalize ( self.enemy.origin - self.origin ) ;
+    dir = normalize(self.enemy.origin - self.origin) ;
     LaunchLaser(org, dir);
-    if( vlen (self.enemy.origin - self.origin) > 400 )
+    if(vlen(self.enemy.origin - self.origin) > 400)
     {
         LaunchLaser(org, (dir + v_right * 0.04));
         LaunchLaser(org, (dir - v_right * 0.04));
@@ -310,9 +310,9 @@ void(entity attacker, float damage) morph_pain =
     painChoice = random();
     self.pain_finished = time + 2;
 
-    sound (self, CHAN_VOICE, "guard/pain1.wav", 1, ATTN_NORM );
+    sound(self, CHAN_VOICE, "guard/pain1.wav", 1, ATTN_NORM);
 
-    if( painChoice > 0.6)
+    if(painChoice > 0.6)
         self.think = morph_painB1;
     else
         self.think = morph_painA1;
@@ -350,7 +350,7 @@ void() morph_die21 = [ $mfdth21, morph_die21 ]
 
 void() morph_die =
 {
-     sound ( self, CHAN_VOICE, "guard/death.wav", 1, ATTN_NORM);
+     sound(self, CHAN_VOICE, "guard/death.wav", 1, ATTN_NORM);
     self.solid = SOLID_NOT;
     self.think = morph_die1;
     self.nextthink = time + 0.1;
@@ -362,7 +362,7 @@ void() morph_die =
 // ========================
 void() morph_wake1 = [ $start01, morph_wake2 ]
 {
-    sound ( self, CHAN_VOICE, "guard/see1.wav", 1, ATTN_NORM );
+    sound(self, CHAN_VOICE, "guard/see1.wav", 1, ATTN_NORM);
     if(self.owner)
     {
 //        self.solid = SOLID_SLIDEBOX;
@@ -412,7 +412,7 @@ void() morph_wake31 = [ $start31, morph_stand1 ]
     self.solid = SOLID_SLIDEBOX;
     self.takedamage = DAMAGE_AIM;
     self.skin = self.skin - 1;
-    if( self.owner )
+    if(self.owner)
     {
         self.think = morph_run1;
         self.nextthink = time + 0.1;
@@ -444,7 +444,7 @@ void(entity theMorph) morph_setup =
     theMorph.th_pain = morph_pain;
     theMorph.th_die = morph_die;
 
-    if( theMorph.owner )
+    if(theMorph.owner)
     {
         theMorph.effects = 0;
         theMorph.health = 200;
@@ -478,7 +478,7 @@ void() morph_wake =
 void() morph_use =
 {
 //    self.enemy = activator;
-    if( self.delay )
+    if(self.delay)
     {
         self.think = morph_wake;
         self.nextthink = time + self.delay;
@@ -555,7 +555,7 @@ void() monster_morph =
         self.model = "progs/morph_gr.mdl";
     }
     else
-        objerror ( "monster_morph: no skin selection!");
+        objerror ("monster_morph: no skin selection!");
 
     precache_model2("progs/laser.mdl");
     precache_sound2("enforcer/enfire.wav");

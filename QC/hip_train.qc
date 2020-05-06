@@ -9,7 +9,7 @@ void() HIP_train_use =
 {
     if(self.think != HIP_func_train_find)
         {
-        if(self.velocity != '0 0 0' )
+        if(self.velocity != '0 0 0')
             return;        // already activated
         }
     HIP_train_next();
@@ -20,7 +20,7 @@ void() HIP_train_wait =
     if(self.wait)
         {
       sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
-      if(self.wait != -1 )
+      if(self.wait != -1)
             {
             self.nextthink = self.ltime + self.wait;
             self.wait = 0;
@@ -44,7 +44,7 @@ void() HIP_train_next =
     // we don't have a pointer to the current path_corner).
     current = self.cnt;
 
-    targ = find (world, targetname, self.target);
+    targ = find(world, targetname, self.target);
 
     // Save the speed in cnt for later use
     self.cnt = targ.speed;
@@ -64,7 +64,7 @@ void() HIP_train_next =
         self.think = HIP_train_next;
         }
 
-   if(self.goalentity.event )
+   if(self.goalentity.event)
       {
       // Trigger any events that should happen at the corner.
       temp = self.target;
@@ -78,10 +78,10 @@ void() HIP_train_next =
    // Save the current entity
    self.goalentity = targ;
 
-    if(current == -1 )
+    if(current == -1)
         {
         // Warp to the next path_corner
-      setorigin(self, targ.origin - self.mins );
+      setorigin(self, targ.origin - self.mins);
         self.nextthink = self.ltime + 0.01;
         }
     else
@@ -91,7 +91,7 @@ void() HIP_train_next =
             self.speed = current;
 
         // travel to the next path change
-        SUB_CalcMove (targ.origin - self.mins, self.speed, self.think );
+        SUB_CalcMove (targ.origin - self.mins, self.speed, self.think);
         }
     };
 
@@ -100,7 +100,7 @@ void() HIP_func_train_find =
 {
     local entity    targ;
 
-    targ = find (world, targetname, self.target);
+    targ = find(world, targetname, self.target);
 
    // Save the current entity
    self.goalentity = targ;
@@ -155,7 +155,7 @@ void() func_train2 =
     if(!self.dmg)
         self.dmg = 2;
 
-   if(!self.noise )
+   if(!self.noise)
       {
       if(self.sounds == 0)
          {
@@ -167,7 +167,7 @@ void() func_train2 =
          self.noise = ("plats/train2.wav");
          }
       }
-   if(!self.noise1 )
+   if(!self.noise1)
       {
       if(self.sounds == 0)
          {
@@ -179,8 +179,8 @@ void() func_train2 =
          }
       }
 
-   precache_sound( self.noise );
-   precache_sound( self.noise1 );
+   precache_sound(self.noise);
+   precache_sound(self.noise1);
 
     self.cnt = 1;
     self.solid = SOLID_BSP;

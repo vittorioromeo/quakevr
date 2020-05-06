@@ -9,22 +9,22 @@ $frame eeldth6 eeldth7 eeldth8 eeldth9 eeldth10
 
 void() eel_pitch_change =
 {
-    if( pointcontents ( self.origin ) != CONTENT_WATER )
+    if(pointcontents(self.origin) != CONTENT_WATER)
     {
         droptofloor();
-        T_Damage ( self, world, world, 6);
+        T_Damage (self, world, world, 6);
         return;
     }
 
-    if( time < self.delay )
+    if(time < self.delay)
         return;
 
-    if( self.weapon > 10 )
+    if(self.weapon > 10)
         self.weapon = -10;
 
-    if( self.weapon < 0 )
+    if(self.weapon < 0)
         self.angles_x = self.angles_x - 1.5;
-    else if( self.weapon > 0)
+    else if(self.weapon > 0)
         self.angles_x = self.angles_x + 1.5;
 
     self.weapon = self.weapon + 1;
@@ -46,7 +46,7 @@ void() eel_stand6  =[ $eelswim6, eel_stand1 ]
 void() eel_walk1  =[ $eelswim1, eel_walk2 ]
 {
     if(random() < 0.2)
-        sound (self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
     ai_walk(6);
     eel_pitch_change();
 };
@@ -59,7 +59,7 @@ void() eel_walk6  =[ $eelswim6, eel_walk1 ] {ai_walk(6);eel_pitch_change();};
 void() eel_run1  =[      $eelswim1, eel_run2 ]
 {
     if(random() < 0.4)
-        sound (self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "eel/eactive1.wav", 1, ATTN_IDLE);
     ai_run(10);
     eel_pitch_change();
 };
@@ -108,7 +108,7 @@ void() eel_attack8 =[ $eelswim2, eel_attack9 ]
     self.skin=1;
     ai_charge(8);
     eel_pitch_change();
-    sound (self, CHAN_WEAPON, "eel/eatt1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "eel/eatt1.wav", 1, ATTN_NORM);
 };
 void() eel_attack9 =[ $eelswim3, eel_attack10 ]
     { self.skin=2;ai_charge(8);eel_pitch_change(); };
@@ -123,7 +123,7 @@ void() eel_death1 =[    $eeldth1,    eel_death2    ]
 {
     self.skin = 0;
     self.effects = 0;
-    sound (self, CHAN_VOICE, "eel/edie3r.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "eel/edie3r.wav", 1, ATTN_NORM);
 };
 void() eel_death2 =[    $eeldth2,    eel_death3    ] {};
 void() eel_death3 =[    $eeldth3,    eel_death4    ] {};
@@ -159,7 +159,7 @@ void() eel_death =
     }
     else
     {
-        eel_death1 ();
+        eel_death1();
     }
 };
 
@@ -174,7 +174,7 @@ void() eel_pain1  =[    $eeldth1, eel_pain2 ]
         return;
 
     self.pain_finished = time + 1;
-    sound (self, CHAN_VOICE, "eel/epain3.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "eel/epain3.wav", 1, ATTN_NORM);
     self.skin=0;
 };
 void() eel_pain2  =[    $eeldth2, eel_pain3 ] {};
@@ -197,11 +197,11 @@ void() monster_eel =
     precache_model ("progs/eelgib.mdl");
     precache_model ("progs/gib1.mdl");
 
-    precache_sound ("eel/edie3r.wav");
-    precache_sound ("eel/epain3.wav");
-    precache_sound ("eel/eactive1.wav");
-    precache_sound ("eel/eatt1.wav");
-    precache_sound ("eel/eelc5.wav");
+    precache_sound("eel/edie3r.wav");
+    precache_sound("eel/epain3.wav");
+    precache_sound("eel/eactive1.wav");
+    precache_sound("eel/eatt1.wav");
+    precache_sound("eel/eelc5.wav");
 
     // HONEY
     monster_add_to_counter();

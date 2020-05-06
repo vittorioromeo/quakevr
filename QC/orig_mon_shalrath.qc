@@ -128,7 +128,7 @@ void() ShalMissile =
     local    float    dist, flytime;
 
     dir = normalize((self.enemy.origin + '0 0 10') - self.origin);
-    dist = vlen (self.enemy.origin - self.origin);
+    dist = vlen(self.enemy.origin - self.origin);
     flytime = dist * 0.002;
     if(flytime < 0.1)
         flytime = 0.1;

@@ -19,9 +19,9 @@ void() newitems_touch =
         }
     }
 
-    sprint (other, "You got the ");
-    sprint (other, self.netname);
-    sprint (other,"\n");
+    sprint(other, "You got the ");
+    sprint(other, self.netname);
+    sprint(other,"\n");
 
     if(deathmatch)
     {
@@ -44,7 +44,7 @@ void() newitems_touch =
         }
     }
 
-    sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
     self.solid = SOLID_NOT;
     VR_ItemUtil_EntAddItem(other, self.vr_itemId);
@@ -82,9 +82,9 @@ void() item_powerup_shield =
 
     precache_model ("progs/shield.mdl");
     precache_model ("progs/p_shield.mdl");
-    precache_sound ("shield/pickup.wav");
-    precache_sound ("shield/hit.wav");
-    precache_sound ("shield/fadeout.wav");
+    precache_sound("shield/pickup.wav");
+    precache_sound("shield/hit.wav");
+    precache_sound("shield/fadeout.wav");
     self.noise = "shield/pickup.wav";
     setmodel (self, "progs/shield.mdl");
     self.netname = "Power Shield";
@@ -101,9 +101,9 @@ void() item_powerup_belt =
     self.touch = newitems_touch;
 
     precache_model ("progs/beltup.mdl");
-    precache_sound ("belt/pickup.wav");
-    precache_sound ("belt/use.wav");
-    precache_sound ("belt/fadeout.wav");
+    precache_sound("belt/pickup.wav");
+    precache_sound("belt/use.wav");
+    precache_sound("belt/fadeout.wav");
     self.noise = "belt/pickup.wav";
     setmodel (self, "progs/beltup.mdl");
     self.netname = "Anti-Grav Belt";

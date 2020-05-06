@@ -112,7 +112,7 @@ local entity    temp;
 //MED
    if(other.target)
       {
-      self.goalentity = self.movetarget = find (world, targetname, other.target);
+      self.goalentity = self.movetarget = find(world, targetname, other.target);
       self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
       if(!self.movetarget)
          {
@@ -184,7 +184,7 @@ void() t_followtarget =
     self = other;
     other = temp;
 
-    self.goalentity = self.movetarget = find (world, targetname, other.target);
+    self.goalentity = self.movetarget = find(world, targetname, other.target);
 /*
    bprint("target ");
    bprint(other.target);
@@ -277,7 +277,7 @@ float(entity targ) range =
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    r = vlen (spot1 - spot2);
+    r = vlen(spot1 - spot2);
 
     // HONEY.
     if(self.rangescale) { scale = self.rangescale; }
@@ -451,7 +451,7 @@ void() SightSound =
     {
         // ROGUE
         if(self.skin == 0)
-            sound (self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_shambler")
         sound(self, CHAN_VOICE, "shambler/ssight.wav", 1, ATTN_NORM);
@@ -597,14 +597,14 @@ float() FindTarget =
             return TRUE;
             }
          }
-      else if(vlen (self.origin - self.charmer.origin) > MAX_CHARMER_DISTANCE)
+      else if(vlen(self.origin - self.charmer.origin) > MAX_CHARMER_DISTANCE)
          {
 //         self.huntingcharmer = 1;
 //         dprint("hunting\n");
          HuntCharmer();
          return FALSE;
          }
-      else if(vlen (self.origin - self.charmer.origin) < TOOCLOSE_CHARMER_DISTANCE)
+      else if(vlen(self.origin - self.charmer.origin) < TOOCLOSE_CHARMER_DISTANCE)
          {
 //         self.huntingcharmer = 1;
 //         dprint("fleeing\n");
@@ -612,7 +612,7 @@ float() FindTarget =
          return FALSE;
          }
       }
-   if(sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) && !(self.charmed) )
+   if(sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) && !(self.charmed))
       {
         client = sight_entity;
         if(client.enemy == self.enemy)
@@ -723,12 +723,12 @@ float() FindTarget =
 
 void(float dist) ai_forward =
 {
-    walkmove (self.angles_y, dist);
+    walkmove(self.angles_y, dist);
 };
 
 void(float dist) ai_back =
 {
-    walkmove ( (self.angles_y+180), dist);
+    walkmove((self.angles_y+180), dist);
 };
 
 
@@ -746,9 +746,9 @@ void(float dist) ai_pain =
     local float    away;
 
     away = anglemod (vectoyaw (self.origin - self.enemy.origin)
-    + 180*(random()- 0.5) );
+    + 180*(random()- 0.5));
 
-    walkmove (away, dist);
+    walkmove(away, dist);
 */
 };
 
@@ -761,7 +761,7 @@ stagger back a bit
 */
 void(float dist) ai_painforward =
 {
-    walkmove (self.ideal_yaw, dist);
+    walkmove(self.ideal_yaw, dist);
 };
 
 /*
@@ -1009,12 +1009,12 @@ void() ai_run_slide =
     else
         ofs = -90;
 
-    if(walkmove (self.ideal_yaw + ofs, movedist))
+    if(walkmove(self.ideal_yaw + ofs, movedist))
         return;
 
     self.lefty = 1 - self.lefty;
 
-    walkmove (self.ideal_yaw - ofs, movedist);
+    walkmove(self.ideal_yaw - ofs, movedist);
 };
 
 //MED
@@ -1045,7 +1045,7 @@ void() ai_run_dodge =
 
    newyaw = enemy_yaw + ofs;
    self.ideal_yaw = enemy_yaw;
-   if(walkmove (newyaw, movedist))
+   if(walkmove(newyaw, movedist))
       {
       ChangeYaw();
       return;
@@ -1055,7 +1055,7 @@ void() ai_run_dodge =
    self.ltime = time + 0.8;
    newyaw = enemy_yaw - ofs;
    self.ideal_yaw = enemy_yaw;
-   walkmove (newyaw, movedist);
+   walkmove(newyaw, movedist);
    ChangeYaw();
 };
 
@@ -1163,7 +1163,7 @@ void(float dist) ai_run =
    if(RUN_STRAIGHT && time > self.endtime)
       {
       RUN_STRAIGHT = 0;
-      axis = walkmove (self.angles_y, movedist);
+      axis = walkmove(self.angles_y, movedist);
       if(!axis)
          {
          self.endtime = time + 3;

@@ -2103,4 +2103,5 @@ void SV_SpawnServer(const char* server)
 
     Con_DPrintf("Server spawned.\n");
     VR_OnSpawnServer();
+    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
 }

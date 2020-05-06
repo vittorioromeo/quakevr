@@ -159,7 +159,7 @@ void() door_fire =
             {
                 door_go_down();
                 self = self.enemy;
-            } while( (self != starte) && (self != world) );
+            } while((self != starte) && (self != world));
             self = oself;
             return;
         }
@@ -171,7 +171,7 @@ void() door_fire =
     {
         door_go_up();
         self = self.enemy;
-    } while( (self != starte) && (self != world) );
+    } while((self != starte) && (self != world));
     self = oself;
 };
 
@@ -238,7 +238,7 @@ void() door_touch =
 
     if(self.owner.message != "")
     {
-        centerprint (other, self.owner.message);
+        centerprint(other, self.owner.message);
         sound(other, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
 
@@ -253,17 +253,17 @@ void() door_touch =
         {
             if(world.worldtype == 2)
             {
-                centerprint (other, "You need the silver keycard");
+                centerprint(other, "You need the silver keycard");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 1)
             {
-                centerprint (other, "You need the silver runekey");
+                centerprint(other, "You need the silver runekey");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 0)
             {
-                centerprint (other, "You need the silver key");
+                centerprint(other, "You need the silver key");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
         }
@@ -271,17 +271,17 @@ void() door_touch =
         {
             if(world.worldtype == 2)
             {
-                centerprint (other, "You need the gold keycard");
+                centerprint(other, "You need the gold keycard");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 1)
             {
-                centerprint (other, "You need the gold runekey");
+                centerprint(other, "You need the gold runekey");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
             else if(world.worldtype == 0)
             {
-                centerprint (other, "You need the gold key");
+                centerprint(other, "You need the gold key");
                 sound(self, CHAN_VOICE, self.noise3, 1, ATTN_NORM);
             }
         }
@@ -405,7 +405,7 @@ void() LinkDoors =
         if(self.message != "")
             starte.message = self.message;
 
-        t = find (t, classname, self.classname);
+        t = find(t, classname, self.classname);
         if(!t)
         {
             self.enemy = starte;        // make the chain a loop
@@ -450,7 +450,7 @@ void() LinkDoors =
             if(t.maxs_z > cmaxs_z)
                 cmaxs_z = t.maxs_z;
         }
-    } while(1 );
+    } while(1);
 
 };
 
@@ -799,7 +799,7 @@ void() secret_touch =
 
     if(self.message)
     {
-        centerprint (other, self.message);
+        centerprint(other, self.message);
         sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
     }
 };

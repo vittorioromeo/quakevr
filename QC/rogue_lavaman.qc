@@ -76,7 +76,7 @@ void() lavaman_hunt =
     {
         viewPoint = self.origin + '0 0 96';
         possibleEnemy = find(self.enemy, classname, "player");
-        traceline ( viewPoint, possibleEnemy.origin, TRUE, world );
+        traceline (viewPoint, possibleEnemy.origin, TRUE, world);
         if(trace_fraction == 1)
             self.enemy = possibleEnemy;
     }
@@ -96,11 +96,11 @@ void(float dist) lavaman_walk =
 */
 
 void() lavaman_rise1    =[    $rise1, lavaman_rise2 ]
-    { sound (self, CHAN_WEAPON, "boss1/out1.wav", 1, ATTN_NORM);
+    { sound(self, CHAN_WEAPON, "boss1/out1.wav", 1, ATTN_NORM);
 };
 void() lavaman_rise2    =[    $rise2, lavaman_rise3 ]
     {
-sound (self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM); };
+sound(self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM); };
 void() lavaman_rise3    =[    $rise3, lavaman_rise4 ] {};
 void() lavaman_rise4    =[    $rise4, lavaman_rise5 ] {};
 void() lavaman_rise5    =[    $rise5, lavaman_rise6 ] {};
@@ -131,8 +131,8 @@ void() lavaman_stand =
 
 void() lavaman_idle1    =[    $walk1, lavaman_idle2 ]
 {
-    if( random() < 0.2 )
-        sound (self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM);
+    if(random() < 0.2)
+        sound(self, CHAN_VOICE, "boss1/sight1.wav", 1, ATTN_NORM);
 // look for other players
 };
 void() lavaman_idle2    =[    $walk2, lavaman_idle3 ] {lavaman_stand();};
@@ -265,7 +265,7 @@ void() lavaman_shocka10 =[ $shocka10, lavaman_run1 ] {};
 
 void(entity attacker, float damage) lavaman_pain =
 {
-    if( self.pain_finished > time )
+    if(self.pain_finished > time)
         return;
 
     if(random() < 0.05)
@@ -277,7 +277,7 @@ void(entity attacker, float damage) lavaman_pain =
 
 void() lavaman_death1 = [$death1, lavaman_death2]
     {
-sound (self, CHAN_VOICE, "boss1/death.wav", 1, ATTN_NORM);
+sound(self, CHAN_VOICE, "boss1/death.wav", 1, ATTN_NORM);
 };
 void() lavaman_death2 = [$death2, lavaman_death3] {};
 void() lavaman_death3 = [$death3, lavaman_death4] {};
@@ -288,7 +288,7 @@ void() lavaman_death7 = [$death7, lavaman_death8] {};
 void() lavaman_death8 = [$death8, lavaman_death9] {};
 void() lavaman_death9 = [$death9, lavaman_death10]
 {
-    sound (self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
     WriteCoord (MSG_BROADCAST, self.origin_x);
@@ -319,14 +319,14 @@ void() lavaman_touch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg );
+        T_Damage (other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
     T_RadiusDamage(self, self.owner, 40, other);
 
-//    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
+//    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
 
 // Change to an explosion2!!! Ramp in the non-diminishing reds...
@@ -349,27 +349,27 @@ void(float AttackNumber) lavaman_missile =
     makevectors (self.angles);
 
     // Right handed throw
-    if( AttackNumber == 1)
+    if(AttackNumber == 1)
     {
 //        org = self.origin - v_forward*40 + v_right*90 + v_up*110;
         org = self.origin + v_forward*40 + v_right*65 + v_up*130;
     }
     // Left handed throw
-    else if( AttackNumber == 2)
+    else if(AttackNumber == 2)
     {
 //        org = self.origin - v_forward*40 - v_right*90 + v_up*110;
         org = self.origin + v_forward*40 - v_right*75 + v_up*125;
     }
 
     d = self.enemy.origin;
-    t = vlen ( d - org );
+    t = vlen(d - org);
     t = t / 380;
-    if( t > 1.75 )
+    if(t > 1.75)
         t = 1.75;
-    if( t < 1 )
+    if(t < 1)
         t = 1;
 
-    vec = normalize (d - org);
+    vec = normalize(d - org);
 
     fireball = spawn ();
     fireball.owner = self;
@@ -391,11 +391,11 @@ void(float AttackNumber) lavaman_missile =
     fireball.think = SUB_Remove;
     fireball.nextthink = time + 6;
 
-    sound (self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "boss1/throw.wav", 1, ATTN_NORM);
 
 // check for dead enemy
     if(self.enemy.health <= 0)
-        lavaman_idle1 ();
+        lavaman_idle1();
 };
 
 void() lavaman_awake =
@@ -416,7 +416,7 @@ void() lavaman_awake =
 
 //    self.health = 1500;
 
-    self.health = 1250 + (250 * cvar("skill"));
+    self.health = 1250 + (250 * cvar_hget(cvarh_skill));
 
     self.th_stand = lavaman_idle1;
     self.th_walk = lavaman_walk1;
@@ -442,7 +442,7 @@ void() lavaman_awake =
     }
     droptofloor();
 
-    lavaman_rise1 ();
+    lavaman_rise1();
 };
 
 //                                  (-64 -64 -12) (64 64 128)
@@ -459,13 +459,13 @@ void() monster_lava_man =
     precache_model ("progs/lavaman.mdl");
     precache_model ("progs/lavaball.mdl");
 
-    precache_sound ("weapons/rocket1i.wav");
-    precache_sound ("boss1/out1.wav");
-    precache_sound ("boss1/sight1.wav");
-    precache_sound ("misc/power.wav");
-    precache_sound ("boss1/throw.wav");
-    precache_sound ("boss1/pain.wav");
-    precache_sound ("boss1/death.wav");
+    precache_sound("weapons/rocket1i.wav");
+    precache_sound("boss1/out1.wav");
+    precache_sound("boss1/sight1.wav");
+    precache_sound("misc/power.wav");
+    precache_sound("boss1/throw.wav");
+    precache_sound("boss1/pain.wav");
+    precache_sound("boss1/death.wav");
 
     // HONEY
     monster_add_to_counter();

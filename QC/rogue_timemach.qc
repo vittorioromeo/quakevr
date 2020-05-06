@@ -14,12 +14,12 @@ void() time_chunk =
     timeChunk.solid = SOLID_NOT;
     timeChunk.movetype = MOVETYPE_TOSS;
     makevectors (self.owner.angles);
-    setorigin ( timeChunk, self.owner.origin + v_forward*84 - v_up * 136);
+    setorigin (timeChunk, self.owner.origin + v_forward*84 - v_up * 136);
     timeChunk.velocity = v_up * -50;
     timeChunk.avelocity = '300 300 300';
     timeChunk.angles = self.owner.angles;
 
-    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
+    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
     WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte (MSG_BROADCAST, TE_EXPLOSION);
     WriteCoord (MSG_BROADCAST, timeChunk.origin_x);
@@ -46,7 +46,7 @@ void() time_boom =
 
     if(self.owner.health < 1250 && self.owner.frame > 0)
     {
-        if( self.owner.skin < 2)
+        if(self.owner.skin < 2)
         {
             self.owner.frame = 2;
             self.owner.skin = 2;
@@ -54,7 +54,7 @@ void() time_boom =
     }
     else if(self.owner.health < 1500)
     {
-        if( self.owner.frame == 0 )
+        if(self.owner.frame == 0)
         {
             time_chunk();
             self.owner.frame = 1;
@@ -62,7 +62,7 @@ void() time_boom =
         }
     }
 
-    sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
+    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
 
     if(random() < 0.5)
     {
@@ -94,7 +94,7 @@ void() time_fall =
 {
     if(!self.pain_finished)
     {
-        if( self.origin_z < -20 )
+        if(self.origin_z < -20)
         {
             WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
             WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
@@ -154,8 +154,8 @@ void() time_pain_impl =
     local vector    painOrg;
     local float     painRnd;
 
-    if( self.health > 1100 )
-        if( self.pain_finished > time )
+    if(self.health > 1100)
+        if(self.pain_finished > time)
             return;
 
     painRnd = random();
@@ -163,9 +163,9 @@ void() time_pain_impl =
     {
         self.pain_finished = time + 2;
         painRnd = random();
-        makevectors ( self.angles );
+        makevectors (self.angles);
         painEnt = spawn();
-        if( painRnd < 0.33 )
+        if(painRnd < 0.33)
             painEnt.origin = self.origin + v_forward*80 - v_up*64;
         else if(painRnd < 0.66)
             painEnt.origin = self.origin + v_right*80 - v_up*24;
@@ -176,7 +176,7 @@ void() time_pain_impl =
         painEnt.think = time_boom;
         painEnt.nextthink = time + 0.2 + random() * 0.3;
     }
-    if( self.health < 1000 )
+    if(self.health < 1000)
     {
         self.pain_finished = 0;
         self.th_pain = SUB_NullPain;

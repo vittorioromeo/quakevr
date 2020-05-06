@@ -64,19 +64,19 @@ void() func_exploder =
    precache_sound("misc/longexpl.wav");
     self.classname = "exploder";
     self.use = exploder_use;
-    if(self.dmg == 0 )
+    if(self.dmg == 0)
        {
        self.dmg = 120;
        }
-    if(self.dmg < 0 )
+    if(self.dmg < 0)
        {
        self.dmg = 0;
        }
-   if(self.speed == 0 )
+   if(self.speed == 0)
        {
       self.speed = 1;
        }
-   if(self.volume == 0 )
+   if(self.volume == 0)
        {
       self.volume = 1.0;
        }
@@ -125,7 +125,7 @@ void() multi_exploder_fire =
    self = temp;
     };
 
-void( vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
+void(vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
     {
    local entity temp;
 
@@ -182,11 +182,11 @@ void() func_multi_exploder =
    self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
    self.model = "";
-    if(self.dmg == 0 )
+    if(self.dmg == 0)
        {
        self.dmg = 120;
        }
-    if(self.dmg < 0 )
+    if(self.dmg < 0)
        {
        self.dmg = 0;
        }

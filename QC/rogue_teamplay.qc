@@ -133,7 +133,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) TeamArmorDam
         teamplay == TEAM_CTF_ALT) &&
         attacker.steam == targ.steam &&
         attacker != targ &&
-        !(cvar("gamecfg") & GAMECFG_TEAM_ARMOR_DMG)) {
+        !(cvar_hget(cvarh_gamecfg) & GAMECFG_TEAM_ARMOR_DMG)) {
         // Armor is protected
         return FALSE;
     }
@@ -162,7 +162,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) TeamHealthDa
         teamplay == TEAM_CTF_ALT) &&
         attacker.steam == targ.steam &&
         attacker != targ &&
-        !(cvar("gamecfg") & GAMECFG_TEAM_HEALTH_DMG)) {
+        !(cvar_hget(cvarh_gamecfg) & GAMECFG_TEAM_HEALTH_DMG)) {
         // Health is protected
         return FALSE;
     }
@@ -263,10 +263,10 @@ void(entity targ, entity attacker) TeamAssists =
 
     while (head) {
         if(head.classname == "player") {
-            if( (head.steam == attacker.steam) &&
+            if((head.steam == attacker.steam) &&
                  (head.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
                  (head != attacker) && // self defense
-                 (!flag_carrier_radius) ) {
+                 (!flag_carrier_radius)) {
                 // attacker was near his own flag carrier
                 attacker.frags = attacker.frags + CTF_CARRIER_PROTECT_BONUS;
                 flag_carrier_radius = 1;
@@ -297,7 +297,7 @@ void(entity targ, entity attacker) TeamAssists =
     head = findradius(targ.origin, CTF_TARGET_PROTECT_RADIUS);
     while (head) {
         if(head.classname == "player") {
-            if( (head.steam == attacker.steam) &&
+            if((head.steam == attacker.steam) &&
                  (head.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
                  (head != attacker) &&
                  (!flag_carrier_radius)) { // prevents redundant points awarded
@@ -375,16 +375,16 @@ void() TeamSetSkin =
             self.skin = 1;
     }
 /*
-    if( deathmatch )
+    if(deathmatch)
     {
-        if( teamplay >= TEAM_CTF )
+        if(teamplay >= TEAM_CTF)
         {
 //            if(self.team == TEAM3)
 //                self.skin = 2;
 //            else
                 self.skin = 1;
         }
-        if( teamplay < TEAM_CTF )
+        if(teamplay < TEAM_CTF)
             self.skin = 1;
         else
         {
@@ -431,7 +431,7 @@ void() TeamCheckTeam =
     team2count = 0;
     team3count = 0;
 
-    p = find (world, classname, "player");
+    p = find(world, classname, "player");
 
     while(p) {
         if(p != self) {
@@ -505,7 +505,7 @@ void() TeamCheckLock =
         if(self.steam >= 0) {
             if(TeamColorIsLegal(self.steam)) {
 
-                if(!(cvar("gamecfg") & GAMECFG_ALLOW_CHG)) {
+                if(!(cvar_hget(cvarh_gamecfg) & GAMECFG_ALLOW_CHG)) {
                     // changing teams sucks, kill him
 
                     // if he has tried to change teams several
@@ -571,7 +571,7 @@ void() TossBackpack =
 
     // See if you have the Shotgun or Super Shotgun on
     if((self.weapon == IT_SHOTGUN) || (self.weapon == IT_SUPER_SHOTGUN)) {
-        if(self.ammo_shells >= 20 ) {
+        if(self.ammo_shells >= 20) {
             item.ammo_shells = 20;
             self.ammo_shells = self.ammo_shells - 20;
         }
@@ -583,8 +583,8 @@ void() TossBackpack =
     }
 
     // See if you have neither the Shotgun or Super Shotgun
-    if( !(self.items & IT_SHOTGUN) && !(self.items & IT_SUPER_SHOTGUN)) {
-        if(self.ammo_shells >= 20 ) {
+    if(!(self.items & IT_SHOTGUN) && !(self.items & IT_SUPER_SHOTGUN)) {
+        if(self.ammo_shells >= 20) {
             item.ammo_shells = 20;
             self.ammo_shells = self.ammo_shells - 20;
         } else {
@@ -594,8 +594,8 @@ void() TossBackpack =
     }
 
     // See if we are using a nailgun
-    if((self.weapon == IT_NAILGUN) || (self.weapon == IT_SUPER_NAILGUN) ) {
-        if(self.ammo_nails >= 20 ) {
+    if((self.weapon == IT_NAILGUN) || (self.weapon == IT_SUPER_NAILGUN)) {
+        if(self.ammo_nails >= 20) {
             item.ammo_nails = 20;
             self.ammo_nails = self.ammo_nails - 20;
         } else {
@@ -605,8 +605,8 @@ void() TossBackpack =
     }
 
     // See if we are using the lava nailguns
-    if((self.weapon == IT_LAVA_NAILGUN) || (self.weapon == IT_LAVA_SUPER_NAILGUN) ) {
-        if(self.ammo_lava_nails >= 20 ) {
+    if((self.weapon == IT_LAVA_NAILGUN) || (self.weapon == IT_LAVA_SUPER_NAILGUN)) {
+        if(self.ammo_lava_nails >= 20) {
             item.ammo_lava_nails = 20;
             self.ammo_lava_nails = self.ammo_lava_nails - 20;
         } else {
@@ -625,7 +625,7 @@ void() TossBackpack =
             item.ammo_nails = self.ammo_nails;
             self.ammo_nails = 0;
         }
-        if(self.ammo_lava_nails >= 20 ) {
+        if(self.ammo_lava_nails >= 20) {
             item.ammo_lava_nails = 20;
             self.ammo_lava_nails = self.ammo_lava_nails - 20;
         } else {
@@ -636,7 +636,7 @@ void() TossBackpack =
 
     // See if we are using a grenade or rocket launcher
     if((self.weapon == IT_GRENADE_LAUNCHER) || (self.weapon == IT_ROCKET_LAUNCHER)) {
-        if(self.ammo_rockets >= 10 ) {
+        if(self.ammo_rockets >= 10) {
             item.ammo_rockets = 10;
             self.ammo_rockets = self.ammo_rockets - 10;
         } else {
@@ -647,7 +647,7 @@ void() TossBackpack =
 
     // See if we are using the multi grenade or rocket launcher
     if((self.weapon == IT_MULTI_GRENADE) || (self.weapon == IT_MULTI_ROCKET)) {
-        if(self.ammo_multi_rockets >= 10 ) {
+        if(self.ammo_multi_rockets >= 10) {
             item.ammo_multi_rockets = 10;
             self.ammo_multi_rockets = self.ammo_multi_rockets - 10;
         } else {
@@ -657,15 +657,15 @@ void() TossBackpack =
     }
 
     // See if we have neither the Grenade or rocket launcher
-    if( !(self.items & IT_GRENADE_LAUNCHER) && !(self.items & IT_ROCKET_LAUNCHER) ) {
-        if(self.ammo_rockets >= 10 ) {
+    if(!(self.items & IT_GRENADE_LAUNCHER) && !(self.items & IT_ROCKET_LAUNCHER)) {
+        if(self.ammo_rockets >= 10) {
             item.ammo_rockets = 10;
             self.ammo_rockets = self.ammo_rockets - 10;
         } else {
             item.ammo_rockets = self.ammo_rockets;
             self.ammo_rockets = 0;
         }
-        if(self.ammo_multi_rockets >= 10 ) {
+        if(self.ammo_multi_rockets >= 10) {
             item.ammo_multi_rockets = 10;
             self.ammo_multi_rockets = self.ammo_multi_rockets - 10;
         } else {
@@ -676,7 +676,7 @@ void() TossBackpack =
 
     // See if we're using the lightning gun
     if(self.weapon == IT_LIGHTNING) {
-        if(self.ammo_cells >= 20 ) {
+        if(self.ammo_cells >= 20) {
             item.ammo_cells = 20;
             self.ammo_cells = self.ammo_cells - 20;
         } else {
@@ -687,7 +687,7 @@ void() TossBackpack =
 
     // see if we are using the plasma gun
     if(self.weapon == IT_PLASMA_GUN) {
-        if(self.ammo_plasma >= 10 ) {
+        if(self.ammo_plasma >= 10) {
             item.ammo_plasma = 10;
             self.ammo_plasma = self.ammo_plasma - 10;
         } else {
@@ -698,14 +698,14 @@ void() TossBackpack =
 
     // see if we don't have the lightning gun
     if(!(self.items & IT_LIGHTNING)) {
-        if(self.ammo_cells >= 20 ) {
+        if(self.ammo_cells >= 20) {
             item.ammo_cells = 20;
             self.ammo_cells = self.ammo_cells - 20;
         } else {
             item.ammo_cells = self.ammo_cells;
             self.ammo_cells = 0;
         }
-        if(self.ammo_plasma >= 10 ) {
+        if(self.ammo_plasma >= 10) {
             item.ammo_plasma = 10;
             self.ammo_plasma = self.ammo_plasma - 10;
         } else {
@@ -778,11 +778,11 @@ void() Team_weapon_touch =
     else
         objerror ("Team_weapon_touch: unknown classname");
 
-    sprint (other, "You got the ");
-    sprint (other, self.netname);
-    sprint (other, "\n");
+    sprint(other, "You got the ");
+    sprint(other, self.netname);
+    sprint(other, "\n");
 // weapon touch sound
-    sound (other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
     bound_other_ammo ();
@@ -848,7 +848,7 @@ void() TossWeapon =
         self.items = self.items - IT_SUPER_SHOTGUN;
     }
 
-    if(self.weapon == IT_NAILGUN || self.weapon == IT_LAVA_NAILGUN )
+    if(self.weapon == IT_NAILGUN || self.weapon == IT_LAVA_NAILGUN)
     {
         setmodel (item, "progs/g_nail.mdl");
         item.weapon = IT_NAILGUN;
@@ -907,7 +907,7 @@ void(entity flg) RegenFlag =
 {
     flg.movetype = MOVETYPE_TOSS;
     flg.solid = SOLID_TRIGGER;
-    sound (flg, CHAN_VOICE, "items/itembk2.wav", 1, ATTN_NORM);    // play respawn sound
+    sound(flg, CHAN_VOICE, "items/itembk2.wav", 1, ATTN_NORM);    // play respawn sound
     setorigin(flg, flg.oldorigin);
     flg.angles = flg.mangle;
     flg.cnt = FLAG_AT_BASE; // it's at home base
@@ -1044,7 +1044,7 @@ void() TeamFlagTouch =
         //centerprint(other, "YOU GOT THE FLAG\n\nTAKE IT TO ENEMY BASE\n");
           centerprint(other, "��� ��� ��� ����\n\n���� �� �� ����� ����\n");
 
-        sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+        sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
 
         other.ctf_flags = other.ctf_flags | CTF_FLAG_FLAG;
         other.items = other.items | self.items;
@@ -1084,7 +1084,7 @@ void() TeamFlagTouch =
                     bprint(" �������� the ��� flag!\n"); // red
                 other.items = other.items - (other.items & (IT_KEY1 | IT_KEY2));
 
-                sound (other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
+                sound(other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
 
                 // other gets another 10 frag bonus
                 other.frags = other.frags + CTF_CAPTURE_BONUS;
@@ -1143,7 +1143,7 @@ void() TeamFlagTouch =
             bprint(" �������� the ���� flag!\n"); // blue
         other.frags = other.frags + CTF_RECOVERY_BONUS;
         other.ctf_lastreturnedflag = time;
-        sound (other, CHAN_ITEM, self.noise1, 1, ATTN_NORM);
+        sound(other, CHAN_ITEM, self.noise1, 1, ATTN_NORM);
         TeamReturnFlag(self);
         return;
     }
@@ -1168,7 +1168,7 @@ void() TeamFlagTouch =
 //        centerprint(other, "YOU GOT THE ENEMY FLAG!\n\nRETURN TO BASE!\n");
         centerprint(other, "��� ��� ��� ����� ����\n\n������ �� ����\n");
     }
-    sound (other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
 
     if(self.team == TEAM1)
         other.ctf_flags = other.ctf_flags | CTF_FLAG_TEAM1;
@@ -1244,7 +1244,7 @@ void() TeamFlagBaseTouch =
             bprint(other.netname);
             bprint(" �������� the flag!\n"); // blue
             other.items = other.items - (other.items & (IT_KEY1 | IT_KEY2));
-            sound (other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
+            sound(other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
 
             // other gets another 10 frag bonus
             other.frags = other.frags + CTF_CAPTURE_BONUS;
@@ -1289,7 +1289,7 @@ void() TeamFlagBaseTouch =
             bprint(" �������� the ��� flag!\n"); // red
         other.items = other.items - (other.items & (IT_KEY1 | IT_KEY2));
 
-        sound (other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
+        sound(other, CHAN_VOICE, "misc/flagcap.wav", 1, ATTN_NONE);
 
         // other gets another 10 frag bonus
         other.frags = other.frags + CTF_ALT_CAPTURE_BONUS;
@@ -1418,7 +1418,7 @@ void() TeamFlagStatusReport =
     }
 
     if(teamplay == TEAM_CTF_ONEFLAG) {
-        flag1 = find (world, classname, "item_flag");
+        flag1 = find(world, classname, "item_flag");
         if(flag1 == world)
             sprint(self, "The flag is missing!\n");
         else if(flag1.cnt == FLAG_AT_BASE)
@@ -1443,8 +1443,8 @@ void() TeamFlagStatusReport =
     // normal CTF
     if(teamplay == TEAM_CTF) {
         // Find the flags at home base
-        flag1 = find (world,classname, "item_flag_team1");
-        flag2 = find (world,classname, "item_flag_team2");
+        flag1 = find(world,classname, "item_flag_team1");
+        flag2 = find(world,classname, "item_flag_team2");
 
         // If on team 2 switch meanings of flags
         if(self.team != TEAM1) {
@@ -1491,8 +1491,8 @@ void() TeamFlagStatusReport =
     // three team CTF
     if(teamplay == TEAM_CTF_ALT) {
         // Find the flags at home base
-        flag1 = find (world,classname, "item_flag_team1");
-        flag2 = find (world,classname, "item_flag_team2");
+        flag1 = find(world,classname, "item_flag_team1");
+        flag2 = find(world,classname, "item_flag_team2");
 
         if(flag1 != world && flag1.cnt == FLAG_CARRIED) {
             if(flag1.owner == self)
@@ -1566,9 +1566,9 @@ void() place_flag = {
     self.mangle = self.angles;
     self.effects = self.effects | EF_DIMLIGHT;
     if(!droptofloor()) {
-        dprint ("Flag fell out of level at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("Flag fell out of level at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
         remove(self);
         return;
     }
@@ -1579,7 +1579,7 @@ void(entity flg, string cname) place_flagbase =
 {
     local entity oself;
 
-    teamplay = cvar("teamplay");
+    teamplay = cvar_hget(cvarh_teamplay);
 
     oself = self;
     self = spawn();
@@ -1602,9 +1602,9 @@ void(entity flg, string cname) place_flagbase =
     } else
         self.solid = SOLID_NOT;
     if(!droptofloor()) {
-        dprint ("Flagbase fell out of level at ");
-        dprint (vtos(self.origin));
-        dprint ("\n");
+        dprint("Flagbase fell out of level at ");
+        dprint(vtos(self.origin));
+        dprint("\n");
         remove(self);
         self = oself;
         return;
@@ -1628,11 +1628,11 @@ void() item_flag_team1 =
         return;
     }
 
-    teamplay = cvar("teamplay");
+    teamplay = cvar_hget(cvarh_teamplay);
 
     if(teamplay == TEAM_CTF_ONEFLAG) {
-        precache_sound ("misc/flagtk.wav");        // flag taken
-        precache_sound ("misc/flagcap.wav");    // flag capture
+        precache_sound("misc/flagtk.wav");        // flag taken
+        precache_sound("misc/flagcap.wav");    // flag capture
         self.skin = 0;
         self.team = TEAM1;
         place_flagbase(self, "item_flagbase_team1");
@@ -1646,9 +1646,9 @@ void() item_flag_team1 =
         precache_model ("progs/ctfmodel.mdl");
         setmodel (self, "progs/ctfmodel.mdl");
         self.skin = 0;
-        precache_sound ("misc/flagtk.wav");        // flag taken
-        precache_sound ("misc/flagcap.wav");    // flag capture
-        precache_sound ("misc/flagret.wav");    // flag return
+        precache_sound("misc/flagtk.wav");        // flag taken
+        precache_sound("misc/flagcap.wav");    // flag capture
+        precache_sound("misc/flagret.wav");    // flag return
         self.noise = "misc/flagtk.wav";
         self.noise1 = "misc/flagret.wav";
         setsize(self, '-16 -16 0', '16 16 74');
@@ -1675,11 +1675,11 @@ void() item_flag_team2 =
         return;
     }
 
-    teamplay = cvar("teamplay");
+    teamplay = cvar_hget(cvarh_teamplay);
 
     if(teamplay == TEAM_CTF_ONEFLAG) {
-        precache_sound ("misc/flagtk.wav");        // flag taken
-        precache_sound ("misc/flagcap.wav");    // flag capture
+        precache_sound("misc/flagtk.wav");        // flag taken
+        precache_sound("misc/flagcap.wav");    // flag capture
         self.team = TEAM2;
         self.skin = 1;
         place_flagbase(self, "item_flagbase_team2");
@@ -1693,9 +1693,9 @@ void() item_flag_team2 =
         precache_model ("progs/ctfmodel.mdl");
         setmodel (self, "progs/ctfmodel.mdl");
         self.skin = 1;
-        precache_sound ("misc/flagtk.wav");        // flag taken
-        precache_sound ("misc/flagcap.wav");    // flag capture
-        precache_sound ("misc/flagret.wav");    // flag return
+        precache_sound("misc/flagtk.wav");        // flag taken
+        precache_sound("misc/flagcap.wav");    // flag capture
+        precache_sound("misc/flagret.wav");    // flag return
         self.noise = "misc/flagtk.wav";
         self.noise1 = "misc/flagret.wav";
         setsize(self, '-16 -16 0', '16 16 74');
@@ -1717,7 +1717,7 @@ to 90.
 */
 void() item_flag =
 {
-    if(cvar("teamplay") != TEAM_CTF_ONEFLAG) {
+    if(cvar_hget(cvarh_teamplay) != TEAM_CTF_ONEFLAG) {
         remove(self);
         return;
     }
@@ -1728,9 +1728,9 @@ void() item_flag =
     precache_model ("progs/ctfmodel.mdl");        // PGM 01/18/97
     setmodel (self, "progs/ctfmodel.mdl");    // PGM 01/18/97
     self.skin = 2;
-    precache_sound ("misc/flagtk.wav");        // flag taken
-    precache_sound ("misc/flagcap.wav");    // flag capture
-    precache_sound ("misc/flagret.wav");    // flag return
+    precache_sound("misc/flagtk.wav");        // flag taken
+    precache_sound("misc/flagcap.wav");    // flag capture
+    precache_sound("misc/flagret.wav");    // flag return
     self.noise = "misc/flagtk.wav";
     self.noise1 = "misc/flagret.wav";
     setsize(self, '-16 -16 0', '16 16 74');
@@ -1884,7 +1884,7 @@ Only appears in CTF teamplay
 */
 void() func_ctf_wall =
 {
-    teamplay = cvar("teamplay");
+    teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG ||
         teamplay == TEAM_CTF_ALT) {
         self.angles = '0 0 0';

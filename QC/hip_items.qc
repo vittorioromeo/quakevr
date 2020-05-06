@@ -48,12 +48,12 @@ void() HIP_powerup_touch =
     self.model = string_null;
 
 // do the apropriate action
-   if(self.classname == "item_artifact_wetsuit" )
+   if(self.classname == "item_artifact_wetsuit")
     {
         other.wetsuit_time = 1;
         other.wetsuit_finished = time + 30;
     }
-   if(self.classname == "item_artifact_empathy_shields" )
+   if(self.classname == "item_artifact_empathy_shields")
     {
       other.empathy_time = 1;
       other.empathy_finished = time + 30;
@@ -348,7 +348,7 @@ void() trap_spike_mine =
 //   setsize(self, '0 0 0', '0 0 0');
 //   self.avelocity = '-100 100 -100';
    self.avelocity = '-50 100 150';
-   if(cvar("skill") <= 1)
+   if(cvar_hget(cvarh_skill) <= 1)
       self.health = 200;
    else
       self.health = 400;
@@ -427,7 +427,7 @@ void() trap_lightning_use =
       }
    // fix up both ends of the lightning
    // lightning bolts are 30 units long each
-   dir = normalize( p2-p1 );
+   dir = normalize(p2-p1);
    dst = vlen(p2-p1);
    dst = dst / 30.0;
    remainder = dst - floor(dst);
@@ -754,7 +754,7 @@ void() trap_tesla_coil =
    if(self.wait == 0)
       self.wait = 2;
    if(self.dmg == 0)
-      self.dmg = 2 + (5*cvar("skill"));
+      self.dmg = 2 + (5*cvar_hget(cvarh_skill));
    if(self.duration == 0)
       self.duration = -1;
    if(self.distance == 0)
@@ -808,12 +808,12 @@ void() trap_gods_wrath =
 
 void() trap_gravity_touch =
    {
-   if(self.attack_finished > time )
+   if(self.attack_finished > time)
       return;
 
    if(other.takedamage)
       {
-      T_Damage (other, self, self, self.dmg );
+      T_Damage (other, self, self, self.dmg);
       self.attack_finished = time + 0.2;
       }
    };
@@ -829,10 +829,10 @@ void() trap_gravity_think =
    while(tesla_numtargets > 0)
       {
       delta = self.origin - tesla_target.origin;
-      dir = normalize( delta );
+      dir = normalize(delta);
       vel = dir * self.speed;
-      if(( tesla_target.wetsuit_finished > time ) &&
-         ( self.spawnflags & UNDERWATER ) )
+      if((tesla_target.wetsuit_finished > time) &&
+         (self.spawnflags & UNDERWATER))
          {
          vel = vel * 0.6;
          }
@@ -858,12 +858,12 @@ void() trap_gravity_well =
    {
    self.solid = SOLID_TRIGGER;
    self.movetype = MOVETYPE_NONE;
-   setsize( self, '-16 -16 -16','16 16 16');
-   if(self.dmg == 0 )
+   setsize(self, '-16 -16 -16','16 16 16');
+   if(self.dmg == 0)
       {
       self.dmg = 10000;
       }
-   if(self.speed == 0 )
+   if(self.speed == 0)
       self.speed = 210;
    if(self.distance == 0)
       self.distance = 600;

@@ -201,8 +201,8 @@ void() ambient_riftpower =
 
 void() info_command =
    {
-   if(self.message )
-      localcmd( self.message );
+   if(self.message)
+      localcmd(self.message);
    };
 
 void() effect_teleport_use =
@@ -246,7 +246,7 @@ void() camerathink =
    local float    timeelapsed;
 
    timeelapsed = (time - self.cnt) * self.duration;
-   if(timeelapsed > 1 )
+   if(timeelapsed > 1)
       timeelapsed = 1;
 
    p = self.oldorigin + (timeelapsed * (self.movetarget.origin - self.oldorigin));
@@ -277,7 +277,7 @@ void() camerachase =
 
 
    timeelapsed = time - self.cnt;
-   if(timeelapsed > 1 )
+   if(timeelapsed > 1)
       timeelapsed = 1;
    self.cnt = time;
 
@@ -290,12 +290,12 @@ void() camerachase =
       }
    // calculate new camera position
    a = '0 0 0';
-   a_y = vectoyaw( normalize( self.movetarget.origin - self.movetarget.movetarget.origin) );
+   a_y = vectoyaw(normalize(self.movetarget.origin - self.movetarget.movetarget.origin));
    makevectors(a);
    self.origin = self.movetarget.origin + v_forward * self.distance;
    self.origin_z = self.origin_z + self.height;
 
-   v = normalize( self.movetarget.origin - self.origin );
+   v = normalize(self.movetarget.origin - self.origin);
    a = self.angles;
    a_y = vectoyaw(v);
    v_x = v_y;
@@ -324,7 +324,7 @@ void() camerafollow =
    local vector v;
    local vector a;
 
-   v = normalize( self.movetarget.origin - self.origin );
+   v = normalize(self.movetarget.origin - self.origin);
    a = self.angles;
    a_y = vectoyaw(v);
    v_x = v_y;
@@ -357,7 +357,7 @@ local entity    temp;
     other = temp;
 
    self.angles = self.movetarget.mangle;
-   self.movetarget = find (world, targetname, other.target);
+   self.movetarget = find(world, targetname, other.target);
    if(!self.movetarget)
       {
       self.nextthink = time + 999999;
@@ -444,7 +444,7 @@ void() effect_finale_use =
    self.state = 1;
 
     // find the intermission spot
-   pos = find (world, targetname, self.target);
+   pos = find(world, targetname, self.target);
    if(!pos)
       error ("no target in finale");
 
@@ -457,18 +457,18 @@ void() effect_finale_use =
       {
       if(self.spawnflags & 1)
          {
-         pl = find (world, classname, "player");
-         targ = find (world, targetname, self.mdl);
-         become_decoy( targ.target, pl.origin );
+         pl = find(world, classname, "player");
+         targ = find(world, targetname, self.mdl);
+         become_decoy(targ.target, pl.origin);
          }
       else
          {
-         targ = find (world, targetname, self.mdl);
-         become_decoy( targ.target, targ.origin );
+         targ = find(world, targetname, self.mdl);
+         become_decoy(targ.target, targ.origin);
          }
       }
 
-    pl = find (world, classname, "player");
+    pl = find(world, classname, "player");
     while(pl != world)
     {
       pl.view_ofs = '0 0 0';
@@ -486,7 +486,7 @@ void() effect_finale_use =
       pl.oldorigin = pos.origin;
       UpdateCamera(pl,pl);
       UpdateCamera(pl,pl.trigger_field);
-      pl = find (pl, classname, "player");
+      pl = find(pl, classname, "player");
     }
 
    // wait for next sequence

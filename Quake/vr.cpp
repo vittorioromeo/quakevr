@@ -1330,7 +1330,7 @@ void VID_VR_Disable()
 
 static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 {
-    if(vr_fakevr.value && vr_novrinit.value)
+    if(vr_fakevr.value || vr_novrinit.value)
     {
         return;
     }
@@ -3193,7 +3193,7 @@ void VR_UpdateScreenContent()
     r_refdef.viewangles = cl.viewangles;
     r_refdef.aimangles = cl.aimangles;
 
-    if(vr_fakevr.value && vr_novrinit.value)
+    if(vr_fakevr.value || vr_novrinit.value)
     {
         return;
     }
@@ -4212,3 +4212,6 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
 // goes down
+
+// TODO VR: (P0) player death animation is bugged in mp probably has to do with
+// player_run

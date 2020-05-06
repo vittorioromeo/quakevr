@@ -234,9 +234,9 @@ void() knight_die =
 
     if(self.spawnflags & 2) // statue
         {
-            ThrowGib ( "progs/statgib1.mdl", self.health);
-            ThrowGib ( "progs/statgib2.mdl", self.health);
-            ThrowGib ( "progs/statgib3.mdl", self.health);
+            ThrowGib ("progs/statgib1.mdl", self.health);
+            ThrowGib ("progs/statgib2.mdl", self.health);
+            ThrowGib ("progs/statgib3.mdl", self.health);
         }
         else
         {
@@ -261,7 +261,7 @@ void() knight_die =
 
 void() knight_pause =
 {
-    sound( self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
 
     self.takedamage = DAMAGE_AIM;
     self.th_stand = knight_stand1;
@@ -308,13 +308,13 @@ void() monster_knight =
 
     if(self.spawnflags & 2) // statue
     {
-        precache_model( "progs/statgib1.mdl");
-        precache_model( "progs/statgib2.mdl");
-        precache_model( "progs/statgib3.mdl");
-        precache_sound( "statue/see.wav");
-        precache_sound( "statue/idle.wav");
-        precache_sound( "statue/pain.wav");
-        precache_sound( "statue/death.wav");
+        precache_model("progs/statgib1.mdl");
+        precache_model("progs/statgib2.mdl");
+        precache_model("progs/statgib3.mdl");
+        precache_sound("statue/see.wav");
+        precache_sound("statue/idle.wav");
+        precache_sound("statue/pain.wav");
+        precache_sound("statue/death.wav");
     }
     else
     {

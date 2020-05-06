@@ -86,8 +86,8 @@ void(string t, string kt, float d) SUB_DelayKillTrigger=
 
 void() DelayCenterprint_think=
 {
-    centerprint (self.enemy, self.message);
-    sound (self.enemy, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+    centerprint(self.enemy, self.message);
+    sound(self.enemy, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
 }
 
 void(entity to, string msg, float dly) SUB_DelayCenterprint=
@@ -101,8 +101,8 @@ void(entity to, string msg, float dly) SUB_DelayCenterprint=
         t.nextthink = time + dly;
         return;
     }
-    centerprint (to, msg);
-    sound (to, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+    centerprint(to, msg);
+    sound(to, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
 }
 
 void(void() t, float d) SUB_DelayCall =

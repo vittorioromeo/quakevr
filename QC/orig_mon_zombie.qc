@@ -97,7 +97,7 @@ void() zombie_lurk =
         else
         {
             // if we've waited long enough, pounce!
-            if( self.pain_finished < time )
+            if(self.pain_finished < time)
             {
                 self.think = zombie_escape1;
                 self.nextthink = time + 0.1;
@@ -112,7 +112,7 @@ void() zombie_cruc1    = [ $cruc_1, zombie_cruc2 ]
     {
     zombie_lurk();
     if(random() < 0.1)
-        sound (self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);
+        sound(self, CHAN_VOICE, "zombie/idle_w2.wav", 1, ATTN_STATIC);
     };
 void() zombie_cruc2    = [ $cruc_2, zombie_cruc3 ] { zombie_lurk(); };
 void() zombie_cruc3    = [ $cruc_3, zombie_cruc4 ] { zombie_lurk(); };
@@ -182,7 +182,7 @@ void() ZombieGrenadeTouch =
         return;        // don't explode on owner
     if(other.takedamage)
     {
-        T_Damage (other, self, self.owner, 10 );
+        T_Damage (other, self, self.owner, 10);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
         remove(self);
         return;
@@ -324,7 +324,7 @@ void() zombie_painb6    =[    $painb6,    zombie_painb7    ] {};
 void() zombie_painb7    =[    $painb7,    zombie_painb8    ] {};
 void() zombie_painb8    =[    $painb8,    zombie_painb9    ] {};
 void() zombie_painb9    =[    $painb9,    zombie_painb10    ] {
-    sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
+    sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
 
     // HONEY
     self.wad = ZOMBIE_ONGROUND;
@@ -374,7 +374,7 @@ void() zombie_painc18    =[    $painc18,    zombie_run1    ] {};
 
 void() zombie_paind1    =[    $paind1,    zombie_paind2    ]
 {
-    sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
     droptofloor();
 };
 void() zombie_paind2    =[    $paind2,    zombie_paind3    ] {};
@@ -392,7 +392,7 @@ void() zombie_paind13    =[    $paind13,    zombie_run1    ] {};
 
 void() zombie_paine1    =[    $paine1,    zombie_paine2    ]
 {
-    sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
     self.health = 60;
 };
 void() zombie_paine2    =[    $paine2,    zombie_paine3    ] {ai_pain(8);};
@@ -405,7 +405,7 @@ void() zombie_paine8    =[    $paine8,    zombie_paine9    ] {ai_pain(1);};
 void() zombie_paine9    =[    $paine9,    zombie_paine10    ] {ai_pain(2);};
 void() zombie_paine10    =[    $paine10,    zombie_paine11    ]
 {
-    sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
+    sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
     self.solid = SOLID_NOT;
 
     // HONEY
@@ -422,10 +422,10 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
     // see if ok to stand up
     droptofloor();
     self.health = 60;
-    sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+    sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
     setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.solid = SOLID_SLIDEBOX;
-    if(!walkmove (0, 0))
+    if(!walkmove(0, 0))
     {
         self.think = zombie_paine11;
         self.solid = SOLID_NOT;
@@ -565,13 +565,13 @@ void() zombie_escape13=[$cruc_13, zombie_escape14] {self.nextthink=time+0.10;};
 void() zombie_escape14=[$cruc_14, zombie_escape15]
 {
     makevectors (self.angles);
-    setorigin ( self, self.origin + v_forward * 8);
+    setorigin (self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };
 void() zombie_escape15=[ $cruc_15, zombie_escape16]
 {
     makevectors (self.angles);
-    setorigin ( self, self.origin + v_forward * 8);
+    setorigin (self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };
 void() zombie_escape16 = [ $cruc_16, zombie_run1 ]
@@ -585,7 +585,7 @@ void() zombie_escape16 = [ $cruc_16, zombie_run1 ]
     self.th_run = zombie_run1;
     self.th_missile = zombie_missile;
     self.health = 60;
-    sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+    sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
 
     droptofloor();
 };
@@ -704,7 +704,7 @@ void() monster_zombie =
         setsize (self, '-16 -16 -24', '16 16 -16');
 
         // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
-        if( self.spawnflags & SPAWN_AMBUSH)
+        if(self.spawnflags & SPAWN_AMBUSH)
             self.spawnflags = SPAWN_LYING;
 
         walkmonster_start();

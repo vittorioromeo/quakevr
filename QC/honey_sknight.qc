@@ -37,11 +37,11 @@ void(void() call) sknight_spears_do =
 {
     entity oself;
     oself = self;
-    self = find( world, classname, "spear");
+    self = find(world, classname, "spear");
 
     while(self){
         call();
-        self = find( self, classname, "spear");
+        self = find(self, classname, "spear");
     }
     self = oself;
 };
@@ -49,7 +49,7 @@ void(void() call) sknight_spears_do =
 void(float() conditional, void() call) sknight_spears_do_if =
 {
     entity spear, oself;
-    spear = find( world, classname, "spear");
+    spear = find(world, classname, "spear");
     oself = self;
 
     while(spear){
@@ -57,7 +57,7 @@ void(float() conditional, void() call) sknight_spears_do_if =
         if(conditional()){
             call();
         }
-        spear = find( spear, classname, "spear");
+        spear = find(spear, classname, "spear");
     }
     self = oself;
 };
@@ -65,7 +65,7 @@ void(float() conditional, void() call) sknight_spears_do_if =
 void(float() conditional, void() call) sknight_spears_do_if_not =
 {
     entity spear, oself;
-    spear = find( world, classname, "spear");
+    spear = find(world, classname, "spear");
     oself = self;
 
     while(spear){
@@ -73,7 +73,7 @@ void(float() conditional, void() call) sknight_spears_do_if_not =
         if(conditional() == FALSE){
             call();
         }
-        spear = find( spear, classname, "spear");
+        spear = find(spear, classname, "spear");
     }
     self = oself;
 };
@@ -159,10 +159,10 @@ vector(vector center, vector ang) sknight_getNextSpearPos =
     makevectors (ang);
 
     org = center;
-    vx = ( v_forward * SKNIGHT_RADIUS );
-    vy = ( v_right   * SKNIGHT_RADIUS );
+    vx = (v_forward * SKNIGHT_RADIUS);
+    vy = (v_right   * SKNIGHT_RADIUS);
     //vy = vy * -1;
-    //vz = ( v_up      * 0 );
+    //vz = (v_up      * 0);
     org = vx + vy;// + vz;
     //org_z = org_z + 14;
 
@@ -281,13 +281,13 @@ void() sknight_die =
 // check for gib
     if (self.health < -40)
     {
-        sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_hellkn.mdl", self.health);
         ThrowGib ("progs/gib1.mdl", self.health);
         ThrowGib ("progs/gib2.mdl", self.health);
         ThrowGib ("progs/gib3.mdl", self.health);
     }else{
-        sound (self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
     }
     self.think = SUB_Null;
     self.nextthink = -1;
@@ -318,13 +318,13 @@ void() monster_sknight =
     precache_sound2 ("hknight/death1.wav");
     precache_sound2 ("hknight/pain1.wav");
     precache_sound2 ("hknight/sight1.wav");
-    precache_sound ("hknight/hit.wav");        // used by C code, so don't sound2
+    precache_sound("hknight/hit.wav");        // used by C code, so don't sound2
     precache_sound2 ("hknight/slash1.wav");
     precache_sound2 ("hknight/idle.wav");
     precache_sound2 ("hknight/grunt.wav");
 
-    precache_sound ("knight/sword1.wav");
-    precache_sound ("knight/sword2.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
 
     if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
