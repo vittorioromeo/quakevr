@@ -749,3 +749,8 @@ float Cvar_GetValueFromHandle(const int handle)
 
     return cvar_handles[handle]->value;
 }
+
+void Cvar_ClearAllHandles()
+{
+    cvar_handles.clear();
+}
