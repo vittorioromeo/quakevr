@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
 #define PROTOCOL_FITZQUAKE \
-    666 // johnfitz -- added new protocol for fitzquake 0.85
+    8681 // johnfitz -- added new protocol for fitzquake 0.85
 #define PROTOCOL_RMQ 999
 
 // PROTOCOL_RMQ protocol flags
@@ -123,7 +123,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
               // not sent if ENTALPHA_DEFAULT
 #define SU_VR_WEAPON2 (1 << 26)
 #define SU_VR_WEAPONFRAME2 (1 << 27)
-#define SU_UNUSED28 (1 << 28)
+#define SU_VR_HOLSTERS (1 << 28)
 #define SU_UNUSED29 (1 << 29)
 #define SU_UNUSED30 (1 << 30)
 #define SU_EXTEND3 (1 << 31) // another byte to follow, future expansion

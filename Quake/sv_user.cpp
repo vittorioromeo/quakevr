@@ -569,7 +569,8 @@ void SV_ReadClientMove(usercmd_t* move)
     };
 
     const auto readVec = [&]() -> qfvec3 {
-        return {MSG_ReadFloat(), MSG_ReadFloat(), MSG_ReadFloat()};
+        return {MSG_ReadCoord(sv.protocolflags),
+            MSG_ReadCoord(sv.protocolflags), MSG_ReadCoord(sv.protocolflags)};
     };
 
     // aimangles
@@ -610,22 +611,23 @@ void SV_ReadClientMove(usercmd_t* move)
     move->upmove = MSG_ReadShort();
 
     // teleportation
-    host_client->edict->v.teleporting = move->teleporting = MSG_ReadShort();
+    host_client->edict->v.teleporting = move->teleporting = MSG_ReadByte();
     host_client->edict->v.teleport_target = move->teleport_target = readVec();
 
+    // TODO VR: (P1) MP optimization: use bitset
     // hands
     host_client->edict->v.offhand_grabbing = move->offhand_grabbing =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.offhand_prevgrabbing = move->offhand_prevgrabbing =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.mainhand_grabbing = move->mainhand_grabbing =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.mainhand_prevgrabbing = move->mainhand_prevgrabbing =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.offhand_hotspot = move->offhand_hotspot =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.mainhand_hotspot = move->mainhand_hotspot =
-        MSG_ReadShort();
+        MSG_ReadByte();
 
     // roomscalemove
     host_client->edict->v.roomscalemove = move->roomscalemove = readVec();

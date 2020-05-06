@@ -548,9 +548,9 @@ void CL_SendMove(const usercmd_t* cmd)
     };
 
     const auto writeVec = [&](const auto& vec) {
-        MSG_WriteFloat(&buf, vec[0]);
-        MSG_WriteFloat(&buf, vec[1]);
-        MSG_WriteFloat(&buf, vec[2]);
+        MSG_WriteCoord(&buf, vec[0], cl.protocolflags);
+        MSG_WriteCoord(&buf, vec[1], cl.protocolflags);
+        MSG_WriteCoord(&buf, vec[2], cl.protocolflags);
     };
 
     // aimangles
@@ -587,16 +587,17 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteShort(&buf, cmd->upmove);
 
     // teleportation
-    MSG_WriteShort(&buf, cmd->teleporting);
+    MSG_WriteByte(&buf, cmd->teleporting);
     writeVec(cmd->teleport_target);
 
+    // TODO VR: (P1) MP optimization: use bitset
     // hands
-    MSG_WriteShort(&buf, cmd->offhand_grabbing);
-    MSG_WriteShort(&buf, cmd->offhand_prevgrabbing);
-    MSG_WriteShort(&buf, cmd->mainhand_grabbing);
-    MSG_WriteShort(&buf, cmd->mainhand_prevgrabbing);
-    MSG_WriteShort(&buf, cmd->offhand_hotspot);
-    MSG_WriteShort(&buf, cmd->mainhand_hotspot);
+    MSG_WriteByte(&buf, cmd->offhand_grabbing);
+    MSG_WriteByte(&buf, cmd->offhand_prevgrabbing);
+    MSG_WriteByte(&buf, cmd->mainhand_grabbing);
+    MSG_WriteByte(&buf, cmd->mainhand_prevgrabbing);
+    MSG_WriteByte(&buf, cmd->offhand_hotspot);
+    MSG_WriteByte(&buf, cmd->mainhand_hotspot);
 
     // roomscalemove
     writeVec(cmd->roomscalemove);

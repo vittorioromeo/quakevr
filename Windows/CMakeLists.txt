@@ -146,9 +146,12 @@ else()
     find_package(SDL2 REQUIRED)
     include_directories(${SDL2_INCLUDE_DIRS})
 
-    set(OPENVR_LIBRARIES
-        "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
-    )
+    FIND_PACKAGE(PkgConfig)
+    PKG_SEARCH_MODULE(OPENVR REQUIRED openvr)
+
+    # set(OPENVR_LIBRARIES
+    #     "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
+    # )
 
     target_link_libraries(quakespasm-sdl2
         asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES}

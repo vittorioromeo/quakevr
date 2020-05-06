@@ -775,7 +775,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         }
 
         // TODO VR: (P1) remove, this should be set only when scale changes
-        bits |= U_SCALE;
+        // bits |= U_SCALE;
 
         if(ent->v.angles[0] != ent->baseline.angles[0])
         {
@@ -1230,6 +1230,22 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
         bits |= SU_VR_WEAPON2;
         bits |= SU_VR_WEAPONFRAME2;
+
+        const bool anyHolster =
+            ent->v.holsterweapon0 || ent->v.holsterweapon1 ||
+            ent->v.holsterweapon2 || ent->v.holsterweapon3 ||
+            ent->v.holsterweapon4 || ent->v.holsterweapon5 ||
+            ent->v.holsterweaponmodel0 || ent->v.holsterweaponmodel1 ||
+            ent->v.holsterweaponmodel2 || ent->v.holsterweaponmodel3 ||
+            ent->v.holsterweaponmodel4 || ent->v.holsterweaponmodel5 ||
+            ent->v.holsterweaponflags0 || ent->v.holsterweaponflags1 ||
+            ent->v.holsterweaponflags2 || ent->v.holsterweaponflags3 ||
+            ent->v.holsterweaponflags4 || ent->v.holsterweaponflags5;
+
+        if(anyHolster)
+        {
+            bits |= SU_VR_HOLSTERS;
+        }
     }
     // johnfitz
 
@@ -1367,42 +1383,46 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     }
 
     // TODO VR: (P2) weapon ids in holsters
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+    if(bits & SU_VR_HOLSTERS)
+    {
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags0); // STAT_HOLSTERWEAPONFLAGS0
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags1); // STAT_HOLSTERWEAPONFLAGS1
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags2); // STAT_HOLSTERWEAPONFLAGS2
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags3); // STAT_HOLSTERWEAPONFLAGS3
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+    }
 
     MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
     MSG_WriteByte(msg, (int)ent->v.weapon2); // STAT_OFFHAND_WID
 
     MSG_WriteByte(msg, (int)ent->v.weaponflags);  // STAT_WEAPONFLAGS
     MSG_WriteByte(msg, (int)ent->v.weaponflags2); // STAT_WEAPONFLAGS2
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags0); // STAT_HOLSTERWEAPONFLAGS0
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags1); // STAT_HOLSTERWEAPONFLAGS1
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags2); // STAT_HOLSTERWEAPONFLAGS2
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags3); // STAT_HOLSTERWEAPONFLAGS3
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
-    MSG_WriteByte(
-        msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+
 
     // TODO VR: (P1) experiment with this
 #if 0
