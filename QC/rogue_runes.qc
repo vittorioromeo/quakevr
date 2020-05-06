@@ -90,15 +90,15 @@ void(float r, entity spot) SpawnRune =
     item.movetype = MOVETYPE_TOSS;
 
     if(r & ITEM_RUNE1)
-            setmodel (item, "progs/end1.mdl");
+            setmodel(item, "progs/end1.mdl");
     else if(r & ITEM_RUNE2)
-            setmodel (item, "progs/end2.mdl");
+            setmodel(item, "progs/end2.mdl");
     else if(r & ITEM_RUNE3)
-            setmodel (item, "progs/end3.mdl");
+            setmodel(item, "progs/end3.mdl");
     else if(r & ITEM_RUNE4)
-            setmodel (item, "progs/end4.mdl");
+            setmodel(item, "progs/end4.mdl");
 
-    setsize (item, '-16 -16 0', '16 16 56');
+    setsize(item, '-16 -16 0', '16 16 56');
     item.touch = RuneTouch;
 
     item.nextthink = time + 120;    // remove after 2 minutes

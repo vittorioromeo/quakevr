@@ -51,7 +51,7 @@ void() model_candle =
 
     precache_model ("progs/candle.mdl");
 
-    setmodel (self, "progs/candle.mdl");
+    setmodel(self, "progs/candle.mdl");
 
     //self.think = model_candle_think;
     //self.nextthink = time + 0.1;

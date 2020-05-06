@@ -255,7 +255,7 @@ void(entity attacker, float damage) tbaby_mitosis =
         newSpawn = spawn();
         newSpawn.classname = self.classname;
         newSpawn.movetype = MOVETYPE_STEP;
-        setsize (newSpawn, '-16 -16 -24', '16 16 40');
+        setsize(newSpawn, '-16 -16 -24', '16 16 40');
         newSpawn.health = 80;
         if(self.skin == 1)
             newSpawn.health = 60;
@@ -265,11 +265,11 @@ void(entity attacker, float damage) tbaby_mitosis =
         newSpawn.owner = self;
         self.th_pain = SUB_NullPain;
 
-        setmodel (newSpawn, "progs/tarbaby.mdl");
+        setmodel(newSpawn, "progs/tarbaby.mdl");
         newSpawn.solid = SOLID_SLIDEBOX;
         newSpawn.skin = self.skin;
 
-        setorigin (newSpawn, self.origin);
+        setorigin(newSpawn, self.origin);
         newSpawn.think = tbaby_checknew;
         newSpawn.nextthink = time + 0.5;
 

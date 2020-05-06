@@ -215,9 +215,9 @@ void(float dist) dragon_move =
     }
 
     if(moveDir_z > 5)
-        setorigin (self, self.origin + '0 0 5');
+        setorigin(self, self.origin + '0 0 5');
     else if(moveDir_z < -5)
-        setorigin (self, self.origin - '0 0 5');
+        setorigin(self, self.origin - '0 0 5');
 
     moveAngles = self.origin;
     walkmove(self.angles_y, dist);
@@ -386,9 +386,9 @@ entity(vector org, vector dir) launch_fireball =
     fireball.movetype = MOVETYPE_FLYMISSILE;
     fireball.solid = SOLID_BBOX;
     fireball.classname = "fireball";
-    setmodel (fireball, "progs/fireball.mdl");
-    setorigin (fireball, org);
-    setsize (fireball, '0 0 0', '0 0 0');
+    setmodel(fireball, "progs/fireball.mdl");
+    setorigin(fireball, org);
+    setsize(fireball, '0 0 0', '0 0 0');
 
     fireSpeed = random() * 300 + 900;
     fireball.velocity = dir * fireSpeed;
@@ -645,7 +645,7 @@ void() dragon_death1 = [ $drgdth01, dragon_death2 ]
     makevectors (self.angles);
     self.velocity = 300 * v_forward - 40 * v_up;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.touch = dragon_squish;
 
     sound(self, CHAN_VOICE, "dragon/death.wav", 1, ATTN_NONE);
@@ -767,8 +767,8 @@ void() monster_dragon =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/dragon.mdl");
-    setsize (self, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setmodel(self, "progs/dragon.mdl");
+    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
     self.health = 3000 + (1000 * cvar_hget(cvarh_skill));
 
     self.th_run = dragon_walk1;
@@ -836,6 +836,6 @@ void() dragon_corner =
     self.touch = dragon_corner_touch;
     self.modelindex = 0;
     self.model = "";
-    setsize (self, '-16 -16 -16', '16 16 16');
+    setsize(self, '-16 -16 -16', '16 16 16');
 };
 

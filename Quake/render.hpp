@@ -63,7 +63,7 @@ struct entity_t
 
     entity_state_t baseline; // to fill in defaults in updates
 
-    double msgtime;           // time of last update
+    double msgtime;       // time of last update
     qvec3 msg_origins[2]; // last two updates (0 is newest)
     qvec3 origin;
     qvec3 msg_angles[2]; // last two updates (0 is newest)
@@ -96,7 +96,7 @@ struct entity_t
     short previouspose; // johnfitz -- animation lerping
     short currentpose;  // johnfitz -- animation lerping
     //	short					futurepose;		//johnfitz -- animation lerping
-    float movelerpstart;      // johnfitz -- transform lerping
+    float movelerpstart;  // johnfitz -- transform lerping
     qvec3 previousorigin; // johnfitz -- transform lerping
     qvec3 currentorigin;  // johnfitz -- transform lerping
     qvec3 previousangles; // johnfitz -- transform lerping
@@ -177,11 +177,12 @@ void R_RunParticle2Effect(
     const qvec3& org, const qvec3& dir, int preset, int count);
 void R_RunParticleEffect_BulletPuff(
     const qvec3& org, const qvec3& dir, int color, int count);
+void R_RunParticleEffect_LavaSpike(
+    const qvec3& org, const qvec3& dir, int count);
 void R_RocketTrail(qvec3 start, const qvec3& end, int type);
 void R_EntityParticles(entity_t* ent);
 void R_ParticleExplosion(const qvec3& org);
-void R_ParticleExplosion2(
-    const qvec3& org, int colorStart, int colorLength);
+void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength);
 void R_LavaSplash(const qvec3& org);
 void R_TeleportSplash(const qvec3& org);
 
@@ -191,7 +192,7 @@ struct aliashdr_t;
 struct lerpdata_t;
 
 void R_SetupAliasFrame(
-    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata);
+    entity_t* e, const aliashdr_t& paliashdr, int frame, lerpdata_t* lerpdata);
 
 void R_SetupEntityTransform(entity_t* e, lerpdata_t* lerpdata);
 

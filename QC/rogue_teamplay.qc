@@ -734,7 +734,7 @@ void() TossBackpack =
     item.solid = SOLID_TRIGGER;
     item.movetype = MOVETYPE_BOUNCE;
 
-    setmodel (item, "progs/backpack.mdl");
+    setmodel(item, "progs/backpack.mdl");
     setsize(item, '-16 -16 0', '16 16 56');
     item.touch = BackpackTouch;
     item.nextthink = time + 120;    // remove after 2 minutes
@@ -841,7 +841,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_SUPER_SHOTGUN)
     {
-        setmodel (item, "progs/g_shot.mdl");
+        setmodel(item, "progs/g_shot.mdl");
         item.weapon = IT_SUPER_SHOTGUN;
         item.netname = "Double-barrelled Shotgun";
         item.classname = "weapon_supershotgun";
@@ -850,7 +850,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_NAILGUN || self.weapon == IT_LAVA_NAILGUN)
     {
-        setmodel (item, "progs/g_nail.mdl");
+        setmodel(item, "progs/g_nail.mdl");
         item.weapon = IT_NAILGUN;
         item.netname = "nailgun";
         item.classname = "weapon_nailgun";
@@ -859,7 +859,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_SUPER_NAILGUN || self.weapon == IT_LAVA_SUPER_NAILGUN)
     {
-        setmodel (item, "progs/g_nail2.mdl");
+        setmodel(item, "progs/g_nail2.mdl");
         item.weapon = IT_SUPER_NAILGUN;
         item.netname = "Super Nailgun";
         item.classname = "weapon_supernailgun";
@@ -868,7 +868,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_GRENADE_LAUNCHER || self.weapon == IT_MULTI_GRENADE)
     {
-        setmodel (item, "progs/g_rock.mdl");
+        setmodel(item, "progs/g_rock.mdl");
         item.weapon = IT_GRENADE_LAUNCHER;
         item.netname = "Grenade Launcher";
         item.classname = "weapon_grenadelauncher";
@@ -877,7 +877,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_ROCKET_LAUNCHER || self.weapon == IT_MULTI_ROCKET)
     {
-        setmodel (item, "progs/g_rock2.mdl");
+        setmodel(item, "progs/g_rock2.mdl");
         item.weapon = IT_ROCKET_LAUNCHER;
         item.netname = "Rocket Launcher";
         item.classname = "weapon_rocketlauncher";
@@ -886,7 +886,7 @@ void() TossWeapon =
 
     if(self.weapon == IT_LIGHTNING || self.weapon == IT_PLASMA_GUN)
     {
-        setmodel (item, "progs/g_light.mdl");
+        setmodel(item, "progs/g_light.mdl");
         item.weapon = IT_LIGHTNING;
         item.netname = "Thunderbolt";
         item.classname = "weapon_lightning";
@@ -1399,7 +1399,7 @@ void() TeamFlagThink =
     }
     self.origin = e.origin + '0 0 -16' - f*v + v_right * 22;
     self.angles = e.angles + '0 0 -45';
-    setorigin (self, self.origin);
+    setorigin(self, self.origin);
     self.nextthink = time + 0.01;
 };
 
@@ -1587,7 +1587,7 @@ void(entity flg, string cname) place_flagbase =
     setorigin(self, flg.origin);
     self.angles = flg.angles;
     precache_model ("progs/ctfbase.mdl");
-    setmodel (self, "progs/ctfbase.mdl");
+    setmodel(self, "progs/ctfbase.mdl");
     self.skin = flg.skin;
     self.team = flg.team;
 //    setsize(self, '-8 -8 -4', '8 8 4');
@@ -1644,7 +1644,7 @@ void() item_flag_team1 =
         self.team = TEAM1;
         self.items = IT_KEY2;
         precache_model ("progs/ctfmodel.mdl");
-        setmodel (self, "progs/ctfmodel.mdl");
+        setmodel(self, "progs/ctfmodel.mdl");
         self.skin = 0;
         precache_sound("misc/flagtk.wav");        // flag taken
         precache_sound("misc/flagcap.wav");    // flag capture
@@ -1691,7 +1691,7 @@ void() item_flag_team2 =
         self.team = TEAM2;
         self.items = IT_KEY1;
         precache_model ("progs/ctfmodel.mdl");
-        setmodel (self, "progs/ctfmodel.mdl");
+        setmodel(self, "progs/ctfmodel.mdl");
         self.skin = 1;
         precache_sound("misc/flagtk.wav");        // flag taken
         precache_sound("misc/flagcap.wav");    // flag capture
@@ -1724,9 +1724,9 @@ void() item_flag =
     self.team = 0; // no team
     self.items = IT_KEY1 | IT_KEY2;
 //    precache_model ("progs/flag.mdl");
-//    setmodel (self, "progs/flag.mdl");
+//    setmodel(self, "progs/flag.mdl");
     precache_model ("progs/ctfmodel.mdl");        // PGM 01/18/97
-    setmodel (self, "progs/ctfmodel.mdl");    // PGM 01/18/97
+    setmodel(self, "progs/ctfmodel.mdl");    // PGM 01/18/97
     self.skin = 2;
     precache_sound("misc/flagtk.wav");        // flag taken
     precache_sound("misc/flagcap.wav");    // flag capture
@@ -1890,7 +1890,7 @@ void() func_ctf_wall =
         self.angles = '0 0 0';
         self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
         self.solid = SOLID_BSP;
-        setmodel (self, self.model);
+        setmodel(self, self.model);
     } else
         remove(self);
 };

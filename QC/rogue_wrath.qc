@@ -219,9 +219,9 @@ void() monster_wrath =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/wrath.mdl");
+    setmodel(self, "progs/wrath.mdl");
 
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
 
     self.health = 400;
     self.yaw_speed = 35;
@@ -261,9 +261,9 @@ void(float AttackNumber) WrathMissile =
     missile.owner = self;
     missile.solid = SOLID_BBOX;
     missile.movetype = MOVETYPE_FLYMISSILE;
-    setmodel (missile, "progs/w_ball.mdl");
+    setmodel(missile, "progs/w_ball.mdl");
 
-    setsize (missile, '0 0 0', '0 0 0');
+    setsize(missile, '0 0 0', '0 0 0');
 
     if(AttackNumber == 1)
     {
@@ -283,7 +283,7 @@ void(float AttackNumber) WrathMissile =
         org = self.origin + v_forward*20 + v_up*16;
     }
 
-    setorigin (missile, org);
+    setorigin(missile, org);
     missile.velocity = dir * 400;
     missile.avelocity = '300 300 300';
     missile.enemy = self.enemy;
@@ -336,7 +336,7 @@ void() WrathMissileTouch =
 
     self.velocity = '0 0 0';
     self.touch = SUB_Null;
-    setmodel (self, "progs/s_explod.spr");
+    setmodel(self, "progs/s_explod.spr");
     self.solid = SOLID_NOT;
     s_explode1();
 };

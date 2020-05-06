@@ -35,9 +35,9 @@ void() dog_start =
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
 
-    setmodel (n, "progs/dog.mdl");
+    setmodel(n, "progs/dog.mdl");
 
-    setsize (n, '-32 -32 -24', '32 32 40');
+    setsize(n, '-32 -32 -24', '32 32 40');
 
     self = n;
 

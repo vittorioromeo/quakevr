@@ -86,10 +86,10 @@ void() item_powerup_shield =
     precache_sound("shield/hit.wav");
     precache_sound("shield/fadeout.wav");
     self.noise = "shield/pickup.wav";
-    setmodel (self, "progs/shield.mdl");
+    setmodel(self, "progs/shield.mdl");
     self.netname = "Power Shield";
     self.vr_itemId = IID_SHIELD;
-    setsize (self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 
@@ -105,10 +105,10 @@ void() item_powerup_belt =
     precache_sound("belt/use.wav");
     precache_sound("belt/fadeout.wav");
     self.noise = "belt/pickup.wav";
-    setmodel (self, "progs/beltup.mdl");
+    setmodel(self, "progs/beltup.mdl");
     self.netname = "Anti-Grav Belt";
     self.vr_itemId = IID_ANTIGRAV;
-    setsize (self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-16 -16 -24', '16 16 32');
     StartItem ();
 };
 

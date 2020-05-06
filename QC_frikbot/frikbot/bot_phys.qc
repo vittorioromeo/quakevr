@@ -602,7 +602,7 @@ void() SV_FlyMove =
         }
     }
 
-    setmodel (self.phys_obj, string_null);
+    setmodel(self.phys_obj, string_null);
     self.phys_obj.movetype = MOVETYPE_STEP;
 
     self.phys_obj.solid = SOLID_TRIGGER;

@@ -9,7 +9,7 @@ Default style is 0
 void() light_lantern =
 {
     precache_model ("progs/lantern.mdl");
-    setmodel (self, "progs/lantern.mdl");
+    setmodel(self, "progs/lantern.mdl");
     makestatic (self);
 };
 
@@ -21,7 +21,7 @@ Default style is 0
 void() light_candle =
 {
     precache_model ("progs/candle.mdl");
-    setmodel (self, "progs/candle.mdl");
+    setmodel(self, "progs/candle.mdl");
     makestatic (self);
 };
 
@@ -56,9 +56,9 @@ void() rubble_throw =
     rubble.movetype = MOVETYPE_BOUNCE;
     rubble.solid = SOLID_BBOX;
     rubble.velocity = throw * 300;
-    setmodel (rubble, "progs/rubble.mdl");
-    setsize (rubble, '-16 -16 -16', '16 16 16');
-    setorigin (rubble, self.origin);
+    setmodel(rubble, "progs/rubble.mdl");
+    setsize(rubble, '-16 -16 -16', '16 16 16');
+    setorigin(rubble, self.origin);
     rubble.touch = rubble_touch;
 
     rubble.think = SUB_Remove;
@@ -139,6 +139,6 @@ void() trigger_explosion =
     self.th_die = trigEx_die;
     self.takedamage = DAMAGE_YES;
     self.solid = SOLID_BBOX;
-    setorigin (self, self.origin);    // make sure it links into the world
+    setorigin(self, self.origin);    // make sure it links into the world
 };
 

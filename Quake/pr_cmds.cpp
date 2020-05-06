@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "cvar.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
 #include "util.hpp"
@@ -209,7 +210,7 @@ will not set internal links correctly, so clipping would be messed up.
 This should be called when an object is spawned, and then only if it is
 teleported.
 
-setorigin (entity, origin)
+setorigin(entity, origin)
 =================
 */
 static void PF_setorigin()
@@ -318,7 +319,7 @@ PF_setsize
 
 the size box is rotated by the current angle
 
-setsize (entity, minvector, maxvector)
+setsize(entity, minvector, maxvector)
 =================
 */
 static void PF_setsize()
@@ -1111,11 +1112,7 @@ float cvar (string)
 */
 static void PF_cvar()
 {
-    const char* str;
-
-    str = G_STRING(OFS_PARM0);
-
-    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(str);
+    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(G_STRING(OFS_PARM0));
 }
 
 /*
@@ -1127,14 +1124,34 @@ float cvar (string)
 */
 static void PF_cvar_set()
 {
-    const char* var;
-
-    const char* val;
-
-    var = G_STRING(OFS_PARM0);
-    val = G_STRING(OFS_PARM1);
+    const char* var = G_STRING(OFS_PARM0);
+    const char* val = G_STRING(OFS_PARM1);
 
     Cvar_Set(var, val);
+}
+
+/*
+=================
+PF_cvar_hmake
+
+float cvar_hmake (string)
+=================
+*/
+static void PF_cvar_hmake()
+{
+    G_INT(OFS_RETURN) = Cvar_MakeHandle(G_STRING(OFS_PARM0));
+}
+
+/*
+=================
+PF_cvar_hget
+
+float cvar_hget (float)
+=================
+*/
+static void PF_cvar_hget()
+{
+    G_FLOAT(OFS_RETURN) = Cvar_GetValueFromHandle(G_INT(OFS_PARM0));
 }
 
 /*
@@ -2019,8 +2036,8 @@ static builtin_t pr_builtin[] = {
     PF_makeforward, // #84
     PF_maprange,    // #85
 
-    PF_cvar_hmake,  // #86
-    PF_cvar_hget,   // #87
+    PF_cvar_hmake, // #86
+    PF_cvar_hget,  // #87
 };
 
 builtin_t* pr_builtins = pr_builtin;

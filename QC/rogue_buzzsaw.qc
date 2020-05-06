@@ -29,7 +29,7 @@ void() buzzsaw_fly =
     dir = self.goalentity.origin - self.origin;
     dir = normalize(dir);
     dir = dir * self.speed;
-    setorigin (self, self.origin + dir);
+    setorigin(self, self.origin + dir);
     self.angles_x = self.angles_x - 60;
     self.avelocity_x = 60;
 };
@@ -110,20 +110,20 @@ void() buzzsaw =
     precache_sound("buzz/buzz.wav");
     precache_sound("buzz/buzz1.wav");
 
-    setmodel (self, "progs/buzzsaw.mdl");
+    setmodel(self, "progs/buzzsaw.mdl");
 
     self.takedamage = DAMAGE_NO;
     self.solid = SOLID_TRIGGER;
     self.movetype = MOVETYPE_FLY;
 
     if(self.angles_y == 0 || self.angles_y == 180)
-        setsize (self, '-18 0 -18', '18 0 18');
+        setsize(self, '-18 0 -18', '18 0 18');
     else if(self.angles_y == 90 || self.angles_y == 270)
-        setsize (self, '0 -18 -18', '0 18 18');
+        setsize(self, '0 -18 -18', '0 18 18');
     else
         objerror ("Buzzsaw: Not at 90 degree angle!");
 
-    setorigin (self, self.origin);
+    setorigin(self, self.origin);
 
     if(!self.speed)
         self.speed = 10;

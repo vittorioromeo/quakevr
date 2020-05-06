@@ -25,8 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "cvar.hpp"
 
+#include <vector>
+
 static cvar_t* cvar_vars;
 static char cvar_null_string[] = "";
+static std::vector<cvar_t*> cvar_handles;
 
 //==============================================================================
 //
@@ -247,6 +250,8 @@ void Cvar_Init()
     Cmd_AddCommand("reset", Cvar_Reset_f);
     Cmd_AddCommand("resetall", Cvar_ResetAll_f);
     Cmd_AddCommand("resetcfg", Cvar_ResetCfg_f);
+
+    cvar_handles.reserve(128);
 }
 
 //==============================================================================
@@ -719,4 +724,28 @@ void Cvar_WriteVariables(FILE* f)
             fprintf(f, "%s \"%s\"\n", var->name, var->string);
         }
     }
+}
+
+// VR: CVar handles.
+int Cvar_MakeHandle(const char* var_name)
+{
+    if(cvar_t* var = Cvar_FindVar(var_name))
+    {
+        cvar_handles.emplace_back(var);
+        return cvar_handles.size() - 1;
+    }
+
+    Con_Printf("Attempted to make handle for invalid CVar '%s'\n", var_name);
+    return -1;
+}
+
+float Cvar_GetValueFromHandle(const int handle)
+{
+    if(handle < 0 || handle >= static_cast<int>(cvar_handles.size()))
+    {
+        Con_Printf("Attempted to get CVar from invalid handle '%d'\n", handle);
+        return 0;
+    }
+
+    return cvar_handles[handle]->value;
 }

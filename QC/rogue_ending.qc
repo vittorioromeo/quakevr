@@ -53,7 +53,7 @@ void() ending_for_coop =
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
-    setorigin (self, self.origin + '0 0 48');
+    setorigin(self, self.origin + '0 0 48');
 
     WriteByte (MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "You have destroyed Quake's\nTemporal Teleporter. His assault\non Time has been defeated.");
@@ -126,7 +126,7 @@ void(entity playerEnt) move_camera =
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
-    setorigin (self, cameraPoint.origin);
+    setorigin(self, cameraPoint.origin);
 
     cameraAngle = theActor.origin - self.origin;
     self.angles = vectoangles (cameraAngle);
@@ -174,7 +174,7 @@ void() actor_run =
     {
         pointOne = find(world, targetname, "point1");
         if(pointOne != world)
-            setorigin (self, pointOne.origin);
+            setorigin(self, pointOne.origin);
     }
 
     if(self.goalentity.targetname == "endpoint1")
@@ -330,9 +330,9 @@ void(entity thePlayer) spawn_actor =
     theActor.solid = SOLID_SLIDEBOX;
     theActor.movetype = MOVETYPE_STEP;
     theActor.frame = self.frame;
-    setmodel (theActor, "progs/player.mdl");
-    setorigin (theActor, self.origin);
-    setsize (theActor, VEC_HULL_MIN, VEC_HULL_MAX);
+    setmodel(theActor, "progs/player.mdl");
+    setorigin(theActor, self.origin);
+    setsize(theActor, VEC_HULL_MIN, VEC_HULL_MAX);
     theActor.view_ofs = '0 0 22';
     theActor.angles = self.angles;
     theActor.ideal_yaw = theActor.angles * '0 1 0';
@@ -346,7 +346,7 @@ void(entity thePlayer) spawn_actor =
     {
         pointOne = find(world, targetname, "point1");
         if(pointOne != world)
-            setorigin (theActor, pointOne.origin);
+            setorigin(theActor, pointOne.origin);
     }
 
     theActor.think = actor_control;

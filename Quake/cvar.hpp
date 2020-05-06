@@ -146,4 +146,7 @@ const char* Cvar_CompleteVariable(const char* partial);
 // attempts to match a partial variable name for command line completion
 // returns nullptr if nothing fits
 
+int Cvar_MakeHandle(const char* var_name);
+float Cvar_GetValueFromHandle(const int handle);
+
 #endif /* __CVAR_H__ */

@@ -78,7 +78,7 @@ void() endcam_cutscene =
         other.movetype = MOVETYPE_NONE;
         other.weaponmodel = "";
         other.modelindex = 0;
-        setorigin (other, endcam.origin);
+        setorigin(other, endcam.origin);
 
         other = find(other, classname, "player");
     }
@@ -175,8 +175,8 @@ void() func_slide =
 {
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
 
 
     if(!self.movedir) self.movedir= '128 0 0';
@@ -214,7 +214,7 @@ void() func_slide_repeating_think_first =
 
 void() func_slide_repeating_think =
 {
-    setorigin (self, self.pos1);
+    setorigin(self, self.pos1);
     SUB_CalcMove(self.pos2, 128, func_slide_repeating_done);
 }
 
@@ -246,8 +246,8 @@ void() func_slide_repeating =
     vector org;
     org = self.origin + self.pos1;
 
-    setorigin (self, org);
-    setmodel (self, self.model);
+    setorigin(self, org);
+    setmodel(self, self.model);
 
 
     if(!self.movedir) self.movedir= '128 0 128';
@@ -259,8 +259,8 @@ void() func_slide_repeating =
     self.enemy = spawn();
     self.enemy.owner = self;
 
-    setorigin (self.enemy, org);
-    setmodel (self.enemy, self.model);
+    setorigin(self.enemy, org);
+    setmodel(self.enemy, self.model);
     self.enemy.movedir = self.movedir;
     self.enemy.speed = self.speed;
 

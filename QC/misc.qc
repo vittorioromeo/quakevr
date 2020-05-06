@@ -565,8 +565,8 @@ void() make_bubbles =
     // HONEY
     bubble.owner = self;
 
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.origin);
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
 
@@ -580,7 +580,7 @@ void() make_bubbles =
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+    setsize(bubble, '-8 -8 -8', '8 8 8');
 
     // HONEY
     self.nextthink = time + self.owner.waitmin + random();
@@ -597,8 +597,8 @@ void() bubble_split =
     // HONEY
     bubble.owner = self.owner;
 
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.origin);
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.origin);
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
 
@@ -616,7 +616,7 @@ void() bubble_split =
 
     // HONEY
     self.cnt = bubble.cnt = self.owner.count * 0.5;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+    setsize(bubble, '-8 -8 -8', '8 8 8');
 
     // HONEY
     bubble_bob();

@@ -167,9 +167,9 @@ void() monster_sword =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/sword.mdl");
+    setmodel(self, "progs/sword.mdl");
 
-    setsize (self, '-16 -16 -24', '16 16 40');
+    setsize(self, '-16 -16 -24', '16 16 40');
     self.health = 150;  // 75;
 
     if(!self.delay)

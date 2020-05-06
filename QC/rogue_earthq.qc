@@ -63,7 +63,7 @@ void() earthquake =
     earthquake_active = 0;
     earthquake_intensity = self.weapon * 0.5;
 
-    setsize (self, '0 0 0', '0 0 0');
+    setsize(self, '0 0 0', '0 0 0');
     self.think = stop_earthquake;
     self.nextthink = time + 1;
 };

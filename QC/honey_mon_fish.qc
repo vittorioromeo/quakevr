@@ -35,9 +35,9 @@ void() fish_start =
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
 
-    setmodel (n, "progs/fish.mdl");
+    setmodel(n, "progs/fish.mdl");
 
-    setsize (n, '-16 -16 -24', '16 16 24');
+    setsize(n, '-16 -16 -24', '16 16 24');
 
     self = n;
     teleport_glitter();

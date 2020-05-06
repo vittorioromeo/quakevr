@@ -126,9 +126,9 @@ void() sphere_spawn =
     missile.owner = other;
     missile.weapon = 0;
     missile.delay = time + 30;
-    setmodel (missile, "progs/sphere.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, self.origin);
+    setmodel(missile, "progs/sphere.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, self.origin);
     missile.avelocity = '40 40 40';
     missile.think = sphere_think;
     missile.nextthink = time + 0.1;
@@ -152,8 +152,8 @@ void() item_sphere =
     self.netname = "Vengeance Sphere";
     self.touch = newitems_touch;
 
-    setmodel (self, "progs/sphere.mdl");
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setmodel(self, "progs/sphere.mdl");
+    setsize(self, '-8 -8 -8', '8 8 8');
     self.avelocity = '40 40 40';
     StartItem ();
 };

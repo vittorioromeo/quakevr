@@ -251,7 +251,7 @@ void() plat2_spawn_inside_trigger =
         tmax_y = tmin_y + 1;
     }
 
-    setsize (trigger, tmin, tmax);
+    setsize(trigger, tmin, tmax);
 };
 
 void() plat2_hit_top =
@@ -481,9 +481,9 @@ local float negativeHeight;
     self.classname = "plat";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
 
     if(!self.speed)
         self.speed = 150;
@@ -515,7 +515,7 @@ local float negativeHeight;
         if(negativeHeight == 1)
         {
             self.state = STATE_BOTTOM;
-            setorigin (self, self.pos2);
+            setorigin(self, self.pos2);
         }
         else
             self.state = STATE_TOP;
@@ -529,7 +529,7 @@ local float negativeHeight;
         self.blocked = toggle_crush;
         if(negativeHeight == 1)
         {
-            setorigin (self, self.pos2);
+            setorigin(self, self.pos2);
             self.state = STATE_BOTTOM;
         }
         else
@@ -578,7 +578,7 @@ local float negativeHeight;
             self.state = STATE_BOTTOM;
             // make sure START_AT_TOP isn't set. We need that...
             self.spawnflags = PLAT2;
-            setorigin (self, self.pos2);
+            setorigin(self, self.pos2);
         }
         else
         {

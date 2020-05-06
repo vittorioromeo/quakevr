@@ -35,9 +35,9 @@ void() shambler_start =
 
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
-    setmodel (n, "progs/shambler.mdl");
+    setmodel(n, "progs/shambler.mdl");
 
-    setsize (n, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setsize(n, VEC_HULL2_MIN, VEC_HULL2_MAX);
 
     self = n;
     teleport_glitter();

@@ -432,9 +432,9 @@ void(entity theMorph) morph_setup =
     theMorph.frame = $start01;
 
 
-    setmodel (theMorph, theMorph.model);
+    setmodel(theMorph, theMorph.model);
 
-    setsize (theMorph, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(theMorph, VEC_HULL_MIN, VEC_HULL_MAX);
 
     theMorph.th_stand = morph_stand1;
     theMorph.th_walk = morph_walk1;
@@ -517,7 +517,7 @@ void() morph_teleport =
     theChild.mangle = theDest.mangle;
     theChild.classname = "monster_morph";
     morph_setup (theChild);
-    setorigin (theChild, theDest.origin);
+    setorigin(theChild, theDest.origin);
     droptofloor();
 
     theChild.think = morph_wake1;

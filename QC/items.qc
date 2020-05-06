@@ -817,13 +817,13 @@ void() item_lava_spikes =
     if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_lnail1.bsp");
-        setmodel (self, "maps/b_lnail1.bsp");
+        setmodel(self, "maps/b_lnail1.bsp");
         self.aflag = 50;
     }
     else
     {
         precache_model ("maps/b_lnail0.bsp");
-        setmodel (self, "maps/b_lnail0.bsp");
+        setmodel(self, "maps/b_lnail0.bsp");
         self.aflag = 25;
     }
 
@@ -832,7 +832,7 @@ void() item_lava_spikes =
     self.classname = "item_lava_nails";
 
     if(deathmatch == 1) { self.wait = 30; }
-    setsize (self, '0 0 0', '32 32 56');
+    setsize(self, '0 0 0', '32 32 56');
     StartItem ();
 };
 
@@ -878,13 +878,13 @@ void() item_multi_rockets =
     if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_mrock1.bsp");
-        setmodel (self, "maps/b_mrock1.bsp");
+        setmodel(self, "maps/b_mrock1.bsp");
         self.aflag = 10;
     }
     else
     {
         precache_model ("maps/b_mrock0.bsp");
-        setmodel (self, "maps/b_mrock0.bsp");
+        setmodel(self, "maps/b_mrock0.bsp");
         self.aflag = 5;
     }
 
@@ -893,7 +893,7 @@ void() item_multi_rockets =
     self.classname = "item_multi_rockets";
 
     if(deathmatch == 1) { self.wait = 30; }
-    setsize (self, '0 0 0', '32 32 56');
+    setsize(self, '0 0 0', '32 32 56');
     StartItem ();
 };
 
@@ -937,13 +937,13 @@ void() item_plasma =
     if(self.spawnflags & WEAPON_BIG2)
     {
         precache_model ("maps/b_plas1.bsp");
-        setmodel (self, "maps/b_plas1.bsp");
+        setmodel(self, "maps/b_plas1.bsp");
         self.aflag = 12;
     }
     else
     {
         precache_model ("maps/b_plas0.bsp");
-        setmodel (self, "maps/b_plas0.bsp");
+        setmodel(self, "maps/b_plas0.bsp");
         self.aflag = 6;
     }
 
@@ -952,7 +952,7 @@ void() item_plasma =
     self.classname = "item_plasma";
 
     if(deathmatch == 1) { self.wait = 30; }
-    setsize (self, '0 0 0', '32 32 56');
+    setsize(self, '0 0 0', '32 32 56');
     StartItem ();
 };
 

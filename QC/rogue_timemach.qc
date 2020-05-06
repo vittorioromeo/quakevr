@@ -14,7 +14,7 @@ void() time_chunk =
     timeChunk.solid = SOLID_NOT;
     timeChunk.movetype = MOVETYPE_TOSS;
     makevectors (self.owner.angles);
-    setorigin (timeChunk, self.owner.origin + v_forward*84 - v_up * 136);
+    setorigin(timeChunk, self.owner.origin + v_forward*84 - v_up * 136);
     timeChunk.velocity = v_up * -50;
     timeChunk.avelocity = '300 300 300';
     timeChunk.angles = self.owner.angles;
@@ -125,7 +125,7 @@ void() time_crash_impl =
     self.solid = SOLID_NOT;
     self.velocity = '0 0 -50';
     self.avelocity = '15 0 5';
-    setsize (self, '0 0 0', '0 0 0');
+    setsize(self, '0 0 0', '0 0 0');
     self.think = time_fall;
     self.nextthink = time + 0.1;
 

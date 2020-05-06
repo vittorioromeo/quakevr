@@ -34,9 +34,9 @@ void() knight_start =
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
 
-    setmodel (n, "progs/knight.mdl");
+    setmodel(n, "progs/knight.mdl");
 
-    setsize (n, '-16 -16 -24', '16 16 40');
+    setsize(n, '-16 -16 -24', '16 16 40');
 
     self = n;
     teleport_glitter();

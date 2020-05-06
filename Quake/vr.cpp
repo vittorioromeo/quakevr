@@ -1849,7 +1849,7 @@ void SetHandPos(int index, entity_t* player)
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     lerpdata_t lerpdata;
-    R_SetupAliasFrame(anchor, anchorHdr, anchor->frame, &lerpdata);
+    R_SetupAliasFrame(anchor, *anchorHdr, anchor->frame, &lerpdata);
     R_SetupEntityTransform(
         anchor, &lerpdata); // TODO VR: (P0) probably not needed
 
@@ -2859,7 +2859,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
         const auto gunLength = glm::distance(holdingHandPos, muzzlePos);
 
         // Bias is needed because muzzle now moves with the gun animation.
-        const auto bias = 6._qf;
+        const auto bias = 7.5_qf;
 
         return glm::distance(holdingHandPos, helpingHandPos) <=
                gunLength + bias;
@@ -3791,10 +3791,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
     if(inMenu())
     {
-        doMenuKeyEventWithHaptic(K_ENTER, inpJump);
-        doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
-        doMenuKeyEventWithHaptic(K_LEFTARROW, inpNextWeaponOffHand);
-        doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeaponMainHand);
+
 
         const auto doAxis = [&](const int axis, const auto& inp,
                                 const int quakeKeyNeg, const int quakeKeyPos) {
@@ -3830,9 +3827,6 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             }
         };
 
-        doAxis(1 /* Y axis */, inpLocomotion, K_UPARROW, K_DOWNARROW);
-        doAxis(0 /* X axis */, inpTurn, K_RIGHTARROW, K_LEFTARROW);
-
         const auto doBooleanInput = [&](const auto& inp, const int quakeKey) {
             if(inp.bChanged)
             {
@@ -3845,8 +3839,19 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             }
         };
 
-        doBooleanInput(inpBMoveForward, K_UPARROW);
-        doBooleanInput(inpBMoveBackward, K_DOWNARROW);
+        if(vr_fakevr.value == 0)
+        {
+            doMenuKeyEventWithHaptic(K_ENTER, inpJump);
+            doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
+            doMenuKeyEventWithHaptic(K_LEFTARROW, inpNextWeaponOffHand);
+            doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeaponMainHand);
+
+            doAxis(1 /* Y axis */, inpLocomotion, K_UPARROW, K_DOWNARROW);
+            doAxis(0 /* X axis */, inpTurn, K_RIGHTARROW, K_LEFTARROW);
+
+            doBooleanInput(inpBMoveForward, K_UPARROW);
+            doBooleanInput(inpBMoveBackward, K_DOWNARROW);
+        }
     }
     else
     {

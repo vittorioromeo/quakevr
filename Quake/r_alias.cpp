@@ -313,13 +313,143 @@ void GL_DrawAliasFrame_GLSL(aliashdr_t* paliashdr, lerpdata_t lerpdata,
     rs_aliaspasses += paliashdr->numtris;
 }
 
+// TODO VR: (P0) test
+void GL_DrawBlendedAliasFrame(
+    const aliashdr_t* paliashdr, lerpdata_t lerpdata, lerpdata_t zeroLerpdata)
+{
+    trivertx_t* verts1;
+    trivertx_t* verts2;
+
+    float blend;
+
+    float iblend;
+    bool lerping;
+
+    if(lerpdata.pose1 != lerpdata.pose2)
+    {
+        lerping = true;
+        verts1 = (trivertx_t*)((byte*)paliashdr + paliashdr->posedata);
+        verts2 = verts1;
+        verts1 += lerpdata.pose1 * paliashdr->poseverts;
+        verts2 += lerpdata.pose2 * paliashdr->poseverts;
+        blend = lerpdata.blend;
+        iblend = 1.0f - blend;
+    }
+    else // poses the same means either 1. the entity has paused its animation,
+         // or 2. r_lerpmodels is disabled
+    {
+        lerping = false;
+        verts1 = (trivertx_t*)((byte*)paliashdr + paliashdr->posedata);
+        verts2 = verts1; // avoid bogus compiler warning
+        verts1 += lerpdata.pose1 * paliashdr->poseverts;
+        blend = iblend = 0; // avoid bogus compiler warning
+    }
+
+    int* commands = (int*)((byte*)paliashdr + paliashdr->commands);
+
+    float vertcolor[4];
+    vertcolor[3] = entalpha; // never changes, so there's no need to put this
+                             // inside the loop
+
+    while(true)
+    {
+        // get the vertex count and primitive type
+        int count = *commands++;
+        if(!count)
+        {
+            break; // done
+        }
+
+        if(count < 0)
+        {
+            count = -count;
+            glBegin(GL_TRIANGLE_FAN);
+        }
+        else
+        {
+            glBegin(GL_TRIANGLE_STRIP);
+        }
+
+        do
+        {
+            float u = ((float*)commands)[0];
+            float v = ((float*)commands)[1];
+            if(mtexenabled)
+            {
+                GL_MTexCoord2fFunc(GL_TEXTURE0_ARB, u, v);
+                GL_MTexCoord2fFunc(GL_TEXTURE1_ARB, u, v);
+            }
+            else
+            {
+                glTexCoord2f(u, v);
+            }
+
+            commands += 2;
+
+            if(shading)
+            {
+                if(r_drawflat_cheatsafe)
+                {
+                    srand(count * (unsigned int)(src_offset_t)commands);
+                    glColor3f(rand() % 256 / 255.0, rand() % 256 / 255.0,
+                        rand() % 256 / 255.0);
+                }
+                else if(lerping)
+                {
+                    vertcolor[0] =
+                        (shadedots[verts1->lightnormalindex] * iblend +
+                            shadedots[verts2->lightnormalindex] * blend) *
+                        lightcolor[0];
+                    vertcolor[1] =
+                        (shadedots[verts1->lightnormalindex] * iblend +
+                            shadedots[verts2->lightnormalindex] * blend) *
+                        lightcolor[1];
+                    vertcolor[2] =
+                        (shadedots[verts1->lightnormalindex] * iblend +
+                            shadedots[verts2->lightnormalindex] * blend) *
+                        lightcolor[2];
+                    glColor4fv(vertcolor);
+                }
+                else
+                {
+                    vertcolor[0] =
+                        shadedots[verts1->lightnormalindex] * lightcolor[0];
+                    vertcolor[1] =
+                        shadedots[verts1->lightnormalindex] * lightcolor[1];
+                    vertcolor[2] =
+                        shadedots[verts1->lightnormalindex] * lightcolor[2];
+                    glColor4fv(vertcolor);
+                }
+            }
+
+            if(lerping)
+            {
+                glVertex3f(verts1->v[0] * iblend + verts2->v[0] * blend,
+                    verts1->v[1] * iblend + verts2->v[1] * blend,
+                    verts1->v[2] * iblend + verts2->v[2] * blend);
+                verts1++;
+                verts2++;
+            }
+            else
+            {
+                glVertex3f(verts1->v[0], verts1->v[1], verts1->v[2]);
+                verts1++;
+            }
+        } while(--count);
+
+        glEnd();
+    }
+
+    rs_aliaspasses += paliashdr->numtris;
+}
+
 /*
 =============
 GL_DrawAliasFrame -- johnfitz -- rewritten to support colored light, lerping,
 entalpha, multitexture, and r_drawflat
 =============
 */
-void GL_DrawAliasFrame(aliashdr_t* paliashdr, lerpdata_t lerpdata)
+void GL_DrawAliasFrame(const aliashdr_t* paliashdr, lerpdata_t lerpdata)
 {
     trivertx_t* verts1;
     trivertx_t* verts2;
@@ -453,21 +583,21 @@ R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
 void R_SetupAliasFrame(
-    entity_t* e, aliashdr_t* paliashdr, int frame, lerpdata_t* lerpdata)
+    entity_t* e, const aliashdr_t& paliashdr, int frame, lerpdata_t* lerpdata)
 {
-    if((frame >= paliashdr->numframes) || (frame < 0))
+    if((frame >= paliashdr.numframes) || (frame < 0))
     {
         Con_DPrintf("R_AliasSetupFrame: no such frame %d for '%s'\n", frame,
             e->model->name);
         frame = 0;
     }
 
-    int posenum = paliashdr->frames[frame].firstpose;
-    const int numposes = paliashdr->frames[frame].numposes;
+    int posenum = paliashdr.frames[frame].firstpose;
+    const int numposes = paliashdr.frames[frame].numposes;
 
     if(numposes > 1)
     {
-        e->lerptime = paliashdr->frames[frame].interval;
+        e->lerptime = paliashdr.frames[frame].interval;
         posenum += (int)(cl.time / e->lerptime) % numposes;
     }
     else
@@ -707,7 +837,7 @@ void R_DrawAliasModel(entity_t* e)
     //
     aliashdr_t* paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
     lerpdata_t lerpdata;
-    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, *paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     //
@@ -860,7 +990,8 @@ void R_DrawAliasModel(entity_t* e)
     }
     // call fast path if possible. if the shader compliation failed for some
     // reason, r_alias_program will be 0.
-    else if(r_alias_program != 0)
+    // TODO VR: (P0) test, restore?
+    else if(false && r_alias_program != 0)
     {
         GL_DrawAliasFrame_GLSL(paliashdr, lerpdata, tx, fb);
     }
@@ -1055,7 +1186,7 @@ void GL_DrawAliasShadow(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, *paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
     R_LightPoint(e->origin);
     lheight = currententity->origin[2] - lightspot[2];
@@ -1105,7 +1236,7 @@ void R_DrawAliasModel_ShowTris(entity_t* e)
     }
 
     paliashdr = (aliashdr_t*)Mod_Extradata(e->model);
-    R_SetupAliasFrame(e, paliashdr, e->frame, &lerpdata);
+    R_SetupAliasFrame(e, *paliashdr, e->frame, &lerpdata);
     R_SetupEntityTransform(e, &lerpdata);
 
     glPushMatrix();

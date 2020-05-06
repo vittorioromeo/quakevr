@@ -37,8 +37,8 @@ void() ogre_start =
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
 
-    setmodel (n, n.wad);
-    setsize (n, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setmodel(n, n.wad);
+    setsize(n, VEC_HULL2_MIN, VEC_HULL2_MAX);
 
     self = n;
     ogre_spawncrown();

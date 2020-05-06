@@ -252,7 +252,7 @@ void(entity sknight) sknight_setup_spears =
         spear.flags = SPEAR_STATE_PARENTED;
 
         setmodel(spear, "progs/spear.mdl");
-        setsize (spear, '-1 -1 -34', '1 1 37');
+        setsize(spear, '-1 -1 -34', '1 1 37');
 
 
 //        ang = '0 0 0';
@@ -356,9 +356,9 @@ void() monster_sknight =
         flymonster_start();
     }
 
-    setmodel (self, "progs/hknight.mdl");
+    setmodel(self, "progs/hknight.mdl");
 
-    setsize (self, '-16 -16 -24', '16 16 40');
+    setsize(self, '-16 -16 -24', '16 16 40');
 
 
 };

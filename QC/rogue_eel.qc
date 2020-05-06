@@ -144,7 +144,7 @@ void() eel_death16 =[    $eeldth10,    eel_death16    ] {self.solid = SOLID_NOT;
 void() eel_death =
 {
     self.flags = self.flags + FL_SWIM;
-    setsize (self, '0 0 0', '0 0 0');
+    setsize(self, '0 0 0', '0 0 0');
 
 //    self.skin = 1;        // change to bloody eel skin!
     if(self.health < -12)
@@ -209,9 +209,9 @@ void() monster_eel =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/eel2.mdl");
+    setmodel(self, "progs/eel2.mdl");
 
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.health = 60;
 
     self.th_stand = eel_stand1;

@@ -185,9 +185,9 @@ void(vector st) mummyFireGrenade =
     missile.nextthink = time + 2.5;
     missile.think = SUB_Remove;
 
-    setmodel (missile, "progs/zom_gib.mdl");
-    setsize (missile, '0 0 0', '0 0 0');
-    setorigin (missile, org);
+    setmodel(missile, "progs/zom_gib.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, org);
 };
 
 
@@ -360,7 +360,7 @@ void() mummy_paine12   =[  $paine12,   mummy_paine13  ]
     {
         // see if ok to stand up
         sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
-        setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+        setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
         self.solid = SOLID_SLIDEBOX;
         if(!walkmove(0, 0))
         {
@@ -478,9 +478,9 @@ void() monster_mummy =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/mummy.mdl");
+    setmodel(self, "progs/mummy.mdl");
 
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
     if(self.spawnflags & MUMMY_STRONG)
         self.health = 1000;
     else
@@ -495,7 +495,7 @@ void() monster_mummy =
 
     if(self.spawnflags & SPAWN_LYING)
     {
-        setsize (self, '-16 -16 -24', '16 16 -16');
+        setsize(self, '-16 -16 -24', '16 16 -16');
         self.solid = SOLID_NOT;
         self.th_stand = mummy_sleep;
         self.th_run = mummy_wake;
