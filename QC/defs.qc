@@ -264,7 +264,7 @@ void  end_sys_globals; // Flag for structure dumping.
 
 .vector v_viewangle;
 
-#include "vr_fields.qc"
+#include "vr_sys_fields.qc"
 
 //
 //
@@ -621,8 +621,8 @@ float skill;
 // QuakeED fields
 // ----------------------------------------------------------------------------
 
-.float        light_lev;        // not used by game, but parsed by light util
-.float        style;
+.float light_lev;        // not used by game, but parsed by light util
+.float style;
 
 //
 //
@@ -790,5 +790,21 @@ float AS_MISSILE  = 4;
 .float waitmin, waitmax;
 .float distance;
 .float volume;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Other non-system fields
+// ----------------------------------------------------------------------------
+
+#include "vr_fields.qc"
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Builtins
+// ----------------------------------------------------------------------------
 
 #include "builtins.qc"

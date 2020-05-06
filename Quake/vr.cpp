@@ -1,4 +1,5 @@
 #include "console.hpp"
+#include "cvar.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
@@ -1210,6 +1211,12 @@ static void VR_InitActionHandles()
 
 bool VR_Enable()
 {
+    if(COM_CheckParm("-novr"))
+    {
+        Cvar_SetValueQuick(&vr_fakevr, 1);
+        Cvar_SetValueQuick(&vr_novrinit, 1);
+    }
+
     if(vr_fakevr.value && vr_novrinit.value)
     {
         return true;
@@ -2937,27 +2944,26 @@ static void VR_FakeVRControllerAiming()
     cl.handpos[cVR_OffHand] =
         playerOrigin + vfwd * 4.5_qf - vright * 4.5_qf + vup * 6._qf;
 
-    const auto [mainang, offang] = [&, vup = vup, vfwd = vfwd, vwfwd = vwfwd] {
-        if(svPlayerActive())
+    const auto [mainang, offang] = [&, vup = vup, vwfwd = vwfwd] {
+        if(!svPlayerActive())
         {
-            const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
-                playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
-                getPlayerEdict());
-
-            const auto maindir =
-                glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
-
-            const auto offdir =
-                glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
-
-            const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
-            const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
-
-            return std::tuple{mainang, offang};
+            return std::tuple{cl.viewangles, cl.viewangles};
         }
 
-        const auto a = pitchYawRollFromDirectionVector(vup, vfwd);
-        return std::tuple{a, a};
+        const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
+            playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
+            getPlayerEdict());
+
+        const auto maindir =
+            glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
+
+        const auto offdir =
+            glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
+
+        const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
+        const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
+
+        return std::tuple{mainang, offang};
     }();
 
     cl.handrot[cVR_MainHand] = mainang;
@@ -4199,7 +4205,10 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
 // the future Frikbot could be added its a pretty straightforward add to QuakeC"
 
-// TODO VR: (P1): Spoike: "may I make a suggestion? stop using progs.dat use a
+// TODO VR: (P1) Spoike: "may I make a suggestion? stop using progs.dat use a
 // different filename instead, considering you're mutually incompatible and all
 // then you don't have to worry about the progs.dat in the hipnotic/rogue
 // subdirs taking precidence."
+
+// TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
+// goes down

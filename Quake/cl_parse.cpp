@@ -633,7 +633,7 @@ void CL_ParseUpdate(int bits)
     };
 
     // TODO VR: (P1) remove, this should be set only when scale changes
-    bits |= U_SCALE;
+    // bits |= U_SCALE;
 
     // clang-format off
     doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);
@@ -1076,30 +1076,33 @@ void CL_ParseClientdata()
     // TODO VR: (P2) weapon ids in holsters - not sure what this todo is
     // checking, need to check what is being sent. I think model strings are
     // being sent and used as keys...
-    cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+    if(bits & SU_VR_HOLSTERS)
+    {
+        cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS5] = MSG_ReadByte();
+    }
 
     // TODO VR: (P2) some data is sent twice, can optimize for MP
     cl.stats[STAT_MAINHAND_WID] = MSG_ReadByte();
     cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
     cl.stats[STAT_WEAPONFLAGS] = MSG_ReadByte();
     cl.stats[STAT_WEAPONFLAGS2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS0] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS1] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS3] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS4] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONFLAGS5] = MSG_ReadByte();
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of
