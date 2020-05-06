@@ -116,3 +116,6 @@ float(float a, float b) min = #82;
 float(float a, float b) max = #83;
 void(vector ang) makeforward = #84;        // sets v_forward
 float(float input, float inputmin, float inputMax, float outputMin, float outputMax) maprange = #85;        // sets v_forward
+
+float(string s) cvar_hmake = #86;
+float(float h) cvar_hget = #87;

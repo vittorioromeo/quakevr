@@ -2018,6 +2018,9 @@ static builtin_t pr_builtin[] = {
     PF_max,         // #83
     PF_makeforward, // #84
     PF_maprange,    // #85
+
+    PF_cvar_hmake,  // #86
+    PF_cvar_hget,   // #87
 };
 
 builtin_t* pr_builtins = pr_builtin;
