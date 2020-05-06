@@ -5,56 +5,45 @@
 // CVar Handle Variables
 // ----------------------------------------------------------------------------
 
-string cvarh_deathmatch;
-string cvarh_fraglimit;
-string cvarh_gamecfg;
-string cvarh_noexit;
-string cvarh_registered;
-string cvarh_samelevel;
-string cvarh_skill;
-string cvarh_sv_aim;
-string cvarh_teamplay;
-string cvarh_temp1;
-string cvarh_timelimit;
-string cvarh_v_ipitch_level;
-string cvarh_v_iroll_level;
-string cvarh_v_iyaw_level;
-string cvarh_vr_ammobox_drops_chance_mult;
-string cvarh_vr_ammobox_drops;
-string cvarh_vr_body_interactions;
-string cvarh_vr_enabled;
-string cvarh_vr_enemy_drops_chance_mult;
-string cvarh_vr_enemy_drops;
-string cvarh_vr_fakevr;
-string cvarh_vr_forcegrab_eligible_haptics;
-string cvarh_vr_forcegrab_eligible_particles;
-string cvarh_vr_forcegrab_mode;
-string cvarh_vr_forcegrab_powermult;
-string cvarh_vr_forcegrab_radius;
-string cvarh_vr_forcegrab_range;
-string cvarh_vr_holster_haptics;
-string cvarh_vr_holster_mode;
-string cvarh_vr_melee_bloodlust;
-string cvarh_vr_melee_dmg_multiplier;
-string cvarh_vr_melee_range_multiplier;
-string cvarh_vr_melee_threshold;
-string cvarh_vr_positional_damage;
-string cvarh_vr_weapon_cycle_mode;
-string cvarh_vr_weapon_throw_damage_mult;
-string cvarh_vr_weapon_throw_mode;
-string cvarh_vr_weapon_throw_velocity_mult;
-string cvarh_vr_weapondrop_particles;
-
-// TODO VR: (P0) builtin
-/*string(string xCvarName) cvar_hmake =
-{
-    return xCvarName;
-}
-
-float(string xCvarName) cvar_hget =
-{
-    return cvar(xCvarName);
-}*/
+float cvarh_deathmatch;
+float cvarh_fraglimit;
+float cvarh_gamecfg;
+float cvarh_noexit;
+float cvarh_registered;
+float cvarh_samelevel;
+float cvarh_skill;
+float cvarh_sv_aim;
+float cvarh_teamplay;
+float cvarh_temp1;
+float cvarh_timelimit;
+float cvarh_v_ipitch_level;
+float cvarh_v_iroll_level;
+float cvarh_v_iyaw_level;
+float cvarh_vr_ammobox_drops_chance_mult;
+float cvarh_vr_ammobox_drops;
+float cvarh_vr_body_interactions;
+float cvarh_vr_enabled;
+float cvarh_vr_enemy_drops_chance_mult;
+float cvarh_vr_enemy_drops;
+float cvarh_vr_fakevr;
+float cvarh_vr_forcegrab_eligible_haptics;
+float cvarh_vr_forcegrab_eligible_particles;
+float cvarh_vr_forcegrab_mode;
+float cvarh_vr_forcegrab_powermult;
+float cvarh_vr_forcegrab_radius;
+float cvarh_vr_forcegrab_range;
+float cvarh_vr_holster_haptics;
+float cvarh_vr_holster_mode;
+float cvarh_vr_melee_bloodlust;
+float cvarh_vr_melee_dmg_multiplier;
+float cvarh_vr_melee_range_multiplier;
+float cvarh_vr_melee_threshold;
+float cvarh_vr_positional_damage;
+float cvarh_vr_weapon_cycle_mode;
+float cvarh_vr_weapon_throw_damage_mult;
+float cvarh_vr_weapon_throw_mode;
+float cvarh_vr_weapon_throw_velocity_mult;
+float cvarh_vr_weapondrop_particles;
 
 //
 //

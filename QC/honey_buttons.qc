@@ -8,7 +8,7 @@ void(entity but) button_disable =
     but.frame = 1;			// use alternate textures
     but.velocity = '0 0 0';
     but.takedamage = DAMAGE_NO;
-    setorigin (but, but.pos2);
+    setorigin(but, but.pos2);
 };
 
 void(entity but) button_enable =
@@ -22,7 +22,7 @@ void(entity but) button_enable =
         but.takedamage = DAMAGE_YES;
         but.health = but.max_health;
     }
-    setorigin (but, but.pos1);
+    setorigin(but, but.pos1);
 };
 
 void() trigger_buttonenabler_enable =

@@ -36,9 +36,9 @@ void() demon1_start =
     n.solid = SOLID_SLIDEBOX;
     n.movetype = MOVETYPE_STEP;
 
-    setmodel (n, "progs/demon.mdl");
+    setmodel(n, "progs/demon.mdl");
 
-    setsize (n, VEC_HULL2_MIN, VEC_HULL2_MAX);
+    setsize(n, VEC_HULL2_MIN, VEC_HULL2_MAX);
 
     self = n;
     teleport_glitter();

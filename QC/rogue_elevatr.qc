@@ -124,7 +124,7 @@ local float        gtemp, ftemp;
 
     self.movetype = MOVETYPE_PUSH;
     self.solid = SOLID_BSP;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 
     self.blocked = elvtr_button_blocked;
     self.use = elvtr_button_use;

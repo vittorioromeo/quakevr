@@ -423,7 +423,7 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
     droptofloor();
     self.health = 60;
     sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.solid = SOLID_SLIDEBOX;
     if(!walkmove(0, 0))
     {
@@ -544,7 +544,7 @@ void() zombie_wake =
 
 //    paine12 will handle setting solid, just make the size box correct.
 //    self.solid = SOLID_SLIDEBOX;
-//    setsize (self, '-16 -16 -24', '16 16 40');
+//    setsize(self, '-16 -16 -24', '16 16 40');
 
     zombie_paine12();
 };
@@ -565,13 +565,13 @@ void() zombie_escape13=[$cruc_13, zombie_escape14] {self.nextthink=time+0.10;};
 void() zombie_escape14=[$cruc_14, zombie_escape15]
 {
     makevectors (self.angles);
-    setorigin (self, self.origin + v_forward * 8);
+    setorigin(self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };
 void() zombie_escape15=[ $cruc_15, zombie_escape16]
 {
     makevectors (self.angles);
-    setorigin (self, self.origin + v_forward * 8);
+    setorigin(self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };
 void() zombie_escape16 = [ $cruc_16, zombie_run1 ]
@@ -701,7 +701,7 @@ void() monster_zombie =
         self.th_walk = zombie_wake;
         self.th_pain = asPainFn(zombie_wake);
         self.th_missile = zombie_wake;
-        setsize (self, '-16 -16 -24', '16 16 -16');
+        setsize(self, '-16 -16 -24', '16 16 -16');
 
         // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
         if(self.spawnflags & SPAWN_AMBUSH)

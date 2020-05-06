@@ -1539,6 +1539,31 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
                 break;
             }
+
+            case 7: // mini rocket trail
+            {
+                makeNParticles(ptxCircle, 2, [&](particle_t& p) {
+                    R_SetRTCommon(p);
+                    R_SetRTRocketTrail(start, p);
+                });
+
+                makeNParticles(ptxSmoke, 1, [&](particle_t& p) {
+                    p.alpha = 55;
+                    p.die = cl.time + 1.2 * (rand() % 5);
+                    p.color = rand() & 7;
+                    p.scale = rnd(0.05f, 0.23f);
+                    p.type = pt_txsmoke;
+                    setAccGrav(p, -0.09f);
+
+                    for(int j = 0; j < 3; j++)
+                    {
+                        p.org[j] = start[j] + ((rand() & 4) - 2);
+                        p.vel[j] = rnd(-18, 18);
+                    }
+                });
+
+                break;
+            }
         }
 
         start += vec;

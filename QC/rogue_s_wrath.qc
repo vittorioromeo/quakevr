@@ -195,7 +195,7 @@ void() overlord_teleport =
     spawn_tfog (org);
     spawn_tdeath(theDest.origin, self);
 
-    setorigin (self, theDest.origin);
+    setorigin(self, theDest.origin);
     self.flags = self.flags - self.flags & FL_ONGROUND;
 };
 // =======================================================
@@ -527,9 +527,9 @@ void() monster_super_wrath =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_STEP;
 
-    setmodel (self, "progs/s_wrath.mdl");
+    setmodel(self, "progs/s_wrath.mdl");
 
-    setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+    setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
 
     self.health = 1000;
     self.pain_finished = 0;

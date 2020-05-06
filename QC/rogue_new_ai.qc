@@ -24,7 +24,7 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
     traceline (self.origin, destEnt.origin + offset, TRUE, world);
     if(trace_fraction < 1)
     {
-        setorigin (self, destEnt.origin + offset);
+        setorigin(self, destEnt.origin + offset);
         self.orbitPosition = self.orbitPosition + 1;
         return;
     }
@@ -96,8 +96,8 @@ void(string gibname, float dm) AccelerateGib =
 
     new = spawn();
     new.origin = self.origin;
-    setmodel (new, gibname);
-    setsize (new, '-8 -8 -8', '8 8 8');
+    setmodel(new, gibname);
+    setsize(new, '-8 -8 -8', '8 8 8');
 
     new.velocity = -1.25 * self.velocity;
     makevectors (new.velocity);
@@ -136,8 +136,8 @@ entity(string gibname) StartGib =
 
     new = spawn();
     new.origin = self.origin;
-    setmodel (new, gibname);
-    setsize (new, '0 0 0', '0 0 0');
+    setmodel(new, gibname);
+    setsize(new, '0 0 0', '0 0 0');
 
     new.movetype = MOVETYPE_BOUNCE;
     new.solid = SOLID_NOT;

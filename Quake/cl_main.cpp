@@ -654,7 +654,7 @@ void CL_RelinkEntities()
         }
         else if(ent->model->flags & EF_TRACER)
         {
-            R_RocketTrail(oldorg, ent->origin, 3) /* tracer */;
+            R_RocketTrail(oldorg, ent->origin, 3 /* tracer */);
         }
         else if(ent->model->flags & EF_TRACER2)
         {
@@ -662,11 +662,22 @@ void CL_RelinkEntities()
         }
         else if(ent->model->flags & EF_ROCKET)
         {
-            R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
-            dl = CL_AllocDlight(i);
-            dl->origin = ent->origin;
-            dl->radius = 200;
-            dl->die = cl.time + 0.01;
+            if(ent->effects & EF_MINIROCKET)
+            {
+                R_RocketTrail(oldorg, ent->origin, 7 /* mini rocket trail */);
+                dl = CL_AllocDlight(i);
+                dl->origin = ent->origin;
+                dl->radius = 70;
+                dl->die = cl.time + 0.01;
+            }
+            else
+            {
+                R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
+                dl = CL_AllocDlight(i);
+                dl->origin = ent->origin;
+                dl->radius = 200;
+                dl->die = cl.time + 0.01;
+            }
         }
         else if(ent->model->flags & EF_GRENADE)
         {
@@ -675,6 +686,11 @@ void CL_RelinkEntities()
         else if(ent->model->flags & EF_TRACER3)
         {
             R_RocketTrail(oldorg, ent->origin, 6 /* voor trail */);
+        }
+
+        if(ent->effects & EF_LAVATRAIL)
+        {
+            R_RunParticleEffect_LavaSpike(ent->origin, vec3_zero, 4);
         }
 
         ent->forcelink = false;

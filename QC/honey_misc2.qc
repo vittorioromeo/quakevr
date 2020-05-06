@@ -35,7 +35,7 @@
 void() misc_tree =
 {
     precache_model ("progs/tree1.mdl");
-    setmodel (self, "progs/tree1.mdl");
+    setmodel(self, "progs/tree1.mdl");
 
     makestatic(self);
 }
@@ -198,7 +198,7 @@ void() func_refwall =
     }
 
     self.use = func_wall_use;
-    setmodel (self, myModel);
+    setmodel(self, myModel);
     setorigin(self, self.origin);
 }
 
@@ -730,8 +730,8 @@ void() func_door_temp =
 
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
     self.classname = "door_temp";
     self.spawnflags = self.spawnflags & DOOR_START_OPEN; //Clear all but this one
     self.spawnflags = self.spawnflags | DOOR_TRIGGER_ON_END; //Add this one
@@ -759,7 +759,7 @@ void() func_door_temp =
 // but spawn in the open position
     if (self.spawnflags & DOOR_START_OPEN)
     {
-        setorigin (self, self.pos2);
+        setorigin(self, self.pos2);
         self.pos2 = self.pos1;
         self.pos1 = self.origin;
     }
@@ -988,9 +988,9 @@ void() ghost =
     self.th_die = SUB_Null;
     self.th_pain = SUB_NullPain;
 
-    setorigin (self, self.origin);
+    setorigin(self, self.origin);
     self.oldorigin = self.origin;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 
     self.dest = (self.mins + self.maxs) * 0.5;
     self.dest_z = self.dest_z - 15;
@@ -1058,7 +1058,7 @@ void() func_pump =
     self.think = func_pump_think;
     self.blocked = func_pump_blocked;
     self.use = func_pump_use;
-    setmodel (self, self.model);
+    setmodel(self, self.model);
 
     if(!self.pos2) self.pos2 = '0 0 20';
     if(!self.speed) self.speed = 12.75;

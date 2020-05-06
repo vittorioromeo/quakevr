@@ -16,13 +16,13 @@ void() random_pick_type =
     randItem = random();
 
     self.touch = powerup_touch;
-    setsize (self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-16 -16 -24', '16 16 32');
 
     if(randItem < 0.2)
     {
         self.touch = newitems_touch;
         self.noise = "shield/pickup.wav";
-        setmodel (self, "progs/shield.mdl");
+        setmodel(self, "progs/shield.mdl");
         self.netname = "Power Shield";
         self.vr_itemId = IID_SHIELD;
     }
@@ -30,14 +30,14 @@ void() random_pick_type =
     {
         self.touch = newitems_touch;
         self.noise = "belt/pickup.wav";
-        setmodel (self, "progs/beltup.mdl");
+        setmodel(self, "progs/beltup.mdl");
         self.netname = "Anti-Grav Belt";
         self.vr_itemId = IID_ANTIGRAV;
     }
     else if(randItem < 0.6)
     {
         self.noise = "items/protect.wav";
-        setmodel (self, "progs/invulner.mdl");
+        setmodel(self, "progs/invulner.mdl");
         self.classname = "item_artifact_invulnerability";
         self.netname = "Pentagram of Protection";
         self.vr_itemId = IID_INVULNERABILITY;
@@ -45,7 +45,7 @@ void() random_pick_type =
     else if(randItem < 0.8)
     {
         self.noise = "items/inv1.wav";
-        setmodel (self, "progs/invisibl.mdl");
+        setmodel(self, "progs/invisibl.mdl");
         self.classname = "item_artifact_invisibility";
         self.netname = "Ring of Shadows";
         self.vr_itemId = IID_INVISIBILITY;
@@ -53,7 +53,7 @@ void() random_pick_type =
     else
     {
         self.noise = "items/damage.wav";
-        setmodel (self, "progs/quaddama.mdl");
+        setmodel(self, "progs/quaddama.mdl");
         self.classname = "item_artifact_super_damage";
         self.netname = "Quad Damage";
         self.vr_itemId = IID_QUAD;

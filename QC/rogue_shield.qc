@@ -19,7 +19,7 @@ void() shield_think =
     }
     else
     {
-        setorigin (self, self.owner.origin);
+        setorigin(self, self.owner.origin);
         self.v_angle = self.owner.v_angle;
         self.angles = self.owner.angles;
     }
@@ -54,9 +54,9 @@ void(entity shieldOwner, vector dir) shield_spawn =
 
     newShield.v_angle = shieldOwner.v_angle;
     newShield.angles = shieldOwner.angles;
-    setorigin (newShield, shieldOwner.origin);
-    setmodel (newShield, "progs/p_shield.mdl");
-    setsize (newShield, '0 0 0', '0 0 0');
+    setorigin(newShield, shieldOwner.origin);
+    setmodel(newShield, "progs/p_shield.mdl");
+    setsize(newShield, '0 0 0', '0 0 0');
 
     newShield.nextthink = time + 0.1;
     newShield.think = shield_think;

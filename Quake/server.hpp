@@ -177,12 +177,15 @@ typedef struct client_s
 // clang-format on
 
 // entity effects
-
-#define EF_BRIGHTFIELD 1
-#define EF_MUZZLEFLASH 2
-#define EF_BRIGHTLIGHT 4
-#define EF_DIMLIGHT 8
-#define EF_VERYDIMLIGHT 16
+// clang-format off
+#define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
+#define EF_MUZZLEFLASH  VRUTIL_POWER_OF_TWO(1)
+#define EF_BRIGHTLIGHT  VRUTIL_POWER_OF_TWO(2)
+#define EF_DIMLIGHT     VRUTIL_POWER_OF_TWO(3)
+#define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
+#define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
+#define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
+// clang-format on
 
 #define SPAWNFLAG_NOT_EASY 256
 #define SPAWNFLAG_NOT_MEDIUM 512

@@ -65,7 +65,7 @@ void() tag_token_think =
             self.tag_message_time = time + 30;
         }
 
-        setorigin (self, self.owner.origin + '0 0 48');
+        setorigin(self, self.owner.origin + '0 0 48');
         self.think = tag_token_think;
         self.nextthink = time + 0.1;
     }
@@ -113,7 +113,7 @@ void() dmatch_tag_token =
     precache_sound("runes/end1.wav");
     setmodel(self, "progs/sphere.mdl");
     self.skin = 1;
-    setsize (self, '-16 -16 -16', '16 16 16');
+    setsize(self, '-16 -16 -16', '16 16 16');
     self.touch = tag_token_touch;
     self.effects = self.effects | EF_DIMLIGHT;
     StartItem();

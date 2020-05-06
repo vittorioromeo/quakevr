@@ -300,6 +300,9 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
     missile.frame = frameNum;
     missile.touch = MultiRocketTouch;
 
+    // VR: The engine uses this to draw smaller rocket trails.
+    missile.effects = missile.effects | EF_MINIROCKET;
+
     if(deathmatch || coop)
     {
         setmodel(missile, "progs/rockup_d.mdl");
@@ -507,7 +510,7 @@ void() PlasmaThink =
     self.nextthink = time + 0.01;
 
     particle2(self.origin, '0 0 0', 3 /* lightning preset */, 25);
-    particle2(self.origin, '0 0 0', 5 /* sparks preset */, 6);
+    particle2(self.origin, '0 0 0', 5 /* sparks preset */, 3);
 
     if(time >= self.lip)
     {
@@ -557,7 +560,7 @@ void(vector org, vector dir) launch_plasma =
     missile.nextthink = time + 0.1;
 
     particle2(missile.origin, '0 0 0', 3 /* lightning preset */, 25);
-    particle2(missile.origin, '0 0 0', 5 /* sparks preset */, 6);
+    particle2(missile.origin, '0 0 0', 5 /* sparks preset */, 3);
 };
 
 void(float xHand) W_FirePlasma =
