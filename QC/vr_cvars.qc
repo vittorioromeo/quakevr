@@ -46,7 +46,7 @@ string cvarh_vr_weapon_throw_velocity_mult;
 string cvarh_vr_weapondrop_particles;
 
 // TODO VR: (P0) builtin
-string(string xCvarName) cvar_hmake =
+/*string(string xCvarName) cvar_hmake =
 {
     return xCvarName;
 }
@@ -54,7 +54,7 @@ string(string xCvarName) cvar_hmake =
 float(string xCvarName) cvar_hget =
 {
     return cvar(xCvarName);
-}
+}*/
 
 //
 //
