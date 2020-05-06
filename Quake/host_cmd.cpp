@@ -1259,20 +1259,6 @@ Host_Loadgame_f
 */
 void Host_Loadgame_f()
 {
-    static char* start;
-
-    char name[MAX_OSPATH];
-    char mapname[MAX_QPATH];
-    float time;
-
-    float tfloat;
-    const char* data;
-    int i;
-    edict_t* ent;
-    int entnum;
-    int version;
-    float spawn_parms[NUM_SPAWN_PARMS];
-
     if(cmd_source != src_command)
     {
         return;
@@ -1292,6 +1278,7 @@ void Host_Loadgame_f()
 
     cls.demonum = -1; // stop demo loop in case this fails
 
+    char name[MAX_OSPATH];
     q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
     COM_AddExtension(name, ".sav", sizeof(name));
 
@@ -1302,6 +1289,7 @@ void Host_Loadgame_f()
     Con_Printf("Loading game from %s...\n", name);
 
     // avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+    static char* start;
     if(start != nullptr)
     {
         free(start);
@@ -1314,8 +1302,12 @@ void Host_Loadgame_f()
         return;
     }
 
+    const char* data;
     data = start;
+
+    int version;
     data = COM_ParseIntNewline(data, &version);
+
     if(version != SAVEGAME_VERSION)
     {
         free(start);
@@ -1324,19 +1316,27 @@ void Host_Loadgame_f()
             "Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
         return;
     }
+
+    float spawn_parms[NUM_SPAWN_PARMS];
     data = COM_ParseStringNewline(data);
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         data = COM_ParseFloatNewline(data, &spawn_parms[i]);
     }
+
     // this silliness is so we can load 1.06 save files, which have float skill
     // values
+    float tfloat;
     data = COM_ParseFloatNewline(data, &tfloat);
     current_skill = (int)(tfloat + 0.1);
     Cvar_SetValue("skill", (float)current_skill);
 
     data = COM_ParseStringNewline(data);
+
+    char mapname[MAX_QPATH];
     q_strlcpy(mapname, com_token, sizeof(mapname));
+
+    float time;
     data = COM_ParseFloatNewline(data, &time);
 
     CL_Disconnect_f();
@@ -1355,14 +1355,14 @@ void Host_Loadgame_f()
 
     // load the light styles
 
-    for(i = 0; i < MAX_LIGHTSTYLES; i++)
+    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
     {
         data = COM_ParseStringNewline(data);
         sv.lightstyles[i] = (const char*)Hunk_Strdup(com_token, "lightstyles");
     }
 
     // load the edicts out of the savegame file
-    entnum = -1; // -1 is the globals
+    int entnum = -1; // -1 is the globals
     while(*data)
     {
         data = COM_Parse(data);
@@ -1383,7 +1383,7 @@ void Host_Loadgame_f()
         else
         {
             // parse an edict
-            ent = EDICT_NUM(entnum);
+            edict_t* ent = EDICT_NUM(entnum);
             if(entnum < sv.num_edicts)
             {
                 ent->free = false;
@@ -1411,7 +1411,7 @@ void Host_Loadgame_f()
     free(start);
     start = nullptr;
 
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
@@ -1421,6 +1421,9 @@ void Host_Loadgame_f()
         CL_EstablishConnection("local");
         Host_Reconnect_f();
     }
+
+    Con_Printf("OnSpawnServer QC 2\n");
+    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
 }
 
 //============================================================================

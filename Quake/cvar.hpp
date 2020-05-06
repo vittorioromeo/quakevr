@@ -148,5 +148,6 @@ const char* Cvar_CompleteVariable(const char* partial);
 
 int Cvar_MakeHandle(const char* var_name);
 float Cvar_GetValueFromHandle(const int handle);
+void Cvar_ClearAllHandles();
 
 #endif /* __CVAR_H__ */

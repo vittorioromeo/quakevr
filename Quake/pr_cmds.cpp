@@ -1156,6 +1156,18 @@ static void PF_cvar_hget()
 
 /*
 =================
+PF_cvar_hclear
+
+void cvar_hclear ()
+=================
+*/
+static void PF_cvar_hclear()
+{
+    Cvar_ClearAllHandles();
+}
+
+/*
+=================
 PF_findradius
 
 Returns a chain of entities that have origins within a spherical area
@@ -2036,8 +2048,9 @@ static builtin_t pr_builtin[] = {
     PF_makeforward, // #84
     PF_maprange,    // #85
 
-    PF_cvar_hmake, // #86
-    PF_cvar_hget,  // #87
+    PF_cvar_hmake,  // #86
+    PF_cvar_hget,   // #87
+    PF_cvar_hclear, // #88
 };
 
 builtin_t* pr_builtins = pr_builtin;

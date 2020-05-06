@@ -54,6 +54,8 @@ float cvarh_vr_weapondrop_particles;
 
 void() VR_CVars_InitAllHandles =
 {
+    cvar_hclear();
+
     cvarh_deathmatch = cvar_hmake("deathmatch");
     cvarh_fraglimit = cvar_hmake("fraglimit");
     cvarh_gamecfg = cvar_hmake("gamecfg");
