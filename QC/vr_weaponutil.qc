@@ -7,12 +7,12 @@
 
 float() VR_WeaponUtil_Impl_GetEnemyDrops =
 {
-    return cvar("vr_enemy_drops");
+    return cvar_hget(cvarh_vr_enemy_drops);
 }
 
 float() VR_WeaponUtil_Impl_GetAmmoBoxDrops =
 {
-    return cvar("vr_ammobox_drops");
+    return cvar_hget(cvarh_vr_ammobox_drops);
 }
 
 //
@@ -96,7 +96,7 @@ float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
     eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
                (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    chance = xChance * cvar("vr_enemy_drops_chance_mult");
+    chance = xChance * cvar_hget(cvarh_vr_enemy_drops_chance_mult);
 
     roll = random();
 
@@ -123,7 +123,7 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
                (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    chance = xChance * cvar("vr_ammobox_drops_chance_mult");
+    chance = xChance * cvar_hget(cvarh_vr_ammobox_drops_chance_mult);
 
     roll = random();
 

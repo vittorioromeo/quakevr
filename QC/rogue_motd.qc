@@ -62,7 +62,7 @@ void() CheckMOTD =
 void() SetMOTD =
 {
     self.motd_time = time + 3;
-    if( teamplay == 3 )
+    if(teamplay == 3)
         self.motd_count = 2;
     else
         self.motd_count = 0;

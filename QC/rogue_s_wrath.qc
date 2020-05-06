@@ -44,7 +44,7 @@ float(entity thePoint) isSpawnPointEmpty =
     local entity    neighbors;
     local entity    start;
 
-    neighbors = findradius ( thePoint.origin, 64 );
+    neighbors = findradius (thePoint.origin, 64);
     if(neighbors == world)
         return 1;
 
@@ -95,8 +95,8 @@ entity() overlord_find_dest3 =
 
     while (1)
     {
-        curDest = find ( curDest, classname, "info_overlord_destination");
-        if( curDest == world )
+        curDest = find(curDest, classname, "info_overlord_destination");
+        if(curDest == world)
         {
             if(bestDest != world)
                 return bestDest;
@@ -107,10 +107,10 @@ entity() overlord_find_dest3 =
         if(isSpawnPointEmpty(curDest))
         {
             curVector = curDest.origin - thePlayer.origin;
-            curDist = vlen ( curVector );
-            curVector = normalize (curVector);
+            curDist = vlen(curVector);
+            curVector = normalize(curVector);
             dot = curVector * v_forward;
-            if( dot > 0.6 )
+            if(dot > 0.6)
             {
                 if(curDist > 150)
                 {
@@ -118,7 +118,7 @@ entity() overlord_find_dest3 =
                 }
             }
 
-            if(curDist > theDist )
+            if(curDist > theDist)
             {
                     furthestDest = curDest;
                     theDist = curDist;
@@ -137,15 +137,15 @@ entity() overlord_find_dest =
     local entity    curDest, lastDest;
     local float     loopCount;
 
-    curDest = find ( world, classname, "info_overlord_destination");
+    curDest = find(world, classname, "info_overlord_destination");
     if(curDest != world)
     {
         lastDest = curDest;
         loopCount = random()*5;
         while (loopCount > 1)
         {
-            curDest = nextent ( curDest );
-            curDest = find ( curDest, classname, "info_overlord_destination");
+            curDest = nextent (curDest);
+            curDest = find(curDest, classname, "info_overlord_destination");
             if(curDest != world)
             {
                 if(isSpawnPointEmpty(curDest))
@@ -299,10 +299,10 @@ void() overlord_smash =
 
     smashDmg = 20 + random () * 10;
 
-    sound (self, CHAN_WEAPON, "s_wrath/smash.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "s_wrath/smash.wav", 1, ATTN_NORM);
     T_Damage (self.enemy, self, self, smashDmg);
-    delta = normalize (self.enemy.origin - self.origin + self.enemy.view_ofs);
-    SpawnBlood ( self.enemy.origin - delta * 30, delta * -100, smashDmg);
+    delta = normalize(self.enemy.origin - self.origin + self.enemy.view_ofs);
+    SpawnBlood (self.enemy.origin - delta * 30, delta * -100, smashDmg);
 };
 
 void() overlord_melee =
@@ -313,15 +313,15 @@ void() overlord_melee =
 
     if(r < 0.33)
     {
-        overlord_at_a01 ();
+        overlord_at_a01();
     }
     else if(r < 0.66)
     {
-        overlord_at_b01 ();
+        overlord_at_b01();
     }
     else
     {
-        overlord_at_c01 ();
+        overlord_at_c01();
     }
 };
 
@@ -384,12 +384,12 @@ void(entity attacker, float damage) overlord_pain =
         return;
 
     if(r < 0.15)
-        overlord_pn_a01 ();
+        overlord_pn_a01();
     else
-        overlord_pn_b01 ();
+        overlord_pn_b01();
 
     self.pain_finished = time + 2;
-    sound (self, CHAN_VOICE, "wrath/wpain.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "wrath/wpain.wav", 1, ATTN_NORM);
 };
 
 void(string gibName) ol_toss =
@@ -515,11 +515,11 @@ void() monster_super_wrath =
     precache_model ("progs/wrthgib3.mdl");
 
     precache_model ("progs/w_ball.mdl");
-    precache_sound ("wrath/wsee.wav");
-    precache_sound ("wrath/watt.wav");
-    precache_sound ("wrath/wpain.wav");
-    precache_sound ("wrath/wdthc.wav");
-    precache_sound ("s_wrath/smash.wav");
+    precache_sound("wrath/wsee.wav");
+    precache_sound("wrath/watt.wav");
+    precache_sound("wrath/wpain.wav");
+    precache_sound("wrath/wdthc.wav");
+    precache_sound("s_wrath/smash.wav");
 
     // HONEY
     monster_add_to_counter();

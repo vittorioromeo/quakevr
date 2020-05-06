@@ -441,7 +441,7 @@ void(float dist) gremlin_run =
                 self.attack_state = AS_STRAIGHT;
                 return;
             }
-            else if(walkmove (self.angles_y, dist) == FALSE)
+            else if(walkmove(self.angles_y, dist) == FALSE)
             {
                 self.gorging = FALSE;
                 return;
@@ -1358,7 +1358,7 @@ void() Gremlin_FireLightningGun =
    org = self.origin + '0 0 16';
 
     dir = self.enemy.origin + '0 0 16' - org;
-    dir = normalize (dir);
+    dir = normalize(dir);
    dir = normalize(self.enemy.origin - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
@@ -1619,7 +1619,7 @@ void(float side) Gremlin_Melee =
 
     ai_face();
 
-    // walkmove (self.ideal_yaw, 12);   // allow a little closing
+    // walkmove(self.ideal_yaw, 12);   // allow a little closing
 
     delta = self.enemy.origin - self.origin;
 
@@ -1706,7 +1706,7 @@ void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damag
     }
 
     // team play damage avoidance
-    if((teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )
+    if((teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team))
     {
         return;
     }
@@ -1809,7 +1809,7 @@ void(float side)  Gremlin_Gorge =
     local entity temp;
 
     // ai_face();
-    // walkmove (self.ideal_yaw, 6);   // allow a little closing
+    // walkmove(self.ideal_yaw, 6);   // allow a little closing
 
     delta = self.enemy.origin - self.origin;
     // self.enemy.takedamage = DAMAGE_YES;
@@ -1890,7 +1890,7 @@ void() Gremlin_JumpTouch =
     /*
     if(other.takedamage)
     {
-        if(vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400)
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);

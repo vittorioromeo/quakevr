@@ -40,7 +40,7 @@ void() item_spawn =
 {
     self.use = SUB_Null;
     self.model = self.mdl;
-    setmodel( self, self.model);
+    setmodel(self, self.model);
 
     self.solid = SOLID_TRIGGER;
     self.handtouch = self.th_pain;

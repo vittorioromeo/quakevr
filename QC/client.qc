@@ -61,7 +61,7 @@ void() SetChangeParms =
 
     // ROGUE
     // Don't carry items between levels in CTF
-    teamplay = cvar("teamplay");
+    teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay >= TEAM_CTF)
     {
         SetNewParms();
@@ -119,6 +119,11 @@ void() SetChangeParms =
     parm29 = self.holsterweaponflags4;
     parm30 = self.holsterweaponflags5;
 };
+
+void() OnSpawnServer =
+{
+    VR_CVars_InitAllHandles();
+}
 
 void() SetNewParms =
 {
@@ -277,27 +282,27 @@ entity() FindIntermission =
     local    float cyc;
 
 // look for info_intermission first
-    spot = find (world, classname, "info_intermission");
+    spot = find(world, classname, "info_intermission");
     if(spot)
     {    // pick a random one
         cyc = random() * 4;
         while(cyc > 1)
         {
-            spot = find (spot, classname, "info_intermission");
+            spot = find(spot, classname, "info_intermission");
             if(!spot)
-                spot = find (spot, classname, "info_intermission");
+                spot = find(spot, classname, "info_intermission");
             cyc = cyc - 1;
         }
         return spot;
     }
 
 // then look for the start position
-    spot = find (world, classname, "info_player_start");
+    spot = find(world, classname, "info_player_start");
     if(spot)
         return spot;
 
 // testinfo_player_start is only found in regioned levels
-    spot = find (world, classname, "testplayerstart");
+    spot = find(world, classname, "testplayerstart");
     if(spot)
         return spot;
 
@@ -310,7 +315,7 @@ entity() FindIntermission =
 string nextmap;
 void() GotoNextMap =
 {
-    if(cvar("samelevel"))    // if samelevel is set, stay on same level
+    if(cvar_hget(cvarh_samelevel))    // if samelevel is set, stay on same level
         changelevel (mapname);
     else
         changelevel (nextmap);
@@ -337,7 +342,7 @@ void() ExitIntermission =
             WriteByte(MSG_ALL, SVC_CDTRACK);
             WriteByte(MSG_ALL, 2);
             WriteByte(MSG_ALL, 3);
-            if(!cvar("registered"))
+            if(!cvar_hget(cvarh_registered))
             {
                 WriteByte(MSG_ALL, SVC_FINALE);
                 WriteString(MSG_ALL, "As the corpse of the monstrous entity\nChthon sinks back into the lava whence\nit rose, you grip the Rune of Earth\nMagic tightly. Now that you have\nconquered the Dimension of the Doomed,\nrealm of Earth Magic, you are ready to\ncomplete your task in the other three\nhaunted lands of Quake. Or are you? If\nyou don't register Quake, you'll never\nknow what awaits you in the Realm of\nBlack Magic, the Netherworld, and the\nElder World!");
@@ -388,7 +393,7 @@ void() ExitIntermission =
             WriteByte(MSG_ALL, 3);
             WriteByte(MSG_ALL, SVC_FINALE);
 
-            WriteString(MSG_ALL, "Deep within the bowels of the\nResearch Facility, you discover the\npassage that the followers of Quake\nhave used to enter our world.\nThe bastards used some type of\ngigantic teleporter to overload\none of our own slipgates!  As long as\nthis portal exists, Earth will never\nbe safe from Quake's cruel minions." );
+            WriteString(MSG_ALL, "Deep within the bowels of the\nResearch Facility, you discover the\npassage that the followers of Quake\nhave used to enter our world.\nThe bastards used some type of\ngigantic teleporter to overload\none of our own slipgates!  As long as\nthis portal exists, Earth will never\nbe safe from Quake's cruel minions.");
             return;
         }
         else if(world.model == "maps/hip2m5.bsp")
@@ -398,7 +403,7 @@ void() ExitIntermission =
             WriteByte(MSG_ALL, 3);
 
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "After destroying the power generator,\nyou pass beyond the gate of Mortum's\nKeep.  A wave of nausea suddenly flows\nover you and you find yourself cast\nout into a liquid void.  You float\nlifelessly, yet aware, in a lavender\nsea of energy." );
+            WriteString(MSG_ALL, "After destroying the power generator,\nyou pass beyond the gate of Mortum's\nKeep.  A wave of nausea suddenly flows\nover you and you find yourself cast\nout into a liquid void.  You float\nlifelessly, yet aware, in a lavender\nsea of energy.");
             return;
         }
         else if(world.model == "maps/hipend.bsp")
@@ -408,7 +413,7 @@ void() ExitIntermission =
             WriteByte(MSG_ALL, 3);
 
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "After the last echoes of Armagon's\ndeath yell fade away, you breathe a\nheavy sigh of relief.  With the loss\nof his magic, Armagon's fortress\nbegins to collapse.  The rift he\ncreated to send his grisly troops\nthrough time slowly closes and seals\nitself forever.  In the chaos that\nensues, a wall collapses, revealing\none remaining time portal.  With your\nchances to escape rapidly growing\nslim, you race for the portal,\nmindless of your destination.  In a\nflash of light, you find yourself\nback at Command HQ, safe and sound." );
+            WriteString(MSG_ALL, "After the last echoes of Armagon's\ndeath yell fade away, you breathe a\nheavy sigh of relief.  With the loss\nof his magic, Armagon's fortress\nbegins to collapse.  The rift he\ncreated to send his grisly troops\nthrough time slowly closes and seals\nitself forever.  In the chaos that\nensues, a wall collapses, revealing\none remaining time portal.  With your\nchances to escape rapidly growing\nslim, you race for the portal,\nmindless of your destination.  In a\nflash of light, you find yourself\nback at Command HQ, safe and sound.");
             return;
         }
 
@@ -425,7 +430,7 @@ void() ExitIntermission =
 
     if(intermission_running == 3)
     {
-        if(!cvar("registered"))
+        if(!cvar_hget(cvarh_registered))
         {    // shareware episode has been completed, go to sell screen
             WriteByte(MSG_ALL, SVC_SELLSCREEN);
             return;
@@ -442,19 +447,19 @@ void() ExitIntermission =
         if(world.model == "maps/hip1m4.bsp")
         {
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake." );
+            WriteString(MSG_ALL, "If you can find the source of the\nportal's power, you can shut it\ndown--possibly forever!  With only a\nmoment's consideration for your own\nsafety, you re-enter the dark domain,\nknowing Hell would be a better fate\nthan experiencing the reign of Quake.");
             return;
         }
         else if(world.model == "maps/hip2m5.bsp")
         {
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "After what seems like an eternity,\nyou feel the presence of a diabolical\nintelligence.  You are held helpless\nfor a moment as your mind is open to\nthat of Armagon--Quake's General and\nmaster of this realm.  Recognizing\nyou as the one who foiled his\nattempt to conquer Earth, a hellish\nhowl fills your mind and blots out\nall consciousness.  When you awake,\nyou find yourself on the shores of\nreality, but in a time and place\nunknown to you." );
+            WriteString(MSG_ALL, "After what seems like an eternity,\nyou feel the presence of a diabolical\nintelligence.  You are held helpless\nfor a moment as your mind is open to\nthat of Armagon--Quake's General and\nmaster of this realm.  Recognizing\nyou as the one who foiled his\nattempt to conquer Earth, a hellish\nhowl fills your mind and blots out\nall consciousness.  When you awake,\nyou find yourself on the shores of\nreality, but in a time and place\nunknown to you.");
             return;
         }
         else if(world.model == "maps/hipend.bsp")
         {
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "Congratulations!  You are victorious!\nThe minions of Quake have once again\nfallen before your mighty hand.\nIs this the last you will see of\nQuake's hellions?\n\nOnly time will tell..." );
+            WriteString(MSG_ALL, "Congratulations!  You are victorious!\nThe minions of Quake have once again\nfallen before your mighty hand.\nIs this the last you will see of\nQuake's hellions?\n\nOnly time will tell...");
             intermission_exittime = time + 10000000;  // never allow exit
             return;
         }
@@ -510,7 +515,7 @@ void() execute_changelevel =
         }
     }
 
-    other = find (world, classname, "player");
+    other = find(world, classname, "player");
     while(other != world)
     {
         other.view_ofs = '0 0 0';
@@ -528,7 +533,7 @@ void() execute_changelevel =
             fog_setOverrideConditional(other, fogsettings.view_ofs, fogsettings.ideal_yaw, 1);
         }
 
-        other = find (other, classname, "player");
+        other = find(other, classname, "player");
     }
 
     WriteByte(MSG_ALL, SVC_INTERMISSION);
@@ -540,7 +545,10 @@ void() changelevel_touch =
     if(other.classname != "player")
         return;
 
-    if((cvar("noexit") == 1) || ((cvar("noexit") == 2) && (mapname != "start")))
+    local float noexit;
+    noexit = cvar_hget(cvarh_noexit);
+
+    if((noexit == 1) || ((noexit == 2) && (mapname != "start")))
     {
         T_Damage (other, self, self, 50000);
         return;
@@ -556,7 +564,7 @@ void() changelevel_touch =
 
     SUB_UseTargets();
 
-    if((self.spawnflags & 1) && (deathmatch == 0) )
+    if((self.spawnflags & 1) && (deathmatch == 0))
     {    // NO_INTERMISSION
         GotoNextMap();
         return;
@@ -713,7 +721,7 @@ entity() SelectSpawnPoint =
 
 
 // testinfo_player_start is only found in regioned levels
-    spot = find (world, classname, "testplayerstart");
+    spot = find(world, classname, "testplayerstart");
     if(spot)
         return spot;
 
@@ -722,7 +730,7 @@ entity() SelectSpawnPoint =
     {
         lastspawn = find(lastspawn, classname, "info_player_coop");
         if(lastspawn == world)
-            lastspawn = find (lastspawn, classname, "info_player_start");
+            lastspawn = find(lastspawn, classname, "info_player_start");
         if(lastspawn != world)
             return lastspawn;
     }
@@ -805,12 +813,12 @@ entity() SelectSpawnPoint =
 
     if(serverflags)
     {    // return with a rune to start
-        spot = find (world, classname, "info_player_start2");
+        spot = find(world, classname, "info_player_start2");
         if(spot)
             return spot;
     }
 
-    spot = find (world, classname, "info_player_start");
+    spot = find(world, classname, "info_player_start");
 
     if(!spot)
     {
@@ -919,8 +927,8 @@ void() PutClientInServer =
 
     self.velocity = '0 0 0';    // 1998-07-21 Player moves after respawn fix by Xian
 
-    player_stand1 (cVR_MainHand);
-    player_stand1 (cVR_OffHand);
+    player_stand1(cVR_MainHand);
+    player_stand1(cVR_OffHand);
 
     if(deathmatch || coop)
     {
@@ -1040,7 +1048,7 @@ void() NextLevel =
 
     if(mapname == "start")
     {
-        if(!cvar("registered"))
+        if(!cvar_hget(cvarh_registered))
         {
             mapname = "e1m1";
         }
@@ -1107,8 +1115,8 @@ void() CheckRules =
     if(gameover)    // someone else quit the game already
         return;
 
-    timelimit = cvar("timelimit") * 60;
-    fraglimit = cvar("fraglimit");
+    timelimit = cvar_hget(cvarh_timelimit) * 60;
+    fraglimit = cvar_hget(cvarh_fraglimit);
 
     if(deathmatch && timelimit && time >= timelimit)    // 1998-07-27 Timelimit/Fraglimit fix by Maddes
     {
@@ -1136,7 +1144,7 @@ void() PlayerDeathThink =
 
     if((self.flags & FL_ONGROUND))
     {
-        forward = vlen (self.velocity);
+        forward = vlen(self.velocity);
         forward = forward - 20;
         if(forward <= 0)
             self.velocity = '0 0 0';
@@ -1194,7 +1202,7 @@ void() PlayerJump =
     if(!(self.flags & FL_ONGROUND))
         return;
 
-    if(!(self.flags & FL_JUMPRELEASED) )
+    if(!(self.flags & FL_JUMPRELEASED))
         return;        // don't pogo stick
 
     self.flags = self.flags - (self.flags & FL_JUMPRELEASED);
@@ -1277,7 +1285,7 @@ void() WaterMove =
         }
     }
 
-    if(!(self.flags & FL_INWATER) )
+    if(!(self.flags & FL_INWATER))
     {
 
 // player enter water sound
@@ -1293,7 +1301,7 @@ void() WaterMove =
         self.dmgtime = 0;
     }
 
-    if(! (self.flags & FL_WATERJUMP) )
+    if(! (self.flags & FL_WATERJUMP))
         self.velocity = self.velocity - 0.8*self.waterlevel*frametime*self.velocity;
 };
 
@@ -1412,8 +1420,8 @@ void() PlayerPreThink =
 
     //JIM
    // Kill player on Edge of Oblivion
-    if(( self.origin_z < -1300 ) && (world.model == "maps/hipdm1.bsp") &&
-      ( self.health > 0 ) )
+    if((self.origin_z < -1300) && (world.model == "maps/hipdm1.bsp") &&
+      (self.health > 0))
     {
         self.deathtype = "falling";
 
@@ -1427,7 +1435,7 @@ void() PlayerPreThink =
               self.invincible_finished = 0;
            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
            }
-        T_Damage( self, self, world, self.health + 1000 );
+        T_Damage(self, self, world, self.health + 1000);
     }
 
     //JIM
@@ -1886,7 +1894,7 @@ void() ClientConnect =
     // Set lastteam negative.
     if(parm14 < 0 && teamplay > 0)
     {
-        if(cvar("gamecfg") & GAMECFG_USE_COLOR)
+        if(cvar_hget(cvarh_gamecfg) & GAMECFG_USE_COLOR)
         {
             self.steam = self.team; // accept joining players color if legal
         }
@@ -1991,7 +1999,7 @@ void(entity targ, entity attacker) ClientObituary =
                 //gibbed for changing teams
                 else if(teamplay && (targ.team != targ.steam))
                 {
-                    if(cvar("gamecfg") & GAMECFG_ALLOW_CHG)
+                    if(cvar_hget(cvarh_gamecfg) & GAMECFG_ALLOW_CHG)
                     {
                         bprint(" changed teams\n");
                     }
@@ -2002,13 +2010,13 @@ void(entity targ, entity attacker) ClientObituary =
                 }
                 //--ZOID
 //JIM
-                else if(rnum > 0.4 )
+                else if(rnum > 0.4)
                     bprint(" becomes bored with life\n");
                 else
                     bprint(" checks if his weapon is loaded\n");
                 return;
             }
-            else if((teamplay == 2) && (targ.team > 0)&&(targ.team == attacker.team) )
+            else if((teamplay == 2) && (targ.team > 0)&&(targ.team == attacker.team))
             {
                 if(rnum < 0.25)
                     deathstring = " mows down a teammate\n";
@@ -2206,11 +2214,11 @@ void(entity targ, entity attacker) ClientObituary =
             bprint(targ.netname);
 
 //JIM
-         if(attacker.deathtype )
+         if(attacker.deathtype)
             {
-            bprint( " " );
-            bprint( attacker.deathtype );
-            bprint( "\n" );
+            bprint(" ");
+            bprint(attacker.deathtype);
+            bprint("\n");
             return;
             }
 
@@ -2343,14 +2351,14 @@ void(entity targ, entity attacker) ClientObituary =
             }
             if(attacker.classname == "plasma")
             {
-                bprint( " was turned to plasma\n");
+                bprint(" was turned to plasma\n");
                 return;
             }
             if(attacker.classname == "Vengeance")
             {
                 // vengeance sphere doesn't count as a negative frag
                 targ.frags = targ.frags + 1;
-                bprint( " was purged by the Vengeance Sphere\n");
+                bprint(" was purged by the Vengeance Sphere\n");
                 return;
             }
             if(attacker.classname == "power_shield")
@@ -2485,9 +2493,9 @@ void(float xHand, float xInMelee, float xHandVelMag,
      PlayerVRMeleeImpl =
 {
     local float vr_melee_threshold;
-    vr_melee_threshold = cvar("vr_melee_threshold");
+    vr_melee_threshold = cvar_hget(cvarh_vr_melee_threshold);
 
-    if(cvar("vr_enabled") == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold)
+    if(cvar_hget(cvarh_vr_enabled) == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold)
     {
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
@@ -2513,7 +2521,7 @@ void() PlayerVRMelee =
         &self.mainhand_melee_attack_finished,
         &self.in_melee,
         &self.melee_hit_sound_played
-    );
+  );
 
     PlayerVRMeleeImpl(
         cVR_OffHand,
@@ -2522,5 +2530,5 @@ void() PlayerVRMelee =
         &self.offhand_melee_attack_finished,
         &self.offhand_in_melee,
         &self.offhand_melee_hit_sound_played
-    );
+  );
 }

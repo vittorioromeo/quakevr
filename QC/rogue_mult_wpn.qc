@@ -133,7 +133,7 @@ void(float xHand) W_FireMultiGrenade =
     tmpAngles = VRGetWeaponFireRot(xHand);
     makevectors(tmpAngles);
 
-    if(cvar("vr_enabled") == 1)
+    if(cvar_hget(cvarh_vr_enabled) == 1)
     {
         if(tmpAngles_x)
         {
@@ -194,7 +194,7 @@ void() MultiRocketExplode =
             damg = damg * 0.5;    // mostly immune
         if(other.classname == "monster_dragon")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg );
+        T_Damage (other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage
@@ -256,7 +256,7 @@ void() HomingMissileAcquire =
     local vector    oldVelocity;
     local vector    aimangle;
 
-    if(self.delay < time )
+    if(self.delay < time)
     {
         MultiRocketExplode();
         return;
@@ -268,7 +268,7 @@ void() HomingMissileAcquire =
     self.velocity = self.velocity * 1000;
 
     aimangle = self.origin + self.velocity;
-    traceline( self.origin, aimangle, FALSE, self );
+    traceline(self.origin, aimangle, FALSE, self);
     if(trace_fraction < 1)
     {
         if(trace_ent.flags & FL_MONSTER)
@@ -280,7 +280,7 @@ void() HomingMissileAcquire =
     }
 
     self.velocity = oldVelocity;
-    self.v_angle = vectoangles ( self.velocity );
+    self.v_angle = vectoangles (self.velocity);
     self.angles = self.v_angle;
     self.think = HomingMissileAcquire;
     self.nextthink = time + 0.2;
@@ -371,7 +371,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     local vector f;
 
     f = p2 - p1;
-    normalize (f);
+    normalize(f);
     f_x = 0 - f_y;
     f_y = f_x;
     f_z = 0;
@@ -435,19 +435,19 @@ void() PlasmaGroundOut =
     local float        monstersHit;
 
     monstersHit = 0;
-    current = findradius ( self.origin, 420 );
+    current = findradius (self.origin, 420);
     start = current;
-    while( monstersHit < 6 )
+    while(monstersHit < 6)
     {
         if(current.flags & FL_MONSTER || current.classname == "player")
         {
-            if(current != self.owner )
+            if(current != self.owner)
             {
-                traceline( self.origin, current.origin, TRUE, world );
+                traceline(self.origin, current.origin, TRUE, world);
                 if(trace_fraction == 1)
                 {
                     monstersHit = monstersHit + 1;
-                    PlasmaDischarge ( current, 1 );
+                    PlasmaDischarge (current, 1);
 
                     LightningParticles(self.origin, trace_endpos);
                     LightningParticles(self.origin, trace_endpos);
@@ -483,7 +483,7 @@ void() PlasmaTouch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg );
+        T_Damage (other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage

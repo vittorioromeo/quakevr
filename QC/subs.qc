@@ -84,7 +84,7 @@ local float        len, traveltime;
     vdestdelta = tdest - self.origin;
 
 // calculate length of vector
-    len = vlen (vdestdelta);
+    len = vlen(vdestdelta);
 
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
@@ -149,7 +149,7 @@ local float        len, traveltime;
     destdelta = destangle - self.angles;
 
 // calculate length of vector
-    len = vlen (destdelta);
+    len = vlen(destdelta);
 
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
@@ -247,7 +247,7 @@ void() SUB_UseTargets =
 //
     if(activator.classname == "player" && self.message != "")
     {
-        centerprint (activator, self.message);
+        centerprint(activator, self.message);
         if(!self.noise)
             sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
@@ -257,7 +257,7 @@ void() SUB_UseTargets =
 //
     if (self.killtarget)
     {
-        t = find (world, targetname, self.killtarget);
+        t = find(world, targetname, self.killtarget);
         while(t)
         {
             // HONEY
@@ -279,7 +279,7 @@ void() SUB_UseTargets =
             }else{
                 remove (t);
             }
-            t = find (t, targetname, self.killtarget);
+            t = find(t, targetname, self.killtarget);
         }
     }
 
@@ -292,7 +292,7 @@ void() SUB_UseTargets =
         t = world;
         do
         {
-            t = find (t, targetname, self.target);
+            t = find(t, targetname, self.target);
             if(!t)
             {
                 break;
@@ -309,7 +309,7 @@ void() SUB_UseTargets =
             self = stemp;
             other = otemp;
             activator = act;
-        } while( 1 );
+        } while(1);
     }
 
 

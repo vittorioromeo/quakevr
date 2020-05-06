@@ -21,25 +21,25 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
     else if(self.orbitPosition < 0)
         self.orbitPosition = 0;
 
-    traceline ( self.origin, destEnt.origin + offset, TRUE, world);
-    if( trace_fraction < 1 )
+    traceline (self.origin, destEnt.origin + offset, TRUE, world);
+    if(trace_fraction < 1)
     {
         setorigin (self, destEnt.origin + offset);
         self.orbitPosition = self.orbitPosition + 1;
         return;
     }
 
-    if( self.orbitPosition == 0)
+    if(self.orbitPosition == 0)
     {
         dir = (destEnt.origin + offset) - self.origin;
         dir_x = dir_x + radius;
     }
-    else if( self.orbitPosition == 1)
+    else if(self.orbitPosition == 1)
     {
         dir = (destEnt.origin + offset) - self.origin;
          dir_y = dir_y + radius;
     }
-    else if( self.orbitPosition == 2)
+    else if(self.orbitPosition == 2)
     {
         dir = (destEnt.origin + offset) - self.origin;
         dir_x = dir_x - radius;
@@ -52,11 +52,11 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
 
     dist = vlen(dir);
 
-    if(dist < 8 )
+    if(dist < 8)
     {
         self.orbitPosition = self.orbitPosition + 1;
     }
-    else if(dist < 50 )
+    else if(dist < 50)
     {
         self.velocity = normalize(dir);
         self.velocity = self.velocity * 150;
@@ -100,7 +100,7 @@ void(string gibname, float dm) AccelerateGib =
     setsize (new, '-8 -8 -8', '8 8 8');
 
     new.velocity = -1.25 * self.velocity;
-    makevectors ( new.velocity );
+    makevectors (new.velocity);
     offset1 = random() * 300 - 150;
     new.velocity = new.velocity + v_right * offset1;
     offset1 = random() * 300 - 150;

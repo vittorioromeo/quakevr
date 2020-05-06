@@ -188,7 +188,7 @@ void() army_fire =
     // self.scale = ((self.scale + '1 1 1') * 1.1) - '1 1 1';
 
     dir = en.origin - en.velocity*0.2;
-    dir = normalize (dir - self.origin);
+    dir = normalize(dir - self.origin);
 
     EnemyFireBullets (4, dir, '0.1 0.1 0');
 

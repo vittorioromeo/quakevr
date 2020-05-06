@@ -336,7 +336,7 @@ void() spikeshooter_use =
 
     if(self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
     {
-        sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         newmis = launch_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
@@ -384,7 +384,7 @@ void() spikeshooter_use =
     }
     else if(self.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
     {
-        sound (self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         newmis = launch_lava_spike (self.origin, self.movedir);
         newmis.velocity = self.movedir * 500;
         if(self.spawnflags & SPAWNFLAG_SUPERLAVA)

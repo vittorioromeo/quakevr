@@ -242,11 +242,11 @@ void() worldspawn =
     precache_sound("items/damage3.wav");
 
     // HONEY
-    precache_sound ("misc/secret.wav");
-    precache_sound ("honey/ting1.wav");
-    precache_sound ("honey/ting2.wav");
-    precache_sound ("honey/ting3.wav");
-    precache_sound ("honey/ting4.wav");
+    precache_sound("misc/secret.wav");
+    precache_sound("honey/ting1.wav");
+    precache_sound("honey/ting2.wav");
+    precache_sound("honey/ting3.wav");
+    precache_sound("honey/ting4.wav");
 
     // VR: For weapon buttons
     precache_sound("buttons/switch02.wav");
@@ -454,8 +454,8 @@ void() worldspawn =
 
 void() StartFrame =
 {
-    teamplay = cvar("teamplay");
-    skill = cvar("skill");
+    teamplay = cvar_hget(cvarh_teamplay);
+    skill = cvar_hget(cvarh_skill);
     framecount = framecount + 1;
 };
 

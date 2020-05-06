@@ -30,11 +30,11 @@ void() light_candle =
 // ==========================================
 void() rubble_touch =
 {
-    if( other.classname == "player" || other.flags & FL_MONSTER )
+    if(other.classname == "player" || other.flags & FL_MONSTER)
     {
-        if( vlen ( self.velocity ) > 0)
+        if(vlen(self.velocity) > 0)
         {
-            T_Damage ( other, self, self, 10 );
+            T_Damage (other, self, self, 10);
         }
     }
 };
@@ -44,8 +44,8 @@ void() rubble_throw =
     local vector    throw;
     local entity    rubble;
 
-    rubble = find ( world, targetname, self.target );
-    throw = normalize ( rubble.origin - self.origin );
+    rubble = find(world, targetname, self.target);
+    throw = normalize(rubble.origin - self.origin);
     throw_x = throw_x + (random() * 0.2) - 0.1;
     throw_y = throw_y + (random() * 0.2) - 0.1;
     throw_z = throw_z + (random() * 0.2) - 0.1;
@@ -56,9 +56,9 @@ void() rubble_throw =
     rubble.movetype = MOVETYPE_BOUNCE;
     rubble.solid = SOLID_BBOX;
     rubble.velocity = throw * 300;
-    setmodel ( rubble, "progs/rubble.mdl");
-    setsize ( rubble, '-16 -16 -16', '16 16 16');
-    setorigin ( rubble, self.origin );
+    setmodel (rubble, "progs/rubble.mdl");
+    setsize (rubble, '-16 -16 -16', '16 16 16');
+    setorigin (rubble, self.origin);
     rubble.touch = rubble_touch;
 
     rubble.think = SUB_Remove;

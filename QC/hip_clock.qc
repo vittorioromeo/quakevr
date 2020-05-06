@@ -19,12 +19,12 @@ void() clock_setpos =
    pos = seconds / self.count;
 
    // chop off non-fractional component
-   pos = pos - floor( pos );
+   pos = pos - floor(pos);
 
    ang = 360 * pos;
-   if(self.event )
+   if(self.event)
       {
-      if(self.ltime > ang )
+      if(self.ltime > ang)
          {
          // past twelve
          temp = self.target;
@@ -79,9 +79,9 @@ void() func_clock =
    self.movedir_y = 0 - temp_z;
    self.movedir_z = 0 - temp_x;
 
-   if(!self.count )
+   if(!self.count)
       {
       self.count = 60;
       }
-   self.cnt = self.cnt * ( self.count / 12 );
+   self.cnt = self.cnt * (self.count / 12);
    };

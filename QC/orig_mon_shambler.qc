@@ -201,7 +201,7 @@ void() CastLightning =
     org = self.origin + '0 0 40';
 
     dir = self.enemy.origin + '0 0 16' - org;
-    dir = normalize (dir);
+    dir = normalize(dir);
 
     traceline(org, self.origin + dir*600, TRUE, self);
 

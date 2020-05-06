@@ -125,11 +125,11 @@ void() PlaceItem =
         oldz = self.origin_z;
         if(!droptofloor())
         {
-            dprint ("Bonus item fell out of level!\n");
-            dprint (self.classname);
-            dprint (" at ");
-            dprint (vtos(self.origin));
-            dprint ("\n");
+            dprint("Bonus item fell out of level!\n");
+            dprint(self.classname);
+            dprint(" at ");
+            dprint(vtos(self.origin));
+            dprint("\n");
             remove(self);
             return;
         }
@@ -490,7 +490,7 @@ void() weapon_touch =
     local float  leave;
 
     // Do not pick up the weapon if the touching hand is not grabbing.
-    if(cvar("vr_body_interactions") == 0 && cvar("vr_enabled") == 1)
+    if(cvar_hget(cvarh_vr_body_interactions) == 0 && cvar_hget(cvarh_vr_enabled) == 1)
     {
         if(!VRIsEntHandGrabbing(other, VRGetTouchingHand(other)) ||
             VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
@@ -1178,7 +1178,7 @@ END OF LEVEL RUNES
 
 void() sigil_touch =
 {
-    centerprint (other, "You got the rune!");
+    centerprint(other, "You got the rune!");
 
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd(other, "bf\n");
@@ -1486,8 +1486,8 @@ void() BackpackTouch =
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_lava_nails);
-        sprint (other, s);
-        sprint (other, " lava nails");
+        sprint(other, s);
+        sprint(other, " lava nails");
     }
 
     if(self.ammo_multi_rockets)
@@ -1496,8 +1496,8 @@ void() BackpackTouch =
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_multi_rockets);
-        sprint (other, s);
-        sprint (other, " multi rockets");
+        sprint(other, s);
+        sprint(other, " multi rockets");
     }
 
     if(self.ammo_plasma)
@@ -1506,8 +1506,8 @@ void() BackpackTouch =
             sprint(other, ", ");
         acount = 1;
         s = ftos(self.ammo_plasma);
-        sprint (other, s);
-        sprint (other, " plasma balls");
+        sprint(other, s);
+        sprint(other, " plasma balls");
     }
 
     sprint(other, "\n");

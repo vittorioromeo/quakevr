@@ -20,7 +20,7 @@ void() ltrail_fire =
 
     if(self.classname != "ltrail_end")
     {
-        sound (self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
         myTarget = find(world, targetname, self.target);
         WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
@@ -35,7 +35,7 @@ void() ltrail_fire =
         LightningDamage (self.origin, myTarget.origin, self, self.currentammo);
     }
 
-    if( self.items < time)
+    if(self.items < time)
     {
         self.think = ltrail_chain;
         self.nextthink = time + self.frags;
@@ -54,7 +54,7 @@ void() ltrail_start_fire =
     if(self.spawnflags & LT_TOGGLE)
     {
         // user is not a lightning trail - change activity state.
-        if( other.classname != "ltrail_end" )
+        if(other.classname != "ltrail_end")
         {
             if(self.spawnflags & LT_ACTIVE)
             // currently active
@@ -109,7 +109,7 @@ void() ltrail_start =
 {
     self.ltrailLastUsed = time;
 
-    precache_sound ("weapons/lhit.wav");
+    precache_sound("weapons/lhit.wav");
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;
@@ -144,7 +144,7 @@ Default is 0.3 seconds.
 */
 void() ltrail_relay =
 {
-    precache_sound ("weapons/lhit.wav");
+    precache_sound("weapons/lhit.wav");
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;
@@ -168,7 +168,7 @@ Default is 0.3 seconds.
 */
 void() ltrail_end =
 {
-    precache_sound ("weapons/lhit.wav");
+    precache_sound("weapons/lhit.wav");
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_BBOX;
     self.use = ltrail_start_fire;

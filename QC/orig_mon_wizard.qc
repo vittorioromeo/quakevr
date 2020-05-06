@@ -55,7 +55,7 @@ void(entity missile, float mspeed, float accuracy) LaunchMissile =
     vec = self.enemy.origin + self.enemy.mins + self.enemy.size * 0.7 - missile.origin;
 
 // calc aproximate time for missile to reach vec
-    fly = vlen (vec) / mspeed;
+    fly = vlen(vec) / mspeed;
 
 // get the entities xy velocity
     move = self.enemy.velocity;

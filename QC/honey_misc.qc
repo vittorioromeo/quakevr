@@ -70,8 +70,8 @@ void() air_bubbles_use =
 
 void() wow_whoa_plopp =
 {
-    precache_sound ("honey/blaahd.wav");
-    ambientsound (self.origin, "honey/blaahd.wav", 1, ATTN_STATIC);
+    precache_sound("honey/blaahd.wav");
+    ambientsound(self.origin, "honey/blaahd.wav", 1, ATTN_STATIC);
     SUB_Remove();
 }
 
@@ -79,15 +79,15 @@ void() wow_whoa_plopp =
 /*
 void() ambient_waterfall =
 {
-    precache_sound ("honey/q2watr.wav");
-    ambientsound (self.origin, "honey/q2watr.wav", 1, ATTN_IDLE);
+    precache_sound("honey/q2watr.wav");
+    ambientsound(self.origin, "honey/q2watr.wav", 1, ATTN_IDLE);
     SUB_Remove();
 }
 */
 
 void() ambient_use =
 {
-    sound (self, CHAN_VOICE, self.noise, self.volume, self.delay);
+    sound(self, CHAN_VOICE, self.noise, self.volume, self.delay);
     self.use = SUB_Null;
 }
 
@@ -96,14 +96,14 @@ void() ambient_machine =
     self.noise = "honey/machine.wav";
     if(!self.volume) self.volume = 0.7;
     if(!self.delay) self.delay = ATTN_NORM;
-    precache_sound (self.noise);
+    precache_sound(self.noise);
     self.use = ambient_use;
 }
 
 void() ambient_teleport =
 {
-    precache_sound ("ambience/hum1.wav");
-    ambientsound (self.origin, "ambience/hum1.wav",0.5 , ATTN_STATIC);
+    precache_sound("ambience/hum1.wav");
+    ambientsound(self.origin, "ambience/hum1.wav",0.5 , ATTN_STATIC);
     SUB_Remove();
 }
 
@@ -115,16 +115,16 @@ void() ambient_secret_think =
     rnd = random();
     rnd2 = 0.5 + 0.5 * random();
     if(rnd < 0.25){
-        sound (self, CHAN_AUTO, "honey/ting1.wav",rnd2 , 1.2);
+        sound(self, CHAN_AUTO, "honey/ting1.wav",rnd2 , 1.2);
 
     }else if(rnd < 0.5){
-        sound (self, CHAN_AUTO, "honey/ting2.wav",rnd2 , 1.2);
+        sound(self, CHAN_AUTO, "honey/ting2.wav",rnd2 , 1.2);
 
     }else if(rnd < 0.75){
-        sound (self, CHAN_AUTO, "honey/ting3.wav",rnd2 , 1.2);
+        sound(self, CHAN_AUTO, "honey/ting3.wav",rnd2 , 1.2);
 
     }else{
-        sound (self, CHAN_AUTO, "honey/ting4.wav",rnd2 , 1.2);
+        sound(self, CHAN_AUTO, "honey/ting4.wav",rnd2 , 1.2);
 
     }
 

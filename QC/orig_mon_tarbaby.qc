@@ -94,7 +94,7 @@ void()    Tar_JumpTouch =
 
     if(other.takedamage && other.classname != self.classname)
     {
-        if(vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400)
         {
             ldmg = 10 + 10*random();
             T_Damage (other, self, self, ldmg);
@@ -250,7 +250,7 @@ void(entity attacker, float damage) tbaby_mitosis =
 {
     local entity    newSpawn;
 
-    if( random() < 0.35 )
+    if(random() < 0.35)
     {
         newSpawn = spawn();
         newSpawn.classname = self.classname;
@@ -273,7 +273,7 @@ void(entity attacker, float damage) tbaby_mitosis =
         newSpawn.think = tbaby_checknew;
         newSpawn.nextthink = time + 0.5;
 
-        sound (newSpawn, CHAN_VOICE, "blob/mytosis.wav", 1, ATTN_NORM);
+        sound(newSpawn, CHAN_VOICE, "blob/mytosis.wav", 1, ATTN_NORM);
     }
 };
 
@@ -339,7 +339,7 @@ void() monster_tarbaby =
     }
     else
     {
-        skillLevel = cvar ( "skill" );
+        skillLevel = cvar ("skill");
         myRand = skillLevel * 0.2;
         myRand = myRand + random();
 

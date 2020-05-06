@@ -221,7 +221,7 @@ local float old_armortype;
         }
         else        // is a monster, do 50% more damage
         {
-            if( other.classname != "monster_lava_man")
+            if(other.classname != "monster_lava_man")
             {
                 T_Damage (other, self, self.owner, 30);
             }

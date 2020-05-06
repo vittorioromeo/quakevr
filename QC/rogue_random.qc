@@ -81,23 +81,23 @@ void() item_random_powerup =
     precache_model ("progs/invisibl.mdl");
     precache_model ("progs/quaddama.mdl");
 
-    precache_sound ("items/inv1.wav");
-    precache_sound ("items/inv2.wav");
-    precache_sound ("items/inv3.wav");
-    precache_sound ("items/protect.wav");
-    precache_sound ("items/protect2.wav");
-    precache_sound ("items/protect3.wav");
-    precache_sound ("items/damage.wav");
-    precache_sound ("items/damage2.wav");
-    precache_sound ("items/damage3.wav");
+    precache_sound("items/inv1.wav");
+    precache_sound("items/inv2.wav");
+    precache_sound("items/inv3.wav");
+    precache_sound("items/protect.wav");
+    precache_sound("items/protect2.wav");
+    precache_sound("items/protect3.wav");
+    precache_sound("items/damage.wav");
+    precache_sound("items/damage2.wav");
+    precache_sound("items/damage3.wav");
 
 
-    precache_sound ("belt/pickup.wav");
-    precache_sound ("belt/use.wav");
-    precache_sound ("belt/fadeout.wav");
-    precache_sound ("shield/pickup.wav");
-    precache_sound ("shield/hit.wav");
-    precache_sound ("shield/fadeout.wav");
+    precache_sound("belt/pickup.wav");
+    precache_sound("belt/use.wav");
+    precache_sound("belt/fadeout.wav");
+    precache_sound("shield/pickup.wav");
+    precache_sound("shield/hit.wav");
+    precache_sound("shield/fadeout.wav");
 
     random_pick_type();
     StartItem ();

@@ -105,7 +105,7 @@ void(entity targ, entity attacker) Killed =
 
 float() getVRMeleeBloodlust =
 {
-    return cvar("vr_melee_bloodlust");
+    return cvar_hget(cvarh_vr_melee_bloodlust);
 }
 
 /*
@@ -234,7 +234,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     // figure momentum add
-    if((inflictor != world) && (targ.movetype == MOVETYPE_WALK) )
+    if((inflictor != world) && (targ.movetype == MOVETYPE_WALK))
     {
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
         dir = normalize(dir);
@@ -331,7 +331,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         if(self != attacker && attacker != self.enemy && (self.charmer != attacker))
         {
             if((self.classname != attacker.classname)
-            || (self.classname == "monster_army" ) || (self.classname == "monster_armagon" ) )
+            || (self.classname == "monster_army") || (self.classname == "monster_armagon"))
             {
                 if(self.classname != "monster_dragon")
                 {
@@ -391,7 +391,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
             if(head.takedamage)
             {
                 org = head.origin + (head.mins + head.maxs)*0.5;
-                points = 0.5*vlen (inflictor.origin - org);
+                points = 0.5*vlen(inflictor.origin - org);
                 if(points < 0)
                     points = 0;
                 points = damage - points;
@@ -429,7 +429,7 @@ void(entity attacker, float damage) T_BeamDamage =
     {
         if(head.takedamage)
         {
-            points = 0.5*vlen (attacker.origin - head.origin);
+            points = 0.5*vlen(attacker.origin - head.origin);
             if(points < 0)
                 points = 0;
             points = damage - points;

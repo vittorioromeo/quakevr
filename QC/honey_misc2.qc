@@ -219,7 +219,7 @@ vector missile_check_aimhelp(entity client, vector morg, vector defaultvec) =
 
 
     //don't do anything if sv_aim >= 3;
-    if(cvar("sv_aim") >= 3)
+    if(cvar_hget(cvarh_sv_aim) >= 3)
         return defaultvec;
 
     //for each aimhelp
@@ -280,7 +280,7 @@ void() info_aimhelp_rocket =
 /**************************************************************************/
 
 
-//float deathpit_getDepthFraction( entity pit, vector point );
+//float deathpit_getDepthFraction(entity pit, vector point);
 void() PlayerLingerInPit =
 {
     //fog_releaseOverride(self);
@@ -290,7 +290,7 @@ void() PlayerLingerInPit =
 void() PlayerHitPitBottom =
 {
     //TODO: play a better crunchy sound.
-    sound (self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
 
 
     self.items = self.items - (self.items & IT_INVISIBILITY);
@@ -327,7 +327,7 @@ void(entity client) PlayerStartFallInPit =
 
     client.state = STATE_FALLING;
     //TODO: play falling sound?
-    sound (other, CHAN_VOICE, "ambience/windfly.wav", 1, ATTN_NORM);
+    sound(other, CHAN_VOICE, "ambience/windfly.wav", 1, ATTN_NORM);
 
     centerprint(client, "\nOh no!\n");
 
@@ -343,12 +343,12 @@ void(entity client) PlayerStartFallInPit =
 
     oself = self;
     self = client;
-    SUB_DoLater( PlayerHitPitBottom, 1.5 + (random() * 2.5));
+    SUB_DoLater(PlayerHitPitBottom, 1.5 + (random() * 2.5));
     self = oself;
 
 };
 
-float( entity pit, vector point ) deathpit_getDepthFraction{
+float(entity pit, vector point) deathpit_getDepthFraction{
     //1 = at top, 0 = at bottom
     float depth, min_z, max_z;
     max_z = pit.height;
@@ -539,7 +539,7 @@ Also causes rockets and grenades inside it to not explode.
 */
 void() trigger_deathpit =
 {
-    precache_sound ("ambience/windfly.wav");
+    precache_sound("ambience/windfly.wav");
 
     InitTrigger ();
 
@@ -575,7 +575,7 @@ void(void() action) door_do =
     {
         action ();
         self = self.enemy;
-    } while ( (self != starte) && (self != world) );
+    } while ((self != starte) && (self != world));
 };
 
 
@@ -606,8 +606,8 @@ void() door_temp_trigger_check =
             self = self.owner;
             if (self.message != "")
             {
-                centerprint (activator, self.message);
-                sound (activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+                centerprint(activator, self.message);
+                sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
             }
 
             door_do(door_go_up);
@@ -691,36 +691,36 @@ void() func_door_temp =
 
     if (self.sounds == 0)
     {
-        precache_sound ("misc/null.wav");
-        precache_sound ("misc/null.wav");
+        precache_sound("misc/null.wav");
+        precache_sound("misc/null.wav");
         self.noise1 = "misc/null.wav";
         self.noise2 = "misc/null.wav";
     }
     if (self.sounds == 1)
     {
-        precache_sound ("doors/drclos4.wav");
-        precache_sound ("doors/doormv1.wav");
+        precache_sound("doors/drclos4.wav");
+        precache_sound("doors/doormv1.wav");
         self.noise1 = "doors/drclos4.wav";
         self.noise2 = "doors/doormv1.wav";
     }
     if (self.sounds == 2)
     {
-        precache_sound ("doors/hydro1.wav");
-        precache_sound ("doors/hydro2.wav");
+        precache_sound("doors/hydro1.wav");
+        precache_sound("doors/hydro2.wav");
         self.noise2 = "doors/hydro1.wav";
         self.noise1 = "doors/hydro2.wav";
     }
     if (self.sounds == 3)
     {
-        precache_sound ("doors/stndr1.wav");
-        precache_sound ("doors/stndr2.wav");
+        precache_sound("doors/stndr1.wav");
+        precache_sound("doors/stndr2.wav");
         self.noise2 = "doors/stndr1.wav";
         self.noise1 = "doors/stndr2.wav";
     }
     if (self.sounds == 4)
     {
-        precache_sound ("doors/ddoor1.wav");
-        precache_sound ("doors/ddoor2.wav");
+        precache_sound("doors/ddoor1.wav");
+        precache_sound("doors/ddoor2.wav");
         self.noise1 = "doors/ddoor2.wav";
         self.noise2 = "doors/ddoor1.wav";
     }
@@ -789,7 +789,10 @@ void() hublevel_touch =
     if (other.classname != "player")
         return;
 
-    if ((cvar("noexit") == 1) || ((cvar("noexit") == 2) && (mapname != "start")))
+    local float noexit;
+    noexit = cvar_hget(cvarh_noexit);
+
+    if ((noexit == 1) || ((noexit == 2) && (mapname != "start")))
     {
         T_Damage (other, self, self, 50000);
         return;
@@ -797,8 +800,8 @@ void() hublevel_touch =
 
     if (coop || deathmatch)
     {
-        bprint (other.netname);
-        bprint (" exited the level\n");
+        bprint(other.netname);
+        bprint(" exited the level\n");
     }
 
     serverflags = serverflags | self.spawnflags;
@@ -813,7 +816,7 @@ void() hublevel_touch =
 
     SUB_UseTargets ();
 
-    if ( (self.spawnflags & 1) && (deathmatch == 0) )
+    if ((self.spawnflags & 1) && (deathmatch == 0))
     {    // NO_INTERMISSION
         GotoNextMap();
         return;
@@ -833,8 +836,8 @@ When the player touches this, he gets sent back to the hub.
 */
 void() trigger_backtohub =
 {
-    precache_sound ("misc/null.wav"); //Don't ask
-    precache_sound ("misc/runekey.wav"); //Don't ask
+    precache_sound("misc/null.wav"); //Don't ask
+    precache_sound("misc/runekey.wav"); //Don't ask
 
     if (!self.spawnflags)
         objerror ("backtohub without level flag set");
@@ -945,8 +948,8 @@ void() ghost_touch =
 
     self.attack_finished = time + 2;
 
-    centerprint (other, self.message);
-    sound (other, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+    centerprint(other, self.message);
+    sound(other, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
 }
 
 
@@ -1005,8 +1008,8 @@ void() func_pump_use =
     self.velocity = '0 0 0';
     self.think = SUB_Null;
     self.nextthink = -1;
-    sound (self, CHAN_VOICE, self.noise3, 0.8, 1.8);
-    sound (self, CHAN_WEAPON, "misc/null.wav", 0.8, 1.8);
+    sound(self, CHAN_VOICE, self.noise3, 0.8, 1.8);
+    sound(self, CHAN_WEAPON, "misc/null.wav", 0.8, 1.8);
 }
 
 void() func_pump_blocked =
@@ -1026,7 +1029,7 @@ void() func_pump_think =
     t = ((self.ltime - self.search_time + self.delay) * self.speed) + 5.6; //Magyck numbre!!
     sin = sin_interpolate(t);
 
-/*    if( !self.attack_state){
+/*    if(!self.attack_state){
         dprint_str_f_str("First sine lookup was using ", t, " and ");
         dprint_str_f_str("that resulted in the value ", sin, ".\n");
         self.attack_state = 1;
@@ -1038,9 +1041,9 @@ void() func_pump_think =
     if(dir != self.state){
         self.state = 1 - self.state;
         if(self.state){
-            sound (self, CHAN_VOICE, self.noise1, 0.6, 1.8);
+            sound(self, CHAN_VOICE, self.noise1, 0.6, 1.8);
         }else{
-            sound (self, CHAN_WEAPON, self.noise2, 0.6 , 1.8);
+            sound(self, CHAN_WEAPON, self.noise2, 0.6 , 1.8);
         }
     }
 

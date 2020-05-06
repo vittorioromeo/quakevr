@@ -229,7 +229,7 @@ void(float r, vector p) boss_missile =
         d = self.enemy.origin;
     }
 
-    vec = normalize (d - org);
+    vec = normalize(d - org);
 
     newmis = launch_spike(org, vec);
     setmodel(newmis, "progs/lavaball.mdl");
@@ -353,8 +353,8 @@ void() lightning_use =
     if(lightning_end >= time + 1)
         return;
 
-    le1 = find( world, target, "lightning");
-    le2 = find( le1, target, "lightning");
+    le1 = find(world, target, "lightning");
+    le2 = find(le1, target, "lightning");
     if(!le1 || !le2)
     {
         objerror("missing lightning targets\n");
@@ -364,7 +364,7 @@ void() lightning_use =
     if(
      (le1.state != STATE_TOP && le1.state != STATE_BOTTOM)
     || (le2.state != STATE_TOP && le2.state != STATE_BOTTOM)
-    || (le1.state != le2.state) )
+    || (le1.state != le2.state))
     {
 //        dprint("not aligned\n");
         return;
@@ -379,7 +379,7 @@ void() lightning_use =
     lightning_fire();
 
 // advance the boss pain if down
-    self = find (world, classname, "monster_boss");
+    self = find(world, classname, "monster_boss");
     if(!self)
         return;
     self.enemy = activator;

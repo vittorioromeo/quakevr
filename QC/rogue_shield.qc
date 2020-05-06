@@ -6,20 +6,20 @@
 // ===================
 void() shield_think =
 {
-    if( self.owner.shield_death_time < time)
+    if(self.owner.shield_death_time < time)
     {
         self.owner.shield_entity = world;
         remove(self);
         return;
     }
 
-    if( (self.owner.shield_death_time - 0.25) <= time)
+    if((self.owner.shield_death_time - 0.25) <= time)
     {
         self.model = string_null;
     }
     else
     {
-        setorigin ( self, self.owner.origin );
+        setorigin (self, self.owner.origin);
         self.v_angle = self.owner.v_angle;
         self.angles = self.owner.angles;
     }
@@ -35,7 +35,7 @@ void(entity shieldOwner, vector dir) shield_spawn =
 {
     local entity newShield;
 
-    if( shieldOwner.shield_death_time > time)
+    if(shieldOwner.shield_death_time > time)
     {
         return;
     }
@@ -73,24 +73,24 @@ float(entity targ, entity inflictor, entity attacker, float damage) shield_hit=
     local float        hitAngle;
 
     dir = inflictor.origin - targ.origin;
-    save = vectoyaw ( dir );
+    save = vectoyaw (dir);
     makevectors(targ.angles);
-    hitAngle = save - vectoyaw ( v_forward );
+    hitAngle = save - vectoyaw (v_forward);
 
     if(hitAngle > 90 && hitAngle < 270)
     {
         return damage;
     }
-    else if(hitAngle < -90 && hitAngle > -270 )
+    else if(hitAngle < -90 && hitAngle > -270)
     {
         return damage;
     }
 
-    shield_spawn ( targ, dir);
+    shield_spawn (targ, dir);
 
     if(targ.shieldSoundTime < time)
     {
-        sound (targ, CHAN_ITEM, "shield/hit.wav", 1, ATTN_NORM);
+        sound(targ, CHAN_ITEM, "shield/hit.wav", 1, ATTN_NORM);
         targ.shieldSoundTime = time + 0.5;
     }
 

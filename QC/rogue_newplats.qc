@@ -19,13 +19,13 @@ float ELV_BUTN_DIR;
 
 void() dn_and_wait_hit_top =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
 };
 
 void() dn_and_wait_hit_bottom =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
     self.think = dn_and_wait_go_up;
     self.nextthink = self.ltime + self.health;
@@ -33,14 +33,14 @@ void() dn_and_wait_hit_bottom =
 
 void() dn_and_wait_go_down =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_DOWN;
     SUB_CalcMove (self.pos2, self.speed, dn_and_wait_hit_bottom);
 };
 
 void() dn_and_wait_go_up =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.pos1, self.speed, dn_and_wait_hit_top);
 };
@@ -75,26 +75,26 @@ void() toggle_crush;
 
 void() toggle_hit_top =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
 };
 
 void() toggle_hit_bottom =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
 };
 
 void() toggle_go_down =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_DOWN;
     SUB_CalcMove (self.pos2, self.speed, toggle_hit_bottom);
 };
 
 void() toggle_go_up =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.pos1, self.speed, toggle_hit_top);
 };
@@ -128,7 +128,7 @@ void() elvtr_crush;
 void() elvtr_stop =
 {
     self.elevatorOnFloor = self.elevatorToFloor;
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
     self.elevatorLastUse = time;
 };
@@ -138,7 +138,7 @@ void() elvtr_go =
     self.elevatorDestination = self.pos2;
     self.elevatorDestination_z = self.pos2_z +
                                 (self.height * self.elevatorToFloor);
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.elevatorDestination, self.speed, elvtr_stop);
     self.elevatorLastUse = time;
@@ -160,7 +160,7 @@ void() elvtr_use =
 {
     local float        tempDist, elvPos, btnPos;
 
-    if( (self.elevatorLastUse + 2) > time)
+    if((self.elevatorLastUse + 2) > time)
         return;
 
     self.elevatorLastUse = time;
@@ -174,7 +174,7 @@ void() elvtr_use =
     if(elvPos > btnPos)
     {
         tempDist = (elvPos - btnPos) / self.height;
-        tempDist = ceil ( tempDist);
+        tempDist = ceil (tempDist);
         self.elevatorToFloor = self.elevatorOnFloor - tempDist;
         elvtr_go ();
         return;
@@ -185,7 +185,7 @@ void() elvtr_use =
         if(tempDist > self.height)
         {
             tempDist = tempDist / self.height;
-            tempDist = floor ( tempDist );
+            tempDist = floor (tempDist);
             self.elevatorToFloor = self.elevatorOnFloor + tempDist;
             elvtr_go ();
             return;
@@ -256,7 +256,7 @@ void() plat2_spawn_inside_trigger =
 
 void() plat2_hit_top =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_TOP;
 
     self.plat2LastMove = time;
@@ -277,7 +277,7 @@ void() plat2_hit_top =
 
 void() plat2_hit_bottom =
 {
-    sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
     self.state = STATE_BOTTOM;
 
     self.plat2LastMove = time;
@@ -298,14 +298,14 @@ void() plat2_hit_bottom =
 
 void() plat2_go_down =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_DOWN;
     SUB_CalcMove (self.pos2, self.speed, plat2_hit_bottom);
 };
 
 void() plat2_go_up =
 {
-    sound (self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
     self.state = STATE_UP;
     SUB_CalcMove (self.pos1, self.speed, plat2_hit_top);
 };
@@ -361,13 +361,13 @@ void() plat2_center_touch =
     if(self.state == STATE_TOP)
     {
         otherState = STATE_TOP;
-        if( platPosition_z > other.origin_z )
+        if(platPosition_z > other.origin_z)
             otherState = STATE_BOTTOM;
     }
     else
     {
         otherState = STATE_BOTTOM;
-        if( (other.origin_z - platPosition_z) > self.height)
+        if((other.origin_z - platPosition_z) > self.height)
             otherState = STATE_TOP;
     }
 
@@ -460,16 +460,16 @@ local float negativeHeight;
 
     if(self.sounds == 1)
     {
-        precache_sound ("plats/plat1.wav");
-        precache_sound ("plats/plat2.wav");
+        precache_sound("plats/plat1.wav");
+        precache_sound("plats/plat2.wav");
         self.noise = "plats/plat1.wav";
         self.noise1 = "plats/plat2.wav";
     }
 
     if(self.sounds == 2)
     {
-        precache_sound ("plats/medplat1.wav");
-        precache_sound ("plats/medplat2.wav");
+        precache_sound("plats/medplat1.wav");
+        precache_sound("plats/medplat2.wav");
         self.noise = "plats/medplat1.wav";
         self.noise1 = "plats/medplat2.wav";
     }

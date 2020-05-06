@@ -93,14 +93,14 @@ entity hipdecoy;
 // Hipnotic's Prototypes
 //
 void() StopEarthQuake;
-void( float value ) EarthQuakeTime;
+void(float value) EarthQuakeTime;
 void() earthquake_postthink;
 void() earthquake_prethink;
-float( entity counter ) counter_GetCount;
-vector ( vector ang ) SUB_NormalizeAngles;
+float(entity counter) counter_GetCount;
+vector (vector ang) SUB_NormalizeAngles;
 void (entity srcent, entity destent) SUB_CopyEntity;
 //multi explosion
-void( vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion;
+void(vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion;
 void(string targ, vector orig) become_decoy;
 
 

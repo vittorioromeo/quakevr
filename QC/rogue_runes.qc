@@ -32,7 +32,7 @@ void() RuneTouch =
 
     other.rune = other.rune | self.rune;
 
-    sound (other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+    sound(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
 
     if(self.rune & ITEM_RUNE1)
         centerprint(other, "Earth Magic\n\nRESISTANCE");
@@ -133,7 +133,7 @@ void() SpawnRunes =
 {
     local entity spawner;
 
-    if(!deathmatch || !(cvar("gamecfg") & GAMECFG_ENABLE_RUNES) || runespawn)
+    if(!deathmatch || !(cvar_hget(cvarh_gamecfg) & GAMECFG_ENABLE_RUNES) || runespawn)
         return;
     runespawn = 1;
     spawner = spawn();
@@ -145,7 +145,7 @@ float(float damage, entity who) RuneApplyEarth =
 {
     if(who.rune & ITEM_RUNE1) {
         if(who.rune1_last_noise_time < time) {
-            sound (who, CHAN_ITEM, "runes/end1.wav", 1, ATTN_NORM);
+            sound(who, CHAN_ITEM, "runes/end1.wav", 1, ATTN_NORM);
             // tune as needed
             who.rune1_last_noise_time = time + 1.0;
         }
@@ -158,7 +158,7 @@ void(entity who) RuneApplyBlackNoise =
 {
     if(who.rune & ITEM_RUNE2)
         if(who.rune2_last_noise_time < time) {
-            sound (who, CHAN_ITEM, "runes/end2.wav", 1, ATTN_NORM);
+            sound(who, CHAN_ITEM, "runes/end2.wav", 1, ATTN_NORM);
             // tune as needed
             who.rune2_last_noise_time = time + 1.0;
         }
@@ -175,7 +175,7 @@ float(float tvalue, entity who) RuneApplyHell =
 {
     if(who.rune & ITEM_RUNE3) {
         if(who.rune3_last_noise_time < time) {
-            sound (who, CHAN_ITEM, "runes/end3.wav", 1, ATTN_NORM);
+            sound(who, CHAN_ITEM, "runes/end3.wav", 1, ATTN_NORM);
             // tune as needed
             who.rune3_last_noise_time = time + 1.0;
         }
@@ -188,7 +188,7 @@ void(entity who) RuneApplyElder =
 {
     if(who.rune & ITEM_RUNE4) {
         if(who.rune4_last_regen_time < time && who.health < 100) {
-            sound (who, CHAN_ITEM, "runes/end4.wav", 1, ATTN_NORM);
+            sound(who, CHAN_ITEM, "runes/end4.wav", 1, ATTN_NORM);
             who.health = who.health + 5;
             if(who.health > 100)
                 who.health = 100;
@@ -206,8 +206,8 @@ float(entity who) RuneHasElder =
 
 void() RunePrecache =
 {
-    if(cvar("deathmatch"))
-        if(cvar("gamecfg") & GAMECFG_ENABLE_RUNES) {
+    if(cvar_hget(cvarh_deathmatch))
+        if(cvar_hget(cvarh_gamecfg) & GAMECFG_ENABLE_RUNES) {
             precache_model("progs/end1.mdl");
             precache_model("progs/end2.mdl");
             precache_model("progs/end3.mdl");

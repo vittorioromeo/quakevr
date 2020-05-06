@@ -927,7 +927,7 @@ void() PlayerDie =
         return;
     }
 
-    i = cvar("temp1");
+    i = cvar_hget(cvarh_temp1);
     if(!i)
         i = 1 + floor(random()*6);
 
@@ -1041,15 +1041,15 @@ void() player_touch =
 
     if(VR_ItemUtil_EntHasItem(self, IID_SHIELD))
     {
-        if( other.classname == "player")
+        if(other.classname == "player")
         {
-            makevectors ( self.angles );
-            vec = normalize (other.origin - self.origin);
+            makevectors (self.angles);
+            vec = normalize(other.origin - self.origin);
             dot = vec * v_forward;
             if(dot < 0.3)
                 return;
 
-            makevectors ( self.angles );
+            makevectors (self.angles);
             other.velocity = v_forward * 500;
             other.velocity_z = 250;
 
@@ -1062,7 +1062,7 @@ void() player_touch =
 
             // if shield has timed out, respawn it.
             // don't do particles more than twice a second.
-            if( self.shield_death_time < time)
+            if(self.shield_death_time < time)
             {
                 sound(self,CHAN_WEAPON,"enforcer/enfstop.wav", 1, ATTN_NORM);
 
@@ -1074,7 +1074,7 @@ void() player_touch =
                 WriteByte (MSG_BROADCAST, 230);
                 WriteByte (MSG_BROADCAST, 5);
 
-                shield_spawn ( self, v_forward );
+                shield_spawn (self, v_forward);
             }
 
             if(doDamage)

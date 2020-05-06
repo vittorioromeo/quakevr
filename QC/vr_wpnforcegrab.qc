@@ -7,32 +7,32 @@
 
 float() getForcegrabMode =
 {
-    return cvar("vr_forcegrab_mode");
+    return cvar_hget(cvarh_vr_forcegrab_mode);
 }
 
 float() getForcegrabRange =
 {
-    return cvar("vr_forcegrab_range");
+    return cvar_hget(cvarh_vr_forcegrab_range);
 }
 
 float() getForcegrabRadius =
 {
-    return cvar("vr_forcegrab_radius");
+    return cvar_hget(cvarh_vr_forcegrab_radius);
 }
 
 float() getForcegrabPowermult =
 {
-    return cvar("vr_forcegrab_powermult");
+    return cvar_hget(cvarh_vr_forcegrab_powermult);
 }
 
 float() getForcegrabEligibleParticles =
 {
-    return cvar("vr_forcegrab_eligible_particles");
+    return cvar_hget(cvarh_vr_forcegrab_eligible_particles);
 }
 
 float() getForcegrabEligibleHaptics =
 {
-    return cvar("vr_forcegrab_eligible_haptics");
+    return cvar_hget(cvarh_vr_forcegrab_eligible_haptics);
 }
 
 //

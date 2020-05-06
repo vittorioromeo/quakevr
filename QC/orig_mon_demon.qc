@@ -315,7 +315,7 @@ void(float side)    Demon_Melee =
     local vector    delta;
 
     ai_face();
-    walkmove (self.ideal_yaw, 12);    // allow a little closing
+    walkmove(self.ideal_yaw, 12);    // allow a little closing
 
     delta = self.enemy.origin - self.origin;
 
@@ -342,7 +342,7 @@ void()    Demon_JumpTouch =
 
     if(other.takedamage)
     {
-        if(vlen(self.velocity) > 400 )
+        if(vlen(self.velocity) > 400)
         {
             ldmg = 40 + 10*random();
             T_Damage (other, self, self, ldmg);

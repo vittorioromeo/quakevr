@@ -22,7 +22,7 @@ void() keytrigger_use =
       {
       if(self.message != "")
          {
-         centerprint (activator, self.message);
+         centerprint(activator, self.message);
          }
       else
          {
@@ -30,30 +30,30 @@ void() keytrigger_use =
             {
             if(world.worldtype == 2)
                {
-               centerprint (activator, "You need the silver keycard");
+               centerprint(activator, "You need the silver keycard");
                }
             else if(world.worldtype == 1)
                {
-               centerprint (activator, "You need the silver runekey");
+               centerprint(activator, "You need the silver runekey");
                }
             else if(world.worldtype == 0)
                {
-               centerprint (activator, "You need the silver key");
+               centerprint(activator, "You need the silver key");
                }
             }
          else
             {
             if(world.worldtype == 2)
                {
-               centerprint (activator, "You need the gold keycard");
+               centerprint(activator, "You need the gold keycard");
                }
             else if(world.worldtype == 1)
                {
-               centerprint (activator, "You need the gold runekey");
+               centerprint(activator, "You need the gold runekey");
                }
             else if(world.worldtype == 0)
                {
-               centerprint (activator, "You need the gold key");
+               centerprint(activator, "You need the gold key");
                }
             }
          }
@@ -203,8 +203,8 @@ void() trigger_setgravity =
 
 void() trigger_command_use =
    {
-   if(self.message )
-      localcmd( self.message );
+   if(self.message)
+      localcmd(self.message);
    };
 
 /*QUAKED trigger_command (0.3 0.1 0.6) (-10 -10 -8) (10 10 8)
@@ -255,8 +255,8 @@ void() trigger_waterfall_touch =
       }
 
    other.velocity = other.velocity + self.movedir;
-   other.velocity_x = other.velocity_x + self.count * ( random() - 0.5 );
-   other.velocity_y = other.velocity_y + self.count * ( random() - 0.5 );
+   other.velocity_x = other.velocity_x + self.count * (random() - 0.5);
+   other.velocity_y = other.velocity_y + self.count * (random() - 0.5);
    };
 
 /*QUAKED trigger_waterfall (.2 .5 .2) ?
@@ -271,12 +271,12 @@ void() trigger_waterfall =
    InitTrigger();
    self.touch = trigger_waterfall_touch;
 
-   if(self.count == 0 )
+   if(self.count == 0)
       {
       self.count = 100;
       }
 
-   if(self.speed == 0 )
+   if(self.speed == 0)
       {
       self.movedir = self.movedir * 50;
       }

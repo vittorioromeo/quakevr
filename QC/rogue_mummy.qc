@@ -91,7 +91,7 @@ void() mummy_walk19    =[  $walk19,    mummy_walk1    ]
     {
     ai_walk(0);
     if(random() < 0.2)
-        sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
     };
 
 void() mummy_run1      =[  $run1,      mummy_run2 ] {ai_run(2);self.inpain = 0;};
@@ -115,9 +115,9 @@ void() mummy_run18     =[  $run18,     mummy_run1 ]
     {
     ai_run(16);
     if(random() < 0.2)
-        sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
     if(random() > 0.8)
-        sound (self, CHAN_VOICE, "zombie/z_idle1.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "zombie/z_idle1.wav", 1, ATTN_IDLE);
     };
 
 /*
@@ -138,12 +138,12 @@ void() mummyGrenadeTouch =
     {
         mummyDamage = 15 + random() * 15;
 
-        T_Damage (other, self, self.owner, mummyDamage );
-        sound (self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
+        T_Damage (other, self, self.owner, mummyDamage);
+        sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
         remove(self);
         return;
     }
-    sound (self, CHAN_WEAPON, "zombie/z_miss.wav", 1, ATTN_NORM);   // bounce sound
+    sound(self, CHAN_WEAPON, "zombie/z_miss.wav", 1, ATTN_NORM);   // bounce sound
     self.velocity = '0 0 0';
     self.avelocity = '0 0 0';
     self.touch = SUB_Remove;
@@ -159,7 +159,7 @@ void(vector st) mummyFireGrenade =
     local   entity missile, mpuff;
     local   vector  org;
 
-    sound (self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
 
     missile = spawn ();
     missile.owner = self;
@@ -243,11 +243,11 @@ void() mummy_missile =
     r = random();
 
     if(r < 0.3)
-        mummy_atta1 ();
+        mummy_atta1();
     else if(r < 0.6)
-        mummy_attb1 ();
+        mummy_attb1();
     else
-        mummy_attc1 ();
+        mummy_attc1();
 };
 
 
@@ -260,7 +260,7 @@ PAIN
 */
 
 void() mummy_paina1    =[  $paina1,    mummy_paina2   ]
-    {sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);};
+    {sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);};
 void() mummy_paina2    =[  $paina2,    mummy_paina3   ] {ai_painforward(3);};
 void() mummy_paina3    =[  $paina3,    mummy_paina4   ] {ai_painforward(1);};
 void() mummy_paina4    =[  $paina4,    mummy_paina5   ] {ai_pain(1);};
@@ -274,7 +274,7 @@ void() mummy_paina11   =[  $paina11,   mummy_paina12  ] {};
 void() mummy_paina12   =[  $paina12,   mummy_run1     ] {};
 
 void() mummy_painb1    =[  $painb1,    mummy_painb2   ]
-    {sound (self, CHAN_VOICE, "zombie/z_pain1.wav", 1, ATTN_NORM);};
+    {sound(self, CHAN_VOICE, "zombie/z_pain1.wav", 1, ATTN_NORM);};
 void() mummy_painb2    =[  $painb2,    mummy_painb3   ] {ai_pain(2);};
 void() mummy_painb3    =[  $painb3,    mummy_painb4   ] {ai_pain(8);};
 void() mummy_painb4    =[  $painb4,    mummy_painb5   ] {ai_pain(6);};
@@ -283,7 +283,7 @@ void() mummy_painb6    =[  $painb6,    mummy_painb7   ] {};
 void() mummy_painb7    =[  $painb7,    mummy_painb8   ] {};
 void() mummy_painb8    =[  $painb8,    mummy_painb9   ] {};
 void() mummy_painb9    =[  $painb9,    mummy_painb10  ]
-    {sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);};
+    {sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);};
 void() mummy_painb10   =[  $painb10,   mummy_painb11  ] {};
 void() mummy_painb11   =[  $painb11,   mummy_painb12  ] {};
 void() mummy_painb12   =[  $painb12,   mummy_painb13  ] {};
@@ -305,7 +305,7 @@ void() mummy_painb27   =[  $painb27,   mummy_painb28  ] {};
 void() mummy_painb28   =[  $painb28,   mummy_run1     ] {};
 
 void() mummy_painc1    =[  $painc1,    mummy_painc2   ]
-    {sound (self, CHAN_VOICE, "zombie/z_pain1.wav", 1, ATTN_NORM);};
+    {sound(self, CHAN_VOICE, "zombie/z_pain1.wav", 1, ATTN_NORM);};
 void() mummy_painc2    =[  $painc2,    mummy_painc3   ] {};
 void() mummy_painc3    =[  $painc3,    mummy_painc4   ] {ai_pain(3);};
 void() mummy_painc4    =[  $painc4,    mummy_painc5   ] {ai_pain(1);};
@@ -325,7 +325,7 @@ void() mummy_painc17   =[  $painc17,   mummy_painc18  ] {};
 void() mummy_painc18   =[  $painc18,   mummy_run1 ] {};
 
 void() mummy_paind1    =[  $paind1,    mummy_paind2   ]
-    {sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);};
+    {sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);};
 void() mummy_paind2    =[  $paind2,    mummy_paind3   ] {};
 void() mummy_paind3    =[  $paind3,    mummy_paind4   ] {};
 void() mummy_paind4    =[  $paind4,    mummy_paind5   ] {};
@@ -340,7 +340,7 @@ void() mummy_paind12   =[  $paind12,   mummy_paind13  ] {};
 void() mummy_paind13   =[  $paind13,   mummy_run1 ] {};
 
 void() mummy_paine1    =[  $paine1,    mummy_paine2   ]
-    { sound (self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM); };
+    { sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM); };
 void() mummy_paine2    =[  $paine2,    mummy_paine3   ] {ai_pain(8);};
 void() mummy_paine3    =[  $paine3,    mummy_paine4   ] {ai_pain(5);};
 void() mummy_paine4    =[  $paine4,    mummy_paine5   ] {ai_pain(3);};
@@ -351,7 +351,7 @@ void() mummy_paine8    =[  $paine8,    mummy_paine9   ] {ai_pain(1);};
 void() mummy_paine9    =[  $paine9,    mummy_paine10  ] {ai_pain(2);};
 void() mummy_paine10   =[  $paine10,   mummy_paine11  ]
     {
-        sound (self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
+        sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
         self.solid = SOLID_NOT;
     };
 void() mummy_paine11   =[  $paine11,   mummy_paine12  ]
@@ -359,10 +359,10 @@ void() mummy_paine11   =[  $paine11,   mummy_paine12  ]
 void() mummy_paine12   =[  $paine12,   mummy_paine13  ]
     {
         // see if ok to stand up
-        sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_IDLE);
         setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
         self.solid = SOLID_SLIDEBOX;
-        if(!walkmove (0, 0))
+        if(!walkmove(0, 0))
         {
             self.think = mummy_paine11;
             self.solid = SOLID_NOT;
@@ -392,7 +392,7 @@ void() mummy_paine30   =[  $paine30,   mummy_run1     ]
 void() mummy_die =
 {
     self.health = -35;
-    sound (self, CHAN_VOICE, "zombie/z_gib.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, "zombie/z_gib.wav", 1, ATTN_NORM);
     ThrowHead ("progs/h_zombie.mdl", self.health);
     ThrowGib ("progs/gib1.mdl", self.health);
     ThrowGib ("progs/gib2.mdl", self.health);
@@ -408,7 +408,7 @@ void(entity attacker, float take) mummy_pain =
 {
     local float     r;
 
-    if( self.pain_finished > time )
+    if(self.pain_finished > time)
         return;
 
     r = random();
@@ -418,13 +418,13 @@ void(entity attacker, float take) mummy_pain =
     self.pain_finished = time + 2.5;
 
     if(r < 0.06)
-        mummy_paina1 ();
+        mummy_paina1();
     else if(r <  0.12)
-        mummy_painb1 ();
+        mummy_painb1();
     else if(r <  0.18)
-        mummy_painc1 ();
+        mummy_painc1();
     else
-        mummy_paind1 ();
+        mummy_paind1();
 };
 
 void() mummy_sleep = [ $paine11, mummy_sleep ] { ai_stand(); };
@@ -461,16 +461,16 @@ void() monster_mummy =
     precache_model ("progs/h_zombie.mdl");
     precache_model ("progs/zom_gib.mdl");
 
-    precache_sound ("zombie/z_idle.wav");
-    precache_sound ("zombie/z_idle1.wav");
-    precache_sound ("zombie/z_shot1.wav");
-    precache_sound ("zombie/z_gib.wav");
-    precache_sound ("zombie/z_pain.wav");
-    precache_sound ("zombie/z_pain1.wav");
-    precache_sound ("zombie/z_fall.wav");
-    precache_sound ("zombie/z_miss.wav");
-    precache_sound ("zombie/z_hit.wav");
-    precache_sound ("zombie/idle_w2.wav");
+    precache_sound("zombie/z_idle.wav");
+    precache_sound("zombie/z_idle1.wav");
+    precache_sound("zombie/z_shot1.wav");
+    precache_sound("zombie/z_gib.wav");
+    precache_sound("zombie/z_pain.wav");
+    precache_sound("zombie/z_pain1.wav");
+    precache_sound("zombie/z_fall.wav");
+    precache_sound("zombie/z_miss.wav");
+    precache_sound("zombie/z_hit.wav");
+    precache_sound("zombie/idle_w2.wav");
 
     // HONEY
     monster_add_to_counter();

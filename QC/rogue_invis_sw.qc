@@ -75,7 +75,7 @@ void()  sword_run7  =[  $runb7,     sword_run8  ] {ai_run(14);};
 void()  sword_run8  =[  $runb8,     sword_run1  ] {ai_run(14);};
 
 void()    sword_atk1    =[    $attackb1,        sword_atk2    ]
-    {sound (self,0,"knight/sword1.wav", 1, 1);ai_charge(14);};
+    {sound(self,0,"knight/sword1.wav", 1, 1);ai_charge(14);};
 void()  sword_atk2  =[  $attackb2,      sword_atk3  ] {ai_charge(14);};
 void()  sword_atk3  =[  $attackb3,      sword_atk4  ] {ai_charge(14);};
 void()  sword_atk4  =[  $attackb4,      sword_atk5  ] {ai_charge(14);};
@@ -96,7 +96,7 @@ void()    sword_die4    =[    $death4,    sword_die5    ] {};
 void()    sword_die5    =[    $death5,    sword_die6    ] {};
 void()    sword_die6    =[    $death6,    sword_die7    ] {};
 void()    sword_die7    =[    $death7,    sword_die8    ]
-    { sound (self, 1, "player/axhit2.wav", 0.5, ATTN_NORM);};
+    { sound(self, 1, "player/axhit2.wav", 0.5, ATTN_NORM);};
 void()    sword_die8    =[    $death8,    sword_die9    ] {};
 void()    sword_die9    =[    $death9,    sword_die10] {};
 void()  sword_die10=[   $death10,   sword_die10] {};
@@ -109,7 +109,7 @@ void()    sword_dieb4    =[    $deathb4,    sword_dieb5    ] {};
 void()    sword_dieb5    =[    $deathb5,    sword_dieb6    ] {};
 void()    sword_dieb6    =[    $deathb6,    sword_dieb7    ] {};
 void()    sword_dieb7    =[    $deathb7,    sword_dieb8    ]
-    { sound (self, 1, "player/axhit2.wav", 0.5, ATTN_NORM); };
+    { sound(self, 1, "player/axhit2.wav", 0.5, ATTN_NORM); };
 void()    sword_dieb8    =[    $deathb8,    sword_dieb9    ] {};
 void()    sword_dieb9    =[    $deathb9,    sword_dieb10] {};
 void()    sword_dieb10 = [ $deathb10,    sword_dieb11] {};
@@ -120,9 +120,9 @@ void() sword_die =
 // regular death
     self.effects=0;
     if(random() < 0.5)
-        sword_die1 ();
+        sword_die1();
     else
-        sword_dieb1 ();
+        sword_dieb1();
 };
 
 void() sword_pause =
@@ -157,9 +157,9 @@ void() monster_sword =
 
     precache_model ("progs/sword.mdl");
 
-    precache_sound ("knight/sword1.wav");
-    precache_sound ("knight/ksight.wav");
-    precache_sound ("player/axhit2.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/ksight.wav");
+    precache_sound("player/axhit2.wav");
 
     // HONEY
     monster_add_to_counter();
@@ -172,7 +172,7 @@ void() monster_sword =
     setsize (self, '-16 -16 -24', '16 16 40');
     self.health = 150;  // 75;
 
-    if( !self.delay)
+    if(!self.delay)
         self.delay = 10;
 
     self.th_stand = sword_stand1;

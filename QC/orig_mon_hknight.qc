@@ -68,7 +68,7 @@ void(float offset) hknight_shot =
     org = self.origin + self.mins + self.size*0.5 + v_forward * 20;
 
 // set missile speed
-    vec = normalize (v_forward);
+    vec = normalize(v_forward);
     vec_z = 0 - vec_z + (random() - 0.5)*0.1;
 
     newmis = launch_spike (org, vec);
@@ -88,7 +88,7 @@ if(time < self.attack_finished)
     return;
 if(fabs(self.origin_z - self.enemy.origin_z) > 20)
     return;        // too much height change
-if(vlen (self.origin - self.enemy.origin) < 80)
+if(vlen(self.origin - self.enemy.origin) < 80)
     return;        // use regular attack
 
 // charge
@@ -397,7 +397,7 @@ void(entity attacker, float damage) hknight_pain =
         return;
     }
 
-    if((random()*30 > damage) )
+    if((random()*30 > damage))
         return;        // didn't flinch
 
     self.pain_finished = time + 1;

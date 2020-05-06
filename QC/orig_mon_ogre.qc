@@ -147,12 +147,12 @@ void() OgreFireGrenade =
         vol = 1 - (dist / 2048);
         if(vol > 0 && vol <= 1)
         {
-            sound (self, CHAN_ITEM, "weapons/grenade.wav", vol, ATTN_NONE);
+            sound(self, CHAN_ITEM, "weapons/grenade.wav", vol, ATTN_NONE);
         }
     }
     else
     {
-        sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+        sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
         missile.velocity = missile.velocity * 600;
         missile.velocity_z = 200;
     }
@@ -587,7 +587,7 @@ void() monster_ogre_real =
     // none specified - choose random. 25% boss on normal, hard, bloodbath
     if(self.spawnflags <= 1)
     {
-        if(cvar("skill") > 0)
+        if(cvar_hget(cvarh_skill) > 0)
         {
             if(random() <= 0.25)
             {
