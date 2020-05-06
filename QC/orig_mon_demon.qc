@@ -193,7 +193,7 @@ void() monster_demon1 =
     precache_sound("demon/sight2.wav");
 
     // HONEY
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
         self.cnt = -1;
     }
 

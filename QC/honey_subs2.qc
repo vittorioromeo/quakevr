@@ -385,7 +385,7 @@ void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate 
     local vector    vdestdelta, adestdelta;
     local float        len, traveltime;
 
-    if (!tspeed)
+    if(!tspeed)
         objerror("No speed is defined!");
 
     self.think1 = func;
@@ -396,7 +396,7 @@ void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate 
 
 
 
-    if (tdest == self.origin)
+    if(tdest == self.origin)
     {
         self.velocity = '0 0 0';
         self.angles = tangle;
@@ -427,7 +427,7 @@ void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate 
     // divide by speed to get time to reach dest
     traveltime = len / tspeed;
 
-    if (traveltime < 0.1)
+    if(traveltime < 0.1)
     {
         self.velocity = '0 0 0';
         self.nextthink = time + 0.1;
@@ -450,7 +450,7 @@ void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTi
     local vector    vdestdelta, adestdelta;
     local float        len, travelspeed;
 
-    if (!ttime)
+    if(!ttime)
         objerror("No time is defined!");
 
     self.think1 = func;
@@ -461,7 +461,7 @@ void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTi
 
 
 
-    if (tdest == self.origin)
+    if(tdest == self.origin)
     {
         self.velocity = '0 0 0';
         self.angles = tangle;
@@ -508,7 +508,7 @@ void(vector tdest, float ttime, void() func) SUB_CalcMoveTime =
     local vector    vdestdelta;
     local float        len, travelspeed;
 
-    if (!ttime)
+    if(!ttime)
         objerror("No time is defined!");
 
     self.think1 = func;
@@ -517,7 +517,7 @@ void(vector tdest, float ttime, void() func) SUB_CalcMoveTime =
 
 
 
-    if (tdest == self.origin)
+    if(tdest == self.origin)
     {
         self.velocity = '0 0 0';
         self.nextthink = time + 0.1;
@@ -554,7 +554,7 @@ void()  SUB_CalcMoveRotateDone =
     self.avelocity = '0 0 0';
 
     self.nextthink = -1;
-    if (self.think1)
+    if(self.think1)
         self.think1();
 }
 
@@ -586,7 +586,7 @@ void(vector tdest, vector tangle, float ttime, float cpOffset, vector aOffset, v
 
     if(!cpOffset) cpOffset = 128;
 
-    if (!ttime)
+    if(!ttime)
         objerror("No time is defined!");
 
 
@@ -631,7 +631,7 @@ void(vector tdest, vector tangle, float ttime, float cpOffset, void() func) SUB_
 
     if(!cpOffset) cpOffset = 128;
 
-    if (!ttime)
+    if(!ttime)
         objerror("No time is defined!");
 
 
@@ -728,7 +728,7 @@ void() SUB_CalcMoveSplineDone =
     self.avelocity = '0 0 0';
 
     self.nextthink = -1;
-    if (self.think2){
+    if(self.think2){
         doIt = self.think2;
         self.think2 = SUB_Null;
         doIt();
@@ -743,7 +743,7 @@ void() SUB_CalcMoveSplineDone_norotate =
     self.oldorigin = self.s_finalangle;
 
     self.nextthink = -1;
-    if (self.think2){
+    if(self.think2){
         doIt = self.think2;
         self.think2 = SUB_Null;
         doIt();

@@ -264,7 +264,7 @@ void() HomingMissileAcquire =
 
     oldVelocity = self.velocity;
     makevectors(self.v_angle);
-    self.velocity = aim (self, 1000);
+    self.velocity = aim(self, 1000);
     self.velocity = self.velocity * 1000;
 
     aimangle = self.origin + self.velocity;

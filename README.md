@@ -81,9 +81,17 @@ Quake VR supports the "Dissolution of Eternity" official mission pack. The instr
 
 ### Highly Recommended Addons
 
+#### HD Textures and Soundtrack
+
 The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view) addon is highly recommended to improve immersion.
 
 * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
+
+#### BOTS TODO VR: (P0)
+
+https://www.quaddicted.com/files/misc/DefinitiveFrikbotMappackV2.zip
+http://quakeone.com/forum/quake-mod-releases/finished-works/5313-the-definitive-frikbot-waypack
+https://www.quaddicted.com/files/misc/
 
 ### Custom Maps
 

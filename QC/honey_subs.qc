@@ -3,14 +3,14 @@ void(vector tdest, float traveltime, void() func) SUB_CalcMove_time =
 local vector    vdestdelta;
 local float        len;
 
-    if (!traveltime)
+    if(!traveltime)
         objerror("No time is defined!");
 
     self.think1 = func;
     self.finaldest = tdest;
     self.think = SUB_CalcMoveDone;
 
-    if (tdest == self.origin)
+    if(tdest == self.origin)
     {
         self.velocity = '0 0 0';
         self.nextthink = self.ltime + traveltime;

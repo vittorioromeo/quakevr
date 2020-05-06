@@ -186,11 +186,15 @@ World Types:
 void() worldspawn =
 {
     lastspawn = world;
+
+    // FRIKBOT
+    BotInit();
+
     InitBodyQue();
 
     // HIPNOTIC
     //JIM
-   InitBulletHoles();
+    InitBulletHoles();
 
     // custom map attributes
     if(self.model == "maps/e1m8.bsp")
@@ -454,6 +458,9 @@ void() worldspawn =
 
 void() StartFrame =
 {
+    // FRIKBOT
+    BotFrame();
+
     teamplay = cvar_hget(cvarh_teamplay);
     skill = cvar_hget(cvarh_skill);
     framecount = framecount + 1;

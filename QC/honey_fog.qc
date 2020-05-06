@@ -217,14 +217,14 @@ void() fogcontroller_linkgroups =
     local entity    t, starte;
 
     self.think = SUB_Null;
-    if (self.oldenemy)
+    if(self.oldenemy)
         return;        // already linked by another controller
 
 
     foggroup_cnt = foggroup_cnt + 1;
     self.cnt = foggroup_cnt;
 
-    if (self.targetname == "")
+    if(self.targetname == "")
     {
         self.owner = self;
         return;        // not in a group
@@ -242,13 +242,13 @@ void() fogcontroller_linkgroups =
         if(self.attack_finished) starte.attack_finished = self.attack_finished; //Duration
 
         t = find(t, targetname, self.targetname);
-        if (!t)
+        if(!t)
         {
             self.oldenemy = starte;        // make the chain a loop
             return;
         }
         if(t.classname == "trigger_fogcontroller"){
-            if (t.oldenemy)
+            if(t.oldenemy)
                 objerror ("cross connected fogcontrollers");
 
             self.oldenemy = t;
@@ -264,17 +264,17 @@ float (entity o) trigger_touching =
     o_maxs = o.maxs + o.origin;
     o_mins = o.mins + o.origin;
 
-    if (self.mins_x > o_maxs_x)
+    if(self.mins_x > o_maxs_x)
         return FALSE;
-    if (self.mins_y > o_maxs_y)
+    if(self.mins_y > o_maxs_y)
         return FALSE;
-    if (self.mins_z > o_maxs_z)
+    if(self.mins_z > o_maxs_z)
         return FALSE;
-    if (self.maxs_x < o_mins_x)
+    if(self.maxs_x < o_mins_x)
         return FALSE;
-    if (self.maxs_y < o_mins_y)
+    if(self.maxs_y < o_mins_y)
         return FALSE;
-    if (self.maxs_z < o_mins_z)
+    if(self.maxs_z < o_mins_z)
         return FALSE;
     return TRUE;
 };

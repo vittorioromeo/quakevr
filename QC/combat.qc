@@ -161,7 +161,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // HONEY
     // cg: check if this needs a specific damage type
-    if ((targ.flags & FL_SPECIFICDAMAGE) && !(attacker.damage_weapon & targ.items)) {
+    if((targ.flags & FL_SPECIFICDAMAGE) && !(attacker.damage_weapon & targ.items)) {
         return FALSE;
     }
 
@@ -281,8 +281,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         SpawnBloodSplash(targ.origin, take / 2.0);
         SpawnBloodSplash(targ.handpos, take / 2.0);
         SpawnBloodSplash(targ.offhandpos, take / 2.0);
-        haptic(0, 0.0, 0.5, 30, 1.0);
-        haptic(1, 0.0, 0.5, 30, 1.0);
+
+        if(targ.ishuman)
+        {
+            haptic(cVR_OffHand, 0.0, 0.5, 30, 1.0);
+            haptic(cVR_MainHand, 0.0, 0.5, 30, 1.0);
+        }
     }
 
     // rune power up (Earth Magic)

@@ -336,7 +336,7 @@ void() monster_knight =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = knight_start;
         return;

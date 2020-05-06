@@ -506,7 +506,7 @@ void() monster_hell_knight =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = hell_knight_start;
         return;

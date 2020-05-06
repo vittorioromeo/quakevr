@@ -110,6 +110,11 @@ float(entity e) isEligibleForForceGrab
 
 void(float xHand) VRForceGrabEligibleHaptic =
 {
+    if(!self.ishuman)
+    {
+        return;
+    }
+
     haptic(xHand, 0.0, 0.12, 75, 0.2);
 }
 

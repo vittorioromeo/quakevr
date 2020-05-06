@@ -2,6 +2,11 @@
 
 void(entity entPlayer) VRButtonPressHaptic =
 {
+    if(!entPlayer.ishuman)
+    {
+        return;
+    }
+
     if(VRIsTouchingHandFake(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);

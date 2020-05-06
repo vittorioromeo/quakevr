@@ -1386,6 +1386,10 @@ void() doWetsuit =
 
 void() PlayerPreThink =
 {
+    // FRIKBOT
+    if(BotPreFrame())
+        return;
+
     // HONEY
     fog_updateAll();
 
@@ -1808,6 +1812,10 @@ Called every frame after physics are run
 */
 void() PlayerPostThink =
 {
+    // FRIKBOT
+    if(BotPostFrame())
+        return;
+
     if(self.view_ofs == '0 0 0')
     {
        earthquake_postthink();
@@ -1881,6 +1889,9 @@ called when a player connects to a server
 */
 void() ClientConnect =
 {
+    // FRIKBOT
+    ClientInRankings();
+
     bprint(self.netname);
     bprint(" entered the game\n");
 
@@ -1922,6 +1933,9 @@ called when a player disconnects from a server
 */
 void() ClientDisconnect =
 {
+    // FRIKBOT
+    ClientDisconnected();
+
     if(gameover)
         return;
     // if the level end trigger has been activated, just return
@@ -2320,9 +2334,9 @@ void(entity targ, entity attacker) ClientObituary =
                 bprint(" tried to leave\n");
                 return;
             }
-            if (attacker.classname == "trigger_deathpit") // HONEY
+            if(attacker.classname == "trigger_deathpit") // HONEY
             {
-                if (attacker.message) {
+                if(attacker.message) {
                     bprint(attacker.message);
                 } else {
                     bprint(" fell into a deep and dark crevasse");

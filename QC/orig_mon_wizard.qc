@@ -389,7 +389,7 @@ void() monster_wizard =
     precache_sound("wizard/wsight.wav");
 
     // HONEY
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
 
@@ -405,7 +405,7 @@ void() monster_wizard =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = scrag_start;
         return;

@@ -237,7 +237,7 @@ void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
 void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ]
 {
-    if (random() < 0.2 && /* HONEY */ (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP) != SPAWNFLAG_SF_SILENT_WAKEUP)
+    if(random() < 0.2 && /* HONEY */ (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP) != SPAWNFLAG_SF_SILENT_WAKEUP)
         sound(self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
 
     ai_stand();
@@ -573,7 +573,7 @@ void() monster_ogre_real =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = ogre_start;
         return;

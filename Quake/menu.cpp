@@ -3051,6 +3051,14 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
+    m.add_action_entry("Add Bot (Team 0)", runCmd("impulse 100"));
+    m.add_action_entry("Add Bot (Team 1)", runCmd("impulse 101"));
+    m.add_action_entry("Kick Bot", runCmd("impulse 102"));
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
     m.add_action_entry("Impulse 14 (Spawn All)", runCmd("impulse 14"));

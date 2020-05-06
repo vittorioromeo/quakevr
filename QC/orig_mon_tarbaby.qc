@@ -302,7 +302,7 @@ void() monster_tarbaby =
     precache_sound2("blob/mytosis.wav");
 
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
         self.cnt = -1;
     }
 
@@ -364,7 +364,7 @@ void() monster_tarbaby =
     // HONEY
     monster_add_to_counter();
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
     {
         self.use = tarbaby_start;
         return;

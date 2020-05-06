@@ -337,7 +337,7 @@ void() monster_dog =
     precache_sound("dog/dsight.wav");
     precache_sound("dog/idle.wav");
 
-    if (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
         self.cnt = -1;
     }
 
