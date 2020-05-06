@@ -877,6 +877,8 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     init(WpnCVar::WpnButtonYaw,             "vr_wofs_wpnbtn_yaw_nn",   "0.0");
     init(WpnCVar::WpnButtonRoll,            "vr_wofs_wpnbtn_roll_nn",  "0.0");
     init(WpnCVar::MuzzleAnchorVertex,       "vr_wofs_muzzle_av_nn",    "0.0");
+    init(WpnCVar::ZeroBlend,                "vr_wofs_zb_nn",           "0.0");
+    init(WpnCVar::TwoHZeroBlend,            "vr_wofs_zb_2h_nn",        "0.0");
     // clang-format on
 
     return i;
@@ -1848,55 +1850,30 @@ void SetHandPos(int index, entity_t* player)
 {
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
+    lerpdata_t zeroLerpdata;
+    R_SetupAliasFrameZero(*anchorHdr, 0, &zeroLerpdata);
+
     lerpdata_t lerpdata;
     R_SetupAliasFrame(anchor, *anchorHdr, anchor->frame, &lerpdata);
-    R_SetupEntityTransform(
-        anchor, &lerpdata); // TODO VR: (P0) probably not needed
+    // TODO VR: (P0) probably not needed
 
-    // ------------------------------------------------------------------------
-    // VR: Mostly taken from `GL_DrawAliasFrame`.
-    trivertx_t* verts1;
-    trivertx_t* verts2;
-    float blend;
-    float iblend;
-    bool lerping;
+    R_SetupEntityTransform(anchor, &lerpdata);
 
-    if(lerpdata.pose1 != lerpdata.pose2)
-    {
-        lerping = true;
-        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
-        verts2 = verts1;
-        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
-        verts2 += lerpdata.pose2 * anchorHdr->poseverts;
-        blend = lerpdata.blend;
-        iblend = 1.0f - blend;
-    }
-    else // poses the same means either 1. the entity has paused its animation,
-         // or 2. r_lerpmodels is disabled
-    {
-        lerping = false;
-        verts1 = (trivertx_t*)((byte*)anchorHdr + anchorHdr->posedata);
-        verts2 = verts1; // avoid bogus compiler warning
-        verts1 += lerpdata.pose1 * anchorHdr->poseverts;
-        blend = iblend = 0; // avoid bogus compiler warning
-    }
-    // ------------------------------------------------------------------------
+    auto fd = getDrawAliasFrameData(*anchorHdr, lerpdata, zeroLerpdata);
 
     const int clampedAnchorVertex =
         std::clamp(anchorVertex, 0, anchorHdr->numverts);
 
-    verts1 += clampedAnchorVertex;
-    verts2 += clampedAnchorVertex;
+    fd.verts1 += clampedAnchorVertex;
+    fd.verts2 += clampedAnchorVertex;
+    fd.zeroverts1 += clampedAnchorVertex;
 
-    if(lerping)
+    if(fd.lerping)
     {
-        return {//
-            verts1->v[0] * iblend + verts2->v[0] * blend,
-            verts1->v[1] * iblend + verts2->v[1] * blend,
-            verts1->v[2] * iblend + verts2->v[2] * blend};
+        return getFinalVertexPosLerped(fd, anchor->zeroBlend);
     }
 
-    return {verts1->v[0], verts1->v[1], verts1->v[2]};
+    return getFinalVertexPosNonLerped(fd, anchor->zeroBlend);
 }
 
 [[nodiscard]] qvec3 VR_GetScaledAliasVertexOffsets(entity_t* const anchor,

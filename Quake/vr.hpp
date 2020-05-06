@@ -445,6 +445,9 @@ enum class WpnCVar : std::uint8_t
     WpnButtonRoll = 59,
     MuzzleAnchorVertex = 60,
 
+    ZeroBlend = 61,
+    TwoHZeroBlend = 62,
+
     k_Max
 };
 

@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define _QUAKE_RENDER_H
 
 #include "quakeglm.hpp"
+#include "modelgen.hpp"
 
 // refresh.h -- public interface to refresh functions
 
@@ -109,7 +110,8 @@ struct entity_t
     qvec3 scale;
     qvec3 scale_origin;
 
-    bool hidden; // TODO VR: (P1) hack? or document
+    bool hidden;      // TODO VR: (P1) hack? or document
+    qfloat zeroBlend; // TODO VR: (P1) hack? or document
 };
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
@@ -208,5 +210,28 @@ void D_FlushCaches(void);
 void D_DeleteSurfaceCache(void);
 void D_InitCaches(void* buffer, int size);
 void R_SetVrect(vrect_t* pvrect, vrect_t* pvrectin, int lineadj);
+
+struct DrawAliasFrameData
+{
+    trivertx_t* verts1;
+    trivertx_t* verts2;
+    trivertx_t* zeroverts1;
+    float blend;
+    float iblend;
+    bool lerping;
+};
+
+void R_SetupAliasFrameZero(
+    const aliashdr_t& paliashdr, int frame, lerpdata_t* lerpdata);
+
+[[nodiscard]] DrawAliasFrameData getDrawAliasFrameData(
+    const aliashdr_t& paliashdr, const lerpdata_t& lerpdata,
+    const lerpdata_t& zeroLerpdata) noexcept;
+
+[[nodiscard]] qvec3 getFinalVertexPosLerped(
+    const DrawAliasFrameData& fd, const qfloat zeroBlend) noexcept;
+
+[[nodiscard]] qvec3 getFinalVertexPosNonLerped(
+    const DrawAliasFrameData& fd, const qfloat zeroBlend) noexcept;
 
 #endif /* _QUAKE_RENDER_H */
