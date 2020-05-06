@@ -967,7 +967,8 @@ static void StairSmoothView(float& oldz, const entity_t* ent, entity_t* view)
 V_CalcRefdef
 ==================
 */
-void V_CalcRefdef(const qvec3& handpos, const qvec3& gunOffset)
+void V_CalcRefdef(
+    const int cvarEntry, const qvec3& handpos, const qvec3& gunOffset)
 {
     static qvec3 punch{vec3_zero}; // johnfitz -- v_gunkick
 
@@ -978,7 +979,6 @@ void V_CalcRefdef(const qvec3& handpos, const qvec3& gunOffset)
 
     // view is the weapon model (only visible from inside body)
     entity_t* view = &cl.viewent;
-
 
     // transform the view offset by the model's matrix to get the offset from
     // model origin for the view
@@ -1042,8 +1042,7 @@ void V_CalcRefdef(const qvec3& handpos, const qvec3& gunOffset)
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(
-        VR_GetMainHandWpnCvarEntry(), view, cl.handrot[cVR_MainHand], false);
+    CalcGunAngle(cvarEntry, view, cl.handrot[cVR_MainHand], false);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -1154,14 +1153,14 @@ void V_CalcRefdef(const qvec3& handpos, const qvec3& gunOffset)
     }
 }
 
-void V_SetupOffHandWpnViewEnt(const qvec3& handpos, const qvec3& gunOffset)
+void V_SetupOffHandWpnViewEnt(
+    const int cvarEntry, const qvec3& handpos, const qvec3& gunOffset)
 {
     // view is the weapon model (only visible from inside body)
     entity_t& view = cl.offhand_viewent;
 
     // set up gun position
-    CalcGunAngle(
-        VR_GetOffHandWpnCvarEntry(), &view, cl.handrot[cVR_OffHand], true);
+    CalcGunAngle(cvarEntry, &view, cl.handrot[cVR_OffHand], true);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -1594,19 +1593,20 @@ static void V_RenderView_WeaponModels()
     // -------------------------------------------------------------------
     // VR: Setup main hand weapon, player model entity, and refdef.
     {
-        const auto gunOffset =
-            VR_GetWpnGunOffsets(VR_GetMainHandWpnCvarEntry());
+        const auto cvarEntry = VR_GetMainHandWpnCvarEntry();
+        const auto gunOffset = VR_GetWpnGunOffsets(cvarEntry);
 
-        V_CalcRefdef(cl.handpos[cVR_MainHand], gunOffset);
+        V_CalcRefdef(cvarEntry, cl.handpos[cVR_MainHand], gunOffset);
     }
 
     // -------------------------------------------------------------------
     // VR: Setup off hand weapon.
     {
-        auto gunOffset = VR_GetWpnGunOffsets(VR_GetOffHandWpnCvarEntry());
+        const auto cvarEntry = VR_GetOffHandWpnCvarEntry();
+        auto gunOffset = VR_GetWpnGunOffsets(cvarEntry);
         gunOffset[1] *= -1.f;
 
-        V_SetupOffHandWpnViewEnt(cl.handpos[cVR_OffHand], gunOffset);
+        V_SetupOffHandWpnViewEnt(cvarEntry, cl.handpos[cVR_OffHand], gunOffset);
     }
 }
 
@@ -1679,6 +1679,10 @@ static void V_RenderView_HandModels()
 
             if(inFixed2HAiming)
             {
+                // setup zeroblend
+                otherWpnEnt->zeroBlend =
+                    VR_GetWpnCVarValue(otherWpnCvar, WpnCVar::TwoHZeroBlend);
+
                 const auto otherHand = VR_OtherHand(hand);
 
                 V_SetupFixedHelpingHandViewEnt(fingerIdx, hand, otherWpnCvar,
@@ -1687,6 +1691,10 @@ static void V_RenderView_HandModels()
 
                 return;
             }
+
+            // setup zeroblend
+            otherWpnEnt->zeroBlend =
+                VR_GetWpnCVarValue(otherWpnCvar, WpnCVar::ZeroBlend);
         }
 
         V_SetupHandViewEnt(fingerIdx, wpnCvar, wpnEnt, handEnt,

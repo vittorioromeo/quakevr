@@ -2861,6 +2861,7 @@ void M_QuakeVRSettings_Key(int k)
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
     const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+    const quake::menu_bounds<float> zbBounds{0.05f, 0.f, 1.f};
 
     // ------------------------------------------------------------------------
 
@@ -2886,6 +2887,14 @@ void M_QuakeVRSettings_Key(int k)
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
             rBounds                                              //
+        );
+    };
+
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            zbBounds                                             //
         );
     };
 
@@ -2957,6 +2966,17 @@ void M_QuakeVRSettings_Key(int k)
          )
         .hover(hoverWpnButtonAnchorVertex)
         .tooltip("Index of the mesh vertex where the button will be attached.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* zbTooltip =
+        "Blending factor of the weapon animation with the zeroth frame. Useful "
+        "to adjust recoil animations.";
+
+    zb_wpncvar("Zero Blend", WpnCVar::ZeroBlend).tooltip(zbTooltip);
+    zb_wpncvar("2H Zero Blend", WpnCVar::TwoHZeroBlend).tooltip(zbTooltip);
 
     return m;
 }
