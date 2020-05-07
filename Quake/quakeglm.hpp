@@ -65,6 +65,7 @@ using qquat = glm::dquat;
 using qfloat = float;
 using qvec2 = glm::vec2;
 using qvec3 = glm::vec3;
+using qvec4 = glm::vec4;
 using qmat3 = glm::mat3;
 using qquat = glm::quat;
 
