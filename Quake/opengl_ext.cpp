@@ -1,5 +1,6 @@
 #include "opengl_ext.hpp"
 
+/*
 namespace
 {
     struct
@@ -56,3 +57,4 @@ namespace quake::gl
         return extensions_initialized;
     }
 } // namespace quake::gl
+*/

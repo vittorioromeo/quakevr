@@ -255,7 +255,7 @@ void(float AttackNumber) WrathMissile =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     missile = spawn ();
     missile.owner = self;

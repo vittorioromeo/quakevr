@@ -49,7 +49,7 @@ m*_t structures are in-memory
 #define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
 #define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
 #define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
-// clang-format on 
+// clang-format on
 
 /*
 ==============================================================================
@@ -465,7 +465,7 @@ struct qmodel_t
     int firstmodelsurface, nummodelsurfaces;
 
     int numsubmodels;
-    dmodel_t* submodels;
+    mmodel_t* submodels;
 
     int numplanes;
     mplane_t* planes;

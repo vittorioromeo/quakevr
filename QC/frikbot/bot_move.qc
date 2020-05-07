@@ -418,7 +418,7 @@ void() frik_movetogoal =
 
     if(self.target1 == world)
     {
-        makevectors(self.v_angle);
+        makeforward(self.v_angle);
         frik_walkmove(v_forward);
         return;
     }
@@ -489,7 +489,7 @@ void() frik_bot_roam =
         ang = self.angles;
         ang_y = frik_anglemod(ang_y - 90 + (random() * 180));
         ang_x = 0; // avoid upward sloping
-        makevectors(ang);
+        makeforward(ang);
         traceline(org, org + v_forward * 2300, TRUE, self);
         if(trace_fraction != 1)
         {

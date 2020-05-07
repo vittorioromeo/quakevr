@@ -118,7 +118,7 @@ void() morph_stab2 =
     dir = self.enemy.origin - self.origin + self.enemy.view_ofs;
     dist = vlen(dir);
     dir = normalize(dir);
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     if(dist <= 90)
     {
@@ -200,7 +200,7 @@ void() morph_smack =
     ldmg = (random() * 10) + 10;
     T_Damage (self.enemy, self, self, ldmg);
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     self.enemy.velocity = v_forward * 100 + '0 0 100';
 };
 
@@ -242,7 +242,7 @@ void() morph_fire =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
     dir = normalize(self.enemy.origin - self.origin) ;
     LaunchLaser(org, dir);

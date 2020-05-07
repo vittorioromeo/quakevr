@@ -261,17 +261,17 @@ void GLSLGamma_GammaCorrect()
     // rendering
     if(vr_fakevr.value == 0 && vr_novrinit.value == 0)
     {
-        glBindFramebufferEXT(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
         glReadBuffer(GL_FRONT);
     }
 
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
 
     // draw the texture back to the framebuffer with a fragment shader
-    GL_UseProgramFunc(r_gamma_program);
-    GL_Uniform1fFunc(gammaLoc, vid_gamma.value);
-    GL_Uniform1fFunc(contrastLoc, q_min(2.0, q_max(1.0, vid_contrast.value)));
-    GL_Uniform1iFunc(textureLoc, 0); // use texture unit 0
+    glUseProgram(r_gamma_program);
+    glUniform1f(gammaLoc, vid_gamma.value);
+    glUniform1f(contrastLoc, q_min(2.0, q_max(1.0, vid_contrast.value)));
+    glUniform1i(textureLoc, 0); // use texture unit 0
 
     glDisable(GL_ALPHA_TEST);
     glDisable(GL_DEPTH_TEST);
@@ -295,7 +295,7 @@ void GLSLGamma_GammaCorrect()
 
     glEnable(GL_CULL_FACE);
 
-    GL_UseProgramFunc(0);
+    glUseProgram(0);
 
     // clear cached binding
     GL_ClearBindings();

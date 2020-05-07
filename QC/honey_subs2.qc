@@ -335,7 +335,7 @@ vector(vector point, vector toAngles) SUB_RotatePoint =
     toAngles_x = 0; //no pitching
 
     ang = vectoangles(noZ);
-    makevectors (toAngles + ang);
+    makevectors(toAngles + ang);
 
     v_forward = normalize(v_forward);
     noZ = v_forward * vlen(point);

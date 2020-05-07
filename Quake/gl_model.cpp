@@ -2417,21 +2417,21 @@ Mod_LoadSubmodels
 */
 void Mod_LoadSubmodels(lump_t* l)
 {
-    dmodel_t* in;
-    dmodel_t* out;
+    mmodel_t* in;
+    mmodel_t* out;
     int i;
 
     int j;
 
     int count;
 
-    in = (dmodel_t*)(mod_base + l->fileofs);
+    in = (mmodel_t*)(mod_base + l->fileofs);
     if(l->filelen % sizeof(*in))
     {
         Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     }
     count = l->filelen / sizeof(*in);
-    out = (dmodel_t*)Hunk_AllocName(count * sizeof(*out), loadname);
+    out = (mmodel_t*)Hunk_AllocName(count * sizeof(*out), loadname);
 
     loadmodel->submodels = out;
     loadmodel->numsubmodels = count;
@@ -2549,7 +2549,7 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
     int j;
     int bsp2;
     dheader_t* header;
-    dmodel_t* bm;
+    mmodel_t* bm;
     float radius; // johnfitz
 
     loadmodel->type = mod_brush;

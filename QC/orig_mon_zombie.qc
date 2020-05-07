@@ -564,13 +564,13 @@ void() zombie_escape12=[$cruc_12, zombie_escape13] {self.nextthink=time+0.10;};
 void() zombie_escape13=[$cruc_13, zombie_escape14] {self.nextthink=time+0.10;};
 void() zombie_escape14=[$cruc_14, zombie_escape15]
 {
-    makevectors (self.angles);
+    makevectors(self.angles);
     setorigin(self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };
 void() zombie_escape15=[ $cruc_15, zombie_escape16]
 {
-    makevectors (self.angles);
+    makevectors(self.angles);
     setorigin(self, self.origin + v_forward * 8);
     self.nextthink=time+0.15;
 };

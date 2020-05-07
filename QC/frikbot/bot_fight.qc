@@ -256,8 +256,6 @@ Pick a weapon based on range / ammo
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 */
 
-// TODO VR: (P0) fix this, grep for weapon/weaponmodel/WID_,etc
-
 float(float brange) bot_pick_weapon =
 {
     local float wid;

@@ -100,7 +100,7 @@ void(string gibname, float dm) AccelerateGib =
     setsize(new, '-8 -8 -8', '8 8 8');
 
     new.velocity = -1.25 * self.velocity;
-    makevectors (new.velocity);
+    makevectors(new.velocity);
     offset1 = random() * 300 - 150;
     new.velocity = new.velocity + v_right * offset1;
     offset1 = random() * 300 - 150;

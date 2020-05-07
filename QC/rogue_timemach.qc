@@ -13,7 +13,7 @@ void() time_chunk =
     setmodel(timeChunk, "progs/timegib.mdl");
     timeChunk.solid = SOLID_NOT;
     timeChunk.movetype = MOVETYPE_TOSS;
-    makevectors (self.owner.angles);
+    makevectors(self.owner.angles);
     setorigin(timeChunk, self.owner.origin + v_forward*84 - v_up * 136);
     timeChunk.velocity = v_up * -50;
     timeChunk.avelocity = '300 300 300';
@@ -163,7 +163,7 @@ void() time_pain_impl =
     {
         self.pain_finished = time + 2;
         painRnd = random();
-        makevectors (self.angles);
+        makevectors(self.angles);
         painEnt = spawn();
         if(painRnd < 0.33)
             painEnt.origin = self.origin + v_forward*80 - v_up*64;

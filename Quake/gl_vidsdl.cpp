@@ -27,15 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cfgfile.hpp"
 #include "bgmusic.hpp"
 #include "resource.hpp"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
+
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
+
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "menu_util.hpp"
@@ -79,12 +73,8 @@ static int nummodes;
 
 static bool vid_initialized = false;
 
-#if defined(USE_SDL2)
 static SDL_Window* draw_context;
 static SDL_GLContext gl_context;
-#else
-static SDL_Surface* draw_context;
-#endif
 
 static bool vid_locked = false; // johnfitz
 static bool vid_changed = false;
@@ -116,40 +106,42 @@ bool gl_glsl_gamma_able = false;     // ericw
 bool gl_glsl_alias_able = false;     // ericw
 int gl_stencilbits;
 
-PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc = nullptr; // johnfitz
-PFNGLACTIVETEXTUREARBPROC GL_SelectTextureFunc = nullptr; // johnfitz
-PFNGLCLIENTACTIVETEXTUREARBPROC GL_ClientActiveTextureFunc = nullptr; // ericw
-PFNGLBINDBUFFERARBPROC GL_BindBufferFunc = nullptr;                   // ericw
-PFNGLBUFFERDATAARBPROC GL_BufferDataFunc = nullptr;                   // ericw
-PFNGLBUFFERSUBDATAARBPROC GL_BufferSubDataFunc = nullptr;             // ericw
-PFNGLDELETEBUFFERSARBPROC GL_DeleteBuffersFunc = nullptr;             // ericw
-PFNGLGENBUFFERSARBPROC GL_GenBuffersFunc = nullptr;                   // ericw
+/*
+PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2fARB = nullptr; // johnfitz
+PFNGLACTIVETEXTUREARBPROC glActiveTextureARB = nullptr; // johnfitz
+PFNGLCLIENTACTIVETEXTUREARBPROC glClientActiveTextureARB = nullptr; // ericw
+PFNGLBINDBUFFERARBPROC glBindBufferARB = nullptr;                   // ericw
+PFNGLBUFFERDATAARBPROC glBufferDataARB = nullptr;                   // ericw
+PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB = nullptr;             // ericw
+PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB = nullptr;             // ericw
+PFNGLGENBUFFERSARBPROC glGenBuffersARB = nullptr;                   // ericw
 
-QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc = nullptr;               // ericw
-QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc = nullptr;               // ericw
-QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc = nullptr;             // ericw
-QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc = nullptr;               // ericw
-QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc = nullptr;             // ericw
-QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc = nullptr;                 // ericw
-QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc = nullptr;       // ericw
-QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc = nullptr;               // ericw
-QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc = nullptr;     // ericw
-QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc = nullptr;             // ericw
-QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc = nullptr;               // ericw
-QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc = nullptr;                 // ericw
-QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc = nullptr;   // ericw
-QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc = nullptr;                   // ericw
-QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc = nullptr;     // ericw
-QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc = nullptr; // ericw
-QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc =
+QS_PFNGLCREATESHADERPROC glCreateShader = nullptr;               // ericw
+QS_PFNGLDELETESHADERPROC glDeleteShader = nullptr;               // ericw
+QS_PFNGLDELETEPROGRAMPROC glDeleteProgram = nullptr;             // ericw
+QS_PFNGLSHADERSOURCEPROC glShaderSource = nullptr;               // ericw
+QS_PFNGLCOMPILESHADERPROC glCompileShader = nullptr;             // ericw
+QS_PFNGLGETSHADERIVPROC glGetShaderiv = nullptr;                 // ericw
+QS_PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = nullptr;       // ericw
+QS_PFNGLGETPROGRAMIVPROC glGetProgramiv = nullptr;               // ericw
+QS_PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = nullptr;     // ericw
+QS_PFNGLCREATEPROGRAMPROC glCreateProgram = nullptr;             // ericw
+QS_PFNGLATTACHSHADERPROC glAttachShader = nullptr;               // ericw
+QS_PFNGLLINKPROGRAMPROC glLinkProgram = nullptr;                 // ericw
+QS_PFNGLBINDATTRIBLOCATIONFUNC glBindAttribLocation = nullptr;   // ericw
+QS_PFNGLUSEPROGRAMPROC glUseProgram = nullptr;                   // ericw
+QS_PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation = nullptr;     // ericw
+QS_PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer = nullptr; // ericw
+QS_PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray =
     nullptr; // ericw
-QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc =
+QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray =
     nullptr;                                                        // ericw
-QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc = nullptr; // ericw
-QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc = nullptr;                   // ericw
+QS_PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = nullptr; // ericw
+QS_PFNGLUNIFORM1IPROC glUniform1i = nullptr;                   // ericw
+QS_PFNGLUNIFORM1FPROC glUniform1f = nullptr;                   // ericw
+QS_PFNGLUNIFORM3FPROC glUniform3f = nullptr;                   // ericw
+QS_PFNGLUNIFORM4FPROC glUniform4f = nullptr;                   // ericw
+*/
 
 //====================================
 
@@ -220,7 +212,6 @@ static void VID_Gamma_SetGamma()
             value = GAMMA_MAX;
         }
 
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
         if(SDL_SetWindowGammaRamp(draw_context, vid_gamma_red, vid_gamma_green,
                vid_gamma_blue) != 0)
@@ -233,16 +224,6 @@ static void VID_Gamma_SetGamma()
                 "VID_Gamma_SetGamma: failed on SDL_SetWindowBrightness\n");
         }
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-        if(SDL_SetGammaRamp(vid_gamma_red, vid_gamma_green, vid_gamma_blue) ==
-            -1)
-            Con_Printf("VID_Gamma_SetGamma: failed on SDL_SetGammaRamp\n");
-#else
-        if(SDL_SetGamma(value, value, value) == -1)
-            Con_Printf("VID_Gamma_SetGamma: failed on SDL_SetGamma\n");
-#endif
-#endif /* USE_SDL2 */
     }
 }
 
@@ -260,7 +241,6 @@ static void VID_Gamma_Restore()
 
     if(draw_context && gammaworks)
     {
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
         if(SDL_SetWindowGammaRamp(draw_context, vid_sysgamma_red,
                vid_sysgamma_green, vid_sysgamma_blue) != 0)
@@ -272,16 +252,6 @@ static void VID_Gamma_Restore()
                 "VID_Gamma_Restore: failed on SDL_SetWindowBrightness\n");
         }
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-        if(SDL_SetGammaRamp(
-               vid_sysgamma_red, vid_sysgamma_green, vid_sysgamma_blue) == -1)
-            Con_Printf("VID_Gamma_Restore: failed on SDL_SetGammaRamp\n");
-#else
-        if(SDL_SetGamma(1, 1, 1) == -1)
-            Con_Printf("VID_Gamma_Restore: failed on SDL_SetGamma\n");
-#endif
-#endif /* USE_SDL2 */
     }
 }
 
@@ -344,7 +314,6 @@ static void VID_Gamma_Init()
         return;
     }
 
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
     gammaworks = (SDL_GetWindowGammaRamp(draw_context, vid_sysgamma_red,
                       vid_sysgamma_green, vid_sysgamma_blue) == 0);
@@ -354,17 +323,6 @@ static void VID_Gamma_Init()
 #else
     gammaworks = (SDL_SetWindowBrightness(draw_context, 1) == 0);
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-    gammaworks = (SDL_GetGammaRamp(vid_sysgamma_red, vid_sysgamma_green,
-                      vid_sysgamma_blue) == 0);
-    if(gammaworks)
-        gammaworks = (SDL_SetGammaRamp(vid_sysgamma_red, vid_sysgamma_green,
-                          vid_sysgamma_blue) == 0);
-#else
-    gammaworks = (SDL_SetGamma(1, 1, 1) == 0);
-#endif
-#endif /* USE_SDL2 */
 
     if(!gammaworks)
     {
@@ -379,15 +337,10 @@ VID_GetCurrentWidth
 */
 static int VID_GetCurrentWidth()
 {
-#if defined(USE_SDL2)
     int w = 0;
-
     int h = 0;
     SDL_GetWindowSize(draw_context, &w, &h);
     return w;
-#else
-    return draw_context->w;
-#endif
 }
 
 /*
@@ -397,15 +350,10 @@ VID_GetCurrentHeight
 */
 static int VID_GetCurrentHeight()
 {
-#if defined(USE_SDL2)
     int w = 0;
-
     int h = 0;
     SDL_GetWindowSize(draw_context, &w, &h);
     return h;
-#else
-    return draw_context->h;
-#endif
 }
 
 /*
@@ -415,7 +363,6 @@ VID_GetCurrentRefreshRate
 */
 static int VID_GetCurrentRefreshRate()
 {
-#if defined(USE_SDL2)
     SDL_DisplayMode mode;
     int current_display;
 
@@ -427,10 +374,6 @@ static int VID_GetCurrentRefreshRate()
     }
 
     return mode.refresh_rate;
-#else
-    // SDL1.2 doesn't support refresh rates
-    return DEFAULT_REFRESHRATE;
-#endif
 }
 
 
@@ -441,12 +384,8 @@ VID_GetCurrentBPP
 */
 static int VID_GetCurrentBPP()
 {
-#if defined(USE_SDL2)
     const Uint32 pixelFormat = SDL_GetWindowPixelFormat(draw_context);
     return SDL_BITSPERPIXEL(pixelFormat);
-#else
-    return draw_context->format->BitsPerPixel;
-#endif
 }
 
 /*
@@ -458,11 +397,7 @@ returns true if we are in regular fullscreen or "desktop fullscren"
 */
 static bool VID_GetFullscreen()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN) != 0;
-#else
-    return (draw_context->flags & SDL_FULLSCREEN) != 0;
-#endif
 }
 
 /*
@@ -474,12 +409,8 @@ returns true if we are specifically in "desktop fullscreen" mode
 */
 static bool VID_GetDesktopFullscreen()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) ==
            SDL_WINDOW_FULLSCREEN_DESKTOP;
-#else
-    return false;
-#endif
 }
 
 /*
@@ -489,14 +420,7 @@ VID_GetVSync
 */
 static bool VID_GetVSync()
 {
-#if defined(USE_SDL2)
     return SDL_GL_GetSwapInterval() == 1;
-#else
-    int swap_control;
-    if(SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swap_control) == 0)
-        return swap_control > 0;
-    return false;
-#endif
 }
 
 /*
@@ -508,11 +432,7 @@ used by pl_win.c
 */
 void* VID_GetWindow()
 {
-#if defined(USE_SDL2)
     return draw_context;
-#else
-    return nullptr;
-#endif
 }
 
 /*
@@ -522,12 +442,8 @@ VID_HasMouseOrInputFocus
 */
 bool VID_HasMouseOrInputFocus()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) &
                (SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_INPUT_FOCUS)) != 0;
-#else
-    return (SDL_GetAppState() & (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) != 0;
-#endif
 }
 
 /*
@@ -537,15 +453,9 @@ VID_IsMinimized
 */
 bool VID_IsMinimized()
 {
-#if defined(USE_SDL2)
     return !(SDL_GetWindowFlags(draw_context) & SDL_WINDOW_SHOWN);
-#else
-    /* SDL_APPACTIVE in SDL 1.x means "not minimized" */
-    return !(SDL_GetAppState() & SDL_APPACTIVE);
-#endif
 }
 
-#if defined(USE_SDL2)
 /*
 ================
 VID_SDL2_GetDisplayMode
@@ -581,7 +491,6 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
     }
     return nullptr;
 }
-#endif /* USE_SDL2 */
 
 /*
 ================
@@ -607,20 +516,11 @@ static bool VID_ValidMode(
         return false;
     }
 
-#if defined(USE_SDL2)
     if(fullscreen &&
         VID_SDL2_GetDisplayMode(width, height, refreshrate, bpp) == nullptr)
     {
         bpp = 0;
     }
-#else
-    {
-        Uint32 flags = DEFAULT_SDL_FLAGS;
-        if(fullscreen) flags |= SDL_FULLSCREEN;
-
-        bpp = SDL_VideoModeOK(width, height, bpp, flags);
-    }
-#endif
 
     switch(bpp)
     {
@@ -648,9 +548,7 @@ static bool VID_SetMode(
 
     int stencilbits;
     int fsaa_obtained;
-#if defined(USE_SDL2)
     int previous_display;
-#endif
 
     // so Con_Printfs don't mess us up by forcing vid and snd updates
     temp = scr_disabled_for_loading;
@@ -679,7 +577,6 @@ static bool VID_SetMode(
 
     q_snprintf(caption, sizeof(caption), "QuakeSpasm " QUAKESPASM_VER_STRING);
 
-#if defined(USE_SDL2)
     /* Create the window if needed, hidden */
     if(!draw_context)
     {
@@ -783,44 +680,6 @@ static bool VID_SetMode(
     {
         gl_swap_control = false;
     }
-
-#else  /* !defined(USE_SDL2) */
-
-    flags = DEFAULT_SDL_FLAGS;
-    if(fullscreen) flags |= SDL_FULLSCREEN;
-    if(vid_borderless.value) flags |= SDL_NOFRAME;
-
-    gl_swap_control = true;
-    if(SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, (vid_vsync.value) ? 1 : 0) ==
-        -1)
-        gl_swap_control = false;
-
-    bpp = SDL_VideoModeOK(width, height, bpp, flags);
-
-    draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    if(!draw_context)
-    {
-        // scale back fsaa
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    }
-    if(!draw_context)
-    {
-        // scale back SDL_GL_DEPTH_SIZE
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    }
-    if(!draw_context)
-    {
-        // scale back SDL_GL_STENCIL_SIZE
-        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-        if(!draw_context) Sys_Error("Couldn't set video mode");
-    }
-
-    SDL_WM_SetCaption(caption, caption);
-#endif /* !defined(USE_SDL2) */
 
     vid.width = VID_GetCurrentWidth();
     vid.height = VID_GetCurrentHeight();
@@ -1187,18 +1046,19 @@ static void GL_CheckExtensions()
     }
     else
     {
-        GL_BindBufferFunc =
+        /*
+        glBindBufferARB =
             (PFNGLBINDBUFFERARBPROC)SDL_GL_GetProcAddress("glBindBufferARB");
-        GL_BufferDataFunc =
+        glBufferDataARB =
             (PFNGLBUFFERDATAARBPROC)SDL_GL_GetProcAddress("glBufferDataARB");
-        GL_BufferSubDataFunc = (PFNGLBUFFERSUBDATAARBPROC)SDL_GL_GetProcAddress(
+        glBufferSubDataARB = (PFNGLBUFFERSUBDATAARBPROC)SDL_GL_GetProcAddress(
             "glBufferSubDataARB");
-        GL_DeleteBuffersFunc = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress(
+        glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress(
             "glDeleteBuffersARB");
-        GL_GenBuffersFunc =
+        glGenBuffersARB =
             (PFNGLGENBUFFERSARBPROC)SDL_GL_GetProcAddress("glGenBuffersARB");
-        if(GL_BindBufferFunc && GL_BufferDataFunc && GL_BufferSubDataFunc &&
-            GL_DeleteBuffersFunc && GL_GenBuffersFunc)
+        if(glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
+            glDeleteBuffersARB && glGenBuffersARB)
         {
             Con_Printf("FOUND: ARB_vertex_buffer_object\n");
             gl_vbo_able = true;
@@ -1207,7 +1067,10 @@ static void GL_CheckExtensions()
         {
             Con_Warning("ARB_vertex_buffer_object not available\n");
         }
+        */
     }
+
+    gl_vbo_able = true;
 
     // multitexture
     //
@@ -1217,15 +1080,17 @@ static void GL_CheckExtensions()
     }
     else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_multitexture"))
     {
-        GL_MTexCoord2fFunc = (PFNGLMULTITEXCOORD2FARBPROC)SDL_GL_GetProcAddress(
+        /*
+        glMultiTexCoord2fARB =
+        (PFNGLMULTITEXCOORD2FARBPROC)SDL_GL_GetProcAddress(
             "glMultiTexCoord2fARB");
-        GL_SelectTextureFunc = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
+        glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
             "glActiveTextureARB");
-        GL_ClientActiveTextureFunc =
+        glClientActiveTextureARB =
             (PFNGLCLIENTACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
                 "glClientActiveTextureARB");
-        if(GL_MTexCoord2fFunc && GL_SelectTextureFunc &&
-            GL_ClientActiveTextureFunc)
+        if(glMultiTexCoord2fARB && glActiveTextureARB &&
+            glClientActiveTextureARB)
         {
             Con_Printf("FOUND: ARB_multitexture\n");
             gl_mtexable = true;
@@ -1237,11 +1102,17 @@ static void GL_CheckExtensions()
         {
             Con_Warning("Couldn't link to multitexture functions\n");
         }
+        */
+
+        glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
+        Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
     }
     else
     {
         Con_Warning("multitexture not supported (extension not found)\n");
     }
+
+    gl_mtexable = true;
 
     // texture_env_combine
     //
@@ -1289,30 +1160,16 @@ static void GL_CheckExtensions()
     //
     if(!gl_swap_control)
     {
-#if defined(USE_SDL2)
         Con_Warning(
             "vertical sync not supported (SDL_GL_SetSwapInterval "
             "failed)\n");
-#else
-        Con_Warning(
-            "vertical sync not supported (SDL_GL_SetAttribute failed)\n");
-#endif
     }
-#if defined(USE_SDL2)
     else if((swap_control = SDL_GL_GetSwapInterval()) == -1)
-#else
-    else if(SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swap_control) == -1)
-#endif
     {
         gl_swap_control = false;
-#if defined(USE_SDL2)
         Con_Warning(
             "vertical sync not supported (SDL_GL_GetSwapInterval "
             "failed)\n");
-#else
-        Con_Warning(
-            "vertical sync not supported (SDL_GL_GetAttribute failed)\n");
-#endif
     }
     else if((vid_vsync.value && swap_control != 1) ||
             (!vid_vsync.value && swap_control != 0))
@@ -1324,11 +1181,7 @@ static void GL_CheckExtensions()
     }
     else
     {
-#if defined(USE_SDL2)
         Con_Printf("FOUND: SDL_GL_SetSwapInterval\n");
-#else
-        Con_Printf("FOUND: SDL_GL_SWAP_CONTROL\n");
-#endif
     }
 
     // anisotropic filtering
@@ -1406,71 +1259,72 @@ static void GL_CheckExtensions()
     }
     else if(gl_version_major >= 2)
     {
-        GL_CreateShaderFunc =
+        /*
+        glCreateShader =
             (QS_PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
-        GL_DeleteShaderFunc =
+        glDeleteShader =
             (QS_PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
-        GL_DeleteProgramFunc =
+        glDeleteProgram =
             (QS_PFNGLDELETEPROGRAMPROC)SDL_GL_GetProcAddress("glDeleteProgram");
-        GL_ShaderSourceFunc =
+        glShaderSource =
             (QS_PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
-        GL_CompileShaderFunc =
+        glCompileShader =
             (QS_PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
-        GL_GetShaderivFunc =
+        glGetShaderiv =
             (QS_PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
-        GL_GetShaderInfoLogFunc =
+        glGetShaderInfoLog =
             (QS_PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress(
                 "glGetShaderInfoLog");
-        GL_GetProgramivFunc =
+        glGetProgramiv =
             (QS_PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
-        GL_GetProgramInfoLogFunc =
+        glGetProgramInfoLog =
             (QS_PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress(
                 "glGetProgramInfoLog");
-        GL_CreateProgramFunc =
+        glCreateProgram =
             (QS_PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
-        GL_AttachShaderFunc =
+        glAttachShader =
             (QS_PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
-        GL_LinkProgramFunc =
+        glLinkProgram =
             (QS_PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
-        GL_BindAttribLocationFunc =
+        glBindAttribLocation =
             (QS_PFNGLBINDATTRIBLOCATIONFUNC)SDL_GL_GetProcAddress(
                 "glBindAttribLocation");
-        GL_UseProgramFunc =
+        glUseProgram =
             (QS_PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
-        GL_GetAttribLocationFunc =
+        glGetAttribLocation =
             (QS_PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress(
                 "glGetAttribLocation");
-        GL_VertexAttribPointerFunc =
+        glVertexAttribPointer =
             (QS_PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress(
                 "glVertexAttribPointer");
-        GL_EnableVertexAttribArrayFunc =
+        glEnableVertexAttribArray =
             (QS_PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
                 "glEnableVertexAttribArray");
-        GL_DisableVertexAttribArrayFunc =
+        glDisableVertexAttribArray =
             (QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
                 "glDisableVertexAttribArray");
-        GL_GetUniformLocationFunc =
+        glGetUniformLocation =
             (QS_PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress(
                 "glGetUniformLocation");
-        GL_Uniform1iFunc =
+        glUniform1i =
             (QS_PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
-        GL_Uniform1fFunc =
+        glUniform1f =
             (QS_PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
-        GL_Uniform3fFunc =
+        glUniform3f =
             (QS_PFNGLUNIFORM3FPROC)SDL_GL_GetProcAddress("glUniform3f");
-        GL_Uniform4fFunc =
+        glUniform4f =
             (QS_PFNGLUNIFORM4FPROC)SDL_GL_GetProcAddress("glUniform4f");
 
-        if(GL_CreateShaderFunc && GL_DeleteShaderFunc && GL_DeleteProgramFunc &&
-            GL_ShaderSourceFunc && GL_CompileShaderFunc && GL_GetShaderivFunc &&
-            GL_GetShaderInfoLogFunc && GL_GetProgramivFunc &&
-            GL_GetProgramInfoLogFunc && GL_CreateProgramFunc &&
-            GL_AttachShaderFunc && GL_LinkProgramFunc &&
-            GL_BindAttribLocationFunc && GL_UseProgramFunc &&
-            GL_GetAttribLocationFunc && GL_VertexAttribPointerFunc &&
-            GL_EnableVertexAttribArrayFunc && GL_DisableVertexAttribArrayFunc &&
-            GL_GetUniformLocationFunc && GL_Uniform1iFunc && GL_Uniform1fFunc &&
-            GL_Uniform3fFunc && GL_Uniform4fFunc)
+        if(glCreateShader && glDeleteShader && glDeleteProgram &&
+            glShaderSource && glCompileShader && glGetShaderiv &&
+            glGetShaderInfoLog && glGetProgramiv &&
+            glGetProgramInfoLog && glCreateProgram &&
+            glAttachShader && glLinkProgram &&
+            glBindAttribLocation && glUseProgram &&
+            glGetAttribLocation && glVertexAttribPointer &&
+            glEnableVertexAttribArray && glDisableVertexAttribArray &&
+            glGetUniformLocation && glUniform1i && glUniform1f &&
+            glUniform3f && glUniform4f)
         {
             Con_Printf("FOUND: GLSL\n");
             gl_glsl_able = true;
@@ -1479,11 +1333,15 @@ static void GL_CheckExtensions()
         {
             Con_Warning("GLSL not available\n");
         }
+        */
     }
     else
     {
         Con_Warning("OpenGL version < 2, GLSL not available\n");
     }
+
+    gl_glsl_able = true;
+
 
     // GLSL gamma
     //
@@ -1580,6 +1438,13 @@ static void GL_Init()
 
     GL_CheckExtensions(); // johnfitz
 
+    glewExperimental = GL_TRUE;
+    auto init_res = glewInit();
+    if(init_res != GLEW_OK)
+    {
+        // std::cout << glewGetErrorString(glewInit()) << std::endl;
+    }
+
 #ifdef __APPLE__
     // ericw -- enable multi-threaded OpenGL, gives a decent FPS boost.
     // https://developer.apple.com/library/mac/technotes/tn2085/
@@ -1598,7 +1463,9 @@ static void GL_Init()
     }
     // johnfitz
 
-    GLAlias_CreateShaders();
+    // GLAlias_CreateShaders();
+    void GLAliasBlended_CreateShaders();
+    GLAliasBlended_CreateShaders();
     GLWorld_CreateShaders();
     GL_ClearBufferBindings();
 }
@@ -1624,11 +1491,7 @@ void GL_EndRendering()
 {
     if(!scr_skipupdate)
     {
-#if defined(USE_SDL2)
         SDL_GL_SwapWindow(draw_context);
-#else
-        SDL_GL_SwapBuffers();
-#endif
     }
 }
 
@@ -1641,9 +1504,7 @@ void VID_Shutdown()
 
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         draw_context = nullptr;
-#if defined(USE_SDL2)
         gl_context = nullptr;
-#endif
         PL_VID_Shutdown();
     }
 }
@@ -1757,7 +1618,6 @@ VID_InitModelist
 */
 static void VID_InitModelist()
 {
-#if defined(USE_SDL2)
     const int sdlmodes = SDL_GetNumDisplayModes(0);
     int i;
 
@@ -1779,59 +1639,6 @@ static void VID_InitModelist()
             nummodes++;
         }
     }
-#else  /* !defined(USE_SDL2) */
-    SDL_PixelFormat format;
-    SDL_Rect** modes;
-    Uint32 flags;
-    int i, j, k, originalnummodes, existingmode;
-    int bpps[] = {16, 24, 32}; // enumerate >8 bpp modes
-
-    originalnummodes = nummodes = 0;
-    format.palette = nullptr;
-
-    // enumerate fullscreen modes
-    flags = DEFAULT_SDL_FLAGS | SDL_FULLSCREEN;
-    for(i = 0; i < (int)(sizeof(bpps) / sizeof(bpps[0])); i++)
-    {
-        if(nummodes >= MAX_MODE_LIST) break;
-
-        format.BitsPerPixel = bpps[i];
-        modes = SDL_ListModes(&format, flags);
-
-        if(modes == (SDL_Rect**)0 || modes == (SDL_Rect**)-1) continue;
-
-        for(j = 0; modes[j]; j++)
-        {
-            if(modes[j]->w > MAXWIDTH || modes[j]->h > MAXHEIGHT ||
-                nummodes >= MAX_MODE_LIST)
-                continue;
-
-            modelist[nummodes].width = modes[j]->w;
-            modelist[nummodes].height = modes[j]->h;
-            modelist[nummodes].bpp = bpps[i];
-            modelist[nummodes].refreshrate = DEFAULT_REFRESHRATE;
-
-            for(k = originalnummodes, existingmode = 0; k < nummodes; k++)
-            {
-                if((modelist[nummodes].width == modelist[k].width) &&
-                    (modelist[nummodes].height == modelist[k].height) &&
-                    (modelist[nummodes].bpp == modelist[k].bpp))
-                {
-                    existingmode = 1;
-                    break;
-                }
-            }
-
-            if(!existingmode)
-            {
-                nummodes++;
-            }
-        }
-    }
-
-    if(nummodes == originalnummodes)
-        Con_SafePrintf("No fullscreen DIB modes found\n");
-#endif /* !defined(USE_SDL2) */
 }
 
 /*
@@ -1896,7 +1703,6 @@ void VID_Init()
         Sys_Error("Couldn't init SDL video: %s", SDL_GetError());
     }
 
-#if defined(USE_SDL2)
     {
         SDL_DisplayMode mode;
         if(SDL_GetDesktopDisplayMode(0, &mode) != 0)
@@ -1909,15 +1715,6 @@ void VID_Init()
         display_refreshrate = mode.refresh_rate;
         display_bpp = SDL_BITSPERPIXEL(mode.format);
     }
-#else
-    {
-        const SDL_VideoInfo* info = SDL_GetVideoInfo();
-        display_width = info->current_w;
-        display_height = info->current_h;
-        display_refreshrate = DEFAULT_REFRESHRATE;
-        display_bpp = info->vfmt->BitsPerPixel;
-    }
-#endif
 
     Cvar_SetValueQuick(&vid_bpp, (float)display_bpp);
 
@@ -2058,9 +1855,7 @@ void VID_Toggle()
     // WinXP issue. This will keep all the mode changing code in one place.
     static bool vid_toggle_works = false;
     bool toggleWorked;
-#if defined(USE_SDL2)
     Uint32 flags = 0;
-#endif
 
     S_ClearBuffer();
 
@@ -2081,7 +1876,6 @@ void VID_Toggle()
         goto vrestart;
     }
 
-#if defined(USE_SDL2)
     if(!VID_GetFullscreen())
     {
         flags = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP
@@ -2089,9 +1883,6 @@ void VID_Toggle()
     }
 
     toggleWorked = SDL_SetWindowFullscreen(draw_context, flags) == 0;
-#else
-    toggleWorked = SDL_WM_ToggleFullScreen(draw_context) == 1;
-#endif
 
     if(toggleWorked)
     {
