@@ -1043,13 +1043,13 @@ void() player_touch =
     {
         if(other.classname == "player")
         {
-            makevectors (self.angles);
+            makevectors(self.angles);
             vec = normalize(other.origin - self.origin);
             dot = vec * v_forward;
             if(dot < 0.3)
                 return;
 
-            makevectors (self.angles);
+            makevectors(self.angles);
             other.velocity = v_forward * 500;
             other.velocity_z = 250;
 

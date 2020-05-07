@@ -2403,8 +2403,8 @@ _add_path:
 
         if(!pak)
         {
-            Con_Printf(
-                "Could not add pakfile to search paths: '%s'\n", pakfile);
+            // Con_Printf(
+            //     "Could not add pakfile to search paths: '%s'\n", pakfile);
         }
     }
 

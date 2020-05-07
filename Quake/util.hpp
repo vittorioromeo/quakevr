@@ -1,7 +1,11 @@
 #pragma once
 
 #ifdef WIN32
+#include <windows.h>
 #include "debugapi.h"
+
+#undef min
+#undef max
 #endif
 
 #include "q_stdinc.hpp"

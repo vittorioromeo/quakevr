@@ -171,7 +171,7 @@ void(vector st) mummyFireGrenade =
 
 // set missile speed
 
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     missile.velocity = normalize(self.enemy.origin - org);
     missile.velocity = missile.velocity * 600;

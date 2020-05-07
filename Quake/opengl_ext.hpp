@@ -2,6 +2,7 @@
 
 #include "quakedef.hpp"
 
+/*
 #define GL_READ_FRAMEBUFFER_EXT 0x8CA8
 #define GL_DRAW_FRAMEBUFFER_EXT 0x8CA9
 #define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9
@@ -24,3 +25,4 @@ namespace quake::gl
 {
     [[nodiscard]] bool InitOpenGLExtensions() noexcept;
 }
+*/

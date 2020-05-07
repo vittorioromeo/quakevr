@@ -2057,6 +2057,9 @@ void SV_SpawnServer(const char* server)
     // serverflags are for cross level information (sigils)
     pr_global_struct->serverflags = svs.serverflags;
 
+    Con_Printf("OnSpawnServer QC\n");
+    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
+
     ED_LoadFromFile(sv.worldmodel->entities);
 
     sv.active = true;
@@ -2103,7 +2106,4 @@ void SV_SpawnServer(const char* server)
 
     Con_DPrintf("Server spawned.\n");
     VR_OnSpawnServer();
-
-    Con_Printf("OnSpawnServer QC\n");
-    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
 }

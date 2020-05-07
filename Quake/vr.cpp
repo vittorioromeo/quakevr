@@ -226,10 +226,10 @@ void RecreateTextures(
     fbo->size.width = width;
     fbo->size.height = height;
 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo->framebuffer);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, fbo->framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
         GL_TEXTURE_2D, fbo->texture, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
         GL_TEXTURE_2D, fbo->depth_texture, 0);
 }
 
@@ -237,7 +237,7 @@ void RecreateTextures(
 {
     fbo_t fbo;
 
-    glGenFramebuffersEXT(1, &fbo.framebuffer);
+    glGenFramebuffers(1, &fbo.framebuffer);
 
     fbo.depth_texture = 0;
 
@@ -264,30 +264,30 @@ void CreateMSAA(fbo_t* const fbo, const int width, const int height,
 
     if(fbo->msaa_framebuffer)
     {
-        glDeleteFramebuffersEXT(1, &fbo->msaa_framebuffer);
+        glDeleteFramebuffers(1, &fbo->msaa_framebuffer);
         glDeleteTextures(1, &fbo->msaa_texture);
         glDeleteTextures(1, &fbo->msaa_depth_texture);
     }
 
-    glGenFramebuffersEXT(1, &fbo->msaa_framebuffer);
+    glGenFramebuffers(1, &fbo->msaa_framebuffer);
     glGenTextures(1, &fbo->msaa_texture);
     glGenTextures(1, &fbo->msaa_depth_texture);
 
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_texture);
-    glTexImage2DMultisampleEXT(
+    glTexImage2DMultisample(
         GL_TEXTURE_2D_MULTISAMPLE, msaa, GL_RGBA8, width, height, false);
 
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture);
-    glTexImage2DMultisampleEXT(GL_TEXTURE_2D_MULTISAMPLE, msaa,
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, msaa,
         GL_DEPTH_COMPONENT24, width, height, false);
 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo->msaa_framebuffer);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, fbo->msaa_framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
         GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_texture, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
         GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture, 0);
 
-    const GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER_EXT);
     if(status != GL_FRAMEBUFFER_COMPLETE)
     {
         Con_Printf("Framebuffer incomplete %x", status);
@@ -297,7 +297,7 @@ void CreateMSAA(fbo_t* const fbo, const int width, const int height,
 // TODO VR: (P2) never called
 void DeleteFBO(const fbo_t& fbo)
 {
-    glDeleteFramebuffersEXT(1, &fbo.framebuffer);
+    glDeleteFramebuffers(1, &fbo.framebuffer);
     glDeleteTextures(1, &fbo.depth_texture);
     glDeleteTextures(1, &fbo.texture);
 }
@@ -1260,11 +1260,13 @@ bool VR_Enable()
         }
     }
 
+    /*
     if(!quake::gl::InitOpenGLExtensions())
     {
         Con_Printf("Failed to initialize OpenGL extensions");
         return false;
     }
+    */
 
     eyes[0].eye = vr::Eye_Left;
     eyes[1].eye = vr::Eye_Right;
@@ -1292,7 +1294,10 @@ bool VR_Enable()
 
     VR_ResetOrientation(); // Recenter the HMD
 
-    wglSwapIntervalEXT(0); // Disable V-Sync
+    if(const int rc = SDL_GL_SetSwapInterval(0); rc != 0) // Disable V-Sync
+    {
+        Con_Printf("Error disabling VSync, rc=%d\n", rc);
+    }
 
     Cbuf_AddText(
         "exec vr_autoexec.cfg\n"); // Load the vr autosec config file incase
@@ -1374,11 +1379,11 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     if(eye.fbo.msaa > 0)
     {
         glEnable(GL_MULTISAMPLE);
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, eye.fbo.msaa_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, eye.fbo.msaa_framebuffer);
     }
     else
     {
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, eye.fbo.framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, eye.fbo.framebuffer);
     }
 
     glViewport(0, 0, eye.fbo.size.width, eye.fbo.size.height);
@@ -1397,10 +1402,10 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     if(eye.fbo.msaa > 0)
     {
         glDisable(GL_MULTISAMPLE);
-        glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, eye.fbo.framebuffer);
-        glBindFramebufferEXT(GL_READ_FRAMEBUFFER, eye.fbo.msaa_framebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, eye.fbo.framebuffer);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, eye.fbo.msaa_framebuffer);
         glDrawBuffer(GL_BACK);
-        glBlitFramebufferEXT(0, 0, glwidth, glheight, 0, 0, glwidth, glheight,
+        glBlitFramebuffer(0, 0, glwidth, glheight, 0, 0, glwidth, glheight,
             GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
@@ -1413,7 +1418,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     glwidth = oldglwidth;
     glheight = oldglheight;
 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
 }
 
 // Get a reasonable height around where hands should be when aiming a gun.
@@ -3200,11 +3205,11 @@ void VR_UpdateScreenContent()
     const GLint w = glwidth;
     const GLint h = glheight;
 
-    glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, eyes[0].fbo.framebuffer);
-    glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, 0);
-    glBlitFramebufferEXT(0, eyes[0].fbo.size.width, eyes[0].fbo.size.height, 0,
-        0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER_EXT, eyes[0].fbo.framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, 0);
+    glBlitFramebuffer(0, eyes[0].fbo.size.width, eyes[0].fbo.size.height, 0, 0,
+        h, w, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER_EXT, 0);
 }
 
 void VR_SetMatrices()

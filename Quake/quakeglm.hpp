@@ -15,7 +15,9 @@
 #define GLM_CONFIG_ANONYMOUS_STRUCT GLM_ENABLE
 #define GLM_FORCE_SWIZZLE
 
-#include <SDL_opengl.h>
+#include <GL/glew.h>
+
+#include <SDL2/SDL_opengl.h>
 
 #include <glm.hpp>
 #include <gtc/type_ptr.hpp>

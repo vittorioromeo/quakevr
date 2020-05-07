@@ -147,29 +147,30 @@ extern int gl_stencilbits;
 // Multitexture
 extern bool mtexenabled;
 extern bool gl_mtexable;
-extern PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc;
-extern PFNGLACTIVETEXTUREARBPROC GL_SelectTextureFunc;
-extern PFNGLCLIENTACTIVETEXTUREARBPROC GL_ClientActiveTextureFunc;
+// extern PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2fARB;
+// extern PFNGLACTIVETEXTUREARBPROC glActiveTextureARB;
+// extern PFNGLCLIENTACTIVETEXTUREARBPROC glClientActiveTextureARB;
 extern GLint gl_max_texture_units; // ericw
 
 // johnfitz -- anisotropic filtering
-#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
-#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+// #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+// #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 extern float gl_max_anisotropy;
 extern bool gl_anisotropy_able;
 
 // ericw -- VBO
-extern PFNGLBINDBUFFERARBPROC GL_BindBufferFunc;
-extern PFNGLBUFFERDATAARBPROC GL_BufferDataFunc;
-extern PFNGLBUFFERSUBDATAARBPROC GL_BufferSubDataFunc;
-extern PFNGLDELETEBUFFERSARBPROC GL_DeleteBuffersFunc;
-extern PFNGLGENBUFFERSARBPROC GL_GenBuffersFunc;
+// extern PFNGLBINDBUFFERARBPROC glBindBufferARB;
+// extern PFNGLBUFFERDATAARBPROC glBufferDataARB;
+// extern PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;
+// extern PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;
+// extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;
 extern bool gl_vbo_able;
 // ericw
 
 // ericw -- GLSL
 
 // SDL 1.2 has a bug where it doesn't provide these typedefs on OS X!
+/*
 typedef GLuint(APIENTRYP QS_PFNGLCREATESHADERPROC)(GLenum type);
 typedef void(APIENTRYP QS_PFNGLDELETESHADERPROC)(GLuint shader);
 typedef void(APIENTRYP QS_PFNGLDELETEPROGRAMPROC)(GLuint program);
@@ -206,29 +207,31 @@ typedef void(APIENTRYP QS_PFNGLUNIFORM3FPROC)(
 typedef void(APIENTRYP QS_PFNGLUNIFORM4FPROC)(
     GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 
-extern QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc;
-extern QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc;
-extern QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc;
-extern QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc;
-extern QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc;
-extern QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc;
-extern QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc;
-extern QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc;
-extern QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc;
-extern QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc;
-extern QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc;
-extern QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc;
-extern QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc;
-extern QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc;
-extern QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc;
-extern QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc;
-extern QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc;
-extern QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc;
-extern QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc;
-extern QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc;
-extern QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc;
-extern QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc;
-extern QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc;
+extern QS_PFNGLCREATESHADERPROC glCreateShader;
+extern QS_PFNGLDELETESHADERPROC glDeleteShader;
+extern QS_PFNGLDELETEPROGRAMPROC glDeleteProgram;
+extern QS_PFNGLSHADERSOURCEPROC glShaderSource;
+extern QS_PFNGLCOMPILESHADERPROC glCompileShader;
+extern QS_PFNGLGETSHADERIVPROC glGetShaderiv;
+extern QS_PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+extern QS_PFNGLGETPROGRAMIVPROC glGetProgramiv;
+extern QS_PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
+extern QS_PFNGLCREATEPROGRAMPROC glCreateProgram;
+extern QS_PFNGLATTACHSHADERPROC glAttachShader;
+extern QS_PFNGLLINKPROGRAMPROC glLinkProgram;
+extern QS_PFNGLBINDATTRIBLOCATIONFUNC glBindAttribLocation;
+extern QS_PFNGLUSEPROGRAMPROC glUseProgram;
+extern QS_PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+extern QS_PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+extern QS_PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+extern QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
+extern QS_PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+extern QS_PFNGLUNIFORM1IPROC glUniform1i;
+extern QS_PFNGLUNIFORM1FPROC glUniform1f;
+extern QS_PFNGLUNIFORM3FPROC glUniform3f;
+extern QS_PFNGLUNIFORM4FPROC glUniform4f;
+*/
+
 extern bool gl_glsl_able;
 extern bool gl_glsl_gamma_able;
 extern bool gl_glsl_alias_able;

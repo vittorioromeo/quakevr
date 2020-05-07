@@ -600,10 +600,10 @@ static void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
 
     // upload indices buffer
 
-    GL_DeleteBuffersFunc(1, &m->meshindexesvbo);
-    GL_GenBuffersFunc(1, &m->meshindexesvbo);
-    GL_BindBufferFunc(GL_ELEMENT_ARRAY_BUFFER, m->meshindexesvbo);
-    GL_BufferDataFunc(GL_ELEMENT_ARRAY_BUFFER,
+    glDeleteBuffersARB(1, &m->meshindexesvbo);
+    glGenBuffersARB(1, &m->meshindexesvbo);
+    glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, m->meshindexesvbo);
+    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER,
         hdr->numindexes * sizeof(unsigned short), indexes, GL_STATIC_DRAW);
 
     // create the vertex buffer (empty)
@@ -669,10 +669,10 @@ static void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
     }
 
     // upload vertexes buffer
-    GL_DeleteBuffersFunc(1, &m->meshvbo);
-    GL_GenBuffersFunc(1, &m->meshvbo);
-    GL_BindBufferFunc(GL_ARRAY_BUFFER, m->meshvbo);
-    GL_BufferDataFunc(GL_ARRAY_BUFFER, totalvbosize, vbodata, GL_STATIC_DRAW);
+    glDeleteBuffersARB(1, &m->meshvbo);
+    glGenBuffersARB(1, &m->meshvbo);
+    glBindBufferARB(GL_ARRAY_BUFFER, m->meshvbo);
+    glBufferDataARB(GL_ARRAY_BUFFER, totalvbosize, vbodata, GL_STATIC_DRAW);
 
     free(vbodata);
 
@@ -744,10 +744,10 @@ void GLMesh_DeleteVertexBuffers()
             continue;
         }
 
-        GL_DeleteBuffersFunc(1, &m->meshvbo);
+        glDeleteBuffersARB(1, &m->meshvbo);
         m->meshvbo = 0;
 
-        GL_DeleteBuffersFunc(1, &m->meshindexesvbo);
+        glDeleteBuffersARB(1, &m->meshindexesvbo);
         m->meshindexesvbo = 0;
     }
 

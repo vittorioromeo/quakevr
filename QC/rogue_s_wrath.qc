@@ -91,7 +91,7 @@ entity() overlord_find_dest3 =
     thePlayer=find(world, classname, "player");
     curDest=world;
 
-    makevectors (thePlayer.angles);
+    makevectors(thePlayer.angles);
 
     while (1)
     {
@@ -189,7 +189,7 @@ void() overlord_teleport =
     spawn_tfog (self.origin);
 
 // spawn a tfog flash in front of the destination
-    makevectors (self.angles);
+    makevectors(self.angles);
     org = theDest.origin + 32 * v_forward;
 
     spawn_tfog (org);

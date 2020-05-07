@@ -346,7 +346,7 @@ void(float AttackNumber) lavaman_missile =
     local vector    org, vec, d;
     local float        t;
 
-    makevectors (self.angles);
+    makevectors(self.angles);
 
     // Right handed throw
     if(AttackNumber == 1)

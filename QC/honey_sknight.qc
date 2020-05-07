@@ -156,7 +156,7 @@ vector(vector center, vector ang) sknight_getNextSpearPos =
 {
     vector vx, vy, vz, org;
 
-    makevectors (ang);
+    makevectors(ang);
 
     org = center;
     vx = (v_forward * SKNIGHT_RADIUS);

@@ -294,6 +294,14 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
         supportHS = 1;
         supportCD = 1;
     }
+    else if(xTarget.classname == "player")
+    {
+        headpos_z = xTarget.origin_z + 25;
+        headsize = 3.6;
+        head_hdepth = 12;
+        supportHS = 1;
+        supportCD = 1;
+    }
 
     // Since `xEndpos` is from a trace, it always hits one of the AABB planes,
     // so to compensate we check how "diagonal" the hit was and move the hit

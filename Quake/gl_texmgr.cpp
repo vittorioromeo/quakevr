@@ -1791,7 +1791,7 @@ void GL_SelectTexture(GLenum target)
         return;
     }
 
-    GL_SelectTextureFunc(target);
+    glActiveTextureARB(target);
     currenttarget = target;
 }
 

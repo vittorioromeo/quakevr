@@ -100,7 +100,7 @@ void() dragon_check_attack =
         FindTarget();
     else
     {
-        makevectors (self.angles);
+        makevectors(self.angles);
         vec = normalize(self.enemy.origin - self.origin);
         dot = vec * v_forward;
 //        if(dot > 0.55)
@@ -415,7 +415,7 @@ void() dragon_fireball =
 
     sound(self, CHAN_VOICE, "dragon/attack.wav", 1, ATTN_NORM);
 
-    makevectors (self.angles);
+    makevectors(self.angles);
     org = self.origin + v_forward*112 + v_up*32;
 
     if(random() > 0.66)
@@ -437,7 +437,7 @@ void() dragon_fireball =
     {
         distortion = (random() - 0.5) * 0.25;
         dir = normalize(self.enemy.origin - org);
-        makevectors (dir);
+        makevectors(dir);
         dir = dir + v_right * distortion;
 
          if(fireType == FIRE_FIREBALL)
@@ -614,7 +614,7 @@ void() dragon_explode =
     }
     else
     {
-        makevectors (self.angles);
+        makevectors(self.angles);
         self.velocity = self.velocity - 40 * v_up;
         self.dragonLastVelocity = self.velocity;
     }
@@ -642,7 +642,7 @@ void() dragon_death1 = [ $drgdth01, dragon_death2 ]
 
     self.dragonDeathState = DDIE_FALLING;
     self.use = SUB_Null;
-    makevectors (self.angles);
+    makevectors(self.angles);
     self.velocity = 300 * v_forward - 40 * v_up;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
