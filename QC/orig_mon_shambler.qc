@@ -102,11 +102,11 @@ local float     ldmg;
 
     if(vlen(delta) > 100)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ldmg = (random() + random() + random()) * 40;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
     sound(self, CHAN_VOICE, "shambler/smack.wav", 1, ATTN_NORM);
 
     SpawnMeatSpray (self.origin + v_forward*16, crandom() * 100 * v_right);
@@ -132,7 +132,7 @@ local float     ldmg;
         return;
 
     ldmg = (random() + random() + random()) * 20;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
     sound(self, CHAN_VOICE, "shambler/smack.wav", 1, ATTN_NORM);
 
     if(side)
@@ -216,7 +216,7 @@ void() CastLightning =
     WriteCoord(MSG_BROADCAST, trace_endpos_y);
     WriteCoord(MSG_BROADCAST, trace_endpos_z);
 
-    LightningDamage (org, trace_endpos, self, 10);
+    LightningDamage(org, trace_endpos, self, 10);
 };
 
 void() sham_magic1     =[      $magic1,       sham_magic2    ] {ai_face();

@@ -291,7 +291,7 @@ void() pend_touch =
         self.attack_finished = time + 1;
     }
 
-    T_Damage (other, self, self, self.currentammo);
+    T_Damage(other, self, self, self.currentammo);
 
     // Fling the impactee in the direction the blade was swinging.
     if(self.spawnflags & PEND_Y)

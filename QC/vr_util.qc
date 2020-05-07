@@ -283,7 +283,7 @@ float(float xHand) VRStoppedHandGrabbing =
 
 float(entity entPlayer) VRIsTouchingHandFake =
 {
-    return (!entPlayer.ishuman) || entPlayer.touchinghand == cVR_FakeHand;
+    return entPlayer.touchinghand == cVR_FakeHand;
 }
 
 float(entity entPlayer) VRGetTouchingHand =

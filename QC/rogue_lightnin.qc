@@ -32,7 +32,7 @@ void() ltrail_fire =
         WriteCoord (MSG_BROADCAST, myTarget.origin_x);
         WriteCoord (MSG_BROADCAST, myTarget.origin_y);
         WriteCoord (MSG_BROADCAST, myTarget.origin_z);
-        LightningDamage (self.origin, myTarget.origin, self, self.currentammo);
+        LightningDamage(self.origin, myTarget.origin, self, self.currentammo);
     }
 
     if(self.items < time)

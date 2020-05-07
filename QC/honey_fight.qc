@@ -14,7 +14,7 @@ float() OgreMarksmanCheckAttack =
 
     if(enemy_range == RANGE_MELEE)
     {
-        if(CanDamage (self.enemy, self))
+        if(CanDamage(self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;

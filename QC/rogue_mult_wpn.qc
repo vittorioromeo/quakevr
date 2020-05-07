@@ -194,7 +194,7 @@ void() MultiRocketExplode =
             damg = damg * 0.5;    // mostly immune
         if(other.classname == "monster_dragon")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg);
+        T_Damage(other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage
@@ -389,7 +389,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     if(trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from.owner, damage);
+        T_Damage(trace_ent, from, from.owner, damage);
         if(self.classname == "player")
         {
             if(other.classname == "player")
@@ -402,7 +402,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     if(trace_ent != e1 && trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from.owner, damage);
+        T_Damage(trace_ent, from, from.owner, damage);
     }
     e2 = trace_ent;
 
@@ -410,7 +410,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);
-        T_Damage (trace_ent, from, from.owner, damage);
+        T_Damage(trace_ent, from, from.owner, damage);
     }
 };
 
@@ -429,7 +429,7 @@ void(entity current, float doDamage) PlasmaDischarge =
 
     sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
     if(doDamage == 1)
-        PlasmaDamage (self.origin, current.origin, self, 50);
+        PlasmaDamage(self.origin, current.origin, self, 50);
 };
 
 void() PlasmaGroundOut =
@@ -486,7 +486,7 @@ void() PlasmaTouch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg);
+        T_Damage(other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage

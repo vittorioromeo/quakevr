@@ -754,7 +754,6 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             if(!dev_overflows.packetsize ||
                 dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime)
             {
-                // TODO VR: (P0) this happens in MP
                 Con_Printf("Packet overflow!\n");
                 dev_overflows.packetsize = realtime;
             }

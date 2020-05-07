@@ -386,7 +386,7 @@ void() HIP_LaserTouch =
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
-        T_Damage (other, self, self.lastvictim, adjDmg);
+        T_Damage(other, self, self.lastvictim, adjDmg);
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -561,7 +561,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage);
         if(self.classname == "player")
         {
             if(other.classname == "player")
@@ -576,7 +576,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
         !trace_ent.wetsuit_finished)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage);
     }
     e2 = trace_ent;
 
@@ -586,7 +586,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
         !trace_ent.wetsuit_finished)
     {
         particle (trace_endpos, '0 0 100', 225, damage*4);
-        T_Damage (trace_ent, from, from, damage);
+        T_Damage(trace_ent, from, from, damage);
     }
 };
 
@@ -716,9 +716,9 @@ void() HIP_LightningThink =
    else
       dam = 30;
    if(dot>0.3)
-      HIP_HammerDamage (org, trace_endpos, self, dam);
+      HIP_HammerDamage(org, trace_endpos, self, dam);
    else
-      HIP_HammerDamage (org, trace_endpos, self, dam*0.5);
+      HIP_HammerDamage(org, trace_endpos, self, dam*0.5);
    self = head;
 
    self.nextthink = time + 0.2;
@@ -1265,7 +1265,7 @@ void() ApplyMultiDamage =
 {
     if(!multi_ent)
         return;
-    T_Damage (multi_ent, self, self, multi_damage);
+    T_Damage(multi_ent, self, self, multi_damage);
 };
 
 float(entity hit, float damage) AddMultiDamage =
@@ -1315,7 +1315,7 @@ void(float damage, vector dir) TraceAttack =
 
     if(trace_ent.takedamage)
     {
-        if(AddMultiDamage (trace_ent, damage))
+        if(AddMultiDamage(trace_ent, damage))
         {
             SpawnBlood (org, vel*0.2, damage);
             bleed = TRUE;
@@ -1494,7 +1494,7 @@ void() T_MissileTouch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg);
+        T_Damage(other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage
@@ -1595,7 +1595,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
-        if(T_Damage (trace_ent, from, from, damage))
+        if(T_Damage(trace_ent, from, from, damage))
         {
             SpawnBloodSplash (trace_endpos, damage*5);
         }
@@ -1613,7 +1613,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished)
     {
-        if(T_Damage (trace_ent, from, from, damage))
+        if(T_Damage(trace_ent, from, from, damage))
         {
             SpawnBloodSplash (trace_endpos, damage*5);
         }
@@ -1625,7 +1625,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
     {
-        if(T_Damage (trace_ent, from, from, damage))
+        if(T_Damage(trace_ent, from, from, damage))
         {
             SpawnBloodSplash (trace_endpos, damage*5);
         }
@@ -1678,7 +1678,7 @@ void(float xHand) W_FireLightning =
     particle2(trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
     particle2(trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
     particle2(trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
-    LightningDamage (org, trace_endpos + v_forward*4, self, 30);
+    LightningDamage(org, trace_endpos + v_forward*4, self, 30);
 
     VRGunHaptic(xHand, 0.4, 175, 1.0);
     particle2(org, '0 0 0', 6 /* gun smoke preset */, 1);
@@ -2122,7 +2122,7 @@ void() spike_touch =
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
-        if(T_Damage (other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg))
         {
             spawn_touchblood (adjDmg);
             bleed = TRUE;
@@ -2181,7 +2181,7 @@ void() superspike_touch =
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
         adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
-        if(T_Damage (other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg))
         {
             spawn_touchblood (adjDmg);
         }
@@ -2730,10 +2730,20 @@ void() QuadCheat =
 {
     if(deathmatch)
         return;
+
     self.super_time = 1;
     self.super_damage_finished = time + 30;
     VR_ItemUtil_EntAddItem(self, IID_QUAD);
-    dprint("quad cheat\n");
+};
+
+void() InvisibilityCheat =
+{
+    if(deathmatch)
+        return;
+
+    self.invisible_time = 1;
+    self.invisible_finished = time + 30;
+    VR_ItemUtil_EntAddItem(self, IID_INVISIBILITY);
 };
 
 // HYPNOTIC
@@ -3002,6 +3012,8 @@ void() ImpulseCommands =
         DumpEntities();
     if(self.impulse == 203)
         DumpLiveEntities();
+    if(self.impulse == 254)
+        InvisibilityCheat();
     if(self.impulse == 255)
         QuadCheat();
     if(dump_coord == 1)
@@ -3358,7 +3370,7 @@ void() wpnthrow_touch =
             adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood (adjDmg);
-            T_Damage (other, self, self.owner, adjDmg);
+            T_Damage(other, self, self.owner, adjDmg);
         }
         // hit wall
         else
@@ -3692,6 +3704,11 @@ float() getWeaponThrowMode =
 
 void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHand =
 {
+    if(VRIsHandEmpty(ent, xHand))
+    {
+        return;
+    }
+
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
         CreateThrownWeapon(ent, xWeapon, xWeaponFlags,

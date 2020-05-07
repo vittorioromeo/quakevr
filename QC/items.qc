@@ -494,10 +494,13 @@ void() weapon_touch =
     local entity stemp;
     local float  leave;
 
-    // Do not pick up the weapon if the touching hand is not grabbing.
-    if(cvar_hget(cvarh_vr_body_interactions) == 0 &&
-        cvar_hget(cvarh_vr_enabled) == 1 &&
-        other.ishuman)
+    local float touchinghandIsBody;
+
+    // True if `other` has "VR body interactions" enabled.
+    touchinghandIsBody = VRIsTouchingHandFake(other);
+
+    // Do not pick up if the touching hand is not empty and grabbing.
+    if(other.ishuman && !touchinghandIsBody)
     {
         if(!VRIsEntHandGrabbing(other, VRGetTouchingHand(other)) ||
             VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
@@ -505,6 +508,18 @@ void() weapon_touch =
             return;
         }
     }
+
+    // TODO VR: (P0) revisit this behavior, maybe put in holder or drop? or cvaR?
+    // Do not pick up the weapon if body interactions is enabled and no hands
+    // are free.
+    if(other.ishuman && touchinghandIsBody &&
+        !VRIsHandEmpty(other, cVR_MainHand) &&
+        !VRIsHandEmpty(other, cVR_OffHand))
+    {
+        return;
+    }
+
+    // If `other` is a bot, they will always drop their main hand weapon.
 
     if(deathmatch == 2 || coop)
         leave = 1;
@@ -549,9 +564,6 @@ void() weapon_touch =
     stemp = self;
     self = other;
 
-    local float touchinghandIsBody;
-    touchinghandIsBody = VRIsTouchingHandFake(other);
-
     if(touchinghandIsBody)
     {
         if(other.ishuman)
@@ -566,6 +578,10 @@ void() weapon_touch =
                 VRSetWeapon(cVR_OffHand, weaponId);
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
+            else
+            {
+                bprint("BUG: Attempting to pick weapon with no hands free.");
+            }
         }
         else
         {
@@ -579,6 +595,11 @@ void() weapon_touch =
         local float touchinghand;
         touchinghand = VRGetTouchingHand(other);
 
+        if(!VRIsHandEmpty(other, touchinghand))
+        {
+            bprint("BUG: Attempting to pick weapon with full hand.");
+        }
+
         VRSetWeapon(touchinghand, weaponId);
         W_SetCurrentAmmoFor(touchinghand);
     }
@@ -589,7 +610,7 @@ void() weapon_touch =
     if(leave)
         return;
 
-// remove it in single player, or setup for respawning in deathmatch
+    // remove it in single player, or setup for respawning in deathmatch
     self.model = string_null;
     self.solid = SOLID_NOT;
 };

@@ -30,7 +30,7 @@ THINK FUNCTIONS
 
 void() door_blocked =
 {
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
 
 // if a door has a negative wait, it would never come back if blocked,
 // so let it just squash the object to death real fast
@@ -778,7 +778,7 @@ void () secret_blocked =
     if(time < self.attack_finished)
         return;
     self.attack_finished = time + 0.5;
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
 };
 
 /*

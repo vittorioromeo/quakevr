@@ -46,7 +46,7 @@ local float     ldmg;
 
     ai_charge(10);
 
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     delta = self.enemy.origin - self.origin;
@@ -55,7 +55,7 @@ local float     ldmg;
         return;
 
     ldmg = (random() + random() + random()) * 8;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 };
 
 void()    Dog_JumpTouch =
@@ -70,7 +70,7 @@ void()    Dog_JumpTouch =
         if(vlen(self.velocity) > 300)
         {
             ldmg = 10 + 10*random();
-            T_Damage (other, self, self, ldmg);
+            T_Damage(other, self, self, ldmg);
         }
     }
 

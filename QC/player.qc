@@ -90,7 +90,7 @@ void(float xHand)    player_stand1 =
 
     if(self.velocity_x || self.velocity_y)
     {
-        self.walkframe=0;
+        self.walkframe = 0;
 
         player_run(xHand);
         return;
@@ -117,6 +117,12 @@ void(float xHand)    player_stand1 =
 void(float xHand) player_run =
 {
     VRSetWeaponFrame(xHand, 0);
+
+    // TODO VR: (P0) test, might prevent animation bug in MP
+    if(self.health <= 0)
+    {
+        return;
+    }
 
     setHandThinkWithArg(xHand, $rockrun1, player_run);
 
@@ -760,7 +766,7 @@ void(string gibname, float dm) ThrowGib =
     new.origin = self.origin;
     setmodel(new, gibname);
     setsize(new, '0 0 0', '0 0 0');
-    new.velocity = VelocityForDamage (dm);
+    new.velocity = VelocityForDamage(dm);
     new.movetype = MOVETYPE_BOUNCE;
     new.solid = SOLID_NOT;
     new.avelocity_x = random()*600;
@@ -800,7 +806,7 @@ void(string gibname, float dm) ThrowHead =
     self.solid = SOLID_NOT;
     self.view_ofs = '0 0 8';
     setsize(self, '-16 -16 0', '16 16 56');
-    self.velocity = VelocityForDamage (dm);
+    self.velocity = VelocityForDamage(dm);
     self.origin_z = self.origin_z - 24;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.avelocity = crandom() * '0 600 0';
@@ -1078,7 +1084,7 @@ void() player_touch =
             }
 
             if(doDamage)
-                T_Damage (other, self.shield_entity, self.shield_entity, 15);
+                T_Damage(other, self.shield_entity, self.shield_entity, 15);
 
 //            self.shield_death_time = time + 0.5;
         }

@@ -110,7 +110,7 @@ void() morph_stab2 =
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ai_face();
@@ -124,7 +124,7 @@ void() morph_stab2 =
     {
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
         attackDamage = (random() * 10) + 20;
-        T_Damage (self.enemy, self, self, attackDamage);
+        T_Damage(self.enemy, self, self, attackDamage);
         SpawnBlood (self.enemy.origin, v_forward * 150, 14);
     }
     else
@@ -187,7 +187,7 @@ void() morph_smack =
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ai_face();
@@ -198,7 +198,7 @@ void() morph_smack =
         return;
 
     ldmg = (random() * 10) + 10;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 
     makevectors(self.angles);
     self.enemy.velocity = v_forward * 100 + '0 0 100';

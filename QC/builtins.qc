@@ -10,7 +10,7 @@ void(entity e, vector min, vector max) setsize = #4;
 void() break                        = #6;
 float() random                        = #7;        // returns 0 - 1
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(entity e, float chan, string samp, float vol, float atten) sound = #8;
 
 vector(vector v) normalize            = #9;
@@ -33,13 +33,13 @@ entity(entity start, .string fld, string match) find = #18;
 string(string s) precache_sound        = #19;
 string(string s) precache_model        = #20;
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(entity client, string s)stuffcmd = #21;
 
 entity(vector org, float rad) findradius = #22;
 void(string s) bprint                = #23;
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(entity client, string s) sprint = #24;
 
 void(string s) dprint                = #25;
@@ -62,7 +62,7 @@ float(vector v) pointcontents        = #41;        // returns a CONTENT_*
 // #42 was removed
 float(float f) fabs = #43;
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // vector(entity e, float speed) aim = #44;        // returns the shooting vector
 
 float(string s) cvar = #45;                        // return cvar.value
@@ -78,7 +78,7 @@ vector(vector v) vectoangles            = #51;
 // direct client message generation
 //
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(float to, float f) WriteByte        = #52;
 // void(float to, float f) WriteChar        = #53;
 // void(float to, float f) WriteShort        = #54;
@@ -111,7 +111,7 @@ void(string s) changelevel = #70;
 
 void(string var, string val) cvar_set = #72;    // sets cvar.value
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(entity client, string s) centerprint = #73;    // sprint, but in middle
 
 void(vector pos, string samp, float vol, float atten) ambientsound = #74;
@@ -120,7 +120,7 @@ string(string s) precache_model2    = #75;        // registered version only
 string(string s) precache_sound2    = #76;        // registered version only
 string(string s) precache_file2        = #77;        // registered version only
 
-// TODO VR: (P0) should be dealt with by frikbot
+// Frikbot overrides the following:
 // void(entity e) setspawnparms        = #78;   // set parm1... to the
                                                 // values at level start
                                                 // for coop respawn

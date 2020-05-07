@@ -372,7 +372,7 @@ void() tdeath_touch =
             self.classname = "teledeath2";
         if(self.owner.classname != "player")
         {    // other monsters explode themselves
-            T_Damage (self.owner, self, self, 50000);
+            T_Damage(self.owner, self, self, 50000);
             return;
         }
 
@@ -380,7 +380,7 @@ void() tdeath_touch =
 
     if(other.health)
     {
-        T_Damage (other, self, self, 50000);
+        T_Damage(other, self, self, 50000);
     }
 };
 
@@ -626,7 +626,7 @@ void() hurt_touch =
     if(other.takedamage)
     {
         self.solid = SOLID_NOT;
-        T_Damage (other, self, self, self.dmg);
+        T_Damage(other, self, self, self.dmg);
         self.think = hurt_on;
         self.nextthink = time + 1;
 

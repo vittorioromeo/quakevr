@@ -403,12 +403,12 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
                     points = points * 0.5;
                 if(points > 0)
                 {
-                    if(CanDamage (head, inflictor))
+                    if(CanDamage(head, inflictor))
                     {    // shambler takes half damage from all explosions
                         if(head.classname == "monster_shambler")
-                            T_Damage (head, inflictor, attacker, points*0.5);
+                            T_Damage(head, inflictor, attacker, points*0.5);
                         else
-                            T_Damage (head, inflictor, attacker, points);
+                            T_Damage(head, inflictor, attacker, points);
                     }
                 }
             }
@@ -441,12 +441,12 @@ void(entity attacker, float damage) T_BeamDamage =
                 points = points * 0.5;
             if(points > 0)
             {
-                if(CanDamage (head, attacker))
+                if(CanDamage(head, attacker))
                 {
                     if(head.classname == "monster_shambler")
-                        T_Damage (head, attacker, attacker, points*0.5);
+                        T_Damage(head, attacker, attacker, points*0.5);
                     else
-                        T_Damage (head, attacker, attacker, points);
+                        T_Damage(head, attacker, attacker, points);
                 }
             }
         }

@@ -7,7 +7,7 @@ void() sphere_impact =
 {
     if(other.health)
     {
-        T_Damage (other, self, self, 1000);
+        T_Damage(other, self, self, 1000);
     }
 
     // don't do radius damage to the other, because all the damage

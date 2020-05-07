@@ -319,7 +319,7 @@ void() lavaman_touch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
-        T_Damage (other, self, self.owner, damg);
+        T_Damage(other, self, self.owner, damg);
     }
 
     // don't do radius damage to the other, because all the damage

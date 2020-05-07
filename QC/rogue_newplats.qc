@@ -47,7 +47,7 @@ void() dn_and_wait_go_up =
 
 void() dn_and_wait_crush =
 {
-    T_Damage (other, self, self, 1);
+    T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
         dn_and_wait_go_down ();
@@ -101,7 +101,7 @@ void() toggle_go_up =
 
 void() toggle_crush =
 {
-    T_Damage (other, self, self, 1);
+    T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
         toggle_go_down ();
@@ -146,7 +146,7 @@ void() elvtr_go =
 
 void() elvtr_crush =
 {
-//    T_Damage (other, self, self, 1);
+//    T_Damage(other, self, self, 1);
     self.elevatorToFloor = self.elevatorOnFloor;
 
     elvtr_go ();
@@ -390,7 +390,7 @@ void() plat2_center_touch =
 
 void() plat2_crush =
 {
-    T_Damage (other, self, self, 1);
+    T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
         plat2_go_down ();

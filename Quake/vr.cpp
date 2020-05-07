@@ -1860,9 +1860,6 @@ void SetHandPos(int index, entity_t* player)
 
     lerpdata_t lerpdata;
     R_SetupAliasFrame(anchor, *anchorHdr, anchor->frame, &lerpdata);
-    // TODO VR: (P0) probably not needed
-
-    R_SetupEntityTransform(anchor, &lerpdata);
 
     auto fd = getDrawAliasFrameData(*anchorHdr, lerpdata, zeroLerpdata);
 
@@ -4164,8 +4161,6 @@ void VR_Move(usercmd_t* cmd)
 // Their origin needs to be fixed as well. This is the same bug as the biosuit
 // one
 
-// TODO VR: (P0) credit Crazy as "Trevor Roach" for hand models!
-
 // TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from the
 // mission packs, it uses the same soundtrack for all of them (eg if you were
 // playing SOA, it would still play the original quake soundtrack unless you
@@ -4202,3 +4197,22 @@ void VR_Move(usercmd_t* cmd)
 
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
 // player_run
+
+// TODO VR: (P1) "Some weapons are so long that they physics collide with the
+// floor to prevent your hand from touching health pickups, so you need to do an
+// awkward wrist movement to allow your hand to near the health pickup. Seems
+// most obvious with the rocket launcher. In my opinion held weapons should just
+// collect pickups when colliding instead."
+
+// TODO VR: (P2) "The lava splash noise just seems plain wrong, too watery. Even
+// silent would be better, in the case of the molten rocks"
+
+// TODO VR: (P2) "Perhaps its just VR thats making me notice it, but the
+// stopping friction after running just feels too light and floaty"
+
+// TODO VR: (P2) "In some situations force grab linear is being very
+// unreliable, whereas others its fine. Is force grab code unchanged in 0.0.5 or
+// is it helpful to try and replicate? I was having most issues when holding
+// with right hand and trying to force grab with left."
+
+// TODO VR: (P0): Map menu needs paging

@@ -404,7 +404,7 @@ void(float dist) gremlin_run =
 
     if(self.watertype == CONTENT_LAVA)
     {  // do damage
-        T_Damage (self, world, world, 2000);
+        T_Damage(self, world, world, 2000);
     }
 
     movedist = dist;
@@ -1378,7 +1378,7 @@ void() Gremlin_FireLightningGun =
     WriteCoord(MSG_BROADCAST, trace_endpos_y);
     WriteCoord(MSG_BROADCAST, trace_endpos_z);
 
-   LightningDamage (org, trace_endpos+(dir*4), self, 30);
+   LightningDamage(org, trace_endpos+(dir*4), self, 30);
 };
 
 /*
@@ -1626,12 +1626,12 @@ void(float side) Gremlin_Melee =
     if(vlen(delta) > 100)
         return;
 
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     sound(self, CHAN_WEAPON, "grem/attack.wav", 1, ATTN_NORM);
     ldmg = 10 + 5*random();
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 
     makevectors(self.angles);
     SpawnMeatSpray (self.origin + v_forward*16, side * v_right);
@@ -1893,7 +1893,7 @@ void() Gremlin_JumpTouch =
         if(vlen(self.velocity) > 400)
         {
             ldmg = 40 + 10*random();
-            T_Damage (other, self, self, ldmg);
+            T_Damage(other, self, self, ldmg);
         }
     }
    */

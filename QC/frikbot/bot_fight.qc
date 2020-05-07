@@ -361,7 +361,6 @@ void() bot_setvrfields =
     if(self.ishuman)
         return;
 
-    // TODO VR: (P0) this should copy v_angle to handrot, or something like that, test.
     self.handrot = self.v_angle;
     self.offhandrot = self.v_angle;
 
