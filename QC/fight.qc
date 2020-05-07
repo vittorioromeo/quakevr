@@ -180,7 +180,7 @@ void() ai_melee =
         return;
 
     ldmg = (random() + random() + random()) * 3;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 };
 
 
@@ -198,10 +198,10 @@ void() ai_melee_side =
 
     if(vlen(delta) > 60)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
     ldmg = (random() + random() + random()) * 3;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 };
 
 
@@ -281,7 +281,7 @@ float() ShamCheckAttack =
 
     if(enemy_range == RANGE_MELEE)
     {
-        if(CanDamage (self.enemy, self))
+        if(CanDamage(self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;
@@ -340,7 +340,7 @@ float() OgreCheckAttack =
 
     if(enemy_range == RANGE_MELEE)
     {
-        if(CanDamage (self.enemy, self))
+        if(CanDamage(self.enemy, self))
         {
             self.attack_state = AS_MELEE;
             return TRUE;

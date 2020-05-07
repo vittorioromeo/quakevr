@@ -127,7 +127,7 @@ local float old_armormask;
             // other.armorvalue = 0;
 
             // TODO VR: (P0) pass a flag to `T_Damage` to ignore armor
-            T_Damage (other, self, self.owner, 9);
+            T_Damage(other, self, self.owner, 9);
 
             // other.armortype = old_armortype;
             // other.armorvalue = old_armorvalue;
@@ -137,7 +137,7 @@ local float old_armormask;
         {
             if(other.classname != "monster_lava_man")
             {
-                T_Damage (other, self, self.owner, 15);
+                T_Damage(other, self, self.owner, 15);
             }
         }
     }
@@ -197,7 +197,7 @@ local float old_armortype;
 //            old_armorvalue = other.armorvalue;
             other.armortype = other.armortype * 0.5;
 //            other.armorvalue = 0;
-            T_Damage (other, self, self.owner, 18);
+            T_Damage(other, self, self.owner, 18);
 
             // if the damage didn't wipe out the armor, armortype
             if(other.armortype != 0)
@@ -210,7 +210,7 @@ local float old_armortype;
         {
             if(other.classname != "monster_lava_man")
             {
-                T_Damage (other, self, self.owner, 30);
+                T_Damage(other, self, self.owner, 30);
             }
         }
     }

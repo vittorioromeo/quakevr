@@ -155,7 +155,7 @@ void() GrappleTrack =
 
 //        sound(self, CHAN_WEAPON, "blob/land1.wav", 1, ATTN_NORM);
         sound(self, CHAN_WEAPON, "pendulum/hit.wav", 1, ATTN_NORM);
-        T_Damage (self.enemy, self, self.owner, 1);
+        T_Damage(self.enemy, self, self.owner, 1);
         makevectors(self.v_angle);
         spray_x = 100 * crandom();
         spray_y = 100 * crandom();
@@ -201,7 +201,7 @@ void () GrappleAnchor =
         }
 
         sound(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
-        T_Damage (other, self, self.owner, 10);
+        T_Damage(other, self, self.owner, 10);
     } else {
         sound(self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 
@@ -210,7 +210,7 @@ void () GrappleAnchor =
         // doors and triggers will only be damaged once.
         if(other.takedamage)
         {
-            T_Damage (other, self, self.owner, 1);
+            T_Damage(other, self, self.owner, 1);
         }
 
         self.velocity = '0 0 0';
@@ -296,7 +296,6 @@ void(float xHand) GrappleService =
 
     if(!getOnHook(xHand))
     {
-        // TODO VR: (P0) still wonky position on hook, dunno why - TEST, added mdl
         GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
         return;
     }

@@ -3063,6 +3063,7 @@ void M_QuakeVRSettings_Key(int k)
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
     m.add_action_entry("Impulse 14 (Spawn All)", runCmd("impulse 14"));
     m.add_action_entry("Impulse 17 (Spawn Grapple)", runCmd("impulse 17"));
+    m.add_action_entry("Impulse 254 (Invisibility)", runCmd("impulse 254"));
     m.add_action_entry("Impulse 255 (Quad)", runCmd("impulse 255"));
     m.add_action_entry("God Mode", runCmd("god"));
     m.add_action_entry("Noclip", runCmd("noclip"));

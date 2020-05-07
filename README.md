@@ -146,7 +146,10 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
     * [Zackin5's OpenVR port](https://github.com/Zackin5/Quakespasm-OpenVR)
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
 
-* Hands and ironsights modeled by me
+* Hand models with finger trackning support created by *Trevor Roach*
+    * Many thanks!
+
+* Weapon ironsights modeled by me
     * Using the [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl) project as a base
 
 * Many thanks to the following beta testers, who provided a lot of great feedback: *carn1x*, *GeekyGami*, *Sly VR*.

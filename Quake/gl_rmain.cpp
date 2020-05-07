@@ -799,12 +799,13 @@ void R_DrawViewModel(entity_t* viewent)
         return;
     }
 
-    if(cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
+    if(cl.stats[STAT_HEALTH] <= 0)
     {
-        // TODO VR: (P0) use alpha instead of not drawing viewmodel with
-        // invisibility
         return;
     }
+
+    // Apply transparency effect when player has invisibility.
+    viewent->alpha = (cl.items & IT_INVISIBILITY) ? 128 : 255;
 
     currententity = viewent;
     if(!currententity->model)
@@ -1167,8 +1168,7 @@ void R_RenderScene()
     R_DrawViewModel(&cl.right_upper_holster);
 
     // VR: This is what draws the hands.
-    const auto drawHand = [](auto& handEntities)
-    {
+    const auto drawHand = [](auto& handEntities) {
         R_DrawViewModel(&handEntities.base);
         R_DrawViewModel(&handEntities.f_thumb);
         R_DrawViewModel(&handEntities.f_index);

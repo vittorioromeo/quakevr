@@ -813,7 +813,7 @@ void() trap_gravity_touch =
 
    if(other.takedamage)
       {
-      T_Damage (other, self, self, self.dmg);
+      T_Damage(other, self, self, self.dmg);
       self.attack_finished = time + 0.2;
       }
    };

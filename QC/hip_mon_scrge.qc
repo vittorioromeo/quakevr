@@ -47,7 +47,7 @@ float() ScourgeCheckAttack =
 
    if(vlen(spot1 - spot2) <= 100)
       {
-         if(CanDamage (self.enemy, self))
+         if(CanDamage(self.enemy, self))
          {
             self.attack_state = AS_MELEE;
             return TRUE;
@@ -119,11 +119,11 @@ void() Attack_With_Tail =
 
    if(vlen(delta) > 100)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ldmg = (random() + random() + random()) * 40;
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
    sound(self, CHAN_WEAPON, "shambler/smack.wav", 1, ATTN_NORM);
 
    SpawnMeatSpray (self.origin + v_forward*16, crandom() * 50 * v_right);

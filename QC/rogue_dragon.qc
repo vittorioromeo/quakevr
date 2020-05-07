@@ -460,7 +460,7 @@ void() dragon_tail_touch =
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ai_charge(10);
@@ -473,7 +473,7 @@ void() dragon_tail_touch =
     }
 
     tailDamage = (random() * 30) + 30;
-    T_Damage (self.enemy, self, self, tailDamage);
+    T_Damage(self.enemy, self, self, tailDamage);
 };
 
 void() dragon_tail =
@@ -483,7 +483,7 @@ void() dragon_tail =
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     dragon_move(10);
@@ -492,7 +492,7 @@ void() dragon_tail =
     dist = vlen(dir);
     if(dist < 250)
     {
-        T_Damage (self.enemy, self, self, 30);
+        T_Damage(self.enemy, self, self, 30);
         dir = normalize(dir);
         self.enemy.velocity = dir * 500;
         self.enemy.velocity_z = 350;

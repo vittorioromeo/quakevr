@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include <array>
 
 #define MAX_PARTICLES \
-    4096 // default max # of particles at one
+    4096 // default max # of particles at once
          // time, per texture (TODO VR: (P2) should it be per texture?, cvar)
 
 #define ABSOLUTE_MIN_PARTICLES \
@@ -67,6 +67,164 @@ enum ptype_t : std::uint8_t
     pt_rock,
     pt_gunsmoke,
     pt_gunpickup,
+};
+
+struct ParticleSOA
+{
+    struct Data
+    {
+        float ramp;
+        float die;
+        ptype_t type;
+        std::uint8_t param0;
+    };
+
+    qvec3* _orgs;
+    qvec3* _vels;
+    qvec3* _accs;
+    float* _colors;
+    float* _alphas;
+    float* _angles;
+    float* _scales;
+    Data* _datas;
+};
+
+struct ParticleHandleSOA
+{
+    ParticleSOA* _soa;
+    std::size_t _idx;
+
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3& org() noexcept
+    {
+        return _soa->_orgs[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3& vel() noexcept
+    {
+        return _soa->_vels[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE qvec3& acc() noexcept
+    {
+        return _soa->_accs[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& color() noexcept
+    {
+        return _soa->_colors[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& ramp() noexcept
+    {
+        return _soa->_datas[_idx].ramp;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& die() noexcept
+    {
+        return _soa->_datas[_idx].die;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& scale() noexcept
+    {
+        return _soa->_scales[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& alpha() noexcept
+    {
+        return _soa->_alphas[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE float& angle() noexcept
+    {
+        return _soa->_angles[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE ptype_t& type() noexcept
+    {
+        return _soa->_datas[_idx].type;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE std::uint8_t& param0() noexcept
+    {
+        return _soa->_datas[_idx].param0;
+    }
+};
+
+class ParticleBufferSOA
+{
+private:
+    ParticleSOA _pSOA;
+    std::size_t _aliveCount;
+    std::size_t _maxParticles;
+
+public:
+    void initialize(const std::size_t maxParticles) noexcept
+    {
+        _aliveCount = 0;
+        _maxParticles = maxParticles;
+
+        _pSOA._orgs = Hunk_AllocName<qvec3>(_maxParticles, "psoa_orgs");
+        _pSOA._vels = Hunk_AllocName<qvec3>(_maxParticles, "psoa_vels");
+        _pSOA._accs = Hunk_AllocName<qvec3>(_maxParticles, "psoa_accs");
+        _pSOA._colors = Hunk_AllocName<float>(_maxParticles, "psoa_colors");
+        _pSOA._alphas = Hunk_AllocName<float>(_maxParticles, "psoa_alphas");
+        _pSOA._angles = Hunk_AllocName<float>(_maxParticles, "psoa_angles");
+        _pSOA._scales = Hunk_AllocName<float>(_maxParticles, "psoa_scales");
+        _pSOA._datas =
+            Hunk_AllocName<ParticleSOA::Data>(_maxParticles, "psoa_datas");
+    }
+
+    // TODO VR: (P1)
+    /*
+    void cleanup() noexcept
+    {
+
+
+        // _aliveEnd =
+        //     std::remove_if(_particles, _aliveEnd, [](const particle_t& p) {
+        //         return p.alpha <= 0.f || p.scale <= 0.f || cl.time >= p.die;
+        //     });
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE particle_t& create() noexcept
+    {
+        return *_aliveEnd++;
+    }
+
+    template <typename F>
+    QUAKE_FORCEINLINE void forActive(F&& f) noexcept
+    {
+        for(auto p = _particles; p != _aliveEnd; ++p)
+        {
+            f(ParticleHandle{p});
+        }
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE bool full() const noexcept
+    {
+        return _aliveEnd == _end;
+    }
+
+    void clear() noexcept
+    {
+        _aliveEnd = _particles;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE bool empty() const noexcept
+    {
+        return _aliveEnd == _particles;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE particle_t* data() const noexcept
+    {
+        return _particles;
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE std::size_t aliveCount() const noexcept
+    {
+        return _aliveEnd - _particles;
+    }
+    */
 };
 
 // TODO VR: (P2) optimize layout?
@@ -1102,7 +1260,7 @@ void R_RunParticleEffect_GunSmoke(const qvec3& org, const qvec3& dir, int count)
     (void)dir;
 
     makeNParticles(ptxGunSmoke, count, [&](ParticleHandle p) {
-        p.angle() = 3.14f / 2.f + rnd(-0.2f, 0.2f);
+        p.angle() = 90 + rnd(-10.f, 10.f);
         p.alpha() = rnd(85, 125);
         p.die() = cl.time + 6;
         p.color() = rndi(10, 16);

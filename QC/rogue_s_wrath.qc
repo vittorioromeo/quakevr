@@ -287,7 +287,7 @@ void() overlord_smash =
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ai_charge(10);
@@ -300,7 +300,7 @@ void() overlord_smash =
     smashDmg = 20 + random () * 10;
 
     sound(self, CHAN_WEAPON, "s_wrath/smash.wav", 1, ATTN_NORM);
-    T_Damage (self.enemy, self, self, smashDmg);
+    T_Damage(self.enemy, self, self, smashDmg);
     delta = normalize(self.enemy.origin - self.origin + self.enemy.view_ofs);
     SpawnBlood (self.enemy.origin - delta * 30, delta * -100, smashDmg);
 };

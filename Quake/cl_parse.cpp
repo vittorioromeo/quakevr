@@ -890,6 +890,7 @@ void CL_ParseClientdata()
     // [always sent]	if (bits & SU_ITEMS)
     i = MSG_ReadLong();
 
+    // TODO VR: (P0) should we send other item flags as well?
     if(cl.items != i)
     {
         // set flash times
@@ -1321,7 +1322,6 @@ void CL_ParseServerMessage()
         switch(cmd)
         {
             default:
-                // TODO VR: (P0) this happens in MP, with "svc_bad"
                 Host_Error("Illegible server message, previous was %s",
                     svc_strings[lastcmd]); // johnfitz -- added
                                            // svc_strings[lastcmd]

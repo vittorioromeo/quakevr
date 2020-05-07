@@ -794,7 +794,7 @@ void() hublevel_touch =
 
     if((noexit == 1) || ((noexit == 2) && (mapname != "start")))
     {
-        T_Damage (other, self, self, 50000);
+        T_Damage(other, self, self, 50000);
         return;
     }
 
@@ -1016,7 +1016,7 @@ void() func_pump_blocked =
 {
     if(time < self.attack_finished) return;
 
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
     self.attack_finished = time + 0.5;
 }
 

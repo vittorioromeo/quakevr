@@ -34,7 +34,7 @@ void() rubble_touch =
     {
         if(vlen(self.velocity) > 0)
         {
-            T_Damage (other, self, self, 10);
+            T_Damage(other, self, self, 10);
         }
     }
 };

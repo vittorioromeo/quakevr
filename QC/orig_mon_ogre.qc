@@ -199,7 +199,7 @@ local float     ldmg;
 
     if(!self.enemy)
         return;
-    if(!CanDamage (self.enemy, self))
+    if(!CanDamage(self.enemy, self))
         return;
 
     ai_charge(10);
@@ -218,7 +218,7 @@ local float     ldmg;
         }
     }
 
-    T_Damage (self.enemy, self, self, ldmg);
+    T_Damage(self.enemy, self, self, ldmg);
 
     if(side)
     {

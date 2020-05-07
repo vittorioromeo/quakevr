@@ -98,6 +98,8 @@ void() main =
     precache_sound("ambience/water1.wav");
     precache_sound("ambience/wind2.wav");
 
+    precache_sound("items/inv3.wav");
+
     // shareware
     precache_file("maps/orig_start.bsp");
     precache_file("maps/start.bsp");
