@@ -18,7 +18,7 @@ See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 
 */
 
@@ -1746,6 +1746,286 @@ void CL_RunParticles()
     });
 }
 
+static GLuint LoadShaders(const char* VertexShaderCode,
+    const char* FragmentShaderCode, const char* GeometryShaderCode)
+{
+    // Create the shaders
+    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+    GLuint GeometryShaderID = glCreateShader(GL_GEOMETRY_SHADER);
+    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+
+    GLint Result = GL_FALSE;
+    int InfoLogLength;
+
+    // Compile Vertex Shader
+    // printf("Compiling shader: %s\n", vertex_file_path);
+    glShaderSource(VertexShaderID, 1, &VertexShaderCode, nullptr);
+    glCompileShader(VertexShaderID);
+
+    // Check Vertex Shader
+    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
+    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if(InfoLogLength > 0)
+    {
+        std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
+        glGetShaderInfoLog(VertexShaderID, InfoLogLength, nullptr,
+            &VertexShaderErrorMessage[0]);
+        printf("%s\n", &VertexShaderErrorMessage[0]);
+    }
+
+    assert(Result == GL_TRUE);
+
+    //
+    //
+    // Compile Geometry Shader
+    // printf("Compiling shader : %s\n", fragment_file_path);
+    glShaderSource(GeometryShaderID, 1, &GeometryShaderCode, nullptr);
+    glCompileShader(GeometryShaderID);
+
+    // Check Geometry Shader
+    glGetShaderiv(GeometryShaderID, GL_COMPILE_STATUS, &Result);
+    glGetShaderiv(GeometryShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if(InfoLogLength > 0)
+    {
+        std::vector<char> GeometryShaderErrorMessage(InfoLogLength + 1);
+        glGetShaderInfoLog(GeometryShaderID, InfoLogLength, nullptr,
+            &GeometryShaderErrorMessage[0]);
+        printf("%s\n", &GeometryShaderErrorMessage[0]);
+    }
+
+    assert(Result == GL_TRUE);
+
+
+    //
+    //
+    // Compile Fragment Shader
+    // printf("Compiling shader : %s\n", fragment_file_path);
+    glShaderSource(FragmentShaderID, 1, &FragmentShaderCode, nullptr);
+    glCompileShader(FragmentShaderID);
+
+    // Check Fragment Shader
+    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
+    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if(InfoLogLength > 0)
+    {
+        std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
+        glGetShaderInfoLog(FragmentShaderID, InfoLogLength, nullptr,
+            &FragmentShaderErrorMessage[0]);
+        printf("%s\n", &FragmentShaderErrorMessage[0]);
+    }
+
+    assert(Result == GL_TRUE);
+
+
+
+    // Link the program
+    printf("Linking program\n");
+    GLuint ProgramID = glCreateProgram();
+    glAttachShader(ProgramID, VertexShaderID);
+    glAttachShader(ProgramID, GeometryShaderID);
+    glAttachShader(ProgramID, FragmentShaderID);
+
+    glLinkProgram(ProgramID);
+
+    // Check the program
+    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if(InfoLogLength > 0)
+    {
+        std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
+        glGetProgramInfoLog(
+            ProgramID, InfoLogLength, nullptr, &ProgramErrorMessage[0]);
+        printf("%s\n", &ProgramErrorMessage[0]);
+    }
+
+    assert(Result == GL_TRUE);
+
+    glDetachShader(ProgramID, VertexShaderID);
+    glDetachShader(ProgramID, GeometryShaderID);
+    glDetachShader(ProgramID, FragmentShaderID);
+
+    glDeleteShader(VertexShaderID);
+    glDeleteShader(GeometryShaderID);
+    glDeleteShader(FragmentShaderID);
+
+    return ProgramID;
+}
+
+static GLint makeParticleShaders()
+{
+    const char* vertexShader = R"(
+#version 430 core
+
+layout(location = 0) in vec3  pOrg;
+layout(location = 1) in float pAngle;
+layout(location = 2) in float pScale;
+layout(location = 3) in vec4  pColor;
+layout(location = 4) uniform vec3 rOrigin;
+layout(location = 5) uniform vec3 rUp;
+layout(location = 6) uniform vec3 rRight;
+layout(location = 7) uniform mat4 mvMatrix;
+layout(location = 11) uniform mat4 pjMatrix;
+
+out VS_OUT {
+    float opAngle;
+    float opScale;
+    vec4  opColor;
+} vs_out;
+
+void main()
+{
+    gl_Position = vec4(pOrg, 1.0);
+    vs_out.opAngle = pAngle;
+    vs_out.opScale = pScale;
+    vs_out.opColor = pColor;
+}
+)";
+
+    const char* fragmentShader = R"(
+#version 430 core
+
+layout(location = 0) in vec3  pOrg;
+layout(location = 1) in float pAngle;
+layout(location = 2) in float pScale;
+layout(location = 3) in vec4  pColor;
+layout(location = 4) uniform vec3 rOrigin;
+layout(location = 5) uniform vec3 rUp;
+layout(location = 6) uniform vec3 rRight;
+layout(location = 7) uniform mat4 mvMatrix;
+layout(location = 11) uniform mat4 pjMatrix;
+
+in vec2 texcoord;
+in vec4 outVertexColor;
+
+uniform sampler2D gColorMap;
+
+out vec4 FragColor;
+
+void main (void)
+{
+    vec2 uv = texcoord.xy;
+    // uv.y *= -1.0;
+
+    // vec3 t = mix(texture(gColorMap, uv).rgb, outVertexColor.rgb, 1);
+    vec3 t = texture(gColorMap, uv).rgb * outVertexColor.rgb;
+    FragColor = vec4(t, texture(gColorMap, uv).a * outVertexColor.a);
+
+    // FragColor = outVertexColor;
+    // FragColor.rgb = vec3(0.9, 0.8, 0.1);
+    // FragColor.a = 0.5;
+
+    // FragColor = texture(gColorMap, uv) * outVertexColor;
+
+    if(FragColor.a < 0.005)
+        discard;
+}
+)";
+
+    const char* geometryShader = R"(
+#version 430 core
+
+layout(points) in;
+layout(triangle_strip, max_vertices = 4) out;
+
+in VS_OUT {
+    float opAngle;
+    float opScale;
+    vec4  opColor;
+} gs_in[];
+
+layout(location = 4) uniform vec3 rOrigin;
+layout(location = 5) uniform vec3 rUp;
+layout(location = 6) uniform vec3 rRight;
+layout(location = 7) uniform mat4 mvMatrix;
+layout(location = 11) uniform mat4 pjMatrix;
+
+out vec2 texcoord;
+out vec4 outVertexColor;
+
+// From: http://www.neilmendoza.com/glsl-rotation-about-an-arbitrary-axis/
+mat4 rotationMatrix(vec3 axis, float angle)
+{
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+
+    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+                0.0,                                0.0,                                0.0,                                1.0);
+}
+
+void main()
+{
+    /*
+    float k = 0.75;
+
+    // bottomleft
+    gl_Position = vec4(-k,-k, 0.5, 1.0 );
+    texcoord = vec2( 0.0, 0.0 );
+    EmitVertex();
+
+    // topleft
+    gl_Position = vec4(-k, k, 0.5, 1.0 );
+    texcoord = vec2( 0.0, 1.0 );
+    EmitVertex();
+
+    // bottomright
+    gl_Position = vec4( k,-k, 0.5, 1.0 );
+    texcoord = vec2( 1.0, 0.0 );
+    EmitVertex();
+
+    // topright
+    gl_Position = vec4( k, k, 0.5, 1.0 );
+    texcoord = vec2( 1.0, 1.0 );
+    EmitVertex();
+
+    EndPrimitive();
+    */
+
+    vec3 pos = gl_in[0].gl_Position.xyz;
+
+    vec3 fwd = pos - rOrigin;
+    mat4 rotMat = rotationMatrix(fwd, gs_in[0].opAngle);
+
+    vec3 up = (vec4(rUp, 1.0) * rotMat).xyz;
+    vec3 right = (vec4(rRight, 1.0) * rotMat).xyz;
+
+    float halfScale = gs_in[0].opScale / 2.0;
+
+    vec3 left = -right;
+    vec3 down = -up;
+
+    vec4 color = gs_in[0].opColor;
+
+    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * left, 1.0);
+    texcoord = vec2(0, 0);
+    outVertexColor = color;
+    EmitVertex();
+
+    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * left, 1.0);
+    texcoord = vec2(1, 0);
+    outVertexColor = color;
+    EmitVertex();
+
+    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * right, 1.0);
+    texcoord = vec2(0, 1);
+    outVertexColor = color;
+    EmitVertex();
+
+    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * right, 1.0);
+    texcoord = vec2(1, 1);
+    outVertexColor = color;
+    EmitVertex();
+
+    EndPrimitive();
+}
+)";
+
+    return LoadShaders(vertexShader, fragmentShader, geometryShader);
+}
+
 /*
 ===============
 R_DrawParticles -- johnfitz -- moved all non-drawing code to
@@ -1759,75 +2039,219 @@ void R_DrawParticles()
         return;
     }
 
+    static bool generated = false;
+
+    static GLint particleProgramId;
+    static GLuint vaoId;
+    static GLuint pOrgVboId;
+    static GLuint pAngleVboId;
+    static GLuint pScaleVboId;
+    static GLuint pColorVboId;
+    static GLint pOrgLocation;
+    static GLint pAngleLocation;
+    static GLint pScaleLocation;
+    static GLint pColorLocation;
+    static GLint rOriginLocation;
+    static GLint rUpLocation;
+    static GLint rRightLocation;
+    static GLint mvMatrixLocation;
+    static GLint pjMatrixLocation;
+
+    if(!generated)
+    {
+        particleProgramId = makeParticleShaders();
+
+        glGenVertexArrays(1, &vaoId);
+        glBindVertexArray(vaoId);
+
+        glGenBuffers(1, &pOrgVboId);
+        glGenBuffers(1, &pAngleVboId);
+        glGenBuffers(1, &pScaleVboId);
+        glGenBuffers(1, &pColorVboId);
+
+        pOrgLocation = 0; // glGetAttribLocation(particleProgramId, "pOrg");
+        assert(pOrgLocation != -1);
+
+        pAngleLocation = 1; // glGetAttribLocation(particleProgramId, "pAngle");
+        assert(pAngleLocation != -1);
+
+        pScaleLocation = 2; // glGetAttribLocation(particleProgramId, "pScale");
+        assert(pScaleLocation != -1);
+
+        pColorLocation = 3;
+        assert(pColorLocation != -1);
+
+        rOriginLocation =
+            4; // glGetUniformLocation(particleProgramId, "rOrigin");
+        assert(rOriginLocation != -1);
+
+        rUpLocation = 5; // glGetUniformLocation(particleProgramId, "rUp");
+        assert(rUpLocation != -1);
+
+        rRightLocation =
+            6; // glGetUniformLocation(particleProgramId, "rRight");
+        assert(rRightLocation != -1);
+
+        mvMatrixLocation = 7;
+        assert(mvMatrixLocation != -1);
+
+        pjMatrixLocation = 11;
+        assert(pjMatrixLocation != -1);
+
+        generated = true;
+    }
+
     const auto up = vup * 1.5_qf;
     const auto right = vright * 1.5_qf;
 
-    using namespace quake::util;
+    float mvMatrix[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, mvMatrix);
 
-    // TODO VR: (P2) this could be optimized a lot
-    // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
+    float pjMatrix[16];
+    glGetFloatv(GL_PROJECTION_MATRIX, pjMatrix);
+
+    //
+    //
+    // Configuration
+    glBindVertexArray(vaoId);
+
+    glEnableVertexAttribArray(pOrgLocation);
+    glEnableVertexAttribArray(pAngleLocation);
+    glEnableVertexAttribArray(pScaleLocation);
+    glEnableVertexAttribArray(pColorLocation);
+
+    glUseProgram(particleProgramId);
+
+    glUniform3f(         //
+        rOriginLocation, //
+        r_origin[0], r_origin[1], r_origin[2]);
+
+    glUniform3f(     //
+        rUpLocation, //
+        up[0], up[1], up[2]);
+
+    glUniform3f(        //
+        rRightLocation, //
+        right[0], right[1], right[2]);
+
+    glUniformMatrix4fv(   //
+        mvMatrixLocation, // location
+        1,                // count
+        GL_FALSE,         // transpose
+        mvMatrix);
+
+    glUniformMatrix4fv(   //
+        pjMatrixLocation, // location
+        1,                // count
+        GL_FALSE,         // transpose
+        pjMatrix);
+
+
+    static std::vector<qvec3> pOrg;
+    static std::vector<GLfloat> pAngle;
+    static std::vector<GLfloat> pScale;
+    static std::vector<qvec4> pColor;
+
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         ParticleBuffer& pBuffer) {
+        (void)texture;
         (void)imageData;
 
-        // TODO VR: (P1) do this
-        GLuint VertexArrayID;
-        glGenVertexArrays(1, &VertexArrayID);
-        glBindVertexArray(VertexArrayID);
+        pOrg.clear();
+        pAngle.clear();
+        pScale.clear();
+        pColor.clear();
 
-        GL_Bind(texture);
-        glEnable(GL_BLEND);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
-
-        glBegin(GL_QUADS);
         pBuffer.forActive([&](particle_t& p) {
-            // johnfitz -- particle transparency and fade out
+            pOrg.emplace_back(p.org);
+            pAngle.emplace_back(glm::radians(p.angle));
+            pScale.emplace_back(p.scale);
+
             GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color];
 
-            GLubyte color[4];
-            color[0] = c[0];
-            color[1] = c[1];
-            color[2] = c[2];
-            color[3] = p.alpha > 0 ? p.alpha : 0;
-
-            glColor4ubv(color);
-
-            const auto xFwd = p.org - r_origin;
-
-            // TODO VR: (P2) `glm::rotate` is the bottleneck in debug mode (!)
-            const auto xUp = glm::rotate(up, qfloat(p.angle), xFwd);
-            const auto xRight = glm::rotate(right, qfloat(p.angle), xFwd);
-
-            const auto halfScale = p.scale / 2._qf;
-            const auto xLeft = -xRight;
-            const auto xDown = -xUp;
-            const auto xUpLeft = p.org + halfScale * xUp + halfScale * xLeft;
-            const auto xUpRight = p.org + halfScale * xUp + halfScale * xRight;
-            const auto xDownLeft =
-                p.org + halfScale * xDown + halfScale * xLeft;
-            const auto xDownRight =
-                p.org + halfScale * xDown + halfScale * xRight;
-
-            glTexCoord2f(0, 0);
-            glVertex3fv(toGlVec(xDownLeft));
-
-            glTexCoord2f(1, 0);
-            glVertex3fv(toGlVec(xUpLeft));
-
-            glTexCoord2f(1, 1);
-            glVertex3fv(toGlVec(xUpRight));
-
-            glTexCoord2f(0, 1);
-            glVertex3fv(toGlVec(xDownRight));
+            // pColor.emplace_back(qvec4{ 0.9, 0.7, 0.1, 0.5 });
+            pColor.emplace_back(
+                c[0] / 255.f, c[1] / 255.f, c[2] / 255.f, p.alpha / 255.f);
         });
-        glEnd();
 
-        glDepthMask(GL_TRUE); // johnfitz -- fix for particle z-buffer bug
+        GL_Bind(texture);
+
+        //
+        //
+        // Setup
+        glBindBuffer(GL_ARRAY_BUFFER, pOrgVboId);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(qvec3) * pOrg.size(), pOrg.data(),
+            GL_STATIC_DRAW);
+        glVertexAttribPointer( //
+            pOrgLocation,      // location
+            3,                 // number of components (vec3 = 3)
+            GL_FLOAT,          // type of each component
+            GL_FALSE,          // normalized
+            0,                 // stride
+            (void*)0           // array buffer offset
+        );
+
+        glBindBuffer(GL_ARRAY_BUFFER, pAngleVboId);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pAngle.size(),
+            pAngle.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer( //
+            pAngleLocation,    // location
+            1,                 // number of components
+            GL_FLOAT,          // type of each component
+            GL_FALSE,          // normalized
+            0,                 // stride
+            (void*)0           // array buffer offset
+        );
+
+        glBindBuffer(GL_ARRAY_BUFFER, pScaleVboId);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pScale.size(),
+            pScale.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer( //
+            pScaleLocation,    // location
+            1,                 // number of components
+            GL_FLOAT,          // type of each component
+            GL_FALSE,          // normalized
+            0,                 // stride
+            (void*)0           // array buffer offset
+        );
+
+        glBindBuffer(GL_ARRAY_BUFFER, pColorVboId);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(qvec4) * pColor.size(),
+            pColor.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer( //
+            pColorLocation,    // location
+            4,                 // number of components
+            GL_FLOAT,          // type of each component
+            GL_FALSE,          // normalized
+            0,                 // stride
+            (void*)0           // array buffer offset
+        );
+
+        //
+        //
+        // Draw
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        glEnable(GL_BLEND);
+        glDepthMask(GL_FALSE);
+
+        glBindVertexArray(vaoId);
+        glDrawArrays(GL_POINTS, 0, pOrg.size());
+
+        glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        glColor3f(1, 1, 1);
     });
+
+
+
+    //
+    //
+    // Cleanup
+    glDisableVertexAttribArray(pColorLocation);
+    glDisableVertexAttribArray(pScaleLocation);
+    glDisableVertexAttribArray(pAngleLocation);
+    glDisableVertexAttribArray(pOrgLocation);
+    glUseProgram(0);
 }
 
 void R_DrawParticlesOld()

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.hpp"
 #include "resource.hpp"
 
+#include <GL/glew.h>
 #include <SDL2/SDL.h>
 
 #include "vr.hpp"
@@ -52,13 +53,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define DEFAULT_REFRESHRATE 60
 
-typedef struct
+struct vmode_t
 {
     int width;
     int height;
     int refreshrate;
     int bpp;
-} vmode_t;
+};
 
 static const char* gl_vendor;
 static const char* gl_renderer;
@@ -105,43 +106,6 @@ GLint gl_max_texture_units = 0;      // ericw
 bool gl_glsl_gamma_able = false;     // ericw
 bool gl_glsl_alias_able = false;     // ericw
 int gl_stencilbits;
-
-/*
-PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2fARB = nullptr; // johnfitz
-PFNGLACTIVETEXTUREARBPROC glActiveTextureARB = nullptr; // johnfitz
-PFNGLCLIENTACTIVETEXTUREARBPROC glClientActiveTextureARB = nullptr; // ericw
-PFNGLBINDBUFFERARBPROC glBindBufferARB = nullptr;                   // ericw
-PFNGLBUFFERDATAARBPROC glBufferDataARB = nullptr;                   // ericw
-PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB = nullptr;             // ericw
-PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB = nullptr;             // ericw
-PFNGLGENBUFFERSARBPROC glGenBuffersARB = nullptr;                   // ericw
-
-QS_PFNGLCREATESHADERPROC glCreateShader = nullptr;               // ericw
-QS_PFNGLDELETESHADERPROC glDeleteShader = nullptr;               // ericw
-QS_PFNGLDELETEPROGRAMPROC glDeleteProgram = nullptr;             // ericw
-QS_PFNGLSHADERSOURCEPROC glShaderSource = nullptr;               // ericw
-QS_PFNGLCOMPILESHADERPROC glCompileShader = nullptr;             // ericw
-QS_PFNGLGETSHADERIVPROC glGetShaderiv = nullptr;                 // ericw
-QS_PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = nullptr;       // ericw
-QS_PFNGLGETPROGRAMIVPROC glGetProgramiv = nullptr;               // ericw
-QS_PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = nullptr;     // ericw
-QS_PFNGLCREATEPROGRAMPROC glCreateProgram = nullptr;             // ericw
-QS_PFNGLATTACHSHADERPROC glAttachShader = nullptr;               // ericw
-QS_PFNGLLINKPROGRAMPROC glLinkProgram = nullptr;                 // ericw
-QS_PFNGLBINDATTRIBLOCATIONFUNC glBindAttribLocation = nullptr;   // ericw
-QS_PFNGLUSEPROGRAMPROC glUseProgram = nullptr;                   // ericw
-QS_PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation = nullptr;     // ericw
-QS_PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer = nullptr; // ericw
-QS_PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray =
-    nullptr; // ericw
-QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray =
-    nullptr;                                                        // ericw
-QS_PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = nullptr; // ericw
-QS_PFNGLUNIFORM1IPROC glUniform1i = nullptr;                   // ericw
-QS_PFNGLUNIFORM1FPROC glUniform1f = nullptr;                   // ericw
-QS_PFNGLUNIFORM3FPROC glUniform3f = nullptr;                   // ericw
-QS_PFNGLUNIFORM4FPROC glUniform4f = nullptr;                   // ericw
-*/
 
 //====================================
 
@@ -364,9 +328,7 @@ VID_GetCurrentRefreshRate
 static int VID_GetCurrentRefreshRate()
 {
     SDL_DisplayMode mode;
-    int current_display;
-
-    current_display = SDL_GetWindowDisplayIndex(draw_context);
+    int current_display = SDL_GetWindowDisplayIndex(draw_context);
 
     if(0 != SDL_GetCurrentDisplayMode(current_display, &mode))
     {
@@ -473,9 +435,8 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
 {
     static SDL_DisplayMode mode;
     const int sdlmodes = SDL_GetNumDisplayModes(0);
-    int i;
 
-    for(i = 0; i < sdlmodes; i++)
+    for(int i = 0; i < sdlmodes; i++)
     {
         if(SDL_GetDisplayMode(0, i, &mode) != 0)
         {
@@ -489,6 +450,7 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
             return &mode;
         }
     }
+
     return nullptr;
 }
 
@@ -524,8 +486,8 @@ static bool VID_ValidMode(
 
     switch(bpp)
     {
-        case 16:
-        case 24:
+        case 16: [[fallthrough]];
+        case 24: [[fallthrough]];
         case 32: break;
         default: return false;
     }
@@ -541,7 +503,6 @@ VID_SetMode
 static bool VID_SetMode(
     int width, int height, int refreshrate, int bpp, bool fullscreen)
 {
-    int temp;
     Uint32 flags;
     char caption[50];
     int depthbits;
@@ -551,7 +512,7 @@ static bool VID_SetMode(
     int previous_display;
 
     // so Con_Printfs don't mess us up by forcing vid and snd updates
-    temp = scr_disabled_for_loading;
+    int temp = scr_disabled_for_loading;
     scr_disabled_for_loading = true;
 
     CDAudio_Pause();
@@ -747,15 +708,6 @@ VID_Restart -- johnfitz -- change video modes on the fly
 */
 static void VID_Restart()
 {
-    int width;
-
-    int height;
-
-    int refreshrate;
-
-    int bpp;
-    bool fullscreen;
-
     if(vid_locked || !vid_changed)
     {
         return;
@@ -766,11 +718,11 @@ static void VID_Restart()
         VID_VR_Disable();
     }
 
-    width = (int)vid_width.value;
-    height = (int)vid_height.value;
-    refreshrate = (int)vid_refreshrate.value;
-    bpp = (int)vid_bpp.value;
-    fullscreen = vid_fullscreen.value ? true : false;
+    const int width = (int)vid_width.value;
+    const int height = (int)vid_height.value;
+    const int refreshrate = (int)vid_refreshrate.value;
+    const int bpp = (int)vid_bpp.value;
+    const bool fullscreen = vid_fullscreen.value ? true : false;
 
     //
     // validate new mode
@@ -820,13 +772,11 @@ static void VID_Restart()
     vid.conwidth = CLAMP(320, vid.conwidth, vid.width);
     vid.conwidth &= 0xFFFFFFF8;
     vid.conheight = vid.conwidth * vid.height / vid.width;
-    //
+
     // keep cvars in line with actual mode
-    //
     VID_SyncCvars();
-    //
+
     // update mouse grab
-    //
     if(key_dest == key_console || key_dest == key_menu)
     {
         if(modestate == MS_WINDOWED)
@@ -853,28 +803,17 @@ switching modes
 */
 static void VID_Test()
 {
-    int old_width;
-
-    int old_height;
-
-    int old_refreshrate;
-
-    int old_bpp;
-
-    int old_fullscreen;
-
     if(vid_locked || !vid_changed)
     {
         return;
     }
-    //
+
     // now try the switch
-    //
-    old_width = VID_GetCurrentWidth();
-    old_height = VID_GetCurrentHeight();
-    old_refreshrate = VID_GetCurrentRefreshRate();
-    old_bpp = VID_GetCurrentBPP();
-    old_fullscreen = VID_GetFullscreen() ? true : false;
+    const int old_width = VID_GetCurrentWidth();
+    const int old_height = VID_GetCurrentHeight();
+    const int old_refreshrate = VID_GetCurrentRefreshRate();
+    const int old_bpp = VID_GetCurrentBPP();
+    const int old_fullscreen = VID_GetFullscreen() ? true : false;
 
     VID_Restart();
 
@@ -932,15 +871,6 @@ GL_MakeNiceExtensionsList -- johnfitz
 */
 static char* GL_MakeNiceExtensionsList(const char* in)
 {
-    char* copy;
-
-    char* token;
-
-    char* out;
-    int i;
-
-    int count;
-
     if(!in)
     {
         return Z_Strdup("(none)");
@@ -948,6 +878,8 @@ static char* GL_MakeNiceExtensionsList(const char* in)
 
     // each space will be replaced by 4 chars, so count the spaces before we
     // malloc
+    int i;
+    int count;
     for(i = 0, count = 1; i < (int)strlen(in); i++)
     {
         if(in[i] == ' ')
@@ -957,12 +889,12 @@ static char* GL_MakeNiceExtensionsList(const char* in)
     }
 
     assert(count >= 0);
-    out = (char*)Z_Malloc(
+    char* out = (char*)Z_Malloc(
         strlen(in) + (size_t)count * 3 + 1); // usually about 1-2k
     out[0] = 0;
 
-    copy = (char*)Z_Strdup(in);
-    for(token = strtok(copy, " "); token; token = strtok(nullptr, " "))
+    char* copy = (char*)Z_Strdup(in);
+    for(char* token = strtok(copy, " "); token; token = strtok(nullptr, " "))
     {
         strcat(out, "\n   ");
         strcat(out, token);
@@ -985,54 +917,9 @@ static void GL_Info_f()
     Con_Printf("GL_EXTENSIONS: %s\n", gl_extensions_nice);
 }
 
-/*
-===============
-GL_CheckExtensions
-===============
-*/
-static bool GL_ParseExtensionList(const char* list, const char* name)
-{
-    const char* start;
-    const char* where;
-
-    const char* terminator;
-
-    if(!list || !name || !*name)
-    {
-        return false;
-    }
-    if(strchr(name, ' ') != nullptr)
-    {
-        return false; // extension names must not have spaces
-    }
-
-    start = list;
-    while(1)
-    {
-        where = strstr(start, name);
-        if(!where)
-        {
-            break;
-        }
-        terminator = where + strlen(name);
-        if(where == start || where[-1] == ' ')
-        {
-            if(*terminator == ' ' || *terminator == '\0')
-            {
-                return true;
-            }
-        }
-        start = terminator;
-    }
-    return false;
-}
-
 static void GL_CheckExtensions()
 {
-    int swap_control;
-
     // ARB_vertex_buffer_object
-    //
     if(COM_CheckParm("-novbo"))
     {
         Con_Warning("Vertex buffer objects disabled at command line\n");
@@ -1044,65 +931,23 @@ static void GL_CheckExtensions()
             "OpenGL version < 1.5, skipping ARB_vertex_buffer_object "
             "check\n");
     }
+    else if(GLEW_ARB_vertex_program)
+    {
+        gl_vbo_able = true;
+    }
     else
     {
-        /*
-        glBindBufferARB =
-            (PFNGLBINDBUFFERARBPROC)SDL_GL_GetProcAddress("glBindBufferARB");
-        glBufferDataARB =
-            (PFNGLBUFFERDATAARBPROC)SDL_GL_GetProcAddress("glBufferDataARB");
-        glBufferSubDataARB = (PFNGLBUFFERSUBDATAARBPROC)SDL_GL_GetProcAddress(
-            "glBufferSubDataARB");
-        glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress(
-            "glDeleteBuffersARB");
-        glGenBuffersARB =
-            (PFNGLGENBUFFERSARBPROC)SDL_GL_GetProcAddress("glGenBuffersARB");
-        if(glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
-            glDeleteBuffersARB && glGenBuffersARB)
-        {
-            Con_Printf("FOUND: ARB_vertex_buffer_object\n");
-            gl_vbo_able = true;
-        }
-        else
-        {
-            Con_Warning("ARB_vertex_buffer_object not available\n");
-        }
-        */
+        Con_Warning("ARB_vertex_buffer_object not available\n");
     }
 
-    gl_vbo_able = true;
-
     // multitexture
-    //
     if(COM_CheckParm("-nomtex"))
     {
         Con_Warning("Mutitexture disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_multitexture"))
+    else if(GLEW_ARB_multitexture)
     {
-        /*
-        glMultiTexCoord2fARB =
-        (PFNGLMULTITEXCOORD2FARBPROC)SDL_GL_GetProcAddress(
-            "glMultiTexCoord2fARB");
-        glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
-            "glActiveTextureARB");
-        glClientActiveTextureARB =
-            (PFNGLCLIENTACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
-                "glClientActiveTextureARB");
-        if(glMultiTexCoord2fARB && glActiveTextureARB &&
-            glClientActiveTextureARB)
-        {
-            Con_Printf("FOUND: ARB_multitexture\n");
-            gl_mtexable = true;
-
-            glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
-            Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
-        }
-        else
-        {
-            Con_Warning("Couldn't link to multitexture functions\n");
-        }
-        */
+        gl_mtexable = true;
 
         glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
         Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
@@ -1112,20 +957,17 @@ static void GL_CheckExtensions()
         Con_Warning("multitexture not supported (extension not found)\n");
     }
 
-    gl_mtexable = true;
-
     // texture_env_combine
-    //
     if(COM_CheckParm("-nocombine"))
     {
         Con_Warning("texture_env_combine disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_combine"))
+    else if(GLEW_ARB_texture_env_combine)
     {
         Con_Printf("FOUND: ARB_texture_env_combine\n");
         gl_texture_env_combine = true;
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_combine"))
+    else if(GLEW_EXT_texture_env_combine)
     {
         Con_Printf("FOUND: EXT_texture_env_combine\n");
         gl_texture_env_combine = true;
@@ -1136,17 +978,16 @@ static void GL_CheckExtensions()
     }
 
     // texture_env_add
-    //
     if(COM_CheckParm("-noadd"))
     {
         Con_Warning("texture_env_add disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_add"))
+    else if(GLEW_ARB_texture_env_add)
     {
         Con_Printf("FOUND: ARB_texture_env_add\n");
         gl_texture_env_add = true;
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_add"))
+    else if(GLEW_EXT_texture_env_add)
     {
         Con_Printf("FOUND: EXT_texture_env_add\n");
         gl_texture_env_add = true;
@@ -1158,6 +999,7 @@ static void GL_CheckExtensions()
 
     // swap control
     //
+    int swap_control;
     if(!gl_swap_control)
     {
         Con_Warning(
@@ -1185,9 +1027,7 @@ static void GL_CheckExtensions()
     }
 
     // anisotropic filtering
-    //
-    if(GL_ParseExtensionList(
-           gl_extensions, "GL_EXT_texture_filter_anisotropic"))
+    if(GLEW_EXT_texture_filter_anisotropic)
     {
         float test1;
 
@@ -1235,13 +1075,11 @@ static void GL_CheckExtensions()
     }
 
     // texture_non_power_of_two
-    //
     if(COM_CheckParm("-notexturenpot"))
     {
         Con_Warning("texture_non_power_of_two disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(
-                gl_extensions, "GL_ARB_texture_non_power_of_two"))
+    else if(GLEW_ARB_texture_non_power_of_two)
     {
         Con_Printf("FOUND: ARB_texture_non_power_of_two\n");
         gl_texture_NPOT = true;
@@ -1252,99 +1090,20 @@ static void GL_CheckExtensions()
     }
 
     // GLSL
-    //
     if(COM_CheckParm("-noglsl"))
     {
         Con_Warning("GLSL disabled at command line\n");
     }
     else if(gl_version_major >= 2)
     {
-        /*
-        glCreateShader =
-            (QS_PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
-        glDeleteShader =
-            (QS_PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
-        glDeleteProgram =
-            (QS_PFNGLDELETEPROGRAMPROC)SDL_GL_GetProcAddress("glDeleteProgram");
-        glShaderSource =
-            (QS_PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
-        glCompileShader =
-            (QS_PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
-        glGetShaderiv =
-            (QS_PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
-        glGetShaderInfoLog =
-            (QS_PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress(
-                "glGetShaderInfoLog");
-        glGetProgramiv =
-            (QS_PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
-        glGetProgramInfoLog =
-            (QS_PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress(
-                "glGetProgramInfoLog");
-        glCreateProgram =
-            (QS_PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
-        glAttachShader =
-            (QS_PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
-        glLinkProgram =
-            (QS_PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
-        glBindAttribLocation =
-            (QS_PFNGLBINDATTRIBLOCATIONFUNC)SDL_GL_GetProcAddress(
-                "glBindAttribLocation");
-        glUseProgram =
-            (QS_PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
-        glGetAttribLocation =
-            (QS_PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress(
-                "glGetAttribLocation");
-        glVertexAttribPointer =
-            (QS_PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress(
-                "glVertexAttribPointer");
-        glEnableVertexAttribArray =
-            (QS_PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
-                "glEnableVertexAttribArray");
-        glDisableVertexAttribArray =
-            (QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
-                "glDisableVertexAttribArray");
-        glGetUniformLocation =
-            (QS_PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress(
-                "glGetUniformLocation");
-        glUniform1i =
-            (QS_PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
-        glUniform1f =
-            (QS_PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
-        glUniform3f =
-            (QS_PFNGLUNIFORM3FPROC)SDL_GL_GetProcAddress("glUniform3f");
-        glUniform4f =
-            (QS_PFNGLUNIFORM4FPROC)SDL_GL_GetProcAddress("glUniform4f");
-
-        if(glCreateShader && glDeleteShader && glDeleteProgram &&
-            glShaderSource && glCompileShader && glGetShaderiv &&
-            glGetShaderInfoLog && glGetProgramiv &&
-            glGetProgramInfoLog && glCreateProgram &&
-            glAttachShader && glLinkProgram &&
-            glBindAttribLocation && glUseProgram &&
-            glGetAttribLocation && glVertexAttribPointer &&
-            glEnableVertexAttribArray && glDisableVertexAttribArray &&
-            glGetUniformLocation && glUniform1i && glUniform1f &&
-            glUniform3f && glUniform4f)
-        {
-            Con_Printf("FOUND: GLSL\n");
-            gl_glsl_able = true;
-        }
-        else
-        {
-            Con_Warning("GLSL not available\n");
-        }
-        */
+        gl_glsl_able = true;
     }
     else
     {
         Con_Warning("OpenGL version < 2, GLSL not available\n");
     }
 
-    gl_glsl_able = true;
-
-
     // GLSL gamma
-    //
     if(COM_CheckParm("-noglslgamma"))
     {
         Con_Warning("GLSL gamma disabled at command line\n");
@@ -1359,7 +1118,6 @@ static void GL_CheckExtensions()
     }
 
     // GLSL alias model rendering
-    //
     if(COM_CheckParm("-noglslalias"))
     {
         Con_Warning("GLSL alias model rendering disabled at command line\n");
@@ -1407,6 +1165,21 @@ static void GL_SetupState()
     glDepthFunc(GL_LEQUAL); // johnfitz -- moved here becuase gl_ztrick is gone.
 }
 
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+    GLenum severity, GLsizei length, const GLchar* message,
+    const void* userParam)
+{
+    if(severity == GL_DEBUG_SEVERITY_LOW ||
+        severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+    {
+        return;
+    }
+
+    fprintf(stderr, "GL: %s type = 0x%x, severity = 0x%x, message = %s\n",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity,
+        message);
+}
+
 /*
 ===============
 GL_Init
@@ -1436,14 +1209,16 @@ static void GL_Init()
     }
     gl_extensions_nice = GL_MakeNiceExtensionsList(gl_extensions);
 
-    GL_CheckExtensions(); // johnfitz
-
     glewExperimental = GL_TRUE;
     auto init_res = glewInit();
     if(init_res != GLEW_OK)
     {
-        // std::cout << glewGetErrorString(glewInit()) << std::endl;
+        Con_Printf(
+            "Error initializing GLEW: %s\n", glewGetErrorString(glewInit()));
     }
+
+    GL_CheckExtensions(); // johnfitz
+
 
 #ifdef __APPLE__
     // ericw -- enable multi-threaded OpenGL, gives a decent FPS boost.
@@ -1468,6 +1243,12 @@ static void GL_Init()
     GLAliasBlended_CreateShaders();
     GLWorld_CreateShaders();
     GL_ClearBufferBindings();
+
+#ifndef NDEBUG
+    // During init, enable debug output
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(MessageCallback, 0);
+#endif
 }
 
 /*
@@ -1559,18 +1340,12 @@ rates after each mode.
 */
 static void VID_DescribeModes_f()
 {
-    int i;
-    int lastwidth;
+    int lastwidth = 0;
+    int lastheight = 0;
+    int lastbpp = 0;
+    int count = 0;
 
-    int lastheight;
-
-    int lastbpp;
-
-    int count;
-
-    lastwidth = lastheight = lastbpp = count = 0;
-
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         if(lastwidth != modelist[i].width || lastheight != modelist[i].height ||
             lastbpp != modelist[i].bpp)
@@ -1619,10 +1394,9 @@ VID_InitModelist
 static void VID_InitModelist()
 {
     const int sdlmodes = SDL_GetNumDisplayModes(0);
-    int i;
 
     nummodes = 0;
-    for(i = 0; i < sdlmodes; i++)
+    for(int i = 0; i < sdlmodes; i++)
     {
         SDL_DisplayMode mode;
 
@@ -1651,21 +1425,11 @@ void VID_Init()
     static char vid_center[] = "SDL_VIDEO_CENTERED=center";
     int p;
 
-    int width;
-
-    int height;
-
-    int refreshrate;
-
-    int bpp;
     int display_width;
-
     int display_height;
-
     int display_refreshrate;
-
     int display_bpp;
-    bool fullscreen;
+
     const char* read_vars[] = {"vid_fullscreen", "vid_width", "vid_height",
         "vid_refreshrate", "vid_bpp", "vid_vsync", "vid_fsaa",
         "vid_desktopfullscreen", "vid_borderless"};
@@ -1727,12 +1491,12 @@ void VID_Init()
 
     VID_InitModelist();
 
-    width = (int)vid_width.value;
-    height = (int)vid_height.value;
-    refreshrate = (int)vid_refreshrate.value;
-    bpp = (int)vid_bpp.value;
-    fullscreen = (int)vid_fullscreen.value;
-    fsaa = (int)vid_fsaa.value;
+    int width = (int)vid_width.value;
+    int height = (int)vid_height.value;
+    int refreshrate = (int)vid_refreshrate.value;
+    int bpp = (int)vid_bpp.value;
+    int fullscreen = (int)vid_fullscreen.value;
+    int fsaa = (int)vid_fsaa.value;
 
     if(COM_CheckParm("-current"))
     {
@@ -1982,19 +1746,12 @@ VID_Menu_Init
 */
 static void VID_Menu_Init()
 {
-    int i;
-
-    int j;
-
-    int h;
-
-    int w;
-
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
-        w = modelist[i].width;
-        h = modelist[i].height;
+        const int w = modelist[i].width;
+        const int h = modelist[i].height;
 
+        int j;
         for(j = 0; j < vid_menu_nummodes; j++)
         {
             if(vid_menu_modes[j].width == w && vid_menu_modes[j].height == h)
@@ -2021,15 +1778,9 @@ regenerates bpp list based on current vid_width and vid_height
 */
 static void VID_Menu_RebuildBppList()
 {
-    int i;
-
-    int j;
-
-    int b;
-
     vid_menu_numbpps = 0;
 
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         if(vid_menu_numbpps >= MAX_BPPS_LIST)
         {
@@ -2043,8 +1794,9 @@ static void VID_Menu_RebuildBppList()
             continue;
         }
 
-        b = modelist[i].bpp;
+        const int b = modelist[i].bpp;
 
+        int j;
         for(j = 0; j < vid_menu_numbpps; j++)
         {
             if(vid_menu_bpps[j] == b)
@@ -2069,6 +1821,7 @@ static void VID_Menu_RebuildBppList()
     }
 
     // if vid_bpp is not in the new list, change vid_bpp
+    int i;
     for(i = 0; i < vid_menu_numbpps; i++)
     {
         if(vid_menu_bpps[i] == (int)(vid_bpp.value))
@@ -2092,15 +1845,9 @@ regenerates rate list based on current vid_width, vid_height and vid_bpp
 */
 static void VID_Menu_RebuildRateList()
 {
-    int i;
-
-    int j;
-
-    int r;
-
     vid_menu_numrates = 0;
 
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         // rate list is limited to rates available with current
         // width/height/bpp
@@ -2111,8 +1858,9 @@ static void VID_Menu_RebuildRateList()
             continue;
         }
 
-        r = modelist[i].refreshrate;
+        const int r = modelist[i].refreshrate;
 
+        int j;
         for(j = 0; j < vid_menu_numrates; j++)
         {
             if(vid_menu_rates[j] == r)
@@ -2137,6 +1885,7 @@ static void VID_Menu_RebuildRateList()
     }
 
     // if vid_refreshrate is not in the new list, change vid_refreshrate
+    int i;
     for(i = 0; i < vid_menu_numrates; i++)
     {
         if(vid_menu_rates[i] == (int)(vid_refreshrate.value))
