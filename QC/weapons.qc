@@ -38,30 +38,14 @@ void(vector org) BroadcastGunshotEffect =
     WriteCoord(MSG_BROADCAST, org_z);
 }
 
-vector() vrProjectileVelocity =
+vector(float xHand, float factor) vrProjectileVelocity =
 {
-    // TODO VR: (P2) this only works when facing forwards. It needs to be revisited
-    // the hand velocity vector is absolute and doesn't take the world into
-    // account. It probably needs to be multiplied with the direction vector
-    // of where the player is facing...?
-    // Just use RedirectVector to fix
-
     if(cvar_hget(cvarh_vr_enabled) == 1)
     {
-        // VR: add hand velocity and player velocity to the final projectile
+        // VR: Add hand velocity and player velocity to the final projectile
         // velocity, in order to carry momentum
-        local vector handv;
-
-        handv_x = self.handvel_x;
-        handv_y = self.handvel_z  * -1;
-        handv_z = self.handvel_y;
-
-        local vector vryawVec;
-        vryawVec = '0 0 0';
-        vryawVec_y = self.vryaw;
-
-        handv = redirectvector(handv, vryawVec);
-        return (handv * 50) + (self.velocity);
+        return (VRGetHandVel(xHand) * (110 * factor)) +
+               (self.velocity * pow(factor, 0.4));
     }
 
     return VEC_ORIGIN;
@@ -1545,7 +1529,7 @@ entity(float xHand) W_FireRocket =
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
-    missile.velocity = missile.velocity + vrProjectileVelocity();
+    missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
 
     // set missile duration
     missile.nextthink = time + 5;
@@ -1769,7 +1753,7 @@ void(float xHand) W_FireGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity();
+        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.6);
     }
     else
     {
@@ -1949,7 +1933,7 @@ void(float xHand) W_FireProximityGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity();
+        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
     }
     else
     {
@@ -2033,7 +2017,7 @@ void(float xHand) W_FireSuperSpikes =
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
-    newmis.velocity = newmis.velocity + vrProjectileVelocity();
+    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
 
@@ -2065,7 +2049,7 @@ void(float xHand, float ox) W_FireSpikes =
     dir = v_forward;
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
-    newmis.velocity = newmis.velocity + vrProjectileVelocity();
+    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
 
@@ -2883,6 +2867,20 @@ ImpulseCommands
 
 ============
 */
+void(float xHand) ToggleSecondaryAmmo =
+{
+    if(!WeaponSupportsSecondaryAmmoFlag(VRGetWeapon(xHand)))
+    {
+        return;
+    }
+
+    VRGunHaptic(VRGetOtherHand(xHand), 0.3, 75, 1.0);
+    sound(self, VRGetGunChannel(xHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
+
+    VRSetWeaponFlags(xHand, VRGetWeaponFlags(xHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
+    W_SetCurrentAmmoFor(xHand);
+}
+
 void() ImpulseCommands =
 {
     if(self.impulse >= 1 && self.impulse <= 8)
@@ -2893,23 +2891,14 @@ void() ImpulseCommands =
         }
     }
 
-    // TODO VR: (P0) remove, or make better, check if gun supports it
     if(self.impulse == 42)
     {
-        VRGunHaptic(cVR_MainHand, 0.3, 75, 1.0);
-        sound(self, VRGetGunChannel(cVR_OffHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
-
-        VRSetWeaponFlags(cVR_OffHand, VRGetWeaponFlags(cVR_OffHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
-        W_SetCurrentAmmoFor(cVR_OffHand);
+        ToggleSecondaryAmmo(cVR_OffHand);
     }
 
     if(self.impulse == 43)
     {
-        VRGunHaptic(cVR_OffHand, 0.3, 75, 1.0);
-        sound(self, VRGetGunChannel(cVR_MainHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
-
-        VRSetWeaponFlags(cVR_MainHand, VRGetWeaponFlags(cVR_MainHand) ^ QVR_WPNFLAG_USE_SECONDARY_AMMO);
-        W_SetCurrentAmmoFor(cVR_MainHand);
+        ToggleSecondaryAmmo(cVR_MainHand);
     }
 
     if(self.impulse >= 225 && self.impulse <= 226)

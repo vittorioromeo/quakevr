@@ -423,3 +423,14 @@ string(float wid) WeaponIdToWeaponName =
 
     return "";
 }
+
+float(float wid) WeaponSupportsSecondaryAmmoFlag =
+{
+    if(wid == WID_NAILGUN)          { return TRUE; }
+    if(wid == WID_SUPER_NAILGUN)    { return TRUE; }
+    if(wid == WID_GRENADE_LAUNCHER) { return TRUE; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return TRUE; }
+    if(wid == WID_LIGHTNING)        { return TRUE; }
+
+    return FALSE;
+}

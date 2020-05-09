@@ -33,9 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include <utility>
 #include <array>
 
-#define MAX_PARTICLES \
-    124096 // default max # of particles at once
-         // time, per texture (TODO VR: (P2) should it be per texture?, cvar)
+#define MAX_PARTICLES 4096 * 100 // default max # of particles at once
+// time, per texture (TODO VR: (P2) should it be per texture?, cvar)
 
 #define ABSOLUTE_MIN_PARTICLES \
     512 // no fewer than this no matter what's
@@ -69,7 +68,6 @@ enum ptype_t : std::uint8_t
     pt_gunpickup,
 };
 
-// TODO VR: (P0) rewrite to use SOA
 struct ParticleSOA
 {
     struct Data
@@ -83,10 +81,10 @@ struct ParticleSOA
     qvec3* _orgs;
     qvec3* _vels;
     qvec3* _accs;
-    float* _colors;
-    float* _alphas;
+    qvec4* _colors;
     float* _angles;
     float* _scales;
+    int* _atlasIdxs;
     Data* _datas;
 };
 
@@ -110,9 +108,12 @@ struct ParticleHandleSOA
         return _soa->_accs[_idx];
     }
 
-    [[nodiscard]] QUAKE_FORCEINLINE float& color() noexcept
+    QUAKE_FORCEINLINE void setColor(const float x) noexcept
     {
-        return _soa->_colors[_idx];
+        GLubyte* c = (GLubyte*)&d_8to24table[(int)x];
+
+        _soa->_colors[_idx].rgb =
+            qvec3{c[0] / 255.f, c[1] / 255.f, c[2] / 255.f};
     }
 
     [[nodiscard]] QUAKE_FORCEINLINE float& ramp() noexcept
@@ -130,14 +131,24 @@ struct ParticleHandleSOA
         return _soa->_scales[_idx];
     }
 
-    [[nodiscard]] QUAKE_FORCEINLINE float& alpha() noexcept
+    QUAKE_FORCEINLINE void setAlpha(const float x) noexcept
     {
-        return _soa->_alphas[_idx];
+        _soa->_colors[_idx].a = x / 255.f;
+    }
+
+    QUAKE_FORCEINLINE void addAlpha(const float x, const float ft) noexcept
+    {
+        _soa->_colors[_idx].a += (x / 255.f) * ft;
     }
 
     [[nodiscard]] QUAKE_FORCEINLINE float& angle() noexcept
     {
         return _soa->_angles[_idx];
+    }
+
+    [[nodiscard]] QUAKE_FORCEINLINE int& atlasIdx() noexcept
+    {
+        return _soa->_atlasIdxs[_idx];
     }
 
     [[nodiscard]] QUAKE_FORCEINLINE ptype_t& type() noexcept
@@ -179,7 +190,6 @@ template <class UnaryPredicate, class F>
             if(!p(i))
             {
                 f(first, i);
-                // *first = std::move(*i);
                 ++first;
             }
         }
@@ -187,18 +197,6 @@ template <class UnaryPredicate, class F>
 
     return first;
 }
-
-/*
-  std::vector<bool> vb{true, true, false, true, false, true};
-  std::vector<int> vi{0, 1, 2, 3, 4, 5};
-
-  std::size_t r = index_remove_if(
-      0, vi.size(), [&](auto i) { return vb[i]; },
-      [&](auto bad, auto good) {
-        vi[bad] = std::move(vi[good]);
-        vb[bad] = std::move(vb[good]);
-      });
-*/
 
 class ParticleBufferSOA
 {
@@ -222,9 +220,9 @@ public:
         alloc(_pSOA._vels, "psoa_vels");
         alloc(_pSOA._accs, "psoa_accs");
         alloc(_pSOA._colors, "psoa_colors");
-        alloc(_pSOA._alphas, "psoa_alphas");
         alloc(_pSOA._angles, "psoa_angles");
         alloc(_pSOA._scales, "psoa_scales");
+        alloc(_pSOA._atlasIdxs, "psoa_atlasIdxs");
         alloc(_pSOA._datas, "psoa_datas");
     }
 
@@ -233,7 +231,7 @@ public:
         _aliveCount = index_remove_if(
             0, _aliveCount,
             [&](const std::size_t i) {
-                return _pSOA._alphas[i] <= 0.f    //
+                return _pSOA._colors[i].a <= 0.f  //
                        || _pSOA._scales[i] <= 0.f //
                        || cl.time >= _pSOA._datas[i]._die;
             },
@@ -242,9 +240,10 @@ public:
                 _pSOA._vels[targetIdx] = std::move(_pSOA._vels[srcIdx]);
                 _pSOA._accs[targetIdx] = std::move(_pSOA._accs[srcIdx]);
                 _pSOA._colors[targetIdx] = std::move(_pSOA._colors[srcIdx]);
-                _pSOA._alphas[targetIdx] = std::move(_pSOA._alphas[srcIdx]);
                 _pSOA._angles[targetIdx] = std::move(_pSOA._angles[srcIdx]);
                 _pSOA._scales[targetIdx] = std::move(_pSOA._scales[srcIdx]);
+                _pSOA._atlasIdxs[targetIdx] =
+                    std::move(_pSOA._atlasIdxs[srcIdx]);
                 _pSOA._datas[targetIdx] = std::move(_pSOA._datas[srcIdx]);
             });
     }
@@ -289,156 +288,95 @@ public:
     }
 };
 
-// TODO VR: (P2) optimize layout?
-struct particle_t
-{
-    qvec3 org;
-    qvec3 vel;
-    qvec3 acc;
-
-    float color;
-    float ramp;
-    float die;
-    float scale;
-    float alpha;
-    float angle;
-
-    ptype_t type;
-    std::uint8_t param0;
-};
-
-struct ParticleHandle
-{
-    particle_t* _particle;
-
-    [[nodiscard]] QUAKE_FORCEINLINE qvec3& org() noexcept
-    {
-        return _particle->org;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE qvec3& vel() noexcept
-    {
-        return _particle->vel;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE qvec3& acc() noexcept
-    {
-        return _particle->acc;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& color() noexcept
-    {
-        return _particle->color;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& ramp() noexcept
-    {
-        return _particle->ramp;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& die() noexcept
-    {
-        return _particle->die;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& scale() noexcept
-    {
-        return _particle->scale;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& alpha() noexcept
-    {
-        return _particle->alpha;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE float& angle() noexcept
-    {
-        return _particle->angle;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE ptype_t& type() noexcept
-    {
-        return _particle->type;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE std::uint8_t& param0() noexcept
-    {
-        return _particle->param0;
-    }
-};
-
-class ParticleBuffer
-{
-private:
-    particle_t* _particles;
-    particle_t* _aliveEnd;
-    particle_t* _end;
-    std::size_t _maxParticles;
-
-public:
-    void initialize(const std::size_t maxParticles) noexcept
-    {
-        _maxParticles = maxParticles;
-        _particles = (particle_t*)Hunk_AllocName(
-            _maxParticles * sizeof(particle_t), "particles");
-        _aliveEnd = _particles;
-        _end = _particles + _maxParticles;
-    }
-
-    void cleanup() noexcept
-    {
-        _aliveEnd =
-            std::remove_if(_particles, _aliveEnd, [](const particle_t& p) {
-                return p.alpha <= 0.f || p.scale <= 0.f || cl.time >= p.die;
-            });
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE ParticleHandle create() noexcept
-    {
-        return ParticleHandle{_aliveEnd++};
-    }
-
-    template <typename F>
-    QUAKE_FORCEINLINE void forActive(F&& f) noexcept
-    {
-        for(auto p = _particles; p != _aliveEnd; ++p)
-        {
-            f(ParticleHandle{p});
-        }
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE bool full() const noexcept
-    {
-        return _aliveEnd == _end;
-    }
-
-    void clear() noexcept
-    {
-        _aliveEnd = _particles;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE bool empty() const noexcept
-    {
-        return _aliveEnd == _particles;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE particle_t* data() const noexcept
-    {
-        return _particles;
-    }
-
-    [[nodiscard]] QUAKE_FORCEINLINE std::size_t aliveCount() const noexcept
-    {
-        return _aliveEnd - _particles;
-    }
-};
-
 struct ImageData
 {
     byte* data; // Hunk-allocated.
     int width;
     int height;
 };
+
+ImageData stitchImageData(const ImageData& a, const ImageData& b)
+{
+    const auto width = a.width + b.width;
+    const auto height = std::max(a.height, b.height);
+    const auto numPixels = width * height;
+    const auto numBytes = numPixels * 4;
+
+    const auto idx = [](const int width, const int height, const int depth,
+                         const int x, const int y, const int z) {
+        return (width * y + x) * 4 + z;
+        return x + height * (y + width * z);
+        return x + width * (y + depth * z);
+    };
+
+    byte* data = Hunk_Alloc<byte>(numBytes);
+
+    const auto doPic = [&](const int xOffset, const auto& pic) {
+        for(int x = 0; x < pic.width; ++x)
+        {
+            for(int y = 0; y < pic.height; ++y)
+            {
+                for(int z = 0; z < 4; ++z)
+                {
+                    data[idx(width, height, 4, xOffset + x, y, z)] =
+                        pic.data[idx(pic.width, pic.height, 4, x, y, z)];
+                }
+            }
+        }
+    };
+
+    doPic(0, a);
+    doPic(a.width, b);
+
+    return ImageData{data, width, height};
+}
+
+struct AtlasData
+{
+    ImageData _imageData;
+    std::vector<float> _imageInfo; // x, y, width, height
+};
+
+template <typename... Ts>
+AtlasData stitchImages(const Ts&... images)
+{
+    const auto width = (images.width + ...);
+    const auto height = std::max({images.height...});
+    const auto numPixels = width * height;
+    const auto numBytes = numPixels * 4;
+
+    const auto idx = [](const int width, const int height, const int depth,
+                         const int x, const int y,
+                         const int z) { return (width * y + x) * 4 + z; };
+
+    byte* data = Hunk_Alloc<byte>(numBytes);
+    std::vector<float> imageInfo;
+
+    const auto doPic = [&](const int xOffset, const auto& pic) {
+        imageInfo.emplace_back(xOffset);
+        imageInfo.emplace_back(0);
+        imageInfo.emplace_back(pic.width);
+        imageInfo.emplace_back(pic.height);
+
+        for(int x = 0; x < pic.width; ++x)
+        {
+            for(int y = 0; y < pic.height; ++y)
+            {
+                for(int z = 0; z < 4; ++z)
+                {
+                    data[idx(width, height, 4, xOffset + x, y, z)] =
+                        pic.data[idx(pic.width, pic.height, 4, x, y, z)];
+                }
+            }
+        }
+    };
+
+    int xOffset = 0;
+    ((doPic(xOffset, images), xOffset += images.width), ...);
+
+    const ImageData imageData{data, width, height};
+    return AtlasData{imageData, std::move(imageInfo)};
+}
 
 class ParticleTextureManager
 {
@@ -482,15 +420,8 @@ public:
 
 int r_numparticles;
 
-#define USE_SOA 1
-
-#if USE_SOA
 using PBuffer = ParticleBufferSOA;
 using PHandle = ParticleHandleSOA;
-#else
-using PBuffer = ParticleBuffer;
-using PHandle = ParticleHandle;
-#endif
 
 class ParticleManager
 {
@@ -583,11 +514,14 @@ std::mt19937 mt(rd());
     return std::uniform_int_distribution<int>{min, max - 1}(mt);
 }
 
+[[nodiscard]] QUAKE_FORCEINLINE static float rndToRad(
+    const float min, const float max) noexcept
+{
+    return rnd(min * M_PI_DIV_180, max * M_PI_DIV_180);
+}
 
 cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE}; // johnfitz
 cvar_t r_particle_mult = {"r_particle_mult", "1", CVAR_ARCHIVE};
-
-
 
 template <typename F>
 QUAKE_FORCEINLINE void makeNParticlesI(
@@ -625,6 +559,7 @@ QUAKE_FORCEINLINE void setAccGrav(PHandle p, float mult = 0.5f) noexcept
     p.acc()[2] = -sv_gravity.value * mult;
 }
 
+// TODO VR: (P2) optimize by putting texture in an atlas
 ParticleTextureManager::Handle ptxCircle;
 ParticleTextureManager::Handle ptxSquare;
 ParticleTextureManager::Handle ptxBlob;
@@ -636,6 +571,21 @@ ParticleTextureManager::Handle ptxLightning;
 ParticleTextureManager::Handle ptxSpark;
 ParticleTextureManager::Handle ptxRock;
 ParticleTextureManager::Handle ptxGunSmoke;
+
+ParticleTextureManager::Handle ptxAtlas;
+AtlasData ptxAtlasData;
+
+constexpr int aiCircle = 0;
+constexpr int aiSquare = 1;
+constexpr int aiBlob = 2;
+constexpr int aiExplosion = 3;
+constexpr int aiSmoke = 4;
+constexpr int aiBlood = 5;
+constexpr int aiBloodMist = 6;
+constexpr int aiLightning = 7;
+constexpr int aiSpark = 8;
+constexpr int aiRock = 9;
+constexpr int aiGunSmoke = 10;
 
 template <typename F>
 QUAKE_FORCEINLINE void forActiveParticles(F&& f) noexcept
@@ -751,42 +701,74 @@ void R_InitParticleTextures()
     static byte particle2_data[2 * 2 * 4];
     static byte particle3_data[64 * 64 * 4];
 
-    {
+    const auto circleImageData = [&] {
         buildCircleTexture(particle1_data);
-        const ImageData imageData{particle1_data, 64, 64};
-        ptxCircle = pMgr.createBuffer(
-            makeTextureFromImageData("particle1", imageData), imageData);
-    }
+        return ImageData{particle1_data, 64, 64};
+        // ptxCircle = pMgr.createBuffer(
+        //     makeTextureFromImageData("particle1", imageData), imageData);
+    }();
 
-    {
+    const auto squareImageData = [&] {
         buildSquareTexture(particle2_data);
-        const ImageData imageData{particle2_data, 2, 2};
-        ptxSquare = pMgr.createBuffer(
-            makeTextureFromImageData("particle2", imageData), imageData);
-    }
+        return ImageData{particle2_data, 2, 2};
+        // ptxSquare = pMgr.createBuffer(
+        //     makeTextureFromImageData("particle2", imageData), imageData);
+    }();
 
-    {
+    const auto blobImageData = [&] {
         buildBlobTexture(particle3_data);
-        const ImageData imageData{particle3_data, 64, 64};
-        ptxBlob = pMgr.createBuffer(
-            makeTextureFromImageData("particle3", imageData), imageData);
-    }
+        return ImageData{particle3_data, 64, 64};
+        // ptxBlob = pMgr.createBuffer(
+        //     makeTextureFromImageData("particle3", imageData), imageData);
+    }();
 
+    /*
     const auto load = [&](ParticleTextureManager::Handle& target,
                           const char* name) {
         const auto imageData = loadImage(name);
         target = pMgr.createBuffer(
             makeTextureFromImageData(name, imageData), imageData);
     };
+    */
 
-    load(ptxExplosion, "textures/particle_explosion");
-    load(ptxSmoke, "textures/particle_smoke");
-    load(ptxBlood, "textures/particle_blood");
-    load(ptxBloodMist, "textures/particle_blood_mist");
-    load(ptxLightning, "textures/particle_lightning");
-    load(ptxSpark, "textures/particle_spark");
-    load(ptxRock, "textures/particle_rock");
-    load(ptxGunSmoke, "textures/particle_gun_smoke");
+    ptxAtlasData = stitchImages(                   //
+        circleImageData,                           //
+        squareImageData,                           //
+        blobImageData,                             //
+        loadImage("textures/particle_explosion"),  //
+        loadImage("textures/particle_smoke"),      //
+        loadImage("textures/particle_blood"),      //
+        loadImage("textures/particle_blood_mist"), //
+        loadImage("textures/particle_lightning"),  //
+        loadImage("textures/particle_spark"),      //
+        loadImage("textures/particle_rock"),       //
+        loadImage("textures/particle_gun_smoke")   //
+    );
+
+    ptxAtlas = pMgr.createBuffer(
+        makeTextureFromImageData("atlas", ptxAtlasData._imageData),
+        ptxAtlasData._imageData);
+
+    ptxCircle = ptxAtlas;
+    ptxBlob = ptxAtlas;
+    ptxSquare = ptxAtlas;
+    ptxExplosion = ptxAtlas;
+    ptxSmoke = ptxAtlas;
+    ptxBlood = ptxAtlas;
+    ptxBloodMist = ptxAtlas;
+    ptxLightning = ptxAtlas;
+    ptxSpark = ptxAtlas;
+    ptxRock = ptxAtlas;
+    ptxGunSmoke = ptxAtlas;
+
+    // load(ptxExplosion, "textures/particle_explosion");
+    // load(ptxSmoke, "textures/particle_smoke");
+    // load(ptxBlood, "textures/particle_blood");
+    // load(ptxBloodMist, "textures/particle_blood_mist");
+    // load(ptxLightning, "textures/particle_lightning");
+    // load(ptxSpark, "textures/particle_spark");
+    // load(ptxRock, "textures/particle_rock");
+    // load(ptxGunSmoke, "textures/particle_gun_smoke");
 }
 
 static void R_InitRNumParticles()
@@ -863,10 +845,11 @@ void R_EntityParticles(entity_t* ent)
         forward[2] = -sp;
 
         makeNParticles(ptxCircle, 1, [&](PHandle p) {
-            p.angle() = rnd(0.f, 360.f);
-            p.alpha() = 255;
+            p.atlasIdx() = aiCircle;
+            p.angle() = rndToRad(0.f, 360.f);
+            p.setAlpha(255);
             p.die() = cl.time + 0.01;
-            p.color() = 0x6f;
+            p.setColor(0x6f);
             p.type() = pt_explode;
             p.scale() = 1.f;
             setAccGrav(p);
@@ -931,10 +914,11 @@ void R_ReadPointFile_f()
         c++;
 
         makeNParticles(ptxCircle, 1, [&](PHandle p) {
-            p.angle() = rnd(0.f, 360.f);
-            p.alpha() = 255;
+            p.atlasIdx() = aiCircle;
+            p.angle() = rndToRad(0.f, 360.f);
+            p.setAlpha(255);
             p.die() = 99999;
-            p.color() = (-c) & 15;
+            p.setColor((-c) & 15);
             p.type() = pt_static;
             p.scale() = 1.f;
             setAccGrav(p);
@@ -1010,10 +994,11 @@ R_ParticleExplosion
 void R_ParticleExplosion(const qvec3& org)
 {
     makeNParticlesI(ptxCircle, 256, [&](const int i, PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 2;
-        p.color() = ramp1[0];
+        p.atlasIdx() = aiCircle;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(ramp1[0]);
         p.ramp() = rand() & 3;
         p.scale() = rnd(0.6f, 1.2f);
         setAccGrav(p);
@@ -1027,10 +1012,11 @@ void R_ParticleExplosion(const qvec3& org)
     });
 
     makeNParticlesI(ptxSpark, 64, [&](const int, PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 3;
-        p.color() = ramp1[0];
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(ramp1[0]);
         p.ramp() = rand() & 3;
         p.scale() = rnd(1.9f, 2.9f) * 0.55f;
         setAccGrav(p);
@@ -1045,10 +1031,11 @@ void R_ParticleExplosion(const qvec3& org)
     });
 
     makeNParticlesI(ptxRock, 48, [&](const int, PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 3;
-        p.color() = 167 + (rand() & 7);
+        p.atlasIdx() = aiRock;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(167 + (rand() & 7));
         p.ramp() = rand() & 3;
         p.scale() = rnd(0.9f, 1.9f);
         setAccGrav(p);
@@ -1062,11 +1049,12 @@ void R_ParticleExplosion(const qvec3& org)
         }
     });
 
-    makeNParticles(ptxExplosion, 3, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 240;
-        p.die() = cl.time + 1.5 * rnd(0.5f, 1.5f);
-        p.color() = ramp1[0];
+    makeNParticles(ptxExplosion, 1, [&](PHandle p) {
+        p.atlasIdx() = aiExplosion;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(225);
+        p.die() = cl.time + 1.5;
+        p.setColor(ramp1[0]);
         p.ramp() = rand() & 3;
         p.scale() = rnd(0.5f, 2.1f) * 2.f;
         setAccGrav(p, 0.05f);
@@ -1081,10 +1069,11 @@ void R_ParticleExplosion(const qvec3& org)
     });
 
     makeNParticles(ptxSmoke, 3, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 225;
-        p.die() = cl.time + 3.5 * (rand() % 5);
-        p.color() = rand() & 7;
+        p.atlasIdx() = aiSmoke;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(225);
+        p.die() = cl.time + 3.5;
+        p.setColor(rand() & 7);
         p.scale() = rnd(1.2f, 1.5f);
         p.type() = pt_txsmoke;
         setAccGrav(p, -0.09f);
@@ -1107,10 +1096,11 @@ void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength)
     int colorMod = 0;
 
     makeNParticles(ptxCircle, 512, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
+        p.atlasIdx() = aiCircle;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
         p.die() = cl.time + 0.3;
-        p.color() = colorStart + (colorMod % colorLength);
+        p.setColor(colorStart + (colorMod % colorLength));
         p.scale() = 1.f;
         colorMod++;
         setAccGrav(p);
@@ -1132,10 +1122,11 @@ void R_RunParticleEffect_BulletPuff(
     const auto sparkCount = count * 0.4f;
 
     makeNParticles(ptxRock, debrisCount, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
+        p.atlasIdx() = aiRock;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
         p.die() = cl.time + 0.7 * (rand() % 5);
-        p.color() = (color & ~7) + (rand() & 7);
+        p.setColor((color & ~7) + (rand() & 7));
         p.scale() = rnd(0.5f, 0.9f);
         p.type() = pt_rock;
         p.param0() = rndi(0, 2); // rotation direction
@@ -1149,9 +1140,10 @@ void R_RunParticleEffect_BulletPuff(
     });
 
     makeNParticles(ptxSmoke, 1, [&](PHandle p) {
-        p.alpha() = 45;
-        p.die() = cl.time + 1.5 * (rand() % 5);
-        p.color() = rand() & 7;
+        p.atlasIdx() = aiSmoke;
+        p.setAlpha(45);
+        p.die() = cl.time + 1.25 * (rand() % 5);
+        p.setColor(rand() & 7);
         p.scale() = rnd(0.3f, 0.5f);
         p.type() = pt_txsmoke;
         setAccGrav(p, -0.09f);
@@ -1164,10 +1156,11 @@ void R_RunParticleEffect_BulletPuff(
     });
 
     makeNParticles(ptxCircle, dustCount, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 1.5 * (rand() % 5);
-        p.color() = (color & ~7) + (rand() & 7);
+        p.atlasIdx() = aiCircle;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 0.75 * (rand() % 5);
+        p.setColor((color & ~7) + (rand() & 7));
         p.scale() = rnd(0.05f, 0.3f);
         p.type() = pt_static;
         setAccGrav(p, 0.08f);
@@ -1182,10 +1175,11 @@ void R_RunParticleEffect_BulletPuff(
     });
 
     makeNParticles(ptxSpark, sparkCount, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 1.6 * (rand() % 5);
-        p.color() = ramp3[0] + (rand() & 7);
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.25 * (rand() % 5);
+        p.setColor(ramp3[0] + (rand() & 7));
         p.scale() = rnd(1.95f, 2.87f) * 0.35f;
         p.type() = pt_rock;
         p.param0() = rndi(0, 2); // rotation direction
@@ -1207,10 +1201,11 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
 
     makeNParticles(ptxBlood, count * 2, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 100;
+        p.atlasIdx() = aiBlood;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(100);
         p.die() = cl.time + 0.7 * (rand() % 3);
-        p.color() = pickBloodColor();
+        p.setColor(pickBloodColor());
         p.scale() = rnd(0.35f, 0.6f) * 6.5f;
         p.type() = pt_static;
         setAccGrav(p, 0.29f);
@@ -1225,10 +1220,11 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
     });
 
     makeNParticles(ptxCircle, count * 24, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 175;
+        p.atlasIdx() = aiCircle;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(175);
         p.die() = cl.time + 0.4 * (rand() % 3);
-        p.color() = pickBloodColor();
+        p.setColor(pickBloodColor());
         p.scale() = rnd(0.12f, 0.2f);
         p.type() = pt_static;
         setAccGrav(p, 0.45f);
@@ -1244,10 +1240,11 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
     });
 
     makeNParticles(ptxBloodMist, 1, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 38;
-        p.die() = cl.time + 3.2;
-        p.color() = 225;
+        p.atlasIdx() = aiBloodMist;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(38);
+        p.die() = cl.time + 2.0;
+        p.setColor(225);
         p.ramp() = rand() & 3;
         p.scale() = rnd(1.1f, 2.4f) * 15.f;
         setAccGrav(p, -0.03f);
@@ -1267,10 +1264,11 @@ void R_RunParticleEffect_Lightning(
     (void)dir;
 
     makeNParticles(ptxLightning, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = rnd(180, 220);
-        p.die() = cl.time + 1.6 * (rand() % 3);
-        p.color() = 254;
+        p.atlasIdx() = aiLightning;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(rnd(180, 220));
+        p.die() = cl.time + 1.2 * (rand() % 3);
+        p.setColor(254);
         p.scale() = rnd(0.35f, 0.6f) * 6.2f;
         p.type() = pt_lightning;
         setAccGrav(p, 0.f);
@@ -1288,10 +1286,11 @@ void R_RunParticleEffect_Smoke(const qvec3& org, const qvec3& dir, int count)
     (void)dir;
 
     makeNParticles(ptxSmoke, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 125;
-        p.die() = cl.time + 3.5 * (rand() % 5);
-        p.color() = rand() & 7;
+        p.atlasIdx() = aiSmoke;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(125);
+        p.die() = cl.time + 2.5 * (rand() % 5);
+        p.setColor(rand() & 7);
         p.scale() = rnd(1.2f, 1.5f) * 0.8f;
         p.type() = pt_txsmoke;
         setAccGrav(p, -0.09f);
@@ -1309,10 +1308,11 @@ void R_RunParticleEffect_Sparks(const qvec3& org, const qvec3& dir, int count)
     (void)dir;
 
     makeNParticles(ptxSpark, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
-        p.die() = cl.time + 2.6 * (rand() % 5);
-        p.color() = rndi(102, 112);
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 2.0 * (rand() % 5);
+        p.setColor(rndi(102, 112));
         p.scale() = rnd(1.55f, 2.87f) * 0.45f;
         p.type() = pt_rock;
         p.param0() = rndi(0, 2); // rotation direction
@@ -1333,10 +1333,11 @@ void R_RunParticleEffect_GunSmoke(const qvec3& org, const qvec3& dir, int count)
     (void)dir;
 
     makeNParticles(ptxGunSmoke, count, [&](PHandle p) {
-        p.angle() = 90 + rnd(-10.f, 10.f);
-        p.alpha() = rnd(85, 125);
-        p.die() = cl.time + 6;
-        p.color() = rndi(10, 16);
+        p.atlasIdx() = aiGunSmoke;
+        p.angle() = rndToRad(-10.f, 10.f) + (90 * M_PI_DIV_180);
+        p.setAlpha(rnd(85, 125));
+        p.die() = cl.time + 3.5;
+        p.setColor(rndi(10, 16));
         p.scale() = rnd(0.9f, 1.5f) * 0.1f;
         p.type() = pt_gunsmoke;
         setAccGrav(p, -0.09f);
@@ -1356,10 +1357,11 @@ void R_RunParticleEffect_Teleport(const qvec3& org, const qvec3& dir, int count)
     (void)dir;
 
     makeNParticles(ptxSpark, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = 255;
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
         p.die() = cl.time + 0.6;
-        p.color() = rndi(208, 220);
+        p.setColor(rndi(208, 220));
         p.scale() = rnd(1.55f, 2.87f) * 0.65f;
         p.type() = pt_rock;
         p.param0() = rndi(0, 2); // rotation direction
@@ -1381,10 +1383,11 @@ void R_RunParticleEffect_GunPickup(
     (void)dir;
 
     makeNParticles(ptxSpark, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = rnd(150, 200);
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(rnd(150, 200));
         p.die() = cl.time + 0.5;
-        p.color() = rndi(12, 16);
+        p.setColor(rndi(12, 16));
         p.scale() = rnd(1.55f, 2.87f) * 0.35f;
         p.type() = pt_gunpickup;
         setAccGrav(p, -0.2f);
@@ -1405,10 +1408,11 @@ void R_RunParticleEffect_GunForceGrab(
     (void)dir;
 
     makeNParticles(ptxSpark, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = rnd(180, 225);
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(rnd(180, 225));
         p.die() = cl.time + 0.6;
-        p.color() = rndi(106, 111);
+        p.setColor(rndi(106, 111));
         p.scale() = rnd(1.55f, 2.87f) * 0.35f;
         p.type() = pt_gunpickup;
         setAccGrav(p, -0.3f);
@@ -1429,10 +1433,11 @@ void R_RunParticleEffect_LavaSpike(
     (void)dir;
 
     makeNParticles(ptxSpark, count, [&](PHandle p) {
-        p.angle() = rnd(0.f, 360.f);
-        p.alpha() = rnd(180, 225);
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(rnd(180, 225));
         p.die() = cl.time + 0.5;
-        p.color() = rndi(247, 254);
+        p.setColor(rndi(247, 254));
         p.scale() = rnd(1.55f, 2.87f) * 0.17f;
         p.type() = pt_gunpickup;
         setAccGrav(p, 0.17f);
@@ -1545,11 +1550,12 @@ void R_LavaSplash(const qvec3& org)
         for(int j = -16; j < 16; j++)
         {
             makeNParticles(ptxCircle, 1, [&](PHandle p) {
-                p.angle() = rnd(0.f, 360.f);
-                p.alpha() = 255;
+                p.atlasIdx() = aiCircle;
+                p.angle() = rndToRad(0.f, 360.f);
+                p.setAlpha(255);
                 p.scale() = 1.f;
                 p.die() = cl.time + 2 + (rand() & 31) * 0.02;
-                p.color() = 224 + (rand() & 7);
+                p.setColor(224 + (rand() & 7));
                 p.type() = pt_static;
                 setAccGrav(p);
 
@@ -1583,11 +1589,12 @@ void R_TeleportSplash(const qvec3& org)
             for(int k = -24; k < 32; k += 4)
             {
                 makeNParticles(ptxCircle, 1, [&](PHandle p) {
-                    p.angle() = rnd(0.f, 360.f);
-                    p.alpha() = rnd(150, 255);
+                    p.atlasIdx() = aiCircle;
+                    p.angle() = rndToRad(0.f, 360.f);
+                    p.setAlpha(rnd(150, 255));
                     p.scale() = rnd(0.6f, 1.f);
                     p.die() = cl.time + 1.2 + (rand() & 7) * 0.2;
-                    p.color() = 7 + (rand() & 7);
+                    p.setColor(7 + (rand() & 7));
                     p.type() = pt_teleport;
                     setAccGrav(p, 0.2f);
 
@@ -1612,7 +1619,7 @@ void R_TeleportSplash(const qvec3& org)
 static void R_SetRTRocketTrail(const qvec3& start, PHandle p)
 {
     p.ramp() = (rand() & 3);
-    p.color() = ramp3[(int)p.ramp()];
+    p.setColor(ramp3[(int)p.ramp()]);
     p.type() = pt_fire;
     for(int j = 0; j < 3; j++)
     {
@@ -1623,7 +1630,7 @@ static void R_SetRTRocketTrail(const qvec3& start, PHandle p)
 static void R_SetRTBlood(const qvec3& start, PHandle p)
 {
     p.type() = pt_static;
-    p.color() = 67 + (rand() & 3);
+    p.setColor(67 + (rand() & 3));
     for(int j = 0; j < 3; j++)
     {
         p.org()[j] = start[j] + ((rand() % 6) - 3);
@@ -1641,11 +1648,11 @@ static void R_SetRTTracer(
     p.type() = pt_static;
     if(type == 3)
     {
-        p.color() = 52 + ((tracercount & 4) << 1);
+        p.setColor(52 + ((tracercount & 4) << 1));
     }
     else
     {
-        p.color() = 230 + ((tracercount & 4) << 1);
+        p.setColor(230 + ((tracercount & 4) << 1));
     }
 
     tracercount++;
@@ -1666,7 +1673,7 @@ static void R_SetRTTracer(
 static void R_SetRTSlightBlood(const qvec3& start, PHandle p)
 {
     p.type() = pt_static;
-    p.color() = 67 + (rand() & 3);
+    p.setColor(67 + (rand() & 3));
     for(int j = 0; j < 3; j++)
     {
         p.org()[j] = start[j] + ((rand() % 6) - 3);
@@ -1675,7 +1682,7 @@ static void R_SetRTSlightBlood(const qvec3& start, PHandle p)
 
 static void R_SetRTVoorTrail(const qvec3& start, PHandle p)
 {
-    p.color() = 9 * 16 + 8 + (rand() & 3);
+    p.setColor(9 * 16 + 8 + (rand() & 3));
     p.type() = pt_static;
     p.die() = cl.time + 0.3;
     for(int j = 0; j < 3; j++)
@@ -1686,8 +1693,8 @@ static void R_SetRTVoorTrail(const qvec3& start, PHandle p)
 
 static void R_SetRTCommon(PHandle p)
 {
-    p.angle() = rnd(0.f, 360.f);
-    p.alpha() = 255;
+    p.angle() = rndToRad(0.f, 360.f);
+    p.setAlpha(255);
     p.scale() = 0.7f;
     setAccGrav(p, 0.05f);
     p.vel() = vec3_zero;
@@ -1741,14 +1748,16 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 0: // rocket trail
             {
                 makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTRocketTrail(start, p);
                 });
 
                 makeNParticles(ptxSmoke, 1, [&](PHandle p) {
-                    p.alpha() = 65;
+                    p.atlasIdx() = aiSmoke;
+                    p.setAlpha(65);
                     p.die() = cl.time + 1.5 * (rand() % 5);
-                    p.color() = rand() & 7;
+                    p.setColor(rand() & 7);
                     p.scale() = rnd(0.3f, 0.5f);
                     p.type() = pt_txsmoke;
                     setAccGrav(p, -0.09f);
@@ -1766,10 +1775,11 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 1: // smoke smoke
             {
                 makeNParticles(ptxSmoke, 1, [&](PHandle p) {
-                    p.angle() = rnd(0.f, 360.f);
-                    p.alpha() = 65;
+                    p.atlasIdx() = aiSmoke;
+                    p.angle() = rndToRad(0.f, 360.f);
+                    p.setAlpha(65);
                     p.die() = cl.time + 1.5 * (rand() % 5);
-                    p.color() = rand() & 7;
+                    p.setColor(rand() & 7);
                     p.scale() = rnd(0.3f, 0.5f);
                     p.type() = pt_txsmoke;
                     setAccGrav(p, -0.09f);
@@ -1787,15 +1797,17 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 2: // blood
             {
                 makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTBlood(start, p);
                 });
 
                 makeNParticles(ptxBloodMist, 1, [&](PHandle p) {
-                    p.angle() = rnd(0.f, 360.f);
-                    p.alpha() = 32;
+                    p.atlasIdx() = aiBloodMist;
+                    p.angle() = rndToRad(0.f, 360.f);
+                    p.setAlpha(32);
                     p.die() = cl.time + 3.2;
-                    p.color() = 225;
+                    p.setColor(225);
                     p.ramp() = rand() & 3;
                     p.scale() = rnd(1.1f, 2.4f) * 15.f;
                     setAccGrav(p, -0.03f);
@@ -1815,6 +1827,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 5: // tracer
             {
                 makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTTracer(start, end, p, type);
                 });
@@ -1825,6 +1838,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 4: // slight blood
             {
                 makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTSlightBlood(start, p);
                     len -= 3;
@@ -1836,6 +1850,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 6: // voor trail
             {
                 makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTVoorTrail(start, p);
                 });
@@ -1846,14 +1861,16 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 7: // mini rocket trail
             {
                 makeNParticles(ptxCircle, 2, [&](PHandle p) {
+                    p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTRocketTrail(start, p);
                 });
 
                 makeNParticles(ptxSmoke, 1, [&](PHandle p) {
-                    p.alpha() = 55;
+                    p.atlasIdx() = aiSmoke;
+                    p.setAlpha(55);
                     p.die() = cl.time + 1.2 * (rand() % 5);
-                    p.color() = rand() & 7;
+                    p.setColor(rand() & 7);
                     p.scale() = rnd(0.05f, 0.23f);
                     p.type() = pt_txsmoke;
                     setAccGrav(p, -0.09f);
@@ -1895,10 +1912,18 @@ void CL_RunParticles()
 
     pMgr.cleanup();
 
-    forActiveParticles([&](PHandle p) {
-        p.vel() += p.acc() * frametime;
-        p.org() += p.vel() * frametime;
+    pMgr.forBuffers([&](gltexture_t*, const ImageData&, PBuffer& pBuffer) {
+        ParticleSOA& soa = pBuffer.soa();
+        const auto pCount = pBuffer.aliveCount();
 
+        for(std::size_t i = 0; i < pCount; ++i)
+        {
+            soa._vels[i] += soa._accs[i] * frametime;
+            soa._orgs[i] += soa._vels[i] * frametime;
+        }
+    });
+
+    forActiveParticles([&](PHandle p) {
         switch(p.type())
         {
             case pt_static:
@@ -1915,7 +1940,7 @@ void CL_RunParticles()
                 }
                 else
                 {
-                    p.color() = ramp3[(int)p.ramp()];
+                    p.setColor(ramp3[(int)p.ramp()]);
                 }
 
                 break;
@@ -1931,7 +1956,7 @@ void CL_RunParticles()
                 }
                 else
                 {
-                    p.color() = ramp1[(int)p.ramp()];
+                    p.setColor(ramp1[(int)p.ramp()]);
                 }
 
                 for(int i = 0; i < 3; i++)
@@ -1952,7 +1977,7 @@ void CL_RunParticles()
                 }
                 else
                 {
-                    p.color() = ramp2[(int)p.ramp()];
+                    p.setColor(ramp2[(int)p.ramp()]);
                 }
 
                 for(int i = 0; i < 3; i++)
@@ -1965,10 +1990,7 @@ void CL_RunParticles()
 
             case pt_blob:
             {
-                for(int i = 0; i < 3; i++)
-                {
-                    p.vel()[i] += p.vel()[i] * dvel;
-                }
+                p.vel() += p.vel() * dvel;
 
                 break;
             }
@@ -1985,7 +2007,7 @@ void CL_RunParticles()
 
             case pt_txexplode:
             {
-                p.alpha() -= 345.f * frametime;
+                p.addAlpha(-345.f, frametime);
                 p.scale() += 135.f * frametime;
                 p.angle() += 0.75f * frametime * (p.param0() == 0 ? 1.f : -1.f);
 
@@ -1994,7 +2016,7 @@ void CL_RunParticles()
 
             case pt_txsmoke:
             {
-                p.alpha() -= 75.f * frametime;
+                p.addAlpha(-70.f, frametime);
                 p.scale() += 47.f * frametime;
 
                 break;
@@ -2002,7 +2024,7 @@ void CL_RunParticles()
 
             case pt_lightning:
             {
-                p.alpha() -= 84.f * frametime;
+                p.addAlpha(-84.f, frametime);
                 p.scale() -= 32.f * frametime;
 
                 break;
@@ -2010,7 +2032,7 @@ void CL_RunParticles()
 
             case pt_teleport:
             {
-                p.alpha() -= 85.f * frametime;
+                p.addAlpha(-85.f, frametime);
                 p.scale() -= 0.1f * frametime;
 
                 break;
@@ -2025,8 +2047,8 @@ void CL_RunParticles()
 
             case pt_gunsmoke:
             {
-                p.alpha() -= 105.f * frametime;
-                p.scale() += 68.f * frametime;
+                p.addAlpha(-110.f, frametime);
+                p.scale() += 69.f * frametime;
                 p.org()[2] += 18.f * frametime;
 
                 break;
@@ -2034,7 +2056,7 @@ void CL_RunParticles()
 
             case pt_gunpickup:
             {
-                p.alpha() -= 120.f * frametime;
+                p.addAlpha(-120.f, frametime);
                 p.scale() -= 0.2f * frametime;
 
                 break;
@@ -2121,7 +2143,6 @@ static GLuint LoadShaders(const char* VertexShaderCode,
 
 
     // Link the program
-    printf("Linking program\n");
     GLuint ProgramID = glCreateProgram();
     glAttachShader(ProgramID, VertexShaderID);
     glAttachShader(ProgramID, GeometryShaderID);
@@ -2162,16 +2183,13 @@ layout(location = 0) in vec3  pOrg;
 layout(location = 1) in float pAngle;
 layout(location = 2) in float pScale;
 layout(location = 3) in vec4  pColor;
-layout(location = 4) uniform vec3 rOrigin;
-layout(location = 5) uniform vec3 rUp;
-layout(location = 6) uniform vec3 rRight;
-layout(location = 7) uniform mat4 mvMatrix;
-layout(location = 11) uniform mat4 pjMatrix;
+layout(location = 4) in int   pAtlasIdx;
 
 out VS_OUT {
     float opAngle;
     float opScale;
     vec4  opColor;
+    int   opAtlasIdx;
 } vs_out;
 
 void main()
@@ -2180,24 +2198,18 @@ void main()
     vs_out.opAngle = pAngle;
     vs_out.opScale = pScale;
     vs_out.opColor = pColor;
+    vs_out.opAtlasIdx = pAtlasIdx;
 }
 )";
 
     const char* fragmentShader = R"(
 #version 430 core
 
-layout(location = 0) in vec3  pOrg;
-layout(location = 1) in float pAngle;
-layout(location = 2) in float pScale;
-layout(location = 3) in vec4  pColor;
-layout(location = 4) uniform vec3 rOrigin;
-layout(location = 5) uniform vec3 rUp;
-layout(location = 6) uniform vec3 rRight;
-layout(location = 7) uniform mat4 mvMatrix;
-layout(location = 11) uniform mat4 pjMatrix;
+layout(location = 16) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
 
 in vec2 texcoord;
 in vec4 outVertexColor;
+flat in int outAtlasIdx;
 
 uniform sampler2D gColorMap;
 
@@ -2205,20 +2217,17 @@ out vec4 FragColor;
 
 void main (void)
 {
-    vec2 uv = texcoord.xy;
-    // uv.y *= -1.0;
+    ivec2 textureSize2d = textureSize(gColorMap, 0);
 
-    // vec3 t = mix(texture(gColorMap, uv).rgb, outVertexColor.rgb, 1);
+    vec2 imgXY = atlasBuf[outAtlasIdx].xy;
+    vec2 imgWH = atlasBuf[outAtlasIdx].zw;
+
+    vec2 uv = (imgXY / textureSize2d) + (texcoord.xy * (imgWH / textureSize2d));
+
     vec3 t = texture(gColorMap, uv).rgb * outVertexColor.rgb;
     FragColor = vec4(t, texture(gColorMap, uv).a * outVertexColor.a);
 
-    // FragColor = outVertexColor;
-    // FragColor.rgb = vec3(0.9, 0.8, 0.1);
-    // FragColor.a = 0.5;
-
-    // FragColor = texture(gColorMap, uv) * outVertexColor;
-
-    if(FragColor.a < 0.005)
+    if(FragColor.a < 0.01)
         discard;
 }
 )";
@@ -2233,16 +2242,18 @@ in VS_OUT {
     float opAngle;
     float opScale;
     vec4  opColor;
+    int   opAtlasIdx;
 } gs_in[];
 
-layout(location = 4) uniform vec3 rOrigin;
-layout(location = 5) uniform vec3 rUp;
-layout(location = 6) uniform vec3 rRight;
-layout(location = 7) uniform mat4 mvMatrix;
-layout(location = 11) uniform mat4 pjMatrix;
+layout(location = 5) uniform vec3 rOrigin;
+layout(location = 6) uniform vec3 rUp;
+layout(location = 7) uniform vec3 rRight;
+layout(location = 8) uniform mat4 mvMatrix;
+layout(location = 12) uniform mat4 pjMatrix;
 
 out vec2 texcoord;
 out vec4 outVertexColor;
+flat out int outAtlasIdx;
 
 // From: http://www.neilmendoza.com/glsl-rotation-about-an-arbitrary-axis/
 mat4 rotationMatrix(vec3 axis, float angle)
@@ -2260,36 +2271,10 @@ mat4 rotationMatrix(vec3 axis, float angle)
 
 void main()
 {
-    /*
-    float k = 0.75;
-
-    // bottomleft
-    gl_Position = vec4(-k,-k, 0.5, 1.0 );
-    texcoord = vec2( 0.0, 0.0 );
-    EmitVertex();
-
-    // topleft
-    gl_Position = vec4(-k, k, 0.5, 1.0 );
-    texcoord = vec2( 0.0, 1.0 );
-    EmitVertex();
-
-    // bottomright
-    gl_Position = vec4( k,-k, 0.5, 1.0 );
-    texcoord = vec2( 1.0, 0.0 );
-    EmitVertex();
-
-    // topright
-    gl_Position = vec4( k, k, 0.5, 1.0 );
-    texcoord = vec2( 1.0, 1.0 );
-    EmitVertex();
-
-    EndPrimitive();
-    */
-
     vec3 pos = gl_in[0].gl_Position.xyz;
 
     vec3 fwd = pos - rOrigin;
-    mat4 rotMat = rotationMatrix(fwd, gs_in[0].opAngle);
+    mat4 rotMat = rotationMatrix(fwd, gs_in[0].opAngle); // This seems wrong
 
     vec3 up = (vec4(rUp, 1.0) * rotMat).xyz;
     vec3 right = (vec4(rRight, 1.0) * rotMat).xyz;
@@ -2299,26 +2284,23 @@ void main()
     vec3 left = -right;
     vec3 down = -up;
 
-    vec4 color = gs_in[0].opColor;
+    outVertexColor = gs_in[0].opColor;
+    outAtlasIdx = gs_in[0].opAtlasIdx;
 
     gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * left, 1.0);
     texcoord = vec2(0, 0);
-    outVertexColor = color;
     EmitVertex();
 
     gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * left, 1.0);
     texcoord = vec2(1, 0);
-    outVertexColor = color;
     EmitVertex();
 
     gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * right, 1.0);
     texcoord = vec2(0, 1);
-    outVertexColor = color;
     EmitVertex();
 
     gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * right, 1.0);
     texcoord = vec2(1, 1);
-    outVertexColor = color;
     EmitVertex();
 
     EndPrimitive();
@@ -2334,7 +2316,6 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to
 CL_RunParticles
 ===============
 */
-#if 1
 void R_DrawParticles()
 {
     if(!r_particles.value)
@@ -2345,20 +2326,26 @@ void R_DrawParticles()
     static bool generated = false;
 
     static GLint particleProgramId;
+
     static GLuint vaoId;
+
     static GLuint pOrgVboId;
     static GLuint pAngleVboId;
     static GLuint pScaleVboId;
     static GLuint pColorVboId;
+    static GLuint pAtlasIdxVboId;
+
     static GLint pOrgLocation;
     static GLint pAngleLocation;
     static GLint pScaleLocation;
     static GLint pColorLocation;
+    static GLint pAtlasIdxLocation;
     static GLint rOriginLocation;
     static GLint rUpLocation;
     static GLint rRightLocation;
     static GLint mvMatrixLocation;
     static GLint pjMatrixLocation;
+    static GLint atlasBufLocation;
 
     if(!generated)
     {
@@ -2370,35 +2357,19 @@ void R_DrawParticles()
         glGenBuffers(1, &pAngleVboId);
         glGenBuffers(1, &pScaleVboId);
         glGenBuffers(1, &pColorVboId);
+        glGenBuffers(1, &pAtlasIdxVboId);
 
-        pOrgLocation = 0; // glGetAttribLocation(particleProgramId, "pOrg");
-        assert(pOrgLocation != -1);
-
-        pAngleLocation = 1; // glGetAttribLocation(particleProgramId, "pAngle");
-        assert(pAngleLocation != -1);
-
-        pScaleLocation = 2; // glGetAttribLocation(particleProgramId, "pScale");
-        assert(pScaleLocation != -1);
-
+        pOrgLocation = 0;
+        pAngleLocation = 1;
+        pScaleLocation = 2;
         pColorLocation = 3;
-        assert(pColorLocation != -1);
-
-        rOriginLocation =
-            4; // glGetUniformLocation(particleProgramId, "rOrigin");
-        assert(rOriginLocation != -1);
-
-        rUpLocation = 5; // glGetUniformLocation(particleProgramId, "rUp");
-        assert(rUpLocation != -1);
-
-        rRightLocation =
-            6; // glGetUniformLocation(particleProgramId, "rRight");
-        assert(rRightLocation != -1);
-
-        mvMatrixLocation = 7;
-        assert(mvMatrixLocation != -1);
-
-        pjMatrixLocation = 11;
-        assert(pjMatrixLocation != -1);
+        pAtlasIdxLocation = 4;
+        rOriginLocation = 5;
+        rUpLocation = 6;
+        rRightLocation = 7;
+        mvMatrixLocation = 8;
+        pjMatrixLocation = 12;
+        atlasBufLocation = 16;
 
         generated = true;
     }
@@ -2423,6 +2394,7 @@ void R_DrawParticles()
     glEnableVertexAttribArray(pAngleLocation);
     glEnableVertexAttribArray(pScaleLocation);
     glEnableVertexAttribArray(pColorLocation);
+    glEnableVertexAttribArray(pAtlasIdxLocation);
 
     glUniform3f(         //
         rOriginLocation, //
@@ -2448,11 +2420,11 @@ void R_DrawParticles()
         GL_FALSE,         // transpose
         pjMatrix);
 
-
-    static std::vector<qvec3> pOrg;
-    static std::vector<GLfloat> pAngle;
-    static std::vector<GLfloat> pScale;
-    static std::vector<qvec4> pColor;
+    glUniform4fv(                      //
+        atlasBufLocation,              // location
+        11,                            // count TODO VR: (P1) hardcoded
+        ptxAtlasData._imageInfo.data() // value
+    );
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glEnable(GL_BLEND);
@@ -2460,8 +2432,6 @@ void R_DrawParticles()
 
     glBindVertexArray(vaoId);
 
-
-#if USE_SOA
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         PBuffer& pBuffer) {
         (void)texture;
@@ -2469,19 +2439,6 @@ void R_DrawParticles()
 
         const auto pCount = pBuffer.aliveCount();
         ParticleSOA& soa = pBuffer.soa();
-
-        pAngle.clear();
-        pColor.clear();
-
-        pBuffer.forActive([&](PHandle p) {
-            pAngle.emplace_back(glm::radians(p.angle()));
-
-            GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color()];
-
-            // pColor.emplace_back(qvec4{ 0.9, 0.7, 0.1, 0.5 });
-            pColor.emplace_back(
-                c[0] / 255.f, c[1] / 255.f, c[2] / 255.f, p.alpha() / 255.f);
-        });
 
         GL_Bind(texture);
 
@@ -2502,8 +2459,8 @@ void R_DrawParticles()
         );
 
         glBindBuffer(GL_ARRAY_BUFFER, pAngleVboId);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pAngle.size(),
-            pAngle.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pCount, soa._angles,
+            GL_STATIC_DRAW);
         glVertexAttribPointer( //
             pAngleLocation,    // location
             1,                 // number of components
@@ -2526,8 +2483,8 @@ void R_DrawParticles()
         );
 
         glBindBuffer(GL_ARRAY_BUFFER, pColorVboId);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(qvec4) * pColor.size(),
-            pColor.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(qvec4) * pCount, soa._colors,
+            GL_STATIC_DRAW);
         glVertexAttribPointer( //
             pColorLocation,    // location
             4,                 // number of components
@@ -2537,155 +2494,22 @@ void R_DrawParticles()
             (void*)0           // array buffer offset
         );
 
-        //
-        //
-        // Draw
-        glDrawArrays(GL_POINTS, 0, pBuffer.aliveCount());
-    });
-#else
-    pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
-                        PBuffer& pBuffer) {
-        (void)texture;
-        (void)imageData;
-
-        pOrg.clear();
-        pAngle.clear();
-        pScale.clear();
-        pColor.clear();
-
-        if(true)
-        {
-            pBuffer.forActive([&](PHandle p) {
-                pOrg.emplace_back(p.org());
-                pAngle.emplace_back(glm::radians(p.angle()));
-                pScale.emplace_back(p.scale());
-
-                GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color()];
-
-                // pColor.emplace_back(qvec4{ 0.9, 0.7, 0.1, 0.5 });
-                pColor.emplace_back(c[0] / 255.f, c[1] / 255.f, c[2] / 255.f,
-                    p.alpha() / 255.f);
-            });
-        }
-
-        GL_Bind(texture);
-
-        //
-        //
-        // Setup
-        if(true)
-        {
-            glBindBuffer(GL_ARRAY_BUFFER, pOrgVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(qvec3) * pOrg.size(),
-                pOrg.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer( //
-                pOrgLocation,      // location
-                3,                 // number of components (vec3 = 3)
-                GL_FLOAT,          // type of each component
-                GL_FALSE,          // normalized
-                0,                 // stride
-                (void*)0           // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pAngleVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pAngle.size(),
-                pAngle.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer( //
-                pAngleLocation,    // location
-                1,                 // number of components
-                GL_FLOAT,          // type of each component
-                GL_FALSE,          // normalized
-                0,                 // stride
-                (void*)0           // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pScaleVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * pScale.size(),
-                pScale.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer( //
-                pScaleLocation,    // location
-                1,                 // number of components
-                GL_FLOAT,          // type of each component
-                GL_FALSE,          // normalized
-                0,                 // stride
-                (void*)0           // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pColorVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(qvec4) * pColor.size(),
-                pColor.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer( //
-                pColorLocation,    // location
-                4,                 // number of components
-                GL_FLOAT,          // type of each component
-                GL_FALSE,          // normalized
-                0,                 // stride
-                (void*)0           // array buffer offset
-            );
-        }
-        else
-        {
-#if 0
-            const auto aliveCount = pBuffer.aliveCount();
-
-#define POFFSET(xField) reinterpret_cast<void*>(offsetof(particle_t, xField))
-
-            glBindBuffer(GL_ARRAY_BUFFER, pOrgVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(qvec3) * aliveCount,
-                pBuffer.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(  //
-                pOrgLocation,       // location
-                3,                  // number of components (vec3 = 3)
-                GL_FLOAT,           // type of each component
-                GL_FALSE,           // normalized
-                sizeof(particle_t), // stride
-                POFFSET(org)        // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pAngleVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * aliveCount,
-                pBuffer.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(  //
-                pAngleLocation,     // location
-                1,                  // number of components
-                GL_FLOAT,           // type of each component
-                GL_FALSE,           // normalized
-                sizeof(particle_t), // stride
-                POFFSET(angle)      // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pScaleVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * aliveCount,
-                pBuffer.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(  //
-                pScaleLocation,     // location
-                1,                  // number of components
-                GL_FLOAT,           // type of each component
-                GL_FALSE,           // normalized
-                sizeof(particle_t), // stride
-                POFFSET(scale)      // array buffer offset
-            );
-
-            glBindBuffer(GL_ARRAY_BUFFER, pColorVboId);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(qvec4) * aliveCount,
-                pBuffer.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(  //
-                pColorLocation,     // location
-                4,                  // number of components
-                GL_FLOAT,           // type of each component
-                GL_FALSE,           // normalized
-                sizeof(particle_t), // stride
-                POFFSET(color)      // array buffer offset
-            );
-#endif
-        }
+        glBindBuffer(GL_ARRAY_BUFFER, pAtlasIdxVboId);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(int) * pCount, soa._atlasIdxs,
+            GL_STATIC_DRAW);
+        glVertexAttribIPointer( //
+            pAtlasIdxLocation,  // location
+            1,                  // number of components
+            GL_INT,             // type of each component
+            0,                  // stride
+            (void*)0            // array buffer offset
+        );
 
         //
         //
         // Draw
         glDrawArrays(GL_POINTS, 0, pBuffer.aliveCount());
     });
-#endif
 
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -2695,6 +2519,7 @@ void R_DrawParticles()
     //
     //
     // Cleanup
+    glDisableVertexAttribArray(pAtlasIdxLocation);
     glDisableVertexAttribArray(pColorLocation);
     glDisableVertexAttribArray(pScaleLocation);
     glDisableVertexAttribArray(pAngleLocation);
@@ -2704,81 +2529,6 @@ void R_DrawParticles()
 
     glUseProgram(0);
 }
-#else
-void R_DrawParticles()
-{
-    if(!r_particles.value)
-    {
-        return;
-    }
-
-    const auto up = vup * 1.5_qf;
-    const auto right = vright * 1.5_qf;
-
-    using namespace quake::util;
-
-    // TODO VR: (P2) this could be optimized a lot
-    // https://community.khronos.org/t/drawing-my-quads-faster/61312/2
-    pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
-                        ParticleBuffer& pBuffer) {
-        (void)imageData;
-
-        GL_Bind(texture);
-        glEnable(GL_BLEND);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        glDepthMask(GL_FALSE); // johnfitz -- fix for particle z-buffer bug
-
-        glBegin(GL_QUADS);
-        pBuffer.forActive([&](PHandle p) {
-            // johnfitz -- particle transparency and fade out
-            GLubyte* c = (GLubyte*)&d_8to24table[(int)p.color()];
-
-            GLubyte color[4];
-            color[0] = c[0];
-            color[1] = c[1];
-            color[2] = c[2];
-            color[3] = p.alpha() > 0 ? p.alpha() : 0;
-
-            glColor4ubv(color);
-
-            const auto xFwd = p.org() - r_origin;
-
-            // TODO VR: (P2) `glm::rotate` is the bottleneck in debug mode (!)
-            const auto xUp = glm::rotate(up, qfloat(p.angle()), xFwd);
-            const auto xRight = glm::rotate(right, qfloat(p.angle()), xFwd);
-
-            const auto halfScale = p.scale() / 2._qf;
-            const auto xLeft = -xRight;
-            const auto xDown = -xUp;
-            const auto xUpLeft = p.org() + halfScale * xUp + halfScale * xLeft;
-            const auto xUpRight =
-                p.org() + halfScale * xUp + halfScale * xRight;
-            const auto xDownLeft =
-                p.org() + halfScale * xDown + halfScale * xLeft;
-            const auto xDownRight =
-                p.org() + halfScale * xDown + halfScale * xRight;
-
-            glTexCoord2f(0, 0);
-            glVertex3fv(toGlVec(xDownLeft));
-
-            glTexCoord2f(1, 0);
-            glVertex3fv(toGlVec(xUpLeft));
-
-            glTexCoord2f(1, 1);
-            glVertex3fv(toGlVec(xUpRight));
-
-            glTexCoord2f(0, 1);
-            glVertex3fv(toGlVec(xDownRight));
-        });
-        glEnd();
-
-        glDepthMask(GL_TRUE); // johnfitz -- fix for particle z-buffer bug
-        glDisable(GL_BLEND);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        glColor3f(1, 1, 1);
-    });
-}
-#endif
 
 /*
 ===============

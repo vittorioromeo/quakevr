@@ -49,6 +49,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     dir = v_forward;
 
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
+    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 2.0);
     newmis.touch = superlavaspike_touch;
 
     setmodel(newmis, "progs/lspike.mdl");
@@ -63,6 +64,7 @@ void(float xHand) W_FireSuperLavaSpikes =
 void(float xHand, float ox) W_FireLavaSpikes =
 {
     local vector dir;
+    local entity newmis;
 
     makevectors(VRGetWeaponFireRot(xHand));
 
@@ -82,7 +84,8 @@ void(float xHand, float ox) W_FireLavaSpikes =
     delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 1);
 
     dir = v_forward;
-    launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 2.0);
 
     self.punchangle_x = -2;
 
@@ -94,10 +97,10 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
 void() lavaspike_touch =
 {
-local float rand;
-local float old_armortype;
-local float old_armorvalue;
-local float old_armormask;
+    local float rand;
+    local float old_armortype;
+    local float old_armorvalue;
+    local float old_armormask;
 
     if(other == self.owner)
         return;
@@ -133,7 +136,7 @@ local float old_armormask;
             // other.armorvalue = old_armorvalue;
             // other.items2 = other.items2 | old_armormask;
         }
-        else        // is a monster
+        else // is a monster
         {
             if(other.classname != "monster_lava_man")
             {

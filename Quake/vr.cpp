@@ -4236,3 +4236,5 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
 // no ammo can be found?" "I might consider randomly spawning some, controlling
 // the spawn rate with a CVar. Why not"
+
+// TODO VR: (P0): plasma and laser gun need vrprojectilevelocity
