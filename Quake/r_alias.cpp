@@ -375,9 +375,8 @@ void GL_DrawAliasFrame_GLSL(aliashdr_t* paliashdr, const lerpdata_t& lerpdata,
 
     glUseProgram(r_alias_program);
 
-    GL_BindBuffer(GL_ARRAY_BUFFER, currententity->model->meshvbo);
-    GL_BindBuffer(
-        GL_ELEMENT_ARRAY_BUFFER, currententity->model->meshindexesvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, currententity->model->meshvbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, currententity->model->meshindexesvbo);
 
     glEnableVertexAttribArray(texCoordsAttrIndex);
     glEnableVertexAttribArray(pose1VertexAttrIndex);
@@ -387,12 +386,10 @@ void GL_DrawAliasFrame_GLSL(aliashdr_t* paliashdr, const lerpdata_t& lerpdata,
 
     glVertexAttribPointer(texCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE, 0,
         (void*)(intptr_t)currententity->model->vbostofs);
-    glVertexAttribPointer(pose1VertexAttrIndex, 4, GL_UNSIGNED_BYTE,
-        GL_FALSE, sizeof(meshxyz_t),
-        GLARB_GetXYZOffset(paliashdr, lerpdata.pose1));
-    glVertexAttribPointer(pose2VertexAttrIndex, 4, GL_UNSIGNED_BYTE,
-        GL_FALSE, sizeof(meshxyz_t),
-        GLARB_GetXYZOffset(paliashdr, lerpdata.pose2));
+    glVertexAttribPointer(pose1VertexAttrIndex, 4, GL_UNSIGNED_BYTE, GL_FALSE,
+        sizeof(meshxyz_t), GLARB_GetXYZOffset(paliashdr, lerpdata.pose1));
+    glVertexAttribPointer(pose2VertexAttrIndex, 4, GL_UNSIGNED_BYTE, GL_FALSE,
+        sizeof(meshxyz_t), GLARB_GetXYZOffset(paliashdr, lerpdata.pose2));
     // GL_TRUE to normalize the signed bytes to [-1 .. 1]
     glVertexAttribPointer(pose1NormalAttrIndex, 4, GL_BYTE, GL_TRUE,
         sizeof(meshxyz_t), GLARB_GetNormalOffset(paliashdr, lerpdata.pose1));
@@ -401,8 +398,7 @@ void GL_DrawAliasFrame_GLSL(aliashdr_t* paliashdr, const lerpdata_t& lerpdata,
 
     // set uniforms
     glUniform1f(blendLoc, blend);
-    glUniform3f(
-        shadevectorLoc, shadevector[0], shadevector[1], shadevector[2]);
+    glUniform3f(shadevectorLoc, shadevector[0], shadevector[1], shadevector[2]);
     glUniform4f(
         lightColorLoc, lightcolor[0], lightcolor[1], lightcolor[2], entalpha);
     glUniform1i(texLoc, 0);
@@ -427,11 +423,11 @@ void GL_DrawAliasFrame_GLSL(aliashdr_t* paliashdr, const lerpdata_t& lerpdata,
         (void*)(intptr_t)currententity->model->vboindexofs);
 
     // clean up
-    glDisableVertexAttribArray(texCoordsAttrIndex);
-    glDisableVertexAttribArray(pose1VertexAttrIndex);
-    glDisableVertexAttribArray(pose2VertexAttrIndex);
-    glDisableVertexAttribArray(pose1NormalAttrIndex);
     glDisableVertexAttribArray(pose2NormalAttrIndex);
+    glDisableVertexAttribArray(pose1NormalAttrIndex);
+    glDisableVertexAttribArray(pose2VertexAttrIndex);
+    glDisableVertexAttribArray(pose1VertexAttrIndex);
+    glDisableVertexAttribArray(texCoordsAttrIndex);
 
     glUseProgram(0);
     GL_SelectTexture(GL_TEXTURE0);
@@ -448,9 +444,8 @@ void GL_DrawBlendedAliasFrame_GLSL(aliashdr_t* paliashdr,
 
     glUseProgram(r_aliasblended_program);
 
-    GL_BindBuffer(GL_ARRAY_BUFFER, currententity->model->meshvbo);
-    GL_BindBuffer(
-        GL_ELEMENT_ARRAY_BUFFER, currententity->model->meshindexesvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, currententity->model->meshvbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, currententity->model->meshindexesvbo);
 
     glEnableVertexAttribArray(texCoordsAttrIndex);
     glEnableVertexAttribArray(pose1VertexAttrIndex);
@@ -462,13 +457,11 @@ void GL_DrawBlendedAliasFrame_GLSL(aliashdr_t* paliashdr,
     glVertexAttribPointer(texCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE, 0,
         (void*)(intptr_t)currententity->model->vbostofs);
 
-    glVertexAttribPointer(pose1VertexAttrIndex, 4, GL_UNSIGNED_BYTE,
-        GL_FALSE, sizeof(meshxyz_t),
-        GLARB_GetXYZOffset(paliashdr, lerpdata.pose1));
+    glVertexAttribPointer(pose1VertexAttrIndex, 4, GL_UNSIGNED_BYTE, GL_FALSE,
+        sizeof(meshxyz_t), GLARB_GetXYZOffset(paliashdr, lerpdata.pose1));
 
-    glVertexAttribPointer(pose2VertexAttrIndex, 4, GL_UNSIGNED_BYTE,
-        GL_FALSE, sizeof(meshxyz_t),
-        GLARB_GetXYZOffset(paliashdr, lerpdata.pose2));
+    glVertexAttribPointer(pose2VertexAttrIndex, 4, GL_UNSIGNED_BYTE, GL_FALSE,
+        sizeof(meshxyz_t), GLARB_GetXYZOffset(paliashdr, lerpdata.pose2));
 
     // GL_TRUE to normalize the signed bytes to [-1 .. 1]
     glVertexAttribPointer(pose1NormalAttrIndex, 4, GL_BYTE, GL_TRUE,
@@ -484,8 +477,7 @@ void GL_DrawBlendedAliasFrame_GLSL(aliashdr_t* paliashdr,
     // set uniforms
     glUniform1f(blendLoc, blend);
     glUniform1f(zeroBlendLoc, zeroBlend);
-    glUniform3f(
-        shadevectorLoc, shadevector[0], shadevector[1], shadevector[2]);
+    glUniform3f(shadevectorLoc, shadevector[0], shadevector[1], shadevector[2]);
     glUniform4f(
         lightColorLoc, lightcolor[0], lightcolor[1], lightcolor[2], entalpha);
     glUniform1i(texLoc, 0);
@@ -510,11 +502,12 @@ void GL_DrawBlendedAliasFrame_GLSL(aliashdr_t* paliashdr,
         (void*)(intptr_t)currententity->model->vboindexofs);
 
     // clean up
-    glDisableVertexAttribArray(texCoordsAttrIndex);
-    glDisableVertexAttribArray(pose1VertexAttrIndex);
-    glDisableVertexAttribArray(pose2VertexAttrIndex);
-    glDisableVertexAttribArray(pose1NormalAttrIndex);
+    glDisableVertexAttribArray(zeroBlendVertexAttrIndex);
     glDisableVertexAttribArray(pose2NormalAttrIndex);
+    glDisableVertexAttribArray(pose1NormalAttrIndex);
+    glDisableVertexAttribArray(pose2VertexAttrIndex);
+    glDisableVertexAttribArray(pose1VertexAttrIndex);
+    glDisableVertexAttribArray(texCoordsAttrIndex);
 
     glUseProgram(0);
     GL_SelectTexture(GL_TEXTURE0);
@@ -1513,6 +1506,7 @@ void GL_DrawAliasShadow(entity_t* e)
     glDisable(GL_TEXTURE_2D);
     shading = false;
     glColor4f(0, 0, 0, entalpha * 0.5);
+    // TODO VR: (P1) can this use glsl?
     GL_DrawAliasFrame(paliashdr, lerpdata);
     glEnable(GL_TEXTURE_2D);
     glDisable(GL_BLEND);

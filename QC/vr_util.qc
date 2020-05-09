@@ -105,7 +105,15 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
-void(entity, float) asPainFn(void() fn) =
+typedef void() NullaryFn;
+typedef void(entity, float) PainFn;
+
+PainFn(NullaryFn fn) asPainFn =
+{
+    return fn;
+}
+
+NullaryFn(PainFn fn) fromPainToTouchFn =
 {
     return fn;
 }

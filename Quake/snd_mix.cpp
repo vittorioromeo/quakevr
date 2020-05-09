@@ -288,6 +288,13 @@ static void S_ApplyFilter(filter_t* filter, int* data, int stride, int count)
 
     input = (float*)malloc(sizeof(float) * (filter->kernelsize + count));
 
+    // QSS
+    if(!input)
+    {
+        return;
+    }
+
+
     // set up the input buffer
     // memory holds the previous filter->kernelsize samples of input.
     memcpy(input, filter->memory, filter->kernelsize * sizeof(float));

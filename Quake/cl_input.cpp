@@ -559,6 +559,9 @@ void CL_SendMove(const usercmd_t* cmd)
     // viewangles
     writeAngles(cl.viewangles);
 
+    // vr yaw:
+    MSG_WriteFloat(&buf, cmd->vryaw);
+
     // main hand values:
     writeVec(cmd->handpos);
     writeVec(cmd->handrot);

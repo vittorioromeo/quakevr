@@ -23,25 +23,16 @@
 #include <sstream>
 #include <variant>
 
-#if !defined(QUAKE_FORCEINLINE)
-#if defined(_MSC_VER)
-#define QUAKE_FORCEINLINE __forceinline
-#elif defined(__GNUC__) && __GNUC__ > 3
-// Clang also defines __GNUC__ (as 4)
-#define QUAKE_FORCEINLINE inline __attribute__((__always_inline__))
-#else
-#define QUAKE_FORCEINLINE inline
-#endif
-#endif
-
 // TODO VR: (P2) ugly declaration
 float VR_GetMenuMult() noexcept;
 
 namespace quake::util
 {
+
 template <typename T>
-[[nodiscard]] constexpr T mapRange(const T input, const T inputMin,
-    const T inputMax, const T outputMin, const T outputMax) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr T mapRange(const T input,
+    const T inputMin, const T inputMax, const T outputMin,
+    const T outputMax) noexcept
 {
     const T slope = T(1.0) * (outputMax - outputMin) / (inputMax - inputMin);
 
@@ -49,7 +40,7 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] T cvarToEnum(const cvar_t& x) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN T cvarToEnum(const cvar_t& x) noexcept
 {
     return static_cast<T>(static_cast<int>(x.value));
 }
@@ -91,7 +82,7 @@ void debugPrintSeparated([[maybe_unused]] const std::string_view separator,
 
 template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
     typename TVec3BMax>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool boxIntersection(
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN constexpr bool boxIntersection(
     const TVec3AMin& aMin, const TVec3AMax& aMax, const TVec3BMin& bMin,
     const TVec3BMax& bMax) noexcept
 {
@@ -104,21 +95,21 @@ template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
 }
 
 template <typename TEntA, typename TEntB>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool entBoxIntersection(
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN constexpr bool entBoxIntersection(
     const TEntA& entA, const TEntB& entB) noexcept
 {
     return boxIntersection(
         entA->v.absmin, entA->v.absmax, entB->v.absmin, entB->v.absmax);
 }
 
-[[nodiscard]] QUAKE_FORCEINLINE double lerp(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN double lerp(
     double a, double b, double f) noexcept
 {
     return (a * (1.0 - f)) + (b * f);
 }
 
 template <typename T>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE auto safeAsin(const T x) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE constexpr auto safeAsin(const T x) noexcept
 {
     assert(!std::isnan(x));
     assert(x >= T(-1));
@@ -128,7 +119,7 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE auto safeAtan2(
+[[nodiscard]] QUAKE_FORCEINLINE constexpr auto safeAtan2(
     const T y, const T x) noexcept
 {
     assert(!std::isnan(y));
@@ -167,8 +158,42 @@ template <typename T>
 [[nodiscard]] QUAKE_FORCEINLINE std::tuple<qvec3, qvec3, qvec3>
 getAngledVectors(const qvec3& v) noexcept
 {
-    qvec3 forward, right, up;
-    AngleVectors(v, forward, right, up);
+    const auto yawRadians = glm::radians(v[YAW]);
+    assert(!std::isnan(yawRadians));
+    assert(!std::isinf(yawRadians));
+
+    const auto sy = std::sin(yawRadians);
+    const auto cy = std::cos(yawRadians);
+
+    const auto pitchRadians = glm::radians(v[PITCH]);
+    assert(!std::isnan(pitchRadians));
+    assert(!std::isinf(pitchRadians));
+
+    const auto sp = std::sin(pitchRadians);
+    const auto cp = std::cos(pitchRadians);
+
+    const auto rollRadians = glm::radians(v[ROLL]);
+    assert(!std::isnan(rollRadians));
+    assert(!std::isinf(rollRadians));
+
+    const auto sr = std::sin(rollRadians);
+    const auto cr = std::cos(rollRadians);
+
+    const qvec3 forward{//
+        cp * cy,        //
+        cp * sy,        //
+        -sp};
+
+    const qvec3 right{                           //
+        (-1.f * sr * sp * cy + -1.f * cr * -sy), //
+        (-1.f * sr * sp * sy + -1.f * cr * cy),  //
+        -1.f * sr * cp};
+
+    const qvec3 up{                 //
+        (cr * sp * cy + -sr * -sy), //
+        (cr * sp * sy + -sr * cy),  //
+        cr * cp};
+
     return std::tuple{forward, right, up};
 }
 
@@ -203,7 +228,8 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] QUAKE_FORCEINLINE bool hitSomething(const T& trace) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN bool hitSomething(
+    const T& trace) noexcept
 {
     return trace.fraction < 1.f;
 }
@@ -239,7 +265,7 @@ constexpr decltype(auto) match(Variant&& v, Fs&&... fs)
 }
 
 template <typename TTrace>
-[[nodiscard]] QUAKE_FORCEINLINE bool traceHitGround(const TTrace& trace)
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN bool traceHitGround(const TTrace& trace)
 {
     return trace.plane.normal[2] > 0.7;
 }
@@ -251,74 +277,75 @@ template <typename TTrace>
     return res;
 }
 
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr bool hasFlag(
     const float flags, const int x) noexcept
 {
     return static_cast<int>(flags) & x;
 }
 
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN constexpr bool hasFlag(
     const edict_t* edict, const int x) noexcept
 {
     return hasFlag(edict->v.flags, x);
 }
 
-[[nodiscard]] constexpr QUAKE_FORCEINLINE int removeFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr int removeFlag(
     const float flags, const int x) noexcept
 {
     return static_cast<int>(flags) & ~x;
 }
 
-constexpr QUAKE_FORCEINLINE void removeFlag(
+QUAKE_FORCEINLINE constexpr void removeFlag(
     edict_t* edict, const int x) noexcept
 {
     edict->v.flags = removeFlag(edict->v.flags, x);
 }
 
-[[nodiscard]] constexpr QUAKE_FORCEINLINE int addFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr int addFlag(
     const float flags, const int x) noexcept
 {
     return static_cast<int>(flags) | x;
 }
 
-constexpr QUAKE_FORCEINLINE void addFlag(edict_t* edict, const int x) noexcept
+QUAKE_FORCEINLINE constexpr void addFlag(edict_t* edict, const int x) noexcept
 {
     edict->v.flags = addFlag(edict->v.flags, x);
 }
 
-[[nodiscard]] constexpr QUAKE_FORCEINLINE int toggleFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr int toggleFlag(
     const float flags, const int x) noexcept
 {
     return static_cast<int>(flags) ^ x;
 }
 
-constexpr QUAKE_FORCEINLINE void toggleFlag(
+QUAKE_FORCEINLINE constexpr void toggleFlag(
     edict_t* edict, const int x) noexcept
 {
     edict->v.flags = toggleFlag(edict->v.flags, x);
 }
 
 template <typename... TFlags>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasAnyFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr bool hasAnyFlag(
     const float flags, const TFlags... xs) noexcept
 {
     return static_cast<int>(flags) & (xs | ...);
 }
 
 template <typename... TFlags>
-[[nodiscard]] constexpr QUAKE_FORCEINLINE bool hasAnyFlag(
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN constexpr bool hasAnyFlag(
     edict_t* edict, const TFlags... xs) noexcept
 {
     return hasAnyFlag(edict->v.flags, xs...);
 }
 
-[[nodiscard]] QUAKE_FORCEINLINE bool canBeTouched(const edict_t* edict)
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN bool canBeTouched(const edict_t* edict)
 {
     return (edict->v.touch || edict->v.handtouch) &&
            edict->v.solid != SOLID_NOT;
 }
 
-[[nodiscard]] QUAKE_FORCEINLINE bool canBeHandTouched(const edict_t* edict)
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN bool canBeHandTouched(
+    const edict_t* edict)
 {
     return edict->v.handtouch && edict->v.solid != SOLID_NOT;
 }
@@ -341,7 +368,8 @@ struct tuple_element<I, glm::vec<D, T, P>>
 namespace glm
 {
 template <std::size_t I, int D, typename T, glm::qualifier P>
-[[nodiscard]] QUAKE_FORCEINLINE T get(const glm::vec<D, T, P>& v) noexcept
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN T get(
+    const glm::vec<D, T, P>& v) noexcept
 {
     return v[I];
 }

@@ -69,6 +69,7 @@ enum ptype_t : std::uint8_t
     pt_gunpickup,
 };
 
+// TODO VR: (P0) rewrite to use SOA
 struct ParticleSOA
 {
     struct Data
@@ -2261,6 +2262,7 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to
 CL_RunParticles
 ===============
 */
+#if 1
 void R_DrawParticles()
 {
     if(!r_particles.value)
@@ -2291,7 +2293,6 @@ void R_DrawParticles()
         particleProgramId = makeParticleShaders();
 
         glGenVertexArrays(1, &vaoId);
-        glBindVertexArray(vaoId);
 
         glGenBuffers(1, &pOrgVboId);
         glGenBuffers(1, &pAngleVboId);
@@ -2342,14 +2343,14 @@ void R_DrawParticles()
     //
     //
     // Configuration
+    glUseProgram(particleProgramId);
+
     glBindVertexArray(vaoId);
 
     glEnableVertexAttribArray(pOrgLocation);
     glEnableVertexAttribArray(pAngleLocation);
     glEnableVertexAttribArray(pScaleLocation);
     glEnableVertexAttribArray(pColorLocation);
-
-    glUseProgram(particleProgramId);
 
     glUniform3f(         //
         rOriginLocation, //
@@ -2380,6 +2381,12 @@ void R_DrawParticles()
     static std::vector<GLfloat> pAngle;
     static std::vector<GLfloat> pScale;
     static std::vector<qvec4> pColor;
+
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glEnable(GL_BLEND);
+    glDepthMask(GL_FALSE);
+
+    glBindVertexArray(vaoId);
 
     pMgr.forBuffers([&](gltexture_t* texture, const ImageData& imageData,
                         ParticleBuffer& pBuffer) {
@@ -2519,19 +2526,13 @@ void R_DrawParticles()
         //
         //
         // Draw
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-        glEnable(GL_BLEND);
-        glDepthMask(GL_FALSE);
-
-        glBindVertexArray(vaoId);
-        glDrawArrays(GL_POINTS, 0, pOrg.size());
-
-        glDepthMask(GL_TRUE);
-        glDisable(GL_BLEND);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        glDrawArrays(GL_POINTS, 0, pBuffer.aliveCount());
     });
 
-
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glColor3f(1, 1, 1);
 
     //
     //
@@ -2540,10 +2541,13 @@ void R_DrawParticles()
     glDisableVertexAttribArray(pScaleLocation);
     glDisableVertexAttribArray(pAngleLocation);
     glDisableVertexAttribArray(pOrgLocation);
+
+    glBindVertexArray(0);
+
     glUseProgram(0);
 }
-
-void R_DrawParticlesOld()
+#else
+void R_DrawParticles()
 {
     if(!r_particles.value)
     {
@@ -2616,7 +2620,7 @@ void R_DrawParticlesOld()
         glColor3f(1, 1, 1);
     });
 }
-
+#endif
 
 /*
 ===============

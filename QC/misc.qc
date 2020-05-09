@@ -334,7 +334,11 @@ void() spikeshooter_use =
     local entity newmis;
     local entity lavaball;
 
-    if(self.spawnflags & SPAWNFLAG_SUPERSPIKE || !(self.spawnflags))
+    if(mapname == "e2m3" || // VR: There is a bug in e2m3 where spikeshoorters
+                            // have spawn flags '256', which is invalid in Q1
+                            // but valid (fireball) in DoE.
+        (self.spawnflags & SPAWNFLAG_SUPERSPIKE) ||
+        !(self.spawnflags))
     {
         sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         newmis = launch_spike (self.origin, self.movedir);
@@ -425,10 +429,10 @@ void() trap_spikeshooter =
 {
     SetMovedir();
     self.use = spikeshooter_use;
+
     if(self.spawnflags & SPAWNFLAG_LASER)
     {
         precache_model2("progs/laser.mdl");
-
         precache_sound2("enforcer/enfire.wav");
         precache_sound2("enforcer/enfstop.wav");
     }
@@ -466,8 +470,10 @@ void() trap_spikeshooter =
         precache_sound("weapons/sgun1.wav");
     }
     else
+    {
         precache_sound("weapons/spike2.wav");
-};
+    }
+}
 
 
 /*QUAKED trap_shooter (0 .5 .8) (-8 -8 -8) (8 8 8) superspike laser lavaball rocket silent

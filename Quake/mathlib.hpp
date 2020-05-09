@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // mathlib.h
 
-#include <math.h>
+#include <cmath>
 #include "quakeglm.hpp"
 
 #ifndef M_PI
@@ -35,8 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #define M_PI_DIV_180 (M_PI / 180.0) // johnfitz
-
-struct mplane_s;
 
 inline constexpr qvec3 vec3_zero{0.f, 0.f, 0.f};
 
@@ -60,20 +58,24 @@ static inline int IS_NAN(float x)
     ((x) > 0 ? (int)((x) + 0.5) : (int)((x)-0.5)) // johnfitz -- from joequake
 
 #define DotProduct(x, y) (x[0] * y[0] + x[1] * y[1] + x[2] * y[2])
+
 #define DoublePrecisionDotProduct(x, y) \
     ((double)x[0] * y[0] + (double)x[1] * y[1] + (double)x[2] * y[2])
+
 #define VectorSubtract(a, b, c) \
     {                           \
         c[0] = a[0] - b[0];     \
         c[1] = a[1] - b[1];     \
         c[2] = a[2] - b[2];     \
     }
+
 #define VectorAdd(a, b, c)  \
     {                       \
         c[0] = a[0] + b[0]; \
         c[1] = a[1] + b[1]; \
         c[2] = a[2] + b[2]; \
     }
+
 #define VectorCopy(a, b) \
     {                    \
         b[0] = a[0];     \
@@ -81,7 +83,7 @@ static inline int IS_NAN(float x)
         b[2] = a[2];     \
     }
 
-[[nodiscard]] inline qvec3 safeNormalize(const qvec3& in)
+[[nodiscard]] QUAKE_FORCEINLINE_PUREFN qvec3 safeNormalize(const qvec3& in)
 {
     const auto length = glm::length(in);
     return length != 0.f ? in / length : in;
@@ -114,46 +116,16 @@ inline qvec3 AngleVectorsOnlyFwd(const qvec3& angles) noexcept
     return {cp * cy, cp * sy, -sp};
 }
 
-inline void AngleVectors(
-    const qvec3& angles, qvec3& forward, qvec3& right, qvec3& up) noexcept
-{
-    const auto yawRadians = glm::radians(angles[YAW]);
-    assert(!std::isnan(yawRadians));
-    assert(!std::isinf(yawRadians));
-
-    const auto sy = std::sin(yawRadians);
-    const auto cy = std::cos(yawRadians);
-
-    const auto pitchRadians = glm::radians(angles[PITCH]);
-    assert(!std::isnan(pitchRadians));
-    assert(!std::isinf(pitchRadians));
-
-    const auto sp = std::sin(pitchRadians);
-    const auto cp = std::cos(pitchRadians);
-
-    const auto rollRadians = glm::radians(angles[ROLL]);
-    assert(!std::isnan(rollRadians));
-    assert(!std::isinf(rollRadians));
-
-    const auto sr = std::sin(rollRadians);
-    const auto cr = std::cos(rollRadians);
-
-    forward[0] = cp * cy;
-    forward[1] = cp * sy;
-    forward[2] = -sp;
-
-    right[0] = (-1.f * sr * sp * cy + -1.f * cr * -sy);
-    right[1] = (-1.f * sr * sp * sy + -1.f * cr * cy);
-    right[2] = -1.f * sr * cp;
-
-    up[0] = (cr * sp * cy + -sr * -sy);
-    up[1] = (cr * sp * sy + -sr * cy);
-    up[2] = cr * cp;
-}
-
+struct mplane_s;
 int BoxOnPlaneSide(
     const qvec3& emins, const qvec3& emaxs, struct mplane_s* plane);
-float anglemod(float a);
+
+
+[[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr float anglemod(
+    float a) noexcept
+{
+    return (360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535);
+}
 
 [[nodiscard]] qmat3 RotMatFromAngleVector(const qvec3& angles) noexcept;
 [[nodiscard]] qvec3 AngleVectorFromRotMat(const qmat3& mat) noexcept;

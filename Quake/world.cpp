@@ -52,7 +52,7 @@ struct moveclip_t
 };
 
 
-int SV_HullPointContents(hull_t* hull, int num, const qvec3& p);
+int SV_HullPointContents(const hull_t* hull, int num, const qvec3& p);
 
 /*
 ===============================================================================
@@ -139,8 +139,8 @@ Offset is filled in to contain the adjustment that must be added to the
 testing object's origin to get a point to use with the returned hull.
 ================
 */
-hull_t* SV_HullForEntity(edict_t* ent, const qfvec3& mins,
-    const qfvec3& maxs, qfvec3& offset)
+hull_t* SV_HullForEntity(
+    edict_t* ent, const qfvec3& mins, const qfvec3& maxs, qfvec3& offset)
 {
     qfvec3 size;
     qfvec3 hullmins;
@@ -231,8 +231,7 @@ SV_CreateAreaNode
 
 ===============
 */
-areanode_t* SV_CreateAreaNode(
-    int depth, const qvec3& mins, const qvec3& maxs)
+areanode_t* SV_CreateAreaNode(int depth, const qvec3& mins, const qvec3& maxs)
 {
     areanode_t* anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
@@ -693,7 +692,7 @@ SV_HullPointContents
 
 ==================
 */
-int SV_HullPointContents(hull_t* hull, int num, const qvec3& p)
+int SV_HullPointContents(const hull_t* hull, int num, const qvec3& p)
 {
     while(num >= 0)
     {
@@ -702,10 +701,10 @@ int SV_HullPointContents(hull_t* hull, int num, const qvec3& p)
             Sys_Error("SV_HullPointContents: bad node number");
         }
 
-        mclipnode_t* node = hull->clipnodes + num;
-        mplane_t* plane = hull->planes + node->planenum;
+        const mclipnode_t* const node = hull->clipnodes + num;
+        const mplane_t* const plane = hull->planes + node->planenum;
 
-        float d =
+        const float d =
             plane->type < 3
                 ? p[plane->type] - plane->dist
                 : DoublePrecisionDotProduct(plane->normal, p) - plane->dist;
@@ -748,8 +747,7 @@ SV_TestEntityPosition
 This could be a lot more efficient...
 ============
 */
-edict_t* SV_TestEntityPositionCustomOrigin(
-    edict_t* ent, const qvec3& xOrigin)
+edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const qvec3& xOrigin)
 {
     const trace_t trace =
         SV_Move(xOrigin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
@@ -780,8 +778,43 @@ SV_RecursiveHullCheck
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const qvec3& p1, const qvec3& p2, trace_t* trace)
 {
+    // QSS
+    // Optimize the case where this is a simple point check
+    if(p1 == p2)
+    {
+        // points cannot cross planes, so do it faster
+        const auto c = SV_HullPointContents(hull, num, p1);
+
+        // TODO VR: (P2) restore when this is implemented
+        // trace->contents = c;
+
+        switch(c)
+        {
+            case CONTENTS_SOLID:
+            {
+                trace->startsolid = true;
+                break;
+            }
+            case CONTENTS_EMPTY:
+            {
+                trace->allsolid = false;
+                trace->inopen = true;
+                break;
+            }
+            default:
+            {
+                trace->allsolid = false;
+                trace->inwater = true;
+                break;
+            }
+        }
+
+        return true;
+    }
+
     // ------------------------------------------------------------------------
     // VR: Solves weird crashes, probably related to hand pos on spawn.
+    // TODO VR: (P1) consider removing or adding as debug only
     if(std::isnan(p1f) || std::isnan(p2f))
     {
         return false;
@@ -974,8 +1007,8 @@ Handles selection or creation of a clipping hull, and offseting (and
 eventually rotation) of the end points
 ==================
 */
-trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start,
-    const qvec3& mins, const qvec3& maxs, const qvec3& end)
+trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start, const qvec3& mins,
+    const qvec3& maxs, const qvec3& end)
 {
     // fill in a default trace
     trace_t trace;
@@ -1133,9 +1166,8 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
 SV_MoveBounds
 ==================
 */
-void SV_MoveBounds(const qvec3& start, const qvec3& mins,
-    const qvec3& maxs, const qvec3& end, qvec3& boxmins,
-    qvec3& boxmaxs)
+void SV_MoveBounds(const qvec3& start, const qvec3& mins, const qvec3& maxs,
+    const qvec3& end, qvec3& boxmins, qvec3& boxmaxs)
 {
 #if 0
 // debug to test against everything
@@ -1163,9 +1195,8 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-trace_t SV_Move(const qvec3& start, const qvec3& mins,
-    const qvec3& maxs, const qvec3& end, const int type,
-    edict_t* const passedict)
+trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
+    const qvec3& end, const int type, edict_t* const passedict)
 {
     moveclip_t clip;
     memset(&clip, 0, sizeof(moveclip_t));
@@ -1212,8 +1243,8 @@ trace_t SV_Move(const qvec3& start, const qvec3& mins,
 SV_MoveTrace
 ==================
 */
-trace_t SV_MoveTrace(const qvec3& start, const qvec3& end,
-    const int type, edict_t* const passedict)
+trace_t SV_MoveTrace(const qvec3& start, const qvec3& end, const int type,
+    edict_t* const passedict)
 {
     return SV_Move(start, vec3_zero, vec3_zero, end, type, passedict);
 }

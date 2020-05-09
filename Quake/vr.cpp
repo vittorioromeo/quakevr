@@ -3880,6 +3880,9 @@ void VR_Move(usercmd_t* cmd)
         return;
     }
 
+    // VR: VR yaw.
+    cmd->vryaw = vrYaw;
+
     // VR: Main hand values.
     cmd->handpos = cl.handpos[cVR_MainHand];
     cmd->handrot = cl.handrot[cVR_MainHand];
@@ -4216,3 +4219,20 @@ void VR_Move(usercmd_t* cmd)
 // with right hand and trying to force grab with left."
 
 // TODO VR: (P0): Map menu needs paging
+
+// TODO VR: (P0): "no hand posing occurs at all on Oculus CV1"
+
+// TODO VR: (P0): "fingers don't move at all on non-index controllers, and even
+// then, the hands were designed to have the thumb mostly closed unless it's
+// 2handing something"
+
+// TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
+// in certain situations I can't figure out a pattern for, such as
+// overshooting."
+
+// TODO VR: (P0): "All end of level secrets show more secrets complete than
+// existing, e.g.: 13/7 secrets"
+
+// TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
+// no ammo can be found?" "I might consider randomly spawning some, controlling
+// the spawn rate with a CVar. Why not"

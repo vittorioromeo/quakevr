@@ -43,7 +43,7 @@ void() item_spawn =
     setmodel(self, self.model);
 
     self.solid = SOLID_TRIGGER;
-    self.handtouch = self.th_pain;
+    self.handtouch = fromPainToTouchFn(self.th_pain);
 
     force_retouch = 2;
 
@@ -58,7 +58,7 @@ void() item_unspawn =
 {
     self.mdl = self.model;        // so it can be restored on respawn
 
-    self.th_pain = self.handtouch;
+    self.th_pain = asPainFn(self.handtouch);
 
     self.solid = SOLID_NOT;
     self.model = string_null;

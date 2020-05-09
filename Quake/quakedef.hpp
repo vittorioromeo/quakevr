@@ -53,7 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX \
         " | Quake VR " QUAKEVR_VERSION
 
-// define	PARANOID			// speed sapping error checking
+// #define PARANOID // speed sapping error checking
 
 #define GAMENAME "id1" // directory to look in by default
 

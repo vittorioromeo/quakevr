@@ -473,7 +473,8 @@ void() SightSound =
         sound(self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_vomit")
     {
-        sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
+        // Unused.
+        // sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_eel")
     {

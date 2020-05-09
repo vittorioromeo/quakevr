@@ -310,80 +310,104 @@ Returns true if the box is completely outside the frustum
 */
 bool R_CullBox(const qvec3& emins, const qvec3& emaxs)
 {
-    int i;
-    mplane_t* p;
-    for(i = 0; i < 4; i++)
+    for(int i = 0; i < 4; i++)
     {
-        p = frustum + i;
+        const mplane_t* const p = frustum + i;
+
         switch(p->signbits)
         {
-            default:
+            default: [[fallthrough]];
             case 0:
+            {
                 if(p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
                         p->normal[2] * emaxs[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 1:
+            {
                 if(p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
                         p->normal[2] * emaxs[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 2:
+            {
                 if(p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
                         p->normal[2] * emaxs[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 3:
+            {
                 if(p->normal[0] * emins[0] + p->normal[1] * emins[1] +
                         p->normal[2] * emaxs[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 4:
+            {
                 if(p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
                         p->normal[2] * emins[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 5:
+            {
                 if(p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
                         p->normal[2] * emins[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 6:
+            {
                 if(p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
                         p->normal[2] * emins[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
             case 7:
+            {
                 if(p->normal[0] * emins[0] + p->normal[1] * emins[1] +
                         p->normal[2] * emins[2] <
                     p->dist)
                 {
                     return true;
                 }
+
                 break;
+            }
         }
     }
+
     return false;
 }
 /*

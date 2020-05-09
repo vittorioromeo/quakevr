@@ -136,3 +136,5 @@ float(float input, float inputmin, float inputMax, float outputMin, float output
 float(string s) cvar_hmake = #86;
 float(float h) cvar_hget = #87;
 void() cvar_hclear = #88;
+
+vector(vector input, vector exemplar) redirectvector = #89;
