@@ -144,7 +144,7 @@ void(float xHand) W_FireMultiGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity();
+        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.6);
     }
     else
     {
@@ -321,6 +321,8 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
         aimangle_y = aimangle_y + (offset * 0.66);
         makevectors(aimangle);
         missile.velocity = VRGetWeaponFireRotFwd(xHand) * 1000;
+        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+
         missile.angles = vectoangles(missile.velocity);
 
         missile.think = MultiRocketExplode;
@@ -330,6 +332,8 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
     {
         makevectors(VRGetWeaponFireRot(xHand));
         missile.velocity = v_forward * 1000 - v_right*offset*8;
+        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+
         missile.angles = vectoangles(missile.velocity);
         missile.v_angle = self.v_angle;
 

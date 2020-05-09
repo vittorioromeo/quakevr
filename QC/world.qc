@@ -387,7 +387,6 @@ void() worldspawn =
     // ROGUE
     // PGM addition
     precache_model("progs/mervup.mdl");
-    // TODO VR: (P2) rogue...
 
     // ROGUE
     precache_model("progs/rockup.mdl");
@@ -520,4 +519,4 @@ void(entity ent) CopyToBodyQue =
 
 // TODO VR: (P2) ideas:
 // * monster variants
-// * chance to spawn hipnotic monsters in normal quake
+// * chance to spawn hipnotic/rogue monsters in normal quake

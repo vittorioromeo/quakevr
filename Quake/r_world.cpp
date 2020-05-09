@@ -275,7 +275,7 @@ void R_CullSurfaces()
         }
 
         for(msurface_t* s = t->texturechains[chain_world]; s;
-            s = s->texturechain)
+            s = s->texturechain)    
         {
             if(R_CullBox(s->mins, s->maxs) || R_BackFaceCull(s))
             {

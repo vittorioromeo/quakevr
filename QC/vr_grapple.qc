@@ -262,8 +262,9 @@ void (float xHand) W_FireGrapple =
     setHook(xHand, newmis);            // This is my newmis
     newmis.classname = "hook";
 
-    makevectors(VRGetHandRot(xHand));
+    makevectors(VRGetWeaponFireRot(xHand));
     newmis.velocity = v_forward * 1500;
+    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 0.6);
 //    newmis.avelocity = '0 0 -500';
     newmis.angles = vectoangles(v_forward);
 

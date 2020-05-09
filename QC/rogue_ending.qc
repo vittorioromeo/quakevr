@@ -216,7 +216,7 @@ void() actor_fire1 =[$rockatt1, actor_fire2 ]
         self.v_angle = self.angles;
         self.v_angle_x = 0 - self.angles_x;
         self.effects = EF_MUZZLEFLASH;
-        W_FireRocket(cVR_MainHand); // TODO VR: (P0) wrong! this shouldn't be from player?
+        W_FireRocket(cVR_MainHand); // TODO VR: (P1) wrong, this shouldn't be from player..?
 
         // start the end text
         WriteByte (MSG_ALL, SVC_FINALE);

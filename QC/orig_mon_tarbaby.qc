@@ -339,7 +339,7 @@ void() monster_tarbaby =
     }
     else
     {
-        skillLevel = cvar ("skill");
+        skillLevel = cvar_hget(cvarh_skill);
         myRand = skillLevel * 0.2;
         myRand = myRand + random();
 
