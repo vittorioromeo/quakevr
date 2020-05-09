@@ -37,10 +37,14 @@ struct trace_t
     bool allsolid;   // if true, plane is not valid
     bool startsolid; // if true, the initial point was in a solid area
     bool inopen, inwater;
-    float fraction;   // time completed, 1.0 = didn't hit anything
-    qvec3 endpos; // final position
-    plane_t plane;    // surface normal at impact
-    edict_t* ent;     // entity the surface is on
+    float fraction; // time completed, 1.0 = didn't hit anything
+    qvec3 endpos;   // final position
+    plane_t plane;  // surface normal at impact
+    edict_t* ent;   // entity the surface is on
+
+    // TODO VR: (P2) implement this
+    // QSS
+    // int contents; // spike -- the content type(s) that we found.
 };
 
 
@@ -48,6 +52,8 @@ struct trace_t
 #define MOVE_NOMONSTERS 1
 #define MOVE_MISSILE 2
 
+// QSS
+#define MOVE_HITALLCONTENTS (1 << 9)
 
 void SV_ClearWorld(void);
 // called after the world model has been loaded, before linking any entities
@@ -72,13 +78,12 @@ int SV_TruePointContents(const qvec3& p);
 edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const qvec3& xOrigin);
 edict_t* SV_TestEntityPosition(edict_t* ent);
 
-trace_t SV_Move(const qvec3& start, const qvec3& mins,
-    const qvec3& maxs, const qvec3& end, const int type,
-    edict_t* const passedict);
+trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
+    const qvec3& end, const int type, edict_t* const passedict);
 // mins and maxs are relative
 
-trace_t SV_MoveTrace(const qvec3& start, const qvec3& end,
-    const int type, edict_t* const passedict);
+trace_t SV_MoveTrace(const qvec3& start, const qvec3& end, const int type,
+    edict_t* const passedict);
 
 // if the entire move stays in a solid volume, trace.allsolid will be set
 

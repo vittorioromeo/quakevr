@@ -579,6 +579,9 @@ void SV_ReadClientMove(usercmd_t* move)
     // viewangles
     readAngles(host_client->edict->v.v_viewangle);
 
+    // vr yaw
+    host_client->edict->v.vryaw = move->vryaw = MSG_ReadFloat();
+
     // ------------------------------------------------------------------------
     // main hand values:
     host_client->edict->v.handpos = move->handpos = readVec();

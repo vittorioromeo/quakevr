@@ -389,7 +389,13 @@ void Sys_Quit(void)
 
 double Sys_DoubleTime(void)
 {
+    // QSS
+#if 1
+    return SDL_GetPerformanceCounter() /
+           (long double)SDL_GetPerformanceFrequency();
+#else
     return SDL_GetTicks() / 1000.0;
+#endif
 }
 
 const char* Sys_ConsoleInput(void)

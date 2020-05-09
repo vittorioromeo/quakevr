@@ -40,10 +40,6 @@ void(vector org) BroadcastGunshotEffect =
 
 vector() vrProjectileVelocity =
 {
-    local vector handv;
-
-    return VEC_ORIGIN;
-
     // TODO VR: (P2) this only works when facing forwards. It needs to be revisited
     // the hand velocity vector is absolute and doesn't take the world into
     // account. It probably needs to be multiplied with the direction vector
@@ -54,9 +50,17 @@ vector() vrProjectileVelocity =
     {
         // VR: add hand velocity and player velocity to the final projectile
         // velocity, in order to carry momentum
+        local vector handv;
+
         handv_x = self.handvel_x;
         handv_y = self.handvel_z  * -1;
         handv_z = self.handvel_y;
+
+        local vector vryawVec;
+        vryawVec = '0 0 0';
+        vryawVec_y = self.vryaw;
+
+        handv = redirectvector(handv, vryawVec);
         return (handv * 50) + (self.velocity);
     }
 
@@ -3276,7 +3280,7 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 
 void() wpnthrow_think =
 {
-    if(time > self.lip)
+    if(deathmatch && time > GetThrownWeaponTimeout(self))
     {
         SUB_Remove();
         return;
@@ -3584,6 +3588,16 @@ float(entity ent) GetThrownWeaponBaseDamage =
     return ent.frags;
 }
 
+void(entity ent, float xValue) SetThrownWeaponTimeout =
+{
+    ent.health = xValue;
+}
+
+float(entity ent) GetThrownWeaponTimeout =
+{
+    return ent.health;
+}
+
 entity(entity thrower, float xWeapon, float xWeaponFlags,
     vector xOrigin, vector xRotation,
     vector xThrowVel, vector xAVel,
@@ -3628,7 +3642,9 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
 
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
-    newmis.lip = time + 10; // removal tiem (timeout) in deathmatch
+
+    SetThrownWeaponTimeout(newmis, time + 10); // removal time (timeout) in deathmatch
+
     newmis.weapon = xWeapon;
     newmis.weaponflags = xWeaponFlags;
 

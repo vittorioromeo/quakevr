@@ -200,6 +200,7 @@ typedef struct entvars_s
 	float	currentammo2;
 	float	ammocounter2;
 	float	button3;
+	float	vryaw;
 	vec3_t	handpos;
 	vec3_t	handrot;
 	vec3_t	handvel;
@@ -240,4 +241,4 @@ typedef struct entvars_s
 	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 25643
+#define PROGHEADER_CRC 64936

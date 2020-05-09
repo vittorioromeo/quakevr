@@ -206,24 +206,25 @@ Z_CheckHeap
 */
 static void Z_CheckHeap()
 {
-    memblock_t* block;
-
-    for(block = mainzone->blocklist.next;; block = block->next)
+    for(memblock_t* block = mainzone->blocklist.next;; block = block->next)
     {
         if(block->next == &mainzone->blocklist)
         {
             break; // all blocks have been hit
         }
+
         if((byte*)block + block->size != (byte*)block->next)
         {
             Sys_Error(
                 "Z_CheckHeap: block size does not touch the next block\n");
         }
+
         if(block->next->prev != block)
         {
             Sys_Error(
                 "Z_CheckHeap: next block doesn't have proper back link\n");
         }
+
         if(!block->tag && !block->next->tag)
         {
             Sys_Error("Z_CheckHeap: two consecutive free blocks\n");
@@ -239,10 +240,11 @@ Z_Malloc
 */
 void* Z_Malloc(int size)
 {
-    void* buf;
-
+#ifdef PARANOID
     Z_CheckHeap(); // DEBUG
-    buf = Z_TagMalloc(size, 1);
+#endif
+
+    void* buf = Z_TagMalloc(size, 1);
     if(!buf)
     {
         Sys_Error("Z_Malloc: failed on allocation of %i bytes", size);
@@ -284,15 +286,24 @@ void* Z_Realloc(void* ptr, int size)
 
     Z_Free(ptr);
     ptr = Z_TagMalloc(size, 1);
+
     if(!ptr)
     {
         Sys_Error("Z_Realloc: failed on allocation of %i bytes", size);
     }
 
+    // QSS
+    // Spike -- fix a bug where alignment resulted in no 0-initialisation
+    block = (memblock_t*)((byte*)ptr - sizeof(memblock_t));
+    size = block->size;
+    size -= (4 + (int)sizeof(memblock_t)); /* see Z_TagMalloc() */
+                                           // Spike -- end fix
+
     if(ptr != old_ptr)
     {
         memmove(ptr, old_ptr, q_min(old_size, size));
     }
+
     if(old_size < size)
     {
         memset((byte*)ptr + old_size, 0, size - old_size);

@@ -257,10 +257,6 @@ R_CullSurfaces -- johnfitz
 */
 void R_CullSurfaces()
 {
-    msurface_t* s;
-    int i;
-    texture_t* t;
-
     if(!r_drawworld_cheatsafe)
     {
         return;
@@ -269,16 +265,17 @@ void R_CullSurfaces()
     // ericw -- instead of testing (s->visframe == r_visframecount) on all world
     // surfaces, use the chained surfaces, which is exactly the same set of
     // sufaces
-    for(i = 0; i < cl.worldmodel->numtextures; i++)
+    for(int i = 0; i < cl.worldmodel->numtextures; i++)
     {
-        t = cl.worldmodel->textures[i];
+        texture_t* const t = cl.worldmodel->textures[i];
 
         if(!t || !t->texturechains[chain_world])
         {
             continue;
         }
 
-        for(s = t->texturechains[chain_world]; s; s = s->texturechain)
+        for(msurface_t* s = t->texturechains[chain_world]; s;
+            s = s->texturechain)
         {
             if(R_CullBox(s->mins, s->maxs) || R_BackFaceCull(s))
             {
@@ -1103,8 +1100,8 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
     glUseProgram(r_world_program);
 
     // Bind the buffers
-    GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
-    GL_BindBuffer(
+    glBindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
+    glBindBuffer(
         GL_ELEMENT_ARRAY_BUFFER, 0); // indices come from client memory!
 
     glEnableVertexAttribArray(vertAttrIndex);
@@ -1222,16 +1219,7 @@ R_DrawWorld -- johnfitz -- rewritten
 */
 void R_DrawTextureChains(qmodel_t* model, entity_t* ent, texchain_t chain)
 {
-    float entalpha;
-
-    if(ent != nullptr)
-    {
-        entalpha = ENTALPHA_DECODE(ent->alpha);
-    }
-    else
-    {
-        entalpha = 1;
-    }
+    const float entalpha = ent == nullptr ? 1 : ENTALPHA_DECODE(ent->alpha);
 
     // ericw -- the mh dynamic lightmap speedup: make a first pass through
     // all surfaces we are going to draw, and rebuild any lightmaps that

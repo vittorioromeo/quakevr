@@ -290,6 +290,7 @@ struct entity_state_t
 struct usercmd_t
 {
     qfvec3 viewangles;
+    float vryaw;
     qfvec3 handpos;
     qfvec3 handrot;
     qfvec3 handvel;

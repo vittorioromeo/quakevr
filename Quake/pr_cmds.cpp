@@ -45,12 +45,21 @@ static char* PR_GetTempString()
 #define MSG_ALL 2       // reliable to all
 #define MSG_INIT 3      // write to the init string
 
-[[nodiscard]] static QUAKE_FORCEINLINE qvec3 extractVector(
+[[nodiscard]] QUAKE_FORCEINLINE static qvec3 extractVector(
     const int parm) noexcept
 {
     float* const ptr = G_VECTOR(parm);
     return {ptr[0], ptr[1], ptr[2]};
 }
+
+QUAKE_FORCEINLINE static void returnVector(const qvec3& v) noexcept
+{
+    G_VECTOR(OFS_RETURN)[0] = v[0];
+    G_VECTOR(OFS_RETURN)[1] = v[1];
+    G_VECTOR(OFS_RETURN)[2] = v[2];
+}
+
+
 
 /*
 ===============================================================================
@@ -226,7 +235,7 @@ static void SetMinMaxSize(
     qvec3 rmin;
 
     qvec3 rmax;
-    float bounds[2][3];
+    qvec3 bounds[2];
     float xvector[2];
 
     float yvector[2];
@@ -253,8 +262,8 @@ static void SetMinMaxSize(
 
     if(!rotate)
     {
-        VectorCopy(minvec, rmin);
-        VectorCopy(maxvec, rmax);
+        rmin = minvec;
+        rmax = maxvec;
     }
     else
     {
@@ -266,8 +275,8 @@ static void SetMinMaxSize(
         yvector[0] = -sin(a);
         yvector[1] = cos(a);
 
-        VectorCopy(minvec, bounds[0]);
-        VectorCopy(maxvec, bounds[1]);
+        bounds[0] = minvec;
+        bounds[1] = maxvec;
 
         rmin[0] = rmin[1] = rmin[2] = FLT_MAX;
         rmax[0] = rmax[1] = rmax[2] = -FLT_MAX;
@@ -477,13 +486,13 @@ static void PF_normalize()
 
     if(new_temp == 0)
     {
-        VectorCopy(vec3_zero, G_VECTOR(OFS_RETURN));
+        returnVector(vec3_zero);
     }
     else
     {
         new_temp = 1 / new_temp;
         const auto res = v * static_cast<qfloat>(new_temp);
-        VectorCopy(res, G_VECTOR(OFS_RETURN));
+        returnVector(res);
     }
 }
 
@@ -1166,6 +1175,13 @@ static void PF_cvar_hclear()
     Cvar_ClearAllHandles();
 }
 
+static void PF_redirectvector()
+{
+    const auto input = extractVector(OFS_PARM0);
+    const auto exemplar = extractVector(OFS_PARM1);
+    returnVector(quake::util::redirectVector(input, exemplar));
+}
+
 /*
 =================
 PF_findradius
@@ -1645,7 +1661,7 @@ static void PF_aim()
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
-        VectorCopy(pr_global_struct->v_forward, G_VECTOR(OFS_RETURN));
+        returnVector(pr_global_struct->v_forward);
         return;
     }
 
@@ -1697,11 +1713,11 @@ static void PF_aim()
         end = pr_global_struct->v_forward * float(dist);
         end[2] = dir[2];
         end = safeNormalize(end);
-        VectorCopy(end, G_VECTOR(OFS_RETURN));
+        returnVector(end);
     }
     else
     {
-        VectorCopy(bestdir, G_VECTOR(OFS_RETURN));
+        returnVector(bestdir);
     }
 }
 
@@ -2051,6 +2067,8 @@ static builtin_t pr_builtin[] = {
     PF_cvar_hmake,  // #86
     PF_cvar_hget,   // #87
     PF_cvar_hclear, // #88
+
+    PF_redirectvector, // #89
 };
 
 builtin_t* pr_builtins = pr_builtin;
