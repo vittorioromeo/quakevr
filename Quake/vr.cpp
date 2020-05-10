@@ -2933,40 +2933,16 @@ static void VR_FakeVRControllerAiming()
     const auto [vfwd, vright, vup] =
         getAngledVectors({0.f, cl.viewangles[YAW], 0.f});
 
-    const auto [vwfwd, vwright, vwup] = getAngledVectors(cl.viewangles);
-
     const auto& playerOrigin = VR_GetPlayerOrigin();
 
     cl.handpos[cVR_MainHand] =
-        playerOrigin + vfwd * 4.5_qf + vright * 4.5_qf + vup * 6._qf;
+        playerOrigin + vfwd * 16.5_qf + vright * 5.5_qf + vup * 15.5_qf;
 
     cl.handpos[cVR_OffHand] =
-        playerOrigin + vfwd * 4.5_qf - vright * 4.5_qf + vup * 6._qf;
+        playerOrigin + vfwd * 16.5_qf - vright * 5.5_qf + vup * 15.5_qf;
 
-    const auto [mainang, offang] = [&, vup = vup, vwfwd = vwfwd] {
-        if(!svPlayerActive())
-        {
-            return std::tuple{cl.viewangles, cl.viewangles};
-        }
-
-        const trace_t trace = SV_MoveTrace(playerOrigin + vup * 8._qf,
-            playerOrigin + vup * 8._qf + vwfwd * 1000._qf, MOVE_NORMAL,
-            getPlayerEdict());
-
-        const auto maindir =
-            glm::normalize(trace.endpos - cl.handpos[cVR_MainHand]);
-
-        const auto offdir =
-            glm::normalize(trace.endpos - cl.handpos[cVR_OffHand]);
-
-        const auto mainang = pitchYawRollFromDirectionVector(vup, maindir);
-        const auto offang = pitchYawRollFromDirectionVector(vup, offdir);
-
-        return std::tuple{mainang, offang};
-    }();
-
-    cl.handrot[cVR_MainHand] = mainang;
-    cl.handrot[cVR_OffHand] = offang;
+    cl.handrot[cVR_MainHand] = cl.viewangles;
+    cl.handrot[cVR_OffHand] = cl.viewangles;
 }
 
 static void VR_ControllerAiming(const qvec3& orientation)

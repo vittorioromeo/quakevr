@@ -154,19 +154,20 @@ float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
     itemFlag = VR_ItemUtil_Impl_ItemIdToFlag(xItemId);
 
+
     if(itemCategory == IID_CATEGORY_ITEMS)
     {
-        return (xEnt.items & itemFlag);
+        return VRHasBit(xEnt.items, itemFlag);
     }
 
     if(itemCategory == IID_CATEGORY_HIPNOTIC_ITEMS)
     {
-        return (xEnt.hipnotic_items & itemFlag);
+        return VRHasBit(xEnt.hipnotic_items, itemFlag);
     }
 
     if(itemCategory == IID_CATEGORY_ROGUE_ITEMS)
     {
-        return (xEnt.rogue_items & itemFlag);
+        return VRHasBit(xEnt.rogue_items, itemFlag);
     }
 
     VR_ItemUtil_Impl_PrintInvalidItemCategory("VR_ItemUtil_EntHasItem",

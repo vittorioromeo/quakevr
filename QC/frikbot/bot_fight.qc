@@ -364,11 +364,13 @@ void() bot_setvrfields =
     self.handrot = self.v_angle;
     self.offhandrot = self.v_angle;
 
-    self.handpos = self.origin + '0 0 16';
-    self.offhandpos = self.origin + '0 0 16';
+    makeforward(self.v_angle);
 
-    self.muzzlepos = self.origin + '0 0 16';
-    self.offmuzzlepos = self.origin + '0 0 16';
+    self.handpos = self.origin + '0 0 16' + (v_forward * 8);
+    self.offhandpos = self.origin + '0 0 16' + (v_forward * 8);
+
+    self.muzzlepos = self.origin + '0 0 16' + (v_forward * 32);
+    self.offmuzzlepos = self.origin + '0 0 16' + (v_forward * 32);
 
     VRSetTeleporting(self, FALSE);
     VRSetOffHandGrabbing(self, TRUE);

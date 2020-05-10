@@ -1045,7 +1045,7 @@ void(entity bot) BotDisconnect =
         self.netname = "";
         self.classname = "";
         self.health = 0;
-        self.items = 0;
+        VR_ItemUtil_EntClearItems(self);
         self.armorvalue = 0;
         self.weaponmodel = "";
         self.b_pants = 0;

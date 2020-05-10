@@ -881,6 +881,7 @@ void() PutClientInServer =
         SUB_DoLater(info_stuffcmd_do, 0.1);
     }
 
+    VR_ItemUtil_EntClearItems(self);
     DecodeLevelParms();
 
     // spawn selection must be after DecodeLevelParms because of team stuff

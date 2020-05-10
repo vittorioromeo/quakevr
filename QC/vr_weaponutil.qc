@@ -58,12 +58,12 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntIsEligibleForWeapon =
 
 void(entity xEnt, float xWeaponId) VR_WeaponUtil_EntAddWeapon =
 {
-    VR_ItemUtil_EntAddItem(self, WeaponIdToItemId(xWeaponId));
+    VR_ItemUtil_EntAddItem(xEnt, WeaponIdToItemId(xWeaponId));
 }
 
 void(entity xEnt, float xWeaponId) VR_WeaponUtil_EntDelWeapon =
 {
-    VR_ItemUtil_EntDelItem(self, WeaponIdToItemId(xWeaponId));
+    VR_ItemUtil_EntDelItem(xEnt, WeaponIdToItemId(xWeaponId));
 }
 
 //
@@ -83,7 +83,7 @@ entity() FindEntPlayerForDrop =
     return find(world, classname, "player");
 }
 
-float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
+float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
     local float eligible, chance, roll;
 
@@ -102,7 +102,7 @@ float(entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 
     if(eligible && (roll < chance))
     {
-        CreateWeaponDrop(self, xWeapon, self.origin);
+        CreateWeaponDrop(entEnemy, xWeapon, entEnemy.origin);
         return TRUE;
     }
 
@@ -184,7 +184,7 @@ float(float it) ItemIdToWeaponId =
 
 string(float xWeaponFlags, string xPrimaryModel, string xSecondaryModel) SelectModelByFlags =
 {
-    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO))
     {
         return xSecondaryModel;
     }
@@ -217,7 +217,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
 
 float(float xWeaponFlags, float xPrimaryAid, float xSecondaryAid) SelectAmmoByFlags =
 {
-    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO))
     {
         return xSecondaryAid;
     }
