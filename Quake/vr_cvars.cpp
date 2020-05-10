@@ -34,8 +34,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
-DEFINE_CVAR(vr_novrinit, 0, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
+DEFINE_CVAR(vr_novrinit, 1, CVAR_NONE);
 
 //
 //
