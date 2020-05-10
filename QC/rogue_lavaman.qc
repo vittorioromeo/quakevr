@@ -456,8 +456,8 @@ void() monster_lava_man =
         return;
     }
 
-    precache_model ("progs/lavaman.mdl");
-    precache_model ("progs/lavaball.mdl");
+    precache_model("progs/lavaman.mdl");
+    precache_model("progs/lavaball.mdl");
 
     precache_sound("weapons/rocket1i.wav");
     precache_sound("boss1/out1.wav");

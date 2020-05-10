@@ -1827,8 +1827,8 @@ void SetHandPos(int index, entity_t* player)
             mapRange(clampedWeight, 0.0_qf, 0.4_qf, 0.45_qf, 1._qf) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightHandThrowVelMult);
 
-        cl.handvel[index] *= handvelFactor;
-        cl.handthrowvel[index] *= handthrowvelFactor;
+        cl.handvel[index] *= std::pow(handvelFactor, 0.4f);
+        cl.handthrowvel[index] *= std::pow(handthrowvelFactor, 0.8f);
     }
 
     // TODO VR: (P2) doesn't work due to collision resolution with wall, it
@@ -3620,6 +3620,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 {
     if(vr_fakevr.value && vr_novrinit.value)
     {
+        vr_menu_mult = 1.f;
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
         return {0.f, 0.f, 0.f};
@@ -3781,6 +3782,14 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             vrahRightHaptic, 0, 0.1, 50, 0.5, origin);
     };
 
+    const auto doMenuKeyEvent = [&](const int key,
+                                    const vr::InputDigitalActionData_t& i) {
+        const bool pressed = isRisingEdge(i);
+
+        Key_Event(key, pressed);
+        return pressed;
+    };
+
     const auto doMenuKeyEventWithHaptic =
         [&](const int key, const vr::InputDigitalActionData_t& i) {
             const bool pressed = isRisingEdge(i);
@@ -3796,8 +3805,6 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
     if(inMenu())
     {
-
-
         const auto doAxis = [&](const int axis, const auto& inp,
                                 const int quakeKeyNeg, const int quakeKeyPos) {
             const float lastVal =
@@ -4120,20 +4127,13 @@ void VR_Move(usercmd_t* cmd)
     }
 }
 
-// TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
-// (seems better now, but test more)
-
-
 // TODO VR: (P0) remove existing sv_player usages, or change to to
-// svs.client edicts.  I believe that, by definition, svs.clients[0] is the
+// svs.client edicts. I believe that, by definition, svs.clients[0] is the
 // local player
 
-// TODO VR: (P0) remove/fix prevweapon binding, and off-hand cycle binding
-
-// TODO VR: (P0) melee damage far too weak with weighted weapons, increase
-
 // TODO VR: (P0) force grab seems bugged when hand is hovering player bbox -
-// possible handtouch issue?
+// possible handtouch issue? - actually doesnt seem related to player bbox...
+// investigate
 
 // TODO VR: (P0) the reason why some monsters are stuck in geometry is that
 // their spawn location is not correct anymore due to the changed hitboxes.
@@ -4144,9 +4144,7 @@ void VR_Move(usercmd_t* cmd)
 // goes down
 
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
-// player_run
-
-// TODO VR: (P0): Map menu needs paging
+// player_run - made some changes, test
 
 // TODO VR: (P0): "no hand posing occurs at all on Oculus CV1"
 
@@ -4231,15 +4229,10 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) "hey i just was wondering how to use the soundtrack for mission
 // pack 1? do i need to swap out the original soundtrack before launching? "
 
-// TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
-// the future Frikbot could be added its a pretty straightforward add to QuakeC"
-
 // TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
 // below, it seems like you need to position your body over the ledge
 // specifically so that a specific point of your body has a direct line of sight
 // to the weapon" - this might be related to water
-
-// TODO VR: (P1): headbutt mechanic
 
 
 

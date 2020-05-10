@@ -80,8 +80,8 @@ void() item_powerup_shield =
 {
     self.touch = newitems_touch;
 
-    precache_model ("progs/shield.mdl");
-    precache_model ("progs/p_shield.mdl");
+    precache_model("progs/shield.mdl");
+    precache_model("progs/p_shield.mdl");
     precache_sound("shield/pickup.wav");
     precache_sound("shield/hit.wav");
     precache_sound("shield/fadeout.wav");
@@ -100,7 +100,7 @@ void() item_powerup_belt =
 {
     self.touch = newitems_touch;
 
-    precache_model ("progs/beltup.mdl");
+    precache_model("progs/beltup.mdl");
     precache_sound("belt/pickup.wav");
     precache_sound("belt/use.wav");
     precache_sound("belt/fadeout.wav");

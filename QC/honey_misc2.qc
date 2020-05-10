@@ -34,7 +34,7 @@
 
 void() misc_tree =
 {
-    precache_model ("progs/tree1.mdl");
+    precache_model("progs/tree1.mdl");
     setmodel(self, "progs/tree1.mdl");
 
     makestatic(self);

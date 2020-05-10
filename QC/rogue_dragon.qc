@@ -746,11 +746,11 @@ void() monster_dragon =
         remove(self);
         return;
     }
-    precache_model ("progs/dragon.mdl");
-    precache_model ("progs/fireball.mdl");
-    precache_model ("progs/drggib01.mdl");
-    precache_model ("progs/drggib02.mdl");
-    precache_model ("progs/drggib03.mdl");
+    precache_model("progs/dragon.mdl");
+    precache_model("progs/fireball.mdl");
+    precache_model("progs/drggib01.mdl");
+    precache_model("progs/drggib02.mdl");
+    precache_model("progs/drggib03.mdl");
 
     precache_sound("dragon/see.wav");
     precache_sound("dragon/active.wav");

@@ -503,18 +503,18 @@ void() monster_super_wrath =
         remove(self);
         return;
     }
-    precache_model ("progs/s_wrath.mdl");
+    precache_model("progs/s_wrath.mdl");
 //
-    precache_model ("progs/s_wrtgb1.mdl");
+    precache_model("progs/s_wrtgb1.mdl");
 
-    precache_model ("progs/s_wrtgb2.mdl");
+    precache_model("progs/s_wrtgb2.mdl");
 
-    precache_model ("progs/s_wrtgb3.mdl");
-    precache_model ("progs/wrthgib1.mdl");
-    precache_model ("progs/wrthgib2.mdl");
-    precache_model ("progs/wrthgib3.mdl");
+    precache_model("progs/s_wrtgb3.mdl");
+    precache_model("progs/wrthgib1.mdl");
+    precache_model("progs/wrthgib2.mdl");
+    precache_model("progs/wrthgib3.mdl");
 
-    precache_model ("progs/w_ball.mdl");
+    precache_model("progs/w_ball.mdl");
     precache_sound("wrath/wsee.wav");
     precache_sound("wrath/watt.wav");
     precache_sound("wrath/wpain.wav");

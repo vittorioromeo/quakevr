@@ -155,7 +155,7 @@ void() monster_sword =
         return;
     }
 
-    precache_model ("progs/sword.mdl");
+    precache_model("progs/sword.mdl");
 
     precache_sound("knight/sword1.wav");
     precache_sound("knight/ksight.wav");

@@ -352,8 +352,9 @@ void M_ToggleMenu_f()
     m.add_action_entry("Single Player", &M_Menu_SinglePlayer_f);
     m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
     m.add_action_entry("Options", &M_Menu_Options_f);
-    m.add_action_entry("Quake VR Settings", &M_Menu_QuakeVRSettings_f);
-    m.add_action_entry("Quake VR Dev Tools", &M_Menu_QuakeVRDevTools_f);
+    m.add_action_entry("Quake VR - Settings", &M_Menu_QuakeVRSettings_f);
+    m.add_action_entry("Quake VR - Dev Tools", &M_Menu_QuakeVRDevTools_f);
+    m.add_action_entry("Quake VR - Change Map", &M_Menu_QuakeVRChangeMap_f);
     m.add_action_entry("Help/Ordering", &M_Menu_Help_f);
     m.add_action_entry("Quit", &M_Menu_Quit_f);
 
@@ -2100,154 +2101,6 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - IMPL */
-
-template <typename Range>
-[[nodiscard]] static quake::menu makeQVRSChangeMapMenuImpl(
-    const std::string_view name, const Range& maps)
-{
-    const auto changeMap = [&maps](const int option) {
-        // TODO VR: (P1) should this be changelevel? very likely
-        return [&maps, option] {
-            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
-            Cmd_ExecuteString(va("map %s", maps[option].data()), src_command);
-        };
-    };
-
-    // ------------------------------------------------------------------------
-
-    quake::menu m{name, &M_Menu_QuakeVRSettings_f, true};
-
-    int idx{0};
-    for(const auto& map : maps)
-    {
-        m.add_action_entry(map, changeMap(idx));
-        ++idx;
-    }
-
-    return m;
-}
-
-using namespace std::literals;
-
-constexpr std::array mapsVanilla{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
-    "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
-    "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
-    "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
-    "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
-    "end"sv};
-
-constexpr std::array mapsSoa{"start"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv,
-    "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv,
-    "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv,
-    "hipdm1"sv, "hipend"sv};
-
-constexpr std::array mapsDoe{"start"sv, "r1m1"sv, "r1m2"sv, "r1m3"sv, "r1m4"sv,
-    "r1m5"sv, "r1m6"sv, "r1m7"sv, "r2m1"sv, "r2m2"sv, "r2m3"sv, "r2m4"sv,
-    "r2m5"sv, "r2m6"sv, "r2m7"sv, "r2m8"sv, "ctf1"sv};
-
-constexpr std::array mapsDopa{"start"sv, "e5m1"sv, "e5m2"sv, "e5m3"sv, "e5m4"sv,
-    "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv, "e5dm"sv};
-
-constexpr std::array mapsHoney{"start"sv, "saint"sv, "honey"sv, "h_hub1"sv,
-    "h_hub2"sv, "h_end"sv, "credits"sv};
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - VANILLA */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapVanillaMenu()
-{
-    return makeQVRSChangeMapMenuImpl("Change Map - Vanilla", mapsVanilla);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapVanillaMenu()
-{
-    static quake::menu res = makeQVRSChangeMapVanillaMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - SOA */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapSoaMenu()
-{
-    return makeQVRSChangeMapMenuImpl("Change Map - SOA", mapsSoa);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapSoaMenu()
-{
-    static quake::menu res = makeQVRSChangeMapSoaMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - DOE */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapDoeMenu()
-{
-    return makeQVRSChangeMapMenuImpl("Change Map - DOE", mapsDoe);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapDoeMenu()
-{
-    static quake::menu res = makeQVRSChangeMapDoeMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - DOPA */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapDopaMenu()
-{
-    return makeQVRSChangeMapMenuImpl("Change Map - DOPA", mapsDopa);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapDopaMenu()
-{
-    static quake::menu res = makeQVRSChangeMapDopaMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - HONEY */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapHoneyMenu()
-{
-    return makeQVRSChangeMapMenuImpl("Change Map - HONEY", mapsHoney);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapHoneyMenu()
-{
-    static quake::menu res = makeQVRSChangeMapHoneyMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP - EXTRA */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapExtraMenu()
-{
-    static std::vector<std::string_view> mapsExtra{"orig_start"sv};
-
-    int i;
-    filelist_item_t* level;
-
-    for(level = extralevels, i = 0; level; level = level->next, i++)
-    {
-        mapsExtra.emplace_back(level->name);
-    }
-
-    return makeQVRSChangeMapMenuImpl("Change Map - Extra", mapsExtra);
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapExtraMenu()
-{
-    static quake::menu res = makeQVRSChangeMapExtraMenu();
-    return res;
-}
-
-
-//=============================================================================
 /* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS */
 
 [[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
@@ -2307,12 +2160,6 @@ static void forQVRSMenus(F&& f)
     f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
-    f(qvrsChangeMapVanillaMenu(), m_qvrs_changemap_vanilla);
-    f(qvrsChangeMapSoaMenu(), m_qvrs_changemap_soa);
-    f(qvrsChangeMapDoeMenu(), m_qvrs_changemap_doe);
-    f(qvrsChangeMapDopaMenu(), m_qvrs_changemap_dopa);
-    f(qvrsChangeMapHoneyMenu(), m_qvrs_changemap_honey);
-    f(qvrsChangeMapExtraMenu(), m_qvrs_changemap_extra);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
 }
 
@@ -2352,7 +2199,6 @@ void M_QuakeVRSettings_Key(int k)
 {
     quakeVRSettingsMenu().key(k);
 }
-
 
 //=============================================================================
 /* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (1) */
@@ -3178,6 +3024,205 @@ void M_QuakeVRDevTools_Draw()
 void M_QuakeVRDevTools_Key(int k)
 {
     quakeVRDevToolsMenu().key(k);
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - IMPL */
+
+template <typename Range>
+[[nodiscard]] static quake::menu makeQVRCMChangeMapMenuImpl(
+    const std::string_view name, const Range& maps)
+{
+    const auto changeMap = [&maps](const int option) {
+        return [&maps, option] {
+            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+            Cmd_ExecuteString(
+                va("changelevel %s", maps[option].data()), src_command);
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{name, &M_Menu_QuakeVRChangeMap_f, true};
+
+    int idx{0};
+    for(const auto& map : maps)
+    {
+        m.add_action_entry(map, changeMap(idx));
+        ++idx;
+    }
+
+    return m;
+}
+
+using namespace std::literals;
+
+constexpr std::array mapsVanilla{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
+    "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
+    "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
+    "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
+    "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
+    "end"sv};
+
+constexpr std::array mapsSoa{"start"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv,
+    "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv,
+    "hip2m5"sv, "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv,
+    "hipdm1"sv, "hipend"sv};
+
+constexpr std::array mapsDoe{"start"sv, "r1m1"sv, "r1m2"sv, "r1m3"sv, "r1m4"sv,
+    "r1m5"sv, "r1m6"sv, "r1m7"sv, "r2m1"sv, "r2m2"sv, "r2m3"sv, "r2m4"sv,
+    "r2m5"sv, "r2m6"sv, "r2m7"sv, "r2m8"sv, "ctf1"sv};
+
+constexpr std::array mapsDopa{"start"sv, "e5m1"sv, "e5m2"sv, "e5m3"sv, "e5m4"sv,
+    "e5m5"sv, "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv, "e5dm"sv};
+
+constexpr std::array mapsHoney{"start"sv, "saint"sv, "honey"sv, "h_hub1"sv,
+    "h_hub2"sv, "h_end"sv, "credits"sv};
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - VANILLA */
+
+[[nodiscard]] static quake::menu makeQVRCMVanillaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Vanilla", mapsVanilla);
+}
+
+[[nodiscard]] static quake::menu& qvrcmVanillaMenu()
+{
+    static quake::menu res = makeQVRCMVanillaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - SOA */
+
+[[nodiscard]] static quake::menu makeQVRCMSoaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Scourge of Armagon", mapsSoa);
+}
+
+[[nodiscard]] static quake::menu& qvrcmSoaMenu()
+{
+    static quake::menu res = makeQVRCMSoaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - DOE */
+
+[[nodiscard]] static quake::menu makeQVRCMDoeMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Dissolution of Eternity", mapsDoe);
+}
+
+[[nodiscard]] static quake::menu& qvrcmDoeMenu()
+{
+    static quake::menu res = makeQVRCMDoeMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - DOPA */
+
+[[nodiscard]] static quake::menu makeQVRCMDopaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Dimensions of the Past", mapsDopa);
+}
+
+[[nodiscard]] static quake::menu& qvrcmDopaMenu()
+{
+    static quake::menu res = makeQVRCMDopaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - HONEY */
+
+[[nodiscard]] static quake::menu makeQVRCMHoneyMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Honey (czg)", mapsHoney);
+}
+
+[[nodiscard]] static quake::menu& qvrcmHoneyMenu()
+{
+    static quake::menu res = makeQVRCMHoneyMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - EXTRA */
+
+[[nodiscard]] static quake::menu makeQVRCMExtraMenu()
+{
+    static std::vector<std::string_view> mapsExtra{"orig_start"sv};
+
+    int i;
+    filelist_item_t* level;
+
+    for(level = extralevels, i = 0; level; level = level->next, i++)
+    {
+        mapsExtra.emplace_back(level->name);
+    }
+
+    return makeQVRCMChangeMapMenuImpl("Custom Maps", mapsExtra);
+}
+
+[[nodiscard]] static quake::menu& qvrcmExtraMenu()
+{
+    static quake::menu res = makeQVRCMExtraMenu();
+    return res;
+}
+
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP MENU */
+
+template <typename F>
+static void forQVRCMMenus(F&& f)
+{
+    f(qvrcmVanillaMenu(), m_qvrs_changemap_vanilla);
+    f(qvrcmSoaMenu(), m_qvrs_changemap_soa);
+    f(qvrcmDoeMenu(), m_qvrs_changemap_doe);
+    f(qvrcmDopaMenu(), m_qvrs_changemap_dopa);
+    f(qvrcmHoneyMenu(), m_qvrs_changemap_honey);
+    f(qvrcmExtraMenu(), m_qvrs_changemap_extra);
+}
+
+[[nodiscard]] static quake::menu makeQuakeVRChangeMap()
+{
+    quake::menu m{"Change Map", &M_Menu_Main_f};
+
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+        m.add_action_entry(
+            xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
+    };
+
+    forQVRCMMenus(makeGotoMenu);
+    return m;
+}
+
+[[nodiscard]] static quake::menu& quakeVRChangeMapMenu()
+{
+    static quake::menu res = makeQuakeVRChangeMap();
+    return res;
+}
+
+void M_Menu_QuakeVRChangeMap_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrchangemap;
+    m_entersound = true;
+}
+
+void M_QuakeVRChangeMap_Draw()
+{
+    quakeVRChangeMapMenu().draw();
+}
+
+void M_QuakeVRChangeMap_Key(int k)
+{
+    quakeVRChangeMapMenu().key(k);
 }
 
 //=============================================================================
@@ -4589,6 +4634,15 @@ void M_Draw()
         }
     });
 
+    // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Change mMap" menus.
+    forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
+        if(m_state == s)
+        {
+            xm.draw();
+        }
+    });
+
     switch(m_state)
     {
         case m_none: break;
@@ -4606,6 +4660,7 @@ void M_Draw()
         // VR: New menus.
         case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
         case m_quakevrdevtools: M_QuakeVRDevTools_Draw(); break;
+        case m_quakevrchangemap: M_QuakeVRChangeMap_Draw(); break;
         // -------------------------------------------------------------------
         case m_help: M_Help_Draw(); break;
         case m_lanconfig: M_LanConfig_Draw(); break;
@@ -4624,6 +4679,12 @@ void M_Draw()
             }
             M_Quit_Draw();
             break;
+
+        default:
+        {
+            // Nested menus are handled above.
+            break;
+        }
     }
 
     if(m_entersound)
@@ -4676,6 +4737,24 @@ void M_Keydown(int key)
         }
     }
 
+    // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Change Map" menus.
+    {
+        bool processedAny = false;
+
+        forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
+            if(m_state == s)
+            {
+                xm.key(key);
+                processedAny = true;
+            }
+        });
+
+        if(processedAny)
+        {
+            return;
+        }
+    }
 
     switch(m_state)
     {
@@ -4694,6 +4773,7 @@ void M_Keydown(int key)
         // VR: New menus.
         case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
         case m_quakevrdevtools: M_QuakeVRDevTools_Key(key); return;
+        case m_quakevrchangemap: M_QuakeVRChangeMap_Key(key); return;
         // -------------------------------------------------------------------
         case m_help: M_Help_Key(key); return;
         case m_quit: M_Quit_Key(key); return;
@@ -4701,6 +4781,12 @@ void M_Keydown(int key)
         case m_gameoptions: M_GameOptions_Key(key); return;
         case m_search: M_Search_Key(key); return;
         case m_slist: M_ServerList_Key(key); return;
+
+        default:
+        {
+            // Nested menus are handled above.
+            break;
+        }
     }
 }
 

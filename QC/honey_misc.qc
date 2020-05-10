@@ -49,7 +49,7 @@ void() model_candle_think =
 void() model_candle =
 {
 
-    precache_model ("progs/candle.mdl");
+    precache_model("progs/candle.mdl");
 
     setmodel(self, "progs/candle.mdl");
 

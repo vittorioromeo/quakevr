@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "console.hpp"
 #include "cvar.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
@@ -1978,9 +1979,6 @@ PF_changelevel
 */
 static void PF_changelevel()
 {
-    // TODO VR: (P0) verify that this is called when using a slipgate, and
-    // hijack the "start.bsp" string
-
     // make sure we don't issue two changelevels
     if(svs.changelevel_issued)
     {
@@ -1990,6 +1988,12 @@ static void PF_changelevel()
     svs.changelevel_issued = true;
 
     const char* s = G_STRING(OFS_PARM0);
+
+    // TODO VR: (P0) verify that this is called when using a slipgate, and
+    // hijack the "start.bsp" string - IT DOES, both for normal level changes
+    // and after bosses (to go back to start)
+    Con_Printf("calling PF_changelevel with '%s'\n", s);
+
     Cbuf_AddText(va("changelevel %s\n", s));
 }
 

@@ -540,18 +540,18 @@ void() monster_morph =
 
     if(self.spawnflags & MORPH_AZTEC)        // Aztec
     {
-        precache_model ("progs/morph_az.mdl");
+        precache_model("progs/morph_az.mdl");
         self.model = "progs/morph_az.mdl";
     }
     else if(self.spawnflags & MORPH_EGYPT)
     // Egyptian
     {
-        precache_model ("progs/morph_eg.mdl");
+        precache_model("progs/morph_eg.mdl");
         self.model = "progs/morph_eg.mdl";
     }
     else if(self.spawnflags & MORPH_GREEK)    // greek
     {
-        precache_model ("progs/morph_gr.mdl");
+        precache_model("progs/morph_gr.mdl");
         self.model = "progs/morph_gr.mdl";
     }
     else

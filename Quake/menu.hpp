@@ -37,6 +37,7 @@ enum m_state_e
     m_options,
     m_quakevrsettings,
     m_quakevrdevtools,
+    m_quakevrchangemap,
     m_video,
     m_vr,
     m_vrgameplay,
@@ -99,13 +100,15 @@ void M_Menu_Main_f();
 void M_Menu_Options_f();
 void M_Menu_QuakeVRSettings_f();
 void M_Menu_QuakeVRDevTools_f();
+void M_Menu_QuakeVRChangeMap_f();
 void M_Menu_Quit_f();
 
 void M_Print(int cx, int cy, const char* str);
 void M_PrintWithNewLine(int cx, int cy, const char* str);
 void M_PrintWhite(int cx, int cy, const char* str);
 void M_PrintWhiteWithNewLine(int cx, int cy, const char* str);
-void M_PrintWhiteByWrapping(const int wrapCount, int cx, int cy, const char* str);
+void M_PrintWhiteByWrapping(
+    const int wrapCount, int cx, int cy, const char* str);
 
 void M_Draw();
 void M_DrawCharacter(int cx, int line, int num);

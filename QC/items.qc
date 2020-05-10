@@ -861,13 +861,13 @@ void() item_lava_spikes =
 
     if(self.spawnflags & WEAPON_BIG2)
     {
-        precache_model ("maps/b_lnail1.bsp");
+        precache_model("maps/b_lnail1.bsp");
         setmodel(self, "maps/b_lnail1.bsp");
         self.aflag = 50;
     }
     else
     {
-        precache_model ("maps/b_lnail0.bsp");
+        precache_model("maps/b_lnail0.bsp");
         setmodel(self, "maps/b_lnail0.bsp");
         self.aflag = 25;
     }
@@ -922,13 +922,13 @@ void() item_multi_rockets =
 
     if(self.spawnflags & WEAPON_BIG2)
     {
-        precache_model ("maps/b_mrock1.bsp");
+        precache_model("maps/b_mrock1.bsp");
         setmodel(self, "maps/b_mrock1.bsp");
         self.aflag = 10;
     }
     else
     {
-        precache_model ("maps/b_mrock0.bsp");
+        precache_model("maps/b_mrock0.bsp");
         setmodel(self, "maps/b_mrock0.bsp");
         self.aflag = 5;
     }
@@ -981,13 +981,13 @@ void() item_plasma =
 
     if(self.spawnflags & WEAPON_BIG2)
     {
-        precache_model ("maps/b_plas1.bsp");
+        precache_model("maps/b_plas1.bsp");
         setmodel(self, "maps/b_plas1.bsp");
         self.aflag = 12;
     }
     else
     {
-        precache_model ("maps/b_plas0.bsp");
+        precache_model("maps/b_plas0.bsp");
         setmodel(self, "maps/b_plas0.bsp");
         self.aflag = 6;
     }
@@ -1000,78 +1000,6 @@ void() item_plasma =
     setsize(self, '0 0 0', '32 32 56');
     StartItem ();
 };
-
-/*QUAKED item_weapon (0 .5 .8) (0 0 0) (32 32 32) shotgun rocket spikes big
-DO NOT USE THIS!!!! IT WILL BE REMOVED!
-*/
-
-/*
-float WEAPON_SHOTGUN = 1;
-float WEAPON_ROCKET = 2;
-float WEAPON_SPIKES = 4;
-float WEAPON_BIG = 8;
-void() item_weapon =
-{
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_SHOTGUN)
-    {
-        if(self.spawnflags & WEAPON_BIG)
-        {
-            precache_model("maps/b_shell1.bsp");
-            setmodel(self, "maps/b_shell1.bsp");
-            self.aflag = 40;
-        }
-        else
-        {
-            precache_model("maps/b_shell0.bsp");
-            setmodel(self, "maps/b_shell0.bsp");
-            self.aflag = 20;
-        }
-        self.weapon = 1;
-        self.netname = "shells";
-    }
-
-    if(self.spawnflags & WEAPON_SPIKES)
-    {
-        if(self.spawnflags & WEAPON_BIG)
-        {
-            precache_model("maps/b_nail1.bsp");
-            setmodel(self, "maps/b_nail1.bsp");
-            self.aflag = 40;
-        }
-        else
-        {
-            precache_model("maps/b_nail0.bsp");
-            setmodel(self, "maps/b_nail0.bsp");
-            self.aflag = 20;
-        }
-        self.weapon = 2;
-        self.netname = "spikes";
-    }
-
-    if(self.spawnflags & WEAPON_ROCKET)
-    {
-        if(self.spawnflags & WEAPON_BIG)
-        {
-            precache_model("maps/b_rock1.bsp");
-            setmodel(self, "maps/b_rock1.bsp");
-            self.aflag = 10;
-        }
-        else
-        {
-            precache_model("maps/b_rock0.bsp");
-            setmodel(self, "maps/b_rock0.bsp");
-            self.aflag = 5;
-        }
-        self.weapon = 3;
-        self.netname = "rockets";
-    }
-
-    setsize(self, '0 0 0', '24 24 24');
-    StartItem();
-};
-*/
 
 /*
 ===============================================================================

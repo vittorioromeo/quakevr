@@ -457,9 +457,9 @@ void() monster_mummy =
         return;
     }
 
-    precache_model ("progs/mummy.mdl");
-    precache_model ("progs/h_zombie.mdl");
-    precache_model ("progs/zom_gib.mdl");
+    precache_model("progs/mummy.mdl");
+    precache_model("progs/h_zombie.mdl");
+    precache_model("progs/zom_gib.mdl");
 
     precache_sound("zombie/z_idle.wav");
     precache_sound("zombie/z_idle1.wav");

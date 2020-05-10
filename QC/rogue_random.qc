@@ -74,12 +74,12 @@ void() item_random_powerup =
     }
 
     // Precache the lot of it....
-    precache_model ("progs/shield.mdl");
-    precache_model ("progs/p_shield.mdl");
-    precache_model ("progs/beltup.mdl");
-    precache_model ("progs/invulner.mdl");
-    precache_model ("progs/invisibl.mdl");
-    precache_model ("progs/quaddama.mdl");
+    precache_model("progs/shield.mdl");
+    precache_model("progs/p_shield.mdl");
+    precache_model("progs/beltup.mdl");
+    precache_model("progs/invulner.mdl");
+    precache_model("progs/invisibl.mdl");
+    precache_model("progs/quaddama.mdl");
 
     precache_sound("items/inv1.wav");
     precache_sound("items/inv2.wav");

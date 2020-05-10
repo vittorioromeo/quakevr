@@ -83,7 +83,7 @@
     <TargetName>quakevr-debug</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug</OutDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>quakevr</TargetName>
