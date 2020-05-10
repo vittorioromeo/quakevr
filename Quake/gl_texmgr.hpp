@@ -87,23 +87,23 @@ extern unsigned int d_8to24table_pants[256];
 
 // TEXTURE MANAGER
 
-float TexMgr_FrameUsage(void);
+float TexMgr_FrameUsage();
 gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name);
-gltexture_t* TexMgr_NewTexture(void);
+gltexture_t* TexMgr_NewTexture();
 void TexMgr_FreeTexture(gltexture_t* kill);
 void TexMgr_FreeTextures(unsigned int flags, unsigned int mask);
 void TexMgr_FreeTexturesForOwner(qmodel_t* owner);
-void TexMgr_NewGame(void);
-void TexMgr_Init(void);
-void TexMgr_DeleteTextureObjects(void);
+void TexMgr_NewGame();
+void TexMgr_Init();
+void TexMgr_DeleteTextureObjects();
 
 // IMAGE LOADING
 gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name, int width,
     int height, enum srcformat format, byte* data, const char* source_file,
     src_offset_t source_offset, unsigned flags);
 void TexMgr_ReloadImage(gltexture_t* glt, int shirt, int pants);
-void TexMgr_ReloadImages(void);
-void TexMgr_ReloadNobrightImages(void);
+void TexMgr_ReloadImages();
+void TexMgr_ReloadNobrightImages();
 
 int TexMgr_Pad(int s);
 int TexMgr_SafeTextureSize(int s);
@@ -112,9 +112,9 @@ int TexMgr_PadConditional(int s);
 // TEXTURE BINDING & TEXTURE UNIT SWITCHING
 
 void GL_SelectTexture(GLenum target);
-void GL_DisableMultitexture(void); // selects texture unit 0
-void GL_EnableMultitexture(void);  // selects texture unit 1
+void GL_DisableMultitexture(); // selects texture unit 0
+void GL_EnableMultitexture();  // selects texture unit 1
 void GL_Bind(gltexture_t* texture);
-void GL_ClearBindings(void);
+void GL_ClearBindings();
 
 #endif /* _GL_TEXMAN_H */

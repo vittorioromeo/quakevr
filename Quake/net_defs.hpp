@@ -168,13 +168,13 @@ typedef struct
     const char* name;
     bool initialized;
     sys_socket_t controlSock;
-    sys_socket_t (*Init)(void);
-    void (*Shutdown)(void);
+    sys_socket_t (*Init)();
+    void (*Shutdown)();
     void (*Listen)(bool state);
     sys_socket_t (*Open_Socket)(int port);
     int (*Close_Socket)(sys_socket_t socketid);
     int (*Connect)(sys_socket_t socketid, struct qsockaddr* addr);
-    sys_socket_t (*CheckNewConnections)(void);
+    sys_socket_t (*CheckNewConnections)();
     int (*Read)(
         sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);
     int (*Write)(
@@ -198,18 +198,18 @@ typedef struct
 {
     const char* name;
     bool initialized;
-    int (*Init)(void);
+    int (*Init)();
     void (*Listen)(bool state);
     void (*SearchForHosts)(bool xmit);
     qsocket_t* (*Connect)(const char* host);
-    qsocket_t* (*CheckNewConnections)(void);
+    qsocket_t* (*CheckNewConnections)();
     int (*QGetMessage)(qsocket_t* sock);
     int (*QSendMessage)(qsocket_t* sock, sizebuf_t* data);
     int (*SendUnreliableMessage)(qsocket_t* sock, sizebuf_t* data);
     bool (*CanSendMessage)(qsocket_t* sock);
     bool (*CanSendUnreliableMessage)(qsocket_t* sock);
     void (*Close)(qsocket_t* sock);
-    void (*Shutdown)(void);
+    void (*Shutdown)();
 } net_driver_t;
 
 extern net_driver_t net_drivers[];
@@ -225,9 +225,9 @@ extern int messagesReceived;
 extern int unreliableMessagesSent;
 extern int unreliableMessagesReceived;
 
-qsocket_t* NET_NewQSocket(void);
+qsocket_t* NET_NewQSocket();
 void NET_FreeQSocket(qsocket_t*);
-double SetNetTime(void);
+double SetNetTime();
 
 
 #define HOSTCACHESIZE 8

@@ -180,27 +180,27 @@ extern double key_blinktime;
 
 extern bool chat_team;
 
-void Key_Init(void);
-void Key_ClearStates(void);
-void Key_UpdateForDest(void);
+void Key_Init();
+void Key_ClearStates();
+void Key_UpdateForDest();
 
-void Key_BeginInputGrab(void);
-void Key_EndInputGrab(void);
+void Key_BeginInputGrab();
+void Key_EndInputGrab();
 void Key_GetGrabbedInput(int* lastkey, int* lastchar);
 
 void Key_Event(int key, bool down);
 void Char_Event(int key);
-bool Key_TextEntry(void);
+bool Key_TextEntry();
 
 void Key_SetBinding(int keynum, const char* binding);
 const char* Key_KeynumToString(int keynum);
 void Key_WriteBindings(FILE* f);
 
-void Key_EndChat(void);
-const char* Key_GetChatBuffer(void);
-int Key_GetChatMsgLen(void);
+void Key_EndChat();
+const char* Key_GetChatBuffer();
+int Key_GetChatMsgLen();
 
-void History_Init(void);
-void History_Shutdown(void);
+void History_Init();
+void History_Shutdown();
 
 #endif /* _QUAKE_KEYS_H */

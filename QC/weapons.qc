@@ -1365,6 +1365,11 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 
 void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
 {
+    if(VRGet2HAiming(self))
+    {
+        spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
+    }
+
     FireBulletsImpl(shotcount, dir, spread, VRGetMuzzlePos(xHand));
 }
 
@@ -1427,7 +1432,7 @@ void(float xHand) W_FireSuperShotgun =
 
     delAmmoAndUpdateCounter(xHand, AID_SHELLS, 2);
     dir = VRGetWeaponFireRotFwd(xHand);
-    FireBullets (xHand, 14, dir, '0.035 0.025 0');
+    FireBullets(xHand, 14, dir, '0.035 0.025 0');
 
     VRGunHaptic(xHand, 0.55, 75, 1.0);
 
@@ -3718,11 +3723,27 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
         return;
     }
 
+    local float twoHThrowVelMult;
+    local vector throwVel;
+    if(time - self.last_2h_time < 0.3)
+    {
+        twoHThrowVelMult = cvar_hget(cvarh_vr_2h_throw_velocity_mult);
+        throwVel = VRGetHandThrowVel(xHand) + VRGetHandThrowVel(VRGetOtherHand(xHand));
+        throwVel /= 2.0;
+        throwVel *= twoHThrowVelMult;
+    }
+    else
+    {
+        twoHThrowVelMult = 1.0;
+        throwVel = VRGetHandThrowVel(xHand);
+    }
+
+
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
         CreateThrownWeapon(ent, xWeapon, xWeaponFlags,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
-            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            throwVel, VRGetHandAVel(xHand),
             FALSE /* disappear on hit */,
             TRUE  /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
@@ -3731,7 +3752,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
     {
         CreateThrownWeapon(ent, xWeapon, xWeaponFlags,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
-            VRGetHandThrowVel(xHand), VRGetHandAVel(xHand),
+            throwVel, VRGetHandAVel(xHand),
             TRUE /* disappear on hit */,
             TRUE /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
@@ -3958,6 +3979,12 @@ void() W_Frame =
     }
 
     UpdateHolsterHover();
+
+    if(VRGet2HAiming(self))
+    {
+        // Used for 2H throws.
+        self.last_2h_time = time;
+    }
 
     DoHandImpl(self, cVR_OffHand,
                self.weapon2, &self.weapon2,

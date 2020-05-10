@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_SERVER_H
 #define _QUAKE_SERVER_H
 
+#include "vr_macros.hpp"
+
 struct qmodel_t;
 
 // server.h
@@ -154,9 +156,6 @@ typedef struct client_s
 #define DAMAGE_YES 1
 #define DAMAGE_AIM 2
 
-// TODO VR: (P2) move
-#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
-
 // edict->flags
 // clang-format off
 #define FL_FLY            VRUTIL_POWER_OF_TWO(0)
@@ -210,7 +209,7 @@ extern edict_t* sv_player;
 
 //===========================================================
 
-void SV_Init(void);
+void SV_Init();
 
 void SV_StartParticle(const qfvec3& org, const qfvec3& dir,
     const int color, const int count);
@@ -221,32 +220,32 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
 
 void SV_DropClient(bool crash);
 
-void SV_SendClientMessages(void);
-void SV_ClearDatagram(void);
+void SV_SendClientMessages();
+void SV_ClearDatagram();
 
 int SV_ModelIndex(const char* name);
 
-void SV_SetIdealPitch(void);
+void SV_SetIdealPitch();
 
-void SV_AddUpdates(void);
+void SV_AddUpdates();
 
-void SV_ClientThink(void);
+void SV_ClientThink();
 void SV_AddClientToServer(struct qsocket_s* ret);
 
 void SV_ClientPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void SV_BroadcastPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 
-void SV_Physics(void);
+void SV_Physics();
 
 bool SV_CheckBottom(edict_t* ent);
 bool SV_movestep(edict_t* ent, qfvec3 move, bool relink);
 
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 
-void SV_MoveToGoal(void);
+void SV_MoveToGoal();
 
-void SV_CheckForNewClients(void);
-void SV_RunClients(void);
+void SV_CheckForNewClients();
+void SV_RunClients();
 void SV_SaveSpawnparms();
 void SV_SpawnServer(const char* server);
 

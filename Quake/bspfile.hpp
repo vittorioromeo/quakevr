@@ -400,7 +400,7 @@ int CompressVis(byte* vis, byte* dest);
 
 void LoadBSPFile(char* filename);
 void WriteBSPFile(char* filename);
-void PrintBSPFileSizes(void);
+void PrintBSPFileSizes();
 
 //===============
 

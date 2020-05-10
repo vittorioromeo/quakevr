@@ -27,8 +27,8 @@
 #define _SND_CODECI_H_
 
 /* Codec internals */
-typedef bool (*CODEC_INIT)(void);
-typedef void (*CODEC_SHUTDOWN)(void);
+typedef bool (*CODEC_INIT)();
+typedef void (*CODEC_SHUTDOWN)();
 typedef bool (*CODEC_OPEN)(snd_stream_t* stream);
 typedef int (*CODEC_READ)(snd_stream_t* stream, int bytes, void* buffer);
 typedef int (*CODEC_REWIND)(snd_stream_t* stream);

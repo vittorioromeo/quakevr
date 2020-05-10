@@ -197,6 +197,8 @@ typedef struct entvars_s
 	float	holsterweaponflags3;
 	float	holsterweaponflags4;
 	float	holsterweaponflags5;
+	float	offhand_hotspot;
+	float	mainhand_hotspot;
 	float	currentammo2;
 	float	ammocounter2;
 	float	button3;
@@ -215,30 +217,12 @@ typedef struct entvars_s
 	vec3_t	offhandavel;
 	vec3_t	muzzlepos;
 	vec3_t	offmuzzlepos;
-	float	teleporting;
+	float	vrbits0;
 	vec3_t	teleport_target;
 	vec3_t	roomscalemove;
 	float	touchinghand;
 	float	handtouch_hand;
 	int	handtouch_ent;
-	float	mainhand_grabbing;
-	float	mainhand_prevgrabbing;
-	float	offhand_grabbing;
-	float	offhand_prevgrabbing;
-	float	offhand_forcegrabbing;
-	float	mainhand_forcegrabbing;
-	float	offhand_hotspot;
-	float	mainhand_hotspot;
-	float	throwhit;
-	float	throwstabilize;
-	float	throwstabilizedim;
-	float	offhand_attack_finished;
-	float	mainhand_melee_attack_finished;
-	float	in_melee;
-	float	melee_hit_sound_played;
-	float	offhand_melee_attack_finished;
-	float	offhand_in_melee;
-	float	offhand_melee_hit_sound_played;
 } entvars_t;
 
-#define PROGHEADER_CRC 64936
+#define PROGHEADER_CRC 17469

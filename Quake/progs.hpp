@@ -71,18 +71,18 @@ extern float* pr_globals; /* same as pr_global_struct */
 extern int pr_edict_size; /* in bytes */
 
 
-void PR_Init(void);
+void PR_Init();
 
 void PR_ExecuteProgram(func_t fnum);
-void PR_LoadProgs(void);
+void PR_LoadProgs();
 
 const char* PR_GetString(int num);
 int PR_SetEngineString(const char* s);
 int PR_AllocString(int bufferlength, char** ptr);
 
-void PR_Profile_f(void);
+void PR_Profile_f();
 
-edict_t* ED_Alloc(void);
+edict_t* ED_Alloc();
 void ED_Free(edict_t* ed);
 
 void ED_Print(edict_t* ed);
@@ -121,7 +121,7 @@ int NUM_FOR_EDICT(edict_t* e);
 
 extern int type_size[8];
 
-typedef void (*builtin_t)(void);
+typedef void (*builtin_t)();
 extern builtin_t* pr_builtins;
 extern const int pr_numbuiltins;
 
@@ -138,7 +138,7 @@ extern unsigned short pr_crc;
 #pragma aux PR_RunError aborts;
 #endif
 
-void ED_PrintEdicts(void);
+void ED_PrintEdicts();
 void ED_PrintNum(int ent);
 
 eval_t* GetEdictFieldValue(edict_t* ed, const char* field);

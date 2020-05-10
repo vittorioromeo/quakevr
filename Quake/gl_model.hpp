@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "spritegn.hpp"
 #include "client.hpp"
 #include "quakeglm.hpp"
+#include "vr_macros.hpp"
 
 /*
 
@@ -37,9 +38,6 @@ m*_t structures are in-memory
 */
 
 // entity effects
-
-// TODO VR: (P2) move
-#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
 
 // clang-format off
 #define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
@@ -528,9 +526,9 @@ struct qmodel_t
 
 //============================================================================
 
-void Mod_Init(void);
-void Mod_ClearAll(void);
-void Mod_ResetAll(void); // for gamedir changes (Host_Game_f)
+void Mod_Init();
+void Mod_ClearAll();
+void Mod_ResetAll(); // for gamedir changes (Host_Game_f)
 qmodel_t* Mod_ForName(const char* name, bool crash);
 qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback);
 void* Mod_Extradata(qmodel_t* mod); // handles caching

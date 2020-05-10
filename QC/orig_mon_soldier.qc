@@ -190,7 +190,7 @@ void() army_fire =
     dir = en.origin - en.velocity*0.2;
     dir = normalize(dir - self.origin);
 
-    EnemyFireBullets (4, dir, '0.1 0.1 0');
+    EnemyFireBullets(4, dir, '0.1 0.1 0');
 
     // TODO VR: (P2) nail shooting variant?
     // makevectors(self.angles);

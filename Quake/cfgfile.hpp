@@ -26,7 +26,7 @@ int CFG_OpenConfig(const char* cfg_name);
 // opens the given config file. only one open config file is
 // kept: previosly opened one, if any, will be closed.
 
-void CFG_CloseConfig(void);
+void CFG_CloseConfig();
 // closes the currently open config file.
 
 void CFG_ReadCvars(const char** vars, int num_vars);

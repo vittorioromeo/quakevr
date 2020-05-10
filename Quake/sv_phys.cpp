@@ -1260,7 +1260,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     // decide which move function to call
     //
-    if(ent->v.teleporting == 1)
+    if(quake::util::hasFlag(ent->v.vrbits0, QVR_VRBITS0_TELEPORTING))
     {
         if(!SV_RunThink(ent))
         {

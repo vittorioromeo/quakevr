@@ -29,8 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
-void GL_EndRendering(void);
-void GL_Set2D(void);
+void GL_EndRendering();
+void GL_Set2D();
 
 extern int glx, gly, glwidth, glheight;
 
@@ -52,8 +52,8 @@ extern int glx, gly, glwidth, glheight;
 #define BACKFACE_EPSILON 0.01
 
 
-void R_TimeRefresh_f(void);
-void R_ReadPointFile_f(void);
+void R_TimeRefresh_f();
+void R_ReadPointFile_f();
 texture_t* R_TextureAnimation(texture_t* base, int frame);
 
 typedef struct surfcache_s
@@ -185,7 +185,7 @@ typedef void(APIENTRYP QS_PFNGLGETPROGRAMIVPROC)(
     GLuint program, GLenum pname, GLint* params);
 typedef void(APIENTRYP QS_PFNGLGETPROGRAMINFOLOGPROC)(
     GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog);
-typedef GLuint(APIENTRYP QS_PFNGLCREATEPROGRAMPROC)(void);
+typedef GLuint(APIENTRYP QS_PFNGLCREATEPROGRAMPROC)();
 typedef void(APIENTRYP QS_PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
 typedef void(APIENTRYP QS_PFNGLLINKPROGRAMPROC)(GLuint program);
 typedef void(APIENTRYP QS_PFNGLBINDATTRIBLOCATIONFUNC)(
@@ -340,42 +340,42 @@ extern float map_wateralpha, map_lavaalpha, map_telealpha,
     map_slimealpha; // ericw
 
 // johnfitz -- fog functions called from outside gl_fog.c
-void Fog_ParseServerMessage(void);
-float* Fog_GetColor(void);
-float Fog_GetDensity(void);
-void Fog_EnableGFog(void);
-void Fog_DisableGFog(void);
-void Fog_StartAdditive(void);
-void Fog_StopAdditive(void);
-void Fog_SetupFrame(void);
-void Fog_NewMap(void);
-void Fog_Init(void);
-void Fog_SetupState(void);
+void Fog_ParseServerMessage();
+float* Fog_GetColor();
+float Fog_GetDensity();
+void Fog_EnableGFog();
+void Fog_DisableGFog();
+void Fog_StartAdditive();
+void Fog_StopAdditive();
+void Fog_SetupFrame();
+void Fog_NewMap();
+void Fog_Init();
+void Fog_SetupState();
 
-void R_NewGame(void);
+void R_NewGame();
 
 struct dlight_t;
 
-void R_AnimateLight(void);
-void R_MarkSurfaces(void);
-void R_CullSurfaces(void);
+void R_AnimateLight();
+void R_MarkSurfaces();
+void R_CullSurfaces();
 bool R_CullBox(const qvec3& emins, const qvec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
 void R_RotateForEntity(const qvec3& origin, const qvec3& angles);
 void R_MarkLights(dlight_t* light, int num, mnode_t* node);
 
-void R_InitParticles(void);
-void R_DrawParticles(void);
-void CL_RunParticles(void);
-void R_ClearParticles(void);
+void R_InitParticles();
+void R_DrawParticles();
+void CL_RunParticles();
+void R_ClearParticles();
 
 void R_TranslatePlayerSkin(int playernum);
 void R_TranslateNewPlayerSkin(int playernum); // johnfitz -- this handles cases
                                               // when the actual texture changes
-void R_UpdateWarpTextures(void);
+void R_UpdateWarpTextures();
 
-void R_DrawWorld(void);
+void R_DrawWorld();
 void R_DrawAliasModel(entity_t* e);
 void R_DrawBrushModel(entity_t* e);
 void R_DrawSpriteModel(entity_t* e);
@@ -383,59 +383,59 @@ void R_DrawSpriteModel(entity_t* e);
 void R_DrawTextureChains_Water(
     qmodel_t* model, entity_t* ent, texchain_t chain);
 
-void R_RenderDlights(void);
-void GL_BuildLightmaps(void);
-void GL_DeleteBModelVertexBuffer(void);
-void GL_BuildBModelVertexBuffer(void);
-void GLMesh_LoadVertexBuffers(void);
-void GLMesh_DeleteVertexBuffers(void);
-void R_RebuildAllLightmaps(void);
+void R_RenderDlights();
+void GL_BuildLightmaps();
+void GL_DeleteBModelVertexBuffer();
+void GL_BuildBModelVertexBuffer();
+void GLMesh_LoadVertexBuffers();
+void GLMesh_DeleteVertexBuffers();
+void R_RebuildAllLightmaps();
 
 int R_LightPoint(const qvec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);
 void R_RenderDynamicLightmaps(msurface_t* fa);
-void R_UploadLightmaps(void);
+void R_UploadLightmaps();
 
-void R_DrawWorld_ShowTris(void);
+void R_DrawWorld_ShowTris();
 void R_DrawBrushModel_ShowTris(entity_t* e);
 void R_DrawAliasModel_ShowTris(entity_t* e);
-void R_DrawParticles_ShowTris(void);
+void R_DrawParticles_ShowTris();
 
 GLint GL_GetUniformLocation(GLuint* programPtr, const char* name);
 GLuint GL_CreateProgram(const GLchar* vertSource, const GLchar* fragSource,
     int numbindings, const glsl_attrib_binding_t* bindings);
-void R_DeleteShaders(void);
+void R_DeleteShaders();
 
-void GLWorld_CreateShaders(void);
-void GLAlias_CreateShaders(void);
+void GLWorld_CreateShaders();
+void GLAlias_CreateShaders();
 void GL_DrawAliasShadow(entity_t* e);
 void DrawGLTriangleFan(glpoly_t* p);
 void DrawGLPoly(glpoly_t* p);
 void DrawWaterPoly(glpoly_t* p);
 void GL_MakeAliasModelDisplayLists(qmodel_t* m, aliashdr_t* hdr);
 
-void Sky_Init(void);
-void Sky_DrawSky(void);
-void Sky_NewMap(void);
+void Sky_Init();
+void Sky_DrawSky();
+void Sky_NewMap();
 void Sky_LoadTexture(texture_t* mt);
 void Sky_LoadSkyBox(const char* name);
 
-void TexMgr_RecalcWarpImageSize(void);
+void TexMgr_RecalcWarpImageSize();
 
 void R_ClearTextureChains(qmodel_t* mod, texchain_t chain);
 void R_ChainSurface(msurface_t* surf, texchain_t chain);
 void R_DrawTextureChains(qmodel_t* model, entity_t* ent, texchain_t chain);
-void R_DrawWorld_Water(void);
+void R_DrawWorld_Water();
 
 void GL_BindBuffer(GLenum target, GLuint buffer);
 void GL_ClearBufferBindings();
 
-void GLSLGamma_DeleteTexture(void);
-void GLSLGamma_GammaCorrect(void);
+void GLSLGamma_DeleteTexture();
+void GLSLGamma_GammaCorrect();
 
-void R_ScaleView_DeleteTexture(void);
+void R_ScaleView_DeleteTexture();
 
 float GL_WaterAlphaForSurface(msurface_t* fa);
 

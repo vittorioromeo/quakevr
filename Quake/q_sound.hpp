@@ -92,30 +92,30 @@ typedef struct
     int dataofs; /* chunk starts this many bytes from file start	*/
 } wavinfo_t;
 
-void S_Init(void);
-void S_Startup(void);
-void S_Shutdown(void);
+void S_Init();
+void S_Startup();
+void S_Shutdown();
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
     const qvec3& origin, float fvol, float attenuation);
 void S_StaticSound(
     sfx_t* sfx, const qvec3& origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
-void S_ClearBuffer(void);
+void S_ClearBuffer();
 void S_Update(const qvec3& origin, const qvec3& forward,
     const qvec3& right, const qvec3& up);
-void S_ExtraUpdate(void);
+void S_ExtraUpdate();
 
-void S_BlockSound(void);
-void S_UnblockSound(void);
+void S_BlockSound();
+void S_UnblockSound();
 
 sfx_t* S_PrecacheSound(const char* sample);
 void S_TouchSound(const char* sample);
-void S_ClearPrecache(void);
-void S_BeginPrecaching(void);
-void S_EndPrecaching(void);
+void S_ClearPrecache();
+void S_BeginPrecaching();
+void S_EndPrecaching();
 void S_PaintChannels(int endtime);
-void S_InitPaintChannels(void);
+void S_InitPaintChannels();
 
 /* picks a channel based on priorities, empty slots, number of channels */
 channel_t* SND_PickChannel(int entnum, int entchannel);
@@ -132,22 +132,22 @@ void S_RawSamples(
 bool SNDDMA_Init(dma_t* dma);
 
 /* gets the current DMA position */
-int SNDDMA_GetDMAPos(void);
+int SNDDMA_GetDMAPos();
 
 /* shutdown the DMA xfer. */
-void SNDDMA_Shutdown(void);
+void SNDDMA_Shutdown();
 
 /* validates & locks the dma buffer */
-void SNDDMA_LockBuffer(void);
+void SNDDMA_LockBuffer();
 
 /* unlocks the dma buffer / sends sound to the device */
-void SNDDMA_Submit(void);
+void SNDDMA_Submit();
 
 /* blocks sound output upon window focus loss */
-void SNDDMA_BlockSound(void);
+void SNDDMA_BlockSound();
 
 /* unblocks the output upon window focus gain */
-void SNDDMA_UnblockSound(void);
+void SNDDMA_UnblockSound();
 
 /* ====================================================================
  * User-setable variables
@@ -191,6 +191,6 @@ sfxcache_t* S_LoadSound(sfx_t* s);
 
 wavinfo_t GetWavinfo(const char* name, byte* wav, int wavlength);
 
-void SND_InitScaletable(void);
+void SND_InitScaletable();
 
 #endif /* __QUAKE_SOUND__ */

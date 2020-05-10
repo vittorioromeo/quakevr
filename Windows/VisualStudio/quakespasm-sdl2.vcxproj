@@ -379,6 +379,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
     <ClInclude Include="..\..\Quake\vr_cvars.hpp" />
+    <ClInclude Include="..\..\Quake\vr_macros.hpp" />
     <ClInclude Include="..\..\Quake\vr_showfn.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />

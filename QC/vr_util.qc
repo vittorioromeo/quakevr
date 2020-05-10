@@ -247,14 +247,14 @@ float(float xHand) VRGetWeapon =
 
 float(entity e, float xHand) VRIsEntHandGrabbing =
 {
-    if(xHand == cVR_OffHand) return e.offhand_grabbing;
-    else                     return e.mainhand_grabbing;
+    if(xHand == cVR_OffHand) return VRGetOffHandGrabbing(e);
+    else                     return VRGetMainHandGrabbing(e);
 }
 
 float(entity e, float xHand) VRIsEntHandPrevGrabbing =
 {
-    if(xHand == cVR_OffHand) return e.offhand_prevgrabbing;
-    else                     return e.mainhand_prevgrabbing;
+    if(xHand == cVR_OffHand) return VRGetOffHandPrevGrabbing(e);
+    else                     return VRGetMainHandPrevGrabbing(e);
 }
 
 float(entity e, float xHand) VREntStartedHandGrabbing =
@@ -317,4 +317,83 @@ float(entity entTarget) VRGetHandtouchHand =
     }
 
     return entTarget.handtouch_hand;
+}
+
+// TODO VR: (P2) organize bits
+
+float(float flags, float bit) VRGetBit =
+{
+    return !!(flags & bit);
+}
+
+float(float flags, float bit, float value) VRSetBit =
+{
+    if(value)
+    {
+        return flags | bit;
+    }
+    else
+    {
+        return flags & ~bit;
+    }
+}
+
+float(entity ent) VRGetTeleporting =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING);
+}
+
+float(entity ent) VRGetOffHandGrabbing =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING);
+}
+
+float(entity ent) VRGetOffHandPrevGrabbing =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING);
+}
+
+float(entity ent) VRGetMainHandGrabbing =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING);
+}
+
+float(entity ent) VRGetMainHandPrevGrabbing =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING);
+}
+
+float(entity ent) VRGet2HAiming =
+{
+    return VRGetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING);
+}
+
+void(entity ent, float value) VRSetTeleporting =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING, value);
+}
+
+void(entity ent, float value) VRSetOffHandGrabbing =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING, value);
+}
+
+void(entity ent, float value) VRSetOffHandPrevGrabbing =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING, value);
+}
+
+void(entity ent, float value) VRSetMainHandGrabbing =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING, value);
+}
+
+void(entity ent, float value) VRSetMainHandPrevGrabbing =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING, value);
+}
+
+void(entity ent, float value) VRSet2HAiming =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
 }

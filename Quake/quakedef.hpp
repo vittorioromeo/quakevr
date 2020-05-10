@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QUAKEDEFS_H
 #define QUAKEDEFS_H
 
+#include "vr_macros.hpp"
+
 // quakedef.h -- primary header for client
 
 #define QUAKE_GAME // as opposed to utilities
@@ -158,9 +160,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPONFLAGS4 41
 #define STAT_HOLSTERWEAPONFLAGS5 42
 
-// TODO VR: (P2) move
-#define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
-
 // stock defines
 //
 // clang-format off
@@ -267,6 +266,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_HS_LEFT_UPPER_HOLSTER 8
 #define QVR_HS_RIGHT_UPPER_HOLSTER 9
 
+// Quake VR - vrbits0 bits
+// clang-format off
+#define QVR_VRBITS0_TELEPORTING           VRUTIL_POWER_OF_TWO(0)
+#define QVR_VRBITS0_OFFHAND_GRABBING      VRUTIL_POWER_OF_TWO(1)
+#define QVR_VRBITS0_OFFHAND_PREVGRABBING  VRUTIL_POWER_OF_TWO(2)
+#define QVR_VRBITS0_MAINHAND_GRABBING     VRUTIL_POWER_OF_TWO(3)
+#define QVR_VRBITS0_MAINHAND_PREVGRABBING VRUTIL_POWER_OF_TWO(4)
+#define QVR_VRBITS0_2H_AIMING             VRUTIL_POWER_OF_TWO(5)
+// clang-format on
+
 #define MAX_SCOREBOARD 16
 #define MAX_SCOREBOARDNAME 32
 
@@ -372,11 +381,11 @@ extern filelist_item_t* modlist;
 extern filelist_item_t* extralevels;
 extern filelist_item_t* demolist;
 
-void Host_ClearMemory(void);
-void Host_ServerFrame(void);
-void Host_InitCommands(void);
-void Host_Init(void);
-void Host_Shutdown(void);
+void Host_ClearMemory();
+void Host_ServerFrame();
+void Host_InitCommands();
+void Host_Init();
+void Host_Shutdown();
 void Host_Callback_Notify(cvar_t* var); /* callback function for CVAR_NOTIFY */
 void Host_Warn(const char* error, ...) FUNC_PRINTF(1, 2);
 [[noreturn]] void Host_Error(const char* error, ...) FUNC_PRINTF(1, 2);
@@ -386,16 +395,16 @@ void Host_Warn(const char* error, ...) FUNC_PRINTF(1, 2);
 #pragma aux Host_EndGame aborts;
 #endif
 void Host_Frame(float time);
-void Host_Quit_f(void);
+void Host_Quit_f();
 void Host_ClientCommands(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Host_ShutdownServer(bool crash);
-void Host_WriteConfiguration(void);
+void Host_WriteConfiguration();
 
-void ExtraMaps_Init(void);
-void Modlist_Init(void);
-void DemoList_Init(void);
+void ExtraMaps_Init();
+void Modlist_Init();
+void DemoList_Init();
 
-void DemoList_Rebuild(void);
+void DemoList_Rebuild();
 
 extern int current_skill; // skill level for currently loaded level (in case
                           //  the user changes the cvar while the level is

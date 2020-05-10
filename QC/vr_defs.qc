@@ -254,6 +254,20 @@ float QVR_VRFORCEGRABMODE_INSTANT = 3;
 //
 //
 // ----------------------------------------------------------------------------
+// Flags for VR bits: `vrbits0`
+// ----------------------------------------------------------------------------
+
+float QVR_VRBITS0_TELEPORTING           = VRUTIL_POWER_OF_TWO(0);
+float QVR_VRBITS0_OFFHAND_GRABBING      = VRUTIL_POWER_OF_TWO(1);
+float QVR_VRBITS0_OFFHAND_PREVGRABBING  = VRUTIL_POWER_OF_TWO(2);
+float QVR_VRBITS0_MAINHAND_GRABBING     = VRUTIL_POWER_OF_TWO(3);
+float QVR_VRBITS0_MAINHAND_PREVGRABBING = VRUTIL_POWER_OF_TWO(4);
+float QVR_VRBITS0_2H_AIMING             = VRUTIL_POWER_OF_TWO(5);
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Globals
 // ----------------------------------------------------------------------------
 

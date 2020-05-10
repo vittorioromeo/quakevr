@@ -95,6 +95,7 @@ extern float (*LittleFloat)(float l);
 //============================================================================
 
 void MSG_WriteChar(sizebuf_t* sb, int c);
+void MSG_WriteUnsignedChar(sizebuf_t* sb, unsigned char c);
 void MSG_WriteByte(sizebuf_t* sb, int c);
 void MSG_WriteShort(sizebuf_t* sb, int c);
 void MSG_WriteLong(sizebuf_t* sb, int c);
@@ -107,13 +108,14 @@ void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags); // johnfitz
 extern int msg_readcount;
 extern bool msg_badread; // set if a read goes beyond end of message
 
-void MSG_BeginReading(void);
-int MSG_ReadChar(void);
-int MSG_ReadByte(void);
-int MSG_ReadShort(void);
-int MSG_ReadLong(void);
-float MSG_ReadFloat(void);
-const char* MSG_ReadString(void);
+void MSG_BeginReading();
+int MSG_ReadChar();
+unsigned char MSG_ReadUnsignedChar();
+int MSG_ReadByte();
+int MSG_ReadShort();
+int MSG_ReadLong();
+float MSG_ReadFloat();
+const char* MSG_ReadString();
 
 float MSG_ReadCoord(unsigned int flags);
 float MSG_ReadAngle(unsigned int flags);
@@ -174,9 +176,9 @@ extern int safemode;
 
 int COM_CheckParm(const char* parm);
 
-void COM_Init(void);
+void COM_Init();
 void COM_InitArgv(int argc, char** argv);
-void COM_InitFilesystem(void);
+void COM_InitFilesystem();
 
 const char* COM_SkipPath(const char* pathname);
 void COM_StripExtension(const char* in, char* out, size_t outsize);
