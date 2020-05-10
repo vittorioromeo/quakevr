@@ -1,0 +1,73 @@
+../progs.dat
+#pragma autoproto
+
+defs.qc
+constants.qc
+
+maths.qc
+utility.qc
+subs.qc
+subs_move.qc
+subs_tgt.qc
+ai.qc
+meat.qc		// gibs and gore
+combat.qc	// fight.qc decrufted away
+fly.qc		// smoothed pathcorner movement
+
+items.qc
+item_health_armor.qc
+item_weap_ammo.qc
+item_powerups.qc
+item_keys_runes.qc
+item_backpack.qc
+
+projectiles.qc
+weapons.qc
+w_axe.qc
+w_lightning.qc
+w_shotguns.qc
+w_rockets.qc
+w_nails.qc
+dev.qc
+impulse.qc
+
+world.qc
+client.qc
+player.qc
+monsters.qc
+doors.qc
+buttons.qc
+triggers.qc
+t_tele.qc
+t_level.qc
+t_ctrl.qc
+plats.qc
+lights.qc
+explobox.qc
+misc.qc
+walls.qc
+sound.qc
+
+fog.qc			// atmosfear
+t_void.qc		// bottomless pits
+fx.qc			// more dots
+
+// prefixed all these so I can more easily open all the monster files at once
+m_ogre.qc
+m_demon.qc
+m_shambler.qc
+m_knight.qc
+m_soldier.qc
+m_wizard.qc
+m_dog.qc
+m_zombie.qc
+m_boss.qc
+
+m_tarbaby.qc	// registered
+m_hknight.qc	// registered
+m_fish.qc		// registered
+m_shalrath.qc	// registered
+m_enforcer.qc	// registered
+m_oldone.qc		// registered
+
+test.qc
