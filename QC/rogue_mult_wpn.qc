@@ -46,11 +46,11 @@ void(float offsetAngle) MiniGrenadeLaunch =
 
     missile.velocity = v_forward*100 + v_up*400;
     tempRand = (crandom()*60) - 30;
-    missile.velocity = missile.velocity + tempRand * v_forward;
+    missile.velocity += tempRand * v_forward;
     tempRand = (crandom()*40) - 20;
-    missile.velocity = missile.velocity + tempRand * v_right;
+    missile.velocity += tempRand * v_right;
     tempRand = (crandom()*60) - 30;
-    missile.velocity = missile.velocity + tempRand * v_up;
+    missile.velocity += tempRand * v_up;
 
     missile.avelocity = '300 300 300';
     missile.angles = vectoangles(missile.velocity);
@@ -144,7 +144,7 @@ void(float xHand) W_FireMultiGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.6);
+        missile.velocity += vrProjectileVelocity(xHand, 0.6);
     }
     else
     {
@@ -321,7 +321,7 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
         aimangle_y = aimangle_y + (offset * 0.66);
         makevectors(aimangle);
         missile.velocity = VRGetWeaponFireRotFwd(xHand) * 1000;
-        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+        missile.velocity += vrProjectileVelocity(xHand, 0.4);
 
         missile.angles = vectoangles(missile.velocity);
 
@@ -332,7 +332,7 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
     {
         makevectors(VRGetWeaponFireRot(xHand));
         missile.velocity = v_forward * 1000 - v_right*offset*8;
-        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+        missile.velocity += vrProjectileVelocity(xHand, 0.4);
 
         missile.angles = vectoangles(missile.velocity);
         missile.v_angle = self.v_angle;

@@ -11,7 +11,7 @@ entity(vector org, vector dir) launch_lava_spike =
 {
     local entity newmis;
 
-    newmis = spawn ();
+    newmis = spawn();
     newmis.owner = self;
     newmis.movetype = MOVETYPE_FLYMISSILE;
     newmis.solid = SOLID_BBOX;
@@ -49,7 +49,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     dir = v_forward;
 
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
-    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 2.0);
+    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     newmis.touch = superlavaspike_touch;
 
     setmodel(newmis, "progs/lspike.mdl");
@@ -85,7 +85,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     dir = v_forward;
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
-    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 2.0);
+    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
 

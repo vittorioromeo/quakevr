@@ -257,7 +257,7 @@ void(float AttackNumber) WrathMissile =
 
     makevectors(self.angles);
 
-    missile = spawn ();
+    missile = spawn();
     missile.owner = self;
     missile.solid = SOLID_BBOX;
     missile.movetype = MOVETYPE_FLYMISSILE;

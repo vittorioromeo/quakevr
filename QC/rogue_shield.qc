@@ -40,7 +40,7 @@ void(entity shieldOwner, vector dir) shield_spawn =
         return;
     }
 
-    newShield = spawn ();
+    newShield = spawn();
     newShield.owner = shieldOwner;
     newShield.solid = SOLID_NOT;
     newShield.takedamage = DAMAGE_NO;

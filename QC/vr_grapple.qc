@@ -264,7 +264,7 @@ void (float xHand) W_FireGrapple =
 
     makevectors(VRGetWeaponFireRot(xHand));
     newmis.velocity = v_forward * 1500;
-    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 0.6);
+    newmis.velocity += vrProjectileVelocity(xHand, 0.6);
 //    newmis.avelocity = '0 0 -500';
     newmis.angles = vectoangles(v_forward);
 

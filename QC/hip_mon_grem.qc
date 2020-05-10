@@ -1276,7 +1276,7 @@ void(float ox) Gremlin_FireLaserGun =
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
    dir = normalize(dir);
-   HIP_LaunchLaser(self.origin + '0 0 16', dir, 0);
+   HIP_LaunchLaser(self.origin + '0 0 16', dir, '0 0 0', 0);
 };
 
 /*
