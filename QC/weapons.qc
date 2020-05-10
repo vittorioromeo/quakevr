@@ -45,7 +45,7 @@ vector(float xHand, float factor) vrProjectileVelocity =
         // VR: Add hand velocity and player velocity to the final projectile
         // velocity, in order to carry momentum
         return (VRGetHandVel(xHand) * (110 * factor)) +
-               (self.velocity * pow(factor, 0.4));
+               ((self.velocity * 0.8) * pow(factor, 0.4));
     }
 
     return VEC_ORIGIN;
@@ -420,9 +420,9 @@ void() HIP_LaserThink =
     self.nextthink = time + 0.1;
 };
 
-entity(vector org, vector vec, float light) HIP_LaunchLaser =
+entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
 {
-    sound(self ,CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
+    sound(self, CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
 
     vec = normalize(vec);
 
@@ -443,7 +443,7 @@ entity(vector org, vector vec, float light) HIP_LaunchLaser =
 
     newmis.speed = 1750;
     newmis.dmg = 18;
-    newmis.velocity = vec * newmis.speed;
+    newmis.velocity = vec * newmis.speed + extraVel;
     newmis.old_velocity = newmis.velocity;
     newmis.angles = vectoangles(newmis.velocity);
     newmis.avelocity = '0 0 400';
@@ -490,33 +490,37 @@ void(float xHand, float stat) HIP_FireLaser =
     out_z = 0;
     out = normalize(out);
     org = VRGetMuzzlePos(xHand) + ((-1) * v_up) + (2*out);
-    dir = aim(self, 1000);
+    dir = VRGetWeaponFireRotFwd(xHand);
     aofs = ofs * 0.15;
 
     local entity newmis;
+    local vector extraVel;
+
+    extraVel = vrProjectileVelocity(xHand, 0.9);
 
     if(stat == 0)
     {
         delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
 
         org = org + (aofs*v_right);
-        HIP_LaunchLaser(org, dir, 0);
+        newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
         org = org - (2*aofs*v_right);
-        HIP_LaunchLaser(org, dir, 0);
+        newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
     }
     else if(stat == 1)
     {
         delAmmoAndUpdateCounter(xHand, AID_CELLS, 1);
 
         org = org + (ofs*(v_up * 0.4));
-        if(random()<0.1)
+
+        if(random() < 0.1)
         {
-            newmis = HIP_LaunchLaser(org, dir, 1);
+            newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
             newmis.dmg = 25;
         }
         else
         {
-            newmis = HIP_LaunchLaser(org, dir, 0);
+            newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
         }
     }
 
@@ -1529,7 +1533,7 @@ entity(float xHand) W_FireRocket =
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
-    missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+    missile.velocity += vrProjectileVelocity(xHand, 0.4);
 
     // set missile duration
     missile.nextthink = time + 5;
@@ -1661,7 +1665,7 @@ void(float xHand) W_FireLightning =
 
     org = VRGetMuzzlePos(xHand);
 
-    makeforward (VRGetHandRot(xHand));
+    makeforward(VRGetHandRot(xHand));
     traceline(org, org + v_forward*600, TRUE, self);
     particle2(trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
     particle2(trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
@@ -1753,7 +1757,7 @@ void(float xHand) W_FireGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.6);
+        missile.velocity += vrProjectileVelocity(xHand, 0.6);
     }
     else
     {
@@ -1933,7 +1937,7 @@ void(float xHand) W_FireProximityGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity = missile.velocity + vrProjectileVelocity(xHand, 0.4);
+        missile.velocity += vrProjectileVelocity(xHand, 0.4);
     }
     else
     {
@@ -2017,7 +2021,7 @@ void(float xHand) W_FireSuperSpikes =
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
-    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
 
@@ -2049,7 +2053,7 @@ void(float xHand, float ox) W_FireSpikes =
     dir = v_forward;
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
 
-    newmis.velocity = newmis.velocity + vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
 

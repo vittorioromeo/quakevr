@@ -50,7 +50,7 @@ void() rubble_throw =
     throw_y = throw_y + (random() * 0.2) - 0.1;
     throw_z = throw_z + (random() * 0.2) - 0.1;
 
-    rubble = spawn ();
+    rubble = spawn();
     rubble.owner = self;
     rubble.classname = "rubble";
     rubble.movetype = MOVETYPE_BOUNCE;

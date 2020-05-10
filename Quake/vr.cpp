@@ -4073,16 +4073,71 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P0) check axe and gun melee collision bug, doesn't seem responsive
 // (seems better now, but test more)
 
-// TODO VR: (P1) consider toning animation down while aiming 2h, might
-// need a new weapon cvar and significant work
 
 // TODO VR: (P0) remove existing sv_player usages, or change to to
 // svs.client edicts.  I believe that, by definition, svs.clients[0] is the
 // local player
 
-// TODO VR: (P1) add tooltip to off-hand option menu in wpn config
-
 // TODO VR: (P0) remove/fix prevweapon binding, and off-hand cycle binding
+
+// TODO VR: (P0) melee damage far too weak with weighted weapons, increase
+
+// TODO VR: (P0) force grab seems bugged when hand is hovering player bbox -
+// possible handtouch issue?
+
+// TODO VR: (P0) the reason why some monsters are stuck in geometry is that
+// their spawn location is not correct anymore due to the changed hitboxes.
+// Their origin needs to be fixed as well. This is the same bug as the biosuit
+// one
+
+// TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
+// goes down
+
+// TODO VR: (P0) player death animation is bugged in mp probably has to do with
+// player_run
+
+// TODO VR: (P0): Map menu needs paging
+
+// TODO VR: (P0): "no hand posing occurs at all on Oculus CV1"
+
+// TODO VR: (P0): "fingers don't move at all on non-index controllers, and even
+// then, the hands were designed to have the thumb mostly closed unless it's
+// 2handing something"
+
+// TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
+// in certain situations I can't figure out a pattern for, such as
+// overshooting."
+
+// TODO VR: (P0): "All end of level secrets show more secrets complete than
+// existing, e.g.: 13/7 secrets"
+
+// TODO VR: (P0): bots dont seem to pick up weapons
+
+// TODO VR: (P0): bots dont seem to drop powerups
+
+// TODO VR: (P0): superhealth respawn too short?
+
+// TODO VR: (P0): holster haptic are always continuous in deathmatch, probably
+// bots triggering it?
+
+
+
+// TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
+// no ammo can be found?" "I might consider randomly spawning some, controlling
+// the spawn rate with a CVar. Why not"
+
+// TODO VR: (P1): plasma gun needs vrprojectilevelocity
+
+// TODO VR: (P1) "Some weapons are so long that they physics collide with the
+// floor to prevent your hand from touching health pickups, so you need to do an
+// awkward wrist movement to allow your hand to near the health pickup. Seems
+// most obvious with the rocket launcher. In my opinion held weapons should just
+// collect pickups when colliding instead."
+
+// TODO VR: (P1) consider toning animation down while aiming 2h, might
+// need a new weapon cvar and significant work
+
+// TODO VR: (P1) add tooltip to off-hand option menu in wpn config
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
@@ -4092,39 +4147,6 @@ void VR_Move(usercmd_t* cmd)
 // bit, or glow, or bloom effect on vision edge (complementary to haptics)
 
 // TODO VR: (P1) melee doesn't work with laser cannon - intended? test
-
-// TODO VR: (P0) melee damage far too weak with weighted weapons, increase
-
-// TODO VR: (P2) "it seems to be a bit strange to me that I can hold down the
-// trigger on the shotguns"
-
-// TODO VR: (P2) consider adding ghost hands
-
-// TODO VR: (P2) scourge of armagon music?
-
-// TODO VR: (P2) consider new particle effect for shootable weapons and walls
-// instead of blood
-
-// TODO VR: (P2) add general cvars for health and damage multipliers
-
-// TODO VR: (P2) add option to disable ogre mirvs?
-
-// TODO VR: (P2) add option to pause game on SteamVR dash open
-
-// TODO VR: (P2) immersive swimming
-
-// TODO VR: (P0) force grab seems bugged when hand is hovering player bbox -
-// possible handtouch issue?
-
-// TODO VR: (P2): "the problem with turning up the QuakeVR particle
-// system is that beyond a certain point it all starts to overlap. It would be
-// nice if the value also somewhat increased the spread or distance of the
-// particles too, just to make it a bit messier"
-
-// TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
-// below, it seems like you need to position your body over the ledge
-// specifically so that a specific point of your body has a direct line of sight
-// to the weapon" - this might be related to water
 
 // TODO VR: (P1): "I had let go of weapon grabs between a level end and next
 // level start and upon next level spawn the main hand weapon was nowhere to be
@@ -4146,31 +4168,6 @@ void VR_Move(usercmd_t* cmd)
 // release the grip button?"
 
 // TODO VR: (P1) add system to load multiple folders at once (like paks)
-
-// TODO VR: (P2) "The force grab seems a bit strange to me though, requiring me
-// to press both the trigger and grip at once, then it doesn't quite come right
-// to my hand, and I have to then release the buttons and then press grip again
-// to finally grab it. Could do with a bit of a tweak, and obviously Half-Life:
-// Alyx is the perfect example to rip off here."
-
-// TODO VR: (P2) "Also, snap turning seems to have a tiny bit of lag and/or not
-// work some of the time. And I don't mean because of any kind of dead zone as
-// I've tried that at different settings already. Maybe just double check
-// there's not a bit of a code conflict, like maybe if you flick once you can't
-// quite flick immediately again in some cases or something."
-
-// TODO VR: (P0) the reason why some monsters are stuck in geometry is that
-// their spawn location is not correct anymore due to the changed hitboxes.
-// Their origin needs to be fixed as well. This is the same bug as the biosuit
-// one
-
-// TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from the
-// mission packs, it uses the same soundtrack for all of them (eg if you were
-// playing SOA, it would still play the original quake soundtrack unless you
-// replaced the files manually)"
-
-// TODO VR: (P2) "Hopefully that can be fixed, along with merging the start map
-// together into one giant hubworld"
 
 // TODO VR: (P1) Swimming direction - what controller to follow?
 
@@ -4195,17 +4192,55 @@ void VR_Move(usercmd_t* cmd)
 // then you don't have to worry about the progs.dat in the hipnotic/rogue
 // subdirs taking precidence."
 
-// TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
-// goes down
+// TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
+// below, it seems like you need to position your body over the ledge
+// specifically so that a specific point of your body has a direct line of sight
+// to the weapon" - this might be related to water
 
-// TODO VR: (P0) player death animation is bugged in mp probably has to do with
-// player_run
 
-// TODO VR: (P1) "Some weapons are so long that they physics collide with the
-// floor to prevent your hand from touching health pickups, so you need to do an
-// awkward wrist movement to allow your hand to near the health pickup. Seems
-// most obvious with the rocket launcher. In my opinion held weapons should just
-// collect pickups when colliding instead."
+
+// TODO VR: (P2) "it seems to be a bit strange to me that I can hold down the
+// trigger on the shotguns"
+
+// TODO VR: (P2) consider adding ghost hands
+
+// TODO VR: (P2) scourge of armagon music?
+
+// TODO VR: (P2) consider new particle effect for shootable weapons and walls
+// instead of blood
+
+// TODO VR: (P2) add general cvars for health and damage multipliers
+
+// TODO VR: (P2) add option to disable ogre mirvs?
+
+// TODO VR: (P2) add option to pause game on SteamVR dash open
+
+// TODO VR: (P2) immersive swimming
+
+// TODO VR: (P2): "the problem with turning up the QuakeVR particle
+// system is that beyond a certain point it all starts to overlap. It would be
+// nice if the value also somewhat increased the spread or distance of the
+// particles too, just to make it a bit messier"
+
+// TODO VR: (P2) "The force grab seems a bit strange to me though, requiring me
+// to press both the trigger and grip at once, then it doesn't quite come right
+// to my hand, and I have to then release the buttons and then press grip again
+// to finally grab it. Could do with a bit of a tweak, and obviously Half-Life:
+// Alyx is the perfect example to rip off here."
+
+// TODO VR: (P2) "Also, snap turning seems to have a tiny bit of lag and/or not
+// work some of the time. And I don't mean because of any kind of dead zone as
+// I've tried that at different settings already. Maybe just double check
+// there's not a bit of a code conflict, like maybe if you flick once you can't
+// quite flick immediately again in some cases or something."
+
+// TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from the
+// mission packs, it uses the same soundtrack for all of them (eg if you were
+// playing SOA, it would still play the original quake soundtrack unless you
+// replaced the files manually)"
+
+// TODO VR: (P2) "Hopefully that can be fixed, along with merging the start map
+// together into one giant hubworld"
 
 // TODO VR: (P2) "The lava splash noise just seems plain wrong, too watery. Even
 // silent would be better, in the case of the molten rocks"
@@ -4217,24 +4252,3 @@ void VR_Move(usercmd_t* cmd)
 // unreliable, whereas others its fine. Is force grab code unchanged in 0.0.5 or
 // is it helpful to try and replicate? I was having most issues when holding
 // with right hand and trying to force grab with left."
-
-// TODO VR: (P0): Map menu needs paging
-
-// TODO VR: (P0): "no hand posing occurs at all on Oculus CV1"
-
-// TODO VR: (P0): "fingers don't move at all on non-index controllers, and even
-// then, the hands were designed to have the thumb mostly closed unless it's
-// 2handing something"
-
-// TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
-// in certain situations I can't figure out a pattern for, such as
-// overshooting."
-
-// TODO VR: (P0): "All end of level secrets show more secrets complete than
-// existing, e.g.: 13/7 secrets"
-
-// TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
-// no ammo can be found?" "I might consider randomly spawning some, controlling
-// the spawn rate with a CVar. Why not"
-
-// TODO VR: (P0): plasma and laser gun need vrprojectilevelocity

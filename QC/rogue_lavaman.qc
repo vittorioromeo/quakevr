@@ -371,7 +371,7 @@ void(float AttackNumber) lavaman_missile =
 
     vec = normalize(d - org);
 
-    fireball = spawn ();
+    fireball = spawn();
     fireball.owner = self;
 //    fireball.movetype = MOVETYPE_FLYMISSILE;
     fireball.movetype = MOVETYPE_BOUNCE;

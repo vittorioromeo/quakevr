@@ -122,7 +122,7 @@ void(float ofs) armagon_launch_laser =
       vec=v_forward;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
-   HIP_LaunchLaser(src, vec, 0);
+   HIP_LaunchLaser(src, vec, '0 0 0', 0);
    };
 
 void(float angdelta, float delta) armagon_turn =
