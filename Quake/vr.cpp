@@ -3903,19 +3903,43 @@ void VR_Move(usercmd_t* cmd)
     cmd->muzzlepos = VR_CalcFinalWpnMuzzlePos(cVR_MainHand);
     cmd->offmuzzlepos = VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
 
+    // VR: Teleportation.
+    const bool teleporting = std::exchange(vr_send_teleport_msg, false);
+    if(teleporting)
+    {
+        cmd->teleport_target = vr_teleporting_impact;
+    }
+
     // VR: Buttons and instant controller actions.
     // VR: Query state of controller axes.
     const auto [fwdMove, sideMove, yawMove] = VR_DoInput();
 
-    // VR: Teleportation.
-    if(std::exchange(vr_send_teleport_msg, false))
+    // VR: VR-related bits.
     {
-        cmd->teleporting = 1;
-        cmd->teleport_target = vr_teleporting_impact;
-    }
-    else
-    {
-        cmd->teleporting = 0;
+        const auto setBit = [](unsigned char& flags, const int bit,
+                                const bool value) {
+            if(value)
+            {
+                flags |= bit;
+            }
+            else
+            {
+                flags &= ~bit;
+            }
+        };
+
+        const bool twoHAiming = (vr_2h_aim_transition[cVR_OffHand] >= 0.5f) ||
+                                (vr_2h_aim_transition[cVR_MainHand] >= 0.5f);
+
+        cmd->vrbits0 = 0;
+        setBit(cmd->vrbits0, QVR_VRBITS0_TELEPORTING, teleporting);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_GRABBING, vr_left_grabbing);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING,
+            vr_left_prevgrabbing);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_GRABBING, vr_right_grabbing);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING,
+            vr_right_prevgrabbing);
+        setBit(cmd->vrbits0, QVR_VRBITS0_2H_AIMING, twoHAiming);
     }
 
     // VR: Hands.
@@ -3970,10 +3994,7 @@ void VR_Move(usercmd_t* cmd)
         return QVR_HS_NONE;
     };
 
-    cmd->offhand_grabbing = vr_left_grabbing;
-    cmd->offhand_prevgrabbing = vr_left_prevgrabbing;
-    cmd->mainhand_grabbing = vr_right_grabbing;
-    cmd->mainhand_prevgrabbing = vr_right_prevgrabbing;
+
 
     cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
     cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);
@@ -4134,9 +4155,6 @@ void VR_Move(usercmd_t* cmd)
 // most obvious with the rocket launcher. In my opinion held weapons should just
 // collect pickups when colliding instead."
 
-// TODO VR: (P1) consider toning animation down while aiming 2h, might
-// need a new weapon cvar and significant work
-
 // TODO VR: (P1) add tooltip to off-hand option menu in wpn config
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
@@ -4191,6 +4209,8 @@ void VR_Move(usercmd_t* cmd)
 // below, it seems like you need to position your body over the ledge
 // specifically so that a specific point of your body has a direct line of sight
 // to the weapon" - this might be related to water
+
+// TODO VR: (P1): headbutt mechanic
 
 
 

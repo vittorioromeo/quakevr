@@ -183,43 +183,19 @@ void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem =
 
     if(itemCategory == IID_CATEGORY_ITEMS)
     {
-        if(xOwned)
-        {
-            xEnt.items = xEnt.items | itemFlag;
-        }
-        else
-        {
-            xEnt.items = xEnt.items & ~itemFlag;
-        }
-
+        xEnt.items = VRSetBit(xEnt.items, itemFlag, xOwned);
         return;
     }
 
     if(itemCategory == IID_CATEGORY_HIPNOTIC_ITEMS)
     {
-        if(xOwned)
-        {
-            xEnt.hipnotic_items = xEnt.hipnotic_items | itemFlag;
-        }
-        else
-        {
-            xEnt.hipnotic_items = xEnt.hipnotic_items & ~itemFlag;
-        }
-
+        xEnt.hipnotic_items = VRSetBit(xEnt.hipnotic_items, itemFlag, xOwned);
         return;
     }
 
     if(itemCategory == IID_CATEGORY_ROGUE_ITEMS)
     {
-        if(xOwned)
-        {
-            xEnt.rogue_items = xEnt.rogue_items | itemFlag;
-        }
-        else
-        {
-            xEnt.rogue_items = xEnt.rogue_items & ~itemFlag;
-        }
-
+        xEnt.rogue_items = VRSetBit(xEnt.rogue_items, itemFlag, xOwned);
         return;
     }
 

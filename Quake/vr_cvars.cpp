@@ -34,8 +34,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
-DEFINE_CVAR(vr_novrinit, 1, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
+DEFINE_CVAR(vr_novrinit, 0, CVAR_NONE);
 
 //
 //
@@ -160,6 +160,8 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 18.0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_particles, 1);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
+DEFINE_CVAR_ARCHIVE(vr_2h_spread_reduction, 0.5);
+DEFINE_CVAR_ARCHIVE(vr_2h_throw_velocity_mult, 1.4);
 
 //
 //

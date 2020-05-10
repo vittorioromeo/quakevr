@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // sys.h -- non-portable functions
 
-void Sys_Init(void);
+void Sys_Init();
 
 //
 // file IO
@@ -46,7 +46,7 @@ void Sys_mkdir(const char* path);
 //
 // system IO
 //
-[[noreturn]] void Sys_Quit(void);
+[[noreturn]] void Sys_Quit();
 [[noreturn]] void Sys_Error(const char* error, ...) FUNC_PRINTF(1, 2);
 // an error will cause the entire program to exit
 #ifdef __WATCOMC__
@@ -57,14 +57,14 @@ void Sys_mkdir(const char* path);
 void Sys_Printf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 // send text to the console
 
-double Sys_DoubleTime(void);
+double Sys_DoubleTime();
 
-const char* Sys_ConsoleInput(void);
+const char* Sys_ConsoleInput();
 
 void Sys_Sleep(unsigned long msecs);
 // yield for about 'msecs' milliseconds.
 
-void Sys_SendKeyEvents(void);
+void Sys_SendKeyEvents();
 // Perform Key_Event () callbacks until the input que is empty
 
 #endif /* _QUAKE_SYS_H */

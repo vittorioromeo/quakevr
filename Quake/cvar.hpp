@@ -124,7 +124,7 @@ float Cvar_VariableValue(const char* var_name);
 const char* Cvar_VariableString(const char* var_name);
 // returns an empty string if not defined
 
-bool Cvar_Command(void);
+bool Cvar_Command();
 // called by Cmd_ExecuteString when Cmd_Argv(0) doesn't match a known
 // command.  Returns true if the command was a variable reference that
 // was handled. (print or change)
@@ -138,9 +138,9 @@ cvar_t* Cvar_FindVarAfter(const char* prev_name, unsigned int with_flags);
 
 void Cvar_LockVar(const char* var_name);
 void Cvar_UnlockVar(const char* var_name);
-void Cvar_UnlockAll(void);
+void Cvar_UnlockAll();
 
-void Cvar_Init(void);
+void Cvar_Init();
 
 const char* Cvar_CompleteVariable(const char* partial);
 // attempts to match a partial variable name for command line completion

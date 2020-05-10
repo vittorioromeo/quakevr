@@ -23,13 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __NET_WINSOCK_H
 #define __NET_WINSOCK_H
 
-sys_socket_t WINS_Init(void);
-void WINS_Shutdown(void);
+sys_socket_t WINS_Init();
+void WINS_Shutdown();
 void WINS_Listen(bool state);
 sys_socket_t WINS_OpenSocket(int port);
 int WINS_CloseSocket(sys_socket_t socketid);
 int WINS_Connect(sys_socket_t socketid, struct qsockaddr* addr);
-sys_socket_t WINS_CheckNewConnections(void);
+sys_socket_t WINS_CheckNewConnections();
 int WINS_Read(
     sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);
 int WINS_Write(

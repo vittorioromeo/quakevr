@@ -482,6 +482,9 @@
     <ClInclude Include="..\..\Quake\vr_showfn.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Quake\vr_macros.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\QuakeSpasm.rc">

@@ -955,16 +955,17 @@ void() PutClientInServer =
     self.handavel = '0 0 0';
     self.offhandavel = '0 0 0';
 
-    self.offhand_grabbing = FALSE;
-    self.offhand_prevgrabbing = FALSE;
-
-    self.mainhand_grabbing = FALSE;
-    self.mainhand_prevgrabbing = FALSE;
+    VRSetTeleporting(self, FALSE);
+    VRSetOffHandGrabbing(self, FALSE);
+    VRSetOffHandPrevGrabbing(self, FALSE);
+    VRSetMainHandGrabbing(self, FALSE);
+    VRSetMainHandPrevGrabbing(self, FALSE);
+    VRSet2HAiming(self, FALSE);
 
     self.offhand_forcegrabbing = FALSE;
     self.mainhand_forcegrabbing = FALSE;
 
-    spawn_tdeath (self.origin, self);
+    spawn_tdeath(self.origin, self);
 
     readytime = time + 0.5;
 

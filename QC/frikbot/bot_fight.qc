@@ -370,11 +370,12 @@ void() bot_setvrfields =
     self.muzzlepos = self.origin + '0 0 16';
     self.offmuzzlepos = self.origin + '0 0 16';
 
-    self.mainhand_grabbing = TRUE;
-    self.mainhand_prevgrabbing = TRUE;
-
-    self.offhand_grabbing = TRUE;
-    self.offhand_prevgrabbing = TRUE;
+    VRSetTeleporting(self, FALSE);
+    VRSetOffHandGrabbing(self, TRUE);
+    VRSetOffHandPrevGrabbing(self, TRUE);
+    VRSetMainHandGrabbing(self, TRUE);
+    VRSetMainHandPrevGrabbing(self, TRUE);
+    VRSet2HAiming(self, FALSE);
 }
 
 void() bot_shoot =

@@ -23,13 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __net_udp_h
 #define __net_udp_h
 
-sys_socket_t UDP_Init(void);
-void UDP_Shutdown(void);
+sys_socket_t UDP_Init();
+void UDP_Shutdown();
 void UDP_Listen(bool state);
 sys_socket_t UDP_OpenSocket(int port);
 int UDP_CloseSocket(sys_socket_t socketid);
 int UDP_Connect(sys_socket_t socketid, struct qsockaddr* addr);
-sys_socket_t UDP_CheckNewConnections(void);
+sys_socket_t UDP_CheckNewConnections();
 int UDP_Read(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);
 int UDP_Write(
     sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);

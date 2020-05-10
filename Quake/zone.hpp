@@ -138,14 +138,14 @@ void Hunk_FreeToHighMark(const int mark) noexcept;
 
 void* Hunk_TempAlloc(int size);
 
-void Hunk_Check(void);
+void Hunk_Check();
 
 typedef struct cache_user_s
 {
     void* data;
 } cache_user_t;
 
-void Cache_Flush(void);
+void Cache_Flush();
 
 void* Cache_Check(cache_user_t* c);
 // returns the cached data, and moves to the head of the LRU list
@@ -158,6 +158,6 @@ void* Cache_Alloc(cache_user_t* c, int size, const char* name);
 // Returns nullptr if all purgable data was tossed and there still
 // wasn't enough room.
 
-void Cache_Report(void);
+void Cache_Report();
 
 #endif /* __ZZONE_H */

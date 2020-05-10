@@ -584,21 +584,18 @@ void CL_SendMove(const usercmd_t* cmd)
     // offmuzzlepos
     writeVec(cmd->offmuzzlepos);
 
+    // vrbits0
+    MSG_WriteUnsignedChar(&buf, cmd->vrbits0);
+
     // movement
     MSG_WriteShort(&buf, cmd->forwardmove);
     MSG_WriteShort(&buf, cmd->sidemove);
     MSG_WriteShort(&buf, cmd->upmove);
 
     // teleportation
-    MSG_WriteByte(&buf, cmd->teleporting);
     writeVec(cmd->teleport_target);
 
-    // TODO VR: (P1) MP optimization: use bitset
     // hands
-    MSG_WriteByte(&buf, cmd->offhand_grabbing);
-    MSG_WriteByte(&buf, cmd->offhand_prevgrabbing);
-    MSG_WriteByte(&buf, cmd->mainhand_grabbing);
-    MSG_WriteByte(&buf, cmd->mainhand_prevgrabbing);
     MSG_WriteByte(&buf, cmd->offhand_hotspot);
     MSG_WriteByte(&buf, cmd->mainhand_hotspot);
 

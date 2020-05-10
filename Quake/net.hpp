@@ -47,10 +47,10 @@ extern sizebuf_t net_message;
 extern int net_activeconnections;
 
 
-void NET_Init(void);
-void NET_Shutdown(void);
+void NET_Init();
+void NET_Shutdown();
 
-struct qsocket_s* NET_CheckNewConnections(void);
+struct qsocket_s* NET_CheckNewConnections();
 // returns a new connection number if there is one pending, else -1
 
 struct qsocket_s* NET_Connect(const char* host);
@@ -89,7 +89,7 @@ void NET_Close(struct qsocket_s* sock);
 // from a server.
 // A netcon_t number will not be reused until this function is called for it
 
-void NET_Poll(void);
+void NET_Poll();
 
 
 // Server list related globals:
@@ -99,8 +99,8 @@ extern bool slistLocal;
 
 extern int hostCacheCount;
 
-void NET_Slist_f(void);
-void NET_SlistSort(void);
+void NET_Slist_f();
+void NET_SlistSort();
 const char* NET_SlistPrintServer(int n);
 const char* NET_SlistPrintServerName(int n);
 

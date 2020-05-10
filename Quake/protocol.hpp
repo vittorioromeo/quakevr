@@ -305,6 +305,7 @@ struct usercmd_t
     qfvec3 offhandavel;
     qfvec3 muzzlepos;
     qfvec3 offmuzzlepos;
+    unsigned char vrbits0;
 
     // intended velocities
     float forwardmove;
@@ -312,14 +313,9 @@ struct usercmd_t
     float upmove;
 
     // VR teleportation
-    int teleporting;
     qfvec3 teleport_target;
 
     // VR hands
-    int offhand_grabbing;
-    int offhand_prevgrabbing;
-    int mainhand_grabbing;
-    int mainhand_prevgrabbing;
     int offhand_hotspot;
     int mainhand_hotspot;
 

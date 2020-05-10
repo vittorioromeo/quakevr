@@ -39,8 +39,8 @@ extern char con_lastcenterstring[]; // johnfitz
 
 void Con_DrawCharacter(int cx, int line, int num);
 
-void Con_CheckResize(void);
-void Con_Init(void);
+void Con_CheckResize();
+void Con_Init();
 void Con_DrawConsole(int lines, bool drawinput);
 void Con_Printf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DWarning(const char* fmt, ...) FUNC_PRINTF(1, 2); // ericw
@@ -48,25 +48,25 @@ void Con_Warning(const char* fmt, ...) FUNC_PRINTF(1, 2);  // johnfitz
 void Con_DPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DPrintf2(const char* fmt, ...) FUNC_PRINTF(1, 2); // johnfitz
 void Con_SafePrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
-void Con_DrawNotify(void);
-void Con_ClearNotify(void);
-void Con_ToggleConsole_f(void); 
+void Con_DrawNotify();
+void Con_ClearNotify();
+void Con_ToggleConsole_f();
 
 void Con_NotifyBox(const char* text); // during startup for sound / cd warnings
 
-void Con_Show(void);
-void Con_Hide(void);
+void Con_Show();
+void Con_Hide();
 
 const char* Con_Quakebar(int len);
-void Con_TabComplete(void);
+void Con_TabComplete();
 void Con_LogCenterPrint(const char* str);
 
 //
 // debuglog
 //
-struct quakeparms_t; 
+struct quakeparms_t;
 void LOG_Init(quakeparms_t* parms);
-void LOG_Close(void);
+void LOG_Close();
 void Con_DebugLog(const char* msg);
 
 #endif /* __CONSOLE_H */

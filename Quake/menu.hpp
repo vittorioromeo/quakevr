@@ -89,17 +89,17 @@ extern bool m_entersound;
 //
 // menus
 //
-void M_Init(void);
+void M_Init();
 void M_Keydown(int key);
 void M_Charinput(int key);
-bool M_TextEntry(void);
-void M_ToggleMenu_f(void);
+bool M_TextEntry();
+void M_ToggleMenu_f();
 
-void M_Menu_Main_f(void);
-void M_Menu_Options_f(void);
+void M_Menu_Main_f();
+void M_Menu_Options_f();
 void M_Menu_QuakeVRSettings_f();
 void M_Menu_QuakeVRDevTools_f();
-void M_Menu_Quit_f(void);
+void M_Menu_Quit_f();
 
 void M_Print(int cx, int cy, const char* str);
 void M_PrintWithNewLine(int cx, int cy, const char* str);
@@ -107,7 +107,7 @@ void M_PrintWhite(int cx, int cy, const char* str);
 void M_PrintWhiteWithNewLine(int cx, int cy, const char* str);
 void M_PrintWhiteByWrapping(const int wrapCount, int cx, int cy, const char* str);
 
-void M_Draw(void);
+void M_Draw();
 void M_DrawCharacter(int cx, int line, int num);
 
 void M_DrawSlider(int x, int y, float range);

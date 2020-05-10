@@ -755,6 +755,19 @@ void MSG_WriteChar(sizebuf_t* sb, int c)
     buf[0] = c;
 }
 
+void MSG_WriteUnsignedChar(sizebuf_t* sb, unsigned char c)
+{
+    byte* buf;
+
+#ifdef PARANOID
+    // TODO VR: (P2) always fires
+    // if(c < 0 || c > 255) Sys_Error("MSG_WriteByte: range error");
+#endif
+
+    buf = (byte*)SZ_GetSpace(sb, 1);
+    buf[0] = c;
+}
+
 void MSG_WriteByte(sizebuf_t* sb, int c)
 {
     byte* buf;
@@ -915,6 +928,22 @@ int MSG_ReadChar()
     }
 
     c = (signed char)net_message.data[msg_readcount];
+    msg_readcount++;
+
+    return c;
+}
+
+unsigned char MSG_ReadUnsignedChar()
+{
+    unsigned char c;
+
+    if(msg_readcount + 1 > net_message.cursize)
+    {
+        msg_badread = true;
+        return -1;
+    }
+
+    c = (unsigned char)net_message.data[msg_readcount];
     msg_readcount++;
 
     return c;

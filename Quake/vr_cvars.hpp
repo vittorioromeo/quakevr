@@ -131,6 +131,8 @@ extern cvar_t vr_forcegrab_radius;
 extern cvar_t vr_weapondrop_particles;
 extern cvar_t vr_forcegrab_eligible_particles;
 extern cvar_t vr_forcegrab_eligible_haptics;
+extern cvar_t vr_2h_spread_reduction;
+extern cvar_t vr_2h_throw_velocity_mult;
 
 //
 //

@@ -26,19 +26,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // screen.h
 
-void SCR_Init(void);
-void SCR_LoadPics(void);
+void SCR_Init();
+void SCR_LoadPics();
 
-void SCR_UpdateScreen(void);
+void SCR_UpdateScreen();
 
 
-void SCR_SizeUp(void);
-void SCR_SizeDown(void);
-void SCR_BringDownConsole(void);
+void SCR_SizeUp();
+void SCR_SizeDown();
+void SCR_BringDownConsole();
 void SCR_CenterPrint(const char* str);
 
-void SCR_BeginLoadingPlaque(void);
-void SCR_EndLoadingPlaque(void);
+void SCR_BeginLoadingPlaque();
+void SCR_EndLoadingPlaque();
 
 int SCR_ModalMessage(
     const char* text, float timeout); // johnfitz -- added timeout
@@ -56,7 +56,7 @@ extern cvar_t scr_viewsize;
 
 extern cvar_t scr_sbaralpha; // johnfitz
 
-void SCR_UpdateWholeScreen(void);
+void SCR_UpdateWholeScreen();
 
 // johnfitz -- stuff for 2d drawing control
 typedef enum

@@ -157,24 +157,24 @@ extern refdef_t r_refdef;
 extern qvec3 r_origin, vpn, vright, vup;
 
 
-void R_Init(void);
-void R_InitTextures(void);
-void R_InitEfrags(void);
-void R_RenderView(void); // must set r_refdef first
-void R_RenderScene(void);
+void R_Init();
+void R_InitTextures();
+void R_InitEfrags();
+void R_RenderView(); // must set r_refdef first
+void R_RenderScene();
 void R_DrawViewModel(entity_t* viewent);
 void R_ViewChanged(vrect_t* pvrect, int lineadj, float aspect);
 // called whenever r_refdef or vid change
 // void R_InitSky (struct texture_s *mt);	// called at level load
 
-void R_CheckEfrags(void); // johnfitz
+void R_CheckEfrags(); // johnfitz
 void R_AddEfrags(entity_t* ent);
 
-void R_NewMap(void);
+void R_NewMap();
 
 
-void R_ParseParticleEffect(void);
-void R_ParseParticle2Effect(void);
+void R_ParseParticleEffect();
+void R_ParseParticle2Effect();
 void R_RunParticle2Effect(
     const qvec3& org, const qvec3& dir, int preset, int count);
 void R_RunParticleEffect_BulletPuff(
@@ -188,7 +188,7 @@ void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength);
 void R_LavaSplash(const qvec3& org);
 void R_TeleportSplash(const qvec3& org);
 
-void R_PushDlights(void);
+void R_PushDlights();
 
 struct aliashdr_t;
 struct lerpdata_t;
@@ -206,8 +206,8 @@ extern int reinit_surfcache; // if 1, surface cache is currently empty and
 extern bool r_cache_thrash;  // set if thrashing the surface cache
 
 int D_SurfaceCacheForRes(int width, int height);
-void D_FlushCaches(void);
-void D_DeleteSurfaceCache(void);
+void D_FlushCaches();
+void D_DeleteSurfaceCache();
 void D_InitCaches(void* buffer, int size);
 void R_SetVrect(vrect_t* pvrect, vrect_t* pvrectin, int lineadj);
 

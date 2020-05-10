@@ -55,7 +55,7 @@ struct trace_t
 // QSS
 #define MOVE_HITALLCONTENTS (1 << 9)
 
-void SV_ClearWorld(void);
+void SV_ClearWorld();
 // called after the world model has been loaded, before linking any entities
 
 void SV_UnlinkEdict(edict_t* ent);
