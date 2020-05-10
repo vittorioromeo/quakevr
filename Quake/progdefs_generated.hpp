@@ -215,6 +215,7 @@ typedef struct entvars_s
 	vec3_t	offhandthrowvel;
 	float	offhandvelmag;
 	vec3_t	offhandavel;
+	vec3_t	headvel;
 	vec3_t	muzzlepos;
 	vec3_t	offmuzzlepos;
 	float	vrbits0;
@@ -225,4 +226,4 @@ typedef struct entvars_s
 	int	handtouch_ent;
 } entvars_t;
 
-#define PROGHEADER_CRC 17469
+#define PROGHEADER_CRC 39962

@@ -188,6 +188,7 @@ struct client_state_t
     qvec3 handthrowvel[2];
     float handvelmag[2];
     qvec3 handavel[2];
+    qvec3 headvel;
 
     qvec3 mvelocity[2]; // update by server, used for lean+bob
                         // (0 is newest)

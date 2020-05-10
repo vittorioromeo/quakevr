@@ -135,6 +135,7 @@ DEFINE_CVAR_ARCHIVE(vr_holster_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_player_shadows, 2);
 DEFINE_CVAR_ARCHIVE(vr_positional_damage, 1);
 DEFINE_CVAR_ARCHIVE(vr_debug_print_handvel, 0);
+DEFINE_CVAR_ARCHIVE(vr_debug_print_headvel, 0);
 DEFINE_CVAR_ARCHIVE(vr_debug_show_hand_pos_and_rot, 0);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_enabled, 1);
 DEFINE_CVAR_ARCHIVE(vr_leg_holster_model_scale, 1);
@@ -162,6 +163,8 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
 DEFINE_CVAR_ARCHIVE(vr_2h_spread_reduction, 0.5);
 DEFINE_CVAR_ARCHIVE(vr_2h_throw_velocity_mult, 1.4);
+DEFINE_CVAR_ARCHIVE(vr_headbutt_velocity_threshold, 2.05);
+DEFINE_CVAR_ARCHIVE(vr_headbutt_damage_mult, 32);
 
 //
 //
