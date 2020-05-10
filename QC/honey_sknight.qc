@@ -305,23 +305,23 @@ void() monster_sknight =
         remove(self);
         return;
     }
-    //precache_model2 ("progs/sknight.mdl");
-    precache_model2 ("progs/hknight.mdl");
-    precache_model2 ("progs/k_spike.mdl");
-    precache_model2 ("progs/h_hellkn.mdl");
-    precache_model2 ("progs/spear.mdl");
-    precache_model2 ("progs/s_light.spr");
-    precache_model2 ("progs/s_bubble.spr");
+    //precache_model2("progs/sknight.mdl");
+    precache_model2("progs/hknight.mdl");
+    precache_model2("progs/k_spike.mdl");
+    precache_model2("progs/h_hellkn.mdl");
+    precache_model2("progs/spear.mdl");
+    precache_model2("progs/s_light.spr");
+    precache_model2("progs/s_bubble.spr");
 
 
-    precache_sound2 ("hknight/attack1.wav");
-    precache_sound2 ("hknight/death1.wav");
-    precache_sound2 ("hknight/pain1.wav");
-    precache_sound2 ("hknight/sight1.wav");
+    precache_sound2("hknight/attack1.wav");
+    precache_sound2("hknight/death1.wav");
+    precache_sound2("hknight/pain1.wav");
+    precache_sound2("hknight/sight1.wav");
     precache_sound("hknight/hit.wav");        // used by C code, so don't sound2
-    precache_sound2 ("hknight/slash1.wav");
-    precache_sound2 ("hknight/idle.wav");
-    precache_sound2 ("hknight/grunt.wav");
+    precache_sound2("hknight/slash1.wav");
+    precache_sound2("hknight/idle.wav");
+    precache_sound2("hknight/grunt.wav");
 
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");

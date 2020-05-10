@@ -34,8 +34,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_CVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_CVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_CVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_CVAR(vr_fakevr, 0, CVAR_NONE);
-DEFINE_CVAR(vr_novrinit, 0, CVAR_NONE);
+DEFINE_CVAR(vr_fakevr, 1, CVAR_NONE);
+DEFINE_CVAR(vr_novrinit, 1, CVAR_NONE);
 
 //
 //
@@ -161,10 +161,12 @@ DEFINE_CVAR_ARCHIVE(vr_forcegrab_radius, 18.0);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_particles, 1);
 DEFINE_CVAR_ARCHIVE(vr_forcegrab_eligible_haptics, 1);
 DEFINE_CVAR_ARCHIVE(vr_weapondrop_particles, 1);
-DEFINE_CVAR_ARCHIVE(vr_2h_spread_reduction, 0.5);
-DEFINE_CVAR_ARCHIVE(vr_2h_throw_velocity_mult, 1.4);
-DEFINE_CVAR_ARCHIVE(vr_headbutt_velocity_threshold, 2.05);
-DEFINE_CVAR_ARCHIVE(vr_headbutt_damage_mult, 32);
+DEFINE_CVAR_ARCHIVE(vr_2h_spread_reduction, 0.5); // TODO VR: (P2) add to menu
+DEFINE_CVAR_ARCHIVE(
+    vr_2h_throw_velocity_mult, 1.4); // TODO VR: (P2) add to menu
+DEFINE_CVAR_ARCHIVE(
+    vr_headbutt_velocity_threshold, 2.05);        // TODO VR: (P2) add to menu
+DEFINE_CVAR_ARCHIVE(vr_headbutt_damage_mult, 32); // TODO VR: (P2) add to menu
 
 //
 //
@@ -230,16 +232,16 @@ DEFINE_CVAR_ARCHIVE(vr_finger_base_z, 0.0);
 
 namespace quake::vr
 {
-    void register_all_cvars() noexcept
+void register_all_cvars() noexcept
+{
+    for(cvar_t* c : cvarsToRegister)
     {
-        for(cvar_t* c : cvarsToRegister)
-        {
-            Cvar_RegisterVariable(c);
-        }
-
-        cvarsToRegister.clear();
-        cvarsToRegister.shrink_to_fit();
+        Cvar_RegisterVariable(c);
     }
+
+    cvarsToRegister.clear();
+    cvarsToRegister.shrink_to_fit();
+}
 } // namespace quake::vr
 
 //
@@ -257,50 +259,50 @@ namespace quake::vr
 
 namespace quake::vr
 {
-    [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base);
-    }
+[[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base);
+}
 
-    [[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base_offhand);
-    }
+[[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_fingers_and_base_offhand);
+}
 
-    [[nodiscard]] qvec3 get_fingers_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_fingers);
-    }
+[[nodiscard]] qvec3 get_fingers_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_fingers);
+}
 
-    [[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_thumb);
-    }
+[[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_thumb);
+}
 
-    [[nodiscard]] qvec3 get_finger_index_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_index);
-    }
+[[nodiscard]] qvec3 get_finger_index_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_index);
+}
 
-    [[nodiscard]] qvec3 get_finger_middle_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_middle);
-    }
+[[nodiscard]] qvec3 get_finger_middle_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_middle);
+}
 
-    [[nodiscard]] qvec3 get_finger_ring_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_ring);
-    }
+[[nodiscard]] qvec3 get_finger_ring_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_ring);
+}
 
-    [[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_pinky);
-    }
+[[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_pinky);
+}
 
-    [[nodiscard]] qvec3 get_finger_base_xyz() noexcept
-    {
-        return QVR_CVAR_VEC3_XYZ(vr_finger_base);
-    }
+[[nodiscard]] qvec3 get_finger_base_xyz() noexcept
+{
+    return QVR_CVAR_VEC3_XYZ(vr_finger_base);
+}
 } // namespace quake::vr
 
 #undef QVR_CVAR_VEC3_XYZ

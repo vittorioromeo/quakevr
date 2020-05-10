@@ -457,7 +457,7 @@ void() trap_spikeshooter =
     }
     else if(self.spawnflags & SPAWNFLAG_FIREBALL)
     {
-        precache_model ("progs/fireball.mdl");
+        precache_model("progs/fireball.mdl");
     }
     else if(self.spawnflags & SPAWNFLAG_LAVABALL)
     {
@@ -540,7 +540,7 @@ void() air_bubbles =
         return;
     }
 
-    precache_model ("progs/s_bubble.spr");
+    precache_model("progs/s_bubble.spr");
 
     // HONEY
     if(!self.speed) self.speed = 15;

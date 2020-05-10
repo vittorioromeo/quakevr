@@ -341,7 +341,7 @@ void() pendulum =
 {
     local vector     center;
 
-    precache_model ("progs/pendulum.mdl");
+    precache_model("progs/pendulum.mdl");
     precache_sound("pendulum/swing.wav");
     precache_sound("pendulum/hit.wav");
 

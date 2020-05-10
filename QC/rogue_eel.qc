@@ -193,9 +193,9 @@ void() monster_eel =
         remove(self);
         return;
     }
-    precache_model ("progs/eel2.mdl");
-    precache_model ("progs/eelgib.mdl");
-    precache_model ("progs/gib1.mdl");
+    precache_model("progs/eel2.mdl");
+    precache_model("progs/eelgib.mdl");
+    precache_model("progs/gib1.mdl");
 
     precache_sound("eel/edie3r.wav");
     precache_sound("eel/epain3.wav");

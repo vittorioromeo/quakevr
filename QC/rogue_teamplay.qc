@@ -1586,7 +1586,7 @@ void(entity flg, string cname) place_flagbase =
     self.classname = cname;
     setorigin(self, flg.origin);
     self.angles = flg.angles;
-    precache_model ("progs/ctfbase.mdl");
+    precache_model("progs/ctfbase.mdl");
     setmodel(self, "progs/ctfbase.mdl");
     self.skin = flg.skin;
     self.team = flg.team;
@@ -1643,7 +1643,7 @@ void() item_flag_team1 =
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
         self.team = TEAM1;
         self.items = IT_KEY2;
-        precache_model ("progs/ctfmodel.mdl");
+        precache_model("progs/ctfmodel.mdl");
         setmodel(self, "progs/ctfmodel.mdl");
         self.skin = 0;
         precache_sound("misc/flagtk.wav");        // flag taken
@@ -1690,7 +1690,7 @@ void() item_flag_team2 =
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT) {
         self.team = TEAM2;
         self.items = IT_KEY1;
-        precache_model ("progs/ctfmodel.mdl");
+        precache_model("progs/ctfmodel.mdl");
         setmodel(self, "progs/ctfmodel.mdl");
         self.skin = 1;
         precache_sound("misc/flagtk.wav");        // flag taken
@@ -1723,9 +1723,9 @@ void() item_flag =
     }
     self.team = 0; // no team
     self.items = IT_KEY1 | IT_KEY2;
-//    precache_model ("progs/flag.mdl");
+//    precache_model("progs/flag.mdl");
 //    setmodel(self, "progs/flag.mdl");
-    precache_model ("progs/ctfmodel.mdl");        // PGM 01/18/97
+    precache_model("progs/ctfmodel.mdl");        // PGM 01/18/97
     setmodel(self, "progs/ctfmodel.mdl");    // PGM 01/18/97
     self.skin = 2;
     precache_sound("misc/flagtk.wav");        // flag taken

@@ -8,7 +8,7 @@ Default style is 0
 */
 void() light_lantern =
 {
-    precache_model ("progs/lantern.mdl");
+    precache_model("progs/lantern.mdl");
     setmodel(self, "progs/lantern.mdl");
     makestatic (self);
 };
@@ -20,7 +20,7 @@ Default style is 0
 */
 void() light_candle =
 {
-    precache_model ("progs/candle.mdl");
+    precache_model("progs/candle.mdl");
     setmodel(self, "progs/candle.mdl");
     makestatic (self);
 };
@@ -98,7 +98,7 @@ delay - time between rubble pieces (Default 5 sec)
 */
 void() rubble_generator =
 {
-    precache_model ("progs/rubble.mdl");
+    precache_model("progs/rubble.mdl");
 
     if(!self.target)
         objerror ("rubble_generator has no target!");

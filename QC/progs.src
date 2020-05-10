@@ -10,6 +10,7 @@ subs.qc
 
 vr_ammoutil.qc
 vr_cvars.qc
+vr_gameutil.qc
 vr_grapple.qc
 vr_itemutil.qc
 vr_util.qc

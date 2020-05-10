@@ -240,7 +240,7 @@ void() item_time_core =
         return;
     }
 
-    precache_model ("progs/timecore.mdl");
+    precache_model("progs/timecore.mdl");
     setmodel(self, "progs/timecore.mdl");
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_FLY;

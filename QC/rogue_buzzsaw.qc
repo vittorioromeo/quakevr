@@ -105,7 +105,7 @@ It will not damage players until activated.
 */
 void() buzzsaw =
 {
-    precache_model ("progs/buzzsaw.mdl");
+    precache_model("progs/buzzsaw.mdl");
 
     precache_sound("buzz/buzz.wav");
     precache_sound("buzz/buzz1.wav");

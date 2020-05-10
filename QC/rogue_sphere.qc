@@ -145,7 +145,7 @@ void() item_sphere =
         return;
     }
 
-    precache_model ("progs/sphere.mdl");
+    precache_model("progs/sphere.mdl");
     precache_sound("sphere/sphere.wav");
 
     self.noise = "sphere/sphere.wav";

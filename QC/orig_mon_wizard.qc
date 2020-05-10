@@ -415,7 +415,7 @@ void() monster_wizard =
     self.movetype = MOVETYPE_STEP;
 
     setmodel(self, "progs/wizard.mdl");
-    setsize(self, '-12 -12 -24', '12 12 40');
+    setsize(self, '-12 -12 -24', '12 12 42');
 
     flymonster_start();
 };

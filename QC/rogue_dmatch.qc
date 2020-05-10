@@ -109,7 +109,7 @@ void() dmatch_tag_token =
         return;
     }
 
-    precache_model ("progs/sphere.mdl");
+    precache_model("progs/sphere.mdl");
     precache_sound("runes/end1.wav");
     setmodel(self, "progs/sphere.mdl");
     self.skin = 1;
