@@ -4187,11 +4187,6 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P1) "QuakeVR uses QuakeC heavily so mods aren't supported maybe in
 // the future Frikbot could be added its a pretty straightforward add to QuakeC"
 
-// TODO VR: (P1) Spoike: "may I make a suggestion? stop using progs.dat use a
-// different filename instead, considering you're mutually incompatible and all
-// then you don't have to worry about the progs.dat in the hipnotic/rogue
-// subdirs taking precidence."
-
 // TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
 // below, it seems like you need to position your body over the ledge
 // specifically so that a specific point of your body has a direct line of sight

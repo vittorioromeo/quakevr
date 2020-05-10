@@ -1196,10 +1196,10 @@ void PR_LoadProgs()
 
     CRC_Init(&pr_crc);
 
-    progs = (dprograms_t*)COM_LoadHunkFile("progs.dat", nullptr);
+    progs = (dprograms_t*)COM_LoadHunkFile("vrprogs.dat", nullptr);
     if(!progs)
     {
-        Host_Error("PR_LoadProgs: couldn't load progs.dat");
+        Host_Error("PR_LoadProgs: couldn't load vrprogs.dat");
     }
     Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
@@ -1216,14 +1216,14 @@ void PR_LoadProgs()
 
     if(progs->version != PROG_VERSION)
     {
-        Host_Error("progs.dat has wrong version number (%i should be %i)",
+        Host_Error("vrprogs.dat has wrong version number (%i should be %i)",
             progs->version, PROG_VERSION);
     }
 
     if(progs->crc != PROGHEADER_CRC)
     {
         Host_Error(
-            "progs.dat system vars have been modified, progdefs.h is out of "
+            "vrprogs.dat system vars have been modified, progdefs.h is out of "
             "date");
     }
 
@@ -1231,7 +1231,7 @@ void PR_LoadProgs()
     pr_strings = (char*)progs + progs->ofs_strings;
     if(progs->ofs_strings + progs->numstrings >= com_filesize)
     {
-        Host_Error("progs.dat strings go past end of file\n");
+        Host_Error("vrprogs.dat strings go past end of file\n");
     }
 
     // initialize the strings
@@ -1291,7 +1291,7 @@ void PR_LoadProgs()
         pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
         pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
 
-        // johnfitz -- detect alpha support in progs.dat
+        // johnfitz -- detect alpha support in vrprogs.dat
         if(!strcmp(pr_strings + pr_fielddefs[i].s_name, "alpha"))
         {
             pr_alpha_supported = true;
