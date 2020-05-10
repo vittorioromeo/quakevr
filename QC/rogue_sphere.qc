@@ -155,5 +155,5 @@ void() item_sphere =
     setmodel(self, "progs/sphere.mdl");
     setsize(self, '-8 -8 -8', '8 8 8');
     self.avelocity = '40 40 40';
-    StartItem ();
+    StartItem();
 };

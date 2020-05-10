@@ -100,7 +100,7 @@ void() item_random_powerup =
     precache_sound("shield/fadeout.wav");
 
     random_pick_type();
-    StartItem ();
+    StartItem();
 };
 
 void() random_regen =

@@ -90,7 +90,7 @@ void() item_powerup_shield =
     self.netname = "Power Shield";
     self.vr_itemId = IID_SHIELD;
     setsize(self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_powerup_belt (0 .5 .8) (-16 -16 -24) (16 16 32)
@@ -109,7 +109,7 @@ void() item_powerup_belt =
     self.netname = "Anti-Grav Belt";
     self.vr_itemId = IID_ANTIGRAV;
     setsize(self, '-16 -16 -24', '16 16 32');
-    StartItem ();
+    StartItem();
 };
 
 

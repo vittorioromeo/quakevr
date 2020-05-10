@@ -259,7 +259,7 @@ void() item_health =
         setsize(self, '0 0 0', '32 32 16');
     }
 
-    if(deathmatch == 1) {
+    if(deathmatch) {
         self.wait = 20;
     }
 
@@ -392,7 +392,7 @@ void() item_armor1 =
     setmodel(self, "progs/armor.mdl");
     self.skin = 0;
     setsize(self, '-10 -10 0', '10 10 28');
-    if(deathmatch == 1) { self.wait = 20; }
+    if(deathmatch) { self.wait = 20; }
     StartItem();
 };
 
@@ -406,7 +406,7 @@ void() item_armor2 =
     setmodel(self, "progs/armor.mdl");
     self.skin = 1;
     setsize(self, '-10 -10 0', '10 10 28');
-    if(deathmatch == 1) { self.wait = 20; }
+    if(deathmatch) { self.wait = 20; }
     StartItem();
 };
 
@@ -420,7 +420,7 @@ void() item_armorInv =
     setmodel(self, "progs/armor.mdl");
     self.skin = 2;
     setsize(self, '-10 -10 0', '10 10 28');
-    if(deathmatch == 1) { self.wait = 20; }
+    if(deathmatch) { self.wait = 20; }
     StartItem();
 };
 
@@ -627,7 +627,7 @@ void() weapon_supershotgun =
     self.netname = "Double-barrelled Shotgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -642,7 +642,7 @@ void() weapon_nailgun =
     self.netname = "nailgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -657,7 +657,7 @@ void() weapon_supernailgun =
     self.netname = "Super Nailgun";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -672,7 +672,7 @@ void() weapon_grenadelauncher =
     self.netname = "Grenade Launcher";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -687,7 +687,7 @@ void() weapon_rocketlauncher =
     self.netname = "Rocket Launcher";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -703,7 +703,7 @@ void() weapon_lightning =
     self.netname = "Thunderbolt";
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -817,7 +817,7 @@ void() item_shells =
     self.classname = "item_shells";
 
     setsize(self, '0 0 0', '24 24 24');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -847,7 +847,7 @@ void() item_spikes =
     self.classname = "item_spikes";
 
     setsize(self, '0 0 0', '24 24 24');
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     StartItem();
 };
 
@@ -876,9 +876,9 @@ void() item_lava_spikes =
     self.netname = "lava nails";
     self.classname = "item_lava_nails";
 
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     setsize(self, '0 0 0', '32 32 56');
-    StartItem ();
+    StartItem();
 };
 
 
@@ -907,7 +907,7 @@ void() item_rockets =
     self.netname = "rockets";
     self.classname = "item_rockets";
 
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     setsize(self, '0 0 0', '16 16 32');
     StartItem();
 };
@@ -937,9 +937,9 @@ void() item_multi_rockets =
     self.netname = "multi rockets";
     self.classname = "item_multi_rockets";
 
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     setsize(self, '0 0 0', '32 32 56');
-    StartItem ();
+    StartItem();
 };
 
 /*QUAKED item_cells (0 .5 .8) (0 0 0) (32 32 32) big
@@ -967,7 +967,7 @@ void() item_cells =
     self.netname = "cells";
     self.classname = "item_cells";
 
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     setsize(self, '0 0 0', '24 24 24');
     StartItem();
 };
@@ -996,9 +996,9 @@ void() item_plasma =
     self.netname = "plasma";
     self.classname = "item_plasma";
 
-    if(deathmatch == 1) { self.wait = 30; }
+    if(deathmatch) { self.wait = 30; }
     setsize(self, '0 0 0', '32 32 56');
-    StartItem ();
+    StartItem();
 };
 
 /*
@@ -1292,7 +1292,7 @@ void() item_artifact_invulnerability =
     self.netname = "Pentagram of Protection";
     self.vr_itemId = IID_INVULNERABILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
-    if(deathmatch == 1) { self.wait = 60*5; }
+    if(deathmatch) { self.wait = 60*5; }
     StartItem();
 };
 
@@ -1316,7 +1316,7 @@ void() item_artifact_envirosuit =
     setsize(self, '-16 -16 -24', '16 16 32');
     // setsize(self, '-8 -8 -24', '8 8 32');
     // setorigin(self, self.origin + '-8 -8 0');
-    if(deathmatch == 1) { self.wait = 60; }
+    if(deathmatch) { self.wait = 60; }
     StartItem();
 };
 
@@ -1338,7 +1338,7 @@ void() item_artifact_invisibility =
     self.netname = "Ring of Shadows";
     self.vr_itemId = IID_INVISIBILITY;
     setsize(self, '-16 -16 -24', '16 16 32');
-    if(deathmatch == 1) { self.wait = 60*5; }
+    if(deathmatch) { self.wait = 60*5; }
     StartItem();
 };
 
@@ -1360,7 +1360,7 @@ void() item_artifact_super_damage =
     self.netname = "Quad Damage";
     self.vr_itemId = IID_QUAD;
     setsize(self, '-16 -16 -24', '16 16 32');
-    if(deathmatch == 1) { self.wait = 60; }
+    if(deathmatch) { self.wait = 60; }
     StartItem();
 };
 
