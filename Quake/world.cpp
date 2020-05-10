@@ -328,13 +328,11 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
                 continue;
             }
 
-            const bool canBeTouched = quake::util::canBeTouched(target);
-
             // TODO VR: (P2) consequences of this? Seems to fix handtouch on
             // ledges
             // if(!canBeTouched || !quake::util::entBoxIntersection(ent,
             // target))
-            if(!canBeTouched)
+            if(!quake::util::canBeTouched(target))
             {
                 continue;
             }

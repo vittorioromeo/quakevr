@@ -81,3 +81,13 @@
 .float headbutt_start_time;
 .float in_headbutt;
 .vector headbutt_max_vec;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Lava weapon fields
+// ----------------------------------------------------------------------------
+
+.float mainHandLavaGunFired;
+.float offHandLavaGunFired;

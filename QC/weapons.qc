@@ -1,17 +1,3 @@
-float mainHandLavaGunFired;
-float offHandLavaGunFired;
-
-float(float xHand) VRGetLavaGunFired
-{
-    if(xHand == cVR_MainHand) { return mainHandLavaGunFired; }
-    else                      { return offHandLavaGunFired; }
-}
-
-void(float xHand, float xValue) VRSetLavaGunFired
-{
-    if(xHand == cVR_MainHand) { mainHandLavaGunFired = xValue; }
-    else                      { offHandLavaGunFired = xValue; }
-}
 
 float() crandom =
 {
@@ -1453,12 +1439,12 @@ ROCKETS
 ==============================================================================
 */
 
-void()    s_explode1    =    [0,        s_explode2] {};
-void()    s_explode2    =    [1,        s_explode3] {};
-void()    s_explode3    =    [2,        s_explode4] {};
-void()    s_explode4    =    [3,        s_explode5] {};
-void()    s_explode5    =    [4,        s_explode6] {};
-void()    s_explode6    =    [5,        SUB_Remove] {};
+void() s_explode1 = [0, s_explode2] { }
+void() s_explode2 = [1, s_explode3] { }
+void() s_explode3 = [2, s_explode4] { }
+void() s_explode4 = [3, s_explode5] { }
+void() s_explode5 = [4, s_explode6] { }
+void() s_explode6 = [5, SUB_Remove] { }
 
 void() BecomeExplosion =
 {
@@ -3542,8 +3528,13 @@ void() UpdateHolsterHover =
     }
 }
 
-void(float xHand, float xHolster) VRHolsterHaptic =
+void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
 {
+    if(!xEntPlayer.ishuman)
+    {
+        return;
+    }
+
     local float holsterHapticsMode;
     holsterHapticsMode = cvar_hget(cvarh_vr_holster_haptics);
 
@@ -3871,7 +3862,7 @@ void(entity ent, float xHand,
         {
             if(getHolsterWeapon(xHotspot) == WID_FIST)
             {
-                VRHolsterHaptic(xHand, xHotspot);
+                VRHolsterHaptic(ent, xHand, xHotspot);
             }
         }
     }
@@ -3939,7 +3930,7 @@ void(entity ent, float xHand,
         {
             if(getHolsterWeapon(xHotspot) != WID_FIST)
             {
-                VRHolsterHaptic(xHand, xHotspot);
+                VRHolsterHaptic(ent, xHand, xHotspot);
             }
         }
     }

@@ -3,6 +3,9 @@
 #include "quakedef.hpp"
 #include "openvr.hpp"
 
+#include <vector>
+#include <string>
+
 //
 //
 //
@@ -407,9 +410,9 @@ enum class WpnCVar : std::uint8_t
     HandOffsetY = 21,
     HandOffsetZ = 22,
     HandAnchorVertex = 23,
-    // OffHandOffsetX = 24, // TODO VR: (P1) deprecated
-    // OffHandOffsetY = 25, // TODO VR: (P1) deprecated
-    // OffHandOffsetZ = 26, // TODO VR: (P1) deprecated
+    // OffHandOffsetX = 24, // TODO VR: (P2) deprecated, free index
+    // OffHandOffsetY = 25, // TODO VR: (P2) deprecated, free index
+    // OffHandOffsetZ = 26, // TODO VR: (P2) deprecated, free index
     CrosshairMode = 27,
     HideHand = 28,
     TwoHDisplayMode = 29,
@@ -437,9 +440,9 @@ enum class WpnCVar : std::uint8_t
     WpnButtonY = 51,
     WpnButtonZ = 52,
     WpnButtonAnchorVertex = 53,
-    // WpnButtonOffHandX = 54, // TODO VR: (P1) deprecated
-    // WpnButtonOffHandY = 55, // TODO VR: (P1) deprecated
-    // WpnButtonOffHandZ = 56, // TODO VR: (P1) deprecated
+    // WpnButtonOffHandX = 54, // TODO VR: (P2) deprecated, free index
+    // WpnButtonOffHandY = 55, // TODO VR: (P2) deprecated, free index
+    // WpnButtonOffHandZ = 56, // TODO VR: (P2) deprecated, free index
     WpnButtonPitch = 57,
     WpnButtonYaw = 58,
     WpnButtonRoll = 59,
@@ -553,3 +556,16 @@ VR_GetBodyYawAngleCalculations() noexcept;
 
 [[nodiscard]] bool svPlayerActive() noexcept;
 [[nodiscard]] edict_t* getPlayerEdict() noexcept;
+
+//
+//
+// PAK Stuff
+
+[[nodiscard]] const std::string& VR_GetActiveStartPakName();
+[[nodiscard]] std::vector<std::string>& VR_GetLoadedPakNames();
+[[nodiscard]] std::vector<std::string>& VR_GetLoadedPakNamesWithStartMaps();
+
+[[nodiscard]] std::string VR_ExtractPakName(std::string_view sv);
+[[nodiscard]] std::string VR_ExtractPakName(const pack_t& pak);
+
+void VR_OnLoadedPak(pack_t& pak);

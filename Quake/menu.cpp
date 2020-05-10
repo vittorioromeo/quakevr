@@ -424,6 +424,29 @@ void M_Main_Key(int key)
     m.add_action_entry("Load", &M_Menu_Load_f);
     m.add_action_entry("Save", &M_Menu_Save_f);
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    {
+        const std::vector<std::string>& loadedPakNames =
+            VR_GetLoadedPakNamesWithStartMaps();
+
+        auto e =
+            m.add_cvar_entry<int>("Start map from:", vr_activestartpaknameidx,
+                {1, 0, static_cast<int>(loadedPakNames.size()) - 1});
+
+        e.tooltip(
+            "When multiple '.pak' are placed in the 'Id1' folder, the starting "
+            "map will be overwritten by the last '.pak' file. This option "
+            "allows you to choose what '.pak' file to get the starting map "
+            "from.");
+
+        e->_printer = [&](char* buf, const int buf_size, const int x) {
+            snprintf(buf, buf_size, "%s", loadedPakNames[x].data());
+        };
+    }
+
     return m;
 }
 
@@ -526,14 +549,17 @@ void M_Menu_Save_f()
     {
         return;
     }
+
     if(cl.intermission)
     {
         return;
     }
+
     if(svs.maxclients != 1)
     {
         return;
     }
+
     m_entersound = true;
     m_state = m_save;
 
@@ -3057,12 +3083,11 @@ template <typename Range>
 
 using namespace std::literals;
 
-constexpr std::array mapsVanilla{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
-    "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
-    "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
-    "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
-    "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
-    "end"sv};
+constexpr std::array mapsVanilla{"start"sv, "e1m1"sv, "e1m2"sv, "e1m3"sv,
+    "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv, "e2m2"sv,
+    "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv, "e3m2"sv,
+    "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv, "e4m2"sv,
+    "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv, "end"sv};
 
 constexpr std::array mapsSoa{"start"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv,
     "hip1m4"sv, "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv,
@@ -3154,7 +3179,7 @@ constexpr std::array mapsHoney{"start"sv, "saint"sv, "honey"sv, "h_hub1"sv,
 
 [[nodiscard]] static quake::menu makeQVRCMExtraMenu()
 {
-    static std::vector<std::string_view> mapsExtra{"orig_start"sv};
+    static std::vector<std::string_view> mapsExtra;
 
     int i;
     filelist_item_t* level;

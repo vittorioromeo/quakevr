@@ -372,7 +372,6 @@ void() FireballTouch =
     WriteByte (MSG_BROADCAST, 5);
 
     remove(self);
-//    BecomeExplosion();
 };
 
 entity(vector org, vector dir) launch_fireball =

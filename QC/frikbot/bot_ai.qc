@@ -633,13 +633,11 @@ float(entity thing) priority_for_thing =
             thisp = 20;
         //~ ai fix start
 
-        if(thing.classname == "thrown_weapon")
+        if(thing.classname == "thrown_weapon" &&
+           !VR_WeaponUtil_EntHasWeapon(self, thing.weapon))
         {
-            if(!VR_WeaponUtil_EntHasWeapon(self, thing.weapon))
-            {
-                thisp = get_weapon_priority(thing.weapon);
-                isThrownWeapon = 1;
-            }
+            thisp = get_weapon_priority(thing.weapon);
+            isThrownWeapon = 1;
         }
         else if(thing.classname == "item_artifact_super_damage")
         {
@@ -739,8 +737,11 @@ float(entity thing) priority_for_thing =
             thisp = 30;
     }
 
-    if(pointcontents(thing.origin) < -3)
+    if(!isThrownWeapon &&
+       pointcontents(thing.origin) < -3)
+    {
         return 0;
+    }
 
     if(thisp)
     {
@@ -752,7 +753,8 @@ float(entity thing) priority_for_thing =
             else
                 thisp = thisp + (13000 - thing.current_way.items) * 0.05;
         }
-        else if(isThrownWeapon && vlen(self.origin - thing.origin) < getForcegrabRange())
+        else if(isThrownWeapon &&
+                vlen(self.origin - thing.origin) < getForcegrabRange())
         {
             sound(self, VRGetGunChannel(cVR_MainHand), "forcegrab.wav", 0.65, ATTN_NORM);
             wpnthrow_handtouch_impl(cVR_MainHand, thing, self, &self.weapon, &self.weaponflags);
@@ -789,8 +791,10 @@ void(float scope) bot_look_for_crap =
         }
         foe = foe.chain;
     }
+
     if(best == world)
         return;
+
     if(!target_onstack(best))
     {
         target_add(best);
