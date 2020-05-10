@@ -933,7 +933,7 @@ void() PutClientInServer =
     if(deathmatch || coop)
     {
         makevectors(self.angles);
-        spawn_tfog (self.origin + v_forward*20);
+        spawn_tfog(self.origin + v_forward*20);
     }
 
     // ROGUE
@@ -954,6 +954,8 @@ void() PutClientInServer =
 
     self.handavel = '0 0 0';
     self.offhandavel = '0 0 0';
+
+    self.headvel = '0 0 0';
 
     VRSetTeleporting(self, FALSE);
     VRSetOffHandGrabbing(self, FALSE);
@@ -2527,8 +2529,74 @@ void(float xHand, float xInMelee, float xHandVelMag,
     }
 }
 
+void() PlayerVRMeleeHeadbutt =
+{
+    local float headvelLen;
+    headvelLen = vlen(self.headvel);
+
+    if(headvelLen >= cvar_hget(cvarh_vr_headbutt_velocity_threshold))
+    {
+        if(!self.in_headbutt)
+        {
+            self.headbutt_start_time = time;
+            self.in_headbutt = TRUE;
+            self.headbutt_max_vec = self.headvel;
+            sound(self, CHAN_OTHER, "knight/sword1.wav", 1, ATTN_NORM);
+        }
+        else if(vlen(self.headbutt_max_vec) < headvelLen)
+        {
+            self.headbutt_max_vec = self.headvel;
+        }
+    }
+    else if(self.in_headbutt)
+    {
+        self.in_headbutt = FALSE;
+
+        local float xdmg;
+        xdmg = (
+            vlen(self.headbutt_max_vec) / cvar_hget(cvarh_vr_headbutt_velocity_threshold)
+            ) * cvar_hget(cvarh_vr_headbutt_damage_mult);
+
+        local vector dir;
+        dir = normalize(self.headbutt_max_vec);
+
+        local vector adjOrigin;
+        adjOrigin = self.origin + '0 0 25';
+
+        traceline(adjOrigin, adjOrigin + dir * VRMeleeRange(26), FALSE, self);
+
+        if(trace_fraction != 1.0)
+        {
+            sound(self, CHAN_OTHER, "fisthit.wav", 1.0, ATTN_NORM);
+
+            if(trace_ent.takedamage)
+            {
+                VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
+                VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
+
+                trace_ent.axhitme = 1;
+                SpawnBloodSplash(trace_endpos, xdmg);
+                T_Damage_VRMelee(trace_ent, self, self, xdmg);
+            }
+            else
+            {
+                // hit wall
+                VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
+                VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
+
+                PainSound();
+                SpawnBloodSplash(trace_endpos, xdmg);
+
+                BroadcastGunshotEffect(trace_endpos);
+            }
+        }
+    }
+}
+
 void() PlayerVRMelee =
 {
+    PlayerVRMeleeHeadbutt();
+
     PlayerVRMeleeImpl(
         cVR_MainHand,
         self.in_melee,
@@ -2536,7 +2604,7 @@ void() PlayerVRMelee =
         &self.mainhand_melee_attack_finished,
         &self.in_melee,
         &self.melee_hit_sound_played
-  );
+    );
 
     PlayerVRMeleeImpl(
         cVR_OffHand,
@@ -2545,5 +2613,5 @@ void() PlayerVRMelee =
         &self.offhand_melee_attack_finished,
         &self.offhand_in_melee,
         &self.offhand_melee_hit_sound_played
-  );
+    );
 }

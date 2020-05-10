@@ -3099,6 +3099,7 @@ void M_QuakeVRSettings_Key(int k)
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
     m.add_cvar_entry<bool>("Print Handvel", vr_debug_print_handvel);
+    m.add_cvar_entry<bool>("Print Headvel", vr_debug_print_headvel);
     m.add_cvar_entry<bool>("Show Hand Pos/Rot", vr_debug_show_hand_pos_and_rot);
 
     // ------------------------------------------------------------------------

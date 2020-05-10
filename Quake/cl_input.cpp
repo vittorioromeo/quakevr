@@ -578,6 +578,9 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteFloat(&buf, cmd->offhandvelmag);
     writeVec(cmd->offhandavel);
 
+    // headvel
+    writeVec(cmd->headvel);
+
     // muzzlepos
     writeVec(cmd->muzzlepos);
 

@@ -303,6 +303,7 @@ struct usercmd_t
     qfvec3 offhandthrowvel;
     float offhandvelmag;
     qfvec3 offhandavel;
+    qfvec3 headvel;
     qfvec3 muzzlepos;
     qfvec3 offmuzzlepos;
     unsigned char vrbits0;

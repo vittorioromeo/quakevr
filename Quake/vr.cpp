@@ -1527,6 +1527,23 @@ void debugPrintHandvel(const int index, const float linearity)
     }
 }
 
+void debugPrintHeadvel()
+{
+    if(!vr_debug_print_headvel.value)
+    {
+        return;
+    }
+
+    const auto len = glm::length(cl.headvel);
+    if(len < 2.f)
+    {
+        return;
+    }
+
+    Con_Printf("headvel: {%.2f, %.2f, %.2f} | len: %.2f\n", cl.headvel[0],
+        cl.headvel[1], cl.headvel[2], len);
+}
+
 
 [[nodiscard]] qvec3 VR_CalcLocalWpnMuzzlePos(const int index) noexcept
 {
@@ -1654,6 +1671,18 @@ qvec3 VR_UpdateGunWallCollisions(edict_t* edict, const int handIndex,
     return res;
 }
 
+template <typename T>
+[[nodiscard]] static qvec3 openVRCoordsToQuakeCoords(const T& v)
+{
+    return qvec3{-v[2], v[0], v[1]};
+}
+
+[[nodiscard]] static qvec3 redirectVectorByYaw(
+    const qvec3& input, const qfloat exemplarYaw)
+{
+    return redirectVector(input, {0.f, exemplarYaw, 0.f});
+}
+
 void SetHandPos(int index, entity_t* player)
 {
     // -----------------------------------------------------------------------
@@ -1750,15 +1779,6 @@ void SetHandPos(int index, entity_t* player)
     }
 
     // handrot is set with AngleVectorFromRotMat
-
-    const auto openVRCoordsToQuakeCoords = [](const qvec3& v) {
-        return qvec3{-v.z, v.x, v.y};
-    };
-
-    const auto redirectVectorByYaw = [&](const qvec3& input,
-                                         const qfloat exemplarYaw) {
-        return redirectVector(input, {0.f, exemplarYaw, 0.f});
-    };
 
     // handvel
     // Redirect controller velocity to world velocity (based on thumbstick yaw
@@ -2992,6 +3012,12 @@ static void VR_ControllerAiming(const qvec3& orientation)
 
     entity_t* const player = &cl_entities[cl.viewentity];
 
+    // headvel
+    cl.headvel = redirectVectorByYaw(
+        openVRCoordsToQuakeCoords(headVelocity.v), VR_GetTurnYawAngle());
+    debugPrintHeadvel();
+
+    // handpos and offhandpos
     SetHandPos(0, player);
     SetHandPos(1, player);
 
@@ -3898,6 +3924,9 @@ void VR_Move(usercmd_t* cmd)
     cmd->offhandthrowvel = cl.handthrowvel[cVR_OffHand];
     cmd->offhandvelmag = cl.handvelmag[cVR_OffHand];
     cmd->offhandavel = cl.handavel[cVR_OffHand];
+
+    // VR: Head velocity.
+    cmd->headvel = cl.headvel;
 
     // VR: Weapon muzzle position.
     cmd->muzzlepos = VR_CalcFinalWpnMuzzlePos(cVR_MainHand);

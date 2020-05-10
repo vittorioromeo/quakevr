@@ -602,6 +602,9 @@ void SV_ReadClientMove(usercmd_t* move)
     host_client->edict->v.offhandavel = move->offhandavel = readVec();
     // ------------------------------------------------------------------------
 
+    // headvel
+    host_client->edict->v.headvel = move->headvel = readVec();
+
     // muzzlepos
     host_client->edict->v.muzzlepos = move->muzzlepos = readVec();
 

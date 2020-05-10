@@ -777,7 +777,8 @@ void(float xHand) HIP_FireMjolnirLightning =
     HIP_SpawnMjolnirBase();
 };
 
-float(vector xHandRot, vector xHandPos, vector xMuzzlePos, float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
+float(vector xHandRot, vector xHandPos, vector xMuzzlePos,
+      float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
 {
     local float range, muzzleRange;
 

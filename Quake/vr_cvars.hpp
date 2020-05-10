@@ -106,6 +106,7 @@ extern cvar_t vr_holster_haptics;
 extern cvar_t vr_player_shadows;
 extern cvar_t vr_positional_damage;
 extern cvar_t vr_debug_print_handvel;
+extern cvar_t vr_debug_print_headvel;
 extern cvar_t vr_debug_show_hand_pos_and_rot;
 extern cvar_t vr_leg_holster_model_enabled;
 extern cvar_t vr_leg_holster_model_scale;
@@ -133,6 +134,8 @@ extern cvar_t vr_forcegrab_eligible_particles;
 extern cvar_t vr_forcegrab_eligible_haptics;
 extern cvar_t vr_2h_spread_reduction;
 extern cvar_t vr_2h_throw_velocity_mult;
+extern cvar_t vr_headbutt_velocity_threshold;
+extern cvar_t vr_headbutt_damage_mult;
 
 //
 //
