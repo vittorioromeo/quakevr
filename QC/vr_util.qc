@@ -329,7 +329,7 @@ float(entity entTarget) VRGetHandtouchHand =
 
 // TODO VR: (P2) organize bits
 
-float(float flags, float bit) VRGetBit =
+float(float flags, float bit) VRHasBit =
 {
     return !!(flags & bit);
 }
@@ -348,32 +348,32 @@ float(float flags, float bit, float value) VRSetBit =
 
 float(entity ent) VRGetTeleporting =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING);
 }
 
 float(entity ent) VRGetOffHandGrabbing =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING);
 }
 
 float(entity ent) VRGetOffHandPrevGrabbing =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING);
 }
 
 float(entity ent) VRGetMainHandGrabbing =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING);
 }
 
 float(entity ent) VRGetMainHandPrevGrabbing =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING);
 }
 
 float(entity ent) VRGet2HAiming =
 {
-    return VRGetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING);
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING);
 }
 
 void(entity ent, float value) VRSetTeleporting =

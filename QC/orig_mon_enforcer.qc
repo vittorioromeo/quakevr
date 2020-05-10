@@ -275,13 +275,13 @@ void() EnforcerDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_LASER_CANNON, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_LIGHTNING, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_AXE, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.2))
-        if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.2))
+        if(!TryEnemyDrop(self, entPlayer, WID_NAILGUN, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_SUPER_NAILGUN, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_LASER_CANNON, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_LIGHTNING, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_AXE, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_SUPER_SHOTGUN, 0.2))
+        if(!TryEnemyDrop(self, entPlayer, WID_SHOTGUN, 0.2))
         { /* Intentionally empty. */ }
     }
 }

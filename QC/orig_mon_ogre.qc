@@ -431,14 +431,14 @@ void() OgreDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryEnemyDrop(entPlayer, WID_GRENADE_LAUNCHER, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_PROXIMITY_GUN, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_AXE, 0.5))
-        if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
-        if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.1))
+        if(!TryEnemyDrop(self, entPlayer, WID_GRENADE_LAUNCHER, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_PROXIMITY_GUN, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_ROCKET_LAUNCHER, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_SUPER_NAILGUN, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_NAILGUN, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_AXE, 0.5))
+        if(!TryEnemyDrop(self, entPlayer, WID_SUPER_SHOTGUN, 0.1))
+        if(!TryEnemyDrop(self, entPlayer, WID_SHOTGUN, 0.1))
         { /* Intentionally empty. */ }
     }
 }

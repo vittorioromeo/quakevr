@@ -217,9 +217,9 @@ void() SoldierDrop =
 
     if(entPlayer != world && random() > 0.65)
     {
-        if(!TryEnemyDrop(entPlayer, WID_AXE, 0.2))
-        if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.4))
-        if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.6))
+        if(!TryEnemyDrop(self, entPlayer, WID_AXE, 0.2))
+        if(!TryEnemyDrop(self, entPlayer, WID_SHOTGUN, 0.4))
+        if(!TryEnemyDrop(self, entPlayer, WID_SUPER_SHOTGUN, 0.6))
         { /* Intentionally empty. */ }
     }
 }

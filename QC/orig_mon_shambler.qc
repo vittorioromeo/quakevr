@@ -294,15 +294,15 @@ void(entity attacker, float damage)    sham_pain =
 
 void(entity entPlayer) ShamblerDropImpl =
 {
-    if(!TryEnemyDrop(entPlayer, WID_LIGHTNING, 0.5))
-    if(!TryEnemyDrop(entPlayer, WID_PROXIMITY_GUN, 0.4))
-    if(!TryEnemyDrop(entPlayer, WID_ROCKET_LAUNCHER, 0.4))
-    if(!TryEnemyDrop(entPlayer, WID_SUPER_NAILGUN, 0.2))
-    if(!TryEnemyDrop(entPlayer, WID_NAILGUN, 0.2))
-    if(!TryEnemyDrop(entPlayer, WID_SUPER_SHOTGUN, 0.1))
-    if(!TryEnemyDrop(entPlayer, WID_SHOTGUN, 0.1))
-    if(!TryEnemyDrop(entPlayer, WID_AXE, 0.1))
-    if(!TryEnemyDrop(entPlayer, WID_MJOLNIR, 0.1))
+    if(!TryEnemyDrop(self, entPlayer, WID_LIGHTNING, 0.5))
+    if(!TryEnemyDrop(self, entPlayer, WID_PROXIMITY_GUN, 0.4))
+    if(!TryEnemyDrop(self, entPlayer, WID_ROCKET_LAUNCHER, 0.4))
+    if(!TryEnemyDrop(self, entPlayer, WID_SUPER_NAILGUN, 0.2))
+    if(!TryEnemyDrop(self, entPlayer, WID_NAILGUN, 0.2))
+    if(!TryEnemyDrop(self, entPlayer, WID_SUPER_SHOTGUN, 0.1))
+    if(!TryEnemyDrop(self, entPlayer, WID_SHOTGUN, 0.1))
+    if(!TryEnemyDrop(self, entPlayer, WID_AXE, 0.1))
+    if(!TryEnemyDrop(self, entPlayer, WID_MJOLNIR, 0.1))
     { /* Intentionally empty. */ }
 }
 
