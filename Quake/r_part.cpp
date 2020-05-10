@@ -559,19 +559,6 @@ QUAKE_FORCEINLINE void setAccGrav(PHandle p, float mult = 0.5f) noexcept
     p.acc()[2] = -sv_gravity.value * mult;
 }
 
-// TODO VR: (P2) optimize by putting texture in an atlas
-ParticleTextureManager::Handle ptxCircle;
-ParticleTextureManager::Handle ptxSquare;
-ParticleTextureManager::Handle ptxBlob;
-ParticleTextureManager::Handle ptxExplosion;
-ParticleTextureManager::Handle ptxSmoke;
-ParticleTextureManager::Handle ptxBlood;
-ParticleTextureManager::Handle ptxBloodMist;
-ParticleTextureManager::Handle ptxLightning;
-ParticleTextureManager::Handle ptxSpark;
-ParticleTextureManager::Handle ptxRock;
-ParticleTextureManager::Handle ptxGunSmoke;
-
 ParticleTextureManager::Handle ptxAtlas;
 AtlasData ptxAtlasData;
 
@@ -704,32 +691,17 @@ void R_InitParticleTextures()
     const auto circleImageData = [&] {
         buildCircleTexture(particle1_data);
         return ImageData{particle1_data, 64, 64};
-        // ptxCircle = pMgr.createBuffer(
-        //     makeTextureFromImageData("particle1", imageData), imageData);
     }();
 
     const auto squareImageData = [&] {
         buildSquareTexture(particle2_data);
         return ImageData{particle2_data, 2, 2};
-        // ptxSquare = pMgr.createBuffer(
-        //     makeTextureFromImageData("particle2", imageData), imageData);
     }();
 
     const auto blobImageData = [&] {
         buildBlobTexture(particle3_data);
         return ImageData{particle3_data, 64, 64};
-        // ptxBlob = pMgr.createBuffer(
-        //     makeTextureFromImageData("particle3", imageData), imageData);
     }();
-
-    /*
-    const auto load = [&](ParticleTextureManager::Handle& target,
-                          const char* name) {
-        const auto imageData = loadImage(name);
-        target = pMgr.createBuffer(
-            makeTextureFromImageData(name, imageData), imageData);
-    };
-    */
 
     ptxAtlasData = stitchImages(                   //
         circleImageData,                           //
@@ -748,27 +720,6 @@ void R_InitParticleTextures()
     ptxAtlas = pMgr.createBuffer(
         makeTextureFromImageData("atlas", ptxAtlasData._imageData),
         ptxAtlasData._imageData);
-
-    ptxCircle = ptxAtlas;
-    ptxBlob = ptxAtlas;
-    ptxSquare = ptxAtlas;
-    ptxExplosion = ptxAtlas;
-    ptxSmoke = ptxAtlas;
-    ptxBlood = ptxAtlas;
-    ptxBloodMist = ptxAtlas;
-    ptxLightning = ptxAtlas;
-    ptxSpark = ptxAtlas;
-    ptxRock = ptxAtlas;
-    ptxGunSmoke = ptxAtlas;
-
-    // load(ptxExplosion, "textures/particle_explosion");
-    // load(ptxSmoke, "textures/particle_smoke");
-    // load(ptxBlood, "textures/particle_blood");
-    // load(ptxBloodMist, "textures/particle_blood_mist");
-    // load(ptxLightning, "textures/particle_lightning");
-    // load(ptxSpark, "textures/particle_spark");
-    // load(ptxRock, "textures/particle_rock");
-    // load(ptxGunSmoke, "textures/particle_gun_smoke");
 }
 
 static void R_InitRNumParticles()
@@ -844,7 +795,7 @@ void R_EntityParticles(entity_t* ent)
         forward[1] = cp * sy;
         forward[2] = -sp;
 
-        makeNParticles(ptxCircle, 1, [&](PHandle p) {
+        makeNParticles(ptxAtlas, 1, [&](PHandle p) {
             p.atlasIdx() = aiCircle;
             p.angle() = rndToRad(0.f, 360.f);
             p.setAlpha(255);
@@ -913,7 +864,7 @@ void R_ReadPointFile_f()
 
         c++;
 
-        makeNParticles(ptxCircle, 1, [&](PHandle p) {
+        makeNParticles(ptxAtlas, 1, [&](PHandle p) {
             p.atlasIdx() = aiCircle;
             p.angle() = rndToRad(0.f, 360.f);
             p.setAlpha(255);
@@ -993,7 +944,7 @@ R_ParticleExplosion
 */
 void R_ParticleExplosion(const qvec3& org)
 {
-    makeNParticlesI(ptxCircle, 256, [&](const int i, PHandle p) {
+    makeNParticlesI(ptxAtlas, 256, [&](const int i, PHandle p) {
         p.atlasIdx() = aiCircle;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1011,7 +962,7 @@ void R_ParticleExplosion(const qvec3& org)
         }
     });
 
-    makeNParticlesI(ptxSpark, 64, [&](const int, PHandle p) {
+    makeNParticlesI(ptxAtlas, 64, [&](const int, PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1030,7 +981,7 @@ void R_ParticleExplosion(const qvec3& org)
         }
     });
 
-    makeNParticlesI(ptxRock, 48, [&](const int, PHandle p) {
+    makeNParticlesI(ptxAtlas, 48, [&](const int, PHandle p) {
         p.atlasIdx() = aiRock;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1049,10 +1000,10 @@ void R_ParticleExplosion(const qvec3& org)
         }
     });
 
-    makeNParticles(ptxExplosion, 1, [&](PHandle p) {
+    makeNParticles(ptxAtlas, 1, [&](PHandle p) {
         p.atlasIdx() = aiExplosion;
         p.angle() = rndToRad(0.f, 360.f);
-        p.setAlpha(225);
+        p.setAlpha(255);
         p.die() = cl.time + 1.5;
         p.setColor(ramp1[0]);
         p.ramp() = rand() & 3;
@@ -1068,7 +1019,7 @@ void R_ParticleExplosion(const qvec3& org)
         }
     });
 
-    makeNParticles(ptxSmoke, 3, [&](PHandle p) {
+    makeNParticles(ptxAtlas, 3, [&](PHandle p) {
         p.atlasIdx() = aiSmoke;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(225);
@@ -1095,7 +1046,7 @@ void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength)
 {
     int colorMod = 0;
 
-    makeNParticles(ptxCircle, 512, [&](PHandle p) {
+    makeNParticles(ptxAtlas, 512, [&](PHandle p) {
         p.atlasIdx() = aiCircle;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1121,7 +1072,7 @@ void R_RunParticleEffect_BulletPuff(
     const auto dustCount = count * 0.7f;
     const auto sparkCount = count * 0.4f;
 
-    makeNParticles(ptxRock, debrisCount, [&](PHandle p) {
+    makeNParticles(ptxAtlas, debrisCount, [&](PHandle p) {
         p.atlasIdx() = aiRock;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1139,7 +1090,7 @@ void R_RunParticleEffect_BulletPuff(
         }
     });
 
-    makeNParticles(ptxSmoke, 1, [&](PHandle p) {
+    makeNParticles(ptxAtlas, 1, [&](PHandle p) {
         p.atlasIdx() = aiSmoke;
         p.setAlpha(45);
         p.die() = cl.time + 1.25 * (rand() % 5);
@@ -1155,7 +1106,7 @@ void R_RunParticleEffect_BulletPuff(
         }
     });
 
-    makeNParticles(ptxCircle, dustCount, [&](PHandle p) {
+    makeNParticles(ptxAtlas, dustCount, [&](PHandle p) {
         p.atlasIdx() = aiCircle;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1174,7 +1125,7 @@ void R_RunParticleEffect_BulletPuff(
         p.vel()[2] += rnd(10, 40);
     });
 
-    makeNParticles(ptxSpark, sparkCount, [&](PHandle p) {
+    makeNParticles(ptxAtlas, sparkCount, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1200,7 +1151,7 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
     constexpr int bloodColors[]{247, 248, 249, 250, 251};
     const auto pickBloodColor = [&] { return bloodColors[rndi(0, 5)]; };
 
-    makeNParticles(ptxBlood, count * 2, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count * 2, [&](PHandle p) {
         p.atlasIdx() = aiBlood;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(100);
@@ -1219,7 +1170,7 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
         p.vel()[2] += rnd(0, 40);
     });
 
-    makeNParticles(ptxCircle, count * 24, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count * 24, [&](PHandle p) {
         p.atlasIdx() = aiCircle;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(175);
@@ -1239,7 +1190,7 @@ void R_RunParticleEffect_Blood(const qvec3& org, const qvec3& dir, int count)
         p.vel()[2] += rnd(20, 60);
     });
 
-    makeNParticles(ptxBloodMist, 1, [&](PHandle p) {
+    makeNParticles(ptxAtlas, 1, [&](PHandle p) {
         p.atlasIdx() = aiBloodMist;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(38);
@@ -1263,7 +1214,7 @@ void R_RunParticleEffect_Lightning(
 {
     (void)dir;
 
-    makeNParticles(ptxLightning, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiLightning;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(rnd(180, 220));
@@ -1285,7 +1236,7 @@ void R_RunParticleEffect_Smoke(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
-    makeNParticles(ptxSmoke, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSmoke;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(125);
@@ -1307,7 +1258,7 @@ void R_RunParticleEffect_Sparks(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
-    makeNParticles(ptxSpark, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1332,7 +1283,7 @@ void R_RunParticleEffect_GunSmoke(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
-    makeNParticles(ptxGunSmoke, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiGunSmoke;
         p.angle() = rndToRad(-10.f, 10.f) + (90 * M_PI_DIV_180);
         p.setAlpha(rnd(85, 125));
@@ -1356,7 +1307,7 @@ void R_RunParticleEffect_Teleport(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
 
-    makeNParticles(ptxSpark, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
@@ -1382,7 +1333,7 @@ void R_RunParticleEffect_GunPickup(
 {
     (void)dir;
 
-    makeNParticles(ptxSpark, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(rnd(150, 200));
@@ -1407,7 +1358,7 @@ void R_RunParticleEffect_GunForceGrab(
 {
     (void)dir;
 
-    makeNParticles(ptxSpark, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(rnd(180, 225));
@@ -1432,7 +1383,7 @@ void R_RunParticleEffect_LavaSpike(
 {
     (void)dir;
 
-    makeNParticles(ptxSpark, count, [&](PHandle p) {
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
         p.atlasIdx() = aiSpark;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(rnd(180, 225));
@@ -1549,7 +1500,7 @@ void R_LavaSplash(const qvec3& org)
     {
         for(int j = -16; j < 16; j++)
         {
-            makeNParticles(ptxCircle, 1, [&](PHandle p) {
+            makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                 p.atlasIdx() = aiCircle;
                 p.angle() = rndToRad(0.f, 360.f);
                 p.setAlpha(255);
@@ -1588,7 +1539,7 @@ void R_TeleportSplash(const qvec3& org)
         {
             for(int k = -24; k < 32; k += 4)
             {
-                makeNParticles(ptxCircle, 1, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     p.angle() = rndToRad(0.f, 360.f);
                     p.setAlpha(rnd(150, 255));
@@ -1747,13 +1698,13 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
         {
             case 0: // rocket trail
             {
-                makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 6, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTRocketTrail(start, p);
                 });
 
-                makeNParticles(ptxSmoke, 1, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                     p.atlasIdx() = aiSmoke;
                     p.setAlpha(65);
                     p.die() = cl.time + 1.5 * (rand() % 5);
@@ -1774,7 +1725,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
             case 1: // smoke smoke
             {
-                makeNParticles(ptxSmoke, 1, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                     p.atlasIdx() = aiSmoke;
                     p.angle() = rndToRad(0.f, 360.f);
                     p.setAlpha(65);
@@ -1796,13 +1747,13 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
             case 2: // blood
             {
-                makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 6, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTBlood(start, p);
                 });
 
-                makeNParticles(ptxBloodMist, 1, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                     p.atlasIdx() = aiBloodMist;
                     p.angle() = rndToRad(0.f, 360.f);
                     p.setAlpha(32);
@@ -1826,7 +1777,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
             case 3: [[fallthrough]];
             case 5: // tracer
             {
-                makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 6, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTTracer(start, end, p, type);
@@ -1837,7 +1788,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
             case 4: // slight blood
             {
-                makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 6, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTSlightBlood(start, p);
@@ -1849,7 +1800,7 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
             case 6: // voor trail
             {
-                makeNParticles(ptxCircle, 6, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 6, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTVoorTrail(start, p);
@@ -1860,13 +1811,13 @@ void R_RocketTrail(qvec3 start, const qvec3& end, int type)
 
             case 7: // mini rocket trail
             {
-                makeNParticles(ptxCircle, 2, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 2, [&](PHandle p) {
                     p.atlasIdx() = aiCircle;
                     R_SetRTCommon(p);
                     R_SetRTRocketTrail(start, p);
                 });
 
-                makeNParticles(ptxSmoke, 1, [&](PHandle p) {
+                makeNParticles(ptxAtlas, 1, [&](PHandle p) {
                     p.atlasIdx() = aiSmoke;
                     p.setAlpha(55);
                     p.die() = cl.time + 1.2 * (rand() % 5);

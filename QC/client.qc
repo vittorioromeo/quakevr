@@ -128,8 +128,9 @@ void() OnSpawnServer =
 void() SetNewParms =
 {
     // HONEY
-    // The secret count doesn't get updated when using the restart command for some reason.
-    SUB_DoLater(updateSecrets, 0.2);
+    // The secret count doesn't get updated when using the restart command for
+    // some reason.
+    SUB_DoLater(Honey_UpdateSecrets, 0.2);
 
     parm1 = IT_SHOTGUN | IT_AXE;
     parm2 = 100;
@@ -192,14 +193,10 @@ void() DecodeLevelParms =
     {
         if(world.model == "maps/start.bsp")
             SetNewParms();        // take away all stuff on starting new episode
-        if(world.model == "maps/orig_start.bsp")
-            SetNewParms();        // take away all stuff on starting new episode
     }
 
     // HIPNOTIC
     if(world.model == "maps/start.bsp")
-        SetNewParms();      // take away all stuff on starting new episode
-    if(world.model == "maps/orig_start.bsp")
         SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip1m1.bsp")
         SetNewParms();      // take away all stuff on starting new episode
@@ -1044,7 +1041,6 @@ RULES
 /*
 go to the next level for deathmatch
 */
-// TODO VR: (P2) check here whether to go orig_start? or is this only deathmatch?
 void() NextLevel =
 {
     local entity o;

@@ -101,7 +101,6 @@ void() main =
     precache_sound("items/inv3.wav");
 
     // shareware
-    precache_file("maps/orig_start.bsp");
     precache_file("maps/start.bsp");
 
     precache_file("maps/e1m1.bsp");

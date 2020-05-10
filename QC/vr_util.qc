@@ -189,6 +189,14 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFlags,
                           &self.weaponflags2,
                           &self.weaponflags);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetLavaGunFired,
+                          self.offHandLavaGunFired,
+                          self.mainHandLavaGunFired);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetLavaGunFired,
+                          &self.offHandLavaGunFired,
+                          &self.mainHandLavaGunFired);
+
 float(float xHand) VRIsAmmolessWeapon =
 {
     return VRGetCurrentAmmo(xHand) == AID_NONE;

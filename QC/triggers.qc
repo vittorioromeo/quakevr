@@ -231,7 +231,7 @@ void() trigger_secret =
     local entity secamb;
     local float sk;
 
-    total_secrets = total_secrets + 1;
+    total_secrets += 1;
     self.wait = -1;
     if(!self.message)
         self.message = "You found a secret area!";

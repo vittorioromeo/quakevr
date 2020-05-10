@@ -109,7 +109,6 @@ template <typename T>
     return (T*)Hunk_Alloc(count * sizeof(T));
 }
 
-
 template <typename T>
 [[nodiscard]] T* Hunk_AllocName(const int count, const char* name) noexcept
 {

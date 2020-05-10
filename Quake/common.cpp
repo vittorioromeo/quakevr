@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <errno.h>
 #include "vr.hpp"
 #include "vr_cvars.hpp"
+#include <string_view>
+#include <string>
+#include <vector>
 
 static char* largv[MAX_NUM_ARGVS + 1];
 static char argvdummy[] = " ";
@@ -1536,6 +1539,7 @@ static void COM_CheckRegistered()
     unsigned short check[128];
     int i;
 
+    // TODO VR: (P1) could use something similar to detect mission packs
     COM_OpenFile("gfx/pop.lmp", &h, nullptr);
 
     if(h == -1)
@@ -1895,13 +1899,6 @@ can be used for detecting a file's presence.
 static int COM_FindFile(
     const char* filename, int* handle, FILE** file, unsigned int* path_id)
 {
-    searchpath_t* search;
-    char netpath[MAX_OSPATH];
-    pack_t* pak;
-    int i;
-
-    int findtime;
-
     if(file && handle)
     {
         Sys_Error("COM_FindFile: both handle and file set");
@@ -1912,14 +1909,23 @@ static int COM_FindFile(
     //
     // search through the path, one element at a time
     //
-    for(search = com_searchpaths; search; search = search->next)
+    for(searchpath_t* search = com_searchpaths; search; search = search->next)
     {
         if(search->pack) /* look through all the pak file elements */
         {
-            pak = search->pack;
-            for(i = 0; i < pak->numfiles; i++)
+            pack_t* pak = search->pack;
+            for(int i = 0; i < pak->numfiles; i++)
             {
                 if(strcmp(pak->files[i].name, filename) != 0)
+                {
+                    continue;
+                }
+
+                // TODO VR: (P0) document, this is it
+                const auto extractedPakName = VR_ExtractPakName(*pak);
+                if(std::strcmp(filename, "maps/start.bsp") == 0 &&
+                    extractedPakName != VR_GetActiveStartPakName() &&
+                    extractedPakName != "pak0")
                 {
                     continue;
                 }
@@ -1952,7 +1958,6 @@ static int COM_FindFile(
 
                     return com_filesize;
                 }
-
                 else /* for COM_FileExists() */
                 {
                     return com_filesize;
@@ -1961,10 +1966,11 @@ static int COM_FindFile(
         }
         else /* check a file in the directory tree */
         {
+            char netpath[MAX_OSPATH];
             q_snprintf(
                 netpath, sizeof(netpath), "%s/%s", search->filename, filename);
 
-            findtime = Sys_FileTime(netpath);
+            const int findtime = Sys_FileTime(netpath);
             if(findtime == -1)
             {
                 continue;
@@ -1977,6 +1983,7 @@ static int COM_FindFile(
 
             if(handle)
             {
+                int i;
                 com_filesize = Sys_FileOpenRead(netpath, &i);
                 *handle = i;
                 return com_filesize;
@@ -2012,10 +2019,12 @@ static int COM_FindFile(
     {
         *handle = -1;
     }
+
     if(file)
     {
         *file = nullptr;
     }
+
     com_filesize = -1;
     return com_filesize;
 }
@@ -2418,7 +2427,7 @@ _add_path:
             search->next = com_searchpaths;
             com_searchpaths = search;
 
-            Con_Printf("Added pakfile to search paths: '%s'\n", pakfile);
+            VR_OnLoadedPak(*pak);
         }
 
         if(qspak)

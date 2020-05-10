@@ -7,8 +7,7 @@
 
 float() VR_GameUtil_InVanillaMap =
 {
-    return (mapname == "orig_start") ||
-           (mapname == "e1m1") ||
+    return (mapname == "e1m1") ||
            (mapname == "e1m2") ||
            (mapname == "e1m3") ||
            (mapname == "e1m4") ||

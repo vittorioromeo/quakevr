@@ -143,10 +143,17 @@ void() PlaceItem =
     // HONEY
     if(self.spawnflags & ITEM_SECRET)
     {
-        total_secrets = total_secrets + 1;
+        // TODO VR: (P0) this is likely the cause of the screwed up secret count
+
+        total_secrets += 1;
+
         if(!self.message)
+        {
             self.message = "You found a secret item!";
-        if(skill == 0 || world.model == "maps/start.bsp"){
+        }
+
+        if(skill == 0 || world.model == "maps/start.bsp")
+        {
             ambient_secret_think();
         }
     }
@@ -237,6 +244,7 @@ void() item_health =
         self.healamount = 15;
         self.healtype = 0;
         setsize(self, '0 0 0', '32 32 16');
+        if(deathmatch) { self.wait = 20; }
     }
     else if(self.spawnflags & H_MEGA)
     {
@@ -247,6 +255,7 @@ void() item_health =
         self.healamount = 100;
         self.healtype = 2;
         setsize(self, '0 0 0', '32 32 32');
+        if(deathmatch) { self.wait = 35; }
     }
     else
     {
@@ -257,10 +266,7 @@ void() item_health =
         self.healamount = 25;
         self.healtype = 1;
         setsize(self, '0 0 0', '32 32 16');
-    }
-
-    if(deathmatch) {
-        self.wait = 20;
+        if(deathmatch) { self.wait = 20; }
     }
 
     StartItem();
@@ -275,6 +281,7 @@ void() health_touch =
     {
         if(other.health >= 250)
             return;
+
         if(!T_Heal(other, self.healamount, 1))
             return;
     }
@@ -531,7 +538,7 @@ void() weapon_touch =
 
     if(weaponId == WID_FIST)
     {
-        objerror ("weapon_touch: unknown classname");
+        objerror("weapon_touch: unknown classname");
     }
 
     if(leave && VR_WeaponUtil_EntHasWeapon(other, weaponId))

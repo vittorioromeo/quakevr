@@ -4127,6 +4127,62 @@ void VR_Move(usercmd_t* cmd)
     }
 }
 
+//
+//
+// PAK Stuff
+
+[[nodiscard]] const std::string& VR_GetActiveStartPakName()
+{
+    const std::size_t idx = vr_activestartpaknameidx.value;
+    const auto& vec = VR_GetLoadedPakNamesWithStartMaps();
+    return vec[idx % vec.size()];
+}
+
+[[nodiscard]] std::vector<std::string>& VR_GetLoadedPakNames()
+{
+    static std::vector<std::string> res;
+    return res;
+}
+
+[[nodiscard]] std::vector<std::string>& VR_GetLoadedPakNamesWithStartMaps()
+{
+    static std::vector<std::string> res;
+    return res;
+}
+
+[[nodiscard]] std::string VR_ExtractPakName(std::string_view sv)
+{
+    const auto afterSlash = sv.find_last_of("/\\") + 1;
+    sv = sv.substr(afterSlash, sv.size() - afterSlash);
+    sv.remove_suffix(4);
+
+    return std::string(sv.data(), sv.size());
+}
+
+[[nodiscard]] std::string VR_ExtractPakName(const pack_t& pak)
+{
+    return VR_ExtractPakName(pak.filename);
+}
+
+void VR_OnLoadedPak(pack_t& pak)
+{
+    const auto extractedName = VR_ExtractPakName(pak);
+
+    VR_GetLoadedPakNames().emplace_back(extractedName);
+    Con_Printf("Added pakfile to search paths: '%s'\n", extractedName.data());
+
+    for(int i = 0; i < pak.numfiles; i++)
+    {
+        if(std::strcmp(pak.files[i].name, "maps/start.bsp") == 0)
+        {
+            VR_GetLoadedPakNamesWithStartMaps().emplace_back(extractedName);
+            continue;
+        }
+    }
+}
+
+
+
 // TODO VR: (P0) remove existing sv_player usages, or change to to
 // svs.client edicts. I believe that, by definition, svs.clients[0] is the
 // local player
@@ -4159,14 +4215,12 @@ void VR_Move(usercmd_t* cmd)
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
 
-// TODO VR: (P0): bots dont seem to pick up weapons
+// TODO VR: (P0): bots dont seem to pick up weapons - test, might be fixed
 
-// TODO VR: (P0): bots dont seem to drop powerups
-
-// TODO VR: (P0): superhealth respawn too short?
+// TODO VR: (P0): bots dont seem to drop powerups - intended?
 
 // TODO VR: (P0): holster haptic are always continuous in deathmatch, probably
-// bots triggering it?
+// bots triggering it? might be fixed, test
 
 
 
