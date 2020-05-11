@@ -5,6 +5,11 @@
 // Public API
 // ----------------------------------------------------------------------------
 
+float() VR_GameUtil_InStartMap =
+{
+    return (mapname == "start");
+}
+
 float() VR_GameUtil_InVanillaMap =
 {
     return (mapname == "e1m1") ||
@@ -112,4 +117,18 @@ float() VR_GameUtil_InUnknownMap =
            !VR_GameUtil_InRogueMap() &&
            !VR_GameUtil_InDopaMap() &&
            !VR_GameUtil_InHoneyMap();
+}
+
+float() VR_GameUtil_EnableHoneyExtensions =
+{
+    // TODO VR: (P2) also add cvar override
+
+    if(VR_GameUtil_InStartMap() || VR_GameUtil_InHoneyMap())
+    {
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
 }

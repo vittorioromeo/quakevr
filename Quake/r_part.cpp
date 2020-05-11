@@ -1046,21 +1046,95 @@ void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength)
 {
     int colorMod = 0;
 
-    makeNParticles(ptxAtlas, 512, [&](PHandle p) {
+    makeNParticlesI(ptxAtlas, 256, [&](const int, PHandle p) {
         p.atlasIdx() = aiCircle;
         p.angle() = rndToRad(0.f, 360.f);
         p.setAlpha(255);
-        p.die() = cl.time + 0.3;
+        p.die() = cl.time + 1.5;
         p.setColor(colorStart + (colorMod % colorLength));
-        p.scale() = 1.f;
+        p.scale() = rnd(1.6f, 3.5f);
         colorMod++;
         setAccGrav(p);
-
         p.type() = pt_blob;
+
         for(int j = 0; j < 3; j++)
         {
             p.org()[j] = org[j] + rnd(-16, 16);
             p.vel()[j] = rnd(-256, 256);
+        }
+    });
+
+    makeNParticlesI(ptxAtlas, 64, [&](const int, PHandle p) {
+        p.atlasIdx() = aiSpark;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(ramp1[0]);
+        p.ramp() = rand() & 3;
+        p.scale() = rnd(1.9f, 2.9f) * 0.55f;
+        setAccGrav(p);
+        p.type() = pt_rock;
+        p.param0() = rndi(0, 2); // rotation direction
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org()[j] = org[j] + rnd(-16, 16);
+            p.vel()[j] = rnd(-256, 256);
+        }
+    });
+
+    makeNParticlesI(ptxAtlas, 48, [&](const int, PHandle p) {
+        p.atlasIdx() = aiRock;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(167 + (rand() & 7));
+        p.ramp() = rand() & 3;
+        p.scale() = rnd(0.9f, 1.9f);
+        setAccGrav(p);
+        p.type() = pt_rock;
+        p.param0() = rndi(0, 2); // rotation direction
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org()[j] = org[j] + rnd(-16, 16);
+            p.vel()[j] = rnd(-256, 256);
+        }
+    });
+
+    makeNParticles(ptxAtlas, 1, [&](PHandle p) {
+        p.atlasIdx() = aiExplosion;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 1.5;
+        p.setColor(colorStart + (colorMod % colorLength));
+        p.ramp() = rand() & 3;
+        p.scale() = rnd(0.5f, 2.1f) * 2.f;
+        setAccGrav(p, 0.05f);
+        p.type() = pt_txexplode;
+        p.param0() = rndi(0, 2); // rotation direction
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org()[j] = org[j] + rnd(-11, 11);
+            p.vel()[j] = rnd(-8, 8);
+        }
+    });
+
+    makeNParticles(ptxAtlas, 3, [&](PHandle p) {
+        p.atlasIdx() = aiSmoke;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(225);
+        p.die() = cl.time + 3.5;
+        p.setColor(rand() & 7);
+        p.scale() = rnd(1.2f, 1.5f);
+        p.type() = pt_txsmoke;
+        setAccGrav(p, -0.09f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org()[j] = org[j] + ((rand() & 7) - 4);
+            p.vel()[j] = rnd(-24, 24);
         }
     });
 }

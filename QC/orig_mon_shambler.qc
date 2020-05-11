@@ -340,9 +340,9 @@ void() sham_die =
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_shams.mdl", self.health);
-        ThrowGib ("progs/gib1.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
-        ThrowGib ("progs/gib3.mdl", self.health);
+        ThrowGib("progs/gib1.mdl", self.health);
+        ThrowGib("progs/gib2.mdl", self.health);
+        ThrowGib("progs/gib3.mdl", self.health);
         ShamblerDrop();
         return;
     }

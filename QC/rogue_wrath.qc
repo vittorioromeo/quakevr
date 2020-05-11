@@ -175,20 +175,20 @@ void()    wrath_die11 =[ $wrthdt11, wrath_die13 ] {};
 void()    wrath_die13 =[ $wrthdt13, wrath_die15 ] {};
 void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
 {
-    ThrowGib ("progs/wrthgib1.mdl", self.health);
-    ThrowGib ("progs/wrthgib2.mdl", self.health);
-    ThrowGib ("progs/wrthgib3.mdl", self.health);
+    ThrowGib("progs/wrthgib1.mdl", self.health);
+    ThrowGib("progs/wrthgib2.mdl", self.health);
+    ThrowGib("progs/wrthgib3.mdl", self.health);
     T_RadiusDamage(self, self, 80, world);
 
     self.origin = self.origin + '0 0 24';
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 0);
-    WriteByte (MSG_BROADCAST, 4);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 0);
+    WriteByte(MSG_BROADCAST, 4);
 
     remove(self);
 };
@@ -233,7 +233,7 @@ void() monster_wrath =
     self.th_pain = wrath_pain;
     self.th_die = wrath_die02;
 
-    flymonster_start ();
+    flymonster_start();
 };
 
 /*
@@ -303,9 +303,9 @@ void() WrathHome =
     }
 
     if(skill == 3)
-        ai_track (self.enemy, 550);
+        ai_track(self.enemy, 550);
     else
-        ai_track (self.enemy, 400);
+        ai_track(self.enemy, 400);
 
     self.nextthink = time + 0.1;
     self.think = WrathHome;
@@ -328,11 +328,11 @@ void() WrathMissileTouch =
     T_RadiusDamage(self, self.owner, 20, world);
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
 
     self.velocity = '0 0 0';
     self.touch = SUB_Null;

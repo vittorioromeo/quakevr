@@ -140,9 +140,9 @@ void() fish_die =
    if(self.health < -20)
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
-      ThrowGib ("progs/gib1.mdl", self.health);
-      ThrowGib ("progs/gib2.mdl", self.health);
-      ThrowGib ("progs/gib3.mdl", self.health);
+      ThrowGib("progs/gib1.mdl", self.health);
+      ThrowGib("progs/gib2.mdl", self.health);
+      ThrowGib("progs/gib3.mdl", self.health);
       self.think = SUB_Remove;
       self.nextthink= time + 0.1;
       return;

@@ -119,7 +119,11 @@ void() PlaceItem =
     self.movetype = MOVETYPE_TOSS;
     self.velocity = '0 0 0';
 
-    if(self.spawnflags & ITEM_FLOATING) // HONEY
+    local float enableHoneyExtensions;
+
+    // HONEY
+    if(VR_GameUtil_EnableHoneyExtensions() &&
+       (self.spawnflags & HONEY_SPAWNFLAG_ITEM_FLOATING))
     {
         self.movetype = MOVETYPE_NONE;
         setorigin(self, self.origin);
@@ -141,10 +145,9 @@ void() PlaceItem =
     }
 
     // HONEY
-    if(self.spawnflags & ITEM_SECRET)
+    if(VR_GameUtil_EnableHoneyExtensions() &&
+       (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET))
     {
-        // TODO VR: (P0) this is likely the cause of the screwed up secret count
-
         total_secrets += 1;
 
         if(!self.message)
@@ -631,7 +634,7 @@ void() weapon_supershotgun =
     precache_model("progs/g_shot.mdl");
     setmodel(self, "progs/g_shot.mdl");
     self.weapon = WID_SUPER_SHOTGUN;
-    self.netname = "Double-barrelled Shotgun";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }
@@ -646,7 +649,7 @@ void() weapon_nailgun =
     precache_model("progs/g_nail.mdl");
     setmodel(self, "progs/g_nail.mdl");
     self.weapon = WID_NAILGUN;
-    self.netname = "nailgun";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }
@@ -661,7 +664,7 @@ void() weapon_supernailgun =
     precache_model("progs/g_nail2.mdl");
     setmodel(self, "progs/g_nail2.mdl");
     self.weapon = WID_SUPER_NAILGUN;
-    self.netname = "Super Nailgun";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }
@@ -676,7 +679,7 @@ void() weapon_grenadelauncher =
     precache_model("progs/g_rock.mdl");
     setmodel(self, "progs/g_rock.mdl");
     self.weapon = WID_GRENADE_LAUNCHER;
-    self.netname = "Grenade Launcher";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }
@@ -691,7 +694,7 @@ void() weapon_rocketlauncher =
     precache_model("progs/g_rock2.mdl");
     setmodel(self, "progs/g_rock2.mdl");
     self.weapon = WID_ROCKET_LAUNCHER;
-    self.netname = "Rocket Launcher";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }
@@ -707,7 +710,7 @@ void() weapon_lightning =
     precache_model("progs/g_light.mdl");
     setmodel(self, "progs/g_light.mdl");
     self.weapon = WID_LIGHTNING;
-    self.netname = "Thunderbolt";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.handtouch = weapon_touch;
     setsize(self, '-8 -8 16', '8 8 38');
     if(deathmatch) { self.wait = 30; }

@@ -20,11 +20,11 @@ void() time_chunk =
     timeChunk.angles = self.owner.angles;
 
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord (MSG_BROADCAST, timeChunk.origin_x);
-    WriteCoord (MSG_BROADCAST, timeChunk.origin_y);
-    WriteCoord (MSG_BROADCAST, timeChunk.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteCoord(MSG_BROADCAST, timeChunk.origin_x);
+    WriteCoord(MSG_BROADCAST, timeChunk.origin_y);
+    WriteCoord(MSG_BROADCAST, timeChunk.origin_z);
 
     self.owner.frame = 1;
 
@@ -66,21 +66,21 @@ void() time_boom =
 
     if(random() < 0.5)
     {
-        WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-        WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-        WriteCoord (MSG_BROADCAST, self.origin_x);
-        WriteCoord (MSG_BROADCAST, self.origin_y);
-        WriteCoord (MSG_BROADCAST, self.origin_z);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
     }
     else
     {
-        WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-        WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-        WriteCoord (MSG_BROADCAST, self.origin_x);
-        WriteCoord (MSG_BROADCAST, self.origin_y);
-        WriteCoord (MSG_BROADCAST, self.origin_z);
-        WriteByte (MSG_BROADCAST, 244);
-        WriteByte (MSG_BROADCAST, 3);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteByte(MSG_BROADCAST, 244);
+        WriteByte(MSG_BROADCAST, 3);
     }
 
     BecomeExplosion();
@@ -96,20 +96,20 @@ void() time_fall =
     {
         if(self.origin_z < -20)
         {
-            WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-            WriteByte (MSG_BROADCAST, TE_LAVASPLASH);
-            WriteCoord (MSG_BROADCAST, self.origin_x);
-            WriteCoord (MSG_BROADCAST, self.origin_y);
-            WriteCoord (MSG_BROADCAST, self.origin_z - 80);
+            WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+            WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
+            WriteCoord(MSG_BROADCAST, self.origin_x);
+            WriteCoord(MSG_BROADCAST, self.origin_y);
+            WriteCoord(MSG_BROADCAST, self.origin_z - 80);
             self.pain_finished = 1;
         }
         else if(random() < 0.3)
         {
-            WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-            WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-            WriteCoord (MSG_BROADCAST, self.origin_x);
-            WriteCoord (MSG_BROADCAST, self.origin_y);
-            WriteCoord (MSG_BROADCAST, self.origin_z);
+            WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+            WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+            WriteCoord(MSG_BROADCAST, self.origin_x);
+            WriteCoord(MSG_BROADCAST, self.origin_y);
+            WriteCoord(MSG_BROADCAST, self.origin_z);
         }
     }
 

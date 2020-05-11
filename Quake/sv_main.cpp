@@ -2002,12 +2002,6 @@ void SV_SpawnServer(const char* server)
 
     sv.time = 1.0;
 
-    // TODO VR: (P0): hijack "start.bsp", figure out how to get list of maps
-    if(std::strcmp(server, "start") == 0)
-    {
-        Con_Printf("Going to Start!\n");
-    }
-
     // VR: This is where the map is changed upon creation of a server. `map`,
     // `changelevel`, and slipgates eventually all reach this point.
     q_strlcpy(sv.name, server, sizeof(sv.name));

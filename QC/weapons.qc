@@ -941,34 +941,39 @@ void(float xHand) W_FireAxe =
     // HONEY
     local entity zombie, oself;
     local float  zombie_dist;
-    local float  bleed; // TODO VR: (P1) apply bleed mechanic to other attacks
+    local float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
     bleed = FALSE;
 
     xdmg = VRMeleeDmg(xHand, 1.00, 7);
 
-    // TODO VR: (P0) this should only be enabled in HONEY, or controlled with a
-    // CVAR. Also should use `findradius` for performance
-
     // HONEY
     // Check if we maybe should gib some zombies for fun!
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        // Why on earth did I choose .wad?
+        zombie = find(world, wad, ZOMBIE_ONGROUND);
 
-    // Why on earth did I choose .wad?
-    zombie = find(world, wad, ZOMBIE_ONGROUND);
+        while(zombie)
+        {
+            if(zombie.classname == "monster_zombie")
+            {
+                zombie_dist = vlen(self.origin  - zombie.origin);
 
-    while(zombie){
-        if(zombie.classname == "monster_zombie"){
-            zombie_dist = vlen(self.origin  - zombie.origin);
-            if(zombie_dist <= 64){
-                if(infront(zombie)){
-                    zombie.wad = "";
-                    SpawnBloodSplash(zombie.origin, 20);
-                    zombie.health = 0;
-                    Killed(zombie, self);
-                    bleed = TRUE;
+                if(zombie_dist <= 64)
+                {
+                    if(infront(zombie))
+                    {
+                        zombie.wad = "";
+                        SpawnBloodSplash(zombie.origin, 20);
+                        zombie.health = 0;
+                        Killed(zombie, self);
+                        bleed = TRUE;
+                    }
                 }
             }
+
+            zombie = find(zombie, wad, ZOMBIE_ONGROUND);
         }
-        zombie = find(zombie, wad, ZOMBIE_ONGROUND);
     }
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
@@ -2428,7 +2433,7 @@ W_ChangeWeapon
 ============
 */
 //MED 10/18/96 added hipweapons
-// TODO VR: (P1) rewrite to use new item system or remove
+// TODO VR: (P1) rewrite to use new item system or remove, check if bots use this
 void() W_ChangeWeapon =
 {
     local float am, wid;
@@ -2968,7 +2973,7 @@ void() ImpulseCommands =
         }
     }
 
-    // TODO VR: (P1) rogue teamplay impulses
+    // TODO VR: (P2) rogue teamplay impulses
     /*
     // ROGUE
     //ZOID--
@@ -3638,7 +3643,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
     newmis.weapon = xWeapon;
     newmis.weaponflags = xWeaponFlags;
 
-    // TODO VR: (P0) fix laser cannon bounds
+    // TODO VR: (P1) fix laser cannon bounds
     tmp = WeaponIdToThrowBounds(xWeapon);
     tmp_bounds_x = tmp;
     tmp_bounds_y = tmp;
@@ -3681,7 +3686,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
   );
 }
 
-// TODO VR: (P1) improve?
+// TODO VR: (P2) improve?
 void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
 {
     local vector throwVel;
@@ -4016,5 +4021,5 @@ void() SuperDamageSound =
     }
 };
 
-// TODO VR: (P1) remove backpack spinning animation.
+// TODO VR: (P2) remove backpack spinning animation.
 

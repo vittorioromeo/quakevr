@@ -233,7 +233,7 @@ void(vector wishvel) SV_Accelerate =
 void() SV_WaterMove =
 {
     local float max_speed;
-    max_speed = sv_maxspeed * 1.0; // TODO VR: (P0) cvar, test (they fail to jump big gaps)
+    max_speed = sv_maxspeed * 1.0;
 
     local vector wishvel;
     local float wishspeed, addspeed, cspeed, newspeed;
@@ -279,7 +279,7 @@ void() SV_WaterMove =
 void() SV_AirMove =
 {
     local float max_speed;
-    max_speed = sv_maxspeed * 1.0; // TODO VR: (P0) cvar, test (they fail to jump big gaps)
+    max_speed = sv_maxspeed * 1.0;
 
     local vector wishvel, vangle;
 

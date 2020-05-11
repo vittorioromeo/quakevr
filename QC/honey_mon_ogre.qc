@@ -25,8 +25,8 @@ void() ogre_start =
         n.th_pain = ogre_pain;
         if(self.cnt <= -1){
             total_monsters = total_monsters + 1;
-            WriteByte (MSG_ALL, SVC_UPDATESTAT);
-            WriteByte (MSG_ALL, 12);
+            WriteByte(MSG_ALL, SVC_UPDATESTAT);
+            WriteByte(MSG_ALL, 12);
             WriteLong (MSG_ALL, total_monsters);
         }
     }else{
@@ -110,11 +110,11 @@ void() ogre_crown_die =
     tf = self.trigger_field;
     if(tf == world) return;
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_TAREXPLOSION);
-    WriteCoord (MSG_BROADCAST, tf.origin_x);
-    WriteCoord (MSG_BROADCAST, tf.origin_y);
-    WriteCoord (MSG_BROADCAST, tf.origin_z);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_TAREXPLOSION);
+    WriteCoord(MSG_BROADCAST, tf.origin_x);
+    WriteCoord(MSG_BROADCAST, tf.origin_y);
+    WriteCoord(MSG_BROADCAST, tf.origin_z);
 
 
     self.trigger_field = world;

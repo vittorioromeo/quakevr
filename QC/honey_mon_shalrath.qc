@@ -24,8 +24,8 @@ void() shalrath_start =
         n.th_missile = shal_attack1;
         if(self.cnt <= -1){
                 total_monsters = total_monsters + 1;
-                WriteByte (MSG_ALL, SVC_UPDATESTAT);
-                WriteByte (MSG_ALL, 12);
+                WriteByte(MSG_ALL, SVC_UPDATESTAT);
+                WriteByte(MSG_ALL, 12);
                 WriteLong (MSG_ALL, total_monsters);
         }
     }else{

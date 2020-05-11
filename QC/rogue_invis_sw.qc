@@ -183,5 +183,5 @@ void() monster_sword =
     self.th_die = sword_die;
     self.th_pain = sword_pain;
 
-    walkmonster_start ();
+    walkmonster_start();
 };

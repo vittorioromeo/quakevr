@@ -169,7 +169,7 @@ void() weapon_mjolnir =
     precache_model("progs/g_hammer.mdl");
     setmodel(self, "progs/g_hammer.mdl");
     self.weapon = WID_MJOLNIR;
-    self.netname = "Mjolnir";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.vr_itemId = IID_MJOLNIR;
     self.handtouch = weapon_touch;
     setsize(self, '-16 -16 0', '16 16 56');
@@ -184,7 +184,7 @@ void() weapon_laser_gun =
     precache_model("progs/g_laserg.mdl");
     setmodel(self, "progs/g_laserg.mdl");
     self.weapon = WID_LASER_CANNON;
-    self.netname = "Laser Cannon";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.vr_itemId = IID_LASER_CANNON;
     self.handtouch = weapon_touch;
     setsize(self, '-16 -16 0', '16 16 56');
@@ -199,7 +199,7 @@ void() weapon_proximity_gun =
     precache_model("progs/g_prox.mdl");
     setmodel(self, "progs/g_prox.mdl");
     self.weapon = WID_PROXIMITY_GUN;
-    self.netname = "Proximity Gun";
+    self.netname = WeaponIdToWeaponName(self.weapon);
     self.vr_itemId = IID_PROXIMITY_GUN;
     self.handtouch = weapon_touch;
     setsize(self, '-16 -16 0', '16 16 56');

@@ -311,18 +311,13 @@ void CL_ParseTEnt()
 
         case TE_EXPLOSION2: // color mapped explosion
         {
-            // TODO VR: (P0) restore color coding, explosions like the plasma
-            // ball use it
-
             const auto pos = readVectorFromProtocolFlags();
-            R_ParticleExplosion(pos);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
-            (void)colorStart;  // still need to read the byte to avoid issues
-            (void)colorLength; // still need to read the byte to avoid issues
 
-            // TODO VR: (P2) unused above ^
-            // R_ParticleExplosion2(pos, colorStart, colorLength);
+            // TODO VR: (P2): consider rewriting to use hue in fragment shader
+            R_ParticleExplosion2(pos, colorStart, colorLength);
+
             dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;
             dl->radius = 350;

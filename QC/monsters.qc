@@ -147,8 +147,8 @@ void() walkmonster_start =
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
-        WriteByte (MSG_ALL, SVC_UPDATESTAT);
-        WriteByte (MSG_ALL, 12);
+        WriteByte(MSG_ALL, SVC_UPDATESTAT);
+        WriteByte(MSG_ALL, 12);
         WriteLong (MSG_ALL, total_monsters);
     }
 };
@@ -228,8 +228,8 @@ void() flymonster_start =
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
-        WriteByte (MSG_ALL, SVC_UPDATESTAT);
-        WriteByte (MSG_ALL, 12);
+        WriteByte(MSG_ALL, SVC_UPDATESTAT);
+        WriteByte(MSG_ALL, 12);
         WriteLong (MSG_ALL, total_monsters);
     }
 };
@@ -304,8 +304,8 @@ void() swimmonster_start =
 
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
     {
-        WriteByte (MSG_ALL, SVC_UPDATESTAT);
-        WriteByte (MSG_ALL, 12);
+        WriteByte(MSG_ALL, SVC_UPDATESTAT);
+        WriteByte(MSG_ALL, 12);
         WriteLong (MSG_ALL, total_monsters);
     }
 };

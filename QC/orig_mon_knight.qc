@@ -234,15 +234,15 @@ void() knight_die =
 
     if(self.spawnflags & 2) // statue
         {
-            ThrowGib ("progs/statgib1.mdl", self.health);
-            ThrowGib ("progs/statgib2.mdl", self.health);
-            ThrowGib ("progs/statgib3.mdl", self.health);
+            ThrowGib("progs/statgib1.mdl", self.health);
+            ThrowGib("progs/statgib2.mdl", self.health);
+            ThrowGib("progs/statgib3.mdl", self.health);
         }
         else
         {
-            ThrowGib ("progs/gib1.mdl", self.health);
-            ThrowGib ("progs/gib2.mdl", self.health);
-            ThrowGib ("progs/gib3.mdl", self.health);
+            ThrowGib("progs/gib1.mdl", self.health);
+            ThrowGib("progs/gib2.mdl", self.health);
+            ThrowGib("progs/gib3.mdl", self.health);
         }
         return;
     }

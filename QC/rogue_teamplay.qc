@@ -566,7 +566,7 @@ void() TossBackpack =
 
     item = spawn();
 
-    // TODO VR: (P1) rewrite for VR
+    // TODO VR: (P2) rewrite for VR
     /*
 
     // See if you have the Shotgun or Super Shotgun on
@@ -745,7 +745,7 @@ void() TossBackpack =
 
 void() Team_weapon_touch =
 {
-    // TODO VR: (P1) rewrite for VR
+    // TODO VR: (P2) rewrite for VR
     /*
 
     local    float    hadammo, best, new, old;
@@ -810,7 +810,7 @@ void() Team_weapon_touch =
 
 void() TossWeapon =
 {
-    // TODO VR: (P1) rewrite for VR
+    // TODO VR: (P2) rewrite for VR
 
     /*
 

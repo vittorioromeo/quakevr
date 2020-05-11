@@ -342,9 +342,9 @@ void() wiz_die =
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_wizard.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
+        ThrowGib("progs/gib2.mdl", self.health);
+        ThrowGib("progs/gib2.mdl", self.health);
+        ThrowGib("progs/gib2.mdl", self.health);
         return;
     }
 

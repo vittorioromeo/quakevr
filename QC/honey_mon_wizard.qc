@@ -23,8 +23,8 @@ void() scrag_start =
         n.th_die = wiz_die;
         if(self.cnt <= -1){
                 total_monsters = total_monsters + 1;
-                WriteByte (MSG_ALL, SVC_UPDATESTAT);
-                WriteByte (MSG_ALL, 12);
+                WriteByte(MSG_ALL, SVC_UPDATESTAT);
+                WriteByte(MSG_ALL, 12);
                 WriteLong (MSG_ALL, total_monsters);
         }
     }else{
@@ -40,5 +40,5 @@ void() scrag_start =
 
     self = n;
     teleport_glitter();
-    flymonster_start ();
+    flymonster_start();
 };

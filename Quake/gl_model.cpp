@@ -356,12 +356,6 @@ Loads a model into the cache
 */
 qmodel_t* Mod_LoadModel(qmodel_t* mod, bool crash)
 {
-    // TODO VR: (P0) remove
-    if(std::strcmp(mod->name, "maps/start.bsp") == 0)
-    {
-        Con_Printf("Loading START\n");
-    }
-
     if(!mod->needload)
     {
         if(mod->type == mod_alias)

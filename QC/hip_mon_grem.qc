@@ -928,9 +928,9 @@ void() gremlin_gib=
    {
    sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
    ThrowHead ("progs/h_grem.mdl", -35);
-   ThrowGib ("progs/gib1.mdl", -35);
-   ThrowGib ("progs/gib1.mdl", -35);
-   ThrowGib ("progs/gib1.mdl", -35);
+   ThrowGib("progs/gib1.mdl", -35);
+   ThrowGib("progs/gib1.mdl", -35);
+   ThrowGib("progs/gib1.mdl", -35);
    };
 
 void()   gremlin_flip1    =[ $flip1.asc,    gremlin_flip2 ]
@@ -1831,9 +1831,9 @@ void(float side)  Gremlin_Gorge =
             temp = self;
             self = self.enemy;
             Gremlin_ThrowHead(-15);
-            // ThrowGib ("progs/gib1.mdl", -15);
-            // ThrowGib ("progs/gib2.mdl", -15);
-            // ThrowGib ("progs/gib3.mdl", -15);
+            // ThrowGib("progs/gib1.mdl", -15);
+            // ThrowGib("progs/gib2.mdl", -15);
+            // ThrowGib("progs/gib3.mdl", -15);
             self = temp;
             ldmg = 150 + 100*random();
             T_Heal(self,ldmg,FALSE);

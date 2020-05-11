@@ -129,7 +129,7 @@ void() lavaspike_touch =
             // other.armortype = 0;
             // other.armorvalue = 0;
 
-            // TODO VR: (P0) pass a flag to `T_Damage` to ignore armor
+            // TODO VR: (P1) pass a flag to `T_Damage` to ignore armor
             T_Damage(other, self, self.owner, 9);
 
             // other.armortype = old_armortype;
@@ -146,20 +146,20 @@ void() lavaspike_touch =
     }
     else
     {
-        WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
 
         if(self.classname == "wizspike")
-            WriteByte (MSG_BROADCAST, TE_WIZSPIKE);
+            WriteByte(MSG_BROADCAST, TE_WIZSPIKE);
         else if(self.classname == "knightspike")
-            WriteByte (MSG_BROADCAST, TE_KNIGHTSPIKE);
+            WriteByte(MSG_BROADCAST, TE_KNIGHTSPIKE);
         else
         {
             spike_bullethole();
-            WriteByte (MSG_BROADCAST, TE_SPIKE);
+            WriteByte(MSG_BROADCAST, TE_SPIKE);
         }
-        WriteCoord (MSG_BROADCAST, self.origin_x);
-        WriteCoord (MSG_BROADCAST, self.origin_y);
-        WriteCoord (MSG_BROADCAST, self.origin_z);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
     }
 
     remove(self);
@@ -220,11 +220,11 @@ local float old_armortype;
     else
     {
         spike_bullethole();
-        WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-        WriteByte (MSG_BROADCAST, TE_SUPERSPIKE);
-        WriteCoord (MSG_BROADCAST, self.origin_x);
-        WriteCoord (MSG_BROADCAST, self.origin_y);
-        WriteCoord (MSG_BROADCAST, self.origin_z);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_SUPERSPIKE);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
     }
 
     remove(self);
