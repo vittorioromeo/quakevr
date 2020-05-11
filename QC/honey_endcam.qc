@@ -83,7 +83,7 @@ void() endcam_cutscene =
         other = find(other, classname, "player");
     }
 
-    WriteByte (MSG_ALL, SVC_CUTSCENE);
+    WriteByte(MSG_ALL, SVC_CUTSCENE);
     WriteString (MSG_ALL, "");
 
 }
@@ -93,9 +93,9 @@ void() execute_endcam =
 {
     clear_idlescale();
 
-    WriteByte (MSG_ALL, SVC_CDTRACK);
-    WriteByte (MSG_ALL, 0);
-    WriteByte (MSG_ALL, 0);
+    WriteByte(MSG_ALL, SVC_CDTRACK);
+    WriteByte(MSG_ALL, 0);
+    WriteByte(MSG_ALL, 0);
 
     other = find(world, classname, "player");
     while (other != world)

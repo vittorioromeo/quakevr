@@ -400,7 +400,7 @@ float(float wid) WeaponIdToInitialAmmoCount =
     return -1;
 }
 
-// TODO VR: (P1) use for DropBackpack, GremlinDropBackpack, netname, etc
+// TODO VR: (P2) use for DropBackpack, GremlinDropBackpack, netname, etc
 string(float wid) WeaponIdToWeaponName =
 {
     if(wid == WID_FIST)             { return "Fist"; }

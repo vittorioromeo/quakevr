@@ -1,5 +1,5 @@
-float ITEM_SECRET = 128;
-float ITEM_FLOATING = 16;
+float HONEY_SPAWNFLAG_ITEM_SECRET = 128;
+float HONEY_SPAWNFLAG_ITEM_FLOATING = 16;
 
 void() itemTouch =
 {
@@ -12,10 +12,11 @@ void() itemTouch =
     //self.touch = self.th_die;
     self.th_die();
 
-    if(self.spawnflags & ITEM_SECRET){
+    if(self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET)
+    {
         found_secrets = found_secrets + 1;
-        WriteByte (MSG_ALL, SVC_FOUNDSECRET);
-        self.spawnflags = self.spawnflags - (self.spawnflags & ITEM_SECRET);
+        WriteByte(MSG_ALL, SVC_FOUNDSECRET);
+        self.spawnflags = self.spawnflags - (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET);
 
         sound(self, CHAN_ITEM, "misc/secret.wav", 1, ATTN_NORM);
         centerprint(other, self.message);

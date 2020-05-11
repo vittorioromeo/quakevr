@@ -130,7 +130,10 @@ void() SetNewParms =
     // HONEY
     // The secret count doesn't get updated when using the restart command for
     // some reason.
-    SUB_DoLater(Honey_UpdateSecrets, 0.2);
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        SUB_DoLater(Honey_UpdateSecrets, 0.2);
+    }
 
     parm1 = IT_SHOTGUN | IT_AXE;
     parm2 = 100;
@@ -417,7 +420,7 @@ void() ExitIntermission =
         // ROGUE
         else if(world.model == "maps/r1m7.bsp")
         {
-            WriteByte (MSG_ALL, SVC_FINALE);
+            WriteByte(MSG_ALL, SVC_FINALE);
             WriteString(MSG_ALL, "Victory! The Overlord's mangled\nremains are the evidence.  His evil\nWrath army?  Cast out to wander\naimlessly throughout time.\n\nAs the Slipgate fog surrounds you,\nthoughts rage into your consciousness:\nHas Quake's oppressive reign ended?\nIs it Salvation, or Damnation, which\nwaits beyond the Vortex?\n\nAnother thought, not quite your own,\nrazors through the haze.  \"Forgiveness\ncan yet be granted; Our Master remains\nto absolve your sins against his Chosen.\nFall down upon your knees-pray for\nQuake's mercy.\"");
             return;
         }

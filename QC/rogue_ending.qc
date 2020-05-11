@@ -55,7 +55,7 @@ void() ending_for_coop =
     self.modelindex = 0;
     setorigin(self, self.origin + '0 0 48');
 
-    WriteByte (MSG_ALL, SVC_FINALE);
+    WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "You have destroyed Quake's\nTemporal Teleporter. His assault\non Time has been defeated.");
 
     ending_remove_stuff();
@@ -81,7 +81,7 @@ void() xpackEnding =
     intermission_exittime = time + 10000000;    // never allow exit
     intermission_running = 1;
 
-    WriteByte (MSG_ALL, SVC_CUTSCENE);
+    WriteByte(MSG_ALL, SVC_CUTSCENE);
     WriteString (MSG_ALL, "");
 
     cameraview = find(world, targetname, "cameraview");
@@ -149,13 +149,13 @@ void() ending_remove_stuff =
     }
 
     curEnt = find(world, classname, "item_time_core");
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, curEnt.origin_x);
-    WriteCoord (MSG_BROADCAST, curEnt.origin_y);
-    WriteCoord (MSG_BROADCAST, curEnt.origin_z);
-    WriteByte (MSG_BROADCAST, 230);
-    WriteByte (MSG_BROADCAST, 5);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, curEnt.origin_x);
+    WriteCoord(MSG_BROADCAST, curEnt.origin_y);
+    WriteCoord(MSG_BROADCAST, curEnt.origin_z);
+    WriteByte(MSG_BROADCAST, 230);
+    WriteByte(MSG_BROADCAST, 5);
 
     curEnt.think = SUB_Remove;
     curEnt.nextthink = time + 0.1;
@@ -216,10 +216,10 @@ void() actor_fire1 =[$rockatt1, actor_fire2 ]
         self.v_angle = self.angles;
         self.v_angle_x = 0 - self.angles_x;
         self.effects = EF_MUZZLEFLASH;
-        W_FireRocket(cVR_MainHand); // TODO VR: (P1) wrong, this shouldn't be from player..?
+        W_FireRocket(cVR_MainHand); // TODO VR: (P2) wrong, this shouldn't be from player..?
 
         // start the end text
-        WriteByte (MSG_ALL, SVC_FINALE);
+        WriteByte(MSG_ALL, SVC_FINALE);
 
         WriteString (MSG_ALL, "\nFinally, Quake's Temporal Teleporter\nyields to your assault. A high\npitched scream emits from the\ndevastated device as stressed steel\nblasts outward to rock the cavern.\nThe machine is devoured by molten lava.\n\nThe ground shudders as reality shifts\nback to its predestined path.\n\nYou run to enter the charged time pod,\nscrambling in as the chamber closes.\nYour consciousness fades as you realize\nyou have halted Quake's plans for...\n\nThe Dissolution of Eternity.");
     };

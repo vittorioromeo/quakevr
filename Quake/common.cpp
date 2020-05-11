@@ -2376,8 +2376,6 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory(const char* base, const char* dir)
 {
-    // TODO VR: (P0) check how this loads files
-
     bool been_here = false;
 
     q_strlcpy(com_gamedir, va("%s/%s", base, dir), sizeof(com_gamedir));

@@ -22,16 +22,16 @@ void() ltrail_fire =
     {
         sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
         myTarget = find(world, targetname, self.target);
-        WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-        WriteByte (MSG_BROADCAST, TE_LIGHTNING2);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
         WriteEntity (MSG_BROADCAST, self);
         WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-        WriteCoord (MSG_BROADCAST, self.origin_x);
-        WriteCoord (MSG_BROADCAST, self.origin_y);
-        WriteCoord (MSG_BROADCAST, self.origin_z);
-        WriteCoord (MSG_BROADCAST, myTarget.origin_x);
-        WriteCoord (MSG_BROADCAST, myTarget.origin_y);
-        WriteCoord (MSG_BROADCAST, myTarget.origin_z);
+        WriteCoord(MSG_BROADCAST, self.origin_x);
+        WriteCoord(MSG_BROADCAST, self.origin_y);
+        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteCoord(MSG_BROADCAST, myTarget.origin_x);
+        WriteCoord(MSG_BROADCAST, myTarget.origin_y);
+        WriteCoord(MSG_BROADCAST, myTarget.origin_z);
         LightningDamage(self.origin, myTarget.origin, self, self.currentammo);
     }
 

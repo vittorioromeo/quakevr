@@ -201,7 +201,7 @@ void() army_fire =
     // launch_spike (src, vec);
 
     // HONEY
-    // TODO VR: (P0) check how this works, also might be wrong in plasma and
+    // TODO VR: (P1) check how this works, also might be wrong in plasma and
     // other missile fns
     self.damage_weapon = IT_SHOTGUN;
 };
@@ -262,9 +262,9 @@ void() army_die =
     {
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_guard.mdl", self.health);
-        ThrowGib ("progs/gib1.mdl", self.health);
-        ThrowGib ("progs/gib2.mdl", self.health);
-        ThrowGib ("progs/gib3.mdl", self.health);
+        ThrowGib("progs/gib1.mdl", self.health);
+        ThrowGib("progs/gib2.mdl", self.health);
+        ThrowGib("progs/gib3.mdl", self.health);
         SoldierDrop();
         return;
     }

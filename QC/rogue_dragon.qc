@@ -363,13 +363,13 @@ void() FireballTouch =
         T_RadiusDamage(self, self.owner, 30, world);
 
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 228);  // 247
-    WriteByte (MSG_BROADCAST, 5);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 228);  // 247
+    WriteByte(MSG_BROADCAST, 5);
 
     remove(self);
 };
@@ -592,9 +592,9 @@ void() dragon_boom1 =
         return;
 
     self.dragonDeathState = DDIE_EXPLODED;
-    ThrowGib ("progs/drggib01.mdl", -100);
-    ThrowGib ("progs/drggib02.mdl", -100);
-    ThrowGib ("progs/drggib03.mdl", -100);
+    ThrowGib("progs/drggib01.mdl", -100);
+    ThrowGib("progs/drggib02.mdl", -100);
+    ThrowGib("progs/drggib03.mdl", -100);
     sound(self, CHAN_BODY, "player/tornoff2.wav", 1, ATTN_NONE);
     self.think = dragon_boom2;
     self.nextthink = time + 0.1;

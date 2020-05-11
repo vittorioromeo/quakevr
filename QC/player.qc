@@ -118,7 +118,7 @@ void(float xHand) player_run =
 {
     VRSetWeaponFrame(xHand, 0);
 
-    // TODO VR: (P0) test, might prevent animation bug in MP
+    // TODO VR: (10) test, might prevent animation bug in MP
     if(self.health <= 0)
     {
         return;
@@ -821,9 +821,9 @@ void(string gibname, float dm) ThrowHead =
 void() GibPlayer =
 {
     ThrowHead ("progs/h_player.mdl", self.health);
-    ThrowGib ("progs/gib1.mdl", self.health);
-    ThrowGib ("progs/gib2.mdl", self.health);
-    ThrowGib ("progs/gib3.mdl", self.health);
+    ThrowGib("progs/gib1.mdl", self.health);
+    ThrowGib("progs/gib2.mdl", self.health);
+    ThrowGib("progs/gib3.mdl", self.health);
 
     self.deadflag = DEAD_DEAD;
 
@@ -1072,13 +1072,13 @@ void() player_touch =
             {
                 sound(self,CHAN_WEAPON,"enforcer/enfstop.wav", 1, ATTN_NORM);
 
-                WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-                WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-                WriteCoord (MSG_BROADCAST, other.origin_x);
-                WriteCoord (MSG_BROADCAST, other.origin_y);
-                WriteCoord (MSG_BROADCAST, other.origin_z);
-                WriteByte (MSG_BROADCAST, 230);
-                WriteByte (MSG_BROADCAST, 5);
+                WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+                WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+                WriteCoord(MSG_BROADCAST, other.origin_x);
+                WriteCoord(MSG_BROADCAST, other.origin_y);
+                WriteCoord(MSG_BROADCAST, other.origin_z);
+                WriteByte(MSG_BROADCAST, 230);
+                WriteByte(MSG_BROADCAST, 5);
 
                 shield_spawn (self, v_forward);
             }

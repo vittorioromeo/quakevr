@@ -491,9 +491,9 @@ float() botcam =
     self.punchangle = self.enemy.punchangle;
     self.deadflag = self.enemy.deadflag;
     msg_entity = self;
-    WriteByte (MSG_ONE,5);
+    WriteByte(MSG_ONE,5);
     WriteEntity (MSG_ONE, self.enemy);
-    WriteByte (MSG_ONE, 10);
+    WriteByte(MSG_ONE, 10);
          WriteAngle (MSG_ONE,self.enemy.v_angle_x);
          WriteAngle (MSG_ONE,self.enemy.v_angle_y);
          WriteAngle (MSG_ONE,self.enemy.v_angle_z);
@@ -531,7 +531,7 @@ void() botcam_u =
     {
         sprint(self, "No one left to track!\n");
         msg_entity = self;
-        WriteByte (MSG_ONE,5);
+        WriteByte(MSG_ONE,5);
         WriteEntity (MSG_ONE, self);
         PutClientInServer();
         return;
@@ -796,14 +796,14 @@ signs on to the server.
 
 void(entity who) UpdateClient =
 {
-    WriteByte (MSG_ALL, SVC_UPDATENAME);
-    WriteByte (MSG_ALL, who.b_clientno);
+    WriteByte(MSG_ALL, SVC_UPDATENAME);
+    WriteByte(MSG_ALL, who.b_clientno);
     WriteString (MSG_ALL, who.netname);
-    WriteByte (MSG_ALL, SVC_UPDATECOLORS);
-    WriteByte (MSG_ALL, who.b_clientno);
-    WriteByte (MSG_ALL, who.b_shirt * 16 + who.b_pants);
-    WriteByte (MSG_ALL, SVC_UPDATEFRAGS);
-    WriteByte (MSG_ALL, who.b_clientno);
+    WriteByte(MSG_ALL, SVC_UPDATECOLORS);
+    WriteByte(MSG_ALL, who.b_clientno);
+    WriteByte(MSG_ALL, who.b_shirt * 16 + who.b_pants);
+    WriteByte(MSG_ALL, SVC_UPDATEFRAGS);
+    WriteByte(MSG_ALL, who.b_clientno);
     WriteShort (MSG_ALL, who.frags);
 };
 
@@ -865,18 +865,18 @@ float() ClientNextAvailable =
 void(entity e1, entity e2, float flag) DeveloperLightning =
 {
     // used to show waypoint links for debugging
-    WriteByte (MSG_BROADCAST, 23);
+    WriteByte(MSG_BROADCAST, 23);
     if(flag)
-        WriteByte (MSG_BROADCAST, 6);
+        WriteByte(MSG_BROADCAST, 6);
     else
-        WriteByte (MSG_BROADCAST, 13);
+        WriteByte(MSG_BROADCAST, 13);
     WriteEntity (MSG_BROADCAST, e2);
-    WriteCoord (MSG_BROADCAST, e1.origin_x);
-    WriteCoord (MSG_BROADCAST, e1.origin_y);
-    WriteCoord (MSG_BROADCAST, e1.origin_z);
-    WriteCoord (MSG_BROADCAST, e2.origin_x);
-    WriteCoord (MSG_BROADCAST, e2.origin_y);
-    WriteCoord (MSG_BROADCAST, e2.origin_z);
+    WriteCoord(MSG_BROADCAST, e1.origin_x);
+    WriteCoord(MSG_BROADCAST, e1.origin_y);
+    WriteCoord(MSG_BROADCAST, e1.origin_z);
+    WriteCoord(MSG_BROADCAST, e2.origin_x);
+    WriteCoord(MSG_BROADCAST, e2.origin_y);
+    WriteCoord(MSG_BROADCAST, e2.origin_z);
 };
 
 /*

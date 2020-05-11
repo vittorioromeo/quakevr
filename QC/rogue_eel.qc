@@ -152,9 +152,9 @@ void() eel_death =
         self.skin = 0;
         self.effects = 0;
         ThrowHead ("progs/eelgib.mdl", self.health);
-        ThrowGib ("progs/gib1.mdl", self.health);
-        ThrowGib ("progs/gib1.mdl", self.health);
-        ThrowGib ("progs/gib1.mdl", self.health);
+        ThrowGib("progs/gib1.mdl", self.health);
+        ThrowGib("progs/gib1.mdl", self.health);
+        ThrowGib("progs/gib1.mdl", self.health);
         return;
     }
     else
@@ -224,5 +224,5 @@ void() monster_eel =
     self.delay = time + random() * 6;
     self.weapon = 0;
 
-    swimmonster_start ();
+    swimmonster_start();
 };

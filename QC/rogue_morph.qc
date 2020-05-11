@@ -371,8 +371,8 @@ void() morph_wake1 = [ $start01, morph_wake2 ]
         total_monsters = total_monsters + 1;
         self.owner.childrenSpawned = self.owner.childrenSpawned + 1;
 
-        WriteByte (MSG_BROADCAST, SVC_UPDATESTAT);
-        WriteByte (MSG_BROADCAST, STAT_TOTALMONSTERS);
+        WriteByte(MSG_BROADCAST, SVC_UPDATESTAT);
+        WriteByte(MSG_BROADCAST, STAT_TOTALMONSTERS);
         WriteLong (MSG_BROADCAST, total_monsters);
     }
 };

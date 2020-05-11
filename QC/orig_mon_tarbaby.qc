@@ -241,8 +241,8 @@ void() tbaby_checknew =
 
     total_monsters = total_monsters + 1;
 
-    WriteByte (MSG_BROADCAST, SVC_UPDATESTAT);
-    WriteByte (MSG_BROADCAST, STAT_TOTALMONSTERS);
+    WriteByte(MSG_BROADCAST, SVC_UPDATESTAT);
+    WriteByte(MSG_BROADCAST, STAT_TOTALMONSTERS);
     WriteLong (MSG_BROADCAST, total_monsters);
 };
 

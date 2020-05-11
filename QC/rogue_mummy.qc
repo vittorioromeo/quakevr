@@ -394,9 +394,9 @@ void() mummy_die =
     self.health = -35;
     sound(self, CHAN_VOICE, "zombie/z_gib.wav", 1, ATTN_NORM);
     ThrowHead ("progs/h_zombie.mdl", self.health);
-    ThrowGib ("progs/gib1.mdl", self.health);
-    ThrowGib ("progs/gib2.mdl", self.health);
-    ThrowGib ("progs/gib3.mdl", self.health);
+    ThrowGib("progs/gib1.mdl", self.health);
+    ThrowGib("progs/gib2.mdl", self.health);
+    ThrowGib("progs/gib3.mdl", self.health);
 };
 
 /*

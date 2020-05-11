@@ -428,13 +428,13 @@ void()    overlord_die17 =[ $s_wtdt16, overlord_die18 ]
 {
     self.model = "";
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 0);
-    WriteByte (MSG_BROADCAST, 4);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 0);
+    WriteByte(MSG_BROADCAST, 4);
 
     ol_toss("progs/s_wrtgb2.mdl");
     ol_toss("progs/s_wrtgb3.mdl");
@@ -449,13 +449,13 @@ void()    overlord_die18 =[ $s_wtdt17, overlord_die19 ]
 
     counter = 2;
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 0);
-    WriteByte (MSG_BROADCAST, 4);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 0);
+    WriteByte(MSG_BROADCAST, 4);
 
     while(counter>0)
     {
@@ -472,13 +472,13 @@ void() overlord_die19 = [ $s_wtdt17, overlord_die19 ]
 
     counter = 2;
 
-    WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte (MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord (MSG_BROADCAST, self.origin_x);
-    WriteCoord (MSG_BROADCAST, self.origin_y);
-    WriteCoord (MSG_BROADCAST, self.origin_z);
-    WriteByte (MSG_BROADCAST, 0);
-    WriteByte (MSG_BROADCAST, 4);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+    WriteCoord(MSG_BROADCAST, self.origin_x);
+    WriteCoord(MSG_BROADCAST, self.origin_y);
+    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteByte(MSG_BROADCAST, 0);
+    WriteByte(MSG_BROADCAST, 4);
 
     while(counter>0)
     {
@@ -542,7 +542,7 @@ void() monster_super_wrath =
     self.th_pain = overlord_pain;
     self.th_die = overlord_die02;
 
-    flymonster_start ();
+    flymonster_start();
 };
 
 /*QUAKED info_overlord_destination (.5 .5 .5) (-8 -8 -8) (8 8 32)
