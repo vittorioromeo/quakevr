@@ -345,14 +345,14 @@ AtlasData stitchImages(const Ts&... images)
     const auto numPixels = width * height;
     const auto numBytes = numPixels * 4;
 
-    const auto idx = [](const int width, const int height, const int depth,
-                         const int x, const int y,
-                         const int z) { return (width * y + x) * 4 + z; };
+    const auto idx = [](const int width, const int depth, const int x,
+                         const int y,
+                         const int z) { return (width * y + x) * depth + z; };
 
     byte* data = Hunk_Alloc<byte>(numBytes);
     std::vector<float> imageInfo;
 
-    const auto doPic = [&](const int xOffset, const auto& pic) {
+    const auto blit = [&](const int xOffset, const auto& pic) {
         imageInfo.emplace_back(xOffset);
         imageInfo.emplace_back(0);
         imageInfo.emplace_back(pic.width);
@@ -364,15 +364,15 @@ AtlasData stitchImages(const Ts&... images)
             {
                 for(int z = 0; z < 4; ++z)
                 {
-                    data[idx(width, height, 4, xOffset + x, y, z)] =
-                        pic.data[idx(pic.width, pic.height, 4, x, y, z)];
+                    data[idx(width, 4, xOffset + x, y, z)] =
+                        pic.data[idx(pic.width, 4, x, y, z)];
                 }
             }
         }
     };
 
     int xOffset = 0;
-    ((doPic(xOffset, images), xOffset += images.width), ...);
+    ((blit(xOffset, images), xOffset += images.width), ...);
 
     const ImageData imageData{data, width, height};
     return AtlasData{imageData, std::move(imageInfo)};
