@@ -15,15 +15,16 @@
 * Smooth locomotion
 * Teleportation
 * Fully room-scale *(including jumping)*
-* Hand tracking
+* Hand tracking *(including full finger tracking)*
 * Weapon models with hands and ironsights
-* VR interactions *(melee, pick up items, press buttons)*
+* VR interactions *(melee, headbutts, pick up items, press buttons)*
 * Rebalanced for VR *(hitboxes, difficulty, projectile speed)*
 * Steam VR Input API support *(can rebind inputs in Steam VR settings)*
 * Many customization options *(e.g. melee damage/range, hand/body item pickup, and more)*
 * Brand new particle system *(smoke, blood, lightning effects, and more)*
 * Haptic feedback *(weapons, melee, damage, interactions with items)*
 * Full Scourge of Armagon support *(weapons, enemies, maps)*
+* Full Dissolution of Eternity support *(weapons, enemies, maps)*
 * Two-handed weapon aiming *(with virtual stock support)*
 * Weapon weight simulation
 * Grappling hook *(from Dissolution of Eternity)*
@@ -31,6 +32,7 @@
 * Dual-wielding
 * Weapon holster system *(hip and shoulders, fully customizable)*
 * Weapon throwing & force grabbing
+* Multiplayer support *(also with bots)*
 
 ## Disclaimer
 
@@ -87,11 +89,12 @@ The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_h
 
 * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
 
-#### BOTS TODO VR: (P0)
+#### Extra Multiplayer Maps with Bot Support
 
-https://www.quaddicted.com/files/misc/DefinitiveFrikbotMappackV2.zip
-http://quakeone.com/forum/quake-mod-releases/finished-works/5313-the-definitive-frikbot-waypack
-https://www.quaddicted.com/files/misc/
+Quake VR comes with [Frikbot X++](http://neogeographica.com/site/pages/mods/fbxpp.html), which adds AI opponents for deathmatch. As the vanilla multiplayer map pool is quite limited, the following map pack and Frikbot waypoint collection are strongly advised if you are interested in playing against bots:
+
+* [The Definitive Frikbot Mappack](https://www.quaddicted.com/files/misc/DefinitiveFrikbotMappackV2.zip)
+* [The Definitive Frikbot Waypack](https://www.quaddicted.com/files/misc/DefinitiveFrikbotWaypackV2.zip) *([forum discussion](http://quakeone.com/forum/quake-mod-releases/finished-works/5313-the-definitive-frikbot-waypack))*
 
 ### Custom Maps
 
