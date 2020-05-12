@@ -1475,11 +1475,12 @@ static void PF_droptofloor()
 {
     edict_t& ent = *PROG_TO_EDICT(pr_global_struct->self);
 
-    qfloat highestZ = std::numeric_limits<qfloat>::min();
+    qfloat highestZ = std::numeric_limits<qfloat>::lowest();
     edict_t* groundEnt = nullptr;
 
     const auto processHit = [&](const qvec3& xyOffset) {
-        const qvec3 corner = ent.v.origin + xyOffset;
+        const qvec3 corner =
+            ent.v.origin + xyOffset + qvec3{0, 0, ent.v.mins[2]};
 
         const trace_t trace = SV_MoveTrace(
             corner, corner + qvec3{0, 0, -256._qf}, MOVE_NOMONSTERS, &ent);
