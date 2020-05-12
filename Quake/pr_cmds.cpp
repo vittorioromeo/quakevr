@@ -1478,28 +1478,30 @@ static void PF_droptofloor()
     qfloat highestZ = std::numeric_limits<qfloat>::min();
     edict_t* groundEnt = nullptr;
 
-    const bool anyCornerHitFloor =
-        quake::util::anyXYCorner(ent, [&](const qvec3& xyOffset) {
-            const qvec3 corner = ent.v.origin + xyOffset;
+    const auto processHit = [&](const qvec3& xyOffset) {
+        const qvec3 corner = ent.v.origin + xyOffset;
 
-            const trace_t trace = SV_MoveTrace(
-                corner, corner + qvec3{0, 0, -256._qf}, MOVE_NOMONSTERS, &ent);
+        const trace_t trace = SV_MoveTrace(
+            corner, corner + qvec3{0, 0, -256._qf}, MOVE_NOMONSTERS, &ent);
 
-            if(!quake::util::hitSomething(trace) || trace.allsolid)
-            {
-                return false;
-            }
+        if(!quake::util::hitSomething(trace) || trace.allsolid)
+        {
+            return false;
+        }
 
-            if(highestZ < trace.endpos[2])
-            {
-                highestZ = trace.endpos[2];
-                groundEnt = trace.ent;
-            }
+        if(highestZ < trace.endpos[2])
+        {
+            highestZ = trace.endpos[2];
+            groundEnt = trace.ent;
+        }
 
-            return true;
-        });
+        return true;
+    };
 
-    if(!anyCornerHitFloor)
+    const bool anyFloorHit =
+        processHit(vec3_zero) || quake::util::anyXYCorner(ent, processHit);
+
+    if(!anyFloorHit)
     {
         G_FLOAT(OFS_RETURN) = 0; // FALSE
         return;
