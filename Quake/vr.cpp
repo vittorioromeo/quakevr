@@ -225,11 +225,11 @@ void RecreateTextures(
     fbo->size.width = width;
     fbo->size.height = height;
 
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, fbo->framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
-        GL_TEXTURE_2D, fbo->texture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
-        GL_TEXTURE_2D, fbo->depth_texture, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo->framebuffer);
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+        fbo->depth_texture, 0);
 }
 
 [[nodiscard]] fbo_t CreateFBO(const int width, const int height) noexcept
@@ -280,13 +280,13 @@ void CreateMSAA(fbo_t* const fbo, const int width, const int height,
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, msaa,
         GL_DEPTH_COMPONENT24, width, height, false);
 
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, fbo->msaa_framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo->msaa_framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_texture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
         GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture, 0);
 
-    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER_EXT);
+    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if(status != GL_FRAMEBUFFER_COMPLETE)
     {
         Con_Printf("Framebuffer incomplete %x", status);
@@ -1371,11 +1371,11 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     if(eye.fbo.msaa > 0)
     {
         glEnable(GL_MULTISAMPLE);
-        glBindFramebuffer(GL_FRAMEBUFFER_EXT, eye.fbo.msaa_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, eye.fbo.msaa_framebuffer);
     }
     else
     {
-        glBindFramebuffer(GL_FRAMEBUFFER_EXT, eye.fbo.framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, eye.fbo.framebuffer);
     }
 
     glViewport(0, 0, eye.fbo.size.width, eye.fbo.size.height);
@@ -1396,7 +1396,6 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
         glDisable(GL_MULTISAMPLE);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, eye.fbo.framebuffer);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, eye.fbo.msaa_framebuffer);
-        glDrawBuffer(GL_BACK);
         glBlitFramebuffer(0, 0, glwidth, glheight, 0, 0, glwidth, glheight,
             GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
@@ -1410,7 +1409,7 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     glwidth = oldglwidth;
     glheight = oldglheight;
 
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 // Get a reasonable height around where hands should be when aiming a gun.
@@ -3090,11 +3089,11 @@ void VR_UpdateScreenContent()
     const GLint w = glwidth;
     const GLint h = glheight;
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER_EXT, eyes[0].fbo.framebuffer);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, eyes[0].fbo.framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, eyes[0].fbo.size.width, eyes[0].fbo.size.height, 0, 0,
         h, w, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
 void VR_SetMatrices()
@@ -4064,13 +4063,6 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
-// TODO VR: (P0) force grab seems bugged when hand is hovering player bbox -
-// possible handtouch issue? - actually doesnt seem related to player bbox...
-// investigate
-
-// TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
-// goes down
-
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
 // player_run - made some changes, test
 
@@ -4086,9 +4078,6 @@ void VR_OnLoadedPak(pack_t& pak)
 
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
-
-// TODO VR: (P0): holster haptic are always continuous in deathmatch, probably
-// bots triggering it? might be fixed, test again
 
 
 
@@ -4118,15 +4107,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P1): "I had let go of weapon grabs between a level end and next
 // level start and upon next level spawn the main hand weapon was nowhere to be
 // found, the offhand weapon was on the floor"
-
-// TODO VR: (P1): "I did find it quite confusing at times being unable to
-// holster to my shoulder, because something was already there. I guess some
-// sort of buzz or something to indicate the holster is full could be helpful."
-// text message should be good enough
-
-// TODO VR: (P1): "Reason I ask is the force grab just sucks with them. You have
-// to squeeze and pull the trigger at the same time perfectly to get your gun to
-// you. It should just be squeeze, that's how it works in hla"
 
 // TODO VR: (P1) recoil system, 2H will reduce it, or accuracy change for
 // shotgun/ssg, reduce spread
