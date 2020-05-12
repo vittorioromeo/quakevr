@@ -1131,7 +1131,7 @@ void R_DrawAliasModel(entity_t* e)
     glPushMatrix();
     R_RotateForEntity(lerpdata.origin, lerpdata.angles);
 
-    if(e->horizflip)
+    if(e->horizFlip)
     {
         glScalef(1.0f, -1.0f, 1.0f);
         glFrontFace(GL_CCW);
@@ -1435,7 +1435,7 @@ cleanup:
     glColor3f(1, 1, 1);
     glPopMatrix();
 
-    if(e->horizflip)
+    if(e->horizFlip)
     {
         glFrontFace(GL_CW);
     }

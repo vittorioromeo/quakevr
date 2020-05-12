@@ -682,8 +682,7 @@ void show_hand_pos_and_rot()
 
 void show_anchor_vertex_impl(const HandIdx hand_idx, const WpnCVar wpn_cvar)
 {
-    entity_t* const anchor =
-        hand_idx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+    entity_t* const anchor = VR_GetAnchorEntity(hand_idx);
 
     if(anchor->model == nullptr)
     {

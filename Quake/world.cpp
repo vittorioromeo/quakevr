@@ -185,6 +185,7 @@ hull_t* SV_HullForEntity(
 
         // calculate an offset value to center the origin
         offset = hull->clip_mins - mins;
+        // offset.x = offset.y = 0;
         offset += ent->v.origin;
     }
     else
@@ -197,7 +198,6 @@ hull_t* SV_HullForEntity(
 
         offset = ent->v.origin;
     }
-
 
     return hull;
 }
@@ -420,14 +420,12 @@ void SV_TouchLinks(edict_t* ent)
             PR_ExecuteProgram(target->v.touch);
         }
 
-        // --------------------------------------------------------------------
-        // VR: Simulate touching with right hand if body interactions are off.
-        if(target->v.handtouch && vr_body_interactions.value == 1)
+        if(target->v.handtouch && quake::util::hasFlag(ent, FL_CLIENT) &&
+            (!ent->v.ishuman || vr_body_interactions.value || vr_fakevr.value))
         {
             VR_SetFakeHandtouchParams(ent, target);
             PR_ExecuteProgram(target->v.handtouch);
         }
-        // --------------------------------------------------------------------
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;

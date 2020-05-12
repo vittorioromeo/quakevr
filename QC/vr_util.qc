@@ -405,3 +405,4 @@ void(entity ent, float value) VRSet2HAiming =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
 }
+

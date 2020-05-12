@@ -1473,26 +1473,43 @@ void() droptofloor
 */
 static void PF_droptofloor()
 {
-    edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
+    edict_t& ent = *PROG_TO_EDICT(pr_global_struct->self);
 
-    qvec3 end = ent->v.origin;
-    end[2] -= 256;
+    qfloat highestZ = std::numeric_limits<qfloat>::min();
+    edict_t* groundEnt = nullptr;
 
-    trace_t trace =
-        SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+    const bool anyCornerHitFloor =
+        quake::util::anyXYCorner(ent, [&](const qvec3& xyOffset) {
+            const qvec3 corner = ent.v.origin + xyOffset;
 
-    if(trace.fraction == 1 || trace.allsolid)
+            const trace_t trace = SV_MoveTrace(
+                corner, corner + qvec3{0, 0, -256._qf}, MOVE_NOMONSTERS, &ent);
+
+            if(!quake::util::hitSomething(trace) || trace.allsolid)
+            {
+                return false;
+            }
+
+            if(highestZ < trace.endpos[2])
+            {
+                highestZ = trace.endpos[2];
+                groundEnt = trace.ent;
+            }
+
+            return true;
+        });
+
+    if(!anyCornerHitFloor)
     {
-        G_FLOAT(OFS_RETURN) = 0;
+        G_FLOAT(OFS_RETURN) = 0; // FALSE
+        return;
     }
-    else
-    {
-        ent->v.origin = trace.endpos;
-        SV_LinkEdict(ent, false);
-        quake::util::addFlag(ent, FL_ONGROUND);
-        ent->v.groundentity = EDICT_TO_PROG(trace.ent);
-        G_FLOAT(OFS_RETURN) = 1;
-    }
+
+    ent.v.origin[2] = highestZ - ent.v.mins[2];
+    SV_LinkEdict(&ent, false);
+    quake::util::addFlag(&ent, FL_ONGROUND);
+    ent.v.groundentity = EDICT_TO_PROG(groundEnt);
+    G_FLOAT(OFS_RETURN) = 1; // TRUE
 }
 
 /*

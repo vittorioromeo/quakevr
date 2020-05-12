@@ -137,6 +137,8 @@ extern cvar_t vr_2h_throw_velocity_mult;
 extern cvar_t vr_headbutt_velocity_threshold;
 extern cvar_t vr_headbutt_damage_mult;
 extern cvar_t vr_activestartpaknameidx;
+extern cvar_t vr_verbosebots;
+
 
 //
 //

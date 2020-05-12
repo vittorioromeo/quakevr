@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include "sys.hpp"
 #include "util.hpp"
 #include "quakeglm.hpp"
-#include "opengl_ext.hpp"
 
 #include <algorithm>
 #include <random>

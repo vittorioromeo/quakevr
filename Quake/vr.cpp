@@ -7,7 +7,6 @@
 #include "render.hpp"
 #include "openvr.hpp"
 #include "quakeglm.hpp"
-#include "opengl_ext.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -1205,6 +1204,7 @@ static void VR_InitActionHandles()
            sv.active == true && sv.state == ss_active && cls.signon == SIGNONS;
 }
 
+// TODO VR: (P1) grep for invocations of the fn below for multiplayer issues
 [[nodiscard]] edict_t* getPlayerEdict() noexcept
 {
     assert(svPlayerActive());
@@ -1259,14 +1259,6 @@ bool VR_Enable()
             VR_InitActionHandles();
         }
     }
-
-    /*
-    if(!quake::gl::InitOpenGLExtensions())
-    {
-        Con_Printf("Failed to initialize OpenGL extensions");
-        return false;
-    }
-    */
 
     eyes[0].eye = vr::Eye_Left;
     eyes[1].eye = vr::Eye_Right;
@@ -1544,31 +1536,26 @@ void debugPrintHeadvel()
         cl.headvel[1], cl.headvel[2], len);
 }
 
+[[nodiscard]] entity_t* VR_GetAnchorEntity(const HandIdx handIdx) noexcept
+{
+    return handIdx == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+}
+
+[[nodiscard]] bool VR_GetHorizFlip(const HandIdx handIdx) noexcept
+{
+    return handIdx == cVR_OffHand;
+}
 
 [[nodiscard]] qvec3 VR_CalcLocalWpnMuzzlePos(const int index) noexcept
 {
-    const auto anchor =
-        index == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+    entity_t* const anchor = VR_GetAnchorEntity(index);
 
     if(anchor->model == nullptr)
     {
         return vec3_zero;
     }
 
-    const auto anchorWpnCvar = VR_GetWpnCvarEntry(index);
-
-    const int anchorVertex = static_cast<int>(
-        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::MuzzleAnchorVertex));
-
-    const bool horizFlip = index == cVR_MainHand ? false : true;
-
-    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-        anchorVertex, VR_GetWpnMuzzleOffsets(anchorWpnCvar), cl.handrot[index],
-        horizFlip);
-
-    return pos - anchor->origin;
-
-    // TODO VR: (P0) test, cleanup
+    return VR_CalcFinalWpnMuzzlePos(index) - anchor->origin;
 }
 
 qvec3 VR_UpdateGunWallCollisions(edict_t* edict, const int handIndex,
@@ -1579,9 +1566,7 @@ qvec3 VR_UpdateGunWallCollisions(edict_t* edict, const int handIndex,
 
     // Local position of the gun's muzzle. Takes orientation into
     // account.
-    // TODO VR: (P0) fix now that we have muzzle anchor vertex
     const auto localMuzzlePos = VR_CalcLocalWpnMuzzlePos(handIndex);
-    // VR_CalcWeaponMuzzlePosImpl(handIndex, VR_GetWpnCvarEntry(handIndex));
 
     // World position of the gun's muzzle.
     const auto muzzlePos = resolvedHandPos + localMuzzlePos;
@@ -1987,7 +1972,7 @@ void SetHandPos(int index, entity_t* player)
 }
 
 [[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
-    const int cvarEntry, const bool horizflip, const qvec3& extraOffset,
+    const int cvarEntry, const bool horizFlip, const qvec3& extraOffset,
     const qvec3& handRot) noexcept
 {
     if(anchor == nullptr || anchor->model == nullptr)
@@ -1995,55 +1980,13 @@ void SetHandPos(int index, entity_t* player)
         return vec3_zero;
     }
 
-    // TODO VR: (P0) to function, use both here and in view?
-    /*
-        auto adjHandRot = handRot;
+    const qvec3 extraOffsets = VR_GetWpnFixed2HOffsets(cvarEntry) + extraOffset;
 
-        auto [oPitch, oYaw, oRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
-
-        if(!horizflip)
-        {
-            oYaw *= -1.f;
-            oRoll *= -1.f;
-        }
-
-        adjHandRot[PITCH] += oPitch;
-        adjHandRot[YAW] += oYaw;
-        adjHandRot[ROLL] += oRoll;
-    */
-
-    auto extraOffsets = VR_GetWpnFixed2HOffsets(cvarEntry) + extraOffset;
-
-    const int anchorVertex = static_cast<int>(
+    const auto anchorVertex = static_cast<VertexIdx>(
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHHandAnchorVertex));
 
-    auto pos = VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot, horizflip);
-
-    return pos;
-
-    // TODO VR: (P0) remove
-    /*
-
-        auto fixed2HOffsets = VR_GetWpnFixed2HOffsets(cvarEntry);
-
-        // if(!horizflip)
-        // {
-        //     fixed2HOffsets[1] *= -1.f;
-        //
-        //     const auto mhofs = VR_GetWpnFixed2HMainHandOffsets(cvarEntry);
-        //     fixed2HOffsets += mhofs;
-        // }
-
-        const auto extraOffsets =
-            VR_GetWpnHandOffsets(cvarEntry) + extraOffset + fixed2HOffsets;
-
-        const int anchorVertex = static_cast<int>(
-            VR_GetWpnCVarValue(cvarEntry, WpnCVar::TwoHHandAnchorVertex));
-
-        return VR_GetScaledAndAngledAliasVertexPosition(
-            anchor, anchorVertex, extraOffsets, handRot, horizflip);
-            */
+    return VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot, horizFlip);
 }
 
 [[nodiscard]] qvec3 VR_GetBodyAnchor(const qvec3& offsets) noexcept
@@ -2697,13 +2640,12 @@ static bool VR_GoodDistanceFor2HGrab(
             VR_Get2HHelpingHandPos(holdingHand, helpingHand));
     }
 
-    const bool horizflip = holdingHand == cVR_OffHand;
+    const bool horizFlip = VR_GetHorizFlip(holdingHand);
 
-    entity_t* const anchor =
-        holdingHand == cVR_OffHand ? &cl.offhand_viewent : &cl.viewent;
+    entity_t* const anchor = VR_GetAnchorEntity(holdingHand);
 
     const qvec3 pos = VR_GetWpnFixed2HFinalPosition(
-        anchor, wpnCvarEntry, horizflip, vec3_zero, cl.handrot[holdingHand]);
+        anchor, wpnCvarEntry, horizFlip, vec3_zero, cl.handrot[holdingHand]);
 
     const bool alreadyAiming = vr_should_aim_2h[holdingHand];
     const float threshold = alreadyAiming ? 20.f : 5.5f;
@@ -2726,82 +2668,26 @@ static bool VR_GoodDistanceForHandSwitch(const qvec3& a, const qvec3& b)
     return glm::distance(a, b) < 5.f;
 }
 
-// TODO VR: (P0) use anchor vertex here as well
-[[nodiscard]] qvec3 VR_CalcWeaponAttachmentPosImpl(
-    const int index, const int cvarEntry, qvec3 attachmentOffsets)
-{
-    qvec3 finalOffsets{VR_GetWpnOffsets(cvarEntry)};
-    finalOffsets[1] *= -1.f;
-
-    finalOffsets /= VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale);
-
-    // TODO VR: (P2) hack?
-    if(index == cVR_OffHand)
-    {
-        attachmentOffsets[1] *= -1.f;
-    }
-
-    finalOffsets += attachmentOffsets;
-
-    finalOffsets *=
-        VR_GetWpnCVarValue(cvarEntry, WpnCVar::Scale) * VR_GetScaleCorrect();
-
-    return redirectVector(finalOffsets, cl.handrot[index]);
-}
-
-[[nodiscard]] qvec3 VR_CalcWeaponMuzzlePosImpl(
-    const int index, const int cvarEntry) noexcept
-{
-    auto res = VR_CalcWeaponAttachmentPosImpl(
-        index, cvarEntry, VR_GetWpnMuzzleOffsets(cvarEntry));
-
-    return res;
-}
-
-// TODO VR: (P1) unused
-[[nodiscard]] qvec3 VR_CalcWeaponButtonPosImpl(
-    const int index, const int cvarEntry) noexcept
-{
-    auto res = VR_CalcWeaponAttachmentPosImpl(
-        index, cvarEntry, VR_GetWpnButtonOffsets(cvarEntry));
-
-    return res;
-}
-
 [[nodiscard]] qvec3 VR_CalcFinalWpnMuzzlePos(const int index) noexcept
 {
-    const auto anchor =
-        index == cVR_MainHand ? &cl.viewent : &cl.offhand_viewent;
+    entity_t* const anchor = VR_GetAnchorEntity(index);
 
     if(anchor->model == nullptr)
     {
         return vec3_zero;
     }
 
-    const auto anchorWpnCvar = VR_GetWpnCvarEntry(index);
+    const WpnCvarEntry anchorWpnCvar = VR_GetWpnCvarEntry(index);
 
-    const int anchorVertex = static_cast<int>(
+    const auto anchorVertex = static_cast<VertexIdx>(
         VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::MuzzleAnchorVertex));
 
-    const bool horizFlip = index == cVR_MainHand ? false : true;
+    const bool horizFlip = VR_GetHorizFlip(index);
 
-    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
-        anchorVertex, VR_GetWpnMuzzleOffsets(anchorWpnCvar), cl.handrot[index],
-        horizFlip);
-
-    return pos;
-
-    // TODO VR: (P0) test, cleanup
-
-    return cl.handpos[index] +
-           VR_CalcWeaponMuzzlePosImpl(index, VR_GetWpnCvarEntry(index));
+    return VR_GetScaledAndAngledAliasVertexPosition(anchor, anchorVertex,
+        VR_GetWpnMuzzleOffsets(anchorWpnCvar), cl.handrot[index], horizFlip);
 }
 
-[[nodiscard]] qvec3 VR_CalcFinalWpnButtonPos(const int index) noexcept
-{
-    return cl.handpos[index] +
-           VR_CalcWeaponButtonPosImpl(index, VR_GetWpnCvarEntry(index));
-}
 
 static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
     const int holdingHand, const int helpingHand, const qvec3& shoulderStockPos)
@@ -2889,7 +2775,7 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
     auto [oP, oY, oR] =
         VR_GetWpn2HAngleOffsets(VR_GetWpnCvarEntry(holdingHand));
 
-    const bool horizFlip = holdingHand == cVR_MainHand ? false : true;
+    const bool horizFlip = VR_GetHorizFlip(holdingHand);
 
     if(horizFlip)
     {
@@ -2930,10 +2816,10 @@ static void VR_Do2HAiming(const qvec3 (&originalRots)[2])
 
 static void VR_FakeVRControllerAiming()
 {
-    const auto [vfwd, vright, vup] =
-        getAngledVectors({0.f, cl.viewangles[YAW], 0.f});
-
+    const auto [vfwd, vright, vup] = getAngledVectors(cl.viewangles);
     const auto& playerOrigin = VR_GetPlayerOrigin();
+
+    vrYaw = cl.viewangles[YAW];
 
     cl.handpos[cVR_MainHand] =
         playerOrigin + vfwd * 16.5_qf + vright * 5.5_qf + vup * 15.5_qf;
@@ -2943,6 +2829,42 @@ static void VR_FakeVRControllerAiming()
 
     cl.handrot[cVR_MainHand] = cl.viewangles;
     cl.handrot[cVR_OffHand] = cl.viewangles;
+}
+
+static void VR_DoWpnButton()
+{
+    const auto doWpnButton = [](const int handIdx,
+                                 const entity_t& wpnButtonEntity,
+                                 const char key) {
+        const bool hasWpnButton = !wpnButtonEntity.hidden;
+
+        WpnButtonState& state = vr_wpnbutton_state[handIdx];
+
+        if(hasWpnButton && (cl.time - state._lastClTime) > 0.2f)
+        {
+            // TODO VR: (P1) improve this collision detection
+            const auto otherHandIdx = VR_OtherHand(handIdx);
+
+            const auto handPos = cl.handpos[otherHandIdx];
+
+            const auto [fwd, right, up] =
+                getAngledVectors(cl.handrot[otherHandIdx]);
+
+            const auto adjHandPos = handPos + fwd * 2._qf + up * -2.5_qf;
+
+            const auto dist = glm::distance(adjHandPos, wpnButtonEntity.origin);
+
+            state._prevHover = state._hover;
+            state._hover = dist < 2.7_qf;
+            state._lastClTime = cl.time;
+
+            const bool risingEdge = !state._prevHover && state._hover;
+            Key_Event(key, risingEdge);
+        }
+    };
+
+    doWpnButton(cVR_OffHand, cl.offhand_wpn_button, '7');
+    doWpnButton(cVR_MainHand, cl.mainhand_wpn_button, '8');
 }
 
 static void VR_ControllerAiming(const qvec3& orientation)
@@ -3010,41 +2932,7 @@ static void VR_ControllerAiming(const qvec3& orientation)
 
     VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
-
-    // TODO VR: (P0) Move and refactor
-    const auto doWpnButton = [](const int handIdx,
-                                 const entity_t& wpnButtonEntity,
-                                 const char key) {
-        // const int wpnCvarEntry = VR_GetWpnCvarEntry(handIdx);
-        const bool hasWpnButton = !wpnButtonEntity.hidden;
-
-        WpnButtonState& state = vr_wpnbutton_state[handIdx];
-
-        if(hasWpnButton && (cl.time - state._lastClTime) > 0.2f)
-        {
-            // TODO VR: (P0) improve this collision detection
-            const auto otherHandIdx = VR_OtherHand(handIdx);
-
-            const auto handPos = cl.handpos[otherHandIdx];
-
-            const auto [fwd, right, up] =
-                getAngledVectors(cl.handrot[otherHandIdx]);
-
-            const auto adjHandPos = handPos + fwd * 2._qf + up * -2.5_qf;
-
-            const auto dist = glm::distance(adjHandPos, wpnButtonEntity.origin);
-
-            state._prevHover = state._hover;
-            state._hover = dist < 2.5_qf;
-            state._lastClTime = cl.time;
-
-            const bool risingEdge = !state._prevHover && state._hover;
-            Key_Event(key, risingEdge);
-        }
-    };
-
-    doWpnButton(cVR_OffHand, cl.offhand_wpn_button, '7');
-    doWpnButton(cVR_MainHand, cl.mainhand_wpn_button, '8');
+    VR_DoWpnButton();
 }
 
 static void VR_ResetGlobals()
@@ -3085,7 +2973,7 @@ void VR_UpdateScreenContent()
 
     const auto orientation = VR_GetEyesOrientation();
 
-    if(std::exchange(readbackYaw, false))
+    if(vr_fakevr.value == 0 && std::exchange(readbackYaw, false))
     {
         vrYaw = cl.viewangles[YAW] - (orientation[YAW] - vrYaw);
     }
@@ -3156,8 +3044,6 @@ void VR_UpdateScreenContent()
         // 7: Controller Aiming;
         case VrAimMode::e_CONTROLLER:
         {
-            // TODO VR: (P0) this uses server-side data, but is called in
-            // client-side. Breaks multiplayer.
             VR_ControllerAiming(orientation);
             break;
         }
@@ -3647,25 +3533,46 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             return out;
         };
 
-    const auto readSkeletalSummary =
-        [](const vr::VRActionHandle_t& actionHandle) {
-            vr::InputSkeletalActionData_t outActionData;
-            vr::VRInput()->GetSkeletalActionData(actionHandle, &outActionData,
-                sizeof(vr::InputSkeletalActionData_t));
+    const auto readSkeletalSummary = [](const vr::VRActionHandle_t&
+                                             actionHandle) {
+        vr::InputSkeletalActionData_t outActionData;
 
-            if(!outActionData.bActive)
+        {
+            const auto rc = vr::VRInput()->GetSkeletalActionData(actionHandle,
+                &outActionData, sizeof(vr::InputSkeletalActionData_t));
+
+            if(rc != vr::EVRInputError::VRInputError_None)
             {
-                // TODO VR: (P0) what to do in this case? what about non-index
-                // controllers?
-                return vr::VRSkeletalSummaryData_t{};
+                Con_Printf(
+                    "Failed to read Steam VR skeletal action data, rc = %d\n",
+                    (int)rc);
             }
+        }
 
-            vr::VRSkeletalSummaryData_t outSummary;
-            vr::VRInput()->GetSkeletalSummaryData(actionHandle,
+        if(!outActionData.bActive)
+        {
+            // Con_Printf(
+            //     "Failed to read Steam VR inactive skeletal action data\n");
+
+            return vr::VRSkeletalSummaryData_t{};
+        }
+
+        vr::VRSkeletalSummaryData_t outSummary;
+
+        {
+            const int rc = vr::VRInput()->GetSkeletalSummaryData(actionHandle,
                 vr::EVRSummaryType::VRSummaryType_FromDevice, &outSummary);
 
-            return outSummary;
-        };
+            if(rc != vr::EVRInputError::VRInputError_None)
+            {
+                Con_Printf(
+                    "Failed to read Steam VR skeletal summary data, rc = %d\n",
+                    (int)rc);
+            }
+        }
+
+        return outSummary;
+    };
 
     const auto ssLeftHand = readSkeletalSummary(vrahLeftHandAnim);
     const auto ssRightHand = readSkeletalSummary(vrahRightHandAnim);
@@ -4157,20 +4064,9 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
-
-
-// TODO VR: (P0) remove existing sv_player usages, or change to to
-// svs.client edicts. I believe that, by definition, svs.clients[0] is the
-// local player
-
 // TODO VR: (P0) force grab seems bugged when hand is hovering player bbox -
 // possible handtouch issue? - actually doesnt seem related to player bbox...
 // investigate
-
-// TODO VR: (P0) the reason why some monsters are stuck in geometry is that
-// their spawn location is not correct anymore due to the changed hitboxes.
-// Their origin needs to be fixed as well. This is the same bug as the biosuit
-// one
 
 // TODO VR: (P0) Player gets squished when moving diagonally when E1M1 elevator
 // goes down
@@ -4191,12 +4087,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
 
-// TODO VR: (P0): bots dont seem to pick up weapons - test, might be fixed
-
-// TODO VR: (P0): bots dont seem to drop powerups - intended?
-
 // TODO VR: (P0): holster haptic are always continuous in deathmatch, probably
-// bots triggering it? might be fixed, test
+// bots triggering it? might be fixed, test again
 
 
 
@@ -4212,7 +4104,7 @@ void VR_OnLoadedPak(pack_t& pak)
 // most obvious with the rocket launcher. In my opinion held weapons should just
 // collect pickups when colliding instead."
 
-// TODO VR: (P1) add tooltip to off-hand option menu in wpn config
+
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
@@ -4265,6 +4157,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // to the weapon" - this might be related to water
 
 
+
+// TODO VR: (P2) add tooltip to off-hand option menu in wpn config
 
 // TODO VR: (P2) "it seems to be a bit strange to me that I can hold down the
 // trigger on the shotguns"

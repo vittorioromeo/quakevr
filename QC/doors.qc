@@ -197,6 +197,7 @@ void() door_trigger_touch =
 
     if(time < self.attack_finished)
         return;
+
     self.attack_finished = time + 1;
 
     activator = other;
@@ -573,7 +574,10 @@ void() func_door =
     if(!self.dmg)   { self.dmg = 2; }
 
     // HONEY
-    if(!self.lefty) { self.lefty = 1; }
+    if(VR_GameUtil_EnableHoneyExtensions() && !self.lefty)
+    {
+        self.lefty = 1;
+    }
 
     self.pos1 = self.origin;
 

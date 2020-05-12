@@ -91,3 +91,14 @@
 
 .float mainHandLavaGunFired;
 .float offHandLavaGunFired;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Holster fields
+// ----------------------------------------------------------------------------
+
+// Used to trigger haptics when hovering holsters.
+.float holsterhover[6];
+.float holsterprevhover[6];

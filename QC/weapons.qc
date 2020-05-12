@@ -3477,10 +3477,6 @@ void() wpnthrow_handtouch =
     wpnthrow_handtouch_ent(self);
 }
 
-// Used to trigger haptics when hovering holsters.
-float holsterhover[6];
-float holsterprevhover[6];
-
 float(float xHolster) VRHolsterToIndex =
 {
     if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return 0; }
@@ -3497,27 +3493,27 @@ float(float xHolster) VRHolsterToIndex =
     return 0;
 }
 
-float(float xHolster) VRIsHolsterHovered =
+float(entity xEntPlayer, float xHolster) VRIsHolsterHovered =
 {
-    return holsterhover[VRHolsterToIndex(xHolster)];
+    return xEntPlayer.holsterhover[VRHolsterToIndex(xHolster)];
 }
 
-void(float xHolster, float xValue) VRSetHolsterHovered =
+void(entity xEntPlayer, float xHolster, float xValue) VRSetHolsterHovered =
 {
-    holsterhover[VRHolsterToIndex(xHolster)] = xValue;
+    xEntPlayer.holsterhover[VRHolsterToIndex(xHolster)] = xValue;
 }
 
-float(float xHolster) VRIsHolsterPrevHovered =
+float(entity xEntPlayer, float xHolster) VRIsHolsterPrevHovered =
 {
-    return holsterprevhover[VRHolsterToIndex(xHolster)];
+    return xEntPlayer.holsterprevhover[VRHolsterToIndex(xHolster)];
 }
 
-void(float xHolster, float xValue) VRSetHolsterPrevHovered =
+void(entity xEntPlayer, float xHolster, float xValue) VRSetHolsterPrevHovered =
 {
-    holsterprevhover[VRHolsterToIndex(xHolster)] = xValue;
+    xEntPlayer.holsterprevhover[VRHolsterToIndex(xHolster)] = xValue;
 }
 
-void() UpdateHolsterHover =
+void(entity xEntPlayer) UpdateHolsterHover =
 {
     local float i;
 
@@ -3528,8 +3524,8 @@ void() UpdateHolsterHover =
             continue;
         }
 
-        VRSetHolsterPrevHovered(i, VRIsHolsterHovered(i));
-        VRSetHolsterHovered(i, FALSE);
+        VRSetHolsterPrevHovered(xEntPlayer, i, VRIsHolsterHovered(xEntPlayer, i));
+        VRSetHolsterHovered(xEntPlayer, i, FALSE);
     }
 }
 
@@ -3547,7 +3543,9 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
     {
         VRGunHaptic(xHand, 0.1, 75, 0.02);
     }
-    else if(!VRIsHolsterPrevHovered(xHolster) && VRIsHolsterHovered(xHolster) && holsterHapticsMode == 2 /* once */)
+    else if(!VRIsHolsterPrevHovered(xEntPlayer, xHolster) &&
+            VRIsHolsterHovered(xEntPlayer, xHolster) &&
+            holsterHapticsMode == 2 /* once */)
     {
         VRGunHaptic(xHand, 0.2, 75, 0.2);
     }
@@ -3626,6 +3624,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
     newmis.handtouch = wpnthrow_handtouch;
 
     newmis.classname = "thrown_weapon";
+    newmis.netname = WeaponIdToWeaponName(xWeapon);
 
     newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
 
@@ -3804,7 +3803,7 @@ void(entity ent, float xHand,
 
     if(isHolsterHotspot(xHotspot))
     {
-        VRSetHolsterHovered(xHotspot, TRUE);
+        VRSetHolsterHovered(ent, xHotspot, TRUE);
     }
 
     // Holding a weapon, but not grabbing the controller.
@@ -3975,7 +3974,7 @@ void() W_Frame =
         ImpulseCommands();
     }
 
-    UpdateHolsterHover();
+    UpdateHolsterHover(self);
 
     if(VRGet2HAiming(self))
     {

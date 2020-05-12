@@ -75,10 +75,14 @@ void() walkmonster_start_go =
     self.origin_z = self.origin_z + 1;    // raise off floor a bit
 
     // HONEY
-    if(self.classname == "monster_tarbaby" && self.spawnflags & SPAWNFLAG_TBABY_HIPHOP){
+    if(self.classname == "monster_tarbaby" &&
+       self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)
+    {
         stemp = stemp;
         //Don't do anything..
-    }else{
+    }
+    else
+    {
         droptofloor();
     }
 
@@ -149,7 +153,7 @@ void() walkmonster_start =
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);
-        WriteLong (MSG_ALL, total_monsters);
+        WriteLong(MSG_ALL, total_monsters);
     }
 };
 
