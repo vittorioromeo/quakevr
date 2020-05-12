@@ -260,8 +260,13 @@ void GLSLGamma_GammaCorrect()
     // rendering
     if(vr_fakevr.value == 0 && vr_novrinit.value == 0)
     {
+        /*
         glBindFramebuffer(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
         glReadBuffer(GL_FRONT);
+        */
+
+        glBindFramebuffer(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
+        // glBindTexture(GL_TEXTURE_2D, VR_GetEyeFBO(0).texture);
     }
 
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
