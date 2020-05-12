@@ -4081,6 +4081,9 @@ void VR_OnLoadedPak(pack_t& pak)
 
 
 
+// TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand weapon
+// animations stop being lerped.
+
 // TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
 // no ammo can be found?" "I might consider randomly spawning some, controlling
 // the spawn rate with a CVar. Why not"
