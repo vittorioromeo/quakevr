@@ -169,6 +169,7 @@ DEFINE_FCVAR_ARCHIVE(
 DEFINE_FCVAR_ARCHIVE(vr_headbutt_damage_mult, 32); // TODO VR: (P2) add to menu
 DEFINE_FCVAR_ARCHIVE(vr_activestartpaknameidx, 0);
 DEFINE_FCVAR_ARCHIVE(vr_verbosebots, 0);
+DEFINE_FCVAR_ARCHIVE(vr_finger_grip_bias, 0.0);
 
 //
 //

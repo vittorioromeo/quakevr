@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "cvar.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
@@ -1541,6 +1542,9 @@ void M_Options_Key(int k)
         .tooltip(
             "Yaw offset for the guns/hands. Only for off-hand. Affects "
             "aiming.");
+
+    m.add_cvar_entry<float>(
+        "Finger Grip Bias", vr_finger_grip_bias, {0.05f, 0.f, 1.f});
 
     return m;
 }
@@ -3645,8 +3649,8 @@ void M_Quit_Draw() // johnfitz -- modified for new quit message
     sprintf(msg1, "QuakeSpasm " QUAKESPASM_VER_STRING);
 
     // okay, this is kind of fucked up.  M_DrawTextBox will always act as if
-    // width is even. Also, the width and lines values are for the interior of
-    // the box, but the x and y values include the border.
+    // width is even. Also, the width and lines values are for the interior
+    // of the box, but the x and y values include the border.
     boxlen =
         q_max(strlen(msg1), q_max((sizeof(msg2) - 1), (sizeof(msg3) - 1))) + 1;
     if(boxlen & 1)
@@ -4850,3 +4854,49 @@ void M_ConfigureNetSubsystem()
         net_hostport = lanConfig_port;
     }
 }
+
+/*
+#include "json.hpp"
+using json = nlohmann::json;
+
+[[nodiscard]] static quake::menu makeMenuFromJSON(const nlohmann::json&
+jsonObj)
+{
+    quake::menu m{jsonObj["menu_title"], &M_Menu_QuakeVRSettings_f};
+
+    for(const auto& [key, value] : jsonObj.items())
+    {
+        const char* title = key.data();
+        const auto& bounds = value["bounds"];
+
+        const auto generateOption = [&]<typename T>(
+                                        const quake::menu_bounds<T> bounds)
+{ m.add_cvar_entry<T>(title, *Cvar_FindVar(title), bounds);
+        };
+
+        const auto extractBounds = [&]<typename T>() ->
+quake::menu_bounds<T> { return {bounds["increment"], bounds["min"],
+bounds["max"]};
+        };
+
+        if(const auto& type = value["type"]; type == "float")
+        {
+            generateOption(extractBounds.operator()<float>());
+        }
+        else if(type == "int")
+        {
+            generateOption(extractBounds.operator()<int>());
+        }
+        else if(type == "bool")
+        {
+            generateOption(quake::menu_bounds<bool>{});
+        }
+        else
+        {
+            // Error handling here...
+        }
+    }
+
+    return m;
+}
+*/

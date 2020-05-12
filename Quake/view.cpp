@@ -1378,6 +1378,22 @@ static qvec3 fingerIdxToOffset(const FingerIdx fingerIdx, const int handIdx)
     return result;
 }
 
+[[nodiscard]] static int handSkeletalToFrame(
+    const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss)
+{
+    return std::floor(
+        std::clamp(ss.flFingerCurl[(int)fingerIdx] + vr_finger_grip_bias.value,
+            0.f, 1.f) *
+        5.f);
+}
+
+[[nodiscard]] static int handSkeletalToFrameForHand(
+    const FingerIdx fingerIdx, const HandIdx handIdx)
+{
+    return handSkeletalToFrame(
+        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
+}
+
 static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     entity_t* const anchor, entity_t* const hand, qvec3 handRot,
     const qvec3& extraOffset, const bool horizFlip, const bool ghost)
@@ -1452,13 +1468,6 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     }
 
     hand->origin += quake::util::redirectVector(foff, handRot);
-
-    const auto handSkeletalToFrame =
-        [](const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss) {
-            // TODO VR: (P1) add configurable bias
-            return std::floor(ss.flFingerCurl[(int)fingerIdx] * 5.f);
-        };
-
     hand->model = Mod_ForName(fingerIdxToModelName(fingerIdx), true);
 
     {
@@ -1468,9 +1477,7 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     }
 
     hand->hidden = hideHand;
-
-    hand->frame = handSkeletalToFrame(
-        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
+    hand->frame = handSkeletalToFrameForHand(fingerIdx, handIdx);
     hand->colormap = vid.colormap;
     hand->horizFlip = horizFlip;
 
@@ -1513,13 +1520,6 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
     }
 
     hand->origin += quake::util::redirectVector(foff, otherHandRot);
-
-    const auto handSkeletalToFrame =
-        [](const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss) {
-            // TODO VR: (P1) add configurable bias
-            return std::floor(ss.flFingerCurl[(int)fingerIdx] * 5.f);
-        };
-
     hand->model = Mod_ForName(fingerIdxToModelName(fingerIdx), true);
 
     {
@@ -1528,9 +1528,7 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    hand->frame = handSkeletalToFrame(
-        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
-
+    hand->frame = handSkeletalToFrameForHand(fingerIdx, handIdx);
     hand->colormap = vid.colormap;
     hand->horizFlip = horizFlip;
 
