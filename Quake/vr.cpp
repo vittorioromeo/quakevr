@@ -4066,12 +4066,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
 // player_run - made some changes, test
 
-// TODO VR: (P0): "no hand posing occurs at all on Oculus CV1"
-
-// TODO VR: (P0): "fingers don't move at all on non-index controllers, and even
-// then, the hands were designed to have the thumb mostly closed unless it's
-// 2handing something"
-
 // TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
 // in certain situations I can't figure out a pattern for, such as
 // overshooting."
