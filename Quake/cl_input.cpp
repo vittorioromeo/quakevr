@@ -401,7 +401,7 @@ void CL_AdjustAngles()
 {
     float speed;
 
-    if((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
     {
         speed = host_frametime * cl_anglespeedkey.value;
     }
@@ -496,7 +496,7 @@ void CL_BaseMove(usercmd_t* cmd)
     //
     // adjust for speed key
     //
-    if((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
     {
         cmd->forwardmove *= cl_movespeedkey.value;
         cmd->sidemove *= cl_movespeedkey.value;

@@ -705,9 +705,10 @@ used when we need just a simple traceline nothing else
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 */
 
-float (entity targ) sisible =
+float(entity targ) sisible =
 {
-    traceline (self.origin, targ.origin, TRUE, self);
+    traceline(self.origin, targ.origin, TRUE, self);
+
     if(trace_ent == targ)
         return TRUE;
     else if(trace_fraction == 1)

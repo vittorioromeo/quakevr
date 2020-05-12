@@ -1,132 +1,141 @@
 {
-    "action_manifest_version": 0,
-    "alias_info": {},
-    "app_key": "system.generated.quakevr.exe",
-    "bindings": {
-       "/actions/default": {
-          "chords": [],
-          "haptics": [
-             {
-                "output": "/actions/default/out/lefthaptic",
-                "path": "/user/hand/left/output/haptic"
-             },
-             {
-                "output": "/actions/default/out/righthaptic",
-                "path": "/user/hand/right/output/haptic"
-             }
-          ],
-          "poses": [],
-          "skeleton": [],
-          "sources": [
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/speed"
-                   },
-                   "position": {
-                      "output": "/actions/default/in/Locomotion"
-                   }
-                },
-                "mode": "joystick",
-                "path": "/user/hand/left/input/thumbstick"
-             },
-             {
-                "inputs": {
-                   "position": {
-                      "output": "/actions/default/in/Turn"
-                   }
-                },
-                "mode": "joystick",
-                "path": "/user/hand/right/input/thumbstick"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/FireMainHand"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/right/input/trigger"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/Jump"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/right/input/a"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/NextWeaponMainHand"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/right/input/b"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/Escape"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/left/input/a"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/NextWeaponOffHand"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/left/input/b"
-             },
-             {
-                "inputs": {
-                   "click": {
-                      "output": "/actions/default/in/fireoffhand"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/left/input/trigger"
-             },
-             {
-                "inputs": {
-                   "touch": {
-                      "output": "/actions/default/in/teleport"
-                   }
-                },
-                "mode": "button",
-                "path": "/user/hand/left/input/trackpad"
-             },
-             {
-                "inputs": {
-                   "grab": {
-                      "output": "/actions/default/in/leftgrab"
-                   }
-                },
-                "mode": "grab",
-                "path": "/user/hand/left/input/grip"
-             },
-             {
-                "inputs": {
-                   "grab": {
-                      "output": "/actions/default/in/rightgrab"
-                   }
-                },
-                "mode": "grab",
-                "path": "/user/hand/right/input/grip"
-             }
-          ]
-       }
-    },
-    "category": "steamvr_input",
-    "controller_type": "vive_controller",
-    "description": "The default binding for Cosmos controllers",
-    "name": "Default Cosmos Controller Binding",
-    "options": {},
-    "simulated_actions": []
+   "action_manifest_version": 0,
+   "alias_info": {},
+   "app_key": "system.generated.quakevr.exe",
+   "bindings": {
+      "/actions/default": {
+         "chords": [],
+         "haptics": [
+            {
+               "output": "/actions/default/out/lefthaptic",
+               "path": "/user/hand/left/output/haptic"
+            },
+            {
+               "output": "/actions/default/out/righthaptic",
+               "path": "/user/hand/right/output/haptic"
+            }
+         ],
+         "poses": [],
+         "skeleton": [
+            {
+               "output": "/actions/default/in/LeftHandAnim",
+               "path": "/user/hand/left/input/skeleton/left"
+            },
+            {
+               "output": "/actions/default/in/RightHandAnim",
+               "path": "/user/hand/right/input/skeleton/right"
+            }
+         ],
+         "sources": [
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/speed"
+                  },
+                  "position": {
+                     "output": "/actions/default/in/Locomotion"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/left/input/thumbstick"
+            },
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/default/in/Turn"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/right/input/thumbstick"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/FireMainHand"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/Jump"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/a"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/NextWeaponMainHand"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/b"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/Escape"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/a"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/NextWeaponOffHand"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/b"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/fireoffhand"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs": {
+                  "touch": {
+                     "output": "/actions/default/in/teleport"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/trackpad"
+            },
+            {
+               "inputs": {
+                  "grab": {
+                     "output": "/actions/default/in/leftgrab"
+                  }
+               },
+               "mode": "grab",
+               "path": "/user/hand/left/input/grip"
+            },
+            {
+               "inputs": {
+                  "grab": {
+                     "output": "/actions/default/in/rightgrab"
+                  }
+               },
+               "mode": "grab",
+               "path": "/user/hand/right/input/grip"
+            }
+         ]
+      }
+   },
+   "category": "steamvr_input",
+   "controller_type": "vive_controller",
+   "description": "The default binding for Cosmos controllers",
+   "name": "Default Cosmos Controller Binding",
+   "options": {},
+   "simulated_actions": []
 }

@@ -61,6 +61,7 @@ float cvarh_vr_2h_spread_reduction;
 float cvarh_vr_2h_throw_velocity_mult;
 float cvarh_vr_headbutt_velocity_threshold;
 float cvarh_vr_headbutt_damage_mult;
+float cvarh_vr_verbosebots;
 
 //
 //
@@ -132,6 +133,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_2h_throw_velocity_mult);
     VR_CVAR_HMAKE(vr_headbutt_velocity_threshold);
     VR_CVAR_HMAKE(vr_headbutt_damage_mult);
+    VR_CVAR_HMAKE(vr_verbosebots);
 
 #undef VR_CVAR_HMAKE
 }

@@ -338,6 +338,10 @@ void VR_ApplyModelMod(
 
 [[nodiscard]] bool VR_IsHandGrabbing(const int hand) noexcept;
 
+[[nodiscard]] entity_t* VR_GetAnchorEntity(const HandIdx handIdx) noexcept;
+
+[[nodiscard]] bool VR_GetHorizFlip(const HandIdx handIdx) noexcept;
+
 //
 //
 //
@@ -473,8 +477,6 @@ enum class WpnCVar : std::uint8_t
 
 [[nodiscard]] qvec3 VR_GetWpnMuzzleOffsets(const int cvarEntry) noexcept;
 
-[[nodiscard]] qvec3 VR_CalcWeaponMuzzlePosImpl(
-    const int index, const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_CalcMainHandWpnMuzzlePos() noexcept;
 
 // ----------------------------------------------------------------------------

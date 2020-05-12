@@ -619,14 +619,23 @@ float(float wid) get_weapon_priority =
 
 float(entity thing) priority_for_thing =
 {
+    if(cvar_hget(cvarh_vr_verbosebots))
+    {
+        bprint("priority_for_thing(");
+        bprint(thing.netname);
+        bprint(")\n");
+    }
+
     local float thisp, isThrownWeapon;
     thisp = 0;
     isThrownWeapon = 0;
     // This is the most executed function in the bot. Careful what you do here.
 
-    if(((thing.flags & FL_ITEM) || thing.classname == "thrown_weapon") &&
-        thing.model != string_null &&
-        thing.search_time < time)
+    if(
+        ((thing.flags & FL_ITEM) || thing.classname == "thrown_weapon") &&
+        (thing.model != string_null) &&
+        (thing.search_time < time)
+    )
     {
         // ugly hack
         if(thing._last != self)
@@ -636,7 +645,7 @@ float(entity thing) priority_for_thing =
         if(thing.classname == "thrown_weapon" &&
            !VR_WeaponUtil_EntHasWeapon(self, thing.weapon))
         {
-            thisp = get_weapon_priority(thing.weapon);
+            thisp = get_weapon_priority(thing.weapon) + 1;
             isThrownWeapon = 1;
         }
         else if(thing.classname == "item_artifact_super_damage")
@@ -756,7 +765,7 @@ float(entity thing) priority_for_thing =
         else if(isThrownWeapon &&
                 vlen(self.origin - thing.origin) < getForcegrabRange())
         {
-            sound(self, VRGetGunChannel(cVR_MainHand), "forcegrab.wav", 0.65, ATTN_NORM);
+            sound(self, VRGetGunChannel(cVR_MainHand), "forcegrab.wav", 0.75, ATTN_NORM);
             wpnthrow_handtouch_impl(cVR_MainHand, thing, self, &self.weapon, &self.weaponflags);
             thisp = 0;
         }
@@ -767,37 +776,82 @@ float(entity thing) priority_for_thing =
 
 void(float scope) bot_look_for_crap =
 {
+    local float radius;
+
+    if(scope == 1)
+    {
+        radius = 13000;
+    }
+    else
+    {
+        radius = 500;
+    }
+
+    if(cvar_hget(cvarh_vr_verbosebots))
+    {
+        bprint("bot_look_for_crap(");
+        bprint(ftos(scope));
+        bprint(") [radius: ");
+        bprint(ftos(radius));
+        bprint("]\n");
+    }
+
     local entity foe, best;
     local float thatp, bestp, dist;
 
-    if(scope == 1)
-        foe = findradius(self.origin, 13000);
-    else
-        foe = findradius(self.origin, 500);
+    foe = findradius(self.origin, radius);
 
     bestp = 1;
     while(foe)
     {
         thatp = priority_for_thing(foe);
-        if(thatp)
-            if(!scope)
-                if(!sisible(foe))
-                    thatp = 0;
+
+        if(cvar_hget(cvarh_vr_verbosebots))
+        {
+            bprint(" -> ");
+            bprint(ftos(thatp));
+            bprint("\n\n");
+        }
+
+        if(thatp && !scope)
+        {
+            if(!sisible(foe))
+            {
+                thatp = 0;
+            }
+        }
+
         if(thatp > bestp)
         {
             bestp = thatp;
             best = foe;
             dist = vlen(self.origin - foe.origin);
         }
+
         foe = foe.chain;
     }
 
     if(best == world)
+    {
+        if(cvar_hget(cvarh_vr_verbosebots))
+        {
+            bprint("found nothing (best == world)\n");
+        }
+
         return;
+    }
 
     if(!target_onstack(best))
     {
         target_add(best);
+
+        if(cvar_hget(cvarh_vr_verbosebots))
+        {
+            bprint("added best:");
+            bprint(best.netname);
+            bprint("\n");
+        }
+
         if(scope)
         {
             bot_get_path(best, FALSE);
@@ -994,22 +1048,21 @@ void() BotAI =
     else
     {
         if(waypoint_mode < WM_EDITOR)
-                {
-                    if(self.route_failed)
-                    {
-                        if(waypoint_mode == WM_DYNAMIC)
-                                frik_bot_roam();
-                            else
-                                self.keys = 0;
-                        self.route_failed = 0;
-                    }
-                        else if(!begin_route())
-                        {
-                                bot_look_for_crap(FALSE);
-                                self.keys = 0;
-                        }
-
-                }
+        {
+            if(self.route_failed)
+            {
+                if(waypoint_mode == WM_DYNAMIC)
+                        frik_bot_roam();
+                    else
+                        self.keys = 0;
+                self.route_failed = 0;
+            }
+            else if(!begin_route())
+            {
+                bot_look_for_crap(FALSE);
+                self.keys = 0;
+            }
+        }
         else
         {
             self.b_aiflags = AI_WAIT;

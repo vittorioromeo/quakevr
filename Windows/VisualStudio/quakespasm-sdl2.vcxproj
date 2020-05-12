@@ -263,7 +263,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\net_win.cpp" />
     <ClCompile Include="..\..\Quake\net_wins.cpp" />
     <ClCompile Include="..\..\Quake\net_wipx.cpp" />
-    <ClCompile Include="..\..\Quake\opengl_ext.cpp" />
     <ClCompile Include="..\..\Quake\pl_win.cpp" />
     <ClCompile Include="..\..\Quake\pr_cmds.cpp" />
     <ClCompile Include="..\..\Quake\pr_edict.cpp" />
@@ -343,7 +342,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\net_sys.hpp" />
     <ClInclude Include="..\..\Quake\net_wins.hpp" />
     <ClInclude Include="..\..\Quake\net_wipx.hpp" />
-    <ClInclude Include="..\..\Quake\opengl_ext.hpp" />
     <ClInclude Include="..\..\Quake\openvr.hpp" />
     <ClInclude Include="..\..\Quake\openvr_driver.hpp" />
     <ClInclude Include="..\..\Quake\platform.hpp" />

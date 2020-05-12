@@ -103,7 +103,7 @@ struct entity_t
     qvec3 previousangles; // johnfitz -- transform lerping
     qvec3 currentangles;  // johnfitz -- transform lerping
 
-    bool horizflip; // VR: horizontal flip
+    bool horizFlip; // VR: horizontal flip
 
     // VR: per-instance scaling
     qvec3 msg_scales[2]; // last two updates (0 is newest)

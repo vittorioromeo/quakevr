@@ -1921,7 +1921,8 @@ static int COM_FindFile(
                     continue;
                 }
 
-                // TODO VR: (P0) document, this is it
+                // VR: This hack allows multiple "start.bsp" maps to coexist.
+                // The user can decide which one is loaded by setting a CVar.
                 const auto extractedPakName = VR_ExtractPakName(*pak);
                 if(std::strcmp(filename, "maps/start.bsp") == 0 &&
                     extractedPakName != VR_GetActiveStartPakName() &&

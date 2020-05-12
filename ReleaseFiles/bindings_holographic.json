@@ -16,7 +16,16 @@
             }
          ],
          "poses": [],
-         "skeleton": [],
+         "skeleton": [
+            {
+               "output": "/actions/default/in/LeftHandAnim",
+               "path": "/user/hand/left/input/skeleton/left"
+            },
+            {
+               "output": "/actions/default/in/RightHandAnim",
+               "path": "/user/hand/right/input/skeleton/right"
+            }
+         ],
          "sources": [
             {
                "inputs": {

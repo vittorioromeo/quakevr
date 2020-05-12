@@ -602,11 +602,7 @@ void() monster_ogre_real =
         // self.skin = 1;
     }
 
-    setsize(self, '-24 -24 -24', '24 24 40');
-    // TODO VR: (P0) this seems to help with stuck ogres, but verify.
-    // It seems incosistent between quad/biosuit - see msg from spike on quake mapping
-    setorigin(self, self.origin + '-12 -12 0');
-
+    setsize(self, '-20 -20 -22', '20 20 40');
     walkmonster_start();
 };
 

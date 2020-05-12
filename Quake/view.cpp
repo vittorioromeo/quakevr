@@ -1196,7 +1196,7 @@ void V_SetupOffHandWpnViewEnt(
 
     view.frame = cl.stats[STAT_WEAPONFRAME2];
     view.colormap = vid.colormap;
-    view.horizflip = true;
+    view.horizFlip = true;
 
     StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
 
@@ -1236,7 +1236,7 @@ void V_SetupVRTorsoViewEnt()
 
 void V_SetupHolsterSlotViewEnt(const qvec3& pos, entity_t* view,
     const qfloat pitch, const qfloat yaw, const qfloat roll,
-    const bool horizflip)
+    const bool horizFlip)
 {
     view->angles[PITCH] = pitch;
     view->angles[YAW] = yaw;
@@ -1248,7 +1248,7 @@ void V_SetupHolsterSlotViewEnt(const qvec3& pos, entity_t* view,
     view->frame = 0;
     view->colormap = vid.colormap;
 
-    view->horizflip = horizflip;
+    view->horizFlip = horizFlip;
 
     StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], view);
 
@@ -1260,7 +1260,7 @@ void V_SetupHolsterSlotViewEnt(const qvec3& pos, entity_t* view,
 
 void V_SetupHolsterViewEnt(const int modelId, const qvec3& pos, entity_t* view,
     const qfloat pitch, const qfloat yaw, const qfloat roll,
-    const bool horizflip)
+    const bool horizFlip)
 {
     view->angles[PITCH] = pitch;
     view->angles[YAW] = yaw;
@@ -1288,7 +1288,7 @@ void V_SetupHolsterViewEnt(const int modelId, const qvec3& pos, entity_t* view,
     view->frame = 0;
     view->colormap = vid.colormap;
 
-    view->horizflip = horizflip;
+    view->horizFlip = horizFlip;
 
     if(chase_active.value)
     {
@@ -1380,14 +1380,14 @@ static qvec3 fingerIdxToOffset(const FingerIdx fingerIdx, const int handIdx)
 
 static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     entity_t* const anchor, entity_t* const hand, qvec3 handRot,
-    const qvec3& extraOffset, const bool horizflip, const bool ghost)
+    const qvec3& extraOffset, const bool horizFlip, const bool ghost)
 {
     assert(anchor->model != nullptr);
 
     auto [oPitch, oYaw, oRoll] =
         VR_GetWpnAngleOffsets(vr_hardcoded_wpn_cvar_fist);
 
-    if(horizflip)
+    if(horizFlip)
     {
         oYaw *= -1.f;
         oRoll *= -1.f;
@@ -1410,10 +1410,10 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     const bool hideHand =
         static_cast<bool>(VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::HideHand));
 
-    const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+    const int handIdx = horizFlip ? cVR_OffHand : cVR_MainHand;
 
     auto pos = VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot, horizflip);
+        anchor, anchorVertex, extraOffsets, handRot, horizFlip);
 
     if(anchorWpnCvar == vr_hardcoded_wpn_cvar_fist)
     {
@@ -1435,7 +1435,7 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
             anchor == &cl.viewent ? &cl.offhand_viewent : &cl.viewent;
 
         const auto twoHFixedPos = VR_GetWpnFixed2HFinalPosition(otherAnchor,
-            otherWpnCvar, horizflip, extraOffset, cl.handrot[otherHandIdx]);
+            otherWpnCvar, horizFlip, extraOffset, cl.handrot[otherHandIdx]);
 
         hand->origin =
             glm::mix(pos, twoHFixedPos, vr_2h_aim_transition[otherHandIdx]);
@@ -1446,7 +1446,7 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     }
 
     auto foff = fingerIdxToOffset(fingerIdx, handIdx);
-    if(horizflip)
+    if(horizFlip)
     {
         foff[1] *= -1.f;
     }
@@ -1472,7 +1472,7 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     hand->frame = handSkeletalToFrame(
         fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
     hand->colormap = vid.colormap;
-    hand->horizflip = horizflip;
+    hand->horizFlip = horizFlip;
 
     hand->angles[PITCH] = -handRot[PITCH];
     hand->angles[YAW] = handRot[YAW];
@@ -1482,13 +1482,13 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
 static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
     const int helpingHand, const int otherWpnCvar, entity_t* const anchor,
     entity_t* const hand, const qvec3& handRot, qvec3 otherHandRot,
-    const qvec3& extraOffset, const bool horizflip)
+    const qvec3& extraOffset, const bool horizFlip)
 {
     assert(anchor->model != nullptr);
 
     auto [oPitch, oYaw, oRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);
 
-    if(!horizflip)
+    if(!horizFlip)
     {
         oYaw *= -1.f;
         oRoll *= -1.f;
@@ -1499,15 +1499,15 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
     otherHandRot[ROLL] += oRoll;
 
     const auto pos = VR_GetWpnFixed2HFinalPosition(
-        anchor, otherWpnCvar, horizflip, extraOffset, otherHandRot);
+        anchor, otherWpnCvar, horizFlip, extraOffset, otherHandRot);
 
     hand->origin = glm::mix(cl.handpos[helpingHand], pos,
         vr_2h_aim_transition[VR_OtherHand(helpingHand)]);
 
-    const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+    const int handIdx = horizFlip ? cVR_OffHand : cVR_MainHand;
 
     auto foff = fingerIdxToOffset(fingerIdx, handIdx);
-    if(horizflip)
+    if(horizFlip)
     {
         foff[1] *= -1.f;
     }
@@ -1532,7 +1532,7 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
         fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
 
     hand->colormap = vid.colormap;
-    hand->horizflip = horizflip;
+    hand->horizFlip = horizFlip;
 
     hand->angles[PITCH] = -otherHandRot[PITCH];
     hand->angles[YAW] = otherHandRot[YAW];
@@ -1541,13 +1541,13 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
 
 static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
     entity_t* const anchor, entity_t* const wpnButton, const qvec3& handRot,
-    const qvec3& extraOffset, const bool horizflip)
+    const qvec3& extraOffset, const bool horizFlip)
 {
     assert(anchor->model != nullptr);
 
     auto extraOffsets = VR_GetWpnButtonOffsets(anchorWpnCvar) + extraOffset;
 
-    if(horizflip)
+    if(horizFlip)
     {
         // extraOffsets[1] *= -1.f;
     }
@@ -1560,12 +1560,12 @@ static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
             anchorWpnCvar, WpnCVar::WpnButtonMode)) == WpnButtonMode::None;
 
     const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
-        anchor, anchorVertex, extraOffsets, handRot, horizflip);
+        anchor, anchorVertex, extraOffsets, handRot, horizFlip);
 
-    // const int handIdx = horizflip ? cVR_OffHand : cVR_MainHand;
+    // const int handIdx = horizFlip ? cVR_OffHand : cVR_MainHand;
 
     qvec3 angles = VR_GetWpnButtonAngles(anchorWpnCvar);
-    if(horizflip)
+    if(horizFlip)
     {
         angles[ROLL] *= -1.f;
     }
@@ -1575,7 +1575,7 @@ static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
     wpnButton->hidden = hideButton;
     wpnButton->frame = 0;
     wpnButton->colormap = vid.colormap;
-    wpnButton->horizflip = horizflip;
+    wpnButton->horizFlip = horizFlip;
     wpnButton->angles = handRot + angles;
     wpnButton->angles[PITCH] *= -1.f;
 

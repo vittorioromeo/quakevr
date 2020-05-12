@@ -120,8 +120,8 @@ void SV_CheckVelocity(edict_t* ent)
             ent->v.origin[i] = 0;
         }
 
-        ent->v.velocity[i] = std::clamp(
-            ent->v.velocity[i], float(-sv_maxvelocity.value), float(sv_maxvelocity.value));
+        ent->v.velocity[i] = std::clamp(ent->v.velocity[i],
+            float(-sv_maxvelocity.value), float(sv_maxvelocity.value));
     }
 }
 
@@ -230,8 +230,8 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 */
 #define STOP_EPSILON 0.1
 
-int ClipVelocity(const qfvec3& in, const qfvec3& normal, qfvec3& out,
-    float overbounce)
+int ClipVelocity(
+    const qfvec3& in, const qfvec3& normal, qfvec3& out, float overbounce)
 {
     int blocked = 0;
 
@@ -259,21 +259,6 @@ int ClipVelocity(const qfvec3& in, const qfvec3& normal, qfvec3& out,
     }
 
     return blocked;
-}
-
-static void doFakeHandtouch(edict_t* player, edict_t* target)
-{
-    VR_SetFakeHandtouchParams(player, target);
-    SV_Impact(player, target, &entvars_t::handtouch);
-}
-
-static void doFakeHandtouchIfBodyInteractionsEnabled(
-    edict_t* player, edict_t* target)
-{
-    if(!vr_enabled.value || vr_body_interactions.value == 1)
-    {
-        doFakeHandtouch(player, target);
-    }
 }
 
 /*
@@ -364,11 +349,6 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
         // run the impact function
         //
         SV_Impact(ent, trace.ent, &entvars_t::touch);
-
-        // --------------------------------------------------------------------
-        // VR: Simulate touching with right hand if body interactions are off.
-        doFakeHandtouchIfBodyInteractionsEnabled(ent, trace.ent);
-        // --------------------------------------------------------------------
 
         if(ent->free)
         {
@@ -487,7 +467,6 @@ static void SV_PushEntityImpact(edict_t* ent, const trace_t& trace)
     }
 
     SV_Impact(ent, trace.ent, &entvars_t::touch);
-    doFakeHandtouchIfBodyInteractionsEnabled(ent, trace.ent);
 }
 
 /*
@@ -499,25 +478,25 @@ Does not change the entities velocity at all
 */
 trace_t SV_PushEntity(edict_t* ent, const qfvec3& push)
 {
+    const auto start = ent->v.origin - push;
     const auto end = ent->v.origin + push;
 
     trace_t trace;
     if(ent->v.movetype == MOVETYPE_FLYMISSILE)
     {
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
+        trace =
+            SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
     }
     else if(ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT ||
             ent->v.solid == SOLID_NOT_BUT_TOUCHABLE)
     {
         // only clip against bmodels
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+        trace =
+            SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
     }
     else
     {
-        trace = SV_Move(
-            ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+        trace = SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
     }
 
     ent->v.origin = trace.endpos;
@@ -528,35 +507,6 @@ trace_t SV_PushEntity(edict_t* ent, const qfvec3& push)
     return trace;
 }
 
-[[nodiscard]] static bool checkGroundCollision(edict_t* ent,
-    trace_t& traceBuffer, qvec3& offsetBuffer, const qvec3& move,
-    const float xBias, const float yBias)
-{
-    const auto checkCorner = [&](const qvec3& pos) {
-        const qvec3 end = pos + move;
-
-        traceBuffer = SV_MoveTrace(pos, end, MOVE_NOMONSTERS, ent);
-
-        return quake::util::hitSomething(traceBuffer) &&
-               quake::util::traceHitGround(traceBuffer);
-    };
-
-    const qvec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
-
-    const auto left = ent->v.mins[0] + xBias;
-    const auto right = ent->v.maxs[0] - xBias;
-    const auto fwd = ent->v.mins[1] + yBias;
-    const auto back = ent->v.maxs[1] - yBias;
-
-    const auto testCorner = [&](const float x, const float y) {
-        offsetBuffer = qvec3{x, y, 0.f};
-        return checkCorner(bottomOrigin + offsetBuffer);
-    };
-
-    return testCorner(left, fwd) || testCorner(left, back) ||
-           testCorner(right, fwd) || testCorner(right, back);
-}
-
 /*
 ============
 SV_PushMove
@@ -564,6 +514,14 @@ SV_PushMove
 */
 void SV_PushMove(edict_t* pusher, float movetime)
 {
+    // When changing this, test the following:
+    // * Lift in E1M1
+    // * Platform (controlled by button) in E1M1
+    // * Crusher in E1M3
+    // * Big doors in E1M3
+    // * Slow elevator in E2M6
+    // * Crusher in HIP3M4
+
     if(!pusher->v.velocity[0] && !pusher->v.velocity[1] &&
         !pusher->v.velocity[2])
     {
@@ -627,8 +585,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
             qvec3 offsetBuffer;
 
             const bool checkOnTopOfPusher =
-                checkGroundCollision(
-                    check, traceBuffer, offsetBuffer, minBottom, 0.f, 0.f) &&
+                quake::util::checkGroundCollision(MOVE_NOMONSTERS, check,
+                    traceBuffer, offsetBuffer, minBottom, 0.f, 0.f) &&
                 traceBuffer.ent == pusher;
 
             if(!checkIntoSolid && !checkOnTopOfPusher)
@@ -659,22 +617,22 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.groundentity = EDICT_TO_PROG(pusher);
         }
 
-        const auto checkBlockScaled = [&](edict_t* ent, const float xf,
-                                          const float yf) {
-            const auto nmins = ent->v.mins * qfvec3{xf, xf, yf};
-            const auto nmaxs = ent->v.maxs * qfvec3{xf, xf, yf};
+        const auto checkBlock = [&](edict_t* ent, qvec3 adjUpMove) {
+            if(adjUpMove[2] < 0)
+            {
+                adjUpMove[2] *= -1.f;
+            }
 
-            const trace_t trace = SV_Move(
-                ent->v.origin, nmins, nmaxs, ent->v.origin, MOVE_NORMAL, ent);
+            const trace_t trace =
+                SV_Move(ent->v.origin + adjUpMove, ent->v.mins, ent->v.maxs,
+                    ent->v.origin + adjUpMove, MOVE_NORMAL, ent);
 
-            return trace.startsolid ? sv.edicts : nullptr;
+            return trace.startsolid;
         };
 
         // if it is still inside the pusher, block
-        const auto maxHMove = std::max(std::abs(move.x), std::abs(move.y));
-        const bool verticalMove = std::abs(move.z) > maxHMove;
-        edict_t* const block =
-            checkBlockScaled(check, 1.f, verticalMove ? 0.95f : 1.f);
+        const bool block = checkBlock(check, move);
+
         if(block)
         {
             // fail the move
@@ -1167,8 +1125,7 @@ void SV_Handtouch(edict_t* ent)
         handCollisionCheck(cVR_MainHand, ent->v.handpos);
     };
 
-    const auto endHandPos = [&](const qvec3& handPos,
-                                const qvec3& handRot) {
+    const auto endHandPos = [&](const qvec3& handPos, const qvec3& handRot) {
         const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         return handPos + fwd * 1._qf;
     };
@@ -1183,8 +1140,7 @@ void SV_Handtouch(edict_t* ent)
         ent->v.origin, ent->v.mins, ent->v.maxs, offHandEnd, MOVE_NORMAL, ent));
     traceCheck(SV_Move(origin, mins, maxs, offHandEnd, MOVE_NORMAL, ent));
 
-    const auto traceForHand = [&](const qvec3& handPos,
-                                  const qvec3& handRot) {
+    const auto traceForHand = [&](const qvec3& handPos, const qvec3& handRot) {
         const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         const auto end = handPos + fwd * 1._qf;
 
@@ -1210,7 +1166,8 @@ void SV_VRWpntouch(edict_t* ent)
             VR_GetResolvedHandPos(ent, worldHandPos, adjPlayerOrigin);
 
         VrGunWallCollision collisionData;
-        VR_UpdateGunWallCollisions(ent, handIndex, collisionData, resolvedHandPos);
+        VR_UpdateGunWallCollisions(
+            ent, handIndex, collisionData, resolvedHandPos);
 
         if(collisionData._ent != nullptr && collisionData._ent->v.vr_wpntouch)
         {
@@ -1531,8 +1488,8 @@ void SV_Physics_Toss(edict_t* ent)
         trace_t traceBuffer;
         qvec3 offsetBuffer;
 
-        if(!checkGroundCollision(
-               ent, traceBuffer, offsetBuffer, move, 0._qf, 0._qf))
+        if(!quake::util::checkGroundCollision(MOVE_NOMONSTERS, ent, traceBuffer,
+               offsetBuffer, move, 0._qf, 0._qf))
         {
             if(quake::util::hasFlag(ent, FL_ONGROUND))
             {
@@ -1556,8 +1513,8 @@ void SV_Physics_Toss(edict_t* ent)
 
                     ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
                     ent->v.velocity = ent->v.avelocity = vec3_zero;
-                    ent->v.origin =
-                        qfvec3(traceBuffer.endpos) - ent->v.mins[2] - qfvec3(offsetBuffer);
+                    ent->v.origin = qfvec3(traceBuffer.endpos) -
+                                    ent->v.mins[2] - qfvec3(offsetBuffer);
 
                     SV_LinkEdict(ent, true);
                     SV_PushEntityImpact(ent, traceBuffer);

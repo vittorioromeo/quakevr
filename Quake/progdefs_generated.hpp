@@ -224,6 +224,7 @@ typedef struct entvars_s
 	float	touchinghand;
 	float	handtouch_hand;
 	int	handtouch_ent;
+	float	ishuman;
 } entvars_t;
 
-#define PROGHEADER_CRC 39962
+#define PROGHEADER_CRC 59441

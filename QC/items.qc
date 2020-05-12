@@ -183,8 +183,6 @@ Sets the clipping size and plants the object on the floor
 */
 void() StartItem =
 {
-    // TODO VR: (P2) doesn't seem to ever be called?
-
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -401,7 +399,7 @@ void() item_armor1 =
     precache_model("progs/armor.mdl");
     setmodel(self, "progs/armor.mdl");
     self.skin = 0;
-    setsize(self, '-10 -10 0', '10 10 28');
+    setsize(self, '-11 -11 0', '11 11 31');
     if(deathmatch) { self.wait = 20; }
     StartItem();
 };
@@ -415,7 +413,7 @@ void() item_armor2 =
     precache_model("progs/armor.mdl");
     setmodel(self, "progs/armor.mdl");
     self.skin = 1;
-    setsize(self, '-10 -10 0', '10 10 28');
+    setsize(self, '-11 -11 0', '11 11 31');
     if(deathmatch) { self.wait = 20; }
     StartItem();
 };
@@ -429,7 +427,7 @@ void() item_armorInv =
     precache_model("progs/armor.mdl");
     setmodel(self, "progs/armor.mdl");
     self.skin = 2;
-    setsize(self, '-10 -10 0', '10 10 28');
+    setsize(self, '-11 -11 0', '11 11 31');
     if(deathmatch) { self.wait = 20; }
     StartItem();
 };
@@ -519,13 +517,13 @@ void() weapon_touch =
         }
     }
 
-    // TODO VR: (P0) revisit this behavior, maybe put in holder or drop? or cvaR?
     // Do not pick up the weapon if body interactions is enabled and no hands
     // are free.
     if(other.ishuman && touchinghandIsBody &&
         !VRIsHandEmpty(other, cVR_MainHand) &&
         !VRIsHandEmpty(other, cVR_OffHand))
     {
+        // TODO VR: (P0) revisit this behavior, maybe put in holder or drop? or cvar?
         return;
     }
 
@@ -1098,7 +1096,7 @@ void() item_key1 =
     self.handtouch = key_touch;
     self.vr_itemId = IID_KEY1;
 
-    setsize(self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-8 -8 -24', '8 8 32');
 
     StartItem();
 };
@@ -1139,12 +1137,7 @@ void() item_key2 =
     self.handtouch = key_touch;
     self.vr_itemId = IID_KEY2;
 
-    setsize(self, '-16 -16 -24', '16 16 32');
-
-    // TODO VR: (P2) these cannot be made smaller otherwise they get OOB in
-    // some maps. Need to fix up origin but haven't figured out how.
-    // setsize(self, '-8 -8 -24', '8 8 32');
-    // self.origin = self.origin + '0 -16 0';
+    setsize(self, '-8 -8 -24', '8 8 32');
 
     StartItem();
 };
@@ -1301,7 +1294,7 @@ void() item_artifact_invulnerability =
     self.classname = "item_artifact_invulnerability";
     self.netname = "Pentagram of Protection";
     self.vr_itemId = IID_INVULNERABILITY;
-    setsize(self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-8 -8 -24', '8 8 32');
     if(deathmatch) { self.wait = 60*5; }
     StartItem();
 };
@@ -1322,10 +1315,7 @@ void() item_artifact_envirosuit =
     self.classname = "item_artifact_envirosuit";
     self.netname = "Biosuit";
     self.vr_itemId = IID_SUIT;
-    // TODO VR: (P2) changing 16 to 8 makes biosuit disappear from E1M1, why?
-    setsize(self, '-16 -16 -24', '16 16 32');
-    // setsize(self, '-8 -8 -24', '8 8 32');
-    // setorigin(self, self.origin + '-8 -8 0');
+    setsize(self, '-8 -8 -24', '8 8 32');
     if(deathmatch) { self.wait = 60; }
     StartItem();
 };
@@ -1347,7 +1337,7 @@ void() item_artifact_invisibility =
     self.classname = "item_artifact_invisibility";
     self.netname = "Ring of Shadows";
     self.vr_itemId = IID_INVISIBILITY;
-    setsize(self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-8 -8 -24', '8 8 32');
     if(deathmatch) { self.wait = 60*5; }
     StartItem();
 };
@@ -1369,7 +1359,7 @@ void() item_artifact_super_damage =
     self.classname = "item_artifact_super_damage";
     self.netname = "Quad Damage";
     self.vr_itemId = IID_QUAD;
-    setsize(self, '-16 -16 -24', '16 16 32');
+    setsize(self, '-8 -8 -24', '8 8 32');
     if(deathmatch) { self.wait = 60; }
     StartItem();
 };

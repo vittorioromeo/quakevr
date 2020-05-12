@@ -349,6 +349,49 @@ template <typename... TFlags>
 {
     return edict->v.handtouch && edict->v.solid != SOLID_NOT;
 }
+
+template <typename F>
+bool anyXYCorner(const edict_t& ent, F&& f)
+{
+    const qfloat left = ent.v.mins[0];
+    const qfloat right = ent.v.maxs[0];
+    const qfloat fwd = ent.v.mins[1];
+    const qfloat back = ent.v.maxs[1];
+
+    const auto doCorner = [&](const qfloat xOffset, const qfloat yOffset) {
+        return f(qvec3{xOffset, yOffset, 0.f});
+    };
+
+    return doCorner(left, fwd) || doCorner(left, back) ||
+           doCorner(right, fwd) || doCorner(right, back);
+}
+
+[[nodiscard]] static bool checkGroundCollision(const int moveType, edict_t* ent,
+    trace_t& traceBuffer, qvec3& offsetBuffer, const qvec3& move,
+    const float xBias, const float yBias)
+{
+    const auto checkCorner = [&](const qvec3& pos) {
+        const qvec3 end = pos + move;
+
+        traceBuffer = SV_MoveTrace(pos, end, moveType, ent);
+        return hitSomething(traceBuffer) && traceHitGround(traceBuffer);
+    };
+
+    const qvec3 bottomOrigin = ent->v.origin + ent->v.mins[2];
+
+    if(ent->v.mins == vec3_zero && ent->v.maxs == vec3_zero)
+    {
+        // Optimized case for zero-sized objects.
+        offsetBuffer = vec3_zero;
+        return checkCorner(bottomOrigin);
+    }
+
+    return anyXYCorner(*ent, [&](const qvec3& offset) {
+        offsetBuffer = offset;
+        return checkCorner(bottomOrigin + offsetBuffer);
+    });
+}
+
 } // namespace quake::util
 
 namespace std

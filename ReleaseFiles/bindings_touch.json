@@ -15,7 +15,16 @@
                 }
             ],
             "poses": [],
-            "skeleton": [],
+            "skeleton": [
+                {
+                    "output": "/actions/default/in/LeftHandAnim",
+                    "path": "/user/hand/left/input/skeleton/left"
+                },
+                {
+                    "output": "/actions/default/in/RightHandAnim",
+                    "path": "/user/hand/right/input/skeleton/right"
+                }
+            ],
             "sources": [
                 {
                     "inputs": {
@@ -100,43 +109,43 @@
                 },
                 {
                     "inputs": {
-                       "click": {
-                          "output": "/actions/default/in/speed"
-                       },
-                       "position": {
-                          "output": "/actions/default/in/locomotion"
-                       }
+                        "click": {
+                            "output": "/actions/default/in/speed"
+                        },
+                        "position": {
+                            "output": "/actions/default/in/locomotion"
+                        }
                     },
                     "mode": "joystick",
                     "path": "/user/hand/left/input/joystick"
-                 },
-                 {
+                },
+                {
                     "inputs": {
-                       "position": {
-                          "output": "/actions/default/in/turn"
-                       }
+                        "position": {
+                            "output": "/actions/default/in/turn"
+                        }
                     },
                     "mode": "joystick",
                     "path": "/user/hand/right/input/joystick"
-                 },
-                 {
+                },
+                {
                     "inputs": {
-                       "click": {
-                          "output": "/actions/default/in/leftgrab"
-                       }
+                        "click": {
+                            "output": "/actions/default/in/leftgrab"
+                        }
                     },
                     "mode": "trigger",
                     "path": "/user/hand/left/input/grip"
-                 },
-                 {
+                },
+                {
                     "inputs": {
-                       "click": {
-                          "output": "/actions/default/in/rightgrab"
-                       }
+                        "click": {
+                            "output": "/actions/default/in/rightgrab"
+                        }
                     },
                     "mode": "trigger",
                     "path": "/user/hand/right/input/grip"
-                 }
+                }
             ]
         }
     },
