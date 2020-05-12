@@ -177,9 +177,12 @@ void() trigger_multiple =
 
     // HONEY
     // Stupid hack
-    if(self.target == "" && self.message != "" && self.wait != 2)
+    if(VR_GameUtil_EnableHoneyExtensions())
     {
-        self.wait = 2;
+        if(self.target == "" && self.message != "" && self.wait != 2)
+        {
+            self.wait = 2;
+        }
     }
 };
 
@@ -233,8 +236,10 @@ void() trigger_secret =
 
     total_secrets += 1;
     self.wait = -1;
+
     if(!self.message)
         self.message = "You found a secret area!";
+
     if(!self.sounds)
         self.sounds = 1;
 
@@ -252,9 +257,11 @@ void() trigger_secret =
     trigger_multiple();
 
     // HONEY
-    sk = cvar_hget(cvarh_skill); //Stupid hack because the skill global isn't set until in the first StartFrame call
-    if(sk == 0){
-        o = (self.mins + self.maxs)*0.5;
+    sk = cvar_hget(cvarh_skill); // Stupid hack because the skill global isn't set
+                                 // until in the first StartFrame call
+    if(sk == 0)
+    {
+        o = (self.mins + self.maxs) * 0.5;
         secamb = ambient_secret_spawn(o);
         self.oldenemy = secamb;
     }
