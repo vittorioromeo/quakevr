@@ -3493,6 +3493,22 @@ float(float xHolster) VRHolsterToIndex =
     return 0;
 }
 
+string(float xHolster) VRGetHolsterName =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return "Left shoulder"; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return "Right shoulder"; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return "Left thigh"; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return "Right thigh"; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return "Left waist"; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return "Right waist"; }
+
+    bprint("`VRGetHolsterName`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    return 0;
+}
+
 float(entity xEntPlayer, float xHolster) VRIsHolsterHovered =
 {
     return xEntPlayer.holsterhover[VRHolsterToIndex(xHolster)];
@@ -3549,6 +3565,16 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
     {
         VRGunHaptic(xHand, 0.2, 75, 0.2);
     }
+}
+
+void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHapticBuzz =
+{
+    if(!xEntPlayer.ishuman)
+    {
+        return;
+    }
+
+    VRGunHaptic(xHand, 0.1, 75, 0.5);
 }
 
 void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
@@ -3763,7 +3789,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
     W_SetCurrentAmmoFor(xHand);
 }
 
-void(entity entPlayer, float xHotspot, float xWeapon, float xWeaponFlags) PutWeaponInHolster =
+void(entity entPlayer, float xHotspot, float xWeapon, float xWeaponFlags) VRPutWeaponInHolster =
 {
     sound(entPlayer, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
@@ -3826,10 +3852,17 @@ void(entity ent, float xHand,
             {
                 if(getHolsterWeapon(xHotspot) == WID_FIST)
                 {
-                    PutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
+                    VRPutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
 
                     VRSetHandEmpty(ent, xHand);
                     W_SetCurrentAmmoFor(xHand);
+                }
+                else if(handPrevGrabbing)
+                {
+                    sprint(ent, VRGetHolsterName(xHotspot));
+                    sprint(ent, " holster is not empty.\n");
+
+                    VRHolsterHapticBuzz(ent, xHand, xHotspot);
                 }
             }
             // In "quick slot" mode, weapons can be placed in any holster.
@@ -3840,7 +3873,7 @@ void(entity ent, float xHand,
                 {
                     sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
-                    PutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
+                    VRPutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags);
                 }
             }
         }
@@ -3908,7 +3941,7 @@ void(entity ent, float xHand,
         }
     }
     // Not holding a weapon, grabbing the controller, and pressing the trigger.
-    else if(handEmpty && handGrabbing && triggerPressed)
+    else if(handEmpty && triggerPressed)
     {
         if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
         {
@@ -3918,11 +3951,11 @@ void(entity ent, float xHand,
         {
             DoForceGrabImplParabola(xHand, handPos, handRot);
         }
-        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
+        else if(handGrabbing && getForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
         {
             DoForceGrabImplLinear(xHand, handPos, handRot);
         }
-        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
+        else if(handGrabbing && getForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
         {
             DoForceGrabImplInstant(xHand, handPos, handRot);
         }
