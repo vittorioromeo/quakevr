@@ -512,7 +512,6 @@ void(vector dir) BruteForceStep =
 
     setorigin(self, currentorigin + dir);
 
-    // TODO VR: (P0) possible -Olo difference
     while(i < 18 && !walkmove(0, 0))
     {
         self.origin_z = currentorigin_z + i;

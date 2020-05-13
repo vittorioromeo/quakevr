@@ -192,20 +192,24 @@ void(entity targ, float success) bot_lost =
         ClearMyRoute();
         self.b_aiflags = 0;
     }
-        else
-        {
+    else
+    {
         if(targ.classname == "item_artifact_invisibility")
+        {
             if(self.items & 524288)
+            {
                 bot_start_topic(3);
-
-                if(targ.flags & FL_ITEM)
-                {
-                        if(targ.model == string_null)
-                                targ._last = world;
-                        else
-                                targ._last = self;
-                }
+            }
         }
+
+        if(targ.flags & FL_ITEM)
+        {
+            if(targ.model == string_null)
+                targ._last = world;
+            else
+                targ._last = self;
+        }
+    }
 
 
     if(targ.classname != "player")
