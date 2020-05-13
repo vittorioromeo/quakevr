@@ -1906,7 +1906,7 @@ This is called at the start of each level
 */
 extern float scr_centertime_off;
 
-void SV_SpawnServer(const char* server)
+void SV_SpawnServer(const char* server, const bool fromSaveFile)
 {
     static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -2056,8 +2056,11 @@ void SV_SpawnServer(const char* server)
     // serverflags are for cross level information (sigils)
     pr_global_struct->serverflags = svs.serverflags;
 
-    Con_Printf("OnSpawnServer QC\n");
-    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
+    {
+        Con_DPrintf("Calling QC 'OnSpawnServerBeforeLoad'.\n");
+        pr_global_struct->spawnServerFromSaveFile = fromSaveFile;
+        PR_ExecuteProgram(pr_global_struct->OnSpawnServerBeforeLoad);
+    }
 
     ED_LoadFromFile(sv.worldmodel->entities);
 
@@ -2103,6 +2106,16 @@ void SV_SpawnServer(const char* server)
         }
     }
 
+    {
+        Con_DPrintf("Calling QC 'OnSpawnServerAfterLoad'.\n");
+        pr_global_struct->spawnServerFromSaveFile = fromSaveFile;
+        PR_ExecuteProgram(pr_global_struct->OnSpawnServerAfterLoad);
+    }
+
+    {
+        Con_DPrintf("Calling C++ 'VR_OnSpawnServer'.\n");
+        VR_OnSpawnServer();
+    }
+
     Con_DPrintf("Server spawned.\n");
-    VR_OnSpawnServer();
 }

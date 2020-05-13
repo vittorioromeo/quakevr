@@ -27,6 +27,7 @@ typedef struct globalvars_s
 	float	total_monsters;
 	float	found_secrets;
 	float	killed_monsters;
+	float	spawnServerFromSaveFile;
 	float	parm1;
 	float	parm2;
 	float	parm3;
@@ -82,7 +83,9 @@ typedef struct globalvars_s
 	func_t	ClientDisconnect;
 	func_t	SetNewParms;
 	func_t	SetChangeParms;
-	func_t	OnSpawnServer;
+	func_t	OnSpawnServerBeforeLoad;
+	func_t	OnSpawnServerAfterLoad;
+	func_t	OnLoadGame;
 } globalvars_t;
 
 typedef struct entvars_s
@@ -227,4 +230,4 @@ typedef struct entvars_s
 	float	ishuman;
 } entvars_t;
 
-#define PROGHEADER_CRC 59441
+#define PROGHEADER_CRC 51933

@@ -4073,8 +4073,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
 
-// TODO VR: (P0): disable ammo random drops in deathmatch and check code again
-
 
 
 // TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand weapon

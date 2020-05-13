@@ -429,7 +429,7 @@ void() OgreDrop =
     self.ammo_rockets = 2;
     DropBackpack();
 
-    if(entPlayer != world && random() > 0.65)
+    if(entPlayer != world && ShouldDropEnemyWpn(0.65))
     {
         if(!TryEnemyDrop(self, entPlayer, WID_GRENADE_LAUNCHER, 0.5))
         if(!TryEnemyDrop(self, entPlayer, WID_PROXIMITY_GUN, 0.5))

@@ -273,7 +273,7 @@ void() EnforcerDrop =
     self.ammo_cells = 5;
     DropBackpack();
 
-    if(entPlayer != world && random() > 0.65)
+    if(entPlayer != world && ShouldDropEnemyWpn(0.65))
     {
         if(!TryEnemyDrop(self, entPlayer, WID_NAILGUN, 0.5))
         if(!TryEnemyDrop(self, entPlayer, WID_SUPER_NAILGUN, 0.5))

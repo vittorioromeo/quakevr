@@ -47,9 +47,38 @@ float(entity ent) IsAmmoBox =
            ent.classname == "item_cells";
 }
 
+// TODO VR: (P1) move
+float(float xFactor, float xMult) ShouldDropImpl =
+{
+    float chance;
+    chance = (1.0 - xFactor) / xMult;
+
+    if(chance < 0.0)
+    {
+        chance = 0.0;
+    }
+
+    if(chance > 1.0)
+    {
+        chance = 1.0;
+    }
+
+    return random() > chance;
+}
+
+float(float xFactor) ShouldDropEnemyWpn =
+{
+    return ShouldDropImpl(xFactor, cvar_hget(cvarh_vr_enemy_drops_chance_mult));
+}
+
+float(float xFactor) ShouldDropAmmoBox =
+{
+    return ShouldDropImpl(xFactor, cvar_hget(cvarh_vr_ammobox_drops_chance_mult));
+}
+
 void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
 {
-    if(random() < 0.65)
+    if(!ShouldDropAmmoBox(0.65))
     {
         return;
     }
