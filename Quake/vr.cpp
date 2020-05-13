@@ -4073,6 +4073,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
 
+// TODO VR: (P0): disable ammo random drops in deathmatch and check code again
+
 
 
 // TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand weapon
@@ -4132,6 +4134,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // below, it seems like you need to position your body over the ledge
 // specifically so that a specific point of your body has a direct line of sight
 // to the weapon" - this might be related to water
+
+// TODO VR: (P1): lightning bolt tent beam is lagging behind the player, why?
 
 
 

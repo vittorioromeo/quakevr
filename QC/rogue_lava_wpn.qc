@@ -97,10 +97,9 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
 void() lavaspike_touch =
 {
-    local float rand;
-    local float old_armortype;
-    local float old_armorvalue;
-    local float old_armormask;
+    // local float old_armortype;
+    // local float old_armorvalue;
+    // local float old_armormask;
 
     if(other == self.owner)
         return;
@@ -168,9 +167,8 @@ void() lavaspike_touch =
 
 void() superlavaspike_touch =
 {
-local float rand;
-local float old_armortype;
-//local float old_armorvalue;
+    local float old_armortype;
+    //local float old_armorvalue;
 
     if(other == self.owner)
         return;

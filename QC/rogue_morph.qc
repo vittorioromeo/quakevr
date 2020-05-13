@@ -493,9 +493,8 @@ void() morph_use =
 
 void() morph_teleport =
 {
-    local entity    theDest;
-    local entity    theChild;
-    local entity    selfTemp;
+    local entity theDest;
+    local entity theChild;
 
     if(self.owner)
         return;

@@ -138,8 +138,7 @@ void(entity playerEnt) move_camera =
 
 void() ending_remove_stuff =
 {
-    local entity     curEnt;
-    local entity    removeEnt;
+    local entity curEnt;
 
     curEnt = find(world, classname, "ltrail_start");
     while(curEnt)
@@ -166,9 +165,8 @@ void() ending_remove_stuff =
 // ------------------------------------------------
 void() actor_run =
 {
-    local vector     dist;
-    local float        ang;
-    local entity    pointOne;
+    local vector dist;
+    local entity pointOne;
 
     if(pointcontents(self.origin) == CONTENT_LAVA)
     {
@@ -269,8 +267,6 @@ void() actor_teleport =
 
 void() actor_control =
 {
-    local entity    timepod;
-
     if(actorStage == STAGE_START)
     {
         self.target = "point1";

@@ -55,17 +55,31 @@ checks to see if an entity is on the bot's stack
 float(entity scot) target_onstack =
 {
     if(scot == world)
+    {
         return FALSE;
-    else if(self.target1 == scot)
+    }
+
+    if(self.target1 == scot)
+    {
         return 1;
-    else if(self.target2 == scot)
+    }
+
+    if(self.target2 == scot)
+    {
         return 2;
-    else if(self.target3 == scot)
+    }
+
+    if(self.target3 == scot)
+    {
         return 3;
-    else if(self.target4 == scot)
+    }
+
+    if(self.target4 == scot)
+    {
         return 4;
-    else
-        return FALSE;
+    }
+
+    return FALSE;
 };
 
 /*
@@ -82,9 +96,15 @@ LIFO stack, this will be the bot's new target1
 void(entity ent) target_add =
 {
     if(ent == world)
+    {
         return;
+    }
+
     if(target_onstack(ent))
+    {
         return;
+    }
+
     self.target4 = self.target3;
     self.target3 = self.target2;
     self.target2 = self.target1;
@@ -112,6 +132,7 @@ void(entity ent) target_drop =
     local float tg;
 
     tg = target_onstack(ent);
+
     if(tg == 1)
     {
         self.target1 = self.target2;
@@ -131,7 +152,16 @@ void(entity ent) target_drop =
         self.target2 = self.target3 = self.target4 = world;
     }
     else if(tg == 4)
+    {
         self.target1 = self.target2 = self.target3 = self.target4 = world;
+    }
+    else
+    {
+        bprint("Invalid target tg '");
+        bprint(ftos(tg));
+        bprint("'\n");
+    }
+
     self.search_time = time + 5;
 };
 
@@ -194,15 +224,16 @@ removed.
 */
 void(entity targ) bot_check_lost =
 {
-    local vector dist;
-    dist = realorigin(targ) - self.origin;
-    dist_z = 0;
     if(targ == world)
         return;
 
+    local vector dist;
+    dist = realorigin(targ) - self.origin;
+    dist_z = 0;
+
     // waypoints and items are lost if you get close enough to them
 
-    else if(targ.flags & FL_ITEM)
+    if(targ.flags & FL_ITEM)
     {
         if(vlen(targ.origin - self.origin) < 32)
             bot_lost(targ, TRUE);
@@ -502,17 +533,20 @@ confused
 
 void() bot_path =
 {
-
     local entity jj, tele;
 
     bot_check_lost(self.target1);
+
     if(!self.target1)
     {
-        self.keys=0;
+        self.keys = 0;
         return;
     }
+
     if(target_onstack(self.last_way))
+    {
         return; // old waypoint still being hunted
+    }
 
     jj = FindRoute(self.last_way);
     if(!jj)
@@ -542,8 +576,10 @@ void() bot_path =
             tele = FindThing("trigger_teleport"); // this is probbly the teleport responsible
             target_add(tele);
         }
+
         traceline(self.last_way.origin, jj.origin, FALSE, self); // check for blockage
-           if(trace_fraction != 1)
+
+        if(trace_fraction != 1)
         {
             if(trace_ent.classname == "door" && !(self.b_aiflags & AI_DOOR_NO_OPEN)) // a door blocks the way
             {
@@ -883,8 +919,10 @@ void() bot_angle_set =
         if(self.enemy.items & 524288)
             if(random() > 0.01)
                 return;
+
         if(self.missile_speed == 0)
             self.missile_speed = 10000;
+
         if(self.enemy.solid == SOLID_BSP)
         {
             view = (((self.enemy.absmin + self.enemy.absmax) * 0.5) - self.origin);
@@ -919,8 +957,10 @@ void() bot_angle_set =
     else if(self.target1)
     {
         view = realorigin(self.target1);
+
         if(self.target1.flags & FL_ITEM)
-                view = view + '0 0 48';
+            view = view + '0 0 48';
+
         view = view - (self.origin + self.view_ofs);
         view = vectoangles(view);
         view_x = view_x * -1;
@@ -1035,7 +1075,9 @@ void() BotAI =
         if(busy_waypoints <= 0)
         {
             if(waypoint_mode < WM_EDITOR)
-                bot_look_for_crap(TRUE);
+            {
+               bot_look_for_crap(TRUE);
+            }
         }
         self.b_aiflags = 0;
         self.keys = 0;

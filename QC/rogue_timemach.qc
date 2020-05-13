@@ -150,9 +150,8 @@ void(entity attacker, float damage) time_crash_pain =
 
 void() time_pain_impl =
 {
-    local entity    painEnt;
-    local vector    painOrg;
-    local float     painRnd;
+    local entity painEnt;
+    local float  painRnd;
 
     if(self.health > 1100)
         if(self.pain_finished > time)

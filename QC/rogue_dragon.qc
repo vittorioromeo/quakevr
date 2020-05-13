@@ -59,8 +59,6 @@ float FIRE_FIREBALL =    2;
 // ===================================
 void() dragon_stop_attack =
 {
-    local entity tempDest;
-
     if(self.dragonAttacking == FALSE)
         return;
 

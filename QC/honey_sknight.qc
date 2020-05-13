@@ -154,17 +154,14 @@ void (vector offset) sknight_move_spears =
 /**********************************************************************************************/
 vector(vector center, vector ang) sknight_getNextSpearPos =
 {
-    vector vx, vy, vz, org;
+    vector vx, vy, org;
 
     makevectors(ang);
 
     org = center;
     vx = (v_forward * SKNIGHT_RADIUS);
     vy = (v_right   * SKNIGHT_RADIUS);
-    //vy = vy * -1;
-    //vz = (v_up      * 0);
     org = vx + vy;// + vz;
-    //org_z = org_z + 14;
 
     return org + center;
 }
@@ -189,7 +186,7 @@ void() sknight_spears_orbit =
 
 void () sknight_star_attack_end_think =
 {
-    vector dir, ang, nOrg;
+    vector dir, ang;
 
     ang = self.angles;
     //self.avelocity = '0 0 0';
@@ -234,8 +231,7 @@ void () sknight_star_attack_begin =
 void(entity sknight) sknight_setup_spears =
 {
     entity spear;
-    float spin;
-    vector ang, dOrg;
+    vector dOrg;
 
     dOrg = sknight.origin;
 
@@ -253,16 +249,6 @@ void(entity sknight) sknight_setup_spears =
 
         setmodel(spear, "progs/spear.mdl");
         setsize(spear, '-1 -1 -34', '1 1 37');
-
-
-//        ang = '0 0 0';
-//        spin = ((spear.cnt / SKNIGHT_NUMSPEARS) * 360) + (time * SKNIGHT_SPEED);
-//        ang_y = spin;
-//        sknight_setSpearPos(spear, dOrg, ang);
-
-//        spear.think = sknight_spears_orbit;
-//        spear.nextthink = time + 0.1;
-
 
         i = i + 1;
     }

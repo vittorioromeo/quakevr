@@ -1,7 +1,6 @@
 void(vector tdest, float traveltime, void() func) SUB_CalcMove_time =
 {
-local vector    vdestdelta;
-local float        len;
+    local vector vdestdelta;
 
     if(!traveltime)
         objerror("No time is defined!");

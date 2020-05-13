@@ -784,8 +784,6 @@ float LEVEL_2 = 4; //Saint
 
 void() hublevel_touch =
 {
-    local entity    pos;
-
     if(other.classname != "player")
         return;
 

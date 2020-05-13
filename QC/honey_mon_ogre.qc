@@ -100,15 +100,17 @@ void() ogre_spawncrown =
     tf.nextthink = time + 0.2;
     tf.think = ogre_crown_update;
     self.trigger_field = tf;
-};
-
-
+}
 
 void() ogre_crown_die =
 {
-    entity tf,oself;
+    local entity tf;
     tf = self.trigger_field;
-    if(tf == world) return;
+
+    if(tf == world)
+    {
+        return;
+    }
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_TAREXPLOSION);
@@ -116,9 +118,7 @@ void() ogre_crown_die =
     WriteCoord(MSG_BROADCAST, tf.origin_y);
     WriteCoord(MSG_BROADCAST, tf.origin_z);
 
-
     self.trigger_field = world;
 
     remove(tf);
-
-};
+}

@@ -497,6 +497,7 @@ float(vector dir) botCheckForStep =
         setorigin(self, currentorigin);
     return 0;
 };
+
 // this is merely here to fix a problem with e3m5
 void(vector dir) BruteForceStep =
 {
@@ -511,12 +512,15 @@ void(vector dir) BruteForceStep =
 
     setorigin(self, currentorigin + dir);
 
+    // TODO VR: (P0) possible -Olo difference
     while(i < 18 && !walkmove(0, 0))
     {
         self.origin_z = currentorigin_z + i;
         i = i + 2;
     }
+
     self.flags = currentflags;
+
     if(i >=18)
         setorigin(self, currentorigin);
 };
@@ -537,7 +541,6 @@ void() PostPhysics =
 
         if(self.movetype == MOVETYPE_WALK)
         {
-
             if(self.phys_obj.dest1_x || self.phys_obj.dest1_y)
             {
                 if((self.flags & FL_ONGROUND) || (self.waterlevel <= 2))
@@ -559,7 +562,9 @@ void() PostPhysics =
                         else
                         {
                             if(dst > 1)
+                            {
                                 frik_obstructed(obstr, FALSE);
+                            }
 
                             org = self.origin;
                             self.flags = cflags;
@@ -582,12 +587,12 @@ void() PostPhysics =
         }
     }
 
-    SV_CheckOnGround();
 
+    SV_CheckOnGround();
     PlayerPostThink();
     BotAI();
-    self.dmg_take = self.dmg_save = 0;
 
+    self.dmg_take = self.dmg_save = 0;
 };
 // Avoid calling BotAI and the physics at the same time
 // Can trip the runaway loop counter
@@ -659,8 +664,10 @@ void() SV_Physics_Client =
     {
         if(!SV_RunThink())
             return;
-            if(!(SV_CheckWater()) && (!(self.flags & FL_WATERJUMP)))
+
+        if(!(SV_CheckWater()) && (!(self.flags & FL_WATERJUMP)))
             SV_AddGravity(1);
+
         SV_FlyMove();
     }
     else if((self.movetype == MOVETYPE_TOSS) || (self.movetype == MOVETYPE_BOUNCE))
