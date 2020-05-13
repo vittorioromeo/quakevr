@@ -16,7 +16,9 @@ cd C:\OHWorkspace\quakevr\QC
 :: definitely crashes
 :: .\fteqcc64.exe -O1 -Fautoproto -progdefs -Olo
 
-.\fteqcc64.exe -O3 -Fautoproto -progdefs -Ono-lo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra
+.\fteqcc64.exe -O3 -Fautoproto -progdefs -Ono-lo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208
+
+:: -DNDEBUG=1
 
 :: doesn't seem to crash - best version (no -Flo)
 :: .\fteqcc64.exe -O3 -Fautoproto -progdefs -Ono-lo -Fiffloat -Fifvector -Fvectorlogic
