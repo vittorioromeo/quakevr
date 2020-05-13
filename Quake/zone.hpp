@@ -123,7 +123,7 @@ template <typename T>
 
     for(int i = 0; i < count; ++i)
     {
-        new(ptr + count) T{};
+        new((char*)ptr + count) T{};
     }
 
     return ptr;

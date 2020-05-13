@@ -318,9 +318,9 @@ struct quakeparms_t
 
 // #define GL_GLEXT_PROTOTYPES 1
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_opengl_glext.h>
-#include <SDL2/SDL_opengles2.h>
+// #include <SDL2/SDL_opengl.h>
+// #include <SDL2/SDL_opengl_glext.h>
+// #include <SDL2/SDL_opengles2.h>
 
 #include "console.hpp"
 #include "wad.hpp"
