@@ -138,6 +138,11 @@ Returns false if the entity removed itself.
 template <auto TNextThink, auto TThink, bool TDoLerp>
 bool SV_RunThinkImpl(edict_t* ent)
 {
+    if(!((ent->v).*TThink))
+    {
+        return !ent->free;
+    }
+
     float thinktime = (ent->v).*TNextThink;
     if(thinktime <= 0 || thinktime > sv.time + host_frametime)
     {

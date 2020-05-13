@@ -1101,6 +1101,13 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 */
 void R_DrawAliasModel(entity_t* e)
 {
+    // Cannot move down due to goto.
+    int anim;
+    int skinnum;
+    int i;
+    gltexture_t* tx;
+    gltexture_t* fb;
+
     const bool alphatest = !!(e->model->flags & MF_HOLEY);
     const qfloat zeroBlend = e->zeroBlend;
 
@@ -1201,8 +1208,9 @@ void R_DrawAliasModel(entity_t* e)
     // set up textures
     //
     GL_DisableMultitexture();
-    const int anim = (int)(cl.time * 10) & 3;
-    int skinnum = e->skinnum;
+
+    anim = (int)(cl.time * 10) & 3;
+    skinnum = e->skinnum;
     if((skinnum >= paliashdr->numskins) || (skinnum < 0))
     {
         Con_DPrintf("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum,
@@ -1210,11 +1218,11 @@ void R_DrawAliasModel(entity_t* e)
         // ericw -- display skin 0 for winquake compatibility
         skinnum = 0;
     }
-    gltexture_t* tx = paliashdr->gltextures[skinnum][anim];
-    gltexture_t* fb = paliashdr->fbtextures[skinnum][anim];
+    tx = paliashdr->gltextures[skinnum][anim];
+    fb = paliashdr->fbtextures[skinnum][anim];
     if(e->colormap != vid.colormap && !gl_nocolors.value)
     {
-        const int i = e - cl_entities;
+        i = e - cl_entities;
         if (i >= 1 && i<=cl.maxclients /* && !strcmp (currententity->model->name, "progs/player.mdl") */)
         {
             tx = playertextures[i - 1];

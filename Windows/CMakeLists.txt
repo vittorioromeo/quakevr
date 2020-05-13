@@ -32,15 +32,15 @@ set(source_list
     "../Quake/gl_texmgr.cpp"
     "../Quake/gl_vidsdl.cpp"
     "../Quake/gl_warp.cpp"
-    "../Quake/host.cpp"
     "../Quake/host_cmd.cpp"
+    "../Quake/host.cpp"
     "../Quake/image.cpp"
     "../Quake/in_sdl.cpp"
     "../Quake/keys.cpp"
     "../Quake/main_sdl.cpp"
     "../Quake/mathlib.cpp"
-    "../Quake/menu.cpp"
     "../Quake/menu_util.cpp"
+    "../Quake/menu.cpp"
     "../Quake/net_dgrm.cpp"
     "../Quake/net_loop.cpp"
     "../Quake/net_main.cpp"
@@ -48,6 +48,7 @@ set(source_list
     "../Quake/pr_cmds.cpp"
     "../Quake/pr_edict.cpp"
     "../Quake/pr_exec.cpp"
+    "../Quake/quakeglm.cpp"
     "../Quake/r_alias.cpp"
     "../Quake/r_brush.cpp"
     "../Quake/r_part.cpp"
@@ -77,6 +78,8 @@ set(source_list
     "../Quake/sv_phys.cpp"
     "../Quake/sv_user.cpp"
     "../Quake/view.cpp"
+    "../Quake/vr_cvars.cpp"
+    "../Quake/vr_showfn.cpp"
     "../Quake/vr.cpp"
     "../Quake/wad.cpp"
     "../Quake/world.cpp"
@@ -109,10 +112,12 @@ target_compile_features(quakespasm-sdl2 PUBLIC cxx_std_17)
 target_compile_options(quakespasm-sdl2
     PRIVATE -x c++ -Wall -Wextra -Wno-missing-field-initializers -fdiagnostics-color=always -Wpedantic -Wimplicit-fallthrough -g
     -Wno-language-extension-token -Wno-nested-anon-types -Wno-gnu-anonymous-struct -Wno-deprecated-declarations -Wno-microsoft-enum-value # WIN32 only
-    -Wfallthrough
+    -fsanitize=address -Wno-implicit-fallthrough
 )
-    # -fsanitize=address)
-target_compile_definitions(quakespasm-sdl2 PRIVATE USE_SDL2=1 _AMD64_=1)
+
+# -Wfallthrough
+
+target_compile_definitions(quakespasm-sdl2 PRIVATE USE_SDL2=1 _AMD64_=1 -DPARANOID=1)
 
 target_include_directories(
     quakespasm-sdl2 PUBLIC
@@ -146,15 +151,20 @@ else()
     find_package(SDL2 REQUIRED)
     include_directories(${SDL2_INCLUDE_DIRS})
 
-    FIND_PACKAGE(PkgConfig)
-    PKG_SEARCH_MODULE(OPENVR REQUIRED openvr)
+    # FIND_PACKAGE(PkgConfig)
+    # PKG_SEARCH_MODULE(OPENVR REQUIRED openvr)
 
-    # set(OPENVR_LIBRARIES
-    #     "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
-    # )
+    set(OPENVR_LIBRARIES
+        "/home/vittorioromeo/Repos/openvr/bin/linux64/libopenvr_api.so"
+    )
+
+    find_package(GLEW REQUIRED)
+    if (GLEW_FOUND)
+        include_directories(${GLEW_INCLUDE_DIRS})
+    endif()
 
     target_link_libraries(quakespasm-sdl2
-        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES}
+        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES} ${GLEW_LIBRARIES}
     )
 endif()
 

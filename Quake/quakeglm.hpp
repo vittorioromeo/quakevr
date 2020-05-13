@@ -17,7 +17,7 @@
 
 #include <GL/glew.h>
 
-#include <SDL2/SDL_opengl.h>
+// #include <SDL2/SDL_opengl.h>
 
 #include <glm.hpp>
 #include <gtc/type_ptr.hpp>
