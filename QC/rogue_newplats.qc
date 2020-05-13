@@ -158,7 +158,7 @@ void() elvtr_crush =
 // ===============
 void() elvtr_use =
 {
-    local float        tempDist, elvPos, btnPos;
+    float        tempDist, elvPos, btnPos;
 
     if((self.elevatorLastUse + 2) > time)
         return;
@@ -221,8 +221,8 @@ void() plat2_crush;
 
 void() plat2_spawn_inside_trigger =
 {
-    local entity    trigger;
-    local vector    tmin, tmax;
+    entity    trigger;
+    vector    tmin, tmax;
 
 //
 // middle trigger
@@ -320,8 +320,8 @@ void() plat2_use =
 
 void() plat2_center_touch =
 {
-    local float        otherState;
-    local vector    platPosition;
+    float        otherState;
+    vector    platPosition;
 
     if(other.classname != "player")
         return;
@@ -444,8 +444,8 @@ Set "sounds" to one of the following:
 
 void() func_new_plat =
 {
-//local entity t;
-local float negativeHeight;
+//entity t;
+float negativeHeight;
 
     negativeHeight = 0;
 

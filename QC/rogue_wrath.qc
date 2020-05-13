@@ -101,7 +101,7 @@ void()    wrath_at_c15 =[    $wrthac15,    wrath_run01 ] {ai_charge(12);};
 
 void() wrath_attack =
 {
-    local float r;
+    float r;
 
     r = random();
 
@@ -142,7 +142,7 @@ void()    wrath_pn_b11    =[    $wrthpb11,    wrath_run01        ] {};
 
 void(entity attacker, float damage) wrath_pain =
 {
-    local float r;
+    float r;
 
     if(self.pain_finished > time)
         return;
@@ -243,9 +243,9 @@ WrathMissile
 */
 void(float AttackNumber) WrathMissile =
 {
-    local    entity     missile;
-    local    vector    dir, org;
-    local    float    dist, flytime;
+    entity     missile;
+    vector    dir, org;
+    float    dist, flytime;
 
     dir = normalize((self.enemy.origin + '0 0 10') - self.origin);
     dist = vlen(self.enemy.origin - self.origin);

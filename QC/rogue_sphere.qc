@@ -28,7 +28,7 @@ void() sphere_impact =
 
 void(entity ownerEntity) sphere_remove =
 {
-    local entity theSphere;
+    entity theSphere;
 
     theSphere = find(world, classname, "Vengeance");
     while(theSphere != world)
@@ -116,7 +116,7 @@ void() sphere_think =
 // ==============================
 void() sphere_spawn =
 {
-    local   entity missile;
+    entity missile;
 
     missile = spawn();
     missile.movetype = MOVETYPE_FLYMISSILE;

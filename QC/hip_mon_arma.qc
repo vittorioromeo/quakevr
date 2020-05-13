@@ -45,10 +45,10 @@ float SERVO_VOLUME = 0.5;
 
 void(float ofs, float turn) armagon_launch_missile =
    {
-   local vector   src, vec, targ;
-   local vector   ang;
-   local entity   missile;
-   local float    dist;
+   vector   src, vec, targ;
+   vector   ang;
+   entity   missile;
+   float    dist;
 
    ang = self.angles;
    ang_y = ang_y + self.fixangle;
@@ -101,9 +101,9 @@ void(float ofs, float turn) armagon_launch_missile =
 
 void(float ofs) armagon_launch_laser =
    {
-   local vector   src, vec, targ;
-   local float    dist;
-   local vector   ang;
+   vector   src, vec, targ;
+   float    dist;
+   vector   ang;
 
    ang = self.angles;
    ang_y = ang_y + self.fixangle;
@@ -150,8 +150,8 @@ void() armagon_overright1;
 
 void() armagon_think =
    {
-   local float delta;
-   local float angdelta;
+   float delta;
+   float angdelta;
    setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
@@ -174,7 +174,7 @@ void() armagon_think =
       return;
    if(time > self.super_time)
       {
-      local float r;
+      float r;
 
       self.super_time = time + 3;
       if(random() < 0.5)
@@ -194,9 +194,9 @@ void() armagon_think =
 
 void() armagon_walkthink =
    {
-   local float delta;
-   local float angdelta;
-   local entity client;
+   float delta;
+   float angdelta;
+   entity client;
    setorigin(self.trigger_field, self.origin);
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
@@ -217,7 +217,7 @@ void() armagon_walkthink =
       return;
    if(time > self.super_time)
       {
-      local float r;
+      float r;
 
       self.super_time = time + 3;
       if(random() < 0.5)
@@ -245,8 +245,8 @@ void() armagon_walkthink =
 
 void() armagon_overleft_think =
    {
-   local float delta;
-   local float angdelta;
+   float delta;
+   float angdelta;
 
    ChangeYaw();
    walkmove(self.angles_y, 14);
@@ -279,8 +279,8 @@ void() armagon_overleft_think =
 
 void() armagon_overright_think =
    {
-   local float delta;
-   local float angdelta;
+   float delta;
+   float angdelta;
 
    ChangeYaw();
    walkmove(self.angles_y, 14);
@@ -488,7 +488,7 @@ void()   armagon_run12    =[ $lwalk12.asc  , armagon_run1    ]
    armagon_think();
    if((self.cnt == 1) && (time > self.attack_finished))
       {
-      local float delta;
+      float delta;
       delta = self.ideal_yaw - self.angles_y;
       if(delta > 180) delta = delta - 360;
       if(delta < -180) delta = delta + 360;
@@ -634,7 +634,7 @@ void()   armagon_die12    =[ $ldie10.asc, armagon_die13    ] {armagon_think();se
 void()   armagon_die13    =[ $ldie11.asc, armagon_die14    ] {armagon_think();self.nextthink = time + 0.2;};
 void()   armagon_die14    =[ $ldie12.asc, armagon_die14    ]
    {
-   local entity body;
+   entity body;
 
    armagon_think();
    multi_explosion(self.origin + '0 0 80', 20, 10, 3, 0.1, 0.5);
@@ -744,8 +744,8 @@ void() armagon_repulse_attack =
       }
    else if(self.state == 1)
       {
-      local entity head;
-      local vector dir;
+      entity head;
+      vector dir;
 
       // look in our immediate vicinity
       head = findradius(self.origin, 300);
@@ -771,7 +771,7 @@ void() armagon_repulse_attack =
 
 void() armagon_stand_attack =
    {
-   local vector   spot1, spot2;
+   vector   spot1, spot2;
 
 // see if any entities are in the way of the shot
    spot1 = self.origin + self.view_ofs;
@@ -825,11 +825,11 @@ void() armagon_stand_attack =
 
 float()  ArmagonCheckAttack =
    {
-    local vector    spot1, spot2;
-    local entity    targ;
-   local float    ang;
-   local float    delta;
-   local float    dist;
+    vector    spot1, spot2;
+    entity    targ;
+   float    ang;
+   float    delta;
+   float    dist;
 
    self.lefty = 0;
 
@@ -872,8 +872,8 @@ float()  ArmagonCheckAttack =
 */
 void() monster_armagon
 {
-   local entity body;
-   local float sk;
+   entity body;
+   float sk;
    if(deathmatch)
     {
         remove(self);

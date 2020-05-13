@@ -85,7 +85,7 @@ entity() FindEntPlayerForDrop =
 
 float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
-    local float eligible, chance, roll;
+    float eligible, chance, roll;
 
     if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
@@ -112,7 +112,7 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
 // TODO VR: (P2) code repetition, but create ammo box uses player ent
 float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
 {
-    local float eligible, chance, roll;
+    float eligible, chance, roll;
 
     if(VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
     {
@@ -252,7 +252,7 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
 
 float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
 {
-    local float ammoId;
+    float ammoId;
     ammoId = WeaponIdToAmmoId(wid, xWeaponFlags);
 
     if(ammoId == AID_NONE)

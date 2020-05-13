@@ -71,7 +71,7 @@ void() eel_run6  =[ $eelswim6, eel_run1 ] {ai_run(10);eel_pitch_change();};
 
 void() eel_melee =
 {
-    local float     attackOK;
+    float     attackOK;
 
     attackOK = 1;
 

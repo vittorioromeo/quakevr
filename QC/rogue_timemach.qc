@@ -7,7 +7,7 @@
 // ------------------------------------------------
 void() time_chunk =
 {
-    local entity    timeChunk;
+    entity    timeChunk;
 
     timeChunk = spawn();
     setmodel(timeChunk, "progs/timegib.mdl");
@@ -40,7 +40,7 @@ void() time_stop_shake =
 
 void() time_boom =
 {
-    local entity    stopShakeEnt;
+    entity    stopShakeEnt;
 
     SUB_UseTargets();
 
@@ -150,8 +150,8 @@ void(entity attacker, float damage) time_crash_pain =
 
 void() time_pain_impl =
 {
-    local entity painEnt;
-    local float  painRnd;
+    entity painEnt;
+    float  painRnd;
 
     if(self.health > 1100)
         if(self.pain_finished > time)

@@ -191,11 +191,11 @@ void() boss_death10 = [$death9, boss_death10]
 
 void(float r, vector p) boss_missile =
 {
-    local vector offang;
-    local vector org, vec, d;
-    local float  t;
-    local float  vel;
-    local entity newmis;
+    vector offang;
+    vector org, vec, d;
+    float  t;
+    float  vel;
+    entity newmis;
 
     // VR: Predicted direction attack.
     if(r == 0)
@@ -313,7 +313,7 @@ float    lightning_end;
 
 void() lightning_fire =
 {
-    local vector p1, p2;
+    vector p1, p2;
 
     if(time >= lightning_end)
     {    // done here, put the terminals back up

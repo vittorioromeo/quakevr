@@ -10,9 +10,9 @@ float USE_COUNT = 1;
 
 void () particlefield_XZ =
     {
-    local vector pos;
-   local vector start;
-   local vector end;
+    vector pos;
+   vector start;
+   vector end;
 
    if((self.spawnflags & USE_COUNT) &&
       (counter_GetCount(other) != self.cnt))
@@ -50,9 +50,9 @@ void () particlefield_XZ =
 
 void () particlefield_YZ =
     {
-    local vector pos;
-   local vector start;
-   local vector end;
+    vector pos;
+   vector start;
+   vector end;
 
    if((self.spawnflags & USE_COUNT) &&
       (counter_GetCount(other) != self.cnt))
@@ -94,9 +94,9 @@ void () particlefield_YZ =
 
 void () particlefield_XY =
     {
-    local vector pos;
-   local vector start;
-   local vector end;
+    vector pos;
+   vector start;
+   vector end;
 
    if((self.spawnflags & USE_COUNT) &&
       (counter_GetCount(other) != self.cnt))

@@ -58,7 +58,7 @@ entity() RuneSpawnPoint =
 
 void() RuneRespawn =
 {
-    local entity spot;
+    entity spot;
 
     spot = RuneSpawnPoint();
     setorigin(self, spot.origin);
@@ -72,7 +72,7 @@ void() RuneRespawn =
 
 void(float r, entity spot) SpawnRune =
 {
-    local entity item;
+    entity item;
 
     if(spot == world)
         spot = RuneSpawnPoint();
@@ -131,7 +131,7 @@ void() DoSpawnRunes =
 
 void() SpawnRunes =
 {
-    local entity spawner;
+    entity spawner;
 
     if(!deathmatch || !(cvar_hget(cvarh_gamecfg) & GAMECFG_ENABLE_RUNES) || runespawn)
         return;

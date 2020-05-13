@@ -41,8 +41,8 @@ void() rubble_touch =
 
 void() rubble_throw =
 {
-    local vector    throw;
-    local entity    rubble;
+    vector    throw;
+    entity    rubble;
 
     rubble = find(world, targetname, self.target);
     throw = normalize(rubble.origin - self.origin);

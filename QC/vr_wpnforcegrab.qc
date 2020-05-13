@@ -45,7 +45,7 @@ float() getForcegrabEligibleHaptics =
 float(float xHand, vector handPos, vector handRot,
      float(vector xPos, float xHand, vector handPos, vector handRot) logicFn) PerformForceGrab =
 {
-    local float nTraces;
+    float nTraces;
     nTraces = ceil(getForcegrabRange() / getForcegrabRadius());
 
     if(nTraces > 15)
@@ -61,7 +61,7 @@ float(float xHand, vector handPos, vector handRot,
         return TRUE;
     }
 
-    local float i;
+    float i;
     for(i = 0; i <= nTraces * 2; ++i)
     {
         traceline(handPos, handPos + v_forward * ((getForcegrabRadius() / 2.0) * i), TRUE, self);
@@ -76,7 +76,7 @@ float(float xHand, vector handPos, vector handRot,
 
 float(float dist, float zmult) getForcegrabParabolaPower =
 {
-    local float power;
+    float power;
 
     power = (-0.00231424 * pow(dist, 2.0))
             + (2.01 * dist)
@@ -128,7 +128,7 @@ void(float xHand) VRForceGrabEligibleHaptic =
 float(vector xPos, float xHand, vector handPos, vector handRot)
 DoForceGrabImplParabola_Logic =
 {
-    local entity e;
+    entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
         if(!isEligibleForForceGrab(e))
@@ -136,17 +136,17 @@ DoForceGrabImplParabola_Logic =
             continue;
         }
 
-        local vector tmpVec;
+        vector tmpVec;
         tmpVec = normalize(handPos - e.origin);
 
         e.origin += tmpVec * 0.1f;
 
         tmpVec = handPos - e.origin;
 
-        local float zdist;
+        float zdist;
         zdist = tmpVec_z;
 
-        local float zmult;
+        float zmult;
 
         if(zdist >= 30.0)
         {
@@ -168,7 +168,7 @@ DoForceGrabImplParabola_Logic =
 
         tmpVec = normalize(tmpVec);
 
-        local float dist;
+        float dist;
         dist = vlen(handPos - e.origin);
 
         e.velocity = tmpVec * getForcegrabParabolaPower(dist, zmult);
@@ -199,7 +199,7 @@ float(float xHand, vector handPos, vector handRot) DoForceGrabImplParabola =
 float(vector xPos, float xHand, vector handPos, vector handRot)
 DoForceGrabImplLinear_Logic =
 {
-    local entity e;
+    entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
         if(!isEligibleForForceGrab(e))
@@ -212,7 +212,7 @@ DoForceGrabImplLinear_Logic =
             e.throwhit = QVR_THROWHIT_FORCEGRAB;
             e.movetype = MOVETYPE_FLYMISSILE;
 
-            local vector tmpVec;
+            vector tmpVec;
             tmpVec = normalize(handPos - e.origin);
             e.origin += tmpVec * 0.1f;
 
@@ -222,7 +222,7 @@ DoForceGrabImplLinear_Logic =
 
         if(e.throwhit == QVR_THROWHIT_FORCEGRAB)
         {
-            local vector dir;
+            vector dir;
             dir = normalize(handPos - e.origin);
 
             e.velocity = dir * 700;
@@ -252,7 +252,7 @@ float(float xHand, vector handPos, vector handRot) DoForceGrabImplLinear =
 float(vector xPos, float xHand, vector handPos, vector handRot)
 DoForceGrabImplInstant_Logic =
 {
-    local entity e;
+    entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
         if(!isEligibleForForceGrab(e))
@@ -288,11 +288,11 @@ float(float xHand, vector handPos, vector handRot) DoForceGrabImplInstant =
 float(vector xPos, float xHand, vector handPos, vector handRot)
 ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 {
-    local float doParticles, doHaptics;
+    float doParticles, doHaptics;
     doParticles = getForcegrabEligibleParticles();
     doHaptics = getForcegrabEligibleHaptics();
 
-    local entity e;
+    entity e;
     for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
     {
         if(!isEligibleForForceGrab(e))
@@ -321,7 +321,7 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 
 float(float xHand, vector handPos, vector handRot) ParticlesAndHapticsForEligibleForceGrabWeapons =
 {
-    local float doParticles, doHaptics;
+    float doParticles, doHaptics;
     doParticles = getForcegrabEligibleParticles();
     doHaptics = getForcegrabEligibleHaptics();
 

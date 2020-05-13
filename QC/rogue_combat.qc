@@ -5,9 +5,9 @@ T_EELZap
 */
 void(entity inflictor, entity attacker, float damage) T_EELZap =
 {
-    local    float     points;
-    local    entity    head;
-    local    vector    org;
+    float     points;
+    entity    head;
+    vector    org;
 
     head = findradius(inflictor.origin, damage+40);
 

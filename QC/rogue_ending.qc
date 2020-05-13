@@ -70,7 +70,7 @@ void() ending_for_coop =
 
 void() xpackEnding =
 {
-    local entity cameraview;
+    entity cameraview;
 
     if(coop)
     {
@@ -99,7 +99,7 @@ void() xpackEnding =
 
 void() track_camera =
 {
-    local vector    cameraAngle;
+    vector    cameraAngle;
 
     cameraAngle = theActor.origin - self.origin;
     cameraAngle_z = 0 - cameraAngle_z;
@@ -112,8 +112,8 @@ void() track_camera =
 
 void(entity playerEnt) move_camera =
 {
-    local entity    cameraPoint;
-    local vector    cameraAngle;
+    entity    cameraPoint;
+    vector    cameraAngle;
 
     cameraPoint = find(world, targetname, "cameraview");
     if(cameraPoint == world)
@@ -138,7 +138,7 @@ void(entity playerEnt) move_camera =
 
 void() ending_remove_stuff =
 {
-    local entity curEnt;
+    entity curEnt;
 
     curEnt = find(world, classname, "ltrail_start");
     while(curEnt)
@@ -165,8 +165,8 @@ void() ending_remove_stuff =
 // ------------------------------------------------
 void() actor_run =
 {
-    local vector dist;
-    local entity pointOne;
+    vector dist;
+    entity pointOne;
 
     if(pointcontents(self.origin) == CONTENT_LAVA)
     {
@@ -317,7 +317,7 @@ void() actor_control =
 // ==============
 void(entity thePlayer) spawn_actor =
 {
-    local entity    pointOne;
+    entity    pointOne;
 
     theActor = spawn();
     theActor.owner = self;

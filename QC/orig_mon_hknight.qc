@@ -56,9 +56,9 @@ $frame magicc9 magicc10 magicc11
 
 void(float offset) hknight_shot =
 {
-    local    vector    offang;
-    local    vector    org, vec;
-    local     entity     newmis;
+    vector    offang;
+    vector    org, vec;
+    entity     newmis;
 
     offang = vectoangles (self.enemy.origin - self.origin);
     offang_y = offang_y + offset * 6;

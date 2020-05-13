@@ -230,9 +230,9 @@ set "message" to text string
 */
 void() trigger_secret =
 {
-    local vector o;
-    local entity secamb;
-    local float sk;
+    vector o;
+    entity secamb;
+    float sk;
 
     total_secrets += 1;
     self.wait = -1;
@@ -332,8 +332,8 @@ float    IGNORE_TARGETNAME = 8; // HONEY
 
 void() play_teleport =
 {
-    local    float v;
-    local    string tmpstr;
+    float v;
+    string tmpstr;
 
     v = random() * 5;
     if(v < 1)
@@ -353,7 +353,7 @@ void() play_teleport =
 
 void(vector org) spawn_tfog =
 {
-    local entity s;
+    entity s;
     s = spawn();
     s.origin = org;
     s.nextthink = time + 0.2;
@@ -394,7 +394,7 @@ void() tdeath_touch =
 
 void(vector org, entity death_owner) spawn_tdeath =
 {
-local entity    death;
+entity    death;
 
     death = spawn();
     death.classname = "teledeath";
@@ -413,8 +413,8 @@ local entity    death;
 
 void() teleport_touch =
 {
-local entity    t;
-local vector    org;
+entity    t;
+vector    org;
 
     if(self.targetname != NULLSTR)
     {
@@ -499,7 +499,7 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 */
 void() trigger_teleport =
 {
-    local vector o;
+    vector o;
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN){

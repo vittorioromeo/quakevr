@@ -91,12 +91,12 @@ OgreFireGrenade
 */
 void() OgreFireGrenade =
 {
-    local entity missile;
+    entity missile;
 
     // HONEY
-    local vector trajectory;
-    local float dist, vol, speeeed, zmul;
-    local vector nozdistancedelta;
+    vector trajectory;
+    float dist, vol, speeeed, zmul;
+    vector nozdistancedelta;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -196,8 +196,8 @@ FIXME
 */
 void(float side) chainsaw =
 {
-local vector    delta;
-local float     ldmg;
+vector    delta;
+float     ldmg;
 
     if(!self.enemy)
         return;
@@ -385,7 +385,7 @@ void()    ogre_paine15=[    $paine15,    ogre_run1    ] {};
 
 void(entity attacker, float damage)    ogre_pain =
 {
-    local float    r;
+    float    r;
 
 // don't make multiple pain sounds right after each other
     if(self.pain_finished > time)
@@ -424,7 +424,7 @@ void(entity attacker, float damage)    ogre_pain =
 
 void() OgreDrop =
 {
-    local entity entPlayer;
+    entity entPlayer;
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;

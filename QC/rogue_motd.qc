@@ -7,7 +7,7 @@
 
 void() MOTD =
 {
-    local string tp;
+    string tp;
 
     if(self.motd_count < 5) {
         if(teamplay > 3 && teamplay < 7)

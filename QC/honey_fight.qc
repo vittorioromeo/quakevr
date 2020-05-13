@@ -8,9 +8,9 @@ Returns FALSE if movement should continue
 */
 float() OgreMarksmanCheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
-//    local float        chance;
+    vector    spot1, spot2;
+    entity    targ;
+//    float        chance;
 
     if(enemy_range == RANGE_MELEE)
     {

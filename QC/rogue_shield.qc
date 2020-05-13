@@ -33,7 +33,7 @@ void() shield_think =
 // ===================
 void(entity shieldOwner, vector dir) shield_spawn =
 {
-    local entity newShield;
+    entity newShield;
 
     if(shieldOwner.shield_death_time > time)
     {
@@ -68,9 +68,9 @@ void(entity shieldOwner, vector dir) shield_spawn =
 // ===================
 float(entity targ, entity inflictor, entity attacker, float damage) shield_hit=
 {
-    local vector    dir;
-    local float        save;
-    local float        hitAngle;
+    vector    dir;
+    float        save;
+    float        hitAngle;
 
     dir = inflictor.origin - targ.origin;
     save = vectoyaw (dir);

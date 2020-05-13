@@ -24,7 +24,7 @@ void() spawn_think =
 
 void() spawn_use =
 {
-    local entity spawnentity;
+    entity spawnentity;
 
     if((self.spawnmulti == 1) || (horn_active))
       {
@@ -114,10 +114,10 @@ Think of it like setting up a normal entity.
 
 void() func_spawn =
    {
-   local entity tempself;
-   local entity monster;
-   local float tempdeathmatch;
-   local float temptotal_monsters;
+   entity tempself;
+   entity monster;
+   float tempdeathmatch;
+   float temptotal_monsters;
 
    // save off deathmatch and zero it out
    tempself = self;
@@ -125,7 +125,7 @@ void() func_spawn =
    deathmatch = 0;
    if(!self.spawnfunction)
       {
-      local float spawnchance;
+      float spawnchance;
 
       spawnchance = random();
       monster = tempself;

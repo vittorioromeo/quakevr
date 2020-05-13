@@ -130,7 +130,7 @@ ATTACKS
 
 void() mummyGrenadeTouch =
 {
-    local float     mummyDamage;
+    float     mummyDamage;
 
     if(other == self.owner)
         return;     // don't explode on owner
@@ -156,8 +156,8 @@ mummyFireGrenade
 */
 void(vector st) mummyFireGrenade =
 {
-    local entity missile;
-    local vector org;
+    entity missile;
+    vector org;
 
     sound(self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
 
@@ -238,7 +238,7 @@ void() mummy_attc12    =[  $attc12,    mummy_run1     ]
 
 void() mummy_missile =
 {
-    local float r;
+    float r;
 
     r = random();
 
@@ -406,7 +406,7 @@ mummy_pain
 */
 void(entity attacker, float take) mummy_pain =
 {
-    local float     r;
+    float     r;
 
     if(self.pain_finished > time)
         return;

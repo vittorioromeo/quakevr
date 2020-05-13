@@ -45,7 +45,7 @@ void() InitBulletHoles =
 
 void() remove_bullethole =
    {
-   local entity ent;
+   entity ent;
 
    // There is a possibility that this is not the first bullet
    // in the list, but it doesn't really matter.  All that
@@ -73,8 +73,8 @@ void() remove_bullethole =
 
 void(vector pos) placebullethole =
 {
-    local entity new;
-    local vector norm;
+    entity new;
+    vector norm;
 
     new = spawn();
     new.owner = new;

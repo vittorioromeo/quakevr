@@ -45,7 +45,7 @@ void(entity attacker, float damage) decoy_stand1_pain =
 
 void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
    {
-//   local vector a;
+//   vector a;
    movetogoal (12);
 //   a = '0 0 0';
 //   a_y = self.ideal_yaw;
@@ -56,7 +56,7 @@ void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
       self.walkframe = 0;
    if(self.walkframe == 2 || self.walkframe == 5)
       {
-      local float r;
+      float r;
       r = random();
       if(r < 0.14)
          sound(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
@@ -79,7 +79,7 @@ void()   decoy_walk1 =[  $rockrun1,  decoy_walk1  ]
 
 void(entity decoy) setup_decoy =
 {
-   local entity pl;
+   entity pl;
 
    decoy.classname = "monster_decoy";
    setmodel(decoy, "progs/player.mdl");
@@ -119,8 +119,8 @@ void() monster_decoy =
 
 void(string targ, vector orig) become_decoy =
 {
-   local entity decoy;
-   local entity temp;
+   entity decoy;
+   entity temp;
 
    decoy = hipdecoy = spawn();
 

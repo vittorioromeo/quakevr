@@ -22,7 +22,7 @@ void() hipRubbleTouch =
 
 void(string rubblename) hipThrowRubble =
 {
-    local entity newent;
+    entity newent;
 
     newent = spawn();
     newent.origin = self.origin;
@@ -46,8 +46,8 @@ void(string rubblename) hipThrowRubble =
 
 void() hip_rubble_use =
 {
-    local float which;
-    local float index;
+    float which;
+    float index;
 
     index = 0;
 

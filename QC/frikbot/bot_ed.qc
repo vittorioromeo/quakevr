@@ -181,8 +181,8 @@ void() SaveWays;
 void() bot_menu_display =
 {
 // build options
-    local string h;
-    local entity t;
+    string h;
+    entity t;
 
 // check impulses
     if(self.impulse > 0 && self.impulse < 11 && self.b_menu)
@@ -1037,8 +1037,8 @@ void() bot_menu_display =
 // engage menu
 void() bot_way_edit =
 {
-    local entity t;
-    local float f;
+    entity t;
+    float f;
     if(self.b_menu_value)
     {
         if(self.b_menu == 14)
@@ -1117,8 +1117,8 @@ Waypoint Saving to file.
 
 void() PrintWaypoint =
 {
-    local entity t;
-    local string h;
+    entity t;
+    string h;
 
     if(self.enemy == world)
         t = way_head;
@@ -1149,7 +1149,7 @@ void() PrintWaypoint =
     t.origin_z = rint(t.origin_z);
 // 2001-09-10 FrikBot support by FrikaC/Maddes  end
 
-    local float needcolon = FALSE;
+    float needcolon = FALSE;
 
     if((t.origin_x != saved1) || (t.count == 1))
     {
@@ -1292,8 +1292,8 @@ void() DumpWaypoints =
 
 void() PrintQCWaypoint =
 {
-    local entity t;
-    local string h;
+    entity t;
+    string h;
 
     if(self.enemy == world)
         t = way_head;
@@ -1361,8 +1361,8 @@ void() QCDumpWaypoints =
 
 void() PrintBSPWaypoint =
 {
-    local entity t;
-    local string h;
+    entity t;
+    string h;
 
     if(self.enemy == world)
         t = way_head;
@@ -1454,8 +1454,8 @@ float file;
 
 void() SaveWaypoint =
 {
-    local entity t;
-    local string h, j, k, l;
+    entity t;
+    string h, j, k, l;
 
     if(self.enemy == world)
         t = way_head;
@@ -1502,7 +1502,7 @@ void() SaveWaypoint =
     t.origin_z = rint(t.origin_z);
 // 2001-09-10 FrikBot support by FrikaC/Maddes  end
 
-    local float needcolon = FALSE;
+    float needcolon = FALSE;
 
     if((t.origin_x != saved1) || (t.count == 1))
     {
@@ -1623,7 +1623,7 @@ void() SaveWaypoint =
 // to allow for 100+ waypoints, we need to trick the runaway loop counter
 void() SaveWays =
 {
-    local string h, f;
+    string h, f;
     bytecounter = 50;
     filecount = 1;
     h = strcat("maps/", mapname);

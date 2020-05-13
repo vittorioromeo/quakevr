@@ -93,7 +93,7 @@ moving towards it, change the next destination and continue.
 */
 void() t_movetarget =
 {
-local entity    temp;
+entity    temp;
 
     if(other.movetarget != self)
         return;
@@ -148,10 +148,10 @@ moving towards it, change the next destination and continue.
 */
 void() t_followtarget =
 {
-   local entity   temp;
-   local vector   spot1, spot2;
-   local entity   targ;
-   local entity   client;
+   entity   temp;
+   vector   spot1, spot2;
+   entity   targ;
+   entity   client;
 
    if(!(other.flags & FL_MONSTER))
       return;
@@ -270,9 +270,9 @@ returns the range catagorization of an entity reletive to self
 */
 float(entity targ) range =
 {
-    local vector spot1, spot2;
-    local float  r;
-    local float  scale; // HONEY.
+    vector spot1, spot2;
+    float  r;
+    float  scale; // HONEY.
 
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
@@ -304,7 +304,7 @@ returns 1 if the entity is visible to self, even if not infront ()
 */
 float (entity client) visible =
 {
-    local vector spot1, spot2;
+    vector spot1, spot2;
 
     spot1 = self.origin + self.view_ofs;
     spot2 = client.origin + client.view_ofs;
@@ -323,8 +323,8 @@ returns 1 if the entity is in front (in sight) of self
 */
 float(entity targ) infront =
 {
-    local vector vec;
-    local float  dot;
+    vector vec;
+    float  dot;
 
     makevectors(self.angles);
     vec = normalize(targ.origin - self.origin);
@@ -346,8 +346,8 @@ float(entity targ) infront =
 //============================================================================
 void() UpdateCharmerGoal =
    {
-   local entity targ;
-   local vector d;
+   entity targ;
+   vector d;
 
    d = normalize(self.origin-self.charmer.origin);
 
@@ -437,7 +437,7 @@ void() HuntTarget =
 
 void() SightSound =
 {
-    local float rsnd;
+    float rsnd;
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)
@@ -569,8 +569,8 @@ slower noticing monsters.
 */
 float() FindTarget =
 {
-    local entity client;
-    local float  r;
+    entity client;
+    float  r;
 
 // if the first spawnflag bit is set, the monster will only wake up on
 // really seeing the player, not another monster getting angry
@@ -622,9 +622,9 @@ float() FindTarget =
 //MED 10/17/96 added charmed clause
    else if(self.charmed)
       {
-      local entity head;
-      local entity selected;
-      local float dist;
+      entity head;
+      entity selected;
+      float dist;
 
       selected = world;
       dist = CHARMED_RADIUS;
@@ -744,7 +744,7 @@ void(float dist) ai_pain =
 {
     ai_back (dist);
 /*
-    local float    away;
+    float    away;
 
     away = anglemod (vectoyaw (self.origin - self.enemy.origin)
     + 180*(random()- 0.5));
@@ -840,7 +840,7 @@ don't move, but turn towards ideal_yaw
 */
 void() ai_turn_in_place =
    {
-   local float delta;
+   float delta;
 
    self.nextthink = time + 0.1;
    enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
@@ -865,7 +865,7 @@ ChooseTurn
 */
 void(vector dest3) ChooseTurn =
 {
-    local vector    dir, newdir;
+    vector    dir, newdir;
 
     dir = self.origin - dest3;
 
@@ -896,7 +896,7 @@ FacingIdeal
 */
 float() FacingIdeal =
 {
-    local    float    delta;
+    float    delta;
 
     delta = anglemod(self.angles_y - self.ideal_yaw);
     if(delta > 45 && delta < 315)
@@ -1001,7 +1001,7 @@ Strafe sideways, but stay at aproximately the same range
 */
 void() ai_run_slide =
 {
-    local float    ofs;
+    float    ofs;
 
     self.ideal_yaw = enemy_yaw;
     ChangeYaw();
@@ -1029,8 +1029,8 @@ Used by the Scourge.
 */
 void() ai_run_dodge =
 {
-    local float    ofs;
-    local float newyaw;
+    float    ofs;
+    float newyaw;
 
    self.nextthink = time + 0.1;
    if(self.lefty)
@@ -1070,7 +1070,7 @@ The monster has an enemy it is trying to kill
 float RUN_STRAIGHT;
 void(float dist) ai_run =
 {
-    local    float    axis;
+    float    axis;
 
     movedist = dist;
 // see if the enemy is dead
@@ -1120,7 +1120,7 @@ void(float dist) ai_run =
 //MED
    if(self.th_turn)
       {
-      local float angledelta;
+      float angledelta;
 
       angledelta = fabs(self.angles_y - enemy_yaw);
       if(angledelta > MIN_ANGLE_DELTA)

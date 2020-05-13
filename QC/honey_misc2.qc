@@ -70,7 +70,7 @@ void() info_stuffcmd =
 
 void() trigger_settarget_use =
 {
-    local entity t;
+    entity t;
     t = find(world, targetname, self.target);
     while(t){
         t.target = self.message;
@@ -109,7 +109,7 @@ void() trigger_settarget =
 
 void() trigger_setmessage_use =
 {
-    local entity t;
+    entity t;
     t = find(world, targetname, self.target);
     while(t){
         t.message = self.message;
@@ -157,9 +157,9 @@ Fuck this dumb shit forever!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 */
 void() func_refwall =
 {
-    local entity ref;
-    local string myModel;
-    local vector refOrigin;
+    entity ref;
+    string myModel;
+    vector refOrigin;
 
     if(self.target != NULLSTR)
     {
@@ -209,9 +209,9 @@ void() func_refwall =
 
 vector missile_check_aimhelp(entity client, vector morg, vector defaultvec) =
 {
-    local entity aimhelp;
-    local float dist;
-    local vector aimPoint;
+    entity aimhelp;
+    float dist;
+    vector aimPoint;
 
     //TODO: atm just returns the first valid aimhelp, but should maybe check if there are multiple and choose the best one
     //TODO: also should make sure the original aim vector wouldn't have hit a monster or something
@@ -568,7 +568,7 @@ void() trigger_deathpit =
 //Just for utility
 void(void() action) door_do =
 {
-    local entity    starte;
+    entity    starte;
     starte = self;
     do
     {
@@ -786,7 +786,7 @@ void() hublevel_touch =
     if(other.classname != "player")
         return;
 
-    local float noexit;
+    float noexit;
     noexit = cvar_hget(cvarh_noexit);
 
     if((noexit == 1) || ((noexit == 2) && (mapname != "start")))
@@ -1019,7 +1019,7 @@ void() func_pump_blocked =
 
 void() func_pump_think =
 {
-    local float sin, dir, t;
+    float sin, dir, t;
     if(!self.search_time){
         self.search_time = self.ltime;
     }
@@ -1079,9 +1079,9 @@ void() func_pump =
 //Kinn I luv u!
 void test_lightning_think() =
 {
-    local vector s = '128 128 64';
-    local vector e = '128 -128 64';
-    local entity plr;
+    vector s = '128 128 64';
+    vector e = '128 -128 64';
+    entity plr;
     plr = find(world, classname, "player");
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);

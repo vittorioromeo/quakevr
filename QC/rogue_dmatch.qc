@@ -4,8 +4,8 @@
 // =======================================
 void() tag_token_respawn =
 {
-    local entity spawnPoint;
-    local entity tagToken;
+    entity spawnPoint;
+    entity tagToken;
 
     tagToken = find(world, classname, "dmatch_tag_token");
     if(tagToken == world)
@@ -36,7 +36,7 @@ void() tag_token_fall =
 // =======================================
 void() tag_token_drop =
 {
-    local entity tagToken;
+    entity tagToken;
 
     tagToken = find(world, classname, "dmatch_tag_token");
     if(tagToken == world)
@@ -123,7 +123,7 @@ void() dmatch_tag_token =
 // =======================================
 void(entity targ, entity attacker) dmatch_score =
 {
-    local entity tagToken;
+    entity tagToken;
 
     if(teamplay == TEAM_DMATCH_TAG)
     {

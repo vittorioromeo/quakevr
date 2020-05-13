@@ -30,8 +30,8 @@ void() MiniGrenadeExplode =
 
 void(float offsetAngle) MiniGrenadeLaunch =
 {
-    local    entity missile;
-    local    float    tempRand;
+    entity missile;
+    float    tempRand;
 
     missile = spawn();
     missile.owner = self.owner;
@@ -114,8 +114,8 @@ void() MultiGrenadeTouch =
 
 void(float xHand) W_FireMultiGrenade =
 {
-    local entity missile;
-    local vector tmpAngles;
+    entity missile;
+    vector tmpAngles;
 
     delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
@@ -181,7 +181,7 @@ void(float xHand) W_FireMultiGrenade =
 
 void() MultiRocketExplode =
 {
-    local float damg;
+    float damg;
 
 //    Stock Single Rocket Damage...
 //    damg = 100 + random()*20;
@@ -236,7 +236,7 @@ void() MultiRocketTouch =
 
 void() HomingMissileThink =
 {
-    local vector    dir;
+    vector    dir;
 
     if(self.enemy.health < 1)
     {
@@ -253,8 +253,8 @@ void() HomingMissileThink =
 
 void() HomingMissileAcquire =
 {
-    local vector    oldVelocity;
-    local vector    aimangle;
+    vector    oldVelocity;
+    vector    aimangle;
 
     if(self.delay < time)
     {
@@ -288,8 +288,8 @@ void() HomingMissileAcquire =
 
 void(float xHand, float offset, float frameNum) MultiRocketLaunch =
 {
-    local entity missile;
-    local vector aimangle;
+    entity missile;
+    vector aimangle;
 
     missile = spawn();
     missile.owner = self;
@@ -374,8 +374,8 @@ void(float xHand) W_FireMultiRocket =
 //=============================================================================
 void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 {
-    local entity e1, e2;
-    local vector f;
+    entity e1, e2;
+    vector f;
 
     f = p2 - p1;
     normalize(f);
@@ -438,8 +438,8 @@ void(entity current, float doDamage) PlasmaDischarge =
 
 void() PlasmaGroundOut =
 {
-    local entity     current, start;
-    local float        monstersHit;
+    entity     current, start;
+    float        monstersHit;
 
     monstersHit = 0;
     current = findradius (self.origin, 420);
@@ -470,7 +470,7 @@ void() PlasmaGroundOut =
 
 void() PlasmaTouch =
 {
-    local float damg;
+    float damg;
 
     if(other == self.owner)
         return;        // don't explode on owner
@@ -535,7 +535,7 @@ void() PlasmaLaunch =
 
 void(vector org, vector dir) launch_plasma =
 {
-    local entity missile;
+    entity missile;
 
     missile = spawn();
     missile.owner = self;
@@ -569,8 +569,8 @@ void(vector org, vector dir) launch_plasma =
 
 void(float xHand) W_FirePlasma =
 {
-    local float  cells;
-    local vector dir;
+    float  cells;
+    vector dir;
 
     if(self.ammo_plasma < 1)
     {

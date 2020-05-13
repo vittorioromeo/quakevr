@@ -35,9 +35,9 @@ void() HIP_train_wait =
 
 void() HIP_train_next =
 {
-    local entity    targ;
-    local float        current;
-   local string   temp;
+    entity    targ;
+    float        current;
+   string   temp;
 
     // Get the speed of the current path_corner.
     // (we must save this off at each path change since
@@ -98,7 +98,7 @@ void() HIP_train_next =
 void() HIP_func_train_find =
 
 {
-    local entity    targ;
+    entity    targ;
 
     targ = find(world, targetname, self.target);
 

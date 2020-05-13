@@ -90,7 +90,7 @@ void()    tbaby_run25    =[    $run25,        tbaby_run1    ] {ai_run(2);};
 
 void()    Tar_JumpTouch =
 {
-    local    float    ldmg;
+    float    ldmg;
 
     if(other.takedamage && other.classname != self.classname)
     {
@@ -147,7 +147,7 @@ void()    tbaby_jump4        =[    $jump4,    tbaby_jump5        ] {ai_face();};
 void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
 {
     // HONEY
-    local vector power;
+    vector power;
     if(self.spawnflags & SPAWNFLAG_TBABY_LIVID){
         self.th_missile = tbaby_jump1; //Reset
         self.spawnflags = self.spawnflags - SPAWNFLAG_TBABY_LIVID;
@@ -248,7 +248,7 @@ void() tbaby_checknew =
 
 void(entity attacker, float damage) tbaby_mitosis =
 {
-    local entity    newSpawn;
+    entity    newSpawn;
 
     if(random() < 0.35)
     {
@@ -285,8 +285,8 @@ If you want a specific type, select "Blue", "Green", or "Spots".
 */
 void() monster_tarbaby =
 {
-    local float     myRand;
-    local float     skillLevel;
+    float     myRand;
+    float     skillLevel;
 
     if(deathmatch)
     {

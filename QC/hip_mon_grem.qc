@@ -75,7 +75,7 @@ see if we can steal enemy's weapon
 void(entity xEntVictim, entity xEntGremlin,
     float xWeaponId, float xAmmoId, float xAmmoLimit) GremlinDoAmmoAndWeaponSteal =
 {
-    local float amount;
+    float amount;
     amount = VR_AmmoUtil_GetAmmoCountByAmmoId(xEntVictim, xAmmoId);
 
     if(amount > xAmmoLimit) { amount = xAmmoLimit; }
@@ -93,9 +93,9 @@ void(entity xEntVictim, entity xEntGremlin,
 
 float() GremlinAttemptWeaponSteal =
 {
-    local vector delta;
-    local float best;
-    local entity victim;
+    vector delta;
+    float best;
+    entity victim;
 
     if(self.stoleweapon)
     {
@@ -121,7 +121,7 @@ float() GremlinAttemptWeaponSteal =
     //
     victim = self.enemy;
 
-    local float victimWeapons[8];
+    float victimWeapons[8];
     victimWeapons[0] = victim.holsterweapon0;
     victimWeapons[1] = victim.holsterweapon1;
     victimWeapons[2] = victim.holsterweapon2;
@@ -161,7 +161,7 @@ float() GremlinAttemptWeaponSteal =
     }
 
     // deal with stolen holster weapon
-    local float hotspot;
+    float hotspot;
     hotspot = -1;
 
     if(idx == 0)           { hotspot = QVR_HS_LEFT_SHOULDER_HOLSTER; }
@@ -171,7 +171,7 @@ float() GremlinAttemptWeaponSteal =
     else if(idx == 4)      { hotspot = QVR_HS_LEFT_UPPER_HOLSTER; }
     else { ASSERT(idx == 5); hotspot = QVR_HS_RIGHT_UPPER_HOLSTER; }
 
-    local entity tmpSelf;
+    entity tmpSelf;
 
     if(hotspot != -1)
     {
@@ -185,7 +185,7 @@ float() GremlinAttemptWeaponSteal =
     {
         // deal with stolen hand weapon
 
-        local float hand;
+        float hand;
 
         if(idx == 6) { hand = cVR_MainHand; }
         else { ASSERT(idx == 7); hand = cVR_OffHand; }
@@ -292,10 +292,10 @@ gremlin is currently not attacking anything, so try to find a target
 */
 float() GremlinFindTarget =
    {
-   local entity   head;
-   local entity   gorge;
-   local float    dist;
-   local float    result;
+   entity   head;
+   entity   gorge;
+   float    dist;
+   float    result;
 
    if((self.stoleweapon==0) && time > self.wait)
       {
@@ -397,8 +397,8 @@ The monster has an enemy it is trying to kill
 */
 void(float dist) gremlin_run =
 {
-    local float r;
-    local vector d;
+    float r;
+    vector d;
 
     if(self.watertype == CONTENT_LAVA)
     {  // do damage
@@ -499,10 +499,10 @@ void(float dist) gremlin_run =
                {
                if(r < 160)
                   {
-                  local vector ang;
-                  local float done;
-                  local vector end;
-                  local float c;
+                  vector ang;
+                  float done;
+                  vector end;
+                  float c;
 
                   ang = vectoangles(d);
                   done = 0;
@@ -859,7 +859,7 @@ void()   gremlin_gunpain3   =[ $gpain3.asc,     gremlin_run1 ] {};
 
 void(entity attacker, float damage) gremlin_pain =
 {
-   local float r;
+   float r;
 
    if(random()<0.8)
       {
@@ -963,7 +963,7 @@ GremlinDropBackpack
 */
 void() GremlinDropBackpack =
 {
-    local entity    item;
+    entity    item;
 
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells))
         return; // nothing in it
@@ -998,8 +998,8 @@ void() GremlinDropBackpack =
 
 void() gremlin_die =
 {
-    local vector vec;
-    local float dot;
+    vector vec;
+    float dot;
 
     GremlinDropBackpack();
 
@@ -1038,7 +1038,7 @@ float() GremlinWeaponAttack;
 
 void() Gremlin_MeleeAttack =
 {
-    local float num;
+    float num;
     if(self.gorging)
     {
         gremlin_gorge1();
@@ -1139,10 +1139,10 @@ find a victim to shoot at
 */
 entity() GremlinFindVictim =
 {
-    local entity head;
-    local entity selected;
-    local float dist;
-    local float head_dist;
+    entity head;
+    entity selected;
+    float dist;
+    float head_dist;
 
     self.search_time = time + 1.0;
     // look in our immediate vicinity
@@ -1193,8 +1193,8 @@ fire a rocket
 */
 void() Gremlin_FireRocket =
 {
-    local    entity missile;
-   local vector dir;
+    entity missile;
+   vector dir;
 
     self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
@@ -1240,7 +1240,7 @@ fire a nailgun
 */
 void(float ox) Gremlin_FireNailGun =
 {
-   local vector dir;
+   vector dir;
 
    self.currentammo = self.ammo_nails = self.ammo_nails - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
@@ -1263,7 +1263,7 @@ fire a laser cannon
 */
 void(float ox) Gremlin_FireLaserGun =
 {
-   local vector dir;
+   vector dir;
 
    self.currentammo = self.ammo_cells = self.ammo_cells - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
@@ -1286,7 +1286,7 @@ fire a shotgun
 */
 void() Gremlin_FireShotGun =
 {
-   local vector dir;
+   vector dir;
 
    self.currentammo = self.ammo_shells = self.ammo_shells - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
@@ -1310,7 +1310,7 @@ fire a shotgun
 */
 void() Gremlin_FireSuperShotGun =
 {
-   local vector dir;
+   vector dir;
 
    self.currentammo = self.ammo_shells = self.ammo_shells - 2;
    self.effects = self.effects | EF_MUZZLEFLASH;
@@ -1334,8 +1334,8 @@ fire lightning gun
 */
 void() Gremlin_FireLightningGun =
    {
-    local    vector    org, dir;
-   local float cells;
+    vector    org, dir;
+   float cells;
 
 // explode if under water
    if(self.watertype <= CONTENT_WATER)
@@ -1386,8 +1386,8 @@ GremlinFireProximityGrenade
 */
 void() GremlinFireProximityGrenade =
 {
-    local entity missile;
-    local vector dir;
+    entity missile;
+    vector dir;
 
     NumProximityGrenades = NumProximityGrenades + 1;
     self.currentammo = self.ammo_rockets = self.ammo_rockets - 1;
@@ -1576,9 +1576,9 @@ void() monster_gremlin =
 
 float() GremlinCheckAttack =
 {
-    local vector spot1, spot2;
-    local entity targ;
-    local float chance;
+    vector spot1, spot2;
+    entity targ;
+    float chance;
 
     targ = self.enemy;
 
@@ -1612,8 +1612,8 @@ float() GremlinCheckAttack =
 
 void(float side) Gremlin_Melee =
 {
-    local float ldmg;
-    local vector delta;
+    float ldmg;
+    vector delta;
 
     ai_face();
 
@@ -1639,7 +1639,7 @@ void(float side) Gremlin_Melee =
 
 void(float dm) Gremlin_ThrowHead =
 {
-    local string gibname;
+    string gibname;
 
     if(self.classname == "monster_ogre")
         gibname = "progs/h_ogre.mdl";
@@ -1806,9 +1806,9 @@ void() Gremlin_Split =
 
 void(float side)  Gremlin_Gorge =
 {
-    local float ldmg;
-    local vector delta;
-    local entity temp;
+    float ldmg;
+    vector delta;
+    entity temp;
 
     // ai_face();
     // walkmove(self.ideal_yaw, 6);   // allow a little closing

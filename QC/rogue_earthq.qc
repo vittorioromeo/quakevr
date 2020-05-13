@@ -136,7 +136,7 @@ void() trigger_earthquake =
 
 void() kill_earthquake =
 {
-    local entity     eq;
+    entity     eq;
 
     if(other.classname != "player")
         return;

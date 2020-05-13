@@ -81,7 +81,7 @@ float() VRMeleeDmgQuadMult =
 
 float(float velmag) VRMeleeStrengthMult =
 {
-    local float strength;
+    float strength;
     strength = velmag - cvar_hget(cvarh_vr_melee_threshold);
 
     if(strength > 1.0)
@@ -94,7 +94,7 @@ float(float velmag) VRMeleeStrengthMult =
 
 float(float xHand, float v, float xBase) VRMeleeDmg =
 {
-    local float tmp;
+    float tmp;
 
     if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
     {
@@ -109,7 +109,7 @@ float(float xHand, float v, float xBase) VRMeleeDmg =
 
 float(float v) VRMeleeRange =
 {
-    local float mult;
+    float mult;
 
     if(self.super_damage_finished > time)
     {
@@ -135,7 +135,7 @@ void(float hand, float velmag) VRMeleeHaptic =
         return;
     }
 
-    local float power, amplitude, xduration;
+    float power, amplitude, xduration;
     power = VRMeleeStrengthMult(velmag);
 
     amplitude = power / 10.0;
@@ -181,16 +181,16 @@ float PositionalDamageFactor(float positionalDamageType)
 
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
-    local float supportHS;   // Target supports headshots.
-    local float supportCD;   // Target supports core distance.
-    local float maxh;        // Max horizontal dimension.
-    local float diagonality; // How "diagonal" the hit was.
-    local float headsize;    // Size of target head.
-    local float head_hdepth; // Depth of head center in the model (horizontal).
-    local float head_vdepth; // Depth of head center in the model (vertical).
-    local vector headpos;    // Position of target head.
-    local vector hitpos;     // Tweaked hit position.
-    local vector hitdiff;    // Temp vector for hit differences.
+    float supportHS;   // Target supports headshots.
+    float supportCD;   // Target supports core distance.
+    float maxh;        // Max horizontal dimension.
+    float diagonality; // How "diagonal" the hit was.
+    float headsize;    // Size of target head.
+    float head_hdepth; // Depth of head center in the model (horizontal).
+    float head_vdepth; // Depth of head center in the model (vertical).
+    vector headpos;    // Position of target head.
+    vector hitpos;     // Tweaked hit position.
+    vector hitdiff;    // Temp vector for hit differences.
 
     if(cvar_hget(cvarh_vr_positional_damage) == 0)
     {
@@ -325,12 +325,12 @@ HIPNOTIC WEAPONS
 */
 void() HIP_LaserTouch =
 {
-    local vector org;
-    local vector spot1,spot2;
-    local vector oldvel;
-    local float r;
-    local float adjDmg;
-    local float posDmgType;
+    vector org;
+    vector spot1,spot2;
+    vector oldvel;
+    float r;
+    float adjDmg;
+    float posDmgType;
 
     self.owner = world;
     self.cnt = self.cnt + 1;
@@ -412,7 +412,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
 
     vec = normalize(vec);
 
-    local entity newmis;
+    entity newmis;
     newmis = spawn();
     newmis.owner = self;
     newmis.classname = "hiplaser";
@@ -450,11 +450,11 @@ HIP_FireLaser
 */
 void(float xHand, float stat) HIP_FireLaser =
 {
-    local vector org;
-    local vector dir;
-    local vector out;
-    local float ofs;
-    local float aofs;
+    vector org;
+    vector dir;
+    vector out;
+    float ofs;
+    float aofs;
 
     if(!VRGetFireButtonPressed(xHand))
     {
@@ -479,8 +479,8 @@ void(float xHand, float stat) HIP_FireLaser =
     dir = VRGetWeaponFireRotFwd(xHand);
     aofs = ofs * 0.15;
 
-    local entity newmis;
-    local vector extraVel;
+    entity newmis;
+    vector extraVel;
 
     extraVel = vrProjectileVelocity(xHand, 0.9);
 
@@ -522,8 +522,8 @@ HIP_HammerDamage
 */
 void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
 {
-    local entity        e1, e2;
-    local vector        f;
+    entity        e1, e2;
+    vector        f;
 
     f = p2 - p1;
     normalize(f);
@@ -582,16 +582,16 @@ void(vector vStart, vector vEnd) LightningParticles =
 
 void() HIP_LightningThink =
    {
-   local vector org;
-   local vector dst;
-   local entity head;
-   local entity selected;
-   local float cur_dist;
-   local float head_dist;
-   local vector vec;
-   local float dot;
-   local float oldstate;
-   local float dam;
+   vector org;
+   vector dst;
+   entity head;
+   entity selected;
+   float cur_dist;
+   float head_dist;
+   vector vec;
+   float dot;
+   float oldstate;
+   float dam;
 
 
    if(time > self.delay)
@@ -634,7 +634,7 @@ void() HIP_LightningThink =
          }
       else
          {
-         local vector   end;
+         vector   end;
 
          makevectors(self.v_angle);
          org = self.owner.origin;
@@ -704,7 +704,7 @@ void() HIP_LightningThink =
 
 void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
    {
-   local entity light;
+   entity light;
    // spawn actual lightning
    light = spawn();
    light.delay = time + 0.8;
@@ -722,7 +722,7 @@ void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
 
 void() HIP_SpawnMjolnirBase =
    {
-   local entity light;
+   entity light;
    // spawn lightning base
    light = spawn();
 //   light.origin = self.origin - '0 0 24' + (32*v_forward);
@@ -744,7 +744,7 @@ void() HIP_SpawnMjolnirBase =
 
 void(float xHand) HIP_FireMjolnirLightning =
 {
-    local float cells;
+    float cells;
 
     // explode if under water
     if(self.waterlevel > 1)
@@ -766,7 +766,7 @@ void(float xHand) HIP_FireMjolnirLightning =
 float(vector xHandRot, vector xHandPos, vector xMuzzlePos,
       float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
 {
-    local float range, muzzleRange;
+    float range, muzzleRange;
 
     range = VRMeleeRange(xRange);
     muzzleRange = VRMeleeRange(xMuzzleRange);
@@ -822,8 +822,8 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
 
 void(float xHand) HIP_FireMjolnir =
 {
-    local vector org;
-    local float  xdmg;
+    vector org;
+    float  xdmg;
 
     xdmg = VRMeleeDmg(xHand, 1.10, 5);
 
@@ -935,13 +935,13 @@ W_FireAxe
 */
 void(float xHand) W_FireAxe =
 {
-    local vector org;
-    local float  xdmg;
+    vector org;
+    float  xdmg;
 
     // HONEY
-    local entity zombie;
-    local float  zombie_dist;
-    local float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
+    entity zombie;
+    float  zombie_dist;
+    float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
     bleed = FALSE;
 
     xdmg = VRMeleeDmg(xHand, 1.00, 7);
@@ -1028,8 +1028,8 @@ W_GunMelee
 */
 void(float xHand) W_GunMelee =
 {
-    local    vector    org;
-    local    float    xdmg;
+    vector    org;
+    float    xdmg;
 
     xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
@@ -1078,9 +1078,9 @@ W_FistMelee
 */
 void(float xHand) W_FistMelee =
 {
-    local vector org;
-    local float  xdmg;
-    local float  playedsound;
+    vector org;
+    float  xdmg;
+    float  playedsound;
 
     xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
@@ -1131,7 +1131,7 @@ void(float xHand) W_FistMelee =
 
 vector() wall_velocity =
 {
-    local vector    vel;
+    vector    vel;
 
     vel = normalize(self.velocity);
     vel = normalize(vel + v_up*(random()- 0.5) + v_right*(random()- 0.5));
@@ -1149,7 +1149,7 @@ SpawnMeatSpray
 */
 void(vector org, vector vel) SpawnMeatSpray =
 {
-    local    entity missile;
+    entity missile;
 
     missile = spawn();
     missile.owner = self;
@@ -1190,7 +1190,7 @@ SpawnBloodSplash
 */
 void(vector org, float damage) SpawnBloodSplash =
 {
-    local vector        pvel;
+    vector        pvel;
 
     pvel_x = crandom() * 240;
     pvel_y = crandom() * 240;
@@ -1209,7 +1209,7 @@ spawn_touchblood
 */
 void(float damage) spawn_touchblood =
 {
-    local vector    vel;
+    vector    vel;
 
     vel = wall_velocity () * 0.2;
     SpawnBlood (self.origin + vel * 0.01, vel, damage);
@@ -1285,10 +1285,10 @@ TraceAttack
 */
 void(float damage, vector dir) TraceAttack =
 {
-    local vector vel, org;
+    vector vel, org;
 
     // HONEY
-    local float bleed;
+    float bleed;
     bleed = FALSE;
 
     vel = normalize(dir + v_up*crandom() + v_right*crandom());
@@ -1323,9 +1323,9 @@ Go to the trouble of combining multiple pellets into a single damage call.
 */
 void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 {
-    local vector direction;
-    local float adjDmg;
-    local float posDmgType;
+    vector direction;
+    float adjDmg;
+    float posDmgType;
 
     makevectors(vectoangles(dir));
 
@@ -1367,7 +1367,7 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
 
 void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 {
-    local    vector    src;
+    vector    src;
 
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
@@ -1382,7 +1382,7 @@ W_FireShotgun
 */
 void(float xHand) W_FireShotgun =
 {
-    local vector dir;
+    vector dir;
 
     sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
 
@@ -1410,7 +1410,7 @@ W_FireSuperShotgun
 */
 void(float xHand) W_FireSuperShotgun =
 {
-    local vector dir;
+    vector dir;
 
     if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) == 1)
     {
@@ -1463,7 +1463,7 @@ void() BecomeExplosion =
 
 void() T_MissileTouch =
 {
-    local float    damg;
+    float    damg;
 
     if(other == self.owner)
         return;        // don't explode on owner
@@ -1511,7 +1511,7 @@ W_FireRocket
 */
 entity(float xHand) W_FireRocket =
 {
-    local entity missile;
+    entity missile;
 
     delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
 
@@ -1565,8 +1565,8 @@ LightningDamage
 */
 void(vector p1, vector p2, entity from, float damage) LightningDamage =
 {
-    local entity        e1, e2;
-    local vector        f;
+    entity        e1, e2;
+    vector        f;
 
     f = p2 - p1;
     normalize(f);
@@ -1624,8 +1624,8 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
 void(float xHand) W_FireLightning =
 {
-    local    vector        org;
-    local    float        cells;
+    vector        org;
+    float        cells;
 
     if(self.ammo_cells < 1)
     {
@@ -1724,8 +1724,8 @@ W_FireGrenade
 */
 void(float xHand) W_FireGrenade =
 {
-    local entity missile;
-    local vector tmpAngles;
+    entity missile;
+    vector tmpAngles;
 
     delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
 
@@ -1857,8 +1857,8 @@ ProximityBomb
 */
 void() ProximityBomb =
    {
-   local entity   head;
-   local float    blowup;
+   entity   head;
+   float    blowup;
 
    if((time > self.delay) || (NumProximityGrenades > 15) || (vlen(self.spawnmaster.velocity)>0))
       {
@@ -1899,8 +1899,8 @@ W_FireProximityGrenade
 */
 void(float xHand) W_FireProximityGrenade =
 {
-    local entity missile;
-    local vector tmpAngles;
+    entity missile;
+    vector tmpAngles;
 
     NumProximityGrenades = NumProximityGrenades + 1;
     delAmmoAndUpdateCounter(xHand, AID_ROCKETS, 1);
@@ -1980,7 +1980,7 @@ Used for both the player and the ogre
 */
 entity(vector org, vector dir) launch_spike =
 {
-    local entity newmis;
+    entity newmis;
 
     newmis = spawn();
     newmis.owner = self;
@@ -2003,8 +2003,8 @@ entity(vector org, vector dir) launch_spike =
 
 void(float xHand) W_FireSuperSpikes =
 {
-    local vector dir;
-    local entity newmis;
+    vector dir;
+    entity newmis;
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
@@ -2028,8 +2028,8 @@ void(float xHand) W_FireSuperSpikes =
 
 void(float xHand, float ox) W_FireSpikes =
 {
-    local vector dir;
-    local entity newmis;
+    vector dir;
+    entity newmis;
 
     makevectors(VRGetWeaponFireRot(xHand));
 
@@ -2083,11 +2083,11 @@ void(vector ang) makeforward_mdl =
 .float hit_z;
 void() spike_touch =
 {
-    local float posDmgType;
-    local float adjDmg;
+    float posDmgType;
+    float adjDmg;
 
     // HONEY
-    local float bleed;
+    float bleed;
     bleed = FALSE;
 
     if(other == self.owner)
@@ -2142,11 +2142,11 @@ void() spike_touch =
 
 void() superspike_touch =
 {
-    local float posDmgType;
-    local float adjDmg;
+    float posDmgType;
+    float adjDmg;
 
     // HONEY
-    local float bleed;
+    float bleed;
     bleed = FALSE;
 
     if(other == self.owner)
@@ -2267,7 +2267,7 @@ An attack impulse can be triggered now
 void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
 {
-    local float r;
+    float r;
 
     if(!W_CheckNoAmmo(xHand))
     {
@@ -2647,7 +2647,7 @@ void(float xHand,
      float xWeaponFlags, float* xOutWeaponFlags,
      float xDir) CycleWeaponCommandImpl =
 {
-    local float newWeapon;
+    float newWeapon;
 
     self.impulse = 0;
     newWeapon = GetCycledWeapon(self, xDir, xWeapon, xWeaponFlags, xOutWeaponFlags);
@@ -2754,8 +2754,8 @@ void() EmpathyShieldsCheat =
 
 void() DumpEntities =
    {
-   local entity   head;
-   local float i;
+   entity   head;
+   float i;
 
    i = 1;
    head = nextent(world);
@@ -2772,8 +2772,8 @@ void() DumpEntities =
 
 void() DumpLiveEntities =
    {
-   local entity   head;
-   local float i;
+   entity   head;
+   float i;
 
    i = 1;
    head = nextent(world);
@@ -2796,7 +2796,7 @@ void() DumpLiveEntities =
 
 void() Genocide =
    {
-   local entity   head;
+   entity   head;
 
    if(deathmatch || coop)
         return;
@@ -2821,7 +2821,7 @@ void () ToggleDump =
    };
 void () DumpCoordinates =
    {
-   local entity pl;
+   entity pl;
    pl = checkclient();
    if(pl)
       {
@@ -3192,7 +3192,7 @@ float(float xHotspot) isHolsterHotspot =
 
 void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
 {
-    local float angle;
+    float angle;
     angle = xAngle - xOffset;
 
     // Bring angle in range [-360, 0]
@@ -3329,10 +3329,10 @@ void() wpnthrow_think =
 
 void() wpnthrow_touch =
 {
-    local float posDmgType;
-    local float adjDmg;
-    local float finalDmg;
-    local vector dir;
+    float posDmgType;
+    float adjDmg;
+    float finalDmg;
+    vector dir;
 
     if(other == self.owner)
         return;
@@ -3524,7 +3524,7 @@ void(entity xEntPlayer, float xHolster, float xValue) VRSetHolsterPrevHovered =
 
 void(entity xEntPlayer) UpdateHolsterHover =
 {
-    local float i;
+    float i;
 
     for(i = QVR_HS_LEFT_SHOULDER_HOLSTER; i <= QVR_HS_RIGHT_UPPER_HOLSTER; ++i)
     {
@@ -3545,7 +3545,7 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
         return;
     }
 
-    local float holsterHapticsMode;
+    float holsterHapticsMode;
     holsterHapticsMode = cvar_hget(cvarh_vr_holster_haptics);
 
     if(holsterHapticsMode == 1 /* continuous */)
@@ -3617,10 +3617,10 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
     float xDealDamage,
     float xBaseDamage) CreateThrownWeapon =
 {
-    local float tmp;
-    local vector tmp_handavel;
-    local vector tmp_bounds;
-    local entity newmis;
+    float tmp;
+    vector tmp_handavel;
+    vector tmp_bounds;
+    entity newmis;
 
     newmis = spawn();
 
@@ -3679,7 +3679,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
 
 vector randomVec(float range)
 {
-    local vector res;
+    vector res;
 
     res_x = crandom() * range;
     res_y = crandom() * range;
@@ -3690,7 +3690,7 @@ vector randomVec(float range)
 
 void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
 {
-    local vector throwVel;
+    vector throwVel;
 
     throwVel = randomVec(0.9);
     throwVel_z = 1.1 + random() * 1.1;
@@ -3707,7 +3707,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
 // TODO VR: (P2) improve?
 void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
 {
-    local vector throwVel;
+    vector throwVel;
 
     throwVel = randomVec(0.1);
     throwVel_z = 0.2 + random() * 0.1;
@@ -3738,8 +3738,8 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
         return;
     }
 
-    local float twoHThrowVelMult;
-    local vector throwVel;
+    float twoHThrowVelMult;
+    vector throwVel;
     if(time - self.last_2h_time < 0.3)
     {
         twoHThrowVelMult = cvar_hget(cvarh_vr_2h_throw_velocity_mult);
@@ -3799,7 +3799,7 @@ void(entity ent, float xHand,
      float xOtherWeaponFlags, float* xOutOtherWeaponFlags,
      float xOtherAttackFinished) DoHandImpl =
 {
-    local float handGrabbing, handPrevGrabbing, otherHandGrabbing,
+    float handGrabbing, handPrevGrabbing, otherHandGrabbing,
                 handEmpty, otherHandEmpty, triggerPressed;
 
     handGrabbing = VRIsEntHandGrabbing(ent, xHand);
@@ -3809,7 +3809,7 @@ void(entity ent, float xHand,
     otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
     triggerPressed = VRGetFireButtonPressed(xHand);
 
-    local vector handPos, handRot;
+    vector handPos, handRot;
 
     handPos = VRGetHandPos(xHand);
     handRot = VRGetHandRot(xHand);

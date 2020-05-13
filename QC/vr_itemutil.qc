@@ -150,7 +150,7 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 
 float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
 {
-    local float itemCategory, itemFlag;
+    float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
     itemFlag = VR_ItemUtil_Impl_ItemIdToFlag(xItemId);
 
@@ -178,7 +178,7 @@ float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
 
 void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem =
 {
-    local float itemCategory, itemFlag;
+    float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
     itemFlag = VR_ItemUtil_Impl_ItemIdToFlag(xItemId);
 

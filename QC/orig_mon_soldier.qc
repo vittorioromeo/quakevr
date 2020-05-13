@@ -142,7 +142,7 @@ void()    army_painc13=[    $painc13,    army_run1] {};
 
 void(entity attacker, float damage)    army_pain =
 {
-    local float r;
+    float r;
 
     if(self.pain_finished > time)
         return;
@@ -172,9 +172,9 @@ void(entity attacker, float damage)    army_pain =
 
 void() army_fire =
 {
-    // local vector   src, vec;
-    local    vector    dir;
-    local    entity    en;
+    // vector   src, vec;
+    vector    dir;
+    entity    en;
 
     ai_face();
 
@@ -208,7 +208,7 @@ void() army_fire =
 
 void() SoldierDrop =
 {
-    local entity entPlayer;
+    entity entPlayer;
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;

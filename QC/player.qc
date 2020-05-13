@@ -157,7 +157,7 @@ void(float xHand) player_run =
         {
             if(self.spawnsilent > 95)
             {
-                local float r;
+                float r;
                 if(self.spawnsilent > 190)
                    self.spawnsilent = 0;
                 else
@@ -511,7 +511,7 @@ void(float num_bubbles) DeathBubbles;
 
 void() PainSound =
 {
-local float        rs;
+float        rs;
 
     if(self.health < 0)
         return;
@@ -640,7 +640,7 @@ void() player_die_ham1;
 
 void() DeathBubblesSpawn =
 {
-    local entity    bubble;
+    entity    bubble;
     if((self.owner.waterlevel != 3) && (self.owner.health > 0))
     {
         remove(self);    // remove bubble spawner
@@ -672,7 +672,7 @@ void() DeathBubblesSpawn =
 
 void(float num_bubbles) DeathBubbles =
 {
-local entity    bubble_spawner;
+entity    bubble_spawner;
 
     bubble_spawner = spawn();
     setorigin(bubble_spawner, self.origin);
@@ -688,7 +688,7 @@ local entity    bubble_spawner;
 
 void() DeathSound =
 {
-local float        rs;
+float        rs;
 
     // water death sounds
     if(self.waterlevel == 3)
@@ -724,7 +724,7 @@ void() PlayerDead =
 
 vector(float dm) VelocityForDamage =
 {
-    local vector v;
+    vector v;
 
 //MED 01/17/97
     if(vlen(damage_inflictor.velocity)>0)
@@ -760,7 +760,7 @@ vector(float dm) VelocityForDamage =
 
 void(string gibname, float dm) ThrowGib =
 {
-    local    entity new;
+    entity new;
 
     new = spawn();
     new.origin = self.origin;
@@ -847,7 +847,7 @@ void() GibPlayer =
 
 void() PlayerDie =
 {
-    local    float    i;
+    float    i;
 
     VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
     VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
@@ -1041,9 +1041,9 @@ void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead(); };
 
 void() player_touch =
 {
-    local vector vec;
-    local float  dot;
-    local float  doDamage;
+    vector vec;
+    float  dot;
+    float  doDamage;
 
     if(VR_ItemUtil_EntHasItem(self, IID_SHIELD))
     {

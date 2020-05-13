@@ -36,9 +36,9 @@ Returns FALSE if movement should continue
 */
 float() ScourgeCheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
-    local float        chance;
+    vector    spot1, spot2;
+    entity    targ;
+    float        chance;
 
    targ = self.enemy;
 // see if any entities are in the way of the shot
@@ -93,7 +93,7 @@ float() ScourgeCheckAttack =
 
 void(float ox) SCOURGE_FireSpikes =
 {
-   local vector   src, vec;
+   vector   src, vec;
 
    ai_face();
    makevectors(self.angles);
@@ -110,8 +110,8 @@ void(float ox) SCOURGE_FireSpikes =
 //
 void() Attack_With_Tail =
    {
-   local float ldmg;
-   local vector   delta;
+   float ldmg;
+   vector   delta;
 
    ai_face();
 
@@ -133,7 +133,7 @@ void() ScourgeTriggerThink;
 void() ScourgeTriggerTouch;
 void() scourge_think =
    {
-   local entity trig;
+   entity trig;
    if(!self.state)
       {
       trig = spawn();
@@ -327,7 +327,7 @@ void()   scourge_pain5  =[ $pain5.asc, scourge_run1 ] {};
 
 void(entity attacker, float damage) scourge_pain =
 {
-    local float r;
+    float r;
 
 
    if(random()*50 > damage)
@@ -349,7 +349,7 @@ void(entity attacker, float damage) scourge_pain =
 
 void() ScourgeDrop =
 {
-    local entity entPlayer;
+    entity entPlayer;
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
@@ -405,7 +405,7 @@ void() scourge_melee =
 //
 void() ScourgeTriggerThink =
    {
-   local entity targ;
+   entity targ;
 
    if(self.lastvictim.health<=0)
       {
@@ -443,7 +443,7 @@ void() ScourgeTriggerTouch =
    if((dir * normalize(other.velocity))<0.8)
       return;
 
-   local entity tempent;
+   entity tempent;
    if(time > self.duration)
    {
       tempent = self;

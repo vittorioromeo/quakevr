@@ -55,11 +55,11 @@ void() info_rotate =
 
 void() RotateTargets =
    {
-   local entity ent;
-   local vector vx;
-   local vector vy;
-   local vector vz;
-   local vector org;
+   entity ent;
+   vector vx;
+   vector vy;
+   vector vz;
+   vector org;
 
    makevectors(self.angles);
 
@@ -104,7 +104,7 @@ void() RotateTargets =
 
 void() RotateTargetsFinal =
    {
-   local entity ent;
+   entity ent;
 
    ent = find(world, targetname, self.target);
    while(ent)
@@ -120,7 +120,7 @@ void() RotateTargetsFinal =
 
 void() SetTargetOrigin =
    {
-   local entity ent;
+   entity ent;
 
    ent = find(world, targetname, self.target);
    while(ent)
@@ -140,8 +140,8 @@ void() SetTargetOrigin =
 
 void() LinkRotateTargets =
    {
-   local entity ent;
-   local vector tempvec;
+   entity ent;
+   vector tempvec;
 
    self.oldorigin = self.origin;
    ent = find(world, targetname, self.target);
@@ -174,7 +174,7 @@ void() LinkRotateTargets =
 
 void(float amount) SetDamageOnTargets =
    {
-   local entity ent;
+   entity ent;
 
    ent = find(world, targetname, self.target);
    while(ent)
@@ -200,7 +200,7 @@ void(float amount) SetDamageOnTargets =
 
 void() rotate_entity_think =
    {
-   local float t;
+   float t;
 
    t = time - self.ltime;
    self.ltime = time;
@@ -383,8 +383,8 @@ void() rotate_train_find;
 
 void() rotate_train_think =
    {
-   local float t;
-   local float timeelapsed;
+   float t;
+   float timeelapsed;
 
    t = time - self.ltime;
    self.ltime = time;
@@ -482,11 +482,11 @@ void() rotate_train_stop =
 
 void() rotate_train_next =
 {
-   local entity targ;
-   local entity current;
-   local vector   vdestdelta;
-   local float    len, traveltime, div;
-   local string temp;
+   entity targ;
+   entity current;
+   vector   vdestdelta;
+   float    len, traveltime, div;
+   string temp;
 
    self.state = STATE_NEXT;
 
@@ -644,7 +644,7 @@ void() rotate_train_next =
 
 void() rotate_train_find =
    {
-   local entity targ;
+   entity targ;
 
    self.state = STATE_FIND;
 
@@ -808,7 +808,7 @@ void() movewall_touch =
 
 void() movewall_blocked =
    {
-   local entity temp;
+   entity temp;
 
    if(time < self.owner.attack_finished)
         return;
@@ -900,7 +900,7 @@ void() rotate_object =
 
 void() rotate_door_think2 =
    {
-   local float t;
+   float t;
 
    t = time - self.ltime;
    self.ltime = time;
@@ -932,7 +932,7 @@ void() rotate_door_think2 =
 
 void() rotate_door_think =
    {
-   local float t;
+   float t;
 
    t = time - self.ltime;
    self.ltime = time;
@@ -954,7 +954,7 @@ void() rotate_door_think =
 
 void() rotate_door_reversedirection =
    {
-   local vector start;
+   vector start;
 
    // change to alternate textures
     self.frame = 1 - self.frame;
@@ -983,7 +983,7 @@ void() rotate_door_reversedirection =
 
 void() rotate_door_group_reversedirection =
    {
-   local string name;
+   string name;
 
    // tell all associated rotaters to reverse direction
    if(self.group != NULLSTR)
@@ -1004,7 +1004,7 @@ void() rotate_door_group_reversedirection =
 
 void() rotate_door_use =
    {
-   local vector start;
+   vector start;
 
    if((self.state != STATE_OPEN) && (self.state != STATE_CLOSED))
       return;

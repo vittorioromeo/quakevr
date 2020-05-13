@@ -1,6 +1,6 @@
 void(vector tdest, float traveltime, void() func) SUB_CalcMove_time =
 {
-    local vector vdestdelta;
+    vector vdestdelta;
 
     if(!traveltime)
         objerror("No time is defined!");
@@ -39,7 +39,7 @@ void(entity e) SUB_Activate =
 
 void(string t) SUB_Trigger=
 {
-    local float oldD;
+    float oldD;
     activator = self;
     self.target = t;
     oldD = self.delay;
@@ -50,7 +50,7 @@ void(string t) SUB_Trigger=
 
 void(string t, string kt) SUB_KillTrigger=
 {
-    local float oldD;
+    float oldD;
     activator = self;
     self.target = t;
     self.killtarget = kt;
@@ -62,7 +62,7 @@ void(string t, string kt) SUB_KillTrigger=
 
 void(string t, float d) SUB_DelayTrigger=
 {
-    local float oldD;
+    float oldD;
     activator = self;
     self.target = t;
     oldD = self.delay;
@@ -73,7 +73,7 @@ void(string t, float d) SUB_DelayTrigger=
 
 void(string t, string kt, float d) SUB_DelayKillTrigger=
 {
-    local float oldD;
+    float oldD;
     activator = self;
     self.target = t;
     self.killtarget = kt;
@@ -91,7 +91,7 @@ void() DelayCenterprint_think=
 
 void(entity to, string msg, float dly) SUB_DelayCenterprint=
 {
-    local entity t;
+    entity t;
     if(dly){
         t = spawn();
         t.message = msg;
