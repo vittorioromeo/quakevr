@@ -1192,7 +1192,7 @@ void() WaypointWatch =
             saved_skills1 = cvar_hget(cvarh_scratch2);
             saved_skills2 = cvar_hget(cvarh_scratch3);
         }
-        cvar_set ("saved4", "0");
+        cvar_set("saved4", "0");
         if(max_clients > 1)
         {
             localcmd("exec maps/");
