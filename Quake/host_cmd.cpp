@@ -920,7 +920,7 @@ void Host_Map_f()
         *p = '\0';
     }
 
-    SV_SpawnServer(name);
+    SV_SpawnServer(name, false /* fromSaveFile */);
     if(!sv.active)
     {
         return;
@@ -1024,7 +1024,7 @@ void Host_Changelevel_f()
     SV_SaveSpawnparms();
 
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
-    SV_SpawnServer(level);
+    SV_SpawnServer(level, false /* fromSaveFile */);
 
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
@@ -1053,9 +1053,12 @@ void Host_Restart_f()
     {
         return;
     }
-    q_strlcpy(mapname, sv.name,
-        sizeof(mapname)); // mapname gets cleared in spawnserver
-    SV_SpawnServer(mapname);
+
+    // mapname gets cleared in spawnserver
+    q_strlcpy(mapname, sv.name, sizeof(mapname));
+
+    SV_SpawnServer(mapname, false /* fromSaveFile */);
+
     if(!sv.active)
     {
         Host_Error("cannot restart map %s", mapname);
@@ -1341,7 +1344,7 @@ void Host_Loadgame_f()
 
     CL_Disconnect_f();
 
-    SV_SpawnServer(mapname);
+    SV_SpawnServer(mapname, true /* fromSaveFile */);
 
     if(!sv.active)
     {
@@ -1422,8 +1425,8 @@ void Host_Loadgame_f()
         Host_Reconnect_f();
     }
 
-    Con_Printf("OnSpawnServer QC 2\n");
-    PR_ExecuteProgram(pr_global_struct->OnSpawnServer);
+    Con_DPrintf("Calling QC 'OnLoadGame'.\n");
+    PR_ExecuteProgram(pr_global_struct->OnLoadGame);
 }
 
 //============================================================================

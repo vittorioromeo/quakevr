@@ -247,6 +247,6 @@ void SV_MoveToGoal();
 void SV_CheckForNewClients();
 void SV_RunClients();
 void SV_SaveSpawnparms();
-void SV_SpawnServer(const char* server);
+void SV_SpawnServer(const char* server, const bool fromSaveFile);
 
 #endif /* _QUAKE_SERVER_H */

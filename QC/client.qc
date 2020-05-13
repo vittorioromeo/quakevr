@@ -120,7 +120,31 @@ void() SetChangeParms =
     parm30 = self.holsterweaponflags5;
 };
 
-void() OnSpawnServer =
+void() OnSpawnServerBeforeLoad =
+{
+    float fromSaveFile;
+    fromSaveFile = spawnServerFromSaveFile;
+
+    VR_CVars_InitAllHandles();
+}
+
+void() OnSpawnServerAfterLoad =
+{
+    float fromSaveFile;
+    fromSaveFile = spawnServerFromSaveFile;
+
+    VR_CVars_InitAllHandles();
+
+    if(!fromSaveFile)
+    {
+        if(!deathmatch)
+        {
+            SpawnAllAmmoBoxWeapons();
+        }
+    }
+}
+
+void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
 }
@@ -971,8 +995,6 @@ void() PutClientInServer =
     spawn_tdeath(self.origin, self);
 
     readytime = time + 0.5;
-
-    SpawnAllAmmoBoxWeapons();
 };
 
 void() SpawnAllAmmoBoxWeapons =

@@ -315,8 +315,8 @@ void() ShamblerDrop =
 
     if(entPlayer != world)
     {
-        if(random() > 0.65) { ShamblerDropImpl(entPlayer); }
-        if(random() > 0.65) { ShamblerDropImpl(entPlayer); }
+        if(ShouldDropEnemyWpn(0.65)) { ShamblerDropImpl(entPlayer); }
+        if(ShouldDropEnemyWpn(0.65)) { ShamblerDropImpl(entPlayer); }
     }
 }
 

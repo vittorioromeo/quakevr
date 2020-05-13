@@ -37,6 +37,9 @@ float total_monsters;
 float found_secrets;   // Number of secrets found.
 float killed_monsters; // Number of monsters killed.
 
+float spawnServerFromSaveFile; // Whether the last `OnSpawnServerXXX` call was
+                               // from a save file or a brand new loaded map.
+
 //
 //
 //
@@ -128,7 +131,16 @@ void() SetNewParms; // Called when a client first connects to
 void() SetChangeParms; // Call to set parms for self so they can
                        // be saved for a level transition.
 
-void() OnSpawnServer; // Called when a new server is spawned.
+void() OnSpawnServerBeforeLoad; // Called when a new server
+                                // is spawned, before
+                                // loading any entities.
+
+void() OnSpawnServerAfterLoad; // Called when a new server
+                               // is spawned, after loading
+                               // all the entities.
+
+void() OnLoadGame; // Called after loading a saved game, after spawning all the
+                   // saved edicts.
 
 //
 //
@@ -137,7 +149,7 @@ void() OnSpawnServer; // Called when a new server is spawned.
 // Special flag (!)
 // ----------------------------------------------------------------------------
 
-void  end_sys_globals; // Flag for structure dumping.
+void end_sys_globals; // Flag for structure dumping.
 
 //
 //
