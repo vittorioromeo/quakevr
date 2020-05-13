@@ -79,26 +79,26 @@ vector(vector v) vectoangles            = #51;
 //
 
 // Frikbot overrides the following:
-// void(float to, float f) WriteByte        = #52;
-// void(float to, float f) WriteChar        = #53;
-// void(float to, float f) WriteShort        = #54;
-// void(float to, float f) WriteLong        = #55;
-// void(float to, float f) WriteCoord        = #56;
-// void(float to, float f) WriteAngle        = #57;
-// void(float to, string s) WriteString    = #58;
-// void(float to, entity s) WriteEntity    = #59;
+// void(float to, float f) WriteByte    = #52;
+// void(float to, float f) WriteChar    = #53;
+// void(float to, float f) WriteShort   = #54;
+// void(float to, float f) WriteLong    = #55;
+// void(float to, float f) WriteCoord   = #56;
+// void(float to, float f) WriteAngle   = #57;
+// void(float to, string s) WriteString = #58;
+// void(float to, entity s) WriteEntity = #59;
 
 //
 // broadcast client message generation
 //
 
-// void(float f) bWriteByte        = #59;
-// void(float f) bWriteChar        = #60;
-// void(float f) bWriteShort        = #61;
-// void(float f) bWriteLong        = #62;
-// void(float f) bWriteCoord        = #63;
-// void(float f) bWriteAngle        = #64;
-// void(string s) bWriteString    = #65;
+// void(float f) bWriteByte    = #59;
+// void(float f) bWriteChar    = #60;
+// void(float f) bWriteShort   = #61;
+// void(float f) bWriteLong    = #62;
+// void(float f) bWriteCoord   = #63;
+// void(float f) bWriteAngle   = #64;
+// void(string s) bWriteString = #65;
 // void(entity e) bWriteEntity = #66;
 
 void(float step) movetogoal                = #67;
