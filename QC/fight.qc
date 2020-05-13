@@ -15,7 +15,7 @@ float    enemy_yaw;
 
 void() knight_attack =
 {
-    local float        len;
+    float        len;
 
 // decide if now is a good swing time
     len = vlen(self.enemy.origin+self.enemy.view_ofs - (self.origin+self.view_ofs));
@@ -38,9 +38,9 @@ Returns FALSE if movement should continue
 */
 float() CheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
-    local float        chance;
+    vector    spot1, spot2;
+    entity    targ;
+    float        chance;
 
     targ = self.enemy;
 
@@ -144,8 +144,8 @@ void(float d) ai_charge =
 
 void() ai_charge_side =
 {
-    local    vector    dtemp;
-    local    float    heading;
+    vector    dtemp;
+    float    heading;
 
 // aim to the left of the enemy for a flyby
 
@@ -168,8 +168,8 @@ ai_melee
 */
 void() ai_melee =
 {
-    local vector    delta;
-    local float     ldmg;
+    vector    delta;
+    float     ldmg;
 
     if(!self.enemy)
         return;        // removed before stroke
@@ -186,8 +186,8 @@ void() ai_melee =
 
 void() ai_melee_side =
 {
-    local vector    delta;
-    local float     ldmg;
+    vector    delta;
+    float     ldmg;
 
     if(!self.enemy)
         return;        // removed before stroke
@@ -217,9 +217,9 @@ Returns FALSE if movement should continue
 */
 float() SoldierCheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
-    local float        chance;
+    vector    spot1, spot2;
+    entity    targ;
+    float        chance;
 
     targ = self.enemy;
 
@@ -276,8 +276,8 @@ Returns FALSE if movement should continue
 */
 float() ShamCheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
+    vector    spot1, spot2;
+    entity    targ;
 
     if(enemy_range == RANGE_MELEE)
     {
@@ -334,9 +334,9 @@ Returns FALSE if movement should continue
 */
 float() OgreCheckAttack =
 {
-    local vector    spot1, spot2;
-    local entity    targ;
-    local float        chance;
+    vector    spot1, spot2;
+    entity    targ;
+    float        chance;
 
     if(enemy_range == RANGE_MELEE)
     {

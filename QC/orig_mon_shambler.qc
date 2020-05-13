@@ -91,8 +91,8 @@ void() sham_smash7     =[      $smash7,       sham_smash8    ] {ai_charge(0);};
 void() sham_smash8     =[      $smash8,       sham_smash9    ] {ai_charge(0);};
 void() sham_smash9     =[      $smash9,       sham_smash10   ] {ai_charge(0);};
 void() sham_smash10    =[      $smash10,      sham_smash11   ] {
-local vector    delta;
-local float     ldmg;
+vector    delta;
+float     ldmg;
 
     if(!self.enemy)
         return;
@@ -119,8 +119,8 @@ void() sham_swingr1;
 
 void(float side) ShamClaw =
 {
-local vector    delta;
-local float     ldmg;
+vector    delta;
+float     ldmg;
 
     if(!self.enemy)
         return;
@@ -176,7 +176,7 @@ if(random()<0.5)
 
 void() sham_melee =
 {
-    local float chance;
+    float chance;
 
     chance = random();
     if(chance > 0.6 || self.health == 600)
@@ -192,7 +192,7 @@ void() sham_melee =
 
 void() CastLightning =
 {
-    local    vector    org, dir;
+    vector    org, dir;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -224,7 +224,7 @@ void() sham_magic1     =[      $magic1,       sham_magic2    ] {ai_face();
 };
 void() sham_magic2     =[      $magic2,       sham_magic3    ] {ai_face();};
 void() sham_magic3     =[      $magic3,       sham_magic4    ] {ai_face();self.nextthink = self.nextthink + 0.2;
-local entity o;
+entity o;
 
 self.effects = self.effects | EF_MUZZLEFLASH;
 ai_face();
@@ -308,7 +308,7 @@ void(entity entPlayer) ShamblerDropImpl =
 
 void() ShamblerDrop =
 {
-    local entity entPlayer;
+    entity entPlayer;
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;

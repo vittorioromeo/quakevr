@@ -52,7 +52,7 @@ Killed
 */
 void(entity targ, entity attacker) Killed =
 {
-    local entity oself;
+    entity oself;
 
     oself = self;
     self = targ;
@@ -120,10 +120,10 @@ This should be the only function that ever reduces health.
 float empathyused;
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
-    local    vector    dir;
-    local    entity    oldself;
-    local    float    save;
-    local    float    take;
+    vector    dir;
+    entity    oldself;
+    float    save;
+    float    take;
 
     if(!targ.takedamage)
     {
@@ -380,9 +380,9 @@ T_RadiusDamage
 */
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
-    local    float     points;
-    local    entity    head;
-    local    vector    org;
+    float     points;
+    entity    head;
+    vector    org;
 
     IsExplosionDamage = 1;
 
@@ -424,8 +424,8 @@ T_BeamDamage
 */
 void(entity attacker, float damage) T_BeamDamage =
 {
-    local    float     points;
-    local    entity    head;
+    float     points;
+    entity    head;
 
     head = findradius(attacker.origin, damage+40);
 

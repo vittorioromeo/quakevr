@@ -9,7 +9,7 @@ float USE_PARTICLES = 1;
 
 void() exploder_fire =
     {
-    local entity temp;
+    entity temp;
 
     temp = self;
     activator = other;
@@ -84,8 +84,8 @@ void() func_exploder =
 
 void() multi_exploder_fire =
     {
-    local entity temp;
-   local entity expl;
+    entity temp;
+   entity expl;
 
    self.nextthink = time + self.wait;
    if(self.state == 0)
@@ -127,7 +127,7 @@ void() multi_exploder_fire =
 
 void(vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
     {
-   local entity temp;
+   entity temp;
 
    temp = self;
    self = spawn();

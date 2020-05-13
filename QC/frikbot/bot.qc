@@ -559,7 +559,7 @@ it just links the bot into the mod
 
 void() ClientFixRankings =
 {
-    local float cno;
+    float cno;
 
     if(self.switch_wallhug > time)
         return;
@@ -579,7 +579,7 @@ void() ClientFixRankings =
 
 void() ClientInRankings =
 {
-    local float cno;
+    float cno;
 
        cno = self.colormap - 1;
     BotInvalidClientNo (cno);
@@ -713,7 +713,7 @@ void(string h) BotSay2 =
 };
 void(string h) BotSayTeam =
 {
-    local entity t;
+    entity t;
     if(!teamplay)
         return;
     t = player_head;
@@ -763,7 +763,7 @@ void() BotInit =
     ent = nextent(world);
     entity fisent = world;
 
-    local float numents = 0;
+    float numents = 0;
     while (numents < max_clients)
     {
         phys_head = spawn();
@@ -855,7 +855,7 @@ float(float clientno) ClientBitFlag =
 
 float() ClientNextAvailable =
 {
-    local float clientno;
+    float clientno;
 
     clientno = max_clients;
     while(clientno > 0)
@@ -899,7 +899,7 @@ Team finding code
 
 float(float tcolor) FindAnotherColor =
 {
-    local float bestbet, scolor, pcount, bestp;
+    float bestbet, scolor, pcount, bestp;
     bestbet = -1;
     bestp = 16;
     while(scolor < 14)
@@ -942,7 +942,7 @@ BotConnect and related functions.
 */
 entity(float num) GetClientEntity =
 {
-    local entity upsy;
+    entity upsy;
     upsy = world;
     num = num + 1;
     while (num > 0)
@@ -955,9 +955,9 @@ entity(float num) GetClientEntity =
 
 void(float whichteam, float whatbot, float whatskill) BotConnect =
 {
-    local float f;
-    local string h;
-    local entity uself;
+    float f;
+    string h;
+    entity uself;
 
     f = ClientNextAvailable();
     uself = self;
@@ -1031,8 +1031,8 @@ void(float whichteam, float whatbot, float whatskill) BotConnect =
 
 void(entity bot) BotDisconnect =
 {
-    local string h;
-    local entity uself;
+    string h;
+    entity uself;
     uself = self;
     self = bot;
 
@@ -1076,7 +1076,7 @@ kicks a bot if a player connects and takes the bot's space
 
 void(float clientno) BotInvalidClientNo =
 {
-    local entity bot;
+    entity bot;
 
     bot = GetClientEntity(clientno);
     if(bot.b_clientno > 0)
@@ -1101,9 +1101,9 @@ Waypoint Loading from file
 */
 void() LoadWaypoint =
 {
-    local vector org;
-    local entity tep;
-    local float r;
+    vector org;
+    entity tep;
+    float r;
     org_x = cvar_hget(cvarh_saved1);
     org_y = cvar_hget(cvarh_saved2);
     org_z = cvar_hget(cvarh_saved3);
@@ -1152,8 +1152,8 @@ void() bot_return =
 void() WaypointWatch =
 {
     // Waypoint Baywatch
-    local float bigboobs;
-    local string h;
+    float bigboobs;
+    string h;
     if(framecount < 4)
         return;
     if(max_clients < 2)
@@ -1205,7 +1205,7 @@ void() WaypointWatch =
 };
 void() BotFrame =
 {
-    local float num;
+    float num;
 
     // for the sake of speed
     sv_maxspeed = cvar_hget(cvarh_sv_maxspeed);
@@ -1252,7 +1252,7 @@ related functions.
 
 void() BotImpulses =
 {
-    local float f;
+    float f;
 
     if(self.impulse == 100)
     {

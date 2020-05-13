@@ -80,8 +80,8 @@ void() dragon_stop_attack =
 // ===================================
 void() dragon_check_attack =
 {
-    local vector    vec;
-    local float        dot;
+    vector    vec;
+    float        dot;
 
     if(self.dragonAttacking == TRUE)
         return;
@@ -131,10 +131,10 @@ void() dragon_check_attack =
 // ===================================
 void(float dist) dragon_move =
 {
-    local vector moveDir;
-    local vector moveAngles;
-    local float  leftTurn, rightTurn, turnOffset;
-    local entity oldEnemy;
+    vector moveDir;
+    vector moveAngles;
+    float  leftTurn, rightTurn, turnOffset;
+    entity oldEnemy;
 
     if(self.health < 1)
     {
@@ -374,8 +374,8 @@ void() FireballTouch =
 
 entity(vector org, vector dir) launch_fireball =
 {
-    local entity    fireball;
-    local float        fireSpeed;
+    entity    fireball;
+    float        fireSpeed;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     fireball = spawn();
@@ -405,10 +405,10 @@ entity(vector org, vector dir) launch_fireball =
 // ===========================================
 void() dragon_fireball =
 {
-    local float     fireCount;
-    local vector    org, dir;
-    local float        distortion;
-    local float     fireType;
+    float     fireCount;
+    vector    org, dir;
+    float        distortion;
+    float     fireType;
 
     sound(self, CHAN_VOICE, "dragon/attack.wav", 1, ATTN_NORM);
 
@@ -452,8 +452,8 @@ void() dragon_fireball =
 // ===================================
 void() dragon_tail_touch =
 {
-    local vector    delta;
-    local float        tailDamage;
+    vector    delta;
+    float        tailDamage;
 
     if(!self.enemy)
         return;
@@ -475,8 +475,8 @@ void() dragon_tail_touch =
 
 void() dragon_tail =
 {
-    local float dist;
-    local vector dir;
+    float dist;
+    vector dir;
 
     if(!self.enemy)
         return;
@@ -542,7 +542,7 @@ void() dragon_painF3 = [ $drgpan6c, dragon_walk2 ] {dragon_move(12);};
 
 void(entity attacker, float damage) dragon_pain =
 {
-    local float r;
+    float r;
 
     if(self.pain_finished > time)
         return;

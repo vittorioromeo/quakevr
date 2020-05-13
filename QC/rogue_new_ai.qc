@@ -13,8 +13,8 @@
 // ================================================================
 void(entity destEnt, float radius, vector offset) ai_orbit =
 {
-    local vector dir;
-    local float dist;
+    vector dir;
+    float dist;
 
     if(self.orbitPosition > 3)
         self.orbitPosition = 0;
@@ -77,7 +77,7 @@ void(entity destEnt, float radius, vector offset) ai_orbit =
 // ================================================================
 void(entity destEnt, float trackSpeed) ai_track =
 {
-    local vector    dir;
+    vector    dir;
 
     dir = destEnt.origin + destEnt.view_ofs;
     dir = normalize(dir - self.origin);
@@ -90,9 +90,9 @@ void(entity destEnt, float trackSpeed) ai_track =
 
 void(string gibname, float dm) AccelerateGib =
 {
-    local entity    new;
+    entity    new;
 
-    local float        offset1;
+    float        offset1;
 
     new = spawn();
     new.origin = self.origin;
@@ -132,7 +132,7 @@ void(float gibCount) ViolentDeath =
 
 entity(string gibname) StartGib =
 {
-    local entity    new;
+    entity    new;
 
     new = spawn();
     new.origin = self.origin;

@@ -54,7 +54,7 @@ If targeted, it will toggle between on or off.
 */
 void() light =
 {
-    local entity e;
+    entity e;
 
     if(!self.targetname)
     {    // inert light
@@ -219,7 +219,7 @@ void() misc_fireball =
 
 void() fire_fly =
 {
-local entity    fireball;
+entity    fireball;
 
     fireball = spawn();
     fireball.solid = SOLID_TRIGGER;
@@ -271,7 +271,7 @@ TESTING THING
 
 void() misc_explobox =
 {
-    local float    oldz;
+    float    oldz;
 
     self.solid = SOLID_BBOX;
     self.movetype = MOVETYPE_NONE;
@@ -303,7 +303,7 @@ Smaller exploding box, REGISTERED ONLY
 
 void() misc_explobox2 =
 {
-    local float    oldz;
+    float    oldz;
 
     self.solid = SOLID_BBOX;
     self.movetype = MOVETYPE_NONE;
@@ -331,8 +331,8 @@ void() misc_explobox2 =
 //MED 11/09/96 added lava ball and rocket
 void() spikeshooter_use =
 {
-    local entity newmis;
-    local entity lavaball;
+    entity newmis;
+    entity lavaball;
 
     if(mapname == "e2m3" || // VR: There is a bug in e2m3 where spikeshoorters
                             // have spawn flags '256', which is invalid in Q1
@@ -564,7 +564,7 @@ void() air_bubbles =
 
 void() make_bubbles =
 {
-    local entity bubble;
+    entity bubble;
 
     bubble = spawn();
 
@@ -596,7 +596,7 @@ void() make_bubbles =
 
 void() bubble_split =
 {
-    local entity    bubble;
+    entity    bubble;
 
     bubble = spawn();
 
@@ -640,8 +640,8 @@ void() bubble_remove =
 
 void() bubble_bob =
 {
-    local float rnd1, rnd2, rnd3;
-    local float        maxz, minz;
+    float rnd1, rnd2, rnd3;
+    float        maxz, minz;
 
     // ROGUE
     // PGM fix - 02/25/97 so bubbles won't go through walls

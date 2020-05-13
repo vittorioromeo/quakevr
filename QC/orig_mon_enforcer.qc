@@ -40,7 +40,7 @@ $frame paind17 paind18 paind19
 
 void() Laser_Touch =
 {
-    local vector org;
+    vector org;
 
     if(other == self.owner)
         return;        // don't explode on owner
@@ -76,7 +76,7 @@ void() Laser_Touch =
 
 entity(vector org, vector vec) LaunchLaser =
 {
-    local entity newmis;
+    entity newmis;
 
     if(self.classname == "monster_enforcer")
         sound(self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
@@ -117,7 +117,7 @@ entity(vector org, vector vec) LaunchLaser =
 
 void() enforcer_fire =
 {
-    local vector org;
+    vector org;
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     makevectors(self.angles);
@@ -228,7 +228,7 @@ void()    enf_paind19    =[    $paind19,    enf_run1    ] {};
 
 void(entity attacker, float damage)    enf_pain =
 {
-    local float r;
+    float r;
 
     r = random();
     if(self.pain_finished > time)
@@ -266,7 +266,7 @@ void(entity attacker, float damage)    enf_pain =
 
 void() EnforcerDrop =
 {
-    local entity entPlayer;
+    entity entPlayer;
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;

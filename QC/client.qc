@@ -302,8 +302,8 @@ Returns the entity to view from
 */
 entity() FindIntermission =
 {
-    local    entity spot;
-    local    float cyc;
+    entity spot;
+    float cyc;
 
 // look for info_intermission first
     spot = find(world, classname, "info_intermission");
@@ -567,7 +567,7 @@ void() changelevel_touch =
     if(other.classname != "player")
         return;
 
-    local float noexit;
+    float noexit;
     noexit = cvar_hget(cvarh_noexit);
 
     if((noexit == 1) || ((noexit == 2) && (mapname != "start")))
@@ -675,7 +675,7 @@ void() ClientKill =
     if((intermission_running)&&((coop)||(deathmatch)))  // not allowed during intermission
         return;
 
-    local entity vSphere;
+    entity vSphere;
 
     // ZOID--
     if(self.suicide_count > 3)
@@ -732,13 +732,13 @@ Returns the entity to spawn at
 */
 entity() SelectSpawnPoint =
 {
-    local entity spot;
-    local entity thing;
-    local float  pcount;
+    entity spot;
+    entity thing;
+    float  pcount;
 
     //ZOID--
-    local entity startspot;
-    local float  t;
+    entity startspot;
+    float  t;
     //--ZOID
 
 
@@ -863,7 +863,7 @@ called each time a player is spawned
 */
 void() PutClientInServer =
 {
-    local entity spot;
+    entity spot;
 
     self.classname = "player";
     self.health = 100;
@@ -997,7 +997,7 @@ void() PutClientInServer =
 
 void() SpawnAllAmmoBoxWeapons =
 {
-    local entity e;
+    entity e;
     for(e = nextent(world); e != world; e = nextent(e))
     {
         if(IsAmmoBox(e))
@@ -1067,7 +1067,7 @@ go to the next level for deathmatch
 */
 void() NextLevel =
 {
-    local entity o;
+    entity o;
 
     if(mapname == "start")
     {
@@ -1132,8 +1132,8 @@ Exit deathmatch games upon conditions
 */
 void() CheckRules =
 {
-    local    float        timelimit;
-    local    float        fraglimit;
+    float        timelimit;
+    float        fraglimit;
 
     if(gameover)    // someone else quit the game already
         return;
@@ -1163,7 +1163,7 @@ void() CheckRules =
 
 void() PlayerDeathThink =
 {
-    local float forward;
+    float forward;
 
     if((self.flags & FL_ONGROUND))
     {
@@ -1330,7 +1330,7 @@ void() WaterMove =
 
 void() CheckWaterJump =
 {
-    local vector start, end;
+    vector start, end;
 
 // check for a jump-out-of-water
     makevectors(self.angles);
@@ -1982,8 +1982,8 @@ called when a player dies
 */
 void(entity targ, entity attacker) ClientObituary =
 {
-    local float rnum;
-    local string deathstring, deathstring2;
+    float rnum;
+    string deathstring, deathstring2;
     rnum = random();
 
     if(targ.classname == "player")
@@ -2529,7 +2529,7 @@ void(float xHand, float xInMelee, float xHandVelMag,
      float* xOutMeleeAttackFinished, float* xOutInMelee, float* xMeleeHitSoundPlayed)
      PlayerVRMeleeImpl =
 {
-    local float vr_melee_threshold;
+    float vr_melee_threshold;
     vr_melee_threshold = cvar_hget(cvarh_vr_melee_threshold);
 
     if(cvar_hget(cvarh_vr_enabled) == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold)
@@ -2551,7 +2551,7 @@ void(float xHand, float xInMelee, float xHandVelMag,
 
 void() PlayerVRMeleeHeadbutt =
 {
-    local float headvelLen;
+    float headvelLen;
     headvelLen = vlen(self.headvel);
 
     if(headvelLen >= cvar_hget(cvarh_vr_headbutt_velocity_threshold))
@@ -2572,15 +2572,15 @@ void() PlayerVRMeleeHeadbutt =
     {
         self.in_headbutt = FALSE;
 
-        local float xdmg;
+        float xdmg;
         xdmg = (
             vlen(self.headbutt_max_vec) / cvar_hget(cvarh_vr_headbutt_velocity_threshold)
             ) * cvar_hget(cvarh_vr_headbutt_damage_mult);
 
-        local vector dir;
+        vector dir;
         dir = normalize(self.headbutt_max_vec);
 
-        local vector adjOrigin;
+        vector adjOrigin;
         adjOrigin = self.origin + '0 0 25';
 
         traceline(adjOrigin, adjOrigin + dir * VRMeleeRange(26), FALSE, self);

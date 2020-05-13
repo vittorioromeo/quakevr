@@ -1,6 +1,6 @@
 void() ogre_start =
 {
-    local entity n;
+    entity n;
 
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && self.cnt != 0)
     {
@@ -104,7 +104,7 @@ void() ogre_spawncrown =
 
 void() ogre_crown_die =
 {
-    local entity tf;
+    entity tf;
     tf = self.trigger_field;
 
     if(tf == world)

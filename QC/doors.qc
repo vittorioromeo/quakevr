@@ -68,7 +68,7 @@ void() door_hit_bottom =
 
 void() door_go_down =
 {
-    local float speed2; // HONEY
+    float speed2; // HONEY
 
     sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
     if(self.max_health)
@@ -116,8 +116,8 @@ ACTIVATION FUNCTIONS
 
 void() door_fire =
 {
-    local entity     oself;
-    local entity    starte;
+    entity     oself;
+    entity    starte;
 
     if(self.owner != self)
         objerror ("door_fire: self.owner != self");
@@ -178,7 +178,7 @@ void() door_fire =
 
 void() door_use =
 {
-    local entity oself;
+    entity oself;
 
     self.message = "";            // door message are for touch only
     self.owner.message = "";
@@ -209,7 +209,7 @@ void() door_trigger_touch =
 
 void() door_killed =
 {
-    local entity oself;
+    entity oself;
 
     oself = self;
     self = self.owner;
@@ -314,8 +314,8 @@ SPAWNING FUNCTIONS
 
 entity(vector fmins, vector fmaxs) spawn_field =
 {
-    local entity    trigger;
-    local    vector    t1, t2;
+    entity    trigger;
+    vector    t1, t2;
 
     trigger = spawn();
     trigger.movetype = MOVETYPE_NONE;
@@ -367,8 +367,8 @@ cg: self.owner always is the master door and self.enemy is always the next door 
 */
 void() LinkDoors =
 {
-    local entity    t, starte;
-    local vector    cmins, cmaxs;
+    entity    t, starte;
+    vector    cmins, cmaxs;
 
     if(self.enemy)
         return;        // already linked by another door
@@ -582,7 +582,7 @@ void() func_door =
     self.pos1 = self.origin;
 
     // PGM fix for cameron's door problem - 02/19/97
-    local vector tempVect;
+    vector tempVect;
     tempVect = self.movedir;
 
     if(tempVect_x < 0)
@@ -659,7 +659,7 @@ float SECRET_YES_SHOOT = 16;    // shootable even if targeted
 
 void () fd_secret_use =
 {
-    local float temp;
+    float temp;
 
     self.health = 10000;
 

@@ -100,7 +100,7 @@ void(entity h, vector startPos, vector endPos) GrappleTrail =
 
 void() GrappleResetFromHook =
 {
-    local float xHand;
+    float xHand;
     xHand = self.handParm;
 
     setOwnerOnHook(xHand, FALSE);
@@ -123,8 +123,8 @@ void(float xHand) GrappleResetFromPlayer =
 
 void() GrappleTrack =
 {
-    local vector spray;
-    local float xHand;
+    vector spray;
+    float xHand;
 
     xHand = self.handParm;
 
@@ -175,7 +175,7 @@ void() GrappleTrack =
 // Tries to anchor the grapple to whatever it touches
 void () GrappleAnchor =
 {
-    local float xHand;
+    float xHand;
 
     xHand = self.handParm;
 
@@ -240,7 +240,7 @@ void () GrappleAnchor =
 
 void (float xHand) W_FireGrapple =
 {
-    local entity newmis;
+    entity newmis;
 
     if(getHookOut(xHand))// reject subsequent calls from player.qc
         return;
@@ -284,9 +284,9 @@ void (float xHand) W_FireGrapple =
 // called each frame by CLIENT.QC if client has hook_out
 void(float xHand) GrappleService =
 {
-    local vector vel, hookfwd;
-    local float  v, dot;
-    local entity xHook;
+    vector vel, hookfwd;
+    float  v, dot;
+    entity xHook;
 
     xHook = getHook(xHand);
 

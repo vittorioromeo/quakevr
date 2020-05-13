@@ -7,10 +7,10 @@
 
 void() clock_setpos =
    {
-   local float pos;
-   local float ang;
-   local float seconds;
-   local string temp;
+   float pos;
+   float ang;
+   float seconds;
+   string temp;
 
    // How much time has elapsed.
    seconds = time + self.cnt;
@@ -67,7 +67,7 @@ Set the angle to be the direction the clock is facing.
 
 void() func_clock =
     {
-   local vector temp;
+   vector temp;
 
    self.classname = "clock";
    self.think = clock_firstthink;

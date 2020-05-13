@@ -38,8 +38,8 @@ Returns FALSE if movement should continue
 */
 float() LavaManCheckAttack =
 {
-    local vector spot1;
-    local entity targ;
+    vector spot1;
+    entity targ;
 
     ai_face();
 
@@ -68,8 +68,8 @@ float() LavaManCheckAttack =
 // ============
 void() lavaman_hunt =
 {
-    local entity    possibleEnemy;
-    local vector    viewPoint;
+    entity    possibleEnemy;
+    vector    viewPoint;
 
 // go for another player if multi player
     if(self.enemy.health <= 0)
@@ -303,7 +303,7 @@ void() lavaman_death10 = [$death9, lavaman_death10]
 
 void() lavaman_touch =
 {
-    local float    damg;
+    float    damg;
 
     if(other == self.owner)
         return;        // don't explode on owner
@@ -341,9 +341,9 @@ void() lavaman_touch =
 
 void(float AttackNumber) lavaman_missile =
 {
-    local entity fireball;
-    local vector org, vec, d;
-    local float  t;
+    entity fireball;
+    vector org, vec, d;
+    float  t;
 
     makevectors(self.angles);
 

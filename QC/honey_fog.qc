@@ -214,7 +214,7 @@ float foggroup_current;
 
 void() fogcontroller_linkgroups =
 {
-    local entity    t, starte;
+    entity    t, starte;
 
     self.think = SUB_Null;
     if(self.oldenemy)
@@ -260,7 +260,7 @@ void() fogcontroller_linkgroups =
 
 float (entity o) trigger_touching =
 {
-    local vector o_maxs, o_mins;
+    vector o_maxs, o_mins;
     o_maxs = o.maxs + o.origin;
     o_mins = o.mins + o.origin;
 
@@ -281,8 +281,8 @@ float (entity o) trigger_touching =
 
 float (entity o) trigger_touching_group =
 {
-    local entity starte, oself;
-    local float touching;
+    entity starte, oself;
+    float touching;
     touching = FALSE;
 
     if(!self.owner) return trigger_touching(o); // Not in a group

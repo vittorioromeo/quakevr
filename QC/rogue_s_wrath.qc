@@ -41,8 +41,8 @@ $frame s_wtdt16 s_wtdt17
 
 float(entity thePoint) isSpawnPointEmpty =
 {
-    local entity    neighbors;
-    local entity    start;
+    entity    neighbors;
+    entity    start;
 
     neighbors = findradius (thePoint.origin, 64);
     if(neighbors == world)
@@ -76,14 +76,14 @@ float(entity thePoint) isSpawnPointEmpty =
 
 entity() overlord_find_dest3 =
 {
-    local entity    furthestDest;
-    local entity    bestDest;
-    local entity    curDest;
-    local entity    thePlayer;
-    local float     theDist;
-    local float     curDist;
-    local float     dot;
-    local vector    curVector;
+    entity    furthestDest;
+    entity    bestDest;
+    entity    curDest;
+    entity    thePlayer;
+    float     theDist;
+    float     curDist;
+    float     dot;
+    vector    curVector;
 
     furthestDest = world;
     bestDest = world;
@@ -134,8 +134,8 @@ entity() overlord_find_dest3 =
 
 entity() overlord_find_dest =
 {
-    local entity    curDest, lastDest;
-    local float     loopCount;
+    entity    curDest, lastDest;
+    float     loopCount;
 
     curDest = find(world, classname, "info_overlord_destination");
     if(curDest != world)
@@ -169,9 +169,9 @@ entity() overlord_find_dest =
 
 void() overlord_teleport =
 {
-    local float     chance;
-    local entity    theDest;
-    local vector    org;
+    float     chance;
+    entity    theDest;
+    vector    org;
 
     if(!(self.spawnflags & 2))
         return;
@@ -282,8 +282,8 @@ void()    overlord_at_c14 =[    $s_wtac14,    overlord_run01 ] { ai_charge(12);}
 
 void() overlord_smash =
 {
-    local vector    delta;
-    local float        smashDmg;
+    vector    delta;
+    float        smashDmg;
 
     if(!self.enemy)
         return;
@@ -307,7 +307,7 @@ void() overlord_smash =
 
 void() overlord_melee =
 {
-    local float r;
+    float r;
 
     r = random();
 
@@ -345,7 +345,7 @@ void() overlord_msl_a12 =[ $s_wtba12, overlord_run01 ] {overlord_teleport();};
 
 void() overlord_missile =
 {
-    local float r;
+    float r;
     r = random();
 
     overlord_msl_a01();
@@ -373,7 +373,7 @@ void()    overlord_pn_b07    =[    $s_wtpb07,    overlord_run01  ] {};
 
 void(entity attacker, float damage) overlord_pain =
 {
-    local float r;
+    float r;
 
     if(self.pain_finished > time)
         return;
@@ -394,8 +394,8 @@ void(entity attacker, float damage) overlord_pain =
 
 void(string gibName) ol_toss =
 {
-    local vector flingVelocity;
-    local entity myGib;
+    vector flingVelocity;
+    entity myGib;
 
     makevectors(self.angles);
     flingVelocity = v_forward*250 + v_up*300;
@@ -445,7 +445,7 @@ void()    overlord_die17 =[ $s_wtdt16, overlord_die18 ]
 };
 void()    overlord_die18 =[ $s_wtdt17, overlord_die19 ]
 {
-    local float counter;
+    float counter;
 
     counter = 2;
 
@@ -468,7 +468,7 @@ void()    overlord_die18 =[ $s_wtdt17, overlord_die19 ]
 };
 void() overlord_die19 = [ $s_wtdt17, overlord_die19 ]
 {
-    local float counter;
+    float counter;
 
     counter = 2;
 

@@ -16,7 +16,7 @@ void() ltrail_chain =
 
 void() ltrail_fire =
 {
-    local entity myTarget;
+    entity myTarget;
 
     if(self.classname != "ltrail_end")
     {

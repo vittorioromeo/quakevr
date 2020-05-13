@@ -61,8 +61,8 @@ float(float key) CL_KeyState =
 
 void() CL_KeyMove = // CL_BaseMove + CL_AdjustAngles
 {
-    local float anglespeed;
-    local vector view;
+    float anglespeed;
+    vector view;
     if(self.keys != self.oldkeys)
     {
         self.movevect = '0 0 0';
@@ -135,8 +135,8 @@ Stuff mimicking sv_user.c
 */
 void() SV_UserFriction =
 {
-    local vector vel, start, stop;
-    local float sped, friction, newspeed;
+    vector vel, start, stop;
+    float sped, friction, newspeed;
 
       vel = self.velocity;
     vel_z =0;
@@ -184,7 +184,7 @@ void() SV_WaterJump =
 
 void() DropPunchAngle =
 {
-    local float len;
+    float len;
     len = vlen(self.punchangle);
     self.punchangle = normalize(self.punchangle);
     len = len - 10 * real_frametime;
@@ -196,7 +196,7 @@ void() DropPunchAngle =
 
 void(vector wishvel) SV_AirAccelerate =
 {
-    local float addspeed, wishspd, accelspeed, currentspeed;
+    float addspeed, wishspd, accelspeed, currentspeed;
 
     wishspd = vlen(wishvel);
     wishvel = normalize(wishvel);
@@ -215,7 +215,7 @@ void(vector wishvel) SV_AirAccelerate =
 
 void(vector wishvel) SV_Accelerate =
 {
-    local float addspeed, wishspd, accelspeed, currentspeed;
+    float addspeed, wishspd, accelspeed, currentspeed;
 
     wishspd = vlen(wishvel);
     wishvel = normalize(wishvel);
@@ -232,11 +232,11 @@ void(vector wishvel) SV_Accelerate =
 };
 void() SV_WaterMove =
 {
-    local float max_speed;
+    float max_speed;
     max_speed = sv_maxspeed * 1.0;
 
-    local vector wishvel;
-    local float wishspeed, addspeed, cspeed, newspeed;
+    vector wishvel;
+    float wishspeed, addspeed, cspeed, newspeed;
 
     makevectors(self.v_angle);
     wishvel = v_right * self.movevect_y + v_forward * self.movevect_x;
@@ -278,10 +278,10 @@ void() SV_WaterMove =
 };
 void() SV_AirMove =
 {
-    local float max_speed;
+    float max_speed;
     max_speed = sv_maxspeed * 1.0;
 
-    local vector wishvel, vangle;
+    vector wishvel, vangle;
 
     vangle = self.v_angle;
     vangle_x = vangle_z = 0;
@@ -310,7 +310,7 @@ void() SV_AirMove =
 
 void() SV_ClientThink =
 {
-    local vector vangle;
+    vector vangle;
 
     if(self.movetype == MOVETYPE_NONE)
         return;
@@ -352,7 +352,7 @@ Stuff mimicking sv_phys.c
 
 float() SV_RunThink  =
 {
-    local float thinktime, bkuptime;
+    float thinktime, bkuptime;
     thinktime = self.nextthink;
     bkuptime = time;
     if(thinktime <= 0 || thinktime > (time + real_frametime))
@@ -375,8 +375,8 @@ void(float scale) SV_AddGravity =
 
 float() SV_CheckWater =
 {
-    local vector point;
-    local float cont;
+    vector point;
+    float cont;
 
     point_x = self.origin_x;
     point_y = self.origin_y;
@@ -404,7 +404,7 @@ float() SV_CheckWater =
 };
 void() RemoveThud = // well sometimes
 {
-    local entity oself;
+    entity oself;
     if(other == world)
     {
         if(self.flags & FL_ONGROUND)
@@ -435,9 +435,9 @@ void() RemoveThud = // well sometimes
 };
 void() SV_CheckOnGround =
 {
-    local vector org, v;
+    vector org, v;
     org = self.origin;
-    local float currentflags;
+    float currentflags;
     currentflags = self.flags;
     self.flags = self.flags | FL_ONGROUND | FL_PARTIALGROUND;
     walkmove(0,0); // perform C touch function
@@ -466,8 +466,8 @@ void() SV_CheckOnGround =
 // modified heavily by me
 float(vector dir) botCheckForStep =
 {
-    local vector currentorigin, v;
-    local float currentflags, yaw, stepdistance, movedistance;
+    vector currentorigin, v;
+    float currentflags, yaw, stepdistance, movedistance;
     currentorigin = self.origin;
     currentflags = self.flags;
     self.flags = FL_ONGROUND | FL_PARTIALGROUND;
@@ -501,8 +501,8 @@ float(vector dir) botCheckForStep =
 // this is merely here to fix a problem with e3m5
 void(vector dir) BruteForceStep =
 {
-    local vector currentorigin;
-    local float currentflags, i, len;
+    vector currentorigin;
+    float currentflags, i, len;
 
     currentorigin = self.origin;
     currentflags = self.flags;
@@ -526,8 +526,8 @@ void(vector dir) BruteForceStep =
 
 void() PostPhysics =
 {
-    local vector obstr, org;
-    local float back, dst,cflags;
+    vector obstr, org;
+    float back, dst,cflags;
 
     self = self.owner;
 

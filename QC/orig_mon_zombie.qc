@@ -200,8 +200,8 @@ ZombieFireGrenade
 */
 void(vector st) ZombieFireGrenade =
 {
-    local    entity missile;
-    local    vector    org;
+    entity missile;
+    vector    org;
 
     sound(self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
 
@@ -280,7 +280,7 @@ void() zombie_attc12    =[    $attc12,    zombie_run1        ] {ai_face();Zombie
 
 void() zombie_missile =
 {
-    local float    r;
+    float    r;
 
     droptofloor();
     r = random();
@@ -484,7 +484,7 @@ FIXME: don't use pain_finished because of nightmare hack
 */
 void(entity attacker, float take) zombie_pain =
 {
-    local float r;
+    float r;
 
     self.health = 60;        // allways reset health
 

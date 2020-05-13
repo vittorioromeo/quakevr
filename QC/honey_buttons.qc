@@ -27,7 +27,7 @@ void(entity but) button_enable =
 
 void() trigger_buttonenabler_enable =
 {
-    local entity butt;
+    entity butt;
 
     if(self.spawnflags & START_DISABLED){
         self.spawnflags = self.spawnflags - START_DISABLED;
@@ -42,7 +42,7 @@ void() trigger_buttonenabler_enable =
 
 void() trigger_buttonenabler_disable =
 {
-    local entity butt;
+    entity butt;
 
     if((self.spawnflags & START_DISABLED) == 0){
         self.spawnflags = self.spawnflags | START_DISABLED;

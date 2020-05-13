@@ -155,7 +155,7 @@ void()    knight_painb11    =[    $painb11,    knight_run1    ] {};
 
 void(entity attacker, float damage)    knight_pain =
 {
-    local float r;
+    float r;
 
     if(self.pain_finished > time)
         return;

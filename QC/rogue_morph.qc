@@ -104,9 +104,9 @@ void() morph_run11 =[ $mfrun11, morph_run1 ] { ai_run(11);};
 // ========================
 void() morph_stab2 =
 {
-    local float        dist;
-    local float        attackDamage;
-    local vector    org, dir;
+    float        dist;
+    float        attackDamage;
+    vector    org, dir;
 
     if(!self.enemy)
         return;
@@ -182,8 +182,8 @@ void() morph_bigattack17 = [ $mfatc01, morph_run1        ] { ai_face(); };
 
 void() morph_smack =
 {
-    local vector    delta;
-    local float     ldmg;
+    vector    delta;
+    float     ldmg;
 
     if(!self.enemy)
         return;
@@ -219,7 +219,7 @@ void() morph_knockback12 = [ $mfknck12, morph_run1        ] { ai_face(); };
 
 void() morph_attack =
 {
-    local float     attackChoice;
+    float     attackChoice;
 
     attackChoice = random();
 
@@ -236,7 +236,7 @@ void() morph_attack =
 // ========================
 void() morph_fire =
 {
-    local vector org, dir;
+    vector org, dir;
 
     ai_face();
 
@@ -293,7 +293,7 @@ void() morph_painB7 = [ $mfpbin07, morph_run1 ] {morph_teleport();};
 
 void(entity attacker, float damage) morph_pain =
 {
-    local float painChoice;
+    float painChoice;
 
     if(skill == 3)
     {
@@ -493,8 +493,8 @@ void() morph_use =
 
 void() morph_teleport =
 {
-    local entity theDest;
-    local entity theChild;
+    entity theDest;
+    entity theChild;
 
     if(self.owner)
         return;

@@ -171,7 +171,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) TeamHealthDa
 
 void(entity who) TeamResetCarrier =
 {
-    local entity head;
+    entity head;
 
     // When the flag carrier dies, reset the last_hurt_carrier field in
     // all players on the opposite team from the flag carrier.  The carrier
@@ -194,10 +194,10 @@ void(entity who) TeamResetCarrier =
 
 void(entity targ, entity attacker) TeamAssists =
 {
-    local float flag_radius;
-    local float flag_carrier_radius;
-    local string s;
-    local entity head;
+    float flag_radius;
+    float flag_carrier_radius;
+    string s;
+    entity head;
 
     if((targ.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2)) &&
         targ.steam != attacker.steam) {
@@ -408,13 +408,13 @@ Check if the team self is on is legal, and put self in a legal team if not.
 */
 void() TeamCheckTeam =
 {
-    local float team1count;
-    local float team2count;
-    local float team3count;
-    local float newcolor;
-    local float t;
-    local entity p;
-    local string n;
+    float team1count;
+    float team2count;
+    float team3count;
+    float newcolor;
+    float t;
+    entity p;
+    string n;
 
     if(self.steam >= 0 || teamplay < TEAM_CTF) {
         if(TeamColorIsLegal(self.team)) {
@@ -477,8 +477,8 @@ void() TeamCheckTeam =
 /* Check for team changing and perform whatever actions are neccessary.  */
 void() TeamCheckLock =
 {
-    local   float   n;
-    local   string  s;
+    float   n;
+    string  s;
 
     if(!deathmatch || teamplay < TEAM_CTF) {
         // all colors are legal, no force
@@ -554,7 +554,7 @@ and any weapons you don't have.
 */
 void() TossBackpack =
 {
-    local entity     item;
+    entity     item;
 
     // If we don't have any ammo, return
     if(self.currentammo <= 0)
@@ -748,8 +748,8 @@ void() Team_weapon_touch =
     // TODO VR: (P2) rewrite for VR
     /*
 
-    local    float    hadammo, best, new, old;
-    local entity stemp;
+    float    hadammo, best, new, old;
+    entity stemp;
 
     if(!(other.flags & FL_CLIENT))
         return;
@@ -814,7 +814,7 @@ void() TossWeapon =
 
     /*
 
-    local entity item;
+    entity item;
 
     if(deathmatch != 1)
         return;  // only in deathmatch 1
@@ -916,7 +916,7 @@ void(entity flg) RegenFlag =
 
 void(entity flg) TeamReturnFlag =
 {
-    local entity p;
+    entity p;
 
     RegenFlag(flg);
 
@@ -945,7 +945,7 @@ void(entity flg) TeamReturnFlag =
 
 void () TeamRegenFlags =
 {
-    local entity f;
+    entity f;
 
     if(teamplay == TEAM_CTF_ONEFLAG) {
         f = find(world, classname, "item_flag");
@@ -964,7 +964,7 @@ void () TeamRegenFlags =
 
 void(entity flg) TeamDropFlag =
 {
-    local entity p;
+    entity p;
     p = flg.owner;
 
     bprint(p.netname);
@@ -993,8 +993,8 @@ void(entity flg) TeamDropFlag =
 
 void(entity player) TeamDropFlagOfPlayer =
 {
-    local string kn;
-    local entity e;
+    string kn;
+    entity e;
 
     if(teamplay == TEAM_CTF_ONEFLAG && (player.ctf_flags & CTF_FLAG_FLAG))
         kn = "item_flag";
@@ -1018,7 +1018,7 @@ void(entity player) TeamDropFlagOfPlayer =
 // flagbase to score
 void() TeamFlagTouch =
 {
-    local entity p;
+    entity p;
 
     if(other.classname != "player")
         return;
@@ -1223,7 +1223,7 @@ void() TeamFlagTouch =
 // ignored
 void() TeamFlagBaseTouch =
 {
-    local entity p, f;
+    entity p, f;
 
     if(other.classname != "player")
         return;
@@ -1333,9 +1333,9 @@ void() TeamFlagBaseTouch =
 
 void() TeamFlagThink =
 {
-    local entity e;
-    local vector v;
-    local float f;
+    entity e;
+    vector v;
+    float f;
 
     self.nextthink = time + 0.1;
 
@@ -1403,8 +1403,8 @@ void() TeamFlagThink =
 
 void() TeamFlagStatusReport =
 {
-    local entity flag1, flag2, p;
-    local string n;
+    entity flag1, flag2, p;
+    string n;
 
     if(!deathmatch)
         return;
@@ -1575,7 +1575,7 @@ void() place_flag = {
 
 void(entity flg, string cname) place_flagbase =
 {
-    local entity oself;
+    entity oself;
 
     teamplay = cvar_hget(cvarh_teamplay);
 
@@ -1758,10 +1758,10 @@ void() TeamSetUpdate =
 
 void() TeamCheckUpdate =
 {
-    local float total1, total2, total3;
-    local entity p;
-    local string s;
-    local string ts1, ts2, ts3;
+    float total1, total2, total3;
+    entity p;
+    string s;
+    string ts1, ts2, ts3;
 
     if(nextteamupdtime > time || teamplay < 1 || !deathmatch)
         return;

@@ -18,7 +18,7 @@ void() buzzsaw_stand1 = [ $buzzsaw, buzzsaw_stand1 ]
 
 void() buzzsaw_fly =
 {
-    local vector     dir;
+    vector     dir;
 
     if(self.pain_finished < time)
     {
@@ -47,7 +47,7 @@ void() buzzsaw_fly1 = [ $bzzrot01, buzzsaw_fly1 ] { buzzsaw_fly(); };
 
 void() buzzsaw_touch =
 {
-    local vector sprayDir;
+    vector sprayDir;
 
     if(other.classname == "player" || other.flags & FL_MONSTER)
     {

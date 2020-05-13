@@ -7,7 +7,7 @@
 
 void() bobbingwater_think =
    {
-   local vector ang;
+   vector ang;
 
    self.count = self.count + self.speed * (time - self.ltime);
    if(self.count > 360)

@@ -48,7 +48,7 @@ monster_check_remove_corpse
 */
 void() monster_check_remove_corpse =
 {
-    local entity player;
+    entity player;
 
     if(!(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
 

@@ -216,11 +216,11 @@ HIPNOTIC HAZARDS
 
 void() spikemine_Home =
    {
-   local entity head;
-   local entity selected;
-   local float cur_dist;
-   local float head_dist;
-   local vector dir, vtemp;
+   entity head;
+   entity selected;
+   float cur_dist;
+   float head_dist;
+   vector dir, vtemp;
 
    self.frame = self.frame + 1;
    if(self.frame==9) self.frame = 0;
@@ -398,10 +398,10 @@ void() SpawnLightningThink =
 
 void() trap_lightning_use =
    {
-   local vector p1, p2;
-   local vector dir;
-   local float dst;
-   local float remainder;
+   vector p1, p2;
+   vector dir;
+   float dst;
+   float remainder;
 
    if(time >= self.pausetime)
       {
@@ -441,7 +441,7 @@ void() trap_lightning_use =
       }
    if(self.duration > 0.1)
       {
-      local entity temp;
+      entity temp;
 
       temp = self;
       self = spawn();
@@ -473,7 +473,7 @@ void() trap_lightning_use =
 
 void() lightning_think =
    {
-   local float timedelay;
+   float timedelay;
 
    if(self.state)
       {
@@ -511,7 +511,7 @@ void() lightning_think =
 
 void() lightning_firstthink =
    {
-   local entity targ;
+   entity targ;
    if(self.target != NULLSTR)
       {
       targ = find(world,targetname,self.target);
@@ -661,7 +661,7 @@ void() TeslaLightningThink =
 
 void(entity targ) SpawnTeslaLightning =
    {
-   local entity lgt;
+   entity lgt;
    // spawn actual lightning
    lgt = spawn();
    if(self.duration>0)
@@ -823,9 +823,9 @@ void() trap_gravity_touch =
 
 void() trap_gravity_think =
    {
-   local vector vel;
-   local vector dir;
-   local vector delta;
+   vector vel;
+   vector dir;
+   vector delta;
 
    self.ltime = time;
    trap_tesla_scan();

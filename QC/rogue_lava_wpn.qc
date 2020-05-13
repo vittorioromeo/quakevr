@@ -9,7 +9,7 @@ Used for both the player and the ogre
 */
 entity(vector org, vector dir) launch_lava_spike =
 {
-    local entity newmis;
+    entity newmis;
 
     newmis = spawn();
     newmis.owner = self;
@@ -38,8 +38,8 @@ entity(vector org, vector dir) launch_lava_spike =
 
 void(float xHand) W_FireSuperLavaSpikes =
 {
-    local vector dir;
-    local entity newmis;
+    vector dir;
+    entity newmis;
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
@@ -63,8 +63,8 @@ void(float xHand) W_FireSuperLavaSpikes =
 
 void(float xHand, float ox) W_FireLavaSpikes =
 {
-    local vector dir;
-    local entity newmis;
+    vector dir;
+    entity newmis;
 
     makevectors(VRGetWeaponFireRot(xHand));
 
@@ -97,9 +97,9 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
 void() lavaspike_touch =
 {
-    // local float old_armortype;
-    // local float old_armorvalue;
-    // local float old_armormask;
+    // float old_armortype;
+    // float old_armorvalue;
+    // float old_armormask;
 
     if(other == self.owner)
         return;
@@ -167,8 +167,8 @@ void() lavaspike_touch =
 
 void() superlavaspike_touch =
 {
-    local float old_armortype;
-    //local float old_armorvalue;
+    float old_armortype;
+    //float old_armorvalue;
 
     if(other == self.owner)
         return;

@@ -37,9 +37,9 @@ returns 1 if the entity is visible to self's bounding box, even if not infront (
 
 float (entity client, vector spot2) bbox_visible =
 {
-    local vector spot1, bboxspot;
-    local float res;
-    local float bbox_scale = 1.25;
+    vector spot1, bboxspot;
+    float res;
+    float bbox_scale = 1.25;
 
 //    dprint_str_v_str("player is at ",spot2, "\n");
 
@@ -80,8 +80,8 @@ float (entity client, vector spot2) bbox_visible =
 
 float(vector targ) infront_v =
 {
-    local vector vec;
-    local float  dot;
+    vector vec;
+    float  dot;
 
     makevectors(self.angles);
     vec = normalize(targ - self.origin);
@@ -104,9 +104,9 @@ returns 1 if the entity is in front (in sight) of self and in line of sight
 */
 float(entity src, entity targ) canSee =
 {
-    local float	res;
+    float	res;
 
-    local entity oself;
+    entity oself;
     oself = self;
     res = FALSE;
     self = src;

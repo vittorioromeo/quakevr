@@ -27,7 +27,7 @@ void() play_sound_use =
 
 void() PlaySoundThink =
    {
-   local float t;
+   float t;
    t = self.wait * random();
    if(t < self.delay)
       t = self.delay;
@@ -78,7 +78,7 @@ play a sound on a periodic basis
 */
 void() play_sound =
    {
-   local float t;
+   float t;
 
    play_sound_triggered();
    if(self.wait == 0)
@@ -237,13 +237,13 @@ camera think function
 /*
 void() camerathink =
    {
-   local entity   pl;
-   local vector   d_diff;
-   local vector   a_diff;
-   local vector   p;
-   local vector   a;
-   local float    dist;
-   local float    timeelapsed;
+   entity   pl;
+   vector   d_diff;
+   vector   a_diff;
+   vector   p;
+   vector   a;
+   float    dist;
+   float    timeelapsed;
 
    timeelapsed = (time - self.cnt) * self.duration;
    if(timeelapsed > 1)
@@ -271,9 +271,9 @@ camera chase function
 /*
 void() camerachase =
    {
-   local float    timeelapsed;
-   local vector v;
-   local vector a;
+   float    timeelapsed;
+   vector v;
+   vector a;
 
 
    timeelapsed = time - self.cnt;
@@ -321,8 +321,8 @@ camera follow function
 /*
 void() camerafollow =
    {
-   local vector v;
-   local vector a;
+   vector v;
+   vector a;
 
    v = normalize(self.movetarget.origin - self.origin);
    a = self.angles;
@@ -347,7 +347,7 @@ a camera has reached a path trigger
 /*
 void() t_cameratarget =
 {
-local entity    temp;
+entity    temp;
 
     if(other.movetarget != self)
         return;
@@ -364,9 +364,9 @@ local entity    temp;
       }
    else
       {
-      local vector   d_diff;
-      local vector   a_diff;
-      local float    t;
+      vector   d_diff;
+      vector   a_diff;
+      float    t;
 
       self.think = camerathink;
       self.duration = 1 / other.duration;
@@ -434,7 +434,7 @@ void(entity me, entity camera) UpdateCamera =
 
 void() effect_finale_use =
 {
-   local entity   pos, pl, targ;
+   entity   pos, pl, targ;
 
    if(self.state == 1)
       return;

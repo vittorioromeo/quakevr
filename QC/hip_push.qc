@@ -7,9 +7,9 @@
 
 void() push_use =
     {
-    local vector delta;
-    local float x;
-    local float y;
+    vector delta;
+    float x;
+    float y;
 
 //    walkmove(other.angles_y, 16 * frametime);
 /*
@@ -78,8 +78,8 @@ Pushable walls.
 
 void() func_pushable =
     {
-    local entity new;
-    local vector newsize;
+    entity new;
+    vector newsize;
 
     self.mangle = self.angles;
     self.angles = '0 0 0';

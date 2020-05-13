@@ -129,7 +129,7 @@ is gone too.
 
 void(entity ent) target_drop =
 {
-    local float tg;
+    float tg;
 
     tg = target_onstack(ent);
 
@@ -363,8 +363,8 @@ based b_aiflags.
 
 void() bot_handle_ai =
 {
-    local entity newt;
-    local vector v;
+    entity newt;
+    vector v;
 
     // handle ai flags -- note, not all aiflags are handled
     // here, just those that perform some sort of action
@@ -536,7 +536,7 @@ confused
 
 void() bot_path =
 {
-    local entity jj, tele;
+    entity jj, tele;
 
     bot_check_lost(self.target1);
 
@@ -665,7 +665,7 @@ float(entity thing) priority_for_thing =
         bprint(")\n");
     }
 
-    local float thisp, isThrownWeapon;
+    float thisp, isThrownWeapon;
     thisp = 0;
     isThrownWeapon = 0;
     // This is the most executed function in the bot. Careful what you do here.
@@ -815,7 +815,7 @@ float(entity thing) priority_for_thing =
 
 void(float scope) bot_look_for_crap =
 {
-    local float radius;
+    float radius;
 
     if(scope == 1)
     {
@@ -835,8 +835,8 @@ void(float scope) bot_look_for_crap =
         bprint("]\n");
     }
 
-    local entity foe, best;
-    local float thatp, bestp, dist;
+    entity foe, best;
+    float thatp, bestp, dist;
 
     foe = findradius(self.origin, radius);
 

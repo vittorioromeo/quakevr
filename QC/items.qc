@@ -117,7 +117,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
 
 void(entity ent) SpawnAmmoBoxWeapons =
 {
-    local entity entPlayer;
+    entity entPlayer;
 
     entPlayer = find(world, classname, "player");
 
@@ -140,7 +140,7 @@ plants the object on the floor
 */
 void() PlaceItem =
 {
-    local float oldz;
+    float oldz;
 
     self.mdl = self.model;        // so it can be restored on respawn
     self.flags = FL_ITEM;        // make extra wide
@@ -148,7 +148,7 @@ void() PlaceItem =
     self.movetype = MOVETYPE_TOSS;
     self.velocity = '0 0 0';
 
-    local float enableHoneyExtensions;
+    float enableHoneyExtensions;
     enableHoneyExtensions = VR_GameUtil_EnableHoneyExtensions();
 
     // HONEY
@@ -306,7 +306,7 @@ void() item_health =
 
 void() health_touch =
 {
-    local    string    s;
+    string    s;
 
     if(self.healtype == 2) // Megahealth?  Ignore max_health...
     {
@@ -373,7 +373,7 @@ ARMOR
 
 void() armor_touch =
 {
-    local float type, value, itemId;
+    float type, value, itemId;
 
     if(self.classname == "item_armor1")
     {
@@ -530,11 +530,11 @@ weapon_touch
 */
 void() weapon_touch =
 {
-    local float  hadammo;
-    local entity stemp;
-    local float  leave;
+    float  hadammo;
+    entity stemp;
+    float  leave;
 
-    local float touchinghandIsBody;
+    float touchinghandIsBody;
 
     // True if `other` has "VR body interactions" enabled.
     touchinghandIsBody = VRIsTouchingHandFake(other);
@@ -566,7 +566,7 @@ void() weapon_touch =
     else
         leave = 0;
 
-    local float weaponId;
+    float weaponId;
     weaponId = WeaponClassNameToWeaponId(self.classname);
 
     if(weaponId == WID_FIST)
@@ -579,7 +579,7 @@ void() weapon_touch =
         return;
     }
 
-    local float ammoId;
+    float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
     hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
@@ -632,7 +632,7 @@ void() weapon_touch =
     }
     else
     {
-        local float touchinghand;
+        float touchinghand;
         touchinghand = VRGetTouchingHand(other);
 
         if(!VRIsHandEmpty(other, touchinghand))
@@ -758,7 +758,7 @@ AMMO
 
 void() ammo_touch =
 {
-    local entity stemp;
+    entity stemp;
 
     // shotgun
     if(self.weapon == 1)
@@ -1408,8 +1408,8 @@ PLAYER BACKPACKS
 
 void() BackpackTouch =
 {
-    local string s;
-    local float acount;
+    string s;
+    float acount;
 
     if(other.classname != "player")
     {
@@ -1533,7 +1533,7 @@ DropBackpack
 */
 void() DropBackpack =
 {
-    local entity    item;
+    entity    item;
 
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
     + self.ammo_lava_nails + self.ammo_multi_rockets + self.ammo_plasma))

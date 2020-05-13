@@ -110,7 +110,7 @@ void() ambient_teleport =
 
 void() ambient_secret_think =
 {
-    local float rnd, rnd2;
+    float rnd, rnd2;
 
     rnd = random();
     rnd2 = 0.5 + 0.5 * random();

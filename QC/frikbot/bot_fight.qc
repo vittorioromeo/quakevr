@@ -51,7 +51,7 @@ float(entity e, float wid) ent_is_holding =
 
 float(entity e) bot_size_player =
 {
-    local float sz;
+    float sz;
 
     sz = e.health + e.armorvalue * e.armortype;
 
@@ -86,9 +86,9 @@ float(entity e) bot_size_player =
 
 void() bot_dodge_stuff =
 {
-    local entity foe;
-    local float avdist, foesz, flen, tsz;
-    local vector v;
+    entity foe;
+    float avdist, foesz, flen, tsz;
+    vector v;
 
     if(waypoint_mode > WM_LOADED)
         return;
@@ -258,8 +258,8 @@ Pick a weapon based on range / ammo
 
 float(float brange) bot_pick_weapon =
 {
-    local float wid;
-    local vector v;
+    float wid;
+    vector v;
 
     if( (VR_WeaponUtil_EntHasWeapon(self, WID_ROCKET_LAUNCHER)) &&
         (VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_ROCKETS) >= 1))
@@ -383,7 +383,7 @@ void() bot_setvrfields =
 void() bot_shoot =
 {
     // quick little function to stop making him shoot the wrong way ! Argh
-    local float g;
+    float g;
 
     g = angcomp(self.v_angle_x, self.b_angle_x);
     if(fabs(g) > 30)
@@ -410,8 +410,8 @@ attacking an enemy.
 
 void() bot_fight_style =
 {
-    local vector v1, v2;
-    local float mysz, foesz;
+    vector v1, v2;
+    float mysz, foesz;
 
     if(self.enemy.health <= 0)
     {

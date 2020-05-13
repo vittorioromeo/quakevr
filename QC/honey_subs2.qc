@@ -39,7 +39,7 @@ float (float from, float to, float fraction) tween_f =
 
 vector (vector from, vector to, float fraction) tween_v =
 {
-    local vector res;
+    vector res;
 
     res_x = tween_f(from_x, to_x, fraction);
     res_y = tween_f(from_y, to_y, fraction);
@@ -60,7 +60,7 @@ float (float from, float to, float fraction) tween_f_sq =
 
 vector (vector from, vector to, float fraction) tween_v_sq =
 {
-    local vector res;
+    vector res;
 
     res_x = tween_f_sq(from_x, to_x, fraction);
     res_y = tween_f_sq(from_y, to_y, fraction);
@@ -323,8 +323,8 @@ rotates a point around origin.
 */
 vector(vector point, vector toAngles) SUB_RotatePoint =
 {
-    local vector ang, noZ;
-    local float oldZ;
+    vector ang, noZ;
+    float oldZ;
 
     dprint_str_v_str("rotating point ", point, " around angles");
     dprint_str_v_str(" ", toAngles, "\n");
@@ -362,7 +362,7 @@ void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTi
 
 void(entity ent, vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotateEnt =
 {
-local entity    stemp;
+entity    stemp;
     stemp = self;
     self = ent;
 
@@ -372,7 +372,7 @@ local entity    stemp;
 
 void(entity ent, vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTimeEnt =
 {
-local entity    stemp;
+entity    stemp;
     stemp = self;
     self = ent;
 
@@ -382,8 +382,8 @@ local entity    stemp;
 
 void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate =
 {
-    local vector    vdestdelta, adestdelta;
-    local float        len, traveltime;
+    vector    vdestdelta, adestdelta;
+    float        len, traveltime;
 
     if(!tspeed)
         objerror("No speed is defined!");
@@ -447,8 +447,8 @@ void(vector tdest, float tspeed, vector tangle, void() func) SUB_CalcMoveRotate 
 
 void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTime =
 {
-    local vector    vdestdelta, adestdelta;
-    local float        len, travelspeed;
+    vector    vdestdelta, adestdelta;
+    float        len, travelspeed;
 
     if(!ttime)
         objerror("No time is defined!");
@@ -505,8 +505,8 @@ void(vector tdest, float ttime, vector tangle, void() func) SUB_CalcMoveRotateTi
 
 void(vector tdest, float ttime, void() func) SUB_CalcMoveTime =
 {
-    local vector    vdestdelta;
-    local float        len, travelspeed;
+    vector    vdestdelta;
+    float        len, travelspeed;
 
     if(!ttime)
         objerror("No time is defined!");
@@ -582,7 +582,7 @@ void() SUB_CalcMoveSplineDone_norotate;
 
 void(vector tdest, vector tangle, float ttime, float cpOffset, vector aOffset, void() func) SUB_CalcMoveSpline =
 {
-    local vector tmp, a;
+    vector tmp, a;
 
     if(!cpOffset) cpOffset = 128;
 
@@ -627,7 +627,7 @@ void(vector tdest, vector tangle, float ttime, float cpOffset, vector aOffset, v
 void(vector tdest, vector tangle, float ttime, float cpOffset, void() func) SUB_CalcMoveSpline_norotate =
 {
     // .oldorigin is used as angles
-    local vector tmp, a;
+    vector tmp, a;
 
     if(!cpOffset) cpOffset = 128;
 
@@ -721,7 +721,7 @@ void() SUB_CalcMoveSplineTick_norotate =
 
 void() SUB_CalcMoveSplineDone =
 {
-    local void() doIt; //Amazed that this actually works...
+    void() doIt; //Amazed that this actually works...
     setorigin(self, self.s_p3);
     self.velocity = '0 0 0';
     self.angles = self.s_finalangle;
@@ -737,7 +737,7 @@ void() SUB_CalcMoveSplineDone =
 
 void() SUB_CalcMoveSplineDone_norotate =
 {
-    local void() doIt; //Amazed that this actually works...
+    void() doIt; //Amazed that this actually works...
     setorigin(self, self.s_p3);
     self.velocity = '0 0 0';
     self.oldorigin = self.s_finalangle;
@@ -881,7 +881,7 @@ void(void() func, float later) SUB_DoLaterSelf =
 
 float sin_tbl (float v) =
 {
-    local float r;
+    float r;
     v = mod(v, 20);
 //*
          if(v <=    1) r =  0;
@@ -934,7 +934,7 @@ float sin_tbl (float v) =
 
 float sin_interpolate (float v) =
 {
-    local float y1, y2, frac;
+    float y1, y2, frac;
 
     y1 = sin_tbl(v);
     y2 = sin_tbl(v+1);

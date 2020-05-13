@@ -34,7 +34,7 @@ void() button_done =
 
 void() button_return =
 {
-    local vector porg;
+    vector porg;
 
     porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
     porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
@@ -58,7 +58,7 @@ void() button_blocked =
 
 void() button_fire =
 {
-    local vector porg;
+    vector porg;
 
     if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
     {
