@@ -125,7 +125,7 @@ void() trigger_earthquake =
     self.delay = 1;
     self.touch = earthquake_touch;
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
     {
         self.use = rogue_earthquake_use;
         self.delay = 0;

@@ -1349,7 +1349,7 @@ int NUM_FOR_EDICT(edict_t* e)
 
     if(b < 0 || b >= sv.num_edicts)
     {
-         Host_Error("NUM_FOR_EDICT: bad pointer");
+        Host_Error("NUM_FOR_EDICT: bad pointer");
     }
     return b;
 }

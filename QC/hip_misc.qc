@@ -201,7 +201,7 @@ void() ambient_riftpower =
 
 void() info_command =
    {
-   if(self.message)
+   if(self.message != NULLSTR)
       localcmd(self.message);
    };
 

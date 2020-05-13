@@ -331,14 +331,14 @@ void() monster_sknight =
 
     self.solid = SOLID_SLIDEBOX;
 
-    if(self.targetname){
-
+    if(self.targetname != NULLSTR)
+    {
         total_monsters = total_monsters + 1;
-
         self.movetype = MOVETYPE_STEP;
-
         self.use = flymonster_start;
-    }else{
+    }
+    else
+    {
         flymonster_start();
     }
 

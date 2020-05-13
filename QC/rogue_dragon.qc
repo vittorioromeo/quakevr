@@ -715,7 +715,7 @@ void() dragon_activate =
         dprint("\n");
     }
 
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         self.movetarget = find(world, targetname, self.target);
         self.goalentity = self.movetarget;
@@ -727,7 +727,7 @@ void() dragon_activate =
         }
     }
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
         self.use = dragon_use;
     else
         dragon_use();

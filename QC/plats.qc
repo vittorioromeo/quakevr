@@ -194,7 +194,7 @@ void() func_plat =
 
     plat_spawn_inside_trigger();    // the "start moving" trigger
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
     {
         self.state = STATE_UP;
         self.use = plat_use;

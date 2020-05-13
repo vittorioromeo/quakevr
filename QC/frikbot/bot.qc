@@ -745,11 +745,8 @@ BotInit
 
 void() BotInit =
 {
-    local entity ent, fisent;
-    local float numents;
-
     // spawn entities for the physics
-    ent = nextent(world);
+    entity ent = nextent(world);
     max_clients = 0;
 
     while(ent != world)
@@ -764,8 +761,9 @@ void() BotInit =
     }
 
     ent = nextent(world);
-    fisent = world;
+    entity fisent = world;
 
+    local float numents = 0;
     while (numents < max_clients)
     {
         phys_head = spawn();

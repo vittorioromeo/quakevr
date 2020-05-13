@@ -149,20 +149,22 @@ manuever around.
 void(vector whichway, float danger) frik_obstructed =
 {
     local float dist;
-    local vector disway, org;
+    local vector disway;
 // TODO: something
+
     if(self.b_aiflags & AI_BLIND)
         return;
-    org = realorigin(self.target1);
+
+    vector org = realorigin(self.target1);
 
     if(danger)
     {
         self.b_aiflags = self.b_aiflags | AI_DANGER;
         self.keys = frik_KeysForDir('0 0 0' - whichway);
     }
+
     if(self.b_aiflags & AI_PRECISION)
         return;
-
 
     if(self.target1)
     {

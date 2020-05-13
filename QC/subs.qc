@@ -255,7 +255,7 @@ void() SUB_UseTargets =
 //
 // kill the killtagets
 //
-    if(self.killtarget)
+    if(self.killtarget != NULLSTR)
     {
         t = find(world, targetname, self.killtarget);
         while(t)
@@ -286,7 +286,7 @@ void() SUB_UseTargets =
 //
 // fire targets
 //
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         act = activator;
         t = world;

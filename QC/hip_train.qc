@@ -64,7 +64,7 @@ void() HIP_train_next =
         self.think = HIP_train_next;
         }
 
-   if(self.goalentity.event)
+   if(self.goalentity.event != NULLSTR)
       {
       // Trigger any events that should happen at the corner.
       temp = self.target;

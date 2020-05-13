@@ -131,15 +131,13 @@ float() GremlinAttemptWeaponSteal =
     victimWeapons[6] = victim.weapon;
     victimWeapons[7] = victim.weapon2;
 
-    local float tries;
-    local float idx;
-
+    float idx = -1;
     best = WID_FIST;
-    for(tries = 0; tries < 15; ++tries)
+    for(float tries = 0; tries < 15; ++tries)
     {
         idx = ceil(random() * 7.1);
 
-        if(idx < 0)       { idx = 0; }
+        if(idx < 0)      { idx = 0; }
         else if(idx > 7) { idx = 7; }
 
         if(victimWeapons[idx] == WID_FIST)
@@ -166,12 +164,12 @@ float() GremlinAttemptWeaponSteal =
     local float hotspot;
     hotspot = -1;
 
-    if(idx == 0)      { hotspot = QVR_HS_LEFT_SHOULDER_HOLSTER; }
-    else if(idx == 1) { hotspot = QVR_HS_RIGHT_SHOULDER_HOLSTER; }
-    else if(idx == 2) { hotspot = QVR_HS_LEFT_HIP_HOLSTER; }
-    else if(idx == 3) { hotspot = QVR_HS_RIGHT_HIP_HOLSTER; }
-    else if(idx == 4) { hotspot = QVR_HS_LEFT_UPPER_HOLSTER; }
-    else if(idx == 5) { hotspot = QVR_HS_RIGHT_UPPER_HOLSTER; }
+    if(idx == 0)           { hotspot = QVR_HS_LEFT_SHOULDER_HOLSTER; }
+    else if(idx == 1)      { hotspot = QVR_HS_RIGHT_SHOULDER_HOLSTER; }
+    else if(idx == 2)      { hotspot = QVR_HS_LEFT_HIP_HOLSTER; }
+    else if(idx == 3)      { hotspot = QVR_HS_RIGHT_HIP_HOLSTER; }
+    else if(idx == 4)      { hotspot = QVR_HS_LEFT_UPPER_HOLSTER; }
+    else { ASSERT(idx == 5); hotspot = QVR_HS_RIGHT_UPPER_HOLSTER; }
 
     local entity tmpSelf;
 
@@ -189,8 +187,8 @@ float() GremlinAttemptWeaponSteal =
 
         local float hand;
 
-        if(idx == 6)      { hand = cVR_MainHand; }
-        else if(idx == 7) { hand = cVR_OffHand; }
+        if(idx == 6) { hand = cVR_MainHand; }
+        else { ASSERT(idx == 7); hand = cVR_OffHand; }
 
         VRSetHandEmpty(victim, hand);
 
@@ -1717,86 +1715,90 @@ void(entity targ, entity inflictor, entity attacker, float damage) Gremlin_Damag
 
 void() Gremlin_Split =
 {
-    local entity grem;
-    local entity temp;
-    local entity head;
-    local float done;
-    local vector ang;
-    local float c;
-    local vector pos;
-    local float proceed;
 
-   if(NumSpawnGremlins >= (NumGremlins*2))
-      return;
+    if(NumSpawnGremlins >= (NumGremlins * 2))
+        return;
 
-   done = 0;
-   c = 0;
-   ang = self.angles;
-   while(done == 0)
-      {
-      makevectors(ang);
-      pos = self.origin + (80 * v_forward);
-      head = findradius(pos, 35);
-      proceed = 1;
-      while(head)
-         {
-         if((head.health > 0) && (head.flags & (FL_MONSTER | FL_CLIENT)))
-            proceed = 0;
-         head = head.chain;
-         }
-      traceline(self.origin,pos,FALSE,self);
-      if(trace_fraction == 1 && (proceed == 1))
-         {
-         traceline(self.origin,(pos-'40 40 0'),FALSE,self);
-         if(trace_fraction == 1)
-            {
-            traceline(self.origin,(pos+'40 40 0'),FALSE,self);
+    float done = 0;
+    float c = 0;
+    vector ang = self.angles;
+    vector pos = self.origin + (80 * v_forward);
+    while(done == 0)
+    {
+        makevectors(ang);
+        pos = self.origin + (80 * v_forward);
+        entity head = findradius(pos, 35);
+        float proceed = 1;
+        while(head)
+        {
+            if((head.health > 0) && (head.flags & (FL_MONSTER | FL_CLIENT)))
+                proceed = 0;
+            head = head.chain;
+        }
+        traceline(self.origin, pos, FALSE, self);
+        if(trace_fraction == 1 && (proceed == 1))
+        {
+            traceline(self.origin, (pos - '40 40 0'), FALSE, self);
             if(trace_fraction == 1)
-               {
-               traceline(self.origin,(pos + '0 0 64'),FALSE,self);
-               if(trace_fraction == 1)
-                  {
-                  traceline(self.origin,(pos - '0 0 64'),FALSE,self);
-                  if(trace_fraction != 1)
-                     {
-                     done = 1;
-                     }
-                  }
-               }
-            }
-         }
-      if(done == 0)
-         {
-         ang_y = ang_y + 36;
-         c = c + 1;
-         if(c==10)
             {
-            return;
+                traceline(self.origin, (pos + '40 40 0'), FALSE, self);
+                if(trace_fraction == 1)
+                {
+                    traceline(self.origin, (pos + '0 0 64'), FALSE, self);
+                    if(trace_fraction == 1)
+                    {
+                        traceline(self.origin, (pos - '0 0 64'), FALSE, self);
+                        if(trace_fraction != 1)
+                        {
+                            done = 1;
+                        }
+                    }
+                }
             }
-         }
-      }
+        }
+        if(done == 0)
+        {
+            ang_y = ang_y + 36;
+            c = c + 1;
+            if(c == 10)
+            {
+                return;
+            }
+        }
+    }
+
     NumSpawnGremlins = NumSpawnGremlins + 1;
-    grem = spawn();
-    SUB_CopyEntity(self,grem);
+
+    entity grem = spawn();
+
+    SUB_CopyEntity(self, grem);
+
     grem.solid = SOLID_SLIDEBOX;
     grem.movetype = MOVETYPE_STEP;
+
     setmodel(grem, "progs/grem.mdl");
     setsize(grem, '-12 -12 -18', '12 12 18');
-    if(self.health < 100) self.health = 100;
+
+    if(self.health < 100)
+        self.health = 100;
+
     grem.health = self.health / 2;
     self.health = self.health / 2;
-    // grem.max_health = 101;
-    // grem.gorging = FALSE;
     grem.stoleweapon = FALSE;
+
     VR_ItemUtil_EntClearItems(grem);
     total_monsters = total_monsters + 1;
+
     WriteByte(MSG_BROADCAST, SVC_UPDATESTAT);
     WriteByte(MSG_BROADCAST, STAT_TOTALMONSTERS);
-    WriteLong (MSG_BROADCAST, total_monsters);
+    WriteLong(MSG_BROADCAST, total_monsters);
     setorigin(grem, pos);
-    temp = self;
+
+    entity temp = self;
     self = grem;
+
     gremlin_spawn1();
+
     self.enemy = world;
     self.gorging = FALSE;
     self = temp;

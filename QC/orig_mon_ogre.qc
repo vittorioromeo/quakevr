@@ -126,8 +126,10 @@ void() OgreFireGrenade =
             speeeed = 700;
             zmul = 0.545;
         }
-        else if(enemy_range == RANGE_FAR)
+        else
         {
+            ASSERT(enemy_range == RANGE_FAR);
+
             speeeed = 1050;
             zmul = 0.38;
         }

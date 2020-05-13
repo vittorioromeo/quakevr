@@ -203,7 +203,7 @@ void() trigger_setgravity =
 
 void() trigger_command_use =
    {
-   if(self.message)
+   if(self.message != NULLSTR)
       localcmd(self.message);
    };
 

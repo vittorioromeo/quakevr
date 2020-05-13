@@ -412,7 +412,7 @@ void() trap_lightning_use =
       if(self.classname == "trap_lightning_triggered")
          self.pausetime = time + 0.1;
       }
-   if(self.target)
+   if(self.target != NULLSTR)
       {
       p1 = self.origin;
       p2 = self.enemy.origin;
@@ -512,7 +512,7 @@ void() lightning_think =
 void() lightning_firstthink =
    {
    local entity targ;
-   if(self.target)
+   if(self.target != NULLSTR)
       {
       targ = find(world,targetname,self.target);
       self.dest = targ.origin;
@@ -593,37 +593,40 @@ void() trap_lightning_switched =
 entity tesla_target;
 float tesla_numtargets;
 void() trap_tesla_scan =
-   {
-   local entity head;
-   local entity prev;
+{
+    entity prev = world;
 
-// look in our immediate vicinity
+    // look in our immediate vicinity
 
-   tesla_numtargets = 0;
-   head = findradius(self.origin, self.distance);
-   while(head)
-      {
-      if(!(head.flags & FL_NOTARGET) && (head.flags & self.cnt))
-         {
-         if(visible(head) && (head.health > 0) && (head.struck_by_mjolnir==0))
+    tesla_numtargets = 0;
+    entity head = findradius(self.origin, self.distance);
+
+    while(head)
+    {
+        if(!(head.flags & FL_NOTARGET) && (head.flags & self.cnt))
+        {
+            if(visible(head) && (head.health > 0) &&
+                (head.struck_by_mjolnir == 0))
             {
-            if(tesla_numtargets == 0)
-               {
-               tesla_target = head;
-               }
-            else
-               {
-               prev.next_ent = head;
-               }
-            tesla_numtargets = tesla_numtargets + 1;
-            prev = head;
-            if(tesla_numtargets==self.count)
-               return;
+                if(tesla_numtargets == 0)
+                {
+                    tesla_target = head;
+                }
+                else
+                {
+                    ASSERT(prev != world);
+                    prev.next_ent = head;
+                }
+
+                tesla_numtargets = tesla_numtargets + 1;
+                prev = head;
+                if(tesla_numtargets == self.count) return;
             }
-         }
-      head = head.chain;
-      }
-   };
+        }
+
+        head = head.chain;
+    }
+};
 
 void() TeslaLightningThink =
    {

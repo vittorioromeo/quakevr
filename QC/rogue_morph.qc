@@ -565,7 +565,7 @@ void() monster_morph =
     // HONEY
     monster_add_to_counter();
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
     {
         self.use = morph_use;
     }

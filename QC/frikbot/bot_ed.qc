@@ -68,120 +68,120 @@ void() SaveWays;
 /*
 // source for the menu strings...
 
-\b-- Main Menu --\b\n
-\[\1\] >>Waypoint Management\n
-\[\2\] >>Link Management    \n
-\[\3\] >>AI Flag Management \n
-\[\4\] >>Bot Management     \n
-\[\5\] >>Waylist Management \n
-\[\6\] \[\{133}\] Noclip           \n
-\[\7\] \[\{133}\] Godmode          \n
-\[\8\] \[\{133}\] Hold Select      \n
-\[\9\] Teleport to Way #    \n
+|-- Main Menu --|\n
+(1) >>Waypoint Management\n
+(2) >>Link Management    \n
+(3) >>AI Flag Management \n
+(4) >>Bot Management     \n
+(5) >>Waylist Management \n
+(6) ** Noclip           \n
+(7) ** Godmode          \n
+(8) ** Hold Select      \n
+(9) Teleport to Way #    \n
 \[\0\] Close Menu           \n
 
 // missing from main is show way info
 // iffy on the teleport to way thing being on main...seems like either a bot or way list thing
 
-\b-- Waypoint Management --\b\n
-\[\1\] Move Waypoint        \n
-\[\2\] Delete Waypoint      \n
-\[\3\] Make Waypoint        \n
-\[\4\] Make Way + Link      \n
-\[\5\] Make Way + Link X2   \n
-\[\6\] Make Way + Telelink  \n
-\[\7\] Show waypoint info   \n
-\[\8\] >>Link Management    \n
-\[\9\] >>AI Flag Management \n
+|-- Waypoint Management --|\n
+(1) Move Waypoint        \n
+(2) Delete Waypoint      \n
+(3) Make Waypoint        \n
+(4) Make Way + Link      \n
+(5) Make Way + Link X2   \n
+(6) Make Way + Telelink  \n
+(7) Show waypoint info   \n
+(8) >>Link Management    \n
+(9) >>AI Flag Management \n
 \[\0\] >>Main Menu          \n
 
-\b-- Link Management --\b\n
-\[\1\] Unlink Waypoint      \n
-\[\2\] Create Link          \n
-\[\3\] Create Telelink      \n
-\[\4\] Delete Link          \n
-\[\5\] Create Link X2       \n
-\[\6\] Delete Link X2       \n
-\[\7\] >Make Waypoint       \n
-\[\8\] >>Waypoint Management\n
-\[\9\] >>AI Flag Management \n
+|-- Link Management --|\n
+(1) Unlink Waypoint      \n
+(2) Create Link          \n
+(3) Create Telelink      \n
+(4) Delete Link          \n
+(5) Create Link X2       \n
+(6) Delete Link X2       \n
+(7) >Make Waypoint       \n
+(8) >>Waypoint Management\n
+(9) >>AI Flag Management \n
 \[\0\] >>Main Menu          \n
 
 // Ai flags...ugh
 
-\b-- AI Flag Management --\b\n
-\[\1\] \[\{133}\] Door Flag        \n
-\[\2\] \[\{133}\] Precision        \n
-\[\3\] \[\{133}\] Surface for air  \n
-\[\4\] \[\{133}\] Blind mode       \n
-\[\5\] \[\{133}\] Jump             \n
-\[\6\] \[\{133}\] Directional      \n
-\[\7\] \[\{133}\] Super Jump       \n
+|-- AI Flag Management --|\n
+(1) ** Door Flag        \n
+(2) ** Precision        \n
+(3) ** Surface for air  \n
+(4) ** Blind mode       \n
+(5) ** Jump             \n
+(6) ** Directional      \n
+(7) ** Super Jump       \n
 \n
-\[\9\] >>AI Flags page 2    \n
+(9) >>AI Flags page 2    \n
 \[\0\] >>Main Menu          \n
 
-\b-- AI Flags pg. 2--\b\n
-\[\1\] \[\{133}\] Difficult        \n
-\[\2\] \[\{133}\] Wait for plat    \n
-\[\3\] \[\{133}\] Ride train       \n
-\[\4\] \[\{133}\] Door flag no open\n
-\[\5\] \[\{133}\] Ambush           \n
-\[\6\] \[\{133}\] Snipe            \n
-\[\7\] \[\{133}\] Trace Test       \n
+|-- AI Flags pg. 2--|\n
+(1) ** Difficult        \n
+(2) ** Wait for plat    \n
+(3) ** Ride train       \n
+(4) ** Door flag no open\n
+(5) ** Ambush           \n
+(6) ** Snipe            \n
+(7) ** Trace Test       \n
 \n
-\[\9\] >>AI Flag Management \n
+(9) >>AI Flag Management \n
 \[\0\] >>Main Menu          \n
 
-\b-- Bot Management --\b\n
-\[\1\] Add a Test Bot       \n
-\[\2\] Order Test Bot here  \n
-\[\3\] Remove Test Bot      \n
-\[\4\] Stop Test Bot        \n
-\[\5\] Teleport Bot here    \n
-\[\6\] Teleport to Way #    \n
+|-- Bot Management --|\n
+(1) Add a Test Bot       \n
+(2) Order Test Bot here  \n
+(3) Remove Test Bot      \n
+(4) Stop Test Bot        \n
+(5) Teleport Bot here    \n
+(6) Teleport to Way #    \n
 \n
 \n
 \n
 \[\0\] >>Main Menu          \n
 
-\b-- Waylist Management --\b\n
-\[\1\] Delete ALL Waypoints \n
-\[\2\] Dump Waypoints       \n
-\[\3\] Check For Errors     \n
-\[\4\] Save Waypoints       \n
-\[\5\] \[\{133}\] Dynamic Mode     \n
-\[\6\] \[\{133}\] Dynamic Link     \n
-\[\7\] \[\{133}\] WAY output       \n
-\[\8\] \[\{133}\] QC output        \n
-\[\9\] \[\{133}\] BSP ents output  \n
+|-- Waylist Management --|\n
+(1) Delete ALL Waypoints \n
+(2) Dump Waypoints       \n
+(3) Check For Errors     \n
+(4) Save Waypoints       \n
+(5) ** Dynamic Mode     \n
+(6) ** Dynamic Link     \n
+(7) ** WAY output       \n
+(8) ** QC output        \n
+(9) ** BSP ents output  \n
 \[\0\] Main Menu            \n
 
-\b-- Misc Commands --\b\n
-\[\1\] Teleport to Selected \n
-\[\2\] Select               \n
-\[\3\] Swap to old          \n
-\[\4\] Trace select         \n
-\[\5\] Create way in path   \n
-\[\6\] Delete Way from path \n
+|-- Misc Commands --|\n
+(1) Teleport to Selected \n
+(2) Select               \n
+(3) Swap to old          \n
+(4) Trace select         \n
+(5) Create way in path   \n
+(6) Delete Way from path \n
 
 
-\b-- Editor Memory --\b\n
-\[\1\] Store as slot 1      \n
-\[\2\] Store as slot 2      \n
-\[\3\] Store as slot 3      \n
-\[\4\] Store as slot 4      \n
-\[\5\] Recall slot 1        \n
-\[\6\] Recall slot 2        \n
-\[\7\] Recall slot 3        \n
-\[\8\] Recall slot 4        \n
+|-- Editor Memory --|\n
+(1) Store as slot 1      \n
+(2) Store as slot 2      \n
+(3) Store as slot 3      \n
+(4) Store as slot 4      \n
+(5) Recall slot 1        \n
+(6) Recall slot 2        \n
+(7) Recall slot 3        \n
+(8) Recall slot 4        \n
 
 */
 
 void() bot_menu_display =
 {
 // build options
-    local string s1, s2, s3, s4, s5, s6, s7, h;
+    local string h;
     local entity t;
 
 // check impulses
@@ -872,153 +872,161 @@ void() bot_menu_display =
     }
     if(self.b_menu_time <= time)
     {
+        string s1 = "";
+        string s2 = "";
+        string s3 = "";
+        string s4 = "";
+        string s5 = "";
+        string s6 = "";
+        string s7 = "";
+
         if(self.b_menu == MENU_MAIN)
         {
-            s1 = "\b-- Main Menu --\b\n\[\1\] >>Waypoint Management\n\[\2\] >>Link Management    \n\[\3\] >>AI Flag Management \n\[\4\] >>Bot Management     \n\[\5\] >>Waylist Management \n";
+            s1 = "|-- Main Menu --|\n(1) >>Waypoint Management\n(2) >>Link Management    \n(3) >>AI Flag Management \n(4) >>Bot Management     \n(5) >>Waylist Management \n";
             if(self.movetype == MOVETYPE_NOCLIP)
-                s2 = "\[\6\] \[\{133}\] Noclip           \n";
+                s2 = "(6) ** Noclip           \n";
             else
-                s2 = "\[\6\] \[ \] Noclip           \n";
+                s2 = "(6) -- Noclip           \n";
 
             if(self.flags & FL_GODMODE)
-                s3 = "\[\7\] \[\{133}\] Godmode          \n";
+                s3 = "(7) ** Godmode          \n";
             else
-                s3 = "\[\7\] \[ \] Godmode          \n";
+                s3 = "(7) -- Godmode          \n";
             if(self.b_aiflags & AI_HOLD_SELECT)
-                s4 = "\[\8\] \[\{133}\] Hold Select      \n";
+                s4 = "(8) ** Hold Select      \n";
             else
-                s4 = "\[\8\] \[ \] Hold Select      \n";
-            s5 = "\[\9\] Teleport to Way #    \n\[\0\] Close Menu           \n";
+                s4 = "(8) -- Hold Select      \n";
+            s5 = "(9) Teleport to Way #    \n\[\0\] Close Menu           \n";
         }
         else if(self.b_menu == MENU_WAYPOINTS)
         {
-            s1 = "\b-- Waypoint Management --\b\n\[\1\] Move Waypoint        \n\[\2\] Delete Waypoint      \n\[\3\] Make Waypoint        \n\[\4\] Make Way + Link      \n\[\5\] Make Way + Link X2   \n\[\6\] Make Way + Telelink  \n\[\7\] Show waypoint info   \n\[\8\] >>Link Management    \n\[\9\] >>AI Flag Management \n\[\0\] >>Main Menu          \n";
+            s1 = "|-- Waypoint Management --|\n(1) Move Waypoint        \n(2) Delete Waypoint      \n(3) Make Waypoint        \n(4) Make Way + Link      \n(5) Make Way + Link X2   \n(6) Make Way + Telelink  \n(7) Show waypoint info   \n(8) >>Link Management    \n(9) >>AI Flag Management \n\[\0\] >>Main Menu          \n";
         }
         else if(self.b_menu == MENU_LINKS)
         {
-            s1 = "\b-- Link Management --\b\n\[\1\] Unlink Waypoint      \n\[\2\] Create Link          \n\[\3\] Create Telelink      \n\[\4\] Delete Link          \n\[\5\] Create Link X2       \n\[\6\] Delete Link X2       \n\[\7\] >Make Waypoint       \n\[\8\] >>Waypoint Management\n\[\9\] >>AI Flag Management \n\[\0\] >>Main Menu          \n";
+            s1 = "|-- Link Management --|\n(1) Unlink Waypoint      \n(2) Create Link          \n(3) Create Telelink      \n(4) Delete Link          \n(5) Create Link X2       \n(6) Delete Link X2       \n(7) >Make Waypoint       \n(8) >>Waypoint Management\n(9) >>AI Flag Management \n\[\0\] >>Main Menu          \n";
         }
         else if(self.b_menu == MENU_FLAGS)
         {
             if(self.current_way.b_aiflags & AI_DOORFLAG)
-                s1 = "\b-- AI Flag Management --\b\n\[\1\] \[\{133}\] Door Flag        \n";
+                s1 = "|-- AI Flag Management --|\n(1) ** Door Flag        \n";
             else
-                s1 = "\b-- AI Flag Management --\b\n\[\1\] \[ \] Door Flag        \n";
+                s1 = "|-- AI Flag Management --|\n(1) -- Door Flag        \n";
 
             if(self.current_way.b_aiflags & AI_PRECISION)
-                s2 = "\[\2\] \[\{133}\] Precision        \n";
+                s2 = "(2) ** Precision        \n";
             else
-                s2 = "\[\2\] \[ \] Precision        \n";
+                s2 = "(2) -- Precision        \n";
 
             if(self.current_way.b_aiflags & AI_SURFACE)
-                s3 = "\[\3\] \[\{133}\] Surface for air  \n";
+                s3 = "(3) ** Surface for air  \n";
             else
-                s3 = "\[\3\] \[ \] Surface for air  \n";
+                s3 = "(3) -- Surface for air  \n";
 
             if(self.current_way.b_aiflags & AI_BLIND)
-                s4 = "\[\4\] \[\{133}\] Blind mode       \n";
+                s4 = "(4) ** Blind mode       \n";
             else
-                s4 = "\[\4\] \[ \] Blind mode       \n";
+                s4 = "(4) -- Blind mode       \n";
 
             if(self.current_way.b_aiflags & AI_JUMP)
-                s5 = "\[\5\] \[\{133}\] Jump             \n";
+                s5 = "(5) ** Jump             \n";
             else
-                s5 = "\[\5\] \[ \] Jump             \n";
+                s5 = "(5) -- Jump             \n";
 
             if(self.current_way.b_aiflags & AI_DIRECTIONAL)
-                s6 = "\[\6\] \[\{133}\] Directional      \n";
+                s6 = "(6) ** Directional      \n";
             else
-                s6 = "\[\6\] \[ \] Directional      \n";
+                s6 = "(6) -- Directional      \n";
 
             if(self.current_way.b_aiflags & AI_SUPER_JUMP)
-                s7 = "\[\7\] \[\{133}\] Super Jump       \n\n\[\9\] >>AI Flags page 2    \n\[\0\] >>Main Menu          \n";
+                s7 = "(7) ** Super Jump       \n\n(9) >>AI Flags page 2    \n\[\0\] >>Main Menu          \n";
             else
-                s7 = "\[\7\] \[ \] Super Jump       \n\n\[\9\] >>AI Flags page 2    \n\[\0\] >>Main Menu          \n";
+                s7 = "(7) -- Super Jump       \n\n(9) >>AI Flags page 2    \n\[\0\] >>Main Menu          \n";
         }
         else if(self.b_menu == MENU_FLAGS2)
         {
             if(self.current_way.b_aiflags & AI_DIFFICULT)
-                s1 = "\b-- AI Flags pg. 2--\b\n\[\1\] \[\{133}\] Difficult        \n";
+                s1 = "|-- AI Flags pg. 2--|\n(1) ** Difficult        \n";
             else
-                s1 = "\b-- AI Flags pg. 2--\b\n\[\1\] \[ \] Difficult        \n";
+                s1 = "|-- AI Flags pg. 2--|\n(1) -- Difficult        \n";
 
             if(self.current_way.b_aiflags & AI_PLAT_BOTTOM)
-                s2 = "\[\2\] \[\{133}\] Wait for plat    \n";
+                s2 = "(2) ** Wait for plat    \n";
             else
-                s2 = "\[\2\] \[ \] Wait for plat    \n";
+                s2 = "(2) -- Wait for plat    \n";
 
             if(self.current_way.b_aiflags & AI_RIDE_TRAIN)
-                s3 = "\[\3\] \[\{133}\] Ride train       \n";
+                s3 = "(3) ** Ride train       \n";
             else
-                s3 = "\[\3\] \[ \] Ride train       \n";
+                s3 = "(3) -- Ride train       \n";
 
             if(self.current_way.b_aiflags & AI_DOOR_NO_OPEN)
-                s4 = "\[\4\] \[\{133}\] Door flag no open\n";
+                s4 = "(4) ** Door flag no open\n";
             else
-                s4 = "\[\4\] \[ \] Door flag no open\n";
+                s4 = "(4) -- Door flag no open\n";
 
             if(self.current_way.b_aiflags & AI_AMBUSH)
-                s5 = "\[\5\] \[\{133}\] Ambush           \n";
+                s5 = "(5) ** Ambush           \n";
             else
-                s5 = "\[\5\] \[ \] Ambush           \n";
+                s5 = "(5) -- Ambush           \n";
 
             if(self.current_way.b_aiflags & AI_SNIPER)
-                s6 = "\[\6\] \[\{133}\] Snipe            \n";
+                s6 = "(6) ** Snipe            \n";
             else
-                s6 = "\[\6\] \[ \] Snipe            \n";
+                s6 = "(6) -- Snipe            \n";
 
             if(self.current_way.b_aiflags & AI_TRACE_TEST)
-                s7 = "\[\7\] \[\{133}\] Trace Test       \n\n\[\9\] >>AI Flag Management \n\[\0\] >>Main Menu          \n";
+                s7 = "(7) ** Trace Test       \n\n(9) >>AI Flag Management \n\[\0\] >>Main Menu          \n";
             else
-                s7 = "\[\7\] \[ \] Trace Test       \n\n\[\9\] >>AI Flag Management \n\[\0\] >>Main Menu          \n";
+                s7 = "(7) -- Trace Test       \n\n(9) >>AI Flag Management \n\[\0\] >>Main Menu          \n";
 
         }
         else if(self.b_menu == MENU_BOTS)
         {
-            s1 = "\b-- Bot Management --\b\n\[\1\] Add a Test Bot       \n\[\2\] Order Test Bot here  \n\[\3\] Remove Test Bot      \n\[\4\] Stop Test Bot        \n\[\5\] Teleport Bot here    \n\[\6\] Teleport to Way #    \n\n\n\n\[\0\] >>Main Menu          \n";
+            s1 = "|-- Bot Management --|\n(1) Add a Test Bot       \n(2) Order Test Bot here  \n(3) Remove Test Bot      \n(4) Stop Test Bot        \n(5) Teleport Bot here    \n(6) Teleport to Way #    \n\n\n\n\[\0\] >>Main Menu          \n";
         }
         else if(self.b_menu == MENU_WAYLIST)
         {
-            s1 = "\b-- Waylist Management --\b\n\[\1\] Delete ALL Waypoints \n\[\2\] Dump Waypoints       \n\[\3\] Check For Errors     \n\[\4\] Save Waypoints       \n";
+            s1 = "|-- Waylist Management --|\n(1) Delete ALL Waypoints \n(2) Dump Waypoints       \n(3) Check For Errors     \n(4) Save Waypoints       \n";
 
             if(waypoint_mode == WM_EDITOR_DYNAMIC)
-                s2 = "\[\5\] \[\{133}\] Dynamic Mode     \n\[\6\] \[\{133}\] Dynamic Link     \n";
+                s2 = "(5) ** Dynamic Mode     \n(6) ** Dynamic Link     \n";
             else if(waypoint_mode == WM_EDITOR_DYNLINK)
-                s2 = "\[\5\] \[ \] Dynamic Mode     \n\[\6\] \[\{133}\] Dynamic Link     \n";
+                s2 = "(5) -- Dynamic Mode     \n(6) ** Dynamic Link     \n";
             else
-                s2 = "\[\5\] \[ \] Dynamic Mode     \n\[\6\] \[ \] Dynamic Link     \n";
+                s2 = "(5) -- Dynamic Mode     \n(6) -- Dynamic Link     \n";
             if(dump_mode == 0)
-                s3 = "\[\7\] \[\{133}\] WAY output       \n\[\8\] \[ \] QC output        \n\[\9\] \[ \] BSP ents output  \n\[\0\] Main Menu            \n";
+                s3 = "(7) ** WAY output       \n(8) -- QC output        \n(9) -- BSP ents output  \n\[\0\] Main Menu            \n";
             else if(dump_mode == 1)
-                s3 = "\[\7\] \[ \] WAY output       \n\[\8\] \[\{133}\] QC output        \n\[\9\] \[ \] BSP ents output  \n\[\0\] Main Menu            \n";
+                s3 = "(7) -- WAY output       \n(8) ** QC output        \n(9) -- BSP ents output  \n\[\0\] Main Menu            \n";
             else if(dump_mode == 2)
-                s3 = "\[\7\] \[ \] WAY output       \n\[\8\] \[ \] QC output        \n\[\9\] \[\{133}\] BSP ents output  \n\[\0\] Main Menu            \n";
+                s3 = "(7) -- WAY output       \n(8) -- QC output        \n(9) ** BSP ents output  \n\[\0\] Main Menu            \n";
 
         }
         else if(self.b_menu == 8)
-            s1 = "\b-- Link Ways --\b\n\nSelect another way and push 1\nor press 2 to cancel";
+            s1 = "|-- Link Ways --|\n\nSelect another way and push 1\nor press 2 to cancel";
         else if(self.b_menu == 9)
-            s1 = "\b-- Telelink Ways --\b\n\nSelect another way and push 1\nor press 2 to cancel";
+            s1 = "|-- Telelink Ways --|\n\nSelect another way and push 1\nor press 2 to cancel";
         else if(self.b_menu == 10)
-            s1 = "\b-- Delete Link --\b\n\nSelect another way and push 1\nor press 2 to cancel";
+            s1 = "|-- Delete Link --|\n\nSelect another way and push 1\nor press 2 to cancel";
         else if(self.b_menu == 11)
-            s1 = "\b-- Create Link X2 --\b\n\nSelect another way and push 1\nor press 2 to cancel";
+            s1 = "|-- Create Link X2 --|\n\nSelect another way and push 1\nor press 2 to cancel";
         else if(self.b_menu == 12)
-            s1 = "\b-- Delete Link X2 --\b\n\nSelect another way and push 1\nor press 2 to cancel";
+            s1 = "|-- Delete Link X2 --|\n\nSelect another way and push 1\nor press 2 to cancel";
         else if(self.b_menu == 13)
-            s1 = "\b-- Delete ALL Ways --\b\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
+            s1 = "|-- Delete ALL Ways --|\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
         else if(self.b_menu == 14)
         {
-            s1 = "\b-- Teleport to Way # --\b\n\nEnter way number and press\nimpulse 104 to warp\n\nWaypoint #";
+            s1 = "|-- Teleport to Way # --|\n\nEnter way number and press\nimpulse 104 to warp\n\nWaypoint #";
             s2 = ftos(self.b_menu_value);
 
         }
         else if(self.b_menu == 15)
-            s1 = "\b-- Delete Waypoint --\b\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
+            s1 = "|-- Delete Waypoint --|\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
         else if(self.b_menu == 16)
-            s1 = "\b-- Unlink Waypoint --\b\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
+            s1 = "|-- Unlink Waypoint --|\n\nAre you sure? Push 1 to go\nthrough with it, 2 to cancel";
         else if(self.b_menu == 17)
-            s1 = "\b-- Save Waypoints --\b\n\nSave Waypoints requires\nFRIK_FILE support from\nwww.quakesrc.org to be present\n in the engine code.\n Push 1 to return to previous menu.";
+            s1 = "|-- Save Waypoints --|\n\nSave Waypoints requires\nFRIK_FILE support from\nwww.quakesrc.org to be present\n in the engine code.\n Push 1 to return to previous menu.";
 
         frik_big_centerprint(self, s1, s2, s3, s4, s5, s6, s7);
         self.b_menu_time = time + 1.25;
@@ -1110,7 +1118,6 @@ Waypoint Saving to file.
 void() PrintWaypoint =
 {
     local entity t;
-    local float needcolon;
     local string h;
 
     if(self.enemy == world)
@@ -1141,6 +1148,9 @@ void() PrintWaypoint =
     t.origin_y = rint(t.origin_y);
     t.origin_z = rint(t.origin_z);
 // 2001-09-10 FrikBot support by FrikaC/Maddes  end
+
+    local float needcolon = FALSE;
+
     if((t.origin_x != saved1) || (t.count == 1))
     {
         bprint("saved1 ");
@@ -1445,7 +1455,6 @@ float file;
 void() SaveWaypoint =
 {
     local entity t;
-    local float needcolon;
     local string h, j, k, l;
 
     if(self.enemy == world)
@@ -1492,6 +1501,9 @@ void() SaveWaypoint =
     t.origin_y = rint(t.origin_y);
     t.origin_z = rint(t.origin_z);
 // 2001-09-10 FrikBot support by FrikaC/Maddes  end
+
+    local float needcolon = FALSE;
+
     if((t.origin_x != saved1) || (t.count == 1))
     {
         write(file, "saved1 ");
