@@ -939,7 +939,7 @@ void(float xHand) W_FireAxe =
     local float  xdmg;
 
     // HONEY
-    local entity zombie, oself;
+    local entity zombie;
     local float  zombie_dist;
     local float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
     bleed = FALSE;

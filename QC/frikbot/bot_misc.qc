@@ -563,7 +563,7 @@ God, I wish I had inline
 
 vector(entity ent) realorigin =
 {
-// even more simplified...
+    // even more simplified...
     return (ent.absmin + ent.absmax) * 0.5;
 };
 

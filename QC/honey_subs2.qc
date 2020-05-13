@@ -148,7 +148,7 @@ void stuffcmd_int(entity client, float f, float numdigits) =
 
 void stuffcmd_float(entity client, float f) =
 {
-    float intpart, decpart, mul, isNegative;
+    float intpart, decpart, isNegative;
 
     isNegative = FALSE;
 
@@ -260,7 +260,7 @@ void dprint_int(float f, float numdigits) =
 
 void dprint_float(float f) =
 {
-    float intpart, decpart, mul, isNegative;
+    float intpart, decpart, isNegative;
 
     isNegative = FALSE;
 

@@ -132,20 +132,20 @@ for all variables in the bot...
 */
 
 // ----- entity fields ---
-.float    wallhug, keys, oldkeys;
-.float    b_frags, b_clientno, b_shirt, b_pants;
-.float    priority, ai_time, b_sound, missile_speed;
-.float    portal_time, b_skill, switch_wallhug;
-.float    b_aiflags, b_num, b_chattime;
-.float    b_menu, b_menu_time, b_menu_value;
+.float wallhug, keys, oldkeys;
+.float b_frags, b_clientno, b_shirt, b_pants;
+.float priority, ai_time, b_sound, missile_speed;
+.float portal_time, b_skill, switch_wallhug;
+.float b_aiflags, b_num, b_chattime;
+.float b_menu, b_menu_time, b_menu_value;
 .float route_failed, dyn_flags, dyn_time;
 .float dyn_plat;
-.entity    temp_way, last_way, phys_obj;
-.entity    target1, target2, target3, target4;
-.entity    _next, _last;
-.entity    current_way;
-.vector    b_angle, b_dest, mouse_emu, obs_dir;
-.vector    movevect, b_dir;
+.entity temp_way, last_way, phys_obj;
+.entity target1, target2, target3, target4;
+.entity _next, _last;
+.entity current_way;
+.vector b_angle, b_dest, mouse_emu, obs_dir;
+.vector movevect, b_dir;
 .vector dyn_dest;
 
 // --------defines-----
@@ -757,25 +757,35 @@ void() BotInit =
         max_clients = max_clients + 1;
         ent = nextent(ent);
     }
+
     if(max_clients > 16)
+    {
         max_clients = 16;
+    }
 
     ent = nextent(world);
     fisent = world;
+
     while (numents < max_clients)
     {
-
         phys_head = spawn();
+
         if(fisent)
+        {
             fisent._next = phys_head;
+        }
+
         phys_head._last = fisent;
         fisent = phys_head;
         ent.phys_obj = phys_head;
+
         phys_head.classname = "phys_obj";
         phys_head.owner = ent;
+
         numents = numents + 1;
         ent = nextent(ent);
     }
+
     precache_model("progs/s_light.spr");
     precache_model("progs/s_bubble.spr");
 

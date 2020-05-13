@@ -156,8 +156,8 @@ mummyFireGrenade
 */
 void(vector st) mummyFireGrenade =
 {
-    local   entity missile, mpuff;
-    local   vector  org;
+    local entity missile;
+    local vector org;
 
     sound(self, CHAN_WEAPON, "zombie/z_shot1.wav", 1, ATTN_NORM);
 

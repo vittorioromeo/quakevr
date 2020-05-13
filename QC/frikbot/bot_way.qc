@@ -89,9 +89,13 @@ float (entity e1, entity e2) CheckLinked =
 float (entity e1, entity e2) LinkWays =
 {
     if((e1 == e2) || (e2 == world) || (e1 == world))
+    {
         return FALSE;
+    }
     else if(CheckLinked(e1, e2))
+    {
         return FALSE; // already linked!!!
+    }
 
     if(e1.target1 == world)
     {
@@ -106,14 +110,17 @@ float (entity e1, entity e2) LinkWays =
     else if(e1.target3 == world)
     {
         e1.target3 = e2;
-                return TRUE;
+        return TRUE;
     }
     else if(e1.target4 == world)
     {
         e1.target4 = e2;
         return TRUE;
     }
-    else return FALSE;
+    else
+    {
+        return FALSE;
+    }
 
 };
 // Link Ways part 2, used only for teleporters

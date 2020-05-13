@@ -148,6 +148,7 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
     * [Fishbiter's OpenVR port](https://github.com/Fishbiter/Quakespasm-OpenVR)
     * [Zackin5's OpenVR port](https://github.com/Zackin5/Quakespasm-OpenVR)
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
+    * TODO VR: (P0) add spike's fork and credit him for help
 
 * Hand models with finger trackning support created by *Trevor Roach*
     * Many thanks!

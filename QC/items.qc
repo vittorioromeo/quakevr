@@ -120,9 +120,10 @@ void() PlaceItem =
     self.velocity = '0 0 0';
 
     local float enableHoneyExtensions;
+    enableHoneyExtensions = VR_GameUtil_EnableHoneyExtensions();
 
     // HONEY
-    if(VR_GameUtil_EnableHoneyExtensions() &&
+    if(enableHoneyExtensions &&
        (self.spawnflags & HONEY_SPAWNFLAG_ITEM_FLOATING))
     {
         self.movetype = MOVETYPE_NONE;
@@ -145,7 +146,7 @@ void() PlaceItem =
     }
 
     // HONEY
-    if(VR_GameUtil_EnableHoneyExtensions() &&
+    if(enableHoneyExtensions &&
        (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET))
     {
         total_secrets += 1;
@@ -1377,8 +1378,6 @@ PLAYER BACKPACKS
 void() BackpackTouch =
 {
     local string s;
-    local float old;
-    local entity stemp;
     local float acount;
 
     if(other.classname != "player")

@@ -413,7 +413,7 @@ blah
 
 void() frik_movetogoal =
 {
-    local vector way, start, stop, ang;
+    local vector way;
     local float g;
 
     if(self.target1 == world)
@@ -438,11 +438,18 @@ void() frik_movetogoal =
     if(self.b_aiflags & AI_PRECISION)
     {
         g = angcomp(self.v_angle_x, self.b_angle_x);
+
         if(fabs(g) > 10)
+        {
             self.keys = self.keys & 960;
+        }
+
         g = angcomp(self.v_angle_y, self.b_angle_y);
+
         if(fabs(g) > 10)
+        {
             self.keys = self.keys & 960;
+        }
     }
 };
 
@@ -450,7 +457,7 @@ float(vector weird) frik_walkmove =
 {
     // okay so it's not walkmove
     // sue me
-     self.keys = self.keys & 960 + frik_KeysForDir(weird);
+    self.keys = self.keys & 960 + frik_KeysForDir(weird);
 
     frik_dodge_obstruction();
     frik_recognize_plat(TRUE);

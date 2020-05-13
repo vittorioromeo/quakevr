@@ -366,7 +366,7 @@ bool anyXYCorner(const edict_t& ent, F&& f)
            doCorner(right, fwd) || doCorner(right, back);
 }
 
-[[nodiscard]] static bool checkGroundCollision(const int moveType, edict_t* ent,
+[[nodiscard]] inline bool checkGroundCollision(const int moveType, edict_t* ent,
     trace_t& traceBuffer, qvec3& offsetBuffer, const qvec3& move,
     const float xBias, const float yBias)
 {
