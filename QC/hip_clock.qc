@@ -22,7 +22,7 @@ void() clock_setpos =
    pos = pos - floor(pos);
 
    ang = 360 * pos;
-   if(self.event)
+   if(self.event != NULLSTR)
       {
       if(self.ltime > ang)
          {

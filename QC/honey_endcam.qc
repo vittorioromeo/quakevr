@@ -57,7 +57,10 @@ void() endcam_done =
     reset_idlescale();
 
     if(!nextmap)
-        if(endcam.map) nextmap = endcam.map;
+        if(endcam.map != NULLSTR)
+        {
+             nextmap = endcam.map;
+        }
         else nextmap = "start";
 
     GotoNextMap();
@@ -132,7 +135,7 @@ void() endcam_muzak =
 {
     precache_sound("honey/muzak4.wav");
 
-    if(self.targetname){
+    if(self.targetname != NULLSTR){
         self.use = endcam_muzak_start;
     }else{
         endcam_muzak_start();

@@ -410,33 +410,35 @@ attacking an enemy.
 
 void() bot_fight_style =
 {
-    local vector v, v1, v2, org;
-    local float foedist, mysz, foesz;
+    local vector v1, v2;
+    local float mysz, foesz;
 
     if(self.enemy.health <= 0)
     {
         self.enemy = world;
         return;
     }
-    else if(!self.enemy.takedamage)
-    {
-        self.enemy = world;
-        return;
-    }
-    else if(!fisible(self.enemy))
+
+    if(!self.enemy.takedamage)
     {
         self.enemy = world;
         return;
     }
 
-    org = realorigin(self.enemy);
+    if(!fisible(self.enemy))
+    {
+        self.enemy = world;
+        return;
+    }
+
+    vector org = realorigin(self.enemy);
     makevectors(self.v_angle);
 
     // decide if I should shoot
 
-    foedist = vlen(org - self.origin);
+    float foedist = vlen(org - self.origin);
 
-    v = weapon_range(self.weapon);
+    vector v = weapon_range(self.weapon);
 
     if(foedist > v_y && foedist < v_z)
     {

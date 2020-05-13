@@ -165,7 +165,8 @@ void (entity e1, entity e2) UnlinkWays =
 {
     if((e1 == e2) || (e2 == world) || (e1 == world))
         return;
-    else if(!CheckLinked(e1, e2))
+
+    if(!CheckLinked(e1, e2))
         return;
 
     if(e1.target1 == e2)
@@ -297,8 +298,8 @@ very good all things considered.
 
 void() DynamicWaypoint =
 {
-    local entity t;
-    local float dist, dynlink, dynpoint, editor;
+    entity t;
+    float dist = 0, dynlink = 0, dynpoint = 0, editor = 0;
 
     if(self.teleport_time > self.portal_time)
     {
@@ -655,7 +656,7 @@ entity(entity lastone) FindRoute =
     while(t)
     {
         tdst = vlen(t.origin - self.origin);
-        if((tdst < dst) &&  (t.b_sound & flag))
+        if((tdst < dst) && (t.b_sound & flag))
         {
             dst = tdst;
             best = t;

@@ -512,10 +512,8 @@ void() IntermissionThink =
 
 void() execute_changelevel =
 {
-    local entity pos;
-
     // HONEY
-    local entity fogsettings;
+    entity fogsettings = NULLENT;
 
     intermission_running = 1;
 
@@ -529,7 +527,7 @@ void() execute_changelevel =
     WriteByte(MSG_ALL, 3);
     WriteByte(MSG_ALL, 3);
 
-    pos = FindIntermission();
+    entity pos = FindIntermission();
 
     // HONEY
     if(pos.target != "") {
@@ -553,7 +551,7 @@ void() execute_changelevel =
         setorigin(other, pos.origin);
 
         // HONEY
-        if(fogsettings.classname == "trigger_fogcontroller") {
+        if(fogsettings != NULLENT && fogsettings.classname == "trigger_fogcontroller") {
             fog_setOverrideConditional(other, fogsettings.view_ofs, fogsettings.ideal_yaw, 1);
         }
 
@@ -2253,7 +2251,7 @@ void(entity targ, entity attacker) ClientObituary =
             bprint(targ.netname);
 
 //JIM
-         if(attacker.deathtype)
+         if(attacker.deathtype != NULLSTR)
             {
             bprint(" ");
             bprint(attacker.deathtype);
@@ -2361,7 +2359,7 @@ void(entity targ, entity attacker) ClientObituary =
             }
             if(attacker.classname == "trigger_deathpit") // HONEY
             {
-                if(attacker.message) {
+                if(attacker.message != NULLSTR) {
                     bprint(attacker.message);
                 } else {
                     bprint(" fell into a deep and dark crevasse");

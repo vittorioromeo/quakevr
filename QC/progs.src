@@ -13,6 +13,7 @@ vr_cvars.qc
 vr_gameutil.qc
 vr_grapple.qc
 vr_itemutil.qc
+vr_macros.qc
 vr_util.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc

@@ -387,14 +387,16 @@ void() armor_touch =
         value = 150;
         itemId = IID_ARMOR2;
     }
-    else if(self.classname == "item_armorInv")
+    else
     {
+        ASSERT(self.classname == "item_armorInv");
+
         type = 0.8;
         value = 200;
         itemId = IID_ARMOR3;
     }
 
-    if(other.armortype*other.armorvalue >= type*value)
+    if(other.armortype * other.armorvalue >= type * value)
     {
         return;
     }

@@ -144,7 +144,7 @@ void(string targ, vector orig) become_decoy =
 
    decoy.flags = decoy.flags | FL_MONSTER;
 
-   if(decoy.target)
+   if(decoy.target != NULLSTR)
     {
       decoy.goalentity = decoy.movetarget = find(world, targetname, decoy.target);
       decoy.ideal_yaw = vectoyaw(decoy.goalentity.origin - decoy.origin);

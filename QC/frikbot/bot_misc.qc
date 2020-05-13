@@ -156,7 +156,7 @@ string () PickARandomName =
         return "player";
 
     local float y, test;
-    local string h;
+    local string h = "Random";
     local entity t;
     y = TRUE;
     while(y)
@@ -580,32 +580,33 @@ of the bounding boxes
 
 float (entity targ) fisible =
 {
-    local vector    spot1, org;
-    local float thruwater, pc1, pc2;
+    float thruwater;
 
-    org = realorigin(targ);
-    spot1 = self.origin + self.view_ofs;
+    vector org = realorigin(targ);
+    vector spot1 = self.origin + self.view_ofs;
 
     if(targ.solid == SOLID_BSP)
     {
-        traceline (spot1, org, TRUE, self);
+        traceline(spot1, org, TRUE, self);
+
         if(trace_ent == targ)
             return TRUE;
+
         else if(trace_fraction == 1)
             return TRUE;
+
         return FALSE;
     }
+
+    float pc1 = pointcontents(org);
+    float pc2 = pointcontents(spot1);
+
+    if(targ.classname == "player")
+        thruwater = FALSE;
+    else if(pc1 == CONTENT_LAVA)
+        return FALSE;
     else
-    {
-        pc1 = pointcontents(org);
-        pc2 = pointcontents(spot1);
-        if(targ.classname == "player")
-            thruwater = FALSE;
-        else if(pc1 == CONTENT_LAVA)
-            return FALSE;
-        else
-            thruwater = TRUE;
-    }
+        thruwater = TRUE;
 
     if(pc1 < -1) // targ's origin is in water or other liquid
     {
@@ -657,7 +658,7 @@ float (entity targ) fisible =
     else if(trace_fraction == 1)
         return TRUE;
     return FALSE;
-};
+}
 
 
 /*

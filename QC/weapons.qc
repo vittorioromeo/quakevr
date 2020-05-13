@@ -2436,9 +2436,8 @@ W_ChangeWeapon
 // TODO VR: (P1) rewrite to use new item system or remove, check if bots use this
 void() W_ChangeWeapon =
 {
-    local float am, wid;
-
-    am = 0;
+    float am = 0;
+    float wid = WID_FIST;
 
     if(self.impulse == 1)
     {
@@ -2582,29 +2581,23 @@ void() CheatCommand =
 float(entity xPlayer, float xDir, float xWeapon,
       float xWeaponFlags, float* xOutWeaponFlags) GetCycledWeapon
 {
-    local float minWeapon, maxWeapon;
-    local float skipEmptyWeapons;
-    local float originalWeapon;
-    local float iterations, maxIterations;
-
     // Inclusive boundaries of cyclable weapon ids.
-    minWeapon = WID_GRAPPLE;
-    maxWeapon = WID_LASER_CANNON;
+    float minWeapon = WID_GRAPPLE;
+    float maxWeapon = WID_LASER_CANNON;
 
     // Just for safety.
-    iterations = 0;
-    maxIterations = maxWeapon + 1;
+    float maxIterations = maxWeapon + 1;
 
     // TODO VR: (P1) set this via cvar depending on weapon mode?
-    skipEmptyWeapons = FALSE;
+    float skipEmptyWeapons = FALSE;
 
     // Used to avoid infinite loops.
-    originalWeapon = xWeapon;
+    float originalWeapon = xWeapon;
 
     // Find the next suitable weapon.
-    while(iterations < maxIterations)
+    float resultWeapon = originalWeapon;
+    for(float iterations = 0; iterations < maxIterations; ++iterations)
     {
-        ++iterations;
 
         xWeapon = xWeapon + xDir;
 
@@ -2631,12 +2624,12 @@ float(entity xPlayer, float xDir, float xWeapon,
         }
 
         // At this point, we have a suitable weapon.
-        *xOutWeaponFlags = 0;
-        return xWeapon;
+        resultWeapon = xWeapon;
+        break;
     }
 
     *xOutWeaponFlags = 0;
-    return originalWeapon;
+    return resultWeapon;
 }
 
 float() getWeaponCycleMode =

@@ -366,11 +366,11 @@ void() func_rotate_entity =
 */
 void() path_rotate =
    {
-   if(self.noise)
+   if(self.noise != NULLSTR)
       {
       precache_sound(self.noise);
       }
-   if(self.noise1)
+   if(self.noise1 != NULLSTR)
       {
       precache_sound(self.noise1);
       }
@@ -433,7 +433,7 @@ void() rotate_train_wait =
     {
    self.state = STATE_WAIT;
 
-   if(self.goalentity.noise)
+   if(self.goalentity.noise != NULLSTR)
       {
       sound(self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
       }
@@ -458,7 +458,7 @@ void() rotate_train_stop =
     {
    self.state = STATE_STOP;
 
-   if(self.goalentity.noise)
+   if(self.goalentity.noise != NULLSTR)
       {
       sound(self, CHAN_VOICE, self.goalentity.noise, 1, ATTN_NORM);
       }
@@ -495,7 +495,7 @@ void() rotate_train_next =
    if(targ.classname != "path_rotate")
       objerror("Next target is not path_rotate");
 
-   if(self.goalentity.noise1)
+   if(self.goalentity.noise1 != NULLSTR)
       {
       self.noise1 = self.goalentity.noise1;
       }
@@ -519,7 +519,7 @@ void() rotate_train_next =
       self.think1 = rotate_train_next;
         }
 
-   if(current.event)
+   if(current.event != NULLSTR)
       {
       // Trigger any events that should happen at the corner.
       temp = self.target;
@@ -986,7 +986,7 @@ void() rotate_door_group_reversedirection =
    local string name;
 
    // tell all associated rotaters to reverse direction
-   if(self.group)
+   if(self.group != NULLSTR)
       {
       name = self.group;
       self = find(world, group, name);

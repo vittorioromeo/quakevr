@@ -400,7 +400,7 @@ void() LinkDoors =
         if(self.lefty)
             starte.lefty = self.lefty;
 
-        if(self.targetname)
+        if(self.targetname != NULLSTR)
             starte.targetname = self.targetname;
 
         if(self.message != "")
@@ -801,7 +801,7 @@ void() secret_touch =
 
     self.attack_finished = time + 2;
 
-    if(self.message)
+    if(self.message != NULLSTR)
     {
         centerprint(other, self.message);
         sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);

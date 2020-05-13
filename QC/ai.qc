@@ -110,7 +110,7 @@ local entity    temp;
 
 //dprint("t_movetarget\n");
 //MED
-   if(other.target)
+   if(other.target != NULLSTR)
       {
       self.goalentity = self.movetarget = find(world, targetname, other.target);
       self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);

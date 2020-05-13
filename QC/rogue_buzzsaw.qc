@@ -70,7 +70,7 @@ void() buzzsaw_touch =
 void() buzzsaw_use =
 {
     self.touch = buzzsaw_touch;
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         self.movetarget = find(world, targetname, self.target);
         self.goalentity = self.movetarget;

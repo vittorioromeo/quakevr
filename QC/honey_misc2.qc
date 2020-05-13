@@ -157,12 +157,11 @@ Fuck this dumb shit forever!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 */
 void() func_refwall =
 {
-
     local entity ref;
     local string myModel;
     local vector refOrigin;
 
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         ref = find(world, targetname, self.target);
         if(!ref)
@@ -175,7 +174,7 @@ void() func_refwall =
         refOrigin = ref.pos1;
         myModel = ref.model;
 
-    }else if(self.model){
+    }else if(self.model != NULLSTR){
         refOrigin = '0 0 0';
         myModel = self.model;
         precache_model(self.model);
@@ -898,11 +897,11 @@ void() ghost_think_OLD =
 {
     entity starte, e;
     float value, value2, dist;
-    float caunt; //sk�nska
+
 
     starte = e = self.owner;
 
-
+    float caunt = 0;
     do{
         value = ghost_func(time+e.delay, e.speed);
         value2 = ghost_func(time+e.delay, e.speed * 0.5);
@@ -920,7 +919,7 @@ void() ghost_think_OLD =
 
         caunt = caunt + 1;
         e = e.oldenemy;
-    }while(e != world && e != starte);
+    } while(e != world && e != starte);
 
     self.nextthink = time + 0.05;
 }

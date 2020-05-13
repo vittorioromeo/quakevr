@@ -70,16 +70,13 @@ void() monster_death_use =
 
 void() walkmonster_start_go =
 {
-    local string stemp;
-
     self.origin_z = self.origin_z + 1;    // raise off floor a bit
 
     // HONEY
     if(self.classname == "monster_tarbaby" &&
        self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)
     {
-        stemp = stemp;
-        //Don't do anything..
+        // Don't do anything..
     }
     else
     {
@@ -97,7 +94,7 @@ void() walkmonster_start_go =
 
     self.flags = self.flags | FL_MONSTER;
 
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
@@ -181,7 +178,7 @@ void() flymonster_start_go =
         dprint("\n");
     }
 
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         if(!self.movetarget)
@@ -258,7 +255,7 @@ void() swimmonster_start_go =
     self.flags = self.flags | FL_SWIM;
     self.flags = self.flags | FL_MONSTER;
 
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         self.goalentity = self.movetarget = find(world, targetname, self.target);
         if(!self.movetarget)

@@ -587,7 +587,7 @@ local float negativeHeight;
             self.state = STATE_TOP;
         }
 
-        if(self.targetname)
+        if(self.targetname != NULLSTR)
         {
             self.use = plat2_use;
             self.state = self.state + 10;

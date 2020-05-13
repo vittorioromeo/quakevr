@@ -422,48 +422,41 @@ void() ScourgeTriggerThink =
 // ScourgeTriggerTouch
 //
 void() ScourgeTriggerTouch =
-   {
-   local entity targ;
-   local entity tempent;
-   local vector dir;
+{
 
    if(other.flags & (FL_MONSTER|FL_CLIENT))
       return;
+
    if(other.movetype != MOVETYPE_FLYMISSILE)
       return;
-   targ = self.lastvictim;
+
+   entity targ = self.lastvictim;
    if(targ.health<=0)
-      {
+   {
       remove(self);
       return;
-      }
-   dir = targ.origin - other.origin;
+   }
+
+   vector dir = targ.origin - other.origin;
    dir = normalize(dir);
+
    if((dir * normalize(other.velocity))<0.8)
       return;
 
-//   targ.think = targ.th_run;
-//   if(targ.flags & FL_ONGROUND)
-//      {
-      if(time > self.duration)
-         {
-         tempent = self;
-         self = targ;
-         if(random()<0.5)
-            scourge_strafeleft1();
-         else
-            scourge_straferight1();
-         self.duration = time + 1.5;
-         }
-/*
-      targ.origin_z = targ.origin_z + 1;
-      targ.velocity = targ.velocity + '0 0 500';
-      targ.flags = targ.flags - FL_ONGROUND;
-*/
+   local entity tempent;
+   if(time > self.duration)
+   {
+      tempent = self;
+      self = targ;
+      if(random()<0.5)
+         scourge_strafeleft1();
+      else
+         scourge_straferight1();
+      self.duration = time + 1.5;
       self = tempent;
-//      }
-//   dprint("ouch\n");
-   };
+   }
+
+};
 
 /*QUAKED monster_scourge (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 

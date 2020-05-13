@@ -231,8 +231,7 @@ void(entity targ) bot_check_lost =
     if(targ == world)
         return;
 
-    local vector dist;
-    dist = realorigin(targ) - self.origin;
+    vector dist = realorigin(targ) - self.origin;
     dist_z = 0;
 
     // waypoints and items are lost if you get close enough to them
@@ -395,7 +394,7 @@ void() bot_handle_ai =
             }
             else
             {
-                if(newt.targetname)
+                if(newt.targetname != NULLSTR)
                 {
                     newt = find(world, target, newt.targetname);
                     if(newt.health > 0)
@@ -596,7 +595,7 @@ void() bot_path =
                     bot_weapon_switch(1);
                     self.b_aiflags = self.b_aiflags | AI_BLIND; // nick knack paddy hack
                 }
-                else if(trace_ent.targetname)
+                else if(trace_ent.targetname != NULLSTR)
                 {
                     tele = find(world, target, trace_ent.targetname);
                     if(tele.health > 0)
@@ -915,34 +914,36 @@ generally making the bot look good.
 
 void() bot_angle_set =
 {
-    local float h;
-    local vector view;
 
     if(self.enemy)
     {
         if(self.enemy.items & 524288)
+        {
             if(random() > 0.01)
+            {
                 return;
+            }
+        }
 
         if(self.missile_speed == 0)
+        {
             self.missile_speed = 10000;
+        }
 
+        vector view;
         if(self.enemy.solid == SOLID_BSP)
         {
             view = (((self.enemy.absmin + self.enemy.absmax) * 0.5) - self.origin);
         }
         else
         {
-
-            local float levels;
-
-            levels = 3;
+            float levels = 3;
 
             view = self.enemy.origin;
 
-            while (levels)
+            while(levels)
             {
-                h = vlen(view - self.origin) / self.missile_speed;
+                float h = vlen(view - self.origin) / self.missile_speed;
                 if(self.enemy.flags & FL_ONGROUND)
                     view = self.enemy.velocity * h + '0 0 -20';
                 else
@@ -952,18 +953,22 @@ void() bot_angle_set =
                 view = trace_endpos;
                 levels = levels - 1;
             }
+
             view = normalize(view - self.origin);
         }
+
         view = vectoangles(view);
         view_x = view_x * -1;
         self.b_angle = view;
     }
     else if(self.target1)
     {
-        view = realorigin(self.target1);
+        vector view = realorigin(self.target1);
 
         if(self.target1.flags & FL_ITEM)
+        {
             view = view + '0 0 48';
+        }
 
         view = view - (self.origin + self.view_ofs);
         view = vectoangles(view);
@@ -1057,8 +1062,12 @@ void() BotAI =
         else
             return;
     }
+
     if(self.view_ofs == '0 0 0')
+    {
         bot_start_topic(7);
+    }
+
     stagger_think = time;
 
     // shut the bot's buttons off, various functions will turn them on by AI end
