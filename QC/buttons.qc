@@ -201,12 +201,16 @@ void() func_button =
         button_disable(self);
     }
 
+    // TODO VR: (P0) these angles are wrong
+    vector dir = normalize(self.pos2 - self.pos1);
+    vector ang = vectoangles(dir);
+
     // TODO VR: (P0) worldtext test
-    makeforward(self.angles);
+    makeforward(dir);
     float wth = worldtext_hmake();
     worldtext_hsettext(wth, "DO NOT PRESS\nI am serious");
     worldtext_hsetpos(wth, realorigin(self) + '0 0 12' + v_forward * 6.0);
-    worldtext_hsetangles(wth, self.angles + '0 180 0');
+    worldtext_hsetangles(wth, ang);
 };
 
 // TODO VR: (P2) move
