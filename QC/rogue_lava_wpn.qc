@@ -58,7 +58,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     self.punchangle_x = -2;
 
     VRGunHaptic(xHand, 0.05, 150, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 void(float xHand, float ox) W_FireLavaSpikes =
@@ -90,7 +90,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
     self.punchangle_x = -2;
 
     VRGunHaptic(xHand, 0.05, 150, 1.0);
-    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 // =============== Lava Spike Touch Routines

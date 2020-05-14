@@ -278,8 +278,9 @@ void(float AttackNumber) WrathMissile =
         org = self.origin + v_forward*12 + v_up*12 + v_right*20;
 // up20
     }
-    else if(AttackNumber == 4)
+    else
     {
+        ASSERT(AttackNumber == 4);
         org = self.origin + v_forward*20 + v_up*16;
     }
 

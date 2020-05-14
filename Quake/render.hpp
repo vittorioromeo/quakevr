@@ -27,6 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm.hpp"
 #include "modelgen.hpp"
 
+#include <string>
+
 // refresh.h -- public interface to refresh functions
 
 #define MAXCLIPPLANES 11

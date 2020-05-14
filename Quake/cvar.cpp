@@ -750,6 +750,17 @@ float Cvar_GetValueFromHandle(const int handle)
     return cvar_handles[handle]->value;
 }
 
+void Cvar_SetValueFromHandle(const int handle, const float value)
+{
+    if(handle < 0 || handle >= static_cast<int>(cvar_handles.size()))
+    {
+        Con_Printf("Attempted to set CVar from invalid handle '%d'\n", handle);
+        return;
+    }
+
+    Cvar_SetValueQuick(cvar_handles[handle], value);
+}
+
 void Cvar_ClearAllHandles()
 {
     cvar_handles.clear();

@@ -67,6 +67,7 @@ int d_lightstylevalue[256]; // 8.8 fraction of base light value
 
 cvar_t r_norefresh = {"r_norefresh", "0", CVAR_NONE};
 cvar_t r_drawentities = {"r_drawentities", "1", CVAR_NONE};
+cvar_t r_drawworldtext = {"r_drawworldtext", "1", CVAR_NONE};
 cvar_t r_drawviewmodel = {"r_drawviewmodel", "1", CVAR_NONE};
 cvar_t r_speeds = {"r_speeds", "0", CVAR_NONE};
 cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
@@ -814,6 +815,142 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
     }
 }
 
+void R_DrawWorldText()
+{
+    const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
+                                       const qvec3& zInc, const char num) {
+        const int row = num >> 4;
+        const int col = num & 15;
+
+        const float frow = row * 0.0625;
+        const float fcol = col * 0.0625;
+        const float size = 0.0625;
+
+        const auto doVertex = [&](const qvec3& p) {
+            glVertex3f(p.x, p.y, p.z);
+        };
+
+        glTexCoord2f(fcol, frow);
+        doVertex(pos);
+
+        glTexCoord2f(fcol + size, frow);
+        doVertex(pos + hInc);
+
+        glTexCoord2f(fcol + size, frow + size);
+        doVertex(pos + hInc + zInc);
+
+        glTexCoord2f(fcol, frow + size);
+        doVertex(pos + zInc);
+    };
+
+    const auto drawString = [&](qvec3 pos, const qvec3& angles,
+                                const char* str) {
+        extern gltexture_t* char_texture;
+        GL_Bind(char_texture);
+        glBegin(GL_QUADS);
+
+        // centering
+        int longestLine = 0;
+        int lastLine = 0;
+        for(auto p = str; *p; ++p)
+        {
+            if((*p) == '\n' || *(p + 1) == '\0')
+            {
+                longestLine = std::max(longestLine, lastLine);
+                lastLine = 0;
+            }
+
+            ++lastLine;
+        }
+
+        const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
+        const auto hInc = right * 8.f;
+        const auto zInc = qvec3{0, 0, -8.f}; // * up;
+
+        pos -= hInc * (longestLine / 2.f);
+
+        const auto originalpos = pos;
+
+        int n = 0;
+        while(*str)
+        {
+            if(*str == '\n')
+            {
+                ++n;
+                pos = originalpos;
+                pos += zInc * float(n);
+                ++str;
+
+                continue;
+            }
+
+            if(*str != ' ')
+            {
+                // don't waste verts on spaces
+                drawCharacterQuad(pos, hInc, zInc, *str);
+            }
+
+            ++str;
+            pos += hInc;
+        }
+
+        glEnd();
+    };
+
+    if(!r_drawworldtext.value)
+    {
+        return;
+    }
+
+    extern std::vector<WorldText> cl_worldTexts;
+    // for(const auto& wt : cl_worldTexts)
+    // {
+    // }
+
+   // entity_t* e = &cl_entities[cl.viewentity];
+
+
+    // glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glEnable(GL_ALPHA_TEST);
+    glColor4f(1, 1, 1, 1);
+
+    // TODO VR: (P1) document why we have +1
+    // glTranslatef(-e->scale_origin[0], -e->scale_origin[1],
+    // -e->scale_origin[2]); glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f,
+    // e->scale[2] + 1.f); glTranslatef(e->scale_origin[0], e->scale_origin[1],
+    // e->scale_origin[2]);
+    //
+    // glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
+    //     paliashdr->scale_origin[2]);
+    // glScalef(paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
+
+    for(const WorldText& wt : cl.worldTexts)
+    {
+        drawString(wt._pos, wt._angles, wt._text.data());
+    }
+
+    /*
+        auto eangles = e->angles;
+        eangles[PITCH] *= -1.f;
+        const auto fwd = quake::util::getFwdVecFromPitchYawRoll(eangles);
+        const qvec3 origin = e->origin + fwd * 100.f;
+        const qvec3 angle{0.f, 45.f, 0.f};
+
+        drawString(origin, angle,
+            "bastardissimo diobastardissimo diobastardissimo dio\nbastardissimo
+       " "diobastardissimo " "diobastardissimo dio\nbastardissimo
+       diobastardissimo diobastardissimo " "dio\nbastardissimo diobastardissimo
+       diobastardissimo " "dio\nbastardissimo diobastardissimo diobastardissimo
+       " "dio\nbastardissimo diobastardissimo diobastardissimo dio\n");
+    */
+
+    glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+    // glEnable(GL_DEPTH_TEST);
+}
+
 /*
 =============
 R_DrawViewModel -- johnfitz -- gutted
@@ -1148,6 +1285,8 @@ void R_RenderScene()
 
     R_DrawEntitiesOnList(false); // johnfitz -- false means this is the pass for
                                  // nonalpha entities
+
+    R_DrawWorldText();
 
     R_DrawWorld_Water(); // johnfitz -- drawn here since they might have
                          // transparency

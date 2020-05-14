@@ -483,21 +483,12 @@ Draw_CharacterQuad -- johnfitz -- seperate function to spit out verts
 */
 void Draw_CharacterQuad(int x, int y, char num)
 {
-    int row;
+    const int row = num >> 4;
+    const int col = num & 15;
 
-    int col;
-    float frow;
-
-    float fcol;
-
-    float size;
-
-    row = num >> 4;
-    col = num & 15;
-
-    frow = row * 0.0625;
-    fcol = col * 0.0625;
-    size = 0.0625;
+    const float frow = row * 0.0625;
+    const float fcol = col * 0.0625;
+    const float size = 0.0625;
 
     glTexCoord2f(fcol, frow);
     glVertex2f(x, y);

@@ -425,5 +425,4 @@ struct lerpdata_t
 };
 // johnfitz
 
-
 #endif /* QUAKEDEFS_H */

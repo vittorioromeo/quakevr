@@ -778,7 +778,7 @@ void(string gibname, float dm) ThrowGib =
     new.frame = 0;
     new.flags = 0;
 
-    particle2(self.origin, new.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
 
 //MED
@@ -814,7 +814,7 @@ void(string gibname, float dm) ThrowHead =
     self.gorging = TRUE;
     self.think = HeadThink;
 
-    particle2(self.origin, self.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, self.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
 
 

@@ -807,6 +807,7 @@ void() trigger_monsterjump =
 //MED 12/01/96 added count stuff
    if(self.cnt == 0)
       self.cnt = -1;
+
     InitTrigger();
     self.touch = trigger_monsterjump_touch;
 };

@@ -223,6 +223,10 @@ void(float r, vector p) boss_missile =
             vec_z = 0;
             d = self.enemy.origin + t * vec;
         }
+        else
+        {
+            d = self.enemy.origin;
+        }
     }
     else
     {

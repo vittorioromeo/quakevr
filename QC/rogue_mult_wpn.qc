@@ -172,7 +172,7 @@ void(float xHand) W_FireMultiGrenade =
     setorigin(missile, VRGetMuzzlePos(xHand));
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
 
 //=============================================================================
@@ -513,8 +513,8 @@ void() PlasmaThink =
 {
     self.nextthink = time + 0.01;
 
-    particle2(self.origin, '0 0 0', 3 /* lightning preset */, 25);
-    particle2(self.origin, '0 0 0', 5 /* sparks preset */, 3);
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 25);
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 3);
 
     if(time >= self.lip)
     {
@@ -563,8 +563,8 @@ void(vector org, vector dir) launch_plasma =
     missile.think = PlasmaLaunch;
     missile.nextthink = time + 0.1;
 
-    particle2(missile.origin, '0 0 0', 3 /* lightning preset */, 25);
-    particle2(missile.origin, '0 0 0', 5 /* sparks preset */, 3);
+    particle2(missile.origin, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 25);
+    particle2(missile.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 3);
 };
 
 void(float xHand) W_FirePlasma =

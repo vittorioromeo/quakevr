@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "util.hpp"
 
+#include <string>
+#include <vector>
+
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
 
@@ -66,6 +69,13 @@ int cl_max_edicts;     // johnfitz -- only changes when new map loads
 int cl_numvisedicts;
 entity_t* cl_visedicts[MAX_VISEDICTS];
 
+
+
+
+
+
+
+
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 
 /*
@@ -82,7 +92,8 @@ void CL_ClearState()
     }
 
     // wipe the entire cl structure
-    memset(&cl, 0, sizeof(cl));
+    // memset(&cl, 0, sizeof(cl));
+    cl = client_state_t{};
 
     SZ_Clear(&cls.message);
 
@@ -95,6 +106,8 @@ void CL_ClearState()
     // johnfitz -- cl_entities is now dynamically allocated
     cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
     cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
+
+    cl.worldTexts.clear();
 }
 
 /*

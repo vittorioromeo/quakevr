@@ -46,8 +46,13 @@ float  FOG_OVERRIDE_DIRECT_CONTROL = -99999;
 
 void() fog_updateAll =
 {
-    entity c;
-    c = self;
+    if(!VR_GameUtil_EnableHoneyExtensions() && !foundHoneyFogSettings)
+    {
+        return;
+    }
+
+    entity c = self;
+
     // 1: This is the starting point
     c.fog_current_color = fog_global_color;
     c.fog_current_density = fog_global_density;

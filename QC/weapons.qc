@@ -276,6 +276,10 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
         supportHS = 1;
         supportCD = 1;
     }
+    else
+    {
+        return 0;
+    }
 
     // Since `xEndpos` is from a trace, it always hits one of the AABB planes,
     // so to compensate we check how "diagonal" the hit was and move the hit
@@ -512,7 +516,7 @@ void(float xHand, float stat) HIP_FireLaser =
 
     self.punchangle_x = -1;
     VRGunHaptic(xHand, 0.05, 150, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 /*
@@ -570,13 +574,13 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
 
 void(vector vStart, vector vEnd) LightningParticles =
 {
-    particle2(vStart, '0 0 0', 3 /* lightning preset */, 20);
-    particle2(vStart, '0 0 0', 4 /* smoke preset */, 1);
-    particle2(vStart, '0 0 0', 5 /* sparks preset */, 4);
+    particle2(vStart, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 20);
+    particle2(vStart, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
+    particle2(vStart, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 4);
 
-    particle2(vEnd, '0 0 0', 3 /* lightning preset */, 60);
-    particle2(vEnd, '0 0 0', 4 /* smoke preset */, 1);
-    particle2(vEnd, '0 0 0', 5 /* sparks preset */, 12);
+    particle2(vEnd, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
+    particle2(vEnd, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
+    particle2(vEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
 }
 
 
@@ -1079,10 +1083,8 @@ W_FistMelee
 void(float xHand) W_FistMelee =
 {
     vector org;
-    float  xdmg;
-    float  playedsound;
-
-    xdmg = VRMeleeDmg(xHand, 0.75, 3);
+    float xdmg = VRMeleeDmg(xHand, 0.75, 3);
+    float playedsound = FALSE;
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
     {
@@ -1179,7 +1181,7 @@ SpawnBlood
 */
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-    particle2(org, vel * 0.2, 1 /* blood preset */, damage);
+    particle2(org, vel * 0.2, QVR_PARTICLE_PRESET_BLOOD, damage);
 };
 
 // QUAKE VR
@@ -1396,7 +1398,7 @@ void(float xHand) W_FireShotgun =
 
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 
     // HONEY
     self.damage_weapon = IT_SHOTGUN;
@@ -1428,8 +1430,8 @@ void(float xHand) W_FireSuperShotgun =
 
     VRGunHaptic(xHand, 0.55, 75, 1.0);
 
-    particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
-    particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
+    particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 
     // HONEY
     self.damage_weapon = IT_SUPER_SHOTGUN;
@@ -1545,7 +1547,7 @@ entity(float xHand) W_FireRocket =
 
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 3);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
 
     return missile;
 };
@@ -1664,13 +1666,13 @@ void(float xHand) W_FireLightning =
 
     makeforward(VRGetHandRot(xHand));
     traceline(org, org + v_forward*600, TRUE, self);
-    particle2(trace_endpos, '0 0 0', 3 /* lightning preset */, 60);
-    particle2(trace_endpos, '0 0 0', 4 /* smoke preset */, 1);
-    particle2(trace_endpos, '0 0 0', 5 /* sparks preset */, 12);
+    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
+    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
+    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
     LightningDamage(org, trace_endpos + v_forward*4, self, 30);
 
     VRGunHaptic(xHand, 0.4, 175, 1.0);
-    particle2(org, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 
@@ -1782,7 +1784,7 @@ void(float xHand) W_FireGrenade =
     setorigin(missile, VRGetMuzzlePos(xHand));
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
 
 void() ProximityExplode =
@@ -1966,7 +1968,7 @@ void(float xHand) W_FireProximityGrenade =
     setsize(missile, '-1 -1 -1', '1 1 1');
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 2);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
 
 //=============================================================================
@@ -2023,7 +2025,7 @@ void(float xHand) W_FireSuperSpikes =
     self.punchangle_x = -2;
 
     VRGunHaptic(xHand, 0.05, 150, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 void(float xHand, float ox) W_FireSpikes =
@@ -2055,7 +2057,7 @@ void(float xHand, float ox) W_FireSpikes =
     self.punchangle_x = -2;
 
     VRGunHaptic(xHand, 0.05, 150, 1.0);
-    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
 void() spike_bullethole =
@@ -3058,7 +3060,7 @@ void(float xHand) W_WeaponFrameImpl =
            (VRGetWeapon(xHand) == WID_NAILGUN || VRGetWeapon(xHand) == WID_SUPER_NAILGUN))
         {
             sound(self, CHAN_AUTO, "lavagun/snail.wav", 1, ATTN_NORM);
-            particle2(VRGetMuzzlePos(xHand), '0 0 0', 4 /* smoke preset */, 6);
+            particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 6);
             VRSetLavaGunFired(xHand, 0);
         }
     }
@@ -3304,7 +3306,7 @@ void() wpnthrow_think =
     {
         if(random() < 0.2)
         {
-            particle2(self.origin, '0 0 0', 8 /* gunpickup preset */, 1);
+            particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
         }
     }
 
@@ -3348,6 +3350,12 @@ void() wpnthrow_touch =
         finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
                    cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 
+        // TODO VR: (P0) worldtext cleaup
+        float wth = worldtext_hmake();
+        worldtext_hsettext(wth, "ding");
+        worldtext_hsetpos(wth, self.origin + '0 0 12');
+        worldtext_hsetangles(wth, self.angles);
+
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
@@ -3363,7 +3371,7 @@ void() wpnthrow_touch =
         else
         {
             sound(self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
-            particle2(self.origin, '0 0 0', 0 /* bullet puff preset */, 24);
+            particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 24);
 
         }
 

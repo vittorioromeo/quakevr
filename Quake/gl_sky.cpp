@@ -83,9 +83,9 @@ void Sky_LoadTexture(texture_t* mt)
     byte* src = (byte*)mt + mt->offsets[0];
 
     // extract back layer and upload
-    for(int i = 0; i < 128; i++)
+    for(int i = 0; i < 128; ++i)
     {
-        for(int j = 0; j < 128; j++)
+        for(int j = 0; j < 128; ++j)
         {
             back_data[(i * 128) + j] = src[i * 256 + j + 128];
         }
@@ -98,11 +98,12 @@ void Sky_LoadTexture(texture_t* mt)
         SRC_INDEXED, back_data, "", (src_offset_t)back_data, TEXPREF_NONE);
 
     // extract front layer and upload
-    for(int i = 0; i < 128; i++)
+    for(int i = 0; i < 128; ++i)
     {
-        for(int j = 0; j < 128; j++)
+        for(int j = 0; j < 128; ++j)
         {
             front_data[(i * 128) + j] = src[i * 256 + j];
+
             if(front_data[(i * 128) + j] == 0)
             {
                 front_data[(i * 128) + j] = 255;
@@ -119,18 +120,20 @@ void Sky_LoadTexture(texture_t* mt)
     // colors
     int r, g, b, count;
     r = g = b = count = 0;
+
     for(int i = 0; i < 128; i++)
     {
         for(int j = 0; j < 128; j++)
         {
             int p = src[i * 256 + j];
+
             if(p != 0)
             {
                 unsigned int* rgba = &d_8to24table[p];
                 r += ((byte*)rgba)[0];
                 g += ((byte*)rgba)[1];
                 b += ((byte*)rgba)[2];
-                count++;
+                ++count;
             }
         }
     }

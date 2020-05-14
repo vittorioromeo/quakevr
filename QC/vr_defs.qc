@@ -273,3 +273,23 @@ float QVR_VRBITS0_2H_AIMING             = VRUTIL_POWER_OF_TWO(5);
 
 float readytime; // Time after loading when the player is considered ready.
                  // Prevents shooting, grabbing/dropping weapons.
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Particle Presets
+// ----------------------------------------------------------------------------
+
+float QVR_PARTICLE_PRESET_BULLETPUFF    = 0;
+float QVR_PARTICLE_PRESET_BLOOD         = 1;
+float QVR_PARTICLE_PRESET_EXPLOSION     = 2;
+float QVR_PARTICLE_PRESET_LIGHTNING     = 3;
+float QVR_PARTICLE_PRESET_SMOKE         = 4;
+float QVR_PARTICLE_PRESET_SPARKS        = 5;
+float QVR_PARTICLE_PRESET_GUNSMOKE      = 6;
+float QVR_PARTICLE_PRESET_TELEPORT      = 7;
+float QVR_PARTICLE_PRESET_GUNPICKUP     = 8;
+float QVR_PARTICLE_PRESET_GUNFORCEGRAB  = 9;
+float QVR_PARTICLE_PRESET_LAVASPIKE     = 10;
+float QVR_PARTICLE_PRESET_BIGSMOKE      = 11;

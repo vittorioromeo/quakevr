@@ -899,7 +899,8 @@ Team finding code
 
 float(float tcolor) FindAnotherColor =
 {
-    float bestbet, scolor, pcount, bestp;
+    float bestbet, pcount, bestp;
+    float scolor = 0;
     bestbet = -1;
     bestp = 16;
     while(scolor < 14)
