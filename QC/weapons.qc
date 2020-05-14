@@ -2273,7 +2273,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         if(time > xAttackFinished)
         {
-            sound(self, VRGetGunChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
             *xOutAttackFinished = time + 0.5;
         }
 
@@ -3057,7 +3057,7 @@ void(float xHand) W_WeaponFrameImpl =
         if(!VRGetFireButtonPressed(xHand) &&
            (VRGetWeapon(xHand) == WID_NAILGUN || VRGetWeapon(xHand) == WID_SUPER_NAILGUN))
         {
-            sound(self, VRGetGunChannel(xHand), "lavagun/snail.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "lavagun/snail.wav", 1, ATTN_NORM);
             particle2(VRGetMuzzlePos(xHand), '0 0 0', 4 /* smoke preset */, 6);
             VRSetLavaGunFired(xHand, 0);
         }
@@ -3936,21 +3936,21 @@ void(entity ent, float xHand,
     // Not holding a weapon, grabbing the controller, and pressing the trigger.
     else if(handEmpty && triggerPressed)
     {
-        if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
+        if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
         {
             // Intentionally left empty.
         }
-        else if(getForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
+        else if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
         {
-            DoForceGrabImplParabola(xHand, handPos, handRot);
+            VR_ForcegrabUtil_Impl_DoForcegrabParabola(xHand, handPos, handRot);
         }
-        else if(handGrabbing && getForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
+        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
         {
-            DoForceGrabImplLinear(xHand, handPos, handRot);
+            VR_ForcegrabUtil_Impl_DoForcegrabLinear(xHand, handPos, handRot);
         }
-        else if(handGrabbing && getForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
+        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
         {
-            DoForceGrabImplInstant(xHand, handPos, handRot);
+            VR_ForcegrabUtil_Impl_DoForcegrabInstant(xHand, handPos, handRot);
         }
     }
     // Not holding a weapon and hovering an holster. Possible intention to unholster.
@@ -3982,7 +3982,7 @@ void(float xHand) W_Frame_Forcegrab_Impl =
 
 void() W_Frame_Forcegrab =
 {
-    if(getForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
+    if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
     {
         VRSetForceGrabbing(cVR_MainHand, FALSE);
         VRSetForceGrabbing(cVR_OffHand, FALSE);

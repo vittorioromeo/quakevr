@@ -5,32 +5,32 @@
 // CVar Getters
 // ----------------------------------------------------------------------------
 
-float() getForcegrabMode =
+float() VR_ForcegrabUtil_GetForcegrabMode =
 {
     return cvar_hget(cvarh_vr_forcegrab_mode);
 }
 
-float() getForcegrabRange =
+float() VR_ForcegrabUtil_GetForcegrabRange =
 {
     return cvar_hget(cvarh_vr_forcegrab_range);
 }
 
-float() getForcegrabRadius =
+float() VR_ForcegrabUtil_GetForcegrabRadius =
 {
     return cvar_hget(cvarh_vr_forcegrab_radius);
 }
 
-float() getForcegrabPowermult =
+float() VR_ForcegrabUtil_GetForcegrabPowermult =
 {
     return cvar_hget(cvarh_vr_forcegrab_powermult);
 }
 
-float() getForcegrabEligibleParticles =
+float() VR_ForcegrabUtil_GetForcegrabEligibleParticles =
 {
     return cvar_hget(cvarh_vr_forcegrab_eligible_particles);
 }
 
-float() getForcegrabEligibleHaptics =
+float() VR_ForcegrabUtil_GetForcegrabEligibleHaptics =
 {
     return cvar_hget(cvarh_vr_forcegrab_eligible_haptics);
 }
@@ -43,10 +43,11 @@ float() getForcegrabEligibleHaptics =
 // ----------------------------------------------------------------------------
 
 float(float xHand, vector handPos, vector handRot,
-     float(vector xPos, float xHand, vector handPos, vector handRot) logicFn) PerformForceGrab =
+     float(vector xPos, float xHand, vector handPos, vector handRot) logicFn)
+     VR_ForcegrabUtil_Impl_PerformForcegrab =
 {
-    float nTraces;
-    nTraces = ceil(getForcegrabRange() / getForcegrabRadius());
+    float nTraces = ceil(VR_ForcegrabUtil_GetForcegrabRange() /
+                         VR_ForcegrabUtil_GetForcegrabRadius());
 
     if(nTraces > 15)
     {
@@ -55,16 +56,21 @@ float(float xHand, vector handPos, vector handRot,
 
     makeforward(handRot);
 
-    traceline(handPos, handPos + v_forward * getForcegrabRange(), FALSE, self);
+    traceline(handPos,
+        handPos + v_forward * VR_ForcegrabUtil_GetForcegrabRange(),
+        FALSE, self);
+
     if(logicFn(trace_endpos, xHand, handPos, handRot))
     {
         return TRUE;
     }
 
-    float i;
-    for(i = 0; i <= nTraces * 2; ++i)
+    for(float i = 0; i <= nTraces * 2; ++i)
     {
-        traceline(handPos, handPos + v_forward * ((getForcegrabRadius() / 2.0) * i), TRUE, self);
+        traceline(handPos,
+            handPos + v_forward * ((VR_ForcegrabUtil_GetForcegrabRadius() / 2.0) * i),
+            TRUE, self);
+
         if(logicFn(trace_endpos, xHand, handPos, handRot))
         {
             return TRUE;
@@ -74,33 +80,34 @@ float(float xHand, vector handPos, vector handRot,
     return FALSE;
 }
 
-float(float dist, float zmult) getForcegrabParabolaPower =
+float(float dist, float zmult) VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower =
 {
-    float power;
+    // TODO VR: (P0) scale with player height?
 
-    power = (-0.00231424 * pow(dist, 2.0))
-            + (2.01 * dist)
-            + 172.0;
+    float power = (-0.00231424 * pow(dist, 2.0))
+                + (2.01 * dist)
+                + 172.0;
 
     power *= zmult;
-    power *= getForcegrabPowermult();
+    power *= VR_ForcegrabUtil_GetForcegrabPowermult();
 
     return power;
 }
 
-float(entity e) isEligibleForForceGrab
+float(entity xEntThrownWeapon) VR_ForcegrabUtil_Impl_IsEligibleForForcegrab
 {
-    if(e.classname != "thrown_weapon")
+    if(xEntThrownWeapon.classname != "thrown_weapon")
     {
         return FALSE;
     }
 
-    if((e.flags & FL_ONGROUND) && vlen(e.velocity) <= 10.f)
+    if((xEntThrownWeapon.flags & FL_ONGROUND) &&
+      vlen(xEntThrownWeapon.velocity) <= 10.f)
     {
         return TRUE;
     }
 
-    if((e.flags & FL_INWATER))
+    if((xEntThrownWeapon.flags & FL_INWATER))
     {
         return TRUE;
     }
@@ -108,7 +115,7 @@ float(entity e) isEligibleForForceGrab
     return FALSE;
 }
 
-void(float xHand) VRForceGrabEligibleHaptic =
+void(float xHand) VR_ForcegrabUtil_Impl_ForcegrabEligibleHaptic =
 {
     if(!self.ishuman)
     {
@@ -126,28 +133,24 @@ void(float xHand) VRForceGrabEligibleHaptic =
 // ----------------------------------------------------------------------------
 
 float(vector xPos, float xHand, vector handPos, vector handRot)
-DoForceGrabImplParabola_Logic =
+VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
 {
-    entity e;
-    for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
+    for(entity e = findradius(xPos, VR_ForcegrabUtil_GetForcegrabRadius()); e; e = e.chain)
     {
-        if(!isEligibleForForceGrab(e))
+        if(!VR_ForcegrabUtil_Impl_IsEligibleForForcegrab(e))
         {
             continue;
         }
 
-        vector tmpVec;
-        tmpVec = normalize(handPos - e.origin);
+        vector tmpVec = normalize(handPos - e.origin);
 
         e.origin += tmpVec * 0.1f;
 
         tmpVec = handPos - e.origin;
 
-        float zdist;
-        zdist = tmpVec_z;
+        float zdist = tmpVec_z;
 
         float zmult;
-
         if(zdist >= 30.0)
         {
             zmult = pow(fabs(zdist) / 40.0, 0.2);
@@ -168,10 +171,9 @@ DoForceGrabImplParabola_Logic =
 
         tmpVec = normalize(tmpVec);
 
-        float dist;
-        dist = vlen(handPos - e.origin);
+        float dist = vlen(handPos - e.origin);
 
-        e.velocity = tmpVec * getForcegrabParabolaPower(dist, zmult);
+        e.velocity = tmpVec * VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower(dist, zmult);
 
         sound(e, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
         sound(self, VRGetGunChannel(xHand), "forcegrab.wav", 0.65, ATTN_NORM);
@@ -183,26 +185,25 @@ DoForceGrabImplParabola_Logic =
     return FALSE;
 }
 
-float(float xHand, vector handPos, vector handRot) DoForceGrabImplParabola =
+float(float xHand, vector handPos, vector handRot) VR_ForcegrabUtil_Impl_DoForcegrabParabola =
 {
     if(VRGetForceGrabbing(xHand))
     {
         return FALSE;
     }
 
-    return PerformForceGrab(xHand, handPos, handRot,
-                            DoForceGrabImplParabola_Logic);
+    return VR_ForcegrabUtil_Impl_PerformForcegrab(xHand, handPos, handRot,
+                            VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic);
 }
 
 // ---
 
 float(vector xPos, float xHand, vector handPos, vector handRot)
-DoForceGrabImplLinear_Logic =
+VR_ForcegrabUtil_Impl_DoForcegrabLinear_Logic =
 {
-    entity e;
-    for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
+    for(entity e = findradius(xPos, VR_ForcegrabUtil_GetForcegrabRadius()); e; e = e.chain)
     {
-        if(!isEligibleForForceGrab(e))
+        if(!VR_ForcegrabUtil_Impl_IsEligibleForForcegrab(e))
         {
             continue;
         }
@@ -212,8 +213,7 @@ DoForceGrabImplLinear_Logic =
             e.throwhit = QVR_THROWHIT_FORCEGRAB;
             e.movetype = MOVETYPE_FLYMISSILE;
 
-            vector tmpVec;
-            tmpVec = normalize(handPos - e.origin);
+            vector tmpVec = normalize(handPos - e.origin);
             e.origin += tmpVec * 0.1f;
 
             sound(e, CHAN_OTHER, "knight/sword2.wav", 0.7, ATTN_NORM);
@@ -222,11 +222,10 @@ DoForceGrabImplLinear_Logic =
 
         if(e.throwhit == QVR_THROWHIT_FORCEGRAB)
         {
-            vector dir;
-            dir = normalize(handPos - e.origin);
+            vector dir = normalize(handPos - e.origin);
 
             e.velocity = dir * 700;
-            e.velocity *= getForcegrabPowermult();
+            e.velocity *= VR_ForcegrabUtil_GetForcegrabPowermult();
 
             VRSetForceGrabbing(xHand, TRUE);
             return TRUE;
@@ -236,26 +235,25 @@ DoForceGrabImplLinear_Logic =
     return FALSE;
 }
 
-float(float xHand, vector handPos, vector handRot) DoForceGrabImplLinear =
+float(float xHand, vector handPos, vector handRot) VR_ForcegrabUtil_Impl_DoForcegrabLinear =
 {
     if(VRGetForceGrabbing(xHand))
     {
         return FALSE;
     }
 
-    return PerformForceGrab(xHand, handPos, handRot,
-                            DoForceGrabImplLinear_Logic);
+    return VR_ForcegrabUtil_Impl_PerformForcegrab(xHand, handPos, handRot,
+                            VR_ForcegrabUtil_Impl_DoForcegrabLinear_Logic);
 }
 
 // ---
 
 float(vector xPos, float xHand, vector handPos, vector handRot)
-DoForceGrabImplInstant_Logic =
+VR_ForcegrabUtil_Impl_DoForcegrabInstant_Logic =
 {
-    entity e;
-    for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
+    for(entity e = findradius(xPos, VR_ForcegrabUtil_GetForcegrabRadius()); e; e = e.chain)
     {
-        if(!isEligibleForForceGrab(e))
+        if(!VR_ForcegrabUtil_Impl_IsEligibleForForcegrab(e))
         {
             continue;
         }
@@ -272,15 +270,15 @@ DoForceGrabImplInstant_Logic =
     return FALSE;
 }
 
-float(float xHand, vector handPos, vector handRot) DoForceGrabImplInstant =
+float(float xHand, vector handPos, vector handRot) VR_ForcegrabUtil_Impl_DoForcegrabInstant =
 {
     if(VRGetForceGrabbing(xHand))
     {
         return FALSE;
     }
 
-    return PerformForceGrab(xHand, handPos, handRot,
-                            DoForceGrabImplInstant_Logic);
+    return VR_ForcegrabUtil_Impl_PerformForcegrab(xHand, handPos, handRot,
+                            VR_ForcegrabUtil_Impl_DoForcegrabInstant_Logic);
 }
 
 // ---
@@ -288,14 +286,12 @@ float(float xHand, vector handPos, vector handRot) DoForceGrabImplInstant =
 float(vector xPos, float xHand, vector handPos, vector handRot)
 ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 {
-    float doParticles, doHaptics;
-    doParticles = getForcegrabEligibleParticles();
-    doHaptics = getForcegrabEligibleHaptics();
+    float doParticles = VR_ForcegrabUtil_GetForcegrabEligibleParticles();
+    float doHaptics = VR_ForcegrabUtil_GetForcegrabEligibleHaptics();
 
-    entity e;
-    for(e = findradius(xPos, getForcegrabRadius()); e; e = e.chain)
+    for(entity e = findradius(xPos, VR_ForcegrabUtil_GetForcegrabRadius()); e; e = e.chain)
     {
-        if(!isEligibleForForceGrab(e))
+        if(!VR_ForcegrabUtil_Impl_IsEligibleForForcegrab(e))
         {
             continue;
         }
@@ -310,7 +306,7 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 
         if(doHaptics)
         {
-            VRForceGrabEligibleHaptic(xHand);
+            VR_ForcegrabUtil_Impl_ForcegrabEligibleHaptic(xHand);
         }
 
         return TRUE;
@@ -321,15 +317,14 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 
 float(float xHand, vector handPos, vector handRot) ParticlesAndHapticsForEligibleForceGrabWeapons =
 {
-    float doParticles, doHaptics;
-    doParticles = getForcegrabEligibleParticles();
-    doHaptics = getForcegrabEligibleHaptics();
+    float doParticles = VR_ForcegrabUtil_GetForcegrabEligibleParticles();
+    float doHaptics = VR_ForcegrabUtil_GetForcegrabEligibleHaptics();
 
     if(doParticles == FALSE && doHaptics == FALSE)
     {
         return FALSE;
     }
 
-    return PerformForceGrab(xHand, handPos, handRot,
+    return VR_ForcegrabUtil_Impl_PerformForcegrab(xHand, handPos, handRot,
                             ParticlesAndHapticsForEligibleForceGrabWeapon_Logic);
 }

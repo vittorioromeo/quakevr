@@ -30,14 +30,7 @@ float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
 
 float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
 {
-    if(!VR_WeaponUtil_IsValidWeaponId(xWeaponId))
-    {
-        bprint("`VR_WeaponUtil_EntHasWeapon`: invalid weapon id '");
-        bprint(ftos(xWeaponId));
-        bprint("'\n");
-
-        return FALSE;
-    }
+    ASSERT(VR_WeaponUtil_IsValidWeaponId(xWeaponId));
 
     if(xWeaponId == WID_FIST)
     {
@@ -85,20 +78,18 @@ entity() FindEntPlayerForDrop =
 
 float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
-    float eligible, chance, roll;
-
     if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
         return FALSE;
     }
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
-    eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
-               (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
+    float eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
+                     (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    chance = xChance * cvar_hget(cvarh_vr_enemy_drops_chance_mult);
+    float chance = xChance * cvar_hget(cvarh_vr_enemy_drops_chance_mult);
 
-    roll = random();
+    float roll = random();
 
     if(eligible && (roll < chance))
     {
@@ -112,20 +103,18 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
 // TODO VR: (P2) code repetition, but create ammo box uses player ent
 float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
 {
-    float eligible, chance, roll;
-
     if(VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
     {
         return FALSE;
     }
 
     // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
-    eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
-               (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
+    float eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
+                     (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    chance = xChance * cvar_hget(cvarh_vr_ammobox_drops_chance_mult);
+    float chance = xChance * cvar_hget(cvarh_vr_ammobox_drops_chance_mult);
 
-    roll = random();
+    float roll = random();
 
     if(eligible && (roll < chance))
     {
@@ -152,10 +141,7 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_LIGHTNING)        { return IID_LIGHTNING; }
     if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
 
-    bprint("`WeaponIdToItemId`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return -1;
 }
 
@@ -175,10 +161,7 @@ float(float it) ItemIdToWeaponId =
     if(it == IID_LIGHTNING)         { return WID_LIGHTNING; }
     if(it == IID_LASER_CANNON)      { return WID_LASER_CANNON; }
 
-    bprint("`ItemIdToWeaponId`: invalid item id '");
-    bprint(ftos(it));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return -1;
 }
 
@@ -208,10 +191,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
 
-    bprint("`WeaponIdToModel`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return "";
 }
 
@@ -241,14 +221,9 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_LIGHTNING)        { return SelectAmmoByFlags(xWeaponFlags, AID_CELLS, AID_PLASMA); }
     if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
 
-    bprint("`WeaponIdToAmmoId`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return AID_NONE;
 }
-
-
 
 float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
 {
@@ -282,10 +257,7 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_LIGHTNING)        { return 0.6; }
     if(wid == WID_LASER_CANNON)     { return 0.4; }
 
-    bprint("`WeaponIdToThrowMult`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 1;
 }
 
@@ -305,10 +277,7 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_LIGHTNING)        { return 0; }
     if(wid == WID_LASER_CANNON)     { return 0; }
 
-    bprint("`WeaponIdToThrowStabilizeDim`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 0;
 }
 
@@ -328,10 +297,7 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_LIGHTNING)        { return 25; }
     if(wid == WID_LASER_CANNON)     { return 45; }
 
-    bprint("`WeaponIdToThrowDamage`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 0;
 }
 
@@ -351,10 +317,7 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_LIGHTNING)        { return 1.5; }
     if(wid == WID_LASER_CANNON)     { return 2.4; }
 
-    bprint("`WeaponIdToThrowBounds`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 0;
 }
 
@@ -370,10 +333,7 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
     if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
     if(wpnClassname == "weapon_proximity_gun")   { return WID_PROXIMITY_GUN; }
 
-    bprint("`WeaponClassNameToWeaponId`: invalid weapon class name '");
-    bprint(wpnClassname);
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return WID_FIST;
 }
 
@@ -393,10 +353,7 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_LIGHTNING)        { return 15; }
     if(wid == WID_LASER_CANNON)     { return 30; }
 
-    bprint("`WeaponIdToInitialAmmoCount`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return -1;
 }
 
@@ -417,10 +374,7 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_LIGHTNING)        { return "Thunderbolt"; }
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
 
-    bprint("`WeaponIdToWeaponName`: invalid weapon id '");
-    bprint(ftos(wid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return "";
 }
 
