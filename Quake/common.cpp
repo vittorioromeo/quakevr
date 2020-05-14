@@ -907,6 +907,13 @@ void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags)
 }
 // johnfitz
 
+void MSG_WriteVec3(sizebuf_t* sb, const qvec3& v, unsigned int flags)
+{
+    MSG_WriteCoord(sb, v[0], flags);
+    MSG_WriteCoord(sb, v[1], flags);
+    MSG_WriteCoord(sb, v[2], flags);
+}
+
 //
 // reading functions
 //
@@ -1113,6 +1120,11 @@ float MSG_ReadAngle16(unsigned int flags)
     return MSG_ReadShort() * (360.0 / 65536);
 }
 // johnfitz
+
+qvec3 MSG_ReadVec3(unsigned int flags)
+{
+    return {MSG_ReadCoord(flags), MSG_ReadCoord(flags), MSG_ReadCoord(flags)};
+}
 
 //===========================================================================
 

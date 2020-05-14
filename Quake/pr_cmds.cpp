@@ -1187,6 +1187,7 @@ static void PF_worldtext_hmake()
     }
 
     const WorldTextHandle wth = sv.freeWorldTextHandles.back();
+    sv.freeWorldTextHandles.pop_back();
     sv.worldTexts.resize(wth + 1);
 
     for(int i = 0; i < svs.maxclients; i++)
@@ -1251,9 +1252,7 @@ static void PF_worldtext_hsetpos()
         {
             MSG_WriteByte(&client.message, svc_worldtext_hsetpos);
             MSG_WriteShort(&client.message, wth);
-            MSG_WriteCoord(&client.message, pos[0], sv.protocolflags);
-            MSG_WriteCoord(&client.message, pos[1], sv.protocolflags);
-            MSG_WriteCoord(&client.message, pos[2], sv.protocolflags);
+            MSG_WriteVec3(&client.message, pos, sv.protocolflags);
         }
     }
 }
@@ -1279,9 +1278,7 @@ static void PF_worldtext_hsetangles()
         {
             MSG_WriteByte(&client.message, svc_worldtext_hsetangles);
             MSG_WriteShort(&client.message, wth);
-            MSG_WriteCoord(&client.message, angles[0], sv.protocolflags);
-            MSG_WriteCoord(&client.message, angles[1], sv.protocolflags);
-            MSG_WriteCoord(&client.message, angles[2], sv.protocolflags);
+            MSG_WriteVec3(&client.message, angles, sv.protocolflags);
         }
     }
 }
@@ -1998,6 +1995,11 @@ static void PF_WriteEntity()
     MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
 
+static void PF_WriteVec3()
+{
+    MSG_WriteVec3(WriteDest(), extractVector(OFS_PARM1), sv.protocolflags);
+}
+
 //=============================================================================
 
 static void PF_makestatic()
@@ -2218,6 +2220,8 @@ static builtin_t pr_builtin[] = {
     PF_worldtext_hsettext,   // #92
     PF_worldtext_hsetpos,    // #93
     PF_worldtext_hsetangles, // #94
+
+    PF_WriteVec3, // #95
 };
 
 builtin_t* pr_builtins = pr_builtin;

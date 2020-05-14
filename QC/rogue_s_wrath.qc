@@ -430,9 +430,7 @@ void()    overlord_die17 =[ $s_wtdt16, overlord_die18 ]
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 0);
     WriteByte(MSG_BROADCAST, 4);
 
@@ -451,9 +449,7 @@ void()    overlord_die18 =[ $s_wtdt17, overlord_die19 ]
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 0);
     WriteByte(MSG_BROADCAST, 4);
 
@@ -474,9 +470,7 @@ void() overlord_die19 = [ $s_wtdt17, overlord_die19 ]
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 0);
     WriteByte(MSG_BROADCAST, 4);
 

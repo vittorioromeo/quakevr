@@ -1969,15 +1969,11 @@ void Host_Spawn_f()
 
         MSG_WriteByte(&host_client->message, svc_worldtext_hsetpos);
         MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteCoord(&host_client->message, wt._pos[0], sv.protocolflags);
-        MSG_WriteCoord(&host_client->message, wt._pos[1], sv.protocolflags);
-        MSG_WriteCoord(&host_client->message, wt._pos[2], sv.protocolflags);
+        MSG_WriteVec3(&host_client->message, wt._pos, sv.protocolflags);
 
         MSG_WriteByte(&host_client->message, svc_worldtext_hsetangles);
         MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteCoord(&host_client->message, wt._angles[0], sv.protocolflags);
-        MSG_WriteCoord(&host_client->message, wt._angles[1], sv.protocolflags);
-        MSG_WriteCoord(&host_client->message, wt._angles[2], sv.protocolflags);
+        MSG_WriteVec3(&host_client->message, wt._angles, sv.protocolflags);
 
         ++wth;
     }

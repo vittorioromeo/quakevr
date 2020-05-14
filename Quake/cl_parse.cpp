@@ -140,7 +140,6 @@ void CL_ParseStartSoundPacket()
     int volume;
     int field_mask;
     float attenuation;
-    int i;
 
     field_mask = MSG_ReadByte();
 
@@ -198,10 +197,7 @@ void CL_ParseStartSoundPacket()
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
-    for(i = 0; i < 3; i++)
-    {
-        pos[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    pos = MSG_ReadVec3(cl.protocolflags);
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
         volume / 255.0, attenuation);
@@ -651,9 +647,7 @@ void CL_ParseUpdate(int bits)
 
     if(bits & U_SCALE)
     {
-        ent->scale_origin[0] = MSG_ReadCoord(cl.protocolflags);
-        ent->scale_origin[1] = MSG_ReadCoord(cl.protocolflags);
-        ent->scale_origin[2] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin = MSG_ReadVec3(cl.protocolflags);
     }
 
     // johnfitz -- lerping for movetype_step entities
@@ -1230,12 +1224,8 @@ void CL_ParseStaticSound(int version) // johnfitz -- added argument
     int vol;
 
     int atten;
-    int i;
 
-    for(i = 0; i < 3; i++)
-    {
-        org[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    org = MSG_ReadVec3(cl.protocolflags);
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(version == 2)
@@ -1624,9 +1614,7 @@ void CL_ParseServerMessage()
             case svc_worldtext_hsetpos:
             {
                 const WorldTextHandle wth = MSG_ReadShort();
-                const qvec3 v{MSG_ReadCoord(cl.protocolflags),
-                    MSG_ReadCoord(cl.protocolflags),
-                    MSG_ReadCoord(cl.protocolflags)};
+                const qvec3 v = MSG_ReadVec3(cl.protocolflags);
 
                 assert(static_cast<int>(cl.worldTexts.size()) > wth);
                 cl.worldTexts[wth]._pos = v;
@@ -1637,9 +1625,7 @@ void CL_ParseServerMessage()
             case svc_worldtext_hsetangles:
             {
                 const WorldTextHandle wth = MSG_ReadShort();
-                const qvec3 v{MSG_ReadCoord(cl.protocolflags),
-                    MSG_ReadCoord(cl.protocolflags),
-                    MSG_ReadCoord(cl.protocolflags)};
+                const qvec3 v = MSG_ReadVec3(cl.protocolflags);
 
                 assert(static_cast<int>(cl.worldTexts.size()) > wth);
                 cl.worldTexts[wth]._angles = v;

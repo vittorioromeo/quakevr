@@ -878,13 +878,9 @@ void(entity e1, entity e2, float flag) DeveloperLightning =
         WriteByte(MSG_BROADCAST, 6);
     else
         WriteByte(MSG_BROADCAST, 13);
-    WriteEntity (MSG_BROADCAST, e2);
-    WriteCoord(MSG_BROADCAST, e1.origin_x);
-    WriteCoord(MSG_BROADCAST, e1.origin_y);
-    WriteCoord(MSG_BROADCAST, e1.origin_z);
-    WriteCoord(MSG_BROADCAST, e2.origin_x);
-    WriteCoord(MSG_BROADCAST, e2.origin_y);
-    WriteCoord(MSG_BROADCAST, e2.origin_z);
+    WriteEntity(MSG_BROADCAST, e2);
+    WriteVec3(MSG_BROADCAST, e1.origin);
+    WriteVec3(MSG_BROADCAST, e2.origin);
 };
 
 /*

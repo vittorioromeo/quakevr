@@ -56,15 +56,6 @@ void CL_InitTEnts()
     cl_sfx_r_exp3 = S_PrecacheSound("weapons/r_exp3.wav");
 }
 
-[[nodiscard]] static qfvec3 readVectorFromProtocolFlags() noexcept
-{
-    qfvec3 res;
-    res[0] = MSG_ReadCoord(cl.protocolflags);
-    res[1] = MSG_ReadCoord(cl.protocolflags);
-    res[2] = MSG_ReadCoord(cl.protocolflags);
-    return res;
-}
-
 /*
 =================
 CL_ParseBeam
@@ -74,8 +65,8 @@ beam_t* CL_ParseBeam(qmodel_t* m)
 {
     const int ent = MSG_ReadShort();
     const int disambiguator = MSG_ReadByte();
-    const auto start = readVectorFromProtocolFlags();
-    const auto end = readVectorFromProtocolFlags();
+    const auto start = MSG_ReadVec3(cl.protocolflags);
+    const auto end = MSG_ReadVec3(cl.protocolflags);
 
     const auto initBeam = [&](beam_t& b) {
         b.entity = ent;
@@ -136,7 +127,7 @@ void CL_ParseTEnt()
     {
         case TE_WIZSPIKE: // spike hitting wall
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 20, 30);
             S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
             break;
@@ -144,7 +135,7 @@ void CL_ParseTEnt()
 
         case TE_KNIGHTSPIKE: // spike hitting wall
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 226, 20);
             S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
             break;
@@ -152,7 +143,7 @@ void CL_ParseTEnt()
 
         case TE_SPIKE: // spike hitting wall
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             if(rand() % 5)
             {
@@ -179,7 +170,7 @@ void CL_ParseTEnt()
 
         case TE_SUPERSPIKE: // super spike hitting wall
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 20);
 
             if(rand() % 5)
@@ -207,14 +198,14 @@ void CL_ParseTEnt()
 
         case TE_GUNSHOT: // bullet hitting wall
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_RunParticleEffect_BulletPuff(pos, vec3_zero, 0, 10);
             break;
         }
 
         case TE_EXPLOSION: // rocket explosion
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_ParticleExplosion(pos);
             dlight_t* dl = CL_AllocDlight(0);
             dl->origin = pos;
@@ -227,7 +218,7 @@ void CL_ParseTEnt()
 
         case TE_TAREXPLOSION: // tarbaby explosion
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_ParticleExplosion(pos);
 
             S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
@@ -297,21 +288,21 @@ void CL_ParseTEnt()
 
         case TE_LAVASPLASH:
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_LavaSplash(pos);
             break;
         }
 
         case TE_TELEPORT:
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             R_TeleportSplash(pos);
             break;
         }
 
         case TE_EXPLOSION2: // color mapped explosion
         {
-            const auto pos = readVectorFromProtocolFlags();
+            const auto pos = MSG_ReadVec3(cl.protocolflags);
             const int colorStart = MSG_ReadByte();
             const int colorLength = MSG_ReadByte();
 

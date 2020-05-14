@@ -29,9 +29,7 @@ void() exploder_fire =
       {
       WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord(MSG_BROADCAST, self.origin_x);
-      WriteCoord(MSG_BROADCAST, self.origin_y);
-      WriteCoord(MSG_BROADCAST, self.origin_z);
+      WriteVec3(MSG_BROADCAST, self.origin);
       }
    BecomeExplosion();
     };
@@ -115,9 +113,7 @@ void() multi_exploder_fire =
       {
       WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord(MSG_BROADCAST, expl.origin_x);
-      WriteCoord(MSG_BROADCAST, expl.origin_y);
-      WriteCoord(MSG_BROADCAST, expl.origin_z);
+      WriteVec3(MSG_BROADCAST, expl.origin);
       }
    temp = self;
    self = expl;

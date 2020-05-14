@@ -1074,39 +1074,3 @@ void() func_pump =
 
     self.nextthink = time + 0.2;
 }
-
-/*
-//Kinn I luv u!
-void test_lightning_think() =
-{
-    vector s = '128 128 64';
-    vector e = '128 -128 64';
-    entity plr;
-    plr = find(world, classname, "player");
-
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
-    if(self.state)
-        WriteEntity (MSG_BROADCAST, self);
-    else
-        WriteEntity (MSG_BROADCAST, plr);
-    WriteCoord(MSG_BROADCAST, s_x);
-    WriteCoord(MSG_BROADCAST, s_y);
-    WriteCoord(MSG_BROADCAST, s_z);
-    WriteCoord(MSG_BROADCAST, e_x);
-    WriteCoord(MSG_BROADCAST, e_y);
-    WriteCoord(MSG_BROADCAST, e_z);
-
-    self.state = 1 - self.state;
-    self.nextthink = time + 0.1;
-
-}
-
-void test_lightning() =
-{
-    setorigin(self, '0 0 0');
-    self.think = test_lightning_think;
-    self.nextthink = time + 0.3;
-}
-
-*/

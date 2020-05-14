@@ -208,10 +208,8 @@ void() info_command =
 void() effect_teleport_use =
    {
    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_TELEPORT);
-   WriteCoord(MSG_BROADCAST, self.origin_x);
-   WriteCoord(MSG_BROADCAST, self.origin_y);
-   WriteCoord(MSG_BROADCAST, self.origin_z);
+   WriteByte(MSG_BROADCAST, TE_TELEPORT);
+   WriteVec3(MSG_BROADCAST, self.origin);
 
    sound(self, CHAN_VOICE, "misc/r_tele1.wav", 1, ATTN_NORM);
    };
@@ -411,10 +409,8 @@ void(entity me, entity camera) UpdateCamera =
   msg_entity = me;                         // target of message
   WriteByte(MSG_ONE, SVC_UPDATEENTITY|15); // 0x80|1|2|4|8
   WriteByte(MSG_ONE, 64); // 0x40
-  WriteEntity(MSG_ONE,camera);
-  WriteCoord(MSG_ONE,camera.origin_x);
-  WriteCoord(MSG_ONE,camera.origin_y);
-  WriteCoord(MSG_ONE,camera.origin_z);
+  WriteEntity(MSG_ONE, camera);
+  WriteVec3(MSG_ONE, camera.origin);
 };
 
 

@@ -892,11 +892,7 @@ Parse an effect out of the server message
 */
 void R_ParseParticleEffect()
 {
-    qvec3 org;
-    for(int i = 0; i < 3; i++)
-    {
-        org[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    const auto org = MSG_ReadVec3(cl.protocolflags);
 
     qvec3 dir;
     for(int i = 0; i < 3; i++)
@@ -919,11 +915,7 @@ Parse an effect out of the server message (preset-based)
 */
 void R_ParseParticle2Effect()
 {
-    qvec3 org;
-    for(int i = 0; i < 3; i++)
-    {
-        org[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    const auto org = MSG_ReadVec3(cl.protocolflags);
 
     qvec3 dir;
     for(int i = 0; i < 3; i++)

@@ -300,9 +300,7 @@ void() spikemine_Touch =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
    sound(self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
    self.velocity = '0 0 0';
@@ -385,12 +383,8 @@ void() SpawnLightningThink =
       WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
       WriteEntity(MSG_BROADCAST, self);
       WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-      WriteCoord(MSG_BROADCAST, self.origin_x);
-      WriteCoord(MSG_BROADCAST, self.origin_y);
-      WriteCoord(MSG_BROADCAST, self.origin_z);
-      WriteCoord(MSG_BROADCAST, self.oldorigin_x);
-      WriteCoord(MSG_BROADCAST, self.oldorigin_y);
-      WriteCoord(MSG_BROADCAST, self.oldorigin_z);
+      WriteVec3(MSG_BROADCAST, self.origin);
+      WriteVec3(MSG_BROADCAST, self.oldorigin);
       }
    LightningDamage(self.origin, self.oldorigin, self.lastvictim, self.dmg);
    self.nextthink = time + 0.1;
@@ -459,12 +453,8 @@ void() trap_lightning_use =
       WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
       WriteEntity(MSG_BROADCAST, self);
       WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-      WriteCoord(MSG_BROADCAST, p1_x);
-      WriteCoord(MSG_BROADCAST, p1_y);
-      WriteCoord(MSG_BROADCAST, p1_z);
-      WriteCoord(MSG_BROADCAST, p2_x);
-      WriteCoord(MSG_BROADCAST, p2_y);
-      WriteCoord(MSG_BROADCAST, p2_z);
+      WriteVec3(MSG_BROADCAST, p1);
+      WriteVec3(MSG_BROADCAST, p2);
       LightningDamage(p1, p2, self, self.dmg);
       }
    else
@@ -649,12 +639,8 @@ void() TeslaLightningThink =
    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
    WriteEntity(MSG_BROADCAST, self);
    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-   WriteCoord(MSG_BROADCAST, self.origin_x);
-   WriteCoord(MSG_BROADCAST, self.origin_y);
-   WriteCoord(MSG_BROADCAST, self.origin_z);
-   WriteCoord(MSG_BROADCAST, trace_endpos_x);
-   WriteCoord(MSG_BROADCAST, trace_endpos_y);
-   WriteCoord(MSG_BROADCAST, trace_endpos_z);
+   WriteVec3(MSG_BROADCAST, self.origin);
+   WriteVec3(MSG_BROADCAST, trace_endpos);
    LightningDamage(self.origin, trace_endpos, self.lastvictim, self.dmg);
    self.nextthink = time + 0.1;
    };

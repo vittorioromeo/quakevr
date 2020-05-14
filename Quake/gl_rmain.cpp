@@ -817,6 +817,8 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 
 void R_DrawWorldText()
 {
+    // TODO VR: (P0) cleanup and optimize
+
     const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
                                        const qvec3& zInc, const char num) {
         const int row = num >> 4;
@@ -902,53 +904,18 @@ void R_DrawWorldText()
         return;
     }
 
-    extern std::vector<WorldText> cl_worldTexts;
-    // for(const auto& wt : cl_worldTexts)
-    // {
-    // }
-
-   // entity_t* e = &cl_entities[cl.viewentity];
-
-
-    // glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     glEnable(GL_ALPHA_TEST);
     glColor4f(1, 1, 1, 1);
-
-    // TODO VR: (P1) document why we have +1
-    // glTranslatef(-e->scale_origin[0], -e->scale_origin[1],
-    // -e->scale_origin[2]); glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f,
-    // e->scale[2] + 1.f); glTranslatef(e->scale_origin[0], e->scale_origin[1],
-    // e->scale_origin[2]);
-    //
-    // glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
-    //     paliashdr->scale_origin[2]);
-    // glScalef(paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
 
     for(const WorldText& wt : cl.worldTexts)
     {
         drawString(wt._pos, wt._angles, wt._text.data());
     }
 
-    /*
-        auto eangles = e->angles;
-        eangles[PITCH] *= -1.f;
-        const auto fwd = quake::util::getFwdVecFromPitchYawRoll(eangles);
-        const qvec3 origin = e->origin + fwd * 100.f;
-        const qvec3 angle{0.f, 45.f, 0.f};
-
-        drawString(origin, angle,
-            "bastardissimo diobastardissimo diobastardissimo dio\nbastardissimo
-       " "diobastardissimo " "diobastardissimo dio\nbastardissimo
-       diobastardissimo diobastardissimo " "dio\nbastardissimo diobastardissimo
-       diobastardissimo " "dio\nbastardissimo diobastardissimo diobastardissimo
-       " "dio\nbastardissimo diobastardissimo diobastardissimo dio\n");
-    */
-
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
-    // glEnable(GL_DEPTH_TEST);
 }
 
 /*

@@ -114,9 +114,7 @@ void() ogre_crown_die =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_TAREXPLOSION);
-    WriteCoord(MSG_BROADCAST, tf.origin_x);
-    WriteCoord(MSG_BROADCAST, tf.origin_y);
-    WriteCoord(MSG_BROADCAST, tf.origin_z);
+    WriteVec3(MSG_BROADCAST, tf.origin);
 
     self.trigger_field = world;
 

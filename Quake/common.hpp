@@ -104,6 +104,8 @@ void MSG_WriteString(sizebuf_t* sb, const char* s);
 void MSG_WriteCoord(sizebuf_t* sb, float f, unsigned int flags);
 void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags);
 void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags); // johnfitz
+void MSG_WriteVec3(sizebuf_t* sb, const qvec3& v, unsigned int flags);
+
 
 extern int msg_readcount;
 extern bool msg_badread; // set if a read goes beyond end of message
@@ -120,6 +122,7 @@ const char* MSG_ReadString();
 float MSG_ReadCoord(unsigned int flags);
 float MSG_ReadAngle(unsigned int flags);
 float MSG_ReadAngle16(unsigned int flags); // johnfitz
+qvec3 MSG_ReadVec3(unsigned int flags);
 
 //============================================================================
 

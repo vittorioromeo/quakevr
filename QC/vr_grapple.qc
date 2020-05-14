@@ -90,12 +90,8 @@ void(entity h, vector startPos, vector endPos) GrappleTrail =
     WriteByte(MSG_BROADCAST, TE_BEAM);
     WriteEntity(MSG_BROADCAST, h);
     WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteCoord(MSG_BROADCAST, startPos_x);
-    WriteCoord(MSG_BROADCAST, startPos_y);
-    WriteCoord(MSG_BROADCAST, startPos_z);
-    WriteCoord(MSG_BROADCAST, endPos_x);
-    WriteCoord(MSG_BROADCAST, endPos_y);
-    WriteCoord(MSG_BROADCAST, endPos_z);
+    WriteVec3(MSG_BROADCAST, startPos);
+    WriteVec3(MSG_BROADCAST, endPos);
 };
 
 void() GrappleResetFromHook =

@@ -568,10 +568,7 @@ void SV_ReadClientMove(usercmd_t* move)
         }
     };
 
-    const auto readVec = [&]() -> qfvec3 {
-        return {MSG_ReadCoord(sv.protocolflags),
-            MSG_ReadCoord(sv.protocolflags), MSG_ReadCoord(sv.protocolflags)};
-    };
+    const auto readVec = [&] { return MSG_ReadVec3(sv.protocolflags); };
 
     // aimangles
     readAngles(host_client->edict->v.v_angle);
