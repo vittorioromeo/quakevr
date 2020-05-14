@@ -77,78 +77,64 @@ A sky texture is 256*128, with the left side being a masked overlay
 */
 void Sky_LoadTexture(texture_t* mt)
 {
-    char texturename[64];
-    int i;
-
-    int j;
-
-    int p;
-
-    int r;
-
-    int g;
-
-    int b;
-
-    int count;
-    byte* src;
     static byte front_data[128 * 128]; // FIXME: Hunk_Alloc
     static byte back_data[128 * 128];  // FIXME: Hunk_Alloc
-    unsigned* rgba;
 
-    src = (byte*)mt + mt->offsets[0];
+    byte* src = (byte*)mt + mt->offsets[0];
 
     // extract back layer and upload
-    for(i = 0; i < 128; i++)
+    for(int i = 0; i < 128; i++)
     {
-        for(j = 0; j < 128; j++)
+        for(int j = 0; j < 128; j++)
         {
             back_data[(i * 128) + j] = src[i * 256 + j + 128];
         }
+    }
 
-        q_snprintf(texturename, sizeof(texturename), "%s:%s_back",
-            loadmodel->name, mt->name);
-        solidskytexture = TexMgr_LoadImage(loadmodel, texturename, 128, 128,
-            SRC_INDEXED, back_data, "", (src_offset_t)back_data, TEXPREF_NONE);
+    char texturename[64];
+    q_snprintf(texturename, sizeof(texturename), "%s:%s_back", loadmodel->name,
+        mt->name);
+    solidskytexture = TexMgr_LoadImage(loadmodel, texturename, 128, 128,
+        SRC_INDEXED, back_data, "", (src_offset_t)back_data, TEXPREF_NONE);
 
-        // extract front layer and upload
-        for(i = 0; i < 128; i++)
+    // extract front layer and upload
+    for(int i = 0; i < 128; i++)
+    {
+        for(int j = 0; j < 128; j++)
         {
-            for(j = 0; j < 128; j++)
+            front_data[(i * 128) + j] = src[i * 256 + j];
+            if(front_data[(i * 128) + j] == 0)
             {
-                front_data[(i * 128) + j] = src[i * 256 + j];
-                if(front_data[(i * 128) + j] == 0)
-                {
-                    front_data[(i * 128) + j] = 255;
-                }
-            }
-        }
-
-        q_snprintf(texturename, sizeof(texturename), "%s:%s_front",
-            loadmodel->name, mt->name);
-        alphaskytexture =
-            TexMgr_LoadImage(loadmodel, texturename, 128, 128, SRC_INDEXED,
-                front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
-
-        // calculate r_fastsky color based on average of all opaque foreground
-        // colors
-        r = g = b = count = 0;
-        for(i = 0; i < 128; i++)
-        {
-            for(j = 0; j < 128; j++)
-            {
-                p = src[i * 256 + j];
-                if(p != 0)
-                {
-                    rgba = &d_8to24table[p];
-                    r += ((byte*)rgba)[0];
-                    g += ((byte*)rgba)[1];
-                    b += ((byte*)rgba)[2];
-                    count++;
-                }
+                front_data[(i * 128) + j] = 255;
             }
         }
     }
+
+    q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name,
+        mt->name);
+    alphaskytexture = TexMgr_LoadImage(loadmodel, texturename, 128, 128,
+        SRC_INDEXED, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
+
+    // calculate r_fastsky color based on average of all opaque foreground
+    // colors
+    int r, g, b, count;
+    r = g = b = count = 0;
+    for(int i = 0; i < 128; i++)
+    {
+        for(int j = 0; j < 128; j++)
+        {
+            int p = src[i * 256 + j];
+            if(p != 0)
+            {
+                unsigned int* rgba = &d_8to24table[p];
+                r += ((byte*)rgba)[0];
+                g += ((byte*)rgba)[1];
+                b += ((byte*)rgba)[2];
+                count++;
+            }
+        }
+    }
+
     skyflatcolor[0] = (float)r / (count * 255);
     skyflatcolor[1] = (float)g / (count * 255);
     skyflatcolor[2] = (float)b / (count * 255);
