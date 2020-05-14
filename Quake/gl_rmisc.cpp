@@ -203,6 +203,7 @@ void R_Init()
     Cvar_RegisterVariable(&r_lightmap);
     Cvar_RegisterVariable(&r_fullbright);
     Cvar_RegisterVariable(&r_drawentities);
+    Cvar_RegisterVariable(&r_drawworldtext);
     Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_shadows);
     Cvar_RegisterVariable(&r_wateralpha);

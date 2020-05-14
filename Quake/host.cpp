@@ -663,8 +663,12 @@ void Host_ClearMemory()
     Hunk_FreeToLowMark(host_hunklevel);
     cls.signon = 0;
     free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
-    memset(&sv, 0, sizeof(sv));
-    memset(&cl, 0, sizeof(cl));
+
+    // memset(&sv, 0, sizeof(sv));
+    // memset(&cl, 0, sizeof(cl));
+
+    sv = server_t{};
+    cl = client_state_t{};
 }
 
 

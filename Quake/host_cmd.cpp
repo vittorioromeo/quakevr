@@ -1955,6 +1955,32 @@ void Host_Spawn_f()
     MSG_WriteByte(&host_client->message, svc_signonnum);
     MSG_WriteByte(&host_client->message, 3);
     host_client->sendsignon = true;
+
+    // TODO VR: (P0) worldtext cleaup
+    WorldTextHandle wth = 0;
+    for(const WorldText& wt : sv.worldTexts)
+    {
+        MSG_WriteByte(&host_client->message, svc_worldtext_hmake);
+        MSG_WriteShort(&host_client->message, wth);
+
+        MSG_WriteByte(&host_client->message, svc_worldtext_hsettext);
+        MSG_WriteShort(&host_client->message, wth);
+        MSG_WriteString(&host_client->message, wt._text.data());
+
+        MSG_WriteByte(&host_client->message, svc_worldtext_hsetpos);
+        MSG_WriteShort(&host_client->message, wth);
+        MSG_WriteCoord(&host_client->message, wt._pos[0], sv.protocolflags);
+        MSG_WriteCoord(&host_client->message, wt._pos[1], sv.protocolflags);
+        MSG_WriteCoord(&host_client->message, wt._pos[2], sv.protocolflags);
+
+        MSG_WriteByte(&host_client->message, svc_worldtext_hsetangles);
+        MSG_WriteShort(&host_client->message, wth);
+        MSG_WriteCoord(&host_client->message, wt._angles[0], sv.protocolflags);
+        MSG_WriteCoord(&host_client->message, wt._angles[1], sv.protocolflags);
+        MSG_WriteCoord(&host_client->message, wt._angles[2], sv.protocolflags);
+
+        ++wth;
+    }
 }
 
 /*

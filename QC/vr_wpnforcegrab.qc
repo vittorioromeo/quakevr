@@ -300,7 +300,7 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
         {
             if(random() < 0.4)
             {
-                particle2(e.origin, '0 0 0', 9 /* gunforcegrab preset */, 1);
+                particle2(e.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
             }
         }
 

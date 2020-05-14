@@ -501,7 +501,7 @@ void(float dist) gremlin_run =
                   {
                   vector ang;
                   float done;
-                  vector end;
+                  vector end = self.enemy.origin;
                   float c;
 
                   ang = vectoangles(d);

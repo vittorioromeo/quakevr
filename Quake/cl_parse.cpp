@@ -60,26 +60,26 @@ const char* svc_strings[] = {
     "svc_cdtrack", // [byte] track [byte] looptrack
     "svc_sellscreen", "svc_cutscene",
     // johnfitz -- new server messages
-    "",                      // 35
-    "",                      // 36
-    "svc_skybox",            // 37					// [string] skyname
-    "",                      // 38
-    "",                      // 39
-    "svc_bf",                // 40						// no data
-    "svc_fog",               // 41					// [byte] density [byte] red [byte]
-                             // green [byte] blue [float] time
-    "svc_spawnbaseline2",    // 42			// support for large modelindex, large
-                             // framenum, alpha, using flags
-    "svc_spawnstatic2",      // 43			// support for large modelindex, large
-                             // framenum, alpha, using flags
-    "svc_spawnstaticsound2", //	44		// [coord3] [short] samp [byte] vol
-                             //[byte] aten
-    "svc_particle2",         // 45
-    "",                      // 46
-    "",                      // 47
-    "",                      // 48
-    "",                      // 49
-    "",                      // 50
+    "",                         // 35
+    "",                         // 36
+    "svc_skybox",               // 37					// [string] skyname
+    "",                         // 38
+    "",                         // 39
+    "svc_bf",                   // 40						// no data
+    "svc_fog",                  // 41					// [byte] density [byte] red [byte]
+                                // green [byte] blue [float] time
+    "svc_spawnbaseline2",       // 42			// support for large modelindex, large
+                                // framenum, alpha, using flags
+    "svc_spawnstatic2",         // 43			// support for large modelindex, large
+                                // framenum, alpha, using flags
+    "svc_spawnstaticsound2",    //	44		// [coord3] [short] samp [byte] vol
+                                //[byte] aten
+    "svc_particle2",            // 45
+    "svc_worldtext_hmake",      // 46
+    "svc_worldtext_hsettext",   // 47
+    "svc_worldtext_hsetpos",    // 48
+    "svc_worldtext_hsetangles", // 49
+    "",                         // 50
     // johnfitz
 };
 
@@ -1602,6 +1602,50 @@ void CL_ParseServerMessage()
                 CL_ParseStaticSound(2);
                 break;
                 // johnfitz
+                // TODO VR: (P0) worldtext cleaup
+            case svc_worldtext_hmake:
+            {
+                const WorldTextHandle wth = MSG_ReadShort();
+                cl.worldTexts.resize(wth + 1);
+
+                break;
+            }
+                // TODO VR: (P0) worldtext cleaup
+            case svc_worldtext_hsettext:
+            {
+                const WorldTextHandle wth = MSG_ReadShort();
+
+                assert(static_cast<int>(cl.worldTexts.size()) > wth);
+                cl.worldTexts[wth]._text = MSG_ReadString();
+
+                break;
+            }
+                // TODO VR: (P0) worldtext cleaup
+            case svc_worldtext_hsetpos:
+            {
+                const WorldTextHandle wth = MSG_ReadShort();
+                const qvec3 v{MSG_ReadCoord(cl.protocolflags),
+                    MSG_ReadCoord(cl.protocolflags),
+                    MSG_ReadCoord(cl.protocolflags)};
+
+                assert(static_cast<int>(cl.worldTexts.size()) > wth);
+                cl.worldTexts[wth]._pos = v;
+
+                break;
+            }
+                // TODO VR: (P0) worldtext cleaup
+            case svc_worldtext_hsetangles:
+            {
+                const WorldTextHandle wth = MSG_ReadShort();
+                const qvec3 v{MSG_ReadCoord(cl.protocolflags),
+                    MSG_ReadCoord(cl.protocolflags),
+                    MSG_ReadCoord(cl.protocolflags)};
+
+                assert(static_cast<int>(cl.worldTexts.size()) > wth);
+                cl.worldTexts[wth]._angles = v;
+
+                break;
+            }
         }
 
         lastcmd = cmd; // johnfitz

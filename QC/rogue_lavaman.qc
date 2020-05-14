@@ -350,13 +350,12 @@ void(float AttackNumber) lavaman_missile =
     // Right handed throw
     if(AttackNumber == 1)
     {
-//        org = self.origin - v_forward*40 + v_right*90 + v_up*110;
         org = self.origin + v_forward*40 + v_right*65 + v_up*130;
     }
     // Left handed throw
-    else if(AttackNumber == 2)
+    else
     {
-//        org = self.origin - v_forward*40 - v_right*90 + v_up*110;
+        ASSERT(AttackNumber == 2);
         org = self.origin + v_forward*40 - v_right*75 + v_up*125;
     }
 

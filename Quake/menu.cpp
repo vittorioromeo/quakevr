@@ -126,13 +126,14 @@ void M_DrawCharacter(int cx, int line, int num)
 
 void M_Print(int cx, int cy, const char* str)
 {
-    while(*str)
+    while (*str)
     {
         M_DrawCharacter(cx, cy, (*str) + 128);
         str++;
         cx += 8;
     }
 }
+
 
 void M_PrintWithNewLine(int cx, int cy, const char* str)
 {

@@ -65,6 +65,7 @@ enum ptype_t : std::uint8_t
     pt_rock,
     pt_gunsmoke,
     pt_gunpickup,
+    pt_txbigsmoke,
 };
 
 struct ParticleSOA
@@ -1327,6 +1328,28 @@ void R_RunParticleEffect_Smoke(const qvec3& org, const qvec3& dir, int count)
     });
 }
 
+void R_RunParticleEffect_BigSmoke(const qvec3& org, const qvec3& dir, int count)
+{
+    (void)dir;
+
+    makeNParticles(ptxAtlas, count, [&](PHandle p) {
+        p.atlasIdx() = aiSmoke;
+        p.angle() = rndToRad(0.f, 360.f);
+        p.setAlpha(255);
+        p.die() = cl.time + 2.5 * (rand() % 5);
+        p.setColor(rand() & 7);
+        p.scale() = rnd(1.2f, 1.7f) * 2.8f;
+        p.type() = pt_txbigsmoke;
+        setAccGrav(p, -0.09f);
+
+        for(int j = 0; j < 3; j++)
+        {
+            p.org()[j] = org[j] + ((rand() & 9) - 4);
+            p.vel()[j] = rnd(-24, 24);
+        }
+    });
+}
+
 void R_RunParticleEffect_Sparks(const qvec3& org, const qvec3& dir, int count)
 {
     (void)dir;
@@ -1494,7 +1517,8 @@ void R_RunParticle2Effect(
         Teleport = 7,
         GunPickup = 8,
         GunForceGrab = 9,
-        LavaSpike = 10
+        LavaSpike = 10,
+        BigSmoke = 11
     };
 
     switch(static_cast<Preset>(preset))
@@ -1552,6 +1576,11 @@ void R_RunParticle2Effect(
         case Preset::LavaSpike:
         {
             R_RunParticleEffect_LavaSpike(org, dir, count);
+            break;
+        }
+        case Preset::BigSmoke:
+        {
+            R_RunParticleEffect_BigSmoke(org, dir, count);
             break;
         }
         default:
@@ -2042,6 +2071,14 @@ void CL_RunParticles()
             {
                 p.addAlpha(-70.f, frametime);
                 p.scale() += 47.f * frametime;
+
+                break;
+            }
+
+            case pt_txbigsmoke:
+            {
+                p.addAlpha(-35.f, frametime);
+                p.scale() += 37.f * frametime;
 
                 break;
             }

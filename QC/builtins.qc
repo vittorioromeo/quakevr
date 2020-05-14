@@ -138,3 +138,10 @@ float(float h) cvar_hget = #87;
 void() cvar_hclear = #88;
 
 vector(vector input, vector exemplar) redirectvector = #89;
+
+void(float h, float v) cvar_hset = #90;
+
+float() worldtext_hmake                      = #91;
+void(float h, string s) worldtext_hsettext   = #92;
+void(float h, vector v) worldtext_hsetpos    = #93;
+void(float h, vector v) worldtext_hsetangles = #94;

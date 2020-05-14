@@ -112,6 +112,7 @@ extern int d_lightstylevalue[256]; // 8.8 fraction of base light value
 
 extern cvar_t r_norefresh;
 extern cvar_t r_drawentities;
+extern cvar_t r_drawworldtext;
 extern cvar_t r_drawworld;
 extern cvar_t r_drawviewmodel;
 extern cvar_t r_speeds;

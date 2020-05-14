@@ -835,15 +835,13 @@ void(float scope) bot_look_for_crap =
         bprint("]\n");
     }
 
-    entity foe, best;
-    float thatp, bestp, dist;
+    entity best = NULLENT;
+    entity foe = findradius(self.origin, radius);
 
-    foe = findradius(self.origin, radius);
-
-    bestp = 1;
+    float bestp = 1;
     while(foe)
     {
-        thatp = priority_for_thing(foe);
+        float thatp = priority_for_thing(foe);
 
         if(cvar_hget(cvarh_vr_verbosebots))
         {
@@ -864,7 +862,7 @@ void(float scope) bot_look_for_crap =
         {
             bestp = thatp;
             best = foe;
-            dist = vlen(self.origin - foe.origin);
+            float dist = vlen(self.origin - foe.origin);
         }
 
         foe = foe.chain;

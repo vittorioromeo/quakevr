@@ -220,7 +220,7 @@ void () GrappleAnchor =
     self.frame = 2; // anchored
 
     sound(self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
-    particle2(self.origin, '0 0 0', 0 /* bullet puff preset */, 48);
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 48);
 
     if(!ownerFireButtonPressed(xHand)) {
         GrappleResetFromHook();
@@ -246,8 +246,8 @@ void (float xHand) W_FireGrapple =
         return;
 
     VRGunHaptic(xHand, 0.55, 75, 1.0);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 5 /* sparks preset */, 8);
-    particle2(VRGetMuzzlePos(xHand), '0 0 0', 6 /* gun smoke preset */, 1);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 8);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 
     self.punchangle_x = -2; // bump him
 

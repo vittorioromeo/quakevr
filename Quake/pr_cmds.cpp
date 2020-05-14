@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.hpp"
 #include "cvar.hpp"
+#include "protocol.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
 #include "util.hpp"
@@ -1166,6 +1167,129 @@ static void PF_cvar_hget()
 
 /*
 =================
+PF_cvar_hget
+
+float cvar_hget (float)
+=================
+*/
+static void PF_cvar_hset()
+{
+    Cvar_SetValueFromHandle(G_INT(OFS_PARM0), G_FLOAT(OFS_PARM1));
+}
+
+static void PF_worldtext_hmake()
+{
+    // TODO VR: (P0) worldtext cleanup
+    if(sv.freeWorldTextHandles.size() == 0)
+    {
+        Host_Error("TODO VR: (P0)");
+        return;
+    }
+
+    const WorldTextHandle wth = sv.freeWorldTextHandles.back();
+    sv.worldTexts.resize(wth + 1);
+
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            MSG_WriteByte(&client.message, svc_worldtext_hmake);
+            MSG_WriteShort(&client.message, wth);
+        }
+    }
+
+    G_INT(OFS_RETURN) = wth;
+}
+// TODO VR: (P0) worldtext cleaup
+static void PF_worldtext_hsettext()
+{
+    // TODO VR: (P0) worldtext cleanup
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const char* text = G_STRING(OFS_PARM1);
+
+    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    {
+        Host_Error("TODO VR: (P0)");
+        return;
+    }
+
+    sv.worldTexts[wth]._text = text;
+
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            MSG_WriteByte(&client.message, svc_worldtext_hsettext);
+            MSG_WriteShort(&client.message, wth);
+            MSG_WriteString(&client.message, text);
+        }
+    }
+}
+// TODO VR: (P0) worldtext cleaup
+static void PF_worldtext_hsetpos()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const qvec3 pos = extractVector(OFS_PARM1);
+
+    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    {
+        Host_Error("TODO VR: (P0)");
+        return;
+    }
+
+    sv.worldTexts[wth]._pos = pos;
+
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            MSG_WriteByte(&client.message, svc_worldtext_hsetpos);
+            MSG_WriteShort(&client.message, wth);
+            MSG_WriteCoord(&client.message, pos[0], sv.protocolflags);
+            MSG_WriteCoord(&client.message, pos[1], sv.protocolflags);
+            MSG_WriteCoord(&client.message, pos[2], sv.protocolflags);
+        }
+    }
+}
+// TODO VR: (P0) worldtext cleaup
+static void PF_worldtext_hsetangles()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const qvec3 angles = extractVector(OFS_PARM1);
+
+    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    {
+        Host_Error("TODO VR: (P0)");
+        return;
+    }
+
+    sv.worldTexts[wth]._angles = angles;
+
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            MSG_WriteByte(&client.message, svc_worldtext_hsetangles);
+            MSG_WriteShort(&client.message, wth);
+            MSG_WriteCoord(&client.message, angles[0], sv.protocolflags);
+            MSG_WriteCoord(&client.message, angles[1], sv.protocolflags);
+            MSG_WriteCoord(&client.message, angles[2], sv.protocolflags);
+        }
+    }
+}
+
+
+
+/*
+=================
 PF_cvar_hclear
 
 void cvar_hclear ()
@@ -2087,6 +2211,13 @@ static builtin_t pr_builtin[] = {
     PF_cvar_hclear, // #88
 
     PF_redirectvector, // #89
+
+    PF_cvar_hset, // #90
+
+    PF_worldtext_hmake,      // #91
+    PF_worldtext_hsettext,   // #92
+    PF_worldtext_hsetpos,    // #93
+    PF_worldtext_hsetangles, // #94
 };
 
 builtin_t* pr_builtins = pr_builtin;

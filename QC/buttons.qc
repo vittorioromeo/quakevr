@@ -39,7 +39,7 @@ void() button_return =
     porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
     porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
     porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
-    particle2(porg, '0 0 0', 5 /* sparks preset */, 64);
+    particle2(porg, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);
 
     self.state = STATE_DOWN;
 
@@ -58,23 +58,27 @@ void() button_blocked =
 
 void() button_fire =
 {
-    vector porg;
-
     if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
     {
         return;
     }
 
-
+    vector porg;
     porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
     porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
     porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
-    particle2(porg, '0 0 0', 5 /* sparks preset */, 64);
+    particle2(porg, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);
 
     sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
     self.state = STATE_UP;
-    SUB_CalcMove (self.pos2, self.speed, button_wait);
+    SUB_CalcMove(self.pos2, self.speed, button_wait);
+
+    // VR
+    if(self.effects == 1)
+    {
+        bprint("EFFECTS BUTTON!");
+    }
 };
 
 
@@ -120,6 +124,9 @@ When a button is touched, it moves some distance in the direction of it's angle,
 1) wooden clunk
 2) metallic click
 3) in-out
+"effects" // VR
+0) normal button
+N) code button
 */
 void() func_button =
 {
@@ -193,5 +200,23 @@ void() func_button =
     if(self.spawnflags & START_DISABLED) {
         button_disable(self);
     }
+
+    // TODO VR: (P0) worldtext test
+    float wth = worldtext_hmake();
+    worldtext_hsettext(wth, "button");
+    worldtext_hsetpos(wth, self.pos2 + '0 0 12');
+    worldtext_hsetangles(wth, self.angles);
 };
 
+// TODO VR: (P2) move
+void() func_particle_emitter_think =
+{
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BIGSMOKE, 1);
+    self.nextthink = time + 0.1;
+}
+
+void() func_particle_emitter =
+{
+    self.think = func_particle_emitter_think;
+    self.nextthink = time + 0.1;
+}

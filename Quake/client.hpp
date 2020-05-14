@@ -283,6 +283,8 @@ struct client_state_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
+
+    std::vector<WorldText> worldTexts;
 };
 
 template <typename F>

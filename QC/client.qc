@@ -510,9 +510,12 @@ void() IntermissionThink =
     ExitIntermission();
 };
 
+float foundHoneyFogSettings;
+
 void() execute_changelevel =
 {
     // HONEY
+    foundHoneyFogSettings = FALSE;
     entity fogsettings = NULLENT;
 
     intermission_running = 1;
@@ -533,6 +536,7 @@ void() execute_changelevel =
     if(pos.target != "") {
         fogsettings = find(world, targetname, pos.target);
         if(fogsettings.classname == "trigger_fogcontroller") {
+            foundHoneyFogSettings = TRUE;
             fogsettings = fogsettings.owner;
         }
     }
@@ -1983,7 +1987,8 @@ called when a player dies
 void(entity targ, entity attacker) ClientObituary =
 {
     float rnum;
-    string deathstring, deathstring2;
+    string deathstring = "";
+    string deathstring2 = "";
     rnum = random();
 
     if(targ.classname == "player")

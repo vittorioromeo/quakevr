@@ -2022,6 +2022,13 @@ void SV_SpawnServer(const char* server, const bool fromSaveFile)
     //
     SV_ClearWorld();
 
+    // TODO VR: (P0) worldtext cleanup
+    sv.worldTexts.clear();
+    for(int i = 0; i < 65535; ++i)
+    {
+        sv.freeWorldTextHandles.emplace_back(65535 - i);
+    }
+
     sv.sound_precache[0] = dummy;
     sv.model_precache[0] = dummy;
     sv.model_precache[1] = sv.modelname;

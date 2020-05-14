@@ -257,7 +257,7 @@ void() barrel_explode =
     // did say self.owner
     T_RadiusDamage(self, self, 160, world);
     sound(self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
-    particle2(self.origin, '0 0 0', 2 /* explosion preset */, 1);
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_EXPLOSION, 1);
 
     self.origin_z = self.origin_z + 32;
     BecomeExplosion();
