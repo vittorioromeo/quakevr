@@ -176,9 +176,7 @@ void() boss_death9 = [$death9, boss_death10]
     sound(self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 };
 
 void() boss_death10 = [$death9, boss_death10]
@@ -276,9 +274,7 @@ void() boss_awake =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     self.yaw_speed = 20;
     boss_rise1();
@@ -344,12 +340,8 @@ void() lightning_fire =
     WriteByte(MSG_ALL, TE_LIGHTNING3);
     WriteEntity(MSG_ALL, world);
     WriteByte(MSG_ALL, 0); /* disambiguator */
-    WriteCoord(MSG_ALL, p1_x);
-    WriteCoord(MSG_ALL, p1_y);
-    WriteCoord(MSG_ALL, p1_z);
-    WriteCoord(MSG_ALL, p2_x);
-    WriteCoord(MSG_ALL, p2_y);
-    WriteCoord(MSG_ALL, p2_z);
+    WriteVec3(MSG_BROADCAST, p1);
+    WriteVec3(MSG_BROADCAST, p2);
 };
 
 void() lightning_use =

@@ -202,10 +202,11 @@ void() func_button =
     }
 
     // TODO VR: (P0) worldtext test
+    makeforward(self.angles);
     float wth = worldtext_hmake();
-    worldtext_hsettext(wth, "button");
-    worldtext_hsetpos(wth, self.pos2 + '0 0 12');
-    worldtext_hsetangles(wth, self.angles);
+    worldtext_hsettext(wth, "DO NOT PRESS\nI am serious");
+    worldtext_hsetpos(wth, realorigin(self) + '0 0 12' + v_forward * 6.0);
+    worldtext_hsetangles(wth, self.angles + '0 180 0');
 };
 
 // TODO VR: (P2) move

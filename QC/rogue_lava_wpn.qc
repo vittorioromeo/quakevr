@@ -156,9 +156,7 @@ void() lavaspike_touch =
             spike_bullethole();
             WriteByte(MSG_BROADCAST, TE_SPIKE);
         }
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
     }
 
     remove(self);
@@ -220,9 +218,7 @@ void() superlavaspike_touch =
         spike_bullethole();
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_SUPERSPIKE);
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
     }
 
     remove(self);

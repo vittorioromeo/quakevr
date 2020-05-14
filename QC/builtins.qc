@@ -145,3 +145,5 @@ float() worldtext_hmake                      = #91;
 void(float h, string s) worldtext_hsettext   = #92;
 void(float h, vector v) worldtext_hsetpos    = #93;
 void(float h, vector v) worldtext_hsetangles = #94;
+
+void(float to, vector v) WriteVec3 = #95;

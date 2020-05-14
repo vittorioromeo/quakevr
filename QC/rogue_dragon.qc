@@ -363,9 +363,7 @@ void() FireballTouch =
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 228);  // 247
     WriteByte(MSG_BROADCAST, 5);
 

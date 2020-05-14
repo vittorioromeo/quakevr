@@ -150,9 +150,7 @@ void() ending_remove_stuff =
     curEnt = find(world, classname, "item_time_core");
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, curEnt.origin_x);
-    WriteCoord(MSG_BROADCAST, curEnt.origin_y);
-    WriteCoord(MSG_BROADCAST, curEnt.origin_z);
+    WriteVec3(MSG_BROADCAST, curEnt.origin);
     WriteByte(MSG_BROADCAST, 230);
     WriteByte(MSG_BROADCAST, 5);
 

@@ -19,9 +19,7 @@ void() MiniGrenadeExplode =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 230);
     WriteByte(MSG_BROADCAST, 5);
 
@@ -209,9 +207,7 @@ void() MultiRocketExplode =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     BecomeExplosion();
 };
@@ -424,12 +420,8 @@ void(entity current, float doDamage) PlasmaDischarge =
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, current);
     WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteCoord(MSG_BROADCAST, current.origin_x);
-    WriteCoord(MSG_BROADCAST, current.origin_y);
-    WriteCoord(MSG_BROADCAST, current.origin_z);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, current.origin);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
     if(doDamage == 1)
@@ -499,9 +491,7 @@ void() PlasmaTouch =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 244);
     WriteByte(MSG_BROADCAST, 3);
 

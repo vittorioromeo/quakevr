@@ -209,12 +209,8 @@ void() CastLightning =
     WriteByte(MSG_BROADCAST, TE_LIGHTNING1);
     WriteEntity(MSG_BROADCAST, self);
     WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteCoord(MSG_BROADCAST, org_x);
-    WriteCoord(MSG_BROADCAST, org_y);
-    WriteCoord(MSG_BROADCAST, org_z);
-    WriteCoord(MSG_BROADCAST, trace_endpos_x);
-    WriteCoord(MSG_BROADCAST, trace_endpos_y);
-    WriteCoord(MSG_BROADCAST, trace_endpos_z);
+    WriteVec3(MSG_BROADCAST, org);
+    WriteVec3(MSG_BROADCAST, trace_endpos);
 
     LightningDamage(org, trace_endpos, self, 10);
 };

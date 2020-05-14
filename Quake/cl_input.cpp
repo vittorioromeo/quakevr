@@ -548,9 +548,7 @@ void CL_SendMove(const usercmd_t* cmd)
     };
 
     const auto writeVec = [&](const auto& vec) {
-        MSG_WriteCoord(&buf, vec[0], cl.protocolflags);
-        MSG_WriteCoord(&buf, vec[1], cl.protocolflags);
-        MSG_WriteCoord(&buf, vec[2], cl.protocolflags);
+        MSG_WriteVec3(&buf, vec, cl.protocolflags);
     };
 
     // aimangles

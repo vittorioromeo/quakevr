@@ -184,9 +184,7 @@ void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
     WriteByte(MSG_BROADCAST, 0);
     WriteByte(MSG_BROADCAST, 4);
 
@@ -331,9 +329,7 @@ void() WrathMissileTouch =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     self.velocity = '0 0 0';
     self.touch = SUB_Null;

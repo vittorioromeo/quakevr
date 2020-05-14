@@ -1074,9 +1074,7 @@ void() player_touch =
 
                 WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
                 WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-                WriteCoord(MSG_BROADCAST, other.origin_x);
-                WriteCoord(MSG_BROADCAST, other.origin_y);
-                WriteCoord(MSG_BROADCAST, other.origin_z);
+                WriteVec3(MSG_BROADCAST, other.origin);
                 WriteByte(MSG_BROADCAST, 230);
                 WriteByte(MSG_BROADCAST, 5);
 

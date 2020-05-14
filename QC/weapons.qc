@@ -19,9 +19,7 @@ void(vector org) BroadcastGunshotEffect =
 {
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_GUNSHOT);
-    WriteCoord(MSG_BROADCAST, org_x);
-    WriteCoord(MSG_BROADCAST, org_y);
-    WriteCoord(MSG_BROADCAST, org_z);
+    WriteVec3(MSG_BROADCAST, org);
 }
 
 vector(float xHand, float factor) vrProjectileVelocity =
@@ -370,9 +368,7 @@ void() HIP_LaserTouch =
     {
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_GUNSHOT);
-        WriteCoord(MSG_BROADCAST, org_x);
-        WriteCoord(MSG_BROADCAST, org_y);
-        WriteCoord(MSG_BROADCAST, org_z);
+        WriteVec3(MSG_BROADCAST, org);
     }
     else
     {
@@ -651,12 +647,8 @@ void() HIP_LightningThink =
          WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
          WriteEntity(MSG_BROADCAST, self);
          WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-         WriteCoord(MSG_BROADCAST, org_x);
-         WriteCoord(MSG_BROADCAST, org_y);
-         WriteCoord(MSG_BROADCAST, org_z);
-         WriteCoord(MSG_BROADCAST, trace_endpos_x);
-         WriteCoord(MSG_BROADCAST, trace_endpos_y);
-         WriteCoord(MSG_BROADCAST, trace_endpos_z);
+         WriteVec3(MSG_BROADCAST, org);
+         WriteVec3(MSG_BROADCAST, trace_endpos);
 
         LightningParticles(org, trace_endpos);
 
@@ -680,12 +672,8 @@ void() HIP_LightningThink =
    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
    WriteEntity(MSG_BROADCAST, self);
    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-   WriteCoord(MSG_BROADCAST, org_x);
-   WriteCoord(MSG_BROADCAST, org_y);
-   WriteCoord(MSG_BROADCAST, org_z);
-   WriteCoord(MSG_BROADCAST, trace_endpos_x);
-   WriteCoord(MSG_BROADCAST, trace_endpos_y);
-   WriteCoord(MSG_BROADCAST, trace_endpos_z);
+   WriteVec3(MSG_BROADCAST, org);
+   WriteVec3(MSG_BROADCAST, trace_endpos);
 
    LightningParticles(org, trace_endpos);
 
@@ -1497,9 +1485,7 @@ void() T_MissileTouch =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     BecomeExplosion();
 };
@@ -1685,9 +1671,7 @@ void() GrenadeExplode =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     BecomeExplosion();
 };
@@ -1793,9 +1777,7 @@ void() ProximityExplode =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, self.origin_x);
-    WriteCoord(MSG_BROADCAST, self.origin_y);
-    WriteCoord(MSG_BROADCAST, self.origin_z);
+    WriteVec3(MSG_BROADCAST, self.origin);
 
     BecomeExplosion();
 };
@@ -2134,9 +2116,7 @@ void() spike_touch =
             WriteByte(MSG_BROADCAST, TE_SPIKE);
         }
 
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
     }
 
     remove(self);
@@ -2183,9 +2163,7 @@ void() superspike_touch =
         spike_bullethole();
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_SUPERSPIKE);
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
     }
 
     remove(self);
@@ -3019,12 +2997,8 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, self);
     WriteByte(MSG_BROADCAST, xHand); /* disambiguator */
-    WriteCoord(MSG_BROADCAST, xOrigin_x);
-    WriteCoord(MSG_BROADCAST, xOrigin_y);
-    WriteCoord(MSG_BROADCAST, xOrigin_z);
-    WriteCoord(MSG_BROADCAST, trace_endpos_x);
-    WriteCoord(MSG_BROADCAST, trace_endpos_y);
-    WriteCoord(MSG_BROADCAST, trace_endpos_z);
+    WriteVec3(MSG_BROADCAST, xOrigin);
+    WriteVec3(MSG_BROADCAST, trace_endpos);
 }
 
 void(float xHand, float xButton) FrameDrawLightningTrail =

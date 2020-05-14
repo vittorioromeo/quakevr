@@ -334,10 +334,7 @@ void V_ParseDamage()
 
     armor = MSG_ReadByte();
     blood = MSG_ReadByte();
-    for(i = 0; i < 3; i++)
-    {
-        from[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    from = MSG_ReadVec3(cl.protocolflags);
 
     count = blood * 0.5 + armor * 0.5;
     if(count < 10)

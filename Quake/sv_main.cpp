@@ -149,9 +149,7 @@ EVENT MESSAGES
 
 static void writeCommonParticleData(const qfvec3& org, const qfvec3& dir)
 {
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    MSG_WriteVec3(&sv.datagram, org, sv.protocolflags);
     for(int i = 0; i < 3; i++)
     {
         int v = dir[i] * 16;

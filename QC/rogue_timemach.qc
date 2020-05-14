@@ -22,9 +22,7 @@ void() time_chunk =
     sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NONE);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteCoord(MSG_BROADCAST, timeChunk.origin_x);
-    WriteCoord(MSG_BROADCAST, timeChunk.origin_y);
-    WriteCoord(MSG_BROADCAST, timeChunk.origin_z);
+    WriteVec3(MSG_BROADCAST, timeChunk.origin);
 
     self.owner.frame = 1;
 
@@ -68,17 +66,13 @@ void() time_boom =
     {
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
     }
     else
     {
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
-        WriteCoord(MSG_BROADCAST, self.origin_x);
-        WriteCoord(MSG_BROADCAST, self.origin_y);
-        WriteCoord(MSG_BROADCAST, self.origin_z);
+        WriteVec3(MSG_BROADCAST, self.origin);
         WriteByte(MSG_BROADCAST, 244);
         WriteByte(MSG_BROADCAST, 3);
     }
@@ -107,9 +101,7 @@ void() time_fall =
         {
             WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
             WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-            WriteCoord(MSG_BROADCAST, self.origin_x);
-            WriteCoord(MSG_BROADCAST, self.origin_y);
-            WriteCoord(MSG_BROADCAST, self.origin_z);
+            WriteVec3(MSG_BROADCAST, self.origin);
         }
     }
 
