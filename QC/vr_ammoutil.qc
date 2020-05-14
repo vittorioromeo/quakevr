@@ -15,10 +15,7 @@ float(float xAid) VR_AmmoUtil_AmmoIdToItemId =
     if(xAid == AID_MULTI_ROCKETS) { return IID_MULTI_ROCKETS; }
     if(xAid == AID_PLASMA)        { return IID_PLASMA_AMMO; }
 
-    bprint("`VR_AmmoUtil_AmmoIdToItemId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 0;
 }
 
@@ -32,10 +29,7 @@ float(entity xEnt, float xAid) VR_AmmoUtil_GetAmmoCountByAmmoId =
     if(xAid == AID_MULTI_ROCKETS) { return xEnt.ammo_multi_rockets; }
     if(xAid == AID_PLASMA)        { return xEnt.ammo_plasma; }
 
-    bprint("`VR_AmmoUtil_GetAmmoCountByAmmoId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
-
+    ASSERT(FALSE);
     return 0;
 }
 
@@ -49,9 +43,7 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_SetAmmoCountByAmmoId =
     if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = xValue; return; }
     if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = xValue; return; }
 
-    bprint("`VR_AmmoUtil_SetAmmoCountByAmmoId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
+    ASSERT(FALSE);
 }
 
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_AddAmmoCountByAmmoId =
@@ -64,9 +56,7 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_AddAmmoCountByAmmoId =
     if(xAid == AID_MULTI_ROCKETS) { xEnt.ammo_multi_rockets = xEnt.ammo_multi_rockets + xValue; return; }
     if(xAid == AID_PLASMA)        { xEnt.ammo_plasma = xEnt.ammo_plasma + xValue; return; }
 
-    bprint("`VR_AmmoUtil_AddAmmoCountByAmmoId`: invalid ammo id '");
-    bprint(ftos(xAid));
-    bprint("'\n");
+    ASSERT(FALSE);
 }
 
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_DelAmmoCountByAmmoId =

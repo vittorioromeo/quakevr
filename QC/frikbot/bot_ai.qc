@@ -802,7 +802,7 @@ float(entity thing) priority_for_thing =
                 thisp = thisp + (13000 - thing.current_way.items) * 0.05;
         }
         else if(isThrownWeapon &&
-                vlen(self.origin - thing.origin) < getForcegrabRange())
+                vlen(self.origin - thing.origin) < VR_ForcegrabUtil_GetForcegrabRange())
         {
             sound(self, VRGetGunChannel(cVR_MainHand), "forcegrab.wav", 0.75, ATTN_NORM);
             wpnthrow_handtouch_impl(cVR_MainHand, thing, self, &self.weapon, &self.weaponflags);
