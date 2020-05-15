@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "modelgen.hpp"
 #include "spritegn.hpp"
-#include "client.hpp"
+#include "efrag.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "vr_macros.hpp"
 #include "zone.hpp"
@@ -95,21 +95,24 @@ typedef enum
     chain_model = 1
 } texchain_t;
 
-typedef struct texture_s
+
+struct gltexture_t;
+
+struct texture_t
 {
     char name[16];
     unsigned width, height;
-    struct gltexture_s* gltexture;       // johnfitz -- pointer to gltexture
-    struct gltexture_s* fullbright;      // johnfitz -- fullbright mask texture
-    struct gltexture_s* warpimage;       // johnfitz -- for water animation
+    gltexture_t* gltexture;       // johnfitz -- pointer to gltexture
+    gltexture_t* fullbright;      // johnfitz -- fullbright mask texture
+    gltexture_t* warpimage;       // johnfitz -- for water animation
     bool update_warp;                    // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
-    struct texture_s* anim_next;         // in the animation sequence
-    struct texture_s* alternate_anims;   // bmodels in frmae 1 use these
+    texture_t* anim_next;         // in the animation sequence
+    texture_t* alternate_anims;   // bmodels in frmae 1 use these
     unsigned offsets[MIPLEVELS];         // four mip maps stored
-} texture_t;
+};
 
 
 #define SURF_PLANEBACK 2
@@ -188,7 +191,7 @@ typedef struct msurface_s
     byte* samples;                  // [numstyles*surfsize]
 } msurface_t;
 
-typedef struct mnode_s
+struct mnode_t
 {
     // common with leaf
     int contents; // 0, to differentiate from leafs
@@ -196,15 +199,15 @@ typedef struct mnode_s
 
     float minmaxs[6]; // for bounding box culling
 
-    struct mnode_s* parent;
+    struct mnode_t* parent;
 
     // node specific
     mplane_t* plane;
-    struct mnode_s* children[2];
+    struct mnode_t* children[2];
 
     unsigned int firstsurface;
     unsigned int numsurfaces;
-} mnode_t;
+};
 
 
 
@@ -216,7 +219,7 @@ typedef struct mleaf_s
 
     float minmaxs[6]; // for bounding box culling
 
-    struct mnode_s* parent;
+    mnode_t* parent;
 
     // leaf specific
     byte* compressed_vis;
@@ -262,7 +265,7 @@ typedef struct mspriteframe_s
     int width, height;
     qfloat up, down, left, right;
     qfloat smax, tmax; // johnfitz -- image might be padded
-    struct gltexture_s* gltexture;
+    gltexture_t* gltexture;
 } mspriteframe_t;
 
 typedef struct
@@ -388,8 +391,8 @@ struct aliashdr_t
     int poseverts;
     int posedata; // numposes*poseverts trivert_t
     int commands; // gl command list with embedded s/t
-    struct gltexture_s* gltextures[MAX_SKINS][4]; // johnfitz
-    struct gltexture_s* fbtextures[MAX_SKINS][4]; // johnfitz
+    gltexture_t* gltextures[MAX_SKINS][4]; // johnfitz
+    gltexture_t* fbtextures[MAX_SKINS][4]; // johnfitz
     int texels[MAX_SKINS];                        // only for player skins
     maliasframedesc_t frames[1];                  // variable sized
 };

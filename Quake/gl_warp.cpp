@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sbar.hpp"
 #include "mathlib.hpp"
 #include "cvar.hpp"
+#include "client.hpp"
 #include "glquake.hpp"
 
 extern cvar_t r_drawflat;

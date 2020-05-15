@@ -19,9 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "quakedef.hpp"
 #include "fshandle.hpp"
 #include "common.hpp"
+#include "zone.hpp"
+#include "cvar.hpp"
 
 static fshandle_t* cfg_file;
 

@@ -21,69 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_MENU_H
-#define _QUAKE_MENU_H
+#pragma once
 
-enum m_state_e
-{
-    m_none,
-    m_main,
-    m_singleplayer,
-    m_load,
-    m_save,
-    m_multiplayer,
-    m_setup,
-    m_net,
-    m_options,
-    m_quakevrsettings,
-    m_quakevrdevtools,
-    m_quakevrchangemap,
-    m_video,
-    m_vr,
-    m_vrgameplay,
-    m_wpn_offset,
-    m_sbar_offset,
-    m_hotspot,
-    m_vrtorso,
-    m_map,
-    m_debug,
-    m_keys,
-    m_help,
-    m_quit,
-    m_lanconfig,
-    m_gameoptions,
-    m_search,
-    m_slist,
-    m_qvrs_menu,
-    m_qvrs_crosshair,
-    m_qvrs_particle,
-    m_qvrs_locomotion,
-    m_qvrs_handguncalibration,
-    m_qvrs_playercalibration,
-    m_qvrs_melee,
-    m_qvrs_aiming,
-    m_qvrs_immersion,
-    m_qvrs_graphical,
-    m_qvrs_hudconfiguration,
-    m_qvrs_hotspot,
-    m_qvrs_torso,
-    m_qvrs_changemap_vanilla,
-    m_qvrs_changemap_soa,
-    m_qvrs_changemap_doe,
-    m_qvrs_changemap_dopa,
-    m_qvrs_changemap_honey,
-    m_qvrs_changemap_extra,
-    m_qvrs_transparencyoptions,
-    m_qvrdt_weaponconfiguration1,
-    m_qvrdt_weaponconfiguration2,
-    m_qvrdt_weaponconfiguration3,
-    m_qvrdt_weaponconfiguration4,
-    m_qvrdt_fingerconfiguration,
-    m_qvrdt_debugutilities,
-};
-
-extern enum m_state_e m_state;
-extern enum m_state_e m_return_state;
+#include "mstate.hpp"
 
 extern bool m_entersound;
 
@@ -119,5 +59,3 @@ void M_DrawSlider(int x, int y, float range);
 void M_DrawPic(int x, int y, qpic_t* pic);
 void M_DrawTransPic(int x, int y, qpic_t* pic);
 void M_DrawCheckbox(int x, int y, int on);
-
-#endif /* _QUAKE_MENU_H */

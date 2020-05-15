@@ -20,6 +20,7 @@
 #include "quakedef.hpp"
 #include "fshandle.hpp"
 #include "console.hpp"
+#include "zone.hpp"
 
 #if defined(USE_CODEC_MP3)
 #include "snd_codec.hpp"

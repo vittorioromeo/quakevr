@@ -52,11 +52,11 @@ enum srcformat
 
 typedef uintptr_t src_offset_t;
 
-typedef struct gltexture_s
+struct gltexture_t
 {
     // managed by texture manager
     GLuint texnum;
-    struct gltexture_s* next;
+    gltexture_t* next;
     qmodel_t* owner;
     // managed by image loading
     char name[64];
@@ -75,7 +75,7 @@ typedef struct gltexture_s
     signed char pants;          // 0-13 pants color, or -1 if never colormapped
     // used for rendering
     int visframe; // matches r_framecount if texture was bound this frame
-} gltexture_t;
+};
 
 extern gltexture_t* notexture;
 extern gltexture_t* nulltexture;

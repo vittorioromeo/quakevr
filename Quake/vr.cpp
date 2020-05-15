@@ -14,6 +14,8 @@
 #include "common.hpp"
 #include "lerpdata.hpp"
 #include "sbar.hpp"
+#include "menu.hpp"
+#include "keys.hpp"
 
 #include <algorithm>
 #include <cassert>

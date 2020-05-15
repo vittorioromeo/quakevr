@@ -21,8 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_KEYS_H
-#define _QUAKE_KEYS_H
+#pragma once
+
+#include <cstdio>
 
 //
 // these are the key numbers that should be passed to Key_Event
@@ -202,5 +203,3 @@ int Key_GetChatMsgLen();
 
 void History_Init();
 void History_Shutdown();
-
-#endif /* _QUAKE_KEYS_H */

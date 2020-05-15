@@ -21,31 +21,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _CLIENT_H_
-#define _CLIENT_H_
+#pragma once
 
-#define CSHIFT_CONTENTS 0
-#define CSHIFT_DAMAGE 1
-#define CSHIFT_BONUS 2
-#define CSHIFT_POWERUP 3
-#define NUM_CSHIFTS 4
-#define NAME_LENGTH 64
-#define SIGNONS 4      // signon messages to receive before connected
-#define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 128  // johnfitz -- was 24
-#define MAX_MAPSTRING 2048
-#define MAX_DEMOS 8
-#define MAX_DEMONAME 16
-#define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
-#define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
-#define MAX_VISEDICTS 4096       // larger, now we support BSP2
-
+#include "render.hpp"
+#include "world.hpp"
+#include "keys.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "quakedef.hpp"
 #include "worldtext.hpp"
 #include "common.hpp"
-
-// client.h
+#include "gl_model.hpp"
+#include "quakedef_macros.hpp"
 
 typedef struct
 {
@@ -239,7 +225,7 @@ struct client_state_t
 
     // refresh related state
     qmodel_t* worldmodel; // cl_entities[0].model
-    struct efrag_s* free_efrags;
+    struct efrag_t* free_efrags;
     int num_efrags;
     int num_entities; // held in cl_entities array
     int num_statics;  // held in cl_staticentities array
@@ -489,5 +475,3 @@ struct trace_t;
     const qvec3& start, const qvec3& end, edict_t* ent);
 void Chase_UpdateForClient();                                 // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz
-
-#endif /* _CLIENT_H_ */

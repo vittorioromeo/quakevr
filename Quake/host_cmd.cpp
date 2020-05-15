@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "net.hpp"
+#include "zone.hpp"
+#include "keys.hpp"
+#include "protocol.hpp"
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -36,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.hpp"
 #include "console.hpp"
 #include "quakedef_macros.hpp"
+#include "menu.hpp"
 
 extern cvar_t pausable;
 

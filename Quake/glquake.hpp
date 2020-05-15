@@ -22,11 +22,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#pragma once 
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
 #include "bspfile.hpp"
 #include "gl_model.hpp"
+#include "cvar.hpp"
+#include "vid.hpp"
+#include "refdef.hpp"
 
 #include <cstdint>
 
@@ -58,6 +61,8 @@ void R_TimeRefresh_f();
 void R_ReadPointFile_f();
 texture_t* R_TextureAnimation(texture_t* base, int frame);
 
+struct texture_t;
+
 typedef struct surfcache_s
 {
     struct surfcache_s* next;
@@ -68,7 +73,7 @@ typedef struct surfcache_s
     unsigned width;
     unsigned height; // DEBUG only needed for debug
     float mipscale;
-    struct texture_s* texture; // checked for animating textures
+    texture_t* texture; // checked for animating textures
     byte data[4];              // width*height elements
 } surfcache_t;
 
@@ -314,6 +319,7 @@ typedef struct glRect_s
 {
     unsigned short l, t, w, h;
 } glRect_t;
+
 struct lightmap_s
 {
     gltexture_t* texture;

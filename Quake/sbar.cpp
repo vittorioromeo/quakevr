@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sbar.hpp"
 #include "qpic.hpp"
 #include "glquake.hpp"
+#include "menu.hpp"
 
 int sb_updates; // if >= vid.numpages, no update needed
 

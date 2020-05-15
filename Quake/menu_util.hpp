@@ -1,7 +1,7 @@
 #pragma once
 
 #include "quakedef.hpp"
-#include "util.hpp"
+#include "mstate.hpp"
 
 #include <string>
 #include <cassert>
@@ -19,10 +19,12 @@ class menu;
 
 namespace quake::menu_util
 {
+
 void playMenuSound(const char* sound, float fvol);
 void playMenuDefaultSound();
 void setMenuState(m_state_e state);
 void setMenuState(quake::menu& m, m_state_e state);
+
 } // namespace quake::menu_util
 
 namespace quake
@@ -111,6 +113,7 @@ struct menu_entry
     {
     }
 };
+
 } // namespace impl
 
 class menu
@@ -176,23 +179,11 @@ private:
     // TODO VR: (P2) hack for map menu, make this nicer...
     bool _two_columns{false};
 
-    void assert_valid_idx(const int idx) const
-    {
-        assert(idx >= 0);
-        assert(idx < static_cast<int>(_entries.size()));
-    }
+    void assert_valid_idx(const int idx) const;
 
-    impl::menu_entry& access(const int idx) noexcept
-    {
-        assert_valid_idx(idx);
-        return _entries[idx];
-    }
+    impl::menu_entry& access(const int idx) noexcept;
 
-    const impl::menu_entry& access(const int idx) const noexcept
-    {
-        assert_valid_idx(idx);
-        return _entries[idx];
-    }
+    const impl::menu_entry& access(const int idx) const noexcept;
 
     template <typename T>
     T& access_variant(const int idx) noexcept
@@ -206,50 +197,9 @@ private:
         return std::get<T>(access(idx)._variant);
     }
 
-    void key_option(const int key, const int idx)
-    {
-        const bool isLeft = (key == K_LEFTARROW);
-        const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
-        const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
+    void key_option(const int key, const int idx);
 
-        assert_valid_idx(idx);
-
-        auto& e = _entries[idx];
-
-        quake::util::match(
-            e._variant, //
-            [&](const impl::menu_entry_value<bool>& x) {
-                bool& v = *(x._getter());
-                v = !v;
-            },
-            [&](const impl::menu_entry_cvar<float>& x) {
-                const auto& [inc, min, max] = x._bounds;
-                adjustF(*(x._cvar_getter()), inc, min, max);
-            },
-            [&](const impl::menu_entry_cvar<int>& x) {
-                const auto& [inc, min, max] = x._bounds;
-                adjustI(*(x._cvar_getter()), inc, min, max);
-            },
-            [&](const impl::menu_entry_cvar<bool>& x) {
-                adjustI(*(x._cvar_getter()), 1, 0, 1);
-            },
-            [&](const impl::menu_entry_value_labeled_cvar<int>& x) {
-                const auto& [inc, min, max] = x._bounds;
-                adjustI(*(x._cvar_getter()), inc, min, max);
-            },
-            [&](const impl::menu_entry_action& x) { x._action(); },
-            [&](const impl::menu_entry_action_slider& x) {
-                x._action_slide(isLeft ? -1 : 1);
-            },
-            [&](const impl::menu_entry_separator&) {});
-    }
-
-    [[nodiscard]] bool entry_is_selectable_at(const int idx)
-    {
-        assert_valid_idx(idx);
-        return !std::holds_alternative<impl::menu_entry_separator>(
-            _entries[idx]._variant);
-    }
+    [[nodiscard]] bool entry_is_selectable_at(const int idx);
 
     template <typename T, typename... Args>
     entry_handle<T> emplace_and_get_handle(
@@ -263,14 +213,9 @@ private:
         return entry_handle<T>{*this, index};
     }
 
-
 public:
     menu(const std::string_view title, std::function<void()> escape_fn,
-        bool two_columns = false) noexcept
-        : _title{title}, _escape_fn{std::move(escape_fn)}, _two_columns{
-                                                               two_columns}
-    {
-    }
+        bool two_columns = false) noexcept;
 
     template <typename F>
     void on_key(F&& f)
@@ -335,361 +280,15 @@ public:
             std::forward<FAction>(fAction), std::forward<FRange>(fRange));
     }
 
-    void add_separator()
-    {
-        // TODO VR: (P2) not nice, separator should not have a common
-        _entries.emplace_back(
-            impl::menu_entry_common{}, impl::menu_entry_separator{});
-    }
+    void add_separator();
 
-    void enter()
-    {
-        // Hover current entry.
-        auto& curr_hover_change_fn = access(_cursor_idx)._common._hover_change;
+    void enter();
+    void leave();
+    void key(const int key);
+    void draw();
 
-        if(curr_hover_change_fn)
-        {
-            curr_hover_change_fn(true);
-        }
-    }
-
-    void leave()
-    {
-        // Un-hover current entry.
-        auto& curr_hover_change_fn = access(_cursor_idx)._common._hover_change;
-
-        if(curr_hover_change_fn)
-        {
-            curr_hover_change_fn(false);
-        }
-    }
-
-    void key(const int key)
-    {
-        const auto update_hover = [this](const int prev_cursor_idx,
-                                      const int curr_cursor_idx) {
-            if(curr_cursor_idx == prev_cursor_idx)
-            {
-                return;
-            }
-
-            auto& prev_hover_change_fn =
-                access(prev_cursor_idx)._common._hover_change;
-
-            if(prev_hover_change_fn)
-            {
-                prev_hover_change_fn(false);
-            }
-
-            auto& curr_hover_change_fn =
-                access(curr_cursor_idx)._common._hover_change;
-
-            if(curr_hover_change_fn)
-            {
-                curr_hover_change_fn(true);
-            }
-        };
-
-        const auto moveCursor = [&](const int offset) {
-            const auto prev_cursor_idx = _cursor_idx;
-            const int dir = offset > 0 ? 1 : -1;
-
-            _cursor_idx += offset;
-
-            while(_cursor_idx >= 0 &&
-                  _cursor_idx < static_cast<int>(_entries.size()) &&
-                  !entry_is_selectable_at(_cursor_idx))
-            {
-                _cursor_idx += dir;
-            }
-
-            if(_cursor_idx < 0)
-            {
-                _cursor_idx = static_cast<int>(_entries.size() - 1);
-
-                while(!entry_is_selectable_at(_cursor_idx))
-                {
-                    --_cursor_idx;
-                }
-            }
-            else if(_cursor_idx >= static_cast<int>(_entries.size()))
-            {
-                _cursor_idx = 0;
-
-                while(!entry_is_selectable_at(_cursor_idx))
-                {
-                    ++_cursor_idx;
-                }
-            }
-
-            update_hover(prev_cursor_idx, _cursor_idx);
-        };
-
-        switch(key)
-        {
-            case K_ESCAPE:
-            {
-                VID_SyncCvars(); // sync cvars before leaving menu.
-                                 // FIXME: there are other ways to leave
-                                 // menu
-                S_LocalSound("misc/menu1.wav");
-
-                // TODO VR: (P2) have some sort of menu stack instead of
-                // going back manually
-                assert(_escape_fn);
-                _escape_fn();
-
-                leave();
-
-                break;
-            }
-
-            case K_UPARROW:
-            {
-                S_LocalSound("misc/menu1.wav");
-
-                moveCursor(-1);
-                break;
-            }
-
-            case K_DOWNARROW:
-            {
-                S_LocalSound("misc/menu1.wav");
-
-                moveCursor(1);
-                break;
-            }
-
-            case K_LEFTARROW:
-            {
-                if(_two_columns)
-                {
-                    S_LocalSound("misc/menu1.wav");
-                    moveCursor(-items_per_column);
-                }
-                else
-                {
-                    S_LocalSound("misc/menu3.wav");
-                    key_option(key, _cursor_idx);
-                }
-
-                break;
-            }
-
-            case K_RIGHTARROW:
-            {
-                if(_two_columns)
-                {
-                    S_LocalSound("misc/menu1.wav");
-                    moveCursor(items_per_column);
-                }
-                else
-                {
-                    S_LocalSound("misc/menu3.wav");
-                    key_option(key, _cursor_idx);
-                }
-
-                break;
-            }
-
-            case K_ENTER:
-            {
-                m_entersound = true;
-                key_option(key, _cursor_idx);
-                break;
-            }
-        }
-
-        if(_key_fn)
-        {
-            _key_fn(key);
-        }
-    }
-
-    void draw()
-    {
-        int x = 240;
-
-        if(_two_columns)
-        {
-            x -= 120 * (_cursor_idx / items_per_column);
-        }
-
-        int y = 4;
-
-        // plaque
-        // M_DrawTransPic(16, y, Draw_CachePic("gfx/qplaque.lmp"));
-
-        // customize header
-        // qpic_t* p = Draw_CachePic("gfx/ttl_cstm.lmp");
-        // M_DrawPic((320 - p->width) / 2, y, p);
-
-        y += 28;
-
-        // title
-        M_PrintWhite((320 - 8 * _title.size()) / 2, y, _title.data());
-        y += 16;
-
-        char buf[512]{};
-        int idx{0};
-
-        constexpr int char_size = 8;
-        constexpr int label_padding = 26;
-
-        const auto get_label_x = [&, this](const std::string_view s) {
-            if(_two_columns)
-            {
-                return (x - 240) + 70 + (120 * (idx / items_per_column));
-            }
-
-            return (x - 240) + 8 +
-                   ((label_padding - static_cast<int>(s.size())) * char_size);
-        };
-
-        const auto print_label = [this, &get_label_x, &y, &buf](std::string_view s) {
-            if(_two_columns && s.size() > 13)
-            {
-                s.remove_suffix(s.size() - 13);
-            }
-
-            for(std::size_t i = 0; i < s.size(); ++i)
-            {
-                buf[i] = s[i];
-            }
-            buf[s.size()] = '\0';
-
-            M_Print(get_label_x(s), y, buf);
-        };
-
-        const auto print_as_float_str = [&buf, &x, &y](const float value) {
-            snprintf(buf, sizeof(buf), "%.4f", value);
-            M_Print(x, y, buf);
-        };
-
-        const auto print_as_int_str = [&buf, &x, &y](const int value) {
-            snprintf(buf, sizeof(buf), "%d", value);
-            M_Print(x, y, buf);
-        };
-
-        const auto print_as_bool_str = [&buf, &x, &y](const bool value) {
-            snprintf(buf, sizeof(buf), value ? "On" : "Off");
-            M_Print(x, y, buf);
-        };
-
-        const auto print_as_str = [&buf, &x, &y](const std::string_view value) {
-            snprintf(buf, sizeof(buf), "%s", value.data());
-            M_Print(x, y, buf);
-        };
-
-        const auto print_tooltip = [&buf](const std::string_view value) {
-            snprintf(buf, sizeof(buf), "%s", value.data());
-            M_PrintWhiteByWrapping(28, 340, 50, buf);
-        };
-
-        {
-            const auto& curr_tooltip = access(_cursor_idx)._common._tooltip;
-            if(!curr_tooltip.empty())
-            {
-                print_tooltip(curr_tooltip);
-            }
-        }
-
-        for(const impl::menu_entry& e : _entries)
-        {
-            const std::string_view& e_label = e._common._label;
-
-            quake::util::match(
-                e._variant, //
-                [&](const impl::menu_entry_value<bool>& entry) {
-                    print_label(e_label);
-                    print_as_bool_str(*(entry._getter()));
-                },
-                [&](const impl::menu_entry_cvar<float>& entry) {
-                    print_label(e_label);
-
-                    const float value = entry._cvar_getter()->value;
-                    if(entry._printer == nullptr)
-                    {
-                        print_as_float_str(value);
-                    }
-                    else
-                    {
-                        entry._printer(buf, sizeof(buf), value);
-                        M_Print(x, y, buf);
-                    }
-                },
-                [&](const impl::menu_entry_cvar<int>& entry) {
-                    print_label(e_label);
-
-                    const int value = entry._cvar_getter()->value;
-                    if(entry._printer == nullptr)
-                    {
-                        print_as_int_str(value);
-                    }
-                    else
-                    {
-                        entry._printer(buf, sizeof(buf), value);
-                        M_Print(x, y, buf);
-                    }
-                },
-                [&](const impl::menu_entry_cvar<bool>& entry) {
-                    print_label(e_label);
-                    print_as_bool_str(entry._cvar_getter()->value);
-                },
-                [&](const impl::menu_entry_value_labeled_cvar<int>& entry) {
-                    print_label(e_label);
-                    print_as_str(entry._value_label_fn(
-                        static_cast<int>(entry._cvar_getter()->value)));
-                },
-                [&](const impl::menu_entry_action&) {
-                    print_label(e_label);
-
-                    if(!_two_columns)
-                    {
-                        print_as_str("(X)");
-                    }
-                },
-                [&](const impl::menu_entry_action_slider& entry) {
-                    print_label(e_label);
-                    M_DrawSlider(x + 10, y, entry._range());
-                },
-                [&](const impl::menu_entry_separator&) {});
-
-            if(_cursor_idx == idx)
-            {
-                if(_two_columns)
-                {
-                    M_DrawCharacter((x - 240) + (70 - 15) +
-                                        (120 * (idx / items_per_column)),
-                        y, 12 + ((int)(realtime * 4) & 1));
-                }
-                else
-                {
-                    M_DrawCharacter(x - 10, y, 12 + ((int)(realtime * 4) & 1));
-                }
-            }
-
-            ++idx;
-            y += 8;
-
-            if(_two_columns)
-            {
-                if(idx % 25 == 0)
-                {
-                    y = 32 + 16;
-                }
-            }
-        }
-    }
-
-    [[nodiscard]] int cursor_idx() noexcept
-    {
-        return _cursor_idx;
-    }
-
-    [[nodiscard]] const std::string_view& title() noexcept
-    {
-        return _title;
-    }
+    [[nodiscard]] int cursor_idx() noexcept;
+    [[nodiscard]] const std::string_view& title() noexcept;
 };
+
 } // namespace quake
