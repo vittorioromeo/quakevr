@@ -28,6 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "quakedef_macros.hpp"
+#include "sbar.hpp"
+#include "wad.hpp"
+#include "qpic.hpp"
+#include "glquake.hpp"
 
 // extern unsigned char d_15to8table[65536]; //johnfitz -- never used
 

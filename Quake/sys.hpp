@@ -20,8 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SYS_H
-#define _QUAKE_SYS_H
+#pragma once
+
+#include "q_stdinc.hpp"
 
 // sys.h -- non-portable functions
 
@@ -66,5 +67,3 @@ void Sys_Sleep(unsigned long msecs);
 
 void Sys_SendKeyEvents();
 // Perform Key_Event () callbacks until the input que is empty
-
-#endif /* _QUAKE_SYS_H */

@@ -93,6 +93,8 @@ trace_t SV_MoveTrace(const qvec3& start, const qvec3& end, const int type,
 // nomonsters is used for line of sight or edge testing, where mosnters
 // shouldn't be considered solid objects
 
+struct hull_t;
+
 // passedict is explicitly excluded from clipping checks (normally nullptr)
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const qvec3& p1, const qvec3& p2, trace_t* trace);

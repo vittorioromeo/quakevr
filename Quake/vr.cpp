@@ -12,6 +12,8 @@
 #include "quakeglm_qvec4.hpp"
 #include "quakeglm_qquat.hpp"
 #include "common.hpp"
+#include "lerpdata.hpp"
+#include "sbar.hpp"
 
 #include <algorithm>
 #include <cassert>

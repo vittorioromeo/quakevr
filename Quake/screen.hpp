@@ -21,8 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SCREEN_H
-#define _QUAKE_SCREEN_H
+#pragma once
+
+#include "cvar.hpp"
 
 // screen.h
 
@@ -83,4 +84,3 @@ extern cvar_t scr_crosshairscale;
 
 extern int scr_tileclear_updates; // johnfitz
 
-#endif /* _QUAKE_SCREEN_H */

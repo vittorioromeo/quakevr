@@ -21,68 +21,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef QUAKEDEFS_H
-#define QUAKEDEFS_H
+#pragma once
 
-#include "vr_macros.hpp"
-#include "quakedef_macros.hpp"
-
-struct quakeparms_t
-{
-    const char* basedir;
-    const char* userdir; // user's directory on UNIX platforms.
-                         // if user directories are enabled, basedir
-                         // and userdir will point to different
-                         // memory locations, otherwise to the same.
-    int argc;
-    char** argv;
-    void* membase;
-    int memsize;
-    int numcpus;
-    int errstate;
-};
-
-#include "common.hpp"
-#include "bspfile.hpp"
 #include "sys.hpp"
 #include "zone.hpp"
-#include "mathlib.hpp"
-#include "cvar.hpp"
 
 #include "protocol.hpp"
-#include "net.hpp"
 
 #include "cmd.hpp"
-#include "crc.hpp"
 
 #include "progs.hpp"
 #include "server.hpp"
 
-#include "platform.hpp"
-
 #include <SDL2/SDL.h>
 
 #include "console.hpp"
-#include "wad.hpp"
 #include "vid.hpp"
 #include "screen.hpp"
 #include "draw.hpp"
 #include "render.hpp"
 #include "view.hpp"
-#include "sbar.hpp"
 #include "q_sound.hpp"
 #include "client.hpp"
 
 #include "gl_model.hpp"
 #include "world.hpp"
 
-#include "image.hpp"     //johnfitz
 #include "gl_texmgr.hpp" //johnfitz
 #include "input.hpp"
 #include "keys.hpp"
 #include "menu.hpp"
-#include "cdaudio.hpp"
-#include "glquake.hpp"
 
 
 //=============================================================================
@@ -153,16 +121,3 @@ extern int current_skill; // skill level for currently loaded level (in case
 extern bool isDedicated;
 
 extern int minimum_memory;
-
-// johnfitz -- struct for passing lerp information to drawing functions
-struct lerpdata_t
-{
-    short pose1;
-    short pose2;
-    float blend;
-    qvec3 origin;
-    qvec3 angles;
-};
-// johnfitz
-
-#endif /* QUAKEDEFS_H */

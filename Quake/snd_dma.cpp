@@ -25,7 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // snd_dma.c -- main control for any streaming sound output device
 
-#include "quakedef.hpp"
+#include "q_sound.hpp"
+#include "bspfile.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
 #include "quakeglm.hpp"
@@ -33,6 +34,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "console.hpp"
 #include "quakedef_macros.hpp"
+#include "quakeparms.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "mathlib.hpp"
+#include "sys.hpp"
+#include "gl_model.hpp"
+#include "client.hpp"
 
 static void S_Play();
 static void S_PlayVol();
@@ -218,6 +225,7 @@ void S_Init()
         Cvar_SetQuick(&snd_mixspeed, com_argv[i + 1]);
     }
 
+    extern quakeparms_t* host_parms;
     if(host_parms->memsize < 0x800000)
     {
         Cvar_SetQuick(&loadas8bit, "1");
@@ -755,6 +763,8 @@ static void S_UpdateAmbientSounds()
         {
             vol = 0;
         }
+
+        extern double host_frametime;
 
         // don't adjust volume too fast
         if(chan->master_vol < vol)

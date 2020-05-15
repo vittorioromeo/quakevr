@@ -29,6 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.hpp"
 #include "cdaudio.hpp"
 #include "console.hpp"
+#include "net.hpp"
+#include "glquake.hpp"
 
 #include <string>
 #include <vector>

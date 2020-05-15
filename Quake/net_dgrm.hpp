@@ -20,8 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __NET_DATAGRAM_H
-#define __NET_DATAGRAM_H
+#pragma once
 
 int Datagram_Init();
 void Datagram_Listen(bool state);
@@ -35,5 +34,3 @@ bool Datagram_CanSendMessage(qsocket_t* sock);
 bool Datagram_CanSendUnreliableMessage(qsocket_t* sock);
 void Datagram_Close(qsocket_t* sock);
 void Datagram_Shutdown();
-
-#endif /* __NET_DATAGRAM_H */

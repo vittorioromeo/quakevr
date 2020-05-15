@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.hpp"
+#include "glquake.hpp"
+#include "mathlib.hpp"
+
 #include <cassert>
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater,

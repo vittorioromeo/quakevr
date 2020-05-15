@@ -22,11 +22,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __GLQUAKE_H
-#define __GLQUAKE_H
+#pragma once 
+
+#include "quakeglm_qvec3.hpp"
+#include "bspfile.hpp"
+#include "gl_model.hpp"
 
 #include <cstdint>
-#include "quakeglm_qvec3.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
 void GL_EndRendering();
@@ -440,4 +442,3 @@ void R_ScaleView_DeleteTexture();
 
 float GL_WaterAlphaForSurface(msurface_t* fa);
 
-#endif /* __GLQUAKE_H */

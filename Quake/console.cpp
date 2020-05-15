@@ -33,9 +33,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #include "quakedef.hpp"
+#include "quakeparms.hpp"
 #include "cmd.hpp"
 #include "common.hpp"
 #include "console.hpp"
+#include "qpic.hpp"
+#include "glquake.hpp"
 
 int con_linewidth;
 

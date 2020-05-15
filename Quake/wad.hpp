@@ -21,12 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_WAD_H
-#define _QUAKE_WAD_H
+#pragma once
 
-//===============
-//   TYPES
-//===============
+#include "q_stdinc.hpp"
 
 #define CMP_NONE 0
 #define CMP_LZSS 1
@@ -43,12 +40,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define WADFILENAME \
     "gfx.wad" // johnfitz -- filename is now hard-coded for honesty
-
-typedef struct
-{
-    int width, height;
-    byte data[4]; // variably sized
-} qpic_t;
 
 typedef struct
 {
@@ -78,6 +69,3 @@ lumpinfo_t* W_GetLumpinfo(const char* name);
 void* W_GetLumpName(const char* name);
 void* W_GetLumpNum(int num);
 
-void SwapPic(qpic_t* pic);
-
-#endif /* _QUAKE_WAD_H */

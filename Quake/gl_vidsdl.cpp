@@ -31,6 +31,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "cdaudio.hpp"
 #include "console.hpp"
+#include "sbar.hpp"
+#include "platform.hpp"
+#include "glquake.hpp"
+#include "qpic.hpp"
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>

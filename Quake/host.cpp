@@ -31,6 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.hpp"
 #include "common.hpp"
 #include "cdaudio.hpp"
+#include "quakeparms.hpp"
+#include "sbar.hpp"
+#include "wad.hpp"
+#include "net.hpp"
+#include "glquake.hpp"
 
 /*
 

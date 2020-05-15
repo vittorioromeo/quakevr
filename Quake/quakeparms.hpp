@@ -1,7 +1,8 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
-Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2002-2009 John Fitzgibbons and others
+Copyright (C) 2007-2008 Kristian Duske
+Copyright (C) 2010-2019 QuakeSpasm developers
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -22,16 +23,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
-// net_loop.h
-int Loop_Init();
-void Loop_Listen(bool state);
-void Loop_SearchForHosts(bool xmit);
-qsocket_t* Loop_Connect(const char* host);
-qsocket_t* Loop_CheckNewConnections();
-int Loop_GetMessage(qsocket_t* sock);
-int Loop_SendMessage(qsocket_t* sock, sizebuf_t* data);
-int Loop_SendUnreliableMessage(qsocket_t* sock, sizebuf_t* data);
-bool Loop_CanSendMessage(qsocket_t* sock);
-bool Loop_CanSendUnreliableMessage(qsocket_t* sock);
-void Loop_Close(qsocket_t* sock);
-void Loop_Shutdown();
+struct quakeparms_t
+{
+    const char* basedir;
+    const char* userdir; // user's directory on UNIX platforms.
+                         // if user directories are enabled, basedir
+                         // and userdir will point to different
+                         // memory locations, otherwise to the same.
+    int argc;
+    char** argv;
+    void* membase;
+    int memsize;
+    int numcpus;
+    int errstate;
+};

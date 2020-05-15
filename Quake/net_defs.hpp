@@ -21,8 +21,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __NET_DEFS_H
-#define __NET_DEFS_H
+#pragma once
+
+#include "q_stdinc.hpp"
+#include "net.hpp"
 
 struct qsockaddr
 {
@@ -258,4 +260,3 @@ typedef struct _PollProcedure
 
 void SchedulePollProcedure(PollProcedure* pp, double timeOffset);
 
-#endif /* __NET_DEFS_H */

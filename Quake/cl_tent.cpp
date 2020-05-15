@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "util.hpp"
 #include "console.hpp"
+#include "glquake.hpp"
 
 struct qmodel_t;
 

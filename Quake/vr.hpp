@@ -2,6 +2,7 @@
 
 #include "quakedef.hpp"
 #include "openvr.hpp"
+#include "common.hpp"
 
 #include <vector>
 #include <string>

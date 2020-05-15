@@ -32,6 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "macros.hpp"
 #include "quakeglm.hpp"
 #include "quakeglm_qmat3.hpp"
+#include "quakedef_macros.hpp"
+#include "q_stdinc.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 // matches value in gcc v2 math.h

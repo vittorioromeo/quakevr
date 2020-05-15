@@ -23,12 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sound.h -- client sound i/o functions
 
-#ifndef __QUAKE_SOUND__
-#define __QUAKE_SOUND__
+#pragma once
 
+#include "q_stdinc.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "zone.hpp"
 #include "quakedef_macros.hpp"
+#include "cvar.hpp"
 
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct
@@ -194,5 +195,3 @@ sfxcache_t* S_LoadSound(sfx_t* s);
 wavinfo_t GetWavinfo(const char* name, byte* wav, int wavlength);
 
 void SND_InitScaletable();
-
-#endif /* __QUAKE_SOUND__ */

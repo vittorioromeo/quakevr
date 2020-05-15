@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "vr_macros.hpp"
 #include "worldtext.hpp"
+#include "cvar.hpp"
+#include "common.hpp"
+#include "quakedef_macros.hpp"
 
 #include <vector>
 
