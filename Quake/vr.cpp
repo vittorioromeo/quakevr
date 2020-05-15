@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <vector>
 #include <tuple>
 #include <string>
@@ -814,6 +815,10 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     const char* twoHDisplayMode = "0.0",
     const char* twoHHandAnchorVertex = "0.0")
 {
+    (void)offHandOffsetX;
+    (void)offHandOffsetY;
+    (void)offHandOffsetZ;
+
     const auto init = [&](const WpnCVar wpnCVar, const char* name,
                           const char* defaultVal) {
         InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal);
@@ -1897,6 +1902,8 @@ void SetHandPos(int index, entity_t* player)
     const int anchorVertex, const qvec3& extraOffsets,
     const bool horizFlip) noexcept
 {
+    (void)extraOffsets;
+
     if(anchor->model == nullptr)
     {
         return vec3_zero;
@@ -1921,7 +1928,7 @@ void SetHandPos(int index, entity_t* player)
 
     result *= anchorHdr->scale;
 
-    const auto scaleratio = anchorHdr->scale / anchorHdr->original_scale;
+    // const auto scaleratio = anchorHdr->scale / anchorHdr->original_scale;
 
     result += offsets; // * scaleratio;
     // result += offsets * 3.f;
@@ -1951,7 +1958,7 @@ void SetHandPos(int index, entity_t* player)
 
     const auto finalVertexOffsets = VR_GetScaledAliasVertexOffsets(
         anchor, anchorVertex, extraOffsets, horizFlip);
-    const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
+    // const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
 
     return quake::util::redirectVector(finalVertexOffsets, rotation);
 }
@@ -1960,6 +1967,8 @@ void SetHandPos(int index, entity_t* player)
     entity_t* const anchor, const int anchorVertex, const qvec3& extraOffsets,
     const qvec3& rotation, const bool horizFlip) noexcept
 {
+    (void)rotation;
+
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
     qvec3 c = VR_GetAliasVertexOffsets(anchor, anchorVertex);
 
@@ -3675,6 +3684,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
             vrahRightHaptic, 0, 0.1, 50, 0.5, origin);
     };
 
+    /*
     const auto doMenuKeyEvent = [&](const int key,
                                     const vr::InputDigitalActionData_t& i) {
         const bool pressed = isRisingEdge(i);
@@ -3682,6 +3692,7 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         Key_Event(key, pressed);
         return pressed;
     };
+    */
 
     const auto doMenuKeyEventWithHaptic =
         [&](const int key, const vr::InputDigitalActionData_t& i) {

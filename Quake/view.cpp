@@ -1489,6 +1489,8 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
     entity_t* const hand, const qvec3& handRot, qvec3 otherHandRot,
     const qvec3& extraOffset, const bool horizFlip)
 {
+    (void)handRot;
+
     assert(anchor->model != nullptr);
 
     auto [oPitch, oYaw, oRoll] = VR_GetWpnFixed2HHandAngles(otherWpnCvar);

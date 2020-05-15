@@ -177,7 +177,7 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
 
 #include <stdarg.h>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <math.h>
 
 #if defined(STBIW_MALLOC) && defined(STBIW_FREE) && \

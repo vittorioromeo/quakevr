@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "arch_def.hpp"
 #include "quakedef.hpp"
 #include "platform.hpp"
+#include "quakeparms.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
