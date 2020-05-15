@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net.hpp"
 #include "glquake.hpp"
 #include "protocol.hpp"
+#include "worldtext.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -2028,9 +2029,9 @@ void SV_SpawnServer(const char* server, const bool fromSaveFile)
 
     // TODO VR: (P0) worldtext cleanup
     sv.worldTexts.clear();
-    for(int i = 0; i < 65535; ++i)
+    for(std::size_t i = 0; i < maxWorldTextInstances; ++i)
     {
-        sv.freeWorldTextHandles.emplace_back(65535 - i);
+        sv.freeWorldTextHandles.emplace_back(maxWorldTextInstances - 1 - i);
     }
 
     sv.sound_precache[0] = dummy;

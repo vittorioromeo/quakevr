@@ -105,6 +105,8 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
+// TODO VR: (P2) move:
+
 typedef void() NullaryFn;
 typedef void(entity, float) PainFn;
 
@@ -116,6 +118,18 @@ PainFn(NullaryFn fn) asPainFn =
 NullaryFn(PainFn fn) fromPainToTouchFn =
 {
     return fn;
+}
+
+void(vector v) bprintVec =
+{
+    bprint("{");
+    bprint(ftos(v_x));
+    bprint("; ");
+    bprint(ftos(v_y));
+    bprint("; ");
+    bprint(ftos(v_z));
+    bprint("}");
+
 }
 
 //

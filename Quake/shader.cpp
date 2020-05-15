@@ -97,30 +97,71 @@ void impl_gl_shader_source(
     return shader_id;
 }
 
-struct shader_src_and_type
-{
-    GLenum _type;
-    std::string_view _src;
-};
+} // namespace
 
-template <typename... Ts>
-[[nodiscard]] GLuint impl_make_gl_program(
-    const Ts&... shader_srcs_and_types) noexcept
+[[nodiscard]] GLuint make_gl_program(const std::string_view src_vertex,
+    const std::string_view src_geometry,
+    const std::string_view src_fragment) noexcept
 {
-    const GLuint shader_ids[]{impl_make_gl_shader(
-        shader_srcs_and_types._type, shader_srcs_and_types._src)...};
+    return gl_program_builder{}
+        .add_shader(gl_shader_src{GL_VERTEX_SHADER, src_vertex})
+        .add_shader(gl_shader_src{GL_GEOMETRY_SHADER, src_geometry})
+        .add_shader(gl_shader_src{GL_FRAGMENT_SHADER, src_fragment})
+        .compile_and_link();
+}
 
+[[nodiscard]] GLuint make_gl_program(const std::string_view src_vertex,
+    const std::string_view src_fragment) noexcept
+{
+    return gl_program_builder{}
+        .add_shader(gl_shader_src{GL_VERTEX_SHADER, src_vertex})
+        .add_shader(gl_shader_src{GL_FRAGMENT_SHADER, src_fragment})
+        .compile_and_link();
+}
+
+[[nodiscard]] gl_program_builder&& gl_program_builder::add_shader(
+    const gl_shader_src& shader_src) &&
+{
+    _shader_srcs.emplace_back(shader_src);
+    return std::move(*this);
+}
+
+[[nodiscard]] gl_program_builder&& gl_program_builder::add_attr_binding(
+    const gl_attr_binding& attr_binding) &&
+{
+    _attr_bindings.emplace_back(attr_binding);
+    return std::move(*this);
+}
+
+[[nodiscard]] GLuint gl_program_builder::compile_and_link() &&
+{
+    // Compile shaders
+    std::vector<GLuint> shader_ids;
+    for(const auto& [shader_type, shader_src] : _shader_srcs)
+    {
+        shader_ids.emplace_back(impl_make_gl_shader(shader_type, shader_src));
+    }
+
+    // Create program
     const GLuint program_id{glCreateProgram()};
     assert(program_id != 0);
 
+    // Attach shaders
     for(const GLuint sid : shader_ids)
     {
         glAttachShader(program_id, sid);
     }
 
+    // Bind attribute locations
+    for(const auto& [name, attr_index] : _attr_bindings)
+    {
+        glBindAttribLocation(program_id, attr_index, name.data());
+    }
+
+    // Link program
     glLinkProgram(program_id);
 
-    // Check the program
+    // Check program
     GLint result_code{GL_FALSE};
     glGetProgramiv(program_id, GL_LINK_STATUS, &result_code);
 
@@ -143,31 +184,14 @@ template <typename... Ts>
     for(const GLuint sid : shader_ids)
     {
         glDetachShader(program_id, sid);
+    }
+
+    for(const GLuint sid : shader_ids)
+    {
         glDeleteShader(sid);
     }
 
     return program_id;
-}
-
-
-} // namespace
-
-[[nodiscard]] GLuint make_gl_program(const std::string_view src_vertex,
-    const std::string_view src_geometry,
-    const std::string_view src_fragment) noexcept
-{
-    return impl_make_gl_program(
-        shader_src_and_type{GL_VERTEX_SHADER, src_vertex},
-        shader_src_and_type{GL_GEOMETRY_SHADER, src_geometry},
-        shader_src_and_type{GL_FRAGMENT_SHADER, src_fragment});
-}
-
-[[nodiscard]] GLuint make_gl_program(const std::string_view src_vertex,
-    const std::string_view src_fragment) noexcept
-{
-    return impl_make_gl_program(
-        shader_src_and_type{GL_VERTEX_SHADER, src_vertex},
-        shader_src_and_type{GL_FRAGMENT_SHADER, src_fragment});
 }
 
 } // namespace quake

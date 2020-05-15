@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cl_parse.c  -- parse a message received from the server
 
+#include "common.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
@@ -35,6 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "mathlib.hpp"
 #include "glquake.hpp"
 #include "protocol.hpp"
+#include <limits>
 
 const char* svc_strings[] = {
     "svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",
@@ -88,7 +90,7 @@ const char* svc_strings[] = {
     "svc_worldtext_hsettext",   // 47
     "svc_worldtext_hsetpos",    // 48
     "svc_worldtext_hsetangles", // 49
-    "",                         // 50
+    "svc_worldtext_hsethalign", // 50
     // johnfitz
 };
 
@@ -1291,6 +1293,11 @@ void CL_ParseServerMessage()
                          //
     MSG_BeginReading();
 
+    const auto validWTH = [&](const WorldTextHandle wth) {
+        return (cl.worldTexts.size() < maxWorldTextInstances) &&
+               (static_cast<WorldTextHandle>(cl.worldTexts.size()) > wth);
+    };
+
     lastcmd = 0;
     while(true)
     {
@@ -1613,9 +1620,12 @@ void CL_ParseServerMessage()
             case svc_worldtext_hsettext:
             {
                 const WorldTextHandle wth = MSG_ReadShort();
+                const char* str = MSG_ReadString();
 
-                assert(static_cast<int>(cl.worldTexts.size()) > wth);
-                cl.worldTexts[wth]._text = MSG_ReadString();
+                if(validWTH(wth))
+                {
+                    cl.worldTexts[wth]._text = str;
+                }
 
                 break;
             }
@@ -1625,8 +1635,10 @@ void CL_ParseServerMessage()
                 const WorldTextHandle wth = MSG_ReadShort();
                 const qvec3 v = MSG_ReadVec3(cl.protocolflags);
 
-                assert(static_cast<int>(cl.worldTexts.size()) > wth);
-                cl.worldTexts[wth]._pos = v;
+                if(validWTH(wth))
+                {
+                    cl.worldTexts[wth]._pos = v;
+                }
 
                 break;
             }
@@ -1636,8 +1648,24 @@ void CL_ParseServerMessage()
                 const WorldTextHandle wth = MSG_ReadShort();
                 const qvec3 v = MSG_ReadVec3(cl.protocolflags);
 
-                assert(static_cast<int>(cl.worldTexts.size()) > wth);
-                cl.worldTexts[wth]._angles = v;
+                if(validWTH(wth))
+                {
+                    cl.worldTexts[wth]._angles = v;
+                }
+
+                break;
+            }
+                // TODO VR: (P0) worldtext cleaup
+            case svc_worldtext_hsethalign:
+            {
+                const WorldTextHandle wth = MSG_ReadShort();
+                const auto b = MSG_ReadByte();
+                const auto v = static_cast<WorldText::HAlign>(b);
+
+                if(validWTH(wth))
+                {
+                    cl.worldTexts[wth]._hAlign = v;
+                }
 
                 break;
             }

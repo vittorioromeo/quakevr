@@ -102,3 +102,14 @@
 // Used to trigger haptics when hovering holsters.
 .float holsterhover[6];
 .float holsterprevhover[6];
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// World text fields
+// ----------------------------------------------------------------------------
+
+.string worldtext;
+.float worldtext_halign;
+.float angle;

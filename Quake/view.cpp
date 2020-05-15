@@ -328,7 +328,6 @@ void V_ParseDamage()
 
     int blood;
     qvec3 from;
-    int i;
 
     entity_t* ent;
     float side;

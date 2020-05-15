@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.hpp"
 #include "mathlib.hpp"
 #include "quakedef_macros.hpp"
+#include "shader.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,
     r_lerpmove; // johnfitz
@@ -125,13 +126,7 @@ GLAlias_CreateShaders
 */
 void GLAlias_CreateShaders()
 {
-    const glsl_attrib_binding_t bindings[] = {{"TexCoords", texCoordsAttrIndex},
-        {"Pose1Vert", pose1VertexAttrIndex},
-        {"Pose1Normal", pose1NormalAttrIndex},
-        {"Pose2Vert", pose2VertexAttrIndex},
-        {"Pose2Normal", pose2NormalAttrIndex}};
-
-    const GLchar* vertSource = R"(
+    const GLchar* vertSource = R"glsl(
 #version 110
 
 uniform float Blend;
@@ -166,9 +161,9 @@ void main()
     float dot1 = r_avertexnormal_dot(Pose1Normal);
     float dot2 = r_avertexnormal_dot(Pose2Normal);
     gl_FrontColor = LightColor * vec4(vec3(mix(dot1, dot2, Blend)), 1.0);
-})";
+})glsl";
 
-    const GLchar* fragSource = R"(
+    const GLchar* fragSource = R"glsl(
 #version 110
 
 uniform sampler2D Tex;
@@ -202,15 +197,23 @@ void main()
     // FIXME: This will make almos transparent things cut holes though heavy fo
     result.a = gl_Color.a;
     gl_FragColor = result;
-})";
+})glsl";
 
     if(!gl_glsl_alias_able)
     {
         return;
     }
 
-    r_alias_program = GL_CreateProgram(vertSource, fragSource,
-        sizeof(bindings) / sizeof(bindings[0]), bindings);
+    r_alias_program =
+        quake::gl_program_builder{}
+            .add_shader({GL_VERTEX_SHADER, vertSource})
+            .add_shader({GL_FRAGMENT_SHADER, fragSource})
+            .add_attr_binding({"TexCoords", texCoordsAttrIndex})
+            .add_attr_binding({"Pose1Vert", pose1VertexAttrIndex})
+            .add_attr_binding({"Pose1Normal", pose1NormalAttrIndex})
+            .add_attr_binding({"Pose2Vert", pose2VertexAttrIndex})
+            .add_attr_binding({"Pose2Normal", pose2NormalAttrIndex})
+            .compile_and_link();
 
     if(r_alias_program != 0)
     {
@@ -232,14 +235,7 @@ void main()
 
 void GLAliasBlended_CreateShaders()
 {
-    const glsl_attrib_binding_t bindings[] = {{"TexCoords", texCoordsAttrIndex},
-        {"Pose1Vert", pose1VertexAttrIndex},
-        {"Pose1Normal", pose1NormalAttrIndex},
-        {"Pose2Vert", pose2VertexAttrIndex},
-        {"Pose2Normal", pose2NormalAttrIndex},
-        {"ZeroBlendVert", zeroBlendVertexAttrIndex}};
-
-    const GLchar* vertSource = R"(
+    const GLchar* vertSource = R"glsl(
 #version 110
 
 uniform float Blend;
@@ -280,9 +276,9 @@ void main()
     float dot1 = r_avertexnormal_dot(Pose1Normal);
     float dot2 = r_avertexnormal_dot(Pose2Normal);
     gl_FrontColor = LightColor * vec4(vec3(mix(dot1, dot2, Blend)), 1.0);
-})";
+})glsl";
 
-    const GLchar* fragSource = R"(
+    const GLchar* fragSource = R"glsl(
 #version 110
 
 uniform sampler2D Tex;
@@ -316,15 +312,24 @@ void main()
     // FIXME: This will make almos transparent things cut holes though heavy fo
     result.a = gl_Color.a;
     gl_FragColor = result;
-})";
+})glsl";
 
     if(!gl_glsl_alias_able)
     {
         return;
     }
 
-    r_aliasblended_program = GL_CreateProgram(vertSource, fragSource,
-        sizeof(bindings) / sizeof(bindings[0]), bindings);
+    r_aliasblended_program =
+        quake::gl_program_builder{}
+            .add_shader({GL_VERTEX_SHADER, vertSource})
+            .add_shader({GL_FRAGMENT_SHADER, fragSource})
+            .add_attr_binding({"TexCoords", texCoordsAttrIndex})
+            .add_attr_binding({"Pose1Vert", pose1VertexAttrIndex})
+            .add_attr_binding({"Pose1Normal", pose1NormalAttrIndex})
+            .add_attr_binding({"Pose2Vert", pose2VertexAttrIndex})
+            .add_attr_binding({"Pose2Normal", pose2NormalAttrIndex})
+            .add_attr_binding({"ZeroBlendVert", zeroBlendVertexAttrIndex})
+            .compile_and_link();
 
     if(r_aliasblended_program != 0)
     {

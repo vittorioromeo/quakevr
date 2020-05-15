@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "glquake.hpp"
 #include "mathlib.hpp"
+#include "shader.hpp"
 
 #include <cassert>
 
@@ -278,7 +279,7 @@ void R_CullSurfaces()
         }
 
         for(msurface_t* s = t->texturechains[chain_world]; s;
-            s = s->texturechain)    
+            s = s->texturechain)
         {
             if(R_CullBox(s->mins, s->maxs) || R_BackFaceCull(s))
             {
@@ -986,8 +987,6 @@ GLWorld_CreateShaders
 */
 void GLWorld_CreateShaders()
 {
-    const glsl_attrib_binding_t bindings[] = {{"Vert", vertAttrIndex},
-        {"TexCoords", texCoordsAttrIndex}, {"LMCoords", LMCoordsAttrIndex}};
 
     // Driver bug workarounds:
     // - "Intel(R) UHD Graphics 600" version "4.6.0 - Build 26.20.100.7263"
@@ -995,64 +994,74 @@ void GLWorld_CreateShaders()
     //    `gl_ModelViewProjectionMatrix * vec4(Vert, 1.0);`. Work around
     //    with making Vert a vec4.
     //    (https://sourceforge.net/p/quakespasm/bugs/39/)
-    const GLchar* vertSource =
-        "#version 110\n"
-        "\n"
-        "attribute vec4 Vert;\n"
-        "attribute vec2 TexCoords;\n"
-        "attribute vec2 LMCoords;\n"
-        "\n"
-        "varying float FogFragCoord;\n"
-        "\n"
-        "void main()\n"
-        "{\n"
-        "	gl_TexCoord[0] = vec4(TexCoords, 0.0, 0.0);\n"
-        "	gl_TexCoord[1] = vec4(LMCoords, 0.0, 0.0);\n"
-        "	gl_Position = gl_ModelViewProjectionMatrix * Vert;\n"
-        "	FogFragCoord = gl_Position.w;\n"
-        "}\n";
+    const GLchar* vertSource = R"glsl(
+#version 110
 
-    const GLchar* fragSource =
-        "#version 110\n"
-        "\n"
-        "uniform sampler2D Tex;\n"
-        "uniform sampler2D LMTex;\n"
-        "uniform sampler2D FullbrightTex;\n"
-        "uniform bool UseFullbrightTex;\n"
-        "uniform bool UseOverbright;\n"
-        "uniform bool UseAlphaTest;\n"
-        "uniform float Alpha;\n"
-        "\n"
-        "varying float FogFragCoord;\n"
-        "\n"
-        "void main()\n"
-        "{\n"
-        "	vec4 result = texture2D(Tex, gl_TexCoord[0].xy);\n"
-        "	if (UseAlphaTest && (result.a < 0.666))\n"
-        "		discard;\n"
-        "	result *= texture2D(LMTex, gl_TexCoord[1].xy);\n"
-        "	if (UseOverbright)\n"
-        "		result.rgb *= 2.0;\n"
-        "	if (UseFullbrightTex)\n"
-        "		result += texture2D(FullbrightTex, gl_TexCoord[0].xy);\n"
-        "	result = clamp(result, 0.0, 1.0);\n"
-        "	float fog = exp(-gl_Fog.density * gl_Fog.density * "
-        "FogFragCoord * "
-        "FogFragCoord);\n"
-        "	fog = clamp(fog, 0.0, 1.0);\n"
-        "	result = mix(gl_Fog.color, result, fog);\n"
-        "	result.a = Alpha;\n" // FIXME: This will make almost transparent
-                                 // things cut holes though heavy fog
-        "	gl_FragColor = result;\n"
-        "}\n";
+attribute vec4 Vert;
+attribute vec2 TexCoords;
+attribute vec2 LMCoords;
+
+varying float FogFragCoord;
+
+void main()
+{
+    gl_TexCoord[0] = vec4(TexCoords, 0.0, 0.0);
+    gl_TexCoord[1] = vec4(LMCoords, 0.0, 0.0);
+    gl_Position = gl_ModelViewProjectionMatrix * Vert;
+    FogFragCoord = gl_Position.w;
+}
+)glsl";
+
+    const GLchar* fragSource = R"glsl(
+#version 110
+
+uniform sampler2D Tex;
+uniform sampler2D LMTex;
+uniform sampler2D FullbrightTex;
+uniform bool UseFullbrightTex;
+uniform bool UseOverbright;
+uniform bool UseAlphaTest;
+uniform float Alpha;
+
+varying float FogFragCoord;
+
+void main()
+{
+    vec4 result = texture2D(Tex, gl_TexCoord[0].xy);
+
+    if (UseAlphaTest && (result.a < 0.666))
+        discard;
+
+    result *= texture2D(LMTex, gl_TexCoord[1].xy);
+
+    if (UseOverbright)
+        result.rgb *= 2.0;
+
+    if (UseFullbrightTex)
+        result += texture2D(FullbrightTex, gl_TexCoord[0].xy);
+
+    result = clamp(result, 0.0, 1.0);
+    float fog = exp(-gl_Fog.density * gl_Fog.density * FogFragCoord * FogFragCoord);
+    fog = clamp(fog, 0.0, 1.0);
+    result = mix(gl_Fog.color, result, fog);
+    result.a = Alpha;      // FIXME: This will make almost transparent
+                           // things cut holes though heavy
+    gl_FragColor = result;
+}
+)glsl";
 
     if(!gl_glsl_alias_able)
     {
         return;
     }
 
-    r_world_program = GL_CreateProgram(vertSource, fragSource,
-        sizeof(bindings) / sizeof(bindings[0]), bindings);
+    r_world_program = quake::gl_program_builder{}
+                          .add_shader({GL_VERTEX_SHADER, vertSource})
+                          .add_shader({GL_FRAGMENT_SHADER, fragSource})
+                          .add_attr_binding({"Vert", vertAttrIndex})
+                          .add_attr_binding({"TexCoords", texCoordsAttrIndex})
+                          .add_attr_binding({"LMCoords", LMCoordsAttrIndex})
+                          .compile_and_link();
 
     if(r_world_program != 0)
     {
