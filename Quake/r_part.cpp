@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "console.hpp"
 #include "quakedef_macros.hpp"
+#include "image.hpp"
 
 #include <algorithm>
 #include <random>

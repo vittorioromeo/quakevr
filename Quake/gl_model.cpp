@@ -33,6 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qvec3_togl.hpp"
 #include "console.hpp"
 #include "quakedef_macros.hpp"
+#include "image.hpp"
+#include "glquake.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags

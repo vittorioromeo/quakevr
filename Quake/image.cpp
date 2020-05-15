@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // image.c -- image loading
 
+#include "image.hpp"
+
 #include "quakedef.hpp"
 #include "console.hpp"
 

@@ -27,10 +27,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include "cmd.hpp"
 #include "console.hpp"
+#include "image.hpp"
+#include "common.hpp"
+#include "glquake.hpp"
 
 #define MAX_CLIP_VERTS 64
-
-
 
 extern qmodel_t* loadmodel;
 // for r_speeds readout

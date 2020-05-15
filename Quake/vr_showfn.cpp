@@ -4,6 +4,7 @@
 #include "vr_showfn.hpp"
 #include "util.hpp"
 #include "quakeglm.hpp"
+#include "glquake.hpp"
 
 #include <algorithm>
 #include <cassert>

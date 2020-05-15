@@ -29,9 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     whole engine
 */
 
-#ifndef _QUAKE_NET_H
-#define _QUAKE_NET_H
+#pragma once
 
+#include "cvar.hpp"
+#include "common.hpp"
 
 #define NET_NAMELEN 64
 
@@ -111,5 +112,3 @@ extern bool ipxAvailable;
 extern bool tcpipAvailable;
 extern char my_ipx_address[NET_NAMELEN];
 extern char my_tcpip_address[NET_NAMELEN];
-
-#endif /* _QUAKE_NET_H */

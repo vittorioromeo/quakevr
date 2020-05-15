@@ -21,8 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef GL_IMAGE_H
-#define GL_IMAGE_H
+#pragma once
+
+#include "q_stdinc.hpp"
+#include <cstdio>
 
 // image.h -- image reading / writing
 
@@ -38,4 +40,3 @@ bool Image_WritePNG(const char* name, byte* data, int width, int height,
 bool Image_WriteJPG(const char* name, byte* data, int width, int height,
     int bpp, int quality, bool upsidedown);
 
-#endif /* GL_IMAGE_H */

@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __MODEL__
-#define __MODEL__
+#pragma once
 
 #include <GL/glew.h>
 
@@ -33,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr_macros.hpp"
 #include "zone.hpp"
 #include "quakedef_macros.hpp"
+#include "bspfile.hpp"
 
 /*
 
@@ -237,7 +237,7 @@ typedef struct mclipnode_s
 // johnfitz
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
-typedef struct
+struct hull_t
 {
     mclipnode_t* clipnodes; // johnfitz -- was dclipnode_t
     mplane_t* planes;
@@ -245,7 +245,7 @@ typedef struct
     int lastclipnode;
     qvec3 clip_mins;
     qvec3 clip_maxs;
-} hull_t;
+};
 
 /*
 ==============================================================================
@@ -545,5 +545,3 @@ byte* Mod_NoVisPVS(qmodel_t* model);
 void Mod_SetExtraFlags(qmodel_t* mod);
 
 void Mod_ForAllKnownNames(void (*f)(const char*)) noexcept;
-
-#endif // __MODEL__

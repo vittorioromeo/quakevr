@@ -23,11 +23,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // common.c -- misc functions used in client and server
 
-#include "quakedef.hpp"
+#include "common.hpp"
 #include "q_ctype.hpp"
 #include "cmd.hpp"
 #include "console.hpp"
 #include "zone.hpp"
+#include "quakeparms.hpp"
+#include "crc.hpp"
+#include "net.hpp"
+#include "mathlib.hpp"
+#include "glquake.hpp"
 
 #include <errno.h>
 #include "vr.hpp"

@@ -113,6 +113,8 @@ void M_PrintWhiteByWrapping(
 void M_Draw();
 void M_DrawCharacter(int cx, int line, int num);
 
+struct qpic_t;
+
 void M_DrawSlider(int x, int y, float range);
 void M_DrawPic(int x, int y, qpic_t* pic);
 void M_DrawTransPic(int x, int y, qpic_t* pic);

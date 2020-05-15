@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr_cvars.hpp"
 #include "vr_showfn.hpp"
 #include "cmd.hpp"
+#include "qpic.hpp"
+#include "net.hpp"
 
 #include <string>
 #include <string_view>

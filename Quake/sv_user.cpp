@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "world.hpp"
 #include "util.hpp"
+#include "q_stdinc.hpp"  
+#include "net.hpp"
+
 #include <iostream>
 
 edict_t* sv_player{nullptr};

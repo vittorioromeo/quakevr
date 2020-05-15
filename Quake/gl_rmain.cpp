@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include "worldtext.hpp"
 #include "console.hpp"
+#include "sbar.hpp"
+#include "glquake.hpp"
 
 bool r_cache_thrash; // compatability
 

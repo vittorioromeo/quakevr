@@ -21,10 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __BSPFILE_H
-#define __BSPFILE_H
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
+#include "q_stdinc.hpp"
 
 // upper design bounds
 
@@ -238,6 +238,7 @@ typedef struct texinfo_s
     int miptex;
     int flags;
 } texinfo_t;
+
 #define TEX_SPECIAL 1 // sky or slime, no lightmap or 256 subdivision
 #define TEX_MISSING 2 // johnfitz -- this texinfo does not have a texture
 
@@ -423,4 +424,3 @@ extern int num_entities;
 extern entitybsp_t entities[MAX_MAP_ENTITIES];
 
 #endif /* QUAKE_GAME */
-#endif /* __BSPFILE_H */
