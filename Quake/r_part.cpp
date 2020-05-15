@@ -32,9 +32,11 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "quakedef_macros.hpp"
 #include "image.hpp"
+#include "shader.hpp"
 
 #include <algorithm>
 #include <random>
+#include <string_view>
 #include <utility>
 #include <array>
 
@@ -2129,113 +2131,11 @@ void CL_RunParticles()
     });
 }
 
-static GLuint LoadShaders(const char* VertexShaderCode,
-    const char* FragmentShaderCode, const char* GeometryShaderCode)
+static GLuint makeParticleShaders()
 {
-    // Create the shaders
-    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint GeometryShaderID = glCreateShader(GL_GEOMETRY_SHADER);
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+    using namespace std::string_view_literals;
 
-    GLint Result = GL_FALSE;
-    int InfoLogLength;
-
-    // Compile Vertex Shader
-    // printf("Compiling shader: %s\n", vertex_file_path);
-    glShaderSource(VertexShaderID, 1, &VertexShaderCode, nullptr);
-    glCompileShader(VertexShaderID);
-
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if(InfoLogLength > 0)
-    {
-        std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
-        glGetShaderInfoLog(VertexShaderID, InfoLogLength, nullptr,
-            &VertexShaderErrorMessage[0]);
-        printf("%s\n", &VertexShaderErrorMessage[0]);
-    }
-
-    assert(Result == GL_TRUE);
-
-    //
-    //
-    // Compile Geometry Shader
-    // printf("Compiling shader : %s\n", fragment_file_path);
-    glShaderSource(GeometryShaderID, 1, &GeometryShaderCode, nullptr);
-    glCompileShader(GeometryShaderID);
-
-    // Check Geometry Shader
-    glGetShaderiv(GeometryShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(GeometryShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if(InfoLogLength > 0)
-    {
-        std::vector<char> GeometryShaderErrorMessage(InfoLogLength + 1);
-        glGetShaderInfoLog(GeometryShaderID, InfoLogLength, nullptr,
-            &GeometryShaderErrorMessage[0]);
-        printf("%s\n", &GeometryShaderErrorMessage[0]);
-    }
-
-    assert(Result == GL_TRUE);
-
-
-    //
-    //
-    // Compile Fragment Shader
-    // printf("Compiling shader : %s\n", fragment_file_path);
-    glShaderSource(FragmentShaderID, 1, &FragmentShaderCode, nullptr);
-    glCompileShader(FragmentShaderID);
-
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if(InfoLogLength > 0)
-    {
-        std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
-        glGetShaderInfoLog(FragmentShaderID, InfoLogLength, nullptr,
-            &FragmentShaderErrorMessage[0]);
-        printf("%s\n", &FragmentShaderErrorMessage[0]);
-    }
-
-    assert(Result == GL_TRUE);
-
-
-
-    // Link the program
-    GLuint ProgramID = glCreateProgram();
-    glAttachShader(ProgramID, VertexShaderID);
-    glAttachShader(ProgramID, GeometryShaderID);
-    glAttachShader(ProgramID, FragmentShaderID);
-
-    glLinkProgram(ProgramID);
-
-    // Check the program
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if(InfoLogLength > 0)
-    {
-        std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
-        glGetProgramInfoLog(
-            ProgramID, InfoLogLength, nullptr, &ProgramErrorMessage[0]);
-        printf("%s\n", &ProgramErrorMessage[0]);
-    }
-
-    assert(Result == GL_TRUE);
-
-    glDetachShader(ProgramID, VertexShaderID);
-    glDetachShader(ProgramID, GeometryShaderID);
-    glDetachShader(ProgramID, FragmentShaderID);
-
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(GeometryShaderID);
-    glDeleteShader(FragmentShaderID);
-
-    return ProgramID;
-}
-
-static GLint makeParticleShaders()
-{
-    const char* vertexShader = R"(
+    constexpr auto vertexShader = R"(
 #version 430 core
 
 layout(location = 0) in vec3  pOrg;
@@ -2259,39 +2159,10 @@ void main()
     vs_out.opColor = pColor;
     vs_out.opAtlasIdx = pAtlasIdx;
 }
-)";
+)"sv;
 
-    const char* fragmentShader = R"(
-#version 430 core
 
-layout(location = 16) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
-
-in vec2 texcoord;
-in vec4 outVertexColor;
-flat in int outAtlasIdx;
-
-uniform sampler2D gColorMap;
-
-out vec4 FragColor;
-
-void main (void)
-{
-    ivec2 textureSize2d = textureSize(gColorMap, 0);
-
-    vec2 imgXY = atlasBuf[outAtlasIdx].xy;
-    vec2 imgWH = atlasBuf[outAtlasIdx].zw;
-
-    vec2 uv = (imgXY / textureSize2d) + (texcoord.xy * (imgWH / textureSize2d));
-
-    vec3 t = texture(gColorMap, uv).rgb * outVertexColor.rgb;
-    FragColor = vec4(t, texture(gColorMap, uv).a * outVertexColor.a);
-
-    if(FragColor.a < 0.01)
-        discard;
-}
-)";
-
-    const char* geometryShader = R"(
+    constexpr auto geometryShader = R"(
 #version 430 core
 
 layout(points) in;
@@ -2364,9 +2235,39 @@ void main()
 
     EndPrimitive();
 }
-)";
+)"sv;
 
-    return LoadShaders(vertexShader, fragmentShader, geometryShader);
+    constexpr auto fragmentShader = R"(
+#version 430 core
+
+layout(location = 16) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
+
+in vec2 texcoord;
+in vec4 outVertexColor;
+flat in int outAtlasIdx;
+
+uniform sampler2D gColorMap;
+
+out vec4 FragColor;
+
+void main (void)
+{
+    ivec2 textureSize2d = textureSize(gColorMap, 0);
+
+    vec2 imgXY = atlasBuf[outAtlasIdx].xy;
+    vec2 imgWH = atlasBuf[outAtlasIdx].zw;
+
+    vec2 uv = (imgXY / textureSize2d) + (texcoord.xy * (imgWH / textureSize2d));
+
+    vec3 t = texture(gColorMap, uv).rgb * outVertexColor.rgb;
+    FragColor = vec4(t, texture(gColorMap, uv).a * outVertexColor.a);
+
+    if(FragColor.a < 0.01)
+        discard;
+}
+)"sv;
+
+    return quake::make_gl_program(vertexShader, geometryShader, fragmentShader);
 }
 
 /*
