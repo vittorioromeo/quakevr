@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.hpp"
 #include "cvar.hpp"
+#include "pr_comp.hpp"
 #include "protocol.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
@@ -33,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <cmath>
 
-#define STRINGTEMP_BUFFERS 16
+#define STRINGTEMP_BUFFERS 32
 #define STRINGTEMP_LENGTH 1024
 static char pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
 static byte pr_string_tempindex = 0;
@@ -922,7 +923,7 @@ scalar checkpos (entity, vector)
 =================
 */
 #if 0
-static void PF_checkpos (void)
+static void PF_checkpos(void)
 {
 }
 #endif
@@ -1285,8 +1286,61 @@ static void PF_worldtext_hsetangles()
         }
     }
 }
+// TODO VR: (P0) worldtext cleaup
+static void PF_worldtext_hsethalign()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const float hAlign = G_FLOAT(OFS_PARM1);
 
+    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    {
+        Host_Error("TODO VR: (P0)");
+        return;
+    }
 
+    sv.worldTexts[wth]._hAlign = static_cast<WorldText::HAlign>(hAlign);
+
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            MSG_WriteByte(&client.message, svc_worldtext_hsethalign);
+            MSG_WriteShort(&client.message, wth);
+            MSG_WriteByte(&client.message, hAlign);
+        }
+    }
+}
+
+static void PF_strlen()
+{
+    G_FLOAT(OFS_RETURN) = std::strlen(G_STRING(OFS_PARM0));
+}
+
+static void PF_nthchar()
+{
+    G_FLOAT(OFS_RETURN) =
+        (G_STRING(OFS_PARM0))[static_cast<int>(G_FLOAT(OFS_PARM1))];
+}
+
+static void PF_substr()
+{
+    const char* s = G_STRING(OFS_PARM0);
+    const int b = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const int e = static_cast<int>(G_FLOAT(OFS_PARM2));
+
+    char* buf = PR_GetTempString();
+    int i = 0;
+    for(; i < e - b; ++i)
+    {
+        buf[i] = s[b + i];
+    }
+
+    buf[i + 1] = '\0';
+
+    G_INT(OFS_RETURN) = PR_SetEngineString(buf);
+}
 
 /*
 =================
@@ -2225,6 +2279,12 @@ static builtin_t pr_builtin[] = {
     PF_worldtext_hsetangles, // #94
 
     PF_WriteVec3, // #95
+
+    PF_worldtext_hsethalign, // #96
+
+    PF_strlen,  // #97
+    PF_nthchar, // #98
+    PF_substr,  // #99
 };
 
 builtin_t* pr_builtins = pr_builtin;

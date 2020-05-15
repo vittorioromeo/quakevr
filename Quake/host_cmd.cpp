@@ -1986,6 +1986,11 @@ void Host_Spawn_f()
         MSG_WriteShort(&host_client->message, wth);
         MSG_WriteVec3(&host_client->message, wt._angles, sv.protocolflags);
 
+        MSG_WriteByte(&host_client->message, svc_worldtext_hsethalign);
+        MSG_WriteShort(&host_client->message, wth);
+        MSG_WriteChar(
+            &host_client->message, static_cast<std::uint8_t>(wt._hAlign));
+
         ++wth;
     }
 }

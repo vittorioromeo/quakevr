@@ -5,7 +5,6 @@
 "classname" "worldspawn"
 "wad" "C:/OHWorkspace/TrenchBroom/Q.wad"
 "light" "300"
-"worldtext" "There are two possible\nlocomotion options.$Smooth locomotion is the\nrecommended option.$You can also bind a button\nto 'Teleport' in the\nSteamVR bindings."
 // brush 0
 {
 ( 16 8992 8384 ) ( 16 -7392 8384 ) ( 16 8992 -8000 ) slipside 0 0 0 1 1
@@ -2523,7 +2522,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Banner"
-"_tb_id" "765"
+"_tb_id" "716"
 // brush 0
 {
 ( -234.43229914393856 255.63043136842782 289.80952380952385 ) ( -234.43229914393856 255.63043136842782 289.8498736549551 ) ( -235.53438026668658 253.72157086976574 289.80952380952385 ) twall2_2 0 0 0 1 1
@@ -2596,14 +2595,14 @@
 "worldtext" "Please set up your preferred\ncontroller bindings\nin the SteamVR dashboard."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "765"
+"_tb_group" "716"
 }
 // entity 13
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Banner"
-"_tb_id" "766"
+"_tb_id" "717"
 // brush 0
 {
 ( -182.30559878361225 228.20933735087135 330.24408928484627 ) ( -182.30559878361225 228.20933735087135 330.27430570986235 ) ( -183.1511747168845 226.7447568727863 330.24408928484627 ) twall2_2 0 0 0 1 1
@@ -2676,14 +2675,14 @@
 "worldtext" "Welcome to Quake VR!"
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "766"
+"_tb_group" "717"
 }
 // entity 15
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Banner"
-"_tb_id" "767"
+"_tb_id" "718"
 // brush 0
 {
 ( -84.574255548968836 563.10926993469434 323.4775281847966 ) ( -83.839538689251867 564.38183686490152 323.4775281847966 ) ( -84.574255548968836 563.10926993469434 323.51787803022785 ) twall2_2 0 0 0 1 1
@@ -2753,31 +2752,31 @@
 "classname" "func_worldtext_banner"
 "origin" "-137 458 297"
 "angle" "330"
-"worldtext" "There are two possible\nlocomotion options.$Smooth locomotion is the\nrecommended option.$You can also bind a button\nto 'Teleport' in the\nSteamVR bindings."
+"worldtext" "Please set up your preferred\ncontroller bindings\nin the SteamVR dashboard."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "767"
+"_tb_group" "718"
 }
 // entity 17
 {
 "classname" "func_group"
 "_tb_type" "_tb_layer"
 "_tb_name" "Slipgate"
-"_tb_id" "768"
+"_tb_id" "719"
 }
 // entity 18
 {
 "classname" "func_group"
 "_tb_type" "_tb_layer"
 "_tb_name" "QuakeVRBillboard"
-"_tb_id" "769"
+"_tb_id" "720"
 }
 // entity 19
 {
 "classname" "func_group"
 "_tb_type" "_tb_layer"
 "_tb_name" "BigSlipgate"
-"_tb_id" "770"
+"_tb_id" "721"
 // brush 0
 {
 ( -492 10084 8671.7307831234339 ) ( -492 -6300 8671.7307831234339 ) ( -492 10084 -7712.2692168765661 ) +0slip 0 -24 180 1 1
@@ -2836,7 +2835,7 @@
 {
 "classname" "trigger_changelevel"
 "map" "start"
-"_tb_layer" "770"
+"_tb_layer" "721"
 // brush 0
 {
 ( -452 10084 8671.7307831234339 ) ( -452 -6300 8671.7307831234339 ) ( -452 10084 -7712.2692168765661 ) trigger 0 0 0 1 1
@@ -2851,7 +2850,7 @@
 {
 "spawnflags" "1792"
 "classname" "func_wall"
-"_tb_layer" "770"
+"_tb_layer" "721"
 // brush 0
 {
 ( -380 10084 8671.7307831234339 ) ( -380 -6300 8671.7307831234339 ) ( -380 10084 -7712.2692168765661 ) tech04_1 22 6 0 -1 -1
@@ -2866,7 +2865,7 @@
 {
 "spawnflags" "1792"
 "classname" "func_wall"
-"_tb_layer" "770"
+"_tb_layer" "721"
 // brush 0
 {
 ( -396 10084 8671.7307831234339 ) ( -396 -6300 8671.7307831234339 ) ( -396 10084 -7712.2692168765661 ) tech04_1 0 8 0 1 1
@@ -2905,7 +2904,7 @@
 "lip" "4"
 "effects" "1"
 "targetname" "w"
-"_tb_layer" "770"
+"_tb_layer" "721"
 // brush 0
 {
 ( 3611.4641016151472 7454.9108884204634 8480 ) ( -4580.5358983848719 -6734.0493271837677 8480 ) ( 3611.4641016151472 7454.9108884204634 -7904 ) door02_1 -0.189636 16 0 0.866025 1
@@ -2921,5 +2920,5 @@
 "classname" "func_group"
 "_tb_type" "_tb_layer"
 "_tb_name" "Emitter Row"
-"_tb_id" "771"
+"_tb_id" "722"
 }

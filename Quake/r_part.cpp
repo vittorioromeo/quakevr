@@ -382,8 +382,7 @@ AtlasData stitchImages(const Ts&... images)
     int xOffset = 0;
     ((blit(xOffset, images), xOffset += images.width), ...);
 
-    const ImageData imageData{data, width, height};
-    return AtlasData{imageData, std::move(imageInfo)};
+    return AtlasData{ImageData{data, width, height}, std::move(imageInfo)};
 }
 
 class ParticleTextureManager
@@ -2135,7 +2134,7 @@ static GLuint makeParticleShaders()
 {
     using namespace std::string_view_literals;
 
-    constexpr auto vertexShader = R"(
+    constexpr auto vertexShader = R"glsl(
 #version 430 core
 
 layout(location = 0) in vec3  pOrg;
@@ -2159,10 +2158,10 @@ void main()
     vs_out.opColor = pColor;
     vs_out.opAtlasIdx = pAtlasIdx;
 }
-)"sv;
+)glsl"sv;
 
 
-    constexpr auto geometryShader = R"(
+    constexpr auto geometryShader = R"glsl(
 #version 430 core
 
 layout(points) in;
@@ -2235,9 +2234,9 @@ void main()
 
     EndPrimitive();
 }
-)"sv;
+)glsl"sv;
 
-    constexpr auto fragmentShader = R"(
+    constexpr auto fragmentShader = R"glsl(
 #version 430 core
 
 layout(location = 16) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
@@ -2265,7 +2264,7 @@ void main (void)
     if(FragColor.a < 0.01)
         discard;
 }
-)"sv;
+)glsl"sv;
 
     return quake::make_gl_program(vertexShader, geometryShader, fragmentShader);
 }

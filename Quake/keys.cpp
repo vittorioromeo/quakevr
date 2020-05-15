@@ -892,8 +892,8 @@ void Key_Init()
         // ascii characters
         consolekeys[i] = true;
     }
-    consolekeys['`'] = false;
-    consolekeys['~'] = false;
+    consolekeys[static_cast<int>('`')] = false;
+    consolekeys[static_cast<int>('~')] = false;
     consolekeys[K_TAB] = true;
     consolekeys[K_ENTER] = true;
     consolekeys[K_ESCAPE] = true;

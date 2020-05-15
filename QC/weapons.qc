@@ -1180,7 +1180,7 @@ SpawnBloodSplash
 */
 void(vector org, float damage) SpawnBloodSplash =
 {
-    vector        pvel;
+    vector pvel;
 
     pvel_x = crandom() * 240;
     pvel_y = crandom() * 240;

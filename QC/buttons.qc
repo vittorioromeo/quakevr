@@ -63,11 +63,7 @@ void() button_fire =
         return;
     }
 
-    vector porg;
-    porg_x = self.absmin_x + ((self.absmax_x - self.absmin_x) / 2);
-    porg_y = self.absmin_y + ((self.absmax_y - self.absmin_y) / 2);
-    porg_z = self.absmin_z + ((self.absmax_z - self.absmin_z) / 2);
-    particle2(porg, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);
+    particle2(realorigin(self), '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);
 
     sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
@@ -201,18 +197,16 @@ void() func_button =
         button_disable(self);
     }
 
-    // TODO VR: (P0) these angles are wrong
-    vector dir = normalize(self.pos2 - self.pos1);
-    vector ang = vectoangles(dir);
+    if(self.worldtext != NULLSTR)
+    {
+        vector dir = self.movedir;
+        vector ang = vectoangles(dir);
 
-    // TODO VR: (P0) worldtext test
-    makeforward(dir);
-    float wth = worldtext_hmake();
-    worldtext_hsettext(wth, "DO NOT PRESS\nI am serious");
-    worldtext_hsetpos(wth, realorigin(self) + '0 0 12' + v_forward * 6.0);
-    worldtext_hsetangles(wth, ang);
-
-    // TODO VR: (P0) try movedir
+        float wth = worldtext_hmake();
+        worldtext_hsettext(wth, self.worldtext);
+        worldtext_hsetpos(wth, realorigin(self) + '0 0 12' - dir * 6.0);
+        worldtext_hsetangles(wth, ang);
+    }
 };
 
 // TODO VR: (P2) move
@@ -226,4 +220,138 @@ void() func_particle_emitter =
 {
     self.think = func_particle_emitter_think;
     self.nextthink = time + 0.1;
+}
+
+void() func_worldtext_banner_think =
+{
+    float wth = self.weapon;
+    float len = self.t_length;
+    float nPages = self.lip;
+
+    float startIdx;
+    float endIdx;
+
+    if(self.state == 0) // On first page
+    {
+        startIdx = 0;
+        endIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, 0);
+    }
+    else if(self.state == (nPages - 1)) // On last page
+    {
+        startIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, self.state - 1) + 1;
+        endIdx = len;
+    }
+    else
+    {
+        startIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, self.state - 1) + 1;
+        endIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, self.state);
+    }
+
+    bprint("state: ");
+    bprint(ftos(self.state));
+    bprint("| lip: ");
+    bprint(ftos(self.lip));
+    bprint("| b: ");
+    bprint(ftos(startIdx));
+    bprint("| e: ");
+    bprint(ftos(endIdx));
+    bprint("\n");
+
+    string newText = substr(self.worldtext, startIdx, endIdx);
+    worldtext_hsettext(wth, newText);
+
+    self.state += 1;
+    if(self.state == nPages)
+    {
+        self.state = 0;
+    }
+
+    self.nextthink = time + (self.speed * (endIdx - startIdx));
+}
+
+float(entity xEntWorldText, float xPageIdx)
+VR_WorldTextUtil_GetPageStringCharStartIdx =
+{
+    ASSERT(xPageIdx >= 0);
+    ASSERT(xPageIdx < 6);
+    ASSERT(xPageIdx < xEntWorldText.lip);
+
+    return xEntWorldText.holsterhover[xPageIdx];
+}
+
+void(entity xEntWorldText, float xPageIdx, float xCharStartIdx)
+VR_WorldTextUtil_SetPageStringCharStartIdx =
+{
+    ASSERT(xPageIdx >= 0);
+    ASSERT(xPageIdx < 6);
+    ASSERT(xPageIdx < xEntWorldText.lip);
+
+    xEntWorldText.holsterhover[xPageIdx] = xCharStartIdx;
+}
+
+float(entity xEntWorldText)
+VR_WorldTextUtil_InitializePages =
+{
+    string s = xEntWorldText.worldtext;
+    ASSERT(s != NULLSTR);
+
+    float nSeps = 0;
+    float len = xEntWorldText.t_length;
+    for(float i = 0; i < len; ++i)
+    {
+        if(nthchar(s, i) == '$')
+        {
+            VR_WorldTextUtil_SetPageStringCharStartIdx(xEntWorldText, nSeps, i);
+            ++nSeps;
+        }
+    }
+
+    return nSeps + 1;
+}
+
+// Parameters:
+// * `.worldtext`: Text to display. The single character `$` is interpreted as
+//   a page break and will make the banner automatically scroll between pages.
+// * `.worldtext_halign`: Horizontal text alignment. (`0`: Left, `1`: Center,
+//   `2`: Right)
+// * `.speed`: Time to scroll to the next page, in seconds per character.
+void() func_worldtext_banner =
+{
+    ASSERT(self.worldtext_halign == 0 ||
+           self.worldtext_halign == 1 ||
+           self.worldtext_halign == 2);
+
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    setmodel(self, self.model);
+
+    if(self.worldtext == NULLSTR)
+    {
+        return;
+    }
+
+    // Cache string length
+    self.t_length = strlen(self.worldtext);
+
+    // Initialize pages
+    self.state = 0; // Current page
+    self.lip = VR_WorldTextUtil_InitializePages(self); // Number of pages
+
+    // Create and cache world text handle
+    float wth = worldtext_hmake();
+    self.weapon = wth;
+
+    worldtext_hsetpos(wth, realorigin(self));
+    worldtext_hsetangles(wth, self.angles + '0 180 0');
+    worldtext_hsethalign(wth, self.worldtext_halign);
+
+    if(self.lip > 1)
+    {
+        self.think = func_worldtext_banner_think;
+        self.nextthink = time + 0.05;
+    }
+    else
+    {
+        worldtext_hsettext(wth, self.worldtext);
+    }
 }

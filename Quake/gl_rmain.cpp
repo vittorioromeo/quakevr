@@ -32,6 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "sbar.hpp"
 #include "glquake.hpp"
+#include "shader.hpp"
+
+#include <string_view>
+#include <algorithm>
 
 bool r_cache_thrash; // compatability
 
@@ -159,7 +163,7 @@ void GLSLGamma_DeleteTexture()
 {
     glDeleteTextures(1, &r_gamma_texture);
     r_gamma_texture = 0;
-    r_gamma_program = 0; // deleted in R_DeleteShaders
+    r_gamma_program = 0;
 }
 
 /*
@@ -169,33 +173,37 @@ GLSLGamma_CreateShaders
 */
 static void GLSLGamma_CreateShaders()
 {
-    const GLchar* vertSource =
-        "#version 110\n"
-        "\n"
-        "void main(void) {\n"
-        "	gl_Position = vec4(gl_Vertex.xy, 0.0, 1.0);\n"
-        "	gl_TexCoord[0] = gl_MultiTexCoord0;\n"
-        "}\n";
+    using namespace std::string_view_literals;
 
-    const GLchar* fragSource =
-        "#version 110\n"
-        "\n"
-        "uniform sampler2D GammaTexture;\n"
-        "uniform float GammaValue;\n"
-        "uniform float ContrastValue;\n"
-        "\n"
-        "void main(void) {\n"
-        "	  vec4 frag = texture2D(GammaTexture, gl_TexCoord[0].xy);\n"
-        "	  frag.rgb = frag.rgb * ContrastValue;\n"
-        "	  gl_FragColor = vec4(pow(frag.rgb, vec3(GammaValue)), 1.0);\n"
-        "}\n";
+    constexpr auto vertSource = R"glsl(
+#version 110
+
+void main(void) {
+    gl_Position = vec4(gl_Vertex.xy, 0.0, 1.0);
+    gl_TexCoord[0] = gl_MultiTexCoord0;
+}
+)glsl"sv;
+
+    constexpr auto fragSource = R"glsl(
+#version 110
+
+uniform sampler2D GammaTexture;
+uniform float GammaValue;
+uniform float ContrastValue;
+
+void main(void) {
+      vec4 frag = texture2D(GammaTexture, gl_TexCoord[0].xy);
+      frag.rgb = frag.rgb * ContrastValue;
+      gl_FragColor = vec4(pow(frag.rgb, vec3(GammaValue)), 1.0);
+}
+)glsl"sv;
 
     if(!gl_glsl_gamma_able)
     {
         return;
     }
 
-    r_gamma_program = GL_CreateProgram(vertSource, fragSource, 0, nullptr);
+    r_gamma_program = quake::make_gl_program(vertSource, fragSource);
 
     // get uniform locations
     gammaLoc = GL_GetUniformLocation(&r_gamma_program, "GammaValue");
@@ -849,55 +857,97 @@ void R_DrawWorldText()
         doVertex(pos + zInc);
     };
 
-    const auto drawString = [&](qvec3 pos, const qvec3& angles,
-                                const char* str) {
-        extern gltexture_t* char_texture;
-        GL_Bind(char_texture);
-        glBegin(GL_QUADS);
-
-        // centering
-        int longestLine = 0;
-        int lastLine = 0;
-        for(auto p = str; *p; ++p)
+    const auto forSplitStringView = [](std::string_view str,
+                                        std::string_view delims, auto&& f) {
+        for(auto first = str.data(), second = str.data(),
+                 last = first + str.size();
+            second != last && first != last; first = second + 1)
         {
-            if((*p) == '\n' || *(p + 1) == '\0')
-            {
-                longestLine = std::max(longestLine, lastLine);
-                lastLine = 0;
-            }
+            second = std::find_first_of(
+                first, last, std::cbegin(delims), std::cend(delims));
 
-            ++lastLine;
+            if(first != second)
+            {
+                f(std::string_view(first, second - first));
+            }
+        }
+    };
+
+    const auto drawString = [&](const qvec3& originalpos, const qvec3& angles,
+                                const std::string_view str,
+                                const WorldText::HAlign hAlign) {
+        static std::vector<std::string_view> lines;
+
+        // Split into lines
+        lines.clear();
+        forSplitStringView(str, "\n",
+            [&](const std::string_view sv) { lines.emplace_back(sv); });
+
+        if(lines.empty())
+        {
+            return;
         }
 
+        // Find longest line size (for centering)
+        const std::size_t longestLineSize = std::max_element(lines.begin(),
+            lines.end(),
+            [](const std::string_view& a, const std::string_view& b) {
+                return a.size() < b.size();
+            })->size();
+
+        // Angles and offsets
         const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
         const auto hInc = right * 8.f;
         const auto zInc = qvec3{0, 0, -8.f}; // * up;
 
-        pos -= hInc * (longestLine / 2.f);
+        // Bounds
+        const auto absmins = originalpos;
+        const auto absmaxs = absmins +
+                             (hInc * static_cast<float>(longestLineSize)) +
+                             (zInc * static_cast<float>(lines.size()));
 
-        const auto originalpos = pos;
+        const auto center = originalpos - ((absmaxs - absmins) / 2.f);
 
-        int n = 0;
-        while(*str)
+        // Draw
+        extern gltexture_t* char_texture;
+        GL_Bind(char_texture);
+        glBegin(GL_QUADS);
+
+        std::size_t iLine = 0;
+        for(const std::string_view& line : lines)
         {
-            if(*str == '\n')
-            {
-                ++n;
-                pos = originalpos;
-                pos += zInc * float(n);
-                ++str;
+            const std::size_t sizeDiff = longestLineSize - line.size();
 
-                continue;
+            auto startPos = [&] {
+                if(hAlign == WorldText::HAlign::Left)
+                {
+                    return center + (zInc * static_cast<float>(iLine));
+                }
+
+                if(hAlign == WorldText::HAlign::Center)
+                {
+                    return center +
+                           (hInc * static_cast<float>(sizeDiff) / 2.f) +
+                           (zInc * static_cast<float>(iLine));
+                }
+
+                assert(hAlign == WorldText::HAlign::Right);
+                return center + (hInc * static_cast<float>(sizeDiff)) +
+                       (zInc * static_cast<float>(iLine));
+            }();
+
+            for(const char c : line)
+            {
+                if(c != ' ')
+                {
+                    // don't waste verts on spaces
+                    drawCharacterQuad(startPos, hInc, zInc, c);
+                }
+
+                startPos += hInc;
             }
 
-            if(*str != ' ')
-            {
-                // don't waste verts on spaces
-                drawCharacterQuad(pos, hInc, zInc, *str);
-            }
-
-            ++str;
-            pos += hInc;
+            ++iLine;
         }
 
         glEnd();
@@ -915,7 +965,7 @@ void R_DrawWorldText()
 
     for(const WorldText& wt : cl.worldTexts)
     {
-        drawString(wt._pos, wt._angles, wt._text.data());
+        drawString(wt._pos, wt._angles, wt._text, wt._hAlign);
     }
 
     glEnable(GL_BLEND);

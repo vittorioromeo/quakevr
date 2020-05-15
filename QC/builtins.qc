@@ -147,3 +147,9 @@ void(float h, vector v) worldtext_hsetpos    = #93;
 void(float h, vector v) worldtext_hsetangles = #94;
 
 void(float to, vector v) WriteVec3 = #95;
+
+void(float h, float v) worldtext_hsethalign = #96;
+
+float(string s) strlen = #97;
+float(string s, float n) nthchar = #98;
+string(string s, float b, float e) substr = #99;
