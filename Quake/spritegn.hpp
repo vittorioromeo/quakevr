@@ -52,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <string.h>
+#include <cstring>
 
 #include "cmdlib.hpp"
 #include "scriplib.hpp"

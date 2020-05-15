@@ -2877,11 +2877,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.025f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.2f;
-    constexpr float rBound = 180.f;
-
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
-    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
 
     // ------------------------------------------------------------------------
 

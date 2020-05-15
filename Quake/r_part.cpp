@@ -570,8 +570,8 @@ ParticleTextureManager::Handle ptxAtlas;
 AtlasData ptxAtlasData;
 
 constexpr int aiCircle = 0;
-constexpr int aiSquare = 1;
-constexpr int aiBlob = 2;
+// constexpr int aiSquare = 1;
+// constexpr int aiBlob = 2;
 constexpr int aiExplosion = 3;
 constexpr int aiSmoke = 4;
 constexpr int aiBlood = 5;
