@@ -29,6 +29,7 @@
 
 #include "snd_codec.hpp"
 #include "snd_codeci.hpp"
+#include "zone.hpp"
 
 /* headers for individual codecs */
 #include "snd_mikmod.hpp"

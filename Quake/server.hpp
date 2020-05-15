@@ -21,14 +21,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SERVER_H
-#define _QUAKE_SERVER_H
+#pragma once
 
 #include "vr_macros.hpp"
 #include "worldtext.hpp"
 #include "cvar.hpp"
 #include "common.hpp"
 #include "quakedef_macros.hpp"
+#include "progs.hpp"
 
 #include <vector>
 
@@ -257,5 +257,3 @@ void SV_CheckForNewClients();
 void SV_RunClients();
 void SV_SaveSpawnparms();
 void SV_SpawnServer(const char* server, const bool fromSaveFile);
-
-#endif /* _QUAKE_SERVER_H */

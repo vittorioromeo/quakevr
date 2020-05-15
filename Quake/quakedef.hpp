@@ -24,13 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma once
 
 #include "sys.hpp"
-#include "zone.hpp"
-
-#include "protocol.hpp"
-
 #include "cmd.hpp"
-
-#include "progs.hpp"
 #include "server.hpp"
 
 #include <SDL2/SDL.h>
@@ -49,8 +43,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "gl_texmgr.hpp" //johnfitz
 #include "input.hpp"
-#include "keys.hpp"
-#include "menu.hpp"
 
 
 //=============================================================================

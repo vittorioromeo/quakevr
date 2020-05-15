@@ -13,6 +13,11 @@
 #include "mathlib.hpp"
 #include "quakeglm.hpp"
 #include "macros.hpp"
+#include "progs.hpp"
+#include "world.hpp"
+#include "server.hpp"
+
+#include <GL/glew.h>
 
 #include <array>
 #include <algorithm>

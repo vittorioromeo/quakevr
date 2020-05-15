@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include <windows.h>
 #include "platform.hpp"
+#include "keys.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>

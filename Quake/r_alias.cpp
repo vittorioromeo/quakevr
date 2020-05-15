@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "render.hpp"
 #include "glquake.hpp"
 #include "mathlib.hpp"
+#include "quakedef_macros.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,
     r_lerpmove; // johnfitz

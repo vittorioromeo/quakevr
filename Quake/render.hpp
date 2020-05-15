@@ -26,6 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakeglm_qvec3.hpp"
 #include "modelgen.hpp"
+#include "gl_model.hpp"
+#include "efrag.hpp"
+#include "entity.hpp"
+#include "refdef.hpp"
 
 #include <string>
 
@@ -37,12 +41,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define BOTTOM_RANGE 96
 
 //=============================================================================
-
-typedef struct efrag_s
-{
-    struct efrag_s* leafnext;
-    struct entity_t* entity;
-} efrag_t;
 
 // johnfitz -- for lerping
 #define LERP_MOVESTEP \
@@ -58,104 +56,12 @@ typedef struct efrag_s
              // interval of 0.1
 // johnfitz
 
-struct entity_t
-{
-    bool forcelink; // model changed
-
-    int update_type;
-
-    entity_state_t baseline; // to fill in defaults in updates
-
-    double msgtime;       // time of last update
-    qvec3 msg_origins[2]; // last two updates (0 is newest)
-    qvec3 origin;
-    qvec3 msg_angles[2]; // last two updates (0 is newest)
-    qvec3 angles;
-    qmodel_t* model;       // nullptr = no model
-    struct efrag_s* efrag; // linked list of efrags
-    int frame;
-    float syncbase; // for client-side animations
-    byte* colormap;
-    int effects;  // light, particles, etc
-    int skinnum;  // for Alias models
-    int visframe; // last frame this entity was
-                  //  found in an active leaf
-
-    int dlightframe; // dynamic lighting
-    int dlightbits;
-
-    // FIXME: could turn these into a union
-    int trivial_accept;
-    struct mnode_s* topnode; // for bmodels, first world node
-                             //  that splits bmodel, or nullptr if
-                             //  not split
-
-    byte alpha;         // johnfitz -- alpha
-    byte lerpflags;     // johnfitz -- lerping
-    float lerpstart;    // johnfitz -- animation lerping
-    float lerptime;     // johnfitz -- animation lerping
-    float lerpfinish;   // johnfitz -- lerping -- server sent us a more accurate
-                        // interval, use it instead of 0.1
-    short previouspose; // johnfitz -- animation lerping
-    short currentpose;  // johnfitz -- animation lerping
-    //	short					futurepose;		//johnfitz -- animation lerping
-    float movelerpstart;  // johnfitz -- transform lerping
-    qvec3 previousorigin; // johnfitz -- transform lerping
-    qvec3 currentorigin;  // johnfitz -- transform lerping
-    qvec3 previousangles; // johnfitz -- transform lerping
-    qvec3 currentangles;  // johnfitz -- transform lerping
-
-    bool horizFlip; // VR: horizontal flip
-
-    // VR: per-instance scaling
-    qvec3 msg_scales[2]; // last two updates (0 is newest)
-    qvec3 scale;
-    qvec3 scale_origin;
-
-    bool hidden;      // TODO VR: (P1) hack? or document
-    qfloat zeroBlend; // TODO VR: (P1) hack? or document
-};
-
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
-typedef struct
-{
-    vrect_t vrect;               // subwindow in video for refresh
-                                 // FIXME: not need vrect next field here?
-    vrect_t aliasvrect;          // scaled Alias version
-    int vrectright, vrectbottom; // right & bottom screen coords
-    int aliasvrectright, aliasvrectbottom; // scaled Alias versions
-    float vrectrightedge;           // rightmost right edge we care about,
-                                    //  for use in edge list
-    float fvrectx, fvrecty;         // for floating-point compares
-    float fvrectx_adj, fvrecty_adj; // left and top edges, for clamping
-    int vrect_x_adj_shift20;        // (vrect.x + 0.5 - epsilon) << 20
-    int vrectright_adj_shift20;     // (vrectright + 0.5 - epsilon) << 20
-    float fvrectright_adj, fvrectbottom_adj;
-    // right and bottom edges, for clamping
-    float fvrectright;           // rightmost edge, for Alias clamping
-    float fvrectbottom;          // bottommost edge, for Alias clamping
-    float horizontalFieldOfView; // at Z = 1.0, this many X is visible
-                                 // 2.0 = 90 degrees
-    float xOrigin;               // should probably allways be 0.5
-    float yOrigin;               // between be around 0.3 to 0.5
-
-    qvec3 vieworg;
-    qvec3 viewangles;
-    qvec3 aimangles;
-
-    float fov_x, fov_y;
-
-    int ambientlight;
-} refdef_t;
-
 
 //
 // refresh
 //
 extern int reinit_surfcache;
 
-
-extern refdef_t r_refdef;
 extern qvec3 r_origin, vpn, vright, vup;
 
 

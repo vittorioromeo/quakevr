@@ -33,7 +33,6 @@
 
 #else /* SDL_INIT_CDROM */
 
-#include "quakedef.hpp"
 #include "cmd.hpp"
 #include "common.hpp"
 #include "cdaudio.hpp"

@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "menu.hpp"
 #include "cvar.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
@@ -32,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.hpp"
 #include "qpic.hpp"
 #include "net.hpp"
+#include "keys.hpp"
 
 #include <string>
 #include <string_view>
