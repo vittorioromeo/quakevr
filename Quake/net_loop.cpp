@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "net_defs.hpp"
 #include "net_loop.hpp"
+#include "console.hpp"
 
 static bool localconnectpending = false;
 static qsocket_t* loop_client = nullptr;

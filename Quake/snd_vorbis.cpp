@@ -22,6 +22,8 @@
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
+#include "fshandle.hpp"
 
 #if defined(USE_CODEC_VORBIS)
 #include "snd_codec.hpp"

@@ -24,6 +24,9 @@
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
+
 #include "snd_codec.hpp"
 #include "snd_codeci.hpp"
 

@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "vr.hpp"
 #include "util.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -147,7 +150,7 @@ EVENT MESSAGES
 =============================================================================
 */
 
-static void writeCommonParticleData(const qfvec3& org, const qfvec3& dir)
+static void writeCommonParticleData(const qvec3& org, const qvec3& dir)
 {
     MSG_WriteVec3(&sv.datagram, org, sv.protocolflags);
     for(int i = 0; i < 3; i++)
@@ -173,7 +176,7 @@ Make sure the event gets sent to all clients
 ==================
 */
 void SV_StartParticle(
-    const qfvec3& org, const qfvec3& dir, const int color, const int count)
+    const qvec3& org, const qvec3& dir, const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -194,7 +197,7 @@ Make sure the event gets sent to all clients
 ==================
 */
 void SV_StartParticle2(
-    const qfvec3& org, const qfvec3& dir, const int preset, const int count)
+    const qvec3& org, const qvec3& dir, const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {

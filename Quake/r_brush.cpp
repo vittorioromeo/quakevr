@@ -25,7 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -915,12 +916,12 @@ void BuildSurfaceDisplayList(msurface_t* fa)
         if(lindex > 0)
         {
             r_pedge = &pedges[lindex];
-            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[0]].position);
+            vec = toGlVec(r_pcurrentvertbase[r_pedge->v[0]].position);
         }
         else
         {
             r_pedge = &pedges[-lindex];
-            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[1]].position);
+            vec = toGlVec(r_pcurrentvertbase[r_pedge->v[1]].position);
         }
         s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
         s /= fa->texinfo->texture->width;

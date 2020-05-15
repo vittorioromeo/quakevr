@@ -37,8 +37,8 @@ extern cvar_t sv_stopspeed;
 static qvec3 forward, right, up;
 
 // world
-qfvec3* origin{nullptr};
-qfvec3* velocity{nullptr};
+qvec3* origin{nullptr};
+qvec3* velocity{nullptr};
 
 bool onground;
 
@@ -148,15 +148,15 @@ SV_UserFriction
 */
 void SV_UserFriction()
 {
-    qfvec3* vel;
+    qvec3* vel;
     float speed;
 
     float newspeed;
 
     float control;
-    qfvec3 start;
+    qvec3 start;
 
-    qfvec3 stop;
+    qvec3 stop;
     float friction;
     trace_t trace;
 

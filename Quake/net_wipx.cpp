@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "net_defs.hpp"
 #include "net_wipx.hpp"
-
+#include "common.hpp"
 
 
 static sys_socket_t net_acceptsocket =

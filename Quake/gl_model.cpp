@@ -25,9 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // models are the only shared resource between a client and server running
 // on the same machine.
 
+#include <GL/glew.h>
+
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags
@@ -1340,12 +1345,12 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 
         if(lindex > 0)
         {
-            vec = glm::value_ptr(
+            vec = toGlVec(
                 loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
         }
         else
         {
-            vec = glm::value_ptr(
+            vec = toGlVec(
                 loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
         }
         VectorCopy(vec, verts[numverts]);

@@ -34,6 +34,10 @@
 #else /* SDL_INIT_CDROM */
 
 #include "quakedef.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
 
 static bool cdValid = false;
 static bool playing = false;

@@ -25,9 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
+#include "console.hpp"
 
 #include <cassert>
 
@@ -140,11 +141,11 @@ testing object's origin to get a point to use with the returned hull.
 ================
 */
 hull_t* SV_HullForEntity(
-    edict_t* ent, const qfvec3& mins, const qfvec3& maxs, qfvec3& offset)
+    edict_t* ent, const qvec3& mins, const qvec3& maxs, qvec3& offset)
 {
-    qfvec3 size;
-    qfvec3 hullmins;
-    qfvec3 hullmaxs;
+    qvec3 size;
+    qvec3 hullmins;
+    qvec3 hullmaxs;
 
     hull_t* hull;
 
@@ -433,7 +434,7 @@ void SV_TouchLinks(edict_t* ent)
 
     const auto doHandtouch = [](edict_t* ent, edict_t* target) {
         // Add some size to the hands.
-        const qfvec3 offsets{2.5f, 2.5f, 2.5f};
+        const qvec3 offsets{2.5f, 2.5f, 2.5f};
 
         const auto handposmin = ent->v.handpos - offsets;
         const auto handposmax = ent->v.handpos + offsets;
@@ -452,7 +453,7 @@ void SV_TouchLinks(edict_t* ent)
                                     ? VR_GetEasyHandTouchBonus()
                                     : 0.f;
 
-            const qfvec3 bonusVec{bonus, bonus, bonus};
+            const qvec3 bonusVec{bonus, bonus, bonus};
 
             return quake::util::boxIntersection(handMin, handMax,
                 target->v.absmin - bonusVec, target->v.absmax + bonusVec);
@@ -1014,7 +1015,7 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start, const qvec3& mins,
     trace.endpos = end;
 
     // get the clipping hull
-    qfvec3 offset;
+    qvec3 offset;
     hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
 
     const qvec3 start_l = start - qvec3(offset);

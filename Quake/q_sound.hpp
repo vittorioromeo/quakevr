@@ -26,7 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __QUAKE_SOUND__
 #define __QUAKE_SOUND__
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "zone.hpp"
+#include "quakedef_macros.hpp"
 
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct

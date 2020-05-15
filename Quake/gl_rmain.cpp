@@ -23,11 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "vr.hpp"
 #include "vr_showfn.hpp"
 #include "vr_cvars.hpp"
 #include "util.hpp"
+#include "worldtext.hpp"
+#include "console.hpp"
 
 bool r_cache_thrash; // compatability
 

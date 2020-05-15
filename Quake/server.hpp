@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define _QUAKE_SERVER_H
 
 #include "vr_macros.hpp"
+#include "worldtext.hpp"
 
 #include <vector>
 
@@ -216,9 +217,9 @@ extern edict_t* sv_player;
 
 void SV_Init();
 
-void SV_StartParticle(const qfvec3& org, const qfvec3& dir,
+void SV_StartParticle(const qvec3& org, const qvec3& dir,
     const int color, const int count);
-void SV_StartParticle2(const qfvec3& org, const qfvec3& dir,
+void SV_StartParticle2(const qvec3& org, const qvec3& dir,
     const int preset, const int count);
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation);
@@ -243,7 +244,7 @@ void SV_BroadcastPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void SV_Physics();
 
 bool SV_CheckBottom(edict_t* ent);
-bool SV_movestep(edict_t* ent, qfvec3 move, bool relink);
+bool SV_movestep(edict_t* ent, qvec3 move, bool relink);
 
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 

@@ -20,7 +20,8 @@
  */
 
 #include "quakedef.hpp"
-
+#include "fshandle.hpp"
+#include "common.hpp"
 
 static fshandle_t* cfg_file;
 

@@ -1,6 +1,6 @@
 #include "menu_util.hpp"
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "client.hpp"
 
 // TODO VR: (P2) forward declaration due to crappy quake header deps

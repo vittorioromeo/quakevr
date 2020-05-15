@@ -40,8 +40,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
 #define MAX_VISEDICTS 4096       // larger, now we support BSP2
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "quakedef.hpp"
+#include "worldtext.hpp"
 
 // client.h
 

@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_PROTOCOL_H
 #define _QUAKE_PROTOCOL_H
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 // protocol.h -- communications protocols
 
@@ -280,10 +280,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct entity_state_t
 {
-    qfvec3 origin;
-    qfvec3 angles;
-    qfvec3 scale;
-    qfvec3 scale_origin;
+    qvec3 origin;
+    qvec3 angles;
+    qvec3 scale;
+    qvec3 scale_origin;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned char colormap;    // johnfitz -- was int
@@ -294,23 +294,23 @@ struct entity_state_t
 
 struct usercmd_t
 {
-    qfvec3 viewangles;
+    qvec3 viewangles;
     float vryaw;
-    qfvec3 handpos;
-    qfvec3 handrot;
-    qfvec3 handvel;
-    qfvec3 handthrowvel;
+    qvec3 handpos;
+    qvec3 handrot;
+    qvec3 handvel;
+    qvec3 handthrowvel;
     float handvelmag;
-    qfvec3 handavel;
-    qfvec3 offhandpos;
-    qfvec3 offhandrot;
-    qfvec3 offhandvel;
-    qfvec3 offhandthrowvel;
+    qvec3 handavel;
+    qvec3 offhandpos;
+    qvec3 offhandrot;
+    qvec3 offhandvel;
+    qvec3 offhandthrowvel;
     float offhandvelmag;
-    qfvec3 offhandavel;
-    qfvec3 headvel;
-    qfvec3 muzzlepos;
-    qfvec3 offmuzzlepos;
+    qvec3 offhandavel;
+    qvec3 headvel;
+    qvec3 muzzlepos;
+    qvec3 offmuzzlepos;
     unsigned char vrbits0;
 
     // intended velocities
@@ -319,14 +319,14 @@ struct usercmd_t
     float upmove;
 
     // VR teleportation
-    qfvec3 teleport_target;
+    qvec3 teleport_target;
 
     // VR hands
     int offhand_hotspot;
     int mainhand_hotspot;
 
     // VR room scale movement
-    qfvec3 roomscalemove;
+    qvec3 roomscalemove;
 };
 
 #endif /* _QUAKE_PROTOCOL_H */

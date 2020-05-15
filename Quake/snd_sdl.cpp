@@ -24,6 +24,8 @@ Copyright (C) 2020-2020 Vittorio Romeo
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
+
 #include <SDL2/SDL.h>
 
 static int buffersize;

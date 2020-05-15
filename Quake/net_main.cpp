@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_sys.hpp"
 #include "quakedef.hpp"
 #include "net_defs.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
 
 qsocket_t* net_activeSockets = nullptr;
 qsocket_t* net_freeSockets = nullptr;

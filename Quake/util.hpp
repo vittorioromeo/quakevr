@@ -12,6 +12,7 @@
 #include "cvar.hpp"
 #include "mathlib.hpp"
 #include "quakeglm.hpp"
+#include "macros.hpp"
 
 #include <array>
 #include <algorithm>
