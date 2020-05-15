@@ -236,7 +236,7 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 #define STOP_EPSILON 0.1
 
 int ClipVelocity(
-    const qfvec3& in, const qfvec3& normal, qfvec3& out, float overbounce)
+    const qvec3& in, const qvec3& normal, qvec3& out, float overbounce)
 {
     int blocked = 0;
 
@@ -285,9 +285,9 @@ int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace)
 
     const auto primal_velocity = ent->v.velocity;
 
-    qfvec3 planes[MAX_CLIP_PLANES];
-    qfvec3 original_velocity = ent->v.velocity;
-    qfvec3 new_velocity;
+    qvec3 planes[MAX_CLIP_PLANES];
+    qvec3 original_velocity = ent->v.velocity;
+    qvec3 new_velocity;
 
     float time_left = time;
 
@@ -481,7 +481,7 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-trace_t SV_PushEntity(edict_t* ent, const qfvec3& push)
+trace_t SV_PushEntity(edict_t* ent, const qvec3& push)
 {
     const auto start = ent->v.origin - push;
     const auto end = ent->v.origin + push;
@@ -849,7 +849,7 @@ void SV_WallFriction(edict_t* ent, trace_t* trace)
     // cut the tangential velocity
     const auto i = DotProduct(trace->plane.normal, ent->v.velocity);
     const auto into = trace->plane.normal * i;
-    const auto side = ent->v.velocity - qfvec3(into);
+    const auto side = ent->v.velocity - qvec3(into);
 
     ent->v.velocity[0] = side[0] * (1 + d);
     ent->v.velocity[1] = side[1] * (1 + d);
@@ -1063,7 +1063,7 @@ void SV_Handtouch(edict_t* ent)
     // TODO VR: (P2) cleanup, too much unnecessary tracing and work
 
     // Utility constants
-    const qfvec3 handOffsets{2.5f, 2.5f, 2.5f};
+    const qvec3 handOffsets{2.5f, 2.5f, 2.5f};
 
     // Figure out tracing boundaries
     // (Largest possible volume containing the hands and the player)
@@ -1104,13 +1104,13 @@ void SV_Handtouch(edict_t* ent)
         }
 
         const auto handCollisionCheck = [&](const int hand,
-                                            const qfvec3& handPos) {
+                                            const qvec3& handPos) {
             const float bonus =
                 (quake::util::hasFlag(trace.ent, FL_EASYHANDTOUCH))
                     ? VR_GetEasyHandTouchBonus()
                     : 0.f;
 
-            const qfvec3 bonusVec{bonus, bonus, bonus};
+            const qvec3 bonusVec{bonus, bonus, bonus};
 
             const auto aMin =
                 trace.ent->v.origin + trace.ent->v.mins - bonusVec;
@@ -1518,8 +1518,8 @@ void SV_Physics_Toss(edict_t* ent)
 
                     ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
                     ent->v.velocity = ent->v.avelocity = vec3_zero;
-                    ent->v.origin = qfvec3(traceBuffer.endpos) -
-                                    ent->v.mins[2] - qfvec3(offsetBuffer);
+                    ent->v.origin = qvec3(traceBuffer.endpos) -
+                                    ent->v.mins[2] - qvec3(offsetBuffer);
 
                     SV_LinkEdict(ent, true);
                     SV_PushEntityImpact(ent, traceBuffer);

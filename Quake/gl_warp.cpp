@@ -21,8 +21,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_warp.c -- warping animation support
 
+#include <GL/glew.h>
+
 #include "quakedef.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
 
 extern cvar_t r_drawflat;
 
@@ -172,8 +175,8 @@ void SubdividePolygon(int numverts, qfloat* verts)
             }
         }
 
-        SubdividePolygon(f, glm::value_ptr(front[0]));
-        SubdividePolygon(b, glm::value_ptr(back[0]));
+        SubdividePolygon(f, toGlVec(front[0]));
+        SubdividePolygon(b, toGlVec(back[0]));
         return;
     }
 
@@ -209,7 +212,7 @@ void GL_SubdivideSurface(msurface_t* fa)
     for(i = 0; i < fa->polys->numverts; i++)
         VectorCopy(fa->polys->verts[i], verts[i]);
 
-    SubdividePolygon(fa->polys->numverts, glm::value_ptr(verts[0]));
+    SubdividePolygon(fa->polys->numverts, toGlVec(verts[0]));
 }
 
 /*

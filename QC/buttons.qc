@@ -211,6 +211,8 @@ void() func_button =
     worldtext_hsettext(wth, "DO NOT PRESS\nI am serious");
     worldtext_hsetpos(wth, realorigin(self) + '0 0 12' + v_forward * 6.0);
     worldtext_hsetangles(wth, ang);
+
+    // TODO VR: (P0) try movedir
 };
 
 // TODO VR: (P2) move

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cvar.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 //
 //

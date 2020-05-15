@@ -28,15 +28,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // mathlib.h
 
 #include <cmath>
+
+#include "macros.hpp"
 #include "quakeglm.hpp"
+#include "quakeglm_qmat3.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 // matches value in gcc v2 math.h
 #endif
 
 #define M_PI_DIV_180 (M_PI / 180.0) // johnfitz
-
-inline constexpr qvec3 vec3_zero{0.f, 0.f, 0.f};
 
 #define nanmask (255 << 23) /* 7F800000 */
 #if 0                       /* macro is violating strict aliasing rules */

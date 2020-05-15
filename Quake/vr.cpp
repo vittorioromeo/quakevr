@@ -7,12 +7,19 @@
 #include "render.hpp"
 #include "openvr.hpp"
 #include "quakeglm.hpp"
+#include "quakeglm_qmat4.hpp"
+#include "quakeglm_qvec2.hpp"
+#include "quakeglm_qvec4.hpp"
+#include "quakeglm_qquat.hpp"
+#include "common.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <vector>
 #include <tuple>
 #include <string>
+
+#include <gtx/rotate_vector.hpp>
 
 //
 //
@@ -1952,7 +1959,7 @@ void SetHandPos(int index, entity_t* player)
     const auto anchorHdr = (aliashdr_t*)Mod_Extradata(anchor->model);
     qvec3 c = VR_GetAliasVertexOffsets(anchor, anchorVertex);
 
-    glm::mat4 trMat = glm::translate(anchor->origin);
+    qmat4 trMat = glm::translate(anchor->origin);
 
     trMat *= glm::rotate(glm::radians(anchor->angles[YAW]), qvec3{0, 0, 1});
     trMat *= glm::rotate(glm::radians(-anchor->angles[PITCH]), qvec3{0, 1, 0});
@@ -1967,7 +1974,7 @@ void SetHandPos(int index, entity_t* player)
     trMat *= glm::translate(anchorHdr->scale_origin);
     trMat *= glm::scale(anchorHdr->scale);
 
-    return trMat * glm::vec4(c, 1.f);
+    return trMat * qvec4(c, 1.f);
 }
 
 [[nodiscard]] qvec3 VR_GetWpnFixed2HFinalPosition(entity_t* const anchor,
@@ -4073,6 +4080,12 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets"
 
+// TODO VR: (P0): "Is there a way to completely disable the threshold for 2
+// handed cancellation? I frequently end up letting go of the weapon with my
+// off-hand despite gripping, even with it set to -1.0 (the furthest). I'm kind
+// of used to Boneworks where I can flail the weapon around as much as I want as
+// long as I'm gripping it with both hands. Is this possible? Thanks!!"
+
 
 
 // TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand weapon
@@ -4089,8 +4102,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // awkward wrist movement to allow your hand to near the health pickup. Seems
 // most obvious with the rocket launcher. In my opinion held weapons should just
 // collect pickups when colliding instead."
-
-
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory

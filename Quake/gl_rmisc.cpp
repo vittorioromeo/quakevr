@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
 
 // johnfitz -- new cvars
 extern cvar_t r_stereo;

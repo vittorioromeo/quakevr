@@ -44,7 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "trilib.hpp"
 #include "lbmlib.hpp"
 #include "mathlib.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 #endif
 
@@ -78,10 +78,10 @@ typedef struct
 {
     int ident;
     int version;
-    qfvec3 scale;
-    qfvec3 scale_origin;
+    qvec3 scale;
+    qvec3 scale_origin;
     float boundingradius;
-    qfvec3 eyeposition;
+    qvec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;

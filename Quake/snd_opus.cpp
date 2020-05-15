@@ -22,6 +22,8 @@
  */
 
 #include "quakedef.hpp"
+#include "fshandle.hpp"
+#include "console.hpp"
 
 #if defined(USE_CODEC_OPUS)
 #include "snd_codec.hpp"

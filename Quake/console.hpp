@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __CONSOLE_H
-#define __CONSOLE_H
+#pragma once
 
 #include "q_stdinc.hpp"
 
@@ -68,5 +67,3 @@ struct quakeparms_t;
 void LOG_Init(quakeparms_t* parms);
 void LOG_Close();
 void Con_DebugLog(const char* msg);
-
-#endif /* __CONSOLE_H */

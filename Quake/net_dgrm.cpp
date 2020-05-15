@@ -29,6 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "net_defs.hpp"
 #include "net_dgrm.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 // these two macros are to make the code more readable
 #define sfunc net_landrivers[sock->landriver]

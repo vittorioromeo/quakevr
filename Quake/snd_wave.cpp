@@ -23,6 +23,7 @@
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
 
 #if defined(USE_CODEC_WAVE)
 #include "snd_codec.hpp"

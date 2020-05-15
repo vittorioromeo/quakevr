@@ -125,7 +125,7 @@ possible, no move is done, false is returned, and
 pr_global_struct->trace_normal is set to the normal of the blocking wall
 =============
 */
-bool SV_movestep(edict_t* ent, qfvec3 move, bool relink)
+bool SV_movestep(edict_t* ent, qvec3 move, bool relink)
 {
     // try the move
     auto oldorg = ent->v.origin;

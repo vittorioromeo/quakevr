@@ -26,6 +26,11 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include "sys.hpp"
 #include "util.hpp"
 #include "quakeglm.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "quakeglm_qvec4.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 #include <algorithm>
 #include <random>
@@ -854,7 +859,7 @@ void R_ReadPointFile_f()
     int c = 0;
     while(true)
     {
-        qfvec3 org;
+        qvec3 org;
         const int r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
 
         if(r != 3)

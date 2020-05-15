@@ -26,6 +26,9 @@
 #ifndef _SND_CODEC_H_
 #define _SND_CODEC_H_
 
+#include "fshandle.hpp"
+#include "quakedef_macros.hpp"
+
 typedef struct snd_info_s
 {
     int rate;

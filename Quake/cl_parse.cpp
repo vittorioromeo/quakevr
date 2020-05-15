@@ -26,6 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
+#include "worldtext.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 const char* svc_strings[] = {
     "svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",

@@ -17,13 +17,15 @@ See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-*/ 
+*/
 
 #include "q_stdinc.hpp"
 #include "arch_def.hpp"
 #include "net_sys.hpp"
 #include "quakedef.hpp"
 #include "net_defs.hpp"
+#include "common.hpp"
+#include "console.hpp"
 
 static sys_socket_t net_acceptsocket =
     INVALID_SOCKET; // socket for fielding new connections

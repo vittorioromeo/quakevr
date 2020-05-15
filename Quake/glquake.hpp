@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __GLQUAKE_H
 
 #include <cstdint>
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
 void GL_EndRendering();

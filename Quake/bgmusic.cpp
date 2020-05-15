@@ -22,9 +22,14 @@
  *
  */
 
-#include "quakedef.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "q_sound.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 #define MUSIC_DIRNAME "music"
 

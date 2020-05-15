@@ -25,6 +25,7 @@
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
 
 #if defined(USE_CODEC_MP3)
 #include "snd_codec.hpp"

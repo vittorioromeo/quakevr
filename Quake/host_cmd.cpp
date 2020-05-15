@@ -23,12 +23,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
+
 #ifndef _WIN32
 #include <dirent.h>
 #endif
+
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "util.hpp"
+#include "worldtext.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
 
 extern cvar_t pausable;
 

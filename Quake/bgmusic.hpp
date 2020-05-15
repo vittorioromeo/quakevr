@@ -22,8 +22,10 @@
  *
  */
 
-#ifndef _BGMUSIC_H_
-#define _BGMUSIC_H_
+#pragma once
+
+#include "q_stdinc.hpp"
+#include "cvar.hpp"
 
 extern bool bgmloop;
 extern cvar_t bgm_extmusic;
@@ -39,4 +41,3 @@ void BGM_Resume();
 
 void BGM_PlayCDtrack(byte track, bool looping);
 
-#endif /* _BGMUSIC_H_ */

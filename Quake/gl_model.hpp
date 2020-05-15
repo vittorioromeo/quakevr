@@ -24,11 +24,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __MODEL__
 #define __MODEL__
 
+#include <GL/glew.h>
+
 #include "modelgen.hpp"
 #include "spritegn.hpp"
 #include "client.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "vr_macros.hpp"
+#include "zone.hpp"
+#include "quakedef_macros.hpp"
 
 /*
 
@@ -239,8 +243,8 @@ typedef struct
     mplane_t* planes;
     int firstclipnode;
     int lastclipnode;
-    qfvec3 clip_mins;
-    qfvec3 clip_maxs;
+    qvec3 clip_mins;
+    qvec3 clip_maxs;
 } hull_t;
 
 /*

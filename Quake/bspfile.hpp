@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __BSPFILE_H
 #define __BSPFILE_H
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 // upper design bounds
 

@@ -18,7 +18,9 @@
  */
 
 
-#include "quakedef.hpp"
+#include "q_stdinc.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
 
 int CDAudio_Play(byte track, bool looping)
 {

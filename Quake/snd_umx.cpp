@@ -28,6 +28,7 @@
  */
 
 #include "quakedef.hpp"
+#include "fshandle.hpp"
 
 #if defined(USE_CODEC_UMX)
 #include "snd_codec.hpp"
