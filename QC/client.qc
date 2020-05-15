@@ -122,8 +122,8 @@ void() SetChangeParms =
 
 void() OnSpawnServerBeforeLoad =
 {
-    float fromSaveFile;
-    fromSaveFile = spawnServerFromSaveFile;
+    // float fromSaveFile;
+    // fromSaveFile = spawnServerFromSaveFile;
 
     VR_CVars_InitAllHandles();
 }
