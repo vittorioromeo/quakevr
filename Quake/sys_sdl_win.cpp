@@ -38,6 +38,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <io.h>
 #include <direct.h>
 
+#include <string>
+
 #include <SDL2/SDL.h>
 
 
@@ -246,6 +248,30 @@ static void Sys_SetTimerResolution()
     timeBeginPeriod(1);
 }
 
+// Returns the last Win32 error, in string format. Returns an empty string if
+// there is no error.
+static std::string GetLastErrorAsString()
+{
+    // Get the error message, if any.
+    DWORD errorMessageID = ::GetLastError();
+    if(errorMessageID == 0)
+        return std::string(); // No error message has been recorded
+
+    LPSTR messageBuffer = nullptr;
+    size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                     FORMAT_MESSAGE_FROM_SYSTEM |
+                                     FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&messageBuffer, 0, NULL);
+
+    std::string message(messageBuffer, size);
+
+    // Free the buffer.
+    LocalFree(messageBuffer);
+
+    return message;
+}
+
 void Sys_Init()
 {
     OSVERSIONINFO vinfo;
@@ -308,10 +334,11 @@ void Sys_Init()
 
     if(isDedicated)
     {
-        if(!AllocConsole())
+        if(false && !AllocConsole())
         {
             isDedicated = false; /* so that we have a graphical error dialog */
-            Sys_Error("Couldn't create dedicated server console");
+            Sys_Error("Couldn't create dedicated server console: '%s'",
+                GetLastErrorAsString().data());
         }
 
         hinput = GetStdHandle(STD_INPUT_HANDLE);

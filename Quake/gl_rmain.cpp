@@ -968,6 +968,7 @@ void R_DrawWorldText()
         drawString(wt._pos, wt._angles, wt._text, wt._hAlign);
     }
 
+    glDisable(GL_ALPHA_TEST);
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
 }

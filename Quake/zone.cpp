@@ -209,7 +209,7 @@ static void* Z_TagMalloc(int size, int tag)
 Z_CheckHeap
 ========================
 */
-static void Z_CheckHeap()
+[[maybe_unused]] static void Z_CheckHeap()
 {
     for(memblock_t* block = mainzone->blocklist.next;; block = block->next)
     {
