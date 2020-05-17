@@ -346,7 +346,7 @@ struct AtlasData
 };
 
 template <typename... Ts>
-AtlasData stitchImages(const Ts&... images)
+[[nodiscard]] AtlasData stitchImages(const Ts&... images)
 {
     const auto width = (images.width + ...);
     const auto height = std::max({images.height...});

@@ -3324,12 +3324,6 @@ void() wpnthrow_touch =
         finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
                    cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 
-        // TODO VR: (P0) worldtext cleaup
-        float wth = worldtext_hmake();
-        worldtext_hsettext(wth, "ding");
-        worldtext_hsetpos(wth, self.origin + '0 0 12');
-        worldtext_hsetangles(wth, self.angles);
-
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
