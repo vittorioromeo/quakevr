@@ -4111,10 +4111,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P0): " I tried headbutting the knights at the start of DOE and I
 // just couldn't collide with them at all"
 
-// TODO VR: (P0): "The scorpion in SOA seems to have a high chance to freak out
-// like it is trying to occupy 2 different spaces and constantly flickering
-// between them"
-
 // TODO VR: (P0): "parabola force grab still seems just a tad too weak - So,
 // there is a option to tweak the force multiplier since v0.0.4, but I
 // understand that it should work out of the box. I'll see what I can do, but

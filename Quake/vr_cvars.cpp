@@ -165,7 +165,7 @@ DEFINE_FCVAR_ARCHIVE(vr_2h_spread_reduction, 0.5); // TODO VR: (P2) add to menu
 DEFINE_FCVAR_ARCHIVE(
     vr_2h_throw_velocity_mult, 1.4); // TODO VR: (P2) add to menu
 DEFINE_FCVAR_ARCHIVE(
-    vr_headbutt_velocity_threshold, 2.05);         // TODO VR: (P2) add to menu
+    vr_headbutt_velocity_threshold, 2.02);         // TODO VR: (P2) add to menu
 DEFINE_FCVAR_ARCHIVE(vr_headbutt_damage_mult, 32); // TODO VR: (P2) add to menu
 DEFINE_FCVAR_ARCHIVE(vr_activestartpaknameidx, 0);
 DEFINE_FCVAR_ARCHIVE(vr_verbosebots, 0);
