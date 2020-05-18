@@ -21,8 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __NET_SYS_H__
-#define __NET_SYS_H__
+#pragma once
 
 #include <sys/types.h>
 #include <errno.h>
@@ -195,6 +194,3 @@ static_assert(offsetof(struct sockaddr, sa_family) == SA_FAM_OFFSET);
    the terminating NUL) are limited to HOST_NAME_MAX bytes'. */
 #define MAXHOSTNAMELEN 256
 #endif /* MAXHOSTNAMELEN */
-
-
-#endif /* __NET_SYS_H__ */

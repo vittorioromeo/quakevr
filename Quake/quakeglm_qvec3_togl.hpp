@@ -10,7 +10,7 @@
 
 #include "quakeglm_qvec3.hpp"
 
-#include <gtc/type_ptr.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

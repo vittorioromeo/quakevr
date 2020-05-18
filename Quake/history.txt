@@ -1,0 +1,3 @@
+map q
+map q3dm6qw 
+impulse 100

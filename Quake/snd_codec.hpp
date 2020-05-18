@@ -23,8 +23,7 @@
  *
  */
 
-#ifndef _SND_CODEC_H_
-#define _SND_CODEC_H_
+#pragma once
 
 #include "fshandle.hpp"
 #include "quakedef_macros.hpp"
@@ -103,5 +102,3 @@ void S_CodecUtilClose(snd_stream_t** stream);
 int S_CodecIsAvailable(unsigned int type);
 /* return 1 if available, 0 if codec failed init
  * or -1 if no such codec is present. */
-
-#endif /* _SND_CODEC_H_ */

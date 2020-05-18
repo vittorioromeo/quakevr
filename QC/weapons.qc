@@ -2247,8 +2247,6 @@ An attack impulse can be triggered now
 void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
 {
-    float r;
-
     if(!W_CheckNoAmmo(xHand))
     {
         if(time > xAttackFinished)
@@ -2274,7 +2272,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
            !self.ishuman)
         {
             sound(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
-            r = random();
+            float r = random();
             if(r < 0.25)
                 player_axe1(xHand);
             else if(r<0.5)
@@ -3783,7 +3781,7 @@ void(entity ent, float xHand,
     otherHandGrabbing = VRIsEntHandGrabbing(ent, VRGetOtherHand(xHand));
     handEmpty = VRIsHandEmpty(ent, xHand);
     otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
-    triggerPressed = VRGetFireButtonPressed(xHand);
+    triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
 
     vector handPos, handRot;
 

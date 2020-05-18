@@ -75,13 +75,8 @@ sys_socket_t UDP_Init()
         }
         else
 #endif
-            if(!(local = gethostbyname(buff)))
+         if(!(local = gethostbyname(buff)))
         {
-// TODO VR: (P2) mingw hack
-#ifdef __MINGW32__
-#define hstrerror(x) strerror((x))
-#endif
-
             Con_SafePrintf(
                 "UDP_Init: gethostbyname failed (%s)\n", hstrerror(h_errno));
         }

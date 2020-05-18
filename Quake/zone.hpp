@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __ZZONE_H
-#define __ZZONE_H
+#pragma once
 
 /*
  memory allocation
@@ -158,5 +157,3 @@ void* Cache_Alloc(cache_user_t* c, int size, const char* name);
 // wasn't enough room.
 
 void Cache_Report();
-
-#endif /* __ZZONE_H */

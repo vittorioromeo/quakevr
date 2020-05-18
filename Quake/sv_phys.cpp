@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_phys.c
 
 #include "console.hpp"
-#include "fwd.hpp"
+#include <glm/fwd.hpp>
 #include "quakedef.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"

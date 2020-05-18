@@ -23,8 +23,7 @@
  *
  */
 
-#ifndef _SND_CODECI_H_
-#define _SND_CODECI_H_
+#pragma once
 
 /* Codec internals */
 typedef bool (*CODEC_INIT)();
@@ -50,5 +49,3 @@ struct snd_codec_s
 
 bool S_CodecForwardStream(snd_stream_t* stream, unsigned int type);
 /* Forward a stream to another codec of 'type' type. */
-
-#endif /* _SND_CODECI_H_ */

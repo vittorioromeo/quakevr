@@ -22,8 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __MATHLIB_H
-#define __MATHLIB_H
+#pragma once
 
 // mathlib.h
 
@@ -139,5 +138,3 @@ int BoxOnPlaneSide(
                                ? 1                                            \
                                : (((p)->dist >= (emaxs)[(p)->type]) ? 2 : 3)) \
                      : BoxOnPlaneSide((emins), (emaxs), (p)))
-
-#endif /* __MATHLIB_H */

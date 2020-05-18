@@ -20,8 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_INPUT_H
-#define _QUAKE_INPUT_H
+#pragma once
 
 // input.h -- external (non-keyboard) input devices
 
@@ -52,5 +51,3 @@ void IN_Activate();
 
 // called when the app becomes inactive
 void IN_Deactivate(bool free_cursor);
-
-#endif /* _QUAKE_INPUT_H */

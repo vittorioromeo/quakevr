@@ -20,8 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __PR_COMP_H
-#define __PR_COMP_H
+#pragma once
 
 // this file is shared by quake and qcc
 
@@ -193,5 +192,3 @@ typedef struct
 
     int entityfields;
 } dprograms_t;
-
-#endif /* __PR_COMP_H */

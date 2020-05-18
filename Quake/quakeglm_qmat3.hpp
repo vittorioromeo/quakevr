@@ -10,8 +10,7 @@
 
 #include "quakeglm_macros.hpp"
 
-// TODO VR: (P1) fix glm include paths
-#include <mat3x3.hpp>
+#include <glm/mat3x3.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
