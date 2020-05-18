@@ -450,7 +450,8 @@ void M_Main_Key(int key)
             "from.");
 
         e->_printer = [&](char* buf, const int buf_size, const int x) {
-            snprintf(buf, buf_size, "%s", loadedPakNames[x].data());
+            snprintf(buf, buf_size, "%s",
+                loadedPakNames[x % loadedPakNames.size()].data());
         };
     }
 

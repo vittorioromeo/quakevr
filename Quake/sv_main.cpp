@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.hpp"
 #include "protocol.hpp"
 #include "worldtext.hpp"
+#include "msg.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -448,24 +449,19 @@ once for a player each game, not once for each level change.
 */
 void SV_ConnectClient(int clientnum)
 {
-    edict_t* ent;
-    client_t* client;
-    int edictnum;
-    struct qsocket_s* netconnection;
-    int i;
     float spawn_parms[NUM_SPAWN_PARMS];
 
-    client = svs.clients + clientnum;
+    client_t* client = svs.clients + clientnum;
 
     Con_DPrintf("Client %s connected\n",
         NET_QSocketGetAddressString(client->netconnection));
 
-    edictnum = clientnum + 1;
+    int edictnum = clientnum + 1;
 
-    ent = EDICT_NUM(edictnum);
+    edict_t* ent = EDICT_NUM(edictnum);
 
     // set up the client_t
-    netconnection = client->netconnection;
+    struct qsocket_s* netconnection = client->netconnection;
 
     if(sv.loadgame)
     {
@@ -490,7 +486,7 @@ void SV_ConnectClient(int clientnum)
     {
         // call the progs to get default spawn parms for the new client
         PR_ExecuteProgram(pr_global_struct->SetNewParms);
-        for(i = 0; i < NUM_SPAWN_PARMS; i++)
+        for(int i = 0; i < NUM_SPAWN_PARMS; i++)
         {
             client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
         }
@@ -508,15 +504,12 @@ SV_CheckForNewClients
 */
 void SV_CheckForNewClients()
 {
-    struct qsocket_s* ret;
-    int i;
-
     //
     // check for new connections
     //
     while(true)
     {
-        ret = NET_CheckNewConnections();
+        struct qsocket_s* ret = NET_CheckNewConnections();
         if(!ret)
         {
             break;
@@ -525,6 +518,7 @@ void SV_CheckForNewClients()
         //
         // init a new client structure
         //
+        int i;
         for(i = 0; i < svs.maxclients; i++)
         {
             if(!svs.clients[i].active)
@@ -1071,6 +1065,7 @@ void SV_CleanupEnts()
 ==================
 SV_WriteClientdataToMessage
 
+Sent to every connected client per frame.
 ==================
 */
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)

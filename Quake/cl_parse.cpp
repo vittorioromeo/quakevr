@@ -36,6 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "mathlib.hpp"
 #include "glquake.hpp"
 #include "protocol.hpp"
+#include "msg.hpp"
+
 #include <limits>
 
 const char* svc_strings[] = {
@@ -725,7 +727,7 @@ void CL_ParseUpdate(int bits)
             b = MSG_ReadFloat(); // alpha
             if(a == 2)
             {
-                MSG_ReadFloat(); // fullbright (not using this yet)
+                (void) MSG_ReadFloat(); // fullbright (not using this yet)
             }
             ent->alpha = ENTALPHA_ENCODE(b);
         }

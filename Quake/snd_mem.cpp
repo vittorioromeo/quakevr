@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "common.hpp"
 #include "sys.hpp"
+#include "byteorder.hpp"
 
 // QSS
 #include "snd_codec.hpp"
