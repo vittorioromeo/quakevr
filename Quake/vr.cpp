@@ -4101,79 +4101,151 @@ void VR_OnLoadedPak(pack_t& pak)
 // of used to Boneworks where I can flail the weapon around as much as I want as
 // long as I'm gripping it with both hands. Is this possible? Thanks!!"
 
+// TODO VR: (P0): " However having selected pak2/3 in the New Game menu
+// previously, I was no longer able to open New Game menu and the game would
+// crash, I guess looking for the missing pak files. Restoring the original
+// pak2/3 fixed this "
+
+// TODO VR: (P0): "- I figured out a bit more about my issues with the axe,
+// possibly. I noticed that if I move the axe close to the wall it will collide
+// with the wall, but no hit collision occurs as long as my hand itself does not
+// hit the wall. If I want the axe to trigger a damage hit, I need to make sure
+// my hand follows through to the wall. I would assume this same issue occurs
+// with enemies as well as such it makes the axe seem artificially short?"
+
+// TODO VR: (P0): " I tried headbutting the knights at the start of DOE and I
+// just couldn't collide with them at all"
+
+// TODO VR: (P0): "The scorpion in SOA seems to have a high chance to freak out
+// like it is trying to occupy 2 different spaces and constantly flickering
+// between them"
+
+// TODO VR: (P0): "parabola force grab still seems just a tad too weak - So,
+// there is a option to tweak the force multiplier since v0.0.4, but I
+// understand that it should work out of the box. I'll see what I can do, but
+// it's hard to test as it works just fine on my body... I'll try to make the
+// formula independent from the body size. What is your real-life height, by the
+// way? I'm 168cm."
+
+// TODO VR: (P0): "- Linear force grab flies past my hand now everytime, so is
+// unusable, where it was 99% no issues in 0.0.5b1"
+
+// TODO VR: (P0): "seems like for the custom map a2 i can add bots with no
+// problem, but on ab2 if i rapidly add them then the game crashes"
+
+// TODO VR: (P0): "Seems like my guns very frequently wont shoot for a second -
+// i will be shooting fine, just pressing the trigger button repeatedly and keep
+// shooting my shotugn or rockets, then randomly it wont shoot when i pressed
+// trigger, and i continue to repeatedly press trigger and then it starts
+// shooting again. The firing pause last about a second. I'll hopefully have
+// better context after the next time i start the game as i will try to pay more
+// attention to this issue."
 
 
-// TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand weapon
-// animations stop being lerped.
 
-// TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels since
-// no ammo can be found?" "I might consider randomly spawning some, controlling
-// the spawn rate with a CVar. Why not"
+// TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand
+// weapon animations stop being lerped.
+
+// TODO VR: (P1): "Ammo switching should not be possible in non-DOE levels
+// since no ammo can be found?" "I might consider randomly spawning some,
+// controlling the spawn rate with a CVar. Why not"
 
 // TODO VR: (P1): plasma gun needs vrprojectilevelocity
 
-// TODO VR: (P1) "Some weapons are so long that they physics collide with the
-// floor to prevent your hand from touching health pickups, so you need to do an
-// awkward wrist movement to allow your hand to near the health pickup. Seems
-// most obvious with the rocket launcher. In my opinion held weapons should just
-// collect pickups when colliding instead."
+// TODO VR: (P1) "Some weapons are so long that they physics collide with
+// the floor to prevent your hand from touching health pickups, so you need
+// to do an awkward wrist movement to allow your hand to near the health
+// pickup. Seems most obvious with the rocket launcher. In my opinion held
+// weapons should just collect pickups when colliding instead."
 
 // TODO VR: (P1) "Perhaps the VR Body Interaction can be split into items /
 // weapons? I much prefer the weapon pickup by hand, due to the inventory
 // management aspect, where as items have no such concern"
 
-// TODO VR: (P1) visual feedback when hovering holster, e.g. weapon comes out a
-// bit, or glow, or bloom effect on vision edge (complementary to haptics)
+// TODO VR: (P1) visual feedback when hovering holster, e.g. weapon comes
+// out a bit, or glow, or bloom effect on vision edge (complementary to
+// haptics)
 
 // TODO VR: (P1) melee doesn't work with laser cannon - intended? test
 
 // TODO VR: (P1): "I had let go of weapon grabs between a level end and next
-// level start and upon next level spawn the main hand weapon was nowhere to be
-// found, the offhand weapon was on the floor"
+// level start and upon next level spawn the main hand weapon was nowhere to
+// be found, the offhand weapon was on the floor"
 
 // TODO VR: (P1) recoil system, 2H will reduce it, or accuracy change for
 // shotgun/ssg, reduce spread
 
-// TODO VR: (P1) "Is there an option to not drop the weapon I'm holding when I
-// release the grip button?"
+// TODO VR: (P1) "Is there an option to not drop the weapon I'm holding when
+// I release the grip button?"
 
 // TODO VR: (P1) add system to load multiple folders at once (like paks)
 
 // TODO VR: (P1) Swimming direction - what controller to follow?
 
-// TODO VR: (P1) "no one wants to be faced with giant space shuttle like control
-// panels full of semi-cryptic technical parameters to tweak right before one
-// can start playing. That's just generally means the developer offloads the
-// burden of setting the right defaults for many variables to the user, and the
-// user experience suffers in consequence. "
+// TODO VR: (P1) "no one wants to be faced with giant space shuttle like
+// control panels full of semi-cryptic technical parameters to tweak right
+// before one can start playing. That's just generally means the developer
+// offloads the burden of setting the right defaults for many variables to
+// the user, and the user experience suffers in consequence. "
 //
 // "These games are best enjoyed as plug and play experiences. And having to
-// tweak various multipliers for all sorts of obscure parameters usually ruins
-// that."
+// tweak various multipliers for all sorts of obscure parameters usually
+// ruins that."
 
-// TODO VR: (P1) "hey i just was wondering how to use the soundtrack for mission
-// pack 1? do i need to swap out the original soundtrack before launching? "
+// TODO VR: (P1) "hey i just was wondering how to use the soundtrack for
+// mission pack 1? do i need to swap out the original soundtrack before
+// launching? "
 
-// TODO VR: (P1): "If you're standing on a ledge and try to force grab an item
-// below, it seems like you need to position your body over the ledge
-// specifically so that a specific point of your body has a direct line of sight
-// to the weapon" - this might be related to water
+// TODO VR: (P1): "If you're standing on a ledge and try to force grab an
+// item below, it seems like you need to position your body over the ledge
+// specifically so that a specific point of your body has a direct line of
+// sight to the weapon" - this might be related to water
 
-// TODO VR: (P1): lightning bolt tent beam is lagging behind the player, why?
+// TODO VR: (P1): lightning bolt tent beam is lagging behind the player,
+// why?
+
+// TODO VR: (P1): "also config is being rewritten
+//
+// Yes this is a bit annoying, though unavoidable in the case that new
+// variables are being added I guess. Unless there's a way to either:
+//
+// A) preserve user overrides in a file separate to config.cfg, I think this
+// might be possible with autoexec.cfg or something though I don't think
+// that is integrated into the game itself at all and we need to manually
+// maintain it? B) could we stop shipping config.cfg with each release and
+// instead it populates missing variables on load with a sane default
+// instead? Debatable depending on how mature @vee feels the project is
+//
+// I guess. I personally need to go and alter about 3-4 variables each
+// release so it's manage-able for now."
+
+// TODO VR: (P1): "Seems like every beta I get 1-2 crashes, are there crash
+// reports or memory dumps that would be useful?"
+
+// TODO VR: (P1): "- Is it normal for the HUD in DOE to not show alternate ammo
+// counts unless the weapon is specifically selected and the alt ammo active?"
+
+// TODO VR: (P1): joining a multiplayer match with mismatched `start` map causes
+// weird glitches as the BSP geometry is incorrect
+
+// TODO VR: (P1): consider merging VOIP and better networking from QSS
+
+// TODO VR: (P1): are things like holster placement affected by server configs
+// in MP? Check
 
 
 
 // TODO VR: (P2) add tooltip to off-hand option menu in wpn config
 
-// TODO VR: (P2) "it seems to be a bit strange to me that I can hold down the
-// trigger on the shotguns"
+// TODO VR: (P2) "it seems to be a bit strange to me that I can hold down
+// the trigger on the shotguns"
 
 // TODO VR: (P2) consider adding ghost hands
 
 // TODO VR: (P2) scourge of armagon music?
 
-// TODO VR: (P2) consider new particle effect for shootable weapons and walls
-// instead of blood
+// TODO VR: (P2) consider new particle effect for shootable weapons and
+// walls instead of blood
 
 // TODO VR: (P2) add general cvars for health and damage multipliers
 
@@ -4184,37 +4256,40 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P2) immersive swimming
 
 // TODO VR: (P2): "the problem with turning up the QuakeVR particle
-// system is that beyond a certain point it all starts to overlap. It would be
-// nice if the value also somewhat increased the spread or distance of the
-// particles too, just to make it a bit messier"
+// system is that beyond a certain point it all starts to overlap. It would
+// be nice if the value also somewhat increased the spread or distance of
+// the particles too, just to make it a bit messier"
 
-// TODO VR: (P2) "The force grab seems a bit strange to me though, requiring me
-// to press both the trigger and grip at once, then it doesn't quite come right
-// to my hand, and I have to then release the buttons and then press grip again
-// to finally grab it. Could do with a bit of a tweak, and obviously Half-Life:
-// Alyx is the perfect example to rip off here."
+// TODO VR: (P2) "The force grab seems a bit strange to me though, requiring
+// me to press both the trigger and grip at once, then it doesn't quite come
+// right to my hand, and I have to then release the buttons and then press
+// grip again to finally grab it. Could do with a bit of a tweak, and
+// obviously Half-Life: Alyx is the perfect example to rip off here."
 
-// TODO VR: (P2) "Also, snap turning seems to have a tiny bit of lag and/or not
-// work some of the time. And I don't mean because of any kind of dead zone as
-// I've tried that at different settings already. Maybe just double check
-// there's not a bit of a code conflict, like maybe if you flick once you can't
-// quite flick immediately again in some cases or something."
+// TODO VR: (P2) "Also, snap turning seems to have a tiny bit of lag and/or
+// not work some of the time. And I don't mean because of any kind of dead
+// zone as I've tried that at different settings already. Maybe just double
+// check there's not a bit of a code conflict, like maybe if you flick once
+// you can't quite flick immediately again in some cases or something."
 
-// TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from the
-// mission packs, it uses the same soundtrack for all of them (eg if you were
-// playing SOA, it would still play the original quake soundtrack unless you
-// replaced the files manually)"
+// TODO VR: (P2) "Unfortunately, since the game doesn't differentiate from
+// the mission packs, it uses the same soundtrack for all of them (eg if you
+// were playing SOA, it would still play the original quake soundtrack
+// unless you replaced the files manually)"
 
-// TODO VR: (P2) "Hopefully that can be fixed, along with merging the start map
-// together into one giant hubworld"
+// TODO VR: (P2) "Hopefully that can be fixed, along with merging the start
+// map together into one giant hubworld"
 
-// TODO VR: (P2) "The lava splash noise just seems plain wrong, too watery. Even
-// silent would be better, in the case of the molten rocks"
+// TODO VR: (P2) "The lava splash noise just seems plain wrong, too watery.
+// Even silent would be better, in the case of the molten rocks"
 
 // TODO VR: (P2) "Perhaps its just VR thats making me notice it, but the
 // stopping friction after running just feels too light and floaty"
 
 // TODO VR: (P2) "In some situations force grab linear is being very
-// unreliable, whereas others its fine. Is force grab code unchanged in 0.0.5 or
-// is it helpful to try and replicate? I was having most issues when holding
-// with right hand and trying to force grab with left."
+// unreliable, whereas others its fine. Is force grab code unchanged in
+// 0.0.5 or is it helpful to try and replicate? I was having most issues
+// when holding with right hand and trying to force grab with left."
+
+// TODO VR: (P2): " hint messages for each of the weapons when they are held for
+// the first time in a new game?"
