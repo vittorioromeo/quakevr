@@ -4086,25 +4086,20 @@ void VR_OnLoadedPak(pack_t& pak)
 }
 
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
-// player_run - made some changes, test
+// player_run - made some changes, test -> still bugged it seems
 
 // TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
 // in certain situations I can't figure out a pattern for, such as
 // overshooting."
 
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
-// existing, e.g.: 13/7 secrets"
+// existing, e.g.: 13/7 secrets" -> made some changes, test
 
 // TODO VR: (P0): "Is there a way to completely disable the threshold for 2
 // handed cancellation? I frequently end up letting go of the weapon with my
 // off-hand despite gripping, even with it set to -1.0 (the furthest). I'm kind
 // of used to Boneworks where I can flail the weapon around as much as I want as
 // long as I'm gripping it with both hands. Is this possible? Thanks!!"
-
-// TODO VR: (P0): " However having selected pak2/3 in the New Game menu
-// previously, I was no longer able to open New Game menu and the game would
-// crash, I guess looking for the missing pak files. Restoring the original
-// pak2/3 fixed this "
 
 // TODO VR: (P0): "- I figured out a bit more about my issues with the axe,
 // possibly. I noticed that if I move the axe close to the wall it will collide
@@ -4141,7 +4136,23 @@ void VR_OnLoadedPak(pack_t& pak)
 // better context after the next time i start the game as i will try to pay more
 // attention to this issue."
 
+// TODO VR: (P0): "Weapons held at the end of an MP game are still held when
+// the next map loads"
 
+
+
+// TODO VR: (P1): "Would it be possible to make the weapon pickup collider a bit
+// taller so that it can be picked without needing to crouch down, and
+// similarly, if holding grab with an empty hand when the hand enters the weapon
+// pickup to then grab the weapon?"
+
+// TODO VR: (P1): "In MP, would it be possible if when spawning and grab is
+// already held, to automatically grab the weapon assigned to the corresponding
+// leg slot?"
+
+// TODO VR: (P1): "In general, would it be possible for touching weapon pickups
+// to immediately give the ammo, so that it is not necessary to pickup the
+// weapon itself?"
 
 // TODO VR: (P1): When fullauto firing a nailgun in left hand, right hand
 // weapon animations stop being lerped.

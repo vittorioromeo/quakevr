@@ -25,6 +25,7 @@
 #include "console.hpp"
 #include "fshandle.hpp"
 #include "zone.hpp"
+#include "byteorder.hpp"
 
 #if defined(USE_CODEC_VORBIS)
 #include "snd_codec.hpp"

@@ -25,6 +25,7 @@
 #include "console.hpp"
 #include "common.hpp"
 #include "q_sound.hpp"
+#include "byteorder.hpp"
 
 #if defined(USE_CODEC_WAVE)
 #include "snd_codec.hpp"

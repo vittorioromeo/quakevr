@@ -36,6 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net.hpp"
 #include "menu.hpp"
 #include "keys.hpp"
+#include "msg.hpp"
+#include "byteorder.hpp"
 
 // these two macros are to make the code more readable
 #define sfunc net_landrivers[sock->landriver]
@@ -614,7 +616,7 @@ static void Test_Poll(void* unused)
 
         MSG_BeginReading();
         control = BigLong(*((int*)net_message.data));
-        MSG_ReadLong();
+        (void)MSG_ReadLong();
         if(control == -1)
         {
             break;
@@ -633,7 +635,7 @@ static void Test_Poll(void* unused)
             Sys_Error("Unexpected repsonse to Player Info request\n");
         }
 
-        MSG_ReadByte(); /* playerNumber */
+        (void)MSG_ReadByte(); /* playerNumber */
         Q_strcpy(name, MSG_ReadString());
         colors = MSG_ReadLong();
         frags = MSG_ReadLong();
@@ -773,7 +775,7 @@ static void Test2_Poll(void* unused)
 
     MSG_BeginReading();
     control = BigLong(*((int*)net_message.data));
-    MSG_ReadLong();
+    (void)MSG_ReadLong();
     if(control == -1)
     {
         goto Error;
@@ -1020,7 +1022,7 @@ static qsocket_t* _Datagram_CheckNewConnections()
 
     MSG_BeginReading();
     control = BigLong(*((int*)net_message.data));
-    MSG_ReadLong();
+    (void)MSG_ReadLong();
     if(control == -1)
     {
         return nullptr;
@@ -1343,7 +1345,7 @@ static void _Datagram_SearchForHosts(bool xmit)
 
         MSG_BeginReading();
         control = BigLong(*((int*)net_message.data));
-        MSG_ReadLong();
+        (void)MSG_ReadLong();
         if(control == -1)
         {
             continue;
@@ -1525,7 +1527,7 @@ static qsocket_t* _Datagram_Connect(const char* host)
                 MSG_BeginReading();
 
                 control = BigLong(*((int*)net_message.data));
-                MSG_ReadLong();
+                (void)MSG_ReadLong();
                 if(control == -1)
                 {
                     ret = 0;

@@ -6,6 +6,7 @@ project(quakevr VERSION 0.0.5 LANGUAGES CXX)
 
 set(source_list
     "Quake/bgmusic.cpp"
+    "Quake/byteorder.cpp"
     "Quake/cd_sdl.cpp"
     "Quake/cfgfile.cpp"
     "Quake/chase.cpp"
@@ -42,6 +43,7 @@ set(source_list
     "Quake/mathlib.cpp"
     "Quake/menu_util.cpp"
     "Quake/menu.cpp"
+    "Quake/msg.cpp"
     "Quake/net_dgrm.cpp"
     "Quake/net_loop.cpp"
     "Quake/net_main.cpp"
@@ -56,6 +58,7 @@ set(source_list
     "Quake/r_world.cpp"
     "Quake/sbar.cpp"
     "Quake/shader.cpp"
+    "Quake/sizebuf.cpp"
     "Quake/snd_codec.cpp"
     "Quake/snd_dma.cpp"
     "Quake/snd_flac.cpp"

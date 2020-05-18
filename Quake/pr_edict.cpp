@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "crc.hpp"
 #include "mathlib.hpp"
 #include "zone.hpp"
+#include "byteorder.hpp"
 
 dprograms_t* progs;
 dfunction_t* pr_functions;

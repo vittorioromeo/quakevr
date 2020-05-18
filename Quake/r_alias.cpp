@@ -1473,7 +1473,9 @@ TODO: orient shadow onto "lightplane" (a global mplane_t*)
 =============
 */
 void GL_DrawAliasShadow(entity_t* e)
-{
+{   
+    // TODO VR: (P1) does this attempt to draw shadows for the world model...?
+
     float shadowmatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, SHADOW_SKEW_X,
         SHADOW_SKEW_Y, SHADOW_VSCALE, 0, 0, 0, SHADOW_HEIGHT, 1};
     float lheight;

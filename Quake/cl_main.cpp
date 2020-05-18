@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.hpp"
 #include "keys.hpp"
 #include "quakedef_macros.hpp"
+#include "msg.hpp"
 
 #include <string>
 #include <vector>

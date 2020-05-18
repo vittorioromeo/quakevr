@@ -50,29 +50,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLAMP(_minval, x, _maxval) \
     ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
 
-typedef struct sizebuf_s
-{
-    bool allowoverflow; // if false, do a Sys_Error
-    bool overflowed;    // set to true if the buffer size failed
-    byte* data;
-    int maxsize;
-    int cursize;
-} sizebuf_t;
-
-void SZ_Alloc(sizebuf_t* buf, int startsize);
-void SZ_Free(sizebuf_t* buf);
-void SZ_Clear(sizebuf_t* buf);
-void* SZ_GetSpace(sizebuf_t* buf, int length);
-void SZ_Write(sizebuf_t* buf, const void* data, int length);
-void SZ_Print(sizebuf_t* buf, const char* data); // strcats onto the sizebuf
-
 //============================================================================
 
 typedef struct link_s
 {
     struct link_s *prev, *next;
 } link_t;
-
 
 void ClearLink(link_t* l);
 void RemoveLink(link_t* l);
@@ -83,49 +66,6 @@ void InsertLinkAfter(link_t* l, link_t* after);
 // ent = STRUCT_FROM_LINK(link,entity_t,order)
 // FIXME: remove this mess!
 #define STRUCT_FROM_LINK(l, t, m) ((t*)((byte*)l - (intptr_t) & (((t*)0)->m)))
-
-//============================================================================
-
-extern bool host_bigendian;
-
-extern short (*BigShort)(short l);
-extern short (*LittleShort)(short l);
-extern int (*BigLong)(int l);
-extern int (*LittleLong)(int l);
-extern float (*BigFloat)(float l);
-extern float (*LittleFloat)(float l);
-
-//============================================================================
-
-void MSG_WriteChar(sizebuf_t* sb, int c);
-void MSG_WriteUnsignedChar(sizebuf_t* sb, unsigned char c);
-void MSG_WriteByte(sizebuf_t* sb, int c);
-void MSG_WriteShort(sizebuf_t* sb, int c);
-void MSG_WriteLong(sizebuf_t* sb, int c);
-void MSG_WriteFloat(sizebuf_t* sb, float f);
-void MSG_WriteString(sizebuf_t* sb, const char* s);
-void MSG_WriteCoord(sizebuf_t* sb, float f, unsigned int flags);
-void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags);
-void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags); // johnfitz
-void MSG_WriteVec3(sizebuf_t* sb, const qvec3& v, unsigned int flags);
-
-
-extern int msg_readcount;
-extern bool msg_badread; // set if a read goes beyond end of message
-
-void MSG_BeginReading();
-int MSG_ReadChar();
-unsigned char MSG_ReadUnsignedChar();
-int MSG_ReadByte();
-int MSG_ReadShort();
-int MSG_ReadLong();
-float MSG_ReadFloat();
-const char* MSG_ReadString();
-
-float MSG_ReadCoord(unsigned int flags);
-float MSG_ReadAngle(unsigned int flags);
-float MSG_ReadAngle16(unsigned int flags); // johnfitz
-qvec3 MSG_ReadVec3(unsigned int flags);
 
 //============================================================================
 
