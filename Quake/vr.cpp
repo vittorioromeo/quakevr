@@ -24,7 +24,7 @@
 #include <tuple>
 #include <string>
 
-#include <gtx/rotate_vector.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 //
 //

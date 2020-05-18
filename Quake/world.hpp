@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_WORLD_H
-#define _QUAKE_WORLD_H
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
 
@@ -100,5 +99,3 @@ struct hull_t;
 // passedict is explicitly excluded from clipping checks (normally nullptr)
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const qvec3& p1, const qvec3& p2, trace_t* trace);
-
-#endif /* _QUAKE_WORLD_H */

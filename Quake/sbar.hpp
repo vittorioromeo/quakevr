@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SBAR_H
-#define _QUAKE_SBAR_H
+#pragma once
 
 // the status bar is only redrawn if something has changed, but if anything
 // does, the entire thing will be redrawn for the next vid.numpages frames.
@@ -42,5 +41,3 @@ void Sbar_IntermissionOverlay();
 // called each frame after the level has been completed
 
 void Sbar_FinaleOverlay();
-
-#endif /* _QUAKE_SBAR_H */

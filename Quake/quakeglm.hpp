@@ -11,8 +11,8 @@
 #include "quakeglm_macros.hpp"
 
 // TODO VR: (P1) fix glm include paths
-#include <common.hpp>
-#include <trigonometric.hpp>
+#include <glm/common.hpp>
+#include <glm/trigonometric.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

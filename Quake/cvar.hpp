@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __CVAR_H__
-#define __CVAR_H__
+#pragma once
 
 #include <cstdio>
 
@@ -150,5 +149,3 @@ int Cvar_MakeHandle(const char* var_name);
 float Cvar_GetValueFromHandle(const int handle);
 void Cvar_SetValueFromHandle(const int handle, const float value);
 void Cvar_ClearAllHandles();
-
-#endif /* __CVAR_H__ */

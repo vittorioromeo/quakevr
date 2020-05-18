@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _Q_COMMON_H
-#define _Q_COMMON_H
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
 #include "quakedef_macros.hpp"
@@ -286,5 +285,3 @@ const char* COM_ParseStringNewline(const char* buffer);
 extern struct cvar_s registered;
 extern bool standard_quake, rogue, hipnotic;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
-
-#endif /* _Q_COMMON_H */

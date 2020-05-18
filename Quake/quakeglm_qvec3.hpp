@@ -10,7 +10,7 @@
 
 #include "quakeglm_macros.hpp"
 
-#include <vec3.hpp>
+#include <glm/vec3.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

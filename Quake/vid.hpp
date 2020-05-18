@@ -22,8 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __VID_DEFS_H
-#define __VID_DEFS_H
+#pragma once
 
 // vid.h -- video driver defs
 
@@ -94,5 +93,3 @@ void* VID_GetWindow();
 bool VID_HasMouseOrInputFocus();
 bool VID_IsMinimized();
 void VID_Lock();
-
-#endif /* __VID_DEFS_H */

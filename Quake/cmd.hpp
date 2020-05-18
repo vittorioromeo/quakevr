@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_CMD_H
-#define _QUAKE_CMD_H
+#pragma once
 
 // cmd.h -- Command buffer and command execution
 
@@ -123,5 +122,3 @@ void Cmd_ForwardToServer();
 void Cmd_Print(const char* text);
 // used by command functions to send output to either the graphics console or
 // passed as a print message to the client
-
-#endif /* _QUAKE_CMD_H */

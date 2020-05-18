@@ -20,8 +20,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef _GL_TEXMAN_H
-#define _GL_TEXMAN_H
+#pragma once
 
 #include "quakedef_macros.hpp"
 
@@ -118,5 +117,3 @@ void GL_DisableMultitexture(); // selects texture unit 0
 void GL_EnableMultitexture();  // selects texture unit 1
 void GL_Bind(gltexture_t* texture);
 void GL_ClearBindings();
-
-#endif /* _GL_TEXMAN_H */

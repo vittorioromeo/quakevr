@@ -73,12 +73,6 @@ float(float xHand) getOwnerHookOut =
     else                  return self.owner.hook_out;
 }
 
-float(float xHand) ownerFireButtonPressed =
-{
-    if(xHand == cVR_OffHand) return self.owner.button3;
-    else                  return self.owner.button0;
-}
-
 // prototypes for WEAPONS.QC functions
 float() crandom;
 void(vector org, vector vel, float damage) SpawnBlood;
@@ -218,7 +212,7 @@ void () GrappleAnchor =
     sound(self.owner, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 48);
 
-    if(!ownerFireButtonPressed(xHand)) {
+    if(!VRGetEntFireButtonPressed(self.owner, xHand)) {
         GrappleResetFromHook();
         return;
     }

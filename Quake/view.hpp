@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_VIEW_H
-#define _QUAKE_VIEW_H
+#pragma once
 
 #include "quakeglm.hpp"
 #include "cvar.hpp"
@@ -38,5 +37,3 @@ void V_CalcBlend();
 void V_UpdateBlend();
 qfloat V_CalcRoll(const qvec3& angles, const qvec3& velocity);
 // void V_UpdatePalette (); //johnfitz
-
-#endif /* _QUAKE_VIEW_H */

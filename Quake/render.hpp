@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_RENDER_H
-#define _QUAKE_RENDER_H
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
 #include "modelgen.hpp"
@@ -141,5 +140,3 @@ void R_SetupAliasFrameZero(
 
 [[nodiscard]] qvec3 getFinalVertexPosNonLerped(
     const DrawAliasFrameData& fd, const qfloat zeroBlend) noexcept;
-
-#endif /* _QUAKE_RENDER_H */

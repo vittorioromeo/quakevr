@@ -26,8 +26,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __QSTDINC_H
-#define __QSTDINC_H
+#pragma once
 
 #include <sys/types.h>
 #include <stddef.h>
@@ -170,5 +169,3 @@ typedef ptrdiff_t ssize_t;
 #endif
 
 /*==========================================================================*/
-
-#endif /* __QSTDINC_H */

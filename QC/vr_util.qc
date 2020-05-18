@@ -211,6 +211,12 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetLavaGunFired,
                           &self.offHandLavaGunFired,
                           &self.mainHandLavaGunFired);
 
+float(entity e, float xHand) VRGetEntFireButtonPressed =
+{
+    if(xHand == cVR_OffHand) return e.button3;
+    else                     return e.button0;
+}
+
 float(float xHand) VRIsAmmolessWeapon =
 {
     return VRGetCurrentAmmo(xHand) == AID_NONE;

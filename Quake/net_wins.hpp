@@ -20,8 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __NET_WINSOCK_H
-#define __NET_WINSOCK_H
+#pragma once
 
 sys_socket_t WINS_Init();
 void WINS_Shutdown();
@@ -43,5 +42,3 @@ int WINS_GetAddrFromName(const char* name, struct qsockaddr* addr);
 int WINS_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2);
 int WINS_GetSocketPort(struct qsockaddr* addr);
 int WINS_SetSocketPort(struct qsockaddr* addr, int port);
-
-#endif /* __NET_WINSOCK_H */

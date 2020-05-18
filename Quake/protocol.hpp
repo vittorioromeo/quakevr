@@ -21,8 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_PROTOCOL_H
-#define _QUAKE_PROTOCOL_H
+#pragma once
 
 #include "quakeglm_qvec3.hpp"
 
@@ -329,5 +328,3 @@ struct usercmd_t
     // VR room scale movement
     qvec3 roomscalemove;
 };
-
-#endif /* _QUAKE_PROTOCOL_H */
