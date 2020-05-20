@@ -20,3 +20,17 @@
 #define ASSERT(x)
 
 #endif
+
+#define BPRINT_FVAR(x) \
+    bprint(#x ": '"); \
+    bprint(ftos(x)); \
+    bprint("'\n")
+
+#define BRPINT_VVAR(x) \
+    bprint(#x ": '{"); \
+    bprint(ftos(x ## _x)); \
+    bprint("; "); \
+    bprint(ftos(x ## _y)); \
+    bprint("; "); \
+    bprint(ftos(x ## _z)); \
+    bprint("}'\n")

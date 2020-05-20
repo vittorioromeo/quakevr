@@ -233,13 +233,6 @@ Larger attenuations will drop off.  (max 4 attenuation)
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation)
 {
-    int sound_num;
-
-    int ent;
-    int i;
-
-    int field_mask;
-
     if(volume < 0 || volume > 255)
     {
         Host_Error("SV_StartSound: volume = %i", volume);
@@ -261,6 +254,7 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     }
 
     // find precache number for sound
+    int sound_num;
     for(sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num];
         sound_num++)
     {
@@ -276,9 +270,9 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         return;
     }
 
-    ent = NUM_FOR_EDICT(entity);
+    const int ent = NUM_FOR_EDICT(entity);
 
-    field_mask = 0;
+    int field_mask = 0;
     if(volume != DEFAULT_SOUND_PACKET_VOLUME)
     {
         field_mask |= SND_VOLUME;
@@ -341,7 +335,7 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     }
     // johnfitz
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         MSG_WriteCoord(&sv.datagram,
             entity->v.origin[i] + 0.5 * (entity->v.mins[i] + entity->v.maxs[i]),

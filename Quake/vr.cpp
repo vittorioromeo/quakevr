@@ -4300,3 +4300,19 @@ void VR_OnLoadedPak(pack_t& pak)
 
 // TODO VR: (P2): " hint messages for each of the weapons when they are held for
 // the first time in a new game?"
+
+// TODO VR: (P2): " I think making it work pretty much just like in Half-Life:
+// Alyx would be ideal: So, you would press the controller's grip button while
+// pointing at the object to activate the "force" (indicate this is happening to
+// the player somehow), do a flick/pull motion toward you to flick the object to
+// you (if you don't flick and instead release the button then it would
+// deactivate the "force"), and then, in the case of this particular game, it
+// could probably automatically grab the object once it reaches your hand (no
+// additional press of the grip button required). Something like that would
+// probably work: Press grip, flick/pull motion toward you, and you auto-grab it
+// once it reaches your hand."
+
+// TODO VR: (P2): "On thing that I think that would be a quality of life
+// improvement are quicksave/quickload entries at the top of the pause menu.
+// When I was streaming the game, I meant to save the game, but when I went to
+// go do that, my itchy button thumb accidentally started a new game."

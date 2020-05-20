@@ -542,7 +542,7 @@ void() weapon_touch =
     // Do not pick up if the touching hand is not empty and grabbing.
     if(other.ishuman && !touchinghandIsBody)
     {
-        if(!VRIsEntHandGrabbing(other, VRGetTouchingHand(other)) ||
+        if(!VR_HandGrabUtil_IsHandGrabbing(other, VRGetTouchingHand(other)) ||
             VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
         {
             return;
