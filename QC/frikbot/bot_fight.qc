@@ -373,10 +373,10 @@ void() bot_setvrfields =
     self.offmuzzlepos = self.origin + '0 0 16' + (v_forward * 32);
 
     VRSetTeleporting(self, FALSE);
-    VRSetOffHandGrabbing(self, TRUE);
-    VRSetOffHandPrevGrabbing(self, TRUE);
-    VRSetMainHandGrabbing(self, TRUE);
-    VRSetMainHandPrevGrabbing(self, TRUE);
+    VRSetOffHandGrabbingBit(self, TRUE);
+    VRSetOffHandPrevGrabbingBit(self, TRUE);
+    VRSetMainHandGrabbingBit(self, TRUE);
+    VRSetMainHandPrevGrabbingBit(self, TRUE);
     VRSet2HAiming(self, FALSE);
 }
 

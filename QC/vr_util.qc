@@ -257,6 +257,18 @@ float(entity e, float xHand) VRGetEntWeaponFlags =
     else                     return e.weaponflags;
 }
 
+float*(entity e, float xHand) VRGetEntWeaponPtr =
+{
+    if(xHand == cVR_OffHand) return &e.weapon2;
+    else                     return &e.weapon;
+}
+
+float*(entity e, float xHand) VRGetEntWeaponFlagsPtr =
+{
+    if(xHand == cVR_OffHand) return &e.weaponflags2;
+    else                     return &e.weaponflags;
+}
+
 float(entity e, float xHand) VRIsHandEmpty =
 {
     return VRGetEntWeapon(e, xHand) == WID_FIST;
@@ -273,48 +285,29 @@ float(float xHand) VRGetWeapon =
     return VRGetEntWeapon(self, xHand);
 }
 
-float(entity e, float xHand) VRIsEntHandGrabbing =
+float(entity e, float xHand) VRIsEntHandGrabbingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandGrabbing(e);
-    else                     return VRGetMainHandGrabbing(e);
+    if(xHand == cVR_OffHand) return VRGetOffHandGrabbingBit(e);
+    else                     return VRGetMainHandGrabbingBit(e);
 }
 
-float(entity e, float xHand) VRIsEntHandPrevGrabbing =
+float(entity e, float xHand) VRIsEntHandPrevGrabbingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandPrevGrabbing(e);
-    else                     return VRGetMainHandPrevGrabbing(e);
+    if(xHand == cVR_OffHand) return VRGetOffHandPrevGrabbingBit(e);
+    else                     return VRGetMainHandPrevGrabbingBit(e);
 }
 
-float(entity e, float xHand) VREntStartedHandGrabbing =
+float(entity e, float xHand) VRGetEntForceGrabbing =
 {
-    return VRIsEntHandPrevGrabbing(e, xHand) == FALSE &&
-           VRIsEntHandGrabbing(e, xHand) == TRUE;
+    if(xHand == cVR_OffHand) return e.offhand_forcegrabbing;
+    else                     return e.mainhand_forcegrabbing;
 }
 
-float(entity e, float xHand) VREntStoppedHandGrabbing =
-{
-    return VRIsEntHandPrevGrabbing(e, xHand) == TRUE &&
-           VRIsEntHandGrabbing(e, xHand) == FALSE;
-}
 
-float(float xHand) VRIsHandGrabbing =
+void(entity e, float xHand, float v) VRSetEntForceGrabbing =
 {
-    return VRIsEntHandGrabbing(self, xHand);
-}
-
-float(float xHand) VRIsHandPrevGrabbing =
-{
-    return VRIsEntHandPrevGrabbing(self, xHand);
-}
-
-float(float xHand) VRStartedHandGrabbing =
-{
-    return VREntStartedHandGrabbing(self, xHand);
-}
-
-float(float xHand) VRStoppedHandGrabbing =
-{
-    return VREntStoppedHandGrabbing(self, xHand);
+    if(xHand == cVR_OffHand) e.offhand_forcegrabbing = v;
+    else                     e.mainhand_forcegrabbing = v;
 }
 
 float(entity entPlayer) VRIsTouchingHandFake =
@@ -371,22 +364,22 @@ float(entity ent) VRGetTeleporting =
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING);
 }
 
-float(entity ent) VRGetOffHandGrabbing =
+float(entity ent) VRGetOffHandGrabbingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING);
 }
 
-float(entity ent) VRGetOffHandPrevGrabbing =
+float(entity ent) VRGetOffHandPrevGrabbingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING);
 }
 
-float(entity ent) VRGetMainHandGrabbing =
+float(entity ent) VRGetMainHandGrabbingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING);
 }
 
-float(entity ent) VRGetMainHandPrevGrabbing =
+float(entity ent) VRGetMainHandPrevGrabbingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING);
 }
@@ -401,22 +394,22 @@ void(entity ent, float value) VRSetTeleporting =
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING, value);
 }
 
-void(entity ent, float value) VRSetOffHandGrabbing =
+void(entity ent, float value) VRSetOffHandGrabbingBit =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING, value);
 }
 
-void(entity ent, float value) VRSetOffHandPrevGrabbing =
+void(entity ent, float value) VRSetOffHandPrevGrabbingBit =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING, value);
 }
 
-void(entity ent, float value) VRSetMainHandGrabbing =
+void(entity ent, float value) VRSetMainHandGrabbingBit =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING, value);
 }
 
-void(entity ent, float value) VRSetMainHandPrevGrabbing =
+void(entity ent, float value) VRSetMainHandPrevGrabbingBit =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING, value);
 }

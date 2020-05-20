@@ -758,10 +758,8 @@ void(float xHand) HIP_FireMjolnirLightning =
 float(vector xHandRot, vector xHandPos, vector xMuzzlePos,
       float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
 {
-    float range, muzzleRange;
-
-    range = VRMeleeRange(xRange);
-    muzzleRange = VRMeleeRange(xMuzzleRange);
+    float range = VRMeleeRange(xRange);
+    float muzzleRange = VRMeleeRange(xRange + xMuzzleRange);
 
     makevectors(xHandRot);
 
@@ -814,17 +812,14 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
 
 void(float xHand) HIP_FireMjolnir =
 {
-    vector org;
-    float  xdmg;
+    float xdmg = VRMeleeDmg(xHand, 1.10, 5);
 
-    xdmg = VRMeleeDmg(xHand, 1.10, 5);
-
-    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
         return;
     }
 
-    org = trace_endpos - v_forward*4;
+    vector org = trace_endpos - v_forward*4;
 
     if(trace_ent.takedamage)
     {
@@ -968,7 +963,7 @@ void(float xHand) W_FireAxe =
         }
     }
 
-    if(!VRDoMeleeAttackTracelineFor(xHand, 28, 10))
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 13))
     {
         return;
     }
@@ -1025,7 +1020,7 @@ void(float xHand) W_GunMelee =
 
     xdmg = VRMeleeDmg(xHand, 0.75, 3);
 
-    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
         return;
     }
@@ -1074,7 +1069,7 @@ void(float xHand) W_FistMelee =
     float xdmg = VRMeleeDmg(xHand, 0.75, 3);
     float playedsound = FALSE;
 
-    if(!VRDoMeleeAttackTracelineFor(xHand, 26, 8))
+    if(!VRDoMeleeAttackTracelineFor(xHand, 16, 8))
     {
         return;
     }
@@ -3038,7 +3033,8 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     // check for attack
-    if(VRGetFireButtonPressed(xHand) && !VRGetForceGrabbing(xHand))
+    if(VRGetFireButtonPressed(xHand) &&
+       !VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
     {
         // TODO VR: (P2) what about when we don't have any weapon equipped? Or
         // when we have axe equipped?
@@ -3243,6 +3239,15 @@ void() wpnthrow_think =
         return;
     }
 
+    if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
+       time > GetThrownWeaponForcegrabTime(self) + 0.75)
+    {
+        // After a long linear forcegrab, restore the movement type to "toss".
+
+        self.throwhit = QVR_THROWHIT_NEVER_HIT;
+        self.movetype = MOVETYPE_TOSS;
+    }
+
     if(self.waterlevel == 1)
     {
         if(fabs(self.velocity_x) > 10)
@@ -3325,7 +3330,7 @@ void() wpnthrow_touch =
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
-            sound(self, CHAN_OTHER, "fisthit.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
 
             posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
             adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
@@ -3336,7 +3341,7 @@ void() wpnthrow_touch =
         // hit wall
         else
         {
-            sound(self, CHAN_OTHER, "player/axhit2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
             particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 24);
 
         }
@@ -3349,7 +3354,8 @@ void() wpnthrow_touch =
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = QVR_THROWHIT_HIT;
     }
-    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB)
+    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
+            time > GetThrownWeaponForcegrabTime(self) + 0.3)
     {
         // After a linear forcegrab, restore the movement type to "toss".
 
@@ -3386,7 +3392,7 @@ void() wpnthrow_touch =
 void(float xHand, entity ent, entity entPlayer,
      float* xOutEntWeapon, float* xOutEntWeaponFlags) wpnthrow_handtouch_impl =
 {
-    sound(ent, CHAN_OTHER, "weapons/pkup.wav", 1, ATTN_NORM);
+    sound(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
     VRGunHaptic(xHand, 0.3, 75, 1.0);
 
     *xOutEntWeapon = ent.weapon;
@@ -3411,32 +3417,62 @@ void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
     }
 }
 
-void(entity ent) wpnthrow_handtouch_ent =
+float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
-    if(VRIsHandtouchHandFake(ent))
+    entity entPlayer = ent.handtouch_ent;
+
+    if(!VRIsHandEmpty(entPlayer, xHand))
+    {
+        return FALSE;
+    }
+
+    float pForceGrabbing = VR_ForceGrabUtil_IsEntForceGrabbing(entPlayer, xHand);
+    float pStartedGrabbing = VR_HandGrabUtil_StartedHandGrabbing(entPlayer, xHand);
+    float* pWeaponPtr = VRGetEntWeaponPtr(entPlayer, xHand);
+    float* pWeaponFlagsPtr = VRGetEntWeaponFlagsPtr(entPlayer, xHand);
+
+    float performWeaponSwitch = FALSE;
+
+    // Guaranteed grab (linear force grab)
+    if(ent.throwhit == QVR_THROWHIT_FORCEGRAB)
+    {
+        if(VRGetHandtouchHand(ent) == xHand || pForceGrabbing)
+        {
+            performWeaponSwitch = TRUE;
+        }
+    }
+    else // Must catch it
+    {
+        if(VRGetHandtouchHand(ent) == xHand && pStartedGrabbing)
+        {
+            performWeaponSwitch = TRUE;
+        }
+    }
+
+    if(performWeaponSwitch)
+    {
+        wpnthrow_handtouch_impl(xHand, ent, entPlayer, pWeaponPtr, pWeaponFlagsPtr);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+void(entity entWpn) wpnthrow_handtouch_ent =
+{
+    if(VRIsHandtouchHandFake(entWpn))
     {
         // Happens with VR Body Interactions enabled.
 
+        // TODO VR: (P0) test interactions between force grabs and VR body
+        // interactions!
+
         // TODO VR: (P2) cvar to choose what happens?
-        return;
+        // return;
     }
 
-    if(VRGetHandtouchHand(ent) == cVR_OffHand &&
-       (VREntStartedHandGrabbing(ent.handtouch_ent, cVR_OffHand)
-        || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
-       VRIsHandEmpty(ent.handtouch_ent, cVR_OffHand))
-    {
-        wpnthrow_handtouch_impl(cVR_OffHand, ent, ent.handtouch_ent,
-            &ent.handtouch_ent.weapon2, &ent.handtouch_ent.weaponflags2);
-    }
-    else if(VRGetHandtouchHand(ent) == cVR_MainHand &&
-            (VREntStartedHandGrabbing(ent.handtouch_ent, cVR_MainHand)
-             || ent.throwhit == QVR_THROWHIT_FORCEGRAB) &&
-            VRIsHandEmpty(ent.handtouch_ent, cVR_MainHand))
-    {
-        wpnthrow_handtouch_impl(cVR_MainHand, ent, ent.handtouch_ent,
-            &ent.handtouch_ent.weapon, &ent.handtouch_ent.weaponflags);
-    }
+    if(wpnthrow_handtouch_ent_hand(entWpn, cVR_OffHand)) { return; }
+    if(wpnthrow_handtouch_ent_hand(entWpn, cVR_MainHand)) { return; }
 }
 
 void() wpnthrow_handtouch =
@@ -3552,6 +3588,16 @@ void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
 float(entity ent) GetThrownWeaponDisappearOnHit =
 {
     return ent.lip;
+}
+
+void(entity ent, float xValue) SetThrownWeaponForcegrabTime =
+{
+    ent.lefty = xValue;
+}
+
+float(entity ent) GetThrownWeaponForcegrabTime =
+{
+    return ent.lefty;
 }
 
 void(entity ent, float xValue) SetThrownWeaponDealDamage =
@@ -3773,20 +3819,16 @@ void(entity ent, float xHand,
      float xOtherWeaponFlags, float* xOutOtherWeaponFlags,
      float xOtherAttackFinished) DoHandImpl =
 {
-    float handGrabbing, handPrevGrabbing, otherHandGrabbing,
-                handEmpty, otherHandEmpty, triggerPressed;
+    float handGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
+    float handPrevGrabbing = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand);
+    float otherHandGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, VRGetOtherHand(xHand));
+    float handEmpty = VRIsHandEmpty(ent, xHand);
+    float otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
+    float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
+    float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
 
-    handGrabbing = VRIsEntHandGrabbing(ent, xHand);
-    handPrevGrabbing = VRIsEntHandPrevGrabbing(ent, xHand);
-    otherHandGrabbing = VRIsEntHandGrabbing(ent, VRGetOtherHand(xHand));
-    handEmpty = VRIsHandEmpty(ent, xHand);
-    otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
-    triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
-
-    vector handPos, handRot;
-
-    handPos = VRGetHandPos(xHand);
-    handRot = VRGetHandRot(xHand);
+    vector handPos = VRGetHandPos(xHand);
+    vector handRot = VRGetHandRot(xHand);
 
     if(time < readytime)
     {
@@ -3870,8 +3912,39 @@ void(entity ent, float xHand,
             }
         }
     }
+    // Not holding a weapon, grabbing the controller, and pressing the trigger.
+    else if(handEmpty && triggerPressed)
+    {
+        if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
+        {
+            // Intentionally left empty.
+        }
+        else if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
+        {
+            VR_ForcegrabUtil_Impl_DoForcegrabParabola(xHand, handPos, handRot);
+        }
+        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
+        {
+            VR_ForcegrabUtil_Impl_DoForcegrabLinear(xHand, handPos, handRot);
+        }
+        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
+        {
+            VR_ForcegrabUtil_Impl_DoForcegrabInstant(xHand, handPos, handRot);
+        }
+    }
+    // Not holding a weapon and hovering an holster. Possible intention to unholster.
+    else if(handEmpty && !handGrabbing)
+    {
+        if(isHolsterHotspot(xHotspot))
+        {
+            if(getHolsterWeapon(xHotspot) != WID_FIST)
+            {
+                VRHolsterHaptic(ent, xHand, xHotspot);
+            }
+        }
+    }
     // Not holding a weapon and started grabbing the controller.
-    else if(handEmpty && VREntStartedHandGrabbing(ent, xHand))
+    else if(handEmpty && startedHandGrabbing)
     {
         // Not a holster. Do nothing.
         if(xHotspot == QVR_HS_NONE ||
@@ -3907,50 +3980,21 @@ void(entity ent, float xHand,
             }
         }
     }
-    // Not holding a weapon, grabbing the controller, and pressing the trigger.
-    else if(handEmpty && triggerPressed)
-    {
-        if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
-        {
-            // Intentionally left empty.
-        }
-        else if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabParabola(xHand, handPos, handRot);
-        }
-        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabLinear(xHand, handPos, handRot);
-        }
-        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabInstant(xHand, handPos, handRot);
-        }
-    }
-    // Not holding a weapon and hovering an holster. Possible intention to unholster.
-    else if(handEmpty && !handGrabbing)
-    {
-        if(isHolsterHotspot(xHotspot))
-        {
-            if(getHolsterWeapon(xHotspot) != WID_FIST)
-            {
-                VRHolsterHaptic(ent, xHand, xHotspot);
-            }
-        }
-    }
 }
 
 void(float xHand) W_Frame_Forcegrab_Impl =
 {
-    if(!VRGetForceGrabbing(xHand))
+    if(!VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
     {
         ParticlesAndHapticsForEligibleForceGrabWeapons(
             xHand, VRGetHandPos(xHand), VRGetHandRot(xHand));
     }
 
-    if(!VRGetFireButtonPressed(xHand))
+    // Refresh force grab until trigger is released
+    if(VRGetFireButtonPressed(xHand) &&
+       VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
     {
-        VRSetForceGrabbing(xHand, FALSE);
+        VR_ForceGrabUtil_EntStartForceGrabbing(self, xHand);
     }
 }
 
@@ -3958,8 +4002,8 @@ void() W_Frame_Forcegrab =
 {
     if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
     {
-        VRSetForceGrabbing(cVR_MainHand, FALSE);
-        VRSetForceGrabbing(cVR_OffHand, FALSE);
+        VR_ForceGrabUtil_EntStopForceGrabbing(self, cVR_MainHand);
+        VR_ForceGrabUtil_EntStopForceGrabbing(self, cVR_OffHand);
         return;
     }
 

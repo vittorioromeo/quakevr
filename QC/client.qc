@@ -985,10 +985,10 @@ void() PutClientInServer =
     self.headvel = '0 0 0';
 
     VRSetTeleporting(self, FALSE);
-    VRSetOffHandGrabbing(self, FALSE);
-    VRSetOffHandPrevGrabbing(self, FALSE);
-    VRSetMainHandGrabbing(self, FALSE);
-    VRSetMainHandPrevGrabbing(self, FALSE);
+    VRSetOffHandGrabbingBit(self, FALSE);
+    VRSetOffHandPrevGrabbingBit(self, FALSE);
+    VRSetMainHandGrabbingBit(self, FALSE);
+    VRSetMainHandPrevGrabbingBit(self, FALSE);
     VRSet2HAiming(self, FALSE);
 
     self.offhand_forcegrabbing = FALSE;
@@ -1876,6 +1876,8 @@ void() PlayerPostThink =
     }
 
     // do weapon stuff
+
+    VR_HandGrabUtil_UpdateState(self);
 
     PlayerVRMelee();
 

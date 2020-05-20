@@ -12,6 +12,7 @@ vr_ammoutil.qc
 vr_cvars.qc
 vr_gameutil.qc
 vr_grapple.qc
+vr_handgrabutil.qc
 vr_itemutil.qc
 vr_macros.qc
 vr_util.qc

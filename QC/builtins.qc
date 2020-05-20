@@ -153,3 +153,12 @@ void(float h, float v) worldtext_hsethalign = #96;
 float(string s) strlen = #97;
 float(string s, float n) nthchar = #98;
 string(string s, float b, float e) substr = #99;
+
+float(float entGravity, float throwSpeed, vector from, vector to) calcthrowangle = #100;
+vector(vector vec, vector up, float angle) rotatevec = #101;
+
+float(float angle) sin = #102;
+float(float angle) cos = #103;
+
+float(float angle) asin = #104;
+float(float angle) acos = #105;

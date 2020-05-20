@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "cvar.hpp"
 #include "pr_comp.hpp"
+#include "progs.hpp"
 #include "protocol.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
@@ -34,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "msg.hpp"
 
 #include <cmath>
+#include <glm/gtx/rotate_vector.hpp>
 
 #define STRINGTEMP_BUFFERS 32
 #define STRINGTEMP_LENGTH 1024
@@ -808,17 +810,11 @@ Larger attenuations will drop off.
 */
 static void PF_sound()
 {
-    const char* sample;
-    int channel;
-    edict_t* entity;
-    int volume;
-    float attenuation;
-
-    entity = G_EDICT(OFS_PARM0);
-    channel = G_FLOAT(OFS_PARM1);
-    sample = G_STRING(OFS_PARM2);
-    volume = G_FLOAT(OFS_PARM3) * 255;
-    attenuation = G_FLOAT(OFS_PARM4);
+    edict_t* entity = G_EDICT(OFS_PARM0);
+    const int channel = G_FLOAT(OFS_PARM1);
+    const char* sample = G_STRING(OFS_PARM2);
+    const int volume = G_FLOAT(OFS_PARM3) * 255;
+    const float attenuation = G_FLOAT(OFS_PARM4);
 
     if(volume < 0 || volume > 255)
     {
@@ -1341,6 +1337,85 @@ static void PF_substr()
     buf[i + 1] = '\0';
 
     G_INT(OFS_RETURN) = PR_SetEngineString(buf);
+}
+
+static void PF_calcthrowangle()
+{
+    // TODO VR: (P2): repetition with `SV_AddGravityImpl`
+    const auto getGravity = [&](const float entGravity) {
+        extern cvar_t sv_gravity;
+        return (double)entGravity * (double)sv_gravity.value * host_frametime;
+    };
+
+    const float inEntGravity = G_FLOAT(OFS_PARM0);
+
+    const float entGravity = inEntGravity == 0 ? 1.f : inEntGravity;
+    const float throwSpeed = G_FLOAT(OFS_PARM1);
+    const qvec3 fromPos = extractVector(OFS_PARM2);
+    const qvec3 toPos = extractVector(OFS_PARM3);
+
+    float xx = toPos.x - fromPos.x;
+    float xy = toPos.y - fromPos.y;
+    float x = std::sqrt(xx * xx + xy * xy);
+    float z = fromPos.z - toPos.z;
+
+    float v = throwSpeed;
+    float g = -getGravity(entGravity);
+
+    float xSqrt = (v * v * v * v) - (g * (g * (x * x) + 2.f * z * (v * v)));
+
+    // Not enough range
+    if(xSqrt < 0)
+    {
+        G_FLOAT(OFS_RETURN) = 0.0f;
+        return;
+    }
+
+    G_FLOAT(OFS_RETURN) =
+        glm::degrees(std::atan2(((v * v) - std::sqrt(xSqrt)), (g * x)));
+}
+
+static void PF_rotatevec()
+{
+    const qvec3 vec = extractVector(OFS_PARM0);
+    const qvec3 upx = extractVector(OFS_PARM1);
+    const float angle = glm::radians(G_FLOAT(OFS_PARM2));
+
+    // TODO VR: (P0): fix this. consider checking QSS source code for rotation
+    // code
+
+    // up direction:
+    glm::vec3 up(0.0, 0.0, 1.0);
+    // find right vector:
+    auto right = glm::cross(glm::normalize(vec), glm::normalize(up));
+
+    glm::mat4 rotationMat(1); // Creates a identity matrix
+    rotationMat = glm::rotate(rotationMat, angle, right);
+    auto res = glm::vec3(rotationMat * glm::vec4(vec, 1.0));
+
+    returnVector(res);
+
+    //    returnVector(glm::rotate(vec, angle, up));
+}
+
+static void PF_sin()
+{
+    G_FLOAT(OFS_RETURN) = std::sin(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_cos()
+{
+    G_FLOAT(OFS_RETURN) = std::cos(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_asin()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::asin(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_acos()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::acos(G_FLOAT(OFS_PARM0)));
 }
 
 /*
@@ -2286,6 +2361,15 @@ static builtin_t pr_builtin[] = {
     PF_strlen,  // #97
     PF_nthchar, // #98
     PF_substr,  // #99
+
+    PF_calcthrowangle, // #100
+    PF_rotatevec,      // #101
+
+    PF_sin, // #102
+    PF_cos, // #103
+
+    PF_asin, // #104
+    PF_acos, // #105
 };
 
 builtin_t* pr_builtins = pr_builtin;

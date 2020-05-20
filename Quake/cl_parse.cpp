@@ -145,16 +145,9 @@ CL_ParseStartSoundPacket
 */
 void CL_ParseStartSoundPacket()
 {
-    qvec3 pos;
-    int channel;
-
-    int ent;
-    int sound_num;
+    int field_mask = MSG_ReadByte();
     int volume;
-    int field_mask;
     float attenuation;
-
-    field_mask = MSG_ReadByte();
 
     if(field_mask & SND_VOLUME)
     {
@@ -175,6 +168,8 @@ void CL_ParseStartSoundPacket()
     }
 
     // johnfitz -- PROTOCOL_FITZQUAKE
+    int ent;
+    int channel;
     if(field_mask & SND_LARGEENTITY)
     {
         ent = (unsigned short)MSG_ReadShort();
@@ -187,6 +182,7 @@ void CL_ParseStartSoundPacket()
         channel &= 7;
     }
 
+    int sound_num;
     if(field_mask & SND_LARGESOUND)
     {
         sound_num = (unsigned short)MSG_ReadShort();
@@ -210,7 +206,7 @@ void CL_ParseStartSoundPacket()
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
-    pos = MSG_ReadVec3(cl.protocolflags);
+    const qvec3 pos = MSG_ReadVec3(cl.protocolflags);
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
         volume / 255.0, attenuation);
