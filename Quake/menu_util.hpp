@@ -77,6 +77,14 @@ struct menu_entry_value_labeled_cvar
     std::function<std::string_view(T)> _value_label_fn;
 };
 
+template <typename T>
+struct menu_entry_value_labeled
+{
+    std::function<T*()> _getter;
+    menu_bounds<T> _bounds;
+    std::function<std::string_view(T)> _value_label_fn;
+};
+
 struct menu_entry_action
 {
     std::function<void()> _action;
@@ -98,6 +106,7 @@ using menu_entry_variant = std::variant< //
     menu_entry_cvar<int>,                //
     menu_entry_cvar<bool>,               //
     menu_entry_value_labeled_cvar<int>,  //
+    menu_entry_value_labeled<int>,       //
     menu_entry_action,                   //
     menu_entry_action_slider,            //
     menu_entry_separator                 //
@@ -252,6 +261,24 @@ public:
 
         return emplace_and_get_handle<impl::menu_entry_value_labeled_cvar<int>>(
             {label}, std::forward<CvarGetter>(cvar_getter),
+            menu_bounds<int>{
+                1, 0, static_cast<int>(sizeof...(enum_labels)) - 1},
+            enum_labels_fn);
+    }
+
+    template <typename T, typename Getter, typename... EnumLabels>
+    auto add_getter_enum_entry(const std::string_view label, Getter&& getter,
+        const EnumLabels... enum_labels)
+    {
+        const auto enum_labels_fn = [enum_labels...](
+                                        int x) -> std::string_view {
+            static std::array<std::string_view, sizeof...(enum_labels)> strs{
+                enum_labels...};
+            return strs[static_cast<int>(x)];
+        };
+
+        return emplace_and_get_handle<impl::menu_entry_value_labeled<int>>(
+            {label}, std::forward<Getter>(getter),
             menu_bounds<int>{
                 1, 0, static_cast<int>(sizeof...(enum_labels)) - 1},
             enum_labels_fn);

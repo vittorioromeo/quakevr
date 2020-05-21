@@ -41,10 +41,10 @@ void() noclass =
 
 float(entity ent) IsAmmoBox =
 {
-    return ent.classname == "item_shells" ||
-           ent.classname == "item_spikes" ||
-           ent.classname == "item_rockets" ||
-           ent.classname == "item_cells";
+    return ent.classname == ITEM_NAME_SHELLS ||
+           ent.classname == ITEM_NAME_SPIKES ||
+           ent.classname == ITEM_NAME_ROCKETS ||
+           ent.classname == ITEM_NAME_CELLS;
 }
 
 // TODO VR: (P1) move
@@ -83,21 +83,21 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         return;
     }
 
-    if(ent.classname == "item_shells")
+    if(ent.classname == ITEM_NAME_SHELLS)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SHOTGUN, 0.5))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_SHOTGUN, 0.7))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_spikes" || ent.classname == "item_lava_nails")
+    else if(ent.classname == ITEM_NAME_SPIKES || ent.classname == ITEM_NAME_LAVA_NAILS)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_NAILGUN, 0.4))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_NAILGUN, 0.5))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_rockets" || ent.classname == "item_multi_rockets")
+    else if(ent.classname == ITEM_NAME_ROCKETS || ent.classname == ITEM_NAME_MULTI_ROCKETS)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_GRENADE_LAUNCHER, 0.3))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_PROXIMITY_GUN, 0.4))
@@ -105,7 +105,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == "item_cells" || ent.classname == "item_plasma")
+    else if(ent.classname == ITEM_NAME_CELLS || ent.classname == ITEM_NAME_PLASMA)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_LIGHTNING, 0.3))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_LASER_CANNON, 0.4))
@@ -375,13 +375,13 @@ void() armor_touch =
 {
     float type, value, itemId;
 
-    if(self.classname == "item_armor1")
+    if(self.classname == ITEM_NAME_ARMOR1)
     {
         type = 0.3;
         value = 100;
         itemId = IID_ARMOR1;
     }
-    else if(self.classname == "item_armor2")
+    else if(self.classname == ITEM_NAME_ARMOR2)
     {
         type = 0.6;
         value = 150;
@@ -389,7 +389,7 @@ void() armor_touch =
     }
     else
     {
-        ASSERT(self.classname == "item_armorInv");
+        ASSERT(self.classname == ITEM_NAME_ARMORINV);
 
         type = 0.8;
         value = 200;
@@ -421,48 +421,43 @@ void() armor_touch =
     stuffcmd(other, "bf\n");
 };
 
+void(string xModelName, float xWait) impl_equipment_item =
+{
+    precache_model(xModelName);
+    setmodel(self, xModelName);
+    if(deathmatch) { self.wait = xWait; }
+}
+
+void(float xSkin) impl_equipment_armor =
+{
+    impl_equipment_item("progs/armor.mdl", 20);
+
+    self.handtouch = armor_touch;
+    self.skin = xSkin;
+    setsize(self, '-11 -11 0', '11 11 31');
+    StartItem();
+}
 
 /*QUAKED item_armor1 (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() item_armor1 =
 {
-    self.handtouch = armor_touch;
-    precache_model("progs/armor.mdl");
-    setmodel(self, "progs/armor.mdl");
-    self.skin = 0;
-    setsize(self, '-11 -11 0', '11 11 31');
-    if(deathmatch) { self.wait = 20; }
-    StartItem();
-};
+    impl_equipment_armor(0);
+}
 
 /*QUAKED item_armor2 (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() item_armor2 =
 {
-    self.handtouch = armor_touch;
-    precache_model("progs/armor.mdl");
-    setmodel(self, "progs/armor.mdl");
-    self.skin = 1;
-    setsize(self, '-11 -11 0', '11 11 31');
-    if(deathmatch) { self.wait = 20; }
-    StartItem();
-};
+    impl_equipment_armor(1);
+}
 
 /*QUAKED item_armorInv (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() item_armorInv =
 {
-    self.handtouch = armor_touch;
-    precache_model("progs/armor.mdl");
-    setmodel(self, "progs/armor.mdl");
-    self.skin = 2;
-    setsize(self, '-11 -11 0', '11 11 31');
-    if(deathmatch) { self.wait = 20; }
-    StartItem();
-};
+    impl_equipment_armor(2);
+}
 
 void() item_armorinv =
 {
@@ -655,97 +650,72 @@ void() weapon_touch =
     self.solid = SOLID_NOT;
 };
 
+void() weapon_item_think =
+{
+    if(self.model != string_null)
+    {
+        particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 2);
+        self.nextthink2 = time + 0.05;
+    }
+}
+
+void(string xModelName, float xWeaponId) impl_weapon_item =
+{
+    precache_model(xModelName);
+    setmodel(self, xModelName);
+    self.weapon = xWeaponId;
+    self.vr_itemId = WeaponIdToItemId(self.weapon);
+    self.netname = WeaponIdToWeaponName(self.weapon);
+    self.handtouch = weapon_touch;
+    self.think2 = weapon_item_think;
+    self.nextthink2 = time + 0.05;
+    setsize(self, '-8 -8 -4', '8 8 38');
+    if(deathmatch) { self.wait = 30; }
+    StartItem();
+}
+
 
 /*QUAKED weapon_supershotgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_supershotgun =
 {
-    precache_model("progs/g_shot.mdl");
-    setmodel(self, "progs/g_shot.mdl");
-    self.weapon = WID_SUPER_SHOTGUN;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
+    impl_weapon_item("progs/g_shot.mdl", WID_SUPER_SHOTGUN);
+}
 
 /*QUAKED weapon_nailgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_nailgun =
 {
-    precache_model("progs/g_nail.mdl");
-    setmodel(self, "progs/g_nail.mdl");
-    self.weapon = WID_NAILGUN;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
+    impl_weapon_item("progs/g_nail.mdl", WID_NAILGUN);
+}
 
 /*QUAKED weapon_supernailgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_supernailgun =
 {
-    precache_model("progs/g_nail2.mdl");
-    setmodel(self, "progs/g_nail2.mdl");
-    self.weapon = WID_SUPER_NAILGUN;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
+    impl_weapon_item("progs/g_nail2.mdl", WID_SUPER_NAILGUN);
+}
 
 /*QUAKED weapon_grenadelauncher (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_grenadelauncher =
 {
-    precache_model("progs/g_rock.mdl");
-    setmodel(self, "progs/g_rock.mdl");
-    self.weapon = WID_GRENADE_LAUNCHER;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
+    impl_weapon_item("progs/g_rock.mdl", WID_GRENADE_LAUNCHER);
+}
 
 /*QUAKED weapon_rocketlauncher (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_rocketlauncher =
 {
-    precache_model("progs/g_rock2.mdl");
-    setmodel(self, "progs/g_rock2.mdl");
-    self.weapon = WID_ROCKET_LAUNCHER;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
-
+    impl_weapon_item("progs/g_rock2.mdl", WID_ROCKET_LAUNCHER);
+}
 
 /*QUAKED weapon_lightning (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_lightning =
 {
-    precache_model("progs/g_light.mdl");
-    setmodel(self, "progs/g_light.mdl");
-    self.weapon = WID_LIGHTNING;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.handtouch = weapon_touch;
-    setsize(self, '-8 -8 16', '8 8 38');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
-};
+    impl_weapon_item("progs/g_light.mdl", WID_LIGHTNING);
+}
 
 
 /*
@@ -760,44 +730,37 @@ void() ammo_touch =
 {
     entity stemp;
 
-    // shotgun
-    if(self.weapon == 1)
+    if(self.weapon == AID_SHELLS)
     {
         if(other.ammo_shells >= 100) { return; }
         other.ammo_shells = other.ammo_shells + self.aflag;
     }
-    // spikes
-    else if(self.weapon == 2)
+    else if(self.weapon == AID_NAILS)
     {
         if(other.ammo_nails >= 200) { return; }
         other.ammo_nails = other.ammo_nails + self.aflag;
     }
-    // rockets
-    else if(self.weapon == 3)
+    else if(self.weapon == AID_ROCKETS)
     {
         if(other.ammo_rockets >= 100) { return; }
         other.ammo_rockets = other.ammo_rockets + self.aflag;
     }
-    // cells
-    else if(self.weapon == 4)
+    else if(self.weapon == AID_CELLS)
     {
         if(other.ammo_cells >= 100) { return; }
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
-    // lava spikes
-    else if(self.weapon == 5)
+    else if(self.weapon == AID_LAVA_NAILS)
     {
         if(other.ammo_lava_nails >= 200) { return; }
         other.ammo_lava_nails = other.ammo_lava_nails + self.aflag;
     }
-    // multi grenades
-    else if(self.weapon == 6)
+    else if(self.weapon == AID_MULTI_ROCKETS)
     {
         if(other.ammo_multi_rockets >= 100) { return; }
         other.ammo_multi_rockets = other.ammo_multi_rockets + self.aflag;
     }
-    // plasma
-    else if(self.weapon == 7)
+    else if(self.weapon == AID_PLASMA)
     {
         if(other.ammo_plasma >= 100) { return; }
         other.ammo_plasma = other.ammo_plasma + self.aflag;
@@ -831,35 +794,48 @@ void() ammo_touch =
 
 float WEAPON_BIG2 = 1;
 
+
+void(string xModelNameSmall, string xModelNameBig,
+     float xAmmoCountSmall, float xAmmoCountBig,
+     float xAmmoId, vector xSize)
+impl_item_ammo_pickup =
+{
+    self.handtouch = ammo_touch;
+
+    if(self.spawnflags & WEAPON_BIG2)
+    {
+        precache_model(xModelNameBig);
+        setmodel(self, xModelNameBig);
+        self.aflag = xAmmoCountBig;
+    }
+    else
+    {
+        precache_model(xModelNameSmall);
+        setmodel(self, xModelNameSmall);
+        self.aflag = xAmmoCountSmall;
+    }
+
+    self.weapon = xAmmoId;
+    self.netname = VR_AmmoUtil_AmmoIdToNetname(xAmmoId);
+    self.classname = VR_AmmoUtil_AmmoIdToItemName(xAmmoId);
+
+    setsize(self, '0 0 0', xSize);
+    if(deathmatch) { self.wait = 30; }
+    StartItem();
+}
+
 /*QUAKED item_shells (0 .5 .8) (0 0 0) (32 32 32) big
 Small box is 20, Big box is 40.
 */
 
 void() item_shells =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_shell1.bsp");
-        setmodel(self, "maps/b_shell1.bsp");
-        self.aflag = 40;
-    }
-    else
-    {
-        precache_model("maps/b_shell0.bsp");
-        setmodel(self, "maps/b_shell0.bsp");
-        self.aflag = 20;
-    }
-
-    self.weapon = 1;
-    self.netname = "shells";
-    self.classname = "item_shells";
-
-    setsize(self, '0 0 0', '24 24 24');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_shell0.bsp", "maps/b_shell1.bsp",
+        20, 40,
+        AID_SHELLS, '24 24 24');
 };
+
 
 /*QUAKED item_spikes (0 .5 .8) (0 0 0) (32 32 32) big
 Small box is 25, Big box is 50.
@@ -867,28 +843,10 @@ Small box is 25, Big box is 50.
 
 void() item_spikes =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_nail1.bsp");
-        setmodel(self, "maps/b_nail1.bsp");
-        self.aflag = 50;
-    }
-    else
-    {
-        precache_model("maps/b_nail0.bsp");
-        setmodel(self, "maps/b_nail0.bsp");
-        self.aflag = 25;
-    }
-
-    self.weapon = 2;
-    self.netname = "nails";
-    self.classname = "item_spikes";
-
-    setsize(self, '0 0 0', '24 24 24');
-    if(deathmatch) { self.wait = 30; }
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_nail0.bsp", "maps/b_nail1.bsp",
+        25, 50,
+        AID_NAILS, '24 24 24');
 };
 
 /*QUAKED item_lava_spikes (0 .5 .8) (0 0 0) (32 32 32) big
@@ -897,28 +855,10 @@ Small box is 25, Big box is 50.
 
 void() item_lava_spikes =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_lnail1.bsp");
-        setmodel(self, "maps/b_lnail1.bsp");
-        self.aflag = 50;
-    }
-    else
-    {
-        precache_model("maps/b_lnail0.bsp");
-        setmodel(self, "maps/b_lnail0.bsp");
-        self.aflag = 25;
-    }
-
-    self.weapon = 5;
-    self.netname = "lava nails";
-    self.classname = "item_lava_nails";
-
-    if(deathmatch) { self.wait = 30; }
-    setsize(self, '0 0 0', '32 32 56');
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_lnail0.bsp", "maps/b_lnail1.bsp",
+        25, 50,
+        AID_LAVA_NAILS, '24 24 24');
 };
 
 
@@ -928,28 +868,10 @@ Small box is 5, Big box is 10.
 
 void() item_rockets =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_rock1.bsp");
-        setmodel(self, "maps/b_rock1.bsp");
-        self.aflag = 10;
-    }
-    else
-    {
-        precache_model("maps/b_rock0.bsp");
-        setmodel(self, "maps/b_rock0.bsp");
-        self.aflag = 5;
-    }
-
-    self.weapon = 3;
-    self.netname = "rockets";
-    self.classname = "item_rockets";
-
-    if(deathmatch) { self.wait = 30; }
-    setsize(self, '0 0 0', '16 16 32');
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_rock0.bsp", "maps/b_rock1.bsp",
+        5, 10,
+        AID_ROCKETS, '24 24 24');
 };
 
 /*QUAKED item_multi_rockets (0 .5 .8) (0 0 0) (32 32 32) big
@@ -958,28 +880,10 @@ Small box is 5, Big box is 10.
 
 void() item_multi_rockets =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_mrock1.bsp");
-        setmodel(self, "maps/b_mrock1.bsp");
-        self.aflag = 10;
-    }
-    else
-    {
-        precache_model("maps/b_mrock0.bsp");
-        setmodel(self, "maps/b_mrock0.bsp");
-        self.aflag = 5;
-    }
-
-    self.weapon = 6;
-    self.netname = "multi rockets";
-    self.classname = "item_multi_rockets";
-
-    if(deathmatch) { self.wait = 30; }
-    setsize(self, '0 0 0', '32 32 56');
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_mrock1.bsp", "maps/b_mrock0.bsp",
+        5, 10,
+        AID_MULTI_ROCKETS, '24 24 24');
 };
 
 /*QUAKED item_cells (0 .5 .8) (0 0 0) (32 32 32) big
@@ -988,28 +892,10 @@ Small box is 6, Big box is 12.
 
 void() item_cells =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_batt1.bsp");
-        setmodel(self, "maps/b_batt1.bsp");
-        self.aflag = 12;
-    }
-    else
-    {
-        precache_model("maps/b_batt0.bsp");
-        setmodel(self, "maps/b_batt0.bsp");
-        self.aflag = 6;
-    }
-
-    self.weapon = 4;
-    self.netname = "cells";
-    self.classname = "item_cells";
-
-    if(deathmatch) { self.wait = 30; }
-    setsize(self, '0 0 0', '24 24 24');
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_batt1.bsp", "maps/b_batt0.bsp",
+        6, 12,
+        AID_CELLS, '24 24 24');
 };
 
 /*QUAKED item_plasma (0 .5 .8) (0 0 0) (32 32 32) big
@@ -1017,28 +903,10 @@ Small box is 6, Big box is 12.
 */
 void() item_plasma =
 {
-    self.handtouch = ammo_touch;
-
-    if(self.spawnflags & WEAPON_BIG2)
-    {
-        precache_model("maps/b_plas1.bsp");
-        setmodel(self, "maps/b_plas1.bsp");
-        self.aflag = 12;
-    }
-    else
-    {
-        precache_model("maps/b_plas0.bsp");
-        setmodel(self, "maps/b_plas0.bsp");
-        self.aflag = 6;
-    }
-
-    self.weapon = 7;
-    self.netname = "plasma";
-    self.classname = "item_plasma";
-
-    if(deathmatch) { self.wait = 30; }
-    setsize(self, '0 0 0', '32 32 56');
-    StartItem();
+    impl_item_ammo_pickup(
+        "maps/b_plas1.bsp", "maps/b_plas0.bsp",
+        6, 12,
+        AID_PLASMA, '24 24 24');
 };
 
 /*
@@ -1432,14 +1300,14 @@ void() BackpackTouch =
     acount = 0;
     sprint(other, "You get ");
 
-    other.ammo_shells = other.ammo_shells + self.ammo_shells;
-    other.ammo_nails = other.ammo_nails + self.ammo_nails;
-    other.ammo_rockets = other.ammo_rockets + self.ammo_rockets;
-    other.ammo_cells = other.ammo_cells + self.ammo_cells;
+    other.ammo_shells += self.ammo_shells;
+    other.ammo_nails += self.ammo_nails;
+    other.ammo_rockets += self.ammo_rockets;
+    other.ammo_cells += self.ammo_cells;
 
-    other.ammo_lava_nails = other.ammo_lava_nails + self.ammo_lava_nails;
-    other.ammo_multi_rockets = other.ammo_multi_rockets + self.ammo_multi_rockets;
-    other.ammo_plasma = other.ammo_plasma + self.ammo_plasma;
+    other.ammo_lava_nails += self.ammo_lava_nails;
+    other.ammo_multi_rockets += self.ammo_multi_rockets;
+    other.ammo_plasma += self.ammo_plasma;
 
     bound_other_ammo();
 

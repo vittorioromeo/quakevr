@@ -217,7 +217,7 @@ getAngledVectors(const qvec3& v) noexcept
 }
 
 template <typename T>
-[[nodiscard]] auto makeMenuAdjuster(const bool isLeft)
+[[nodiscard]] auto makeMenuCVarAdjuster(const bool isLeft)
 {
     return
         [isLeft](const cvar_t& cvar, const T incr, const T min, const T max) {
@@ -231,6 +231,22 @@ template <typename T>
 
             Cvar_SetValue(cvar.name, res);
         };
+}
+
+template <typename T>
+[[nodiscard]] auto makeMenuValueAdjuster(const bool isLeft)
+{
+    return [isLeft](T& value, const T incr, const T min, const T max) {
+        const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
+
+        const T adjIncr = incr * static_cast<T>(factor);
+
+        const auto newVal =
+            static_cast<T>(isLeft ? value - adjIncr : value + adjIncr);
+        const auto res = static_cast<T>(std::clamp(newVal, min, max));
+
+        value = res;
+    };
 }
 
 template <typename T>

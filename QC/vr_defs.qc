@@ -171,9 +171,10 @@ float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 // `.throwhit` values for thrown weapons
 // ----------------------------------------------------------------------------
 
-float QVR_THROWHIT_NEVER_HIT = 0;
-float QVR_THROWHIT_HIT       = 1;
-float QVR_THROWHIT_FORCEGRAB = 2;
+float QVR_THROWHIT_NEVER_HIT          = 0;
+float QVR_THROWHIT_HIT                = 1;
+float QVR_THROWHIT_FORCEGRAB          = 2;
+float QVR_THROWHIT_FORCEGRAB_PARABOLA = 3;
 
 //
 //
@@ -293,3 +294,21 @@ float QVR_PARTICLE_PRESET_GUNPICKUP     = 8;
 float QVR_PARTICLE_PRESET_GUNFORCEGRAB  = 9;
 float QVR_PARTICLE_PRESET_LAVASPIKE     = 10;
 float QVR_PARTICLE_PRESET_BIGSMOKE      = 11;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Item Names
+// ----------------------------------------------------------------------------
+
+string ITEM_NAME_SHELLS = "item_shells";
+string ITEM_NAME_SPIKES = "item_spikes";
+string ITEM_NAME_ROCKETS = "item_rockets";
+string ITEM_NAME_LAVA_NAILS = "item_lava_nails";
+string ITEM_NAME_MULTI_ROCKETS = "item_multi_rockets";
+string ITEM_NAME_PLASMA = "item_plasma";
+string ITEM_NAME_CELLS = "item_cells";
+string ITEM_NAME_ARMOR1 = "item_armor1";
+string ITEM_NAME_ARMOR2 = "item_armor2";
+string ITEM_NAME_ARMORINV = "item_armorInv";

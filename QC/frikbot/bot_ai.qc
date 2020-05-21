@@ -736,9 +736,9 @@ float(entity thing) priority_for_thing =
             {
                 if(self.armorvalue <= 50)
                     thisp = 60;
-                else if(self.armorvalue <= 100 && thing.classname != "item_armor1")
+                else if(self.armorvalue <= 100 && thing.classname != ITEM_NAME_ARMOR1)
                     thisp = 55;
-                else if(self.armorvalue <= 150 && thing.classname == "item_armorInv")
+                else if(self.armorvalue <= 150 && thing.classname == ITEM_NAME_ARMORINV)
                     thisp = 50;
             }
         }

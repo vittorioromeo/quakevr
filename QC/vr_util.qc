@@ -217,6 +217,12 @@ float(entity e, float xHand) VRGetEntFireButtonPressed =
     else                     return e.button0;
 }
 
+vector(entity e, float xHand) VRGetEntHandPos =
+{
+    if(xHand == cVR_OffHand) return e.offhandpos;
+    else                     return e.handpos;
+}
+
 float(float xHand) VRIsAmmolessWeapon =
 {
     return VRGetCurrentAmmo(xHand) == AID_NONE;

@@ -167,30 +167,108 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
             continue;
         }
 
-        float initialVelocity = 400;
-        float flightTime = 0.75;
+        vector startPos = e.origin;
+        vector endPos = handPos + '0 0 3';
+        makevectors(handRot);
+
+
+
+        vector diff = endPos - startPos;
+        float distFactor = vlen(diff) / 150;
+
+        float initialSpeed = 165 + 275 * distFactor;
+        float flightTime = 0.65;
         float grav = -cvar("sv_gravity"); // * frametime;
 
-        vector startPos = e.origin;
-        vector endPos = handPos;
+        vector diffXY = diff;
+        diffXY.z = 0;
 
-        float angleX = acos((endPos.x - startPos.x) / (initialVelocity * flightTime));
-        float angleY = acos((endPos.y - startPos.y) / (initialVelocity * flightTime));
-        float angleZ = 360 + asin((endPos.z - startPos.z + (0.5 * grav * flightTime * flightTime)) / (initialVelocity * flightTime));
+        float groundFactor = 1;
+        if(startPos.z < endPos.z)
+        {
+            float gf = fabs(startPos.z - endPos.z) / 70;
+            if(gf > 1)
+            {
+                groundFactor = pow(gf, 0.7);
+            }
+        }
+
+        endPos += v_forward * (-3.0 * groundFactor);
+
+        BPRINT_FVAR(groundFactor);
+
+        float groundDist = vlen(diffXY);
+
+        float speed2 = initialSpeed * initialSpeed;
+        float speed4 = initialSpeed * initialSpeed * initialSpeed * initialSpeed;
+        float z = diff.z;
+        float x = groundDist;
+        float gx = grav * x;
+
+        float root = speed4 - grav*(grav*x*x + 2*z*speed2);
+
+        if (root < 0)
+        {
+            bprint("could not solve equation");
+            return FALSE;
+        }
+
+        root = sqrt(root);
+
+        float highAng = atan2(speed2 + root, gx);
+
+        vector groundDir = normalize(diffXY);
+
+        e.velocity = -groundDir*cos(highAng)*initialSpeed + '0 0 1'*sin(highAng)*initialSpeed;
+        e.velocity *= 1.05;
+        e.velocity *= groundFactor;
+
+        e.throwhit = QVR_THROWHIT_FORCEGRAB_PARABOLA;
+        SetThrownWeaponForcegrabTime(e, time);
+        e.enemy = self;
+        e.thinkArg = xHand;
+
+
+        // float time = groundDist / initialSpeed;
+//
+        // vector fireVelocity = normalize(diffXY) * initialSpeed;
+//
+        // float a = e.origin.z;
+        // float b = 200;
+        // float c = handPos.z;
+
+//                 gravity = -4*(a - 2*b + c) / (time* time);
+//         fire_velocity.y = -(3*a - 4*b + c) / time;
+
+        /*
+
+        float atanArg =
+        float newAngle = atan(atanArg);
+
+
+        float angleX = acos((endPos.x - startPos.x) / (initialSpeed * flightTime));
+        float angleY = acos((endPos.y - startPos.y) / (initialSpeed * flightTime));
+        float angleZ = 360 + asin((endPos.z - startPos.z + (0.5 * grav * flightTime * flightTime)) / (initialSpeed * flightTime));
 
         BPRINT_FVAR(angleX);
         BPRINT_FVAR(angleY);
-        BPRINT_FVAR(angleZ);
+        // BPRINT_FVAR(angleZ);
 
         float avgAngleXY = (angleX + angleY) / 2.0;
 
+        BPRINT_FVAR(avgAngleXY);
+
+        endPos.z = startPos.z;
         vector diff = normalize(endPos - startPos);
-        diff_z = 0;
+        // diff_z = 0; // sin(avgAngleXY);
+
+        makevectors(vectoangles(diff));
 
         // TODO VR: (P0): avgAngleXY seems reasonable, but the below rotation returns weird vectors.
         vector rotdiff = rotatevec(diff, v_right, avgAngleXY);
 
-        e.velocity = rotdiff * initialVelocity;
+        e.velocity = rotdiff * initialSpeed;
+        */
 
         /*return;
 

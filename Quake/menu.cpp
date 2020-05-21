@@ -1659,12 +1659,23 @@ void M_Options_Key(int k)
             "well, if the weapon is close enough. The shoulder position can be "
             "tweaked in 'Hotspot Settings'.");
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_cvar_entry<float>(
          "2H Aiming Threshold", vr_2h_angle_threshold, {0.05f, -1.f, 1.f})
         .tooltip(
             "How much your hands have to be out of line with each other before "
             "two-handed aiming stops. Increase the value for a more strict "
             "two-handed aiming experience.");
+
+    m.add_cvar_entry<bool>(
+        "Disable 2H Aiming Threshold", vr_2h_disable_angle_threshold);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
 
     m.add_cvar_entry<float>("2H Virtual Stock Factor",
          vr_2h_virtual_stock_factor, {0.05f, 0.f, 1.f})
@@ -3062,6 +3073,18 @@ void M_QuakeVRDevTools_Key(int k)
 //=============================================================================
 /* QUAKE VR CHANGE MAP - IMPL */
 
+enum class ChangeMapCommand : int
+{
+    Map = 0,
+    Changelevel = 1,
+};
+
+[[nodiscard]] static int& getChangeMapCommand()
+{
+    static int cmd{static_cast<int>(ChangeMapCommand::Map)};
+    return cmd;
+}
+
 template <typename Range>
 [[nodiscard]] static quake::menu makeQVRCMChangeMapMenuImpl(
     const std::string_view name, const Range& maps)
@@ -3069,8 +3092,15 @@ template <typename Range>
     const auto changeMap = [&maps](const int option) {
         return [&maps, option] {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+
+            const char* cmd =
+                static_cast<ChangeMapCommand>(getChangeMapCommand()) ==
+                        ChangeMapCommand::Map
+                    ? "map"
+                    : "changelevel";
+
             Cmd_ExecuteString(
-                va("changelevel %s", maps[option].data()), src_command);
+                va("%s %s", cmd, maps[option].data()), src_command);
         };
     };
 
@@ -3229,7 +3259,19 @@ static void forQVRCMMenus(F&& f)
             xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
     };
 
+    m.add_getter_enum_entry<ChangeMapCommand>( //
+        "Preserve Equipment",                  //
+        [] { return &getChangeMapCommand(); }, //
+        "No (map)",                            //
+        "Yes (changelevel)"                    //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     forQVRCMMenus(makeGotoMenu);
+
     return m;
 }
 
