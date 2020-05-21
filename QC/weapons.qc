@@ -3248,6 +3248,15 @@ void() wpnthrow_think =
         self.movetype = MOVETYPE_TOSS;
     }
 
+    if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)
+    {
+        vector handDiff = VRGetEntHandPos(self.enemy, self.thinkArg) - self.origin;
+        if(vlen(handDiff) < 35)
+        {
+            self.velocity += normalize(handDiff) * 20.0;
+        }
+    }
+
     if(self.waterlevel == 1)
     {
         if(fabs(self.velocity_x) > 10)
@@ -3358,6 +3367,14 @@ void() wpnthrow_touch =
             time > GetThrownWeaponForcegrabTime(self) + 0.3)
     {
         // After a linear forcegrab, restore the movement type to "toss".
+
+        self.throwhit = QVR_THROWHIT_HIT;
+        self.movetype = MOVETYPE_TOSS;
+    }
+    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA &&
+            time > GetThrownWeaponForcegrabTime(self) + 0.3)
+    {
+        // After a parabola forcegrab, restore the movement type to "toss".
 
         self.throwhit = QVR_THROWHIT_HIT;
         self.movetype = MOVETYPE_TOSS;

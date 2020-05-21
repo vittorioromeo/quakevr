@@ -162,3 +162,11 @@ float(float angle) cos = #103;
 
 float(float angle) asin = #104;
 float(float angle) acos = #105;
+
+float(float angle) tan = #106;
+float(float angle) atan = #107;
+
+float(float v) sqrt = #108;
+
+float(float x, float y) atan2 = #109;
+

@@ -59,6 +59,34 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_AddAmmoCountByAmmoId =
     ASSERT(FALSE);
 }
 
+string(float xAid) VR_AmmoUtil_AmmoIdToItemName =
+{
+    if(xAid == AID_SHELLS)        { return ITEM_NAME_SHELLS; }
+    if(xAid == AID_NAILS)         { return ITEM_NAME_SPIKES; }
+    if(xAid == AID_ROCKETS)       { return ITEM_NAME_ROCKETS; }
+    if(xAid == AID_CELLS)         { return ITEM_NAME_CELLS; }
+    if(xAid == AID_LAVA_NAILS)    { return ITEM_NAME_LAVA_NAILS; }
+    if(xAid == AID_MULTI_ROCKETS) { return ITEM_NAME_MULTI_ROCKETS; }
+    if(xAid == AID_PLASMA)        { return ITEM_NAME_PLASMA; }
+
+    ASSERT(FALSE);
+    return NULLSTR;
+}
+
+string(float xAid) VR_AmmoUtil_AmmoIdToNetname =
+{
+    if(xAid == AID_SHELLS)        { return "shells"; }
+    if(xAid == AID_NAILS)         { return "nails"; }
+    if(xAid == AID_ROCKETS)       { return "rockets"; }
+    if(xAid == AID_CELLS)         { return "cells"; }
+    if(xAid == AID_LAVA_NAILS)    { return "lava nails"; }
+    if(xAid == AID_MULTI_ROCKETS) { return "multi rockets"; }
+    if(xAid == AID_PLASMA)        { return "plasma"; }
+
+    ASSERT(FALSE);
+    return NULLSTR;
+}
+
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_DelAmmoCountByAmmoId =
 {
     VR_AmmoUtil_AddAmmoCountByAmmoId(xEnt, xAid, -xValue);

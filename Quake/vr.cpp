@@ -2774,9 +2774,11 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
                                !vr_gun_wall_collision[holdingHand]._colliding &&
                                helpingHandIsFist && beforeMuzzle;
 
-    vr_should_aim_2h[holdingHand] = canGrabWith2H &&
-                                    goodDistanceOrAlreadyAiming &&
-                                    diffDot > vr_2h_angle_threshold.value;
+    const bool goodDot = (diffDot > vr_2h_angle_threshold.value) ||
+                         vr_2h_disable_angle_threshold.value;
+
+    vr_should_aim_2h[holdingHand] =
+        canGrabWith2H && goodDistanceOrAlreadyAiming && goodDot;
 
     vr_active_2h_helping_hand[helpingHand] = vr_should_aim_2h[holdingHand];
 
@@ -4099,30 +4101,26 @@ void VR_OnLoadedPak(pack_t& pak)
 // handed cancellation? I frequently end up letting go of the weapon with my
 // off-hand despite gripping, even with it set to -1.0 (the furthest). I'm kind
 // of used to Boneworks where I can flail the weapon around as much as I want as
-// long as I'm gripping it with both hands. Is this possible? Thanks!!"
+// long as I'm gripping it with both hands. Is this possible? Thanks!!" - added
+// `vr_2h_disable_angle_threshold` test
 
 // TODO VR: (P0): "- I figured out a bit more about my issues with the axe,
 // possibly. I noticed that if I move the axe close to the wall it will collide
 // with the wall, but no hit collision occurs as long as my hand itself does not
 // hit the wall. If I want the axe to trigger a damage hit, I need to make sure
 // my hand follows through to the wall. I would assume this same issue occurs
-// with enemies as well as such it makes the axe seem artificially short?"
+// with enemies as well as such it makes the axe seem artificially short?" -
+// improved a bit, test
 
 // TODO VR: (P0): " I tried headbutting the knights at the start of DOE and I
-// just couldn't collide with them at all"
-
-// TODO VR: (P0): "parabola force grab still seems just a tad too weak - So,
-// there is a option to tweak the force multiplier since v0.0.4, but I
-// understand that it should work out of the box. I'll see what I can do, but
-// it's hard to test as it works just fine on my body... I'll try to make the
-// formula independent from the body size. What is your real-life height, by the
-// way? I'm 168cm."
+// just couldn't collide with them at all" - must test
 
 // TODO VR: (P0): "- Linear force grab flies past my hand now everytime, so is
-// unusable, where it was 99% no issues in 0.0.5b1"
+// unusable, where it was 99% no issues in 0.0.5b1" - seems fixed, test
 
 // TODO VR: (P0): "seems like for the custom map a2 i can add bots with no
-// problem, but on ab2 if i rapidly add them then the game crashes"
+// problem, but on ab2 if i rapidly add them then the game crashes" - can
+// reproduce, seems a problem with waypoint `._next`?
 
 // TODO VR: (P0): "Seems like my guns very frequently wont shoot for a second -
 // i will be shooting fine, just pressing the trigger button repeatedly and keep
@@ -4130,17 +4128,10 @@ void VR_OnLoadedPak(pack_t& pak)
 // trigger, and i continue to repeatedly press trigger and then it starts
 // shooting again. The firing pause last about a second. I'll hopefully have
 // better context after the next time i start the game as i will try to pay more
-// attention to this issue."
-
-// TODO VR: (P0): "Weapons held at the end of an MP game are still held when
-// the next map loads"
+// attention to this issue." - seems to happen in MP with many bots, not sure
+// why
 
 
-
-// TODO VR: (P1): "Would it be possible to make the weapon pickup collider a bit
-// taller so that it can be picked without needing to crouch down, and
-// similarly, if holding grab with an empty hand when the hand enters the weapon
-// pickup to then grab the weapon?"
 
 // TODO VR: (P1): "In MP, would it be possible if when spawning and grab is
 // already held, to automatically grab the weapon assigned to the corresponding

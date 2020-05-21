@@ -163,48 +163,24 @@ HIPNOTIC WEAPONS
 
 /*QUAKED weapon_mjolnir (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_mjolnir =
 {
-    precache_model("progs/g_hammer.mdl");
-    setmodel(self, "progs/g_hammer.mdl");
-    self.weapon = WID_MJOLNIR;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.vr_itemId = IID_MJOLNIR;
-    self.handtouch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
-};
+    impl_weapon_item("progs/g_hammer.mdl", WID_MJOLNIR);
+}
 
 /*QUAKED weapon_laser_gun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_laser_gun =
 {
-    precache_model("progs/g_laserg.mdl");
-    setmodel(self, "progs/g_laserg.mdl");
-    self.weapon = WID_LASER_CANNON;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.vr_itemId = IID_LASER_CANNON;
-    self.handtouch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
-};
+    impl_weapon_item("progs/g_laserg.mdl", WID_LASER_CANNON);
+}
 
 /*QUAKED weapon_proximity_gun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
-
 void() weapon_proximity_gun =
 {
-    precache_model("progs/g_prox.mdl");
-    setmodel(self, "progs/g_prox.mdl");
-    self.weapon = WID_PROXIMITY_GUN;
-    self.netname = WeaponIdToWeaponName(self.weapon);
-    self.vr_itemId = IID_PROXIMITY_GUN;
-    self.handtouch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
-};
+    impl_weapon_item("progs/g_prox.mdl", WID_PROXIMITY_GUN);
+}
 
 /*
 ===============================================================================

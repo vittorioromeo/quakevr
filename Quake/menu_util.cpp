@@ -73,8 +73,12 @@ const impl::menu_entry& menu::access(const int idx) const noexcept
 void menu::key_option(const int key, const int idx)
 {
     const bool isLeft = (key == K_LEFTARROW);
-    const auto adjustF = quake::util::makeMenuAdjuster<float>(isLeft);
-    const auto adjustI = quake::util::makeMenuAdjuster<int>(isLeft);
+
+    const auto adjustValueF = quake::util::makeMenuValueAdjuster<float>(isLeft);
+    const auto adjustValueI = quake::util::makeMenuValueAdjuster<int>(isLeft);
+
+    const auto adjustCVarF = quake::util::makeMenuCVarAdjuster<float>(isLeft);
+    const auto adjustCVarI = quake::util::makeMenuCVarAdjuster<int>(isLeft);
 
     assert_valid_idx(idx);
 
@@ -88,18 +92,22 @@ void menu::key_option(const int key, const int idx)
         },
         [&](const impl::menu_entry_cvar<float>& x) {
             const auto& [inc, min, max] = x._bounds;
-            adjustF(*(x._cvar_getter()), inc, min, max);
+            adjustCVarF(*(x._cvar_getter()), inc, min, max);
         },
         [&](const impl::menu_entry_cvar<int>& x) {
             const auto& [inc, min, max] = x._bounds;
-            adjustI(*(x._cvar_getter()), inc, min, max);
+            adjustCVarI(*(x._cvar_getter()), inc, min, max);
         },
         [&](const impl::menu_entry_cvar<bool>& x) {
-            adjustI(*(x._cvar_getter()), 1, 0, 1);
+            adjustCVarI(*(x._cvar_getter()), 1, 0, 1);
         },
         [&](const impl::menu_entry_value_labeled_cvar<int>& x) {
             const auto& [inc, min, max] = x._bounds;
-            adjustI(*(x._cvar_getter()), inc, min, max);
+            adjustCVarI(*(x._cvar_getter()), inc, min, max);
+        },
+        [&](const impl::menu_entry_value_labeled<int>& x) {
+            const auto& [inc, min, max] = x._bounds;
+            adjustValueI(*(x._getter()), inc, min, max);
         },
         [&](const impl::menu_entry_action& x) { x._action(); },
         [&](const impl::menu_entry_action_slider& x) {
@@ -428,6 +436,11 @@ void menu::draw()
                 print_label(e_label);
                 print_as_str(entry._value_label_fn(
                     static_cast<int>(entry._cvar_getter()->value)));
+            },
+            [&](const impl::menu_entry_value_labeled<int>& entry) {
+                print_label(e_label);
+                print_as_str(
+                    entry._value_label_fn(static_cast<int>(*entry._getter())));
             },
             [&](const impl::menu_entry_action&) {
                 print_label(e_label);

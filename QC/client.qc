@@ -2590,7 +2590,7 @@ void() PlayerVRMeleeHeadbutt =
         vector adjOrigin;
         adjOrigin = self.origin + '0 0 25';
 
-        traceline(adjOrigin, adjOrigin + dir * VRMeleeRange(26), FALSE, self);
+        traceline(adjOrigin, adjOrigin + dir * VRMeleeRange(28), FALSE, self);
 
         if(trace_fraction != 1.0)
         {

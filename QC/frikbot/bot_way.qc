@@ -207,14 +207,10 @@ Finds the closest, fisible, waypoint to e
 
 entity(entity start) FindWayPoint =
 {
-    entity t;
-    vector org;
-    float dst, tdst;
+    vector org = realorigin(self);
+
+    float dst;
     entity best;
-
-    org = realorigin(self);
-
-    t = way_head;
     if(start != world)
     {
         dst = vlen(start.origin - org);
@@ -225,14 +221,20 @@ entity(entity start) FindWayPoint =
         dst = 100000;
         best = world;
     }
-    while(t)
+
+    float iterations = 0;
+
+    for(entity t = way_head; t; t = t._next)
     {
         // real players cut through ignore types
         if(dst < 20)
+        {
             return best;
+        }
+
         if(!(t.b_aiflags & AI_IGNORE_TYPES) || self.ishuman)
         {
-            tdst = vlen(t.origin - org);
+            float tdst = vlen(t.origin - org);
             if(tdst < dst)
             {
                 if(sisible(t))
@@ -242,8 +244,8 @@ entity(entity start) FindWayPoint =
                 }
             }
         }
-        t = t._next;
     }
+
     return best;
 };
 

@@ -36,6 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <cmath>
 #include <glm/gtx/rotate_vector.hpp>
+#include "quakeglm_qquat.hpp"
 
 #define STRINGTEMP_BUFFERS 32
 #define STRINGTEMP_LENGTH 1024
@@ -1381,13 +1382,28 @@ static void PF_rotatevec()
     const qvec3 upx = extractVector(OFS_PARM1);
     const float angle = glm::radians(G_FLOAT(OFS_PARM2));
 
-    // TODO VR: (P0): fix this. consider checking QSS source code for rotation
-    // code
+    auto rers =
+        glm::normalize(vec + glm::vec3{0.0, 0.0, std::abs(std::tan(angle))});
+    returnVector(rers);
+    return;
 
     // up direction:
     glm::vec3 up(0.0, 0.0, 1.0);
     // find right vector:
     auto right = glm::cross(glm::normalize(vec), glm::normalize(up));
+
+    qquat m;
+    m = glm::rotate(m, angle, right);
+    m = glm::normalize(m);
+
+    qvec3 rr = m * vec;
+    returnVector(rr);
+    return;
+
+    // TODO VR: (P0): fix this. consider checking QSS source code for rotation
+    // code
+
+
 
     glm::mat4 rotationMat(1); // Creates a identity matrix
     rotationMat = glm::rotate(rotationMat, angle, right);
@@ -1408,6 +1424,11 @@ static void PF_cos()
     G_FLOAT(OFS_RETURN) = std::cos(glm::radians(G_FLOAT(OFS_PARM0)));
 }
 
+static void PF_tan()
+{
+    G_FLOAT(OFS_RETURN) = std::tan(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
 static void PF_asin()
 {
     G_FLOAT(OFS_RETURN) = glm::degrees(std::asin(G_FLOAT(OFS_PARM0)));
@@ -1417,6 +1438,24 @@ static void PF_acos()
 {
     G_FLOAT(OFS_RETURN) = glm::degrees(std::acos(G_FLOAT(OFS_PARM0)));
 }
+
+static void PF_atan()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::atan(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_sqrt()
+{
+    G_FLOAT(OFS_RETURN) = std::sqrt(G_FLOAT(OFS_PARM0));
+}
+
+
+static void PF_atan2()
+{
+    G_FLOAT(OFS_RETURN) =
+        glm::degrees(std::atan2(G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1)));
+}
+
 
 /*
 =================
@@ -2370,6 +2409,12 @@ static builtin_t pr_builtin[] = {
 
     PF_asin, // #104
     PF_acos, // #105
+
+    PF_tan,  // #106
+    PF_atan, // #107
+
+    PF_sqrt,  // #108
+    PF_atan2, // #109
 };
 
 builtin_t* pr_builtins = pr_builtin;
