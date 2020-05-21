@@ -723,7 +723,7 @@ void CL_ParseUpdate(int bits)
             b = MSG_ReadFloat(); // alpha
             if(a == 2)
             {
-                (void) MSG_ReadFloat(); // fullbright (not using this yet)
+                (void)MSG_ReadFloat(); // fullbright (not using this yet)
             }
             ent->alpha = ENTALPHA_ENCODE(b);
         }
@@ -1291,11 +1291,6 @@ void CL_ParseServerMessage()
                          //
     MSG_BeginReading();
 
-    const auto validWTH = [&](const WorldTextHandle wth) {
-        return (cl.worldTexts.size() < maxWorldTextInstances) &&
-               (static_cast<WorldTextHandle>(cl.worldTexts.size()) > wth);
-    };
-
     lastcmd = 0;
     while(true)
     {
@@ -1606,65 +1601,34 @@ void CL_ParseServerMessage()
                 CL_ParseStaticSound(2);
                 break;
                 // johnfitz
-                // TODO VR: (P0) worldtext cleaup
+
             case svc_worldtext_hmake:
             {
-                const WorldTextHandle wth = MSG_ReadShort();
-                cl.worldTexts.resize(wth + 1);
-
+                cl.OnMsg_WorldTextHMake();
                 break;
             }
-                // TODO VR: (P0) worldtext cleaup
+
             case svc_worldtext_hsettext:
             {
-                const WorldTextHandle wth = MSG_ReadShort();
-                const char* str = MSG_ReadString();
-
-                if(validWTH(wth))
-                {
-                    cl.worldTexts[wth]._text = str;
-                }
-
+                cl.OnMsg_WorldTextHSetText();
                 break;
             }
-                // TODO VR: (P0) worldtext cleaup
+
             case svc_worldtext_hsetpos:
             {
-                const WorldTextHandle wth = MSG_ReadShort();
-                const qvec3 v = MSG_ReadVec3(cl.protocolflags);
-
-                if(validWTH(wth))
-                {
-                    cl.worldTexts[wth]._pos = v;
-                }
-
+                cl.OnMsg_WorldTextHSetPos();
                 break;
             }
-                // TODO VR: (P0) worldtext cleaup
+
             case svc_worldtext_hsetangles:
             {
-                const WorldTextHandle wth = MSG_ReadShort();
-                const qvec3 v = MSG_ReadVec3(cl.protocolflags);
-
-                if(validWTH(wth))
-                {
-                    cl.worldTexts[wth]._angles = v;
-                }
-
+                cl.OnMsg_WorldTextHSetAngles();
                 break;
             }
-                // TODO VR: (P0) worldtext cleaup
+
             case svc_worldtext_hsethalign:
             {
-                const WorldTextHandle wth = MSG_ReadShort();
-                const auto b = MSG_ReadByte();
-                const auto v = static_cast<WorldText::HAlign>(b);
-
-                if(validWTH(wth))
-                {
-                    cl.worldTexts[wth]._hAlign = v;
-                }
-
+                cl.OnMsg_WorldTextHSetHAlign();
                 break;
             }
         }

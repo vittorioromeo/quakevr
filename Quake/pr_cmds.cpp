@@ -1179,136 +1179,108 @@ static void PF_cvar_hset()
     Cvar_SetValueFromHandle(G_INT(OFS_PARM0), G_FLOAT(OFS_PARM1));
 }
 
-static void PF_worldtext_hmake()
+template <typename F>
+static void forAllActiveOrSpawnedClients(F&& f)
 {
-    // TODO VR: (P0) worldtext cleanup
-    if(sv.freeWorldTextHandles.size() == 0)
-    {
-        Host_Error("TODO VR: (P0)");
-        return;
-    }
-
-    const WorldTextHandle wth = sv.freeWorldTextHandles.back();
-    sv.freeWorldTextHandles.pop_back();
-    sv.worldTexts.resize(wth + 1);
-
     for(int i = 0; i < svs.maxclients; i++)
     {
         client_t& client = svs.clients[i];
 
         if(client.active || client.spawned)
         {
-            MSG_WriteByte(&client.message, svc_worldtext_hmake);
-            MSG_WriteShort(&client.message, wth);
+            f(client);
         }
     }
+}
+
+static void PF_worldtext_hmake()
+{
+    if(!sv.hasAnyFreeWorldTextHandle())
+    {
+        Host_Error("No free world text handles available");
+        return;
+    }
+
+    const WorldTextHandle wth = sv.makeWorldTextHandle();
+
+    forAllActiveOrSpawnedClients(
+        [&](client_t& client) { sv.SendMsg_WorldTextHMake(client, wth); });
 
     G_INT(OFS_RETURN) = wth;
 }
-// TODO VR: (P0) worldtext cleaup
+
 static void PF_worldtext_hsettext()
 {
-    // TODO VR: (P0) worldtext cleanup
     const WorldTextHandle wth = G_INT(OFS_PARM0);
     const char* text = G_STRING(OFS_PARM1);
 
-    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    if(!sv.isValidWorldTextHandle(wth))
     {
-        Host_Error("TODO VR: (P0)");
+        Host_Error("Invalid world text handle '%d'", wth);
         return;
     }
 
-    sv.worldTexts[wth]._text = text;
+    sv.getWorldText(wth)._text = text;
 
-    for(int i = 0; i < svs.maxclients; i++)
-    {
-        client_t& client = svs.clients[i];
-
-        if(client.active || client.spawned)
-        {
-            MSG_WriteByte(&client.message, svc_worldtext_hsettext);
-            MSG_WriteShort(&client.message, wth);
-            MSG_WriteString(&client.message, text);
-        }
-    }
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetText(client, wth, text);
+    });
 }
-// TODO VR: (P0) worldtext cleaup
+
 static void PF_worldtext_hsetpos()
 {
     const WorldTextHandle wth = G_INT(OFS_PARM0);
     const qvec3 pos = extractVector(OFS_PARM1);
 
-    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    if(!sv.isValidWorldTextHandle(wth))
     {
-        Host_Error("TODO VR: (P0)");
+        Host_Error("Invalid world text handle '%d'", wth);
         return;
     }
 
-    sv.worldTexts[wth]._pos = pos;
+    sv.getWorldText(wth)._pos = pos;
 
-    for(int i = 0; i < svs.maxclients; i++)
-    {
-        client_t& client = svs.clients[i];
-
-        if(client.active || client.spawned)
-        {
-            MSG_WriteByte(&client.message, svc_worldtext_hsetpos);
-            MSG_WriteShort(&client.message, wth);
-            MSG_WriteVec3(&client.message, pos, sv.protocolflags);
-        }
-    }
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetPos(client, wth, pos);
+    });
 }
-// TODO VR: (P0) worldtext cleaup
+
 static void PF_worldtext_hsetangles()
 {
     const WorldTextHandle wth = G_INT(OFS_PARM0);
     const qvec3 angles = extractVector(OFS_PARM1);
 
-    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    if(!sv.isValidWorldTextHandle(wth))
     {
-        Host_Error("TODO VR: (P0)");
+        Host_Error("Invalid world text handle '%d'", wth);
         return;
     }
 
-    sv.worldTexts[wth]._angles = angles;
+    sv.getWorldText(wth)._angles = angles;
 
-    for(int i = 0; i < svs.maxclients; i++)
-    {
-        client_t& client = svs.clients[i];
-
-        if(client.active || client.spawned)
-        {
-            MSG_WriteByte(&client.message, svc_worldtext_hsetangles);
-            MSG_WriteShort(&client.message, wth);
-            MSG_WriteVec3(&client.message, angles, sv.protocolflags);
-        }
-    }
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetAngles(client, wth, angles);
+    });
 }
-// TODO VR: (P0) worldtext cleaup
+
 static void PF_worldtext_hsethalign()
 {
     const WorldTextHandle wth = G_INT(OFS_PARM0);
-    const float hAlign = G_FLOAT(OFS_PARM1);
+    const float hAlignFloat = G_FLOAT(OFS_PARM1);
 
-    if(static_cast<int>(sv.freeWorldTextHandles.size()) < wth)
+    if(!sv.isValidWorldTextHandle(wth))
     {
-        Host_Error("TODO VR: (P0)");
+        Host_Error("Invalid world text handle '%d'", wth);
         return;
     }
 
-    sv.worldTexts[wth]._hAlign = static_cast<WorldText::HAlign>(hAlign);
+    const auto hAlign = static_cast<WorldText::HAlign>(hAlignFloat);
 
-    for(int i = 0; i < svs.maxclients; i++)
-    {
-        client_t& client = svs.clients[i];
+    sv.getWorldText(wth)._hAlign = hAlign;
 
-        if(client.active || client.spawned)
-        {
-            MSG_WriteByte(&client.message, svc_worldtext_hsethalign);
-            MSG_WriteShort(&client.message, wth);
-            MSG_WriteByte(&client.message, hAlign);
-        }
-    }
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetHAlign(client, wth, hAlign);
+    });
 }
 
 static void PF_strlen()
@@ -1376,7 +1348,7 @@ static void PF_calcthrowangle()
         glm::degrees(std::atan2(((v * v) - std::sqrt(xSqrt)), (g * x)));
 }
 
-static void PF_rotatevec()
+static void PF_rotate(Pvec()
 {
     const qvec3 vec = extractVector(OFS_PARM0);
     const qvec3 upx = extractVector(OFS_PARM1);

@@ -1967,31 +1967,18 @@ void Host_Spawn_f()
     MSG_WriteByte(&host_client->message, 3);
     host_client->sendsignon = true;
 
-    // TODO VR: (P0) worldtext cleaup
-    WorldTextHandle wth = 0;
-    for(const WorldText& wt : sv.worldTexts)
     {
-        MSG_WriteByte(&host_client->message, svc_worldtext_hmake);
-        MSG_WriteShort(&host_client->message, wth);
+        WorldTextHandle wth = 0;
+        for(const WorldText& wt : sv.worldTexts)
+        {
+            sv.SendMsg_WorldTextHMake(*host_client, wth);
+            sv.SendMsg_WorldTextHSetText(*host_client, wth, wt._text.data());
+            sv.SendMsg_WorldTextHSetPos(*host_client, wth, wt._pos);
+            sv.SendMsg_WorldTextHSetAngles(*host_client, wth, wt._angles);
+            sv.SendMsg_WorldTextHSetHAlign(*host_client, wth, wt._hAlign);
 
-        MSG_WriteByte(&host_client->message, svc_worldtext_hsettext);
-        MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteString(&host_client->message, wt._text.data());
-
-        MSG_WriteByte(&host_client->message, svc_worldtext_hsetpos);
-        MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteVec3(&host_client->message, wt._pos, sv.protocolflags);
-
-        MSG_WriteByte(&host_client->message, svc_worldtext_hsetangles);
-        MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteVec3(&host_client->message, wt._angles, sv.protocolflags);
-
-        MSG_WriteByte(&host_client->message, svc_worldtext_hsethalign);
-        MSG_WriteShort(&host_client->message, wth);
-        MSG_WriteChar(
-            &host_client->message, static_cast<std::uint8_t>(wt._hAlign));
-
-        ++wth;
+            ++wth;
+        }
     }
 }
 

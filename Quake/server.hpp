@@ -41,7 +41,7 @@ typedef struct
 {
     int maxclients;
     int maxclientslimit;
-    struct client_s* clients; // [maxclients]
+    struct client_t* clients; // [maxclients]
     int serverflags;          // episode completion information
     bool changelevel_issued;  // cleared when at SV_SpawnServer
 } server_static_t;
@@ -54,7 +54,7 @@ typedef enum
     ss_active
 } server_state_t;
 
-typedef struct
+struct server_t
 {
     bool active; // false if only a net client
 
@@ -95,13 +95,39 @@ typedef struct
 
     std::vector<WorldText> worldTexts;
     std::vector<WorldTextHandle> freeWorldTextHandles;
-} server_t;
 
+    [[nodiscard]] bool isValidWorldTextHandle(
+        const WorldTextHandle wth) const noexcept;
+
+    [[nodiscard]] bool hasAnyFreeWorldTextHandle() const noexcept;
+
+    [[nodiscard]] WorldTextHandle makeWorldTextHandle() noexcept;
+
+    [[nodiscard]] WorldText& getWorldText(const WorldTextHandle wth) noexcept;
+
+    void initializeWorldTexts();
+
+    // World text "server -> client" messages
+    void SendMsg_WorldTextHMake(
+        client_t& client, const WorldTextHandle wth) noexcept;
+
+    void SendMsg_WorldTextHSetText(client_t& client, const WorldTextHandle wth,
+        const char* const text) noexcept;
+
+    void SendMsg_WorldTextHSetPos(client_t& client, const WorldTextHandle wth,
+        const qvec3& pos) noexcept;
+
+    void SendMsg_WorldTextHSetAngles(client_t& client,
+        const WorldTextHandle wth, const qvec3& angles) noexcept;
+
+    void SendMsg_WorldTextHSetHAlign(client_t& client,
+        const WorldTextHandle wth, const WorldText::HAlign hAlign) noexcept;
+};
 
 #define NUM_PING_TIMES 16
 #define NUM_SPAWN_PARMS 32
 
-typedef struct client_s
+struct client_t
 {
     bool active;     // false = client is free
     bool spawned;    // false = don't send datagrams
@@ -113,7 +139,7 @@ typedef struct client_s
 
     struct qsocket_s* netconnection; // communications handle
 
-    usercmd_t cmd;     // movement
+    usercmd_t cmd; // movement
     qvec3 wishdir; // intended motion calced from cmd
 
     sizebuf_t message; // can be added to at any time,
@@ -131,7 +157,7 @@ typedef struct client_s
 
     // client known data for deltas
     int old_frags;
-} client_t;
+};
 
 
 //=============================================================================
@@ -221,10 +247,10 @@ extern edict_t* sv_player;
 
 void SV_Init();
 
-void SV_StartParticle(const qvec3& org, const qvec3& dir,
-    const int color, const int count);
-void SV_StartParticle2(const qvec3& org, const qvec3& dir,
-    const int preset, const int count);
+void SV_StartParticle(
+    const qvec3& org, const qvec3& dir, const int color, const int count);
+void SV_StartParticle2(
+    const qvec3& org, const qvec3& dir, const int preset, const int count);
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation);
 
