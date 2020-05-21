@@ -2016,12 +2016,8 @@ void SV_SpawnServer(const char* server, const bool fromSaveFile)
     //
     SV_ClearWorld();
 
-    // TODO VR: (P0) worldtext cleanup
-    sv.worldTexts.clear();
-    for(std::size_t i = 0; i < maxWorldTextInstances; ++i)
-    {
-        sv.freeWorldTextHandles.emplace_back(maxWorldTextInstances - 1 - i);
-    }
+    // Initialize world text handles and buffers
+    sv.initializeWorldTexts();
 
     sv.sound_precache[0] = dummy;
     sv.model_precache[0] = dummy;

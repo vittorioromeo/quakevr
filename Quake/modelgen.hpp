@@ -31,22 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // * pass data from one to the other via model files.      *
 // *********************************************************
 
-#ifdef INCLUDELIBS
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <cstring>
-
-#include "cmdlib.hpp"
-#include "scriplib.hpp"
-#include "trilib.hpp"
-#include "lbmlib.hpp"
-#include "mathlib.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "q_stdinc.hpp"
-
-#endif
 
 #define ALIAS_VERSION 6
 

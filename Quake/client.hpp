@@ -273,6 +273,15 @@ struct client_state_t
     unsigned protocolflags;
 
     std::vector<WorldText> worldTexts;
+
+    [[nodiscard]] bool isValidWorldTextHandle(
+        const WorldTextHandle wth) const noexcept;
+
+    void OnMsg_WorldTextHMake() noexcept;
+    void OnMsg_WorldTextHSetText() noexcept;
+    void OnMsg_WorldTextHSetPos() noexcept;
+    void OnMsg_WorldTextHSetAngles() noexcept;
+    void OnMsg_WorldTextHSetHAlign() noexcept;
 };
 
 template <typename F>
@@ -473,5 +482,5 @@ struct trace_t;
 [[nodiscard]] trace_t TraceLine(const qvec3& start, const qvec3& end);
 [[nodiscard]] trace_t TraceLineToEntity(
     const qvec3& start, const qvec3& end, edict_t* ent);
-void Chase_UpdateForClient();                                 // johnfitz
+void Chase_UpdateForClient();                                     // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz

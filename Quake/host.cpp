@@ -320,7 +320,7 @@ void Host_FindMaxClients()
     {
         svs.maxclientslimit = 16;
     }
-    svs.clients = (struct client_s*)Hunk_AllocName(
+    svs.clients = (struct client_t*)Hunk_AllocName(
         svs.maxclientslimit * sizeof(client_t), "clients");
 
     if(svs.maxclients > 1)
