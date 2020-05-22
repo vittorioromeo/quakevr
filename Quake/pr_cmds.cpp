@@ -924,7 +924,7 @@ scalar checkpos (entity, vector)
 =================
 */
 #if 0
-static void PF_checkpos(void)
+static void PF_checkpos()
 {
 }
 #endif

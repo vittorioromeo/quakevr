@@ -121,7 +121,7 @@ static cvar_t in_disablemacosxmouseaccel = {
     "in_disablemacosxmouseaccel", "1", CVAR_ARCHIVE};
 static double originalMouseSpeed = -1.0;
 
-static io_connect_t IN_GetIOHandle(void)
+static io_connect_t IN_GetIOHandle()
 {
     io_connect_t iohandle = MACH_PORT_NULL;
     io_service_t iohidsystem = MACH_PORT_NULL;
@@ -142,7 +142,7 @@ static io_connect_t IN_GetIOHandle(void)
     return iohandle;
 }
 
-static void IN_DisableOSXMouseAccel(void)
+static void IN_DisableOSXMouseAccel()
 {
     io_connect_t mouseDev = IN_GetIOHandle();
     if(mouseDev != 0)
@@ -179,7 +179,7 @@ static void IN_DisableOSXMouseAccel(void)
     }
 }
 
-static void IN_ReenableOSXMouseAccel(void)
+static void IN_ReenableOSXMouseAccel()
 {
     io_connect_t mouseDev = IN_GetIOHandle();
     if(mouseDev != 0)

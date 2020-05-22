@@ -48,6 +48,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 #include "sys.hpp"
 #include "draw.hpp"
+#include "q_ctype.hpp"
 
 int con_linewidth;
 
@@ -71,6 +72,12 @@ cvar_t con_notifytime = {"con_notifytime", "3", CVAR_NONE};         // seconds
 cvar_t con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; // johnfitz
 
 char con_lastcenterstring[1024]; // johnfitz
+
+// QSS
+void (*con_redirect_flush)(
+    const char* buffer); // call this to flush the redirection buffer (for rcon)
+char con_redirect_buffer[8192];
+
 
 #define NUM_CON_TIMES 8
 float con_times[NUM_CON_TIMES]; // realtime time the line was generated
@@ -433,6 +440,18 @@ static void Con_Linefeed()
         con_linewidth);
 }
 
+// QSS
+#define ishex(c) \
+    ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+
+static int dehex(char c)
+{
+    if(c >= '0' && c <= '9') return c - '0';
+    if(c >= 'A' && c <= 'F') return c - ('A' - 10);
+    if(c >= 'a' && c <= 'f') return c - ('a' - 10);
+    return 0;
+}
+
 /*
 ================
 Con_Print
@@ -577,6 +596,11 @@ void Con_Printf(const char* fmt, ...)
     va_start(argptr, fmt);
     q_vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
+
+
+    // QSS
+    if(con_redirect_flush)
+        q_strlcat(con_redirect_buffer, msg, sizeof(con_redirect_buffer));
 
     // also echo to debugging console
     Sys_Printf("%s", msg);
@@ -810,6 +834,25 @@ void Con_LogCenterPrint(const char* str)
     }
 }
 
+// QSS
+bool Con_IsRedirected()
+{
+    return !!con_redirect_flush;
+}
+
+// QSS
+void Con_Redirect(void (*flush)(const char*))
+{
+    if(con_redirect_flush)
+    {
+        con_redirect_flush(con_redirect_buffer);
+    }
+
+    *con_redirect_buffer = 0;
+    con_redirect_flush = flush;
+}
+
+
 /*
 ==============================================================================
 
@@ -832,12 +875,7 @@ tab_t* tablist;
 
 // defs from elsewhere
 extern bool keydown[256];
-typedef struct cmd_function_s
-{
-    struct cmd_function_s* next;
-    const char* name;
-    xcommand_t function;
-} cmd_function_t;
+
 extern cmd_function_t* cmd_functions;
 #define MAX_ALIAS_NAME 32
 typedef struct cmdalias_s
@@ -871,14 +909,17 @@ void AddToTabList(const char* name, const char* type)
     else
     {
         bash_singlematch = 0;
+
         // find max common between bash_partial and name
         char* i_bash = bash_partial;
         const char* i_name = name;
-        while(*i_bash && (*i_bash == *i_name))
+
+        while(*i_bash && (q_tolower(*i_bash) == q_tolower(*i_name))) // QSS
         {
             i_bash++;
             i_name++;
         }
+
         *i_bash = 0;
     }
 
@@ -1019,7 +1060,7 @@ void BuildTabList(const char* partial)
     cvar = Cvar_FindVarAfter("", CVAR_NONE);
     for(; cvar; cvar = cvar->next)
     {
-        if(!Q_strncmp(partial, cvar->name, len))
+        if(!q_strncasecmp(partial, cvar->name, len)) // QSS
         {
             AddToTabList(cvar->name, "cvar");
         }
@@ -1027,7 +1068,8 @@ void BuildTabList(const char* partial)
 
     for(cmd = cmd_functions; cmd; cmd = cmd->next)
     {
-        if(!Q_strncmp(partial, cmd->name, len))
+        if(!q_strncasecmp(partial, cmd->name, len) &&
+            cmd->srctype != src_server) // QSS
         {
             AddToTabList(cmd->name, "command");
         }
@@ -1035,7 +1077,7 @@ void BuildTabList(const char* partial)
 
     for(alias = cmd_alias; alias; alias = alias->next)
     {
-        if(!Q_strncmp(partial, alias->name, len))
+        if(!q_strncasecmp(partial, alias->name, len)) // QSS
         {
             AddToTabList(alias->name, "alias");
         }

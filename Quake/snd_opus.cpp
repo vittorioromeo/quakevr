@@ -72,12 +72,12 @@ static const OpusFileCallbacks opc_qfs = {
     (int (*)(void*, opus_int64, int))opc_fseek, (opus_int64(*)(void*))opc_ftell,
     (int (*)(void*))opc_fclose};
 
-static bool S_OPUS_CodecInitialize(void)
+static bool S_OPUS_CodecInitialize()
 {
     return true;
 }
 
-static void S_OPUS_CodecShutdown(void)
+static void S_OPUS_CodecShutdown()
 {
 }
 

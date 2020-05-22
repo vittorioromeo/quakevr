@@ -381,12 +381,12 @@ static int mp3_madseek(snd_stream_t* stream, unsigned long offset)
     return -1;
 }
 
-static bool S_MP3_CodecInitialize(void)
+static bool S_MP3_CodecInitialize()
 {
     return true;
 }
 
-static void S_MP3_CodecShutdown(void)
+static void S_MP3_CodecShutdown()
 {
 }
 
