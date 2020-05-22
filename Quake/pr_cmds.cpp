@@ -1348,7 +1348,7 @@ static void PF_calcthrowangle()
         glm::degrees(std::atan2(((v * v) - std::sqrt(xSqrt)), (g * x)));
 }
 
-static void PF_rotate(Pvec()
+static void PF_rotatevec()
 {
     const qvec3 vec = extractVector(OFS_PARM0);
     const qvec3 upx = extractVector(OFS_PARM1);
