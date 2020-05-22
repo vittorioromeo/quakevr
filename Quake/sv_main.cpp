@@ -447,8 +447,16 @@ void SV_ConnectClient(int clientnum)
 
     client_t* client = svs.clients + clientnum;
 
-    Con_DPrintf("Client %s connected\n",
-        NET_QSocketGetAddressString(client->netconnection));
+    // QSS
+    if(client->netconnection)
+    {
+        Con_DPrintf("Client %s connected\n",
+            NET_QSocketGetTrueAddressString(client->netconnection));
+    }
+    else
+    {
+        Con_DPrintf("Bot connected\n");
+    }
 
     int edictnum = clientnum + 1;
 
@@ -456,11 +464,13 @@ void SV_ConnectClient(int clientnum)
 
     // set up the client_t
     struct qsocket_s* netconnection = client->netconnection;
+    ++net_activeconnections;
 
     if(sv.loadgame)
     {
         memcpy(spawn_parms, client->spawn_parms, sizeof(spawn_parms));
     }
+
     memset(client, 0, sizeof(*client));
     client->netconnection = netconnection;
 
@@ -471,6 +481,15 @@ void SV_ConnectClient(int clientnum)
     client->message.data = client->msgbuf;
     client->message.maxsize = sizeof(client->msgbuf);
     client->message.allowoverflow = true; // we can catch it
+
+    // QSS
+    client->datagram.data = client->datagram_buf;
+    client->datagram.maxsize = sizeof(client->datagram_buf);
+    client->datagram.allowoverflow = true; // simply ignored on overflow
+
+    // QSS
+    client->pextknown = false;
+    client->protocol_pext2 = 0;
 
     if(sv.loadgame)
     {
@@ -528,8 +547,6 @@ void SV_CheckForNewClients()
 
         svs.clients[i].netconnection = ret;
         SV_ConnectClient(i);
-
-        net_activeconnections++;
     }
 }
 
@@ -1449,17 +1466,35 @@ SV_SendClientDatagram
 */
 bool SV_SendClientDatagram(client_t* client)
 {
-    byte buf[MAX_DATAGRAM];
+    byte buf[MAX_DATAGRAM + 1000 /* QSS */];
     sizebuf_t msg;
 
+    // QSS
+    if(!client->netconnection)
+    {
+        // botclient, shouldn't be sent anything.
+        SZ_Clear(&client->datagram);
+        return true;
+    }
+
+    msg.allowoverflow = false; // QSS
     msg.data = buf;
     msg.maxsize = sizeof(buf);
     msg.cursize = 0;
 
+    // QSS
+    /* TODO VR: (P0) QSS merge
+    if(client->download.file)
+    {
+        msg.maxsize /= 2; // make sure there's space for download data
+    }
+    */
+
+
     // johnfitz -- if client is nonlocal, use smaller max size so
     // packets aren't fragmented
-    if(Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") !=
-        0)
+    if(Q_strcmp(NET_QSocketGetTrueAddressString(client->netconnection),
+           "LOCAL") != 0)
     {
         msg.maxsize = DATAGRAM_MTU;
     }

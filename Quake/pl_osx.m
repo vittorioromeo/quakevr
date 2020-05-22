@@ -29,17 +29,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #import <Cocoa/Cocoa.h>
 
-void PL_SetWindowIcon(void)
+void PL_SetWindowIcon();
 {
     /* nothing to do on OS X */
 }
 
-void PL_VID_Shutdown(void)
+void PL_VID_Shutdown();
 {
 }
 
 #define MAX_CLIPBOARDTXT MAXCMDLINE /* 256 */
-char* PL_GetClipboardData(void)
+char* PL_GetClipboardData();
 {
     char* data = nullptr;
     NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];

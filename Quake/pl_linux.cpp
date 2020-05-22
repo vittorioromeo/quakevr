@@ -31,7 +31,7 @@ static const Uint8 bmp_bytes[] = {
 #include "qs_bmp.hpp"
 };
 
-void PL_SetWindowIcon(void)
+void PL_SetWindowIcon();
 {
     SDL_RWops* rwop;
     SDL_Surface* icon;
@@ -49,12 +49,12 @@ void PL_SetWindowIcon(void)
     SDL_FreeSurface(icon);
 }
 
-void PL_VID_Shutdown(void)
+void PL_VID_Shutdown();
 {
 }
 
 #define MAX_CLIPBOARDTXT MAXCMDLINE /* 256 */
-char* PL_GetClipboardData(void)
+char* PL_GetClipboardData();
 {
     char* data = nullptr;
     char* cliptext = SDL_GetClipboardText();

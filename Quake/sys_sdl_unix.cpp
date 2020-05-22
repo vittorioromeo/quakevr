@@ -50,7 +50,7 @@ cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 static FILE* sys_handles[MAX_HANDLES];
 
 
-static int findhandle(void)
+static int findhandle();
 {
     int i;
 
@@ -149,7 +149,7 @@ int Sys_FileTime(const char* path)
 
 
 #if defined(__linux__) || defined(__sun) || defined(sun) || defined(_AIX)
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     int numcpus = sysconf(_SC_NPROCESSORS_ONLN);
     return (numcpus < 1) ? 1 : numcpus;
@@ -160,7 +160,7 @@ static int Sys_NumCPUs(void)
 #if !defined(HW_AVAILCPU) /* using an ancient SDK? */
 #define HW_AVAILCPU 25    /* needs >= 10.2 */
 #endif
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     int numcpus;
     int mib[2];
@@ -183,7 +183,7 @@ static int Sys_NumCPUs(void)
 }
 
 #elif defined(__sgi) || defined(sgi) || defined(__sgi__) /* IRIX */
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     int numcpus = sysconf(_SC_NPROC_ONLN);
     if(numcpus < 1) numcpus = 1;
@@ -192,7 +192,7 @@ static int Sys_NumCPUs(void)
 
 #elif defined(PLATFORM_BSD)
 #include <sys/sysctl.h>
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     int numcpus;
     int mib[2];
@@ -211,14 +211,14 @@ static int Sys_NumCPUs(void)
 
 #elif defined(__hpux) || defined(__hpux__) || defined(_hpux)
 #include <sys/mpctl.h>
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     int numcpus = mpctl(MPC_GETNUMSPUS, nullptr, nullptr);
     return numcpus;
 }
 
 #else /* unknown OS */
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs();
 {
     return -2;
 }
@@ -316,7 +316,7 @@ static void Sys_GetBasedir(char* argv0, char* dst, size_t dstsize)
 }
 #endif
 
-void Sys_Init(void)
+void Sys_Init();
 {
     memset(cwd, 0, sizeof(cwd));
     Sys_GetBasedir(host_parms->argv[0], cwd, sizeof(cwd));
@@ -382,14 +382,14 @@ void Sys_Printf(const char* fmt, ...)
     va_end(argptr);
 }
 
-void Sys_Quit(void)
+void Sys_Quit();
 {
     Host_Shutdown();
 
     exit(0);
 }
 
-double Sys_DoubleTime(void)
+double Sys_DoubleTime();
 {
     // QSS
 #if 1
@@ -400,7 +400,7 @@ double Sys_DoubleTime(void)
 #endif
 }
 
-const char* Sys_ConsoleInput(void)
+const char* Sys_ConsoleInput();
 {
     static char con_text[256];
     static int textlen;
@@ -454,7 +454,7 @@ void Sys_Sleep(unsigned long msecs)
     SDL_Delay(msecs);
 }
 
-void Sys_SendKeyEvents(void)
+void Sys_SendKeyEvents();
 {
     IN_Commands(); // ericw -- allow joysticks to add keys so they can be used
                    // to confirm SCR_ModalMessage

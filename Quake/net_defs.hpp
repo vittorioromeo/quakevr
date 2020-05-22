@@ -33,8 +33,8 @@ struct qsockaddr
     unsigned char qsa_family;
 #else
     short qsa_family;
-#endif /* BSD, sockaddr */
-    unsigned char qsa_data[14];
+#endif                          /* BSD, sockaddr */
+    unsigned char qsa_data[62]; // QSS
 };
 
 #define NET_HEADERSIZE (2 * sizeof(unsigned int))
@@ -122,12 +122,14 @@ CCREP_RULE_INFO
 #define CCREQ_SERVER_INFO 0x02
 #define CCREQ_PLAYER_INFO 0x03
 #define CCREQ_RULE_INFO 0x04
+#define CCREQ_RCON 0x05 // QSS
 
 #define CCREP_ACCEPT 0x81
 #define CCREP_REJECT 0x82
 #define CCREP_SERVER_INFO 0x83
 #define CCREP_PLAYER_INFO 0x84
 #define CCREP_RULE_INFO 0x85
+#define CCREP_RCON 0x86 // QSS
 
 typedef struct qsocket_s
 {
@@ -135,6 +137,10 @@ typedef struct qsocket_s
     double connecttime;
     double lastMessageTime;
     double lastSendTime;
+
+    // QSS
+    bool isvirtual; // qsocket is emulated by the network layer (closing will
+                    // not close any system sockets).
 
     bool disconnected;
     bool canSend;
@@ -159,6 +165,19 @@ typedef struct qsocket_s
     struct qsockaddr addr;
     char address[NET_NAMELEN];
 
+    // QSS
+    char trueaddress[NET_NAMELEN];   // lazy address string
+    char maskedaddress[NET_NAMELEN]; // addresses for this player that may be
+                                     // displayed publically
+
+    // QSS
+    bool proquake_angle_hack; // 1 if we're trying, 2 if the server acked.
+    int max_datagram; // 32000 for local, 1442 for 666, 1024 for 15. this is for
+                      // reliable fragments.
+
+    // QSS
+    int pending_max_datagram; // don't change the mtu if we're resending, as
+                              // that would confuse the peer.
 } qsocket_t;
 
 extern qsocket_t* net_activeSockets;
@@ -172,7 +191,8 @@ typedef struct
     sys_socket_t controlSock;
     sys_socket_t (*Init)();
     void (*Shutdown)();
-    void (*Listen)(bool state);
+    sys_socket_t (*Listen)(bool state);                              // QSS
+    int (*QueryAddresses)(qhostaddr_t* addresses, int maxaddresses); // QSS
     sys_socket_t (*Open_Socket)(int port);
     int (*Close_Socket)(sys_socket_t socketid);
     int (*Connect)(sys_socket_t socketid, struct qsockaddr* addr);
@@ -182,7 +202,7 @@ typedef struct
     int (*Write)(
         sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);
     int (*Broadcast)(sys_socket_t socketid, byte* buf, int len);
-    const char* (*AddrToString)(struct qsockaddr* addr);
+    const char* (*AddrToString)(struct qsockaddr* addr, bool masked); // QSS
     int (*StringToAddr)(const char* string, struct qsockaddr* addr);
     int (*GetSocketAddr)(sys_socket_t socketid, struct qsockaddr* addr);
     int (*GetNameFromAddr)(struct qsockaddr* addr, char* name);
@@ -190,6 +210,8 @@ typedef struct
     int (*AddrCompare)(struct qsockaddr* addr1, struct qsockaddr* addr2);
     int (*GetSocketPort)(struct qsockaddr* addr);
     int (*SetSocketPort)(struct qsockaddr* addr, int port);
+
+    sys_socket_t listeningSock; // QSS
 } net_landriver_t;
 
 #define MAX_NET_DRIVERS 8
@@ -202,9 +224,11 @@ typedef struct
     bool initialized;
     int (*Init)();
     void (*Listen)(bool state);
-    void (*SearchForHosts)(bool xmit);
+    int (*QueryAddresses)(qhostaddr_t* addresses, int maxaddresses); // QSS
+    bool (*SearchForHosts)(bool xmit);                               // QSS
     qsocket_t* (*Connect)(const char* host);
     qsocket_t* (*CheckNewConnections)();
+    qsocket_t* (*QGetAnyMessage)(); // QSS
     int (*QGetMessage)(qsocket_t* sock);
     int (*QSendMessage)(qsocket_t* sock, sizebuf_t* data);
     int (*SendUnreliableMessage)(qsocket_t* sock, sizebuf_t* data);
@@ -231,14 +255,14 @@ qsocket_t* NET_NewQSocket();
 void NET_FreeQSocket(qsocket_t*);
 double SetNetTime();
 
-
-#define HOSTCACHESIZE 8
+// QSS
+#define HOSTCACHESIZE 128 // fixme: make dynamic.
 
 typedef struct
 {
     char name[16];
     char map[16];
-    char cname[32];
+    char cname[NET_NAMELEN]; // QSS
     int users;
     int maxusers;
     int driver;
@@ -246,7 +270,7 @@ typedef struct
     struct qsockaddr addr;
 } hostcache_t;
 
-extern int hostCacheCount;
+extern size_t hostCacheCount; // QSS
 extern hostcache_t hostcache[HOSTCACHESIZE];
 
 
@@ -259,4 +283,3 @@ typedef struct _PollProcedure
 } PollProcedure;
 
 void SchedulePollProcedure(PollProcedure* pp, double timeOffset);
-

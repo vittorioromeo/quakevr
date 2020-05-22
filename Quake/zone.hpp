@@ -128,10 +128,10 @@ template <typename T>
     return ptr;
 }
 
-[[nodiscard]] int Hunk_LowMark(void) noexcept;
+[[nodiscard]] int Hunk_LowMark() noexcept;
 void Hunk_FreeToLowMark(const int mark) noexcept;
 
-[[nodiscard]] int Hunk_HighMark(void) noexcept;
+[[nodiscard]] int Hunk_HighMark() noexcept;
 void Hunk_FreeToHighMark(const int mark) noexcept;
 
 void* Hunk_TempAlloc(int size);

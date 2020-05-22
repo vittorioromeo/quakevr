@@ -142,9 +142,11 @@ static_assert(offsetof(struct sockaddr, sa_family) == SA_FAM_OFFSET);
 #if defined(PLATFORM_WINDOWS)
 
 /* NOTE: winsock[2].h already includes windows.h */
-#if !defined(_USE_WINSOCK2)
+#if 0 //! defined(_USE_WINSOCK2)  // QSS
 #include <winsock.h>
 #else
+// winsock2 has been available since win98, and is available as a separate
+// download for win95, which would be needed for any web browsers anyway.
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif

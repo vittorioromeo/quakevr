@@ -44,12 +44,12 @@ static int S_XMP_StartPlay(snd_stream_t* stream)
     return xmp_start_player((xmp_context)stream->priv, stream->info.rate, fmt);
 }
 
-static bool S_XMP_CodecInitialize(void)
+static bool S_XMP_CodecInitialize();
 {
     return true;
 }
 
-static void S_XMP_CodecShutdown(void)
+static void S_XMP_CodecShutdown();
 {
 }
 

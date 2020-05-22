@@ -3611,7 +3611,7 @@ namespace vr
         virtual bool GetPlayAreaRect(HmdQuad_t* rect) = 0;
 
         /** Reload Chaperone data from the .vrchap file on disk. */
-        virtual void ReloadInfo(void) = 0;
+        virtual void ReloadInfo() = 0;
 
         /** Optionally give the chaperone system a hit about the color and
          * brightness in the scene **/

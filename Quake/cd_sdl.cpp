@@ -202,7 +202,7 @@ static int get_first_audiotrk(void)
     return 1;
 }
 
-static void CD_f(void)
+static void CD_f();
 {
     const char* command;
     int ret, n;

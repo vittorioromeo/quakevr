@@ -114,8 +114,8 @@ struct server_t
     void SendMsg_WorldTextHSetText(client_t& client, const WorldTextHandle wth,
         const char* const text) noexcept;
 
-    void SendMsg_WorldTextHSetPos(client_t& client, const WorldTextHandle wth,
-        const qvec3& pos) noexcept;
+    void SendMsg_WorldTextHSetPos(
+        client_t& client, const WorldTextHandle wth, const qvec3& pos) noexcept;
 
     void SendMsg_WorldTextHSetAngles(client_t& client,
         const WorldTextHandle wth, const qvec3& angles) noexcept;
@@ -157,6 +157,32 @@ struct client_t
 
     // client known data for deltas
     int old_frags;
+
+    // QSS
+    sizebuf_t datagram;
+    byte datagram_buf[MAX_DATAGRAM];
+
+    // QSS
+    sizebuf_t reliable_datagram; // copied to all clients at end of frame
+    byte reliable_datagram_buf[MAX_DATAGRAM];
+
+    // QSS
+    sizebuf_t signon;
+    byte signon_buf[MAX_MSGLEN - 2]; // johnfitz -- was 8192, now uses
+                                     // MAX_MSGLEN
+
+    // QSS
+    unsigned protocol; // johnfitz
+    unsigned protocolflags;
+
+    // QSS
+    sizebuf_t
+        multicast; // selectively copied to clients by the multicast builtin
+    byte multicast_buf[MAX_DATAGRAM];
+
+    // QSS
+    bool pextknown;
+    unsigned int protocol_pext2;
 };
 
 
@@ -284,3 +310,5 @@ void SV_CheckForNewClients();
 void SV_RunClients();
 void SV_SaveSpawnparms();
 void SV_SpawnServer(const char* server, const bool fromSaveFile);
+
+void SV_ConnectClient(int clientnum);

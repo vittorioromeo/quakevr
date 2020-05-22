@@ -51,6 +51,12 @@ void Con_DrawNotify();
 void Con_ClearNotify();
 void Con_ToggleConsole_f();
 
+// QSS
+bool Con_IsRedirected(); // returns true if its redirected. this generally means
+                         // that things are a little more verbose.
+void Con_Redirect(void (*flush)(const char* text));
+
+
 void Con_NotifyBox(const char* text); // during startup for sound / cd warnings
 
 void Con_Show();
