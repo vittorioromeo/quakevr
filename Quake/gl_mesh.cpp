@@ -24,7 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "glquake.hpp"
-
+#include "client.hpp"
+#include "gl_texmgr.hpp"
+#include "console.hpp"
 
 /*
 =================================================================

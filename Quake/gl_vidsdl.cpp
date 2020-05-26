@@ -38,6 +38,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.hpp"
 #include "menu.hpp"
 #include "byteorder.hpp"
+#include "sys.hpp"
+#include "screen.hpp"
+#include "input.hpp"
+#include "q_sound.hpp"
+#include "gl_texmgr.hpp"
+#include "draw.hpp"
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>

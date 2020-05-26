@@ -41,6 +41,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.hpp"
 #include "menu.hpp"
 #include "keys.hpp"
+#include "client.hpp"
+#include "input.hpp"
+#include "screen.hpp"
+#include "q_sound.hpp"
+#include "zone.hpp"
+#include "sys.hpp"
+#include "draw.hpp"
 
 int con_linewidth;
 

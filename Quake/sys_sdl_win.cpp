@@ -33,6 +33,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "quakeparms.hpp"
 #include "platform.hpp"
+#include "common.hpp"
+#include "input.hpp"
+#include "sys.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -42,7 +45,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string>
 
 #include <SDL2/SDL.h>
-
 
 bool isDedicated;
 bool Win95, Win95old, WinNT, WinVista;

@@ -35,6 +35,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.hpp"
 #include "quakedef_macros.hpp"
 #include "msg.hpp"
+#include "client.hpp"
+#include "screen.hpp"
+#include "zone.hpp"
+#include "input.hpp"
+#include "q_sound.hpp"
 
 #include <string>
 #include <vector>

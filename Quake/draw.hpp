@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
+#include "screen.hpp"
+
 struct qpic_t;
 
 // draw.h -- these are the only functions outside the refresh allowed

@@ -41,7 +41,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.hpp"
 #include "protocol.hpp"
 #include "msg.hpp"
+#include "client.hpp"
+#include "console.hpp"
 #include "saveutil.hpp"
+#include "sys.hpp"
+#include "server.hpp"
+#include "screen.hpp"
+#include "gl_texmgr.hpp"
+#include "vid.hpp"
+#include "draw.hpp"
+#include "q_sound.hpp"
+#include "input.hpp"
+#include "view.hpp"
 
 /*
 

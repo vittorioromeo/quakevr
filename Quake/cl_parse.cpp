@@ -38,6 +38,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.hpp"
 #include "protocol.hpp"
 #include "msg.hpp"
+#include "sys.hpp"
+#include "server.hpp"
+#include "q_sound.hpp"
+#include "screen.hpp"
+#include "cmd.hpp"
+#include "client.hpp"
 
 #include <limits>
 

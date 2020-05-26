@@ -34,6 +34,10 @@ Foundation, Inc., 59 Temple Place - Suite 430, Boston, MA  02111-1307, USA.
 #include "image.hpp"
 #include "shader.hpp"
 #include "msg.hpp"
+#include "zone.hpp"
+#include "client.hpp"
+#include "gl_texmgr.hpp"
+
 
 #include <algorithm>
 #include <random>

@@ -34,6 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "glquake.hpp"
 #include "msg.hpp"
+#include "sys.hpp"
+#include "cmd.hpp"
 
 #include <cmath>
 #include <glm/gtx/rotate_vector.hpp>

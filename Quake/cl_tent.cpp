@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "glquake.hpp"
 #include "msg.hpp"
+#include "q_sound.hpp"
+#include "client.hpp"
+#include "sys.hpp"
 
 struct qmodel_t;
 

@@ -24,14 +24,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // draw.c -- 2d drawing
 
+#include <GL/glew.h>
+
 #include "quakedef.hpp"
+#include "console.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "quakedef_macros.hpp"
 #include "sbar.hpp"
 #include "wad.hpp"
+#include "gl_texmgr.hpp"
 #include "qpic.hpp"
 #include "glquake.hpp"
+#include "sys.hpp"
+#include "screen.hpp"
+#include "draw.hpp"
+#include "client.hpp"
 
 // extern unsigned char d_15to8table[65536]; //johnfitz -- never used
 

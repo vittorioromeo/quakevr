@@ -32,6 +32,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "gl_model.hpp"
 #include "quakedef_macros.hpp"
+#include "sizebuf.hpp"
+
+#include <vector>
 
 typedef struct
 {

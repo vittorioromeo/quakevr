@@ -29,6 +29,8 @@
 
 #include "quakedef.hpp"
 #include "fshandle.hpp"
+#include "console.hpp"
+#include "common.hpp"
 
 #if defined(USE_CODEC_UMX)
 #include "snd_codec.hpp"

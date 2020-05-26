@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 #include "keys.hpp"
 #include "protocol.hpp"
+#include "input.hpp"
+#include "sys.hpp"
 #include "msg.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
@@ -37,6 +39,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "quakedef_macros.hpp"
 #include "menu.hpp"
+#include "screen.hpp"
+#include "client.hpp"
+#include "sys.hpp"
+#include "sizebuf.hpp"
 
 #include <ctime>
 

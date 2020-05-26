@@ -33,6 +33,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sbar.hpp"
 #include "glquake.hpp"
 #include "shader.hpp"
+#include "sys.hpp"
+#include "gl_texmgr.hpp"
+#include "view.hpp"
+#include "vid.hpp"
+#include "client.hpp"
+#include "q_sound.hpp"
 
 #include <string_view>
 #include <algorithm>

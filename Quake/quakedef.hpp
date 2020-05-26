@@ -23,27 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
-#include "sys.hpp"
-#include "cmd.hpp"
-#include "server.hpp"
-
-#include <SDL2/SDL.h>
-
-#include "console.hpp"
-#include "vid.hpp"
-#include "screen.hpp"
-#include "draw.hpp"
-#include "render.hpp"
-#include "view.hpp"
-#include "q_sound.hpp"
-#include "client.hpp"
-
-#include "gl_model.hpp"
-#include "world.hpp"
-
-#include "gl_texmgr.hpp" //johnfitz
-#include "input.hpp"
-
+#include "cvar.hpp"
+#include "quakeparms.hpp"
+#include "q_stdinc.hpp"
 
 //=============================================================================
 
@@ -71,11 +53,11 @@ extern int host_framecount; // incremented every frame, never reset
 extern double realtime;     // not bounded in any way, changed at
                             // start of every frame, never reset
 
-typedef struct filelist_item_s
+struct filelist_item_t
 {
     char name[32];
-    struct filelist_item_s* next;
-} filelist_item_t;
+    filelist_item_t* next;
+};
 
 extern filelist_item_t* modlist;
 extern filelist_item_t* extralevels;
@@ -88,8 +70,8 @@ void DemoList_Init();
 void DemoList_Rebuild();
 
 extern int current_skill; // skill level for currently loaded level (in case
-                          //  the user changes the cvar while the level is
-                          //  running, this reflects the level actually in use)
+                          // the user changes the cvar while the level is
+                          // running, this reflects the level actually in use)
 
 extern bool isDedicated;
 

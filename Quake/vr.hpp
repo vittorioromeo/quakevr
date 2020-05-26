@@ -3,6 +3,9 @@
 #include "quakedef.hpp"
 #include "openvr.hpp"
 #include "common.hpp"
+#include "gl_model.hpp"
+#include "entity.hpp"
+#include "progs.hpp"
 
 #include <vector>
 #include <string>

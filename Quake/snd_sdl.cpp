@@ -25,6 +25,8 @@ Copyright (C) 2020-2020 Vittorio Romeo
 
 #include "quakedef.hpp"
 #include "console.hpp"
+#include "q_sound.hpp"
+#include "common.hpp"
 
 #include <SDL2/SDL.h>
 
