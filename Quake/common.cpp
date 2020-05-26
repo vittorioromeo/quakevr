@@ -40,6 +40,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "byteorder.hpp"
 #include "vr_cvars.hpp"
+#include "sys.hpp"
+#include "client.hpp"
+#include "draw.hpp"
+#include "gl_texmgr.hpp"
 
 #include <cerrno>
 #include <string_view>

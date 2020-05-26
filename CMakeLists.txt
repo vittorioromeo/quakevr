@@ -56,6 +56,7 @@ set(source_list
     "Quake/r_part.cpp"
     "Quake/r_sprite.cpp"
     "Quake/r_world.cpp"
+    "Quake/saveutil.cpp"
     "Quake/sbar.cpp"
     "Quake/server.cpp"
     "Quake/shader.cpp"

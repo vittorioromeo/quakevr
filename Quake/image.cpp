@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "console.hpp"
 #include "byteorder.hpp"
+#include "common.hpp"
+#include "zone.hpp"
+#include "sys.hpp"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC

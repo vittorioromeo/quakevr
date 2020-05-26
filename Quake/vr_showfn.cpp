@@ -5,6 +5,8 @@
 #include "util.hpp"
 #include "quakeglm.hpp"
 #include "glquake.hpp"
+#include "client.hpp"
+#include "world.hpp"
 
 #include <algorithm>
 #include <cassert>

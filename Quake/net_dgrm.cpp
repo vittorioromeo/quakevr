@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "net_defs.hpp"
 #include "net_dgrm.hpp"
+#include "progs.hpp"
 #include "cmd.hpp"
 #include "common.hpp"
 #include "console.hpp"
@@ -37,6 +38,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "menu.hpp"
 #include "keys.hpp"
 #include "msg.hpp"
+#include "screen.hpp"
+#include "sys.hpp"
+#include "server.hpp"
+#include "vid.hpp"
+#include "input.hpp"
 #include "byteorder.hpp"
 
 // these two macros are to make the code more readable

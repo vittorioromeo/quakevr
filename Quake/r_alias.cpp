@@ -23,13 +23,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // r_alias.c -- alias model rendering
 
+#include <GL/glew.h>
+
 #include "quakeglm.hpp"
+#include "console.hpp"
+#include "gl_texmgr.hpp"
 #include "quakedef.hpp"
 #include "lerpdata.hpp"
 #include "render.hpp"
 #include "glquake.hpp"
 #include "mathlib.hpp"
 #include "quakedef_macros.hpp"
+#include "client.hpp"
 #include "shader.hpp"
 
 extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels,

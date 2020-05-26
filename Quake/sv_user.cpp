@@ -30,6 +30,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net.hpp"
 #include "keys.hpp"
 #include "msg.hpp"
+#include "sys.hpp"
+#include "console.hpp"
+#include "vid.hpp"
+#include "draw.hpp"
+#include "screen.hpp"
+#include "view.hpp"
+#include "cmd.hpp"
 
 #include <iostream>
 

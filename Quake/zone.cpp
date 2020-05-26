@@ -25,9 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 
 #include "quakedef.hpp"
+#include "gl_model.hpp"
 #include "cmd.hpp"
 #include "common.hpp"
 #include "console.hpp"
+#include "sys.hpp"
+#include "gl_texmgr.hpp"
 
 #define DYNAMIC_SIZE \
     (4 * 1024 * 1024) // ericw -- was 512KB (64-bit) / 384KB (32-bit)

@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qvec3_togl.hpp"
 #include "mathlib.hpp"
 #include "glquake.hpp"
+#include "client.hpp"
+#include "draw.hpp"
+#include "view.hpp"
 
 int r_dlightframecount;
 

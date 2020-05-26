@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_loop.hpp"
 #include "console.hpp"
 #include "net.hpp"
+#include "client.hpp"
+#include "sys.hpp"
+#include "server.hpp"
 
 static bool localconnectpending = false;
 static qsocket_t* loop_client = nullptr;

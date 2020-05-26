@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "mathlib.hpp"
 #include "glquake.hpp"
+#include "client.hpp"
+#include "entity.hpp"
+#include "console.hpp"
 
 mnode_t* r_pefragtopnode;
 

@@ -22,7 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
+#include <GL/glew.h>
+
 #include "quakedef_macros.hpp"
+#include "gl_model.hpp"
 
 // gl_texmgr.h -- fitzquake's texture manager. manages opengl texture images
 

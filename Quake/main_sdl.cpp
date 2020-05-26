@@ -29,6 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "common.hpp"
 #include "quakeparms.hpp"
+#include "sys.hpp"
+#include "vid.hpp"
+#include "client.hpp"
+#include "screen.hpp"
 
 #include <SDL2/SDL.h>
 

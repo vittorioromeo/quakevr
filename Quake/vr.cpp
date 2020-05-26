@@ -16,6 +16,9 @@
 #include "sbar.hpp"
 #include "menu.hpp"
 #include "keys.hpp"
+#include "client.hpp"
+#include "draw.hpp"
+#include "cmd.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -23,6 +26,8 @@
 #include <vector>
 #include <tuple>
 #include <string>
+
+#include <SDL2/SDL.h>
 
 #include <glm/gtx/rotate_vector.hpp>
 

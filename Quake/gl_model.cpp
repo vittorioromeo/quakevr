@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "image.hpp"
 #include "glquake.hpp"
 #include "byteorder.hpp"
+#include "gl_texmgr.hpp"
+#include "sys.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags

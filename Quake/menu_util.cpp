@@ -5,6 +5,8 @@
 #include "menu.hpp"
 #include "util.hpp"
 #include "keys.hpp"
+#include "q_sound.hpp"
+#include "input.hpp"
 
 // TODO VR: (P2) forward declaration due to crappy quake header deps
 

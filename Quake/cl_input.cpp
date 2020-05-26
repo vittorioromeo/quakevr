@@ -31,6 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net.hpp"
 #include "mathlib.hpp"
 #include "msg.hpp"
+#include "input.hpp"
+#include "client.hpp"
 
 extern cvar_t cl_maxpitch; // johnfitz -- variable pitch clamping
 extern cvar_t cl_minpitch; // johnfitz -- variable pitch clamping

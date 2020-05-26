@@ -34,6 +34,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_stdinc.hpp"
 #include "vid.hpp"
 #include "client.hpp"
+#include "screen.hpp"
+#include "input.hpp"
+#include "sys.hpp"
 
 /* key up events are sent even if in console mode */
 

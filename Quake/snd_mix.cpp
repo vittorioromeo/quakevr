@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "console.hpp"
+#include "common.hpp"
+#include "q_sound.hpp"
+#include "mathlib.hpp"
 
 #define PAINTBUFFER_SIZE 2048
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
