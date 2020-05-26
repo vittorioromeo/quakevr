@@ -4087,6 +4087,14 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
+// TODO VR: (P0): "I did a big run and it crashed on the last level of an
+// episode and I'd not bothered saving the game for the entire play through and
+// I got grumpy and haven't played for a few days Is autosave a possible
+// feature?"
+
+// TODO VR: (P0): "Quicksave would be better | A hotkey for quicksaving | Maybe
+// a button combo"
+
 // TODO VR: (P0) player death animation is bugged in mp probably has to do with
 // player_run - made some changes, test -> still bugged it seems
 
@@ -4131,7 +4139,30 @@ void VR_OnLoadedPak(pack_t& pak)
 // attention to this issue." - seems to happen in MP with many bots, not sure
 // why
 
+// TODO VR: (P0): (MP) "We tried coop, however the game simply loaded deathmatch
+// I think, no monsters, and weapons spawning on the start map etc."
 
+
+
+// TODO VR: (P1): (MP) "I seem to be inheriting the server settings for a number
+// of client side options, for instance I have immersive mode on and body-item
+// interactions off, but these options were not applied whilst I was a client. I
+// assume server has those settings set according to what I experienced? "
+
+// TODO VR: (P1): (MP) "My axe had no physics collisions, was passing through
+// walls etc, where as server reported he still had collsions"
+
+// TODO VR: (P1): (MP) "Would be cool to render the full scoreboard on the
+// wrist, or maybe the bottom of the hand? I think easy access to ping at least
+// would be very useful to understand the context of MP bugs. Though my ping
+// generally didn't feel too bad, likely under 100ms"
+
+// TODO VR: (P1): (MP) "Jumping seemed very unreliable at times and fairly often
+// just didn't trigger at all, much worse than the latency I was experiencing
+// with weapons and general movement. "
+
+// TODO VR: (P1): (MP) "An easy way to join games would be cool, for instance a
+// numpad on the MP menu? Or a "Paste from clipboard" button, etc. "
 
 // TODO VR: (P1): "In MP, would it be possible if when spawning and grab is
 // already held, to automatically grab the weapon assigned to the corresponding
@@ -4307,3 +4338,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // improvement are quicksave/quickload entries at the top of the pause menu.
 // When I was streaming the game, I meant to save the game, but when I went to
 // go do that, my itchy button thumb accidentally started a new game."
+
+// TODO VR: (P2): "the desktop display has a bit of it cut off from what looks
+// like the console"
