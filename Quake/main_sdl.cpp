@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <cassert>
 #include <string>
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "common.hpp"
 #include "quakeparms.hpp"

@@ -21,7 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
 #include "menu.hpp"
+#include "console.hpp"
 #include "cvar.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
@@ -34,6 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qpic.hpp"
 #include "net.hpp"
 #include "keys.hpp"
+#include "saveutil.hpp"
 
 #include <string>
 #include <string_view>
@@ -42,13 +45,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <tuple>
 #include <cstddef>
 #include <algorithm>
+#include <ctime>
+#include <iomanip>
 
 void (*vid_menucmdfn)(); // johnfitz
 void (*vid_menudrawfn)();
 void (*vid_menukeyfn)(int key);
 
 enum m_state_e m_state;
-
 
 void M_Menu_SinglePlayer_f();
 void M_Menu_NewGame_f();
@@ -65,7 +69,6 @@ void M_Menu_ServerList_f();
 void M_Menu_Keys_f();
 void M_Menu_Video_f();
 void M_Menu_Help_f();
-
 
 void M_Main_Draw();
 void M_SinglePlayer_Draw();
@@ -485,47 +488,8 @@ void M_SinglePlayer_Key(int key)
 //=============================================================================
 /* LOAD/SAVE MENU */
 
-int load_cursor; // 0 < load_cursor < MAX_SAVEGAMES
-
-#define MAX_SAVEGAMES 20 /* johnfitz -- increased from 12 */
-char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
-int loadable[MAX_SAVEGAMES];
-
-void M_ScanSaves()
-{
-    int i;
-
-    int j;
-    char name[MAX_OSPATH];
-    FILE* f;
-    int version;
-
-    for(i = 0; i < MAX_SAVEGAMES; i++)
-    {
-        strcpy(m_filenames[i], "--- UNUSED SLOT ---");
-        loadable[i] = false;
-        q_snprintf(name, sizeof(name), "%s/s%i.sav", com_gamedir, i);
-        f = fopen(name, "r");
-        if(!f)
-        {
-            continue;
-        }
-        fscanf(f, "%i\n", &version);
-        fscanf(f, "%79s\n", name);
-        q_strlcpy(m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
-
-        // change _ back to space
-        for(j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
-        {
-            if(m_filenames[i][j] == '_')
-            {
-                m_filenames[i][j] = ' ';
-            }
-        }
-        loadable[i] = true;
-        fclose(f);
-    }
-}
+std::size_t save_cursor; // 0 < save_cursor < MAX_SAVEGAMES
+std::size_t load_cursor; // 0 < load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES
 
 void M_Menu_NewGame_f()
 {
@@ -548,7 +512,8 @@ void M_Menu_Load_f()
 
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
-    M_ScanSaves();
+
+    quake::saveutil::scanSaves();
 }
 
 void M_Menu_Save_f()
@@ -573,43 +538,60 @@ void M_Menu_Save_f()
 
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
-    M_ScanSaves();
+
+    quake::saveutil::scanSaves();
 }
 
 
 void M_Load_Draw()
 {
-    int i;
-    qpic_t* p;
-
-    p = Draw_CachePic("gfx/p_load.lmp");
+    qpic_t* p = Draw_CachePic("gfx/p_load.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for(i = 0; i < MAX_SAVEGAMES; i++)
+    for(std::size_t i = 0; i < MAX_SAVEGAMES; i++)
     {
-        M_Print(16, 32 + 8 * i, m_filenames[i]);
+        M_Print(16, 32 + 8 * i, quake::saveutil::nthSaveFilename(i));
+    }
+
+    for(std::size_t i = 0; i < MAX_AUTOSAVES; i++)
+    {
+        M_PrintWhite(16, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i, "(AUTO)");
+
+        M_Print(70, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i,
+            quake::saveutil::nthAutosaveFilename(i));
+
+        char buf[24]{'\0'};
+
+        if(quake::saveutil::isNthAutosaveLoadable(i))
+        {
+            std::strftime(buf, sizeof(buf), "%F %T",
+                std::localtime(&quake::saveutil::nthAutosaveTimestamp(i)));
+        }
+
+        M_PrintWhite(370, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i, buf);
     }
 
     // line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+    const int cursorX = (load_cursor < MAX_SAVEGAMES)
+                            ? (32 + load_cursor * 8)
+                            : (32 + (load_cursor + 1) * 8);
+
+    M_DrawCharacter(8, cursorX, 12 + ((int)(realtime * 4) & 1));
 }
 
 
 void M_Save_Draw()
 {
-    int i;
-    qpic_t* p;
-
-    p = Draw_CachePic("gfx/p_save.lmp");
+    qpic_t* p = Draw_CachePic("gfx/p_save.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for(i = 0; i < MAX_SAVEGAMES; i++)
+    for(std::size_t i = 0; i < MAX_SAVEGAMES; i++)
     {
-        M_Print(16, 32 + 8 * i, m_filenames[i]);
+        M_Print(16, 32 + 8 * i, quake::saveutil::nthSaveFilename(i));
     }
 
     // line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+    M_DrawCharacter(8, 32 + save_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 
@@ -623,11 +605,27 @@ void M_Load_Key(int k)
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
+        {
             S_LocalSound("misc/menu2.wav");
-            if(!loadable[load_cursor])
+
+            if(load_cursor < MAX_SAVEGAMES)
             {
-                return;
+                if(!quake::saveutil::isNthSaveLoadable(load_cursor))
+                {
+                    return;
+                }
             }
+            else
+            {
+                assert(load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES);
+
+                if(!quake::saveutil::isNthAutosaveLoadable(
+                       load_cursor - MAX_SAVEGAMES))
+                {
+                    return;
+                }
+            }
+
             m_state = m_none;
             IN_Activate();
             key_dest = key_game;
@@ -637,28 +635,50 @@ void M_Load_Key(int k)
             SCR_BeginLoadingPlaque();
 
             // issue the load command
-            Cbuf_AddText(va("load s%i\n", load_cursor));
+            if(load_cursor < MAX_SAVEGAMES)
+            {
+                Cbuf_AddText(va("load s%i\n", load_cursor));
+            }
+            else
+            {
+                Cbuf_AddText(
+                    va("load_autosave auto%i\n", load_cursor - MAX_SAVEGAMES));
+            }
+
             return;
+        }
 
         case K_UPARROW:
         case K_LEFTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor--;
-            if(load_cursor < 0)
+
+            if(load_cursor == 0)
             {
-                load_cursor = MAX_SAVEGAMES - 1;
+                load_cursor = (MAX_SAVEGAMES + MAX_AUTOSAVES) - 1;
             }
+            else
+            {
+                --load_cursor;
+            }
+
             break;
+        }
 
         case K_DOWNARROW:
         case K_RIGHTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor++;
-            if(load_cursor >= MAX_SAVEGAMES)
+
+            ++load_cursor;
+
+            if(load_cursor >= (MAX_SAVEGAMES + MAX_AUTOSAVES))
             {
                 load_cursor = 0;
             }
+
             break;
+        }
     }
 }
 
@@ -673,31 +693,44 @@ void M_Save_Key(int k)
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
+        {
             m_state = m_none;
             IN_Activate();
             key_dest = key_game;
-            Cbuf_AddText(va("save s%i\n", load_cursor));
+            Cbuf_AddText(va("save s%i\n", save_cursor));
             return;
+        }
 
         case K_UPARROW:
         case K_LEFTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor--;
-            if(load_cursor < 0)
+
+            if(save_cursor == 0)
             {
-                load_cursor = MAX_SAVEGAMES - 1;
+                save_cursor = MAX_SAVEGAMES - 1;
             }
+            else
+            {
+                --save_cursor;
+            }
+
             break;
+        }
 
         case K_DOWNARROW:
         case K_RIGHTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor++;
-            if(load_cursor >= MAX_SAVEGAMES)
+
+            ++save_cursor;
+
+            if(save_cursor >= MAX_SAVEGAMES)
             {
-                load_cursor = 0;
+                save_cursor = 0;
             }
             break;
+        }
     }
 }
 
@@ -2941,6 +2974,13 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
+    m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
+
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_action_entry("Add Bot (Team 0)", runCmd("impulse 100"));
     m.add_action_entry("Add Bot (Team 1)", runCmd("impulse 101"));
     m.add_action_entry("Kick Bot", runCmd("impulse 102"));
@@ -4640,6 +4680,8 @@ void M_Init()
 
     Cmd_AddCommand("help", M_Menu_Help_f);
     Cmd_AddCommand("menu_quit", M_Menu_Quit_f);
+
+    Cmd_AddCommand("autosave", quake::saveutil::doAutosave);
 }
 
 
@@ -4876,49 +4918,3 @@ void M_ConfigureNetSubsystem()
         net_hostport = lanConfig_port;
     }
 }
-
-/*
-#include "json.hpp"
-using json = nlohmann::json;
-
-[[nodiscard]] static quake::menu makeMenuFromJSON(const nlohmann::json&
-jsonObj)
-{
-    quake::menu m{jsonObj["menu_title"], &M_Menu_QuakeVRSettings_f};
-
-    for(const auto& [key, value] : jsonObj.items())
-    {
-        const char* title = key.data();
-        const auto& bounds = value["bounds"];
-
-        const auto generateOption = [&]<typename T>(
-                                        const quake::menu_bounds<T> bounds)
-{ m.add_cvar_entry<T>(title, *Cvar_FindVar(title), bounds);
-        };
-
-        const auto extractBounds = [&]<typename T>() ->
-quake::menu_bounds<T> { return {bounds["increment"], bounds["min"],
-bounds["max"]};
-        };
-
-        if(const auto& type = value["type"]; type == "float")
-        {
-            generateOption(extractBounds.operator()<float>());
-        }
-        else if(type == "int")
-        {
-            generateOption(extractBounds.operator()<int>());
-        }
-        else if(type == "bool")
-        {
-            generateOption(quake::menu_bounds<bool>{});
-        }
-        else
-        {
-            // Error handling here...
-        }
-    }
-
-    return m;
-}
-*/

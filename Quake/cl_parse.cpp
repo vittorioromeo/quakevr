@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_parse.c  -- parse a message received from the server
 
 #include "common.hpp"
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
@@ -821,13 +822,9 @@ Server information pertaining to this client only
 */
 void CL_ParseClientdata()
 {
-    int i;
-
-    int j;
-    int bits; // johnfitz
-
-    bits = (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
-                                         // of in CL_ParseServerMessage()
+    int bits =
+        (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
+                                      // of in CL_ParseServerMessage()
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -859,7 +856,7 @@ void CL_ParseClientdata()
     }
 
     cl.mvelocity[1] = cl.mvelocity[0];
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         if(bits & (SU_PUNCH1 << i))
         {
@@ -891,14 +888,14 @@ void CL_ParseClientdata()
     // johnfitz
 
     // [always sent]	if (bits & SU_ITEMS)
-    i = MSG_ReadLong();
+    int i = MSG_ReadLong();
 
     // TODO VR: (P0) should we send other item flags as well?
     if(cl.items != i)
     {
         // set flash times
         Sbar_Changed();
-        for(j = 0; j < 32; j++)
+        for(int j = 0; j < 32; j++)
         {
             if((i & (1 << j)) && !(cl.items & (1 << j)))
             {
@@ -983,9 +980,9 @@ void CL_ParseClientdata()
         Sbar_Changed();
     }
 
-    for(i = 0; i < 4; i++)
+    for(int i = 0; i < 4; i++)
     {
-        j = MSG_ReadByte();
+        int j = MSG_ReadByte();
         if(cl.stats[STAT_SHELLS + i] != j)
         {
             cl.stats[STAT_SHELLS + i] = j;

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "net.hpp"
 #include "zone.hpp"
@@ -36,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "quakedef_macros.hpp"
 #include "menu.hpp"
+
+#include <ctime>
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -931,7 +934,7 @@ void Host_Map_f()
         *p = '\0';
     }
 
-    SV_SpawnServer(name, false /* fromSaveFile */);
+    SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
     if(!sv.active)
     {
         return;
@@ -1035,7 +1038,7 @@ void Host_Changelevel_f()
     SV_SaveSpawnparms();
 
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
-    SV_SpawnServer(level, false /* fromSaveFile */);
+    SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
 
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
@@ -1068,7 +1071,7 @@ void Host_Restart_f()
     // mapname gets cleared in spawnserver
     q_strlcpy(mapname, sv.name, sizeof(mapname));
 
-    SV_SpawnServer(mapname, false /* fromSaveFile */);
+    SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
 
     if(!sv.active)
     {
@@ -1161,78 +1164,68 @@ void Host_SavegameComment(char* text)
     text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
-
-/*
-===============
-Host_Savegame_f
-===============
-*/
-void Host_Savegame_f()
+bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp)
 {
-    char name[MAX_OSPATH];
-    FILE* f;
-    int i;
-    char comment[SAVEGAME_COMMENT_LENGTH + 1];
-
-    if(cmd_source != src_command)
-    {
-        return;
-    }
-
     if(!sv.active)
     {
         Con_Printf("Not playing a local game.\n");
-        return;
+        return false;
     }
 
     if(cl.intermission)
     {
         Con_Printf("Can't save in intermission.\n");
-        return;
+        return false;
     }
 
     if(svs.maxclients != 1)
     {
         Con_Printf("Can't save multiplayer games.\n");
-        return;
+        return false;
     }
 
-    if(Cmd_Argc() != 2)
-    {
-        Con_Printf("save <savename> : save a game\n");
-        return;
-    }
-
-    if(strstr(Cmd_Argv(1), ".."))
+    if(strstr(filename, ".."))
     {
         Con_Printf("Relative pathnames are not allowed.\n");
-        return;
+        return false;
     }
 
-    for(i = 0; i < svs.maxclients; i++)
+    for(int i = 0; i < svs.maxclients; i++)
     {
         if(svs.clients[i].active && (svs.clients[i].edict->v.health <= 0))
         {
             Con_Printf("Can't savegame with a dead player\n");
-            return;
+            return false;
         }
     }
 
-    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+    char name[MAX_OSPATH];
+    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
     COM_AddExtension(name, ".sav", sizeof(name));
 
     Con_Printf("Saving game to %s...\n", name);
-    f = fopen(name, "w");
+    FILE* f = fopen(name, "w");
     if(!f)
     {
         Con_Printf("ERROR: couldn't open.\n");
-        return;
+        return false;
+    }
+
+    if(timestamp != nullptr)
+    {
+        std::tm* ptm = gmtime(timestamp);
+
+        char buf[256];
+        std::strftime(buf, sizeof(buf), "%F %T", ptm);
+
+        fprintf(f, "%s\n", buf);
     }
 
     fprintf(f, "%i\n", SAVEGAME_VERSION);
+    char comment[SAVEGAME_COMMENT_LENGTH + 1];
     Host_SavegameComment(comment);
     fprintf(f, "%s\n", comment);
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
     }
@@ -1242,7 +1235,7 @@ void Host_Savegame_f()
 
     // write the light styles
 
-    for(i = 0; i < MAX_LIGHTSTYLES; i++)
+    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
     {
         if(sv.lightstyles[i])
         {
@@ -1254,24 +1247,25 @@ void Host_Savegame_f()
         }
     }
 
-
     ED_WriteGlobals(f);
-    for(i = 0; i < sv.num_edicts; i++)
+    for(int i = 0; i < sv.num_edicts; i++)
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
     }
     fclose(f);
+
     Con_Printf("done.\n");
+    return true;
 }
 
 
 /*
 ===============
-Host_Loadgame_f
+Host_Savegame_f
 ===============
 */
-void Host_Loadgame_f()
+void Host_Savegame_f()
 {
     if(cmd_source != src_command)
     {
@@ -1280,20 +1274,26 @@ void Host_Loadgame_f()
 
     if(Cmd_Argc() != 2)
     {
-        Con_Printf("load <savename> : load a game\n");
+        Con_Printf("save <savename> : save a game\n");
         return;
     }
 
-    if(strstr(Cmd_Argv(1), ".."))
+    Host_MakeSavegame(Cmd_Argv(1), nullptr);
+}
+
+
+bool Host_Loadgame(const char* filename, const bool hasTimestamp)
+{
+    if(strstr(filename, ".."))
     {
         Con_Printf("Relative pathnames are not allowed.\n");
-        return;
+        return false;
     }
 
     cls.demonum = -1; // stop demo loop in case this fails
 
     char name[MAX_OSPATH];
-    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
     COM_AddExtension(name, ".sav", sizeof(name));
 
     // we can't call SCR_BeginLoadingPlaque, because too much stack space has
@@ -1313,11 +1313,20 @@ void Host_Loadgame_f()
     if(start == nullptr)
     {
         Con_Printf("ERROR: couldn't open.\n");
-        return;
+        return false;
     }
 
     const char* data;
     data = start;
+
+    if(hasTimestamp)
+    {
+        data = COM_ParseTimestampNewline(data);
+        if(data == nullptr)
+        {
+            return false;
+        }
+    }
 
     int version;
     data = COM_ParseIntNewline(data, &version);
@@ -1328,7 +1337,7 @@ void Host_Loadgame_f()
         start = nullptr;
         Con_Printf(
             "Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
-        return;
+        return false;
     }
 
     float spawn_parms[NUM_SPAWN_PARMS];
@@ -1355,15 +1364,16 @@ void Host_Loadgame_f()
 
     CL_Disconnect_f();
 
-    SV_SpawnServer(mapname, true /* fromSaveFile */);
+    SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
     if(!sv.active)
     {
         free(start);
         start = nullptr;
         Con_Printf("Couldn't load map\n");
-        return;
+        return false;
     }
+
     sv.paused = true; // pause until all clients connect
     sv.loadgame = true;
 
@@ -1438,6 +1448,62 @@ void Host_Loadgame_f()
 
     Con_DPrintf("Calling QC 'OnLoadGame'.\n");
     PR_ExecuteProgram(pr_global_struct->OnLoadGame);
+    return true;
+}
+
+/*
+===============
+Host_Loadgame_f
+===============
+*/
+void Host_Loadgame_f()
+{
+    if(cmd_source != src_command)
+    {
+        return;
+    }
+
+    if(Cmd_Argc() != 2)
+    {
+        Con_Printf("load <savename> : load a game\n");
+        return;
+    }
+
+    if(strstr(Cmd_Argv(1), ".."))
+    {
+        Con_Printf("Relative pathnames are not allowed.\n");
+        return;
+    }
+
+    if(!Host_Loadgame(Cmd_Argv(1), false /* hasTimestamp */))
+    {
+        Con_Printf("Failed to load '%s'\n", Cmd_Argv(1));
+    }
+}
+
+void Host_LoadAutosave_f()
+{
+    if(cmd_source != src_command)
+    {
+        return;
+    }
+
+    if(Cmd_Argc() != 2)
+    {
+        Con_Printf("load_autosave <savename> : load an autosave\n");
+        return;
+    }
+
+    if(strstr(Cmd_Argv(1), ".."))
+    {
+        Con_Printf("Relative pathnames are not allowed.\n");
+        return;
+    }
+
+    if(!Host_Loadgame(Cmd_Argv(1), true /* hasTimestamp */))
+    {
+        Con_Printf("Failed to load '%s'\n", Cmd_Argv(1));
+    }
 }
 
 //============================================================================
@@ -2688,6 +2754,7 @@ void Host_InitCommands()
     Cmd_AddCommand("kick", Host_Kick_f);
     Cmd_AddCommand("ping", Host_Ping_f);
     Cmd_AddCommand("load", Host_Loadgame_f);
+    Cmd_AddCommand("load_autosave", Host_LoadAutosave_f);
     Cmd_AddCommand("save", Host_Savegame_f);
     Cmd_AddCommand("give", Host_Give_f);
 

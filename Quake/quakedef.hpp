@@ -81,25 +81,6 @@ extern filelist_item_t* modlist;
 extern filelist_item_t* extralevels;
 extern filelist_item_t* demolist;
 
-void Host_ClearMemory();
-void Host_ServerFrame();
-void Host_InitCommands();
-void Host_Init();
-void Host_Shutdown();
-void Host_Callback_Notify(cvar_t* var); /* callback function for CVAR_NOTIFY */
-void Host_Warn(const char* error, ...) FUNC_PRINTF(1, 2);
-[[noreturn]] void Host_Error(const char* error, ...) FUNC_PRINTF(1, 2);
-[[noreturn]] void Host_EndGame(const char* message, ...) FUNC_PRINTF(1, 2);
-#ifdef __WATCOMC__
-#pragma aux Host_Error aborts;
-#pragma aux Host_EndGame aborts;
-#endif
-void Host_Frame(float time);
-void Host_Quit_f();
-void Host_ClientCommands(const char* fmt, ...) FUNC_PRINTF(1, 2);
-void Host_ShutdownServer(bool crash);
-void Host_WriteConfiguration();
-
 void ExtraMaps_Init();
 void Modlist_Init();
 void DemoList_Init();

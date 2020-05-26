@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "console.hpp"
 #include "quakedef.hpp"
+#include "host.hpp"
 
 void SZ_Alloc(sizebuf_t* buf, int startsize)
 {

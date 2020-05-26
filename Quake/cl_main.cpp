@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_main.c  -- client main loop
 
 #include "quakedef.hpp"
+#include "host.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
 #include "util.hpp"

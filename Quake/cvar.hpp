@@ -80,9 +80,9 @@ interface from being ambiguous.
 #define CVAR_CALLBACK (1U << 16)   // var has a callback
 
 
-typedef void (*cvarcallback_t)(struct cvar_s*);
+typedef void (*cvarcallback_t)(struct cvar_t*);
 
-typedef struct cvar_s
+struct cvar_t
 {
     const char* name;
     const char* string;
@@ -91,8 +91,8 @@ typedef struct cvar_s
     const char*
         default_string; // johnfitz -- remember defaults for reset function
     cvarcallback_t callback;
-    struct cvar_s* next;
-} cvar_t;
+    cvar_t* next;
+};
 
 void Cvar_RegisterVariable(cvar_t* variable);
 // registers a cvar that already has the name, string, and optionally

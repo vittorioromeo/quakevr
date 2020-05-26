@@ -209,6 +209,11 @@ byte* COM_LoadMallocFile(const char* path, unsigned int* path_id);
 // Loads in "t" mode so CRLF to LF translation is performed on Windows.
 byte* COM_LoadMallocFile_TextMode_OSPath(const char* path, long* len_out);
 
+// Attempts to parse an timestamp, followed by a newline.
+// Returns advanced buffer position.
+// Doesn't signal parsing failure, but this is not needed for savegame loading.
+const char* COM_ParseTimestampNewline(const char* buffer);
+
 // Attempts to parse an int, followed by a newline.
 // Returns advanced buffer position.
 // Doesn't signal parsing failure, but this is not needed for savegame loading.
@@ -222,6 +227,6 @@ const char* COM_ParseFloatNewline(const char* buffer, float* value);
 // newline. Returns advanced buffer position.
 const char* COM_ParseStringNewline(const char* buffer);
 
-extern struct cvar_s registered;
+extern struct cvar_t registered;
 extern bool standard_quake, rogue, hipnotic;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
