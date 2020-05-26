@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // host.c -- coordinates spawning and killing of local servers
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include <setjmp.h>
@@ -40,6 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.hpp"
 #include "protocol.hpp"
 #include "msg.hpp"
+#include "saveutil.hpp"
 
 /*
 
@@ -831,11 +833,6 @@ void _Host_Frame(float time)
     static double time1 = 0;
     static double time2 = 0;
     static double time3 = 0;
-    int pass1;
-
-    int pass2;
-
-    int pass3;
 
     {
         host_abortserver_setjmp_done = true;
@@ -904,6 +901,20 @@ void _Host_Frame(float time)
     if(cls.state == ca_connected)
     {
         CL_ReadFromServer();
+
+        // VR: Autosave.
+        if(!deathmatch.value)
+        {
+            const std::time_t now = std::time(0);
+            const int secondDiff =
+                quake::saveutil::timeDiffInSeconds(quake::saveutil::lastAutosaveTime(), now);
+
+            if(secondDiff > vr_autosave_seconds.value)
+            {
+                quake::saveutil::doAutosave();
+                quake::saveutil::lastAutosaveTime() = now;
+            }
+        }
     }
 
     // update video
@@ -937,10 +948,10 @@ void _Host_Frame(float time)
 
     if(host_speeds.value)
     {
-        pass1 = (time1 - time3) * 1000;
+        int pass1 = (time1 - time3) * 1000;
         time3 = Sys_DoubleTime();
-        pass2 = (time2 - time1) * 1000;
-        pass3 = (time3 - time2) * 1000;
+        int pass2 = (time2 - time1) * 1000;
+        int pass3 = (time3 - time2) * 1000;
         Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
             pass1 + pass2 + pass3, pass1, pass2, pass3);
     }
@@ -1073,7 +1084,7 @@ void Host_Init()
         CL_Init();
     }
 
-    (void) Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    (void)Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

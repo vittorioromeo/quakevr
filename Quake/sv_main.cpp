@@ -22,7 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_main.c -- server main program
 
+#include "host.hpp"
+#include "menu.hpp"
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "util.hpp"
 #include "cmd.hpp"
@@ -1900,7 +1903,7 @@ This is called at the start of each level
 */
 extern float scr_centertime_off;
 
-void SV_SpawnServer(const char* server, const bool fromSaveFile)
+void SV_SpawnServer(const char* server, const SpawnServerSrc src)
 {
     static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -2055,7 +2058,10 @@ void SV_SpawnServer(const char* server, const bool fromSaveFile)
 
     {
         Con_DPrintf("Calling QC 'OnSpawnServerBeforeLoad'.\n");
-        pr_global_struct->spawnServerFromSaveFile = fromSaveFile;
+
+        pr_global_struct->spawnServerFromSaveFile =
+            src == SpawnServerSrc::FromSaveFile;
+
         PR_ExecuteProgram(pr_global_struct->OnSpawnServerBeforeLoad);
     }
 
@@ -2105,7 +2111,10 @@ void SV_SpawnServer(const char* server, const bool fromSaveFile)
 
     {
         Con_DPrintf("Calling QC 'OnSpawnServerAfterLoad'.\n");
-        pr_global_struct->spawnServerFromSaveFile = fromSaveFile;
+
+        pr_global_struct->spawnServerFromSaveFile =
+            src == SpawnServerSrc::FromSaveFile;
+
         PR_ExecuteProgram(pr_global_struct->OnSpawnServerAfterLoad);
     }
 

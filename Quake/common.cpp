@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "common.hpp"
+#include "host.hpp"
 #include "q_ctype.hpp"
 #include "cmd.hpp"
 #include "console.hpp"
@@ -1680,6 +1681,22 @@ byte* COM_LoadMallocFile_TextMode_OSPath(const char* path, long* len_out)
         *len_out = actuallen;
     }
     return data;
+}
+
+const char* COM_ParseTimestampNewline(const char* buffer)
+{
+    int tmp;
+    int consumed = 0;
+
+    const int rc = sscanf(buffer, "%d-%d-%d %d:%d:%d\n%n", &tmp, &tmp, &tmp,
+        &tmp, &tmp, &tmp, &consumed);
+
+    if(rc != 6)
+    {
+        return nullptr;
+    }
+
+    return buffer + consumed;
 }
 
 const char* COM_ParseIntNewline(const char* buffer, int* value)

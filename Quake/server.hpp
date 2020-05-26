@@ -114,8 +114,8 @@ struct server_t
     void SendMsg_WorldTextHSetText(client_t& client, const WorldTextHandle wth,
         const char* const text) noexcept;
 
-    void SendMsg_WorldTextHSetPos(client_t& client, const WorldTextHandle wth,
-        const qvec3& pos) noexcept;
+    void SendMsg_WorldTextHSetPos(
+        client_t& client, const WorldTextHandle wth, const qvec3& pos) noexcept;
 
     void SendMsg_WorldTextHSetAngles(client_t& client,
         const WorldTextHandle wth, const qvec3& angles) noexcept;
@@ -283,4 +283,13 @@ void SV_MoveToGoal();
 void SV_CheckForNewClients();
 void SV_RunClients();
 void SV_SaveSpawnparms();
-void SV_SpawnServer(const char* server, const bool fromSaveFile);
+
+enum class SpawnServerSrc
+{
+    FromSaveFile,
+    FromMapCmd,
+    FromChangelevelCmd,
+    FromRestart
+};
+
+void SV_SpawnServer(const char* server, const SpawnServerSrc src);

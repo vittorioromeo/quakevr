@@ -283,6 +283,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </ClCompile>
     <ClCompile Include="..\..\Quake\r_sprite.cpp" />
     <ClCompile Include="..\..\Quake\r_world.cpp" />
+    <ClCompile Include="..\..\Quake\saveutil.cpp" />
     <ClCompile Include="..\..\Quake\sbar.cpp" />
     <ClCompile Include="..\..\Quake\server.cpp" />
     <ClCompile Include="..\..\Quake\shader.cpp" />

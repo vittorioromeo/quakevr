@@ -140,6 +140,7 @@ extern cvar_t vr_activestartpaknameidx;
 extern cvar_t vr_verbosebots;
 extern cvar_t vr_finger_grip_bias;
 extern cvar_t vr_2h_disable_angle_threshold;
+extern cvar_t vr_autosave_seconds;
 
 //
 //

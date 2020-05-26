@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <GL/glew.h>
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "util.hpp"
 #include "quakeglm_qvec3.hpp"
