@@ -916,15 +916,7 @@ void _Host_Frame(float time)
         // VR: Autosave.
         if(!deathmatch.value)
         {
-            const std::time_t now = std::time(0);
-            const int secondDiff =
-                quake::saveutil::timeDiffInSeconds(quake::saveutil::lastAutosaveTime(), now);
-
-            if(secondDiff > vr_autosave_seconds.value)
-            {
-                quake::saveutil::doAutosave();
-                quake::saveutil::lastAutosaveTime() = now;
-            }
+            quake::saveutil::doAutomaticAutosave();
         }
     }
 

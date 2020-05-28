@@ -172,6 +172,7 @@ DEFINE_FCVAR_ARCHIVE(vr_verbosebots, 0);
 DEFINE_FCVAR_ARCHIVE(vr_finger_grip_bias, 0.0);
 DEFINE_FCVAR_ARCHIVE(vr_2h_disable_angle_threshold, 0);
 DEFINE_FCVAR_ARCHIVE(vr_autosave_seconds, 240);
+DEFINE_FCVAR_ARCHIVE(vr_autosave_on_changelevel, 1);
 
 //
 //

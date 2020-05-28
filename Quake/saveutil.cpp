@@ -4,6 +4,7 @@
 #include "q_stdinc.hpp"
 #include "common.hpp"
 #include "console.hpp"
+#include "vr_cvars.hpp"
 #include "host.hpp"
 
 #include <algorithm>
@@ -178,7 +179,7 @@ void scanSaves()
     return it - std::begin(autosaveTimestamps());
 }
 
-void doAutosave()
+void doAutosave() noexcept
 {
     Con_Printf("Creating autosave...\n");
 
@@ -196,6 +197,33 @@ void doAutosave()
     {
         Con_Printf("Failed to created autosave.\n");
     }
+}
+
+void doAutomaticAutosave() noexcept
+{
+    const std::time_t now = std::time(0);
+
+    const int secondDiff = quake::saveutil::timeDiffInSeconds(
+        quake::saveutil::lastAutosaveTime(), now);
+
+    if(secondDiff > vr_autosave_seconds.value)
+    {
+        quake::saveutil::doAutosave();
+        quake::saveutil::lastAutosaveTime() = now;
+    }
+}
+
+void doChangelevelAutosave() noexcept
+{
+    if(!vr_autosave_on_changelevel.value)
+    {
+        return;
+    }
+
+    const std::time_t now = std::time(0);
+
+    quake::saveutil::doAutosave();
+    quake::saveutil::lastAutosaveTime() = now;
 }
 
 
