@@ -8,7 +8,9 @@ inline constexpr std::size_t MAX_AUTOSAVES = 12;
 namespace quake::saveutil
 {
 
-void doAutosave();
+void doAutosave() noexcept;
+void doAutomaticAutosave() noexcept;
+void doChangelevelAutosave() noexcept;
 
 [[nodiscard]] std::time_t& lastAutosaveTime() noexcept;
 

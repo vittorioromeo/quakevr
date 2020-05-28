@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.hpp"
 #include "client.hpp"
 #include "sys.hpp"
+#include "saveutil.hpp"
 #include "sizebuf.hpp"
 
 #include <ctime>
@@ -1968,6 +1969,12 @@ void Host_Spawn_f()
         }
 
         PR_ExecuteProgram(pr_global_struct->PutClientInServer);
+
+        // VR: Force autosave on client spawn.
+        if(!pr_global_struct->deathmatch && !pr_global_struct->coop)
+        {
+            quake::saveutil::doChangelevelAutosave();
+        }
     }
 
 
@@ -1983,9 +1990,11 @@ void Host_Spawn_f()
         MSG_WriteByte(&host_client->message, svc_updatename);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteString(&host_client->message, client->name);
+
         MSG_WriteByte(&host_client->message, svc_updatefrags);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteShort(&host_client->message, client->old_frags);
+
         MSG_WriteByte(&host_client->message, svc_updatecolors);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteByte(&host_client->message, client->colors);

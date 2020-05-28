@@ -2982,7 +2982,8 @@ void M_QuakeVRSettings_Key(int k)
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
     m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
-
+    m.add_cvar_entry<bool>(
+        "Autosave On Changelevel", vr_autosave_on_changelevel);
 
     // ------------------------------------------------------------------------
     m.add_separator();
