@@ -76,7 +76,6 @@ void menu::key_option(const int key, const int idx)
 {
     const bool isLeft = (key == K_LEFTARROW);
 
-    const auto adjustValueF = quake::util::makeMenuValueAdjuster<float>(isLeft);
     const auto adjustValueI = quake::util::makeMenuValueAdjuster<int>(isLeft);
 
     const auto adjustCVarF = quake::util::makeMenuCVarAdjuster<float>(isLeft);
