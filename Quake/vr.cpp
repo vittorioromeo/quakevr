@@ -4092,17 +4092,6 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
-// TODO VR: (P0): "I did a big run and it crashed on the last level of an
-// episode and I'd not bothered saving the game for the entire play through and
-// I got grumpy and haven't played for a few days Is autosave a possible
-// feature?"
-
-// TODO VR: (P0): "Quicksave would be better | A hotkey for quicksaving | Maybe
-// a button combo"
-
-// TODO VR: (P0) player death animation is bugged in mp probably has to do with
-// player_run - made some changes, test -> still bugged it seems
-
 // TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
 // in certain situations I can't figure out a pattern for, such as
 // overshooting."
@@ -4144,10 +4133,13 @@ void VR_OnLoadedPak(pack_t& pak)
 // attention to this issue." - seems to happen in MP with many bots, not sure
 // why
 
-// TODO VR: (P0): (MP) "We tried coop, however the game simply loaded deathmatch
-// I think, no monsters, and weapons spawning on the start map etc."
 
 
+// TODO VR: (P1): "Quicksave would be better | A hotkey for quicksaving | Maybe
+// a button combo"
+
+// TODO VR: (P1) player death animation is bugged in mp probably has to do with
+// player_run - made some changes, test -> still bugged it seems
 
 // TODO VR: (P1): (MP) "I seem to be inheriting the server settings for a number
 // of client side options, for instance I have immersive mode on and body-item
