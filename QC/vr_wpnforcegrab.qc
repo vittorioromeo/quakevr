@@ -195,7 +195,7 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
 
         endPos += v_forward * (-3.0 * groundFactor);
 
-        BPRINT_FVAR(groundFactor);
+        // BPRINT_FVAR(groundFactor);
 
         float groundDist = vlen(diffXY);
 
@@ -306,7 +306,6 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
         e.velocity = tmpVec * VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower(dist, zmult);
 
 
-        /*
         vector tgt = handWpnDiff;
         tgt_x = tgt_x / 2.0;
         tgt_y = tgt_y / 2.0;

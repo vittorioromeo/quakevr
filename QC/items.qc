@@ -674,6 +674,13 @@ void(string xModelName, float xWeaponId) impl_weapon_item =
     StartItem();
 }
 
+/*QUAKED weapon_shotgun (0 .5 .8) (-16 -16 0) (16 16 32)
+*/
+void() weapon_shotgun =
+{
+    impl_weapon_item("progs/v_shot.mdl", WID_SHOTGUN);
+}
+
 
 /*QUAKED weapon_supershotgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */

@@ -14,7 +14,7 @@ void() hipRubbleTouch =
 
     if(other.takedamage)
     {
-        T_Damage(other, self, self.owner, 10);
+        T_Damage(other, self, self.owner, self.dmg);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
         self.lip = TRUE;
     }
@@ -42,6 +42,7 @@ void(string rubblename) hipThrowRubble =
     newent.frame = 0;
     newent.flags = 0;
     newent.lip = FALSE; // hit someone yet?
+    newent.dmg = self.dmg;
 }
 
 void() hip_rubble_use =
@@ -93,6 +94,7 @@ void() func_rubble =
     self.classname = "rubble";
     self.cnt = 0;
     self.use = hip_rubble_use;
+    if(!self.dmg) { self.dmg = 10; }
 }
 
 /*QUAKED func_rubble1 (0.4 0.4 0.2) (0 0 0) (8 8 8)
@@ -107,6 +109,7 @@ void() func_rubble1 =
     self.classname = "rubble1";
     self.cnt = 1;
     self.use = hip_rubble_use;
+    if(!self.dmg) { self.dmg = 10; }
 }
 
 /*QUAKED func_rubble2 (0.4 0.4 0.2) (0 0 0) (16 16 16)
@@ -121,6 +124,7 @@ void() func_rubble2 =
     self.classname = "rubble2";
     self.cnt = 2;
     self.use = hip_rubble_use;
+    if(!self.dmg) { self.dmg = 10; }
 }
 
 /*QUAKED func_rubble3 (0.4 0.4 0.2) (0 0 0) (32 32 32)
@@ -135,5 +139,6 @@ void() func_rubble3 =
     self.classname = "rubble3";
     self.cnt = 3;
     self.use = hip_rubble_use;
+    if(!self.dmg) { self.dmg = 10; }
 }
 

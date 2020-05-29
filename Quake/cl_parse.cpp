@@ -896,7 +896,7 @@ void CL_ParseClientdata()
     // [always sent]	if (bits & SU_ITEMS)
     int i = MSG_ReadLong();
 
-    // TODO VR: (P0) should we send other item flags as well?
+    // TODO VR: (P1) should we send other item flags as well?
     if(cl.items != i)
     {
         // set flash times
