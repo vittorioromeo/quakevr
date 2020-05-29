@@ -323,6 +323,7 @@ float(float wid) WeaponIdToThrowBounds =
 
 float(string wpnClassname) WeaponClassNameToWeaponId =
 {
+    if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
     if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
     if(wpnClassname == "weapon_supernailgun")    { return WID_SUPER_NAILGUN; }
     if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }

@@ -3738,7 +3738,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(xWeapon)
-  );
+    );
 }
 
 // TODO VR: (P2) improve?
@@ -3755,7 +3755,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(xWeapon)
-  );
+    );
 }
 
 float() getWeaponMode =

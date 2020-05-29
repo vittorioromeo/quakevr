@@ -137,7 +137,7 @@ void() OnSpawnServerAfterLoad =
 
     if(!fromSaveFile)
     {
-        if(!deathmatch)
+        if(!deathmatch && !VR_GameUtil_InTutorialMap())
         {
             SpawnAllAmmoBoxWeapons();
         }
@@ -159,7 +159,15 @@ void() SetNewParms =
         SUB_DoLater(Honey_UpdateSecrets, 0.2);
     }
 
-    parm1 = IT_SHOTGUN | IT_AXE;
+    if(VR_GameUtil_InTutorialMap())
+    {
+        parm1 = 0;
+    }
+    else
+    {
+        parm1 = IT_SHOTGUN | IT_AXE;
+    }
+
     parm2 = 100;
     parm3 = 0;
     parm4 = 25;
@@ -174,8 +182,18 @@ void() SetNewParms =
     // Holster weapon ids:
     parm11 = WID_FIST;
     parm12 = WID_FIST;
-    parm13 = WID_AXE;
-    parm14 = WID_SHOTGUN;
+
+    if(VR_GameUtil_InTutorialMap())
+    {
+        parm13 = WID_FIST;
+        parm14 = WID_FIST;
+    }
+    else
+    {
+        parm13 = WID_AXE;
+        parm14 = WID_SHOTGUN;
+    }
+
     parm15 = WID_FIST;
     parm16 = WID_FIST;
 
@@ -216,6 +234,11 @@ void() SetNewParms =
 
 void() DecodeLevelParms =
 {
+    if(VR_GameUtil_InTutorialMap())
+    {
+        SetNewParms();
+    }
+
     if(!deathmatch)
     {
         if(world.model == "maps/start.bsp")

@@ -5,6 +5,11 @@
 // Public API
 // ----------------------------------------------------------------------------
 
+float() VR_GameUtil_InTutorialMap =
+{
+    return (mapname == "vrtutorial");
+}
+
 float() VR_GameUtil_InStartMap =
 {
     return (mapname == "start");

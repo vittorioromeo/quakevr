@@ -71,12 +71,15 @@ void() button_fire =
     SUB_CalcMove(self.pos2, self.speed, button_wait);
 
     // VR
-    if(self.effects == 1)
+    if(self.buttonEffect == 1) // Test
     {
         bprint("EFFECTS BUTTON!");
     }
+    else if(self.buttonEffect == 2) // Tutorial button
+    {
+        bprint("Congratulations! You have hands.");
+    }
 };
-
 
 void() button_use =
 {
@@ -120,7 +123,7 @@ When a button is touched, it moves some distance in the direction of it's angle,
 1) wooden clunk
 2) metallic click
 3) in-out
-"effects" // VR
+"buttonEffect" // VR
 0) normal button
 N) code button
 */
@@ -247,16 +250,6 @@ void() func_worldtext_banner_think =
         endIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, self.state);
     }
 
-    bprint("state: ");
-    bprint(ftos(self.state));
-    bprint("| lip: ");
-    bprint(ftos(self.lip));
-    bprint("| b: ");
-    bprint(ftos(startIdx));
-    bprint("| e: ");
-    bprint(ftos(endIdx));
-    bprint("\n");
-
     string newText = substr(self.worldtext, startIdx, endIdx);
     worldtext_hsettext(wth, newText);
 
@@ -354,4 +347,26 @@ void() func_worldtext_banner =
     {
         worldtext_hsettext(wth, self.worldtext);
     }
+}
+
+
+
+void() func_weapon_dispenser_use =
+{
+    CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
+        self.origin, randomVec(180),
+        '0 0 0', randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(self.weapon)
+    );
+}
+
+void() func_weapon_dispenser =
+{
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    setmodel(self, self.model);
+
+    self.use = func_weapon_dispenser_use;
 }
