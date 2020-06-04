@@ -19,6 +19,8 @@
 
 .float offhand_lastgrabtime;
 .float mainhand_lastgrabtime;
+.float offhand_lastreleasetime;
+.float mainhand_lastreleasetime;
 
 
 //
