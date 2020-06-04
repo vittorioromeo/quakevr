@@ -589,7 +589,7 @@ void GL_DrawBlendedAliasFrame_GLSL(aliashdr_t* paliashdr,
     return glm::mix(v, zv, zeroBlend);
 }
 
-// TODO VR: (P0) test (done, this works). Cleanup?
+// TODO VR: (P1) test (done, this works). Cleanup?
 void GL_DrawBlendedAliasFrame(const aliashdr_t* paliashdr,
     const lerpdata_t& lerpdata, const lerpdata_t& zeroLerpdata,
     const qfloat zeroBlend)
@@ -1290,7 +1290,7 @@ void R_DrawAliasModel(entity_t* e)
     }
     // call fast path if possible. if the shader compliation failed for some
     // reason, r_alias_program will be 0.
-    // TODO VR: (P0) test, restore? (done, this works. Cleanup)
+    // TODO VR: (P1) test, restore? (done, this works. Cleanup)
     else if(/*r_alias_program != 0 && */ r_aliasblended_program != 0)
     {
         if(false && zeroBlend <= 0.001)
@@ -1478,7 +1478,7 @@ TODO: orient shadow onto "lightplane" (a global mplane_t*)
 =============
 */
 void GL_DrawAliasShadow(entity_t* e)
-{   
+{
     // TODO VR: (P1) does this attempt to draw shadows for the world model...?
 
     float shadowmatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, SHADOW_SKEW_X,
