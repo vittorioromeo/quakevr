@@ -99,11 +99,59 @@
         {
             "name": "/actions/default/out/RightHaptic",
             "type": "vibration"
+        },
+        {
+            "name": "/actions/menu/in/Navigation",
+            "type": "vector2"
+        },
+        {
+            "name": "/actions/menu/in/Up",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/Down",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/Left",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/Right",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/Enter",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/Back",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/AddToShortcuts",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/MultiplierHalf",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/MultiplierPlusOne",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/menu/in/MultiplierPlusOne2",
+            "type": "boolean"
         }
     ],
     "action_sets": [
         {
             "name": "/actions/default",
+            "usage": "leftright"
+        },
+        {
+            "name": "/actions/menu",
             "usage": "leftright"
         }
     ],
@@ -159,7 +207,18 @@
             "/actions/default/out/LeftHaptic": "Left Hand Haptic",
             "/actions/default/out/RightHaptic": "Right Hand Haptic",
             "/actions/default/in/LeftHandAnim": "Left Hand Skeleton",
-            "/actions/default/in/RightHandAnim": "Right Hand Skeleton"
+            "/actions/default/in/RightHandAnim": "Right Hand Skeleton",
+            "/actions/menu/in/Navigation": "Menu Navigation",
+            "/actions/menu/in/Up": "Menu - Up",
+            "/actions/menu/in/Down": "Menu - Down",
+            "/actions/menu/in/Left": "Menu - Left",
+            "/actions/menu/in/Right": "Menu - Right",
+            "/actions/menu/in/Enter": "Menu - Enter",
+            "/actions/menu/in/Back": "Menu - Back",
+            "/actions/menu/in/AddToShortcuts": "Menu - Add To Shortcuts",
+            "/actions/menu/in/MultiplierHalf": "Menu - Value Multiplier (Half)",
+            "/actions/menu/in/MultiplierPlusOne": "Menu - Value Multiplier (Double) (1)",
+            "/actions/menu/in/MultiplierPlusOne2": "Menu - Value Multiplier (Double) (2)"
         }
     ]
 }
