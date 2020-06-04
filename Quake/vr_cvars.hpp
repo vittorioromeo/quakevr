@@ -142,6 +142,7 @@ extern cvar_t vr_finger_grip_bias;
 extern cvar_t vr_2h_disable_angle_threshold;
 extern cvar_t vr_autosave_seconds;
 extern cvar_t vr_autosave_on_changelevel;
+extern cvar_t vr_throw_up_center_of_mass;
 
 //
 //
