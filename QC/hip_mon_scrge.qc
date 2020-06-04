@@ -318,7 +318,7 @@ void() ScourgeDrop =
 
     self.solid = SOLID_NOT;
 
-    if(entPlayer != world && ShouldDropEnemyWpn(0.65))
+    if(entPlayer != world && ShouldDropEnemyWpn(0.45))
     {
         if(!TryEnemyDrop(self, entPlayer, WID_SUPER_NAILGUN, 0.4))
         if(!TryEnemyDrop(self, entPlayer, WID_NAILGUN, 0.5))
