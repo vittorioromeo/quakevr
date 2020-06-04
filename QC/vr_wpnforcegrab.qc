@@ -80,10 +80,9 @@ float(float xHand, vector handPos, vector handRot,
     return FALSE;
 }
 
+// TODO VR: (P0) cleanup parabola
 float(float dist, float zmult) VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower =
 {
-    // TODO VR: (P0) scale with player height?
-
     float power = (-0.00231424 * pow(dist, 2.0))
                 + (2.01 * dist)
                 + 172.0;
@@ -168,22 +167,21 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
         }
 
         vector startPos = e.origin;
-        vector endPos = handPos + '0 0 3';
+
         makevectors(handRot);
-
-
+        vector endPos = handPos - v_forward * 3.0;
 
         vector diff = endPos - startPos;
-        float distFactor = vlen(diff) / 150;
+        float distFactor = vlen(diff) / 130;
 
-        float initialSpeed = 165 + 275 * distFactor;
-        float flightTime = 0.65;
-        float grav = -cvar("sv_gravity"); // * frametime;
+        float initialSpeed = 180 + 275 * distFactor;
+        float grav = -cvar("sv_gravity");
 
         vector diffXY = diff;
         diffXY.z = 0;
 
         float groundFactor = 1;
+        /*
         if(startPos.z < endPos.z)
         {
             float gf = fabs(startPos.z - endPos.z) / 70;
@@ -192,10 +190,7 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
                 groundFactor = pow(gf, 0.7);
             }
         }
-
-        endPos += v_forward * (-3.0 * groundFactor);
-
-        // BPRINT_FVAR(groundFactor);
+        */
 
         float groundDist = vlen(diffXY);
 
@@ -227,118 +222,6 @@ VR_ForcegrabUtil_Impl_DoForcegrabParabola_Logic =
         SetThrownWeaponForcegrabTime(e, time);
         e.enemy = self;
         e.thinkArg = xHand;
-
-
-        // float time = groundDist / initialSpeed;
-//
-        // vector fireVelocity = normalize(diffXY) * initialSpeed;
-//
-        // float a = e.origin.z;
-        // float b = 200;
-        // float c = handPos.z;
-
-//                 gravity = -4*(a - 2*b + c) / (time* time);
-//         fire_velocity.y = -(3*a - 4*b + c) / time;
-
-        /*
-
-        float atanArg =
-        float newAngle = atan(atanArg);
-
-
-        float angleX = acos((endPos.x - startPos.x) / (initialSpeed * flightTime));
-        float angleY = acos((endPos.y - startPos.y) / (initialSpeed * flightTime));
-        float angleZ = 360 + asin((endPos.z - startPos.z + (0.5 * grav * flightTime * flightTime)) / (initialSpeed * flightTime));
-
-        BPRINT_FVAR(angleX);
-        BPRINT_FVAR(angleY);
-        // BPRINT_FVAR(angleZ);
-
-        float avgAngleXY = (angleX + angleY) / 2.0;
-
-        BPRINT_FVAR(avgAngleXY);
-
-        endPos.z = startPos.z;
-        vector diff = normalize(endPos - startPos);
-        // diff_z = 0; // sin(avgAngleXY);
-
-        makevectors(vectoangles(diff));
-
-        // TODO VR: (P0): avgAngleXY seems reasonable, but the below rotation returns weird vectors.
-        vector rotdiff = rotatevec(diff, v_right, avgAngleXY);
-
-        e.velocity = rotdiff * initialSpeed;
-        */
-
-        /*return;
-
-
-        vector handWpnDiff = handPos - e.origin;
-        e.origin += normalize(handWpnDiff) * 0.15f;
-
-
-        float zdist = handWpnDiff_z;
-
-        float zmult;
-        if(zdist >= 30.0)
-        {
-            zmult = pow(fabs(zdist) / 40.0, 0.2);
-        }
-        else
-        {
-            zmult = pow((10 + fabs(zdist)) / 40.0, 0.13);
-        }
-
-        vector tmpVec = handWpnDiff;
-        tmpVec_x = tmpVec_x / 2.0;
-        tmpVec_y = tmpVec_y / 2.0;
-        tmpVec_z = tmpVec_z * 2.0;
-
-        if(tmpVec_z < 80)
-        {
-            tmpVec_z = 80;
-        }
-
-        tmpVec = normalize(tmpVec);
-
-        float dist = vlen(handWpnDiff);
-
-        e.velocity = tmpVec * VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower(dist, zmult);
-
-
-        vector tgt = handWpnDiff;
-        tgt_x = tgt_x / 2.0;
-        tgt_y = tgt_y / 2.0;
-        tgt_z = tgt_z * 2.0;
-        tgt += e.origin;
-
-
-        float dist = vlen(handWpnDiff);
-        float power = 700;// VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower(dist, 1.0);
-        float throwAngle = calcthrowangle(e.gravity, power, e.origin, tgt);
-
-        BPRINT_FVAR(dist);
-        BPRINT_FVAR(power);
-        BPRINT_FVAR(throwAngle);
-
-        vector diff = normalize(tgt - e.origin);
-        diff_z = 0;
-        BRPINT_VVAR(diff);
-
-        makevectors(vectoangles(diff));
-
-              BRPINT_VVAR(v_forward);
-        BRPINT_VVAR(v_right);
-        BRPINT_VVAR(v_up);
-
-
-        vector rotdiff = rotatevec(diff, v_right, throwAngle);
-        rotdiff_x *= -1;
-        rotdiff_y *= -1;
-        BRPINT_VVAR(rotdiff);
-
-        e.velocity = rotdiff * power;
-        */
 
         sound(e, CHAN_AUTO, "knight/sword2.wav", 0.7, ATTN_NORM);
         sound(self, CHAN_AUTO, "forcegrab.wav", 0.65, ATTN_NORM);
@@ -377,6 +260,7 @@ VR_ForcegrabUtil_Impl_DoForcegrabLinear_Logic =
         {
             e.throwhit = QVR_THROWHIT_FORCEGRAB;
             SetThrownWeaponForcegrabTime(e, time);
+            SetThrownWeaponForcegrabHand(e, xHand);
 
             vector dir = normalize(handPos - e.origin);
             e.origin += dir * 0.25f;
