@@ -835,7 +835,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
 
 void R_DrawWorldText()
 {
-    // TODO VR: (P0) cleanup and optimize
+    // TODO VR: (P1) cleanup and optimize
 
     const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
                                        const qvec3& zInc, const char num) {
@@ -863,8 +863,9 @@ void R_DrawWorldText()
         doVertex(pos + zInc);
     };
 
-    const auto forSplitStringView = [](std::string_view str,
-                                        std::string_view delims, auto&& f) {
+    const auto forSplitStringView = [](const std::string_view str,
+                                        const std::string_view delims,
+                                        auto&& f) {
         for(auto first = str.data(), second = str.data(),
                  last = first + str.size();
             second != last && first != last; first = second + 1)
@@ -904,7 +905,7 @@ void R_DrawWorldText()
         // Angles and offsets
         const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
         const auto hInc = right * 8.f;
-        const auto zInc = qvec3{0, 0, -8.f}; // * up;
+        const auto zInc = qvec3{0, 0, -8.f} * up;
 
         // Bounds
         const auto absmins = originalpos;
@@ -915,10 +916,6 @@ void R_DrawWorldText()
         const auto center = originalpos - ((absmaxs - absmins) / 2.f);
 
         // Draw
-        extern gltexture_t* char_texture;
-        GL_Bind(char_texture);
-        glBegin(GL_QUADS);
-
         std::size_t iLine = 0;
         for(const std::string_view& line : lines)
         {
@@ -955,8 +952,6 @@ void R_DrawWorldText()
 
             ++iLine;
         }
-
-        glEnd();
     };
 
     if(!r_drawworldtext.value)
@@ -969,10 +964,16 @@ void R_DrawWorldText()
     glEnable(GL_ALPHA_TEST);
     glColor4f(1, 1, 1, 1);
 
+    extern gltexture_t* char_texture;
+    GL_Bind(char_texture);
+    glBegin(GL_QUADS);
+
     for(const WorldText& wt : cl.worldTexts)
     {
         drawString(wt._pos, wt._angles, wt._text, wt._hAlign);
     }
+
+    glEnd();
 
     glDisable(GL_ALPHA_TEST);
     glEnable(GL_BLEND);
