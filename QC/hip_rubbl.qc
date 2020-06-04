@@ -47,14 +47,11 @@ void(string rubblename) hipThrowRubble =
 
 void() hip_rubble_use =
 {
-    float which;
-    float index;
-
-    index = 0;
+    float index = 0;
 
     do
     {
-        which = self.cnt;
+        float which = self.cnt;
 
         if(self.cnt == 0)
         {
@@ -75,7 +72,7 @@ void() hip_rubble_use =
            hipThrowRubble("progs/rubble2.mdl");
         }
 
-        index = index + 1;
+        index += 1;
     }
     while(index < self.count);
 }
