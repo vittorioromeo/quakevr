@@ -62,7 +62,7 @@ void (*vid_menukeyfn)(int key);
 enum m_state_e m_state;
 
 void M_Menu_SinglePlayer_f();
-void M_Menu_NewGame_f();
+void M_Menu_NewGame_f(const char* map);
 void M_Menu_Load_f();
 void M_Menu_Save_f();
 void M_Menu_MultiPlayer_f();
@@ -126,6 +126,8 @@ char m_return_reason[32];
 #define TCPIPConfig (m_net_cursor == 1)
 
 void M_ConfigureNetSubsystem();
+
+[[nodiscard]] static quake::menu& quakeVRQuickSettingsMenu();
 
 /*
 ================
@@ -358,7 +360,6 @@ void M_ToggleMenu_f()
     }
 }
 
-
 //=============================================================================
 /* MAIN MENU */
 
@@ -369,6 +370,8 @@ void M_ToggleMenu_f()
     m.add_action_entry("Single Player", &M_Menu_SinglePlayer_f);
     m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
     m.add_action_entry("Options", &M_Menu_Options_f);
+    // m.add_action_entry("Quake VR - Quick Settings",
+    // &M_Menu_QuakeVRQuickSettings_f);
     m.add_action_entry("Quake VR - Settings", &M_Menu_QuakeVRSettings_f);
     m.add_action_entry("Quake VR - Dev Tools", &M_Menu_QuakeVRDevTools_f);
     m.add_action_entry("Quake VR - Change Map", &M_Menu_QuakeVRChangeMap_f);
@@ -437,7 +440,13 @@ void M_Main_Key(int key)
 {
     quake::menu m{"Single Player", &M_Menu_Main_f};
 
-    m.add_action_entry("New Game", &M_Menu_NewGame_f);
+    m.add_action_entry("Tutorial", [] { M_Menu_NewGame_f("vrtutorial"); });
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_action_entry("New Game", [] { M_Menu_NewGame_f("start"); });
     m.add_action_entry("Load", &M_Menu_Load_f);
     m.add_action_entry("Save", &M_Menu_Save_f);
 
@@ -498,18 +507,20 @@ void M_SinglePlayer_Key(int key)
 std::size_t save_cursor; // 0 < save_cursor < MAX_SAVEGAMES
 std::size_t load_cursor; // 0 < load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES
 
-void M_Menu_NewGame_f()
+void M_Menu_NewGame_f(const char* map)
 {
     IN_Activate();
     key_dest = key_game;
+
     if(sv.active)
     {
         Cbuf_AddText("disconnect\n");
     }
+
     Cbuf_AddText("maxplayers 1\n");
     Cbuf_AddText("deathmatch 0\n"); // johnfitz
     Cbuf_AddText("coop 0\n");       // johnfitz
-    Cbuf_AddText("map start\n");
+    Cbuf_AddText(va("map %s\n", map));
 }
 
 void M_Menu_Load_f()
@@ -1900,7 +1911,7 @@ void M_Options_Key(int k)
     m.add_cvar_getter_enum_entry<VrForceGrabMode>(   //
          "Force Grab",                               //
          [] { return &vr_forcegrab_mode; },          //
-         "Disabled", "Parabola", "Linear", "Instant" //
+         "Disabled", "Linear", "Parabola", "Instant" //
          )
         .tooltip(
             "When enabled, allows the player to force grab thrown weapons from "
@@ -2128,7 +2139,7 @@ void M_Options_Key(int k)
 
     quake::menu m{"Torso Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModVRTorsoModel();
         VR_ModVRLegHolsterModel();
@@ -2195,6 +2206,13 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
 
+    m.on_key([](const int key, quake::impl::menu_entry& entry) {
+        if(key == 'p')
+        {
+            quakeVRQuickSettingsMenu().add_entry_ptr(entry);
+        }
+    });
+
     extern cvar_t r_novis;
     m.add_cvar_entry<bool>("(!) No Vis", r_novis)
         .tooltip(
@@ -2230,6 +2248,39 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR QUICK SETTINGS MENU */
+
+[[nodiscard]] static quake::menu makeQuakeVRQuickSettingsMenu()
+{
+    quake::menu m{"Quake VR - Quick Settings", &M_Menu_Main_f};
+    return m;
+}
+
+[[nodiscard]] static quake::menu& quakeVRQuickSettingsMenu()
+{
+    static quake::menu res = makeQuakeVRQuickSettingsMenu();
+    return res;
+}
+
+void M_Menu_QuakeVRQuickSettings_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrquicksettings;
+    m_entersound = true;
+}
+
+void M_QuakeVRQuickSettings_Draw()
+{
+    quakeVRQuickSettingsMenu().draw();
+}
+
+void M_QuakeVRQuickSettings_Key(int k)
+{
+    quakeVRQuickSettingsMenu().key(k);
+}
+
+//=============================================================================
 /* QUAKE VR SETTINGS MENU */
 
 template <typename F>
@@ -2253,7 +2304,7 @@ static void forQVRSMenus(F&& f)
 
 [[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
 {
-    quake::menu m{"Quake VR Settings", &M_Menu_Main_f};
+    quake::menu m{"Quake VR - Settings", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
@@ -2313,7 +2364,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (1)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2488,7 +2539,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2700,7 +2751,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2801,7 +2852,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (4)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2981,6 +3032,13 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
+    m.add_cvar_entry<float>("Throw Up Center Of Mass",
+        vr_throw_up_center_of_mass, {0.01f, 0.f, 10.f});
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
     m.add_cvar_entry<bool>(
         "Autosave On Changelevel", vr_autosave_on_changelevel);
@@ -3083,7 +3141,7 @@ static void forQVRDTMenus(F&& f)
 
 [[nodiscard]] static quake::menu makeQuakeVRDevToolsMenu()
 {
-    quake::menu m{"Quake VR Dev Tools", &M_Menu_Main_f};
+    quake::menu m{"Quake VR - Dev Tools", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
@@ -3300,7 +3358,7 @@ static void forQVRCMMenus(F&& f)
 
 [[nodiscard]] static quake::menu makeQuakeVRChangeMap()
 {
-    quake::menu m{"Change Map", &M_Menu_Main_f};
+    quake::menu m{"Quake VR - Change Map", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
@@ -4759,6 +4817,7 @@ void M_Draw()
         case m_video: M_Video_Draw(); break;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_quakevrquicksettings: M_QuakeVRQuickSettings_Draw(); break;
         case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
         case m_quakevrdevtools: M_QuakeVRDevTools_Draw(); break;
         case m_quakevrchangemap: M_QuakeVRChangeMap_Draw(); break;
@@ -4872,6 +4931,7 @@ void M_Keydown(int key)
         case m_video: M_Video_Key(key); return;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_quakevrquicksettings: M_QuakeVRQuickSettings_Key(key); return;
         case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
         case m_quakevrdevtools: M_QuakeVRDevTools_Key(key); return;
         case m_quakevrchangemap: M_QuakeVRChangeMap_Key(key); return;
