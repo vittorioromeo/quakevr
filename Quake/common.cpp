@@ -81,7 +81,7 @@ char** com_argv;
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
 char com_cmdline[CMDLINE_LENGTH];
 
-// TODO VR: (P0) remove rogue/hipnotic special cases
+// TODO VR: (P1) remove rogue/hipnotic special cases
 bool standard_quake = true, rogue, hipnotic;
 
 // this graphic needs to be in the pak file to use registered features
