@@ -78,7 +78,7 @@ float(float xFactor) ShouldDropAmmoBox =
 
 void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
 {
-    if(!ShouldDropAmmoBox(0.65))
+    if(!ShouldDropAmmoBox(0.45))
     {
         return;
     }
@@ -678,7 +678,7 @@ void(string xModelName, float xWeaponId) impl_weapon_item =
 */
 void() weapon_shotgun =
 {
-    impl_weapon_item("progs/v_shot.mdl", WID_SHOTGUN);
+    impl_weapon_item("progs/g_shot0.mdl", WID_SHOTGUN);
 }
 
 
@@ -878,7 +878,7 @@ void() item_rockets =
     impl_item_ammo_pickup(
         "maps/b_rock0.bsp", "maps/b_rock1.bsp",
         5, 10,
-        AID_ROCKETS, '24 24 24');
+        AID_ROCKETS, '16 16 32');
 };
 
 /*QUAKED item_multi_rockets (0 .5 .8) (0 0 0) (32 32 32) big
