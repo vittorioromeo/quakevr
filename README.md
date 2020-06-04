@@ -148,7 +148,7 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
     * [Fishbiter's OpenVR port](https://github.com/Fishbiter/Quakespasm-OpenVR)
     * [Zackin5's OpenVR port](https://github.com/Zackin5/Quakespasm-OpenVR)
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
-    * TODO VR: (P0) add spike's fork and credit him for help
+    * [Quakespasm-Spiked](http://triptohell.info/moodles/qss/)
 
 * Hand models with finger trackning support created by *Trevor Roach*
     * Many thanks!
@@ -157,6 +157,8 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
     * Using the [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl) project as a base
 
 * Many thanks to the following beta testers, who provided a lot of great feedback: *carn1x*, *GeekyGami*, *Sly VR*.
+
+* Many thanks to *Spoike* for helping me out with QuakeC and Quake engine internals.
 
 *(Please forgive me if I am forgetting someone. I will update this list as needed.)*
 
