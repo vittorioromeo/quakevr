@@ -3251,10 +3251,7 @@ void() wpnthrow_think =
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)
     {
         vector handDiff = VRGetEntHandPos(self.enemy, self.thinkArg) - self.origin;
-        if(vlen(handDiff) < 35)
-        {
-            self.velocity += normalize(handDiff) * 20.0;
-        }
+        self.velocity += normalize(handDiff);
     }
 
     if(self.waterlevel == 1)
@@ -3371,8 +3368,8 @@ void() wpnthrow_touch =
         self.throwhit = QVR_THROWHIT_HIT;
         self.movetype = MOVETYPE_TOSS;
     }
-    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA &&
-            time > GetThrownWeaponForcegrabTime(self) + 0.3)
+    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA ||
+            time > GetThrownWeaponForcegrabTime(self) + 1.0)
     {
         // After a parabola forcegrab, restore the movement type to "toss".
 
@@ -3453,7 +3450,8 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     // Guaranteed grab (linear force grab)
     if(ent.throwhit == QVR_THROWHIT_FORCEGRAB)
     {
-        if(VRGetHandtouchHand(ent) == xHand || pForceGrabbing)
+        if(VRGetHandtouchHand(ent) == xHand || pForceGrabbing &&
+           (GetThrownWeaponForcegrabHand(ent) == xHand))
         {
             performWeaponSwitch = TRUE;
         }
@@ -3615,6 +3613,16 @@ void(entity ent, float xValue) SetThrownWeaponForcegrabTime =
 float(entity ent) GetThrownWeaponForcegrabTime =
 {
     return ent.lefty;
+}
+
+void(entity ent, float xValue) SetThrownWeaponForcegrabHand =
+{
+    ent.deadflag = xValue;
+}
+
+float(entity ent) GetThrownWeaponForcegrabHand =
+{
+    return ent.deadflag;
 }
 
 void(entity ent, float xValue) SetThrownWeaponDealDamage =
