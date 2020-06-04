@@ -34,6 +34,7 @@ enum m_state_e
     m_setup,
     m_net,
     m_options,
+    m_quakevrquicksettings,
     m_quakevrsettings,
     m_quakevrdevtools,
     m_quakevrchangemap,

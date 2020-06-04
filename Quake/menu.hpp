@@ -40,6 +40,7 @@ void M_ToggleMenu_f();
 
 void M_Menu_Main_f();
 void M_Menu_Options_f();
+void M_Menu_QuakeVRQuickSettings_f();
 void M_Menu_QuakeVRSettings_f();
 void M_Menu_QuakeVRDevTools_f();
 void M_Menu_QuakeVRChangeMap_f();
