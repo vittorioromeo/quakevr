@@ -307,11 +307,11 @@ void SV_WaterMove()
     //
     // user intentions
     //
+
     // TODO VR: (P1) this should probably change depending on the chosen
     // locomotion style,
-    // TODO VR: (P0) this causes the swimming inconsistency
     std::tie(forward, right, up) =
-        quake::util::getAngledVectors(sv_player->v.v_angle);
+        quake::util::getAngledVectors(sv_player->v.v_viewangle);
 
     for(i = 0; i < 3; i++)
     {
@@ -428,10 +428,8 @@ void SV_AirMove()
 {
     // TODO VR: (P1) this should probably change depending on the chosen
     // locomotion style
-    // TODO VR: (P0) test with HMD, changed
     std::tie(forward, right, up) =
         quake::util::getAngledVectors(sv_player->v.v_viewangle);
-    // quake::util::getAngledVectors(VR_GetHeadAngles());
 
     qfloat fmove = cmd.forwardmove;
     const qfloat smove = cmd.sidemove;
