@@ -247,8 +247,8 @@ float QVR_AMMOBOXDROPS_DISABLE = 2;
 // ----------------------------------------------------------------------------
 
 float QVR_VRFORCEGRABMODE_DISABLED = 0;
-float QVR_VRFORCEGRABMODE_PARABOLA = 1;
-float QVR_VRFORCEGRABMODE_LINEAR = 2;
+float QVR_VRFORCEGRABMODE_LINEAR = 1;
+float QVR_VRFORCEGRABMODE_PARABOLA = 2;
 float QVR_VRFORCEGRABMODE_INSTANT = 3;
 
 //
