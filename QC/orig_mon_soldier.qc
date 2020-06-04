@@ -215,7 +215,7 @@ void() SoldierDrop =
     self.ammo_shells = 5;
     DropBackpack();
 
-    if(entPlayer != world && ShouldDropEnemyWpn(0.65))
+    if(entPlayer != world && ShouldDropEnemyWpn(0.45))
     {
         if(!TryEnemyDrop(self, entPlayer, WID_AXE, 0.2))
         if(!TryEnemyDrop(self, entPlayer, WID_SHOTGUN, 0.4))

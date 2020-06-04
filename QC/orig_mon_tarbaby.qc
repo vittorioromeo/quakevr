@@ -311,8 +311,8 @@ void() monster_tarbaby =
     self.th_run = tbaby_run1;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TBABY_LIVID) { self.th_missile = tbaby_jump5; } //Really go flying
-    else                              { self.th_missile = tbaby_jump1; }
+    if(self.spawnflags & SPAWNFLAG_TBABY_LIVID) { self.th_missile = tbaby_jump5; } // Really go flying
+    else                                        { self.th_missile = tbaby_jump1; }
 
     self.th_melee = tbaby_jump1;
     self.th_die = tbaby_die1;
