@@ -93,3 +93,67 @@ void() func_breakawaywall =
     setsize(self, self.mins , self.maxs);
     self.use = SUB_Remove;
 };
+
+
+// TODO VR: (P1) organize
+void() breakablewallwithrubble_killed =
+{
+    activator = damage_attacker;
+    SUB_UseTargets();
+
+    self.origin = realorigin(self);
+    hip_rubble_use();
+
+    remove(self);
+};
+
+void() func_breakablewallwithrubble_think
+{
+    /*vector bottom = self.origin;
+    bottom_z += self.mins_z;
+
+    traceline(bottom + '0 0 -1', bottom + '0 0 -2', FALSE, self);
+
+    if(trace_fraction == 1.0)
+    {
+        setorigin(self, self.origin + '0 0 -1');
+    }
+
+
+    self.nextthink = time + 0.01;*/
+}
+
+void() func_breakablewallwithrubble
+{
+    precache_model("progs/rubble1.mdl");
+    precache_model("progs/rubble2.mdl");
+    precache_model("progs/rubble3.mdl");
+    precache_sound("zombie/z_hit.wav");
+
+    self.mangle = self.angles;
+    self.angles = '0 0 0';
+
+    self.classname = "breakablewallwithrubble";
+    self.solid = SOLID_BSP;
+    self.movetype = MOVETYPE_NONE;
+
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins, self.maxs);
+
+    if(!self.health)
+    {
+        self.health = 10;
+    }
+
+    self.takedamage = DAMAGE_YES;
+
+    self.blocked = SUB_Null;
+    self.th_pain = SUB_NullPain;
+    self.th_die  = breakablewallwithrubble_killed;
+
+    self.cnt = 0;
+
+    // self.think = func_breakablewallwithrubble_think;
+    // self.nextthink = time + 0.01;
+}
