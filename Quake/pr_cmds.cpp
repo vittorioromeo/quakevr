@@ -1310,8 +1310,9 @@ static void PF_substr()
         buf[i] = s[b + i];
     }
 
-    buf[i + 1] = '\0';
+    buf[i] = '\0';
 
+    // TODO VR: (P1): does this continuously allocate new strings?
     G_INT(OFS_RETURN) = PR_SetEngineString(buf);
 }
 
@@ -1375,7 +1376,7 @@ static void PF_rotatevec()
     returnVector(rr);
     return;
 
-    // TODO VR: (P0): fix this. consider checking QSS source code for rotation
+    // TODO VR: (P1): fix this. consider checking QSS source code for rotation
     // code
 
 
