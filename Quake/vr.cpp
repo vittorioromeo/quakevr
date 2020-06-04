@@ -26,6 +26,7 @@
 #include <vector>
 #include <tuple>
 #include <string>
+#include <deque>
 
 #include <SDL2/SDL.h>
 
@@ -72,6 +73,46 @@ struct vr_eye_t
 // VR Input Structs
 // ----------------------------------------------------------------------------
 
+class VecHistory
+{
+private:
+    std::size_t _bufCapacity;
+    std::deque<qvec3> _data;
+
+public:
+    explicit VecHistory(const std::size_t bufCapacity) noexcept
+        : _bufCapacity{5}
+    {
+    }
+
+    void add(const qvec3& v)
+    {
+        if(_data.size() == _bufCapacity)
+        {
+            _data.pop_front();
+        }
+
+        _data.push_back(v);
+    }
+
+    [[nodiscard]] qvec3 average() const noexcept
+    {
+        if(_data.size() == 0)
+        {
+            return vec3_zero;
+        }
+
+        qvec3 res{};
+
+        for(const auto& v : _data)
+        {
+            res += v;
+        }
+
+        return res / static_cast<qfloat>(_data.size());
+    }
+};
+
 struct vr_controller
 {
     vr::VRControllerState_t state;
@@ -83,7 +124,12 @@ struct vr_controller
     vr::HmdVector3_t rawvector;
     vr::HmdQuaternion_t raworientation;
     bool active{false};
+
+    VecHistory velocityHistory{5};
+    VecHistory angularVelocityHistory{5};
 };
+
+
 
 //
 //
@@ -1076,6 +1122,7 @@ void VR_ModAllModels()
 vr::VRActiveActionSet_t vrActiveActionSet;
 
 vr::VRActionSetHandle_t vrashDefault;
+vr::VRActionSetHandle_t vrashMenu;
 
 vr::VRActionHandle_t vrahLeftHandAnim;
 vr::VRActionHandle_t vrahRightHandAnim;
@@ -1102,6 +1149,18 @@ vr::VRActionHandle_t vrahBTurnRight;
 vr::VRActionHandle_t vrahLeftHaptic;
 vr::VRActionHandle_t vrahRightHaptic;
 
+vr::VRActionHandle_t vrahMenuNavigation;
+vr::VRActionHandle_t vrahMenuUp;
+vr::VRActionHandle_t vrahMenuDown;
+vr::VRActionHandle_t vrahMenuLeft;
+vr::VRActionHandle_t vrahMenuRight;
+vr::VRActionHandle_t vrahMenuEnter;
+vr::VRActionHandle_t vrahMenuBack;
+vr::VRActionHandle_t vrahMenuAddToShortcuts;
+vr::VRActionHandle_t vrahMenuMultiplierHalf;
+vr::VRActionHandle_t vrahMenuMultiplierPlusOne;
+vr::VRActionHandle_t vrahMenuMultiplierPlusOne2;
+
 vr::VRInputValueHandle_t vrivhLeft;
 vr::VRInputValueHandle_t vrivhRight;
 
@@ -1112,6 +1171,19 @@ static void VR_InitActionHandles()
     {
         const auto rc = vr::VRInput()->GetActionSetHandle(
             "/actions/default", &vrashDefault);
+
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf("Failed to read Steam VR action set handle, rc = %d\n",
+                (int)rc);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // VR: Read "menu" action set handle.
+    {
+        const auto rc =
+            vr::VRInput()->GetActionSetHandle("/actions/menu", &vrashMenu);
 
         if(rc != vr::EVRInputError::VRInputError_None)
         {
@@ -1167,6 +1239,20 @@ static void VR_InitActionHandles()
     // Haptics.
     readHandle("/actions/default/out/LeftHaptic", vrahLeftHaptic);
     readHandle("/actions/default/out/RightHaptic", vrahRightHaptic);
+
+    // Menu.
+    readHandle("/actions/menu/in/Navigation", vrahMenuNavigation);
+    readHandle("/actions/menu/in/Up", vrahMenuUp);
+    readHandle("/actions/menu/in/Down", vrahMenuDown);
+    readHandle("/actions/menu/in/Left", vrahMenuLeft);
+    readHandle("/actions/menu/in/Right", vrahMenuRight);
+    readHandle("/actions/menu/in/Enter", vrahMenuEnter);
+    readHandle("/actions/menu/in/Back", vrahMenuBack);
+    readHandle("/actions/menu/in/AddToShortcuts", vrahMenuAddToShortcuts);
+    readHandle("/actions/menu/in/MultiplierHalf", vrahMenuMultiplierHalf);
+    readHandle("/actions/menu/in/MultiplierPlusOne", vrahMenuMultiplierPlusOne);
+    readHandle(
+        "/actions/menu/in/MultiplierPlusOne2", vrahMenuMultiplierPlusOne2);
 
     vrActiveActionSet.ulActionSet = vrashDefault;
     vrActiveActionSet.ulRestrictedToDevice = vr::k_ulInvalidInputValueHandle;
@@ -1797,16 +1883,15 @@ void SetHandPos(int index, entity_t* player)
 
     // handthrowvel
     {
-        cl.handthrowvel[index] = controllers[index].velocity;
+        cl.handthrowvel[index] = controllers[index].velocityHistory.average();
 
         // TODO VR: (P1) throwing an item up with a small flick feels too strong
         const auto up =
             std::get<2>(getAngledVectors(controllers[index].orientation));
 
-        // TODO VR: (P1) center of mass is different for different weapons
-        // TODO VR: (P1) cvar this 0.1f
         cl.handthrowvel[index] +=
-            glm::cross(controllers[index].a_velocity, up * 0.1_qf);
+            glm::cross(controllers[index].angularVelocityHistory.average(),
+                up * vr_throw_up_center_of_mass.value);
 
         cl.handthrowvel[index] = redirectVectorByYaw(
             openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
@@ -2553,10 +2638,12 @@ VR_UpdateDevicesOrientationPosition() noexcept
                 controller->velocity[0] = rawControllerVel.v[0];
                 controller->velocity[1] = rawControllerVel.v[1];
                 controller->velocity[2] = rawControllerVel.v[2];
+                controller->velocityHistory.add(controller->velocity);
 
                 controller->a_velocity[0] = rawControllerAVel.v[0];
                 controller->a_velocity[1] = rawControllerAVel.v[1];
                 controller->a_velocity[2] = rawControllerAVel.v[2];
+                controller->angularVelocityHistory.add(controller->a_velocity);
 
                 controller->orientation = QuatToYawPitchRoll(rawControllerQuat);
             }
@@ -3509,6 +3596,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     if(vr_fakevr.value && vr_novrinit.value)
     {
         vr_menu_mult = 1.f;
+        vr_left_prevgrabbing = vr_left_grabbing;
+        vr_right_prevgrabbing = vr_right_grabbing;
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
         return {0.f, 0.f, 0.f};
@@ -3659,6 +3748,32 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto mustBTurnLeft = inpBTurnLeft.bState;
     const auto mustBTurnRight = inpBTurnRight.bState;
 
+    const auto inpMenuNavigation = readAnalogAction(vrahMenuNavigation);
+    const auto inpMenuUp = readDigitalAction(vrahMenuUp);
+    const auto inpMenuDown = readDigitalAction(vrahMenuDown);
+    const auto inpMenuLeft = readDigitalAction(vrahMenuLeft);
+    const auto inpMenuRight = readDigitalAction(vrahMenuRight);
+    const auto inpMenuEnter = readDigitalAction(vrahMenuEnter);
+    const auto inpMenuBack = readDigitalAction(vrahMenuBack);
+    const auto inpMenuAddToShortcuts =
+        readDigitalAction(vrahMenuAddToShortcuts);
+    const auto inpMenuMultiplierHalf =
+        readDigitalAction(vrahMenuMultiplierHalf);
+    const auto inpMenuMultiplierPlusOne =
+        readDigitalAction(vrahMenuMultiplierPlusOne);
+    const auto inpMenuMultiplierPlusOne2 =
+        readDigitalAction(vrahMenuMultiplierPlusOne2);
+
+    // VR: Active action set transition.
+    if(inMenu() && !inpEscape.bState)
+    {
+        vrActiveActionSet.ulActionSet = vrashMenu;
+    }
+    else if(!inMenu() && !inpMenuBack.bState)
+    {
+        vrActiveActionSet.ulActionSet = vrashDefault;
+    }
+
     // TODO VR: (P2) global state mutation here, could be source of bugs
     vr_left_prevgrabbing = vr_left_grabbing;
     vr_right_prevgrabbing = vr_right_grabbing;
@@ -3679,9 +3794,9 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     in_speed.state = mustSpeed;
 
     // Menu multipliers to fine-tune values.
-    vr_menu_mult = mustTeleport ? 0.5f : 1.f;
-    vr_menu_mult += static_cast<int>(mustFireMainHand);
-    vr_menu_mult += static_cast<int>(mustFireOffHand);
+    vr_menu_mult = inpMenuMultiplierHalf.bState ? 0.5f : 1.f;
+    vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne.bState);
+    vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne2.bState);
 
     const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
         vr::VRInput()->TriggerHapticVibrationAction(
@@ -3764,16 +3879,16 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
         if(vr_fakevr.value == 0)
         {
-            doMenuKeyEventWithHaptic(K_ENTER, inpJump);
-            doMenuKeyEventWithHaptic(K_ESCAPE, inpEscape);
-            doMenuKeyEventWithHaptic(K_LEFTARROW, inpNextWeaponOffHand);
-            doMenuKeyEventWithHaptic(K_RIGHTARROW, inpNextWeaponMainHand);
+            doMenuKeyEventWithHaptic(K_ENTER, inpMenuEnter);
+            doMenuKeyEventWithHaptic(K_ESCAPE, inpMenuBack);
+            doMenuKeyEventWithHaptic(K_LEFTARROW, inpMenuLeft);
+            doMenuKeyEventWithHaptic(K_RIGHTARROW, inpMenuRight);
 
-            doAxis(1 /* Y axis */, inpLocomotion, K_UPARROW, K_DOWNARROW);
-            doAxis(0 /* X axis */, inpTurn, K_RIGHTARROW, K_LEFTARROW);
+            doAxis(1 /* Y axis */, inpMenuNavigation, K_UPARROW, K_DOWNARROW);
+            // doAxis(0 /* X axis */, inpTurn, K_RIGHTARROW, K_LEFTARROW);
 
-            doBooleanInput(inpBMoveForward, K_UPARROW);
-            doBooleanInput(inpBMoveBackward, K_DOWNARROW);
+            doBooleanInput(inpMenuUp, K_UPARROW);
+            doBooleanInput(inpMenuDown, K_DOWNARROW);
         }
     }
     else
@@ -4092,33 +4207,14 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
+// TODO VR: (P0): Menu to play against bots easily
+
 // TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
 // in certain situations I can't figure out a pattern for, such as
 // overshooting."
 
 // TODO VR: (P0): "All end of level secrets show more secrets complete than
 // existing, e.g.: 13/7 secrets" -> made some changes, test
-
-// TODO VR: (P0): "Is there a way to completely disable the threshold for 2
-// handed cancellation? I frequently end up letting go of the weapon with my
-// off-hand despite gripping, even with it set to -1.0 (the furthest). I'm kind
-// of used to Boneworks where I can flail the weapon around as much as I want as
-// long as I'm gripping it with both hands. Is this possible? Thanks!!" - added
-// `vr_2h_disable_angle_threshold` test
-
-// TODO VR: (P0): "- I figured out a bit more about my issues with the axe,
-// possibly. I noticed that if I move the axe close to the wall it will collide
-// with the wall, but no hit collision occurs as long as my hand itself does not
-// hit the wall. If I want the axe to trigger a damage hit, I need to make sure
-// my hand follows through to the wall. I would assume this same issue occurs
-// with enemies as well as such it makes the axe seem artificially short?" -
-// improved a bit, test
-
-// TODO VR: (P0): " I tried headbutting the knights at the start of DOE and I
-// just couldn't collide with them at all" - must test
-
-// TODO VR: (P0): "- Linear force grab flies past my hand now everytime, so is
-// unusable, where it was 99% no issues in 0.0.5b1" - seems fixed, test
 
 // TODO VR: (P0): "seems like for the custom map a2 i can add bots with no
 // problem, but on ab2 if i rapidly add them then the game crashes" - can
@@ -4338,3 +4434,4 @@ void VR_OnLoadedPak(pack_t& pak)
 
 // TODO VR: (P2): "the desktop display has a bit of it cut off from what looks
 // like the console"
+
