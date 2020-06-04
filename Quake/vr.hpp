@@ -211,8 +211,8 @@ enum class VrMenuMode : int
 enum class VrForceGrabMode : int
 {
     Disabled = 0,
-    Parabola = 1,
-    Linear = 2,
+    Linear = 1,
+    Parabola = 2,
     Instant = 3,
 };
 
