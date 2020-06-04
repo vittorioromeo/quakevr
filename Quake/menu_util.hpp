@@ -100,6 +100,13 @@ struct menu_entry_action_slider
     std::function<float()> _range;
 };
 
+struct menu_entry;
+
+struct menu_entry_ptr
+{
+    menu_entry* _ptr;
+};
+
 using menu_entry_variant = std::variant< //
     menu_entry_value<bool>,              //
     menu_entry_cvar<float>,              //
@@ -109,7 +116,8 @@ using menu_entry_variant = std::variant< //
     menu_entry_value_labeled<int>,       //
     menu_entry_action,                   //
     menu_entry_action_slider,            //
-    menu_entry_separator                 //
+    menu_entry_separator,                //
+    menu_entry_ptr                       //
     >;
 
 struct menu_entry
@@ -128,18 +136,47 @@ struct menu_entry
 class menu
 {
 public:
-    template <typename T>
-    class entry_handle
+    class entry_handle_base
     {
-    private:
+    protected:
         menu* _menu;
         std::size_t _index;
 
     public:
-        explicit entry_handle(menu& m, const std::size_t i) noexcept
+        explicit entry_handle_base(menu& m, const std::size_t i) noexcept
             : _menu{&m}, _index{i}
         {
         }
+
+        template <typename F>
+        entry_handle_base& hover(F&& f) noexcept
+        {
+            entry()._common._hover_change = std::forward<F>(f);
+            return *this;
+        }
+
+        entry_handle_base& tooltip(const std::string_view x) noexcept
+        {
+            entry()._common._tooltip = x;
+            return *this;
+        }
+
+        [[nodiscard]] impl::menu_entry& entry() noexcept
+        {
+            return _menu->access(_index);
+        }
+
+        [[nodiscard]] const impl::menu_entry& entry() const noexcept
+        {
+            return _menu->access(_index);
+        }
+    };
+
+    template <typename T>
+    class entry_handle : public entry_handle_base
+    {
+    public:
+        using entry_handle_base::entry_handle_base;
 
         T& operator*() noexcept
         {
@@ -160,20 +197,6 @@ public:
         {
             return &_menu->access_variant<T>(_index);
         }
-
-        template <typename F>
-        entry_handle& hover(F&& f) noexcept
-        {
-            _menu->access(_index)._common._hover_change = std::forward<F>(f);
-
-            return *this;
-        }
-
-        entry_handle& tooltip(const std::string_view x) noexcept
-        {
-            _menu->access(_index)._common._tooltip = x;
-            return *this;
-        }
     };
 
 private:
@@ -181,7 +204,7 @@ private:
     std::string_view _title;
     int _cursor_idx{0};
     std::function<void()> _escape_fn;
-    std::function<void(int)> _key_fn;
+    std::function<void(int, impl::menu_entry&)> _key_fn;
 
     static constexpr int items_per_column = 25;
 
@@ -222,9 +245,17 @@ private:
         return entry_handle<T>{*this, index};
     }
 
+    void update_hover(
+        const int prev_cursor_idx, const int curr_cursor_idx) noexcept;
+
+    void remove_entry_at(const std::size_t index) noexcept;
+    void move_cursor(const int offset) noexcept;
+
 public:
     menu(const std::string_view title, std::function<void()> escape_fn,
         bool two_columns = false) noexcept;
+
+    void clear();
 
     template <typename F>
     void on_key(F&& f)
@@ -309,13 +340,20 @@ public:
 
     void add_separator();
 
+    auto add_entry_ptr(impl::menu_entry& entry){
+     return emplace_and_get_handle<impl::menu_entry_ptr>(entry._common,
+        &entry);
+}
+
     void enter();
     void leave();
     void key(const int key);
-    void draw();
+    void draw(const int offset_x = 0, const int offset_y = 0);
 
     [[nodiscard]] int cursor_idx() noexcept;
     [[nodiscard]] const std::string_view& title() noexcept;
+    [[nodiscard]] int entry_count() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
 };
 
 } // namespace quake
