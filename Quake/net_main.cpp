@@ -418,10 +418,12 @@ static void Slist_Send(void* unused)
         {
             continue;
         }
+
         if(net_drivers[net_driverlevel].initialized == false)
         {
             continue;
         }
+
         dfunc.SearchForHosts(true);
     }
 
@@ -443,10 +445,12 @@ static void Slist_Poll(void* unused)
         {
             continue;
         }
+
         if(net_drivers[net_driverlevel].initialized == false)
         {
             continue;
         }
+
         dfunc.SearchForHosts(false);
     }
 
@@ -465,6 +469,7 @@ static void Slist_Poll(void* unused)
     {
         PrintSlistTrailer();
     }
+
     slistInProgress = false;
     slistSilent = false;
     slistLocal = true;
@@ -511,6 +516,7 @@ qsocket_t* NET_Connect(const char* host)
                     break;
                 }
             }
+
             if(n < hostCacheCount)
             {
                 goto JustDoIt;
@@ -532,6 +538,7 @@ qsocket_t* NET_Connect(const char* host)
         {
             return nullptr;
         }
+
         host = hostcache[0].cname;
         Con_Printf("Connecting to...\n%s @ %s\n\n", hostcache[0].name, host);
     }
