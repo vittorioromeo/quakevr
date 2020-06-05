@@ -1384,6 +1384,24 @@ static qvec3 fingerIdxToOffset(const FingerIdx fingerIdx, const int handIdx)
 [[nodiscard]] static int handSkeletalToFrame(
     const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss)
 {
+    // Automatically close thumb if most other fingers are curled.
+    if(fingerIdx == FingerIdx::Thumb && vr_finger_auto_close_thumb.value)
+    {
+        const auto avg = [](const auto... xs) {
+            return (xs + ...) / sizeof...(xs);
+        };
+
+        const auto avgCurl = [&](const auto... xs) {
+            return avg(ss.flFingerCurl[(int)xs]...);
+        };
+
+        if(avgCurl(FingerIdx::Index, FingerIdx::Middle, FingerIdx::Ring,
+               FingerIdx::Pinky) > 0.5)
+        {
+            return 5.f;
+        }
+    }
+
     return std::floor(
         std::clamp(ss.flFingerCurl[(int)fingerIdx] + vr_finger_grip_bias.value,
             0.f, 1.f) *

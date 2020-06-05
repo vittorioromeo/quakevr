@@ -600,6 +600,17 @@ void R_DrawBrushModel(entity_t* e)
     }
     e->angles[0] = -e->angles[0]; // stupid quake bug
 
+    if(e->horizFlip)
+    {
+        glScalef(1.0f, -1.0f, 1.0f);
+        glFrontFace(GL_CCW);
+    }
+
+    // TODO VR: (P1) document why we have +1, code repetition with alias
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+
     R_ClearTextureChains(clmodel, chain_model);
     for(i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
     {
@@ -660,6 +671,17 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     e->angles[0] = -e->angles[0]; // stupid quake bug
     R_RotateForEntity(e->origin, e->angles);
     e->angles[0] = -e->angles[0]; // stupid quake bug
+
+    if(e->horizFlip)
+    {
+        glScalef(1.0f, -1.0f, 1.0f);
+        glFrontFace(GL_CCW);
+    }
+
+    // TODO VR: (P1) document why we have +1, code repetition with brush
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
     //
     // draw it

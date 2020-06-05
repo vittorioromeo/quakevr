@@ -770,9 +770,6 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             }
         }
 
-        // TODO VR: (P1) remove, this should be set only when scale changes
-        // bits |= U_SCALE;
-
         if(ent->v.angles[0] != ent->baseline.angles[0])
         {
             bits |= U_ANGLE1;
@@ -870,31 +867,36 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         // johnfitz -- PROTOCOL_FITZQUAKE
         if(sv.protocol != PROTOCOL_NETQUAKE)
         {
-
             if(ent->baseline.alpha != ent->alpha)
             {
                 bits |= U_ALPHA;
             }
+
             if(ent->baseline.scale != ent->v.scale)
             {
                 bits |= U_SCALE;
             }
+
             if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
             {
                 bits |= U_FRAME2;
             }
+
             if(bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
             {
                 bits |= U_MODEL2;
             }
+
             if(ent->sendinterval)
             {
                 bits |= U_LERPFINISH;
             }
+
             if(bits >= 65536)
             {
                 bits |= U_EXTEND1;
             }
+
             if(bits >= 16777216)
             {
                 bits |= U_EXTEND2;
@@ -1700,18 +1702,18 @@ SV_CreateBaseline
 void SV_CreateBaseline()
 {
     int i;
-    edict_t* svent;
-    int entnum;
     int bits; // johnfitz -- PROTOCOL_FITZQUAKE
 
-    for(entnum = 0; entnum < sv.num_edicts; entnum++)
+    for(int entnum = 0; entnum < sv.num_edicts; entnum++)
     {
         // get the current server version
-        svent = EDICT_NUM(entnum);
+        edict_t* svent = EDICT_NUM(entnum);
+
         if(svent->free)
         {
             continue;
         }
+
         if(entnum > svs.maxclients && !svent->v.modelindex)
         {
             continue;

@@ -45,12 +45,17 @@ void() newitems_touch =
     }
 
     sound(other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
-    stuffcmd (other, "bf\n");
+    stuffcmd(other, "bf\n");
     self.solid = SOLID_NOT;
-    VR_ItemUtil_EntAddItem(other, self.vr_itemId);
+
+    if(self.classname != "item_sphere")
+    {
+        VR_ItemUtil_EntAddItem(other, self.vr_itemId);
+    }
+
     self.model = string_null;
 
-// do the apropriate action
+    // do the apropriate action
     if(self.netname == "Power Shield")
     {
         other.shield_time = 1;
@@ -78,7 +83,7 @@ The shield upgrade
 */
 void() item_powerup_shield =
 {
-    self.touch = newitems_touch;
+    self.handtouch = newitems_touch;
 
     precache_model("progs/shield.mdl");
     precache_model("progs/p_shield.mdl");
@@ -98,7 +103,7 @@ The anti-grav belt
 */
 void() item_powerup_belt =
 {
-    self.touch = newitems_touch;
+    self.handtouch = newitems_touch;
 
     precache_model("progs/beltup.mdl");
     precache_sound("belt/pickup.wav");

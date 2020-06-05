@@ -271,9 +271,6 @@ Cvar_FindVar
 */
 cvar_t* Cvar_FindVar(const char* var_name)
 {
-    // TODO VR: (P1) cvars could be stored in a smarter way, and we could cache
-    // some sort of handle in QuakeC to avoid lookups on every CVar read
-
     for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         if(!Q_strcmp(var_name, var->name))

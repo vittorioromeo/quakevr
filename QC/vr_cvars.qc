@@ -62,6 +62,10 @@ float cvarh_vr_2h_throw_velocity_mult;
 float cvarh_vr_headbutt_velocity_threshold;
 float cvarh_vr_headbutt_damage_mult;
 float cvarh_vr_verbosebots;
+float cvarh_vr_forcegrabbable_ammo_boxes;
+float cvarh_vr_forcegrabbable_health_boxes;
+float cvarh_vr_forcegrabbable_return_time_deathmatch;
+float cvarh_vr_forcegrabbable_return_time_singleplayer;
 
 //
 //
@@ -134,6 +138,10 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_headbutt_velocity_threshold);
     VR_CVAR_HMAKE(vr_headbutt_damage_mult);
     VR_CVAR_HMAKE(vr_verbosebots);
+    VR_CVAR_HMAKE(vr_forcegrabbable_ammo_boxes);
+    VR_CVAR_HMAKE(vr_forcegrabbable_health_boxes);
+    VR_CVAR_HMAKE(vr_forcegrabbable_return_time_deathmatch);
+    VR_CVAR_HMAKE(vr_forcegrabbable_return_time_singleplayer);
 
 #undef VR_CVAR_HMAKE
 }

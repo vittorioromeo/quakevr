@@ -641,11 +641,8 @@ void CL_ParseUpdate(int bits)
         else
         {
             target[index] = baselineData[index];
-        };
+        }
     };
-
-    // TODO VR: (P1) remove, this should be set only when scale changes
-    // bits |= U_SCALE;
 
     // clang-format off
     doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);

@@ -4207,20 +4207,11 @@ void VR_OnLoadedPak(pack_t& pak)
     }
 }
 
-// TODO VR: (P0): Menu to play against bots easily
-
-// TODO VR: (P0): "Force grab parabola/linear still seem to be very unreliable
-// in certain situations I can't figure out a pattern for, such as
-// overshooting."
-
-// TODO VR: (P0): "All end of level secrets show more secrets complete than
-// existing, e.g.: 13/7 secrets" -> made some changes, test
-
-// TODO VR: (P0): "seems like for the custom map a2 i can add bots with no
+// TODO VR: (P1): "seems like for the custom map a2 i can add bots with no
 // problem, but on ab2 if i rapidly add them then the game crashes" - can
 // reproduce, seems a problem with waypoint `._next`?
 
-// TODO VR: (P0): "Seems like my guns very frequently wont shoot for a second -
+// TODO VR: (P1): "Seems like my guns very frequently wont shoot for a second -
 // i will be shooting fine, just pressing the trigger button repeatedly and keep
 // shooting my shotugn or rockets, then randomly it wont shoot when i pressed
 // trigger, and i continue to repeatedly press trigger and then it starts
@@ -4229,13 +4220,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // attention to this issue." - seems to happen in MP with many bots, not sure
 // why
 
-
-
 // TODO VR: (P1): "Quicksave would be better | A hotkey for quicksaving | Maybe
 // a button combo"
-
-// TODO VR: (P1) player death animation is bugged in mp probably has to do with
-// player_run - made some changes, test -> still bugged it seems
 
 // TODO VR: (P1): (MP) "I seem to be inheriting the server settings for a number
 // of client side options, for instance I have immersive mode on and body-item
