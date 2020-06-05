@@ -321,6 +321,7 @@ float FL_WATERJUMP      = VRUTIL_POWER_OF_TWO(11); // Player jumping out of wate
 float FL_JUMPRELEASED   = VRUTIL_POWER_OF_TWO(12); // For jump debouncing.
 float FL_EASYHANDTOUCH  = VRUTIL_POWER_OF_TWO(13); // Adds bonus to boundaries for handtouch.
 float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY.
+float FL_FORCEGRABBABLE = VRUTIL_POWER_OF_TWO(15); // VR.
 
 //
 //

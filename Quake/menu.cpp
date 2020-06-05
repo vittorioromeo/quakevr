@@ -122,8 +122,6 @@ char m_return_reason[32];
 // TODO VR: (P2) hackish
 #define StartingGame ((multiPlayerMenu().cursor_idx()) == 1)
 #define JoiningGame ((multiPlayerMenu().cursor_idx()) == 0)
-#define IPXConfig (m_net_cursor == 0)
-#define TCPIPConfig (m_net_cursor == 1)
 
 void M_ConfigureNetSubsystem();
 
@@ -368,7 +366,7 @@ void M_ToggleMenu_f()
     quake::menu m{"Main Menu", [] {}};
 
     m.add_action_entry("Single Player", &M_Menu_SinglePlayer_f);
-    m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
+    m.add_action_entry("Multi Player & Bots", &M_Menu_MultiPlayer_f);
     m.add_action_entry("Options", &M_Menu_Options_f);
     // m.add_action_entry("Quake VR - Quick Settings",
     // &M_Menu_QuakeVRQuickSettings_f);
@@ -753,15 +751,72 @@ void M_Save_Key(int k)
 }
 
 //=============================================================================
+/* BOT CONTROL MENU */
+
+[[nodiscard]] static quake::menu makeBotControlMenu()
+{
+    const auto runCmd = [](const char* cmd) {
+        return [cmd] {
+            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+            Cmd_ExecuteString(cmd, cmd_source_t::src_command);
+        };
+    };
+
+    quake::menu m{"Bot Control", &M_Menu_MultiPlayer_f};
+
+    m.add_action_entry("Add Bot (Team 0)", runCmd("impulse 100"));
+    m.add_action_entry("Add Bot (Team 1)", runCmd("impulse 101"));
+    m.add_action_entry("Kick Bot", runCmd("impulse 102"));
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    extern cvar_t skill;
+    m.add_cvar_getter_enum_entry<int>(        //
+        "Skill",                              //
+        [] { return &skill; },                //
+        "Easy", "Normal", "Hard", "Nightmare" //
+    );
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& botControlMenu()
+{
+    static quake::menu res = makeBotControlMenu();
+    return res;
+}
+
+void M_Menu_BotControl_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_botcontrol;
+    m_entersound = true;
+}
+
+void M_BotControl_Draw()
+{
+    botControlMenu().draw();
+}
+
+void M_BotControl_Key(int key)
+{
+    botControlMenu().key(key);
+}
+
+//=============================================================================
 /* MULTIPLAYER MENU */
 
 [[nodiscard]] static quake::menu makeMultiPlayerMenu()
 {
     quake::menu m{"Multi Player", &M_Menu_Main_f};
 
-    m.add_action_entry("Join a Game", &M_Menu_Net_f);
-    m.add_action_entry("New Game", &M_Menu_Net_f);
+    m.add_action_entry("Join a Game", &M_Menu_LanConfig_f);
+    m.add_action_entry("New Game", &M_Menu_LanConfig_f);
     m.add_action_entry("Setup", &M_Menu_Setup_f);
+    m.add_action_entry("Bot Control", &M_Menu_BotControl_f);
 
     return m;
 }
@@ -782,7 +837,7 @@ void M_Menu_MultiPlayer_f()
 
 void M_MultiPlayer_Draw()
 {
-    if(!ipxAvailable && !tcpipAvailable)
+    if(!tcpipAvailable)
     {
         M_PrintWhite(
             (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
@@ -1044,7 +1099,7 @@ void M_Menu_Net_f()
     key_dest = key_menu;
     m_state = m_net;
     m_entersound = true;
-    m_net_items = 2;
+    m_net_items = 1;
 
     if(m_net_cursor >= m_net_items)
     {
@@ -1065,26 +1120,7 @@ void M_Net_Draw()
     M_DrawPic((320 - p->width) / 2, 4, p);
 
     f = 32;
-
-    if(ipxAvailable)
-    {
-        p = Draw_CachePic("gfx/netmen3.lmp");
-    }
-    else
-    {
-        p = Draw_CachePic("gfx/dim_ipx.lmp");
-    }
-    M_DrawTransPic(72, f, p);
-
-    f += 19;
-    if(tcpipAvailable)
-    {
-        p = Draw_CachePic("gfx/netmen4.lmp");
-    }
-    else
-    {
-        p = Draw_CachePic("gfx/dim_tcp.lmp");
-    }
+    p = Draw_CachePic("gfx/netmen4.lmp");
     M_DrawTransPic(72, f, p);
 
     f = (320 - 26 * 8) / 2;
@@ -1103,7 +1139,6 @@ void M_Net_Draw()
 
 void M_Net_Key(int k)
 {
-again:
     switch(k)
     {
         case K_ESCAPE:
@@ -1111,18 +1146,12 @@ again:
 
         case K_DOWNARROW:
             S_LocalSound("misc/menu1.wav");
-            if(++m_net_cursor >= m_net_items)
-            {
-                m_net_cursor = 0;
-            }
+            m_net_cursor = 0;
             break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
-            if(--m_net_cursor < 0)
-            {
-                m_net_cursor = m_net_items - 1;
-            }
+            m_net_cursor = 0;
             break;
 
         case K_ENTER:
@@ -1131,15 +1160,6 @@ again:
             m_entersound = true;
             M_Menu_LanConfig_f();
             break;
-    }
-
-    if(m_net_cursor == 0 && !ipxAvailable)
-    {
-        goto again;
-    }
-    if(m_net_cursor == 1 && !tcpipAvailable)
-    {
-        goto again;
     }
 }
 
@@ -1603,6 +1623,8 @@ void M_Options_Key(int k)
 
     m.add_cvar_entry<float>(
         "Finger Grip Bias", vr_finger_grip_bias, {0.05f, 0.f, 1.f});
+
+    m.add_cvar_entry<bool>("Auto close thumb", vr_finger_auto_close_thumb);
 
     return m;
 }
@@ -3032,6 +3054,22 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
+    m.add_cvar_entry<bool>(
+        "Force-grabbable ammo items", vr_forcegrabbable_ammo_boxes);
+
+    m.add_cvar_entry<bool>(
+        "Force-grabbable health items", vr_forcegrabbable_health_boxes);
+
+    m.add_cvar_entry<float>("Return item time (DM)",
+        vr_forcegrabbable_return_time_deathmatch, {0.5f, 0.f, 50.f});
+
+    m.add_cvar_entry<float>("Return item time (SP)",
+        vr_forcegrabbable_return_time_singleplayer, {0.5f, 0.f, 50.f});
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_cvar_entry<float>("Throw Up Center Of Mass",
         vr_throw_up_center_of_mass, {0.01f, 0.f, 10.f});
 
@@ -3042,14 +3080,6 @@ void M_QuakeVRSettings_Key(int k)
     m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
     m.add_cvar_entry<bool>(
         "Autosave On Changelevel", vr_autosave_on_changelevel);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    m.add_action_entry("Add Bot (Team 0)", runCmd("impulse 100"));
-    m.add_action_entry("Add Bot (Team 1)", runCmd("impulse 101"));
-    m.add_action_entry("Kick Bot", runCmd("impulse 102"));
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -3835,7 +3865,7 @@ void M_Menu_LanConfig_f()
     m_entersound = true;
     if(lanConfig_cursor == -1)
     {
-        if(JoiningGame && TCPIPConfig)
+        if(JoiningGame)
         {
             lanConfig_cursor = 2;
         }
@@ -3876,26 +3906,14 @@ void M_LanConfig_Draw()
     {
         startJoin = "Join Game";
     }
-    if(IPXConfig)
-    {
-        protocol = "IPX";
-    }
-    else
-    {
-        protocol = "TCP/IP";
-    }
+
+    protocol = "TCP/IP";
+
     M_Print(basex, 32, va("%s - %s", startJoin, protocol));
     basex += 8;
 
     M_Print(basex, 52, "Address:");
-    if(IPXConfig)
-    {
-        M_Print(basex + 9 * 8, 52, my_ipx_address);
-    }
-    else
-    {
-        M_Print(basex + 9 * 8, 52, my_tcpip_address);
-    }
+    M_Print(basex + 9 * 8, 52, my_tcpip_address);
 
     M_Print(basex, lanConfig_cursor_table[0], "Port");
     M_DrawTextBox(basex + 8 * 8, lanConfig_cursor_table[0] - 8, 6, 1);
@@ -3943,7 +3961,7 @@ void M_LanConfig_Key(int key)
     switch(key)
     {
         case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Net_f(); break;
+        case K_BBUTTON: M_Menu_MultiPlayer_f(); break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
@@ -4087,90 +4105,115 @@ typedef struct
     const char* description;
 } level_t;
 
-level_t levels[] = {{"start", "Entrance"}, // 0
+level_t levels[] = {
 
-    {"e1m1", "Slipgate Complex"}, // 1
-    {"e1m2", "Castle of the Damned"}, {"e1m3", "The Necropolis"},
-    {"e1m4", "The Grisly Grotto"}, {"e1m5", "Gloom Keep"},
-    {"e1m6", "The Door To Chthon"}, {"e1m7", "The House of Chthon"},
-    {"e1m8", "Ziggurat Vertigo"},
+    {"e1m1", "Slipgate Complex"},     // 0
+    {"e1m2", "Castle of the Damned"}, // 1
+    {"e1m3", "The Necropolis"},       // 2
+    {"e1m4", "The Grisly Grotto"},    // 3
+    {"e1m5", "Gloom Keep"},           // 4
+    {"e1m6", "The Door To Chthon"},   // 5
+    {"e1m7", "The House of Chthon"},  // 6
+    {"e1m8", "Ziggurat Vertigo"},     // 7
 
-    {"e2m1", "The Installation"}, // 9
-    {"e2m2", "Ogre Citadel"}, {"e2m3", "Crypt of Decay"},
-    {"e2m4", "The Ebon Fortress"}, {"e2m5", "The Wizard's Manse"},
-    {"e2m6", "The Dismal Oubliette"}, {"e2m7", "Underearth"},
+    {"e2m1", "The Installation"},     // 8
+    {"e2m2", "Ogre Citadel"},         // 9
+    {"e2m3", "Crypt of Decay"},       // 10
+    {"e2m4", "The Ebon Fortress"},    // 11
+    {"e2m5", "The Wizard's Manse"},   // 12
+    {"e2m6", "The Dismal Oubliette"}, // 13
+    {"e2m7", "Underearth"},           // 14
 
-    {"e3m1", "Termination Central"}, // 16
-    {"e3m2", "The Vaults of Zin"}, {"e3m3", "The Tomb of Terror"},
-    {"e3m4", "Satan's Dark Delight"}, {"e3m5", "Wind Tunnels"},
-    {"e3m6", "Chambers of Torment"}, {"e3m7", "The Haunted Halls"},
+    {"e3m1", "Termination Central"},  // 15
+    {"e3m2", "The Vaults of Zin"},    // 16
+    {"e3m3", "The Tomb of Terror"},   // 17
+    {"e3m4", "Satan's Dark Delight"}, // 18
+    {"e3m5", "Wind Tunnels"},         // 19
+    {"e3m6", "Chambers of Torment"},  // 20
+    {"e3m7", "The Haunted Halls"},    // 21
 
-    {"e4m1", "The Sewage System"}, // 23
-    {"e4m2", "The Tower of Despair"}, {"e4m3", "The Elder God Shrine"},
-    {"e4m4", "The Palace of Hate"}, {"e4m5", "Hell's Atrium"},
-    {"e4m6", "The Pain Maze"}, {"e4m7", "Azure Agony"},
-    {"e4m8", "The Nameless City"},
+    {"e4m1", "The Sewage System"},    // 22
+    {"e4m2", "The Tower of Despair"}, // 23
+    {"e4m3", "The Elder God Shrine"}, // 24
+    {"e4m4", "The Palace of Hate"},   // 25
+    {"e4m5", "Hell's Atrium"},        // 26
+    {"e4m6", "The Pain Maze"},        // 27
+    {"e4m7", "Azure Agony"},          // 28
+    {"e4m8", "The Nameless City"},    // 29
 
-    {"end", "Shub-Niggurath's Pit"}, // 31
+    {"end", "Shub-Niggurath's Pit"}, // 30
 
-    {"dm1", "Place of Two Deaths"}, // 32
-    {"dm2", "Claustrophobopolis"}, {"dm3", "The Abandoned Base"},
-    {"dm4", "The Bad Place"}, {"dm5", "The Cistern"}, {"dm6", "The Dark Zone"}};
+    {"dm1", "Place of Two Deaths"}, // 31
+    {"dm2", "Claustrophobopolis"},  // 32
+    {"dm3", "The Abandoned Base"},  // 33
+    {"dm4", "The Bad Place"},       // 34
+    {"dm5", "The Cistern"},         // 35
+    {"dm6", "The Dark Zone"},       // 36
 
-// MED 01/06/97 added hipnotic levels
-level_t hipnoticlevels[] = {
-    {"start", "Command HQ"}, // 0
+    {"hip1m1", "The Pumping Station"}, // 37
+    {"hip1m2", "Storage Facility"},    // 38
+    {"hip1m3", "The Lost Mine"},       // 39
+    {"hip1m4", "Research Facility"},   // 40
+    {"hip1m5", "Military Complex"},    // 41
 
-    {"hip1m1", "The Pumping Station"}, // 1
-    {"hip1m2", "Storage Facility"}, {"hip1m3", "The Lost Mine"},
-    {"hip1m4", "Research Facility"}, {"hip1m5", "Military Complex"},
+    {"hip2m1", "Ancient Realms"},       // 42
+    {"hip2m2", "The Black Cathedral"},  // 43
+    {"hip2m3", "The Catacombs"},        // 44
+    {"hip2m4", "The Crypt"},            // 45
+    {"hip2m5", "Mortum's Keep"},        // 46
+    {"hip2m6", "The Gremlin's Domain"}, // 47
 
-    {"hip2m1", "Ancient Realms"}, // 6
-    {"hip2m2", "The Black Cathedral"}, {"hip2m3", "The Catacombs"},
-    {"hip2m4", "The Crypt"}, {"hip2m5", "Mortum's Keep"},
-    {"hip2m6", "The Gremlin's Domain"},
+    {"hip3m1", "Tur Torment"},  // 48
+    {"hip3m2", "Pandemonium"},  // 49
+    {"hip3m3", "Limbo"},        // 50
+    {"hip3m4", "The Gauntlet"}, // 51
 
-    {"hip3m1", "Tur Torment"}, // 12
-    {"hip3m2", "Pandemonium"}, {"hip3m3", "Limbo"}, {"hip3m4", "The Gauntlet"},
+    {"hipend", "Armagon's Lair"}, // 52
 
-    {"hipend", "Armagon's Lair"}, // 16
+    {"hipdm1", "The Edge of Oblivion"}, // 53
 
-    {"hipdm1", "The Edge of Oblivion"} // 17
+    {"r1m1", "Deviant's Domain"},     // 54
+    {"r1m2", "Dread Portal"},         // 55
+    {"r1m3", "Judgement Call"},       // 56
+    {"r1m4", "Cave of Death"},        // 57
+    {"r1m5", "Towers of Wrath"},      // 58
+    {"r1m6", "Temple of Pain"},       // 59
+    {"r1m7", "Tomb of the Overlord"}, // 60
+
+    {"r2m1", "Tempus Fugit"},      // 61
+    {"r2m2", "Elemental Fury I"},  // 62
+    {"r2m3", "Elemental Fury II"}, // 63
+    {"r2m4", "Curse of Osiris"},   // 64
+    {"r2m5", "Wizard's Keep"},     // 65
+    {"r2m6", "Blood Sacrifice"},   // 66
+    {"r2m7", "Last Bastion"},      // 67
+    {"r2m8", "Source of Evil"},    // 68
+
+    {"ctf1", "Division of Change"} // 69
 };
-
-// PGM 01/07/97 added rogue levels
-// PGM 03/02/97 added dmatch level
-level_t roguelevels[] = {{"start", "Split Decision"},
-    {"r1m1", "Deviant's Domain"}, {"r1m2", "Dread Portal"},
-    {"r1m3", "Judgement Call"}, {"r1m4", "Cave of Death"},
-    {"r1m5", "Towers of Wrath"}, {"r1m6", "Temple of Pain"},
-    {"r1m7", "Tomb of the Overlord"}, {"r2m1", "Tempus Fugit"},
-    {"r2m2", "Elemental Fury I"}, {"r2m3", "Elemental Fury II"},
-    {"r2m4", "Curse of Osiris"}, {"r2m5", "Wizard's Keep"},
-    {"r2m6", "Blood Sacrifice"}, {"r2m7", "Last Bastion"},
-    {"r2m8", "Source of Evil"}, {"ctf1", "Division of Change"}};
 
 typedef struct
 {
     const char* description;
     int firstLevel;
-    int levels;
+    int lastLevel;
 } episode_t;
 
-episode_t episodes[] = {{"Welcome to Quake", 0, 1}, {"Doomed Dimension", 1, 8},
-    {"Realm of Black Magic", 9, 7}, {"Netherworld", 16, 7},
-    {"The Elder World", 23, 8}, {"Final Level", 31, 1},
-    {"Deathmatch Arena", 32, 6}};
-
-// MED 01/06/97  added hipnotic episodes
-episode_t hipnoticepisodes[] = {{"Scourge of Armagon", 0, 1},
-    {"Fortress of the Dead", 1, 5}, {"Dominion of Darkness", 6, 6},
-    {"The Rift", 12, 4}, {"Final Level", 16, 1}, {"Deathmatch Arena", 17, 1}};
-
-// PGM 01/07/97 added rogue episodes
-// PGM 03/02/97 added dmatch episode
-episode_t rogueepisodes[] = {{"Introduction", 0, 1}, {"Hell's Fortress", 1, 7},
-    {"Corridors of Time", 8, 8}, {"Deathmatch Arena", 16, 1}};
+episode_t episodes[] = {
+    //
+    {"Vanilla E1", 0, 7},   //
+    {"Vanilla E2", 8, 14},  //
+    {"Vanilla E3", 15, 21}, //
+    {"Vanilla E4", 22, 30}, //
+    {"Vanilla DM", 31, 36}, //
+    {"SoA E1", 37, 41},     //
+    {"SoA E2", 42, 47},     //
+    {"SoA E3", 48, 52},     //
+    {"SoA DM", 53, 53},     //
+    {"DoE E1", 54, 60},     //
+    {"DoE E2", 61, 68},     //
+    {"DoE DM", 69, 69},     //
+};
 
 int startepisode;
 int startlevel;
@@ -4182,10 +4225,12 @@ void M_Menu_GameOptions_f()
     key_dest = key_menu;
     m_state = m_gameoptions;
     m_entersound = true;
+
     if(maxplayers == 0)
     {
         maxplayers = svs.maxclients;
     }
+
     if(maxplayers < 2)
     {
         maxplayers = svs.maxclientslimit;
@@ -4290,51 +4335,13 @@ void M_GameOptions_Draw()
     }
 
     M_Print(0, 112, "         Episode");
-    // MED 01/06/97 added hipnotic episodes
-    if(hipnotic)
-    {
-        M_Print(160, 112, hipnoticepisodes[startepisode].description);
-        // PGM 01/07/97 added rogue episodes
-    }
-    else if(rogue)
-    {
-        M_Print(160, 112, rogueepisodes[startepisode].description);
-    }
-    else
-    {
-        M_Print(160, 112, episodes[startepisode].description);
-    }
+    M_Print(160, 112, episodes[startepisode].description);
 
     M_Print(0, 120, "           Level");
-    // MED 01/06/97 added hipnotic episodes
-    if(hipnotic)
-    {
-        M_Print(160, 120,
-            hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
-                           startlevel]
-                .description);
-        M_Print(160, 128,
-            hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
-                           startlevel]
-                .name);
-    }
-    // PGM 01/07/97 added rogue episodes
-    else if(rogue)
-    {
-        M_Print(160, 120,
-            roguelevels[rogueepisodes[startepisode].firstLevel + startlevel]
-                .description);
-        M_Print(160, 128,
-            roguelevels[rogueepisodes[startepisode].firstLevel + startlevel]
-                .name);
-    }
-    else
-    {
-        M_Print(160, 120,
-            levels[episodes[startepisode].firstLevel + startlevel].description);
-        M_Print(160, 128,
-            levels[episodes[startepisode].firstLevel + startlevel].name);
-    }
+    M_Print(160, 120,
+        levels[episodes[startepisode].firstLevel + startlevel].description);
+    M_Print(
+        160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 
     // line cursor
     M_DrawCharacter(144, gameoptions_cursor_table[gameoptions_cursor],
@@ -4418,25 +4425,7 @@ void M_NetStart_Change(int dir)
 
         case 7:
             startepisode += dir;
-            // MED 01/06/97 added hipnotic count
-            if(hipnotic)
-            {
-                count = 6;
-                // PGM 01/07/97 added rogue count
-                // PGM 03/02/97 added 1 for dmatch episode
-            }
-            else if(rogue)
-            {
-                count = 4;
-            }
-            else if(registered.value)
-            {
-                count = 7;
-            }
-            else
-            {
-                count = 2;
-            }
+            count = sizeof(episodes) / sizeof(episode_t);
 
             if(startepisode < 0)
             {
@@ -4453,20 +4442,8 @@ void M_NetStart_Change(int dir)
 
         case 8:
             startlevel += dir;
-            // MED 01/06/97 added hipnotic episodes
-            if(hipnotic)
-            {
-                count = hipnoticepisodes[startepisode].levels;
-                // PGM 01/06/97 added hipnotic episodes
-            }
-            else if(rogue)
-            {
-                count = rogueepisodes[startepisode].levels;
-            }
-            else
-            {
-                count = episodes[startepisode].levels;
-            }
+            count = episodes[startepisode].lastLevel -
+                    episodes[startepisode].firstLevel + 1;
 
             if(startlevel < 0)
             {
@@ -4486,7 +4463,7 @@ void M_GameOptions_Key(int key)
     switch(key)
     {
         case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Net_f(); break;
+        case K_BBUTTON: M_Menu_LanConfig_f(); break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
@@ -4539,27 +4516,9 @@ void M_GameOptions_Key(int key)
                 Cbuf_AddText(va("maxplayers %u\n", maxplayers));
                 SCR_BeginLoadingPlaque();
 
-                if(hipnotic)
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        hipnoticlevels[hipnoticepisodes[startepisode]
-                                           .firstLevel +
-                                       startlevel]
-                            .name));
-                }
-                else if(rogue)
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        roguelevels[rogueepisodes[startepisode].firstLevel +
-                                    startlevel]
-                            .name));
-                }
-                else
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        levels[episodes[startepisode].firstLevel + startlevel]
-                            .name));
-                }
+                Cbuf_AddText(va("map %s\n",
+                    levels[episodes[startepisode].firstLevel + startlevel]
+                        .name));
 
                 return;
             }
@@ -4817,6 +4776,7 @@ void M_Draw()
         case m_video: M_Video_Draw(); break;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_botcontrol: M_BotControl_Draw(); break;
         case m_quakevrquicksettings: M_QuakeVRQuickSettings_Draw(); break;
         case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
         case m_quakevrdevtools: M_QuakeVRDevTools_Draw(); break;
@@ -4931,6 +4891,7 @@ void M_Keydown(int key)
         case m_video: M_Video_Key(key); return;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_botcontrol: M_BotControl_Key(key); break;
         case m_quakevrquicksettings: M_QuakeVRQuickSettings_Key(key); return;
         case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
         case m_quakevrdevtools: M_QuakeVRDevTools_Key(key); return;
@@ -4980,9 +4941,5 @@ void M_ConfigureNetSubsystem()
 {
     // enable/disable net systems to match desired config
     Cbuf_AddText("stopdemo\n");
-
-    if(IPXConfig || TCPIPConfig)
-    {
-        net_hostport = lanConfig_port;
-    }
+    net_hostport = lanConfig_port;
 }

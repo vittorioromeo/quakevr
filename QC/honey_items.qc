@@ -27,9 +27,9 @@ void() itemTouch =
             self.think = SUB_Null;
     }
 
-    if(self.wait) {
-        self.nextthink = time + self.wait;
-        self.think = SUB_regen;
+    if(self.wait && self.solid == SOLID_NOT) {
+        self.nextthink2 = time + self.wait;
+        self.think2 = SUB_regen;
     }
 
     activator = other;

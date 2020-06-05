@@ -31,6 +31,7 @@ enum m_state_e
     m_load,
     m_save,
     m_multiplayer,
+    m_botcontrol,
     m_setup,
     m_net,
     m_options,

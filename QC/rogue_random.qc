@@ -20,7 +20,7 @@ void() random_pick_type =
 
     if(randItem < 0.2)
     {
-        self.touch = newitems_touch;
+        self.handtouch = newitems_touch;
         self.noise = "shield/pickup.wav";
         setmodel(self, "progs/shield.mdl");
         self.netname = "Power Shield";
@@ -28,7 +28,7 @@ void() random_pick_type =
     }
     else if(randItem < 0.4)
     {
-        self.touch = newitems_touch;
+        self.handtouch = newitems_touch;
         self.noise = "belt/pickup.wav";
         setmodel(self, "progs/beltup.mdl");
         self.netname = "Anti-Grav Belt";

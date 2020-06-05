@@ -209,6 +209,7 @@ struct client_t
 #define FL_JUMPRELEASED   VRUTIL_POWER_OF_TWO(12) // for jump debouncing
 #define FL_EASYHANDTOUCH  VRUTIL_POWER_OF_TWO(13) // adds bonus to boundaries for handtouch
 #define FL_SPECIFICDAMAGE VRUTIL_POWER_OF_TWO(14) // HONEY.
+#define FL_FORCEGRABBABLE VRUTIL_POWER_OF_TWO(15) // VR.
 // clang-format on
 
 // entity effects

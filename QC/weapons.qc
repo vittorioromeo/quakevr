@@ -3231,16 +3231,10 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
 }
 
-void() wpnthrow_think =
+void() forcegrabbable_think_impl =
 {
-    if(deathmatch && time > GetThrownWeaponTimeout(self))
-    {
-        SUB_Remove();
-        return;
-    }
-
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
-       time > GetThrownWeaponForcegrabTime(self) + 0.75)
+       time > GetThrownWeaponForcegrabTime(self) + 0.4)
     {
         // After a long linear forcegrab, restore the movement type to "toss".
 
@@ -3287,15 +3281,19 @@ void() wpnthrow_think =
 
     if(cvar_hget(cvarh_vr_weapondrop_particles) && (self.flags & (FL_ONGROUND | FL_INWATER)))
     {
-        if(random() < 0.2)
+        if(random() < 0.2 && self.model != string_null)
         {
-            particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
+            particle2(realorigin(self), '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
         }
     }
 
     if(self.throwhit == QVR_THROWHIT_HIT)
     {
-        if(self.throwstabilizedim == 0)
+        if(self.throwstabilizedim == -1)
+        {
+            // Intentionally empty.
+        }
+        else if(self.throwstabilizedim == 0)
         {
             wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
         }
@@ -3308,18 +3306,29 @@ void() wpnthrow_think =
             wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
         }
     }
+}
 
+void() forcegrabbable_think =
+{
+    forcegrabbable_think_impl();
     self.nextthink = time + 0.02;
 }
 
-void() wpnthrow_touch =
+void() wpnthrow_think =
 {
-    float posDmgType;
-    float adjDmg;
-    float finalDmg;
-    vector dir;
+    if(deathmatch && time > GetThrownWeaponTimeout(self))
+    {
+        SUB_Remove();
+        return;
+    }
 
-    if(other == self.owner)
+    forcegrabbable_think_impl();
+    self.nextthink = time + 0.02;
+}
+
+void() forcegrabbable_touch =
+{
+    if(self.owner != world && other == self.owner)
         return;
 
     if(other.solid == SOLID_TRIGGER)
@@ -3330,7 +3339,7 @@ void() wpnthrow_touch =
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
-        finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
+        float finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
                    cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 
         // hit something that bleeds
@@ -3338,16 +3347,20 @@ void() wpnthrow_touch =
         {
             sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
 
-            posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-            adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
+            float posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+            float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
-            spawn_touchblood (adjDmg);
+            spawn_touchblood(adjDmg);
             T_Damage(other, self, self.owner, adjDmg);
         }
         // hit wall
         else
         {
-            sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+            if(GetThrownWeaponMetalNoiseOnTouch(self))
+            {
+                sound(self, CHAN_AUTO, "player/axhit2.wav", 0.65, ATTN_NORM);
+            }
+
             particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 24);
 
         }
@@ -3361,7 +3374,7 @@ void() wpnthrow_touch =
         self.throwhit = QVR_THROWHIT_HIT;
     }
     else if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
-            time > GetThrownWeaponForcegrabTime(self) + 0.3)
+            time > GetThrownWeaponForcegrabTime(self) + 0.1)
     {
         // After a linear forcegrab, restore the movement type to "toss".
 
@@ -3380,7 +3393,7 @@ void() wpnthrow_touch =
     // ghetto collision detection/resolution
     if(!(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2.0)
     {
-        dir = normalize(self.velocity);
+        vector dir = normalize(self.velocity);
         dir_z = 0;
 
         traceline(self.origin - dir * 2, self.origin + dir * 8, FALSE, self);
@@ -3401,7 +3414,12 @@ void() wpnthrow_touch =
             self.avelocity = '0 0 0';
         }
     }
-};
+}
+
+void() wpnthrow_touch =
+{
+    forcegrabbable_touch();
+}
 
 void(float xHand, entity ent, entity entPlayer,
      float* xOutEntWeapon, float* xOutEntWeaponFlags) wpnthrow_handtouch_impl =
@@ -3595,6 +3613,16 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHapticBuzz =
     VRGunHaptic(xHand, 0.1, 75, 0.5);
 }
 
+void(entity ent, float xValue) SetThrownWeaponMetalNoiseOnTouch =
+{
+    ent.fixangle = xValue;
+}
+
+float(entity ent) GetThrownWeaponMetalNoiseOnTouch =
+{
+    return ent.fixangle;
+}
+
 void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
 {
     ent.lip = xValue;
@@ -3655,29 +3683,36 @@ float(entity ent) GetThrownWeaponTimeout =
     return ent.health;
 }
 
-entity(entity thrower, float xWeapon, float xWeaponFlags,
-    vector xOrigin, vector xRotation,
-    vector xThrowVel, vector xAVel,
-    float xDisappearOnHit,
-    float xDealDamage,
-    float xBaseDamage) CreateThrownWeapon =
+void MakeGrabbable(entity newmis)
 {
-    float tmp;
-    vector tmp_handavel;
-    vector tmp_bounds;
-    entity newmis;
-
-    newmis = spawn();
-
-    SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
-    SetThrownWeaponDealDamage(newmis, xDealDamage);
-    SetThrownWeaponBaseDamage(newmis, xBaseDamage);
-
-    newmis.owner = thrower;
     newmis.movetype = MOVETYPE_TOSS;
     newmis.solid = SOLID_BBOX;
 
     newmis.throwhit = QVR_THROWHIT_NEVER_HIT;
+    newmis.throwstabilizedim = -1;
+
+    newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
+
+    SetThrownWeaponMetalNoiseOnTouch(newmis, FALSE);
+}
+
+void MakeThrown(entity newmis,
+    entity thrower, float xWeapon, float xWeaponFlags,
+    vector xOrigin, vector xRotation,
+    vector xThrowVel, vector xAVel,
+    float xDisappearOnHit,
+    float xDealDamage,
+    float xBaseDamage)
+{
+    MakeGrabbable(newmis);
+
+    SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
+    SetThrownWeaponDealDamage(newmis, xDealDamage);
+    SetThrownWeaponBaseDamage(newmis, xBaseDamage);
+    SetThrownWeaponMetalNoiseOnTouch(newmis, TRUE);
+
+    newmis.owner = thrower;
+
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
 
@@ -3690,10 +3725,8 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
     newmis.classname = "thrown_weapon";
     newmis.netname = WeaponIdToWeaponName(xWeapon);
 
-    newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
-
     makevectors(xThrowVel);
-    tmp_handavel = xAVel;
+    vector tmp_handavel = xAVel;
     newmis.avelocity = tmp_handavel_x * v_forward * 30
                      + tmp_handavel_y * v_right * -30
                      + tmp_handavel_z * v_up * -30;
@@ -3707,7 +3740,9 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
     newmis.weaponflags = xWeaponFlags;
 
     // TODO VR: (P1) fix laser cannon bounds
-    tmp = WeaponIdToThrowBounds(xWeapon);
+    float tmp = WeaponIdToThrowBounds(xWeapon);
+
+    vector tmp_bounds;
     tmp_bounds_x = tmp;
     tmp_bounds_y = tmp;
     tmp_bounds_z = tmp;
@@ -3718,6 +3753,24 @@ entity(entity thrower, float xWeapon, float xWeaponFlags,
 
     newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar_hget(cvarh_vr_weapon_throw_velocity_mult)
                     + thrower.velocity;
+}
+
+entity(entity thrower, float xWeapon, float xWeaponFlags,
+    vector xOrigin, vector xRotation,
+    vector xThrowVel, vector xAVel,
+    float xDisappearOnHit,
+    float xDealDamage,
+    float xBaseDamage) CreateThrownWeapon =
+{
+    entity newmis = spawn();
+
+    MakeThrown(newmis,
+        thrower, xWeapon, xWeaponFlags,
+        xOrigin, xRotation,
+        xThrowVel, xAVel,
+        xDisappearOnHit,
+        xDealDamage,
+        xBaseDamage);
 
     return newmis;
 }

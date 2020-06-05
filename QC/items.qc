@@ -202,6 +202,9 @@ void() PlaceItem =
     }
 
     SpawnAmmoBoxWeapons(self);
+
+    self.nextthink = time + 0.2;
+    self.think = PlacedItem;
 };
 
 /*
@@ -301,6 +304,9 @@ void() item_health =
     }
 
     StartItem();
+
+    self.think2 = AfterPlacementHealthBox;
+    self.nextthink2 = time + 0.75;
 };
 
 
@@ -550,7 +556,8 @@ void() weapon_touch =
         !VRIsHandEmpty(other, cVR_MainHand) &&
         !VRIsHandEmpty(other, cVR_OffHand))
     {
-        // TODO VR: (P0) revisit this behavior, maybe put in holder or drop? or cvar?
+        // TODO VR: (P1) revisit this behavior, maybe put in holder or drop?
+        // or cvar?
         return;
     }
 
@@ -802,6 +809,102 @@ void() ammo_touch =
 float WEAPON_BIG2 = 1;
 
 
+void() PlacedItem =
+{
+}
+
+void(float xTime) forcegrabbable_item_reposition =
+{
+    vector o0 = self.origin;
+    o0.z = 0;
+
+    vector o1 = self.oldorigin;
+    o1.z = 0;
+
+    float origDiff = vlen(o1 - o0);
+
+    if(origDiff > 1 || (time < self.nextthink2))
+    {
+        if(self.rad_time == -999)
+        {
+            self.rad_time = time + xTime;
+        }
+        else if(time >= self.rad_time || self.solid == SOLID_NOT)
+        {
+            setorigin(self, self.oldorigin);
+            self.rad_time = -999;
+
+            if(self.solid != SOLID_NOT)
+            {
+                sound(self, CHAN_AUTO, "misc/r_tele4.wav", 0.25, ATTN_NORM);
+            }
+        }
+    }
+}
+
+void() forcegrabbable_item_think =
+{
+    float repositionTimeDeathmatch =
+        cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch);
+
+    float repositionTimeSingleplayer =
+        cvar_hget(cvarh_vr_forcegrabbable_return_time_singleplayer);
+
+    if(deathmatch && repositionTimeDeathmatch > 0)
+    {
+        forcegrabbable_item_reposition(repositionTimeDeathmatch);
+    }
+    else if(!deathmatch && repositionTimeSingleplayer > 0)
+    {
+        forcegrabbable_item_reposition(repositionTimeSingleplayer);
+    }
+
+    forcegrabbable_think_impl();
+    self.nextthink = time + 0.02;
+}
+
+void(entity xEnt, float scaleFactor) MakeItemGrabbable =
+{
+    self.oldorigin = self.origin;
+    self.rad_time = -999;
+
+    vector factorVector;
+    factorVector.x = scaleFactor;
+    factorVector.y = scaleFactor;
+    factorVector.z = scaleFactor;
+
+    VR_ScaleUtil_SetScale(self, factorVector);
+    setsize(self, '0 0 0', self.maxs * scaleFactor);
+
+    MakeGrabbable(self);
+    self.flags |= FL_FORCEGRABBABLE;
+
+    SetThrownWeaponDealDamage(self, FALSE);
+    SetThrownWeaponDisappearOnHit(self, FALSE);
+
+    self.think = forcegrabbable_item_think;
+    self.nextthink = time + 0.02;
+
+    self.touch = forcegrabbable_touch;
+    self.owner = world;
+}
+
+void() AfterPlacementAmmoBox =
+{
+    if(cvar_hget(cvarh_vr_forcegrabbable_ammo_boxes))
+    {
+        MakeItemGrabbable(self, 0.4);
+    }
+}
+
+void() AfterPlacementHealthBox =
+{
+    if(cvar_hget(cvarh_vr_forcegrabbable_health_boxes))
+    {
+        MakeItemGrabbable(self, 0.4);
+    }
+}
+
 void(string xModelNameSmall, string xModelNameBig,
      float xAmmoCountSmall, float xAmmoCountBig,
      float xAmmoId, vector xSize)
@@ -829,6 +932,9 @@ impl_item_ammo_pickup =
     setsize(self, '0 0 0', xSize);
     if(deathmatch) { self.wait = 30; }
     StartItem();
+
+    self.think2 = AfterPlacementAmmoBox;
+    self.nextthink2 = time + 0.75;
 }
 
 /*QUAKED item_shells (0 .5 .8) (0 0 0) (32 32 32) big

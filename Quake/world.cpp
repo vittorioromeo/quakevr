@@ -811,14 +811,15 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         return true;
     }
 
+#ifdef PARANOID
     // ------------------------------------------------------------------------
     // VR: Solves weird crashes, probably related to hand pos on spawn.
-    // TODO VR: (P1) consider removing or adding as debug only
     if(std::isnan(p1f) || std::isnan(p2f))
     {
         return false;
     }
     // ------------------------------------------------------------------------
+#endif
 
     // check for empty
     if(num < 0)

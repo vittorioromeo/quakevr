@@ -80,22 +80,10 @@ float(float xHand, vector handPos, vector handRot,
     return FALSE;
 }
 
-// TODO VR: (P0) cleanup parabola
-float(float dist, float zmult) VR_ForcegrabUtil_Impl_GetForcegrabParabolaPower =
-{
-    float power = (-0.00231424 * pow(dist, 2.0))
-                + (2.01 * dist)
-                + 172.0;
-
-    power *= zmult;
-    power *= VR_ForcegrabUtil_GetForcegrabPowermult();
-
-    return power;
-}
-
 float(entity xEntThrownWeapon) VR_ForcegrabUtil_Impl_IsEligibleForForcegrab
 {
-    if(xEntThrownWeapon.classname != "thrown_weapon")
+    if(xEntThrownWeapon.classname != "thrown_weapon" &&
+       !(xEntThrownWeapon.flags & FL_FORCEGRABBABLE))
     {
         return FALSE;
     }
@@ -350,9 +338,9 @@ ParticlesAndHapticsForEligibleForceGrabWeapon_Logic =
 
         if(doParticles)
         {
-            if(random() < 0.4)
+            if(random() < 0.35)
             {
-                particle2(e.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
+                particle2(realorigin(e), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
             }
         }
 

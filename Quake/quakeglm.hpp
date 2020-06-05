@@ -10,7 +10,6 @@
 
 #include "quakeglm_macros.hpp"
 
-// TODO VR: (P1) fix glm include paths
 #include <glm/common.hpp>
 #include <glm/trigonometric.hpp>
 

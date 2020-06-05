@@ -148,7 +148,8 @@ void() item_sphere =
 
     self.noise = "sphere/sphere.wav";
     self.netname = "Vengeance Sphere";
-    self.touch = newitems_touch;
+    self.classname = "item_sphere";
+    self.handtouch = newitems_touch;
 
     setmodel(self, "progs/sphere.mdl");
     setsize(self, '-8 -8 -8', '8 8 8');

@@ -118,7 +118,6 @@ void(float xHand) player_run =
 {
     VRSetWeaponFrame(xHand, 0);
 
-    // TODO VR: (10) test, might prevent animation bug in MP
     if(self.health <= 0)
     {
         return;
@@ -239,7 +238,7 @@ void(float xHand, float xFrame, void(float) xFn) setHandThinkWithArg =
 void(float xHand, float xFrame, void() xFn) setHandThink =
 {
     if(xHand == cVR_OffHand) setThink2(xFrame, xFn);
-    else                  setThink(xFrame, xFn);
+    else                     setThink(xFrame, xFn);
 }
 
 void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
@@ -847,7 +846,7 @@ void() GibPlayer =
 
 void() PlayerDie =
 {
-    float    i;
+    float i;
 
     VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
     VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
@@ -906,6 +905,10 @@ void() PlayerDie =
     self.solid = SOLID_NOT;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.movetype = MOVETYPE_TOSS;
+
+    self.think = SUB_Null;
+    self.think2 = SUB_Null;
+
     if(self.velocity_z < 10)
         self.velocity_z = self.velocity_z + random()*300;
 

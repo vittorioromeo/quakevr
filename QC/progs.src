@@ -15,6 +15,7 @@ vr_grapple.qc
 vr_handgrabutil.qc
 vr_itemutil.qc
 vr_macros.qc
+vr_scaleutil.qc
 vr_util.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc
