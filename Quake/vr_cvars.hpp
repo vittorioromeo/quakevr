@@ -148,6 +148,9 @@ extern cvar_t vr_forcegrabbable_health_boxes;
 extern cvar_t vr_forcegrabbable_return_time_deathmatch;
 extern cvar_t vr_forcegrabbable_return_time_singleplayer;
 extern cvar_t vr_finger_auto_close_thumb;
+extern cvar_t vr_autosave_show_message;
+extern cvar_t vr_finger_blending;
+extern cvar_t vr_finger_blending_speed;
 
 //
 //
@@ -210,7 +213,7 @@ extern cvar_t vr_finger_base_z;
 
 namespace quake::vr
 {
-    void register_all_cvars() noexcept;
+void register_all_cvars() noexcept;
 }
 
 //
@@ -222,13 +225,13 @@ namespace quake::vr
 
 namespace quake::vr
 {
-    [[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept;
-    [[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept;
-    [[nodiscard]] qvec3 get_fingers_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_index_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_middle_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_ring_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept;
-    [[nodiscard]] qvec3 get_finger_base_xyz() noexcept;
+[[nodiscard]] qvec3 get_fingers_and_base_xyz() noexcept;
+[[nodiscard]] qvec3 get_fingers_and_base_offhand_xyz() noexcept;
+[[nodiscard]] qvec3 get_fingers_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_thumb_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_index_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_middle_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_ring_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept;
+[[nodiscard]] qvec3 get_finger_base_xyz() noexcept;
 } // namespace quake::vr

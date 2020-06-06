@@ -310,28 +310,24 @@ mh dynamic lighting speedup
 */
 void R_BuildLightmapChains(qmodel_t* model, texchain_t chain)
 {
-    texture_t* t;
-    msurface_t* s;
-    int i;
-
     // clear lightmap chains (already done in r_marksurfaces, but clearing them
     // here to be safe becuase of r_stereo)
-    for(i = 0; i < lightmap_count; i++)
+    for(int i = 0; i < lightmap_count; i++)
     {
         lightmap[i].polys = nullptr;
     }
 
     // now rebuild them
-    for(i = 0; i < model->numtextures; i++)
+    for(int i = 0; i < model->numtextures; i++)
     {
-        t = model->textures[i];
+        texture_t* t = model->textures[i];
 
         if(!t || !t->texturechains[chain])
         {
             continue;
         }
 
-        for(s = t->texturechains[chain]; s; s = s->texturechain)
+        for(msurface_t* s = t->texturechains[chain]; s; s = s->texturechain)
         {
             if(!s->culled)
             {

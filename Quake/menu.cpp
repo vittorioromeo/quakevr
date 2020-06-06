@@ -3029,6 +3029,14 @@ void M_QuakeVRSettings_Key(int k)
     MAKE_XYZ_CONTROLS("Pinky", vr_finger_pinky);
     MAKE_XYZ_CONTROLS("Base", vr_finger_base);
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<bool>("Finger Blending", vr_finger_blending);
+    m.add_cvar_entry<float>(
+        "Finger Blending Speed", vr_finger_blending_speed, {0.5f, 0.f, 100.f});
+
     return m;
 }
 
@@ -3080,6 +3088,7 @@ void M_QuakeVRSettings_Key(int k)
     m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
     m.add_cvar_entry<bool>(
         "Autosave On Changelevel", vr_autosave_on_changelevel);
+    m.add_cvar_entry<bool>("Autosave Messages", vr_autosave_show_message);
 
     // ------------------------------------------------------------------------
     m.add_separator();

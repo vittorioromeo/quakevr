@@ -181,7 +181,10 @@ void scanSaves()
 
 void doAutosave() noexcept
 {
-    Con_Printf("Creating autosave...\n");
+    if(vr_autosave_show_message.value)
+    {
+        Con_Printf("Creating autosave...\n");
+    }
 
     const int idx = getNextAutosaveSlot();
     const std::time_t now = std::time(0);
@@ -189,13 +192,19 @@ void doAutosave() noexcept
     char name[64];
     q_snprintf(name, sizeof(name), "auto%d", idx);
 
-    if(Host_MakeSavegame(name, &now))
+    if(Host_MakeSavegame(name, &now, vr_autosave_show_message.value))
     {
-        Con_Printf("Successfully created autosave.\n");
+        if(vr_autosave_show_message.value)
+        {
+            Con_Printf("Successfully created autosave.\n");
+        }
     }
     else
     {
-        Con_Printf("Failed to created autosave.\n");
+        if(vr_autosave_show_message.value)
+        {
+            Con_Printf("Failed to created autosave.\n");
+        }
     }
 }
 

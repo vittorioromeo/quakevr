@@ -26,9 +26,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qvec3.hpp"
 #include "protocol.hpp"
 
+#include <cstdint>
+
 struct qmodel_t;
 struct efrag_t;
 struct mnode_t;
+
+enum class EntityLightModifier : std::uint8_t
+{
+    None = 0,
+    Override = 1,
+    Multiply = 2,
+};
 
 struct entity_t
 {
@@ -43,8 +52,8 @@ struct entity_t
     qvec3 origin;
     qvec3 msg_angles[2]; // last two updates (0 is newest)
     qvec3 angles;
-    qmodel_t* model;       // nullptr = no model
-    efrag_t* efrag; // linked list of efrags
+    qmodel_t* model; // nullptr = no model
+    efrag_t* efrag;  // linked list of efrags
     int frame;
     float syncbase; // for client-side animations
     byte* colormap;
@@ -59,8 +68,8 @@ struct entity_t
     // FIXME: could turn these into a union
     int trivial_accept;
     mnode_t* topnode; // for bmodels, first world node
-                             //  that splits bmodel, or nullptr if
-                             //  not split
+                      //  that splits bmodel, or nullptr if
+                      //  not split
 
     byte alpha;         // johnfitz -- alpha
     byte lerpflags;     // johnfitz -- lerping
@@ -86,5 +95,7 @@ struct entity_t
 
     bool hidden;      // TODO VR: (P1) hack? or document
     qfloat zeroBlend; // TODO VR: (P1) hack? or document
-};
 
+    EntityLightModifier lightmod; // TODO VR: (P1) hack? or document
+    qvec3 lightmodvalue;          // TODO VR: (P1) hack? or document
+};

@@ -18,7 +18,7 @@
          "poses": [],
          "skeleton": [
             {
-               "output": "/actions/default/in/LeftHandAnim",
+               "output": "/actions/default/in/lefthandanim",
                "path": "/user/hand/left/input/skeleton/left"
             },
             {
@@ -128,14 +128,153 @@
                },
                "mode": "button",
                "path": "/user/hand/right/input/grip"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/jump"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/trackpad"
+            },
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/default/in/turn"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/right/input/joystick"
+            },
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/default/in/locomotion"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/left/input/joystick"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/escape"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/application_menu"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/default/in/escape"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/application_menu"
+            }
+         ]
+      },
+      "/actions/menu": {
+         "sources": [
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/menu/in/navigation"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/left/input/joystick"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/enter"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/trigger"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/left"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/back"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/application_menu"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/back"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/application_menu"
+            },
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/menu/in/navigation"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/right/input/joystick"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/right"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/grip"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/left"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/grip"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/down"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/trackpad"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/up"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/trackpad"
             }
          ]
       }
    },
    "category": "steamvr_input",
    "controller_type": "holographic_controller",
-   "description": "The default binding for Holographic controllers",
-   "name": "Default Holographic Controller Binding",
+   "description": "The default bindings for Holographic controllers",
+   "name": "WMR bindings for QuakeVR",
    "options": {},
    "simulated_actions": []
 }

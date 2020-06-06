@@ -1237,10 +1237,23 @@ void V_SetupVRTorsoViewEnt()
     StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
 }
 
-void V_SetupHolsterSlotViewEnt(const qvec3& pos, entity_t* view,
-    const qfloat pitch, const qfloat yaw, const qfloat roll,
+void V_SetupHolsterSlotViewEnt(const int hotspot, const qvec3& pos,
+    entity_t* view, const qfloat pitch, const qfloat yaw, const qfloat roll,
     const bool horizFlip)
 {
+    const bool hovered = (cl.hotspot[cVR_OffHand] == hotspot) ||
+                         (cl.hotspot[cVR_MainHand] == hotspot);
+
+    if(hovered)
+    {
+        view->lightmod = EntityLightModifier::Multiply;
+        view->lightmodvalue = {6.f, 6.f, 6.f};
+    }
+    else
+    {
+        view->lightmod = EntityLightModifier::None;
+    }
+
     view->angles[PITCH] = pitch;
     view->angles[YAW] = yaw;
     view->angles[ROLL] = roll;
@@ -1261,13 +1274,26 @@ void V_SetupHolsterSlotViewEnt(const qvec3& pos, entity_t* view,
     }
 }
 
-void V_SetupHolsterViewEnt(const int modelId, const qvec3& pos, entity_t* view,
-    const qfloat pitch, const qfloat yaw, const qfloat roll,
-    const bool horizFlip)
+void V_SetupHolsterViewEnt(const int hotspot, const int modelId,
+    const qvec3& pos, entity_t* view, const qfloat pitch, const qfloat yaw,
+    const qfloat roll, const bool horizFlip)
 {
+    const bool hovered = (cl.hotspot[cVR_OffHand] == hotspot) ||
+                         (cl.hotspot[cVR_MainHand] == hotspot);
+
     view->angles[PITCH] = pitch;
     view->angles[YAW] = yaw;
     view->angles[ROLL] = roll;
+
+    if(hovered)
+    {
+        view->lightmod = EntityLightModifier::Multiply;
+        view->lightmodvalue = {6.f, 6.f, 6.f};
+    }
+    else
+    {
+        view->lightmod = EntityLightModifier::None;
+    }
 
     view->origin = pos;
     view->model = cl.model_precache[modelId];
@@ -1298,16 +1324,6 @@ void V_SetupHolsterViewEnt(const int modelId, const qvec3& pos, entity_t* view,
         Chase_UpdateForDrawing(r_refdef, view); // johnfitz
     }
 }
-
-enum class FingerIdx : int
-{
-    Thumb = 0,
-    Index = 1,
-    Middle = 2,
-    Ring = 3,
-    Pinky = 4,
-    Base = 5
-};
 
 static const char* fingerIdxToModelName(const FingerIdx fingerIdx)
 {
@@ -1379,40 +1395,6 @@ static qvec3 fingerIdxToOffset(const FingerIdx fingerIdx, const int handIdx)
     }
 
     return result;
-}
-
-[[nodiscard]] static int handSkeletalToFrame(
-    const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss)
-{
-    // Automatically close thumb if most other fingers are curled.
-    if(fingerIdx == FingerIdx::Thumb && vr_finger_auto_close_thumb.value)
-    {
-        const auto avg = [](const auto... xs) {
-            return (xs + ...) / sizeof...(xs);
-        };
-
-        const auto avgCurl = [&](const auto... xs) {
-            return avg(ss.flFingerCurl[(int)xs]...);
-        };
-
-        if(avgCurl(FingerIdx::Index, FingerIdx::Middle, FingerIdx::Ring,
-               FingerIdx::Pinky) > 0.5)
-        {
-            return 5.f;
-        }
-    }
-
-    return std::floor(
-        std::clamp(ss.flFingerCurl[(int)fingerIdx] + vr_finger_grip_bias.value,
-            0.f, 1.f) *
-        5.f);
-}
-
-[[nodiscard]] static int handSkeletalToFrameForHand(
-    const FingerIdx fingerIdx, const HandIdx handIdx)
-{
-    return handSkeletalToFrame(
-        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
 }
 
 static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
@@ -1498,7 +1480,7 @@ static void V_SetupHandViewEnt(const FingerIdx fingerIdx, int anchorWpnCvar,
     }
 
     hand->hidden = hideHand;
-    hand->frame = handSkeletalToFrameForHand(fingerIdx, handIdx);
+    hand->frame = vr_fingertracking_frame[(int)handIdx][(int)fingerIdx];
     hand->colormap = vid.colormap;
     hand->horizFlip = horizFlip;
 
@@ -1551,7 +1533,7 @@ static void V_SetupFixedHelpingHandViewEnt(const FingerIdx fingerIdx,
         ApplyMod_Weapon(vr_hardcoded_wpn_cvar_fist, handHdr);
     }
 
-    hand->frame = handSkeletalToFrameForHand(fingerIdx, handIdx);
+    hand->frame = vr_fingertracking_frame[(int)handIdx][(int)fingerIdx];
     hand->colormap = vid.colormap;
     hand->horizFlip = horizFlip;
 
@@ -1600,7 +1582,6 @@ static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
     wpnButton->angles = handRot + angles;
     wpnButton->angles[PITCH] *= -1.f;
 
-
     // TODO VR: (P2) hardcoded fist cvar number
     // if(hand->model != nullptr)
     // {
@@ -1637,21 +1618,21 @@ static void V_RenderView_HolsteredWeaponModels()
     // VR: Setup holstered weapons.
     const auto playerBodyYaw = VR_GetBodyYawAngle();
 
-    V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL2],
-        VR_GetLeftHipPos(), &cl.left_hip_holster, -90.f, 0.f,
-        -playerBodyYaw + 10.f, true);
+    V_SetupHolsterViewEnt(QVR_HS_LEFT_HIP_HOLSTER,
+        cl.stats[STAT_HOLSTERWEAPONMODEL2], VR_GetLeftHipPos(),
+        &cl.left_hip_holster, -90.f, 0.f, -playerBodyYaw + 10.f, true);
 
-    V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL3],
-        VR_GetRightHipPos(), &cl.right_hip_holster, -90.f, 0.f,
-        -playerBodyYaw - 10.f, false);
+    V_SetupHolsterViewEnt(QVR_HS_RIGHT_HIP_HOLSTER,
+        cl.stats[STAT_HOLSTERWEAPONMODEL3], VR_GetRightHipPos(),
+        &cl.right_hip_holster, -90.f, 0.f, -playerBodyYaw - 10.f, false);
 
-    V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL4],
-        VR_GetLeftUpperPos(), &cl.left_upper_holster, -20.f,
-        playerBodyYaw + 180.f, 0.f, true);
+    V_SetupHolsterViewEnt(QVR_HS_LEFT_UPPER_HOLSTER,
+        cl.stats[STAT_HOLSTERWEAPONMODEL4], VR_GetLeftUpperPos(),
+        &cl.left_upper_holster, -20.f, playerBodyYaw + 180.f, 0.f, true);
 
-    V_SetupHolsterViewEnt(cl.stats[STAT_HOLSTERWEAPONMODEL5],
-        VR_GetRightUpperPos(), &cl.right_upper_holster, -20.f,
-        playerBodyYaw + 180.f, 0.f, false);
+    V_SetupHolsterViewEnt(QVR_HS_RIGHT_UPPER_HOLSTER,
+        cl.stats[STAT_HOLSTERWEAPONMODEL5], VR_GetRightUpperPos(),
+        &cl.right_upper_holster, -20.f, playerBodyYaw + 180.f, 0.f, false);
 }
 
 static void V_RenderView_HolsterModels()
@@ -1663,19 +1644,19 @@ static void V_RenderView_HolsterModels()
     // TODO VR: (P2) code repetition between holsters and slots
     if(vr_leg_holster_model_enabled.value)
     {
-        V_SetupHolsterSlotViewEnt(VR_GetLeftHipPos(), &cl.left_hip_holster_slot,
-            -0.f, playerBodyYaw - 10.f, 0.f, true);
+        V_SetupHolsterSlotViewEnt(QVR_HS_LEFT_HIP_HOLSTER, VR_GetLeftHipPos(),
+            &cl.left_hip_holster_slot, -0.f, playerBodyYaw - 10.f, 0.f, true);
 
-        V_SetupHolsterSlotViewEnt(VR_GetRightHipPos(),
+        V_SetupHolsterSlotViewEnt(QVR_HS_RIGHT_HIP_HOLSTER, VR_GetRightHipPos(),
             &cl.right_hip_holster_slot, -0.f, playerBodyYaw + 10.f, 0.f, false);
 
-        V_SetupHolsterSlotViewEnt(VR_GetLeftUpperPos(),
-            &cl.left_upper_holster_slot, -30.f, playerBodyYaw - 10.f, 0.f,
-            true);
+        V_SetupHolsterSlotViewEnt(QVR_HS_LEFT_UPPER_HOLSTER,
+            VR_GetLeftUpperPos(), &cl.left_upper_holster_slot, -30.f,
+            playerBodyYaw - 10.f, 0.f, true);
 
-        V_SetupHolsterSlotViewEnt(VR_GetRightUpperPos(),
-            &cl.right_upper_holster_slot, -30.f, playerBodyYaw + 10.f, 0.f,
-            false);
+        V_SetupHolsterSlotViewEnt(QVR_HS_RIGHT_UPPER_HOLSTER,
+            VR_GetRightUpperPos(), &cl.right_upper_holster_slot, -30.f,
+            playerBodyYaw + 10.f, 0.f, false);
     }
 }
 

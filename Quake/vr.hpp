@@ -7,6 +7,7 @@
 #include "entity.hpp"
 #include "progs.hpp"
 
+#include <array>
 #include <vector>
 #include <string>
 
@@ -38,6 +39,16 @@ inline constexpr HandIdx cVR_FakeHand = 2;
 // ----------------------------------------------------------------------------
 // VR Configuration Enums
 // ----------------------------------------------------------------------------
+
+enum class FingerIdx : int
+{
+    Thumb = 0,
+    Index = 1,
+    Middle = 2,
+    Ring = 3,
+    Pinky = 4,
+    Base = 5
+};
 
 struct VrAimMode
 {
@@ -522,6 +533,7 @@ extern qvec3 vr_teleporting_impact;
 extern bool vr_teleporting_impact_valid;
 extern vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 extern vr::VRSkeletalSummaryData_t vr_ss_righthand;
+extern std::array<std::array<float, 6>, 2> vr_fingertracking_frame;
 
 // TODO VR: (P1) used by show fns
 [[nodiscard]] qvec3 VR_Get2HHoldingHandPos(

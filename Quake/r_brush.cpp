@@ -535,26 +535,18 @@ R_DrawBrushModel
 */
 void R_DrawBrushModel(entity_t* e)
 {
-    int i;
-
-    int k;
-    msurface_t* psurf;
-    float dot;
-    mplane_t* pplane;
-    qmodel_t* clmodel;
-
     if(R_CullModelForEntity(e))
     {
         return;
     }
 
     currententity = e;
-    clmodel = e->model;
+    qmodel_t* clmodel = e->model;
 
     modelorg = r_refdef.vieworg - e->origin;
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        qvec3 temp = modelorg;
+        const qvec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -564,13 +556,13 @@ void R_DrawBrushModel(entity_t* e)
         modelorg[2] = DotProduct(temp, up);
     }
 
-    psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
+    msurface_t* psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
 
     // calculate dynamic lighting for bmodel if it's not an
     // instanced model
     if(clmodel->firstmodelsurface != 0 && !gl_flashblend.value)
     {
-        for(k = 0; k < MAX_DLIGHTS; k++)
+        for(int k = 0; k < MAX_DLIGHTS; ++k)
         {
             if((cl_dlights[k].die < cl.time) || (!cl_dlights[k].radius))
             {
@@ -611,13 +603,22 @@ void R_DrawBrushModel(entity_t* e)
     glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
     glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
+    const bool scaled =
+        (e->scale[0] != 0.f) && (e->scale[1] != 0.f) && (e->scale[2] != 0.f);
+
     R_ClearTextureChains(clmodel, chain_model);
-    for(i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
+
+    int i;
+    for(i = 0; i < clmodel->nummodelsurfaces; ++i, ++psurf)
     {
-        pplane = psurf->plane;
-        dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
-        if(((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-            (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+        mplane_t* pplane = psurf->plane;
+        const float dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
+
+        // TODO VR: (P2) hack for scaled brush models, dot is incorrenct and
+        // faces get culled
+        if(scaled ||
+            (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
+                (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))))
         {
             R_ChainSurface(psurf, chain_model);
             rs_brushpolys++;
