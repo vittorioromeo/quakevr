@@ -1171,7 +1171,8 @@ void Host_SavegameComment(char* text)
     text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
-bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp)
+bool Host_MakeSavegame(
+    const char* filename, const std::time_t* timestamp, const bool printMessage)
 {
     if(!sv.active)
     {
@@ -1210,7 +1211,11 @@ bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp)
     q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
     COM_AddExtension(name, ".sav", sizeof(name));
 
-    Con_Printf("Saving game to %s...\n", name);
+    if(printMessage)
+    {
+        Con_Printf("Saving game to %s...\n", name);
+    }
+
     FILE* f = fopen(name, "w");
     if(!f)
     {
@@ -1262,7 +1267,11 @@ bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp)
     }
     fclose(f);
 
-    Con_Printf("done.\n");
+    if(printMessage)
+    {
+        Con_Printf("done.\n");
+    }
+
     return true;
 }
 
@@ -1285,7 +1294,7 @@ void Host_Savegame_f()
         return;
     }
 
-    Host_MakeSavegame(Cmd_Argv(1), nullptr);
+    Host_MakeSavegame(Cmd_Argv(1), nullptr, true);
 }
 
 

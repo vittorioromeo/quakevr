@@ -208,7 +208,7 @@
             "/actions/default/out/RightHaptic": "Right Hand Haptic",
             "/actions/default/in/LeftHandAnim": "Left Hand Skeleton",
             "/actions/default/in/RightHandAnim": "Right Hand Skeleton",
-            "/actions/menu/in/Navigation": "Menu Navigation",
+            "/actions/menu/in/Navigation": "Menu - Navigation",
             "/actions/menu/in/Up": "Menu - Up",
             "/actions/menu/in/Down": "Menu - Down",
             "/actions/menu/in/Left": "Menu - Left",

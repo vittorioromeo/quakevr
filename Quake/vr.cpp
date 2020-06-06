@@ -212,6 +212,9 @@ bool vr_right_prevgrabbing{false};
 vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 vr::VRSkeletalSummaryData_t vr_ss_righthand;
 
+std::array<std::array<float, 6>, 2> vr_lastfinger_frame{};
+std::array<std::array<float, 6>, 2> vr_fingertracking_frame{};
+
 VrGunWallCollision vr_gun_wall_collision[2];
 
 float vr_2h_aim_transition[2]{0.f, 0.f};
@@ -3066,6 +3069,95 @@ void VR_OnClientClearState()
     VR_ResetGlobals();
 }
 
+
+[[nodiscard]] static float handSkeletalToFrame(
+    const FingerIdx fingerIdx, const vr::VRSkeletalSummaryData_t& ss)
+{
+    // Close thumb in pancake mode.
+    if(fingerIdx == FingerIdx::Thumb && vr_fakevr.value)
+    {
+        return 5.f;
+    }
+
+    // Automatically close thumb if most other fingers are curled.
+    if(fingerIdx == FingerIdx::Thumb && vr_finger_auto_close_thumb.value)
+    {
+        const auto avg = [](const auto... xs) {
+            return (xs + ...) / sizeof...(xs);
+        };
+
+        const auto avgCurl = [&](const auto... xs) {
+            return avg(ss.flFingerCurl[(int)xs]...);
+        };
+
+        if(avgCurl(FingerIdx::Index, FingerIdx::Middle, FingerIdx::Ring,
+               FingerIdx::Pinky) > 0.5)
+        {
+            return 5.f;
+        }
+    }
+
+    return std::clamp(
+               ss.flFingerCurl[(int)fingerIdx] + vr_finger_grip_bias.value, 0.f,
+               1.f) *
+           5.f;
+}
+
+[[nodiscard]] static float handSkeletalToFrameForHand(
+    const FingerIdx fingerIdx, const HandIdx handIdx)
+{
+    return handSkeletalToFrame(
+        fingerIdx, handIdx == cVR_OffHand ? vr_ss_lefthand : vr_ss_righthand);
+}
+
+[[nodiscard]] static float handSkeletalToFrameForHandWithBlending(
+    const FingerIdx fingerIdx, const HandIdx handIdx)
+{
+    const float targetFrame = handSkeletalToFrameForHand(fingerIdx, handIdx);
+
+    if(!vr_finger_blending.value)
+    {
+        return targetFrame;
+    }
+    const float frametime = cl.time - cl.oldtime;
+    auto& ff = vr_fingertracking_frame[handIdx][(int)fingerIdx];
+    const float speed = frametime * vr_finger_blending_speed.value;
+
+    if(ff > targetFrame)
+    {
+        ff -= speed;
+
+        if(ff < targetFrame)
+        {
+            ff = targetFrame;
+        }
+    }
+    else if(ff < targetFrame)
+    {
+        ff += speed;
+
+        if(ff > targetFrame)
+        {
+            ff = targetFrame;
+        }
+    }
+
+    return ff;
+}
+
+void VR_UpdateFingerTracking()
+{
+    for(const HandIdx handIdx : {cVR_OffHand, cVR_MainHand})
+    {
+        for(const FingerIdx fingerIdx : {FingerIdx::Thumb, FingerIdx::Index,
+                FingerIdx::Middle, FingerIdx::Ring, FingerIdx::Pinky})
+        {
+            vr_fingertracking_frame[(int)handIdx][(int)fingerIdx] =
+                handSkeletalToFrameForHandWithBlending(fingerIdx, handIdx);
+        }
+    }
+}
+
 void VR_UpdateScreenContent()
 {
     // Last chance to enable VR Mode - we get here when the game already
@@ -3076,6 +3168,9 @@ void VR_UpdateScreenContent()
         Cvar_Set("vr_enabled", "0");
         return;
     }
+
+    // Finger tracking blending information.
+    VR_UpdateFingerTracking();
 
     // Get and update the VR devices' orientation and position
     VR_UpdateDevicesOrientationPosition();
@@ -4056,10 +4151,11 @@ void VR_Move(usercmd_t* cmd)
         return QVR_HS_NONE;
     };
 
+    cl.hotspot[cVR_OffHand] = cmd->offhand_hotspot =
+        computeHotSpot(cl.handpos[cVR_OffHand]);
 
-
-    cmd->offhand_hotspot = computeHotSpot(cl.handpos[cVR_OffHand]);
-    cmd->mainhand_hotspot = computeHotSpot(cl.handpos[cVR_MainHand]);
+    cl.hotspot[cVR_MainHand] = cmd->mainhand_hotspot =
+        computeHotSpot(cl.handpos[cVR_MainHand]);
 
     if(inMenu())
     {
@@ -4420,4 +4516,3 @@ void VR_OnLoadedPak(pack_t& pak)
 
 // TODO VR: (P2): "the desktop display has a bit of it cut off from what looks
 // like the console"
-

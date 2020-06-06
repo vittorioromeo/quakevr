@@ -36,7 +36,8 @@ void Host_Init();
 void Host_Shutdown();
 void Host_Callback_Notify(cvar_t* var); /* callback function for CVAR_NOTIFY */
 void Host_Warn(const char* error, ...) FUNC_PRINTF(1, 2);
-bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp);
+bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp,
+    const bool printMessage);
 
 [[noreturn]] void Host_Error(const char* error, ...) FUNC_PRINTF(1, 2);
 [[noreturn]] void Host_EndGame(const char* message, ...) FUNC_PRINTF(1, 2);

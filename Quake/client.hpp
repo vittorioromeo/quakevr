@@ -277,6 +277,8 @@ struct client_state_t
 
     std::vector<WorldText> worldTexts;
 
+    int hotspot[2];
+
     [[nodiscard]] bool isValidWorldTextHandle(
         const WorldTextHandle wth) const noexcept;
 
