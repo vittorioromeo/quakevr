@@ -77,7 +77,7 @@ void() button_fire =
     }
     else if(self.buttonEffect == 2) // Tutorial button
     {
-        bprint("Congratulations! You have hands.");
+        bprint("Congratulations! You have hands.\n");
     }
 };
 
