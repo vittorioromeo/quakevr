@@ -124,6 +124,10 @@ After setting up your bindings, please go through all the options in *"Quake VR 
 
 There is no "best" way of playing Quake VR. Simply use the settings that you enjoy the most!
 
+## Multiplayer
+
+TODO VR: (P0) describe process here
+
 ## Troubleshooting
 
 * > The game seems to work fine, but there is no audio!

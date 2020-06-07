@@ -1257,8 +1257,8 @@ void Con_DrawNotify()
     const char* text;
     float time;
 
-    GL_SetCanvas(CANVAS_CONSOLE); // johnfitz
-    v = vid.conheight;            // johnfitz
+    GL_SetCanvas(CANVAS_NOTIFY); // johnfitz
+    v = vid.conheight;           // johnfitz
 
     for(i = con_current - NUM_CON_TIMES + 1; i <= con_current; i++)
     {
