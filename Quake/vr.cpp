@@ -18,6 +18,7 @@
 #include "keys.hpp"
 #include "client.hpp"
 #include "draw.hpp"
+#include "gl_util.hpp"
 #include "cmd.hpp"
 
 #include <algorithm>
@@ -31,6 +32,8 @@
 #include <SDL2/SDL.h>
 
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/intersect.hpp>
+#include <glm/gtx/projection.hpp>
 
 //
 //
@@ -174,6 +177,10 @@ std::string vr_working_directory;
 qvec3 vr_viewOffset;
 qvec3 lastHudPosition{};
 qvec3 lastMenuPosition{};
+qvec3 vr_menu_target{};
+qvec3 vr_menu_angles{};
+qvec3 vr_menu_normal{};
+qvec3 vr_menu_intersection_point{};
 
 vr::IVRSystem* ovrHMD;
 vr::TrackedDevicePose_t ovr_DevicePose[vr::k_unMaxTrackedDeviceCount];
@@ -214,6 +221,10 @@ vr::VRSkeletalSummaryData_t vr_ss_righthand;
 
 std::array<std::array<float, 6>, 2> vr_lastfinger_frame{};
 std::array<std::array<float, 6>, 2> vr_fingertracking_frame{};
+
+float vr_menu_mouse_x{};
+float vr_menu_mouse_y{};
+bool vr_menu_mouse_click{};
 
 VrGunWallCollision vr_gun_wall_collision[2];
 
@@ -3365,9 +3376,6 @@ void VR_Draw2D()
 {
     bool draw_sbar = false;
 
-    qvec3 menu_angles;
-    qvec3 target;
-
     const float scale_hud = vr_menu_scale.value;
 
     const int oldglwidth = glwidth;
@@ -3408,44 +3416,51 @@ void VR_Draw2D()
     {
         if(menuMode == VrMenuMode::LastHeadAngles)
         {
-            menu_angles = inMenu() ? lastMenuAngles : cl.viewangles;
+            vr_menu_angles = inMenu() ? lastMenuAngles : cl.viewangles;
         }
         else
         {
-            menu_angles = cl.viewangles;
+            vr_menu_angles = cl.viewangles;
         }
 
         if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
             vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
         {
-            menu_angles[PITCH] = 0;
+            vr_menu_angles[PITCH] = 0;
         }
 
-        const auto fwd = getFwdVecFromPitchYawRoll(menu_angles);
-        target = r_refdef.vieworg + qfloat(vr_menu_distance.value) * fwd;
+        const auto fwd = getFwdVecFromPitchYawRoll(vr_menu_angles);
+        vr_menu_target =
+            r_refdef.vieworg + qfloat(vr_menu_distance.value) * fwd;
+        vr_menu_normal = fwd;
     }
     else
     {
         const auto hand =
             menuMode == VrMenuMode::FollowOffHand ? cVR_OffHand : cVR_MainHand;
 
-        menu_angles = cl.handrot[hand];
+        vr_menu_angles = cl.handrot[hand];
 
-        const auto fwd = getFwdVecFromPitchYawRoll(menu_angles);
-        target = cl.handpos[hand] + qfloat(vr_menu_distance.value) * fwd;
+        const auto fwd = getFwdVecFromPitchYawRoll(vr_menu_angles);
+        vr_menu_target =
+            cl.handpos[hand] + qfloat(vr_menu_distance.value) * fwd;
+        vr_menu_normal = fwd;
     }
 
     // TODO VR: (P2) control smoothing with cvar
-    const auto smoothedTarget = glm::mix(lastMenuPosition, target, 0.9);
+    const auto smoothedTarget = glm::mix(lastMenuPosition, vr_menu_target, 0.9);
     lastMenuPosition = smoothedTarget;
 
     glTranslatef(smoothedTarget[0], smoothedTarget[1], smoothedTarget[2]);
 
+    vr_menu_angles[YAW] -= 90;
+    vr_menu_angles[PITCH] += 90;
+
     // rotate around z
-    glRotatef(menu_angles[YAW] - 90, 0, 0, 1);
+    glRotatef(vr_menu_angles[YAW], 0, 0, 1);
 
     // keep bar at constant angled pitch towards user
-    glRotatef(90 + menu_angles[PITCH], -1, 0, 0);
+    glRotatef(vr_menu_angles[PITCH], -1, 0, 0);
 
     // center the status bar
     glTranslatef(-(320.0 * scale_hud / 2), -(200.0 * scale_hud / 2), 0);
@@ -3493,6 +3508,7 @@ void VR_Draw2D()
         SCR_DrawClock();    // johnfitz
         SCR_DrawConsole();
         M_Draw();
+        M_DrawKeyboard();
     }
 
     glDisable(GL_BLEND);
@@ -3686,6 +3702,75 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     return vr_menu_mult;
 }
 
+static void VR_DoInput_UpdateFakeMouse()
+{
+    int mx, my;
+    const auto mouseState = SDL_GetMouseState(&mx, &my);
+
+    vr_menu_mouse_x = mx;
+    vr_menu_mouse_y = my;
+    vr_menu_mouse_click = mouseState & SDL_BUTTON(SDL_BUTTON_LEFT);
+}
+
+static void VR_DoInput_UpdateVRMouse()
+{
+    if(!controllers[0].active && !controllers[1].active)
+    {
+        vr_menu_mouse_x = vr_menu_mouse_y = 0;
+        vr_menu_mouse_click = false;
+        return;
+    }
+
+    const auto updateWith = [&](const HandIdx handIdx) {
+        const auto& orig = cl.handpos[handIdx];
+        const auto dir = getFwdVecFromPitchYawRoll(cl.handrot[handIdx]);
+
+        const auto& planeOrig = vr_menu_target;
+        const auto planeDir = getFwdVecFromPitchYawRoll(vr_menu_angles);
+
+        const auto [fwd, right, up] = getAngledVectors(vr_menu_normal);
+
+        const auto yr = [](const auto& v) {
+            return redirectVectorByYaw(v, VR_GetTurnYawAngle());
+        };
+
+        qfloat intersectionDist{};
+        glm::intersectRayPlane(orig, dir, planeOrig, yr(fwd), intersectionDist);
+
+        const auto intersectionPoint = orig + intersectionDist * dir;
+        const auto res = intersectionPoint - planeOrig;
+
+        vr_menu_intersection_point = intersectionPoint;
+
+        const float scale_hud = vr_menu_scale.value;
+
+        const auto sign = [](const float x) {
+            if(x >= 0) return 1.f;
+            return -1.f;
+        };
+
+        const auto xProj = glm::proj(res, yr(right));
+        const float xSign = -sign(glm::dot(xProj, yr(right)));
+        vr_menu_mouse_x = glm::length(xProj) * xSign / scale_hud + 320 / 2;
+
+        const auto yProj = glm::proj(res, yr(up));
+        const float ySign = -sign(glm::dot(yProj, yr(up)));
+        vr_menu_mouse_y = glm::length(yProj) * ySign / scale_hud + 240 / 2;
+    };
+
+    if(controllers[1].active)
+    {
+        updateWith(cVR_MainHand);
+        return;
+    }
+
+    if(controllers[0].active)
+    {
+        updateWith(cVR_OffHand);
+        return;
+    }
+}
+
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
     if(vr_fakevr.value && vr_novrinit.value)
@@ -3695,6 +3780,9 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         vr_right_prevgrabbing = vr_right_grabbing;
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
+
+        VR_DoInput_UpdateFakeMouse();
+
         return {0.f, 0.f, 0.f};
     }
 
@@ -3879,11 +3967,13 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
         Key_Event('l', inpRightGrab.bState);
         vr_left_grabbing = (in_grableft.state & 1);
         vr_right_grabbing = (in_grabright.state & 1);
+        VR_DoInput_UpdateVRMouse();
     }
     else
     {
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
+        VR_DoInput_UpdateFakeMouse();
     }
 
     in_speed.state = mustSpeed;
@@ -3974,6 +4064,8 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
 
         if(vr_fakevr.value == 0)
         {
+            vr_menu_mouse_click = inpMenuEnter.bState;
+
             doMenuKeyEventWithHaptic(K_ENTER, inpMenuEnter);
             doMenuKeyEventWithHaptic(K_ESCAPE, inpMenuBack);
             doMenuKeyEventWithHaptic(K_LEFTARROW, inpMenuLeft);

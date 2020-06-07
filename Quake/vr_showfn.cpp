@@ -7,125 +7,20 @@
 #include "glquake.hpp"
 #include "client.hpp"
 #include "world.hpp"
+#include "gl_util.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <tuple>
 #include <utility>
 
+using namespace quake::vr::gl_util;
+
 namespace quake::vr::showfn
 {
 
 namespace
 {
-
-//
-//
-//
-// ----------------------------------------------------------------------------
-// OpenGL Helpers
-// ----------------------------------------------------------------------------
-
-class gl_guard
-{
-private:
-    static void setup_gl() noexcept
-    {
-        glDisable(GL_DEPTH_TEST);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        GL_PolygonOffset(OFFSET_SHOWTRIS);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_TEXTURE_2D);
-        glDisable(GL_CULL_FACE);
-    }
-
-    static void cleanup_gl() noexcept
-    {
-        glColor3f(1, 1, 1);
-        glEnable(GL_TEXTURE_2D);
-        glEnable(GL_CULL_FACE);
-        glDisable(GL_BLEND);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        GL_PolygonOffset(OFFSET_NONE);
-        glEnable(GL_DEPTH_TEST);
-    }
-
-public:
-    [[nodiscard]] gl_guard() noexcept
-    {
-        setup_gl();
-    }
-
-    ~gl_guard() noexcept
-    {
-        cleanup_gl();
-    }
-
-    gl_guard(const gl_guard&) = delete;
-    gl_guard(gl_guard&&) = delete;
-
-    gl_guard& operator=(const gl_guard&) = delete;
-    gl_guard& operator=(gl_guard&&) = delete;
-
-    template <typename F>
-    void draw_points_with_size(float size, F&& f_draw) noexcept
-    {
-        glEnable(GL_POINT_SMOOTH);
-        glPointSize(size);
-
-        glBegin(GL_POINTS);
-        f_draw();
-        glEnd();
-
-        glDisable(GL_POINT_SMOOTH);
-    }
-
-    template <typename F>
-    void draw_points(F&& f_draw) noexcept
-    {
-        draw_points_with_size(12.f, f_draw);
-    }
-
-    template <typename F>
-    void draw_points_and_lines(F&& f_draw) noexcept
-    {
-        glLineWidth(2.f * glwidth / vid.width);
-
-        glEnable(GL_LINE_SMOOTH);
-        glShadeModel(GL_SMOOTH);
-
-        glBegin(GL_LINES);
-        f_draw();
-        glEnd();
-
-        glShadeModel(GL_FLAT);
-        glDisable(GL_LINE_SMOOTH);
-
-        draw_points(f_draw);
-    }
-
-    template <typename F>
-    void draw_line_strip(const float size, F&& f_draw)
-    {
-        glLineWidth(size * glwidth / vid.width);
-
-        glEnable(GL_LINE_SMOOTH);
-        glShadeModel(GL_SMOOTH);
-
-        glBegin(GL_LINE_STRIP);
-        f_draw();
-        glEnd();
-
-        glShadeModel(GL_FLAT);
-        glDisable(GL_LINE_SMOOTH);
-    }
-};
-
-void gl_vertex(const qvec3& v) noexcept
-{
-    glVertex3f(v[0], v[1], v[2]);
-}
 
 //
 //
@@ -201,7 +96,7 @@ void show_virtual_stock()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto [draw_main_hand, draw_off_hand] =
@@ -233,7 +128,7 @@ void show_vr_torso_debug_lines()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto len = 20._qf;
@@ -302,7 +197,7 @@ void show_holster_impl(
         gl_vertex(holster);
     };
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto [draw_main_hand, draw_off_hand] =
@@ -532,7 +427,7 @@ void show_teleport_line()
         }
     };
 
-    gl_guard guard;
+    gl_showfn_guard guard;
     guard.draw_line_strip(size, [&] {
         set_color(alpha * 0.01f);
         gl_vertex(start);
@@ -568,7 +463,7 @@ void show_wpn_offset_helper_offset()
         gl_vertex(b);
     };
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto [hand_pos, hand_rot, cvarEntry] = [&] {
@@ -601,7 +496,7 @@ void show_wpn_offset_helper_muzzle()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto muzzle_pos = vr_impl_draw_wpnoffset_helper_muzzle == 1
@@ -627,7 +522,7 @@ void show_wpn_offset_helper_2h_offset()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto pos =
@@ -654,7 +549,7 @@ void show_hand_pos_and_rot()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_and_lines([&] {
         const auto do_hand = [&](const HandIdx hand_idx) {
@@ -673,6 +568,35 @@ void show_hand_pos_and_rot()
 
         glColor4f(1, 0, 0, 0.75);
         do_hand(cVR_OffHand);
+    });
+}
+
+// TODO VR: (P1) move:
+void show_menu_intersection_point()
+{
+    return;
+
+    gl_showfn_guard guard;
+
+    guard.draw_points_and_lines([&] {
+        const auto do_hand = [&](const HandIdx hand_idx) {
+            glColor4f(0, 1, 0, 0.75);
+            gl_vertex(cl.handpos[hand_idx]);
+            gl_vertex(vr_menu_intersection_point);
+
+            // glColor4f(0, 0, 1, 0.5);
+            // gl_vertex(cl.handpos[hand_idx]);
+            // gl_vertex(vr_menu_target);
+
+            glColor4f(1, 0, 0, 0.5);
+            gl_vertex(vr_menu_target);
+            gl_vertex(vr_menu_target + vr_menu_normal * 205.f);
+        };
+
+        do_hand(cVR_MainHand);
+
+        // glColor4f(1, 0, 0, 0.75);
+        // do_hand(cVR_OffHand);
     });
 }
 
@@ -709,7 +633,7 @@ void show_anchor_vertex_impl(const HandIdx hand_idx, const WpnCVar wpn_cvar)
         gl_vertex(pos);
     };
 
-    gl_guard guard;
+    gl_showfn_guard guard;
 
     guard.draw_points_with_size(12.f, [&] {
         glColor4f(1.f, 1.f, 1.f, 1.0f);
@@ -872,6 +796,7 @@ void draw_all_show_helpers()
     show_2h_hand_anchor_vertex();
     show_wpn_button_anchor_vertex();
     show_muzzle_anchor_vertex();
+    show_menu_intersection_point();
 }
 
 void show_crosshair()
@@ -889,7 +814,7 @@ void show_crosshair()
         return;
     }
 
-    gl_guard guard;
+    gl_showfn_guard guard;
     show_crosshair_hand_impl(cVR_OffHand, size, alpha);
     show_crosshair_hand_impl(cVR_MainHand, size, alpha);
 }

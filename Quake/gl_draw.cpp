@@ -787,6 +787,15 @@ void GL_SetCanvas(canvastype newcanvas)
             glViewport(glx, gly, glwidth, glheight);
             break;
         case CANVAS_CONSOLE:
+            s = q_min((float)glwidth / 800.0, (float)glheight / 600.0);
+            s = CLAMP(1.0, scr_menuscale.value, s);
+            lines =
+                vid.conheight - (scr_con_current * vid.conheight / glheight);
+            glOrtho(0, 800, 600, 0, -99999, 99999);
+            glViewport(glx + (glwidth - 800 * s) / 2,
+                gly + (glheight - 600 * s) / 2, 800 * s, 600 * s);
+            break;
+        case CANVAS_NOTIFY:
             lines =
                 vid.conheight - (scr_con_current * vid.conheight / glheight);
             glOrtho(

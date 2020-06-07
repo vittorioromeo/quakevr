@@ -534,6 +534,13 @@ extern bool vr_teleporting_impact_valid;
 extern vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 extern vr::VRSkeletalSummaryData_t vr_ss_righthand;
 extern std::array<std::array<float, 6>, 2> vr_fingertracking_frame;
+extern float vr_menu_mouse_x;
+extern float vr_menu_mouse_y;
+extern bool vr_menu_mouse_click;
+extern qvec3 vr_menu_target;
+extern qvec3 vr_menu_angles;
+extern qvec3 vr_menu_normal;
+extern qvec3 vr_menu_intersection_point;
 
 // TODO VR: (P1) used by show fns
 [[nodiscard]] qvec3 VR_Get2HHoldingHandPos(

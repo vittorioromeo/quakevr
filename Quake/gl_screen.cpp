@@ -1290,6 +1290,7 @@ void SCR_UpdateScreenContent()
             SCR_DrawClock();    // johnfitz
             SCR_DrawConsole();
             M_Draw();
+            M_DrawKeyboard();
         }
     }
 
