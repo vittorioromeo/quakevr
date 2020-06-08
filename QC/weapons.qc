@@ -3010,7 +3010,7 @@ void(float xHand) W_WeaponFrameImpl =
 {
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
 
-    if(time < readytime)
+    if(!deathmatch && time < readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;
@@ -3908,7 +3908,7 @@ void(entity ent, float xHand,
     vector handPos = VRGetHandPos(xHand);
     vector handRot = VRGetHandRot(xHand);
 
-    if(time < readytime)
+    if(!deathmatch && time < readytime)
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;

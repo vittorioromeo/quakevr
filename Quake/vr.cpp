@@ -4421,15 +4421,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // problem, but on ab2 if i rapidly add them then the game crashes" - can
 // reproduce, seems a problem with waypoint `._next`?
 
-// TODO VR: (P1): "Seems like my guns very frequently wont shoot for a second -
-// i will be shooting fine, just pressing the trigger button repeatedly and keep
-// shooting my shotugn or rockets, then randomly it wont shoot when i pressed
-// trigger, and i continue to repeatedly press trigger and then it starts
-// shooting again. The firing pause last about a second. I'll hopefully have
-// better context after the next time i start the game as i will try to pay more
-// attention to this issue." - seems to happen in MP with many bots, not sure
-// why
-
 // TODO VR: (P1): "Quicksave would be better | A hotkey for quicksaving | Maybe
 // a button combo"
 
