@@ -1301,6 +1301,16 @@ static void VR_InitActionHandles()
     return key_dest == key_menu;
 }
 
+[[nodiscard]] static bool inConsole() noexcept
+{
+    return key_dest == key_console;
+}
+
+[[nodiscard]] static bool inMenuOrConsole() noexcept
+{
+    return inMenu() || inConsole();
+}
+
 [[nodiscard]] static bool inGame() noexcept
 {
     return key_dest == key_game;
@@ -1828,7 +1838,7 @@ void SetHandPos(int index, entity_t* player)
 
     // ------------------------------------------------------------------------
     // VR: Interpolate hand position depending on weapon weight.
-    if(!inMenu() && vr_wpn_pos_weight.value == 1)
+    if(!inMenuOrConsole() && vr_wpn_pos_weight.value == 1)
     {
         const auto wpnCvarEntry = VR_GetWpnCvarEntry(index);
 
@@ -2667,7 +2677,7 @@ VR_UpdateDevicesOrientationPosition() noexcept
 
 static void VR_DoWeaponDirSlerp()
 {
-    if(inMenu() || vr_wpn_dir_weight.value != 1)
+    if(inMenuOrConsole() || vr_wpn_dir_weight.value != 1)
     {
         return;
     }
@@ -3416,7 +3426,7 @@ void VR_Draw2D()
     {
         if(menuMode == VrMenuMode::LastHeadAngles)
         {
-            vr_menu_angles = inMenu() ? lastMenuAngles : cl.viewangles;
+            vr_menu_angles = inMenuOrConsole() ? lastMenuAngles : cl.viewangles;
         }
         else
         {
@@ -3758,16 +3768,28 @@ static void VR_DoInput_UpdateVRMouse()
         vr_menu_mouse_y = glm::length(yProj) * ySign / scale_hud + 240 / 2;
     };
 
-    if(controllers[1].active)
-    {
-        updateWith(cVR_MainHand);
-        return;
-    }
+    const auto doControllersInOrder = [&](const HandIdx first,
+                                          const HandIdx second) {
+        if(controllers[first].active)
+        {
+            updateWith(first);
+            return;
+        }
 
-    if(controllers[0].active)
+        if(controllers[second].active)
+        {
+            updateWith(second);
+            return;
+        }
+    };
+
+    if(vr_menu_mouse_pointer_hand.value == 1)
     {
-        updateWith(cVR_OffHand);
-        return;
+        doControllersInOrder(cVR_MainHand, cVR_OffHand);
+    }
+    else
+    {
+        doControllersInOrder(cVR_OffHand, cVR_MainHand);
     }
 }
 
@@ -3948,11 +3970,11 @@ static void VR_DoInput_UpdateVRMouse()
         readDigitalAction(vrahMenuMultiplierPlusOne2);
 
     // VR: Active action set transition.
-    if(inMenu() && !inpEscape.bState)
+    if(inMenuOrConsole() && !inpEscape.bState)
     {
         vrActiveActionSet.ulActionSet = vrashMenu;
     }
-    else if(!inMenu() && !inpMenuBack.bState)
+    else if(!inMenuOrConsole() && !inpMenuBack.bState)
     {
         vrActiveActionSet.ulActionSet = vrashDefault;
     }
@@ -4014,7 +4036,7 @@ static void VR_DoInput_UpdateVRMouse()
             return pressed;
         };
 
-    if(inMenu())
+    if(inMenuOrConsole())
     {
         const auto doAxis = [&](const int axis, const auto& inp,
                                 const int quakeKeyNeg, const int quakeKeyPos) {
@@ -4249,7 +4271,7 @@ void VR_Move(usercmd_t* cmd)
     cl.hotspot[cVR_MainHand] = cmd->mainhand_hotspot =
         computeHotSpot(cl.handpos[cVR_MainHand]);
 
-    if(inMenu())
+    if(inMenuOrConsole())
     {
         return;
     }

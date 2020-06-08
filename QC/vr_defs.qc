@@ -274,6 +274,7 @@ float QVR_VRBITS0_2H_AIMING             = VRUTIL_POWER_OF_TWO(5);
 
 float readytime; // Time after loading when the player is considered ready.
                  // Prevents shooting, grabbing/dropping weapons.
+                 // TODO VR: (P1): this should be per-client!
 
 //
 //

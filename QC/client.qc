@@ -1019,7 +1019,14 @@ void() PutClientInServer =
 
     spawn_tdeath(self.origin, self);
 
-    readytime = time + 0.5;
+    if(deathmatch)
+    {
+        readytime = time;
+    }
+    else
+    {
+        readytime = time + 0.5;
+    }
 };
 
 void() SpawnAllAmmoBoxWeapons =

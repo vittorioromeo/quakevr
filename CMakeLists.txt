@@ -44,6 +44,7 @@ set(source_list
     "Quake/mathlib.cpp"
     "Quake/menu_util.cpp"
     "Quake/menu.cpp"
+    "Quake/menu_keyboard.cpp"
     "Quake/msg.cpp"
     "Quake/net_dgrm.cpp"
     "Quake/net_loop.cpp"

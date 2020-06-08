@@ -45,6 +45,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.hpp"
 #include "view.hpp"
 #include "gl_util.hpp"
+#include "menu_keyboard.hpp"
 
 #include <string>
 #include <SDL2/SDL_mouse.h>
@@ -1385,6 +1386,12 @@ void M_Options_Key(int k)
 
     m.add_cvar_entry<float>("Menu Distance", vr_menu_distance, {1, 24, 256})
         .tooltip("Distance of the menu from the anchor point.");
+
+    m.add_cvar_getter_enum_entry<int>(              //
+        "Pointer Hand",                             //
+        [] { return &vr_menu_mouse_pointer_hand; }, //
+        "Off-Hand",                                 //
+        "Main Hand");
 
     // TODO VR: (P1) menu lerp amount, menu distance follow hand?
 
@@ -3850,7 +3857,7 @@ void M_Quit_Draw() // johnfitz -- modified for new quit message
     {
         boxlen++;
     }
-    M_DrawTextBox(160 - 4 * (boxlen + 2), 76, boxlen, 4);
+    M_DrawTextBox(260 - 4 * (boxlen + 2), 76, boxlen, 4);
 
     // now do the text
     M_Print(260 - 4 * strlen(msg1), 88, msg1);
@@ -4721,370 +4728,17 @@ void M_Init()
     Cmd_AddCommand("autosave", quake::saveutil::doAutosave);
 }
 
-namespace
+[[nodiscard]] quake::vr::menu_keyboard& mkb()
 {
-
-using namespace quake::vr::gl_util;
-using namespace std::string_literals;
-
-class menu_keyboard
-{
-public:
-    // clang-format off
-    struct ka_backspace { };
-    struct ka_enter { };
-    struct ka_back { };
-    struct ka_up { };
-    struct ka_down { };
-    struct ka_left { };
-    struct ka_right { };
-    struct ka_space { };
-    struct ka_capslock { };
-    struct ka_tab { };
-    struct ka_console { };
-    // clang-format on
-
-    using key_action =
-        std::variant<char, ka_backspace, ka_enter, ka_back, ka_up, ka_down,
-            ka_left, ka_right, ka_space, ka_capslock, ka_tab, ka_console>;
-
-private:
-    struct aabb
-    {
-        qvec2 _min;
-        qvec2 _max;
-    };
-
-    struct key
-    {
-        qvec2 _pos;
-        aabb _bounds;
-        key_action _action;
-        bool _hovered{false};
-    };
-
-    std::vector<key> _keys;
-    qvec2 _pos;
-    bool _last_click{false};
-    bool _rising_edge{false};
-    bool _falling_edge{false};
-
-    bool _drag_hover{false};
-    qvec2 _old_pos{};
-    qvec2 _drag_start{};
-
-    bool _caps_lock{};
-
-    [[nodiscard]] qvec2 drag_min() noexcept
-    {
-        return _pos - qvec2{8, 8};
-    }
-
-    [[nodiscard]] qvec2 drag_max() noexcept
-    {
-        return drag_min() + qvec2{256, 16};
-    }
-
-    void draw_bounds() noexcept
-    {
-        glDisable(GL_TEXTURE_2D);
-
-        {
-            const gl_beginend_guard guard{GL_QUADS};
-
-            const auto [min, max] = bounds();
-            glColor3f(0.05, 0.05, 0.05);
-
-            glVertex2f(min.x, min.y);
-            glVertex2f(max.x, min.y);
-            glVertex2f(max.x, max.y);
-            glVertex2f(min.x, max.y);
-        }
-
-        glEnable(GL_TEXTURE_2D);
-        glColor3f(1, 1, 1);
-    }
-
-
-    void draw_dragbar() noexcept
-    {
-        glDisable(GL_TEXTURE_2D);
-
-        {
-            const gl_beginend_guard guard{GL_QUADS};
-
-            const auto& min = drag_min();
-            const auto& max = drag_max();
-
-            if(_drag_hover)
-            {
-                glColor3f(0.65, 0.15, 0.15);
-            }
-            else
-            {
-                glColor3f(0.15, 0.15, 0.15);
-            }
-
-            glVertex2f(min.x, min.y);
-            glVertex2f(max.x, min.y);
-            glVertex2f(max.x, max.y);
-            glVertex2f(min.x, max.y);
-        }
-
-        glEnable(GL_TEXTURE_2D);
-        glColor3f(1, 1, 1);
-    }
-
-    [[nodiscard]] qvec2 tile_pos(const qvec2& pos)
-    {
-        return pos + _pos + qvec2{0, 24};
-    }
-
-    void draw_tiles()
-    {
-        glDisable(GL_TEXTURE_2D);
-
-        {
-            const gl_beginend_guard guard{GL_QUADS};
-
-            for(const key& k : _keys)
-            {
-                const auto& min = tile_pos(k._bounds._min);
-                const auto& max = tile_pos(k._bounds._max);
-
-                if(k._hovered)
-                {
-                    glColor3f(0.65, 0.15, 0.15);
-                }
-                else
-                {
-                    glColor3f(0.15, 0.15, 0.15);
-                }
-
-                glVertex2f(min.x, min.y);
-                glVertex2f(max.x, min.y);
-                glVertex2f(max.x, max.y);
-                glVertex2f(min.x, max.y);
-            }
-        }
-
-        glEnable(GL_TEXTURE_2D);
-        glColor3f(1, 1, 1);
-    }
-
-    void draw_letters()
-    {
-        for(const key& k : _keys)
-        {
-            const auto cp = tile_pos(k._pos);
-
-            quake::util::match(
-                k._action,
-                [&](const char c) {
-                    M_DrawCharacter(cp.x, cp.y, _caps_lock ? c - 32 : c);
-                },
-                [&](ka_backspace) { M_PrintWhite(cp.x, cp.y, "backspace"); }, //
-                [&](ka_enter) { M_PrintWhite(cp.x, cp.y, "enter"); },         //
-                [&](ka_back) { M_PrintWhite(cp.x, cp.y, "escape"); },         //
-                [&](ka_up) { M_PrintWhite(cp.x, cp.y, "up"); },               //
-                [&](ka_down) { M_PrintWhite(cp.x, cp.y, "down"); },           //
-                [&](ka_left) { M_PrintWhite(cp.x, cp.y, "left"); },           //
-                [&](ka_right) { M_PrintWhite(cp.x, cp.y, "right"); },         //
-                [&](ka_space) { M_PrintWhite(cp.x, cp.y, "space"); },         //
-                [&](ka_tab) { M_PrintWhite(cp.x, cp.y, "tab"); },             //
-                [&](ka_console) { M_PrintWhite(cp.x, cp.y, "console"); },     //
-                [&](ka_capslock) {
-                    M_PrintWhite(
-                        cp.x, cp.y, va("caps %s", _caps_lock ? "ON" : "OFF"));
-                });
-        }
-    }
-
-    [[nodiscard]] bool inside(
-        const int x, const int y, const qvec2& min, const qvec2& max)
-    {
-        return x >= min.x && x <= max.x && y >= min.y && y <= max.y;
-    }
-
-    [[nodiscard]] bool hovers_tile(const key& k, const int x, const int y)
-    {
-        const auto& min = tile_pos(k._bounds._min);
-        const auto& max = tile_pos(k._bounds._max);
-
-        return inside(x, y, min, max);
-    }
-
-    [[nodiscard]] bool hovers_drag(const int x, const int y)
-    {
-        const float off = _drag_hover ? 16.f : 0.f;
-        const qvec2 voff{off, off};
-
-        return inside(x, y, drag_min() - voff, drag_max() + voff);
-    }
-
-
-    [[nodiscard]] aabb bounds() noexcept
-    {
-        qvec2 min = drag_min();
-        qvec2 max = drag_max();
-
-        for(const key& k : _keys)
-        {
-            const auto bmin = tile_pos(k._bounds._min);
-            const auto bmax = tile_pos(k._bounds._max);
-
-            min.x = std::min(min.x, bmin.x);
-            min.y = std::min(min.y, bmin.y);
-
-            max.x = std::max(max.x, bmax.x);
-            max.y = std::max(max.y, bmax.y);
-        }
-
-        min.x -= 8;
-        min.y -= 8;
-
-        max.x += 8;
-        max.y += 8;
-
-        return {min, max};
-    }
-
-public:
-    menu_keyboard(const qvec2 pos) noexcept : _pos{pos}
-    {
-        constexpr auto kbLayout = R"(1234567890'
-qwertyuiop
-asdfghjkl
-zxcvbnm,.-)"sv;
-
-        constexpr int distance = 28;
-        constexpr int off = 8;
-
-        int cx = 0;
-        int cy = 0;
-
-        for(const char c : kbLayout)
-        {
-            if(c == '\n')
-            {
-                cy += distance;
-                cx = 0;
-
-                continue;
-            }
-
-            const aabb key_bounds{
-                {cx - off, cy - off},        //
-                {cx + 8 + off, cy + 8 + off} //
-            };
-
-            _keys.emplace_back(key{qvec2{cx, cy}, key_bounds, key_action{c}});
-            cx += distance;
-        }
-
-        const auto add_special_key = [&](const int x, const int y,
-                                         const int width, auto action) {
-            constexpr int off = 8;
-            constexpr int height = 8;
-
-            const aabb key_bounds{
-                {x - off, y - off},                 //
-                {x + width + off, y + height + off} //
-            };
-
-            _keys.emplace_back(
-                key{qvec2{x, y}, key_bounds, key_action{action}});
-        };
-
-        add_special_key(280 + 32, -24, 76, ka_back{});
-        add_special_key(280 + 32, 4, 76, ka_backspace{});
-        add_special_key(280 + 32, 8 + 24, 76, ka_enter{});
-        add_special_key(280 + 32 + 20 + 76, -24, 76, ka_console{});
-        add_special_key(280 + 32 + 20 + 76, 4, 76, ka_capslock{});
-        add_special_key(280 + 32 + 20 + 76, 8 + 24, 76, ka_tab{});
-        add_special_key(55, 114, 150, ka_space{});
-
-        add_special_key(64 + 280 + 48, 26 + 4 + 8 + 48, 32, ka_up{});
-        add_special_key(64 + 280 + 48, 26 + 4 + 4 + 24 + 8 + 48, 32, ka_down{});
-        add_special_key(
-            64 + 280 + 0 - 8, 26 + 4 + 4 + 24 + 8 + 48, 32, ka_left{});
-        add_special_key(
-            64 + 280 + 48 + 48 + 8, 26 + 4 + 4 + 24 + 8 + 48, 38, ka_right{});
-    }
-
-    void update_click(const int mx, const int my, const bool click)
-    {
-        _rising_edge = click && !_last_click;
-        _falling_edge = !click && _last_click;
-        _last_click = click;
-    }
-
-    template <typename F>
-    void update_letters(const int mx, const int my, const bool click, F&& f)
-    {
-        for(key& k : _keys)
-        {
-            k._hovered = hovers_tile(k, mx, my);
-
-            if(k._hovered && _rising_edge)
-            {
-                quake::util::match(k._action, f);
-            }
-        }
-    }
-
-    void update_drag(const int mx, const int my, const bool click)
-    {
-        _drag_hover = hovers_drag(mx, my);
-
-        if(_drag_hover && _rising_edge)
-        {
-            _old_pos = _pos;
-            _drag_start = qvec2{mx, my};
-        }
-
-        if(_drag_hover && click)
-        {
-            _pos = _old_pos + qvec2{mx, my} - _drag_start;
-        }
-    }
-
-    void draw()
-    {
-        draw_bounds();
-        draw_dragbar();
-        draw_tiles();
-        draw_letters();
-    }
-
-    [[nodiscard]] bool hovered(const int mx, const int my) noexcept
-    {
-        const auto [min, max] = bounds();
-        return inside(mx, my, min, max);
-    }
-
-    void toggle_caps_lock() noexcept
-    {
-        _caps_lock = !_caps_lock;
-    }
-
-    [[nodiscard]] bool caps_lock() noexcept
-    {
-        return _caps_lock;
-    }
-};
-
-} // namespace
-
-[[nodiscard]] static menu_keyboard& mkb()
-{
-    static menu_keyboard mkb{{200, 400}};
+    static quake::vr::menu_keyboard mkb{{200, 400}};
     return mkb;
 }
 
 // TODO VR: (P1) cleanup
 void M_DrawKeyboard()
 {
+    using quake::vr::menu_keyboard;
+
     if(key_dest != key_menu && key_dest != key_console)
     {
         return;
@@ -5114,8 +4768,8 @@ void M_DrawKeyboard()
                 }
                 else
                 {
-                    void Key_Console(int key);
-                    Key_Console(key);
+                    void Key_Console(int key, const bool fromVirtualKeyboard);
+                    Key_Console(key, true /* fromVirtualKeyboard */);
                 }
             }
         };
@@ -5142,10 +4796,10 @@ void M_DrawKeyboard()
         mkb().update_drag(mx, my, click);
 
         {
-            const gl_beginend_guard guard{GL_POINTS};
+            const quake::vr::gl_util::gl_beginend_guard guard{GL_POINTS};
 
             glColor3f(1, 0, 0);
-            gl_vertex(qvec2{mx, my});
+            quake::vr::gl_util::gl_vertex(qvec2{mx, my});
         }
 
         glDisable(GL_POINT_SMOOTH);

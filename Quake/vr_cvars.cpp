@@ -34,8 +34,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_FCVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_FCVAR(vr_fakevr, 1, CVAR_NONE);
-DEFINE_FCVAR(vr_novrinit, 1, CVAR_NONE);
+DEFINE_FCVAR(vr_fakevr, 0, CVAR_NONE);
+DEFINE_FCVAR(vr_novrinit, 0, CVAR_NONE);
 
 //
 //
@@ -182,6 +182,7 @@ DEFINE_FCVAR_ARCHIVE(vr_finger_auto_close_thumb, 1);
 DEFINE_FCVAR_ARCHIVE(vr_autosave_show_message, 0);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending, 1);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending_speed, 50);
+DEFINE_FCVAR_ARCHIVE(vr_menu_mouse_pointer_hand, 1);
 
 //
 //

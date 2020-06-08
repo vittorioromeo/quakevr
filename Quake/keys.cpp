@@ -36,6 +36,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.hpp"
 #include "screen.hpp"
 #include "input.hpp"
+#include "vr_cvars.hpp"
+#include "vr.hpp"
+#include "menu_keyboard.hpp"
 #include "sys.hpp"
 
 /* key up events are sent even if in console mode */
@@ -206,8 +209,17 @@ Interactive line editing and console scrollback
 extern char *con_text, key_tabpartial[MAXCMDLINE];
 extern int con_current, con_linewidth, con_vislines;
 
-void Key_Console(int key)
+void Key_Console(int key, const bool fromVirtualKeyboard)
 {
+    // TODO VR: (P1) cleanup
+    quake::vr::menu_keyboard& mkb();
+
+    if(!fromVirtualKeyboard && !vr_fakevr.value &&
+        mkb().hovered(vr_menu_mouse_x, vr_menu_mouse_y) && key == K_ENTER)
+    {
+        return;
+    }
+
     static char current[MAXCMDLINE] = "";
     int history_line_last;
     size_t len;
@@ -1149,7 +1161,7 @@ void Key_Event(int key, bool down)
         case key_menu: M_Keydown(key); break;
 
         case key_game:
-        case key_console: Key_Console(key); break;
+        case key_console: Key_Console(key, false /* fromVirtualKeyboard */); break;
         default: Sys_Error("Bad key_dest");
     }
 }

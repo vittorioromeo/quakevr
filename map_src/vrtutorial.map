@@ -1771,8 +1771,8 @@
 {
 "classname" "trigger_damagethreshold"
 "target" "t1"
-"health" "10"
-"d" "180"
+"health" "7"
+"angle" "180"
 // brush 0
 {
 ( -236.73874857417957 -566.40222299426955 19.944147273163303 ) ( -215.20111149713512 -556.97950677332074 148.09308787805861 ) ( -243.46926015998201 -608.80444598853933 13.536700242918531 ) rock5_2 0 -39.6491 0 1 1
@@ -1804,7 +1804,7 @@
 "classname" "trigger_damagethreshold"
 "angle" "180"
 "target" "t2"
-"health" "10"
+"health" "7"
 // brush 0
 {
 ( -225.1545675581026 -727.20111149713512 116.05585272683484 ) ( -244 -694.2216047238137 13.536700242918531 ) ( -225.1545675581026 -680.08753039239036 116.05585272683484 ) rock5_2 -14 -39.6491 0 1 1
@@ -1931,7 +1931,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6623"
+"_tb_id" "1"
 // brush 0
 {
 ( 96 120 16 ) ( 104 113 70 ) ( 104 103 70 ) tlight11 0 0 0 1 1
@@ -1947,35 +1947,35 @@
 "classname" "light"
 "origin" "88 108 46"
 "light" "200"
-"_tb_group" "6623"
+"_tb_group" "1"
 }
 // entity 12
 {
 "classname" "light"
 "origin" "128 108 46"
 "light" "200"
-"_tb_group" "6623"
+"_tb_group" "1"
 }
 // entity 13
 {
 "classname" "light"
 "origin" "108 88 46"
 "light" "200"
-"_tb_group" "6623"
+"_tb_group" "1"
 }
 // entity 14
 {
 "classname" "light"
 "origin" "108 128 46"
 "light" "200"
-"_tb_group" "6623"
+"_tb_group" "1"
 }
 // entity 15
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Player Start Slipgate"
-"_tb_id" "6624"
+"_tb_id" "2"
 // brush 0
 {
 ( -96 7920 8160 ) ( -96 -8464 8160 ) ( -96 -8464 -8224 ) slipbotsd 0 -48 90 -1 1
@@ -2027,14 +2027,14 @@
 "angle" "270"
 "origin" "-64 80 56"
 "classname" "info_player_start"
-"_tb_group" "6624"
+"_tb_group" "2"
 }
 // entity 17
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6625"
+"_tb_id" "3"
 // brush 0
 {
 ( -248 120 16 ) ( -240 113 70 ) ( -240 103 70 ) tlight11 0 0 0 1 1
@@ -2050,21 +2050,21 @@
 "classname" "light"
 "origin" "-216 108 46"
 "light" "200"
-"_tb_group" "6625"
+"_tb_group" "3"
 }
 // entity 19
 {
 "classname" "light"
 "origin" "-236 88 46"
 "light" "200"
-"_tb_group" "6625"
+"_tb_group" "3"
 }
 // entity 20
 {
 "classname" "light"
 "origin" "-236 128 46"
 "light" "200"
-"_tb_group" "6625"
+"_tb_group" "3"
 }
 // entity 21
 {
@@ -2105,7 +2105,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6626"
+"_tb_id" "4"
 // brush 0
 {
 ( -128 -126 144 ) ( -136 -126 152 ) ( -136 -134 152 ) c-white 0 0 0 1 1
@@ -2129,7 +2129,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6627"
+"_tb_id" "5"
 // brush 0
 {
 ( -128 -126 24 ) ( -136 -126 32 ) ( -136 -134 32 ) c-white 0 0 0 1 1
@@ -2153,7 +2153,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6628"
+"_tb_id" "6"
 // brush 0
 {
 ( -234 -126 24 ) ( -234 -126 40 ) ( -234 -134 40 ) c-white 0 0 0 1 1
@@ -2177,7 +2177,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6629"
+"_tb_id" "7"
 // brush 0
 {
 ( -234 -126 144 ) ( -234 -126 160 ) ( -234 -134 160 ) c-white 0 0 0 1 1
@@ -2201,7 +2201,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6630"
+"_tb_id" "8"
 // brush 0
 {
 ( -247 94 66 ) ( -247 94 66.9375 ) ( -247 92.53125 66 ) black 0 6.4 180 1.46875 -0.9375
@@ -2272,7 +2272,7 @@
 "origin" "-235 88 136"
 "light" "200"
 "angle" "270"
-"_tb_group" "6630"
+"_tb_group" "8"
 }
 // entity 32
 {
@@ -2280,7 +2280,7 @@
 "origin" "-235 0 136"
 "light" "200"
 "angle" "270"
-"_tb_group" "6630"
+"_tb_group" "8"
 }
 // entity 33
 {
@@ -2288,7 +2288,7 @@
 "origin" "-235 -88 136"
 "light" "200"
 "angle" "270"
-"_tb_group" "6630"
+"_tb_group" "8"
 }
 // entity 34
 {
@@ -2298,7 +2298,7 @@
 "worldtext" "There are two possible\nlocomotion options.$Smooth locomotion is\nthe recommended option.$You can also bind a\nbutton to 'Teleport' \nin the SteamVR\nbindings.$You can customize\nlocomotion settings\nfrom the 'Quake VR\nsettings' menu."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6630"
+"_tb_group" "8"
 }
 // entity 35
 {
@@ -2312,7 +2312,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6631"
+"_tb_id" "9"
 // brush 0
 {
 ( 112 -390 24 ) ( 104 -390 32 ) ( 104 -398 32 ) c-white 0 -8 0 1 1
@@ -2336,7 +2336,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6632"
+"_tb_id" "10"
 // brush 0
 {
 ( 8 -390 24 ) ( 8 -390 40 ) ( 8 -398 40 ) c-white 8 0 0 1 1
@@ -2360,7 +2360,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6633"
+"_tb_id" "11"
 // brush 0
 {
 ( 112 -390 144 ) ( 104 -390 152 ) ( 104 -398 152 ) c-white 0 -8 0 1 1
@@ -2384,7 +2384,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6634"
+"_tb_id" "12"
 // brush 0
 {
 ( 8 -390 144 ) ( 8 -390 160 ) ( 8 -398 160 ) c-white 8 0 0 1 1
@@ -2408,7 +2408,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6635"
+"_tb_id" "13"
 // brush 0
 {
 ( 96 -144 16 ) ( 104 -151 70 ) ( 104 -161 70 ) tlight11 8 0 0 1 1
@@ -2424,35 +2424,35 @@
 "classname" "light"
 "origin" "88 -156 46"
 "light" "200"
-"_tb_group" "6635"
+"_tb_group" "13"
 }
 // entity 42
 {
 "classname" "light"
 "origin" "128 -156 46"
 "light" "200"
-"_tb_group" "6635"
+"_tb_group" "13"
 }
 // entity 43
 {
 "classname" "light"
 "origin" "108 -176 46"
 "light" "200"
-"_tb_group" "6635"
+"_tb_group" "13"
 }
 // entity 44
 {
 "classname" "light"
 "origin" "108 -136 46"
 "light" "200"
-"_tb_group" "6635"
+"_tb_group" "13"
 }
 // entity 45
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6636"
+"_tb_id" "14"
 // brush 0
 {
 ( -244 -360 16 ) ( -236 -367 70 ) ( -236 -377 70 ) tlight11 0 0 0 1 1
@@ -2468,35 +2468,35 @@
 "classname" "light"
 "origin" "-252 -372 46"
 "light" "200"
-"_tb_group" "6636"
+"_tb_group" "14"
 }
 // entity 47
 {
 "classname" "light"
 "origin" "-212 -372 46"
 "light" "200"
-"_tb_group" "6636"
+"_tb_group" "14"
 }
 // entity 48
 {
 "classname" "light"
 "origin" "-232 -392 46"
 "light" "200"
-"_tb_group" "6636"
+"_tb_group" "14"
 }
 // entity 49
 {
 "classname" "light"
 "origin" "-232 -352 46"
 "light" "200"
-"_tb_group" "6636"
+"_tb_group" "14"
 }
 // entity 50
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6637"
+"_tb_id" "15"
 // brush 0
 {
 ( -257 -207.49999999999883 64 ) ( -257 -207.49999999999883 80 ) ( -257 -215.49999999999883 72 ) c-white 0.5 8 180 1 -1
@@ -2520,7 +2520,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6638"
+"_tb_id" "16"
 // brush 0
 {
 ( -257 -304.50000000000114 80 ) ( -257 -304.50000000000114 64 ) ( -257 -296.50000000000114 72 ) c-white 0.5 -8 0 1 -1
@@ -2544,7 +2544,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6639"
+"_tb_id" "17"
 // brush 0
 {
 ( -208 -387 65 ) ( -208 -386.74999999999994 65 ) ( -208 -387 65.9375 ) black -12 5.33334 0 0.25 0.9375
@@ -2615,7 +2615,7 @@
 "origin" "-202 -375 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6639"
+"_tb_group" "17"
 }
 // entity 54
 {
@@ -2623,7 +2623,7 @@
 "origin" "-114 -375 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6639"
+"_tb_group" "17"
 }
 // entity 55
 {
@@ -2631,7 +2631,7 @@
 "origin" "-26 -375 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6639"
+"_tb_group" "17"
 }
 // entity 56
 {
@@ -2641,14 +2641,14 @@
 "worldtext" "You can interact with\nthe environment by\nusing your hands.$Try pressing the button\nor picking up ammo.$If you'd rather\ninteract with your \nwhole body, check\nthe 'Immersion\n'Settings' menu."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6639"
+"_tb_group" "17"
 }
 // entity 57
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6640"
+"_tb_id" "18"
 // brush 0
 {
 ( 127 -304.50000000000114 80 ) ( 127 -304.50000000000114 64 ) ( 127 -296.50000000000114 72 ) c-white 0.5 -8 0 1 -1
@@ -2672,7 +2672,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6641"
+"_tb_id" "19"
 // brush 0
 {
 ( 127 -207.49999999999883 64 ) ( 127 -207.49999999999883 80 ) ( 127 -215.49999999999883 72 ) c-white 0.5 8 180 1 -1
@@ -2714,7 +2714,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6642"
+"_tb_id" "20"
 // brush 0
 {
 ( -88 -523 65 ) ( -88 -522.75 65 ) ( -88 -523 65.9375 ) black 4 5.33334 0 0.25 0.9375
@@ -2785,7 +2785,7 @@
 "origin" "-82 -511 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6642"
+"_tb_group" "20"
 }
 // entity 64
 {
@@ -2793,7 +2793,7 @@
 "origin" "6 -511 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6642"
+"_tb_group" "20"
 }
 // entity 65
 {
@@ -2801,7 +2801,7 @@
 "origin" "94 -511 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6642"
+"_tb_group" "20"
 }
 // entity 66
 {
@@ -2811,14 +2811,14 @@
 "worldtext" "Use your fists!\nThe harder you\npunch, the more\ndamage you will\ndeal."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6642"
+"_tb_group" "20"
 }
 // entity 67
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6643"
+"_tb_id" "21"
 // brush 0
 {
 ( -120 -526 24 ) ( -128 -526 32 ) ( -128 -534 32 ) c-white 0 -8 0 1 1
@@ -2842,7 +2842,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6644"
+"_tb_id" "22"
 // brush 0
 {
 ( -120 -526 144 ) ( -128 -526 152 ) ( -128 -534 152 ) c-white 0 -8 0 1 1
@@ -2882,7 +2882,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6645"
+"_tb_id" "23"
 // brush 0
 {
 ( -202 -1011 65 ) ( -202 -1010.75 65 ) ( -202 -1011 65.9375 ) black -12 5.33334 0 0.25 0.9375
@@ -2953,7 +2953,7 @@
 "origin" "-196 -999 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6645"
+"_tb_group" "23"
 }
 // entity 73
 {
@@ -2961,7 +2961,7 @@
 "origin" "-108 -999 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6645"
+"_tb_group" "23"
 }
 // entity 74
 {
@@ -2969,7 +2969,7 @@
 "origin" "-20 -999 135"
 "light" "200"
 "angle" "0"
-"_tb_group" "6645"
+"_tb_group" "23"
 }
 // entity 75
 {
@@ -2979,7 +2979,7 @@
 "worldtext" "You can pick weapons\nup by grabbing them.\nNaturally swing and\nthrow them to deal\ndamage.$Try to hit the three\ntargets by throwing\naxes.$You can also pull\nweapons towards you\nby pointing at them\nand pressing trigger.\nTry it!"
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6645"
+"_tb_group" "23"
 }
 // entity 76
 {
@@ -2993,7 +2993,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6646"
+"_tb_id" "24"
 // brush 0
 {
 ( -112 -544 17.078755282366501 ) ( -104 -551 71.078755282366501 ) ( -104 -561 71.078755282366501 ) tlight11 -8 1.07875 0 1 1
@@ -3009,35 +3009,35 @@
 "classname" "light"
 "origin" "-120 -556 47"
 "light" "200"
-"_tb_group" "6646"
+"_tb_group" "24"
 }
 // entity 79
 {
 "classname" "light"
 "origin" "-80 -556 47"
 "light" "200"
-"_tb_group" "6646"
+"_tb_group" "24"
 }
 // entity 80
 {
 "classname" "light"
 "origin" "-100 -576 47"
 "light" "200"
-"_tb_group" "6646"
+"_tb_group" "24"
 }
 // entity 81
 {
 "classname" "light"
 "origin" "-100 -536 47"
 "light" "200"
-"_tb_group" "6646"
+"_tb_group" "24"
 }
 // entity 82
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6647"
+"_tb_id" "25"
 // brush 0
 {
 ( 92 -544 17.078755282366501 ) ( 100 -551 71.078755282366501 ) ( 100 -561 71.078755282366501 ) tlight11 -8 1.07875 0 1 1
@@ -3053,28 +3053,28 @@
 "classname" "light"
 "origin" "84 -556 47"
 "light" "200"
-"_tb_group" "6647"
+"_tb_group" "25"
 }
 // entity 84
 {
 "classname" "light"
 "origin" "124 -556 47"
 "light" "200"
-"_tb_group" "6647"
+"_tb_group" "25"
 }
 // entity 85
 {
 "classname" "light"
 "origin" "104 -576 47"
 "light" "200"
-"_tb_group" "6647"
+"_tb_group" "25"
 }
 // entity 86
 {
 "classname" "light"
 "origin" "104 -536 47"
 "light" "200"
-"_tb_group" "6647"
+"_tb_group" "25"
 }
 // entity 87
 {
@@ -3089,7 +3089,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6648"
+"_tb_id" "26"
 // brush 0
 {
 ( 92 -876 17.078755282365382 ) ( 100 -883 71.078755282365378 ) ( 100 -893 71.078755282365378 ) tlight11 -8 1.07875 0 1 1
@@ -3105,35 +3105,35 @@
 "classname" "light"
 "origin" "84 -888 47"
 "light" "200"
-"_tb_group" "6648"
+"_tb_group" "26"
 }
 // entity 90
 {
 "classname" "light"
 "origin" "124 -888 47"
 "light" "200"
-"_tb_group" "6648"
+"_tb_group" "26"
 }
 // entity 91
 {
 "classname" "light"
 "origin" "104 -908 47"
 "light" "200"
-"_tb_group" "6648"
+"_tb_group" "26"
 }
 // entity 92
 {
 "classname" "light"
 "origin" "104 -868 47"
 "light" "200"
-"_tb_group" "6648"
+"_tb_group" "26"
 }
 // entity 93
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6649"
+"_tb_id" "27"
 // brush 0
 {
 ( -256 -898 41.078755282366501 ) ( -256 -906 33.078755282366501 ) ( -256 -898 25.078755282366501 ) c-white 0 0 0 1 1
@@ -3157,7 +3157,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Arrow"
-"_tb_id" "6650"
+"_tb_id" "28"
 // brush 0
 {
 ( -256 -898 161.0787552823665 ) ( -256 -906 153.0787552823665 ) ( -256 -898 145.0787552823665 ) c-white 0 0 0 1 1
@@ -3293,7 +3293,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6651"
+"_tb_id" "29"
 // brush 0
 {
 ( -607 -791 46 ) ( -607 -791 46.9375 ) ( -607 -792.46875 46 ) black -6.46808 1.06667 180 1.46875 -0.9375
@@ -3366,7 +3366,7 @@
 "origin" "-595 -797 116"
 "light" "200"
 "angle" "270"
-"_tb_group" "6651"
+"_tb_group" "29"
 }
 // entity 113
 {
@@ -3374,7 +3374,7 @@
 "origin" "-595 -885 116"
 "light" "200"
 "angle" "270"
-"_tb_group" "6651"
+"_tb_group" "29"
 }
 // entity 114
 {
@@ -3382,7 +3382,7 @@
 "origin" "-595 -973 116"
 "light" "200"
 "angle" "270"
-"_tb_group" "6651"
+"_tb_group" "29"
 }
 // entity 115
 {
@@ -3392,7 +3392,7 @@
 "worldtext" "Finding a weapon in\na map makes you\n'eligible' for it to\nbe dropped by enemies.$You can dual-wield\nany weapon or use\nthem for melee.\nYou can also aim\ntwo-handed.$Practice on the two\ntargets in the range."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6651"
+"_tb_group" "29"
 }
 // entity 116
 {
@@ -3444,7 +3444,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6652"
+"_tb_id" "30"
 // brush 0
 {
 ( -269 -507.56322217813931 119 ) ( -269 -506.09447217813931 119 ) ( -269 -507.56322217813931 119.93750000000001 ) black 13.6601 14.9333 0 1.46875 0.9375
@@ -3515,7 +3515,7 @@
 "origin" "-279 -690 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6652"
+"_tb_group" "30"
 }
 // entity 127
 {
@@ -3523,7 +3523,7 @@
 "origin" "-279 -602 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6652"
+"_tb_group" "30"
 }
 // entity 128
 {
@@ -3531,7 +3531,7 @@
 "origin" "-279 -514 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6652"
+"_tb_group" "30"
 }
 // entity 129
 {
@@ -3541,7 +3541,7 @@
 "worldtext" "Guns can be holstered\nin six spots on your\nbody. Thighs, hips\nand shoulders.\nTry it out!$You can tweak\nholster positions and\nthresholds in the VR\nsettings menu."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6652"
+"_tb_group" "30"
 }
 // entity 130
 {
@@ -3583,7 +3583,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "BigBanner"
-"_tb_id" "6653"
+"_tb_id" "31"
 // brush 0
 {
 ( -269 -247.56322217813931 119 ) ( -269 -246.09447217813931 119 ) ( -269 -247.56322217813931 119.93750000000001 ) black 13.6601 14.9333 0 1.46875 0.9375
@@ -3654,7 +3654,7 @@
 "origin" "-279 -430 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6653"
+"_tb_group" "31"
 }
 // entity 139
 {
@@ -3662,7 +3662,7 @@
 "origin" "-279 -342 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6653"
+"_tb_group" "31"
 }
 // entity 140
 {
@@ -3670,7 +3670,7 @@
 "origin" "-279 -254 129"
 "light" "200"
 "angle" "90"
-"_tb_group" "6653"
+"_tb_group" "31"
 }
 // entity 141
 {
@@ -3680,7 +3680,7 @@
 "worldtext" "Some weapons have\nalternate firing modes.\nLook for a button on\nthe weapon itself, and\npress it with your\nother hand."
 "worldtext_halign" "1"
 "speed" "0.085"
-"_tb_group" "6653"
+"_tb_group" "31"
 }
 // entity 142
 {
@@ -3701,7 +3701,7 @@
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6654"
+"_tb_id" "32"
 // brush 0
 {
 ( -112 -712 17.078755282366501 ) ( -104 -719 71.078755282366501 ) ( -104 -729 71.078755282366501 ) tlight11 -8 1.07875 0 1 1
@@ -3717,35 +3717,35 @@
 "classname" "light"
 "origin" "-120 -724 47"
 "light" "200"
-"_tb_group" "6654"
+"_tb_group" "32"
 }
 // entity 145
 {
 "classname" "light"
 "origin" "-80 -724 47"
 "light" "200"
-"_tb_group" "6654"
+"_tb_group" "32"
 }
 // entity 146
 {
 "classname" "light"
 "origin" "-100 -744 47"
 "light" "200"
-"_tb_group" "6654"
+"_tb_group" "32"
 }
 // entity 147
 {
 "classname" "light"
 "origin" "-100 -704 47"
 "light" "200"
-"_tb_group" "6654"
+"_tb_group" "32"
 }
 // entity 148
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
 "_tb_name" "Light post"
-"_tb_id" "6655"
+"_tb_id" "33"
 // brush 0
 {
 ( 92 -716 17.078755282366501 ) ( 100 -723 71.078755282366501 ) ( 100 -733 71.078755282366501 ) tlight11 -8 1.07875 0 1 1
@@ -3761,26 +3761,26 @@
 "classname" "light"
 "origin" "84 -728 47"
 "light" "200"
-"_tb_group" "6655"
+"_tb_group" "33"
 }
 // entity 150
 {
 "classname" "light"
 "origin" "124 -728 47"
 "light" "200"
-"_tb_group" "6655"
+"_tb_group" "33"
 }
 // entity 151
 {
 "classname" "light"
 "origin" "104 -748 47"
 "light" "200"
-"_tb_group" "6655"
+"_tb_group" "33"
 }
 // entity 152
 {
 "classname" "light"
 "origin" "104 -708 47"
 "light" "200"
-"_tb_group" "6655"
+"_tb_group" "33"
 }
