@@ -14,7 +14,7 @@ namespace quake
 namespace
 {
 
-[[nodiscard]] constexpr bool is_valid_shader_type(
+[[nodiscard, maybe_unused]] constexpr bool is_valid_shader_type(
     const GLenum shader_type) noexcept
 {
     return shader_type == GL_COMPUTE_SHADER ||

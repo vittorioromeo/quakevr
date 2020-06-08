@@ -588,9 +588,9 @@ void show_menu_intersection_point()
             // gl_vertex(cl.handpos[hand_idx]);
             // gl_vertex(vr_menu_target);
 
-            glColor4f(1, 0, 0, 0.5);
-            gl_vertex(vr_menu_target);
-            gl_vertex(vr_menu_target + vr_menu_normal * 205.f);
+            // glColor4f(1, 0, 0, 0.5);
+            // gl_vertex(vr_menu_target);
+            // gl_vertex(vr_menu_target + vr_menu_normal * 205.f);
         };
 
         do_hand(cVR_MainHand);

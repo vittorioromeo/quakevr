@@ -539,7 +539,6 @@ extern float vr_menu_mouse_y;
 extern bool vr_menu_mouse_click;
 extern qvec3 vr_menu_target;
 extern qvec3 vr_menu_angles;
-extern qvec3 vr_menu_normal;
 extern qvec3 vr_menu_intersection_point;
 
 // TODO VR: (P1) used by show fns

@@ -179,7 +179,6 @@ qvec3 lastHudPosition{};
 qvec3 lastMenuPosition{};
 qvec3 vr_menu_target{};
 qvec3 vr_menu_angles{};
-qvec3 vr_menu_normal{};
 qvec3 vr_menu_intersection_point{};
 
 vr::IVRSystem* ovrHMD;
@@ -3442,7 +3441,6 @@ void VR_Draw2D()
         const auto fwd = getFwdVecFromPitchYawRoll(vr_menu_angles);
         vr_menu_target =
             r_refdef.vieworg + qfloat(vr_menu_distance.value) * fwd;
-        vr_menu_normal = fwd;
     }
     else
     {
@@ -3454,7 +3452,6 @@ void VR_Draw2D()
         const auto fwd = getFwdVecFromPitchYawRoll(vr_menu_angles);
         vr_menu_target =
             cl.handpos[hand] + qfloat(vr_menu_distance.value) * fwd;
-        vr_menu_normal = fwd;
     }
 
     // TODO VR: (P2) control smoothing with cvar
@@ -3736,16 +3733,15 @@ static void VR_DoInput_UpdateVRMouse()
         const auto dir = getFwdVecFromPitchYawRoll(cl.handrot[handIdx]);
 
         const auto& planeOrig = vr_menu_target;
-        const auto planeDir = getFwdVecFromPitchYawRoll(vr_menu_angles);
 
-        const auto [fwd, right, up] = getAngledVectors(vr_menu_normal);
+        auto adjMenuAngles = vr_menu_angles;
+        adjMenuAngles[PITCH] -= 90.f;
+        adjMenuAngles[YAW] += 90.f;
 
-        const auto yr = [](const auto& v) {
-            return redirectVectorByYaw(v, VR_GetTurnYawAngle());
-        };
+        const auto [fwd, right, up] = getAngledVectors(adjMenuAngles);
 
         qfloat intersectionDist{};
-        glm::intersectRayPlane(orig, dir, planeOrig, yr(fwd), intersectionDist);
+        glm::intersectRayPlane(orig, dir, planeOrig, fwd, intersectionDist);
 
         const auto intersectionPoint = orig + intersectionDist * dir;
         const auto res = intersectionPoint - planeOrig;
@@ -3759,12 +3755,12 @@ static void VR_DoInput_UpdateVRMouse()
             return -1.f;
         };
 
-        const auto xProj = glm::proj(res, yr(right));
-        const float xSign = -sign(glm::dot(xProj, yr(right)));
+        const auto xProj = glm::proj(res, right);
+        const float xSign = sign(glm::dot(xProj, right));
         vr_menu_mouse_x = glm::length(xProj) * xSign / scale_hud + 320 / 2;
 
-        const auto yProj = glm::proj(res, yr(up));
-        const float ySign = -sign(glm::dot(yProj, yr(up)));
+        const auto yProj = glm::proj(res, up);
+        const float ySign = -sign(glm::dot(yProj, up));
         vr_menu_mouse_y = glm::length(yProj) * ySign / scale_hud + 240 / 2;
     };
 
