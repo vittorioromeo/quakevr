@@ -340,8 +340,8 @@ void() lightning_fire =
     WriteByte(MSG_ALL, TE_LIGHTNING3);
     WriteEntity(MSG_ALL, world);
     WriteByte(MSG_ALL, 0); /* disambiguator */
-    WriteVec3(MSG_BROADCAST, p1);
-    WriteVec3(MSG_BROADCAST, p2);
+    WriteVec3(MSG_ALL, p1);
+    WriteVec3(MSG_ALL, p2);
 };
 
 void() lightning_use =
