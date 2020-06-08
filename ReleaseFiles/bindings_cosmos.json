@@ -130,6 +130,82 @@
                "path": "/user/hand/right/input/grip"
             }
          ]
+      },
+      "/actions/menu": {
+         "sources": [
+            {
+               "inputs": {
+                  "position": {
+                     "output": "/actions/menu/in/navigation"
+                  }
+               },
+               "mode": "joystick",
+               "path": "/user/hand/left/input/thumbstick"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/left"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/b"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/right"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/b"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/enter"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/right/input/a"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/back"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/a"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/multiplierhalf"
+                  }
+               },
+               "mode": "button",
+               "path": "/user/hand/left/input/trackpad"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/multiplierplusone"
+                  }
+               },
+               "mode": "trigger",
+               "path": "/user/hand/left/input/trigger"
+            },
+            {
+               "inputs": {
+                  "click": {
+                     "output": "/actions/menu/in/multiplierplusone2"
+                  }
+               },
+               "mode": "trigger",
+               "path": "/user/hand/right/input/trigger"
+            }
+         ]
       }
    },
    "category": "steamvr_input",

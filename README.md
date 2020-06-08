@@ -112,9 +112,7 @@ Once your maps are patched, go through the options in the *"Transparency Options
 
 ### SteamVR Bindings
 
-The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers. There are two action sets to bind: one for in-game actions, and one for menu control:
-
-![https://giant.gfycat.com/ThornyEducatedBushbaby.mp4]
+The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers. There are two action sets to bind: one for in-game actions, and one for menu control. See an [example video **here**](https://giant.gfycat.com/ThornyEducatedBushbaby.mp4).
 
 ### In-Game Configuration
 
