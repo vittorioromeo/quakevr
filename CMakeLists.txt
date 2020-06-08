@@ -32,6 +32,7 @@ set(source_list
     "Quake/gl_screen.cpp"
     "Quake/gl_sky.cpp"
     "Quake/gl_texmgr.cpp"
+    "Quake/gl_util.cpp"
     "Quake/gl_vidsdl.cpp"
     "Quake/gl_warp.cpp"
     "Quake/host_cmd.cpp"
