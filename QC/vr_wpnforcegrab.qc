@@ -122,7 +122,7 @@ void(float xHand) VR_ForcegrabUtil_Impl_ForcegrabEligibleHaptic =
 float(entity entPlayer, float xHand)
 VR_ForceGrabUtil_IsEntForceGrabbing =
 {
-    return time < VRGetEntForceGrabbing(entPlayer, xHand) + 0.3;
+    return time < VRGetEntForceGrabbing(entPlayer, xHand) + 0.1;
 }
 
 void(entity entPlayer, float xHand)

@@ -48,6 +48,7 @@ float cvarh_vr_forcegrab_range;
 float cvarh_vr_holster_haptics;
 float cvarh_vr_holster_mode;
 float cvarh_vr_melee_bloodlust;
+float cvarh_vr_melee_bloodlust_mult;
 float cvarh_vr_melee_dmg_multiplier;
 float cvarh_vr_melee_range_multiplier;
 float cvarh_vr_melee_threshold;
@@ -124,6 +125,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_holster_haptics);
     VR_CVAR_HMAKE(vr_holster_mode);
     VR_CVAR_HMAKE(vr_melee_bloodlust);
+    VR_CVAR_HMAKE(vr_melee_bloodlust_mult);
     VR_CVAR_HMAKE(vr_melee_dmg_multiplier);
     VR_CVAR_HMAKE(vr_melee_range_multiplier);
     VR_CVAR_HMAKE(vr_melee_threshold);

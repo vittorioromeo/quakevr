@@ -305,7 +305,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             // VR melee takedown
             if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
             {
-                T_Heal(attacker, ceil(1 + take / 12), 1);
+                float bloodlustAmount = ceil(1 + take / 12) *
+                    cvar_hget(cvarh_vr_melee_bloodlust_mult) * 0.75;
+
+                T_Heal(attacker, bloodlustAmount, 1);
             }
         }
 
