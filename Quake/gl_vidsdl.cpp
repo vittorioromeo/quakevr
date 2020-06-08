@@ -521,7 +521,7 @@ static bool VID_SetMode(
     int width, int height, int refreshrate, int bpp, bool fullscreen)
 {
     Uint32 flags;
-    char caption[50];
+    char caption[64];
     int depthbits;
 
     int stencilbits;

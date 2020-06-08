@@ -1398,7 +1398,7 @@ void Con_DrawConsole(int lines, bool drawinput)
 
     int rows;
     const char* text;
-    char ver[32];
+    char ver[64];
 
     if(lines <= 0)
     {
