@@ -65,7 +65,7 @@ Quake VR supports the "Scourge of Armagon" official mission pack. It can be inst
 
 3. Open the `hipnotic` folder.
 
-4. Make a copy of `pak0.pak`, and rename it to `pak3.pak`.
+4. Make a copy of `pak0.pak`, and rename it to `pak2.pak`.
 
 5. Copy the newly created `pak2.pak` in your Quake VR installation folder, under `Id1`. Usually, this means simply copying `pak2.pak` to `../Id1`.
 
@@ -73,6 +73,8 @@ Quake VR supports the "Scourge of Armagon" official mission pack. It can be inst
    * Official Quake files: `pak0.pak` and `pak1.pak`;
    * Scourge of Armagon mission pack files: `pak2.pak`;
    * Quake VR files: `pak10.pak`, `pak11.pak`, `pak12.pak`.
+
+   *(The load order of `.pak` files is based on their naming. You can rename the Scourge of Armagon mission pack to anything else, as long as it is before the Quake VR specific `.pak` files. This allows you to also add extra `.pak` files, such as high-resolution models or other compatible additions.)*
 
 When Scourge of Armagon is installed, it overwrites Quake 1's `start.bsp` with its own starting map. In order to play Quake 1 maps, use the *"Change Map"* functionality under *"Quake VR Settings"*.
 
