@@ -112,7 +112,9 @@ Once your maps are patched, go through the options in the *"Transparency Options
 
 ### SteamVR Bindings
 
-The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers.
+The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers. There are two action sets to bind: one for in-game actions, and one for menu control:
+
+![https://giant.gfycat.com/ThornyEducatedBushbaby.mp4]
 
 ### In-Game Configuration
 
@@ -126,7 +128,17 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
 
 ## Multiplayer
 
-TODO VR: (P0) describe process here
+### Versus Bots
+
+To play against bots, select *"Multiplayer & Bots"* from the main menu, then *"New Game"* and follow the on-screen instructions. When in-game, spawn new bots from the *"Bot Control"* menu under *"Multiplayer & Bots"*.
+
+### On the Internet
+
+Coordinate with other players on the [official Quake VR Discord](http://discord.me/quakevr). The host of the game will start a server by going to *"Multiplayer & Bots"* from the main menu, then *"New Game"*. The host will then share their [public IPV4 address](https://www.whatismyip.com/what-is-my-public-ip-address) with other players, which will connect from the *"Join a Game"* menu. The virtual keyboard can be used to insert the IP address.
+
+Note that the host needs to [properly forward their ports](https://portforward.com/quake/) and ensure that their public IP is accessible from the Internet.
+
+At the moment there is no server browser and no dedicated server support. Also, only Windows servers are supported. Dedicated Linux servers and an easier way to play together will be the next goals for Quake VR.
 
 ## Troubleshooting
 
