@@ -520,11 +520,6 @@ Draw_Character -- johnfitz -- modified to call Draw_CharacterQuad
 */
 void Draw_Character(int x, int y, int num)
 {
-    if(y <= -8)
-    {
-        return; // totally off screen
-    }
-
     num &= 255;
 
     if(num == 32)
