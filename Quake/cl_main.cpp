@@ -23,9 +23,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_main.c  -- client main loop
 
 #include "quakedef.hpp"
+#include "host.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
 #include "util.hpp"
+#include "cmd.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
+#include "net.hpp"
+#include "glquake.hpp"
+#include "keys.hpp"
+#include "quakedef_macros.hpp"
+#include "msg.hpp"
+#include "client.hpp"
+#include "screen.hpp"
+#include "zone.hpp"
+#include "input.hpp"
+#include "q_sound.hpp"
+
+#include <string>
+#include <vector>
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -66,6 +83,13 @@ int cl_max_edicts;     // johnfitz -- only changes when new map loads
 int cl_numvisedicts;
 entity_t* cl_visedicts[MAX_VISEDICTS];
 
+
+
+
+
+
+
+
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 
 /*
@@ -82,7 +106,8 @@ void CL_ClearState()
     }
 
     // wipe the entire cl structure
-    memset(&cl, 0, sizeof(cl));
+    // memset(&cl, 0, sizeof(cl));
+    cl = client_state_t{};
 
     SZ_Clear(&cls.message);
 
@@ -95,6 +120,8 @@ void CL_ClearState()
     // johnfitz -- cl_entities is now dynamically allocated
     cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
     cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
+
+    cl.worldTexts.clear();
 }
 
 /*
@@ -525,7 +552,7 @@ void CL_RelinkEntities()
         {
             // if the delta is large, assume a teleport and don't lerp
             float f = frac;
-            glm::vec3 delta;
+            qvec3 delta;
 
             for(int j = 0; j < 3; j++)
             {
@@ -585,14 +612,13 @@ void CL_RelinkEntities()
         dlight_t* dl;
         if(ent->effects & EF_MUZZLEFLASH)
         {
-
             dl = CL_AllocDlight(i);
             dl->origin = ent->origin;
             dl->origin[2] += 16;
 
             const auto fv = quake::util::getFwdVecFromPitchYawRoll(ent->angles);
 
-            dl->origin += 18.f * fv;
+            dl->origin += 18._qf * fv;
             dl->radius = 200 + (rand() & 31);
             dl->minlight = 32;
             dl->die = cl.time + 0.1;
@@ -628,11 +654,20 @@ void CL_RelinkEntities()
             dl->radius = 400 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
+
         if(ent->effects & EF_DIMLIGHT)
         {
             dl = CL_AllocDlight(i);
             dl->origin = ent->origin;
             dl->radius = 200 + (rand() & 31);
+            dl->die = cl.time + 0.001;
+        }
+
+        if(ent->effects & EF_VERYDIMLIGHT)
+        {
+            dl = CL_AllocDlight(i);
+            dl->origin = ent->origin;
+            dl->radius = 50 + (rand() & 31);
             dl->die = cl.time + 0.001;
         }
 
@@ -646,7 +681,7 @@ void CL_RelinkEntities()
         }
         else if(ent->model->flags & EF_TRACER)
         {
-            R_RocketTrail(oldorg, ent->origin, 3) /* tracer */;
+            R_RocketTrail(oldorg, ent->origin, 3 /* tracer */);
         }
         else if(ent->model->flags & EF_TRACER2)
         {
@@ -654,11 +689,22 @@ void CL_RelinkEntities()
         }
         else if(ent->model->flags & EF_ROCKET)
         {
-            R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
-            dl = CL_AllocDlight(i);
-            dl->origin = ent->origin;
-            dl->radius = 200;
-            dl->die = cl.time + 0.01;
+            if(ent->effects & EF_MINIROCKET)
+            {
+                R_RocketTrail(oldorg, ent->origin, 7 /* mini rocket trail */);
+                dl = CL_AllocDlight(i);
+                dl->origin = ent->origin;
+                dl->radius = 70;
+                dl->die = cl.time + 0.01;
+            }
+            else
+            {
+                R_RocketTrail(oldorg, ent->origin, 0 /* rocket trail */);
+                dl = CL_AllocDlight(i);
+                dl->origin = ent->origin;
+                dl->radius = 200;
+                dl->die = cl.time + 0.01;
+            }
         }
         else if(ent->model->flags & EF_GRENADE)
         {
@@ -667,6 +713,11 @@ void CL_RelinkEntities()
         else if(ent->model->flags & EF_TRACER3)
         {
             R_RocketTrail(oldorg, ent->origin, 6 /* voor trail */);
+        }
+
+        if(ent->effects & EF_LAVATRAIL)
+        {
+            R_RunParticleEffect_LavaSpike(ent->origin, vec3_zero, 4);
         }
 
         ent->forcelink = false;
@@ -862,7 +913,7 @@ void CL_Tracepos_f(refdef_t& refdef)
         return;
     }
 
-    const auto v = refdef.vieworg + 8192.f * vpn;
+    const auto v = refdef.vieworg + 8192._qf * vpn;
     const auto trace = TraceLine(refdef.vieworg, v);
 
     if(!quake::util::hitSomething(trace))

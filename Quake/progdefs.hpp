@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakeglm.hpp"
 
-#define vec3_t glm::vec3
+#define vec3_t qvec3
 
 #include "progdefs_generated.hpp"
 

@@ -22,8 +22,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
 #include "arch_def.hpp"
 #include "quakedef.hpp"
+#include "platform.hpp"
+#include "quakeparms.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -39,16 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <pwd.h>
 #endif
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
-
 
 bool isDedicated;
 cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
@@ -398,7 +392,13 @@ void Sys_Quit(void)
 
 double Sys_DoubleTime(void)
 {
+    // QSS
+#if 1
+    return SDL_GetPerformanceCounter() /
+           (long double)SDL_GetPerformanceFrequency();
+#else
     return SDL_GetTicks() / 1000.0;
+#endif
 }
 
 const char* Sys_ConsoleInput(void)

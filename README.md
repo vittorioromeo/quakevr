@@ -15,15 +15,16 @@
 * Smooth locomotion
 * Teleportation
 * Fully room-scale *(including jumping)*
-* Hand tracking
+* Hand tracking *(including full finger tracking)*
 * Weapon models with hands and ironsights
-* VR interactions *(melee, pick up items, press buttons)*
+* VR interactions *(melee, headbutts, pick up items, press buttons)*
 * Rebalanced for VR *(hitboxes, difficulty, projectile speed)*
 * Steam VR Input API support *(can rebind inputs in Steam VR settings)*
 * Many customization options *(e.g. melee damage/range, hand/body item pickup, and more)*
 * Brand new particle system *(smoke, blood, lightning effects, and more)*
 * Haptic feedback *(weapons, melee, damage, interactions with items)*
 * Full Scourge of Armagon support *(weapons, enemies, maps)*
+* Full Dissolution of Eternity support *(weapons, enemies, maps)*
 * Two-handed weapon aiming *(with virtual stock support)*
 * Weapon weight simulation
 * Grappling hook *(from Dissolution of Eternity)*
@@ -31,6 +32,7 @@
 * Dual-wielding
 * Weapon holster system *(hip and shoulders, fully customizable)*
 * Weapon throwing & force grabbing
+* Multiplayer support *(also with bots)*
 
 ## Disclaimer
 
@@ -76,11 +78,29 @@ Quake VR supports the "Scourge of Armagon" official mission pack. It can be inst
 
 When Scourge of Armagon is installed, it overwrites Quake 1's `start.bsp` with its own starting map. In order to play Quake 1 maps, use the *"Change Map"* functionality under *"Quake VR Settings"*.
 
+
+### Mission Pack 2: Dissolution of Eternity
+
+Quake VR supports the "Dissolution of Eternity" official mission pack. The instructions above apply here as well. Take `pak0.pak` from the `rogue` folder, rename it to somethhing unique (e.g. `pak4.pak` if you installed Scourge of Armagon), and place it in your `Id1` folder.
+
 ### Highly Recommended Addons
+
+#### HD Textures and Soundtrack
 
 The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view) addon is highly recommended to improve immersion.
 
 * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
+
+#### Extra Multiplayer Maps with Bot Support
+
+Quake VR comes with [Frikbot X++](http://neogeographica.com/site/pages/mods/fbxpp.html), which adds AI opponents for deathmatch. As the vanilla multiplayer map pool is quite limited, the following map pack and Frikbot waypoint collection are strongly advised if you are interested in playing against bots:
+
+* [The Definitive Frikbot Mappack](https://www.quaddicted.com/files/misc/DefinitiveFrikbotMappackV2.zip)
+* [The Definitive Frikbot Waypack](https://www.quaddicted.com/files/misc/DefinitiveFrikbotWaypackV2.zip) *([forum discussion](http://quakeone.com/forum/quake-mod-releases/finished-works/5313-the-definitive-frikbot-waypack))*
+
+### Custom Maps
+
+For supported custom maps, please see [CUSTOM_MAPS.md](https://github.com/SuperV1234/quakevr/blob/master/CUSTOM_MAPS.md).
 
 ### Vispatching
 
@@ -94,7 +114,7 @@ Once your maps are patched, go through the options in the *"Transparency Options
 
 ### SteamVR Bindings
 
-The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers.
+The first thing you should do after starting Quake VR is opening the *"Controller Bindings"* interface on SteamVR and ensure that in-game actions are mapped to the motion controllers. There are two action sets to bind: one for in-game actions, and one for menu control. See an [example video **here**](https://giant.gfycat.com/ThornyEducatedBushbaby.mp4).
 
 ### In-Game Configuration
 
@@ -105,6 +125,20 @@ After setting up your bindings, please go through all the options in *"Quake VR 
 * Go through the *"Immersion Settings*".
 
 There is no "best" way of playing Quake VR. Simply use the settings that you enjoy the most!
+
+## Multiplayer
+
+### Versus Bots
+
+To play against bots, select *"Multiplayer & Bots"* from the main menu, then *"New Game"* and follow the on-screen instructions. When in-game, spawn new bots from the *"Bot Control"* menu under *"Multiplayer & Bots"*.
+
+### On the Internet
+
+Coordinate with other players on the [official Quake VR Discord](http://discord.me/quakevr). The host of the game will start a server by going to *"Multiplayer & Bots"* from the main menu, then *"New Game"*. The host will then share their [public IPV4 address](https://www.whatismyip.com/what-is-my-public-ip-address) with other players, which will connect from the *"Join a Game"* menu. The virtual keyboard can be used to insert the IP address.
+
+Note that the host needs to [properly forward their ports](https://portforward.com/quake/) and ensure that their public IP is accessible from the Internet.
+
+At the moment there is no server browser and no dedicated server support. Also, only Windows servers are supported. Dedicated Linux servers and an easier way to play together will be the next goals for Quake VR.
 
 ## Troubleshooting
 
@@ -130,11 +164,17 @@ There is no "best" way of playing Quake VR. Simply use the settings that you enj
     * [Fishbiter's OpenVR port](https://github.com/Fishbiter/Quakespasm-OpenVR)
     * [Zackin5's OpenVR port](https://github.com/Zackin5/Quakespasm-OpenVR)
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
+    * [Quakespasm-Spiked](http://triptohell.info/moodles/qss/)
 
-* Hands and ironsights modeled by me
+* Hand models with finger trackning support created by *Trevor Roach*
+    * Many thanks!
+
+* Weapon ironsights modeled by me
     * Using the [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl) project as a base
 
 * Many thanks to the following beta testers, who provided a lot of great feedback: *carn1x*, *GeekyGami*, *Sly VR*.
+
+* Many thanks to *Spoike* for helping me out with QuakeC and Quake engine internals.
 
 *(Please forgive me if I am forgetting someone. I will update this list as needed.)*
 

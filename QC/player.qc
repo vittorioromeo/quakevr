@@ -1,6 +1,4 @@
 
-void() bubble_bob;
-
 /*
 ==============================================================================
 
@@ -86,15 +84,13 @@ PLAYER
 ==============================================================================
 */
 
-void(float xHand) player_run;
-
 void(float xHand)    player_stand1 =
 {
     setHandThinkWithArg(xHand, $axstnd1, player_stand1);
 
     if(self.velocity_x || self.velocity_y)
     {
-        self.walkframe=0;
+        self.walkframe = 0;
 
         player_run(xHand);
         return;
@@ -121,6 +117,11 @@ void(float xHand)    player_stand1 =
 void(float xHand) player_run =
 {
     VRSetWeaponFrame(xHand, 0);
+
+    if(self.health <= 0)
+    {
+        return;
+    }
 
     setHandThinkWithArg(xHand, $rockrun1, player_run);
 
@@ -155,7 +156,7 @@ void(float xHand) player_run =
         {
             if(self.spawnsilent > 95)
             {
-                local float r;
+                float r;
                 if(self.spawnsilent > 190)
                    self.spawnsilent = 0;
                 else
@@ -187,11 +188,6 @@ void() player_run_no_arg =
 {
     player_run(cVR_MainHand);
 };
-
-.void(float) thinkArgFn;
-.void(float) think2ArgFn;
-.float thinkArg;
-.float think2Arg;
 
 void() doThinkArgFn =
 {
@@ -242,7 +238,7 @@ void(float xHand, float xFrame, void(float) xFn) setHandThinkWithArg =
 void(float xHand, float xFrame, void() xFn) setHandThink =
 {
     if(xHand == cVR_OffHand) setThink2(xFrame, xFn);
-    else                  setThink(xFrame, xFn);
+    else                     setThink(xFrame, xFn);
 }
 
 void(float xHand) player_shot1 = { setHandThinkWithArg(xHand, $shotatt1, player_shot2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
@@ -335,9 +331,10 @@ void(float xHand) player_grapple5 =
 //--ZOID
 //============================================================================
 
-void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
+     float xAmmoCount, void(float, float) xFireFn) player_nail_BaseImpl =
 {
-    if(self.ammo_nails < 1 || !VRGetFireButtonPressed(xHand))
+    if(xAmmoCount < 1 || !VRGetFireButtonPressed(xHand))
     {
         player_run(xHand);
         return;
@@ -351,8 +348,14 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nai
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
-    W_FireSpikes (xHand, xOffset);
+    xFireFn(xHand, xOffset);
     VRSetAttackFinished(xHand, time + 0.2);
+}
+
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
+{
+    player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
+                         self.ammo_nails, W_FireSpikes);
 }
 
 void(float xHand) player_nail1 =
@@ -365,9 +368,25 @@ void(float xHand) player_nail2 =
     player_nail_Impl(xHand, -2.35, $nailatt2, player_nail1);
 }
 
+void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_lava_nail_Impl =
+{
+    player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
+                         self.ammo_lava_nails, W_FireLavaSpikes);
+}
+
+void(float xHand) player_lava_nail1 =
+{
+    player_lava_nail_Impl(xHand, 2.35, $nailatt1, player_lava_nail2);
+}
+
+void(float xHand) player_lava_nail2 =
+{
+    player_lava_nail_Impl(xHand, -2.35, $nailatt2, player_lava_nail1);
+}
+
 //============================================================================
 
-void(float xHand) player_light1 =
+void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
 {
     if(self.ammo_cells < 1)
     {
@@ -375,7 +394,7 @@ void(float xHand) player_light1 =
         return;
     }
 
-    setHandThinkWithArg(xHand, $light1, player_light2);
+    setHandThinkWithArg(xHand, xLightAtt, xLightFn);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -390,35 +409,37 @@ void(float xHand) player_light1 =
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
-    W_FireLightning(xHand);
-    VRSetAttackFinished(xHand, time + 0.2);
+}
+
+void(float xHand) player_light1 =
+{
+    player_light_Impl(xHand, $light1, player_light2);
+
+    if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        W_FirePlasma(xHand);
+        player_run(xHand);
+        return;
+    }
+    else
+    {
+        W_FireLightning(xHand);
+        VRSetAttackFinished(xHand, time + 0.2);
+    }
 };
 
 void(float xHand) player_light2 =
 {
-    if(self.ammo_cells < 1)
+    player_light_Impl(xHand, $light2, player_light1);
+
+    if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
     {
-        player_run(xHand);
-        return;
     }
-
-    setHandThinkWithArg(xHand, $light2, player_light1);
-
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    if(!VRGetFireButtonPressed(xHand))
+    else
     {
-        player_run(xHand);
-        return;
+        W_FireLightning(xHand);
+        VRSetAttackFinished(xHand, time + 0.2);
     }
-
-    VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
-    if(VRGetWeaponFrame(xHand) == 5)
-        VRSetWeaponFrame(xHand, 1);
-
-    SuperDamageSound();
-    W_FireLightning(xHand);
-    VRSetAttackFinished(xHand, time + 0.2);
 };
 
 //MED 10/18/96 added HIPWEAPONS
@@ -439,12 +460,45 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 
 //============================================================================
 
+void(float xHand, float xLaserAtt, void(float) xLaserFn) player_laser_Impl =
+{
+    if(self.ammo_cells < 1)
+    {
+        player_run(xHand);
+        return;
+    }
+
+    setHandThinkWithArg(xHand, xLaserAtt, xLaserFn);
+    VRSetAttackFinished(xHand, time + 0.1);
+}
+
 //MED 10/18/96 added HIPSWEAPONS
-// TODO VR: (P1) laser animation keeps playing when ammo=0
-void(float xHand) player_laser1 = { setHandThinkWithArg(xHand, $nailatt1, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 1); HIP_FireLaser(xHand, 0); };
-void(float xHand) player_laser2 = { setHandThinkWithArg(xHand, $nailatt2, player_laser3); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 2); };
-void(float xHand) player_laser3 = { setHandThinkWithArg(xHand, $nailatt2, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 4); HIP_FireLaser(xHand, 1); };
-void(float xHand) player_laser4 = { setHandThinkWithArg(xHand, $nailatt1, player_laser1); VRSetAttackFinished(xHand, time + 0.1); VRSetWeaponFrame(xHand, 5); };
+void(float xHand) player_laser1 =
+{
+    player_laser_Impl(xHand, $nailatt1, player_laser3);
+    VRSetWeaponFrame(xHand, 1);
+    HIP_FireLaser(xHand, 0);
+}
+
+void(float xHand) player_laser2 =
+{
+    player_laser_Impl(xHand, $nailatt2, player_laser3);
+    VRSetWeaponFrame(xHand, 2);
+}
+
+void(float xHand) player_laser3 =
+{
+    player_laser_Impl(xHand, $nailatt2, player_laser1);
+    VRSetWeaponFrame(xHand, 4);
+    HIP_FireLaser(xHand, 1);
+}
+
+void(float xHand) player_laser4 =
+{
+    player_laser_Impl(xHand, $nailatt1, player_laser1);
+    VRSetWeaponFrame(xHand, 5);
+}
+
 //============================================================================
 void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };
 void(float xHand) player_rocket2 = { setHandThinkWithArg(xHand, $rockatt2, player_rocket3); VRSetWeaponFrame(xHand, 2); };
@@ -456,7 +510,7 @@ void(float num_bubbles) DeathBubbles;
 
 void() PainSound =
 {
-local float        rs;
+float        rs;
 
     if(self.health < 0)
         return;
@@ -538,21 +592,21 @@ local float        rs;
     return;
 };
 
-void()    player_pain1 =    [    $pain1,    player_pain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
+void()    player_pain1 =    [    $pain1,    player_pain2    ] { PainSound(); };
 void()    player_pain2 =    [    $pain2,    player_pain3    ] {};
 void()    player_pain3 =    [    $pain3,    player_pain4    ] {};
 void()    player_pain4 =    [    $pain4,    player_pain5    ] {};
 void()    player_pain5 =    [    $pain5,    player_pain6    ] {};
 void()    player_pain6 =    [    $pain6,    player_run_no_arg    ] {};
 
-void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] {PainSound();/* TODO VR: (P2) self.weaponframe=0; */ };
+void()    player_axpain1 =    [    $axpain1,    player_axpain2    ] { PainSound(); };
 void()    player_axpain2 =    [    $axpain2,    player_axpain3    ] {};
 void()    player_axpain3 =    [    $axpain3,    player_axpain4    ] {};
 void()    player_axpain4 =    [    $axpain4,    player_axpain5    ] {};
 void()    player_axpain5 =    [    $axpain5,    player_axpain6    ] {};
 void()    player_axpain6 =    [    $axpain6,    player_run_no_arg    ] {};
 
-void()   player_hampain1 =  [  18,   player_hampain2 ] {PainSound(); /* TODO VR: (P2) self.weaponframe=0; */ };
+void()   player_hampain1 =  [  18,   player_hampain2 ] { PainSound(); };
 void()   player_hampain2 =  [  19,   player_hampain3 ] {};
 void()   player_hampain3 =  [  20,   player_hampain4 ] {};
 void()   player_hampain4 =  [  21,   player_hampain5 ] {};
@@ -585,7 +639,7 @@ void() player_die_ham1;
 
 void() DeathBubblesSpawn =
 {
-    local entity    bubble;
+    entity    bubble;
     if((self.owner.waterlevel != 3) && (self.owner.health > 0))
     {
         remove(self);    // remove bubble spawner
@@ -593,8 +647,8 @@ void() DeathBubblesSpawn =
     }
 
     bubble = spawn();
-    setmodel (bubble, "progs/s_bubble.spr");
-    setorigin (bubble, self.owner.origin + '0 0 24');
+    setmodel(bubble, "progs/s_bubble.spr");
+    setorigin(bubble, self.owner.origin + '0 0 24');
     bubble.movetype = MOVETYPE_NOCLIP;
     bubble.solid = SOLID_NOT;
     bubble.velocity = '0 0 15';
@@ -603,7 +657,11 @@ void() DeathBubblesSpawn =
     bubble.classname = "bubble";
     bubble.frame = 0;
     bubble.cnt = 0;
-    setsize (bubble, '-8 -8 -8', '8 8 8');
+
+    // HONEY
+    bubble.count = 20;
+
+    setsize(bubble, '-8 -8 -8', '8 8 8');
     self.nextthink = time + 0.01;
     self.think = DeathBubblesSpawn;
     self.air_finished = self.air_finished + 1;
@@ -613,10 +671,10 @@ void() DeathBubblesSpawn =
 
 void(float num_bubbles) DeathBubbles =
 {
-local entity    bubble_spawner;
+entity    bubble_spawner;
 
     bubble_spawner = spawn();
-    setorigin (bubble_spawner, self.origin);
+    setorigin(bubble_spawner, self.origin);
     bubble_spawner.movetype = MOVETYPE_NONE;
     bubble_spawner.solid = SOLID_NOT;
     bubble_spawner.nextthink = time + 0.01;
@@ -629,7 +687,7 @@ local entity    bubble_spawner;
 
 void() DeathSound =
 {
-local float        rs;
+float        rs;
 
     // water death sounds
     if(self.waterlevel == 3)
@@ -665,7 +723,7 @@ void() PlayerDead =
 
 vector(float dm) VelocityForDamage =
 {
-    local vector v;
+    vector v;
 
 //MED 01/17/97
     if(vlen(damage_inflictor.velocity)>0)
@@ -685,12 +743,12 @@ vector(float dm) VelocityForDamage =
 
     if(dm > -50)
     {
-//        dprint ("level 1\n");
+//        dprint("level 1\n");
         v = v * 0.7;
     }
     else if(dm > -200)
     {
-//        dprint ("level 3\n");
+//        dprint("level 3\n");
         v = v * 2;
     }
     else
@@ -701,13 +759,13 @@ vector(float dm) VelocityForDamage =
 
 void(string gibname, float dm) ThrowGib =
 {
-    local    entity new;
+    entity new;
 
     new = spawn();
     new.origin = self.origin;
-    setmodel (new, gibname);
-    setsize (new, '0 0 0', '0 0 0');
-    new.velocity = VelocityForDamage (dm);
+    setmodel(new, gibname);
+    setsize(new, '0 0 0', '0 0 0');
+    new.velocity = VelocityForDamage(dm);
     new.movetype = MOVETYPE_BOUNCE;
     new.solid = SOLID_NOT;
     new.avelocity_x = random()*600;
@@ -719,13 +777,15 @@ void(string gibname, float dm) ThrowGib =
     new.frame = 0;
     new.flags = 0;
 
-    particle2(self.origin, new.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
 
 //MED
 void() HeadThink =
    {
-   self.nextthink = -1;
+    self.nextthink = time + 10;
+    self.think = monster_check_remove_corpse;
+
    if(world.worldtype != 2)
       {
       if(random()<0.1)
@@ -735,7 +795,7 @@ void() HeadThink =
 
 void(string gibname, float dm) ThrowHead =
 {
-    setmodel (self, gibname);
+    setmodel(self, gibname);
     self.frame = 0;
 //   self.nextthink = -1;
 //MED
@@ -744,8 +804,8 @@ void(string gibname, float dm) ThrowHead =
     self.takedamage = DAMAGE_NO;
     self.solid = SOLID_NOT;
     self.view_ofs = '0 0 8';
-    setsize (self, '-16 -16 0', '16 16 56');
-    self.velocity = VelocityForDamage (dm);
+    setsize(self, '-10 -10 0', '10 10 10');
+    self.velocity = VelocityForDamage(dm);
     self.origin_z = self.origin_z - 24;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.avelocity = crandom() * '0 600 0';
@@ -753,16 +813,16 @@ void(string gibname, float dm) ThrowHead =
     self.gorging = TRUE;
     self.think = HeadThink;
 
-    particle2(self.origin, self.velocity, 1 /* blood preset */, 40);
+    particle2(self.origin, self.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
 
 
 void() GibPlayer =
 {
     ThrowHead ("progs/h_player.mdl", self.health);
-    ThrowGib ("progs/gib1.mdl", self.health);
-    ThrowGib ("progs/gib2.mdl", self.health);
-    ThrowGib ("progs/gib3.mdl", self.health);
+    ThrowGib("progs/gib1.mdl", self.health);
+    ThrowGib("progs/gib2.mdl", self.health);
+    ThrowGib("progs/gib3.mdl", self.health);
 
     self.deadflag = DEAD_DEAD;
 
@@ -786,11 +846,13 @@ void() GibPlayer =
 
 void() PlayerDie =
 {
-    local    float    i;
+    float i;
 
-//    self.items = self.items - (self.items & IT_INVISIBILITY);
-    self.items = self.items - (self.items &
-    (IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD) );
+    VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
+    VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
+    VR_ItemUtil_EntDelItem(self, IID_SUIT);
+    VR_ItemUtil_EntDelItem(self, IID_QUAD);
+
     self.invisible_finished = 0;    // don't die as eyes
     self.invincible_finished = 0;
     self.super_damage_finished = 0;
@@ -801,18 +863,52 @@ void() PlayerDie =
     self.modelindex = modelindex_player;    // don't use eyes
     //JIM
     self.empathy_finished = 0;
-    self.hipnotic_items = self.hipnotic_items - (self.hipnotic_items & HIP_IT_EMPATHY_SHIELDS);
+
+    // ROGUE
+    self.gravity = 1.0;
+    self.shield_finished = 0;
+    self.antigrav_finished = 0;
+
+    VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
 
     if(deathmatch || coop)
+    {
         DropBackpack();
 
-    self.weaponmodel="";
-    self.weaponmodel2="";
+        // ROGUE
+        TeamDropFlagOfPlayer(self);
+        DropRune();
+
+        if(self.weapon != WID_FIST)         { CreateWeaponDrop(self, self.weapon, self.origin); }
+        if(self.weapon2 != WID_FIST)        { CreateWeaponDrop(self, self.weapon2, self.origin); }
+        if(self.holsterweapon0 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon0, self.origin); }
+        if(self.holsterweapon1 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon1, self.origin); }
+        if(self.holsterweapon2 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon2, self.origin); }
+        if(self.holsterweapon3 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon3, self.origin); }
+        if(self.holsterweapon4 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon4, self.origin); }
+        if(self.holsterweapon5 != WID_FIST) { CreateWeaponDrop(self, self.holsterweapon5, self.origin); }
+    }
+
+    if(self.ctf_killed == 2)
+    {
+        self.ctf_killed = 0;
+    }
+    else
+    {
+        self.ctf_killed = 1;
+    }
+
+    self.weaponmodel = "";
+    self.weaponmodel2 = "";
     self.view_ofs = '0 0 -8';
     self.deadflag = DEAD_DYING;
     self.solid = SOLID_NOT;
     self.flags = self.flags - (self.flags & FL_ONGROUND);
     self.movetype = MOVETYPE_TOSS;
+
+    self.think = SUB_Null;
+    self.think2 = SUB_Null;
+
     if(self.velocity_z < 10)
         self.velocity_z = self.velocity_z + random()*300;
 
@@ -840,7 +936,7 @@ void() PlayerDie =
         return;
     }
 
-    i = cvar("temp1");
+    i = cvar_hget(cvarh_temp1);
     if(!i)
         i = 1 + floor(random()*6);
 
@@ -945,3 +1041,53 @@ void()   player_die_ham5 =  [ 28 ,   player_die_ham6 ] {};
 void()   player_die_ham6 =  [ 29 ,   player_die_ham7 ] {};
 void()   player_die_ham7 =  [ 30 ,   player_die_ham8 ] {};
 void()   player_die_ham8 =  [ 31 ,   player_die_ham8 ] {PlayerDead(); };
+
+void() player_touch =
+{
+    vector vec;
+    float  dot;
+    float  doDamage;
+
+    if(VR_ItemUtil_EntHasItem(self, IID_SHIELD))
+    {
+        if(other.classname == "player")
+        {
+            makevectors(self.angles);
+            vec = normalize(other.origin - self.origin);
+            dot = vec * v_forward;
+            if(dot < 0.3)
+                return;
+
+            makevectors(self.angles);
+            other.velocity = v_forward * 500;
+            other.velocity_z = 250;
+
+            doDamage = FALSE;
+            if(TeamArmorDam(other, self, self, 15))
+            {
+                if(self.shield_death_time < time)
+                    doDamage = TRUE;
+            }
+
+            // if shield has timed out, respawn it.
+            // don't do particles more than twice a second.
+            if(self.shield_death_time < time)
+            {
+                sound(self,CHAN_WEAPON,"enforcer/enfstop.wav", 1, ATTN_NORM);
+
+                WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+                WriteByte(MSG_BROADCAST, TE_EXPLOSION2);
+                WriteVec3(MSG_BROADCAST, other.origin);
+                WriteByte(MSG_BROADCAST, 230);
+                WriteByte(MSG_BROADCAST, 5);
+
+                shield_spawn (self, v_forward);
+            }
+
+            if(doDamage)
+                T_Damage(other, self.shield_entity, self.shield_entity, 15);
+
+//            self.shield_death_time = time + 0.5;
+        }
+    }
+};

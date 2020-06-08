@@ -1,17 +1,9 @@
-
-
-void() plat_center_touch;
-void() plat_outside_touch;
-void() plat_trigger_use;
-void() plat_go_up;
-void() plat_go_down;
-void() plat_crush;
 float PLAT_LOW_TRIGGER = 1;
 
 void() plat_spawn_inside_trigger =
 {
-    local entity    trigger;
-    local vector    tmin, tmax;
+    entity    trigger;
+    vector    tmin, tmax;
 
 //
 // middle trigger
@@ -39,7 +31,7 @@ void() plat_spawn_inside_trigger =
         tmax_y = tmin_y + 1;
     }
 
-    setsize (trigger, tmin, tmax);
+    setsize(trigger, tmin, tmax);
 };
 
 void() plat_hit_top =
@@ -93,7 +85,7 @@ void() plat_outside_touch =
     if(other.health <= 0)
         return;
 
-//dprint ("plat_outside_touch\n");
+//dprint("plat_outside_touch\n");
     self = self.enemy;
     if(self.state == STATE_TOP)
         plat_go_down();
@@ -109,9 +101,9 @@ void() plat_trigger_use =
 
 void() plat_crush =
 {
-//dprint ("plat_crush\n");
+//dprint("plat_crush\n");
 
-    T_Damage (other, self, self, 1);
+    T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
         plat_go_down();
@@ -177,9 +169,9 @@ void() func_plat =
     self.classname = "plat";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
 
     self.blocked = plat_crush;
     if(!self.speed)
@@ -187,6 +179,11 @@ void() func_plat =
 
 // pos1 is the top position, pos2 is the bottom
     self.pos1 = self.origin;
+
+    // HONEY
+    if(self.distance)
+        self.pos1_z = self.origin_z + self.distance;
+
     self.pos2 = self.origin;
     if(self.height)
         self.pos2_z = self.origin_z - self.height;
@@ -197,14 +194,14 @@ void() func_plat =
 
     plat_spawn_inside_trigger();    // the "start moving" trigger
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
     {
         self.state = STATE_UP;
         self.use = plat_use;
     }
     else
     {
-        setorigin (self, self.pos2);
+        setorigin(self, self.pos2);
         self.state = STATE_BOTTOM;
     }
 };
@@ -219,7 +216,7 @@ void() train_blocked =
     if(time < self.attack_finished)
         return;
     self.attack_finished = time + 0.5;
-    T_Damage (other, self, self, self.dmg);
+    T_Damage(other, self, self, self.dmg);
 };
 void() train_use =
 {
@@ -243,9 +240,9 @@ void() train_wait =
 
 void() train_next =
 {
-    local entity    targ;
+    entity    targ;
 
-    targ = find (world, targetname, self.target);
+    targ = find(world, targetname, self.target);
     self.target = targ.target;
     if(!self.target)
         objerror ("train_next: no next target");
@@ -260,11 +257,11 @@ void() train_next =
 void() func_train_find =
 
 {
-    local entity    targ;
+    entity    targ;
 
-    targ = find (world, targetname, self.target);
+    targ = find(world, targetname, self.target);
     self.target = targ.target;
-    setorigin (self, targ.origin - self.mins);
+    setorigin(self, targ.origin - self.mins);
     if(!self.targetname)
     {    // not triggered, so start immediately
         self.nextthink = self.ltime + 0.1;
@@ -315,9 +312,9 @@ void() func_train =
     self.use = train_use;
     self.classname = "train";
 
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
-    setorigin (self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn
@@ -347,10 +344,10 @@ void() misc_teleporttrain =
     self.noise1 = ("misc/null.wav");
     precache_sound("misc/null.wav");
 
-    precache_model2 ("progs/teleport.mdl");
-    setmodel (self, "progs/teleport.mdl");
-    setsize (self, self.mins , self.maxs);
-    setorigin (self, self.origin);
+    precache_model2("progs/teleport.mdl");
+    setmodel(self, "progs/teleport.mdl");
+    setsize(self, self.mins , self.maxs);
+    setorigin(self, self.origin);
 
 // start trains on the second frame, to make sure their targets have had
 // a chance to spawn

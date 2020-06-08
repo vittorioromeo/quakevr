@@ -25,10 +25,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // snd_dma.c -- main control for any streaming sound output device
 
-#include "quakedef.hpp"
+#include "q_sound.hpp"
+#include "bspfile.hpp"
 #include "snd_codec.hpp"
 #include "bgmusic.hpp"
 #include "quakeglm.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
+#include "quakeparms.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "mathlib.hpp"
+#include "sys.hpp"
+#include "gl_model.hpp"
+#include "client.hpp"
 
 static void S_Play();
 static void S_PlayVol();
@@ -50,10 +61,10 @@ static bool snd_initialized = false;
 static dma_t sn;
 volatile dma_t* shm = nullptr;
 
-glm::vec3 listener_origin;
-glm::vec3 listener_forward;
-glm::vec3 listener_right;
-glm::vec3 listener_up;
+qvec3 listener_origin;
+qvec3 listener_forward;
+qvec3 listener_right;
+qvec3 listener_up;
 
 #define sound_nominal_clip_dist 1000.0
 
@@ -214,6 +225,7 @@ void S_Init()
         Cvar_SetQuick(&snd_mixspeed, com_argv[i + 1]);
     }
 
+    extern quakeparms_t* host_parms;
     if(host_parms->memsize < 0x800000)
     {
         Cvar_SetQuick(&loadas8bit, "1");
@@ -436,7 +448,7 @@ void SND_Spatialize(channel_t* ch)
     float rscale;
 
     float scale;
-    glm::vec3 source_vec;
+    qvec3 source_vec;
 
     // anything coming from the view entity will always be full volume
     if(ch->entnum == cl.viewentity)
@@ -485,7 +497,7 @@ void SND_Spatialize(channel_t* ch)
 // =======================================================================
 
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const glm::vec3& origin, float fvol, float attenuation)
+    const qvec3& origin, float fvol, float attenuation)
 {
     channel_t* target_chan;
 
@@ -662,7 +674,7 @@ S_StaticSound
 =================
 */
 void S_StaticSound(
-    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation)
+    sfx_t* sfx, const qvec3& origin, float vol, float attenuation)
 {
     channel_t* ss;
     sfxcache_t* sc;
@@ -751,6 +763,8 @@ static void S_UpdateAmbientSounds()
         {
             vol = 0;
         }
+
+        extern double host_frametime;
 
         // don't adjust volume too fast
         if(chan->master_vol < vol)
@@ -885,8 +899,8 @@ S_Update
 Called once each time through the main loop
 ============
 */
-void S_Update(const glm::vec3& origin, const glm::vec3& forward,
-    const glm::vec3& right, const glm::vec3& up)
+void S_Update(const qvec3& origin, const qvec3& forward,
+    const qvec3& right, const qvec3& up)
 {
     int i;
 

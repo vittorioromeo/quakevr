@@ -21,16 +21,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_PROTOCOL_H
-#define _QUAKE_PROTOCOL_H
+#pragma once
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 
 // protocol.h -- communications protocols
 
 #define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
 #define PROTOCOL_FITZQUAKE \
-    666 // johnfitz -- added new protocol for fitzquake 0.85
+    8681 // johnfitz -- added new protocol for fitzquake 0.85
 #define PROTOCOL_RMQ 999
 
 // PROTOCOL_RMQ protocol flags
@@ -123,7 +122,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
               // not sent if ENTALPHA_DEFAULT
 #define SU_VR_WEAPON2 (1 << 26)
 #define SU_VR_WEAPONFRAME2 (1 << 27)
-#define SU_UNUSED28 (1 << 28)
+#define SU_VR_HOLSTERS (1 << 28)
 #define SU_UNUSED29 (1 << 29)
 #define SU_UNUSED30 (1 << 30)
 #define SU_EXTEND3 (1 << 31) // another byte to follow, future expansion
@@ -241,6 +240,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     43 // support for large modelindex, large framenum, alpha, using flags
 #define svc_spawnstaticsound2 44 // [coord3] [short] samp [byte] vol [byte] aten
 #define svc_particle2 45 // [vec3] pos [vec3] dir [byte] preset [short] count
+
+#define svc_worldtext_hmake 46
+#define svc_worldtext_hsettext 47
+#define svc_worldtext_hsetpos 48
+#define svc_worldtext_hsetangles 49
+#define svc_worldtext_hsethalign 50
 // johnfitz
 
 //
@@ -275,10 +280,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 struct entity_state_t
 {
-    glm::vec3 origin;
-    glm::vec3 angles;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qvec3 origin;
+    qvec3 angles;
+    qvec3 scale;
+    qvec3 scale_origin;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned char colormap;    // johnfitz -- was int
@@ -289,21 +294,24 @@ struct entity_state_t
 
 struct usercmd_t
 {
-    glm::vec3 viewangles;
-    glm::vec3 handpos;
-    glm::vec3 handrot;
-    glm::vec3 handvel;
-    glm::vec3 handthrowvel;
+    qvec3 viewangles;
+    float vryaw;
+    qvec3 handpos;
+    qvec3 handrot;
+    qvec3 handvel;
+    qvec3 handthrowvel;
     float handvelmag;
-    glm::vec3 handavel;
-    glm::vec3 offhandpos;
-    glm::vec3 offhandrot;
-    glm::vec3 offhandvel;
-    glm::vec3 offhandthrowvel;
+    qvec3 handavel;
+    qvec3 offhandpos;
+    qvec3 offhandrot;
+    qvec3 offhandvel;
+    qvec3 offhandthrowvel;
     float offhandvelmag;
-    glm::vec3 offhandavel;
-    glm::vec3 muzzlepos;
-    glm::vec3 offmuzzlepos;
+    qvec3 offhandavel;
+    qvec3 headvel;
+    qvec3 muzzlepos;
+    qvec3 offmuzzlepos;
+    unsigned char vrbits0;
 
     // intended velocities
     float forwardmove;
@@ -311,19 +319,12 @@ struct usercmd_t
     float upmove;
 
     // VR teleportation
-    int teleporting;
-    glm::vec3 teleport_target;
+    qvec3 teleport_target;
 
     // VR hands
-    int offhand_grabbing;
-    int offhand_prevgrabbing;
-    int mainhand_grabbing;
-    int mainhand_prevgrabbing;
     int offhand_hotspot;
     int mainhand_hotspot;
 
     // VR room scale movement
-    glm::vec3 roomscalemove;
+    qvec3 roomscalemove;
 };
-
-#endif /* _QUAKE_PROTOCOL_H */

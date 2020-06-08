@@ -21,8 +21,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_warp.c -- warping animation support
 
-#include "quakedef.hpp"
-#include "quakeglm.hpp"
+#include <GL/glew.h>
+
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "sbar.hpp"
+#include "mathlib.hpp"
+#include "cvar.hpp"
+#include "client.hpp"
+#include "glquake.hpp"
+#include "sys.hpp"
+#include "screen.hpp"
+#include "gl_texmgr.hpp"
+#include "draw.hpp"
 
 extern cvar_t r_drawflat;
 
@@ -58,12 +69,12 @@ msurface_t* warpface;
 
 cvar_t gl_subdivide_size = {"gl_subdivide_size", "128", CVAR_ARCHIVE};
 
-void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
+void BoundPoly(int numverts, qfloat* verts, qvec3& mins, qvec3& maxs)
 {
     int i;
 
     int j;
-    float* v;
+    qfloat* v;
 
     mins[0] = mins[1] = mins[2] = FLT_MAX;
     maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
@@ -84,30 +95,30 @@ void BoundPoly(int numverts, float* verts, glm::vec3& mins, glm::vec3& maxs)
     }
 }
 
-void SubdividePolygon(int numverts, float* verts)
+void SubdividePolygon(int numverts, qfloat* verts)
 {
     int i;
 
     int j;
 
     int k;
-    glm::vec3 mins;
+    qvec3 mins;
 
-    glm::vec3 maxs;
-    float m;
-    float* v;
-    glm::vec3 front[64];
+    qvec3 maxs;
+    qfloat m;
+    qfloat* v;
+    qvec3 front[64];
 
-    glm::vec3 back[64];
+    qvec3 back[64];
     int f;
 
     int b;
-    float dist[64];
-    float frac;
+    qfloat dist[64];
+    qfloat frac;
     glpoly_t* poly;
-    float s;
+    qfloat s;
 
-    float t;
+    qfloat t;
 
     if(numverts > 60)
     {
@@ -172,8 +183,8 @@ void SubdividePolygon(int numverts, float* verts)
             }
         }
 
-        SubdividePolygon(f, glm::value_ptr(front[0]));
-        SubdividePolygon(b, glm::value_ptr(back[0]));
+        SubdividePolygon(f, toGlVec(front[0]));
+        SubdividePolygon(b, toGlVec(back[0]));
         return;
     }
 
@@ -199,7 +210,7 @@ GL_SubdivideSurface
 */
 void GL_SubdivideSurface(msurface_t* fa)
 {
-    glm::vec3 verts[64];
+    qvec3 verts[64];
     int i;
 
     warpface = fa;
@@ -209,7 +220,7 @@ void GL_SubdivideSurface(msurface_t* fa)
     for(i = 0; i < fa->polys->numverts; i++)
         VectorCopy(fa->polys->verts[i], verts[i]);
 
-    SubdividePolygon(fa->polys->numverts, glm::value_ptr(verts[0]));
+    SubdividePolygon(fa->polys->numverts, toGlVec(verts[0]));
 }
 
 /*

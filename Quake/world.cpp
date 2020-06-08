@@ -25,8 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "console.hpp"
+#include "host.hpp"
+#include "sys.hpp"
 
 #include <cassert>
 
@@ -41,17 +45,17 @@ line of sight checks trace->crosscontent, but bullets don't
 
 struct moveclip_t
 {
-    glm::vec3 boxmins, boxmaxs; // enclose the test object along entire move
-    glm::vec3 mins, maxs;       // size of the moving object
-    glm::vec3 mins2, maxs2;     // size when clipping against mosnters
-    glm::vec3 start, end;
+    qvec3 boxmins, boxmaxs; // enclose the test object along entire move
+    qvec3 mins, maxs;       // size of the moving object
+    qvec3 mins2, maxs2;     // size when clipping against mosnters
+    qvec3 start, end;
     trace_t trace;
     int type;
     edict_t* passedict;
 };
 
 
-int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p);
+int SV_HullPointContents(const hull_t* hull, int num, const qvec3& p);
 
 /*
 ===============================================================================
@@ -114,7 +118,7 @@ To keep everything totally uniform, bounding boxes are turned into small
 BSP trees instead of being compared directly.
 ===================
 */
-hull_t* SV_HullForBox(const glm::vec3& mins, const glm::vec3& maxs)
+hull_t* SV_HullForBox(const qvec3& mins, const qvec3& maxs)
 {
     box_planes[0].dist = maxs[0];
     box_planes[1].dist = mins[0];
@@ -138,12 +142,12 @@ Offset is filled in to contain the adjustment that must be added to the
 testing object's origin to get a point to use with the returned hull.
 ================
 */
-hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
-    const glm::vec3& maxs, glm::vec3& offset)
+hull_t* SV_HullForEntity(
+    edict_t* ent, const qvec3& mins, const qvec3& maxs, qvec3& offset)
 {
-    glm::vec3 size;
-    glm::vec3 hullmins;
-    glm::vec3 hullmaxs;
+    qvec3 size;
+    qvec3 hullmins;
+    qvec3 hullmaxs;
 
     hull_t* hull;
 
@@ -184,6 +188,7 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
 
         // calculate an offset value to center the origin
         offset = hull->clip_mins - mins;
+        // offset.x = offset.y = 0;
         offset += ent->v.origin;
     }
     else
@@ -196,7 +201,6 @@ hull_t* SV_HullForEntity(edict_t* ent, const glm::vec3& mins,
 
         offset = ent->v.origin;
     }
-
 
     return hull;
 }
@@ -230,8 +234,7 @@ SV_CreateAreaNode
 
 ===============
 */
-areanode_t* SV_CreateAreaNode(
-    int depth, const glm::vec3& mins, const glm::vec3& maxs)
+areanode_t* SV_CreateAreaNode(int depth, const qvec3& mins, const qvec3& maxs)
 {
     areanode_t* anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
@@ -246,7 +249,7 @@ areanode_t* SV_CreateAreaNode(
         return anode;
     }
 
-    glm::vec3 size = maxs - mins;
+    qvec3 size = maxs - mins;
     if(size[0] > size[1])
     {
         anode->axis = 0;
@@ -258,10 +261,10 @@ areanode_t* SV_CreateAreaNode(
 
     anode->dist = 0.5f * (maxs[anode->axis] + mins[anode->axis]);
 
-    const glm::vec3& mins1 = mins;
-    glm::vec3 mins2 = mins;
-    glm::vec3 maxs1 = maxs;
-    const glm::vec3& maxs2 = maxs;
+    const qvec3& mins1 = mins;
+    qvec3 mins2 = mins;
+    qvec3 maxs1 = maxs;
+    const qvec3& maxs2 = maxs;
 
     maxs1[anode->axis] = mins2[anode->axis] = anode->dist;
 
@@ -328,13 +331,11 @@ static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
                 continue;
             }
 
-            const bool canBeTouched = quake::util::canBeTouched(target);
-
             // TODO VR: (P2) consequences of this? Seems to fix handtouch on
             // ledges
             // if(!canBeTouched || !quake::util::entBoxIntersection(ent,
             // target))
-            if(!canBeTouched)
+            if(!quake::util::canBeTouched(target))
             {
                 continue;
             }
@@ -422,14 +423,12 @@ void SV_TouchLinks(edict_t* ent)
             PR_ExecuteProgram(target->v.touch);
         }
 
-        // --------------------------------------------------------------------
-        // VR: Simulate touching with right hand if body interactions are off.
-        if(target->v.handtouch && vr_body_interactions.value == 1)
+        if(target->v.handtouch && quake::util::hasFlag(ent, FL_CLIENT) &&
+            (!ent->v.ishuman || vr_body_interactions.value || vr_fakevr.value))
         {
             VR_SetFakeHandtouchParams(ent, target);
             PR_ExecuteProgram(target->v.handtouch);
         }
-        // --------------------------------------------------------------------
 
         pr_global_struct->self = old_self;
         pr_global_struct->other = old_other;
@@ -437,7 +436,7 @@ void SV_TouchLinks(edict_t* ent)
 
     const auto doHandtouch = [](edict_t* ent, edict_t* target) {
         // Add some size to the hands.
-        const glm::vec3 offsets{2.5f, 2.5f, 2.5f};
+        const qvec3 offsets{2.5f, 2.5f, 2.5f};
 
         const auto handposmin = ent->v.handpos - offsets;
         const auto handposmax = ent->v.handpos + offsets;
@@ -449,14 +448,14 @@ void SV_TouchLinks(edict_t* ent)
         const bool entIntersects =
             !quake::util::entBoxIntersection(ent, target);
 
-        const auto intersects = [&](const glm::vec3& handMin,
-                                    const glm::vec3& handMax) {
+        const auto intersects = [&](const qvec3& handMin,
+                                    const qvec3& handMax) {
             // VR: This increases the boundaries for easier hand touching.
             const float bonus = quake::util::hasFlag(target, FL_EASYHANDTOUCH)
                                     ? VR_GetEasyHandTouchBonus()
                                     : 0.f;
 
-            const glm::vec3 bonusVec{bonus, bonus, bonus};
+            const qvec3 bonusVec{bonus, bonus, bonus};
 
             return quake::util::boxIntersection(handMin, handMax,
                 target->v.absmin - bonusVec, target->v.absmax + bonusVec);
@@ -692,7 +691,7 @@ SV_HullPointContents
 
 ==================
 */
-int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p)
+int SV_HullPointContents(const hull_t* hull, int num, const qvec3& p)
 {
     while(num >= 0)
     {
@@ -701,10 +700,10 @@ int SV_HullPointContents(hull_t* hull, int num, const glm::vec3& p)
             Sys_Error("SV_HullPointContents: bad node number");
         }
 
-        mclipnode_t* node = hull->clipnodes + num;
-        mplane_t* plane = hull->planes + node->planenum;
+        const mclipnode_t* const node = hull->clipnodes + num;
+        const mplane_t* const plane = hull->planes + node->planenum;
 
-        float d =
+        const float d =
             plane->type < 3
                 ? p[plane->type] - plane->dist
                 : DoublePrecisionDotProduct(plane->normal, p) - plane->dist;
@@ -722,7 +721,7 @@ SV_PointContents
 
 ==================
 */
-int SV_PointContents(const glm::vec3& p)
+int SV_PointContents(const qvec3& p)
 {
     const int cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
     if(cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
@@ -733,7 +732,7 @@ int SV_PointContents(const glm::vec3& p)
     return cont;
 }
 
-int SV_TruePointContents(const glm::vec3& p)
+int SV_TruePointContents(const qvec3& p)
 {
     return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
 }
@@ -747,8 +746,7 @@ SV_TestEntityPosition
 This could be a lot more efficient...
 ============
 */
-edict_t* SV_TestEntityPositionCustomOrigin(
-    edict_t* ent, const glm::vec3& xOrigin)
+edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const qvec3& xOrigin)
 {
     const trace_t trace =
         SV_Move(xOrigin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
@@ -777,8 +775,43 @@ SV_RecursiveHullCheck
 ==================
 */
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
-    const glm::vec3& p1, const glm::vec3& p2, trace_t* trace)
+    const qvec3& p1, const qvec3& p2, trace_t* trace)
 {
+    // QSS
+    // Optimize the case where this is a simple point check
+    if(p1 == p2)
+    {
+        // points cannot cross planes, so do it faster
+        const auto c = SV_HullPointContents(hull, num, p1);
+
+        // TODO VR: (P2) restore when this is implemented
+        // trace->contents = c;
+
+        switch(c)
+        {
+            case CONTENTS_SOLID:
+            {
+                trace->startsolid = true;
+                break;
+            }
+            case CONTENTS_EMPTY:
+            {
+                trace->allsolid = false;
+                trace->inopen = true;
+                break;
+            }
+            default:
+            {
+                trace->allsolid = false;
+                trace->inwater = true;
+                break;
+            }
+        }
+
+        return true;
+    }
+
+#ifdef PARANOID
     // ------------------------------------------------------------------------
     // VR: Solves weird crashes, probably related to hand pos on spawn.
     if(std::isnan(p1f) || std::isnan(p2f))
@@ -786,6 +819,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         return false;
     }
     // ------------------------------------------------------------------------
+#endif
 
     // check for empty
     if(num < 0)
@@ -886,7 +920,7 @@ bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
         frac = 1;
     }
 
-    glm::vec3 mid;
+    qvec3 mid;
     float midf = p1f + (p2f - p1f) * frac;
     for(int i = 0; i < 3; i++)
     {
@@ -973,8 +1007,8 @@ Handles selection or creation of a clipping hull, and offseting (and
 eventually rotation) of the end points
 ==================
 */
-trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
-    const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end)
+trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start, const qvec3& mins,
+    const qvec3& maxs, const qvec3& end)
 {
     // fill in a default trace
     trace_t trace;
@@ -984,11 +1018,11 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const glm::vec3& start,
     trace.endpos = end;
 
     // get the clipping hull
-    glm::vec3 offset;
+    qvec3 offset;
     hull_t* hull = SV_HullForEntity(ent, mins, maxs, offset);
 
-    const glm::vec3 start_l = start - offset;
-    const glm::vec3 end_l = end - offset;
+    const qvec3 start_l = start - qvec3(offset);
+    const qvec3 end_l = end - qvec3(offset);
 
     // trace a line through the apropriate clipping hull
     SV_RecursiveHullCheck(
@@ -1132,9 +1166,8 @@ void SV_ClipToLinks(areanode_t* node, moveclip_t* clip)
 SV_MoveBounds
 ==================
 */
-void SV_MoveBounds(const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, glm::vec3& boxmins,
-    glm::vec3& boxmaxs)
+void SV_MoveBounds(const qvec3& start, const qvec3& mins, const qvec3& maxs,
+    const qvec3& end, qvec3& boxmins, qvec3& boxmaxs)
 {
 #if 0
 // debug to test against everything
@@ -1162,9 +1195,8 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, const int type,
-    edict_t* const passedict)
+trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
+    const qvec3& end, const int type, edict_t* const passedict)
 {
     moveclip_t clip;
     memset(&clip, 0, sizeof(moveclip_t));
@@ -1211,8 +1243,8 @@ trace_t SV_Move(const glm::vec3& start, const glm::vec3& mins,
 SV_MoveTrace
 ==================
 */
-trace_t SV_MoveTrace(const glm::vec3& start, const glm::vec3& end,
-    const int type, edict_t* const passedict)
+trace_t SV_MoveTrace(const qvec3& start, const qvec3& end, const int type,
+    edict_t* const passedict)
 {
     return SV_Move(start, vec3_zero, vec3_zero, end, type, passedict);
 }

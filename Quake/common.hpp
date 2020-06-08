@@ -21,8 +21,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _Q_COMMON_H
-#define _Q_COMMON_H
+#pragma once
+
+#include "quakeglm_qvec3.hpp"
+#include "quakedef_macros.hpp"
+#include "q_stdinc.hpp"
 
 // comndef.h  -- general definitions
 
@@ -47,29 +50,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLAMP(_minval, x, _maxval) \
     ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
 
-typedef struct sizebuf_s
-{
-    bool allowoverflow; // if false, do a Sys_Error
-    bool overflowed;    // set to true if the buffer size failed
-    byte* data;
-    int maxsize;
-    int cursize;
-} sizebuf_t;
-
-void SZ_Alloc(sizebuf_t* buf, int startsize);
-void SZ_Free(sizebuf_t* buf);
-void SZ_Clear(sizebuf_t* buf);
-void* SZ_GetSpace(sizebuf_t* buf, int length);
-void SZ_Write(sizebuf_t* buf, const void* data, int length);
-void SZ_Print(sizebuf_t* buf, const char* data); // strcats onto the sizebuf
-
 //============================================================================
 
 typedef struct link_s
 {
     struct link_s *prev, *next;
 } link_t;
-
 
 void ClearLink(link_t* l);
 void RemoveLink(link_t* l);
@@ -80,44 +66,6 @@ void InsertLinkAfter(link_t* l, link_t* after);
 // ent = STRUCT_FROM_LINK(link,entity_t,order)
 // FIXME: remove this mess!
 #define STRUCT_FROM_LINK(l, t, m) ((t*)((byte*)l - (intptr_t) & (((t*)0)->m)))
-
-//============================================================================
-
-extern bool host_bigendian;
-
-extern short (*BigShort)(short l);
-extern short (*LittleShort)(short l);
-extern int (*BigLong)(int l);
-extern int (*LittleLong)(int l);
-extern float (*BigFloat)(float l);
-extern float (*LittleFloat)(float l);
-
-//============================================================================
-
-void MSG_WriteChar(sizebuf_t* sb, int c);
-void MSG_WriteByte(sizebuf_t* sb, int c);
-void MSG_WriteShort(sizebuf_t* sb, int c);
-void MSG_WriteLong(sizebuf_t* sb, int c);
-void MSG_WriteFloat(sizebuf_t* sb, float f);
-void MSG_WriteString(sizebuf_t* sb, const char* s);
-void MSG_WriteCoord(sizebuf_t* sb, float f, unsigned int flags);
-void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags);
-void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags); // johnfitz
-
-extern int msg_readcount;
-extern bool msg_badread; // set if a read goes beyond end of message
-
-void MSG_BeginReading(void);
-int MSG_ReadChar(void);
-int MSG_ReadByte(void);
-int MSG_ReadShort(void);
-int MSG_ReadLong(void);
-float MSG_ReadFloat(void);
-const char* MSG_ReadString(void);
-
-float MSG_ReadCoord(unsigned int flags);
-float MSG_ReadAngle(unsigned int flags);
-float MSG_ReadAngle16(unsigned int flags); // johnfitz
 
 //============================================================================
 
@@ -174,9 +122,9 @@ extern int safemode;
 
 int COM_CheckParm(const char* parm);
 
-void COM_Init(void);
+void COM_Init();
 void COM_InitArgv(int argc, char** argv);
-void COM_InitFilesystem(void);
+void COM_InitFilesystem();
 
 const char* COM_SkipPath(const char* pathname);
 void COM_StripExtension(const char* in, char* out, size_t outsize);
@@ -261,6 +209,11 @@ byte* COM_LoadMallocFile(const char* path, unsigned int* path_id);
 // Loads in "t" mode so CRLF to LF translation is performed on Windows.
 byte* COM_LoadMallocFile_TextMode_OSPath(const char* path, long* len_out);
 
+// Attempts to parse an timestamp, followed by a newline.
+// Returns advanced buffer position.
+// Doesn't signal parsing failure, but this is not needed for savegame loading.
+const char* COM_ParseTimestampNewline(const char* buffer);
+
 // Attempts to parse an int, followed by a newline.
 // Returns advanced buffer position.
 // Doesn't signal parsing failure, but this is not needed for savegame loading.
@@ -274,36 +227,6 @@ const char* COM_ParseFloatNewline(const char* buffer, float* value);
 // newline. Returns advanced buffer position.
 const char* COM_ParseStringNewline(const char* buffer);
 
-/* The following FS_*() stdio replacements are necessary if one is
- * to perform non-sequential reads on files reopened on pak files
- * because we need the bookkeeping about file start/end positions.
- * Allocating and filling in the fshandle_t structure is the users'
- * responsibility when the file is initially opened. */
-
-typedef struct _fshandle_t
-{
-    FILE* file;
-    bool pak;    /* is the file read from a pak */
-    long start;  /* file or data start position */
-    long length; /* file or data size */
-    long pos;    /* current position relative to start */
-} fshandle_t;
-
-size_t FS_fread(void* ptr, size_t size, size_t nmemb, fshandle_t* fh);
-int FS_fseek(fshandle_t* fh, long offset, int whence);
-long FS_ftell(fshandle_t* fh);
-void FS_rewind(fshandle_t* fh);
-int FS_feof(fshandle_t* fh);
-int FS_ferror(fshandle_t* fh);
-int FS_fclose(fshandle_t* fh);
-int FS_fgetc(fshandle_t* fh);
-char* FS_fgets(char* s, int size, fshandle_t* fh);
-long FS_filelength(fshandle_t* fh);
-
-
-extern struct cvar_s registered;
+extern struct cvar_t registered;
 extern bool standard_quake, rogue, hipnotic;
-extern bool fitzmode;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
-
-#endif /* _Q_COMMON_H */

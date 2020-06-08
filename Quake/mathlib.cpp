@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
+#include "gl_model.hpp"
+#include "quakeglm_qmat3.hpp"
+#include "sys.hpp"
 
 /*-----------------------------------------------------------------*/
 
@@ -32,10 +35,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
 #define DEG2RAD(a) ((a)*M_PI_DIV_180) // johnfitz
 
-glm::vec3 ProjectPointOnPlane(const glm::vec3& p, const glm::vec3& normal)
+qvec3 ProjectPointOnPlane(const qvec3& p, const qvec3& normal)
 {
     float d;
-    glm::vec3 n;
+    qvec3 n;
     float inv_denom;
 
     inv_denom = 1.0F / DotProduct(normal, normal);
@@ -46,28 +49,12 @@ glm::vec3 ProjectPointOnPlane(const glm::vec3& p, const glm::vec3& normal)
     n[1] = normal[1] * inv_denom;
     n[2] = normal[2] * inv_denom;
 
-    glm::vec3 dst;
+    qvec3 dst;
     dst[0] = p[0] - d * n[0];
     dst[1] = p[1] - d * n[1];
     dst[2] = p[2] - d * n[2];
     return dst;
 }
-
-/*-----------------------------------------------------------------*/
-
-
-float anglemod(float a)
-{
-#if 0
-	if (a >= 0)
-		a -= 360*(int)(a/360);
-	else
-		a += 360*( 1 + (int)(-a/360) );
-#endif
-    a = (360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535);
-    return a;
-}
-
 
 /*
 ==================
@@ -76,7 +63,7 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
+int BoxOnPlaneSide(const qvec3& emins, const qvec3& emaxs, mplane_t* p)
 {
     float dist1;
 
@@ -130,7 +117,7 @@ int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
                     p->normal[2] * emaxs[2];
             break;
         case 5:
-            dist1 = p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
+        dist1 = p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
                     p->normal[2] * emins[2];
             dist2 = p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
                     p->normal[2] * emaxs[2];
@@ -155,7 +142,7 @@ int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
 
 #if 0
 	int		i;
-	glm::vec3	corners[2];
+	qvec3	corners[2];
 
 	for (i=0 ; i<3 ; i++)
 	{
@@ -199,9 +186,9 @@ int BoxOnPlaneSide(const glm::vec3& emins, const glm::vec3& emaxs, mplane_t* p)
 // johnfitz -- the opposite of AngleVectors.  this takes forward and generates
 // pitch yaw roll
 // TODO: take right and up vectors to properly set yaw and roll
-[[nodiscard]] glm::vec3 VectorAngles(const glm::vec3& forward) noexcept
+[[nodiscard]] qvec3 VectorAngles(const qvec3& forward) noexcept
 {
-    glm::vec3 temp, res;
+    qvec3 temp, res;
 
     temp[0] = forward[0];
     temp[1] = forward[1];
@@ -218,20 +205,20 @@ float VectorLength(vec3_t v)
     return sqrt(DotProduct(v, v));
 }
 
-[[nodiscard]] glm::mat3 RotMatFromAngleVector(const glm::vec3& angles) noexcept
+[[nodiscard]] qmat3 RotMatFromAngleVector(const qvec3& angles) noexcept
 {
     const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
 
-    glm::mat3 res;
+    qmat3 res;
     res[0] = fwd;
-    res[1] = right * -1.f; // flip y so (0,0,0) produces identity!
+    res[1] = right * -1._qf; // flip y so (0,0,0) produces identity!
     res[2] = up;
     return res;
 }
 
-[[nodiscard]] glm::vec3 AngleVectorFromRotMat(const glm::mat3& mat) noexcept
+[[nodiscard]] qvec3 AngleVectorFromRotMat(const qmat3& mat) noexcept
 {
-    glm::vec3 out;
+    qvec3 out;
 
     out[1] = -atan2(mat[0][0], mat[0][1]) / M_PI_DIV_180 + 90;
     out[0] =
@@ -250,9 +237,9 @@ float VectorLength(vec3_t v)
     return out;
 }
 
-[[nodiscard]] glm::mat3 CreateRotMat(const int axis, const float angle) noexcept
+[[nodiscard]] qmat3 CreateRotMat(const int axis, const qfloat angle) noexcept
 {
-    const glm::vec3 angles{
+    const qvec3 angles{
         axis == 0 ? angle : 0, axis == 1 ? angle : 0, axis == 2 ? angle : 0};
 
     return RotMatFromAngleVector(angles);
@@ -263,10 +250,10 @@ float VectorLength(vec3_t v)
 R_ConcatRotations
 ================
 */
-[[nodiscard]] glm::mat3 R_ConcatRotations(
-    const glm::mat3& in1, const glm::mat3& in2) noexcept
+[[nodiscard]] qmat3 R_ConcatRotations(
+    const qmat3& in1, const qmat3& in2) noexcept
 {
-    glm::mat3 res;
+    qmat3 res;
 
     res[0][0] =
         in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];

@@ -21,13 +21,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __MODEL__
-#define __MODEL__
+#pragma once
 
+#include <GL/glew.h>
+
+#include "host.hpp"
 #include "modelgen.hpp"
 #include "spritegn.hpp"
-#include "client.hpp"
-#include "quakeglm.hpp"
+#include "efrag.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "vr_macros.hpp"
+#include "zone.hpp"
+#include "quakedef_macros.hpp"
+#include "bspfile.hpp"
 
 /*
 
@@ -38,11 +44,15 @@ m*_t structures are in-memory
 
 // entity effects
 
-#define EF_BRIGHTFIELD 1
-#define EF_MUZZLEFLASH 2
-#define EF_BRIGHTLIGHT 4
-#define EF_DIMLIGHT 8
-
+// clang-format off
+#define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
+#define EF_MUZZLEFLASH  VRUTIL_POWER_OF_TWO(1)
+#define EF_BRIGHTLIGHT  VRUTIL_POWER_OF_TWO(2)
+#define EF_DIMLIGHT     VRUTIL_POWER_OF_TWO(3)
+#define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
+#define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
+#define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
+// clang-format on
 
 /*
 ==============================================================================
@@ -59,7 +69,7 @@ BRUSH MODELS
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
 {
-    glm::vec3 position;
+    qvec3 position;
 } mvertex_t;
 
 #define SIDE_FRONT 0
@@ -71,7 +81,7 @@ typedef struct
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct mplane_s
 {
-    glm::vec3 normal;
+    qvec3 normal;
     float dist;
     byte type;     // for texture axis selection and fast side tests
     byte signbits; // signx + signy<<1 + signz<<1
@@ -86,21 +96,24 @@ typedef enum
     chain_model = 1
 } texchain_t;
 
-typedef struct texture_s
+
+struct gltexture_t;
+
+struct texture_t
 {
     char name[16];
     unsigned width, height;
-    struct gltexture_s* gltexture;       // johnfitz -- pointer to gltexture
-    struct gltexture_s* fullbright;      // johnfitz -- fullbright mask texture
-    struct gltexture_s* warpimage;       // johnfitz -- for water animation
+    gltexture_t* gltexture;       // johnfitz -- pointer to gltexture
+    gltexture_t* fullbright;      // johnfitz -- fullbright mask texture
+    gltexture_t* warpimage;       // johnfitz -- for water animation
     bool update_warp;                    // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
-    struct texture_s* anim_next;         // in the animation sequence
-    struct texture_s* alternate_anims;   // bmodels in frmae 1 use these
+    texture_t* anim_next;         // in the animation sequence
+    texture_t* alternate_anims;   // bmodels in frmae 1 use these
     unsigned offsets[MIPLEVELS];         // four mip maps stored
-} texture_t;
+};
 
 
 #define SURF_PLANEBACK 2
@@ -146,8 +159,8 @@ typedef struct msurface_s
 {
     int visframe;   // should be drawn when node is crossed
     bool culled;    // johnfitz -- for frustum culling
-    glm::vec3 mins; // johnfitz -- for frustum culling
-    glm::vec3 maxs; // johnfitz -- for frustum culling
+    qvec3 mins; // johnfitz -- for frustum culling
+    qvec3 maxs; // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;
@@ -179,7 +192,7 @@ typedef struct msurface_s
     byte* samples;                  // [numstyles*surfsize]
 } msurface_t;
 
-typedef struct mnode_s
+struct mnode_t
 {
     // common with leaf
     int contents; // 0, to differentiate from leafs
@@ -187,15 +200,15 @@ typedef struct mnode_s
 
     float minmaxs[6]; // for bounding box culling
 
-    struct mnode_s* parent;
+    struct mnode_t* parent;
 
     // node specific
     mplane_t* plane;
-    struct mnode_s* children[2];
+    struct mnode_t* children[2];
 
     unsigned int firstsurface;
     unsigned int numsurfaces;
-} mnode_t;
+};
 
 
 
@@ -207,7 +220,7 @@ typedef struct mleaf_s
 
     float minmaxs[6]; // for bounding box culling
 
-    struct mnode_s* parent;
+    mnode_t* parent;
 
     // leaf specific
     byte* compressed_vis;
@@ -228,15 +241,15 @@ typedef struct mclipnode_s
 // johnfitz
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
-typedef struct
+struct hull_t
 {
     mclipnode_t* clipnodes; // johnfitz -- was dclipnode_t
     mplane_t* planes;
     int firstclipnode;
     int lastclipnode;
-    glm::vec3 clip_mins;
-    glm::vec3 clip_maxs;
-} hull_t;
+    qvec3 clip_mins;
+    qvec3 clip_maxs;
+};
 
 /*
 ==============================================================================
@@ -251,9 +264,9 @@ SPRITE MODELS
 typedef struct mspriteframe_s
 {
     int width, height;
-    float up, down, left, right;
-    float smax, tmax; // johnfitz -- image might be padded
-    struct gltexture_s* gltexture;
+    qfloat up, down, left, right;
+    qfloat smax, tmax; // johnfitz -- image might be padded
+    gltexture_t* gltexture;
 } mspriteframe_t;
 
 typedef struct
@@ -348,10 +361,10 @@ struct aliashdr_t
 {
     int ident;
     int version;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qvec3 scale;
+    qvec3 scale_origin;
     float boundingradius;
-    glm::vec3 eyeposition;
+    qvec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;
@@ -363,8 +376,8 @@ struct aliashdr_t
     float size;
 
     // For vr - we modify these, so keep the originals
-    glm::vec3 original_scale;
-    glm::vec3 original_scale_origin;
+    qvec3 original_scale;
+    qvec3 original_scale_origin;
 
     // ericw -- used to populate vbo
     int numverts_vbo;  // number of verts with unique x,y,z,s,t
@@ -379,8 +392,8 @@ struct aliashdr_t
     int poseverts;
     int posedata; // numposes*poseverts trivert_t
     int commands; // gl command list with embedded s/t
-    struct gltexture_s* gltextures[MAX_SKINS][4]; // johnfitz
-    struct gltexture_s* fbtextures[MAX_SKINS][4]; // johnfitz
+    gltexture_t* gltextures[MAX_SKINS][4]; // johnfitz
+    gltexture_t* fbtextures[MAX_SKINS][4]; // johnfitz
     int texels[MAX_SKINS];                        // only for player skins
     maliasframedesc_t frames[1];                  // variable sized
 };
@@ -440,9 +453,9 @@ struct qmodel_t
     //
     // volume occupied by the model graphics
     //
-    glm::vec3 mins, maxs;
-    glm::vec3 ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
-    glm::vec3 rmins,
+    qvec3 mins, maxs;
+    qvec3 ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
+    qvec3 rmins,
         rmaxs; // johnfitz -- bounds for entities with nonzero pitch or roll
     // johnfitz -- removed float radius;
 
@@ -450,7 +463,7 @@ struct qmodel_t
     // solid volume for clipping
     //
     bool clipbox;
-    glm::vec3 clipmins, clipmaxs;
+    qvec3 clipmins, clipmaxs;
 
     //
     // brush model
@@ -458,7 +471,7 @@ struct qmodel_t
     int firstmodelsurface, nummodelsurfaces;
 
     int numsubmodels;
-    dmodel_t* submodels;
+    mmodel_t* submodels;
 
     int numplanes;
     mplane_t* planes;
@@ -521,18 +534,18 @@ struct qmodel_t
 
 //============================================================================
 
-void Mod_Init(void);
-void Mod_ClearAll(void);
-void Mod_ResetAll(void); // for gamedir changes (Host_Game_f)
+void Mod_Init();
+void Mod_ClearAll();
+void Mod_ResetAll(); // for gamedir changes (Host_Game_f)
 qmodel_t* Mod_ForName(const char* name, bool crash);
 qmodel_t* Mod_ForName_WithFallback(const char* name, const char* fallback);
 void* Mod_Extradata(qmodel_t* mod); // handles caching
 void Mod_TouchModel(const char* name);
 
-mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model);
+mleaf_t* Mod_PointInLeaf(const qvec3& p, qmodel_t* model);
 byte* Mod_LeafPVS(mleaf_t* leaf, qmodel_t* model);
 byte* Mod_NoVisPVS(qmodel_t* model);
 
 void Mod_SetExtraFlags(qmodel_t* mod);
 
-#endif // __MODEL__
+void Mod_ForAllKnownNames(void (*f)(const char*)) noexcept;

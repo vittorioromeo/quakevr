@@ -23,6 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // snd_mix.c -- portable code to mix sounds for snd_dma.c
 
 #include "quakedef.hpp"
+#include "console.hpp"
+#include "common.hpp"
+#include "q_sound.hpp"
+#include "mathlib.hpp"
 
 #define PAINTBUFFER_SIZE 2048
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
@@ -287,6 +291,13 @@ static void S_ApplyFilter(filter_t* filter, int* data, int stride, int count)
     int parity;
 
     input = (float*)malloc(sizeof(float) * (filter->kernelsize + count));
+
+    // QSS
+    if(!input)
+    {
+        return;
+    }
+
 
     // set up the input buffer
     // memory holds the previous filter->kernelsize samples of input.

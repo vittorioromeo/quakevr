@@ -11253,16 +11253,14 @@
                 </div>
                 <div class="col-lg-4 col-md-6 text-center">
                     <div class="mt-5">
-                        <h3 class="h4 mb-2">Many Settings</h3>
-                        <p class="text-muted mb-0">Laser crosshair? Holster thresholds? Play the game exactly how you
-                            want to.</p>
+                        <h3 class="h4 mb-2">Multiplayer Support</h3>
+                        <p class="text-muted mb-0">Nostalgic fast-paced action over the internet or against bots.</p>
                     </div>
                 </div>
                 <div class="col-lg-4 col-md-6 text-center">
                     <div class="mt-5">
-                        <h3 class="h4 mb-2">Scourge Of Armagon</h3>
-                        <p class="text-muted mb-0">Full support for Mission Pack 1, including Mjolnir and the Laser
-                            Cannon!</p>
+                        <h3 class="h4 mb-2">Mission Packs</h3>
+                        <p class="text-muted mb-0">Full support for Scourge of Armagon and Dissolution of Eternity!</p>
                     </div>
                 </div>
                 <div class="col-lg-4 col-md-6 text-center">
@@ -11282,16 +11280,20 @@
 
         <div class="container">
             <div class="row justify-content-center">
-                <iframe width="560" height="315" src="https://www.youtube.com/embed/AevBPsuMab0"
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/c_ctxSqs6gA"
                     style="margin-bottom: 4rem; margin-right: 1rem" frameborder="0"
                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen></iframe>
-                <iframe width="560" height="315" src="https://www.youtube.com/embed/-lcgJEf1OBY"
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/MBoI16z8Nxg"
                     style="margin-bottom: 4rem" frameborder="0"
                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen></iframe>
 
-                <div class="col-lg-8 text-center">
+                <div class="col-lg-8 text-center" style="font-size: small; margin-top: -50px; color: white">
+                    <a target="_blank" href="https://www.youtube.com/user/SuperVictorius/videos" style="color: #ec5d3c">[More videos available on YouTube.]</a>
+                </div>
+
+                <div class="col-lg-8 text-center" style="padding-top: 20px">
                     <h2 class="text-white mt-0">Download now</h2>
                     <p class="text-white-50 mb-4">Name your price for Quake VR, or download it for free!</p>
                     <a class="btn btn-light btn-xl js-scroll-trigger" data-toggle="modal"
@@ -11529,7 +11531,7 @@
             $("#inputmoney").on('keydown', updateBtns);
             $("#inputmoney").on('keyup', updateBtns);
 
-            $("#btndonate").on('click', function () {
+            const possibleDonation = function () {
                 donatePressed = true;
                 $("#btndownload").prop('disabled', false);
                 $("#btndownload").removeClass('isDisabled');
@@ -11539,12 +11541,11 @@
 
                 $("#btndonate").text("Thank you!");
                 $("#btndonate").html("Thank you!");
-            });
+            };
 
-            $(".donationlink").on('click', function () {
-                $("#btndownload").prop('disabled', false);
-                $("#btndownload").removeClass('isDisabled');
-            });
+            $("#btndonate").on('click', possibleDonation);
+
+            $(".donationlink").on('click', possibleDonation);
 
             templateScripts();
         });
@@ -11583,8 +11584,8 @@
                     </div>
 
                     <div class="input-group mb-3 w-25 mx-auto" style="zoom: 150%; width: 150px !important">
-                        <a style="width: 100%!important" target="_blank" id="btndonate" type="button"
-                            class="isDisabled btn btn-secondary" disabled>Donate</a>
+                        <a style="width: 100%!important" target="_blank"id="btndonate" type="button"
+                            class="isDisabled btn btn-secondary" disabled>Donate (PayPal)</a>
 
                         <div style="text-align: center; width: 100%;">
                             <p style="font-size: 8px;">

@@ -22,12 +22,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
 #include "quakedef.hpp"
+#include "net.hpp"
+#include "zone.hpp"
+#include "keys.hpp"
+#include "protocol.hpp"
+#include "input.hpp"
+#include "sys.hpp"
+#include "msg.hpp"
+#include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "util.hpp"
+#include "worldtext.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
+#include "menu.hpp"
+#include "screen.hpp"
+#include "client.hpp"
+#include "sys.hpp"
+#include "saveutil.hpp"
+#include "sizebuf.hpp"
+
+#include <ctime>
+
 #ifndef _WIN32
 #include <dirent.h>
 #endif
-#include "vr.hpp"
-#include "util.hpp"
 
 extern cvar_t pausable;
 
@@ -864,11 +886,6 @@ command from the console.  Active clients are kicked off.
 */
 void Host_Map_f()
 {
-    int i;
-    char name[MAX_QPATH];
-
-    char* p;
-
     if(Cmd_Argc() < 2) // no map name given
     {
         if(cls.state == ca_dedicated)
@@ -890,6 +907,7 @@ void Host_Map_f()
         {
             Con_Printf("map <levelname>: start a new server\n");
         }
+
         return;
     }
 
@@ -907,18 +925,23 @@ void Host_Map_f()
     {
         IN_Activate();
     }
+
     key_dest = key_game; // remove console or menu
     SCR_BeginLoadingPlaque();
 
     svs.serverflags = 0; // haven't completed an episode yet
+
+    char name[MAX_QPATH];
     q_strlcpy(name, Cmd_Argv(1), sizeof(name));
+
     // remove (any) trailing ".bsp" from mapname -- S.A.
-    p = strstr(name, ".bsp");
+    char* p = strstr(name, ".bsp");
     if(p && p[4] == '\0')
     {
         *p = '\0';
     }
-    SV_SpawnServer(name);
+
+    SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
     if(!sv.active)
     {
         return;
@@ -927,7 +950,7 @@ void Host_Map_f()
     if(cls.state != ca_dedicated)
     {
         memset(cls.spawnparms, 0, MAX_MAPSTRING);
-        for(i = 2; i < Cmd_Argc(); i++)
+        for(int i = 2; i < Cmd_Argc(); i++)
         {
             q_strlcat(cls.spawnparms, Cmd_Argv(i), MAX_MAPSTRING);
             q_strlcat(cls.spawnparms, " ", MAX_MAPSTRING);
@@ -991,13 +1014,12 @@ Goes to a new map, taking all clients along
 */
 void Host_Changelevel_f()
 {
-    char level[MAX_QPATH];
-
     if(Cmd_Argc() != 2)
     {
         Con_Printf("changelevel <levelname> : continue game on a new level\n");
         return;
     }
+
     if(!sv.active || cls.demoplayback)
     {
         Con_Printf("Only the server may changelevel\n");
@@ -1005,7 +1027,9 @@ void Host_Changelevel_f()
     }
 
     // johnfitz -- check for client having map before anything else
+    char level[MAX_QPATH];
     q_snprintf(level, sizeof(level), "maps/%s.bsp", Cmd_Argv(1));
+
     if(!COM_FileExists(level, nullptr))
     {
         Host_Error("cannot find map %s", level);
@@ -1016,10 +1040,13 @@ void Host_Changelevel_f()
     {
         IN_Activate(); // -- S.A.
     }
+
     key_dest = key_game; // remove console or menu
     SV_SaveSpawnparms();
+
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
-    SV_SpawnServer(level);
+    SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
+
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
     {
@@ -1047,9 +1074,12 @@ void Host_Restart_f()
     {
         return;
     }
-    q_strlcpy(mapname, sv.name,
-        sizeof(mapname)); // mapname gets cleared in spawnserver
-    SV_SpawnServer(mapname);
+
+    // mapname gets cleared in spawnserver
+    q_strlcpy(mapname, sv.name, sizeof(mapname));
+
+    SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
+
     if(!sv.active)
     {
         Host_Error("cannot restart map %s", mapname);
@@ -1141,78 +1171,73 @@ void Host_SavegameComment(char* text)
     text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
-
-/*
-===============
-Host_Savegame_f
-===============
-*/
-void Host_Savegame_f()
+bool Host_MakeSavegame(
+    const char* filename, const std::time_t* timestamp, const bool printMessage)
 {
-    char name[MAX_OSPATH];
-    FILE* f;
-    int i;
-    char comment[SAVEGAME_COMMENT_LENGTH + 1];
-
-    if(cmd_source != src_command)
-    {
-        return;
-    }
-
     if(!sv.active)
     {
         Con_Printf("Not playing a local game.\n");
-        return;
+        return false;
     }
 
     if(cl.intermission)
     {
         Con_Printf("Can't save in intermission.\n");
-        return;
+        return false;
     }
 
     if(svs.maxclients != 1)
     {
         Con_Printf("Can't save multiplayer games.\n");
-        return;
+        return false;
     }
 
-    if(Cmd_Argc() != 2)
-    {
-        Con_Printf("save <savename> : save a game\n");
-        return;
-    }
-
-    if(strstr(Cmd_Argv(1), ".."))
+    if(strstr(filename, ".."))
     {
         Con_Printf("Relative pathnames are not allowed.\n");
-        return;
+        return false;
     }
 
-    for(i = 0; i < svs.maxclients; i++)
+    for(int i = 0; i < svs.maxclients; i++)
     {
         if(svs.clients[i].active && (svs.clients[i].edict->v.health <= 0))
         {
             Con_Printf("Can't savegame with a dead player\n");
-            return;
+            return false;
         }
     }
 
-    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+    char name[MAX_OSPATH];
+    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
     COM_AddExtension(name, ".sav", sizeof(name));
 
-    Con_Printf("Saving game to %s...\n", name);
-    f = fopen(name, "w");
+    if(printMessage)
+    {
+        Con_Printf("Saving game to %s...\n", name);
+    }
+
+    FILE* f = fopen(name, "w");
     if(!f)
     {
         Con_Printf("ERROR: couldn't open.\n");
-        return;
+        return false;
+    }
+
+    if(timestamp != nullptr)
+    {
+        std::tm* ptm = gmtime(timestamp);
+
+        char buf[256];
+        std::strftime(buf, sizeof(buf), "%F %T", ptm);
+
+        fprintf(f, "%s\n", buf);
     }
 
     fprintf(f, "%i\n", SAVEGAME_VERSION);
+    char comment[SAVEGAME_COMMENT_LENGTH + 1];
     Host_SavegameComment(comment);
     fprintf(f, "%s\n", comment);
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
     }
@@ -1222,7 +1247,7 @@ void Host_Savegame_f()
 
     // write the light styles
 
-    for(i = 0; i < MAX_LIGHTSTYLES; i++)
+    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
     {
         if(sv.lightstyles[i])
         {
@@ -1234,39 +1259,30 @@ void Host_Savegame_f()
         }
     }
 
-
     ED_WriteGlobals(f);
-    for(i = 0; i < sv.num_edicts; i++)
+    for(int i = 0; i < sv.num_edicts; i++)
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
     }
     fclose(f);
-    Con_Printf("done.\n");
+
+    if(printMessage)
+    {
+        Con_Printf("done.\n");
+    }
+
+    return true;
 }
 
 
 /*
 ===============
-Host_Loadgame_f
+Host_Savegame_f
 ===============
 */
-void Host_Loadgame_f()
+void Host_Savegame_f()
 {
-    static char* start;
-
-    char name[MAX_OSPATH];
-    char mapname[MAX_QPATH];
-    float time;
-
-    float tfloat;
-    const char* data;
-    int i;
-    edict_t* ent;
-    int entnum;
-    int version;
-    float spawn_parms[NUM_SPAWN_PARMS];
-
     if(cmd_source != src_command)
     {
         return;
@@ -1274,19 +1290,26 @@ void Host_Loadgame_f()
 
     if(Cmd_Argc() != 2)
     {
-        Con_Printf("load <savename> : load a game\n");
+        Con_Printf("save <savename> : save a game\n");
         return;
     }
 
-    if(strstr(Cmd_Argv(1), ".."))
+    Host_MakeSavegame(Cmd_Argv(1), nullptr, true);
+}
+
+
+bool Host_Loadgame(const char* filename, const bool hasTimestamp)
+{
+    if(strstr(filename, ".."))
     {
         Con_Printf("Relative pathnames are not allowed.\n");
-        return;
+        return false;
     }
 
     cls.demonum = -1; // stop demo loop in case this fails
 
-    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+    char name[MAX_OSPATH];
+    q_snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
     COM_AddExtension(name, ".sav", sizeof(name));
 
     // we can't call SCR_BeginLoadingPlaque, because too much stack space has
@@ -1296,6 +1319,7 @@ void Host_Loadgame_f()
     Con_Printf("Loading game from %s...\n", name);
 
     // avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+    static char* start;
     if(start != nullptr)
     {
         free(start);
@@ -1305,58 +1329,80 @@ void Host_Loadgame_f()
     if(start == nullptr)
     {
         Con_Printf("ERROR: couldn't open.\n");
-        return;
+        return false;
     }
 
+    const char* data;
     data = start;
+
+    if(hasTimestamp)
+    {
+        data = COM_ParseTimestampNewline(data);
+        if(data == nullptr)
+        {
+            return false;
+        }
+    }
+
+    int version;
     data = COM_ParseIntNewline(data, &version);
+
     if(version != SAVEGAME_VERSION)
     {
         free(start);
         start = nullptr;
         Con_Printf(
             "Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
-        return;
+        return false;
     }
+
+    float spawn_parms[NUM_SPAWN_PARMS];
     data = COM_ParseStringNewline(data);
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         data = COM_ParseFloatNewline(data, &spawn_parms[i]);
     }
+
     // this silliness is so we can load 1.06 save files, which have float skill
     // values
+    float tfloat;
     data = COM_ParseFloatNewline(data, &tfloat);
     current_skill = (int)(tfloat + 0.1);
     Cvar_SetValue("skill", (float)current_skill);
 
     data = COM_ParseStringNewline(data);
+
+    char mapname[MAX_QPATH];
     q_strlcpy(mapname, com_token, sizeof(mapname));
+
+    float time;
     data = COM_ParseFloatNewline(data, &time);
 
     CL_Disconnect_f();
 
-    SV_SpawnServer(mapname);
+    SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
     if(!sv.active)
     {
         free(start);
         start = nullptr;
         Con_Printf("Couldn't load map\n");
-        return;
+        return false;
     }
+
     sv.paused = true; // pause until all clients connect
     sv.loadgame = true;
 
     // load the light styles
 
-    for(i = 0; i < MAX_LIGHTSTYLES; i++)
+    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
     {
         data = COM_ParseStringNewline(data);
         sv.lightstyles[i] = (const char*)Hunk_Strdup(com_token, "lightstyles");
     }
 
     // load the edicts out of the savegame file
-    entnum = -1; // -1 is the globals
+    int entnum = -1; // -1 is the globals
     while(*data)
     {
         data = COM_Parse(data);
@@ -1377,7 +1423,7 @@ void Host_Loadgame_f()
         else
         {
             // parse an edict
-            ent = EDICT_NUM(entnum);
+            edict_t* ent = EDICT_NUM(entnum);
             if(entnum < sv.num_edicts)
             {
                 ent->free = false;
@@ -1405,7 +1451,7 @@ void Host_Loadgame_f()
     free(start);
     start = nullptr;
 
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
     {
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
@@ -1414,6 +1460,65 @@ void Host_Loadgame_f()
     {
         CL_EstablishConnection("local");
         Host_Reconnect_f();
+    }
+
+    Con_DPrintf("Calling QC 'OnLoadGame'.\n");
+    PR_ExecuteProgram(pr_global_struct->OnLoadGame);
+    return true;
+}
+
+/*
+===============
+Host_Loadgame_f
+===============
+*/
+void Host_Loadgame_f()
+{
+    if(cmd_source != src_command)
+    {
+        return;
+    }
+
+    if(Cmd_Argc() != 2)
+    {
+        Con_Printf("load <savename> : load a game\n");
+        return;
+    }
+
+    if(strstr(Cmd_Argv(1), ".."))
+    {
+        Con_Printf("Relative pathnames are not allowed.\n");
+        return;
+    }
+
+    if(!Host_Loadgame(Cmd_Argv(1), false /* hasTimestamp */))
+    {
+        Con_Printf("Failed to load '%s'\n", Cmd_Argv(1));
+    }
+}
+
+void Host_LoadAutosave_f()
+{
+    if(cmd_source != src_command)
+    {
+        return;
+    }
+
+    if(Cmd_Argc() != 2)
+    {
+        Con_Printf("load_autosave <savename> : load an autosave\n");
+        return;
+    }
+
+    if(strstr(Cmd_Argv(1), ".."))
+    {
+        Con_Printf("Relative pathnames are not allowed.\n");
+        return;
+    }
+
+    if(!Host_Loadgame(Cmd_Argv(1), true /* hasTimestamp */))
+    {
+        Con_Printf("Failed to load '%s'\n", Cmd_Argv(1));
     }
 }
 
@@ -1873,6 +1978,12 @@ void Host_Spawn_f()
         }
 
         PR_ExecuteProgram(pr_global_struct->PutClientInServer);
+
+        // VR: Force autosave on client spawn.
+        if(!pr_global_struct->deathmatch && !pr_global_struct->coop)
+        {
+            quake::saveutil::doChangelevelAutosave();
+        }
     }
 
 
@@ -1888,9 +1999,11 @@ void Host_Spawn_f()
         MSG_WriteByte(&host_client->message, svc_updatename);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteString(&host_client->message, client->name);
+
         MSG_WriteByte(&host_client->message, svc_updatefrags);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteShort(&host_client->message, client->old_frags);
+
         MSG_WriteByte(&host_client->message, svc_updatecolors);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteByte(&host_client->message, client->colors);
@@ -1943,6 +2056,20 @@ void Host_Spawn_f()
     MSG_WriteByte(&host_client->message, svc_signonnum);
     MSG_WriteByte(&host_client->message, 3);
     host_client->sendsignon = true;
+
+    {
+        WorldTextHandle wth = 0;
+        for(const WorldText& wt : sv.worldTexts)
+        {
+            sv.SendMsg_WorldTextHMake(*host_client, wth);
+            sv.SendMsg_WorldTextHSetText(*host_client, wth, wt._text.data());
+            sv.SendMsg_WorldTextHSetPos(*host_client, wth, wt._pos);
+            sv.SendMsg_WorldTextHSetAngles(*host_client, wth, wt._angles);
+            sv.SendMsg_WorldTextHSetHAlign(*host_client, wth, wt._hAlign);
+
+            ++wth;
+        }
+    }
 }
 
 /*
@@ -2536,6 +2663,7 @@ void Host_Startdemos_f()
     if(!sv.active && cls.demonum != -1 && !cls.demoplayback)
     {
         cls.demonum = 0;
+
         if(vr_enabled.value)
         {
             // Start a new game when vr_enabled
@@ -2545,13 +2673,18 @@ void Host_Startdemos_f()
             Cbuf_AddText("map start\n");
             Cbuf_AddText("centerview\n");
         }
+
+        /*
         else if(!fitzmode)
-        { /* QuakeSpasm customization: */
-            /* go straight to menu, no CL_NextDemo */
+        {
+            // QuakeSpasm customization:
+            // go straight to menu, no CL_NextDemo
             cls.demonum = -1;
             Cbuf_InsertText("menu_main\n");
             return;
         }
+        */
+
         CL_NextDemo();
     }
     else
@@ -2645,6 +2778,7 @@ void Host_InitCommands()
     Cmd_AddCommand("kick", Host_Kick_f);
     Cmd_AddCommand("ping", Host_Ping_f);
     Cmd_AddCommand("load", Host_Loadgame_f);
+    Cmd_AddCommand("load_autosave", Host_LoadAutosave_f);
     Cmd_AddCommand("save", Host_Savegame_f);
     Cmd_AddCommand("give", Host_Give_f);
 

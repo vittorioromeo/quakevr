@@ -8,28 +8,20 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-#define GLM_FORCE_INLINE
-#define GLM_CONFIG_SIMD GLM_ENABLE
-#define GLM_CONFIG_SWIZZLE GLM_SWIZZLE_OPERATOR
-#define GLM_CONFIG_ALIGNED_GENTYPES GLM_ENABLE
-#define GLM_CONFIG_ANONYMOUS_STRUCT GLM_ENABLE
-#define GLM_FORCE_SWIZZLE
+#include "quakeglm_macros.hpp"
 
-#include <glm.hpp>
-#include <gtc/type_ptr.hpp>
-#include <gtc/quaternion.hpp>
-#include <gtx/quaternion.hpp>
-#include <gtx/euler_angles.hpp>
-#include <gtx/rotate_vector.hpp>
-#include <gtx/io.hpp>
-#include <gtx/vec_swizzle.hpp>
+#include <glm/common.hpp>
+#include <glm/trigonometric.hpp>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
-extern template struct glm::vec<4, signed char, glm::packed_highp>;
-extern template struct glm::vec<4, unsigned char, glm::packed_highp>;
-extern template struct glm::vec<4, float, glm::packed_highp>;
-extern template struct glm::vec<3, float, glm::packed_highp>;
-extern template struct glm::vec<2, float, glm::packed_highp>;
+#include "quakeglm_qvec3.hpp"
+
+using qfloat = float;
+
+[[nodiscard]] constexpr inline qfloat operator"" _qf(long double x) noexcept
+{
+    return qfloat(x);
+}

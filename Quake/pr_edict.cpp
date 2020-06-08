@@ -22,8 +22,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_edict.c -- entity dictionary
 
-#include <cassert>
+#include "host.hpp"
 #include "quakedef.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "crc.hpp"
+#include "mathlib.hpp"
+#include "zone.hpp"
+#include "byteorder.hpp"
+#include "progs.hpp"
+#include "pr_comp.hpp"
+#include "server.hpp"
+#include "world.hpp"
+
+#include <cassert>
 
 dprograms_t* progs;
 dfunction_t* pr_functions;
@@ -955,14 +967,7 @@ Used for initial level load and for savegames.
 */
 const char* ED_ParseEdict(const char* data, edict_t* ent)
 {
-    ddef_t* key;
-    char keyname[256];
-    bool anglehack;
-
-    bool init;
-    int n;
-
-    init = false;
+    bool init = false;
 
     // clear it
     if(ent != sv.edicts)
@@ -976,10 +981,12 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
     {
         // parse key
         data = COM_Parse(data);
+
         if(com_token[0] == '}')
         {
             break;
         }
+
         if(!data)
         {
             Host_Error("ED_ParseEntity: EOF without closing brace");
@@ -987,6 +994,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 
         // anglehack is to allow QuakeEd to write single scalar angles
         // and allow them to be turned into vectors. (FIXME...)
+        bool anglehack;
         if(!strcmp(com_token, "angle"))
         {
             strcpy(com_token, "angles");
@@ -1003,10 +1011,11 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
             strcpy(com_token, "light_lev"); // hack for single light def
         }
 
+        char keyname[256];
         q_strlcpy(keyname, com_token, sizeof(keyname));
 
         // another hack to fix keynames with trailing spaces
-        n = strlen(keyname);
+        int n = strlen(keyname);
         while(n && keyname[n - 1] == ' ')
         {
             keyname[n - 1] = 0;
@@ -1042,7 +1051,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
         }
         // johnfitz
 
-        key = ED_FindField(keyname);
+        ddef_t* key = ED_FindField(keyname);
         if(!key)
         {
             // johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields
@@ -1053,6 +1062,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
                 Con_DPrintf("\"%s\" is not a field\n",
                     keyname); // johnfitz -- was Con_Printf
             }
+
             continue;
         }
 
@@ -1095,7 +1105,6 @@ to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 */
 void ED_LoadFromFile(const char* data)
 {
-    dfunction_t* func;
     edict_t* ent = nullptr;
     int inhibit = 0;
 
@@ -1106,23 +1115,18 @@ void ED_LoadFromFile(const char* data)
     {
         // parse the opening brace
         data = COM_Parse(data);
+
         if(!data)
         {
             break;
         }
+
         if(com_token[0] != '{')
         {
             Host_Error("ED_LoadFromFile: found %s when expecting {", com_token);
         }
 
-        if(!ent)
-        {
-            ent = EDICT_NUM(0);
-        }
-        else
-        {
-            ent = ED_Alloc();
-        }
+        ent = (!ent) ? EDICT_NUM(0) : ED_Alloc();
         data = ED_ParseEdict(data, ent);
 
         // remove things from different skill levels or deathmatch
@@ -1160,7 +1164,7 @@ void ED_LoadFromFile(const char* data)
         }
 
         // look for the spawn function
-        func = ED_FindFunction(PR_GetString(ent->v.classname));
+        dfunction_t* func = ED_FindFunction(PR_GetString(ent->v.classname));
 
         if(!func)
         {
@@ -1196,10 +1200,10 @@ void PR_LoadProgs()
 
     CRC_Init(&pr_crc);
 
-    progs = (dprograms_t*)COM_LoadHunkFile("progs.dat", nullptr);
+    progs = (dprograms_t*)COM_LoadHunkFile("vrprogs.dat", nullptr);
     if(!progs)
     {
-        Host_Error("PR_LoadProgs: couldn't load progs.dat");
+        Host_Error("PR_LoadProgs: couldn't load vrprogs.dat");
     }
     Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
@@ -1216,14 +1220,14 @@ void PR_LoadProgs()
 
     if(progs->version != PROG_VERSION)
     {
-        Host_Error("progs.dat has wrong version number (%i should be %i)",
+        Host_Error("vrprogs.dat has wrong version number (%i should be %i)",
             progs->version, PROG_VERSION);
     }
 
     if(progs->crc != PROGHEADER_CRC)
     {
         Host_Error(
-            "progs.dat system vars have been modified, progdefs.h is out of "
+            "vrprogs.dat system vars have been modified, progdefs.h is out of "
             "date");
     }
 
@@ -1231,7 +1235,7 @@ void PR_LoadProgs()
     pr_strings = (char*)progs + progs->ofs_strings;
     if(progs->ofs_strings + progs->numstrings >= com_filesize)
     {
-        Host_Error("progs.dat strings go past end of file\n");
+        Host_Error("vrprogs.dat strings go past end of file\n");
     }
 
     // initialize the strings
@@ -1291,7 +1295,7 @@ void PR_LoadProgs()
         pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
         pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
 
-        // johnfitz -- detect alpha support in progs.dat
+        // johnfitz -- detect alpha support in vrprogs.dat
         if(!strcmp(pr_strings + pr_fielddefs[i].s_name, "alpha"))
         {
             pr_alpha_supported = true;

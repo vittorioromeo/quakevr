@@ -23,6 +23,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sbar.c -- status bar code
 
 #include "quakedef.hpp"
+#include "cmd.hpp"
+#include "sbar.hpp"
+#include "qpic.hpp"
+#include "glquake.hpp"
+#include "menu.hpp"
+#include "draw.hpp"
+#include "common.hpp"
+#include "server.hpp"
+#include "client.hpp"
+#include "view.hpp"
 
 int sb_updates; // if >= vid.numpages, no update needed
 
@@ -552,23 +562,21 @@ void Sbar_SoloScoreboard()
         cl.stats[STAT_TOTALSECRETS]);
     Sbar_DrawString(312 - strlen(str) * 8, 12, str);
 
-    if(!fitzmode)
-    { /* QuakeSpasm customization: */
-        q_snprintf(str, sizeof(str), "skill %i", (int)(skill.value + 0.5));
-        Sbar_DrawString(160 - strlen(str) * 4, 12, str);
+    q_snprintf(str, sizeof(str), "skill %i", (int)(skill.value + 0.5));
+    Sbar_DrawString(160 - strlen(str) * 4, 12, str);
 
-        q_snprintf(str, sizeof(str), "%s (%s)", cl.levelname, cl.mapname);
-        len = strlen(str);
-        if(len > 40)
-        {
-            Sbar_DrawScrollString(0, 4, 320, str);
-        }
-        else
-        {
-            Sbar_DrawString(160 - len * 4, 4, str);
-        }
-        return;
+    q_snprintf(str, sizeof(str), "%s (%s)", cl.levelname, cl.mapname);
+    len = strlen(str);
+    if(len > 40)
+    {
+        Sbar_DrawScrollString(0, 4, 320, str);
     }
+    else
+    {
+        Sbar_DrawString(160 - len * 4, 4, str);
+    }
+    return;
+
     minutes = cl.time / 60;
     seconds = cl.time - 60 * minutes;
     tens = seconds / 10;
@@ -1247,10 +1255,10 @@ void Sbar_Draw()
             const auto drawAmmoIcon = [&](const int x, const int stat) {
                 const int aid = static_cast<int>(cl.stats[stat]);
 
-                if(aid >= AID_SHELLS && aid <= AID_NAILS)
+                if(aid >= AID_SHELLS && aid <= AID_CELLS)
                 {
                     // Shells, nails, rockets, cells
-                    Sbar_DrawPic(x, 0, sb_ammo[aid]);
+                    Sbar_DrawPic(x, 0, sb_ammo[aid - 1]);
                 }
                 else if(aid == AID_NONE)
                 {

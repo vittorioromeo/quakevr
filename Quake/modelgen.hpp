@@ -19,8 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _MODELGEN_H
-#define _MODELGEN_H
+#pragma once
 
 //
 // modelgen.h: header file for model generation program
@@ -32,21 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // * pass data from one to the other via model files.      *
 // *********************************************************
 
-#ifdef INCLUDELIBS
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-
-#include "cmdlib.hpp"
-#include "scriplib.hpp"
-#include "trilib.hpp"
-#include "lbmlib.hpp"
-#include "mathlib.hpp"
-#include "quakeglm.hpp"
-
-#endif
+#include "quakeglm_qvec3.hpp"
+#include "q_stdinc.hpp"
 
 #define ALIAS_VERSION 6
 
@@ -78,10 +64,10 @@ typedef struct
 {
     int ident;
     int version;
-    glm::vec3 scale;
-    glm::vec3 scale_origin;
+    qvec3 scale;
+    qvec3 scale_origin;
     float boundingradius;
-    glm::vec3 eyeposition;
+    qvec3 eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;
@@ -160,5 +146,3 @@ typedef struct
 
 #define IDPOLYHEADER (('O' << 24) + ('P' << 16) + ('D' << 8) + 'I')
 // little-endian "IDPO"
-
-#endif /* _MODELGEN_H */

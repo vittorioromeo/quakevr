@@ -26,6 +26,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vr.hpp"
 #include "world.hpp"
 #include "util.hpp"
+#include "q_stdinc.hpp"
+#include "net.hpp"
+#include "keys.hpp"
+#include "msg.hpp"
+#include "sys.hpp"
+#include "console.hpp"
+#include "vid.hpp"
+#include "draw.hpp"
+#include "screen.hpp"
+#include "view.hpp"
+#include "cmd.hpp"
+
 #include <iostream>
 
 edict_t* sv_player{nullptr};
@@ -34,11 +46,11 @@ extern cvar_t sv_friction;
 cvar_t sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern cvar_t sv_stopspeed;
 
-static glm::vec3 forward, right, up;
+static qvec3 forward, right, up;
 
 // world
-glm::vec3* origin{nullptr};
-glm::vec3* velocity{nullptr};
+qvec3* origin{nullptr};
+qvec3* velocity{nullptr};
 
 bool onground;
 
@@ -61,9 +73,9 @@ void SV_SetIdealPitch()
 
     float cosval;
     trace_t tr;
-    glm::vec3 top;
+    qvec3 top;
 
-    glm::vec3 bottom;
+    qvec3 bottom;
     float z[MAX_FORWARD];
     int i;
 
@@ -148,15 +160,15 @@ SV_UserFriction
 */
 void SV_UserFriction()
 {
-    glm::vec3* vel;
+    qvec3* vel;
     float speed;
 
     float newspeed;
 
     float control;
-    glm::vec3 start;
+    qvec3 start;
 
-    glm::vec3 stop;
+    qvec3 stop;
     float friction;
     trace_t trace;
 
@@ -205,7 +217,7 @@ SV_Accelerate
 cvar_t sv_maxspeed = {"sv_maxspeed", "320", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
 
-void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
+void SV_Accelerate(float wishspeed, const qvec3& wishdir)
 {
     const float currentspeed = DotProduct((*velocity), wishdir);
     const float addspeed = wishspeed - currentspeed;
@@ -227,7 +239,7 @@ void SV_Accelerate(float wishspeed, const glm::vec3& wishdir)
     }
 }
 
-void SV_AirAccelerate(float wishspeed, const glm::vec3& wishveloc)
+void SV_AirAccelerate(float wishspeed, const qvec3& wishveloc)
 {
     float wishspd = glm::length(wishveloc);
 
@@ -281,7 +293,7 @@ SV_WaterMove
 void SV_WaterMove()
 {
     int i;
-    glm::vec3 wishvel;
+    qvec3 wishvel;
     float speed;
 
     float newspeed;
@@ -295,8 +307,11 @@ void SV_WaterMove()
     //
     // user intentions
     //
+
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style,
     std::tie(forward, right, up) =
-        quake::util::getAngledVectors(sv_player->v.v_angle);
+        quake::util::getAngledVectors(sv_player->v.v_viewangle);
 
     for(i = 0; i < 3; i++)
     {
@@ -387,6 +402,8 @@ new, alternate noclip. old noclip is still handled in SV_AirMove
 */
 void SV_NoclipMove()
 {
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style
     std::tie(forward, right, up) =
         quake::util::getAngledVectors(sv_player->v.v_angle);
 
@@ -409,11 +426,13 @@ SV_AirMove
 */
 void SV_AirMove()
 {
+    // TODO VR: (P1) this should probably change depending on the chosen
+    // locomotion style
     std::tie(forward, right, up) =
-        quake::util::getAngledVectors(VR_GetHeadAngles());
+        quake::util::getAngledVectors(sv_player->v.v_viewangle);
 
-    float fmove = cmd.forwardmove;
-    const float smove = cmd.sidemove;
+    qfloat fmove = cmd.forwardmove;
+    const qfloat smove = cmd.sidemove;
 
     // hack to not let you back into teleporter
     if(sv.time < sv_player->v.teleport_time && fmove < 0)
@@ -421,7 +440,7 @@ void SV_AirMove()
         fmove = 0;
     }
 
-    glm::vec3 wishvel = forward * fmove + right * smove;
+    qvec3 wishvel = forward * fmove + right * smove;
 
     if((int)sv_player->v.movetype != MOVETYPE_WALK)
     {
@@ -492,7 +511,7 @@ void SV_ClientThink()
     // show 1/3 the pitch angle and all the roll angle
     cmd = host_client->cmd;
 
-    glm::vec3 v_angle;
+    qvec3 v_angle;
     v_angle = sv_player->v.v_angle + sv_player->v.punchangle;
     sv_player->v.angles[ROLL] =
         V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
@@ -559,15 +578,16 @@ void SV_ReadClientMove(usercmd_t* move)
         }
     };
 
-    const auto readVec = [&]() -> glm::vec3 {
-        return {MSG_ReadFloat(), MSG_ReadFloat(), MSG_ReadFloat()};
-    };
+    const auto readVec = [&] { return MSG_ReadVec3(sv.protocolflags); };
 
     // aimangles
     readAngles(host_client->edict->v.v_angle);
 
     // viewangles
     readAngles(host_client->edict->v.v_viewangle);
+
+    // vr yaw
+    host_client->edict->v.vryaw = move->vryaw = MSG_ReadFloat();
 
     // ------------------------------------------------------------------------
     // main hand values:
@@ -589,11 +609,17 @@ void SV_ReadClientMove(usercmd_t* move)
     host_client->edict->v.offhandavel = move->offhandavel = readVec();
     // ------------------------------------------------------------------------
 
+    // headvel
+    host_client->edict->v.headvel = move->headvel = readVec();
+
     // muzzlepos
     host_client->edict->v.muzzlepos = move->muzzlepos = readVec();
 
     // offmuzzlepos
     host_client->edict->v.offmuzzlepos = move->offmuzzlepos = readVec();
+
+    // vrbits
+    host_client->edict->v.vrbits0 = move->vrbits0 = MSG_ReadUnsignedChar();
 
     // movement
     move->forwardmove = MSG_ReadShort();
@@ -601,22 +627,13 @@ void SV_ReadClientMove(usercmd_t* move)
     move->upmove = MSG_ReadShort();
 
     // teleportation
-    host_client->edict->v.teleporting = move->teleporting = MSG_ReadShort();
     host_client->edict->v.teleport_target = move->teleport_target = readVec();
 
     // hands
-    host_client->edict->v.offhand_grabbing = move->offhand_grabbing =
-        MSG_ReadShort();
-    host_client->edict->v.offhand_prevgrabbing = move->offhand_prevgrabbing =
-        MSG_ReadShort();
-    host_client->edict->v.mainhand_grabbing = move->mainhand_grabbing =
-        MSG_ReadShort();
-    host_client->edict->v.mainhand_prevgrabbing = move->mainhand_prevgrabbing =
-        MSG_ReadShort();
     host_client->edict->v.offhand_hotspot = move->offhand_hotspot =
-        MSG_ReadShort();
+        MSG_ReadByte();
     host_client->edict->v.mainhand_hotspot = move->mainhand_hotspot =
-        MSG_ReadShort();
+        MSG_ReadByte();
 
     // roomscalemove
     host_client->edict->v.roomscalemove = move->roomscalemove = readVec();
@@ -653,7 +670,8 @@ bool SV_ReadClientMessage()
         ret = NET_GetMessage(host_client->netconnection);
         if(ret == -1)
         {
-            Sys_Printf("SV_ReadClientMessage: NET_GetMessage failed\n");
+            Sys_Printf(
+                "SV_ReadClientMessage: NET_GetMessage failed. rc= %d\n", ret);
             return false;
         }
         if(!ret)

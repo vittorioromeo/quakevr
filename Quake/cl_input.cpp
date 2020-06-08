@@ -26,6 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // rights reserved.
 
 #include "quakedef.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "net.hpp"
+#include "mathlib.hpp"
+#include "msg.hpp"
+#include "input.hpp"
+#include "client.hpp"
 
 extern cvar_t cl_maxpitch; // johnfitz -- variable pitch clamping
 extern cvar_t cl_minpitch; // johnfitz -- variable pitch clamping
@@ -401,7 +408,7 @@ void CL_AdjustAngles()
 {
     float speed;
 
-    if((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
     {
         speed = host_frametime * cl_anglespeedkey.value;
     }
@@ -496,7 +503,7 @@ void CL_BaseMove(usercmd_t* cmd)
     //
     // adjust for speed key
     //
-    if((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
+    if((in_speed.state & 1) ^ (cl_alwaysrun.value == 0.0))
     {
         cmd->forwardmove *= cl_movespeedkey.value;
         cmd->sidemove *= cl_movespeedkey.value;
@@ -548,9 +555,7 @@ void CL_SendMove(const usercmd_t* cmd)
     };
 
     const auto writeVec = [&](const auto& vec) {
-        MSG_WriteFloat(&buf, vec[0]);
-        MSG_WriteFloat(&buf, vec[1]);
-        MSG_WriteFloat(&buf, vec[2]);
+        MSG_WriteVec3(&buf, vec, cl.protocolflags);
     };
 
     // aimangles
@@ -558,6 +563,9 @@ void CL_SendMove(const usercmd_t* cmd)
 
     // viewangles
     writeAngles(cl.viewangles);
+
+    // vr yaw:
+    MSG_WriteFloat(&buf, cmd->vryaw);
 
     // main hand values:
     writeVec(cmd->handpos);
@@ -575,11 +583,17 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteFloat(&buf, cmd->offhandvelmag);
     writeVec(cmd->offhandavel);
 
+    // headvel
+    writeVec(cmd->headvel);
+
     // muzzlepos
     writeVec(cmd->muzzlepos);
 
     // offmuzzlepos
     writeVec(cmd->offmuzzlepos);
+
+    // vrbits0
+    MSG_WriteUnsignedChar(&buf, cmd->vrbits0);
 
     // movement
     MSG_WriteShort(&buf, cmd->forwardmove);
@@ -587,16 +601,11 @@ void CL_SendMove(const usercmd_t* cmd)
     MSG_WriteShort(&buf, cmd->upmove);
 
     // teleportation
-    MSG_WriteShort(&buf, cmd->teleporting);
     writeVec(cmd->teleport_target);
 
     // hands
-    MSG_WriteShort(&buf, cmd->offhand_grabbing);
-    MSG_WriteShort(&buf, cmd->offhand_prevgrabbing);
-    MSG_WriteShort(&buf, cmd->mainhand_grabbing);
-    MSG_WriteShort(&buf, cmd->mainhand_prevgrabbing);
-    MSG_WriteShort(&buf, cmd->offhand_hotspot);
-    MSG_WriteShort(&buf, cmd->mainhand_hotspot);
+    MSG_WriteByte(&buf, cmd->offhand_hotspot);
+    MSG_WriteByte(&buf, cmd->mainhand_hotspot);
 
     // roomscalemove
     writeVec(cmd->roomscalemove);

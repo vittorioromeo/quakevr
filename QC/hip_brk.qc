@@ -9,25 +9,26 @@ float MULTI_USE = 1;
 float INVISIBLE = 2;
 
 void() damagethreshold_killed =
-    {
+{
     self.health = self.max_health;
 
 //   self.solid = SOLID_NOT;
-   activator = damage_attacker;
+
+    activator = damage_attacker;
     self.takedamage = DAMAGE_NO;
     SUB_UseTargets();
     self.takedamage = DAMAGE_YES;
 
-    if( !( self.spawnflags & MULTI_USE ) )
-       {
-       remove( self );
-       }
-    };
+    if(!(self.spawnflags & MULTI_USE))
+    {
+       remove(self);
+    }
+};
 
 void(entity attacker, float damage) damagethreshold_pain =
-    {
+{
     self.health = self.max_health;
-    };
+};
 
 /*QUAKED trigger_damagethreshold (0 .5 .8) ? MULTI_USE INVISIBLE
 Triggers only when a threshold of damage is exceeded.
@@ -45,48 +46,114 @@ Default is 60.
 */
 
 void() trigger_damagethreshold =
-
 {
     self.mangle = self.angles;
     self.angles = '0 0 0';
 
     self.classname = "damagethreshold";
-   self.solid = SOLID_BSP;
-   self.movetype = MOVETYPE_PUSH;
-   setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
-   if( self.spawnflags & INVISIBLE )
-      {
-      self.model = string_null;
-      }
+    self.solid = SOLID_BSP;
+    self.movetype = MOVETYPE_PUSH;
+
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
+
+    if(self.spawnflags & INVISIBLE)
+    {
+        self.model = string_null;
+    }
 
     if(!self.health)
-        {
+    {
         self.health = 60;
-        }
+    }
+
     self.max_health = self.health;
     self.takedamage = DAMAGE_YES;
 
     self.blocked = SUB_Null;
     self.th_pain = damagethreshold_pain;
     self.th_die  = damagethreshold_killed;
-    };
+};
 
 /*QUAKED func_breakawaywall (0 .5 .8) ?
 Special walltype that removes itself when triggered.
 */
 
 void() func_breakawaywall =
-    {
+{
     self.mangle = self.angles;
     self.angles = '0 0 0';
 
     self.classname = "breakaway";
     self.solid = SOLID_BSP;
     self.movetype = MOVETYPE_PUSH;
-    setorigin (self, self.origin);
-    setmodel (self, self.model);
-    setsize (self, self.mins , self.maxs);
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins , self.maxs);
     self.use = SUB_Remove;
-    };
+};
+
+
+// TODO VR: (P1) organize
+void() breakablewallwithrubble_killed =
+{
+    activator = damage_attacker;
+    SUB_UseTargets();
+
+    self.origin = realorigin(self);
+    hip_rubble_use();
+
+    remove(self);
+};
+
+void() func_breakablewallwithrubble_think
+{
+    /*vector bottom = self.origin;
+    bottom_z += self.mins_z;
+
+    traceline(bottom + '0 0 -1', bottom + '0 0 -2', FALSE, self);
+
+    if(trace_fraction == 1.0)
+    {
+        setorigin(self, self.origin + '0 0 -1');
+    }
+
+
+    self.nextthink = time + 0.01;*/
+}
+
+void() func_breakablewallwithrubble
+{
+    precache_model("progs/rubble1.mdl");
+    precache_model("progs/rubble2.mdl");
+    precache_model("progs/rubble3.mdl");
+    precache_sound("zombie/z_hit.wav");
+
+    self.mangle = self.angles;
+    self.angles = '0 0 0';
+
+    self.classname = "breakablewallwithrubble";
+    self.solid = SOLID_BSP;
+    self.movetype = MOVETYPE_NONE;
+
+    setorigin(self, self.origin);
+    setmodel(self, self.model);
+    setsize(self, self.mins, self.maxs);
+
+    if(!self.health)
+    {
+        self.health = 10;
+    }
+
+    self.takedamage = DAMAGE_YES;
+
+    self.blocked = SUB_Null;
+    self.th_pain = SUB_NullPain;
+    self.th_die  = breakablewallwithrubble_killed;
+
+    self.cnt = 0;
+
+    // self.think = func_breakablewallwithrubble_think;
+    // self.nextthink = time + 0.01;
+}

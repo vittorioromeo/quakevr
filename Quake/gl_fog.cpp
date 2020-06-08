@@ -24,6 +24,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "mathlib.hpp"
+#include "glquake.hpp"
+#include "client.hpp"
+#include "common.hpp"
+#include "msg.hpp"
 
 //==============================================================================
 //
@@ -355,7 +363,7 @@ void Fog_StartAdditive()
 {
     if(Fog_GetDensity() > 0)
     {
-        glFogfv(GL_FOG_COLOR, glm::value_ptr(vec3_zero));
+        glFogfv(GL_FOG_COLOR, toGlVec(vec3_zero));
     }
 }
 

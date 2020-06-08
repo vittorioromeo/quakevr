@@ -23,10 +23,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // host.c -- coordinates spawning and killing of local servers
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include <setjmp.h>
 #include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "cdaudio.hpp"
+#include "quakeparms.hpp"
+#include "sbar.hpp"
+#include "wad.hpp"
+#include "net.hpp"
+#include "glquake.hpp"
+#include "menu.hpp"
+#include "keys.hpp"
+#include "protocol.hpp"
+#include "msg.hpp"
+#include "client.hpp"
+#include "console.hpp"
+#include "saveutil.hpp"
+#include "sys.hpp"
+#include "server.hpp"
+#include "screen.hpp"
+#include "gl_texmgr.hpp"
+#include "vid.hpp"
+#include "draw.hpp"
+#include "q_sound.hpp"
+#include "input.hpp"
+#include "view.hpp"
 
 /*
 
@@ -303,11 +329,11 @@ void Host_FindMaxClients()
     }
 
     svs.maxclientslimit = svs.maxclients;
-    if(svs.maxclientslimit < 4)
+    if(svs.maxclientslimit < 16)
     {
-        svs.maxclientslimit = 4;
+        svs.maxclientslimit = 16;
     }
-    svs.clients = (struct client_s*)Hunk_AllocName(
+    svs.clients = (struct client_t*)Hunk_AllocName(
         svs.maxclientslimit * sizeof(client_t), "clients");
 
     if(svs.maxclients > 1)
@@ -662,8 +688,12 @@ void Host_ClearMemory()
     Hunk_FreeToLowMark(host_hunklevel);
     cls.signon = 0;
     free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
-    memset(&sv, 0, sizeof(sv));
-    memset(&cl, 0, sizeof(cl));
+
+    // memset(&sv, 0, sizeof(sv));
+    // memset(&cl, 0, sizeof(cl));
+
+    sv = server_t{};
+    cl = client_state_t{};
 }
 
 
@@ -814,11 +844,6 @@ void _Host_Frame(float time)
     static double time1 = 0;
     static double time2 = 0;
     static double time3 = 0;
-    int pass1;
-
-    int pass2;
-
-    int pass3;
 
     {
         host_abortserver_setjmp_done = true;
@@ -887,6 +912,12 @@ void _Host_Frame(float time)
     if(cls.state == ca_connected)
     {
         CL_ReadFromServer();
+
+        // VR: Autosave.
+        if(!deathmatch.value)
+        {
+            quake::saveutil::doAutomaticAutosave();
+        }
     }
 
     // update video
@@ -920,10 +951,10 @@ void _Host_Frame(float time)
 
     if(host_speeds.value)
     {
-        pass1 = (time1 - time3) * 1000;
+        int pass1 = (time1 - time3) * 1000;
         time3 = Sys_DoubleTime();
-        pass2 = (time2 - time1) * 1000;
-        pass3 = (time3 - time2) * 1000;
+        int pass2 = (time2 - time1) * 1000;
+        int pass3 = (time3 - time2) * 1000;
         Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
             pass1 + pass2 + pass3, pass1, pass2, pass3);
     }
@@ -1056,7 +1087,7 @@ void Host_Init()
         CL_Init();
     }
 
-    (void) Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    (void)Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

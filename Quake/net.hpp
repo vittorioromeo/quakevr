@@ -29,13 +29,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     whole engine
 */
 
-#ifndef _QUAKE_NET_H
-#define _QUAKE_NET_H
+#pragma once
 
+#include "cvar.hpp"
+#include "common.hpp"
+#include "sizebuf.hpp"
 
 #define NET_NAMELEN 64
 
-#define NET_MAXMESSAGE 65000 /* ericw -- was 32000 */
+#define NET_MAXMESSAGE 65535 /* ericw -- was 32000 */
 
 extern int DEFAULTnet_hostport;
 extern int net_hostport;
@@ -47,10 +49,10 @@ extern sizebuf_t net_message;
 extern int net_activeconnections;
 
 
-void NET_Init(void);
-void NET_Shutdown(void);
+void NET_Init();
+void NET_Shutdown();
 
-struct qsocket_s* NET_CheckNewConnections(void);
+struct qsocket_s* NET_CheckNewConnections();
 // returns a new connection number if there is one pending, else -1
 
 struct qsocket_s* NET_Connect(const char* host);
@@ -89,7 +91,7 @@ void NET_Close(struct qsocket_s* sock);
 // from a server.
 // A netcon_t number will not be reused until this function is called for it
 
-void NET_Poll(void);
+void NET_Poll();
 
 
 // Server list related globals:
@@ -99,8 +101,8 @@ extern bool slistLocal;
 
 extern int hostCacheCount;
 
-void NET_Slist_f(void);
-void NET_SlistSort(void);
+void NET_Slist_f();
+void NET_SlistSort();
 const char* NET_SlistPrintServer(int n);
 const char* NET_SlistPrintServerName(int n);
 
@@ -111,5 +113,3 @@ extern bool ipxAvailable;
 extern bool tcpipAvailable;
 extern char my_ipx_address[NET_NAMELEN];
 extern char my_tcpip_address[NET_NAMELEN];
-
-#endif /* _QUAKE_NET_H */

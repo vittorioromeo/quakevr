@@ -7,11 +7,9 @@
 
 float USE_PARTICLES = 1;
 
-void() BecomeExplosion;
-
 void() exploder_fire =
     {
-    local entity temp;
+    entity temp;
 
     temp = self;
     activator = other;
@@ -26,14 +24,12 @@ void() exploder_fire =
       {
       sound(self , CHAN_AUTO, "misc/longexpl.wav", self.volume, self.speed);
       }
-   T_RadiusDamage (self, self.owner, self.dmg, other);
+   T_RadiusDamage(self, self.owner, self.dmg, other);
    if(self.spawnflags & USE_PARTICLES)
       {
       WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord(MSG_BROADCAST, self.origin_x);
-      WriteCoord(MSG_BROADCAST, self.origin_y);
-      WriteCoord(MSG_BROADCAST, self.origin_z);
+      WriteVec3(MSG_BROADCAST, self.origin);
       }
    BecomeExplosion();
     };
@@ -66,19 +62,19 @@ void() func_exploder =
    precache_sound("misc/longexpl.wav");
     self.classname = "exploder";
     self.use = exploder_use;
-    if( self.dmg == 0 )
+    if(self.dmg == 0)
        {
        self.dmg = 120;
        }
-    if( self.dmg < 0 )
+    if(self.dmg < 0)
        {
        self.dmg = 0;
        }
-   if( self.speed == 0 )
+   if(self.speed == 0)
        {
       self.speed = 1;
        }
-   if( self.volume == 0 )
+   if(self.volume == 0)
        {
       self.volume = 1.0;
        }
@@ -86,8 +82,8 @@ void() func_exploder =
 
 void() multi_exploder_fire =
     {
-    local entity temp;
-   local entity expl;
+    entity temp;
+   entity expl;
 
    self.nextthink = time + self.wait;
    if(self.state == 0)
@@ -112,14 +108,12 @@ void() multi_exploder_fire =
    expl.origin_y = self.absmin_y + (random() * (self.absmax_y - self.absmin_y));
    expl.origin_z = self.absmin_z + (random() * (self.absmax_z - self.absmin_z));
    sound(expl , CHAN_VOICE, "misc/shortexp.wav", self.volume, self.speed);
-   T_RadiusDamage (expl, self.owner, self.dmg, other);
+   T_RadiusDamage(expl, self.owner, self.dmg, other);
    if(self.spawnflags & USE_PARTICLES)
       {
       WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
       WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-      WriteCoord(MSG_BROADCAST, expl.origin_x);
-      WriteCoord(MSG_BROADCAST, expl.origin_y);
-      WriteCoord(MSG_BROADCAST, expl.origin_z);
+      WriteVec3(MSG_BROADCAST, expl.origin);
       }
    temp = self;
    self = expl;
@@ -127,9 +121,9 @@ void() multi_exploder_fire =
    self = temp;
     };
 
-void( vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
+void(vector loc, float rad, float damage, float dur, float pause, float vol) multi_explosion =
     {
-   local entity temp;
+   entity temp;
 
    temp = self;
    self = spawn();
@@ -184,11 +178,11 @@ void() func_multi_exploder =
    self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
    self.model = "";
-    if( self.dmg == 0 )
+    if(self.dmg == 0)
        {
        self.dmg = 120;
        }
-    if( self.dmg < 0 )
+    if(self.dmg < 0)
        {
        self.dmg = 0;
        }

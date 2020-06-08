@@ -20,8 +20,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#ifndef _GL_TEXMAN_H
-#define _GL_TEXMAN_H
+#pragma once
+
+#include <GL/glew.h>
+
+#include "quakedef_macros.hpp"
+#include "gl_model.hpp"
 
 // gl_texmgr.h -- fitzquake's texture manager. manages opengl texture images
 
@@ -50,11 +54,11 @@ enum srcformat
 
 typedef uintptr_t src_offset_t;
 
-typedef struct gltexture_s
+struct gltexture_t
 {
     // managed by texture manager
     GLuint texnum;
-    struct gltexture_s* next;
+    gltexture_t* next;
     qmodel_t* owner;
     // managed by image loading
     char name[64];
@@ -73,7 +77,7 @@ typedef struct gltexture_s
     signed char pants;          // 0-13 pants color, or -1 if never colormapped
     // used for rendering
     int visframe; // matches r_framecount if texture was bound this frame
-} gltexture_t;
+};
 
 extern gltexture_t* notexture;
 extern gltexture_t* nulltexture;
@@ -87,23 +91,23 @@ extern unsigned int d_8to24table_pants[256];
 
 // TEXTURE MANAGER
 
-float TexMgr_FrameUsage(void);
+float TexMgr_FrameUsage();
 gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name);
-gltexture_t* TexMgr_NewTexture(void);
+gltexture_t* TexMgr_NewTexture();
 void TexMgr_FreeTexture(gltexture_t* kill);
 void TexMgr_FreeTextures(unsigned int flags, unsigned int mask);
 void TexMgr_FreeTexturesForOwner(qmodel_t* owner);
-void TexMgr_NewGame(void);
-void TexMgr_Init(void);
-void TexMgr_DeleteTextureObjects(void);
+void TexMgr_NewGame();
+void TexMgr_Init();
+void TexMgr_DeleteTextureObjects();
 
 // IMAGE LOADING
 gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name, int width,
     int height, enum srcformat format, byte* data, const char* source_file,
     src_offset_t source_offset, unsigned flags);
 void TexMgr_ReloadImage(gltexture_t* glt, int shirt, int pants);
-void TexMgr_ReloadImages(void);
-void TexMgr_ReloadNobrightImages(void);
+void TexMgr_ReloadImages();
+void TexMgr_ReloadNobrightImages();
 
 int TexMgr_Pad(int s);
 int TexMgr_SafeTextureSize(int s);
@@ -112,9 +116,7 @@ int TexMgr_PadConditional(int s);
 // TEXTURE BINDING & TEXTURE UNIT SWITCHING
 
 void GL_SelectTexture(GLenum target);
-void GL_DisableMultitexture(void); // selects texture unit 0
-void GL_EnableMultitexture(void);  // selects texture unit 1
+void GL_DisableMultitexture(); // selects texture unit 0
+void GL_EnableMultitexture();  // selects texture unit 1
 void GL_Bind(gltexture_t* texture);
-void GL_ClearBindings(void);
-
-#endif /* _GL_TEXMAN_H */
+void GL_ClearBindings();

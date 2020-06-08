@@ -25,6 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_sys.hpp"
 #include "quakedef.hpp"
 #include "net_defs.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "net.hpp"
+#include "server.hpp"
+#include "sys.hpp"
+#include "client.hpp"
 
 qsocket_t* net_activeSockets = nullptr;
 qsocket_t* net_freeSockets = nullptr;
@@ -411,10 +418,12 @@ static void Slist_Send(void* unused)
         {
             continue;
         }
+
         if(net_drivers[net_driverlevel].initialized == false)
         {
             continue;
         }
+
         dfunc.SearchForHosts(true);
     }
 
@@ -436,10 +445,12 @@ static void Slist_Poll(void* unused)
         {
             continue;
         }
+
         if(net_drivers[net_driverlevel].initialized == false)
         {
             continue;
         }
+
         dfunc.SearchForHosts(false);
     }
 
@@ -458,6 +469,7 @@ static void Slist_Poll(void* unused)
     {
         PrintSlistTrailer();
     }
+
     slistInProgress = false;
     slistSilent = false;
     slistLocal = true;
@@ -504,6 +516,7 @@ qsocket_t* NET_Connect(const char* host)
                     break;
                 }
             }
+
             if(n < hostCacheCount)
             {
                 goto JustDoIt;
@@ -525,6 +538,7 @@ qsocket_t* NET_Connect(const char* host)
         {
             return nullptr;
         }
+
         host = hostcache[0].cname;
         Con_Printf("Connecting to...\n%s @ %s\n\n", hostcache[0].name, host);
     }

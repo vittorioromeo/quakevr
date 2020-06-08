@@ -26,17 +26,30 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "cfgfile.hpp"
 #include "bgmusic.hpp"
-#include "resource.hpp"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
+#include "cmd.hpp"
+#include "common.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
+#include "sbar.hpp"
+#include "platform.hpp"
+#include "glquake.hpp"
+#include "qpic.hpp"
+#include "zone.hpp"
+#include "keys.hpp"
+#include "menu.hpp"
+#include "byteorder.hpp"
+#include "sys.hpp"
+#include "screen.hpp"
+#include "input.hpp"
+#include "q_sound.hpp"
+#include "gl_texmgr.hpp"
+#include "draw.hpp"
+
+#include <GL/glew.h>
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
+
 #include "vr.hpp"
+#include "vr_cvars.hpp"
 #include "menu_util.hpp"
 #include <cassert>
 
@@ -57,13 +70,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define DEFAULT_REFRESHRATE 60
 
-typedef struct
+struct vmode_t
 {
     int width;
     int height;
     int refreshrate;
     int bpp;
-} vmode_t;
+};
 
 static const char* gl_vendor;
 static const char* gl_renderer;
@@ -78,12 +91,8 @@ static int nummodes;
 
 static bool vid_initialized = false;
 
-#if defined(USE_SDL2)
 static SDL_Window* draw_context;
 static SDL_GLContext gl_context;
-#else
-static SDL_Surface* draw_context;
-#endif
 
 static bool vid_locked = false; // johnfitz
 static bool vid_changed = false;
@@ -114,41 +123,6 @@ GLint gl_max_texture_units = 0;      // ericw
 bool gl_glsl_gamma_able = false;     // ericw
 bool gl_glsl_alias_able = false;     // ericw
 int gl_stencilbits;
-
-PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc = nullptr; // johnfitz
-PFNGLACTIVETEXTUREARBPROC GL_SelectTextureFunc = nullptr; // johnfitz
-PFNGLCLIENTACTIVETEXTUREARBPROC GL_ClientActiveTextureFunc = nullptr; // ericw
-PFNGLBINDBUFFERARBPROC GL_BindBufferFunc = nullptr;                   // ericw
-PFNGLBUFFERDATAARBPROC GL_BufferDataFunc = nullptr;                   // ericw
-PFNGLBUFFERSUBDATAARBPROC GL_BufferSubDataFunc = nullptr;             // ericw
-PFNGLDELETEBUFFERSARBPROC GL_DeleteBuffersFunc = nullptr;             // ericw
-PFNGLGENBUFFERSARBPROC GL_GenBuffersFunc = nullptr;                   // ericw
-
-QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc = nullptr;               // ericw
-QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc = nullptr;               // ericw
-QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc = nullptr;             // ericw
-QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc = nullptr;               // ericw
-QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc = nullptr;             // ericw
-QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc = nullptr;                 // ericw
-QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc = nullptr;       // ericw
-QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc = nullptr;               // ericw
-QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc = nullptr;     // ericw
-QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc = nullptr;             // ericw
-QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc = nullptr;               // ericw
-QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc = nullptr;                 // ericw
-QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc = nullptr;   // ericw
-QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc = nullptr;                   // ericw
-QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc = nullptr;     // ericw
-QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc = nullptr; // ericw
-QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc =
-    nullptr; // ericw
-QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc =
-    nullptr;                                                        // ericw
-QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc = nullptr; // ericw
-QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc = nullptr;                   // ericw
-QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc = nullptr;                   // ericw
 
 //====================================
 
@@ -219,7 +193,6 @@ static void VID_Gamma_SetGamma()
             value = GAMMA_MAX;
         }
 
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
         if(SDL_SetWindowGammaRamp(draw_context, vid_gamma_red, vid_gamma_green,
                vid_gamma_blue) != 0)
@@ -232,16 +205,6 @@ static void VID_Gamma_SetGamma()
                 "VID_Gamma_SetGamma: failed on SDL_SetWindowBrightness\n");
         }
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-        if(SDL_SetGammaRamp(vid_gamma_red, vid_gamma_green, vid_gamma_blue) ==
-            -1)
-            Con_Printf("VID_Gamma_SetGamma: failed on SDL_SetGammaRamp\n");
-#else
-        if(SDL_SetGamma(value, value, value) == -1)
-            Con_Printf("VID_Gamma_SetGamma: failed on SDL_SetGamma\n");
-#endif
-#endif /* USE_SDL2 */
     }
 }
 
@@ -259,7 +222,6 @@ static void VID_Gamma_Restore()
 
     if(draw_context && gammaworks)
     {
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
         if(SDL_SetWindowGammaRamp(draw_context, vid_sysgamma_red,
                vid_sysgamma_green, vid_sysgamma_blue) != 0)
@@ -271,16 +233,6 @@ static void VID_Gamma_Restore()
                 "VID_Gamma_Restore: failed on SDL_SetWindowBrightness\n");
         }
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-        if(SDL_SetGammaRamp(
-               vid_sysgamma_red, vid_sysgamma_green, vid_sysgamma_blue) == -1)
-            Con_Printf("VID_Gamma_Restore: failed on SDL_SetGammaRamp\n");
-#else
-        if(SDL_SetGamma(1, 1, 1) == -1)
-            Con_Printf("VID_Gamma_Restore: failed on SDL_SetGamma\n");
-#endif
-#endif /* USE_SDL2 */
     }
 }
 
@@ -343,7 +295,6 @@ static void VID_Gamma_Init()
         return;
     }
 
-#if defined(USE_SDL2)
 #if USE_GAMMA_RAMPS
     gammaworks = (SDL_GetWindowGammaRamp(draw_context, vid_sysgamma_red,
                       vid_sysgamma_green, vid_sysgamma_blue) == 0);
@@ -353,17 +304,6 @@ static void VID_Gamma_Init()
 #else
     gammaworks = (SDL_SetWindowBrightness(draw_context, 1) == 0);
 #endif
-#else /* USE_SDL2 */
-#if USE_GAMMA_RAMPS
-    gammaworks = (SDL_GetGammaRamp(vid_sysgamma_red, vid_sysgamma_green,
-                      vid_sysgamma_blue) == 0);
-    if(gammaworks)
-        gammaworks = (SDL_SetGammaRamp(vid_sysgamma_red, vid_sysgamma_green,
-                          vid_sysgamma_blue) == 0);
-#else
-    gammaworks = (SDL_SetGamma(1, 1, 1) == 0);
-#endif
-#endif /* USE_SDL2 */
 
     if(!gammaworks)
     {
@@ -378,15 +318,10 @@ VID_GetCurrentWidth
 */
 static int VID_GetCurrentWidth()
 {
-#if defined(USE_SDL2)
     int w = 0;
-
     int h = 0;
     SDL_GetWindowSize(draw_context, &w, &h);
     return w;
-#else
-    return draw_context->w;
-#endif
 }
 
 /*
@@ -396,15 +331,10 @@ VID_GetCurrentHeight
 */
 static int VID_GetCurrentHeight()
 {
-#if defined(USE_SDL2)
     int w = 0;
-
     int h = 0;
     SDL_GetWindowSize(draw_context, &w, &h);
     return h;
-#else
-    return draw_context->h;
-#endif
 }
 
 /*
@@ -414,11 +344,8 @@ VID_GetCurrentRefreshRate
 */
 static int VID_GetCurrentRefreshRate()
 {
-#if defined(USE_SDL2)
     SDL_DisplayMode mode;
-    int current_display;
-
-    current_display = SDL_GetWindowDisplayIndex(draw_context);
+    int current_display = SDL_GetWindowDisplayIndex(draw_context);
 
     if(0 != SDL_GetCurrentDisplayMode(current_display, &mode))
     {
@@ -426,10 +353,6 @@ static int VID_GetCurrentRefreshRate()
     }
 
     return mode.refresh_rate;
-#else
-    // SDL1.2 doesn't support refresh rates
-    return DEFAULT_REFRESHRATE;
-#endif
 }
 
 
@@ -440,12 +363,8 @@ VID_GetCurrentBPP
 */
 static int VID_GetCurrentBPP()
 {
-#if defined(USE_SDL2)
     const Uint32 pixelFormat = SDL_GetWindowPixelFormat(draw_context);
     return SDL_BITSPERPIXEL(pixelFormat);
-#else
-    return draw_context->format->BitsPerPixel;
-#endif
 }
 
 /*
@@ -457,11 +376,7 @@ returns true if we are in regular fullscreen or "desktop fullscren"
 */
 static bool VID_GetFullscreen()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN) != 0;
-#else
-    return (draw_context->flags & SDL_FULLSCREEN) != 0;
-#endif
 }
 
 /*
@@ -473,12 +388,8 @@ returns true if we are specifically in "desktop fullscreen" mode
 */
 static bool VID_GetDesktopFullscreen()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) ==
            SDL_WINDOW_FULLSCREEN_DESKTOP;
-#else
-    return false;
-#endif
 }
 
 /*
@@ -488,14 +399,7 @@ VID_GetVSync
 */
 static bool VID_GetVSync()
 {
-#if defined(USE_SDL2)
     return SDL_GL_GetSwapInterval() == 1;
-#else
-    int swap_control;
-    if(SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swap_control) == 0)
-        return swap_control > 0;
-    return false;
-#endif
 }
 
 /*
@@ -507,11 +411,7 @@ used by pl_win.c
 */
 void* VID_GetWindow()
 {
-#if defined(USE_SDL2)
     return draw_context;
-#else
-    return nullptr;
-#endif
 }
 
 /*
@@ -521,12 +421,8 @@ VID_HasMouseOrInputFocus
 */
 bool VID_HasMouseOrInputFocus()
 {
-#if defined(USE_SDL2)
     return (SDL_GetWindowFlags(draw_context) &
                (SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_INPUT_FOCUS)) != 0;
-#else
-    return (SDL_GetAppState() & (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) != 0;
-#endif
 }
 
 /*
@@ -536,15 +432,9 @@ VID_IsMinimized
 */
 bool VID_IsMinimized()
 {
-#if defined(USE_SDL2)
     return !(SDL_GetWindowFlags(draw_context) & SDL_WINDOW_SHOWN);
-#else
-    /* SDL_APPACTIVE in SDL 1.x means "not minimized" */
-    return !(SDL_GetAppState() & SDL_APPACTIVE);
-#endif
 }
 
-#if defined(USE_SDL2)
 /*
 ================
 VID_SDL2_GetDisplayMode
@@ -562,9 +452,8 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
 {
     static SDL_DisplayMode mode;
     const int sdlmodes = SDL_GetNumDisplayModes(0);
-    int i;
 
-    for(i = 0; i < sdlmodes; i++)
+    for(int i = 0; i < sdlmodes; i++)
     {
         if(SDL_GetDisplayMode(0, i, &mode) != 0)
         {
@@ -578,9 +467,9 @@ static SDL_DisplayMode* VID_SDL2_GetDisplayMode(
             return &mode;
         }
     }
+
     return nullptr;
 }
-#endif /* USE_SDL2 */
 
 /*
 ================
@@ -606,25 +495,16 @@ static bool VID_ValidMode(
         return false;
     }
 
-#if defined(USE_SDL2)
     if(fullscreen &&
         VID_SDL2_GetDisplayMode(width, height, refreshrate, bpp) == nullptr)
     {
         bpp = 0;
     }
-#else
-    {
-        Uint32 flags = DEFAULT_SDL_FLAGS;
-        if(fullscreen) flags |= SDL_FULLSCREEN;
-
-        bpp = SDL_VideoModeOK(width, height, bpp, flags);
-    }
-#endif
 
     switch(bpp)
     {
-        case 16:
-        case 24:
+        case 16: [[fallthrough]];
+        case 24: [[fallthrough]];
         case 32: break;
         default: return false;
     }
@@ -640,19 +520,16 @@ VID_SetMode
 static bool VID_SetMode(
     int width, int height, int refreshrate, int bpp, bool fullscreen)
 {
-    int temp;
     Uint32 flags;
-    char caption[50];
+    char caption[64];
     int depthbits;
 
     int stencilbits;
     int fsaa_obtained;
-#if defined(USE_SDL2)
     int previous_display;
-#endif
 
     // so Con_Printfs don't mess us up by forcing vid and snd updates
-    temp = scr_disabled_for_loading;
+    int temp = scr_disabled_for_loading;
     scr_disabled_for_loading = true;
 
     CDAudio_Pause();
@@ -678,7 +555,6 @@ static bool VID_SetMode(
 
     q_snprintf(caption, sizeof(caption), "QuakeSpasm " QUAKESPASM_VER_STRING);
 
-#if defined(USE_SDL2)
     /* Create the window if needed, hidden */
     if(!draw_context)
     {
@@ -783,44 +659,6 @@ static bool VID_SetMode(
         gl_swap_control = false;
     }
 
-#else  /* !defined(USE_SDL2) */
-
-    flags = DEFAULT_SDL_FLAGS;
-    if(fullscreen) flags |= SDL_FULLSCREEN;
-    if(vid_borderless.value) flags |= SDL_NOFRAME;
-
-    gl_swap_control = true;
-    if(SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, (vid_vsync.value) ? 1 : 0) ==
-        -1)
-        gl_swap_control = false;
-
-    bpp = SDL_VideoModeOK(width, height, bpp, flags);
-
-    draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    if(!draw_context)
-    {
-        // scale back fsaa
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    }
-    if(!draw_context)
-    {
-        // scale back SDL_GL_DEPTH_SIZE
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-    }
-    if(!draw_context)
-    {
-        // scale back SDL_GL_STENCIL_SIZE
-        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-        draw_context = SDL_SetVideoMode(width, height, bpp, flags);
-        if(!draw_context) Sys_Error("Couldn't set video mode");
-    }
-
-    SDL_WM_SetCaption(caption, caption);
-#endif /* !defined(USE_SDL2) */
-
     vid.width = VID_GetCurrentWidth();
     vid.height = VID_GetCurrentHeight();
     vid.conwidth = vid.width & 0xFFFFFFF8;
@@ -887,15 +725,6 @@ VID_Restart -- johnfitz -- change video modes on the fly
 */
 static void VID_Restart()
 {
-    int width;
-
-    int height;
-
-    int refreshrate;
-
-    int bpp;
-    bool fullscreen;
-
     if(vid_locked || !vid_changed)
     {
         return;
@@ -906,11 +735,11 @@ static void VID_Restart()
         VID_VR_Disable();
     }
 
-    width = (int)vid_width.value;
-    height = (int)vid_height.value;
-    refreshrate = (int)vid_refreshrate.value;
-    bpp = (int)vid_bpp.value;
-    fullscreen = vid_fullscreen.value ? true : false;
+    const int width = (int)vid_width.value;
+    const int height = (int)vid_height.value;
+    const int refreshrate = (int)vid_refreshrate.value;
+    const int bpp = (int)vid_bpp.value;
+    const bool fullscreen = vid_fullscreen.value ? true : false;
 
     //
     // validate new mode
@@ -932,7 +761,6 @@ static void VID_Restart()
     TexMgr_DeleteTextureObjects();
     GLSLGamma_DeleteTexture();
     R_ScaleView_DeleteTexture();
-    R_DeleteShaders();
     GL_DeleteBModelVertexBuffer();
     GLMesh_DeleteVertexBuffers();
 
@@ -960,13 +788,11 @@ static void VID_Restart()
     vid.conwidth = CLAMP(320, vid.conwidth, vid.width);
     vid.conwidth &= 0xFFFFFFF8;
     vid.conheight = vid.conwidth * vid.height / vid.width;
-    //
+
     // keep cvars in line with actual mode
-    //
     VID_SyncCvars();
-    //
+
     // update mouse grab
-    //
     if(key_dest == key_console || key_dest == key_menu)
     {
         if(modestate == MS_WINDOWED)
@@ -993,28 +819,17 @@ switching modes
 */
 static void VID_Test()
 {
-    int old_width;
-
-    int old_height;
-
-    int old_refreshrate;
-
-    int old_bpp;
-
-    int old_fullscreen;
-
     if(vid_locked || !vid_changed)
     {
         return;
     }
-    //
+
     // now try the switch
-    //
-    old_width = VID_GetCurrentWidth();
-    old_height = VID_GetCurrentHeight();
-    old_refreshrate = VID_GetCurrentRefreshRate();
-    old_bpp = VID_GetCurrentBPP();
-    old_fullscreen = VID_GetFullscreen() ? true : false;
+    const int old_width = VID_GetCurrentWidth();
+    const int old_height = VID_GetCurrentHeight();
+    const int old_refreshrate = VID_GetCurrentRefreshRate();
+    const int old_bpp = VID_GetCurrentBPP();
+    const int old_fullscreen = VID_GetFullscreen() ? true : false;
 
     VID_Restart();
 
@@ -1072,15 +887,6 @@ GL_MakeNiceExtensionsList -- johnfitz
 */
 static char* GL_MakeNiceExtensionsList(const char* in)
 {
-    char* copy;
-
-    char* token;
-
-    char* out;
-    int i;
-
-    int count;
-
     if(!in)
     {
         return Z_Strdup("(none)");
@@ -1088,6 +894,8 @@ static char* GL_MakeNiceExtensionsList(const char* in)
 
     // each space will be replaced by 4 chars, so count the spaces before we
     // malloc
+    int i;
+    int count;
     for(i = 0, count = 1; i < (int)strlen(in); i++)
     {
         if(in[i] == ' ')
@@ -1097,12 +905,12 @@ static char* GL_MakeNiceExtensionsList(const char* in)
     }
 
     assert(count >= 0);
-    out = (char*)Z_Malloc(
+    char* out = (char*)Z_Malloc(
         strlen(in) + (size_t)count * 3 + 1); // usually about 1-2k
     out[0] = 0;
 
-    copy = (char*)Z_Strdup(in);
-    for(token = strtok(copy, " "); token; token = strtok(nullptr, " "))
+    char* copy = (char*)Z_Strdup(in);
+    for(char* token = strtok(copy, " "); token; token = strtok(nullptr, " "))
     {
         strcat(out, "\n   ");
         strcat(out, token);
@@ -1125,54 +933,9 @@ static void GL_Info_f()
     Con_Printf("GL_EXTENSIONS: %s\n", gl_extensions_nice);
 }
 
-/*
-===============
-GL_CheckExtensions
-===============
-*/
-static bool GL_ParseExtensionList(const char* list, const char* name)
-{
-    const char* start;
-    const char* where;
-
-    const char* terminator;
-
-    if(!list || !name || !*name)
-    {
-        return false;
-    }
-    if(strchr(name, ' ') != nullptr)
-    {
-        return false; // extension names must not have spaces
-    }
-
-    start = list;
-    while(1)
-    {
-        where = strstr(start, name);
-        if(!where)
-        {
-            break;
-        }
-        terminator = where + strlen(name);
-        if(where == start || where[-1] == ' ')
-        {
-            if(*terminator == ' ' || *terminator == '\0')
-            {
-                return true;
-            }
-        }
-        start = terminator;
-    }
-    return false;
-}
-
 static void GL_CheckExtensions()
 {
-    int swap_control;
-
     // ARB_vertex_buffer_object
-    //
     if(COM_CheckParm("-novbo"))
     {
         Con_Warning("Vertex buffer objects disabled at command line\n");
@@ -1184,58 +947,26 @@ static void GL_CheckExtensions()
             "OpenGL version < 1.5, skipping ARB_vertex_buffer_object "
             "check\n");
     }
+    else if(GLEW_ARB_vertex_program)
+    {
+        gl_vbo_able = true;
+    }
     else
     {
-        GL_BindBufferFunc =
-            (PFNGLBINDBUFFERARBPROC)SDL_GL_GetProcAddress("glBindBufferARB");
-        GL_BufferDataFunc =
-            (PFNGLBUFFERDATAARBPROC)SDL_GL_GetProcAddress("glBufferDataARB");
-        GL_BufferSubDataFunc = (PFNGLBUFFERSUBDATAARBPROC)SDL_GL_GetProcAddress(
-            "glBufferSubDataARB");
-        GL_DeleteBuffersFunc = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress(
-            "glDeleteBuffersARB");
-        GL_GenBuffersFunc =
-            (PFNGLGENBUFFERSARBPROC)SDL_GL_GetProcAddress("glGenBuffersARB");
-        if(GL_BindBufferFunc && GL_BufferDataFunc && GL_BufferSubDataFunc &&
-            GL_DeleteBuffersFunc && GL_GenBuffersFunc)
-        {
-            Con_Printf("FOUND: ARB_vertex_buffer_object\n");
-            gl_vbo_able = true;
-        }
-        else
-        {
-            Con_Warning("ARB_vertex_buffer_object not available\n");
-        }
+        Con_Warning("ARB_vertex_buffer_object not available\n");
     }
 
     // multitexture
-    //
     if(COM_CheckParm("-nomtex"))
     {
         Con_Warning("Mutitexture disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_multitexture"))
+    else if(GLEW_ARB_multitexture)
     {
-        GL_MTexCoord2fFunc = (PFNGLMULTITEXCOORD2FARBPROC)SDL_GL_GetProcAddress(
-            "glMultiTexCoord2fARB");
-        GL_SelectTextureFunc = (PFNGLACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
-            "glActiveTextureARB");
-        GL_ClientActiveTextureFunc =
-            (PFNGLCLIENTACTIVETEXTUREARBPROC)SDL_GL_GetProcAddress(
-                "glClientActiveTextureARB");
-        if(GL_MTexCoord2fFunc && GL_SelectTextureFunc &&
-            GL_ClientActiveTextureFunc)
-        {
-            Con_Printf("FOUND: ARB_multitexture\n");
-            gl_mtexable = true;
+        gl_mtexable = true;
 
-            glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
-            Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
-        }
-        else
-        {
-            Con_Warning("Couldn't link to multitexture functions\n");
-        }
+        glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
+        Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
     }
     else
     {
@@ -1243,17 +974,16 @@ static void GL_CheckExtensions()
     }
 
     // texture_env_combine
-    //
     if(COM_CheckParm("-nocombine"))
     {
         Con_Warning("texture_env_combine disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_combine"))
+    else if(GLEW_ARB_texture_env_combine)
     {
         Con_Printf("FOUND: ARB_texture_env_combine\n");
         gl_texture_env_combine = true;
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_combine"))
+    else if(GLEW_EXT_texture_env_combine)
     {
         Con_Printf("FOUND: EXT_texture_env_combine\n");
         gl_texture_env_combine = true;
@@ -1264,17 +994,16 @@ static void GL_CheckExtensions()
     }
 
     // texture_env_add
-    //
     if(COM_CheckParm("-noadd"))
     {
         Con_Warning("texture_env_add disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_add"))
+    else if(GLEW_ARB_texture_env_add)
     {
         Con_Printf("FOUND: ARB_texture_env_add\n");
         gl_texture_env_add = true;
     }
-    else if(GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_add"))
+    else if(GLEW_EXT_texture_env_add)
     {
         Con_Printf("FOUND: EXT_texture_env_add\n");
         gl_texture_env_add = true;
@@ -1286,32 +1015,19 @@ static void GL_CheckExtensions()
 
     // swap control
     //
+    int swap_control;
     if(!gl_swap_control)
     {
-#if defined(USE_SDL2)
         Con_Warning(
             "vertical sync not supported (SDL_GL_SetSwapInterval "
             "failed)\n");
-#else
-        Con_Warning(
-            "vertical sync not supported (SDL_GL_SetAttribute failed)\n");
-#endif
     }
-#if defined(USE_SDL2)
     else if((swap_control = SDL_GL_GetSwapInterval()) == -1)
-#else
-    else if(SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swap_control) == -1)
-#endif
     {
         gl_swap_control = false;
-#if defined(USE_SDL2)
         Con_Warning(
             "vertical sync not supported (SDL_GL_GetSwapInterval "
             "failed)\n");
-#else
-        Con_Warning(
-            "vertical sync not supported (SDL_GL_GetAttribute failed)\n");
-#endif
     }
     else if((vid_vsync.value && swap_control != 1) ||
             (!vid_vsync.value && swap_control != 0))
@@ -1323,17 +1039,11 @@ static void GL_CheckExtensions()
     }
     else
     {
-#if defined(USE_SDL2)
         Con_Printf("FOUND: SDL_GL_SetSwapInterval\n");
-#else
-        Con_Printf("FOUND: SDL_GL_SWAP_CONTROL\n");
-#endif
     }
 
     // anisotropic filtering
-    //
-    if(GL_ParseExtensionList(
-           gl_extensions, "GL_EXT_texture_filter_anisotropic"))
+    if(GLEW_EXT_texture_filter_anisotropic)
     {
         float test1;
 
@@ -1381,13 +1091,11 @@ static void GL_CheckExtensions()
     }
 
     // texture_non_power_of_two
-    //
     if(COM_CheckParm("-notexturenpot"))
     {
         Con_Warning("texture_non_power_of_two disabled at command line\n");
     }
-    else if(GL_ParseExtensionList(
-                gl_extensions, "GL_ARB_texture_non_power_of_two"))
+    else if(GLEW_ARB_texture_non_power_of_two)
     {
         Con_Printf("FOUND: ARB_texture_non_power_of_two\n");
         gl_texture_NPOT = true;
@@ -1398,86 +1106,13 @@ static void GL_CheckExtensions()
     }
 
     // GLSL
-    //
     if(COM_CheckParm("-noglsl"))
     {
         Con_Warning("GLSL disabled at command line\n");
     }
     else if(gl_version_major >= 2)
     {
-        GL_CreateShaderFunc =
-            (QS_PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
-        GL_DeleteShaderFunc =
-            (QS_PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
-        GL_DeleteProgramFunc =
-            (QS_PFNGLDELETEPROGRAMPROC)SDL_GL_GetProcAddress("glDeleteProgram");
-        GL_ShaderSourceFunc =
-            (QS_PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
-        GL_CompileShaderFunc =
-            (QS_PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
-        GL_GetShaderivFunc =
-            (QS_PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
-        GL_GetShaderInfoLogFunc =
-            (QS_PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress(
-                "glGetShaderInfoLog");
-        GL_GetProgramivFunc =
-            (QS_PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
-        GL_GetProgramInfoLogFunc =
-            (QS_PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress(
-                "glGetProgramInfoLog");
-        GL_CreateProgramFunc =
-            (QS_PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
-        GL_AttachShaderFunc =
-            (QS_PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
-        GL_LinkProgramFunc =
-            (QS_PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
-        GL_BindAttribLocationFunc =
-            (QS_PFNGLBINDATTRIBLOCATIONFUNC)SDL_GL_GetProcAddress(
-                "glBindAttribLocation");
-        GL_UseProgramFunc =
-            (QS_PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
-        GL_GetAttribLocationFunc =
-            (QS_PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress(
-                "glGetAttribLocation");
-        GL_VertexAttribPointerFunc =
-            (QS_PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress(
-                "glVertexAttribPointer");
-        GL_EnableVertexAttribArrayFunc =
-            (QS_PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
-                "glEnableVertexAttribArray");
-        GL_DisableVertexAttribArrayFunc =
-            (QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress(
-                "glDisableVertexAttribArray");
-        GL_GetUniformLocationFunc =
-            (QS_PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress(
-                "glGetUniformLocation");
-        GL_Uniform1iFunc =
-            (QS_PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
-        GL_Uniform1fFunc =
-            (QS_PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
-        GL_Uniform3fFunc =
-            (QS_PFNGLUNIFORM3FPROC)SDL_GL_GetProcAddress("glUniform3f");
-        GL_Uniform4fFunc =
-            (QS_PFNGLUNIFORM4FPROC)SDL_GL_GetProcAddress("glUniform4f");
-
-        if(GL_CreateShaderFunc && GL_DeleteShaderFunc && GL_DeleteProgramFunc &&
-            GL_ShaderSourceFunc && GL_CompileShaderFunc && GL_GetShaderivFunc &&
-            GL_GetShaderInfoLogFunc && GL_GetProgramivFunc &&
-            GL_GetProgramInfoLogFunc && GL_CreateProgramFunc &&
-            GL_AttachShaderFunc && GL_LinkProgramFunc &&
-            GL_BindAttribLocationFunc && GL_UseProgramFunc &&
-            GL_GetAttribLocationFunc && GL_VertexAttribPointerFunc &&
-            GL_EnableVertexAttribArrayFunc && GL_DisableVertexAttribArrayFunc &&
-            GL_GetUniformLocationFunc && GL_Uniform1iFunc && GL_Uniform1fFunc &&
-            GL_Uniform3fFunc && GL_Uniform4fFunc)
-        {
-            Con_Printf("FOUND: GLSL\n");
-            gl_glsl_able = true;
-        }
-        else
-        {
-            Con_Warning("GLSL not available\n");
-        }
+        gl_glsl_able = true;
     }
     else
     {
@@ -1485,7 +1120,6 @@ static void GL_CheckExtensions()
     }
 
     // GLSL gamma
-    //
     if(COM_CheckParm("-noglslgamma"))
     {
         Con_Warning("GLSL gamma disabled at command line\n");
@@ -1500,7 +1134,6 @@ static void GL_CheckExtensions()
     }
 
     // GLSL alias model rendering
-    //
     if(COM_CheckParm("-noglslalias"))
     {
         Con_Warning("GLSL alias model rendering disabled at command line\n");
@@ -1548,6 +1181,26 @@ static void GL_SetupState()
     glDepthFunc(GL_LEQUAL); // johnfitz -- moved here becuase gl_ztrick is gone.
 }
 
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+    GLenum severity, GLsizei length, const GLchar* message,
+    const void* userParam)
+{
+    (void)source;
+    (void)id;
+    (void)length;
+    (void)userParam;
+
+    if(severity == GL_DEBUG_SEVERITY_LOW ||
+        severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+    {
+        return;
+    }
+
+    fprintf(stderr, "GL: %s type = 0x%x, severity = 0x%x, message = %s\n",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity,
+        message);
+}
+
 /*
 ===============
 GL_Init
@@ -1577,7 +1230,16 @@ static void GL_Init()
     }
     gl_extensions_nice = GL_MakeNiceExtensionsList(gl_extensions);
 
+    glewExperimental = GL_TRUE;
+    auto init_res = glewInit();
+    if(init_res != GLEW_OK)
+    {
+        Con_Printf(
+            "Error initializing GLEW: %s\n", glewGetErrorString(glewInit()));
+    }
+
     GL_CheckExtensions(); // johnfitz
+
 
 #ifdef __APPLE__
     // ericw -- enable multi-threaded OpenGL, gives a decent FPS boost.
@@ -1597,9 +1259,18 @@ static void GL_Init()
     }
     // johnfitz
 
-    GLAlias_CreateShaders();
+    // GLAlias_CreateShaders();
+    void GLAliasBlended_CreateShaders();
+    GLAliasBlended_CreateShaders();
     GLWorld_CreateShaders();
     GL_ClearBufferBindings();
+
+#ifndef NDEBUG
+    // During init, enable debug output
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(MessageCallback, 0);
+#endif
 }
 
 /*
@@ -1623,11 +1294,7 @@ void GL_EndRendering()
 {
     if(!scr_skipupdate)
     {
-#if defined(USE_SDL2)
         SDL_GL_SwapWindow(draw_context);
-#else
-        SDL_GL_SwapBuffers();
-#endif
     }
 }
 
@@ -1640,9 +1307,7 @@ void VID_Shutdown()
 
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         draw_context = nullptr;
-#if defined(USE_SDL2)
         gl_context = nullptr;
-#endif
         PL_VID_Shutdown();
     }
 }
@@ -1697,18 +1362,12 @@ rates after each mode.
 */
 static void VID_DescribeModes_f()
 {
-    int i;
-    int lastwidth;
+    int lastwidth = 0;
+    int lastheight = 0;
+    int lastbpp = 0;
+    int count = 0;
 
-    int lastheight;
-
-    int lastbpp;
-
-    int count;
-
-    lastwidth = lastheight = lastbpp = count = 0;
-
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         if(lastwidth != modelist[i].width || lastheight != modelist[i].height ||
             lastbpp != modelist[i].bpp)
@@ -1756,12 +1415,10 @@ VID_InitModelist
 */
 static void VID_InitModelist()
 {
-#if defined(USE_SDL2)
     const int sdlmodes = SDL_GetNumDisplayModes(0);
-    int i;
 
     nummodes = 0;
-    for(i = 0; i < sdlmodes; i++)
+    for(int i = 0; i < sdlmodes; i++)
     {
         SDL_DisplayMode mode;
 
@@ -1778,59 +1435,6 @@ static void VID_InitModelist()
             nummodes++;
         }
     }
-#else  /* !defined(USE_SDL2) */
-    SDL_PixelFormat format;
-    SDL_Rect** modes;
-    Uint32 flags;
-    int i, j, k, originalnummodes, existingmode;
-    int bpps[] = {16, 24, 32}; // enumerate >8 bpp modes
-
-    originalnummodes = nummodes = 0;
-    format.palette = nullptr;
-
-    // enumerate fullscreen modes
-    flags = DEFAULT_SDL_FLAGS | SDL_FULLSCREEN;
-    for(i = 0; i < (int)(sizeof(bpps) / sizeof(bpps[0])); i++)
-    {
-        if(nummodes >= MAX_MODE_LIST) break;
-
-        format.BitsPerPixel = bpps[i];
-        modes = SDL_ListModes(&format, flags);
-
-        if(modes == (SDL_Rect**)0 || modes == (SDL_Rect**)-1) continue;
-
-        for(j = 0; modes[j]; j++)
-        {
-            if(modes[j]->w > MAXWIDTH || modes[j]->h > MAXHEIGHT ||
-                nummodes >= MAX_MODE_LIST)
-                continue;
-
-            modelist[nummodes].width = modes[j]->w;
-            modelist[nummodes].height = modes[j]->h;
-            modelist[nummodes].bpp = bpps[i];
-            modelist[nummodes].refreshrate = DEFAULT_REFRESHRATE;
-
-            for(k = originalnummodes, existingmode = 0; k < nummodes; k++)
-            {
-                if((modelist[nummodes].width == modelist[k].width) &&
-                    (modelist[nummodes].height == modelist[k].height) &&
-                    (modelist[nummodes].bpp == modelist[k].bpp))
-                {
-                    existingmode = 1;
-                    break;
-                }
-            }
-
-            if(!existingmode)
-            {
-                nummodes++;
-            }
-        }
-    }
-
-    if(nummodes == originalnummodes)
-        Con_SafePrintf("No fullscreen DIB modes found\n");
-#endif /* !defined(USE_SDL2) */
 }
 
 /*
@@ -1843,21 +1447,11 @@ void VID_Init()
     static char vid_center[] = "SDL_VIDEO_CENTERED=center";
     int p;
 
-    int width;
-
-    int height;
-
-    int refreshrate;
-
-    int bpp;
     int display_width;
-
     int display_height;
-
     int display_refreshrate;
-
     int display_bpp;
-    bool fullscreen;
+
     const char* read_vars[] = {"vid_fullscreen", "vid_width", "vid_height",
         "vid_refreshrate", "vid_bpp", "vid_vsync", "vid_fsaa",
         "vid_desktopfullscreen", "vid_borderless"};
@@ -1895,7 +1489,6 @@ void VID_Init()
         Sys_Error("Couldn't init SDL video: %s", SDL_GetError());
     }
 
-#if defined(USE_SDL2)
     {
         SDL_DisplayMode mode;
         if(SDL_GetDesktopDisplayMode(0, &mode) != 0)
@@ -1908,15 +1501,6 @@ void VID_Init()
         display_refreshrate = mode.refresh_rate;
         display_bpp = SDL_BITSPERPIXEL(mode.format);
     }
-#else
-    {
-        const SDL_VideoInfo* info = SDL_GetVideoInfo();
-        display_width = info->current_w;
-        display_height = info->current_h;
-        display_refreshrate = DEFAULT_REFRESHRATE;
-        display_bpp = info->vfmt->BitsPerPixel;
-    }
-#endif
 
     Cvar_SetValueQuick(&vid_bpp, (float)display_bpp);
 
@@ -1929,12 +1513,12 @@ void VID_Init()
 
     VID_InitModelist();
 
-    width = (int)vid_width.value;
-    height = (int)vid_height.value;
-    refreshrate = (int)vid_refreshrate.value;
-    bpp = (int)vid_bpp.value;
-    fullscreen = (int)vid_fullscreen.value;
-    fsaa = (int)vid_fsaa.value;
+    int width = (int)vid_width.value;
+    int height = (int)vid_height.value;
+    int refreshrate = (int)vid_refreshrate.value;
+    int bpp = (int)vid_bpp.value;
+    int fullscreen = (int)vid_fullscreen.value;
+    int fsaa = (int)vid_fsaa.value;
 
     if(COM_CheckParm("-current"))
     {
@@ -2057,9 +1641,7 @@ void VID_Toggle()
     // WinXP issue. This will keep all the mode changing code in one place.
     static bool vid_toggle_works = false;
     bool toggleWorked;
-#if defined(USE_SDL2)
     Uint32 flags = 0;
-#endif
 
     S_ClearBuffer();
 
@@ -2080,7 +1662,6 @@ void VID_Toggle()
         goto vrestart;
     }
 
-#if defined(USE_SDL2)
     if(!VID_GetFullscreen())
     {
         flags = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP
@@ -2088,9 +1669,6 @@ void VID_Toggle()
     }
 
     toggleWorked = SDL_SetWindowFullscreen(draw_context, flags) == 0;
-#else
-    toggleWorked = SDL_WM_ToggleFullScreen(draw_context) == 1;
-#endif
 
     if(toggleWorked)
     {
@@ -2190,19 +1768,12 @@ VID_Menu_Init
 */
 static void VID_Menu_Init()
 {
-    int i;
-
-    int j;
-
-    int h;
-
-    int w;
-
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
-        w = modelist[i].width;
-        h = modelist[i].height;
+        const int w = modelist[i].width;
+        const int h = modelist[i].height;
 
+        int j;
         for(j = 0; j < vid_menu_nummodes; j++)
         {
             if(vid_menu_modes[j].width == w && vid_menu_modes[j].height == h)
@@ -2229,15 +1800,9 @@ regenerates bpp list based on current vid_width and vid_height
 */
 static void VID_Menu_RebuildBppList()
 {
-    int i;
-
-    int j;
-
-    int b;
-
     vid_menu_numbpps = 0;
 
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         if(vid_menu_numbpps >= MAX_BPPS_LIST)
         {
@@ -2251,8 +1816,9 @@ static void VID_Menu_RebuildBppList()
             continue;
         }
 
-        b = modelist[i].bpp;
+        const int b = modelist[i].bpp;
 
+        int j;
         for(j = 0; j < vid_menu_numbpps; j++)
         {
             if(vid_menu_bpps[j] == b)
@@ -2277,6 +1843,7 @@ static void VID_Menu_RebuildBppList()
     }
 
     // if vid_bpp is not in the new list, change vid_bpp
+    int i;
     for(i = 0; i < vid_menu_numbpps; i++)
     {
         if(vid_menu_bpps[i] == (int)(vid_bpp.value))
@@ -2300,15 +1867,9 @@ regenerates rate list based on current vid_width, vid_height and vid_bpp
 */
 static void VID_Menu_RebuildRateList()
 {
-    int i;
-
-    int j;
-
-    int r;
-
     vid_menu_numrates = 0;
 
-    for(i = 0; i < nummodes; i++)
+    for(int i = 0; i < nummodes; i++)
     {
         // rate list is limited to rates available with current
         // width/height/bpp
@@ -2319,8 +1880,9 @@ static void VID_Menu_RebuildRateList()
             continue;
         }
 
-        r = modelist[i].refreshrate;
+        const int r = modelist[i].refreshrate;
 
+        int j;
         for(j = 0; j < vid_menu_numrates; j++)
         {
             if(vid_menu_rates[j] == r)
@@ -2345,6 +1907,7 @@ static void VID_Menu_RebuildRateList()
     }
 
     // if vid_refreshrate is not in the new list, change vid_refreshrate
+    int i;
     for(i = 0; i < vid_menu_numrates; i++)
     {
         if(vid_menu_rates[i] == (int)(vid_refreshrate.value))

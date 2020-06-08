@@ -18,7 +18,7 @@ void() SetMovedir =
         self.movedir = '0 0 -1';
     else
     {
-        makevectors (self.angles);
+        makevectors(self.angles);
         self.movedir = v_forward;
     }
 
@@ -37,7 +37,7 @@ void() InitTrigger =
     if(self.angles != '0 0 0')
         SetMovedir();
     self.solid = SOLID_TRIGGER;
-    setmodel (self, self.model);    // set size and link into world
+    setmodel(self, self.model);    // set size and link into world
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
     self.model = "";
@@ -53,7 +53,7 @@ self.origin traveling at speed
 */
 void(entity ent, vector tdest, float tspeed, void() func) SUB_CalcMoveEnt =
 {
-local entity    stemp;
+entity    stemp;
     stemp = self;
     self = ent;
 
@@ -63,8 +63,8 @@ local entity    stemp;
 
 void(vector tdest, float tspeed, void() func) SUB_CalcMove =
 {
-local vector    vdestdelta;
-local float        len, traveltime;
+vector    vdestdelta;
+float        len, traveltime;
 
     if(!tspeed)
         objerror("No speed is defined!");
@@ -84,7 +84,7 @@ local float        len, traveltime;
     vdestdelta = tdest - self.origin;
 
 // calculate length of vector
-    len = vlen (vdestdelta);
+    len = vlen(vdestdelta);
 
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
@@ -130,7 +130,7 @@ The calling function should make sure self.think is valid
 */
 void(entity ent, vector destangle, float tspeed, void() func) SUB_CalcAngleMoveEnt =
 {
-local entity        stemp;
+entity        stemp;
     stemp = self;
     self = ent;
     SUB_CalcAngleMove (destangle, tspeed, func);
@@ -139,8 +139,8 @@ local entity        stemp;
 
 void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove =
 {
-local vector    destdelta;
-local float        len, traveltime;
+vector    destdelta;
+float        len, traveltime;
 
     if(!tspeed)
         objerror("No speed is defined!");
@@ -149,7 +149,7 @@ local float        len, traveltime;
     destdelta = destangle - self.angles;
 
 // calculate length of vector
-    len = vlen (destdelta);
+    len = vlen(destdelta);
 
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
@@ -182,10 +182,17 @@ void() SUB_CalcAngleMoveDone =
 
 //=============================================================================
 
+// HONEY
+.entity delayedThink;
+
 void() DelayThink =
 {
     activator = self.enemy;
     SUB_UseTargets();
+
+    // HONEY
+    self.owner.delayedThink = world;
+
     remove(self);
 };
 
@@ -210,7 +217,7 @@ match (string)self.target and call their .use function
 */
 void() SUB_UseTargets =
 {
-    local entity t, stemp, otemp, act;
+    entity t, stemp, otemp, act;
 
 //
 // check for a delay
@@ -226,6 +233,11 @@ void() SUB_UseTargets =
         t.message = self.message;
         t.killtarget = self.killtarget;
         t.target = self.target;
+
+        // HONEY
+        t.owner = self;
+        self.delayedThink = t;
+
         return;
     }
 
@@ -235,7 +247,7 @@ void() SUB_UseTargets =
 //
     if(activator.classname == "player" && self.message != "")
     {
-        centerprint (activator, self.message);
+        centerprint(activator, self.message);
         if(!self.noise)
             sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
@@ -243,31 +255,47 @@ void() SUB_UseTargets =
 //
 // kill the killtagets
 //
-    if(self.killtarget)
+    if(self.killtarget != NULLSTR)
     {
-        t = world;
-        do
+        t = find(world, targetname, self.killtarget);
+        while(t)
         {
-            t = find (t, targetname, self.killtarget);
-            if(!t)
-                return;
-            remove (t);
-        } while( 1 );
+            // HONEY
+            if(t.delayedThink) remove(t.delayedThink);
+            if(t.classname == "func_button"){
+                if(t.spawnflags & 1){ //Disableable button spawnflag
+                    button_disable(t);
+                }else{
+                    remove(t);
+                }
+            }else if(t.classname == "func_door_secret"){
+                //Honey hack to stop a secret door killed mid-move to play its noise endlessly
+                //dprint("killed func_door_secret\n");
+                if(t.velocity != '0 0 0')
+                    sound(t, CHAN_VOICE, t.noise3, 1, ATTN_NORM);
+                remove(t);
+            }else if(t.flags & FL_MONSTER && t.health > 0){
+                Killed (t, activator);
+            }else{
+                remove (t);
+            }
+            t = find(t, targetname, self.killtarget);
+        }
     }
 
 //
 // fire targets
 //
-    if(self.target)
+    if(self.target != NULLSTR)
     {
         act = activator;
         t = world;
         do
         {
-            t = find (t, targetname, self.target);
+            t = find(t, targetname, self.target);
             if(!t)
             {
-                return;
+                break;
             }
             stemp = self;
             otemp = other;
@@ -281,7 +309,7 @@ void() SUB_UseTargets =
             self = stemp;
             other = otemp;
             activator = act;
-        } while( 1 );
+        } while(1);
     }
 
 

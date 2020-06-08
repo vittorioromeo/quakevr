@@ -1,5 +1,4 @@
-#ifndef __WSAERROR_H__
-#define __WSAERROR_H__
+#pragma once
 
 /* strings for winsock error codes.
  * from online references, such as
@@ -111,4 +110,3 @@
     }
 }
 
-#endif

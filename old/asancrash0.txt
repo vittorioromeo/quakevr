@@ -1,0 +1,55 @@
+=================================================================
+==42788==ERROR: AddressSanitizer: SEGV on unknown address 0x7f6ac96b88f9 (pc 0x56026e8a5c34 bp 0x7ffe9e7d6250 sp 0x7ffe9e7d44a0 T0)
+==42788==The signal is caused by a READ memory access.
+    #0 0x56026e8a5c33 in PR_ExecuteProgram(int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/pr_exec.cpp
+    #1 0x56026e9df578 in bool SV_RunThinkImpl<&entvars_s::nextthink, &entvars_s::think, true>(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:160
+    #2 0x56026e9b31e4 in SV_RunThink(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:187
+    #3 0x56026e9d8cb7 in SV_Physics_Step(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1605
+    #4 0x56026e9d93e2 in SV_Physics() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1679
+    #5 0x56026e736d02 in Host_ServerFrame() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:777
+    #6 0x56026e737063 in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:871
+    #7 0x56026e737320 in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:950
+    #8 0x56026e77c7ff in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:201
+    #9 0x7f6a9df4c022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)
+    #10 0x56026e500f0d in _start (/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/buildlx/quakespasm-sdl2+0xb3f0d)
+
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/pr_exec.cpp in PR_ExecuteProgram(int)
+==42788==ABORTING
+
+
+
+=================================================================
+==43203==ERROR: AddressSanitizer: SEGV on unknown address 0x7f6220dfc980 (pc 0x55fb875ba874 bp 0x7ffdafd69cb0 sp 0x7ffdafd67f00 T0)
+==43203==The signal is caused by a READ memory access.
+    #0 0x55fb875ba873 in PR_ExecuteProgram(int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/pr_exec.cpp
+    #1 0x55fb876f464d in bool SV_RunThinkImpl<&entvars_s::nextthink, &entvars_s::think, true>(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:165
+    #2 0x55fb876c81e4 in SV_RunThink(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:192
+    #3 0x55fb876edcb7 in SV_Physics_Step(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1610
+    #4 0x55fb876ee3e2 in SV_Physics() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1684
+    #5 0x55fb8744bd02 in Host_ServerFrame() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:777
+    #6 0x55fb8744c063 in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:871
+    #7 0x55fb8744c320 in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:950
+    #8 0x55fb874917ff in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:201
+    #9 0x7f628411d022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)
+    #10 0x55fb87215f0d in _start (/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/buildlx/quakespasm-sdl2+0xb3f0d)
+
+
+
+================================================================
+==43979==ERROR: AddressSanitizer: SEGV on unknown address 0x7f11d0ef3328 (pc 0x56422a560237 bp 0x7ffd17eef950 sp 0x7ffd17eef8f0 T0)
+==43979==The signal is caused by a READ memory access.
+    #0 0x56422a560236 in PR_ExecuteProgram(int) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/pr_exec.cpp:544
+    #1 0x56422a63f66a in bool SV_RunThinkImpl<&entvars_s::nextthink, &entvars_s::think, true>(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:165
+    #2 0x56422a620bdc in SV_RunThink(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:192
+    #3 0x56422a63e10d in SV_Physics_Step(edict_t*) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1610
+    #4 0x56422a63e622 in SV_Physics() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/sv_phys.cpp:1684
+    #5 0x56422a44c2d1 in Host_ServerFrame() /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:777
+    #6 0x56422a44c546 in _Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:871
+    #7 0x56422a44c7ee in Host_Frame(float) /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/host.cpp:950
+    #8 0x56422a47ce7b in main /run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Quake/main_sdl.cpp:201
+    #9 0x7f12344f3022 in __libc_start_main (/usr/lib/libc.so.6+0x27022)
+    #10 0x56422a28250d in _start (/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/buildlx/quakespasm-sdl2+0x18e50d)
+
+
+Host_Error: NUM_FOR_EDICT: bad pointer

@@ -22,13 +22,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // wad.c
 
-#include "quakedef.hpp"
+#include "wad.hpp"
+
+#include "q_stdinc.hpp"
+#include "qpic.hpp"
+#include "common.hpp"
+#include "sys.hpp"
+#include "console.hpp"
+#include "byteorder.hpp"
 
 int wad_numlumps;
 lumpinfo_t* wad_lumps;
 byte* wad_base = nullptr;
-
-
 
 /*
 ==================

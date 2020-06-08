@@ -23,9 +23,29 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cl_parse.c  -- parse a message received from the server
 
+#include "common.hpp"
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "vr.hpp"
+#include "worldtext.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
+#include "sbar.hpp"
+#include "net.hpp"
+#include "mathlib.hpp"
+#include "glquake.hpp"
+#include "protocol.hpp"
+#include "msg.hpp"
+#include "sys.hpp"
+#include "server.hpp"
+#include "q_sound.hpp"
+#include "screen.hpp"
+#include "cmd.hpp"
+#include "client.hpp"
+
+#include <limits>
 
 const char* svc_strings[] = {
     "svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",
@@ -60,32 +80,32 @@ const char* svc_strings[] = {
     "svc_cdtrack", // [byte] track [byte] looptrack
     "svc_sellscreen", "svc_cutscene",
     // johnfitz -- new server messages
-    "",                      // 35
-    "",                      // 36
-    "svc_skybox",            // 37					// [string] skyname
-    "",                      // 38
-    "",                      // 39
-    "svc_bf",                // 40						// no data
-    "svc_fog",               // 41					// [byte] density [byte] red [byte]
-                             // green [byte] blue [float] time
-    "svc_spawnbaseline2",    // 42			// support for large modelindex, large
-                             // framenum, alpha, using flags
-    "svc_spawnstatic2",      // 43			// support for large modelindex, large
-                             // framenum, alpha, using flags
-    "svc_spawnstaticsound2", //	44		// [coord3] [short] samp [byte] vol
-                             //[byte] aten
-    "svc_particle2",         // 45
-    "",                      // 46
-    "",                      // 47
-    "",                      // 48
-    "",                      // 49
-    "",                      // 50
+    "",                         // 35
+    "",                         // 36
+    "svc_skybox",               // 37					// [string] skyname
+    "",                         // 38
+    "",                         // 39
+    "svc_bf",                   // 40						// no data
+    "svc_fog",                  // 41					// [byte] density [byte] red [byte]
+                                // green [byte] blue [float] time
+    "svc_spawnbaseline2",       // 42			// support for large modelindex, large
+                                // framenum, alpha, using flags
+    "svc_spawnstatic2",         // 43			// support for large modelindex, large
+                                // framenum, alpha, using flags
+    "svc_spawnstaticsound2",    //	44		// [coord3] [short] samp [byte] vol
+                                //[byte] aten
+    "svc_particle2",            // 45
+    "svc_worldtext_hmake",      // 46
+    "svc_worldtext_hsettext",   // 47
+    "svc_worldtext_hsetpos",    // 48
+    "svc_worldtext_hsetangles", // 49
+    "svc_worldtext_hsethalign", // 50
     // johnfitz
 };
 
 bool warn_about_nehahra_protocol; // johnfitz
 
-extern glm::vec3 v_punchangles[2]; // johnfitz
+extern qvec3 v_punchangles[2]; // johnfitz
 
 //=============================================================================
 
@@ -132,17 +152,9 @@ CL_ParseStartSoundPacket
 */
 void CL_ParseStartSoundPacket()
 {
-    glm::vec3 pos;
-    int channel;
-
-    int ent;
-    int sound_num;
+    int field_mask = MSG_ReadByte();
     int volume;
-    int field_mask;
     float attenuation;
-    int i;
-
-    field_mask = MSG_ReadByte();
 
     if(field_mask & SND_VOLUME)
     {
@@ -163,6 +175,8 @@ void CL_ParseStartSoundPacket()
     }
 
     // johnfitz -- PROTOCOL_FITZQUAKE
+    int ent;
+    int channel;
     if(field_mask & SND_LARGEENTITY)
     {
         ent = (unsigned short)MSG_ReadShort();
@@ -175,6 +189,7 @@ void CL_ParseStartSoundPacket()
         channel &= 7;
     }
 
+    int sound_num;
     if(field_mask & SND_LARGESOUND)
     {
         sound_num = (unsigned short)MSG_ReadShort();
@@ -198,10 +213,7 @@ void CL_ParseStartSoundPacket()
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
-    for(i = 0; i < 3; i++)
-    {
-        pos[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    const qvec3 pos = MSG_ReadVec3(cl.protocolflags);
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
         volume / 255.0, attenuation);
@@ -304,6 +316,7 @@ void CL_ParseServerInfo()
     // wipe the client_state_t struct
     //
     CL_ClearState();
+    VR_OnClientClearState();
 
     // parse protocol version number
     i = MSG_ReadLong();
@@ -628,11 +641,8 @@ void CL_ParseUpdate(int bits)
         else
         {
             target[index] = baselineData[index];
-        };
+        }
     };
-
-    // TODO VR: (P1) remove, this should be set only when scale changes
-    bits |= U_SCALE;
 
     // clang-format off
     doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);
@@ -650,9 +660,7 @@ void CL_ParseUpdate(int bits)
 
     if(bits & U_SCALE)
     {
-        ent->scale_origin[0] = MSG_ReadCoord(cl.protocolflags);
-        ent->scale_origin[1] = MSG_ReadCoord(cl.protocolflags);
-        ent->scale_origin[2] = MSG_ReadCoord(cl.protocolflags);
+        ent->scale_origin = MSG_ReadVec3(cl.protocolflags);
     }
 
     // johnfitz -- lerping for movetype_step entities
@@ -719,7 +727,7 @@ void CL_ParseUpdate(int bits)
             b = MSG_ReadFloat(); // alpha
             if(a == 2)
             {
-                MSG_ReadFloat(); // fullbright (not using this yet)
+                (void)MSG_ReadFloat(); // fullbright (not using this yet)
             }
             ent->alpha = ENTALPHA_ENCODE(b);
         }
@@ -817,13 +825,9 @@ Server information pertaining to this client only
 */
 void CL_ParseClientdata()
 {
-    int i;
-
-    int j;
-    int bits; // johnfitz
-
-    bits = (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
-                                         // of in CL_ParseServerMessage()
+    int bits =
+        (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
+                                      // of in CL_ParseServerMessage()
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(bits & SU_EXTEND1)
@@ -855,7 +859,7 @@ void CL_ParseClientdata()
     }
 
     cl.mvelocity[1] = cl.mvelocity[0];
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         if(bits & (SU_PUNCH1 << i))
         {
@@ -887,13 +891,14 @@ void CL_ParseClientdata()
     // johnfitz
 
     // [always sent]	if (bits & SU_ITEMS)
-    i = MSG_ReadLong();
+    int i = MSG_ReadLong();
 
+    // TODO VR: (P1) should we send other item flags as well?
     if(cl.items != i)
     {
         // set flash times
         Sbar_Changed();
-        for(j = 0; j < 32; j++)
+        for(int j = 0; j < 32; j++)
         {
             if((i & (1 << j)) && !(cl.items & (1 << j)))
             {
@@ -978,9 +983,9 @@ void CL_ParseClientdata()
         Sbar_Changed();
     }
 
-    for(i = 0; i < 4; i++)
+    for(int i = 0; i < 4; i++)
     {
-        j = MSG_ReadByte();
+        int j = MSG_ReadByte();
         if(cl.stats[STAT_SHELLS + i] != j)
         {
             cl.stats[STAT_SHELLS + i] = j;
@@ -1075,22 +1080,33 @@ void CL_ParseClientdata()
     // TODO VR: (P2) weapon ids in holsters - not sure what this todo is
     // checking, need to check what is being sent. I think model strings are
     // being sent and used as keys...
-    cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
-    cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+    if(bits & SU_VR_HOLSTERS)
+    {
+        cl.stats[STAT_HOLSTERWEAPON0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONFLAGS5] = MSG_ReadByte();
+    }
 
     // TODO VR: (P2) some data is sent twice, can optimize for MP
     cl.stats[STAT_MAINHAND_WID] = MSG_ReadByte();
     cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONFLAGS] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONFLAGS2] = MSG_ReadByte();
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of
@@ -1211,18 +1227,14 @@ CL_ParseStaticSound
 */
 void CL_ParseStaticSound(int version) // johnfitz -- added argument
 {
-    glm::vec3 org;
+    qvec3 org;
     int sound_num;
 
     int vol;
 
     int atten;
-    int i;
 
-    for(i = 0; i < 3; i++)
-    {
-        org[i] = MSG_ReadCoord(cl.protocolflags);
-    }
+    org = MSG_ReadVec3(cl.protocolflags);
 
     // johnfitz -- PROTOCOL_FITZQUAKE
     if(version == 2)
@@ -1589,6 +1601,36 @@ void CL_ParseServerMessage()
                 CL_ParseStaticSound(2);
                 break;
                 // johnfitz
+
+            case svc_worldtext_hmake:
+            {
+                cl.OnMsg_WorldTextHMake();
+                break;
+            }
+
+            case svc_worldtext_hsettext:
+            {
+                cl.OnMsg_WorldTextHSetText();
+                break;
+            }
+
+            case svc_worldtext_hsetpos:
+            {
+                cl.OnMsg_WorldTextHSetPos();
+                break;
+            }
+
+            case svc_worldtext_hsetangles:
+            {
+                cl.OnMsg_WorldTextHSetAngles();
+                break;
+            }
+
+            case svc_worldtext_hsethalign:
+            {
+                cl.OnMsg_WorldTextHSetHAlign();
+                break;
+            }
         }
 
         lastcmd = cmd; // johnfitz

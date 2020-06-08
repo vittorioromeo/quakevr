@@ -21,26 +21,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SBAR_H
-#define _QUAKE_SBAR_H
+#pragma once
 
 // the status bar is only redrawn if something has changed, but if anything
 // does, the entire thing will be redrawn for the next vid.numpages frames.
 
 extern int sb_lines; // scan lines to draw
 
-void Sbar_Init(void);
-void Sbar_LoadPics(void);
+void Sbar_Init();
+void Sbar_LoadPics();
 
-void Sbar_Changed(void);
+void Sbar_Changed();
 // call whenever any of the client stats represented on the sbar changes
 
-void Sbar_Draw(void);
+void Sbar_Draw();
 // called every frame by screen
 
-void Sbar_IntermissionOverlay(void);
+void Sbar_IntermissionOverlay();
 // called each frame after the level has been completed
 
-void Sbar_FinaleOverlay(void);
-
-#endif /* _QUAKE_SBAR_H */
+void Sbar_FinaleOverlay();

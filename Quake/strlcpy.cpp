@@ -17,7 +17,7 @@
  */
 
 #include <sys/types.h>
-#include <string.h>
+#include <cstring>
 
 #include "strl_fn.hpp"
 

@@ -27,7 +27,7 @@
 #ifndef FILENAMES_H
 #define FILENAMES_H
 
-#include <string.h>
+#include <cstring>
 
 /* ---------------------- Windows, DOS, OS2: ---------------------- */
 #if defined(__MSDOS__) || defined(__DOS__) || defined(__DJGPP__) || \

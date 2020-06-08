@@ -31,7 +31,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #else
 #include <unistd.h>
 #endif
+
 #include "quakedef.hpp"
+#include "quakeparms.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "qpic.hpp"
+#include "glquake.hpp"
+#include "menu.hpp"
+#include "keys.hpp"
+#include "client.hpp"
+#include "input.hpp"
+#include "screen.hpp"
+#include "q_sound.hpp"
+#include "zone.hpp"
+#include "sys.hpp"
+#include "draw.hpp"
 
 int con_linewidth;
 
@@ -1241,8 +1257,8 @@ void Con_DrawNotify()
     const char* text;
     float time;
 
-    GL_SetCanvas(CANVAS_CONSOLE); // johnfitz
-    v = vid.conheight;            // johnfitz
+    GL_SetCanvas(CANVAS_NOTIFY); // johnfitz
+    v = vid.conheight;           // johnfitz
 
     for(i = con_current - NUM_CON_TIMES + 1; i <= con_current; i++)
     {
@@ -1382,7 +1398,7 @@ void Con_DrawConsole(int lines, bool drawinput)
 
     int rows;
     const char* text;
-    char ver[32];
+    char ver[64];
 
     if(lines <= 0)
     {

@@ -23,9 +23,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cvar.c -- dynamic variable tracking
 
 #include "quakedef.hpp"
+#include "cvar.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "zone.hpp"
+#include "common.hpp"
+
+#include <vector>
 
 static cvar_t* cvar_vars;
 static char cvar_null_string[] = "";
+static std::vector<cvar_t*> cvar_handles;
 
 //==============================================================================
 //
@@ -42,11 +50,8 @@ Cvar_List_f -- johnfitz
 */
 void Cvar_List_f()
 {
-    cvar_t* cvar;
     const char* partial;
     int len;
-
-    int count;
 
     if(Cmd_Argc() > 1)
     {
@@ -59,8 +64,8 @@ void Cvar_List_f()
         len = 0;
     }
 
-    count = 0;
-    for(cvar = cvar_vars; cvar; cvar = cvar->next)
+    int count = 0;
+    for(cvar_t* cvar = cvar_vars; cvar; cvar = cvar->next)
     {
         if(partial && Q_strncmp(partial, cvar->name, len))
         {
@@ -73,10 +78,12 @@ void Cvar_List_f()
     }
 
     Con_SafePrintf("%i cvars", count);
+
     if(partial)
     {
         Con_SafePrintf(" beginning with \"%s\"", partial);
     }
+
     Con_SafePrintf("\n");
 }
 
@@ -204,9 +211,7 @@ Cvar_ResetAll_f -- johnfitz
 */
 void Cvar_ResetAll_f()
 {
-    cvar_t* var;
-
-    for(var = cvar_vars; var; var = var->next)
+    for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         Cvar_Reset(var->name);
     }
@@ -219,9 +224,7 @@ Cvar_ResetCfg_f -- QuakeSpasm
 */
 void Cvar_ResetCfg_f()
 {
-    cvar_t* var;
-
-    for(var = cvar_vars; var; var = var->next)
+    for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         if(var->flags & CVAR_ARCHIVE)
         {
@@ -251,6 +254,8 @@ void Cvar_Init()
     Cmd_AddCommand("reset", Cvar_Reset_f);
     Cmd_AddCommand("resetall", Cvar_ResetAll_f);
     Cmd_AddCommand("resetcfg", Cvar_ResetCfg_f);
+
+    cvar_handles.reserve(128);
 }
 
 //==============================================================================
@@ -266,9 +271,7 @@ Cvar_FindVar
 */
 cvar_t* Cvar_FindVar(const char* var_name)
 {
-    cvar_t* var;
-
-    for(var = cvar_vars; var; var = var->next)
+    for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         if(!Q_strcmp(var_name, var->name))
         {
@@ -306,6 +309,7 @@ cvar_t* Cvar_FindVarAfter(const char* prev_name, unsigned int with_flags)
         }
         var = var->next;
     }
+
     return var;
 }
 
@@ -316,8 +320,7 @@ Cvar_LockVar
 */
 void Cvar_LockVar(const char* var_name)
 {
-    cvar_t* var = Cvar_FindVar(var_name);
-    if(var)
+    if(cvar_t* var = Cvar_FindVar(var_name))
     {
         var->flags |= CVAR_LOCKED;
     }
@@ -325,8 +328,7 @@ void Cvar_LockVar(const char* var_name)
 
 void Cvar_UnlockVar(const char* var_name)
 {
-    cvar_t* var = Cvar_FindVar(var_name);
-    if(var)
+    if(cvar_t* var = Cvar_FindVar(var_name))
     {
         var->flags &= ~CVAR_LOCKED;
     }
@@ -334,9 +336,7 @@ void Cvar_UnlockVar(const char* var_name)
 
 void Cvar_UnlockAll()
 {
-    cvar_t* var;
-
-    for(var = cvar_vars; var; var = var->next)
+    for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         var->flags &= ~CVAR_LOCKED;
     }
@@ -349,13 +349,13 @@ Cvar_VariableValue
 */
 float Cvar_VariableValue(const char* var_name)
 {
-    cvar_t* var;
+    cvar_t* var = Cvar_FindVar(var_name);
 
-    var = Cvar_FindVar(var_name);
     if(!var)
     {
         return 0;
     }
+
     return Q_atof(var->string);
 }
 
@@ -367,13 +367,13 @@ Cvar_VariableString
 */
 const char* Cvar_VariableString(const char* var_name)
 {
-    cvar_t* var;
+    cvar_t* var = Cvar_FindVar(var_name);
 
-    var = Cvar_FindVar(var_name);
     if(!var)
     {
         return cvar_null_string;
     }
+
     return var->string;
 }
 
@@ -385,17 +385,14 @@ Cvar_CompleteVariable
 */
 const char* Cvar_CompleteVariable(const char* partial)
 {
-    cvar_t* cvar;
-    int len;
-
-    len = Q_strlen(partial);
+    const int len = Q_strlen(partial);
     if(!len)
     {
         return nullptr;
     }
 
     // check functions
-    for(cvar = cvar_vars; cvar; cvar = cvar->next)
+    for(cvar_t* cvar = cvar_vars; cvar; cvar = cvar->next)
     {
         if(!Q_strncmp(partial, cvar->name, len))
         {
@@ -413,9 +410,8 @@ Cvar_Reset -- johnfitz
 */
 void Cvar_Reset(const char* name)
 {
-    cvar_t* var;
+    cvar_t* var = Cvar_FindVar(name);
 
-    var = Cvar_FindVar(name);
     if(!var)
     {
         Con_Printf("variable \"%s\" not found\n", name);
@@ -432,6 +428,7 @@ void Cvar_SetQuick(cvar_t* var, const char* value)
     {
         return;
     }
+
     if(!(var->flags & CVAR_REGISTERED))
     {
         return;
@@ -487,8 +484,6 @@ void Cvar_SetValueQuick(cvar_t* var, const float value)
 {
     char val[32];
 
-    char* ptr = val;
-
     if(value == (float)((int)value))
     {
         q_snprintf(val, sizeof(val), "%i", (int)value);
@@ -496,7 +491,9 @@ void Cvar_SetValueQuick(cvar_t* var, const float value)
     else
     {
         q_snprintf(val, sizeof(val), "%f", value);
+
         // kill trailing zeroes
+        char* ptr = val;
         while(*ptr)
         {
             ptr++;
@@ -517,9 +514,8 @@ Cvar_Set
 */
 void Cvar_Set(const char* var_name, const char* value)
 {
-    cvar_t* var;
+    cvar_t* var = Cvar_FindVar(var_name);
 
-    var = Cvar_FindVar(var_name);
     if(!var)
     {
         // there is an error in C code if this happens
@@ -539,8 +535,6 @@ void Cvar_SetValue(const char* var_name, const float value)
 {
     char val[32];
 
-    char* ptr = val;
-
     if(value == (float)((int)value))
     {
         q_snprintf(val, sizeof(val), "%i", (int)value);
@@ -548,7 +542,9 @@ void Cvar_SetValue(const char* var_name, const float value)
     else
     {
         q_snprintf(val, sizeof(val), "%f", value);
+
         // kill trailing zeroes
+        char* ptr = val;
         while(*ptr)
         {
             ptr++;
@@ -569,8 +565,7 @@ Cvar_SetROM
 */
 void Cvar_SetROM(const char* var_name, const char* value)
 {
-    cvar_t* var = Cvar_FindVar(var_name);
-    if(var)
+    if(cvar_t* var = Cvar_FindVar(var_name))
     {
         var->flags &= ~CVAR_ROM;
         Cvar_SetQuick(var, value);
@@ -585,8 +580,7 @@ Cvar_SetValueROM
 */
 void Cvar_SetValueROM(const char* var_name, const float value)
 {
-    cvar_t* var = Cvar_FindVar(var_name);
-    if(var)
+    if(cvar_t* var = Cvar_FindVar(var_name))
     {
         var->flags &= ~CVAR_ROM;
         Cvar_SetValueQuick(var, value);
@@ -603,12 +597,6 @@ Adds a freestanding variable to the variable list.
 */
 void Cvar_RegisterVariable(cvar_t* variable)
 {
-    char value[512];
-    bool set_rom;
-    cvar_t* cursor;
-
-    cvar_t* prev; // johnfitz -- sorted list insert
-
     // first check to see if it has already been defined
     if(Cvar_FindVar(variable->name))
     {
@@ -634,13 +622,15 @@ void Cvar_RegisterVariable(cvar_t* variable)
     }
     else // insert later
     {
-        prev = cvar_vars;
-        cursor = cvar_vars->next;
+        cvar_t* prev = cvar_vars;
+        cvar_t* cursor = cvar_vars->next;
+
         while(cursor && (strcmp(variable->name, cursor->name) > 0))
         {
             prev = cursor;
             cursor = cursor->next;
         }
+
         variable->next = prev->next;
         prev->next = variable;
     }
@@ -648,6 +638,7 @@ void Cvar_RegisterVariable(cvar_t* variable)
     variable->flags |= CVAR_REGISTERED;
 
     // copy the value off, because future sets will Z_Free it
+    char value[512];
     q_strlcpy(value, variable->string, sizeof(value));
     variable->string = nullptr;
     variable->default_string = nullptr;
@@ -658,9 +649,10 @@ void Cvar_RegisterVariable(cvar_t* variable)
     }
 
     // set it through the function to be consistent
-    set_rom = (variable->flags & CVAR_ROM);
+    const bool set_rom = (variable->flags & CVAR_ROM);
     variable->flags &= ~CVAR_ROM;
     Cvar_SetQuick(variable, value);
+
     if(set_rom)
     {
         variable->flags |= CVAR_ROM;
@@ -677,6 +669,7 @@ Set a callback function to the var
 void Cvar_SetCallback(cvar_t* var, cvarcallback_t func)
 {
     var->callback = func;
+
     if(func)
     {
         var->flags |= CVAR_CALLBACK;
@@ -696,10 +689,8 @@ Handles variable inspection and changing from the console
 */
 bool Cvar_Command()
 {
-    cvar_t* v;
-
     // check variables
-    v = Cvar_FindVar(Cmd_Argv(0));
+    cvar_t* v = Cvar_FindVar(Cmd_Argv(0));
     if(!v)
     {
         return false;
@@ -727,13 +718,51 @@ with the archive flag set to true.
 */
 void Cvar_WriteVariables(FILE* f)
 {
-    cvar_t* var;
-
-    for(var = cvar_vars; var; var = var->next)
+    for(cvar_t* var = cvar_vars; var; var = var->next)
     {
         if(var->flags & CVAR_ARCHIVE)
         {
             fprintf(f, "%s \"%s\"\n", var->name, var->string);
         }
     }
+}
+
+// VR: CVar handles.
+int Cvar_MakeHandle(const char* var_name)
+{
+    if(cvar_t* var = Cvar_FindVar(var_name))
+    {
+        cvar_handles.emplace_back(var);
+        return cvar_handles.size() - 1;
+    }
+
+    Con_Printf("Attempted to make handle for invalid CVar '%s'\n", var_name);
+    return -1;
+}
+
+float Cvar_GetValueFromHandle(const int handle)
+{
+    if(handle < 0 || handle >= static_cast<int>(cvar_handles.size()))
+    {
+        Con_Printf("Attempted to get CVar from invalid handle '%d'\n", handle);
+        return 0;
+    }
+
+    return cvar_handles[handle]->value;
+}
+
+void Cvar_SetValueFromHandle(const int handle, const float value)
+{
+    if(handle < 0 || handle >= static_cast<int>(cvar_handles.size()))
+    {
+        Con_Printf("Attempted to set CVar from invalid handle '%d'\n", handle);
+        return;
+    }
+
+    Cvar_SetValueQuick(cvar_handles[handle], value);
+}
+
+void Cvar_ClearAllHandles()
+{
+    cvar_handles.clear();
 }

@@ -23,10 +23,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // common.c -- misc functions used in client and server
 
-#include "quakedef.hpp"
+#include "common.hpp"
+#include "host.hpp"
 #include "q_ctype.hpp"
-#include <errno.h>
+#include "cmd.hpp"
+#include "console.hpp"
+#include "zone.hpp"
+#include "quakeparms.hpp"
+#include "crc.hpp"
+#include "net.hpp"
+#include "mathlib.hpp"
+#include "glquake.hpp"
+#include "zone.hpp"
+#include "sizebuf.hpp"
+#include "msg.hpp"
 #include "vr.hpp"
+#include "byteorder.hpp"
+#include "vr_cvars.hpp"
+#include "sys.hpp"
+#include "client.hpp"
+#include "draw.hpp"
+#include "gl_texmgr.hpp"
+
+#include <cerrno>
+#include <string_view>
+#include <string>
+#include <vector>
 
 static char* largv[MAX_NUM_ARGVS + 1];
 static char argvdummy[] = " ";
@@ -40,8 +62,6 @@ cvar_t cmdline = {
                                                       CCREQ_RULE_INFO is evil */
 
 static bool com_modified; // set true if using non-id files
-
-bool fitzmode;
 
 static void COM_Path_f();
 
@@ -61,6 +81,7 @@ char** com_argv;
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
 char com_cmdline[CMDLINE_LENGTH];
 
+// TODO VR: (P1) remove rogue/hipnotic special cases
 bool standard_quake = true, rogue, hipnotic;
 
 // this graphic needs to be in the pak file to use registered features
@@ -650,533 +671,6 @@ float Q_atof(const char* str)
     return val * sign;
 }
 
-/*
-============================================================================
-
-                    BYTE ORDER FUNCTIONS
-
-============================================================================
-*/
-
-bool host_bigendian;
-
-short (*BigShort)(short l);
-short (*LittleShort)(short l);
-int (*BigLong)(int l);
-int (*LittleLong)(int l);
-float (*BigFloat)(float l);
-float (*LittleFloat)(float l);
-
-short ShortSwap(short l)
-{
-    byte b1;
-
-    byte b2;
-
-    b1 = l & 255;
-    b2 = (l >> 8) & 255;
-
-    return (b1 << 8) + b2;
-}
-
-short ShortNoSwap(short l)
-{
-    return l;
-}
-
-int LongSwap(int l)
-{
-    byte b1;
-
-    byte b2;
-
-    byte b3;
-
-    byte b4;
-
-    b1 = l & 255;
-    b2 = (l >> 8) & 255;
-    b3 = (l >> 16) & 255;
-    b4 = (l >> 24) & 255;
-
-    return ((int)b1 << 24) + ((int)b2 << 16) + ((int)b3 << 8) + b4;
-}
-
-int LongNoSwap(int l)
-{
-    return l;
-}
-
-float FloatSwap(float f)
-{
-    union
-    {
-        float f;
-        byte b[4];
-    } dat1, dat2;
-
-
-    dat1.f = f;
-    dat2.b[0] = dat1.b[3];
-    dat2.b[1] = dat1.b[2];
-    dat2.b[2] = dat1.b[1];
-    dat2.b[3] = dat1.b[0];
-    return dat2.f;
-}
-
-float FloatNoSwap(float f)
-{
-    return f;
-}
-
-/*
-==============================================================================
-
-            MESSAGE IO FUNCTIONS
-
-Handles byte ordering and avoids alignment errors
-==============================================================================
-*/
-
-//
-// writing functions
-//
-
-void MSG_WriteChar(sizebuf_t* sb, int c)
-{
-    byte* buf;
-
-#ifdef PARANOID
-    // TODO VR: (P2) always fires
-    // if(c < -128 || c > 127) Sys_Error("MSG_WriteChar: range error");
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 1);
-    buf[0] = c;
-}
-
-void MSG_WriteByte(sizebuf_t* sb, int c)
-{
-    byte* buf;
-
-#ifdef PARANOID
-    // TODO VR: (P2) always fires
-    // if(c < 0 || c > 255) Sys_Error("MSG_WriteByte: range error");
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 1);
-    buf[0] = c;
-}
-
-void MSG_WriteShort(sizebuf_t* sb, int c)
-{
-    byte* buf;
-
-#ifdef PARANOID
-    // TODO VR: (P2) always fires
-    // if(c < ((short)0x8000) || c > (short)0x7fff)
-    //    Sys_Error("MSG_WriteShort: range error");
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 2);
-    buf[0] = c & 0xff;
-    buf[1] = c >> 8;
-}
-
-void MSG_WriteLong(sizebuf_t* sb, int c)
-{
-    byte* buf;
-
-    buf = (byte*)SZ_GetSpace(sb, 4);
-    buf[0] = c & 0xff;
-    buf[1] = (c >> 8) & 0xff;
-    buf[2] = (c >> 16) & 0xff;
-    buf[3] = c >> 24;
-}
-
-void MSG_WriteFloat(sizebuf_t* sb, float f)
-{
-    union
-    {
-        float f;
-        int l;
-    } dat;
-
-    dat.f = f;
-    dat.l = LittleLong(dat.l);
-
-    SZ_Write(sb, &dat.l, 4);
-}
-
-void MSG_WriteString(sizebuf_t* sb, const char* s)
-{
-    if(!s)
-    {
-        SZ_Write(sb, "", 1);
-    }
-    else
-    {
-        SZ_Write(sb, s, Q_strlen(s) + 1);
-    }
-}
-
-// johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
-void MSG_WriteCoord16(sizebuf_t* sb, float f)
-{
-    MSG_WriteShort(sb, Q_rint(f * 8));
-}
-
-// johnfitz -- 16.8 fixed point coords, max range +-32768
-void MSG_WriteCoord24(sizebuf_t* sb, float f)
-{
-    MSG_WriteShort(sb, f);
-    MSG_WriteByte(sb, (int)(f * 255) % 255);
-}
-
-// johnfitz -- 32-bit float coords
-void MSG_WriteCoord32f(sizebuf_t* sb, float f)
-{
-    MSG_WriteFloat(sb, f);
-}
-
-void MSG_WriteCoord(sizebuf_t* sb, float f, unsigned int flags)
-{
-    if(flags & PRFL_FLOATCOORD)
-    {
-        MSG_WriteFloat(sb, f);
-    }
-    else if(flags & PRFL_INT32COORD)
-    {
-        MSG_WriteLong(sb, Q_rint(f * 16));
-    }
-    else if(flags & PRFL_24BITCOORD)
-    {
-        MSG_WriteCoord24(sb, f);
-    }
-    else
-    {
-        MSG_WriteCoord16(sb, f);
-    }
-}
-
-void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags)
-{
-    if(flags & PRFL_FLOATANGLE)
-    {
-        MSG_WriteFloat(sb, f);
-    }
-    else if(flags & PRFL_SHORTANGLE)
-    {
-        MSG_WriteShort(sb, Q_rint(f * 65536.0 / 360.0) & 65535);
-    }
-    else
-    {
-        MSG_WriteByte(
-            sb, Q_rint(f * 256.0 / 360.0) &
-                    255); // johnfitz -- use Q_rint instead of (int)	}
-    }
-}
-
-// johnfitz -- for PROTOCOL_FITZQUAKE
-void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags)
-{
-    if(flags & PRFL_FLOATANGLE)
-    {
-        MSG_WriteFloat(sb, f);
-    }
-    else
-    {
-        MSG_WriteShort(sb, Q_rint(f * 65536.0 / 360.0) & 65535);
-    }
-}
-// johnfitz
-
-//
-// reading functions
-//
-int msg_readcount;
-bool msg_badread;
-
-void MSG_BeginReading()
-{
-    msg_readcount = 0;
-    msg_badread = false;
-}
-
-// returns -1 and sets msg_badread if no more characters are available
-int MSG_ReadChar()
-{
-    int c;
-
-    if(msg_readcount + 1 > net_message.cursize)
-    {
-        msg_badread = true;
-        return -1;
-    }
-
-    c = (signed char)net_message.data[msg_readcount];
-    msg_readcount++;
-
-    return c;
-}
-
-int MSG_ReadByte()
-{
-    int c;
-
-    if(msg_readcount + 1 > net_message.cursize)
-    {
-        msg_badread = true;
-        return -1;
-    }
-
-    c = (unsigned char)net_message.data[msg_readcount];
-    msg_readcount++;
-
-    return c;
-}
-
-int MSG_ReadShort()
-{
-    int c;
-
-    if(msg_readcount + 2 > net_message.cursize)
-    {
-        msg_badread = true;
-        return -1;
-    }
-
-    c = (short)(net_message.data[msg_readcount] +
-                (net_message.data[msg_readcount + 1] << 8));
-
-    msg_readcount += 2;
-
-    return c;
-}
-
-int MSG_ReadLong()
-{
-    int c;
-
-    if(msg_readcount + 4 > net_message.cursize)
-    {
-        msg_badread = true;
-        return -1;
-    }
-
-    c = net_message.data[msg_readcount] +
-        (net_message.data[msg_readcount + 1] << 8) +
-        (net_message.data[msg_readcount + 2] << 16) +
-        (net_message.data[msg_readcount + 3] << 24);
-
-    msg_readcount += 4;
-
-    return c;
-}
-
-float MSG_ReadFloat()
-{
-    union
-    {
-        byte b[4];
-        float f;
-        int l;
-    } dat;
-
-    dat.b[0] = net_message.data[msg_readcount];
-    dat.b[1] = net_message.data[msg_readcount + 1];
-    dat.b[2] = net_message.data[msg_readcount + 2];
-    dat.b[3] = net_message.data[msg_readcount + 3];
-    msg_readcount += 4;
-
-    dat.l = LittleLong(dat.l);
-
-    return dat.f;
-}
-
-const char* MSG_ReadString()
-{
-    static char string[2048];
-    int c;
-    size_t l;
-
-    l = 0;
-    do
-    {
-        c = MSG_ReadByte();
-        if(c == -1 || c == 0)
-        {
-            break;
-        }
-        string[l] = c;
-        l++;
-    } while(l < sizeof(string) - 1);
-
-    string[l] = 0;
-
-    return string;
-}
-
-// johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
-float MSG_ReadCoord16()
-{
-    return MSG_ReadShort() * (1.0 / 8);
-}
-
-// johnfitz -- 16.8 fixed point coords, max range +-32768
-float MSG_ReadCoord24()
-{
-    return MSG_ReadShort() + MSG_ReadByte() * (1.0 / 255);
-}
-
-// johnfitz -- 32-bit float coords
-float MSG_ReadCoord32f()
-{
-    return MSG_ReadFloat();
-}
-
-float MSG_ReadCoord(unsigned int flags)
-{
-    if(flags & PRFL_FLOATCOORD)
-    {
-        return MSG_ReadFloat();
-    }
-    if(flags & PRFL_INT32COORD)
-
-    {
-
-        return MSG_ReadLong() * (1.0 / 16.0);
-    }
-
-    else if(flags & PRFL_24BITCOORD)
-
-    {
-
-        return MSG_ReadCoord24();
-    }
-
-    else
-
-    {
-
-        return MSG_ReadCoord16();
-    }
-}
-
-float MSG_ReadAngle(unsigned int flags)
-{
-    if(flags & PRFL_FLOATANGLE)
-    {
-        return MSG_ReadFloat();
-    }
-    if(flags & PRFL_SHORTANGLE)
-
-    {
-
-        return MSG_ReadShort() * (360.0 / 65536);
-    }
-
-    else
-
-    {
-
-        return MSG_ReadChar() * (360.0 / 256);
-    }
-}
-
-// johnfitz -- for PROTOCOL_FITZQUAKE
-float MSG_ReadAngle16(unsigned int flags)
-{
-    if(flags & PRFL_FLOATANGLE)
-    {
-        return MSG_ReadFloat(); // make sure
-    }
-
-    return MSG_ReadShort() * (360.0 / 65536);
-}
-// johnfitz
-
-//===========================================================================
-
-void SZ_Alloc(sizebuf_t* buf, int startsize)
-{
-    if(startsize < 256)
-    {
-        startsize = 256;
-    }
-    buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
-    buf->maxsize = startsize;
-    buf->cursize = 0;
-}
-
-
-void SZ_Free(sizebuf_t* buf)
-{
-    //	Z_Free (buf->data);
-    //	buf->data = nullptr;
-    //	buf->maxsize = 0;
-    buf->cursize = 0;
-}
-
-void SZ_Clear(sizebuf_t* buf)
-{
-    buf->cursize = 0;
-}
-
-void* SZ_GetSpace(sizebuf_t* buf, int length)
-{
-    void* data;
-
-    if(buf->cursize + length > buf->maxsize)
-    {
-        if(!buf->allowoverflow)
-        {
-            Host_Error(
-                "SZ_GetSpace: overflow without allowoverflow set"); // ericw --
-        }
-        // made
-        // Host_Error
-        // to be
-        // less
-        // annoying
-
-        if(length > buf->maxsize)
-        {
-            Sys_Error("SZ_GetSpace: %i is > full buffer size", length);
-        }
-
-        buf->overflowed = true;
-        Con_Printf("SZ_GetSpace: overflow");
-        SZ_Clear(buf);
-    }
-
-    data = buf->data + buf->cursize;
-    buf->cursize += length;
-
-    return data;
-}
-
-void SZ_Write(sizebuf_t* buf, const void* data, int length)
-{
-    Q_memcpy(SZ_GetSpace(buf, length), data, length);
-}
-
-void SZ_Print(sizebuf_t* buf, const char* data)
-{
-    int len = Q_strlen(data) + 1;
-
-    if(buf->data[buf->cursize - 1])
-    { /* no trailing 0 */
-        Q_memcpy((byte*)SZ_GetSpace(buf, len), data, len);
-    }
-    else
-    { /* write over trailing 0 */
-        Q_memcpy((byte*)SZ_GetSpace(buf, len - 1) - 1, data, len);
-    }
-}
-
-
-//============================================================================
 
 /*
 ============
@@ -1520,6 +1014,7 @@ static void COM_CheckRegistered()
     unsigned short check[128];
     int i;
 
+    // TODO VR: (P1) could use something similar to detect mission packs
     COM_OpenFile("gfx/pop.lmp", &h, nullptr);
 
     if(h == -1)
@@ -1653,55 +1148,8 @@ COM_Init
 */
 void COM_Init()
 {
-    int i = 0x12345678;
-    /*    U N I X */
+    ByteOrder_Init();
 
-    /*
-    BE_ORDER:  12 34 56 78
-           U  N  I  X
-
-    LE_ORDER:  78 56 34 12
-           X  I  N  U
-
-    PDP_ORDER: 34 12 78 56
-           N  U  X  I
-    */
-    if(*(char*)&i == 0x12)
-    {
-        host_bigendian = true;
-    }
-    else if(*(char*)&i == 0x78)
-    {
-        host_bigendian = false;
-    }
-    else
-    { /* if ( *(char *)&i == 0x34 ) */
-        Sys_Error("Unsupported endianism.");
-    }
-
-    if(host_bigendian)
-    {
-        BigShort = ShortNoSwap;
-        LittleShort = ShortSwap;
-        BigLong = LongNoSwap;
-        LittleLong = LongSwap;
-        BigFloat = FloatNoSwap;
-        LittleFloat = FloatSwap;
-    }
-    else /* assumed LITTLE_ENDIAN. */
-    {
-        BigShort = ShortSwap;
-        LittleShort = ShortNoSwap;
-        BigLong = LongSwap;
-        LittleLong = LongNoSwap;
-        BigFloat = FloatSwap;
-        LittleFloat = FloatNoSwap;
-    }
-
-    if(COM_CheckParm("-fitz"))
-    {
-        fitzmode = true;
-    }
 #ifdef _DEBUG
     Cmd_AddCommand("fitztest", FitzTest_f); // johnfitz
 #endif
@@ -1883,13 +1331,6 @@ can be used for detecting a file's presence.
 static int COM_FindFile(
     const char* filename, int* handle, FILE** file, unsigned int* path_id)
 {
-    searchpath_t* search;
-    char netpath[MAX_OSPATH];
-    pack_t* pak;
-    int i;
-
-    int findtime;
-
     if(file && handle)
     {
         Sys_Error("COM_FindFile: both handle and file set");
@@ -1900,14 +1341,24 @@ static int COM_FindFile(
     //
     // search through the path, one element at a time
     //
-    for(search = com_searchpaths; search; search = search->next)
+    for(searchpath_t* search = com_searchpaths; search; search = search->next)
     {
         if(search->pack) /* look through all the pak file elements */
         {
-            pak = search->pack;
-            for(i = 0; i < pak->numfiles; i++)
+            pack_t* pak = search->pack;
+            for(int i = 0; i < pak->numfiles; i++)
             {
                 if(strcmp(pak->files[i].name, filename) != 0)
+                {
+                    continue;
+                }
+
+                // VR: This hack allows multiple "start.bsp" maps to coexist.
+                // The user can decide which one is loaded by setting a CVar.
+                const auto extractedPakName = VR_ExtractPakName(*pak);
+                if(std::strcmp(filename, "maps/start.bsp") == 0 &&
+                    extractedPakName != VR_GetActiveStartPakName() &&
+                    extractedPakName != "pak0")
                 {
                     continue;
                 }
@@ -1940,7 +1391,6 @@ static int COM_FindFile(
 
                     return com_filesize;
                 }
-
                 else /* for COM_FileExists() */
                 {
                     return com_filesize;
@@ -1949,10 +1399,11 @@ static int COM_FindFile(
         }
         else /* check a file in the directory tree */
         {
+            char netpath[MAX_OSPATH];
             q_snprintf(
                 netpath, sizeof(netpath), "%s/%s", search->filename, filename);
 
-            findtime = Sys_FileTime(netpath);
+            const int findtime = Sys_FileTime(netpath);
             if(findtime == -1)
             {
                 continue;
@@ -1965,6 +1416,7 @@ static int COM_FindFile(
 
             if(handle)
             {
+                int i;
                 com_filesize = Sys_FileOpenRead(netpath, &i);
                 *handle = i;
                 return com_filesize;
@@ -2000,10 +1452,12 @@ static int COM_FindFile(
     {
         *handle = -1;
     }
+
     if(file)
     {
         *file = nullptr;
     }
+
     com_filesize = -1;
     return com_filesize;
 }
@@ -2233,6 +1687,22 @@ byte* COM_LoadMallocFile_TextMode_OSPath(const char* path, long* len_out)
     return data;
 }
 
+const char* COM_ParseTimestampNewline(const char* buffer)
+{
+    int tmp;
+    int consumed = 0;
+
+    const int rc = sscanf(buffer, "%d-%d-%d %d:%d:%d\n%n", &tmp, &tmp, &tmp,
+        &tmp, &tmp, &tmp, &consumed);
+
+    if(rc != 6)
+    {
+        return nullptr;
+    }
+
+    return buffer + consumed;
+}
+
 const char* COM_ParseIntNewline(const char* buffer, int* value)
 {
     int consumed = 0;
@@ -2371,6 +1841,7 @@ _add_path:
     search->next = com_searchpaths;
     com_searchpaths = search;
 
+    // VR: This was changed to support non-contiguous `.pak` files.
     for(int i = 0; i < 99; i++)
     {
         char pakfile[MAX_OSPATH];
@@ -2379,7 +1850,7 @@ _add_path:
         pack_t* pak = COM_LoadPackFile(pakfile);
         pack_t* qspak;
 
-        if(i != 0 || path_id != 1 || fitzmode)
+        if(i != 0 || path_id != 1)
         {
             qspak = nullptr;
         }
@@ -2403,7 +1874,7 @@ _add_path:
             search->next = com_searchpaths;
             com_searchpaths = search;
 
-            Con_Printf("Added pakfile to search paths: '%s'\n", pakfile);
+            VR_OnLoadedPak(*pak);
         }
 
         if(qspak)
@@ -2417,8 +1888,8 @@ _add_path:
 
         if(!pak)
         {
-            Con_Printf(
-                "Could not add pakfile to search paths: '%s'\n", pakfile);
+            // Con_Printf(
+            //     "Could not add pakfile to search paths: '%s'\n", pakfile);
         }
     }
 
@@ -2650,6 +2121,7 @@ void COM_InitFilesystem() // johnfitz -- modified based on topaz's tutorial
         com_basedir[j - 1] = 0;
     }
 
+    // VR: This starts loading all the `.pak` files.
     // start up with GAMENAME by default (id1)
     COM_AddGameDirectory(com_basedir, GAMENAME);
 
@@ -2716,197 +2188,4 @@ void COM_InitFilesystem() // johnfitz -- modified based on topaz's tutorial
     }
 
     COM_CheckRegistered();
-}
-
-
-/* The following FS_*() stdio replacements are necessary if one is
- * to perform non-sequential reads on files reopened on pak files
- * because we need the bookkeeping about file start/end positions.
- * Allocating and filling in the fshandle_t structure is the users'
- * responsibility when the file is initially opened. */
-
-size_t FS_fread(void* ptr, size_t size, size_t nmemb, fshandle_t* fh)
-{
-    long byte_size;
-    long bytes_read;
-    size_t nmemb_read;
-
-    if(!fh)
-    {
-        errno = EBADF;
-        return 0;
-    }
-    if(!ptr)
-    {
-        errno = EFAULT;
-        return 0;
-    }
-    if(!size || !nmemb)
-    { /* no error, just zero bytes wanted */
-        errno = 0;
-        return 0;
-    }
-
-    byte_size = nmemb * size;
-    if(byte_size > fh->length - fh->pos)
-    { /* just read to end */
-        byte_size = fh->length - fh->pos;
-    }
-    bytes_read = fread(ptr, 1, byte_size, fh->file);
-    fh->pos += bytes_read;
-
-    /* fread() must return the number of elements read,
-     * not the total number of bytes. */
-    nmemb_read = bytes_read / size;
-    /* even if the last member is only read partially
-     * it is counted as a whole in the return value. */
-    if(bytes_read % size)
-    {
-        nmemb_read++;
-    }
-
-    return nmemb_read;
-}
-
-int FS_fseek(fshandle_t* fh, long offset, int whence)
-{
-    /* I don't care about 64 bit off_t or fseeko() here.
-     * the quake/hexen2 file system is 32 bits, anyway. */
-    int ret;
-
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-
-    /* the relative file position shouldn't be smaller
-     * than zero or bigger than the filesize. */
-    switch(whence)
-    {
-        case SEEK_SET: break;
-        case SEEK_CUR: offset += fh->pos; break;
-        case SEEK_END: offset = fh->length + offset; break;
-        default: errno = EINVAL; return -1;
-    }
-
-    if(offset < 0)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-
-    if(offset > fh->length)
-    { /* just seek to end */
-        offset = fh->length;
-    }
-
-    ret = fseek(fh->file, fh->start + offset, SEEK_SET);
-    if(ret < 0)
-    {
-        return ret;
-    }
-
-    fh->pos = offset;
-    return 0;
-}
-
-int FS_fclose(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-    return fclose(fh->file);
-}
-
-long FS_ftell(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-    return fh->pos;
-}
-
-void FS_rewind(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        return;
-    }
-    clearerr(fh->file);
-    fseek(fh->file, fh->start, SEEK_SET);
-    fh->pos = 0;
-}
-
-int FS_feof(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-    if(fh->pos >= fh->length)
-    {
-        return -1;
-    }
-    return 0;
-}
-
-int FS_ferror(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-    return ferror(fh->file);
-}
-
-int FS_fgetc(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return EOF;
-    }
-    if(fh->pos >= fh->length)
-    {
-        return EOF;
-    }
-    fh->pos += 1;
-    return fgetc(fh->file);
-}
-
-char* FS_fgets(char* s, int size, fshandle_t* fh)
-{
-    char* ret;
-
-    if(FS_feof(fh))
-    {
-        return nullptr;
-    }
-
-    if(size > (fh->length - fh->pos) + 1)
-    {
-        size = (fh->length - fh->pos) + 1;
-    }
-
-    ret = fgets(s, size, fh->file);
-    fh->pos = ftell(fh->file) - fh->start;
-
-    return ret;
-}
-
-long FS_filelength(fshandle_t* fh)
-{
-    if(!fh)
-    {
-        errno = EBADF;
-        return -1;
-    }
-    return fh->length;
 }

@@ -19,8 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __SPRITEGEN_H
-#define __SPRITEGEN_H
+#pragma once
 
 //
 // spritegn.h: header file for sprite generation program
@@ -52,7 +51,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <string.h>
+#include <cstring>
 
 #include "cmdlib.hpp"
 #include "scriplib.hpp"
@@ -125,5 +124,3 @@ typedef struct
 
 #define IDSPRITEHEADER (('P' << 24) + ('S' << 16) + ('D' << 8) + 'I')
 // little-endian "IDSP"
-
-#endif /* __SPRITEGEN_H */

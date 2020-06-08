@@ -22,8 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __VID_DEFS_H
-#define __VID_DEFS_H
+#pragma once
 
 // vid.h -- video driver defs
 
@@ -74,25 +73,23 @@ typedef struct
 
 extern viddef_t vid; // global video state
 
-extern void (*vid_menudrawfn)(void);
+extern void (*vid_menudrawfn)();
 extern void (*vid_menukeyfn)(int key);
-extern void (*vid_menucmdfn)(void); // johnfitz
+extern void (*vid_menucmdfn)(); // johnfitz
 
-void VID_Init(void); // johnfitz -- removed palette from argument list
+void VID_Init(); // johnfitz -- removed palette from argument list
 
-void VID_Shutdown(void);
+void VID_Shutdown();
 // Called at shutdown
 
 void VID_Update(vrect_t* rects);
 // flushes the given rectangles from the view buffer to the screen
 
-void VID_SyncCvars(void);
+void VID_SyncCvars();
 
-void VID_Toggle(void);
+void VID_Toggle();
 
-void* VID_GetWindow(void);
-bool VID_HasMouseOrInputFocus(void);
-bool VID_IsMinimized(void);
-void VID_Lock(void);
-
-#endif /* __VID_DEFS_H */
+void* VID_GetWindow();
+bool VID_HasMouseOrInputFocus();
+bool VID_IsMinimized();
+void VID_Lock();

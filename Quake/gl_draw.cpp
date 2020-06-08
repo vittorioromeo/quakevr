@@ -24,8 +24,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // draw.c -- 2d drawing
 
+#include <GL/glew.h>
+
 #include "quakedef.hpp"
+#include "console.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "quakedef_macros.hpp"
+#include "sbar.hpp"
+#include "wad.hpp"
+#include "gl_texmgr.hpp"
+#include "qpic.hpp"
+#include "glquake.hpp"
+#include "sys.hpp"
+#include "screen.hpp"
+#include "draw.hpp"
+#include "client.hpp"
 
 // extern unsigned char d_15to8table[65536]; //johnfitz -- never used
 
@@ -482,21 +496,12 @@ Draw_CharacterQuad -- johnfitz -- seperate function to spit out verts
 */
 void Draw_CharacterQuad(int x, int y, char num)
 {
-    int row;
+    const int row = num >> 4;
+    const int col = num & 15;
 
-    int col;
-    float frow;
-
-    float fcol;
-
-    float size;
-
-    row = num >> 4;
-    col = num & 15;
-
-    frow = row * 0.0625;
-    fcol = col * 0.0625;
-    size = 0.0625;
+    const float frow = row * 0.0625;
+    const float fcol = col * 0.0625;
+    const float size = 0.0625;
 
     glTexCoord2f(fcol, frow);
     glVertex2f(x, y);
@@ -515,11 +520,6 @@ Draw_Character -- johnfitz -- modified to call Draw_CharacterQuad
 */
 void Draw_Character(int x, int y, int num)
 {
-    if(y <= -8)
-    {
-        return; // totally off screen
-    }
-
     num &= 255;
 
     if(num == 32)
@@ -782,6 +782,15 @@ void GL_SetCanvas(canvastype newcanvas)
             glViewport(glx, gly, glwidth, glheight);
             break;
         case CANVAS_CONSOLE:
+            s = q_min((float)glwidth / 800.0, (float)glheight / 600.0);
+            s = CLAMP(1.0, scr_menuscale.value, s);
+            lines =
+                vid.conheight - (scr_con_current * vid.conheight / glheight);
+            glOrtho(0, 800, 600, 0, -99999, 99999);
+            glViewport(glx + (glwidth - 800 * s) / 2,
+                gly + (glheight - 600 * s) / 2, 800 * s, 600 * s);
+            break;
+        case CANVAS_NOTIFY:
             lines =
                 vid.conheight - (scr_con_current * vid.conheight / glheight);
             glOrtho(

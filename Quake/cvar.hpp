@@ -21,8 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __CVAR_H__
-#define __CVAR_H__
+#pragma once
+
+#include <cstdio>
 
 /*
 cvar_t variables are used to hold scalar or string variables that can
@@ -79,9 +80,9 @@ interface from being ambiguous.
 #define CVAR_CALLBACK (1U << 16)   // var has a callback
 
 
-typedef void (*cvarcallback_t)(struct cvar_s*);
+typedef void (*cvarcallback_t)(struct cvar_t*);
 
-typedef struct cvar_s
+struct cvar_t
 {
     const char* name;
     const char* string;
@@ -90,8 +91,8 @@ typedef struct cvar_s
     const char*
         default_string; // johnfitz -- remember defaults for reset function
     cvarcallback_t callback;
-    struct cvar_s* next;
-} cvar_t;
+    cvar_t* next;
+};
 
 void Cvar_RegisterVariable(cvar_t* variable);
 // registers a cvar that already has the name, string, and optionally
@@ -122,7 +123,7 @@ float Cvar_VariableValue(const char* var_name);
 const char* Cvar_VariableString(const char* var_name);
 // returns an empty string if not defined
 
-bool Cvar_Command(void);
+bool Cvar_Command();
 // called by Cmd_ExecuteString when Cmd_Argv(0) doesn't match a known
 // command.  Returns true if the command was a variable reference that
 // was handled. (print or change)
@@ -136,12 +137,15 @@ cvar_t* Cvar_FindVarAfter(const char* prev_name, unsigned int with_flags);
 
 void Cvar_LockVar(const char* var_name);
 void Cvar_UnlockVar(const char* var_name);
-void Cvar_UnlockAll(void);
+void Cvar_UnlockAll();
 
-void Cvar_Init(void);
+void Cvar_Init();
 
 const char* Cvar_CompleteVariable(const char* partial);
 // attempts to match a partial variable name for command line completion
 // returns nullptr if nothing fits
 
-#endif /* __CVAR_H__ */
+int Cvar_MakeHandle(const char* var_name);
+float Cvar_GetValueFromHandle(const int handle);
+void Cvar_SetValueFromHandle(const int handle, const float value);
+void Cvar_ClearAllHandles();

@@ -20,31 +20,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_INPUT_H
-#define _QUAKE_INPUT_H
+#pragma once
+
+#include "protocol.hpp"
 
 // input.h -- external (non-keyboard) input devices
 
-void IN_Init(void);
+void IN_Init();
 
-void IN_Shutdown(void);
+void IN_Shutdown();
 
-void IN_Commands(void);
+void IN_Commands();
 // oportunity for devices to stick commands on the script buffer
 
 // mouse moved by dx and dy pixels
 void IN_MouseMotion(int dx, int dy);
 
-void IN_SendKeyEvents(void);
+void IN_SendKeyEvents();
 // used as a callback for Sys_SendKeyEvents() by some drivers
 
-void IN_UpdateInputMode(void);
+void IN_UpdateInputMode();
 // do stuff if input mode (text/non-text) changes matter to the keyboard driver
 
 void IN_Move(usercmd_t* cmd);
 // add additional movement on top of the keyboard move cmd
 
-void IN_ClearStates(void);
+void IN_ClearStates();
 // restores all button and position states to defaults
 
 // called when the app becomes active
@@ -52,5 +53,3 @@ void IN_Activate();
 
 // called when the app becomes inactive
 void IN_Deactivate(bool free_cursor);
-
-#endif /* _QUAKE_INPUT_H */

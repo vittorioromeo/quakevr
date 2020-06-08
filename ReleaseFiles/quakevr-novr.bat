@@ -1,0 +1,1 @@
+quakevr.exe -novr

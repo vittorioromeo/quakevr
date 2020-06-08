@@ -21,6 +21,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
+#include "console.hpp"
+#include "net.hpp"
+#include "keys.hpp"
+#include "protocol.hpp"
+#include "byteorder.hpp"
+#include "msg.hpp"
+#include "client.hpp"
+#include "sys.hpp"
+#include "cmd.hpp"
+#include "gl_texmgr.hpp"
 
 static void CL_FinishTimeDemo();
 

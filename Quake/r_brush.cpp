@@ -25,7 +25,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "glquake.hpp"
+#include "quakedef_macros.hpp"
+#include "entity.hpp"
+#include "client.hpp"
+#include "gl_texmgr.hpp"
+#include "sys.hpp"
+#include "console.hpp"
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -354,8 +362,8 @@ void R_DrawSequentialPoly (msurface_t *s)
             v = s->polys->verts[0];
             for (i=0 ; i<s->polys->numverts ; i++, v+= VERTEXSIZE)
             {
-                GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, v[3], v[4]);
-                GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, v[5], v[6]);
+                glMultiTexCoord2fARB (GL_TEXTURE0_ARB, v[3], v[4]);
+                glMultiTexCoord2fARB (GL_TEXTURE1_ARB, v[5], v[6]);
                 glVertex3fv (v);
             }
             glEnd ();
@@ -429,8 +437,8 @@ void R_DrawSequentialPoly (msurface_t *s)
             v = s->polys->verts[0];
             for (i=0 ; i<s->polys->numverts ; i++, v+= VERTEXSIZE)
             {
-                GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, v[3], v[4]);
-                GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, v[5], v[6]);
+                glMultiTexCoord2fARB (GL_TEXTURE0_ARB, v[3], v[4]);
+                glMultiTexCoord2fARB (GL_TEXTURE1_ARB, v[5], v[6]);
                 glVertex3fv (v);
             }
             glEnd ();
@@ -527,26 +535,18 @@ R_DrawBrushModel
 */
 void R_DrawBrushModel(entity_t* e)
 {
-    int i;
-
-    int k;
-    msurface_t* psurf;
-    float dot;
-    mplane_t* pplane;
-    qmodel_t* clmodel;
-
     if(R_CullModelForEntity(e))
     {
         return;
     }
 
     currententity = e;
-    clmodel = e->model;
+    qmodel_t* clmodel = e->model;
 
     modelorg = r_refdef.vieworg - e->origin;
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        glm::vec3 temp = modelorg;
+        const qvec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -556,13 +556,13 @@ void R_DrawBrushModel(entity_t* e)
         modelorg[2] = DotProduct(temp, up);
     }
 
-    psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
+    msurface_t* psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
 
     // calculate dynamic lighting for bmodel if it's not an
     // instanced model
     if(clmodel->firstmodelsurface != 0 && !gl_flashblend.value)
     {
-        for(k = 0; k < MAX_DLIGHTS; k++)
+        for(int k = 0; k < MAX_DLIGHTS; ++k)
         {
             if((cl_dlights[k].die < cl.time) || (!cl_dlights[k].radius))
             {
@@ -592,13 +592,33 @@ void R_DrawBrushModel(entity_t* e)
     }
     e->angles[0] = -e->angles[0]; // stupid quake bug
 
-    R_ClearTextureChains(clmodel, chain_model);
-    for(i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
+    if(e->horizFlip)
     {
-        pplane = psurf->plane;
-        dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
-        if(((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-            (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+        glScalef(1.0f, -1.0f, 1.0f);
+        glFrontFace(GL_CCW);
+    }
+
+    // TODO VR: (P1) document why we have +1, code repetition with alias
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+
+    const bool scaled =
+        (e->scale[0] != 0.f) && (e->scale[1] != 0.f) && (e->scale[2] != 0.f);
+
+    R_ClearTextureChains(clmodel, chain_model);
+
+    int i;
+    for(i = 0; i < clmodel->nummodelsurfaces; ++i, ++psurf)
+    {
+        mplane_t* pplane = psurf->plane;
+        const float dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
+
+        // TODO VR: (P2) hack for scaled brush models, dot is incorrenct and
+        // faces get culled
+        if(scaled ||
+            (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
+                (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))))
         {
             R_ChainSurface(psurf, chain_model);
             rs_brushpolys++;
@@ -636,7 +656,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     modelorg = r_refdef.vieworg - e->origin;
     if(e->angles[0] || e->angles[1] || e->angles[2])
     {
-        glm::vec3 temp = modelorg;
+        qvec3 temp = modelorg;
 
         const auto [forward, right, up] =
             quake::util::getAngledVectors(e->angles);
@@ -652,6 +672,17 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     e->angles[0] = -e->angles[0]; // stupid quake bug
     R_RotateForEntity(e->origin, e->angles);
     e->angles[0] = -e->angles[0]; // stupid quake bug
+
+    if(e->horizFlip)
+    {
+        glScalef(1.0f, -1.0f, 1.0f);
+        glFrontFace(GL_CCW);
+    }
+
+    // TODO VR: (P1) document why we have +1, code repetition with brush
+    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
+    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
+    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
     //
     // draw it
@@ -889,10 +920,10 @@ void BuildSurfaceDisplayList(msurface_t* fa)
     medge_t* pedges;
 
     medge_t* r_pedge;
-    float* vec;
-    float s;
+    qfloat* vec;
+    qfloat s;
 
-    float t;
+    qfloat t;
     glpoly_t* poly;
 
     // reconstruct the polygon
@@ -915,12 +946,12 @@ void BuildSurfaceDisplayList(msurface_t* fa)
         if(lindex > 0)
         {
             r_pedge = &pedges[lindex];
-            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[0]].position);
+            vec = toGlVec(r_pcurrentvertbase[r_pedge->v[0]].position);
         }
         else
         {
             r_pedge = &pedges[-lindex];
-            vec = glm::value_ptr(r_pcurrentvertbase[r_pedge->v[1]].position);
+            vec = toGlVec(r_pcurrentvertbase[r_pedge->v[1]].position);
         }
         s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
         s /= fa->texinfo->texture->width;
@@ -1071,7 +1102,7 @@ void GL_DeleteBModelVertexBuffer()
         return;
     }
 
-    GL_DeleteBuffersFunc(1, &gl_bmodel_vbo);
+    glDeleteBuffersARB(1, &gl_bmodel_vbo);
     gl_bmodel_vbo = 0;
 
     GL_ClearBufferBindings();
@@ -1104,8 +1135,8 @@ void GL_BuildBModelVertexBuffer()
     }
 
     // ask GL for a name for our VBO
-    GL_DeleteBuffersFunc(1, &gl_bmodel_vbo);
-    GL_GenBuffersFunc(1, &gl_bmodel_vbo);
+    glDeleteBuffersARB(1, &gl_bmodel_vbo);
+    glGenBuffersARB(1, &gl_bmodel_vbo);
 
     // count all verts in all models
     numverts = 0;
@@ -1147,8 +1178,8 @@ void GL_BuildBModelVertexBuffer()
     }
 
     // upload to GPU
-    GL_BindBufferFunc(GL_ARRAY_BUFFER, gl_bmodel_vbo);
-    GL_BufferDataFunc(GL_ARRAY_BUFFER, varray_bytes, varray, GL_STATIC_DRAW);
+    glBindBufferARB(GL_ARRAY_BUFFER, gl_bmodel_vbo);
+    glBufferDataARB(GL_ARRAY_BUFFER, varray_bytes, varray, GL_STATIC_DRAW);
     free(varray);
 
     // invalidate the cached bindings
@@ -1171,9 +1202,9 @@ void R_AddDynamicLights(msurface_t* surf)
     float rad;
 
     float minlight;
-    glm::vec3 impact;
+    qvec3 impact;
 
-    glm::vec3 local;
+    qvec3 local;
     int s;
 
     int t;

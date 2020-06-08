@@ -24,12 +24,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.hpp"
+#include "glquake.hpp"
+#include "mathlib.hpp"
+#include "shader.hpp"
+#include "client.hpp"
+#include "gl_texmgr.hpp"
+
 #include <cassert>
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater,
     r_oldskyleaf, r_showtris; // johnfitz
 
-byte* SV_FatPVS(const glm::vec3& org, qmodel_t* worldmodel);
+byte* SV_FatPVS(const qvec3& org, qmodel_t* worldmodel);
 
 int vis_changed; // if true, force pvs to be refreshed
 
@@ -257,10 +263,6 @@ R_CullSurfaces -- johnfitz
 */
 void R_CullSurfaces()
 {
-    msurface_t* s;
-    int i;
-    texture_t* t;
-
     if(!r_drawworld_cheatsafe)
     {
         return;
@@ -269,16 +271,17 @@ void R_CullSurfaces()
     // ericw -- instead of testing (s->visframe == r_visframecount) on all world
     // surfaces, use the chained surfaces, which is exactly the same set of
     // sufaces
-    for(i = 0; i < cl.worldmodel->numtextures; i++)
+    for(int i = 0; i < cl.worldmodel->numtextures; i++)
     {
-        t = cl.worldmodel->textures[i];
+        texture_t* const t = cl.worldmodel->textures[i];
 
         if(!t || !t->texturechains[chain_world])
         {
             continue;
         }
 
-        for(s = t->texturechains[chain_world]; s; s = s->texturechain)
+        for(msurface_t* s = t->texturechains[chain_world]; s;
+            s = s->texturechain)
         {
             if(R_CullBox(s->mins, s->maxs) || R_BackFaceCull(s))
             {
@@ -307,28 +310,24 @@ mh dynamic lighting speedup
 */
 void R_BuildLightmapChains(qmodel_t* model, texchain_t chain)
 {
-    texture_t* t;
-    msurface_t* s;
-    int i;
-
     // clear lightmap chains (already done in r_marksurfaces, but clearing them
     // here to be safe becuase of r_stereo)
-    for(i = 0; i < lightmap_count; i++)
+    for(int i = 0; i < lightmap_count; i++)
     {
         lightmap[i].polys = nullptr;
     }
 
     // now rebuild them
-    for(i = 0; i < model->numtextures; i++)
+    for(int i = 0; i < model->numtextures; i++)
     {
-        t = model->textures[i];
+        texture_t* t = model->textures[i];
 
         if(!t || !t->texturechains[chain])
         {
             continue;
         }
 
-        for(s = t->texturechains[chain]; s; s = s->texturechain)
+        for(msurface_t* s = t->texturechains[chain]; s; s = s->texturechain)
         {
             if(!s->culled)
             {
@@ -660,8 +659,8 @@ void R_DrawTextureChains_Multitexture(
                 v = s->polys->verts[0];
                 for(j = 0; j < s->polys->numverts; j++, v += VERTEXSIZE)
                 {
-                    GL_MTexCoord2fFunc(GL_TEXTURE0_ARB, v[3], v[4]);
-                    GL_MTexCoord2fFunc(GL_TEXTURE1_ARB, v[5], v[6]);
+                    glMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
+                    glMultiTexCoord2fARB(GL_TEXTURE1_ARB, v[5], v[6]);
                     glVertex3fv(v);
                 }
                 glEnd();
@@ -986,8 +985,6 @@ GLWorld_CreateShaders
 */
 void GLWorld_CreateShaders()
 {
-    const glsl_attrib_binding_t bindings[] = {{"Vert", vertAttrIndex},
-        {"TexCoords", texCoordsAttrIndex}, {"LMCoords", LMCoordsAttrIndex}};
 
     // Driver bug workarounds:
     // - "Intel(R) UHD Graphics 600" version "4.6.0 - Build 26.20.100.7263"
@@ -995,64 +992,74 @@ void GLWorld_CreateShaders()
     //    `gl_ModelViewProjectionMatrix * vec4(Vert, 1.0);`. Work around
     //    with making Vert a vec4.
     //    (https://sourceforge.net/p/quakespasm/bugs/39/)
-    const GLchar* vertSource =
-        "#version 110\n"
-        "\n"
-        "attribute vec4 Vert;\n"
-        "attribute vec2 TexCoords;\n"
-        "attribute vec2 LMCoords;\n"
-        "\n"
-        "varying float FogFragCoord;\n"
-        "\n"
-        "void main()\n"
-        "{\n"
-        "	gl_TexCoord[0] = vec4(TexCoords, 0.0, 0.0);\n"
-        "	gl_TexCoord[1] = vec4(LMCoords, 0.0, 0.0);\n"
-        "	gl_Position = gl_ModelViewProjectionMatrix * Vert;\n"
-        "	FogFragCoord = gl_Position.w;\n"
-        "}\n";
+    const GLchar* vertSource = R"glsl(
+#version 110
 
-    const GLchar* fragSource =
-        "#version 110\n"
-        "\n"
-        "uniform sampler2D Tex;\n"
-        "uniform sampler2D LMTex;\n"
-        "uniform sampler2D FullbrightTex;\n"
-        "uniform bool UseFullbrightTex;\n"
-        "uniform bool UseOverbright;\n"
-        "uniform bool UseAlphaTest;\n"
-        "uniform float Alpha;\n"
-        "\n"
-        "varying float FogFragCoord;\n"
-        "\n"
-        "void main()\n"
-        "{\n"
-        "	vec4 result = texture2D(Tex, gl_TexCoord[0].xy);\n"
-        "	if (UseAlphaTest && (result.a < 0.666))\n"
-        "		discard;\n"
-        "	result *= texture2D(LMTex, gl_TexCoord[1].xy);\n"
-        "	if (UseOverbright)\n"
-        "		result.rgb *= 2.0;\n"
-        "	if (UseFullbrightTex)\n"
-        "		result += texture2D(FullbrightTex, gl_TexCoord[0].xy);\n"
-        "	result = clamp(result, 0.0, 1.0);\n"
-        "	float fog = exp(-gl_Fog.density * gl_Fog.density * "
-        "FogFragCoord * "
-        "FogFragCoord);\n"
-        "	fog = clamp(fog, 0.0, 1.0);\n"
-        "	result = mix(gl_Fog.color, result, fog);\n"
-        "	result.a = Alpha;\n" // FIXME: This will make almost transparent
-                                 // things cut holes though heavy fog
-        "	gl_FragColor = result;\n"
-        "}\n";
+attribute vec4 Vert;
+attribute vec2 TexCoords;
+attribute vec2 LMCoords;
+
+varying float FogFragCoord;
+
+void main()
+{
+    gl_TexCoord[0] = vec4(TexCoords, 0.0, 0.0);
+    gl_TexCoord[1] = vec4(LMCoords, 0.0, 0.0);
+    gl_Position = gl_ModelViewProjectionMatrix * Vert;
+    FogFragCoord = gl_Position.w;
+}
+)glsl";
+
+    const GLchar* fragSource = R"glsl(
+#version 110
+
+uniform sampler2D Tex;
+uniform sampler2D LMTex;
+uniform sampler2D FullbrightTex;
+uniform bool UseFullbrightTex;
+uniform bool UseOverbright;
+uniform bool UseAlphaTest;
+uniform float Alpha;
+
+varying float FogFragCoord;
+
+void main()
+{
+    vec4 result = texture2D(Tex, gl_TexCoord[0].xy);
+
+    if (UseAlphaTest && (result.a < 0.666))
+        discard;
+
+    result *= texture2D(LMTex, gl_TexCoord[1].xy);
+
+    if (UseOverbright)
+        result.rgb *= 2.0;
+
+    if (UseFullbrightTex)
+        result += texture2D(FullbrightTex, gl_TexCoord[0].xy);
+
+    result = clamp(result, 0.0, 1.0);
+    float fog = exp(-gl_Fog.density * gl_Fog.density * FogFragCoord * FogFragCoord);
+    fog = clamp(fog, 0.0, 1.0);
+    result = mix(gl_Fog.color, result, fog);
+    result.a = Alpha;      // FIXME: This will make almost transparent
+                           // things cut holes though heavy
+    gl_FragColor = result;
+}
+)glsl";
 
     if(!gl_glsl_alias_able)
     {
         return;
     }
 
-    r_world_program = GL_CreateProgram(vertSource, fragSource,
-        sizeof(bindings) / sizeof(bindings[0]), bindings);
+    r_world_program = quake::gl_program_builder{}
+                          .add_shader({GL_VERTEX_SHADER, vertSource})
+                          .add_shader({GL_FRAGMENT_SHADER, fragSource})
+                          .add_attr_binding({"Vert", vertAttrIndex})
+                          .add_attr_binding({"TexCoords", texCoordsAttrIndex})
+                          .add_attr_binding({"LMCoords", LMCoordsAttrIndex})
+                          .compile_and_link();
 
     if(r_world_program != 0)
     {
@@ -1100,32 +1107,32 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
         glEnable(GL_BLEND);
     }
 
-    GL_UseProgramFunc(r_world_program);
+    glUseProgram(r_world_program);
 
     // Bind the buffers
-    GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
-    GL_BindBuffer(
+    glBindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
+    glBindBuffer(
         GL_ELEMENT_ARRAY_BUFFER, 0); // indices come from client memory!
 
-    GL_EnableVertexAttribArrayFunc(vertAttrIndex);
-    GL_EnableVertexAttribArrayFunc(texCoordsAttrIndex);
-    GL_EnableVertexAttribArrayFunc(LMCoordsAttrIndex);
+    glEnableVertexAttribArray(vertAttrIndex);
+    glEnableVertexAttribArray(texCoordsAttrIndex);
+    glEnableVertexAttribArray(LMCoordsAttrIndex);
 
-    GL_VertexAttribPointerFunc(vertAttrIndex, 3, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(vertAttrIndex, 3, GL_FLOAT, GL_FALSE,
         VERTEXSIZE * sizeof(float), ((float*)nullptr));
-    GL_VertexAttribPointerFunc(texCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(texCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE,
         VERTEXSIZE * sizeof(float), ((float*)nullptr) + 3);
-    GL_VertexAttribPointerFunc(LMCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(LMCoordsAttrIndex, 2, GL_FLOAT, GL_FALSE,
         VERTEXSIZE * sizeof(float), ((float*)nullptr) + 5);
 
     // set uniforms
-    GL_Uniform1iFunc(texLoc, 0);
-    GL_Uniform1iFunc(LMTexLoc, 1);
-    GL_Uniform1iFunc(fullbrightTexLoc, 2);
-    GL_Uniform1iFunc(useFullbrightTexLoc, 0);
-    GL_Uniform1iFunc(useOverbrightLoc, (int)gl_overbright.value);
-    GL_Uniform1iFunc(useAlphaTestLoc, 0);
-    GL_Uniform1fFunc(alphaLoc, entalpha);
+    glUniform1i(texLoc, 0);
+    glUniform1i(LMTexLoc, 1);
+    glUniform1i(fullbrightTexLoc, 2);
+    glUniform1i(useFullbrightTexLoc, 0);
+    glUniform1i(useOverbrightLoc, (int)gl_overbright.value);
+    glUniform1i(useAlphaTestLoc, 0);
+    glUniform1f(alphaLoc, entalpha);
 
     for(i = 0; i < model->numtextures; i++)
     {
@@ -1145,11 +1152,11 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
         {
             GL_SelectTexture(GL_TEXTURE2);
             GL_Bind(fullbright);
-            GL_Uniform1iFunc(useFullbrightTexLoc, 1);
+            glUniform1i(useFullbrightTexLoc, 1);
         }
         else
         {
-            GL_Uniform1iFunc(useFullbrightTexLoc, 0);
+            glUniform1i(useFullbrightTexLoc, 0);
         }
 
         R_ClearBatch();
@@ -1170,7 +1177,7 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
 
                     if(t->texturechains[chain]->flags & SURF_DRAWFENCE)
                     {
-                        GL_Uniform1iFunc(
+                        glUniform1i(
                             useAlphaTestLoc, 1); // Flip alpha test back on
                     }
 
@@ -1196,16 +1203,16 @@ void R_DrawTextureChains_GLSL(qmodel_t* model, entity_t* ent, texchain_t chain)
 
         if(bound && t->texturechains[chain]->flags & SURF_DRAWFENCE)
         {
-            GL_Uniform1iFunc(useAlphaTestLoc, 0); // Flip alpha test back off
+            glUniform1i(useAlphaTestLoc, 0); // Flip alpha test back off
         }
     }
 
     // clean up
-    GL_DisableVertexAttribArrayFunc(vertAttrIndex);
-    GL_DisableVertexAttribArrayFunc(texCoordsAttrIndex);
-    GL_DisableVertexAttribArrayFunc(LMCoordsAttrIndex);
+    glDisableVertexAttribArray(vertAttrIndex);
+    glDisableVertexAttribArray(texCoordsAttrIndex);
+    glDisableVertexAttribArray(LMCoordsAttrIndex);
 
-    GL_UseProgramFunc(0);
+    glUseProgram(0);
     GL_SelectTexture(GL_TEXTURE0);
 
     if(entalpha < 1)
@@ -1222,16 +1229,7 @@ R_DrawWorld -- johnfitz -- rewritten
 */
 void R_DrawTextureChains(qmodel_t* model, entity_t* ent, texchain_t chain)
 {
-    float entalpha;
-
-    if(ent != nullptr)
-    {
-        entalpha = ENTALPHA_DECODE(ent->alpha);
-    }
-    else
-    {
-        entalpha = 1;
-    }
+    const float entalpha = ent == nullptr ? 1 : ENTALPHA_DECODE(ent->alpha);
 
     // ericw -- the mh dynamic lightmap speedup: make a first pass through
     // all surfaces we are going to draw, and rebuild any lightmaps that

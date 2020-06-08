@@ -25,9 +25,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // models are the only shared resource between a client and server running
 // on the same machine.
 
+#include <GL/glew.h>
+
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "util.hpp"
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec3_togl.hpp"
+#include "console.hpp"
+#include "quakedef_macros.hpp"
+#include "image.hpp"
+#include "glquake.hpp"
+#include "byteorder.hpp"
+#include "gl_texmgr.hpp"
+#include "sys.hpp"
 
 qmodel_t* loadmodel;
 char loadname[32]; // for hunk tags
@@ -105,7 +116,7 @@ void* Mod_Extradata(qmodel_t* mod)
 Mod_PointInLeaf
 ===============
 */
-mleaf_t* Mod_PointInLeaf(const glm::vec3& p, qmodel_t* model)
+mleaf_t* Mod_PointInLeaf(const qvec3& p, qmodel_t* model)
 {
     mnode_t* node;
     float d;
@@ -316,6 +327,16 @@ qmodel_t* Mod_FindName(const char* name)
     }
 
     return mod;
+}
+
+void Mod_ForAllKnownNames(void (*f)(const char*)) noexcept
+{
+    int i;
+    qmodel_t* mod;
+    for(i = 0, mod = mod_known; i < mod_numknown; ++i, ++mod)
+    {
+        f(mod->name);
+    }
 }
 
 /*
@@ -1309,7 +1330,7 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
     int numverts;
     int i;
     int lindex;
-    float* vec;
+    qfloat* vec;
     glpoly_t* poly;
     float texscale;
 
@@ -1330,12 +1351,12 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
 
         if(lindex > 0)
         {
-            vec = glm::value_ptr(
+            vec = toGlVec(
                 loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position);
         }
         else
         {
-            vec = glm::value_ptr(
+            vec = toGlVec(
                 loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position);
         }
         VectorCopy(vec, verts[numverts]);
@@ -1348,11 +1369,13 @@ void Mod_PolyForUnlitSurface(msurface_t* fa)
     poly->next = nullptr;
     fa->polys = poly;
     poly->numverts = numverts;
-    for(i = 0, vec = (float*)verts; i < numverts; i++, vec += 3)
+
+    float* fvec;
+    for(i = 0, fvec = (float*)verts; i < numverts; i++, fvec += 3)
     {
-        VectorCopy(vec, poly->verts[i]);
-        poly->verts[i][3] = DotProduct(vec, fa->texinfo->vecs[0]) * texscale;
-        poly->verts[i][4] = DotProduct(vec, fa->texinfo->vecs[1]) * texscale;
+        VectorCopy(fvec, poly->verts[i]);
+        poly->verts[i][3] = DotProduct(fvec, fa->texinfo->vecs[0]) * texscale;
+        poly->verts[i][4] = DotProduct(fvec, fa->texinfo->vecs[1]) * texscale;
     }
 }
 
@@ -2385,9 +2408,9 @@ void Mod_LoadPlanes(lump_t* l)
 RadiusFromBounds
 =================
 */
-float RadiusFromBounds(const glm::vec3& mins, const glm::vec3& maxs)
+float RadiusFromBounds(const qvec3& mins, const qvec3& maxs)
 {
-    glm::vec3 corner;
+    qvec3 corner;
 
     for(int i = 0; i < 3; i++)
     {
@@ -2405,21 +2428,21 @@ Mod_LoadSubmodels
 */
 void Mod_LoadSubmodels(lump_t* l)
 {
-    dmodel_t* in;
-    dmodel_t* out;
+    mmodel_t* in;
+    mmodel_t* out;
     int i;
 
     int j;
 
     int count;
 
-    in = (dmodel_t*)(mod_base + l->fileofs);
+    in = (mmodel_t*)(mod_base + l->fileofs);
     if(l->filelen % sizeof(*in))
     {
         Sys_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
     }
     count = l->filelen / sizeof(*in);
-    out = (dmodel_t*)Hunk_AllocName(count * sizeof(*out), loadname);
+    out = (mmodel_t*)Hunk_AllocName(count * sizeof(*out), loadname);
 
     loadmodel->submodels = out;
     loadmodel->numsubmodels = count;
@@ -2537,7 +2560,7 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
     int j;
     int bsp2;
     dheader_t* header;
-    dmodel_t* bm;
+    mmodel_t* bm;
     float radius; // johnfitz
 
     loadmodel->type = mod_brush;
@@ -3037,7 +3060,7 @@ void Mod_CalcAliasBounds(aliashdr_t* a)
 {
     float yawradius;
     float radius;
-    glm::vec3 v;
+    qvec3 v;
 
     // clear out all data
     for(int i = 0; i < 3; i++)

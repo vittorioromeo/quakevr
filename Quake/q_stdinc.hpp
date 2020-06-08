@@ -26,15 +26,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __QSTDINC_H
-#define __QSTDINC_H
+#pragma once
 
 #include <sys/types.h>
 #include <stddef.h>
 #include <limits.h>
-
-#define GLM_FORCE_INLINE
-#include "quakeglm.hpp"
 
 #ifndef _WIN32 /* others we support without sys/param.h? */
 #include <sys/param.h>
@@ -67,7 +63,7 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
+#include <cstring>
 #include <float.h>
 
 /*==========================================================================*/
@@ -173,5 +169,3 @@ typedef ptrdiff_t ssize_t;
 #endif
 
 /*==========================================================================*/
-
-#endif /* __QSTDINC_H */

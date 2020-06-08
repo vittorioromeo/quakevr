@@ -21,10 +21,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __BSPFILE_H
-#define __BSPFILE_H
+#pragma once
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "q_stdinc.hpp"
+#include "quakedef_macros.hpp"
 
 // upper design bounds
 
@@ -101,7 +102,27 @@ typedef struct
     int headnode[MAX_MAP_HULLS];
     int visleafs; // not including the solid leaf 0
     int firstface, numfaces;
-} dmodel_t;
+} mmodel_t;
+
+// QSS
+typedef struct
+{
+    float mins[3], maxs[3];
+    float origin[3];
+    int headnode[4];
+    int visleafs;		// not including the solid leaf 0
+    int firstface, numfaces;
+} dmodelq1_t;
+
+// QSS
+typedef struct
+{
+    float mins[3], maxs[3];
+    float origin[3];
+    int headnode[8];
+    int visleafs;		// not including the solid leaf 0
+    int firstface, numfaces;
+} dmodelh2_t;
 
 typedef struct
 {
@@ -164,6 +185,9 @@ typedef struct
 #define CONTENTS_CURRENT_UP -13
 #define CONTENTS_CURRENT_DOWN -14
 
+// QSS
+#define	CONTENTS_LADDER -16
+
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct
@@ -215,6 +239,7 @@ typedef struct texinfo_s
     int miptex;
     int flags;
 } texinfo_t;
+
 #define TEX_SPECIAL 1 // sky or slime, no lightmap or 256 subdivision
 #define TEX_MISSING 2 // johnfitz -- this texinfo does not have a texture
 
@@ -230,7 +255,12 @@ typedef struct
     unsigned int v[2]; // vertex numbers
 } dledge_t;
 
-#define MAXLIGHTMAPS 4
+#define MAXLIGHTMAPS 16
+
+// QSS
+#define INVALID_LIGHTSTYLE 0xffffu
+#define INVALID_LIGHTSTYLE_OLD 0xffu
+
 typedef struct
 {
     short planenum;
@@ -241,7 +271,7 @@ typedef struct
     short texinfo;
 
     // lighting info
-    byte styles[MAXLIGHTMAPS];
+    byte styles[4];
     int lightofs; // start of [numstyles*surfsize] samples
 } dsface_t;
 
@@ -255,7 +285,7 @@ typedef struct
     int texinfo;
 
     // lighting info
-    byte styles[MAXLIGHTMAPS];
+    byte styles[4];
     int lightofs; // start of [numstyles*surfsize] samples
 } dlface_t;
 
@@ -322,7 +352,7 @@ typedef struct
 // the utilities get to be lazy and just use large static arrays
 
 extern int nummodels;
-extern dmodel_t dmodels[MAX_MAP_MODELS];
+extern mmodel_t dmodels[MAX_MAP_MODELS];
 
 extern int visdatasize;
 extern byte dvisdata[MAX_MAP_VISIBILITY];
@@ -372,7 +402,7 @@ int CompressVis(byte* vis, byte* dest);
 
 void LoadBSPFile(char* filename);
 void WriteBSPFile(char* filename);
-void PrintBSPFileSizes(void);
+void PrintBSPFileSizes();
 
 //===============
 
@@ -385,7 +415,7 @@ typedef struct epair_s
 
 struct entitybsp_t
 {
-    glm::vec3 origin;
+    qvec3 origin;
     int firstbrush;
     int numbrushes;
     epair_t* epairs;
@@ -395,4 +425,3 @@ extern int num_entities;
 extern entitybsp_t entities[MAX_MAP_ENTITIES];
 
 #endif /* QUAKE_GAME */
-#endif /* __BSPFILE_H */

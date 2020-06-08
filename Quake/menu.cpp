@@ -21,18 +21,43 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
+#include "menu.hpp"
+#include "console.hpp"
+#include "cvar.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
 #include "util.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "vr_showfn.hpp"
+#include "cmd.hpp"
+#include "qpic.hpp"
+#include "net.hpp"
+#include "keys.hpp"
+#include "saveutil.hpp"
+#include "draw.hpp"
+#include "client.hpp"
+#include "input.hpp"
+#include "screen.hpp"
+#include "q_sound.hpp"
+#include "vid.hpp"
+#include "view.hpp"
+#include "gl_util.hpp"
+#include "menu_keyboard.hpp"
 
 #include <string>
+#include <SDL2/SDL_mouse.h>
 #include <string_view>
 #include <cassert>
 #include <array>
 #include <tuple>
 #include <cstddef>
+#include <algorithm>
+#include <ctime>
+#include <iomanip>
+#include <variant>
 
 void (*vid_menucmdfn)(); // johnfitz
 void (*vid_menudrawfn)();
@@ -40,9 +65,8 @@ void (*vid_menukeyfn)(int key);
 
 enum m_state_e m_state;
 
-
 void M_Menu_SinglePlayer_f();
-void M_Menu_NewGame_f();
+void M_Menu_NewGame_f(const char* map);
 void M_Menu_Load_f();
 void M_Menu_Save_f();
 void M_Menu_MultiPlayer_f();
@@ -56,7 +80,6 @@ void M_Menu_ServerList_f();
 void M_Menu_Keys_f();
 void M_Menu_Video_f();
 void M_Menu_Help_f();
-
 
 void M_Main_Draw();
 void M_SinglePlayer_Draw();
@@ -103,10 +126,10 @@ char m_return_reason[32];
 // TODO VR: (P2) hackish
 #define StartingGame ((multiPlayerMenu().cursor_idx()) == 1)
 #define JoiningGame ((multiPlayerMenu().cursor_idx()) == 0)
-#define IPXConfig (m_net_cursor == 0)
-#define TCPIPConfig (m_net_cursor == 1)
 
 void M_ConfigureNetSubsystem();
+
+[[nodiscard]] static quake::menu& quakeVRQuickSettingsMenu();
 
 /*
 ================
@@ -129,6 +152,7 @@ void M_Print(int cx, int cy, const char* str)
         cx += 8;
     }
 }
+
 
 void M_PrintWithNewLine(int cx, int cy, const char* str)
 {
@@ -338,7 +362,6 @@ void M_ToggleMenu_f()
     }
 }
 
-
 //=============================================================================
 /* MAIN MENU */
 
@@ -347,10 +370,13 @@ void M_ToggleMenu_f()
     quake::menu m{"Main Menu", [] {}};
 
     m.add_action_entry("Single Player", &M_Menu_SinglePlayer_f);
-    m.add_action_entry("Multi Player", &M_Menu_MultiPlayer_f);
+    m.add_action_entry("Multi Player & Bots", &M_Menu_MultiPlayer_f);
     m.add_action_entry("Options", &M_Menu_Options_f);
-    m.add_action_entry("Quake VR Settings", &M_Menu_QuakeVRSettings_f);
-    m.add_action_entry("Quake VR Dev Tools", &M_Menu_QuakeVRDevTools_f);
+    // m.add_action_entry("Quake VR - Quick Settings",
+    // &M_Menu_QuakeVRQuickSettings_f);
+    m.add_action_entry("Quake VR - Settings", &M_Menu_QuakeVRSettings_f);
+    m.add_action_entry("Quake VR - Dev Tools", &M_Menu_QuakeVRDevTools_f);
+    m.add_action_entry("Quake VR - Change Map", &M_Menu_QuakeVRChangeMap_f);
     m.add_action_entry("Help/Ordering", &M_Menu_Help_f);
     m.add_action_entry("Quit", &M_Menu_Quit_f);
 
@@ -395,16 +421,16 @@ void M_Main_Key(int key)
             key_dest = key_game;
             m_state = m_none;
             cls.demonum = m_save_demonum;
-            if(!fitzmode)
-            { /* QuakeSpasm customization: */
-                break;
-            }
+            break;
+
+            /*
             if(cls.demonum != -1 && !cls.demoplayback &&
                 cls.state != ca_connected)
             {
                 CL_NextDemo();
             }
             break;
+            */
         }
     }
 }
@@ -416,9 +442,39 @@ void M_Main_Key(int key)
 {
     quake::menu m{"Single Player", &M_Menu_Main_f};
 
-    m.add_action_entry("New Game", &M_Menu_NewGame_f);
+    m.add_action_entry("Tutorial", [] { M_Menu_NewGame_f("vrtutorial"); });
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_action_entry("New Game", [] { M_Menu_NewGame_f("start"); });
     m.add_action_entry("Load", &M_Menu_Load_f);
     m.add_action_entry("Save", &M_Menu_Save_f);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    {
+        const std::vector<std::string>& loadedPakNames =
+            VR_GetLoadedPakNamesWithStartMaps();
+
+        auto e =
+            m.add_cvar_entry<int>("Start map from:", vr_activestartpaknameidx,
+                {1, 0, static_cast<int>(loadedPakNames.size()) - 1});
+
+        e.tooltip(
+            "When multiple '.pak' are placed in the 'Id1' folder, the starting "
+            "map will be overwritten by the last '.pak' file. This option "
+            "allows you to choose what '.pak' file to get the starting map "
+            "from.");
+
+        e->_printer = [&](char* buf, const int buf_size, const int x) {
+            snprintf(buf, buf_size, "%s",
+                loadedPakNames[x % loadedPakNames.size()].data());
+        };
+    }
 
     return m;
 }
@@ -450,60 +506,23 @@ void M_SinglePlayer_Key(int key)
 //=============================================================================
 /* LOAD/SAVE MENU */
 
-int load_cursor; // 0 < load_cursor < MAX_SAVEGAMES
+std::size_t save_cursor; // 0 < save_cursor < MAX_SAVEGAMES
+std::size_t load_cursor; // 0 < load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES
 
-#define MAX_SAVEGAMES 20 /* johnfitz -- increased from 12 */
-char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
-int loadable[MAX_SAVEGAMES];
-
-void M_ScanSaves()
-{
-    int i;
-
-    int j;
-    char name[MAX_OSPATH];
-    FILE* f;
-    int version;
-
-    for(i = 0; i < MAX_SAVEGAMES; i++)
-    {
-        strcpy(m_filenames[i], "--- UNUSED SLOT ---");
-        loadable[i] = false;
-        q_snprintf(name, sizeof(name), "%s/s%i.sav", com_gamedir, i);
-        f = fopen(name, "r");
-        if(!f)
-        {
-            continue;
-        }
-        fscanf(f, "%i\n", &version);
-        fscanf(f, "%79s\n", name);
-        q_strlcpy(m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
-
-        // change _ back to space
-        for(j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
-        {
-            if(m_filenames[i][j] == '_')
-            {
-                m_filenames[i][j] = ' ';
-            }
-        }
-        loadable[i] = true;
-        fclose(f);
-    }
-}
-
-void M_Menu_NewGame_f()
+void M_Menu_NewGame_f(const char* map)
 {
     IN_Activate();
     key_dest = key_game;
+
     if(sv.active)
     {
         Cbuf_AddText("disconnect\n");
     }
+
     Cbuf_AddText("maxplayers 1\n");
     Cbuf_AddText("deathmatch 0\n"); // johnfitz
     Cbuf_AddText("coop 0\n");       // johnfitz
-    Cbuf_AddText("map start\n");
+    Cbuf_AddText(va("map %s\n", map));
 }
 
 void M_Menu_Load_f()
@@ -513,7 +532,8 @@ void M_Menu_Load_f()
 
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
-    M_ScanSaves();
+
+    quake::saveutil::scanSaves();
 }
 
 void M_Menu_Save_f()
@@ -522,56 +542,76 @@ void M_Menu_Save_f()
     {
         return;
     }
+
     if(cl.intermission)
     {
         return;
     }
+
     if(svs.maxclients != 1)
     {
         return;
     }
+
     m_entersound = true;
     m_state = m_save;
 
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
-    M_ScanSaves();
+
+    quake::saveutil::scanSaves();
 }
 
 
 void M_Load_Draw()
 {
-    int i;
-    qpic_t* p;
-
-    p = Draw_CachePic("gfx/p_load.lmp");
+    qpic_t* p = Draw_CachePic("gfx/p_load.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for(i = 0; i < MAX_SAVEGAMES; i++)
+    for(std::size_t i = 0; i < MAX_SAVEGAMES; i++)
     {
-        M_Print(16, 32 + 8 * i, m_filenames[i]);
+        M_Print(16, 32 + 8 * i, quake::saveutil::nthSaveFilename(i));
+    }
+
+    for(std::size_t i = 0; i < MAX_AUTOSAVES; i++)
+    {
+        M_PrintWhite(16, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i, "(AUTO)");
+
+        M_Print(70, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i,
+            quake::saveutil::nthAutosaveFilename(i));
+
+        char buf[24]{'\0'};
+
+        if(quake::saveutil::isNthAutosaveLoadable(i))
+        {
+            std::strftime(buf, sizeof(buf), "%F %T",
+                std::localtime(&quake::saveutil::nthAutosaveTimestamp(i)));
+        }
+
+        M_PrintWhite(370, (8 * (MAX_SAVEGAMES + 1)) + 32 + 8 * i, buf);
     }
 
     // line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+    const int cursorX = (load_cursor < MAX_SAVEGAMES)
+                            ? (32 + load_cursor * 8)
+                            : (32 + (load_cursor + 1) * 8);
+
+    M_DrawCharacter(8, cursorX, 12 + ((int)(realtime * 4) & 1));
 }
 
 
 void M_Save_Draw()
 {
-    int i;
-    qpic_t* p;
-
-    p = Draw_CachePic("gfx/p_save.lmp");
+    qpic_t* p = Draw_CachePic("gfx/p_save.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for(i = 0; i < MAX_SAVEGAMES; i++)
+    for(std::size_t i = 0; i < MAX_SAVEGAMES; i++)
     {
-        M_Print(16, 32 + 8 * i, m_filenames[i]);
+        M_Print(16, 32 + 8 * i, quake::saveutil::nthSaveFilename(i));
     }
 
     // line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+    M_DrawCharacter(8, 32 + save_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 
@@ -585,11 +625,27 @@ void M_Load_Key(int k)
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
+        {
             S_LocalSound("misc/menu2.wav");
-            if(!loadable[load_cursor])
+
+            if(load_cursor < MAX_SAVEGAMES)
             {
-                return;
+                if(!quake::saveutil::isNthSaveLoadable(load_cursor))
+                {
+                    return;
+                }
             }
+            else
+            {
+                assert(load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES);
+
+                if(!quake::saveutil::isNthAutosaveLoadable(
+                       load_cursor - MAX_SAVEGAMES))
+                {
+                    return;
+                }
+            }
+
             m_state = m_none;
             IN_Activate();
             key_dest = key_game;
@@ -599,28 +655,50 @@ void M_Load_Key(int k)
             SCR_BeginLoadingPlaque();
 
             // issue the load command
-            Cbuf_AddText(va("load s%i\n", load_cursor));
+            if(load_cursor < MAX_SAVEGAMES)
+            {
+                Cbuf_AddText(va("load s%i\n", load_cursor));
+            }
+            else
+            {
+                Cbuf_AddText(
+                    va("load_autosave auto%i\n", load_cursor - MAX_SAVEGAMES));
+            }
+
             return;
+        }
 
         case K_UPARROW:
         case K_LEFTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor--;
-            if(load_cursor < 0)
+
+            if(load_cursor == 0)
             {
-                load_cursor = MAX_SAVEGAMES - 1;
+                load_cursor = (MAX_SAVEGAMES + MAX_AUTOSAVES) - 1;
             }
+            else
+            {
+                --load_cursor;
+            }
+
             break;
+        }
 
         case K_DOWNARROW:
         case K_RIGHTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor++;
-            if(load_cursor >= MAX_SAVEGAMES)
+
+            ++load_cursor;
+
+            if(load_cursor >= (MAX_SAVEGAMES + MAX_AUTOSAVES))
             {
                 load_cursor = 0;
             }
+
             break;
+        }
     }
 }
 
@@ -635,32 +713,101 @@ void M_Save_Key(int k)
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
+        {
             m_state = m_none;
             IN_Activate();
             key_dest = key_game;
-            Cbuf_AddText(va("save s%i\n", load_cursor));
+            Cbuf_AddText(va("save s%i\n", save_cursor));
             return;
+        }
 
         case K_UPARROW:
         case K_LEFTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor--;
-            if(load_cursor < 0)
+
+            if(save_cursor == 0)
             {
-                load_cursor = MAX_SAVEGAMES - 1;
+                save_cursor = MAX_SAVEGAMES - 1;
             }
+            else
+            {
+                --save_cursor;
+            }
+
             break;
+        }
 
         case K_DOWNARROW:
         case K_RIGHTARROW:
+        {
             S_LocalSound("misc/menu1.wav");
-            load_cursor++;
-            if(load_cursor >= MAX_SAVEGAMES)
+
+            ++save_cursor;
+
+            if(save_cursor >= MAX_SAVEGAMES)
             {
-                load_cursor = 0;
+                save_cursor = 0;
             }
             break;
+        }
     }
+}
+
+//=============================================================================
+/* BOT CONTROL MENU */
+
+[[nodiscard]] static quake::menu makeBotControlMenu()
+{
+    const auto runCmd = [](const char* cmd) {
+        return [cmd] {
+            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+            Cmd_ExecuteString(cmd, cmd_source_t::src_command);
+        };
+    };
+
+    quake::menu m{"Bot Control", &M_Menu_MultiPlayer_f};
+
+    m.add_action_entry("Add Bot (Team 0)", runCmd("impulse 100"));
+    m.add_action_entry("Add Bot (Team 1)", runCmd("impulse 101"));
+    m.add_action_entry("Kick Bot", runCmd("impulse 102"));
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    extern cvar_t skill;
+    m.add_cvar_getter_enum_entry<int>(        //
+        "Skill",                              //
+        [] { return &skill; },                //
+        "Easy", "Normal", "Hard", "Nightmare" //
+    );
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& botControlMenu()
+{
+    static quake::menu res = makeBotControlMenu();
+    return res;
+}
+
+void M_Menu_BotControl_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_botcontrol;
+    m_entersound = true;
+}
+
+void M_BotControl_Draw()
+{
+    botControlMenu().draw();
+}
+
+void M_BotControl_Key(int key)
+{
+    botControlMenu().key(key);
 }
 
 //=============================================================================
@@ -670,9 +817,10 @@ void M_Save_Key(int k)
 {
     quake::menu m{"Multi Player", &M_Menu_Main_f};
 
-    m.add_action_entry("Join a Game", &M_Menu_Net_f);
-    m.add_action_entry("New Game", &M_Menu_Net_f);
+    m.add_action_entry("Join a Game", &M_Menu_LanConfig_f);
+    m.add_action_entry("New Game", &M_Menu_LanConfig_f);
     m.add_action_entry("Setup", &M_Menu_Setup_f);
+    m.add_action_entry("Bot Control", &M_Menu_BotControl_f);
 
     return m;
 }
@@ -693,7 +841,7 @@ void M_Menu_MultiPlayer_f()
 
 void M_MultiPlayer_Draw()
 {
-    if(!ipxAvailable && !tcpipAvailable)
+    if(!tcpipAvailable)
     {
         M_PrintWhite(
             (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
@@ -955,7 +1103,7 @@ void M_Menu_Net_f()
     key_dest = key_menu;
     m_state = m_net;
     m_entersound = true;
-    m_net_items = 2;
+    m_net_items = 1;
 
     if(m_net_cursor >= m_net_items)
     {
@@ -976,26 +1124,7 @@ void M_Net_Draw()
     M_DrawPic((320 - p->width) / 2, 4, p);
 
     f = 32;
-
-    if(ipxAvailable)
-    {
-        p = Draw_CachePic("gfx/netmen3.lmp");
-    }
-    else
-    {
-        p = Draw_CachePic("gfx/dim_ipx.lmp");
-    }
-    M_DrawTransPic(72, f, p);
-
-    f += 19;
-    if(tcpipAvailable)
-    {
-        p = Draw_CachePic("gfx/netmen4.lmp");
-    }
-    else
-    {
-        p = Draw_CachePic("gfx/dim_tcp.lmp");
-    }
+    p = Draw_CachePic("gfx/netmen4.lmp");
     M_DrawTransPic(72, f, p);
 
     f = (320 - 26 * 8) / 2;
@@ -1014,7 +1143,6 @@ void M_Net_Draw()
 
 void M_Net_Key(int k)
 {
-again:
     switch(k)
     {
         case K_ESCAPE:
@@ -1022,18 +1150,12 @@ again:
 
         case K_DOWNARROW:
             S_LocalSound("misc/menu1.wav");
-            if(++m_net_cursor >= m_net_items)
-            {
-                m_net_cursor = 0;
-            }
+            m_net_cursor = 0;
             break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
-            if(--m_net_cursor < 0)
-            {
-                m_net_cursor = m_net_items - 1;
-            }
+            m_net_cursor = 0;
             break;
 
         case K_ENTER:
@@ -1042,15 +1164,6 @@ again:
             m_entersound = true;
             M_Menu_LanConfig_f();
             break;
-    }
-
-    if(m_net_cursor == 0 && !ipxAvailable)
-    {
-        goto again;
-    }
-    if(m_net_cursor == 1 && !tcpipAvailable)
-    {
-        goto again;
     }
 }
 
@@ -1248,7 +1361,7 @@ void M_Options_Key(int k)
             options_cursor = 0;
         }
     }
-    */
+   */
 }
 
 //=============================================================================
@@ -1273,6 +1386,12 @@ void M_Options_Key(int k)
 
     m.add_cvar_entry<float>("Menu Distance", vr_menu_distance, {1, 24, 256})
         .tooltip("Distance of the menu from the anchor point.");
+
+    m.add_cvar_getter_enum_entry<int>(              //
+        "Pointer Hand",                             //
+        [] { return &vr_menu_mouse_pointer_hand; }, //
+        "Off-Hand",                                 //
+        "Main Hand");
 
     // TODO VR: (P1) menu lerp amount, menu distance follow hand?
 
@@ -1512,6 +1631,11 @@ void M_Options_Key(int k)
             "Yaw offset for the guns/hands. Only for off-hand. Affects "
             "aiming.");
 
+    m.add_cvar_entry<float>(
+        "Finger Grip Bias", vr_finger_grip_bias, {0.05f, 0.f, 1.f});
+
+    m.add_cvar_entry<bool>("Auto close thumb", vr_finger_auto_close_thumb);
+
     return m;
 }
 
@@ -1618,12 +1742,23 @@ void M_Options_Key(int k)
             "well, if the weapon is close enough. The shoulder position can be "
             "tweaked in 'Hotspot Settings'.");
 
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_cvar_entry<float>(
          "2H Aiming Threshold", vr_2h_angle_threshold, {0.05f, -1.f, 1.f})
         .tooltip(
             "How much your hands have to be out of line with each other before "
             "two-handed aiming stops. Increase the value for a more strict "
             "two-handed aiming experience.");
+
+    m.add_cvar_entry<bool>(
+        "Disable 2H Aiming Threshold", vr_2h_disable_angle_threshold);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
 
     m.add_cvar_entry<float>("2H Virtual Stock Factor",
          vr_2h_virtual_stock_factor, {0.05f, 0.f, 1.f})
@@ -1808,7 +1943,7 @@ void M_Options_Key(int k)
     m.add_cvar_getter_enum_entry<VrForceGrabMode>(   //
          "Force Grab",                               //
          [] { return &vr_forcegrab_mode; },          //
-         "Disabled", "Parabola", "Linear", "Instant" //
+         "Disabled", "Linear", "Parabola", "Instant" //
          )
         .tooltip(
             "When enabled, allows the player to force grab thrown weapons from "
@@ -1851,7 +1986,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - GRAPHICAL SETTINGS  */
+/* QUAKE VR SETTINGS MENU - GRAPHICAL SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSGraphicalMenu()
 {
@@ -1887,7 +2022,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - HUD CONFIGURATION  */
+/* QUAKE VR SETTINGS MENU - HUD CONFIGURATION */
 
 [[nodiscard]] static quake::menu makeQVRSHudConfigurationMenu()
 {
@@ -1946,7 +2081,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - HOTSPOT SETTINGS  */
+/* QUAKE VR SETTINGS MENU - HOTSPOT SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSHotspotMenu()
 {
@@ -2025,7 +2160,7 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - TORSO SETTINGS  */
+/* QUAKE VR SETTINGS MENU - TORSO SETTINGS */
 
 [[nodiscard]] static quake::menu makeQVRSTorsoMenu()
 {
@@ -2036,7 +2171,7 @@ void M_Options_Key(int k)
 
     quake::menu m{"Torso Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModVRTorsoModel();
         VR_ModVRLegHolsterModel();
@@ -2097,54 +2232,18 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR SETTINGS MENU - CHANGE MAP  */
-
-[[nodiscard]] static quake::menu makeQVRSChangeMapMenu()
-{
-    using namespace std::literals;
-
-    static const std::array maps{"orig_start"sv, "start"sv, "e1m1"sv, "e1m2"sv,
-        "e1m3"sv, "e1m4"sv, "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv,
-        "e2m2"sv, "e2m3"sv, "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv,
-        "e3m2"sv, "e3m3"sv, "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv,
-        "e4m2"sv, "e4m3"sv, "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv,
-        "end"sv, "hip1m1"sv, "hip1m2"sv, "hip1m3"sv, "hip1m4"sv, "hip1m5"sv,
-        "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv, "hip2m5"sv, "hip2m6"sv,
-        "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv, "hipdm1"sv, "hipend"sv};
-
-    const auto changeMap = [](const int option) {
-        return [option] {
-            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
-            Cmd_ExecuteString(va("map %s", maps[option].data()), src_command);
-        };
-    };
-
-    // ------------------------------------------------------------------------
-
-    quake::menu m{"Change Map", &M_Menu_QuakeVRSettings_f, true};
-
-    int idx{0};
-    for(const auto& map : maps)
-    {
-        m.add_action_entry(map, changeMap(idx));
-        ++idx;
-    }
-
-    return m;
-}
-
-[[nodiscard]] static quake::menu& qvrsChangeMapMenu()
-{
-    static quake::menu res = makeQVRSChangeMapMenu();
-    return res;
-}
-
-//=============================================================================
-/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS  */
+/* QUAKE VR SETTINGS MENU - TRANSPARENCY OPTIONS */
 
 [[nodiscard]] static quake::menu makeQVRSTransparencyOptionsMenu()
 {
     quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
+
+    m.on_key([](const int key, quake::impl::menu_entry& entry) {
+        if(key == 'p')
+        {
+            quakeVRQuickSettingsMenu().add_entry_ptr(entry);
+        }
+    });
 
     extern cvar_t r_novis;
     m.add_cvar_entry<bool>("(!) No Vis", r_novis)
@@ -2181,6 +2280,39 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR QUICK SETTINGS MENU */
+
+[[nodiscard]] static quake::menu makeQuakeVRQuickSettingsMenu()
+{
+    quake::menu m{"Quake VR - Quick Settings", &M_Menu_Main_f};
+    return m;
+}
+
+[[nodiscard]] static quake::menu& quakeVRQuickSettingsMenu()
+{
+    static quake::menu res = makeQuakeVRQuickSettingsMenu();
+    return res;
+}
+
+void M_Menu_QuakeVRQuickSettings_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrquicksettings;
+    m_entersound = true;
+}
+
+void M_QuakeVRQuickSettings_Draw()
+{
+    quakeVRQuickSettingsMenu().draw();
+}
+
+void M_QuakeVRQuickSettings_Key(int k)
+{
+    quakeVRQuickSettingsMenu().key(k);
+}
+
+//=============================================================================
 /* QUAKE VR SETTINGS MENU */
 
 template <typename F>
@@ -2199,13 +2331,12 @@ static void forQVRSMenus(F&& f)
     f(qvrsHudConfigurationMenu(), m_qvrs_hudconfiguration);
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
-    f(qvrsChangeMapMenu(), m_qvrs_changemap);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
 }
 
 [[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
 {
-    quake::menu m{"Quake VR Settings", &M_Menu_Main_f};
+    quake::menu m{"Quake VR - Settings", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
@@ -2240,11 +2371,10 @@ void M_QuakeVRSettings_Key(int k)
     quakeVRSettingsMenu().key(k);
 }
 
-
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION */
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (1) */
 
-[[nodiscard]] static quake::menu makeQVRDTWeaponConfigurationMenu()
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration1Menu()
 {
     static bool wpnoff_offhand = false;
 
@@ -2256,7 +2386,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.1f;
+    const float rInc = 0.2f;
     constexpr float rBound = 90.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -2264,9 +2394,9 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{"Weapon Configuration (1)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2312,10 +2442,10 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    const auto hoverOffset = makeHoverFn(vr_impl_draw_wpnoffset_helper_offset);
-    const auto hoverMuzzle = makeHoverFn(vr_impl_draw_wpnoffset_helper_muzzle);
+    const auto hoverOffset =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_offset);
     const auto hover2HOffset =
-        makeHoverFn(vr_impl_draw_wpnoffset_helper_2h_offset);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_2h_offset);
 
     // ------------------------------------------------------------------------
 
@@ -2348,6 +2478,9 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
+    const auto hoverMuzzle =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnoffset_helper_muzzle);
+
     const char* muzzleTooltip =
         "Position of the weapon muzzle. Relative to the XYZ offsets above. "
         "Affected by the weapon model scale. DOES affect aiming. Bullets and "
@@ -2362,6 +2495,16 @@ void M_QuakeVRSettings_Key(int k)
     o_wpncvar("Muzzle Z", WpnCVar::MuzzleOffsetZ)
         .hover(hoverMuzzle)
         .tooltip(muzzleTooltip);
+
+    m.add_cvar_getter_entry<int>( //
+         "Muzzle Anchor Vertex",  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::MuzzleAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverMuzzle)
+        .tooltip("Index of the mesh vertex where the muzzle will be attached.");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -2397,14 +2540,14 @@ void M_QuakeVRSettings_Key(int k)
     return m;
 }
 
-[[nodiscard]] static quake::menu& qvrdtWeaponConfigurationMenu()
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration1Menu()
 {
-    static quake::menu res = makeQVRDTWeaponConfigurationMenu();
+    static quake::menu res = makeQVRDTWeaponConfiguration1Menu();
     return res;
 }
 
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION 2 */
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (2) */
 
 [[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration2Menu()
 {
@@ -2418,7 +2561,7 @@ void M_QuakeVRSettings_Key(int k)
     const float oInc = 0.1f;
     constexpr float oBound = 100.f;
 
-    const float rInc = 0.1f;
+    const float rInc = 0.2f;
     constexpr float rBound = 180.f;
 
     const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
@@ -2428,7 +2571,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2482,9 +2625,9 @@ void M_QuakeVRSettings_Key(int k)
     // ------------------------------------------------------------------------
 
     const auto hoverHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_hand_anchor_vertex);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_hand_anchor_vertex);
     const auto hover2HHandAnchorVertex =
-        makeHoverFn(vr_impl_draw_2h_hand_anchor_vertex);
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_2h_hand_anchor_vertex);
 
     // ------------------------------------------------------------------------
 
@@ -2496,7 +2639,7 @@ void M_QuakeVRSettings_Key(int k)
          [getIdx] {
              return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex);
          },           //
-         {1, 0, 1024} //
+         {1, 0, 4096} //
          )
         .hover(hoverHandAnchorVertex)
         .tooltip(
@@ -2525,7 +2668,7 @@ void M_QuakeVRSettings_Key(int k)
          [getIdx] {
              return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
          },           //
-         {1, 0, 1024} //
+         {1, 0, 4096} //
          )
         .hover(hover2HHandAnchorVertex)
         .tooltip(
@@ -2544,20 +2687,6 @@ void M_QuakeVRSettings_Key(int k)
     o_wpncvar("Hand X", WpnCVar::HandOffsetX).tooltip(handOffsetTooltip);
     o_wpncvar("Hand Y", WpnCVar::HandOffsetY).tooltip(handOffsetTooltip);
     o_wpncvar("Hand Z", WpnCVar::HandOffsetZ).tooltip(handOffsetTooltip);
-
-    // ------------------------------------------------------------------------
-    m.add_separator();
-    // ------------------------------------------------------------------------
-
-    const char* offHandOffsetTooltip =
-        "Visual offset of the hand, relative to the above hand offset.";
-
-    o_wpncvar("Off-Hand X", WpnCVar::OffHandOffsetX)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Y", WpnCVar::OffHandOffsetY)
-        .tooltip(offHandOffsetTooltip);
-    o_wpncvar("Off-Hand Z", WpnCVar::OffHandOffsetZ)
-        .tooltip(offHandOffsetTooltip);
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -2654,7 +2783,7 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int) {
+    m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
         VR_ModAllWeapons();
     });
@@ -2730,7 +2859,205 @@ void M_QuakeVRSettings_Key(int k)
 }
 
 //=============================================================================
-/* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES  */
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (4) */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration4Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.2f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+    const quake::menu_bounds<float> zbBounds{0.05f, 0.f, 1.f};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (4)", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int, quake::impl::menu_entry&) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            zbBounds                                             //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<WpnButtonMode>( //
+         "Button Mode",                          //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonMode);
+         },                             //
+         "Disabled", "Ammo Type Change" //
+         )
+        .tooltip("Type of button.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnOffsetTooltip = "Offset of the weapon button.";
+
+    o_wpncvar("Button X", WpnCVar::WpnButtonX).tooltip(btnOffsetTooltip);
+    o_wpncvar("Button Y", WpnCVar::WpnButtonY).tooltip(btnOffsetTooltip);
+    o_wpncvar("Button Z", WpnCVar::WpnButtonZ).tooltip(btnOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnAngleTooltip = "Angle offset of the weapon button.";
+
+    r_wpncvar("Button Pitch", WpnCVar::WpnButtonPitch).tooltip(btnAngleTooltip);
+    r_wpncvar("Button Yaw", WpnCVar::WpnButtonYaw).tooltip(btnAngleTooltip);
+    r_wpncvar("Button Roll", WpnCVar::WpnButtonRoll).tooltip(btnAngleTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverWpnButtonAnchorVertex =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpnbutton_anchor_vertex);
+
+    m.add_cvar_getter_entry<int>( //
+         "Button Anchor Vertex",  //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverWpnButtonAnchorVertex)
+        .tooltip("Index of the mesh vertex where the button will be attached.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* zbTooltip =
+        "Blending factor of the weapon animation with the zeroth frame. Useful "
+        "to adjust recoil animations.";
+
+    zb_wpncvar("Zero Blend", WpnCVar::ZeroBlend).tooltip(zbTooltip);
+    zb_wpncvar("2H Zero Blend", WpnCVar::TwoHZeroBlend).tooltip(zbTooltip);
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration4Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration4Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - FINGER CONFIGURATION */
+
+[[nodiscard]] static quake::menu makeQVRDTFingerConfigurationMenu()
+{
+    const float oInc = 0.025f;
+    constexpr float oBound = 100.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Finger Configuration", &M_Menu_QuakeVRDevTools_f};
+
+    // ------------------------------------------------------------------------
+
+#define MAKE_XYZ_CONTROLS(name, cvar_family_prefix)                          \
+    {                                                                        \
+        m.add_cvar_entry<float>(name " X", cvar_family_prefix##_x, oBounds); \
+        m.add_cvar_entry<float>(name " Y", cvar_family_prefix##_y, oBounds); \
+        m.add_cvar_entry<float>(name " Z", cvar_family_prefix##_z, oBounds); \
+        m.add_separator();                                                   \
+    }
+
+    MAKE_XYZ_CONTROLS("All Fingers And Base", vr_fingers_and_base);
+    MAKE_XYZ_CONTROLS(
+        "All Fingers And Base (Off-Hand)", vr_fingers_and_base_offhand);
+    MAKE_XYZ_CONTROLS("All Fingers", vr_fingers);
+    MAKE_XYZ_CONTROLS("Thumb", vr_finger_thumb);
+    MAKE_XYZ_CONTROLS("Index", vr_finger_index);
+    MAKE_XYZ_CONTROLS("Middle", vr_finger_middle);
+    MAKE_XYZ_CONTROLS("Ring", vr_finger_ring);
+    MAKE_XYZ_CONTROLS("Pinky", vr_finger_pinky);
+    MAKE_XYZ_CONTROLS("Base", vr_finger_base);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<bool>("Finger Blending", vr_finger_blending);
+    m.add_cvar_entry<float>(
+        "Finger Blending Speed", vr_finger_blending_speed, {0.5f, 0.f, 100.f});
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtFingerConfigurationMenu()
+{
+    static quake::menu res = makeQVRDTFingerConfigurationMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - DEBUG UTILITIES */
 
 [[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
 {
@@ -2745,9 +3072,43 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Debug Utilities", &M_Menu_QuakeVRDevTools_f};
 
+    m.add_cvar_entry<bool>(
+        "Force-grabbable ammo items", vr_forcegrabbable_ammo_boxes);
+
+    m.add_cvar_entry<bool>(
+        "Force-grabbable health items", vr_forcegrabbable_health_boxes);
+
+    m.add_cvar_entry<float>("Return item time (DM)",
+        vr_forcegrabbable_return_time_deathmatch, {0.5f, 0.f, 50.f});
+
+    m.add_cvar_entry<float>("Return item time (SP)",
+        vr_forcegrabbable_return_time_singleplayer, {0.5f, 0.f, 50.f});
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<float>("Throw Up Center Of Mass",
+        vr_throw_up_center_of_mass, {0.01f, 0.f, 10.f});
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<int>("Autosave Period", vr_autosave_seconds, {5, 5, 2400});
+    m.add_cvar_entry<bool>(
+        "Autosave On Changelevel", vr_autosave_on_changelevel);
+    m.add_cvar_entry<bool>("Autosave Messages", vr_autosave_show_message);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
     m.add_action_entry("Impulse 9 (Give All)", runCmd("impulse 9"));
     m.add_action_entry("Impulse 11 (Rune)", runCmd("impulse 11"));
     m.add_action_entry("Impulse 14 (Spawn All)", runCmd("impulse 14"));
+    m.add_action_entry("Impulse 17 (Spawn Grapple)", runCmd("impulse 17"));
+    m.add_action_entry("Impulse 254 (Invisibility)", runCmd("impulse 254"));
     m.add_action_entry("Impulse 255 (Quad)", runCmd("impulse 255"));
     m.add_action_entry("God Mode", runCmd("god"));
     m.add_action_entry("Noclip", runCmd("noclip"));
@@ -2779,12 +3140,11 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_entry<bool>("Fake VR Mode", vr_fakevr);
 
-    m.add_cvar_entry<bool>("Enable Grapple Gun", vr_enable_grapple);
-
     extern cvar_t host_timescale;
     m.add_cvar_entry<float>("Timescale", host_timescale, {0.05f, 0.f, 5.f});
 
     m.add_cvar_entry<bool>("Print Handvel", vr_debug_print_handvel);
+    m.add_cvar_entry<bool>("Print Headvel", vr_debug_print_headvel);
     m.add_cvar_entry<bool>("Show Hand Pos/Rot", vr_debug_show_hand_pos_and_rot);
 
     // ------------------------------------------------------------------------
@@ -2820,15 +3180,17 @@ void M_QuakeVRSettings_Key(int k)
 template <typename F>
 static void forQVRDTMenus(F&& f)
 {
-    f(qvrdtWeaponConfigurationMenu(), m_qvrdt_weaponconfiguration);
+    f(qvrdtWeaponConfiguration1Menu(), m_qvrdt_weaponconfiguration1);
     f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
     f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
+    f(qvrdtWeaponConfiguration4Menu(), m_qvrdt_weaponconfiguration4);
+    f(qvrdtFingerConfigurationMenu(), m_qvrdt_fingerconfiguration);
     f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }
 
 [[nodiscard]] static quake::menu makeQuakeVRDevToolsMenu()
 {
-    quake::menu m{"Quake VR Dev Tools", &M_Menu_Main_f};
+    quake::menu m{"Quake VR - Dev Tools", &M_Menu_Main_f};
 
     const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
         m.add_action_entry(
@@ -2861,6 +3223,235 @@ void M_QuakeVRDevTools_Draw()
 void M_QuakeVRDevTools_Key(int k)
 {
     quakeVRDevToolsMenu().key(k);
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - IMPL */
+
+enum class ChangeMapCommand : int
+{
+    Map = 0,
+    Changelevel = 1,
+};
+
+[[nodiscard]] static int& getChangeMapCommand()
+{
+    static int cmd{static_cast<int>(ChangeMapCommand::Map)};
+    return cmd;
+}
+
+template <typename Range>
+[[nodiscard]] static quake::menu makeQVRCMChangeMapMenuImpl(
+    const std::string_view name, const Range& maps)
+{
+    const auto changeMap = [&maps](const int option) {
+        return [&maps, option] {
+            quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
+
+            const char* cmd =
+                static_cast<ChangeMapCommand>(getChangeMapCommand()) ==
+                        ChangeMapCommand::Map
+                    ? "map"
+                    : "changelevel";
+
+            Cmd_ExecuteString(
+                va("%s %s", cmd, maps[option].data()), src_command);
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{name, &M_Menu_QuakeVRChangeMap_f, true};
+
+    int idx{0};
+    for(const auto& map : maps)
+    {
+        m.add_action_entry(map, changeMap(idx));
+        ++idx;
+    }
+
+    return m;
+}
+
+using namespace std::literals;
+
+constexpr std::array mapsVanilla{"e1m1"sv, "e1m2"sv, "e1m3"sv, "e1m4"sv,
+    "e1m5"sv, "e1m6"sv, "e1m7"sv, "e1m8"sv, "e2m1"sv, "e2m2"sv, "e2m3"sv,
+    "e2m4"sv, "e2m5"sv, "e2m6"sv, "e2m7"sv, "e3m1"sv, "e3m2"sv, "e3m3"sv,
+    "e3m4"sv, "e3m5"sv, "e3m6"sv, "e3m7"sv, "e4m1"sv, "e4m2"sv, "e4m3"sv,
+    "e4m4"sv, "e4m5"sv, "e4m6"sv, "e4m7"sv, "e4m8"sv, "end"sv};
+
+constexpr std::array mapsSoa{"hip1m1"sv, "hip1m2"sv, "hip1m3"sv, "hip1m4"sv,
+    "hip1m5"sv, "hip2m1"sv, "hip2m2"sv, "hip2m3"sv, "hip2m4"sv, "hip2m5"sv,
+    "hip2m6"sv, "hip3m1"sv, "hip3m2"sv, "hip3m3"sv, "hip3m4"sv, "hipdm1"sv,
+    "hipend"sv};
+
+constexpr std::array mapsDoe{"r1m1"sv, "r1m2"sv, "r1m3"sv, "r1m4"sv, "r1m5"sv,
+    "r1m6"sv, "r1m7"sv, "r2m1"sv, "r2m2"sv, "r2m3"sv, "r2m4"sv, "r2m5"sv,
+    "r2m6"sv, "r2m7"sv, "r2m8"sv, "ctf1"sv};
+
+constexpr std::array mapsDopa{"e5m1"sv, "e5m2"sv, "e5m3"sv, "e5m4"sv, "e5m5"sv,
+    "e5m6"sv, "e5m7"sv, "e5m8"sv, "e5end"sv, "e5dm"sv};
+
+constexpr std::array mapsHoney{
+    "saint"sv, "honey"sv, "h_hub1"sv, "h_hub2"sv, "h_end"sv, "credits"sv};
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - VANILLA */
+
+[[nodiscard]] static quake::menu makeQVRCMVanillaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Vanilla", mapsVanilla);
+}
+
+[[nodiscard]] static quake::menu& qvrcmVanillaMenu()
+{
+    static quake::menu res = makeQVRCMVanillaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - SOA */
+
+[[nodiscard]] static quake::menu makeQVRCMSoaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Scourge of Armagon", mapsSoa);
+}
+
+[[nodiscard]] static quake::menu& qvrcmSoaMenu()
+{
+    static quake::menu res = makeQVRCMSoaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - DOE */
+
+[[nodiscard]] static quake::menu makeQVRCMDoeMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Dissolution of Eternity", mapsDoe);
+}
+
+[[nodiscard]] static quake::menu& qvrcmDoeMenu()
+{
+    static quake::menu res = makeQVRCMDoeMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - DOPA */
+
+[[nodiscard]] static quake::menu makeQVRCMDopaMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Dimensions of the Past", mapsDopa);
+}
+
+[[nodiscard]] static quake::menu& qvrcmDopaMenu()
+{
+    static quake::menu res = makeQVRCMDopaMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - HONEY */
+
+[[nodiscard]] static quake::menu makeQVRCMHoneyMenu()
+{
+    return makeQVRCMChangeMapMenuImpl("Honey (czg)", mapsHoney);
+}
+
+[[nodiscard]] static quake::menu& qvrcmHoneyMenu()
+{
+    static quake::menu res = makeQVRCMHoneyMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP - EXTRA */
+
+[[nodiscard]] static quake::menu makeQVRCMExtraMenu()
+{
+    static std::vector<std::string_view> mapsExtra;
+
+    int i;
+    filelist_item_t* level;
+
+    for(level = extralevels, i = 0; level; level = level->next, i++)
+    {
+        mapsExtra.emplace_back(level->name);
+    }
+
+    return makeQVRCMChangeMapMenuImpl("Custom Maps", mapsExtra);
+}
+
+[[nodiscard]] static quake::menu& qvrcmExtraMenu()
+{
+    static quake::menu res = makeQVRCMExtraMenu();
+    return res;
+}
+
+
+//=============================================================================
+/* QUAKE VR CHANGE MAP MENU */
+
+template <typename F>
+static void forQVRCMMenus(F&& f)
+{
+    f(qvrcmVanillaMenu(), m_qvrs_changemap_vanilla);
+    f(qvrcmSoaMenu(), m_qvrs_changemap_soa);
+    f(qvrcmDoeMenu(), m_qvrs_changemap_doe);
+    f(qvrcmDopaMenu(), m_qvrs_changemap_dopa);
+    f(qvrcmHoneyMenu(), m_qvrs_changemap_honey);
+    f(qvrcmExtraMenu(), m_qvrs_changemap_extra);
+}
+
+[[nodiscard]] static quake::menu makeQuakeVRChangeMap()
+{
+    quake::menu m{"Quake VR - Change Map", &M_Menu_Main_f};
+
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+        m.add_action_entry(
+            xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
+    };
+
+    m.add_getter_enum_entry<ChangeMapCommand>( //
+        "Preserve Equipment",                  //
+        [] { return &getChangeMapCommand(); }, //
+        "No (map)",                            //
+        "Yes (changelevel)"                    //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    forQVRCMMenus(makeGotoMenu);
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& quakeVRChangeMapMenu()
+{
+    static quake::menu res = makeQuakeVRChangeMap();
+    return res;
+}
+
+void M_Menu_QuakeVRChangeMap_f()
+{
+    IN_Deactivate(modestate == MS_WINDOWED);
+    key_dest = key_menu;
+    m_state = m_quakevrchangemap;
+    m_entersound = true;
+}
+
+void M_QuakeVRChangeMap_Draw()
+{
+    quakeVRChangeMapMenu().draw();
+}
+
+void M_QuakeVRChangeMap_Key(int k)
+{
+    quakeVRChangeMapMenu().key(k);
 }
 
 //=============================================================================
@@ -3192,6 +3783,12 @@ void M_Quit_Key(int key)
             m_state = m_none;
         }
     }
+    else
+    {
+        IN_Deactivate(modestate == MS_WINDOWED);
+        key_dest = key_console;
+        Host_Quit_f();
+    }
 }
 
 
@@ -3234,7 +3831,7 @@ bool M_Quit_TextEntry()
 
 void M_Quit_Draw() // johnfitz -- modified for new quit message
 {
-    char msg1[40];
+    char msg1[64];
     char msg2[] =
         "by Vittorio Romeo, Ozkan Sezer, Eric Wasylishen, others"; /* msg2/msg3
                                                       are mostly [40] */
@@ -3252,15 +3849,15 @@ void M_Quit_Draw() // johnfitz -- modified for new quit message
     sprintf(msg1, "QuakeSpasm " QUAKESPASM_VER_STRING);
 
     // okay, this is kind of fucked up.  M_DrawTextBox will always act as if
-    // width is even. Also, the width and lines values are for the interior of
-    // the box, but the x and y values include the border.
+    // width is even. Also, the width and lines values are for the interior
+    // of the box, but the x and y values include the border.
     boxlen =
         q_max(strlen(msg1), q_max((sizeof(msg2) - 1), (sizeof(msg3) - 1))) + 1;
     if(boxlen & 1)
     {
         boxlen++;
     }
-    M_DrawTextBox(160 - 4 * (boxlen + 2), 76, boxlen, 4);
+    M_DrawTextBox(260 - 4 * (boxlen + 2), 76, boxlen, 4);
 
     // now do the text
     M_Print(260 - 4 * strlen(msg1), 88, msg1);
@@ -3287,7 +3884,7 @@ void M_Menu_LanConfig_f()
     m_entersound = true;
     if(lanConfig_cursor == -1)
     {
-        if(JoiningGame && TCPIPConfig)
+        if(JoiningGame)
         {
             lanConfig_cursor = 2;
         }
@@ -3328,26 +3925,14 @@ void M_LanConfig_Draw()
     {
         startJoin = "Join Game";
     }
-    if(IPXConfig)
-    {
-        protocol = "IPX";
-    }
-    else
-    {
-        protocol = "TCP/IP";
-    }
+
+    protocol = "TCP/IP";
+
     M_Print(basex, 32, va("%s - %s", startJoin, protocol));
     basex += 8;
 
     M_Print(basex, 52, "Address:");
-    if(IPXConfig)
-    {
-        M_Print(basex + 9 * 8, 52, my_ipx_address);
-    }
-    else
-    {
-        M_Print(basex + 9 * 8, 52, my_tcpip_address);
-    }
+    M_Print(basex + 9 * 8, 52, my_tcpip_address);
 
     M_Print(basex, lanConfig_cursor_table[0], "Port");
     M_DrawTextBox(basex + 8 * 8, lanConfig_cursor_table[0] - 8, 6, 1);
@@ -3395,7 +3980,7 @@ void M_LanConfig_Key(int key)
     switch(key)
     {
         case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Net_f(); break;
+        case K_BBUTTON: M_Menu_MultiPlayer_f(); break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
@@ -3539,96 +4124,119 @@ typedef struct
     const char* description;
 } level_t;
 
-level_t levels[] = {{"start", "Entrance"}, // 0
+level_t levels[] = {
 
-    {"e1m1", "Slipgate Complex"}, // 1
-    {"e1m2", "Castle of the Damned"}, {"e1m3", "The Necropolis"},
-    {"e1m4", "The Grisly Grotto"}, {"e1m5", "Gloom Keep"},
-    {"e1m6", "The Door To Chthon"}, {"e1m7", "The House of Chthon"},
-    {"e1m8", "Ziggurat Vertigo"},
+    {"e1m1", "Slipgate Complex"},     // 0
+    {"e1m2", "Castle of the Damned"}, // 1
+    {"e1m3", "The Necropolis"},       // 2
+    {"e1m4", "The Grisly Grotto"},    // 3
+    {"e1m5", "Gloom Keep"},           // 4
+    {"e1m6", "The Door To Chthon"},   // 5
+    {"e1m7", "The House of Chthon"},  // 6
+    {"e1m8", "Ziggurat Vertigo"},     // 7
 
-    {"e2m1", "The Installation"}, // 9
-    {"e2m2", "Ogre Citadel"}, {"e2m3", "Crypt of Decay"},
-    {"e2m4", "The Ebon Fortress"}, {"e2m5", "The Wizard's Manse"},
-    {"e2m6", "The Dismal Oubliette"}, {"e2m7", "Underearth"},
+    {"e2m1", "The Installation"},     // 8
+    {"e2m2", "Ogre Citadel"},         // 9
+    {"e2m3", "Crypt of Decay"},       // 10
+    {"e2m4", "The Ebon Fortress"},    // 11
+    {"e2m5", "The Wizard's Manse"},   // 12
+    {"e2m6", "The Dismal Oubliette"}, // 13
+    {"e2m7", "Underearth"},           // 14
 
-    {"e3m1", "Termination Central"}, // 16
-    {"e3m2", "The Vaults of Zin"}, {"e3m3", "The Tomb of Terror"},
-    {"e3m4", "Satan's Dark Delight"}, {"e3m5", "Wind Tunnels"},
-    {"e3m6", "Chambers of Torment"}, {"e3m7", "The Haunted Halls"},
+    {"e3m1", "Termination Central"},  // 15
+    {"e3m2", "The Vaults of Zin"},    // 16
+    {"e3m3", "The Tomb of Terror"},   // 17
+    {"e3m4", "Satan's Dark Delight"}, // 18
+    {"e3m5", "Wind Tunnels"},         // 19
+    {"e3m6", "Chambers of Torment"},  // 20
+    {"e3m7", "The Haunted Halls"},    // 21
 
-    {"e4m1", "The Sewage System"}, // 23
-    {"e4m2", "The Tower of Despair"}, {"e4m3", "The Elder God Shrine"},
-    {"e4m4", "The Palace of Hate"}, {"e4m5", "Hell's Atrium"},
-    {"e4m6", "The Pain Maze"}, {"e4m7", "Azure Agony"},
-    {"e4m8", "The Nameless City"},
+    {"e4m1", "The Sewage System"},    // 22
+    {"e4m2", "The Tower of Despair"}, // 23
+    {"e4m3", "The Elder God Shrine"}, // 24
+    {"e4m4", "The Palace of Hate"},   // 25
+    {"e4m5", "Hell's Atrium"},        // 26
+    {"e4m6", "The Pain Maze"},        // 27
+    {"e4m7", "Azure Agony"},          // 28
+    {"e4m8", "The Nameless City"},    // 29
 
-    {"end", "Shub-Niggurath's Pit"}, // 31
+    {"end", "Shub-Niggurath's Pit"}, // 30
 
-    {"dm1", "Place of Two Deaths"}, // 32
-    {"dm2", "Claustrophobopolis"}, {"dm3", "The Abandoned Base"},
-    {"dm4", "The Bad Place"}, {"dm5", "The Cistern"}, {"dm6", "The Dark Zone"}};
+    {"dm1", "Place of Two Deaths"}, // 31
+    {"dm2", "Claustrophobopolis"},  // 32
+    {"dm3", "The Abandoned Base"},  // 33
+    {"dm4", "The Bad Place"},       // 34
+    {"dm5", "The Cistern"},         // 35
+    {"dm6", "The Dark Zone"},       // 36
 
-// MED 01/06/97 added hipnotic levels
-level_t hipnoticlevels[] = {
-    {"start", "Command HQ"}, // 0
+    {"hip1m1", "The Pumping Station"}, // 37
+    {"hip1m2", "Storage Facility"},    // 38
+    {"hip1m3", "The Lost Mine"},       // 39
+    {"hip1m4", "Research Facility"},   // 40
+    {"hip1m5", "Military Complex"},    // 41
 
-    {"hip1m1", "The Pumping Station"}, // 1
-    {"hip1m2", "Storage Facility"}, {"hip1m3", "The Lost Mine"},
-    {"hip1m4", "Research Facility"}, {"hip1m5", "Military Complex"},
+    {"hip2m1", "Ancient Realms"},       // 42
+    {"hip2m2", "The Black Cathedral"},  // 43
+    {"hip2m3", "The Catacombs"},        // 44
+    {"hip2m4", "The Crypt"},            // 45
+    {"hip2m5", "Mortum's Keep"},        // 46
+    {"hip2m6", "The Gremlin's Domain"}, // 47
 
-    {"hip2m1", "Ancient Realms"}, // 6
-    {"hip2m2", "The Black Cathedral"}, {"hip2m3", "The Catacombs"},
-    {"hip2m4", "The Crypt"}, {"hip2m5", "Mortum's Keep"},
-    {"hip2m6", "The Gremlin's Domain"},
+    {"hip3m1", "Tur Torment"},  // 48
+    {"hip3m2", "Pandemonium"},  // 49
+    {"hip3m3", "Limbo"},        // 50
+    {"hip3m4", "The Gauntlet"}, // 51
 
-    {"hip3m1", "Tur Torment"}, // 12
-    {"hip3m2", "Pandemonium"}, {"hip3m3", "Limbo"}, {"hip3m4", "The Gauntlet"},
+    {"hipend", "Armagon's Lair"}, // 52
 
-    {"hipend", "Armagon's Lair"}, // 16
+    {"hipdm1", "The Edge of Oblivion"}, // 53
 
-    {"hipdm1", "The Edge of Oblivion"} // 17
+    {"r1m1", "Deviant's Domain"},     // 54
+    {"r1m2", "Dread Portal"},         // 55
+    {"r1m3", "Judgement Call"},       // 56
+    {"r1m4", "Cave of Death"},        // 57
+    {"r1m5", "Towers of Wrath"},      // 58
+    {"r1m6", "Temple of Pain"},       // 59
+    {"r1m7", "Tomb of the Overlord"}, // 60
+
+    {"r2m1", "Tempus Fugit"},      // 61
+    {"r2m2", "Elemental Fury I"},  // 62
+    {"r2m3", "Elemental Fury II"}, // 63
+    {"r2m4", "Curse of Osiris"},   // 64
+    {"r2m5", "Wizard's Keep"},     // 65
+    {"r2m6", "Blood Sacrifice"},   // 66
+    {"r2m7", "Last Bastion"},      // 67
+    {"r2m8", "Source of Evil"},    // 68
+
+    {"ctf1", "Division of Change"} // 69
 };
-
-// PGM 01/07/97 added rogue levels
-// PGM 03/02/97 added dmatch level
-level_t roguelevels[] = {{"start", "Split Decision"},
-    {"r1m1", "Deviant's Domain"}, {"r1m2", "Dread Portal"},
-    {"r1m3", "Judgement Call"}, {"r1m4", "Cave of Death"},
-    {"r1m5", "Towers of Wrath"}, {"r1m6", "Temple of Pain"},
-    {"r1m7", "Tomb of the Overlord"}, {"r2m1", "Tempus Fugit"},
-    {"r2m2", "Elemental Fury I"}, {"r2m3", "Elemental Fury II"},
-    {"r2m4", "Curse of Osiris"}, {"r2m5", "Wizard's Keep"},
-    {"r2m6", "Blood Sacrifice"}, {"r2m7", "Last Bastion"},
-    {"r2m8", "Source of Evil"}, {"ctf1", "Division of Change"}};
 
 typedef struct
 {
     const char* description;
     int firstLevel;
-    int levels;
+    int lastLevel;
 } episode_t;
 
-episode_t episodes[] = {{"Welcome to Quake", 0, 1}, {"Doomed Dimension", 1, 8},
-    {"Realm of Black Magic", 9, 7}, {"Netherworld", 16, 7},
-    {"The Elder World", 23, 8}, {"Final Level", 31, 1},
-    {"Deathmatch Arena", 32, 6}};
-
-// MED 01/06/97  added hipnotic episodes
-episode_t hipnoticepisodes[] = {{"Scourge of Armagon", 0, 1},
-    {"Fortress of the Dead", 1, 5}, {"Dominion of Darkness", 6, 6},
-    {"The Rift", 12, 4}, {"Final Level", 16, 1}, {"Deathmatch Arena", 17, 1}};
-
-// PGM 01/07/97 added rogue episodes
-// PGM 03/02/97 added dmatch episode
-episode_t rogueepisodes[] = {{"Introduction", 0, 1}, {"Hell's Fortress", 1, 7},
-    {"Corridors of Time", 8, 8}, {"Deathmatch Arena", 16, 1}};
+episode_t episodes[] = {
+    //
+    {"Vanilla E1", 0, 7},   //
+    {"Vanilla E2", 8, 14},  //
+    {"Vanilla E3", 15, 21}, //
+    {"Vanilla E4", 22, 30}, //
+    {"Vanilla DM", 31, 36}, //
+    {"SoA E1", 37, 41},     //
+    {"SoA E2", 42, 47},     //
+    {"SoA E3", 48, 52},     //
+    {"SoA DM", 53, 53},     //
+    {"DoE E1", 54, 60},     //
+    {"DoE E2", 61, 68},     //
+    {"DoE DM", 69, 69},     //
+};
 
 int startepisode;
 int startlevel;
 int maxplayers;
-bool m_serverInfoMessage = false;
-double m_serverInfoMessageTime;
 
 void M_Menu_GameOptions_f()
 {
@@ -3636,10 +4244,12 @@ void M_Menu_GameOptions_f()
     key_dest = key_menu;
     m_state = m_gameoptions;
     m_entersound = true;
+
     if(maxplayers == 0)
     {
         maxplayers = svs.maxclients;
     }
+
     if(maxplayers < 2)
     {
         maxplayers = svs.maxclientslimit;
@@ -3654,7 +4264,6 @@ int gameoptions_cursor;
 void M_GameOptions_Draw()
 {
     qpic_t* p;
-    int x;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_multi.lmp");
@@ -3745,73 +4354,17 @@ void M_GameOptions_Draw()
     }
 
     M_Print(0, 112, "         Episode");
-    // MED 01/06/97 added hipnotic episodes
-    if(hipnotic)
-    {
-        M_Print(160, 112, hipnoticepisodes[startepisode].description);
-        // PGM 01/07/97 added rogue episodes
-    }
-    else if(rogue)
-    {
-        M_Print(160, 112, rogueepisodes[startepisode].description);
-    }
-    else
-    {
-        M_Print(160, 112, episodes[startepisode].description);
-    }
+    M_Print(160, 112, episodes[startepisode].description);
 
     M_Print(0, 120, "           Level");
-    // MED 01/06/97 added hipnotic episodes
-    if(hipnotic)
-    {
-        M_Print(160, 120,
-            hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
-                           startlevel]
-                .description);
-        M_Print(160, 128,
-            hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
-                           startlevel]
-                .name);
-    }
-    // PGM 01/07/97 added rogue episodes
-    else if(rogue)
-    {
-        M_Print(160, 120,
-            roguelevels[rogueepisodes[startepisode].firstLevel + startlevel]
-                .description);
-        M_Print(160, 128,
-            roguelevels[rogueepisodes[startepisode].firstLevel + startlevel]
-                .name);
-    }
-    else
-    {
-        M_Print(160, 120,
-            levels[episodes[startepisode].firstLevel + startlevel].description);
-        M_Print(160, 128,
-            levels[episodes[startepisode].firstLevel + startlevel].name);
-    }
+    M_Print(160, 120,
+        levels[episodes[startepisode].firstLevel + startlevel].description);
+    M_Print(
+        160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 
     // line cursor
     M_DrawCharacter(144, gameoptions_cursor_table[gameoptions_cursor],
         12 + ((int)(realtime * 4) & 1));
-
-    if(m_serverInfoMessage)
-    {
-        if((realtime - m_serverInfoMessageTime) < 5.0)
-        {
-            x = (320 - 26 * 8) / 2;
-            M_DrawTextBox(x, 138, 24, 4);
-            x += 8;
-            M_Print(x, 146, "  More than 4 players   ");
-            M_Print(x, 154, " requires using command ");
-            M_Print(x, 162, "line parameters; please ");
-            M_Print(x, 170, "   see techinfo.txt.    ");
-        }
-        else
-        {
-            m_serverInfoMessage = false;
-        }
-    }
 }
 
 
@@ -3827,8 +4380,6 @@ void M_NetStart_Change(int dir)
             if(maxplayers > svs.maxclientslimit)
             {
                 maxplayers = svs.maxclientslimit;
-                m_serverInfoMessage = true;
-                m_serverInfoMessageTime = realtime;
             }
             if(maxplayers < 2)
             {
@@ -3893,25 +4444,7 @@ void M_NetStart_Change(int dir)
 
         case 7:
             startepisode += dir;
-            // MED 01/06/97 added hipnotic count
-            if(hipnotic)
-            {
-                count = 6;
-                // PGM 01/07/97 added rogue count
-                // PGM 03/02/97 added 1 for dmatch episode
-            }
-            else if(rogue)
-            {
-                count = 4;
-            }
-            else if(registered.value)
-            {
-                count = 7;
-            }
-            else
-            {
-                count = 2;
-            }
+            count = sizeof(episodes) / sizeof(episode_t);
 
             if(startepisode < 0)
             {
@@ -3928,20 +4461,8 @@ void M_NetStart_Change(int dir)
 
         case 8:
             startlevel += dir;
-            // MED 01/06/97 added hipnotic episodes
-            if(hipnotic)
-            {
-                count = hipnoticepisodes[startepisode].levels;
-                // PGM 01/06/97 added hipnotic episodes
-            }
-            else if(rogue)
-            {
-                count = rogueepisodes[startepisode].levels;
-            }
-            else
-            {
-                count = episodes[startepisode].levels;
-            }
+            count = episodes[startepisode].lastLevel -
+                    episodes[startepisode].firstLevel + 1;
 
             if(startlevel < 0)
             {
@@ -3961,7 +4482,7 @@ void M_GameOptions_Key(int key)
     switch(key)
     {
         case K_ESCAPE:
-        case K_BBUTTON: M_Menu_Net_f(); break;
+        case K_BBUTTON: M_Menu_LanConfig_f(); break;
 
         case K_UPARROW:
             S_LocalSound("misc/menu1.wav");
@@ -4014,27 +4535,9 @@ void M_GameOptions_Key(int key)
                 Cbuf_AddText(va("maxplayers %u\n", maxplayers));
                 SCR_BeginLoadingPlaque();
 
-                if(hipnotic)
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        hipnoticlevels[hipnoticepisodes[startepisode]
-                                           .firstLevel +
-                                       startlevel]
-                            .name));
-                }
-                else if(rogue)
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        roguelevels[rogueepisodes[startepisode].firstLevel +
-                                    startlevel]
-                            .name));
-                }
-                else
-                {
-                    Cbuf_AddText(va("map %s\n",
-                        levels[episodes[startepisode].firstLevel + startlevel]
-                            .name));
-                }
+                Cbuf_AddText(va("map %s\n",
+                    levels[episodes[startepisode].firstLevel + startlevel]
+                        .name));
 
                 return;
             }
@@ -4221,8 +4724,88 @@ void M_Init()
 
     Cmd_AddCommand("help", M_Menu_Help_f);
     Cmd_AddCommand("menu_quit", M_Menu_Quit_f);
+
+    Cmd_AddCommand("autosave", quake::saveutil::doAutosave);
 }
 
+[[nodiscard]] quake::vr::menu_keyboard& mkb()
+{
+    static quake::vr::menu_keyboard mkb{{200, 400}};
+    return mkb;
+}
+
+// TODO VR: (P1) cleanup
+void M_DrawKeyboard()
+{
+    using quake::vr::menu_keyboard;
+
+    if(key_dest != key_menu && key_dest != key_console)
+    {
+        return;
+    }
+
+    mkb().draw();
+
+    {
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_POINT_SMOOTH);
+        glPointSize(8);
+
+        const float mx = vr_menu_mouse_x;
+        const float my = vr_menu_mouse_y;
+        const bool click = vr_menu_mouse_click;
+
+        const auto doKey = [&](const int key) {
+            if(key_dest == key_menu)
+            {
+                M_Keydown(key, true /* fromVirtualKeyboard */);
+            }
+            else if(key_dest == key_console)
+            {
+                if(key == K_ESCAPE)
+                {
+                    M_ToggleMenu_f();
+                }
+                else
+                {
+                    void Key_Console(int key, const bool fromVirtualKeyboard);
+                    Key_Console(key, true /* fromVirtualKeyboard */);
+                }
+            }
+        };
+
+        const auto actions = quake::util::make_overload_set(
+            [&](const char c) { Char_Event(mkb().caps_lock() ? c - 32 : c); },
+            [&](menu_keyboard::ka_backspace) { doKey(K_BACKSPACE); },      //
+            [&](menu_keyboard::ka_enter) { doKey(K_ENTER); },              //
+            [&](menu_keyboard::ka_back) { doKey(K_ESCAPE); },              //
+            [&](menu_keyboard::ka_up) { doKey(K_UPARROW); },               //
+            [&](menu_keyboard::ka_down) { doKey(K_DOWNARROW); },           //
+            [&](menu_keyboard::ka_left) { doKey(K_LEFTARROW); },           //
+            [&](menu_keyboard::ka_right) { doKey(K_RIGHTARROW); },         //
+            [&](menu_keyboard::ka_space) { Char_Event(' '); },             //
+            [&](menu_keyboard::ka_tab) { doKey(K_TAB); },                  //
+            [&](menu_keyboard::ka_capslock) { mkb().toggle_caps_lock(); }, //,
+            [&](menu_keyboard::ka_console) {
+                m_state = m_none;
+                Con_ToggleConsole_f();
+            });
+
+        mkb().update_click(mx, my, click);
+        mkb().update_letters(mx, my, click, actions);
+        mkb().update_drag(mx, my, click);
+
+        {
+            const quake::vr::gl_util::gl_beginend_guard guard{GL_POINTS};
+
+            glColor3f(1, 0, 0);
+            quake::vr::gl_util::gl_vertex(qvec2{mx, my});
+        }
+
+        glDisable(GL_POINT_SMOOTH);
+        glEnable(GL_TEXTURE_2D);
+    }
+}
 
 void M_Draw()
 {
@@ -4266,6 +4849,15 @@ void M_Draw()
         }
     });
 
+    // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Change mMap" menus.
+    forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
+        if(m_state == s)
+        {
+            xm.draw();
+        }
+    });
+
     switch(m_state)
     {
         case m_none: break;
@@ -4281,8 +4873,11 @@ void M_Draw()
         case m_video: M_Video_Draw(); break;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_botcontrol: M_BotControl_Draw(); break;
+        case m_quakevrquicksettings: M_QuakeVRQuickSettings_Draw(); break;
         case m_quakevrsettings: M_QuakeVRSettings_Draw(); break;
         case m_quakevrdevtools: M_QuakeVRDevTools_Draw(); break;
+        case m_quakevrchangemap: M_QuakeVRChangeMap_Draw(); break;
         // -------------------------------------------------------------------
         case m_help: M_Help_Draw(); break;
         case m_lanconfig: M_LanConfig_Draw(); break;
@@ -4291,14 +4886,22 @@ void M_Draw()
         case m_slist: M_ServerList_Draw(); break;
 
         case m_quit:
-            if(!fitzmode)
-            { /* QuakeSpasm customization: */
+            // if(!fitzmode)
+            if(false)
+            {
+                /* QuakeSpasm customization: */
                 /* Quit now! S.A. */
                 key_dest = key_console;
                 Host_Quit_f();
             }
             M_Quit_Draw();
             break;
+
+        default:
+        {
+            // Nested menus are handled above.
+            break;
+        }
     }
 
     if(m_entersound)
@@ -4310,9 +4913,14 @@ void M_Draw()
     S_ExtraUpdate();
 }
 
-
-void M_Keydown(int key)
+void M_Keydown(int key, const bool fromVirtualKeyboard)
 {
+    if(!fromVirtualKeyboard && !vr_fakevr.value &&
+        mkb().hovered(vr_menu_mouse_x, vr_menu_mouse_y) && key == K_ENTER)
+    {
+        return;
+    }
+
     // -----------------------------------------------------------------------
     // VR: Process nested "Quake VR Settings" menus.
     {
@@ -4351,6 +4959,24 @@ void M_Keydown(int key)
         }
     }
 
+    // -----------------------------------------------------------------------
+    // VR: Process nested "Quake VR Change Map" menus.
+    {
+        bool processedAny = false;
+
+        forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
+            if(m_state == s)
+            {
+                xm.key(key);
+                processedAny = true;
+            }
+        });
+
+        if(processedAny)
+        {
+            return;
+        }
+    }
 
     switch(m_state)
     {
@@ -4367,8 +4993,11 @@ void M_Keydown(int key)
         case m_video: M_Video_Key(key); return;
         // -------------------------------------------------------------------
         // VR: New menus.
+        case m_botcontrol: M_BotControl_Key(key); break;
+        case m_quakevrquicksettings: M_QuakeVRQuickSettings_Key(key); return;
         case m_quakevrsettings: M_QuakeVRSettings_Key(key); return;
         case m_quakevrdevtools: M_QuakeVRDevTools_Key(key); return;
+        case m_quakevrchangemap: M_QuakeVRChangeMap_Key(key); return;
         // -------------------------------------------------------------------
         case m_help: M_Help_Key(key); return;
         case m_quit: M_Quit_Key(key); return;
@@ -4376,6 +5005,12 @@ void M_Keydown(int key)
         case m_gameoptions: M_GameOptions_Key(key); return;
         case m_search: M_Search_Key(key); return;
         case m_slist: M_ServerList_Key(key); return;
+
+        default:
+        {
+            // Nested menus are handled above.
+            break;
+        }
     }
 }
 
@@ -4408,9 +5043,5 @@ void M_ConfigureNetSubsystem()
 {
     // enable/disable net systems to match desired config
     Cbuf_AddText("stopdemo\n");
-
-    if(IPXConfig || TCPIPConfig)
-    {
-        net_hostport = lanConfig_port;
-    }
+    net_hostport = lanConfig_port;
 }

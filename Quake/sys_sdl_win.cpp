@@ -25,26 +25,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+
 #include <windows.h>
 #include <mmsystem.h>
 
+#include "host.hpp"
 #include "quakedef.hpp"
+#include "quakeparms.hpp"
+#include "platform.hpp"
+#include "common.hpp"
+#include "input.hpp"
+#include "sys.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
 #include <io.h>
 #include <direct.h>
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
-#include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
+#include <string>
 
+#include <SDL2/SDL.h>
 
 bool isDedicated;
 bool Win95, Win95old, WinNT, WinVista;
@@ -251,6 +251,30 @@ static void Sys_SetTimerResolution()
     timeBeginPeriod(1);
 }
 
+// Returns the last Win32 error, in string format. Returns an empty string if
+// there is no error.
+static std::string GetLastErrorAsString()
+{
+    // Get the error message, if any.
+    DWORD errorMessageID = ::GetLastError();
+    if(errorMessageID == 0)
+        return std::string(); // No error message has been recorded
+
+    LPSTR messageBuffer = nullptr;
+    size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                     FORMAT_MESSAGE_FROM_SYSTEM |
+                                     FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&messageBuffer, 0, NULL);
+
+    std::string message(messageBuffer, size);
+
+    // Free the buffer.
+    LocalFree(messageBuffer);
+
+    return message;
+}
+
 void Sys_Init()
 {
     OSVERSIONINFO vinfo;
@@ -313,10 +337,11 @@ void Sys_Init()
 
     if(isDedicated)
     {
-        if(!AllocConsole())
+        if(false && !AllocConsole())
         {
             isDedicated = false; /* so that we have a graphical error dialog */
-            Sys_Error("Couldn't create dedicated server console");
+            Sys_Error("Couldn't create dedicated server console: '%s'",
+                GetLastErrorAsString().data());
         }
 
         hinput = GetStdHandle(STD_INPUT_HANDLE);

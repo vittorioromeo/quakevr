@@ -23,15 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.hpp"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
+#include "platform.hpp"
+
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
 
 static const Uint8 bmp_bytes[] = {
 #include "qs_bmp.hpp"
@@ -50,13 +44,8 @@ void PL_SetWindowIcon(void)
     if(icon == nullptr) return;
     /* make pure magenta (#ff00ff) tranparent */
     colorkey = SDL_MapRGB(icon->format, 255, 0, 255);
-#if defined(USE_SDL2)
     SDL_SetColorKey(icon, SDL_TRUE, colorkey);
     SDL_SetWindowIcon((SDL_Window*)VID_GetWindow(), icon);
-#else
-    SDL_SetColorKey(icon, SDL_SRCCOLORKEY, colorkey);
-    SDL_WM_SetIcon(icon, nullptr);
-#endif
     SDL_FreeSurface(icon);
 }
 
@@ -68,7 +57,6 @@ void PL_VID_Shutdown(void)
 char* PL_GetClipboardData(void)
 {
     char* data = nullptr;
-#if defined(USE_SDL2)
     char* cliptext = SDL_GetClipboardText();
 
     if(cliptext != nullptr)
@@ -82,7 +70,6 @@ char* PL_GetClipboardData(void)
         data = (char*)Z_Malloc(size);
         q_strlcpy(data, cliptext, size);
     }
-#endif
 
     return data;
 }

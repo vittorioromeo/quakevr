@@ -19,14 +19,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __CFGFILE_H
-#define __CFGFILE_H
+#pragma once
 
 int CFG_OpenConfig(const char* cfg_name);
 // opens the given config file. only one open config file is
 // kept: previosly opened one, if any, will be closed.
 
-void CFG_CloseConfig(void);
+void CFG_CloseConfig();
 // closes the currently open config file.
 
 void CFG_ReadCvars(const char** vars, int num_vars);
@@ -38,5 +37,3 @@ void CFG_ReadCvarOverrides(const char** vars, int num_vars);
 // values of cvars in the given list. doesn't do anything with
 // the config file. call this after CFG_ReadCvars() and before
 // locking your cvars.
-
-#endif /* __CFGFILE_H */

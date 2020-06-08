@@ -23,8 +23,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_misc.c
 
+#include "host.hpp"
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "glquake.hpp"
+#include "client.hpp"
+#include "sys.hpp"
+#include "gl_texmgr.hpp"
 
 // johnfitz -- new cvars
 extern cvar_t r_stereo;
@@ -203,6 +210,7 @@ void R_Init()
     Cvar_RegisterVariable(&r_lightmap);
     Cvar_RegisterVariable(&r_fullbright);
     Cvar_RegisterVariable(&r_drawentities);
+    Cvar_RegisterVariable(&r_drawworldtext);
     Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_shadows);
     Cvar_RegisterVariable(&r_wateralpha);
@@ -525,47 +533,6 @@ void D_FlushCaches()
 {
 }
 
-static GLuint gl_programs[16];
-static int gl_num_programs;
-
-static bool GL_CheckShader(GLuint shader)
-{
-    GLint status;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &status);
-
-    if(status != GL_TRUE)
-    {
-        char infolog[1024];
-
-        memset(infolog, 0, sizeof(infolog));
-        GL_GetShaderInfoLogFunc(shader, sizeof(infolog), nullptr, infolog);
-
-        Con_Warning("GLSL program failed to compile: %s", infolog);
-
-        return false;
-    }
-    return true;
-}
-
-static bool GL_CheckProgram(GLuint program)
-{
-    GLint status;
-    GL_GetProgramivFunc(program, GL_LINK_STATUS, &status);
-
-    if(status != GL_TRUE)
-    {
-        char infolog[1024];
-
-        memset(infolog, 0, sizeof(infolog));
-        GL_GetProgramInfoLogFunc(program, sizeof(infolog), nullptr, infolog);
-
-        Con_Warning("GLSL program failed to link: %s", infolog);
-
-        return false;
-    }
-    return true;
-}
-
 /*
 =============
 GL_GetUniformLocation
@@ -580,117 +547,16 @@ GLint GL_GetUniformLocation(GLuint* programPtr, const char* name)
         return -1;
     }
 
-    location = GL_GetUniformLocationFunc(*programPtr, name);
+    location = glGetUniformLocation(*programPtr, name);
     if(location == -1)
     {
-        Con_Warning("GL_GetUniformLocationFunc %s failed\n", name);
+        Con_Warning("glGetUniformLocation %s failed\n", name);
         *programPtr = 0;
     }
     return location;
 }
 
-/*
-====================
-GL_CreateProgram
 
-Compiles and returns GLSL program.
-====================
-*/
-GLuint GL_CreateProgram(const GLchar* vertSource, const GLchar* fragSource,
-    int numbindings, const glsl_attrib_binding_t* bindings)
-{
-    int i;
-    GLuint program;
-
-    GLuint vertShader;
-
-    GLuint fragShader;
-
-    if(!gl_glsl_able)
-    {
-        return 0;
-    }
-
-    vertShader = GL_CreateShaderFunc(GL_VERTEX_SHADER);
-    GL_ShaderSourceFunc(vertShader, 1, &vertSource, nullptr);
-    GL_CompileShaderFunc(vertShader);
-    if(!GL_CheckShader(vertShader))
-    {
-        GL_DeleteShaderFunc(vertShader);
-        return 0;
-    }
-
-    fragShader = GL_CreateShaderFunc(GL_FRAGMENT_SHADER);
-    GL_ShaderSourceFunc(fragShader, 1, &fragSource, nullptr);
-    GL_CompileShaderFunc(fragShader);
-    if(!GL_CheckShader(fragShader))
-    {
-        GL_DeleteShaderFunc(vertShader);
-        GL_DeleteShaderFunc(fragShader);
-        return 0;
-    }
-
-    program = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(program, vertShader);
-    GL_DeleteShaderFunc(vertShader);
-    GL_AttachShaderFunc(program, fragShader);
-    GL_DeleteShaderFunc(fragShader);
-
-    for(i = 0; i < numbindings; i++)
-    {
-        GL_BindAttribLocationFunc(
-            program, bindings[i].attrib, bindings[i].name);
-    }
-
-    GL_LinkProgramFunc(program);
-
-    if(!GL_CheckProgram(program))
-    {
-        GL_DeleteProgramFunc(program);
-        return 0;
-    }
-
-    if(gl_num_programs == (sizeof(gl_programs) / sizeof(GLuint)))
-
-    {
-
-        Host_Error("gl_programs overflow");
-    }
-
-
-
-    gl_programs[gl_num_programs] = program;
-
-    gl_num_programs++;
-
-
-
-    return program;
-}
-
-/*
-====================
-R_DeleteShaders
-
-Deletes any GLSL programs that have been created.
-====================
-*/
-void R_DeleteShaders()
-{
-    int i;
-
-    if(!gl_glsl_able)
-    {
-        return;
-    }
-
-    for(i = 0; i < gl_num_programs; i++)
-    {
-        GL_DeleteProgramFunc(gl_programs[i]);
-        gl_programs[i] = 0;
-    }
-    gl_num_programs = 0;
-}
 GLuint current_array_buffer, current_element_array_buffer;
 
 /*
@@ -723,7 +589,7 @@ void GL_BindBuffer(GLenum target, GLuint buffer)
     if(*cache != buffer)
     {
         *cache = buffer;
-        GL_BindBufferFunc(target, *cache);
+        glBindBufferARB(target, *cache);
     }
 }
 
@@ -744,6 +610,6 @@ void GL_ClearBufferBindings()
 
     current_array_buffer = 0;
     current_element_array_buffer = 0;
-    GL_BindBufferFunc(GL_ARRAY_BUFFER, 0);
-    GL_BindBufferFunc(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBufferARB(GL_ARRAY_BUFFER, 0);
+    glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
 }

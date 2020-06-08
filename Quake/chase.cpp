@@ -22,9 +22,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // chase.c -- chase camera code
 
-#include "quakedef.hpp"
 #include "mathlib.hpp"
 #include "util.hpp"
+#include "cvar.hpp"
+#include "render.hpp"
+#include "client.hpp"
 
 cvar_t chase_back = {"chase_back", "100", CVAR_NONE};
 cvar_t chase_up = {"chase_up", "16", CVAR_NONE};
@@ -51,7 +53,7 @@ TraceLine
 TODO: impact on bmodels, monsters
 ==============
 */
-[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end)
+[[nodiscard]] trace_t TraceLine(const qvec3& start, const qvec3& end)
 {
     trace_t trace;
     memset(&trace, 0, sizeof(trace));
@@ -62,7 +64,7 @@ TODO: impact on bmodels, monsters
 }
 
 [[nodiscard]] trace_t TraceLineToEntity(
-    const glm::vec3& start, const glm::vec3& end, edict_t* ent)
+    const qvec3& start, const qvec3& end, edict_t* ent)
 {
     return SV_MoveTrace(start, end, MOVE_NORMAL, ent);
 }
@@ -98,7 +100,7 @@ void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
         quake::util::getAngledVectors(cl.viewangles);
 
     // calc ideal camera location before checking for walls
-    glm::vec3 ideal;
+    qvec3 ideal;
     for(int i = 0; i < 3; i++)
     {
         ideal[i] = viewent->origin[i] - forward[i] * chase_back.value +
@@ -108,7 +110,7 @@ void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
     ideal[2] = viewent->origin[2] + chase_up.value;
 
     // make sure camera is not in or behind a wall
-    glm::vec3 temp = TraceLine(refdef.vieworg, ideal).endpos;
+    qvec3 temp = TraceLine(refdef.vieworg, ideal).endpos;
     if(glm::length(temp) != 0.f)
     {
         ideal = temp;
@@ -118,7 +120,7 @@ void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent)
     refdef.vieworg = ideal;
 
     // find the spot the player is looking at
-    temp = viewent->origin + 4096.f * forward;
+    temp = viewent->origin + 4096._qf * forward;
 
     const auto crosshair = TraceLine(viewent->origin, temp).endpos;
 

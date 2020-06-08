@@ -22,15 +22,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __GLQUAKE_H
-#define __GLQUAKE_H
+#pragma once
+
+#include "quakeglm_qvec3.hpp"
+#include "bspfile.hpp"
+#include "gl_model.hpp"
+#include "cvar.hpp"
+#include "vid.hpp"
+#include "refdef.hpp"
 
 #include <cstdint>
-#include "quakeglm.hpp"
 
 void GL_BeginRendering(int* x, int* y, int* width, int* height);
-void GL_EndRendering(void);
-void GL_Set2D(void);
+void GL_EndRendering();
+void GL_Set2D();
 
 extern int glx, gly, glwidth, glheight;
 
@@ -52,9 +57,11 @@ extern int glx, gly, glwidth, glheight;
 #define BACKFACE_EPSILON 0.01
 
 
-void R_TimeRefresh_f(void);
-void R_ReadPointFile_f(void);
+void R_TimeRefresh_f();
+void R_ReadPointFile_f();
 texture_t* R_TextureAnimation(texture_t* base, int frame);
+
+struct texture_t;
 
 typedef struct surfcache_s
 {
@@ -66,7 +73,7 @@ typedef struct surfcache_s
     unsigned width;
     unsigned height; // DEBUG only needed for debug
     float mipscale;
-    struct texture_s* texture; // checked for animating textures
+    texture_t* texture; // checked for animating textures
     byte data[4];              // width*height elements
 } surfcache_t;
 
@@ -89,7 +96,7 @@ typedef struct
 //====================================================
 
 extern bool r_cache_thrash; // compatability
-extern glm::vec3 modelorg, r_entorigin;
+extern qvec3 modelorg, r_entorigin;
 extern entity_t* currententity;
 extern int r_visframecount; // ??? what difs?
 extern int r_framecount;
@@ -98,10 +105,10 @@ extern mplane_t frustum[4];
 //
 // view origin
 //
-extern glm::vec3 vup;
-extern glm::vec3 vpn;
-extern glm::vec3 vright;
-extern glm::vec3 r_origin;
+extern qvec3 vup;
+extern qvec3 vpn;
+extern qvec3 vright;
+extern qvec3 r_origin;
 
 //
 // screen size info
@@ -112,6 +119,7 @@ extern int d_lightstylevalue[256]; // 8.8 fraction of base light value
 
 extern cvar_t r_norefresh;
 extern cvar_t r_drawentities;
+extern cvar_t r_drawworldtext;
 extern cvar_t r_drawworld;
 extern cvar_t r_drawviewmodel;
 extern cvar_t r_speeds;
@@ -147,29 +155,30 @@ extern int gl_stencilbits;
 // Multitexture
 extern bool mtexenabled;
 extern bool gl_mtexable;
-extern PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc;
-extern PFNGLACTIVETEXTUREARBPROC GL_SelectTextureFunc;
-extern PFNGLCLIENTACTIVETEXTUREARBPROC GL_ClientActiveTextureFunc;
+// extern PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2fARB;
+// extern PFNGLACTIVETEXTUREARBPROC glActiveTextureARB;
+// extern PFNGLCLIENTACTIVETEXTUREARBPROC glClientActiveTextureARB;
 extern GLint gl_max_texture_units; // ericw
 
 // johnfitz -- anisotropic filtering
-#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
-#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+// #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+// #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 extern float gl_max_anisotropy;
 extern bool gl_anisotropy_able;
 
 // ericw -- VBO
-extern PFNGLBINDBUFFERARBPROC GL_BindBufferFunc;
-extern PFNGLBUFFERDATAARBPROC GL_BufferDataFunc;
-extern PFNGLBUFFERSUBDATAARBPROC GL_BufferSubDataFunc;
-extern PFNGLDELETEBUFFERSARBPROC GL_DeleteBuffersFunc;
-extern PFNGLGENBUFFERSARBPROC GL_GenBuffersFunc;
+// extern PFNGLBINDBUFFERARBPROC glBindBufferARB;
+// extern PFNGLBUFFERDATAARBPROC glBufferDataARB;
+// extern PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;
+// extern PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;
+// extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;
 extern bool gl_vbo_able;
 // ericw
 
 // ericw -- GLSL
 
 // SDL 1.2 has a bug where it doesn't provide these typedefs on OS X!
+/*
 typedef GLuint(APIENTRYP QS_PFNGLCREATESHADERPROC)(GLenum type);
 typedef void(APIENTRYP QS_PFNGLDELETESHADERPROC)(GLuint shader);
 typedef void(APIENTRYP QS_PFNGLDELETEPROGRAMPROC)(GLuint program);
@@ -184,7 +193,7 @@ typedef void(APIENTRYP QS_PFNGLGETPROGRAMIVPROC)(
     GLuint program, GLenum pname, GLint* params);
 typedef void(APIENTRYP QS_PFNGLGETPROGRAMINFOLOGPROC)(
     GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog);
-typedef GLuint(APIENTRYP QS_PFNGLCREATEPROGRAMPROC)(void);
+typedef GLuint(APIENTRYP QS_PFNGLCREATEPROGRAMPROC)();
 typedef void(APIENTRYP QS_PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
 typedef void(APIENTRYP QS_PFNGLLINKPROGRAMPROC)(GLuint program);
 typedef void(APIENTRYP QS_PFNGLBINDATTRIBLOCATIONFUNC)(
@@ -206,29 +215,31 @@ typedef void(APIENTRYP QS_PFNGLUNIFORM3FPROC)(
 typedef void(APIENTRYP QS_PFNGLUNIFORM4FPROC)(
     GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 
-extern QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc;
-extern QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc;
-extern QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc;
-extern QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc;
-extern QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc;
-extern QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc;
-extern QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc;
-extern QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc;
-extern QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc;
-extern QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc;
-extern QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc;
-extern QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc;
-extern QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc;
-extern QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc;
-extern QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc;
-extern QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc;
-extern QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc;
-extern QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc;
-extern QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc;
-extern QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc;
-extern QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc;
-extern QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc;
-extern QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc;
+extern QS_PFNGLCREATESHADERPROC glCreateShader;
+extern QS_PFNGLDELETESHADERPROC glDeleteShader;
+extern QS_PFNGLDELETEPROGRAMPROC glDeleteProgram;
+extern QS_PFNGLSHADERSOURCEPROC glShaderSource;
+extern QS_PFNGLCOMPILESHADERPROC glCompileShader;
+extern QS_PFNGLGETSHADERIVPROC glGetShaderiv;
+extern QS_PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+extern QS_PFNGLGETPROGRAMIVPROC glGetProgramiv;
+extern QS_PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
+extern QS_PFNGLCREATEPROGRAMPROC glCreateProgram;
+extern QS_PFNGLATTACHSHADERPROC glAttachShader;
+extern QS_PFNGLLINKPROGRAMPROC glLinkProgram;
+extern QS_PFNGLBINDATTRIBLOCATIONFUNC glBindAttribLocation;
+extern QS_PFNGLUSEPROGRAMPROC glUseProgram;
+extern QS_PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+extern QS_PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+extern QS_PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+extern QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
+extern QS_PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+extern QS_PFNGLUNIFORM1IPROC glUniform1i;
+extern QS_PFNGLUNIFORM1FPROC glUniform1f;
+extern QS_PFNGLUNIFORM3FPROC glUniform3f;
+extern QS_PFNGLUNIFORM4FPROC glUniform4f;
+*/
+
 extern bool gl_glsl_able;
 extern bool gl_glsl_gamma_able;
 extern bool gl_glsl_alias_able;
@@ -308,6 +319,7 @@ typedef struct glRect_s
 {
     unsigned short l, t, w, h;
 } glRect_t;
+
 struct lightmap_s
 {
     gltexture_t* texture;
@@ -337,42 +349,42 @@ extern float map_wateralpha, map_lavaalpha, map_telealpha,
     map_slimealpha; // ericw
 
 // johnfitz -- fog functions called from outside gl_fog.c
-void Fog_ParseServerMessage(void);
-float* Fog_GetColor(void);
-float Fog_GetDensity(void);
-void Fog_EnableGFog(void);
-void Fog_DisableGFog(void);
-void Fog_StartAdditive(void);
-void Fog_StopAdditive(void);
-void Fog_SetupFrame(void);
-void Fog_NewMap(void);
-void Fog_Init(void);
-void Fog_SetupState(void);
+void Fog_ParseServerMessage();
+float* Fog_GetColor();
+float Fog_GetDensity();
+void Fog_EnableGFog();
+void Fog_DisableGFog();
+void Fog_StartAdditive();
+void Fog_StopAdditive();
+void Fog_SetupFrame();
+void Fog_NewMap();
+void Fog_Init();
+void Fog_SetupState();
 
-void R_NewGame(void);
+void R_NewGame();
 
 struct dlight_t;
 
-void R_AnimateLight(void);
-void R_MarkSurfaces(void);
-void R_CullSurfaces(void);
-bool R_CullBox(const glm::vec3& emins, const glm::vec3& emaxs);
+void R_AnimateLight();
+void R_MarkSurfaces();
+void R_CullSurfaces();
+bool R_CullBox(const qvec3& emins, const qvec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
-void R_RotateForEntity(const glm::vec3& origin, const glm::vec3& angles);
+void R_RotateForEntity(const qvec3& origin, const qvec3& angles);
 void R_MarkLights(dlight_t* light, int num, mnode_t* node);
 
-void R_InitParticles(void);
-void R_DrawParticles(void);
-void CL_RunParticles(void);
-void R_ClearParticles(void);
+void R_InitParticles();
+void R_DrawParticles();
+void CL_RunParticles();
+void R_ClearParticles();
 
 void R_TranslatePlayerSkin(int playernum);
 void R_TranslateNewPlayerSkin(int playernum); // johnfitz -- this handles cases
                                               // when the actual texture changes
-void R_UpdateWarpTextures(void);
+void R_UpdateWarpTextures();
 
-void R_DrawWorld(void);
+void R_DrawWorld();
 void R_DrawAliasModel(entity_t* e);
 void R_DrawBrushModel(entity_t* e);
 void R_DrawSpriteModel(entity_t* e);
@@ -380,60 +392,56 @@ void R_DrawSpriteModel(entity_t* e);
 void R_DrawTextureChains_Water(
     qmodel_t* model, entity_t* ent, texchain_t chain);
 
-void R_RenderDlights(void);
-void GL_BuildLightmaps(void);
-void GL_DeleteBModelVertexBuffer(void);
-void GL_BuildBModelVertexBuffer(void);
-void GLMesh_LoadVertexBuffers(void);
-void GLMesh_DeleteVertexBuffers(void);
-void R_RebuildAllLightmaps(void);
+void R_RenderDlights();
+void GL_BuildLightmaps();
+void GL_DeleteBModelVertexBuffer();
+void GL_BuildBModelVertexBuffer();
+void GLMesh_LoadVertexBuffers();
+void GLMesh_DeleteVertexBuffers();
+void R_RebuildAllLightmaps();
 
-int R_LightPoint(const glm::vec3& p);
+int R_LightPoint(const qvec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);
 void R_RenderDynamicLightmaps(msurface_t* fa);
-void R_UploadLightmaps(void);
+void R_UploadLightmaps();
 
-void R_DrawWorld_ShowTris(void);
+void R_DrawWorld_ShowTris();
 void R_DrawBrushModel_ShowTris(entity_t* e);
 void R_DrawAliasModel_ShowTris(entity_t* e);
-void R_DrawParticles_ShowTris(void);
+void R_DrawParticles_ShowTris();
 
 GLint GL_GetUniformLocation(GLuint* programPtr, const char* name);
-GLuint GL_CreateProgram(const GLchar* vertSource, const GLchar* fragSource,
-    int numbindings, const glsl_attrib_binding_t* bindings);
-void R_DeleteShaders(void);
 
-void GLWorld_CreateShaders(void);
-void GLAlias_CreateShaders(void);
+void GLWorld_CreateShaders();
+void GLAlias_CreateShaders();
 void GL_DrawAliasShadow(entity_t* e);
 void DrawGLTriangleFan(glpoly_t* p);
 void DrawGLPoly(glpoly_t* p);
 void DrawWaterPoly(glpoly_t* p);
 void GL_MakeAliasModelDisplayLists(qmodel_t* m, aliashdr_t* hdr);
 
-void Sky_Init(void);
-void Sky_DrawSky(void);
-void Sky_NewMap(void);
+void Sky_Init();
+void Sky_DrawSky();
+void Sky_NewMap();
 void Sky_LoadTexture(texture_t* mt);
 void Sky_LoadSkyBox(const char* name);
 
-void TexMgr_RecalcWarpImageSize(void);
+void TexMgr_RecalcWarpImageSize();
 
 void R_ClearTextureChains(qmodel_t* mod, texchain_t chain);
 void R_ChainSurface(msurface_t* surf, texchain_t chain);
 void R_DrawTextureChains(qmodel_t* model, entity_t* ent, texchain_t chain);
-void R_DrawWorld_Water(void);
+void R_DrawWorld_Water();
 
 void GL_BindBuffer(GLenum target, GLuint buffer);
 void GL_ClearBufferBindings();
 
-void GLSLGamma_DeleteTexture(void);
-void GLSLGamma_GammaCorrect(void);
+void GLSLGamma_DeleteTexture();
+void GLSLGamma_GammaCorrect();
 
-void R_ScaleView_DeleteTexture(void);
+void R_ScaleView_DeleteTexture();
 
 float GL_WaterAlphaForSurface(msurface_t* fa);
 
-#endif /* __GLQUAKE_H */

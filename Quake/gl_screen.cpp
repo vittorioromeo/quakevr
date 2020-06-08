@@ -26,6 +26,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.hpp"
 #include "vr.hpp"
+#include "vr_cvars.hpp"
+#include "cmd.hpp"
+#include "console.hpp"
+#include "sbar.hpp"
+#include "qpic.hpp"
+#include "image.hpp"
+#include "glquake.hpp"
+#include "menu.hpp"
+#include "keys.hpp"
+#include "sys.hpp"
+#include "client.hpp"
+#include "mathlib.hpp"
+#include "draw.hpp"
+#include "q_sound.hpp"
+#include "draw.hpp"
+#include "screen.hpp"
+#include "view.hpp"
 
 /*
 
@@ -1273,6 +1290,7 @@ void SCR_UpdateScreenContent()
             SCR_DrawClock();    // johnfitz
             SCR_DrawConsole();
             M_Draw();
+            M_DrawKeyboard();
         }
     }
 

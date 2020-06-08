@@ -22,9 +22,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_main.c -- server main program
 
+#include "host.hpp"
+#include "menu.hpp"
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "util.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "console.hpp"
+#include "net.hpp"
+#include "glquake.hpp"
+#include "protocol.hpp"
+#include "worldtext.hpp"
+#include "msg.hpp"
+#include "sys.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -147,11 +159,9 @@ EVENT MESSAGES
 =============================================================================
 */
 
-static void writeCommonParticleData(const glm::vec3& org, const glm::vec3& dir)
+static void writeCommonParticleData(const qvec3& org, const qvec3& dir)
 {
-    MSG_WriteCoord(&sv.datagram, org[0], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[1], sv.protocolflags);
-    MSG_WriteCoord(&sv.datagram, org[2], sv.protocolflags);
+    MSG_WriteVec3(&sv.datagram, org, sv.protocolflags);
     for(int i = 0; i < 3; i++)
     {
         int v = dir[i] * 16;
@@ -174,8 +184,8 @@ SV_StartParticle
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
-    const int color, const int count)
+void SV_StartParticle(
+    const qvec3& org, const qvec3& dir, const int color, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -195,8 +205,8 @@ SV_StartParticle2
 Make sure the event gets sent to all clients
 ==================
 */
-void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
-    const int preset, const int count)
+void SV_StartParticle2(
+    const qvec3& org, const qvec3& dir, const int preset, const int count)
 {
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
     {
@@ -227,13 +237,6 @@ Larger attenuations will drop off.  (max 4 attenuation)
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation)
 {
-    int sound_num;
-
-    int ent;
-    int i;
-
-    int field_mask;
-
     if(volume < 0 || volume > 255)
     {
         Host_Error("SV_StartSound: volume = %i", volume);
@@ -255,6 +258,7 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     }
 
     // find precache number for sound
+    int sound_num;
     for(sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num];
         sound_num++)
     {
@@ -270,9 +274,9 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         return;
     }
 
-    ent = NUM_FOR_EDICT(entity);
+    const int ent = NUM_FOR_EDICT(entity);
 
-    field_mask = 0;
+    int field_mask = 0;
     if(volume != DEFAULT_SOUND_PACKET_VOLUME)
     {
         field_mask |= SND_VOLUME;
@@ -335,7 +339,7 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     }
     // johnfitz
 
-    for(i = 0; i < 3; i++)
+    for(int i = 0; i < 3; i++)
     {
         MSG_WriteCoord(&sv.datagram,
             entity->v.origin[i] + 0.5 * (entity->v.mins[i] + entity->v.maxs[i]),
@@ -366,8 +370,10 @@ void SV_SendServerinfo(client_t* client)
     int i; // johnfitz
 
     MSG_WriteByte(&client->message, svc_print);
-    sprintf(message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2,
-        FITZQUAKE_VERSION, pr_crc); // johnfitz -- include fitzquake version
+
+    sprintf(message, "%c\nQUAKE VR %s SERVER (%i CRC)\n", 2, QUAKEVR_VERSION,
+        pr_crc); // johnfitz -- include fitzquake version
+
     MSG_WriteString(&client->message, message);
 
     MSG_WriteByte(&client->message, svc_serverinfo);
@@ -441,24 +447,19 @@ once for a player each game, not once for each level change.
 */
 void SV_ConnectClient(int clientnum)
 {
-    edict_t* ent;
-    client_t* client;
-    int edictnum;
-    struct qsocket_s* netconnection;
-    int i;
     float spawn_parms[NUM_SPAWN_PARMS];
 
-    client = svs.clients + clientnum;
+    client_t* client = svs.clients + clientnum;
 
     Con_DPrintf("Client %s connected\n",
         NET_QSocketGetAddressString(client->netconnection));
 
-    edictnum = clientnum + 1;
+    int edictnum = clientnum + 1;
 
-    ent = EDICT_NUM(edictnum);
+    edict_t* ent = EDICT_NUM(edictnum);
 
     // set up the client_t
-    netconnection = client->netconnection;
+    struct qsocket_s* netconnection = client->netconnection;
 
     if(sv.loadgame)
     {
@@ -483,7 +484,7 @@ void SV_ConnectClient(int clientnum)
     {
         // call the progs to get default spawn parms for the new client
         PR_ExecuteProgram(pr_global_struct->SetNewParms);
-        for(i = 0; i < NUM_SPAWN_PARMS; i++)
+        for(int i = 0; i < NUM_SPAWN_PARMS; i++)
         {
             client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
         }
@@ -501,15 +502,12 @@ SV_CheckForNewClients
 */
 void SV_CheckForNewClients()
 {
-    struct qsocket_s* ret;
-    int i;
-
     //
     // check for new connections
     //
     while(true)
     {
-        ret = NET_CheckNewConnections();
+        struct qsocket_s* ret = NET_CheckNewConnections();
         if(!ret)
         {
             break;
@@ -518,6 +516,7 @@ void SV_CheckForNewClients()
         //
         // init a new client structure
         //
+        int i;
         for(i = 0; i < svs.maxclients; i++)
         {
             if(!svs.clients[i].active)
@@ -573,7 +572,7 @@ static int fatbytes;
 static byte* fatpvs;
 static int fatpvs_capacity;
 
-void SV_AddToFatPVS(const glm::vec3& org, mnode_t* node,
+void SV_AddToFatPVS(const qvec3& org, mnode_t* node,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     int i;
@@ -626,7 +625,7 @@ Calculates a PVS that is the inclusive or of all leafs within 8 pixels of
 the given point.
 =============
 */
-byte* SV_FatPVS(const glm::vec3& org,
+byte* SV_FatPVS(const qvec3& org,
     qmodel_t* worldmodel) // johnfitz -- added worldmodel as a parameter
 {
     fatbytes = (worldmodel->numleafs + 7) >>
@@ -658,7 +657,7 @@ PVS test encapsulated in a nice function
 bool SV_VisibleToClient(edict_t* client, edict_t* test, qmodel_t* worldmodel)
 {
     byte* pvs;
-    glm::vec3 org;
+    qvec3 org;
     int i;
 
     org = client->v.origin + client->v.view_ofs;
@@ -690,7 +689,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
     int i;
     int bits;
     byte* pvs;
-    glm::vec3 org;
+    qvec3 org;
     float miss;
     edict_t* ent;
 
@@ -770,9 +769,6 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
                 bits |= U_ORIGIN1 << i;
             }
         }
-
-        // TODO VR: (P1) remove, this should be set only when scale changes
-        bits |= U_SCALE;
 
         if(ent->v.angles[0] != ent->baseline.angles[0])
         {
@@ -871,31 +867,36 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         // johnfitz -- PROTOCOL_FITZQUAKE
         if(sv.protocol != PROTOCOL_NETQUAKE)
         {
-
             if(ent->baseline.alpha != ent->alpha)
             {
                 bits |= U_ALPHA;
             }
+
             if(ent->baseline.scale != ent->v.scale)
             {
                 bits |= U_SCALE;
             }
+
             if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
             {
                 bits |= U_FRAME2;
             }
+
             if(bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
             {
                 bits |= U_MODEL2;
             }
+
             if(ent->sendinterval)
             {
                 bits |= U_LERPFINISH;
             }
+
             if(bits >= 65536)
             {
                 bits |= U_EXTEND1;
             }
+
             if(bits >= 16777216)
             {
                 bits |= U_EXTEND2;
@@ -1064,6 +1065,7 @@ void SV_CleanupEnts()
 ==================
 SV_WriteClientdataToMessage
 
+Sent to every connected client per frame.
 ==================
 */
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
@@ -1227,6 +1229,22 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
         bits |= SU_VR_WEAPON2;
         bits |= SU_VR_WEAPONFRAME2;
+
+        const bool anyHolster =
+            ent->v.holsterweapon0 || ent->v.holsterweapon1 ||
+            ent->v.holsterweapon2 || ent->v.holsterweapon3 ||
+            ent->v.holsterweapon4 || ent->v.holsterweapon5 ||
+            ent->v.holsterweaponmodel0 || ent->v.holsterweaponmodel1 ||
+            ent->v.holsterweaponmodel2 || ent->v.holsterweaponmodel3 ||
+            ent->v.holsterweaponmodel4 || ent->v.holsterweaponmodel5 ||
+            ent->v.holsterweaponflags0 || ent->v.holsterweaponflags1 ||
+            ent->v.holsterweaponflags2 || ent->v.holsterweaponflags3 ||
+            ent->v.holsterweaponflags4 || ent->v.holsterweaponflags5;
+
+        if(anyHolster)
+        {
+            bits |= SU_VR_HOLSTERS;
+        }
     }
     // johnfitz
 
@@ -1364,27 +1382,70 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     }
 
     // TODO VR: (P2) weapon ids in holsters
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
-    MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
-    MSG_WriteByte(
-        msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+    if(bits & SU_VR_HOLSTERS)
+    {
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon0);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon1);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon2);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
+        MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel1)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel2)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel3)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
+        MSG_WriteByte(
+            msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags0); // STAT_HOLSTERWEAPONFLAGS0
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags1); // STAT_HOLSTERWEAPONFLAGS1
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags2); // STAT_HOLSTERWEAPONFLAGS2
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags3); // STAT_HOLSTERWEAPONFLAGS3
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+    }
 
     MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
     MSG_WriteByte(msg, (int)ent->v.weapon2); // STAT_OFFHAND_WID
+
+    MSG_WriteByte(msg, (int)ent->v.weaponflags);  // STAT_WEAPONFLAGS
+    MSG_WriteByte(msg, (int)ent->v.weaponflags2); // STAT_WEAPONFLAGS2
+
+
+    // TODO VR: (P1) experiment with this
+#if 0
+    {
+        VrGunWallCollision outGunWallCollision[2];
+
+        const auto doHandAndGunCollisions = [&](const HandIdx index) {
+            const auto worldHandPos = VR_GetWorldHandPos(index, ent->v.origin);
+
+            const qvec3 adjPlayerOrigin =
+                VR_GetAdjustedPlayerOrigin(ent->v.origin);
+
+            qvec3 finalVec = worldHandPos;
+
+            const auto resolvedHandPos =
+                VR_GetResolvedHandPos(ent, worldHandPos, adjPlayerOrigin);
+
+            finalVec = resolvedHandPos;
+
+            finalVec = VR_UpdateGunWallCollisions(
+                ent, index, outGunWallCollision[index], finalVec);
+        };
+    }
+#endif
 }
 
 /*
@@ -1641,18 +1702,18 @@ SV_CreateBaseline
 void SV_CreateBaseline()
 {
     int i;
-    edict_t* svent;
-    int entnum;
     int bits; // johnfitz -- PROTOCOL_FITZQUAKE
 
-    for(entnum = 0; entnum < sv.num_edicts; entnum++)
+    for(int entnum = 0; entnum < sv.num_edicts; entnum++)
     {
         // get the current server version
-        svent = EDICT_NUM(entnum);
+        edict_t* svent = EDICT_NUM(entnum);
+
         if(svent->free)
         {
             continue;
         }
+
         if(entnum > svs.maxclients && !svent->v.modelindex)
         {
             continue;
@@ -1813,12 +1874,9 @@ transition to another level
 */
 void SV_SaveSpawnparms()
 {
-    int i;
-
-    int j;
-
     svs.serverflags = pr_global_struct->serverflags;
 
+    int i;
     for(i = 0, host_client = svs.clients; i < svs.maxclients;
         i++, host_client++)
     {
@@ -1831,7 +1889,7 @@ void SV_SaveSpawnparms()
         // client
         pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
         PR_ExecuteProgram(pr_global_struct->SetChangeParms);
-        for(j = 0; j < NUM_SPAWN_PARMS; j++)
+        for(int j = 0; j < NUM_SPAWN_PARMS; j++)
         {
             host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
         }
@@ -1847,25 +1905,24 @@ This is called at the start of each level
 ================
 */
 extern float scr_centertime_off;
-void SV_SpawnServer(const char* server)
+
+void SV_SpawnServer(const char* server, const SpawnServerSrc src)
 {
     static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    edict_t* ent;
-    int i;
 
     // let's not have any servers with no name
     if(hostname.string[0] == 0)
     {
         Cvar_Set("hostname", "UNNAMED");
     }
+
     scr_centertime_off = 0;
 
     Con_DPrintf("SpawnServer: %s\n", server);
     svs.changelevel_issued = false; // now safe to issue another
 
     //
-    // tell all connected clients that we are going to a new
-    // level
+    // tell all connected clients that we are going to a new level
     //
     if(sv.active)
     {
@@ -1879,22 +1936,13 @@ void SV_SpawnServer(const char* server)
     {
         Cvar_Set("deathmatch", "0");
     }
-    current_skill = (int)(skill.value + 0.5);
-    if(current_skill < 0)
-    {
-        current_skill = 0;
-    }
-    if(current_skill > 3)
-    {
-        current_skill = 3;
-    }
 
+    current_skill = std::clamp((int)(skill.value + 0.5), 0, 3);
     Cvar_SetValue("skill", (float)current_skill);
 
     //
     // set up the new server
     //
-    // memset (&sv, 0, sizeof(sv));
     Host_ClearMemory();
 
     q_strlcpy(sv.name, server, sizeof(sv.name));
@@ -1943,9 +1991,9 @@ void SV_SpawnServer(const char* server)
     memset(sv.edicts, 0,
         sv.num_edicts * pr_edict_size); // ericw -- sv.edicts
                                         // switched to use malloc()
-    for(i = 0; i < svs.maxclients; i++)
+    for(int i = 0; i < svs.maxclients; i++)
     {
-        ent = EDICT_NUM(i + 1);
+        edict_t* ent = EDICT_NUM(i + 1);
         svs.clients[i].edict = ent;
     }
 
@@ -1954,8 +2002,11 @@ void SV_SpawnServer(const char* server)
 
     sv.time = 1.0;
 
+    // VR: This is where the map is changed upon creation of a server. `map`,
+    // `changelevel`, and slipgates eventually all reach this point.
     q_strlcpy(sv.name, server, sizeof(sv.name));
     q_snprintf(sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
+
     sv.worldmodel = Mod_ForName(sv.modelname, false);
     if(!sv.worldmodel)
     {
@@ -1963,6 +2014,7 @@ void SV_SpawnServer(const char* server)
         sv.active = false;
         return;
     }
+
     sv.models[1] = sv.worldmodel;
 
     //
@@ -1970,10 +2022,13 @@ void SV_SpawnServer(const char* server)
     //
     SV_ClearWorld();
 
+    // Initialize world text handles and buffers
+    sv.initializeWorldTexts();
+
     sv.sound_precache[0] = dummy;
     sv.model_precache[0] = dummy;
     sv.model_precache[1] = sv.modelname;
-    for(i = 1; i < sv.worldmodel->numsubmodels; i++)
+    for(int i = 1; i < sv.worldmodel->numsubmodels; i++)
     {
         sv.model_precache[1 + i] = localmodels[i];
         sv.models[i + 1] = Mod_ForName(localmodels[i], false);
@@ -1982,7 +2037,7 @@ void SV_SpawnServer(const char* server)
     //
     // load the rest of the entities
     //
-    ent = EDICT_NUM(0);
+    edict_t* ent = EDICT_NUM(0);
     memset(&ent->v, 0, progs->entityfields * 4);
     ent->free = false;
     ent->v.model = PR_SetEngineString(sv.worldmodel->name);
@@ -2003,6 +2058,15 @@ void SV_SpawnServer(const char* server)
 
     // serverflags are for cross level information (sigils)
     pr_global_struct->serverflags = svs.serverflags;
+
+    {
+        Con_DPrintf("Calling QC 'OnSpawnServerBeforeLoad'.\n");
+
+        pr_global_struct->spawnServerFromSaveFile =
+            src == SpawnServerSrc::FromSaveFile;
+
+        PR_ExecuteProgram(pr_global_struct->OnSpawnServerBeforeLoad);
+    }
 
     ED_LoadFromFile(sv.worldmodel->entities);
 
@@ -2035,13 +2099,31 @@ void SV_SpawnServer(const char* server)
     // johnfitz
 
     // send serverinfo to all connected clients
-    for(i = 0, host_client = svs.clients; i < svs.maxclients;
-        i++, host_client++)
     {
-        if(host_client->active)
+        int i;
+
+        for(i = 0, host_client = svs.clients; i < svs.maxclients;
+            i++, host_client++)
         {
-            SV_SendServerinfo(host_client);
+            if(host_client->active)
+            {
+                SV_SendServerinfo(host_client);
+            }
         }
+    }
+
+    {
+        Con_DPrintf("Calling QC 'OnSpawnServerAfterLoad'.\n");
+
+        pr_global_struct->spawnServerFromSaveFile =
+            src == SpawnServerSrc::FromSaveFile;
+
+        PR_ExecuteProgram(pr_global_struct->OnSpawnServerAfterLoad);
+    }
+
+    {
+        Con_DPrintf("Calling C++ 'VR_OnSpawnServer'.\n");
+        VR_OnSpawnServer();
     }
 
     Con_DPrintf("Server spawned.\n");

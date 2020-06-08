@@ -22,15 +22,7 @@
  */
 
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
-#else
-#include "SDL.h"
-#endif
 
 #ifndef SDL_INIT_CDROM
 
@@ -41,7 +33,10 @@
 
 #else /* SDL_INIT_CDROM */
 
-#include "quakedef.hpp"
+#include "cmd.hpp"
+#include "common.hpp"
+#include "cdaudio.hpp"
+#include "console.hpp"
 
 static bool cdValid = false;
 static bool playing = false;

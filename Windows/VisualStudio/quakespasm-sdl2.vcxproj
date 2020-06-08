@@ -80,9 +80,10 @@
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>quakevr-debug</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug</OutDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\Debug\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>quakevr</TargetName>
@@ -149,8 +150,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;PARANOID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;..\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;PARANOID;__clang__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -160,11 +161,12 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>-ftime-trace</AdditionalOptions>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\OHWorkspace\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\OHWorkspace\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;..\glew\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>msvcrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
@@ -185,8 +187,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>../../glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../glm;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;..\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_MIKMOD;USE_CODEC_UMX;__clang__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
@@ -199,10 +201,16 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ControlFlowGuard>false</ControlFlowGuard>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\OHWorkspace\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\OHWorkspace\openvr\lib\win64;..\codecs\x64;..\SDL2\lib64;..\glew\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -219,9 +227,11 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\bgmusic.cpp" />
+    <ClCompile Include="..\..\Quake\byteorder.cpp" />
     <ClCompile Include="..\..\Quake\cd_sdl.cpp" />
     <ClCompile Include="..\..\Quake\cfgfile.cpp" />
     <ClCompile Include="..\..\Quake\chase.cpp" />
+    <ClCompile Include="..\..\Quake\client.cpp" />
     <ClCompile Include="..\..\Quake\cl_demo.cpp" />
     <ClCompile Include="..\..\Quake\cl_input.cpp" />
     <ClCompile Include="..\..\Quake\cl_main.cpp" />
@@ -232,6 +242,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\console.cpp" />
     <ClCompile Include="..\..\Quake\crc.cpp" />
     <ClCompile Include="..\..\Quake\cvar.cpp" />
+    <ClCompile Include="..\..\Quake\fshandle.cpp" />
     <ClCompile Include="..\..\Quake\gl_draw.cpp" />
     <ClCompile Include="..\..\Quake\gl_fog.cpp" />
     <ClCompile Include="..\..\Quake\gl_mesh.cpp" />
@@ -243,6 +254,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\gl_screen.cpp" />
     <ClCompile Include="..\..\Quake\gl_sky.cpp" />
     <ClCompile Include="..\..\Quake\gl_texmgr.cpp" />
+    <ClCompile Include="..\..\Quake\gl_util.cpp" />
     <ClCompile Include="..\..\Quake\gl_vidsdl.cpp" />
     <ClCompile Include="..\..\Quake\gl_warp.cpp" />
     <ClCompile Include="..\..\Quake\host.cpp" />
@@ -253,14 +265,15 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\main_sdl.cpp" />
     <ClCompile Include="..\..\Quake\mathlib.cpp" />
     <ClCompile Include="..\..\Quake\menu.cpp" />
+    <ClCompile Include="..\..\Quake\menu_keyboard.cpp" />
     <ClCompile Include="..\..\Quake\menu_util.cpp" />
+    <ClCompile Include="..\..\Quake\msg.cpp" />
     <ClCompile Include="..\..\Quake\net_dgrm.cpp" />
     <ClCompile Include="..\..\Quake\net_loop.cpp" />
     <ClCompile Include="..\..\Quake\net_main.cpp" />
     <ClCompile Include="..\..\Quake\net_win.cpp" />
     <ClCompile Include="..\..\Quake\net_wins.cpp" />
     <ClCompile Include="..\..\Quake\net_wipx.cpp" />
-    <ClCompile Include="..\..\Quake\opengl_ext.cpp" />
     <ClCompile Include="..\..\Quake\pl_win.cpp" />
     <ClCompile Include="..\..\Quake\pr_cmds.cpp" />
     <ClCompile Include="..\..\Quake\pr_edict.cpp" />
@@ -277,7 +290,11 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </ClCompile>
     <ClCompile Include="..\..\Quake\r_sprite.cpp" />
     <ClCompile Include="..\..\Quake\r_world.cpp" />
+    <ClCompile Include="..\..\Quake\saveutil.cpp" />
     <ClCompile Include="..\..\Quake\sbar.cpp" />
+    <ClCompile Include="..\..\Quake\server.cpp" />
+    <ClCompile Include="..\..\Quake\shader.cpp" />
+    <ClCompile Include="..\..\Quake\sizebuf.cpp" />
     <ClCompile Include="..\..\Quake\snd_codec.cpp" />
     <ClCompile Include="..\..\Quake\snd_dma.cpp" />
     <ClCompile Include="..\..\Quake\snd_flac.cpp" />
@@ -301,6 +318,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
+    <ClCompile Include="..\..\Quake\vr_cvars.cpp" />
+    <ClCompile Include="..\..\Quake\vr_showfn.cpp" />
     <ClCompile Include="..\..\Quake\wad.cpp" />
     <ClCompile Include="..\..\Quake\world.cpp" />
     <ClCompile Include="..\..\Quake\zone.cpp" />
@@ -338,7 +357,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\net_sys.hpp" />
     <ClInclude Include="..\..\Quake\net_wins.hpp" />
     <ClInclude Include="..\..\Quake\net_wipx.hpp" />
-    <ClInclude Include="..\..\Quake\opengl_ext.hpp" />
     <ClInclude Include="..\..\Quake\openvr.hpp" />
     <ClInclude Include="..\..\Quake\openvr_driver.hpp" />
     <ClInclude Include="..\..\Quake\platform.hpp" />
@@ -373,6 +391,9 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\vid.hpp" />
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
+    <ClInclude Include="..\..\Quake\vr_cvars.hpp" />
+    <ClInclude Include="..\..\Quake\vr_macros.hpp" />
+    <ClInclude Include="..\..\Quake\vr_showfn.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />
     <ClInclude Include="..\..\Quake\wsaerror.hpp" />

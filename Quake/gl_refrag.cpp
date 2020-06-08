@@ -23,6 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_efrag.c
 
 #include "quakedef.hpp"
+#include "mathlib.hpp"
+#include "glquake.hpp"
+#include "client.hpp"
+#include "entity.hpp"
+#include "console.hpp"
 
 mnode_t* r_pefragtopnode;
 
@@ -47,7 +52,7 @@ http://forums.insideqc.com/viewtopic.php?t=1930
 ===============================================================================
 */
 
-glm::vec3 r_emins, r_emaxs;
+qvec3 r_emins, r_emaxs;
 
 entity_t* r_addent;
 

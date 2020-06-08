@@ -23,10 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sound.h -- client sound i/o functions
 
-#ifndef __QUAKE_SOUND__
-#define __QUAKE_SOUND__
+#pragma once
 
-#include "quakeglm.hpp"
+#include "q_stdinc.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "zone.hpp"
+#include "quakedef_macros.hpp"
+#include "cvar.hpp"
 
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct
@@ -75,7 +78,7 @@ typedef struct
     int looping;  /* where to loop, -1 = no looping		*/
     int entnum;   /* to allow overriding a specific sound		*/
     int entchannel;
-    glm::vec3 origin; /* origin of sound effect			*/
+    qvec3 origin; /* origin of sound effect			*/
     float dist_mult;  /* distance multiplier (attenuation/clipK)	*/
     int master_vol;   /* 0-255 master volume				*/
 } channel_t;
@@ -92,30 +95,30 @@ typedef struct
     int dataofs; /* chunk starts this many bytes from file start	*/
 } wavinfo_t;
 
-void S_Init(void);
-void S_Startup(void);
-void S_Shutdown(void);
+void S_Init();
+void S_Startup();
+void S_Shutdown();
 void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const glm::vec3& origin, float fvol, float attenuation);
+    const qvec3& origin, float fvol, float attenuation);
 void S_StaticSound(
-    sfx_t* sfx, const glm::vec3& origin, float vol, float attenuation);
+    sfx_t* sfx, const qvec3& origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
-void S_ClearBuffer(void);
-void S_Update(const glm::vec3& origin, const glm::vec3& forward,
-    const glm::vec3& right, const glm::vec3& up);
-void S_ExtraUpdate(void);
+void S_ClearBuffer();
+void S_Update(const qvec3& origin, const qvec3& forward,
+    const qvec3& right, const qvec3& up);
+void S_ExtraUpdate();
 
-void S_BlockSound(void);
-void S_UnblockSound(void);
+void S_BlockSound();
+void S_UnblockSound();
 
 sfx_t* S_PrecacheSound(const char* sample);
 void S_TouchSound(const char* sample);
-void S_ClearPrecache(void);
-void S_BeginPrecaching(void);
-void S_EndPrecaching(void);
+void S_ClearPrecache();
+void S_BeginPrecaching();
+void S_EndPrecaching();
 void S_PaintChannels(int endtime);
-void S_InitPaintChannels(void);
+void S_InitPaintChannels();
 
 /* picks a channel based on priorities, empty slots, number of channels */
 channel_t* SND_PickChannel(int entnum, int entchannel);
@@ -132,22 +135,22 @@ void S_RawSamples(
 bool SNDDMA_Init(dma_t* dma);
 
 /* gets the current DMA position */
-int SNDDMA_GetDMAPos(void);
+int SNDDMA_GetDMAPos();
 
 /* shutdown the DMA xfer. */
-void SNDDMA_Shutdown(void);
+void SNDDMA_Shutdown();
 
 /* validates & locks the dma buffer */
-void SNDDMA_LockBuffer(void);
+void SNDDMA_LockBuffer();
 
 /* unlocks the dma buffer / sends sound to the device */
-void SNDDMA_Submit(void);
+void SNDDMA_Submit();
 
 /* blocks sound output upon window focus loss */
-void SNDDMA_BlockSound(void);
+void SNDDMA_BlockSound();
 
 /* unblocks the output upon window focus gain */
-void SNDDMA_UnblockSound(void);
+void SNDDMA_UnblockSound();
 
 /* ====================================================================
  * User-setable variables
@@ -170,10 +173,10 @@ extern int soundtime;
 extern int paintedtime;
 extern int s_rawend;
 
-extern glm::vec3 listener_origin;
-extern glm::vec3 listener_forward;
-extern glm::vec3 listener_right;
-extern glm::vec3 listener_up;
+extern qvec3 listener_origin;
+extern qvec3 listener_forward;
+extern qvec3 listener_right;
+extern qvec3 listener_up;
 
 extern cvar_t sndspeed;
 extern cvar_t snd_mixspeed;
@@ -191,6 +194,4 @@ sfxcache_t* S_LoadSound(sfx_t* s);
 
 wavinfo_t GetWavinfo(const char* name, byte* wav, int wavlength);
 
-void SND_InitScaletable(void);
-
-#endif /* __QUAKE_SOUND__ */
+void SND_InitScaletable();

@@ -4,7 +4,8 @@
     "bindings": {
         "/actions/default": {
             "chords": [],
-            "haptics": [{
+            "haptics": [
+                {
                     "output": "/actions/default/out/LeftHaptic",
                     "path": "/user/hand/left/output/haptic"
                 },
@@ -14,8 +15,18 @@
                 }
             ],
             "poses": [],
-            "skeleton": [],
-            "sources": [{
+            "skeleton": [
+                {
+                    "output": "/actions/default/in/LeftHandAnim",
+                    "path": "/user/hand/left/input/skeleton/left"
+                },
+                {
+                    "output": "/actions/default/in/RightHandAnim",
+                    "path": "/user/hand/right/input/skeleton/right"
+                }
+            ],
+            "sources": [
+                {
                     "inputs": {
                         "position": {
                             "output": "/actions/default/in/Locomotion"
@@ -95,6 +106,121 @@
                     },
                     "mode": "button",
                     "path": "/user/hand/left/input/thumbstick"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/default/in/speed"
+                        },
+                        "position": {
+                            "output": "/actions/default/in/locomotion"
+                        }
+                    },
+                    "mode": "joystick",
+                    "path": "/user/hand/left/input/joystick"
+                },
+                {
+                    "inputs": {
+                        "position": {
+                            "output": "/actions/default/in/turn"
+                        }
+                    },
+                    "mode": "joystick",
+                    "path": "/user/hand/right/input/joystick"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/default/in/leftgrab"
+                        }
+                    },
+                    "mode": "trigger",
+                    "path": "/user/hand/left/input/grip"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/default/in/rightgrab"
+                        }
+                    },
+                    "mode": "trigger",
+                    "path": "/user/hand/right/input/grip"
+                }
+            ]
+        },
+        "/actions/menu": {
+            "sources": [
+                {
+                    "inputs": {
+                        "position": {
+                            "output": "/actions/menu/in/navigation"
+                        }
+                    },
+                    "mode": "joystick",
+                    "path": "/user/hand/left/input/thumbstick"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/left"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/left/input/y"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/right"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/right/input/b"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/enter"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/right/input/a"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/back"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/left/input/x"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/multiplierhalf"
+                        }
+                    },
+                    "mode": "button",
+                    "path": "/user/hand/left/input/trackpad"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/multiplierplusone"
+                        }
+                    },
+                    "mode": "trigger",
+                    "path": "/user/hand/left/input/trigger"
+                },
+                {
+                    "inputs": {
+                        "click": {
+                            "output": "/actions/menu/in/multiplierplusone2"
+                        }
+                    },
+                    "mode": "trigger",
+                    "path": "/user/hand/right/input/trigger"
                 }
             ]
         }

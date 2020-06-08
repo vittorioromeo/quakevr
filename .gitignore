@@ -1,5 +1,7 @@
+build
 Windows/build
 .fuse*
+Windows/buildlxcl
 Windows/buildlx
 Debug/id1
 Debug/Id1
@@ -12,6 +14,7 @@ Build-qu*
 *.blend10
 *.blend11
 *.blend12
+map_src/autosave
 
 # Linux objects
 .vs

@@ -22,21 +22,22 @@
  *
  */
 
-#ifndef _BGMUSIC_H_
-#define _BGMUSIC_H_
+#pragma once
+
+#include "q_stdinc.hpp"
+#include "cvar.hpp"
 
 extern bool bgmloop;
 extern cvar_t bgm_extmusic;
 
-bool BGM_Init(void);
-void BGM_Shutdown(void);
+bool BGM_Init();
+void BGM_Shutdown();
 
 void BGM_Play(const char* filename);
-void BGM_Stop(void);
-void BGM_Update(void);
-void BGM_Pause(void);
-void BGM_Resume(void);
+void BGM_Stop();
+void BGM_Update();
+void BGM_Pause();
+void BGM_Resume();
 
 void BGM_PlayCDtrack(byte track, bool looping);
 
-#endif /* _BGMUSIC_H_ */

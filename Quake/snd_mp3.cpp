@@ -24,7 +24,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "quakedef.hpp"
+#include "console.hpp"
+#include "common.hpp"
+#include "byteorder.hpp"
 
 #if defined(USE_CODEC_MP3)
 #include "snd_codec.hpp"

@@ -21,8 +21,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _QUAKE_SERVER_H
-#define _QUAKE_SERVER_H
+#pragma once
+
+#include "vr_macros.hpp"
+#include "worldtext.hpp"
+#include "cvar.hpp"
+#include "common.hpp"
+#include "quakedef_macros.hpp"
+#include "progs.hpp"
+#include "sizebuf.hpp"
+
+#include <vector>
 
 struct qmodel_t;
 
@@ -32,7 +41,7 @@ typedef struct
 {
     int maxclients;
     int maxclientslimit;
-    struct client_s* clients; // [maxclients]
+    struct client_t* clients; // [maxclients]
     int serverflags;          // episode completion information
     bool changelevel_issued;  // cleared when at SV_SpawnServer
 } server_static_t;
@@ -45,7 +54,7 @@ typedef enum
     ss_active
 } server_state_t;
 
-typedef struct
+struct server_t
 {
     bool active; // false if only a net client
 
@@ -83,13 +92,42 @@ typedef struct
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
-} server_t;
 
+    std::vector<WorldText> worldTexts;
+    std::vector<WorldTextHandle> freeWorldTextHandles;
+
+    [[nodiscard]] bool isValidWorldTextHandle(
+        const WorldTextHandle wth) const noexcept;
+
+    [[nodiscard]] bool hasAnyFreeWorldTextHandle() const noexcept;
+
+    [[nodiscard]] WorldTextHandle makeWorldTextHandle() noexcept;
+
+    [[nodiscard]] WorldText& getWorldText(const WorldTextHandle wth) noexcept;
+
+    void initializeWorldTexts();
+
+    // World text "server -> client" messages
+    void SendMsg_WorldTextHMake(
+        client_t& client, const WorldTextHandle wth) noexcept;
+
+    void SendMsg_WorldTextHSetText(client_t& client, const WorldTextHandle wth,
+        const char* const text) noexcept;
+
+    void SendMsg_WorldTextHSetPos(
+        client_t& client, const WorldTextHandle wth, const qvec3& pos) noexcept;
+
+    void SendMsg_WorldTextHSetAngles(client_t& client,
+        const WorldTextHandle wth, const qvec3& angles) noexcept;
+
+    void SendMsg_WorldTextHSetHAlign(client_t& client,
+        const WorldTextHandle wth, const WorldText::HAlign hAlign) noexcept;
+};
 
 #define NUM_PING_TIMES 16
-#define NUM_SPAWN_PARMS 16
+#define NUM_SPAWN_PARMS 32
 
-typedef struct client_s
+struct client_t
 {
     bool active;     // false = client is free
     bool spawned;    // false = don't send datagrams
@@ -101,8 +139,8 @@ typedef struct client_s
 
     struct qsocket_s* netconnection; // communications handle
 
-    usercmd_t cmd;     // movement
-    glm::vec3 wishdir; // intended motion calced from cmd
+    usercmd_t cmd; // movement
+    qvec3 wishdir; // intended motion calced from cmd
 
     sizebuf_t message; // can be added to at any time,
                        // copied and clear once per frame
@@ -119,7 +157,7 @@ typedef struct client_s
 
     // client known data for deltas
     int old_frags;
-} client_t;
+};
 
 
 //=============================================================================
@@ -155,28 +193,35 @@ typedef struct client_s
 #define DAMAGE_AIM 2
 
 // edict->flags
-#define FL_FLY 1
-#define FL_SWIM 2
-//#define	FL_GLIMPSE				4
-#define FL_CONVEYOR 4
-#define FL_CLIENT 8
-#define FL_INWATER 16
-#define FL_MONSTER 32
-#define FL_GODMODE 64
-#define FL_NOTARGET 128
-#define FL_ITEM 256
-#define FL_ONGROUND 512
-#define FL_PARTIALGROUND 1024 // not all corners are valid
-#define FL_WATERJUMP 2048     // player jumping out of water
-#define FL_JUMPRELEASED 4096  // for jump debouncing
-#define FL_EASYHANDTOUCH 8192 // adds bonus to boundaries for handtouch
+// clang-format off
+#define FL_FLY            VRUTIL_POWER_OF_TWO(0)
+#define FL_SWIM           VRUTIL_POWER_OF_TWO(1)
+#define FL_CONVEYOR       VRUTIL_POWER_OF_TWO(2)
+#define FL_CLIENT         VRUTIL_POWER_OF_TWO(3)
+#define FL_INWATER        VRUTIL_POWER_OF_TWO(4)
+#define FL_MONSTER        VRUTIL_POWER_OF_TWO(5)
+#define FL_GODMODE        VRUTIL_POWER_OF_TWO(6)
+#define FL_NOTARGET       VRUTIL_POWER_OF_TWO(7)
+#define FL_ITEM           VRUTIL_POWER_OF_TWO(8)
+#define FL_ONGROUND       VRUTIL_POWER_OF_TWO(9)
+#define FL_PARTIALGROUND  VRUTIL_POWER_OF_TWO(10) // not all corners are valid
+#define FL_WATERJUMP      VRUTIL_POWER_OF_TWO(11) // player jumping out of water
+#define FL_JUMPRELEASED   VRUTIL_POWER_OF_TWO(12) // for jump debouncing
+#define FL_EASYHANDTOUCH  VRUTIL_POWER_OF_TWO(13) // adds bonus to boundaries for handtouch
+#define FL_SPECIFICDAMAGE VRUTIL_POWER_OF_TWO(14) // HONEY.
+#define FL_FORCEGRABBABLE VRUTIL_POWER_OF_TWO(15) // VR.
+// clang-format on
 
 // entity effects
-
-#define EF_BRIGHTFIELD 1
-#define EF_MUZZLEFLASH 2
-#define EF_BRIGHTLIGHT 4
-#define EF_DIMLIGHT 8
+// clang-format off
+#define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
+#define EF_MUZZLEFLASH  VRUTIL_POWER_OF_TWO(1)
+#define EF_BRIGHTLIGHT  VRUTIL_POWER_OF_TWO(2)
+#define EF_DIMLIGHT     VRUTIL_POWER_OF_TWO(3)
+#define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
+#define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
+#define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
+// clang-format on
 
 #define SPAWNFLAG_NOT_EASY 256
 #define SPAWNFLAG_NOT_MEDIUM 512
@@ -201,44 +246,51 @@ extern edict_t* sv_player;
 
 //===========================================================
 
-void SV_Init(void);
+void SV_Init();
 
-void SV_StartParticle(const glm::vec3& org, const glm::vec3& dir,
-    const int color, const int count);
-void SV_StartParticle2(const glm::vec3& org, const glm::vec3& dir,
-    const int preset, const int count);
+void SV_StartParticle(
+    const qvec3& org, const qvec3& dir, const int color, const int count);
+void SV_StartParticle2(
+    const qvec3& org, const qvec3& dir, const int preset, const int count);
 void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     float attenuation);
 
 void SV_DropClient(bool crash);
 
-void SV_SendClientMessages(void);
-void SV_ClearDatagram(void);
+void SV_SendClientMessages();
+void SV_ClearDatagram();
 
 int SV_ModelIndex(const char* name);
 
-void SV_SetIdealPitch(void);
+void SV_SetIdealPitch();
 
-void SV_AddUpdates(void);
+void SV_AddUpdates();
 
-void SV_ClientThink(void);
+void SV_ClientThink();
 void SV_AddClientToServer(struct qsocket_s* ret);
 
 void SV_ClientPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void SV_BroadcastPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 
-void SV_Physics(void);
+void SV_Physics();
 
 bool SV_CheckBottom(edict_t* ent);
-bool SV_movestep(edict_t* ent, glm::vec3 move, bool relink);
+bool SV_movestep(edict_t* ent, qvec3 move, bool relink);
 
 void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 
-void SV_MoveToGoal(void);
+void SV_MoveToGoal();
 
-void SV_CheckForNewClients(void);
-void SV_RunClients(void);
+void SV_CheckForNewClients();
+void SV_RunClients();
 void SV_SaveSpawnparms();
-void SV_SpawnServer(const char* server);
 
-#endif /* _QUAKE_SERVER_H */
+enum class SpawnServerSrc
+{
+    FromSaveFile,
+    FromMapCmd,
+    FromChangelevelCmd,
+    FromRestart
+};
+
+void SV_SpawnServer(const char* server, const SpawnServerSrc src);

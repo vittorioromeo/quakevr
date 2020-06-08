@@ -23,6 +23,9 @@
  */
 
 #include "quakedef.hpp"
+#include "console.hpp"
+#include "fshandle.hpp"
+#include "zone.hpp"
 
 #if defined(USE_CODEC_FLAC)
 #include "snd_codec.hpp"

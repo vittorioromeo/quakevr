@@ -21,13 +21,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "host.hpp"
+#include "console.hpp"
+#include "cvar.hpp"
+#include "pr_comp.hpp"
+#include "progs.hpp"
+#include "protocol.hpp"
 #include "quakedef.hpp"
 #include "quakeglm.hpp"
 #include "util.hpp"
+#include "worldtext.hpp"
+#include "console.hpp"
+#include "glquake.hpp"
+#include "msg.hpp"
+#include "sys.hpp"
+#include "cmd.hpp"
 
 #include <cmath>
+#include <glm/gtx/rotate_vector.hpp>
+#include "quakeglm_qquat.hpp"
 
-#define STRINGTEMP_BUFFERS 16
+#define STRINGTEMP_BUFFERS 32
 #define STRINGTEMP_LENGTH 1024
 static char pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
 static byte pr_string_tempindex = 0;
@@ -44,12 +58,21 @@ static char* PR_GetTempString()
 #define MSG_ALL 2       // reliable to all
 #define MSG_INIT 3      // write to the init string
 
-[[nodiscard]] static QUAKE_FORCEINLINE glm::vec3 extractVector(
+[[nodiscard]] QUAKE_FORCEINLINE static qvec3 extractVector(
     const int parm) noexcept
 {
     float* const ptr = G_VECTOR(parm);
     return {ptr[0], ptr[1], ptr[2]};
 }
+
+QUAKE_FORCEINLINE static void returnVector(const qvec3& v) noexcept
+{
+    G_VECTOR(OFS_RETURN)[0] = v[0];
+    G_VECTOR(OFS_RETURN)[1] = v[1];
+    G_VECTOR(OFS_RETURN)[2] = v[2];
+}
+
+
 
 /*
 ===============================================================================
@@ -209,7 +232,7 @@ will not set internal links correctly, so clipping would be messed up.
 This should be called when an object is spawned, and then only if it is
 teleported.
 
-setorigin (entity, origin)
+setorigin(entity, origin)
 =================
 */
 static void PF_setorigin()
@@ -220,19 +243,19 @@ static void PF_setorigin()
 }
 
 static void SetMinMaxSize(
-    edict_t* e, const glm::vec3& minvec, const glm::vec3& maxvec, bool rotate)
+    edict_t* e, const qvec3& minvec, const qvec3& maxvec, bool rotate)
 {
-    glm::vec3 rmin;
+    qvec3 rmin;
 
-    glm::vec3 rmax;
-    float bounds[2][3];
+    qvec3 rmax;
+    qvec3 bounds[2];
     float xvector[2];
 
     float yvector[2];
     float a;
-    glm::vec3 base;
+    qvec3 base;
 
-    glm::vec3 transformed;
+    qvec3 transformed;
     int i;
 
     int j;
@@ -252,8 +275,8 @@ static void SetMinMaxSize(
 
     if(!rotate)
     {
-        VectorCopy(minvec, rmin);
-        VectorCopy(maxvec, rmax);
+        rmin = minvec;
+        rmax = maxvec;
     }
     else
     {
@@ -265,8 +288,8 @@ static void SetMinMaxSize(
         yvector[0] = -sin(a);
         yvector[1] = cos(a);
 
-        VectorCopy(minvec, bounds[0]);
-        VectorCopy(maxvec, bounds[1]);
+        bounds[0] = minvec;
+        bounds[1] = maxvec;
 
         rmin[0] = rmin[1] = rmin[2] = FLT_MAX;
         rmax[0] = rmax[1] = rmax[2] = -FLT_MAX;
@@ -318,7 +341,7 @@ PF_setsize
 
 the size box is rotated by the current angle
 
-setsize (entity, minvector, maxvector)
+setsize(entity, minvector, maxvector)
 =================
 */
 static void PF_setsize()
@@ -476,13 +499,13 @@ static void PF_normalize()
 
     if(new_temp == 0)
     {
-        VectorCopy(vec3_zero, G_VECTOR(OFS_RETURN));
+        returnVector(vec3_zero);
     }
     else
     {
         new_temp = 1 / new_temp;
-        const auto res = v * static_cast<float>(new_temp);
-        VectorCopy(res, G_VECTOR(OFS_RETURN));
+        const auto res = v * static_cast<qfloat>(new_temp);
+        returnVector(res);
     }
 }
 
@@ -791,17 +814,11 @@ Larger attenuations will drop off.
 */
 static void PF_sound()
 {
-    const char* sample;
-    int channel;
-    edict_t* entity;
-    int volume;
-    float attenuation;
-
-    entity = G_EDICT(OFS_PARM0);
-    channel = G_FLOAT(OFS_PARM1);
-    sample = G_STRING(OFS_PARM2);
-    volume = G_FLOAT(OFS_PARM3) * 255;
-    attenuation = G_FLOAT(OFS_PARM4);
+    edict_t* entity = G_EDICT(OFS_PARM0);
+    const int channel = G_FLOAT(OFS_PARM1);
+    const char* sample = G_STRING(OFS_PARM2);
+    const int volume = G_FLOAT(OFS_PARM3) * 255;
+    const float attenuation = G_FLOAT(OFS_PARM4);
 
     if(volume < 0 || volume > 255)
     {
@@ -907,7 +924,7 @@ scalar checkpos (entity, vector)
 =================
 */
 #if 0
-static void PF_checkpos (void)
+static void PF_checkpos(void)
 {
 }
 #endif
@@ -976,7 +993,7 @@ static int PF_newcheckclient(int check)
     }
 
     // get the PVS for the entity
-    glm::vec3 org = ent->v.origin + ent->v.view_ofs;
+    qvec3 org = ent->v.origin + ent->v.view_ofs;
 
     mleaf_t* leaf = Mod_PointInLeaf(org, sv.worldmodel);
     byte* pvs = Mod_LeafPVS(leaf, sv.worldmodel);
@@ -1039,7 +1056,7 @@ static void PF_checkclient()
 
     // if current entity can't possibly see the check entity, return 0
     self = PROG_TO_EDICT(pr_global_struct->self);
-    const glm::vec3 view = self->v.origin + self->v.view_ofs;
+    const qvec3 view = self->v.origin + self->v.view_ofs;
     leaf = Mod_PointInLeaf(view, sv.worldmodel);
     l = (leaf - sv.worldmodel->leafs) - 1;
     if((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7))))
@@ -1111,11 +1128,7 @@ float cvar (string)
 */
 static void PF_cvar()
 {
-    const char* str;
-
-    str = G_STRING(OFS_PARM0);
-
-    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(str);
+    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(G_STRING(OFS_PARM0));
 }
 
 /*
@@ -1127,14 +1140,316 @@ float cvar (string)
 */
 static void PF_cvar_set()
 {
-    const char* var;
-
-    const char* val;
-
-    var = G_STRING(OFS_PARM0);
-    val = G_STRING(OFS_PARM1);
+    const char* var = G_STRING(OFS_PARM0);
+    const char* val = G_STRING(OFS_PARM1);
 
     Cvar_Set(var, val);
+}
+
+/*
+=================
+PF_cvar_hmake
+
+float cvar_hmake (string)
+=================
+*/
+static void PF_cvar_hmake()
+{
+    G_INT(OFS_RETURN) = Cvar_MakeHandle(G_STRING(OFS_PARM0));
+}
+
+/*
+=================
+PF_cvar_hget
+
+float cvar_hget (float)
+=================
+*/
+static void PF_cvar_hget()
+{
+    G_FLOAT(OFS_RETURN) = Cvar_GetValueFromHandle(G_INT(OFS_PARM0));
+}
+
+/*
+=================
+PF_cvar_hget
+
+float cvar_hget (float)
+=================
+*/
+static void PF_cvar_hset()
+{
+    Cvar_SetValueFromHandle(G_INT(OFS_PARM0), G_FLOAT(OFS_PARM1));
+}
+
+template <typename F>
+static void forAllActiveOrSpawnedClients(F&& f)
+{
+    for(int i = 0; i < svs.maxclients; i++)
+    {
+        client_t& client = svs.clients[i];
+
+        if(client.active || client.spawned)
+        {
+            f(client);
+        }
+    }
+}
+
+static void PF_worldtext_hmake()
+{
+    if(!sv.hasAnyFreeWorldTextHandle())
+    {
+        Host_Error("No free world text handles available");
+        return;
+    }
+
+    const WorldTextHandle wth = sv.makeWorldTextHandle();
+
+    forAllActiveOrSpawnedClients(
+        [&](client_t& client) { sv.SendMsg_WorldTextHMake(client, wth); });
+
+    G_INT(OFS_RETURN) = wth;
+}
+
+static void PF_worldtext_hsettext()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const char* text = G_STRING(OFS_PARM1);
+
+    if(!sv.isValidWorldTextHandle(wth))
+    {
+        Host_Error("Invalid world text handle '%d'", wth);
+        return;
+    }
+
+    sv.getWorldText(wth)._text = text;
+
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetText(client, wth, text);
+    });
+}
+
+static void PF_worldtext_hsetpos()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const qvec3 pos = extractVector(OFS_PARM1);
+
+    if(!sv.isValidWorldTextHandle(wth))
+    {
+        Host_Error("Invalid world text handle '%d'", wth);
+        return;
+    }
+
+    sv.getWorldText(wth)._pos = pos;
+
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetPos(client, wth, pos);
+    });
+}
+
+static void PF_worldtext_hsetangles()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const qvec3 angles = extractVector(OFS_PARM1);
+
+    if(!sv.isValidWorldTextHandle(wth))
+    {
+        Host_Error("Invalid world text handle '%d'", wth);
+        return;
+    }
+
+    sv.getWorldText(wth)._angles = angles;
+
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetAngles(client, wth, angles);
+    });
+}
+
+static void PF_worldtext_hsethalign()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const float hAlignFloat = G_FLOAT(OFS_PARM1);
+
+    if(!sv.isValidWorldTextHandle(wth))
+    {
+        Host_Error("Invalid world text handle '%d'", wth);
+        return;
+    }
+
+    const auto hAlign = static_cast<WorldText::HAlign>(hAlignFloat);
+
+    sv.getWorldText(wth)._hAlign = hAlign;
+
+    forAllActiveOrSpawnedClients([&](client_t& client) {
+        sv.SendMsg_WorldTextHSetHAlign(client, wth, hAlign);
+    });
+}
+
+static void PF_strlen()
+{
+    G_FLOAT(OFS_RETURN) = std::strlen(G_STRING(OFS_PARM0));
+}
+
+static void PF_nthchar()
+{
+    G_FLOAT(OFS_RETURN) =
+        (G_STRING(OFS_PARM0))[static_cast<int>(G_FLOAT(OFS_PARM1))];
+}
+
+static void PF_substr()
+{
+    const char* s = G_STRING(OFS_PARM0);
+    const int b = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const int e = static_cast<int>(G_FLOAT(OFS_PARM2));
+
+    char* buf = PR_GetTempString();
+    int i = 0;
+    for(; i < e - b; ++i)
+    {
+        buf[i] = s[b + i];
+    }
+
+    buf[i] = '\0';
+
+    // TODO VR: (P1): does this continuously allocate new strings?
+    G_INT(OFS_RETURN) = PR_SetEngineString(buf);
+}
+
+static void PF_calcthrowangle()
+{
+    // TODO VR: (P2): repetition with `SV_AddGravityImpl`
+    const auto getGravity = [&](const float entGravity) {
+        extern cvar_t sv_gravity;
+        return (double)entGravity * (double)sv_gravity.value * host_frametime;
+    };
+
+    const float inEntGravity = G_FLOAT(OFS_PARM0);
+
+    const float entGravity = inEntGravity == 0 ? 1.f : inEntGravity;
+    const float throwSpeed = G_FLOAT(OFS_PARM1);
+    const qvec3 fromPos = extractVector(OFS_PARM2);
+    const qvec3 toPos = extractVector(OFS_PARM3);
+
+    float xx = toPos.x - fromPos.x;
+    float xy = toPos.y - fromPos.y;
+    float x = std::sqrt(xx * xx + xy * xy);
+    float z = fromPos.z - toPos.z;
+
+    float v = throwSpeed;
+    float g = -getGravity(entGravity);
+
+    float xSqrt = (v * v * v * v) - (g * (g * (x * x) + 2.f * z * (v * v)));
+
+    // Not enough range
+    if(xSqrt < 0)
+    {
+        G_FLOAT(OFS_RETURN) = 0.0f;
+        return;
+    }
+
+    G_FLOAT(OFS_RETURN) =
+        glm::degrees(std::atan2(((v * v) - std::sqrt(xSqrt)), (g * x)));
+}
+
+static void PF_rotatevec()
+{
+    const qvec3 vec = extractVector(OFS_PARM0);
+    const qvec3 upx = extractVector(OFS_PARM1);
+    const float angle = glm::radians(G_FLOAT(OFS_PARM2));
+
+    auto rers =
+        glm::normalize(vec + glm::vec3{0.0, 0.0, std::abs(std::tan(angle))});
+    returnVector(rers);
+    return;
+
+    // up direction:
+    glm::vec3 up(0.0, 0.0, 1.0);
+    // find right vector:
+    auto right = glm::cross(glm::normalize(vec), glm::normalize(up));
+
+    qquat m;
+    m = glm::rotate(m, angle, right);
+    m = glm::normalize(m);
+
+    qvec3 rr = m * vec;
+    returnVector(rr);
+    return;
+
+    // TODO VR: (P1): fix this. consider checking QSS source code for rotation
+    // code
+
+
+
+    glm::mat4 rotationMat(1); // Creates a identity matrix
+    rotationMat = glm::rotate(rotationMat, angle, right);
+    auto res = glm::vec3(rotationMat * glm::vec4(vec, 1.0));
+
+    returnVector(res);
+
+    //    returnVector(glm::rotate(vec, angle, up));
+}
+
+static void PF_sin()
+{
+    G_FLOAT(OFS_RETURN) = std::sin(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_cos()
+{
+    G_FLOAT(OFS_RETURN) = std::cos(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_tan()
+{
+    G_FLOAT(OFS_RETURN) = std::tan(glm::radians(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_asin()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::asin(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_acos()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::acos(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_atan()
+{
+    G_FLOAT(OFS_RETURN) = glm::degrees(std::atan(G_FLOAT(OFS_PARM0)));
+}
+
+static void PF_sqrt()
+{
+    G_FLOAT(OFS_RETURN) = std::sqrt(G_FLOAT(OFS_PARM0));
+}
+
+
+static void PF_atan2()
+{
+    G_FLOAT(OFS_RETURN) =
+        glm::degrees(std::atan2(G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1)));
+}
+
+
+/*
+=================
+PF_cvar_hclear
+
+void cvar_hclear ()
+=================
+*/
+static void PF_cvar_hclear()
+{
+    Cvar_ClearAllHandles();
+}
+
+static void PF_redirectvector()
+{
+    const auto input = extractVector(OFS_PARM0);
+    const auto exemplar = extractVector(OFS_PARM1);
+    returnVector(quake::util::redirectVector(input, exemplar));
 }
 
 /*
@@ -1165,7 +1480,7 @@ static void PF_findradius()
             continue;
         }
 
-        glm::vec3 eorg;
+        qvec3 eorg;
         for(int j = 0; j < 3; j++)
         {
             eorg[j] = org[j] - (ent->v.origin[j] +
@@ -1386,7 +1701,7 @@ static void PF_walkmove()
     float yaw;
 
     float dist;
-    glm::vec3 move;
+    qvec3 move;
     dfunction_t* oldf;
     int oldself;
 
@@ -1427,26 +1742,46 @@ void() droptofloor
 */
 static void PF_droptofloor()
 {
-    edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
+    edict_t& ent = *PROG_TO_EDICT(pr_global_struct->self);
 
-    glm::vec3 end = ent->v.origin;
-    end[2] -= 256;
+    qfloat highestZ = std::numeric_limits<qfloat>::lowest();
+    edict_t* groundEnt = nullptr;
 
-    trace_t trace =
-        SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+    const auto processHit = [&](const qvec3& xyOffset) {
+        const qvec3 corner =
+            ent.v.origin + xyOffset + qvec3{0, 0, ent.v.mins[2]};
 
-    if(trace.fraction == 1 || trace.allsolid)
+        const trace_t trace = SV_MoveTrace(
+            corner, corner + qvec3{0, 0, -256._qf}, MOVE_NOMONSTERS, &ent);
+
+        if(!quake::util::hitSomething(trace) || trace.allsolid)
+        {
+            return false;
+        }
+
+        if(highestZ < trace.endpos[2])
+        {
+            highestZ = trace.endpos[2];
+            groundEnt = trace.ent;
+        }
+
+        return true;
+    };
+
+    const bool anyFloorHit =
+        processHit(vec3_zero) || quake::util::anyXYCorner(ent, processHit);
+
+    if(!anyFloorHit)
     {
-        G_FLOAT(OFS_RETURN) = 0;
+        G_FLOAT(OFS_RETURN) = 0; // FALSE
+        return;
     }
-    else
-    {
-        ent->v.origin = trace.endpos;
-        SV_LinkEdict(ent, false);
-        quake::util::addFlag(ent, FL_ONGROUND);
-        ent->v.groundentity = EDICT_TO_PROG(trace.ent);
-        G_FLOAT(OFS_RETURN) = 1;
-    }
+
+    ent.v.origin[2] = highestZ - ent.v.mins[2];
+    SV_LinkEdict(&ent, false);
+    quake::util::addFlag(&ent, FL_ONGROUND);
+    ent.v.groundentity = EDICT_TO_PROG(groundEnt);
+    G_FLOAT(OFS_RETURN) = 1; // TRUE
 }
 
 /*
@@ -1587,17 +1922,17 @@ static void PF_aim()
     edict_t* check;
 
     edict_t* bestent;
-    glm::vec3 start;
+    qvec3 start;
 
-    glm::vec3 dir;
+    qvec3 dir;
 
-    glm::vec3 end;
+    qvec3 end;
 
     int i;
 
     int j;
     trace_t tr;
-    float dist;
+    qfloat dist;
 
     float bestdist;
     float speed;
@@ -1611,17 +1946,17 @@ static void PF_aim()
 
     // try sending a trace straight
     dir = pr_global_struct->v_forward;
-    end = start + 2048.f * dir;
+    end = start + 2048._qf * dir;
     tr = SV_MoveTrace(start, end, false, ent);
     if(tr.ent && tr.ent->v.takedamage == DAMAGE_AIM &&
         (!teamplay.value || ent->v.team <= 0 || ent->v.team != tr.ent->v.team))
     {
-        VectorCopy(pr_global_struct->v_forward, G_VECTOR(OFS_RETURN));
+        returnVector(pr_global_struct->v_forward);
         return;
     }
 
     // try all possible entities
-    glm::vec3 bestdir = dir;
+    qvec3 bestdir = dir;
     bestdist = sv_aim.value;
     bestent = nullptr;
 
@@ -1665,14 +2000,14 @@ static void PF_aim()
     {
         dir = bestent->v.origin - ent->v.origin;
         dist = DotProduct(dir, pr_global_struct->v_forward);
-        end = pr_global_struct->v_forward * dist;
+        end = pr_global_struct->v_forward * float(dist);
         end[2] = dir[2];
         end = safeNormalize(end);
-        VectorCopy(end, G_VECTOR(OFS_RETURN));
+        returnVector(end);
     }
     else
     {
-        VectorCopy(bestdir, G_VECTOR(OFS_RETURN));
+        returnVector(bestdir);
     }
 }
 
@@ -1806,6 +2141,11 @@ static void PF_WriteString()
 static void PF_WriteEntity()
 {
     MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
+}
+
+static void PF_WriteVec3()
+{
+    MSG_WriteVec3(WriteDest(), extractVector(OFS_PARM1), sv.protocolflags);
 }
 
 //=============================================================================
@@ -2015,6 +2355,42 @@ static builtin_t pr_builtin[] = {
     PF_max,         // #83
     PF_makeforward, // #84
     PF_maprange,    // #85
+
+    PF_cvar_hmake,  // #86
+    PF_cvar_hget,   // #87
+    PF_cvar_hclear, // #88
+
+    PF_redirectvector, // #89
+
+    PF_cvar_hset, // #90
+
+    PF_worldtext_hmake,      // #91
+    PF_worldtext_hsettext,   // #92
+    PF_worldtext_hsetpos,    // #93
+    PF_worldtext_hsetangles, // #94
+
+    PF_WriteVec3, // #95
+
+    PF_worldtext_hsethalign, // #96
+
+    PF_strlen,  // #97
+    PF_nthchar, // #98
+    PF_substr,  // #99
+
+    PF_calcthrowangle, // #100
+    PF_rotatevec,      // #101
+
+    PF_sin, // #102
+    PF_cos, // #103
+
+    PF_asin, // #104
+    PF_acos, // #105
+
+    PF_tan,  // #106
+    PF_atan, // #107
+
+    PF_sqrt,  // #108
+    PF_atan2, // #109
 };
 
 builtin_t* pr_builtins = pr_builtin;

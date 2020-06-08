@@ -21,29 +21,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _CLIENT_H_
-#define _CLIENT_H_
+#pragma once
 
-#define CSHIFT_CONTENTS 0
-#define CSHIFT_DAMAGE 1
-#define CSHIFT_BONUS 2
-#define CSHIFT_POWERUP 3
-#define NUM_CSHIFTS 4
-#define NAME_LENGTH 64
-#define SIGNONS 4      // signon messages to receive before connected
-#define MAX_DLIGHTS 64 // johnfitz -- was 32
-#define MAX_BEAMS 128  // johnfitz -- was 24
-#define MAX_MAPSTRING 2048
-#define MAX_DEMOS 8
-#define MAX_DEMONAME 16
-#define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
-#define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
-#define MAX_VISEDICTS 4096       // larger, now we support BSP2
-
-#include "quakeglm.hpp"
+#include "render.hpp"
+#include "world.hpp"
+#include "keys.hpp"
+#include "quakeglm_qvec3.hpp"
 #include "quakedef.hpp"
+#include "worldtext.hpp"
+#include "common.hpp"
+#include "gl_model.hpp"
+#include "quakedef_macros.hpp"
+#include "sizebuf.hpp"
 
-// client.h
+#include <vector>
 
 typedef struct
 {
@@ -77,13 +68,13 @@ typedef struct
 
 struct dlight_t
 {
-    glm::vec3 origin;
+    qvec3 origin;
     float radius;
     float die;      // stop lighting after this time
     float decay;    // drop this each second
     float minlight; // don't add when contributing less
     int key;
-    glm::vec3 color; // johnfitz -- lit support via lordhavoc
+    qvec3 color; // johnfitz -- lit support via lordhavoc
 };
 
 
@@ -93,10 +84,12 @@ struct beam_t
     int disambiguator;
     qmodel_t* model;
     float endtime;
-    glm::vec3 start, end;
+    qvec3 start, end;
     bool spin;
     float scaleRatioX;
-} ;
+    // SomeEnum special; // TODO VR: (P1) consider adding this and experiment
+    // with particles/dlights
+};
 
 
 
@@ -173,25 +166,26 @@ struct client_state_t
     // sent to the server each frame.  The server sets punchangle when
     // the view is temporarliy offset, and an angle reset commands at the start
     // of each level and after teleporting.
-    glm::vec3 mviewangles[2]; // during demo playback viewangles is lerped
-                              // between these
-    glm::vec3 viewangles;
+    qvec3 mviewangles[2]; // during demo playback viewangles is lerped
+                          // between these
+    qvec3 viewangles;
 
-    glm::vec3 aimangles;
-    glm::vec3 vmeshoffset;
-    glm::vec3 handpos[2];
-    glm::vec3 handrot[2];
-    glm::vec3 prevhandrot[2];
-    glm::vec3 handvel[2];
-    glm::vec3 handthrowvel[2];
+    qvec3 aimangles;
+    qvec3 vmeshoffset;
+    qvec3 handpos[2];
+    qvec3 handrot[2];
+    qvec3 prevhandrot[2];
+    qvec3 handvel[2];
+    qvec3 handthrowvel[2];
     float handvelmag[2];
-    glm::vec3 handavel[2];
+    qvec3 handavel[2];
+    qvec3 headvel;
 
-    glm::vec3 mvelocity[2]; // update by server, used for lean+bob
-                            // (0 is newest)
-    glm::vec3 velocity;     // lerped between mvelocity[0] and [1]
+    qvec3 mvelocity[2]; // update by server, used for lean+bob
+                        // (0 is newest)
+    qvec3 velocity;     // lerped between mvelocity[0] and [1]
 
-    glm::vec3 punchangle; // temporary offset
+    qvec3 punchangle; // temporary offset
 
     // pitch drifting vars
     float idealpitch;
@@ -234,7 +228,7 @@ struct client_state_t
 
     // refresh related state
     qmodel_t* worldmodel; // cl_entities[0].model
-    struct efrag_s* free_efrags;
+    struct efrag_t* free_efrags;
     int num_efrags;
     int num_entities; // held in cl_entities array
     int num_statics;  // held in cl_staticentities array
@@ -249,12 +243,29 @@ struct client_state_t
     entity_t left_upper_holster;
     entity_t right_upper_holster;
     entity_t vrtorso;
-    entity_t left_hand;
-    entity_t right_hand;
     entity_t left_hip_holster_slot;
     entity_t right_hip_holster_slot;
     entity_t left_upper_holster_slot;
     entity_t right_upper_holster_slot;
+
+    entity_t mainhand_wpn_button;
+    entity_t offhand_wpn_button;
+
+    struct hand_entities
+    {
+        entity_t base;
+        entity_t f_thumb;
+        entity_t f_index;
+        entity_t f_middle;
+        entity_t f_ring;
+        entity_t f_pinky;
+    };
+
+    hand_entities left_hand_entities;
+    hand_entities right_hand_entities;
+
+    hand_entities left_hand_ghost_entities;
+    hand_entities right_hand_ghost_entities;
 
     int cdtrack, looptrack; // cd audio
 
@@ -263,7 +274,73 @@ struct client_state_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
+
+    std::vector<WorldText> worldTexts;
+
+    int hotspot[2];
+
+    [[nodiscard]] bool isValidWorldTextHandle(
+        const WorldTextHandle wth) const noexcept;
+
+    void OnMsg_WorldTextHMake() noexcept;
+    void OnMsg_WorldTextHSetText() noexcept;
+    void OnMsg_WorldTextHSetPos() noexcept;
+    void OnMsg_WorldTextHSetAngles() noexcept;
+    void OnMsg_WorldTextHSetHAlign() noexcept;
 };
+
+template <typename F>
+bool anyViewmodel(client_state_t& clientState, F&& f)
+{
+    return                                                   //
+        f(clientState.viewent)                               //
+        || f(clientState.offhand_viewent)                    //
+        || f(clientState.left_hip_holster)                   //
+        || f(clientState.right_hip_holster)                  //
+        || f(clientState.left_upper_holster)                 //
+        || f(clientState.right_upper_holster)                //
+        || f(clientState.vrtorso)                            //
+        || f(clientState.left_hip_holster_slot)              //
+        || f(clientState.right_hip_holster_slot)             //
+        || f(clientState.left_upper_holster_slot)            //
+        || f(clientState.right_upper_holster_slot)           //
+        || f(clientState.mainhand_wpn_button)                //
+        || f(clientState.offhand_wpn_button)                 //
+        || f(clientState.left_hand_entities.base)            //
+        || f(clientState.left_hand_entities.f_thumb)         //
+        || f(clientState.left_hand_entities.f_index)         //
+        || f(clientState.left_hand_entities.f_middle)        //
+        || f(clientState.left_hand_entities.f_ring)          //
+        || f(clientState.left_hand_entities.f_pinky)         //
+        || f(clientState.right_hand_entities.base)           //
+        || f(clientState.right_hand_entities.f_thumb)        //
+        || f(clientState.right_hand_entities.f_index)        //
+        || f(clientState.right_hand_entities.f_middle)       //
+        || f(clientState.right_hand_entities.f_ring)         //
+        || f(clientState.right_hand_entities.f_pinky)        //
+        || f(clientState.left_hand_ghost_entities.base)      //
+        || f(clientState.left_hand_ghost_entities.f_thumb)   //
+        || f(clientState.left_hand_ghost_entities.f_index)   //
+        || f(clientState.left_hand_ghost_entities.f_middle)  //
+        || f(clientState.left_hand_ghost_entities.f_ring)    //
+        || f(clientState.left_hand_ghost_entities.f_pinky)   //
+        || f(clientState.right_hand_ghost_entities.base)     //
+        || f(clientState.right_hand_ghost_entities.f_thumb)  //
+        || f(clientState.right_hand_ghost_entities.f_index)  //
+        || f(clientState.right_hand_ghost_entities.f_middle) //
+        || f(clientState.right_hand_ghost_entities.f_ring)   //
+        || f(clientState.right_hand_ghost_entities.f_pinky);
+}
+
+template <typename F>
+void forAllViewmodels(client_state_t& clientState, F&& f)
+{
+    anyViewmodel(clientState, [&](entity_t& e) {
+        f(e);
+        return false;
+    });
+}
+
 
 
 //
@@ -325,19 +402,19 @@ extern int cl_max_edicts;     // johnfitz -- only changes when new map loads
 // cl_main
 //
 dlight_t* CL_AllocDlight(int key);
-void CL_DecayLights(void);
+void CL_DecayLights();
 
-void CL_Init(void);
+void CL_Init();
 
 void CL_EstablishConnection(const char* host);
-void CL_Signon1(void);
-void CL_Signon2(void);
-void CL_Signon3(void);
-void CL_Signon4(void);
+void CL_Signon1();
+void CL_Signon2();
+void CL_Signon3();
+void CL_Signon4();
 
-void CL_Disconnect(void);
-void CL_Disconnect_f(void);
-void CL_NextDemo(void);
+void CL_Disconnect();
+void CL_Disconnect_f();
+void CL_NextDemo();
 
 //
 // cl_input
@@ -353,64 +430,62 @@ extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
 extern kbutton_t in_grableft, in_grabright;
 
-void CL_InitInput(void);
-void CL_SendCmd(void);
+void CL_InitInput();
+void CL_SendCmd();
 void CL_SendMove(const usercmd_t* cmd);
-int CL_ReadFromServer(void);
+int CL_ReadFromServer();
 void CL_BaseMove(usercmd_t* cmd);
 
-void CL_ParseTEnt(void);
-void CL_UpdateTEnts(void);
+void CL_ParseTEnt();
+void CL_UpdateTEnts();
 
-void CL_ClearState(void);
+void CL_ClearState();
 
 //
 // cl_demo.c
 //
-void CL_StopPlayback(void);
-int CL_GetMessage(void);
+void CL_StopPlayback();
+int CL_GetMessage();
 
-void CL_Stop_f(void);
-void CL_Record_f(void);
-void CL_PlayDemo_f(void);
-void CL_TimeDemo_f(void);
+void CL_Stop_f();
+void CL_Record_f();
+void CL_PlayDemo_f();
+void CL_TimeDemo_f();
 
 //
 // cl_parse.c
 //
-void CL_ParseServerMessage(void);
+void CL_ParseServerMessage();
 void CL_NewTranslation(int slot);
 
 //
 // view
 //
-void V_StartPitchDrift(void);
-void V_StopPitchDrift(void);
+void V_StartPitchDrift();
+void V_StopPitchDrift();
 
-void V_RenderView(void);
-// void V_UpdatePalette (void); //johnfitz
-void V_Register(void);
-void V_ParseDamage(void);
+void V_RenderView();
+// void V_UpdatePalette (); //johnfitz
+void V_Register();
+void V_ParseDamage();
 void V_SetContentsColor(int contents);
 
 //
 // cl_tent
 //
-void CL_InitTEnts(void);
-void CL_SignonReply(void);
+void CL_InitTEnts();
+void CL_SignonReply();
 
 //
 // chase
 //
 extern cvar_t chase_active;
 
-void Chase_Init(void);
+void Chase_Init();
 
 struct trace_t;
-[[nodiscard]] trace_t TraceLine(const glm::vec3& start, const glm::vec3& end);
+[[nodiscard]] trace_t TraceLine(const qvec3& start, const qvec3& end);
 [[nodiscard]] trace_t TraceLineToEntity(
-    const glm::vec3& start, const glm::vec3& end, edict_t* ent);
-void Chase_UpdateForClient(void);                                 // johnfitz
+    const qvec3& start, const qvec3& end, edict_t* ent);
+void Chase_UpdateForClient();                                     // johnfitz
 void Chase_UpdateForDrawing(refdef_t& refdef, entity_t* viewent); // johnfitz
-
-#endif /* _CLIENT_H_ */

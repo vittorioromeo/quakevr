@@ -19,6 +19,10 @@
  */
 
 #include "quakedef.hpp"
+#include "fshandle.hpp"
+#include "zone.hpp"
+#include "console.hpp"
+#include "q_sound.hpp"
 
 #if defined(USE_CODEC_MIKMOD)
 #include "snd_codec.hpp"

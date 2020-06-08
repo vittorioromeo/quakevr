@@ -1,9 +1,3 @@
-void() movetarget_f;
-void() t_movetarget;
-void() knight_walk1;
-void() knight_bow6;
-void() knight_bow1;
-void(entity etemp, entity stemp, entity stemp, float dmg) T_Damage;
 /*
 
 .enemy
@@ -38,7 +32,6 @@ walkmove(angle, speed) primitive is all or nothing
 //
 entity    sight_entity;
 float    sight_entity_time;
-void() FoundTarget;
 
 float(float v) anglemod =
 {
@@ -47,7 +40,7 @@ float(float v) anglemod =
     while(v < 0)
         v = v + 360;
     return v;
-};
+}
 
 /*
 ==============================================================================
@@ -76,9 +69,9 @@ void() movetarget_f =
 
     self.solid = SOLID_TRIGGER;
     self.touch = t_movetarget;
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setsize(self, '-8 -8 -8', '8 8 8');
 
-};
+}
 
 /*QUAKED path_corner (0.5 0.3 0) (-8 -8 -8) (8 8 8)
 Monsters will continue walking towards the next target corner.
@@ -87,7 +80,7 @@ Monsters will continue walking towards the next target corner.
 void() path_corner =
 {
     movetarget_f();
-};
+}
 
 
 /*
@@ -100,7 +93,7 @@ moving towards it, change the next destination and continue.
 */
 void() t_movetarget =
 {
-local entity    temp;
+entity    temp;
 
     if(other.movetarget != self)
         return;
@@ -115,11 +108,11 @@ local entity    temp;
     if(self.classname == "monster_ogre")
         sound(self, CHAN_VOICE, "ogre/ogdrag.wav", 1, ATTN_IDLE);// play chainsaw drag sound
 
-//dprint ("t_movetarget\n");
+//dprint("t_movetarget\n");
 //MED
-   if(other.target)
+   if(other.target != NULLSTR)
       {
-      self.goalentity = self.movetarget = find (world, targetname, other.target);
+      self.goalentity = self.movetarget = find(world, targetname, other.target);
       self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
       if(!self.movetarget)
          {
@@ -140,7 +133,7 @@ local entity    temp;
       self.th_stand();
       return;
       }
-};
+}
 
 
 //MED 01/20/97
@@ -155,13 +148,14 @@ moving towards it, change the next destination and continue.
 */
 void() t_followtarget =
 {
-   local entity   temp;
-   local vector   spot1, spot2;
-   local entity   targ;
-   local entity   client;
+   entity   temp;
+   vector   spot1, spot2;
+   entity   targ;
+   entity   client;
 
-   if(!other.flags & FL_MONSTER)
+   if(!(other.flags & FL_MONSTER))
       return;
+
    if(other.classname == "monster_decoy")
       return;
 //   if(other.enemy == world)
@@ -190,7 +184,7 @@ void() t_followtarget =
     self = other;
     other = temp;
 
-    self.goalentity = self.movetarget = find (world, targetname, other.target);
+    self.goalentity = self.movetarget = find(world, targetname, other.target);
 /*
    bprint("target ");
    bprint(other.target);
@@ -232,11 +226,11 @@ void() followtarget_f =
 
     self.solid = SOLID_TRIGGER;
    self.touch = t_followtarget;
-   setmodel (self, self.model);  // set size and link into world
+   setmodel(self, self.model);  // set size and link into world
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
     self.model = "";
-//   setsize (self, '-8 -8 -8', '8 8 8');
+//   setsize(self, '-8 -8 -8', '8 8 8');
 
 };
 
@@ -257,7 +251,7 @@ void() path_follow2 =
 {
    self.solid = SOLID_TRIGGER;
    self.touch = t_followtarget;
-    setsize (self, '-8 -8 -8', '8 8 8');
+    setsize(self, '-8 -8 -8', '8 8 8');
 };
 
 
@@ -276,20 +270,30 @@ returns the range catagorization of an entity reletive to self
 */
 float(entity targ) range =
 {
-local vector    spot1, spot2;
-local float        r;
+    vector spot1, spot2;
+    float  r;
+    float  scale; // HONEY.
+
     spot1 = self.origin + self.view_ofs;
     spot2 = targ.origin + targ.view_ofs;
 
-    r = vlen (spot1 - spot2);
+    r = vlen(spot1 - spot2);
+
+    // HONEY.
+    if(self.rangescale) { scale = self.rangescale; }
+    else                { scale = 1; }
+
     if(r < 120)
         return RANGE_MELEE;
+
     if(r < 500)
         return RANGE_NEAR;
-    if(r < 1000)
+
+    if(r < 1000 * scale)
         return RANGE_MID;
+
     return RANGE_FAR;
-};
+}
 
 /*
 =============
@@ -298,25 +302,16 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
-float (entity targ) visible =
+float (entity client) visible =
 {
-    local vector    spot1, spot2;
+    vector spot1, spot2;
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
-    traceline(spot1, spot2, TRUE, self);    // see through other monsters
+    spot2 = client.origin + client.view_ofs;
 
-    if(trace_inopen && trace_inwater)
-        return FALSE;            // sight line crossed contents
-
-//MED 11/21/96
-    if(trace_fraction == 1)
-      {
-      visible_distance = vlen(spot2-spot1);
-      return TRUE;
-      }
-    return FALSE;
-};
+    if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { return bbox_visible(self, spot2); }
+    else                                   { return point_visible(spot1, spot2); }
+}
 
 
 /*
@@ -328,17 +323,18 @@ returns 1 if the entity is in front (in sight) of self
 */
 float(entity targ) infront =
 {
-    local vector    vec;
-    local float        dot;
+    vector vec;
+    float  dot;
 
-    makevectors (self.angles);
-    vec = normalize (targ.origin - self.origin);
+    makevectors(self.angles);
+    vec = normalize(targ.origin - self.origin);
     dot = vec * v_forward;
 
-    if( dot > 0.3)
+    if(dot > 0.3)
     {
         return TRUE;
     }
+
     return FALSE;
 };
 
@@ -350,8 +346,8 @@ float(entity targ) infront =
 //============================================================================
 void() UpdateCharmerGoal =
    {
-   local entity targ;
-   local vector d;
+   entity targ;
+   vector d;
 
    d = normalize(self.origin-self.charmer.origin);
 
@@ -421,7 +417,19 @@ void() StopHuntingCharmer =
 void() HuntTarget =
 {
     self.goalentity = self.enemy;
-    self.think = self.th_run;
+
+    // HONEY
+    // cg: tarbabies can now spawn really angry and start jumping around
+    // without even having a clear view of player
+    if(self.classname == "monster_tarbaby" && self.spawnflags & SPAWNFLAG_TBABY_LIVID)
+    {
+        self.think = self.th_missile;
+    }
+    else
+    {
+        self.think = self.th_run;
+    }
+
     self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
     self.nextthink = time + 0.1;
     SUB_AttackFinished (1);    // wait a while before first attack
@@ -429,12 +437,22 @@ void() HuntTarget =
 
 void() SightSound =
 {
-local float    rsnd;
+    float rsnd;
+
+    // HONEY
+    if(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)
+    {
+        return;
+    }
 
     if(self.classname == "monster_ogre")
         sound(self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_knight")
-        sound(self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+    {
+        // ROGUE
+        if(self.skin == 0)
+            sound(self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
+    }
     else if(self.classname == "monster_shambler")
         sound(self, CHAN_VOICE, "shambler/ssight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_demon1")
@@ -447,6 +465,7 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_hell_knight")
     {
+        // ROGUE
         if(self.skin == 0)
             sound(self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
     }
@@ -454,18 +473,16 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_vomit")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
+        // Unused.
         // sound(self, CHAN_VOICE, "vomitus/v_sight1.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_eel")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "eel/eelc5.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_wrath")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "wrath/wsee.wav", 1, ATTN_NORM);
     }
     else if(self.classname == "monster_enforcer")
     {
@@ -497,8 +514,7 @@ local float    rsnd;
         sound(self, CHAN_VOICE, "armagon/sight.wav", 1, 0.1);
     else if(self.classname == "monster_dragon")
     {
-        // TODO VR: (P2) unused? (commented to avoid warnings)
-        // sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
     }
 };
 
@@ -553,8 +569,8 @@ slower noticing monsters.
 */
 float() FindTarget =
 {
-    local entity    client;
-    local float        r;
+    entity client;
+    float  r;
 
 // if the first spawnflag bit is set, the monster will only wake up on
 // really seeing the player, not another monster getting angry
@@ -582,14 +598,14 @@ float() FindTarget =
             return TRUE;
             }
          }
-      else if(vlen (self.origin - self.charmer.origin) > MAX_CHARMER_DISTANCE)
+      else if(vlen(self.origin - self.charmer.origin) > MAX_CHARMER_DISTANCE)
          {
 //         self.huntingcharmer = 1;
 //         dprint("hunting\n");
          HuntCharmer();
          return FALSE;
          }
-      else if(vlen (self.origin - self.charmer.origin) < TOOCLOSE_CHARMER_DISTANCE)
+      else if(vlen(self.origin - self.charmer.origin) < TOOCLOSE_CHARMER_DISTANCE)
          {
 //         self.huntingcharmer = 1;
 //         dprint("fleeing\n");
@@ -597,7 +613,7 @@ float() FindTarget =
          return FALSE;
          }
       }
-   if(sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) && !(self.charmed) )
+   if(sight_entity_time >= time - 0.1 && !(self.spawnflags & 3) && !(self.charmed))
       {
         client = sight_entity;
         if(client.enemy == self.enemy)
@@ -606,9 +622,9 @@ float() FindTarget =
 //MED 10/17/96 added charmed clause
    else if(self.charmed)
       {
-      local entity head;
-      local entity selected;
-      local float dist;
+      entity head;
+      entity selected;
+      float dist;
 
       selected = world;
       dist = CHARMED_RADIUS;
@@ -649,11 +665,12 @@ float() FindTarget =
       if(client.flags & FL_NOTARGET)
          return FALSE;
       }
-   if(client.items & IT_INVISIBILITY)
+
+   if(VR_ItemUtil_EntHasItem(client, IID_INVISIBILITY))
       return FALSE;
 
     r = range (client);
-    if(r == RANGE_FAR)
+    if(r == RANGE_FAR && /* HONEY */ self.classname != "monster_ogre_marksman") // can see really far
         return FALSE;
 
     if(!visible (client))
@@ -669,7 +686,7 @@ float() FindTarget =
          }
       else if(r == RANGE_MID)
          {
-         if( /* client.show_hostile < time || */ !infront (client))
+         if(/* client.show_hostile < time || */ !infront (client))
             return FALSE;
          }
       }
@@ -693,9 +710,11 @@ float() FindTarget =
          }
       }
 
-// PGM hack
+    // PGM hack
     if(self.classname != "dragon")
+    {
         FoundTarget();
+    }
 
     return TRUE;
 };
@@ -705,12 +724,12 @@ float() FindTarget =
 
 void(float dist) ai_forward =
 {
-    walkmove (self.angles_y, dist);
+    walkmove(self.angles_y, dist);
 };
 
 void(float dist) ai_back =
 {
-    walkmove ( (self.angles_y+180), dist);
+    walkmove((self.angles_y+180), dist);
 };
 
 
@@ -725,12 +744,12 @@ void(float dist) ai_pain =
 {
     ai_back (dist);
 /*
-    local float    away;
+    float    away;
 
     away = anglemod (vectoyaw (self.origin - self.enemy.origin)
-    + 180*(random()- 0.5) );
+    + 180*(random()- 0.5));
 
-    walkmove (away, dist);
+    walkmove(away, dist);
 */
 };
 
@@ -743,7 +762,7 @@ stagger back a bit
 */
 void(float dist) ai_painforward =
 {
-    walkmove (self.ideal_yaw, dist);
+    walkmove(self.ideal_yaw, dist);
 };
 
 /*
@@ -821,7 +840,7 @@ don't move, but turn towards ideal_yaw
 */
 void() ai_turn_in_place =
    {
-   local float delta;
+   float delta;
 
    self.nextthink = time + 0.1;
    enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
@@ -846,7 +865,7 @@ ChooseTurn
 */
 void(vector dest3) ChooseTurn =
 {
-    local vector    dir, newdir;
+    vector    dir, newdir;
 
     dir = self.origin - dest3;
 
@@ -877,7 +896,7 @@ FacingIdeal
 */
 float() FacingIdeal =
 {
-    local    float    delta;
+    float    delta;
 
     delta = anglemod(self.angles_y - self.ideal_yaw);
     if(delta > 45 && delta < 315)
@@ -899,25 +918,38 @@ float() CheckAnyAttack =
 {
     if(!enemy_vis)
         return FALSE;
-   if(self.classname == "monster_army")
+
+    if(self.classname == "monster_army")
         return SoldierCheckAttack();
-   if(self.classname == "monster_ogre")
+
+    if(self.classname == "monster_ogre")
         return OgreCheckAttack();
-   if(self.classname == "monster_shambler")
+
+    if(self.classname == "monster_ogre_marksman")
+        return OgreMarksmanCheckAttack();
+
+    if(self.classname == "monster_shambler")
         return ShamCheckAttack();
+
     if(self.classname == "monster_demon1")
         return DemonCheckAttack();
+
     if(self.classname == "monster_dog")
         return DogCheckAttack();
+
     if(self.classname == "monster_wizard")
         return WizardCheckAttack();
-   if(self.classname == "monster_gremlin")
-      return GremlinCheckAttack();
-   if(self.classname == "monster_scourge")
-      return ScourgeCheckAttack();
-   if(self.classname == "monster_armagon")
-      return ArmagonCheckAttack();
-   return CheckAttack();
+
+    if(self.classname == "monster_gremlin")
+        return GremlinCheckAttack();
+
+    if(self.classname == "monster_scourge")
+        return ScourgeCheckAttack();
+
+    if(self.classname == "monster_armagon")
+        return ArmagonCheckAttack();
+
+    return CheckAttack();
 };
 
 
@@ -969,7 +1001,7 @@ Strafe sideways, but stay at aproximately the same range
 */
 void() ai_run_slide =
 {
-    local float    ofs;
+    float    ofs;
 
     self.ideal_yaw = enemy_yaw;
     ChangeYaw();
@@ -978,12 +1010,12 @@ void() ai_run_slide =
     else
         ofs = -90;
 
-    if(walkmove (self.ideal_yaw + ofs, movedist))
+    if(walkmove(self.ideal_yaw + ofs, movedist))
         return;
 
     self.lefty = 1 - self.lefty;
 
-    walkmove (self.ideal_yaw - ofs, movedist);
+    walkmove(self.ideal_yaw - ofs, movedist);
 };
 
 //MED
@@ -997,8 +1029,8 @@ Used by the Scourge.
 */
 void() ai_run_dodge =
 {
-    local float    ofs;
-    local float newyaw;
+    float    ofs;
+    float newyaw;
 
    self.nextthink = time + 0.1;
    if(self.lefty)
@@ -1014,7 +1046,7 @@ void() ai_run_dodge =
 
    newyaw = enemy_yaw + ofs;
    self.ideal_yaw = enemy_yaw;
-   if(walkmove (newyaw, movedist))
+   if(walkmove(newyaw, movedist))
       {
       ChangeYaw();
       return;
@@ -1024,7 +1056,7 @@ void() ai_run_dodge =
    self.ltime = time + 0.8;
    newyaw = enemy_yaw - ofs;
    self.ideal_yaw = enemy_yaw;
-   walkmove (newyaw, movedist);
+   walkmove(newyaw, movedist);
    ChangeYaw();
 };
 
@@ -1038,7 +1070,7 @@ The monster has an enemy it is trying to kill
 float RUN_STRAIGHT;
 void(float dist) ai_run =
 {
-    local    float    axis;
+    float    axis;
 
     movedist = dist;
 // see if the enemy is dead
@@ -1088,7 +1120,7 @@ void(float dist) ai_run =
 //MED
    if(self.th_turn)
       {
-      local float angledelta;
+      float angledelta;
 
       angledelta = fabs(self.angles_y - enemy_yaw);
       if(angledelta > MIN_ANGLE_DELTA)
@@ -1100,13 +1132,13 @@ void(float dist) ai_run =
 
     if(self.attack_state == AS_MISSILE)
     {
-//dprint ("ai_run_missile\n");
+//dprint("ai_run_missile\n");
         ai_run_missile();
         return;
     }
     if(self.attack_state == AS_MELEE)
     {
-//dprint ("ai_run_melee\n");
+//dprint("ai_run_melee\n");
         ai_run_melee();
         return;
     }
@@ -1132,7 +1164,7 @@ void(float dist) ai_run =
    if(RUN_STRAIGHT && time > self.endtime)
       {
       RUN_STRAIGHT = 0;
-      axis = walkmove (self.angles_y, movedist);
+      axis = walkmove(self.angles_y, movedist);
       if(!axis)
          {
          self.endtime = time + 3;

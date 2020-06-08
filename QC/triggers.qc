@@ -1,7 +1,3 @@
-
-entity s;
-
-
 void() trigger_reactivate =
 {
     self.solid = SOLID_TRIGGER;
@@ -40,9 +36,16 @@ void() multi_trigger =
             return;
         found_secrets = found_secrets + 1;
         WriteByte(MSG_ALL, SVC_FOUNDSECRET);
+
+        // HONEY
+        self.think = SUB_Null;
+        if(skill == 0){
+
+            remove(self.oldenemy);
+        }
     }
 
-    if(self.noise)
+    if(self.noise != NULLSTR)
         sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 
 // don't trigger again until reset
@@ -58,8 +61,8 @@ void() multi_trigger =
         self.nextthink = time + self.wait;
     }
     else
-    {    // we can't just remove (self) here, because this is a touch function
-        // called wheil C code is looping through area links...
+    {    // we can't just remove(self) here, because this is a touch function
+        // called while C code is looping through area links...
         self.touch = SUB_Null;
         self.nextthink = time + 0.1;
         self.think = SUB_Remove;
@@ -99,7 +102,7 @@ void() multi_touch =
 // if the trigger has an angles field, check player's facing direction
     if(self.movedir != '0 0 0')
     {
-        makevectors (other.angles);
+        makevectors(other.angles);
         if(v_forward * self.movedir < 0)
             return;        // not facing the right way
     }
@@ -155,11 +158,11 @@ void() trigger_multiple =
         self.th_die = multi_killed;
         self.takedamage = DAMAGE_YES;
         self.solid = SOLID_BBOX;
-        setorigin (self, self.origin);    // make sure it links into the world
+        setorigin(self, self.origin);    // make sure it links into the world
     }
     else
     {
-        if( !(self.spawnflags & SPAWNFLAG_NOTOUCH) )
+        if(!(self.spawnflags & SPAWNFLAG_NOTOUCH))
         {
             self.touch = multi_touch;
         }
@@ -167,8 +170,20 @@ void() trigger_multiple =
 
     // HIPNOTIC
     //MED 12/01/96 added cnt stuff
-   if(self.cnt == 0)
-      self.cnt = -1;
+    if(self.cnt == 0)
+    {
+        self.cnt = -1;
+    }
+
+    // HONEY
+    // Stupid hack
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        if(self.target == "" && self.message != "" && self.wait != 2)
+        {
+            self.wait = 2;
+        }
+    }
 };
 
 
@@ -215,10 +230,16 @@ set "message" to text string
 */
 void() trigger_secret =
 {
-    total_secrets = total_secrets + 1;
+    vector o;
+    entity secamb;
+    float sk;
+
+    total_secrets += 1;
     self.wait = -1;
+
     if(!self.message)
         self.message = "You found a secret area!";
+
     if(!self.sounds)
         self.sounds = 1;
 
@@ -234,6 +255,16 @@ void() trigger_secret =
     }
 
     trigger_multiple();
+
+    // HONEY
+    sk = cvar_hget(cvarh_skill); // Stupid hack because the skill global isn't set
+                                 // until in the first StartFrame call
+    if(sk == 0)
+    {
+        o = (self.mins + self.maxs) * 0.5;
+        secamb = ambient_secret_spawn(o);
+        self.oldenemy = secamb;
+    }
 };
 
 //=============================================================================
@@ -251,13 +282,13 @@ void() counter_use =
         && (self.spawnflags & SPAWNFLAG_NOMESSAGE) == 0)
         {
             if(self.count >= 4)
-                centerprint (activator, "There are more to go...");
+                centerprint(activator, "There are more to go...");
             else if(self.count == 3)
-                centerprint (activator, "Only 3 more to go...");
+                centerprint(activator, "Only 3 more to go...");
             else if(self.count == 2)
-                centerprint (activator, "Only 2 more to go...");
+                centerprint(activator, "Only 2 more to go...");
             else
-                centerprint (activator, "Only 1 more to go...");
+                centerprint(activator, "Only 1 more to go...");
         }
         return;
     }
@@ -296,11 +327,13 @@ TELEPORT TRIGGERS
 
 float    PLAYER_ONLY    = 1;
 float    SILENT = 2;
+float    CTF_ONLY = 4;
+float    IGNORE_TARGETNAME = 8; // HONEY
 
 void() play_teleport =
 {
-    local    float v;
-    local    string tmpstr;
+    float v;
+    string tmpstr;
 
     v = random() * 5;
     if(v < 1)
@@ -315,11 +348,12 @@ void() play_teleport =
         tmpstr = "misc/r_tele5.wav";
 
     sound(self, CHAN_VOICE, tmpstr, 1, ATTN_NORM);
-    remove (self);
+    remove(self);
 };
 
 void(vector org) spawn_tfog =
 {
+    entity s;
     s = spawn();
     s.origin = org;
     s.nextthink = time + 0.2;
@@ -327,9 +361,7 @@ void(vector org) spawn_tfog =
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_TELEPORT);
-    WriteCoord(MSG_BROADCAST, org_x);
-    WriteCoord(MSG_BROADCAST, org_y);
-    WriteCoord(MSG_BROADCAST, org_z);
+    WriteVec3(MSG_BROADCAST, org);
 };
 
 
@@ -345,7 +377,7 @@ void() tdeath_touch =
             self.classname = "teledeath2";
         if(self.owner.classname != "player")
         {    // other monsters explode themselves
-            T_Damage (self.owner, self, self, 50000);
+            T_Damage(self.owner, self, self, 50000);
             return;
         }
 
@@ -353,22 +385,22 @@ void() tdeath_touch =
 
     if(other.health)
     {
-        T_Damage (other, self, self, 50000);
+        T_Damage(other, self, self, 50000);
     }
 };
 
 
 void(vector org, entity death_owner) spawn_tdeath =
 {
-local entity    death;
+entity    death;
 
     death = spawn();
     death.classname = "teledeath";
     death.movetype = MOVETYPE_NONE;
     death.solid = SOLID_TRIGGER;
     death.angles = '0 0 0';
-    setsize (death, death_owner.mins - '1 1 1', death_owner.maxs + '1 1 1');
-    setorigin (death, org);
+    setsize(death, death_owner.mins - '1 1 1', death_owner.maxs + '1 1 1');
+    setorigin(death, org);
     death.touch = tdeath_touch;
     death.nextthink = time + 0.2;
     death.think = SUB_Remove;
@@ -379,12 +411,12 @@ local entity    death;
 
 void() teleport_touch =
 {
-local entity    t;
-local vector    org;
+entity    t;
+vector    org;
 
-    if(self.targetname)
+    if(self.targetname != NULLSTR)
     {
-        if(self.nextthink < time)
+        if(/* HONEY */ !(self.spawnflags & IGNORE_TARGETNAME) && self.nextthink < time)
         {
             return;        // not fired yet
         }
@@ -405,12 +437,12 @@ local vector    org;
 // put a tfog where the player was
     spawn_tfog (other.origin);
 
-    t = find (world, targetname, self.target);
+    t = find(world, targetname, self.target);
     if(!t)
         objerror ("couldn't find target");
 
 // spawn a tfog flash in front of the destination
-    makevectors (t.mangle);
+    makevectors(t.mangle);
     org = t.origin + 32 * v_forward;
 
     spawn_tfog (org);
@@ -424,7 +456,7 @@ local vector    org;
         return;
     }
 
-    setorigin (other, t.origin);
+    setorigin(other, t.origin);
     other.angles = t.mangle;
     if(other.classname == "player")
     {
@@ -458,14 +490,30 @@ void() teleport_use =
     self.think = SUB_Null;
 };
 
-/*QUAKED trigger_teleport (.5 .5 .5) ? PLAYER_ONLY SILENT
+/*QUAKED trigger_teleport (.5 .5 .5) ? PLAYER_ONLY SILENT CTF_ONLY
 Any object touching this will be transported to the corresponding info_teleport_destination entity. You must set the "target" field, and create an object with a "targetname" field that matches.
 
 If the trigger_teleport has a targetname, it will only teleport entities when it has been fired.
 */
 void() trigger_teleport =
 {
-    local vector o;
+    vector o;
+
+    // HONEY
+    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN){
+        self.use = trigger_teleport;
+        self.spawnflags = (self.spawnflags & PLAYER_ONLY) | SILENT | IGNORE_TARGETNAME;
+        return;
+    }
+
+    if(self.spawnflags & CTF_ONLY)
+    {
+        if(teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
+        {
+            remove(self);
+            return;
+        }
+    }
 
     InitTrigger();
     self.touch = teleport_touch;
@@ -525,17 +573,17 @@ void() trigger_onlyregistered_touch =
         return;
 
     self.attack_finished = time + 2;
-    if(cvar("registered"))
+    if(cvar_hget(cvarh_registered))
     {
         self.message = "";
         SUB_UseTargets();
-        remove (self);
+        remove(self);
     }
     else
     {
         if(self.message != "")
         {
-            centerprint (other, self.message);
+            centerprint(other, self.message);
             sound(other, CHAN_BODY, "misc/talk.wav", 1, ATTN_NORM);
         }
     }
@@ -555,10 +603,10 @@ void() trigger_onlyregistered =
 
 // HIPNOTIC
 //JIM
-void( entity ent, float amount ) hurt_setdamage =
+void(entity ent, float amount) hurt_setdamage =
    {
    ent.dmg = amount;
-   if( !amount )
+   if(!amount)
       {
       ent.solid = SOLID_NOT;
       }
@@ -573,6 +621,9 @@ void() hurt_on =
 {
     self.solid = SOLID_TRIGGER;
     self.nextthink = -1;
+
+    // HONEY
+    force_retouch = 2;
 };
 
 void() hurt_touch =
@@ -580,7 +631,7 @@ void() hurt_touch =
     if(other.takedamage)
     {
         self.solid = SOLID_NOT;
-        T_Damage (other, self, self, self.dmg);
+        T_Damage(other, self, self, self.dmg);
         self.think = hurt_on;
         self.nextthink = time + 1;
 
@@ -623,12 +674,22 @@ void() trigger_hurt =
 
 //============================================================================
 
-float PUSH_ONCE = 1;
+float PUSH_ONCE =     1;
+float PUSH_TOGL =     2;
+float PUSH_ACTIVE =    4;
 
 void() trigger_push_touch =
 {
+    if(!(self.spawnflags & PUSH_ACTIVE))
+        return;
+
     if(other.classname == "grenade")
         other.velocity = self.speed * self.movedir * 10;
+    else if(other.classname == "MiniGrenade")
+        other.velocity = self.speed * self.movedir * 10;
+    else if(other.classname == "MultiGrenade")
+        other.velocity = self.speed * self.movedir * 10;
+
     else if(other.health > 0)
     {
         other.velocity = self.speed * self.movedir * 10;
@@ -645,12 +706,27 @@ void() trigger_push_touch =
         remove(self);
 };
 
+void() trigger_push_use =
+{
+    if(self.spawnflags & PUSH_ACTIVE)
+        self.spawnflags = self.spawnflags - PUSH_ACTIVE;
+    else
+        self.spawnflags = self.spawnflags + PUSH_ACTIVE;
+};
 
-/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE
-Pushes the player
+
+/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE PUSH_TOGL PUSH_ACTIVE
+Pushes the player.
+
+speed: velocity of push. (default 1000)
 */
 void() trigger_push =
 {
+    if(self.spawnflags & PUSH_TOGL)
+        self.use = trigger_push_use;
+    else
+        self.spawnflags = self.spawnflags + PUSH_ACTIVE;
+
     InitTrigger();
     precache_sound("ambience/windfly.wav");
     self.touch = trigger_push_touch;
@@ -660,21 +736,40 @@ void() trigger_push =
 
 //============================================================================
 
+// HONEY
+float ALWAYS_JUMP = 2;
+float NO_VELOCITY = 4;
+
+
 void() trigger_monsterjump_touch =
 {
-    if( other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER )
+    if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER)
+        return;
+
+    // HONEY
+    if(self.message != "" && other.classname != self.message)
         return;
 
 // set XY even if not on ground, so the jump will clear lips
     other.velocity_x = self.movedir_x * self.speed;
     other.velocity_y = self.movedir_y * self.speed;
 
-    if( !(other.flags & FL_ONGROUND) )
+    if(!(other.flags & FL_ONGROUND)){
         return;
+    }
 
     other.flags = other.flags - FL_ONGROUND;
 
     other.velocity_z = self.height;
+
+    // HONEY
+    if(self.spawnflags & PUSH_ONCE){
+        if(self.delay){
+            SUB_DoLater(SUB_Remove, self.delay);
+        }else{
+            SUB_Remove();
+        }
+    }
 
     // HIPNOTIC
     //MED 12/01/96 added count stuff
@@ -710,6 +805,7 @@ void() trigger_monsterjump =
 //MED 12/01/96 added count stuff
    if(self.cnt == 0)
       self.cnt = -1;
+
     InitTrigger();
     self.touch = trigger_monsterjump_touch;
 };

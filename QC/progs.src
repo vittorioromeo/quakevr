@@ -1,75 +1,152 @@
-progs.dat
+vrprogs.dat
 
 defs.qc
-hipdefs.qc   //JIM
-subs.qc
-fight.qc
+
 ai.qc
 combat.qc
+fight.qc
 items.qc
+subs.qc
 
-// ROGUE
-grapple.qc
+vr_ammoutil.qc
+vr_cvars.qc
+vr_gameutil.qc
+vr_grapple.qc
+vr_handgrabutil.qc
+vr_itemutil.qc
+vr_macros.qc
+vr_scaleutil.qc
+vr_util.qc
+vr_weaponutil.qc
+vr_wpnforcegrab.qc
 
-vrutil.qc
-wpnforcegrab.qc
-weaponutil.qc
+buttons.qc
+client.qc
+doors.qc
+misc.qc
+monsters.qc
+plats.qc
+player.qc
+triggers.qc
 weapons.qc
 world.qc
-client.qc
-player.qc
-monsters.qc
-doors.qc
-buttons.qc
-triggers.qc
-plats.qc
-misc.qc
 
-ogre.qc
-demon.qc
-shambler.qc
-knight.qc
-soldier.qc
-wizard.qc
-dog.qc
-zombie.qc
-boss.qc
+orig_mon_boss.qc
+orig_mon_demon.qc
+orig_mon_dog.qc
+orig_mon_enforcer.qc
+orig_mon_fish.qc
+orig_mon_hknight.qc
+orig_mon_knight.qc
+orig_mon_ogre.qc
+orig_mon_oldone.qc
+orig_mon_shalrath.qc
+orig_mon_shambler.qc
+orig_mon_soldier.qc
+orig_mon_tarbaby.qc
+orig_mon_wizard.qc
+orig_mon_zombie.qc
 
-tarbaby.qc  // registered
-hknight.qc  // registered
-fish.qc   // registered
-shalrath.qc  // registered
-enforcer.qc  // registered
-oldone.qc  // registered
-
-// HIPNOTIC
-// Hipnotic Quake additions
-
-hipsubs.qc
 hip_brk.qc
-hiptrain.qc
+hip_clock.qc
+hip_count.qc
+hip_decoy.qc
+hip_defs.qc
 hip_expl.qc
-hipquake.qc
-hipcount.qc
-hipitems.qc
-hiprubbl.qc
-hip_push.qc
+hip_holes.qc
+hip_items.qc
+hip_misc.qc
+hip_mon_arma.qc
+hip_mon_grem.qc
+hip_mon_scrge.qc
+hip_mon_spike.qc
 hip_part.qc
-hipspawn.qc
-hipgrem.qc
-hiparma.qc
-hipspike.qc
-hiprot.qc
-hipscrge.qc
-hipholes.qc
-hipclock.qc
-hiptrig.qc
-hipmisc.qc
-hipwater.qc
-hipdecoy.qc
+hip_push.qc
+hip_quake.qc
+hip_rot.qc
+hip_rubbl.qc
+hip_spawn.qc
+hip_subs.qc
+hip_train.qc
+hip_trig.qc
+hip_water.qc
 
-// Rogue Quake additions
+rogue_buzzsaw.qc
+rogue_combat.qc
+rogue_defs.qc
+rogue_dmatch.qc
+rogue_dragon.qc
+rogue_earthq.qc
+rogue_eel.qc
+rogue_elevatr.qc
+rogue_ending.qc
+rogue_invis_sw.qc
+rogue_lava_wpn.qc
+rogue_lavaman.qc
+rogue_lightnin.qc
+rogue_morph.qc
+rogue_motd.qc
+rogue_mult_wpn.qc
+rogue_mummy.qc
+rogue_new_ai.qc
+rogue_newitems.qc
+rogue_newmisc.qc
+rogue_newplats.qc
+rogue_pendulum.qc
+rogue_random.qc
+rogue_runes.qc
+rogue_s_wrath.qc
+rogue_shield.qc
+rogue_sphere.qc
+rogue_teamplay.qc
+rogue_timemach.qc
+rogue_wrath.qc
 
-mult_wpn.qc
+honey_ai.qc
+honey_buttons.qc
+honey_client.qc
+honey_defs.qc
+honey_endcam.qc
+honey_fight.qc
+honey_fog_debug.qc
+honey_fog.qc
+honey_items.qc
+honey_misc.qc
+honey_misc2.qc
+honey_mon_demon.qc
+honey_mon_dog.qc
+honey_mon_enforcer.qc
+honey_mon_fish.qc
+honey_mon_hknight.qc
+honey_mon_knight.qc
+honey_mon_ogre.qc
+honey_mon_shalrath.qc
+honey_mon_shambler.qc
+honey_mon_soldier.qc
+honey_mon_tarbaby.qc
+honey_mon_wizard.qc
+honey_mon_zombie.qc
+honey_monsters.qc
+honey_sknight_debug.qc
+honey_sknight_tbl.qc
+honey_sknight.qc
+honey_subs.qc
+honey_subs2.qc
+honey_trigger.qc
+honey_weapons.qc
 
+frikbot/bot.qc
+frikbot/bot_way.qc
+frikbot/bot_fight.qc
+frikbot/bot_ai.qc
+frikbot/bot_misc.qc
+frikbot/bot_phys.qc
+frikbot/bot_move.qc
+frikbot/bot_ed.qc
 
+waypoints/map_dm1.qc
+waypoints/map_dm2.qc
+waypoints/map_dm3.qc
+waypoints/map_dm4.qc
+waypoints/map_dm5.qc
+waypoints/map_dm6.qc

@@ -24,13 +24,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "q_stdinc.hpp"
 #include "arch_def.hpp"
+#include "console.hpp"
 #include "net_sys.hpp"
 #include <wsipx.h>
 #include "quakedef.hpp"
 #include "net_defs.hpp"
 #include "net_wipx.hpp"
-
-
+#include "common.hpp"
+#include "sys.hpp"
 
 static sys_socket_t net_acceptsocket =
     INVALID_SOCKET; // socket for fielding new connections
