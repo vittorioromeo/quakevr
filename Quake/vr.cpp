@@ -4538,6 +4538,8 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P1): are things like holster placement affected by server configs
 // in MP? Check
 
+// TODO VR: (P1): "I had a feeling that my controllers had also vibrations from
+// my colleages game activity" in online mp
 
 
 // TODO VR: (P2) add tooltip to off-hand option menu in wpn config
