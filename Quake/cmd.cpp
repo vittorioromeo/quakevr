@@ -483,14 +483,6 @@ void Cmd_Unaliasall_f()
 =============================================================================
 */
 
-typedef struct cmd_function_s
-{
-    struct cmd_function_s* next;
-    const char* name;
-    xcommand_t function;
-} cmd_function_t;
-
-
 #define MAX_ARGS 80
 
 static int cmd_argc;

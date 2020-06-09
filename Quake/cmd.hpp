@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
+#include "cmd_types.hpp"
+
 // cmd.h -- Command buffer and command execution
 
 //===========================================================================
@@ -69,17 +71,6 @@ to dissallow the action or forward it to a remote server if the source is
 not apropriate.
 
 */
-
-typedef void (*xcommand_t)();
-
-typedef enum
-{
-    src_client, // came in over a net connection as a clc_stringcmd
-                // host_client will be valid during this state.
-    src_command // from the command buffer
-} cmd_source_t;
-
-extern cmd_source_t cmd_source;
 
 void Cmd_Init();
 
