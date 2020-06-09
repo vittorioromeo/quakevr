@@ -46,6 +46,7 @@ struct entity_t
     int update_type;
 
     entity_state_t baseline; // to fill in defaults in updates
+    entity_state_t netstate; // the latest network state // QSS
 
     double msgtime;       // time of last update
     qvec3 msg_origins[2]; // last two updates (0 is newest)
@@ -70,6 +71,10 @@ struct entity_t
     mnode_t* topnode; // for bmodels, first world node
                       //  that splits bmodel, or nullptr if
                       //  not split
+
+    // QSS
+    byte eflags; // spike -- mostly a mirror of netstate, but handles tag
+                 // inheritance (eww!)
 
     byte alpha;         // johnfitz -- alpha
     byte lerpflags;     // johnfitz -- lerping
@@ -98,4 +103,14 @@ struct entity_t
 
     EntityLightModifier lightmod; // TODO VR: (P1) hack? or document
     qvec3 lightmodvalue;          // TODO VR: (P1) hack? or document
+
+    // QSS
+    struct trailstate_s*
+        trailstate; // spike -- managed by the particle system, so we don't
+                    // loose our position and spawn the wrong number of
+                    // particles, and we can track beams etc
+
+    // QSS
+    struct trailstate_s*
+        emitstate; // spike -- for effects which are not so static.
 };

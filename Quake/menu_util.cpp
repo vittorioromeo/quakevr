@@ -35,10 +35,19 @@ void playMenuDefaultSound()
 
 void setMenuState(m_state_e state)
 {
+// TODO VR: (P0) QSS Merge
+#if 1
     IN_Deactivate(modestate == MS_WINDOWED);
+#endif
+
     key_dest = key_menu;
     m_state = state;
     m_entersound = true;
+
+// TODO VR: (P0) QSS Merge
+#if 0
+    IN_UpdateGrabs(); // QSS
+#endif
 
     playMenuDefaultSound();
 }

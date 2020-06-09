@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define FITZQUAKE_VERSION 0.85 // johnfitz
 #define QUAKESPASM_VERSION 0.93
-#define QUAKEVR_VERSION "0.0.5"
+#define QUAKEVR_VERSION "0.0.6"
 #define QUAKESPASM_VER_PATCH 2 // helper to print a string like 0.93.2
 #ifndef QUAKESPASM_VER_SUFFIX
 #define QUAKESPASM_VER_SUFFIX // optional version suffix string literal like
@@ -51,6 +51,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     QS_STRINGIFY(QUAKESPASM_VERSION)                             \
     "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX \
         " | Quake VR " QUAKEVR_VERSION
+
+#define ENGINE_NAME_AND_VER \
+    "QSS"                   \
+    " " QUAKESPASM_VER_STRING
 
 // #define PARANOID // speed sapping error checking
 
@@ -275,7 +279,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_SCOREBOARDNAME 32
 
 #define SOUND_CHANNELS 8
-
 
 
 

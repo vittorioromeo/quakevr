@@ -82,10 +82,6 @@ not apropriate.
 
 */
 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 void Cmd_Init();
 
 // QSS

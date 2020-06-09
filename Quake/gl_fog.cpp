@@ -418,6 +418,27 @@ void Fog_NewMap()
 
 /*
 =============
+Fog_GetFogCommand
+
+so fog is preserved when starting a demo recording
+=============
+*/
+// QSS
+const char* Fog_GetFogCommand(void)
+{
+    if(fade_done)
+    { // if this mod is using dynamic fog, make sure we start with the right
+      // values.
+        // don't bother with this if we got fog from a clientside worldspawn
+        // key.
+        return va(
+            "\nfog %g %g %g %g\n", fog_density, fog_red, fog_green, fog_blue);
+    }
+    return NULL;
+}
+
+/*
+=============
 Fog_Init
 
 called when quake initializes

@@ -85,11 +85,6 @@ entity_t* cl_visedicts[MAX_VISEDICTS];
 
 
 
-
-
-
-
-
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 
 /*
@@ -162,6 +157,7 @@ void CL_Disconnect()
         NET_SendUnreliableMessage(cls.netcon, &cls.message);
         SZ_Clear(&cls.message);
         NET_Close(cls.netcon);
+        cls.netcon = NULL; // QSS
 
         cls.state = ca_disconnected;
         if(sv.active)
@@ -173,7 +169,17 @@ void CL_Disconnect()
     cls.demoplayback = cls.timedemo = false;
     cls.demopaused = false;
     cls.signon = 0;
+
+    // QSS
+    cls.netcon = NULL;
+    if(cls.download.file)
+    {
+        fclose(cls.download.file);
+    }
+    memset(&cls.download, 0, sizeof(cls.download));
     cl.intermission = 0;
+    cl.worldmodel = NULL;
+    cl.sendprespawn = false;
 }
 
 void CL_Disconnect_f()
@@ -238,6 +244,8 @@ void CL_SignonReply()
         case 1:
             MSG_WriteByte(&cls.message, clc_stringcmd);
             MSG_WriteString(&cls.message, "prespawn");
+
+            cl.sendprespawn = true; // QSS
             break;
 
         case 2:

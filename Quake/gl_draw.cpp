@@ -247,10 +247,23 @@ qpic_t* Draw_PicFromWad(const char* name)
     glpic_t gl;
     src_offset_t offset; // johnfitz
 
-    p = (qpic_t*)W_GetLumpName(name);
+    lumpinfo_t* info;
+    p = (qpic_t*)W_GetLumpName(name, &info);
     if(!p)
     {
         return pic_nul; // johnfitz
+    }
+
+    // QSS
+    if(info->size < sizeof(int) * 2 || 8 + p->width * p->height < info->size)
+    {
+        Sys_Error("Draw_PicFromWad: pic \"%s\" truncated", name);
+    }
+
+    // QSS
+    if(info->type != TYP_QPIC)
+    {
+        Sys_Error("Draw_PicFromWad: lump \"%s\" is not a qpic", name);
     }
 
     // load little ones into the scrap
@@ -415,11 +428,29 @@ void Draw_LoadPics()
     byte* data;
     src_offset_t offset;
 
-    data = (byte*)W_GetLumpName("conchars");
-    if(!data)
+    lumpinfo_t* info;
+    data = (byte*)W_GetLumpName("conchars", &info);
+
+    // QSS
+    if(!data || info->size < 128 * 128)
     {
         Sys_Error("Draw_LoadPics: couldn't load conchars");
     }
+
+    // QSS
+    if(info->size != 128 * 128)
+    {
+        Con_Warning(
+            "Invalid size for gfx.wad conchars lump - attempting to ignore for "
+            "compat.\n");
+    }
+    else if(info->type != TYP_MIPTEX)
+    {
+        Con_DWarning(
+            "Invalid type for gfx.wad conchars lump - attempting to ignore for "
+            "compat.\n"); // not really a miptex, but certainly NOT a qpic.
+    }
+
     offset = (src_offset_t)data - (src_offset_t)wad_base;
     char_texture = TexMgr_LoadImage(nullptr, WADFILENAME ":conchars", 128, 128,
         SRC_INDEXED, data, WADFILENAME, offset,

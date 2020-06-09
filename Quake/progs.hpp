@@ -28,14 +28,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "protocol.hpp"
 
-typedef union eval_s {
+union eval_t
+{
     string_t string;
     float _float;
     float vector[3];
     func_t function;
     int _int;
     int edict;
-} eval_t;
+};
 
 #define MAX_ENT_LEAFS 32
 
@@ -44,7 +45,7 @@ struct edict_t
     bool free;
     link_t area; /* linked to a division node or leaf */
 
-    int num_leafs;
+    unsigned int num_leafs; // QSS
     int leafnums[MAX_ENT_LEAFS];
 
     entity_state_t baseline;
@@ -52,6 +53,7 @@ struct edict_t
                             part of entvars_t */
     bool sendinterval;   /* johnfitz -- send time until nextthink to client
                                 for better lerp timing */
+    bool onladder; /* spike -- content_ladder stuff */ // QSS
 
     float freetime; /* sv.time when the object was freed */
     entvars_t v;    /* C exported fields from progs */

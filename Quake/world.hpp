@@ -43,9 +43,8 @@ struct trace_t
     plane_t plane;  // surface normal at impact
     edict_t* ent;   // entity the surface is on
 
-    // TODO VR: (P2) implement this
     // QSS
-    // int contents; // spike -- the content type(s) that we found.
+    int contents; // spike -- the content type(s) that we found.
 };
 
 
@@ -70,6 +69,10 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touch_triggers, calls prog functions for the intersected triggers
 
+// QSS
+int SV_PointContentsAllBsps(
+    const qvec3& p, edict_t* forent); // check all SOLID_BSP ents
+
 int SV_PointContents(const qvec3& p);
 int SV_TruePointContents(const qvec3& p);
 // returns the CONTENTS_* value from the world at the given point.
@@ -78,6 +81,9 @@ int SV_TruePointContents(const qvec3& p);
 
 edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const qvec3& xOrigin);
 edict_t* SV_TestEntityPosition(edict_t* ent);
+
+trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start, const qvec3& mins,
+    const qvec3& maxs, const qvec3& end);
 
 trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
     const qvec3& end, const int type, edict_t* const passedict);

@@ -490,7 +490,7 @@ void Host_Status_f()
     int seconds;
     int minutes;
     int hours = 0;
-    int j;
+    int j, i /* QSS */;
 
     if(cmd_source == src_command)
     {
@@ -528,15 +528,72 @@ void Host_Status_f()
         print_fn("ipx:     %s\n", my_ipx_address);
     }
     print_fn("map:     %s\n", sv.name);
+
+    // QSS
+    for(i = 1, j = 0; i < MAX_MODELS; i++)
+    {
+        if(sv.model_precache[i])
+        {
+            j++;
+        }
+    }
+    print_fn("models:  %i/%i\n", j, MAX_MODELS - 1);
+
+    for(i = 1, j = 0; i < MAX_SOUNDS; i++)
+    {
+        if(sv.sound_precache[i])
+        {
+            j++;
+        }
+    }
+    print_fn("sounds:  %i/%i\n", j, MAX_SOUNDS - 1);
+
+// TODO VR: (P0): QSS Merge
+#if 0
+    for(i = 0, j = 0; i < MAX_PARTICLETYPES; i++)
+    {
+        if(sv.particle_precache[i])
+        {
+            j++;
+        }
+    }
+
+    if(j)
+    {
+        print_fn("effects: %i/%i\n", j, MAX_PARTICLETYPES - 1);
+    }
+
+    for(i = 1, j = 1; i < sv.qcvm.num_edicts; i++)
+    {
+        if(!sv.qcvm.edicts[i].free)
+        {
+            j++;
+        }
+    }
+    print_fn("entities:%i/%i\n", j, sv.qcvm.max_edicts);
+#endif
+
     print_fn("players: %i active (%i max)\n\n", net_activeconnections,
         svs.maxclients);
+
     for(j = 0, client = svs.clients; j < svs.maxclients; j++, client++)
     {
         if(!client->active)
         {
             continue;
         }
-        seconds = (int)(net_time - NET_QSocketGetTime(client->netconnection));
+
+        // QSS
+        if(client->netconnection)
+        {
+            seconds =
+                (int)(net_time - NET_QSocketGetTime(client->netconnection));
+        }
+        else
+        {
+            seconds = 0;
+        }
+
         minutes = seconds / 60;
         if(minutes)
         {
@@ -556,15 +613,19 @@ void Host_Status_f()
 
         // QSS
         if(cmd_source == src_command)
+        {
             print_fn("   %s\n",
                 client->netconnection
                     ? NET_QSocketGetTrueAddressString(client->netconnection)
                     : "botclient");
+        }
         else
+        {
             print_fn("   %s\n",
                 client->netconnection
                     ? NET_QSocketGetMaskedAddressString(client->netconnection)
                     : "botclient");
+        }
     }
 }
 
@@ -874,10 +935,11 @@ void Host_Ping_f()
     SV_ClientPrintf("Client ping times:\n");
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
     {
-        if(!client->active)
+        if(!client->spawned || !client->netconnection) // QSS
         {
             continue;
         }
+
         total = 0;
         for(j = 0; j < NUM_PING_TIMES; j++)
         {
@@ -943,12 +1005,24 @@ void Host_Map_f()
     CL_Disconnect();
     Host_ShutdownServer(false);
 
+// TODO VR: (P0): QSS Merge
+#if 1
     if(cls.state != ca_dedicated)
     {
         IN_Activate();
     }
+#endif
 
     key_dest = key_game; // remove console or menu
+
+// TODO VR: (P0): QSS Merge
+#if 0
+    if(cls.state != ca_dedicated)
+    {
+        IN_UpdateGrabs();
+    }
+#endif
+
     SCR_BeginLoadingPlaque();
 
     svs.serverflags = 0; // haven't completed an episode yet
@@ -963,7 +1037,18 @@ void Host_Map_f()
         *p = '\0';
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(&sv.qcvm);
+#endif
+
     SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(NULL);
+#endif
+
     if(!sv.active)
     {
         return;
@@ -1058,16 +1143,35 @@ void Host_Changelevel_f()
     }
     // johnfitz
 
+    // TODO VR: (P0): QSS Merge
+#if 1
     if(cls.state != ca_dedicated)
     {
         IN_Activate(); // -- S.A.
     }
+#endif
 
     key_dest = key_game; // remove console or menu
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    if(cls.state != ca_dedicated)
+    {
+        IN_UpdateGrabs(); // -- S.A.
+    }
+
+    PR_SwitchQCVM(&sv.qcvm);
+#endif
+
     SV_SaveSpawnparms();
 
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
     SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(NULL);
+#endif
 
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
@@ -1087,7 +1191,8 @@ void Host_Restart_f()
 {
     char mapname[MAX_QPATH];
 
-    if(cls.demoplayback || !sv.active)
+    // QSS
+    if(cls.demoplayback)
     {
         return;
     }
@@ -1097,10 +1202,31 @@ void Host_Restart_f()
         return;
     }
 
+    // QSS
+    if(!sv.active)
+    {
+        if(*sv.name)
+        {
+            Cmd_ExecuteString(va("map \"%s\"\n", sv.name), src_command);
+        }
+
+        return;
+    }
+
     // mapname gets cleared in spawnserver
     q_strlcpy(mapname, sv.name, sizeof(mapname));
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(&sv.qcvm);
+#endif
+
     SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(NULL);
+#endif
 
     if(!sv.active)
     {
@@ -1114,19 +1240,51 @@ Host_Reconnect_f
 
 This command causes the client to wait for the signon messages again.
 This is sent just before a server changes levels
+
+QSS:
+for compatibility with quakeworld et al, we also allow this as a user-command to
+reconnect to the last server we tried, but we can only reliably do that when
+we're not already connected
 ==================
 */
-void Host_Reconnect_f()
+// QSS
+void Host_Reconnect_Con_f(void)
 {
+    CL_Disconnect_f();
+    cls.demonum = -1; // stop demo loop in case this fails
+
     if(cls.demoplayback)
     {
-        // cross-map demo playback fix from Baker
+        CL_StopPlayback();
+        CL_Disconnect();
+    }
+
+    CL_EstablishConnection(NULL);
+}
+
+// QSS
+void Host_Reconnect_Sv_f(void)
+{
+    if(cls.demoplayback) // cross-map demo playback fix from Baker
+    {
         return;
     }
 
     SCR_BeginLoadingPlaque();
+
+    cl.protocol_dpdownload = false;
     cls.signon = 0; // need new connection messages
 }
+
+// TODO VR: (P0): QSS Merge
+#if 0
+// QSS
+void Host_Lightstyle_f(void)
+{
+    CL_UpdateLightstyle(atoi(Cmd_Argv(1)), Cmd_Argv(2));
+}
+#endif
+
 
 /*
 =====================
@@ -1147,7 +1305,9 @@ void Host_Connect_f()
     }
     q_strlcpy(name, Cmd_Argv(1), sizeof(name));
     CL_EstablishConnection(name);
-    Host_Reconnect_f();
+
+    // QSS
+    Host_Reconnect_Sv_f();
 }
 
 
@@ -1255,21 +1415,45 @@ bool Host_MakeSavegame(
         fprintf(f, "%s\n", buf);
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    // QSS
+    PR_SwitchQCVM(&sv.qcvm);
+#endif
+
     fprintf(f, "%i\n", SAVEGAME_VERSION);
     char comment[SAVEGAME_COMMENT_LENGTH + 1];
     Host_SavegameComment(comment);
     fprintf(f, "%s\n", comment);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for (int i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
+#else
     for(int i = 0; i < NUM_SPAWN_PARMS; i++)
+#endif
     {
         fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
     }
+
     fprintf(f, "%d\n", current_skill);
     fprintf(f, "%s\n", sv.name);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    fprintf(f, "%f\n", qcvm->time); // QSS
+#else
     fprintf(f, "%f\n", sv.time);
+#endif
 
     // write the light styles
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(int i = 0; i < MAX_LIGHTSTYLES_VANILLA; i++) // QSS
+#else
     for(int i = 0; i < MAX_LIGHTSTYLES; i++)
+#endif
     {
         if(sv.lightstyles[i])
         {
@@ -1282,17 +1466,73 @@ bool Host_MakeSavegame(
     }
 
     ED_WriteGlobals(f);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(int i = 0; i < qcvm->num_edicts; i++) // QSS
+#else
     for(int i = 0; i < sv.num_edicts; i++)
+#endif
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
     }
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+// QSS
+    // add extra info (lightstyles, precaches, etc) in a way that's supposed to
+    // be compatible with DP. sidenote - this provides extended lightstyles and
+    // support for late precaches it does NOT protect against spawnfunc precache
+    // changes - we would need to include makestatics here too (and optionally
+    // baselines, or just recalculate those).
+    fprintf(f, "/*\n");
+    fprintf(f, "// QuakeSpasm extended savegame\n");
+    for(i = MAX_LIGHTSTYLES_VANILLA; i < MAX_LIGHTSTYLES; i++)
+    {
+        if(sv.lightstyles[i])
+            fprintf(f, "sv.lightstyles %i \"%s\"\n", i, sv.lightstyles[i]);
+    }
+    for(i = 1; i < MAX_MODELS; i++)
+    {
+        if(sv.model_precache[i])
+            fprintf(
+                f, "sv.model_precache %i \"%s\"\n", i, sv.model_precache[i]);
+    }
+    for(i = 1; i < MAX_SOUNDS; i++)
+    {
+        if(sv.sound_precache[i])
+            fprintf(
+                f, "sv.sound_precache %i \"%s\"\n", i, sv.sound_precache[i]);
+    }
+    for(i = 1; i < MAX_PARTICLETYPES; i++)
+    {
+        if(sv.particle_precache[i])
+            fprintf(f, "sv.particle_precache %i \"%s\"\n", i,
+                sv.particle_precache[i]);
+    }
+
+    for(i = NUM_BASIC_SPAWN_PARMS; i < NUM_TOTAL_SPAWN_PARMS; i++)
+    {
+        if(svs.clients->spawn_parms[i])
+            fprintf(
+                f, "spawnparm %i \"%f\"\n", i + 1, svs.clients->spawn_parms[i]);
+    }
+
+    fprintf(f, "*/\n");
+#endif
+
     fclose(f);
 
     if(printMessage)
     {
         Con_Printf("done.\n");
     }
+
+// TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(NULL);
+#endif
 
     return true;
 }
@@ -1378,12 +1618,33 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         return false;
     }
 
+// TODO VR: (P0): QSS Merge
+#if 0
+    float spawn_parms[NUM_TOTAL_SPAWN_PARMS]; // QSS
+#else
     float spawn_parms[NUM_SPAWN_PARMS];
+#endif
+
     data = COM_ParseStringNewline(data);
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for (i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
+#else
     for(int i = 0; i < NUM_SPAWN_PARMS; i++)
+#endif
     {
         data = COM_ParseFloatNewline(data, &spawn_parms[i]);
     }
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(; i < NUM_TOTAL_SPAWN_PARMS; i++) // QSS
+    {
+        spawn_parms[i] = 0;
+    }
+#endif
+
 
     // this silliness is so we can load 1.06 save files, which have float skill
     // values
@@ -1402,10 +1663,20 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     CL_Disconnect_f();
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(&sv.qcvm);
+#endif
+
     SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
     if(!sv.active)
     {
+        // TODO VR: (P0): QSS Merge
+#if 0
+        PR_SwitchQCVM(NULL);
+#endif
+
         free(start);
         start = nullptr;
         Con_Printf("Couldn't load map\n");
@@ -1417,16 +1688,111 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     // load the light styles
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(i = 0; i < MAX_LIGHTSTYLES_VANILLA; i++)
+#else
     for(int i = 0; i < MAX_LIGHTSTYLES; i++)
+#endif
     {
         data = COM_ParseStringNewline(data);
         sv.lightstyles[i] = (const char*)Hunk_Strdup(com_token, "lightstyles");
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(; i < MAX_LIGHTSTYLES; i++)
+    {
+        sv.lightstyles[i] = NULL;
+    }
+#endif
+
     // load the edicts out of the savegame file
     int entnum = -1; // -1 is the globals
     while(*data)
     {
+
+        // TODO VR: (P0): QSS Merge
+#if 0
+        // QSS
+        while(*data == ' ' || *data == '\r' || *data == '\n') data++;
+        if(data[0] == '/' && data[1] == '*' &&
+            (data[2] == '\r' || data[2] == '\n'))
+        { // looks like an extended saved game
+            const char* end;
+            const char* ext;
+            ext = data + 2;
+            while((end = strchr(ext, '\n')))
+            {
+                *end = 0;
+                ext = COM_Parse(ext);
+                if(!strcmp(com_token, "sv.lightstyles"))
+                {
+                    int idx;
+                    ext = COM_Parse(ext);
+                    idx = atoi(com_token);
+                    ext = COM_Parse(ext);
+                    if(idx >= 0 && idx < MAX_LIGHTSTYLES)
+                    {
+                        if(*com_token)
+                            sv.lightstyles[idx] = (const char*)Hunk_Strdup(
+                                com_token, "lightstyles");
+                        else
+                            sv.lightstyles[idx] = NULL;
+                    }
+                }
+                else if(!strcmp(com_token, "sv.model_precache"))
+                {
+                    int idx;
+                    ext = COM_Parse(ext);
+                    idx = atoi(com_token);
+                    ext = COM_Parse(ext);
+                    if(idx >= 1 && idx < MAX_MODELS)
+                    {
+                        sv.model_precache[idx] = (const char*)Hunk_Strdup(
+                            com_token, "model_precache");
+                        sv.models[idx] =
+                            Mod_ForName(sv.model_precache[idx], idx == 1);
+                        // if (idx == 1)
+                        //	sv.worldmodel = sv.models[idx];
+                    }
+                }
+                else if(!strcmp(com_token, "sv.sound_precache"))
+                {
+                    int idx;
+                    ext = COM_Parse(ext);
+                    idx = atoi(com_token);
+                    ext = COM_Parse(ext);
+                    if(idx >= 1 && idx < MAX_MODELS)
+                        sv.sound_precache[idx] = (const char*)Hunk_Strdup(
+                            com_token, "sound_precache");
+                }
+                else if(!strcmp(com_token, "sv.particle_precache"))
+                {
+                    int idx;
+                    ext = COM_Parse(ext);
+                    idx = atoi(com_token);
+                    ext = COM_Parse(ext);
+                    if(idx >= 1 && idx < MAX_PARTICLETYPES)
+                        sv.particle_precache[idx] = (const char*)Hunk_Strdup(
+                            com_token, "particle_precache");
+                }
+                else if(!strcmp(com_token, "spawnparm"))
+                {
+                    int idx;
+                    ext = COM_Parse(ext);
+                    idx = atoi(com_token);
+                    ext = COM_Parse(ext);
+                    if(idx >= 1 && idx <= NUM_TOTAL_SPAWN_PARMS)
+                        spawn_parms[idx - 1] = atof(com_token);
+                }
+                *end = '\n';
+                ext = end + 1;
+            }
+        }
+#endif
+        // ---
+
         data = COM_Parse(data);
         if(!com_token[0])
         {
@@ -1446,6 +1812,19 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         {
             // parse an edict
             edict_t* ent = EDICT_NUM(entnum);
+
+            // TODO VR: (P0): QSS Merge
+#if 0
+            if(entnum < qcvm->num_edicts)
+            {
+                ent->free = false;
+                memset(&ent->v, 0, qcvm->progs->entityfields * 4);
+            }
+            else
+            {
+                memset(ent, 0, qcvm->edict_size);
+            }
+#else
             if(entnum < sv.num_edicts)
             {
                 ent->free = false;
@@ -1455,6 +1834,8 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
             {
                 memset(ent, 0, pr_edict_size);
             }
+#endif
+
             data = ED_ParseEdict(data, ent);
 
             // link it into the bsp tree
@@ -1467,21 +1848,37 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         entnum++;
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    qcvm->num_edicts = entnum;
+    qcvm->time = time;
+#else
     sv.num_edicts = entnum;
     sv.time = time;
+#endif
 
     free(start);
     start = nullptr;
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    for(int i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
+#else
     for(int i = 0; i < NUM_SPAWN_PARMS; i++)
+#endif
     {
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    PR_SwitchQCVM(NULL);
+#endif
+
     if(cls.state != ca_dedicated)
     {
         CL_EstablishConnection("local");
-        Host_Reconnect_f();
+        Host_Reconnect_Sv_f();
     }
 
     Con_DPrintf("Calling QC 'OnLoadGame'.\n");
@@ -1864,7 +2261,13 @@ void Host_Kill_f()
         return;
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+    pr_global_struct->time = qcvm->time; // QSS
+#else
     pr_global_struct->time = sv.time;
+#endif
+
     pr_global_struct->self = EDICT_TO_PROG(sv_player);
     PR_ExecuteProgram(pr_global_struct->ClientKill);
 }
@@ -1937,10 +2340,18 @@ void Host_PreSpawn_f()
         return;
     }
 
+// TODO VR: (P0): QSS Merge
+#if 0
+    // QSS
+    // will start splurging out prespawn data
+    host_client->sendsignon = 2;
+    host_client->signonidx = 0;
+#else
     SZ_Write(&host_client->message, sv.signon.data, sv.signon.cursize);
     MSG_WriteByte(&host_client->message, svc_signonnum);
     MSG_WriteByte(&host_client->message, 2);
     host_client->sendsignon = true;
+#endif
 }
 
 /*
@@ -1966,6 +2377,12 @@ void Host_Spawn_f()
         return;
     }
 
+// TODO VR: (P0): QSS Merge
+#if 0
+    // QSS
+    host_client->knowntoqc = true;
+#endif
+
     // run the entrance script
     if(sv.loadgame)
     {
@@ -1978,23 +2395,63 @@ void Host_Spawn_f()
         // set up the edict
         ent = host_client->edict;
 
+// TODO VR: (P0): QSS Merge
+#if 0
+        memset(&ent->v, 0, qcvm->progs->entityfields * 4); // QSS
+#else
         memset(&ent->v, 0, progs->entityfields * 4);
+#endif
+
         ent->v.colormap = NUM_FOR_EDICT(ent);
         ent->v.team = (host_client->colors & 15) + 1;
         ent->v.netname = PR_SetEngineString(host_client->name);
 
-        // copy spawn parms out of the client_t
+// copy spawn parms out of the client_t
+
+// TODO VR: (P0): QSS Merge
+#if 0
+        for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
+#else
         for(i = 0; i < NUM_SPAWN_PARMS; i++)
+#endif
         {
             (&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
         }
+
+// TODO VR: (P0): QSS Merge
+#if 0
+        // QSS
+        if(pr_checkextension.value)
+        {
+            // extended spawn parms
+            for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
+            {
+                ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
+                if(g) qcvm->globals[g->ofs] = host_client->spawn_parms[i];
+            }
+        }
+#endif
+
         // call the spawn function
+// TODO VR: (P0): QSS Merge
+#if 0
+        pr_global_struct->time = qcvm->time; // QSS
+#else
         pr_global_struct->time = sv.time;
+#endif
+
+
         pr_global_struct->self = EDICT_TO_PROG(sv_player);
         PR_ExecuteProgram(pr_global_struct->ClientConnect);
 
+// TODO VR: (P0): QSS Merge
+#if 0
+        if((Sys_DoubleTime() -
+               NET_QSocketGetTime(host_client->netconnection)) <= qcvm->time) // QSS
+#else
         if((Sys_DoubleTime() -
                NET_QSocketGetTime(host_client->netconnection)) <= sv.time)
+#endif
         {
             Sys_Printf("%s entered the game\n", host_client->name);
         }
@@ -2014,10 +2471,30 @@ void Host_Spawn_f()
 
     // send time of update
     MSG_WriteByte(&host_client->message, svc_time);
+
+// TODO VR: (P0): QSS Merge
+#if 0
+    MSG_WriteFloat(&host_client->message, qcvm->time); // QSS
+
+    // QSS
+    if (host_client->protocol_pext2 & PEXT2_PREDINFO)
+    {
+        MSG_WriteShort(&host_client->message, (host_client->lastmovemessage&0xffff));
+    }
+#else
     MSG_WriteFloat(&host_client->message, sv.time);
+#endif
 
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
     {
+        // TODO VR: (P0): QSS Merge
+#if 0
+        if(!client->knowntoqc)
+        {
+            continue;
+        }
+#endif
+
         MSG_WriteByte(&host_client->message, svc_updatename);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteString(&host_client->message, client->name);
@@ -2034,9 +2511,31 @@ void Host_Spawn_f()
     // send all current light styles
     for(i = 0; i < MAX_LIGHTSTYLES; i++)
     {
+        // TODO VR: (P0): QSS Merge
+#if 0
+        // QSS
+        // CL_ClearState should have cleared all lightstyles, so don't send
+        // irrelevant ones
+        if(sv.lightstyles[i])
+        {
+            if(i > 0xff)
+            {
+                MSG_WriteByte(&host_client->message, svc_stufftext);
+                MSG_WriteString(&host_client->message,
+                    va("//ls %i \"%s\"\n", i, sv.lightstyles[i]));
+            }
+            else
+            {
+                MSG_WriteByte(&host_client->message, svc_lightstyle);
+                MSG_WriteByte(&host_client->message, i);
+                MSG_WriteString(&host_client->message, sv.lightstyles[i]);
+            }
+        }
+#else
         MSG_WriteByte(&host_client->message, svc_lightstyle);
         MSG_WriteByte(&host_client->message, (char)i);
         MSG_WriteString(&host_client->message, sv.lightstyles[i]);
+#endif
     }
 
     //
@@ -2073,7 +2572,16 @@ void Host_Spawn_f()
     }
     MSG_WriteAngle(&host_client->message, 0, sv.protocolflags);
 
+    // TODO VR: (P0): QSS Merge
+#if 0
+// QSS
+	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+    {
+		SV_WriteClientdataToMessage (host_client, &host_client->message);
+    }
+#else
     SV_WriteClientdataToMessage(sv_player, &host_client->message);
+#endif
 
     MSG_WriteByte(&host_client->message, svc_signonnum);
     MSG_WriteByte(&host_client->message, 3);
@@ -2318,6 +2826,7 @@ void Host_Give_f()
         case 's':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_shells1");
                 if(val)
                 {
@@ -2330,6 +2839,7 @@ void Host_Give_f()
         case 'n':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_nails1");
                 if(val)
                 {
@@ -2349,6 +2859,7 @@ void Host_Give_f()
         case 'l':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_lava_nails");
                 if(val)
                 {
@@ -2364,6 +2875,7 @@ void Host_Give_f()
         case 'r':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_rockets1");
                 if(val)
                 {
@@ -2383,6 +2895,7 @@ void Host_Give_f()
         case 'm':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_multi_rockets");
                 if(val)
                 {
@@ -2400,6 +2913,7 @@ void Host_Give_f()
         case 'c':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_cells1");
                 if(val)
                 {
@@ -2419,6 +2933,7 @@ void Host_Give_f()
         case 'p':
             if(rogue)
             {
+                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
                 val = GetEdictFieldValue(sv_player, "ammo_plasma");
                 if(val)
                 {
@@ -2510,8 +3025,43 @@ void Host_Give_f()
 edict_t* FindViewthing()
 {
     int i;
-    edict_t* e;
+    edict_t* e = nullptr;
 
+// TODO VR: (P0): QSS Merge
+#if 0
+// QSS
+    PR_SwitchQCVM(&sv.qcvm);
+    i = qcvm->num_edicts;
+
+    if(i == qcvm->num_edicts)
+    {
+        for(i = 0; i < qcvm->num_edicts; i++)
+        {
+            e = EDICT_NUM(i);
+            if(!strcmp(PR_GetString(e->v.classname), "viewthing")) break;
+        }
+    }
+
+    if(i == qcvm->num_edicts)
+    {
+        for(i = 0; i < qcvm->num_edicts; i++)
+        {
+            e = EDICT_NUM(i);
+            if(!strcmp(PR_GetString(e->v.classname), "info_player_start"))
+                break;
+        }
+    }
+
+    if(i == qcvm->num_edicts)
+    {
+        e = NULL;
+        Con_Printf("No viewthing on map\n");
+    }
+
+    PR_SwitchQCVM(NULL);
+    return e;
+}
+#else
     for(i = 0; i < sv.num_edicts; i++)
     {
         e = EDICT_NUM(i);
@@ -2522,6 +3072,7 @@ edict_t* FindViewthing()
     }
     Con_Printf("No viewthing on map\n");
     return nullptr;
+#endif
 }
 
 /*
@@ -2540,15 +3091,32 @@ void Host_Viewmodel_f()
         return;
     }
 
-    m = Mod_ForName(Cmd_Argv(1), false);
-    if(!m)
+    if(!*Cmd_Argv(1)) // QSS
     {
-        Con_Printf("Can't load %s\n", Cmd_Argv(1));
-        return;
+        m = NULL;
+    }
+    else
+    {
+        m = Mod_ForName(Cmd_Argv(1), false);
+        if(!m)
+        {
+            Con_Printf("Can't load %s\n", Cmd_Argv(1));
+            return;
+        }
     }
 
+// TODO VR: (P0): QSS Merge
+#if 0
+    // QSS
+    PR_SwitchQCVM(&sv.qcvm);
+    e->v.modelindex = m ? SV_Precache_Model(m->name) : 0;
+    e->v.model = PR_SetEngineString(sv.model_precache[(int)e->v.modelindex]);
+    e->v.frame = 0;
+    PR_SwitchQCVM(NULL);
+#else
     e->v.frame = 0;
     cl.model_precache[(int)e->v.modelindex] = m;
+#endif
 }
 
 /*
@@ -2569,13 +3137,16 @@ void Host_Viewframe_f()
     }
     m = cl.model_precache[(int)e->v.modelindex];
 
-    f = atoi(Cmd_Argv(1));
-    if(f >= m->numframes)
+    if(m) // QSS
     {
-        f = m->numframes - 1;
-    }
+        f = atoi(Cmd_Argv(1));
+        if(f >= m->numframes)
+        {
+            f = m->numframes - 1;
+        }
 
-    e->v.frame = f;
+        e->v.frame = f;
+    }
 }
 
 
@@ -2585,7 +3156,7 @@ void PrintFrameName(qmodel_t* m, int frame)
     maliasframedesc_t* pframedesc;
 
     hdr = (aliashdr_t*)Mod_Extradata(m);
-    if(!hdr)
+    if(!hdr || m->type != mod_alias /* QSS */)
     {
         return;
     }
@@ -2611,13 +3182,16 @@ void Host_Viewnext_f()
     }
     m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame += 1;
-    if(e->v.frame >= m->numframes)
+    if(m) // QSS
     {
-        e->v.frame = m->numframes - 1;
-    }
+        e->v.frame += 1;
+        if(e->v.frame >= m->numframes)
+        {
+            e->v.frame = m->numframes - 1;
+        }
 
-    PrintFrameName(m, e->v.frame);
+        PrintFrameName(m, e->v.frame);
+    }
 }
 
 /*
@@ -2635,13 +3209,16 @@ void Host_Viewprev_f()
 
     qmodel_t* m = cl.model_precache[(int)e->v.modelindex];
 
-    e->v.frame -= 1;
-    if(e->v.frame < 0)
+    if(m) // QSS
     {
-        e->v.frame = 0;
-    }
+        e->v.frame -= 1;
+        if(e->v.frame < 0)
+        {
+            e->v.frame = 0;
+        }
 
-    PrintFrameName(m, e->v.frame);
+        PrintFrameName(m, e->v.frame);
+    }
 }
 
 /*
@@ -2759,6 +3336,170 @@ void Host_Stopdemo_f()
 }
 
 //=============================================================================
+// QSS
+// download stuff
+// TODO VR: (P0): QSS Merge
+#if 0
+static void Host_Download_f(void)
+{
+    const char* fname = Cmd_Argv(1);
+    int fsize;
+    if(cmd_source == src_command)
+    {
+        // FIXME: add some sort of queuing thing
+        //		if (cls.state == ca_connected)
+        //			Cmd_ForwardToServer ();
+        return;
+    }
+    else if(cmd_source == src_client)
+    {
+        if(host_client->download.file)
+        { // abort the current download if the previous didn't terminate
+          // properly.
+            SV_ClientPrintf("cancelling previous download\n");
+            MSG_WriteByte(&host_client->message, svc_stufftext);
+            MSG_WriteString(&host_client->message, "\nstopdownload\n");
+            fclose(host_client->download.file);
+            host_client->download.file = NULL;
+        }
+
+        host_client->download.size = 0;
+        host_client->download.started = false;
+        host_client->download.sendpos = 0;
+        host_client->download.ackpos = 0;
+
+        fsize = -1;
+        if(!COM_DownloadNameOkay(fname))
+            SV_ClientPrintf(
+                "refusing download of %s - restricted filename\n", fname);
+        else
+        {
+            fsize = COM_FOpenFile(fname, &host_client->download.file, NULL);
+            if(!host_client->download.file)
+                SV_ClientPrintf("server does not have file %s\n", fname);
+            else if(file_from_pak)
+            {
+                SV_ClientPrintf(
+                    "refusing download of %s from inside pak\n", fname);
+                fclose(host_client->download.file);
+                host_client->download.file = NULL;
+            }
+            else if(fsize < 0 || fsize > 50 * 1024 * 1024)
+            {
+                SV_ClientPrintf("refusing download of large file %s\n", fname);
+                fclose(host_client->download.file);
+                host_client->download.file = NULL;
+            }
+        }
+
+        host_client->download.size = (unsigned int)fsize;
+        if(host_client->download.file)
+        {
+            host_client->download.startpos = ftell(host_client->download.file);
+            Con_Printf("downloading %s to %s\n", fname, host_client->name);
+            MSG_WriteByte(&host_client->message, svc_stufftext);
+            MSG_WriteString(
+                &host_client->message, va("\ncl_downloadbegin %u \"%s\"\n",
+                                           host_client->download.size, fname));
+            q_strlcpy(host_client->download.name, fname,
+                sizeof(host_client->download.name));
+        }
+        else
+        {
+            Con_Printf(
+                "refusing download of %s to %s\n", fname, host_client->name);
+            MSG_WriteByte(&host_client->message, svc_stufftext);
+            MSG_WriteString(&host_client->message, "\nstopdownload\n");
+        }
+        host_client->sendsignon = true; // override any keepalive issues.
+    }
+}
+
+static void Host_StartDownload_f(void)
+{
+    if(cmd_source != src_client) return;
+    if(host_client->download.file)
+        host_client->download.started = true;
+    else
+        SV_ClientPrintf("no download started\n");
+}
+// just writes download data onto the end of the outgoing unreliable buffer
+void Host_AppendDownloadData(client_t* client, sizebuf_t* buf)
+{
+    if(buf->cursize + 7 > buf->maxsize) return; // no space for anything
+    if(client->download.file && client->download.started)
+    {
+        byte tbuf[1400]; // don't be too aggressive, ethernet mtu is about 1450
+        unsigned int size = client->download.size - client->download.sendpos;
+        // size might be 0 at eof, and that's needed to avoid failure if we drop
+        // the last few packets
+        if(size > sizeof(tbuf)) size = sizeof(tbuf);
+        if((int)size > buf->maxsize - (buf->cursize + 7))
+            size = (int)(buf->maxsize - (buf->cursize + 7)); // don't overflow
+
+        if(size && fread(tbuf, 1, size, host_client->download.file) < size)
+            client->download.ackpos = client->download.sendpos =
+                client->download.size; // some kind of error...
+        else
+        {
+            MSG_WriteByte(buf, svcdp_downloaddata);
+            MSG_WriteLong(buf, client->download.sendpos);
+            MSG_WriteShort(buf, size);
+            SZ_Write(buf, tbuf, size);
+            client->download.sendpos += size;
+        }
+    }
+}
+// parses incoming acks from the client, so we know which parts of the file the
+// client actually received.
+void Host_DownloadAck(client_t* client)
+{
+    unsigned int start = MSG_ReadLong();
+    unsigned int size = (unsigned short)MSG_ReadShort();
+
+    if(!client->download.started || !client->download.file) return;
+
+    if(client->download.ackpos < start)
+    {
+        client->download.sendpos =
+            client->download.ackpos; // there was a gap, rewind to the known gap
+        fseek(client->download.file,
+            host_client->download.startpos + client->download.sendpos,
+            SEEK_SET);
+    }
+    else if(client->download.ackpos < start + size)
+        client->download.ackpos = start + size; // no loss yet.
+    // else FIXME: build a log of parts known to be acked to avoid resending
+    // them later, skip past them in acks
+
+    if(client->download.ackpos == client->download.size)
+    {
+        unsigned int hash = 0;
+        byte* data;
+        client->download.started = false;
+
+        data = malloc(client->download.size);
+        if(data)
+        {
+            fseek(client->download.file, host_client->download.startpos,
+                SEEK_SET);
+            fread(data, 1, host_client->download.size, client->download.file);
+            hash = CRC_Block(data, host_client->download.size);
+            free(data);
+        }
+        fclose(client->download.file);
+        client->download.file = NULL;
+
+        MSG_WriteByte(&host_client->message, svc_stufftext);
+        MSG_WriteString(&host_client->message,
+            va("cl_downloadfinished %u %u \"%s\"\n", client->download.size,
+                hash, client->download.name));
+        *client->download.name = 0;
+        host_client->sendsignon = true; // override any keepalive issues.
+    }
+}
+#endif
+//=============================================================================
 
 /*
 ==================
@@ -2773,35 +3514,48 @@ void Host_InitCommands()
     Cmd_AddCommand("mapname", Host_Mapname_f); // johnfitz
     Cmd_AddCommand("randmap", Host_Randmap_f); // ericw
 
-    Cmd_AddCommand("status", Host_Status_f);
+    Cmd_AddCommand_ClientCommand("status", Host_Status_f); // QSS
     Cmd_AddCommand("quit", Host_Quit_f);
-    Cmd_AddCommand("god", Host_God_f);
-    Cmd_AddCommand("notarget", Host_Notarget_f);
-    Cmd_AddCommand("fly", Host_Fly_f);
+    Cmd_AddCommand_ClientCommand("god", Host_God_f);           // QSS
+    Cmd_AddCommand_ClientCommand("notarget", Host_Notarget_f); // QSS
+    Cmd_AddCommand_ClientCommand("fly", Host_Fly_f);           // QSS
     Cmd_AddCommand("map", Host_Map_f);
     Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
     Cmd_AddCommand("connect", Host_Connect_f);
-    Cmd_AddCommand("reconnect", Host_Reconnect_f);
-    Cmd_AddCommand("name", Host_Name_f);
-    Cmd_AddCommand("noclip", Host_Noclip_f);
-    Cmd_AddCommand("setpos", Host_SetPos_f); // QuakeSpasm
+    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Con_f);      // QSS
+    Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
 
-    Cmd_AddCommand("say", Host_Say_f);
-    Cmd_AddCommand("say_team", Host_Say_Team_f);
-    Cmd_AddCommand("tell", Host_Tell_f);
-    Cmd_AddCommand("color", Host_Color_f);
-    Cmd_AddCommand("kill", Host_Kill_f);
-    Cmd_AddCommand("pause", Host_Pause_f);
-    Cmd_AddCommand("spawn", Host_Spawn_f);
-    Cmd_AddCommand("begin", Host_Begin_f);
-    Cmd_AddCommand("prespawn", Host_PreSpawn_f);
-    Cmd_AddCommand("kick", Host_Kick_f);
-    Cmd_AddCommand("ping", Host_Ping_f);
+    // TODO VR: (P0): QSS Merge
+#if 0
+    Cmd_AddCommand_ServerCommand ("ls", Host_Lightstyle_f); // QSS
+#endif
+
+    Cmd_AddCommand_ClientCommand("name", Host_Name_f);     // QSS
+    Cmd_AddCommand_ClientCommand("noclip", Host_Noclip_f); // QSS
+    Cmd_AddCommand_ClientCommand("setpos", Host_SetPos_f); // QuakeSpasm // QSS
+
+    Cmd_AddCommand_ClientCommand("say", Host_Say_f);           // QSS
+    Cmd_AddCommand_ClientCommand("say_team", Host_Say_Team_f); // QSS
+    Cmd_AddCommand_ClientCommand("tell", Host_Tell_f);         // QSS
+    Cmd_AddCommand_ClientCommand("color", Host_Color_f);       // QSS
+    Cmd_AddCommand_ClientCommand("kill", Host_Kill_f);         // QSS
+    Cmd_AddCommand_ClientCommand("pause", Host_Pause_f);       // QSS
+    Cmd_AddCommand_ClientCommand("spawn", Host_Spawn_f);       // QSS
+    Cmd_AddCommand_ClientCommand("begin", Host_Begin_f);       // QSS
+    Cmd_AddCommand_ClientCommand("prespawn", Host_PreSpawn_f); // QSS
+    Cmd_AddCommand_ClientCommand("kick", Host_Kick_f);         // QSS
+    Cmd_AddCommand_ClientCommand("ping", Host_Ping_f);         // QSS
     Cmd_AddCommand("load", Host_Loadgame_f);
     Cmd_AddCommand("load_autosave", Host_LoadAutosave_f);
     Cmd_AddCommand("save", Host_Savegame_f);
-    Cmd_AddCommand("give", Host_Give_f);
+    Cmd_AddCommand_ClientCommand("give", Host_Give_f); // QSS
+
+    // TODO VR: (P0): QSS Merge
+#if 0
+    Cmd_AddCommand_ClientCommand("download", Host_Download_f); // QSS
+    Cmd_AddCommand_ClientCommand("sv_startdownload", Host_StartDownload_f); // QSS
+#endif
 
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);

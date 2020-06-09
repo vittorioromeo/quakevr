@@ -46,18 +46,6 @@ cvar_t cmd_warncmd = {"cl_warncmd", "1",
                 // that servers fall back to only their base protocol (without
                 // needing to reconfigure the server. Requires reconnect.
 
-// QSS
-cvar_t cl_nopext = {"cl_nopext", "0",
-    CVAR_NONE}; // Spike -- prevent autodetection of protocol extensions, so
-                // that servers fall back to only their base protocol (without
-                // needing to reconfigure the server. Requires reconnect.
-
-// QSS
-cvar_t cmd_warncmd = {"cl_warncmd", "1",
-    CVAR_NONE}; // Spike -- prevent autodetection of protocol extensions, so
-                // that servers fall back to only their base protocol (without
-                // needing to reconfigure the server. Requires reconnect.
-
 #define MAX_ALIAS_NAME 32
 
 #define CMDLINE_LENGTH 256 // johnfitz -- mirrored in common.c

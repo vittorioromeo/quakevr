@@ -93,3 +93,6 @@ void* VID_GetWindow();
 bool VID_HasMouseOrInputFocus();
 bool VID_IsMinimized();
 void VID_Lock();
+
+// QSS
+void VID_SetWindowCaption(const char* newcaption);

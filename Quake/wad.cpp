@@ -46,7 +46,7 @@ Space padding is so names can be printed nicely in tables.
 Can safely be performed in place.
 ==================
 */
-void W_CleanupName(const char* in, char* out)
+static void W_CleanupName(const char* in, char* out)
 {
     int i;
     int c;
@@ -116,12 +116,30 @@ void W_LoadWadFile() // johnfitz -- filename is now hard-coded for honesty
     infotableofs = LittleLong(header->infotableofs);
     wad_lumps = (lumpinfo_t*)(wad_base + infotableofs);
 
+    // QSS
+    if(infotableofs < 0 ||
+        infotableofs + wad_numlumps * sizeof(lumpinfo_t) > com_filesize)
+    {
+        Sys_Error("Wad file %s header extends beyond end of file\n", filename);
+    }
+
+
     for(i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++)
     {
         lump_p->filepos = LittleLong(lump_p->filepos);
         lump_p->size = LittleLong(lump_p->size);
-        W_CleanupName(
-            lump_p->name, lump_p->name); // CAUTION: in-place editing!!!
+
+        // QSS
+        if(lump_p->filepos < 0 || lump_p->size < 0 ||
+            lump_p->filepos + lump_p->size > com_filesize)
+        {
+            Sys_Error("Wad file %s lump \"%16s\" extends beyond end of file\n",
+                filename, lump_p->name);
+        }
+
+        // CAUTION: in-place editing!!! The endian fixups too.
+        W_CleanupName(lump_p->name, lump_p->name);
+
         if(lump_p->type == TYP_QPIC)
         {
             SwapPic((qpic_t*)(wad_base + lump_p->filepos));
@@ -135,7 +153,7 @@ void W_LoadWadFile() // johnfitz -- filename is now hard-coded for honesty
 W_GetLumpinfo
 =============
 */
-lumpinfo_t* W_GetLumpinfo(const char* name)
+static lumpinfo_t* W_GetLumpinfo(const char* name)
 {
     int i;
     lumpinfo_t* lump_p;
@@ -156,31 +174,19 @@ lumpinfo_t* W_GetLumpinfo(const char* name)
     return nullptr;
 }
 
-void* W_GetLumpName(const char* name)
+// QSS
+void* W_GetLumpName(
+    const char* name, lumpinfo_t** out_info) // Spike: so caller can verify that
+                                             // the qpic was written properly.
 {
-    lumpinfo_t* lump;
-
-    lump = W_GetLumpinfo(name);
+    lumpinfo_t* lump = W_GetLumpinfo(name);
 
     if(!lump)
     {
         return nullptr; // johnfitz
     }
 
-    return (void*)(wad_base + lump->filepos);
-}
-
-void* W_GetLumpNum(int num)
-{
-    lumpinfo_t* lump;
-
-    if(num < 0 || num > wad_numlumps)
-    {
-        Sys_Error("W_GetLumpNum: bad number: %i", num);
-    }
-
-    lump = wad_lumps + num;
-
+    *out_info = lump; // QSS
     return (void*)(wad_base + lump->filepos);
 }
 

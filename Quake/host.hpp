@@ -47,7 +47,7 @@ bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp,
 #pragma aux Host_EndGame aborts;
 #endif
 
-void Host_Frame(float time);
+void Host_Frame(double time);
 void Host_Quit_f();
 void Host_ClientCommands(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Host_ShutdownServer(bool crash);

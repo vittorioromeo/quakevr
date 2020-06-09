@@ -63,9 +63,7 @@ extern int wad_numlumps;
 extern lumpinfo_t* wad_lumps;
 extern byte* wad_base;
 
-void W_LoadWadFile(); // johnfitz -- filename is now hard-coded for honesty
-void W_CleanupName(const char* in, char* out);
-lumpinfo_t* W_GetLumpinfo(const char* name);
-void* W_GetLumpName(const char* name);
-void* W_GetLumpNum(int num);
+void W_LoadWadFile(void); // johnfitz -- filename is now hard-coded for honesty
 
+// QSS
+void* W_GetLumpName(const char* name, lumpinfo_t** out_info);

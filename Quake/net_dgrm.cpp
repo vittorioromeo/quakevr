@@ -1393,8 +1393,7 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
             MSG_WriteString(&net_message, "\\protocol\\3");
             net_message.cursize--; // this is stupid
 
-            MSG_WriteString(&net_message, "\\ver\\ TODO VR: (P0)");
-            // MSG_WriteString(&net_message, "\\ver\\" "ENGINE_NAME_AND_VER");
+            MSG_WriteString(&net_message, "\\ver\\" ENGINE_NAME_AND_VER);
             net_message.cursize--;
             MSG_WriteString(&net_message, va("\\nqprotocol\\%u", sv.protocol));
             net_message.cursize--;
@@ -1810,7 +1809,7 @@ qsocket_t* Datagram_CheckNewConnections(void)
             // darkplaces here refers to the master server protocol, rather than
             // the game protocol (specifies that the server responds to
             // infoRequest packets from the master)
-            char* str = "\377\377\377\377heartbeat DarkPlaces\n";
+            const char* str = "\377\377\377\377heartbeat DarkPlaces\n";
             size_t k;
             struct qsockaddr addr;
             heartbeat_time = Sys_DoubleTime() + 300;

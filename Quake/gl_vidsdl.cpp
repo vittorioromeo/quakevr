@@ -86,6 +86,10 @@ static int gl_version_minor;
 static const char* gl_extensions;
 static char* gl_extensions_nice;
 
+// QSS
+bool gl_texture_s3tc, gl_texture_rgtc, gl_texture_bptc, gl_texture_etc2,
+    gl_texture_astc;
+
 static vmode_t modelist[MAX_MODE_LIST];
 static int nummodes;
 
@@ -553,7 +557,7 @@ static bool VID_SetMode(
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, fsaa > 0 ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
 
-    q_snprintf(caption, sizeof(caption), "QuakeSpasm " QUAKESPASM_VER_STRING);
+    q_snprintf(caption, sizeof(caption), ENGINE_NAME_AND_VER); // QSS
 
     /* Create the window if needed, hidden */
     if(!draw_context)
@@ -563,6 +567,10 @@ static bool VID_SetMode(
         if(vid_borderless.value)
         {
             flags |= SDL_WINDOW_BORDERLESS;
+        }
+        else if(!fullscreen) // QSS
+        {
+            flags |= SDL_WINDOW_RESIZABLE;
         }
 
         draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
@@ -792,7 +800,11 @@ static void VID_Restart()
     // keep cvars in line with actual mode
     VID_SyncCvars();
 
-    // update mouse grab
+// update mouse grab
+// TODO VR: (P0) QSS Merge
+#if 0
+    IN_UpdateGrabs(); // QSS
+#else
     if(key_dest == key_console || key_dest == key_menu)
     {
         if(modestate == MS_WINDOWED)
@@ -804,6 +816,7 @@ static void VID_Restart()
             IN_Activate();
         }
     }
+#endif
 
     if(vr_enabled.value)
     {
@@ -1173,10 +1186,6 @@ static void GL_SetupState()
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); // johnfitz
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glDepthRange(0, 1);     // johnfitz -- moved here becuase gl_ztrick is gone.
     glDepthFunc(GL_LEQUAL); // johnfitz -- moved here becuase gl_ztrick is gone.
 }
@@ -1311,6 +1320,17 @@ void VID_Shutdown()
         PL_VID_Shutdown();
     }
 }
+
+// QSS
+void VID_SetWindowCaption(const char* newcaption)
+{
+#if defined(USE_SDL2)
+    SDL_SetWindowTitle(draw_context, newcaption);
+#else
+    SDL_WM_SetCaption(newcaption, newcaption);
+#endif
+}
+
 
 /*
 ===================================================================
@@ -1678,6 +1698,10 @@ void VID_Toggle()
 
         VID_SyncCvars();
 
+        // TODO VR: (P0) QSS Merge
+#if 0
+        IN_UpdateGrabs(); // QSS
+#else
         // update mouse grab
         if(key_dest == key_console || key_dest == key_menu)
         {
@@ -1690,6 +1714,7 @@ void VID_Toggle()
                 IN_Activate();
             }
         }
+#endif
     }
     else
     {
@@ -2126,21 +2151,61 @@ static void VID_MenuKey(int key)
             m_entersound = true;
             switch(video_options_cursor)
             {
-                case VID_OPT_MODE: VID_Menu_ChooseNextMode(1); break;
-                case VID_OPT_BPP: VID_Menu_ChooseNextBpp(1); break;
-                case VID_OPT_REFRESHRATE: VID_Menu_ChooseNextRate(1); break;
+                case VID_OPT_MODE:
+                {
+                    VID_Menu_ChooseNextMode(1);
+                    break;
+                }
+
+                case VID_OPT_BPP:
+                {
+                    VID_Menu_ChooseNextBpp(1);
+                    break;
+                }
+
+                case VID_OPT_REFRESHRATE:
+                {
+                    VID_Menu_ChooseNextRate(1);
+                    break;
+                }
+
                 case VID_OPT_FULLSCREEN:
+                {
                     Cbuf_AddText("toggle vid_fullscreen\n");
                     break;
-                case VID_OPT_VSYNC: Cbuf_AddText("toggle vid_vsync\n"); break;
-                case VID_OPT_TEST: Cbuf_AddText("vid_test\n"); break;
+                }
+
+                case VID_OPT_VSYNC:
+                {
+                    Cbuf_AddText("toggle vid_vsync\n");
+                    break;
+                }
+
+                case VID_OPT_TEST:
+                {
+                    Cbuf_AddText("vid_test\n");
+                    break;
+                }
+
                 case VID_OPT_APPLY:
+                {
                     Cbuf_AddText("vid_restart\n");
                     key_dest = key_game;
                     m_state = m_none;
+
+                    // TODO VR: (P0) QSS Merge
+#if 0
+                    IN_UpdateGrabs(); // QSS
+#else
                     IN_Activate();
+#endif
                     break;
-                default: break;
+                }
+
+                default:
+                {
+                    break;
+                }
             }
             break;
 

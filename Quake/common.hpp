@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qvec3.hpp"
 #include "quakedef_macros.hpp"
 #include "q_stdinc.hpp"
+#include "link.hpp"
 
 // comndef.h  -- general definitions
 
@@ -50,22 +51,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLAMP(_minval, x, _maxval) \
     ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
 
-//============================================================================
-
-typedef struct link_s
-{
-    struct link_s *prev, *next;
-} link_t;
-
-void ClearLink(link_t* l);
-void RemoveLink(link_t* l);
-void InsertLinkBefore(link_t* l, link_t* before);
-void InsertLinkAfter(link_t* l, link_t* after);
-
-// (type *)STRUCT_FROM_LINK(link_t *link, type, member)
-// ent = STRUCT_FROM_LINK(link,entity_t,order)
-// FIXME: remove this mess!
-#define STRUCT_FROM_LINK(l, t, m) ((t*)((byte*)l - (intptr_t) & (((t*)0)->m)))
 
 //============================================================================
 

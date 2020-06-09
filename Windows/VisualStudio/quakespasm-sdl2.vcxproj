@@ -163,6 +163,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>
       </AdditionalOptions>
+      <OmitFramePointers>false</OmitFramePointers>
     </ClCompile>
     <Link>
       <AdditionalDependencies>openvr_api.lib;libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;glew32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -171,6 +172,9 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
+      <StackReserveSize>4194304</StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
@@ -216,6 +220,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX64</TargetMachine>
+      <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
@@ -263,6 +268,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\image.cpp" />
     <ClCompile Include="..\..\Quake\in_sdl.cpp" />
     <ClCompile Include="..\..\Quake\keys.cpp" />
+    <ClCompile Include="..\..\Quake\link.cpp" />
     <ClCompile Include="..\..\Quake\main_sdl.cpp" />
     <ClCompile Include="..\..\Quake\mathlib.cpp" />
     <ClCompile Include="..\..\Quake\menu.cpp" />
