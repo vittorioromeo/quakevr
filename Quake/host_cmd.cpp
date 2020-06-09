@@ -3523,7 +3523,10 @@ void Host_InitCommands()
     Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
     Cmd_AddCommand("connect", Host_Connect_f);
-    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Con_f);      // QSS
+
+    // TODO VR: (P1): should be Con_f, but doesn't work properly
+    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f);      // QSS
+
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
 
     // TODO VR: (P0): QSS Merge
