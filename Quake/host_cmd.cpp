@@ -2745,10 +2745,9 @@ Host_InitCommands
 */
 void Host_InitCommands()
 {
-    Cmd_AddCommand("maps", Host_Maps_f); // johnfitz
-    Cmd_AddCommand("mods", Host_Mods_f); // johnfitz
-    Cmd_AddCommand(
-        "games", Host_Mods_f); // as an alias to "mods" -- S.A. / QuakeSpasm
+    Cmd_AddCommand("maps", Host_Maps_f);       // johnfitz
+    Cmd_AddCommand("mods", Host_Mods_f);       // johnfitz
+    Cmd_AddCommand("games", Host_Mods_f);      // alias to "mods"
     Cmd_AddCommand("mapname", Host_Mapname_f); // johnfitz
     Cmd_AddCommand("randmap", Host_Randmap_f); // ericw
 

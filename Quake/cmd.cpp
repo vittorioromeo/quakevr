@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.hpp"
 #include "server.hpp"
 #include "sys.hpp"
+#include "developer.hpp"
 
 // QSS
 cvar_t cl_nopext = {"cl_nopext", "0",
@@ -954,30 +955,28 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
     {
         if(!q_strcasecmp(cmd_argv[0], cmd->name))
         {
-            cmd->function();
-            return true;
-        }
-    }
-
-#if 0 // TODO VR: (P0) QSS MERGE
-    for(cmd = cmd_functions; cmd; cmd = cmd->next)
-    {
-        if(!q_strcasecmp(cmd_argv[0], cmd->name))
-        {
             if(src == src_client && cmd->srctype != src_client)
+            {
                 Con_DPrintf("%s tried to %s\n", host_client->name,
                     text); // src_client only allows client commands
+            }
             else if(src == src_command && cmd->srctype == src_server)
+            {
                 continue; // src_command can execute anything but server
                           // commands (which it ignores, allowing for
                           // alternative behaviour)
+            }
             else if(src == src_server && cmd->srctype != src_server)
+            {
                 continue; // src_server may only execute server commands (such
                           // commands must be safe to parse within the context
                           // of a network message, so no
                           // disconnect/connect/playdemo/etc)
+            }
             else if(cmd->function)
+            {
                 cmd->function();
+            }
             else
             {
                 // TODO VR: (P0) qcvm
@@ -1016,7 +1015,6 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
     {
         return false;
     }
-#endif
 
     // check alias
     for(a = cmd_alias; a; a = a->next)
@@ -1031,7 +1029,7 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
     // check cvars
     if(!Cvar_Command())
     {
-        if(cmd_warncmd.value || developer.value) // QSS
+        if(cmd_warncmd.value || quake::vr::developerMode()) // QSS
         {
             Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
         }

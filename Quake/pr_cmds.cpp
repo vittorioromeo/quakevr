@@ -36,6 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "msg.hpp"
 #include "sys.hpp"
 #include "cmd.hpp"
+#include "developer.hpp"
 
 #include <cmath>
 #include <glm/gtx/rotate_vector.hpp>
@@ -871,7 +872,7 @@ static void PF_traceline()
     edict_t* ent = G_EDICT(OFS_PARM3);
 
     /* FIXME FIXME FIXME: Why do we hit this with certain progs.dat ?? */
-    if(developer.value)
+    if(quake::vr::developerMode())
     {
         if(IS_NAN(v1[0]) || IS_NAN(v1[1]) || IS_NAN(v1[2]) || IS_NAN(v2[0]) ||
             IS_NAN(v2[1]) || IS_NAN(v2[2]))

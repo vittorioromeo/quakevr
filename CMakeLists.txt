@@ -20,6 +20,7 @@ set(source_list
     "Quake/console.cpp"
     "Quake/crc.cpp"
     "Quake/cvar.cpp"
+    "Quake/developer.cpp"
     "Quake/fshandle.cpp"
     "Quake/gl_draw.cpp"
     "Quake/gl_fog.cpp"

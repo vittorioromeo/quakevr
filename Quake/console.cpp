@@ -50,6 +50,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "draw.hpp"
 #include "q_ctype.hpp"
 #include "cmd_types.hpp"
+#include "developer.hpp"
 
 int con_linewidth;
 
@@ -650,7 +651,7 @@ for developers targetting vanilla engines
 */
 void Con_DWarning(const char* fmt, ...)
 {
-    if(!developer.value)
+    if(!quake::vr::developerMode())
     {
         return; // don't confuse non-developers with techie stuff...
     }
@@ -693,7 +694,7 @@ A Con_Printf that only shows up if the "developer" cvar is set
 */
 void Con_DPrintf(const char* fmt, ...)
 {
-    if(!developer.value)
+    if(!quake::vr::developerMode())
     {
         return; // don't confuse non-developers with techie stuff...
     }
@@ -720,7 +721,7 @@ void Con_DPrintf2(const char* fmt, ...)
     va_list argptr;
     char msg[MAXPRINTMSG];
 
-    if(developer.value >= 2)
+    if(quake::vr::developerMode() >= 2)
     {
         va_start(argptr, fmt);
         q_vsnprintf(msg, sizeof(msg), fmt, argptr);
