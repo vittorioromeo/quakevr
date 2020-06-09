@@ -25,9 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // net_loop.h
 int Loop_Init();
 void Loop_Listen(bool state);
-void Loop_SearchForHosts(bool xmit);
+#define Loop_QueryAddresses NULL
+bool Loop_SearchForHosts(bool xmit);
 qsocket_t* Loop_Connect(const char* host);
 qsocket_t* Loop_CheckNewConnections();
+qsocket_t* Loop_GetAnyMessage();
 int Loop_GetMessage(qsocket_t* sock);
 int Loop_SendMessage(qsocket_t* sock, sizebuf_t* data);
 int Loop_SendUnreliableMessage(qsocket_t* sock, sizebuf_t* data);

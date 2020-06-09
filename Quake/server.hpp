@@ -157,6 +157,32 @@ struct client_t
 
     // client known data for deltas
     int old_frags;
+
+    // QSS
+    sizebuf_t datagram;
+    byte datagram_buf[MAX_DATAGRAM];
+
+    // QSS
+    sizebuf_t reliable_datagram; // copied to all clients at end of frame
+    byte reliable_datagram_buf[MAX_DATAGRAM];
+
+    // QSS
+    sizebuf_t signon;
+    byte signon_buf[MAX_MSGLEN - 2]; // johnfitz -- was 8192, now uses
+                                     // MAX_MSGLEN
+
+    // QSS
+    unsigned protocol; // johnfitz
+    unsigned protocolflags;
+
+    // QSS
+    sizebuf_t
+        multicast; // selectively copied to clients by the multicast builtin
+    byte multicast_buf[MAX_DATAGRAM];
+
+    // QSS
+    bool pextknown;
+    unsigned int protocol_pext2;
 };
 
 
@@ -294,3 +320,5 @@ enum class SpawnServerSrc
 };
 
 void SV_SpawnServer(const char* server, const SpawnServerSrc src);
+
+void SV_ConnectClient(int clientnum);

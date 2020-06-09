@@ -74,7 +74,7 @@ void M_Menu_Setup_f();
 void M_Menu_Net_f();
 void M_Menu_LanConfig_f();
 void M_Menu_GameOptions_f();
-void M_Menu_Search_f();
+void M_Menu_Search_f(enum slistScope_e scope); // QSS
 void M_Menu_ServerList_f();
 
 void M_Menu_Keys_f();
@@ -841,7 +841,8 @@ void M_Menu_MultiPlayer_f()
 
 void M_MultiPlayer_Draw()
 {
-    if(!tcpipAvailable)
+    // QSS
+    if(!ipv4Available && !ipv6Available)
     {
         M_PrintWhite(
             (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
@@ -3932,7 +3933,25 @@ void M_LanConfig_Draw()
     basex += 8;
 
     M_Print(basex, 52, "Address:");
-    M_Print(basex + 9 * 8, 52, my_tcpip_address);
+
+    // QSS
+    int y = 52;
+    qhostaddr_t addresses[16];
+    int numaddresses =
+        NET_ListAddresses(addresses, sizeof(addresses) / sizeof(addresses[0]));
+    if(!numaddresses)
+    {
+        M_Print(basex + 9 * 8, y, "NONE KNOWN");
+        y += 8;
+    }
+    else
+    {
+        for(int i = 0; i < numaddresses; i++)
+        {
+            M_Print(basex + 9 * 8, y, addresses[i]);
+            y += 8;
+        }
+    }
 
     M_Print(basex, lanConfig_cursor_table[0], "Port");
     M_DrawTextBox(basex + 8 * 8, lanConfig_cursor_table[0] - 8, 6, 1);
@@ -4019,7 +4038,7 @@ void M_LanConfig_Key(int key)
                     M_Menu_GameOptions_f();
                     break;
                 }
-                M_Menu_Search_f();
+                M_Menu_Search_f(SLIST_INTERNET);
                 break;
             }
 
@@ -4552,15 +4571,16 @@ void M_GameOptions_Key(int key)
 
 bool searchComplete = false;
 double searchCompleteTime;
+enum slistScope_e searchLastScope = SLIST_LAN; // QSS
 
-void M_Menu_Search_f()
+void M_Menu_Search_f(enum slistScope_e scope)
 {
     IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_search;
     m_entersound = false;
     slistSilent = true;
-    slistLocal = false;
+    slistScope = searchLastScope = scope; // QSS
     searchComplete = false;
     NET_Slist_f();
 }
@@ -4662,7 +4682,7 @@ void M_ServerList_Key(int k)
         case K_ESCAPE:
         case K_BBUTTON: M_Menu_LanConfig_f(); break;
 
-        case K_SPACE: M_Menu_Search_f(); break;
+        case K_SPACE: M_Menu_Search_f(searchLastScope); break;
 
         case K_UPARROW:
         case K_LEFTARROW:

@@ -306,7 +306,7 @@ void Modlist_Init()
     FindClose(fhnd);
 }
 #else
-void Modlist_Init(void)
+void Modlist_Init()
 {
     DIR *dir_p, *mod_dir_p;
     struct dirent* dir_t;
@@ -508,10 +508,21 @@ void Host_Status_f()
 
     print_fn("host:    %s\n", Cvar_VariableString("hostname"));
     print_fn("version: %4.2f\n", VERSION);
-    if(tcpipAvailable)
+
+    // QSS
+    if(ipv4Available)
     {
-        print_fn("tcp/ip:  %s\n", my_tcpip_address);
+        print_fn("tcp/ip:  %s\n",
+            my_ipv4_address); // Spike -- FIXME: we should really have ports
+                              // displayed here or something
     }
+
+    // QSS
+    if(ipv6Available)
+    {
+        print_fn("ipv6:    %s\n", my_ipv6_address);
+    }
+
     if(ipxAvailable)
     {
         print_fn("ipx:     %s\n", my_ipx_address);
@@ -542,7 +553,18 @@ void Host_Status_f()
         }
         print_fn("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j + 1, client->name,
             (int)client->edict->v.frags, hours, minutes, seconds);
-        print_fn("   %s\n", NET_QSocketGetAddressString(client->netconnection));
+
+        // QSS
+        if(cmd_source == src_command)
+            print_fn("   %s\n",
+                client->netconnection
+                    ? NET_QSocketGetTrueAddressString(client->netconnection)
+                    : "botclient");
+        else
+            print_fn("   %s\n",
+                client->netconnection
+                    ? NET_QSocketGetMaskedAddressString(client->netconnection)
+                    : "botclient");
     }
 }
 

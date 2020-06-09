@@ -121,6 +121,7 @@ extern int safemode;
  */
 
 int COM_CheckParm(const char* parm);
+int COM_CheckParmNext(int last, const char* parm); // QSS
 
 void COM_Init();
 void COM_InitArgv(int argc, char** argv);
@@ -130,6 +131,8 @@ const char* COM_SkipPath(const char* pathname);
 void COM_StripExtension(const char* in, char* out, size_t outsize);
 void COM_FileBase(const char* in, char* out, size_t outsize);
 void COM_AddExtension(char* path, const char* extension, size_t len);
+bool COM_DownloadNameOkay(const char* filename); // QSS
+
 #if 0 /* COM_DefaultExtension can be dangerous */
 void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
@@ -177,6 +180,10 @@ struct cache_user_s;
 extern char com_basedir[MAX_OSPATH];
 extern char com_gamedir[MAX_OSPATH];
 extern int file_from_pak; // global indicating that file came from a pak
+
+// QSS
+const char* COM_GetGameNames(bool full);
+bool COM_GameDirMatches(const char* tdirs);
 
 void COM_WriteFile(const char* filename, const void* data, int len);
 int COM_OpenFile(const char* filename, int* handle, unsigned int* path_id);
