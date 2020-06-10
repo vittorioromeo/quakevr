@@ -28,4 +28,3 @@ struct efrag_t
     struct efrag_t* leafnext;
     struct entity_t* entity;
 };
-

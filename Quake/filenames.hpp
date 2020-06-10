@@ -62,8 +62,14 @@ static inline char* FIND_FIRST_DIRSEP(char* _the_path)
     /* FIXME: What about C:FOO ? */
     char* p1 = strchr(_the_path, '/');
     char* p2 = strchr(_the_path, '\\');
-    if(p1 == nullptr) return p2;
-    if(p2 == nullptr) return p1;
+    if(p1 == nullptr)
+    {
+        return p2;
+    }
+    if(p2 == nullptr)
+    {
+        return p1;
+    }
     return (p1 < p2) ? p1 : p2;
 }
 static inline char* FIND_LAST_DIRSEP(char* _the_path)
@@ -71,8 +77,14 @@ static inline char* FIND_LAST_DIRSEP(char* _the_path)
     /* FIXME: What about C:FOO ? */
     char* p1 = strrchr(_the_path, '/');
     char* p2 = strrchr(_the_path, '\\');
-    if(p1 == nullptr) return p2;
-    if(p2 == nullptr) return p1;
+    if(p1 == nullptr)
+    {
+        return p2;
+    }
+    if(p2 == nullptr)
+    {
+        return p1;
+    }
     return (p1 > p2) ? p1 : p2;
 }
 static inline const char* FIND_FIRST_DIRSEP(const char* _the_path)
@@ -80,8 +92,14 @@ static inline const char* FIND_FIRST_DIRSEP(const char* _the_path)
     /* FIXME: What about C:FOO ? */
     const char* p1 = strchr(_the_path, '/');
     const char* p2 = strchr(_the_path, '\\');
-    if(p1 == nullptr) return p2;
-    if(p2 == nullptr) return p1;
+    if(p1 == nullptr)
+    {
+        return p2;
+    }
+    if(p2 == nullptr)
+    {
+        return p1;
+    }
     return (p1 < p2) ? p1 : p2;
 }
 static inline const char* FIND_LAST_DIRSEP(const char* _the_path)
@@ -89,8 +107,14 @@ static inline const char* FIND_LAST_DIRSEP(const char* _the_path)
     /* FIXME: What about C:FOO ? */
     const char* p1 = strrchr(_the_path, '/');
     const char* p2 = strrchr(_the_path, '\\');
-    if(p1 == nullptr) return p2;
-    if(p2 == nullptr) return p1;
+    if(p1 == nullptr)
+    {
+        return p2;
+    }
+    if(p2 == nullptr)
+    {
+        return p1;
+    }
     return (p1 > p2) ? p1 : p2;
 }
 

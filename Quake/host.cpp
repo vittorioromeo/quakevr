@@ -155,17 +155,24 @@ static void Max_Fps_f(cvar_t* var)
     // QSS
     if(var->value > 72 || var->value <= 0)
     {
-        if(!host_netinterval) Con_Printf("Using renderer/network isolation.\n");
+        if(!host_netinterval)
+        {
+            Con_Printf("Using renderer/network isolation.\n");
+        }
         host_netinterval = 1.0 / 72;
     }
     else
     {
         if(host_netinterval)
+        {
             Con_Printf("Disabling renderer/network isolation.\n");
+        }
         host_netinterval = 0;
 
         if(var->value > 72)
+        {
             Con_Warning("host_maxfps above 72 breaks physics.\n");
+        }
     }
 }
 
@@ -279,7 +286,7 @@ void Host_Error(const char* error, ...)
     Con_Printf("Host_Error: %s\n", string);
 
     // QSS
-    Con_Redirect(NULL);
+    Con_Redirect(nullptr);
 
     if(sv.active)
     {

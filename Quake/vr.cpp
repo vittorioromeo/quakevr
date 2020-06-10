@@ -3751,7 +3751,10 @@ static void VR_DoInput_UpdateVRMouse()
         const float scale_hud = vr_menu_scale.value;
 
         const auto sign = [](const float x) {
-            if(x >= 0) return 1.f;
+            if(x >= 0)
+            {
+                return 1.f;
+            }
             return -1.f;
         };
 

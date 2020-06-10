@@ -1259,7 +1259,7 @@ void Host_Reconnect_Con_f(void)
         CL_Disconnect();
     }
 
-    CL_EstablishConnection(NULL);
+    CL_EstablishConnection(nullptr);
 }
 
 // QSS
@@ -3093,7 +3093,7 @@ void Host_Viewmodel_f()
 
     if(!*Cmd_Argv(1)) // QSS
     {
-        m = NULL;
+        m = nullptr;
     }
     else
     {
@@ -3525,7 +3525,7 @@ void Host_InitCommands()
     Cmd_AddCommand("connect", Host_Connect_f);
 
     // TODO VR: (P1): should be Con_f, but doesn't work properly
-    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f);      // QSS
+    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f); // QSS
 
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
 

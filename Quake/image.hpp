@@ -39,4 +39,3 @@ bool Image_WritePNG(const char* name, byte* data, int width, int height,
     int bpp, bool upsidedown);
 bool Image_WriteJPG(const char* name, byte* data, int width, int height,
     int bpp, int quality, bool upsidedown);
-

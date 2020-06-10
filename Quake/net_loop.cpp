@@ -208,9 +208,12 @@ qsocket_t* Loop_GetAnyMessage(void)
 {
     if(loop_server)
     {
-        if(Loop_GetMessage(loop_server) > 0) return loop_server;
+        if(Loop_GetMessage(loop_server) > 0)
+        {
+            return loop_server;
+        }
     }
-    return NULL;
+    return nullptr;
 }
 
 

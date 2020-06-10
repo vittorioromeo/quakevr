@@ -44,7 +44,7 @@ struct snd_codec_s
     CODEC_READ codec_read;
     CODEC_REWIND codec_rewind;
     CODEC_CLOSE codec_close;
-    snd_codec_t* next;
+    snd_codec_s* next;
 };
 
 bool S_CodecForwardStream(snd_stream_t* stream, unsigned int type);

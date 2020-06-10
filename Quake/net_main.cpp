@@ -217,9 +217,13 @@ const char* NET_QSocketGetMaskedAddressString(const qsocket_t* s)
 bool NET_QSocketGetProQuakeAngleHack(const qsocket_t* s)
 {
     if(s && !s->disconnected)
+    {
         return s->proquake_angle_hack;
+    }
     else
+    {
         return false; // happens with demos
+    }
 }
 
 // QSS
@@ -485,9 +489,14 @@ static void Slist_Poll(void* unused)
     for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
         net_driverlevel++)
     {
-        if(slistScope != SLIST_LOOP && IS_LOOP_DRIVER(net_driverlevel)) // QSS
+        if(slistScope != SLIST_LOOP && IS_LOOP_DRIVER(net_driverlevel))
+        { // QSS
             continue;
-        if(net_drivers[net_driverlevel].initialized == false) continue;
+        }
+        if(net_drivers[net_driverlevel].initialized == false)
+        {
+            continue;
+        }
         if(dfunc.SearchForHosts(false))
         { // QSS
             slistActiveTime =
@@ -756,11 +765,17 @@ qsocket_t* NET_GetServerMessage()
     for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
         net_driverlevel++)
     {
-        if(!net_drivers[net_driverlevel].initialized) continue;
+        if(!net_drivers[net_driverlevel].initialized)
+        {
+            continue;
+        }
         s = net_drivers[net_driverlevel].QGetAnyMessage();
-        if(s) return s;
+        if(s)
+        {
+            return s;
+        }
     }
-    return NULL;
+    return nullptr;
 }
 
 /*
@@ -774,10 +789,15 @@ int NET_ListAddresses(qhostaddr_t* addresses, int maxaddresses)
     for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
         net_driverlevel++)
     {
-        if(!net_drivers[net_driverlevel].initialized) continue;
+        if(!net_drivers[net_driverlevel].initialized)
+        {
+            continue;
+        }
         if(net_drivers[net_driverlevel].QueryAddresses)
+        {
             result += net_drivers[net_driverlevel].QueryAddresses(
                 addresses + result, maxaddresses - result);
+        }
     }
     return result;
 }

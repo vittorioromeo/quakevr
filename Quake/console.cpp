@@ -448,9 +448,18 @@ static void Con_Linefeed()
 
 static int dehex(char c)
 {
-    if(c >= '0' && c <= '9') return c - '0';
-    if(c >= 'A' && c <= 'F') return c - ('A' - 10);
-    if(c >= 'a' && c <= 'f') return c - ('a' - 10);
+    if(c >= '0' && c <= '9')
+    {
+        return c - '0';
+    }
+    if(c >= 'A' && c <= 'F')
+    {
+        return c - ('A' - 10);
+    }
+    if(c >= 'a' && c <= 'f')
+    {
+        return c - ('a' - 10);
+    }
     return 0;
 }
 
@@ -602,7 +611,9 @@ void Con_Printf(const char* fmt, ...)
 
     // QSS
     if(con_redirect_flush)
+    {
         q_strlcat(con_redirect_buffer, msg, sizeof(con_redirect_buffer));
+    }
 
     // also echo to debugging console
     Sys_Printf("%s", msg);

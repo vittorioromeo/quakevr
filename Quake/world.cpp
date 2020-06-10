@@ -943,16 +943,23 @@ reenter:
         trace->contents = num;
         if(num == CONTENTS_SOLID)
         {
-            if(trace->allsolid) trace->startsolid = true;
+            if(trace->allsolid)
+            {
+                trace->startsolid = true;
+            }
             return rht_solid;
         }
         else
         {
             trace->allsolid = false;
             if(num == CONTENTS_EMPTY)
+            {
                 trace->inopen = true;
+            }
             else
+            {
                 trace->inwater = true;
+            }
             return rht_empty;
         }
     }
@@ -1004,16 +1011,28 @@ reenter:
     side = t1 < 0;
 
     midf = t1 / (t1 - t2);
-    if(midf < p1f) midf = p1f;
-    if(midf > p2f) midf = p2f;
+    if(midf < p1f)
+    {
+        midf = p1f;
+    }
+    if(midf > p2f)
+    {
+        midf = p2f;
+    }
     VectorInterpolate(ctx->start, midf, ctx->end, mid);
 
     rht = Q1BSP_RecursiveHullTrace(
         ctx, node->children[side], p1f, midf, p1, mid, trace);
-    if(rht != rht_empty && !trace->allsolid) return rht;
+    if(rht != rht_empty && !trace->allsolid)
+    {
+        return rht;
+    }
     rht = Q1BSP_RecursiveHullTrace(
         ctx, node->children[side ^ 1], midf, p2f, mid, p2, trace);
-    if(rht != rht_solid) return rht;
+    if(rht != rht_solid)
+    {
+        return rht;
+    }
 
     if(side)
     {

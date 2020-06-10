@@ -84,7 +84,7 @@ static INT_PTR PASCAL FAR BlockingHook(void)
     }
 
     /* get the next message, if any */
-    ret = (BOOL)PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+    ret = (BOOL)PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE);
 
     /* if we got one, process it */
     if(ret)
@@ -101,12 +101,15 @@ static INT_PTR PASCAL FAR BlockingHook(void)
 
 static void WINIPv4_GetLocalAddress(void)
 {
-    struct hostent* local = NULL;
+    struct hostent* local = nullptr;
     char buff[MAXHOSTNAMELEN];
     in_addr_t addr;
     int err;
 
-    if(myAddrv4 != INADDR_ANY) return;
+    if(myAddrv4 != INADDR_ANY)
+    {
+        return;
+    }
 
     if(gethostname(buff, MAXHOSTNAMELEN) == SOCKET_ERROR)
     {
@@ -126,7 +129,7 @@ static void WINIPv4_GetLocalAddress(void)
 #ifndef _USE_WINSOCK2
     WSAUnhookBlockingHook();
 #endif
-    if(local == NULL)
+    if(local == nullptr)
     {
         Con_SafePrintf("WINIPV4_GetLocalAddress: gethostbyname failed (%s)\n",
             __WSAE_StrError(err));
@@ -146,7 +149,10 @@ sys_socket_t WINIPv4_Init(void)
     int i, err;
     char buff[MAXHOSTNAMELEN];
 
-    if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp4")) return -1;
+    if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp4"))
+    {
+        return -1;
+    }
 
     if(winsock_initialized == 0)
     {
@@ -178,7 +184,9 @@ sys_socket_t WINIPv4_Init(void)
         {
             bindAddrv4 = inet_addr(com_argv[i + 1]);
             if(bindAddrv4 == INADDR_NONE)
+            {
                 Sys_Error("%s is not a valid IP address", com_argv[i + 1]);
+            }
             strcpy(my_ipv4_address, com_argv[i + 1]);
         }
         else
@@ -198,7 +206,10 @@ sys_socket_t WINIPv4_Init(void)
     {
         Con_SafePrintf(
             "WINS_Init: Unable to open control socket, UDP disabled\n");
-        if(--winsock_initialized == 0) WSACleanup();
+        if(--winsock_initialized == 0)
+        {
+            WSACleanup();
+        }
         return INVALID_SOCKET;
     }
 
@@ -218,7 +229,10 @@ void WINIPv4_Shutdown(void)
 {
     WINIPv4_Listen(false);
     WINS_CloseSocket(netv4_controlsocket);
-    if(--winsock_initialized == 0) WSACleanup();
+    if(--winsock_initialized == 0)
+    {
+        WSACleanup();
+    }
 }
 
 //=============================================================================
@@ -228,14 +242,20 @@ sys_socket_t WINIPv4_Listen(bool state)
     // enable listening
     if(state)
     {
-        if(netv4_acceptsocket != INVALID_SOCKET) return netv4_acceptsocket;
+        if(netv4_acceptsocket != INVALID_SOCKET)
+        {
+            return netv4_acceptsocket;
+        }
         WINIPv4_GetLocalAddress();
         netv4_acceptsocket = WINIPv4_OpenSocket(net_hostport);
         return netv4_acceptsocket;
     }
 
     // disable listening
-    if(netv4_acceptsocket == INVALID_SOCKET) return INVALID_SOCKET;
+    if(netv4_acceptsocket == INVALID_SOCKET)
+    {
+        return INVALID_SOCKET;
+    }
     WINS_CloseSocket(netv4_acceptsocket);
     netv4_acceptsocket = INVALID_SOCKET;
     return INVALID_SOCKET;
@@ -258,14 +278,18 @@ sys_socket_t WINIPv4_OpenSocket(int port)
     }
 
     if(ioctlsocket(newsocket, FIONBIO, &_true) == SOCKET_ERROR)
+    {
         goto ErrorReturn;
+    }
 
     memset(&address, 0, sizeof(struct sockaddr_in));
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = bindAddrv4;
     address.sin_port = htons((unsigned short)port);
     if(bind(newsocket, (struct sockaddr*)&address, sizeof(address)) == 0)
+    {
         return newsocket;
+    }
 
     if(ipv4Available)
     {
@@ -289,7 +313,9 @@ ErrorReturn:
 int WINS_CloseSocket(sys_socket_t socketid)
 {
     if(socketid == netv4_broadcastsocket)
+    {
         netv4_broadcastsocket = INVALID_SOCKET;
+    }
     return closesocket(socketid);
 }
 
@@ -312,7 +338,10 @@ static int PartialIPAddress(const char* in, struct qsockaddr* hostaddr)
     buff[0] = '.';
     b = buff;
     strcpy(buff + 1, in);
-    if(buff[1] == '.') b++;
+    if(buff[1] == '.')
+    {
+        b++;
+    }
 
     addr = 0;
     mask = -1;
@@ -324,19 +353,31 @@ static int PartialIPAddress(const char* in, struct qsockaddr* hostaddr)
         while(!(*b < '0' || *b > '9'))
         {
             num = num * 10 + *b++ - '0';
-            if(++run > 3) return -1;
+            if(++run > 3)
+            {
+                return -1;
+            }
         }
         if((*b < '0' || *b > '9') && *b != '.' && *b != ':' && *b != 0)
+        {
             return -1;
-        if(num < 0 || num > 255) return -1;
+        }
+        if(num < 0 || num > 255)
+        {
+            return -1;
+        }
         mask <<= 8;
         addr = (addr << 8) + num;
     }
 
     if(*b++ == ':')
+    {
         port = Q_atoi(b);
+    }
     else
+    {
         port = net_hostport;
+    }
 
     hostaddr->qsa_family = AF_INET;
     ((struct sockaddr_in*)hostaddr)->sin_port = htons((unsigned short)port);
@@ -359,10 +400,13 @@ sys_socket_t WINIPv4_CheckNewConnections(void)
 {
     char buf[4096];
 
-    if(netv4_acceptsocket == INVALID_SOCKET) return INVALID_SOCKET;
+    if(netv4_acceptsocket == INVALID_SOCKET)
+    {
+        return INVALID_SOCKET;
+    }
 
-    if(recvfrom(netv4_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL) !=
-        SOCKET_ERROR)
+    if(recvfrom(netv4_acceptsocket, buf, sizeof(buf), MSG_PEEK, nullptr,
+           nullptr) != SOCKET_ERROR)
     {
         return netv4_acceptsocket;
     }
@@ -381,12 +425,19 @@ int WINS_Read(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr)
     if(ret == SOCKET_ERROR)
     {
         int err = SOCKETERRNO;
-        if(err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED) return 0;
+        if(err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED)
+        {
+            return 0;
+        }
         if(err == WSAECONNRESET)
+        {
             Con_DPrintf("WINS_Read, recvfrom: %s (%s)\n", socketerror(err),
                 WINS_AddrToString(addr, false));
+        }
         else
+        {
             Con_SafePrintf("WINS_Read, recvfrom: %s\n", socketerror(err));
+        }
     }
     return ret;
 }
@@ -419,7 +470,9 @@ int WINIPv4_Broadcast(sys_socket_t socketid, byte* buf, int len)
     if(socketid != netv4_broadcastsocket)
     {
         if(netv4_broadcastsocket != INVALID_SOCKET)
+        {
             Sys_Error("Attempted to use multiple broadcasts sockets");
+        }
         WINIPv4_GetLocalAddress();
         ret = WINS_MakeSocketBroadcastCapable(socketid);
         if(ret == -1)
@@ -444,7 +497,10 @@ int WINS_Write(
     if(ret == SOCKET_ERROR)
     {
         int err = SOCKETERRNO;
-        if(err == NET_EWOULDBLOCK) return 0;
+        if(err == NET_EWOULDBLOCK)
+        {
+            return 0;
+        }
         Con_SafePrintf("WINS_Write, sendto: %s\n", socketerror(err));
     }
     return ret;
@@ -545,7 +601,9 @@ int WINS_GetSocketAddr(sys_socket_t socketid, struct qsockaddr* addr)
     {
         in_addr_t a = ((struct sockaddr_in*)addr)->sin_addr.s_addr;
         if(a == 0 || a == htonl(INADDR_LOOPBACK))
+        {
             ((struct sockaddr_in*)addr)->sin_addr.s_addr = myAddrv4;
+        }
     }
 #ifdef IPPROTO_IPV6
     if(addr->qsa_family == AF_INET6)
@@ -606,7 +664,9 @@ int WINIPv4_GetAddresses(qhostaddr_t* addresses, int maxaddresses)
     }
 
     if(!result)
+    {
         q_strlcpy(addresses[result++], my_ipv4_address, sizeof(addresses[0]));
+    }
     return result;
 }
 int WINIPv6_GetAddresses(qhostaddr_t* addresses, int maxaddresses)
@@ -626,23 +686,27 @@ int WINIPv6_GetAddresses(qhostaddr_t* addresses, int maxaddresses)
         hints.ai_protocol = 0; /* Any protocol */
 
         gethostname(hostname, sizeof(hostname));
-        if(qgetaddrinfo(hostname, NULL, &hints, &addrlist) == 0)
+        if(qgetaddrinfo(hostname, nullptr, &hints, &addrlist) == 0)
         {
             for(itr = addrlist; itr && result < maxaddresses;
                 itr = itr->ai_next)
             {
                 if(itr->ai_addr->sa_family == AF_INET6)
+                {
                     q_strlcpy(addresses[result++],
                         WINS_AddrToString(
                             (struct qsockaddr*)itr->ai_addr, false),
                         sizeof(addresses[0]));
+                }
             }
             freeaddrinfo(addrlist);
         }
     }
 
     if(!result)
+    {
         q_strlcpy(addresses[result++], my_ipv6_address, sizeof(addresses[0]));
+    }
     return result;
 }
 
@@ -654,26 +718,39 @@ int WINIPv4_GetAddrFromName(const char* name, struct qsockaddr* addr)
     const char* colon;
     unsigned short port = net_hostport;
 
-    if(name[0] >= '0' && name[0] <= '9') return PartialIPAddress(name, addr);
+    if(name[0] >= '0' && name[0] <= '9')
+    {
+        return PartialIPAddress(name, addr);
+    }
 
     colon = strrchr(name, ':');
     if(colon)
     {
         char dupe[MAXHOSTNAMELEN];
-        if(colon - name + 1 > MAXHOSTNAMELEN) return -1;
+        if(colon - name + 1 > MAXHOSTNAMELEN)
+        {
+            return -1;
+        }
         memcpy(dupe, name, colon - name);
         dupe[colon - name] = 0;
         if(strchr(dupe, ':'))
+        {
             return -1; // don't resolve a name to an ipv4 address if it has
-                       // multiple colons in it. its probably an ipx or ipv6
-                       // address, and I'd rather not block on any screwed dns
-                       // resolves
+        }
+        // multiple colons in it. its probably an ipx or ipv6
+        // address, and I'd rather not block on any screwed dns
+        // resolves
         hostentry = gethostbyname(dupe);
-        port = strtoul(colon + 1, NULL, 10);
+        port = strtoul(colon + 1, nullptr, 10);
     }
     else
+    {
         hostentry = gethostbyname(name);
-    if(!hostentry) return -1;
+    }
+    if(!hostentry)
+    {
+        return -1;
+    }
 
     addr->qsa_family = AF_INET;
     ((struct sockaddr_in*)addr)->sin_port = htons(port);
@@ -687,7 +764,10 @@ int WINIPv4_GetAddrFromName(const char* name, struct qsockaddr* addr)
 
 int WINS_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2)
 {
-    if(addr1->qsa_family != addr2->qsa_family) return -1;
+    if(addr1->qsa_family != addr2->qsa_family)
+    {
+        return -1;
+    }
 
 #ifdef IPPROTO_IPV6
     if(addr1->qsa_family == AF_INET6)
@@ -714,11 +794,15 @@ int WINS_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2)
     {
         if(((struct sockaddr_in*)addr1)->sin_addr.s_addr !=
             ((struct sockaddr_in*)addr2)->sin_addr.s_addr)
+        {
             return -1;
+        }
 
         if(((struct sockaddr_in*)addr1)->sin_port !=
             ((struct sockaddr_in*)addr2)->sin_port)
+        {
             return 1;
+        }
     }
 
     return 0;

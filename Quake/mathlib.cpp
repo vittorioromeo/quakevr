@@ -117,7 +117,7 @@ int BoxOnPlaneSide(const qvec3& emins, const qvec3& emaxs, mplane_t* p)
                     p->normal[2] * emaxs[2];
             break;
         case 5:
-        dist1 = p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
+            dist1 = p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
                     p->normal[2] * emins[2];
             dist2 = p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
                     p->normal[2] * emaxs[2];

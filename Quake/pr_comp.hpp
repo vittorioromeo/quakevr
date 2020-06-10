@@ -39,7 +39,7 @@ typedef enum
     ev_function,
     ev_pointer,
 
-	ev_ext_integer // QSS
+    ev_ext_integer // QSS
 } etype_t;
 
 #define OFS_NULL 0

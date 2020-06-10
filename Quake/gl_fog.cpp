@@ -434,7 +434,7 @@ const char* Fog_GetFogCommand(void)
         return va(
             "\nfog %g %g %g %g\n", fog_density, fog_red, fog_green, fog_blue);
     }
-    return NULL;
+    return nullptr;
 }
 
 /*

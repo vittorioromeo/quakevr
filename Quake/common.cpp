@@ -157,7 +157,6 @@ override an explicit setting on the original command line.
 
 
 
-
 /*
 ============================================================================
 
@@ -867,22 +866,35 @@ downloading (used by both client+server)
 */
 bool COM_DownloadNameOkay(const char* filename)
 {
-    if(!allow_download.value) return false;
+    if(!allow_download.value)
+    {
+        return false;
+    }
 
     // quickly test the prefix to ensure that its in one of the allowed subdirs
     if(strncmp(filename, "sound/", 6) && strncmp(filename, "progs/", 6) &&
         strncmp(filename, "maps/", 5) && strncmp(filename, "models/", 7))
+    {
         return false;
+    }
     // windows paths are NOT permitted, nor are alternative data streams, nor
     // wildcards, and double quotes are always bad(which allows for spaces)
     if(strchr(filename, '\\') || strchr(filename, ':') ||
         strchr(filename, '*') || strchr(filename, '?') ||
         strchr(filename, '\"'))
+    {
         return false;
+    }
     // some operating systems interpret this as 'parent directory'
-    if(strstr(filename, "//")) return false;
+    if(strstr(filename, "//"))
+    {
+        return false;
+    }
     // block unix hidden files, also blocks relative paths.
-    if(*filename == '.' || strstr(filename, "/.")) return false;
+    if(*filename == '.' || strstr(filename, "/."))
+    {
+        return false;
+    }
     // test the extension to ensure that its in one of the allowed file types
     //(no .dll, .so, .com, .exe, .bat, .vbs, .xls, .doc, etc please)
     // also don't allow config files.
@@ -900,7 +912,9 @@ bool COM_DownloadNameOkay(const char* filename)
         // misc stuff
         q_strcasecmp(filename, "lux") && q_strcasecmp(filename, "lit2") &&
         q_strcasecmp(filename, "lit"))
+    {
         return false;
+    }
     // okay, well, we didn't throw a hissy fit, so whatever dude, go ahead and
     // download
     return true;
@@ -1024,8 +1038,14 @@ int COM_CheckParmNext(int last, const char* parm)
 {
     for(int i = last + 1; i < com_argc; i++)
     {
-        if(!com_argv[i]) continue; // NEXTSTEP sometimes clears appkit vars.
-        if(!Q_strcmp(parm, com_argv[i])) return i;
+        if(!com_argv[i])
+        {
+            continue; // NEXTSTEP sometimes clears appkit vars.
+        }
+        if(!Q_strcmp(parm, com_argv[i]))
+        {
+            return i;
+        }
     }
 
     return 0;
@@ -1881,7 +1901,10 @@ void COM_ListSystemFiles(void* ctx, const char* gamedir, const char* ext,
     char filestring[MAX_OSPATH];
     q_snprintf(filestring, sizeof(filestring), "%s/*.%s", gamedir, ext);
     fhnd = FindFirstFile(filestring, &fdat);
-    if(fhnd == INVALID_HANDLE_VALUE) return;
+    if(fhnd == INVALID_HANDLE_VALUE)
+    {
+        return;
+    }
     do
     {
         cb(ctx, fdat.cFileName);
@@ -1911,13 +1934,18 @@ void COM_ListFiles(void* ctx, const char* gamedir, const char* pattern,
     if(sl)
     {
         sl++;
-        if(sl - pattern >= MAX_OSPATH) return;
+        if(sl - pattern >= MAX_OSPATH)
+        {
+            return;
+        }
         memcpy(prefixdir, pattern, sl - pattern);
         prefixdir[sl - pattern] = 0;
         pattern = sl;
     }
     else
+    {
         *prefixdir = 0;
+    }
 
 #ifdef _WIN32
     {
@@ -1927,7 +1955,10 @@ void COM_ListFiles(void* ctx, const char* gamedir, const char* pattern,
         q_snprintf(filestring, sizeof(filestring), "%s/%s%s", gamedir,
             prefixdir, pattern);
         fhnd = FindFirstFile(filestring, &fdat);
-        if(fhnd == INVALID_HANDLE_VALUE) return;
+        if(fhnd == INVALID_HANDLE_VALUE)
+        {
+            return;
+        }
         do
         {
             q_snprintf(filestring, sizeof(filestring), "%s%s", prefixdir,
@@ -1972,11 +2003,18 @@ static bool COM_AddPackage(searchpath_t* basepath, const char* pakfile)
     for(search = com_searchpaths; search; search = search->next)
     {
         if(search->pack)
-            if(!q_strcasecmp(pakfile, search->pack->filename)) return true;
+        {
+            if(!q_strcasecmp(pakfile, search->pack->filename))
+            {
+                return true;
+            }
+        }
     }
 
     if(!q_strcasecmp(ext, "pak"))
+    {
         pak = COM_LoadPackFile(pakfile);
+    }
     else if(!q_strcasecmp(ext, "pk3") || !q_strcasecmp(ext, "pk4") ||
             !q_strcasecmp(ext, "zip") || !q_strcasecmp(ext, "apk"))
     {
@@ -1991,9 +2029,14 @@ static bool COM_AddPackage(searchpath_t* basepath, const char* pakfile)
 #endif
     }
     else
-        pak = NULL;
+    {
+        pak = nullptr;
+    }
 
-    if(!pak) return false;
+    if(!pak)
+    {
+        return false;
+    }
 
     search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t));
     search->path_id = basepath->path_id;
@@ -2018,9 +2061,13 @@ const char* COM_GetGameNames(bool full)
     if(full)
     {
         if(*com_gamenames)
+        {
             return va("%s;%s", GAMENAME, com_gamenames);
+        }
         else
+        {
             return GAMENAME;
+        }
     }
     return com_gamenames;
     //	return COM_SkipPath(com_gamedir);
@@ -2035,30 +2082,45 @@ bool COM_GameDirMatches(const char* tdirs)
     if(!strncmp(tdirs, GAMENAME, gnl) && (tdirs[gnl] == ';' || !tdirs[gnl]))
     {
         tdirs += gnl;
-        if(*tdirs == ';') tdirs++;
+        if(*tdirs == ';')
+        {
+            tdirs++;
+        }
     }
     if(!strncmp(odirs, GAMENAME, gnl) && (odirs[gnl] == ';' || !odirs[gnl]))
     {
         odirs += gnl;
-        if(*odirs == ';') odirs++;
+        if(*odirs == ';')
+        {
+            odirs++;
+        }
     }
     // skip any qw in there from quakeworld (remote servers should really be
     // skipping this, unless its maybe the only one in the path).
     if(!strncmp(tdirs, "qw;", 3) || !strcmp(tdirs, "qw"))
     {
         tdirs += 2;
-        if(*tdirs == ';') tdirs++;
+        if(*tdirs == ';')
+        {
+            tdirs++;
+        }
     }
     if(!strncmp(odirs, "qw;", 3) ||
         !strcmp(odirs, "qw")) // need to cope with ourselves setting it that way
                               // too, just in case.
     {
         odirs += 2;
-        if(*odirs == ';') odirs++;
+        if(*odirs == ';')
+        {
+            odirs++;
+        }
     }
 
     // okay, now check it properly
-    if(!strcmp(odirs, tdirs)) return true;
+    if(!strcmp(odirs, tdirs))
+    {
+        return true;
+    }
     return false;
 }
 // ---

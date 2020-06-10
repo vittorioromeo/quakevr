@@ -380,7 +380,10 @@ bool Datagram_ProcessPacket(unsigned int length, qsocket_t* sock)
     flags = length & (~NETFLAG_LENGTH_MASK);
     length &= NETFLAG_LENGTH_MASK;
 
-    if(flags & NETFLAG_CTL) return false; // should only be for OOB packets.
+    if(flags & NETFLAG_CTL)
+    {
+        return false; // should only be for OOB packets.
+    }
 
     sequence = BigLong(packetBuffer.sequence);
     packetsReceived++;
@@ -426,7 +429,9 @@ bool Datagram_ProcessPacket(unsigned int length, qsocket_t* sock)
         {
             sock->ackSequence++;
             if(sock->ackSequence != sock->sendSequence)
+            {
                 Con_DPrintf("ack sequencing error\n");
+            }
         }
         else
         {
@@ -506,9 +511,15 @@ qsocket_t* Datagram_GetAnyMessage(void)
         net_landriverlevel++)
     {
         sys_socket_t sock;
-        if(!dfunc.initialized) continue;
+        if(!dfunc.initialized)
+        {
+            continue;
+        }
         sock = dfunc.listeningSock;
-        if(sock == INVALID_SOCKET) continue;
+        if(sock == INVALID_SOCKET)
+        {
+            continue;
+        }
 
         while(1)
         {
@@ -520,7 +531,10 @@ qsocket_t* Datagram_GetAnyMessage(void)
                 break;
             }
 
-            if(length < 4) continue;
+            if(length < 4)
+            {
+                continue;
+            }
             if(BigLong(packetBuffer.length) & NETFLAG_CTL)
             {
                 _Datagram_ServerControlPacket(
@@ -531,9 +545,18 @@ qsocket_t* Datagram_GetAnyMessage(void)
             // figure out which qsocket it was for
             for(s = net_activeSockets; s; s = s->next)
             {
-                if(s->driver != net_driverlevel) continue;
-                if(s->disconnected) continue;
-                if(!s->isvirtual) continue;
+                if(s->driver != net_driverlevel)
+                {
+                    continue;
+                }
+                if(s->disconnected)
+                {
+                    continue;
+                }
+                if(!s->isvirtual)
+                {
+                    continue;
+                }
                 if(dfunc.AddrCompare(&addr, &s->addr) == 0)
                 {
                     // okay, looks like this is us. try to process it, and if
@@ -550,12 +573,26 @@ qsocket_t* Datagram_GetAnyMessage(void)
     }
     for(s = net_activeSockets; s; s = s->next)
     {
-        if(s->driver != net_driverlevel) continue;
-        if(!s->isvirtual) continue;
+        if(s->driver != net_driverlevel)
+        {
+            continue;
+        }
+        if(!s->isvirtual)
+        {
+            continue;
+        }
 
         if(!s->canSend)
-            if((net_time - s->lastSendTime) > 1.0) ReSendMessage(s);
-        if(s->sendNext) SendMessageNext(s);
+        {
+            if((net_time - s->lastSendTime) > 1.0)
+            {
+                ReSendMessage(s);
+            }
+        }
+        if(s->sendNext)
+        {
+            SendMessageNext(s);
+        }
 
         if(net_time - s->lastMessageTime > ((!s->ackSequence)
                                                    ? net_connecttimeout.value
@@ -809,17 +846,21 @@ static void NET_Stats_f()
         {
             if(q_strcasecmp(Cmd_Argv(1), s->trueaddress) == 0 ||
                 q_strcasecmp(Cmd_Argv(1), s->maskedaddress) == 0)
+            {
                 break;
+            }
         }
 
         // QSS
-        if(s == NULL)
+        if(s == nullptr)
         {
             for(s = net_freeSockets; s; s = s->next)
             {
                 if(q_strcasecmp(Cmd_Argv(1), s->trueaddress) == 0 ||
                     q_strcasecmp(Cmd_Argv(1), s->maskedaddress) == 0)
+                {
                     break;
+                }
             }
         }
 
@@ -1293,7 +1334,9 @@ void Datagram_Listen(bool state)
         {
             net_landrivers[i].listeningSock = net_landrivers[i].Listen(state);
             if(net_landrivers[i].listeningSock != INVALID_SOCKET)
+            {
                 islistening = true;
+            }
 
             for(s = net_activeSockets; s; s = s->next)
             {
@@ -1307,7 +1350,10 @@ void Datagram_Listen(bool state)
     }
     if(state && !islistening)
     {
-        if(isDedicated) Sys_Error("Unable to open any listening sockets\n");
+        if(isDedicated)
+        {
+            Sys_Error("Unable to open any listening sockets\n");
+        }
         Con_Warning("Unable to open any listening sockets\n");
     }
 }
@@ -1328,7 +1374,10 @@ void Datagram_Rcon_Flush(const char* text)
     MSG_WriteLong(&msg, 0);
     MSG_WriteByte(&msg, CCREP_RCON);
     MSG_WriteString(&msg, text);
-    if(msg.overflowed) return;
+    if(msg.overflowed)
+    {
+        return;
+    }
     *((int*)msg.data) =
         BigLong(NETFLAG_CTL | (msg.cursize & NETFLAG_LENGTH_MASK));
     net_landrivers[rcon_response_landriver].Write(
@@ -1351,7 +1400,10 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
     control = BigLong(*((int*)data));
     if(control == -1)
     {
-        if(!sv_public.value) return;
+        if(!sv_public.value)
+        {
+            return;
+        }
         data[length] = 0;
         Cmd_TokenizeString((char*)data + 4);
         if(!strcmp(Cmd_Argv(0), "getinfo") || !strcmp(Cmd_Argv(0), "getstatus"))
@@ -1366,7 +1418,10 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
             unsigned int numclients = 0, numbots = 0;
             int i;
             size_t j;
-            if(!s) s = "";
+            if(!s)
+            {
+                s = "";
+            }
             q_strlcpy(cookie, s, sizeof(cookie));
 
             for(i = 0; i < svs.maxclients; i++)
@@ -1374,7 +1429,10 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
                 if(svs.clients[i].active)
                 {
                     numclients++;
-                    if(!svs.clients[i].netconnection) numbots++;
+                    if(!svs.clients[i].netconnection)
+                    {
+                        numbots++;
+                    }
                 }
             }
 
@@ -1449,7 +1507,9 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
                     {
                         float total = 0;
                         for(j = 0; j < NUM_PING_TIMES; j++)
+                        {
                             total += svs.clients[i].ping_times[j];
+                        }
                         total /= NUM_PING_TIMES;
                         total *= 1000; // put it in ms
 
@@ -1469,8 +1529,14 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
         }
         return;
     }
-    if((control & (~NETFLAG_LENGTH_MASK)) != (int)NETFLAG_CTL) return;
-    if((control & NETFLAG_LENGTH_MASK) != length) return;
+    if((control & (~NETFLAG_LENGTH_MASK)) != (int)NETFLAG_CTL)
+    {
+        return;
+    }
+    if((control & NETFLAG_LENGTH_MASK) != length)
+    {
+        return;
+    }
 
     // sigh... FIXME: potentially abusive memcpy
     SZ_Clear(&net_message);
@@ -1482,7 +1548,10 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
     command = MSG_ReadByte();
     if(command == CCREQ_SERVER_INFO)
     {
-        if(Q_strcmp(MSG_ReadString(), "QUAKE") != 0) return;
+        if(Q_strcmp(MSG_ReadString(), "QUAKE") != 0)
+        {
+            return;
+        }
 
         SZ_Clear(&net_message);
         // save space for the header, filled in later
@@ -1519,11 +1588,17 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
             if(client->active)
             {
                 activeNumber++;
-                if(activeNumber == playerNumber) break;
+                if(activeNumber == playerNumber)
+                {
+                    break;
+                }
             }
         }
 
-        if(clientNumber == svs.maxclients) return;
+        if(clientNumber == svs.maxclients)
+        {
+            return;
+        }
 
         SZ_Clear(&net_message);
         // save space for the header, filled in later
@@ -1593,30 +1668,44 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
         rcon_response_landriver = net_landriverlevel;
 
         if(!*rcon_password.string)
+        {
             response = "rcon is not enabled on this server";
+        }
         else if(!strcmp(password, rcon_password.string))
         {
             Con_Redirect(Datagram_Rcon_Flush);
             Cmd_ExecuteString(MSG_ReadString(), src_command);
-            Con_Redirect(NULL);
+            Con_Redirect(nullptr);
             return;
         }
         else if(!strcmp(password, "password"))
+        {
             response = "What, you really thought that would work? Seriously?";
+        }
         else if(!strcmp(password, "thebackdoor"))
+        {
             response =
                 "Oh look! You found the backdoor. Don't let it slam you in the "
                 "face on your way out.";
+        }
         else
+        {
             response = "Your password is just WRONG dude.";
+        }
 
         Datagram_Rcon_Flush(response);
         return;
     }
 
-    if(command != CCREQ_CONNECT) return;
+    if(command != CCREQ_CONNECT)
+    {
+        return;
+    }
 
-    if(Q_strcmp(MSG_ReadString(), "QUAKE") != 0) return;
+    if(Q_strcmp(MSG_ReadString(), "QUAKE") != 0)
+    {
+        return;
+    }
 
     if(MSG_ReadByte() != NET_PROTOCOL_VERSION)
     {
@@ -1635,7 +1724,10 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
 
     // read proquake extensions
     mod = MSG_ReadByte();
-    if(msg_badread) mod = 0;
+    if(msg_badread)
+    {
+        mod = 0;
+    }
 #if 0
 	mod_ver = MSG_ReadByte();
 	if (msg_badread) mod_ver = 0;
@@ -1676,8 +1768,14 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
     // see if this guy is already connected
     for(s = net_activeSockets; s; s = s->next)
     {
-        if(s->driver != net_driverlevel) continue;
-        if(s->disconnected) continue;
+        if(s->driver != net_driverlevel)
+        {
+            continue;
+        }
+        if(s->disconnected)
+        {
+            continue;
+        }
         ret = dfunc.AddrCompare(clientaddr, &s->addr);
         if(ret == 0)
         {
@@ -1739,13 +1837,22 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
 
     // find a free player slot
     for(plnum = 0; plnum < svs.maxclients; plnum++)
-        if(!svs.clients[plnum].active) break;
+    {
+        if(!svs.clients[plnum].active)
+        {
+            break;
+        }
+    }
     if(plnum < svs.maxclients)
+    {
         sock = NET_NewQSocket();
+    }
     else
-        sock = NULL; // can happen due to botclients.
+    {
+        sock = nullptr; // can happen due to botclients.
+    }
 
-    if(sock == NULL)
+    if(sock == nullptr)
     {
         // no room; try to let him know
         SZ_Clear(&net_message);
@@ -1816,7 +1923,10 @@ qsocket_t* Datagram_CheckNewConnections(void)
 
             for(k = 0; net_masters[k].string; k++)
             {
-                if(!*net_masters[k].string) continue;
+                if(!*net_masters[k].string)
+                {
+                    continue;
+                }
                 for(net_landriverlevel = 0;
                     net_landriverlevel < net_numlandrivers;
                     net_landriverlevel++)
@@ -1828,16 +1938,20 @@ qsocket_t* Datagram_CheckNewConnections(void)
                                net_masters[k].string, &addr) >= 0)
                         {
                             if(sv_reportheartbeats.value)
+                            {
                                 Con_Printf("Sending heartbeat to %s\n",
                                     net_masters[k].string);
+                            }
                             dfunc.Write(dfunc.listeningSock, (byte*)str,
                                 strlen(str), &addr);
                         }
                         else
                         {
                             if(sv_reportheartbeats.value)
+                            {
                                 Con_Printf("Unable to resolve %s\n",
                                     net_masters[k].string);
+                            }
                         }
                     }
                 }
@@ -1845,7 +1959,7 @@ qsocket_t* Datagram_CheckNewConnections(void)
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static void _Datagram_SendServerQuery(struct qsockaddr* addr, bool master)
@@ -1910,7 +2024,10 @@ static void Info_ReadKey(
     size_t keylen = strlen(key);
     while(*info)
     {
-        if(*info++ != '\\') break; // error / end-of-string
+        if(*info++ != '\\')
+        {
+            break; // error / end-of-string
+        }
 
         if(!strncmp(info, key, keylen) && info[keylen] == '\\')
         {
@@ -1919,7 +2036,10 @@ static void Info_ReadKey(
             // skip the key name
             info += keylen + 1;
             // this is the old value for the key. copy it to the result
-            while(*info && *info != '\\' && o < e) *o++ = *info++;
+            while(*info && *info != '\\' && o < e)
+            {
+                *o++ = *info++;
+            }
             *o++ = 0;
 
             // success!
@@ -1928,12 +2048,21 @@ static void Info_ReadKey(
         else
         {
             // skip the key
-            while(*info && *info != '\\') info++;
+            while(*info && *info != '\\')
+            {
+                info++;
+            }
 
             // validate that its a value now
-            if(*info++ != '\\') break; // error
+            if(*info++ != '\\')
+            {
+                break; // error
+            }
             // skip the value
-            while(*info && *info != '\\') info++;
+            while(*info && *info != '\\')
+            {
+                info++;
+            }
         }
     }
     *out = 0;
@@ -1953,7 +2082,10 @@ static bool _Datagram_SearchForHosts(bool xmit)
     dfunc.GetSocketAddr(dfunc.controlSock, &myaddr);
     if(xmit)
     {
-        for(i = 0; i < hostlist_count; i++) hostlist[i].requery = true;
+        for(i = 0; i < hostlist_count; i++)
+        {
+            hostlist[i].requery = true;
+        }
 
         SZ_Clear(&net_message);
         // save space for the header, filled in later
@@ -1974,7 +2106,10 @@ static bool _Datagram_SearchForHosts(bool xmit)
             size_t m;
             for(m = 0; net_masters[m].string; m++)
             {
-                if(!*net_masters[m].string) continue;
+                if(!*net_masters[m].string)
+                {
+                    continue;
+                }
                 if(dfunc.GetAddrFromName(net_masters[m].string, &masteraddr) >=
                     0)
                 {
@@ -1982,21 +2117,28 @@ static bool _Datagram_SearchForHosts(bool xmit)
                     while(*prot)
                     { // send a request for each protocol
                         prot = COM_Parse(prot);
-                        if(!prot) break;
+                        if(!prot)
+                        {
+                            break;
+                        }
                         if(*com_token)
                         {
                             if(masteraddr.qsa_family == AF_INET6)
+                            {
                                 str =
                                     va("%c%c%c%cgetserversExt %s %u empty full "
                                        "ipv6" /*\x0A\n"*/,
                                         255, 255, 255, 255, com_token,
                                         NET_PROTOCOL_VERSION);
+                            }
                             else
+                            {
                                 str = va(
                                     "%c%c%c%cgetservers %s %u empty full" /*\x0A\n"*/
                                     ,
                                     255, 255, 255, 255, com_token,
                                     NET_PROTOCOL_VERSION);
+                            }
                             dfunc.Write(dfunc.controlSock, (byte*)str,
                                 strlen(str), &masteraddr);
                         }
@@ -2010,17 +2152,26 @@ static bool _Datagram_SearchForHosts(bool xmit)
     while((ret = dfunc.Read(dfunc.controlSock, net_message.data,
                net_message.maxsize, &readaddr)) > 0)
     {
-        if(ret < (int)sizeof(int)) continue;
+        if(ret < (int)sizeof(int))
+        {
+            continue;
+        }
         net_message.cursize = ret;
 
         // don't answer our own query
         // Note: this doesn't really work too well if we're multi-homed.
         // we should probably just refuse to respond to serverinfo requests
         // while we're scanning (chances are our server is going to die anyway).
-        if(dfunc.AddrCompare(&readaddr, &myaddr) >= 0) continue;
+        if(dfunc.AddrCompare(&readaddr, &myaddr) >= 0)
+        {
+            continue;
+        }
 
         // is the cache full?
-        if(hostCacheCount == HOSTCACHESIZE) continue;
+        if(hostCacheCount == HOSTCACHESIZE)
+        {
+            continue;
+        }
 
         MSG_BeginReading();
         control = BigLong(*((int*)net_message.data));
@@ -2042,34 +2193,45 @@ static bool _Datagram_SearchForHosts(bool xmit)
                             memset(&addr, 0, sizeof(addr));
                             addr.qsa_family = AF_INET;
                             for(i = 0; i < 4; i++)
+                            {
                                 ((byte*)&((struct sockaddr_in*)&addr)
                                         ->sin_addr)[i] = MSG_ReadByte();
+                            }
                             ((byte*)&((struct sockaddr_in*)&addr)
                                     ->sin_port)[0] = MSG_ReadByte();
                             ((byte*)&((struct sockaddr_in*)&addr)
                                     ->sin_port)[1] = MSG_ReadByte();
                             if(!((struct sockaddr_in*)&addr)->sin_port)
+                            {
                                 msg_badread = true;
+                            }
                             break;
                         case '/':
                             memset(&addr, 0, sizeof(addr));
                             addr.qsa_family = AF_INET6;
                             for(i = 0; i < 16; i++)
+                            {
                                 ((byte*)&((struct sockaddr_in6*)&addr)
                                         ->sin6_addr)[i] = MSG_ReadByte();
+                            }
                             ((byte*)&((struct sockaddr_in6*)&addr)
                                     ->sin6_port)[0] = MSG_ReadByte();
                             ((byte*)&((struct sockaddr_in6*)&addr)
                                     ->sin6_port)[1] = MSG_ReadByte();
                             if(!((struct sockaddr_in6*)&addr)->sin6_port)
+                            {
                                 msg_badread = true;
+                            }
                             break;
                         default:
                             memset(&addr, 0, sizeof(addr));
                             msg_badread = true;
                             break;
                     }
-                    if(msg_badread) break;
+                    if(msg_badread)
+                    {
+                        break;
+                    }
                     _Datagram_AddPossibleHost(&addr, true);
                     sentsomething = true;
                 }
@@ -2085,13 +2247,18 @@ static bool _Datagram_SearchForHosts(bool xmit)
                 for(n = 0; n < hostCacheCount; n++)
                 {
                     if(dfunc.AddrCompare(&readaddr, &hostcache[n].addr) == 0)
+                    {
                         break;
+                    }
                 }
 
                 // is it already there?
                 if(n < hostCacheCount)
                 {
-                    if(*hostcache[n].cname) continue;
+                    if(*hostcache[n].cname)
+                    {
+                        continue;
+                    }
                 }
                 else
                 {
@@ -2132,7 +2299,10 @@ static bool _Datagram_SearchForHosts(bool xmit)
                 // check for a name conflict
                 for(i = 0; i < hostCacheCount; i++)
                 {
-                    if(i == n) continue;
+                    if(i == n)
+                    {
+                        continue;
+                    }
                     if(q_strcasecmp(hostcache[n].cname, hostcache[i].cname) ==
                         0)
                     { // this is a dupe.
@@ -2148,7 +2318,9 @@ static bool _Datagram_SearchForHosts(bool xmit)
                             hostcache[n].name[i + 1] = 0;
                         }
                         else
+                        {
                             hostcache[n].name[i - 1]++;
+                        }
 
                         i = -1;
                     }
@@ -2156,10 +2328,19 @@ static bool _Datagram_SearchForHosts(bool xmit)
             }
             continue;
         }
-        if((control & (~NETFLAG_LENGTH_MASK)) != (int)NETFLAG_CTL) continue;
-        if((control & NETFLAG_LENGTH_MASK) != ret) continue;
+        if((control & (~NETFLAG_LENGTH_MASK)) != (int)NETFLAG_CTL)
+        {
+            continue;
+        }
+        if((control & NETFLAG_LENGTH_MASK) != ret)
+        {
+            continue;
+        }
 
-        if(MSG_ReadByte() != CCREP_SERVER_INFO) continue;
+        if(MSG_ReadByte() != CCREP_SERVER_INFO)
+        {
+            continue;
+        }
 
         MSG_ReadString();
         // dfunc.GetAddrFromName(MSG_ReadString(), &peeraddr);
@@ -2175,13 +2356,19 @@ static bool _Datagram_SearchForHosts(bool xmit)
         // search the cache for this server
         for(n = 0; n < hostCacheCount; n++)
         {
-            if(dfunc.AddrCompare(&readaddr, &hostcache[n].addr) == 0) break;
+            if(dfunc.AddrCompare(&readaddr, &hostcache[n].addr) == 0)
+            {
+                break;
+            }
         }
 
         // is it already there?
         if(n < hostCacheCount)
         {
-            if(*hostcache[n].cname) continue;
+            if(*hostcache[n].cname)
+            {
+                continue;
+            }
         }
         else
         {
@@ -2209,7 +2396,10 @@ static bool _Datagram_SearchForHosts(bool xmit)
         // check for a name conflict
         for(i = 0; i < hostCacheCount; i++)
         {
-            if(i == n) continue;
+            if(i == n)
+            {
+                continue;
+            }
             if(q_strcasecmp(hostcache[n].cname, hostcache[i].cname) == 0)
             { // this is a dupe.
                 hostCacheCount--;
@@ -2224,7 +2414,9 @@ static bool _Datagram_SearchForHosts(bool xmit)
                     hostcache[n].name[i + 1] = 0;
                 }
                 else
+                {
                     hostcache[n].name[i - 1]++;
+                }
 
                 i = -1;
             }
@@ -2243,7 +2435,10 @@ static bool _Datagram_SearchForHosts(bool xmit)
                     &hostlist[i].addr, hostlist[i].master);
                 sentsomething = true;
                 n--;
-                if(!n) break;
+                if(!n)
+                {
+                    break;
+                }
             }
         }
     }
@@ -2256,9 +2451,14 @@ bool Datagram_SearchForHosts(bool xmit)
     for(net_landriverlevel = 0; net_landriverlevel < net_numlandrivers;
         net_landriverlevel++)
     {
-        if(hostCacheCount == HOSTCACHESIZE) break;
+        if(hostCacheCount == HOSTCACHESIZE)
+        {
+            break;
+        }
         if(net_landrivers[net_landriverlevel].initialized)
+        {
             ret |= _Datagram_SearchForHosts(xmit);
+        }
     }
     return ret;
 }
@@ -2276,15 +2476,24 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
     const char* reason;
 
     newsock = dfunc.Open_Socket(0);
-    if(newsock == INVALID_SOCKET) return NULL;
+    if(newsock == INVALID_SOCKET)
+    {
+        return nullptr;
+    }
 
     sock = NET_NewQSocket();
-    if(sock == NULL) goto ErrorReturn2;
+    if(sock == nullptr)
+    {
+        goto ErrorReturn2;
+    }
     sock->socket = newsock;
     sock->landriver = net_landriverlevel;
 
     // connect to the host
-    if(dfunc.Connect(newsock, serveraddr) == -1) goto ErrorReturn;
+    if(dfunc.Connect(newsock, serveraddr) == -1)
+    {
+        goto ErrorReturn;
+    }
 
     sock->proquake_angle_hack = true;
 
@@ -2404,7 +2613,10 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
             }
         } while(ret == 0 && (SetNetTime() - start_time) < 2.5);
 
-        if(ret) break;
+        if(ret)
+        {
+            break;
+        }
 
         Con_SafePrintf("still trying...\n");
         SCR_UpdateScreen();
@@ -2441,11 +2653,13 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
         int port;
         Q_memcpy(&sock->addr, serveraddr, sizeof(struct qsockaddr));
         port = MSG_ReadLong();
-        if(port) // spike --- don't change the remote port if the server doesn't
-                 // want us to. this allows servers to use port forwarding with
-                 // less issues, assuming the server uses the same port for all
-                 // clients.
+        if(port)
+        {   // spike --- don't change the remote port if the server doesn't
+            // want us to. this allows servers to use port forwarding with
+            // less issues, assuming the server uses the same port for all
+            // clients.
             dfunc.SetSocketPort(&sock->addr, port);
+        }
     }
     else
     {
@@ -2474,7 +2688,9 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
             sock->proquake_angle_hack = true;
         }
         else
+        {
             sock->proquake_angle_hack = false;
+        }
     }
 
 dpserveraccepted:
@@ -2543,15 +2759,15 @@ ErrorReturn2:
         m_state = m_return_state;
         m_return_onerror = false;
 
-           // TODO VR: (P0) QSS merge
+        // TODO VR: (P0) QSS merge
         // IN_UpdateGrabs();
     }
-    return NULL;
+    return nullptr;
 }
 
 qsocket_t* Datagram_Connect(const char* host)
 {
-    qsocket_t* ret = NULL;
+    qsocket_t* ret = nullptr;
     bool resolved = false;
     struct qsockaddr addr;
 
@@ -2567,11 +2783,17 @@ qsocket_t* Datagram_Connect(const char* host)
             if(dfunc.GetAddrFromName(host, &addr) != -1)
             {
                 resolved = true;
-                if((ret = _Datagram_Connect(&addr)) != NULL) break;
+                if((ret = _Datagram_Connect(&addr)) != nullptr)
+                {
+                    break;
+                }
             }
         }
     }
-    if(!resolved) Con_SafePrintf("Could not resolve %s\n", host);
+    if(!resolved)
+    {
+        Con_SafePrintf("Could not resolve %s\n", host);
+    }
     return ret;
 }
 
@@ -2585,11 +2807,19 @@ int Datagram_QueryAddresses(qhostaddr_t* addresses, int maxaddresses)
     for(net_landriverlevel = 0; net_landriverlevel < net_numlandrivers;
         net_landriverlevel++)
     {
-        if(!net_landrivers[net_landriverlevel].initialized) continue;
-        if(result == maxaddresses) break;
+        if(!net_landrivers[net_landriverlevel].initialized)
+        {
+            continue;
+        }
+        if(result == maxaddresses)
+        {
+            break;
+        }
         if(net_landrivers[net_landriverlevel].QueryAddresses)
+        {
             result += net_landrivers[net_landriverlevel].QueryAddresses(
                 addresses + result, maxaddresses - result);
+        }
     }
     return result;
 }

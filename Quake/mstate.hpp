@@ -85,4 +85,3 @@ enum m_state_e
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;
-

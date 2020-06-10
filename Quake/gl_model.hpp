@@ -103,15 +103,15 @@ struct texture_t
 {
     char name[16];
     unsigned width, height;
-    gltexture_t* gltexture;       // johnfitz -- pointer to gltexture
-    gltexture_t* fullbright;      // johnfitz -- fullbright mask texture
-    gltexture_t* warpimage;       // johnfitz -- for water animation
+    gltexture_t* gltexture;              // johnfitz -- pointer to gltexture
+    gltexture_t* fullbright;             // johnfitz -- fullbright mask texture
+    gltexture_t* warpimage;              // johnfitz -- for water animation
     bool update_warp;                    // johnfitz -- update warp this frame
     struct msurface_s* texturechains[2]; // for texture chains
     int anim_total;                      // total tenths in sequence ( 0 = no)
     int anim_min, anim_max;              // time for this frame min <=time< max
-    texture_t* anim_next;         // in the animation sequence
-    texture_t* alternate_anims;   // bmodels in frmae 1 use these
+    texture_t* anim_next;                // in the animation sequence
+    texture_t* alternate_anims;          // bmodels in frmae 1 use these
     unsigned offsets[MIPLEVELS];         // four mip maps stored
 };
 
@@ -157,10 +157,10 @@ typedef struct glpoly_s
 
 typedef struct msurface_s
 {
-    int visframe;   // should be drawn when node is crossed
-    bool culled;    // johnfitz -- for frustum culling
-    qvec3 mins; // johnfitz -- for frustum culling
-    qvec3 maxs; // johnfitz -- for frustum culling
+    int visframe; // should be drawn when node is crossed
+    bool culled;  // johnfitz -- for frustum culling
+    qvec3 mins;   // johnfitz -- for frustum culling
+    qvec3 maxs;   // johnfitz -- for frustum culling
 
     mplane_t* plane;
     int flags;
@@ -390,12 +390,12 @@ struct aliashdr_t
 
     int numposes;
     int poseverts;
-    int posedata; // numposes*poseverts trivert_t
-    int commands; // gl command list with embedded s/t
+    int posedata;                          // numposes*poseverts trivert_t
+    int commands;                          // gl command list with embedded s/t
     gltexture_t* gltextures[MAX_SKINS][4]; // johnfitz
     gltexture_t* fbtextures[MAX_SKINS][4]; // johnfitz
-    int texels[MAX_SKINS];                        // only for player skins
-    maliasframedesc_t frames[1];                  // variable sized
+    int texels[MAX_SKINS];                 // only for player skins
+    maliasframedesc_t frames[1];           // variable sized
 };
 
 #define MAXALIASVERTS 2000 // johnfitz -- was 1024

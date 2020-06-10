@@ -157,7 +157,7 @@ void CL_Disconnect()
         NET_SendUnreliableMessage(cls.netcon, &cls.message);
         SZ_Clear(&cls.message);
         NET_Close(cls.netcon);
-        cls.netcon = NULL; // QSS
+        cls.netcon = nullptr; // QSS
 
         cls.state = ca_disconnected;
         if(sv.active)
@@ -171,14 +171,14 @@ void CL_Disconnect()
     cls.signon = 0;
 
     // QSS
-    cls.netcon = NULL;
+    cls.netcon = nullptr;
     if(cls.download.file)
     {
         fclose(cls.download.file);
     }
     memset(&cls.download, 0, sizeof(cls.download));
     cl.intermission = 0;
-    cl.worldmodel = NULL;
+    cl.worldmodel = nullptr;
     cl.sendprespawn = false;
 }
 

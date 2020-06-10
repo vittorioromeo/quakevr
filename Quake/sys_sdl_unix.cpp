@@ -57,7 +57,10 @@ static int findhandle()
 
     for(i = 1; i < MAX_HANDLES; i++)
     {
-        if(!sys_handles[i]) return i;
+        if(!sys_handles[i])
+        {
+            return i;
+        }
     }
     Sys_Error("out of handles");
     return -1;
@@ -308,11 +311,17 @@ static void Sys_GetBasedir(char* argv0, char* dst, size_t dstsize)
         Sys_Error("Couldn't determine current directory");
 
     tmp = dst;
-    while(*tmp != 0) tmp++;
+    while(*tmp != 0)
+    {
+        tmp++;
+    }
     while(*tmp == 0 && tmp != dst)
     {
         --tmp;
-        if(tmp != dst && *tmp == '/') *tmp = 0;
+        if(tmp != dst && *tmp == '/')
+        {
+            *tmp = 0;
+        }
     }
 }
 #endif
@@ -369,7 +378,10 @@ void Sys_Error(const char* error, ...)
     fputs(errortxt2, stderr);
     fputs(text, stderr);
     fputs("\n\n", stderr);
-    if(!isDedicated) PL_ErrorDialog(text);
+    if(!isDedicated)
+    {
+        PL_ErrorDialog(text);
+    }
 
     exit(1);
 }

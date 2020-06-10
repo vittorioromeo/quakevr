@@ -1519,8 +1519,8 @@ void SV_Physics_Toss(edict_t* ent)
 
                     ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
                     ent->v.velocity = ent->v.avelocity = vec3_zero;
-                    ent->v.origin = qvec3(traceBuffer.endpos) -
-                                    ent->v.mins[2] - qvec3(offsetBuffer);
+                    ent->v.origin = qvec3(traceBuffer.endpos) - ent->v.mins[2] -
+                                    qvec3(offsetBuffer);
 
                     SV_LinkEdict(ent, true);
                     SV_PushEntityImpact(ent, traceBuffer);

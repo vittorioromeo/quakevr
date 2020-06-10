@@ -60,7 +60,9 @@ sys_socket_t UDP4_Init()
     struct qsockaddr addr;
 
     if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp4"))
+    {
         return INVALID_SOCKET;
+    }
 
     // determine my name & address
     myAddr4 = htonl(INADDR_LOOPBACK);
@@ -113,7 +115,10 @@ sys_socket_t UDP4_Init()
     UDP_GetSocketAddr(net_controlsocket4, &addr);
     strcpy(my_ipv4_address, UDP_AddrToString(&addr, false));
     tst = strrchr(my_ipv4_address, ':');
-    if(tst) *tst = 0;
+    if(tst)
+    {
+        *tst = 0;
+    }
 
     Con_SafePrintf("UDP4 Initialized\n");
     ipv4Available = true;
@@ -179,7 +184,9 @@ sys_socket_t UDP4_OpenSocket(int port)
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons((unsigned short)port);
     if(bind(newsocket, (struct sockaddr*)&address, sizeof(address)) == 0)
+    {
         return newsocket;
+    }
 
 ErrorReturn:
     err = SOCKETERRNO;
@@ -192,7 +199,10 @@ ErrorReturn:
 
 int UDP_CloseSocket(sys_socket_t socketid)
 {
-    if(socketid == net_broadcastsocket4) net_broadcastsocket4 = INVALID_SOCKET;
+    if(socketid == net_broadcastsocket4)
+    {
+        net_broadcastsocket4 = INVALID_SOCKET;
+    }
     return closesocket(socketid);
 }
 
@@ -215,7 +225,10 @@ static int PartialIPAddress(const char* in, struct qsockaddr* hostaddr)
     buff[0] = '.';
     b = buff;
     strcpy(buff + 1, in);
-    if(buff[1] == '.') b++;
+    if(buff[1] == '.')
+    {
+        b++;
+    }
 
     addr = 0;
     mask = -1;
@@ -227,19 +240,31 @@ static int PartialIPAddress(const char* in, struct qsockaddr* hostaddr)
         while(!(*b < '0' || *b > '9'))
         {
             num = num * 10 + *b++ - '0';
-            if(++run > 3) return -1;
+            if(++run > 3)
+            {
+                return -1;
+            }
         }
         if((*b < '0' || *b > '9') && *b != '.' && *b != ':' && *b != 0)
+        {
             return -1;
-        if(num < 0 || num > 255) return -1;
+        }
+        if(num < 0 || num > 255)
+        {
+            return -1;
+        }
         mask <<= 8;
         addr = (addr << 8) + num;
     }
 
     if(*b++ == ':')
+    {
         port = atoi(b);
+    }
     else
+    {
         port = net_hostport;
+    }
 
     hostaddr->qsa_family = AF_INET;
     ((struct sockaddr_in*)hostaddr)->sin_port = htons((unsigned short)port);
@@ -265,14 +290,20 @@ sys_socket_t UDP4_CheckNewConnections()
     socklen_t fromlen;
     char buff[1];
 
-    if(net_acceptsocket4 == INVALID_SOCKET) return INVALID_SOCKET;
+    if(net_acceptsocket4 == INVALID_SOCKET)
+    {
+        return INVALID_SOCKET;
+    }
 
     if(ioctl(net_acceptsocket4, FIONREAD, &available) == -1)
     {
         int err = SOCKETERRNO;
         Sys_Error("UDP: ioctlsocket (FIONREAD) failed (%s)", socketerror(err));
     }
-    if(available) return net_acceptsocket4;
+    if(available)
+    {
+        return net_acceptsocket4;
+    }
     // quietly absorb empty packets
     recvfrom(net_acceptsocket4, buff, 0, 0, (struct sockaddr*)&from, &fromlen);
     return INVALID_SOCKET;
@@ -289,7 +320,10 @@ int UDP_Read(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr)
     if(ret == SOCKET_ERROR)
     {
         int err = SOCKETERRNO;
-        if(err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED) return 0;
+        if(err == NET_EWOULDBLOCK || err == NET_ECONNREFUSED)
+        {
+            return 0;
+        }
         Con_SafePrintf("UDP_Read, recvfrom: %s\n", socketerror(err));
     }
     return ret;
@@ -342,9 +376,13 @@ int UDP_Write(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr)
     int ret;
     socklen_t addrsize;
     if(addr->qsa_family == AF_INET)
+    {
         addrsize = sizeof(struct sockaddr_in);
+    }
     else if(addr->qsa_family == AF_INET6)
+    {
         addrsize = sizeof(struct sockaddr_in6);
+    }
     else
     {
         Con_SafePrintf("UDP_Write: unknown family\n");
@@ -353,16 +391,26 @@ int UDP_Write(sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr)
     }
 
     ret = sendto(socketid, buf, len, 0, (struct sockaddr*)addr, addrsize);
-    if(!addr->qsa_family) Con_SafePrintf("UDP_Write: family was cleared\n");
+    if(!addr->qsa_family)
+    {
+        Con_SafePrintf("UDP_Write: family was cleared\n");
+    }
     if(ret == SOCKET_ERROR)
     {
         int err = SOCKETERRNO;
-        if(err == NET_EWOULDBLOCK) return 0;
+        if(err == NET_EWOULDBLOCK)
+        {
+            return 0;
+        }
         if(err == ENETUNREACH)
+        {
             Con_SafePrintf("UDP_Write: %s (%s)\n", socketerror(err),
                 UDP_AddrToString(addr, false));
+        }
         else
+        {
             Con_SafePrintf("UDP_Write, sendto: %s\n", socketerror(err));
+        }
     }
     return ret;
 }
@@ -402,7 +450,9 @@ const char* UDP_AddrToString(struct qsockaddr* addr, bool masked)
         }
     }
     else
+    {
         strcpy(buffer, "?");
+    }
     return buffer;
 }
 
@@ -429,21 +479,28 @@ int UDP_GetSocketAddr(sys_socket_t socketid, struct qsockaddr* addr)
     in_addr_t a;
 
     memset(addr, 0, sizeof(struct qsockaddr));
-    if(getsockname(socketid, (struct sockaddr*)addr, &addrlen) != 0) return -1;
+    if(getsockname(socketid, (struct sockaddr*)addr, &addrlen) != 0)
+    {
+        return -1;
+    }
 
     if(addr->qsa_family == AF_INET)
     {
         a = ((struct sockaddr_in*)addr)->sin_addr.s_addr;
         if(a == 0 || a == htonl(INADDR_LOOPBACK))
+        {
             ((struct sockaddr_in*)addr)->sin_addr.s_addr = myAddr4;
+        }
     }
     else if(addr->qsa_family == AF_INET6)
     {
         static const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
         if(!memcmp(&((struct sockaddr_in6*)addr)->sin6_addr, &in6addr_any,
                sizeof(in6addr_any)))
+        {
             memcpy(&((struct sockaddr_in6*)addr)->sin6_addr, &myAddrv6,
                 sizeof(((struct sockaddr_in6*)addr)->sin6_addr));
+        }
     }
 
     return 0;
@@ -482,21 +539,32 @@ int UDP4_GetAddrFromName(const char* name, struct qsockaddr* addr)
     const char* colon;
     unsigned short port = net_hostport;
 
-    if(name[0] >= '0' && name[0] <= '9') return PartialIPAddress(name, addr);
+    if(name[0] >= '0' && name[0] <= '9')
+    {
+        return PartialIPAddress(name, addr);
+    }
 
     colon = std::strrchr(name, ':');
     if(colon)
     {
         char dupe[MAXHOSTNAMELEN];
-        if(colon - name + 1 > MAXHOSTNAMELEN) return -1;
+        if(colon - name + 1 > MAXHOSTNAMELEN)
+        {
+            return -1;
+        }
         memcpy(dupe, name, colon - name);
         dupe[colon - name] = 0;
         hostentry = gethostbyname(dupe);
-        port = strtoul(colon + 1, NULL, 10);
+        port = strtoul(colon + 1, nullptr, 10);
     }
     else
+    {
         hostentry = gethostbyname(name);
-    if(!hostentry || hostentry->h_addrtype != AF_INET) return -1;
+    }
+    if(!hostentry || hostentry->h_addrtype != AF_INET)
+    {
+        return -1;
+    }
 
     addr->qsa_family = AF_INET;
     ((struct sockaddr_in*)addr)->sin_port = htons(port);
@@ -510,17 +578,24 @@ int UDP4_GetAddrFromName(const char* name, struct qsockaddr* addr)
 
 int UDP_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2)
 {
-    if(addr1->qsa_family != addr2->qsa_family) return -1;
+    if(addr1->qsa_family != addr2->qsa_family)
+    {
+        return -1;
+    }
 
     if(addr1->qsa_family == AF_INET)
     {
         if(((struct sockaddr_in*)addr1)->sin_addr.s_addr !=
             ((struct sockaddr_in*)addr2)->sin_addr.s_addr)
+        {
             return -1;
+        }
 
         if(((struct sockaddr_in*)addr1)->sin_port !=
             ((struct sockaddr_in*)addr2)->sin_port)
+        {
             return 1;
+        }
 
         return 0;
     }
@@ -529,25 +604,32 @@ int UDP_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2)
         if(memcmp(&((struct sockaddr_in6*)addr1)->sin6_addr,
                &((struct sockaddr_in6*)addr2)->sin6_addr,
                sizeof(((struct sockaddr_in6*)addr1)->sin6_addr)))
+        {
             return -1;
+        }
 
         if(((struct sockaddr_in6*)addr1)->sin6_port !=
             ((struct sockaddr_in6*)addr2)->sin6_port)
+        {
             return 1;
+        }
 
         if(((struct sockaddr_in6*)addr1)->sin6_scope_id &&
             ((struct sockaddr_in6*)addr2)->sin6_scope_id &&
             ((struct sockaddr_in6*)addr1)->sin6_scope_id !=
-                ((struct sockaddr_in6*)addr2)
-                    ->sin6_scope_id) // the ipv6 scope id is for use with
-                                     // link-local addresses, to identify the
-                                     // specific interface.
+                ((struct sockaddr_in6*)addr2)->sin6_scope_id)
+        {   // the ipv6 scope id is for use with
+            // link-local addresses, to identify the
+            // specific interface.
             return 1;
+        }
 
         return 0;
     }
     else
+    {
         return -1;
+    }
 }
 
 //=============================================================================
@@ -555,22 +637,34 @@ int UDP_AddrCompare(struct qsockaddr* addr1, struct qsockaddr* addr2)
 int UDP_GetSocketPort(struct qsockaddr* addr)
 {
     if(addr->qsa_family == AF_INET)
+    {
         return ntohs(((struct sockaddr_in*)addr)->sin_port);
+    }
     else if(addr->qsa_family == AF_INET6)
+    {
         return ntohs(((struct sockaddr_in6*)addr)->sin6_port);
+    }
     else
+    {
         return -1;
+    }
 }
 
 
 int UDP_SetSocketPort(struct qsockaddr* addr, int port)
 {
     if(addr->qsa_family == AF_INET)
+    {
         ((struct sockaddr_in*)addr)->sin_port = htons((unsigned short)port);
+    }
     else if(addr->qsa_family == AF_INET6)
+    {
         ((struct sockaddr_in6*)addr)->sin6_port = htons((unsigned short)port);
+    }
     else
+    {
         return -1;
+    }
     return 0;
 }
 
@@ -584,7 +678,9 @@ sys_socket_t UDP6_Init()
     struct qsockaddr addr;
 
     if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp6"))
+    {
         return INVALID_SOCKET;
+    }
 
     // TODO: determine my name & address
 
@@ -598,7 +694,10 @@ sys_socket_t UDP6_Init()
     UDP_GetSocketAddr(net_controlsocket6, &addr);
     strcpy(my_ipv6_address, UDP_AddrToString(&addr, false));
     colon = strrchr(my_ipv6_address, ':');
-    if(colon) *colon = 0;
+    if(colon)
+    {
+        *colon = 0;
+    }
 
     Con_SafePrintf("UDPv6 Initialized\n");
     ipv6Available = true;
@@ -698,14 +797,20 @@ sys_socket_t UDP6_CheckNewConnections()
     socklen_t fromlen;
     char buff[1];
 
-    if(net_acceptsocket6 == INVALID_SOCKET) return INVALID_SOCKET;
+    if(net_acceptsocket6 == INVALID_SOCKET)
+    {
+        return INVALID_SOCKET;
+    }
 
     if(ioctl(net_acceptsocket6, FIONREAD, &available) == -1)
     {
         int err = SOCKETERRNO;
         Sys_Error("UDP6: ioctlsocket (FIONREAD) failed (%s)", socketerror(err));
     }
-    if(available) return net_acceptsocket6;
+    if(available)
+    {
+        return net_acceptsocket6;
+    }
     // quietly absorb empty packets
     fromlen = sizeof(from);
     recvfrom(net_acceptsocket6, buff, 0, 0, (struct sockaddr*)&from, &fromlen);
@@ -741,7 +846,7 @@ int UDP6_StringToAddr(const char* string, struct qsockaddr* addr)
 
 int UDP6_GetAddrFromName(const char* name, struct qsockaddr* addr)
 {
-    struct addrinfo* addrinfo = NULL;
+    struct addrinfo* addrinfo = nullptr;
     struct addrinfo* pos;
     struct addrinfo udp6hint;
     int error;
@@ -759,14 +864,19 @@ int UDP6_GetAddrFromName(const char* name, struct qsockaddr* addr)
     {
         port = std::strstr(name, "]");
         if(!port)
+        {
             error = EAI_NONAME;
+        }
         else
         {
             len = port - (name + 1);
-            if(len >= sizeof(dupbase)) len = sizeof(dupbase) - 1;
+            if(len >= sizeof(dupbase))
+            {
+                len = sizeof(dupbase) - 1;
+            }
             strncpy(dupbase, name + 1, len);
             dupbase[len] = '\0';
-            error = getaddrinfo(dupbase, (port[1] == ':') ? port + 2 : NULL,
+            error = getaddrinfo(dupbase, (port[1] == ':') ? port + 2 : nullptr,
                 &udp6hint, &addrinfo);
         }
     }
@@ -777,18 +887,25 @@ int UDP6_GetAddrFromName(const char* name, struct qsockaddr* addr)
         if(port)
         {
             len = port - name;
-            if(len >= sizeof(dupbase)) len = sizeof(dupbase) - 1;
+            if(len >= sizeof(dupbase))
+            {
+                len = sizeof(dupbase) - 1;
+            }
             strncpy(dupbase, name, len);
             dupbase[len] = '\0';
             error = getaddrinfo(dupbase, port + 1, &udp6hint, &addrinfo);
         }
         else
+        {
             error = EAI_NONAME;
-        if(error) // failed, try string with no port.
-            error = getaddrinfo(name, NULL, &udp6hint,
+        }
+        if(error)
+        { // failed, try string with no port.
+            error = getaddrinfo(name, nullptr, &udp6hint,
                 &addrinfo); // remember, this func will return any address
-                            // family that could be using the udp protocol...
-                            // (ip4 or ip6)
+        }
+        // family that could be using the udp protocol...
+        // (ip4 or ip6)
     }
 
     if(!error)
@@ -816,12 +933,16 @@ int UDP6_GetAddrFromName(const char* name, struct qsockaddr* addr)
         if(((struct sockaddr*)addr)->sa_family == AF_INET)
         {
             if(!((struct sockaddr_in*)addr)->sin_port)
+            {
                 ((struct sockaddr_in*)addr)->sin_port = htons(net_hostport);
+            }
         }
         else if(((struct sockaddr*)addr)->sa_family == AF_INET6)
         {
             if(!((struct sockaddr_in6*)addr)->sin6_port)
+            {
                 ((struct sockaddr_in6*)addr)->sin6_port = htons(net_hostport);
+            }
         }
         return 0;
     }

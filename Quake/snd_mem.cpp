@@ -88,17 +88,25 @@ static void ResampleSfx(sfx_t* sfx, int inrate, int inwidth, byte* data)
             srcsample <<= 1;
             samplefrac += fracstep;
             if(inwidth == 2)
+            {
                 sample = LittleShort(((short*)data)[srcsample]) +
                          LittleShort(((short*)data)[srcsample + 1]);
+            }
             else
+            {
                 sample =
                     ((int)((unsigned char)(data[srcsample]) - 128) << 8) +
                     ((int)((unsigned char)(data[srcsample + 1]) - 128) << 8);
+            }
             sample /= 2;
             if(sc->width == 2)
+            {
                 ((short*)sc->data)[i] = sample;
+            }
             else
+            {
                 ((signed char*)sc->data)[i] = sample >> 8;
+            }
         }
     }
     else
@@ -181,7 +189,10 @@ sfxcache_t* S_LoadSound(sfx_t* s)
         // FIXME: I hate depending on extensions for this sort of thing. Its not
         // a very quakey thing to do.
         snd_stream_t* stream = S_CodecOpenStreamExt(namebuffer);
-        if(!stream) stream = S_CodecOpenStreamExt(s->name);
+        if(!stream)
+        {
+            stream = S_CodecOpenStreamExt(s->name);
+        }
         if(stream)
         {
             size_t decodedsize = 1024 * 1024 * 16;
@@ -198,7 +209,10 @@ sfxcache_t* S_LoadSound(sfx_t* s)
 
             sc = (sfxcache_t*)Cache_Alloc(
                 &s->cache, res + sizeof(sfxcache_t), s->name);
-            if(!sc) return NULL;
+            if(!sc)
+            {
+                return nullptr;
+            }
 
             sc->length = res / stream->info.channels;
             sc->loopstart = -1;
@@ -220,7 +234,7 @@ sfxcache_t* S_LoadSound(sfx_t* s)
     // QSS
     if(!data)
     {
-        data = COM_LoadStackFile(s->name, stackbuf, sizeof(stackbuf), NULL);
+        data = COM_LoadStackFile(s->name, stackbuf, sizeof(stackbuf), nullptr);
     }
 
     if(!data)

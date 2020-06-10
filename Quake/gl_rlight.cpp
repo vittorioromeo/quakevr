@@ -338,8 +338,8 @@ RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via
 lordhavoc
 =============
 */
-int RecursiveLightPoint(qvec3& color, mnode_t* node, const qvec3& start,
-    const qvec3& end)
+int RecursiveLightPoint(
+    qvec3& color, mnode_t* node, const qvec3& start, const qvec3& end)
 {
     float front;
     float back;

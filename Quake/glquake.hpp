@@ -74,7 +74,7 @@ typedef struct surfcache_s
     unsigned height; // DEBUG only needed for debug
     float mipscale;
     texture_t* texture; // checked for animating textures
-    byte data[4];              // width*height elements
+    byte data[4];       // width*height elements
 } surfcache_t;
 
 
@@ -444,4 +444,3 @@ void GLSLGamma_GammaCorrect();
 void R_ScaleView_DeleteTexture();
 
 float GL_WaterAlphaForSurface(msurface_t* fa);
-
