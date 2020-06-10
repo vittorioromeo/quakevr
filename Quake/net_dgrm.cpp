@@ -502,7 +502,7 @@ bool Datagram_ProcessPacket(unsigned int length, qsocket_t* sock)
     return false;
 }
 
-qsocket_t* Datagram_GetAnyMessage(void)
+qsocket_t* Datagram_GetAnyMessage()
 {
     qsocket_t* s;
     struct qsockaddr addr;
@@ -1906,7 +1906,7 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
     SV_ConnectClient(plnum);
 }
 
-qsocket_t* Datagram_CheckNewConnections(void)
+qsocket_t* Datagram_CheckNewConnections()
 {
     // only needs to do master stuff now
     if(sv_public.value > 0)
@@ -2654,7 +2654,7 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
         Q_memcpy(&sock->addr, serveraddr, sizeof(struct qsockaddr));
         port = MSG_ReadLong();
         if(port)
-        {   // spike --- don't change the remote port if the server doesn't
+        { // spike --- don't change the remote port if the server doesn't
             // want us to. this allows servers to use port forwarding with
             // less issues, assuming the server uses the same port for all
             // clients.

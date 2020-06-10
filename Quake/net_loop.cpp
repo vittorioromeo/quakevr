@@ -204,7 +204,7 @@ int Loop_GetMessage(qsocket_t* sock)
 }
 
 // QSS
-qsocket_t* Loop_GetAnyMessage(void)
+qsocket_t* Loop_GetAnyMessage()
 {
     if(loop_server)
     {

@@ -360,7 +360,7 @@ static void FindChunk(const char* name)
 }
 
 #if 0
-static void DumpChunks (void)
+static void DumpChunks()
 {
 	char	str[5];
 

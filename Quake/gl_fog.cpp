@@ -424,7 +424,7 @@ so fog is preserved when starting a demo recording
 =============
 */
 // QSS
-const char* Fog_GetFogCommand(void)
+const char* Fog_GetFogCommand()
 {
     if(fade_done)
     { // if this mod is using dynamic fog, make sure we start with the right

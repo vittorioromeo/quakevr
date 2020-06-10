@@ -72,7 +72,7 @@ WSADATA winsockdata;
 #if !defined(_USE_WINSOCK2)
 static double blocktime;
 
-static INT_PTR PASCAL FAR BlockingHook(void)
+static INT_PTR PASCAL FAR BlockingHook()
 {
     MSG msg;
     BOOL ret;
@@ -99,7 +99,7 @@ static INT_PTR PASCAL FAR BlockingHook(void)
 #endif /* ! _USE_WINSOCK2 */
 
 
-static void WINIPv4_GetLocalAddress(void)
+static void WINIPv4_GetLocalAddress()
 {
     struct hostent* local = nullptr;
     char buff[MAXHOSTNAMELEN];
@@ -144,7 +144,7 @@ static void WINIPv4_GetLocalAddress(void)
 }
 
 
-sys_socket_t WINIPv4_Init(void)
+sys_socket_t WINIPv4_Init()
 {
     int i, err;
     char buff[MAXHOSTNAMELEN];
@@ -225,7 +225,7 @@ sys_socket_t WINIPv4_Init(void)
 
 //=============================================================================
 
-void WINIPv4_Shutdown(void)
+void WINIPv4_Shutdown()
 {
     WINIPv4_Listen(false);
     WINS_CloseSocket(netv4_controlsocket);
@@ -396,7 +396,7 @@ int WINS_Connect(sys_socket_t socketid, struct qsockaddr* addr)
 
 //=============================================================================
 
-sys_socket_t WINIPv4_CheckNewConnections(void)
+sys_socket_t WINIPv4_CheckNewConnections()
 {
     char buf[4096];
 
@@ -839,7 +839,7 @@ int WINS_SetSocketPort(struct qsockaddr* addr, int port)
 // winxp (and possibly win2k) is dual stack.
 // vista+ has a hybrid stack
 
-static void WINIPv6_GetLocalAddress(void)
+static void WINIPv6_GetLocalAddress()
 {
     char buff[MAXHOSTNAMELEN];
     int err;
@@ -889,7 +889,7 @@ static void WINIPv6_GetLocalAddress(void)
     }
 }
 
-sys_socket_t WINIPv6_Init(void)
+sys_socket_t WINIPv6_Init()
 {
     int i;
     char buff[MAXHOSTNAMELEN];
@@ -999,7 +999,7 @@ sys_socket_t WINIPv6_Listen(bool state)
     }
     return netv6_acceptsocket;
 }
-void WINIPv6_Shutdown(void)
+void WINIPv6_Shutdown()
 {
     WINIPv6_Listen(false);
     WINS_CloseSocket(netv6_controlsocket);
@@ -1059,7 +1059,7 @@ ErrorReturn:
     closesocket(newsocket);
     return INVALID_SOCKET;
 }
-sys_socket_t WINIPv6_CheckNewConnections(void)
+sys_socket_t WINIPv6_CheckNewConnections()
 {
     char buf[4096];
 

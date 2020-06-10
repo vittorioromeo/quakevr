@@ -1248,7 +1248,7 @@ we're not already connected
 ==================
 */
 // QSS
-void Host_Reconnect_Con_f(void)
+void Host_Reconnect_Con_f()
 {
     CL_Disconnect_f();
     cls.demonum = -1; // stop demo loop in case this fails
@@ -1263,7 +1263,7 @@ void Host_Reconnect_Con_f(void)
 }
 
 // QSS
-void Host_Reconnect_Sv_f(void)
+void Host_Reconnect_Sv_f()
 {
     if(cls.demoplayback) // cross-map demo playback fix from Baker
     {
@@ -1279,7 +1279,7 @@ void Host_Reconnect_Sv_f(void)
 // TODO VR: (P0): QSS Merge
 #if 0
 // QSS
-void Host_Lightstyle_f(void)
+void Host_Lightstyle_f()
 {
     CL_UpdateLightstyle(atoi(Cmd_Argv(1)), Cmd_Argv(2));
 }
@@ -3340,7 +3340,7 @@ void Host_Stopdemo_f()
 // download stuff
 // TODO VR: (P0): QSS Merge
 #if 0
-static void Host_Download_f(void)
+static void Host_Download_f()
 {
     const char* fname = Cmd_Argv(1);
     int fsize;
@@ -3415,7 +3415,7 @@ static void Host_Download_f(void)
     }
 }
 
-static void Host_StartDownload_f(void)
+static void Host_StartDownload_f()
 {
     if(cmd_source != src_client) return;
     if(host_client->download.file)

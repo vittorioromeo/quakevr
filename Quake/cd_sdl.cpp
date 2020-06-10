@@ -52,7 +52,7 @@ static float old_cdvolume;
 static bool hw_vol_works = true;
 
 
-static void CDAudio_Eject(void)
+static void CDAudio_Eject()
 {
     if(!cd_handle || !enabled) return;
 
@@ -63,7 +63,7 @@ static void CDAudio_Eject(void)
         Con_Printf("Unable to eject CD-ROM: %s\n", SDL_GetError());
 }
 
-static int CDAudio_GetAudioDiskInfo(void)
+static int CDAudio_GetAudioDiskInfo()
 {
     cdValid = false;
 
@@ -137,7 +137,7 @@ int CDAudio_Play(byte track, bool looping)
     return 0;
 }
 
-void CDAudio_Stop(void)
+void CDAudio_Stop()
 {
     if(!cd_handle || !enabled) return;
 
@@ -165,7 +165,7 @@ void CDAudio_Stop(void)
     endOfTrack = -1.0;
 }
 
-void CDAudio_Pause(void)
+void CDAudio_Pause()
 {
     if(!cd_handle || !enabled) return;
 
@@ -179,7 +179,7 @@ void CDAudio_Pause(void)
     pausetime = realtime;
 }
 
-void CDAudio_Resume(void)
+void CDAudio_Resume()
 {
     if(!cd_handle || !enabled) return;
 
@@ -194,7 +194,7 @@ void CDAudio_Resume(void)
     pausetime = -1.0;
 }
 
-static int get_first_audiotrk(void)
+static int get_first_audiotrk()
 {
     int i;
     for(i = 0; i < cd_handle->numtracks; ++i)
@@ -394,7 +394,7 @@ static bool CDAudio_SetVolume(float value)
     }
 }
 
-void CDAudio_Update(void)
+void CDAudio_Update()
 {
     CDstatus curstat;
     /*	static double	lastchk;*/
@@ -457,7 +457,7 @@ static const char* get_cddev_arg(const char* arg)
 #endif
 }
 
-static void export_cddev_arg(void)
+static void export_cddev_arg()
 {
 /* Bad ugly hack to workaround SDL's cdrom device detection.
  * not needed for windows due to the way SDL_cdrom works. */
@@ -472,7 +472,7 @@ static void export_cddev_arg(void)
 #endif
 }
 
-int CDAudio_Init(void)
+int CDAudio_Init()
 {
     int i, sdl_num_drives;
 
@@ -545,7 +545,7 @@ int CDAudio_Init(void)
     return 0;
 }
 
-void CDAudio_Shutdown(void)
+void CDAudio_Shutdown()
 {
     if(!cd_handle) return;
     CDAudio_Stop();
