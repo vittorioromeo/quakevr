@@ -4541,6 +4541,10 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P1): "I had a feeling that my controllers had also vibrations from
 // my colleages game activity" in online mp
 
+// TODO VR: (P1): "I found that if you force-grab a BSP item (ammo, health) and
+// you have more than you can carry, when it drops to the floor it becomes solid
+// and you can walk on it."
+
 
 // TODO VR: (P2) add tooltip to off-hand option menu in wpn config
 
