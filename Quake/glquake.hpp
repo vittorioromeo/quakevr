@@ -25,11 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma once
 
 #include "quakeglm_qvec3.hpp"
+#include "quakeglm_qvec4.hpp"
 #include "bspfile.hpp"
 #include "gl_model.hpp"
 #include "cvar.hpp"
 #include "vid.hpp"
 #include "refdef.hpp"
+#include "srcformat.hpp"
 
 #include <cstdint>
 
@@ -80,9 +82,9 @@ typedef struct surfcache_s
 
 typedef struct
 {
-    pixel_t* surfdat; // destination for generated surface
-    int rowbytes;     // destination logical width in bytes
-    msurface_t* surf; // description for surface to generate
+    pixel_t* surfdat;  // destination for generated surface
+    int rowbytes;      // destination logical width in bytes
+    surfcache_t* surf; // description for surface to generate
     fixed8_t lightadj[MAXLIGHTMAPS];
     // adjust for lightmap levels for dynamic lighting
     texture_t* texture; // corrected for animating textures
@@ -115,7 +117,8 @@ extern qvec3 r_origin;
 //
 extern refdef_t r_refdef;
 extern mleaf_t *r_viewleaf, *r_oldviewleaf;
-extern int d_lightstylevalue[256]; // 8.8 fraction of base light value
+extern int
+    d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light value
 
 extern cvar_t r_norefresh;
 extern cvar_t r_drawentities;
@@ -273,7 +276,7 @@ extern bool gl_texture_env_combine;
 extern bool gl_texture_env_add; // for GL_EXT_texture_env_add
 
 // johnfitz -- rendering statistics
-extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
+extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 extern int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 
@@ -347,6 +350,9 @@ typedef struct glsl_attrib_binding_s
 
 extern float map_wateralpha, map_lavaalpha, map_telealpha,
     map_slimealpha; // ericw
+extern float
+    map_fallbackalpha; // spike -- because we might want r_wateralpha to apply
+                       // to teleporters while water itself wasn't watervised
 
 // johnfitz -- fog functions called from outside gl_fog.c
 void Fog_ParseServerMessage();
@@ -360,10 +366,12 @@ void Fog_SetupFrame();
 void Fog_NewMap();
 void Fog_Init();
 void Fog_SetupState();
+const char* Fog_GetFogCommand(); // for demo recording
 
 void R_NewGame();
 
 struct dlight_t;
+void CL_UpdateLightstyle(unsigned int idx, const char* stylestring);
 
 void R_AnimateLight();
 void R_MarkSurfaces();
@@ -398,6 +406,7 @@ void GL_DeleteBModelVertexBuffer();
 void GL_BuildBModelVertexBuffer();
 void GLMesh_LoadVertexBuffers();
 void GLMesh_DeleteVertexBuffers();
+void GLMesh_LoadVertexBuffer(qmodel_t* m, aliashdr_t* hdr);
 void R_RebuildAllLightmaps();
 
 int R_LightPoint(const qvec3& p);
@@ -425,8 +434,13 @@ void GL_MakeAliasModelDisplayLists(qmodel_t* m, aliashdr_t* hdr);
 void Sky_Init();
 void Sky_DrawSky();
 void Sky_NewMap();
-void Sky_LoadTexture(texture_t* mt);
+void Sky_LoadTexture(
+    texture_t* mt, srcformat fmt, unsigned int width, unsigned int height);
 void Sky_LoadSkyBox(const char* name);
+extern bool skyroom_drawn;   // we draw a skyroom this frame
+extern bool skyroom_enabled; // we know where the skyroom is ...
+extern qvec4 skyroom_origin; //... and it is here. [3] is paralax scale
+extern qvec4 skyroom_orientation;
 
 void TexMgr_RecalcWarpImageSize();
 
