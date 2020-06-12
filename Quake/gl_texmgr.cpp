@@ -384,13 +384,21 @@ static void TexMgr_Imagedump_f()
         {
             buffer = (byte*)malloc(glt->width * glt->height * 4);
             glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-            Image_WriteTGA(tganame, buffer, glt->width, glt->height, 32, true);
+            if(!Image_WriteTGA(
+                   tganame, buffer, glt->width, glt->height, 32, true))
+            {
+                Con_Printf("Failure to write image %s\n", tganame);
+            }
         }
         else
         {
             buffer = (byte*)malloc(glt->width * glt->height * 3);
             glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
-            Image_WriteTGA(tganame, buffer, glt->width, glt->height, 24, true);
+            if(!Image_WriteTGA(
+                   tganame, buffer, glt->width, glt->height, 24, true))
+            {
+                Con_Printf("Failure to write image %s\n", tganame);
+            }
         }
         free(buffer);
     }

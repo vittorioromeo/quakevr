@@ -361,7 +361,6 @@ void BuildTris()
 }
 
 static void GL_MakeAliasModelDisplayLists_VBO();
-static void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr);
 
 /*
 ================
@@ -555,7 +554,7 @@ Upload the given alias model's mesh to a VBO
 Original code by MH from RMQEngine
 ================
 */
-static void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
+void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
 {
     int totalvbosize = 0;
     const aliasmesh_t* desc;

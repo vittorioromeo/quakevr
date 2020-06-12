@@ -406,7 +406,7 @@ void GL_DeleteBModelVertexBuffer();
 void GL_BuildBModelVertexBuffer();
 void GLMesh_LoadVertexBuffers();
 void GLMesh_DeleteVertexBuffers();
-void GLMesh_LoadVertexBuffer(qmodel_t* m, aliashdr_t* hdr);
+void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr);
 void R_RebuildAllLightmaps();
 
 int R_LightPoint(const qvec3& p);

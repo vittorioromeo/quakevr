@@ -1543,7 +1543,7 @@ static void _Datagram_ServerControlPacket(sys_socket_t acceptsock,
     SZ_Write(&net_message, data, length);
 
     MSG_BeginReading();
-    MSG_ReadLong();
+    (void)MSG_ReadLong();
 
     command = MSG_ReadByte();
     if(command == CCREQ_SERVER_INFO)
@@ -2175,7 +2175,7 @@ static bool _Datagram_SearchForHosts(bool xmit)
 
         MSG_BeginReading();
         control = BigLong(*((int*)net_message.data));
-        MSG_ReadLong();
+        (void)MSG_ReadLong();
         if(control == -1)
         {
             if(msg_readcount + 19 <= net_message.cursize &&
@@ -2342,7 +2342,7 @@ static bool _Datagram_SearchForHosts(bool xmit)
             continue;
         }
 
-        MSG_ReadString();
+        (void)MSG_ReadString();
         // dfunc.GetAddrFromName(MSG_ReadString(), &peeraddr);
         /*if (dfunc.AddrCompare(&readaddr, &peeraddr) != 0)
         {
@@ -2567,7 +2567,7 @@ static qsocket_t* _Datagram_Connect(struct qsockaddr* serveraddr)
                 MSG_BeginReading();
 
                 control = BigLong(*((int*)net_message.data));
-                MSG_ReadLong();
+                (void)MSG_ReadLong();
                 if(control == -1)
                 {
                     const char* s = MSG_ReadString();
