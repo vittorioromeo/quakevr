@@ -403,7 +403,7 @@ static void TexMgr_Imagedump_f()
 TexMgr_FrameUsage -- report texture memory usage for this frame
 ===============
 */
-float TexMgr_FrameUsage()
+[[nodiscard]] float TexMgr_FrameUsage()
 {
     float mb;
     float texels = 0;
@@ -441,7 +441,7 @@ float TexMgr_FrameUsage()
 TexMgr_FindTexture
 ================
 */
-gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name)
+[[nodiscard]] gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name)
 {
     gltexture_t* glt;
 
@@ -464,7 +464,7 @@ gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name)
 TexMgr_NewTexture
 ================
 */
-gltexture_t* TexMgr_NewTexture()
+[[nodiscard]] gltexture_t* TexMgr_NewTexture()
 {
     gltexture_t* glt;
 
@@ -826,7 +826,7 @@ void TexMgr_Init()
 TexMgr_Pad -- return smallest power of two greater than or equal to s
 ================
 */
-int TexMgr_Pad(int s)
+[[nodiscard]] int TexMgr_Pad(int s)
 {
     int i;
     for(i = 1; i < s; i <<= 1)
@@ -841,7 +841,7 @@ int TexMgr_Pad(int s)
 TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
 ===============
 */
-int TexMgr_SafeTextureSize(int s)
+[[nodiscard]] int TexMgr_SafeTextureSize(int s)
 {
     if(!gl_texture_NPOT)
     {
@@ -861,7 +861,7 @@ TexMgr_PadConditional -- only pad if a texture of that size would be padded.
 (used for tex coords)
 ================
 */
-int TexMgr_PadConditional(int s)
+[[nodiscard]] int TexMgr_PadConditional(int s)
 {
     if(s < TexMgr_SafeTextureSize(s))
     {
@@ -1362,7 +1362,8 @@ static byte* TexMgr_PadImageH(byte* in, int width, int height, byte padbyte)
     return data;
 }
 
-static byte* TexMgr_PreMultiply32(byte* in, size_t width, size_t height)
+[[nodiscard]] static byte* TexMgr_PreMultiply32(
+    byte* in, size_t width, size_t height)
 {
     size_t pixels = width * height;
     byte* out = (byte*)Hunk_Alloc(pixels * 4);
@@ -1488,7 +1489,7 @@ void TexMgr_BlockSize(srcformat format, int* bytes, int* width, int* height)
             break;
     }
 }
-size_t TexMgr_ImageSize(int width, int height, srcformat format)
+[[nodiscard]] size_t TexMgr_ImageSize(int width, int height, srcformat format)
 {
     int miplevel, mipwidth, mipheight;
     size_t mipbytes = 0, blockbytes;
@@ -1524,7 +1525,7 @@ size_t TexMgr_ImageSize(int width, int height, srcformat format)
             return mipbytes;
     }
 }
-srcformat TexMgr_FormatForName(const char* code)
+[[nodiscard]] srcformat TexMgr_FormatForName(const char* code)
 {
     size_t i;
     for(i = 0; i < sizeof(compressedformats) / sizeof(compressedformats[0]);
@@ -1536,7 +1537,7 @@ srcformat TexMgr_FormatForName(const char* code)
     }
     return srcformat::SRC_EXTERNAL;
 }
-srcformat TexMgr_FormatForCode(const char* code)
+[[nodiscard]] srcformat TexMgr_FormatForCode(const char* code)
 {
     size_t i;
     for(i = 0; i < sizeof(compressedformats) / sizeof(compressedformats[0]);
@@ -1760,9 +1761,9 @@ static void TexMgr_LoadLightmap(gltexture_t* glt, byte* data)
 TexMgr_LoadImage -- the one entry point for loading all textures
 ================
 */
-gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name, int width,
-    int height, srcformat format, byte* data, const char* source_file,
-    src_offset_t source_offset, unsigned flags)
+[[nodiscard]] gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name,
+    int width, int height, srcformat format, byte* data,
+    const char* source_file, src_offset_t source_offset, unsigned flags)
 {
     unsigned short crc;
     gltexture_t* glt;

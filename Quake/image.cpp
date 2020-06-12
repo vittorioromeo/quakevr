@@ -90,6 +90,12 @@ returns a pointer to hunk allocated RGBA data
 TODO: search order: tga png jpg pcx lmp
 ============
 */
+byte* Image_LoadImage(
+    const char* name, int* width, int* height, srcformat* fmt, bool* malloced)
+{
+    return Image_LoadImage(name, width, height);
+}
+
 byte* Image_LoadImage(const char* name, int* width, int* height)
 {
     FILE* f;
