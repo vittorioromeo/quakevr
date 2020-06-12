@@ -76,7 +76,7 @@ refdef_t r_refdef;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
-int d_lightstylevalue[256]; // 8.8 fraction of base light value
+int d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light value
 
 
 cvar_t r_norefresh = {"r_norefresh", "0", CVAR_NONE};
