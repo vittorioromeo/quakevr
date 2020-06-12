@@ -465,8 +465,7 @@ typedef struct
 #define MAXALIASTRIS 4096   // ericw -- was 2048
 extern aliashdr_t* pheader;
 extern stvert_t stverts[MAXALIASVERTS];
-// extern mtriangle_t* triangles;
-extern mtriangle_t triangles[MAXALIASTRIS];
+extern mtriangle_t* triangles;
 extern trivertx_t* poseverts_mdl[MAXALIASFRAMES];
 
 //===================================================================
