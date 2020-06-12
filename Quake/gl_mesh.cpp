@@ -423,13 +423,13 @@ void GL_MakeAliasModelDisplayLists(qmodel_t* m, aliashdr_t* hdr)
     // johnfitz
 
     trivertx_t* verts = (trivertx_t*)Hunk_Alloc(
-        paliashdr->numposes * paliashdr->poseverts * sizeof(trivertx_t));
+        paliashdr->nummorphposes * paliashdr->poseverts * sizeof(trivertx_t));
     paliashdr->posedata = (byte*)verts - (byte*)paliashdr;
-    for(i = 0; i < paliashdr->numposes; i++)
+    for(i = 0; i < paliashdr->nummorphposes; i++)
     {
         for(j = 0; j < numorder; j++)
         {
-            *verts++ = poseverts[i][vertexorder[j]];
+            *verts++ = poseverts_mdl[i][vertexorder[j]];
         }
     }
 
@@ -467,13 +467,13 @@ void GL_MakeAliasModelDisplayLists_VBO()
 
     // first, copy the verts onto the hunk
     verts = (trivertx_t*)Hunk_Alloc(
-        paliashdr->numposes * paliashdr->numverts * sizeof(trivertx_t));
+        paliashdr->nummorphposes * paliashdr->numverts * sizeof(trivertx_t));
     paliashdr->vertexes = (byte*)verts - (byte*)paliashdr;
-    for(i = 0; i < paliashdr->numposes; i++)
+    for(i = 0; i < paliashdr->nummorphposes; i++)
     {
         for(j = 0; j < paliashdr->numverts; j++)
         {
-            verts[i * paliashdr->numverts + j] = poseverts[i][j];
+            verts[i * paliashdr->numverts + j] = poseverts_mdl[i][j];
         }
     }
 
@@ -577,7 +577,7 @@ void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
     m->vboindexofs = 0;
 
     m->vboxyzofs = 0;
-    totalvbosize += (hdr->numposes * hdr->numverts_vbo *
+    totalvbosize += (hdr->nummorphposes * hdr->numverts_vbo *
                      sizeof(meshxyz_t)); // ericw -- what RMQEngine
                                          // called nummeshframes is
                                          // called numposes in QuakeSpasm
@@ -614,7 +614,7 @@ void GLMesh_LoadVertexBuffer(qmodel_t* m, const aliashdr_t* hdr)
     memset(vbodata, 0, totalvbosize);
 
     // fill in the vertices at the start of the buffer
-    for(f = 0; f < hdr->numposes;
+    for(f = 0; f < hdr->nummorphposes;
         f++) // ericw -- what RMQEngine called nummeshframes is
              // called numposes in QuakeSpasm
     {

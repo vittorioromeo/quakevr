@@ -2831,7 +2831,7 @@ mtriangle_t triangles[MAXALIASTRIS];
 
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
-trivertx_t* poseverts[MAXALIASFRAMES];
+trivertx_t* poseverts_mdl[MAXALIASFRAMES];
 int posenum;
 
 byte** player_8bit_texels_tbl;
@@ -2870,7 +2870,7 @@ void* Mod_LoadAliasFrame(void* pin, maliasframedesc_t* frame)
 
     pinframe = (trivertx_t*)(pdaliasframe + 1);
 
-    poseverts[posenum] = pinframe;
+    poseverts_mdl[posenum] = pinframe;
     posenum++;
 
     pinframe += pheader->numverts;
@@ -2924,7 +2924,7 @@ void* Mod_LoadAliasGroup(void* pin, maliasframedesc_t* frame)
             Sys_Error("posenum >= MAXALIASFRAMES");
         }
 
-        poseverts[posenum] = (trivertx_t*)((daliasframe_t*)ptemp + 1);
+        poseverts_mdl[posenum] = (trivertx_t*)((daliasframe_t*)ptemp + 1);
         posenum++;
 
         ptemp = (trivertx_t*)((daliasframe_t*)ptemp + 1) + pheader->numverts;
@@ -3204,13 +3204,13 @@ void Mod_CalcAliasBounds(aliashdr_t* a)
     }
 
     // process verts
-    for(int i = 0; i < a->numposes; i++)
+    for(int i = 0; i < a->nummorphposes; i++)
     {
         for(int j = 0; j < a->numverts; j++)
         {
             for(int k = 0; k < 3; k++)
             {
-                v[k] = poseverts[i][j].v[k] * pheader->scale[k] +
+                v[k] = poseverts_mdl[i][j].v[k] * pheader->scale[k] +
                        pheader->scale_origin[k];
             }
 
@@ -3486,7 +3486,7 @@ void Mod_LoadAliasModel(qmodel_t* mod, void* buffer)
         }
     }
 
-    pheader->numposes = posenum;
+    pheader->nummorphposes = posenum;
 
     mod->type = mod_alias;
 

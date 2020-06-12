@@ -466,7 +466,7 @@ typedef struct
 extern aliashdr_t* pheader;
 extern stvert_t stverts[MAXALIASVERTS];
 // extern mtriangle_t* triangles;
-extern mtriangle_t* triangles[MAXALIASTRIS];
+extern mtriangle_t triangles[MAXALIASTRIS];
 extern trivertx_t* poseverts_mdl[MAXALIASFRAMES];
 
 //===================================================================
