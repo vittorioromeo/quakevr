@@ -795,7 +795,7 @@ TODO: search order: tga png jpg pcx lmp
     const char* name, int* width, int* height, srcformat* fmt, bool* malloced)
 {
     FILE* f;
-    char* prefixes[3] = {"", "textures/", "textures/"};
+    constexpr const char* prefixes[3] = {"", "textures/", "textures/"};
     int i;
 
     *malloced = false;
