@@ -801,22 +801,7 @@ static void VID_Restart()
     VID_SyncCvars();
 
 // update mouse grab
-// TODO VR: (P0) QSS Merge
-#if 0
     IN_UpdateGrabs(); // QSS
-#else
-    if(key_dest == key_console || key_dest == key_menu)
-    {
-        if(modestate == MS_WINDOWED)
-        {
-            IN_Deactivate(true);
-        }
-        else if(modestate == MS_FULLSCREEN)
-        {
-            IN_Activate();
-        }
-    }
-#endif
 
     if(vr_enabled.value)
     {
@@ -1698,23 +1683,8 @@ void VID_Toggle()
 
         VID_SyncCvars();
 
-        // TODO VR: (P0) QSS Merge
-#if 0
         IN_UpdateGrabs(); // QSS
-#else
-        // update mouse grab
-        if(key_dest == key_console || key_dest == key_menu)
-        {
-            if(modestate == MS_WINDOWED)
-            {
-                IN_Deactivate(true);
-            }
-            else if(modestate == MS_FULLSCREEN)
-            {
-                IN_Activate();
-            }
-        }
-#endif
+
     }
     else
     {
@@ -2193,12 +2163,7 @@ static void VID_MenuKey(int key)
                     key_dest = key_game;
                     m_state = m_none;
 
-                    // TODO VR: (P0) QSS Merge
-#if 0
                     IN_UpdateGrabs(); // QSS
-#else
-                    IN_Activate();
-#endif
                     break;
                 }
 

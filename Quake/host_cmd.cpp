@@ -1005,23 +1005,12 @@ void Host_Map_f()
     CL_Disconnect();
     Host_ShutdownServer(false);
 
-// TODO VR: (P0): QSS Merge
-#if 1
-    if(cls.state != ca_dedicated)
-    {
-        IN_Activate();
-    }
-#endif
-
     key_dest = key_game; // remove console or menu
 
-// TODO VR: (P0): QSS Merge
-#if 0
     if(cls.state != ca_dedicated)
     {
         IN_UpdateGrabs();
     }
-#endif
 
     SCR_BeginLoadingPlaque();
 
@@ -1143,23 +1132,15 @@ void Host_Changelevel_f()
     }
     // johnfitz
 
-    // TODO VR: (P0): QSS Merge
-#if 1
-    if(cls.state != ca_dedicated)
-    {
-        IN_Activate(); // -- S.A.
-    }
-#endif
-
     key_dest = key_game; // remove console or menu
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     if(cls.state != ca_dedicated)
     {
         IN_UpdateGrabs(); // -- S.A.
     }
 
+    // TODO VR: (P0): QSS Merge
+#if 0
     PR_SwitchQCVM(&sv.qcvm);
 #endif
 

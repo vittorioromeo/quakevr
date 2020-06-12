@@ -1276,16 +1276,16 @@ void Key_UpdateForDest()
             if(forced && cls.state == ca_connected)
             {
                 forced = false;
-                IN_Activate();
                 key_dest = key_game;
+                IN_UpdateGrabs(); // QSS
             }
             break;
         case key_game:
             if(cls.state != ca_connected)
             {
                 forced = true;
-                IN_Deactivate(modestate == MS_WINDOWED);
                 key_dest = key_console;
+                IN_UpdateGrabs(); // QSS
                 break;
             }
             [[fallthrough]];

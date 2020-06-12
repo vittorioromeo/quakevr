@@ -346,9 +346,10 @@ void M_ToggleMenu_f()
             return;
         }
 
-        IN_Activate();
         key_dest = key_game;
         m_state = m_none;
+
+        IN_UpdateGrabs(); // QSS
         return;
     }
 
@@ -397,10 +398,11 @@ void M_Menu_Main_f()
         cls.demonum = -1;
     }
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_main;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Main_Draw()
@@ -417,10 +419,11 @@ void M_Main_Key(int key)
         case K_ESCAPE: [[fallthrough]];
         case K_BBUTTON:
         {
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
             cls.demonum = m_save_demonum;
+
+            IN_UpdateGrabs(); // QSS
             break;
 
             /*
@@ -487,10 +490,11 @@ void M_Main_Key(int key)
 
 void M_Menu_SinglePlayer_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_singleplayer;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_SinglePlayer_Draw()
@@ -511,8 +515,8 @@ std::size_t load_cursor; // 0 < load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES
 
 void M_Menu_NewGame_f(const char* map)
 {
-    IN_Activate();
     key_dest = key_game;
+    IN_UpdateGrabs(); // QSS
 
     if(sv.active)
     {
@@ -530,10 +534,11 @@ void M_Menu_Load_f()
     m_entersound = true;
     m_state = m_load;
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
 
     quake::saveutil::scanSaves();
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Menu_Save_f()
@@ -556,10 +561,11 @@ void M_Menu_Save_f()
     m_entersound = true;
     m_state = m_save;
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
 
     quake::saveutil::scanSaves();
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -647,8 +653,8 @@ void M_Load_Key(int k)
             }
 
             m_state = m_none;
-            IN_Activate();
             key_dest = key_game;
+            IN_UpdateGrabs(); // QSS
 
             // Host_Loadgame_f can't bring up the loading plaque because too
             // much stack space has been used, so do it now
@@ -715,9 +721,10 @@ void M_Save_Key(int k)
         case K_ABUTTON:
         {
             m_state = m_none;
-            IN_Activate();
             key_dest = key_game;
             Cbuf_AddText(va("save s%i\n", save_cursor));
+
+            IN_UpdateGrabs(); // QSS
             return;
         }
 
@@ -794,10 +801,11 @@ void M_Save_Key(int k)
 
 void M_Menu_BotControl_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_botcontrol;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_BotControl_Draw()
@@ -833,10 +841,11 @@ void M_BotControl_Key(int key)
 
 void M_Menu_MultiPlayer_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_multiplayer;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_MultiPlayer_Draw()
@@ -874,7 +883,6 @@ int setup_bottom;
 
 void M_Menu_Setup_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_setup;
     m_entersound = true;
@@ -882,6 +890,8 @@ void M_Menu_Setup_f()
     Q_strcpy(setup_hostname, hostname.string);
     setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
     setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Setup_Draw()
@@ -1100,7 +1110,6 @@ const char* net_helpMessage[] = {
 
 void M_Menu_Net_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_net;
     m_entersound = true;
@@ -1112,6 +1121,8 @@ void M_Menu_Net_f()
     }
     m_net_cursor--;
     M_Net_Key(K_DOWNARROW);
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -1294,10 +1305,11 @@ void M_Net_Key(int k)
 
 void M_Menu_Options_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_options;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_DrawSlider(int x, int y, float range)
@@ -2297,10 +2309,11 @@ void M_Options_Key(int k)
 
 void M_Menu_QuakeVRQuickSettings_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrquicksettings;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRQuickSettings_Draw()
@@ -2356,10 +2369,11 @@ static void forQVRSMenus(F&& f)
 
 void M_Menu_QuakeVRSettings_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrsettings;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRSettings_Draw()
@@ -3210,10 +3224,11 @@ static void forQVRDTMenus(F&& f)
 
 void M_Menu_QuakeVRDevTools_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrdevtools;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRDevTools_Draw()
@@ -3439,10 +3454,11 @@ static void forQVRCMMenus(F&& f)
 
 void M_Menu_QuakeVRChangeMap_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrchangemap;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRChangeMap_Draw()
@@ -3472,14 +3488,15 @@ const char* bindnames[][2] = {{"+attack", "attack"},
 #define NUMCOMMANDS (sizeof(bindnames) / sizeof(bindnames[0]))
 
 static int keys_cursor;
-static bool bind_grab;
+bool bind_grab; // QSS
 
 void M_Menu_Keys_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_keys;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3622,9 +3639,8 @@ void M_Keys_Key(int k)
         }
 
         bind_grab = false;
-        IN_Deactivate(
-            modestate ==
-            MS_WINDOWED); // deactivate because we're returning to the menu
+
+        IN_UpdateGrabs(); // QSS
         return;
     }
 
@@ -3663,7 +3679,7 @@ void M_Keys_Key(int k)
                 M_UnbindCommand(bindnames[keys_cursor][0]);
             }
             bind_grab = true;
-            IN_Activate(); // activate to allow mouse key binding
+            IN_UpdateGrabs(); // QSS
             break;
 
         case K_BACKSPACE: // delete bindings
@@ -3703,11 +3719,12 @@ int help_page;
 
 void M_Menu_Help_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_help;
     m_entersound = true;
     help_page = 0;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3759,12 +3776,13 @@ void M_Menu_Quit_f()
         return;
     }
     wasInMenus = (key_dest == key_menu);
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_quit_prevstate = m_state;
     m_state = m_quit;
     m_entersound = true;
     msgNumber = rand() & 7;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3779,16 +3797,16 @@ void M_Quit_Key(int key)
         }
         else
         {
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
+            IN_UpdateGrabs(); // QSS
         }
     }
     else
     {
-        IN_Deactivate(modestate == MS_WINDOWED);
         key_dest = key_console;
         Host_Quit_f();
+        IN_UpdateGrabs(); // QSS
     }
 }
 
@@ -3806,17 +3824,17 @@ void M_Quit_Char(int key)
             }
             else
             {
-                IN_Activate();
                 key_dest = key_game;
                 m_state = m_none;
+                IN_UpdateGrabs(); // QSS
             }
             break;
 
         case 'y':
         case 'Y':
-            IN_Deactivate(modestate == MS_WINDOWED);
             key_dest = key_console;
             Host_Quit_f();
+            IN_UpdateGrabs(); // QSS
             break;
 
         default: break;
@@ -3879,7 +3897,6 @@ char lanConfig_joinname[22];
 
 void M_Menu_LanConfig_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_lanconfig;
     m_entersound = true;
@@ -3903,6 +3920,8 @@ void M_Menu_LanConfig_f()
 
     m_return_onerror = false;
     m_return_reason[0] = 0;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4046,10 +4065,11 @@ void M_LanConfig_Key(int key)
             {
                 m_return_state = m_state;
                 m_return_onerror = true;
-                IN_Activate();
                 key_dest = key_game;
                 m_state = m_none;
                 Cbuf_AddText(va("connect \"%s\"\n", lanConfig_joinname));
+
+                IN_UpdateGrabs(); // QSS
                 break;
             }
 
@@ -4259,7 +4279,6 @@ int maxplayers;
 
 void M_Menu_GameOptions_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_gameoptions;
     m_entersound = true;
@@ -4273,6 +4292,8 @@ void M_Menu_GameOptions_f()
     {
         maxplayers = svs.maxclientslimit;
     }
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4575,14 +4596,15 @@ enum slistScope_e searchLastScope = SLIST_LAN; // QSS
 
 void M_Menu_Search_f(enum slistScope_e scope)
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_search;
     m_entersound = false;
     slistSilent = true;
     slistScope = searchLastScope = scope; // QSS
     searchComplete = false;
+
     NET_Slist_f();
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4638,7 +4660,6 @@ bool slist_sorted;
 
 void M_Menu_ServerList_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_slist;
     m_entersound = true;
@@ -4646,6 +4667,8 @@ void M_Menu_ServerList_f()
     m_return_onerror = false;
     m_return_reason[0] = 0;
     slist_sorted = false;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4711,11 +4734,12 @@ void M_ServerList_Key(int k)
             m_return_state = m_state;
             m_return_onerror = true;
             slist_sorted = false;
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
             Cbuf_AddText(
                 va("connect \"%s\"\n", NET_SlistPrintServerName(slist_cursor)));
+
+            IN_UpdateGrabs(); // QSS
             break;
 
         default: break;

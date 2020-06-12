@@ -148,7 +148,6 @@ void Con_ToggleConsole_f()
 
         if(cls.state == ca_connected)
         {
-            IN_Activate();
             key_dest = key_game;
         }
         else
@@ -158,12 +157,13 @@ void Con_ToggleConsole_f()
     }
     else
     {
-        IN_Deactivate(modestate == MS_WINDOWED);
         key_dest = key_console;
     }
 
     SCR_EndLoadingPlaque();
     memset(con_times, 0, sizeof(con_times));
+
+    IN_UpdateGrabs();
 }
 
 /*
@@ -1535,8 +1535,8 @@ void Con_NotifyBox(const char* text)
     Con_Printf("Press a key.\n");
     Con_Printf("%s", Con_Quakebar(40)); // johnfitz
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_console;
+    IN_UpdateGrabs();
 
     Key_BeginInputGrab();
     do
@@ -1552,9 +1552,11 @@ void Con_NotifyBox(const char* text)
     Key_EndInputGrab();
 
     Con_Printf("\n");
-    IN_Activate();
+
     key_dest = key_game;
     realtime = 0; // put the cursor back to invisible
+
+    IN_UpdateGrabs();
 }
 
 

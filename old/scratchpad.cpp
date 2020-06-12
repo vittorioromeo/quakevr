@@ -1,3 +1,87 @@
+if(ovr_DevicePose[iDevice].bPoseIsValid &&
+            ovrHMD->GetTrackedDeviceClass(iDevice) ==
+                vr::TrackedDeviceClass_HMD)
+        {
+            headVelocity = ovr_DevicePose[iDevice].vVelocity;
+
+            vr::HmdVector3_t headPos = Matrix34ToVector(
+                ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
+            headOrigin = {headPos.v[2], headPos.v[0], headPos.v[1]};
+
+            // TODO VR: (P2) this should use the player's appoximated body
+            // origin instead of the head origin, taking controllers into
+            // account. See comment below for more info.
+            qvec3 moveInTracking = headOrigin - lastHeadOrigin;
+            moveInTracking[0] *= -meters_to_units;
+            moveInTracking[1] *= -meters_to_units;
+            moveInTracking[2] = 0;
+
+            vr_roomscale_move =
+                Vec3RotateZ(moveInTracking, turnYaw * M_PI_DIV_180);
+
+            // ----------------------------------------------------------------
+            // VR: Scale room-scale movement scaling for easier dodging and
+            // to improve teleportation-based gameplay experience.
+            vr_roomscale_move *= vr_roomscale_move_mult.value;
+            // ----------------------------------------------------------------
+
+            lastHeadOrigin = headOrigin;
+            headOrigin -= lastHeadOrigin;
+
+            // TODO VR: (P2) these two lines are what keep the head position
+            // stable (attached to the player, instead of to the hmd). Should
+            // add some leeway for neck length, so player can look at their body
+            // without moving
+            headPos.v[0] = 0;
+            headPos.v[2] = 0;
+
+            const vr::HmdQuaternion_t headQuat = Matrix34ToQuaternion(
+                ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
+
+            const auto toQquat = [](const vr::HmdQuaternion_t& q)
+            {
+                return qquat(q.w, q.x, q.y, q.z);
+            };
+
+            const auto toHmdQuat = [](const qquat& q)
+            {
+                return vr::HmdQuaternion_t{ q.w, q.x, q.y, q.z };
+            };
+
+            const std::array eyeTransforms{
+                ovrHMD->GetEyeToHeadTransform(eyes[0].eye),
+                ovrHMD->GetEyeToHeadTransform(eyes[1].eye)};
+
+            vr::HmdVector3_t leyePos = Matrix34ToVector(eyeTransforms[0]);
+            vr::HmdVector3_t reyePos = Matrix34ToVector(eyeTransforms[1]);
+
+            vr::HmdQuaternion_t leyeQuat = Matrix34ToQuaternion(eyeTransforms[0]);
+            vr::HmdQuaternion_t reyeQuat = Matrix34ToQuaternion(eyeTransforms[1]);
+
+            const auto qHeadQuat = toQquat(headQuat);
+            auto qLeyeQuat = toQquat(leyeQuat);
+            auto qReyeQuat = toQquat(reyeQuat);
+
+            // qLeyeQuat.y *= 9.f;
+            // qReyeQuat.y *= 9.f;
+
+            // std::swap(qLeyeQuat.y, qLeyeQuat.x);
+            // std::swap(qReyeQuat.y, qReyeQuat.x);
+
+            leyePos = RotateVectorByQuaternion(leyePos, headQuat);
+            reyePos = RotateVectorByQuaternion(reyePos, headQuat);
+
+            HmdVec3RotateY(headPos, -turnYaw * M_PI_DIV_180);
+
+            HmdVec3RotateY(leyePos, -turnYaw * M_PI_DIV_180);
+            HmdVec3RotateY(reyePos, -turnYaw * M_PI_DIV_180);
+
+            eyes[0].position = AddVectors(headPos, leyePos);
+            eyes[1].position = AddVectors(headPos, reyePos);
+            eyes[0].orientation = toHmdQuat(qHeadQuat * qLeyeQuat);
+            eyes[1].orientation = toHmdQuat(qHeadQuat * qReyeQuat);
+        }
+
 Con_Printf("has handtouch\n");
 
 

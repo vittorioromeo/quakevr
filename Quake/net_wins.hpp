@@ -51,7 +51,7 @@ int WINIPv4_GetAddrFromName(const char* name, struct qsockaddr* addr);
 #ifdef IPPROTO_IPV6
 sys_socket_t WINIPv6_Init();
 void WINIPv6_Shutdown();
-sys_socket_t WINIPv6_Listen(boool state);
+sys_socket_t WINIPv6_Listen(bool state);
 int WINIPv6_GetAddresses(qhostaddr_t* addresses, int maxaddresses);
 sys_socket_t WINIPv6_OpenSocket(int port);
 sys_socket_t WINIPv6_CheckNewConnections();

@@ -37,6 +37,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static bool textmode;
 
+// QSS
+extern bool bind_grab; // from the menu code, so that we regrab the mouse in
+                           // order to pass inputs through
+
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
 #ifdef __APPLE__
@@ -202,49 +206,50 @@ static void IN_ReenableOSXMouseAccel()
 }
 #endif /* MACOS_X_ACCELERATION_HACK */
 
-
-void IN_Activate()
+// QSS
+static void IN_UpdateGrabs_Internal(bool forecerelease)
 {
-    if(no_mouse)
-    {
-        return;
-    }
+    bool wantcursor; // we're trying to get a cursor here...
+    bool freemouse;  // the OS should have a free cursor too...
+    bool needevents; // whether we want to receive events still
+
+    wantcursor =
+        (key_dest == key_console || (key_dest == key_menu && !bind_grab)) ||
+        (key_dest == key_game && cl.csqc_cursorforced);
+    freemouse =
+        wantcursor && (modestate == MS_WINDOWED ||
+                          (key_dest == key_game && cl.csqc_cursorforced));
+    needevents = (!wantcursor) || key_dest == key_game;
+
+    if(isDedicated) return;
+
+    if(forecerelease) needevents = freemouse = wantcursor = true;
 
 #ifdef MACOS_X_ACCELERATION_HACK
-    /* Save the status of mouse acceleration */
-    if(originalMouseSpeed == -1 && in_disablemacosxmouseaccel.value)
-        IN_DisableOSXMouseAccel();
+    if(!freemouse)
+    { /* Save the status of mouse acceleration */
+        if(originalMouseSpeed == -1 && in_disablemacosxmouseaccel.value)
+            IN_DisableOSXMouseAccel();
+    }
+    else if(originalMouseSpeed != -1)
+        IN_ReenableOSXMouseAccel();
 #endif
 
-    if(SDL_SetRelativeMouseMode(SDL_TRUE) != 0)
+    if(SDL_SetRelativeMouseMode(freemouse ? SDL_FALSE : SDL_TRUE) != 0)
     {
-        Con_Printf("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
+        Con_Printf("WARNING: SDL_SetRelativeMouseMode(%s) failed.\n",
+            freemouse ? "SDL_FALSE" : "SDL_TRUE");
     }
 
-    IN_EndIgnoringMouseEvents();
-
-    total_dx = 0;
-    total_dy = 0;
+    if(needevents)
+        IN_EndIgnoringMouseEvents();
+    else
+        IN_BeginIgnoringMouseEvents();
 }
 
-void IN_Deactivate(bool free_cursor)
+void IN_UpdateGrabs()
 {
-    if(no_mouse)
-    {
-        return;
-    }
-
-#ifdef MACOS_X_ACCELERATION_HACK
-    if(originalMouseSpeed != -1) IN_ReenableOSXMouseAccel();
-#endif
-
-    if(free_cursor)
-    {
-        SDL_SetRelativeMouseMode(SDL_FALSE);
-    }
-
-    /* discard all mouse events when input is deactivated */
-    IN_BeginIgnoringMouseEvents();
+    IN_UpdateGrabs_Internal(false);
 }
 
 void IN_StartupJoystick()
@@ -357,13 +362,13 @@ void IN_Init()
     Cvar_RegisterVariable(&joy_swapmovelook);
     Cvar_RegisterVariable(&joy_enable);
 
-    IN_Activate();
+    IN_UpdateGrabs(); // QSS
     IN_StartupJoystick();
 }
 
 void IN_Shutdown()
 {
-    IN_Deactivate(true);
+    IN_UpdateGrabs(); // QSS
     IN_ShutdownJoystick();
 }
 
@@ -371,8 +376,46 @@ extern cvar_t cl_maxpitch; /* johnfitz -- variable pitch clamping */
 extern cvar_t cl_minpitch; /* johnfitz -- variable pitch clamping */
 
 
-void IN_MouseMotion(int dx, int dy)
+void IN_MouseMotion(int dx, int dy, int wx, int wy)
 {
+    // QSS
+    if(key_dest != key_game && key_dest != key_message)
+    {
+        dx = dy = 0;
+    }
+
+// TODO VR: (P0): QSS Merge
+#if 0
+    else if(cl.qcvm.extfuncs.CSQC_InputEvent)
+    {
+        PR_SwitchQCVM(&cl.qcvm);
+        if(cl.csqc_cursorforced)
+        {
+            float s = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+            wx /= s;
+            wy /= s;
+
+            G_FLOAT(OFS_PARM0) = CSIE_MOUSEABS;
+            G_VECTORSET(OFS_PARM1, wx, wy, 0); // x
+            G_VECTORSET(OFS_PARM2, wy, 0, 0);  // y
+            G_VECTORSET(OFS_PARM3, 0, 0, 0);   // devid
+        }
+        else
+        {
+            G_FLOAT(OFS_PARM0) = CSIE_MOUSEDELTA;
+            G_VECTORSET(OFS_PARM1, dx, dy, 0); // x
+            G_VECTORSET(OFS_PARM2, dy, 0, 0);  // y
+            G_VECTORSET(OFS_PARM3, 0, 0, 0);   // devid
+        }
+        PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_InputEvent);
+        if(G_FLOAT(OFS_RETURN) || cl.csqc_cursorforced)
+        {
+            dx = dy = 0; // if the qc says it handled it, swallow the movement.
+        }
+        PR_SwitchQCVM(nullptr);
+    }
+#endif
+
     total_dx += dx;
     total_dy += dy;
 }
@@ -727,9 +770,20 @@ void IN_JoyMove(usercmd_t* cmd)
     cmd->forwardmove -= (cl_forwardspeed.value * speed * moveEased.y);
 
     cl.viewangles[YAW] -=
-        lookEased.x * joy_sensitivity_yaw.value * host_frametime;
+        lookEased.x * joy_sensitivity_yaw.value * host_frametime
+// TODO VR: (P0): QSS Merge
+#if 0
+        * cl.csqc_sensitivity
+#endif
+        ;
     cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value *
-                            (joy_invert.value ? -1.0 : 1.0) * host_frametime;
+                            (joy_invert.value ? -1.0 : 1.0) * host_frametime
+      // TODO VR: (P0): QSS Merge
+#if 0
+                            * cl.csqc_sensitivity
+#endif
+
+                        ;
 
     if(lookEased.x != 0 || lookEased.y != 0)
     {
@@ -765,7 +819,14 @@ void IN_MouseMove(usercmd_t* cmd)
     }
     else
     {
-        cl.viewangles[YAW] -= m_yaw.value * dmx;
+        cl.viewangles[YAW] -= m_yaw.value * dmx
+
+              // TODO VR: (P0): QSS Merge
+#if 0
+                            * cl.csqc_sensitivity
+#endif
+
+        ;
     }
 
     if(in_mlook.state & 1)
@@ -778,7 +839,15 @@ void IN_MouseMove(usercmd_t* cmd)
 
     if((in_mlook.state & 1) && !(in_strafe.state & 1))
     {
-        cl.viewangles[PITCH] += m_pitch.value * dmy;
+        cl.viewangles[PITCH] += m_pitch.value * dmy
+
+              // TODO VR: (P0): QSS Merge
+#if 0
+                            * cl.csqc_sensitivity
+#endif
+
+        ;
+
         /* johnfitz -- variable pitch clamping */
         if(cl.viewangles[PITCH] > cl_maxpitch.value)
         {
@@ -980,6 +1049,8 @@ void IN_SendKeyEvents()
     int key;
     bool down;
 
+    IN_UpdateGrabs(); // QSS
+
     while(SDL_PollEvent(&event))
     {
         switch(event.type)
@@ -992,6 +1063,12 @@ void IN_SendKeyEvents()
                 else if(event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
                 {
                     S_BlockSound();
+                }
+                else if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) // QSS
+                {
+                    vid.width = event.window.data1;
+                    vid.height = event.window.data2;
+                    Cvar_FindVar("scr_conscale")->callback(nullptr);
                 }
                 break;
             case SDL_TEXTINPUT:
@@ -1060,7 +1137,8 @@ void IN_SendKeyEvents()
                 break;
 
             case SDL_MOUSEMOTION:
-                IN_MouseMotion(event.motion.xrel, event.motion.yrel);
+                IN_MouseMotion(event.motion.xrel, event.motion.yrel,
+                    event.motion.x, event.motion.y);
                 break;
 
             case SDL_CONTROLLERDEVICEADDED:
