@@ -112,7 +112,6 @@ struct texture_t
     int anim_min, anim_max;              // time for this frame min <=time< max
     texture_t* anim_next;                // in the animation sequence
     texture_t* alternate_anims;          // bmodels in frmae 1 use these
-    unsigned offsets[MIPLEVELS];         // four mip maps stored
 };
 
 
@@ -172,6 +171,7 @@ typedef struct msurface_s
     short extents[2];
 
     int light_s, light_t; // gl lightmap coordinates
+    unsigned char lmshift;
 
     glpoly_t* polys; // multiple if warped
     struct msurface_s* texturechain;
@@ -186,7 +186,7 @@ typedef struct msurface_s
     // int is 32 bits, need an array for MAX_DLIGHTS > 32
 
     int lightmaptexturenum;
-    byte styles[MAXLIGHTMAPS];
+    unsigned short styles[MAXLIGHTMAPS];
     int cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
     bool cached_dlight;             // true if dynamic light in cache
     byte* samples;                  // [numstyles*surfsize]
@@ -311,6 +311,24 @@ typedef struct aliasmesh_s
     unsigned short vertindex;
 } aliasmesh_t;
 
+typedef struct meshxyz_mdl_s
+{
+    byte xyz[4];
+    signed char normal[4];
+} meshxyz_mdl_t;
+
+typedef struct meshxyz_mdl16_s
+{
+    unsigned short xyz[4];
+    signed char normal[4];
+} meshxyz_mdl16_t;
+
+typedef struct meshxyz_md3_s
+{
+    signed short xyz[4];
+    signed char normal[4];
+} meshxyz_md3_t;
+
 typedef struct meshxyz_s
 {
     byte xyz[4];
@@ -330,7 +348,7 @@ typedef struct
     float interval;
     trivertx_t bboxmin;
     trivertx_t bboxmax;
-    int frame;
+    //	int					frame;	//spike - this was redundant
     char name[16];
 } maliasframedesc_t;
 
@@ -386,25 +404,70 @@ struct aliashdr_t
     intptr_t indexes; // offset into extradata: numindexes unsigned shorts
     intptr_t
         vertexes; // offset into extradata: numposes*vertsperframe trivertx_t
+
+    intptr_t vbovertofs;
+    intptr_t vbostofs;
+    intptr_t eboofs;
     // ericw --
 
-    int numposes;
+    intptr_t nextsurface; // spike
+    int nummorphposes;    // spike -- renamed from numposes
     int poseverts;
-    int posedata;                          // numposes*poseverts trivert_t
-    int commands;                          // gl command list with embedded s/t
+    int posedata;          // numposes*poseverts trivert_t
+    int commands;          // gl command list with embedded s/t
+    int numboneposes;      // spike -- for iqm
+    int numbones;          // spike -- for iqm
+    intptr_t boneinfo;     // spike -- for iqm, boneinfo_t[numbones]
+    intptr_t boneposedata; // spike -- for iqm,
+                           // bonepose_t[numboneposes*numbones]
+    enum PoseVertType
+    {
+        PV_QUAKE1 = 1,                     // trivertx_t
+        PV_QUAKE3 = 2,                     // md3XyzNormal_t
+        PV_QUAKEFORGE,                     // trivertx16_t
+        PV_IQM,                            // iqmvert_t
+    } poseverttype;                        // spike
     gltexture_t* gltextures[MAX_SKINS][4]; // johnfitz
     gltexture_t* fbtextures[MAX_SKINS][4]; // johnfitz
-    int texels[MAX_SKINS];                 // only for player skins
+    intptr_t texels[MAX_SKINS];            // only for player skins
     maliasframedesc_t frames[1];           // variable sized
 };
 
-#define MAXALIASVERTS 2000 // johnfitz -- was 1024
-#define MAXALIASFRAMES 256
-#define MAXALIASTRIS 4096 // ericw -- was 2048
+typedef struct
+{
+    short xyz[3];
+    byte latlong[2];
+} md3XyzNormal_t;
+
+typedef struct
+{
+    float xyz[3];
+    float norm[3];
+    float st[2];   // these are separate for consistency
+    float rgba[4]; // because we can.
+    float weight[4];
+    byte idx[4];
+} iqmvert_t;
+typedef struct
+{
+    float mat[12];
+} bonepose_t; // pose data for a single bone.
+typedef struct
+{
+    int parent; //-1 for a root bone
+    char name[32];
+    bonepose_t inverse;
+} boneinfo_t;
+
+#define VANILLA_MAXALIASVERTS 1024
+#define MAXALIASVERTS 65536 // spike -- was 2000 //johnfitz -- was 1024
+#define MAXALIASFRAMES 1024 // spike -- was 256
+#define MAXALIASTRIS 4096   // ericw -- was 2048
 extern aliashdr_t* pheader;
 extern stvert_t stverts[MAXALIASVERTS];
-extern mtriangle_t triangles[MAXALIASTRIS];
-extern trivertx_t* poseverts[MAXALIASFRAMES];
+// extern mtriangle_t* triangles;
+extern mtriangle_t* triangles[MAXALIASTRIS];
+extern trivertx_t* poseverts_mdl[MAXALIASFRAMES];
 
 //===================================================================
 
@@ -416,9 +479,11 @@ typedef enum
 {
     mod_brush,
     mod_sprite,
-    mod_alias
+    mod_alias,
+    mod_ext_invalid
 } modtype_t;
 
+// Spike -- these are misnamed/ambiguous.
 #define EF_ROCKET 1         // leave a trail
 #define EF_GRENADE 2        // leave a trail
 #define EF_GIB 4            // leave a trail
@@ -436,6 +501,14 @@ typedef enum
     1024 // when fullbrights are disabled, use a hack to render this model
          // brighter
 // johnfitz
+// spike -- added this for particle stuff
+#define MOD_EMITREPLACE \
+    2048 // particle effect completely replaces the model (for flames or
+         // whatever).
+#define MOD_EMITFORWARDS \
+    4096 // particle effect is emitted forwards, rather than downwards. why
+         // down? good question.
+// spike
 
 struct qmodel_t
 {
@@ -449,6 +522,18 @@ struct qmodel_t
     synctype_t synctype;
 
     int flags;
+
+#ifdef PSET_SCRIPT
+    int emiteffect;  // spike -- this effect is emitted per-frame by entities
+                     // with this model
+    int traileffect; // spike -- this effect is used when entities move
+    struct skytris_s*
+        skytris; // spike -- surface-based particle emission for this model
+    struct skytriblock_s*
+        skytrimem;  // spike -- surface-based particle emission for this model
+                    // (for better cache performance+less allocs)
+    double skytime; // doesn't really cope with multiples. oh well...
+#endif
 
     //
     // volume occupied by the model graphics
@@ -515,13 +600,19 @@ struct qmodel_t
     bool viswarn; // for Mod_DecompressVis()
 
     int bspversion;
+    int contentstransparent; // spike -- added this so we can disable glitchy
+                             // wateralpha where its not supported.
 
     //
     // alias model
     //
 
     GLuint meshvbo;
+    byte* meshvboptr; // for non-vbo fallback.
+
     GLuint meshindexesvbo;
+    byte* meshindexesvboptr; // for non-ebo fallback.
+
     int vboindexofs; // offset in vbo of the hdr->numindexes unsigned shorts
     int vboxyzofs; // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
     int vbostofs;  // offset in vbo of hdr->numverts_vbo meshst_t
