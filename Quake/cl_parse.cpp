@@ -209,21 +209,21 @@ entity_t* CL_EntityNum(int num)
 
     if(num >= cl.num_entities)
     {
-        if(num >= cl_max_edicts)
+        if(num >= cl.max_edicts)
         {
             // johnfitz -- no more MAX_EDICTS
             Host_Error("CL_EntityNum: %i is an invalid number", num);
         }
         while(cl.num_entities <= num)
         {
-            cl_entities[cl.num_entities].colormap = vid.colormap;
-            cl_entities[cl.num_entities].lerpflags |=
+            cl.entities[cl.num_entities].colormap = vid.colormap;
+            cl.entities[cl.num_entities].lerpflags |=
                 LERP_RESETMOVE | LERP_RESETANIM; // johnfitz
             cl.num_entities++;
         }
     }
 
-    return &cl_entities[num];
+    return &cl.entities[num];
 }
 
 
@@ -289,7 +289,7 @@ void CL_ParseStartSoundPacket()
     }
     // johnfitz
 
-    if(ent > cl_max_edicts)
+    if(ent > cl.max_edicts)
     {
         // johnfitz -- no more MAX_EDICTS
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
@@ -510,16 +510,14 @@ void CL_ParseServerInfo()
         CL_KeepaliveMessage();
     }
 
-    S_BeginPrecaching();
     for(i = 1; i < numsounds; i++)
     {
         cl.sound_precache[i] = S_PrecacheSound(sound_precache[i]);
         CL_KeepaliveMessage();
     }
-    S_EndPrecaching();
 
     // local state
-    cl_entities[0].model = cl.worldmodel = cl.model_precache[1];
+    cl.entities[0].model = cl.worldmodel = cl.model_precache[1];
 
     R_NewMap();
 
@@ -1227,12 +1225,18 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
     int i;
 
     i = cl.num_statics;
-    if(i >= MAX_STATIC_ENTITIES)
+    if(i >= cl.max_static_entities)
     {
-        Host_Error("Too many static entities");
+        int ec = 64;
+        entity_t** newstatics = (entity_t**) realloc(cl.static_entities,
+            sizeof(*newstatics) * (cl.max_static_entities + ec));
+        entity_t* newents = (entity_t*) Hunk_Alloc(sizeof(*newents) * ec);
+        if(!newstatics || !newents) Host_Error("Too many static entities");
+        cl.static_entities = newstatics;
+        while(ec--) cl.static_entities[cl.max_static_entities++] = newents++;
     }
 
-    ent = &cl_static_entities[i];
+    ent = cl.static_entities[i];
     cl.num_statics++;
     CL_ParseBaseline(ent, version); // johnfitz -- added second parameter
 

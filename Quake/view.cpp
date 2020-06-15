@@ -385,7 +385,7 @@ void V_ParseDamage()
     // check if we're out of vr or if vr viewkick is enabled
     if(!vr_enabled.value || (vr_enabled.value && vr_viewkick.value))
     {
-        ent = &cl_entities[cl.viewentity];
+        ent = &cl.entities[cl.viewentity];
 
         from -= ent->origin;
         from = glm::normalize(from);
@@ -802,7 +802,7 @@ void V_BoundOffsets()
 {
     entity_t* ent;
 
-    ent = &cl_entities[cl.viewentity];
+    ent = &cl.entities[cl.viewentity];
 
     // absolutely bound refresh reletive to entity clipping hull
     // so the view can never be inside a solid wall
@@ -867,7 +867,7 @@ void V_CalcViewRoll()
 {
     float side;
 
-    side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
+    side = V_CalcRoll(cl.entities[cl.viewentity].angles, cl.velocity);
     r_refdef.viewangles[ROLL] += side;
 
     if(v_dmg_time > 0)
@@ -900,7 +900,7 @@ void V_CalcIntermissionRefdef()
     float old;
 
     // ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
+    ent = &cl.entities[cl.viewentity];
     // view is the weapon model (only visible from inside body)
     view = &cl.viewent;
 
@@ -978,7 +978,7 @@ void V_CalcRefdef(
     V_DriftPitch();
 
     // ent is the player model (visible when out of body)
-    entity_t* ent = &cl_entities[cl.viewentity];
+    entity_t* ent = &cl.entities[cl.viewentity];
 
     // view is the weapon model (only visible from inside body)
     entity_t* view = &cl.viewent;
@@ -1201,7 +1201,7 @@ void V_SetupOffHandWpnViewEnt(
     view.colormap = vid.colormap;
     view.horizFlip = true;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], &view);
 
     if(chase_active.value)
     {
@@ -1227,14 +1227,14 @@ void V_SetupVRTorsoViewEnt()
     view.frame = 0;
     view.colormap = vid.colormap;
 
-    view.origin = cl_entities[cl.viewentity].origin;
+    view.origin = cl.entities[cl.viewentity].origin;
     view.origin += vFwd * qfloat(vr_vrtorso_x_offset.value);
     view.origin -= vFwd * (heightRatio * 14._qf);
     view.origin += vRight * qfloat(vr_vrtorso_y_offset.value);
     view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
     view.origin[2] += vr_vrtorso_z_offset.value;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], &view);
 }
 
 void V_SetupHolsterSlotViewEnt(const int hotspot, const qvec3& pos,
@@ -1266,7 +1266,7 @@ void V_SetupHolsterSlotViewEnt(const int hotspot, const qvec3& pos,
 
     view->horizFlip = horizFlip;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], view);
 
     if(chase_active.value)
     {

@@ -65,8 +65,6 @@ typedef struct
 // client_state_t should hold all pieces of the client state
 //
 
-
-
 struct dlight_t
 {
     qvec3 origin;
@@ -77,7 +75,6 @@ struct dlight_t
     int key;
     qvec3 color; // johnfitz -- lit support via lordhavoc
 };
-
 
 struct beam_t
 {
@@ -98,8 +95,6 @@ struct beam_t
     struct trailstate_s* trailstate;
 #endif
 };
-
-
 
 typedef enum
 {
@@ -247,16 +242,14 @@ struct client_state_t
 
     char mapname[128];
     char levelname[128]; // for display on solo scoreboard //johnfitz -- was 40.
-    int viewentity;      // cl_entities[cl.viewentity] = player
+    int viewentity;      // cl.entities[cl.viewentity] = player
     int maxclients;
     int gametype;
 
     // refresh related state
-    qmodel_t* worldmodel; // cl_entities[0].model
+    qmodel_t* worldmodel; // cl.entities[0].model
     struct efrag_t* free_efrags;
     int num_efrags;
-    int num_entities; // held in cl_entities array
-    int num_statics;  // held in cl_staticentities array
 
     // TODO VR: (P2) all of these should be in some sort of list to avoid
     // repetition
@@ -291,6 +284,14 @@ struct client_state_t
 
     hand_entities left_hand_ghost_entities;
     hand_entities right_hand_ghost_entities;
+
+    entity_t* entities; // spike -- moved into here
+    int max_edicts;
+    int num_entities;
+
+    entity_t** static_entities; // spike -- was static
+    int max_static_entities;
+    int num_statics;
 
     int cdtrack, looptrack; // cd audio
 
@@ -470,16 +471,13 @@ extern cvar_t m_side;
 extern client_state_t cl;
 
 // FIXME, allocate dynamically
-extern entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 extern lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 extern dlight_t cl_dlights[MAX_DLIGHTS];
 extern entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
 extern beam_t cl_beams[MAX_BEAMS];
-extern entity_t* cl_visedicts[MAX_VISEDICTS];
+extern entity_t** cl_visedicts;
 extern int cl_numvisedicts;
-
-extern entity_t* cl_entities; // johnfitz -- was a static array, now on hunk
-extern int cl_max_edicts;     // johnfitz -- only changes when new map loads
+extern int cl_maxvisedicts; // extended if we exceeded it the previous frame
 
 //=============================================================================
 

@@ -110,6 +110,46 @@ void Cvar_Inc_f()
 
 /*
 ============
+Cvar_Set_f -- spike
+
+both set+seta commands
+============
+*/
+void Cvar_Set_f()
+{
+    // q2: set name value flags
+    // dp: set name value description
+    // fte: set name some freeform value with spaces or whatever //description
+    // to avoid politics, its easier to just stick with name+value only.
+    // that leaves someone else free to pick a standard for what to do with
+    // extra args.
+    const char* varname = Cmd_Argv(1);
+    const char* varvalue = Cmd_Argv(2);
+    
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("%s <cvar> <value>\n", Cmd_Argv(0));
+        return;
+    }
+    
+    if(Cmd_Argc() > 3)
+    {
+        Con_Warning(
+            "%s \"%s\" command with extra args\n", Cmd_Argv(0), varname);
+        return;
+    }
+    
+    cvar_t* const var = Cvar_Create(varname, varvalue);
+    Cvar_SetQuick(var, varvalue);
+
+    if(!strcmp(Cmd_Argv(0), "seta"))
+    {
+        var->flags |= CVAR_ARCHIVE | CVAR_SETA;
+    }
+}
+
+/*
+============
 Cvar_Toggle_f -- johnfitz
 ============
 */
@@ -254,7 +294,9 @@ void Cvar_Init()
     Cmd_AddCommand("reset", Cvar_Reset_f);
     Cmd_AddCommand("resetall", Cvar_ResetAll_f);
     Cmd_AddCommand("resetcfg", Cvar_ResetCfg_f);
-
+    Cmd_AddCommand("set", Cvar_Set_f);
+    Cmd_AddCommand("seta", Cvar_Set_f);
+    
     cvar_handles.reserve(128);
 }
 
@@ -478,6 +520,11 @@ void Cvar_SetQuick(cvar_t* var, const char* value)
     {
         var->callback(var);
     }
+    if(var->flags & CVAR_AUTOCVAR)
+    {
+    	// TODO VR: (P0) QSS Merge
+    	// PR_AutoCvarChanged(var);
+    }
 }
 
 void Cvar_SetValueQuick(cvar_t* var, const float value)
@@ -661,6 +708,38 @@ void Cvar_RegisterVariable(cvar_t* variable)
 
 /*
 ============
+Cvar_Create -- spike
+
+Creates a cvar if it does not already exist, otherwise does nothing.
+Must not be used until after all other cvars are registered.
+Cvar will be persistent.
+============
+*/
+cvar_t* Cvar_Create(const char* name, const char* value)
+{
+    cvar_t* newvar = Cvar_FindVar(name);
+    if(newvar)
+    {
+        return newvar; // already exists.
+    }
+    
+    if(Cmd_Exists(name))
+    {
+        return nullptr; // error! panic! oh noes!
+    }
+
+    newvar = (cvar_t*) Z_Malloc(sizeof(cvar_t) + strlen(name) + 1);
+    newvar->name = (char*)(newvar + 1);
+    strcpy((char*)(newvar + 1), name);
+    newvar->flags = CVAR_USERDEFINED;
+
+    newvar->string = value;
+    Cvar_RegisterVariable(newvar);
+    return newvar;
+}
+
+/*
+============
 Cvar_SetCallback
 
 Set a callback function to the var
@@ -728,6 +807,10 @@ void Cvar_WriteVariables(FILE* f)
     {
         if(var->flags & CVAR_ARCHIVE)
         {
+            if(var->flags & (CVAR_USERDEFINED | CVAR_SETA))
+            {
+                fprintf(f, "seta ");
+            }
             fprintf(f, "%s \"%s\"\n", var->name, var->string);
         }
     }

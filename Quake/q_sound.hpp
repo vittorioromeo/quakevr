@@ -114,9 +114,6 @@ void S_UnblockSound();
 
 sfx_t* S_PrecacheSound(const char* sample);
 void S_TouchSound(const char* sample);
-void S_ClearPrecache();
-void S_BeginPrecaching();
-void S_EndPrecaching();
 void S_PaintChannels(int endtime);
 void S_InitPaintChannels();
 

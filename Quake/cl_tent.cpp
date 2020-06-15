@@ -336,7 +336,7 @@ CL_NewTempEntity
 */
 entity_t* CL_NewTempEntity()
 {
-    if(cl_numvisedicts == MAX_VISEDICTS ||
+    if(cl_numvisedicts == cl_maxvisedicts ||
         num_temp_entities == MAX_TEMP_ENTITIES)
     {
         return nullptr;

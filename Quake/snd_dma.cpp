@@ -1253,18 +1253,3 @@ void S_LocalSound(const char* name)
     }
     S_StartSound(cl.viewentity, -1, sfx, vec3_zero, 1, 1);
 }
-
-
-void S_ClearPrecache()
-{
-}
-
-
-void S_BeginPrecaching()
-{
-}
-
-
-void S_EndPrecaching()
-{
-}

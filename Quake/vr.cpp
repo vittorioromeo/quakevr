@@ -1979,7 +1979,7 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] static const qvec3& VR_GetPlayerOrigin() noexcept
 {
-    return cl_entities[cl.viewentity].origin;
+    return cl.entities[cl.viewentity].origin;
 }
 
 // TODO VR: (P1) code repetition with r_alias
@@ -2478,7 +2478,7 @@ static void VR_DoTeleportation()
         return;
     }
 
-    entity_t* player = &cl_entities[cl.viewentity];
+    entity_t* player = &cl.entities[cl.viewentity];
 
     if(vr_teleporting)
     {
@@ -3044,7 +3044,7 @@ static void VR_ControllerAiming(const qvec3& orientation)
     setHeldWeaponCVar(VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
     setHeldWeaponCVar(VR_GetMainHandWpnCvarEntry(), cl.viewent);
 
-    entity_t* const player = &cl_entities[cl.viewentity];
+    entity_t* const player = &cl.entities[cl.viewentity];
 
     // headvel
     cl.headvel = redirectVectorByYaw(
@@ -3962,7 +3962,7 @@ static void VR_DoInput_UpdateVRMouse()
 
     // TODO VR: (P1) what to do with this?
     const auto inpMenuAddToShortcuts =
-        readDigitalAction(vrahMenuAddToShortcuts); 
+        readDigitalAction(vrahMenuAddToShortcuts);
 
     const auto inpMenuMultiplierHalf =
         readDigitalAction(vrahMenuMultiplierHalf);

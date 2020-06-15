@@ -807,7 +807,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
     // johnfitz -- sprites are not a special case
 
     for(int i = 0; i < cl_numvisedicts; i++)
-    { 
+    {
         currententity = cl_visedicts[i];
 
         // johnfitz -- if alphapass is true, draw only alpha entites this time
@@ -819,7 +819,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
         }
 
         // johnfitz -- chasecam
-        if(currententity == &cl_entities[cl.viewentity])
+        if(currententity == &cl.entities[cl.viewentity])
         {
             currententity->angles[0] *= 0.3;
         }
@@ -1168,7 +1168,7 @@ void R_ShowTris()
         {
             currententity = cl_visedicts[i];
 
-            if(currententity == &cl_entities[cl.viewentity])
+            if(currententity == &cl.entities[cl.viewentity])
             {
                 // chasecam
                 currententity->angles[0] *= 0.3;
@@ -1286,7 +1286,7 @@ void R_DrawShadows()
         if(playerShadows == VrPlayerShadows::ThirdPerson ||
             playerShadows == VrPlayerShadows::Both)
         {
-            drawViewentShadow(cl_entities[cl.viewentity]);
+            drawViewentShadow(cl.entities[cl.viewentity]);
         }
     }
 
@@ -1595,9 +1595,9 @@ void R_RenderView()
     if(r_pos.value)
     {
         Con_Printf("x %i y %i z %i (pitch %i yaw %i roll %i)\n",
-            (int)cl_entities[cl.viewentity].origin[0],
-            (int)cl_entities[cl.viewentity].origin[1],
-            (int)cl_entities[cl.viewentity].origin[2],
+            (int)cl.entities[cl.viewentity].origin[0],
+            (int)cl.entities[cl.viewentity].origin[1],
+            (int)cl.entities[cl.viewentity].origin[2],
             (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW],
             (int)cl.viewangles[ROLL]);
     }

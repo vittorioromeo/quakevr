@@ -70,20 +70,18 @@ cvar_t cl_maxpitch = {
 cvar_t cl_minpitch = {
     "cl_minpitch", "-90", CVAR_ARCHIVE}; // johnfitz -- variable pitch clamping
 
+cvar_t cl_recordingdemo = {"cl_recordingdemo", "",
+    CVAR_ROM}; // the name of the currently-recording demo.
+
 client_static_t cls;
 client_state_t cl;
 // FIXME: put these on hunk?
-entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t cl_dlights[MAX_DLIGHTS];
 
-entity_t* cl_entities; // johnfitz -- was a static array, now on hunk
-int cl_max_edicts;     // johnfitz -- only changes when new map loads
-
 int cl_numvisedicts;
-entity_t* cl_visedicts[MAX_VISEDICTS];
-
-
+int cl_maxvisedicts;
+entity_t** cl_visedicts;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float host_netinterval;          // Spike
@@ -101,6 +99,12 @@ void CL_ClearState()
         Host_ClearMemory();
     }
 
+	// TODO VR: (P0) QSS Merge
+    // CL_ClearTrailStates();
+
+    // TODO VR: (P0) QSS Merge
+    // PR_ClearProgs(&cl.qcvm);
+
     // wipe the entire cl structure
     // memset(&cl, 0, sizeof(cl));
     cl = client_state_t{};
@@ -113,11 +117,20 @@ void CL_ClearState()
     memset(cl_temp_entities, 0, sizeof(cl_temp_entities));
     memset(cl_beams, 0, sizeof(cl_beams));
 
-    // johnfitz -- cl_entities is now dynamically allocated
-    cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-    cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
+    // johnfitz -- cl.entities is now dynamically allocated
+    cl.max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
+    cl.entities = (entity_t*)Hunk_AllocName(
+        cl.max_edicts * sizeof(entity_t), "cl.entities");
+    // johnfitz
+
+    // Spike -- this stuff needs to get reset to defaults.
+    cl.csqc_sensitivity = 1;
 
     cl.worldTexts.clear();
+
+#ifdef PSET_SCRIPT
+    PScript_Shutdown();
+#endif
 }
 
 /*
@@ -337,7 +350,7 @@ void CL_PrintEntities_f()
         return;
     }
 
-    for(i = 0, ent = cl_entities; i < cl.num_entities; i++, ent++)
+    for(i = 0, ent = cl.entities; i < cl.num_entities; i++, ent++)
     {
         Con_Printf("%3i:", i);
         if(!ent->model)
@@ -499,6 +512,12 @@ void CL_RelinkEntities()
     // determine partial update time
     const float frac = CL_LerpPoint();
 
+    if(cl_numvisedicts + 64 > cl_maxvisedicts)
+    {
+        cl_maxvisedicts = cl_maxvisedicts + 64;
+        cl_visedicts =
+            (entity_t**) realloc(cl_visedicts, sizeof(*cl_visedicts) * cl_maxvisedicts);
+    }
     cl_numvisedicts = 0;
 
     //
@@ -534,7 +553,7 @@ void CL_RelinkEntities()
     // start on the entity after the world
     int i;
     entity_t* ent;
-    for(i = 1, ent = cl_entities + 1; i < cl.num_entities; i++, ent++)
+    for(i = 1, ent = cl.entities + 1; i < cl.num_entities; i++, ent++)
     {
         if(!ent->model)
         {
@@ -582,7 +601,7 @@ void CL_RelinkEntities()
                     f = 1; // assume a teleportation, not a motion
                     ent->lerpflags |=
                         LERP_RESETMOVE; // johnfitz -- don't lerp teleports
-                    if(ent == &cl_entities[cl.viewentity])
+                    if(ent == &cl.entities[cl.viewentity])
                     {
                         VR_PushYaw();
                     }
@@ -647,7 +666,7 @@ void CL_RelinkEntities()
             // which looks bad when lerped
             if(r_lerpmodels.value != 2)
             {
-                if(ent == &cl_entities[cl.viewentity])
+                if(ent == &cl.entities[cl.viewentity])
                 {
                     cl.viewent.lerpflags |=
                         LERP_RESETANIM |
@@ -742,19 +761,80 @@ void CL_RelinkEntities()
 
         ent->forcelink = false;
 
+#ifdef PSET_SCRIPT
+        if(ent->netstate.emiteffectnum > 0)
+        {
+            vec3_t axis[3];
+            AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+            if(ent->model->type == mod_alias)
+            {
+                axis[0][2] *= -1; // stupid vanilla bug
+            }
+            PScript_RunParticleEffectState(ent->origin, axis[0], frametime,
+                cl.particle_precache[ent->netstate.emiteffectnum].index,
+                &ent->emitstate);
+        }
+        else if(ent->model->emiteffect >= 0)
+        {
+            vec3_t axis[3];
+            AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+            if(ent->model->flags & MOD_EMITFORWARDS)
+            {
+                if(ent->model->type == mod_alias)
+                {
+                    axis[0][2] *= -1; // stupid vanilla bug
+                }
+            }
+            else
+            {
+                VectorScale(axis[2], -1, axis[0]);
+            }
+            PScript_RunParticleEffectState(ent->origin, axis[0], frametime,
+                ent->model->emiteffect, &ent->emitstate);
+            if(ent->model->flags & MOD_EMITREPLACE)
+            {
+                continue;
+            }
+        }
+#endif
+
         // This hides the player model in first person view.
         if(i == cl.viewentity && !chase_active.value)
         {
             continue;
         }
 
-        if(cl_numvisedicts < MAX_VISEDICTS)
+        if(cl_numvisedicts < cl_maxvisedicts)
         {
             cl_visedicts[cl_numvisedicts] = ent;
             cl_numvisedicts++;
         }
     }
 }
+
+#ifdef PSET_SCRIPT
+int CL_GenerateRandomParticlePrecache(const char* pname)
+{ // for dpp7 compat
+    size_t i;
+    pname = va("%s", pname);
+    for(i = 1; i < MAX_PARTICLETYPES; i++)
+    {
+        if(!cl.particle_precache[i].name)
+        {
+            cl.particle_precache[i].name =
+                strcpy(Hunk_Alloc(strlen(pname) + 1), pname);
+            cl.particle_precache[i].index =
+                PScript_FindParticleType(cl.particle_precache[i].name);
+            return i;
+        }
+        if(!strcmp(cl.particle_precache[i].name, pname))
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+#endif
 
 
 /*
@@ -807,8 +887,8 @@ int CL_ReadFromServer()
     // visedicts
     if(cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
     {
-        Con_DWarning("%i visedicts exceeds standard limit of 256 (max = %d).\n",
-            cl_numvisedicts, MAX_VISEDICTS);
+        Con_DWarning(
+            "%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
     }
     dev_stats.visedicts = cl_numvisedicts;
     dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
@@ -976,9 +1056,9 @@ void CL_Viewpos_f([[maybe_unused]] refdef_t& refdef)
 #else
     // player position
     Con_Printf("Viewpos: (%i %i %i) %i %i %i\n",
-        (int)cl_entities[cl.viewentity].origin[0],
-        (int)cl_entities[cl.viewentity].origin[1],
-        (int)cl_entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH],
+        (int)cl.entities[cl.viewentity].origin[0],
+        (int)cl.entities[cl.viewentity].origin[1],
+        (int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH],
         (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
 #endif
 }
@@ -1022,6 +1102,8 @@ void CL_Init()
 
     Cvar_RegisterVariable(&cl_maxpitch); // johnfitz -- variable pitch clamping
     Cvar_RegisterVariable(&cl_minpitch); // johnfitz -- variable pitch clamping
+    Cvar_RegisterVariable(&cl_recordingdemo); // spike -- for mod hacks. combine
+                                              // with cvar_string or something
 
     Cmd_AddCommand("entities", CL_PrintEntities_f);
     Cmd_AddCommand("disconnect", CL_Disconnect_f);

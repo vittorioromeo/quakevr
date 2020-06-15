@@ -227,7 +227,7 @@ void R_StoreEfrags(efrag_t** ppefrag)
         entity_t* const pent = pefrag->entity;
 
         if((pent->visframe != r_framecount) &&
-            (cl_numvisedicts < MAX_VISEDICTS))
+            (cl_numvisedicts < cl_maxvisedicts))
         {
 
             // QSS

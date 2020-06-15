@@ -346,9 +346,7 @@ TexMgr_Imagedump_f -- dump all current textures to TGA files
 static void TexMgr_Imagedump_f()
 {
     char tganame[MAX_OSPATH];
-
     char tempname[MAX_OSPATH];
-
     char dirname[MAX_OSPATH];
     gltexture_t* glt;
     byte* buffer;
@@ -556,7 +554,6 @@ in "mask"
 void TexMgr_FreeTextures(unsigned int flags, unsigned int mask)
 {
     gltexture_t* glt;
-
     gltexture_t* next;
 
     for(glt = active_gltextures; glt; glt = next)
@@ -577,7 +574,6 @@ TexMgr_FreeTexturesForOwner
 void TexMgr_FreeTexturesForOwner(qmodel_t* owner)
 {
     gltexture_t* glt;
-
     gltexture_t* next;
 
     for(glt = active_gltextures; glt; glt = next)
@@ -774,7 +770,6 @@ void TexMgr_Init()
     static byte nulltexture_data[16] = {127, 191, 255, 255, 0, 0, 0, 255, 0, 0,
         0, 255, 127, 191, 255, 255}; // black and blue checker
     extern texture_t* r_notexture_mip;
-
     extern texture_t* r_notexture_mip2;
 
     // init texture list
@@ -887,10 +882,8 @@ TexMgr_MipMapW
 static unsigned* TexMgr_MipMapW(unsigned* data, int width, int height)
 {
     int i;
-
     int size;
     byte* out;
-
     byte* in;
 
     out = in = (byte*)data;
@@ -915,10 +908,8 @@ TexMgr_MipMapH
 static unsigned* TexMgr_MipMapH(unsigned* data, int width, int height)
 {
     int i;
-
     int j;
     byte* out;
-
     byte* in;
 
     out = in = (byte*)data;
@@ -948,40 +939,24 @@ static unsigned* TexMgr_ResampleTexture(
     unsigned* in, int inwidth, int inheight, bool alpha)
 {
     byte* nwpx;
-
     byte* nepx;
-
     byte* swpx;
-
     byte* sepx;
-
     byte* dest;
     unsigned xfrac;
-
     unsigned yfrac;
-
     unsigned x;
-
     unsigned y;
-
     unsigned modx;
-
     unsigned mody;
-
     unsigned imodx;
-
     unsigned imody;
-
     unsigned injump;
-
     unsigned outjump;
     unsigned* out;
     int i;
-
     int j;
-
     int outwidth;
-
     int outheight;
 
     if(inwidth == TexMgr_Pad(inwidth) && inheight == TexMgr_Pad(inheight))
@@ -1059,25 +1034,15 @@ completely eliminate these skirts without the possibility of misbehaving.
 static void TexMgr_AlphaEdgeFix(byte* data, int width, int height)
 {
     int i;
-
     int j;
-
     int n = 0;
-
     int b;
-
     int c[3] = {0, 0, 0};
-
     int lastrow;
-
     int thisrow;
-
     int nextrow;
-
     int lastpix;
-
     int thispix;
-
     int nextpix;
     byte* dest = data;
 
@@ -1188,12 +1153,9 @@ operates in place on 32bit data, and expects unpadded height and width values
 static void TexMgr_PadEdgeFixW(byte* data, int width, int height)
 {
     byte* src;
-
     byte* dst;
     int i;
-
     int padw;
-
     int padh;
 
     padw = TexMgr_PadConditional(width);
@@ -1233,12 +1195,9 @@ operates in place on 32bit data, and expects unpadded height and width values
 static void TexMgr_PadEdgeFixH(byte* data, int width, int height)
 {
     byte* src;
-
     byte* dst;
     int i;
-
     int padw;
-
     int padh;
 
     padw = TexMgr_PadConditional(width);
@@ -1278,7 +1237,6 @@ static unsigned* TexMgr_8to32(byte* in, int pixels, unsigned int* usepal)
 {
     int i;
     unsigned* out;
-
     unsigned* data;
 
     out = data = (unsigned*)Hunk_Alloc(pixels * 4);
@@ -1299,12 +1257,9 @@ TexMgr_PadImageW -- return image with width padded up to power-of-two dimentions
 static byte* TexMgr_PadImageW(byte* in, int width, int height, byte padbyte)
 {
     int i;
-
     int j;
-
     int outwidth;
     byte* out;
-
     byte* data;
 
     if(width == TexMgr_Pad(width))
@@ -1340,12 +1295,9 @@ dimentions
 static byte* TexMgr_PadImageH(byte* in, int width, int height, byte padbyte)
 {
     int i;
-
     int srcpix;
-
     int dstpix;
     byte* data;
-
     byte* out;
 
     if(height == TexMgr_Pad(height))
@@ -1396,13 +1348,9 @@ TexMgr_LoadImage32 -- handles 32bit source data
 static void TexMgr_LoadImage32(gltexture_t* glt, unsigned* data)
 {
     int internalformat;
-
     int miplevel;
-
     int mipwidth;
-
     int mipheight;
-
     int picmip;
 
     // do this before any rescaling
@@ -1637,7 +1585,6 @@ static void TexMgr_LoadImage8(gltexture_t* glt, byte* data)
 {
     extern cvar_t gl_fullbrights;
     bool padw = false;
-
     bool padh = false;
     byte padbyte;
     unsigned int* usepal;
