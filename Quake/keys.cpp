@@ -136,12 +136,9 @@ keyname_t keynames[] = {{"TAB", K_TAB}, {"ENTER", K_ENTER},
 static void PasteToConsole()
 {
     char* cbd;
-
     char* p;
-
     char* workline;
     int mvlen;
-
     int inslen;
 
     if(key_linepos == MAXCMDLINE - 1)

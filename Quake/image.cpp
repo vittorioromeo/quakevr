@@ -890,7 +890,6 @@ targaheader_t targa_header;
 int fgetLittleShort(FILE* f)
 {
     byte b1;
-
     byte b2;
 
     b1 = fgetc(f);
@@ -902,11 +901,8 @@ int fgetLittleShort(FILE* f)
 int fgetLittleLong(FILE* f)
 {
     byte b1;
-
     byte b2;
-
     byte b3;
-
     byte b4;
 
     b1 = fgetc(f);
@@ -931,13 +927,9 @@ have to swap)
     int height, int bpp, bool upsidedown)
 {
     int handle;
-
     int i;
-
     int size;
-
     int temp;
-
     int bytes;
     char pathname[MAX_OSPATH];
     byte header[TARGAHEADERSIZE];
@@ -988,13 +980,10 @@ Image_LoadTGA
 [[nodiscard]] byte* Image_LoadTGA(FILE* fin, int* width, int* height)
 {
     int columns;
-
     int rows;
-
     int numPixels;
     byte* pixbuf;
     int row;
-
     int column;
     byte* targa_rgba;
     int realrow;      // johnfitz -- fix for upside-down targas
@@ -1274,20 +1263,13 @@ Image_LoadPCX
 {
     pcxheader_t pcx;
     int x;
-
     int y;
-
     int w;
-
     int h;
-
     int readbyte;
-
     int runlength;
-
     int start;
     byte* p;
-
     byte* data;
     byte palette[768];
     stdio_buffer_t* buf;
@@ -1381,7 +1363,6 @@ Image_LoadPCX
 static byte* CopyFlipped(const byte* data, int width, int height, int bpp)
 {
     int y;
-
     int rowsize;
     byte* flipped;
 

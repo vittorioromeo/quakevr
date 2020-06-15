@@ -271,6 +271,9 @@ void R_Init()
     Cvar_SetCallback(&r_slimealpha, R_SetSlimealpha_f);
 
     R_InitParticles();
+#ifdef PSET_SCRIPT
+    PScript_InitParticles();
+#endif
     R_SetClearColor_f(&r_clearcolor); // johnfitz
 
     Sky_Init();    // johnfitz
@@ -287,7 +290,6 @@ not new skins
 void R_TranslatePlayerSkin(int playernum)
 {
     int top;
-
     int bottom;
 
     top = (cl.scores[playernum].colors & 0xf0) >> 4;
@@ -380,7 +382,6 @@ called at map load
 static void R_ParseWorldspawn()
 {
     char key[128];
-
     char value[4096];
     const char* data;
 
@@ -473,6 +474,9 @@ void R_NewMap()
 
     r_viewleaf = nullptr;
     R_ClearParticles();
+#ifdef PSET_SCRIPT
+    PScript_ClearParticles();
+#endif
 
     GL_BuildLightmaps();
     GL_BuildBModelVertexBuffer();
@@ -503,9 +507,7 @@ void R_TimeRefresh_f()
 {
     int i;
     float start;
-
     float stop;
-
     float time;
 
     if(cls.state != ca_connected)

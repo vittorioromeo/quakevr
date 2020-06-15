@@ -43,16 +43,11 @@ mspriteframe_t* R_GetSpriteFrame(entity_t* currentent)
     mspritegroup_t* pspritegroup;
     mspriteframe_t* pspriteframe;
     int i;
-
     int numframes;
-
     int frame;
     float* pintervals;
-
     float fullinterval;
-
     float targettime;
-
     float time;
 
     psprite = (msprite_t*)currentent->model->cache.data;

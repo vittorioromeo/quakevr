@@ -187,7 +187,6 @@ void SCR_DrawCenterString() // actually do the drawing
     int l;
     int j;
     int x;
-
     int y;
     int remaining;
 
@@ -292,7 +291,6 @@ scaling: 2.0 * atan(width / height * 3.0 / 4.0 * tan(fov_x / 2.0))
 float AdaptFovx(float fov_x, float width, float height)
 {
     float a;
-
     float x;
 
     if(fov_x < 1 || fov_x > 179)
@@ -346,7 +344,6 @@ Internal use only
 static void SCR_CalcRefdef()
 {
     float size;
-
     float scale; // johnfitz -- scale
 
     // force the status bar to redraw
@@ -560,7 +557,6 @@ void SCR_DrawFPS()
     {
         char st[16];
         int x;
-
         int y;
         sprintf(st, "%4.0f fps", lastfps);
         x = 320 - (strlen(st) << 3);
@@ -587,7 +583,6 @@ void SCR_DrawClock()
     if(scr_clock.value == 1)
     {
         int minutes;
-
         int seconds;
 
         minutes = cl.time / 60;
@@ -930,7 +925,6 @@ void SCR_ScreenShot_f()
     char imagename[16]; // johnfitz -- was [80]
     char checkname[MAX_OSPATH];
     int i;
-
     int quality;
     bool ok;
 
@@ -1085,7 +1079,6 @@ void SCR_DrawNotifyString()
     int l;
     int j;
     int x;
-
     int y;
 
     GL_SetCanvas(CANVAS_MENU); // johnfitz
@@ -1136,10 +1129,8 @@ N keypress.
 int SCR_ModalMessage(const char* text, float timeout) // johnfitz -- timeout
 {
     double time1;
-
     double time2; // johnfitz -- timeout
     int lastkey;
-
     int lastchar;
 
     if(cls.state == ca_dedicated)

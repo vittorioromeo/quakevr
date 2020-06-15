@@ -543,8 +543,7 @@ void SV_ClientThink()
     // show 1/3 the pitch angle and all the roll angle
     cmd = host_client->cmd;
 
-    qvec3 v_angle;
-    v_angle = sv_player->v.v_angle + sv_player->v.punchangle;
+    qvec3 v_angle = sv_player->v.v_angle + sv_player->v.punchangle;
     sv_player->v.angles[ROLL] =
         V_CalcRoll(sv_player->v.angles, sv_player->v.velocity) * 4;
     if(!sv_player->v.fixangle)
@@ -566,7 +565,7 @@ void SV_ClientThink()
     {
         SV_NoclipMove();
     }
-    else if(sv_player->v.waterlevel >= 2 &&
+    else if((sv_player->v.waterlevel >= 2 || sv_player->onladder) &&
             sv_player->v.movetype != MOVETYPE_NOCLIP)
     {
         SV_WaterMove();

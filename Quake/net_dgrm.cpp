@@ -82,7 +82,6 @@ cvar_t rcon_password = {"rcon_password", ""};
 extern cvar_t net_messagetimeout;
 extern cvar_t net_connecttimeout;
 
-
 static struct
 {
     unsigned int length;

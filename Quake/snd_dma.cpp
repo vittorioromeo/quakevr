@@ -473,9 +473,7 @@ void SND_Spatialize(channel_t* ch)
     float dot;
     float dist;
     float lscale;
-
     float rscale;
-
     float scale;
     qvec3 source_vec;
 
@@ -536,7 +534,6 @@ void S_StartSound(int entnum, int entchannel, sfx_t* sfx, const qvec3& origin,
     float fvol, float attenuation)
 {
     channel_t* target_chan;
-
     channel_t* check;
     sfxcache_t* sc;
     int ch_idx;
@@ -844,7 +841,6 @@ void S_RawSamples(
 {
     int i;
     int src;
-
     int dst;
     float scale;
     int intVolume;
@@ -943,7 +939,6 @@ void S_Update(const qvec3& origin, const qvec3& forward, const qvec3& right,
     const qvec3& up)
 {
     int i;
-
     int j;
     int total;
     channel_t* ch;
@@ -1209,7 +1204,6 @@ static void S_SoundList()
     sfx_t* sfx;
     sfxcache_t* sc;
     int size;
-
     int total;
 
     total = 0;

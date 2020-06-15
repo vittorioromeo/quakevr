@@ -1306,7 +1306,7 @@ void S_RawAudio(int sourceid, byte* data, unsigned int speed,
 
 /*the client cvars*/
 cvar_t cl_voip_send = {
-    "cl_voip_send", "2"}; // 0=off,1=voice activation,2=continuous
+    "cl_voip_send", "0"}; // 0=off,1=voice activation,2=continuous
 cvar_t cl_voip_test = {"cl_voip_test", "0"};
 cvar_t cl_voip_vad_threshhold = {"cl_voip_vad_threshhold", "15"};
 cvar_t cl_voip_vad_delay = {"cl_voip_vad_delay", "0.3"};
