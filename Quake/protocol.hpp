@@ -371,10 +371,10 @@ struct entity_state_t
     qvec3 scale_origin;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
-    unsigned char colormap;    // johnfitz -- was int
-    unsigned char skin;        // johnfitz -- was int
-    unsigned char alpha;       // johnfitz -- added
-    int effects;
+    unsigned int effects;
+    unsigned char colormap; // johnfitz -- was int
+    unsigned char skin;     // johnfitz -- was int
+    unsigned char alpha;    // johnfitz -- added
 };
 
 struct usercmd_t

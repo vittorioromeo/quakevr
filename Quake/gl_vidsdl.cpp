@@ -800,7 +800,7 @@ static void VID_Restart()
     // keep cvars in line with actual mode
     VID_SyncCvars();
 
-// update mouse grab
+    // update mouse grab
     IN_UpdateGrabs(); // QSS
 
     if(vr_enabled.value)
@@ -1684,7 +1684,6 @@ void VID_Toggle()
         VID_SyncCvars();
 
         IN_UpdateGrabs(); // QSS
-
     }
     else
     {

@@ -47,23 +47,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 bool isDedicated;
 cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
-#define MAX_HANDLES 32 /* johnfitz -- was 10 */
-static FILE* sys_handles[MAX_HANDLES];
-
-
+static size_t
+    sys_handles_max; /* spike -- removed limit, was 32 (johnfitz -- was 10) */
+static FILE** sys_handles;
 static int findhandle()
 {
-    int i;
+    size_t i, n;
 
-    for(i = 1; i < MAX_HANDLES; i++)
+    for(i = 1; i < sys_handles_max; i++)
     {
         if(!sys_handles[i])
         {
             return i;
         }
     }
-    Sys_Error("out of handles");
-    return -1;
+    n = sys_handles_max + 10;
+    sys_handles = realloc(sys_handles, sizeof(*sys_handles) * n);
+    if(!sys_handles)
+    {
+        Sys_Error("out of handles");
+    }
+    while(sys_handles_max < n)
+    {
+        sys_handles[sys_handles_max++] = nullptr;
+    }
+    return i;
 }
 
 long Sys_filelength(FILE* f)
@@ -109,9 +117,20 @@ int Sys_FileOpenWrite(const char* path)
     i = findhandle();
     f = fopen(path, "wb");
 
-    if(!f) Sys_Error("Error opening %s: %s", path, strerror(errno));
+    if(!f)
+    {
+        Sys_Error("Error opening %s: %s", path, strerror(errno));
+    }
 
     sys_handles[i] = f;
+    return i;
+}
+
+int Sys_FileOpenStdio(FILE* file)
+{
+    int i;
+    i = findhandle();
+    sys_handles[i] = file;
     return i;
 }
 
@@ -367,6 +386,8 @@ void Sys_Error(const char* error, ...)
     va_list argptr;
     char text[1024];
 
+    Con_Redirect(nullptr);
+    PR_SwitchQCVM(nullptr);
     host_parms->errstate++;
 
     va_start(argptr, error);
@@ -404,13 +425,8 @@ void Sys_Quit()
 
 double Sys_DoubleTime()
 {
-    // QSS
-#if 1
     return SDL_GetPerformanceCounter() /
            (long double)SDL_GetPerformanceFrequency();
-#else
-    return SDL_GetTicks() / 1000.0;
-#endif
 }
 
 const char* Sys_ConsoleInput()

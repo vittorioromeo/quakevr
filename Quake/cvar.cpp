@@ -125,20 +125,20 @@ void Cvar_Set_f()
     // extra args.
     const char* varname = Cmd_Argv(1);
     const char* varvalue = Cmd_Argv(2);
-    
+
     if(Cmd_Argc() < 3)
     {
         Con_Printf("%s <cvar> <value>\n", Cmd_Argv(0));
         return;
     }
-    
+
     if(Cmd_Argc() > 3)
     {
         Con_Warning(
             "%s \"%s\" command with extra args\n", Cmd_Argv(0), varname);
         return;
     }
-    
+
     cvar_t* const var = Cvar_Create(varname, varvalue);
     Cvar_SetQuick(var, varvalue);
 
@@ -296,7 +296,7 @@ void Cvar_Init()
     Cmd_AddCommand("resetcfg", Cvar_ResetCfg_f);
     Cmd_AddCommand("set", Cvar_Set_f);
     Cmd_AddCommand("seta", Cvar_Set_f);
-    
+
     cvar_handles.reserve(128);
 }
 
@@ -522,8 +522,8 @@ void Cvar_SetQuick(cvar_t* var, const char* value)
     }
     if(var->flags & CVAR_AUTOCVAR)
     {
-    	// TODO VR: (P0) QSS Merge
-    	// PR_AutoCvarChanged(var);
+        // TODO VR: (P0) QSS Merge
+        // PR_AutoCvarChanged(var);
     }
 }
 
@@ -722,13 +722,13 @@ cvar_t* Cvar_Create(const char* name, const char* value)
     {
         return newvar; // already exists.
     }
-    
+
     if(Cmd_Exists(name))
     {
         return nullptr; // error! panic! oh noes!
     }
 
-    newvar = (cvar_t*) Z_Malloc(sizeof(cvar_t) + strlen(name) + 1);
+    newvar = (cvar_t*)Z_Malloc(sizeof(cvar_t) + strlen(name) + 1);
     newvar->name = (char*)(newvar + 1);
     strcpy((char*)(newvar + 1), name);
     newvar->flags = CVAR_USERDEFINED;

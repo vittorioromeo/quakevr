@@ -271,7 +271,7 @@ void R_StoreEfrags(efrag_t** ppefrag)
                     if(pent->model->type == mod_alias)
                     {
                         axis[0][2] *= -1; // stupid vanilla bug
-                }
+                    }
                 }
                 else
                 {

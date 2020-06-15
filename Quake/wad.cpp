@@ -169,8 +169,6 @@ static lumpinfo_t* W_GetLumpinfo(const char* name)
         }
     }
 
-    Con_SafePrintf(
-        "W_GetLumpinfo: %s not found\n", name); // johnfitz -- was Sys_Error
     return nullptr;
 }
 

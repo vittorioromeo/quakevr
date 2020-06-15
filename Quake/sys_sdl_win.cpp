@@ -36,6 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.hpp"
 #include "input.hpp"
 #include "sys.hpp"
+#include "console.hpp"
+#include "progs.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -52,29 +54,36 @@ cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
 static HANDLE hinput, houtput;
 
-#define MAX_HANDLES 32 /* johnfitz -- was 10 */
-static FILE* sys_handles[MAX_HANDLES];
-
-
+static size_t
+    sys_handles_max; /* spike -- removed limit, was 32 (johnfitz -- was 10) */
+static FILE** sys_handles;
 static int findhandle()
 {
-    int i;
+    size_t i, n;
 
-    for(i = 1; i < MAX_HANDLES; i++)
+    for(i = 1; i < sys_handles_max; i++)
     {
         if(!sys_handles[i])
         {
             return i;
         }
     }
-    Sys_Error("out of handles");
-    return -1;
+    n = sys_handles_max + 10;
+    sys_handles = (FILE**)realloc(sys_handles, sizeof(*sys_handles) * n);
+    if(!sys_handles)
+    {
+        Sys_Error("out of handles");
+    }
+    while(sys_handles_max < n)
+    {
+        sys_handles[sys_handles_max++] = nullptr;
+    }
+    return i;
 }
 
 long Sys_filelength(FILE* f)
 {
     long pos;
-
     long end;
 
     pos = ftell(f);
@@ -89,7 +98,6 @@ int Sys_FileOpenRead(const char* path, int* hndl)
 {
     FILE* f;
     int i;
-
     int retval;
 
     i = findhandle();
@@ -124,6 +132,14 @@ int Sys_FileOpenWrite(const char* path)
     }
 
     sys_handles[i] = f;
+    return i;
+}
+
+int Sys_FileOpenStdio(FILE* file)
+{
+    int i;
+    i = findhandle();
+    sys_handles[i] = file;
     return i;
 }
 
@@ -205,7 +221,6 @@ typedef HRESULT(WINAPI* SetProcessDPIAwarenessFunc)(dpi_awareness value);
 static void Sys_SetDPIAware()
 {
     HMODULE hUser32;
-
     HMODULE hShcore;
     SetProcessDPIAwarenessFunc setDPIAwareness;
     SetProcessDPIAwareFunc setDPIAware;
@@ -376,6 +391,9 @@ void Sys_Error(const char* error, ...)
     q_vsnprintf(text, sizeof(text), error, argptr);
     va_end(argptr);
 
+    PR_SwitchQCVM(nullptr);
+    Con_Redirect(nullptr);
+
     if(isDedicated)
     {
         WriteFile(houtput, errortxt1, strlen(errortxt1), &dummy, nullptr);
@@ -414,7 +432,17 @@ void Sys_Printf(const char* fmt, ...)
 
     if(isDedicated)
     {
-        WriteFile(houtput, text, strlen(text), &dummy, nullptr);
+        if(*text == 1 || *text == 2)
+        { // mostly for Con_[D]Warning
+            SetConsoleTextAttribute(houtput, FOREGROUND_RED);
+            WriteFile(houtput, text + 1, strlen(text + 1), &dummy, nullptr);
+            SetConsoleTextAttribute(
+                houtput, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+        }
+        else
+        {
+            WriteFile(houtput, text, strlen(text), &dummy, nullptr);
+        }
     }
     else
     {
@@ -438,7 +466,8 @@ void Sys_Quit()
 
 double Sys_DoubleTime()
 {
-    return SDL_GetTicks() / 1000.0;
+    return SDL_GetPerformanceCounter() /
+           (long double)SDL_GetPerformanceFrequency();
 }
 
 const char* Sys_ConsoleInput()
@@ -448,9 +477,7 @@ const char* Sys_ConsoleInput()
     INPUT_RECORD recs[1024];
     int ch;
     DWORD dummy;
-
     DWORD numread;
-
     DWORD numevents;
 
     while(true)

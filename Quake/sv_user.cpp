@@ -228,7 +228,7 @@ void SV_UserFriction()
     {
         newspeed = 0;
     }
-    
+
     newspeed /= speed;
     (*vel) *= newspeed;
 }
@@ -714,9 +714,9 @@ bool SV_ReadClientMessage()
                     "SV_ReadClientMessage: unknown command char %d\n", ccmd);
                 return false;
 
-            case clc_nop: 
+            case clc_nop:
             {
-            	break;
+                break;
             }
 
             case clc_stringcmd:
@@ -766,10 +766,10 @@ bool SV_ReadClientMessage()
                 break;
             }
 
-            case clcfte_voicechat: 
+            case clcfte_voicechat:
             {
-            	SV_VoiceReadPacket(host_client); 
-            	break;
+                SV_VoiceReadPacket(host_client);
+                break;
             }
         }
     }

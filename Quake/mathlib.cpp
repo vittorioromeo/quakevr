@@ -66,7 +66,6 @@ Returns 1, 2, or 1 + 2
 int BoxOnPlaneSide(const qvec3& emins, const qvec3& emaxs, mplane_t* p)
 {
     float dist1;
-
     float dist2;
     int sides;
 

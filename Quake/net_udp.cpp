@@ -145,7 +145,7 @@ sys_socket_t UDP4_Listen(bool state)
         {
             if((net_acceptsocket4 = UDP4_OpenSocket(net_hostport)) ==
                 INVALID_SOCKET)
-			{
+            {
                 Sys_Error("UDP4_Listen: Unable to open accept socket");
             }
         }
@@ -359,9 +359,9 @@ int UDP4_Broadcast(sys_socket_t socketid, byte* buf, int len)
     if(socketid != net_broadcastsocket4)
     {
         if(net_broadcastsocket4 != INVALID_SOCKET)
-		{
+        {
             Sys_Error("Attempted to use multiple broadcasts sockets");
-		}
+        }
         ret = UDP4_MakeSocketBroadcastCapable(socketid);
         if(ret == -1)
         {
@@ -728,9 +728,9 @@ sys_socket_t UDP6_Listen(bool state)
         {
             if((net_acceptsocket6 = UDP6_OpenSocket(net_hostport)) ==
                 INVALID_SOCKET)
-			{
+            {
                 Sys_Error("UDP6_Listen: Unable to open accept socket");
-        	}
+            }
         }
     }
     else

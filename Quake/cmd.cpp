@@ -970,9 +970,9 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
                     PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_ConsoleCommand);
                     ret = G_FLOAT(OFS_RETURN);
                     if(!ret)
-					{
+                    {
                         Con_Printf("gamecode cannot \"%s\"\n", Cmd_Argv(0));
-					}
+                    }
                     PR_SwitchQCVM(nullptr);
                     return ret;
                 }
@@ -980,7 +980,7 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
                 {
                     Con_Printf(
                         "gamecode not running, cannot \"%s\"\n", Cmd_Argv(0));
-				}
+                }
                 */
             }
             return true;

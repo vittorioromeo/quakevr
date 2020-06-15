@@ -107,9 +107,9 @@ void TexMgr_DeleteTextureObjects();
 void TexMgr_BlockSize(srcformat format, int* bytes, int* width, int* height);
 
 // IMAGE LOADING
-[[nodiscard]] gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name, int width,
-    int height, srcformat format, byte* data, const char* source_file,
-    src_offset_t source_offset, unsigned flags);
+[[nodiscard]] gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name,
+    int width, int height, srcformat format, byte* data,
+    const char* source_file, src_offset_t source_offset, unsigned flags);
 void TexMgr_ReloadImage(gltexture_t* glt, int shirt, int pants);
 void TexMgr_ReloadImages();
 void TexMgr_ReloadNobrightImages();

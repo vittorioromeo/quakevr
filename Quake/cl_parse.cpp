@@ -551,11 +551,11 @@ If an entities model or origin changes from frame to frame, it must be
 relinked.  Other attributes can change without relinking.
 ==================
 */
-void CL_ParseUpdate(int bits)
+static void CL_ParseUpdate(int bits)
 {
     int i;
     qmodel_t* model;
-    int modnum;
+    unsigned int modnum;
     bool forcelink;
     entity_t* ent;
     int num;
@@ -1228,9 +1228,9 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
     if(i >= cl.max_static_entities)
     {
         int ec = 64;
-        entity_t** newstatics = (entity_t**) realloc(cl.static_entities,
+        entity_t** newstatics = (entity_t**)realloc(cl.static_entities,
             sizeof(*newstatics) * (cl.max_static_entities + ec));
-        entity_t* newents = (entity_t*) Hunk_Alloc(sizeof(*newents) * ec);
+        entity_t* newents = (entity_t*)Hunk_Alloc(sizeof(*newents) * ec);
         if(!newstatics || !newents) Host_Error("Too many static entities");
         cl.static_entities = newstatics;
         while(ec--) cl.static_entities[cl.max_static_entities++] = newents++;

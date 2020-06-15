@@ -99,7 +99,7 @@ void CL_ClearState()
         Host_ClearMemory();
     }
 
-	// TODO VR: (P0) QSS Merge
+    // TODO VR: (P0) QSS Merge
     // CL_ClearTrailStates();
 
     // TODO VR: (P0) QSS Merge
@@ -515,8 +515,8 @@ void CL_RelinkEntities()
     if(cl_numvisedicts + 64 > cl_maxvisedicts)
     {
         cl_maxvisedicts = cl_maxvisedicts + 64;
-        cl_visedicts =
-            (entity_t**) realloc(cl_visedicts, sizeof(*cl_visedicts) * cl_maxvisedicts);
+        cl_visedicts = (entity_t**)realloc(
+            cl_visedicts, sizeof(*cl_visedicts) * cl_maxvisedicts);
     }
     cl_numvisedicts = 0;
 

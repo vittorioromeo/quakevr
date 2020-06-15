@@ -1822,8 +1822,8 @@ void SV_SendClientMessages()
                 host_client->last_message = realtime;
                 if(host_client->sendsignon == true)
                 {
-                	host_client->sendsignon = false;
-            	}
+                    host_client->sendsignon = false;
+                }
             }
         }
     }

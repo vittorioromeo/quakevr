@@ -274,8 +274,9 @@ void Host_Error(const char* error, ...)
     if(cl.qcvm.progs)
         glDisable(GL_SCISSOR_TEST); // equivelent to drawresetcliparea, to reset
                                     // any damage if we crashed in csqc.
-    PR_SwitchQCVM(nullptr);
 #endif
+
+    PR_SwitchQCVM(nullptr);
 
     SCR_EndLoadingPlaque(); // reenable screen updates
 
@@ -789,12 +790,14 @@ void Host_ClearMemory()
 // QSS
     PR_ClearProgs(&sv.qcvm);
     PR_ClearProgs(&cl.qcvm);
+#endif
+
     free(cl.static_entities);
     free(sv.static_entities); // spike -- this is dynamic too, now
     free(sv.ambientsounds);
-#else
+
+    // TODO VR: (P0): QSS Merge - remove this when switching to QCVM
     free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
-#endif
 
     sv = server_t{};
     cl = client_state_t{};
@@ -916,7 +919,7 @@ void Host_ServerFrame()
         // TODO VR: (P0) QSS Merge
 #if 0
 // QSS
-        for (i=0, active=0; i<qcvm->num_edicts; i++) // QSS
+        for(i = 0, active = 0; i < qcvm->num_edicts; i++) // QSS
 #else
         for(i = 0, active = 0; i < sv.num_edicts; i++)
 #endif

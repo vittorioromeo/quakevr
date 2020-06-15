@@ -1605,8 +1605,11 @@ void Mod_LoadIQMModel(qmodel_t* mod, const void* buffer)
                                 LittleFloat(p->channelscale[9]);
                 }
 
-                //fixme: should probably save the 10 values above and slerp, but its simpler to just save+lerp a matrix (although this does result in denormalisation when interpolating).
-                GenMatrixPosQuat4Scale(pos, quat, scale, outposes[(a * numjoints + j)].mat);
+                // fixme: should probably save the 10 values above and slerp,
+                // but its simpler to just save+lerp a matrix (although this does
+                // result in denormalisation when interpolating).
+                GenMatrixPosQuat4Scale(
+                    pos, quat, scale, outposes[(a * numjoints + j)].mat);
             }
         }
     }
@@ -1649,7 +1652,8 @@ void Mod_LoadIQMModel(qmodel_t* mod, const void* buffer)
             }
             else
             {
-                R_ConcatTransforms((float(*)[4])basepose[outbones[j].parent].mat,
+                R_ConcatTransforms(
+                    (float(*)[4])basepose[outbones[j].parent].mat,
                     (float(*)[4])rel.mat, (float(*)[4])basepose[j].mat);
             }
 

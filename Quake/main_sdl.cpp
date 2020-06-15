@@ -115,9 +115,7 @@ int main(int argc, char* argv[])
 
     int t;
     double time;
-
     double oldtime;
-
     double newtime;
 
     host_parms = &parms;

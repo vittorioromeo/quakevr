@@ -1119,12 +1119,9 @@ surfaces from world + all brush models
 void GL_BuildBModelVertexBuffer()
 {
     unsigned int numverts;
-
     unsigned int varray_bytes;
-
     unsigned int varray_index;
     int i;
-
     int j;
     qmodel_t* m;
     float* varray;
@@ -1312,17 +1309,12 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 void R_BuildLightMap(msurface_t* surf, byte* dest, int stride)
 {
     int smax;
-
     int tmax;
     int r;
-
     int g;
-
     int b;
     int i;
-
     int j;
-
     int size;
     byte* lightmap;
     unsigned scale;
@@ -1492,7 +1484,6 @@ toggled
 void R_RebuildAllLightmaps()
 {
     int i;
-
     int j;
     qmodel_t* mod;
     msurface_t* fa;

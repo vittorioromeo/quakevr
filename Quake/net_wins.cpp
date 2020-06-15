@@ -1065,8 +1065,8 @@ sys_socket_t WINIPv6_CheckNewConnections()
 
     if(netv6_acceptsocket == INVALID_SOCKET) return INVALID_SOCKET;
 
-    if(recvfrom(netv6_acceptsocket, buf, sizeof(buf), MSG_PEEK, nullptr, nullptr) !=
-        SOCKET_ERROR)
+    if(recvfrom(netv6_acceptsocket, buf, sizeof(buf), MSG_PEEK, nullptr,
+           nullptr) != SOCKET_ERROR)
     {
         return netv6_acceptsocket;
     }

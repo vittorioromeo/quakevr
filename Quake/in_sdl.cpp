@@ -39,7 +39,7 @@ static bool textmode;
 
 // QSS
 extern bool bind_grab; // from the menu code, so that we regrab the mouse in
-                           // order to pass inputs through
+                       // order to pass inputs through
 
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
@@ -312,7 +312,6 @@ void IN_StartupJoystick()
             }
 
             Con_Warning("failed to open controller: %s\n",
-
                 controllername != nullptr ? controllername : "NULL");
         }
         else
@@ -769,21 +768,11 @@ void IN_JoyMove(usercmd_t* cmd)
     cmd->sidemove += (cl_sidespeed.value * speed * moveEased.x);
     cmd->forwardmove -= (cl_forwardspeed.value * speed * moveEased.y);
 
-    cl.viewangles[YAW] -=
-        lookEased.x * joy_sensitivity_yaw.value * host_frametime
-// TODO VR: (P0): QSS Merge
-#if 0
-        * cl.csqc_sensitivity
-#endif
-        ;
+    cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value *
+                          host_frametime * cl.csqc_sensitivity;
     cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value *
-                            (joy_invert.value ? -1.0 : 1.0) * host_frametime
-      // TODO VR: (P0): QSS Merge
-#if 0
-                            * cl.csqc_sensitivity
-#endif
-
-                        ;
+                            (joy_invert.value ? -1.0 : 1.0) * host_frametime *
+                            cl.csqc_sensitivity;
 
     if(lookEased.x != 0 || lookEased.y != 0)
     {
@@ -804,7 +793,6 @@ void IN_JoyMove(usercmd_t* cmd)
 void IN_MouseMove(usercmd_t* cmd)
 {
     int dmx;
-
     int dmy;
 
     dmx = total_dx * sensitivity.value;
@@ -819,14 +807,7 @@ void IN_MouseMove(usercmd_t* cmd)
     }
     else
     {
-        cl.viewangles[YAW] -= m_yaw.value * dmx
-
-              // TODO VR: (P0): QSS Merge
-#if 0
-                            * cl.csqc_sensitivity
-#endif
-
-        ;
+        cl.viewangles[YAW] -= m_yaw.value * dmx * cl.csqc_sensitivity;
     }
 
     if(in_mlook.state & 1)
@@ -839,15 +820,7 @@ void IN_MouseMove(usercmd_t* cmd)
 
     if((in_mlook.state & 1) && !(in_strafe.state & 1))
     {
-        cl.viewangles[PITCH] += m_pitch.value * dmy
-
-              // TODO VR: (P0): QSS Merge
-#if 0
-                            * cl.csqc_sensitivity
-#endif
-
-        ;
-
+        cl.viewangles[PITCH] += m_pitch.value * dmy * cl.csqc_sensitivity;
         /* johnfitz -- variable pitch clamping */
         if(cl.viewangles[PITCH] > cl_maxpitch.value)
         {
@@ -1064,7 +1037,8 @@ void IN_SendKeyEvents()
                 {
                     S_BlockSound();
                 }
-                else if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) // QSS
+                else if(event.window.event ==
+                        SDL_WINDOWEVENT_SIZE_CHANGED) // QSS
                 {
                     vid.width = event.window.data1;
                     vid.height = event.window.data2;

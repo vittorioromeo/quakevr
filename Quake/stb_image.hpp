@@ -1065,7 +1065,8 @@ static void* stbi__malloc_mad4(int a, int b, int c, int d, int add)
 #define stbi__err(x, y) stbi__err(x)
 #endif
 
-#define stbi__errpf(x, y) ((float*)(size_t)(stbi__err(x, y) ? nullptr : nullptr))
+#define stbi__errpf(x, y) \
+    ((float*)(size_t)(stbi__err(x, y) ? nullptr : nullptr))
 #define stbi__errpuc(x, y) \
     ((unsigned char*)(size_t)(stbi__err(x, y) ? nullptr : nullptr))
 
@@ -5730,7 +5731,8 @@ static int stbi__parse_png_file(stbi__png* z, int scan, int req_comp)
                     STBI_NOTUSED(idata_limit_old);
                     p = (stbi_uc*)STBI_REALLOC_SIZED(
                         z->idata, idata_limit_old, idata_limit);
-                    if(p == nullptr) return stbi__err("outofmem", "Out of memory");
+                    if(p == nullptr)
+                        return stbi__err("outofmem", "Out of memory");
                     z->idata = p;
                 }
                 if(!stbi__getn(s, z->idata + ioff, c.length))
@@ -5744,7 +5746,8 @@ static int stbi__parse_png_file(stbi__png* z, int scan, int req_comp)
                 stbi__uint32 raw_len, bpl;
                 if(first) return stbi__err("first not IHDR", "Corrupt PNG");
                 if(scan != STBI__SCAN_load) return 1;
-                if(z->idata == nullptr) return stbi__err("no IDAT", "Corrupt PNG");
+                if(z->idata == nullptr)
+                    return stbi__err("no IDAT", "Corrupt PNG");
                 // initial guess for decoded data size to avoid unnecessary
                 // reallocs
                 bpl = (s->img_x * z->depth + 7) /

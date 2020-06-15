@@ -201,7 +201,6 @@ hull_t* SV_HullForEntity(
 
         // calculate an offset value to center the origin
         offset = hull->clip_mins - mins;
-        // offset.x = offset.y = 0;
         offset += ent->v.origin;
     }
     else

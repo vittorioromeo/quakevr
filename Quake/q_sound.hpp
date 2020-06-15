@@ -155,7 +155,7 @@ void SNDDMA_UnblockSound();
  */
 
 //#define	MAX_CHANNELS		1024 // spike -- made this obsolete. ericw --
-//was 512
+// was 512
 ///* johnfitz -- was 128 */
 #define MAX_DYNAMIC_CHANNELS 128 /* johnfitz -- was 8   */
 
