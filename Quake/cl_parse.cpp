@@ -44,10 +44,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.hpp"
 #include "cmd.hpp"
 #include "client.hpp"
+#include "snd_voip.hpp"
 
 #include <limits>
 
-const char* svc_strings[] = {
+const char* svc_strings[128] = {
     "svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",
     "svc_version",   // [long] server version
     "svc_setview",   // [short] entity number
@@ -71,7 +72,9 @@ const char* svc_strings[] = {
     "svc_particle",     // [vec3] <variable>
     "svc_damage",       // [byte] impact [byte] blood [vec3] from
 
-    "svc_spawnstatic", "OBSOLETE svc_spawnbinary", "svc_spawnbaseline",
+    "svc_spawnstatic",
+    /*"OBSOLETE svc_spawnbinary"*/ "21 svc_spawnstatic_fte",
+    "svc_spawnbaseline",
 
     "svc_temp_entity", // <variable>
     "svc_setpause", "svc_signonnum", "svc_centerprint", "svc_killedmonster",
@@ -80,27 +83,106 @@ const char* svc_strings[] = {
     "svc_cdtrack", // [byte] track [byte] looptrack
     "svc_sellscreen", "svc_cutscene",
     // johnfitz -- new server messages
-    "",                         // 35
-    "",                         // 36
-    "svc_skybox",               // 37					// [string] skyname
-    "",                         // 38
-    "",                         // 39
-    "svc_bf",                   // 40						// no data
-    "svc_fog",                  // 41					// [byte] density [byte] red [byte]
-                                // green [byte] blue [float] time
-    "svc_spawnbaseline2",       // 42			// support for large modelindex, large
-                                // framenum, alpha, using flags
-    "svc_spawnstatic2",         // 43			// support for large modelindex, large
-                                // framenum, alpha, using flags
-    "svc_spawnstaticsound2",    //	44		// [coord3] [short] samp [byte] vol
-                                //[byte] aten
-    "svc_particle2",            // 45
-    "svc_worldtext_hmake",      // 46
-    "svc_worldtext_hsettext",   // 47
-    "svc_worldtext_hsetpos",    // 48
-    "svc_worldtext_hsetangles", // 49
-    "svc_worldtext_hsethalign", // 50
-    // johnfitz
+    "35 svc_worldtext_hsethalign", // 35
+    "36",                          // 36
+    "svc_skybox_fitz",             // 37					// [string] skyname
+    "38",                          // 38
+    "39",                          // 39
+    "svc_bf_fitz",                 // 40						// no data
+    "svc_fog_fitz",                // 41					// [byte] density [byte] red [byte]
+                                   // green [byte] blue [float] time
+    "svc_spawnbaseline2_fitz",     // 42			// support for large modelindex,
+                                   // large framenum, alpha, using flags
+    "svc_spawnstatic2_fitz",       // 43			// support for large modelindex,
+                                   // large framenum, alpha, using flags
+    "svc_spawnstaticsound2_fitz",  //	44		// [coord3] [short] samp [byte]
+                                   // vol [byte] aten
+    "45 svc_particle2",            // 45
+    "46 svc_worldtext_hmake",      // 46
+    "47 svc_worldtext_hsettext",   // 47
+    "48 svc_worldtext_hsetpos",    // 48
+    "49 svc_worldtext_hsetangles", // 49
+                                   // johnfitz
+
+    // spike -- particle stuff, and padded to 128 to avoid possible crashes.
+    "50 svc_downloaddata_dp",       // 50
+    "51 svc_updatestatbyte",        // 51
+    "52 svc_effect_dp",             // 52
+    "53 svc_effect2_dp",            // 53
+    "54 svc_precache",              // 54	//[short] type+idx [string] name
+    "55 svc_baseline2_dp",          // 55
+    "56 svc_spawnstatic2_dp",       // 56
+    "57 svc_entities_dp",           // 57
+    "58 svc_csqcentities",          // 58
+    "59 svc_spawnstaticsound2_dp",  // 59
+    "60 svc_trailparticles",        // 60
+    "61 svc_pointparticles",        // 61
+    "62 svc_pointparticles1",       // 62
+    "63 svc_particle2_fte",         // 63
+    "64 svc_particle3_fte",         // 64
+    "65 svc_particle4_fte",         // 65
+    "66 svc_spawnbaseline_fte",     // 66
+    "67 svc_customtempent_fte",     // 67
+    "68 svc_selectsplitscreen_fte", // 68
+    "69 svc_showpic_fte",           // 69
+    "70 svc_hidepic_fte",           // 70
+    "71 svc_movepic_fte",           // 71
+    "72 svc_updatepic_fte",         // 72
+    "73",                           // 73
+    "74",                           // 74
+    "75",                           // 75
+    "76 svc_csqcentities_fte",      // 76
+    "77",                           // 77
+    "78 svc_updatestatstring_fte",  // 78
+    "79 svc_updatestatfloat_fte",   // 79
+    "80",                           // 80
+    "81",                           // 81
+    "82",                           // 82
+    "83 svc_cgamepacket_fte",       // 83
+    "84 svc_voicechat_fte",         // 84
+    "85 svc_setangledelta_fte",     // 85
+    "86 svc_updateentities_fte",    // 86
+    "87 svc_brushedit_fte",         // 87
+    "88 svc_updateseats_fte",       // 88
+    "89",                           // 89
+    "90",                           // 90
+    "91",                           // 91
+    "92",                           // 92
+    "93",                           // 93
+    "94",                           // 94
+    "95",                           // 95
+    "96",                           // 96
+    "97",                           // 97
+    "98",                           // 98
+    "99",                           // 99
+    "100",                          // 100
+    "101",                          // 101
+    "102",                          // 102
+    "103",                          // 103
+    "104",                          // 104
+    "105",                          // 105
+    "106",                          // 106
+    "107",                          // 107
+    "108",                          // 108
+    "109",                          // 109
+    "110",                          // 110
+    "111",                          // 111
+    "112",                          // 112
+    "113",                          // 113
+    "114",                          // 114
+    "115",                          // 115
+    "116",                          // 116
+    "117",                          // 117
+    "118",                          // 118
+    "119",                          // 119
+    "120",                          // 120
+    "121",                          // 121
+    "122",                          // 122
+    "123",                          // 123
+    "124",                          // 124
+    "125",                          // 125
+    "126",                          // 126
+    "127",                          // 127
 };
 
 bool warn_about_nehahra_protocol; // johnfitz
@@ -174,7 +256,7 @@ void CL_ParseStartSoundPacket()
         attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     int ent;
     int channel;
     if(field_mask & SND_LARGEENTITY)
@@ -321,36 +403,16 @@ void CL_ParseServerInfo()
     // parse protocol version number
     i = MSG_ReadLong();
     // johnfitz -- support multiple protocols
-    if(i != PROTOCOL_NETQUAKE && i != PROTOCOL_FITZQUAKE && i != PROTOCOL_RMQ)
+    if(i != PROTOCOL_QUAKEVR)
     {
         Con_Printf("\n"); // because there's no newline after serverinfo print
-        Host_Error("Server returned version %i, not %i or %i or %i", i,
-            PROTOCOL_NETQUAKE, PROTOCOL_FITZQUAKE, PROTOCOL_RMQ);
+        Host_Error(
+            "Server returned protocol %i, not %i\n", i, PROTOCOL_QUAKEVR);
     }
     cl.protocol = i;
     // johnfitz
 
-    if(cl.protocol == PROTOCOL_RMQ)
-    {
-        const unsigned int supportedflags =
-            (PRFL_SHORTANGLE | PRFL_FLOATANGLE | PRFL_24BITCOORD |
-                PRFL_FLOATCOORD | PRFL_EDICTSCALE | PRFL_INT32COORD);
-
-        // mh - read protocol flags from server so that we know what protocol
-        // features to expect
-        cl.protocolflags = (unsigned int)MSG_ReadLong();
-
-        if(0 != (cl.protocolflags & (~supportedflags)))
-        {
-            Con_Warning(
-                "PROTOCOL_RMQ protocolflags %i contains unsupported flags\n",
-                cl.protocolflags);
-        }
-    }
-    else
-    {
-        cl.protocolflags = 0;
-    }
+    cl.protocolflags = 0;
 
     // parse maxclients
     cl.maxclients = MSG_ReadByte();
@@ -478,6 +540,8 @@ void CL_ParseServerInfo()
     memset(&dev_stats, 0, sizeof(dev_stats));
     memset(&dev_peakstats, 0, sizeof(dev_peakstats));
     memset(&dev_overflows, 0, sizeof(dev_overflows));
+
+    S_Voip_MapChange();
 }
 
 /*
@@ -512,8 +576,8 @@ void CL_ParseUpdate(int bits)
         bits |= (i << 8);
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(cl.protocol == PROTOCOL_FITZQUAKE || cl.protocol == PROTOCOL_RMQ)
+    // johnfitz -- PROTOCOL_QUAKEVR
+    if(cl.protocol == PROTOCOL_QUAKEVR)
     {
         if(bits & U_EXTEND1)
         {
@@ -675,8 +739,8 @@ void CL_ParseUpdate(int bits)
     }
     // johnfitz
 
-    // johnfitz -- PROTOCOL_FITZQUAKE and PROTOCOL_NEHAHRA
-    if(cl.protocol == PROTOCOL_FITZQUAKE || cl.protocol == PROTOCOL_RMQ)
+    // johnfitz -- PROTOCOL_QUAKEVR
+    if(cl.protocol == PROTOCOL_QUAKEVR)
     {
         if(bits & U_ALPHA)
         {
@@ -705,35 +769,6 @@ void CL_ParseUpdate(int bits)
         else
         {
             ent->lerpflags &= ~LERP_FINISH;
-        }
-    }
-    else if(cl.protocol == PROTOCOL_NETQUAKE)
-    {
-        // HACK: if this bit is set, assume this is PROTOCOL_NEHAHRA
-        if(bits & U_TRANS)
-        {
-            float a;
-
-            float b;
-
-            if(warn_about_nehahra_protocol)
-            {
-                Con_Warning(
-                    "nonstandard update bit, assuming Nehahra protocol\n");
-                warn_about_nehahra_protocol = false;
-            }
-
-            a = MSG_ReadFloat();
-            b = MSG_ReadFloat(); // alpha
-            if(a == 2)
-            {
-                (void)MSG_ReadFloat(); // fullbright (not using this yet)
-            }
-            ent->alpha = ENTALPHA_ENCODE(b);
-        }
-        else
-        {
-            ent->alpha = ent->baseline.alpha;
         }
     }
     // johnfitz
@@ -794,7 +829,7 @@ void CL_ParseBaseline(entity_t* ent, int version) // johnfitz -- added argument
     int i;
     int bits; // johnfitz
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     bits = (version == 2) ? MSG_ReadByte() : 0;
     ent->baseline.modelindex =
         (bits & B_LARGEMODEL) ? MSG_ReadShort() : MSG_ReadByte();
@@ -812,7 +847,7 @@ void CL_ParseBaseline(entity_t* ent, int version) // johnfitz -- added argument
 
     ent->baseline.alpha =
         (bits & B_ALPHA) ? MSG_ReadByte()
-                         : ENTALPHA_DEFAULT; // johnfitz -- PROTOCOL_FITZQUAKE
+                         : ENTALPHA_DEFAULT; // johnfitz -- PROTOCOL_QUAKEVR
 }
 
 
@@ -829,7 +864,7 @@ void CL_ParseClientdata()
         (unsigned int)MSG_ReadLong(); // johnfitz -- read bits here isntead
                                       // of in CL_ParseServerMessage()
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(bits & SU_EXTEND1)
     {
         bits |= (MSG_ReadByte() << 16);
@@ -1012,7 +1047,7 @@ void CL_ParseClientdata()
         }
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(bits & SU_WEAPON2)
     {
         cl.stats[STAT_WEAPON] |= (MSG_ReadByte() << 8);
@@ -1135,13 +1170,10 @@ CL_NewTranslation
 void CL_NewTranslation(int slot)
 {
     int i;
-
     int j;
     int top;
-
     int bottom;
     byte* dest;
-
     byte* source;
 
     if(slot > cl.maxclients)
@@ -1227,16 +1259,12 @@ CL_ParseStaticSound
 */
 void CL_ParseStaticSound(int version) // johnfitz -- added argument
 {
-    qvec3 org;
+    qvec3 org = MSG_ReadVec3(cl.protocolflags);
     int sound_num;
-
     int vol;
-
     int atten;
 
-    org = MSG_ReadVec3(cl.protocolflags);
-
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(version == 2)
     {
         sound_num = MSG_ReadShort();
@@ -1257,6 +1285,41 @@ void CL_ParseStaticSound(int version) // johnfitz -- added argument
 #define SHOWNET(x) \
     if(cl_shownet.value == 2) Con_Printf("%3i:%s\n", msg_readcount - 1, x);
 
+// mods and servers might not send the \n instantly.
+// some mods bug out and omit the \n entirely, this function helps prevent the
+// damage from spreading too much. some servers or mods use //prefixed commands
+// as extensions to avoid spam about unrecognised commands. proquake has its own
+// extension coding thing.
+static void CL_ParseStuffText(const char* msg)
+{
+    const char* str;
+    q_strlcat(cl.stuffcmdbuf, msg, sizeof(cl.stuffcmdbuf));
+    while((str = strchr(cl.stuffcmdbuf, '\n')))
+    {
+        bool handled;
+        str++; // skip past the \n
+
+        // handle //prefixed commands
+        if(cl.stuffcmdbuf[0] == '/' && cl.stuffcmdbuf[1] == '/')
+        {
+            handled = Cmd_ExecuteString(cl.stuffcmdbuf + 2, src_server);
+            if(!handled)
+            {
+                Con_DPrintf("Server sent unknown command %s\n", Cmd_Argv(1));
+            }
+        }
+        else
+        {
+            handled = Cmd_ExecuteString(cl.stuffcmdbuf, src_server);
+        }
+        if(!handled)
+        {
+            Cbuf_AddTextLen(cl.stuffcmdbuf, str - cl.stuffcmdbuf);
+        }
+        memmove(cl.stuffcmdbuf, str, Q_strlen(str) + 1);
+    }
+}
+
 /*
 =====================
 CL_ParseServerMessage
@@ -1268,9 +1331,7 @@ void CL_ParseServerMessage()
     int i;
     const char* str; // johnfitz
     int total;
-
     int j;
-
     int lastcmd; // johnfitz
 
     //
@@ -1321,7 +1382,8 @@ void CL_ParseServerMessage()
         switch(cmd)
         {
             default:
-                Host_Error("Illegible server message, previous was %s",
+                Host_Error("Illegible server message %s, previous was %s",
+                    svc_strings[cmd],
                     svc_strings[lastcmd]); // johnfitz -- added
                                            // svc_strings[lastcmd]
                 break;
@@ -1344,11 +1406,10 @@ void CL_ParseServerMessage()
             case svc_version:
                 i = MSG_ReadLong();
                 // johnfitz -- support multiple protocols
-                if(i != PROTOCOL_NETQUAKE && i != PROTOCOL_FITZQUAKE &&
-                    i != PROTOCOL_RMQ)
+                if(i != PROTOCOL_QUAKEVR)
                 {
-                    Host_Error("Server returned version %i, not %i or %i or %i",
-                        i, PROTOCOL_NETQUAKE, PROTOCOL_FITZQUAKE, PROTOCOL_RMQ);
+                    Host_Error("Server returned protocol %i, not %i\n", i,
+                        PROTOCOL_QUAKEVR);
                 }
                 cl.protocol = i;
                 // johnfitz
@@ -1366,7 +1427,7 @@ void CL_ParseServerMessage()
                 // johnfitz
                 break;
 
-            case svc_stufftext: Cbuf_AddText(MSG_ReadString()); break;
+            case svc_stufftext: CL_ParseStuffText(MSG_ReadString()); break;
 
             case svc_damage: V_ParseDamage(); break;
 
@@ -1587,17 +1648,17 @@ void CL_ParseServerMessage()
 
             case svc_fog: Fog_ParseServerMessage(); break;
 
-            case svc_spawnbaseline2: // PROTOCOL_FITZQUAKE
+            case svc_spawnbaseline2: // PROTOCOL_QUAKEVR
                 i = MSG_ReadShort();
                 // must use CL_EntityNum() to force cl.num_entities up
                 CL_ParseBaseline(CL_EntityNum(i), 2);
                 break;
 
-            case svc_spawnstatic2: // PROTOCOL_FITZQUAKE
+            case svc_spawnstatic2: // PROTOCOL_QUAKEVR
                 CL_ParseStatic(2);
                 break;
 
-            case svc_spawnstaticsound2: // PROTOCOL_FITZQUAKE
+            case svc_spawnstaticsound2: // PROTOCOL_QUAKEVR
                 CL_ParseStaticSound(2);
                 break;
                 // johnfitz
@@ -1631,6 +1692,15 @@ void CL_ParseServerMessage()
                 cl.OnMsg_WorldTextHSetHAlign();
                 break;
             }
+
+            // voicechat, because we can. why reduce packet sizes if you're not
+            // going to use that extra space?!?
+            case svcfte_voicechat:
+            {
+                S_Voip_Parse();
+                break;
+            }
+                // spike
         }
 
         lastcmd = cmd; // johnfitz

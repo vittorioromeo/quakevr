@@ -280,9 +280,7 @@ void Cmd_StuffCmds_f()
     extern cvar_t cmdline;
     char cmds[CMDLINE_LENGTH];
     int i;
-
     int j;
-
     int plus;
 
     plus = false; // On Unix, argv[0] is command name
@@ -380,7 +378,6 @@ void Cmd_Alias_f()
     cmdalias_t* a;
     char cmd[1024];
     int i;
-
     int c;
     const char* s;
 
@@ -467,7 +464,6 @@ Cmd_Unalias_f -- johnfitz
 void Cmd_Unalias_f()
 {
     cmdalias_t* a;
-
     cmdalias_t* prev;
 
     switch(Cmd_Argc())
@@ -548,12 +544,7 @@ static char cmd_null_string[] = "";
 static const char* cmd_args = nullptr;
 
 cmd_source_t cmd_source;
-
-// johnfitz -- better tab completion
-// static	cmd_function_t	*cmd_functions;		// possible commands to
-// execute
 cmd_function_t* cmd_functions; // possible commands to execute
-// johnfitz
 
 /*
 ============
@@ -565,7 +556,6 @@ void Cmd_List_f()
     cmd_function_t* cmd;
     const char* partial;
     int len;
-
     int count;
 
     if(Cmd_Argc() > 1)
@@ -810,7 +800,6 @@ void Cmd_AddCommand2(
 {
     cmd_function_t* cmd;
     cmd_function_t* cursor;
-
     cmd_function_t* prev; // johnfitz -- sorted list insert
 
     if(host_initialized && function /* QSS */)
@@ -990,7 +979,7 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
                     ret = G_FLOAT(OFS_RETURN);
                     if(!ret)
                         Con_Printf("gamecode cannot \"%s\"\n", Cmd_Argv(0));
-                    PR_SwitchQCVM(NULL);
+                    PR_SwitchQCVM(nullptr);
                     return ret;
                 }
                 else
@@ -1083,7 +1072,7 @@ void Cmd_ForwardToServer()
             // listed first.
             SZ_Print(
                 &cls.message, va("protocols %i %i %i %i %i", PROTOCOL_RMQ,
-                                  PROTOCOL_FITZQUAKE, PROTOCOL_VERSION_BJP3,
+                                  PROTOCOL_QUAKEVR, PROTOCOL_VERSION_BJP3,
                                   PROTOCOL_VERSION_DP7, PROTOCOL_NETQUAKE));
             return;
         }

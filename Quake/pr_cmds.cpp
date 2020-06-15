@@ -731,7 +731,7 @@ static void PF_ambientsound()
     int i;
 
     int soundnum;
-    int large = false; // johnfitz -- PROTOCOL_FITZQUAKE
+    int large = false; // johnfitz -- PROTOCOL_QUAKEVR
 
     const auto pos = extractVector(OFS_PARM0);
     samp = G_STRING(OFS_PARM1);
@@ -753,21 +753,16 @@ static void PF_ambientsound()
         return;
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(soundnum > 255)
     {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return; // don't send any info protocol can't support
-        }
-
         large = true;
     }
     // johnfitz
 
     // add an svc_spawnambient command to the level signon packet
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(large)
     {
         MSG_WriteByte(&sv.signon, svc_spawnstaticsound2);
@@ -783,7 +778,7 @@ static void PF_ambientsound()
         MSG_WriteCoord(&sv.signon, pos[i], sv.protocolflags);
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(large)
     {
         MSG_WriteShort(&sv.signon, soundnum);
@@ -2154,7 +2149,7 @@ static void PF_WriteVec3()
 static void PF_makestatic()
 {
     int i;
-    int bits = 0; // johnfitz -- PROTOCOL_FITZQUAKE
+    int bits = 0; // johnfitz -- PROTOCOL_QUAKEVR
 
     edict_t* ent = G_EDICT(OFS_PARM0);
 
@@ -2166,31 +2161,18 @@ static void PF_makestatic()
     }
     // johnfitz
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(sv.protocol == PROTOCOL_NETQUAKE)
+    // johnfitz -- PROTOCOL_QUAKEVR
+    if(SV_ModelIndex(PR_GetString(ent->v.model)) & 0xFF00)
     {
-        if(SV_ModelIndex(PR_GetString(ent->v.model)) & 0xFF00 ||
-            (int)(ent->v.frame) & 0xFF00)
-        {
-            ED_Free(ent);
-            return; // can't display the correct model & frame, so don't
-                    // show it at all
-        }
+        bits |= B_LARGEMODEL;
     }
-    else
+    if((int)(ent->v.frame) & 0xFF00)
     {
-        if(SV_ModelIndex(PR_GetString(ent->v.model)) & 0xFF00)
-        {
-            bits |= B_LARGEMODEL;
-        }
-        if((int)(ent->v.frame) & 0xFF00)
-        {
-            bits |= B_LARGEFRAME;
-        }
-        if(ent->alpha != ENTALPHA_DEFAULT)
-        {
-            bits |= B_ALPHA;
-        }
+        bits |= B_LARGEFRAME;
+    }
+    if(ent->alpha != ENTALPHA_DEFAULT)
+    {
+        bits |= B_ALPHA;
     }
 
     if(bits)
@@ -2230,7 +2212,7 @@ static void PF_makestatic()
         MSG_WriteAngle(&sv.signon, ent->v.angles[i], sv.protocolflags);
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(bits & B_ALPHA)
     {
         MSG_WriteByte(&sv.signon, ent->alpha);

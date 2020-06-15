@@ -2186,7 +2186,6 @@ VID_MenuDraw
 static void VID_MenuDraw()
 {
     int i;
-
     int y;
     qpic_t* p;
     const char* title;

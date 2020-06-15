@@ -46,6 +46,7 @@ void Con_DWarning(const char* fmt, ...) FUNC_PRINTF(1, 2); // ericw
 void Con_Warning(const char* fmt, ...) FUNC_PRINTF(1, 2);  // johnfitz
 void Con_DPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DPrintf2(const char* fmt, ...) FUNC_PRINTF(1, 2); // johnfitz
+void Con_DPrintf3(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_SafePrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DrawNotify();
 void Con_ClearNotify();

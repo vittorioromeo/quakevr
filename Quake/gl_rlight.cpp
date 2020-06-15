@@ -43,9 +43,7 @@ R_AnimateLight
 void R_AnimateLight()
 {
     int i;
-
     int j;
-
     int k;
 
     //

@@ -27,10 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // protocol.h -- communications protocols
 
-#define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
-#define PROTOCOL_FITZQUAKE \
-    8681 // johnfitz -- added new protocol for fitzquake 0.85
-#define PROTOCOL_RMQ 999
+#define PROTOCOL_QUAKEVR 8682
 
 // PROTOCOL_RMQ protocol flags
 #define PRFL_SHORTANGLE (1 << 1)
@@ -41,6 +38,48 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PRFL_ALPHASANITY (1 << 6) // cleanup insanity with alpha
 #define PRFL_INT32COORD (1 << 7)
 #define PRFL_MOREFLAGS (1 << 31) // not supported
+
+// PROTOCOL_FTE_PEXT(1) flags
+// mostly uninteresting, any superseeded by PEXT2_REPLACEMENTDELTAS (and thus
+// QW-only) are not listed. #define PEXT_LIGHTSTYLECOL		0x00000004
+#define PEXT1_HLBSP 0x00000200 // hint to server to avoid messy error messages
+#define PEXT1_Q2BSP 0x00020000 // hint to server to avoid messy error messages
+#define PEXT1_Q3BSP 0x00040000 // hint to server to avoid messy error messages
+//#define PEXT1_CUSTOMTEMPEFFECTS	0x00800000
+//#define PEXT1_SPLITSCREEN			0x00100000
+//#define PEXT1_SHOWPIC				0x04000000
+//#define PEXT1_CHUNKEDDOWNLOADS		0x20000000
+#define PEXT1_CSQC \
+    0x40000000 //(full)csqc additions, required for csqc ents+events.
+#define PEXT1_ACCEPTED_CLIENT                                             \
+    (/*PEXT1_SUPPORTED_CLIENT|*/ PEXT1_CSQC | PEXT1_Q3BSP | PEXT1_Q2BSP | \
+        PEXT1_HLBSP) // pext1 flags that we can accept from a server (aka:
+                     // partial support)
+//#define PEXT1_SUPPORTED_CLIENT		(0)	//pext1 flags that we advertise to
+// servers (aka: full support) #define PEXT1_SUPPORTED_SERVER		(0)	//pext1
+// flags that we accept from clients.
+
+// PROTOCOL_FTE_PEXT2 flags
+#define PEXT2_PRYDONCURSOR 0x00000001  // a mouse cursor exposed to ssqc
+#define PEXT2_SETANGLEDELTA 0x00000004 // less annoying when teleporting.
+#define PEXT2_REPLACEMENTDELTAS \
+    0x00000008 // more compact entity deltas (can also be split across multiple
+               // packets)
+#define PEXT2_MAXPLAYERS 0x00000010 // up to 255 player slots
+#define PEXT2_PREDINFO \
+    0x00000020 // provides input acks and reworks stats such that clc_clientdata
+               // becomes redundant.
+#define PEXT2_NEWSIZEENCODING \
+    0x00000040 // richer size encoding, for more precise bboxes.
+#define PEXT2_INFOBLOBS 0x00000080 // unbounded userinfo
+#define PEXT2_ACCEPTED_CLIENT                                              \
+    (PEXT2_SUPPORTED_CLIENT | PEXT2_NEWSIZEENCODING | PEXT2_PRYDONCURSOR | \
+        PEXT2_INFOBLOBS) // pext2 flags that we can parse, but don't want to
+                         // advertise
+#define PEXT2_SUPPORTED_CLIENT                                          \
+    (PEXT2_SETANGLEDELTA | PEXT2_REPLACEMENTDELTAS | PEXT2_MAXPLAYERS | \
+        PEXT2_PREDINFO) // pext2 flags that we understand+support
+#define PEXT2_SUPPORTED_SERVER (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO)
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define U_MOREBITS (1 << 0)
@@ -62,7 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define U_SKIN (1 << 12)
 #define U_EFFECTS (1 << 13)
 #define U_LONGENTITY (1 << 14)
-// johnfitz -- PROTOCOL_FITZQUAKE -- new bits
+// johnfitz -- PROTOCOL_QUAKEVR -- new bits
 #define U_EXTEND1 (1 << 15)
 #define U_ALPHA \
     (1 << 16) // 1 byte, uses ENTALPHA_ENCODE, not sent if equal to baseline
@@ -98,7 +137,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SU_WEAPONFRAME (1 << 12)
 #define SU_ARMOR (1 << 13)
 #define SU_WEAPON (1 << 14)
-// johnfitz -- PROTOCOL_FITZQUAKE -- new bits
+// johnfitz -- PROTOCOL_QUAKEVR -- new bits
 #define SU_EXTEND1 (1 << 15) // another byte to follow
 #define SU_WEAPON2 \
     (1 << 16) // 1 byte, this is .weaponmodel & 0xFF00 (second byte)
@@ -136,19 +175,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
 
-// johnfitz -- PROTOCOL_FITZQUAKE -- new bits
+// johnfitz -- PROTOCOL_QUAKEVR -- new bits
 #define SND_LARGEENTITY (1 << 3) // a short + byte (instead of just a short)
 #define SND_LARGESOUND (1 << 4)  // a short soundindex (instead of a byte)
 // johnfitz
 
-// johnfitz -- PROTOCOL_FITZQUAKE -- flags for entity baseline messages
+// johnfitz -- PROTOCOL_QUAKEVR -- flags for entity baseline messages
 #define B_LARGEMODEL (1 << 0) // modelindex is short instead of byte
 #define B_LARGEFRAME (1 << 1) // frame is short instead of byte
 #define B_ALPHA \
     (1 << 2) // 1 byte, uses ENTALPHA_ENCODE, not sent if ENTALPHA_DEFAULT
 // johnfitz
 
-// johnfitz -- PROTOCOL_FITZQUAKE -- alpha encoding
+// johnfitz -- PROTOCOL_QUAKEVR -- alpha encoding
 #define ENTALPHA_DEFAULT \
     0 // entity's alpha is "default" (i.e. water obeys r_wateralpha) -- must be
       // zero so zeroed out memory works
@@ -215,6 +254,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_damage 19
 #define svc_spawnstatic 20
 //#define svc_spawnbinary		21
+#define svcfte_spawnstatic2 21
 #define svc_spawnbaseline 22
 #define svc_temp_entity 23
 #define svc_setpause 24    // [byte] on / off
@@ -229,7 +269,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_sellscreen 33
 #define svc_cutscene 34
 
-// johnfitz -- PROTOCOL_FITZQUAKE -- new server messages
+// johnfitz -- PROTOCOL_QUAKEVR -- new server messages
 #define svc_skybox 37 // [string] name
 #define svc_bf 40
 #define svc_fog \
@@ -245,8 +285,48 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_worldtext_hsettext 47
 #define svc_worldtext_hsetpos 48
 #define svc_worldtext_hsetangles 49
-#define svc_worldtext_hsethalign 50
+#define svc_worldtext_hsethalign 35
 // johnfitz
+
+// spike -- some extensions for particles.
+// some extra stuff for fte's pext2_replacementdeltas, including stats
+// fte reuses the dp svcs for nq (instead of qw-specific ones), at least where
+// the protocol is identical. this should make dpp7 support a little easier if
+// you ever want to implement that. dp has a tendancy to use the svcs even when
+// told to use protocol 15, so supporting them helps there too.
+#define svcdp_downloaddata 50
+#define svcdp_updatestatbyte 51
+#define svcdp_effect \
+    52 // [vector] org [byte] modelindex [byte] startframe [byte] framecount
+       // [byte] framerate
+#define svcdp_effect2 \
+    53 // [vector] org [short] modelindex [short] startframe [byte] framecount
+       // [byte] framerate
+#define svcdp_precache \
+    54 // [short] precacheindex [string] filename. index&0x8000 = sound, 0x4000
+       // = particle, 0xc000 = reserved (probably to reclaim these bits
+       // eventually), otherwise model.
+#define svcdp_spawnbaseline2 55
+#define svcdp_spawnstatic2 56
+#define svcdp_entities 57
+#define svcdp_csqcentities 58
+#define svcdp_spawnstaticsound2 \
+    59 // [coord3] [short] samp [byte] vol [byte] aten
+#define svcdp_trailparticles \
+    60 // [short] entnum [short] effectnum [vector] start [vector] end
+#define svcdp_pointparticles \
+    61 // [short] effectnum [vector] start [vector] velocity [short] count
+#define svcdp_pointparticles1 \
+    62 // [short] effectnum [vector] start, same as svc_pointparticles except
+       // velocity is zero and count is 1
+#define svcfte_spawnbaseline2 66
+#define svcfte_updatestatstring 78
+#define svcfte_updatestatfloat 79
+#define svcfte_cgamepacket 83
+#define svcfte_voicechat 84
+#define svcfte_setangledelta 85
+#define svcfte_updateentities 86
+// spike -- end
 
 //
 // client to server
@@ -256,6 +336,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define clc_disconnect 2
 #define clc_move 3      // [usercmd_t]
 #define clc_stringcmd 4 // [string] message
+#define clcdp_ackframe \
+    50 // [long] frame sequence. reused by fte replacement deltas
+#define clcdp_ackdownloaddata 51
+#define clcfte_qcrequest 81
+#define clcfte_voicechat 83 /*spike*/
 
 //
 // temp entity events

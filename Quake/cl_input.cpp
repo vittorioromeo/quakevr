@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "msg.hpp"
 #include "input.hpp"
 #include "client.hpp"
+#include "snd_voip.hpp"
 
 extern cvar_t cl_maxpitch; // johnfitz -- variable pitch clamping
 extern cvar_t cl_minpitch; // johnfitz -- variable pitch clamping
@@ -62,7 +63,8 @@ state bit 2 is edge triggered on the down to up transition
 kbutton_t in_mlook, in_klook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack;
+kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack,
+    in_button3, in_button4, in_button5, in_button6, in_button7, in_button8;
 kbutton_t in_up, in_down;
 kbutton_t in_grableft, in_grabright;
 
@@ -307,6 +309,55 @@ void IN_JumpUp()
     KeyUp(&in_jump);
 }
 
+void IN_Button3Down()
+{
+    KeyDown(&in_button3);
+}
+void IN_Button3Up()
+{
+    KeyUp(&in_button3);
+}
+void IN_Button4Down()
+{
+    KeyDown(&in_button4);
+}
+void IN_Button4Up()
+{
+    KeyUp(&in_button4);
+}
+void IN_Button5Down()
+{
+    KeyDown(&in_button5);
+}
+void IN_Button5Up()
+{
+    KeyUp(&in_button5);
+}
+void IN_Button6Down()
+{
+    KeyDown(&in_button6);
+}
+void IN_Button6Up()
+{
+    KeyUp(&in_button6);
+}
+void IN_Button7Down()
+{
+    KeyDown(&in_button7);
+}
+void IN_Button7Up()
+{
+    KeyUp(&in_button7);
+}
+void IN_Button8Down()
+{
+    KeyDown(&in_button8);
+}
+void IN_Button8Up()
+{
+    KeyUp(&in_button8);
+}
+
 void IN_Impulse()
 {
     in_impulse = Q_atoi(Cmd_Argv(1));
@@ -478,8 +529,6 @@ void CL_BaseMove(usercmd_t* cmd)
         return;
     }
 
-    CL_AdjustAngles();
-
     Q_memset(cmd, 0, sizeof(*cmd));
 
     if(in_strafe.state & 1)
@@ -519,138 +568,164 @@ CL_SendMove
 */
 void CL_SendMove(const usercmd_t* cmd)
 {
-    constexpr size_t bufsize = 512;
+    constexpr size_t bufsize = 1024;
 
     int bits;
     sizebuf_t buf;
     byte data[bufsize];
 
-    buf.maxsize = bufsize;
+    buf.maxsize = sizeof(data);
     buf.cursize = 0;
     buf.data = data;
 
-    cl.cmd = *cmd;
+// TODO VR: (P0): QSS Merge
+#if 0
+    for(i = 0; i < cl.ackframes_count; i++)
+    {
+        MSG_WriteByte(&buf, clcdp_ackframe);
+        MSG_WriteLong(&buf, cl.ackframes[i]);
+    }
+    cl.ackframes_count = 0;
+#endif
 
-    //
-    // send the movement message
-    //
-    MSG_WriteByte(&buf, clc_move);
 
-    MSG_WriteFloat(&buf, cl.mtime[0]); // so server can get ping times
+    if(cmd)
+    {
+        int dump = buf.cursize;
+        cl.cmd = *cmd;
 
-    const auto writeAngles = [&](const auto& angles) {
-        for(int i = 0; i < 3; i++)
-        {
-            // johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-            if(cl.protocol == PROTOCOL_NETQUAKE)
-            {
-                MSG_WriteAngle(&buf, angles[i], cl.protocolflags);
-            }
-            else
+        //
+        // send the movement message
+        //
+        MSG_WriteByte(&buf, clc_move);
+
+        MSG_WriteFloat(&buf, cl.mtime[0]); // so server can get ping times
+
+        const auto writeAngles = [&](const auto& angles) {
+            for(int i = 0; i < 3; i++)
             {
                 MSG_WriteAngle16(&buf, angles[i], cl.protocolflags);
             }
-            // johnfitz
+        };
+
+        const auto writeVec = [&](const auto& vec) {
+            MSG_WriteVec3(&buf, vec, cl.protocolflags);
+        };
+
+        // aimangles
+        writeAngles(cl.aimangles);
+
+        // viewangles
+        writeAngles(cl.viewangles);
+
+        // vr yaw:
+        MSG_WriteFloat(&buf, cmd->vryaw);
+
+        // main hand values:
+        writeVec(cmd->handpos);
+        writeVec(cmd->handrot);
+        writeVec(cmd->handvel);
+        writeVec(cmd->handthrowvel);
+        MSG_WriteFloat(&buf, cmd->handvelmag);
+        writeVec(cmd->handavel);
+
+        // off hand values:
+        writeVec(cmd->offhandpos);
+        writeVec(cmd->offhandrot);
+        writeVec(cmd->offhandvel);
+        writeVec(cmd->offhandthrowvel);
+        MSG_WriteFloat(&buf, cmd->offhandvelmag);
+        writeVec(cmd->offhandavel);
+
+        // headvel
+        writeVec(cmd->headvel);
+
+        // muzzlepos
+        writeVec(cmd->muzzlepos);
+
+        // offmuzzlepos
+        writeVec(cmd->offmuzzlepos);
+
+        // vrbits0
+        MSG_WriteUnsignedChar(&buf, cmd->vrbits0);
+
+        // movement
+        MSG_WriteShort(&buf, cmd->forwardmove);
+        MSG_WriteShort(&buf, cmd->sidemove);
+        MSG_WriteShort(&buf, cmd->upmove);
+
+        // teleportation
+        writeVec(cmd->teleport_target);
+
+        // hands
+        MSG_WriteByte(&buf, cmd->offhand_hotspot);
+        MSG_WriteByte(&buf, cmd->mainhand_hotspot);
+
+        // roomscalemove
+        writeVec(cmd->roomscalemove);
+
+        //
+        // send button bits
+        //
+        bits = 0;
+
+        if(in_attack.state & 3)
+        {
+            bits |= 1;
         }
-    };
+        in_attack.state &= ~2;
 
-    const auto writeVec = [&](const auto& vec) {
-        MSG_WriteVec3(&buf, vec, cl.protocolflags);
-    };
+        if(in_jump.state & 3)
+        {
+            bits |= 2;
+        }
+        in_jump.state &= ~2;
 
-    // aimangles
-    writeAngles(cl.aimangles);
+        if(in_offhandattack.state & 3)
+        {
+            bits |= 4;
+        }
+        in_offhandattack.state &= ~2;
 
-    // viewangles
-    writeAngles(cl.viewangles);
+        MSG_WriteByte(&buf, bits);
 
-    // vr yaw:
-    MSG_WriteFloat(&buf, cmd->vryaw);
+        MSG_WriteByte(&buf, in_impulse);
+        in_impulse = 0;
 
-    // main hand values:
-    writeVec(cmd->handpos);
-    writeVec(cmd->handrot);
-    writeVec(cmd->handvel);
-    writeVec(cmd->handthrowvel);
-    MSG_WriteFloat(&buf, cmd->handvelmag);
-    writeVec(cmd->handavel);
+        //
+        // deliver the message
+        //
+        if(cls.demoplayback)
+        {
+            return;
+        }
 
-    // off hand values:
-    writeVec(cmd->offhandpos);
-    writeVec(cmd->offhandrot);
-    writeVec(cmd->offhandvel);
-    writeVec(cmd->offhandthrowvel);
-    MSG_WriteFloat(&buf, cmd->offhandvelmag);
-    writeVec(cmd->offhandavel);
-
-    // headvel
-    writeVec(cmd->headvel);
-
-    // muzzlepos
-    writeVec(cmd->muzzlepos);
-
-    // offmuzzlepos
-    writeVec(cmd->offmuzzlepos);
-
-    // vrbits0
-    MSG_WriteUnsignedChar(&buf, cmd->vrbits0);
-
-    // movement
-    MSG_WriteShort(&buf, cmd->forwardmove);
-    MSG_WriteShort(&buf, cmd->sidemove);
-    MSG_WriteShort(&buf, cmd->upmove);
-
-    // teleportation
-    writeVec(cmd->teleport_target);
-
-    // hands
-    MSG_WriteByte(&buf, cmd->offhand_hotspot);
-    MSG_WriteByte(&buf, cmd->mainhand_hotspot);
-
-    // roomscalemove
-    writeVec(cmd->roomscalemove);
-
-    //
-    // send button bits
-    //
-    bits = 0;
-
-    if(in_attack.state & 3)
-    {
-        bits |= 1;
+        //
+        // allways dump the first two message, because it may contain leftover
+        // inputs from the last level
+        //
+        if(++cl.movemessages <= 2)
+        {
+            buf.cursize = dump;
+        }
+        else
+        {
+            S_Voip_Transmit(clcfte_voicechat, &buf); /*Spike: Add voice
+            data*/
+        }
     }
-    in_attack.state &= ~2;
-
-    if(in_jump.state & 3)
+    else
     {
-        bits |= 2;
+        S_Voip_Transmit(clcfte_voicechat,
+            nullptr); /*Spike: Add voice data (with cl_voip_test anyway)*/
     }
-    in_jump.state &= ~2;
 
-    if(in_offhandattack.state & 3)
-    {
-        bits |= 4;
-    }
-    in_offhandattack.state &= ~2;
-
-    MSG_WriteByte(&buf, bits);
-
-    MSG_WriteByte(&buf, in_impulse);
-    in_impulse = 0;
+    // fixme: nops if we're still connecting, or something.
 
     //
     // deliver the message
     //
-    if(cls.demoplayback)
-    {
-        return;
-    }
-
-    //
-    // allways dump the first two message, because it may contain leftover
-    // inputs from the last level
-    //
-    if(++cl.movemessages <= 2)
+    if(cls.demoplayback || !buf.cursize)
     {
         return;
     }

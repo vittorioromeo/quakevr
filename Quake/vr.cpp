@@ -3959,8 +3959,11 @@ static void VR_DoInput_UpdateVRMouse()
     const auto inpMenuRight = readDigitalAction(vrahMenuRight);
     const auto inpMenuEnter = readDigitalAction(vrahMenuEnter);
     const auto inpMenuBack = readDigitalAction(vrahMenuBack);
+
+    // TODO VR: (P1) what to do with this?
     const auto inpMenuAddToShortcuts =
-        readDigitalAction(vrahMenuAddToShortcuts);
+        readDigitalAction(vrahMenuAddToShortcuts); 
+
     const auto inpMenuMultiplierHalf =
         readDigitalAction(vrahMenuMultiplierHalf);
     const auto inpMenuMultiplierPlusOne =

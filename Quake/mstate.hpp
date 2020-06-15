@@ -75,6 +75,7 @@ enum m_state_e
     m_qvrs_changemap_honey,
     m_qvrs_changemap_extra,
     m_qvrs_transparencyoptions,
+    m_qvrs_voip,
     m_qvrdt_weaponconfiguration1,
     m_qvrdt_weaponconfiguration2,
     m_qvrdt_weaponconfiguration3,

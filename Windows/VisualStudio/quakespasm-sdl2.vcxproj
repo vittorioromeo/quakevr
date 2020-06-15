@@ -177,7 +177,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       </StackCommitSize>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+      <Command>:: copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
@@ -223,7 +223,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+      <Command>:: copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
@@ -313,6 +313,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\snd_opus.cpp" />
     <ClCompile Include="..\..\Quake\snd_sdl.cpp" />
     <ClCompile Include="..\..\Quake\snd_umx.cpp" />
+    <ClCompile Include="..\..\Quake\snd_voip.cpp" />
     <ClCompile Include="..\..\Quake\snd_vorbis.cpp" />
     <ClCompile Include="..\..\Quake\snd_wave.cpp" />
     <ClCompile Include="..\..\Quake\snd_xmp.cpp" />

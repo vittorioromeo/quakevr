@@ -88,9 +88,7 @@ FileList_Add
 void FileList_Add(const char* name, filelist_item_t** list)
 {
     filelist_item_t* item;
-
     filelist_item_t* cursor;
-
     filelist_item_t* prev;
 
     // ignore duplicate
@@ -177,6 +175,7 @@ void ExtraMaps_Init()
             {
                 continue;
             }
+
             do
             {
                 COM_StripExtension(fdat.cFileName, mapname, sizeof(mapname));
@@ -276,7 +275,6 @@ void Modlist_Init()
     HANDLE fhnd;
     DWORD attribs;
     char dir_string[MAX_OSPATH];
-
     char mod_string[MAX_OSPATH];
 
     q_snprintf(dir_string, sizeof(dir_string), "%s/*", com_basedir);
@@ -386,6 +384,7 @@ void DemoList_Init()
             {
                 continue;
             }
+
             do
             {
                 COM_StripExtension(fdat.cFileName, demname, sizeof(demname));
@@ -921,7 +920,6 @@ Host_Ping_f
 void Host_Ping_f()
 {
     int i;
-
     int j;
     float total;
     client_t* client;
@@ -1026,17 +1024,9 @@ void Host_Map_f()
         *p = '\0';
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     PR_SwitchQCVM(&sv.qcvm);
-#endif
-
     SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
-
-    // TODO VR: (P0): QSS Merge
-#if 0
-    PR_SwitchQCVM(NULL);
-#endif
+    PR_SwitchQCVM(nullptr);
 
     if(!sv.active)
     {
@@ -1066,9 +1056,7 @@ Loads a random map from the "maps" list.
 void Host_Randmap_f()
 {
     int i;
-
     int randlevel;
-
     int numlevels;
     filelist_item_t* level;
 
@@ -1139,20 +1127,13 @@ void Host_Changelevel_f()
         IN_UpdateGrabs(); // -- S.A.
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     PR_SwitchQCVM(&sv.qcvm);
-#endif
-
     SV_SaveSpawnparms();
 
     q_strlcpy(level, Cmd_Argv(1), sizeof(level));
     SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
-    PR_SwitchQCVM(NULL);
-#endif
+    PR_SwitchQCVM(nullptr);
 
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
@@ -1197,17 +1178,9 @@ void Host_Restart_f()
     // mapname gets cleared in spawnserver
     q_strlcpy(mapname, sv.name, sizeof(mapname));
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     PR_SwitchQCVM(&sv.qcvm);
-#endif
-
     SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
-
-    // TODO VR: (P0): QSS Merge
-#if 0
-    PR_SwitchQCVM(NULL);
-#endif
+    PR_SwitchQCVM(nullptr);
 
     if(!sv.active)
     {
@@ -1396,11 +1369,8 @@ bool Host_MakeSavegame(
         fprintf(f, "%s\n", buf);
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     // QSS
     PR_SwitchQCVM(&sv.qcvm);
-#endif
 
     fprintf(f, "%i\n", SAVEGAME_VERSION);
     char comment[SAVEGAME_COMMENT_LENGTH + 1];
@@ -1472,32 +1442,42 @@ bool Host_MakeSavegame(
     for(i = MAX_LIGHTSTYLES_VANILLA; i < MAX_LIGHTSTYLES; i++)
     {
         if(sv.lightstyles[i])
+        {
             fprintf(f, "sv.lightstyles %i \"%s\"\n", i, sv.lightstyles[i]);
+        }
     }
     for(i = 1; i < MAX_MODELS; i++)
     {
         if(sv.model_precache[i])
+        {
             fprintf(
                 f, "sv.model_precache %i \"%s\"\n", i, sv.model_precache[i]);
+        }
     }
     for(i = 1; i < MAX_SOUNDS; i++)
     {
         if(sv.sound_precache[i])
+        {
             fprintf(
                 f, "sv.sound_precache %i \"%s\"\n", i, sv.sound_precache[i]);
+        }
     }
     for(i = 1; i < MAX_PARTICLETYPES; i++)
     {
         if(sv.particle_precache[i])
+        {
             fprintf(f, "sv.particle_precache %i \"%s\"\n", i,
                 sv.particle_precache[i]);
+        }
     }
 
     for(i = NUM_BASIC_SPAWN_PARMS; i < NUM_TOTAL_SPAWN_PARMS; i++)
     {
         if(svs.clients->spawn_parms[i])
+        {
             fprintf(
                 f, "spawnparm %i \"%f\"\n", i + 1, svs.clients->spawn_parms[i]);
+        }
     }
 
     fprintf(f, "*/\n");
@@ -1510,11 +1490,7 @@ bool Host_MakeSavegame(
         Con_Printf("done.\n");
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
-    PR_SwitchQCVM(NULL);
-#endif
-
+    PR_SwitchQCVM(nullptr);
     return true;
 }
 
@@ -1644,19 +1620,13 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     CL_Disconnect_f();
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     PR_SwitchQCVM(&sv.qcvm);
-#endif
 
     SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
     if(!sv.active)
     {
-        // TODO VR: (P0): QSS Merge
-#if 0
-        PR_SwitchQCVM(NULL);
-#endif
+        PR_SwitchQCVM(nullptr);
 
         free(start);
         start = nullptr;
@@ -1684,7 +1654,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 #if 0
     for(; i < MAX_LIGHTSTYLES; i++)
     {
-        sv.lightstyles[i] = NULL;
+        sv.lightstyles[i] = nullptr;
     }
 #endif
 
@@ -1719,7 +1689,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
                             sv.lightstyles[idx] = (const char*)Hunk_Strdup(
                                 com_token, "lightstyles");
                         else
-                            sv.lightstyles[idx] = NULL;
+                            sv.lightstyles[idx] = nullptr;
                     }
                 }
                 else if(!strcmp(com_token, "sv.model_precache"))
@@ -1851,10 +1821,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
-    PR_SwitchQCVM(NULL);
-#endif
+    PR_SwitchQCVM(nullptr);
 
     if(cls.state != ca_dedicated)
     {
@@ -2093,7 +2060,6 @@ void Host_Tell_f()
     client_t* save;
     const char* p;
     char text[MAXCMDLINE];
-
     char* p2;
     bool quoted;
 
@@ -2169,7 +2135,6 @@ Host_Color_f
 void Host_Color_f()
 {
     int top;
-
     int bottom;
     int playercolor;
 
@@ -2317,7 +2282,7 @@ void Host_PreSpawn_f()
 
     if(host_client->spawned)
     {
-        Con_Printf("prespawn not valid -- allready spawned\n");
+        Con_Printf("prespawn not valid -- already spawned\n");
         return;
     }
 
@@ -2558,7 +2523,7 @@ void Host_Spawn_f()
 // QSS
 	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
     {
-		SV_WriteClientdataToMessage (host_client, &host_client->message);
+		SV_WriteClientdataToMessage(host_client, &host_client->message);
     }
 #else
     SV_WriteClientdataToMessage(sv_player, &host_client->message);
@@ -3035,11 +3000,11 @@ edict_t* FindViewthing()
 
     if(i == qcvm->num_edicts)
     {
-        e = NULL;
+        e = nullptr;
         Con_Printf("No viewthing on map\n");
     }
 
-    PR_SwitchQCVM(NULL);
+    PR_SwitchQCVM(nullptr);
     return e;
 }
 #else
@@ -3093,7 +3058,7 @@ void Host_Viewmodel_f()
     e->v.modelindex = m ? SV_Precache_Model(m->name) : 0;
     e->v.model = PR_SetEngineString(sv.model_precache[(int)e->v.modelindex]);
     e->v.frame = 0;
-    PR_SwitchQCVM(NULL);
+    PR_SwitchQCVM(nullptr);
 #else
     e->v.frame = 0;
     cl.model_precache[(int)e->v.modelindex] = m;
@@ -3219,7 +3184,6 @@ Host_Startdemos_f
 void Host_Startdemos_f()
 {
     int i;
-
     int c;
 
     if(cls.state == ca_dedicated)
@@ -3341,7 +3305,7 @@ static void Host_Download_f()
             MSG_WriteByte(&host_client->message, svc_stufftext);
             MSG_WriteString(&host_client->message, "\nstopdownload\n");
             fclose(host_client->download.file);
-            host_client->download.file = NULL;
+            host_client->download.file = nullptr;
         }
 
         host_client->download.size = 0;
@@ -3355,7 +3319,7 @@ static void Host_Download_f()
                 "refusing download of %s - restricted filename\n", fname);
         else
         {
-            fsize = COM_FOpenFile(fname, &host_client->download.file, NULL);
+            fsize = COM_FOpenFile(fname, &host_client->download.file, nullptr);
             if(!host_client->download.file)
                 SV_ClientPrintf("server does not have file %s\n", fname);
             else if(file_from_pak)
@@ -3363,13 +3327,13 @@ static void Host_Download_f()
                 SV_ClientPrintf(
                     "refusing download of %s from inside pak\n", fname);
                 fclose(host_client->download.file);
-                host_client->download.file = NULL;
+                host_client->download.file = nullptr;
             }
             else if(fsize < 0 || fsize > 50 * 1024 * 1024)
             {
                 SV_ClientPrintf("refusing download of large file %s\n", fname);
                 fclose(host_client->download.file);
-                host_client->download.file = NULL;
+                host_client->download.file = nullptr;
             }
         }
 
@@ -3469,7 +3433,7 @@ void Host_DownloadAck(client_t* client)
             free(data);
         }
         fclose(client->download.file);
-        client->download.file = NULL;
+        client->download.file = nullptr;
 
         MSG_WriteByte(&host_client->message, svc_stufftext);
         MSG_WriteString(&host_client->message,
@@ -3505,7 +3469,7 @@ void Host_InitCommands()
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
     Cmd_AddCommand("connect", Host_Connect_f);
 
-    // TODO VR: (P1): should be Con_f, but doesn't work properly
+    // TODO VR: (P0): should be Con_f, but doesn't work properly
     Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f); // QSS
 
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS

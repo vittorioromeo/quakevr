@@ -37,8 +37,40 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.hpp"
 #include "view.hpp"
 #include "cmd.hpp"
+#include "snd_voip.hpp"
 
 #include <iostream>
+#include <unordered_map>
+
+static const std::unordered_map<int, const char*>& clcStrings()
+{
+    static const std::unordered_map<int, const char*> res{
+        {0, "clc_bad"},                //
+        {1, "clc_nop"},                //
+        {2, "clc_disconnect"},         //
+        {3, "clc_move"},               //
+        {4, "clc_stringcmd"},          //
+        {50, "clcdp_ackframe"},        //
+        {51, "clcdp_ackdownloaddata"}, //
+        {81, "clcfte_qcrequest"},      //
+        {83, "clcfte_voicechat"},
+    };
+
+    return res;
+}
+
+static const char* getClcString(const int i)
+{
+    auto& strings = clcStrings();
+    auto it = strings.find(i);
+
+    if(it == strings.end())
+    {
+        return "UNKNOWN";
+    }
+
+    return it->second;
+}
 
 edict_t* sv_player{nullptr};
 
@@ -68,22 +100,16 @@ SV_SetIdealPitch
 void SV_SetIdealPitch()
 {
     float angleval;
-
     float sinval;
-
     float cosval;
     trace_t tr;
     qvec3 top;
-
     qvec3 bottom;
     float z[MAX_FORWARD];
     int i;
-
     int j;
     int step;
-
     int dir;
-
     int steps;
 
     if(!quake::util::hasFlag(sv_player, FL_ONGROUND))
@@ -162,12 +188,9 @@ void SV_UserFriction()
 {
     qvec3* vel;
     float speed;
-
     float newspeed;
-
     float control;
     qvec3 start;
-
     qvec3 stop;
     float friction;
     trace_t trace;
@@ -205,6 +228,7 @@ void SV_UserFriction()
     {
         newspeed = 0;
     }
+    
     newspeed /= speed;
     (*vel) *= newspeed;
 }
@@ -295,13 +319,9 @@ void SV_WaterMove()
     int i;
     qvec3 wishvel;
     float speed;
-
     float newspeed;
-
     float wishspeed;
-
     float addspeed;
-
     float accelspeed;
 
     //
@@ -318,7 +338,19 @@ void SV_WaterMove()
         wishvel[i] = forward[i] * cmd.forwardmove + right[i] * cmd.sidemove;
     }
 
-    if(!cmd.forwardmove && !cmd.sidemove && !cmd.upmove)
+    if(sv_player->onladder)
+    {
+        wishvel[2] *=
+            1 + fabs(wishvel[2] / 200) * 9; // exaggerate vertical movement.
+
+        if(sv_player->v.button2)
+        {
+            wishvel[2] += 400; // make jump climb (you can turn around and move
+                               // off to fall)
+        }
+    }
+
+    if(!cmd.forwardmove && !cmd.sidemove && !cmd.upmove && !sv_player->onladder)
     {
         wishvel[2] -= 60; // drift towards bottom
     }
@@ -565,15 +597,8 @@ void SV_ReadClientMove(usercmd_t* move)
         // read current angles
         for(int i = 0; i < 3; i++)
         {
-            // johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-            if(sv.protocol == PROTOCOL_NETQUAKE)
-            {
-                target[i] = MSG_ReadAngle(sv.protocolflags);
-            }
-            else
-            {
-                target[i] = MSG_ReadAngle16(sv.protocolflags);
-            }
+            // johnfitz -- 16-bit angles for PROTOCOL_QUAKEVR
+            target[i] = MSG_ReadAngle16(sv.protocolflags);
             // johnfitz
         }
     };
@@ -660,157 +685,95 @@ Returns false if the client should be killed
 */
 bool SV_ReadClientMessage()
 {
-    int ret;
     int ccmd;
     const char* s;
 
-    do
+    MSG_BeginReading();
+
+    while(true)
     {
-    nextmsg:
-        ret = NET_GetMessage(host_client->netconnection);
-        if(ret == -1)
+        if(!host_client->active)
         {
-            Sys_Printf(
-                "SV_ReadClientMessage: NET_GetMessage failed. rc= %d\n", ret);
+            return false; // a command caused an error
+        }
+
+        if(msg_badread)
+        {
+            Sys_Printf("SV_ReadClientMessage: badread, prev command was %s\n",
+                getClcString(ccmd));
             return false;
         }
-        if(!ret)
-        {
-            return true;
-        }
 
-        MSG_BeginReading();
+        ccmd = MSG_ReadChar();
 
-        while(true)
+        switch(ccmd)
         {
-            if(!host_client->active)
+            case -1: return true; // msg_badread, meaning we just hit eof.
+
+            default:
+                Sys_Printf(
+                    "SV_ReadClientMessage: unknown command char %d\n", ccmd);
+                return false;
+
+            case clc_nop: 
             {
-                return false; // a command caused an error
+            	break;
             }
 
-            if(msg_badread)
+            case clc_stringcmd:
+                s = MSG_ReadString();
+
+// TODO VR: (P0): QSS Merge
+#if 0
+                if(q_strncasecmp(s, "spawn", 5) &&
+                    q_strncasecmp(s, "begin", 5) &&
+                    q_strncasecmp(s, "prespawn", 8) &&
+                    qcvm->extfuncs.SV_ParseClientCommand)
+                { // the spawn/begin/prespawn are because of numerous mods that
+                  // disobey the rules.
+                    // at a minimum, we must be able to join the server, so that
+                    // we can see any sprints/bprints (because dprint sucks, yes
+                    // there's proper ways to deal with this, but moders don't
+                    // always know them).
+                    client_t* ohc = host_client;
+                    G_INT(OFS_PARM0) = PR_SetEngineString(s);
+                    pr_global_struct->time = qcvm->time;
+                    pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
+                    PR_ExecuteProgram(qcvm->extfuncs.SV_ParseClientCommand);
+                    host_client = ohc;
+                }
+                else
+#endif
+                {
+                    Cmd_ExecuteString(s, src_client);
+                }
+                break;
+
+            case clc_disconnect:
             {
-                Sys_Printf("SV_ReadClientMessage: badread\n");
                 return false;
             }
 
-            ccmd = MSG_ReadChar();
-
-            switch(ccmd)
+            case clc_move:
             {
-                case -1: goto nextmsg; // end of message
+                if(!host_client->spawned)
+                {
+                    return true; // this is to suck up any stale moves on map
+                }
+                // changes, so we don't get confused (quite so
+                // easily) when protocols are changed between
+                // maps
+                SV_ReadClientMove(&host_client->cmd);
+                break;
+            }
 
-                default:
-                    Sys_Printf("SV_ReadClientMessage: unknown command char\n");
-                    return false;
-
-                case clc_nop:
-                    //				Sys_Printf ("clc_nop\n");
-                    break;
-
-                case clc_stringcmd:
-                    s = MSG_ReadString();
-                    ret = 0;
-                    if(q_strncasecmp(s, "status", 6) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "god", 3) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "notarget", 8) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "fly", 3) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "name", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "noclip", 6) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "setpos", 6) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "say", 3) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "say_team", 8) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "tell", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "color", 5) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "kill", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "pause", 5) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "spawn", 5) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "begin", 5) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "prespawn", 8) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "kick", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "ping", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "give", 4) == 0)
-                    {
-                        ret = 1;
-                    }
-                    else if(q_strncasecmp(s, "ban", 3) == 0)
-                    {
-                        ret = 1;
-                    }
-
-                    if(ret == 1)
-                    {
-                        Cmd_ExecuteString(s, src_client);
-                    }
-                    else
-                    {
-                        Con_DPrintf("%s tried to %s\n", host_client->name, s);
-                    }
-                    break;
-
-                case clc_disconnect:
-                    //				Sys_Printf ("SV_ReadClientMessage: client
-                    // disconnected\n");
-                    return false;
-
-                case clc_move: SV_ReadClientMove(&host_client->cmd); break;
+            case clcfte_voicechat: 
+            {
+            	SV_VoiceReadPacket(host_client); 
+            	break;
             }
         }
-    } while(ret == 1);
+    }
 
     return true;
 }
@@ -825,6 +788,35 @@ void SV_RunClients()
 {
     int i;
 
+    // receive from clients first
+    // Spike -- reworked this to query the network code for an active
+    // connection. this allows the network code to serve multiple clients with
+    // the same listening port. this solves server-side nats, which is important
+    // for coop etc.
+    while(true)
+    {
+        struct qsocket_s* sock = NET_GetServerMessage();
+        if(!sock)
+        {
+            break; // no more this frame
+        }
+
+        for(i = 0, host_client = svs.clients; i < svs.maxclients;
+            i++, host_client++)
+        {
+            if(host_client->netconnection == sock)
+            {
+                sv_player = host_client->edict;
+                if(!SV_ReadClientMessage())
+                {
+                    SV_DropClient(false); // client misbehaved...
+                    break;
+                }
+            }
+        }
+    }
+
+    // then do the per-frame stuff
     for(i = 0, host_client = svs.clients; i < svs.maxclients;
         i++, host_client++)
     {
@@ -835,18 +827,33 @@ void SV_RunClients()
 
         sv_player = host_client->edict;
 
-        if(!SV_ReadClientMessage())
-        {
-            SV_DropClient(false); // client misbehaved...
-            continue;
-        }
-
         if(!host_client->spawned)
         {
             // clear client movement until a new packet is received
             memset(&host_client->cmd, 0, sizeof(host_client->cmd));
             continue;
         }
+
+// TODO VR: (P0): QSS Merge
+#if 0
+        if(!host_client->netconnection)
+        {
+            // botclients can't receive packets. don't even try.
+            // not sure where to put this code, but here seems sane enough.
+            // fill in the user's desired stuff according to a few things.
+            eval_t* ev = GetEdictFieldValue(
+                host_client->edict, qcvm->extfields.movement);
+            if(ev) //.movement normally works the other way around. oh well.
+            {
+                host_client->cmd.forwardmove = ev->vector[0];
+                host_client->cmd.sidemove = ev->vector[1];
+                host_client->cmd.upmove = ev->vector[2];
+            }
+            host_client->cmd.viewangles[0] = host_client->edict->v.v_angle[0];
+            host_client->cmd.viewangles[1] = host_client->edict->v.v_angle[1];
+            host_client->cmd.viewangles[2] = host_client->edict->v.v_angle[2];
+        }
+#endif
 
         // always pause in single player if in console or menus
         if(!sv.paused && (svs.maxclients > 1 || key_dest == key_game))

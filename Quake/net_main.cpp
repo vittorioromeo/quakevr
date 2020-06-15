@@ -1036,6 +1036,7 @@ void NET_Init()
     SZ_Alloc(&net_message, NET_MAXMESSAGE);
 
     Cvar_RegisterVariable(&net_messagetimeout);
+    Cvar_RegisterVariable(&net_connecttimeout);
     Cvar_RegisterVariable(&hostname);
 
     Cmd_AddCommand("slist", NET_Slist_f);
@@ -1139,7 +1140,6 @@ void NET_Poll()
 void SchedulePollProcedure(PollProcedure* proc, double timeOffset)
 {
     PollProcedure* pp;
-
     PollProcedure* prev;
 
     proc->nextTime = Sys_DoubleTime() + timeOffset;

@@ -703,6 +703,12 @@ bool Cvar_Command()
         return true;
     }
 
+    if(Con_IsRedirected())
+    {
+        Con_Printf("changing \"%s\" from \"%s\" to \"%s\"\n", v->name,
+            v->string, Cmd_Argv(1));
+    }
+
     Cvar_Set(v->name, Cmd_Argv(1));
     return true;
 }

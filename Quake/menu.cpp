@@ -2251,6 +2251,7 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
 
+    // TODO VR: (P1) what about this?
     m.on_key([](const int key, quake::impl::menu_entry& entry) {
         if(key == 'p')
         {
@@ -2289,6 +2290,74 @@ void M_Options_Key(int k)
 [[nodiscard]] static quake::menu& qvrsTransparencyOptionsMenu()
 {
     static quake::menu res = makeQVRSTransparencyOptionsMenu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR SETTINGS MENU - VOIP OPTIONS */
+
+[[nodiscard]] static quake::menu makeQVRSVoipMenu()
+{
+    extern cvar_t sv_voip;
+    extern cvar_t sv_voip_echo;
+
+    extern cvar_t cl_voip_send;
+    extern cvar_t cl_voip_test;
+    extern cvar_t cl_voip_vad_threshhold;
+    extern cvar_t cl_voip_vad_delay;
+    extern cvar_t cl_voip_capturingvol;
+    extern cvar_t cl_voip_showmeter;
+    extern cvar_t cl_voip_play;
+    extern cvar_t cl_voip_micamp;
+    extern cvar_t cl_voip_ducking;
+    extern cvar_t cl_voip_codec;
+    extern cvar_t cl_voip_noisefilter;
+    extern cvar_t cl_voip_autogain;
+    extern cvar_t cl_voip_opus_bitrate;
+
+    quake::menu m{"Voip Options", &M_Menu_QuakeVRSettings_f};
+
+    m.add_cvar_entry<bool>("Server - Enable Voip", sv_voip);
+    m.add_cvar_entry<bool>("Server - Enable Voip Echo", sv_voip_echo);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<int>(          //
+        "Send Mode",                            //
+        [] { return &cl_voip_send; },           //
+        "Off", "Voice Activation", "Continuous" //
+    );
+
+    m.add_cvar_entry<bool>("Test Mode", cl_voip_test);
+
+    m.add_cvar_entry<float>("Vad Delay", cl_voip_vad_delay, {0.1f, 0.0f, 1.f});
+
+    m.add_cvar_entry<float>(
+        "Capturing Volume", cl_voip_capturingvol, {0.1f, 0.0f, 1.f});
+
+    m.add_cvar_entry<bool>("Show Meter", cl_voip_showmeter);
+
+    m.add_cvar_entry<bool>("Play Voip", cl_voip_play);
+
+    m.add_cvar_entry<float>("Mic Amp.", cl_voip_micamp, {0.1f, 0.0f, 10.f});
+
+    m.add_cvar_entry<float>("Ducking", cl_voip_ducking, {0.1f, 0.0f, 10.f});
+
+    m.add_cvar_entry<bool>("Noise Filter", cl_voip_noisefilter);
+
+    m.add_cvar_entry<bool>("Autogain", cl_voip_autogain);
+
+    m.add_cvar_entry<float>(
+        "Opus Bitrate", cl_voip_opus_bitrate, {500.f, 500.0f, 512000.f});
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsVoipMenu()
+{
+    static quake::menu res = makeQVRSVoipMenu();
     return res;
 }
 
@@ -2346,6 +2415,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
+    f(qvrsVoipMenu(), m_qvrs_voip);
 }
 
 [[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
@@ -3483,7 +3553,7 @@ const char* bindnames[][2] = {{"+attack", "attack"},
     {"+strafe", "sidestep"}, {"+lookup", "look up"}, {"+lookdown", "look down"},
     {"centerview", "center view"}, {"+mlook", "mouse look"},
     {"+klook", "keyboard look"}, {"+moveup", "swim up"},
-    {"+movedown", "swim down"}};
+    {"+movedown", "swim down"}, {"+voip", "Voice Chat"}};
 
 #define NUMCOMMANDS (sizeof(bindnames) / sizeof(bindnames[0]))
 

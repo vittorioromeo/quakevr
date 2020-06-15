@@ -1503,11 +1503,11 @@ static int COM_FindFile(
         strcmp(COM_FileGetExtension(filename), "lit") != 0 &&
         strcmp(COM_FileGetExtension(filename), "ent") != 0)
     {
-        Con_DPrintf("FindFile: can't find %s\n", filename);
+        Con_DPrintf2("FindFile: can't find %s\n", filename);
     }
     else
     {
-        Con_DPrintf2("FindFile: can't find %s\n", filename);
+        Con_DPrintf3("FindFile: can't find %s\n", filename);
     }
     // Log pcx, tga, lit, ent misses only if (developer.value >= 2)
 

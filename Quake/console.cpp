@@ -190,7 +190,6 @@ Con_Dump_f -- johnfitz -- adapted from quake2 source
 static void Con_Dump_f()
 {
     int l;
-
     int x;
     const char* line;
     FILE* f;
@@ -476,7 +475,6 @@ static void Con_Print(const char* txt)
 {
     int y;
     int c;
-
     int l;
     static int cr;
     int mask;
@@ -723,8 +721,6 @@ void Con_DPrintf(const char* fmt, ...)
 /*
 ================
 Con_DPrintf2 -- johnfitz -- only prints if "developer" >= 2
-
-currently not used
 ================
 */
 void Con_DPrintf2(const char* fmt, ...)
@@ -733,6 +729,25 @@ void Con_DPrintf2(const char* fmt, ...)
     char msg[MAXPRINTMSG];
 
     if(quake::vr::developerMode() >= 2)
+    {
+        va_start(argptr, fmt);
+        q_vsnprintf(msg, sizeof(msg), fmt, argptr);
+        va_end(argptr);
+        Con_Printf("%s", msg);
+    }
+}
+
+/*
+================
+Con_DPrintf3 -- johnfitz -- only prints if "developer" >= 3
+================
+*/
+void Con_DPrintf3(const char* fmt, ...)
+{
+    va_list argptr;
+    char msg[MAXPRINTMSG];
+
+    if(quake::vr::developerMode() >= 3)
     {
         va_start(argptr, fmt);
         q_vsnprintf(msg, sizeof(msg), fmt, argptr);
@@ -779,10 +794,8 @@ void Con_CenterPrintf(int linewidth, const char* fmt, ...)
     char line[MAXPRINTMSG]; // one line from the message
     char spaces[21];        // buffer for spaces
     char* src;
-
     char* dst;
     int len;
-
     int s;
 
     va_start(argptr, fmt);
@@ -996,13 +1009,10 @@ const char* FindCompletion(
 {
     static char matched[32];
     char* i_matched;
-
     char* i_name;
     filelist_item_t* file;
     int init;
-
     int match;
-
     int plen;
 
     memset(matched, 0, sizeof(matched));
@@ -1108,9 +1118,7 @@ void Con_TabComplete()
     const char* match;
     static char* c;
     tab_t* t;
-
     int i;
-
     int j;
 
     // if editline is empty, return
@@ -1305,9 +1313,7 @@ game top
 void Con_DrawNotify()
 {
     int i;
-
     int x;
-
     int v;
     const char* text;
     float time;
@@ -1396,7 +1402,6 @@ extern qpic_t *pic_ovr,
 void Con_DrawInput()
 {
     int i;
-
     int ofs;
 
     if(key_dest != key_console && !con_forcedup)
@@ -1442,15 +1447,10 @@ typing is allowed
 void Con_DrawConsole(int lines, bool drawinput)
 {
     int i;
-
     int x;
-
     int y;
-
     int j;
-
     int sb;
-
     int rows;
     const char* text;
     char ver[64];
@@ -1523,10 +1523,8 @@ Con_NotifyBox
 void Con_NotifyBox(const char* text)
 {
     double t1;
-
     double t2;
     int lastkey;
-
     int lastchar;
 
     // during startup for sound / cd warnings

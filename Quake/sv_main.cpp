@@ -37,13 +37,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "worldtext.hpp"
 #include "msg.hpp"
 #include "sys.hpp"
+#include "snd_voip.hpp"
 
 server_t sv;
 server_static_t svs;
 
 static char localmodels[MAX_MODELS][8]; // inline model names for precache
 
-int sv_protocol = PROTOCOL_FITZQUAKE; // johnfitz
+int sv_protocol = PROTOCOL_QUAKEVR; // johnfitz
 
 extern bool pr_alpha_supported; // johnfitz
 
@@ -63,11 +64,9 @@ void SV_Protocol_f()
         case 1: Con_Printf("\"sv_protocol\" is \"%i\"\n", sv_protocol); break;
         case 2:
             i = atoi(Cmd_Argv(1));
-            if(i != PROTOCOL_NETQUAKE && i != PROTOCOL_FITZQUAKE &&
-                i != PROTOCOL_RMQ)
+            if(i != PROTOCOL_QUAKEVR)
             {
-                Con_Printf("sv_protocol must be %i or %i or %i\n",
-                    PROTOCOL_NETQUAKE, PROTOCOL_FITZQUAKE, PROTOCOL_RMQ);
+                Con_Printf("sv_protocol must be %i", PROTOCOL_QUAKEVR);
             }
             else
             {
@@ -104,7 +103,12 @@ void SV_Init()
     extern cvar_t sv_accelerate;
     extern cvar_t sv_idealpitchscale;
     extern cvar_t sv_aim;
-    extern cvar_t sv_altnoclip; // johnfitz
+    extern cvar_t sv_altnoclip;        // johnfitz
+    extern cvar_t sv_public;           // spike
+    extern cvar_t sv_reportheartbeats; // spike
+    extern cvar_t com_protocolname;    // spike
+    extern cvar_t net_masters[];       // spike
+    extern cvar_t rcon_password;       // spike, proquake-compatible rcon
 
     sv.edicts = nullptr; // ericw -- sv.edicts switched to use malloc()
 
@@ -124,6 +128,26 @@ void SV_Init()
     Cvar_RegisterVariable(&sv_freezenonclients);
     Cvar_RegisterVariable(&sv_altnoclip); // johnfitz
 
+    if(isDedicated)
+    {
+        sv_public.string = "1";
+    }
+    else
+    {
+        sv_public.string = "0";
+    }
+    Cvar_RegisterVariable(&sv_public);
+    Cvar_RegisterVariable(&sv_reportheartbeats);
+    Cvar_RegisterVariable(&com_protocolname);
+    for(i = 0; net_masters[i].name; i++)
+    {
+        Cvar_RegisterVariable(&net_masters[i]);
+    }
+
+    Cvar_RegisterVariable(&rcon_password);
+
+
+
     Cmd_AddCommand("sv_protocol", &SV_Protocol_f); // johnfitz
 
     for(i = 0; i < MAX_MODELS; i++)
@@ -138,17 +162,15 @@ void SV_Init()
     }
     switch(sv_protocol)
     {
-        case PROTOCOL_NETQUAKE: p = "NetQuake"; break;
-        case PROTOCOL_FITZQUAKE: p = "FitzQuake"; break;
-        case PROTOCOL_RMQ: p = "RMQ"; break;
+        case PROTOCOL_QUAKEVR: p = "Quake VR"; break;
         default:
-            Sys_Error(
-                "Bad protocol version request %i. Accepted values: %i, %i, %i.",
-                sv_protocol, PROTOCOL_NETQUAKE, PROTOCOL_FITZQUAKE,
-                PROTOCOL_RMQ);
+            Sys_Error("Bad protocol version request %i. Accepted values: %i.",
+                sv_protocol, PROTOCOL_QUAKEVR);
             return; /* silence compiler */
     }
     Sys_Printf("Server using protocol %i (%s)\n", sv_protocol, p);
+
+    SV_VoiceInit();
 }
 
 /*
@@ -286,23 +308,13 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         field_mask |= SND_ATTENUATION;
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(ent >= 8192)
     {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return; // don't send any info protocol can't support
-        }
-
         field_mask |= SND_LARGEENTITY;
     }
     if(sound_num >= 256 || channel >= 8)
     {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return; // don't send any info protocol can't support
-        }
-
         field_mask |= SND_LARGESOUND;
     }
     // johnfitz
@@ -319,7 +331,7 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         MSG_WriteByte(&sv.datagram, attenuation * 64);
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(field_mask & SND_LARGEENTITY)
     {
         MSG_WriteShort(&sv.datagram, ent);
@@ -367,8 +379,99 @@ void SV_SendServerinfo(client_t* client)
 {
     const char** s;
     char message[4096];
-    int i; // johnfitz
+    unsigned int i; // johnfitz
+    bool cantruncate;
 
+    SV_VoiceInitClient(client);
+
+    client->spawned = false; // need prespawn, spawn, etc
+
+    // assume some safe defaults if we early out.
+    client->limit_unreliable = 1024;
+    client->limit_reliable = 8192;
+    client->limit_entities = 0;
+    client->limit_models = 0;
+    client->limit_sounds = 0;
+
+    /*
+    if(!client->pextknown)
+    {
+        MSG_WriteByte(&client->message, svc_stufftext);
+        MSG_WriteString(&client->message, "cmd pext\n");
+        client->sendsignon = true;
+        return;
+    }
+    */
+
+    client->limit_entities =
+        (NET_QSocketGetProQuakeAngleHack(client->netconnection))
+            ? 2048
+            : 600; // vanilla sucks. proquake supports more so assume we can use
+                   // that limit if angles are also available (but only if we're
+                   // allowing other non-vanilla extensions)
+    client->limit_models = 256; // single byte
+    client->limit_sounds = 256; // single byte
+
+    // now we know their protocol, pick some real defaults
+    // if(sv.protocol != PROTOCOL_NETQUAKE || client->protocol_pext2)
+    {
+        client->limit_unreliable =
+            DATAGRAM_MTU; // some safe ethernet limit. these clients should
+                          // accept pretty much anything, but any routers will
+                          // not.
+        client->limit_reliable = MAX_DATAGRAM; // quite large, ip allows 16 bits
+        client->limit_entities =
+            MAX_EDICTS; // we don't really know, 8k is probably a save
+                        // guess but could be 32k, 65k, or even more...
+        client->limit_models =
+            MAX_MODELS; // not really sure, client's problem until >14bits
+        client->limit_sounds =
+            MAX_SOUNDS; // not really sure, client's problem until >14bits
+
+        if(!Q_strcmp(
+               NET_QSocketGetTrueAddressString(client->netconnection), "LOCAL"))
+        { // override some other limits for localhost, because we can probably
+          // get away with it.
+            // only do this if we're using extensions, so we don't break demos
+            client->limit_unreliable = client->limit_reliable = MAX_DATAGRAM;
+        }
+    }
+
+    /*if(client->limit_entities > 0x8000 &&
+        !(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+    {
+        client->limit_entities =
+            0x8000; // pext2 changes the encoding of entities to support 23 bits
+    }*/
+    // instead of dpp7's 15bits or vanilla's 16bits, but our
+    // writeentity is lazy.
+
+    // unfortunately we can't split this up, so if its oversized, we'll just let
+    // the client complain instead of always kicking them
+    client->message.maxsize = sizeof(client->msgbuf);
+    if(client->message.maxsize > (int)client->limit_reliable)
+    {
+        client->message.maxsize = client->limit_reliable;
+    }
+
+    NET_QSocketSetMSS(client->netconnection, client->limit_unreliable);
+
+    if(client->message.cursize)
+    { // try and flush the reliable NOW, in case the qc is evil
+        if(NET_CanSendMessage(host_client->netconnection))
+        {
+            if(NET_SendMessage(
+                   host_client->netconnection, &host_client->message) != -1)
+            {
+                SZ_Clear(&host_client->message);
+                host_client->last_message = realtime;
+            }
+        }
+    }
+
+    cantruncate = client->message.cursize == 0;
+
+retry:
     MSG_WriteByte(&client->message, svc_print);
 
     sprintf(message, "%c\nQUAKE VR %s SERVER (%i CRC)\n", 2, QUAKEVR_VERSION,
@@ -379,13 +482,6 @@ void SV_SendServerinfo(client_t* client)
     MSG_WriteByte(&client->message, svc_serverinfo);
     MSG_WriteLong(&client->message,
         sv.protocol); // johnfitz -- sv.protocol instead of PROTOCOL_VERSION
-
-    if(sv.protocol == PROTOCOL_RMQ)
-    {
-        // mh - now send protocol flags so that the client knows the protocol
-        // features to expect
-        MSG_WriteLong(&client->message, sv.protocolflags);
-    }
 
     MSG_WriteByte(&client->message, svs.maxclients);
 
@@ -402,21 +498,17 @@ void SV_SendServerinfo(client_t* client)
 
     // johnfitz -- only send the first 256 model and sound precaches if protocol
     // is 15
-    for(i = 0, s = sv.model_precache + 1; *s; s++, i++)
+    for(i = 1, s = sv.model_precache + 1; *s && i < client->limit_models;
+        s++, i++)
     {
-        if(sv.protocol != PROTOCOL_NETQUAKE || i < 256)
-        {
-            MSG_WriteString(&client->message, *s);
-        }
+        MSG_WriteString(&client->message, *s);
     }
     MSG_WriteByte(&client->message, 0);
 
-    for(i = 0, s = sv.sound_precache + 1; *s; s++, i++)
+    for(i = 1, s = sv.sound_precache + 1; *s && i < client->limit_sounds;
+        s++, i++)
     {
-        if(sv.protocol != PROTOCOL_NETQUAKE || i < 256)
-        {
-            MSG_WriteString(&client->message, *s);
-        }
+        MSG_WriteString(&client->message, *s);
     }
     MSG_WriteByte(&client->message, 0);
     // johnfitz
@@ -434,7 +526,74 @@ void SV_SendServerinfo(client_t* client)
     MSG_WriteByte(&client->message, 1);
 
     client->sendsignon = true;
-    client->spawned = false; // need prespawn, spawn, etc
+
+    if(client->message.overflowed && client->limit_sounds > 64 && cantruncate)
+    {
+        if(client->limit_models > client->limit_sounds)
+        {
+            client->limit_models /= 2;
+        }
+        else
+        {
+            client->limit_sounds /= 2;
+        }
+        SZ_Clear(&client->message);
+        Con_Printf("Serverinfo too large for %s, truncating.\n",
+            NET_QSocketGetTrueAddressString(client->netconnection));
+        goto retry;
+    }
+
+    // try and flush the reliable NOW, in case the qc is evil
+    if(NET_CanSendMessage(client->netconnection))
+    {
+        if(NET_SendMessage(client->netconnection, &client->message) != -1)
+        {
+            SZ_Clear(&client->message);
+            client->last_message = realtime;
+            client->sendsignon = false;
+        }
+    }
+
+    // protocol 15 is too limited. let people know that they'll get a crappy
+    // experience.
+    if(client->limit_entities <= (unsigned)sv.num_edicts)
+    {
+        Con_Warning("Protocol limitation (entities) for %s\n",
+            NET_QSocketGetTrueAddressString(client->netconnection));
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteByte(&client->message, 2);
+        MSG_WriteString(&client->message, "WARNING: ");
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteString(&client->message,
+            "The protocol in use is too limited. You will not be able to see "
+            "all entities\n");
+    }
+    if(client->limit_models < MAX_MODELS &&
+        sv.model_precache[client->limit_models])
+    {
+        Con_Warning("Protocol limitation (models) for %s\n",
+            NET_QSocketGetTrueAddressString(client->netconnection));
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteByte(&client->message, 2);
+        MSG_WriteString(&client->message, "WARNING: ");
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteString(&client->message,
+            "The protocol in use is too limited. You will not be able to see "
+            "all models\n");
+    }
+    if(client->limit_sounds < MAX_SOUNDS &&
+        sv.sound_precache[client->limit_sounds])
+    {
+        Con_Warning("Protocol limitation (sounds) for %s\n",
+            NET_QSocketGetTrueAddressString(client->netconnection));
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteByte(&client->message, 2);
+        MSG_WriteString(&client->message, "WARNING: ");
+        MSG_WriteByte(&client->message, svc_print);
+        MSG_WriteString(&client->message,
+            "The protocol in use is too limited. You will not be able to hear "
+            "all sounds\n");
+    }
 }
 
 /*
@@ -490,10 +649,6 @@ void SV_ConnectClient(int clientnum)
     client->datagram.data = client->datagram_buf;
     client->datagram.maxsize = sizeof(client->datagram_buf);
     client->datagram.allowoverflow = true; // simply ignored on overflow
-
-    // QSS
-    client->pextknown = false;
-    client->protocol_pext2 = 0;
 
     if(sv.loadgame)
     {
@@ -727,14 +882,6 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
                 continue;
             }
 
-            // johnfitz -- don't send model>255 entities if protocol is
-            // 15
-            if(sv.protocol == PROTOCOL_NETQUAKE &&
-                (int)ent->v.modelindex & 0xFF00)
-            {
-                continue;
-            }
-
             // ignore if not touching a PV leaf
             for(i = 0; i < ent->num_leafs; i++)
             {
@@ -881,45 +1028,41 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         }
         // johnfitz
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
-        if(sv.protocol != PROTOCOL_NETQUAKE)
+        // johnfitz -- PROTOCOL_QUAKEVR
+        if(ent->baseline.alpha != ent->alpha)
         {
-            if(ent->baseline.alpha != ent->alpha)
-            {
-                bits |= U_ALPHA;
-            }
-
-            if(ent->baseline.scale != ent->v.scale)
-            {
-                bits |= U_SCALE;
-            }
-
-            if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
-            {
-                bits |= U_FRAME2;
-            }
-
-            if(bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
-            {
-                bits |= U_MODEL2;
-            }
-
-            if(ent->sendinterval)
-            {
-                bits |= U_LERPFINISH;
-            }
-
-            if(bits >= 65536)
-            {
-                bits |= U_EXTEND1;
-            }
-
-            if(bits >= 16777216)
-            {
-                bits |= U_EXTEND2;
-            }
+            bits |= U_ALPHA;
         }
-        // johnfitz
+
+        if(ent->baseline.scale != ent->v.scale)
+        {
+            bits |= U_SCALE;
+        }
+
+        if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
+        {
+            bits |= U_FRAME2;
+        }
+
+        if(bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
+        {
+            bits |= U_MODEL2;
+        }
+
+        if(ent->sendinterval)
+        {
+            bits |= U_LERPFINISH;
+        }
+
+        if(bits >= 65536)
+        {
+            bits |= U_EXTEND1;
+        }
+
+        if(bits >= 16777216)
+        {
+            bits |= U_EXTEND2;
+        }
 
         if(e >= 256)
         {
@@ -941,7 +1084,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             MSG_WriteByte(msg, bits >> 8);
         }
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         if(bits & U_EXTEND1)
         {
             MSG_WriteByte(msg, bits >> 16);
@@ -1025,7 +1168,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             MSG_WriteCoord(msg, ent->v.scale_origin[2], sv.protocolflags);
         }
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         if(bits & U_ALPHA)
         {
             MSG_WriteByte(msg, ent->alpha);
@@ -1192,76 +1335,72 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     //	if (ent->v.weapon)
     bits |= SU_WEAPON;
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(sv.protocol != PROTOCOL_NETQUAKE)
+    // johnfitz -- PROTOCOL_QUAKEVR
+    if(bits & SU_WEAPON &&
+        SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) & 0xFF00)
     {
-        if(bits & SU_WEAPON &&
-            SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) & 0xFF00)
-        {
-            bits |= SU_WEAPON2;
-        }
-        if((int)ent->v.armorvalue & 0xFF00)
-        {
-            bits |= SU_ARMOR2;
-        }
-        if((int)ent->v.currentammo & 0xFF00 ||
-            (int)ent->v.currentammo2 & 0xFF00)
-        {
-            bits |= SU_AMMO2;
-        }
-        if((int)ent->v.ammo_shells & 0xFF00)
-        {
-            bits |= SU_SHELLS2;
-        }
-        if((int)ent->v.ammo_nails & 0xFF00)
-        {
-            bits |= SU_NAILS2;
-        }
-        if((int)ent->v.ammo_rockets & 0xFF00)
-        {
-            bits |= SU_ROCKETS2;
-        }
-        if((int)ent->v.ammo_cells & 0xFF00)
-        {
-            bits |= SU_CELLS2;
-        }
-        if(bits & SU_WEAPONFRAME && (int)ent->v.weaponframe & 0xFF00)
-        {
-            bits |= SU_WEAPONFRAME2;
-        }
-        if(bits & SU_WEAPON && ent->alpha != ENTALPHA_DEFAULT)
-        {
-            bits |= SU_WEAPONALPHA; // for now, weaponalpha = client
-                                    // entity
-        }
-        // alpha
-        if(bits >= 65536)
-        {
-            bits |= SU_EXTEND1;
-        }
-        if(bits >= 16777216)
-        {
-            bits |= SU_EXTEND2;
-        }
+        bits |= SU_WEAPON2;
+    }
+    if((int)ent->v.armorvalue & 0xFF00)
+    {
+        bits |= SU_ARMOR2;
+    }
+    if((int)ent->v.currentammo & 0xFF00 || (int)ent->v.currentammo2 & 0xFF00)
+    {
+        bits |= SU_AMMO2;
+    }
+    if((int)ent->v.ammo_shells & 0xFF00)
+    {
+        bits |= SU_SHELLS2;
+    }
+    if((int)ent->v.ammo_nails & 0xFF00)
+    {
+        bits |= SU_NAILS2;
+    }
+    if((int)ent->v.ammo_rockets & 0xFF00)
+    {
+        bits |= SU_ROCKETS2;
+    }
+    if((int)ent->v.ammo_cells & 0xFF00)
+    {
+        bits |= SU_CELLS2;
+    }
+    if(bits & SU_WEAPONFRAME && (int)ent->v.weaponframe & 0xFF00)
+    {
+        bits |= SU_WEAPONFRAME2;
+    }
+    if(bits & SU_WEAPON && ent->alpha != ENTALPHA_DEFAULT)
+    {
+        bits |= SU_WEAPONALPHA; // for now, weaponalpha = client
+                                // entity
+    }
+    // alpha
+    if(bits >= 65536)
+    {
+        bits |= SU_EXTEND1;
+    }
+    if(bits >= 16777216)
+    {
+        bits |= SU_EXTEND2;
+    }
 
-        bits |= SU_VR_WEAPON2;
-        bits |= SU_VR_WEAPONFRAME2;
+    bits |= SU_VR_WEAPON2;
+    bits |= SU_VR_WEAPONFRAME2;
 
-        const bool anyHolster =
-            ent->v.holsterweapon0 || ent->v.holsterweapon1 ||
-            ent->v.holsterweapon2 || ent->v.holsterweapon3 ||
-            ent->v.holsterweapon4 || ent->v.holsterweapon5 ||
-            ent->v.holsterweaponmodel0 || ent->v.holsterweaponmodel1 ||
-            ent->v.holsterweaponmodel2 || ent->v.holsterweaponmodel3 ||
-            ent->v.holsterweaponmodel4 || ent->v.holsterweaponmodel5 ||
-            ent->v.holsterweaponflags0 || ent->v.holsterweaponflags1 ||
-            ent->v.holsterweaponflags2 || ent->v.holsterweaponflags3 ||
-            ent->v.holsterweaponflags4 || ent->v.holsterweaponflags5;
+    const bool anyHolster =
+        ent->v.holsterweapon0 || ent->v.holsterweapon1 ||
+        ent->v.holsterweapon2 || ent->v.holsterweapon3 ||
+        ent->v.holsterweapon4 || ent->v.holsterweapon5 ||
+        ent->v.holsterweaponmodel0 || ent->v.holsterweaponmodel1 ||
+        ent->v.holsterweaponmodel2 || ent->v.holsterweaponmodel3 ||
+        ent->v.holsterweaponmodel4 || ent->v.holsterweaponmodel5 ||
+        ent->v.holsterweaponflags0 || ent->v.holsterweaponflags1 ||
+        ent->v.holsterweaponflags2 || ent->v.holsterweaponflags3 ||
+        ent->v.holsterweaponflags4 || ent->v.holsterweaponflags5;
 
-        if(anyHolster)
-        {
-            bits |= SU_VR_HOLSTERS;
-        }
+    if(anyHolster)
+    {
+        bits |= SU_VR_HOLSTERS;
     }
     // johnfitz
 
@@ -1270,7 +1409,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
     MSG_WriteByte(msg, svc_clientdata);
     MSG_WriteLong(msg, bits);
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(bits & SU_EXTEND1)
     {
         MSG_WriteByte(msg, bits >> 16);
@@ -1345,7 +1484,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
         }
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
+    // johnfitz -- PROTOCOL_QUAKEVR
     if(bits & SU_WEAPON2)
     {
         MSG_WriteByte(
@@ -1485,7 +1624,7 @@ bool SV_SendClientDatagram(client_t* client)
 
     msg.allowoverflow = false; // QSS
     msg.data = buf;
-    msg.maxsize = sizeof(buf);
+    msg.maxsize = client->limit_unreliable;
     msg.cursize = 0;
 
     // QSS
@@ -1520,10 +1659,12 @@ bool SV_SendClientDatagram(client_t* client)
         SZ_Write(&msg, sv.datagram.data, sv.datagram.cursize);
     }
 
+    SV_VoiceSendPacket(client, &msg);
+
     // send the datagram
     if(NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
     {
-        SV_DropClient(true); // if the message couldn't send, kick off
+        SV_DropClient(false); // if the message couldn't send, kick off
         return false;
     }
 
@@ -1538,7 +1679,6 @@ SV_UpdateToReliableMessages
 void SV_UpdateToReliableMessages()
 {
     int i;
-
     int j;
     client_t* client;
 
@@ -1598,7 +1738,7 @@ void SV_SendNop(client_t* client)
 
     if(NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
     {
-        SV_DropClient(true); // if the message couldn't send, kick off
+        SV_DropClient(false); // if the message couldn't send, kick off
     }
     client->last_message = realtime;
 }
@@ -1675,12 +1815,15 @@ void SV_SendClientMessages()
                 if(NET_SendMessage(
                        host_client->netconnection, &host_client->message) == -1)
                 {
-                    SV_DropClient(true); // if the message couldn't
-                                         // send, kick off
+                    SV_DropClient(false); // if the message couldn't
+                                          // send, kick off
                 }
                 SZ_Clear(&host_client->message);
                 host_client->last_message = realtime;
-                host_client->sendsignon = false;
+                if(host_client->sendsignon == true)
+                {
+                	host_client->sendsignon = false;
+            	}
             }
         }
     }
@@ -1737,7 +1880,7 @@ SV_CreateBaseline
 void SV_CreateBaseline()
 {
     int i;
-    int bits; // johnfitz -- PROTOCOL_FITZQUAKE
+    int bits; // johnfitz -- PROTOCOL_QUAKEVR
 
     for(int entnum = 0; entnum < sv.num_edicts; entnum++)
     {
@@ -1778,43 +1921,27 @@ void SV_CreateBaseline()
             svent->baseline.alpha = svent->alpha; // johnfitz -- alpha support
         }
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         bits = 0;
-        if(sv.protocol == PROTOCOL_NETQUAKE) // still want to send baseline
-                                             // in PROTOCOL_NETQUAKE, so
-                                             // reset these values
+
+        if(svent->baseline.modelindex & 0xFF00)
         {
-            if(svent->baseline.modelindex & 0xFF00)
-            {
-                svent->baseline.modelindex = 0;
-            }
-            if(svent->baseline.frame & 0xFF00)
-            {
-                svent->baseline.frame = 0;
-            }
-            svent->baseline.alpha = ENTALPHA_DEFAULT;
+            bits |= B_LARGEMODEL;
         }
-        else // decide which extra data needs to be sent
+        if(svent->baseline.frame & 0xFF00)
         {
-            if(svent->baseline.modelindex & 0xFF00)
-            {
-                bits |= B_LARGEMODEL;
-            }
-            if(svent->baseline.frame & 0xFF00)
-            {
-                bits |= B_LARGEFRAME;
-            }
-            if(svent->baseline.alpha != ENTALPHA_DEFAULT)
-            {
-                bits |= B_ALPHA;
-            }
+            bits |= B_LARGEFRAME;
+        }
+        if(svent->baseline.alpha != ENTALPHA_DEFAULT)
+        {
+            bits |= B_ALPHA;
         }
         // johnfitz
 
         //
         // add to the message
         //
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         if(bits)
         {
             MSG_WriteByte(&sv.signon, svc_spawnbaseline2);
@@ -1827,7 +1954,7 @@ void SV_CreateBaseline()
 
         MSG_WriteShort(&sv.signon, entnum);
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         if(bits)
         {
             MSG_WriteByte(&sv.signon, bits);
@@ -1862,7 +1989,7 @@ void SV_CreateBaseline()
                 &sv.signon, svent->baseline.angles[i], sv.protocolflags);
         }
 
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         if(bits & B_ALPHA)
         {
             MSG_WriteByte(&sv.signon, svent->baseline.alpha);
@@ -1894,7 +2021,7 @@ void SV_SendReconnect()
 
     if(!isDedicated)
     {
-        Cmd_ExecuteString("reconnect\n", src_command);
+        Cmd_ExecuteString("reconnect\n", src_server);
     }
 }
 
@@ -1961,7 +2088,9 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     //
     if(sv.active)
     {
+        PR_SwitchQCVM(nullptr);
         SV_SendReconnect();
+        PR_SwitchQCVM(&sv.qcvm);
     }
 
     //
@@ -1983,19 +2112,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     q_strlcpy(sv.name, server, sizeof(sv.name));
 
     sv.protocol = sv_protocol; // johnfitz
-
-    if(sv.protocol == PROTOCOL_RMQ)
-    {
-        // set up the protocol flags used by this server
-        // (note - these could be cvar-ised so that server
-        // admins could choose the protocol features used by
-        // their servers)
-        sv.protocolflags = PRFL_INT32COORD | PRFL_SHORTANGLE;
-    }
-    else
-    {
-        sv.protocolflags = 0;
-    }
+    sv.protocolflags = 0;
 
     // load progs to get entity field count
     PR_LoadProgs();
@@ -2012,6 +2129,10 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     sv.datagram.maxsize = sizeof(sv.datagram_buf);
     sv.datagram.cursize = 0;
     sv.datagram.data = sv.datagram_buf;
+
+    sv.multicast.maxsize = sizeof(sv.multicast_buf);
+    sv.multicast.cursize = 0;
+    sv.multicast.data = sv.multicast_buf;
 
     sv.reliable_datagram.maxsize = sizeof(sv.reliable_datagram_buf);
     sv.reliable_datagram.cursize = 0;

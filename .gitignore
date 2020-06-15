@@ -1,3 +1,4 @@
+*.bak
 build
 Windows/build
 .fuse*

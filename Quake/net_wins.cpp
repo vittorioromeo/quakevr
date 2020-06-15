@@ -843,7 +843,7 @@ static void WINIPv6_GetLocalAddress()
 {
     char buff[MAXHOSTNAMELEN];
     int err;
-    struct addrinfo hints, *local = NULL;
+    struct addrinfo hints, *local = nullptr;
 
     //	if (myAddrv6 != IN6ADDR_ANY)
     //		return;
@@ -865,7 +865,7 @@ static void WINIPv6_GetLocalAddress()
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = IPPROTO_UDP;
-    if(qgetaddrinfo && qgetaddrinfo(buff, NULL, &hints, &local) == 0)
+    if(qgetaddrinfo && qgetaddrinfo(buff, nullptr, &hints, &local) == 0)
     {
         size_t l;
         q_strlcpy(my_ipv6_address,
@@ -881,7 +881,7 @@ static void WINIPv6_GetLocalAddress()
     WSAUnhookBlockingHook();
 #endif
 
-    if(local == NULL)
+    if(local == nullptr)
     {
         Con_SafePrintf("WINIPv6_GetLocalAddress: gethostbyname failed (%s)\n",
             __WSAE_StrError(err));
@@ -902,8 +902,8 @@ sys_socket_t WINIPv6_Init()
         (void*)GetProcAddress(GetModuleHandle("ws2_32.dll"), "freeaddrinfo");
     if(!qgetaddrinfo || !qfreeaddrinfo)
     {
-        qgetaddrinfo = NULL;
-        qfreeaddrinfo = NULL;
+        qgetaddrinfo = nullptr;
+        qfreeaddrinfo = nullptr;
         Con_SafePrintf(
             "Winsock lacks getaddrinfo, ipv6 support is unavailable.\n");
         return INVALID_SOCKET;
@@ -1065,7 +1065,7 @@ sys_socket_t WINIPv6_CheckNewConnections()
 
     if(netv6_acceptsocket == INVALID_SOCKET) return INVALID_SOCKET;
 
-    if(recvfrom(netv6_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL) !=
+    if(recvfrom(netv6_acceptsocket, buf, sizeof(buf), MSG_PEEK, nullptr, nullptr) !=
         SOCKET_ERROR)
     {
         return netv6_acceptsocket;
@@ -1092,7 +1092,7 @@ int WINIPv6_GetAddrFromName(const char* name, struct qsockaddr* addr)
     // ipv6 addresses take form of [::1]:26000 or eg localhost:26000. just ::1
     // is NOT supported, but localhost as-is is okay. [localhost]:26000 is
     // acceptable, but will fail to resolve as ipv4.
-    struct addrinfo* addrinfo = NULL;
+    struct addrinfo* addrinfo = nullptr;
     struct addrinfo* pos;
     struct addrinfo udp6hint;
     int error;
@@ -1118,7 +1118,7 @@ int WINIPv6_GetAddrFromName(const char* name, struct qsockaddr* addr)
             strncpy(dupbase, name + 1, len);
             dupbase[len] = '\0';
             error = qgetaddrinfo ? qgetaddrinfo(dupbase,
-                                       (port[1] == ':') ? port + 2 : NULL,
+                                       (port[1] == ':') ? port + 2 : nullptr,
                                        &udp6hint, &addrinfo)
                                  : EAI_NONAME;
         }
@@ -1141,7 +1141,7 @@ int WINIPv6_GetAddrFromName(const char* name, struct qsockaddr* addr)
             error = EAI_NONAME;
         if(error) // failed, try string with no port.
             error = qgetaddrinfo
-                        ? qgetaddrinfo(name, NULL, &udp6hint, &addrinfo)
+                        ? qgetaddrinfo(name, nullptr, &udp6hint, &addrinfo)
                         : EAI_NONAME; // remember, this func will return any
                                       // address family that could be using the
                                       // udp protocol... (ip4 or ip6)

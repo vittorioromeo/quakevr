@@ -145,3 +145,10 @@ void ED_PrintEdicts();
 void ED_PrintNum(int ent);
 
 eval_t* GetEdictFieldValue(edict_t* ed, const char* field);
+
+// TODO VR: (P0): QSS Merge - implement QCVM
+template <typename T>
+void PR_SwitchQCVM(T&& x)
+{
+    (void)x;
+}

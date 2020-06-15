@@ -136,6 +136,7 @@ typedef struct
 {
     char name[MAX_QPATH];
     int filepos, filelen;
+    int deflatedsize; // QSS
 } packfile_t;
 
 typedef struct pack_s

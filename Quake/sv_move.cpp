@@ -277,7 +277,6 @@ void PF_changeyaw();
 bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
     qvec3 move;
-
     qvec3 oldorigin;
     float delta;
 
@@ -331,13 +330,10 @@ SV_NewChaseDir
 void SV_NewChaseDir(edict_t* actor, edict_t* enemy, float dist)
 {
     float deltax;
-
     float deltay;
     float d[3];
     float tdir;
-
     float olddir;
-
     float turnaround;
 
     olddir = anglemod((int)(actor->v.ideal_yaw / 45) * 45);

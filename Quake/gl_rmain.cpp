@@ -807,7 +807,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
     // johnfitz -- sprites are not a special case
 
     for(int i = 0; i < cl_numvisedicts; i++)
-    {
+    { 
         currententity = cl_visedicts[i];
 
         // johnfitz -- if alphapass is true, draw only alpha entites this time
@@ -830,6 +830,9 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
             case mod_alias: R_DrawAliasModel(currententity); break;
             case mod_brush: R_DrawBrushModel(currententity); break;
             case mod_sprite: R_DrawSpriteModel(currententity); break;
+            case mod_ext_invalid:
+                // nothing. could draw a blob instead.
+                break;
         }
     }
 }

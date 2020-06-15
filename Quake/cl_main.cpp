@@ -86,6 +86,7 @@ entity_t* cl_visedicts[MAX_VISEDICTS];
 
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
+extern float host_netinterval;          // Spike
 
 /*
 =====================
@@ -201,6 +202,8 @@ Host should be either "local" or a net address to be passed on
 */
 void CL_EstablishConnection(const char* host)
 {
+    static char lasthost[NET_NAMELEN];
+
     if(cls.state == ca_dedicated)
     {
         return;
@@ -209,6 +212,19 @@ void CL_EstablishConnection(const char* host)
     if(cls.demoplayback)
     {
         return;
+    }
+
+    if(!host)
+    {
+        host = lasthost;
+        if(!*host)
+        {
+            return;
+        }
+    }
+    else
+    {
+        q_strlcpy(lasthost, host, sizeof(lasthost));
     }
 
     CL_Disconnect();
@@ -243,15 +259,12 @@ void CL_SignonReply()
     {
         case 1:
             MSG_WriteByte(&cls.message, clc_stringcmd);
-            MSG_WriteString(&cls.message, "prespawn");
+            MSG_WriteString(&cls.message, va("name \"%s\"\n", cl_name.string));
 
-            cl.sendprespawn = true; // QSS
+            cl.sendprespawn = true;
             break;
 
         case 2:
-            MSG_WriteByte(&cls.message, clc_stringcmd);
-            MSG_WriteString(&cls.message, va("name \"%s\"\n", cl_name.string));
-
             MSG_WriteByte(&cls.message, clc_stringcmd);
             MSG_WriteString(
                 &cls.message, va("color %i %i\n", ((int)cl_color.value) >> 4,
@@ -431,12 +444,11 @@ should be put at.
 float CL_LerpPoint()
 {
     float f;
-
     float frac;
 
     f = cl.mtime[0] - cl.mtime[1];
 
-    if(!f || cls.timedemo || sv.active)
+    if(!f || cls.timedemo || (sv.active && !host_netinterval))
     {
         cl.time = cl.mtime[0];
         return 1;
@@ -874,12 +886,16 @@ void CL_SendCmd()
 
         // allow mice or other external controllers to add to the move
         IN_Move(&cmd);
-
         VR_Move(&cmd);
 
         // send the unreliable message
         CL_SendMove(&cmd);
     }
+    else
+    {
+        CL_SendMove(nullptr);
+    }
+    memset(&cl.pendingcmd, 0, sizeof(cl.pendingcmd));
 
     if(cls.demoplayback)
     {

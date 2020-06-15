@@ -167,7 +167,7 @@ bool SV_RunThinkImpl(edict_t* ent)
 
     if(TDoLerp)
     {
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         // capture interval to nextthink here and send it to client for better
         // lerp timing, but only if interval is not 0.1 (which client assumes)
         ent->sendinterval = false;

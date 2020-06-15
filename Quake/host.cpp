@@ -191,8 +191,7 @@ void Host_EndGame(const char* message, ...)
     va_end(argptr);
     Con_DPrintf("Host_EndGame: %s\n", string);
 
-    // TODO VR: (P0) QSS Merge
-    // PR_SwitchQCVM(NULL);
+    PR_SwitchQCVM(nullptr);
 
     if(sv.active)
     {
@@ -275,7 +274,7 @@ void Host_Error(const char* error, ...)
     if(cl.qcvm.progs)
         glDisable(GL_SCISSOR_TEST); // equivelent to drawresetcliparea, to reset
                                     // any damage if we crashed in csqc.
-    PR_SwitchQCVM(NULL);
+    PR_SwitchQCVM(nullptr);
 #endif
 
     SCR_EndLoadingPlaque(); // reenable screen updates
@@ -591,7 +590,7 @@ void SV_DropClient(bool crash)
 #if 0
 // QSS
             qcvm_t* oldvm = qcvm;
-            PR_SwitchQCVM(NULL);
+            PR_SwitchQCVM(nullptr);
             PR_SwitchQCVM(&sv.qcvm);
 #endif
 
@@ -603,7 +602,7 @@ void SV_DropClient(bool crash)
 // TODO VR: (P0): QSS Merge
 #if 0
 // QSS
-            PR_SwitchQCVM(NULL);
+            PR_SwitchQCVM(nullptr);
             PR_SwitchQCVM(oldvm);
 #endif
         }
@@ -755,8 +754,8 @@ void Host_ShutdownServer(bool crash)
     // TODO VR: (P0): QSS Merge
 #if 0
     // QSS
-    qcvm->worldmodel = NULL;
-    PR_SwitchQCVM(NULL);
+    qcvm->worldmodel = nullptr;
+    PR_SwitchQCVM(nullptr);
 #endif
 
     //
@@ -888,7 +887,6 @@ Host_ServerFrame
 void Host_ServerFrame()
 {
     int i;
-
     int active;   // johnfitz
     edict_t* ent; // johnfitz
 
@@ -1020,7 +1018,6 @@ void _Host_Frame(double time) // QSS
     // QSS
     if(cl.sendprespawn)
     {
-
         // TODO VR: (P0) QSS Merge
 #if 0
         if(CL_CheckDownloads())
@@ -1051,7 +1048,9 @@ void _Host_Frame(double time) // QSS
 
                     // set a few globals, if they exist
                     if(qcvm->extglobals.maxclients)
+                    {
                         *qcvm->extglobals.maxclients = cl.maxclients;
+                    }
                     pr_global_struct->time = cl.time;
                     pr_global_struct->mapname = PR_SetEngineString(cl.mapname);
                     pr_global_struct->total_monsters =
@@ -1062,8 +1061,10 @@ void _Host_Frame(double time) // QSS
                     pr_global_struct->coop =
                         (cl.gametype == GAME_COOP) && cl.maxclients != 1;
                     if(qcvm->extglobals.player_localnum)
+                    {
                         *qcvm->extglobals.player_localnum =
                             cl.viewentity - 1; // this is a guess, but is
+                    }
                                                // important for scoreboards.
 
                     // set a few worldspawn fields too
@@ -1082,8 +1083,10 @@ void _Host_Frame(double time) // QSS
                     }
                 }
                 else
+                {
                     PR_ClearProgs(qcvm);
-                PR_SwitchQCVM(NULL);
+                }
+                PR_SwitchQCVM(nullptr);
             }
 
             cl.sendprespawn = false;
@@ -1092,6 +1095,11 @@ void _Host_Frame(double time) // QSS
             vid.recalc_refdef = true;
         }
         else
+#else
+        cl.sendprespawn = false;
+        MSG_WriteByte(&cls.message, clc_stringcmd);
+        MSG_WriteString(&cls.message, "prespawn");
+        vid.recalc_refdef = true;
 #endif
 
         if(!cls.message.cursize)
@@ -1133,16 +1141,9 @@ void _Host_Frame(double time) // QSS
 
         if(sv.active)
         {
-            // TODO VR: (P0) QSS Merge
-#if 0
             PR_SwitchQCVM(&sv.qcvm);
-#endif
             Host_ServerFrame();
-
-            // TODO VR: (P0) QSS Merge
-#if 0
-            PR_SwitchQCVM(NULL);
-#endif
+            PR_SwitchQCVM(nullptr);
         }
 
         host_frametime = realframetime;
@@ -1206,14 +1207,11 @@ void _Host_Frame(double time) // QSS
 void Host_Frame(double time) // QSS
 {
     double time1;
-
     double time2;
     static double timetotal;
     static int timecount;
     int i;
-
     int c;
-
     int m;
 
     if(!serverprofile.value)

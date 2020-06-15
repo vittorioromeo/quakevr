@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef_macros.hpp"
 #include "progs.hpp"
 #include "sizebuf.hpp"
+#include "snd_voip.hpp"
 
 #include <vector>
 
@@ -66,6 +67,10 @@ struct server_t
     int lastcheck; // used by PF_checkclient
     double lastchecktime;
 
+    // TODO VR: (P0): QSS Merge - implement QCVM
+    using qcvm_t = int*;
+    qcvm_t qcvm; // Spike: entire qcvm state
+
     char name[64];      // map name
     char modelname[64]; // maps/<name>.bsp, for model_precache[0]
     qmodel_t* worldmodel;
@@ -92,6 +97,10 @@ struct server_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
+
+    sizebuf_t
+        multicast; // selectively copied to clients by the multicast builtin
+    byte multicast_buf[MAX_DATAGRAM];
 
     std::vector<WorldText> worldTexts;
     std::vector<WorldTextHandle> freeWorldTextHandles;
@@ -129,10 +138,15 @@ struct server_t
 
 struct client_t
 {
-    bool active;     // false = client is free
-    bool spawned;    // false = don't send datagrams
-    bool dropasap;   // has been told to go to another level
-    bool sendsignon; // only valid before spawned
+    bool active; // false = client is free
+
+    bool spawned; // false = don't send datagrams (set when client acked the
+                  // first entities)
+
+    bool dropasap; // has been told to go to another level
+
+    int sendsignon; // only valid before spawned
+    int signonidx;
 
     double last_message; // reliable messages must be sent
                          // periodically
@@ -163,26 +177,22 @@ struct client_t
     byte datagram_buf[MAX_DATAGRAM];
 
     // QSS
-    sizebuf_t reliable_datagram; // copied to all clients at end of frame
-    byte reliable_datagram_buf[MAX_DATAGRAM];
+    unsigned int limit_entities;   // vanilla is 600
+    unsigned int limit_unreliable; // max allowed size for unreliables
+    unsigned int limit_reliable;   // max (total) size of a reliable message.
+    unsigned int limit_models;     //
+    unsigned int limit_sounds;     //
 
     // QSS
-    sizebuf_t signon;
-    byte signon_buf[MAX_MSGLEN - 2]; // johnfitz -- was 8192, now uses
-                                     // MAX_MSGLEN
+    size_t numframes; // preallocated power-of-two
+    int lastacksequence;
+    int lastmovemessage;
 
     // QSS
-    unsigned protocol; // johnfitz
-    unsigned protocolflags;
+    client_voip_t voip; // spike -- for voip
 
     // QSS
-    sizebuf_t
-        multicast; // selectively copied to clients by the multicast builtin
-    byte multicast_buf[MAX_DATAGRAM];
-
-    // QSS
-    bool pextknown;
-    unsigned int protocol_pext2;
+    bool knowntoqc; // putclientinserver was called
 };
 
 
@@ -307,6 +317,10 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
 
 void SV_MoveToGoal();
 
+void SV_ConnectClient(
+    int clientnum); // called from the netcode to add new clients. also called
+                    // from pr_ext to spawn new botclients.
+
 void SV_CheckForNewClients();
 void SV_RunClients();
 void SV_SaveSpawnparms();
@@ -320,5 +334,3 @@ enum class SpawnServerSrc
 };
 
 void SV_SpawnServer(const char* server, const SpawnServerSrc src);
-
-void SV_ConnectClient(int clientnum);

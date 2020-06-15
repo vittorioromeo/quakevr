@@ -301,7 +301,6 @@ struct client_state_t
     unsigned protocolflags;
 
     // QSS
-    unsigned protocol_pext2; // spike -- flag of fte protocol extensions
     bool protocol_dpdownload;
 
 #ifdef PSET_SCRIPT
@@ -352,10 +351,9 @@ struct client_state_t
     char sound_name[MAX_SOUNDS][MAX_QPATH];
     // spike -- end downloads
 
-// TODO VR: (P0): QSS Merge
-#if 0
-    qcvm_t qcvm;            // for csqc.
-#endif
+    // TODO VR: (P0): QSS Merge - implement QCVM
+    using qcvm_t = int*;
+    qcvm_t qcvm; // for csqc.
 
     bool csqc_cursorforced; // we want a mouse cursor.
     float csqc_sensitivity; // scaler for sensitivity

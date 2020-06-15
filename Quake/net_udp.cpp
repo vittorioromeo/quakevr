@@ -145,7 +145,9 @@ sys_socket_t UDP4_Listen(bool state)
         {
             if((net_acceptsocket4 = UDP4_OpenSocket(net_hostport)) ==
                 INVALID_SOCKET)
+			{
                 Sys_Error("UDP4_Listen: Unable to open accept socket");
+            }
         }
     }
     else
@@ -357,7 +359,9 @@ int UDP4_Broadcast(sys_socket_t socketid, byte* buf, int len)
     if(socketid != net_broadcastsocket4)
     {
         if(net_broadcastsocket4 != INVALID_SOCKET)
+		{
             Sys_Error("Attempted to use multiple broadcasts sockets");
+		}
         ret = UDP4_MakeSocketBroadcastCapable(socketid);
         if(ret == -1)
         {
@@ -724,7 +728,9 @@ sys_socket_t UDP6_Listen(bool state)
         {
             if((net_acceptsocket6 = UDP6_OpenSocket(net_hostport)) ==
                 INVALID_SOCKET)
+			{
                 Sys_Error("UDP6_Listen: Unable to open accept socket");
+        	}
         }
     }
     else
@@ -964,7 +970,7 @@ static int UDP_GetAddresses(qhostaddr_t* addresses, int maxaddresses, int fam)
     if(time - iftime > 1 && iflist)
     {
         freeifaddrs(iflist);
-        iflist = NULL;
+        iflist = nullptr;
     }
     if(!iflist)
     {
@@ -975,7 +981,7 @@ static int UDP_GetAddresses(qhostaddr_t* addresses, int maxaddresses, int fam)
     for(ifa = iflist; ifa && result < maxaddresses; ifa = ifa->ifa_next)
     {
         // can happen if the interface is not bound.
-        if(ifa->ifa_addr == NULL) continue;
+        if(ifa->ifa_addr == nullptr) continue;
         if(fam == ifa->ifa_addr->sa_family)
             q_strlcpy(addresses[result++],
                 UDP_AddrToString((struct qsockaddr*)ifa->ifa_addr, false),

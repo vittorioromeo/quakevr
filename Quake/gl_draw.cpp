@@ -166,10 +166,8 @@ returns an index into scrap_texnums[] and the position inside it
 int Scrap_AllocBlock(int w, int h, int* x, int* y)
 {
     int i;
-
     int j;
     int best;
-
     int best2;
     int texnum;
 
@@ -291,12 +289,9 @@ qpic_t* Draw_PicFromWad(const char* name)
     if(p->width < 64 && p->height < 64)
     {
         int x;
-
         int y;
         int i;
-
         int j;
-
         int k;
         int texnum;
 
@@ -496,11 +491,9 @@ Draw_LoadPics -- johnfitz
 */
 void Draw_LoadPics()
 {
-    byte* data;
     src_offset_t offset;
-
     lumpinfo_t* info;
-    data = (byte*)W_GetLumpName("conchars", &info);
+    byte* data = (byte*)W_GetLumpName("conchars", &info);
 
     // QSS
     if(!data || info->size < 128 * 128)

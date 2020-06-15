@@ -105,13 +105,9 @@ handle an SVC_FOG message from server
 void Fog_ParseServerMessage()
 {
     float density;
-
     float red;
-
     float green;
-
     float blue;
-
     float time;
 
     density = MSG_ReadByte() / 255.0;
@@ -184,7 +180,6 @@ called at map load
 void Fog_ParseWorldspawn()
 {
     char key[128];
-
     char value[4096];
     const char* data;
 

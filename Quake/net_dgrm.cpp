@@ -71,7 +71,7 @@ static int droppedDatagrams;
 // fitz666 so that's not a viable option, at least by default, feel free to
 // switch the order if you also change sv_protocol back to 15.
 cvar_t sv_reportheartbeats = {"sv_reportheartbeats", "0"};
-cvar_t sv_public = {"sv_public", nullptr};
+cvar_t sv_public = {"sv_public", "1"};
 cvar_t com_protocolname = {"com_protocolname", "FTE-Quake DarkPlaces-Quake"};
 cvar_t net_masters[] = {{"net_master1", ""}, {"net_master2", ""},
     {"net_master3", ""}, {"net_master4", ""},
@@ -1237,7 +1237,6 @@ JustDoIt:
 int Datagram_Init()
 {
     int i;
-
     int num_inited;
     sys_socket_t csock;
 
@@ -2759,8 +2758,7 @@ ErrorReturn2:
         m_state = m_return_state;
         m_return_onerror = false;
 
-        // TODO VR: (P0) QSS merge
-        // IN_UpdateGrabs();
+        IN_UpdateGrabs();
     }
     return nullptr;
 }

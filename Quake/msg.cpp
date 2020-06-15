@@ -157,7 +157,7 @@ void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags)
     }
 }
 
-// johnfitz -- for PROTOCOL_FITZQUAKE
+// johnfitz -- for PROTOCOL_QUAKEVR
 void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags)
 {
     if(flags & PRFL_FLOATANGLE)
@@ -251,7 +251,6 @@ void MSG_BeginReading()
 
 [[nodiscard]] int MSG_ReadLong()
 {
-
     if(msg_readcount + 4 > net_message.cursize)
     {
         msg_badread = true;
@@ -362,7 +361,7 @@ void MSG_BeginReading()
     return MSG_ReadChar() * (360.0 / 256);
 }
 
-// johnfitz -- for PROTOCOL_FITZQUAKE
+// johnfitz -- for PROTOCOL_QUAKEVR
 [[nodiscard]] float MSG_ReadAngle16(unsigned int flags)
 {
     if(flags & PRFL_FLOATANGLE)
