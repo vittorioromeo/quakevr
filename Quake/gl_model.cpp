@@ -3317,7 +3317,7 @@ void Mod_LoadBrushModel(qmodel_t* mod, void* buffer)
         // johnfitz -- correct physics cullboxes so that outlying clip brushes
         // on doors and stuff are handled right
         if(i > 0 || strcmp(mod->name, sv.modelname) !=
-                        0) // skip submodel 0 of sv.worldmodel, which is the
+                        0) // skip submodel 0 of qcvm->worldmodel, which is the
                            // actual world
         {
             // start with the hull0 bounds

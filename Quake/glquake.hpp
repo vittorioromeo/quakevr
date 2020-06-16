@@ -380,7 +380,8 @@ bool R_CullBox(const qvec3& emins, const qvec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
 void R_RotateForEntity(const qvec3& origin, const qvec3& angles);
-void R_MarkLights(dlight_t* light, int num, mnode_t* node);
+void R_MarkLights(
+    dlight_t* light, const qvec3& lightorg, int num, mnode_t* node);
 
 void R_InitParticles();
 void R_DrawParticles();
@@ -412,8 +413,8 @@ void R_RebuildAllLightmaps();
 int R_LightPoint(const qvec3& p);
 
 void GL_SubdivideSurface(msurface_t* fa);
-void R_BuildLightMap(msurface_t* surf, byte* dest, int stride);
-void R_RenderDynamicLightmaps(msurface_t* fa);
+void R_BuildLightMap(qmodel_t* model, msurface_t* surf, byte* dest, int stride);
+void R_RenderDynamicLightmaps(qmodel_t* model, msurface_t* fa);
 void R_UploadLightmaps();
 
 void R_DrawWorld_ShowTris();

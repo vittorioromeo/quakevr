@@ -236,15 +236,9 @@ SV_CreateAreaNode
 */
 areanode_t* SV_CreateAreaNode(int depth, const qvec3& mins, const qvec3& maxs)
 {
-    // TODO VR: (P0) QSS Merge
-#if 0
     // QSS
     areanode_t* anode = &qcvm->areanodes[qcvm->numareanodes];
     qcvm->numareanodes++;
-#else
-    areanode_t* anode = &sv_areanodes[sv_numareanodes];
-    sv_numareanodes++;
-#endif
 
     ClearLink(&anode->trigger_edicts);
     ClearLink(&anode->solid_edicts);
@@ -291,16 +285,9 @@ void SV_ClearWorld()
 {
     SV_InitBoxHull();
 
-// TODO VR: (P0) QSS Merge
-#if 0
     memset(qcvm->areanodes, 0, sizeof(qcvm->areanodes));
     qcvm->numareanodes = 0;
     SV_CreateAreaNode(0, qcvm->worldmodel->mins, qcvm->worldmodel->maxs);
-#else
-    memset(sv_areanodes, 0, sizeof(sv_areanodes));
-    sv_numareanodes = 0;
-    SV_CreateAreaNode(0, sv.worldmodel->mins, sv.worldmodel->maxs);
-#endif
 }
 
 
@@ -413,23 +400,14 @@ void SV_TouchLinks(edict_t* ent)
 {
     const int mark = Hunk_LowMark();
 
-    // TODO VR: (P0) QSS Merge
-#if 0
     // QSS
     edict_t** list = (edict_t**)Hunk_Alloc(qcvm->num_edicts * sizeof(edict_t*));
-#else
-    edict_t** list = (edict_t**)Hunk_Alloc(sv.num_edicts * sizeof(edict_t*));
-#endif
 
     int listcount = 0;
 
-    // TODO VR: (P0) QSS Merge
-#if 0
     // QSS
-    SV_AreaTriggerEdicts(ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
-#else
-    SV_AreaTriggerEdicts(ent, sv_areanodes, list, &listcount, sv.num_edicts);
-#endif
+    SV_AreaTriggerEdicts(
+        ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
 
     const auto doTouch = [](edict_t* ent, edict_t* target) {
         const bool canBeTouched = quake::util::canBeTouched(target);
@@ -445,12 +423,7 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->self = EDICT_TO_PROG(target);
         pr_global_struct->other = EDICT_TO_PROG(ent);
 
-        // TODO VR: (P0) QSS Merge
-#if 0
         pr_global_struct->time = qcvm->time; // QSS
-#else
-        pr_global_struct->time = sv.time;
-#endif
 
         if(target->v.touch)
         {
@@ -512,7 +485,7 @@ void SV_TouchLinks(edict_t* ent)
 
         pr_global_struct->self = EDICT_TO_PROG(target);
         pr_global_struct->other = EDICT_TO_PROG(ent);
-        pr_global_struct->time = sv.time;
+        pr_global_struct->time = qcvm->time;
 
         // VR: This is for things like ammo pickups and slipgates, and
         // dropped/thrown weapons.
@@ -575,12 +548,7 @@ void SV_FindTouchedLeafs(edict_t* ent, mnode_t* node)
 
         leaf = (mleaf_t*)node;
 
-        // TODO VR: (P0) QSS Merge
-#if 0
-        leafnum = leaf - qcvm->worldmodel->leafs - 1;// QSS
-#else
-        leafnum = leaf - sv.worldmodel->leafs - 1;
-#endif
+        leafnum = leaf - qcvm->worldmodel->leafs - 1; // QSS
 
         ent->leafnums[ent->num_leafs] = leafnum;
         ent->num_leafs++;
@@ -617,12 +585,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
         SV_UnlinkEdict(ent); // unlink from old position
     }
 
-    // TODO VR: (P0) QSS Merge
-#if 0
     if(ent == qcvm->edicts) // QSS
-#else
-    if(ent == sv.edicts)
-#endif
     {
         return; // don't add the world
     }
@@ -700,12 +663,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     ent->num_leafs = 0;
     if(ent->v.modelindex)
     {
-        // TODO VR: (P0) QSS Merge
-#if 0
         SV_FindTouchedLeafs(ent, qcvm->worldmodel->nodes); // QSS
-#else
-        SV_FindTouchedLeafs(ent, sv.worldmodel->nodes);
-#endif
     }
 
     if(ent->v.solid == SOLID_NOT)
@@ -714,12 +672,7 @@ void SV_LinkEdict(edict_t* ent, bool touch_triggers)
     }
 
     // find the first node that the ent's box crosses
-    // TODO VR: (P0) QSS Merge
-#if 0
     areanode_t* node = qcvm->areanodes;
-#else
-    areanode_t* node = sv_areanodes;
-#endif
 
     while(true)
     {
@@ -807,12 +760,7 @@ SV_PointContents
 */
 int SV_PointContents(const qvec3& p)
 {
-    // TODO VR: (P0) QSS Merge
-#if 0
     const int cont = SV_HullPointContents(&qcvm->worldmodel->hulls[0], 0, p);
-#else
-    const int cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
-#endif
 
     if(cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
     {
@@ -824,12 +772,7 @@ int SV_PointContents(const qvec3& p)
 
 int SV_TruePointContents(const qvec3& p)
 {
-    // TODO VR: (P0) QSS Merge
-#if 0
     return SV_HullPointContents(&qcvm->worldmodel->hulls[0], 0, p);
-#else
-    return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
-#endif
 }
 
 // QSS
@@ -861,12 +804,7 @@ edict_t* SV_TestEntityPositionCustomOrigin(edict_t* ent, const qvec3& xOrigin)
     const trace_t trace =
         SV_Move(xOrigin, ent->v.mins, ent->v.maxs, xOrigin, MOVE_NORMAL, ent);
 
-    // TODO VR: (P0) QSS Merge
-#if 0
     return trace.startsolid ? qcvm->edicts : nullptr;
-#else
-    return trace.startsolid ? sv.edicts : nullptr;
-#endif
 }
 
 edict_t* SV_TestEntityPosition(edict_t* ent)
@@ -1382,13 +1320,9 @@ trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
     moveclip_t clip;
     memset(&clip, 0, sizeof(moveclip_t));
 
-// clip to world
-// TODO VR: (P0) QSS Merge
-#if 0
-    clip.trace = SV_ClipMoveToEntity(qcvm->edicts, start, mins, maxs, end); // QSS
-#else
-    clip.trace = SV_ClipMoveToEntity(sv.edicts, start, mins, maxs, end);
-#endif
+    // clip to world
+    clip.trace =
+        SV_ClipMoveToEntity(qcvm->edicts, start, mins, maxs, end); // QSS
 
     clip.start = start;
     clip.end = end;
@@ -1429,13 +1363,7 @@ trace_t SV_Move(const qvec3& start, const qvec3& mins, const qvec3& maxs,
         start, clip.mins2, clip.maxs2, end, clip.boxmins, clip.boxmaxs);
 
     // clip to entities
-
-    // TODO VR: (P0) QSS Merge
-#if 0
     SV_ClipToLinks(qcvm->areanodes, &clip); // QSS
-#else
-    SV_ClipToLinks(sv_areanodes, &clip);
-#endif
 
     return clip.trace;
 }

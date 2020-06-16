@@ -141,7 +141,7 @@ bool SV_movestep(edict_t* ent, qvec3 move, bool relink)
             neworg = ent->v.origin + move;
             edict_t* enemy = PROG_TO_EDICT(ent->v.enemy);
 
-            if(i == 0 && enemy != sv.edicts)
+            if(i == 0 && enemy != qcvm->edicts)
             {
                 const float dz =
                     ent->v.origin[2] - PROG_TO_EDICT(ent->v.enemy)->v.origin[2];
@@ -175,7 +175,7 @@ bool SV_movestep(edict_t* ent, qvec3 move, bool relink)
                 return true;
             }
 
-            if(enemy == sv.edicts)
+            if(enemy == qcvm->edicts)
             {
                 break;
             }
@@ -494,7 +494,7 @@ void SV_MoveToGoal()
     }
 
     // if the next step hits the enemy, return immediately
-    if(PROG_TO_EDICT(ent->v.enemy) != sv.edicts &&
+    if(PROG_TO_EDICT(ent->v.enemy) != qcvm->edicts &&
         SV_CloseEnough(ent, goal, dist))
     {
         return;

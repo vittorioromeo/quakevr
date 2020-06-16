@@ -88,12 +88,9 @@ struct beam_t
     // SomeEnum special; // TODO VR: (P1) consider adding this and experiment
     // with particles/dlights
 
-// TODO VR: (P0): QSS Merge
-#if 0
 // QSS
     const char* trailname;
     struct trailstate_s* trailstate;
-#endif
 };
 
 typedef enum

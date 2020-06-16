@@ -170,7 +170,6 @@ int q_strcasecmp(const char* s1, const char* s2)
     const char* p1 = s1;
     const char* p2 = s2;
     char c1;
-
     char c2;
 
     if(p1 == p2)
@@ -196,7 +195,6 @@ int q_strncasecmp(const char* s1, const char* s2, size_t n)
     const char* p1 = s1;
     const char* p2 = s2;
     char c1;
-
     char c2;
 
     if(p1 == p2 || n == 0)
@@ -221,9 +219,7 @@ int q_strncasecmp(const char* s1, const char* s2, size_t n)
 char* q_strcasestr(const char* haystack, const char* needle)
 {
     int c1;
-
     int c2;
-
     int c2f;
     int i;
     c2f = *needle;
@@ -579,7 +575,6 @@ float Q_atof(const char* str)
     int sign;
     int c;
     int decimal;
-
     int total;
 
     if(*str == '-')
@@ -776,9 +771,7 @@ write only 'filename' to the output
 void COM_FileBase(const char* in, char* out, size_t outsize)
 {
     const char* dot;
-
     const char* slash;
-
     const char* s;
 
     s = in;
@@ -1129,9 +1122,7 @@ COM_InitArgv
 void COM_InitArgv(int argc, char** argv)
 {
     int i;
-
     int j;
-
     int n;
 
     // reconstitute the command line for the cmdline externally visible cvar
@@ -1370,7 +1361,6 @@ COM_filelength
 long COM_filelength(FILE* f)
 {
     long pos;
-
     long end;
 
     pos = ftell(f);

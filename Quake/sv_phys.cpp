@@ -73,8 +73,8 @@ SV_CheckAllEnts
 void SV_CheckAllEnts()
 {
     // see if any solid entities are inside the final position
-    edict_t* check = NEXT_EDICT(sv.edicts);
-    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    edict_t* check = NEXT_EDICT(qcvm->edicts);
+    for(int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
@@ -145,14 +145,14 @@ bool SV_RunThinkImpl(edict_t* ent)
     }
 
     float thinktime = (ent->v).*TNextThink;
-    if(thinktime <= 0 || thinktime > sv.time + host_frametime)
+    if(thinktime <= 0 || thinktime > qcvm->time + host_frametime)
     {
         return true;
     }
 
-    if(thinktime < sv.time)
+    if(thinktime < qcvm->time)
     {
-        thinktime = sv.time; // don't let things stay in the past.
+        thinktime = qcvm->time; // don't let things stay in the past.
     }
     // it is possible to start that way
     // by a trigger with a local time.
@@ -162,7 +162,7 @@ bool SV_RunThinkImpl(edict_t* ent)
     (ent->v).*TNextThink = 0;
     pr_global_struct->time = thinktime;
     pr_global_struct->self = EDICT_TO_PROG(ent);
-    pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
     PR_ExecuteProgram((ent->v).*TThink);
 
     if(TDoLerp)
@@ -206,7 +206,7 @@ void SV_Impact(edict_t* e1, edict_t* e2, func_t entvars_t::*impactFunc)
     const int old_self = pr_global_struct->self;
     const int old_other = pr_global_struct->other;
 
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     if(e1->v.*impactFunc && e1->v.solid != SOLID_NOT)
     {
         pr_global_struct->self = EDICT_TO_PROG(e1);
@@ -549,14 +549,14 @@ void SV_PushMove(edict_t* pusher, float movetime)
 
     // johnfitz -- dynamically allocate
     const int mark = Hunk_LowMark(); // johnfitz
-    const auto moved_edict = Hunk_Alloc<edict_t*>(sv.num_edicts);
-    const auto moved_from = Hunk_Alloc<qvec3>(sv.num_edicts);
+    const auto moved_edict = Hunk_Alloc<edict_t*>(qcvm->num_edicts);
+    const auto moved_from = Hunk_Alloc<qvec3>(qcvm->num_edicts);
     // johnfitz
 
     // see if any solid entities are inside the final position
     int num_moved = 0;
-    edict_t* check = NEXT_EDICT(sv.edicts);
-    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    edict_t* check = NEXT_EDICT(qcvm->edicts);
+    for(int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
@@ -717,9 +717,9 @@ void SV_Physics_Pusher(edict_t* ent)
     if(thinktime > oldltime && thinktime <= ent->v.ltime)
     {
         ent->v.nextthink = 0;
-        pr_global_struct->time = sv.time;
+        pr_global_struct->time = qcvm->time;
         pr_global_struct->self = EDICT_TO_PROG(ent);
-        pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+        pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
         PR_ExecuteProgram(ent->v.think);
         if(ent->free)
         {
@@ -824,7 +824,7 @@ bool SV_CheckWater(edict_t* ent)
 
     if(ent->v.waterlevel != prevWaterlevel)
     {
-        ent->v.lastwatertime = sv.time;
+        ent->v.lastwatertime = qcvm->time;
     }
 
     return ent->v.waterlevel > 1;
@@ -1205,7 +1205,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     // call standard client pre-think
     //
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(ent);
     PR_ExecuteProgram(pr_global_struct->PlayerPreThink);
 
@@ -1230,7 +1230,7 @@ void SV_Physics_Client(edict_t* ent, int num)
             return;
         }
 
-        ent->v.teleport_time = sv.time + 0.3;
+        ent->v.teleport_time = qcvm->time + 0.3;
         ent->v.origin = ent->v.teleport_target;
         ent->v.oldorigin = ent->v.teleport_target;
     }
@@ -1359,7 +1359,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     SV_LinkEdict(ent, true);
 
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(ent);
 
     PR_ExecuteProgram(pr_global_struct->PlayerPostThink);
@@ -1428,7 +1428,7 @@ void SV_CheckWaterTransition(edict_t* ent)
         return;
     }
 
-    const float watertimeDiff = sv.time - ent->v.lastwatertime;
+    const float watertimeDiff = qcvm->time - ent->v.lastwatertime;
 
     if(cont <= CONTENTS_WATER)
     {
@@ -1443,7 +1443,7 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         if(ent->v.waterlevel != prevWaterlevel)
         {
-            ent->v.lastwatertime = sv.time;
+            ent->v.lastwatertime = qcvm->time;
         }
     }
     else
@@ -1459,7 +1459,7 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         if(ent->v.waterlevel != prevWaterlevel)
         {
-            ent->v.lastwatertime = sv.time;
+            ent->v.lastwatertime = qcvm->time;
         }
     }
 }
@@ -1629,9 +1629,9 @@ void SV_Physics()
     edict_t* ent;
 
     // let the progs know that a new frame has started
-    pr_global_struct->self = EDICT_TO_PROG(sv.edicts);
-    pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
-    pr_global_struct->time = sv.time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+    pr_global_struct->time = qcvm->time;
     PR_ExecuteProgram(pr_global_struct->StartFrame);
 
     // SV_CheckAllEnts ();
@@ -1639,7 +1639,7 @@ void SV_Physics()
     //
     // treat each object in turn
     //
-    ent = sv.edicts;
+    ent = qcvm->edicts;
 
     if(sv_freezenonclients.value)
     {
@@ -1648,10 +1648,10 @@ void SV_Physics()
     }
     else
     {
-        entity_cap = sv.num_edicts;
+        entity_cap = qcvm->num_edicts;
     }
 
-    // for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
+    // for (i=0 ; i<qcvm->num_edicts ; i++, ent = NEXT_EDICT(ent))
     for(i = 0; i < entity_cap; i++, ent = NEXT_EDICT(ent))
     {
         if(ent->free)
@@ -1704,6 +1704,6 @@ void SV_Physics()
 
     if(!sv_freezenonclients.value)
     {
-        sv.time += host_frametime;
+        qcvm->time += host_frametime;
     }
 }

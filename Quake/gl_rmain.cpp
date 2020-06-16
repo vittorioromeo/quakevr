@@ -1097,7 +1097,7 @@ void R_ShowBoundingBoxes()
 
     int i;
     edict_t* ed;
-    for(i = 0, ed = NEXT_EDICT(sv.edicts); i < sv.num_edicts;
+    for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
         i++, ed = NEXT_EDICT(ed))
     {
         if(ed == sv_player && !r_showbboxes_player.value)
@@ -1106,7 +1106,7 @@ void R_ShowBoundingBoxes()
         }
 
         // if (r_showbboxes.value != 2)
-        //     if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
+        //     if (!SV_VisibleToClient (sv_player, ed, qcvm->worldmodel))
         //         continue; // don't draw if not in pvs
 
         if(ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] &&

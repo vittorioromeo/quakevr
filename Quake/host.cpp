@@ -737,11 +737,8 @@ void Host_ShutdownServer(bool crash)
             count);
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
     // QSS
     PR_SwitchQCVM(&sv.qcvm);
-#endif
 
     for(i = 0, host_client = svs.clients; i < svs.maxclients;
         i++, host_client++)
@@ -752,12 +749,9 @@ void Host_ShutdownServer(bool crash)
         }
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     // QSS
     qcvm->worldmodel = nullptr;
     PR_SwitchQCVM(nullptr);
-#endif
 
     //
     // clear structures
@@ -797,7 +791,7 @@ void Host_ClearMemory()
     free(sv.ambientsounds);
 
     // TODO VR: (P0): QSS Merge - remove this when switching to QCVM
-    free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
+    free(qcvm->edicts); // ericw -- qcvm->edicts switched to use malloc()
 
     sv = server_t{};
     cl = client_state_t{};
@@ -916,13 +910,8 @@ void Host_ServerFrame()
     if(cls.signon == SIGNONS)
     {
 
-        // TODO VR: (P0) QSS Merge
-#if 0
-// QSS
+        // QSS
         for(i = 0, active = 0; i < qcvm->num_edicts; i++) // QSS
-#else
-        for(i = 0, active = 0; i < sv.num_edicts; i++)
-#endif
         {
             ent = EDICT_NUM(i);
             if(!ent->free)
@@ -934,14 +923,7 @@ void Host_ServerFrame()
         {
             Con_DWarning(
                 "%i edicts exceeds standard limit of 600 (max = %d).\n", active,
-
-            // TODO VR: (P0) QSS Merge
-#if 0
                 qcvm->max_edicts /* QSS */
-#else
-                sv.max_edicts
-#endif
-
             );
         }
         dev_stats.edicts = active;

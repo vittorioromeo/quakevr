@@ -123,29 +123,29 @@ edict_t* ED_Alloc()
     int i;
     edict_t* e;
 
-    for(i = svs.maxclients + 1; i < sv.num_edicts; i++)
+    for(i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         e = EDICT_NUM(i);
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
-        if(e->free && (e->freetime < 2 || sv.time - e->freetime > 0.5))
+        if(e->free && (e->freetime < 2 || qcvm->time - e->freetime > 0.5))
         {
             ED_ClearEdict(e);
             return e;
         }
     }
 
-    if(i == sv.max_edicts)
+    if(i == qcvm->max_edicts)
     {
-        // johnfitz -- use sv.max_edicts instead of
+        // johnfitz -- use qcvm->max_edicts instead of
         // MAX_EDICTS
         Host_Error(
-            "ED_Alloc: no free edicts (max_edicts is %i)", sv.max_edicts);
+            "ED_Alloc: no free edicts (max_edicts is %i)", qcvm->max_edicts);
     }
 
-    sv.num_edicts++;
+    qcvm->num_edicts++;
     e = EDICT_NUM(i);
-    memset(e, 0, pr_edict_size); // ericw -- switched sv.edicts to malloc(), so
+    memset(e, 0, pr_edict_size); // ericw -- switched qcvm->edicts to malloc(), so
                                  // we are accessing uninitialized memory and
                                  // must fully zero it, not just ED_ClearEdict
 
@@ -178,7 +178,7 @@ void ED_Free(edict_t* ed)
     ed->v.solid = 0;
     ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
 
-    ed->freetime = sv.time;
+    ed->freetime = qcvm->time;
 }
 
 //===========================================================================
@@ -435,7 +435,7 @@ const char* PR_GlobalString(int ofs)
     ddef_t* def;
     void* val;
 
-    val = (void*)&pr_globals[ofs];
+    val = (void*)&qcvm->globals[ofs];
     def = ED_GlobalAtOfs(ofs);
     if(!def)
     {
@@ -636,8 +636,8 @@ void ED_PrintEdicts()
         return;
     }
 
-    Con_Printf("%i entities\n", sv.num_edicts);
-    for(i = 0; i < sv.num_edicts; i++)
+    Con_Printf("%i entities\n", qcvm->num_edicts);
+    for(i = 0; i < qcvm->num_edicts; i++)
     {
         ED_PrintNum(i);
     }
@@ -660,7 +660,7 @@ static void ED_PrintEdict_f()
     }
 
     i = Q_atoi(Cmd_Argv(1));
-    if(i < 0 || i >= sv.num_edicts)
+    if(i < 0 || i >= qcvm->num_edicts)
     {
         Con_Printf("Bad edict number\n");
         return;
@@ -694,7 +694,7 @@ static void ED_Count()
     }
 
     active = models = solid = step = 0;
-    for(i = 0; i < sv.num_edicts; i++)
+    for(i = 0; i < qcvm->num_edicts; i++)
     {
         ent = EDICT_NUM(i);
         if(ent->free)
@@ -716,7 +716,7 @@ static void ED_Count()
         }
     }
 
-    Con_Printf("num_edicts:%3i\n", sv.num_edicts);
+    Con_Printf("num_edicts:%3i\n", qcvm->num_edicts);
     Con_Printf("active    :%3i\n", active);
     Con_Printf("view      :%3i\n", models);
     Con_Printf("touch     :%3i\n", solid);
@@ -764,7 +764,7 @@ void ED_WriteGlobals(FILE* f)
         name = PR_GetString(def->s_name);
         fprintf(f, "\"%s\" ", name);
         fprintf(f, "\"%s\"\n",
-            PR_UglyValueString(type, (eval_t*)&pr_globals[def->ofs]));
+            PR_UglyValueString(type, (eval_t*)&qcvm->globals[def->ofs]));
     }
     fprintf(f, "}\n");
 }
@@ -813,7 +813,7 @@ const char* ED_ParseGlobals(const char* data)
             continue;
         }
 
-        if(!ED_ParseEpair((void*)pr_globals, key, com_token))
+        if(!ED_ParseEpair((void*)qcvm->globals, key, com_token))
         {
             Host_Error("ED_ParseGlobals: parse error");
         }
@@ -970,7 +970,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
     bool init = false;
 
     // clear it
-    if(ent != sv.edicts)
+    if(ent != qcvm->edicts)
     {
         // hack
         memset(&ent->v, 0, progs->entityfields * 4);
@@ -1108,7 +1108,7 @@ void ED_LoadFromFile(const char* data)
     edict_t* ent = nullptr;
     int inhibit = 0;
 
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
 
     // parse ents
     while(true)
@@ -1254,7 +1254,7 @@ void PR_LoadProgs()
     pr_statements = (dstatement_t*)((byte*)progs + progs->ofs_statements);
 
     pr_global_struct = (globalvars_t*)((byte*)progs + progs->ofs_globals);
-    pr_globals = (float*)pr_global_struct;
+    qcvm->globals = (float*)pr_global_struct;
 
     // byte swap the lumps
     for(i = 0; i < progs->numstatements; i++)
@@ -1305,7 +1305,7 @@ void PR_LoadProgs()
 
     for(i = 0; i < progs->numglobals; i++)
     {
-        ((int*)pr_globals)[i] = LittleLong(((int*)pr_globals)[i]);
+        ((int*)qcvm->globals)[i] = LittleLong(((int*)qcvm->globals)[i]);
     }
 
     pr_edict_size =
@@ -1345,21 +1345,21 @@ void PR_Init()
 
 edict_t* EDICT_NUM(int n)
 {
-    if(n < 0 || n >= sv.max_edicts)
+    if(n < 0 || n >= qcvm->max_edicts)
     {
         Host_Error("EDICT_NUM: bad number %i", n);
     }
-    return (edict_t*)((byte*)sv.edicts + (n)*pr_edict_size);
+    return (edict_t*)((byte*)qcvm->edicts + (n)*pr_edict_size);
 }
 
 int NUM_FOR_EDICT(edict_t* e)
 {
     int b;
 
-    b = (byte*)e - (byte*)sv.edicts;
+    b = (byte*)e - (byte*)qcvm->edicts;
     b = b / pr_edict_size;
 
-    if(b < 0 || b >= sv.num_edicts)
+    if(b < 0 || b >= qcvm->num_edicts)
     {
         Host_Error("NUM_FOR_EDICT: bad pointer");
     }

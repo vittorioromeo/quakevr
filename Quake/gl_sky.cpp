@@ -177,7 +177,6 @@ const char* suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 void Sky_LoadSkyBox(const char* name)
 {
     int width;
-
     int height;
     char filename[MAX_OSPATH];
     byte* data;
@@ -256,7 +255,6 @@ Sky_NewMap
 void Sky_NewMap()
 {
     char key[128];
-
     char value[4096];
     const char* data;
     int i;
@@ -280,10 +278,9 @@ void Sky_NewMap()
     if(!data)
     {
         return; // FIXME: how could this possibly ever happen? -- if there's
-                // no
+                // no worldspawn then the sever wouldn't send the loadmap 
+    			// message to the client
     }
-    // worldspawn then the sever wouldn't send the loadmap message to the
-    // client
 
     data = COM_Parse(data);
     if(!data)
@@ -482,11 +479,8 @@ void Sky_ProjectPoly(int nump, vec3_t vecs)
 {
     int i;
     int j;
-
     float s;
-
     float t;
-
     float dv;
     int axis;
     float* vp;
@@ -597,17 +591,14 @@ void Sky_ClipPoly(int nump, vec3_t vecs, int stage)
     float* norm;
     float* v;
     bool front;
-
     bool back;
     float d;
-
     float e;
     float dists[MAX_CLIP_VERTS];
     int sides[MAX_CLIP_VERTS];
     vec3_t newv[2][MAX_CLIP_VERTS];
     int newc[2];
     int i;
-
     int j;
 
     if(nump > MAX_CLIP_VERTS - 2)
@@ -766,15 +757,11 @@ void Sky_ProcessEntities()
     entity_t* e;
     msurface_t* s;
     glpoly_t* p;
-
     int j;
-
     int k;
-
     int mark;
     float dot;
     bool rotated;
-
     qvec3 temp;
     qvec3 forward;
     qvec3 right;
@@ -885,13 +872,10 @@ Sky_EmitSkyBoxVertex
 void Sky_EmitSkyBoxVertex(float s, float t, int axis)
 {
     vec3_t v;
-
     vec3_t b;
     int j;
-
     int k;
     float w;
-
     float h;
 
     b[0] = s * gl_farclip.value / sqrt(3.0);
@@ -1003,7 +987,6 @@ void Sky_SetBoxVert(float s, float t, int axis, vec3_t v)
 {
     vec3_t b;
     int j;
-
     int k;
 
     b[0] = s * gl_farclip.value / sqrt(3.0);
@@ -1034,7 +1017,6 @@ void Sky_GetTexCoord(vec3_t v, float speed, float* s, float* t)
 {
     vec3_t dir;
     float length;
-
     float scroll;
 
     VectorSubtract(v, r_origin, dir);
@@ -1059,7 +1041,6 @@ Sky_DrawFaceQuad
 void Sky_DrawFaceQuad(glpoly_t* p)
 {
     float s;
-
     float t;
     float* v;
     int i;
@@ -1163,23 +1144,15 @@ void Sky_DrawFace(int axis)
     glpoly_t* p;
     vec3_t verts[4];
     int i;
-
     int j;
-
     int start;
     qfloat di;
-
     qfloat qi;
-
     qfloat dj;
-
     qfloat qj;
     qvec3 vup;
-
     qvec3 vright;
-
     qvec3 temp;
-
     qvec3 temp2;
 
     Sky_SetBoxVert(-1.0, -1.0, axis, verts[0]);

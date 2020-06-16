@@ -415,7 +415,7 @@ void SV_WaterMove()
 
 void SV_WaterJump()
 {
-    if(sv.time > sv_player->v.teleport_time || !sv_player->v.waterlevel)
+    if(qcvm->time > sv_player->v.teleport_time || !sv_player->v.waterlevel)
     {
         quake::util::removeFlag(sv_player, FL_WATERJUMP);
         sv_player->v.teleport_time = 0;
@@ -467,7 +467,7 @@ void SV_AirMove()
     const qfloat smove = cmd.sidemove;
 
     // hack to not let you back into teleporter
-    if(sv.time < sv_player->v.teleport_time && fmove < 0)
+    if(qcvm->time < sv_player->v.teleport_time && fmove < 0)
     {
         fmove = 0;
     }
@@ -589,7 +589,7 @@ void SV_ReadClientMove(usercmd_t* move)
 
     // read ping time
     host_client->ping_times[host_client->num_pings % NUM_PING_TIMES] =
-        sv.time - MSG_ReadFloat();
+        qcvm->time - MSG_ReadFloat();
     host_client->num_pings++;
 
     const auto readAngles = [&](auto& target) {

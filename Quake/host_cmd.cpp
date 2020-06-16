@@ -1390,12 +1390,7 @@ bool Host_MakeSavegame(
     fprintf(f, "%d\n", current_skill);
     fprintf(f, "%s\n", sv.name);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     fprintf(f, "%f\n", qcvm->time); // QSS
-#else
-    fprintf(f, "%f\n", sv.time);
-#endif
 
     // write the light styles
 
@@ -1418,12 +1413,7 @@ bool Host_MakeSavegame(
 
     ED_WriteGlobals(f);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(int i = 0; i < qcvm->num_edicts; i++) // QSS
-#else
-    for(int i = 0; i < sv.num_edicts; i++)
-#endif
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
@@ -1705,7 +1695,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
                         sv.models[idx] =
                             Mod_ForName(sv.model_precache[idx], idx == 1);
                         // if (idx == 1)
-                        //	sv.worldmodel = sv.models[idx];
+                        //	qcvm->worldmodel = sv.models[idx];
                     }
                 }
                 else if(!strcmp(com_token, "sv.sound_precache"))
@@ -1764,8 +1754,6 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
             // parse an edict
             edict_t* ent = EDICT_NUM(entnum);
 
-            // TODO VR: (P0): QSS Merge
-#if 0
             if(entnum < qcvm->num_edicts)
             {
                 ent->free = false;
@@ -1775,17 +1763,6 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
             {
                 memset(ent, 0, qcvm->edict_size);
             }
-#else
-            if(entnum < sv.num_edicts)
-            {
-                ent->free = false;
-                memset(&ent->v, 0, progs->entityfields * 4);
-            }
-            else
-            {
-                memset(ent, 0, pr_edict_size);
-            }
-#endif
 
             data = ED_ParseEdict(data, ent);
 
@@ -1799,14 +1776,8 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         entnum++;
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     qcvm->num_edicts = entnum;
     qcvm->time = time;
-#else
-    sv.num_edicts = entnum;
-    sv.time = time;
-#endif
 
     free(start);
     start = nullptr;
@@ -2207,12 +2178,7 @@ void Host_Kill_f()
         return;
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     pr_global_struct->time = qcvm->time; // QSS
-#else
-    pr_global_struct->time = sv.time;
-#endif
 
     pr_global_struct->self = EDICT_TO_PROG(sv_player);
     PR_ExecuteProgram(pr_global_struct->ClientKill);
@@ -2341,12 +2307,7 @@ void Host_Spawn_f()
         // set up the edict
         ent = host_client->edict;
 
-// TODO VR: (P0): QSS Merge
-#if 0
         memset(&ent->v, 0, qcvm->progs->entityfields * 4); // QSS
-#else
-        memset(&ent->v, 0, progs->entityfields * 4);
-#endif
 
         ent->v.colormap = NUM_FOR_EDICT(ent);
         ent->v.team = (host_client->colors & 15) + 1;
@@ -2379,25 +2340,14 @@ void Host_Spawn_f()
 #endif
 
         // call the spawn function
-// TODO VR: (P0): QSS Merge
-#if 0
         pr_global_struct->time = qcvm->time; // QSS
-#else
-        pr_global_struct->time = sv.time;
-#endif
-
 
         pr_global_struct->self = EDICT_TO_PROG(sv_player);
         PR_ExecuteProgram(pr_global_struct->ClientConnect);
 
-// TODO VR: (P0): QSS Merge
-#if 0
         if((Sys_DoubleTime() -
-               NET_QSocketGetTime(host_client->netconnection)) <= qcvm->time) // QSS
-#else
-        if((Sys_DoubleTime() -
-               NET_QSocketGetTime(host_client->netconnection)) <= sv.time)
-#endif
+               NET_QSocketGetTime(host_client->netconnection)) <=
+            qcvm->time) // QSS
         {
             Sys_Printf("%s entered the game\n", host_client->name);
         }
@@ -2428,7 +2378,7 @@ void Host_Spawn_f()
         MSG_WriteShort(&host_client->message, (host_client->lastmovemessage&0xffff));
     }
 #else
-    MSG_WriteFloat(&host_client->message, sv.time);
+    MSG_WriteFloat(&host_client->message, qcvm->time);
 #endif
 
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
@@ -2973,9 +2923,7 @@ edict_t* FindViewthing()
     int i;
     edict_t* e = nullptr;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-// QSS
+    // QSS
     PR_SwitchQCVM(&sv.qcvm);
     i = qcvm->num_edicts;
 
@@ -2984,7 +2932,10 @@ edict_t* FindViewthing()
         for(i = 0; i < qcvm->num_edicts; i++)
         {
             e = EDICT_NUM(i);
-            if(!strcmp(PR_GetString(e->v.classname), "viewthing")) break;
+            if(!strcmp(PR_GetString(e->v.classname), "viewthing"))
+            {
+                break;
+            }
         }
     }
 
@@ -2994,7 +2945,9 @@ edict_t* FindViewthing()
         {
             e = EDICT_NUM(i);
             if(!strcmp(PR_GetString(e->v.classname), "info_player_start"))
+            {
                 break;
+            }
         }
     }
 
@@ -3006,19 +2959,6 @@ edict_t* FindViewthing()
 
     PR_SwitchQCVM(nullptr);
     return e;
-}
-#else
-    for(i = 0; i < sv.num_edicts; i++)
-    {
-        e = EDICT_NUM(i);
-        if(!strcmp(PR_GetString(e->v.classname), "viewthing"))
-        {
-            return e;
-        }
-    }
-    Con_Printf("No viewthing on map\n");
-    return nullptr;
-#endif
 }
 
 /*

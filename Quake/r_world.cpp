@@ -331,7 +331,7 @@ void R_BuildLightmapChains(qmodel_t* model, texchain_t chain)
         {
             if(!s->culled)
             {
-                R_RenderDynamicLightmaps(s);
+                R_RenderDynamicLightmaps(model, s);
             }
         }
     }
@@ -617,7 +617,6 @@ void R_DrawTextureChains_Multitexture(
     qmodel_t* model, entity_t* ent, texchain_t chain)
 {
     int i;
-
     int j;
     msurface_t* s;
     texture_t* t;
@@ -933,7 +932,6 @@ nothing
 void R_DrawLightmapChains()
 {
     int i;
-
     int j;
     glpoly_t* p;
     float* v;
