@@ -92,6 +92,11 @@ set(source_list
     "Quake/wad.cpp"
     "Quake/world.cpp"
     "Quake/zone.cpp"
+    "Quake/fakeqcvm.cpp"
+    "Quake/snd_voip.cpp"
+    "Quake/client.cpp"
+    "Quake/pr_ext.cpp"
+    "Quake/link.cpp"
 )
 
 if (WIN32)
@@ -108,7 +113,6 @@ else()
         "Quake/pl_linux.cpp"
         "Quake/sys_sdl_unix.cpp"
         "Quake/net_udp.cpp"
-        "Quake/snd_mpg123.cpp"
     )
 endif()
 
@@ -139,9 +143,9 @@ target_compile_definitions(${QUAKEVR_TARGET_NAME} PRIVATE
     USE_SDL2=1
     _AMD64_=1
     -DPARANOID=1
-    WIN32=1
-    NDEBUG=1
-    _WINDOWS=1
+    #WIN32=1
+    #NDEBUG=1
+    #_WINDOWS=1
     _USE_WINSOCK2=1
     _CRT_NONSTDC_NO_DEPRECATE=1
     _CRT_SECURE_NO_WARNINGS=1
@@ -154,7 +158,8 @@ target_compile_definitions(${QUAKEVR_TARGET_NAME} PRIVATE
     USE_CODEC_OPUS=1
     USE_CODEC_MIKMOD=1
     USE_CODEC_UMX=1
-    __clang__=1
+    #__clang__=1
+    GLM_COMPILER=0
 )
 
 target_include_directories(
@@ -247,7 +252,7 @@ else()
     endif()
 
     target_link_libraries(${QUAKEVR_TARGET_NAME}
-        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES} ${GLEW_LIBRARIES}
+        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES} ${GLEW_LIBRARIES} opus FLAC ogg mad mikmod vorbis vorbisfile opusfile mpg123
     )
 endif()
 

@@ -1797,18 +1797,18 @@ template <typename T>
     return redirectVector(input, {0.f, exemplarYaw, 0.f});
 }
 
-void SetHandPos(int index, entity_t* player)
+void SetHandPos(int index, entity_t& player)
 {
     // -----------------------------------------------------------------------
     // VR: Figure out position of hand controllers in the game world.
 
-    const auto worldHandPos = VR_GetWorldHandPos(index, player->origin);
+    const auto worldHandPos = VR_GetWorldHandPos(index, player.origin);
 
     // -----------------------------------------------------------------------
     // VR: Detect & resolve hand collisions against the world or entities.
 
     // Start around the upper torso, not actual center of the player.
-    const qvec3 adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
+    const qvec3 adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player.origin);
 
     // TODO VR: (P2) cvar to enable/disable muzzle collisions
     qvec3 finalVec = worldHandPos;
@@ -1833,7 +1833,7 @@ void SetHandPos(int index, entity_t* player)
     const auto oldHandpos = cl.handpos[index];
 
     const qvec3 lastPlayerTranslation =
-        gotLastPlayerOrigin ? player->origin - lastPlayerOrigin : vec3_zero;
+        gotLastPlayerOrigin ? player.origin - lastPlayerOrigin : vec3_zero;
 
     // ------------------------------------------------------------------------
     // VR: Interpolate hand position depending on weapon weight.
@@ -1860,7 +1860,7 @@ void SetHandPos(int index, entity_t* player)
         };
 
         const auto oldadjxy = rotate_point(
-            player->origin.xy, glm::radians(-lastVrYawDiff), oldHandpos.xy);
+            player.origin.xy, glm::radians(-lastVrYawDiff), oldHandpos.xy);
 
         const qvec3 oldadj{oldadjxy[0], oldadjxy[1], oldHandpos[2]};
 
@@ -1977,9 +1977,15 @@ void SetHandPos(int index, entity_t* player)
     debugPrintHandvel(index, linearity);
 }
 
-[[nodiscard]] static const qvec3& VR_GetPlayerOrigin() noexcept
+[[nodiscard]] static bool VR_ClientEntitiesAvailable() noexcept
 {
-    return cl.entities[cl.viewentity].origin;
+    return cl.entities != nullptr;
+}
+
+[[nodiscard]] static entity_t& VR_GetPlayerEntity() noexcept
+{
+    assert(VR_ClientEntitiesAvailable());
+    return cl.entities[cl.viewentity];
 }
 
 // TODO VR: (P1) code repetition with r_alias
@@ -2123,6 +2129,11 @@ void SetHandPos(int index, entity_t* player)
 
 [[nodiscard]] qvec3 VR_GetBodyAnchor(const qvec3& offsets) noexcept
 {
+    if(!VR_ClientEntitiesAvailable())
+    {
+        return vec3_zero;
+    }
+
     const auto heightRatio = std::clamp(VR_GetCrouchRatio(), 0._qf, 0.8_qf);
 
     const auto [vFwd, vRight, vUp] =
@@ -2130,7 +2141,7 @@ void SetHandPos(int index, entity_t* player)
 
     const auto& [ox, oy, oz] = offsets;
 
-    auto origin = VR_GetPlayerOrigin();
+    auto origin = VR_GetPlayerEntity().origin;
     origin[2] += 2._qf;
     origin[2] -= VR_GetCrouchRatio() * 18._qf;
 
@@ -2345,7 +2356,13 @@ void SetHandPos(int index, entity_t* player)
 [[nodiscard]] static auto VR_GetBodyYawAdjPlayerOrigins(
     const qvec3& headFwdDir, const qvec3& headRightDir) noexcept
 {
-    const auto adjPlayerOrigin = VR_GetPlayerOrigin() - headFwdDir * 10._qf;
+    if(!VR_ClientEntitiesAvailable())
+    {
+        return std::tuple{vec3_zero, vec3_zero, vec3_zero};
+    }
+
+    const auto adjPlayerOrigin =
+        VR_GetPlayerEntity().origin - headFwdDir * 10._qf;
     const auto adjPlayerOriginLeft = adjPlayerOrigin - headRightDir * 6.5_qf;
     const auto adjPlayerOriginRight = adjPlayerOrigin + headRightDir * 6.5_qf;
 
@@ -2473,12 +2490,13 @@ VR_GetBodyYawAngleCalculations() noexcept
 
 static void VR_DoTeleportation()
 {
-    if(!vr_teleport_enabled.value || !svPlayerActive())
+    if(!vr_teleport_enabled.value || !svPlayerActive() ||
+        !VR_ClientEntitiesAvailable())
     {
         return;
     }
 
-    entity_t* player = &cl.entities[cl.viewentity];
+    entity_t& player = VR_GetPlayerEntity();
 
     if(vr_teleporting)
     {
@@ -2491,7 +2509,7 @@ static void VR_DoTeleportation()
         const auto target =
             cl.handpos[cVR_OffHand] + qfloat(vr_teleport_range.value) * fwd;
 
-        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player->origin);
+        const auto adjPlayerOrigin = VR_GetAdjustedPlayerOrigin(player.origin);
 
         const trace_t trace = SV_Move(
             adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, getPlayerEdict());
@@ -2516,7 +2534,7 @@ static void VR_DoTeleportation()
     else if(vr_was_teleporting && vr_teleporting_impact_valid)
     {
         vr_send_teleport_msg = true;
-        player->origin = vr_teleporting_impact;
+        player.origin = vr_teleporting_impact;
     }
 
     vr_was_teleporting = vr_teleporting;
@@ -2952,8 +2970,13 @@ static void VR_Do2HAiming(const qvec3 (&originalRots)[2])
 
 static void VR_FakeVRControllerAiming()
 {
+    if(!VR_ClientEntitiesAvailable())
+    {
+        return;
+    }
+
     const auto [vfwd, vright, vup] = getAngledVectors(cl.viewangles);
-    const auto& playerOrigin = VR_GetPlayerOrigin();
+    const auto& playerOrigin = VR_GetPlayerEntity().origin;
 
     vrYaw = cl.viewangles[YAW];
 
@@ -3005,6 +3028,11 @@ static void VR_DoWpnButton()
 
 static void VR_ControllerAiming(const qvec3& orientation)
 {
+    if(!VR_ClientEntitiesAvailable())
+    {
+        return;
+    }
+
     // In fake VR mode, aim is controlled with the mouse.
     if(vr_fakevr.value == 0)
     {
@@ -3044,7 +3072,7 @@ static void VR_ControllerAiming(const qvec3& orientation)
     setHeldWeaponCVar(VR_GetOffHandWpnCvarEntry(), cl.offhand_viewent);
     setHeldWeaponCVar(VR_GetMainHandWpnCvarEntry(), cl.viewent);
 
-    entity_t* const player = &cl.entities[cl.viewentity];
+    entity_t& player = VR_GetPlayerEntity();
 
     // headvel
     cl.headvel = redirectVectorByYaw(
@@ -3055,7 +3083,7 @@ static void VR_ControllerAiming(const qvec3& orientation)
     SetHandPos(0, player);
     SetHandPos(1, player);
 
-    lastPlayerOrigin = player->origin;
+    lastPlayerOrigin = player.origin;
     gotLastPlayerOrigin = true;
 
     VR_Do2HAiming(originalRots);

@@ -133,9 +133,8 @@ void Sys_CloseLibrary(dllhandle_t* lib)
 dllhandle_t* Sys_LoadLibrary(const char* name, dllfunction_t* funcs)
 {
     int i;
-    dllhandle_t* lib;
 
-    lib = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+    auto* lib = (dllhandle_t*)dlopen(name, RTLD_LAZY | RTLD_LOCAL);
     if(!lib) return nullptr;
 
     if(funcs)
@@ -1432,7 +1431,7 @@ static struct
 #define OPUS_SET_BITRATE_REQUEST 4002
 #define OPUS_RESET_STATE 4028
 #ifdef OPUS_STATIC
-#include <opus.h>
+#include <opus/opus.h>
 #define qopus_encoder_create opus_encoder_create
 #define qopus_encoder_destroy opus_encoder_destroy
 #define qopus_encoder_ctl opus_encoder_ctl
@@ -1837,7 +1836,7 @@ void S_Voip_Decode(unsigned int sender, unsigned int codec, unsigned int gen,
                 case VOIP_PCMA:
                 case VOIP_PCMU: break;
                 case VOIP_OPUS:
-                    qopus_decoder_destroy(s_voip.decoder[sender]);
+                    qopus_decoder_destroy((OpusDecoder*)s_voip.decoder[sender]);
                     break;
             }
             s_voip.decoder[sender] = nullptr;
@@ -1943,7 +1942,8 @@ void S_Voip_Decode(unsigned int sender, unsigned int codec, unsigned int gen,
                 }
                 else
                 {
-                    qopus_decoder_ctl(s_voip.decoder[sender], OPUS_RESET_STATE);
+                    qopus_decoder_ctl(
+                        (OpusDecoder*)s_voip.decoder[sender], OPUS_RESET_STATE);
                 }
                 break;
         }
@@ -1982,8 +1982,8 @@ void S_Voip_Decode(unsigned int sender, unsigned int codec, unsigned int gen,
                 break;
 #endif
             case VOIP_OPUS:
-                r = qopus_decode(s_voip.decoder[sender], nullptr, 0,
-                    decodebuf + decodesamps,
+                r = qopus_decode((OpusDecoder*)s_voip.decoder[sender], nullptr,
+                    0, decodebuf + decodesamps,
                     q_min(s_voip.decframesize[sender],
                         sizeof(decodebuf) / sizeof(decodebuf[0]) - decodesamps),
                     false);
@@ -2084,8 +2084,8 @@ void S_Voip_Decode(unsigned int sender, unsigned int codec, unsigned int gen,
                         cl_voip_play.value);
                     decodesamps = 0;
                 }
-                r = qopus_decode(s_voip.decoder[sender], start, len,
-                    decodebuf + decodesamps,
+                r = qopus_decode((OpusDecoder*)s_voip.decoder[sender], start,
+                    len, decodebuf + decodesamps,
                     sizeof(decodebuf) / sizeof(decodebuf[0]) - decodesamps,
                     false);
                 if(r > 0)
@@ -2260,7 +2260,9 @@ void S_Voip_EncodeStop()
         case VOIP_SPEEX_NARROW:
         case VOIP_SPEEX_WIDE:
         case VOIP_SPEEX_ULTRAWIDE: break;
-        case VOIP_OPUS: qopus_encoder_destroy(s_voip.encoder); break;
+        case VOIP_OPUS:
+            qopus_encoder_destroy((OpusEncoder*)s_voip.encoder);
+            break;
     }
     s_voip.encoder = nullptr;
     s_voip.enccodec = VOIP_INVALID;
@@ -2500,7 +2502,7 @@ void S_Voip_Transmit(unsigned char clc, sizebuf_t* buf)
                 case VOIP_PCMA:
                 case VOIP_PCMU: break;
                 case VOIP_OPUS:
-                    qopus_encoder_ctl(s_voip.encoder, OPUS_RESET_STATE);
+                    qopus_encoder_ctl((OpusEncoder*)s_voip.encoder, OPUS_RESET_STATE);
                     break;
             }
         }
@@ -2708,14 +2710,14 @@ void S_Voip_Transmit(unsigned char clc, sizebuf_t* buf)
                         nrate = q_max(512, nrate);
                         nrate = q_min(nrate, 512000);
                     }
-                    qopus_encoder_ctl(
-                        s_voip.encoder, OPUS_SET_BITRATE_REQUEST, (int)nrate);
+                    qopus_encoder_ctl((OpusEncoder*)s_voip.encoder,
+                        OPUS_SET_BITRATE_REQUEST, (int)nrate);
                 }
                 // fixme: might want to add an option for complexity too. maybe
                 // others.
 
                 level += S_Voip_Preprocess(start, frames, micamp);
-                len = qopus_encode(s_voip.encoder, start, frames,
+                len = qopus_encode((OpusEncoder*)s_voip.encoder, start, frames,
                     outbuf + outpos, sizeof(outbuf) - outpos);
                 if(len >= 0)
                 { // FIXME: "If the return value is 2 bytes or less, then the

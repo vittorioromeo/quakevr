@@ -34,6 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_sound.hpp"
 
 #include <SDL2/SDL.h>
+#include <cmath>
 
 static bool textmode;
 
@@ -440,11 +441,6 @@ static joyaxisstate_t joy_axisstate;
 
 static double joy_buttontimer[SDL_CONTROLLER_BUTTON_MAX];
 static double joy_emulatedkeytimer[10];
-
-#ifdef __WATCOMC__ /* OW1.9 doesn't have powf() / sqrtf() */
-#define powf pow
-#define sqrtf sqrt
-#endif
 
 /*
 ================

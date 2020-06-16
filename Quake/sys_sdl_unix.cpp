@@ -27,6 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "platform.hpp"
 #include "quakeparms.hpp"
+#include "input.hpp"
+#include "progs.hpp"
+#include "console.hpp"
+#include "sys.hpp"
+#include "vid.hpp"
+#include "keys.hpp"
+#include "common.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -62,7 +69,7 @@ static int findhandle()
         }
     }
     n = sys_handles_max + 10;
-    sys_handles = realloc(sys_handles, sizeof(*sys_handles) * n);
+    sys_handles = (FILE**)realloc(sys_handles, sizeof(*sys_handles) * n);
     if(!sys_handles)
     {
         Sys_Error("out of handles");

@@ -22,7 +22,7 @@ static std::vector<cvar_t*> cvarsToRegister;
     } _cvar_registrar##name##__LINE__
 
 #define DEFINE_FCVAR_ARCHIVE(name, defaultValue) \
-    DEFINE_FCVAR(name, defaultValue, CVAR_ARCHIVE);
+    DEFINE_FCVAR(name, defaultValue, CVAR_ARCHIVE)
 
 //
 //

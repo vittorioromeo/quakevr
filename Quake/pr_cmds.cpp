@@ -2257,7 +2257,7 @@ static void PF_sv_changelevel()
     Cbuf_AddText(va("changelevel %s\n", s));
 }
 
-static void PF_Fixme()
+void PF_Fixme()
 {
     PR_RunError("unimplemented builtin");
 }
