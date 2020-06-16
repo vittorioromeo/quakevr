@@ -40,14 +40,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 dprograms_t* progs;
 dfunction_t* pr_functions;
 
-static char* pr_strings;
-static int pr_stringssize;
-static const char** pr_knownstrings;
-static int pr_maxknownstrings;
-static int pr_numknownstrings;
-static ddef_t* pr_fielddefs;
-static ddef_t* pr_globaldefs;
-
 bool pr_alpha_supported; // johnfitz
 
 dstatement_t* pr_statements;
@@ -103,7 +95,7 @@ Sets everything to nullptr
 */
 void ED_ClearEdict(edict_t* e)
 {
-    memset(&e->v, 0, progs->entityfields * 4);
+    memset(&e->v, 0, qcvm->progs->entityfields * 4);
     e->free = false;
 }
 
@@ -145,7 +137,8 @@ edict_t* ED_Alloc()
 
     qcvm->num_edicts++;
     e = EDICT_NUM(i);
-    memset(e, 0, pr_edict_size); // ericw -- switched qcvm->edicts to malloc(), so
+    memset(
+        e, 0, qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so
                                  // we are accessing uninitialized memory and
                                  // must fully zero it, not just ED_ClearEdict
 
@@ -193,9 +186,9 @@ static ddef_t* ED_GlobalAtOfs(int ofs)
     ddef_t* def;
     int i;
 
-    for(i = 0; i < progs->numglobaldefs; i++)
+    for(i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
-        def = &pr_globaldefs[i];
+        def = &qcvm->globaldefs[i];
         if(def->ofs == ofs)
         {
             return def;
@@ -214,9 +207,9 @@ static ddef_t* ED_FieldAtOfs(int ofs)
     ddef_t* def;
     int i;
 
-    for(i = 0; i < progs->numfielddefs; i++)
+    for(i = 0; i < qcvm->progs->numfielddefs; i++)
     {
-        def = &pr_fielddefs[i];
+        def = &qcvm->fielddefs[i];
         if(def->ofs == ofs)
         {
             return def;
@@ -230,14 +223,14 @@ static ddef_t* ED_FieldAtOfs(int ofs)
 ED_FindField
 ============
 */
-static ddef_t* ED_FindField(const char* name)
+ddef_t* ED_FindField(const char* name)
 {
     ddef_t* def;
     int i;
 
-    for(i = 0; i < progs->numfielddefs; i++)
+    for(i = 0; i < qcvm->progs->numfielddefs; i++)
     {
-        def = &pr_fielddefs[i];
+        def = &qcvm->fielddefs[i];
         if(!strcmp(PR_GetString(def->s_name), name))
         {
             return def;
@@ -246,20 +239,31 @@ static ddef_t* ED_FindField(const char* name)
     return nullptr;
 }
 
+/*
+ */
+int ED_FindFieldOffset(const char* name)
+{
+    ddef_t* def = ED_FindField(name);
+    if(!def)
+    {
+        return -1;
+    }
+    return def->ofs;
+}
 
 /*
 ============
 ED_FindGlobal
 ============
 */
-static ddef_t* ED_FindGlobal(const char* name)
+ddef_t* ED_FindGlobal(const char* name)
 {
     ddef_t* def;
     int i;
 
-    for(i = 0; i < progs->numglobaldefs; i++)
+    for(i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
-        def = &pr_globaldefs[i];
+        def = &qcvm->globaldefs[i];
         if(!strcmp(PR_GetString(def->s_name), name))
         {
             return def;
@@ -274,14 +278,14 @@ static ddef_t* ED_FindGlobal(const char* name)
 ED_FindFunction
 ============
 */
-static dfunction_t* ED_FindFunction(const char* fn_name)
+dfunction_t* ED_FindFunction(const char* fn_name)
 {
     dfunction_t* func;
     int i;
 
-    for(i = 0; i < progs->numfunctions; i++)
+    for(i = 0; i < qcvm->progs->numfunctions; i++)
     {
-        func = &pr_functions[i];
+        func = &qcvm->functions[i];
         if(!strcmp(PR_GetString(func->s_name), fn_name))
         {
             return func;
@@ -295,37 +299,14 @@ static dfunction_t* ED_FindFunction(const char* fn_name)
 GetEdictFieldValue
 ============
 */
-eval_t* GetEdictFieldValue(edict_t* ed, const char* field)
-{
-    ddef_t* def = nullptr;
-    int i;
-    static int rep = 0;
-
-    for(i = 0; i < GEFV_CACHESIZE; i++)
+eval_t* GetEdictFieldValue(edict_t* ed, int fldofs)
     {
-        if(!strcmp(field, gefvCache[i].field))
-        {
-            def = gefvCache[i].pcache;
-            goto Done;
-        }
-    }
-
-    def = ED_FindField(field);
-
-    if(strlen(field) < MAX_FIELD_LEN)
-    {
-        gefvCache[rep].pcache = def;
-        strcpy(gefvCache[rep].field, field);
-        rep ^= 1;
-    }
-
-Done:
-    if(!def)
+    if(fldofs < 0)
     {
         return nullptr;
     }
 
-    return (eval_t*)((char*)&ed->v + def->ofs * 4);
+    return (eval_t*)((char*)&ed->v + fldofs * 4);
 }
 
 
@@ -353,7 +334,7 @@ static const char* PR_ValueString(int type, eval_t* val)
                 line, "entity %i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
             break;
         case ev_function:
-            f = pr_functions + val->function;
+            f = qcvm->functions + val->function;
             sprintf(line, "%s()", PR_GetString(f->s_name));
             break;
         case ev_field:
@@ -362,6 +343,7 @@ static const char* PR_ValueString(int type, eval_t* val)
             break;
         case ev_void: sprintf(line, "void"); break;
         case ev_float: sprintf(line, "%5.1f", val->_float); break;
+        case ev_ext_integer: sprintf(line, "%i", val->_int); break;
         case ev_vector:
             sprintf(line, "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1],
                 val->vector[2]);
@@ -382,7 +364,7 @@ Returns a string describing *data in a type specific manner
 Easier to parse than PR_ValueString
 =============
 */
-static const char* PR_UglyValueString(int type, eval_t* val)
+const char* PR_UglyValueString(int type, eval_t* val)
 {
     static char line[1024];
     ddef_t* def;
@@ -400,7 +382,7 @@ static const char* PR_UglyValueString(int type, eval_t* val)
                 NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
             break;
         case ev_function:
-            f = pr_functions + val->function;
+            f = qcvm->functions + val->function;
             q_snprintf(line, sizeof(line), "%s", PR_GetString(f->s_name));
             break;
         case ev_field:
@@ -409,6 +391,7 @@ static const char* PR_UglyValueString(int type, eval_t* val)
             break;
         case ev_void: q_snprintf(line, sizeof(line), "void"); break;
         case ev_float: q_snprintf(line, sizeof(line), "%f", val->_float); break;
+        case ev_ext_integer: sprintf(line, "%i", val->_int); break;
         case ev_vector:
             q_snprintf(line, sizeof(line), "%f %f %f", val->vector[0],
                 val->vector[1], val->vector[2]);
@@ -496,9 +479,7 @@ void ED_Print(edict_t* ed)
     ddef_t* d;
     int* v;
     int i;
-
     int j;
-
     int l;
     const char* name;
     int type;
@@ -511,9 +492,9 @@ void ED_Print(edict_t* ed)
 
     Con_SafePrintf(
         "\nEDICT %i:\n", NUM_FOR_EDICT(ed)); // johnfitz -- was Con_Printf
-    for(i = 1; i < progs->numfielddefs; i++)
+    for(i = 1; i < qcvm->progs->numfielddefs; i++)
     {
-        d = &pr_fielddefs[i];
+        d = &qcvm->fielddefs[i];
         name = PR_GetString(d->s_name);
         l = strlen(name);
         if(l > 1 && name[l - 2] == '_')
@@ -561,7 +542,6 @@ void ED_Write(FILE* f, edict_t* ed)
     ddef_t* d;
     int* v;
     int i;
-
     int j;
     const char* name;
     int type;
@@ -574,9 +554,9 @@ void ED_Write(FILE* f, edict_t* ed)
         return;
     }
 
-    for(i = 1; i < progs->numfielddefs; i++)
+    for(i = 1; i < qcvm->progs->numfielddefs; i++)
     {
-        d = &pr_fielddefs[i];
+        d = &qcvm->fielddefs[i];
         name = PR_GetString(d->s_name);
         j = strlen(name);
         if(j > 1 && name[j - 2] == '_')
@@ -636,11 +616,13 @@ void ED_PrintEdicts()
         return;
     }
 
+    PR_SwitchQCVM(&sv.qcvm);
     Con_Printf("%i entities\n", qcvm->num_edicts);
     for(i = 0; i < qcvm->num_edicts; i++)
     {
         ED_PrintNum(i);
     }
+    PR_SwitchQCVM(nullptr);
 }
 
 /*
@@ -660,12 +642,37 @@ static void ED_PrintEdict_f()
     }
 
     i = Q_atoi(Cmd_Argv(1));
+    PR_SwitchQCVM(&sv.qcvm);
     if(i < 0 || i >= qcvm->num_edicts)
     {
         Con_Printf("Bad edict number\n");
-        return;
     }
+    else
+    {
+        if(Cmd_Argc() == 2 || svs.maxclients != 1)
+        { // edict N
     ED_PrintNum(i);
+}
+        else // edict N FLD ...
+        {
+            ddef_t* def = ED_FindField(Cmd_Argv(2));
+            if(!def)
+            {
+                Con_Printf("Field %s not defined\n", Cmd_Argv(2));
+            }
+            else if(Cmd_Argc() < 4)
+            {
+                Con_Printf("Edict %u.%s==%s\n", i, PR_GetString(def->s_name),
+                    PR_UglyValueString(def->type & ~DEF_SAVEGLOBAL,
+                        (eval_t*)((char*)&EDICT_NUM(i)->v + def->ofs * 4)));
+            }
+            else
+            {
+                ED_ParseEpair((void*)&EDICT_NUM(i)->v, def, Cmd_Argv(3));
+            }
+        }
+    }
+    PR_SwitchQCVM(nullptr);
 }
 
 /*
@@ -679,13 +686,9 @@ static void ED_Count()
 {
     edict_t* ent;
     int i;
-
     int active;
-
     int models;
-
     int solid;
-
     int step;
 
     if(!sv.active)
@@ -693,6 +696,7 @@ static void ED_Count()
         return;
     }
 
+    PR_SwitchQCVM(&sv.qcvm);
     active = models = solid = step = 0;
     for(i = 0; i < qcvm->num_edicts; i++)
     {
@@ -721,6 +725,7 @@ static void ED_Count()
     Con_Printf("view      :%3i\n", models);
     Con_Printf("touch     :%3i\n", solid);
     Con_Printf("step      :%3i\n", step);
+    PR_SwitchQCVM(nullptr);
 }
 
 
@@ -746,9 +751,9 @@ void ED_WriteGlobals(FILE* f)
     int type;
 
     fprintf(f, "{\n");
-    for(i = 0; i < progs->numglobaldefs; i++)
+    for(i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
-        def = &pr_globaldefs[i];
+        def = &qcvm->globaldefs[i];
         type = def->type;
         if(!(def->type & DEF_SAVEGLOBAL))
         {
@@ -756,7 +761,8 @@ void ED_WriteGlobals(FILE* f)
         }
         type &= ~DEF_SAVEGLOBAL;
 
-        if(type != ev_string && type != ev_float && type != ev_entity)
+        if(type != ev_string && type != ev_float && type != ev_ext_integer &&
+            type != ev_entity)
         {
             continue;
         }
@@ -833,7 +839,6 @@ static string_t ED_NewString(const char* string)
 {
     char* new_p;
     int i;
-
     int l;
     string_t num;
 
@@ -872,13 +877,12 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
+bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
 {
     int i;
     char string[128];
     ddef_t* def;
     char* v;
-
     char* w;
     char* end;
     void* d;
@@ -891,6 +895,8 @@ static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
         case ev_string: *(string_t*)d = ED_NewString(s); break;
 
         case ev_float: *(float*)d = atof(s); break;
+
+        case ev_ext_integer: *(int*)d = atoi(s); break;
 
         case ev_vector:
             q_strlcpy(string, s, sizeof(string));
@@ -924,7 +930,14 @@ static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
             }
             break;
 
-        case ev_entity: *(int*)d = EDICT_TO_PROG(EDICT_NUM(atoi(s))); break;
+        case ev_entity:
+            if(!strncmp(s, "entity ", 7))
+            { // Spike: putentityfieldstring/etc should
+                // be able to cope with etos's weirdness.
+                s += 7;
+            }
+            *(int*)d = EDICT_TO_PROG(EDICT_NUM(atoi(s)));
+            break;
 
         case ev_field:
             def = ED_FindField(s);
@@ -948,7 +961,7 @@ static bool ED_ParseEpair(void* base, ddef_t* key, const char* s)
                 Con_Printf("Can't find function %s\n", s);
                 return false;
             }
-            *(func_t*)d = func - pr_functions;
+            *(func_t*)d = func - qcvm->functions;
             break;
 
         default: break;
@@ -972,8 +985,8 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
     // clear it
     if(ent != qcvm->edicts)
     {
-        // hack
-        memset(&ent->v, 0, progs->entityfields * 4);
+    	// hack
+        memset(&ent->v, 0, qcvm->progs->entityfields * 4);
     }
 
     // go through all the dictionary pairs
@@ -1054,8 +1067,28 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
         ddef_t* key = ED_FindField(keyname);
         if(!key)
         {
+#ifdef PSET_SCRIPT
+            eval_t* val;
+            if(!strcmp(keyname, "traileffect") && sv.state == ss_loading)
+            {
+                if((val = GetEdictFieldValue(
+                        ent, qcvm->extfields.traileffectnum)))
+                {
+                    val->_float = PF_SV_ForceParticlePrecache(com_token);
+                }
+            }
+            else if(!strcmp(keyname, "emiteffect") && sv.state == ss_loading)
+            {
+                if((val = GetEdictFieldValue(
+                        ent, qcvm->extfields.emiteffectnum)))
+                {
+                    val->_float = PF_SV_ForceParticlePrecache(com_token);
+                }
+            }
             // johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields
             // might not be mentioned in defs.qc
+            else
+#endif
             if(strncmp(keyname, "sky", 3) && strcmp(keyname, "fog") &&
                 strcmp(keyname, "alpha"))
             {
@@ -1107,6 +1140,7 @@ void ED_LoadFromFile(const char* data)
 {
     edict_t* ent = nullptr;
     int inhibit = 0;
+    int usingspawnfunc = 0;
 
     pr_global_struct->time = qcvm->time;
 
@@ -1164,19 +1198,40 @@ void ED_LoadFromFile(const char* data)
         }
 
         // look for the spawn function
-        dfunction_t* func = ED_FindFunction(PR_GetString(ent->v.classname));
+        //
+        dfunction_t* func =
+            ED_FindFunction(va("spawnfunc_%s", PR_GetString(ent->v.classname)));
+        if(func)
+        {
+            if(!usingspawnfunc++)
+            {
+                Con_DPrintf2("Using DP_SV_SPAWNFUNC_PREFIX\n");
+            }
+        }
+        else
+        {
+            func = ED_FindFunction(PR_GetString(ent->v.classname));
+        }
 
         if(!func)
         {
+            const char* classname = PR_GetString(ent->v.classname);
+            if(!strcmp(classname, "misc_model"))
+            {
+                PR_spawnfunc_misc_model(ent);
+            }
+            else
+            {
             Con_SafePrintf(
                 "No spawn function for:\n"); // johnfitz -- was Con_Printf
             ED_Print(ent);
             ED_Free(ent);
+            }
             continue;
         }
 
         pr_global_struct->self = EDICT_TO_PROG(ent);
-        PR_ExecuteProgram(func - pr_functions);
+        PR_ExecuteProgram(func - qcvm->functions);
     }
 
     Con_DPrintf("%i entities inhibited\n", inhibit);
@@ -1232,71 +1287,72 @@ void PR_LoadProgs()
     }
 
     pr_functions = (dfunction_t*)((byte*)progs + progs->ofs_functions);
-    pr_strings = (char*)progs + progs->ofs_strings;
+    qcvm->strings = (char*)progs + progs->ofs_strings;
     if(progs->ofs_strings + progs->numstrings >= com_filesize)
     {
         Host_Error("vrprogs.dat strings go past end of file\n");
     }
 
     // initialize the strings
-    pr_numknownstrings = 0;
-    pr_maxknownstrings = 0;
-    pr_stringssize = progs->numstrings;
-    if(pr_knownstrings)
+    qcvm->numknownstrings = 0;
+    qcvm->maxknownstrings = 0;
+    qcvm->stringssize = progs->numstrings;
+    if(qcvm->knownstrings)
     {
-        Z_Free((void*)pr_knownstrings);
+        Z_Free((void*)qcvm->knownstrings);
     }
-    pr_knownstrings = nullptr;
+    qcvm->knownstrings = nullptr;
     PR_SetEngineString("");
 
-    pr_globaldefs = (ddef_t*)((byte*)progs + progs->ofs_globaldefs);
-    pr_fielddefs = (ddef_t*)((byte*)progs + progs->ofs_fielddefs);
+    qcvm->globaldefs = (ddef_t*)((byte*)progs + progs->ofs_globaldefs);
+    qcvm->fielddefs = (ddef_t*)((byte*)progs + progs->ofs_fielddefs);
     pr_statements = (dstatement_t*)((byte*)progs + progs->ofs_statements);
 
     pr_global_struct = (globalvars_t*)((byte*)progs + progs->ofs_globals);
     qcvm->globals = (float*)pr_global_struct;
 
     // byte swap the lumps
-    for(i = 0; i < progs->numstatements; i++)
+    for(i = 0; i < qcvm->progs->numstatements; i++)
     {
-        pr_statements[i].op = LittleShort(pr_statements[i].op);
-        pr_statements[i].a = LittleShort(pr_statements[i].a);
-        pr_statements[i].b = LittleShort(pr_statements[i].b);
-        pr_statements[i].c = LittleShort(pr_statements[i].c);
+        qcvm->statements[i].op = LittleShort(qcvm->statements[i].op);
+        qcvm->statements[i].a = LittleShort(qcvm->statements[i].a);
+        qcvm->statements[i].b = LittleShort(qcvm->statements[i].b);
+        qcvm->statements[i].c = LittleShort(qcvm->statements[i].c);
     }
 
-    for(i = 0; i < progs->numfunctions; i++)
+    for(i = 0; i < qcvm->progs->numfunctions; i++)
     {
-        pr_functions[i].first_statement =
-            LittleLong(pr_functions[i].first_statement);
-        pr_functions[i].parm_start = LittleLong(pr_functions[i].parm_start);
-        pr_functions[i].s_name = LittleLong(pr_functions[i].s_name);
-        pr_functions[i].s_file = LittleLong(pr_functions[i].s_file);
-        pr_functions[i].numparms = LittleLong(pr_functions[i].numparms);
-        pr_functions[i].locals = LittleLong(pr_functions[i].locals);
+        qcvm->functions[i].first_statement =
+            LittleLong(qcvm->functions[i].first_statement);
+        qcvm->functions[i].parm_start =
+            LittleLong(qcvm->functions[i].parm_start);
+        qcvm->functions[i].s_name = LittleLong(qcvm->functions[i].s_name);
+        qcvm->functions[i].s_file = LittleLong(qcvm->functions[i].s_file);
+        qcvm->functions[i].numparms = LittleLong(qcvm->functions[i].numparms);
+        qcvm->functions[i].locals = LittleLong(qcvm->functions[i].locals);
     }
 
-    for(i = 0; i < progs->numglobaldefs; i++)
+    for(i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
-        pr_globaldefs[i].type = LittleShort(pr_globaldefs[i].type);
-        pr_globaldefs[i].ofs = LittleShort(pr_globaldefs[i].ofs);
-        pr_globaldefs[i].s_name = LittleLong(pr_globaldefs[i].s_name);
+        qcvm->globaldefs[i].type = LittleShort(qcvm->globaldefs[i].type);
+        qcvm->globaldefs[i].ofs = LittleShort(qcvm->globaldefs[i].ofs);
+        qcvm->globaldefs[i].s_name = LittleLong(qcvm->globaldefs[i].s_name);
     }
 
     pr_alpha_supported = false; // johnfitz
 
-    for(i = 0; i < progs->numfielddefs; i++)
+    for(i = 0; i < qcvm->progs->numfielddefs; i++)
     {
-        pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
-        if(pr_fielddefs[i].type & DEF_SAVEGLOBAL)
+        qcvm->fielddefs[i].type = LittleShort(qcvm->fielddefs[i].type);
+        if(qcvm->fielddefs[i].type & DEF_SAVEGLOBAL)
         {
             Host_Error("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
         }
-        pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
-        pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
+        qcvm->fielddefs[i].ofs = LittleShort(qcvm->fielddefs[i].ofs);
+        qcvm->fielddefs[i].s_name = LittleLong(qcvm->fielddefs[i].s_name);
 
         // johnfitz -- detect alpha support in vrprogs.dat
-        if(!strcmp(pr_strings + pr_fielddefs[i].s_name, "alpha"))
+        if(!strcmp(qcvm->strings + qcvm->fielddefs[i].s_name, "alpha"))
         {
             pr_alpha_supported = true;
         }
@@ -1313,8 +1369,8 @@ void PR_LoadProgs()
     // round off to next highest whole word address (esp for Alpha)
     // this ensures that pointers in the engine data area are always
     // properly aligned
-    pr_edict_size += sizeof(void*) - 1;
-    pr_edict_size &= ~(sizeof(void*) - 1);
+    qcvm->edict_size += sizeof(void*) - 1;
+    qcvm->edict_size &= ~(sizeof(void*) - 1);
 }
 
 
@@ -1349,7 +1405,7 @@ edict_t* EDICT_NUM(int n)
     {
         Host_Error("EDICT_NUM: bad number %i", n);
     }
-    return (edict_t*)((byte*)qcvm->edicts + (n)*pr_edict_size);
+    return (edict_t*)((byte*)qcvm->edicts + (n)*qcvm->edict_size);
 }
 
 int NUM_FOR_EDICT(edict_t* e)
@@ -1357,7 +1413,7 @@ int NUM_FOR_EDICT(edict_t* e)
     int b;
 
     b = (byte*)e - (byte*)qcvm->edicts;
-    b = b / pr_edict_size;
+    b = b / qcvm->edict_size;
 
     if(b < 0 || b >= qcvm->num_edicts)
     {
@@ -1373,23 +1429,23 @@ int NUM_FOR_EDICT(edict_t* e)
 
 static void PR_AllocStringSlots()
 {
-    pr_maxknownstrings += PR_STRING_ALLOCSLOTS;
+    qcvm->maxknownstrings += PR_STRING_ALLOCSLOTS;
     Con_DPrintf2(
-        "PR_AllocStringSlots: realloc'ing for %d slots\n", pr_maxknownstrings);
-    pr_knownstrings = (const char**)Z_Realloc(
-        (void*)pr_knownstrings, pr_maxknownstrings * sizeof(char*));
+        "PR_AllocStringSlots: realloc'ing for %d slots\n", qcvm->maxknownstrings);
+    qcvm->knownstrings = (const char**)Z_Realloc(
+        (void*)qcvm->knownstrings, qcvm->maxknownstrings * sizeof(char*));
 }
 
 const char* PR_GetString(int num)
 {
-    if(num >= 0 && num < pr_stringssize)
+    if(num >= 0 && num < qcvm->stringssize)
     {
-        return pr_strings + num;
+        return qcvm->strings + num;
     }
 
-    if(num < 0 && num >= -pr_numknownstrings)
+    if(num < 0 && num >= -qcvm->numknownstrings)
     {
-        if(!pr_knownstrings[-1 - num])
+        if(!qcvm->knownstrings[-1 - num])
         {
             Host_Error(
                 "PR_GetString: attempt to get a non-existant string %d\n", num);
@@ -1397,12 +1453,25 @@ const char* PR_GetString(int num)
             return "";
         }
 
-        return pr_knownstrings[-1 - num];
+        return qcvm->knownstrings[-1 - num];
     }
     else
     {
         Host_Error("PR_GetString: invalid string offset %d\n", num);
         return "";
+    }
+}
+
+void PR_ClearEngineString(int num)
+{
+    if(num < 0 && num >= -qcvm->numknownstrings)
+    {
+        num = -1 - num;
+        qcvm->knownstrings[num] = nullptr;
+        if(qcvm->freeknownstrings > num)
+        {
+            qcvm->freeknownstrings = num;
+        }
     }
 }
 
@@ -1414,18 +1483,18 @@ int PR_SetEngineString(const char* s)
     {
         return 0;
     }
-#if 0 /* can't: sv.model_precache & sv.sound_precache points to pr_strings */
-	if (s >= pr_strings && s <= pr_strings + pr_stringssize)
-		Host_Error("PR_SetEngineString: \"%s\" in pr_strings area\n", s);
+#if 0 /* can't: sv.model_precache & sv.sound_precache points to qcvm->strings */
+	if (s >= qcvm->strings && s <= qcvm->strings + qcvm->stringssize)
+		Host_Error("PR_SetEngineString: \"%s\" in qcvm->strings area\n", s);
 #else
-    if(s >= pr_strings && s <= pr_strings + pr_stringssize - 2)
+    if(s >= qcvm->strings && s <= qcvm->strings + qcvm->stringssize - 2)
     {
-        return (int)(s - pr_strings);
+        return (int)(s - qcvm->strings);
     }
 #endif
-    for(i = 0; i < pr_numknownstrings; i++)
+    for(i = 0; i < qcvm->numknownstrings; i++)
     {
-        if(pr_knownstrings[i] == s)
+        if(qcvm->knownstrings[i] == s)
         {
             return -1 - i;
         }
@@ -1433,21 +1502,21 @@ int PR_SetEngineString(const char* s)
     // new unknown engine string
     // Con_DPrintf ("PR_SetEngineString: new engine string %p\n", s);
 #if 0
-	for (i = 0; i < pr_numknownstrings; i++)
+	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
-		if (!pr_knownstrings[i])
+		if (!qcvm->knownstrings[i])
 			break;
 	}
 #endif
-    //	if (i >= pr_numknownstrings)
+    //	if (i >= qcvm->numknownstrings)
     //	{
-    if(i >= pr_maxknownstrings)
+    if(i >= qcvm->maxknownstrings)
     {
         PR_AllocStringSlots();
     }
-    pr_numknownstrings++;
+    qcvm->numknownstrings++;
     //	}
-    pr_knownstrings[i] = s;
+    qcvm->knownstrings[i] = s;
     return -1 - i;
 }
 
@@ -1459,25 +1528,25 @@ int PR_AllocString(int size, char** ptr)
     {
         return 0;
     }
-    for(i = 0; i < pr_numknownstrings; i++)
+    for(i = 0; i < qcvm->numknownstrings; i++)
     {
-        if(!pr_knownstrings[i])
+        if(!qcvm->knownstrings[i])
         {
             break;
         }
     }
-    //	if (i >= pr_numknownstrings)
+    //	if (i >= qcvm->numknownstrings)
     //	{
-    if(i >= pr_maxknownstrings)
+    if(i >= qcvm->maxknownstrings)
     {
         PR_AllocStringSlots();
     }
-    pr_numknownstrings++;
+    qcvm->numknownstrings++;
     //	}
-    pr_knownstrings[i] = (char*)Hunk_AllocName(size, "string");
+    qcvm->knownstrings[i] = (char*)Hunk_AllocName(size, "string");
     if(ptr)
     {
-        *ptr = (char*)pr_knownstrings[i];
+        *ptr = (char*)qcvm->knownstrings[i];
     }
     return -1 - i;
 }

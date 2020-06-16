@@ -27,10 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "progs.hpp"
 #include "server.hpp"
 
-bool pr_trace;
-dfunction_t* pr_xfunction;
-int pr_argc;
-
 static const char* pr_opnames[] = {"DONE",
 
     "MUL_F", "MUL_V", "MUL_FV", "MUL_VF",

@@ -80,6 +80,13 @@ void PR_Init();
 void PR_ExecuteProgram(func_t fnum);
 void PR_LoadProgs();
 
+// from pr_ext.cpp
+void PR_AutoCvarChanged(
+    cvar_t* var); // updates the autocvar_ globals when their cvar is changed
+void PR_ReloadPics(bool purge); // for gamedir or video changes
+
+void PR_spawnfunc_misc_model(edict_t* self);
+
 const char* PR_GetString(int num);
 int PR_SetEngineString(const char* s);
 int PR_AllocString(int bufferlength, char** ptr);
@@ -129,12 +136,6 @@ typedef void (*builtin_t)();
 extern builtin_t* pr_builtins;
 extern const int pr_numbuiltins;
 
-extern int pr_argc;
-
-extern bool pr_trace;
-extern dfunction_t* pr_xfunction;
-extern int pr_xstatement;
-
 extern unsigned short pr_crc;
 
 [[noreturn]] void PR_RunError(const char* error, ...) FUNC_PRINTF(1, 2);
@@ -145,7 +146,9 @@ extern unsigned short pr_crc;
 void ED_PrintEdicts();
 void ED_PrintNum(int ent);
 
-eval_t* GetEdictFieldValue(edict_t* ed, const char* field);
+eval_t* GetEdictFieldValue(
+    edict_t* ed, int fldofs); // handles invalid offsets with a null
+int ED_FindFieldOffset(const char* name);
 
 // from pr_cmds, no longer static so that pr_ext can use them.
 sizebuf_t* WriteDest();
@@ -208,19 +211,35 @@ struct fake_qcvm
     builtin_t*& builtins;
     const int& numbuiltins;
 
+    char*& strings;
+    int& stringssize;
+    const char**& knownstrings;
+    int& maxknownstrings;
+    int& numknownstrings;
+    ddef_t*& fielddefs;
+    ddef_t*& globaldefs;
+
+    int freeknownstrings;
+
     fake_qcvm(double& xtime, int& xnum_edicts, dprograms_t*& xprogs,
         int& xedict_size, ref_to_array<areanode_t, 32> xareanodes,
         int& xnumareanodes, int& xmax_edicts, qmodel_t*& xworldmodel,
         edict_t*& xedicts, float*& xglobals, int& xargc,
         dfunction_t*& xxfunction, bool& xtrace, dfunction_t*& xfunctions,
-        dstatement_t*& xstatements, builtin_t*& xbuiltins, const int& xnumbuiltins)
+        dstatement_t*& xstatements, builtin_t*& xbuiltins,
+        const int& xnumbuiltins, char*& xstrings, int& xstringssize,
+        const char**& xknownstrings, int& xmaxknownstrings,
+        int& xnumknownstrings, ddef_t*& xfielddefs, ddef_t*& xglobaldefs)
         : time{xtime}, num_edicts{xnum_edicts}, progs{xprogs},
           edict_size{xedict_size}, areanodes{xareanodes},
           numareanodes{xnumareanodes}, max_edicts{xmax_edicts},
           worldmodel{xworldmodel}, edicts{xedicts}, globals{xglobals},
           argc{xargc}, xfunction{xxfunction}, trace{xtrace},
           functions{xfunctions}, statements{xstatements}, builtins{xbuiltins},
-          numbuiltins{xnumbuiltins}
+          numbuiltins{xnumbuiltins}, strings{xstrings},
+          stringssize{xstringssize}, knownstrings{xknownstrings},
+          maxknownstrings{xmaxknownstrings}, numknownstrings{xnumknownstrings},
+          fielddefs{xfielddefs}, globaldefs{xglobaldefs}
     {
     }
 };

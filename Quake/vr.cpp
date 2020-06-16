@@ -4551,6 +4551,13 @@ void VR_OnLoadedPak(pack_t& pak)
 // you have more than you can carry, when it drops to the floor it becomes solid
 // and you can walk on it."
 
+// TODO VR: (P1): "Finished the first chapter, and all game I'm getting error
+// messages for missing 'ting2.wav' and 'ting4.wav'. Anyone else seeing that? Or
+// is my install just borked"
+
+// TODO VR: (P1) Loading inexistent map crashes the game!
+
+
 
 // TODO VR: (P2) add tooltip to off-hand option menu in wpn config
 

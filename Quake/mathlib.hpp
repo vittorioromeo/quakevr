@@ -94,10 +94,13 @@ static inline int IS_NAN(float x)
 [[nodiscard]] qvec3 VectorAngles(const qvec3& forward) noexcept; // johnfitz
 
 float VectorLength(vec3_t v);
+[[nodiscard]] qvec3 CrossProduct(const qvec3& v1, const qvec3& v2);
 
 [[nodiscard]] qmat3 R_ConcatRotations(
     const qmat3& in1, const qmat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
+[[nodiscard]] qvec3 RotatePointAroundVector(
+    const qvec3& dir, const qvec3& point, float degrees);
 
 inline qvec3 AngleVectorsOnlyFwd(const qvec3& angles) noexcept
 {

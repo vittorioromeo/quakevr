@@ -502,6 +502,117 @@ static void Con_Print(const char* txt)
 
     while((c = *txt))
     {
+        if(c == '^')
+        { 
+        	// parse markup like FTE/DP might.
+            switch(txt[1])
+            {
+                case '^': // doubled up char for escaping.
+                    txt++;
+                    break;
+                case '0': // black
+                case '1': // red
+                case '2': // green
+                case '3': // yellow
+                case '4': // blue
+                case '5': // cyan
+                case '6': // magenta
+                case '7': // white
+                case '8': // white+half-alpha
+                case '9': // grey
+                case 'h': // toggle half-alpha
+                case 'b': // blink
+                case 'd': // reset to defaults (fixme: should reset ^m without
+                          // resetting \1)
+                case 's': // modstack push
+                case 'r': // modstack restore
+                    txt += 2;
+                    continue;
+                case 'x': // RGB 12-bit colour
+                    if(ishex(txt[2]) && ishex(txt[3]) && ishex(txt[4]))
+                    {
+                        txt += 4;
+                        continue;
+                    }
+                    break; // malformed
+                case '[':  // start fte's ^[text\key\value\key\value^] links
+                case ']':  // end link
+                    break; // fixme... skip the keys, recolour properly, etc
+                    //				txt+=2;
+                    //				continue;
+                case '&':
+                    if((ishex(txt[2]) || txt[2] == '-') &&
+                        (ishex(txt[3]) || txt[3] == '-'))
+                    { // ignore fte's fore/back ansi colours
+                        txt += 4;
+                        continue;
+                    }
+                    break; // malformed
+                case 'm':  // toggle masking.
+                    txt += 2;
+                    mask ^= 128;
+                    continue;
+                case 'U': // ucs-2 unicode codepoint
+                    if(ishex(txt[2]) && ishex(txt[3]) && ishex(txt[4]) &&
+                        ishex(txt[5]))
+                    {
+                        c = (dehex(txt[2]) << 12) | (dehex(txt[3]) << 8) |
+                            (dehex(txt[4]) << 4) | dehex(txt[5]);
+                        txt += 6 - 1;
+
+                        if(c >= 0xe000 && c <= 0xe0ff)
+                        {
+                            c &= 0xff; // private-use 0xE0XX maps to quake's
+                                       // chars
+                        }
+                        else if(c >= 0x20 && c <= 0x7f)
+                        {
+                            c &= 0x7f; // ascii is okay too.
+                        }
+                        else
+                        {
+                            c = '?'; // otherwise its some unicode char that we
+                        }
+                        // don't know how to handle.
+                        break;
+                    }
+                    break; // malformed
+                case '{':  // full unicode codepoint, for chars up to 0x10ffff
+                    txt += 2;
+                    c = 0; // no idea
+                    while(*txt)
+                    {
+                        if(*txt == '}')
+                        {
+                            txt++;
+                            break;
+                        }
+                        if(!ishex(*txt))
+                        {
+                            break;
+                        }
+                        c <<= 4;
+                        c |= dehex(*txt++);
+                    }
+                    txt--; // for the ++ below
+
+                    if(c >= 0xe000 && c <= 0xe0ff)
+                    {
+                        c &= 0xff; // private-use 0xE0XX maps to quake's chars
+                    }
+                    else if(c >= 0x20 && c <= 0x7f)
+                    {
+                        c &= 0x7f; // ascii is okay too.
+                    }
+                    else
+                    {
+                        c = '?'; // otherwise its some unicode char that we
+                    }
+                    // don't know how to handle.
+                    break;
+            }
+        }
+
         if(c <= ' ')
         {
             boundary = true;

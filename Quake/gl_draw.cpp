@@ -553,9 +553,7 @@ void Draw_NewGame()
     Draw_LoadPics();
     SCR_LoadPics();
     Sbar_LoadPics();
-
-    // TODO VR: (P0) QSS Merge
-    // PR_ReloadPics(false);
+    PR_ReloadPics(false);
 }
 
 /*

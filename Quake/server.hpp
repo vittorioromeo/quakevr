@@ -62,8 +62,6 @@ struct server_t
     bool paused;
     bool loadgame; // handle connections specially
 
-    double time;
-
     int lastcheck; // used by PF_checkclient
     double lastchecktime;
 
@@ -73,16 +71,10 @@ struct server_t
 
     char name[64];      // map name
     char modelname[64]; // maps/<name>.bsp, for model_precache[0]
-    qmodel_t* worldmodel;
     const char* model_precache[MAX_MODELS]; // nullptr terminated
     qmodel_t* models[MAX_MODELS];
     const char* sound_precache[MAX_SOUNDS]; // nullptr terminated
     const char* lightstyles[MAX_LIGHTSTYLES];
-    int num_edicts;
-    int max_edicts;
-    edict_t* edicts;      // can NOT be array indexed, because
-                          // edict_t is variable sized, but can
-                          // be used to reference the world ent
     server_state_t state; // some actions are only valid during load
 
     sizebuf_t datagram;

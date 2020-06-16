@@ -446,7 +446,7 @@ float SV_AddGravityImpl(const float ent_gravity)
 
 float SV_AddGravityImpl(edict_t* ent)
 {
-    eval_t* val = GetEdictFieldValue(ent, "gravity");
+    eval_t* val = GetEdictFieldValue(ent, ED_FindFieldOffset("gravity"));
     const float ent_gravity = (val && val->_float) ? val->_float : 1.0;
 
     return SV_AddGravityImpl(ent_gravity);

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include "zone.hpp"
 #include "common.hpp"
+#include "progs.hpp"
 
 #include <vector>
 
@@ -522,8 +523,7 @@ void Cvar_SetQuick(cvar_t* var, const char* value)
     }
     if(var->flags & CVAR_AUTOCVAR)
     {
-        // TODO VR: (P0) QSS Merge
-        // PR_AutoCvarChanged(var);
+        PR_AutoCvarChanged(var);
     }
 }
 

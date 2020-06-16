@@ -1014,7 +1014,7 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         {
             // TODO: find a cleaner place to put this code
             eval_t* val;
-            val = GetEdictFieldValue(ent, "alpha");
+            val = GetEdictFieldValue(ent, ED_FindFieldOffset("alpha"));
             if(val)
             {
                 ent->alpha = ENTALPHA_ENCODE(val->_float);
@@ -1287,7 +1287,7 @@ void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg)
 
     // stuff the sigil bits into the high bits of items for sbar, or
     // else mix in items2
-    val = GetEdictFieldValue(ent, "items2");
+    val = GetEdictFieldValue(ent, ED_FindFieldOffset("items2"));
 
     if(val)
     {

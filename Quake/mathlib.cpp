@@ -29,6 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qmat3.hpp"
 #include "sys.hpp"
 
+#include <cstring>
+
 /*-----------------------------------------------------------------*/
 
 
@@ -53,6 +55,100 @@ qvec3 ProjectPointOnPlane(const qvec3& p, const qvec3& normal)
     dst[0] = p[0] - d * n[0];
     dst[1] = p[1] - d * n[1];
     dst[2] = p[2] - d * n[2];
+    return dst;
+}
+
+/*
+** assumes "src" is normalized
+*/
+qvec3 PerpendicularVector(const qvec3& src)
+{
+    int pos;
+    int i;
+    float minelem = 1.0F;
+    qvec3 tempvec;
+
+    /*
+    ** find the smallest magnitude axially aligned vector
+    */
+    for(pos = 0, i = 0; i < 3; i++)
+    {
+        if(fabs(src[i]) < minelem)
+        {
+            pos = i;
+            minelem = fabs(src[i]);
+        }
+    }
+    tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
+    tempvec[pos] = 1.0F;
+
+    /*
+    ** project the point onto the plane defined by src
+    */
+    return glm::normalize(ProjectPointOnPlane(tempvec, src));
+}
+
+// johnfitz -- removed RotatePointAroundVector() becuase it's no longer used and
+// my compiler fucked it up anyway
+
+// spike -- readded, because it is useful, and my version of gcc has never had a
+// problem with it.
+[[nodiscard]] qvec3 RotatePointAroundVector(
+    const qvec3& dir, const qvec3& point, const float degrees)
+{
+    qmat3 m;
+    qmat3 im;
+    qmat3 zrot;
+    qmat3 tmpmat;
+    qmat3 rot;
+    int i;
+    qvec3 vr, vup, vf;
+
+    vf[0] = dir[0];
+    vf[1] = dir[1];
+    vf[2] = dir[2];
+
+    vr = PerpendicularVector(dir);
+    vup = CrossProduct(vr, vf);
+
+    m[0][0] = vr[0];
+    m[1][0] = vr[1];
+    m[2][0] = vr[2];
+
+    m[0][1] = vup[0];
+    m[1][1] = vup[1];
+    m[2][1] = vup[2];
+
+    m[0][2] = vf[0];
+    m[1][2] = vf[1];
+    m[2][2] = vf[2];
+
+    memcpy((void*)&im, (const void*)&m, sizeof(im));
+
+    im[0][1] = m[1][0];
+    im[0][2] = m[2][0];
+    im[1][0] = m[0][1];
+    im[1][2] = m[2][1];
+    im[2][0] = m[0][2];
+    im[2][1] = m[1][2];
+
+    memset((void*)&zrot, 0, sizeof(zrot));
+    zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+
+    zrot[0][0] = cos(DEG2RAD(degrees));
+    zrot[0][1] = sin(DEG2RAD(degrees));
+    zrot[1][0] = -sin(DEG2RAD(degrees));
+    zrot[1][1] = cos(DEG2RAD(degrees));
+
+    tmpmat = R_ConcatRotations(m, zrot);
+    rot = R_ConcatRotations(tmpmat, im);
+
+    qvec3 dst;
+    for(i = 0; i < 3; i++)
+    {
+        dst[i] =
+            rot[i][0] * point[0] + rot[i][1] * point[1] + rot[i][2] * point[2];
+    }
     return dst;
 }
 
@@ -213,6 +309,15 @@ float VectorLength(vec3_t v)
     res[1] = right * -1._qf; // flip y so (0,0,0) produces identity!
     res[2] = up;
     return res;
+}
+
+[[nodiscard]] qvec3 CrossProduct(const qvec3& v1, const qvec3& v2)
+{
+    qvec3 cross;
+    cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
+    cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
+    cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
+    return cross;
 }
 
 [[nodiscard]] qvec3 AngleVectorFromRotMat(const qmat3& mat) noexcept

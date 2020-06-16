@@ -55,7 +55,7 @@ int r_framecount;    // used for dlight push checking
 mplane_t frustum[4];
 
 // johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
+int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 float rs_megatexels;
 
@@ -514,7 +514,6 @@ void GL_PolygonOffset(int offset)
 int SignbitsForPlane(mplane_t* out)
 {
     int bits;
-
     int j;
 
     // for fast box on planeside test
@@ -599,7 +598,6 @@ float frustum_skew = 0.0; // used by r_stereo
 void GL_SetFrustum(float fovx, float fovy)
 {
     float xmax;
-
     float ymax;
     xmax = NEARCLIP * tan((double)fovx * M_PI / 360.0);
     ymax = NEARCLIP * tan((double)fovy * M_PI / 360.0);
@@ -681,7 +679,7 @@ void R_Clear()
     {
         clearbits |= GL_STENCIL_BUFFER_BIT;
     }
-    if(gl_clear.value)
+    if(gl_clear.value && !skyroom_drawn)
     {
         clearbits |= GL_COLOR_BUFFER_BIT;
     }
@@ -755,7 +753,10 @@ void R_SetupView()
 
     R_CullSurfaces(); // johnfitz -- do after R_SetFrustum and R_MarkSurfaces
 
-    R_UpdateWarpTextures(); // johnfitz -- do this before R_Clear
+    if(!skyroom_drawn)
+    {
+        R_UpdateWarpTextures(); // johnfitz -- do this before R_Clear
+    }
 
     R_Clear();
 
@@ -1124,6 +1125,9 @@ void R_ShowBoundingBoxes()
         }
     }
 
+    // TODO VR: (P0) QSS Merge
+    // PR_SwitchQCVM(oldvm);
+
     glColor3f(1, 1, 1);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_CULL_FACE);
@@ -1392,6 +1396,7 @@ void R_RenderScene()
     R_ShowTris(); // johnfitz
 
     R_ShowBoundingBoxes(); // johnfitz
+
     if(vr_enabled.value)
     {
         quake::vr::showfn::draw_all_show_helpers();
@@ -1425,15 +1430,11 @@ or possibly as a perforance boost on slow graphics cards.
 void R_ScaleView()
 {
     float smax;
-
     float tmax;
     int scale;
     int srcx;
-
     int srcy;
-
     int srcw;
-
     int srch;
 
     // copied from R_SetupGL()
@@ -1515,6 +1516,27 @@ void R_ScaleView()
     GL_ClearBindings();
 }
 
+static bool R_SkyroomWasVisible()
+{
+    qmodel_t* model = cl.worldmodel;
+    texture_t* t;
+    size_t i;
+    if(!skyroom_enabled)
+    {
+        return false;
+    }
+    for(i = 0; i < model->numtextures; i++)
+    {
+        t = model->textures[i];
+        if(t && t->texturechains[chain_world] &&
+            t->texturechains[chain_world]->flags & SURF_DRAWSKY)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /*
 ================
 R_RenderView
@@ -1522,6 +1544,8 @@ R_RenderView
 */
 void R_RenderView()
 {
+    static bool skyroom_visible;
+
     if(r_norefresh.value)
     {
         return;
@@ -1539,14 +1563,61 @@ void R_RenderView()
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_fogpolys =
-            rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles =
+            rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }
     else if(gl_finish.value)
     {
         glFinish();
     }
+
+
+    // Spike -- quickly draw the world from the skyroom camera's point of view.
+    skyroom_drawn = false;
+    if(skyroom_enabled && skyroom_visible)
+    {
+        qvec3 vieworg = r_refdef.vieworg;
+        qvec3 viewang = r_refdef.viewangles;
+
+        // allow a little paralax
+        r_refdef.vieworg = skyroom_origin.xyz + skyroom_origin[3] * vieworg;
+
+        if(skyroom_orientation[3])
+        {
+            qvec3 axis[3];
+
+            float ang = skyroom_orientation[3] * cl.time;
+
+            if(!skyroom_orientation[0] && !skyroom_orientation[1] &&
+                !skyroom_orientation[2])
+            {
+                skyroom_orientation[0] = 0;
+                skyroom_orientation[1] = 0;
+                skyroom_orientation[2] = 1;
+            }
+
+            skyroom_orientation = glm::normalize(skyroom_orientation);
+            axis[0] = RotatePointAroundVector(skyroom_orientation.xyz, vpn, ang);
+            axis[1] = RotatePointAroundVector(skyroom_orientation.xyz, vright, ang);
+            axis[2] = RotatePointAroundVector(skyroom_orientation.xyz, vup, ang);
+
+            r_refdef.viewangles = VectorAngles(axis[0]); // TODO VR: (P0) QSS Merge - take up as well
+            // VectorAngles(axis[0], axis[2], r_refdef.viewangles);
+        }
+
+        R_SetupView();
+        // note: sky boxes are generally considered an 'infinite' distance away
+        // such that you'd not see paralax. that's my excuse for not handling
+        // r_stereo here, and I'm sticking to it.
+        R_RenderScene();
+
+        r_refdef.vieworg = vieworg;
+        r_refdef.viewangles = viewang;
+
+        skyroom_drawn = true; // disable glClear(GL_COLOR_BUFFER_BIT)
+    }
+    // skyroom end
 
     R_SetupView(); // johnfitz -- this does everything that should be done once
                    // per frame
@@ -1587,6 +1658,22 @@ void R_RenderView()
         R_RenderScene();
     }
     // johnfitz
+
+    // Spike: flag whether the skyroom was actually visible, so we don't
+    // needlessly draw it when its not (1 frame's lag, hopefully not too
+    // noticable)
+    if(r_viewleaf->contents == CONTENTS_SOLID || r_drawflat_cheatsafe ||
+        r_lightmap_cheatsafe)
+    {
+        skyroom_visible = false; // don't do skyrooms when the view is in the
+                                 // void, for framerate reasons while debugging.
+    }
+    else
+    {
+        skyroom_visible = R_SkyroomWasVisible();
+    }
+    skyroom_drawn = false;
+    // skyroom end
 
     R_ScaleView();
 

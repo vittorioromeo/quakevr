@@ -1389,7 +1389,6 @@ bool Host_MakeSavegame(
 
     fprintf(f, "%d\n", current_skill);
     fprintf(f, "%s\n", sv.name);
-
     fprintf(f, "%f\n", qcvm->time); // QSS
 
     // write the light styles
@@ -1412,8 +1411,7 @@ bool Host_MakeSavegame(
     }
 
     ED_WriteGlobals(f);
-
-    for(int i = 0; i < qcvm->num_edicts; i++) // QSS
+    for(int i = 0; i < qcvm->num_edicts; i++) // QSS    
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
@@ -1611,7 +1609,6 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
     CL_Disconnect_f();
 
     PR_SwitchQCVM(&sv.qcvm);
-
     SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
     if(!sv.active)
@@ -2722,8 +2719,8 @@ void Host_Give_f()
         case 's':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_shells1");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_shells1"));
                 if(val)
                 {
                     val->_float = v;
@@ -2735,8 +2732,8 @@ void Host_Give_f()
         case 'n':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_nails1");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_nails1"));
                 if(val)
                 {
                     val->_float = v;
@@ -2755,8 +2752,8 @@ void Host_Give_f()
         case 'l':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_lava_nails");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_lava_nails"));
                 if(val)
                 {
                     val->_float = v;
@@ -2771,8 +2768,8 @@ void Host_Give_f()
         case 'r':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_rockets1");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_rockets1"));
                 if(val)
                 {
                     val->_float = v;
@@ -2791,8 +2788,8 @@ void Host_Give_f()
         case 'm':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_multi_rockets");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_multi_rockets"));
                 if(val)
                 {
                     val->_float = v;
@@ -2809,8 +2806,8 @@ void Host_Give_f()
         case 'c':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_cells1");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_cells1"));
                 if(val)
                 {
                     val->_float = v;
@@ -2829,8 +2826,8 @@ void Host_Give_f()
         case 'p':
             if(rogue)
             {
-                // TODO VR: (P0): QSS Merge - use `ED_FindFieldOffset("...")`
-                val = GetEdictFieldValue(sv_player, "ammo_plasma");
+                val = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_plasma"));
                 if(val)
                 {
                     val->_float = v;
