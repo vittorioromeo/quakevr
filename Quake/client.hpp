@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_model.hpp"
 #include "quakedef_macros.hpp"
 #include "sizebuf.hpp"
+#include "qcvm.hpp"
 
 #include <vector>
 
@@ -88,7 +89,7 @@ struct beam_t
     // SomeEnum special; // TODO VR: (P1) consider adding this and experiment
     // with particles/dlights
 
-// QSS
+    // QSS
     const char* trailname;
     struct trailstate_s* trailstate;
 };
@@ -297,6 +298,7 @@ struct client_state_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
+    // unsigned protocol_pext2; // spike -- flag of fte protocol extensions
 
     // QSS
     bool protocol_dpdownload;
@@ -349,8 +351,6 @@ struct client_state_t
     char sound_name[MAX_SOUNDS][MAX_QPATH];
     // spike -- end downloads
 
-    // TODO VR: (P0): QSS Merge - implement QCVM
-    using qcvm_t = int*;
     qcvm_t qcvm; // for csqc.
 
     bool csqc_cursorforced; // we want a mouse cursor.

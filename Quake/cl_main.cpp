@@ -86,6 +86,25 @@ entity_t** cl_visedicts;
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float host_netinterval;          // Spike
 
+void CL_ClearTrailStates()
+{
+    int i;
+    for(i = 0; i < cl.num_statics; i++)
+    {
+        PScript_DelinkTrailstate(&(cl.static_entities[i]->trailstate));
+        PScript_DelinkTrailstate(&(cl.static_entities[i]->emitstate));
+    }
+    for(i = 0; i < cl.max_edicts; i++)
+    {
+        PScript_DelinkTrailstate(&(cl.entities[i].trailstate));
+        PScript_DelinkTrailstate(&(cl.entities[i].emitstate));
+    }
+    for(i = 0; i < MAX_BEAMS; i++)
+    {
+        PScript_DelinkTrailstate(&(cl_beams[i].trailstate));
+    }
+}
+
 /*
 =====================
 CL_ClearState
@@ -99,14 +118,11 @@ void CL_ClearState()
         Host_ClearMemory();
     }
 
-    // TODO VR: (P0) QSS Merge
-    // CL_ClearTrailStates();
+    CL_ClearTrailStates();
 
-    // TODO VR: (P0) QSS Merge
-    // PR_ClearProgs(&cl.qcvm);
+    PR_ClearProgs(&cl.qcvm);
 
     // wipe the entire cl structure
-    // memset(&cl, 0, sizeof(cl));
     cl = client_state_t{};
 
     SZ_Clear(&cls.message);
@@ -128,6 +144,7 @@ void CL_ClearState()
 
     cl.worldTexts.clear();
 
+    cl.viewent.netstate = nullentitystate;
 #ifdef PSET_SCRIPT
     PScript_Shutdown();
 #endif

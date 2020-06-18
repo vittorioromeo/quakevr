@@ -298,3 +298,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_DEMONAME 16
 #define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
+
+// QSS
+#define MAX_PARTICLETYPES 2048

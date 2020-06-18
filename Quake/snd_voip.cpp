@@ -2502,7 +2502,8 @@ void S_Voip_Transmit(unsigned char clc, sizebuf_t* buf)
                 case VOIP_PCMA:
                 case VOIP_PCMU: break;
                 case VOIP_OPUS:
-                    qopus_encoder_ctl((OpusEncoder*)s_voip.encoder, OPUS_RESET_STATE);
+                    qopus_encoder_ctl(
+                        (OpusEncoder*)s_voip.encoder, OPUS_RESET_STATE);
                     break;
             }
         }

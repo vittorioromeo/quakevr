@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include "quakeglm.hpp"
 #include "sys.hpp"
+#include "qcvm.hpp"
 
 #include <algorithm>
 #include <tuple>
@@ -62,6 +63,12 @@ cvar_t sv_gravity = {"sv_gravity", "800", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
+cvar_t sv_gameplayfix_spawnbeforethinks = {
+    "sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
+
+cvar_t sv_sound_watersplash = {
+    "sv_sound_watersplash", "misc/h2ohit1.wav", CVAR_NONE};
+cvar_t sv_sound_land = {"sv_sound_land", "demon/dland2.wav", CVAR_NONE};
 
 void SV_Physics_Toss(edict_t* ent);
 
@@ -1435,7 +1442,7 @@ void SV_CheckWaterTransition(edict_t* ent)
         if(ent->v.watertype == CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, 0, sv_sound_watersplash.string, 255, 1);
         }
 
         ent->v.watertype = cont;
@@ -1451,7 +1458,7 @@ void SV_CheckWaterTransition(edict_t* ent)
         if(ent->v.watertype != CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, 0, sv_sound_watersplash.string, 255, 1);
         }
 
         ent->v.watertype = CONTENTS_EMPTY;
@@ -1602,7 +1609,7 @@ void SV_Physics_Step(edict_t* ent)
         {
             if(hitsound)
             {
-                SV_StartSound(ent, 0, "demon/dland2.wav", 255, 1);
+                SV_StartSound(ent, nullptr, 0, sv_sound_land.string, 255, 1);
             }
         }
     }

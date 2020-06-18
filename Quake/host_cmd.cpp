@@ -44,6 +44,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.hpp"
 #include "saveutil.hpp"
 #include "sizebuf.hpp"
+#include "qcvm.hpp"
+#include "glquake.hpp"
 
 #include <ctime>
 
@@ -1230,14 +1232,13 @@ void Host_Reconnect_Sv_f()
     cls.signon = 0; // need new connection messages
 }
 
-// TODO VR: (P0): QSS Merge
-#if 0
+
+
 // QSS
 void Host_Lightstyle_f()
 {
     CL_UpdateLightstyle(atoi(Cmd_Argv(1)), Cmd_Argv(2));
 }
-#endif
 
 
 /*
@@ -1411,7 +1412,7 @@ bool Host_MakeSavegame(
     }
 
     ED_WriteGlobals(f);
-    for(int i = 0; i < qcvm->num_edicts; i++) // QSS    
+    for(int i = 0; i < qcvm->num_edicts; i++) // QSS
     {
         ED_Write(f, EDICT_NUM(i));
         fflush(f);
@@ -2988,18 +2989,12 @@ void Host_Viewmodel_f()
         }
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
     // QSS
     PR_SwitchQCVM(&sv.qcvm);
     e->v.modelindex = m ? SV_Precache_Model(m->name) : 0;
     e->v.model = PR_SetEngineString(sv.model_precache[(int)e->v.modelindex]);
     e->v.frame = 0;
     PR_SwitchQCVM(nullptr);
-#else
-    e->v.frame = 0;
-    cl.model_precache[(int)e->v.modelindex] = m;
-#endif
 }
 
 /*
@@ -3410,12 +3405,7 @@ void Host_InitCommands()
     Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f); // QSS
 
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
-
-    // TODO VR: (P0): QSS Merge
-#if 0
     Cmd_AddCommand_ServerCommand ("ls", Host_Lightstyle_f); // QSS
-#endif
-
     Cmd_AddCommand_ClientCommand("name", Host_Name_f);     // QSS
     Cmd_AddCommand_ClientCommand("noclip", Host_Noclip_f); // QSS
     Cmd_AddCommand_ClientCommand("setpos", Host_SetPos_f); // QuakeSpasm // QSS

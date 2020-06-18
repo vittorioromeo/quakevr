@@ -1071,6 +1071,5 @@ void() func_pump =
     precache_sound(self.noise2);
     precache_sound(self.noise3);
 
-
     self.nextthink = time + 0.2;
 }

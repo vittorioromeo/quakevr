@@ -54,6 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "input.hpp"
 #include "view.hpp"
 #include "developer.hpp"
+#include "qcvm.hpp"
 
 /*
 
@@ -268,13 +269,11 @@ void Host_Error(const char* error, ...)
     }
     inerror = true;
 
-
-// TODO VR: (P0): qss merge
-#if 0
     if(cl.qcvm.progs)
+    {
         glDisable(GL_SCISSOR_TEST); // equivelent to drawresetcliparea, to reset
                                     // any damage if we crashed in csqc.
-#endif
+	}
 
     PR_SwitchQCVM(nullptr);
 
@@ -586,26 +585,17 @@ void SV_DropClient(bool crash)
         {
             // call the prog function for removing a client
             // this will set the body to a dead frame, among other things
-
-// TODO VR: (P0): QSS Merge
-#if 0
-// QSS
             qcvm_t* oldvm = qcvm;
             PR_SwitchQCVM(nullptr);
             PR_SwitchQCVM(&sv.qcvm);
-#endif
-
+            
             saveSelf = pr_global_struct->self;
             pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
             PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
             pr_global_struct->self = saveSelf;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-// QSS
             PR_SwitchQCVM(nullptr);
             PR_SwitchQCVM(oldvm);
-#endif
         }
 
         Sys_Printf("Client %s removed\n", host_client->name);
@@ -779,19 +769,12 @@ void Host_ClearMemory()
     Hunk_FreeToLowMark(host_hunklevel);
     cls.signon = 0;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-// QSS
     PR_ClearProgs(&sv.qcvm);
     PR_ClearProgs(&cl.qcvm);
-#endif
 
     free(cl.static_entities);
     free(sv.static_entities); // spike -- this is dynamic too, now
     free(sv.ambientsounds);
-
-    // TODO VR: (P0): QSS Merge - remove this when switching to QCVM
-    free(qcvm->edicts); // ericw -- qcvm->edicts switched to use malloc()
 
     sv = server_t{};
     cl = client_state_t{};

@@ -216,6 +216,7 @@ entity_t* CL_EntityNum(int num)
         }
         while(cl.num_entities <= num)
         {
+            cl.entities[cl.num_entities].baseline = nullentitystate;
             cl.entities[cl.num_entities].colormap = vid.colormap;
             cl.entities[cl.num_entities].lerpflags |=
                 LERP_RESETMOVE | LERP_RESETANIM; // johnfitz
@@ -232,11 +233,25 @@ entity_t* CL_EntityNum(int num)
 CL_ParseStartSoundPacket
 ==================
 */
-void CL_ParseStartSoundPacket()
+static void CL_ParseStartSoundPacket()
 {
-    int field_mask = MSG_ReadByte();
+    qvec3 pos;
+    int channel, ent;
+    int sound_num;
     int volume;
+    int field_mask;
     float attenuation;
+    int i;
+
+    field_mask = MSG_ReadByte();
+
+    // spike -- extra channel flags
+    /*
+    if(field_mask & SND_FTE_MOREFLAGS)
+    {
+        field_mask |= MSG_ReadByte() << 8;
+    }
+    */
 
     if(field_mask & SND_VOLUME)
     {
@@ -256,9 +271,7 @@ void CL_ParseStartSoundPacket()
         attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
     }
 
-    // johnfitz -- PROTOCOL_QUAKEVR
-    int ent;
-    int channel;
+    // johnfitz -- PROTOCOL_FITZQUAKE
     if(field_mask & SND_LARGEENTITY)
     {
         ent = (unsigned short)MSG_ReadShort();
@@ -271,7 +284,6 @@ void CL_ParseStartSoundPacket()
         channel &= 7;
     }
 
-    int sound_num;
     if(field_mask & SND_LARGESOUND)
     {
         sound_num = (unsigned short)MSG_ReadShort();
@@ -290,12 +302,14 @@ void CL_ParseStartSoundPacket()
     // johnfitz
 
     if(ent > cl.max_edicts)
-    {
-        // johnfitz -- no more MAX_EDICTS
+    { // johnfitz -- no more MAX_EDICTS
         Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
     }
 
-    const qvec3 pos = MSG_ReadVec3(cl.protocolflags);
+    for(i = 0; i < 3; i++)
+    {
+        pos[i] = MSG_ReadCoord(cl.protocolflags);
+    }
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
         volume / 255.0, attenuation);
@@ -619,6 +633,7 @@ static void CL_ParseUpdate(int bits)
     // johnfitz
 
     ent->msgtime = cl.mtime[0];
+    ent->netstate = ent->baseline;
 
     if(bits & U_MODEL)
     {
@@ -1242,6 +1257,7 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
 
     // copy it to the current state
 
+    ent->netstate = ent->baseline;
     ent->model = cl.model_precache[ent->baseline.modelindex];
     ent->lerpflags |= LERP_RESETANIM; // johnfitz -- lerping
     ent->frame = ent->baseline.frame;
@@ -1253,7 +1269,10 @@ void CL_ParseStatic(int version) // johnfitz -- added a parameter
 
     ent->origin = ent->baseline.origin;
     ent->angles = ent->baseline.angles;
-    R_AddEfrags(ent);
+    if(ent->model)
+    {
+        R_AddEfrags(ent);
+    }
 }
 
 /*

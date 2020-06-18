@@ -503,8 +503,8 @@ static void Con_Print(const char* txt)
     while((c = *txt))
     {
         if(c == '^')
-        { 
-        	// parse markup like FTE/DP might.
+        {
+            // parse markup like FTE/DP might.
             switch(txt[1])
             {
                 case '^': // doubled up char for escaping.

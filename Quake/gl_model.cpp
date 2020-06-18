@@ -280,9 +280,7 @@ void Mod_ClearAll()
         {
             mod->needload = true;
             TexMgr_FreeTexturesForOwner(mod); // johnfitz
-
-            // TODO VR: (P0) QSS Merge
-            // PScript_ClearSurfaceParticles(mod);
+            PScript_ClearSurfaceParticles(mod);
         }
     }
 }
@@ -300,9 +298,7 @@ void Mod_ResetAll()
         if(!mod->needload) // otherwise Mod_ClearAll() did it already
         {
             TexMgr_FreeTexturesForOwner(mod);
-
-            // TODO VR: (P0) QSS Merge
-            // PScript_ClearSurfaceParticles(mod);
+            PScript_ClearSurfaceParticles(mod);
         }
         memset(mod, 0, sizeof(qmodel_t));
     }

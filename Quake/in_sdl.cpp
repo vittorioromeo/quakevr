@@ -32,6 +32,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "input.hpp"
 #include "sys.hpp"
 #include "q_sound.hpp"
+#include "qcvm.hpp"
+#include "progs.hpp"
+#include "glquake.hpp"
+#include "screen.hpp"
 
 #include <SDL2/SDL.h>
 #include <cmath>
@@ -383,9 +387,6 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
     {
         dx = dy = 0;
     }
-
-// TODO VR: (P0): QSS Merge
-#if 0
     else if(cl.qcvm.extfuncs.CSQC_InputEvent)
     {
         PR_SwitchQCVM(&cl.qcvm);
@@ -414,8 +415,6 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
         }
         PR_SwitchQCVM(nullptr);
     }
-#endif
-
     total_dx += dx;
     total_dy += dy;
 }

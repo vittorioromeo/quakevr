@@ -374,8 +374,37 @@ struct entity_state_t
     unsigned int effects;
     unsigned char colormap; // johnfitz -- was int
     unsigned char skin;     // johnfitz -- was int
+
+    // TODO VR: (P0) QSS Merge
+    // unsigned char scale;     // spike -- *16
+
+    unsigned char pmovetype; // spike
+    unsigned short
+        traileffectnum; // spike -- for qc-defined particle trails. typically
+                        // evilly used for things that are not trails.
+    unsigned short
+        emiteffectnum; // spike -- for qc-defined particle trails. typically
+                       // evilly used for things that are not trails.
+    short velocity[3]; // spike -- the player's velocity.
+    unsigned char eflags;
+    unsigned char tagindex;
+    unsigned short tagentity;
+    //	unsigned short	pad;
+    unsigned char colormod[3]; // spike -- entity tints, *32
     unsigned char alpha;    // johnfitz -- added
 };
+
+#define EFLAGS_STEP 1
+//#define EFLAGS_GLOWTRAIL		2
+#define EFLAGS_VIEWMODEL \
+    4 // does not appear in reflections/third person. attached to the view.
+#define EFLAGS_EXTERIORMODEL 8 // only appears in reflections/third person
+//#define EFLAGS_				16
+//#define EFLAGS_COLOURMAPPED	32	//.colormap=1024|(top<<4)|bottom), instead
+// of a player number #define EFLAGS_				64
+#define EFLAGS_ONGROUND 128 // for bobbing more than anything else. *sigh*.
+
+extern entity_state_t nullentitystate; // note: not all null.
 
 struct usercmd_t
 {

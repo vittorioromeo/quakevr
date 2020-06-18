@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.hpp"
 #include "sys.hpp"
 #include "developer.hpp"
+#include "qcvm.hpp"
 
 // QSS
 cvar_t cl_nopext = {"cl_nopext", "0",
@@ -960,8 +961,6 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
             }
             else
             {
-                // TODO VR: (P0) qcvm
-                /*
                 if(cl.qcvm.extfuncs.CSQC_ConsoleCommand)
                 {
                     bool ret;
@@ -981,7 +980,6 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
                     Con_Printf(
                         "gamecode not running, cannot \"%s\"\n", Cmd_Argv(0));
                 }
-                */
             }
             return true;
         }

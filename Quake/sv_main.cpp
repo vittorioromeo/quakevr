@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "msg.hpp"
 #include "sys.hpp"
 #include "snd_voip.hpp"
+#include "qcvm.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -46,9 +47,91 @@ static char localmodels[MAX_MODELS][8]; // inline model names for precache
 
 int sv_protocol = PROTOCOL_QUAKEVR; // johnfitz
 
-extern bool pr_alpha_supported; // johnfitz
-
 //============================================================================
+
+
+/*
+SV_BuildEntityState
+copies edict state into a more compact entity_state_t with all the extension
+fields etc sorted out and neatened up for network precision. note: ignores
+viewmodelforclient and other client-specific stuff.
+*/
+void SV_BuildEntityState(edict_t* ent, entity_state_t* state)
+{
+    eval_t* val;
+    state->eflags = 0;
+    VectorCopy(ent->v.origin, state->origin);
+    VectorCopy(ent->v.angles, state->angles);
+    state->modelindex = ent->v.modelindex;
+    state->frame = ent->v.frame;
+    state->colormap = ent->v.colormap;
+    state->skin = ent->v.skin;
+
+    // TODO VR: (P0): QSS Merge
+    /*
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.scale)) && val->_float)
+    {
+        state->scale = val->_float * 16;
+    }
+    else
+    {
+        state->scale = 16;
+    }
+    */
+
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.alpha)))
+    {
+        state->alpha = ENTALPHA_ENCODE(val->_float);
+    }
+    else
+    {
+        state->alpha = ent->alpha;
+    }
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.colormod)) &&
+        (val->vector[0] || val->vector[1] || val->vector[2]))
+    {
+        state->colormod[0] = val->vector[0] * 32;
+        state->colormod[1] = val->vector[1] * 32;
+        state->colormod[2] = val->vector[2] * 32;
+    }
+    else
+    {
+        state->colormod[0] = state->colormod[1] = state->colormod[2] = 32;
+    }
+    state->traileffectnum =
+        GetEdictFieldValue(ent, qcvm->extfields.traileffectnum)->_float;
+    state->emiteffectnum =
+        GetEdictFieldValue(ent, qcvm->extfields.emiteffectnum)->_float;
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.tag_entity)) &&
+        val->edict)
+    {
+        state->tagentity = NUM_FOR_EDICT(PROG_TO_EDICT(val->edict));
+    }
+    else
+    {
+        state->tagentity = 0;
+    }
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.tag_index)))
+    {
+        state->tagindex = val->_float;
+    }
+    else
+    {
+        state->tagindex = 0;
+    }
+    state->effects = ent->v.effects;
+    if((val = GetEdictFieldValue(ent, qcvm->extfields.modelflags)))
+    {
+        state->effects |= ((unsigned int)val->_float) << 24;
+    }
+    if(!ent->v.movetype || ent->v.movetype == MOVETYPE_STEP)
+    {
+        state->eflags |= EFLAGS_STEP;
+    }
+
+    state->pmovetype = 0;
+    state->velocity[0] = state->velocity[1] = state->velocity[2] = 0;
+}
 
 /*
 ===============
@@ -96,6 +179,10 @@ void SV_Init()
     extern cvar_t sv_gravity;
     extern cvar_t sv_nostep;
     extern cvar_t sv_freezenonclients;
+    extern cvar_t sv_gameplayfix_spawnbeforethinks;
+    extern cvar_t
+        sv_gameplayfix_setmodelrealbox; // spike: 1 to replicate a quakespasm
+                                        // bug, 0 for actual vanilla compat.
     extern cvar_t sv_friction;
     extern cvar_t sv_edgefriction;
     extern cvar_t sv_stopspeed;
@@ -109,8 +196,10 @@ void SV_Init()
     extern cvar_t com_protocolname;    // spike
     extern cvar_t net_masters[];       // spike
     extern cvar_t rcon_password;       // spike, proquake-compatible rcon
+    extern cvar_t
+        sv_sound_watersplash;    // spike - making these changable is handy...
+    extern cvar_t sv_sound_land; // spike - and also mutable...
 
-    qcvm->edicts = nullptr; // ericw -- qcvm->edicts switched to use malloc()
 
     Cvar_RegisterVariable(&sv_maxvelocity);
     Cvar_RegisterVariable(&sv_gravity);
@@ -126,7 +215,12 @@ void SV_Init()
     Cvar_RegisterVariable(&sv_aim);
     Cvar_RegisterVariable(&sv_nostep);
     Cvar_RegisterVariable(&sv_freezenonclients);
+    Cvar_RegisterVariable(&sv_gameplayfix_spawnbeforethinks);
+    Cvar_RegisterVariable(&sv_gameplayfix_setmodelrealbox);
     Cvar_RegisterVariable(&sv_altnoclip); // johnfitz
+
+    Cvar_RegisterVariable(&sv_sound_watersplash); // spike
+    Cvar_RegisterVariable(&sv_sound_land);        // spike
 
     if(isDedicated)
     {
@@ -256,12 +350,22 @@ Larger attenuations will drop off.  (max 4 attenuation)
 
 ==================
 */
-void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
-    float attenuation)
+void SV_StartSound(edict_t* entity, float* origin, int channel,
+    const char* sample, int volume, float attenuation)
 {
-    if(volume < 0 || volume > 255)
+    unsigned int sound_num, ent;
+    int i, field_mask;
+    int p;
+    client_t* cl;
+
+    if(volume < 0)
     {
         Host_Error("SV_StartSound: volume = %i", volume);
+    }
+    else if(volume > 255)
+    {
+        volume = 255;
+        Con_Printf("SV_StartSound: volume = %i\n", volume);
     }
 
     if(attenuation < 0 || attenuation > 4)
@@ -269,9 +373,13 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         Host_Error("SV_StartSound: attenuation = %f", attenuation);
     }
 
-    if(channel < 0 || channel > 7)
+    if(channel < 0 || channel > 255)
     {
         Host_Error("SV_StartSound: channel = %i", channel);
+    }
+    else if(channel > 7)
+    {
+        Con_DPrintf("SV_StartSound: channel = %i\n", channel);
     }
 
     if(sv.datagram.cursize > MAX_DATAGRAM - 16)
@@ -280,7 +388,6 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
     }
 
     // find precache number for sound
-    int sound_num;
     for(sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num];
         sound_num++)
     {
@@ -296,9 +403,9 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         return;
     }
 
-    const int ent = NUM_FOR_EDICT(entity);
+    ent = NUM_FOR_EDICT(entity);
 
-    int field_mask = 0;
+    field_mask = 0;
     if(volume != DEFAULT_SOUND_PACKET_VOLUME)
     {
         field_mask |= SND_VOLUME;
@@ -308,54 +415,89 @@ void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
         field_mask |= SND_ATTENUATION;
     }
 
-    // johnfitz -- PROTOCOL_QUAKEVR
-    if(ent >= 8192)
+    // johnfitz -- PROTOCOL_FITZQUAKE
+    if(ent >= 8192 || channel >= 8)
     {
         field_mask |= SND_LARGEENTITY;
     }
-    if(sound_num >= 256 || channel >= 8)
+    if(sound_num >= 256)
     {
         field_mask |= SND_LARGESOUND;
     }
     // johnfitz
 
-    // directed messages go only to the entity the are targeted on
-    MSG_WriteByte(&sv.datagram, svc_sound);
-    MSG_WriteByte(&sv.datagram, field_mask);
-    if(field_mask & SND_VOLUME)
+    for(p = 0; p < svs.maxclients; p++)
     {
-        MSG_WriteByte(&sv.datagram, volume);
-    }
-    if(field_mask & SND_ATTENUATION)
-    {
-        MSG_WriteByte(&sv.datagram, attenuation * 64);
-    }
+        cl = &svs.clients[p];
+        if(!cl->active || !cl->spawned)
+        {
+            continue;
+        }
 
-    // johnfitz -- PROTOCOL_QUAKEVR
-    if(field_mask & SND_LARGEENTITY)
-    {
-        MSG_WriteShort(&sv.datagram, ent);
-        MSG_WriteByte(&sv.datagram, channel);
-    }
-    else
-    {
-        MSG_WriteShort(&sv.datagram, (ent << 3) | channel);
-    }
-    if(field_mask & SND_LARGESOUND)
-    {
-        MSG_WriteShort(&sv.datagram, sound_num);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.datagram, sound_num);
-    }
-    // johnfitz
+        if(ent >= cl->limit_entities)
+        {
+            continue;
+        }
 
-    for(int i = 0; i < 3; i++)
-    {
-        MSG_WriteCoord(&sv.datagram,
-            entity->v.origin[i] + 0.5 * (entity->v.mins[i] + entity->v.maxs[i]),
-            sv.protocolflags);
+        if(sound_num >= cl->limit_sounds)
+        {
+            continue;
+        }
+
+        // directed messages go only to the entity the are targeted on
+        MSG_WriteByte(&cl->datagram, svc_sound);
+        MSG_WriteByte(&cl->datagram, field_mask);
+        if(field_mask & SND_VOLUME)
+        {
+            MSG_WriteByte(&cl->datagram, volume);
+        }
+        if(field_mask & SND_ATTENUATION)
+        {
+            MSG_WriteByte(&cl->datagram, attenuation * 64);
+        }
+
+        // johnfitz -- PROTOCOL_FITZQUAKE
+        if(field_mask & SND_LARGEENTITY)
+        {
+            if(ent > 0x7fff)
+            {
+                MSG_WriteShort(&cl->datagram, (ent >> 8) | 0x8000);
+                MSG_WriteByte(&cl->datagram, ent & 0xff);
+            }
+            else
+            {
+                MSG_WriteShort(&cl->datagram, ent);
+            }
+            MSG_WriteByte(&cl->datagram, channel);
+        }
+        else
+        {
+            MSG_WriteShort(&cl->datagram, (ent << 3) | channel);
+        }
+        if(field_mask & SND_LARGESOUND)
+        {
+            MSG_WriteShort(&cl->datagram, sound_num);
+        }
+        else
+        {
+            MSG_WriteByte(&cl->datagram, sound_num);
+        }
+        // johnfitz
+
+        for(i = 0; i < 3; i++)
+        {
+            if(origin)
+            {
+                MSG_WriteCoord(&cl->datagram, origin[i], sv.protocolflags);
+            }
+            else
+            {
+                MSG_WriteCoord(&cl->datagram,
+                    entity->v.origin[i] +
+                        0.5 * (entity->v.mins[i] + entity->v.maxs[i]),
+                    sv.protocolflags);
+            }
+        }
     }
 }
 
@@ -421,8 +563,8 @@ void SV_SendServerinfo(client_t* client)
                           // not.
         client->limit_reliable = MAX_DATAGRAM; // quite large, ip allows 16 bits
         client->limit_entities =
-            MAX_EDICTS; // we don't really know, 8k is probably a save
-                        // guess but could be 32k, 65k, or even more...
+            qcvm->max_edicts; // we don't really know, 8k is probably a save
+                              // guess but could be 32k, 65k, or even more...
         client->limit_models =
             MAX_MODELS; // not really sure, client's problem until >14bits
         client->limit_sounds =
@@ -475,7 +617,7 @@ retry:
     MSG_WriteByte(&client->message, svc_print);
 
     sprintf(message, "%c\nQUAKE VR %s SERVER (%i CRC)\n", 2, QUAKEVR_VERSION,
-        pr_crc); // johnfitz -- include fitzquake version
+        qcvm->crc); // johnfitz -- include fitzquake version
 
     MSG_WriteString(&client->message, message);
 
@@ -1010,15 +1152,11 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
         }
 
         // johnfitz -- alpha
-        if(pr_alpha_supported)
+        // TODO: find a cleaner place to put this code
+        eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.alpha);
+        if(val)
         {
-            // TODO: find a cleaner place to put this code
-            eval_t* val;
-            val = GetEdictFieldValue(ent, ED_FindFieldOffset("alpha"));
-            if(val)
-            {
-                ent->alpha = ENTALPHA_ENCODE(val->_float);
-            }
+            ent->alpha = ENTALPHA_ENCODE(val->_float);
         }
 
         // don't send invisible entities unless they have effects
@@ -1653,6 +1791,15 @@ bool SV_SendClientDatagram(client_t* client)
 
     SV_WriteEntitiesToClient(client->edict, &msg);
 
+    // copy the private datagram if there is space
+    if(msg.cursize + client->datagram.cursize < msg.maxsize &&
+        !client->datagram.overflowed)
+    {
+        SZ_Write(&msg, client->datagram.data, client->datagram.cursize);
+    }
+    client->datagram.overflowed = false;
+    SZ_Clear(&client->datagram);
+
     // copy the server datagram if there is space
     if(msg.cursize + sv.datagram.cursize < msg.maxsize)
     {
@@ -1661,8 +1808,10 @@ bool SV_SendClientDatagram(client_t* client)
 
     SV_VoiceSendPacket(client, &msg);
 
+	msg.maxsize = client->limit_unreliable;
     // send the datagram
-    if(NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
+    if(msg.cursize &&
+        NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
     {
         SV_DropClient(false); // if the message couldn't send, kick off
         return false;
@@ -2058,6 +2207,16 @@ void SV_SaveSpawnparms()
     }
 }
 
+// used for sv.qcvm.GetModel (so ssqc+csqc can share builtins)
+qmodel_t* SV_ModelForIndex(int index)
+{
+    if(index < 0 || index >= MAX_MODELS)
+    {
+        return nullptr;
+    }
+    return sv.models[index];
+}
+
 
 /*
 ================
@@ -2115,7 +2274,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     sv.protocolflags = 0;
 
     // load progs to get entity field count
-    PR_LoadProgs();
+    PR_LoadProgs("vrprogs.dat", true, pr_ssqcbuiltins, pr_ssqcnumbuiltins);
 
     // allocate server memory
     /* Host_ClearMemory() called above already cleared the whole
@@ -2123,8 +2282,8 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     qcvm->max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value,
         MAX_EDICTS); // johnfitz -- max_edicts cvar
     qcvm->edicts = (edict_t*)malloc(
-        qcvm->max_edicts * pr_edict_size); // ericw -- qcvm->edicts
-                                        // switched to use malloc()
+        qcvm->max_edicts * qcvm->edict_size); // ericw -- qcvm->edicts
+                                              // switched to use malloc()
 
     sv.datagram.maxsize = sizeof(sv.datagram_buf);
     sv.datagram.cursize = 0;
@@ -2143,10 +2302,10 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     sv.signon.data = sv.signon_buf;
 
     // leave slots at start for clients only
-    qcvm->num_edicts = svs.maxclients + 1;
+    qcvm->num_edicts = qcvm->reserved_edicts = svs.maxclients + 1;
     memset(qcvm->edicts, 0,
-        qcvm->num_edicts * pr_edict_size); // ericw -- qcvm->edicts
-                                        // switched to use malloc()
+        qcvm->num_edicts * qcvm->edict_size); // ericw -- qcvm->edicts
+                                              // switched to use malloc()
     for(int i = 0; i < svs.maxclients; i++)
     {
         edict_t* ent = EDICT_NUM(i + 1);
@@ -2164,7 +2323,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     q_snprintf(sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
 
     qcvm->worldmodel = Mod_ForName(sv.modelname, false);
-    if(!qcvm->worldmodel)
+    if(!qcvm->worldmodel || qcvm->worldmodel->type != mod_brush)
     {
         Con_Printf("Couldn't spawn server %s\n", sv.modelname);
         sv.active = false;
@@ -2172,6 +2331,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     }
 
     sv.models[1] = qcvm->worldmodel;
+    qcvm->GetModel = SV_ModelForIndex;
 
     //
     // clear world interaction links
@@ -2184,6 +2344,12 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     sv.sound_precache[0] = dummy;
     sv.model_precache[0] = dummy;
     sv.model_precache[1] = sv.modelname;
+    if(qcvm->worldmodel->numsubmodels > MAX_MODELS)
+    {
+        Con_Printf("too many inline models %s\n", sv.modelname);
+        sv.active = false;
+        return;
+    }
     for(int i = 1; i < qcvm->worldmodel->numsubmodels; i++)
     {
         sv.model_precache[1 + i] = localmodels[i];
@@ -2194,7 +2360,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     // load the rest of the entities
     //
     edict_t* ent = EDICT_NUM(0);
-    memset(&ent->v, 0, progs->entityfields * 4);
+    memset(&ent->v, 0, qcvm->progs->entityfields * 4);
     ent->free = false;
     ent->v.model = PR_SetEngineString(qcvm->worldmodel->name);
     ent->v.modelindex = 1; // world model
@@ -2227,6 +2393,9 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
     ED_LoadFromFile(qcvm->worldmodel->entities);
 
     sv.active = true;
+
+    SV_Precache_Model("progs/player.mdl"); // Spike -- SV_CreateBaseline depends
+                                           // on this model.
 
     // all setup is completed, any further precache statements
     // are errors

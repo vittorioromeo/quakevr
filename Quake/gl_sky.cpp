@@ -278,8 +278,8 @@ void Sky_NewMap()
     if(!data)
     {
         return; // FIXME: how could this possibly ever happen? -- if there's
-                // no worldspawn then the sever wouldn't send the loadmap 
-    			// message to the client
+                // no worldspawn then the sever wouldn't send the loadmap
+                // message to the client
     }
 
     data = COM_Parse(data);

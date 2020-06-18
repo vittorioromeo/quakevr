@@ -3576,6 +3576,7 @@ void M_FindKeysForCommand(const char* command, int* threekeys)
     int j;
     int l;
     char* b;
+    int bindmap = 0;
 
     threekeys[0] = threekeys[1] = threekeys[2] = -1;
     l = strlen(command);
@@ -3583,7 +3584,7 @@ void M_FindKeysForCommand(const char* command, int* threekeys)
 
     for(j = 0; j < MAX_KEYS; j++)
     {
-        b = keybindings[j];
+        b = keybindings[bindmap][j];
         if(!b)
         {
             continue;
@@ -3605,19 +3606,20 @@ void M_UnbindCommand(const char* command)
     int j;
     int l;
     char* b;
+    int bindmap = 0;
 
     l = strlen(command);
 
     for(j = 0; j < MAX_KEYS; j++)
     {
-        b = keybindings[j];
+        b = keybindings[bindmap][j];
         if(!b)
         {
             continue;
         }
         if(!strncmp(b, command, l))
         {
-            Key_SetBinding(j, nullptr);
+            Key_SetBinding(j, nullptr, bindmap);
         }
     }
 }
@@ -3627,9 +3629,7 @@ extern qpic_t *pic_up, *pic_down;
 void M_Keys_Draw()
 {
     int i;
-
     int x;
-
     int y;
     int keys[3];
     const char* name;

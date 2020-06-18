@@ -13,9 +13,3 @@ struct areanode_t
 
 #define AREA_DEPTH 4
 #define AREA_NODES 32
-
-// TODO VR: (P0) QSS Merge
-#if 1
-static areanode_t sv_areanodes[AREA_NODES];
-static int sv_numareanodes;
-#endif

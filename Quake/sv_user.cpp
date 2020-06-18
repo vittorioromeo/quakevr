@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.hpp"
 #include "cmd.hpp"
 #include "snd_voip.hpp"
+#include "qcvm.hpp"
 
 #include <iostream>
 #include <unordered_map>
@@ -721,9 +722,6 @@ bool SV_ReadClientMessage()
 
             case clc_stringcmd:
                 s = MSG_ReadString();
-
-// TODO VR: (P0): QSS Merge
-#if 0
                 if(q_strncasecmp(s, "spawn", 5) &&
                     q_strncasecmp(s, "begin", 5) &&
                     q_strncasecmp(s, "prespawn", 8) &&
@@ -742,7 +740,6 @@ bool SV_ReadClientMessage()
                     host_client = ohc;
                 }
                 else
-#endif
                 {
                     Cmd_ExecuteString(s, src_client);
                 }

@@ -248,10 +248,14 @@ void() worldspawn =
 
     // HONEY
     precache_sound("misc/secret.wav");
-    precache_sound("honey/ting1.wav");
-    precache_sound("honey/ting2.wav");
-    precache_sound("honey/ting3.wav");
-    precache_sound("honey/ting4.wav");
+
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        precache_sound("honey/ting1.wav");
+        precache_sound("honey/ting2.wav");
+        precache_sound("honey/ting3.wav");
+        precache_sound("honey/ting4.wav");
+    }
 
     // VR: For weapon buttons
     precache_sound("buttons/switch02.wav");

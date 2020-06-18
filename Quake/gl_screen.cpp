@@ -42,6 +42,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_sound.hpp"
 #include "draw.hpp"
 #include "screen.hpp"
+#include "qcvm.hpp"
+#include "server.hpp"
 #include "view.hpp"
 
 /*
@@ -272,7 +274,7 @@ void SCR_CenterPrint(const char* str) // update centerprint data
         (flags & CPRINT_PERSIST) ? 999999 : scr_centertime.value;
     scr_centertime_start = cl.time;
 
-     if(*scr_centerstring && !(flags & CPRINT_PERSIST))
+    if(*scr_centerstring && !(flags & CPRINT_PERSIST))
     {
         Con_LogCenterPrint(scr_centerstring);
     }
@@ -1453,7 +1455,12 @@ void SCR_UpdateScreen()
         // TODO VR: (P2) this is client side, but does use server logic. Should
         // be split accordingly and cleaned up.
 
+        qcvm_t* oldvm = qcvm;
+        PR_SwitchQCVM(&sv.qcvm);
+
         VR_UpdateScreenContent(); // phoboslab
+
+        PR_SwitchQCVM(oldvm);
     }
     else
     {

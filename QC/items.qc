@@ -148,8 +148,7 @@ void() PlaceItem =
     self.movetype = MOVETYPE_TOSS;
     self.velocity = '0 0 0';
 
-    float enableHoneyExtensions;
-    enableHoneyExtensions = VR_GameUtil_EnableHoneyExtensions();
+    float enableHoneyExtensions = VR_GameUtil_EnableHoneyExtensions();
 
     // HONEY
     if(enableHoneyExtensions &&

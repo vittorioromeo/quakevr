@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "progs.hpp"
 #include "sizebuf.hpp"
 #include "snd_voip.hpp"
+#include "qcvm.hpp"
 
 #include <vector>
 
@@ -55,6 +56,14 @@ typedef enum
     ss_active
 } server_state_t;
 
+struct ambientsound_s
+{
+    qvec3 origin;
+    unsigned int soundindex;
+    float volume;
+    float attenuation;
+};
+
 struct server_t
 {
     bool active; // false if only a net client
@@ -65,8 +74,6 @@ struct server_t
     int lastcheck; // used by PF_checkclient
     double lastchecktime;
 
-    // TODO VR: (P0): QSS Merge - implement QCVM
-    using qcvm_t = int*;
     qcvm_t qcvm; // Spike: entire qcvm state
 
     char name[64];      // map name
@@ -94,19 +101,24 @@ struct server_t
         multicast; // selectively copied to clients by the multicast builtin
     byte multicast_buf[MAX_DATAGRAM];
 
+    const char* particle_precache[MAX_PARTICLETYPES]; // NULL terminated
+
     entity_state_t* static_entities;
     int num_statics;
     int max_statics;
 
-    struct ambientsound_s
-    {
-        vec3_t origin;
-        unsigned int soundindex;
-        float volume;
-        float attenuation;
-    } * ambientsounds;
+    ambientsound_s* ambientsounds;
     int num_ambients;
     int max_ambients;
+
+    struct svcustomstat_s
+    {
+        int idx;
+        int type;
+        int fld;
+        eval_t* ptr;
+    } customstats[MAX_CL_STATS * 2]; // strings or numeric...
+    size_t numcustomstats;
     std::vector<WorldText> worldTexts;
     std::vector<WorldTextHandle> freeWorldTextHandles;
 
@@ -215,6 +227,8 @@ struct client_t
 #define MOVETYPE_NOCLIP 8
 #define MOVETYPE_FLYMISSILE 9 // extra size to monsters
 #define MOVETYPE_BOUNCE 10
+//#define MOVETYPE_EXT_BOUNCEMISSILE 11
+#define MOVETYPE_EXT_FOLLOW 12
 
 // edict->solid values
 #define SOLID_NOT 0               // no interaction with other objects
@@ -295,11 +309,14 @@ void SV_StartParticle(
     const qvec3& org, const qvec3& dir, const int color, const int count);
 void SV_StartParticle2(
     const qvec3& org, const qvec3& dir, const int preset, const int count);
-void SV_StartSound(edict_t* entity, int channel, const char* sample, int volume,
-    float attenuation);
+void SV_StartSound(edict_t* entity, float* origin, int channel,
+    const char* sample, int volume, float attenuation);
 
 void SV_DropClient(bool crash);
 
+void SVFTE_Ack(client_t* client, int sequence);
+void SVFTE_DestroyFrames(client_t* client);
+void SV_BuildEntityState(edict_t* ent, entity_state_t* state);
 void SV_SendClientMessages();
 void SV_ClearDatagram();
 

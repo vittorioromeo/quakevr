@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "pr_comp.hpp"
 #include "progs.hpp"
 #include "server.hpp"
+#include "qcvm.hpp"
 
 static const char* pr_opnames[] = {"DONE",
 
@@ -596,8 +597,8 @@ void PR_ExecuteProgram(func_t fnum)
                     qcvm->globals[(unsigned short)st->a + 2];
                 st = &qcvm->statements[PR_LeaveFunction()];
                 if(qcvm->depth == exitdepth)
-                { 
-                	// Done
+                {
+                    // Done
                     return;
                 }
                 break;

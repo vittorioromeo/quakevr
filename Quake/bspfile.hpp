@@ -376,7 +376,7 @@ extern int numvertexes;
 extern dvertex_t dvertexes[MAX_MAP_VERTS];
 
 extern int numnodes;
-extern dnode_t dnodes[MAX_MAP_NODES];
+extern dsnode_t dnodes[MAX_MAP_NODES];
 
 extern int numtexinfo;
 extern texinfo_t texinfo[MAX_MAP_TEXINFO];

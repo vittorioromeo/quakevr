@@ -1606,8 +1606,8 @@ void Mod_LoadIQMModel(qmodel_t* mod, const void* buffer)
                 }
 
                 // fixme: should probably save the 10 values above and slerp,
-                // but its simpler to just save+lerp a matrix (although this does
-                // result in denormalisation when interpolating).
+                // but its simpler to just save+lerp a matrix (although this
+                // does result in denormalisation when interpolating).
                 GenMatrixPosQuat4Scale(
                     pos, quat, scale, outposes[(a * numjoints + j)].mat);
             }

@@ -1,4 +1,12 @@
 #include "progs.hpp"
+#include "qcvm.hpp"
+#include "cvar.hpp"
+#include "client.hpp"
+#include "server.hpp"
+#include "console.hpp"
+
+#include <cstddef>
+#include <cstdint>
 
 struct qpic_t;
 
@@ -21,16 +29,22 @@ void PR_ReloadPics(bool purge)
     maxqcpics = 0;
 }
 
+int PR_MakeTempString(const char* val)
+{
+    char* tmp = PR_GetTempString();
+    q_strlcpy(tmp, val, STRINGTEMP_LENGTH);
+    return PR_SetEngineString(tmp);
+}
+
 void PR_AutoCvarChanged(cvar_t* var)
 {
     (void)var;
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     char* n;
     ddef_t* glob;
     qcvm_t* oldqcvm = qcvm;
     PR_SwitchQCVM(nullptr);
+
     if(sv.active)
     {
         PR_SwitchQCVM(&sv.qcvm);
@@ -45,6 +59,7 @@ void PR_AutoCvarChanged(cvar_t* var)
         }
         PR_SwitchQCVM(nullptr);
     }
+
     if(cl.qcvm.globals)
     {
         PR_SwitchQCVM(nullptr);
@@ -60,6 +75,6 @@ void PR_AutoCvarChanged(cvar_t* var)
         }
         PR_SwitchQCVM(nullptr);
     }
+
     PR_SwitchQCVM(oldqcvm);
-#endif
 }

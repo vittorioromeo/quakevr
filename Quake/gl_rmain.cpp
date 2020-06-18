@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.hpp"
 #include "client.hpp"
 #include "q_sound.hpp"
+#include "qcvm.hpp"
 
 #include <string_view>
 #include <algorithm>
@@ -1096,6 +1097,9 @@ void R_ShowBoundingBoxes()
     glDisable(GL_CULL_FACE);
     glColor3f(1, 1, 1);
 
+    qcvm_t* oldvm = qcvm;
+    PR_SwitchQCVM(&sv.qcvm);
+
     int i;
     edict_t* ed;
     for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
@@ -1125,8 +1129,7 @@ void R_ShowBoundingBoxes()
         }
     }
 
-    // TODO VR: (P0) QSS Merge
-    // PR_SwitchQCVM(oldvm);
+    PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);
     glEnable(GL_TEXTURE_2D);
@@ -1598,11 +1601,15 @@ void R_RenderView()
             }
 
             skyroom_orientation = glm::normalize(skyroom_orientation);
-            axis[0] = RotatePointAroundVector(skyroom_orientation.xyz, vpn, ang);
-            axis[1] = RotatePointAroundVector(skyroom_orientation.xyz, vright, ang);
-            axis[2] = RotatePointAroundVector(skyroom_orientation.xyz, vup, ang);
+            axis[0] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vpn, ang);
+            axis[1] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vright, ang);
+            axis[2] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vup, ang);
 
-            r_refdef.viewangles = VectorAngles(axis[0]); // TODO VR: (P0) QSS Merge - take up as well
+            r_refdef.viewangles = VectorAngles(
+                axis[0]); // TODO VR: (P0) QSS Merge - take up as well
             // VectorAngles(axis[0], axis[2], r_refdef.viewangles);
         }
 

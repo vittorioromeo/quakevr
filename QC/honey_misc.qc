@@ -114,18 +114,25 @@ void() ambient_secret_think =
 
     rnd = random();
     rnd2 = 0.5 + 0.5 * random();
-    if(rnd < 0.25){
-        sound(self, CHAN_AUTO, "honey/ting1.wav",rnd2 , 1.2);
 
-    }else if(rnd < 0.5){
-        sound(self, CHAN_AUTO, "honey/ting2.wav",rnd2 , 1.2);
-
-    }else if(rnd < 0.75){
-        sound(self, CHAN_AUTO, "honey/ting3.wav",rnd2 , 1.2);
-
-    }else{
-        sound(self, CHAN_AUTO, "honey/ting4.wav",rnd2 , 1.2);
-
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        if(rnd < 0.25)
+        {
+            sound(self, CHAN_AUTO, "honey/ting1.wav",rnd2 , 1.2);
+        }
+        else if(rnd < 0.5)
+        {
+            sound(self, CHAN_AUTO, "honey/ting2.wav",rnd2 , 1.2);
+        }
+        else if(rnd < 0.75)
+        {
+            sound(self, CHAN_AUTO, "honey/ting3.wav",rnd2 , 1.2);
+        }
+        else
+        {
+            sound(self, CHAN_AUTO, "honey/ting4.wav",rnd2 , 1.2);
+        }
     }
 
     rnd = 0.2 + 3 * random();

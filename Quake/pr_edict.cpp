@@ -34,20 +34,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "pr_comp.hpp"
 #include "server.hpp"
 #include "world.hpp"
+#include "qcvm.hpp"
 
 #include <cassert>
-
-dprograms_t* progs;
-dfunction_t* pr_functions;
-
-bool pr_alpha_supported; // johnfitz
-
-dstatement_t* pr_statements;
-globalvars_t* pr_global_struct;
-float* pr_globals; // same as pr_global_struct
-int pr_edict_size; // in bytes
-
-unsigned short pr_crc;
 
 int type_size[8] = {
     1, // ev_void
@@ -61,18 +50,7 @@ int type_size[8] = {
 };
 
 static ddef_t* ED_FieldAtOfs(int ofs);
-static bool ED_ParseEpair(void* base, ddef_t* key, const char* s);
-
-#define MAX_FIELD_LEN 64
-#define GEFV_CACHESIZE 2
-
-typedef struct
-{
-    ddef_t* pcache;
-    char field[MAX_FIELD_LEN];
-} gefv_cache;
-
-static gefv_cache gefvCache[GEFV_CACHESIZE] = {{nullptr, ""}, {nullptr, ""}};
+bool ED_ParseEpair(void* base, ddef_t* key, const char* s);
 
 cvar_t nomonsters = {"nomonsters", "0", CVAR_NONE};
 cvar_t gamecfg = {"gamecfg", "0", CVAR_NONE};
@@ -115,7 +93,7 @@ edict_t* ED_Alloc()
     int i;
     edict_t* e;
 
-    for(i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    for(i = qcvm->reserved_edicts; i < qcvm->num_edicts; i++)
     {
         e = EDICT_NUM(i);
         // the first couple seconds of server time can involve a lot of
@@ -300,7 +278,7 @@ GetEdictFieldValue
 ============
 */
 eval_t* GetEdictFieldValue(edict_t* ed, int fldofs)
-    {
+{
     if(fldofs < 0)
     {
         return nullptr;
@@ -586,7 +564,7 @@ void ED_Write(FILE* f, edict_t* ed)
 
     // johnfitz -- save entity alpha manually when progs.dat doesn't know about
     // alpha
-    if(!pr_alpha_supported && ed->alpha != ENTALPHA_DEFAULT)
+    if(qcvm->extfields.alpha < 0 && ed->alpha != ENTALPHA_DEFAULT)
     {
         fprintf(f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE(ed->alpha));
     }
@@ -651,8 +629,8 @@ static void ED_PrintEdict_f()
     {
         if(Cmd_Argc() == 2 || svs.maxclients != 1)
         { // edict N
-    ED_PrintNum(i);
-}
+            ED_PrintNum(i);
+        }
         else // edict N FLD ...
         {
             ddef_t* def = ED_FindField(Cmd_Argv(2));
@@ -985,7 +963,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
     // clear it
     if(ent != qcvm->edicts)
     {
-    	// hack
+        // hack
         memset(&ent->v, 0, qcvm->progs->entityfields * 4);
     }
 
@@ -1053,6 +1031,18 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
         // and are immediately discarded by quake
         if(keyname[0] == '_')
         {
+            // spike -- hacks to support func_illusionary with all sorts of
+            // mdls, and various particle effects
+            if(!strcmp(keyname, "_precache_model") && sv.state == ss_loading)
+            {
+                SV_Precache_Model(PR_GetString(ED_NewString(com_token)));
+            }
+            else if(!strcmp(keyname, "_precache_sound") &&
+                    sv.state == ss_loading)
+            {
+                SV_Precache_Sound(PR_GetString(ED_NewString(com_token)));
+            }
+            // spike
             continue;
         }
 
@@ -1063,6 +1053,24 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
             ent->alpha = ENTALPHA_ENCODE(atof(com_token));
         }
         // johnfitz
+
+        // spike -- hacks to support func_illusionary/info_notnull with all
+        // sorts of mdls, and various particle effects
+        if(!strcmp(keyname, "modelindex") && sv.state == ss_loading)
+        {
+            //"model" "progs/foobar.mdl"
+            //"modelindex" "progs/foobar.mdl"
+            //"mins" "-16 -16 -16"
+            //"maxs" "16 16 16"
+            char* e;
+            strtol(com_token, &e, 0);
+            if(e != com_token && *e)
+            {
+                ent->v.modelindex =
+                    SV_Precache_Model(PR_GetString(ED_NewString(com_token)));
+            }
+        }
+        // spike
 
         ddef_t* key = ED_FindField(keyname);
         if(!key)
@@ -1089,8 +1097,8 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
             // might not be mentioned in defs.qc
             else
 #endif
-            if(strncmp(keyname, "sky", 3) && strcmp(keyname, "fog") &&
-                strcmp(keyname, "alpha"))
+                if(strncmp(keyname, "sky", 3) && strcmp(keyname, "fog") &&
+                    strcmp(keyname, "alpha"))
             {
                 Con_DPrintf("\"%s\" is not a field\n",
                     keyname); // johnfitz -- was Con_Printf
@@ -1222,10 +1230,10 @@ void ED_LoadFromFile(const char* data)
             }
             else
             {
-            Con_SafePrintf(
-                "No spawn function for:\n"); // johnfitz -- was Con_Printf
-            ED_Print(ent);
-            ED_Free(ent);
+                Con_SafePrintf(
+                    "No spawn function for:\n"); // johnfitz -- was Con_Printf
+                ED_Print(ent);
+                ED_Free(ent);
             }
             continue;
         }
@@ -1237,79 +1245,146 @@ void ED_LoadFromFile(const char* data)
     Con_DPrintf("%i entities inhibited\n", inhibit);
 }
 
+globalvars_t* pr_global_struct;
+
+void PR_ClearProgs(qcvm_t* vm)
+{
+    qcvm_t* oldvm = qcvm;
+    if(!vm->progs)
+    {
+        return; // wasn't loaded.
+    }
+
+    qcvm = nullptr;
+    PR_SwitchQCVM(vm);
+
+    // TODO VR: (P0) QSS Merge
+    // PR_ShutdownExtensions();
+
+    if(qcvm->knownstrings)
+    {
+        Z_Free((void*)qcvm->knownstrings);
+    }
+    free(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
+    memset(qcvm, 0, sizeof(*qcvm));
+
+    qcvm = nullptr;
+    PR_SwitchQCVM(oldvm);
+}
 
 /*
 ===============
 PR_LoadProgs
 ===============
 */
-void PR_LoadProgs()
+bool PR_LoadProgs(
+    const char* filename, bool fatal, builtin_t* builtins, size_t numbuiltins)
 {
     int i;
+    unsigned int u;
 
-    // flush the non-C variable lookup cache
-    for(i = 0; i < GEFV_CACHESIZE; i++)
+    PR_ClearProgs(qcvm); // just in case.
+
+    qcvm->progs = (dprograms_t*)COM_LoadHunkFile(filename, nullptr);
+    if(!qcvm->progs)
     {
-        gefvCache[i].field[0] = 0;
+        return false;
     }
 
-    CRC_Init(&pr_crc);
-
-    progs = (dprograms_t*)COM_LoadHunkFile("vrprogs.dat", nullptr);
-    if(!progs)
-    {
-        Host_Error("PR_LoadProgs: couldn't load vrprogs.dat");
-    }
-    Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
-
+    CRC_Init(&qcvm->crc);
     for(i = 0; i < com_filesize; i++)
     {
-        CRC_ProcessByte(&pr_crc, ((byte*)progs)[i]);
+        CRC_ProcessByte(&qcvm->crc, ((byte*)qcvm->progs)[i]);
     }
 
     // byte swap the header
-    for(i = 0; i < (int)sizeof(*progs) / 4; i++)
+    for(i = 0; i < (int)sizeof(*qcvm->progs) / 4; i++)
     {
-        ((int*)progs)[i] = LittleLong(((int*)progs)[i]);
+        ((int*)qcvm->progs)[i] = LittleLong(((int*)qcvm->progs)[i]);
     }
 
-    if(progs->version != PROG_VERSION)
+    if(qcvm->progs->version != PROG_VERSION)
     {
-        Host_Error("vrprogs.dat has wrong version number (%i should be %i)",
-            progs->version, PROG_VERSION);
+        if(fatal)
+        {
+            Host_Error("%s has wrong version number (%i should be %i)",
+                filename, qcvm->progs->version, PROG_VERSION);
+        }
+        else
+        {
+            Con_Printf("%s ABI set not supported\n", filename);
+            qcvm->progs = nullptr;
+            return false;
+        }
+    }
+    if(qcvm->progs->crc != PROGHEADER_CRC)
+    {
+        if(fatal)
+        {
+            Host_Error(
+                "%s system vars have been modified, progdefs.h is out of date",
+                filename);
+        }
+        else
+        {
+            switch(qcvm->progs->crc)
+            {
+                case 22390: // full csqc
+                    Con_Printf("%s - full csqc is not supported\n", filename);
+                    break;
+                case 52195: // dp csqc
+                    Con_Printf(
+                        "%s - obsolete csqc is not supported\n", filename);
+                    break;
+                case 54730: // quakeworld
+                    Con_Printf("%s - quakeworld gamecode is not supported\n",
+                        filename);
+                    break;
+                case 26940: // prerelease
+                    Con_Printf("%s - prerelease gamecode is not supported\n",
+                        filename);
+                    break;
+                case 32401: // tenebrae
+                    Con_Printf(
+                        "%s - tenebrae gamecode is not supported\n", filename);
+                    break;
+                case 38488: // hexen2 release
+                case 26905: // hexen2 mission pack
+                case 14046: // hexen2 demo
+                    Con_Printf(
+                        "%s - hexen2 gamecode is not supported\n", filename);
+                    break;
+                // case 5927: //nq PROGHEADER_CRC as above. shouldn't happen,
+                // obviously.
+                default:
+                    Con_Printf("%s system vars are not supported\n", filename);
+                    break;
+            }
+            qcvm->progs = nullptr;
+            return false;
+        }
+    }
+    Con_DPrintf("%s occupies %iK.\n", filename, com_filesize / 1024);
+
+    qcvm->functions =
+        (dfunction_t*)((byte*)qcvm->progs + qcvm->progs->ofs_functions);
+    qcvm->strings = (char*)qcvm->progs + qcvm->progs->ofs_strings;
+    if(qcvm->progs->ofs_strings + qcvm->progs->numstrings >= com_filesize)
+    {
+        Host_Error("%s strings go past end of file\n", filename);
     }
 
-    if(progs->crc != PROGHEADER_CRC)
-    {
-        Host_Error(
-            "vrprogs.dat system vars have been modified, progdefs.h is out of "
-            "date");
-    }
+    qcvm->globaldefs =
+        (ddef_t*)((byte*)qcvm->progs + qcvm->progs->ofs_globaldefs);
+    qcvm->fielddefs =
+        (ddef_t*)((byte*)qcvm->progs + qcvm->progs->ofs_fielddefs);
+    qcvm->statements =
+        (dstatement_t*)((byte*)qcvm->progs + qcvm->progs->ofs_statements);
 
-    pr_functions = (dfunction_t*)((byte*)progs + progs->ofs_functions);
-    qcvm->strings = (char*)progs + progs->ofs_strings;
-    if(progs->ofs_strings + progs->numstrings >= com_filesize)
-    {
-        Host_Error("vrprogs.dat strings go past end of file\n");
-    }
+    qcvm->globals = (float*)((byte*)qcvm->progs + qcvm->progs->ofs_globals);
+    pr_global_struct = (globalvars_t*)qcvm->globals;
 
-    // initialize the strings
-    qcvm->numknownstrings = 0;
-    qcvm->maxknownstrings = 0;
-    qcvm->stringssize = progs->numstrings;
-    if(qcvm->knownstrings)
-    {
-        Z_Free((void*)qcvm->knownstrings);
-    }
-    qcvm->knownstrings = nullptr;
-    PR_SetEngineString("");
-
-    qcvm->globaldefs = (ddef_t*)((byte*)progs + progs->ofs_globaldefs);
-    qcvm->fielddefs = (ddef_t*)((byte*)progs + progs->ofs_fielddefs);
-    pr_statements = (dstatement_t*)((byte*)progs + progs->ofs_statements);
-
-    pr_global_struct = (globalvars_t*)((byte*)progs + progs->ofs_globals);
-    qcvm->globals = (float*)pr_global_struct;
+    qcvm->stringssize = qcvm->progs->numstrings;
 
     // byte swap the lumps
     for(i = 0; i < qcvm->progs->numstatements; i++)
@@ -1339,7 +1414,10 @@ void PR_LoadProgs()
         qcvm->globaldefs[i].s_name = LittleLong(qcvm->globaldefs[i].s_name);
     }
 
-    pr_alpha_supported = false; // johnfitz
+    for(u = 0; u < sizeof(qcvm->extfields) / sizeof(int); u++)
+    {
+        ((int*)&qcvm->extfields)[u] = -1;
+    }
 
     for(i = 0; i < qcvm->progs->numfielddefs; i++)
     {
@@ -1350,27 +1428,63 @@ void PR_LoadProgs()
         }
         qcvm->fielddefs[i].ofs = LittleShort(qcvm->fielddefs[i].ofs);
         qcvm->fielddefs[i].s_name = LittleLong(qcvm->fielddefs[i].s_name);
-
-        // johnfitz -- detect alpha support in vrprogs.dat
-        if(!strcmp(qcvm->strings + qcvm->fielddefs[i].s_name, "alpha"))
-        {
-            pr_alpha_supported = true;
-        }
-        // johnfitz
     }
 
-    for(i = 0; i < progs->numglobals; i++)
+    for(i = 0; i < qcvm->progs->numglobals; i++)
     {
         ((int*)qcvm->globals)[i] = LittleLong(((int*)qcvm->globals)[i]);
     }
 
-    pr_edict_size =
-        progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
+    memcpy(qcvm->builtins, builtins, numbuiltins * sizeof(qcvm->builtins[0]));
+    qcvm->numbuiltins = numbuiltins;
+
+    // spike: detect extended fields from progs
+    qcvm->extfields.items2 = ED_FindFieldOffset("items2");
+    qcvm->extfields.gravity = ED_FindFieldOffset("gravity");
+    qcvm->extfields.alpha = ED_FindFieldOffset("alpha");
+    qcvm->extfields.movement = ED_FindFieldOffset("movement");
+    qcvm->extfields.traileffectnum = ED_FindFieldOffset("traileffectnum");
+    qcvm->extfields.emiteffectnum = ED_FindFieldOffset("emiteffectnum");
+    qcvm->extfields.viewmodelforclient =
+        ED_FindFieldOffset("viewmodelforclient");
+    qcvm->extfields.exteriormodeltoclient =
+        ED_FindFieldOffset("exteriormodeltoclient");
+    qcvm->extfields.scale = ED_FindFieldOffset("scale");
+    qcvm->extfields.colormod = ED_FindFieldOffset("colormod");
+    qcvm->extfields.tag_entity = ED_FindFieldOffset("tag_entity");
+    qcvm->extfields.tag_index = ED_FindFieldOffset("tag_index");
+    qcvm->extfields.button3 = ED_FindFieldOffset("button3");
+    qcvm->extfields.button4 = ED_FindFieldOffset("button4");
+    qcvm->extfields.button5 = ED_FindFieldOffset("button5");
+    qcvm->extfields.button6 = ED_FindFieldOffset("button6");
+    qcvm->extfields.button7 = ED_FindFieldOffset("button7");
+    qcvm->extfields.button8 = ED_FindFieldOffset("button8");
+    qcvm->extfields.viewzoom = ED_FindFieldOffset("viewzoom");
+    qcvm->extfields.modelflags = ED_FindFieldOffset("modelflags");
+
+    i = qcvm->progs->entityfields;
+    if(qcvm->extfields.emiteffectnum < 0)
+    {
+        qcvm->extfields.emiteffectnum = i++;
+    }
+    if(qcvm->extfields.traileffectnum < 0)
+    {
+        qcvm->extfields.traileffectnum = i++;
+    }
+
+    qcvm->edict_size = i * 4 + sizeof(edict_t) - sizeof(entvars_t);
     // round off to next highest whole word address (esp for Alpha)
     // this ensures that pointers in the engine data area are always
     // properly aligned
     qcvm->edict_size += sizeof(void*) - 1;
     qcvm->edict_size &= ~(sizeof(void*) - 1);
+
+    PR_SetEngineString("");
+
+    // TODO VR: (P0) QSS Merge
+    // PR_EnableExtensions(qcvm->globaldefs);
+
+    return true;
 }
 
 
@@ -1385,6 +1499,10 @@ void PR_Init()
     Cmd_AddCommand("edicts", ED_PrintEdicts);
     Cmd_AddCommand("edictcount", ED_Count);
     Cmd_AddCommand("profile", PR_Profile_f);
+
+    // TODO VR: (P0) QSS Merge
+    // Cmd_AddCommand("pr_dumpplatform", PR_DumpPlatform_f);
+
     Cvar_RegisterVariable(&nomonsters);
     Cvar_RegisterVariable(&gamecfg);
     Cvar_RegisterVariable(&scratch1);
@@ -1396,8 +1514,10 @@ void PR_Init()
     Cvar_RegisterVariable(&saved2);
     Cvar_RegisterVariable(&saved3);
     Cvar_RegisterVariable(&saved4);
-}
 
+    // TODO VR: (P0) QSS Merge
+    // PR_InitExtensions();
+}
 
 edict_t* EDICT_NUM(int n)
 {
@@ -1430,8 +1550,8 @@ int NUM_FOR_EDICT(edict_t* e)
 static void PR_AllocStringSlots()
 {
     qcvm->maxknownstrings += PR_STRING_ALLOCSLOTS;
-    Con_DPrintf2(
-        "PR_AllocStringSlots: realloc'ing for %d slots\n", qcvm->maxknownstrings);
+    Con_DPrintf2("PR_AllocStringSlots: realloc'ing for %d slots\n",
+        qcvm->maxknownstrings);
     qcvm->knownstrings = (const char**)Z_Realloc(
         (void*)qcvm->knownstrings, qcvm->maxknownstrings * sizeof(char*));
 }
@@ -1457,8 +1577,7 @@ const char* PR_GetString(int num)
     }
     else
     {
-        Host_Error("PR_GetString: invalid string offset %d\n", num);
-        return "";
+        return qcvm->strings;
     }
 }
 
@@ -1483,7 +1602,8 @@ int PR_SetEngineString(const char* s)
     {
         return 0;
     }
-#if 0 /* can't: sv.model_precache & sv.sound_precache points to qcvm->strings */
+#if 0 /* can't: sv.model_precache & sv.sound_precache points to qcvm->strings \
+       */
 	if (s >= qcvm->strings && s <= qcvm->strings + qcvm->stringssize)
 		Host_Error("PR_SetEngineString: \"%s\" in qcvm->strings area\n", s);
 #else
@@ -1501,21 +1621,26 @@ int PR_SetEngineString(const char* s)
     }
     // new unknown engine string
     // Con_DPrintf ("PR_SetEngineString: new engine string %p\n", s);
-#if 0
-	for (i = 0; i < qcvm->numknownstrings; i++)
-	{
-		if (!qcvm->knownstrings[i])
-			break;
-	}
-#endif
-    //	if (i >= qcvm->numknownstrings)
-    //	{
-    if(i >= qcvm->maxknownstrings)
+    for(i = qcvm->freeknownstrings;; i++)
     {
-        PR_AllocStringSlots();
+        if(i < qcvm->numknownstrings)
+        {
+            if(qcvm->knownstrings[i])
+            {
+                continue;
+            }
+        }
+        else
+        {
+            if(i >= qcvm->maxknownstrings)
+            {
+                PR_AllocStringSlots();
+            }
+            qcvm->numknownstrings++;
+        }
+        break;
     }
-    qcvm->numknownstrings++;
-    //	}
+    qcvm->freeknownstrings = i + 1;
     qcvm->knownstrings[i] = s;
     return -1 - i;
 }

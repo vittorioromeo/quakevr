@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.hpp"
 #include "console.hpp"
 #include "progs.hpp"
+#include "qcvm.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
