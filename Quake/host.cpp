@@ -273,7 +273,7 @@ void Host_Error(const char* error, ...)
     {
         glDisable(GL_SCISSOR_TEST); // equivelent to drawresetcliparea, to reset
                                     // any damage if we crashed in csqc.
-	}
+    }
 
     PR_SwitchQCVM(nullptr);
 
@@ -588,7 +588,7 @@ void SV_DropClient(bool crash)
             qcvm_t* oldvm = qcvm;
             PR_SwitchQCVM(nullptr);
             PR_SwitchQCVM(&sv.qcvm);
-            
+
             saveSelf = pr_global_struct->self;
             pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
             PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
@@ -617,16 +617,12 @@ void SV_DropClient(bool crash)
     host_client->old_frags = -999999;
     net_activeconnections--;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-    // QSS
     if(host_client->download.file)
     {
         fclose(host_client->download.file);
     }
 
     memset(&host_client->download, 0, sizeof(host_client->download));
-#endif
 
     // send notification to all clients
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
@@ -986,12 +982,10 @@ void _Host_Frame(double time) // QSS
     // QSS
     if(cl.sendprespawn)
     {
-        // TODO VR: (P0) QSS Merge
-#if 0
         if(CL_CheckDownloads())
         {
             PR_ClearProgs(&cl.qcvm);
-            if(pr_checkextension.value && !cl_nocsqc.value)
+            if(!cl_nocsqc.value)
             { // only try to use csqc if qc extensions are enabled.
                 PR_SwitchQCVM(&cl.qcvm);
                 // try csprogs.dat first, then fall back on progs.dat in case
@@ -1033,7 +1027,7 @@ void _Host_Frame(double time) // QSS
                         *qcvm->extglobals.player_localnum =
                             cl.viewentity - 1; // this is a guess, but is
                     }
-                                               // important for scoreboards.
+                    // important for scoreboards.
 
                     // set a few worldspawn fields too
                     qcvm->edicts->v.message = PR_SetEngineString(cl.levelname);
@@ -1063,16 +1057,11 @@ void _Host_Frame(double time) // QSS
             vid.recalc_refdef = true;
         }
         else
-#else
-        cl.sendprespawn = false;
-        MSG_WriteByte(&cls.message, clc_stringcmd);
-        MSG_WriteString(&cls.message, "prespawn");
-        vid.recalc_refdef = true;
-#endif
-
-        if(!cls.message.cursize)
         {
-            MSG_WriteByte(&cls.message, clc_nop);
+            if(!cls.message.cursize)
+            {
+                MSG_WriteByte(&cls.message, clc_nop);
+            }
         }
     }
 

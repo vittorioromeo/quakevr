@@ -774,6 +774,18 @@ void CL_InitInput()
     Cmd_AddCommand("-offhandattack", IN_OffHandAttackUp);
     Cmd_AddCommand("+use", IN_UseDown);
     Cmd_AddCommand("-use", IN_UseUp);
+    Cmd_AddCommand("+button3", IN_Button3Down);
+    Cmd_AddCommand("-button3", IN_Button3Up);
+    Cmd_AddCommand("+button4", IN_Button4Down);
+    Cmd_AddCommand("-button4", IN_Button4Up);
+    Cmd_AddCommand("+button5", IN_Button5Down);
+    Cmd_AddCommand("-button5", IN_Button5Up);
+    Cmd_AddCommand("+button6", IN_Button6Down);
+    Cmd_AddCommand("-button6", IN_Button6Up);
+    Cmd_AddCommand("+button7", IN_Button7Down);
+    Cmd_AddCommand("-button7", IN_Button7Up);
+    Cmd_AddCommand("+button8", IN_Button8Down);
+    Cmd_AddCommand("-button8", IN_Button8Up);
     Cmd_AddCommand("+jump", IN_JumpDown);
     Cmd_AddCommand("-jump", IN_JumpUp);
     Cmd_AddCommand("impulse", IN_Impulse);

@@ -1409,7 +1409,7 @@ bool Host_MakeSavegame(
         fflush(f);
     }
 
-// QSS
+	// QSS
     // add extra info (lightstyles, precaches, etc) in a way that's supposed to
     // be compatible with DP. sidenote - this provides extended lightstyles and
     // support for late precaches it does NOT protect against spawnfunc precache

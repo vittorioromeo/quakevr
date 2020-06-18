@@ -1171,6 +1171,11 @@ static void GL_SetupState()
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); // johnfitz
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    // spike -- these are invalid as there is no texture bound to receive this
+    // state. glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glDepthRange(0, 1);     // johnfitz -- moved here becuase gl_ztrick is gone.
     glDepthFunc(GL_LEQUAL); // johnfitz -- moved here becuase gl_ztrick is gone.
 }
