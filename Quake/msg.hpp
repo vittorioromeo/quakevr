@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma once
 
 #include "quakeglm_qvec3.hpp"
+#include "q_stdinc.hpp"
 
 struct sizebuf_t;
 
@@ -55,3 +56,4 @@ void MSG_BeginReading();
 [[nodiscard]] float MSG_ReadAngle(unsigned int flags);
 [[nodiscard]] float MSG_ReadAngle16(unsigned int flags);
 [[nodiscard]] qvec3 MSG_ReadVec3(unsigned int flags);
+[[nodiscard]] byte* MSG_ReadData(unsigned int length);

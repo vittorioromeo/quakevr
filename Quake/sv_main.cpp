@@ -748,7 +748,7 @@ once for a player each game, not once for each level change.
 */
 void SV_ConnectClient(int clientnum)
 {
-    float spawn_parms[NUM_SPAWN_PARMS];
+    float spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 
     client_t* client = svs.clients + clientnum;
 
@@ -800,9 +800,16 @@ void SV_ConnectClient(int clientnum)
     {
         // call the progs to get default spawn parms for the new client
         PR_ExecuteProgram(pr_global_struct->SetNewParms);
-        for(int i = 0; i < NUM_SPAWN_PARMS; i++)
+        
+        int i;
+        for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
         {
             client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
+        }
+        for(; i < NUM_TOTAL_SPAWN_PARMS; i++) // QSS
+        {
+            ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
+            client->spawn_parms[i] = g ? qcvm->globals[g->ofs] : 0;
         }
     }
 
@@ -2200,9 +2207,16 @@ void SV_SaveSpawnparms()
         // client
         pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
         PR_ExecuteProgram(pr_global_struct->SetChangeParms);
-        for(int j = 0; j < NUM_SPAWN_PARMS; j++)
+        
+        int j;
+        for(j = 0; j < NUM_BASIC_SPAWN_PARMS; j++)
         {
             host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
+        }
+        for(; j < NUM_TOTAL_SPAWN_PARMS; j++)
+        {
+            ddef_t* g = ED_FindGlobal(va("parm%i", j + 1));
+            host_client->spawn_parms[j] = g ? qcvm->globals[g->ofs] : 0;
         }
     }
 }

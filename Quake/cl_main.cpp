@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 #include "input.hpp"
 #include "q_sound.hpp"
+#include "crc.hpp"
 
 #include <string>
 #include <vector>
@@ -582,6 +583,7 @@ void CL_RelinkEntities()
             //	R_RemoveEfrags (ent);	// just became empty
             continue;
         }
+        ent->eflags = ent->netstate.eflags;
 
         // if the object wasn't included in the last packet, remove it
         if(ent->msgtime != cl.mtime[0])
@@ -853,6 +855,297 @@ int CL_GenerateRandomParticlePrecache(const char* pname)
 }
 #endif
 
+// sent by the server to let us know that dp downloads can be used
+void CL_ServerExtension_Download_f()
+{
+    if(Cmd_Argc() == 2)
+    {
+        cl.protocol_dpdownload = atoi(Cmd_Argv(1));
+    }
+}
+
+// sent by the server to let us know when its finished sending the entire file
+void CL_Download_Finished_f()
+{
+    if(cls.download.file)
+    {
+        char finalpath[MAX_OSPATH];
+        unsigned int size = strtoul(Cmd_Argv(1), nullptr, 0);
+        unsigned int hash = strtoul(Cmd_Argv(2), nullptr, 0);
+        // const char *fname = Cmd_Argv(3);
+        bool hashokay = false;
+        if(size == cls.download.size)
+        {
+            byte* tmp = (byte*) malloc(size);
+            if(tmp)
+            {
+                fseek(cls.download.file, 0, SEEK_SET);
+                fread(tmp, 1, size, cls.download.file);
+                hashokay = (hash == CRC_Block(tmp, size));
+                free(tmp);
+
+                if(!hashokay)
+                {
+                    Con_Warning("Download hash failure\n");
+                }
+            }
+            else
+            {
+                Con_Warning("Download size too large\n");
+            }
+        }
+        else
+        {
+            Con_Warning("Download size mismatch\n");
+        }
+
+        fclose(cls.download.file);
+        cls.download.file = nullptr;
+        if(hashokay)
+        {
+            q_snprintf(finalpath, sizeof(finalpath), "%s/%s", com_gamedir,
+                cls.download.current);
+            rename(cls.download.temp, finalpath);
+            Con_SafePrintf("Downloaded %s: %u bytes\n", cls.download.current,
+                cls.download.size);
+        }
+        else
+        {
+            Con_Warning("Download of %s failed\n", cls.download.current);
+            unlink(cls.download.temp); // kill the temp
+        }
+    }
+
+    cls.download.active = false;
+}
+// sent by the server (or issued by the user) to stop the current download for
+// any reason.
+void CL_StopDownload_f()
+{
+    if(cls.download.file)
+    {
+        fclose(cls.download.file);
+        cls.download.file = nullptr;
+        unlink(cls.download.temp);
+
+        //		Con_SafePrintf("Download cancelled\n", cl.download_current,
+        // cl.download_size);
+    }
+    cls.download.active = false;
+}
+// sent by the server to let us know that its going to start spamming us now.
+void CL_Download_Begin_f()
+{
+    if(!cls.download.active)
+    {
+        return;
+    }
+
+    if(cls.download.file)
+    {
+        CL_StopDownload_f();
+    }
+
+    // cl_downloadbegin size "name"
+    cls.download.size = strtoul(Cmd_Argv(1), nullptr, 0);
+
+    COM_CreatePath(cls.download.temp);
+    cls.download.file = fopen(cls.download.temp,
+        "wb+"); //+ so we can read the data back to validate it
+
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, "sv_startdownload\n");
+}
+
+void CL_Download_Data()
+{
+    byte* data;
+    unsigned int start, size;
+    start = MSG_ReadLong();
+    size = (unsigned short)MSG_ReadShort();
+    data = MSG_ReadData(size);
+    if(msg_badread)
+    {
+        return;
+    }
+    if(!cls.download.file)
+    {
+        return; // demo started mid-record? something weird anyway
+    }
+
+    fseek(cls.download.file, start, SEEK_SET);
+    fwrite(data, 1, size, cls.download.file);
+
+    Con_SafePrintf("Downloading %s: %g%%\r", cls.download.current,
+        100 * (start + size) / (double)cls.download.size);
+
+    // should maybe use unreliables, but whatever, shouldn't matter too much,
+    // it'll still complete
+    MSG_WriteByte(&cls.message, clcdp_ackdownloaddata);
+    MSG_WriteLong(&cls.message, start);
+    MSG_WriteShort(&cls.message, size);
+}
+
+// returns true if we should block waiting for a download, false if there's no
+// point.
+bool CL_CheckDownload(const char* filename)
+{
+    if(sv.active)
+    {
+        return false; // no point downloading if we're the server...
+    }
+    if(*filename == '*')
+    {
+        return false; // don't download these...
+    }
+    if(cls.download.active)
+    {
+        return true; // block while we're already downloading something
+    }
+    if(!cl.protocol_dpdownload)
+    {
+        return false; // can't download anyway
+    }
+    if(*cls.download.current && !strcmp(cls.download.current, filename))
+    {
+        return false; // if the previous download failed, don't endlessly retry.
+    }
+    if(COM_FileExists(filename, nullptr))
+    {
+        return false; // no need to download anything.
+    }
+    if(!COM_DownloadNameOkay(filename))
+    {
+        return false; // diediedie
+    }
+
+    cls.download.active = true;
+    q_strlcpy(cls.download.current, filename, sizeof(cls.download.current));
+    q_snprintf(cls.download.temp, sizeof(cls.download.temp), "%s/%s.tmp",
+        com_gamedir, filename);
+    Con_Printf("Downloading %s...\r", filename);
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, va("download \"%s\"\n", filename));
+    return true;
+}
+
+// download+load models and sounds as needed, once complete let the server know
+// we're ready for the next stage. returning false will trigger nops.
+bool CL_CheckDownloads()
+{
+    int i;
+    if(cl.model_download == 0 && cl.model_count && cl.model_name[1])
+    { // haxors, download the lit first, but only if we don't already have the
+      // bsp
+        // this ensures that we don't keep requesting the lit for maps that just
+        // don't have one (although may be problematic if the first server we
+        // find deleted them all, but oh well)
+        char litname[MAX_QPATH];
+        char* ext;
+        q_strlcpy(litname, cl.model_name[1], sizeof(litname));
+        ext = (char*)COM_FileGetExtension(litname);
+        if(!q_strcasecmp(ext, "bsp"))
+        {
+            if(!COM_FileExists(litname, nullptr))
+            {
+                strcpy(ext, "lit");
+                if(CL_CheckDownload(litname))
+                {
+                    return false;
+                }
+            }
+        }
+        cl.model_download++;
+    }
+    for(; cl.model_download < cl.model_count;)
+    {
+        if(*cl.model_name[cl.model_download])
+        {
+            if(CL_CheckDownload(cl.model_name[cl.model_download]))
+            {
+                return false;
+            }
+            cl.model_precache[cl.model_download] =
+                Mod_ForName(cl.model_name[cl.model_download], false);
+            if(cl.model_precache[cl.model_download] == nullptr)
+            {
+                Host_Error(
+                    "Model %s not found", cl.model_name[cl.model_download]);
+            }
+        }
+        cl.model_download++;
+    }
+
+    for(; cl.sound_download < cl.sound_count;)
+    {
+        if(*cl.sound_name[cl.sound_download])
+        {
+            if(CL_CheckDownload(
+                   va("sound/%s", cl.sound_name[cl.sound_download])))
+            {
+                return false;
+            }
+            cl.sound_precache[cl.sound_download] =
+                S_PrecacheSound(cl.sound_name[cl.sound_download]);
+        }
+        cl.sound_download++;
+    }
+
+    if(!cl.worldmodel && cl.model_count >= 2)
+    {
+        // local state
+        cl.entities[0].model = cl.worldmodel = cl.model_precache[1];
+        if(cl.worldmodel->type != mod_brush)
+        {
+            if(cl.worldmodel->type == mod_ext_invalid)
+            {
+                Host_Error("Worldmodel %s was not loaded", cl.model_name[1]);
+            }
+            else
+            {
+                Host_Error(
+                    "Worldmodel %s is not a brushmodel", cl.model_name[1]);
+            }
+        }
+
+        // fixme: deal with skybox somehow
+
+        R_NewMap();
+
+#ifdef PSET_SCRIPT
+        // the protocol changing depending upon files found on the client's
+        // computer is of course a really shit way to design things especially
+        // when users have a nasty habit of changing config files.
+        if(cl.protocol == PROTOCOL_VERSION_DP7)
+        {
+            PScript_FindParticleType(
+                "effectinfo."); // make sure this is implicitly loaded.
+            COM_Effectinfo_Enumerate(CL_GenerateRandomParticlePrecache);
+            cl.protocol_particles = true;
+        }
+        else if(cl.protocol_pext2)
+        {
+            cl.protocol_particles =
+                true; // doesn't have a pext flag of its own, but at least we
+        }
+        // know what it is.
+#endif
+    }
+
+    // make sure ents have the correct models, now that they're actually loaded.
+    for(i = 0; i < cl.num_statics; i++)
+    {
+        if(cl.static_entities[i]->model)
+        {
+            continue;
+        }
+        cl.static_entities[i]->model =
+            cl.model_precache[cl.static_entities[i]->netstate.modelindex];
+        R_AddEfrags(cl.static_entities[i]);
+    }
+    return true;
+}
+
 
 /*
 ===============
@@ -1080,6 +1373,21 @@ void CL_Viewpos_f([[maybe_unused]] refdef_t& refdef)
 #endif
 }
 
+static void CL_ServerExtension_FullServerinfo_f()
+{
+    //	const char *newserverinfo = Cmd_Argv(1);
+}
+static void CL_ServerExtension_ServerinfoUpdate_f()
+{
+    //	const char *newserverkey = Cmd_Argv(1);
+    //	const char *newservervalue = Cmd_Argv(2);
+}
+
+static void CL_ServerExtension_Ignore_f()
+{
+    Con_DPrintf2("Ignoring stufftext: %s\n", Cmd_Argv(0));
+}
+
 /*
 =================
 CL_Init
@@ -1131,4 +1439,46 @@ void CL_Init()
 
     Cmd_AddCommand("tracepos", [] { CL_Tracepos_f(r_refdef); }); // johnfitz
     Cmd_AddCommand("viewpos", [] { CL_Viewpos_f(r_refdef); });   // johnfitz
+
+    // spike -- add stubs to mute various invalid stuffcmds
+    Cmd_AddCommand_ServerCommand(
+        "fullserverinfo", CL_ServerExtension_FullServerinfo_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "svi", CL_ServerExtension_ServerinfoUpdate_f); // spike
+    Cmd_AddCommand_ServerCommand("paknames",
+        CL_ServerExtension_Ignore_f); // package names in use by the server
+                                      // (including gamedir+extension)
+    Cmd_AddCommand_ServerCommand(
+        "paks", CL_ServerExtension_Ignore_f); // provides hashes to go with the
+                                              // paknames list
+    // Cmd_AddCommand_ServerCommand ("vwep", CL_ServerExtension_Ignore_f);
+    // //invalid for nq, provides an alternative list of model precaches for
+    // vweps. Cmd_AddCommand_ServerCommand ("at", CL_ServerExtension_Ignore_f);
+    // //invalid for nq, autotrack info for mvds
+    Cmd_AddCommand_ServerCommand(
+        "wps", CL_ServerExtension_Ignore_f); // ktx/cspree weapon stats
+    Cmd_AddCommand_ServerCommand(
+        "it", CL_ServerExtension_Ignore_f); // cspree item timers
+    Cmd_AddCommand_ServerCommand(
+        "tinfo", CL_ServerExtension_Ignore_f); // ktx team info
+    Cmd_AddCommand_ServerCommand(
+        "exectrigger", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progname", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progsize", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progcrc", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_fullpitch", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "pq_fullpitch", CL_ServerExtension_Ignore_f); // spike
+
+    Cmd_AddCommand_ServerCommand(
+        "cl_serverextension_download", CL_ServerExtension_Download_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_downloadbegin", CL_Download_Begin_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_downloadfinished", CL_Download_Finished_f); // spike
+    Cmd_AddCommand("stopdownload", CL_StopDownload_f);  // spike
 }

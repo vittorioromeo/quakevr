@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sizebuf.hpp"
 #include "snd_voip.hpp"
 #include "qcvm.hpp"
+#include "modeleffects.hpp"
 
 #include <vector>
 
@@ -151,7 +152,8 @@ struct server_t
 };
 
 #define NUM_PING_TIMES 16
-#define NUM_SPAWN_PARMS 32
+#define NUM_BASIC_SPAWN_PARMS 16
+#define NUM_TOTAL_SPAWN_PARMS 64
 
 struct client_t
 {
@@ -184,7 +186,7 @@ struct client_t
     int num_pings; // ping_times[num_pings%NUM_PING_TIMES]
 
     // spawn parms are carried from level to level
-    float spawn_parms[NUM_SPAWN_PARMS];
+    float spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 
     // client known data for deltas
     int old_frags;
@@ -201,14 +203,68 @@ struct client_t
     unsigned int limit_sounds;     //
 
     // QSS
+    bool pextknown;
+    unsigned int protocol_pext2;
+    unsigned int
+        resendstats[MAX_CL_STATS / 32]; // the stats which need to be resent.
+    int oldstats_i[MAX_CL_STATS];   // previous values of stats. if these differ
+                                    // from the current values, reflag
+                                    // resendstats.
+    float oldstats_f[MAX_CL_STATS]; // previous values of stats. if these differ
+                                    // from the current values, reflag
+                                    // resendstats.
+    struct entity_num_state_s
+    {
+        unsigned int num; // ascending order, there can be gaps.
+        entity_state_t state;
+    } * previousentities;
+    size_t numpreviousentities;
+    size_t maxpreviousentities;
+    unsigned int snapshotresume;
+    unsigned int* pendingentities_bits; // UF_ flags for each entity
+    size_t numpendingentities;          // realloc if too small
+    struct deltaframe_s
+    { // quick overview of how this stuff actually works:
+        // when the server notices a gap in the ack sequence, we walk through
+        // the dropped frames and reflag everything that was dropped. if the
+        // server isn't tracking enough frames, then we just treat those as
+        // dropped; small note: when an entity is new, it re-flags itself as new
+        // for the next packet too, this reduces the immediate impact of
+        // packetloss on new entities. reflagged state includes stats updates,
+        // entity updates, and entity removes.
+        int sequence; // to see if its stale
+        float timestamp;
+        unsigned int resendstats[MAX_CL_STATS / 32];
+        struct
+        {
+            unsigned int num;
+            unsigned int bits;
+        } * ents;
+        int numents; // doesn't contain an entry for every entity, just ones
+                     // that were sent this frame. no 0 bits
+        int maxents;
+    } * frames;
     size_t numframes; // preallocated power-of-two
     int lastacksequence;
     int lastmovemessage;
 
     // QSS
     client_voip_t voip; // spike -- for voip
-
-    // QSS
+    struct
+    {
+        char name[MAX_QPATH];
+        FILE* file;
+        bool started; // actually sending
+        unsigned int
+            startpos; // within the pak, so we don't break stuff when seeking
+        unsigned int size;
+        unsigned int sendpos; // file offset we last tried sending
+        unsigned int ackpos;  // if they don't ack this properly, we restart
+                              // sending from here instead.
+        // for more speed, the server should build a collection of blocks to
+        // track which parts were actually acked, thereby avoiding redundant
+        // resends, but in the intererest of simplicity...
+    } download;
     bool knowntoqc; // putclientinserver was called
 };
 
@@ -267,17 +323,6 @@ struct client_t
 #define FL_EASYHANDTOUCH  VRUTIL_POWER_OF_TWO(13) // adds bonus to boundaries for handtouch
 #define FL_SPECIFICDAMAGE VRUTIL_POWER_OF_TWO(14) // HONEY.
 #define FL_FORCEGRABBABLE VRUTIL_POWER_OF_TWO(15) // VR.
-// clang-format on
-
-// entity effects
-// clang-format off
-#define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
-#define EF_MUZZLEFLASH  VRUTIL_POWER_OF_TWO(1)
-#define EF_BRIGHTLIGHT  VRUTIL_POWER_OF_TWO(2)
-#define EF_DIMLIGHT     VRUTIL_POWER_OF_TWO(3)
-#define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
-#define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
-#define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
 // clang-format on
 
 #define SPAWNFLAG_NOT_EASY 256

@@ -90,6 +90,7 @@ void R_RunParticleEffect_LavaSpike(
     const qvec3& org, const qvec3& dir, int count);
 void R_RocketTrail(qvec3 start, const qvec3& end, int type);
 void R_EntityParticles(entity_t* ent);
+void R_BlobExplosion(const qvec3& org);
 void R_ParticleExplosion(const qvec3& org);
 void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength);
 void R_LavaSplash(const qvec3& org);

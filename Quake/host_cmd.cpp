@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sizebuf.hpp"
 #include "qcvm.hpp"
 #include "glquake.hpp"
+#include "crc.hpp"
 
 #include <ctime>
 
@@ -1378,12 +1379,7 @@ bool Host_MakeSavegame(
     Host_SavegameComment(comment);
     fprintf(f, "%s\n", comment);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
-    for (int i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
-#else
-    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
-#endif
+    for(int i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
     {
         fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
     }
@@ -1394,12 +1390,7 @@ bool Host_MakeSavegame(
 
     // write the light styles
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(int i = 0; i < MAX_LIGHTSTYLES_VANILLA; i++) // QSS
-#else
-    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
-#endif
     {
         if(sv.lightstyles[i])
         {
@@ -1418,8 +1409,6 @@ bool Host_MakeSavegame(
         fflush(f);
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
 // QSS
     // add extra info (lightstyles, precaches, etc) in a way that's supposed to
     // be compatible with DP. sidenote - this provides extended lightstyles and
@@ -1428,6 +1417,7 @@ bool Host_MakeSavegame(
     // baselines, or just recalculate those).
     fprintf(f, "/*\n");
     fprintf(f, "// QuakeSpasm extended savegame\n");
+    int i = 0;
     for(i = MAX_LIGHTSTYLES_VANILLA; i < MAX_LIGHTSTYLES; i++)
     {
         if(sv.lightstyles[i])
@@ -1470,7 +1460,6 @@ bool Host_MakeSavegame(
     }
 
     fprintf(f, "*/\n");
-#endif
 
     fclose(f);
 
@@ -1564,33 +1553,20 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         return false;
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
     float spawn_parms[NUM_TOTAL_SPAWN_PARMS]; // QSS
-#else
-    float spawn_parms[NUM_SPAWN_PARMS];
-#endif
 
     data = COM_ParseStringNewline(data);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
+	int i;
     for (i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
-#else
-    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
-#endif
     {
         data = COM_ParseFloatNewline(data, &spawn_parms[i]);
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(; i < NUM_TOTAL_SPAWN_PARMS; i++) // QSS
     {
         spawn_parms[i] = 0;
     }
-#endif
-
 
     // this silliness is so we can load 1.06 save files, which have float skill
     // values
@@ -1627,34 +1603,26 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     // load the light styles
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(i = 0; i < MAX_LIGHTSTYLES_VANILLA; i++)
-#else
-    for(int i = 0; i < MAX_LIGHTSTYLES; i++)
-#endif
     {
         data = COM_ParseStringNewline(data);
         sv.lightstyles[i] = (const char*)Hunk_Strdup(com_token, "lightstyles");
     }
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(; i < MAX_LIGHTSTYLES; i++)
     {
         sv.lightstyles[i] = nullptr;
     }
-#endif
 
     // load the edicts out of the savegame file
     int entnum = -1; // -1 is the globals
     while(*data)
     {
-
-        // TODO VR: (P0): QSS Merge
-#if 0
-        // QSS
-        while(*data == ' ' || *data == '\r' || *data == '\n') data++;
+        while(*data == ' ' || *data == '\r' || *data == '\n')
+        {
+            data++;
+        }
+        
         if(data[0] == '/' && data[1] == '*' &&
             (data[2] == '\r' || data[2] == '\n'))
         { // looks like an extended saved game
@@ -1663,7 +1631,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
             ext = data + 2;
             while((end = strchr(ext, '\n')))
             {
-                *end = 0;
+                end = "\0";
                 ext = COM_Parse(ext);
                 if(!strcmp(com_token, "sv.lightstyles"))
                 {
@@ -1725,12 +1693,10 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
                     if(idx >= 1 && idx <= NUM_TOTAL_SPAWN_PARMS)
                         spawn_parms[idx - 1] = atof(com_token);
                 }
-                *end = '\n';
+                end = "\n";
                 ext = end + 1;
             }
         }
-#endif
-        // ---
 
         data = COM_Parse(data);
         if(!com_token[0])
@@ -1780,12 +1746,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
     free(start);
     start = nullptr;
 
-    // TODO VR: (P0): QSS Merge
-#if 0
     for(int i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
-#else
-    for(int i = 0; i < NUM_SPAWN_PARMS; i++)
-#endif
     {
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
@@ -1922,7 +1883,6 @@ void Host_Say(bool teamonly)
     client_t* save;
     const char* p;
     char text[MAXCMDLINE];
-
     char* p2;
     bool quoted;
     bool fromServer = false;
@@ -2287,12 +2247,8 @@ void Host_Spawn_f()
         return;
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
-    // QSS
     host_client->knowntoqc = true;
-#endif
-
+    
     // run the entrance script
     if(sv.loadgame)
     {
@@ -2311,32 +2267,23 @@ void Host_Spawn_f()
         ent->v.team = (host_client->colors & 15) + 1;
         ent->v.netname = PR_SetEngineString(host_client->name);
 
-// copy spawn parms out of the client_t
+		// copy spawn parms out of the client_t
 
-// TODO VR: (P0): QSS Merge
-#if 0
         for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
-#else
-        for(i = 0; i < NUM_SPAWN_PARMS; i++)
-#endif
         {
             (&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
         }
-
-// TODO VR: (P0): QSS Merge
-#if 0
-        // QSS
-        if(pr_checkextension.value)
+    
+        // extended spawn parms
+        for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
         {
-            // extended spawn parms
-            for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
+            ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
+            if(g)
             {
-                ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
-                if(g) qcvm->globals[g->ofs] = host_client->spawn_parms[i];
+                qcvm->globals[g->ofs] = host_client->spawn_parms[i];
             }
         }
-#endif
-
+        
         // call the spawn function
         pr_global_struct->time = qcvm->time; // QSS
 
@@ -2405,9 +2352,6 @@ void Host_Spawn_f()
     // send all current light styles
     for(i = 0; i < MAX_LIGHTSTYLES; i++)
     {
-        // TODO VR: (P0): QSS Merge
-#if 0
-        // QSS
         // CL_ClearState should have cleared all lightstyles, so don't send
         // irrelevant ones
         if(sv.lightstyles[i])
@@ -2425,11 +2369,6 @@ void Host_Spawn_f()
                 MSG_WriteString(&host_client->message, sv.lightstyles[i]);
             }
         }
-#else
-        MSG_WriteByte(&host_client->message, svc_lightstyle);
-        MSG_WriteByte(&host_client->message, (char)i);
-        MSG_WriteString(&host_client->message, sv.lightstyles[i]);
-#endif
     }
 
     //
@@ -2468,7 +2407,7 @@ void Host_Spawn_f()
 
     // TODO VR: (P0): QSS Merge
 #if 0
-// QSS
+	// QSS
 	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
     {
 		SV_WriteClientdataToMessage(host_client, &host_client->message);
@@ -3215,8 +3154,7 @@ void Host_Stopdemo_f()
 //=============================================================================
 // QSS
 // download stuff
-// TODO VR: (P0): QSS Merge
-#if 0
+
 static void Host_Download_f()
 {
     const char* fname = Cmd_Argv(1);
@@ -3355,7 +3293,7 @@ void Host_DownloadAck(client_t* client)
         byte* data;
         client->download.started = false;
 
-        data = malloc(client->download.size);
+        data = (byte*)malloc(client->download.size);
         if(data)
         {
             fseek(client->download.file, host_client->download.startpos,
@@ -3375,7 +3313,7 @@ void Host_DownloadAck(client_t* client)
         host_client->sendsignon = true; // override any keepalive issues.
     }
 }
-#endif
+
 //=============================================================================
 
 /*
@@ -3425,12 +3363,8 @@ void Host_InitCommands()
     Cmd_AddCommand("load_autosave", Host_LoadAutosave_f);
     Cmd_AddCommand("save", Host_Savegame_f);
     Cmd_AddCommand_ClientCommand("give", Host_Give_f); // QSS
-
-    // TODO VR: (P0): QSS Merge
-#if 0
     Cmd_AddCommand_ClientCommand("download", Host_Download_f); // QSS
     Cmd_AddCommand_ClientCommand("sv_startdownload", Host_StartDownload_f); // QSS
-#endif
 
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);

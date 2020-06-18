@@ -34,6 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 #include "quakedef_macros.hpp"
 #include "bspfile.hpp"
+#include "modeleffects.hpp"
 
 /*
 
@@ -41,18 +42,6 @@ d*_t structures are on-disk representations
 m*_t structures are in-memory
 
 */
-
-// entity effects
-
-// clang-format off
-#define EF_BRIGHTFIELD  VRUTIL_POWER_OF_TWO(0)
-#define EF_MUZZLEFLASH  VRUTIL_POWER_OF_TWO(1)
-#define EF_BRIGHTLIGHT  VRUTIL_POWER_OF_TWO(2)
-#define EF_DIMLIGHT     VRUTIL_POWER_OF_TWO(3)
-#define EF_VERYDIMLIGHT VRUTIL_POWER_OF_TWO(4)
-#define EF_MINIROCKET   VRUTIL_POWER_OF_TWO(5)
-#define EF_LAVATRAIL    VRUTIL_POWER_OF_TWO(6)
-// clang-format on
 
 /*
 ==============================================================================

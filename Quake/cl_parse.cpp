@@ -253,7 +253,7 @@ static void CL_ParseStartSoundPacket()
     }
     */
 
-    if(field_mask & SND_VOLUME)
+    if(field_mask & SND_VOLUME) 
     {
         volume = MSG_ReadByte();
     }

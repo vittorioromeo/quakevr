@@ -122,6 +122,76 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define U_TRANS (1 << 15)
 // johnfitz
 
+
+// spike -- FTE Replacement Deltas
+// first byte contains the stuff that's most likely to change constantly
+#define UF_FRAME (1u << 0)
+#define UF_ORIGINXY (1u << 1)
+#define UF_ORIGINZ (1u << 2)
+#define UF_ANGLESXZ (1u << 3)
+#define UF_ANGLESY (1u << 4)
+#define UF_EFFECTS (1u << 5)
+#define UF_PREDINFO (1u << 6) /*ent is predicted, probably a player*/
+#define UF_EXTEND1 (1u << 7)
+
+/*stuff which is common on ent spawning*/
+#define UF_RESET (1u << 8)
+#define UF_16BIT                                                               \
+    (1u << 9) /*within this update, frame/skin/model is 16bit, not part of the \
+                 deltaing itself*/
+#define UF_MODEL (1u << 10)
+#define UF_SKIN (1u << 11)
+#define UF_COLORMAP (1u << 12)
+#define UF_SOLID                                                        \
+    (1u << 13) /*encodes the size of the entity, so prediction can bump \
+                  against it*/
+#define UF_FLAGS (1u << 14) /*some extra flags like viewmodelforclient*/
+#define UF_EXTEND2 (1u << 15)
+
+/*the rest is optional extensions*/
+#define UF_ALPHA (1u << 16)     /*transparency*/
+#define UF_SCALE (1u << 17)     /*rescaling stuff, 1/16th*/
+#define UF_BONEDATA (1u << 18)  /*for ssqc control over skeletal models*/
+#define UF_DRAWFLAGS (1u << 19) /*scale offsets and things*/
+#define UF_TAGINFO                                                         \
+    (1u << 20) /*simple entity attachments, generally needs either md3s or \
+                  skeletal models*/
+#define UF_LIGHT                                             \
+    (1u << 21) /*attaching rtlights to dynamic entities from \
+                  ssqc*/
+#define UF_TRAILEFFECT \
+    (1u << 22) /*attaches custom particle trails to entities, woo.*/
+#define UF_EXTEND3 (1u << 23)
+
+#define UF_COLORMOD (1u << 24) /*rgb tints. 1/16th*/
+#define UF_GLOW \
+    (1u << 25) /*tbh only useful as an extra 'renderable' field for csqc...*/
+#define UF_FATNESS                                     \
+    (1u << 26) /*push the entity's normals out by this \
+                  distance*/
+#define UF_MODELINDEX2                                                       \
+    (1u << 27) /*for lame visible weapon models, like q2. just adds a second \
+                  ent at the same point*/
+#define UF_GRAVITYDIR (1u << 28) /*yay prediction*/
+#define UF_EFFECTS2                                                      \
+    (1u << 29) /*effects is 16bit, or if both effects flags are set then \
+                  32bit*/
+#define UF_UNUSED2 (1u << 30)
+#define UF_UNUSED1 (1u << 31)
+
+/*these flags are generally not deltaed as they're changing constantly*/
+#define UFP_FORWARD (1u << 0)
+#define UFP_SIDE (1u << 1)
+#define UFP_UP (1u << 2)
+#define UFP_MOVETYPE (1u << 3) /*deltaed*/
+#define UFP_VELOCITYXY (1u << 4)
+#define UFP_VELOCITYZ (1u << 5)
+#define UFP_MSEC (1u << 6)
+#define UFP_WEAPONFRAME_OLD \
+    (1u << 7) // no longer used. just a stat now that I rewrote stat deltas.
+#define UFP_VIEWANGLE (1u << 7)
+// spike
+
 #define SU_VIEWHEIGHT (1 << 0)
 #define SU_IDEALPITCH (1 << 1)
 #define SU_PUNCH1 (1 << 2)
@@ -166,11 +236,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SU_UNUSED30 (1 << 30)
 #define SU_EXTEND3 (1 << 31) // another byte to follow, future expansion
 // johnfitz
+// spike dp crap
+#define DPSU_PUNCHVEC1 (1 << 16)
+#define DPSU_PUNCHVEC2 (1 << 17)
+#define DPSU_PUNCHVEC3 (1 << 18)
+#define DPSU_VIEWZOOM (1 << 19) // byte factor (0 = 0.0 (not valid), 255 = 1.0)
+// spike
 
 // a sound with no channel is a local only sound
 #define SND_VOLUME (1 << 0)      // a byte
 #define SND_ATTENUATION (1 << 1) // a byte
-#define SND_LOOPING (1 << 2)     // a long
+//#define	SND_LOOPING		(1<<2)	// a long (unused in vanilla)
 
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
@@ -179,6 +255,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SND_LARGEENTITY (1 << 3) // a short + byte (instead of just a short)
 #define SND_LARGESOUND (1 << 4)  // a short soundindex (instead of a byte)
 // johnfitz
+// spike -- parsing, but not using at this time
+#define SND_FTE_MOREFLAGS (1 << 2) // a byte, for channel flags
+#define SND_DP_PITCH (1 << 5)      // dp uses this for pitch...
+#define SND_FTE_TIMEOFS (1 << 6)   // signed short, in milliseconds.
+#define SND_FTE_PITCHADJ (1 << 7)  // a byte (speed percent (0=100%))
+#define SND_FTE_VELOCITY (1 << 8)  // 3 shorts (1/8th), for doppler or whatever.
+// spike
 
 // johnfitz -- PROTOCOL_QUAKEVR -- flags for entity baseline messages
 #define B_LARGEMODEL (1 << 0) // modelindex is short instead of byte
@@ -362,6 +445,40 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // PGM 01/21/97
 #define TE_BEAM 13
 // PGM 01/21/97
+
+// spike, these are from nehahra. misc servers might expect us to support them
+#define TENEH_EXPLOSION3 \
+    16 // [vector] origin [coord] red [coord] green [coord] blue
+#define TENEH_LIGHTNING4 \
+    17 // [string] model [entity] entity [vector] start [vector] end
+// spike, quakeworld mods have different explosion+gunshot behaviour, which we
+// might be expected to support
+#define TEFTE_EXPLOSION_SPRITE 20 // for compat with qw mods
+#define TEFTE_GUNSHOT_COUNT 21    // for compat with qw mods
+// spike, these are the various te effects from DP. ideally people would just
+// use pointparticles so these are somewhat considered legacy.
+#define TEDP_BLOOD 50
+#define TEDP_SPARK 51
+#define TEDP_BLOODSHOWER 52
+#define TEDP_EXPLOSIONRGB 53
+#define TEDP_PARTICLECUBE 54
+#define TEDP_PARTICLERAIN \
+    55 // [vector] min [vector] max [vector] dir [short] count [byte] color
+#define TEDP_PARTICLESNOW \
+    56 // [vector] min [vector] max [vector] dir [short] count [byte] color
+#define TEDP_GUNSHOTQUAD 57    // [vector] origin
+#define TEDP_SPIKEQUAD 58      // [vector] origin
+#define TEDP_SUPERSPIKEQUAD 59 // [vector] origin
+#define TEDP_EXPLOSIONQUAD 70  // [vector] origin
+#define TEDP_SMALLFLASH 72     // [vector] origin
+#define TEDP_CUSTOMFLASH 73
+#define TEDP_FLAMEJET 74
+#define TEDP_PLASMABURN 75
+#define TEDP_TEI_G3 76
+#define TEDP_SMOKE 77
+#define TEDP_TEI_BIGEXPLOSION 78
+#define TEDP_TEI_PLASMAHIT 79
+// end spike
 
 struct entity_state_t
 {

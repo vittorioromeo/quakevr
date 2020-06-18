@@ -830,8 +830,6 @@ void SV_RunClients()
             continue;
         }
 
-// TODO VR: (P0): QSS Merge
-#if 0
         if(!host_client->netconnection)
         {
             // botclients can't receive packets. don't even try.
@@ -849,7 +847,6 @@ void SV_RunClients()
             host_client->cmd.viewangles[1] = host_client->edict->v.v_angle[1];
             host_client->cmd.viewangles[2] = host_client->edict->v.v_angle[2];
         }
-#endif
 
         // always pause in single player if in console or menus
         if(!sv.paused && (svs.maxclients > 1 || key_dest == key_game))

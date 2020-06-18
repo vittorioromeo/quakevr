@@ -377,3 +377,20 @@ void MSG_BeginReading()
 {
     return {MSG_ReadCoord(flags), MSG_ReadCoord(flags), MSG_ReadCoord(flags)};
 }
+
+// QSS
+// spike -- for downloads
+[[nodiscard]] byte* MSG_ReadData(unsigned int length)
+{
+    byte* data;
+
+    if(msg_readcount + length > (unsigned int)net_message.cursize)
+    {
+        msg_badread = true;
+        return nullptr;
+    }
+
+    data = net_message.data + msg_readcount;
+    msg_readcount += length;
+    return data;
+}

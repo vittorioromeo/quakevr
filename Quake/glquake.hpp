@@ -331,7 +331,6 @@ extern devstats_t dev_stats, dev_peakstats;
 typedef struct
 {
     double packetsize;
-    double efrags;
     double beams;
     double varstring;
 } overflowtimes_t;

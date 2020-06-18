@@ -2261,9 +2261,19 @@ static void PF_sv_setspawnparms()
     client_t* client = svs.clients + (i - 1);
 
     // VR: Parms like `parm8` are handled specially:
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++)
     {
         (&pr_global_struct->parm1)[i] = client->spawn_parms[i];
+    }
+ 	
+ 	// extended spawn parms
+    for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
+    {
+        ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
+        if(g)
+        {
+            qcvm->globals[g->ofs] = client->spawn_parms[i];
+        }
     }
 }
 
