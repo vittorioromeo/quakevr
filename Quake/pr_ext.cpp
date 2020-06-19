@@ -483,7 +483,7 @@ static void PF_ext_vectoangles()
 
     const qvec3 value1 = extractVector(OFS_PARM0);
 
-    if(qcvm->argc >= 2)
+    if(qcvm->argc >= 2) 
     {
         const qvec3 up = extractVector(OFS_PARM1);
 
@@ -2238,7 +2238,8 @@ static void PF_frameforname()
     aliashdr_t* alias;
 
     G_FLOAT(OFS_RETURN) = -1;
-    if(mod && mod->type == mod_alias && (alias = (aliashdr_t*)Mod_Extradata(mod)))
+    if(mod && mod->type == mod_alias &&
+        (alias = (aliashdr_t*)Mod_Extradata(mod)))
     {
         int i;
         for(i = 0; i < alias->numframes; i++)
@@ -2258,7 +2259,8 @@ static void PF_frametoname()
     qmodel_t* mod = qcvm->GetModel(modelindex);
     aliashdr_t* alias;
 
-    if(mod && mod->type == mod_alias && (alias = (aliashdr_t*)Mod_Extradata(mod)) &&
+    if(mod && mod->type == mod_alias &&
+        (alias = (aliashdr_t*)Mod_Extradata(mod)) &&
         framenum < (unsigned int)alias->numframes)
         G_INT(OFS_RETURN) = PR_SetEngineString(alias->frames[framenum].name);
     else
@@ -2271,7 +2273,8 @@ static void PF_frameduration()
     qmodel_t* mod = qcvm->GetModel(modelindex);
     aliashdr_t* alias;
 
-    if(mod && mod->type == mod_alias && (alias = (aliashdr_t*)Mod_Extradata(mod)) &&
+    if(mod && mod->type == mod_alias &&
+        (alias = (aliashdr_t*)Mod_Extradata(mod)) &&
         framenum < (unsigned int)alias->numframes)
         G_FLOAT(OFS_RETURN) =
             alias->frames[framenum].numposes * alias->frames[framenum].interval;
@@ -2595,8 +2598,7 @@ static void PF_getsurfacepointattribute()
                 const auto& rawvec = fa->texinfo->vecs[attribute - 1];
                 qvec3 vec(rawvec[0], rawvec[1], rawvec[2]);
 
-                qvec3 result = glm::normalize(
-                    vec + sc * fa->plane->normal);
+                qvec3 result = glm::normalize(vec + sc * fa->plane->normal);
 
                 returnVector(result);
             }
@@ -3281,7 +3283,8 @@ static void PF_fopen()
         if(i == qcfiles_max)
         {
             qcfiles_max++;
-            qcfiles = (struct qcfile_s*)Z_Realloc(qcfiles, sizeof(*qcfiles) * qcfiles_max);
+            qcfiles = (struct qcfile_s*)Z_Realloc(
+                qcfiles, sizeof(*qcfiles) * qcfiles_max);
         }
         if(!qcfiles[i].file)
         {
@@ -3546,11 +3549,12 @@ struct filesearch_s
 static bool PR_Search_AddFile(
     void* ctx, const char* fname, time_t mtime, size_t fsize)
 {
-    struct filesearch_s* c = (struct filesearch_s* )ctx;
+    struct filesearch_s* c = (struct filesearch_s*)ctx;
     if(c->numfiles == c->maxfiles)
     {
         c->maxfiles = c->maxfiles * 2 + 2;
-        c->file = (filesearch_s::filesearch_file_t*) realloc(c->file, c->maxfiles * sizeof(*c->file));
+        c->file = (filesearch_s::filesearch_file_t*)realloc(
+            c->file, c->maxfiles * sizeof(*c->file));
     }
     q_strlcpy(
         c->file[c->numfiles].name, fname, sizeof(c->file[c->numfiles].name));
@@ -4843,7 +4847,7 @@ static void PF_multicast_internal(
                 continue;
             }
 
-    // TODO VR: (P0) QSS Merge
+            // TODO VR: (P0) QSS Merge
             /*
             if(requireext2 && !(svs.clients[i].protocol_pext2 & requireext2))
             {
@@ -5171,7 +5175,7 @@ static void PF_globalstat()
     int idx = G_FLOAT(OFS_PARM0);
     int type = G_FLOAT(OFS_PARM1);
     const char* globname = G_STRING(OFS_PARM2);
-    eval_t* ptr = (eval_t * )PR_FindExtGlobal(type, globname);
+    eval_t* ptr = (eval_t*)PR_FindExtGlobal(type, globname);
     server_t::svcustomstat_s* stat;
     if(ptr)
     {
@@ -5614,7 +5618,7 @@ static qpic_t* DrawQC_CachePic(const char* picname, int cachetype)
     if(i + 1 > maxqcpics)
     {
         maxqcpics = i + 32;
-        qcpics =(qcpics_t*) realloc(qcpics, maxqcpics * sizeof(*qcpics));
+        qcpics = (qcpics_t*)realloc(qcpics, maxqcpics * sizeof(*qcpics));
     }
 
     strcpy(qcpics[i].name, picname);
@@ -6396,7 +6400,7 @@ static void PF_cl_readentitynum()
     G_FLOAT(OFS_RETURN) = MSG_ReadEntity(cl.protocol_pext2);
     */
 
-   G_FLOAT(OFS_RETURN) = 0;
+    G_FLOAT(OFS_RETURN) = 0;
 }
 static void PF_cl_sendevent()
 {
@@ -8388,7 +8392,9 @@ void PR_EnableExtensions(ddef_t* pr_globaldefs)
         return;
     }
 
-    qcvm->builtins[51] = PF_ext_vectoangles; // swap it with a two-arg version.
+    // TODO VR: (P0) crashes on safeAtan2 assertion:
+    // qcvm->builtins[51] = PF_ext_vectoangles; // swap it with a two-arg
+    // version.
 
     qcvm->extfuncs.SV_ParseClientCommand =
         PR_FindExtFunction("SV_ParseClientCommand");
@@ -8403,8 +8409,10 @@ void PR_EnableExtensions(ddef_t* pr_globaldefs)
     qcvm->extfuncs.CSQC_Parse_Event = PR_FindExtFunction("CSQC_Parse_Event");
     qcvm->extfuncs.CSQC_Parse_Damage = PR_FindExtFunction("CSQC_Parse_Damage");
     qcvm->extglobals.cltime = (float*)PR_FindExtGlobal(ev_float, "cltime");
-    qcvm->extglobals.maxclients = (float*)PR_FindExtGlobal(ev_float, "maxclients");
-    qcvm->extglobals.intermission = (float*)PR_FindExtGlobal(ev_float, "intermission");
+    qcvm->extglobals.maxclients =
+        (float*)PR_FindExtGlobal(ev_float, "maxclients");
+    qcvm->extglobals.intermission =
+        (float*)PR_FindExtGlobal(ev_float, "intermission");
     qcvm->extglobals.intermission_time =
         (float*)PR_FindExtGlobal(ev_float, "intermission_time");
     qcvm->extglobals.player_localnum =

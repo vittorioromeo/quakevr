@@ -1622,7 +1622,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         {
             data++;
         }
-        
+
         if(data[0] == '/' && data[1] == '*' &&
             (data[2] == '\r' || data[2] == '\n'))
         { // looks like an extended saved game
@@ -1751,8 +1751,6 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
         svs.clients->spawn_parms[i] = spawn_parms[i];
     }
 
-    PR_SwitchQCVM(nullptr);
-
     if(cls.state != ca_dedicated)
     {
         CL_EstablishConnection("local");
@@ -1761,6 +1759,8 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     Con_DPrintf("Calling QC 'OnLoadGame'.\n");
     PR_ExecuteProgram(pr_global_struct->OnLoadGame);
+
+    PR_SwitchQCVM(nullptr);
     return true;
 }
 
@@ -2243,12 +2243,12 @@ void Host_Spawn_f()
 
     if(host_client->spawned)
     {
-        Con_Printf("Spawn not valid -- allready spawned\n");
+        Con_Printf("Spawn not valid -- already spawned\n");
         return;
     }
 
     host_client->knowntoqc = true;
-    
+
     // run the entrance script
     if(sv.loadgame)
     {
@@ -2273,7 +2273,7 @@ void Host_Spawn_f()
         {
             (&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
         }
-    
+
         // extended spawn parms
         for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
         {
@@ -2283,7 +2283,7 @@ void Host_Spawn_f()
                 qcvm->globals[g->ofs] = host_client->spawn_parms[i];
             }
         }
-        
+
         // call the spawn function
         pr_global_struct->time = qcvm->time; // QSS
 

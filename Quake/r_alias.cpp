@@ -1176,6 +1176,8 @@ void R_DrawAliasModel(entity_t* e)
         paliashdr->scale_origin[2]);
     glScalef(paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
 
+    glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
+
     //
     // random stuff
     //

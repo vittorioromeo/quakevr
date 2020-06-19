@@ -253,7 +253,7 @@ static void CL_ParseStartSoundPacket()
     }
     */
 
-    if(field_mask & SND_VOLUME) 
+    if(field_mask & SND_VOLUME)
     {
         volume = MSG_ReadByte();
     }
@@ -738,6 +738,11 @@ static void CL_ParseUpdate(int bits)
     if(bits & U_SCALE)
     {
         ent->scale_origin = MSG_ReadVec3(cl.protocolflags);
+    }
+
+    if(bits & U_MODELOFFSET)
+    {
+        ent->model_offset = MSG_ReadVec3(cl.protocolflags);
     }
 
     // johnfitz -- lerping for movetype_step entities

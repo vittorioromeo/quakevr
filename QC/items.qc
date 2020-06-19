@@ -867,10 +867,7 @@ void(entity xEnt, float scaleFactor) MakeItemGrabbable =
     self.oldorigin = self.origin;
     self.rad_time = -999;
 
-    vector factorVector;
-    factorVector.x = scaleFactor;
-    factorVector.y = scaleFactor;
-    factorVector.z = scaleFactor;
+    vector factorVector = VR_ScaleUtil_GetUniformScaleVector(scaleFactor);
 
     VR_ScaleUtil_SetScale(self, factorVector);
     setsize(self, '0 0 0', self.maxs * scaleFactor);
@@ -1511,15 +1508,30 @@ void() BackpackTouch =
 DropBackpack
 ===============
 */
+void() BackpackTouch2 =
+{
+    if(self.owner != world && other == self.owner)
+        return;
+
+    if(other.solid == SOLID_TRIGGER)
+        return;    // trigger field, do nothing
+
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
+    {
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        self.throwhit = QVR_THROWHIT_HIT;
+    }
+}
+
 void() DropBackpack =
 {
-    entity    item;
-
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
     + self.ammo_lava_nails + self.ammo_multi_rockets + self.ammo_plasma))
+    {
         return;    // nothing in it
+    }
 
-    item = spawn();
+    entity item = spawn();
     item.origin = self.origin - '0 0 24';
 
     item.ammo_shells = self.ammo_shells;
@@ -1531,14 +1543,43 @@ void() DropBackpack =
     item.velocity_x = -100 + (random() * 200);
     item.velocity_y = -100 + (random() * 200);
 
+    item.angles_z = 90;
+    item.angles_y = random() * 360;
+    // item.angles_z = random() * 360;
+    // item.avelocity_x = random() * 105;
+    item.avelocity_y = random() * 105;
+    // item.avelocity_z = random() * 105;
+
     item.flags = FL_ITEM;
     item.solid = SOLID_TRIGGER;
     item.movetype = MOVETYPE_TOSS;
     setmodel(item, "progs/backpack.mdl");
-    setsize(item, '-8 -8 0', '8 8 24');
-    item.handtouch = BackpackTouch;
-    // TODO VR: (P2) backpack spins because of MF_ROTATE/EF_ROTATE flag in mdl file
 
-    item.nextthink = time + 120;    // remove after 2 minutes
-    item.think = SUB_Remove;
+    float scaleFactor = 0.75;
+    vector factorVector = VR_ScaleUtil_GetUniformScaleVector(scaleFactor);
+    VR_ScaleUtil_SetScale(item, factorVector);
+
+    setsize(item, '-10 -10 0' * scaleFactor, '10 10 18' * scaleFactor);
+    item.model_offset = '0 120 0';
+    item.handtouch = BackpackTouch;
+
+    MakeGrabbable(item);
+
+    item.flags |= FL_FORCEGRABBABLE;
+
+    SetThrownWeaponDealDamage(item, FALSE);
+    SetThrownWeaponDisappearOnHit(item, FALSE);
+
+    item.think = forcegrabbable_item_think;
+    item.nextthink = time + 0.02;
+
+    item.touch = forcegrabbable_touch;
+    item.owner = world;
+
+    item.throwhit = QVR_THROWHIT_HIT;
+    item.throwstabilizedim = 0;
+    item.throwstabilize = 8;
+
+    item.nextthink2 = time + 120;    // remove after 2 minutes
+    item.think2 = SUB_Remove;
 };

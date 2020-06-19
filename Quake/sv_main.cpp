@@ -217,6 +217,7 @@ void SV_Init()
     Cvar_RegisterVariable(&sv_freezenonclients);
     Cvar_RegisterVariable(&sv_gameplayfix_spawnbeforethinks);
     Cvar_RegisterVariable(&sv_gameplayfix_setmodelrealbox);
+    Cvar_RegisterVariable(&pr_checkextension);
     Cvar_RegisterVariable(&sv_altnoclip); // johnfitz
 
     Cvar_RegisterVariable(&sv_sound_watersplash); // spike
@@ -1180,6 +1181,11 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
             bits |= U_SCALE;
         }
 
+        if(ent->baseline.model_offset != ent->v.model_offset)
+        {
+            bits |= U_MODELOFFSET;
+        }
+
         if(bits & U_FRAME && (int)ent->v.frame & 0xFF00)
         {
             bits |= U_FRAME2;
@@ -1304,9 +1310,12 @@ void SV_WriteEntitiesToClient(edict_t* clent, sizebuf_t* msg)
 
         if(bits & U_SCALE)
         {
-            MSG_WriteCoord(msg, ent->v.scale_origin[0], sv.protocolflags);
-            MSG_WriteCoord(msg, ent->v.scale_origin[1], sv.protocolflags);
-            MSG_WriteCoord(msg, ent->v.scale_origin[2], sv.protocolflags);
+            MSG_WriteVec3(msg, ent->v.scale_origin, sv.protocolflags);
+        }
+
+        if(bits & U_MODELOFFSET)
+        {
+            MSG_WriteVec3(msg, ent->v.model_offset, sv.protocolflags);
         }
 
         // johnfitz -- PROTOCOL_QUAKEVR
@@ -2056,6 +2065,7 @@ void SV_CreateBaseline()
         svent->baseline.angles = svent->v.angles;
         svent->baseline.scale = svent->v.scale;
         svent->baseline.scale_origin = svent->v.scale_origin;
+        svent->baseline.model_offset = svent->v.model_offset;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;
         if(entnum > 0 && entnum <= svs.maxclients)

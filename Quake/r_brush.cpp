@@ -604,6 +604,8 @@ void R_DrawBrushModel(entity_t* e)
     glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
     glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
 
+    glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
+
     const bool scaled =
         (e->scale[0] != 0.f) && (e->scale[1] != 0.f) && (e->scale[2] != 0.f);
 
@@ -684,6 +686,8 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
     glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
     glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+
+    glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
 
     //
     // draw it

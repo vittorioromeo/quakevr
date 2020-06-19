@@ -51,6 +51,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLAMP(_minval, x, _maxval) \
     ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
 
+void COM_Effectinfo_Enumerate(
+    int (*cb)(const char* pname)); // spike -- for dp compat
 
 //============================================================================
 
@@ -171,6 +173,9 @@ extern int file_from_pak; // global indicating that file came from a pak
 const char* COM_GetGameNames(bool full);
 bool COM_GameDirMatches(const char* tdirs);
 
+pack_t* FSZIP_LoadArchive(const char* packfile);
+FILE* FSZIP_Deflate(FILE* src, int srcsize, int outsize);
+
 void COM_WriteFile(const char* filename, const void* data, int len);
 int COM_OpenFile(const char* filename, int* handle, unsigned int* path_id);
 int COM_FOpenFile(const char* filename, FILE** file, unsigned int* path_id);
@@ -222,4 +227,3 @@ const char* COM_ParseStringNewline(const char* buffer);
 
 extern struct cvar_t registered;
 extern bool standard_quake, rogue, hipnotic;
-/* if true, run in fitzquake mode disabling custom quakespasm hacks */

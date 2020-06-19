@@ -1047,6 +1047,9 @@ void VID_VR_Init()
     Mod_ForName("progs/proxbomb.mdl", true)->flags |= EF_GRENADE;
     Mod_ForName("progs/mervup.mdl", true)->flags |= EF_GRENADE;
 
+    // VR: Disable rotation of backpack model.
+    Mod_ForName("progs/backpack.mdl", true)->flags &= ~EF_ROTATE;
+
     // Set the cvar if invoked from a command line parameter
     {
         // int i = COM_CheckParm("-vr");

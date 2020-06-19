@@ -3231,6 +3231,26 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
 }
 
+void() wpnthrow_stabilize =
+{
+    if(self.throwstabilizedim == -1)
+    {
+        // Intentionally empty.
+    }
+    else if(self.throwstabilizedim == 0)
+    {
+        wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
+    }
+    else if(self.throwstabilizedim == 1)
+    {
+        wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
+    }
+    else if(self.throwstabilizedim == 2)
+    {
+        wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
+    }
+}
+
 void() forcegrabbable_think_impl =
 {
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
@@ -3289,22 +3309,7 @@ void() forcegrabbable_think_impl =
 
     if(self.throwhit == QVR_THROWHIT_HIT)
     {
-        if(self.throwstabilizedim == -1)
-        {
-            // Intentionally empty.
-        }
-        else if(self.throwstabilizedim == 0)
-        {
-            wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
-        }
-        else if(self.throwstabilizedim == 1)
-        {
-            wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
-        }
-        else if(self.throwstabilizedim == 2)
-        {
-            wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
-        }
+        wpnthrow_stabilize();
     }
 }
 
@@ -3362,7 +3367,6 @@ void() forcegrabbable_touch =
             }
 
             particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 24);
-
         }
 
         if(GetThrownWeaponDisappearOnHit(self) == TRUE)

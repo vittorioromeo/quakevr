@@ -128,7 +128,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define U_SCALE \
     (1 << 20) // 1 byte, for PROTOCOL_RMQ PRFL_EDICTSCALE, currently read but
               // ignored
-#define U_UNUSED21 (1 << 21)
+#define U_MODELOFFSET (1 << 21)
 #define U_UNUSED22 (1 << 22)
 #define U_EXTEND2 (1 << 23) // another byte to follow, future expansion
 // johnfitz
@@ -501,6 +501,7 @@ struct entity_state_t
     qvec3 angles;
     qvec3 scale;
     qvec3 scale_origin;
+    qvec3 model_offset;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned int effects;

@@ -149,8 +149,8 @@ struct areanode_t;
 struct qmodel_t;
 struct edict_t;
 
-// extern cvar_t pr_checkextension; // if 0, extensions are disabled (unless they'd
-                                    // be fatal, but they're still spammy)
+extern cvar_t pr_checkextension; // if 0, extensions are disabled (unless they'd
+                                 // be fatal, but they're still spammy)
 
 #define CSIE_KEYDOWN 0
 #define CSIE_KEYUP 1

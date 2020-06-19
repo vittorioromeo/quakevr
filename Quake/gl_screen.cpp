@@ -487,9 +487,13 @@ static void SCR_CalcRefdef()
     size = scr_viewsize.value;
     scale = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
-    if(size >= 120 || cl.intermission || scr_sbaralpha.value < 1)
+    if(size >= 120 || cl.intermission ||
+        (scr_sbaralpha.value < 1 ||
+            cl.qcvm.extfuncs.CSQC_DrawHud))  
     {
         // johnfitz -- scr_sbaralpha.value
+            // Spike -- simple csqc assumes
+            // fullscreen video the same way.
         sb_lines = 0;
     }
     else if(size >= 110)

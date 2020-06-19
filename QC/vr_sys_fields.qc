@@ -7,6 +7,7 @@
 
 .vector scale;
 .vector scale_origin;
+.vector model_offset;
 
 //
 //

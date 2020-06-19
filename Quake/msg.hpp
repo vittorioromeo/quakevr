@@ -43,6 +43,11 @@ void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags);
 void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags);
 void MSG_WriteVec3(sizebuf_t* sb, const qvec3& v, unsigned int flags);
 
+struct entity_state_s;
+void MSG_WriteStaticOrBaseLine(sizebuf_t* buf, int idx,
+    struct entity_state_s* state, unsigned int protocol_pext2,
+    unsigned int protocol, unsigned int protocolflags); // spike
+
 void MSG_BeginReading();
 
 [[nodiscard]] int MSG_ReadChar();
@@ -57,3 +62,4 @@ void MSG_BeginReading();
 [[nodiscard]] float MSG_ReadAngle16(unsigned int flags);
 [[nodiscard]] qvec3 MSG_ReadVec3(unsigned int flags);
 [[nodiscard]] byte* MSG_ReadData(unsigned int length);
+[[nodiscard]] int MSG_ReadEntity(unsigned int pext2); // spike

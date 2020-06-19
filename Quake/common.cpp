@@ -1206,10 +1206,10 @@ static void COM_SetupNullState()
     nullentitystate.alpha =
         0; // fte has 255 by default, with 0 for invisible. fitz uses 1 for
            // invisible, 0 default, and 255=full alpha
-    
+
     // TODO VR: (P0) QSS Merge
     // nullentitystate.scale = 16;
-   
+
 
     //	nullentitystate.solidsize = 0;//ES_SOLID_BSP;
 }
@@ -1451,12 +1451,31 @@ static int COM_FindFile(
 
                 if(handle)
                 {
-                    *handle = pak->handle;
-                    Sys_FileSeek(pak->handle, pak->files[i].filepos);
+                    if(pak->files[i].deflatedsize)
+                    {
+                        FILE* f;
+                        f = fopen(pak->filename, "rb");
+                        if(f)
+                        {
+                            fseek(f, pak->files[i].filepos, SEEK_SET);
+                            f = FSZIP_Deflate(f, pak->files[i].deflatedsize,
+                                pak->files[i].filelen);
+                            *handle = Sys_FileOpenStdio(f);
+                        }
+                        else
+                        { // error!
+                            com_filesize = -1;
+                            *handle = -1;
+                        }
+                    }
+                    else
+                    {
+                        *handle = pak->handle;
+                        Sys_FileSeek(pak->handle, pak->files[i].filepos);
+                    }
                     return com_filesize;
                 }
-
-                if(file)
+                else if(file)
                 { /* open a new file on the pakfile */
 
                     *file = fopen(pak->filename, "rb");
@@ -1464,6 +1483,10 @@ static int COM_FindFile(
                     if(*file)
                     {
                         fseek(*file, pak->files[i].filepos, SEEK_SET);
+                        if(pak->files[i].deflatedsize)
+                            *file =
+                                FSZIP_Deflate(*file, pak->files[i].deflatedsize,
+                                    pak->files[i].filelen);
                     }
 
                     return com_filesize;
@@ -1498,8 +1521,7 @@ static int COM_FindFile(
                 *handle = i;
                 return com_filesize;
             }
-
-            if(file)
+            else if(file)
             {
                 *file = fopen(netpath, "rb");
                 com_filesize = (*file == nullptr) ? -1 : COM_filelength(*file);
@@ -1512,10 +1534,11 @@ static int COM_FindFile(
         }
     }
 
-    if(strcmp(COM_FileGetExtension(filename), "pcx") != 0 &&
-        strcmp(COM_FileGetExtension(filename), "tga") != 0 &&
-        strcmp(COM_FileGetExtension(filename), "lit") != 0 &&
-        strcmp(COM_FileGetExtension(filename), "ent") != 0)
+    const char* ext = COM_FileGetExtension(filename);
+    if(strcmp(ext, "pcx") != 0 && strcmp(ext, "tga") != 0 &&
+        strcmp(ext, "png") != 0 && strcmp(ext, "jpg") != 0 &&
+        strcmp(ext, "jpeg") != 0 && strcmp(ext, "lit") != 0 &&
+        strcmp(ext, "ent") != 0)
     {
         Con_DPrintf2("FindFile: can't find %s\n", filename);
     }
@@ -1722,7 +1745,6 @@ byte* COM_LoadMallocFile_TextMode_OSPath(const char* path, long* len_out)
     FILE* f;
     byte* data;
     long len;
-
     long actuallen;
 
     // ericw -- this is used by Host_Loadgame_f. Translate CRLF to LF on load
@@ -2032,15 +2054,12 @@ static bool COM_AddPackage(searchpath_t* basepath, const char* pakfile)
     else if(!q_strcasecmp(ext, "pk3") || !q_strcasecmp(ext, "pk4") ||
             !q_strcasecmp(ext, "zip") || !q_strcasecmp(ext, "apk"))
     {
-        Sys_Error("Currently not supported extension %s\n", ext);
-
-#if 0
-        // TODO VR: (P0) QSS Merge
         pak = FSZIP_LoadArchive(pakfile);
         if(pak)
+        {
             com_modified =
                 true; // would always be true, so we don't bother with crcs.
-#endif
+        }
     }
     else
     {
@@ -2414,7 +2433,6 @@ COM_InitFilesystem
 void COM_InitFilesystem() // johnfitz -- modified based on topaz's tutorial
 {
     int i;
-
     int j;
 
     Cvar_RegisterVariable(&registered);
@@ -2509,4 +2527,47 @@ void COM_InitFilesystem() // johnfitz -- modified based on topaz's tutorial
     }
 
     COM_CheckRegistered();
+}
+
+// for compat with dpp7 protocols, and mods that cba to precache things.
+void COM_Effectinfo_Enumerate(int (*cb)(const char* pname))
+{
+    int i;
+    const char *f, *e;
+    char* buf;
+    static const char* dpnames[] = {"TE_GUNSHOT", "TE_GUNSHOTQUAD", "TE_SPIKE",
+        "TE_SPIKEQUAD", "TE_SUPERSPIKE", "TE_SUPERSPIKEQUAD", "TE_WIZSPIKE",
+        "TE_KNIGHTSPIKE", "TE_EXPLOSION", "TE_EXPLOSIONQUAD", "TE_TAREXPLOSION",
+        "TE_TELEPORT", "TE_LAVASPLASH", "TE_SMALLFLASH", "TE_FLAMEJET",
+        "EF_FLAME", "TE_BLOOD", "TE_SPARK", "TE_PLASMABURN", "TE_TEI_G3",
+        "TE_TEI_SMOKE", "TE_TEI_BIGEXPLOSION", "TE_TEI_PLASMAHIT",
+        "EF_STARDUST", "TR_ROCKET", "TR_GRENADE", "TR_BLOOD", "TR_WIZSPIKE",
+        "TR_SLIGHTBLOOD", "TR_KNIGHTSPIKE", "TR_VORESPIKE", "TR_NEHAHRASMOKE",
+        "TR_NEXUIZPLASMA", "TR_GLOWTRAIL", "SVC_PARTICLE", nullptr};
+
+    buf = (char*)COM_LoadMallocFile("effectinfo.txt", nullptr);
+    if(!buf)
+    {
+        return;
+    }
+
+    for(i = 0; dpnames[i]; i++)
+    {
+        cb(dpnames[i]);
+    }
+
+    for(f = buf; f; f = e)
+    {
+        e = COM_Parse(f);
+        if(!strcmp(com_token, "effect"))
+        {
+            e = COM_Parse(e);
+            cb(com_token);
+        }
+        while(e && *e && *e != '\n')
+        {
+            e++;
+        }
+    }
+    free(buf);
 }

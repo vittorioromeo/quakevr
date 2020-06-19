@@ -70,6 +70,9 @@ cvar_t sv_sound_watersplash = {
     "sv_sound_watersplash", "misc/h2ohit1.wav", CVAR_NONE};
 cvar_t sv_sound_land = {"sv_sound_land", "demon/dland2.wav", CVAR_NONE};
 
+
+#define MOVE_EPSILON 0.01
+
 void SV_Physics_Toss(edict_t* ent);
 
 /*
