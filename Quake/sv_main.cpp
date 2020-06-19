@@ -350,7 +350,7 @@ Larger attenuations will drop off.  (max 4 attenuation)
 
 ==================
 */
-void SV_StartSound(edict_t* entity, float* origin, int channel,
+void SV_StartSound(edict_t* entity, const qvec3* origin, int channel,
     const char* sample, int volume, float attenuation)
 {
     unsigned int sound_num, ent;
@@ -484,19 +484,15 @@ void SV_StartSound(edict_t* entity, float* origin, int channel,
         }
         // johnfitz
 
-        for(i = 0; i < 3; i++)
+        if(origin)
         {
-            if(origin)
-            {
-                MSG_WriteCoord(&cl->datagram, origin[i], sv.protocolflags);
-            }
-            else
-            {
-                MSG_WriteCoord(&cl->datagram,
-                    entity->v.origin[i] +
-                        0.5 * (entity->v.mins[i] + entity->v.maxs[i]),
-                    sv.protocolflags);
-            }
+            MSG_WriteVec3(&cl->datagram, *origin, sv.protocolflags);
+        }
+        else
+        {
+            MSG_WriteVec3(&cl->datagram,
+                entity->v.origin + 0.5f * (entity->v.mins + entity->v.maxs),
+                sv.protocolflags);
         }
     }
 }
@@ -800,7 +796,7 @@ void SV_ConnectClient(int clientnum)
     {
         // call the progs to get default spawn parms for the new client
         PR_ExecuteProgram(pr_global_struct->SetNewParms);
-        
+
         int i;
         for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
         {
@@ -1815,7 +1811,7 @@ bool SV_SendClientDatagram(client_t* client)
 
     SV_VoiceSendPacket(client, &msg);
 
-	msg.maxsize = client->limit_unreliable;
+    msg.maxsize = client->limit_unreliable;
     // send the datagram
     if(msg.cursize &&
         NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
@@ -2207,7 +2203,7 @@ void SV_SaveSpawnparms()
         // client
         pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
         PR_ExecuteProgram(pr_global_struct->SetChangeParms);
-        
+
         int j;
         for(j = 0; j < NUM_BASIC_SPAWN_PARMS; j++)
         {

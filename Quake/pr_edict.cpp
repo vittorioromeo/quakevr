@@ -1257,9 +1257,7 @@ void PR_ClearProgs(qcvm_t* vm)
 
     qcvm = nullptr;
     PR_SwitchQCVM(vm);
-
-    // TODO VR: (P0) QSS Merge
-    // PR_ShutdownExtensions();
+    PR_ShutdownExtensions();
 
     if(qcvm->knownstrings)
     {
@@ -1480,9 +1478,7 @@ bool PR_LoadProgs(
     qcvm->edict_size &= ~(sizeof(void*) - 1);
 
     PR_SetEngineString("");
-
-    // TODO VR: (P0) QSS Merge
-    // PR_EnableExtensions(qcvm->globaldefs);
+    PR_EnableExtensions(qcvm->globaldefs);
 
     return true;
 }
@@ -1499,10 +1495,7 @@ void PR_Init()
     Cmd_AddCommand("edicts", ED_PrintEdicts);
     Cmd_AddCommand("edictcount", ED_Count);
     Cmd_AddCommand("profile", PR_Profile_f);
-
-    // TODO VR: (P0) QSS Merge
-    // Cmd_AddCommand("pr_dumpplatform", PR_DumpPlatform_f);
-
+    Cmd_AddCommand("pr_dumpplatform", PR_DumpPlatform_f);
     Cvar_RegisterVariable(&nomonsters);
     Cvar_RegisterVariable(&gamecfg);
     Cvar_RegisterVariable(&scratch1);
@@ -1515,8 +1508,7 @@ void PR_Init()
     Cvar_RegisterVariable(&saved3);
     Cvar_RegisterVariable(&saved4);
 
-    // TODO VR: (P0) QSS Merge
-    // PR_InitExtensions();
+    PR_InitExtensions();
 }
 
 edict_t* EDICT_NUM(int n)

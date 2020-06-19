@@ -58,12 +58,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // #define PARANOID // speed sapping error checking
 
+// #define PSET_SCRIPT // enable the scriptable particle system (poorly ported
+// from FTE)
+
+// #define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's
+// effects
+
 #define GAMENAME "id1" // directory to look in by default
-
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
-#define CACHE_SIZE 32 // used to align key data structures
-
-#define Q_UNUSED(x) (x = x) // for pesky compiler / lint warnings
 
 #define MINIMUM_MEMORY 1'048'576 // 16 MB
 #define MINIMUM_MEMORY_LEVELPAK (MINIMUM_MEMORY + 0x100000)
@@ -78,7 +79,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // fall over
 #define ROLL 2
-
 
 #define MAX_QPATH 128 // max length of a quake game pathname
 
@@ -102,8 +102,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_EDICTS \
     32000 // johnfitz -- highest allowed value for max_edicts cvar
           // ents past 8192 can't play sounds in the standard protocol
-#define MAX_LIGHTSTYLES 256
-#define MAX_MODELS 2048 // johnfitz -- was 256
+#define MAX_LIGHTSTYLES 1024
+#define MAX_MODELS 4096 // johnfitz -- was 256
 #define MAX_SOUNDS 2048 // johnfitz -- was 256
 
 #define SAVEGAME_COMMENT_LENGTH 39
@@ -113,7 +113,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // stats are integers communicated to the client by the server
 //
-#define MAX_CL_STATS 64
+#define MAX_CL_STATS 256
 
 #define STAT_HEALTH 0
 #define STAT_FRAGS 1
@@ -158,6 +158,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPONFLAGS3 40
 #define STAT_HOLSTERWEAPONFLAGS4 41
 #define STAT_HOLSTERWEAPONFLAGS5 42
+#define STAT_ITEMS 43      // replaces clc_clientdata info
+#define STAT_VIEWHEIGHT 44 // replaces clc_clientdata info
+//#define STAT_TIME			45	//zquake, redundant for nq.
+//#define STAT_MATCHSTARTTIME 46
+//#define STAT_VIEW2		47
+#define STAT_VIEWZOOM 48 // DP
+//#define STAT_UNUSED3		49
+//#define STAT_UNUSED2		50
+//#define STAT_UNUSED1		51
+#define STAT_IDEALPITCH 52   // nq-emu
+#define STAT_PUNCHANGLE_X 53 // nq-emu
+#define STAT_PUNCHANGLE_Y 54 // nq-emu
+#define STAT_PUNCHANGLE_Z 55 // nq-emu
+#define STAT_PUNCHVECTOR_X 56
+#define STAT_PUNCHVECTOR_Y 57
+#define STAT_PUNCHVECTOR_Z 58
+
+
 
 // stock defines
 //
@@ -275,7 +293,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_VRBITS0_2H_AIMING             VRUTIL_POWER_OF_TWO(5)
 // clang-format on
 
-#define MAX_SCOREBOARD 16
+#define MAX_SCOREBOARD 255
 #define MAX_SCOREBOARDNAME 32
 
 #define SOUND_CHANNELS 8

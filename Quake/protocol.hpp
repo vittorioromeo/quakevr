@@ -27,6 +27,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // protocol.h -- communications protocols
 
+#define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
+//#define PROTOCOL_VERSION_H2	19
+//#define PROTOCOL_VERSION_NEHD	250
+#define PROTOCOL_FITZQUAKE \
+    666 // johnfitz -- added new protocol for fitzquake 0.85
+#define PROTOCOL_RMQ 999
+//#define PROTOCOL_VERSION_DP5	3502
+//#define PROTOCOL_VERSION_DP6	3503
+#define PROTOCOL_VERSION_DP7 3504
+//#define PROTOCOL_VERSION_BJP1	10000
+//#define PROTOCOL_VERSION_BJP2	10001
+#define PROTOCOL_VERSION_BJP3 \
+    10002 // spike, note that this protocol is intentionally flawed to work
+          // around mods+writebytes - svc_staticsound is limited to 8bit indexes.
+
 #define PROTOCOL_QUAKEVR 8682
 
 // PROTOCOL_RMQ protocol flags
@@ -508,7 +523,7 @@ struct entity_state_t
     unsigned short tagentity;
     //	unsigned short	pad;
     unsigned char colormod[3]; // spike -- entity tints, *32
-    unsigned char alpha;    // johnfitz -- added
+    unsigned char alpha;       // johnfitz -- added
 };
 
 #define EFLAGS_STEP 1

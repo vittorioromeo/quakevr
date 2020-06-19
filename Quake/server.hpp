@@ -354,7 +354,7 @@ void SV_StartParticle(
     const qvec3& org, const qvec3& dir, const int color, const int count);
 void SV_StartParticle2(
     const qvec3& org, const qvec3& dir, const int preset, const int count);
-void SV_StartSound(edict_t* entity, float* origin, int channel,
+void SV_StartSound(edict_t* entity, const qvec3* origin, int channel,
     const char* sample, int volume, float attenuation);
 
 void SV_DropClient(bool crash);

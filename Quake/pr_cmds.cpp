@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.hpp"
 #include "client.hpp"
 #include "q_sound.hpp"
+#include "progs_utils.hpp"
 
 #include <cmath>
 #include <glm/gtx/rotate_vector.hpp>
@@ -53,7 +54,6 @@ char* PR_GetTempString()
     return pr_string_temp[(STRINGTEMP_BUFFERS - 1) & ++pr_string_tempindex];
 }
 
-#define RETURN_EDICT(e) (((int*)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 
 #define MSG_BROADCAST 0 // unreliable to all
 #define MSG_ONE 1       // reliable to one (msg_entity)
@@ -65,22 +65,6 @@ char* PR_GetTempString()
 #define MSG_EXT_ENTITY \
     5 // for csqc networking. we don't actually support this. I'm just defining
       // it for completeness.
-
-[[nodiscard]] QUAKE_FORCEINLINE static qvec3 extractVector(
-    const int parm) noexcept
-{
-    float* const ptr = G_VECTOR(parm);
-    return {ptr[0], ptr[1], ptr[2]};
-}
-
-QUAKE_FORCEINLINE static void returnVector(const qvec3& v) noexcept
-{
-    G_VECTOR(OFS_RETURN)[0] = v[0];
-    G_VECTOR(OFS_RETURN)[1] = v[1];
-    G_VECTOR(OFS_RETURN)[2] = v[2];
-}
-
-
 
 /*
 ===============================================================================
@@ -250,7 +234,7 @@ static void PF_setorigin()
     SV_LinkEdict(e, false);
 }
 
-static void SetMinMaxSize(
+void SetMinMaxSize(
     edict_t* e, const qvec3& minvec, const qvec3& maxvec, bool rotate)
 {
     qvec3 rmin;
@@ -2265,7 +2249,7 @@ static void PF_sv_setspawnparms()
     {
         (&pr_global_struct->parm1)[i] = client->spawn_parms[i];
     }
- 	
+
  	// extended spawn parms
     for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
     {
@@ -2296,11 +2280,7 @@ static void PF_sv_changelevel()
     Cbuf_AddText(va("changelevel %s\n", s));
 }
 
-void PF_Fixme()
-{
-    // TODO VR: (P0) QSS Merge
-    Con_Printf("PF_Fixme()\n");
-}
+void PF_Fixme();
 
 void PR_spawnfunc_misc_model(edict_t* self)
 {

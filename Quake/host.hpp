@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <ctime>
 
 struct cvar_t;
+struct client_t;
+struct sizebuf_t;
 
 void Host_ClearMemory();
 void Host_ServerFrame();
@@ -42,13 +44,12 @@ bool Host_MakeSavegame(const char* filename, const std::time_t* timestamp,
 [[noreturn]] void Host_Error(const char* error, ...) FUNC_PRINTF(1, 2);
 [[noreturn]] void Host_EndGame(const char* message, ...) FUNC_PRINTF(1, 2);
 
-#ifdef __WATCOMC__
-#pragma aux Host_Error aborts;
-#pragma aux Host_EndGame aborts;
-#endif
-
 void Host_Frame(double time);
 void Host_Quit_f();
 void Host_ClientCommands(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Host_ShutdownServer(bool crash);
 void Host_WriteConfiguration();
+
+// QSS
+void Host_AppendDownloadData(client_t* client, sizebuf_t* buf);
+void Host_DownloadAck(client_t* client);

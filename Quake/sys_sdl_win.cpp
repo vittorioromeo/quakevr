@@ -353,6 +353,7 @@ void Sys_Init()
 
     if(isDedicated)
     {
+    	// TODO VR: (P0) deal with allocconsole
         if(false && !AllocConsole())
         {
             isDedicated = false; /* so that we have a graphical error dialog */
