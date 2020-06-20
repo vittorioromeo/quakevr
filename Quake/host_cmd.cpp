@@ -549,9 +549,6 @@ void Host_Status_f()
         }
     }
     print_fn("sounds:  %i/%i\n", j, MAX_SOUNDS - 1);
-
-// TODO VR: (P0): QSS Merge
-#if 0
     for(i = 0, j = 0; i < MAX_PARTICLETYPES; i++)
     {
         if(sv.particle_precache[i])
@@ -573,7 +570,6 @@ void Host_Status_f()
         }
     }
     print_fn("entities:%i/%i\n", j, sv.qcvm.max_edicts);
-#endif
 
     print_fn("players: %i active (%i max)\n\n", net_activeconnections,
         svs.maxclients);
@@ -2210,18 +2206,10 @@ void Host_PreSpawn_f()
         return;
     }
 
-// TODO VR: (P0): QSS Merge
-#if 0
     // QSS
     // will start splurging out prespawn data
     host_client->sendsignon = 2;
     host_client->signonidx = 0;
-#else
-    SZ_Write(&host_client->message, sv.signon.data, sv.signon.cursize);
-    MSG_WriteByte(&host_client->message, svc_signonnum);
-    MSG_WriteByte(&host_client->message, 2);
-    host_client->sendsignon = true;
-#endif
 }
 
 /*
@@ -2312,30 +2300,20 @@ void Host_Spawn_f()
 
     // send time of update
     MSG_WriteByte(&host_client->message, svc_time);
-
-// TODO VR: (P0): QSS Merge
-#if 0
-    MSG_WriteFloat(&host_client->message, qcvm->time); // QSS
-
-    // QSS
-    if (host_client->protocol_pext2 & PEXT2_PREDINFO)
-    {
-        MSG_WriteShort(&host_client->message, (host_client->lastmovemessage&0xffff));
-    }
-#else
     MSG_WriteFloat(&host_client->message, qcvm->time);
-#endif
+    //if (host_client->protocol_pext2 & PEXT2_PREDINFO)
+    if(true)
+    {
+        MSG_WriteShort(
+            &host_client->message, (host_client->lastmovemessage & 0xffff));
+    }
 
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
     {
-        // TODO VR: (P0): QSS Merge
-#if 0
         if(!client->knowntoqc)
         {
             continue;
         }
-#endif
-
         MSG_WriteByte(&host_client->message, svc_updatename);
         MSG_WriteByte(&host_client->message, i);
         MSG_WriteString(&host_client->message, client->name);
@@ -2405,16 +2383,10 @@ void Host_Spawn_f()
     }
     MSG_WriteAngle(&host_client->message, 0, sv.protocolflags);
 
-    // TODO VR: (P0): QSS Merge
-#if 0
-	// QSS
 	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
     {
 		SV_WriteClientdataToMessage(host_client, &host_client->message);
     }
-#else
-    SV_WriteClientdataToMessage(sv_player, &host_client->message);
-#endif
 
     MSG_WriteByte(&host_client->message, svc_signonnum);
     MSG_WriteByte(&host_client->message, 3);
@@ -3338,10 +3310,7 @@ void Host_InitCommands()
     Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
     Cmd_AddCommand("connect", Host_Connect_f);
-
-    // TODO VR: (P0): should be Con_f, but doesn't work properly
-    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Sv_f); // QSS
-
+    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Con_f); // QSS
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
     Cmd_AddCommand_ServerCommand ("ls", Host_Lightstyle_f); // QSS
     Cmd_AddCommand_ClientCommand("name", Host_Name_f);     // QSS

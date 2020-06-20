@@ -235,7 +235,7 @@ struct client_t
         int sequence; // to see if its stale
         float timestamp;
         unsigned int resendstats[MAX_CL_STATS / 32];
-        struct
+        struct frameent_t
         {
             unsigned int num;
             unsigned int bits;
@@ -382,7 +382,7 @@ void SV_Physics();
 bool SV_CheckBottom(edict_t* ent);
 bool SV_movestep(edict_t* ent, qvec3 move, bool relink);
 
-void SV_WriteClientdataToMessage(edict_t* ent, sizebuf_t* msg);
+void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg);
 
 void SV_MoveToGoal();
 
