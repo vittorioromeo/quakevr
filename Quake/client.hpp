@@ -206,13 +206,11 @@ struct client_state_t
     qvec3 punchangle; // temporary offset
 
     // pitch drifting vars
-    float idealpitch;
     float pitchvel;
     bool nodrift;
     float driftmove;
     double laststop;
 
-    float viewheight;
     float crouch; // local amount for smoothing stepups
 
     bool paused; // send over by server
@@ -298,7 +296,7 @@ struct client_state_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
-    // unsigned protocol_pext2; // spike -- flag of fte protocol extensions
+    unsigned protocol_pext2; // spike -- flag of fte protocol extensions
 
     // QSS
     bool protocol_dpdownload;

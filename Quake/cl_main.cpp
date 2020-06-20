@@ -520,6 +520,157 @@ float CL_LerpPoint()
     return frac;
 }
 
+static bool CL_LerpEntity(entity_t* ent, qvec3& org, qvec3& ang, float frac)
+{
+    float f, d;
+    int j;
+    qvec3 delta;
+    bool teleported = false;
+    // figure out the pos+angles of the parent
+    if(ent->forcelink)
+    { // the entity was not updated in the last message
+        // so move to the final spot
+        org = ent->msg_origins[0];
+        ang = ent->msg_angles[0];
+    }
+    else
+    { // if the delta is large, assume a teleport and don't lerp
+        f = frac;
+        for(j = 0; j < 3; j++)
+        {
+            delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
+            if(delta[j] > 100 || delta[j] < -100)
+            {
+                f = 1;             // assume a teleportation, not a motion
+                teleported = true; // johnfitz -- don't lerp teleports
+            }
+        }
+
+        // johnfitz -- don't cl_lerp entities that will be r_lerped
+        if(r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+        {
+            f = 1;
+        }
+        // johnfitz
+
+        // interpolate the origin and angles
+        for(j = 0; j < 3; j++)
+        {
+            org[j] = ent->msg_origins[1][j] + f * delta[j];
+
+            d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
+            if(d > 180)
+            {
+                d -= 360;
+            }
+            else if(d < -180)
+            {
+                d += 360;
+            }
+            ang[j] = ent->msg_angles[1][j] + f * d;
+        }
+    }
+    return teleported;
+}
+
+static bool CL_AttachEntity(entity_t* ent, float frac)
+{
+    entity_t* parent;
+    qvec3 porg, pang;
+    qvec3 paxis[3];
+    qvec3 tmp, fwd, up;
+    unsigned int tagent = ent->netstate.tagentity;
+    int runaway = 0;
+
+    while(1)
+    {
+        if(!tagent)
+        {
+            return true; // nothing to do.
+        }
+        if(runaway++ == 10 || tagent >= (unsigned int)cl.num_entities)
+        {
+            return false; // parent isn't valid
+        }
+        parent = &cl.entities[tagent];
+
+        if(tagent == cl.viewentity)
+        {
+            ent->eflags |= EFLAGS_EXTERIORMODEL;
+        }
+
+        if(!parent->model)
+        {
+            return false;
+        }
+        if(0) // tagent < ent-cl_entities)
+        {
+            tagent = parent->netstate.tagentity;
+            porg = parent->origin;
+            pang = parent->angles;
+        }
+        else
+        {
+            tagent = parent->netstate.tagentity;
+            CL_LerpEntity(parent, porg, pang, frac);
+        }
+
+        // FIXME: this code needs to know the exact lerp info of the underlaying
+        // model. however for some idiotic reason, someone decided to figure out
+        // what should be displayed somewhere far removed from the code that
+        // deals with timing so we have absolutely no way to get a reliable
+        // origin in the meantime, r_lerpmove 0; r_lerpmodels 0 you might be
+        // able to work around it by setting the attached entity to
+        // movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
+        // personally I'm just going to call it a quakespasm bug that I cba to
+        // fix.
+
+        // FIXME: update porg+pang according to the tag index (we don't support
+        // md3s/iqms, so we don't need to do anything here yet)
+
+        if(parent->model && parent->model->type == mod_alias)
+        {
+            pang[0] *= -1;
+        }
+
+        std::tie(paxis[0], paxis[1], paxis[2]) =
+            quake::util::getAngledVectors(pang);
+
+        if(ent->model && ent->model->type == mod_alias)
+        {
+            ent->angles[0] *= -1;
+        }
+
+        std::tie(fwd, tmp, up) = quake::util::getAngledVectors(ent->angles);
+
+        // transform the origin
+        tmp = parent->origin, ent->origin[0], paxis[0];
+        tmp = tmp, -ent->origin[1], paxis[1];
+        ent->origin = tmp, ent->origin[2], paxis[2];
+
+        // transform the forward vector
+        tmp = vec3_zero + fwd[0] * paxis[0];
+        tmp = tmp + -fwd[1] * paxis[1];
+        fwd = tmp + fwd[2] * paxis[2];
+
+        // transform the up vector
+        tmp = vec3_zero + up[0] * paxis[0];
+        tmp = tmp + -up[1] * paxis[1];
+        up = tmp + up[2] * paxis[2];
+
+        // regenerate the new angles.
+        // VectorAngles(fwd, up, ent->angles);
+        ent->angles = VectorAngles(fwd);
+        if(ent->model && ent->model->type == mod_alias)
+        {
+            ent->angles[0] *= -1;
+        }
+
+        ent->eflags |=
+            parent->netstate.eflags & (EFLAGS_VIEWMODEL | EFLAGS_EXTERIORMODEL);
+    }
+}
+
 /*
 ===============
 CL_RelinkEntities
@@ -875,7 +1026,7 @@ void CL_Download_Finished_f()
         bool hashokay = false;
         if(size == cls.download.size)
         {
-            byte* tmp = (byte*) malloc(size);
+            byte* tmp = (byte*)malloc(size);
             if(tmp)
             {
                 fseek(cls.download.file, 0, SEEK_SET);
@@ -1252,6 +1403,26 @@ int CL_ReadFromServer()
     // bring the links up to date
     //
     return 0;
+}
+
+/*
+=================
+CL_UpdateViewAngles
+
+Spike: split from CL_SendCmd, to do clientside viewangle changes separately from
+outgoing packets.
+=================
+*/
+void CL_AccumulateCmd()
+{
+    if(cls.signon == SIGNONS)
+    {
+        // basic keyboard looking
+        CL_AdjustAngles();
+
+        // accumulate movement from other devices
+        IN_Move(&cl.pendingcmd);
+    }
 }
 
 /*

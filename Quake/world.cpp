@@ -158,7 +158,7 @@ hull_t* SV_HullForEntity(
 
     hull_t* hull;
 
-// decide which clipping hull to use, based on the size
+    // decide which clipping hull to use, based on the size
 // TODO VR: (P0) QSS Merge
 #if 0
     if(ent->v.solid == SOLID_BSP  && !pr_checkextension.value) // QSS

@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.hpp"
 #include "snd_voip.hpp"
 #include "qcvm.hpp"
+#include "client.hpp"
 
 server_t sv;
 server_static_t svs;
@@ -1510,15 +1511,63 @@ static void SV_Pext_f();
 SV_Protocol_f
 ===============
 */
-void SV_Protocol_f()
+static void SV_Protocol_f()
 {
     int i;
+    const char* s;
+    int prot, pext2;
+
+    prot = sv_protocol;
+    pext2 = sv_protocol_pext2;
 
     switch(Cmd_Argc())
     {
-        case 1: Con_Printf("\"sv_protocol\" is \"%i\"\n", sv_protocol); break;
+        case 1:
+            //"FTE+15" or "15", just to be explicit about it
+            Con_Printf("\"sv_protocol\" is \"%s%i\"\n",
+                sv_protocol_pext2 ? "fte" : "", sv_protocol);
+            break;
         case 2:
-            i = atoi(Cmd_Argv(1));
+            s = Cmd_Argv(1);
+            if(!q_strncasecmp(s, "FTE", 3))
+            {
+                s += 3;
+                if(*s == '+' || *s == '-')
+                {
+                    s++;
+                }
+                pext2 = PEXT2_SUPPORTED_SERVER;
+            }
+            else if(!q_strncasecmp(s, "+", 3))
+            {
+                s += 1;
+                pext2 = PEXT2_SUPPORTED_SERVER;
+            }
+            else if(!q_strncasecmp(s, "Base", 4))
+            {
+                s += 4;
+                if(*s == '+' || *s == '-')
+                {
+                    s++;
+                }
+                pext2 = 0;
+            }
+            else if(*s == '-')
+            {
+                s++;
+                pext2 = 0;
+            }
+
+            i = strtol(s, (char**)&s, 0);
+            if(*s == '-')
+            {
+                pext2 = 0;
+            }
+            else if(*s == '+')
+            {
+                pext2 = PEXT2_SUPPORTED_SERVER;
+            }
+
             if(i != PROTOCOL_QUAKEVR)
             {
                 Con_Printf("sv_protocol must be %i", PROTOCOL_QUAKEVR);
@@ -1526,12 +1575,20 @@ void SV_Protocol_f()
             else
             {
                 sv_protocol = i;
+                sv_protocol_pext2 = pext2;
                 if(sv.active)
                 {
+                    if(prot == sv_protocol && pext2 == sv_protocol_pext2)
+                    {
+                        Con_Printf("specified protocol already active.\n");
+                    }
+                    else
+                    {
                     Con_Printf(
                         "changes will not take effect until the next level "
                         "load.\n");
-                }
+               		 }
+          	  }
             }
             break;
         default: Con_SafePrintf("usage: sv_protocol <protocol>\n"); break;
@@ -1613,8 +1670,7 @@ void SV_Init()
 
     Cvar_RegisterVariable(&rcon_password);
 
-
-
+    Cmd_AddCommand_ClientCommand("pext", SV_Pext_f);
     Cmd_AddCommand("sv_protocol", &SV_Protocol_f); // johnfitz
 
     for(i = 0; i < MAX_MODELS; i++)
@@ -1916,18 +1972,31 @@ void SV_SendServerinfo(client_t* client)
     client->limit_models = 0;
     client->limit_sounds = 0;
 
-    /*
-    if(!client->pextknown)
+    if(!sv_protocol_pext2)
+    {
+        // server disabled pext completely, don't bother trying.
+        // make sure we try reenabling it again on the next map though. mwahaha.
+        client->pextknown = false;
+    }
+    else if(!client->pextknown)
     {
         MSG_WriteByte(&client->message, svc_stufftext);
         MSG_WriteString(&client->message, "cmd pext\n");
         client->sendsignon = true;
         return;
     }
-    */
+    client->protocol_pext2 &= sv_protocol_pext2;
+
+    if(!(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+    {
+        client->protocol_pext2 &=
+            ~PEXT2_PREDINFO; // stats can't be deltaed if there's no deltas, so
+    }
+    // just pretend its not supported on its own.
 
     client->limit_entities =
-        (NET_QSocketGetProQuakeAngleHack(client->netconnection))
+        (sv_protocol_pext2 &&
+            NET_QSocketGetProQuakeAngleHack(client->netconnection))
             ? 2048
             : 600; // vanilla sucks. proquake supports more so assume we can use
                    // that limit if angles are also available (but only if we're
@@ -1936,7 +2005,7 @@ void SV_SendServerinfo(client_t* client)
     client->limit_sounds = 256; // single byte
 
     // now we know their protocol, pick some real defaults
-    // if(sv.protocol != PROTOCOL_NETQUAKE || client->protocol_pext2)
+    if(sv.protocol != PROTOCOL_NETQUAKE || client->protocol_pext2)
     {
         client->limit_unreliable =
             DATAGRAM_MTU; // some safe ethernet limit. these clients should
@@ -1959,13 +2028,12 @@ void SV_SendServerinfo(client_t* client)
             client->limit_unreliable = client->limit_reliable = MAX_DATAGRAM;
         }
     }
-
-    /*if(client->limit_entities > 0x8000 &&
+    if(client->limit_entities > 0x8000 &&
         !(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
     {
         client->limit_entities =
             0x8000; // pext2 changes the encoding of entities to support 23 bits
-    }*/
+    }
     // instead of dpp7's 15bits or vanilla's 16bits, but our
     // writeentity is lazy.
 
@@ -2023,8 +2091,32 @@ retry:
     }
 
     MSG_WriteByte(&client->message, svc_serverinfo);
+
+    if(client->protocol_pext2)
+    { // pext stuff takes the form of modifiers to an underlaying protocol
+        MSG_WriteLong(&client->message, PROTOCOL_FTE_PEXT2);
+        MSG_WriteLong(&client->message,
+            client->protocol_pext2); // active extensions that the client needs
+                                     // to look out for
+    }
     MSG_WriteLong(&client->message,
         sv.protocol); // johnfitz -- sv.protocol instead of PROTOCOL_VERSION
+    if(sv.protocol == PROTOCOL_RMQ)
+    {
+        // mh - now send protocol flags so that the client knows the protocol
+        // features to expect
+        MSG_WriteLong(&client->message, sv.protocolflags);
+    }
+
+    if(client->protocol_pext2 & PEXT2_PREDINFO)
+    {
+        // if multiple gamedirs were used, we should list all the active ones
+        // eg: "id1;hipnotic;rogue;quoth;mod". fixme: engine-specific forced
+        // gamedirs like id1/ or qw/ or fte/ are redundant, so don't bother
+        // listing them we don't really track that stuff, so I'm just going to
+        // report the last one
+        MSG_WriteString(&client->message, COM_GetGameNames(false));
+    }
 
     MSG_WriteByte(&client->message, svs.maxclients);
 
@@ -2141,6 +2233,71 @@ retry:
     }
 }
 
+void SV_Pext_f()
+{
+    // this only makes sense on the server. the clientside part only takes the
+    // form of 'cmd pext', for compat with clients that don't support this.
+    if(cmd_source == src_command)
+    {
+        if(!cls.state)
+        {
+            Con_Printf("Not connected\n");
+            return;
+        }
+        Con_Printf("Current Protocols:\n");
+        if(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+        {
+            Con_Printf("  Replacement Entity Deltas\n");
+        }
+        if(cl.protocol_pext2 & PEXT2_PREDINFO)
+        {
+            Con_Printf("  Replacement Stats ('predinfo')\n");
+        }
+        if(cl.protocol == PROTOCOL_NETQUAKE)
+        {
+            Con_Printf("  vanilla(15)\n");
+        }
+        else if(cl.protocol == PROTOCOL_FITZQUAKE)
+        {
+            Con_Printf("  fitzquake(666)\n");
+        }
+        else if(cl.protocol == PROTOCOL_RMQ)
+        {
+            Con_Printf("  rmq(999)\n");
+        }
+        else if(cl.protocol == PROTOCOL_QUAKEVR)
+        {
+            Con_Printf("  quakevr(8682)\n");
+        }
+        else
+        {
+            Con_Printf("  unknown protocol(%i)\n", cl.protocol);
+        }
+        return;
+    }
+
+    if(!host_client->pextknown && !host_client->spawned)
+    {
+        int i;
+        int key;
+        int value;
+        for(i = 1; i < Cmd_Argc(); i += 2)
+        {
+            key = strtoul(Cmd_Argv(i), nullptr, 0);
+            value = strtoul(Cmd_Argv(i + 1), nullptr, 0);
+
+            if(key == PROTOCOL_FTE_PEXT2)
+            {
+                host_client->protocol_pext2 = value & PEXT2_SUPPORTED_SERVER;
+            }
+            // else some other extension that we don't know
+        }
+
+        host_client->pextknown = true;
+        SV_SendServerinfo(host_client);
+    }
+}
+
 /*
 ================
 SV_ConnectClient
@@ -2194,6 +2351,9 @@ void SV_ConnectClient(int clientnum)
     client->datagram.data = client->datagram_buf;
     client->datagram.maxsize = sizeof(client->datagram_buf);
     client->datagram.allowoverflow = true; // simply ignored on overflow
+
+    client->pextknown = false;
+    client->protocol_pext2 = 0;
 
     if(sv.loadgame)
     {
@@ -3209,19 +3369,19 @@ bool SV_SendClientDatagram(client_t* client)
     {
         sv_player = client->edict;
 
-        // if(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
-        if(true)
+        if(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
         {
-        	SV_WriteDamageToMessage(client->edict, &msg);
-            // if(!(client->protocol_pext2 & PEXT2_PREDINFO))
-            if(false)
+            SV_WriteDamageToMessage(client->edict, &msg);
+
+            if(!(client->protocol_pext2 & PEXT2_PREDINFO))
             {
-            	SV_WriteClientdataToMessage(client, &msg);
+                SV_WriteClientdataToMessage(client, &msg);
             }
             else
             {
                 SVFTE_WriteStats(client, &msg);
             }
+
             if(!client->snapshotresume)
             {
                 SVFTE_BuildSnapshotForClient(client);
@@ -3231,7 +3391,7 @@ bool SV_SendClientDatagram(client_t* client)
                 client, &msg, sizeof(buf)); // must always write some data, or
                                             // the stats will break
 
-			// this delta protocol doesn't wipe old state just because there's a
+            // this delta protocol doesn't wipe old state just because there's a
             // new packet. the server isn't required to sync with the client
             // frames either so we can just spam multiple packets to keep our
             // udp data under the MTU
@@ -3241,39 +3401,38 @@ bool SV_SendClientDatagram(client_t* client)
                 SZ_Clear(&msg);
                 SVFTE_WriteEntitiesToClient(client, &msg, sizeof(buf));
             }
-       }
-       else
-       {
-    		MSG_WriteByte(&msg, svc_time);
-    		MSG_WriteFloat(&msg, qcvm->time);
+        }
+        else
+        {
+            MSG_WriteByte(&msg, svc_time);
+            MSG_WriteFloat(&msg, qcvm->time);
 
-            // if(client->protocol_pext2 & PEXT2_PREDINFO)
-            if(true)
+            if(client->protocol_pext2 & PEXT2_PREDINFO)
             {
                 MSG_WriteShort(&msg, (client->lastmovemessage & 0xffff));
             }
 
-    // add the client specific data to the datagram
+            // add the client specific data to the datagram
             SV_WriteDamageToMessage(client->edict, &msg);
             SV_WriteClientdataToMessage(client, &msg);
 
             SV_WriteEntitiesToClient(client, &msg);
         }
 
-    // copy the private datagram if there is space
-    if(msg.cursize + client->datagram.cursize < msg.maxsize &&
-        !client->datagram.overflowed)
-    {
-        SZ_Write(&msg, client->datagram.data, client->datagram.cursize);
-    }
-    client->datagram.overflowed = false;
-    SZ_Clear(&client->datagram);
+        // copy the private datagram if there is space
+        if(msg.cursize + client->datagram.cursize < msg.maxsize &&
+            !client->datagram.overflowed)
+        {
+            SZ_Write(&msg, client->datagram.data, client->datagram.cursize);
+        }
+        client->datagram.overflowed = false;
+        SZ_Clear(&client->datagram);
 
-    // copy the server datagram if there is space
-    if(msg.cursize + sv.datagram.cursize < msg.maxsize)
-    {
-        SZ_Write(&msg, sv.datagram.data, sv.datagram.cursize);
-    }
+        // copy the server datagram if there is space
+        if(msg.cursize + sv.datagram.cursize < msg.maxsize)
+        {
+            SZ_Write(&msg, sv.datagram.data, sv.datagram.cursize);
+        }
     }
 
     SV_VoiceSendPacket(client, &msg);
@@ -3521,10 +3680,10 @@ void SV_SendClientMessages()
             continue;
         }
 
-            if(!SV_SendClientDatagram(host_client))
-            {
-                continue;
-            }
+        if(!SV_SendClientDatagram(host_client))
+        {
+            continue;
+        }
         if(!host_client->spawned)
         {
             // the player isn't totally in the game yet
@@ -3725,7 +3884,7 @@ void SV_CreateBaseline()
             svent->baseline.colormap = 0;
             svent->baseline.modelindex =
                 SV_ModelIndex(PR_GetString(svent->v.model));
-			eval_t* val = GetEdictFieldValue(svent, qcvm->extfields.alpha);
+            eval_t* val = GetEdictFieldValue(svent, qcvm->extfields.alpha);
             if(val)
             {
                 svent->baseline.alpha = ENTALPHA_ENCODE(val->_float);
@@ -4036,7 +4195,7 @@ void SV_SpawnServer(const char* server, const SpawnServerSrc src)
         for(i = 0, host_client = svs.clients; i < svs.maxclients;
             i++, host_client++)
         {
-	        host_client->knowntoqc = false;
+            host_client->knowntoqc = false;
             if(host_client->active)
             {
                 SV_SendServerinfo(host_client);

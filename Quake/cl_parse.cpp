@@ -293,8 +293,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
         news->origin[2] = MSG_ReadCoord(cl.protocolflags);
     }
 
-    // if((bits & UF_PREDINFO) && !(cl.protocol_pext2 & PEXT2_PREDINFO))
-    if (bits & UF_PREDINFO)
+    if((bits & UF_PREDINFO) && !(cl.protocol_pext2 & PEXT2_PREDINFO))
     {
         // predicted stuff gets more precise angles
         if(bits & UF_ANGLESXZ)
@@ -425,7 +424,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
         // news->msec = 0;
     }
 
-    //if(!(predbits & UFP_VIEWANGLE) || !(cl.protocol_pext2 & PEXT2_PREDINFO))
+    if(!(predbits & UFP_VIEWANGLE) || !(cl.protocol_pext2 & PEXT2_PREDINFO))
     { /*
          if (bits & UF_ANGLESXZ)
              news->vangle[0] = ANGLE2SHORT(news->angles[0] * ((bits &
@@ -465,8 +464,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
     if(bits & UF_SOLID)
     { // knowing the size of an entity is important for prediction
         // without prediction, its a bit pointless.
-        //if(cl.protocol_pext2 & PEXT2_NEWSIZEENCODING)
-        if(false)
+        if(cl.protocol_pext2 & PEXT2_NEWSIZEENCODING)
         {
             byte enc = MSG_ReadByte();
             if(enc == 0)
@@ -1215,9 +1213,9 @@ static void CLDP_ReadDelta(unsigned int entnum, entity_state_t* s,
         }
         else
         {
-            Host_Error("E5_COMPLEXANIMATION: Parse error - unknown type %i\n", type);
+            Host_Error(
+                "E5_COMPLEXANIMATION: Parse error - unknown type %i\n", type);
         }
-        
     }
     if(bits & E5_TRAILEFFECTNUM)
     {
@@ -1314,6 +1312,44 @@ static void CL_ParseStartSoundPacket()
     else
     {
         attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+    }
+
+    // fte's sound extensions
+    if(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+    {
+        // spike -- our mixer can't deal with these, so just parse and ignore
+        if(field_mask & SND_FTE_PITCHADJ)
+        {
+            MSG_ReadByte(); // percentage
+        }
+        if(field_mask & SND_FTE_TIMEOFS)
+        {
+            MSG_ReadShort(); // in ms
+        }
+        if(field_mask & SND_FTE_VELOCITY)
+        {
+            MSG_ReadShort(); // 1/8th
+            MSG_ReadShort(); // 1/8th
+            MSG_ReadShort(); // 1/8th
+        }
+    }
+    else if(field_mask &
+            (SND_FTE_MOREFLAGS | SND_FTE_PITCHADJ | SND_FTE_TIMEOFS))
+    {
+        Con_Warning("Unknown meaning for sound flags\n");
+    }
+    // dp's sound extension
+    if(cl.protocol == PROTOCOL_VERSION_DP7 ||
+        (cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+    {
+        if(field_mask & SND_DP_PITCH)
+        {
+            MSG_ReadShort();
+        }
+    }
+    else if(field_mask & SND_DP_PITCH)
+    {
+        Con_Warning("Unknown meaning for sound flags\n");
     }
 
     // johnfitz -- PROTOCOL_FITZQUAKE
@@ -1468,7 +1504,36 @@ void CL_ParseServerInfo()
     cl.protocol_dpdownload = i;
 
     // parse protocol version number
-    i = MSG_ReadLong();
+    for(;;)
+    {
+        i = MSG_ReadLong();
+        if(i == PROTOCOL_FTE_PEXT1)
+        {
+            i = MSG_ReadLong();
+            if(i & ~PEXT1_ACCEPTED_CLIENT)
+            {
+                Host_Error(
+                    "Server returned FTE1 protocol extensions that are not "
+                    "supported (%#x)",
+                    i);
+            }
+            continue;
+        }
+        if(i == PROTOCOL_FTE_PEXT2)
+        {
+            cl.protocol_pext2 = MSG_ReadLong();
+            if(cl.protocol_pext2 & ~PEXT2_ACCEPTED_CLIENT)
+            {
+                Host_Error(
+                    "Server returned FTE2 protocol extensions that are not "
+                    "supported (%#x)",
+                    cl.protocol_pext2 & ~PEXT2_SUPPORTED_CLIENT);
+            }
+            continue;
+        }
+        break;
+    }
+
     // johnfitz -- support multiple protocols
     if(i != PROTOCOL_QUAKEVR)
     {
@@ -1585,8 +1650,8 @@ void CL_ParseServerInfo()
 
     cl.requestresend = true;
     cl.ackframes_count = 0;
-    // if(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
-    if(true)
+
+    if(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
     {
         cl.ackframes[cl.ackframes_count++] = -1;
     }
@@ -1905,9 +1970,9 @@ void CL_ParseBaseline(entity_t* ent, int version) // johnfitz -- added argument
         CLFTE_ParseBaseline(&ent->baseline);
         return;
     }
-    
+
     ent->baseline = nullentitystate;
-    
+
     // johnfitz -- PROTOCOL_QUAKEVR
     bits = (version == 2) ? MSG_ReadByte() : 0;
     ent->baseline.modelindex =
@@ -2715,14 +2780,14 @@ void CL_ParseServerMessage()
         Con_Printf("------------------\n");
     }
 
-    //if(!(cl.protocol_pext2 & PEXT2_PREDINFO))
-    if(false)
+    if(!(cl.protocol_pext2 & PEXT2_PREDINFO))
     {
-    cl.onground = false; // unless the server says otherwise
+        cl.onground = false; // unless the server says otherwise
     }
-                         //
-                         // parse the message
-                         //
+
+    //
+    // parse the message
+    //
     MSG_BeginReading();
 
     lastcmd = 0;
@@ -2752,13 +2817,13 @@ void CL_ParseServerMessage()
                 cl.items = cl.stats[STAT_ITEMS];
             }
 
-			/*
+            /*
             if(cl.protocol == PROTOCOL_VERSION_DP7)
             {
                 CL_EntitiesDeltaed();
             }
             */
-            
+
             if(*cl.stuffcmdbuf && net_message.cursize < 512)
                 CL_ParseStuffText(
                     "\n"); // there's a few mods that forget to write \ns, that
@@ -2766,7 +2831,7 @@ void CL_ParseServerMessage()
                            // gets flushed to the cbuf. the cursize check is to
                            // reduce backbuffer overflows that would give a
                            // false positive.
-            return; // end of message
+            return;        // end of message
         }
 
         // if the high bit of the command byte is set, it is a fast update
@@ -2796,8 +2861,8 @@ void CL_ParseServerMessage()
             case svc_time:
                 cl.mtime[1] = cl.mtime[0];
                 cl.mtime[0] = MSG_ReadFloat();
-                // if(cl.protocol_pext2 & PEXT2_PREDINFO)
-                if(true)
+
+                if(cl.protocol_pext2 & PEXT2_PREDINFO)
                 {
                     MSG_ReadShort(); // input sequence ack.
                 }

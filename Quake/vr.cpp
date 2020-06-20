@@ -1453,7 +1453,7 @@ void VID_VR_Disable()
     ovrHMD = nullptr;
 
     // Reset the view height
-    cl.viewheight = DEFAULT_VIEWHEIGHT;
+    cl.stats[STAT_VIEWHEIGHT] = DEFAULT_VIEWHEIGHT;
 
     // TODO: Cleanup frame buffers
 

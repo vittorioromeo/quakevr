@@ -1405,7 +1405,7 @@ bool Host_MakeSavegame(
         fflush(f);
     }
 
-	// QSS
+    // QSS
     // add extra info (lightstyles, precaches, etc) in a way that's supposed to
     // be compatible with DP. sidenote - this provides extended lightstyles and
     // support for late precaches it does NOT protect against spawnfunc precache
@@ -1553,8 +1553,8 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     data = COM_ParseStringNewline(data);
 
-	int i;
-    for (i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
+    int i;
+    for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
     {
         data = COM_ParseFloatNewline(data, &spawn_parms[i]);
     }
@@ -2255,7 +2255,7 @@ void Host_Spawn_f()
         ent->v.team = (host_client->colors & 15) + 1;
         ent->v.netname = PR_SetEngineString(host_client->name);
 
-		// copy spawn parms out of the client_t
+        // copy spawn parms out of the client_t
 
         for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++) // QSS
         {
@@ -2301,8 +2301,8 @@ void Host_Spawn_f()
     // send time of update
     MSG_WriteByte(&host_client->message, svc_time);
     MSG_WriteFloat(&host_client->message, qcvm->time);
-    //if (host_client->protocol_pext2 & PEXT2_PREDINFO)
-    if(true)
+
+    if(host_client->protocol_pext2 & PEXT2_PREDINFO)
     {
         MSG_WriteShort(
             &host_client->message, (host_client->lastmovemessage & 0xffff));
@@ -2383,9 +2383,9 @@ void Host_Spawn_f()
     }
     MSG_WriteAngle(&host_client->message, 0, sv.protocolflags);
 
-	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+    if(!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
     {
-		SV_WriteClientdataToMessage(host_client, &host_client->message);
+        SV_WriteClientdataToMessage(host_client, &host_client->message);
     }
 
     MSG_WriteByte(&host_client->message, svc_signonnum);
@@ -3310,11 +3310,11 @@ void Host_InitCommands()
     Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
     Cmd_AddCommand("connect", Host_Connect_f);
-    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Con_f); // QSS
+    Cmd_AddCommand_Console("reconnect", Host_Reconnect_Con_f);      // QSS
     Cmd_AddCommand_ServerCommand("reconnect", Host_Reconnect_Sv_f); // QSS
-    Cmd_AddCommand_ServerCommand ("ls", Host_Lightstyle_f); // QSS
-    Cmd_AddCommand_ClientCommand("name", Host_Name_f);     // QSS
-    Cmd_AddCommand_ClientCommand("noclip", Host_Noclip_f); // QSS
+    Cmd_AddCommand_ServerCommand("ls", Host_Lightstyle_f);          // QSS
+    Cmd_AddCommand_ClientCommand("name", Host_Name_f);              // QSS
+    Cmd_AddCommand_ClientCommand("noclip", Host_Noclip_f);          // QSS
     Cmd_AddCommand_ClientCommand("setpos", Host_SetPos_f); // QuakeSpasm // QSS
 
     Cmd_AddCommand_ClientCommand("say", Host_Say_f);           // QSS
@@ -3331,9 +3331,10 @@ void Host_InitCommands()
     Cmd_AddCommand("load", Host_Loadgame_f);
     Cmd_AddCommand("load_autosave", Host_LoadAutosave_f);
     Cmd_AddCommand("save", Host_Savegame_f);
-    Cmd_AddCommand_ClientCommand("give", Host_Give_f); // QSS
+    Cmd_AddCommand_ClientCommand("give", Host_Give_f);         // QSS
     Cmd_AddCommand_ClientCommand("download", Host_Download_f); // QSS
-    Cmd_AddCommand_ClientCommand("sv_startdownload", Host_StartDownload_f); // QSS
+    Cmd_AddCommand_ClientCommand(
+        "sv_startdownload", Host_StartDownload_f); // QSS
 
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);

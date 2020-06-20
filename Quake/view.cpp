@@ -271,7 +271,7 @@ void V_DriftPitch()
         return;
     }
 
-    delta = cl.idealpitch - cl.viewangles[PITCH];
+    delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
 
     if(!delta)
     {
@@ -895,7 +895,6 @@ V_CalcIntermissionRefdef
 void V_CalcIntermissionRefdef()
 {
     entity_t* ent;
-
     entity_t* view;
     float old;
 
@@ -1002,7 +1001,7 @@ void V_CalcRefdef(
     else
     {
         r_refdef.vieworg = ent->origin;
-        r_refdef.vieworg[2] += cl.viewheight + bob;
+        r_refdef.vieworg[2] += cl.stats[STAT_VIEWHEIGHT] + bob;
     }
 
     // never let it sit exactly on a node line, because a water plane can
@@ -1056,7 +1055,7 @@ void V_CalcRefdef(
     else
     {
         view->origin = ent->origin;
-        view->origin[2] += cl.viewheight;
+        view->origin[2] += cl.stats[STAT_VIEWHEIGHT];
 
         for(int i = 0; i < 3; i++)
         {

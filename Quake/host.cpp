@@ -605,11 +605,7 @@ void SV_DropClient(bool crash)
     NET_Close(host_client->netconnection);
     host_client->netconnection = nullptr;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-// QSS
     SVFTE_DestroyFrames(host_client);	//release any delta state
-#endif
 
     // free the client (the body stays around)
     host_client->active = false;
@@ -627,20 +623,11 @@ void SV_DropClient(bool crash)
     // send notification to all clients
     for(i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
     {
-// TODO VR: (P0): QSS Merge
-#if 0
-        // QSS
         if(!client->knowntoqc)
         {
             continue;
         }
-#else
-        if(!client->active)
-        {
-            continue;
-        }
-#endif
-
+        
         MSG_WriteByte(&client->message, svc_updatename);
         MSG_WriteByte(&client->message, host_client - svs.clients);
         MSG_WriteString(&client->message, "");
@@ -985,7 +972,7 @@ void _Host_Frame(double time) // QSS
         if(CL_CheckDownloads())
         {
             PR_ClearProgs(&cl.qcvm);
-            if(!cl_nocsqc.value)
+            if(pr_checkextension.value && !cl_nocsqc.value)
             { // only try to use csqc if qc extensions are enabled.
                 PR_SwitchQCVM(&cl.qcvm);
                 // try csprogs.dat first, then fall back on progs.dat in case

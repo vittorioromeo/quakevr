@@ -121,6 +121,20 @@ beam_t* CL_ParseBeam(qmodel_t* m)
     return nullptr;
 }
 
+void CL_SpawnSpriteEffect(
+    vec3_t org /*, vec3_t dir, vec3_t orientationup*/, qmodel_t* model, int startframe, int framecount, float framerate /*, float alpha, float scale, float randspin, float gravity, int traileffect, unsigned int renderflags, int skinnum*/)
+{
+    if(startframe < 0)
+    {
+        startframe = framecount = 0;
+    }
+    if(!framecount)
+    {
+        framecount = model->numframes;
+    }
+    Con_DPrintf("CL_SpawnSpriteEffect: not implemented\n");
+}
+
 /*
 =================
 CL_ParseTEnt
@@ -326,6 +340,45 @@ void CL_ParseTEnt()
 
         default: Sys_Error("CL_ParseTEnt: bad type");
     }
+}
+
+void CL_ParseEffect(bool big)
+{
+    vec3_t org;
+    int modelindex;
+    int startframe;
+    int framecount;
+    int framerate;
+    qmodel_t* mod;
+
+    org[0] = MSG_ReadCoord(cl.protocolflags);
+    org[1] = MSG_ReadCoord(cl.protocolflags);
+    org[2] = MSG_ReadCoord(cl.protocolflags);
+
+    if(big)
+    {
+        modelindex = MSG_ReadShort();
+    }
+    else
+    {
+        modelindex = MSG_ReadByte();
+    }
+
+    if(big)
+    {
+        startframe = MSG_ReadShort();
+    }
+    else
+    {
+        startframe = MSG_ReadByte();
+    }
+
+    framecount = MSG_ReadByte();
+    framerate = MSG_ReadByte();
+
+    mod = cl.model_precache[modelindex];
+    CL_SpawnSpriteEffect(org /*, nullptr, NULL*/, mod, startframe, framecount,
+        framerate /*, mod->type==mod_sprite?-1:1, 1, 0, 0, P_INVALID, 0, 0*/);
 }
 
 

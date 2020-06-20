@@ -483,7 +483,7 @@ static void PF_ext_vectoangles()
 
     const qvec3 value1 = extractVector(OFS_PARM0);
 
-    if(qcvm->argc >= 2) 
+    if(qcvm->argc >= 2)
     {
         const qvec3 up = extractVector(OFS_PARM1);
 
@@ -4824,13 +4824,10 @@ static void PF_multicast_internal(
                     continue;
                 }
 
-                // TODO VR: (P0) QSS Merge
-                /*
                 if(!(svs.clients[i].protocol_pext2 & requireext2))
                 {
                     continue;
                 }
-                */
 
                 SZ_Write((reliable ? &svs.clients[i].message
                                    : &svs.clients[i].datagram),
@@ -4847,13 +4844,10 @@ static void PF_multicast_internal(
                 continue;
             }
 
-            // TODO VR: (P0) QSS Merge
-            /*
             if(requireext2 && !(svs.clients[i].protocol_pext2 & requireext2))
             {
                 continue;
             }
-            */
 
             // figure out which cluster (read: pvs index) to use.
             playerleaf = Mod_PointInLeaf(
@@ -6395,12 +6389,7 @@ static void PF_cl_readfloat()
 }
 static void PF_cl_readentitynum()
 {
-    // TODO VR: (P0) QSS Merge
-    /*
     G_FLOAT(OFS_RETURN) = MSG_ReadEntity(cl.protocol_pext2);
-    */
-
-    G_FLOAT(OFS_RETURN) = 0;
 }
 static void PF_cl_sendevent()
 {

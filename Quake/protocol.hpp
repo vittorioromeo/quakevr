@@ -40,7 +40,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define PROTOCOL_VERSION_BJP2	10001
 #define PROTOCOL_VERSION_BJP3 \
     10002 // spike, note that this protocol is intentionally flawed to work
-          // around mods+writebytes - svc_staticsound is limited to 8bit indexes.
+          // around mods+writebytes - svc_staticsound is limited to 8bit
+          // indexes.
+#define PROTOCOL_FTE_PEXT1                   \
+    (('F' << 0) + ('T' << 8) + ('E' << 16) + \
+        ('X' << 24)) // fte extensions, provides extensions to the underlying
+                     // base protocol (like 666 or even 15).
+#define PROTOCOL_FTE_PEXT2                   \
+    (('F' << 0) + ('T' << 8) + ('E' << 16) + \
+        ('2' << 24)) // fte extensions, provides extensions to the underlying
+                     // base protocol (like 666 or even 15).
 
 #define PROTOCOL_QUAKEVR 8682
 
@@ -75,7 +84,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // flags that we accept from clients.
 
 // PROTOCOL_FTE_PEXT2 flags
-#define PEXT2_PRYDONCURSOR 0x00000001  // a mouse cursor exposed to ssqc
+#define PEXT2_PRYDONCURSOR 0x00000001 // a mouse cursor exposed to ssqc
+#define PEXT2_VOICECHAT \
+    0x00000002 //+voip or cl_voip_send 1; requires opus dll, and others to also
+               //have that same dll.
 #define PEXT2_SETANGLEDELTA 0x00000004 // less annoying when teleporting.
 #define PEXT2_REPLACEMENTDELTAS \
     0x00000008 // more compact entity deltas (can also be split across multiple
@@ -91,10 +103,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     (PEXT2_SUPPORTED_CLIENT | PEXT2_NEWSIZEENCODING | PEXT2_PRYDONCURSOR | \
         PEXT2_INFOBLOBS) // pext2 flags that we can parse, but don't want to
                          // advertise
-#define PEXT2_SUPPORTED_CLIENT                                          \
-    (PEXT2_SETANGLEDELTA | PEXT2_REPLACEMENTDELTAS | PEXT2_MAXPLAYERS | \
+#define PEXT2_SUPPORTED_CLIENT                                         \
+    (PEXT2_SETANGLEDELTA | PEXT2_VOICECHAT | PEXT2_REPLACEMENTDELTAS | \
+        PEXT2_MAXPLAYERS |                                             \
         PEXT2_PREDINFO) // pext2 flags that we understand+support
-#define PEXT2_SUPPORTED_SERVER (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO)
+#define PEXT2_SUPPORTED_SERVER \
+    (PEXT2_VOICECHAT | PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO)
+
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define U_MOREBITS (1 << 0)

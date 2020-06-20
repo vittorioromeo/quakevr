@@ -578,16 +578,12 @@ void CL_SendMove(const usercmd_t* cmd)
     buf.cursize = 0;
     buf.data = data;
 
-// TODO VR: (P0): QSS Merge
-#if 0
-    for(i = 0; i < cl.ackframes_count; i++)
+    for(int i = 0; i < cl.ackframes_count; i++)
     {
         MSG_WriteByte(&buf, clcdp_ackframe);
         MSG_WriteLong(&buf, cl.ackframes[i]);
     }
     cl.ackframes_count = 0;
-#endif
-
 
     if(cmd)
     {

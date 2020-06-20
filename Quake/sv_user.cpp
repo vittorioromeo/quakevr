@@ -585,8 +585,41 @@ SV_ReadClientMove
 */
 void SV_ReadClientMove(usercmd_t* move)
 {
+
     int i;
     int bits;
+    vec3_t angle;
+    int buttonbits;
+    int newimpulse;
+    eval_t* eval;
+    bool drop = false;
+    float timestamp;
+    vec3_t movevalues;
+    int sequence;
+    eval_t* val;
+
+	if(host_client->protocol_pext2 & PEXT2_PREDINFO)
+    {
+        i = (unsigned short)MSG_ReadShort();
+        sequence = (host_client->lastmovemessage & 0xffff0000) | (i & 0xffff);
+
+        // tollerance of a few old frames, so we can have redundancy for
+        // packetloss
+        if(sequence + 0x100 < host_client->lastmovemessage)
+        {
+            sequence += 0x10000;
+        }
+
+        if(sequence <= host_client->lastmovemessage)
+        {
+            drop = true;
+        }
+    }
+    else
+    {
+        sequence = 0;
+    }
+
 
     // read ping time
     host_client->ping_times[host_client->num_pings % NUM_PING_TIMES] =
@@ -673,6 +706,109 @@ void SV_ReadClientMove(usercmd_t* move)
     if(i)
     {
         host_client->edict->v.impulse = i;
+    }
+}
+
+
+void SV_ReadQCRequest()
+{
+    int e;
+    char args[8];
+    const char *rname, *fname;
+    func_t f;
+    int i;
+    client_t* cl = host_client;
+
+    for(i = 0;;)
+    {
+        byte ev = MSG_ReadByte();
+        /*if (ev >= 200 && ev < 200+MAX_SPLITS)
+        {
+            ev -= 200;
+            while (ev-- && cl)
+                cl = cl->controlled;
+            continue;
+        }*/
+        if(i >= sizeof(args) - 1)
+        {
+            if(ev != ev_void)
+            {
+                msg_badread = true;
+                return;
+            }
+            goto done;
+        }
+        switch(ev)
+        {
+            default:
+                args[i] = '?';
+                G_INT(OFS_PARM0 + i * 3) = MSG_ReadLong();
+                break;
+            case ev_void: goto done;
+            case ev_float:
+                args[i] = 'f';
+                G_FLOAT(OFS_PARM0 + i * 3) = MSG_ReadFloat();
+                break;
+            case ev_vector:
+                args[i] = 'v';
+                G_FLOAT(OFS_PARM0 + i * 3 + 0) = MSG_ReadFloat();
+                G_FLOAT(OFS_PARM0 + i * 3 + 1) = MSG_ReadFloat();
+                G_FLOAT(OFS_PARM0 + i * 3 + 2) = MSG_ReadFloat();
+                break;
+            case ev_ext_integer:
+                args[i] = 'i';
+                G_INT(OFS_PARM0 + i * 3) = MSG_ReadLong();
+                break;
+            case ev_string:
+                args[i] = 's';
+                G_INT(OFS_PARM0 + i * 3) = PR_MakeTempString(MSG_ReadString());
+                break;
+            case ev_entity:
+                args[i] = 'e';
+                e = MSG_ReadEntity(host_client->protocol_pext2);
+                if(e < 0 || e >= qcvm->num_edicts)
+                {
+                    e = 0;
+                }
+                G_INT(OFS_PARM0 + i * 3) = EDICT_TO_PROG(EDICT_NUM(e));
+                break;
+        }
+        i++;
+    }
+
+done:
+    args[i] = 0;
+    rname = MSG_ReadString();
+    if(i)
+    {
+        fname = va("CSEv_%s_%s", rname, args);
+    }
+    else
+    {
+        fname = va("CSEv_%s", rname);
+    }
+    f = PR_FindExtFunction(fname);
+    /*if (!f)
+    {
+        if (i)
+            rname = va("Cmd_%s_%s", rname, args);
+        else
+            rname = va("Cmd_%s", rname);
+        f = PR_FindExtFunction(rname);
+    }*/
+    if(!cl)
+    {
+        ; // bad seat! not going to warn as they might have been removed
+          // recently
+    }
+    else if(f)
+    {
+        pr_global_struct->self = EDICT_TO_PROG(cl->edict);
+        PR_ExecuteProgram(f);
+    }
+    else
+    {
+        SV_ClientPrintf("qcrequest \"%s\" not supported\n", fname);
     }
 }
 

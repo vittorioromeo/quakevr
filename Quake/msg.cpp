@@ -385,11 +385,7 @@ int MSG_ReadEntity(unsigned int pext2)
 {
     int e = (unsigned short)MSG_ReadShort();
 
-    // TODO VR: (P0) QSS Merge
-    /*
     if(pext2 & PEXT2_REPLACEMENTDELTAS)
-    */
-
     {
         if(e & 0x8000)
         {
