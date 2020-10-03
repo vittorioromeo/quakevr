@@ -177,8 +177,10 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       </StackCommitSize>
     </Link>
     <PostBuildEvent>
-      <Command>:: copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\OpenVR\lib\win64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\glew\bin\Release\x64\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\..\
@@ -224,8 +226,10 @@ make_pak.bat</Command>
       <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PostBuildEvent>
-      <Command>:: copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\OpenVR\lib\win64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\glew\bin\Release\x64\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\..\
