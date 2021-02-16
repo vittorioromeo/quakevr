@@ -357,7 +357,7 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
 {
     player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
-                         self.ammo_nails, W_FireSpikes);
+                         getCurrentAmmoOrClip(xHand), W_FireSpikes);
 }
 
 void(float xHand) player_nail1 =
@@ -373,7 +373,7 @@ void(float xHand) player_nail2 =
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_lava_nail_Impl =
 {
     player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
-                         self.ammo_lava_nails, W_FireLavaSpikes);
+                         getCurrentAmmoOrClip(xHand), W_FireLavaSpikes);
 }
 
 void(float xHand) player_lava_nail1 =

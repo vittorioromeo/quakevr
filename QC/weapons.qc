@@ -49,7 +49,8 @@ void(float xHand, float xAid) updateAmmoCounter =
 
 float(float xHand) getCurrentAmmoCount =
 {
-    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, VRGetCurrentAmmo(xHand));
+    float ammoId = WeaponIdToAmmoId(VRGetWeapon(xHand), VRGetWeaponFlags(xHand));
+    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, ammoId);
 }
 
 float(float xHand) getCurrentAmmoOrClip =
@@ -1648,10 +1649,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
 void(float xHand) W_FireLightning =
 {
-    vector        org;
-    float        cells;
-
-    if(self.ammo_cells < 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         return;
     }
@@ -1659,13 +1657,13 @@ void(float xHand) W_FireLightning =
     // explode if under water
     if(self.waterlevel > 1)
     {
-        cells = self.ammo_cells;
+        float cells = self.ammo_cells;
         self.ammo_cells = 0;
 
         // HIPNOTIC
         //MED 01/05/97 added discharge flag
         discharged = 1;
-        T_RadiusDamage(self, self, 35*cells, world);
+        T_RadiusDamage(self, self, 35 * cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
 
@@ -1684,7 +1682,7 @@ void(float xHand) W_FireLightning =
     self.punchangle_x = -2;
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
 
-    org = VRGetMuzzlePos(xHand);
+    vector org = VRGetMuzzlePos(xHand);
 
     makeforward(VRGetHandRot(xHand));
     traceline(org, org + v_forward*600, TRUE, self);
@@ -3054,7 +3052,7 @@ void(float xHand, float xButton) FrameDrawLightningTrail =
     if(xButton &&
        VRGetWeapon(xHand) == WID_LIGHTNING &&
        (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
-       self.ammo_cells > 0)
+       getCurrentAmmoOrClip(xHand) > 0)
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
     }
@@ -4283,5 +4281,7 @@ void() SuperDamageSound =
 // TODO VR: (P2) remove backpack spinning animation.
 
 // TODO VR: (P0) thunderbolt and spikes reload is bugged, probably checking for ammo explicitly
+//          -- might be fixed, need testing
+
 // TODO VR: (P0) ammo boxes are unstable and cannot be force grabbed, e.g. tutorial map
 // TODO VR: (P0) create shooting range map?
