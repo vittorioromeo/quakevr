@@ -345,7 +345,9 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
 
     VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
     if(VRGetWeaponFrame(xHand) == 9)
+    {
         VRSetWeaponFrame(xHand, 1);
+    }
 
     SuperDamageSound();
     xFireFn(xHand, xOffset);
