@@ -369,6 +369,7 @@ void() worldspawn =
     precache_sound("fisthit.wav");        // fist hit world
     precache_sound("gunclick.wav");       // out of ammo
     precache_sound("forcegrab.wav");      // force grab
+    precache_sound("reload1.wav");        // reload
 
     // ROGUE
     // PGM Addition Sounds

@@ -628,7 +628,8 @@ void() weapon_touch =
         {
             DropWeaponInHand(other, cVR_MainHand,
                 VRGetEntWeapon(other, cVR_MainHand),
-                VRGetEntWeaponFlags(other, cVR_MainHand));
+                VRGetEntWeaponFlags(other, cVR_MainHand),
+                VRGetEntWeaponClip(other, cVR_MainHand));
         }
     }
     else

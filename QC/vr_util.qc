@@ -310,6 +310,7 @@ void(entity e, float xHand) VRSetHandEmpty =
 {
     VRSetEntWeapon(e, xHand, WID_FIST);
     VRSetEntWeaponFlags(e, xHand, 0);
+    VRSetEntWeaponClip(e, xHand, 0);
 }
 
 float(float xHand) VRGetWeapon =
