@@ -183,6 +183,7 @@ DEFINE_FCVAR_ARCHIVE(vr_autosave_show_message, 0);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending, 1);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending_speed, 50);
 DEFINE_FCVAR_ARCHIVE(vr_menu_mouse_pointer_hand, 1);
+DEFINE_FCVAR_ARCHIVE(vr_enable_reload, 1);
 
 //
 //

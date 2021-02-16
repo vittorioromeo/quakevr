@@ -5,8 +5,8 @@
 // Entity (visual) scale fields
 // ----------------------------------------------------------------------------
 
-.vector scale;
-.vector scale_origin;
+.vector model_scale;
+.vector model_scale_origin;
 .vector model_offset;
 
 //
@@ -58,6 +58,22 @@
 .string weaponmodel2;
 .float  weaponframe2;
 .float  weaponflags2;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Weapon reloading fields
+// ----------------------------------------------------------------------------
+
+.float weaponclip; // Main hand
+.float weaponclip2; // Off-hand
+.float holsterweaponclip0;
+.float holsterweaponclip1;
+.float holsterweaponclip2;
+.float holsterweaponclip3;
+.float holsterweaponclip4;
+.float holsterweaponclip5;
 
 //
 //

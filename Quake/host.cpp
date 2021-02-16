@@ -1052,10 +1052,7 @@ void _Host_Frame(double time) // QSS
         }
     }
 
-    // TODO VR: (P0) QSS Merge
-#if 0
     CL_AccumulateCmd();
-#endif
 
     // Run the server+networking (client->server->client), at a different rate
     // from everyt

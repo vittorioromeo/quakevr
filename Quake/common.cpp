@@ -1207,8 +1207,7 @@ static void COM_SetupNullState()
         0; // fte has 255 by default, with 0 for invisible. fitz uses 1 for
            // invisible, 0 default, and 255=full alpha
 
-    // TODO VR: (P0) QSS Merge
-    // nullentitystate.scale = 16;
+    nullentitystate.scale = 16;
 
 
     //	nullentitystate.solidsize = 0;//ES_SOLID_BSP;

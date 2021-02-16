@@ -389,3 +389,45 @@ float(float wid) WeaponSupportsSecondaryAmmoFlag =
 
     return FALSE;
 }
+
+// TODO VR: (P1) implement reload system
+float(float wid) WeaponIdToSupportsReload =
+{
+    if(wid == WID_FIST)             { return FALSE; }
+    if(wid == WID_GRAPPLE)          { return FALSE; }
+    if(wid == WID_AXE)              { return FALSE; }
+    if(wid == WID_MJOLNIR)          { return FALSE; }
+    if(wid == WID_SHOTGUN)          { return TRUE; }
+    if(wid == WID_SUPER_SHOTGUN)    { return TRUE; }
+    if(wid == WID_NAILGUN)          { return TRUE; }
+    if(wid == WID_SUPER_NAILGUN)    { return TRUE; }
+    if(wid == WID_GRENADE_LAUNCHER) { return TRUE; }
+    if(wid == WID_PROXIMITY_GUN)    { return TRUE; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return TRUE; }
+    if(wid == WID_LIGHTNING)        { return TRUE; }
+    if(wid == WID_LASER_CANNON)     { return FALSE; }
+
+    ASSERT(FALSE);
+    return -1;
+}
+
+// TODO VR: (P1) implement reload system
+float(float wid) WeaponIdToBaseClipSize =
+{
+    if(wid == WID_FIST)             { return 0; }
+    if(wid == WID_GRAPPLE)          { return 0; }
+    if(wid == WID_AXE)              { return 0; }
+    if(wid == WID_MJOLNIR)          { return 0; }
+    if(wid == WID_SHOTGUN)          { return 8; }
+    if(wid == WID_SUPER_SHOTGUN)    { return 2; }
+    if(wid == WID_NAILGUN)          { return 24; }
+    if(wid == WID_SUPER_NAILGUN)    { return 48; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 1; }
+    if(wid == WID_PROXIMITY_GUN)    { return 1; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 1; }
+    if(wid == WID_LIGHTNING)        { return 48; }
+    if(wid == WID_LASER_CANNON)     { return 0; }
+
+    ASSERT(FALSE);
+    return -1;
+}

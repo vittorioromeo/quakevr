@@ -917,6 +917,50 @@ void R_SetupAliasFrame(
         lerpdata->pose1 = posenum;
         lerpdata->pose2 = posenum;
     }
+
+    if(paliashdr.numboneposes)
+    {
+        static bonepose_t inverted[256];
+        bonepose_t lerpbones[256], l;
+        int b, j;
+        const boneinfo_t* bi =
+            (const boneinfo_t*)((byte*)&paliashdr + paliashdr.boneinfo);
+        const bonepose_t* p1 =
+            (const bonepose_t*)((byte*)&paliashdr + paliashdr.boneposedata) +
+            lerpdata->pose1 * paliashdr.numbones;
+        const bonepose_t* p2 =
+            (const bonepose_t*)((byte*)&paliashdr + paliashdr.boneposedata) +
+            lerpdata->pose2 * paliashdr.numbones;
+        float w2 = lerpdata->blend;
+        float w1 = 1 - w2;
+        for(b = 0; b < paliashdr.numbones; b++, p1++, p2++)
+        {
+            // interpolate it
+            for(j = 0; j < 12; j++)
+            {
+                l.mat[j] = p1->mat[j] * w1 + p2->mat[j] * w2;
+            }
+            // concat it onto the parent (relative->abs)
+            if(bi[b].parent < 0)
+            {
+                memcpy(lerpbones[b].mat, l.mat, sizeof(l.mat));
+            }
+            else
+            {
+                R_ConcatTransforms((float(*)[4])lerpbones[bi[b].parent].mat,
+                    (float(*)[4])l.mat, (float(*)[4])lerpbones[b].mat);
+            }
+
+            // and finally invert it
+            R_ConcatTransforms((float(*)[4])lerpbones[b].mat,
+                (float(*)[4])bi[b].inverse.mat, (float(*)[4])inverted[b].mat);
+        }
+        lerpdata->bonestate = inverted; // and now we can use it.
+    }
+    else
+    {
+        lerpdata->bonestate = nullptr;
+    }
 }
 
 void R_SetupAliasFrameZero(
@@ -1159,7 +1203,7 @@ void R_DrawAliasModel(entity_t* e)
     // transform it
     //
     glPushMatrix();
-    R_RotateForEntity(lerpdata.origin, lerpdata.angles);
+    R_RotateForEntity(lerpdata.origin, lerpdata.angles, e->netstate.scale);
 
     if(e->horizFlip)
     {
@@ -1168,9 +1212,12 @@ void R_DrawAliasModel(entity_t* e)
     }
 
     // TODO VR: (P1) document why we have +1
-    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
-    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
-    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+    glTranslatef(-e->model_scale_origin[0], -e->model_scale_origin[1],
+        -e->model_scale_origin[2]);
+    glScalef(e->model_scale[0] + 1.f, e->model_scale[1] + 1.f,
+        e->model_scale[2] + 1.f);
+    glTranslatef(e->model_scale_origin[0], e->model_scale_origin[1],
+        e->model_scale_origin[2]);
 
     glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
         paliashdr->scale_origin[2]);
@@ -1571,7 +1618,7 @@ void R_DrawAliasModel_ShowTris(entity_t* e)
     R_SetupEntityTransform(e, &lerpdata);
 
     glPushMatrix();
-    R_RotateForEntity(lerpdata.origin, lerpdata.angles);
+    R_RotateForEntity(lerpdata.origin, lerpdata.angles, e->netstate.scale);
     glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
         paliashdr->scale_origin[2]);
     glScalef(paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);

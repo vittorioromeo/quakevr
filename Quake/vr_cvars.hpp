@@ -152,6 +152,7 @@ extern cvar_t vr_autosave_show_message;
 extern cvar_t vr_finger_blending;
 extern cvar_t vr_finger_blending_speed;
 extern cvar_t vr_menu_mouse_pointer_hand;
+extern cvar_t vr_enable_reload;
 
 //
 //

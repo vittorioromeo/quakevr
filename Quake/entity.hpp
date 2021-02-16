@@ -95,8 +95,8 @@ struct entity_t
 
     // VR: per-instance scaling
     qvec3 msg_scales[2]; // last two updates (0 is newest)
-    qvec3 scale;
-    qvec3 scale_origin;
+    qvec3 model_scale;
+    qvec3 model_scale_origin;
     qvec3 model_offset;
 
     bool hidden;      // TODO VR: (P1) hack? or document

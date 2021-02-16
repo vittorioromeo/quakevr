@@ -437,10 +437,10 @@ typedef struct
     float weight[4];
     byte idx[4];
 } iqmvert_t;
-typedef struct
+struct bonepose_t
 {
     float mat[12];
-} bonepose_t; // pose data for a single bone.
+}; // pose data for a single bone.
 typedef struct
 {
     int parent; //-1 for a root bone

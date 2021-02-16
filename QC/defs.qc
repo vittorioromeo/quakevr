@@ -78,8 +78,14 @@ float parm27; // Field: `.holsterweaponflags2`.
 float parm28; // Field: `.holsterweaponflags3`.
 float parm29; // Field: `.holsterweaponflags4`.
 float parm30; // Field: `.holsterweaponflags5`.
-float parm31; // Unused.
-float parm32; // Unused.
+float parm31; // Field: `.weaponclip`.
+float parm32; // Field: `.weaponclip2`.
+float parm33; // Field: `.holsterweaponclip0`.
+float parm34; // Field: `.holsterweaponclip1`.
+float parm35; // Field: `.holsterweaponclip2`.
+float parm36; // Field: `.holsterweaponclip3`.
+float parm37; // Field: `.holsterweaponclip4`.
+float parm38; // Field: `.holsterweaponclip5`.
 
 //
 //

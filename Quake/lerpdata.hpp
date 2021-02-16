@@ -1,5 +1,7 @@
 #pragma once
 
+struct bonepose_t;
+
 struct lerpdata_t
 {
     short pose1;
@@ -7,4 +9,5 @@ struct lerpdata_t
     float blend;
     qvec3 origin;
     qvec3 angles;
+    bonepose_t* bonestate;
 };

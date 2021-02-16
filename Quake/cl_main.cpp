@@ -145,7 +145,8 @@ void CL_ClearState()
 
     cl.worldTexts.clear();
 
-    cl.viewent.netstate = nullentitystate;
+    forAllViewmodels(cl, [](entity_t& e) { e.netstate = nullentitystate; });
+
 #ifdef PSET_SCRIPT
     PScript_Shutdown();
 #endif
@@ -755,7 +756,7 @@ void CL_RelinkEntities()
             // so move to the final spot
             ent->origin = ent->msg_origins[0];
             ent->angles = ent->msg_angles[0];
-            ent->scale = ent->msg_scales[0];
+            ent->model_scale = ent->msg_scales[0];
         }
         else
         {
@@ -802,7 +803,7 @@ void CL_RelinkEntities()
                 ent->angles[j] = ent->msg_angles[1][j] + f * d;
 
                 const float sd = ent->msg_scales[0][j] - ent->msg_scales[1][j];
-                ent->scale[j] = ent->msg_scales[1][j] + f * sd;
+                ent->model_scale[j] = ent->msg_scales[1][j] + f * sd;
             }
         }
 

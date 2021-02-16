@@ -1465,6 +1465,7 @@ static void PF_findradius()
         {
             continue;
         }
+
         if(ent->v.solid == SOLID_NOT)
         {
             continue;
@@ -2178,10 +2179,13 @@ static void PF_sv_WriteString()
     MSG_WriteString(WriteDest(), G_STRING(OFS_PARM1));
 }
 
+#define MSG_WriteEntity \
+    MSG_WriteShort // fixme - replacement deltas encodes 0x8000+ in 24 bits
 static void PF_sv_WriteEntity()
 {
-    MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
+    MSG_WriteEntity(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
+#undef MSG_WriteEntity
 
 static void PF_sv_WriteVec3()
 {

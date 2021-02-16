@@ -647,15 +647,10 @@ static void MSGFTE_WriteEntityUpdate(unsigned int bits, entity_state_t* state,
     {
         MSG_WriteByte(msg, (state->alpha - 1) & 0xff);
     }
-
-    // TODO VR: (P0) QSS Merge
-    /*
     if(bits & UF_SCALE)
     {
         MSG_WriteByte(msg, state->scale);
     }
-    */
-
     /*	if (bits & UF_BONEDATA)
         {
             short *bonedata;
@@ -1177,15 +1172,13 @@ void SV_BuildEntityState(edict_t* ent, entity_state_t* state)
 {
     eval_t* val;
     state->eflags = 0;
-    VectorCopy(ent->v.origin, state->origin);
-    VectorCopy(ent->v.angles, state->angles);
+    state->origin = ent->v.origin;
+    state->angles = ent->v.angles;
     state->modelindex = ent->v.modelindex;
     state->frame = ent->v.frame;
     state->colormap = ent->v.colormap;
     state->skin = ent->v.skin;
 
-    // TODO VR: (P0): QSS Merge
-    /*
     if((val = GetEdictFieldValue(ent, qcvm->extfields.scale)) && val->_float)
     {
         state->scale = val->_float * 16;
@@ -1194,7 +1187,6 @@ void SV_BuildEntityState(edict_t* ent, entity_state_t* state)
     {
         state->scale = 16;
     }
-    */
 
     if((val = GetEdictFieldValue(ent, qcvm->extfields.alpha)))
     {
@@ -1584,11 +1576,11 @@ static void SV_Protocol_f()
                     }
                     else
                     {
-                    Con_Printf(
-                        "changes will not take effect until the next level "
-                        "load.\n");
-               		 }
-          	  }
+                        Con_Printf(
+                            "changes will not take effect until the next level "
+                            "load.\n");
+                    }
+                }
             }
             break;
         default: Con_SafePrintf("usage: sv_protocol <protocol>\n"); break;
@@ -2679,12 +2671,12 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
             bits |= U_ANGLE3;
         }
 
-        if(ent->v.scale != ent->baseline.scale)
+        if(ent->v.model_scale != ent->baseline.model_scale)
         {
             bits |= U_SCALE;
         }
 
-        if(ent->v.scale_origin != ent->baseline.scale_origin)
+        if(ent->v.model_scale_origin != ent->baseline.model_scale_origin)
         {
             bits |= U_SCALE;
         }
@@ -2740,7 +2732,7 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
             bits |= U_ALPHA;
         }
 
-        if(ent->baseline.scale != ent->v.scale)
+        if(ent->baseline.model_scale != ent->v.model_scale)
         {
             bits |= U_SCALE;
         }
@@ -2845,7 +2837,7 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         }
         if(bits & U_SCALE)
         {
-            MSG_WriteCoord(msg, ent->v.scale[0], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.model_scale[0], sv.protocolflags);
         }
         if(bits & U_ORIGIN2)
         {
@@ -2857,7 +2849,7 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         }
         if(bits & U_SCALE)
         {
-            MSG_WriteCoord(msg, ent->v.scale[1], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.model_scale[1], sv.protocolflags);
         }
         if(bits & U_ORIGIN3)
         {
@@ -2869,12 +2861,12 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         }
         if(bits & U_SCALE)
         {
-            MSG_WriteCoord(msg, ent->v.scale[2], sv.protocolflags);
+            MSG_WriteCoord(msg, ent->v.model_scale[2], sv.protocolflags);
         }
 
         if(bits & U_SCALE)
         {
-            MSG_WriteVec3(msg, ent->v.scale_origin, sv.protocolflags);
+            MSG_WriteVec3(msg, ent->v.model_scale_origin, sv.protocolflags);
         }
 
         if(bits & U_MODELOFFSET)
@@ -3302,6 +3294,18 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
             msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
         MSG_WriteByte(
             msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip0); // STAT_HOLSTERWEAPONCLIP0
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip1); // STAT_HOLSTERWEAPONCLIP1
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip2); // STAT_HOLSTERWEAPONCLIP2
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip3); // STAT_HOLSTERWEAPONCLIP3
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip4); // STAT_HOLSTERWEAPONCLIP4
+        MSG_WriteByte(
+            msg, (int)ent->v.holsterweaponclip5); // STAT_HOLSTERWEAPONCLIP5
     }
 
     MSG_WriteByte(msg, (int)ent->v.weapon);  // STAT_MAINHAND_WID
@@ -3309,6 +3313,9 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
 
     MSG_WriteByte(msg, (int)ent->v.weaponflags);  // STAT_WEAPONFLAGS
     MSG_WriteByte(msg, (int)ent->v.weaponflags2); // STAT_WEAPONFLAGS2
+
+    MSG_WriteByte(msg, (int)ent->v.weaponclip);  // STAT_WEAPONCLIP
+    MSG_WriteByte(msg, (int)ent->v.weaponclip2); // STAT_WEAPONCLIP2
 
 
     // TODO VR: (P1) experiment with this
@@ -3867,8 +3874,8 @@ void SV_CreateBaseline()
         //
         svent->baseline.origin = svent->v.origin;
         svent->baseline.angles = svent->v.angles;
-        svent->baseline.scale = svent->v.scale;
-        svent->baseline.scale_origin = svent->v.scale_origin;
+        svent->baseline.model_scale = svent->v.model_scale;
+        svent->baseline.model_scale_origin = svent->v.model_scale_origin;
         svent->baseline.model_offset = svent->v.model_offset;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;

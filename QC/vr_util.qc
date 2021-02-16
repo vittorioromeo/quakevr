@@ -203,6 +203,14 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFlags,
                           &self.weaponflags2,
                           &self.weaponflags);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClip,
+                          self.weaponclip2,
+                          self.weaponclip);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClip,
+                          &self.weaponclip2,
+                          &self.weaponclip);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetLavaGunFired,
                           self.offHandLavaGunFired,
                           self.mainHandLavaGunFired);
@@ -246,6 +254,12 @@ void(entity e, float xHand, float v) VRSetEntWeaponFlags =
     else                     e.weaponflags = v;
 }
 
+void(entity e, float xHand, float v) VRSetEntWeaponClip =
+{
+    if(xHand == cVR_OffHand) e.weaponclip2 = v;
+    else                     e.weaponclip = v;
+}
+
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -263,6 +277,12 @@ float(entity e, float xHand) VRGetEntWeaponFlags =
     else                     return e.weaponflags;
 }
 
+float(entity e, float xHand) VRGetEntWeaponClip =
+{
+    if(xHand == cVR_OffHand) return e.weaponclip2;
+    else                     return e.weaponclip;
+}
+
 float*(entity e, float xHand) VRGetEntWeaponPtr =
 {
     if(xHand == cVR_OffHand) return &e.weapon2;
@@ -273,6 +293,12 @@ float*(entity e, float xHand) VRGetEntWeaponFlagsPtr =
 {
     if(xHand == cVR_OffHand) return &e.weaponflags2;
     else                     return &e.weaponflags;
+}
+
+float*(entity e, float xHand) VRGetEntWeaponClipPtr =
+{
+    if(xHand == cVR_OffHand) return &e.weaponclip2;
+    else                     return &e.weaponclip;
 }
 
 float(entity e, float xHand) VRIsHandEmpty =
@@ -423,4 +449,11 @@ void(entity ent, float value) VRSetMainHandPrevGrabbingBit =
 void(entity ent, float value) VRSet2HAiming =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
+}
+
+// TODO VR: (P1) implement reload system
+float() VRIsWeaponReloadingEnabled =
+{
+    return (cvar_hget(cvarh_vr_enable_reload) == 1) &&
+           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
 }

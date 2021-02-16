@@ -583,8 +583,7 @@ void R_DrawBrushModel(entity_t* e)
         e->origin[1] -= DIST_EPSILON;
         e->origin[2] -= DIST_EPSILON;
     }
-
-    R_RotateForEntity(e->origin, e->angles);
+    R_RotateForEntity(e->origin, e->angles, e->netstate.scale);
     if(gl_zfix.value)
     {
         e->origin[0] += DIST_EPSILON;
@@ -600,14 +599,18 @@ void R_DrawBrushModel(entity_t* e)
     }
 
     // TODO VR: (P1) document why we have +1, code repetition with alias
-    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
-    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
-    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+    glTranslatef(-e->model_scale_origin[0], -e->model_scale_origin[1],
+        -e->model_scale_origin[2]);
+    glScalef(e->model_scale[0] + 1.f, e->model_scale[1] + 1.f,
+        e->model_scale[2] + 1.f);
+    glTranslatef(e->model_scale_origin[0], e->model_scale_origin[1],
+        e->model_scale_origin[2]);
 
     glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
 
-    const bool scaled =
-        (e->scale[0] != 0.f) && (e->scale[1] != 0.f) && (e->scale[2] != 0.f);
+    const bool scaled = (e->model_scale[0] != 0.f) &&
+                        (e->model_scale[1] != 0.f) &&
+                        (e->model_scale[2] != 0.f);
 
     R_ClearTextureChains(clmodel, chain_model);
 
@@ -673,7 +676,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
 
     glPushMatrix();
     e->angles[0] = -e->angles[0]; // stupid quake bug
-    R_RotateForEntity(e->origin, e->angles);
+    R_RotateForEntity(e->origin, e->angles, e->netstate.scale);
     e->angles[0] = -e->angles[0]; // stupid quake bug
 
     if(e->horizFlip)
@@ -683,9 +686,12 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     }
 
     // TODO VR: (P1) document why we have +1, code repetition with brush
-    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
-    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
-    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+    glTranslatef(-e->model_scale_origin[0], -e->model_scale_origin[1],
+        -e->model_scale_origin[2]);
+    glScalef(e->model_scale[0] + 1.f, e->model_scale[1] + 1.f,
+        e->model_scale[2] + 1.f);
+    glTranslatef(e->model_scale_origin[0], e->model_scale_origin[1],
+        e->model_scale_origin[2]);
 
     glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
 

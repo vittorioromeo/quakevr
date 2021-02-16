@@ -1834,6 +1834,12 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Immersion Settings", &M_Menu_QuakeVRSettings_f};
 
+    m.add_cvar_entry<bool>("Weapon Reloading", vr_enable_reload)
+        .tooltip(
+            "Enables weapon reloading mechanics. Weapons can be reloaded by "
+            "moving them towards their holster. Reloading only works with "
+            "'immersive' weapon mode.");
+
     m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage)
         .tooltip(
             "Enables positional damage multipliers for headshots and leg "

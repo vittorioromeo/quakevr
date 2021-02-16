@@ -118,6 +118,14 @@ void() SetChangeParms =
     parm28 = self.holsterweaponflags3;
     parm29 = self.holsterweaponflags4;
     parm30 = self.holsterweaponflags5;
+    parm31 = self.weaponclip;
+    parm32 = self.weaponclip2;
+    parm33 = self.holsterweaponclip0;
+    parm34 = self.holsterweaponclip1;
+    parm35 = self.holsterweaponclip2;
+    parm36 = self.holsterweaponclip3;
+    parm37 = self.holsterweaponclip4;
+    parm38 = self.holsterweaponclip5;
 };
 
 void() OnSpawnServerBeforeLoad =
@@ -230,6 +238,14 @@ void() SetNewParms =
     parm28 = 0;
     parm29 = 0;
     parm30 = 0;
+    parm31 = 0;
+    parm32 = 0;
+    parm33 = 0;
+    parm34 = 0;
+    parm35 = 0;
+    parm36 = 0;
+    parm37 = 0;
+    parm38 = 0;
 };
 
 void() DecodeLevelParms =
@@ -284,6 +300,17 @@ void() DecodeLevelParms =
     self.holsterweaponmodel3 = WeaponIdToModel(self.holsterweapon3, parm28);
     self.holsterweaponmodel4 = WeaponIdToModel(self.holsterweapon4, parm29);
     self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5, parm30);
+
+    // ------------------------------------------------------------------------
+    // Weapon clips:
+    self.weaponclip = parm31;
+    self.weaponclip2 = parm32;
+    self.holsterweaponclip0 = parm33;
+    self.holsterweaponclip1 = parm34;
+    self.holsterweaponclip2 = parm35;
+    self.holsterweaponclip3 = parm36;
+    self.holsterweaponclip4 = parm37;
+    self.holsterweaponclip5 = parm38;
 
     // ------------------------------------------------------------------------
     // Mission packs:

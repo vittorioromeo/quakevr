@@ -513,10 +513,10 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
     {
         news->alpha = (MSG_ReadByte() + 1) & 0xff;
     }
-    /*if(bits & UF_SCALE)
+    if(bits & UF_SCALE)
     {
         news->scale = MSG_ReadByte();
-    }*/
+    }
     if(bits & UF_BONEDATA)
     {
         unsigned char fl = MSG_ReadByte();
@@ -1143,10 +1143,10 @@ static void CLDP_ReadDelta(unsigned int entnum, entity_state_t* s,
     {
         s->alpha = (MSG_ReadByte() + 1) & 0xff;
     }
-    /*if(bits & E5_SCALE)
+    if(bits & E5_SCALE)
     {
         s->scale = MSG_ReadByte();
-    }*/
+    }
     if(bits & E5_COLORMAP)
     {
         s->colormap = MSG_ReadByte();
@@ -1838,20 +1838,20 @@ static void CL_ParseUpdate(int bits)
     // clang-format off
     doIt(&MSG_ReadCoord, U_ORIGIN1, ent->msg_origins[0], ent->baseline.origin, 0);
     doIt(&MSG_ReadAngle, U_ANGLE1, ent->msg_angles[0], ent->baseline.angles, 0);
-    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 0);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.model_scale, 0);
 
     doIt(&MSG_ReadCoord, U_ORIGIN2, ent->msg_origins[0], ent->baseline.origin, 1);
     doIt(&MSG_ReadAngle, U_ANGLE2, ent->msg_angles[0], ent->baseline.angles, 1);
-    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 1);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.model_scale, 1);
 
     doIt(&MSG_ReadCoord, U_ORIGIN3, ent->msg_origins[0], ent->baseline.origin, 2);
     doIt(&MSG_ReadAngle, U_ANGLE3, ent->msg_angles[0], ent->baseline.angles, 2);
-    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.scale, 2);
+    doIt(&MSG_ReadCoord, U_SCALE, ent->msg_scales[0], ent->baseline.model_scale, 2);
     // clang-format on
 
     if(bits & U_SCALE)
     {
-        ent->scale_origin = MSG_ReadVec3(cl.protocolflags);
+        ent->model_scale_origin = MSG_ReadVec3(cl.protocolflags);
     }
 
     if(bits & U_MODELOFFSET)
@@ -1950,7 +1950,7 @@ static void CL_ParseUpdate(int bits)
         ent->msg_angles[1] = ent->msg_angles[0];
         ent->angles = ent->msg_angles[0];
         ent->msg_scales[1] = ent->msg_scales[0];
-        ent->scale = ent->msg_scales[0];
+        ent->model_scale = ent->msg_scales[0];
         ent->forcelink = true;
     }
 }
@@ -2279,6 +2279,12 @@ static void CL_ParseClientdata()
         cl.stats[STAT_HOLSTERWEAPONFLAGS3] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS4] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS5] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP0] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP1] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP2] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP3] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP4] = MSG_ReadByte();
+        cl.stats[STAT_HOLSTERWEAPONCLIP5] = MSG_ReadByte();
     }
 
     // TODO VR: (P2) some data is sent twice, can optimize for MP
@@ -2286,6 +2292,8 @@ static void CL_ParseClientdata()
     cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
     cl.stats[STAT_WEAPONFLAGS] = MSG_ReadByte();
     cl.stats[STAT_WEAPONFLAGS2] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONCLIP] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONCLIP2] = MSG_ReadByte();
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of

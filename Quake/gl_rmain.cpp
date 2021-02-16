@@ -141,6 +141,7 @@ cvar_t r_telealpha = {"r_telealpha", "0", CVAR_ARCHIVE};
 cvar_t r_slimealpha = {"r_slimealpha", "0", CVAR_ARCHIVE};
 
 float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
+float map_fallbackalpha;
 
 bool r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
     r_drawworld_cheatsafe; // johnfitz
@@ -470,12 +471,18 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
 pointer to entity
 ===============
 */
-void R_RotateForEntity(const qvec3& origin, const qvec3& angles)
+void R_RotateForEntity(
+    const qvec3& origin, const qvec3& angles, unsigned char scale)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
     glRotatef(angles[YAW], 0, 0, 1);
     glRotatef(-angles[PITCH], 0, 1, 0);
     glRotatef(angles[ROLL], 1, 0, 0);
+
+    if(scale != 16)
+    {
+        glScalef(scale / 16.0, scale / 16.0, scale / 16.0);
+    }
 }
 
 /*
@@ -1123,12 +1130,20 @@ void R_ShowBoundingBoxes()
         else
         {
             // box entity
-            const qvec3 mins = ed->v.mins + ed->v.origin;
-            const qvec3 maxs = ed->v.maxs + ed->v.origin;
-            R_EmitWireBox(mins, maxs);
+            if(ed->v.solid == SOLID_BSP &&
+                (ed->v.angles[0] || ed->v.angles[1] || ed->v.angles[2]) &&
+                pr_checkextension.value)
+            {
+                R_EmitWireBox(ed->v.absmin, ed->v.absmax);
+            }
+            else
+            {
+                const qvec3 mins = ed->v.mins + ed->v.origin;
+                const qvec3 maxs = ed->v.maxs + ed->v.origin;
+                R_EmitWireBox(mins, maxs);
+            }
         }
     }
-
     PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);

@@ -874,6 +874,7 @@ void(entity xEnt, float scaleFactor) MakeItemGrabbable =
 
     MakeGrabbable(self);
     self.flags |= FL_FORCEGRABBABLE;
+    self.solid = SOLID_NOT_BUT_TOUCHABLE;
 
     SetThrownWeaponDealDamage(self, FALSE);
     SetThrownWeaponDisappearOnHit(self, FALSE);
@@ -1551,7 +1552,7 @@ void() DropBackpack =
     // item.avelocity_z = random() * 105;
 
     item.flags = FL_ITEM;
-    item.solid = SOLID_TRIGGER;
+    item.solid = SOLID_NOT_BUT_TOUCHABLE;
     item.movetype = MOVETYPE_TOSS;
     setmodel(item, "progs/backpack.mdl");
 

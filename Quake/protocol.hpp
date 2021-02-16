@@ -514,18 +514,15 @@ struct entity_state_t
 {
     qvec3 origin;
     qvec3 angles;
-    qvec3 scale;
-    qvec3 scale_origin;
+    qvec3 model_scale;
+    qvec3 model_scale_origin;
     qvec3 model_offset;
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned int effects;
     unsigned char colormap; // johnfitz -- was int
     unsigned char skin;     // johnfitz -- was int
-
-    // TODO VR: (P0) QSS Merge
-    // unsigned char scale;     // spike -- *16
-
+    unsigned char scale;     // spike -- *16
     unsigned char pmovetype; // spike
     unsigned short
         traileffectnum; // spike -- for qc-defined particle trails. typically

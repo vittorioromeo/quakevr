@@ -3086,6 +3086,39 @@ void(float xHolster, float v) setHolsterWeapon =
 
 // ---
 
+float(float xHolster) getHolsterWeaponClip =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponclip0;
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponclip1;
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponclip2;
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponclip3;
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponclip4;
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponclip5;
+
+    bprint("`getHolsterWeaponClip`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+
+    // Bogus, should never happen.
+    return self.holsterweapon0;
+}
+
+void(float xHolster, float v) setHolsterWeaponClip =
+{
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { self.holsterweaponclip0 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { self.holsterweaponclip1 = v; return; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { self.holsterweaponclip2 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { self.holsterweaponclip3 = v; return; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { self.holsterweaponclip4 = v; return; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { self.holsterweaponclip5 = v; return; }
+
+    bprint("`setHolsterWeaponClip`: invalid holster ID: ");
+    bprint(ftos(xHolster));
+    bprint("\n");
+}
+
+// ---
+
 string(float xHolster) getHolsterWeaponModel =
 {
     if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponmodel0;
@@ -3899,6 +3932,7 @@ void(entity ent, float xHand,
      float xAttackFinished, float xHotspot,
      float xOtherWeapon, float* xOutOtherWeapon,
      float xOtherWeaponFlags, float* xOutOtherWeaponFlags,
+     float xWeaponClip, float* xOutWeaponClip,
      float xOtherAttackFinished) DoHandImpl =
 {
     float handGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
@@ -4114,6 +4148,7 @@ void() W_Frame =
                self.offhand_attack_finished, self.offhand_hotspot,
                self.weapon, &self.weapon,
                self.weaponflags, &self.weaponflags,
+               self.weaponclip, &self.weaponclip,
                self.attack_finished);
 
     DoHandImpl(self, cVR_MainHand,
@@ -4122,6 +4157,7 @@ void() W_Frame =
                self.attack_finished, self.mainhand_hotspot,
                self.weapon2, &self.weapon2,
                self.weaponflags2, &self.weaponflags2,
+               self.weaponclip2, &self.weaponclip2,
                self.offhand_attack_finished);
 
     W_Frame_Forcegrab();
