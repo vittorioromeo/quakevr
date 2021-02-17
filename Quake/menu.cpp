@@ -1834,12 +1834,6 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Immersion Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.add_cvar_entry<bool>("Weapon Reloading", vr_enable_reload)
-        .tooltip(
-            "Enables weapon reloading mechanics. Weapons can be reloaded by "
-            "moving them towards their holster. Reloading only works with "
-            "'immersive' weapon mode.");
-
     m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage)
         .tooltip(
             "Enables positional damage multipliers for headshots and leg "
@@ -1868,6 +1862,16 @@ void M_Options_Key(int k)
             "amount of weapons the player can carry. Quick slot holsters never "
             "become empty. They are the recommended way to play if you allow "
             "weapon cycling and want to carry infinite weapons.");
+
+    m.add_cvar_getter_enum_entry<VrReloadMode>(      //
+         "Weapon Reloading Mode",                    //
+         [] { return &vr_reload_mode; },             //
+         "None", "All Holsters", "Hip Holsters Only" //
+         )
+        .tooltip(
+            "Enables weapon reloading mechanics. Weapons can be reloaded by "
+            "moving them towards an holster. Reloading only works with "
+            "'immersive' weapon mode.");
 
     m.add_cvar_getter_enum_entry<VrHolsterHaptics>( //
          "Holster Haptics",                         //

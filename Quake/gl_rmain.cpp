@@ -1042,6 +1042,146 @@ void R_DrawViewModel(entity_t* viewent)
     }
 }
 
+// TODO VR: (P1) refactor
+void R_DrawString(const qvec3& originalpos, const qvec3& angles,
+    const std::string_view str, const WorldText::HAlign hAlign,
+    const float scale)
+{
+    // TODO VR: (P1) cleanup and optimize
+
+    const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
+                                       const qvec3& zInc, const char num) {
+        const int row = num >> 4;
+        const int col = num & 15;
+
+        const float frow = row * 0.0625;
+        const float fcol = col * 0.0625;
+        const float size = 0.0625;
+
+        const auto doVertex = [&](const qvec3& p) {
+            glVertex3f(p.x, p.y, p.z);
+        };
+
+        glTexCoord2f(fcol, frow);
+        doVertex(pos);
+
+        glTexCoord2f(fcol + size, frow);
+        doVertex(pos + hInc);
+
+        glTexCoord2f(fcol + size, frow + size);
+        doVertex(pos + hInc + zInc);
+
+        glTexCoord2f(fcol, frow + size);
+        doVertex(pos + zInc);
+    };
+
+    const auto forSplitStringView = [](const std::string_view str,
+                                        const std::string_view delims,
+                                        auto&& f) {
+        for(auto first = str.data(), second = str.data(),
+                 last = first + str.size();
+            second != last && first != last; first = second + 1)
+        {
+            second = std::find_first_of(
+                first, last, std::cbegin(delims), std::cend(delims));
+
+            if(first != second)
+            {
+                f(std::string_view(first, second - first));
+            }
+        }
+    };
+
+    const auto drawString = [&] {
+        static std::vector<std::string_view> lines;
+
+        // Split into lines
+        lines.clear();
+        forSplitStringView(str, "\n",
+            [&](const std::string_view sv) { lines.emplace_back(sv); });
+
+        if(lines.empty())
+        {
+            return;
+        }
+
+        // Find longest line size (for centering)
+        const std::size_t longestLineSize = std::max_element(lines.begin(),
+            lines.end(),
+            [](const std::string_view& a, const std::string_view& b) {
+                return a.size() < b.size();
+            })->size();
+
+        // Angles and offsets
+        const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
+        const auto hInc = right * 8.f * scale;
+        const auto zInc = up * 8.f * scale;
+
+        // Bounds
+        const auto absmins = originalpos;
+        const auto absmaxs = absmins +
+                             (hInc * static_cast<float>(longestLineSize)) +
+                             (zInc * static_cast<float>(lines.size()));
+
+        const auto center = originalpos - ((absmaxs - absmins) / 2.f);
+
+        // Draw
+        std::size_t iLine = 0;
+        for(const std::string_view& line : lines)
+        {
+            const std::size_t sizeDiff = longestLineSize - line.size();
+
+            auto startPos = [&] {
+                if(hAlign == WorldText::HAlign::Left)
+                {
+                    return center + (zInc * static_cast<float>(iLine));
+                }
+
+                if(hAlign == WorldText::HAlign::Center)
+                {
+                    return center +
+                           (hInc * static_cast<float>(sizeDiff) / 2.f) +
+                           (zInc * static_cast<float>(iLine));
+                }
+
+                assert(hAlign == WorldText::HAlign::Right);
+                return center + (hInc * static_cast<float>(sizeDiff)) +
+                       (zInc * static_cast<float>(iLine));
+            }();
+
+            for(const char c : line)
+            {
+                if(c != ' ')
+                {
+                    // don't waste verts on spaces
+                    drawCharacterQuad(startPos, hInc, zInc, c);
+                }
+
+                startPos += hInc;
+            }
+
+            ++iLine;
+        }
+    };
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glEnable(GL_ALPHA_TEST);
+    glColor4f(1, 1, 1, 1);
+
+    extern gltexture_t* char_texture;
+    GL_Bind(char_texture);
+    glBegin(GL_QUADS);
+
+    drawString();
+
+    glEnd();
+
+    glDisable(GL_ALPHA_TEST);
+    glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+}
+
 /*
 ================
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
@@ -1369,6 +1509,18 @@ void R_RenderScene()
     // VR: This is what draws the weapon buttons.
     R_DrawViewModel(&cl.mainhand_wpn_button);
     R_DrawViewModel(&cl.offhand_wpn_button);
+
+
+    // TODO VR: (P0) refactor
+    auto angles = cl.handrot[cVR_MainHand];
+    const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
+    angles[PITCH] -= 180.f;
+    angles[ROLL] *= -1.f;
+
+    char buf[64];
+    sprintf(buf, "%d", cl.stats[STAT_WEAPONCLIP]);
+    R_DrawString(
+        cl.viewent.origin - fwd * 12.f, angles, buf, WorldText::HAlign::Center, 0.15f);
 
     if(vr_leg_holster_model_enabled.value)
     {

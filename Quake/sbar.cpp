@@ -34,6 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.hpp"
 #include "view.hpp"
 #include "snd_voip.hpp"
+#include "vr_cvars.hpp"
+#include "cvar.hpp"
 
 extern bool premul_hud;
 int sb_updates; // if >= vid.numpages, no update needed
@@ -448,7 +450,7 @@ int Sbar_itoa(int num, char* buf)
 Sbar_DrawNum
 =============
 */
-void Sbar_DrawNum(int x, int y, int num, int digits, int color)
+int Sbar_DrawNum(int x, int y, int num, int digits, int color)
 {
     char str[12];
     char* ptr;
@@ -486,6 +488,8 @@ void Sbar_DrawNum(int x, int y, int num, int digits, int color)
         x += 24;
         ptr++;
     }
+
+    return x;
 }
 
 //=============================================================================
@@ -1357,22 +1361,51 @@ void Sbar_Draw()
             drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
-        const auto drawAmmoCounter = [&](const int x, const int ammoStat,
-                                         const int ammoCounterStat) {
-            const int aid = static_cast<int>(cl.stats[ammoStat]);
-            if(aid == AID_NONE)
-            {
-                return;
-            }
 
-            Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
-                cl.stats[ammoCounterStat] <= 10);
-        };
 
         // TODO VR: (P1) ammo2 as well, make this status bar better. Two status
         // bars?
-        drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
-        drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        if(quake::vr::get_weapon_reloading_enabled())
+        {
+            const auto drawClipAmmoCounter =
+                [&](const int x, const int clipStat, const int ammoStat,
+                    const int ammoCounterStat) {
+                    const int aid = static_cast<int>(cl.stats[ammoStat]);
+                    if(aid == AID_NONE)
+                    {
+                        return;
+                    }
+
+                    const int nextX = Sbar_DrawNum(
+                        x, 0, cl.stats[clipStat], 3, cl.stats[clipStat] <= 10);
+
+                    char buf[64];
+                    sprintf(buf, "%d", cl.stats[ammoCounterStat]);
+                    Sbar_DrawString(nextX + 4, 0, buf);
+                };
+
+            drawClipAmmoCounter(
+                ammoPos, STAT_WEAPONCLIP, STAT_AMMO, STAT_AMMOCOUNTER);
+            drawClipAmmoCounter(
+                ammo2Pos, STAT_WEAPONCLIP2, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        }
+        else
+        {
+            const auto drawAmmoCounter = [&](const int x, const int ammoStat,
+                                             const int ammoCounterStat) {
+                const int aid = static_cast<int>(cl.stats[ammoStat]);
+                if(aid == AID_NONE)
+                {
+                    return;
+                }
+
+                Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
+                    cl.stats[ammoCounterStat] <= 10);
+            };
+
+            drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
+            drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        }
     }
 
     // johnfitz -- removed the vid.width > 320 check here

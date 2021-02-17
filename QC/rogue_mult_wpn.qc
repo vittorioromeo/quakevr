@@ -85,7 +85,9 @@ void() MultiGrenadeTouch =
     if(other.takedamage == DAMAGE_AIM)
     {
         if(self.classname == "MiniGrenade")
+        {
             MiniGrenadeExplode();
+        }
         else
         {
             if(self.owner.classname == "player")
@@ -115,7 +117,7 @@ void(float xHand) W_FireMultiGrenade =
     entity missile;
     vector tmpAngles;
 
-    delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
+    delAmmoOrClipAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
     sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
 
@@ -353,7 +355,7 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
 
 void(float xHand) W_FireMultiRocket =
 {
-    delAmmoAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
+    delAmmoOrClipAndUpdateCounter(xHand, AID_MULTI_ROCKETS, 1);
 
     sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
 
@@ -562,7 +564,7 @@ void(float xHand) W_FirePlasma =
     float  cells;
     vector dir;
 
-    if(self.ammo_plasma < 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         return;
     }
@@ -581,7 +583,7 @@ void(float xHand) W_FirePlasma =
         return;
     }
 
-    delAmmoAndUpdateCounter(xHand, AID_PLASMA, 1);
+    delAmmoOrClipAndUpdateCounter(xHand, AID_PLASMA, 1);
 
     sound(self, VRGetGunChannel(xHand), "plasma/fire.wav", 0.5, ATTN_NORM);
     self.punchangle_x = -2;

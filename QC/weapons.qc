@@ -55,7 +55,7 @@ float(float xHand) getCurrentAmmoCount =
 
 float(float xHand) getCurrentAmmoOrClip =
 {
-    if(self.ishuman && VRIsWeaponReloadingEnabled() && WeaponIdToSupportsReload(VRGetWeapon(xHand)))
+    if(VRIsWeaponReloadingEnabledFor(self, xHand))
     {
         return VRGetWeaponClip(xHand);
     }
@@ -80,7 +80,7 @@ void(float xHand, float xAid, float xValue) delAmmoAndUpdateCounter =
 
 void(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
 {
-    if(self.ishuman && VRIsWeaponReloadingEnabled() && WeaponIdToSupportsReload(VRGetWeapon(xHand)))
+    if(VRIsWeaponReloadingEnabledFor(self, xHand))
     {
         VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - xValue);
 
@@ -1396,19 +1396,6 @@ W_FireShotgun
 */
 void(float xHand) W_FireShotgun =
 {
-    // TODO VR: (P1)  remove debug print
-    bprint("hand:");
-    bprint(ftos(xHand));
-    bprint(" | ");
-
-    bprint("clip:");
-    bprint(ftos(VRGetWeaponClip(xHand)));
-    bprint(" | ");
-
-    bprint("camm:");
-    bprint(ftos(VRGetCurrentAmmo(xHand)));
-    bprint("\n");
-
     vector dir;
 
     sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
@@ -2051,7 +2038,7 @@ void(float xHand, float ox) W_FireSpikes =
 
     makevectors(VRGetWeaponFireRot(xHand));
 
-    if(getCurrentAmmoOrClip(xHand) > 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
+    if(getCurrentAmmoOrClip(xHand) >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
         W_FireSuperSpikes(xHand);
         return;
@@ -2287,19 +2274,6 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         {
             sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
             *xOutAttackFinished = time + 0.5;
-
-            // TODO VR: (P1)  remove debug print
-            bprint("hand:");
-            bprint(ftos(xHand));
-            bprint(" | ");
-
-            bprint("clip:");
-            bprint(ftos(VRGetWeaponClip(xHand)));
-            bprint(" | ");
-
-            bprint("camm:");
-            bprint(ftos(VRGetCurrentAmmo(xHand)));
-            bprint("\n");
         }
 
         return;
@@ -3245,9 +3219,15 @@ float(float xHotspot) isHolsterHotspot =
            xHotspot == QVR_HS_RIGHT_UPPER_HOLSTER;
 }
 
-// TODO VR: (P1)  customizable?
 float(float xHotspot) isReloadHolsterHotspot =
 {
+    if(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_ALLHOLSTERS)
+    {
+        return TRUE;
+    }
+
+    ASSERT(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_HIPHOLSTERS);
+
     return xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
            xHotspot == QVR_HS_RIGHT_HIP_HOLSTER;
 }
@@ -4087,7 +4067,7 @@ void(entity ent, float xHand,
             }
         }
     }
-    // Holding a weapon and hovering an holster. Possible intention to holster.
+    // Holding a weapon and hovering an holster. Possible intention to holster or reload.
     else if(!handEmpty && handGrabbing)
     {
         if(isHolsterHotspot(xHotspot))
@@ -4097,8 +4077,8 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            // TODO VR: (P1)  reload mechanic
-            if(isReloadHolsterHotspot(xHotspot) &&
+            if(VRIsWeaponReloadingEnabled() &&
+               isReloadHolsterHotspot(xHotspot) &&
                (xWeaponClip < WeaponIdToBaseClipSize(xWeapon)) &&
                PlayerHasAmmoForWeapon(ent, xWeapon, xWeaponFlags))
             {
@@ -4112,11 +4092,6 @@ void(entity ent, float xHand,
 
                 delAmmoAndUpdateCounter(xHand, ammoId, clampedMissingAmmo);
                 *xOutWeaponClip = xWeaponClip + clampedMissingAmmo;
-
-                // TODO VR: (P1)  remove debug print
-                bprint("reloading clip to:");
-                bprint(ftos(xWeaponClip + clampedMissingAmmo));
-                bprint("\n");
             }
         }
     }
@@ -4279,9 +4254,6 @@ void() SuperDamageSound =
 };
 
 // TODO VR: (P2) remove backpack spinning animation.
-
-// TODO VR: (P0) thunderbolt and spikes reload is bugged, probably checking for ammo explicitly
-//          -- might be fixed, need testing
 
 // TODO VR: (P0) ammo boxes are unstable and cannot be force grabbed, e.g. tutorial map
 // TODO VR: (P0) create shooting range map?

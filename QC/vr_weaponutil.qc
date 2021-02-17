@@ -390,7 +390,6 @@ float(float wid) WeaponSupportsSecondaryAmmoFlag =
     return FALSE;
 }
 
-// TODO VR: (P1) implement reload system
 float(float wid) WeaponIdToSupportsReload =
 {
     if(wid == WID_FIST)             { return FALSE; }
@@ -411,7 +410,6 @@ float(float wid) WeaponIdToSupportsReload =
     return -1;
 }
 
-// TODO VR: (P1) implement reload system
 float(float wid) WeaponIdToBaseClipSize =
 {
     if(wid == WID_FIST)             { return 0; }
@@ -421,11 +419,11 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_SHOTGUN)          { return 8; }
     if(wid == WID_SUPER_SHOTGUN)    { return 2; }
     if(wid == WID_NAILGUN)          { return 24; }
-    if(wid == WID_SUPER_NAILGUN)    { return 48; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 1; }
-    if(wid == WID_PROXIMITY_GUN)    { return 1; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 1; }
-    if(wid == WID_LIGHTNING)        { return 48; }
+    if(wid == WID_SUPER_NAILGUN)    { return 36; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 4; }
+    if(wid == WID_PROXIMITY_GUN)    { return 4; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 4; }
+    if(wid == WID_LIGHTNING)        { return 36; }
     if(wid == WID_LASER_CANNON)     { return 0; }
 
     ASSERT(FALSE);

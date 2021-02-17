@@ -145,6 +145,18 @@ enum class VrHolsterMode : int
     QuickSlotHolsters = 1,
 };
 
+enum class VrReloadMode : int
+{
+    // No weapon reloading. Clip size is equal to total ammo.
+    None = 0,
+
+    // Any holster is viable for reload.
+    AllHolsters = 1,
+
+    // Only hip holsters are viable for reload.
+    HipHolsters = 2,
+};
+
 enum class VrWeaponThrowMode : int
 {
     // Thrown weapons can be picked back up.

@@ -452,9 +452,15 @@ void(entity ent, float value) VRSet2HAiming =
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
 }
 
-// TODO VR: (P1) implement reload system
 float() VRIsWeaponReloadingEnabled =
 {
-    return (cvar_hget(cvarh_vr_enable_reload) == 1) &&
+    return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
            (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
+}
+
+float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
+{
+    return ent.ishuman &&
+           VRIsWeaponReloadingEnabled() &&
+           WeaponIdToSupportsReload(VRGetWeapon(xHand));
 }

@@ -190,6 +190,17 @@ float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
 //
 //
 // ----------------------------------------------------------------------------
+// Enum values for `VrReloadMode'
+// ----------------------------------------------------------------------------
+
+float QVR_RELOADMODE_NONE        = 0;
+float QVR_RELOADMODE_ALLHOLSTERS = 1;
+float QVR_RELOADMODE_HIPHOLSTERS = 2;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Enum values for `VrWeaponThrowMode'
 // ----------------------------------------------------------------------------
 
