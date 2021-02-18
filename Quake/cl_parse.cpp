@@ -2267,18 +2267,21 @@ static void CL_ParseClientdata()
         cl.stats[STAT_HOLSTERWEAPON3] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPON4] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPON5] = MSG_ReadByte();
+
         cl.stats[STAT_HOLSTERWEAPONMODEL0] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONMODEL1] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONMODEL2] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONMODEL3] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONMODEL4] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONMODEL5] = MSG_ReadByte();
+
         cl.stats[STAT_HOLSTERWEAPONFLAGS0] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS1] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS2] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS3] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS4] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONFLAGS5] = MSG_ReadByte();
+
         cl.stats[STAT_HOLSTERWEAPONCLIP0] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONCLIP1] = MSG_ReadByte();
         cl.stats[STAT_HOLSTERWEAPONCLIP2] = MSG_ReadByte();
@@ -2290,10 +2293,13 @@ static void CL_ParseClientdata()
     // TODO VR: (P2) some data is sent twice, can optimize for MP
     cl.stats[STAT_MAINHAND_WID] = MSG_ReadByte();
     cl.stats[STAT_OFFHAND_WID] = MSG_ReadByte();
+
     cl.stats[STAT_WEAPONFLAGS] = MSG_ReadByte();
     cl.stats[STAT_WEAPONFLAGS2] = MSG_ReadByte();
+
     cl.stats[STAT_WEAPONCLIP] = MSG_ReadByte();
     cl.stats[STAT_WEAPONCLIP2] = MSG_ReadByte();
+
     cl.stats[STAT_WEAPONCLIPSIZE] = MSG_ReadByte();
     cl.stats[STAT_WEAPONCLIPSIZE2] = MSG_ReadByte();
 

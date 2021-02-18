@@ -1849,6 +1849,9 @@ void M_Options_Key(int k)
             "weapons are not affected - they still need to be grabbed with "
             "your hand.");
 
+    m.add_cvar_entry<bool>("Disable Haptics", vr_disablehaptics)
+        .tooltip("Disable all haptics (vibration).");
+
     // ------------------------------------------------------------------------
     m.add_separator();
     // ------------------------------------------------------------------------

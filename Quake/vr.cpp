@@ -3759,7 +3759,7 @@ struct VRAxisResult
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude)
 {
-    if(isDedicated || vr_fakevr.value == 1 || vr_novrinit.value == 1)
+    if(isDedicated || vr_fakevr.value == 1 || vr_novrinit.value == 1 || vr_disablehaptics.value == 1)
     {
         // No haptics at all in fake VR mode.
         return;
@@ -4240,7 +4240,7 @@ static void VR_DoInput_UpdateVRMouse()
 
 void VR_Move(usercmd_t* cmd)
 {
-    if(!vr_enabled.value)
+    if(isDedicated || !vr_enabled.value)
     {
         return;
     }

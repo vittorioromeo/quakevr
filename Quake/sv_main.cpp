@@ -3270,6 +3270,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
         MSG_WriteByte(msg, (int)ent->v.holsterweapon3);
         MSG_WriteByte(msg, (int)ent->v.holsterweapon4);
         MSG_WriteByte(msg, (int)ent->v.holsterweapon5);
+
         MSG_WriteByte(
             msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel0)));
         MSG_WriteByte(
@@ -3282,6 +3283,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
             msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel4)));
         MSG_WriteByte(
             msg, (int)SV_ModelIndex(PR_GetString(ent->v.holsterweaponmodel5)));
+
         MSG_WriteByte(
             msg, (int)ent->v.holsterweaponflags0); // STAT_HOLSTERWEAPONFLAGS0
         MSG_WriteByte(
@@ -3294,6 +3296,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
             msg, (int)ent->v.holsterweaponflags4); // STAT_HOLSTERWEAPONFLAGS4
         MSG_WriteByte(
             msg, (int)ent->v.holsterweaponflags5); // STAT_HOLSTERWEAPONFLAGS5
+
         MSG_WriteByte(
             msg, (int)ent->v.holsterweaponclip0); // STAT_HOLSTERWEAPONCLIP0
         MSG_WriteByte(
