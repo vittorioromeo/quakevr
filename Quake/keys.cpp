@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -1398,7 +1398,7 @@ void Key_GetGrabbedInput(int* lastkey, int* lastchar)
 bool CSQC_HandleKeyEvent(bool down, int keyc, int unic)
 {
     bool inhibit = false;
-    
+
     if(cl.qcvm.extfuncs.CSQC_InputEvent && key_dest == key_game)
     {
         PR_SwitchQCVM(&cl.qcvm);
@@ -1410,7 +1410,7 @@ bool CSQC_HandleKeyEvent(bool down, int keyc, int unic)
         inhibit = G_FLOAT(OFS_RETURN);
         PR_SwitchQCVM(nullptr);
     }
-    
+
     return inhibit;
 }
 
