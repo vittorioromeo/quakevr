@@ -126,6 +126,8 @@ void() SetChangeParms =
     parm36 = self.holsterweaponclip3;
     parm37 = self.holsterweaponclip4;
     parm38 = self.holsterweaponclip5;
+    parm39 = self.weaponclipsize;
+    parm40 = self.weaponclipsize2;
 };
 
 void() OnSpawnServerBeforeLoad =

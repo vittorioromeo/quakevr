@@ -86,6 +86,8 @@ float parm35; // Field: `.holsterweaponclip2`.
 float parm36; // Field: `.holsterweaponclip3`.
 float parm37; // Field: `.holsterweaponclip4`.
 float parm38; // Field: `.holsterweaponclip5`.
+float parm39; // Field: `.weaponclipsize`.
+float parm40; // Field: `.weaponclipsize2`.
 
 //
 //

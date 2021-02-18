@@ -66,7 +66,7 @@
 // Weapon reloading fields
 // ----------------------------------------------------------------------------
 
-.float weaponclip; // Main hand
+.float weaponclip;  // Main hand
 .float weaponclip2; // Off-hand
 .float holsterweaponclip0;
 .float holsterweaponclip1;
@@ -74,6 +74,8 @@
 .float holsterweaponclip3;
 .float holsterweaponclip4;
 .float holsterweaponclip5;
+.float weaponclipsize;  // Main hand
+.float weaponclipsize2; // Off-hand
 
 //
 //

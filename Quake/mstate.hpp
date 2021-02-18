@@ -80,6 +80,7 @@ enum m_state_e
     m_qvrdt_weaponconfiguration2,
     m_qvrdt_weaponconfiguration3,
     m_qvrdt_weaponconfiguration4,
+    m_qvrdt_weaponconfiguration5,
     m_qvrdt_fingerconfiguration,
     m_qvrdt_debugutilities,
 };

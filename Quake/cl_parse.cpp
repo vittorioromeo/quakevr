@@ -2294,6 +2294,8 @@ static void CL_ParseClientdata()
     cl.stats[STAT_WEAPONFLAGS2] = MSG_ReadByte();
     cl.stats[STAT_WEAPONCLIP] = MSG_ReadByte();
     cl.stats[STAT_WEAPONCLIP2] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONCLIPSIZE] = MSG_ReadByte();
+    cl.stats[STAT_WEAPONCLIPSIZE2] = MSG_ReadByte();
 
     // johnfitz -- lerping
     // ericw -- this was done before the upper 8 bits of

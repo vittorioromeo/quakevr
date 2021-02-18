@@ -40,10 +40,12 @@ void(float xHand, float xAid) updateAmmoCounter =
     if(xAid == AID_NONE)
     {
         VRSetAmmoCounter(xHand, 0);
+        VRSetWeaponClipSize(xHand, 0);
     }
     else
     {
         VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
+        VRSetWeaponClipSize(xHand, WeaponIdToBaseClipSize(VRGetWeapon(xHand)));
     }
 }
 

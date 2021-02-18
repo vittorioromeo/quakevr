@@ -115,3 +115,12 @@ struct entity_t
     struct trailstate_s*
         emitstate; // spike -- for effects which are not so static.
 };
+
+struct textentity_t
+{
+    qvec3 origin;
+    qvec3 angles;
+    float scale;
+    bool hidden;
+    bool horizFlip;
+};

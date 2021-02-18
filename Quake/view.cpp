@@ -1589,6 +1589,37 @@ static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
     // }
 }
 
+static void V_SetupWpnTextViewEnt(const int anchorWpnCvar,
+    entity_t* const anchor, textentity_t* const wpnText, const qvec3& handRot,
+    const qvec3& extraOffset, const bool horizFlip)
+{
+    assert(anchor->model != nullptr);
+
+    auto extraOffsets = VR_GetWpnTextOffsets(anchorWpnCvar) + extraOffset;
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::WpnTextAnchorVertex));
+
+    const bool hideText =
+        static_cast<WpnTextMode>(VR_GetWpnCVarValue(
+            anchorWpnCvar, WpnCVar::WpnTextMode)) == WpnTextMode::None;
+
+    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot, horizFlip);
+
+    qvec3 angles = VR_GetWpnTextAngles(anchorWpnCvar);
+    if(horizFlip)
+    {
+        angles[ROLL] *= -1.f;
+    }
+
+    wpnText->origin = pos;
+    wpnText->hidden = hideText;
+    wpnText->horizFlip = horizFlip;
+    wpnText->angles = handRot + angles;
+    wpnText->scale = VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::WpnTextScale);
+}
+
 static void V_RenderView_WeaponModels()
 {
     // -------------------------------------------------------------------
@@ -1786,6 +1817,30 @@ static void V_RenderView_WeaponButtonModels()
         vec3_zero, true);
 }
 
+static void V_RenderView_WeaponText()
+{
+    // -------------------------------------------------------------------
+    // VR: Setup weapon text.
+    const auto doWpnText = [&](entity_t* wpnEnt, textentity_t* textEnt,
+                               const int hand, const qvec3& extraOffset,
+                               const bool horizFlip) {
+        if(wpnEnt->model == nullptr)
+        {
+            return;
+        }
+
+        const int wpnCvar = VR_GetWpnCVarFromModel(wpnEnt->model);
+
+        V_SetupWpnTextViewEnt(
+            wpnCvar, wpnEnt, textEnt, cl.handrot[hand], extraOffset, horizFlip);
+    };
+
+    doWpnText(
+        &cl.viewent, &cl.mainhand_wpn_text, cVR_MainHand, vec3_zero, false);
+    doWpnText(&cl.offhand_viewent, &cl.offhand_wpn_text, cVR_OffHand, vec3_zero,
+        true);
+}
+
 /*
 ==================
 V_RenderView
@@ -1814,6 +1869,7 @@ void V_RenderView()
         V_RenderView_HandModels();
         V_RenderView_VRTorsoModel();
         V_RenderView_WeaponButtonModels();
+        V_RenderView_WeaponText();
 
         R_RenderView();
     }

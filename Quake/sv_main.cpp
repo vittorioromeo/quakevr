@@ -3317,6 +3317,9 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
     MSG_WriteByte(msg, (int)ent->v.weaponclip);  // STAT_WEAPONCLIP
     MSG_WriteByte(msg, (int)ent->v.weaponclip2); // STAT_WEAPONCLIP2
 
+    MSG_WriteByte(msg, (int)ent->v.weaponclipsize);  // STAT_WEAPONCLIPSIZE
+    MSG_WriteByte(msg, (int)ent->v.weaponclipsize2); // STAT_WEAPONCLIPSIZE2
+
 
     // TODO VR: (P1) experiment with this
 #if 0

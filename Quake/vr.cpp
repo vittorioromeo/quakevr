@@ -811,6 +811,23 @@ char* CopyWithNumeral(const char* str, int i)
         VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnButtonRoll)};
 }
 
+
+[[nodiscard]] qvec3 VR_GetWpnTextOffsets(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextX),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextY),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextZ)};
+}
+
+[[nodiscard]] qvec3 VR_GetWpnTextAngles(const int cvarEntry) noexcept
+{
+    return {//
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextPitch),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextYaw),
+        VR_GetWpnCVarValue(cvarEntry, WpnCVar::WpnTextRoll)};
+}
+
 [[nodiscard]] qvec3 VR_GetWpn2HAngleOffsets(const int cvarEntry) noexcept
 {
     return {//
@@ -958,6 +975,15 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     init(WpnCVar::MuzzleAnchorVertex,       "vr_wofs_muzzle_av_nn",    "0.0");
     init(WpnCVar::ZeroBlend,                "vr_wofs_zb_nn",           "0.0");
     init(WpnCVar::TwoHZeroBlend,            "vr_wofs_zb_2h_nn",        "0.0");
+    init(WpnCVar::WpnTextMode,              "vr_wofs_wpntxtmode_nn",   "0.0");
+    init(WpnCVar::WpnTextX,                 "vr_wofs_wpntxt_x_nn",     "0.0");
+    init(WpnCVar::WpnTextY,                 "vr_wofs_wpntxt_y_nn",     "0.0");
+    init(WpnCVar::WpnTextZ,                 "vr_wofs_wpntxt_z_nn",     "0.0");
+    init(WpnCVar::WpnTextAnchorVertex,      "vr_wofs_wpntxt_av_nn",    "0.0");
+    init(WpnCVar::WpnTextPitch,             "vr_wofs_wpntxt_pitch_nn", "0.0");
+    init(WpnCVar::WpnTextYaw,               "vr_wofs_wpntxt_yaw_nn",   "0.0");
+    init(WpnCVar::WpnTextRoll,              "vr_wofs_wpntxt_roll_nn",  "0.0");
+    init(WpnCVar::WpnTextScale,             "vr_wofs_wpntxt_scale_nn", "1.0");
     // clang-format on
 
     return i;

@@ -265,6 +265,9 @@ struct client_state_t
     entity_t mainhand_wpn_button;
     entity_t offhand_wpn_button;
 
+    textentity_t mainhand_wpn_text;
+    textentity_t offhand_wpn_text;
+
     struct hand_entities
     {
         entity_t base;

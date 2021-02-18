@@ -1834,6 +1834,9 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Immersion Settings", &M_Menu_QuakeVRSettings_f};
 
+    m.add_cvar_entry<bool>("Weapon Text", vr_show_weapon_text)
+        .tooltip("Show floating ammunition text attached to weapons");
+
     m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage)
         .tooltip(
             "Enables positional damage multipliers for headshots and leg "
@@ -2489,7 +2492,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (1)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{"Weapon Configuration (1) - Basics, Muzzle, 2H",
+        &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2664,7 +2668,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (2) - Hand, 2H", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2876,7 +2881,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (3) - Weight", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2977,7 +2983,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (4)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (4) - Button, Blend", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -3096,6 +3103,142 @@ void M_QuakeVRSettings_Key(int k)
 [[nodiscard]] static quake::menu& qvrdtWeaponConfiguration4Menu()
 {
     static quake::menu res = makeQVRDTWeaponConfiguration4Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (5) */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration5Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.2f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+    const quake::menu_bounds<float> zbBounds{0.05f, 0.f, 1.f};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (5) - Text", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int, quake::impl::menu_entry&) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            zbBounds                                             //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<WpnTextMode>(                                //
+         "Text Mode",                                                         //
+         [getIdx] { return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextMode); }, //
+         "Disabled", "Ammo"                                                   //
+         )
+        .tooltip("Type of text.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnOffsetTooltip = "Offset of the weapon text.";
+
+    o_wpncvar("Text X", WpnCVar::WpnTextX).tooltip(btnOffsetTooltip);
+    o_wpncvar("Text Y", WpnCVar::WpnTextY).tooltip(btnOffsetTooltip);
+    o_wpncvar("Text Z", WpnCVar::WpnTextZ).tooltip(btnOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnAngleTooltip = "Angle offset of the weapon text.";
+
+    r_wpncvar("Text Pitch", WpnCVar::WpnTextPitch).tooltip(btnAngleTooltip);
+    r_wpncvar("Text Yaw", WpnCVar::WpnTextYaw).tooltip(btnAngleTooltip);
+    r_wpncvar("Text Roll", WpnCVar::WpnTextRoll).tooltip(btnAngleTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverWpnTextAnchorVertex =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpntext_anchor_vertex);
+
+    m.add_cvar_getter_entry<int>( //
+         "Text Anchor Vertex",    //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverWpnTextAnchorVertex)
+        .tooltip("Index of the mesh vertex where the text will be attached.");
+
+    zb_wpncvar("Text Scale", WpnCVar::WpnTextScale)
+        .tooltip("Scale of the text.");
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration5Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration5Menu();
     return res;
 }
 
@@ -3279,6 +3422,7 @@ static void forQVRDTMenus(F&& f)
     f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
     f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
     f(qvrdtWeaponConfiguration4Menu(), m_qvrdt_weaponconfiguration4);
+    f(qvrdtWeaponConfiguration5Menu(), m_qvrdt_weaponconfiguration5);
     f(qvrdtFingerConfigurationMenu(), m_qvrdt_fingerconfiguration);
     f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }

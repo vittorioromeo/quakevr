@@ -1368,26 +1368,27 @@ void Sbar_Draw()
         if(quake::vr::get_weapon_reloading_enabled())
         {
             const auto drawClipAmmoCounter =
-                [&](const int x, const int clipStat, const int ammoStat,
-                    const int ammoCounterStat) {
+                [&](const int x, const int clipStat, const int clipSizeStat,
+                    const int ammoStat, const int ammoCounterStat) {
                     const int aid = static_cast<int>(cl.stats[ammoStat]);
                     if(aid == AID_NONE)
                     {
                         return;
                     }
 
-                    const int nextX = Sbar_DrawNum(
-                        x, 0, cl.stats[clipStat], 3, cl.stats[clipStat] <= 10);
+                    const int nextX =
+                        Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
 
                     char buf[64];
-                    sprintf(buf, "%d", cl.stats[ammoCounterStat]);
+                    sprintf(buf, "%d|%d", cl.stats[clipSizeStat],
+                        cl.stats[ammoCounterStat]);
                     Sbar_DrawString(nextX + 4, 0, buf);
                 };
 
-            drawClipAmmoCounter(
-                ammoPos, STAT_WEAPONCLIP, STAT_AMMO, STAT_AMMOCOUNTER);
-            drawClipAmmoCounter(
-                ammo2Pos, STAT_WEAPONCLIP2, STAT_AMMO2, STAT_AMMOCOUNTER2);
+            drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,
+                STAT_AMMO, STAT_AMMOCOUNTER);
+            drawClipAmmoCounter(ammo2Pos, STAT_WEAPONCLIP2,
+                STAT_WEAPONCLIPSIZE2, STAT_AMMO2, STAT_AMMOCOUNTER2);
         }
         else
         {

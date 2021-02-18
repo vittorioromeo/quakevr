@@ -708,7 +708,7 @@ void show_2h_hand_anchor_vertex()
     }
 
     const HandIdx hand_idx =
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+        vr_impl_draw_2h_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
 
     show_anchor_vertex_impl(hand_idx, WpnCVar::TwoHHandAnchorVertex);
 }
@@ -729,9 +729,30 @@ void show_wpn_button_anchor_vertex()
     }
 
     const HandIdx hand_idx =
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+        vr_impl_draw_wpnbutton_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
 
     show_anchor_vertex_impl(hand_idx, WpnCVar::WpnButtonAnchorVertex);
+}
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Show Weapon Text Anchor Vertex
+// ----------------------------------------------------------------------------
+
+// TODO VR: (P1) code repetition
+void show_wpn_text_anchor_vertex()
+{
+    if(vr_impl_draw_wpntext_anchor_vertex == 0)
+    {
+        return;
+    }
+
+    const HandIdx hand_idx =
+        vr_impl_draw_wpntext_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+
+    show_anchor_vertex_impl(hand_idx, WpnCVar::WpnTextAnchorVertex);
 }
 
 //
@@ -750,7 +771,7 @@ void show_muzzle_anchor_vertex()
     }
 
     const HandIdx hand_idx =
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
+        vr_impl_draw_wpnoffset_helper_muzzle == 1 ? cVR_MainHand : cVR_OffHand;
 
     show_anchor_vertex_impl(hand_idx, WpnCVar::MuzzleAnchorVertex);
 }
@@ -771,6 +792,7 @@ int vr_impl_draw_wpnoffset_helper_2h_offset{0};
 int vr_impl_draw_hand_anchor_vertex{0};
 int vr_impl_draw_2h_hand_anchor_vertex{0};
 int vr_impl_draw_wpnbutton_anchor_vertex{0};
+int vr_impl_draw_wpntext_anchor_vertex{0};
 int vr_impl_draw_wpnoffset_helper_length{0};
 
 //
@@ -795,6 +817,7 @@ void draw_all_show_helpers()
     show_hand_anchor_vertex();
     show_2h_hand_anchor_vertex();
     show_wpn_button_anchor_vertex();
+    show_wpn_text_anchor_vertex();
     show_muzzle_anchor_vertex();
     show_menu_intersection_point();
 }

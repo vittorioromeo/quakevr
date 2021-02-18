@@ -1510,17 +1510,40 @@ void R_RenderScene()
     R_DrawViewModel(&cl.mainhand_wpn_button);
     R_DrawViewModel(&cl.offhand_wpn_button);
 
-
     // TODO VR: (P0) refactor
-    auto angles = cl.handrot[cVR_MainHand];
-    const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
-    angles[PITCH] -= 180.f;
-    angles[ROLL] *= -1.f;
+    const auto drawWeaponAmmoText =
+        [](const textentity_t& textEnt, const int statClipIdx,
+            const int statClipSizeIdx, const int statAmmoCounterIdx) {
+            if(textEnt.hidden)
+            {
+                return;
+            }
 
-    char buf[64];
-    sprintf(buf, "%d", cl.stats[STAT_WEAPONCLIP]);
-    R_DrawString(
-        cl.viewent.origin - fwd * 12.f, angles, buf, WorldText::HAlign::Center, 0.15f);
+            qvec3 angles = textEnt.angles;
+            angles[PITCH] -= 180.f;
+            angles[ROLL] *= -1.f;
+
+            char buf[64];
+
+            if(quake::vr::get_weapon_reloading_enabled())
+            {
+                sprintf(buf, "%d/%d\n%d", cl.stats[statClipIdx],
+                    cl.stats[statClipSizeIdx], cl.stats[statAmmoCounterIdx]);
+            }
+            else
+            {
+                sprintf(buf, "%d", cl.stats[statAmmoCounterIdx]);
+            }
+
+            R_DrawString(textEnt.origin, angles, buf, WorldText::HAlign::Center,
+                0.10f * textEnt.scale);
+        };
+
+    drawWeaponAmmoText(cl.mainhand_wpn_text, STAT_WEAPONCLIP,
+        STAT_WEAPONCLIPSIZE, STAT_AMMOCOUNTER);
+
+    drawWeaponAmmoText(cl.offhand_wpn_text, STAT_WEAPONCLIP2,
+        STAT_WEAPONCLIPSIZE2, STAT_AMMOCOUNTER2);
 
     if(vr_leg_holster_model_enabled.value)
     {

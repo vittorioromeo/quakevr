@@ -42,6 +42,7 @@ extern int vr_impl_draw_wpnoffset_helper_2h_offset;
 extern int vr_impl_draw_hand_anchor_vertex;
 extern int vr_impl_draw_2h_hand_anchor_vertex;
 extern int vr_impl_draw_wpnbutton_anchor_vertex;
+extern int vr_impl_draw_wpntext_anchor_vertex;
 
 } // namespace showfn
 } // namespace vr

@@ -211,6 +211,14 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClip,
                           &self.weaponclip2,
                           &self.weaponclip);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClipSize,
+                          self.weaponclipsize2,
+                          self.weaponclipsize);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClipSize,
+                          &self.weaponclipsize2,
+                          &self.weaponclipsize);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetLavaGunFired,
                           self.offHandLavaGunFired,
                           self.mainHandLavaGunFired);
@@ -260,6 +268,12 @@ void(entity e, float xHand, float v) VRSetEntWeaponClip =
     else                     e.weaponclip = v;
 }
 
+void(entity e, float xHand, float v) VRSetEntWeaponClipSize =
+{
+    if(xHand == cVR_OffHand) e.weaponclipsize2 = v;
+    else                     e.weaponclipsize = v;
+}
+
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -283,6 +297,12 @@ float(entity e, float xHand) VRGetEntWeaponClip =
     else                     return e.weaponclip;
 }
 
+float(entity e, float xHand) VRGetEntWeaponClipSize =
+{
+    if(xHand == cVR_OffHand) return e.weaponclipsize2;
+    else                     return e.weaponclipsize;
+}
+
 float*(entity e, float xHand) VRGetEntWeaponPtr =
 {
     if(xHand == cVR_OffHand) return &e.weapon2;
@@ -299,6 +319,12 @@ float*(entity e, float xHand) VRGetEntWeaponClipPtr =
 {
     if(xHand == cVR_OffHand) return &e.weaponclip2;
     else                     return &e.weaponclip;
+}
+
+float*(entity e, float xHand) VRGetEntWeaponClipSizePtr =
+{
+    if(xHand == cVR_OffHand) return &e.weaponclipsize2;
+    else                     return &e.weaponclipsize;
 }
 
 float(entity e, float xHand) VRIsHandEmpty =

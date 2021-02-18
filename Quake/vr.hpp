@@ -415,6 +415,15 @@ enum class WpnButtonMode : int
     ChangeAmmo = 1,
 };
 
+enum class WpnTextMode : int
+{
+    // The weapon does not have text.
+    None = 0,
+
+    // The weapon has text to show the remaining ammo.
+    Ammo = 1,
+};
+
 enum class WpnCVar : std::uint8_t
 {
     OffsetX = 0,
@@ -482,6 +491,16 @@ enum class WpnCVar : std::uint8_t
     ZeroBlend = 61,
     TwoHZeroBlend = 62,
 
+    WpnTextMode = 63,
+    WpnTextX = 64,
+    WpnTextY = 65,
+    WpnTextZ = 66,
+    WpnTextAnchorVertex = 67,
+    WpnTextPitch = 68,
+    WpnTextYaw = 69,
+    WpnTextRoll = 70,
+    WpnTextScale = 71,
+
     k_Max
 };
 
@@ -511,6 +530,10 @@ enum class WpnCVar : std::uint8_t
 [[nodiscard]] qvec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
 
+// ----------------------------------------------------------------------------
+
+[[nodiscard]] qvec3 VR_GetWpnTextOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnTextAngles(const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 
