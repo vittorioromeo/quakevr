@@ -246,6 +246,7 @@ enum class VrForceGrabMode : int
 // VR Public API
 // ----------------------------------------------------------------------------
 
+void VR_InitCvars();
 void VID_VR_Init();
 void VID_VR_Shutdown();
 bool VR_Enable();

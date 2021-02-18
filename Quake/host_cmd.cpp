@@ -2290,7 +2290,12 @@ void Host_Spawn_f()
         // VR: Force autosave on client spawn.
         if(!pr_global_struct->deathmatch && !pr_global_struct->coop)
         {
+            qcvm_t* oldvm = qcvm;
+            PR_SwitchQCVM(nullptr);
+
             quake::saveutil::doChangelevelAutosave();
+
+            PR_SwitchQCVM(oldvm);
         }
     }
 

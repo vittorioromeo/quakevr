@@ -11,14 +11,14 @@
 
 static std::vector<cvar_t*> cvarsToRegister;
 
-#define DEFINE_FCVAR(name, defaultValue, type)        \
-    cvar_t name = {#name, #defaultValue, type};       \
-    static struct _cvar_registrar##name##__LINE__##_t \
-    {                                                 \
-        _cvar_registrar##name##__LINE__##_t()         \
-        {                                             \
-            cvarsToRegister.emplace_back(&name);      \
-        }                                             \
+#define DEFINE_FCVAR(name, defaultValue, type)                \
+    cvar_t name = {#name, #defaultValue, type, defaultValue}; \
+    static struct _cvar_registrar##name##__LINE__##_t         \
+    {                                                         \
+        _cvar_registrar##name##__LINE__##_t()                 \
+        {                                                     \
+            cvarsToRegister.emplace_back(&name);              \
+        }                                                     \
     } _cvar_registrar##name##__LINE__
 
 #define DEFINE_FCVAR_ARCHIVE(name, defaultValue) \
@@ -34,8 +34,8 @@ static std::vector<cvar_t*> cvarsToRegister;
 DEFINE_FCVAR(vr_enabled, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_lefthanded, 0, CVAR_NONE);
-DEFINE_FCVAR(vr_fakevr, 0, CVAR_NONE);
-DEFINE_FCVAR(vr_novrinit, 0, CVAR_NONE);
+DEFINE_FCVAR(vr_fakevr, 1, CVAR_NONE);
+DEFINE_FCVAR(vr_novrinit, 1, CVAR_NONE);
 
 //
 //

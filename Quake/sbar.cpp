@@ -365,9 +365,9 @@ void Sbar_DrawCharacter(int x, int y, int num)
 Sbar_DrawString -- johnfitz -- rewritten now that GL_SetCanvas is doing the work
 ================
 */
-void Sbar_DrawString(int x, int y, const char* str)
+void Sbar_DrawString(int x, int y, const char* str, float scale = 1.f)
 {
-    Draw_String(x, y + 24, str);
+    Draw_String(x, y + 24, str, scale);
 }
 
 /*
@@ -1379,10 +1379,12 @@ void Sbar_Draw()
                     const int nextX =
                         Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
 
-                    char buf[64];
-                    sprintf(buf, "%d|%d", cl.stats[clipSizeStat],
-                        cl.stats[ammoCounterStat]);
+                    char buf[32];
+                    sprintf(buf, "%d", cl.stats[clipSizeStat]);
                     Sbar_DrawString(nextX + 4, 0, buf);
+
+                    sprintf(buf, "%d", cl.stats[ammoCounterStat]);
+                    Sbar_DrawString(nextX + 4, 8, buf, 1.4f);
                 };
 
             drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,

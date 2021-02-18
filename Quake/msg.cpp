@@ -66,6 +66,23 @@ void MSG_WriteShort(sizebuf_t* sb, int c)
     buf[1] = c >> 8;
 }
 
+void MSG_WriteUnsignedShort(sizebuf_t* sb, unsigned int c)
+{
+#ifdef PARANOID
+    // if(c < -32768 || c > 32767)
+    // if (c < 0|| c > 65535)
+    {
+        // TODO VR: (P2) always fires - seems both signed and unsigned are being
+        // passed Sys_Error("MSG_WriteShort: range error");
+    }
+#endif
+
+    byte* const buf = (byte*)SZ_GetSpace(sb, 2);
+    // buf[0] = c & 0b1111'1111'0000'0000;
+    buf[0] = c & 0xff;
+    buf[1] = c >> 8;
+}
+
 void MSG_WriteLong(sizebuf_t* sb, int c)
 {
     byte* const buf = (byte*)SZ_GetSpace(sb, 4);
@@ -242,6 +259,22 @@ void MSG_BeginReading()
     }
 
     const int c = (short)(net_message.data[msg_readcount] +
+                          (net_message.data[msg_readcount + 1] << 8));
+
+    msg_readcount += 2;
+
+    return c;
+}
+
+[[nodiscard]] unsigned int MSG_ReadUnsignedShort()
+{
+    if(msg_readcount + 2 > net_message.cursize)
+    {
+        msg_badread = true;
+        return -1;
+    }
+
+    const unsigned int c = (unsigned short)(net_message.data[msg_readcount] +
                           (net_message.data[msg_readcount + 1] << 8));
 
     msg_readcount += 2;

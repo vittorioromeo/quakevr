@@ -1510,7 +1510,7 @@ void R_RenderScene()
     R_DrawViewModel(&cl.mainhand_wpn_button);
     R_DrawViewModel(&cl.offhand_wpn_button);
 
-    // TODO VR: (P0) refactor
+    // VR: This is what draws the floating ammo text attached to weapons.
     const auto drawWeaponAmmoText =
         [](const textentity_t& textEnt, const int statClipIdx,
             const int statClipSizeIdx, const int statAmmoCounterIdx) {

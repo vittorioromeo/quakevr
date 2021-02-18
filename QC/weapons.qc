@@ -3976,6 +3976,34 @@ VRPutWeaponInHolster =
     setHolsterWeaponClip(xHotspot, xWeaponClip);
 }
 
+void(entity entPlayer, float xHand,
+    float xWeapon, float xWeaponFlags, float xWeaponClip, float* xOutWeaponClip)
+VRReloadWeapon =
+{
+    VRGunHaptic(xHand, 0.25, 70, 1.0);
+    sound(entPlayer, CHAN_BODY, "reload1.wav", 1, ATTN_NORM);
+
+    float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
+    float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - xWeaponClip;
+    float remainingAmmo = VR_AmmoUtil_GetAmmoCountByAmmoId(entPlayer, ammoId);
+    float clampedMissingAmmo = clamp(missingAmmo, 0, remainingAmmo);
+
+    delAmmoAndUpdateCounter(xHand, ammoId, clampedMissingAmmo);
+    *xOutWeaponClip = xWeaponClip + clampedMissingAmmo;
+}
+
+void(entity entPlayer, float xHand,
+     float xWeapon, float xWeaponFlags, float xWeaponClip, float* xOutWeaponClip)
+VRTryReloadWeapon =
+{
+    if(VRIsWeaponReloadingEnabled() &&
+       (xWeaponClip < WeaponIdToBaseClipSize(xWeapon)) &&
+       PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
+    {
+        VRReloadWeapon(entPlayer, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
+    }
+}
+
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xWeaponFlags, float* xOutWeaponFlags,
@@ -4001,6 +4029,11 @@ void(entity ent, float xHand,
     {
         // Do not do anything if the player is not "ready" yet, after spawning.
         return;
+    }
+
+    if(VRIsEntHandReloadingBit(ent, xHand))
+    {
+        VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
     }
 
     if(isHolsterHotspot(xHotspot))
@@ -4079,21 +4112,9 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabled() &&
-               isReloadHolsterHotspot(xHotspot) &&
-               (xWeaponClip < WeaponIdToBaseClipSize(xWeapon)) &&
-               PlayerHasAmmoForWeapon(ent, xWeapon, xWeaponFlags))
+            if(isReloadHolsterHotspot(xHotspot))
             {
-                VRGunHaptic(xHand, 0.25, 70, 1.0);
-                sound(ent, CHAN_BODY, "reload1.wav", 1, ATTN_NORM);
-
-                float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
-                float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - xWeaponClip;
-                float remainingAmmo = VR_AmmoUtil_GetAmmoCountByAmmoId(ent, ammoId);
-                float clampedMissingAmmo = clamp(missingAmmo, 0, remainingAmmo);
-
-                delAmmoAndUpdateCounter(xHand, ammoId, clampedMissingAmmo);
-                *xOutWeaponClip = xWeaponClip + clampedMissingAmmo;
+                VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }
         }
     }

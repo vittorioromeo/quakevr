@@ -677,7 +677,7 @@ void SV_ReadClientMove(usercmd_t* move)
     host_client->edict->v.offmuzzlepos = move->offmuzzlepos = readVec();
 
     // vrbits
-    host_client->edict->v.vrbits0 = move->vrbits0 = MSG_ReadUnsignedChar();
+    host_client->edict->v.vrbits0 = move->vrbits0 = MSG_ReadUnsignedShort();
 
     // movement
     move->forwardmove = MSG_ReadShort();

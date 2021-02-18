@@ -181,9 +181,6 @@ void scanSaves()
 
 void doAutosave() noexcept
 {
-    // TODO VR: (P0) Restore
-    return;
-
     if(vr_autosave_show_message.value)
     {
         Con_Printf("Creating autosave...\n");

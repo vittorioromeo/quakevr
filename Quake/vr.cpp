@@ -214,6 +214,10 @@ bool vr_left_grabbing{false};
 bool vr_left_prevgrabbing{false};
 bool vr_right_grabbing{false};
 bool vr_right_prevgrabbing{false};
+bool vr_left_reloading{false};
+bool vr_left_prevreloading{false};
+bool vr_right_reloading{false};
+bool vr_right_prevreloading{false};
 
 vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 vr::VRSkeletalSummaryData_t vr_ss_righthand;
@@ -1059,7 +1063,7 @@ void InitAllWeaponCVars()
 // VR Initialization
 // ----------------------------------------------------------------------------
 
-void VID_VR_Init()
+void VR_InitCvars()
 {
     // This is only called once at game start
     Cvar_SetCallback(&vr_enabled, VR_Enabled_f);
@@ -1067,7 +1071,10 @@ void VID_VR_Init()
 
     quake::vr::register_all_cvars();
     InitAllWeaponCVars();
+}
 
+void VID_VR_Init()
+{
     // VR: Fix grenade model flags to enable smoke trail.
     Mod_ForName("progs/grenade.mdl", true)->flags |= EF_GRENADE;
     Mod_ForName("progs/proxbomb.mdl", true)->flags |= EF_GRENADE;
@@ -1180,6 +1187,8 @@ vr::VRActionHandle_t vrahSpeed;
 vr::VRActionHandle_t vrahTeleport;
 vr::VRActionHandle_t vrahLeftGrab;
 vr::VRActionHandle_t vrahRightGrab;
+vr::VRActionHandle_t vrahLeftReload;
+vr::VRActionHandle_t vrahRightReload;
 vr::VRActionHandle_t vrahPrevWeaponOffHand;
 vr::VRActionHandle_t vrahNextWeaponOffHand;
 vr::VRActionHandle_t vrahBMoveForward;
@@ -1267,6 +1276,8 @@ static void VR_InitActionHandles()
     readHandle("/actions/default/in/Teleport", vrahTeleport);
     readHandle("/actions/default/in/LeftGrab", vrahLeftGrab);
     readHandle("/actions/default/in/RightGrab", vrahRightGrab);
+    readHandle("/actions/default/in/LeftReload", vrahLeftReload);
+    readHandle("/actions/default/in/RightReload", vrahRightReload);
     readHandle("/actions/default/in/PrevWeaponOffHand", vrahPrevWeaponOffHand);
     readHandle("/actions/default/in/NextWeaponOffHand", vrahNextWeaponOffHand);
 
@@ -1488,7 +1499,7 @@ void VID_VR_Disable()
 
 static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
 {
-    if(vr_fakevr.value || vr_novrinit.value)
+    if(isDedicated || vr_fakevr.value || vr_novrinit.value)
     {
         return;
     }
@@ -2576,7 +2587,7 @@ __attribute__((no_sanitize_address))
 static void
 VR_UpdateDevicesOrientationPosition() noexcept
 {
-    if(vr_fakevr.value && vr_novrinit.value)
+    if(isDedicated || (vr_fakevr.value && vr_novrinit.value))
     {
         return;
     }
@@ -3345,7 +3356,7 @@ void VR_UpdateScreenContent()
     r_refdef.viewangles = cl.viewangles;
     r_refdef.aimangles = cl.aimangles;
 
-    if(vr_fakevr.value || vr_novrinit.value)
+    if(isDedicated || vr_fakevr.value || vr_novrinit.value)
     {
         return;
     }
@@ -3748,7 +3759,7 @@ struct VRAxisResult
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude)
 {
-    if(vr_fakevr.value == 1)
+    if(isDedicated || vr_fakevr.value == 1 || vr_novrinit.value == 1)
     {
         // No haptics at all in fake VR mode.
         return;
@@ -3851,13 +3862,24 @@ static void VR_DoInput_UpdateVRMouse()
 
 [[nodiscard]] static VRAxisResult VR_DoInput()
 {
+    if(isDedicated)
+    {
+        return {0.f, 0.f, 0.f};
+    }
+
     if(vr_fakevr.value && vr_novrinit.value)
     {
         vr_menu_mult = 1.f;
+
         vr_left_prevgrabbing = vr_left_grabbing;
         vr_right_prevgrabbing = vr_right_grabbing;
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
+
+        vr_left_prevreloading = vr_left_reloading;
+        vr_right_prevreloading = vr_right_reloading;
+        vr_left_reloading = in_reloadleft.state & 1;
+        vr_right_reloading = in_reloadright.state & 1;
 
         VR_DoInput_UpdateFakeMouse();
 
@@ -3971,6 +3993,8 @@ static void VR_DoInput_UpdateVRMouse()
     const auto inpTeleport = readDigitalAction(vrahTeleport);
     const auto inpLeftGrab = readDigitalAction(vrahLeftGrab);
     const auto inpRightGrab = readDigitalAction(vrahRightGrab);
+    const auto inpLeftReload = readDigitalAction(vrahLeftReload);
+    const auto inpRightReload = readDigitalAction(vrahRightReload);
     const auto inpPrevWeaponOffHand = readDigitalAction(vrahPrevWeaponOffHand);
     const auto inpNextWeaponOffHand = readDigitalAction(vrahNextWeaponOffHand);
 
@@ -4042,18 +4066,32 @@ static void VR_DoInput_UpdateVRMouse()
     vr_left_prevgrabbing = vr_left_grabbing;
     vr_right_prevgrabbing = vr_right_grabbing;
 
+    // TODO VR: (P2) global state mutation here, could be source of bugs
+    vr_left_prevreloading = vr_left_reloading;
+    vr_right_prevreloading = vr_right_reloading;
+
     if(vr_fakevr.value == 0)
     {
         Key_Event('k', inpLeftGrab.bState);
         Key_Event('l', inpRightGrab.bState);
         vr_left_grabbing = (in_grableft.state & 1);
         vr_right_grabbing = (in_grabright.state & 1);
+
+        Key_Event('n', inpLeftReload.bState);
+        Key_Event('m', inpRightReload.bState);
+        vr_left_reloading = (in_reloadleft.state & 1);
+        vr_right_reloading = (in_reloadright.state & 1);
+
         VR_DoInput_UpdateVRMouse();
     }
     else
     {
         vr_left_grabbing = !(in_grableft.state & 1);
         vr_right_grabbing = !(in_grabright.state & 1);
+
+        vr_left_reloading = in_reloadleft.state & 1;
+        vr_right_reloading = in_reloadright.state & 1;
+
         VR_DoInput_UpdateFakeMouse();
     }
 
@@ -4246,7 +4284,7 @@ void VR_Move(usercmd_t* cmd)
 
     // VR: VR-related bits.
     {
-        const auto setBit = [](unsigned char& flags, const int bit,
+        const auto setBit = [](unsigned int& flags, const int bit,
                                 const bool value) {
             if(value)
             {
@@ -4270,6 +4308,13 @@ void VR_Move(usercmd_t* cmd)
         setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING,
             vr_right_prevgrabbing);
         setBit(cmd->vrbits0, QVR_VRBITS0_2H_AIMING, twoHAiming);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_RELOADING, vr_left_reloading);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADING,
+            vr_left_prevreloading);
+        setBit(
+            cmd->vrbits0, QVR_VRBITS0_MAINHAND_RELOADING, vr_right_reloading);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING,
+            vr_right_prevreloading);
     }
 
     // VR: Hands.

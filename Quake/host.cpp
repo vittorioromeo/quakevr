@@ -627,7 +627,7 @@ void SV_DropClient(bool crash)
         {
             continue;
         }
-        
+
         MSG_WriteByte(&client->message, svc_updatename);
         MSG_WriteByte(&client->message, host_client - svs.clients);
         MSG_WriteString(&client->message, "");
@@ -1223,6 +1223,7 @@ void Host_Init()
     Cmd_Init();
     LOG_Init(host_parms);
     Cvar_Init(); // johnfitz
+    VR_InitCvars();
     COM_Init();
     COM_InitFilesystem();
     Host_InitLocal();

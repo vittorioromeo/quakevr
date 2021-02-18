@@ -392,9 +392,13 @@ string nextmap;
 void() GotoNextMap =
 {
     if(cvar_hget(cvarh_samelevel))    // if samelevel is set, stay on same level
-        changelevel (mapname);
+    {
+        changelevel(mapname);
+    }
     else
-        changelevel (nextmap);
+    {
+        changelevel(nextmap);
+    }
 };
 
 

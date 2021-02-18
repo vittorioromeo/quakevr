@@ -570,7 +570,7 @@ struct usercmd_t
     qvec3 headvel;
     qvec3 muzzlepos;
     qvec3 offmuzzlepos;
-    unsigned char vrbits0;
+    unsigned int vrbits0;
 
     // intended velocities
     float forwardmove;

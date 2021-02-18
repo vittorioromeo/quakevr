@@ -34,7 +34,7 @@ struct qpic_t;
 extern qpic_t* draw_disc; // also used on sbar
 
 void Draw_Init();
-void Draw_Character(int x, int y, int num);
+void Draw_Character(int x, int y, int num, float scale = 1.f);
 void Draw_DebugChar(char num);
 void Draw_Pic(int x, int y, qpic_t* pic);
 
@@ -49,7 +49,7 @@ void Draw_TileClear(int x, int y, int w, int h);
 void Draw_Fill(
     int x, int y, int w, int h, int c, float alpha); // johnfitz -- added alpha
 void Draw_FadeScreen();
-void Draw_String(int x, int y, const char* str);
+void Draw_String(int x, int y, const char* str, float scale = 1.f);
 qpic_t* Draw_PicFromWad(const char* name);
 qpic_t* Draw_CachePic(const char* path);
 

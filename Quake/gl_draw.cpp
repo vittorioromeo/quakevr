@@ -591,7 +591,7 @@ void Draw_Init()
 Draw_CharacterQuad -- johnfitz -- seperate function to spit out verts
 ================
 */
-void Draw_CharacterQuad(int x, int y, char num)
+void Draw_CharacterQuad(int x, int y, char num, float scale)
 {
     const int row = num >> 4;
     const int col = num & 15;
@@ -599,15 +599,16 @@ void Draw_CharacterQuad(int x, int y, char num)
     const float frow = row * 0.0625;
     const float fcol = col * 0.0625;
     const float size = 0.0625;
+    const float inc = 8 * scale;
 
     glTexCoord2f(fcol, frow);
     glVertex2f(x, y);
     glTexCoord2f(fcol + size, frow);
-    glVertex2f(x + 8, y);
+    glVertex2f(x + inc, y);
     glTexCoord2f(fcol + size, frow + size);
-    glVertex2f(x + 8, y + 8);
+    glVertex2f(x + inc, y + inc);
     glTexCoord2f(fcol, frow + size);
-    glVertex2f(x, y + 8);
+    glVertex2f(x, y + inc);
 }
 
 /*
@@ -615,7 +616,7 @@ void Draw_CharacterQuad(int x, int y, char num)
 Draw_Character -- johnfitz -- modified to call Draw_CharacterQuad
 ================
 */
-void Draw_Character(int x, int y, int num)
+void Draw_Character(int x, int y, int num, float scale)
 {
     num &= 255;
 
@@ -627,7 +628,7 @@ void Draw_Character(int x, int y, int num)
     GL_Bind(char_texture);
     glBegin(GL_QUADS);
 
-    Draw_CharacterQuad(x, y, (char)num);
+    Draw_CharacterQuad(x, y, (char)num, scale);
 
     glEnd();
 }
@@ -637,7 +638,7 @@ void Draw_Character(int x, int y, int num)
 Draw_String -- johnfitz -- modified to call Draw_CharacterQuad
 ================
 */
-void Draw_String(int x, int y, const char* str)
+void Draw_String(int x, int y, const char* str, float scale)
 {
     if(y <= -8)
     {
@@ -652,10 +653,10 @@ void Draw_String(int x, int y, const char* str)
         if(*str != 32)
         {
             // don't waste verts on spaces
-            Draw_CharacterQuad(x, y, *str);
+            Draw_CharacterQuad(x, y, *str, scale);
         }
         str++;
-        x += 8;
+        x += 8 * scale;
     }
 
     glEnd();
