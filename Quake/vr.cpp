@@ -566,7 +566,8 @@ static void VR_Enabled_f(cvar_t* var) noexcept
 
     if(!VR_Enable())
     {
-        Cvar_SetValueQuick(&vr_enabled, 0);
+        // TODO VR: (P2) what to do?
+        // Cvar_SetValueQuick(&vr_enabled, 0);
     }
 }
 
@@ -1068,6 +1069,9 @@ void VR_InitCvars()
     // This is only called once at game start
     Cvar_SetCallback(&vr_enabled, VR_Enabled_f);
     Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
+
+    // TODO VR: (P2) what to do here?
+    Cvar_SetValueQuick(&vr_enabled, 1);
 
     quake::vr::register_all_cvars();
     InitAllWeaponCVars();

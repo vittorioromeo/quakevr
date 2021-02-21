@@ -453,9 +453,6 @@ void SV_TouchLinks(edict_t* ent)
 
         const bool canBeHandTouched = quake::util::canBeHandTouched(target);
 
-        const bool entIntersects =
-            !quake::util::entBoxIntersection(ent, target);
-
         const auto intersects = [&](const qvec3& handMin,
                                     const qvec3& handMax) {
             // VR: This increases the boundaries for easier hand touching.
@@ -473,8 +470,9 @@ void SV_TouchLinks(edict_t* ent)
         const bool mainHandIntersects = intersects(handposmin, handposmax);
         const bool anyHandIntersects = offHandIntersects || mainHandIntersects;
 
-        const bool anyIntersection =
-            vr_enabled.value ? anyHandIntersects : entIntersects;
+        const bool anyIntersection = anyHandIntersects;
+        vr_enabled.value ? anyHandIntersects
+                         : quake::util::entBoxIntersection(ent, target);
 
         if(!canBeHandTouched || !anyIntersection)
         {
