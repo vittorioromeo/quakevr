@@ -470,9 +470,9 @@ void SV_TouchLinks(edict_t* ent)
         const bool mainHandIntersects = intersects(handposmin, handposmax);
         const bool anyHandIntersects = offHandIntersects || mainHandIntersects;
 
-        const bool anyIntersection = anyHandIntersects;
-        vr_enabled.value ? anyHandIntersects
-                         : quake::util::entBoxIntersection(ent, target);
+        const bool anyIntersection =
+            vr_enabled.value ? anyHandIntersects
+                             : quake::util::entBoxIntersection(ent, target);
 
         if(!canBeHandTouched || !anyIntersection)
         {
@@ -1006,6 +1006,7 @@ SV_RecursiveHullCheck
 Decides if its a simple point test, or does a slightly more expensive check.
 ==================
 */
+
 // QSS
 bool SV_RecursiveHullCheck(hull_t* hull, int num, float p1f, float p2f,
     const qvec3& p1, const qvec3& p2, trace_t* trace)
@@ -1078,7 +1079,7 @@ trace_t SV_ClipMoveToEntity(edict_t* ent, const qvec3& start, const qvec3& mins,
     const qvec3 start_l = start - qvec3(offset);
     const qvec3 end_l = end - qvec3(offset);
 
-    // trace a line through the apropriate clipping hull
+    // trace a line through the appropriate clipping hull
 
 // TODO VR: (P0) QSS Merge
 #if 0

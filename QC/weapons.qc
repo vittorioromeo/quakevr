@@ -4282,8 +4282,3 @@ void() SuperDamageSound =
     }
 };
 
-// TODO VR: (P2) remove backpack spinning animation.
-
-// TODO VR: (P0) ammo boxes are unstable and cannot be force grabbed, e.g. tutorial map
-// TODO VR: (P0) create shooting range map?
-// TODO VR: (P0) dedicated servers are screwed up, items not rendering and objects/buttons are used at insane ranges

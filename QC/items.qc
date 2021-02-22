@@ -90,7 +90,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_SHOTGUN, 0.7))
         { /* Intentionally empty. */ }
     }
-    else if(ent.classname == ITEM_NAME_SPIKES || ent.classname == ITEM_NAME_LAVA_NAILS)
+    else if(ent.classname == ITEM_NAME_SPIKES || ent.classname == ITEM_NAME_LAVA_SPIKES)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_NAILGUN, 0.4))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_NAILGUN, 0.5))
@@ -142,7 +142,7 @@ void() PlaceItem =
 {
     float oldz;
 
-    self.mdl = self.model;        // so it can be restored on respawn
+    self.mdl = self.model;       // so it can be restored on respawn
     self.flags = FL_ITEM;        // make extra wide
     self.solid = SOLID_TRIGGER;
     self.movetype = MOVETYPE_TOSS;
@@ -159,8 +159,9 @@ void() PlaceItem =
     }
     else
     {
-        self.origin_z = self.origin_z + 6;
+        self.origin_z += 6;
         oldz = self.origin_z;
+
         if(!droptofloor())
         {
             dprint("Bonus item fell out of level!\n");
@@ -168,6 +169,7 @@ void() PlaceItem =
             dprint(" at ");
             dprint(vtos(self.origin));
             dprint("\n");
+
             remove(self);
             return;
         }
@@ -175,7 +177,7 @@ void() PlaceItem =
 
     // HONEY
     if(enableHoneyExtensions &&
-       (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET))
+        (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET))
     {
         total_secrets += 1;
 
@@ -865,13 +867,20 @@ void() forcegrabbable_item_think =
 
 void(entity xEnt, float scaleFactor) MakeItemGrabbable =
 {
-    self.oldorigin = self.origin;
-    self.rad_time = -999;
-
     vector factorVector = VR_ScaleUtil_GetUniformScaleVector(scaleFactor);
 
     VR_ScaleUtil_SetScale(self, factorVector);
-    setsize(self, '0 0 0', self.maxs * scaleFactor);
+
+    vector s = self.maxs * scaleFactor;
+    setsize(self, -s / 2.0, s / 2.0);
+    self.model_offset = -s - '3 3 3';
+
+    vector bump = '0 0 0';
+    bump.z = self.maxs.z;
+    setorigin(self, self.origin + bump + s / 2.0);
+
+    self.oldorigin = self.origin;
+    self.rad_time = -999;
 
     MakeGrabbable(self);
     self.flags |= FL_FORCEGRABBABLE;
