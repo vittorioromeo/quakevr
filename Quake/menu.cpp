@@ -446,6 +446,7 @@ void M_Main_Key(int key)
     quake::menu m{"Single Player", &M_Menu_Main_f};
 
     m.add_action_entry("Tutorial", [] { M_Menu_NewGame_f("vrtutorial"); });
+    m.add_action_entry("Sandbox", [] { M_Menu_NewGame_f("vrfiringrange"); });
 
     // ------------------------------------------------------------------------
     m.add_separator();

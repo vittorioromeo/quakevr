@@ -2797,6 +2797,12 @@ void Host_Give_f()
                                        float& ammoCounter) {
         switch((int)(currentAmmo))
         {
+            case AID_NONE:
+            {
+                ammoCounter = 0;
+                break;
+            }
+
             case AID_SHELLS:
             {
                 ammoCounter = sv_player->v.ammo_shells;
@@ -2818,6 +2824,30 @@ void Host_Give_f()
             case AID_CELLS:
             {
                 ammoCounter = sv_player->v.ammo_cells;
+                break;
+            }
+
+            case AID_LAVA_NAILS:
+            {
+                ammoCounter = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_lava_nails"))
+                                  ->_float;
+                break;
+            }
+
+            case AID_MULTI_ROCKETS:
+            {
+                ammoCounter = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_multi_rockets"))
+                                  ->_float;
+                break;
+            }
+
+            case AID_PLASMA:
+            {
+                ammoCounter = GetEdictFieldValue(
+                    sv_player, ED_FindFieldOffset("ammo_plasma"))
+                                  ->_float;
                 break;
             }
 

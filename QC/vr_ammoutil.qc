@@ -65,7 +65,7 @@ string(float xAid) VR_AmmoUtil_AmmoIdToItemName =
     if(xAid == AID_NAILS)         { return ITEM_NAME_SPIKES; }
     if(xAid == AID_ROCKETS)       { return ITEM_NAME_ROCKETS; }
     if(xAid == AID_CELLS)         { return ITEM_NAME_CELLS; }
-    if(xAid == AID_LAVA_NAILS)    { return ITEM_NAME_LAVA_NAILS; }
+    if(xAid == AID_LAVA_NAILS)    { return ITEM_NAME_LAVA_SPIKES; }
     if(xAid == AID_MULTI_ROCKETS) { return ITEM_NAME_MULTI_ROCKETS; }
     if(xAid == AID_PLASMA)        { return ITEM_NAME_PLASMA; }
 

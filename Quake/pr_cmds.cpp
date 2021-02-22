@@ -2254,7 +2254,7 @@ static void PF_sv_setspawnparms()
         (&pr_global_struct->parm1)[i] = client->spawn_parms[i];
     }
 
- 	// extended spawn parms
+    // extended spawn parms
     for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
     {
         ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));

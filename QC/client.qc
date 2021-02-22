@@ -73,9 +73,13 @@ void() SetChangeParms =
         parm3 = self.armorvalue;
 
         if(self.ammo_shells < 25)
+        {
             parm4 = 25;
+        }
         else
+        {
             parm4 = self.ammo_shells;
+        }
 
         parm5 = self.ammo_nails;
         parm6 = self.ammo_rockets;

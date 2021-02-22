@@ -349,8 +349,6 @@ void() func_worldtext_banner =
     }
 }
 
-
-
 void() func_weapon_dispenser_use =
 {
     CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
@@ -370,4 +368,20 @@ void() func_weapon_dispenser =
     setmodel(self, self.model);
 
     self.use = func_weapon_dispenser_use;
+}
+
+void() func_weapon_grabbable =
+{
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    setmodel(self, self.model);
+
+    CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
+        WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
+        self.origin, randomVec(180),
+        '0 0 0', randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(self.weapon)
+    );
 }

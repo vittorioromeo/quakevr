@@ -493,7 +493,7 @@ void(float xHand, float stat) HIP_FireLaser =
         return;
     }
 
-    if(self.ammo_cells < 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         return;
     }
@@ -863,7 +863,9 @@ void(float xHand) HIP_FireMjolnir =
         }
 
         if(trace_ent.classname == "monster_zombie")
+        {
             xdmg *= 1.25;
+        }
 
         trace_ent.axhitme = 1;
         SpawnBlood (org, v_forward, xdmg);
@@ -2390,9 +2392,13 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
            !self.ishuman)
         {
             if(self.ammo_cells < 30)
+            {
                 player_hammer1(xHand);
+            }
             else
+            {
                 player_mjolnir1(xHand);
+            }
 
             *xOutAttackFinished = time + 0.8;
         }
@@ -3773,7 +3779,7 @@ void MakeGrabbable(entity newmis)
     newmis.throwhit = QVR_THROWHIT_NEVER_HIT;
     newmis.throwstabilizedim = -1;
 
-    newmis.flags = newmis.flags | FL_EASYHANDTOUCH;
+    newmis.flags |= FL_EASYHANDTOUCH;
 
     SetThrownWeaponMetalNoiseOnTouch(newmis, FALSE);
 }
