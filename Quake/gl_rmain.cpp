@@ -1245,6 +1245,7 @@ void R_ShowBoundingBoxes()
     glColor3f(1, 1, 1);
 
     qcvm_t* oldvm = qcvm;
+    PR_SwitchQCVM(nullptr);
     PR_SwitchQCVM(&sv.qcvm);
 
     int i;
@@ -1284,6 +1285,7 @@ void R_ShowBoundingBoxes()
             }
         }
     }
+    PR_SwitchQCVM(nullptr);
     PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);

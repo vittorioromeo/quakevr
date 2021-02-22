@@ -274,8 +274,9 @@ void MSG_BeginReading()
         return -1;
     }
 
-    const unsigned int c = (unsigned short)(net_message.data[msg_readcount] +
-                          (net_message.data[msg_readcount + 1] << 8));
+    const unsigned int c =
+        (unsigned short)(net_message.data[msg_readcount] +
+                         (net_message.data[msg_readcount + 1] << 8));
 
     msg_readcount += 2;
 

@@ -1379,10 +1379,10 @@ void Sbar_Draw()
 
                     char buf[32];
                     sprintf(buf, "/%d", cl.stats[clipSizeStat]);
-                    Sbar_DrawString(nextX + 4, 0, buf);
+                    Sbar_DrawString(nextX + 4, 2, buf);
 
                     sprintf(buf, "%d", cl.stats[ammoCounterStat]);
-                    Sbar_DrawString(nextX + 4, 8, buf, 1.4f);
+                    Sbar_DrawString(nextX + 4, 10, buf, 1.4f);
                 };
 
             drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,

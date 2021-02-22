@@ -627,6 +627,24 @@ void() zombie_lay   =[ $paine11,   zombie_lay ]
 //HIPNOTIC
 //============================================================================
 
+void() monster_zombie_precache =
+{
+    precache_model("progs/zombie.mdl");
+    precache_model("progs/h_zombie.mdl");
+    precache_model("progs/zom_gib.mdl");
+
+    precache_sound("zombie/z_idle.wav");
+    precache_sound("zombie/z_idle1.wav");
+    precache_sound("zombie/z_shot1.wav");
+    precache_sound("zombie/z_gib.wav");
+    precache_sound("zombie/z_pain.wav");
+    precache_sound("zombie/z_pain1.wav");
+    precache_sound("zombie/z_fall.wav");
+    precache_sound("zombie/z_miss.wav");
+    precache_sound("zombie/z_hit.wav");
+    precache_sound("zombie/idle_w2.wav");
+}
+
 /*QUAKED monster_zombie (1 0 0) (-16 -16 -24) (16 16 32) Crucified Lying ambush Sneaky
 
 Crucified - Zombie stays stuck in the wall, moans and writhes.
@@ -644,20 +662,7 @@ void() monster_zombie =
         return;
     }
 
-    precache_model("progs/zombie.mdl");
-    precache_model("progs/h_zombie.mdl");
-    precache_model("progs/zom_gib.mdl");
-
-    precache_sound("zombie/z_idle.wav");
-    precache_sound("zombie/z_idle1.wav");
-    precache_sound("zombie/z_shot1.wav");
-    precache_sound("zombie/z_gib.wav");
-    precache_sound("zombie/z_pain.wav");
-    precache_sound("zombie/z_pain1.wav");
-    precache_sound("zombie/z_fall.wav");
-    precache_sound("zombie/z_miss.wav");
-    precache_sound("zombie/z_hit.wav");
-    precache_sound("zombie/idle_w2.wav");
+    monster_zombie_precache();
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){

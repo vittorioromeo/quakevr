@@ -2551,7 +2551,7 @@ static void PF_getsurfaceclippedpoint()
         returnVector(result);
         return;
     }
-        
+
     // all polies, we can skip parts. special case.
     surf = model->surfaces + model->firstmodelsurface + surfnum;
     getsurface_clippointpoly(model, surf, point, result, 0x7fffffff);
@@ -5756,7 +5756,7 @@ static void PF_cl_stringwidth()
     struct markup_s mu;
     int r = 0;
 
-    if(usecolours)
+    if(!usecolours)
     {
         r = strlen(text);
     }

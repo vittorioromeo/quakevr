@@ -645,9 +645,9 @@ static bool CL_AttachEntity(entity_t* ent, float frac)
         std::tie(fwd, tmp, up) = quake::util::getAngledVectors(ent->angles);
 
         // transform the origin
-        tmp = parent->origin, ent->origin[0], paxis[0];
-        tmp = tmp, -ent->origin[1], paxis[1];
-        ent->origin = tmp, ent->origin[2], paxis[2];
+        tmp = parent->origin + ent->origin[0] * paxis[0];
+        tmp = tmp + -ent->origin[1] * paxis[1];
+        ent->origin = tmp + ent->origin[2] * paxis[2];
 
         // transform the forward vector
         tmp = vec3_zero + fwd[0] * paxis[0];

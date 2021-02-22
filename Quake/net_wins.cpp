@@ -612,7 +612,7 @@ int WINS_GetSocketAddr(sys_socket_t socketid, struct qsockaddr* addr)
         if(!memcmp(&((struct sockaddr_in6*)addr)->sin6_addr, &in6addr_any,
                sizeof(in_addr6_t)))
             memcpy(&((struct sockaddr_in6*)addr)->sin6_addr, &myAddrv6,
-                sizeof(struct sockaddr_in6));
+                sizeof(in_addr6_t));
     }
 #endif
 

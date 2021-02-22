@@ -336,6 +336,7 @@ void Cmd_Exec_f()
         Con_Printf("execing %s\n", Cmd_Argv(1));
     }
 
+    Cbuf_InsertText("\n");
     Cbuf_InsertText(f);
     Hunk_FreeToLowMark(mark);
 }

@@ -605,7 +605,7 @@ void SV_DropClient(bool crash)
     NET_Close(host_client->netconnection);
     host_client->netconnection = nullptr;
 
-    SVFTE_DestroyFrames(host_client);	//release any delta state
+    SVFTE_DestroyFrames(host_client); // release any delta state
 
     // free the client (the body stays around)
     host_client->active = false;
@@ -1286,6 +1286,7 @@ void Host_Init()
 
         // VR: This is what reads 'config.cfg'.
         Cbuf_InsertText("exec quake.rc\n");
+        Cbuf_AddText("cl_warncmd 1\n");
         Cbuf_Execute();
 
         if(vr_enabled.value == 1)

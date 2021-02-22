@@ -350,16 +350,8 @@ void() sham_die =
 
 //============================================================================
 
-
-/*QUAKED monster_shambler (1 0 0) (-32 -32 -24) (32 32 64) Ambush
-*/
-void() monster_shambler =
+void() monster_shambler_precache =
 {
-    if(deathmatch)
-    {
-        remove(self);
-        return;
-    }
     precache_model("progs/shambler.mdl");
     precache_model("progs/s_light.mdl");
     precache_model("progs/h_shams.mdl");
@@ -374,6 +366,19 @@ void() monster_shambler =
     precache_sound("shambler/melee1.wav");
     precache_sound("shambler/melee2.wav");
     precache_sound("shambler/smack.wav");
+}
+
+/*QUAKED monster_shambler (1 0 0) (-32 -32 -24) (32 32 64) Ambush
+*/
+void() monster_shambler =
+{
+    if(deathmatch)
+    {
+        remove(self);
+        return;
+    }
+
+    monster_shambler_precache();
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
