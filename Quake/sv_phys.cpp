@@ -1491,7 +1491,7 @@ void SV_Physics_Toss(edict_t* ent)
 
     // update "on ground" status, stop/bounce if on ground
     {
-        auto vel = ent->v.velocity;
+        qvec3 vel = ent->v.velocity;
 
         if(ent->v.movetype != MOVETYPE_FLY &&
             ent->v.movetype != MOVETYPE_FLYMISSILE)
@@ -1523,7 +1523,7 @@ void SV_Physics_Toss(edict_t* ent)
 
             if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
             {
-                if(!(quake::util::hasFlag(ent, FL_ONGROUND)))
+                if(!quake::util::hasFlag(ent, FL_ONGROUND))
                 {
                     quake::util::addFlag(ent, FL_ONGROUND);
 
