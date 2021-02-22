@@ -664,116 +664,55 @@ void show_anchor_vertex_impl(const HandIdx hand_idx, const WpnCVar wpn_cvar)
     });
 }
 
+void show_anchor_vertex_for(const int impl_flag, WpnCVar wpn_cvar)
+{
+    if(impl_flag == 0)
+    {
+        return;
+    }
+
+    const HandIdx hand_idx = impl_flag == 1 ? cVR_MainHand : cVR_OffHand;
+    show_anchor_vertex_impl(hand_idx, wpn_cvar);
+}
+
 //
 //
 //
 // ----------------------------------------------------------------------------
-// Show Hand Anchor Vertex
+// Show Vertex Functions
 // ----------------------------------------------------------------------------
+
+// TODO VR: (P1) move all Show functions to some other file
+// TODO VR: (P2) cvars to always show all vertices
 
 void show_hand_anchor_vertex()
 {
-    // TODO VR: (P2) cvar to always show all vertices
-    // show_hand_anchor_vertex_impl(cVR_MainHand);
-    // show_hand_anchor_vertex_impl(cVR_OffHand);
-
-    if(vr_impl_draw_hand_anchor_vertex == 0)
-    {
-        return;
-    }
-
-    const HandIdx hand_idx =
-        vr_impl_draw_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
-
-    show_anchor_vertex_impl(hand_idx, WpnCVar::HandAnchorVertex);
+    show_anchor_vertex_for(
+        vr_impl_draw_hand_anchor_vertex, WpnCVar::HandAnchorVertex);
 }
 
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Show 2H Hand Anchor Vertex
-// ----------------------------------------------------------------------------
-
-// TODO VR: (P1) code repetition, move all Show functions to some other file
 void show_2h_hand_anchor_vertex()
 {
-    // TODO VR: (P2) cvar to always show all vertices
-    // show_2h_hand_anchor_vertex_impl(cVR_MainHand);
-    // show_2h_hand_anchor_vertex_impl(cVR_OffHand);
-
-    if(vr_impl_draw_2h_hand_anchor_vertex == 0)
-    {
-        return;
-    }
-
-    const HandIdx hand_idx =
-        vr_impl_draw_2h_hand_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
-
-    show_anchor_vertex_impl(hand_idx, WpnCVar::TwoHHandAnchorVertex);
+    show_anchor_vertex_for(
+        vr_impl_draw_2h_hand_anchor_vertex, WpnCVar::TwoHHandAnchorVertex);
 }
 
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Show Weapon Button Anchor Vertex
-// ----------------------------------------------------------------------------
-
-// TODO VR: (P1) code repetition
 void show_wpn_button_anchor_vertex()
 {
-    if(vr_impl_draw_wpnbutton_anchor_vertex == 0)
-    {
-        return;
-    }
-
-    const HandIdx hand_idx =
-        vr_impl_draw_wpnbutton_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
-
-    show_anchor_vertex_impl(hand_idx, WpnCVar::WpnButtonAnchorVertex);
+    show_anchor_vertex_for(
+        vr_impl_draw_wpnbutton_anchor_vertex, WpnCVar::WpnButtonAnchorVertex);
 }
 
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Show Weapon Text Anchor Vertex
-// ----------------------------------------------------------------------------
-
-// TODO VR: (P1) code repetition
 void show_wpn_text_anchor_vertex()
 {
-    if(vr_impl_draw_wpntext_anchor_vertex == 0)
-    {
-        return;
-    }
-
-    const HandIdx hand_idx =
-        vr_impl_draw_wpntext_anchor_vertex == 1 ? cVR_MainHand : cVR_OffHand;
-
-    show_anchor_vertex_impl(hand_idx, WpnCVar::WpnTextAnchorVertex);
+    show_anchor_vertex_for(
+        vr_impl_draw_wpntext_anchor_vertex, WpnCVar::WpnTextAnchorVertex);
 }
 
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Show Muzzle Anchor Vertex
-// ----------------------------------------------------------------------------
-
-// TODO VR: (P1) code repetition
 void show_muzzle_anchor_vertex()
 {
-    if(vr_impl_draw_wpnoffset_helper_muzzle == 0)
-    {
-        return;
-    }
-
-    const HandIdx hand_idx =
-        vr_impl_draw_wpnoffset_helper_muzzle == 1 ? cVR_MainHand : cVR_OffHand;
-
-    show_anchor_vertex_impl(hand_idx, WpnCVar::MuzzleAnchorVertex);
+    show_anchor_vertex_for(
+        vr_impl_draw_wpnoffset_helper_muzzle, WpnCVar::MuzzleAnchorVertex);
 }
 
 } // namespace

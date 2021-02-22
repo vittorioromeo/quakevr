@@ -1361,8 +1361,6 @@ void Sbar_Draw()
             drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
-
-
         // TODO VR: (P1) ammo2 as well, make this status bar better. Two status
         // bars?
         if(quake::vr::get_weapon_reloading_enabled())
@@ -1380,7 +1378,7 @@ void Sbar_Draw()
                         Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
 
                     char buf[32];
-                    sprintf(buf, "%d", cl.stats[clipSizeStat]);
+                    sprintf(buf, "/%d", cl.stats[clipSizeStat]);
                     Sbar_DrawString(nextX + 4, 0, buf);
 
                     sprintf(buf, "%d", cl.stats[ammoCounterStat]);

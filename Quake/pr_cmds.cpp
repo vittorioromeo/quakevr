@@ -1369,8 +1369,6 @@ static void PF_rotatevec()
     // TODO VR: (P1): fix this. consider checking QSS source code for rotation
     // code
 
-
-
     glm::mat4 rotationMat(1); // Creates a identity matrix
     rotationMat = glm::rotate(rotationMat, angle, right);
     auto res = glm::vec3(rotationMat * glm::vec4(vec, 1.0));
