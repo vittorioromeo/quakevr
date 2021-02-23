@@ -33,6 +33,8 @@
 * Weapon holster system *(hip and shoulders, fully customizable)*
 * Weapon throwing & force grabbing
 * Multiplayer support *(also with bots)*
+* Weapon reload system
+* Sandbox map
 
 ## Disclaimer
 
@@ -152,7 +154,9 @@ At the moment there is no server browser and no dedicated server support. Also, 
 
 * > How do I obtain the grappling hook?
 
-    * The grappling hook is only available through cheats: it is a very fun *toy* but it would completely break the progression of most levels. To obtain it, go to the "Debug Utilities" sub-menu under the "Quake VR Dev Tools" menu - there will be an option to enable it there. You can then spawn it by using the "Impulse 14 (Spawn All)" command, or cycle to it if you have weapon cycling enabled.
+    * The grapplink hook is available in the sandbox map, accessible through the "single player" menu.
+
+    * The grappling hook is also available through cheats: it is a very fun *toy* but it would completely break the progression of most levels. To obtain it, go to the "Debug Utilities" sub-menu under the "Quake VR Dev Tools" menu - there will be an option to enable it there. You can then spawn it by using the "Impulse 14 (Spawn All)" command, or cycle to it if you have weapon cycling enabled.
 
 * > My issue is not listed here!
 
@@ -166,7 +170,7 @@ At the moment there is no server browser and no dedicated server support. Also, 
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
     * [Quakespasm-Spiked](http://triptohell.info/moodles/qss/)
 
-* Hand models with finger trackning support created by *Trevor Roach*
+* Hand models with finger tracking support created by *Trevor Roach*
     * Many thanks!
 
 * Weapon ironsights modeled by me
