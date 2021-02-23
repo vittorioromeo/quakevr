@@ -3763,7 +3763,8 @@ struct VRAxisResult
 void VR_DoHaptic(const int hand, const float delay, const float duration,
     const float frequency, const float amplitude)
 {
-    if(isDedicated || vr_fakevr.value == 1 || vr_novrinit.value == 1 || vr_disablehaptics.value == 1)
+    if(isDedicated || vr_fakevr.value == 1 || vr_novrinit.value == 1 ||
+        vr_disablehaptics.value == 1)
     {
         // No haptics at all in fake VR mode.
         return;
@@ -3921,8 +3922,8 @@ static void VR_DoInput_UpdateVRMouse()
         [](const vr::VRActionHandle_t& actionHandle) {
             vr::InputDigitalActionData_t out;
 
-            const auto rc = vr::VRInput()->GetDigitalActionData(actionHandle,
-                &out, sizeof(vr::InputDigitalActionData_t),
+            const vr::EVRInputError rc = vr::VRInput()->GetDigitalActionData(
+                actionHandle, &out, sizeof(vr::InputDigitalActionData_t),
                 vr::k_ulInvalidInputValueHandle);
 
             if(rc != vr::EVRInputError::VRInputError_None)
