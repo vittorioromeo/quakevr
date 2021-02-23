@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -46,6 +46,7 @@ struct entity_t
     int update_type;
 
     entity_state_t baseline; // to fill in defaults in updates
+    entity_state_t netstate; // the latest network state // QSS
 
     double msgtime;       // time of last update
     qvec3 msg_origins[2]; // last two updates (0 is newest)
@@ -71,6 +72,10 @@ struct entity_t
                       //  that splits bmodel, or nullptr if
                       //  not split
 
+    // QSS
+    byte eflags; // spike -- mostly a mirror of netstate, but handles tag
+                 // inheritance (eww!)
+
     byte alpha;         // johnfitz -- alpha
     byte lerpflags;     // johnfitz -- lerping
     float lerpstart;    // johnfitz -- animation lerping
@@ -90,12 +95,32 @@ struct entity_t
 
     // VR: per-instance scaling
     qvec3 msg_scales[2]; // last two updates (0 is newest)
-    qvec3 scale;
-    qvec3 scale_origin;
+    qvec3 model_scale;
+    qvec3 model_scale_origin;
+    qvec3 model_offset;
 
     bool hidden;      // TODO VR: (P1) hack? or document
     qfloat zeroBlend; // TODO VR: (P1) hack? or document
 
     EntityLightModifier lightmod; // TODO VR: (P1) hack? or document
     qvec3 lightmodvalue;          // TODO VR: (P1) hack? or document
+
+    // QSS
+    struct trailstate_s*
+        trailstate; // spike -- managed by the particle system, so we don't
+                    // loose our position and spawn the wrong number of
+                    // particles, and we can track beams etc
+
+    // QSS
+    struct trailstate_s*
+        emitstate; // spike -- for effects which are not so static.
+};
+
+struct textentity_t
+{
+    qvec3 origin;
+    qvec3 angles;
+    float scale;
+    bool hidden;
+    bool horizFlip;
 };

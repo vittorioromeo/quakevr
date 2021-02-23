@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "util.hpp"
 #include "quakeglm.hpp"
 #include "sys.hpp"
+#include "qcvm.hpp"
 
 #include <algorithm>
 #include <tuple>
@@ -62,6 +63,15 @@ cvar_t sv_gravity = {"sv_gravity", "800", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
+cvar_t sv_gameplayfix_spawnbeforethinks = {
+    "sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
+
+cvar_t sv_sound_watersplash = {
+    "sv_sound_watersplash", "misc/h2ohit1.wav", CVAR_NONE};
+cvar_t sv_sound_land = {"sv_sound_land", "demon/dland2.wav", CVAR_NONE};
+
+
+#define MOVE_EPSILON 0.01
 
 void SV_Physics_Toss(edict_t* ent);
 
@@ -73,8 +83,8 @@ SV_CheckAllEnts
 void SV_CheckAllEnts()
 {
     // see if any solid entities are inside the final position
-    edict_t* check = NEXT_EDICT(sv.edicts);
-    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    edict_t* check = NEXT_EDICT(qcvm->edicts);
+    for(int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
@@ -145,14 +155,14 @@ bool SV_RunThinkImpl(edict_t* ent)
     }
 
     float thinktime = (ent->v).*TNextThink;
-    if(thinktime <= 0 || thinktime > sv.time + host_frametime)
+    if(thinktime <= 0 || thinktime > qcvm->time + host_frametime)
     {
         return true;
     }
 
-    if(thinktime < sv.time)
+    if(thinktime < qcvm->time)
     {
-        thinktime = sv.time; // don't let things stay in the past.
+        thinktime = qcvm->time; // don't let things stay in the past.
     }
     // it is possible to start that way
     // by a trigger with a local time.
@@ -162,12 +172,12 @@ bool SV_RunThinkImpl(edict_t* ent)
     (ent->v).*TNextThink = 0;
     pr_global_struct->time = thinktime;
     pr_global_struct->self = EDICT_TO_PROG(ent);
-    pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
     PR_ExecuteProgram((ent->v).*TThink);
 
     if(TDoLerp)
     {
-        // johnfitz -- PROTOCOL_FITZQUAKE
+        // johnfitz -- PROTOCOL_QUAKEVR
         // capture interval to nextthink here and send it to client for better
         // lerp timing, but only if interval is not 0.1 (which client assumes)
         ent->sendinterval = false;
@@ -206,7 +216,7 @@ void SV_Impact(edict_t* e1, edict_t* e2, func_t entvars_t::*impactFunc)
     const int old_self = pr_global_struct->self;
     const int old_other = pr_global_struct->other;
 
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     if(e1->v.*impactFunc && e1->v.solid != SOLID_NOT)
     {
         pr_global_struct->self = EDICT_TO_PROG(e1);
@@ -446,7 +456,7 @@ float SV_AddGravityImpl(const float ent_gravity)
 
 float SV_AddGravityImpl(edict_t* ent)
 {
-    eval_t* val = GetEdictFieldValue(ent, "gravity");
+    eval_t* val = GetEdictFieldValue(ent, ED_FindFieldOffset("gravity"));
     const float ent_gravity = (val && val->_float) ? val->_float : 1.0;
 
     return SV_AddGravityImpl(ent_gravity);
@@ -549,14 +559,14 @@ void SV_PushMove(edict_t* pusher, float movetime)
 
     // johnfitz -- dynamically allocate
     const int mark = Hunk_LowMark(); // johnfitz
-    const auto moved_edict = Hunk_Alloc<edict_t*>(sv.num_edicts);
-    const auto moved_from = Hunk_Alloc<qvec3>(sv.num_edicts);
+    const auto moved_edict = Hunk_Alloc<edict_t*>(qcvm->num_edicts);
+    const auto moved_from = Hunk_Alloc<qvec3>(qcvm->num_edicts);
     // johnfitz
 
     // see if any solid entities are inside the final position
     int num_moved = 0;
-    edict_t* check = NEXT_EDICT(sv.edicts);
-    for(int e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+    edict_t* check = NEXT_EDICT(qcvm->edicts);
+    for(int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT(check))
     {
         if(check->free)
         {
@@ -717,9 +727,9 @@ void SV_Physics_Pusher(edict_t* ent)
     if(thinktime > oldltime && thinktime <= ent->v.ltime)
     {
         ent->v.nextthink = 0;
-        pr_global_struct->time = sv.time;
+        pr_global_struct->time = qcvm->time;
         pr_global_struct->self = EDICT_TO_PROG(ent);
-        pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+        pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
         PR_ExecuteProgram(ent->v.think);
         if(ent->free)
         {
@@ -824,7 +834,7 @@ bool SV_CheckWater(edict_t* ent)
 
     if(ent->v.waterlevel != prevWaterlevel)
     {
-        ent->v.lastwatertime = sv.time;
+        ent->v.lastwatertime = qcvm->time;
     }
 
     return ent->v.waterlevel > 1;
@@ -1205,7 +1215,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     // call standard client pre-think
     //
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(ent);
     PR_ExecuteProgram(pr_global_struct->PlayerPreThink);
 
@@ -1230,7 +1240,7 @@ void SV_Physics_Client(edict_t* ent, int num)
             return;
         }
 
-        ent->v.teleport_time = sv.time + 0.3;
+        ent->v.teleport_time = qcvm->time + 0.3;
         ent->v.origin = ent->v.teleport_target;
         ent->v.oldorigin = ent->v.teleport_target;
     }
@@ -1359,7 +1369,7 @@ void SV_Physics_Client(edict_t* ent, int num)
     //
     SV_LinkEdict(ent, true);
 
-    pr_global_struct->time = sv.time;
+    pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(ent);
 
     PR_ExecuteProgram(pr_global_struct->PlayerPostThink);
@@ -1428,14 +1438,14 @@ void SV_CheckWaterTransition(edict_t* ent)
         return;
     }
 
-    const float watertimeDiff = sv.time - ent->v.lastwatertime;
+    const float watertimeDiff = qcvm->time - ent->v.lastwatertime;
 
     if(cont <= CONTENTS_WATER)
     {
         if(ent->v.watertype == CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, 0, sv_sound_watersplash.string, 255, 1);
         }
 
         ent->v.watertype = cont;
@@ -1443,7 +1453,7 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         if(ent->v.waterlevel != prevWaterlevel)
         {
-            ent->v.lastwatertime = sv.time;
+            ent->v.lastwatertime = qcvm->time;
         }
     }
     else
@@ -1451,7 +1461,7 @@ void SV_CheckWaterTransition(edict_t* ent)
         if(ent->v.watertype != CONTENTS_EMPTY && watertimeDiff > 0.2f)
         {
             // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, 0, sv_sound_watersplash.string, 255, 1);
         }
 
         ent->v.watertype = CONTENTS_EMPTY;
@@ -1459,7 +1469,7 @@ void SV_CheckWaterTransition(edict_t* ent)
 
         if(ent->v.waterlevel != prevWaterlevel)
         {
-            ent->v.lastwatertime = sv.time;
+            ent->v.lastwatertime = qcvm->time;
         }
     }
 }
@@ -1481,7 +1491,7 @@ void SV_Physics_Toss(edict_t* ent)
 
     // update "on ground" status, stop/bounce if on ground
     {
-        auto vel = ent->v.velocity;
+        qvec3 vel = ent->v.velocity;
 
         if(ent->v.movetype != MOVETYPE_FLY &&
             ent->v.movetype != MOVETYPE_FLYMISSILE)
@@ -1513,14 +1523,14 @@ void SV_Physics_Toss(edict_t* ent)
 
             if(ent->v.velocity[2] < 60 || ent->v.movetype != MOVETYPE_BOUNCE)
             {
-                if(!(quake::util::hasFlag(ent, FL_ONGROUND)))
+                if(!quake::util::hasFlag(ent, FL_ONGROUND))
                 {
                     quake::util::addFlag(ent, FL_ONGROUND);
 
                     ent->v.groundentity = EDICT_TO_PROG(traceBuffer.ent);
                     ent->v.velocity = ent->v.avelocity = vec3_zero;
-                    ent->v.origin = qvec3(traceBuffer.endpos) -
-                                    ent->v.mins[2] - qvec3(offsetBuffer);
+                    ent->v.origin = qvec3(traceBuffer.endpos) - ent->v.mins[2] -
+                                    qvec3(offsetBuffer);
 
                     SV_LinkEdict(ent, true);
                     SV_PushEntityImpact(ent, traceBuffer);
@@ -1602,7 +1612,7 @@ void SV_Physics_Step(edict_t* ent)
         {
             if(hitsound)
             {
-                SV_StartSound(ent, 0, "demon/dland2.wav", 255, 1);
+                SV_StartSound(ent, nullptr, 0, sv_sound_land.string, 255, 1);
             }
         }
     }
@@ -1629,9 +1639,9 @@ void SV_Physics()
     edict_t* ent;
 
     // let the progs know that a new frame has started
-    pr_global_struct->self = EDICT_TO_PROG(sv.edicts);
-    pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
-    pr_global_struct->time = sv.time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+    pr_global_struct->time = qcvm->time;
     PR_ExecuteProgram(pr_global_struct->StartFrame);
 
     // SV_CheckAllEnts ();
@@ -1639,7 +1649,7 @@ void SV_Physics()
     //
     // treat each object in turn
     //
-    ent = sv.edicts;
+    ent = qcvm->edicts;
 
     if(sv_freezenonclients.value)
     {
@@ -1648,10 +1658,10 @@ void SV_Physics()
     }
     else
     {
-        entity_cap = sv.num_edicts;
+        entity_cap = qcvm->num_edicts;
     }
 
-    // for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
+    // for (i=0 ; i<qcvm->num_edicts ; i++, ent = NEXT_EDICT(ent))
     for(i = 0; i < entity_cap; i++, ent = NEXT_EDICT(ent))
     {
         if(ent->free)
@@ -1704,6 +1714,6 @@ void SV_Physics()
 
     if(!sv_freezenonclients.value)
     {
-        sv.time += host_frametime;
+        qcvm->time += host_frametime;
     }
 }

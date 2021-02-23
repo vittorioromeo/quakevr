@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -73,6 +73,7 @@ typedef enum
     CANVAS_BOTTOMLEFT,
     CANVAS_BOTTOMRIGHT,
     CANVAS_TOPRIGHT,
+    CANVAS_CSQC, // QSS
     CANVAS_INVALID = -1
 } canvastype;
 extern cvar_t scr_menuscale;
@@ -84,4 +85,3 @@ extern cvar_t scr_crosshairscale;
 // johnfitz
 
 extern int scr_tileclear_updates; // johnfitz
-

@@ -15,11 +15,15 @@ set(source_list
     "Quake/cl_main.cpp"
     "Quake/cl_parse.cpp"
     "Quake/cl_tent.cpp"
+    "Quake/client.cpp"
     "Quake/cmd.cpp"
     "Quake/common.cpp"
     "Quake/console.cpp"
     "Quake/crc.cpp"
     "Quake/cvar.cpp"
+    "Quake/developer.cpp"
+    "Quake/fakeqcvm.cpp"
+    "Quake/fs_zip.cpp"
     "Quake/fshandle.cpp"
     "Quake/gl_draw.cpp"
     "Quake/gl_fog.cpp"
@@ -40,11 +44,12 @@ set(source_list
     "Quake/image.cpp"
     "Quake/in_sdl.cpp"
     "Quake/keys.cpp"
+    "Quake/link.cpp"
     "Quake/main_sdl.cpp"
     "Quake/mathlib.cpp"
+    "Quake/menu_keyboard.cpp"
     "Quake/menu_util.cpp"
     "Quake/menu.cpp"
-    "Quake/menu_keyboard.cpp"
     "Quake/msg.cpp"
     "Quake/net_dgrm.cpp"
     "Quake/net_loop.cpp"
@@ -52,6 +57,7 @@ set(source_list
     "Quake/pr_cmds.cpp"
     "Quake/pr_edict.cpp"
     "Quake/pr_exec.cpp"
+    "Quake/pr_ext.cpp"
     "Quake/quakeglm.cpp"
     "Quake/r_alias.cpp"
     "Quake/r_brush.cpp"
@@ -75,6 +81,7 @@ set(source_list
     "Quake/snd_opus.cpp"
     "Quake/snd_sdl.cpp"
     "Quake/snd_umx.cpp"
+    "Quake/snd_voip.cpp"
     "Quake/snd_vorbis.cpp"
     "Quake/snd_wave.cpp"
     "Quake/snd_xmp.cpp"
@@ -107,7 +114,6 @@ else()
         "Quake/pl_linux.cpp"
         "Quake/sys_sdl_unix.cpp"
         "Quake/net_udp.cpp"
-        "Quake/snd_mpg123.cpp"
     )
 endif()
 
@@ -138,9 +144,9 @@ target_compile_definitions(${QUAKEVR_TARGET_NAME} PRIVATE
     USE_SDL2=1
     _AMD64_=1
     -DPARANOID=1
-    WIN32=1
-    NDEBUG=1
-    _WINDOWS=1
+    #WIN32=1
+    #NDEBUG=1
+    #_WINDOWS=1
     _USE_WINSOCK2=1
     _CRT_NONSTDC_NO_DEPRECATE=1
     _CRT_SECURE_NO_WARNINGS=1
@@ -153,7 +159,8 @@ target_compile_definitions(${QUAKEVR_TARGET_NAME} PRIVATE
     USE_CODEC_OPUS=1
     USE_CODEC_MIKMOD=1
     USE_CODEC_UMX=1
-    __clang__=1
+    #__clang__=1
+    GLM_COMPILER=0
 )
 
 target_include_directories(
@@ -246,7 +253,7 @@ else()
     endif()
 
     target_link_libraries(${QUAKEVR_TARGET_NAME}
-        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES} ${GLEW_LIBRARIES}
+        asan ${OPENGL_gl_LIBRARY} SDL2::SDL2 ${OPENVR_LIBRARIES} ${GLEW_LIBRARIES} opus FLAC ogg mad mikmod vorbis vorbisfile opusfile mpg123
     )
 endif()
 

@@ -66,6 +66,23 @@ void MSG_WriteShort(sizebuf_t* sb, int c)
     buf[1] = c >> 8;
 }
 
+void MSG_WriteUnsignedShort(sizebuf_t* sb, unsigned int c)
+{
+#ifdef PARANOID
+    // if(c < -32768 || c > 32767)
+    // if (c < 0|| c > 65535)
+    {
+        // TODO VR: (P2) always fires - seems both signed and unsigned are being
+        // passed Sys_Error("MSG_WriteShort: range error");
+    }
+#endif
+
+    byte* const buf = (byte*)SZ_GetSpace(sb, 2);
+    // buf[0] = c & 0b1111'1111'0000'0000;
+    buf[0] = c & 0xff;
+    buf[1] = c >> 8;
+}
+
 void MSG_WriteLong(sizebuf_t* sb, int c)
 {
     byte* const buf = (byte*)SZ_GetSpace(sb, 4);
@@ -157,7 +174,7 @@ void MSG_WriteAngle(sizebuf_t* sb, float f, unsigned int flags)
     }
 }
 
-// johnfitz -- for PROTOCOL_FITZQUAKE
+// johnfitz -- for PROTOCOL_QUAKEVR
 void MSG_WriteAngle16(sizebuf_t* sb, float f, unsigned int flags)
 {
     if(flags & PRFL_FLOATANGLE)
@@ -249,9 +266,25 @@ void MSG_BeginReading()
     return c;
 }
 
+[[nodiscard]] unsigned int MSG_ReadUnsignedShort()
+{
+    if(msg_readcount + 2 > net_message.cursize)
+    {
+        msg_badread = true;
+        return -1;
+    }
+
+    const unsigned int c =
+        (unsigned short)(net_message.data[msg_readcount] +
+                         (net_message.data[msg_readcount + 1] << 8));
+
+    msg_readcount += 2;
+
+    return c;
+}
+
 [[nodiscard]] int MSG_ReadLong()
 {
-
     if(msg_readcount + 4 > net_message.cursize)
     {
         msg_badread = true;
@@ -362,7 +395,7 @@ void MSG_BeginReading()
     return MSG_ReadChar() * (360.0 / 256);
 }
 
-// johnfitz -- for PROTOCOL_FITZQUAKE
+// johnfitz -- for PROTOCOL_QUAKEVR
 [[nodiscard]] float MSG_ReadAngle16(unsigned int flags)
 {
     if(flags & PRFL_FLOATANGLE)
@@ -377,4 +410,39 @@ void MSG_BeginReading()
 [[nodiscard]] qvec3 MSG_ReadVec3(unsigned int flags)
 {
     return {MSG_ReadCoord(flags), MSG_ReadCoord(flags), MSG_ReadCoord(flags)};
+}
+
+// QSS
+// spike -- for downloads
+
+int MSG_ReadEntity(unsigned int pext2)
+{
+    int e = (unsigned short)MSG_ReadShort();
+
+    if(pext2 & PEXT2_REPLACEMENTDELTAS)
+    {
+        if(e & 0x8000)
+        {
+            e = (e & 0x7fff) << 8;
+            e |= MSG_ReadByte();
+        }
+    }
+    return e;
+}
+
+// QSS
+// spike -- for downloads
+[[nodiscard]] byte* MSG_ReadData(unsigned int length)
+{
+    byte* data;
+
+    if(msg_readcount + length > (unsigned int)net_message.cursize)
+    {
+        msg_badread = true;
+        return nullptr;
+    }
+
+    data = net_message.data + msg_readcount;
+    msg_readcount += length;
+    return data;
 }

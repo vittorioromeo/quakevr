@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2005 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -115,9 +115,7 @@ int main(int argc, char* argv[])
 
     int t;
     double time;
-
     double oldtime;
-
     double newtime;
 
     host_parms = &parms;
@@ -159,6 +157,7 @@ int main(int argc, char* argv[])
     Sys_Printf("FitzQuake SDL port (c) SleepwalkR, Baker\n");
     Sys_Printf("QuakeSpasm " QUAKESPASM_VER_STRING
                " (c) Ozkan Sezer, Eric Wasylishen & others\n");
+    Sys_Printf("QuakeSpasm-Spiked (c) Spike\n");
     Sys_Printf("Quake VR " QUAKEVR_VERSION " by Vittorio Romeo & others\n");
 
     Sys_Printf("Host_Init\n");

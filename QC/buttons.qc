@@ -349,11 +349,10 @@ void() func_worldtext_banner =
     }
 }
 
-
-
 void() func_weapon_dispenser_use =
 {
     CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
+        WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
         self.origin, randomVec(180),
         '0 0 0', randomVec(20),
         FALSE /* disappear on hit */,
@@ -369,4 +368,51 @@ void() func_weapon_dispenser =
     setmodel(self, self.model);
 
     self.use = func_weapon_dispenser_use;
+}
+
+void() func_weapon_grabbable =
+{
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    setmodel(self, self.model);
+
+    CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
+        WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
+        self.origin, randomVec(180),
+        '0 0 0', randomVec(20),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(self.weapon)
+    );
+}
+
+void() func_enemy_dispenser_use =
+{
+    vector org = self.origin;
+    float choice = self.weapon;
+
+    self = spawn();
+
+         if(choice == 0) { monster_army(); }
+    else if(choice == 1) { monster_ogre(); }
+    else if(choice == 2) { monster_zombie(); }
+    else if(choice == 3) { monster_shambler(); }
+    else if(choice == 4) { monster_wizard(); }
+
+    setorigin(self, org);
+}
+
+void() func_enemy_dispenser =
+{
+    monster_army_precache();
+    monster_ogre_precache();
+    monster_zombie_precache();
+    monster_shambler_precache();
+    monster_wizard_precache();
+
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    setmodel(self, self.model);
+
+    self.use = func_enemy_dispenser_use;
 }

@@ -1,7 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -37,22 +37,28 @@ qsocket_t* net_activeSockets = nullptr;
 qsocket_t* net_freeSockets = nullptr;
 int net_numsockets = 0;
 
+// QSS
 bool ipxAvailable = false;
-bool tcpipAvailable = false;
+bool ipv4Available = false;
+bool ipv6Available = false;
 
 int net_hostport;
 int DEFAULTnet_hostport = 26000;
 
+// QSS
 char my_ipx_address[NET_NAMELEN];
-char my_tcpip_address[NET_NAMELEN];
+char my_ipv4_address[NET_NAMELEN];
+char my_ipv6_address[NET_NAMELEN];
 
 static bool listening = false;
 
 bool slistInProgress = false;
 bool slistSilent = false;
-bool slistLocal = true;
+enum slistScope_e slistScope = SLIST_LOOP; // QSS
 static double slistStartTime;
+static double slistActiveTime; // QSS
 static int slistLastShown;
+
 
 static void Slist_Send(void*);
 static void Slist_Poll(void*);
@@ -67,7 +73,12 @@ int messagesReceived = 0;
 int unreliableMessagesSent = 0;
 int unreliableMessagesReceived = 0;
 
-static cvar_t net_messagetimeout = {"net_messagetimeout", "300", CVAR_NONE};
+// QSS
+cvar_t net_messagetimeout = {"net_messagetimeout", "300", CVAR_NONE};
+cvar_t net_connecttimeout = {"net_connecttimeout", "10",
+    CVAR_NONE}; // this might be a little brief, but we don't have a way to
+                // protect against smurf attacks.
+
 cvar_t hostname = {"hostname", "UNNAMED", CVAR_NONE};
 
 // these two macros are to make the code more readable
@@ -116,9 +127,11 @@ qsocket_t* NET_NewQSocket()
     sock->next = net_activeSockets;
     net_activeSockets = sock;
 
+    sock->isvirtual = false; // QSS
     sock->disconnected = false;
     sock->connecttime = net_time;
-    Q_strcpy(sock->address, "UNSET ADDRESS");
+    Q_strcpy(sock->trueaddress, "UNSET ADDRESS");   // QSS
+    Q_strcpy(sock->maskedaddress, "UNSET ADDRESS"); // QSS
     sock->driver = net_driverlevel;
     sock->socket = 0;
     sock->driverdata = nullptr;
@@ -132,6 +145,8 @@ qsocket_t* NET_NewQSocket()
     sock->receiveSequence = 0;
     sock->unreliableReceiveSequence = 0;
     sock->receiveMessageLength = 0;
+    sock->pending_max_datagram = 1024; // QSS
+    sock->proquake_angle_hack = false; // QSS
 
     return sock;
 }
@@ -169,18 +184,53 @@ void NET_FreeQSocket(qsocket_t* sock)
     sock->disconnected = true;
 }
 
+// QSS
+int NET_QSocketGetSequenceIn(const qsocket_t* s)
+{ // returns the last unreliable sequence that was received
+    return s->unreliableReceiveSequence - 1;
+}
+
+// QSS
+int NET_QSocketGetSequenceOut(const qsocket_t* s)
+{ // returns the next unreliable sequence that will be sent
+    return s->unreliableSendSequence;
+}
 
 double NET_QSocketGetTime(const qsocket_t* s)
 {
     return s->connecttime;
 }
 
-
-const char* NET_QSocketGetAddressString(const qsocket_t* s)
+// QSS
+const char* NET_QSocketGetTrueAddressString(const qsocket_t* s)
 {
-    return s->address;
+    return s->trueaddress;
 }
 
+// QSS
+const char* NET_QSocketGetMaskedAddressString(const qsocket_t* s)
+{
+    return s->maskedaddress;
+}
+
+// QSS
+bool NET_QSocketGetProQuakeAngleHack(const qsocket_t* s)
+{
+    if(s && !s->disconnected)
+    {
+        return s->proquake_angle_hack;
+    }
+    else
+    {
+        return false; // happens with demos
+    }
+}
+
+// QSS
+void NET_QSocketSetMSS(qsocket_t* s, int mss)
+{
+    s->pending_max_datagram = mss;
+}
 
 static void NET_Listen_f()
 {
@@ -293,7 +343,7 @@ static void PrintSlistHeader()
 
 static void PrintSlist()
 {
-    int n;
+    size_t n; // QSS
 
     for(n = slistLastShown; n < hostCacheCount; n++)
     {
@@ -339,7 +389,7 @@ void NET_Slist_f()
     }
 
     slistInProgress = true;
-    slistStartTime = Sys_DoubleTime();
+    slistActiveTime = slistStartTime = Sys_DoubleTime(); // QSS
 
     SchedulePollProcedure(&slistSendProcedure, 0.0);
     SchedulePollProcedure(&slistPollProcedure, 0.1);
@@ -352,9 +402,7 @@ void NET_SlistSort()
 {
     if(hostCacheCount > 1)
     {
-        int i;
-
-        int j;
+        size_t i, j; // QSS
         hostcache_t temp;
         for(i = 0; i < hostCacheCount; i++)
         {
@@ -372,11 +420,11 @@ void NET_SlistSort()
 }
 
 
-const char* NET_SlistPrintServer(int idx)
+const char* NET_SlistPrintServer(size_t idx) // QSS
 {
     static char string[64];
 
-    if(idx < 0 || idx >= hostCacheCount)
+    if(idx >= hostCacheCount) // QSS
     {
         return "";
     }
@@ -397,9 +445,9 @@ const char* NET_SlistPrintServer(int idx)
 }
 
 
-const char* NET_SlistPrintServerName(int idx)
+const char* NET_SlistPrintServerName(size_t idx) // QSS
 {
-    if(idx < 0 || idx >= hostCacheCount)
+    if(idx >= hostCacheCount) // QSS
     {
         return "";
     }
@@ -414,7 +462,7 @@ static void Slist_Send(void* unused)
     for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
         net_driverlevel++)
     {
-        if(!slistLocal && IS_LOOP_DRIVER(net_driverlevel))
+        if(slistScope != SLIST_LOOP && IS_LOOP_DRIVER(net_driverlevel)) // QSS
         {
             continue;
         }
@@ -441,17 +489,19 @@ static void Slist_Poll(void* unused)
     for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
         net_driverlevel++)
     {
-        if(!slistLocal && IS_LOOP_DRIVER(net_driverlevel))
-        {
+        if(slistScope != SLIST_LOOP && IS_LOOP_DRIVER(net_driverlevel))
+        { // QSS
             continue;
         }
-
         if(net_drivers[net_driverlevel].initialized == false)
         {
             continue;
         }
-
-        dfunc.SearchForHosts(false);
+        if(dfunc.SearchForHosts(false))
+        { // QSS
+            slistActiveTime =
+                Sys_DoubleTime(); // something was sent, reset the timer.
+        }
     }
 
     if(!slistSilent)
@@ -459,7 +509,7 @@ static void Slist_Poll(void* unused)
         PrintSlist();
     }
 
-    if((Sys_DoubleTime() - slistStartTime) < 1.5)
+    if((Sys_DoubleTime() - slistActiveTime) < 1.5) // QSS
     {
         SchedulePollProcedure(&slistPollProcedure, 0.1);
         return;
@@ -472,7 +522,7 @@ static void Slist_Poll(void* unused)
 
     slistInProgress = false;
     slistSilent = false;
-    slistLocal = true;
+    slistScope = SLIST_LOOP; // QSS
 }
 
 
@@ -482,13 +532,13 @@ NET_Connect
 ===================
 */
 
-int hostCacheCount = 0;
+size_t hostCacheCount = 0; // QSS
 hostcache_t hostcache[HOSTCACHESIZE];
 
 qsocket_t* NET_Connect(const char* host)
 {
     qsocket_t* ret;
-    int n;
+    size_t n; // QSS
     int numdrivers = net_numdrivers;
 
     SetNetTime();
@@ -697,6 +747,61 @@ int NET_GetMessage(qsocket_t* sock)
 
     return ret;
 }
+
+// QSS
+
+/*
+=================
+NET_GetServerMessage
+
+If there is a complete message, return it in net_message
+
+returns the qsocket that the message was meant to be for.
+=================
+*/
+qsocket_t* NET_GetServerMessage()
+{
+    qsocket_t* s;
+    for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
+        net_driverlevel++)
+    {
+        if(!net_drivers[net_driverlevel].initialized)
+        {
+            continue;
+        }
+        s = net_drivers[net_driverlevel].QGetAnyMessage();
+        if(s)
+        {
+            return s;
+        }
+    }
+    return nullptr;
+}
+
+/*
+Spike: This function is for the menus+status command
+Just queries each driver's public addresses (which often requires
+system-specific calls)
+*/
+int NET_ListAddresses(qhostaddr_t* addresses, int maxaddresses)
+{
+    int result = 0;
+    for(net_driverlevel = 0; net_driverlevel < net_numdrivers;
+        net_driverlevel++)
+    {
+        if(!net_drivers[net_driverlevel].initialized)
+        {
+            continue;
+        }
+        if(net_drivers[net_driverlevel].QueryAddresses)
+        {
+            result += net_drivers[net_driverlevel].QueryAddresses(
+                addresses + result, maxaddresses - result);
+        }
+    }
+    return result;
+}
+// ---
 
 
 /*
@@ -931,6 +1036,7 @@ void NET_Init()
     SZ_Alloc(&net_message, NET_MAXMESSAGE);
 
     Cvar_RegisterVariable(&net_messagetimeout);
+    Cvar_RegisterVariable(&net_connecttimeout);
     Cvar_RegisterVariable(&hostname);
 
     Cmd_AddCommand("slist", NET_Slist_f);
@@ -965,9 +1071,17 @@ void NET_Init()
     {
         Con_DPrintf("IPX address %s\n", my_ipx_address);
     }
-    if(*my_tcpip_address)
+
+    // QSS
+    if(*my_ipv4_address)
     {
-        Con_DPrintf("TCP/IP address %s\n", my_tcpip_address);
+        Con_DPrintf("IPv4 address %s\n", my_ipv4_address);
+    }
+
+    // QSS
+    if(*my_ipv6_address)
+    {
+        Con_DPrintf("IPv6 address %s\n", my_ipv6_address);
     }
 }
 
@@ -1026,7 +1140,6 @@ void NET_Poll()
 void SchedulePollProcedure(PollProcedure* proc, double timeOffset)
 {
     PollProcedure* pp;
-
     PollProcedure* prev;
 
     proc->nextTime = Sys_DoubleTime() + timeOffset;

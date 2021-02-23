@@ -152,6 +152,9 @@ extern cvar_t vr_autosave_show_message;
 extern cvar_t vr_finger_blending;
 extern cvar_t vr_finger_blending_speed;
 extern cvar_t vr_menu_mouse_pointer_hand;
+extern cvar_t vr_reload_mode;
+extern cvar_t vr_show_weapon_text;
+extern cvar_t vr_disablehaptics;
 
 //
 //
@@ -235,4 +238,6 @@ namespace quake::vr
 [[nodiscard]] qvec3 get_finger_ring_xyz() noexcept;
 [[nodiscard]] qvec3 get_finger_pinky_xyz() noexcept;
 [[nodiscard]] qvec3 get_finger_base_xyz() noexcept;
+
+[[nodiscard]] bool get_weapon_reloading_enabled() noexcept;
 } // namespace quake::vr

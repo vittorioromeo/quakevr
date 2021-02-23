@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "zone.hpp"
 #include "input.hpp"
 #include "q_sound.hpp"
+#include "crc.hpp"
 
 #include <string>
 #include <vector>
@@ -70,27 +71,40 @@ cvar_t cl_maxpitch = {
 cvar_t cl_minpitch = {
     "cl_minpitch", "-90", CVAR_ARCHIVE}; // johnfitz -- variable pitch clamping
 
+cvar_t cl_recordingdemo = {"cl_recordingdemo", "",
+    CVAR_ROM}; // the name of the currently-recording demo.
+
 client_static_t cls;
 client_state_t cl;
 // FIXME: put these on hunk?
-entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t cl_dlights[MAX_DLIGHTS];
 
-entity_t* cl_entities; // johnfitz -- was a static array, now on hunk
-int cl_max_edicts;     // johnfitz -- only changes when new map loads
-
 int cl_numvisedicts;
-entity_t* cl_visedicts[MAX_VISEDICTS];
-
-
-
-
-
-
-
+int cl_maxvisedicts;
+entity_t** cl_visedicts;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
+extern float host_netinterval;          // Spike
+
+void CL_ClearTrailStates()
+{
+    int i;
+    for(i = 0; i < cl.num_statics; i++)
+    {
+        PScript_DelinkTrailstate(&(cl.static_entities[i]->trailstate));
+        PScript_DelinkTrailstate(&(cl.static_entities[i]->emitstate));
+    }
+    for(i = 0; i < cl.max_edicts; i++)
+    {
+        PScript_DelinkTrailstate(&(cl.entities[i].trailstate));
+        PScript_DelinkTrailstate(&(cl.entities[i].emitstate));
+    }
+    for(i = 0; i < MAX_BEAMS; i++)
+    {
+        PScript_DelinkTrailstate(&(cl_beams[i].trailstate));
+    }
+}
 
 /*
 =====================
@@ -105,8 +119,11 @@ void CL_ClearState()
         Host_ClearMemory();
     }
 
+    CL_ClearTrailStates();
+
+    PR_ClearProgs(&cl.qcvm);
+
     // wipe the entire cl structure
-    // memset(&cl, 0, sizeof(cl));
     cl = client_state_t{};
 
     SZ_Clear(&cls.message);
@@ -117,11 +134,22 @@ void CL_ClearState()
     memset(cl_temp_entities, 0, sizeof(cl_temp_entities));
     memset(cl_beams, 0, sizeof(cl_beams));
 
-    // johnfitz -- cl_entities is now dynamically allocated
-    cl_max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-    cl_entities = Hunk_AllocName<entity_t>(cl_max_edicts, "cl_entities");
+    // johnfitz -- cl.entities is now dynamically allocated
+    cl.max_edicts = CLAMP(MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
+    cl.entities = (entity_t*)Hunk_AllocName(
+        cl.max_edicts * sizeof(entity_t), "cl.entities");
+    // johnfitz
+
+    // Spike -- this stuff needs to get reset to defaults.
+    cl.csqc_sensitivity = 1;
 
     cl.worldTexts.clear();
+
+    forAllViewmodels(cl, [](entity_t& e) { e.netstate = nullentitystate; });
+
+#ifdef PSET_SCRIPT
+    PScript_Shutdown();
+#endif
 }
 
 /*
@@ -162,6 +190,7 @@ void CL_Disconnect()
         NET_SendUnreliableMessage(cls.netcon, &cls.message);
         SZ_Clear(&cls.message);
         NET_Close(cls.netcon);
+        cls.netcon = nullptr; // QSS
 
         cls.state = ca_disconnected;
         if(sv.active)
@@ -173,7 +202,17 @@ void CL_Disconnect()
     cls.demoplayback = cls.timedemo = false;
     cls.demopaused = false;
     cls.signon = 0;
+
+    // QSS
+    cls.netcon = nullptr;
+    if(cls.download.file)
+    {
+        fclose(cls.download.file);
+    }
+    memset(&cls.download, 0, sizeof(cls.download));
     cl.intermission = 0;
+    cl.worldmodel = nullptr;
+    cl.sendprespawn = false;
 }
 
 void CL_Disconnect_f()
@@ -195,6 +234,8 @@ Host should be either "local" or a net address to be passed on
 */
 void CL_EstablishConnection(const char* host)
 {
+    static char lasthost[NET_NAMELEN];
+
     if(cls.state == ca_dedicated)
     {
         return;
@@ -203,6 +244,19 @@ void CL_EstablishConnection(const char* host)
     if(cls.demoplayback)
     {
         return;
+    }
+
+    if(!host)
+    {
+        host = lasthost;
+        if(!*host)
+        {
+            return;
+        }
+    }
+    else
+    {
+        q_strlcpy(lasthost, host, sizeof(lasthost));
     }
 
     CL_Disconnect();
@@ -237,13 +291,12 @@ void CL_SignonReply()
     {
         case 1:
             MSG_WriteByte(&cls.message, clc_stringcmd);
-            MSG_WriteString(&cls.message, "prespawn");
+            MSG_WriteString(&cls.message, va("name \"%s\"\n", cl_name.string));
+
+            cl.sendprespawn = true;
             break;
 
         case 2:
-            MSG_WriteByte(&cls.message, clc_stringcmd);
-            MSG_WriteString(&cls.message, va("name \"%s\"\n", cl_name.string));
-
             MSG_WriteByte(&cls.message, clc_stringcmd);
             MSG_WriteString(
                 &cls.message, va("color %i %i\n", ((int)cl_color.value) >> 4,
@@ -316,7 +369,7 @@ void CL_PrintEntities_f()
         return;
     }
 
-    for(i = 0, ent = cl_entities; i < cl.num_entities; i++, ent++)
+    for(i = 0, ent = cl.entities; i < cl.num_entities; i++, ent++)
     {
         Con_Printf("%3i:", i);
         if(!ent->model)
@@ -423,12 +476,11 @@ should be put at.
 float CL_LerpPoint()
 {
     float f;
-
     float frac;
 
     f = cl.mtime[0] - cl.mtime[1];
 
-    if(!f || cls.timedemo || sv.active)
+    if(!f || cls.timedemo || (sv.active && !host_netinterval))
     {
         cl.time = cl.mtime[0];
         return 1;
@@ -469,6 +521,157 @@ float CL_LerpPoint()
     return frac;
 }
 
+static bool CL_LerpEntity(entity_t* ent, qvec3& org, qvec3& ang, float frac)
+{
+    float f, d;
+    int j;
+    qvec3 delta;
+    bool teleported = false;
+    // figure out the pos+angles of the parent
+    if(ent->forcelink)
+    { // the entity was not updated in the last message
+        // so move to the final spot
+        org = ent->msg_origins[0];
+        ang = ent->msg_angles[0];
+    }
+    else
+    { // if the delta is large, assume a teleport and don't lerp
+        f = frac;
+        for(j = 0; j < 3; j++)
+        {
+            delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
+            if(delta[j] > 100 || delta[j] < -100)
+            {
+                f = 1;             // assume a teleportation, not a motion
+                teleported = true; // johnfitz -- don't lerp teleports
+            }
+        }
+
+        // johnfitz -- don't cl_lerp entities that will be r_lerped
+        if(r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+        {
+            f = 1;
+        }
+        // johnfitz
+
+        // interpolate the origin and angles
+        for(j = 0; j < 3; j++)
+        {
+            org[j] = ent->msg_origins[1][j] + f * delta[j];
+
+            d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
+            if(d > 180)
+            {
+                d -= 360;
+            }
+            else if(d < -180)
+            {
+                d += 360;
+            }
+            ang[j] = ent->msg_angles[1][j] + f * d;
+        }
+    }
+    return teleported;
+}
+
+static bool CL_AttachEntity(entity_t* ent, float frac)
+{
+    entity_t* parent;
+    qvec3 porg, pang;
+    qvec3 paxis[3];
+    qvec3 tmp, fwd, up;
+    unsigned int tagent = ent->netstate.tagentity;
+    int runaway = 0;
+
+    while(1)
+    {
+        if(!tagent)
+        {
+            return true; // nothing to do.
+        }
+        if(runaway++ == 10 || tagent >= (unsigned int)cl.num_entities)
+        {
+            return false; // parent isn't valid
+        }
+        parent = &cl.entities[tagent];
+
+        if(tagent == cl.viewentity)
+        {
+            ent->eflags |= EFLAGS_EXTERIORMODEL;
+        }
+
+        if(!parent->model)
+        {
+            return false;
+        }
+        if(0) // tagent < ent-cl_entities)
+        {
+            tagent = parent->netstate.tagentity;
+            porg = parent->origin;
+            pang = parent->angles;
+        }
+        else
+        {
+            tagent = parent->netstate.tagentity;
+            CL_LerpEntity(parent, porg, pang, frac);
+        }
+
+        // FIXME: this code needs to know the exact lerp info of the underlaying
+        // model. however for some idiotic reason, someone decided to figure out
+        // what should be displayed somewhere far removed from the code that
+        // deals with timing so we have absolutely no way to get a reliable
+        // origin in the meantime, r_lerpmove 0; r_lerpmodels 0 you might be
+        // able to work around it by setting the attached entity to
+        // movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
+        // personally I'm just going to call it a quakespasm bug that I cba to
+        // fix.
+
+        // FIXME: update porg+pang according to the tag index (we don't support
+        // md3s/iqms, so we don't need to do anything here yet)
+
+        if(parent->model && parent->model->type == mod_alias)
+        {
+            pang[0] *= -1;
+        }
+
+        std::tie(paxis[0], paxis[1], paxis[2]) =
+            quake::util::getAngledVectors(pang);
+
+        if(ent->model && ent->model->type == mod_alias)
+        {
+            ent->angles[0] *= -1;
+        }
+
+        std::tie(fwd, tmp, up) = quake::util::getAngledVectors(ent->angles);
+
+        // transform the origin
+        tmp = parent->origin + ent->origin[0] * paxis[0];
+        tmp = tmp + -ent->origin[1] * paxis[1];
+        ent->origin = tmp + ent->origin[2] * paxis[2];
+
+        // transform the forward vector
+        tmp = vec3_zero + fwd[0] * paxis[0];
+        tmp = tmp + -fwd[1] * paxis[1];
+        fwd = tmp + fwd[2] * paxis[2];
+
+        // transform the up vector
+        tmp = vec3_zero + up[0] * paxis[0];
+        tmp = tmp + -up[1] * paxis[1];
+        up = tmp + up[2] * paxis[2];
+
+        // regenerate the new angles.
+        // VectorAngles(fwd, up, ent->angles);
+        ent->angles = VectorAngles(fwd);
+        if(ent->model && ent->model->type == mod_alias)
+        {
+            ent->angles[0] *= -1;
+        }
+
+        ent->eflags |=
+            parent->netstate.eflags & (EFLAGS_VIEWMODEL | EFLAGS_EXTERIORMODEL);
+    }
+}
+
 /*
 ===============
 CL_RelinkEntities
@@ -479,6 +682,12 @@ void CL_RelinkEntities()
     // determine partial update time
     const float frac = CL_LerpPoint();
 
+    if(cl_numvisedicts + 64 > cl_maxvisedicts)
+    {
+        cl_maxvisedicts = cl_maxvisedicts + 64;
+        cl_visedicts = (entity_t**)realloc(
+            cl_visedicts, sizeof(*cl_visedicts) * cl_maxvisedicts);
+    }
     cl_numvisedicts = 0;
 
     //
@@ -514,7 +723,7 @@ void CL_RelinkEntities()
     // start on the entity after the world
     int i;
     entity_t* ent;
-    for(i = 1, ent = cl_entities + 1; i < cl.num_entities; i++, ent++)
+    for(i = 1, ent = cl.entities + 1; i < cl.num_entities; i++, ent++)
     {
         if(!ent->model)
         {
@@ -526,6 +735,7 @@ void CL_RelinkEntities()
             //	R_RemoveEfrags (ent);	// just became empty
             continue;
         }
+        ent->eflags = ent->netstate.eflags;
 
         // if the object wasn't included in the last packet, remove it
         if(ent->msgtime != cl.mtime[0])
@@ -546,7 +756,7 @@ void CL_RelinkEntities()
             // so move to the final spot
             ent->origin = ent->msg_origins[0];
             ent->angles = ent->msg_angles[0];
-            ent->scale = ent->msg_scales[0];
+            ent->model_scale = ent->msg_scales[0];
         }
         else
         {
@@ -562,7 +772,7 @@ void CL_RelinkEntities()
                     f = 1; // assume a teleportation, not a motion
                     ent->lerpflags |=
                         LERP_RESETMOVE; // johnfitz -- don't lerp teleports
-                    if(ent == &cl_entities[cl.viewentity])
+                    if(ent == &cl.entities[cl.viewentity])
                     {
                         VR_PushYaw();
                     }
@@ -593,12 +803,11 @@ void CL_RelinkEntities()
                 ent->angles[j] = ent->msg_angles[1][j] + f * d;
 
                 const float sd = ent->msg_scales[0][j] - ent->msg_scales[1][j];
-                ent->scale[j] = ent->msg_scales[1][j] + f * sd;
+                ent->model_scale[j] = ent->msg_scales[1][j] + f * sd;
             }
         }
 
         // rotate binary objects locally
-        // TODO VR: (P2) add override here for backpack or quakec field
         if(ent->model->flags & EF_ROTATE)
         {
             ent->angles[1] = bobjrotate;
@@ -627,7 +836,7 @@ void CL_RelinkEntities()
             // which looks bad when lerped
             if(r_lerpmodels.value != 2)
             {
-                if(ent == &cl_entities[cl.viewentity])
+                if(ent == &cl.entities[cl.viewentity])
                 {
                     cl.viewent.lerpflags |=
                         LERP_RESETANIM |
@@ -722,18 +931,370 @@ void CL_RelinkEntities()
 
         ent->forcelink = false;
 
+#ifdef PSET_SCRIPT
+        if(ent->netstate.emiteffectnum > 0)
+        {
+            vec3_t axis[3];
+            AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+            if(ent->model->type == mod_alias)
+            {
+                axis[0][2] *= -1; // stupid vanilla bug
+            }
+            PScript_RunParticleEffectState(ent->origin, axis[0], frametime,
+                cl.particle_precache[ent->netstate.emiteffectnum].index,
+                &ent->emitstate);
+        }
+        else if(ent->model->emiteffect >= 0)
+        {
+            vec3_t axis[3];
+            AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+            if(ent->model->flags & MOD_EMITFORWARDS)
+            {
+                if(ent->model->type == mod_alias)
+                {
+                    axis[0][2] *= -1; // stupid vanilla bug
+                }
+            }
+            else
+            {
+                VectorScale(axis[2], -1, axis[0]);
+            }
+            PScript_RunParticleEffectState(ent->origin, axis[0], frametime,
+                ent->model->emiteffect, &ent->emitstate);
+            if(ent->model->flags & MOD_EMITREPLACE)
+            {
+                continue;
+            }
+        }
+#endif
+
         // This hides the player model in first person view.
         if(i == cl.viewentity && !chase_active.value)
         {
             continue;
         }
 
-        if(cl_numvisedicts < MAX_VISEDICTS)
+        if(cl_numvisedicts < cl_maxvisedicts)
         {
             cl_visedicts[cl_numvisedicts] = ent;
             cl_numvisedicts++;
         }
     }
+}
+
+#ifdef PSET_SCRIPT
+int CL_GenerateRandomParticlePrecache(const char* pname)
+{ // for dpp7 compat
+    size_t i;
+    pname = va("%s", pname);
+    for(i = 1; i < MAX_PARTICLETYPES; i++)
+    {
+        if(!cl.particle_precache[i].name)
+        {
+            cl.particle_precache[i].name =
+                strcpy(Hunk_Alloc(strlen(pname) + 1), pname);
+            cl.particle_precache[i].index =
+                PScript_FindParticleType(cl.particle_precache[i].name);
+            return i;
+        }
+        if(!strcmp(cl.particle_precache[i].name, pname))
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+#endif
+
+// sent by the server to let us know that dp downloads can be used
+void CL_ServerExtension_Download_f()
+{
+    if(Cmd_Argc() == 2)
+    {
+        cl.protocol_dpdownload = atoi(Cmd_Argv(1));
+    }
+}
+
+// sent by the server to let us know when its finished sending the entire file
+void CL_Download_Finished_f()
+{
+    if(cls.download.file)
+    {
+        char finalpath[MAX_OSPATH];
+        unsigned int size = strtoul(Cmd_Argv(1), nullptr, 0);
+        unsigned int hash = strtoul(Cmd_Argv(2), nullptr, 0);
+        // const char *fname = Cmd_Argv(3);
+        bool hashokay = false;
+        if(size == cls.download.size)
+        {
+            byte* tmp = (byte*)malloc(size);
+            if(tmp)
+            {
+                fseek(cls.download.file, 0, SEEK_SET);
+                fread(tmp, 1, size, cls.download.file);
+                hashokay = (hash == CRC_Block(tmp, size));
+                free(tmp);
+
+                if(!hashokay)
+                {
+                    Con_Warning("Download hash failure\n");
+                }
+            }
+            else
+            {
+                Con_Warning("Download size too large\n");
+            }
+        }
+        else
+        {
+            Con_Warning("Download size mismatch\n");
+        }
+
+        fclose(cls.download.file);
+        cls.download.file = nullptr;
+        if(hashokay)
+        {
+            q_snprintf(finalpath, sizeof(finalpath), "%s/%s", com_gamedir,
+                cls.download.current);
+            rename(cls.download.temp, finalpath);
+            Con_SafePrintf("Downloaded %s: %u bytes\n", cls.download.current,
+                cls.download.size);
+        }
+        else
+        {
+            Con_Warning("Download of %s failed\n", cls.download.current);
+            unlink(cls.download.temp); // kill the temp
+        }
+    }
+
+    cls.download.active = false;
+}
+// sent by the server (or issued by the user) to stop the current download for
+// any reason.
+void CL_StopDownload_f()
+{
+    if(cls.download.file)
+    {
+        fclose(cls.download.file);
+        cls.download.file = nullptr;
+        unlink(cls.download.temp);
+
+        //		Con_SafePrintf("Download cancelled\n", cl.download_current,
+        // cl.download_size);
+    }
+    cls.download.active = false;
+}
+// sent by the server to let us know that its going to start spamming us now.
+void CL_Download_Begin_f()
+{
+    if(!cls.download.active)
+    {
+        return;
+    }
+
+    if(cls.download.file)
+    {
+        CL_StopDownload_f();
+    }
+
+    // cl_downloadbegin size "name"
+    cls.download.size = strtoul(Cmd_Argv(1), nullptr, 0);
+
+    COM_CreatePath(cls.download.temp);
+    cls.download.file = fopen(cls.download.temp,
+        "wb+"); //+ so we can read the data back to validate it
+
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, "sv_startdownload\n");
+}
+
+void CL_Download_Data()
+{
+    byte* data;
+    unsigned int start, size;
+    start = MSG_ReadLong();
+    size = (unsigned short)MSG_ReadShort();
+    data = MSG_ReadData(size);
+    if(msg_badread)
+    {
+        return;
+    }
+    if(!cls.download.file)
+    {
+        return; // demo started mid-record? something weird anyway
+    }
+
+    fseek(cls.download.file, start, SEEK_SET);
+    fwrite(data, 1, size, cls.download.file);
+
+    Con_SafePrintf("Downloading %s: %g%%\r", cls.download.current,
+        100 * (start + size) / (double)cls.download.size);
+
+    // should maybe use unreliables, but whatever, shouldn't matter too much,
+    // it'll still complete
+    MSG_WriteByte(&cls.message, clcdp_ackdownloaddata);
+    MSG_WriteLong(&cls.message, start);
+    MSG_WriteShort(&cls.message, size);
+}
+
+// returns true if we should block waiting for a download, false if there's no
+// point.
+bool CL_CheckDownload(const char* filename)
+{
+    if(sv.active)
+    {
+        return false; // no point downloading if we're the server...
+    }
+    if(*filename == '*')
+    {
+        return false; // don't download these...
+    }
+    if(cls.download.active)
+    {
+        return true; // block while we're already downloading something
+    }
+    if(!cl.protocol_dpdownload)
+    {
+        return false; // can't download anyway
+    }
+    if(*cls.download.current && !strcmp(cls.download.current, filename))
+    {
+        return false; // if the previous download failed, don't endlessly retry.
+    }
+    if(COM_FileExists(filename, nullptr))
+    {
+        return false; // no need to download anything.
+    }
+    if(!COM_DownloadNameOkay(filename))
+    {
+        return false; // diediedie
+    }
+
+    cls.download.active = true;
+    q_strlcpy(cls.download.current, filename, sizeof(cls.download.current));
+    q_snprintf(cls.download.temp, sizeof(cls.download.temp), "%s/%s.tmp",
+        com_gamedir, filename);
+    Con_Printf("Downloading %s...\r", filename);
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, va("download \"%s\"\n", filename));
+    return true;
+}
+
+// download+load models and sounds as needed, once complete let the server know
+// we're ready for the next stage. returning false will trigger nops.
+bool CL_CheckDownloads()
+{
+    int i;
+    if(cl.model_download == 0 && cl.model_count && cl.model_name[1])
+    { // haxors, download the lit first, but only if we don't already have the
+      // bsp
+        // this ensures that we don't keep requesting the lit for maps that just
+        // don't have one (although may be problematic if the first server we
+        // find deleted them all, but oh well)
+        char litname[MAX_QPATH];
+        char* ext;
+        q_strlcpy(litname, cl.model_name[1], sizeof(litname));
+        ext = (char*)COM_FileGetExtension(litname);
+        if(!q_strcasecmp(ext, "bsp"))
+        {
+            if(!COM_FileExists(litname, nullptr))
+            {
+                strcpy(ext, "lit");
+                if(CL_CheckDownload(litname))
+                {
+                    return false;
+                }
+            }
+        }
+        cl.model_download++;
+    }
+    for(; cl.model_download < cl.model_count;)
+    {
+        if(*cl.model_name[cl.model_download])
+        {
+            if(CL_CheckDownload(cl.model_name[cl.model_download]))
+            {
+                return false;
+            }
+            cl.model_precache[cl.model_download] =
+                Mod_ForName(cl.model_name[cl.model_download], false);
+            if(cl.model_precache[cl.model_download] == nullptr)
+            {
+                Host_Error(
+                    "Model %s not found", cl.model_name[cl.model_download]);
+            }
+        }
+        cl.model_download++;
+    }
+
+    for(; cl.sound_download < cl.sound_count;)
+    {
+        if(*cl.sound_name[cl.sound_download])
+        {
+            if(CL_CheckDownload(
+                   va("sound/%s", cl.sound_name[cl.sound_download])))
+            {
+                return false;
+            }
+            cl.sound_precache[cl.sound_download] =
+                S_PrecacheSound(cl.sound_name[cl.sound_download]);
+        }
+        cl.sound_download++;
+    }
+
+    if(!cl.worldmodel && cl.model_count >= 2)
+    {
+        // local state
+        cl.entities[0].model = cl.worldmodel = cl.model_precache[1];
+        if(cl.worldmodel->type != mod_brush)
+        {
+            if(cl.worldmodel->type == mod_ext_invalid)
+            {
+                Host_Error("Worldmodel %s was not loaded", cl.model_name[1]);
+            }
+            else
+            {
+                Host_Error(
+                    "Worldmodel %s is not a brushmodel", cl.model_name[1]);
+            }
+        }
+
+        // fixme: deal with skybox somehow
+
+        R_NewMap();
+
+#ifdef PSET_SCRIPT
+        // the protocol changing depending upon files found on the client's
+        // computer is of course a really shit way to design things especially
+        // when users have a nasty habit of changing config files.
+        if(cl.protocol == PROTOCOL_VERSION_DP7)
+        {
+            PScript_FindParticleType(
+                "effectinfo."); // make sure this is implicitly loaded.
+            COM_Effectinfo_Enumerate(CL_GenerateRandomParticlePrecache);
+            cl.protocol_particles = true;
+        }
+        else if(cl.protocol_pext2)
+        {
+            cl.protocol_particles =
+                true; // doesn't have a pext flag of its own, but at least we
+        }
+        // know what it is.
+#endif
+    }
+
+    // make sure ents have the correct models, now that they're actually loaded.
+    for(i = 0; i < cl.num_statics; i++)
+    {
+        if(cl.static_entities[i]->model)
+        {
+            continue;
+        }
+        cl.static_entities[i]->model =
+            cl.model_precache[cl.static_entities[i]->netstate.modelindex];
+        R_AddEfrags(cl.static_entities[i]);
+    }
+    return true;
 }
 
 
@@ -787,8 +1348,8 @@ int CL_ReadFromServer()
     // visedicts
     if(cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
     {
-        Con_DWarning("%i visedicts exceeds standard limit of 256 (max = %d).\n",
-            cl_numvisedicts, MAX_VISEDICTS);
+        Con_DWarning(
+            "%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
     }
     dev_stats.visedicts = cl_numvisedicts;
     dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
@@ -847,6 +1408,26 @@ int CL_ReadFromServer()
 
 /*
 =================
+CL_UpdateViewAngles
+
+Spike: split from CL_SendCmd, to do clientside viewangle changes separately from
+outgoing packets.
+=================
+*/
+void CL_AccumulateCmd()
+{
+    if(cls.signon == SIGNONS)
+    {
+        // basic keyboard looking
+        CL_AdjustAngles();
+
+        // accumulate movement from other devices
+        IN_Move(&cl.pendingcmd);
+    }
+}
+
+/*
+=================
 CL_SendCmd
 =================
 */
@@ -866,12 +1447,16 @@ void CL_SendCmd()
 
         // allow mice or other external controllers to add to the move
         IN_Move(&cmd);
-
         VR_Move(&cmd);
 
         // send the unreliable message
         CL_SendMove(&cmd);
     }
+    else
+    {
+        CL_SendMove(nullptr);
+    }
+    memset(&cl.pendingcmd, 0, sizeof(cl.pendingcmd));
 
     if(cls.demoplayback)
     {
@@ -952,11 +1537,26 @@ void CL_Viewpos_f([[maybe_unused]] refdef_t& refdef)
 #else
     // player position
     Con_Printf("Viewpos: (%i %i %i) %i %i %i\n",
-        (int)cl_entities[cl.viewentity].origin[0],
-        (int)cl_entities[cl.viewentity].origin[1],
-        (int)cl_entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH],
+        (int)cl.entities[cl.viewentity].origin[0],
+        (int)cl.entities[cl.viewentity].origin[1],
+        (int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH],
         (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
 #endif
+}
+
+static void CL_ServerExtension_FullServerinfo_f()
+{
+    //	const char *newserverinfo = Cmd_Argv(1);
+}
+static void CL_ServerExtension_ServerinfoUpdate_f()
+{
+    //	const char *newserverkey = Cmd_Argv(1);
+    //	const char *newservervalue = Cmd_Argv(2);
+}
+
+static void CL_ServerExtension_Ignore_f()
+{
+    Con_DPrintf2("Ignoring stufftext: %s\n", Cmd_Argv(0));
 }
 
 /*
@@ -998,6 +1598,8 @@ void CL_Init()
 
     Cvar_RegisterVariable(&cl_maxpitch); // johnfitz -- variable pitch clamping
     Cvar_RegisterVariable(&cl_minpitch); // johnfitz -- variable pitch clamping
+    Cvar_RegisterVariable(&cl_recordingdemo); // spike -- for mod hacks. combine
+                                              // with cvar_string or something
 
     Cmd_AddCommand("entities", CL_PrintEntities_f);
     Cmd_AddCommand("disconnect", CL_Disconnect_f);
@@ -1008,4 +1610,46 @@ void CL_Init()
 
     Cmd_AddCommand("tracepos", [] { CL_Tracepos_f(r_refdef); }); // johnfitz
     Cmd_AddCommand("viewpos", [] { CL_Viewpos_f(r_refdef); });   // johnfitz
+
+    // spike -- add stubs to mute various invalid stuffcmds
+    Cmd_AddCommand_ServerCommand(
+        "fullserverinfo", CL_ServerExtension_FullServerinfo_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "svi", CL_ServerExtension_ServerinfoUpdate_f); // spike
+    Cmd_AddCommand_ServerCommand("paknames",
+        CL_ServerExtension_Ignore_f); // package names in use by the server
+                                      // (including gamedir+extension)
+    Cmd_AddCommand_ServerCommand(
+        "paks", CL_ServerExtension_Ignore_f); // provides hashes to go with the
+                                              // paknames list
+    // Cmd_AddCommand_ServerCommand ("vwep", CL_ServerExtension_Ignore_f);
+    // //invalid for nq, provides an alternative list of model precaches for
+    // vweps. Cmd_AddCommand_ServerCommand ("at", CL_ServerExtension_Ignore_f);
+    // //invalid for nq, autotrack info for mvds
+    Cmd_AddCommand_ServerCommand(
+        "wps", CL_ServerExtension_Ignore_f); // ktx/cspree weapon stats
+    Cmd_AddCommand_ServerCommand(
+        "it", CL_ServerExtension_Ignore_f); // cspree item timers
+    Cmd_AddCommand_ServerCommand(
+        "tinfo", CL_ServerExtension_Ignore_f); // ktx team info
+    Cmd_AddCommand_ServerCommand(
+        "exectrigger", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progname", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progsize", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "csqc_progcrc", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_fullpitch", CL_ServerExtension_Ignore_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "pq_fullpitch", CL_ServerExtension_Ignore_f); // spike
+
+    Cmd_AddCommand_ServerCommand(
+        "cl_serverextension_download", CL_ServerExtension_Download_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_downloadbegin", CL_Download_Begin_f); // spike
+    Cmd_AddCommand_ServerCommand(
+        "cl_downloadfinished", CL_Download_Finished_f); // spike
+    Cmd_AddCommand("stopdownload", CL_StopDownload_f);  // spike
 }

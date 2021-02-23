@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -157,6 +157,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define K_RTRIGGER 252
 
 #define MAX_KEYS 256
+#define MAX_BINDMAPS 8
 
 #define MAXCMDLINE 256
 
@@ -169,7 +170,7 @@ typedef enum
 } keydest_t;
 
 extern keydest_t key_dest;
-extern char* keybindings[MAX_KEYS];
+extern char* keybindings[MAX_BINDMAPS][MAX_KEYS];
 
 #define CMDLINES 64
 
@@ -178,6 +179,7 @@ extern int edit_line;
 extern int key_linepos;
 extern int key_insert;
 extern double key_blinktime;
+extern int key_bindmap[2];
 
 extern bool chat_team;
 
@@ -193,8 +195,12 @@ void Key_Event(int key, bool down);
 void Char_Event(int key);
 bool Key_TextEntry();
 
-void Key_SetBinding(int keynum, const char* binding);
+void Key_SetBinding(int keynum, const char* binding, int bindmap);
 const char* Key_KeynumToString(int keynum);
+int Key_StringToKeynum(const char* str);
+int Key_NativeToQC(int code);
+int Key_QCToNative(
+    int code); // warning: will return negative values for unknown qc keys.
 void Key_WriteBindings(FILE* f);
 
 void Key_EndChat();

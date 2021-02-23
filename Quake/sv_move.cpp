@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "util.hpp"
 #include "bspfile.hpp"
+#include "qcvm.hpp"
 
 #define STEPSIZE 18
 
@@ -141,7 +142,7 @@ bool SV_movestep(edict_t* ent, qvec3 move, bool relink)
             neworg = ent->v.origin + move;
             edict_t* enemy = PROG_TO_EDICT(ent->v.enemy);
 
-            if(i == 0 && enemy != sv.edicts)
+            if(i == 0 && enemy != qcvm->edicts)
             {
                 const float dz =
                     ent->v.origin[2] - PROG_TO_EDICT(ent->v.enemy)->v.origin[2];
@@ -175,7 +176,7 @@ bool SV_movestep(edict_t* ent, qvec3 move, bool relink)
                 return true;
             }
 
-            if(enemy == sv.edicts)
+            if(enemy == qcvm->edicts)
             {
                 break;
             }
@@ -277,7 +278,6 @@ void PF_changeyaw();
 bool SV_StepDirection(edict_t* ent, float yaw, float dist)
 {
     qvec3 move;
-
     qvec3 oldorigin;
     float delta;
 
@@ -331,13 +331,10 @@ SV_NewChaseDir
 void SV_NewChaseDir(edict_t* actor, edict_t* enemy, float dist)
 {
     float deltax;
-
     float deltay;
     float d[3];
     float tdir;
-
     float olddir;
-
     float turnaround;
 
     olddir = anglemod((int)(actor->v.ideal_yaw / 45) * 45);
@@ -498,7 +495,7 @@ void SV_MoveToGoal()
     }
 
     // if the next step hits the enemy, return immediately
-    if(PROG_TO_EDICT(ent->v.enemy) != sv.edicts &&
+    if(PROG_TO_EDICT(ent->v.enemy) != qcvm->edicts &&
         SV_CloseEnough(ent, goal, dist))
     {
         return;

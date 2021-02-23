@@ -247,12 +247,12 @@ static int S_WAV_CodecRewindStream(snd_stream_t* stream)
     return 0;
 }
 
-static bool S_WAV_CodecInitialize(void)
+static bool S_WAV_CodecInitialize()
 {
     return true;
 }
 
-static void S_WAV_CodecShutdown(void)
+static void S_WAV_CodecShutdown()
 {
 }
 

@@ -43,7 +43,6 @@ extern quakeparms_t* host_parms;
 extern cvar_t sys_ticrate;
 extern cvar_t sys_throttle;
 extern cvar_t sys_nostdout;
-extern cvar_t developer;
 extern cvar_t max_edicts; // johnfitz
 
 extern bool host_initialized; // true if into command execution

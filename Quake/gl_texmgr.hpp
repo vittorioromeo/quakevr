@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef_macros.hpp"
 #include "gl_model.hpp"
+#include "srcformat.hpp"
 
 // gl_texmgr.h -- fitzquake's texture manager. manages opengl texture images
 
@@ -44,13 +45,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TEXPREF_CONCHARS 0x0400   // use conchars palette
 #define TEXPREF_WARPIMAGE \
     0x0800 // resize this texture when warpimagesize changes
+#define TEXPREF_PREMULTIPLY 0x1000 // rgb = rgb*a; a=a;
 
-enum srcformat
-{
-    SRC_INDEXED,
-    SRC_LIGHTMAP,
-    SRC_RGBA
-};
+extern bool gl_texture_s3tc, gl_texture_rgtc, gl_texture_bptc, gl_texture_etc2,
+    gl_texture_astc;
 
 typedef uintptr_t src_offset_t;
 
@@ -68,7 +66,7 @@ struct gltexture_t
     char source_file[MAX_QPATH]; // relative filepath to data source, or "" if
                                  // source is in memory
     src_offset_t source_offset;  // byte offset into file, or memory address
-    enum srcformat
+    srcformat
         source_format; // format of pixel data (indexed, lightmap, or rgba)
     unsigned int source_width;  // size of image in source data
     unsigned int source_height; // size of image in source data
@@ -91,27 +89,34 @@ extern unsigned int d_8to24table_pants[256];
 
 // TEXTURE MANAGER
 
-float TexMgr_FrameUsage();
-gltexture_t* TexMgr_FindTexture(qmodel_t* owner, const char* name);
-gltexture_t* TexMgr_NewTexture();
+[[nodiscard]] float TexMgr_FrameUsage();
+[[nodiscard]] gltexture_t* TexMgr_FindTexture(
+    qmodel_t* owner, const char* name);
+[[nodiscard]] gltexture_t* TexMgr_NewTexture();
 void TexMgr_FreeTexture(gltexture_t* kill);
 void TexMgr_FreeTextures(unsigned int flags, unsigned int mask);
 void TexMgr_FreeTexturesForOwner(qmodel_t* owner);
 void TexMgr_NewGame();
 void TexMgr_Init();
 void TexMgr_DeleteTextureObjects();
+[[nodiscard]] srcformat TexMgr_FormatForCode(
+    const char* code); // returns SRC_EXTERNAL when not known.
+[[nodiscard]] srcformat TexMgr_FormatForName(
+    const char* name); // returns SRC_EXTERNAL when not known.
+[[nodiscard]] size_t TexMgr_ImageSize(int width, int height, srcformat format);
+void TexMgr_BlockSize(srcformat format, int* bytes, int* width, int* height);
 
 // IMAGE LOADING
-gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name, int width,
-    int height, enum srcformat format, byte* data, const char* source_file,
-    src_offset_t source_offset, unsigned flags);
+[[nodiscard]] gltexture_t* TexMgr_LoadImage(qmodel_t* owner, const char* name,
+    int width, int height, srcformat format, byte* data,
+    const char* source_file, src_offset_t source_offset, unsigned flags);
 void TexMgr_ReloadImage(gltexture_t* glt, int shirt, int pants);
 void TexMgr_ReloadImages();
 void TexMgr_ReloadNobrightImages();
 
-int TexMgr_Pad(int s);
-int TexMgr_SafeTextureSize(int s);
-int TexMgr_PadConditional(int s);
+[[nodiscard]] int TexMgr_Pad(int s);
+[[nodiscard]] int TexMgr_SafeTextureSize(int s);
+[[nodiscard]] int TexMgr_PadConditional(int s);
 
 // TEXTURE BINDING & TEXTURE UNIT SWITCHING
 

@@ -349,12 +349,12 @@ static int process_upkg(fshandle_t* f, int32_t* ofs, int32_t* objsize)
     return probe_umx(f, (struct upkg_hdr*)header, ofs, objsize);
 }
 
-static bool S_UMX_CodecInitialize(void)
+static bool S_UMX_CodecInitialize()
 {
     return true;
 }
 
-static void S_UMX_CodecShutdown(void)
+static void S_UMX_CodecShutdown()
 {
 }
 

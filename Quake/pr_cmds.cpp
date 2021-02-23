@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -36,43 +36,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "msg.hpp"
 #include "sys.hpp"
 #include "cmd.hpp"
+#include "developer.hpp"
+#include "server.hpp"
+#include "client.hpp"
+#include "q_sound.hpp"
+#include "progs_utils.hpp"
 
 #include <cmath>
 #include <glm/gtx/rotate_vector.hpp>
 #include "quakeglm_qquat.hpp"
 
-#define STRINGTEMP_BUFFERS 32
-#define STRINGTEMP_LENGTH 1024
 static char pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
 static byte pr_string_tempindex = 0;
 
-static char* PR_GetTempString()
+char* PR_GetTempString()
 {
     return pr_string_temp[(STRINGTEMP_BUFFERS - 1) & ++pr_string_tempindex];
 }
 
-#define RETURN_EDICT(e) (((int*)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 
 #define MSG_BROADCAST 0 // unreliable to all
 #define MSG_ONE 1       // reliable to one (msg_entity)
 #define MSG_ALL 2       // reliable to all
 #define MSG_INIT 3      // write to the init string
-
-[[nodiscard]] QUAKE_FORCEINLINE static qvec3 extractVector(
-    const int parm) noexcept
-{
-    float* const ptr = G_VECTOR(parm);
-    return {ptr[0], ptr[1], ptr[2]};
-}
-
-QUAKE_FORCEINLINE static void returnVector(const qvec3& v) noexcept
-{
-    G_VECTOR(OFS_RETURN)[0] = v[0];
-    G_VECTOR(OFS_RETURN)[1] = v[1];
-    G_VECTOR(OFS_RETURN)[2] = v[2];
-}
-
-
+#define MSG_EXT_MULTICAST \
+    4 // temporary buffer that can be splurged more reliably / with more
+      // control.
+#define MSG_EXT_ENTITY \
+    5 // for csqc networking. we don't actually support this. I'm just defining
+      // it for completeness.
 
 /*
 ===============================================================================
@@ -82,7 +74,7 @@ QUAKE_FORCEINLINE static void returnVector(const qvec3& v) noexcept
 ===============================================================================
 */
 
-static char* PF_VarString(int first)
+char* PF_VarString(int first)
 {
     int i;
     static char out[1024];
@@ -90,7 +82,7 @@ static char* PF_VarString(int first)
 
     out[0] = 0;
     s = 0;
-    for(i = first; i < pr_argc; i++)
+    for(i = first; i < qcvm->argc; i++)
     {
         s = q_strlcat(out, G_STRING((OFS_PARM0 + i * 3)), sizeof(out));
         if(s >= sizeof(out))
@@ -132,7 +124,7 @@ static void PF_error()
 
     s = PF_VarString(0);
     Con_Printf("======SERVER ERROR in %s:\n%s\n",
-        PR_GetString(pr_xfunction->s_name), s);
+        PR_GetString(qcvm->xfunction->s_name), s);
     ed = PROG_TO_EDICT(pr_global_struct->self);
     ED_Print(ed);
 
@@ -156,7 +148,7 @@ static void PF_objerror()
 
     s = PF_VarString(0);
     Con_Printf("======OBJECT ERROR in %s:\n%s\n",
-        PR_GetString(pr_xfunction->s_name), s);
+        PR_GetString(qcvm->xfunction->s_name), s);
     ed = PROG_TO_EDICT(pr_global_struct->self);
     ED_Print(ed);
     ED_Free(ed);
@@ -242,26 +234,20 @@ static void PF_setorigin()
     SV_LinkEdict(e, false);
 }
 
-static void SetMinMaxSize(
+void SetMinMaxSize(
     edict_t* e, const qvec3& minvec, const qvec3& maxvec, bool rotate)
 {
     qvec3 rmin;
-
     qvec3 rmax;
     qvec3 bounds[2];
     float xvector[2];
-
     float yvector[2];
     float a;
     qvec3 base;
-
     qvec3 transformed;
     int i;
-
     int j;
-
     int k;
-
     int l;
 
     for(i = 0; i < 3; i++)
@@ -271,6 +257,7 @@ static void SetMinMaxSize(
             PR_RunError("backwards mins/maxs");
         }
     }
+
     rotate = false; // FIXME: implement rotation properly again
 
     if(!rotate)
@@ -360,7 +347,8 @@ PF_setmodel
 setmodel(entity, model)
 =================
 */
-static void PF_setmodel()
+cvar_t sv_gameplayfix_setmodelrealbox = {"sv_gameplayfix_setmodelrealbox", "1"};
+static void PF_sv_setmodel()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
     const char* m = G_STRING(OFS_PARM1);
@@ -378,7 +366,19 @@ static void PF_setmodel()
 
     if(!*check)
     {
-        PR_RunError("no precache: %s", m);
+        // Spike: so that func_illusionaries work with custom models even in
+        // vanilla.
+        if(sv.state == ss_loading)
+        {
+            Con_DWarning("PF_setmodel(\"%s\"): Model was not precached\n", m);
+        }
+        else
+        {
+            //				PR_PrintStatement(pr_statements +
+            // pr_xstatement); 				PR_StackTrace();
+            Con_Warning("PF_setmodel(\"%s\"): Model was not precached\n", m);
+        }
+        i = SV_Precache_Model(m);
     }
     e->v.model = PR_SetEngineString(*check);
     e->v.modelindex = i; // SV_ModelIndex (m);
@@ -387,8 +387,45 @@ static void PF_setmodel()
 
     if(mod)
     // johnfitz -- correct physics cullboxes for bmodels
+    /*	Spike -- THIS IS A HUGE CLUSTERFUCK.
+        the mins/maxs sizes of models in vanilla was always set to xyz -16/+16.
+            which causes issues with clientside culling.
+        many engines fixed that, but not here.
+            which means that setmodel-without-setsize is now fucked.
+        the qc will usually do a setsize after setmodel anyway, so applying that
+       fix here will do nothing. you'd need to apply the serverside version of
+       the cull fix in SV_LinkEdict instead, which is where the pvs is
+       calculated. tracebox is limited to specific hull sizes. the traces are
+       biased such that they're aligned to the mins point of the box, rather
+       than the center of the trace. so vanilla's '-16 -16 -16'/'16 16 16' is
+       wrong for Z (which is usually corrected for with gravity anyway), but X+Y
+       will be correctly aligned for the resulting hull. but traceboxes using
+       models with -12 or -20 or whatever will be biased/offcenter in the X+Y
+       axis (as well as Z, but that's still mostly unimportant) deciding whether
+       to replicate the vanilla behaviour based upon model type sucks.
+
+        vanilla:
+            brush - always the models size
+            mdl - always [-16, -16, -16], [16, 16, 16]
+        quakespasm:
+            brush - always the models size
+            mdl - always the models size
+        quakeworld:
+            *.bsp - always the models size (matched by extension rather than
+       type) other - model isn't even loaded, setmodel does not do setsize at
+       all. fte default (with nq mod):
+            *.bsp (or sv_gameplayfix_setmodelrealbox) - always the models size
+       (matched by extension rather than type) other - always [-16, -16, -16],
+       [16, 16, 16]
+
+        fte's behaviour means:
+            a) dedicated servers don't have to bother loading non-mdls.
+            b) nq mods still work fine, where extensions are adhered to in the
+       original qc. c) when replacement models are used for bsp models, things
+       still work without them reverting to +/- 16.
+    */
     {
-        if(mod->type == mod_brush)
+        if(mod->type == mod_brush || !sv_gameplayfix_setmodelrealbox.value)
         {
             SetMinMaxSize(e, mod->clipmins, mod->clipmaxs, true);
         }
@@ -607,15 +644,14 @@ static void PF_vectoangles()
 =================
 PF_Random
 
-Returns a number from 0 <= num < 1
+Returns a number from 0 <= num <= 1
 
 random()
 =================
 */
 static void PF_random()
 {
-    const float num = (rand() & 0x7fff) / ((float)0x7fff);
-    G_FLOAT(OFS_RETURN) = num;
+    G_FLOAT(OFS_RETURN) = (rand() & 0x7fff) / ((float)0x7fff);
 }
 
 /*
@@ -719,25 +755,16 @@ PF_ambientsound
 
 =================
 */
-static void PF_ambientsound()
+static void PF_sv_ambientsound()
 {
-    const char* samp;
-
-    const char** check;
-    float vol;
-
-    float attenuation;
-    int i;
-
-    int soundnum;
-    int large = false; // johnfitz -- PROTOCOL_FITZQUAKE
-
     const auto pos = extractVector(OFS_PARM0);
-    samp = G_STRING(OFS_PARM1);
-    vol = G_FLOAT(OFS_PARM2);
-    attenuation = G_FLOAT(OFS_PARM3);
+    const char* samp = G_STRING(OFS_PARM1);
+    float vol = G_FLOAT(OFS_PARM2);
+    float attenuation = G_FLOAT(OFS_PARM3);
 
     // check to see if samp was properly precached
+    int soundnum;
+    const char** check;
     for(soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)
     {
         if(!strcmp(*check, samp))
@@ -752,49 +779,29 @@ static void PF_ambientsound()
         return;
     }
 
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(soundnum > 255)
+    // generate data to splurge on a per-client basis in SV_SendAmbientSounds
+    if(sv.num_ambients == sv.max_ambients)
     {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
+        int nm = sv.max_ambients + 128;
+        ambientsound_s* n =
+            (nm * sizeof(*n) < sv.max_ambients * sizeof(*n))
+                ? (ambientsound_s*)nullptr
+                : (ambientsound_s*)realloc(sv.ambientsounds, nm * sizeof(*n));
+        if(!n)
         {
-            return; // don't send any info protocol can't support
+            PR_RunError(
+                "PF_ambientsound: out of memory"); // shouldn't really happen.
         }
-
-        large = true;
+        sv.ambientsounds = n;
+        memset(sv.ambientsounds + sv.max_ambients, 0,
+            (nm - sv.max_ambients) * sizeof(*n));
+        sv.max_ambients = nm;
     }
-    // johnfitz
-
-    // add an svc_spawnambient command to the level signon packet
-
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(large)
-    {
-        MSG_WriteByte(&sv.signon, svc_spawnstaticsound2);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
-    }
-    // johnfitz
-
-    for(i = 0; i < 3; i++)
-    {
-        MSG_WriteCoord(&sv.signon, pos[i], sv.protocolflags);
-    }
-
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(large)
-    {
-        MSG_WriteShort(&sv.signon, soundnum);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.signon, soundnum);
-    }
-    // johnfitz
-
-    MSG_WriteByte(&sv.signon, vol * 255);
-    MSG_WriteByte(&sv.signon, attenuation * 64);
+    ambientsound_s* st = &sv.ambientsounds[sv.num_ambients++];
+    st->origin = pos;
+    st->soundindex = soundnum;
+    st->volume = vol;
+    st->attenuation = attenuation;
 }
 
 /*
@@ -820,22 +827,7 @@ static void PF_sound()
     const int volume = G_FLOAT(OFS_PARM3) * 255;
     const float attenuation = G_FLOAT(OFS_PARM4);
 
-    if(volume < 0 || volume > 255)
-    {
-        Host_Error("SV_StartSound: volume = %i", volume);
-    }
-
-    if(attenuation < 0 || attenuation > 4)
-    {
-        Host_Error("SV_StartSound: attenuation = %f", attenuation);
-    }
-
-    if(channel < 0 || channel > 7)
-    {
-        Host_Error("SV_StartSound: channel = %i", channel);
-    }
-
-    SV_StartSound(entity, channel, sample, volume, attenuation);
+    SV_StartSound(entity, nullptr, channel, sample, volume, attenuation);
 }
 
 /*
@@ -857,7 +849,7 @@ static void PF_break()
 PF_traceline
 
 Used for use tracing and shot targeting
-Traces are blocked by bbox and exact bsp entityes, and also slide box
+Traces are blocked by bbox and exact bsp entities, and also slide box
 entities if the tryents flag is set.
 
 traceline (vector1, vector2, tryents)
@@ -871,7 +863,7 @@ static void PF_traceline()
     edict_t* ent = G_EDICT(OFS_PARM3);
 
     /* FIXME FIXME FIXME: Why do we hit this with certain progs.dat ?? */
-    if(developer.value)
+    if(quake::vr::developerMode())
     {
         if(IS_NAN(v1[0]) || IS_NAN(v1[1]) || IS_NAN(v1[2]) || IS_NAN(v2[0]) ||
             IS_NAN(v2[1]) || IS_NAN(v2[2]))
@@ -909,7 +901,7 @@ static void PF_traceline()
     }
     else
     {
-        pr_global_struct->trace_ent = EDICT_TO_PROG(sv.edicts);
+        pr_global_struct->trace_ent = EDICT_TO_PROG(qcvm->edicts);
     }
 }
 
@@ -924,7 +916,7 @@ scalar checkpos (entity, vector)
 =================
 */
 #if 0
-static void PF_checkpos(void)
+static void PF_checkpos()
 {
 }
 #endif
@@ -937,7 +929,6 @@ static int checkpvs_capacity;
 static int PF_newcheckclient(int check)
 {
     int i;
-
     edict_t* ent;
     int pvsbytes;
 
@@ -995,10 +986,10 @@ static int PF_newcheckclient(int check)
     // get the PVS for the entity
     qvec3 org = ent->v.origin + ent->v.view_ofs;
 
-    mleaf_t* leaf = Mod_PointInLeaf(org, sv.worldmodel);
-    byte* pvs = Mod_LeafPVS(leaf, sv.worldmodel);
+    mleaf_t* leaf = Mod_PointInLeaf(org, qcvm->worldmodel);
+    byte* pvs = Mod_LeafPVS(leaf, qcvm->worldmodel);
 
-    pvsbytes = (sv.worldmodel->numleafs + 7) >> 3;
+    pvsbytes = (qcvm->worldmodel->numleafs + 7) >> 3;
     if(checkpvs == nullptr || pvsbytes > checkpvs_capacity)
     {
         checkpvs_capacity = pvsbytes;
@@ -1031,38 +1022,37 @@ name checkclient ()
 */
 #define MAX_CHECK 16
 static int c_invis, c_notvis;
-static void PF_checkclient()
+static void PF_sv_checkclient()
 {
     edict_t* ent;
-
     edict_t* self;
     mleaf_t* leaf;
     int l;
 
     // find a new check if on a new frame
-    if(sv.time - sv.lastchecktime >= 0.1)
+    if(qcvm->time - sv.lastchecktime >= 0.1)
     {
         sv.lastcheck = PF_newcheckclient(sv.lastcheck);
-        sv.lastchecktime = sv.time;
+        sv.lastchecktime = qcvm->time;
     }
 
     // return check if it might be visible
     ent = EDICT_NUM(sv.lastcheck);
     if(ent->free || ent->v.health <= 0)
     {
-        RETURN_EDICT(sv.edicts);
+        RETURN_EDICT(qcvm->edicts);
         return;
     }
 
     // if current entity can't possibly see the check entity, return 0
     self = PROG_TO_EDICT(pr_global_struct->self);
     const qvec3 view = self->v.origin + self->v.view_ofs;
-    leaf = Mod_PointInLeaf(view, sv.worldmodel);
-    l = (leaf - sv.worldmodel->leafs) - 1;
+    leaf = Mod_PointInLeaf(view, qcvm->worldmodel);
+    l = (leaf - qcvm->worldmodel->leafs) - 1;
     if((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7))))
     {
         c_notvis++;
-        RETURN_EDICT(sv.edicts);
+        RETURN_EDICT(qcvm->edicts);
         return;
     }
 
@@ -1379,8 +1369,6 @@ static void PF_rotatevec()
     // TODO VR: (P1): fix this. consider checking QSS source code for rotation
     // code
 
-
-
     glm::mat4 rotationMat(1); // Creates a identity matrix
     rotationMat = glm::rotate(rotationMat, angle, right);
     auto res = glm::vec3(rotationMat * glm::vec4(vec, 1.0));
@@ -1463,18 +1451,19 @@ findradius (origin, radius)
 */
 static void PF_findradius()
 {
-    edict_t* chain = (edict_t*)sv.edicts;
+    edict_t* chain = (edict_t*)qcvm->edicts;
 
     const auto org = extractVector(OFS_PARM0);
     float rad = G_FLOAT(OFS_PARM1);
 
-    edict_t* ent = NEXT_EDICT(sv.edicts);
-    for(int i = 1; i < sv.num_edicts; i++, ent = NEXT_EDICT(ent))
+    edict_t* ent = NEXT_EDICT(qcvm->edicts);
+    for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
     {
         if(ent->free)
         {
             continue;
         }
+
         if(ent->v.solid == SOLID_NOT)
         {
             continue;
@@ -1567,7 +1556,7 @@ static void PF_Find()
 
     const char* t;
     edict_t* ed;
-    for(e++; e < sv.num_edicts; e++)
+    for(e++; e < qcvm->num_edicts; e++)
     {
         ed = EDICT_NUM(e);
         if(ed->free)
@@ -1586,7 +1575,7 @@ static void PF_Find()
         }
     }
 
-    RETURN_EDICT(sv.edicts);
+    RETURN_EDICT(qcvm->edicts);
 }
 
 static void PR_CheckEmptyString(const char* s)
@@ -1603,46 +1592,83 @@ static void PF_precache_file()
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 }
 
-static void PF_precache_sound()
-{
-    const char* s;
+int SV_Precache_Sound(const char* s)
+{ // must be a persistent string.
     int i;
-
-    if(sv.state != ss_loading)
-    {
-        PR_RunError(
-            "PF_Precache_*: Precache can only be done in spawn functions");
-    }
-
-    s = G_STRING(OFS_PARM0);
-    G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
-    PR_CheckEmptyString(s);
 
     for(i = 0; i < MAX_SOUNDS; i++)
     {
         if(!sv.sound_precache[i])
         {
+            if(sv.state != ss_loading) // spike -- moved this so that there's no
+                                       // actual error any more.
+            {
+                Con_Warning(
+                    "PF_precache_sound(\"%s\"): Precache should only be done "
+                    "in spawn functions\n",
+                    s);
+                // let existing clients know about it
+                MSG_WriteByte(&sv.reliable_datagram, svcdp_precache);
+                MSG_WriteShort(&sv.reliable_datagram, i | 0x8000);
+                MSG_WriteString(&sv.reliable_datagram, s);
+            }
             sv.sound_precache[i] = s;
-            return;
+            return i;
         }
+
         if(!strcmp(sv.sound_precache[i], s))
         {
-            return;
+            return i;
         }
     }
-    PR_RunError("PF_precache_sound: overflow");
+    return 0;
 }
 
-static void PF_precache_model()
+static void PF_sv_precache_sound()
+{
+    const char* s;
+
+    s = G_STRING(OFS_PARM0);
+    G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+    PR_CheckEmptyString(s);
+
+    if(!SV_Precache_Sound(s))
+    {
+        PR_RunError("PF_precache_sound: overflow");
+    }
+}
+
+int SV_Precache_Model(const char* s)
+{
+    size_t i;
+    for(i = 0; i < MAX_MODELS; i++)
+    {
+        if(!sv.model_precache[i])
+        {
+            if(sv.state != ss_loading)
+            {
+                // let existing clients know about it
+                MSG_WriteByte(&sv.reliable_datagram, svcdp_precache);
+                MSG_WriteShort(&sv.reliable_datagram, i | 0x8000);
+                MSG_WriteString(&sv.reliable_datagram, s);
+            }
+
+            sv.model_precache[i] = s;
+            sv.models[i] = Mod_ForName(s, i == 1);
+            return i;
+        }
+        if(!strcmp(sv.model_precache[i], s))
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static void PF_sv_precache_model()
 {
     const char* s;
     int i;
-
-    if(sv.state != ss_loading)
-    {
-        PR_RunError(
-            "PF_Precache_*: Precache can only be done in spawn functions");
-    }
 
     s = G_STRING(OFS_PARM0);
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
@@ -1652,13 +1678,23 @@ static void PF_precache_model()
     {
         if(!sv.model_precache[i])
         {
-            sv.model_precache[i] = s;
+            if(sv.state != ss_loading)
+            {
+                Con_Warning(
+                    "PF_precache_model(\"%s\"): Precache should only be done "
+                    "in spawn functions\n",
+                    s);
+                // let existing clients know about it
+                MSG_WriteByte(&sv.reliable_datagram, svcdp_precache);
+                MSG_WriteShort(&sv.reliable_datagram, i | 0x8000);
+                MSG_WriteString(&sv.reliable_datagram, s);
+            }
 
-            // VR: Load with a fallback in case a model is missing. Useful for
-            // mission-pack specific models that are missing for some reason.
-            sv.models[i] = Mod_ForName_WithFallback(s, "progs/player.mdl");
+            sv.model_precache[i] = s;
+            sv.models[i] = Mod_ForName(s, i == 1);
             return;
         }
+
         if(!strcmp(sv.model_precache[i], s))
         {
             return;
@@ -1675,12 +1711,12 @@ static void PF_coredump()
 
 static void PF_traceon()
 {
-    pr_trace = true;
+    qcvm->trace = true;
 }
 
 static void PF_traceoff()
 {
-    pr_trace = false;
+    qcvm->trace = false;
 }
 
 static void PF_eprint()
@@ -1699,7 +1735,6 @@ static void PF_walkmove()
 {
     edict_t* ent;
     float yaw;
-
     float dist;
     qvec3 move;
     dfunction_t* oldf;
@@ -1722,14 +1757,14 @@ static void PF_walkmove()
     move[2] = 0;
 
     // save program state, because SV_movestep may call other progs
-    oldf = pr_xfunction;
+    oldf = qcvm->xfunction;
     oldself = pr_global_struct->self;
 
     G_FLOAT(OFS_RETURN) = SV_movestep(ent, move, true);
 
 
     // restore program state
-    pr_xfunction = oldf;
+    qcvm->xfunction = oldf;
     pr_global_struct->self = oldself;
 }
 
@@ -1791,7 +1826,7 @@ PF_lightstyle
 void(float style, string value) lightstyle
 ===============
 */
-static void PF_lightstyle()
+static void PF_sv_lightstyle()
 {
     int style;
     const char* val;
@@ -1821,9 +1856,18 @@ static void PF_lightstyle()
     {
         if(client->active || client->spawned)
         {
-            MSG_WriteChar(&client->message, svc_lightstyle);
-            MSG_WriteChar(&client->message, style);
-            MSG_WriteString(&client->message, val);
+            if(style > 0xff)
+            {
+                MSG_WriteByte(&client->message, svc_stufftext);
+                MSG_WriteString(
+                    &client->message, va("//ls %i \"%s\"\n", style, val));
+            }
+            else
+            {
+                MSG_WriteChar(&client->message, svc_lightstyle);
+                MSG_WriteChar(&client->message, style);
+                MSG_WriteString(&client->message, val);
+            }
         }
     }
 }
@@ -1891,9 +1935,9 @@ static void PF_nextent()
     while(true)
     {
         i++;
-        if(i == sv.num_edicts)
+        if(i == qcvm->num_edicts)
         {
-            RETURN_EDICT(sv.edicts);
+            RETURN_EDICT(qcvm->edicts);
             return;
         }
         ent = EDICT_NUM(i);
@@ -1918,22 +1962,15 @@ cvar_t sv_aim = {
 static void PF_aim()
 {
     edict_t* ent;
-
     edict_t* check;
-
     edict_t* bestent;
     qvec3 start;
-
     qvec3 dir;
-
     qvec3 end;
-
     int i;
-
     int j;
     trace_t tr;
     qfloat dist;
-
     float bestdist;
     float speed;
 
@@ -1960,8 +1997,8 @@ static void PF_aim()
     bestdist = sv_aim.value;
     bestent = nullptr;
 
-    check = NEXT_EDICT(sv.edicts);
-    for(i = 1; i < sv.num_edicts; i++, check = NEXT_EDICT(check))
+    check = NEXT_EDICT(qcvm->edicts);
+    for(i = 1; i < qcvm->num_edicts; i++, check = NEXT_EDICT(check))
     {
         if(check->v.takedamage != DAMAGE_AIM)
         {
@@ -2073,7 +2110,7 @@ MESSAGE WRITING
 ===============================================================================
 */
 
-static sizebuf_t* WriteDest()
+sizebuf_t* WriteDest()
 {
     int entnum;
     int dest;
@@ -2097,144 +2134,93 @@ static sizebuf_t* WriteDest()
 
         case MSG_INIT: return &sv.signon;
 
+        case MSG_EXT_MULTICAST: return &sv.multicast;
+
         default: PR_RunError("WriteDest: bad destination"); break;
     }
 
     return nullptr;
 }
 
-static void PF_WriteByte()
+static void PF_sv_WriteByte()
 {
     MSG_WriteByte(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
-static void PF_WriteChar()
+static void PF_sv_WriteChar()
 {
     MSG_WriteChar(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
-static void PF_WriteShort()
+static void PF_sv_WriteShort()
 {
     MSG_WriteShort(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
-static void PF_WriteLong()
+static void PF_sv_WriteLong()
 {
     MSG_WriteLong(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
-static void PF_WriteAngle()
+static void PF_sv_WriteAngle()
 {
     MSG_WriteAngle(WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
-static void PF_WriteCoord()
+static void PF_sv_WriteCoord()
 {
     MSG_WriteCoord(WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
-static void PF_WriteString()
+static void PF_sv_WriteString()
 {
     MSG_WriteString(WriteDest(), G_STRING(OFS_PARM1));
 }
 
-static void PF_WriteEntity()
+#define MSG_WriteEntity \
+    MSG_WriteShort // fixme - replacement deltas encodes 0x8000+ in 24 bits
+static void PF_sv_WriteEntity()
 {
-    MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
+    MSG_WriteEntity(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
+#undef MSG_WriteEntity
 
-static void PF_WriteVec3()
+static void PF_sv_WriteVec3()
 {
     MSG_WriteVec3(WriteDest(), extractVector(OFS_PARM1), sv.protocolflags);
 }
 
 //=============================================================================
 
-static void PF_makestatic()
+static void PF_sv_makestatic()
 {
-    int i;
-    int bits = 0; // johnfitz -- PROTOCOL_FITZQUAKE
-
     edict_t* ent = G_EDICT(OFS_PARM0);
 
-    // johnfitz -- don't send invisible static entities
-    if(ent->alpha == ENTALPHA_ZERO)
+    if(sv.num_statics == sv.max_statics)
     {
-        ED_Free(ent);
-        return;
+        int nm = sv.max_statics + 128;
+        entity_state_t* n =
+            (nm * sizeof(*n) < sv.max_statics * sizeof(*n))
+                ? (entity_state_t*)nullptr
+                : (entity_state_t*)realloc(sv.static_entities, nm * sizeof(*n));
+        if(!n)
+            PR_RunError(
+                "PF_makestatic: out of memory"); // shouldn't really happen.
+        sv.static_entities = n;
+        memset(sv.static_entities + sv.max_statics, 0,
+            (nm - sv.max_statics) * sizeof(*n));
+        sv.max_statics = nm;
     }
-    // johnfitz
-
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(sv.protocol == PROTOCOL_NETQUAKE)
+    entity_state_t* st = &sv.static_entities[sv.num_statics];
+    SV_BuildEntityState(ent, st);
+    if(st->alpha == ENTALPHA_ZERO)
     {
-        if(SV_ModelIndex(PR_GetString(ent->v.model)) & 0xFF00 ||
-            (int)(ent->v.frame) & 0xFF00)
-        {
-            ED_Free(ent);
-            return; // can't display the correct model & frame, so don't
-                    // show it at all
-        }
-    }
-    else
-    {
-        if(SV_ModelIndex(PR_GetString(ent->v.model)) & 0xFF00)
-        {
-            bits |= B_LARGEMODEL;
-        }
-        if((int)(ent->v.frame) & 0xFF00)
-        {
-            bits |= B_LARGEFRAME;
-        }
-        if(ent->alpha != ENTALPHA_DEFAULT)
-        {
-            bits |= B_ALPHA;
-        }
-    }
-
-    if(bits)
-    {
-        MSG_WriteByte(&sv.signon, svc_spawnstatic2);
-        MSG_WriteByte(&sv.signon, bits);
+        ; // no point
     }
     else
     {
-        MSG_WriteByte(&sv.signon, svc_spawnstatic);
+        sv.num_statics++;
     }
-
-    if(bits & B_LARGEMODEL)
-    {
-        MSG_WriteShort(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
-    }
-    else
-    {
-        MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
-    }
-
-    if(bits & B_LARGEFRAME)
-    {
-        MSG_WriteShort(&sv.signon, ent->v.frame);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.signon, ent->v.frame);
-    }
-    // johnfitz
-
-    MSG_WriteByte(&sv.signon, ent->v.colormap);
-    MSG_WriteByte(&sv.signon, ent->v.skin);
-    for(i = 0; i < 3; i++)
-    {
-        MSG_WriteCoord(&sv.signon, ent->v.origin[i], sv.protocolflags);
-        MSG_WriteAngle(&sv.signon, ent->v.angles[i], sv.protocolflags);
-    }
-
-    // johnfitz -- PROTOCOL_FITZQUAKE
-    if(bits & B_ALPHA)
-    {
-        MSG_WriteByte(&sv.signon, ent->alpha);
-    }
-    // johnfitz
 
     // throw the entity away now
     ED_Free(ent);
@@ -2247,10 +2233,11 @@ static void PF_makestatic()
 PF_setspawnparms
 ==============
 */
-static void PF_setspawnparms()
+static void PF_sv_setspawnparms()
 {
     edict_t* ent = G_EDICT(OFS_PARM0);
     int i = NUM_FOR_EDICT(ent);
+
     if(i < 1 || i > svs.maxclients)
     {
         PR_RunError("Entity is not a client");
@@ -2260,9 +2247,19 @@ static void PF_setspawnparms()
     client_t* client = svs.clients + (i - 1);
 
     // VR: Parms like `parm8` are handled specially:
-    for(i = 0; i < NUM_SPAWN_PARMS; i++)
+    for(i = 0; i < NUM_BASIC_SPAWN_PARMS; i++)
     {
         (&pr_global_struct->parm1)[i] = client->spawn_parms[i];
+    }
+
+    // extended spawn parms
+    for(; i < NUM_TOTAL_SPAWN_PARMS; i++)
+    {
+        ddef_t* g = ED_FindGlobal(va("parm%i", i + 1));
+        if(g)
+        {
+            qcvm->globals[g->ofs] = client->spawn_parms[i];
+        }
     }
 }
 
@@ -2271,7 +2268,7 @@ static void PF_setspawnparms()
 PF_changelevel
 ==============
 */
-static void PF_changelevel()
+static void PF_sv_changelevel()
 {
     // make sure we don't issue two changelevels
     if(svs.changelevel_issued)
@@ -2285,16 +2282,43 @@ static void PF_changelevel()
     Cbuf_AddText(va("changelevel %s\n", s));
 }
 
-static void PF_Fixme()
+void PF_Fixme();
+
+void PR_spawnfunc_misc_model(edict_t* self)
 {
-    PR_RunError("unimplemented builtin");
+    eval_t* val;
+    if(!self->v.model &&
+        (val = GetEdictFieldValue(self, ED_FindFieldOffset("mdl"))))
+    {
+        self->v.model = val->string;
+    }
+    if(!*PR_GetString(self->v.model))
+    { // must have a model, because otherwise various
+        // things will assume its not valid at all.
+        self->v.model = PR_SetEngineString("*null");
+    }
+
+    if(self->v.angles[1] < 0)
+    { // mimic AD. shame there's no avelocity
+        // clientside.
+        self->v.angles[1] = (rand() * (360.0f / RAND_MAX));
+    }
+
+    // make sure the model is precached, to avoid errors.
+    G_INT(OFS_PARM0) = self->v.model;
+    PF_sv_precache_model();
+
+    // and lets just call makestatic instead of worrying if it'll interfere with
+    // the rest of the qc.
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(self);
+    PF_sv_makestatic();
 }
 
-static builtin_t pr_builtin[] = {
+builtin_t pr_ssqcbuiltins[] = {
     PF_Fixme,
     PF_makevectors,    // void(entity e) makevectors		= #1
     PF_setorigin,      // void(entity e, vector o) setorigin	= #2
-    PF_setmodel,       // void(entity e, string m) setmodel	= #3
+    PF_sv_setmodel,    // void(entity e, string m) setmodel	= #3
     PF_setsize,        // void(entity e, vector min, vector max) setsize	= #4
     PF_Fixme,          // void(entity e, vector min, vector max) setabssize	= #5
     PF_break,          // void() break				= #6
@@ -2307,47 +2331,46 @@ static builtin_t pr_builtin[] = {
     PF_vectoyaw,       // float(vector v) vectoyaw		= #13
     PF_Spawn,          // entity() spawn			= #14
     PF_Remove,         // void(entity e) remove		= #15
-    PF_traceline,      // float(vector v1, vector v2, float tryents) traceline
-                       // = #16
-    PF_checkclient,    // entity() clientlist			= #17
-    PF_Find,           // entity(entity start, .string fld, string match) find	=
-                       // #18
-    PF_precache_sound, // void(string s) precache_sound	= #19
-    PF_precache_model, // void(string s) precache_model	= #20
-    PF_stuffcmd,       // void(entity client, string s)stuffcmd	= #21
-    PF_findradius,     // entity(vector org, float rad) findradius	= #22
-    PF_bprint,         // void(string s) bprint		= #23
-    PF_sprint,         // void(entity client, string s) sprint	= #24
-    PF_dprint,         // void(string s) dprint		= #25
-    PF_ftos,           // void(string s) ftos			= #26
-    PF_vtos,           // void(string s) vtos			= #27
+    PF_traceline,      // float(vector v1, vector v2, float tryents) traceline	=
+                       // #16
+    PF_sv_checkclient, // entity() clientlist			= #17
+    PF_Find, // entity(entity start, .string fld, string match) find	= #18
+    PF_sv_precache_sound, // void(string s) precache_sound	= #19
+    PF_sv_precache_model, // void(string s) precache_model	= #20
+    PF_stuffcmd,          // void(entity client, string s)stuffcmd	= #21
+    PF_findradius,        // entity(vector org, float rad) findradius	= #22
+    PF_bprint,            // void(string s) bprint		= #23
+    PF_sprint,            // void(entity client, string s) sprint	= #24
+    PF_dprint,            // void(string s) dprint		= #25
+    PF_ftos,              // void(string s) ftos			= #26
+    PF_vtos,              // void(string s) vtos			= #27
     PF_coredump, PF_traceon, PF_traceoff,
     PF_eprint,   // void(entity e) debug print an entire entity
     PF_walkmove, // float(float yaw, float dist) walkmove
     PF_Fixme,    // float(float yaw, float dist) walkmove
-    PF_droptofloor, PF_lightstyle, PF_rint, PF_floor, PF_ceil, PF_Fixme,
+    PF_droptofloor, PF_sv_lightstyle, PF_rint, PF_floor, PF_ceil, PF_Fixme,
     PF_checkbottom, PF_pointcontents, PF_Fixme, PF_fabs, PF_aim, PF_cvar,
     PF_localcmd, PF_nextent, PF_particle, PF_changeyaw, PF_Fixme,
     PF_vectoangles,
 
-    PF_WriteByte, PF_WriteChar, PF_WriteShort, PF_WriteLong, PF_WriteCoord,
-    PF_WriteAngle, PF_WriteString, PF_WriteEntity,
+    PF_sv_WriteByte, PF_sv_WriteChar, PF_sv_WriteShort, PF_sv_WriteLong,
+    PF_sv_WriteCoord, PF_sv_WriteAngle, PF_sv_WriteString, PF_sv_WriteEntity,
 
     PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme,
 
-    SV_MoveToGoal, PF_precache_file, PF_makestatic,
+    SV_MoveToGoal, PF_precache_file, PF_sv_makestatic,
 
-    PF_changelevel, PF_Fixme,
+    PF_sv_changelevel, PF_Fixme,
 
     PF_cvar_set, PF_centerprint,
 
-    PF_ambientsound,
+    PF_sv_ambientsound,
 
-    PF_precache_model,
-    PF_precache_sound, // precache_sound2 is different only for qcc
+    PF_sv_precache_model,
+    PF_sv_precache_sound, // precache_sound2 is different only for qcc
     PF_precache_file,
 
-    PF_setspawnparms,
+    PF_sv_setspawnparms,
     PF_particle2,   // #79
     PF_pow,         // #80
     PF_haptic,      // #81
@@ -2369,7 +2392,7 @@ static builtin_t pr_builtin[] = {
     PF_worldtext_hsetpos,    // #93
     PF_worldtext_hsetangles, // #94
 
-    PF_WriteVec3, // #95
+    PF_sv_WriteVec3, // #95
 
     PF_worldtext_hsethalign, // #96
 
@@ -2393,5 +2416,231 @@ static builtin_t pr_builtin[] = {
     PF_atan2, // #109
 };
 
-builtin_t* pr_builtins = pr_builtin;
-const int pr_numbuiltins = sizeof(pr_builtin) / sizeof(pr_builtin[0]);
+int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins) / sizeof(pr_ssqcbuiltins[0]);
+
+static void PF_cl_sound()
+{
+    const char* sample;
+    int channel;
+    edict_t* entity;
+    int volume;
+    float attenuation;
+    int entnum;
+
+    entity = G_EDICT(OFS_PARM0);
+    channel = G_FLOAT(OFS_PARM1);
+    sample = G_STRING(OFS_PARM2);
+    volume = G_FLOAT(OFS_PARM3) * 255;
+    attenuation = G_FLOAT(OFS_PARM4);
+
+    entnum = NUM_FOR_EDICT(entity);
+    // fullcsqc fixme: if (entity->v->entnum)
+    entnum *= -1;
+
+    S_StartSound(entnum, channel, S_PrecacheSound(sample), entity->v.origin,
+        volume, attenuation);
+}
+
+static void PF_cl_precache_sound()
+{
+    const char* s;
+
+    s = G_STRING(OFS_PARM0);
+    G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+    PR_CheckEmptyString(s);
+
+    // precache sounds are optional in quake's sound system. NULL is a valid
+    // response so don't check.
+    S_PrecacheSound(s);
+}
+
+int CL_Precache_Model(const char* name)
+{
+    int i;
+    if(!*name)
+    {
+        return 0;
+    }
+
+    // if the server precached the model then we don't need to do anything.
+    for(i = 1; i < MAX_MODELS; i++)
+    {
+        if(!*cl.model_name[i])
+        {
+            break; // no more
+        }
+        if(!strcmp(cl.model_name[i], name))
+        {
+            return i;
+        }
+    }
+    PR_RunError("CL_Precache_Model: implementme");
+    return 0;
+}
+static void PF_cl_precache_model()
+{
+    const char* s;
+    int i;
+
+    s = G_STRING(OFS_PARM0);
+    G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+    PR_CheckEmptyString(s);
+
+    // if the server precached the model then we don't need to do anything.
+    for(i = 1; i < MAX_MODELS; i++)
+    {
+        if(!*cl.model_name[i])
+        {
+            break; // no more
+        }
+        if(!strcmp(cl.model_name[i], s))
+        {
+            return;
+        }
+    }
+    PR_RunError("PF_cl_precache_model: implementme");
+}
+static void PF_cl_setmodel()
+{
+    int i;
+    const char* m;
+    qmodel_t* mod;
+    edict_t* e;
+
+    e = G_EDICT(OFS_PARM0);
+    m = G_STRING(OFS_PARM1);
+
+    i = CL_Precache_Model(m);
+
+    mod = qcvm->GetModel(i);
+    e->v.model = mod ? PR_SetEngineString(mod->name)
+                     : 0; // I believe this to be safe in QS.
+    e->v.modelindex = i;
+    if(mod)
+    // johnfitz -- correct physics cullboxes for bmodels
+    /*	Spike -- THIS IS A HUGE CLUSTERFUCK.
+        the mins/maxs sizes of models in vanilla was always set to xyz -16/+16.
+            which causes issues with clientside culling.
+        many engines fixed that, but not here.
+            which means that setmodel-without-setsize is now fucked.
+        the qc will usually do a setsize after setmodel anyway, so applying that
+       fix here will do nothing. you'd need to apply the serverside version of
+       the cull fix in SV_LinkEdict instead, which is where the pvs is
+       calculated. tracebox is limited to specific hull sizes. the traces are
+       biased such that they're aligned to the mins point of the box, rather
+       than the center of the trace. so vanilla's '-16 -16 -16'/'16 16 16' is
+       wrong for Z (which is usually corrected for with gravity anyway), but X+Y
+       will be correctly aligned for the resulting hull. but traceboxes using
+       models with -12 or -20 or whatever will be biased/offcenter in the X+Y
+       axis (as well as Z, but that's still mostly unimportant) deciding whether
+       to replicate the vanilla behaviour based upon model type sucks.
+
+        vanilla:
+            brush - always the models size
+            mdl - always [-16, -16, -16], [16, 16, 16]
+        quakespasm:
+            brush - always the models size
+            mdl - always the models size
+        quakeworld:
+            *.bsp - always the models size (matched by extension rather than
+       type) other - model isn't even loaded, setmodel does not do setsize at
+       all. fte default (with nq mod):
+            *.bsp (or sv_gameplayfix_setmodelrealbox) - always the models size
+       (matched by extension rather than type) other - always [-16, -16, -16],
+       [16, 16, 16]
+
+        fte's behaviour means:
+            a) dedicated servers don't have to bother loading non-mdls.
+            b) nq mods still work fine, where extensions are adhered to in the
+       original qc. c) when replacement models are used for bsp models, things
+       still work without them reverting to +/- 16.
+    */
+    {
+        if(mod->type == mod_brush || !sv_gameplayfix_setmodelrealbox.value)
+        {
+            SetMinMaxSize(e, mod->clipmins, mod->clipmaxs, true);
+        }
+        else
+        {
+            SetMinMaxSize(e, mod->mins, mod->maxs, true);
+        }
+    }
+    // johnfitz
+    else
+    {
+        SetMinMaxSize(e, vec3_zero, vec3_zero, true);
+    }
+}
+
+#define PF_NoCSQC PF_Fixme
+#define PF_CSQCToDo PF_Fixme
+builtin_t pr_csqcbuiltins[] = {
+    PF_Fixme,
+    PF_makevectors, // void(entity e) makevectors		= #1
+    PF_setorigin,   // void(entity e, vector o) setorigin	= #2
+    PF_cl_setmodel, // void(entity e, string m) setmodel	= #3
+    PF_setsize,     // void(entity e, vector min, vector max) setsize	= #4
+    PF_Fixme,       // void(entity e, vector min, vector max) setabssize	= #5
+    PF_break,       // void() break				= #6
+    PF_random,      // float() random			= #7
+    PF_cl_sound,    // void(entity e, float chan, string samp) sound	= #8
+    PF_normalize,   // vector(vector v) normalize		= #9
+    PF_error,       // void(string e) error			= #10
+    PF_objerror,    // void(string e) objerror		= #11
+    PF_vlen,        // float(vector v) vlen			= #12
+    PF_vectoyaw,    // float(vector v) vectoyaw		= #13
+    PF_Spawn,       // entity() spawn			= #14
+    PF_Remove,      // void(entity e) remove		= #15
+    PF_traceline,   // float(vector v1, vector v2, float tryents) traceline	=
+                    // #16
+    PF_NoCSQC,      // entity() checkclient (was: clientlist, apparently) = #17
+    PF_Find, // entity(entity start, .string fld, string match) find	= #18
+    PF_cl_precache_sound, // void(string s) precache_sound	= #19
+    PF_cl_precache_model, // void(string s) precache_model	= #20
+    PF_NoCSQC,            // void(entity client, string s)stuffcmd	= #21
+    PF_findradius,        // entity(vector org, float rad) findradius	= #22
+    PF_NoCSQC,            // void(string s) bprint		= #23
+    PF_NoCSQC,            // void(entity client, string s) sprint	= #24
+    PF_dprint,            // void(string s) dprint		= #25
+    PF_ftos,              // void(string s) ftos			= #26
+    PF_vtos,              // void(string s) vtos			= #27
+    PF_coredump, PF_traceon, PF_traceoff,
+    PF_eprint,   // void(entity e) debug print an entire entity
+    PF_walkmove, // float(float yaw, float dist) walkmove
+    PF_Fixme,    // float(float yaw, float dist) walkmove
+    PF_droptofloor,
+    PF_CSQCToDo, // PF_cl_lightstyle,
+    PF_rint, PF_floor, PF_ceil, PF_Fixme, PF_checkbottom, PF_pointcontents,
+    PF_Fixme, PF_fabs,
+    PF_NoCSQC, // PF_aim,
+    PF_cvar, PF_localcmd, PF_nextent,
+    PF_CSQCToDo, // PF_cl_particle,
+    PF_changeyaw, PF_Fixme, PF_vectoangles,
+
+    PF_NoCSQC, // PF_WriteByte,
+    PF_NoCSQC, // PF_WriteChar,
+    PF_NoCSQC, // PF_WriteShort,
+    PF_NoCSQC, // PF_WriteLong,
+    PF_NoCSQC, // PF_WriteCoord,
+    PF_NoCSQC, // PF_WriteAngle,
+    PF_NoCSQC, // PF_WriteString,
+    PF_NoCSQC, // PF_WriteEntity,
+
+    PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme, PF_Fixme,
+
+    SV_MoveToGoal, PF_precache_file,
+    PF_CSQCToDo, // PF_cl_makestatic,
+
+    PF_NoCSQC, // PF_changelevel,
+    PF_Fixme,
+
+    PF_cvar_set,
+    PF_NoCSQC, // PF_centerprint,
+
+    PF_CSQCToDo, // PF_ambientsound,
+
+    PF_cl_precache_model, PF_cl_precache_sound, PF_precache_file,
+
+    PF_NoCSQC, // PF_setspawnparms
+};
+int pr_csqcnumbuiltins = sizeof(pr_csqcbuiltins) / sizeof(pr_csqcbuiltins[0]);

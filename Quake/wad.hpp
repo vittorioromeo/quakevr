@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -64,8 +64,6 @@ extern lumpinfo_t* wad_lumps;
 extern byte* wad_base;
 
 void W_LoadWadFile(); // johnfitz -- filename is now hard-coded for honesty
-void W_CleanupName(const char* in, char* out);
-lumpinfo_t* W_GetLumpinfo(const char* name);
-void* W_GetLumpName(const char* name);
-void* W_GetLumpNum(int num);
 
+// QSS
+void* W_GetLumpName(const char* name, lumpinfo_t** out_info);

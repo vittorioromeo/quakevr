@@ -1,7 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,9 +24,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int Datagram_Init();
 void Datagram_Listen(bool state);
-void Datagram_SearchForHosts(bool xmit);
+int Datagram_QueryAddresses(qhostaddr_t* addresses, int maxaddresses); // QSS
+bool Datagram_SearchForHosts(bool xmit);                               // QSS
 qsocket_t* Datagram_Connect(const char* host);
 qsocket_t* Datagram_CheckNewConnections();
+qsocket_t* Datagram_GetAnyMessage(); // QSS
 int Datagram_GetMessage(qsocket_t* sock);
 int Datagram_SendMessage(qsocket_t* sock, sizebuf_t* data);
 int Datagram_SendUnreliableMessage(qsocket_t* sock, sizebuf_t* data);

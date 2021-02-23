@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -90,6 +90,7 @@ void R_RunParticleEffect_LavaSpike(
     const qvec3& org, const qvec3& dir, int count);
 void R_RocketTrail(qvec3 start, const qvec3& end, int type);
 void R_EntityParticles(entity_t* ent);
+void R_BlobExplosion(const qvec3& org);
 void R_ParticleExplosion(const qvec3& org);
 void R_ParticleExplosion2(const qvec3& org, int colorStart, int colorLength);
 void R_LavaSplash(const qvec3& org);

@@ -11,18 +11,18 @@
 
 static std::vector<cvar_t*> cvarsToRegister;
 
-#define DEFINE_FCVAR(name, defaultValue, type)        \
-    cvar_t name = {#name, #defaultValue, type};       \
-    static struct _cvar_registrar##name##__LINE__##_t \
-    {                                                 \
-        _cvar_registrar##name##__LINE__##_t()         \
-        {                                             \
-            cvarsToRegister.emplace_back(&name);      \
-        }                                             \
+#define DEFINE_FCVAR(name, defaultValue, type)                \
+    cvar_t name = {#name, #defaultValue, type, defaultValue}; \
+    static struct _cvar_registrar##name##__LINE__##_t         \
+    {                                                         \
+        _cvar_registrar##name##__LINE__##_t()                 \
+        {                                                     \
+            cvarsToRegister.emplace_back(&name);              \
+        }                                                     \
     } _cvar_registrar##name##__LINE__
 
 #define DEFINE_FCVAR_ARCHIVE(name, defaultValue) \
-    DEFINE_FCVAR(name, defaultValue, CVAR_ARCHIVE);
+    DEFINE_FCVAR(name, defaultValue, CVAR_ARCHIVE)
 
 //
 //
@@ -183,6 +183,9 @@ DEFINE_FCVAR_ARCHIVE(vr_autosave_show_message, 0);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending, 1);
 DEFINE_FCVAR_ARCHIVE(vr_finger_blending_speed, 50);
 DEFINE_FCVAR_ARCHIVE(vr_menu_mouse_pointer_hand, 1);
+DEFINE_FCVAR_ARCHIVE(vr_reload_mode, 2);
+DEFINE_FCVAR_ARCHIVE(vr_show_weapon_text, 1);
+DEFINE_FCVAR_ARCHIVE(vr_disablehaptics, 0);
 
 //
 //
@@ -318,6 +321,13 @@ namespace quake::vr
 [[nodiscard]] qvec3 get_finger_base_xyz() noexcept
 {
     return QVR_CVAR_VEC3_XYZ(vr_finger_base);
+}
+
+[[nodiscard]] bool get_weapon_reloading_enabled() noexcept
+{
+    // TODO VR: (P2) change `0` with `VrHolsterMode::Immersive`, needs file
+    // refactoring.
+    return vr_reload_mode.value != 0 && vr_holster_mode.value == 0;
 }
 } // namespace quake::vr
 

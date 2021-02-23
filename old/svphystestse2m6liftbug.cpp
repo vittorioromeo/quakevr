@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -1562,7 +1562,7 @@ void SV_CheckWaterTransition(edict_t* ent)
     {
         if(ent->v.watertype == CONTENTS_EMPTY)
         { // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, "misc/h2ohit1.wav", 255, 1);
         }
         ent->v.watertype = cont;
         ent->v.waterlevel = 1;
@@ -1571,7 +1571,7 @@ void SV_CheckWaterTransition(edict_t* ent)
     {
         if(ent->v.watertype != CONTENTS_EMPTY)
         { // just crossed into water
-            SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
+            SV_StartSound(ent, nullptr, "misc/h2ohit1.wav", 255, 1);
         }
         ent->v.watertype = CONTENTS_EMPTY;
         ent->v.waterlevel = cont;
@@ -1697,7 +1697,7 @@ void SV_Physics_Step(edict_t* ent)
         {
             if(hitsound)
             {
-                SV_StartSound(ent, 0, "demon/dland2.wav", 255, 1);
+                SV_StartSound(ent, nullptr, "demon/dland2.wav", 255, 1);
             }
         }
     }

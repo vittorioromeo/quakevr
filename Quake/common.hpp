@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakeglm_qvec3.hpp"
 #include "quakedef_macros.hpp"
 #include "q_stdinc.hpp"
+#include "link.hpp"
 
 // comndef.h  -- general definitions
 
@@ -50,22 +51,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLAMP(_minval, x, _maxval) \
     ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
 
-//============================================================================
-
-typedef struct link_s
-{
-    struct link_s *prev, *next;
-} link_t;
-
-void ClearLink(link_t* l);
-void RemoveLink(link_t* l);
-void InsertLinkBefore(link_t* l, link_t* before);
-void InsertLinkAfter(link_t* l, link_t* after);
-
-// (type *)STRUCT_FROM_LINK(link_t *link, type, member)
-// ent = STRUCT_FROM_LINK(link,entity_t,order)
-// FIXME: remove this mess!
-#define STRUCT_FROM_LINK(l, t, m) ((t*)((byte*)l - (intptr_t) & (((t*)0)->m)))
+void COM_Effectinfo_Enumerate(
+    int (*cb)(const char* pname)); // spike -- for dp compat
 
 //============================================================================
 
@@ -121,6 +108,7 @@ extern int safemode;
  */
 
 int COM_CheckParm(const char* parm);
+int COM_CheckParmNext(int last, const char* parm); // QSS
 
 void COM_Init();
 void COM_InitArgv(int argc, char** argv);
@@ -130,6 +118,8 @@ const char* COM_SkipPath(const char* pathname);
 void COM_StripExtension(const char* in, char* out, size_t outsize);
 void COM_FileBase(const char* in, char* out, size_t outsize);
 void COM_AddExtension(char* path, const char* extension, size_t len);
+bool COM_DownloadNameOkay(const char* filename); // QSS
+
 #if 0 /* COM_DefaultExtension can be dangerous */
 void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
@@ -148,6 +138,7 @@ typedef struct
 {
     char name[MAX_QPATH];
     int filepos, filelen;
+    int deflatedsize; // QSS
 } packfile_t;
 
 typedef struct pack_s
@@ -177,6 +168,13 @@ struct cache_user_s;
 extern char com_basedir[MAX_OSPATH];
 extern char com_gamedir[MAX_OSPATH];
 extern int file_from_pak; // global indicating that file came from a pak
+
+// QSS
+const char* COM_GetGameNames(bool full);
+bool COM_GameDirMatches(const char* tdirs);
+
+pack_t* FSZIP_LoadArchive(const char* packfile);
+FILE* FSZIP_Deflate(FILE* src, int srcsize, int outsize);
 
 void COM_WriteFile(const char* filename, const void* data, int len);
 int COM_OpenFile(const char* filename, int* handle, unsigned int* path_id);
@@ -229,4 +227,3 @@ const char* COM_ParseStringNewline(const char* buffer);
 
 extern struct cvar_t registered;
 extern bool standard_quake, rogue, hipnotic;
-/* if true, run in fitzquake mode disabling custom quakespasm hacks */

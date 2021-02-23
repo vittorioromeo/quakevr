@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -72,7 +72,6 @@ cvar_t gl_subdivide_size = {"gl_subdivide_size", "128", CVAR_ARCHIVE};
 void BoundPoly(int numverts, qfloat* verts, qvec3& mins, qvec3& maxs)
 {
     int i;
-
     int j;
     qfloat* v;
 
@@ -98,26 +97,20 @@ void BoundPoly(int numverts, qfloat* verts, qvec3& mins, qvec3& maxs)
 void SubdividePolygon(int numverts, qfloat* verts)
 {
     int i;
-
     int j;
-
     int k;
     qvec3 mins;
-
     qvec3 maxs;
     qfloat m;
     qfloat* v;
     qvec3 front[64];
-
     qvec3 back[64];
     int f;
-
     int b;
     qfloat dist[64];
     qfloat frac;
     glpoly_t* poly;
     qfloat s;
-
     qfloat t;
 
     if(numverts > 60)
@@ -273,11 +266,8 @@ void R_UpdateWarpTextures()
     texture_t* tx;
     int i;
     float x;
-
     float y;
-
     float x2;
-
     float warptess;
 
     if(r_oldwater.value || cl.paused || r_drawflat_cheatsafe ||

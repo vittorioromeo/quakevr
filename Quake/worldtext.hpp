@@ -27,4 +27,5 @@ struct WorldText
 
 using WorldTextHandle = std::uint16_t;
 
-inline constexpr std::size_t maxWorldTextInstances = std::numeric_limits<WorldTextHandle>::max();
+inline constexpr std::size_t maxWorldTextInstances =
+    std::numeric_limits<WorldTextHandle>::max();

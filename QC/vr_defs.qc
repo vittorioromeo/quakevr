@@ -190,6 +190,17 @@ float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
 //
 //
 // ----------------------------------------------------------------------------
+// Enum values for `VrReloadMode'
+// ----------------------------------------------------------------------------
+
+float QVR_RELOADMODE_NONE        = 0;
+float QVR_RELOADMODE_ALLHOLSTERS = 1;
+float QVR_RELOADMODE_HIPHOLSTERS = 2;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Enum values for `VrWeaponThrowMode'
 // ----------------------------------------------------------------------------
 
@@ -258,12 +269,16 @@ float QVR_VRFORCEGRABMODE_INSTANT = 3;
 // Flags for VR bits: `vrbits0`
 // ----------------------------------------------------------------------------
 
-float QVR_VRBITS0_TELEPORTING           = VRUTIL_POWER_OF_TWO(0);
-float QVR_VRBITS0_OFFHAND_GRABBING      = VRUTIL_POWER_OF_TWO(1);
-float QVR_VRBITS0_OFFHAND_PREVGRABBING  = VRUTIL_POWER_OF_TWO(2);
-float QVR_VRBITS0_MAINHAND_GRABBING     = VRUTIL_POWER_OF_TWO(3);
-float QVR_VRBITS0_MAINHAND_PREVGRABBING = VRUTIL_POWER_OF_TWO(4);
-float QVR_VRBITS0_2H_AIMING             = VRUTIL_POWER_OF_TWO(5);
+float QVR_VRBITS0_TELEPORTING            = VRUTIL_POWER_OF_TWO(0);
+float QVR_VRBITS0_OFFHAND_GRABBING       = VRUTIL_POWER_OF_TWO(1);
+float QVR_VRBITS0_OFFHAND_PREVGRABBING   = VRUTIL_POWER_OF_TWO(2);
+float QVR_VRBITS0_MAINHAND_GRABBING      = VRUTIL_POWER_OF_TWO(3);
+float QVR_VRBITS0_MAINHAND_PREVGRABBING  = VRUTIL_POWER_OF_TWO(4);
+float QVR_VRBITS0_2H_AIMING              = VRUTIL_POWER_OF_TWO(5);
+float QVR_VRBITS0_OFFHAND_RELOADING      = VRUTIL_POWER_OF_TWO(6);
+float QVR_VRBITS0_OFFHAND_PREVRELOADING  = VRUTIL_POWER_OF_TWO(7);
+float QVR_VRBITS0_MAINHAND_RELOADING     = VRUTIL_POWER_OF_TWO(8);
+float QVR_VRBITS0_MAINHAND_PREVRELOADING = VRUTIL_POWER_OF_TWO(9);
 
 //
 //
@@ -306,7 +321,7 @@ float QVR_PARTICLE_PRESET_BIGSMOKE      = 11;
 string ITEM_NAME_SHELLS = "item_shells";
 string ITEM_NAME_SPIKES = "item_spikes";
 string ITEM_NAME_ROCKETS = "item_rockets";
-string ITEM_NAME_LAVA_NAILS = "item_lava_nails";
+string ITEM_NAME_LAVA_SPIKES = "item_lava_spikes";
 string ITEM_NAME_MULTI_ROCKETS = "item_multi_rockets";
 string ITEM_NAME_PLASMA = "item_plasma";
 string ITEM_NAME_CELLS = "item_cells";

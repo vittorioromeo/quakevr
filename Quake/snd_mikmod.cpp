@@ -83,7 +83,7 @@ static BOOL MIK_Eof(MREADER* r)
     return FS_feof(((mik_priv_t*)r)->fh);
 }
 
-static bool S_MIKMOD_CodecInitialize(void)
+static bool S_MIKMOD_CodecInitialize()
 {
     if(mikmod_codec.initialized) return true;
 
@@ -122,7 +122,7 @@ static bool S_MIKMOD_CodecInitialize(void)
     return true;
 }
 
-static void S_MIKMOD_CodecShutdown(void)
+static void S_MIKMOD_CodecShutdown()
 {
     if(mikmod_codec.initialized)
     {

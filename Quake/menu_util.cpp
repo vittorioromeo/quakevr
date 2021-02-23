@@ -35,10 +35,11 @@ void playMenuDefaultSound()
 
 void setMenuState(m_state_e state)
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = state;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 
     playMenuDefaultSound();
 }

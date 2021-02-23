@@ -323,16 +323,18 @@ float(float wid) WeaponIdToThrowBounds =
 
 float(string wpnClassname) WeaponClassNameToWeaponId =
 {
+    if(wpnClassname == "weapon_grapple")         { return WID_GRAPPLE; }
+    if(wpnClassname == "weapon_axe")             { return WID_AXE; }
+    if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
     if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
+    if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
     if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
     if(wpnClassname == "weapon_supernailgun")    { return WID_SUPER_NAILGUN; }
-    if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
-    if(wpnClassname == "weapon_rocketlauncher")  { return WID_ROCKET_LAUNCHER; }
     if(wpnClassname == "weapon_grenadelauncher") { return WID_GRENADE_LAUNCHER; }
+    if(wpnClassname == "weapon_proximity_gun")   { return WID_PROXIMITY_GUN; }
+    if(wpnClassname == "weapon_rocketlauncher")  { return WID_ROCKET_LAUNCHER; }
     if(wpnClassname == "weapon_lightning")       { return WID_LIGHTNING; }
     if(wpnClassname == "weapon_laser_gun")       { return WID_LASER_CANNON; }
-    if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
-    if(wpnClassname == "weapon_proximity_gun")   { return WID_PROXIMITY_GUN; }
 
     ASSERT(FALSE);
     return WID_FIST;
@@ -388,4 +390,44 @@ float(float wid) WeaponSupportsSecondaryAmmoFlag =
     if(wid == WID_LIGHTNING)        { return TRUE; }
 
     return FALSE;
+}
+
+float(float wid) WeaponIdToSupportsReload =
+{
+    if(wid == WID_FIST)             { return FALSE; }
+    if(wid == WID_GRAPPLE)          { return FALSE; }
+    if(wid == WID_AXE)              { return FALSE; }
+    if(wid == WID_MJOLNIR)          { return FALSE; }
+    if(wid == WID_SHOTGUN)          { return TRUE; }
+    if(wid == WID_SUPER_SHOTGUN)    { return TRUE; }
+    if(wid == WID_NAILGUN)          { return TRUE; }
+    if(wid == WID_SUPER_NAILGUN)    { return TRUE; }
+    if(wid == WID_GRENADE_LAUNCHER) { return TRUE; }
+    if(wid == WID_PROXIMITY_GUN)    { return TRUE; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return TRUE; }
+    if(wid == WID_LIGHTNING)        { return TRUE; }
+    if(wid == WID_LASER_CANNON)     { return FALSE; }
+
+    ASSERT(FALSE);
+    return -1;
+}
+
+float(float wid) WeaponIdToBaseClipSize =
+{
+    if(wid == WID_FIST)             { return 0; }
+    if(wid == WID_GRAPPLE)          { return 0; }
+    if(wid == WID_AXE)              { return 0; }
+    if(wid == WID_MJOLNIR)          { return 0; }
+    if(wid == WID_SHOTGUN)          { return 8; }
+    if(wid == WID_SUPER_SHOTGUN)    { return 2; }
+    if(wid == WID_NAILGUN)          { return 24; }
+    if(wid == WID_SUPER_NAILGUN)    { return 36; }
+    if(wid == WID_GRENADE_LAUNCHER) { return 4; }
+    if(wid == WID_PROXIMITY_GUN)    { return 4; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return 4; }
+    if(wid == WID_LIGHTNING)        { return 36; }
+    if(wid == WID_LASER_CANNON)     { return 0; }
+
+    ASSERT(FALSE);
+    return -1;
 }

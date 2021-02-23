@@ -145,6 +145,18 @@ enum class VrHolsterMode : int
     QuickSlotHolsters = 1,
 };
 
+enum class VrReloadMode : int
+{
+    // No weapon reloading. Clip size is equal to total ammo.
+    None = 0,
+
+    // Any holster is viable for reload.
+    AllHolsters = 1,
+
+    // Only hip holsters are viable for reload.
+    HipHolsters = 2,
+};
+
 enum class VrWeaponThrowMode : int
 {
     // Thrown weapons can be picked back up.
@@ -234,6 +246,7 @@ enum class VrForceGrabMode : int
 // VR Public API
 // ----------------------------------------------------------------------------
 
+void VR_InitCvars();
 void VID_VR_Init();
 void VID_VR_Shutdown();
 bool VR_Enable();
@@ -403,6 +416,15 @@ enum class WpnButtonMode : int
     ChangeAmmo = 1,
 };
 
+enum class WpnTextMode : int
+{
+    // The weapon does not have text.
+    None = 0,
+
+    // The weapon has text to show the remaining ammo.
+    Ammo = 1,
+};
+
 enum class WpnCVar : std::uint8_t
 {
     OffsetX = 0,
@@ -470,6 +492,16 @@ enum class WpnCVar : std::uint8_t
     ZeroBlend = 61,
     TwoHZeroBlend = 62,
 
+    WpnTextMode = 63,
+    WpnTextX = 64,
+    WpnTextY = 65,
+    WpnTextZ = 66,
+    WpnTextAnchorVertex = 67,
+    WpnTextPitch = 68,
+    WpnTextYaw = 69,
+    WpnTextRoll = 70,
+    WpnTextScale = 71,
+
     k_Max
 };
 
@@ -499,6 +531,10 @@ enum class WpnCVar : std::uint8_t
 [[nodiscard]] qvec3 VR_GetWpnButtonOffsets(const int cvarEntry) noexcept;
 [[nodiscard]] qvec3 VR_GetWpnButtonAngles(const int cvarEntry) noexcept;
 
+// ----------------------------------------------------------------------------
+
+[[nodiscard]] qvec3 VR_GetWpnTextOffsets(const int cvarEntry) noexcept;
+[[nodiscard]] qvec3 VR_GetWpnTextAngles(const int cvarEntry) noexcept;
 
 // ----------------------------------------------------------------------------
 

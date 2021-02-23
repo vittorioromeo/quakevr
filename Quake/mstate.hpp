@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -75,14 +75,15 @@ enum m_state_e
     m_qvrs_changemap_honey,
     m_qvrs_changemap_extra,
     m_qvrs_transparencyoptions,
+    m_qvrs_voip,
     m_qvrdt_weaponconfiguration1,
     m_qvrdt_weaponconfiguration2,
     m_qvrdt_weaponconfiguration3,
     m_qvrdt_weaponconfiguration4,
+    m_qvrdt_weaponconfiguration5,
     m_qvrdt_fingerconfiguration,
     m_qvrdt_debugutilities,
 };
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;
-

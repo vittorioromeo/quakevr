@@ -2,6 +2,7 @@
 
 #include "quakeglm_qvec2.hpp"
 #include "quakeglm_qvec3.hpp"
+#include "glquake.hpp"
 
 #include <GL/glew.h>
 

@@ -81,18 +81,18 @@
 /* Make sure the types really have the right
  * sizes: These macros are from SDL headers.
  */
-static_assert(sizeof(char) == 1);
-static_assert(sizeof(float) == 4);
-static_assert(sizeof(long) >= 4);
-static_assert(sizeof(int) == 4);
-static_assert(sizeof(short) == 2);
+static_assert(sizeof(char) == 1, "");
+static_assert(sizeof(float) == 4, "");
+static_assert(sizeof(long) >= 4, "");
+static_assert(sizeof(int) == 4, "");
+static_assert(sizeof(short) == 2, "");
 
 /* make sure enums are the size of ints for structure packing */
 typedef enum
 {
     THE_DUMMY_VALUE
 } THE_DUMMY_ENUM;
-static_assert(sizeof(THE_DUMMY_ENUM) == sizeof(int));
+static_assert(sizeof(THE_DUMMY_ENUM) == sizeof(int), "");
 
 
 /* Provide a substitute for offsetof() if we don't have one.

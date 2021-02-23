@@ -65,7 +65,7 @@ string(float xAid) VR_AmmoUtil_AmmoIdToItemName =
     if(xAid == AID_NAILS)         { return ITEM_NAME_SPIKES; }
     if(xAid == AID_ROCKETS)       { return ITEM_NAME_ROCKETS; }
     if(xAid == AID_CELLS)         { return ITEM_NAME_CELLS; }
-    if(xAid == AID_LAVA_NAILS)    { return ITEM_NAME_LAVA_NAILS; }
+    if(xAid == AID_LAVA_NAILS)    { return ITEM_NAME_LAVA_SPIKES; }
     if(xAid == AID_MULTI_ROCKETS) { return ITEM_NAME_MULTI_ROCKETS; }
     if(xAid == AID_PLASMA)        { return ITEM_NAME_PLASMA; }
 
@@ -90,4 +90,9 @@ string(float xAid) VR_AmmoUtil_AmmoIdToNetname =
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_DelAmmoCountByAmmoId =
 {
     VR_AmmoUtil_AddAmmoCountByAmmoId(xEnt, xAid, -xValue);
+
+    if(VR_AmmoUtil_GetAmmoCountByAmmoId(xEnt, xAid) < 0)
+    {
+        bprint("ERROR: ammo count less than zero!\n");
+    }
 }

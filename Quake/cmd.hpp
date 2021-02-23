@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
+#include "cmd_types.hpp"
+
 // cmd.h -- Command buffer and command execution
 
 //===========================================================================
@@ -42,6 +44,7 @@ The game starts with a Cbuf_AddText ("exec quake.rc\n"); Cbuf_Execute ();
 void Cbuf_Init();
 // allocates an initial text buffer that will grow as needed
 
+void Cbuf_AddTextLen(const char* text, int l);
 void Cbuf_AddText(const char* text);
 // as new commands are generated from the console or keybindings,
 // the text is added to the end of the command buffer.
@@ -57,6 +60,16 @@ void Cbuf_Execute();
 // Normally called once per frame, but may be explicitly invoked.
 // Do not call inside a command function!
 
+// QSS
+void Cbuf_Waited();
+// In vanilla, the 'wait' command is used by both input configs and servers.
+// mods do hacky stuff like syncing waits to StartFrame calls.
+// thankfully, c2s packets and server logic can both happen at the same
+// intervals. so wait sets a flag to inhibit execution of more commands, and we
+// only clear it once we've run a network frame. so this function lets the cbuf
+// know when to clear the flag again (instead of part of cbuf_execute).
+
+
 //===========================================================================
 
 /*
@@ -70,23 +83,30 @@ not apropriate.
 
 */
 
-typedef void (*xcommand_t)();
-
-typedef enum
-{
-    src_client, // came in over a net connection as a clc_stringcmd
-                // host_client will be valid during this state.
-    src_command // from the command buffer
-} cmd_source_t;
-
-extern cmd_source_t cmd_source;
-
 void Cmd_Init();
 
-void Cmd_AddCommand(const char* cmd_name, xcommand_t function);
+// QSS
+void Cmd_AddCommand2(
+    const char* cmd_name, xcommand_t function, cmd_source_t srctype);
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
+
+#define Cmd_AddCommand(cmdname, func) \
+    Cmd_AddCommand2(cmdname, func, src_command) // regular console commands
+
+#define Cmd_AddCommand_ClientCommand(cmdname, func) \
+    Cmd_AddCommand2(cmdname, func,                  \
+        src_client) // command is meant to be safe for anyone to execute.
+
+#define Cmd_AddCommand_ServerCommand(cmdname, func) \
+    Cmd_AddCommand2(cmdname, func, src_server) // command came from a server
+
+#define Cmd_AddCommand_Console \
+    Cmd_AddCommand // to make the disabiguation more obvious
+
+// QSS
+bool Cmd_AliasExists(const char* aliasname);
 
 bool Cmd_Exists(const char* cmd_name);
 // used by the cvar code to check for cvar / command name overlap
@@ -110,7 +130,8 @@ void Cmd_TokenizeString(const char* text);
 // Takes a null terminated string.  Does not need to be /n terminated.
 // breaks the string up into arg tokens.
 
-void Cmd_ExecuteString(const char* text, cmd_source_t src);
+// QSS
+bool Cmd_ExecuteString(const char* text, cmd_source_t src);
 // Parses a single line of text into arguments and tries to execute it.
 // The text can come from the command buffer, a remote client, or stdin.
 

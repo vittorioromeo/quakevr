@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -93,3 +93,6 @@ void* VID_GetWindow();
 bool VID_HasMouseOrInputFocus();
 bool VID_IsMinimized();
 void VID_Lock();
+
+// QSS
+void VID_SetWindowCaption(const char* newcaption);

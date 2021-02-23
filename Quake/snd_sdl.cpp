@@ -5,7 +5,7 @@
  * Copyright (C) 1999-2005 Id Software, Inc.
  * Copyright (C) 2005-2012 O.Sezer <sezero@users.sourceforge.net>
  * Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ bool SNDDMA_Init(dma_t* dma)
     int val;
     char drivername[128];
 
-// TODO VR: (P2) hangs on linux
+// TODO VR: (P1) hangs on linux
 #ifdef WIN32
     if(SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
 #endif

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "menu_keyboard.hpp"
 
 #include "gl_util.hpp"

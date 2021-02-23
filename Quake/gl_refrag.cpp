@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -227,8 +227,65 @@ void R_StoreEfrags(efrag_t** ppefrag)
         entity_t* const pent = pefrag->entity;
 
         if((pent->visframe != r_framecount) &&
-            (cl_numvisedicts < MAX_VISEDICTS))
+            (cl_numvisedicts < cl_maxvisedicts))
         {
+
+            // QSS
+#ifdef PSET_SCRIPT
+            if(pent->netstate.emiteffectnum > 0)
+            {
+                float t = cl.time - cl.oldtime;
+                vec3_t axis[3];
+                if(t < 0)
+                {
+                    t = 0;
+                }
+                else if(t > 0.1)
+                {
+                    t = 0.1;
+                }
+                AngleVectors(pent->angles, axis[0], axis[1], axis[2]);
+                if(pent->model->type == mod_alias)
+                {
+                    axis[0][2] *= -1; // stupid vanilla bug
+                }
+                PScript_RunParticleEffectState(pent->origin, axis[0], t,
+                    cl.particle_precache[pent->netstate.emiteffectnum].index,
+                    &pent->emitstate);
+            }
+            else if(pent->model->emiteffect >= 0)
+            {
+                float t = cl.time - cl.oldtime;
+                vec3_t axis[3];
+                if(t < 0)
+                {
+                    t = 0;
+                }
+                else if(t > 0.1)
+                {
+                    t = 0.1;
+                }
+                AngleVectors(pent->angles, axis[0], axis[1], axis[2]);
+                if(pent->model->flags & MOD_EMITFORWARDS)
+                {
+                    if(pent->model->type == mod_alias)
+                    {
+                        axis[0][2] *= -1; // stupid vanilla bug
+                    }
+                }
+                else
+                {
+                    VectorScale(axis[2], -1, axis[0]);
+                }
+                PScript_RunParticleEffectState(pent->origin, axis[0], t,
+                    pent->model->emiteffect, &pent->emitstate);
+                if(pent->model->flags & MOD_EMITREPLACE)
+                {
+                    continue;
+                }
+            }
+#endif
+
             cl_visedicts[cl_numvisedicts++] = pent;
             pent->visframe = r_framecount;
         }

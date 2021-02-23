@@ -41,8 +41,6 @@ void CFG_ReadCvars(const char** vars, int num_vars)
 {
     char buff[1024];
 
-
-
     if(!cfg_file || num_vars < 1)
     {
         return;

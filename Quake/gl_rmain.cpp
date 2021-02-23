@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.hpp"
+#include "quakedef_macros.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "vr.hpp"
 #include "vr_showfn.hpp"
@@ -39,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.hpp"
 #include "client.hpp"
 #include "q_sound.hpp"
+#include "qcvm.hpp"
 
 #include <string_view>
 #include <algorithm>
@@ -54,7 +56,7 @@ int r_framecount;    // used for dlight push checking
 mplane_t frustum[4];
 
 // johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_fogpolys;
+int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 float rs_megatexels;
 
@@ -76,7 +78,7 @@ refdef_t r_refdef;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
-int d_lightstylevalue[256]; // 8.8 fraction of base light value
+int d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light value
 
 
 cvar_t r_norefresh = {"r_norefresh", "0", CVAR_NONE};
@@ -139,6 +141,7 @@ cvar_t r_telealpha = {"r_telealpha", "0", CVAR_ARCHIVE};
 cvar_t r_slimealpha = {"r_slimealpha", "0", CVAR_ARCHIVE};
 
 float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
+float map_fallbackalpha;
 
 bool r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe,
     r_drawworld_cheatsafe; // johnfitz
@@ -468,12 +471,18 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of
 pointer to entity
 ===============
 */
-void R_RotateForEntity(const qvec3& origin, const qvec3& angles)
+void R_RotateForEntity(
+    const qvec3& origin, const qvec3& angles, unsigned char scale)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
     glRotatef(angles[YAW], 0, 0, 1);
     glRotatef(-angles[PITCH], 0, 1, 0);
     glRotatef(angles[ROLL], 1, 0, 0);
+
+    if(scale != 16)
+    {
+        glScalef(scale / 16.0, scale / 16.0, scale / 16.0);
+    }
 }
 
 /*
@@ -513,7 +522,6 @@ void GL_PolygonOffset(int offset)
 int SignbitsForPlane(mplane_t* out)
 {
     int bits;
-
     int j;
 
     // for fast box on planeside test
@@ -598,7 +606,6 @@ float frustum_skew = 0.0; // used by r_stereo
 void GL_SetFrustum(float fovx, float fovy)
 {
     float xmax;
-
     float ymax;
     xmax = NEARCLIP * tan((double)fovx * M_PI / 360.0);
     ymax = NEARCLIP * tan((double)fovy * M_PI / 360.0);
@@ -680,7 +687,7 @@ void R_Clear()
     {
         clearbits |= GL_STENCIL_BUFFER_BIT;
     }
-    if(gl_clear.value)
+    if(gl_clear.value && !skyroom_drawn)
     {
         clearbits |= GL_COLOR_BUFFER_BIT;
     }
@@ -754,7 +761,10 @@ void R_SetupView()
 
     R_CullSurfaces(); // johnfitz -- do after R_SetFrustum and R_MarkSurfaces
 
-    R_UpdateWarpTextures(); // johnfitz -- do this before R_Clear
+    if(!skyroom_drawn)
+    {
+        R_UpdateWarpTextures(); // johnfitz -- do this before R_Clear
+    }
 
     R_Clear();
 
@@ -818,7 +828,7 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
         }
 
         // johnfitz -- chasecam
-        if(currententity == &cl_entities[cl.viewentity])
+        if(currententity == &cl.entities[cl.viewentity])
         {
             currententity->angles[0] *= 0.3;
         }
@@ -829,6 +839,9 @@ void R_DrawEntitiesOnList(bool alphapass) // johnfitz -- added parameter
             case mod_alias: R_DrawAliasModel(currententity); break;
             case mod_brush: R_DrawBrushModel(currententity); break;
             case mod_sprite: R_DrawSpriteModel(currententity); break;
+            case mod_ext_invalid:
+                // nothing. could draw a blob instead.
+                break;
         }
     }
 }
@@ -1029,6 +1042,146 @@ void R_DrawViewModel(entity_t* viewent)
     }
 }
 
+// TODO VR: (P1) refactor
+void R_DrawString(const qvec3& originalpos, const qvec3& angles,
+    const std::string_view str, const WorldText::HAlign hAlign,
+    const float scale)
+{
+    // TODO VR: (P1) cleanup and optimize
+
+    const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
+                                       const qvec3& zInc, const char num) {
+        const int row = num >> 4;
+        const int col = num & 15;
+
+        const float frow = row * 0.0625;
+        const float fcol = col * 0.0625;
+        const float size = 0.0625;
+
+        const auto doVertex = [&](const qvec3& p) {
+            glVertex3f(p.x, p.y, p.z);
+        };
+
+        glTexCoord2f(fcol, frow);
+        doVertex(pos);
+
+        glTexCoord2f(fcol + size, frow);
+        doVertex(pos + hInc);
+
+        glTexCoord2f(fcol + size, frow + size);
+        doVertex(pos + hInc + zInc);
+
+        glTexCoord2f(fcol, frow + size);
+        doVertex(pos + zInc);
+    };
+
+    const auto forSplitStringView = [](const std::string_view str,
+                                        const std::string_view delims,
+                                        auto&& f) {
+        for(auto first = str.data(), second = str.data(),
+                 last = first + str.size();
+            second != last && first != last; first = second + 1)
+        {
+            second = std::find_first_of(
+                first, last, std::cbegin(delims), std::cend(delims));
+
+            if(first != second)
+            {
+                f(std::string_view(first, second - first));
+            }
+        }
+    };
+
+    const auto drawString = [&] {
+        static std::vector<std::string_view> lines;
+
+        // Split into lines
+        lines.clear();
+        forSplitStringView(str, "\n",
+            [&](const std::string_view sv) { lines.emplace_back(sv); });
+
+        if(lines.empty())
+        {
+            return;
+        }
+
+        // Find longest line size (for centering)
+        const std::size_t longestLineSize = std::max_element(lines.begin(),
+            lines.end(),
+            [](const std::string_view& a, const std::string_view& b) {
+                return a.size() < b.size();
+            })->size();
+
+        // Angles and offsets
+        const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
+        const auto hInc = right * 8.f * scale;
+        const auto zInc = up * 8.f * scale;
+
+        // Bounds
+        const auto absmins = originalpos;
+        const auto absmaxs = absmins +
+                             (hInc * static_cast<float>(longestLineSize)) +
+                             (zInc * static_cast<float>(lines.size()));
+
+        const auto center = originalpos - ((absmaxs - absmins) / 2.f);
+
+        // Draw
+        std::size_t iLine = 0;
+        for(const std::string_view& line : lines)
+        {
+            const std::size_t sizeDiff = longestLineSize - line.size();
+
+            auto startPos = [&] {
+                if(hAlign == WorldText::HAlign::Left)
+                {
+                    return center + (zInc * static_cast<float>(iLine));
+                }
+
+                if(hAlign == WorldText::HAlign::Center)
+                {
+                    return center +
+                           (hInc * static_cast<float>(sizeDiff) / 2.f) +
+                           (zInc * static_cast<float>(iLine));
+                }
+
+                assert(hAlign == WorldText::HAlign::Right);
+                return center + (hInc * static_cast<float>(sizeDiff)) +
+                       (zInc * static_cast<float>(iLine));
+            }();
+
+            for(const char c : line)
+            {
+                if(c != ' ')
+                {
+                    // don't waste verts on spaces
+                    drawCharacterQuad(startPos, hInc, zInc, c);
+                }
+
+                startPos += hInc;
+            }
+
+            ++iLine;
+        }
+    };
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glEnable(GL_ALPHA_TEST);
+    glColor4f(1, 1, 1, 1);
+
+    extern gltexture_t* char_texture;
+    GL_Bind(char_texture);
+    glBegin(GL_QUADS);
+
+    drawString();
+
+    glEnd();
+
+    glDisable(GL_ALPHA_TEST);
+    glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+}
+
 /*
 ================
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
@@ -1091,9 +1244,13 @@ void R_ShowBoundingBoxes()
     glDisable(GL_CULL_FACE);
     glColor3f(1, 1, 1);
 
+    qcvm_t* oldvm = qcvm;
+    PR_SwitchQCVM(nullptr);
+    PR_SwitchQCVM(&sv.qcvm);
+
     int i;
     edict_t* ed;
-    for(i = 0, ed = NEXT_EDICT(sv.edicts); i < sv.num_edicts;
+    for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
         i++, ed = NEXT_EDICT(ed))
     {
         if(ed == sv_player && !r_showbboxes_player.value)
@@ -1102,7 +1259,7 @@ void R_ShowBoundingBoxes()
         }
 
         // if (r_showbboxes.value != 2)
-        //     if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
+        //     if (!SV_VisibleToClient (sv_player, ed, qcvm->worldmodel))
         //         continue; // don't draw if not in pvs
 
         if(ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] &&
@@ -1114,11 +1271,22 @@ void R_ShowBoundingBoxes()
         else
         {
             // box entity
-            const qvec3 mins = ed->v.mins + ed->v.origin;
-            const qvec3 maxs = ed->v.maxs + ed->v.origin;
-            R_EmitWireBox(mins, maxs);
+            if(ed->v.solid == SOLID_BSP &&
+                (ed->v.angles[0] || ed->v.angles[1] || ed->v.angles[2]) &&
+                pr_checkextension.value)
+            {
+                R_EmitWireBox(ed->v.absmin, ed->v.absmax);
+            }
+            else
+            {
+                const qvec3 mins = ed->v.mins + ed->v.origin;
+                const qvec3 maxs = ed->v.maxs + ed->v.origin;
+                R_EmitWireBox(mins, maxs);
+            }
         }
     }
+    PR_SwitchQCVM(nullptr);
+    PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);
     glEnable(GL_TEXTURE_2D);
@@ -1164,7 +1332,7 @@ void R_ShowTris()
         {
             currententity = cl_visedicts[i];
 
-            if(currententity == &cl_entities[cl.viewentity])
+            if(currententity == &cl.entities[cl.viewentity])
             {
                 // chasecam
                 currententity->angles[0] *= 0.3;
@@ -1282,7 +1450,7 @@ void R_DrawShadows()
         if(playerShadows == VrPlayerShadows::ThirdPerson ||
             playerShadows == VrPlayerShadows::Both)
         {
-            drawViewentShadow(cl_entities[cl.viewentity]);
+            drawViewentShadow(cl.entities[cl.viewentity]);
         }
     }
 
@@ -1344,6 +1512,41 @@ void R_RenderScene()
     R_DrawViewModel(&cl.mainhand_wpn_button);
     R_DrawViewModel(&cl.offhand_wpn_button);
 
+    // VR: This is what draws the floating ammo text attached to weapons.
+    const auto drawWeaponAmmoText =
+        [](const textentity_t& textEnt, const int statClipIdx,
+            const int statClipSizeIdx, const int statAmmoCounterIdx) {
+            if(textEnt.hidden)
+            {
+                return;
+            }
+
+            qvec3 angles = textEnt.angles;
+            angles[PITCH] -= 180.f;
+            angles[ROLL] *= -1.f;
+
+            char buf[64];
+
+            if(quake::vr::get_weapon_reloading_enabled())
+            {
+                sprintf(buf, "%d/%d\n%d", cl.stats[statClipIdx],
+                    cl.stats[statClipSizeIdx], cl.stats[statAmmoCounterIdx]);
+            }
+            else
+            {
+                sprintf(buf, "%d", cl.stats[statAmmoCounterIdx]);
+            }
+
+            R_DrawString(textEnt.origin, angles, buf, WorldText::HAlign::Center,
+                0.10f * textEnt.scale);
+        };
+
+    drawWeaponAmmoText(cl.mainhand_wpn_text, STAT_WEAPONCLIP,
+        STAT_WEAPONCLIPSIZE, STAT_AMMOCOUNTER);
+
+    drawWeaponAmmoText(cl.offhand_wpn_text, STAT_WEAPONCLIP2,
+        STAT_WEAPONCLIPSIZE2, STAT_AMMOCOUNTER2);
+
     if(vr_leg_holster_model_enabled.value)
     {
         // VR: This is what draws the hip holsters slots.
@@ -1388,6 +1591,7 @@ void R_RenderScene()
     R_ShowTris(); // johnfitz
 
     R_ShowBoundingBoxes(); // johnfitz
+
     if(vr_enabled.value)
     {
         quake::vr::showfn::draw_all_show_helpers();
@@ -1421,15 +1625,11 @@ or possibly as a perforance boost on slow graphics cards.
 void R_ScaleView()
 {
     float smax;
-
     float tmax;
     int scale;
     int srcx;
-
     int srcy;
-
     int srcw;
-
     int srch;
 
     // copied from R_SetupGL()
@@ -1511,6 +1711,27 @@ void R_ScaleView()
     GL_ClearBindings();
 }
 
+static bool R_SkyroomWasVisible()
+{
+    qmodel_t* model = cl.worldmodel;
+    texture_t* t;
+    size_t i;
+    if(!skyroom_enabled)
+    {
+        return false;
+    }
+    for(i = 0; i < model->numtextures; i++)
+    {
+        t = model->textures[i];
+        if(t && t->texturechains[chain_world] &&
+            t->texturechains[chain_world]->flags & SURF_DRAWSKY)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /*
 ================
 R_RenderView
@@ -1518,6 +1739,8 @@ R_RenderView
 */
 void R_RenderView()
 {
+    static bool skyroom_visible;
+
     if(r_norefresh.value)
     {
         return;
@@ -1535,14 +1758,65 @@ void R_RenderView()
         time1 = Sys_DoubleTime();
 
         // johnfitz -- rendering statistics
-        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_fogpolys =
-            rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
+        rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles =
+            rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses =
                 rs_skypasses = rs_brushpasses = 0;
     }
     else if(gl_finish.value)
     {
         glFinish();
     }
+
+
+    // Spike -- quickly draw the world from the skyroom camera's point of view.
+    skyroom_drawn = false;
+    if(skyroom_enabled && skyroom_visible)
+    {
+        qvec3 vieworg = r_refdef.vieworg;
+        qvec3 viewang = r_refdef.viewangles;
+
+        // allow a little paralax
+        r_refdef.vieworg = skyroom_origin.xyz + skyroom_origin[3] * vieworg;
+
+        if(skyroom_orientation[3])
+        {
+            qvec3 axis[3];
+
+            float ang = skyroom_orientation[3] * cl.time;
+
+            if(!skyroom_orientation[0] && !skyroom_orientation[1] &&
+                !skyroom_orientation[2])
+            {
+                skyroom_orientation[0] = 0;
+                skyroom_orientation[1] = 0;
+                skyroom_orientation[2] = 1;
+            }
+
+            skyroom_orientation = glm::normalize(skyroom_orientation);
+            axis[0] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vpn, ang);
+            axis[1] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vright, ang);
+            axis[2] =
+                RotatePointAroundVector(skyroom_orientation.xyz, vup, ang);
+
+            r_refdef.viewangles = VectorAngles(
+                axis[0]); // TODO VR: (P0) QSS Merge - take up as well
+            // VectorAngles(axis[0], axis[2], r_refdef.viewangles);
+        }
+
+        R_SetupView();
+        // note: sky boxes are generally considered an 'infinite' distance away
+        // such that you'd not see paralax. that's my excuse for not handling
+        // r_stereo here, and I'm sticking to it.
+        R_RenderScene();
+
+        r_refdef.vieworg = vieworg;
+        r_refdef.viewangles = viewang;
+
+        skyroom_drawn = true; // disable glClear(GL_COLOR_BUFFER_BIT)
+    }
+    // skyroom end
 
     R_SetupView(); // johnfitz -- this does everything that should be done once
                    // per frame
@@ -1584,6 +1858,22 @@ void R_RenderView()
     }
     // johnfitz
 
+    // Spike: flag whether the skyroom was actually visible, so we don't
+    // needlessly draw it when its not (1 frame's lag, hopefully not too
+    // noticable)
+    if(r_viewleaf->contents == CONTENTS_SOLID || r_drawflat_cheatsafe ||
+        r_lightmap_cheatsafe)
+    {
+        skyroom_visible = false; // don't do skyrooms when the view is in the
+                                 // void, for framerate reasons while debugging.
+    }
+    else
+    {
+        skyroom_visible = R_SkyroomWasVisible();
+    }
+    skyroom_drawn = false;
+    // skyroom end
+
     R_ScaleView();
 
     // johnfitz -- modified r_speeds output
@@ -1591,9 +1881,9 @@ void R_RenderView()
     if(r_pos.value)
     {
         Con_Printf("x %i y %i z %i (pitch %i yaw %i roll %i)\n",
-            (int)cl_entities[cl.viewentity].origin[0],
-            (int)cl_entities[cl.viewentity].origin[1],
-            (int)cl_entities[cl.viewentity].origin[2],
+            (int)cl.entities[cl.viewentity].origin[0],
+            (int)cl.entities[cl.viewentity].origin[1],
+            (int)cl.entities[cl.viewentity].origin[2],
             (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW],
             (int)cl.viewangles[ROLL]);
     }

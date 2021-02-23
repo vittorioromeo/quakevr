@@ -340,10 +340,11 @@ public:
 
     void add_separator();
 
-    auto add_entry_ptr(impl::menu_entry& entry){
-     return emplace_and_get_handle<impl::menu_entry_ptr>(entry._common,
-        &entry);
-}
+    auto add_entry_ptr(impl::menu_entry& entry)
+    {
+        return emplace_and_get_handle<impl::menu_entry_ptr>(
+            entry._common, &entry);
+    }
 
     void enter();
     void leave();

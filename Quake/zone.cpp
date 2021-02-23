@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -84,7 +84,6 @@ Z_Free
 void Z_Free(void* ptr)
 {
     memblock_t* block;
-
     memblock_t* other;
 
     if(!ptr)
@@ -137,11 +136,8 @@ static void* Z_TagMalloc(int size, int tag)
 {
     int extra;
     memblock_t* start;
-
     memblock_t* rover;
-
     memblock_t* newblock;
-
     memblock_t* base;
 
     if(!tag)
@@ -424,16 +420,11 @@ Otherwise, allocations with the same name will be totaled up before printing.
 void Hunk_Print(bool all)
 {
     hunk_t* h;
-
     hunk_t* next;
-
     hunk_t* endlow;
-
     hunk_t* starthigh;
-
     hunk_t* endhigh;
     int count;
-
     int sum;
     int totalblocks;
     char name[HUNKNAME_LEN];
@@ -789,7 +780,6 @@ Throw things out until the hunk can be expanded to the given point
 void Cache_FreeHigh(int new_high_hunk)
 {
     cache_system_t* c;
-
     cache_system_t* prev;
 
     prev = nullptr;
@@ -854,7 +844,6 @@ Size should already include the header and padding
 cache_system_t* Cache_TryAlloc(int size, bool nobottom)
 {
     cache_system_t* cs;
-
     cache_system_t* new_cs;
 
     // is the cache completely empty?

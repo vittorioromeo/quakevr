@@ -40,4 +40,3 @@ void BGM_Pause();
 void BGM_Resume();
 
 void BGM_PlayCDtrack(byte track, bool looping);
-

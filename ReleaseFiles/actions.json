@@ -101,6 +101,14 @@
             "type": "vibration"
         },
         {
+            "name": "/actions/default/in/LeftReload",
+            "type": "boolean"
+        },
+        {
+            "name": "/actions/default/in/RightReload",
+            "type": "boolean"
+        },
+        {
             "name": "/actions/menu/in/Navigation",
             "type": "vector2"
         },

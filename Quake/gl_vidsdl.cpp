@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -85,6 +85,10 @@ static int gl_version_major;
 static int gl_version_minor;
 static const char* gl_extensions;
 static char* gl_extensions_nice;
+
+// QSS
+bool gl_texture_s3tc, gl_texture_rgtc, gl_texture_bptc, gl_texture_etc2,
+    gl_texture_astc;
 
 static vmode_t modelist[MAX_MODE_LIST];
 static int nummodes;
@@ -553,7 +557,7 @@ static bool VID_SetMode(
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, fsaa > 0 ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
 
-    q_snprintf(caption, sizeof(caption), "QuakeSpasm " QUAKESPASM_VER_STRING);
+    q_snprintf(caption, sizeof(caption), ENGINE_NAME_AND_VER); // QSS
 
     /* Create the window if needed, hidden */
     if(!draw_context)
@@ -563,6 +567,10 @@ static bool VID_SetMode(
         if(vid_borderless.value)
         {
             flags |= SDL_WINDOW_BORDERLESS;
+        }
+        else if(!fullscreen) // QSS
+        {
+            flags |= SDL_WINDOW_RESIZABLE;
         }
 
         draw_context = SDL_CreateWindow(caption, SDL_WINDOWPOS_UNDEFINED,
@@ -793,17 +801,7 @@ static void VID_Restart()
     VID_SyncCvars();
 
     // update mouse grab
-    if(key_dest == key_console || key_dest == key_menu)
-    {
-        if(modestate == MS_WINDOWED)
-        {
-            IN_Deactivate(true);
-        }
-        else if(modestate == MS_FULLSCREEN)
-        {
-            IN_Activate();
-        }
-    }
+    IN_UpdateGrabs(); // QSS
 
     if(vr_enabled.value)
     {
@@ -1105,6 +1103,12 @@ static void GL_CheckExtensions()
         Con_Warning("texture_non_power_of_two not supported\n");
     }
 
+	gl_texture_s3tc = GLEW_EXT_texture_compression_s3tc;
+	gl_texture_rgtc = GLEW_ARB_texture_compression_rgtc;
+	gl_texture_bptc = GLEW_EXT_texture_compression_bptc;
+	gl_texture_etc2 = GLEW_ARB_ES3_compatibility;
+	gl_texture_astc = GLEW_KHR_texture_compression_astc_ldr;
+
     // GLSL
     if(COM_CheckParm("-noglsl"))
     {
@@ -1173,10 +1177,11 @@ static void GL_SetupState()
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); // johnfitz
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // spike -- these are invalid as there is no texture bound to receive this
+    // state. glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glDepthRange(0, 1);     // johnfitz -- moved here becuase gl_ztrick is gone.
     glDepthFunc(GL_LEQUAL); // johnfitz -- moved here becuase gl_ztrick is gone.
 }
@@ -1255,7 +1260,7 @@ static void GL_Init()
     if(!strcmp(gl_vendor, "Intel"))
     {
         Con_Printf("Intel Display Adapter detected, enabling gl_clear\n");
-        Cbuf_AddText("gl_clear 1");
+        Cbuf_AddText("gl_clear 1\n");
     }
     // johnfitz
 
@@ -1311,6 +1316,17 @@ void VID_Shutdown()
         PL_VID_Shutdown();
     }
 }
+
+// QSS
+void VID_SetWindowCaption(const char* newcaption)
+{
+#if defined(USE_SDL2)
+    SDL_SetWindowTitle(draw_context, newcaption);
+#else
+    SDL_WM_SetCaption(newcaption, newcaption);
+#endif
+}
+
 
 /*
 ===================================================================
@@ -1678,18 +1694,7 @@ void VID_Toggle()
 
         VID_SyncCvars();
 
-        // update mouse grab
-        if(key_dest == key_console || key_dest == key_menu)
-        {
-            if(modestate == MS_WINDOWED)
-            {
-                IN_Deactivate(true);
-            }
-            else if(modestate == MS_FULLSCREEN)
-            {
-                IN_Activate();
-            }
-        }
+        IN_UpdateGrabs(); // QSS
     }
     else
     {
@@ -2126,21 +2131,56 @@ static void VID_MenuKey(int key)
             m_entersound = true;
             switch(video_options_cursor)
             {
-                case VID_OPT_MODE: VID_Menu_ChooseNextMode(1); break;
-                case VID_OPT_BPP: VID_Menu_ChooseNextBpp(1); break;
-                case VID_OPT_REFRESHRATE: VID_Menu_ChooseNextRate(1); break;
+                case VID_OPT_MODE:
+                {
+                    VID_Menu_ChooseNextMode(1);
+                    break;
+                }
+
+                case VID_OPT_BPP:
+                {
+                    VID_Menu_ChooseNextBpp(1);
+                    break;
+                }
+
+                case VID_OPT_REFRESHRATE:
+                {
+                    VID_Menu_ChooseNextRate(1);
+                    break;
+                }
+
                 case VID_OPT_FULLSCREEN:
+                {
                     Cbuf_AddText("toggle vid_fullscreen\n");
                     break;
-                case VID_OPT_VSYNC: Cbuf_AddText("toggle vid_vsync\n"); break;
-                case VID_OPT_TEST: Cbuf_AddText("vid_test\n"); break;
+                }
+
+                case VID_OPT_VSYNC:
+                {
+                    Cbuf_AddText("toggle vid_vsync\n");
+                    break;
+                }
+
+                case VID_OPT_TEST:
+                {
+                    Cbuf_AddText("vid_test\n");
+                    break;
+                }
+
                 case VID_OPT_APPLY:
+                {
                     Cbuf_AddText("vid_restart\n");
                     key_dest = key_game;
                     m_state = m_none;
-                    IN_Activate();
+
+                    IN_UpdateGrabs(); // QSS
                     break;
-                default: break;
+                }
+
+                default:
+                {
+                    break;
+                }
             }
             break;
 
@@ -2156,7 +2196,6 @@ VID_MenuDraw
 static void VID_MenuDraw()
 {
     int i;
-
     int y;
     qpic_t* p;
     const char* title;

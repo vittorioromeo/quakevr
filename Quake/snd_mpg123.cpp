@@ -56,7 +56,7 @@ static off_t mp3_seek(void* f, off_t offset, int whence)
     return (off_t)FS_ftell((fshandle_t*)f);
 }
 
-static bool S_MP3_CodecInitialize(void)
+static bool S_MP3_CodecInitialize()
 {
     if(!mp3_codec.initialized)
     {
@@ -70,7 +70,7 @@ static bool S_MP3_CodecInitialize(void)
     return true;
 }
 
-static void S_MP3_CodecShutdown(void)
+static void S_MP3_CodecShutdown()
 {
     if(mp3_codec.initialized)
     {

@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define FITZQUAKE_VERSION 0.85 // johnfitz
 #define QUAKESPASM_VERSION 0.93
-#define QUAKEVR_VERSION "0.0.5"
+#define QUAKEVR_VERSION "0.0.6"
 #define QUAKESPASM_VER_PATCH 2 // helper to print a string like 0.93.2
 #ifndef QUAKESPASM_VER_SUFFIX
 #define QUAKESPASM_VER_SUFFIX // optional version suffix string literal like
@@ -52,14 +52,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX \
         " | Quake VR " QUAKEVR_VERSION
 
+#define ENGINE_NAME_AND_VER \
+    "QSS"                   \
+    " " QUAKESPASM_VER_STRING
+
 // #define PARANOID // speed sapping error checking
 
+// #define PSET_SCRIPT // enable the scriptable particle system (poorly ported
+// from FTE)
+
+// #define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's
+// effects
+
 #define GAMENAME "id1" // directory to look in by default
-
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
-#define CACHE_SIZE 32 // used to align key data structures
-
-#define Q_UNUSED(x) (x = x) // for pesky compiler / lint warnings
 
 #define MINIMUM_MEMORY 1'048'576 // 16 MB
 #define MINIMUM_MEMORY_LEVELPAK (MINIMUM_MEMORY + 0x100000)
@@ -74,7 +79,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // fall over
 #define ROLL 2
-
 
 #define MAX_QPATH 128 // max length of a quake game pathname
 
@@ -98,8 +102,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_EDICTS \
     32000 // johnfitz -- highest allowed value for max_edicts cvar
           // ents past 8192 can't play sounds in the standard protocol
-#define MAX_LIGHTSTYLES 64
-#define MAX_MODELS 2048 // johnfitz -- was 256
+#define MAX_LIGHTSTYLES 1024
+#define MAX_MODELS 4096 // johnfitz -- was 256
 #define MAX_SOUNDS 2048 // johnfitz -- was 256
 
 #define SAVEGAME_COMMENT_LENGTH 39
@@ -109,7 +113,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // stats are integers communicated to the client by the server
 //
-#define MAX_CL_STATS 64
+#define MAX_CL_STATS 256
 
 #define STAT_HEALTH 0
 #define STAT_FRAGS 1
@@ -154,6 +158,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPONFLAGS3 40
 #define STAT_HOLSTERWEAPONFLAGS4 41
 #define STAT_HOLSTERWEAPONFLAGS5 42
+#define STAT_ITEMS 43      // replaces clc_clientdata info
+#define STAT_VIEWHEIGHT 44 // replaces clc_clientdata info
+//#define STAT_TIME			45	//zquake, redundant for nq.
+//#define STAT_MATCHSTARTTIME 46
+//#define STAT_VIEW2		47
+#define STAT_VIEWZOOM 48 // DP
+//#define STAT_UNUSED3		49
+//#define STAT_UNUSED2		50
+//#define STAT_UNUSED1		51
+#define STAT_IDEALPITCH 52   // nq-emu
+#define STAT_PUNCHANGLE_X 53 // nq-emu
+#define STAT_PUNCHANGLE_Y 54 // nq-emu
+#define STAT_PUNCHANGLE_Z 55 // nq-emu
+#define STAT_PUNCHVECTOR_X 56
+#define STAT_PUNCHVECTOR_Y 57
+#define STAT_PUNCHVECTOR_Z 58
+#define STAT_WEAPONCLIP 59
+#define STAT_WEAPONCLIP2 60
+#define STAT_HOLSTERWEAPONCLIP0 61
+#define STAT_HOLSTERWEAPONCLIP1 62
+#define STAT_HOLSTERWEAPONCLIP2 63
+#define STAT_HOLSTERWEAPONCLIP3 64
+#define STAT_HOLSTERWEAPONCLIP4 65
+#define STAT_HOLSTERWEAPONCLIP5 66
+#define STAT_WEAPONCLIPSIZE 67
+#define STAT_WEAPONCLIPSIZE2 68
+
+
 
 // stock defines
 //
@@ -263,19 +295,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // Quake VR - vrbits0 bits
 // clang-format off
-#define QVR_VRBITS0_TELEPORTING           VRUTIL_POWER_OF_TWO(0)
-#define QVR_VRBITS0_OFFHAND_GRABBING      VRUTIL_POWER_OF_TWO(1)
-#define QVR_VRBITS0_OFFHAND_PREVGRABBING  VRUTIL_POWER_OF_TWO(2)
-#define QVR_VRBITS0_MAINHAND_GRABBING     VRUTIL_POWER_OF_TWO(3)
-#define QVR_VRBITS0_MAINHAND_PREVGRABBING VRUTIL_POWER_OF_TWO(4)
-#define QVR_VRBITS0_2H_AIMING             VRUTIL_POWER_OF_TWO(5)
+#define QVR_VRBITS0_TELEPORTING            VRUTIL_POWER_OF_TWO(0)
+#define QVR_VRBITS0_OFFHAND_GRABBING       VRUTIL_POWER_OF_TWO(1)
+#define QVR_VRBITS0_OFFHAND_PREVGRABBING   VRUTIL_POWER_OF_TWO(2)
+#define QVR_VRBITS0_MAINHAND_GRABBING      VRUTIL_POWER_OF_TWO(3)
+#define QVR_VRBITS0_MAINHAND_PREVGRABBING  VRUTIL_POWER_OF_TWO(4)
+#define QVR_VRBITS0_2H_AIMING              VRUTIL_POWER_OF_TWO(5)
+#define QVR_VRBITS0_OFFHAND_RELOADING      VRUTIL_POWER_OF_TWO(6)
+#define QVR_VRBITS0_OFFHAND_PREVRELOADING  VRUTIL_POWER_OF_TWO(7)
+#define QVR_VRBITS0_MAINHAND_RELOADING     VRUTIL_POWER_OF_TWO(8)
+#define QVR_VRBITS0_MAINHAND_PREVRELOADING VRUTIL_POWER_OF_TWO(9)
 // clang-format on
 
-#define MAX_SCOREBOARD 16
+#define MAX_SCOREBOARD 255
 #define MAX_SCOREBOARDNAME 32
 
 #define SOUND_CHANNELS 8
-
 
 
 
@@ -295,4 +330,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_DEMONAME 16
 #define MAX_TEMP_ENTITIES 512    // johnfitz -- was 64
 #define MAX_STATIC_ENTITIES 4096 // ericw -- was 512	//johnfitz -- was 128
-#define MAX_VISEDICTS 4096       // larger, now we support BSP2
+
+// QSS
+#define MAX_PARTICLETYPES 2048
+#define MAX_LIGHTSTYLES_VANILLA 64

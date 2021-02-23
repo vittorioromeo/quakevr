@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -60,7 +60,7 @@ static inline int IS_NAN(float x)
     ((x) > 0 ? (int)((x) + 0.5) : (int)((x)-0.5)) // johnfitz -- from joequake
 
 #define DotProduct(x, y) (x[0] * y[0] + x[1] * y[1] + x[2] * y[2])
-
+#define DotProduct2(x, y) (x[0] * y[0] + x[1] * y[1])
 #define DoublePrecisionDotProduct(x, y) \
     ((double)x[0] * y[0] + (double)x[1] * y[1] + (double)x[2] * y[2])
 
@@ -94,10 +94,13 @@ static inline int IS_NAN(float x)
 [[nodiscard]] qvec3 VectorAngles(const qvec3& forward) noexcept; // johnfitz
 
 float VectorLength(vec3_t v);
+[[nodiscard]] qvec3 CrossProduct(const qvec3& v1, const qvec3& v2);
 
 [[nodiscard]] qmat3 R_ConcatRotations(
     const qmat3& in1, const qmat3& in2) noexcept;
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4]);
+[[nodiscard]] qvec3 RotatePointAroundVector(
+    const qvec3& dir, const qvec3& point, float degrees);
 
 inline qvec3 AngleVectorsOnlyFwd(const qvec3& angles) noexcept
 {

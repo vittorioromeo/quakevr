@@ -248,10 +248,14 @@ void() worldspawn =
 
     // HONEY
     precache_sound("misc/secret.wav");
-    precache_sound("honey/ting1.wav");
-    precache_sound("honey/ting2.wav");
-    precache_sound("honey/ting3.wav");
-    precache_sound("honey/ting4.wav");
+
+    if(VR_GameUtil_EnableHoneyExtensions())
+    {
+        precache_sound("honey/ting1.wav");
+        precache_sound("honey/ting2.wav");
+        precache_sound("honey/ting3.wav");
+        precache_sound("honey/ting4.wav");
+    }
 
     // VR: For weapon buttons
     precache_sound("buttons/switch02.wav");
@@ -365,6 +369,7 @@ void() worldspawn =
     precache_sound("fisthit.wav");        // fist hit world
     precache_sound("gunclick.wav");       // out of ammo
     precache_sound("forcegrab.wav");      // force grab
+    precache_sound("reload1.wav");        // reload
 
     // ROGUE
     // PGM Addition Sounds

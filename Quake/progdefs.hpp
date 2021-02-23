@@ -21,7 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma once
 
-#include "quakeglm.hpp"
+#include "quakeglm_qvec3.hpp"
+#include "progs_types.hpp"
 
 #define vec3_t qvec3
 

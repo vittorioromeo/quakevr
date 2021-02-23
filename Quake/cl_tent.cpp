@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -119,6 +119,20 @@ beam_t* CL_ParseBeam(qmodel_t* m)
     // johnfitz
 
     return nullptr;
+}
+
+void CL_SpawnSpriteEffect(
+    vec3_t org /*, vec3_t dir, vec3_t orientationup*/, qmodel_t* model, int startframe, int framecount, float framerate /*, float alpha, float scale, float randspin, float gravity, int traileffect, unsigned int renderflags, int skinnum*/)
+{
+    if(startframe < 0)
+    {
+        startframe = framecount = 0;
+    }
+    if(!framecount)
+    {
+        framecount = model->numframes;
+    }
+    Con_DPrintf("CL_SpawnSpriteEffect: not implemented\n");
 }
 
 /*
@@ -328,6 +342,45 @@ void CL_ParseTEnt()
     }
 }
 
+void CL_ParseEffect(bool big)
+{
+    vec3_t org;
+    int modelindex;
+    int startframe;
+    int framecount;
+    int framerate;
+    qmodel_t* mod;
+
+    org[0] = MSG_ReadCoord(cl.protocolflags);
+    org[1] = MSG_ReadCoord(cl.protocolflags);
+    org[2] = MSG_ReadCoord(cl.protocolflags);
+
+    if(big)
+    {
+        modelindex = MSG_ReadShort();
+    }
+    else
+    {
+        modelindex = MSG_ReadByte();
+    }
+
+    if(big)
+    {
+        startframe = MSG_ReadShort();
+    }
+    else
+    {
+        startframe = MSG_ReadByte();
+    }
+
+    framecount = MSG_ReadByte();
+    framerate = MSG_ReadByte();
+
+    mod = cl.model_precache[modelindex];
+    CL_SpawnSpriteEffect(org /*, nullptr, NULL*/, mod, startframe, framecount,
+        framerate /*, mod->type==mod_sprite?-1:1, 1, 0, 0, P_INVALID, 0, 0*/);
+}
+
 
 /*
 =================
@@ -336,7 +389,7 @@ CL_NewTempEntity
 */
 entity_t* CL_NewTempEntity()
 {
-    if(cl_numvisedicts == MAX_VISEDICTS ||
+    if(cl_numvisedicts == cl_maxvisedicts ||
         num_temp_entities == MAX_TEMP_ENTITIES)
     {
         return nullptr;
@@ -349,6 +402,9 @@ entity_t* CL_NewTempEntity()
     cl_visedicts[cl_numvisedicts] = ent;
     cl_numvisedicts++;
 
+    ent->netstate.scale = 16;
+    ent->netstate.colormod[0] = ent->netstate.colormod[1] =
+        ent->netstate.colormod[2] = 32;
     ent->colormap = vid.colormap;
     return ent;
 }

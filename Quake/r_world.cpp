@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -331,7 +331,7 @@ void R_BuildLightmapChains(qmodel_t* model, texchain_t chain)
         {
             if(!s->culled)
             {
-                R_RenderDynamicLightmaps(s);
+                R_RenderDynamicLightmaps(model, s);
             }
         }
     }
@@ -617,7 +617,6 @@ void R_DrawTextureChains_Multitexture(
     qmodel_t* model, entity_t* ent, texchain_t chain)
 {
     int i;
-
     int j;
     msurface_t* s;
     texture_t* t;
@@ -933,7 +932,6 @@ nothing
 void R_DrawLightmapChains()
 {
     int i;
-
     int j;
     glpoly_t* p;
     float* v;

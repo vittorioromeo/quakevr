@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -74,7 +74,7 @@ void M_Menu_Setup_f();
 void M_Menu_Net_f();
 void M_Menu_LanConfig_f();
 void M_Menu_GameOptions_f();
-void M_Menu_Search_f();
+void M_Menu_Search_f(enum slistScope_e scope); // QSS
 void M_Menu_ServerList_f();
 
 void M_Menu_Keys_f();
@@ -346,9 +346,10 @@ void M_ToggleMenu_f()
             return;
         }
 
-        IN_Activate();
         key_dest = key_game;
         m_state = m_none;
+
+        IN_UpdateGrabs(); // QSS
         return;
     }
 
@@ -397,10 +398,11 @@ void M_Menu_Main_f()
         cls.demonum = -1;
     }
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_main;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Main_Draw()
@@ -417,10 +419,11 @@ void M_Main_Key(int key)
         case K_ESCAPE: [[fallthrough]];
         case K_BBUTTON:
         {
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
             cls.demonum = m_save_demonum;
+
+            IN_UpdateGrabs(); // QSS
             break;
 
             /*
@@ -443,6 +446,7 @@ void M_Main_Key(int key)
     quake::menu m{"Single Player", &M_Menu_Main_f};
 
     m.add_action_entry("Tutorial", [] { M_Menu_NewGame_f("vrtutorial"); });
+    m.add_action_entry("Sandbox", [] { M_Menu_NewGame_f("vrfiringrange"); });
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -487,10 +491,11 @@ void M_Main_Key(int key)
 
 void M_Menu_SinglePlayer_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_singleplayer;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_SinglePlayer_Draw()
@@ -511,8 +516,8 @@ std::size_t load_cursor; // 0 < load_cursor < MAX_SAVEGAMES + MAX_AUTOSAVES
 
 void M_Menu_NewGame_f(const char* map)
 {
-    IN_Activate();
     key_dest = key_game;
+    IN_UpdateGrabs(); // QSS
 
     if(sv.active)
     {
@@ -530,10 +535,11 @@ void M_Menu_Load_f()
     m_entersound = true;
     m_state = m_load;
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
 
     quake::saveutil::scanSaves();
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Menu_Save_f()
@@ -556,10 +562,11 @@ void M_Menu_Save_f()
     m_entersound = true;
     m_state = m_save;
 
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
 
     quake::saveutil::scanSaves();
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -647,8 +654,8 @@ void M_Load_Key(int k)
             }
 
             m_state = m_none;
-            IN_Activate();
             key_dest = key_game;
+            IN_UpdateGrabs(); // QSS
 
             // Host_Loadgame_f can't bring up the loading plaque because too
             // much stack space has been used, so do it now
@@ -715,9 +722,10 @@ void M_Save_Key(int k)
         case K_ABUTTON:
         {
             m_state = m_none;
-            IN_Activate();
             key_dest = key_game;
             Cbuf_AddText(va("save s%i\n", save_cursor));
+
+            IN_UpdateGrabs(); // QSS
             return;
         }
 
@@ -794,10 +802,11 @@ void M_Save_Key(int k)
 
 void M_Menu_BotControl_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_botcontrol;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_BotControl_Draw()
@@ -833,15 +842,17 @@ void M_BotControl_Key(int key)
 
 void M_Menu_MultiPlayer_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_multiplayer;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_MultiPlayer_Draw()
 {
-    if(!tcpipAvailable)
+    // QSS
+    if(!ipv4Available && !ipv6Available)
     {
         M_PrintWhite(
             (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
@@ -873,7 +884,6 @@ int setup_bottom;
 
 void M_Menu_Setup_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_setup;
     m_entersound = true;
@@ -881,6 +891,8 @@ void M_Menu_Setup_f()
     Q_strcpy(setup_hostname, hostname.string);
     setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
     setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_Setup_Draw()
@@ -1099,7 +1111,6 @@ const char* net_helpMessage[] = {
 
 void M_Menu_Net_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_net;
     m_entersound = true;
@@ -1111,6 +1122,8 @@ void M_Menu_Net_f()
     }
     m_net_cursor--;
     M_Net_Key(K_DOWNARROW);
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -1293,10 +1306,11 @@ void M_Net_Key(int k)
 
 void M_Menu_Options_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_options;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_DrawSlider(int x, int y, float range)
@@ -1821,6 +1835,9 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Immersion Settings", &M_Menu_QuakeVRSettings_f};
 
+    m.add_cvar_entry<bool>("Weapon Text", vr_show_weapon_text)
+        .tooltip("Show floating ammunition text attached to weapons");
+
     m.add_cvar_entry<bool>("Positional Damage", vr_positional_damage)
         .tooltip(
             "Enables positional damage multipliers for headshots and leg "
@@ -1832,6 +1849,9 @@ void M_Options_Key(int k)
             "over them (instead of using your hands). Thrown and dropped "
             "weapons are not affected - they still need to be grabbed with "
             "your hand.");
+
+    m.add_cvar_entry<bool>("Disable Haptics", vr_disablehaptics)
+        .tooltip("Disable all haptics (vibration).");
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -1849,6 +1869,16 @@ void M_Options_Key(int k)
             "amount of weapons the player can carry. Quick slot holsters never "
             "become empty. They are the recommended way to play if you allow "
             "weapon cycling and want to carry infinite weapons.");
+
+    m.add_cvar_getter_enum_entry<VrReloadMode>(      //
+         "Weapon Reloading Mode",                    //
+         [] { return &vr_reload_mode; },             //
+         "None", "All Holsters", "Hip Holsters Only" //
+         )
+        .tooltip(
+            "Enables weapon reloading mechanics. Weapons can be reloaded by "
+            "moving them towards an holster. Reloading only works with "
+            "'immersive' weapon mode.");
 
     m.add_cvar_getter_enum_entry<VrHolsterHaptics>( //
          "Holster Haptics",                         //
@@ -2238,6 +2268,7 @@ void M_Options_Key(int k)
 {
     quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
 
+    // TODO VR: (P1) what about this?
     m.on_key([](const int key, quake::impl::menu_entry& entry) {
         if(key == 'p')
         {
@@ -2280,6 +2311,74 @@ void M_Options_Key(int k)
 }
 
 //=============================================================================
+/* QUAKE VR SETTINGS MENU - VOIP OPTIONS */
+
+[[nodiscard]] static quake::menu makeQVRSVoipMenu()
+{
+    extern cvar_t sv_voip;
+    extern cvar_t sv_voip_echo;
+
+    extern cvar_t cl_voip_send;
+    extern cvar_t cl_voip_test;
+    extern cvar_t cl_voip_vad_threshhold;
+    extern cvar_t cl_voip_vad_delay;
+    extern cvar_t cl_voip_capturingvol;
+    extern cvar_t cl_voip_showmeter;
+    extern cvar_t cl_voip_play;
+    extern cvar_t cl_voip_micamp;
+    extern cvar_t cl_voip_ducking;
+    extern cvar_t cl_voip_codec;
+    extern cvar_t cl_voip_noisefilter;
+    extern cvar_t cl_voip_autogain;
+    extern cvar_t cl_voip_opus_bitrate;
+
+    quake::menu m{"Voip Options", &M_Menu_QuakeVRSettings_f};
+
+    m.add_cvar_entry<bool>("Server - Enable Voip", sv_voip);
+    m.add_cvar_entry<bool>("Server - Enable Voip Echo", sv_voip_echo);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<int>(          //
+        "Send Mode",                            //
+        [] { return &cl_voip_send; },           //
+        "Off", "Voice Activation", "Continuous" //
+    );
+
+    m.add_cvar_entry<bool>("Test Mode", cl_voip_test);
+
+    m.add_cvar_entry<float>("Vad Delay", cl_voip_vad_delay, {0.1f, 0.0f, 1.f});
+
+    m.add_cvar_entry<float>(
+        "Capturing Volume", cl_voip_capturingvol, {0.1f, 0.0f, 1.f});
+
+    m.add_cvar_entry<bool>("Show Meter", cl_voip_showmeter);
+
+    m.add_cvar_entry<bool>("Play Voip", cl_voip_play);
+
+    m.add_cvar_entry<float>("Mic Amp.", cl_voip_micamp, {0.1f, 0.0f, 10.f});
+
+    m.add_cvar_entry<float>("Ducking", cl_voip_ducking, {0.1f, 0.0f, 10.f});
+
+    m.add_cvar_entry<bool>("Noise Filter", cl_voip_noisefilter);
+
+    m.add_cvar_entry<bool>("Autogain", cl_voip_autogain);
+
+    m.add_cvar_entry<float>(
+        "Opus Bitrate", cl_voip_opus_bitrate, {500.f, 500.0f, 512000.f});
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrsVoipMenu()
+{
+    static quake::menu res = makeQVRSVoipMenu();
+    return res;
+}
+
+//=============================================================================
 /* QUAKE VR QUICK SETTINGS MENU */
 
 [[nodiscard]] static quake::menu makeQuakeVRQuickSettingsMenu()
@@ -2296,10 +2395,11 @@ void M_Options_Key(int k)
 
 void M_Menu_QuakeVRQuickSettings_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrquicksettings;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRQuickSettings_Draw()
@@ -2332,6 +2432,7 @@ static void forQVRSMenus(F&& f)
     f(qvrsHotspotMenu(), m_qvrs_hotspot);
     f(qvrsTorsoMenu(), m_qvrs_torso);
     f(qvrsTransparencyOptionsMenu(), m_qvrs_transparencyoptions);
+    f(qvrsVoipMenu(), m_qvrs_voip);
 }
 
 [[nodiscard]] static quake::menu makeQuakeVRSettingsMenu()
@@ -2355,10 +2456,11 @@ static void forQVRSMenus(F&& f)
 
 void M_Menu_QuakeVRSettings_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrsettings;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRSettings_Draw()
@@ -2394,7 +2496,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (1)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{"Weapon Configuration (1) - Basics, Muzzle, 2H",
+        &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2569,7 +2672,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (2)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (2) - Hand, 2H", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2781,7 +2885,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (3)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (3) - Weight", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -2882,7 +2987,8 @@ void M_QuakeVRSettings_Key(int k)
 
     // ------------------------------------------------------------------------
 
-    quake::menu m{"Weapon Configuration (4)", &M_Menu_QuakeVRDevTools_f};
+    quake::menu m{
+        "Weapon Configuration (4) - Button, Blend", &M_Menu_QuakeVRDevTools_f};
 
     m.on_key([](int, quake::impl::menu_entry&) {
         // TODO VR: (P2) hackish
@@ -3001,6 +3107,142 @@ void M_QuakeVRSettings_Key(int k)
 [[nodiscard]] static quake::menu& qvrdtWeaponConfiguration4Menu()
 {
     static quake::menu res = makeQVRDTWeaponConfiguration4Menu();
+    return res;
+}
+
+//=============================================================================
+/* QUAKE VR DEV TOOLS MENU - WEAPON CONFIGURATION (5) */
+
+[[nodiscard]] static quake::menu makeQVRDTWeaponConfiguration5Menu()
+{
+    static bool wpnoff_offhand = false;
+
+    const auto getIdx = [] {
+        return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
+                              : VR_GetMainHandWpnCvarEntry();
+    };
+
+    const float oInc = 0.1f;
+    constexpr float oBound = 100.f;
+
+    const float rInc = 0.2f;
+    constexpr float rBound = 180.f;
+
+    const quake::menu_bounds<float> oBounds{oInc, -oBound, oBound};
+    const quake::menu_bounds<float> rBounds{rInc, -rBound, rBound};
+    const quake::menu_bounds<float> zbBounds{0.05f, 0.f, 1.f};
+
+    // ------------------------------------------------------------------------
+
+    quake::menu m{"Weapon Configuration (5) - Text", &M_Menu_QuakeVRDevTools_f};
+
+    m.on_key([](int, quake::impl::menu_entry&) {
+        // TODO VR: (P2) hackish
+        VR_ModAllWeapons();
+    });
+
+    // ------------------------------------------------------------------------
+
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            oBounds                                              //
+        );
+    };
+
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            rBounds                                              //
+        );
+    };
+
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+        return m.add_cvar_getter_entry<float>(                   //
+            title,                                               //
+            [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
+            zbBounds                                             //
+        );
+    };
+
+    const auto makeHoverFn = [&](int& implVar) {
+        return [&](const bool x) {
+            if(!x)
+            {
+                implVar = 0;
+                return;
+            }
+
+            implVar = wpnoff_offhand ? 2 : 1;
+        };
+    };
+
+    // ------------------------------------------------------------------------
+
+    m.add_getter_entry<bool>(          //
+        "Off-Hand",                    //
+        [] { return &wpnoff_offhand; } //
+    );
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<WpnTextMode>(                                //
+         "Text Mode",                                                         //
+         [getIdx] { return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextMode); }, //
+         "Disabled", "Ammo"                                                   //
+         )
+        .tooltip("Type of text.");
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnOffsetTooltip = "Offset of the weapon text.";
+
+    o_wpncvar("Text X", WpnCVar::WpnTextX).tooltip(btnOffsetTooltip);
+    o_wpncvar("Text Y", WpnCVar::WpnTextY).tooltip(btnOffsetTooltip);
+    o_wpncvar("Text Z", WpnCVar::WpnTextZ).tooltip(btnOffsetTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const char* btnAngleTooltip = "Angle offset of the weapon text.";
+
+    r_wpncvar("Text Pitch", WpnCVar::WpnTextPitch).tooltip(btnAngleTooltip);
+    r_wpncvar("Text Yaw", WpnCVar::WpnTextYaw).tooltip(btnAngleTooltip);
+    r_wpncvar("Text Roll", WpnCVar::WpnTextRoll).tooltip(btnAngleTooltip);
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    const auto hoverWpnTextAnchorVertex =
+        makeHoverFn(quake::vr::showfn::vr_impl_draw_wpntext_anchor_vertex);
+
+    m.add_cvar_getter_entry<int>( //
+         "Text Anchor Vertex",    //
+         [getIdx] {
+             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextAnchorVertex);
+         },           //
+         {1, 0, 4096} //
+         )
+        .hover(hoverWpnTextAnchorVertex)
+        .tooltip("Index of the mesh vertex where the text will be attached.");
+
+    zb_wpncvar("Text Scale", WpnCVar::WpnTextScale)
+        .tooltip("Scale of the text.");
+
+    return m;
+}
+
+[[nodiscard]] static quake::menu& qvrdtWeaponConfiguration5Menu()
+{
+    static quake::menu res = makeQVRDTWeaponConfiguration5Menu();
     return res;
 }
 
@@ -3184,6 +3426,7 @@ static void forQVRDTMenus(F&& f)
     f(qvrdtWeaponConfiguration2Menu(), m_qvrdt_weaponconfiguration2);
     f(qvrdtWeaponConfiguration3Menu(), m_qvrdt_weaponconfiguration3);
     f(qvrdtWeaponConfiguration4Menu(), m_qvrdt_weaponconfiguration4);
+    f(qvrdtWeaponConfiguration5Menu(), m_qvrdt_weaponconfiguration5);
     f(qvrdtFingerConfigurationMenu(), m_qvrdt_fingerconfiguration);
     f(qvrdtDebugUtilitiesMenu(), m_qvrdt_debugutilities);
 }
@@ -3209,10 +3452,11 @@ static void forQVRDTMenus(F&& f)
 
 void M_Menu_QuakeVRDevTools_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrdevtools;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRDevTools_Draw()
@@ -3438,10 +3682,11 @@ static void forQVRCMMenus(F&& f)
 
 void M_Menu_QuakeVRChangeMap_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_quakevrchangemap;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 void M_QuakeVRChangeMap_Draw()
@@ -3466,19 +3711,20 @@ const char* bindnames[][2] = {{"+attack", "attack"},
     {"+strafe", "sidestep"}, {"+lookup", "look up"}, {"+lookdown", "look down"},
     {"centerview", "center view"}, {"+mlook", "mouse look"},
     {"+klook", "keyboard look"}, {"+moveup", "swim up"},
-    {"+movedown", "swim down"}};
+    {"+movedown", "swim down"}, {"+voip", "Voice Chat"}};
 
 #define NUMCOMMANDS (sizeof(bindnames) / sizeof(bindnames[0]))
 
 static int keys_cursor;
-static bool bind_grab;
+bool bind_grab; // QSS
 
 void M_Menu_Keys_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_keys;
     m_entersound = true;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3488,6 +3734,7 @@ void M_FindKeysForCommand(const char* command, int* threekeys)
     int j;
     int l;
     char* b;
+    int bindmap = 0;
 
     threekeys[0] = threekeys[1] = threekeys[2] = -1;
     l = strlen(command);
@@ -3495,7 +3742,7 @@ void M_FindKeysForCommand(const char* command, int* threekeys)
 
     for(j = 0; j < MAX_KEYS; j++)
     {
-        b = keybindings[j];
+        b = keybindings[bindmap][j];
         if(!b)
         {
             continue;
@@ -3517,19 +3764,20 @@ void M_UnbindCommand(const char* command)
     int j;
     int l;
     char* b;
+    int bindmap = 0;
 
     l = strlen(command);
 
     for(j = 0; j < MAX_KEYS; j++)
     {
-        b = keybindings[j];
+        b = keybindings[bindmap][j];
         if(!b)
         {
             continue;
         }
         if(!strncmp(b, command, l))
         {
-            Key_SetBinding(j, nullptr);
+            Key_SetBinding(j, nullptr, bindmap);
         }
     }
 }
@@ -3539,9 +3787,7 @@ extern qpic_t *pic_up, *pic_down;
 void M_Keys_Draw()
 {
     int i;
-
     int x;
-
     int y;
     int keys[3];
     const char* name;
@@ -3621,9 +3867,8 @@ void M_Keys_Key(int k)
         }
 
         bind_grab = false;
-        IN_Deactivate(
-            modestate ==
-            MS_WINDOWED); // deactivate because we're returning to the menu
+
+        IN_UpdateGrabs(); // QSS
         return;
     }
 
@@ -3662,7 +3907,7 @@ void M_Keys_Key(int k)
                 M_UnbindCommand(bindnames[keys_cursor][0]);
             }
             bind_grab = true;
-            IN_Activate(); // activate to allow mouse key binding
+            IN_UpdateGrabs(); // QSS
             break;
 
         case K_BACKSPACE: // delete bindings
@@ -3702,11 +3947,12 @@ int help_page;
 
 void M_Menu_Help_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_help;
     m_entersound = true;
     help_page = 0;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3758,12 +4004,13 @@ void M_Menu_Quit_f()
         return;
     }
     wasInMenus = (key_dest == key_menu);
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_quit_prevstate = m_state;
     m_state = m_quit;
     m_entersound = true;
     msgNumber = rand() & 7;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3778,16 +4025,16 @@ void M_Quit_Key(int key)
         }
         else
         {
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
+            IN_UpdateGrabs(); // QSS
         }
     }
     else
     {
-        IN_Deactivate(modestate == MS_WINDOWED);
         key_dest = key_console;
         Host_Quit_f();
+        IN_UpdateGrabs(); // QSS
     }
 }
 
@@ -3805,17 +4052,17 @@ void M_Quit_Char(int key)
             }
             else
             {
-                IN_Activate();
                 key_dest = key_game;
                 m_state = m_none;
+                IN_UpdateGrabs(); // QSS
             }
             break;
 
         case 'y':
         case 'Y':
-            IN_Deactivate(modestate == MS_WINDOWED);
             key_dest = key_console;
             Host_Quit_f();
+            IN_UpdateGrabs(); // QSS
             break;
 
         default: break;
@@ -3878,7 +4125,6 @@ char lanConfig_joinname[22];
 
 void M_Menu_LanConfig_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_lanconfig;
     m_entersound = true;
@@ -3902,6 +4148,8 @@ void M_Menu_LanConfig_f()
 
     m_return_onerror = false;
     m_return_reason[0] = 0;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -3932,7 +4180,25 @@ void M_LanConfig_Draw()
     basex += 8;
 
     M_Print(basex, 52, "Address:");
-    M_Print(basex + 9 * 8, 52, my_tcpip_address);
+
+    // QSS
+    int y = 52;
+    qhostaddr_t addresses[16];
+    int numaddresses =
+        NET_ListAddresses(addresses, sizeof(addresses) / sizeof(addresses[0]));
+    if(!numaddresses)
+    {
+        M_Print(basex + 9 * 8, y, "NONE KNOWN");
+        y += 8;
+    }
+    else
+    {
+        for(int i = 0; i < numaddresses; i++)
+        {
+            M_Print(basex + 9 * 8, y, addresses[i]);
+            y += 8;
+        }
+    }
 
     M_Print(basex, lanConfig_cursor_table[0], "Port");
     M_DrawTextBox(basex + 8 * 8, lanConfig_cursor_table[0] - 8, 6, 1);
@@ -4019,7 +4285,7 @@ void M_LanConfig_Key(int key)
                     M_Menu_GameOptions_f();
                     break;
                 }
-                M_Menu_Search_f();
+                M_Menu_Search_f(SLIST_INTERNET);
                 break;
             }
 
@@ -4027,10 +4293,11 @@ void M_LanConfig_Key(int key)
             {
                 m_return_state = m_state;
                 m_return_onerror = true;
-                IN_Activate();
                 key_dest = key_game;
                 m_state = m_none;
                 Cbuf_AddText(va("connect \"%s\"\n", lanConfig_joinname));
+
+                IN_UpdateGrabs(); // QSS
                 break;
             }
 
@@ -4240,7 +4507,6 @@ int maxplayers;
 
 void M_Menu_GameOptions_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_gameoptions;
     m_entersound = true;
@@ -4254,6 +4520,8 @@ void M_Menu_GameOptions_f()
     {
         maxplayers = svs.maxclientslimit;
     }
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4552,17 +4820,19 @@ void M_GameOptions_Key(int key)
 
 bool searchComplete = false;
 double searchCompleteTime;
+enum slistScope_e searchLastScope = SLIST_LAN; // QSS
 
-void M_Menu_Search_f()
+void M_Menu_Search_f(enum slistScope_e scope)
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_search;
     m_entersound = false;
     slistSilent = true;
-    slistLocal = false;
+    slistScope = searchLastScope = scope; // QSS
     searchComplete = false;
+
     NET_Slist_f();
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4618,7 +4888,6 @@ bool slist_sorted;
 
 void M_Menu_ServerList_f()
 {
-    IN_Deactivate(modestate == MS_WINDOWED);
     key_dest = key_menu;
     m_state = m_slist;
     m_entersound = true;
@@ -4626,6 +4895,8 @@ void M_Menu_ServerList_f()
     m_return_onerror = false;
     m_return_reason[0] = 0;
     slist_sorted = false;
+
+    IN_UpdateGrabs(); // QSS
 }
 
 
@@ -4662,7 +4933,7 @@ void M_ServerList_Key(int k)
         case K_ESCAPE:
         case K_BBUTTON: M_Menu_LanConfig_f(); break;
 
-        case K_SPACE: M_Menu_Search_f(); break;
+        case K_SPACE: M_Menu_Search_f(searchLastScope); break;
 
         case K_UPARROW:
         case K_LEFTARROW:
@@ -4691,11 +4962,12 @@ void M_ServerList_Key(int k)
             m_return_state = m_state;
             m_return_onerror = true;
             slist_sorted = false;
-            IN_Activate();
             key_dest = key_game;
             m_state = m_none;
             Cbuf_AddText(
                 va("connect \"%s\"\n", NET_SlistPrintServerName(slist_cursor)));
+
+            IN_UpdateGrabs(); // QSS
             break;
 
         default: break;

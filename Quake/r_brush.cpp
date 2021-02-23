@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -362,8 +362,8 @@ void R_DrawSequentialPoly (msurface_t *s)
             v = s->polys->verts[0];
             for (i=0 ; i<s->polys->numverts ; i++, v+= VERTEXSIZE)
             {
-                glMultiTexCoord2fARB (GL_TEXTURE0_ARB, v[3], v[4]);
-                glMultiTexCoord2fARB (GL_TEXTURE1_ARB, v[5], v[6]);
+                glMultiTexCoord2fARB(GL_TEXTURE0_ARB, v[3], v[4]);
+                glMultiTexCoord2fARB(GL_TEXTURE1_ARB, v[5], v[6]);
                 glVertex3fv (v);
             }
             glEnd ();
@@ -569,7 +569,8 @@ void R_DrawBrushModel(entity_t* e)
                 continue;
             }
 
-            R_MarkLights(&cl_dlights[k], k,
+            const qvec3 lightorg = cl_dlights[k].origin - e->origin;
+            R_MarkLights(&cl_dlights[k], lightorg, k,
                 clmodel->nodes + clmodel->hulls[0].firstclipnode);
         }
     }
@@ -582,8 +583,7 @@ void R_DrawBrushModel(entity_t* e)
         e->origin[1] -= DIST_EPSILON;
         e->origin[2] -= DIST_EPSILON;
     }
-
-    R_RotateForEntity(e->origin, e->angles);
+    R_RotateForEntity(e->origin, e->angles, e->netstate.scale);
     if(gl_zfix.value)
     {
         e->origin[0] += DIST_EPSILON;
@@ -599,12 +599,18 @@ void R_DrawBrushModel(entity_t* e)
     }
 
     // TODO VR: (P1) document why we have +1, code repetition with alias
-    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
-    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
-    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+    glTranslatef(-e->model_scale_origin[0], -e->model_scale_origin[1],
+        -e->model_scale_origin[2]);
+    glScalef(e->model_scale[0] + 1.f, e->model_scale[1] + 1.f,
+        e->model_scale[2] + 1.f);
+    glTranslatef(e->model_scale_origin[0], e->model_scale_origin[1],
+        e->model_scale_origin[2]);
 
-    const bool scaled =
-        (e->scale[0] != 0.f) && (e->scale[1] != 0.f) && (e->scale[2] != 0.f);
+    glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
+
+    const bool scaled = (e->model_scale[0] != 0.f) &&
+                        (e->model_scale[1] != 0.f) &&
+                        (e->model_scale[2] != 0.f);
 
     R_ClearTextureChains(clmodel, chain_model);
 
@@ -670,7 +676,7 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
 
     glPushMatrix();
     e->angles[0] = -e->angles[0]; // stupid quake bug
-    R_RotateForEntity(e->origin, e->angles);
+    R_RotateForEntity(e->origin, e->angles, e->netstate.scale);
     e->angles[0] = -e->angles[0]; // stupid quake bug
 
     if(e->horizFlip)
@@ -680,9 +686,14 @@ void R_DrawBrushModel_ShowTris(entity_t* e)
     }
 
     // TODO VR: (P1) document why we have +1, code repetition with brush
-    glTranslatef(-e->scale_origin[0], -e->scale_origin[1], -e->scale_origin[2]);
-    glScalef(e->scale[0] + 1.f, e->scale[1] + 1.f, e->scale[2] + 1.f);
-    glTranslatef(e->scale_origin[0], e->scale_origin[1], e->scale_origin[2]);
+    glTranslatef(-e->model_scale_origin[0], -e->model_scale_origin[1],
+        -e->model_scale_origin[2]);
+    glScalef(e->model_scale[0] + 1.f, e->model_scale[1] + 1.f,
+        e->model_scale[2] + 1.f);
+    glTranslatef(e->model_scale_origin[0], e->model_scale_origin[1],
+        e->model_scale_origin[2]);
+
+    glTranslatef(e->model_offset[0], e->model_offset[1], e->model_offset[2]);
 
     //
     // draw it
@@ -725,13 +736,12 @@ R_RenderDynamicLightmaps
 called during rendering
 ================
 */
-void R_RenderDynamicLightmaps(msurface_t* fa)
+void R_RenderDynamicLightmaps(qmodel_t* model, msurface_t* fa)
 {
     byte* base;
     int maps;
     glRect_t* theRect;
     int smax;
-
     int tmax;
 
     if(fa->flags & SURF_DRAWTILED)
@@ -745,7 +755,8 @@ void R_RenderDynamicLightmaps(msurface_t* fa)
     lightmap[fa->lightmaptexturenum].polys = fa->polys;
 
     // check for lightmap modification
-    for(maps = 0; maps < MAXLIGHTMAPS && fa->styles[maps] != 255; maps++)
+    for(maps = 0; maps < MAXLIGHTMAPS && fa->styles[maps] != INVALID_LIGHTSTYLE;
+        maps++)
     {
         if(d_lightstylevalue[fa->styles[maps]] != fa->cached_light[maps])
         {
@@ -778,8 +789,8 @@ void R_RenderDynamicLightmaps(msurface_t* fa)
                 }
                 theRect->l = fa->light_s;
             }
-            smax = (fa->extents[0] >> 4) + 1;
-            tmax = (fa->extents[1] >> 4) + 1;
+            smax = (fa->extents[0] >> fa->lmshift) + 1;
+            tmax = (fa->extents[1] >> fa->lmshift) + 1;
             if((theRect->w + theRect->l) < (fa->light_s + smax))
             {
                 theRect->w = (fa->light_s - theRect->l) + smax;
@@ -791,7 +802,7 @@ void R_RenderDynamicLightmaps(msurface_t* fa)
             base = lm->data;
             base += fa->light_t * LMBLOCK_WIDTH * lightmap_bytes +
                     fa->light_s * lightmap_bytes;
-            R_BuildLightMap(fa, base, LMBLOCK_WIDTH * lightmap_bytes);
+            R_BuildLightMap(model, fa, base, LMBLOCK_WIDTH * lightmap_bytes);
         }
     }
 }
@@ -804,10 +815,8 @@ AllocBlock -- returns a texture number and the position inside it
 int AllocBlock(int w, int h, int* x, int* y)
 {
     int i;
-
     int j;
     int best;
-
     int best2;
 
     // ericw -- rather than searching starting at lightmap 0 every time,
@@ -888,21 +897,20 @@ int nColinElim;
 GL_CreateSurfaceLightmap
 ========================
 */
-void GL_CreateSurfaceLightmap(msurface_t* surf)
+void GL_CreateSurfaceLightmap(qmodel_t* model, msurface_t* surf)
 {
     int smax;
-
     int tmax;
     byte* base;
 
-    smax = (surf->extents[0] >> 4) + 1;
-    tmax = (surf->extents[1] >> 4) + 1;
+    smax = (surf->extents[0] >> surf->lmshift) + 1;
+    tmax = (surf->extents[1] >> surf->lmshift) + 1;
 
     surf->lightmaptexturenum =
         AllocBlock(smax, tmax, &surf->light_s, &surf->light_t);
     base = lightmap[surf->lightmaptexturenum].data;
     base += (surf->light_t * LMBLOCK_WIDTH + surf->light_s) * lightmap_bytes;
-    R_BuildLightMap(surf, base, LMBLOCK_WIDTH * lightmap_bytes);
+    R_BuildLightMap(model, surf, base, LMBLOCK_WIDTH * lightmap_bytes);
 }
 
 /*
@@ -913,18 +921,15 @@ BuildSurfaceDisplayList -- called at level load time
 void BuildSurfaceDisplayList(msurface_t* fa)
 {
     int i;
-
     int lindex;
-
     int lnumverts;
     medge_t* pedges;
-
     medge_t* r_pedge;
     qfloat* vec;
     qfloat s;
-
     qfloat t;
     glpoly_t* poly;
+    int lmscale = (1 << fa->lmshift);
 
     // reconstruct the polygon
     pedges = currentmodel->edges;
@@ -968,15 +973,15 @@ void BuildSurfaceDisplayList(msurface_t* fa)
         //
         s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
         s -= fa->texturemins[0];
-        s += fa->light_s * 16;
-        s += 8;
-        s /= LMBLOCK_WIDTH * 16; // fa->texinfo->texture->width;
+        s += fa->light_s * lmscale;
+        s += lmscale / 2.0;
+        s /= LMBLOCK_WIDTH * lmscale; // fa->texinfo->texture->width;
 
         t = DotProduct(vec, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3];
         t -= fa->texturemins[1];
-        t += fa->light_t * 16;
-        t += 8;
-        t /= LMBLOCK_HEIGHT * 16; // fa->texinfo->texture->height;
+        t += fa->light_t * lmscale;
+        t += lmscale / 2.0;
+        t /= LMBLOCK_HEIGHT * lmscale; // fa->texinfo->texture->height;
 
         poly->verts[i][5] = s;
         poly->verts[i][6] = t;
@@ -999,7 +1004,6 @@ void GL_BuildLightmaps()
 {
     char name[24];
     int i;
-
     int j;
     struct lightmap_s* lm;
     qmodel_t* m;
@@ -1047,7 +1051,7 @@ void GL_BuildLightmaps()
             {
                 continue;
             }
-            GL_CreateSurfaceLightmap(m->surfaces + i);
+            GL_CreateSurfaceLightmap(m, m->surfaces + i);
             BuildSurfaceDisplayList(m->surfaces + i);
             // johnfitz
         }
@@ -1119,12 +1123,9 @@ surfaces from world + all brush models
 void GL_BuildBModelVertexBuffer()
 {
     unsigned int numverts;
-
     unsigned int varray_bytes;
-
     unsigned int varray_index;
     int i;
-
     int j;
     qmodel_t* m;
     float* varray;
@@ -1195,38 +1196,33 @@ void R_AddDynamicLights(msurface_t* surf)
 {
     int lnum;
     int sd;
-
     int td;
     float dist;
-
     float rad;
-
     float minlight;
     qvec3 impact;
-
     qvec3 local;
     int s;
-
     int t;
     int i;
     int smax;
-
     int tmax;
     mtexinfo_t* tex;
     // johnfitz -- lit support via lordhavoc
     float cred;
-
     float cgreen;
-
     float cblue;
-
     float brightness;
     unsigned* bl;
     // johnfitz
+    vec3_t lightofs; // Spike: light surfaces based upon where they are now
+                     // instead of their default position.
+    int lmscale;
 
-    smax = (surf->extents[0] >> 4) + 1;
-    tmax = (surf->extents[1] >> 4) + 1;
+    smax = (surf->extents[0] >> surf->lmshift) + 1;
+    tmax = (surf->extents[1] >> surf->lmshift) + 1;
     tex = surf->texinfo;
+    lmscale = 1 << surf->lmshift;
 
     for(lnum = 0; lnum < MAX_DLIGHTS; lnum++)
     {
@@ -1236,8 +1232,9 @@ void R_AddDynamicLights(msurface_t* surf)
         }
 
         rad = cl_dlights[lnum].radius;
-        dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
-               surf->plane->dist;
+        VectorSubtract(
+            cl_dlights[lnum].origin, currententity->origin, lightofs);
+        dist = DotProduct(lightofs, surf->plane->normal) - surf->plane->dist;
         rad -= fabs(dist);
         minlight = cl_dlights[lnum].minlight;
         if(rad < minlight)
@@ -1248,8 +1245,7 @@ void R_AddDynamicLights(msurface_t* surf)
 
         for(i = 0; i < 3; i++)
         {
-            impact[i] =
-                cl_dlights[lnum].origin[i] - surf->plane->normal[i] * dist;
+            impact[i] = lightofs[i] - surf->plane->normal[i] * dist;
         }
 
         local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];
@@ -1266,14 +1262,14 @@ void R_AddDynamicLights(msurface_t* surf)
         // johnfitz
         for(t = 0; t < tmax; t++)
         {
-            td = local[1] - t * 16;
+            td = local[1] - t * lmscale;
             if(td < 0)
             {
                 td = -td;
             }
             for(s = 0; s < smax; s++)
             {
-                sd = local[0] - s * 16;
+                sd = local[0] - s * lmscale;
                 if(sd < 0)
                 {
                     sd = -sd;
@@ -1309,20 +1305,15 @@ R_BuildLightMap -- johnfitz -- revised for lit support via lordhavoc
 Combine and scale multiple lightmaps into the 8.8 format in blocklights
 ===============
 */
-void R_BuildLightMap(msurface_t* surf, byte* dest, int stride)
+void R_BuildLightMap(qmodel_t* model, msurface_t* surf, byte* dest, int stride)
 {
     int smax;
-
     int tmax;
     int r;
-
     int g;
-
     int b;
     int i;
-
     int j;
-
     int size;
     byte* lightmap;
     unsigned scale;
@@ -1331,12 +1322,12 @@ void R_BuildLightMap(msurface_t* surf, byte* dest, int stride)
 
     surf->cached_dlight = (surf->dlightframe == r_framecount);
 
-    smax = (surf->extents[0] >> 4) + 1;
-    tmax = (surf->extents[1] >> 4) + 1;
+    smax = (surf->extents[0] >> surf->lmshift) + 1;
+    tmax = (surf->extents[1] >> surf->lmshift) + 1;
     size = smax * tmax;
     lightmap = surf->samples;
 
-    if(cl.worldmodel->lightdata)
+    if(model->lightdata)
     {
         // clear to no light
         memset(&blocklights[0], 0,
@@ -1346,7 +1337,8 @@ void R_BuildLightMap(msurface_t* surf, byte* dest, int stride)
         // add all the lightmaps
         if(lightmap)
         {
-            for(maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255;
+            for(maps = 0;
+                maps < MAXLIGHTMAPS && surf->styles[maps] != INVALID_LIGHTSTYLE;
                 maps++)
             {
                 scale = d_lightstylevalue[surf->styles[maps]];
@@ -1492,7 +1484,6 @@ toggled
 void R_RebuildAllLightmaps()
 {
     int i;
-
     int j;
     qmodel_t* mod;
     msurface_t* fa;
@@ -1521,7 +1512,7 @@ void R_RebuildAllLightmaps()
             base = lightmap[fa->lightmaptexturenum].data;
             base += fa->light_t * LMBLOCK_WIDTH * lightmap_bytes +
                     fa->light_s * lightmap_bytes;
-            R_BuildLightMap(fa, base, LMBLOCK_WIDTH * lightmap_bytes);
+            R_BuildLightMap(mod, fa, base, LMBLOCK_WIDTH * lightmap_bytes);
         }
     }
 

@@ -1,7 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -37,6 +37,8 @@ void Sys_Init();
 int Sys_FileOpenRead(const char* path, int* hndl);
 
 int Sys_FileOpenWrite(const char* path);
+int Sys_FileOpenStdio(FILE* file); // QSS
+
 void Sys_FileClose(int handle);
 void Sys_FileSeek(int handle, int position);
 int Sys_FileRead(int handle, void* dest, int count);

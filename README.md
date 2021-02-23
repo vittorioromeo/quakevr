@@ -192,7 +192,7 @@ At the moment there is no server browser and no dedicated server support. Also, 
 
 * Elia1995's [gameplay video](https://www.youtube.com/watch?v=rvigiMdIT-M) with webcam.
 
-* Stoni's [gameplay video](https://www.youtube.com/watch?v=Jserap1p2Ho) with webcam and commentary.
+* Stoni's [gameplay video](https://www.youtube.com/watch?v=Jserap1p2Ho) with webcam and commentary. And [another one](https://www.youtube.com/watch?v=qcxznJU7jFI) covering update v0.0.5!
 
 * Custom Gamer's [video](https://www.youtube.com/watch?v=eeqtFDf3tkM) showcasing his awesome custom map in VR!
 

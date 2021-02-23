@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_model.hpp"
 #include "quakedef_macros.hpp"
 #include "sizebuf.hpp"
+#include "qcvm.hpp"
 
 #include <vector>
 
@@ -50,21 +51,20 @@ typedef struct
     float entertime;
     int frags;
     int colors; // two 4 bit fields
+    int ping;   // QSS
     byte translations[VID_GRADES * 256];
 } scoreboard_t;
 
 typedef struct
 {
     int destcolor[3];
-    int percent; // 0-256
+    float percent; // 0-256 // QSS
 } cshift_t;
 
 
 //
 // client_state_t should hold all pieces of the client state
 //
-
-
 
 struct dlight_t
 {
@@ -77,7 +77,6 @@ struct dlight_t
     qvec3 color; // johnfitz -- lit support via lordhavoc
 };
 
-
 struct beam_t
 {
     int entity;
@@ -89,9 +88,11 @@ struct beam_t
     float scaleRatioX;
     // SomeEnum special; // TODO VR: (P1) consider adding this and experiment
     // with particles/dlights
+
+    // QSS
+    const char* trailname;
+    struct trailstate_s* trailstate;
 };
-
-
 
 typedef enum
 {
@@ -137,6 +138,21 @@ typedef struct
     struct qsocket_s* netcon;
     sizebuf_t message; // writing buffer to send to server
 
+    // QSS
+    // downloads don't restart/fail when the server sends random serverinfo
+    // packets
+    struct
+    {
+        bool active;
+        unsigned int size;
+        FILE* file;
+        char current[MAX_QPATH]; // also prevents us from repeatedly trying to
+                                 // download the same file
+        char temp[MAX_OSPATH];   // the temp filename for the download, will be
+                                 // renamed to current
+        float starttime;
+    } download;
+
 } client_static_t;
 
 extern client_static_t cls;
@@ -147,17 +163,19 @@ extern client_static_t cls;
 //
 struct client_state_t
 {
-    int movemessages; // since connecting to this server
-                      // throw out the first couple, so the player
-                      // doesn't accidentally do something the
-                      // first frame
-    usercmd_t cmd;    // last command sent to the server
+    int movemessages;     // since connecting to this server
+                          // throw out the first couple, so the player
+                          // doesn't accidentally do something the
+                          // first frame
+    usercmd_t cmd;        // last command sent to the server
+    usercmd_t pendingcmd; // accumulated state from mice+joysticks. // QSS
 
     // information for local display
-    int stats[MAX_CL_STATS]; // health, etc
-    int items;               // inventory bit flags
-    float item_gettime[32];  // cl.time of aquiring item, for blinking
-    float faceanimtime;      // use anim frame if cl.time < this
+    int stats[MAX_CL_STATS];    // health, etc
+    float statsf[MAX_CL_STATS]; // QSS
+    int items;                  // inventory bit flags
+    float item_gettime[32];     // cl.time of aquiring item, for blinking
+    float faceanimtime;         // use anim frame if cl.time < this
 
     cshift_t cshifts[NUM_CSHIFTS];      // color shifts for damage, powerups
     cshift_t prev_cshifts[NUM_CSHIFTS]; // and content types
@@ -188,13 +206,11 @@ struct client_state_t
     qvec3 punchangle; // temporary offset
 
     // pitch drifting vars
-    float idealpitch;
     float pitchvel;
     bool nodrift;
     float driftmove;
     double laststop;
 
-    float viewheight;
     float crouch; // local amount for smoothing stepups
 
     bool paused; // send over by server
@@ -222,16 +238,14 @@ struct client_state_t
 
     char mapname[128];
     char levelname[128]; // for display on solo scoreboard //johnfitz -- was 40.
-    int viewentity;      // cl_entities[cl.viewentity] = player
+    int viewentity;      // cl.entities[cl.viewentity] = player
     int maxclients;
     int gametype;
 
     // refresh related state
-    qmodel_t* worldmodel; // cl_entities[0].model
+    qmodel_t* worldmodel; // cl.entities[0].model
     struct efrag_t* free_efrags;
     int num_efrags;
-    int num_entities; // held in cl_entities array
-    int num_statics;  // held in cl_staticentities array
 
     // TODO VR: (P2) all of these should be in some sort of list to avoid
     // repetition
@@ -251,6 +265,9 @@ struct client_state_t
     entity_t mainhand_wpn_button;
     entity_t offhand_wpn_button;
 
+    textentity_t mainhand_wpn_text;
+    textentity_t offhand_wpn_text;
+
     struct hand_entities
     {
         entity_t base;
@@ -267,6 +284,14 @@ struct client_state_t
     hand_entities left_hand_ghost_entities;
     hand_entities right_hand_ghost_entities;
 
+    entity_t* entities; // spike -- moved into here
+    int max_edicts;
+    int num_entities;
+
+    entity_t** static_entities; // spike -- was static
+    int max_static_entities;
+    int num_statics;
+
     int cdtrack, looptrack; // cd audio
 
     // frag scoreboard
@@ -274,6 +299,64 @@ struct client_state_t
 
     unsigned protocol; // johnfitz
     unsigned protocolflags;
+    unsigned protocol_pext2; // spike -- flag of fte protocol extensions
+
+    // QSS
+    bool protocol_dpdownload;
+
+#ifdef PSET_SCRIPT
+    bool protocol_particles;
+    struct
+    {
+        const char* name;
+        int index;
+    } particle_precache[MAX_PARTICLETYPES];
+    struct
+    {
+        const char* name;
+        int index;
+    } local_particle_precache[MAX_PARTICLETYPES];
+#endif
+
+    int ackframes[8]; // big enough to cover burst
+    unsigned int ackframes_count;
+    bool requestresend;
+
+    char
+        stuffcmdbuf[1024]; // comment-extensions are a thing with certain
+                           // servers, make sure we can handle them properly
+                           // without further hacks/breakages. there's also some
+                           // server->client only console commands that we might
+                           // as well try to handle a bit better, like reconnect
+    enum
+    {
+        PRINT_NONE,
+        PRINT_PINGS,
+        //		PRINT_STATUSINFO,
+        //		PRINT_STATUSPLAYER,
+        //		PRINT_STATUSIP,
+    } printtype;
+    int printplayer;
+    float expectingpingtimes;
+    float printversionresponse;
+
+    // spike -- moved this stuff here to deal with downloading content named by
+    // the server
+    bool sendprespawn; // download+load content, send the prespawn command
+                       // once done
+    int model_count;
+    int model_download;
+    char model_name[MAX_MODELS][MAX_QPATH];
+    int sound_count;
+    int sound_download;
+    char sound_name[MAX_SOUNDS][MAX_QPATH];
+    // spike -- end downloads
+
+    qcvm_t qcvm; // for csqc.
+
+    bool csqc_cursorforced; // we want a mouse cursor.
+    float csqc_sensitivity; // scaler for sensitivity
+    // ---
 
     std::vector<WorldText> worldTexts;
 
@@ -365,6 +448,7 @@ extern cvar_t cl_alwaysrun; // QuakeSpasm
 
 extern cvar_t cl_autofire;
 
+extern cvar_t cl_recordingdemo; // QSS
 extern cvar_t cl_shownet;
 extern cvar_t cl_nolerp;
 
@@ -385,16 +469,13 @@ extern cvar_t m_side;
 extern client_state_t cl;
 
 // FIXME, allocate dynamically
-extern entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 extern lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 extern dlight_t cl_dlights[MAX_DLIGHTS];
 extern entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
 extern beam_t cl_beams[MAX_BEAMS];
-extern entity_t* cl_visedicts[MAX_VISEDICTS];
+extern entity_t** cl_visedicts;
 extern int cl_numvisedicts;
-
-extern entity_t* cl_entities; // johnfitz -- was a static array, now on hunk
-extern int cl_max_edicts;     // johnfitz -- only changes when new map loads
+extern int cl_maxvisedicts; // extended if we exceeded it the previous frame
 
 //=============================================================================
 
@@ -429,17 +510,25 @@ extern kbutton_t in_mlook, in_klook;
 extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
 extern kbutton_t in_grableft, in_grabright;
+extern kbutton_t in_reloadleft, in_reloadright;
 
 void CL_InitInput();
+void CL_AccumulateCmd(); // QSS
 void CL_SendCmd();
 void CL_SendMove(const usercmd_t* cmd);
 int CL_ReadFromServer();
+void CL_AdjustAngles(); // QSS
 void CL_BaseMove(usercmd_t* cmd);
 
+void CL_Download_Data();  // QSS
+bool CL_CheckDownloads(); // QSS
+
+void CL_ParseEffect(bool big); // QSS
 void CL_ParseTEnt();
 void CL_UpdateTEnts();
 
 void CL_ClearState();
+void CL_ClearTrailStates(); // QSS
 
 //
 // cl_demo.c
@@ -456,6 +545,7 @@ void CL_TimeDemo_f();
 // cl_parse.c
 //
 void CL_ParseServerMessage();
+void CL_RegisterParticles(); // QSS
 void CL_NewTranslation(int slot);
 
 //
@@ -475,6 +565,8 @@ void V_SetContentsColor(int contents);
 //
 void CL_InitTEnts();
 void CL_SignonReply();
+float CL_TraceLine(const qvec3& start, const qvec3& end, const qvec3& impact,
+    const qvec3& normal, int* ent); // QSS
 
 //
 // chase

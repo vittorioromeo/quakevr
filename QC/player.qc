@@ -345,7 +345,9 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
 
     VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
     if(VRGetWeaponFrame(xHand) == 9)
+    {
         VRSetWeaponFrame(xHand, 1);
+    }
 
     SuperDamageSound();
     xFireFn(xHand, xOffset);
@@ -355,7 +357,7 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
 {
     player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
-                         self.ammo_nails, W_FireSpikes);
+                         getCurrentAmmoOrClip(xHand), W_FireSpikes);
 }
 
 void(float xHand) player_nail1 =
@@ -371,7 +373,7 @@ void(float xHand) player_nail2 =
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_lava_nail_Impl =
 {
     player_nail_BaseImpl(xHand, xOffset, xNailAtt, xNailFn,
-                         self.ammo_lava_nails, W_FireLavaSpikes);
+                         getCurrentAmmoOrClip(xHand), W_FireLavaSpikes);
 }
 
 void(float xHand) player_lava_nail1 =
@@ -388,7 +390,7 @@ void(float xHand) player_lava_nail2 =
 
 void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
 {
-    if(self.ammo_cells < 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         player_run(xHand);
         return;
@@ -462,7 +464,7 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 
 void(float xHand, float xLaserAtt, void(float) xLaserFn) player_laser_Impl =
 {
-    if(self.ammo_cells < 1)
+    if(getCurrentAmmoOrClip(xHand)< 1)
     {
         player_run(xHand);
         return;

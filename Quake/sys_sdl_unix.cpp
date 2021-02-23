@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2005 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,6 +27,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "platform.hpp"
 #include "quakeparms.hpp"
+#include "input.hpp"
+#include "progs.hpp"
+#include "console.hpp"
+#include "sys.hpp"
+#include "vid.hpp"
+#include "keys.hpp"
+#include "common.hpp"
+#include "qcvm.hpp"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -47,20 +55,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 bool isDedicated;
 cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
-#define MAX_HANDLES 32 /* johnfitz -- was 10 */
-static FILE* sys_handles[MAX_HANDLES];
-
-
-static int findhandle(void)
+static size_t
+    sys_handles_max; /* spike -- removed limit, was 32 (johnfitz -- was 10) */
+static FILE** sys_handles;
+static int findhandle()
 {
-    int i;
+    size_t i, n;
 
-    for(i = 1; i < MAX_HANDLES; i++)
+    for(i = 1; i < sys_handles_max; i++)
     {
-        if(!sys_handles[i]) return i;
+        if(!sys_handles[i])
+        {
+            return i;
+        }
     }
-    Sys_Error("out of handles");
-    return -1;
+    n = sys_handles_max + 10;
+    sys_handles = (FILE**)realloc(sys_handles, sizeof(*sys_handles) * n);
+    if(!sys_handles)
+    {
+        Sys_Error("out of handles");
+    }
+    while(sys_handles_max < n)
+    {
+        sys_handles[sys_handles_max++] = nullptr;
+    }
+    return i;
 }
 
 long Sys_filelength(FILE* f)
@@ -106,9 +125,20 @@ int Sys_FileOpenWrite(const char* path)
     i = findhandle();
     f = fopen(path, "wb");
 
-    if(!f) Sys_Error("Error opening %s: %s", path, strerror(errno));
+    if(!f)
+    {
+        Sys_Error("Error opening %s: %s", path, strerror(errno));
+    }
 
     sys_handles[i] = f;
+    return i;
+}
+
+int Sys_FileOpenStdio(FILE* file)
+{
+    int i;
+    i = findhandle();
+    sys_handles[i] = file;
     return i;
 }
 
@@ -150,7 +180,7 @@ int Sys_FileTime(const char* path)
 
 
 #if defined(__linux__) || defined(__sun) || defined(sun) || defined(_AIX)
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     int numcpus = sysconf(_SC_NPROCESSORS_ONLN);
     return (numcpus < 1) ? 1 : numcpus;
@@ -161,7 +191,7 @@ static int Sys_NumCPUs(void)
 #if !defined(HW_AVAILCPU) /* using an ancient SDK? */
 #define HW_AVAILCPU 25    /* needs >= 10.2 */
 #endif
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     int numcpus;
     int mib[2];
@@ -184,7 +214,7 @@ static int Sys_NumCPUs(void)
 }
 
 #elif defined(__sgi) || defined(sgi) || defined(__sgi__) /* IRIX */
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     int numcpus = sysconf(_SC_NPROC_ONLN);
     if(numcpus < 1) numcpus = 1;
@@ -193,7 +223,7 @@ static int Sys_NumCPUs(void)
 
 #elif defined(PLATFORM_BSD)
 #include <sys/sysctl.h>
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     int numcpus;
     int mib[2];
@@ -212,14 +242,14 @@ static int Sys_NumCPUs(void)
 
 #elif defined(__hpux) || defined(__hpux__) || defined(_hpux)
 #include <sys/mpctl.h>
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     int numcpus = mpctl(MPC_GETNUMSPUS, nullptr, nullptr);
     return numcpus;
 }
 
 #else /* unknown OS */
-static int Sys_NumCPUs(void)
+static int Sys_NumCPUs()
 {
     return -2;
 }
@@ -308,16 +338,22 @@ static void Sys_GetBasedir(char* argv0, char* dst, size_t dstsize)
         Sys_Error("Couldn't determine current directory");
 
     tmp = dst;
-    while(*tmp != 0) tmp++;
+    while(*tmp != 0)
+    {
+        tmp++;
+    }
     while(*tmp == 0 && tmp != dst)
     {
         --tmp;
-        if(tmp != dst && *tmp == '/') *tmp = 0;
+        if(tmp != dst && *tmp == '/')
+        {
+            *tmp = 0;
+        }
     }
 }
 #endif
 
-void Sys_Init(void)
+void Sys_Init()
 {
     memset(cwd, 0, sizeof(cwd));
     Sys_GetBasedir(host_parms->argv[0], cwd, sizeof(cwd));
@@ -358,6 +394,8 @@ void Sys_Error(const char* error, ...)
     va_list argptr;
     char text[1024];
 
+    Con_Redirect(nullptr);
+    PR_SwitchQCVM(nullptr);
     host_parms->errstate++;
 
     va_start(argptr, error);
@@ -369,7 +407,10 @@ void Sys_Error(const char* error, ...)
     fputs(errortxt2, stderr);
     fputs(text, stderr);
     fputs("\n\n", stderr);
-    if(!isDedicated) PL_ErrorDialog(text);
+    if(!isDedicated)
+    {
+        PL_ErrorDialog(text);
+    }
 
     exit(1);
 }
@@ -383,25 +424,20 @@ void Sys_Printf(const char* fmt, ...)
     va_end(argptr);
 }
 
-void Sys_Quit(void)
+void Sys_Quit()
 {
     Host_Shutdown();
 
     exit(0);
 }
 
-double Sys_DoubleTime(void)
+double Sys_DoubleTime()
 {
-    // QSS
-#if 1
     return SDL_GetPerformanceCounter() /
            (long double)SDL_GetPerformanceFrequency();
-#else
-    return SDL_GetTicks() / 1000.0;
-#endif
 }
 
-const char* Sys_ConsoleInput(void)
+const char* Sys_ConsoleInput()
 {
     static char con_text[256];
     static int textlen;
@@ -455,7 +491,7 @@ void Sys_Sleep(unsigned long msecs)
     SDL_Delay(msecs);
 }
 
-void Sys_SendKeyEvents(void)
+void Sys_SendKeyEvents()
 {
     IN_Commands(); // ericw -- allow joysticks to add keys so they can be used
                    // to confirm SCR_ModalMessage

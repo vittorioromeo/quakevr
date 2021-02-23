@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2011 O. Sezer <sezero@users.sourceforge.net>
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -107,12 +107,9 @@ static void S_TransferStereo16(int endtime)
 static void S_TransferPaintBuffer(int endtime)
 {
     int out_idx;
-
     int out_mask;
     int count;
-
     int step;
-
     int val;
     int* p;
 
@@ -283,7 +280,6 @@ known to be 0 and skip 3/4 of the filter kernel.
 static void S_ApplyFilter(filter_t* filter, int* data, int stride, int count)
 {
     int i;
-
     int j;
     float* input;
     const int kernelsize = filter->kernelsize;
@@ -353,7 +349,6 @@ static void S_LowpassFilter(int* data, int stride, int count, filter_t* memory)
 {
     int M;
     float bw;
-
     float f_c;
 
     switch((int)snd_filterquality.value)
@@ -404,9 +399,7 @@ void S_PaintChannels(int endtime)
 {
     int i;
     int end;
-
     int ltime;
-
     int count;
     channel_t* ch;
     sfxcache_t* sc;
@@ -509,7 +502,6 @@ void S_PaintChannels(int endtime)
         if(sndspeed.value == 11025 && shm->speed == 44100)
         {
             static filter_t memory_l;
-
             static filter_t memory_r;
             S_LowpassFilter((int*)paintbuffer, 2, end - paintedtime, &memory_l);
             S_LowpassFilter(
@@ -547,7 +539,6 @@ void S_PaintChannels(int endtime)
 void SND_InitScaletable()
 {
     int i;
-
     int j;
     int scale;
 
@@ -574,7 +565,6 @@ static void SND_PaintChannelFrom8(
 {
     int data;
     int* lscale;
-
     int* rscale;
     unsigned char* sfx;
     int i;
@@ -607,10 +597,8 @@ static void SND_PaintChannelFrom16(
 {
     int data;
     int left;
-
     int right;
     int leftvol;
-
     int rightvol;
     signed short* sfx;
     int i;

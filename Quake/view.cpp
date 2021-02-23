@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -271,7 +271,7 @@ void V_DriftPitch()
         return;
     }
 
-    delta = cl.idealpitch - cl.viewangles[PITCH];
+    delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
 
     if(!delta)
     {
@@ -385,7 +385,7 @@ void V_ParseDamage()
     // check if we're out of vr or if vr viewkick is enabled
     if(!vr_enabled.value || (vr_enabled.value && vr_viewkick.value))
     {
-        ent = &cl_entities[cl.viewentity];
+        ent = &cl.entities[cl.viewentity];
 
         from -= ent->origin;
         from = glm::normalize(from);
@@ -802,7 +802,7 @@ void V_BoundOffsets()
 {
     entity_t* ent;
 
-    ent = &cl_entities[cl.viewentity];
+    ent = &cl.entities[cl.viewentity];
 
     // absolutely bound refresh reletive to entity clipping hull
     // so the view can never be inside a solid wall
@@ -867,7 +867,7 @@ void V_CalcViewRoll()
 {
     float side;
 
-    side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
+    side = V_CalcRoll(cl.entities[cl.viewentity].angles, cl.velocity);
     r_refdef.viewangles[ROLL] += side;
 
     if(v_dmg_time > 0)
@@ -895,12 +895,11 @@ V_CalcIntermissionRefdef
 void V_CalcIntermissionRefdef()
 {
     entity_t* ent;
-
     entity_t* view;
     float old;
 
     // ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
+    ent = &cl.entities[cl.viewentity];
     // view is the weapon model (only visible from inside body)
     view = &cl.viewent;
 
@@ -978,7 +977,7 @@ void V_CalcRefdef(
     V_DriftPitch();
 
     // ent is the player model (visible when out of body)
-    entity_t* ent = &cl_entities[cl.viewentity];
+    entity_t* ent = &cl.entities[cl.viewentity];
 
     // view is the weapon model (only visible from inside body)
     entity_t* view = &cl.viewent;
@@ -1002,7 +1001,7 @@ void V_CalcRefdef(
     else
     {
         r_refdef.vieworg = ent->origin;
-        r_refdef.vieworg[2] += cl.viewheight + bob;
+        r_refdef.vieworg[2] += cl.stats[STAT_VIEWHEIGHT] + bob;
     }
 
     // never let it sit exactly on a node line, because a water plane can
@@ -1056,7 +1055,7 @@ void V_CalcRefdef(
     else
     {
         view->origin = ent->origin;
-        view->origin[2] += cl.viewheight;
+        view->origin[2] += cl.stats[STAT_VIEWHEIGHT];
 
         for(int i = 0; i < 3; i++)
         {
@@ -1201,7 +1200,7 @@ void V_SetupOffHandWpnViewEnt(
     view.colormap = vid.colormap;
     view.horizFlip = true;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], &view);
 
     if(chase_active.value)
     {
@@ -1227,14 +1226,14 @@ void V_SetupVRTorsoViewEnt()
     view.frame = 0;
     view.colormap = vid.colormap;
 
-    view.origin = cl_entities[cl.viewentity].origin;
+    view.origin = cl.entities[cl.viewentity].origin;
     view.origin += vFwd * qfloat(vr_vrtorso_x_offset.value);
     view.origin -= vFwd * (heightRatio * 14._qf);
     view.origin += vRight * qfloat(vr_vrtorso_y_offset.value);
     view.origin[2] += VR_GetHeadOrigin()[2] * vr_vrtorso_head_z_mult.value;
     view.origin[2] += vr_vrtorso_z_offset.value;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], &view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], &view);
 }
 
 void V_SetupHolsterSlotViewEnt(const int hotspot, const qvec3& pos,
@@ -1266,7 +1265,7 @@ void V_SetupHolsterSlotViewEnt(const int hotspot, const qvec3& pos,
 
     view->horizFlip = horizFlip;
 
-    StairSmoothView(playerOldZ, &cl_entities[cl.viewentity], view);
+    StairSmoothView(playerOldZ, &cl.entities[cl.viewentity], view);
 
     if(chase_active.value)
     {
@@ -1590,6 +1589,37 @@ static void V_SetupWpnButtonViewEnt(const int anchorWpnCvar,
     // }
 }
 
+static void V_SetupWpnTextViewEnt(const int anchorWpnCvar,
+    entity_t* const anchor, textentity_t* const wpnText, const qvec3& handRot,
+    const qvec3& extraOffset, const bool horizFlip)
+{
+    assert(anchor->model != nullptr);
+
+    auto extraOffsets = VR_GetWpnTextOffsets(anchorWpnCvar) + extraOffset;
+
+    const int anchorVertex = static_cast<int>(
+        VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::WpnTextAnchorVertex));
+
+    const bool hideText =
+        static_cast<WpnTextMode>(VR_GetWpnCVarValue(
+            anchorWpnCvar, WpnCVar::WpnTextMode)) == WpnTextMode::None;
+
+    const qvec3 pos = VR_GetScaledAndAngledAliasVertexPosition(
+        anchor, anchorVertex, extraOffsets, handRot, horizFlip);
+
+    qvec3 angles = VR_GetWpnTextAngles(anchorWpnCvar);
+    if(horizFlip)
+    {
+        angles[ROLL] *= -1.f;
+    }
+
+    wpnText->origin = pos;
+    wpnText->hidden = hideText;
+    wpnText->horizFlip = horizFlip;
+    wpnText->angles = handRot + angles;
+    wpnText->scale = VR_GetWpnCVarValue(anchorWpnCvar, WpnCVar::WpnTextScale);
+}
+
 static void V_RenderView_WeaponModels()
 {
     // -------------------------------------------------------------------
@@ -1787,6 +1817,30 @@ static void V_RenderView_WeaponButtonModels()
         vec3_zero, true);
 }
 
+static void V_RenderView_WeaponText()
+{
+    // -------------------------------------------------------------------
+    // VR: Setup weapon text.
+    const auto doWpnText = [&](entity_t* wpnEnt, textentity_t* textEnt,
+                               const int hand, const qvec3& extraOffset,
+                               const bool horizFlip) {
+        if(wpnEnt->model == nullptr)
+        {
+            return;
+        }
+
+        const int wpnCvar = VR_GetWpnCVarFromModel(wpnEnt->model);
+
+        V_SetupWpnTextViewEnt(
+            wpnCvar, wpnEnt, textEnt, cl.handrot[hand], extraOffset, horizFlip);
+    };
+
+    doWpnText(
+        &cl.viewent, &cl.mainhand_wpn_text, cVR_MainHand, vec3_zero, false);
+    doWpnText(&cl.offhand_viewent, &cl.offhand_wpn_text, cVR_OffHand, vec3_zero,
+        true);
+}
+
 /*
 ==================
 V_RenderView
@@ -1815,6 +1869,7 @@ void V_RenderView()
         V_RenderView_HandModels();
         V_RenderView_VRTorsoModel();
         V_RenderView_WeaponButtonModels();
+        V_RenderView_WeaponText();
 
         R_RenderView();
     }

@@ -1,3 +1,9 @@
+## Ignore copyrighted ID Software files you may have put in "ReleaseFiles"
+ReleaseFiles/Id1/PAK0.PAK
+ReleaseFiles/Id1/PAK1.PAK
+ReleaseFiles/Id1/glquake/
+
+*.bak
 build
 Windows/build
 .fuse*

@@ -81,7 +81,7 @@ namespace quake::saveutil
 
 [[nodiscard]] std::time_t& lastAutosaveTime() noexcept
 {
-    static std::time_t res{std::time(0)};
+    static std::time_t res{std::time(nullptr)};
     return res;
 }
 
@@ -187,7 +187,7 @@ void doAutosave() noexcept
     }
 
     const int idx = getNextAutosaveSlot();
-    const std::time_t now = std::time(0);
+    const std::time_t now = std::time(nullptr);
 
     char name[64];
     q_snprintf(name, sizeof(name), "auto%d", idx);
@@ -210,7 +210,7 @@ void doAutosave() noexcept
 
 void doAutomaticAutosave() noexcept
 {
-    const std::time_t now = std::time(0);
+    const std::time_t now = std::time(nullptr);
 
     const int secondDiff = quake::saveutil::timeDiffInSeconds(
         quake::saveutil::lastAutosaveTime(), now);
@@ -229,11 +229,10 @@ void doChangelevelAutosave() noexcept
         return;
     }
 
-    const std::time_t now = std::time(0);
+    const std::time_t now = std::time(nullptr);
 
     quake::saveutil::doAutosave();
     quake::saveutil::lastAutosaveTime() = now;
 }
-
 
 } // namespace quake::saveutil

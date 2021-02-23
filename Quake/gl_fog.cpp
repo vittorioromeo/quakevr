@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -105,13 +105,9 @@ handle an SVC_FOG message from server
 void Fog_ParseServerMessage()
 {
     float density;
-
     float red;
-
     float green;
-
     float blue;
-
     float time;
 
     density = MSG_ReadByte() / 255.0;
@@ -184,7 +180,6 @@ called at map load
 void Fog_ParseWorldspawn()
 {
     char key[128];
-
     char value[4096];
     const char* data;
 
@@ -414,6 +409,27 @@ void Fog_NewMap()
 {
     Fog_ParseWorldspawn(); // for global fog
     Fog_MarkModels();      // for volumetric fog
+}
+
+/*
+=============
+Fog_GetFogCommand
+
+so fog is preserved when starting a demo recording
+=============
+*/
+// QSS
+const char* Fog_GetFogCommand()
+{
+    if(fade_done)
+    { // if this mod is using dynamic fog, make sure we start with the right
+      // values.
+        // don't bother with this if we got fog from a clientside worldspawn
+        // key.
+        return va(
+            "\nfog %g %g %g %g\n", fog_density, fog_red, fog_green, fog_blue);
+    }
+    return nullptr;
 }
 
 /*

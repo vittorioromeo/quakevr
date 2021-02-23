@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -33,7 +33,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.hpp"
 #include "client.hpp"
 #include "view.hpp"
+#include "snd_voip.hpp"
+#include "vr_cvars.hpp"
+#include "cvar.hpp"
 
+extern bool premul_hud;
 int sb_updates; // if >= vid.numpages, no update needed
 
 #define STAT_MINUS 10 // num frame for '-' stats digit
@@ -77,7 +81,7 @@ qpic_t* hsb_items[2];
 
 void Sbar_MiniDeathmatchOverlay();
 void Sbar_DeathmatchOverlay();
-
+void M_DrawPic(int x, int y, qpic_t* pic);
 
 /*
 ===============
@@ -119,6 +123,32 @@ void Sbar_Changed()
 {
     sb_updates = 0; // update next frame
 }
+
+#if 0
+qpic_t* Sbar_CheckPicFromWad(const char* name)
+{
+    extern qpic_t* pic_nul;
+    qpic_t* r;
+    lumpinfo_t* info;
+    if(!hudtype)
+    {
+        return pic_nul; // one already failed, don't waste cpu
+    }
+    if(!W_GetLumpName(name, &info))
+    {
+        r = pic_nul;
+    }
+    else
+    {
+        r = Draw_PicFromWad(name);
+    }
+    if(r == pic_nul)
+    {
+        hudtype = 0;
+    }
+    return r;
+}
+#endif
 
 /*
 ===============
@@ -299,15 +329,24 @@ Sbar_DrawPicAlpha -- johnfitz
 */
 void Sbar_DrawPicAlpha(int x, int y, qpic_t* pic, float alpha)
 {
-    glDisable(GL_ALPHA_TEST);
-    glEnable(GL_BLEND);
-    glColor4f(1, 1, 1, alpha);
-    Draw_Pic(x, y + 24, pic);
-    glColor4f(
-        1, 1, 1, 1); // ericw -- changed from glColor3f to work around intel 855
-                     // bug with "r_oldwater 0" and "scr_sbaralpha 0"
-    glDisable(GL_BLEND);
-    glEnable(GL_ALPHA_TEST);
+    if(premul_hud)
+    {
+        glColor4f(alpha, alpha, alpha, alpha);
+        Draw_Pic(x, y + 24, pic);
+        glColor4f(1, 1, 1, 1);
+    }
+    else
+    {
+        glDisable(GL_ALPHA_TEST);
+        glEnable(GL_BLEND);
+        glColor4f(1, 1, 1, alpha);
+        Draw_Pic(x, y + 24, pic);
+        glColor4f(
+            1, 1, 1, 1); // ericw -- changed from glColor3f to work around intel
+                         // 855 bug with "r_oldwater 0" and "scr_sbaralpha 0"
+        glDisable(GL_BLEND);
+        glEnable(GL_ALPHA_TEST);
+    }
 }
 
 /*
@@ -326,9 +365,9 @@ void Sbar_DrawCharacter(int x, int y, int num)
 Sbar_DrawString -- johnfitz -- rewritten now that GL_SetCanvas is doing the work
 ================
 */
-void Sbar_DrawString(int x, int y, const char* str)
+void Sbar_DrawString(int x, int y, const char* str, float scale = 1.f)
 {
-    Draw_String(x, y + 24, str);
+    Draw_String(x, y + 24, str, scale);
 }
 
 /*
@@ -411,7 +450,7 @@ int Sbar_itoa(int num, char* buf)
 Sbar_DrawNum
 =============
 */
-void Sbar_DrawNum(int x, int y, int num, int digits, int color)
+int Sbar_DrawNum(int x, int y, int num, int digits, int color)
 {
     char str[12];
     char* ptr;
@@ -449,6 +488,8 @@ void Sbar_DrawNum(int x, int y, int num, int digits, int color)
         x += 24;
         ptr++;
     }
+
+    return x;
 }
 
 //=============================================================================
@@ -1073,6 +1114,43 @@ void Sbar_DrawFace()
     Sbar_DrawPic(112, 0, sb_faces[f][anim]);
 }
 
+static void Sbar_Voice(int y)
+{
+    cvar_t snd_voip_showmeter;
+    int loudness;
+    snd_voip_showmeter.value = 1;
+    if(!snd_voip_showmeter.value)
+    {
+        return;
+    }
+    loudness = S_Voip_Loudness(snd_voip_showmeter.value >= 2);
+    if(loudness >= 0)
+    {
+        int cw = 8;
+        int w;
+        int x = 160;
+        int s, i;
+        float range = loudness / 100.0f;
+        w = (5 + 16 + 1) * cw;
+        x -= w / 2;
+        Draw_Character(x, y, 'M');
+        x += cw;
+        Draw_Character(x, y, 'i');
+        x += cw;
+        Draw_Character(x, y, 'c');
+        x += cw;
+        x += cw;
+        Draw_Character(x, y, 0xe080);
+        x += cw;
+        for(s = x, i = 0; i < 16; i++, x += cw)
+        {
+            Draw_Character(x, y, 0xe081);
+        }
+        Draw_Character(x, y, 0xe082);
+        Draw_Character(s + (x - s) * range - cw / 2, y, 0xe083);
+    }
+}
+
 /*
 ===============
 Sbar_Draw
@@ -1103,6 +1181,19 @@ void Sbar_Draw()
     sb_updates++;
 
     GL_SetCanvas(CANVAS_DEFAULT); // johnfitz
+
+    if(sb_lines > 24)
+    {
+        Sbar_Voice(-32);
+    }
+    else if(sb_lines > 0)
+    {
+        Sbar_Voice(-8);
+    }
+    else
+    {
+        Sbar_Voice(16);
+    }
 
     // johnfitz -- don't waste fillrate by clearing the area behind the sbar
     w = CLAMP(320.0f, scr_sbarscale.value * 320.0f, (float)glwidth);
@@ -1270,22 +1361,52 @@ void Sbar_Draw()
             drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
-        const auto drawAmmoCounter = [&](const int x, const int ammoStat,
-                                         const int ammoCounterStat) {
-            const int aid = static_cast<int>(cl.stats[ammoStat]);
-            if(aid == AID_NONE)
-            {
-                return;
-            }
-
-            Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
-                cl.stats[ammoCounterStat] <= 10);
-        };
-
         // TODO VR: (P1) ammo2 as well, make this status bar better. Two status
         // bars?
-        drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
-        drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        if(quake::vr::get_weapon_reloading_enabled())
+        {
+            const auto drawClipAmmoCounter =
+                [&](const int x, const int clipStat, const int clipSizeStat,
+                    const int ammoStat, const int ammoCounterStat) {
+                    const int aid = static_cast<int>(cl.stats[ammoStat]);
+                    if(aid == AID_NONE)
+                    {
+                        return;
+                    }
+
+                    const int nextX =
+                        Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
+
+                    char buf[32];
+                    sprintf(buf, "/%d", cl.stats[clipSizeStat]);
+                    Sbar_DrawString(nextX + 4, 2, buf);
+
+                    sprintf(buf, "%d", cl.stats[ammoCounterStat]);
+                    Sbar_DrawString(nextX + 4, 10, buf, 1.4f);
+                };
+
+            drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,
+                STAT_AMMO, STAT_AMMOCOUNTER);
+            drawClipAmmoCounter(ammo2Pos, STAT_WEAPONCLIP2,
+                STAT_WEAPONCLIPSIZE2, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        }
+        else
+        {
+            const auto drawAmmoCounter = [&](const int x, const int ammoStat,
+                                             const int ammoCounterStat) {
+                const int aid = static_cast<int>(cl.stats[ammoStat]);
+                if(aid == AID_NONE)
+                {
+                    return;
+                }
+
+                Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
+                    cl.stats[ammoCounterStat] <= 10);
+            };
+
+            drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
+            drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
+        }
     }
 
     // johnfitz -- removed the vid.width > 320 check here
@@ -1392,6 +1513,12 @@ void Sbar_DeathmatchOverlay()
         bottom = (s->colors & 15) << 4;
         top = Sbar_ColorForMap(top);
         bottom = Sbar_ColorForMap(bottom);
+
+        if(S_Voip_Speaking(k))
+        { // spike -- display an underlay for people who are speaking
+            Draw_Fill(
+                x, y, 320 - x * 2, 8, ((k + 1) == cl.viewentity) ? 75 : 73, 1);
+        }
 
         Draw_Fill(x, y, 40, 4, top, 1);        // johnfitz -- stretched overlays
         Draw_Fill(x, y + 4, 40, 4, bottom, 1); // johnfitz -- stretched overlays

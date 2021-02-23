@@ -49,12 +49,12 @@ static void S_MODPLUG_SetSettings(snd_stream_t* stream)
     }
 }
 
-static bool S_MODPLUG_CodecInitialize(void)
+static bool S_MODPLUG_CodecInitialize()
 {
     return true;
 }
 
-static void S_MODPLUG_CodecShutdown(void)
+static void S_MODPLUG_CodecShutdown()
 {
 }
 

@@ -367,15 +367,8 @@ void() Wiz_Missile =
     wiz_fast1();
 };
 
-/*QUAKED monster_wizard (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-*/
-void() monster_wizard =
+void() monster_wizard_precache =
 {
-    if(deathmatch)
-    {
-        remove(self);
-        return;
-    }
     precache_model("progs/wizard.mdl");
     precache_model("progs/h_wizard.mdl");
     precache_model("progs/w_spike.mdl");
@@ -387,6 +380,19 @@ void() monster_wizard =
     precache_sound("wizard/widle2.wav");
     precache_sound("wizard/wpain.wav");
     precache_sound("wizard/wsight.wav");
+}
+
+/*QUAKED monster_wizard (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+*/
+void() monster_wizard =
+{
+    if(deathmatch)
+    {
+        remove(self);
+        return;
+    }
+
+    monster_wizard_precache();
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){

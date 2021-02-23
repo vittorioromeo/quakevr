@@ -60,6 +60,14 @@ typedef struct globalvars_s
 	float	parm30;
 	float	parm31;
 	float	parm32;
+	float	parm33;
+	float	parm34;
+	float	parm35;
+	float	parm36;
+	float	parm37;
+	float	parm38;
+	float	parm39;
+	float	parm40;
 	vec3_t	v_forward;
 	vec3_t	v_up;
 	vec3_t	v_right;
@@ -170,8 +178,9 @@ typedef struct entvars_s
 	string_t	noise2;
 	string_t	noise3;
 	vec3_t	v_viewangle;
-	vec3_t	scale;
-	vec3_t	scale_origin;
+	vec3_t	model_scale;
+	vec3_t	model_scale_origin;
+	vec3_t	model_offset;
 	float	vr_itemId;
 	func_t	handtouch;
 	func_t	vr_wpntouch;
@@ -182,6 +191,16 @@ typedef struct entvars_s
 	string_t	weaponmodel2;
 	float	weaponframe2;
 	float	weaponflags2;
+	float	weaponclip;
+	float	weaponclip2;
+	float	holsterweaponclip0;
+	float	holsterweaponclip1;
+	float	holsterweaponclip2;
+	float	holsterweaponclip3;
+	float	holsterweaponclip4;
+	float	holsterweaponclip5;
+	float	weaponclipsize;
+	float	weaponclipsize2;
 	float	holsterweapon0;
 	float	holsterweapon1;
 	float	holsterweapon2;
@@ -230,4 +249,4 @@ typedef struct entvars_s
 	float	ishuman;
 } entvars_t;
 
-#define PROGHEADER_CRC 51933
+#define PROGHEADER_CRC 52440

@@ -1,7 +1,7 @@
 /*
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 sys_socket_t WIPX_Init();
 void WIPX_Shutdown();
-void WIPX_Listen(bool state);
+sys_socket_t WIPX_Listen(bool state);
+int WIPX_GetAddresses(qhostaddr_t* addresses, int maxaddresses);
 sys_socket_t WIPX_OpenSocket(int port);
 int WIPX_CloseSocket(sys_socket_t socketid);
 int WIPX_Connect(sys_socket_t socketid, struct qsockaddr* addr);
@@ -34,7 +35,7 @@ int WIPX_Read(
 int WIPX_Write(
     sys_socket_t socketid, byte* buf, int len, struct qsockaddr* addr);
 int WIPX_Broadcast(sys_socket_t socketid, byte* buf, int len);
-const char* WIPX_AddrToString(struct qsockaddr* addr);
+const char* WIPX_AddrToString(struct qsockaddr* addr, bool masked);
 int WIPX_StringToAddr(const char* string, struct qsockaddr* addr);
 int WIPX_GetSocketAddr(sys_socket_t socketid, struct qsockaddr* addr);
 int WIPX_GetNameFromAddr(struct qsockaddr* addr, char* name);

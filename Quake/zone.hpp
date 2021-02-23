@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -128,10 +128,10 @@ template <typename T>
     return ptr;
 }
 
-[[nodiscard]] int Hunk_LowMark(void) noexcept;
+[[nodiscard]] int Hunk_LowMark() noexcept;
 void Hunk_FreeToLowMark(const int mark) noexcept;
 
-[[nodiscard]] int Hunk_HighMark(void) noexcept;
+[[nodiscard]] int Hunk_HighMark() noexcept;
 void Hunk_FreeToHighMark(const int mark) noexcept;
 
 void* Hunk_TempAlloc(int size);

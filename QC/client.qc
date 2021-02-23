@@ -73,9 +73,13 @@ void() SetChangeParms =
         parm3 = self.armorvalue;
 
         if(self.ammo_shells < 25)
+        {
             parm4 = 25;
+        }
         else
+        {
             parm4 = self.ammo_shells;
+        }
 
         parm5 = self.ammo_nails;
         parm6 = self.ammo_rockets;
@@ -118,6 +122,16 @@ void() SetChangeParms =
     parm28 = self.holsterweaponflags3;
     parm29 = self.holsterweaponflags4;
     parm30 = self.holsterweaponflags5;
+    parm31 = self.weaponclip;
+    parm32 = self.weaponclip2;
+    parm33 = self.holsterweaponclip0;
+    parm34 = self.holsterweaponclip1;
+    parm35 = self.holsterweaponclip2;
+    parm36 = self.holsterweaponclip3;
+    parm37 = self.holsterweaponclip4;
+    parm38 = self.holsterweaponclip5;
+    parm39 = self.weaponclipsize;
+    parm40 = self.weaponclipsize2;
 };
 
 void() OnSpawnServerBeforeLoad =
@@ -230,6 +244,14 @@ void() SetNewParms =
     parm28 = 0;
     parm29 = 0;
     parm30 = 0;
+    parm31 = 0;
+    parm32 = 0;
+    parm33 = 0;
+    parm34 = 0;
+    parm35 = 0;
+    parm36 = 0;
+    parm37 = 0;
+    parm38 = 0;
 };
 
 void() DecodeLevelParms =
@@ -284,6 +306,17 @@ void() DecodeLevelParms =
     self.holsterweaponmodel3 = WeaponIdToModel(self.holsterweapon3, parm28);
     self.holsterweaponmodel4 = WeaponIdToModel(self.holsterweapon4, parm29);
     self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5, parm30);
+
+    // ------------------------------------------------------------------------
+    // Weapon clips:
+    self.weaponclip = parm31;
+    self.weaponclip2 = parm32;
+    self.holsterweaponclip0 = parm33;
+    self.holsterweaponclip1 = parm34;
+    self.holsterweaponclip2 = parm35;
+    self.holsterweaponclip3 = parm36;
+    self.holsterweaponclip4 = parm37;
+    self.holsterweaponclip5 = parm38;
 
     // ------------------------------------------------------------------------
     // Mission packs:
@@ -363,9 +396,13 @@ string nextmap;
 void() GotoNextMap =
 {
     if(cvar_hget(cvarh_samelevel))    // if samelevel is set, stay on same level
-        changelevel (mapname);
+    {
+        changelevel(mapname);
+    }
     else
-        changelevel (nextmap);
+    {
+        changelevel(nextmap);
+    }
 };
 
 

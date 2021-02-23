@@ -43,7 +43,7 @@ void(float xHand) W_FireSuperLavaSpikes =
 
     sound(self, VRGetGunChannel(xHand), "weapons/spike2.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
-    delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 2);
+    delAmmoOrClipAndUpdateCounter(xHand, AID_LAVA_NAILS, 2);
 
     makeforward(VRGetWeaponFireRot(xHand));
     dir = v_forward;
@@ -68,20 +68,20 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     makevectors(VRGetWeaponFireRot(xHand));
 
-    if(self.ammo_lava_nails >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
+    if(getCurrentAmmoOrClip(xHand) >= 2 && VRGetWeapon(xHand) == WID_SUPER_NAILGUN)
     {
         W_FireSuperLavaSpikes(xHand);
         return;
     }
 
-    if(self.ammo_lava_nails < 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         return;
     }
 
     sound(self, VRGetGunChannel(xHand), "weapons/rocket1i.wav", 1, ATTN_NORM);
     VRSetAttackFinished(xHand, time + 0.2);
-    delAmmoAndUpdateCounter(xHand, AID_LAVA_NAILS, 1);
+    delAmmoOrClipAndUpdateCounter(xHand, AID_LAVA_NAILS, 1);
 
     dir = v_forward;
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);

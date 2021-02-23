@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,19 +24,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma once
 
 #include "q_stdinc.hpp"
+#include "srcformat.hpp"
+
 #include <cstdio>
 
 // image.h -- image reading / writing
 
 // be sure to free the hunk after using these loading functions
-byte* Image_LoadTGA(FILE* f, int* width, int* height);
-byte* Image_LoadPCX(FILE* f, int* width, int* height);
-byte* Image_LoadImage(const char* name, int* width, int* height);
+[[nodiscard]] byte* Image_LoadTGA(FILE* f, int* width, int* height);
+[[nodiscard]] byte* Image_LoadPCX(FILE* f, int* width, int* height);
 
-bool Image_WriteTGA(const char* name, byte* data, int width, int height,
-    int bpp, bool upsidedown);
-bool Image_WritePNG(const char* name, byte* data, int width, int height,
-    int bpp, bool upsidedown);
-bool Image_WriteJPG(const char* name, byte* data, int width, int height,
-    int bpp, int quality, bool upsidedown);
+// QSS
+[[nodiscard]] byte* Image_LoadImage(
+    const char* name, int* width, int* height, srcformat* fmt, bool* malloced);
+[[nodiscard]] byte* Image_LoadImage(const char* name, int* width, int* height);
 
+[[nodiscard]] bool Image_WriteTGA(const char* name, byte* data, int width,
+    int height, int bpp, bool upsidedown);
+[[nodiscard]] bool Image_WritePNG(const char* name, byte* data, int width,
+    int height, int bpp, bool upsidedown);
+[[nodiscard]] bool Image_WriteJPG(const char* name, byte* data, int width,
+    int height, int bpp, int quality, bool upsidedown);

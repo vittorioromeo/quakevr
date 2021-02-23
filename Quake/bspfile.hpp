@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -110,7 +110,7 @@ typedef struct
     float mins[3], maxs[3];
     float origin[3];
     int headnode[4];
-    int visleafs;		// not including the solid leaf 0
+    int visleafs; // not including the solid leaf 0
     int firstface, numfaces;
 } dmodelq1_t;
 
@@ -120,7 +120,7 @@ typedef struct
     float mins[3], maxs[3];
     float origin[3];
     int headnode[8];
-    int visleafs;		// not including the solid leaf 0
+    int visleafs; // not including the solid leaf 0
     int firstface, numfaces;
 } dmodelh2_t;
 
@@ -186,7 +186,7 @@ typedef struct
 #define CONTENTS_CURRENT_DOWN -14
 
 // QSS
-#define	CONTENTS_LADDER -16
+#define CONTENTS_LADDER -16
 
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
@@ -376,7 +376,7 @@ extern int numvertexes;
 extern dvertex_t dvertexes[MAX_MAP_VERTS];
 
 extern int numnodes;
-extern dnode_t dnodes[MAX_MAP_NODES];
+extern dsnode_t dnodes[MAX_MAP_NODES];
 
 extern int numtexinfo;
 extern texinfo_t texinfo[MAX_MAP_TEXINFO];

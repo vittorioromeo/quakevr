@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2005 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,17 +29,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #import <Cocoa/Cocoa.h>
 
-void PL_SetWindowIcon(void)
+void PL_SetWindowIcon()
 {
     /* nothing to do on OS X */
 }
 
-void PL_VID_Shutdown(void)
+void PL_VID_Shutdown()
 {
 }
 
 #define MAX_CLIPBOARDTXT MAXCMDLINE /* 256 */
-char* PL_GetClipboardData(void)
+char* PL_GetClipboardData()
 {
     char* data = nullptr;
     NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];

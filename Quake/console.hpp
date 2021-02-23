@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -46,10 +46,17 @@ void Con_DWarning(const char* fmt, ...) FUNC_PRINTF(1, 2); // ericw
 void Con_Warning(const char* fmt, ...) FUNC_PRINTF(1, 2);  // johnfitz
 void Con_DPrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DPrintf2(const char* fmt, ...) FUNC_PRINTF(1, 2); // johnfitz
+void Con_DPrintf3(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_SafePrintf(const char* fmt, ...) FUNC_PRINTF(1, 2);
 void Con_DrawNotify();
 void Con_ClearNotify();
 void Con_ToggleConsole_f();
+
+// QSS
+bool Con_IsRedirected(); // returns true if its redirected. this generally means
+                         // that things are a little more verbose.
+
+void Con_Redirect(void (*flush)(const char* text));
 
 void Con_NotifyBox(const char* text); // during startup for sound / cd warnings
 

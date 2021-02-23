@@ -203,6 +203,22 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFlags,
                           &self.weaponflags2,
                           &self.weaponflags);
 
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClip,
+                          self.weaponclip2,
+                          self.weaponclip);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClip,
+                          &self.weaponclip2,
+                          &self.weaponclip);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClipSize,
+                          self.weaponclipsize2,
+                          self.weaponclipsize);
+
+VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClipSize,
+                          &self.weaponclipsize2,
+                          &self.weaponclipsize);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetLavaGunFired,
                           self.offHandLavaGunFired,
                           self.mainHandLavaGunFired);
@@ -246,6 +262,18 @@ void(entity e, float xHand, float v) VRSetEntWeaponFlags =
     else                     e.weaponflags = v;
 }
 
+void(entity e, float xHand, float v) VRSetEntWeaponClip =
+{
+    if(xHand == cVR_OffHand) e.weaponclip2 = v;
+    else                     e.weaponclip = v;
+}
+
+void(entity e, float xHand, float v) VRSetEntWeaponClipSize =
+{
+    if(xHand == cVR_OffHand) e.weaponclipsize2 = v;
+    else                     e.weaponclipsize = v;
+}
+
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -263,6 +291,18 @@ float(entity e, float xHand) VRGetEntWeaponFlags =
     else                     return e.weaponflags;
 }
 
+float(entity e, float xHand) VRGetEntWeaponClip =
+{
+    if(xHand == cVR_OffHand) return e.weaponclip2;
+    else                     return e.weaponclip;
+}
+
+float(entity e, float xHand) VRGetEntWeaponClipSize =
+{
+    if(xHand == cVR_OffHand) return e.weaponclipsize2;
+    else                     return e.weaponclipsize;
+}
+
 float*(entity e, float xHand) VRGetEntWeaponPtr =
 {
     if(xHand == cVR_OffHand) return &e.weapon2;
@@ -275,6 +315,18 @@ float*(entity e, float xHand) VRGetEntWeaponFlagsPtr =
     else                     return &e.weaponflags;
 }
 
+float*(entity e, float xHand) VRGetEntWeaponClipPtr =
+{
+    if(xHand == cVR_OffHand) return &e.weaponclip2;
+    else                     return &e.weaponclip;
+}
+
+float*(entity e, float xHand) VRGetEntWeaponClipSizePtr =
+{
+    if(xHand == cVR_OffHand) return &e.weaponclipsize2;
+    else                     return &e.weaponclipsize;
+}
+
 float(entity e, float xHand) VRIsHandEmpty =
 {
     return VRGetEntWeapon(e, xHand) == WID_FIST;
@@ -284,6 +336,7 @@ void(entity e, float xHand) VRSetHandEmpty =
 {
     VRSetEntWeapon(e, xHand, WID_FIST);
     VRSetEntWeaponFlags(e, xHand, 0);
+    VRSetEntWeaponClip(e, xHand, 0);
 }
 
 float(float xHand) VRGetWeapon =
@@ -301,6 +354,18 @@ float(entity e, float xHand) VRIsEntHandPrevGrabbingBit =
 {
     if(xHand == cVR_OffHand) return VRGetOffHandPrevGrabbingBit(e);
     else                     return VRGetMainHandPrevGrabbingBit(e);
+}
+
+float(entity e, float xHand) VRIsEntHandReloadingBit =
+{
+    if(xHand == cVR_OffHand) return VRGetOffHandReloadingBit(e);
+    else                     return VRGetMainHandReloadingBit(e);
+}
+
+float(entity e, float xHand) VRIsEntHandPrevReloadingBit =
+{
+    if(xHand == cVR_OffHand) return VRGetOffHandPrevReloadingBit(e);
+    else                     return VRGetMainHandPrevReloadingBit(e);
 }
 
 float(entity e, float xHand) VRGetEntForceGrabbing =
@@ -395,6 +460,27 @@ float(entity ent) VRGet2HAiming =
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING);
 }
 
+float(entity ent) VRGetOffHandReloadingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADING);
+}
+
+float(entity ent) VRGetOffHandPrevReloadingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADING);
+}
+
+float(entity ent) VRGetMainHandReloadingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADING);
+}
+
+float(entity ent) VRGetMainHandPrevReloadingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING);
+}
+
+
 void(entity ent, float value) VRSetTeleporting =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING, value);
@@ -423,4 +509,37 @@ void(entity ent, float value) VRSetMainHandPrevGrabbingBit =
 void(entity ent, float value) VRSet2HAiming =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
+}
+
+void(entity ent, float value) VRSetOffHandReloadingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADING, value);
+}
+
+void(entity ent, float value) VRSetOffHandPrevReloadingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADING, value);
+}
+
+void(entity ent, float value) VRSetMainHandReloadingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADING, value);
+}
+
+void(entity ent, float value) VRSetMainHandPrevReloadingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING, value);
+}
+
+float() VRIsWeaponReloadingEnabled =
+{
+    return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
+           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
+}
+
+float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
+{
+    return ent.ishuman &&
+           VRIsWeaponReloadingEnabled() &&
+           WeaponIdToSupportsReload(VRGetWeapon(xHand));
 }

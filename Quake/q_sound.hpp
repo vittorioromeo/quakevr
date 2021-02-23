@@ -3,7 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
-Copyright (C) 2020-2020 Vittorio Romeo
+Copyright (C) 2020-2021 Vittorio Romeo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -78,9 +78,9 @@ typedef struct
     int looping;  /* where to loop, -1 = no looping		*/
     int entnum;   /* to allow overriding a specific sound		*/
     int entchannel;
-    qvec3 origin; /* origin of sound effect			*/
-    float dist_mult;  /* distance multiplier (attenuation/clipK)	*/
-    int master_vol;   /* 0-255 master volume				*/
+    qvec3 origin;    /* origin of sound effect			*/
+    float dist_mult; /* distance multiplier (attenuation/clipK)	*/
+    int master_vol;  /* 0-255 master volume				*/
 } channel_t;
 
 #define WAV_FORMAT_PCM 1
@@ -98,15 +98,15 @@ typedef struct
 void S_Init();
 void S_Startup();
 void S_Shutdown();
-void S_StartSound(int entnum, int entchannel, sfx_t* sfx,
-    const qvec3& origin, float fvol, float attenuation);
+void S_StartSound(int entnum, int entchannel, sfx_t* sfx, const qvec3& origin,
+    float fvol, float attenuation);
 void S_StaticSound(
     sfx_t* sfx, const qvec3& origin, float vol, float attenuation);
 void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(bool clear);
 void S_ClearBuffer();
-void S_Update(const qvec3& origin, const qvec3& forward,
-    const qvec3& right, const qvec3& up);
+void S_Update(const qvec3& origin, const qvec3& forward, const qvec3& right,
+    const qvec3& up);
 void S_ExtraUpdate();
 
 void S_BlockSound();
@@ -114,9 +114,6 @@ void S_UnblockSound();
 
 sfx_t* S_PrecacheSound(const char* sample);
 void S_TouchSound(const char* sample);
-void S_ClearPrecache();
-void S_BeginPrecaching();
-void S_EndPrecaching();
 void S_PaintChannels(int endtime);
 void S_InitPaintChannels();
 
@@ -157,10 +154,12 @@ void SNDDMA_UnblockSound();
  * ====================================================================
  */
 
-#define MAX_CHANNELS 1024        // ericw -- was 512 /* johnfitz -- was 128 */
+//#define	MAX_CHANNELS		1024 // spike -- made this obsolete. ericw --
+// was 512
+///* johnfitz -- was 128 */
 #define MAX_DYNAMIC_CHANNELS 128 /* johnfitz -- was 8   */
 
-extern channel_t snd_channels[MAX_CHANNELS];
+extern channel_t* snd_channels;
 /* 0 to MAX_DYNAMIC_CHANNELS-1	= normal entity sounds
  * MAX_DYNAMIC_CHANNELS to MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS -1 = water, etc
  * MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS to total_channels = static sounds
@@ -168,10 +167,13 @@ extern channel_t snd_channels[MAX_CHANNELS];
 
 extern volatile dma_t* shm;
 
+extern int max_channels;
 extern int total_channels;
 extern int soundtime;
 extern int paintedtime;
 extern int s_rawend;
+
+extern float voicevolumescale;
 
 extern qvec3 listener_origin;
 extern qvec3 listener_forward;

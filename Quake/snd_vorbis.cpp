@@ -65,12 +65,12 @@ static ov_callbacks ovc_qfs = {
     (int (*)(void*, ogg_int64_t, int))ovc_fseek, (int (*)(void*))ovc_fclose,
     (long (*)(void*))FS_ftell};
 
-static bool S_VORBIS_CodecInitialize(void)
+static bool S_VORBIS_CodecInitialize()
 {
     return true;
 }
 
-static void S_VORBIS_CodecShutdown(void)
+static void S_VORBIS_CodecShutdown()
 {
 }
 
