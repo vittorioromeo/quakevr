@@ -3089,12 +3089,12 @@ void(float xHand) W_WeaponFrameImpl =
 
 float(float xHolster) getHolsterWeapon =
 {
-    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweapon0;
-    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweapon1;
-    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweapon2;
-    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweapon3;
-    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweapon4;
-    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweapon5;
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return self.holsterweapon0; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return self.holsterweapon1; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return self.holsterweapon2; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return self.holsterweapon3; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return self.holsterweapon4; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return self.holsterweapon5; }
 
     bprint("`getHolsterWeapon`: invalid holster ID: ");
     bprint(ftos(xHolster));
@@ -3122,12 +3122,12 @@ void(float xHolster, float v) setHolsterWeapon =
 
 float(float xHolster) getHolsterWeaponClip =
 {
-    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponclip0;
-    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponclip1;
-    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponclip2;
-    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponclip3;
-    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponclip4;
-    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponclip5;
+    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return self.holsterweaponclip0; }
+    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return self.holsterweaponclip1; }
+    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return self.holsterweaponclip2; }
+    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return self.holsterweaponclip3; }
+    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return self.holsterweaponclip4; }
+    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return self.holsterweaponclip5; }
 
     bprint("`getHolsterWeaponClip`: invalid holster ID: ");
     bprint(ftos(xHolster));
