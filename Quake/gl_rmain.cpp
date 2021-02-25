@@ -1541,11 +1541,14 @@ void R_RenderScene()
                 0.10f * textEnt.scale);
         };
 
-    drawWeaponAmmoText(cl.mainhand_wpn_text, STAT_WEAPONCLIP,
-        STAT_WEAPONCLIPSIZE, STAT_AMMOCOUNTER);
+    if(vr_show_weapon_text.value)
+    {
+        drawWeaponAmmoText(cl.mainhand_wpn_text, STAT_WEAPONCLIP,
+            STAT_WEAPONCLIPSIZE, STAT_AMMOCOUNTER);
 
-    drawWeaponAmmoText(cl.offhand_wpn_text, STAT_WEAPONCLIP2,
-        STAT_WEAPONCLIPSIZE2, STAT_AMMOCOUNTER2);
+        drawWeaponAmmoText(cl.offhand_wpn_text, STAT_WEAPONCLIP2,
+            STAT_WEAPONCLIPSIZE2, STAT_AMMOCOUNTER2);
+    }
 
     if(vr_leg_holster_model_enabled.value)
     {
