@@ -205,3 +205,5 @@ At the moment there is no server browser and no dedicated server support. Also, 
 * Tom's [gameplay video](https://www.youtube.com/watch?v=96xC_khtrUE).
 
 * GmanLives's [classic FPS in VR video](https://www.youtube.com/watch?v=FukJelV3-Yk), which also includes Quake VR.
+
+* DoomSly82's ["Remember To Reload" Gameplay Video](https://www.youtube.com/watch?v=EKaRcYbmYHE), which covers update v0.0.6.
