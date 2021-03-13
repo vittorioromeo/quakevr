@@ -4118,7 +4118,7 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(isReloadHolsterHotspot(xHotspot))
+            if(VRIsWeaponReloadingEnabled() && isReloadHolsterHotspot(xHotspot))
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }
@@ -4282,3 +4282,7 @@ void() SuperDamageSound =
     }
 };
 
+
+
+// TODO VR: (P0) test reload disabled touching holster, release hotfix
+// TODO VR: (P0)
