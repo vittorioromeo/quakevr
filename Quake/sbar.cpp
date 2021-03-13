@@ -1361,6 +1361,18 @@ void Sbar_Draw()
             drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
+        const auto drawAmmoCounter = [&](const int x, const int ammoStat,
+                                         const int ammoCounterStat) {
+            const int aid = static_cast<int>(cl.stats[ammoStat]);
+            if(aid == AID_NONE)
+            {
+                return;
+            }
+
+            Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
+                cl.stats[ammoCounterStat] <= 10);
+        };
+
         // TODO VR: (P1) ammo2 as well, make this status bar better. Two status
         // bars?
         if(quake::vr::get_weapon_reloading_enabled())
@@ -1371,6 +1383,13 @@ void Sbar_Draw()
                     const int aid = static_cast<int>(cl.stats[ammoStat]);
                     if(aid == AID_NONE)
                     {
+                        return;
+                    }
+
+                    if(cl.stats[clipSizeStat] == 0)
+                    {
+                        // Weapon does not support reloading.
+                        drawAmmoCounter(x, ammoStat, ammoCounterStat);
                         return;
                     }
 
@@ -1387,23 +1406,12 @@ void Sbar_Draw()
 
             drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,
                 STAT_AMMO, STAT_AMMOCOUNTER);
+
             drawClipAmmoCounter(ammo2Pos, STAT_WEAPONCLIP2,
                 STAT_WEAPONCLIPSIZE2, STAT_AMMO2, STAT_AMMOCOUNTER2);
         }
         else
         {
-            const auto drawAmmoCounter = [&](const int x, const int ammoStat,
-                                             const int ammoCounterStat) {
-                const int aid = static_cast<int>(cl.stats[ammoStat]);
-                if(aid == AID_NONE)
-                {
-                    return;
-                }
-
-                Sbar_DrawNum(x, 0, cl.stats[ammoCounterStat], 3,
-                    cl.stats[ammoCounterStat] <= 10);
-            };
-
             drawAmmoCounter(ammoPos, STAT_AMMO, STAT_AMMOCOUNTER);
             drawAmmoCounter(ammo2Pos, STAT_AMMO2, STAT_AMMOCOUNTER2);
         }

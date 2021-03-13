@@ -1527,7 +1527,8 @@ void R_RenderScene()
 
             char buf[64];
 
-            if(quake::vr::get_weapon_reloading_enabled())
+            if(quake::vr::get_weapon_reloading_enabled() &&
+                cl.stats[statClipSizeIdx] != 0)
             {
                 sprintf(buf, "%d/%d\n%d", cl.stats[statClipIdx],
                     cl.stats[statClipSizeIdx], cl.stats[statAmmoCounterIdx]);
