@@ -73,6 +73,13 @@ void() updateAmmoCounters =
     updateAmmoCounter(cVR_MainHand, VRGetCurrentAmmo(cVR_MainHand));
 }
 
+void(float xHand, float xAid, float xValue) addAmmoAndUpdateCounter =
+{
+    VR_AmmoUtil_AddAmmoCountByAmmoId(self, xAid, xValue);
+    updateAmmoCounters();
+    // updateAmmoCounter(xHand, xAid);
+}
+
 void(float xHand, float xAid, float xValue) delAmmoAndUpdateCounter =
 {
     VR_AmmoUtil_DelAmmoCountByAmmoId(self, xAid, xValue);
@@ -2870,10 +2877,16 @@ ImpulseCommands
 */
 void(float xHand) ToggleSecondaryAmmo =
 {
-    if(!WeaponSupportsSecondaryAmmoFlag(VRGetWeapon(xHand)))
+    float weapon = VRGetWeapon(xHand);
+
+    if(!WeaponSupportsSecondaryAmmoFlag(weapon))
     {
         return;
     }
+
+    VRTryUnloadWeapon(self, xHand, weapon,
+        VRGetWeaponFlags(xHand), VRGetWeaponClip(xHand),
+        VRGetEntWeaponClipPtr(self, xHand));
 
     VRGunHaptic(VRGetOtherHand(xHand), 0.3, 75, 1.0);
     sound(self, VRGetGunChannel(xHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
@@ -3999,14 +4012,37 @@ VRReloadWeapon =
 }
 
 void(entity entPlayer, float xHand,
+    float xWeapon, float xWeaponFlags, float xWeaponClip, float* xOutWeaponClip)
+VRUnloadWeapon =
+{
+    VRGunHaptic(xHand, 0.25, 70, 1.0);
+    sound(entPlayer, CHAN_BODY, "reload1.wav", 1, ATTN_NORM);
+
+    float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
+
+    addAmmoAndUpdateCounter(xHand, ammoId, xWeaponClip);
+    *xOutWeaponClip = 0;
+}
+
+void(entity entPlayer, float xHand,
      float xWeapon, float xWeaponFlags, float xWeaponClip, float* xOutWeaponClip)
 VRTryReloadWeapon =
 {
-    if(VRIsWeaponReloadingEnabled() &&
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) &&
        (xWeaponClip < WeaponIdToBaseClipSize(xWeapon)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
         VRReloadWeapon(entPlayer, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
+    }
+}
+
+void(entity entPlayer, float xHand,
+     float xWeapon, float xWeaponFlags, float xWeaponClip, float* xOutWeaponClip)
+VRTryUnloadWeapon =
+{
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && xWeaponClip > 0)
+    {
+        VRUnloadWeapon(entPlayer, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
     }
 }
 
@@ -4118,7 +4154,7 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabled() && isReloadHolsterHotspot(xHotspot))
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot))
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }
@@ -4281,8 +4317,3 @@ void() SuperDamageSound =
         }
     }
 };
-
-
-
-// TODO VR: (P0) test reload disabled touching holster, release hotfix
-// TODO VR: (P0)
