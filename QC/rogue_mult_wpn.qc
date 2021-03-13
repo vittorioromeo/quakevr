@@ -365,6 +365,8 @@ void(float xHand) W_FireMultiRocket =
     MultiRocketLaunch(xHand, -5, 3);
     MultiRocketLaunch(xHand, 5, 0);
     MultiRocketLaunch(xHand, 10, 1);
+
+    VRGunHaptic(xHand, 0.5, 75, 1.0);
 };
 
 //=============================================================================
@@ -586,6 +588,8 @@ void(float xHand) W_FirePlasma =
     delAmmoOrClipAndUpdateCounter(xHand, AID_PLASMA, 1);
 
     sound(self, VRGetGunChannel(xHand), "plasma/fire.wav", 0.5, ATTN_NORM);
+    VRGunHaptic(xHand, 0.5, 75, 1.0);
+
     self.punchangle_x = -2;
 
     makevectors(VRGetWeaponFireRot(xHand));
