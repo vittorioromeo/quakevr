@@ -113,7 +113,7 @@ qfloat V_CalcRoll(const qvec3& angles, const qvec3& velocity)
     side = fabs(side);
 
     // VR: Don't roll view in VR.
-    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
+    if(vr_enabled.value)
     {
         value = 0;
     }
@@ -151,7 +151,7 @@ float V_CalcBob()
     float cycle;
 
     // VR: Don't bob if we're in VR.
-    if(vr_enabled.value /* TODO VR: (P2) create CVAR */)
+    if(vr_enabled.value)
     {
         return 0.f;
     }
@@ -878,8 +878,7 @@ void V_CalcViewRoll()
         v_dmg_time -= host_frametime;
     }
 
-    if(cl.stats[STAT_HEALTH] <= 0 &&
-        !VR_EnabledAndNotFake() /* TODO VR: (P2) create CVAR */)
+    if(cl.stats[STAT_HEALTH] <= 0 && !VR_EnabledAndNotFake())
     {
         r_refdef.viewangles[ROLL] = 80; // dead view angle
         return;

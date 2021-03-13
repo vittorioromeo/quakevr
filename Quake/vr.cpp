@@ -4637,16 +4637,11 @@ void VR_OnLoadedPak(pack_t& pak)
 // I guess. I personally need to go and alter about 3-4 variables each
 // release so it's manage-able for now."
 
-// TODO VR: (P1): "Seems like every beta I get 1-2 crashes, are there crash
-// reports or memory dumps that would be useful?"
-
 // TODO VR: (P1): "- Is it normal for the HUD in DOE to not show alternate ammo
 // counts unless the weapon is specifically selected and the alt ammo active?"
 
 // TODO VR: (P1): joining a multiplayer match with mismatched `start` map causes
 // weird glitches as the BSP geometry is incorrect
-
-// TODO VR: (P1): consider merging VOIP and better networking from QSS
 
 // TODO VR: (P1): are things like holster placement affected by server configs
 // in MP? Check
@@ -4657,10 +4652,6 @@ void VR_OnLoadedPak(pack_t& pak)
 // TODO VR: (P1): "I found that if you force-grab a BSP item (ammo, health) and
 // you have more than you can carry, when it drops to the floor it becomes solid
 // and you can walk on it."
-
-// TODO VR: (P1): "Finished the first chapter, and all game I'm getting error
-// messages for missing 'ting2.wav' and 'ting4.wav'. Anyone else seeing that? Or
-// is my install just borked"
 
 // TODO VR: (P1) Loading inexistent map crashes the game!
 
