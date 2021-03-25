@@ -18,7 +18,6 @@ void SZ_Alloc(sizebuf_t* buf, int startsize)
     buf->cursize = 0;
 }
 
-
 void SZ_Free(sizebuf_t* buf)
 {
     //	Z_Free (buf->data);
