@@ -178,7 +178,7 @@ void PR_Profile_f()
         return;
     }
 
-    PR_SwitchQCVM(&sv.qcvm);
+    QCVMGuard qg{&sv.qcvm};
 
     num = 0;
     do
@@ -205,8 +205,6 @@ void PR_Profile_f()
             best->profile = 0;
         }
     } while(best);
-
-    PR_SwitchQCVM(nullptr);
 }
 
 

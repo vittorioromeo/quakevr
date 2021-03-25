@@ -389,7 +389,8 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
     }
     else if(cl.qcvm.extfuncs.CSQC_InputEvent)
     {
-        PR_SwitchQCVM(&cl.qcvm);
+        QCVMGuard qg{&cl.qcvm};
+
         if(cl.csqc_cursorforced)
         {
             float s = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
@@ -408,13 +409,15 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
             G_VECTORSET(OFS_PARM2, dy, 0, 0);  // y
             G_VECTORSET(OFS_PARM3, 0, 0, 0);   // devid
         }
+
         PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_InputEvent);
+
         if(G_FLOAT(OFS_RETURN) || cl.csqc_cursorforced)
         {
             dx = dy = 0; // if the qc says it handled it, swallow the movement.
         }
-        PR_SwitchQCVM(nullptr);
     }
+
     total_dx += dx;
     total_dy += dy;
 }

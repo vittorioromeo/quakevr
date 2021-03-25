@@ -496,12 +496,11 @@ static void SCR_CalcRefdef()
     scale = CLAMP(1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
     if(size >= 120 || cl.intermission ||
-        (scr_sbaralpha.value < 1 ||
-            cl.qcvm.extfuncs.CSQC_DrawHud))
+        (scr_sbaralpha.value < 1 || cl.qcvm.extfuncs.CSQC_DrawHud))
     {
         // johnfitz -- scr_sbaralpha.value
-            // Spike -- simple csqc assumes
-            // fullscreen video the same way.
+        // Spike -- simple csqc assumes
+        // fullscreen video the same way.
         sb_lines = 0;
     }
     else if(size >= 110)
@@ -1467,12 +1466,8 @@ void SCR_UpdateScreen()
         // TODO VR: (P2) this is client side, but does use server logic. Should
         // be split accordingly and cleaned up.
 
-        qcvm_t* oldvm = qcvm;
-        PR_SwitchQCVM(&sv.qcvm);
-
+        QCVMGuard qg{&sv.qcvm};
         VR_UpdateScreenContent(); // phoboslab
-
-        PR_SwitchQCVM(oldvm);
     }
     else
     {

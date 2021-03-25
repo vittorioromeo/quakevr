@@ -8312,7 +8312,8 @@ void PR_AutoCvarChanged(cvar_t* var)
 
     if(sv.active)
     {
-        PR_SwitchQCVM(&sv.qcvm);
+        QCVMGuard qg{&sv.qcvm};
+
         n = va("autocvar_%s", var->name);
         glob = ED_FindGlobal(n);
         if(glob)
@@ -8322,13 +8323,14 @@ void PR_AutoCvarChanged(cvar_t* var)
                 Con_Warning("EXT: Unable to configure %s\n", n);
             }
         }
-        PR_SwitchQCVM(nullptr);
     }
 
     if(cl.qcvm.globals)
     {
         PR_SwitchQCVM(nullptr);
-        PR_SwitchQCVM(&cl.qcvm);
+
+        QCVMGuard qg{&cl.qcvm};
+
         n = va("autocvar_%s", var->name);
         glob = ED_FindGlobal(n);
         if(glob)
@@ -8338,7 +8340,6 @@ void PR_AutoCvarChanged(cvar_t* var)
                 Con_Warning("EXT: Unable to configure %s\n", n);
             }
         }
-        PR_SwitchQCVM(nullptr);
     }
 
     PR_SwitchQCVM(oldqcvm);

@@ -1246,46 +1246,50 @@ void R_ShowBoundingBoxes()
 
     qcvm_t* oldvm = qcvm;
     PR_SwitchQCVM(nullptr);
-    PR_SwitchQCVM(&sv.qcvm);
 
-    int i;
-    edict_t* ed;
-    for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
-        i++, ed = NEXT_EDICT(ed))
     {
-        if(ed == sv_player && !r_showbboxes_player.value)
-        {
-            continue; // don't draw player's own bbox
-        }
+        QCVMGuard qg{&sv.qcvm};
 
-        // if (r_showbboxes.value != 2)
-        //     if (!SV_VisibleToClient (sv_player, ed, qcvm->worldmodel))
-        //         continue; // don't draw if not in pvs
-
-        if(ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] &&
-            ed->v.mins[2] == ed->v.maxs[2])
+        int i;
+        edict_t* ed;
+        for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
+            i++, ed = NEXT_EDICT(ed))
         {
-            // point entity
-            R_EmitWirePoint(ed->v.origin);
-        }
-        else
-        {
-            // box entity
-            if(ed->v.solid == SOLID_BSP &&
-                (ed->v.angles[0] || ed->v.angles[1] || ed->v.angles[2]) &&
-                pr_checkextension.value)
+            if(ed == sv_player && !r_showbboxes_player.value)
             {
-                R_EmitWireBox(ed->v.absmin, ed->v.absmax);
+                continue; // don't draw player's own bbox
+            }
+
+            // if (r_showbboxes.value != 2)
+            //     if (!SV_VisibleToClient (sv_player, ed, qcvm->worldmodel))
+            //         continue; // don't draw if not in pvs
+
+            if(ed->v.mins[0] == ed->v.maxs[0] &&
+                ed->v.mins[1] == ed->v.maxs[1] &&
+                ed->v.mins[2] == ed->v.maxs[2])
+            {
+                // point entity
+                R_EmitWirePoint(ed->v.origin);
             }
             else
             {
-                const qvec3 mins = ed->v.mins + ed->v.origin;
-                const qvec3 maxs = ed->v.maxs + ed->v.origin;
-                R_EmitWireBox(mins, maxs);
+                // box entity
+                if(ed->v.solid == SOLID_BSP &&
+                    (ed->v.angles[0] || ed->v.angles[1] || ed->v.angles[2]) &&
+                    pr_checkextension.value)
+                {
+                    R_EmitWireBox(ed->v.absmin, ed->v.absmax);
+                }
+                else
+                {
+                    const qvec3 mins = ed->v.mins + ed->v.origin;
+                    const qvec3 maxs = ed->v.maxs + ed->v.origin;
+                    R_EmitWireBox(mins, maxs);
+                }
             }
         }
     }
-    PR_SwitchQCVM(nullptr);
+
     PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);

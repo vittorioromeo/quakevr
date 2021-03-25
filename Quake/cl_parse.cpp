@@ -3320,9 +3320,8 @@ void CL_ParseServerMessage()
             case svcfte_cgamepacket:
                 if(cl.qcvm.extfuncs.CSQC_Parse_Event)
                 {
-                    PR_SwitchQCVM(&cl.qcvm);
+                    QCVMGuard qg{&cl.qcvm};
                     PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_Parse_Event);
-                    PR_SwitchQCVM(nullptr);
                 }
                 else
                 {

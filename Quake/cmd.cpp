@@ -964,16 +964,16 @@ bool Cmd_ExecuteString(const char* text, cmd_source_t src)
             {
                 if(cl.qcvm.extfuncs.CSQC_ConsoleCommand)
                 {
-                    bool ret;
-                    PR_SwitchQCVM(&cl.qcvm);
+                    QCVMGuard qg{&cl.qcvm};
                     G_INT(OFS_PARM0) = PR_MakeTempString(text);
                     PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_ConsoleCommand);
-                    ret = G_FLOAT(OFS_RETURN);
+
+                    const bool ret = G_FLOAT(OFS_RETURN);
                     if(!ret)
                     {
                         Con_Printf("gamecode cannot \"%s\"\n", Cmd_Argv(0));
                     }
-                    PR_SwitchQCVM(nullptr);
+
                     return ret;
                 }
                 else

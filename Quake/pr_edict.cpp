@@ -594,13 +594,13 @@ void ED_PrintEdicts()
         return;
     }
 
-    PR_SwitchQCVM(&sv.qcvm);
+    QCVMGuard qg{&sv.qcvm};
+
     Con_Printf("%i entities\n", qcvm->num_edicts);
     for(i = 0; i < qcvm->num_edicts; i++)
     {
         ED_PrintNum(i);
     }
-    PR_SwitchQCVM(nullptr);
 }
 
 /*
@@ -620,7 +620,9 @@ static void ED_PrintEdict_f()
     }
 
     i = Q_atoi(Cmd_Argv(1));
-    PR_SwitchQCVM(&sv.qcvm);
+
+    QCVMGuard qg{&sv.qcvm};
+
     if(i < 0 || i >= qcvm->num_edicts)
     {
         Con_Printf("Bad edict number\n");
@@ -650,7 +652,6 @@ static void ED_PrintEdict_f()
             }
         }
     }
-    PR_SwitchQCVM(nullptr);
 }
 
 /*
@@ -674,7 +675,8 @@ static void ED_Count()
         return;
     }
 
-    PR_SwitchQCVM(&sv.qcvm);
+    QCVMGuard qg{&sv.qcvm};
+
     active = models = solid = step = 0;
     for(i = 0; i < qcvm->num_edicts; i++)
     {
@@ -703,7 +705,6 @@ static void ED_Count()
     Con_Printf("view      :%3i\n", models);
     Con_Printf("touch     :%3i\n", solid);
     Con_Printf("step      :%3i\n", step);
-    PR_SwitchQCVM(nullptr);
 }
 
 
@@ -1249,14 +1250,13 @@ globalvars_t* pr_global_struct;
 
 void PR_ClearProgs(qcvm_t* vm)
 {
-    qcvm_t* oldvm = qcvm;
     if(!vm->progs)
     {
         return; // wasn't loaded.
     }
 
-    qcvm = nullptr;
-    PR_SwitchQCVM(vm);
+    QCVMGuardForce qgf{vm};
+
     PR_ShutdownExtensions();
 
     if(qcvm->knownstrings)
@@ -1265,9 +1265,6 @@ void PR_ClearProgs(qcvm_t* vm)
     }
     free(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
     memset(qcvm, 0, sizeof(*qcvm));
-
-    qcvm = nullptr;
-    PR_SwitchQCVM(oldvm);
 }
 
 /*
