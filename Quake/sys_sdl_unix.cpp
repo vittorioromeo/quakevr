@@ -52,6 +52,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <SDL2/SDL.h>
 
+#include <boost/stacktrace.hpp>
+#include <iostream>
+
 bool isDedicated;
 cvar_t sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
@@ -391,6 +394,9 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 
 void Sys_Error(const char* error, ...)
 {
+    std::cout << "Stacktrace:\n"
+              << boost::stacktrace::stacktrace() << std::endl;
+
     va_list argptr;
     char text[1024];
 
@@ -407,6 +413,7 @@ void Sys_Error(const char* error, ...)
     fputs(errortxt2, stderr);
     fputs(text, stderr);
     fputs("\n\n", stderr);
+
     if(!isDedicated)
     {
         PL_ErrorDialog(text);
