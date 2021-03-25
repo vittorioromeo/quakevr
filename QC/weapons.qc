@@ -4317,3 +4317,14 @@ void() SuperDamageSound =
         }
     }
 };
+
+
+// TODO VR: (P0): Been playing the latest build in co-op.
+//  We have a blast for about 15 minutes and then the player who is the
+//  server will usually get a "packet overflow" error and crash.
+//  Any easy work arounds to solve that issue?
+// TODO: test with developer mode on, see if can reduce packet size
+// TODO: VOIP seems to be the culprit!
+
+// TODO VR: (P0): I tower I've the enemys and when I scale myself smaller
+//  the hands break
