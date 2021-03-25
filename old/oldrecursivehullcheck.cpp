@@ -1,4 +1,5 @@
-// TODO VR: (P0) unfortunately the QSS version seems to break item drops n stuff, maybe also player stuck. Compare?  Its below
+// TODO VR: (P0) unfortunately the QSS version seems to break item drops n
+// stuff, maybe also player stuck. Compare?  Its below
 bool SV_RecursiveHullCheck2(hull_t* hull, int num, float p1f, float p2f,
     const qvec3& p1, const qvec3& p2, trace_t* trace)
 {
