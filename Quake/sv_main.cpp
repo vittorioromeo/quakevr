@@ -41,6 +41,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qcvm.hpp"
 #include "client.hpp"
 
+#include <algorithm>
+
 server_t sv;
 server_static_t svs;
 
@@ -1023,6 +1025,7 @@ static void SVFTE_CalcEntityDeltas(client_t* client)
     snapshot_numents = 0;
     snapshot_maxents = oldstop - olds;
 }
+
 static void SVFTE_WriteEntitiesToClient(
     client_t* client, sizebuf_t* msg, size_t overflowsize)
 {
@@ -2560,35 +2563,24 @@ SV_WriteEntitiesToClient
 */
 void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
 {
-    edict_t* clent = client->edict;
-    unsigned int e, i, maxedict = qcvm->num_edicts;
-    int bits;
-    byte* pvs;
-    qvec3 org;
-    float miss;
-    edict_t* ent;
-    int maxsize = msg->maxsize;
+    const unsigned int maxedict = std::min(
+        static_cast<unsigned int>(qcvm->num_edicts), client->limit_entities);
 
     // try to avoid sounds getting lost. flickering entities are weird, but
     // missing sounds+particles are just eerie.
-    maxsize -= client->datagram.cursize;
-    maxsize -= sv.datagram.cursize;
-
-    if(maxedict > client->limit_entities)
-    {
-        maxedict = client->limit_entities;
-    }
+    const int maxsize =
+        msg->maxsize - client->datagram.cursize - sv.datagram.cursize;
 
     // find the client's PVS
-    org = clent->v.origin + clent->v.view_ofs;
-    pvs = SV_FatPVS(org, qcvm->worldmodel);
+    const edict_t* clent = client->edict;
+    const qvec3 org = clent->v.origin + clent->v.view_ofs;
+    const byte* pvs = SV_FatPVS(org, qcvm->worldmodel);
 
     // send over all entities (excpet the client) that touch the pvs
-    ent = NEXT_EDICT(qcvm->edicts);
-    for(e = 1; e < maxedict; e++, ent = NEXT_EDICT(ent))
+    edict_t* ent = NEXT_EDICT(qcvm->edicts);
+    for(unsigned int e = 1; e < maxedict; e++, ent = NEXT_EDICT(ent))
     {
-
-        if(ent != clent) // clent is ALLWAYS sent
+        if(ent != clent) // `clent` is ALWAYS sent
         {
             // ignore ents without visible models
             if(!ent->v.modelindex || !PR_GetString(ent->v.model)[0])
@@ -2605,7 +2597,8 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
             */
 
             // ignore if not touching a PV leaf
-            for(i = 0; i < ent->num_leafs; i++)
+            unsigned int i = 0;
+            for(; i < ent->num_leafs; i++)
             {
                 if(pvs[ent->leafnums[i] >> 3] & (1 << (ent->leafnums[i] & 7)))
                 {
@@ -2640,16 +2633,24 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
                 Con_Printf("Packet overflow!\n");
                 dev_overflows.packetsize = realtime;
             }
+
             goto stats;
             // johnfitz
         }
 
-        // send an update
-        bits = 0;
-
-        for(i = 0; i < 3; i++)
+        // don't send invisible entities unless they have effects
+        if(ent->alpha == ENTALPHA_ZERO && !ent->v.effects)
         {
-            miss = ent->v.origin[i] - ent->baseline.origin[i];
+            continue;
+        }
+        // johnfitz
+
+        // send an update
+        int bits = 0;
+
+        for(int i = 0; i < 3; i++)
+        {
+            float miss = ent->v.origin[i] - ent->baseline.origin[i];
             if(miss < -0.1 || miss > 0.1)
             {
                 bits |= U_ORIGIN1 << i;
@@ -2713,18 +2714,10 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
 
         // johnfitz -- alpha
         // TODO: find a cleaner place to put this code
-        eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.alpha);
-        if(val)
+        if(eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.alpha))
         {
             ent->alpha = ENTALPHA_ENCODE(val->_float);
         }
-
-        // don't send invisible entities unless they have effects
-        if(ent->alpha == ENTALPHA_ZERO && !ent->v.effects)
-        {
-            continue;
-        }
-        // johnfitz
 
         // johnfitz -- PROTOCOL_QUAKEVR
         if(ent->baseline.alpha != ent->alpha)
@@ -2792,6 +2785,7 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         {
             MSG_WriteByte(msg, bits >> 16);
         }
+
         if(bits & U_EXTEND2)
         {
             MSG_WriteByte(msg, bits >> 24);
@@ -2811,54 +2805,67 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         {
             MSG_WriteByte(msg, ent->v.modelindex);
         }
+
         if(bits & U_FRAME)
         {
             MSG_WriteByte(msg, ent->v.frame);
         }
+
         if(bits & U_COLORMAP)
         {
             MSG_WriteByte(msg, ent->v.colormap);
         }
+
         if(bits & U_SKIN)
         {
             MSG_WriteByte(msg, ent->v.skin);
         }
+
         if(bits & U_EFFECTS)
         {
             MSG_WriteByte(msg, ent->v.effects);
         }
+
         if(bits & U_ORIGIN1)
         {
             MSG_WriteCoord(msg, ent->v.origin[0], sv.protocolflags);
         }
+
         if(bits & U_ANGLE1)
         {
             MSG_WriteAngle(msg, ent->v.angles[0], sv.protocolflags);
         }
+
         if(bits & U_SCALE)
         {
             MSG_WriteCoord(msg, ent->v.model_scale[0], sv.protocolflags);
         }
+
         if(bits & U_ORIGIN2)
         {
             MSG_WriteCoord(msg, ent->v.origin[1], sv.protocolflags);
         }
+
         if(bits & U_ANGLE2)
         {
             MSG_WriteAngle(msg, ent->v.angles[1], sv.protocolflags);
         }
+
         if(bits & U_SCALE)
         {
             MSG_WriteCoord(msg, ent->v.model_scale[1], sv.protocolflags);
         }
+
         if(bits & U_ORIGIN3)
         {
             MSG_WriteCoord(msg, ent->v.origin[2], sv.protocolflags);
         }
+
         if(bits & U_ANGLE3)
         {
             MSG_WriteAngle(msg, ent->v.angles[2], sv.protocolflags);
         }
+
         if(bits & U_SCALE)
         {
             MSG_WriteCoord(msg, ent->v.model_scale[2], sv.protocolflags);
@@ -2879,14 +2886,17 @@ void SV_WriteEntitiesToClient(client_t* client, sizebuf_t* msg)
         {
             MSG_WriteByte(msg, ent->alpha);
         }
+
         if(bits & U_FRAME2)
         {
             MSG_WriteByte(msg, (int)ent->v.frame >> 8);
         }
+
         if(bits & U_MODEL2)
         {
             MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
         }
+
         if(bits & U_LERPFINISH)
         {
             MSG_WriteByte(
@@ -2904,6 +2914,7 @@ stats:
             "%d).\n",
             msg->cursize, msg->maxsize);
     }
+
     dev_stats.packetsize = msg->cursize;
     dev_peakstats.packetsize = q_max(msg->cursize, dev_peakstats.packetsize);
     // johnfitz
@@ -3040,6 +3051,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
         {
             bits |= (SU_PUNCH1 << i);
         }
+
         if(ent->v.velocity[i])
         {
             bits |= (SU_VELOCITY1 << i);
@@ -3066,44 +3078,54 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
     {
         bits |= SU_WEAPON2;
     }
+
     if((int)ent->v.armorvalue & 0xFF00)
     {
         bits |= SU_ARMOR2;
     }
+
     if((int)ent->v.currentammo & 0xFF00 || (int)ent->v.currentammo2 & 0xFF00)
     {
         bits |= SU_AMMO2;
     }
+
     if((int)ent->v.ammo_shells & 0xFF00)
     {
         bits |= SU_SHELLS2;
     }
+
     if((int)ent->v.ammo_nails & 0xFF00)
     {
         bits |= SU_NAILS2;
     }
+
     if((int)ent->v.ammo_rockets & 0xFF00)
     {
         bits |= SU_ROCKETS2;
     }
+
     if((int)ent->v.ammo_cells & 0xFF00)
     {
         bits |= SU_CELLS2;
     }
+
     if(bits & SU_WEAPONFRAME && (int)ent->v.weaponframe & 0xFF00)
     {
         bits |= SU_WEAPONFRAME2;
     }
+
     if(bits & SU_WEAPON && ent->alpha != ENTALPHA_DEFAULT)
     {
         bits |= SU_WEAPONALPHA; // for now, weaponalpha = client
                                 // entity
     }
+
     // alpha
     if(bits >= 65536)
     {
         bits |= SU_EXTEND1;
     }
+
     if(bits >= 16777216)
     {
         bits |= SU_EXTEND2;
@@ -3139,6 +3161,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
     {
         MSG_WriteByte(msg, bits >> 16);
     }
+
     if(bits & SU_EXTEND2)
     {
         MSG_WriteByte(msg, bits >> 24);
@@ -3161,6 +3184,7 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
         {
             MSG_WriteChar(msg, ent->v.punchangle[i]);
         }
+
         if(bits & (SU_VELOCITY1 << i))
         {
             MSG_WriteChar(msg, ent->v.velocity[i] / 16);
@@ -3174,10 +3198,12 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
     {
         MSG_WriteByte(msg, ent->v.weaponframe);
     }
+
     if(bits & SU_ARMOR)
     {
         MSG_WriteByte(msg, ent->v.armorvalue);
     }
+
     if(bits & SU_WEAPON)
     {
         MSG_WriteByte(msg, weaponmodelindex);
@@ -3214,35 +3240,43 @@ void SV_WriteClientdataToMessage(client_t* client, sizebuf_t* msg)
     {
         MSG_WriteByte(msg, weaponmodelindex >> 8);
     }
+
     if(bits & SU_ARMOR2)
     {
         MSG_WriteByte(msg, (int)ent->v.armorvalue >> 8);
     }
+
     if(bits & SU_AMMO2)
     {
         MSG_WriteByte(msg, (int)ent->v.currentammo >> 8);
         MSG_WriteByte(msg, (int)ent->v.currentammo2 >> 8);
     }
+
     if(bits & SU_SHELLS2)
     {
         MSG_WriteByte(msg, (int)ent->v.ammo_shells >> 8);
     }
+
     if(bits & SU_NAILS2)
     {
         MSG_WriteByte(msg, (int)ent->v.ammo_nails >> 8);
     }
+
     if(bits & SU_ROCKETS2)
     {
         MSG_WriteByte(msg, (int)ent->v.ammo_rockets >> 8);
     }
+
     if(bits & SU_CELLS2)
     {
         MSG_WriteByte(msg, (int)ent->v.ammo_cells >> 8);
     }
+
     if(bits & SU_WEAPONFRAME2)
     {
         MSG_WriteByte(msg, (int)ent->v.weaponframe >> 8);
     }
+
     if(bits & SU_WEAPONALPHA)
     {
         MSG_WriteByte(msg, ent->alpha); // for now, weaponalpha =
@@ -3885,6 +3919,7 @@ void SV_CreateBaseline()
         svent->baseline.model_offset = svent->v.model_offset;
         svent->baseline.frame = svent->v.frame;
         svent->baseline.skin = svent->v.skin;
+
         if(entnum > 0 && entnum <= svs.maxclients)
         {
             svent->baseline.colormap = entnum;
