@@ -69,3 +69,25 @@ struct qcvm_t
 
 extern qcvm_t* qcvm;
 void PR_SwitchQCVM(qcvm_t* nvm);
+
+struct QCVMGuard
+{
+    qcvm_t* d_oldQcvm;
+
+    [[nodiscard]] explicit QCVMGuard(qcvm_t* newQcvm);
+    ~QCVMGuard();
+
+    QCVMGuard(const QCVMGuard&) = delete;
+    QCVMGuard(QCVMGuard&&) = delete;
+};
+
+struct QCVMGuardForce
+{
+    qcvm_t* d_oldQcvm;
+
+    [[nodiscard]] explicit QCVMGuardForce(qcvm_t* newQcvm);
+    ~QCVMGuardForce();
+
+    QCVMGuardForce(const QCVMGuardForce&) = delete;
+    QCVMGuardForce(QCVMGuard&&) = delete;
+};
