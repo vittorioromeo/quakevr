@@ -89,7 +89,7 @@ Quake VR supports the "Dissolution of Eternity" official mission pack. The instr
 
 #### HD Textures and Soundtrack
 
-The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view) addon is highly recommended to improve immersion.
+The [HD Textures and Soundtrack](https://drive.google.com/file/d/1noIH27xA8gnr_hwqouXiSoMQBIyuf__V/view) ([alternative link](https://drive.google.com/file/d/1UAH4la2uOv3lwMkMk05yZuYmiPIyExU_/view?usp=sharing) addon is highly recommended to improve immersion.
 
 * [Installation Instructions](https://old.reddit.com/r/ValveIndex/comments/fbs1nh/quake_vr_release_trailer_v001/fj7205c/)
 
@@ -154,7 +154,7 @@ At the moment there is no server browser and no dedicated server support. Also, 
 
 * > How do I obtain the grappling hook?
 
-    * The grapplink hook is available in the sandbox map, accessible through the "single player" menu.
+    * The grappling hook is available in the sandbox map, accessible through the "single player" menu.
 
     * The grappling hook is also available through cheats: it is a very fun *toy* but it would completely break the progression of most levels. To obtain it, go to the "Debug Utilities" sub-menu under the "Quake VR Dev Tools" menu - there will be an option to enable it there. You can then spawn it by using the "Impulse 14 (Spawn All)" command, or cycle to it if you have weapon cycling enabled.
 
