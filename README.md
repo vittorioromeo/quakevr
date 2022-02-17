@@ -4,7 +4,7 @@
     </p>
 </a>
 
-# [quakevr](https://vittorioromeo.info/quakevr)
+# [Quake VR](https://vittorioromeo.info/quakevr)
 
 > **The timeless classic from 1996, reimagined for virtual reality.**
 
@@ -38,7 +38,7 @@
 
 ## Disclaimer
 
-* This is a free open-source project done for fun and to contribute to the VR community. **Donations are appreciated**, but making money is not a goal for `quakevr`.
+* This is a free open-source project done for fun and to contribute to the VR community. **Donations are appreciated**, but making money is not a goal for `Quake VR`.
 * The project is still in an early stage. Expect bugs and lack of polish. It was fully tested only with a Valve Index headset and controllers.
 * **Tweaking the settings in-game is highly recommended before playing.** The default settings might not be ideal for your hardware and body proportions.
 * The game heavily relies on modified *QuakeC* files. Therefore, mods or expansion packs are not compatible out of the box, but should be easy to port.
@@ -49,41 +49,51 @@
 
 1. Install ["Visual C++ x64 Redistributable"](https://support.microsoft.com/en-gb/help/2977003/the-latest-supported-visual-c-downloads) package.
 
-2. Install "Quake 1". The [Steam version](https://store.steampowered.com/app/2310/QUAKE/) works well.
+2. Install [7zip](https://www.7-zip.org/)
 
-3. Grab the latest binary from [the releases page](https://github.com/SuperV1234/quakevr/releases).
+3. Install "Quake". The [Steam version](https://store.steampowered.com/app/2310/QUAKE/) works well.
 
-4. Extract the contents of the package directly in the Quake installation folder *(e.g. `C:/Program Files/Steam/steamapps/common/Quake`)*.
+4. Grab the latest binary from [the releases page](https://github.com/SuperV1234/quakevr/releases).
 
-5. Run the game by launching the `.exe` you just extracted.
+5. Extract the Quake VR archive into a new, empty folder *(e.g. `C:/Games/id/Quake/quakevr`)*.
 
-### Mission Pack 1: Scourge of Armagon
+6. Navigate to the `id1` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/id1`)* and copy both `PAK0.PAK` and `PAK1.PAK` to Quake VR's `id1` folder *(e.g. `C:/Games/id/Quake/quakevr/id1`)*.
 
-Quake VR supports the "Scourge of Armagon" official mission pack. It can be installed alongside the regular Quake files, enabling you to play either the original game or SoA without having to restart Quake VR.
+7. Run the `quakevr.exe` executable in the root folder to launch the game!
 
-1. Install "QUAKE Mission Pack 1: Scourge of Armagon". The [Steam version](https://store.steampowered.com/app/9040/QUAKE_Mission_Pack_1_Scourge_of_Armagon/) works well.
+8. (optional) To enable music, copy the `music` folder from the 'remaster' *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/rerelease/id1/music`)* to Quake VR's `id1` folder as well.
 
-2. Go to the installation folder.
+### Mission Packs
 
-3. Open the `hipnotic` folder.
+Quake VR supports both of the official mission packs. They can be installed alongside the regular Quake files, enabling you to switch between them without having to restart Quake VR.
 
-4. Make a copy of `pak0.pak`, and rename it to `pak2.pak`.
+NOTE: With the release of the Quake 'remaster', both mission packs are included with the base game and no longer need to be purchased seperately.
 
-5. Copy the newly created `pak2.pak` in your Quake VR installation folder, under `Id1`. Usually, this means simply copying `pak2.pak` to `../Id1`.
+#### Mission Pack 1: Scourge of Armagon
 
-6. The contents of your `Id1` folder should now contain:
-   * Official Quake files: `pak0.pak` and `pak1.pak`;
-   * Scourge of Armagon mission pack files: `pak2.pak`;
-   * Quake VR files: `pak10.pak`, `pak11.pak`, `pak12.pak`.
+1. Navigate to the `hipnotic` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/hipnotic`)*
 
-   *(The load order of `.pak` files is based on their naming. You can rename the Scourge of Armagon mission pack to anything else, as long as it is before the Quake VR specific `.pak` files. This allows you to also add extra `.pak` files, such as high-resolution models or other compatible additions.)*
+2. Make a copy of `PAK0.PAK`, and rename it to `PAK2.PAK`.
 
-When Scourge of Armagon is installed, it overwrites Quake 1's `start.bsp` with its own starting map. In order to play Quake 1 maps, use the *"Change Map"* functionality under *"Quake VR Settings"*.
+3. Copy the newly created `PAK2.PAK` into your Quake VR's `id1` folder *(e.g. `C:/Games/id/Quake/quakevr/id1`)*.
 
+#### Mission Pack 2: Dissolution of Eternity
 
-### Mission Pack 2: Dissolution of Eternity
+1. Navigate to the `rogue` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/rogue`)*
 
-Quake VR supports the "Dissolution of Eternity" official mission pack. The instructions above apply here as well. Take `pak0.pak` from the `rogue` folder, rename it to somethhing unique (e.g. `pak4.pak` if you installed Scourge of Armagon), and place it in your `Id1` folder.
+2. Make a copy of `PAK0.PAK`, and rename it to `PAK3.PAK`.
+
+3. Copy the newly created `PAK3.PAK` into your Quake VR's `id1` folder *(e.g. `C:/Games/id/Quake/quakevr/id1`)*.
+
+The contents of your `id1` folder should now contain:
+   * Official Quake files: `PAK0.PAK` and `PAK1.PAK`;
+   * Scourge of Armagon mission pack files: `PAK2.PAK`;
+   * Dissolution of Eternity mission pack files: `PAK3.PAK`;
+   * Quake VR files: `PAK10.PAK`, `PAK11.PAK`, `PAK12.PAK`.
+
+   *(The load order of `.PAK` files is based on their naming. You can rename the mission pack files to anything else, as long as it is before the Quake VR specific `.PAK` files. This allows you to also add extra `.PAK` files, such as high-resolution models or other compatible additions.)*
+
+When a mission pack is installed, it overwrites Quake 1's `start.bsp` with its own starting map. In order to play Quake 1 maps, use the *"Change Map"* functionality under *"Quake VR Settings"*.
 
 ### Highly Recommended Addons
 
@@ -104,11 +114,11 @@ Quake VR comes with [Frikbot X++](http://neogeographica.com/site/pages/mods/fbxp
 
 For supported custom maps, please see [CUSTOM_MAPS.md](https://github.com/SuperV1234/quakevr/blob/master/CUSTOM_MAPS.md).
 
-### Vispatching
+### Vispatching/Colored Lighting
 
-The Quake VR engine supports transparent water, however original Quake maps need to be patched in order for it to work properly. It is therefore highly recommended that you "vispatch" your Quake (and Scourge of Armagon) maps.
+The Quake VR engine supports transparent water and colored lighting, however original Quake maps need to be patched in order for it to work properly. It is therefore highly recommended that you patch your Quake maps.
 
-Follow [this guide](http://fps.maros.pri.ee/index.php?event=1304) to easily "vispatch" your maps. Alternatively, search for the term "vispatching" online, or read the README provided with the [`VisPatch` tool](http://vispatch.sourceforge.net/).
+You can find the patch files [here](https://quakewiki.org/wiki/External_Lit_And_Vis_Files). Merely copy all the `.vis` and `.lit` files from the `maps` directory of the downloaded archive into your `maps` directory in your Quake VR installation's `id1` folder *(e.g. `C:/Games/id/Quake/quakevr/id1/maps`)* (this might break lighting on the level select maps `start.bsp` but shouldn't interfere with the actual levels. If you want, you can delete `start.lit` and `start.vis` from the maps folder to prevent this).
 
 Once your maps are patched, go through the options in the *"Transparency Options"* menu under *"Quake VR Settings"* to enable/tweak transparency levels.
 
@@ -170,7 +180,7 @@ At the moment there is no server browser and no dedicated server support. Also, 
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
     * [Quakespasm-Spiked](http://triptohell.info/moodles/qss/)
 
-* Hand models with finger tracking support created by *Trevor Roach*
+* Hand models with finger tracking support created by *[CrazyHairGuy](https://www.crazyhairguy.com/)*
     * Many thanks!
 
 * Weapon ironsights modeled by me
