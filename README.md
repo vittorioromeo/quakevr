@@ -79,7 +79,7 @@ NOTE: With the release of the Quake 'remaster', both mission packs are included 
 
 #### Mission Pack 2: Dissolution of Eternity
 
-1. Navigate to the `rogue` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/hipnotic`)*
+1. Navigate to the `rogue` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/rogue`)*
 
 2. Make a copy of `PAK0.PAK`, and rename it to `PAK3.PAK`.
 
