@@ -59,7 +59,7 @@
 
 6. Navigate to the `id1` folder in your installation of Quake *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/id1`)* and copy both `PAK0.PAK` and `PAK1.PAK` to Quake VR's `id1` folder *(e.g. `C:/Games/id/Quake/quakevr/id1`)*.
 
-7. Run the `Quake VR.exe` executable in the root folder to launch the game!
+7. Run the `quakevr.exe` executable in the root folder to launch the game!
 
 8. (optional) To enable music, copy the `music` folder from the 'remaster' *(e.g. `C:/Program Files/Steam/steamapps/common/Quake/rerelease/id1/music`)* to Quake VR's `id1` folder as well.
 
