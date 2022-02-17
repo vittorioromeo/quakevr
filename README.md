@@ -180,7 +180,7 @@ At the moment there is no server browser and no dedicated server support. Also, 
     * [Dominic Szablewski's (Phoboslab) Oculus port](https://github.com/phoboslab/Quakespasm-Rift)
     * [Quakespasm-Spiked](http://triptohell.info/moodles/qss/)
 
-* Hand models with finger tracking support created by *CrazyHairGuy*
+* Hand models with finger tracking support created by *[CrazyHairGuy](https://www.crazyhairguy.com/)*
     * Many thanks!
 
 * Weapon ironsights modeled by me
