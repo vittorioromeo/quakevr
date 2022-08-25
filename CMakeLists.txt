@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project(quakevr VERSION 0.0.5 LANGUAGES CXX)
+project(quakevr VERSION 0.0.7 LANGUAGES CXX)
 
 set(source_list
     "Quake/bgmusic.cpp"

@@ -1404,19 +1404,21 @@ void Key_GetGrabbedInput(int* lastkey, int* lastchar)
 
 bool CSQC_HandleKeyEvent(bool down, int keyc, int unic)
 {
+    bool inhibit = false;
+
     if(cl.qcvm.extfuncs.CSQC_InputEvent && key_dest == key_game)
     {
-        QCVMGuard qg{&cl.qcvm};
-
+        PR_SwitchQCVM(&cl.qcvm);
         G_FLOAT(OFS_PARM0) = down ? CSIE_KEYDOWN : CSIE_KEYUP;
         G_VECTORSET(OFS_PARM1, Key_NativeToQC(keyc), 0, 0); // x
         G_VECTORSET(OFS_PARM2, unic, 0, 0);                 // y
         G_VECTORSET(OFS_PARM3, 0, 0, 0);                    // devid
         PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_InputEvent);
-        return G_FLOAT(OFS_RETURN);
+        inhibit = G_FLOAT(OFS_RETURN);
+        PR_SwitchQCVM(nullptr);
     }
 
-    return false;
+    return inhibit;
 }
 
 /*

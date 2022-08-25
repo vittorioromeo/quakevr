@@ -84,7 +84,7 @@ private:
 
 public:
     explicit VecHistory(const std::size_t bufCapacity) noexcept
-        : _bufCapacity{5}
+        : _bufCapacity{bufCapacity}
     {
     }
 
@@ -100,7 +100,7 @@ public:
 
     [[nodiscard]] qvec3 average() const noexcept
     {
-        if(_data.size() == 0)
+        if(_data.empty())
         {
             return vec3_zero;
         }

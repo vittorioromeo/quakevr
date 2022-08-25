@@ -1023,10 +1023,9 @@ void Host_Map_f()
         *p = '\0';
     }
 
-    {
-        QCVMGuard qg{&sv.qcvm};
-        SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
-    }
+    PR_SwitchQCVM(&sv.qcvm);
+    SV_SpawnServer(name, SpawnServerSrc::FromMapCmd);
+    PR_SwitchQCVM(nullptr);
 
     if(!sv.active)
     {
@@ -1127,13 +1126,13 @@ void Host_Changelevel_f()
         IN_UpdateGrabs(); // -- S.A.
     }
 
-    {
-        QCVMGuard qg{&sv.qcvm};
-        SV_SaveSpawnparms();
+    PR_SwitchQCVM(&sv.qcvm);
+    SV_SaveSpawnparms();
 
-        q_strlcpy(level, Cmd_Argv(1), sizeof(level));
-        SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
-    }
+    q_strlcpy(level, Cmd_Argv(1), sizeof(level));
+    SV_SpawnServer(level, SpawnServerSrc::FromChangelevelCmd);
+
+    PR_SwitchQCVM(nullptr);
 
     // also issue an error if spawn failed -- O.S.
     if(!sv.active)
@@ -1178,10 +1177,9 @@ void Host_Restart_f()
     // mapname gets cleared in spawnserver
     q_strlcpy(mapname, sv.name, sizeof(mapname));
 
-    {
-        QCVMGuard qg{&sv.qcvm};
-        SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
-    }
+    PR_SwitchQCVM(&sv.qcvm);
+    SV_SpawnServer(mapname, SpawnServerSrc::FromRestart);
+    PR_SwitchQCVM(nullptr);
 
     if(!sv.active)
     {
@@ -1370,7 +1368,7 @@ bool Host_MakeSavegame(
     }
 
     // QSS
-    QCVMGuard qg{&sv.qcvm};
+    PR_SwitchQCVM(&sv.qcvm);
 
     fprintf(f, "%i\n", SAVEGAME_VERSION);
     char comment[SAVEGAME_COMMENT_LENGTH + 1];
@@ -1466,6 +1464,7 @@ bool Host_MakeSavegame(
         Con_Printf("done.\n");
     }
 
+    PR_SwitchQCVM(nullptr);
     return true;
 }
 
@@ -2291,8 +2290,12 @@ void Host_Spawn_f()
         // VR: Force autosave on client spawn.
         if(!pr_global_struct->deathmatch && !pr_global_struct->coop)
         {
-            QCVMGuard qg{nullptr};
+            qcvm_t* oldvm = qcvm;
+            PR_SwitchQCVM(nullptr);
+
             quake::saveutil::doChangelevelAutosave();
+
+            PR_SwitchQCVM(oldvm);
         }
     }
 
@@ -2790,8 +2793,9 @@ void Host_Give_f()
     }
 
     // TODO VR: (P2) docs
-    const auto updateAmmoCounter = [&](const float currentAmmo,
-                                       float& ammoCounter) {
+    const auto updateAmmoCounter =
+        [&](const float currentAmmo, float& ammoCounter)
+    {
         switch((int)(currentAmmo))
         {
             case AID_NONE:
@@ -2865,7 +2869,7 @@ edict_t* FindViewthing()
     edict_t* e = nullptr;
 
     // QSS
-    QCVMGuard qg{&sv.qcvm};
+    PR_SwitchQCVM(&sv.qcvm);
     i = qcvm->num_edicts;
 
     if(i == qcvm->num_edicts)
@@ -2898,6 +2902,7 @@ edict_t* FindViewthing()
         Con_Printf("No viewthing on map\n");
     }
 
+    PR_SwitchQCVM(nullptr);
     return e;
 }
 
@@ -2932,10 +2937,11 @@ void Host_Viewmodel_f()
     }
 
     // QSS
-    QCVMGuard qg{&sv.qcvm};
+    PR_SwitchQCVM(&sv.qcvm);
     e->v.modelindex = m ? SV_Precache_Model(m->name) : 0;
     e->v.model = PR_SetEngineString(sv.model_precache[(int)e->v.modelindex]);
     e->v.frame = 0;
+    PR_SwitchQCVM(nullptr);
 }
 
 /*

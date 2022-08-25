@@ -851,7 +851,8 @@ void R_DrawWorldText()
     // TODO VR: (P1) cleanup and optimize
 
     const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
-                                       const qvec3& zInc, const char num) {
+                                       const qvec3& zInc, const char num)
+    {
         const int row = num >> 4;
         const int col = num & 15;
 
@@ -859,9 +860,8 @@ void R_DrawWorldText()
         const float fcol = col * 0.0625;
         const float size = 0.0625;
 
-        const auto doVertex = [&](const qvec3& p) {
-            glVertex3f(p.x, p.y, p.z);
-        };
+        const auto doVertex = [&](const qvec3& p)
+        { glVertex3f(p.x, p.y, p.z); };
 
         glTexCoord2f(fcol, frow);
         doVertex(pos);
@@ -876,9 +876,9 @@ void R_DrawWorldText()
         doVertex(pos + zInc);
     };
 
-    const auto forSplitStringView = [](const std::string_view str,
-                                        const std::string_view delims,
-                                        auto&& f) {
+    const auto forSplitStringView =
+        [](const std::string_view str, const std::string_view delims, auto&& f)
+    {
         for(auto first = str.data(), second = str.data(),
                  last = first + str.size();
             second != last && first != last; first = second + 1)
@@ -895,7 +895,8 @@ void R_DrawWorldText()
 
     const auto drawString = [&](const qvec3& originalpos, const qvec3& angles,
                                 const std::string_view str,
-                                const WorldText::HAlign hAlign) {
+                                const WorldText::HAlign hAlign)
+    {
         static std::vector<std::string_view> lines;
 
         // Split into lines
@@ -911,9 +912,8 @@ void R_DrawWorldText()
         // Find longest line size (for centering)
         const std::size_t longestLineSize = std::max_element(lines.begin(),
             lines.end(),
-            [](const std::string_view& a, const std::string_view& b) {
-                return a.size() < b.size();
-            })->size();
+            [](const std::string_view& a, const std::string_view& b)
+            { return a.size() < b.size(); })->size();
 
         // Angles and offsets
         const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
@@ -934,7 +934,8 @@ void R_DrawWorldText()
         {
             const std::size_t sizeDiff = longestLineSize - line.size();
 
-            auto startPos = [&] {
+            auto startPos = [&]
+            {
                 if(hAlign == WorldText::HAlign::Left)
                 {
                     return center + (zInc * static_cast<float>(iLine));
@@ -1050,7 +1051,8 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
     // TODO VR: (P1) cleanup and optimize
 
     const auto drawCharacterQuad = [](const qvec3& pos, const qvec3& hInc,
-                                       const qvec3& zInc, const char num) {
+                                       const qvec3& zInc, const char num)
+    {
         const int row = num >> 4;
         const int col = num & 15;
 
@@ -1058,9 +1060,8 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
         const float fcol = col * 0.0625;
         const float size = 0.0625;
 
-        const auto doVertex = [&](const qvec3& p) {
-            glVertex3f(p.x, p.y, p.z);
-        };
+        const auto doVertex = [&](const qvec3& p)
+        { glVertex3f(p.x, p.y, p.z); };
 
         glTexCoord2f(fcol, frow);
         doVertex(pos);
@@ -1075,9 +1076,9 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
         doVertex(pos + zInc);
     };
 
-    const auto forSplitStringView = [](const std::string_view str,
-                                        const std::string_view delims,
-                                        auto&& f) {
+    const auto forSplitStringView =
+        [](const std::string_view str, const std::string_view delims, auto&& f)
+    {
         for(auto first = str.data(), second = str.data(),
                  last = first + str.size();
             second != last && first != last; first = second + 1)
@@ -1092,7 +1093,8 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
         }
     };
 
-    const auto drawString = [&] {
+    const auto drawString = [&]
+    {
         static std::vector<std::string_view> lines;
 
         // Split into lines
@@ -1108,9 +1110,8 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
         // Find longest line size (for centering)
         const std::size_t longestLineSize = std::max_element(lines.begin(),
             lines.end(),
-            [](const std::string_view& a, const std::string_view& b) {
-                return a.size() < b.size();
-            })->size();
+            [](const std::string_view& a, const std::string_view& b)
+            { return a.size() < b.size(); })->size();
 
         // Angles and offsets
         const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
@@ -1131,7 +1132,8 @@ void R_DrawString(const qvec3& originalpos, const qvec3& angles,
         {
             const std::size_t sizeDiff = longestLineSize - line.size();
 
-            auto startPos = [&] {
+            auto startPos = [&]
+            {
                 if(hAlign == WorldText::HAlign::Left)
                 {
                     return center + (zInc * static_cast<float>(iLine));
@@ -1246,10 +1248,9 @@ void R_ShowBoundingBoxes()
 
     qcvm_t* oldvm = qcvm;
     PR_SwitchQCVM(nullptr);
+    PR_SwitchQCVM(&sv.qcvm);
 
     {
-        QCVMGuard qg{&sv.qcvm};
-
         int i;
         edict_t* ed;
         for(i = 0, ed = NEXT_EDICT(qcvm->edicts); i < qcvm->num_edicts;
@@ -1290,6 +1291,7 @@ void R_ShowBoundingBoxes()
         }
     }
 
+    PR_SwitchQCVM(nullptr);
     PR_SwitchQCVM(oldvm);
 
     glColor3f(1, 1, 1);
@@ -1351,7 +1353,8 @@ void R_ShowTris()
             }
         }
 
-        const auto doViewmodel = [&](entity_t& ent) {
+        const auto doViewmodel = [&](entity_t& ent)
+        {
             currententity = &ent;
             if(r_drawviewmodel.value && !chase_active.value &&
                 cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) &&
@@ -1432,7 +1435,8 @@ void R_DrawShadows()
     }
 
     // TODO VR: (P1) viewent shadow looks weird
-    const auto drawViewentShadow = [](entity_t& ent) {
+    const auto drawViewentShadow = [](entity_t& ent)
+    {
         if(ent.model != nullptr)
         {
             currententity = &ent;
@@ -1519,32 +1523,33 @@ void R_RenderScene()
     // VR: This is what draws the floating ammo text attached to weapons.
     const auto drawWeaponAmmoText =
         [](const textentity_t& textEnt, const int statClipIdx,
-            const int statClipSizeIdx, const int statAmmoCounterIdx) {
-            if(textEnt.hidden)
-            {
-                return;
-            }
+            const int statClipSizeIdx, const int statAmmoCounterIdx)
+    {
+        if(textEnt.hidden)
+        {
+            return;
+        }
 
-            qvec3 angles = textEnt.angles;
-            angles[PITCH] -= 180.f;
-            angles[ROLL] *= -1.f;
+        qvec3 angles = textEnt.angles;
+        angles[PITCH] -= 180.f;
+        angles[ROLL] *= -1.f;
 
-            char buf[64];
+        char buf[64];
 
-            if(quake::vr::get_weapon_reloading_enabled() &&
-                cl.stats[statClipSizeIdx] != 0)
-            {
-                sprintf(buf, "%d/%d\n%d", cl.stats[statClipIdx],
-                    cl.stats[statClipSizeIdx], cl.stats[statAmmoCounterIdx]);
-            }
-            else
-            {
-                sprintf(buf, "%d", cl.stats[statAmmoCounterIdx]);
-            }
+        if(quake::vr::get_weapon_reloading_enabled() &&
+            cl.stats[statClipSizeIdx] != 0)
+        {
+            sprintf(buf, "%d/%d\n%d", cl.stats[statClipIdx],
+                cl.stats[statClipSizeIdx], cl.stats[statAmmoCounterIdx]);
+        }
+        else
+        {
+            sprintf(buf, "%d", cl.stats[statAmmoCounterIdx]);
+        }
 
-            R_DrawString(textEnt.origin, angles, buf, WorldText::HAlign::Center,
-                0.10f * textEnt.scale);
-        };
+        R_DrawString(textEnt.origin, angles, buf, WorldText::HAlign::Center,
+            0.10f * textEnt.scale);
+    };
 
     if(vr_show_weapon_text.value)
     {
@@ -1575,7 +1580,8 @@ void R_RenderScene()
     R_DrawViewModel(&cl.right_upper_holster);
 
     // VR: This is what draws the hands.
-    const auto drawHand = [](auto& handEntities) {
+    const auto drawHand = [](auto& handEntities)
+    {
         R_DrawViewModel(&handEntities.base);
         R_DrawViewModel(&handEntities.f_thumb);
         R_DrawViewModel(&handEntities.f_index);
