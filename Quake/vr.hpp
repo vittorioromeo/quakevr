@@ -629,3 +629,9 @@ VR_GetBodyYawAngleCalculations() noexcept;
 [[nodiscard]] std::string VR_ExtractPakName(const pack_t& pak);
 
 void VR_OnLoadedPak(pack_t& pak);
+
+//
+//
+// Debug
+
+void VR_ResetThrowAvgFrames();

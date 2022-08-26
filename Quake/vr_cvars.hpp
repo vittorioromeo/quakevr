@@ -143,6 +143,7 @@ extern cvar_t vr_2h_disable_angle_threshold;
 extern cvar_t vr_autosave_seconds;
 extern cvar_t vr_autosave_on_changelevel;
 extern cvar_t vr_throw_up_center_of_mass;
+extern cvar_t vr_throw_avg_frames;
 extern cvar_t vr_forcegrabbable_ammo_boxes;
 extern cvar_t vr_forcegrabbable_health_boxes;
 extern cvar_t vr_forcegrabbable_return_time_deathmatch;

@@ -128,8 +128,8 @@ struct vr_controller
     vr::HmdQuaternion_t raworientation;
     bool active{false};
 
-    VecHistory velocityHistory{5};
-    VecHistory angularVelocityHistory{5};
+    VecHistory velocityHistory{15};
+    VecHistory angularVelocityHistory{15};
 };
 
 
@@ -905,10 +905,9 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     (void)offHandOffsetY;
     (void)offHandOffsetZ;
 
-    const auto init = [&](const WpnCVar wpnCVar, const char* name,
-                          const char* defaultVal) {
-        InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal);
-    };
+    const auto init =
+        [&](const WpnCVar wpnCVar, const char* name, const char* defaultVal)
+    { InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal); };
 
     // clang-format off
     init(WpnCVar::OffsetX,                  "vr_wofs_x_nn",            offsetX);
@@ -1249,7 +1248,8 @@ static void VR_InitActionHandles()
 
     // -----------------------------------------------------------------------
     // VR: Read all action handles.
-    const auto readHandle = [](const char* name, vr::VRActionHandle_t& handle) {
+    const auto readHandle = [](const char* name, vr::VRActionHandle_t& handle)
+    {
         const auto rc = vr::VRInput()->GetActionHandle(name, &handle);
 
         if(rc != vr::EVRInputError::VRInputError_None)
@@ -1317,8 +1317,9 @@ static void VR_InitActionHandles()
 
     // -----------------------------------------------------------------------
     // VR: Get handles to the controllers.
-    const auto readInputSourceHandle = [](const char* name,
-                                           vr::VRInputValueHandle_t& handle) {
+    const auto readInputSourceHandle =
+        [](const char* name, vr::VRInputValueHandle_t& handle)
+    {
         const auto rc = vr::VRInput()->GetInputSourceHandle(name, &handle);
 
         if(rc != vr::EVRInputError::VRInputError_None)
@@ -1889,8 +1890,9 @@ void SetHandPos(int index, entity_t& player)
             VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightPosMult);
 
-        const auto rotate_point = [](const qvec2& center, const qfloat angle,
-                                      qvec2 p) {
+        const auto rotate_point =
+            [](const qvec2& center, const qfloat angle, qvec2 p)
+        {
             // translate point back to origin:
             p -= center;
 
@@ -2374,9 +2376,8 @@ void SetHandPos(int index, entity_t& player)
     const auto [eyePitch, eyeYaw, eyeRoll] = VR_GetEyesOrientation();
     const auto [headFwd, headRight, headUp] = VR_GetHeadDirs();
 
-    const auto isBetween = [](const auto x, const auto min, const auto max) {
-        return x >= min && x <= max;
-    };
+    const auto isBetween = [](const auto x, const auto min, const auto max)
+    { return x >= min && x <= max; };
 
     if(isBetween(eyePitch, -50.f, 50.f))
     {
@@ -2418,7 +2419,8 @@ void SetHandPos(int index, entity_t& player)
     const qvec3& adjPlayerOriginLeft,
     const qvec3& adjPlayerOriginRight) noexcept
 {
-    const auto fixZ = [&](qvec3 v) {
+    const auto fixZ = [&](qvec3 v)
+    {
         v[2] = adjPlayerOriginLeft[2];
         return v;
     };
@@ -2558,10 +2560,9 @@ static void VR_DoTeleportation()
         const trace_t trace = SV_Move(
             adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, getPlayerEdict());
 
-        const auto between = [](const float value, const float min,
-                                 const float max) {
-            return value >= min && value <= max;
-        };
+        const auto between =
+            [](const float value, const float min, const float max)
+        { return value >= min && value <= max; };
 
         // Allow slopes, but not walls or ceilings.
         const bool goodNormal = between(trace.plane.normal[2], 0.75f, 1.f);
@@ -2764,9 +2765,8 @@ static void VR_DoWeaponDirSlerp()
         const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
         const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
 
-        const auto anyNan = [](const qvec3& v) {
-            return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]);
-        };
+        const auto anyNan = [](const qvec3& v)
+        { return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]); };
 
         const auto mixFwd = anyNan(slerpFwd) ? nNewFwd : slerpFwd;
         const auto mixUp = anyNan(slerpUp) ? nNewUp : slerpUp;
@@ -2912,8 +2912,9 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
 
     const auto frametime = cl.time - cl.oldtime;
 
-    const auto transitionVar = [&frametime](float& var, const bool predicate,
-                                   const float speed) {
+    const auto transitionVar =
+        [&frametime](float& var, const bool predicate, const float speed)
+    {
         var += frametime * (predicate ? speed : -speed);
         var = std::clamp(var, 0.f, 1.f);
     };
@@ -2934,7 +2935,8 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
 
     const bool helpingHandIsFist = cl.stats[helpingHandStatIdx] == WID_FIST;
 
-    const bool beforeMuzzle = [&] {
+    const bool beforeMuzzle = [&]
+    {
         const auto muzzlePos = VR_CalcFinalWpnMuzzlePos(holdingHand);
 
         const auto gunLength = glm::distance(holdingHandPos, muzzlePos);
@@ -3036,9 +3038,9 @@ static void VR_FakeVRControllerAiming()
 
 static void VR_DoWpnButton()
 {
-    const auto doWpnButton = [](const int handIdx,
-                                 const entity_t& wpnButtonEntity,
-                                 const char key) {
+    const auto doWpnButton =
+        [](const int handIdx, const entity_t& wpnButtonEntity, const char key)
+    {
         const bool hasWpnButton = !wpnButtonEntity.hidden;
 
         WpnButtonState& state = vr_wpnbutton_state[handIdx];
@@ -3106,7 +3108,8 @@ static void VR_ControllerAiming(const qvec3& orientation)
 
     // TODO VR: (P1) this is weird, the weapon model name is being used as a
     // key. Should switch to the WID instead
-    const auto setHeldWeaponCVar = [](int& cvarEntry, entity_t& viewEntity) {
+    const auto setHeldWeaponCVar = [](int& cvarEntry, entity_t& viewEntity)
+    {
         if(viewEntity.model)
         {
             cvarEntry = VR_GetWpnCVarFromModel(viewEntity.model);
@@ -3174,13 +3177,11 @@ void VR_OnClientClearState()
     // Automatically close thumb if most other fingers are curled.
     if(fingerIdx == FingerIdx::Thumb && vr_finger_auto_close_thumb.value)
     {
-        const auto avg = [](const auto... xs) {
-            return (xs + ...) / sizeof...(xs);
-        };
+        const auto avg = [](const auto... xs)
+        { return (xs + ...) / sizeof...(xs); };
 
-        const auto avgCurl = [&](const auto... xs) {
-            return avg(ss.flFingerCurl[(int)xs]...);
-        };
+        const auto avgCurl = [&](const auto... xs)
+        { return avg(ss.flFingerCurl[(int)xs]...); };
 
         if(avgCurl(FingerIdx::Index, FingerIdx::Middle, FingerIdx::Ring,
                FingerIdx::Pinky) > 0.5)
@@ -3476,7 +3477,8 @@ void VR_Draw2D()
                               // interferring with one another
     glEnable(GL_BLEND);
 
-    const VrMenuMode menuMode = [&] {
+    const VrMenuMode menuMode = [&]
+    {
         const auto v =
             static_cast<VrMenuMode>(static_cast<int>(vr_menumode.value));
 
@@ -3739,7 +3741,8 @@ struct VRAxisResult
     const bool bMoveForward, const bool bMoveBackward, const bool bMoveLeft,
     const bool bMoveRight, const bool bTurnLeft, const bool bTurnRight)
 {
-    const auto getAxis = [](const bool left, const bool right) {
+    const auto getAxis = [](const bool left, const bool right)
+    {
         if(left)
         {
             return -1.f;
@@ -3801,7 +3804,8 @@ static void VR_DoInput_UpdateVRMouse()
         return;
     }
 
-    const auto updateWith = [&](const HandIdx handIdx) {
+    const auto updateWith = [&](const HandIdx handIdx)
+    {
         const auto& orig = cl.handpos[handIdx];
         const auto dir = getFwdVecFromPitchYawRoll(cl.handrot[handIdx]);
 
@@ -3823,7 +3827,8 @@ static void VR_DoInput_UpdateVRMouse()
 
         const float scale_hud = vr_menu_scale.value;
 
-        const auto sign = [](const float x) {
+        const auto sign = [](const float x)
+        {
             if(x >= 0)
             {
                 return 1.f;
@@ -3840,8 +3845,9 @@ static void VR_DoInput_UpdateVRMouse()
         vr_menu_mouse_y = glm::length(yProj) * ySign / scale_hud + 240 / 2;
     };
 
-    const auto doControllersInOrder = [&](const HandIdx first,
-                                          const HandIdx second) {
+    const auto doControllersInOrder =
+        [&](const HandIdx first, const HandIdx second)
+    {
         if(controllers[first].active)
         {
             updateWith(first);
@@ -3902,7 +3908,8 @@ static void VR_DoInput_UpdateVRMouse()
         }
     }
 
-    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle) {
+    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle)
+    {
         vr::InputAnalogActionData_t out;
 
         const auto rc = vr::VRInput()->GetAnalogActionData(actionHandle, &out,
@@ -3918,26 +3925,26 @@ static void VR_DoInput_UpdateVRMouse()
         return out;
     };
 
-    const auto readDigitalAction =
-        [](const vr::VRActionHandle_t& actionHandle) {
-            vr::InputDigitalActionData_t out;
+    const auto readDigitalAction = [](const vr::VRActionHandle_t& actionHandle)
+    {
+        vr::InputDigitalActionData_t out;
 
-            const vr::EVRInputError rc = vr::VRInput()->GetDigitalActionData(
-                actionHandle, &out, sizeof(vr::InputDigitalActionData_t),
-                vr::k_ulInvalidInputValueHandle);
+        const vr::EVRInputError rc = vr::VRInput()->GetDigitalActionData(
+            actionHandle, &out, sizeof(vr::InputDigitalActionData_t),
+            vr::k_ulInvalidInputValueHandle);
 
-            if(rc != vr::EVRInputError::VRInputError_None)
-            {
-                Con_Printf(
-                    "Failed to read Steam VR digital action data, rc = %d\n",
-                    (int)rc);
-            }
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf("Failed to read Steam VR digital action data, rc = %d\n",
+                (int)rc);
+        }
 
-            return out;
-        };
+        return out;
+    };
 
-    const auto readSkeletalSummary = [](const vr::VRActionHandle_t&
-                                             actionHandle) {
+    const auto readSkeletalSummary =
+        [](const vr::VRActionHandle_t& actionHandle)
+    {
         vr::InputSkeletalActionData_t outActionData;
 
         {
@@ -4010,9 +4017,8 @@ static void VR_DoInput_UpdateVRMouse()
     const auto inpBTurnLeft = readDigitalAction(vrahBTurnLeft);
     const auto inpBTurnRight = readDigitalAction(vrahBTurnRight);
 
-    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
-        return data.bState && data.bChanged;
-    };
+    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data)
+    { return data.bState && data.bChanged; };
 
     const bool mustFireMainHand = inpFireMainHand.bState;
     const bool mustFireOffHand = inpFireOffHand.bState;
@@ -4107,7 +4113,8 @@ static void VR_DoInput_UpdateVRMouse()
     vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne.bState);
     vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne2.bState);
 
-    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
+    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin)
+    {
         vr::VRInput()->TriggerHapticVibrationAction(
             vrahLeftHaptic, 0, 0.1, 50, 0.5, origin);
 
@@ -4126,22 +4133,24 @@ static void VR_DoInput_UpdateVRMouse()
     */
 
     const auto doMenuKeyEventWithHaptic =
-        [&](const int key, const vr::InputDigitalActionData_t& i) {
-            const bool pressed = isRisingEdge(i);
+        [&](const int key, const vr::InputDigitalActionData_t& i)
+    {
+        const bool pressed = isRisingEdge(i);
 
-            if(pressed)
-            {
-                doMenuHaptic(i.activeOrigin);
-            }
+        if(pressed)
+        {
+            doMenuHaptic(i.activeOrigin);
+        }
 
-            Key_Event(key, pressed);
-            return pressed;
-        };
+        Key_Event(key, pressed);
+        return pressed;
+    };
 
     if(inMenuOrConsole())
     {
         const auto doAxis = [&](const int axis, const auto& inp,
-                                const int quakeKeyNeg, const int quakeKeyPos) {
+                                const int quakeKeyNeg, const int quakeKeyPos)
+        {
             const float lastVal =
                 axis == 0 ? (inp.x - inp.deltaX) : (inp.y - inp.deltaY);
 
@@ -4174,7 +4183,8 @@ static void VR_DoInput_UpdateVRMouse()
             }
         };
 
-        const auto doBooleanInput = [&](const auto& inp, const int quakeKey) {
+        const auto doBooleanInput = [&](const auto& inp, const int quakeKey)
+        {
             if(inp.bChanged)
             {
                 if(inp.bState)
@@ -4289,8 +4299,9 @@ void VR_Move(usercmd_t* cmd)
 
     // VR: VR-related bits.
     {
-        const auto setBit = [](unsigned int& flags, const int bit,
-                                const bool value) {
+        const auto setBit =
+            [](unsigned int& flags, const int bit, const bool value)
+        {
             if(value)
             {
                 flags |= bit;
@@ -4323,7 +4334,8 @@ void VR_Move(usercmd_t* cmd)
     }
 
     // VR: Hands.
-    const auto computeHotSpot = [](const qvec3& hand) {
+    const auto computeHotSpot = [](const qvec3& hand)
+    {
         if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderHolsterPos()))
         {
             return QVR_HS_LEFT_SHOULDER_HOLSTER;
@@ -4524,6 +4536,18 @@ void VR_OnLoadedPak(pack_t& pak)
             continue;
         }
     }
+}
+
+void VR_ResetThrowAvgFrames()
+{
+    controllers[0].velocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+    controllers[0].angularVelocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+    controllers[1].velocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+    controllers[1].angularVelocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
 }
 
 // TODO VR: (P1): "seems like for the custom map a2 i can add bots with no
