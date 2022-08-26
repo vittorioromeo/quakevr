@@ -69,4 +69,3 @@ struct qcvm_t
 
 extern qcvm_t* qcvm;
 void PR_SwitchQCVM(qcvm_t* nvm);
-

@@ -219,24 +219,25 @@ getAngledVectors(const qvec3& v) noexcept
 template <typename T>
 [[nodiscard]] auto makeMenuCVarAdjuster(const bool isLeft)
 {
-    return
-        [isLeft](const cvar_t& cvar, const T incr, const T min, const T max) {
-            const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
+    return [isLeft](const cvar_t& cvar, const T incr, const T min, const T max)
+    {
+        const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
 
-            const T adjIncr = incr * static_cast<T>(factor);
+        const T adjIncr = incr * static_cast<T>(factor);
 
-            const auto newVal = static_cast<T>(
-                isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
-            const auto res = static_cast<T>(std::clamp(newVal, min, max));
+        const auto newVal = static_cast<T>(
+            isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
+        const auto res = static_cast<T>(std::clamp(newVal, min, max));
 
-            Cvar_SetValue(cvar.name, res);
-        };
+        Cvar_SetValue(cvar.name, res);
+    };
 }
 
 template <typename T>
 [[nodiscard]] auto makeMenuValueAdjuster(const bool isLeft)
 {
-    return [isLeft](T& value, const T incr, const T min, const T max) {
+    return [isLeft](T& value, const T incr, const T min, const T max)
+    {
         const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
 
         const T adjIncr = incr * static_cast<T>(factor);
@@ -400,7 +401,8 @@ bool anyXYCorner(const edict_t& ent, F&& f)
     (void)xBias; // TODO VR: (P2) unused
     (void)yBias; // TODO VR: (P2) unused
 
-    const auto checkCorner = [&](const qvec3& pos) {
+    const auto checkCorner = [&](const qvec3& pos)
+    {
         const qvec3 end = pos + move;
 
         traceBuffer = SV_MoveTrace(pos, end, moveType, ent);
@@ -416,10 +418,12 @@ bool anyXYCorner(const edict_t& ent, F&& f)
         return checkCorner(bottomOrigin);
     }
 
-    return anyXYCorner(*ent, [&](const qvec3& offset) {
-        offsetBuffer = offset;
-        return checkCorner(bottomOrigin + offsetBuffer);
-    });
+    return anyXYCorner(*ent,
+        [&](const qvec3& offset)
+        {
+            offsetBuffer = offset;
+            return checkCorner(bottomOrigin + offsetBuffer);
+        });
 }
 
 } // namespace quake::util

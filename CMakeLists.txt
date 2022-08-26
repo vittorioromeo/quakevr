@@ -189,6 +189,11 @@ set_property(TARGET ${QUAKEVR_TARGET_NAME} PROPERTY CXX_STANDARD 17)
 
 include(FindOpenGL)
 
+find_package(Boost 1.36.0 REQUIRED)
+if(Boost_FOUND)
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
 if (WIN32)
     set(SDL2_LIBRARIES
         "C:/OHWorkspace/quakevr/Windows/SDL2/lib64/SDL2main.lib"

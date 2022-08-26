@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 
 namespace quake::saveutil
 {
@@ -89,8 +90,8 @@ void scanSaves()
 {
     const auto doScan = [&](auto& filenamesArray, auto& loadableArray,
                             const int max, const char* naming,
-                            const char* unusedSlot,
-                            std::time_t* timestampArray) {
+                            const char* unusedSlot, std::time_t* timestampArray)
+    {
         for(int i = 0; i < max; i++)
         {
             strcpy(filenamesArray[i], unusedSlot);
@@ -171,7 +172,8 @@ void scanSaves()
 
     const auto it = std::min_element(std::begin(autosaveTimestamps()),
         std::end(autosaveTimestamps()),
-        [](const std::time_t& a, const std::time_t& b) {
+        [](const std::time_t& a, const std::time_t& b)
+        {
             return std::difftime(a, std::time_t(nullptr)) <
                    std::difftime(b, std::time_t(nullptr));
         });

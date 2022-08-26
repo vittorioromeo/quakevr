@@ -598,7 +598,7 @@ void SV_ReadClientMove(usercmd_t* move)
     int sequence;
     eval_t* val;
 
-	if(host_client->protocol_pext2 & PEXT2_PREDINFO)
+    if(host_client->protocol_pext2 & PEXT2_PREDINFO)
     {
         i = (unsigned short)MSG_ReadShort();
         sequence = (host_client->lastmovemessage & 0xffff0000) | (i & 0xffff);
@@ -626,7 +626,8 @@ void SV_ReadClientMove(usercmd_t* move)
         qcvm->time - MSG_ReadFloat();
     host_client->num_pings++;
 
-    const auto readAngles = [&](auto& target) {
+    const auto readAngles = [&](auto& target)
+    {
         // read current angles
         for(int i = 0; i < 3; i++)
         {

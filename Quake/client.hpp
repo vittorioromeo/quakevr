@@ -418,10 +418,12 @@ bool anyViewmodel(client_state_t& clientState, F&& f)
 template <typename F>
 void forAllViewmodels(client_state_t& clientState, F&& f)
 {
-    anyViewmodel(clientState, [&](entity_t& e) {
-        f(e);
-        return false;
-    });
+    anyViewmodel(clientState,
+        [&](entity_t& e)
+        {
+            f(e);
+            return false;
+        });
 }
 
 
@@ -546,7 +548,6 @@ void CL_TimeDemo_f();
 //
 void CL_ParseServerMessage();
 void CL_RegisterParticles(); // QSS
-void CL_NewTranslation(int slot);
 
 //
 // view

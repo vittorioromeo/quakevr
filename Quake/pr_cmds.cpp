@@ -1215,9 +1215,8 @@ static void PF_worldtext_hsettext()
 
     sv.getWorldText(wth)._text = text;
 
-    forAllActiveOrSpawnedClients([&](client_t& client) {
-        sv.SendMsg_WorldTextHSetText(client, wth, text);
-    });
+    forAllActiveOrSpawnedClients([&](client_t& client)
+        { sv.SendMsg_WorldTextHSetText(client, wth, text); });
 }
 
 static void PF_worldtext_hsetpos()
@@ -1233,9 +1232,8 @@ static void PF_worldtext_hsetpos()
 
     sv.getWorldText(wth)._pos = pos;
 
-    forAllActiveOrSpawnedClients([&](client_t& client) {
-        sv.SendMsg_WorldTextHSetPos(client, wth, pos);
-    });
+    forAllActiveOrSpawnedClients([&](client_t& client)
+        { sv.SendMsg_WorldTextHSetPos(client, wth, pos); });
 }
 
 static void PF_worldtext_hsetangles()
@@ -1251,9 +1249,8 @@ static void PF_worldtext_hsetangles()
 
     sv.getWorldText(wth)._angles = angles;
 
-    forAllActiveOrSpawnedClients([&](client_t& client) {
-        sv.SendMsg_WorldTextHSetAngles(client, wth, angles);
-    });
+    forAllActiveOrSpawnedClients([&](client_t& client)
+        { sv.SendMsg_WorldTextHSetAngles(client, wth, angles); });
 }
 
 static void PF_worldtext_hsethalign()
@@ -1271,9 +1268,8 @@ static void PF_worldtext_hsethalign()
 
     sv.getWorldText(wth)._hAlign = hAlign;
 
-    forAllActiveOrSpawnedClients([&](client_t& client) {
-        sv.SendMsg_WorldTextHSetHAlign(client, wth, hAlign);
-    });
+    forAllActiveOrSpawnedClients([&](client_t& client)
+        { sv.SendMsg_WorldTextHSetHAlign(client, wth, hAlign); });
 }
 
 static void PF_strlen()
@@ -1309,7 +1305,8 @@ static void PF_substr()
 static void PF_calcthrowangle()
 {
     // TODO VR: (P2): repetition with `SV_AddGravityImpl`
-    const auto getGravity = [&](const float entGravity) {
+    const auto getGravity = [&](const float entGravity)
+    {
         extern cvar_t sv_gravity;
         return (double)entGravity * (double)sv_gravity.value * host_frametime;
     };
@@ -1782,7 +1779,8 @@ static void PF_droptofloor()
     qfloat highestZ = std::numeric_limits<qfloat>::lowest();
     edict_t* groundEnt = nullptr;
 
-    const auto processHit = [&](const qvec3& xyOffset) {
+    const auto processHit = [&](const qvec3& xyOffset)
+    {
         const qvec3 corner =
             ent.v.origin + xyOffset + qvec3{0, 0, ent.v.mins[2]};
 

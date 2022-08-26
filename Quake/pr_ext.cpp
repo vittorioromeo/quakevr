@@ -8312,7 +8312,7 @@ void PR_AutoCvarChanged(cvar_t* var)
 
     if(sv.active)
     {
-       PR_SwitchQCVM(&sv.qcvm);
+        PR_SwitchQCVM(&sv.qcvm);
 
         n = va("autocvar_%s", var->name);
         glob = ED_FindGlobal(n);
@@ -8327,7 +8327,7 @@ void PR_AutoCvarChanged(cvar_t* var)
         PR_SwitchQCVM(nullptr);
     }
 
-      if(cl.qcvm.globals)
+    if(cl.qcvm.globals)
     {
         PR_SwitchQCVM(nullptr);
         PR_SwitchQCVM(&cl.qcvm);

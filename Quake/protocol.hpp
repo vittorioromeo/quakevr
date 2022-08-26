@@ -87,7 +87,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PEXT2_PRYDONCURSOR 0x00000001 // a mouse cursor exposed to ssqc
 #define PEXT2_VOICECHAT \
     0x00000002 //+voip or cl_voip_send 1; requires opus dll, and others to also
-               //have that same dll.
+               // have that same dll.
 #define PEXT2_SETANGLEDELTA 0x00000004 // less annoying when teleporting.
 #define PEXT2_REPLACEMENTDELTAS \
     0x00000008 // more compact entity deltas (can also be split across multiple
@@ -520,8 +520,8 @@ struct entity_state_t
     unsigned short modelindex; // johnfitz -- was int
     unsigned short frame;      // johnfitz -- was int
     unsigned int effects;
-    unsigned char colormap; // johnfitz -- was int
-    unsigned char skin;     // johnfitz -- was int
+    unsigned char colormap;  // johnfitz -- was int
+    unsigned char skin;      // johnfitz -- was int
     unsigned char scale;     // spike -- *16
     unsigned char pmovetype; // spike
     unsigned short

@@ -608,7 +608,7 @@ int WINS_GetSocketAddr(sys_socket_t socketid, struct qsockaddr* addr)
 #ifdef IPPROTO_IPV6
     if(addr->qsa_family == AF_INET6)
     {
-        static const in_addr6_t in6addr_any; // = IN6ADDR_ANY_INIT;
+        static const in_addr6_t in6addr_any = IN6ADDR_ANY_INIT;
         if(!memcmp(&((struct sockaddr_in6*)addr)->sin6_addr, &in6addr_any,
                sizeof(in_addr6_t)))
             memcpy(&((struct sockaddr_in6*)addr)->sin6_addr, &myAddrv6,
@@ -897,9 +897,9 @@ sys_socket_t WINIPv6_Init()
     if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp6")) return -1;
 
     qgetaddrinfo =
-        (void*)GetProcAddress(GetModuleHandle("ws2_32.dll"), "getaddrinfo");
+        (decltype(qgetaddrinfo))GetProcAddress(GetModuleHandle("ws2_32.dll"), "getaddrinfo");
     qfreeaddrinfo =
-        (void*)GetProcAddress(GetModuleHandle("ws2_32.dll"), "freeaddrinfo");
+        (decltype(qfreeaddrinfo))GetProcAddress(GetModuleHandle("ws2_32.dll"), "freeaddrinfo");
     if(!qgetaddrinfo || !qfreeaddrinfo)
     {
         qgetaddrinfo = nullptr;

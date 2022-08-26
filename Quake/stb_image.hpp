@@ -1153,9 +1153,9 @@ static stbi_uc* stbi__convert_16_to_8(
     if(reduced == nullptr) return stbi__errpuc("outofmem", "Out of memory");
 
     for(i = 0; i < img_len; ++i)
-        reduced[i] = (stbi_uc)(
-            (orig[i] >> 8) & 0xFF); // top half of each byte is sufficient
-                                    // approx of 16->8 bit scaling
+        reduced[i] = (stbi_uc)((orig[i] >> 8) &
+                               0xFF); // top half of each byte is sufficient
+                                      // approx of 16->8 bit scaling
 
     STBI_FREE(orig);
     return reduced;
@@ -1173,9 +1173,9 @@ static stbi__uint16* stbi__convert_8_to_16(
         return (stbi__uint16*)stbi__errpuc("outofmem", "Out of memory");
 
     for(i = 0; i < img_len; ++i)
-        enlarged[i] = (stbi__uint16)(
-            (orig[i] << 8) +
-            orig[i]); // replicate to high and low byte, maps 0->0, 255->0xffff
+        enlarged[i] = (stbi__uint16)((orig[i] << 8) +
+                                     orig[i]); // replicate to high and low
+                                               // byte, maps 0->0, 255->0xffff
 
     STBI_FREE(orig);
     return enlarged;
@@ -4651,8 +4651,7 @@ static int stbi__parse_huffman_block(stbi__zbuf* a)
                 stbi_uc v = *p;
                 if(len)
                 {
-                    do
-                        *zout++ = v;
+                    do *zout++ = v;
                     while(--len);
                 }
             }
@@ -4660,8 +4659,7 @@ static int stbi__parse_huffman_block(stbi__zbuf* a)
             {
                 if(len)
                 {
-                    do
-                        *zout++ = *p++;
+                    do *zout++ = *p++;
                     while(--len);
                 }
             }
@@ -6267,7 +6265,7 @@ static void* stbi__bmp_load(stbi__context* s, int* x, int* y, int* comp,
     if(flip_vertically)
     {
         stbi_uc t;
-        for(j = 0; j<(int)s->img_y> > 1; ++j)
+        for(j = 0; j < (int)s->img_y >> 1; ++j)
         {
             stbi_uc* p1 = out + j * s->img_x * target;
             stbi_uc* p2 = out + (s->img_y - 1 - j) * s->img_x * target;

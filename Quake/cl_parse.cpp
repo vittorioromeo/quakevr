@@ -1824,7 +1824,8 @@ static void CL_ParseUpdate(int bits)
 
 
     const auto doIt = [&](const auto fn, const int bit, auto& target,
-                          const auto& baselineData, const int index) {
+                          const auto& baselineData, const int index)
+    {
         if(bits & bit)
         {
             target[index] = fn(cl.protocolflags);

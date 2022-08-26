@@ -74,7 +74,8 @@ beam_t* CL_ParseBeam(qmodel_t* m)
     const auto start = MSG_ReadVec3(cl.protocolflags);
     const auto end = MSG_ReadVec3(cl.protocolflags);
 
-    const auto initBeam = [&](beam_t& b) {
+    const auto initBeam = [&](beam_t& b)
+    {
         b.entity = ent;
         b.disambiguator = disambiguator;
         b.model = m;

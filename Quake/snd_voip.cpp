@@ -106,7 +106,7 @@ dllhandle_t* Sys_LoadLibrary(const char* name, dllfunction_t* funcs)
     {
         for(i = 0; funcs[i].name; i++)
         {
-            *funcs[i].funcptr = GetProcAddress(lib, funcs[i].name);
+            *funcs[i].funcptr = reinterpret_cast<void*>(GetProcAddress(lib, funcs[i].name));
             if(!*funcs[i].funcptr)
             {
                 break;

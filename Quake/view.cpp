@@ -1090,7 +1090,8 @@ void V_CalcRefdef(
     view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 
     // TODO VR: (P2) hack
-    const auto isHandMdl = [](const char* mdlname) {
+    const auto isHandMdl = [](const char* mdlname)
+    {
         return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
                (strcmp(mdlname, "progs/hand_base.mdl") == 0) ||
                (strcmp(mdlname, "progs/finger_thumb.mdl") == 0) ||
@@ -1176,7 +1177,8 @@ void V_SetupOffHandWpnViewEnt(
     view.model = cl.model_precache[cl.stats[STAT_WEAPONMODEL2]];
 
     // TODO VR: (P2) hack
-    const auto isHandMdl = [](const char* mdlname) {
+    const auto isHandMdl = [](const char* mdlname)
+    {
         return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
                (strcmp(mdlname, "progs/hand_base.mdl") == 0) ||
                (strcmp(mdlname, "progs/finger_thumb.mdl") == 0) ||
@@ -1297,7 +1299,8 @@ void V_SetupHolsterViewEnt(const int hotspot, const int modelId,
     view->model = cl.model_precache[modelId];
 
     // TODO VR: (P2) hack
-    const auto isHandMdl = [](const char* mdlname) {
+    const auto isHandMdl = [](const char* mdlname)
+    {
         return (strcmp(mdlname, "progs/hand.mdl") == 0) ||
                (strcmp(mdlname, "progs/hand_base.mdl") == 0) ||
                (strcmp(mdlname, "progs/finger_thumb.mdl") == 0) ||
@@ -1691,11 +1694,11 @@ static void V_RenderView_HolsterModels()
 
 static void V_RenderView_HandModels()
 {
-    const auto doHand = [&](const FingerIdx fingerIdx, entity_t* wpnEnt,
-                            const int wpnCvar, entity_t* otherWpnEnt,
-                            entity_t* handEnt, const int hand,
-                            const qvec3& extraOffset, const bool horizFlip,
-                            const bool ghost) {
+    const auto doHand =
+        [&](const FingerIdx fingerIdx, entity_t* wpnEnt, const int wpnCvar,
+            entity_t* otherWpnEnt, entity_t* handEnt, const int hand,
+            const qvec3& extraOffset, const bool horizFlip, const bool ghost)
+    {
         if(otherWpnEnt->model != nullptr)
         {
             const int otherWpnCvar = VR_GetWpnCVarFromModel(otherWpnEnt->model);
@@ -1734,7 +1737,8 @@ static void V_RenderView_HandModels()
 
     const auto doHandEntities = [&](auto& handEntities, entity_t& wpnEnt,
                                     const int handIdx, const qvec3& extraOffset,
-                                    const bool horizFlip, const bool ghost) {
+                                    const bool horizFlip, const bool ghost)
+    {
         if(wpnEnt.model == nullptr)
         {
             return;
@@ -1745,8 +1749,9 @@ static void V_RenderView_HandModels()
         entity_t& otherWpnEnt =
             &wpnEnt == &cl.viewent ? cl.offhand_viewent : cl.viewent;
 
-        const auto doHandImpl = [&](const FingerIdx fingerIdx,
-                                    entity_t& handEnt) {
+        const auto doHandImpl =
+            [&](const FingerIdx fingerIdx, entity_t& handEnt)
+        {
             doHand(fingerIdx, &wpnEnt, wpnCvar, &otherWpnEnt, &handEnt, handIdx,
                 extraOffset, horizFlip, ghost);
         };
@@ -1798,7 +1803,8 @@ static void V_RenderView_WeaponButtonModels()
     // VR: Setup weapon buttons.
     const auto doWpnButton = [&](entity_t* wpnEnt, entity_t* buttonEnt,
                                  const int hand, const qvec3& extraOffset,
-                                 const bool horizFlip) {
+                                 const bool horizFlip)
+    {
         if(wpnEnt->model == nullptr)
         {
             return;
@@ -1822,7 +1828,8 @@ static void V_RenderView_WeaponText()
     // VR: Setup weapon text.
     const auto doWpnText = [&](entity_t* wpnEnt, textentity_t* textEnt,
                                const int hand, const qvec3& extraOffset,
-                               const bool horizFlip) {
+                               const bool horizFlip)
+    {
         if(wpnEnt->model == nullptr)
         {
             return;

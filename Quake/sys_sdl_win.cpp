@@ -238,10 +238,13 @@ static void Sys_SetDPIAware()
 
     hShcore = LoadLibraryA("Shcore.dll");
     hUser32 = LoadLibraryA("user32.dll");
-    setDPIAwareness = (SetProcessDPIAwarenessFunc)(
-        hShcore ? GetProcAddress(hShcore, "SetProcessDpiAwareness") : nullptr);
-    setDPIAware = (SetProcessDPIAwareFunc)(
-        hUser32 ? GetProcAddress(hUser32, "SetProcessDPIAware") : nullptr);
+    setDPIAwareness =
+        (SetProcessDPIAwarenessFunc)(hShcore ? GetProcAddress(hShcore,
+                                                   "SetProcessDpiAwareness")
+                                             : nullptr);
+    setDPIAware = (SetProcessDPIAwareFunc)(hUser32 ? GetProcAddress(hUser32,
+                                                         "SetProcessDPIAware")
+                                                   : nullptr);
 
     if(setDPIAwareness)
     { /* Windows 8.1+ */

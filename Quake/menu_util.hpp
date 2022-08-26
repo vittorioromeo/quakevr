@@ -283,8 +283,8 @@ public:
     auto add_cvar_getter_enum_entry(const std::string_view label,
         CvarGetter&& cvar_getter, const EnumLabels... enum_labels)
     {
-        const auto enum_labels_fn = [enum_labels...](
-                                        int x) -> std::string_view {
+        const auto enum_labels_fn = [enum_labels...](int x) -> std::string_view
+        {
             static std::array<std::string_view, sizeof...(enum_labels)> strs{
                 enum_labels...};
             return strs[static_cast<int>(x)];
@@ -301,8 +301,8 @@ public:
     auto add_getter_enum_entry(const std::string_view label, Getter&& getter,
         const EnumLabels... enum_labels)
     {
-        const auto enum_labels_fn = [enum_labels...](
-                                        int x) -> std::string_view {
+        const auto enum_labels_fn = [enum_labels...](int x) -> std::string_view
+        {
             static std::array<std::string_view, sizeof...(enum_labels)> strs{
                 enum_labels...};
             return strs[static_cast<int>(x)];

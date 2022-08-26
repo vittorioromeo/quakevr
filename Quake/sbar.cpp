@@ -1343,7 +1343,8 @@ void Sbar_Draw()
         }
         else
         {
-            const auto drawAmmoIcon = [&](const int x, const int stat) {
+            const auto drawAmmoIcon = [&](const int x, const int stat)
+            {
                 const int aid = static_cast<int>(cl.stats[stat]);
 
                 if(aid >= AID_SHELLS && aid <= AID_CELLS)
@@ -1361,8 +1362,9 @@ void Sbar_Draw()
             drawAmmoIcon(ammo2Pos - 24, STAT_AMMO2);
         }
 
-        const auto drawAmmoCounter = [&](const int x, const int ammoStat,
-                                         const int ammoCounterStat) {
+        const auto drawAmmoCounter =
+            [&](const int x, const int ammoStat, const int ammoCounterStat)
+        {
             const int aid = static_cast<int>(cl.stats[ammoStat]);
             if(aid == AID_NONE)
             {
@@ -1379,30 +1381,30 @@ void Sbar_Draw()
         {
             const auto drawClipAmmoCounter =
                 [&](const int x, const int clipStat, const int clipSizeStat,
-                    const int ammoStat, const int ammoCounterStat) {
-                    const int aid = static_cast<int>(cl.stats[ammoStat]);
-                    if(aid == AID_NONE)
-                    {
-                        return;
-                    }
+                    const int ammoStat, const int ammoCounterStat)
+            {
+                const int aid = static_cast<int>(cl.stats[ammoStat]);
+                if(aid == AID_NONE)
+                {
+                    return;
+                }
 
-                    if(cl.stats[clipSizeStat] == 0)
-                    {
-                        // Weapon does not support reloading.
-                        drawAmmoCounter(x, ammoStat, ammoCounterStat);
-                        return;
-                    }
+                if(cl.stats[clipSizeStat] == 0)
+                {
+                    // Weapon does not support reloading.
+                    drawAmmoCounter(x, ammoStat, ammoCounterStat);
+                    return;
+                }
 
-                    const int nextX =
-                        Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
+                const int nextX = Sbar_DrawNum(x, 0, cl.stats[clipStat], 3, 0);
 
-                    char buf[32];
-                    sprintf(buf, "/%d", cl.stats[clipSizeStat]);
-                    Sbar_DrawString(nextX + 4, 2, buf);
+                char buf[32];
+                sprintf(buf, "/%d", cl.stats[clipSizeStat]);
+                Sbar_DrawString(nextX + 4, 2, buf);
 
-                    sprintf(buf, "%d", cl.stats[ammoCounterStat]);
-                    Sbar_DrawString(nextX + 4, 10, buf, 1.4f);
-                };
+                sprintf(buf, "%d", cl.stats[ammoCounterStat]);
+                Sbar_DrawString(nextX + 4, 10, buf, 1.4f);
+            };
 
             drawClipAmmoCounter(ammoPos, STAT_WEAPONCLIP, STAT_WEAPONCLIPSIZE,
                 STAT_AMMO, STAT_AMMOCOUNTER);

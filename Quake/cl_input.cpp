@@ -598,16 +598,16 @@ void CL_SendMove(const usercmd_t* cmd)
 
         MSG_WriteFloat(&buf, cl.mtime[0]); // so server can get ping times
 
-        const auto writeAngles = [&](const auto& angles) {
+        const auto writeAngles = [&](const auto& angles)
+        {
             for(int i = 0; i < 3; i++)
             {
                 MSG_WriteAngle16(&buf, angles[i], cl.protocolflags);
             }
         };
 
-        const auto writeVec = [&](const auto& vec) {
-            MSG_WriteVec3(&buf, vec, cl.protocolflags);
-        };
+        const auto writeVec = [&](const auto& vec)
+        { MSG_WriteVec3(&buf, vec, cl.protocolflags); };
 
         // aimangles
         writeAngles(cl.aimangles);

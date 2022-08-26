@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
-#include <setjmp.h>
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "cmd.hpp"
@@ -55,6 +54,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.hpp"
 #include "developer.hpp"
 #include "qcvm.hpp"
+
+#include <csetjmp>
+#include <exception>
 
 /*
 
