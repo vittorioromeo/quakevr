@@ -7,12 +7,11 @@
 #include "macros.hpp"
 #include "progs.hpp"
 #include "world.hpp"
-#include "server.hpp"
+#include "serverdefines.hpp"
 
 #include <cassert>
 #include <cmath>
 #include <tuple>
-#include <type_traits>
 
 // TODO VR: (P2) ugly declaration
 float VR_GetMenuMult() noexcept;

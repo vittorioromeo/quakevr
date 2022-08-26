@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
+#include "server.hpp"
 #include "util.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"

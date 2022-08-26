@@ -3,7 +3,6 @@
 #include <GL/glew.h>
 
 #include <string_view>
-#include <filesystem>
 #include <cassert>
 #include <vector>
 #include <cstdio>

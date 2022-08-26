@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // world.c -- world query functions
 
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "util.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "vr.hpp"

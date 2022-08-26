@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "world.hpp"
 #include "util.hpp"

@@ -233,16 +233,22 @@ private:
 
     [[nodiscard]] bool entry_is_selectable_at(const int idx);
 
+    std::size_t emplace_and_get_handle_impl(
+        const impl::menu_entry_common& common,
+        impl::menu_entry_variant&& entry_variant) noexcept
+    {
+        const auto index = _entries.size();
+        _entries.emplace_back(common, std::move(entry_variant));
+        return index;
+    }
+
     template <typename T, typename... Args>
     entry_handle<T> emplace_and_get_handle(
         const impl::menu_entry_common& common, Args&&... args) noexcept
     {
-        const auto index = _entries.size();
-
-        _entries.emplace_back(
-            common, impl::menu_entry_variant{T{std::forward<Args>(args)...}});
-
-        return entry_handle<T>{*this, index};
+        return entry_handle<T>{*this,
+            emplace_and_get_handle_impl(common,
+                impl::menu_entry_variant{T{std::forward<Args>(args)...}})};
     }
 
     void update_hover(

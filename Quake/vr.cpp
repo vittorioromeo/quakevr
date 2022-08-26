@@ -1,6 +1,7 @@
 #include "console.hpp"
 #include "cvar.hpp"
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "util.hpp"

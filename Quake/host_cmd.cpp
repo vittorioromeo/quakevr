@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#include "server.hpp"
 #endif
 
 #ifdef WIN32
@@ -52,6 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef_macros.hpp"
 #include "menu.hpp"
 #include "screen.hpp"
+#include "server.hpp"
 #include "client.hpp"
 #include "sys.hpp"
 #include "saveutil.hpp"
