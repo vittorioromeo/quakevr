@@ -58,6 +58,7 @@ set(source_list
     "Quake/pr_edict.cpp"
     "Quake/pr_exec.cpp"
     "Quake/pr_ext.cpp"
+    "Quake/qcvm.cpp"
     "Quake/quakeglm.cpp"
     "Quake/r_alias.cpp"
     "Quake/r_brush.cpp"

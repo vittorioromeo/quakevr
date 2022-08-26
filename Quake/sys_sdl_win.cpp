@@ -49,8 +49,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <SDL2/SDL.h>
 
+#ifndef __MINGW32__
 #pragma comment(lib, "dbgeng.lib")
 #define BOOST_STACKTRACE_USE_WINDBG
+#endif
+
 #include <boost/stacktrace.hpp>
 #include <iostream>
 
