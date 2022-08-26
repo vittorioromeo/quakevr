@@ -20,6 +20,7 @@
 #include "draw.hpp"
 #include "gl_util.hpp"
 #include "cmd.hpp"
+#include "debugprint.hpp"
 
 #include <algorithm>
 #include <cassert>

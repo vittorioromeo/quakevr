@@ -22,6 +22,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifdef WIN32
+#include <windows.h>
+#include "debugapi.h"
+
+#undef min
+#undef max
+#endif
+
 #include "host.hpp"
 #include "quakedef.hpp"
 #include "net.hpp"

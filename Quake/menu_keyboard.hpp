@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util.hpp"
+#include "variantutil.hpp"
 #include "quakeglm_qvec2.hpp"
 
 #include <variant>

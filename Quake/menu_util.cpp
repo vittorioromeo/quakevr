@@ -4,6 +4,7 @@
 #include "client.hpp"
 #include "menu.hpp"
 #include "util.hpp"
+#include "variantutil.hpp"
 #include "keys.hpp"
 #include "q_sound.hpp"
 #include "input.hpp"

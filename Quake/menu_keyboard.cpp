@@ -1,7 +1,9 @@
 #include "menu_keyboard.hpp"
 
+#include "common.hpp"
 #include "gl_util.hpp"
 #include "menu.hpp"
+#include "variantutil.hpp"
 
 #include <string_view>
 

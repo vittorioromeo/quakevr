@@ -78,6 +78,10 @@ void Sys_CloseLibrary(dllhandle_t* lib);
 #include "arch_def.hpp"
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
 void Sys_CloseLibrary(dllhandle_t* lib)
 {
