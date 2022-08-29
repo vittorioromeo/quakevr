@@ -3323,7 +3323,7 @@ void VR_UpdateFlick()
         if(flickreload_effect[handIdx] <= 0.f)
         {
             flickreload_effect[handIdx] = 0.f;
-            cl.visual_handrot[handIdx] = {};
+            cl.visual_handrot[handIdx] = cl.handrot[handIdx];
             continue;
         }
 
@@ -3337,10 +3337,8 @@ void VR_UpdateFlick()
 
         const auto [fwd, right, up] = getAngledVectors(cl.handrot[handIdx]);
 
-        cl.visual_handrot[handIdx] =
-            VectorAngles(TurnVector(fwd, up, flickreload_effect[handIdx]));
-
-        cl.visual_handrot[handIdx] -= cl.handrot[handIdx];
+        cl.visual_handrot[handIdx] = VectorAngles(
+            TurnVector(fwd, up, 360.f - flickreload_effect[handIdx]), up);
     }
 }
 

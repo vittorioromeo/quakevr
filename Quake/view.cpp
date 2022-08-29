@@ -715,9 +715,13 @@ void CalcGunAngle(const int wpnCvarEntry, entity_t* viewent,
             vhrRoll *= -1.f;
         }
 
-        viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch + vhrPitch;
-        viewent->angles[YAW] = handrot[YAW] + oYaw + vhrYaw;
-        viewent->angles[ROLL] = handrot[ROLL] + oRoll + vhrRoll;
+        // viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch + vhrPitch;
+        // viewent->angles[YAW] = handrot[YAW] + oYaw + vhrYaw;
+        // viewent->angles[ROLL] = handrot[ROLL] + oRoll + vhrRoll;
+
+        viewent->angles[PITCH] = -(visual_handrot[PITCH]) + oPitch;
+        viewent->angles[YAW] = visual_handrot[YAW] + oYaw;
+        viewent->angles[ROLL] = visual_handrot[ROLL] + oRoll;
 
         return;
     }
