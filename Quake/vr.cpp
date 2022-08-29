@@ -27,6 +27,8 @@
 #include <cassert>
 #include <cstring>
 #include <deque>
+#include <glm/geometric.hpp>
+#include <iostream>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -221,6 +223,12 @@ bool vr_left_reloading{false};
 bool vr_left_prevreloading{false};
 bool vr_right_reloading{false};
 bool vr_right_prevreloading{false};
+bool vr_left_reloadflicking{false};
+bool vr_left_prevreloadflicking{false};
+bool vr_right_reloadflicking{false};
+bool vr_right_prevreloadflicking{false};
+
+float flickreload_effect[2]{};
 
 vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 vr::VRSkeletalSummaryData_t vr_ss_righthand;
@@ -643,6 +651,17 @@ void VR_ApplyModelMod(
 
     assert(hand == cVR_MainHand);
     return vr_right_grabbing;
+}
+
+[[nodiscard]] bool VR_IsHandReloadFlicking(const int hand) noexcept
+{
+    if(hand == cVR_OffHand)
+    {
+        return vr_left_reloadflicking;
+    }
+
+    assert(hand == cVR_MainHand);
+    return vr_right_reloadflicking;
 }
 
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
@@ -1391,6 +1410,11 @@ static void VR_InitActionHandles()
 
 bool VR_Enable()
 {
+    if(COM_CheckParm("-fakevr"))
+    {
+        Cvar_SetValueQuick(&vr_fakevr, 1);
+    }
+
     if(COM_CheckParm("-novr"))
     {
         Cvar_SetValueQuick(&vr_fakevr, 1);
@@ -3037,6 +3061,8 @@ static void VR_FakeVRControllerAiming()
 
     cl.handrot[cVR_MainHand] = cl.viewangles;
     cl.handrot[cVR_OffHand] = cl.viewangles;
+    cl.handrot[cVR_MainHand][ROLL] = vr_fakevr_handroll.value;
+    cl.handrot[cVR_OffHand][ROLL] = vr_fakevr_handroll.value;
 }
 
 static void VR_DoWpnButton()
@@ -3147,6 +3173,40 @@ static void VR_ControllerAiming(const qvec3& orientation)
     VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
     VR_DoWpnButton();
+
+    // flick reload
+    const auto doFlickReload = [](const int handIdx)
+    {
+        bool& prev = handIdx == cVR_MainHand ? vr_right_prevreloadflicking
+                                             : vr_left_prevreloadflicking;
+
+        bool& curr = handIdx == cVR_MainHand ? vr_right_reloadflicking
+                                             : vr_left_reloadflicking;
+
+        if(!controllers[handIdx].active)
+        {
+            prev = curr = false;
+            return;
+        }
+
+        const qvec3 rawAngVel = openVRCoordsToQuakeCoords(
+            controllers[handIdx].angularVelocityHistory.average());
+
+        prev = curr;
+        curr =
+            glm::length(rawAngVel) >= vr_spinreload_x_angular_threshold.value;
+
+        if(flickreload_effect[handIdx] == 0.f)
+        {
+            if(!prev && curr)
+            {
+                flickreload_effect[handIdx] = 360.f;
+            }
+        }
+    };
+
+    doFlickReload(cVR_MainHand);
+    doFlickReload(cVR_OffHand);
 }
 
 static void VR_ResetGlobals()
@@ -3254,6 +3314,36 @@ void VR_UpdateFingerTracking()
     }
 }
 
+void VR_UpdateFlick()
+{
+    for(int i = 0; i < 2; ++i)
+    {
+        int handIdx = i;
+
+        if(flickreload_effect[handIdx] <= 0.f)
+        {
+            flickreload_effect[handIdx] = 0.f;
+            cl.visual_handrot[handIdx] = {};
+            continue;
+        }
+
+        if(flickreload_effect[handIdx] > 0.f)
+        {
+            const auto frametime = cl.time - cl.oldtime;
+
+            flickreload_effect[handIdx] -=
+                static_cast<float>(frametime) * vr_spinreload_pitch_speed.value;
+        }
+
+        const auto [fwd, right, up] = getAngledVectors(cl.handrot[handIdx]);
+
+        cl.visual_handrot[handIdx] =
+            VectorAngles(TurnVector(fwd, up, flickreload_effect[handIdx]));
+
+        cl.visual_handrot[handIdx] -= cl.handrot[handIdx];
+    }
+}
+
 void VR_UpdateScreenContent()
 {
     // Last chance to enable VR Mode - we get here when the game already
@@ -3284,9 +3374,17 @@ void VR_UpdateScreenContent()
 
     switch((int)vr_aimmode.value)
     {
-            // 1: (Default) Head Aiming; View YAW is mouse+head, PITCH is
-            // head
+
         default:
+        // 7: (Default) Controller Aiming;
+        case VrAimMode::e_CONTROLLER:
+        {
+            VR_ControllerAiming(orientation);
+            break;
+        }
+
+            // 1:Head Aiming; View YAW is mouse+head, PITCH is
+            // head
         case VrAimMode::e_HEAD_MYAW:
             cl.viewangles[PITCH] = cl.aimangles[PITCH] = orientation[PITCH];
             cl.aimangles[YAW] = cl.viewangles[YAW] =
@@ -3342,13 +3440,6 @@ void VR_UpdateScreenContent()
             }
             cl.viewangles[PITCH] = orientation[PITCH];
 
-            break;
-        }
-
-        // 7: Controller Aiming;
-        case VrAimMode::e_CONTROLLER:
-        {
-            VR_ControllerAiming(orientation);
             break;
         }
     }
@@ -3895,6 +3986,21 @@ static void VR_DoInput_UpdateVRMouse()
         vr_left_reloading = in_reloadleft.state & 1;
         vr_right_reloading = in_reloadright.state & 1;
 
+        vr_left_prevreloadflicking = vr_left_reloadflicking;
+        vr_right_prevreloadflicking = vr_right_reloadflicking;
+        vr_left_reloadflicking = in_flickreloadleft.state & 1;
+        vr_right_reloadflicking = in_flickreloadright.state & 1;
+
+        if(vr_left_reloadflicking)
+        {
+            flickreload_effect[cVR_OffHand] = 360.f;
+        }
+
+        if(vr_right_reloadflicking)
+        {
+            flickreload_effect[cVR_MainHand] = 360.f;
+        }
+
         VR_DoInput_UpdateFakeMouse();
 
         return {0.f, 0.f, 0.f};
@@ -4105,6 +4211,19 @@ static void VR_DoInput_UpdateVRMouse()
 
         vr_left_reloading = in_reloadleft.state & 1;
         vr_right_reloading = in_reloadright.state & 1;
+
+        vr_left_reloadflicking = in_flickreloadleft.state & 1;
+        vr_right_reloadflicking = in_flickreloadright.state & 1;
+
+        if(vr_left_reloadflicking)
+        {
+            flickreload_effect[cVR_OffHand] = 360.f;
+        }
+
+        if(vr_right_reloadflicking)
+        {
+            flickreload_effect[cVR_MainHand] = 360.f;
+        }
 
         VR_DoInput_UpdateFakeMouse();
     }
@@ -4334,6 +4453,14 @@ void VR_Move(usercmd_t* cmd)
             cmd->vrbits0, QVR_VRBITS0_MAINHAND_RELOADING, vr_right_reloading);
         setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING,
             vr_right_prevreloading);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING,
+            vr_left_reloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADFLICKING,
+            vr_left_prevreloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING,
+            vr_right_reloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING,
+            vr_right_prevreloadflicking);
     }
 
     // VR: Hands.
@@ -4543,14 +4670,9 @@ void VR_OnLoadedPak(pack_t& pak)
 
 void VR_ResetThrowAvgFrames()
 {
-    controllers[0].velocityHistory =
-        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
-    controllers[0].angularVelocityHistory =
-        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
-    controllers[1].velocityHistory =
-        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
-    controllers[1].angularVelocityHistory =
-        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+    controllers[0].velocityHistory = controllers[0].angularVelocityHistory =
+        controllers[1].velocityHistory = controllers[1].angularVelocityHistory =
+            VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
 }
 
 // TODO VR: (P1): "seems like for the custom map a2 i can add bots with no

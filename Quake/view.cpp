@@ -698,22 +698,26 @@ CalcGunAngle
 ==================
 */
 void CalcGunAngle(const int wpnCvarEntry, entity_t* viewent,
-    const qvec3& handrot, bool horizFlip)
+    const qvec3& handrot, const qvec3& visual_handrot, bool horizFlip)
 {
     // Skip everything if we're doing VR Controller aiming.
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
     {
         auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
+        auto [vhrPitch, vhrYaw, vhrRoll] = visual_handrot;
 
         if(horizFlip)
         {
             oYaw *= -1.f;
             oRoll *= -1.f;
+
+            vhrYaw *= -1.f;
+            vhrRoll *= -1.f;
         }
 
-        viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch;
-        viewent->angles[YAW] = handrot[YAW] + oYaw;
-        viewent->angles[ROLL] = handrot[ROLL] + oRoll;
+        viewent->angles[PITCH] = -(handrot[PITCH]) + oPitch + vhrPitch;
+        viewent->angles[YAW] = handrot[YAW] + oYaw + vhrYaw;
+        viewent->angles[ROLL] = handrot[ROLL] + oRoll + vhrRoll;
 
         return;
     }
@@ -1043,7 +1047,8 @@ void V_CalcRefdef(
     // set up gun position
     view->angles = cl.viewangles;
 
-    CalcGunAngle(cvarEntry, view, cl.handrot[cVR_MainHand], false);
+    CalcGunAngle(cvarEntry, view, cl.handrot[cVR_MainHand],
+        cl.visual_handrot[cVR_MainHand], false);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -1162,7 +1167,8 @@ void V_SetupOffHandWpnViewEnt(
     entity_t& view = cl.offhand_viewent;
 
     // set up gun position
-    CalcGunAngle(cvarEntry, &view, cl.handrot[cVR_OffHand], true);
+    CalcGunAngle(cvarEntry, &view, cl.handrot[cVR_OffHand],
+        cl.visual_handrot[cVR_OffHand], true);
 
     // VR controller aiming configuration
     if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
@@ -1217,7 +1223,8 @@ void V_SetupVRTorsoViewEnt()
     const auto [vFwd, vRight, vUp] =
         quake::util::getAngledVectors(playerYawOnly);
 
-    const auto heightRatio = quake::util::qclamp(VR_GetCrouchRatio(), 0._qf, 0.8_qf);
+    const auto heightRatio =
+        quake::util::qclamp(VR_GetCrouchRatio(), 0._qf, 0.8_qf);
 
     view.angles[PITCH] = 0.f + vr_vrtorso_pitch.value - (heightRatio * 35._qf);
     view.angles[YAW] = VR_GetBodyYawAngle() + vr_vrtorso_yaw.value;

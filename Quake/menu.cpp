@@ -3396,7 +3396,8 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_entry<int>("Throw Avg Frames", vr_throw_avg_frames, {1, 1, 50});
 
-    m.add_action_entry("Reset Throw Avg Frames", &VR_ResetThrowAvgFrames);
+    m.add_action_entry(
+        "Refresh Throw Avg Frames", [] { VR_ResetThrowAvgFrames(); });
 
     // ------------------------------------------------------------------------
     m.add_separator();

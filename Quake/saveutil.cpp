@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <iostream>
 
 namespace quake::saveutil
 {
@@ -18,7 +19,7 @@ namespace quake::saveutil
     static char data[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1]{};
     return data;
 }
-// namespace quake::saveutil
+
 [[nodiscard]] auto& autosaveFilenames() noexcept
 {
     static char data[MAX_AUTOSAVES][SAVEGAME_COMMENT_LENGTH + 1]{};
@@ -116,7 +117,14 @@ void scanSaves()
                 tm.tm_year -= 1900;
 
                 timestampArray[i] = std::mktime(&tm);
-                assert(timestampArray[i] != -1);
+                if(timestampArray[i] == -1)
+                {
+                    std::cerr << "Error loading timestamp for save '" << name << "'\n";
+
+                    loadableArray[i] = false;
+                    fclose(f);
+                    continue;
+                }
             }
 
             int version;
@@ -134,7 +142,6 @@ void scanSaves()
             }
 
             loadableArray[i] = true;
-
             fclose(f);
         }
     };

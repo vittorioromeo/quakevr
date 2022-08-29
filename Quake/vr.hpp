@@ -370,6 +370,10 @@ void VR_ApplyModelMod(
 
 [[nodiscard]] bool VR_GetHorizFlip(const HandIdx handIdx) noexcept;
 
+[[nodiscard]] bool VR_IsHandReloadFlicking(const int hand) noexcept;
+
+void VR_UpdateFlick();
+
 //
 //
 //

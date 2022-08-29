@@ -12,7 +12,9 @@ void(entity xEntPlayer,
      float xLastGrabTime,
      float* xOutLastGrabTime,
      float xLastReleaseTime,
-     float* xOutLastReleaseTime)
+     float* xOutLastReleaseTime,
+     float xCurrReloadFlickingBit,
+     float xPrevReloadFlickingBit)
 VR_HandGrabUtil_Impl_UpdateStateForHand =
 {
     if(!xPrevBit && xCurrBit) // Rising edge (grab)
@@ -66,7 +68,9 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
         xEntPlayer.offhand_lastgrabtime,
         &xEntPlayer.offhand_lastgrabtime,
         xEntPlayer.offhand_lastreleasetime,
-        &xEntPlayer.offhand_lastreleasetime
+        &xEntPlayer.offhand_lastreleasetime,
+        VRGetOffHandReloadFlickingBit(xEntPlayer),
+        VRGetOffHandPrevReloadFlickingBit(xEntPlayer)
     );
 
     VR_HandGrabUtil_Impl_UpdateStateForHand(
@@ -77,10 +81,11 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
         xEntPlayer.mainhand_lastgrabtime,
         &xEntPlayer.mainhand_lastgrabtime,
         xEntPlayer.mainhand_lastreleasetime,
-        &xEntPlayer.mainhand_lastreleasetime
+        &xEntPlayer.mainhand_lastreleasetime,
+        VRGetMainHandReloadFlickingBit(xEntPlayer),
+        VRGetMainHandPrevReloadFlickingBit(xEntPlayer)
     );
 }
-
 
 float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandGrabbing =
 {
@@ -110,4 +115,14 @@ float(entity xEntPlayer, float xHand) VR_HandGrabUtil_StoppedHandGrabbing =
 {
     return VRIsEntHandPrevGrabbingBit(xEntPlayer, xHand) &&
            !VRIsEntHandGrabbingBit(xEntPlayer, xHand);
+}
+
+float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlicking =
+{
+    return VRIsEntHandReloadFlickingBit(xEntPlayer, xHand);
+}
+
+float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandPrevReloadFlicking =
+{
+    return VRIsEntHandPrevReloadFlickingBit(xEntPlayer, xHand);
 }

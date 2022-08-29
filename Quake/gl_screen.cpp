@@ -1460,6 +1460,8 @@ void SCR_UpdateScreen()
     //
     SCR_SetUpToDrawConsole();
 
+    VR_UpdateFlick();
+
     if(vr_enabled.value && !con_forcedup)
     {
         // TODO VR: (P2) this is client side, but does use server logic. Should

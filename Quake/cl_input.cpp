@@ -67,7 +67,7 @@ kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack,
     in_button3, in_button4, in_button5, in_button6, in_button7, in_button8;
 kbutton_t in_up, in_down;
 kbutton_t in_grableft, in_grabright;
-kbutton_t in_reloadleft, in_reloadright;
+kbutton_t in_reloadleft, in_reloadright, in_flickreloadleft, in_flickreloadright;
 
 int in_impulse;
 
@@ -798,4 +798,8 @@ void CL_InitInput()
     Cmd_AddCommand("-reloadleft", [] { KeyUp(&in_reloadleft); });
     Cmd_AddCommand("+reloadright", [] { KeyDown(&in_reloadright); });
     Cmd_AddCommand("-reloadright", [] { KeyUp(&in_reloadright); });
+    Cmd_AddCommand("+flickreloadleft", [] { KeyDown(&in_flickreloadleft); });
+    Cmd_AddCommand("-flickreloadleft", [] { KeyUp(&in_flickreloadleft); });
+    Cmd_AddCommand("+flickreloadright", [] { KeyDown(&in_flickreloadright); });
+    Cmd_AddCommand("-flickreloadright", [] { KeyUp(&in_flickreloadright); });
 }

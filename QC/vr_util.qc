@@ -374,6 +374,17 @@ float(entity e, float xHand) VRGetEntForceGrabbing =
     else                     return e.mainhand_forcegrabbing;
 }
 
+float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
+{
+    if(xHand == cVR_OffHand) return VRGetOffHandReloadFlickingBit(e);
+    else                     return VRGetMainHandReloadFlickingBit(e);
+}
+
+float(entity e, float xHand) VRIsEntHandPrevReloadFlickingBit =
+{
+    if(xHand == cVR_OffHand) return VRGetOffHandPrevReloadFlickingBit(e);
+    else                     return VRGetMainHandPrevReloadFlickingBit(e);
+}
 
 void(entity e, float xHand, float v) VRSetEntForceGrabbing =
 {
@@ -480,6 +491,26 @@ float(entity ent) VRGetMainHandPrevReloadingBit =
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING);
 }
 
+float(entity ent) VRGetOffHandReloadFlickingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING);
+}
+
+float(entity ent) VRGetOffHandPrevReloadFlickingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADFLICKING);
+}
+
+float(entity ent) VRGetMainHandReloadFlickingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING);
+}
+
+float(entity ent) VRGetMainHandPrevReloadFlickingBit =
+{
+    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING);
+}
+
 
 void(entity ent, float value) VRSetTeleporting =
 {
@@ -531,6 +562,26 @@ void(entity ent, float value) VRSetMainHandPrevReloadingBit =
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING, value);
 }
 
+void(entity ent, float value) VRSetOffHandReloadFlickingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING, value);
+}
+
+void(entity ent, float value) VRSetOffHandPrevReloadFlickingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADFLICKING, value);
+}
+
+void(entity ent, float value) VRSetMainHandReloadFlickingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING, value);
+}
+
+void(entity ent, float value) VRSetMainHandPrevReloadFlickingBit =
+{
+    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING, value);
+}
+
 float() VRIsWeaponReloadingEnabled =
 {
     return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
@@ -542,4 +593,11 @@ float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
     return ent.ishuman &&
            VRIsWeaponReloadingEnabled() &&
            WeaponIdToSupportsReload(VRGetWeapon(xHand));
+}
+
+float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
+{
+    return ent.ishuman &&
+           VRIsWeaponReloadingEnabled() &&
+           WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
 }

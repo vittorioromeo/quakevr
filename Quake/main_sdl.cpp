@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
 // TODO VR: (P2) linux hack
 #ifdef WIN32
     vr_working_directory =
-        vr_working_directory.substr(0, vr_working_directory.find_last_of("\\"));
+        vr_working_directory.substr(0, vr_working_directory.find_last_of('\\'));
 #else
     vr_working_directory =
         "/run/media/vittorioromeo/D2703413703400B1/OHWorkspace/quakevr/Windows/"

@@ -4063,6 +4063,8 @@ void(entity ent, float xHand,
     float otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
     float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
+    float handReloadFlicking = VR_HandGrabUtil_IsHandReloadFlicking(ent, xHand);
+    float handPrevReloadFlicking = VR_HandGrabUtil_IsHandPrevReloadFlicking(ent, xHand);
 
     vector handPos = VRGetHandPos(xHand);
     vector handRot = VRGetHandRot(xHand);
@@ -4155,6 +4157,13 @@ void(entity ent, float xHand,
             }
 
             if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot))
+            {
+                VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
+            }
+        }
+        else if(handReloadFlicking)
+        {
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && VRIsWeaponReloadFlickingEnabledFor(ent, xHand))
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }

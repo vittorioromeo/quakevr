@@ -17,7 +17,7 @@ static std::vector<cvar_t*> cvarsToRegister;
     {                                                         \
         _cvar_registrar##name##__LINE__##_t()                 \
         {                                                     \
-            cvarsToRegister.emplace_back(&name);              \
+            cvarsToRegister.emplace_back(&(name));            \
         }                                                     \
     } _cvar_registrar##name##__LINE__
 
@@ -36,6 +36,7 @@ DEFINE_FCVAR(vr_viewkick, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_lefthanded, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_fakevr, 0, CVAR_NONE);
 DEFINE_FCVAR(vr_novrinit, 0, CVAR_NONE);
+DEFINE_FCVAR(vr_fakevr_handroll, 0, CVAR_NONE);
 
 //
 //
@@ -48,7 +49,7 @@ DEFINE_FCVAR_ARCHIVE(vr_crosshair, 1);
 DEFINE_FCVAR_ARCHIVE(vr_crosshair_depth, 0);
 DEFINE_FCVAR_ARCHIVE(vr_crosshair_size, 3.0);
 DEFINE_FCVAR_ARCHIVE(vr_crosshair_alpha, 0.25);
-DEFINE_FCVAR_ARCHIVE(vr_aimmode, 7);
+DEFINE_FCVAR_ARCHIVE(vr_aimmode, 6);
 DEFINE_FCVAR_ARCHIVE(vr_deadzone, 30);
 DEFINE_FCVAR_ARCHIVE(vr_gunangle, 32);
 DEFINE_FCVAR_ARCHIVE(vr_gunmodelpitch, 0);
@@ -154,7 +155,7 @@ DEFINE_FCVAR_ARCHIVE(vr_enemy_drops_chance_mult, 1.0);
 DEFINE_FCVAR_ARCHIVE(vr_ammobox_drops, 0);
 DEFINE_FCVAR_ARCHIVE(vr_ammobox_drops_chance_mult, 1.0);
 DEFINE_FCVAR_ARCHIVE(vr_menumode, 0);
-DEFINE_FCVAR_ARCHIVE(vr_forcegrab_powermult, 1.0);
+DEFINE_FCVAR_ARCHIVE(vr_forcegrab_powermult, 0.75);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrab_mode, 1);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrab_range, 150.0);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrab_radius, 18.0);
@@ -187,6 +188,8 @@ DEFINE_FCVAR_ARCHIVE(vr_menu_mouse_pointer_hand, 1);
 DEFINE_FCVAR_ARCHIVE(vr_reload_mode, 2);
 DEFINE_FCVAR_ARCHIVE(vr_show_weapon_text, 1);
 DEFINE_FCVAR_ARCHIVE(vr_disablehaptics, 0);
+DEFINE_FCVAR_ARCHIVE(vr_spinreload_pitch_speed, 1000);
+DEFINE_FCVAR_ARCHIVE(vr_spinreload_x_angular_threshold, 6.5);
 
 //
 //

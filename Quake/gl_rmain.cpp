@@ -549,18 +549,7 @@ to turn away from side, use a negative angle
 ===============
 */
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
-[[nodiscard]] qvec3 TurnVector(
-    const qvec3& forward, const qvec3& side, const float angle) noexcept
-{
-    const float scale_forward = cos(DEG2RAD(angle));
-    const float scale_side = sin(DEG2RAD(angle));
 
-    qvec3 res;
-    res[0] = scale_forward * forward[0] + scale_side * side[0];
-    res[1] = scale_forward * forward[1] + scale_side * side[1];
-    res[2] = scale_forward * forward[2] + scale_side * side[2];
-    return res;
-}
 
 /*
 ===============

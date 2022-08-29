@@ -156,6 +156,9 @@ extern cvar_t vr_menu_mouse_pointer_hand;
 extern cvar_t vr_reload_mode;
 extern cvar_t vr_show_weapon_text;
 extern cvar_t vr_disablehaptics;
+extern cvar_t vr_spinreload_pitch_speed;
+extern cvar_t vr_spinreload_x_angular_threshold;
+extern cvar_t vr_fakevr_handroll;
 
 //
 //

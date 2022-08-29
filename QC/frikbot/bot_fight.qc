@@ -378,6 +378,10 @@ void() bot_setvrfields =
     VRSetMainHandGrabbingBit(self, TRUE);
     VRSetMainHandPrevGrabbingBit(self, TRUE);
     VRSet2HAiming(self, FALSE);
+    VRSetOffHandReloadFlickingBit(self, TRUE);
+    VRSetOffHandPrevReloadFlickingBit(self, TRUE);
+    VRSetMainHandReloadFlickingBit(self, TRUE);
+    VRSetMainHandPrevReloadFlickingBit(self, TRUE);
 }
 
 void() bot_shoot =

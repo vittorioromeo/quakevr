@@ -295,6 +295,64 @@ int BoxOnPlaneSide(const qvec3& emins, const qvec3& emaxs, mplane_t* p)
     return res;
 }
 
+// johnfitz -- the opposite of AngleVectors.  this takes forward and generates
+// pitch yaw roll Spike: take right and up vectors to properly set yaw and roll
+[[nodiscard]] qvec3 VectorAngles(const qvec3& forward, const qvec3& up)
+{
+    qvec3 angles{};
+
+    if(forward[0] == 0 && forward[1] == 0)
+    { // either vertically up or down
+        if(forward[2] > 0)
+        {
+            angles[PITCH] = -90;
+            angles[YAW] = atan2(-up[1], -up[0]) / M_PI_DIV_180;
+        }
+        else
+        {
+            angles[PITCH] = 90;
+            angles[YAW] = atan2(up[1], up[0]) / M_PI_DIV_180;
+        }
+        angles[ROLL] = 0;
+    }
+    else
+    {
+        angles[PITCH] = -atan2(forward[2], sqrt(DotProduct2(forward, forward)));
+        angles[YAW] = atan2(forward[1], forward[0]);
+
+
+        float cp = cos(angles[PITCH]), sp = sin(angles[PITCH]);
+        float cy = cos(angles[YAW]), sy = sin(angles[YAW]);
+        qvec3 tleft, tup;
+        tleft[0] = -sy;
+        tleft[1] = cy;
+        tleft[2] = 0;
+        tup[0] = sp * cy;
+        tup[1] = sp * sy;
+        tup[2] = cp;
+        angles[ROLL] =
+            -atan2(DotProduct(up, tleft), DotProduct(up, tup)) / M_PI_DIV_180;
+
+        angles[PITCH] /= M_PI_DIV_180;
+        angles[YAW] /= M_PI_DIV_180;
+    }
+
+    return angles;
+}
+
+[[nodiscard]] qvec3 TurnVector(
+    const qvec3 forward, const qvec3 side, float angle)
+{
+    float scale_forward, scale_side;
+
+    scale_forward = cos(DEG2RAD(angle));
+    scale_side = sin(DEG2RAD(angle));
+
+    return qvec3{scale_forward * forward[0] + scale_side * side[0],
+        scale_forward * forward[1] + scale_side * side[1],
+        scale_forward * forward[2] + scale_side * side[2]};
+}
+
 float VectorLength(vec3_t v)
 {
     return sqrt(DotProduct(v, v));
