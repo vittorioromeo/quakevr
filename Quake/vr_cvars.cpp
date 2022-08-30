@@ -188,7 +188,7 @@ DEFINE_FCVAR_ARCHIVE(vr_menu_mouse_pointer_hand, 1);
 DEFINE_FCVAR_ARCHIVE(vr_reload_mode, 2);
 DEFINE_FCVAR_ARCHIVE(vr_show_weapon_text, 1);
 DEFINE_FCVAR_ARCHIVE(vr_disablehaptics, 0);
-DEFINE_FCVAR_ARCHIVE(vr_spinreload_pitch_speed, 1000);
+DEFINE_FCVAR_ARCHIVE(vr_spinreload_pitch_speed, 1100);
 DEFINE_FCVAR_ARCHIVE(vr_spinreload_x_angular_threshold, 6.5);
 
 //

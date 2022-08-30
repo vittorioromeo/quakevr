@@ -1,6 +1,8 @@
 #include "console.hpp"
 #include "cvar.hpp"
+#include "mathlib.hpp"
 #include "quakedef.hpp"
+#include "quakedef_macros.hpp"
 #include "server.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
@@ -229,6 +231,7 @@ bool vr_right_reloadflicking{false};
 bool vr_right_prevreloadflicking{false};
 
 float flickreload_effect[2]{};
+qvec3 flicktargetfwd[2]{};
 
 vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 vr::VRSkeletalSummaryData_t vr_ss_righthand;
@@ -3177,13 +3180,25 @@ static void VR_ControllerAiming(const qvec3& orientation)
     // flick reload
     const auto doFlickReload = [](const int handIdx)
     {
-        bool& prev = handIdx == cVR_MainHand ? vr_right_prevreloadflicking
-                                             : vr_left_prevreloadflicking;
+        const bool isMainHand = handIdx == cVR_MainHand;
 
-        bool& curr = handIdx == cVR_MainHand ? vr_right_reloadflicking
-                                             : vr_left_reloadflicking;
+        bool& prev = isMainHand ? vr_right_prevreloadflicking
+                                : vr_left_prevreloadflicking;
 
-        if(!controllers[handIdx].active)
+        bool& curr =
+            isMainHand ? vr_right_reloadflicking : vr_left_reloadflicking;
+
+        const int clipStat = isMainHand ? STAT_WEAPONCLIP : STAT_WEAPONCLIP2;
+
+        const int clipSizeStat =
+            isMainHand ? STAT_WEAPONCLIPSIZE : STAT_WEAPONCLIPSIZE2;
+
+        const int wpnStat = isMainHand ? STAT_MAINHAND_WID : STAT_OFFHAND_WID;
+
+        const bool clipFull = cl.stats[clipStat] == cl.stats[clipSizeStat];
+
+        if(cl.stats[wpnStat] != WID_SUPER_SHOTGUN || clipFull ||
+            !controllers[handIdx].active)
         {
             prev = curr = false;
             return;
@@ -3192,16 +3207,25 @@ static void VR_ControllerAiming(const qvec3& orientation)
         const qvec3 rawAngVel = openVRCoordsToQuakeCoords(
             controllers[handIdx].angularVelocityHistory.average());
 
-        prev = curr;
-        curr =
+        if(glm::length(rawAngVel) < 1.5f)
+        {
+            flicktargetfwd[handIdx] =
+                std::get<2>(getAngledVectors(cl.handrot[handIdx]));
+        }
+
+        const bool aVelThresholdReached =
             glm::length(rawAngVel) >= vr_spinreload_x_angular_threshold.value;
 
-        if(flickreload_effect[handIdx] == 0.f)
+        const bool goodDot =
+            glm::dot(getFwdVecFromPitchYawRoll(cl.handrot[handIdx]),
+                flicktargetfwd[handIdx]) > 0.6f;
+
+        prev = curr;
+        curr = aVelThresholdReached && goodDot;
+
+        if(flickreload_effect[handIdx] == 0.f && !prev && curr)
         {
-            if(!prev && curr)
-            {
-                flickreload_effect[handIdx] = 360.f;
-            }
+            flickreload_effect[handIdx] = 360.f;
         }
     };
 
