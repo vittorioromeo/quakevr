@@ -114,7 +114,7 @@ public:
 
         qvec3 res{};
 
-        for(const auto& v : _data)
+        for(const qvec3& v : _data)
         {
             res += v;
         }
@@ -136,7 +136,7 @@ struct vr_controller
     bool active{false};
 
     VecHistory velocityHistory{15};
-    VecHistory angularVelocityHistory{15};
+    VecHistory angularVelocityHistory{5};
 };
 
 
@@ -1981,20 +1981,94 @@ void SetHandPos(int index, entity_t& player)
     cl.handavel[index] = controllers[index].a_velocity;
 
     // handthrowvel
+    if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::Basic)
     {
-        cl.handthrowvel[index] = controllers[index].velocityHistory.average();
+        cl.handthrowvel[index] = openVRCoordsToQuakeCoords(
+            controllers[index].velocityHistory.average());
+
+        cl.handthrowvel[index] =
+            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
+    }
+    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossAngVel)
+    {
+        cl.handthrowvel[index] = {};
 
         // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto up =
-            std::get<2>(getAngledVectors(controllers[index].orientation));
+        const auto [fwd, right, up] =
+            getAngledVectors(controllers[index].orientation);
+
+        const qvec3 objOffset =
+            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
+
+        const qvec3 angvel = openVRCoordsToQuakeCoords(
+            controllers[index].angularVelocityHistory.average());
+
+        const auto rav = redirectVector(angvel, controllers[index].orientation);
+
+        cl.handthrowvel[index] += glm::cross(rav, objOffset);
+
+        const auto x = openVRCoordsToQuakeCoords(
+            controllers[index].velocityHistory.average());
+
+        cl.handthrowvel[index] += redirectVectorByYaw(x, VR_GetTurnYawAngle());
+    }
+    else if((int)vr_throw_algorithm.value ==
+            (int)VrThrowAlgorithm::CrossAngVel2)
+    {
+        cl.handthrowvel[index] = openVRCoordsToQuakeCoords(
+            controllers[index].velocityHistory.average());
+
+        // TODO VR: (P1) throwing an item up with a small flick feels too strong
+        const auto [fwd, right, up] =
+            getAngledVectors(controllers[index].orientation);
+
+        const qvec3 objOffset =
+            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
 
         cl.handthrowvel[index] +=
-            glm::cross(controllers[index].angularVelocityHistory.average(),
-                up * vr_throw_up_center_of_mass.value);
+            glm::cross(openVRCoordsToQuakeCoords(
+                           controllers[index].angularVelocityHistory.average()),
+                objOffset);
 
-        cl.handthrowvel[index] = redirectVectorByYaw(
-            openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
-            VR_GetTurnYawAngle());
+        cl.handthrowvel[index] =
+            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
+    }
+    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossOnly)
+    {
+        cl.handthrowvel[index] = {};
+
+        // TODO VR: (P1) throwing an item up with a small flick feels too strong
+        const auto [fwd, right, up] =
+            getAngledVectors(controllers[index].orientation);
+
+        const qvec3 objOffset =
+            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
+
+        cl.handthrowvel[index] +=
+            glm::cross(openVRCoordsToQuakeCoords(
+                           controllers[index].angularVelocityHistory.average()),
+                objOffset);
+
+        cl.handthrowvel[index] =
+            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
+    }
+    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossOnly2)
+    {
+        cl.handthrowvel[index] = {};
+
+        // TODO VR: (P1) throwing an item up with a small flick feels too strong
+        const auto [fwd, right, up] =
+            getAngledVectors(controllers[index].orientation);
+
+        const qvec3 objOffset =
+            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
+
+        const qvec3 angvel = openVRCoordsToQuakeCoords(
+            controllers[index].angularVelocityHistory.average());
+
+        const auto rav = redirectVector(angvel, controllers[index].orientation);
+
+        cl.handthrowvel[index] += glm::cross(rav, objOffset);
     }
 
     // When positional weight is enabled, scale the hand velocity and throw
@@ -4692,9 +4766,12 @@ void VR_OnLoadedPak(pack_t& pak)
 
 void VR_ResetThrowAvgFrames()
 {
-    controllers[0].velocityHistory = controllers[0].angularVelocityHistory =
-        controllers[1].velocityHistory = controllers[1].angularVelocityHistory =
-            VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+    controllers[0].velocityHistory = controllers[1].velocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+
+    controllers[0].angularVelocityHistory =
+        controllers[1].angularVelocityHistory = VecHistory{
+            static_cast<std::size_t>(vr_throw_angvel_avg_frames.value)};
 }
 
 // TODO VR: (P1): "seems like for the custom map a2 i can add bots with no

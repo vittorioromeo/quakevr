@@ -3396,8 +3396,21 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_entry<int>("Throw Avg Frames", vr_throw_avg_frames, {1, 1, 50});
 
+    m.add_cvar_entry<int>(
+        "Throw AngVel Avg Frames", vr_throw_angvel_avg_frames, {1, 1, 50});
+
     m.add_action_entry(
         "Refresh Throw Avg Frames", [] { VR_ResetThrowAvgFrames(); });
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrThrowAlgorithm>(                       //
+        "Throw Algorithm",                                                //
+        [] { return &vr_throw_algorithm; },                               //
+        "Basic", "CrossAngVel", "CrossAngVel2", "crossonly", "crossonly2" //
+    );
 
     // ------------------------------------------------------------------------
     m.add_separator();

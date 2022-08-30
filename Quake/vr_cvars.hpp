@@ -159,6 +159,8 @@ extern cvar_t vr_disablehaptics;
 extern cvar_t vr_spinreload_pitch_speed;
 extern cvar_t vr_spinreload_x_angular_threshold;
 extern cvar_t vr_fakevr_handroll;
+extern cvar_t vr_throw_algorithm;
+extern cvar_t vr_throw_angvel_avg_frames;
 
 //
 //

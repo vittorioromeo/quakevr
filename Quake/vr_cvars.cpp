@@ -176,6 +176,7 @@ DEFINE_FCVAR_ARCHIVE(vr_autosave_seconds, 240);
 DEFINE_FCVAR_ARCHIVE(vr_autosave_on_changelevel, 1);
 DEFINE_FCVAR_ARCHIVE(vr_throw_up_center_of_mass, 0.1);
 DEFINE_FCVAR_ARCHIVE(vr_throw_avg_frames, 15);
+DEFINE_FCVAR_ARCHIVE(vr_throw_angvel_avg_frames, 5);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrabbable_ammo_boxes, 1);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrabbable_health_boxes, 1);
 DEFINE_FCVAR_ARCHIVE(vr_forcegrabbable_return_time_deathmatch, 4);
@@ -190,6 +191,7 @@ DEFINE_FCVAR_ARCHIVE(vr_show_weapon_text, 1);
 DEFINE_FCVAR_ARCHIVE(vr_disablehaptics, 0);
 DEFINE_FCVAR_ARCHIVE(vr_spinreload_pitch_speed, 1100);
 DEFINE_FCVAR_ARCHIVE(vr_spinreload_x_angular_threshold, 6.5);
+DEFINE_FCVAR_ARCHIVE(vr_throw_algorithm, 0);
 
 //
 //
