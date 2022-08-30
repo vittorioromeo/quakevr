@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
 #include "menu_util.hpp"
+#include "server.hpp"
 #include "util.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
@@ -474,7 +475,8 @@ void M_Main_Key(int key)
             "allows you to choose what '.pak' file to get the starting map "
             "from.");
 
-        e->_printer = [&](char* buf, const int buf_size, const int x) {
+        e->_printer = [&](char* buf, const int buf_size, const int x)
+        {
             snprintf(buf, buf_size, "%s",
                 loadedPakNames[x % loadedPakNames.size()].data());
         };
@@ -767,8 +769,10 @@ void M_Save_Key(int k)
 
 [[nodiscard]] static quake::menu makeBotControlMenu()
 {
-    const auto runCmd = [](const char* cmd) {
-        return [cmd] {
+    const auto runCmd = [](const char* cmd)
+    {
+        return [cmd]
+        {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
             Cmd_ExecuteString(cmd, cmd_source_t::src_command);
         };
@@ -1190,22 +1194,27 @@ void M_Net_Key(int k)
     quake::menu m{"Options", &M_Menu_Main_f};
 
     m.add_action_entry("Controls", &M_Menu_Keys_f);
-    m.add_action_entry("Goto Console", [] {
-        m_state = m_none;
-        Con_ToggleConsole_f();
-    });
-    m.add_action_entry("Reset Config", [] {
-        if(SCR_ModalMessage("This will reset all controls\n"
-                            "and stored cvars. Continue? (y/n)\n",
-               15.0f))
+    m.add_action_entry("Goto Console",
+        []
         {
-            Cbuf_AddText("resetcfg\n");
-            Cbuf_AddText("exec default.cfg\n");
-        }
-    });
+            m_state = m_none;
+            Con_ToggleConsole_f();
+        });
+    m.add_action_entry("Reset Config",
+        []
+        {
+            if(SCR_ModalMessage("This will reset all controls\n"
+                                "and stored cvars. Continue? (y/n)\n",
+                   15.0f))
+            {
+                Cbuf_AddText("resetcfg\n");
+                Cbuf_AddText("exec default.cfg\n");
+            }
+        });
     m.add_action_slider_entry(
         "Scale",
-        [](int dir) {
+        [](int dir)
+        {
             const float l = ((vid.width + 31) / 32) / 10.0;
             const float f = std::clamp(scr_conscale.value + dir * 0.1f, 1.f, l);
 
@@ -1213,13 +1222,15 @@ void M_Net_Key(int k)
             Cvar_SetValue("scr_menuscale", f);
             Cvar_SetValue("scr_sbarscale", f);
         },
-        [] {
+        []
+        {
             const float l = (vid.width / 320.0) - 1;
             return l > 0 ? (scr_conscale.value - 1) / l : 0;
         });
     m.add_action_slider_entry(
         "Screen Size",
-        [](int dir) {
+        [](int dir)
+        {
             const float f =
                 std::clamp(scr_viewsize.value + dir * 10, 30.f, 120.f);
             Cvar_SetValue("viewsize", f);
@@ -1231,7 +1242,8 @@ void M_Net_Key(int k)
     {
         m.add_action_slider_entry(
             "Brightness",
-            [](int dir) {
+            [](int dir)
+            {
                 const float f =
                     std::clamp(vid_gamma.value - dir * 0.05f, 0.5f, 1.f);
                 Cvar_SetValue("gamma", f);
@@ -1240,7 +1252,8 @@ void M_Net_Key(int k)
 
         m.add_action_slider_entry(
             "Contrast",
-            [](int dir) {
+            [](int dir)
+            {
                 const float f =
                     std::clamp(vid_contrast.value + dir * 0.1f, 1.f, 2.f);
                 Cvar_SetValue("contrast", f);
@@ -1250,7 +1263,8 @@ void M_Net_Key(int k)
 
     m.add_action_slider_entry(
         "Mouse Speed",
-        [](int dir) {
+        [](int dir)
+        {
             const float f =
                 std::clamp(sensitivity.value + dir * 0.5f, 1.f, 11.f);
             Cvar_SetValue("sensitivity", f);
@@ -1258,7 +1272,8 @@ void M_Net_Key(int k)
         [] { return (sensitivity.value - 1) / 10; });
     m.add_action_slider_entry(
         "Statusbar Alpha",
-        [](int dir) {
+        [](int dir)
+        {
             const float f =
                 std::clamp(scr_sbaralpha.value - dir * 0.05f, 0.f, 1.f);
             Cvar_SetValue("scr_sbaralpha", f);
@@ -1266,14 +1281,16 @@ void M_Net_Key(int k)
         [] { return (1.0 - scr_sbaralpha.value); });
     m.add_action_slider_entry(
         "Sound Volume",
-        [](int dir) {
+        [](int dir)
+        {
             const float f = std::clamp(sfxvolume.value + dir * 0.1f, 0.f, 1.f);
             Cvar_SetValue("volume", f);
         },
         [] { return sfxvolume.value; });
     m.add_action_slider_entry(
         "Music Volume",
-        [](int dir) {
+        [](int dir)
+        {
             const float f = std::clamp(bgmvolume.value + dir * 0.1f, 0.f, 1.f);
             Cvar_SetValue("bgmvolume", f);
         },
@@ -1282,16 +1299,18 @@ void M_Net_Key(int k)
     m.add_cvar_entry<bool>("Always Run", cl_alwaysrun);
     m.add_action_entry("Toggle Invert Mouse",
         [] { Cvar_SetValue("m_pitch", -m_pitch.value); });
-    m.add_action_entry("Toggle Mouse Look", [] {
-        if(in_mlook.state & 1)
+    m.add_action_entry("Toggle Mouse Look",
+        []
         {
-            Cbuf_AddText("-mlook");
-        }
-        else
-        {
-            Cbuf_AddText("+mlook");
-        }
-    });
+            if(in_mlook.state & 1)
+            {
+                Cbuf_AddText("-mlook");
+            }
+            else
+            {
+                Cbuf_AddText("+mlook");
+            }
+        });
     m.add_cvar_entry<bool>("Lookspring", lookspring);
     m.add_cvar_entry<bool>("Lookstrafe", lookstrafe);
 
@@ -1521,7 +1540,8 @@ void M_Options_Key(int k)
     {
         auto e = m.add_cvar_entry<int>("Turn", vr_snap_turn, {5, 0, 90});
         e.tooltip("Joystick turn smooth mode or snap turn degrees.");
-        e->_printer = [](char* buf, const int buf_size, const int x) {
+        e->_printer = [](char* buf, const int buf_size, const int x)
+        {
             if(x == 0)
             {
                 snprintf(buf, buf_size, "Smooth");
@@ -2201,11 +2221,13 @@ void M_Options_Key(int k)
 
     quake::menu m{"Torso Settings", &M_Menu_QuakeVRSettings_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModVRTorsoModel();
-        VR_ModVRLegHolsterModel();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModVRTorsoModel();
+            VR_ModVRLegHolsterModel();
+        });
 
     // ------------------------------------------------------------------------
 
@@ -2269,12 +2291,14 @@ void M_Options_Key(int k)
     quake::menu m{"Transparency Options", &M_Menu_QuakeVRSettings_f};
 
     // TODO VR: (P1) what about this?
-    m.on_key([](const int key, quake::impl::menu_entry& entry) {
-        if(key == 'p')
+    m.on_key(
+        [](const int key, quake::impl::menu_entry& entry)
         {
-            quakeVRQuickSettingsMenu().add_entry_ptr(entry);
-        }
-    });
+            if(key == 'p')
+            {
+                quakeVRQuickSettingsMenu().add_entry_ptr(entry);
+            }
+        });
 
     extern cvar_t r_novis;
     m.add_cvar_entry<bool>("(!) No Vis", r_novis)
@@ -2439,7 +2463,8 @@ static void forQVRSMenus(F&& f)
 {
     quake::menu m{"Quake VR - Settings", &M_Menu_Main_f};
 
-    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s)
+    {
         m.add_action_entry(
             xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
     };
@@ -2480,7 +2505,8 @@ void M_QuakeVRSettings_Key(int k)
 {
     static bool wpnoff_offhand = false;
 
-    const auto getIdx = [] {
+    const auto getIdx = []
+    {
         return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
                               : VR_GetMainHandWpnCvarEntry();
     };
@@ -2499,14 +2525,17 @@ void M_QuakeVRSettings_Key(int k)
     quake::menu m{"Weapon Configuration (1) - Basics, Muzzle, 2H",
         &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModAllWeapons();
+        });
 
     // ------------------------------------------------------------------------
 
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2514,7 +2543,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2522,8 +2552,10 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
+    const auto makeHoverFn = [&](int& implVar)
+    {
+        return [&](const bool x)
+        {
             if(!x)
             {
                 implVar = 0;
@@ -2601,10 +2633,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_entry<int>( //
          "Muzzle Anchor Vertex",  //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::MuzzleAnchorVertex);
-         },           //
-         {1, 0, 4096} //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::MuzzleAnchorVertex); }, //
+         {1, 0, 4096}                                                       //
          )
         .hover(hoverMuzzle)
         .tooltip("Index of the mesh vertex where the muzzle will be attached.");
@@ -2656,7 +2687,8 @@ void M_QuakeVRSettings_Key(int k)
 {
     static bool wpnoff_offhand = false;
 
-    const auto getIdx = [] {
+    const auto getIdx = []
+    {
         return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
                               : VR_GetMainHandWpnCvarEntry();
     };
@@ -2675,14 +2707,17 @@ void M_QuakeVRSettings_Key(int k)
     quake::menu m{
         "Weapon Configuration (2) - Hand, 2H", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModAllWeapons();
+        });
 
     // ------------------------------------------------------------------------
 
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2690,7 +2725,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2698,15 +2734,18 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto b_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto b_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<bool>(                   //
             title,                                              //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); } //
         );
     };
 
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
+    const auto makeHoverFn = [&](int& implVar)
+    {
+        return [&](const bool x)
+        {
             if(!x)
             {
                 implVar = 0;
@@ -2740,10 +2779,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_entry<int>( //
          "Hand Anchor Vertex",    //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex);
-         },           //
-         {1, 0, 4096} //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::HandAnchorVertex); }, //
+         {1, 0, 4096}                                                     //
          )
         .hover(hoverHandAnchorVertex)
         .tooltip(
@@ -2757,10 +2795,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_enum_entry<Wpn2HMode>( //
          "2H Display Mode",                  //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHDisplayMode);
-         },                 //
-         "Dynamic", "Fixed" //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHDisplayMode); }, //
+         "Dynamic", "Fixed"                                              //
          )
         .tooltip(
             "Display mode for the 2H aiming helping hand. When 'dynamic', the "
@@ -2769,10 +2806,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_entry<int>( //
          "2H Hand Anchor Vertex", //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex);
-         },           //
-         {1, 0, 4096} //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::TwoHHandAnchorVertex); }, //
+         {1, 0, 4096}                                                         //
          )
         .hover(hover2HHandAnchorVertex)
         .tooltip(
@@ -2872,7 +2908,8 @@ void M_QuakeVRSettings_Key(int k)
 {
     static bool wpnoff_offhand = false;
 
-    const auto getIdx = [] {
+    const auto getIdx = []
+    {
         return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
                               : VR_GetMainHandWpnCvarEntry();
     };
@@ -2888,14 +2925,17 @@ void M_QuakeVRSettings_Key(int k)
     quake::menu m{
         "Weapon Configuration (3) - Weight", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModAllWeapons();
+        });
 
     // ------------------------------------------------------------------------
 
-    const auto w_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto w_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2903,7 +2943,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto wm_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto wm_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -2970,7 +3011,8 @@ void M_QuakeVRSettings_Key(int k)
 {
     static bool wpnoff_offhand = false;
 
-    const auto getIdx = [] {
+    const auto getIdx = []
+    {
         return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
                               : VR_GetMainHandWpnCvarEntry();
     };
@@ -2990,14 +3032,17 @@ void M_QuakeVRSettings_Key(int k)
     quake::menu m{
         "Weapon Configuration (4) - Button, Blend", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModAllWeapons();
+        });
 
     // ------------------------------------------------------------------------
 
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3005,7 +3050,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3013,7 +3059,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3021,8 +3068,10 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
+    const auto makeHoverFn = [&](int& implVar)
+    {
+        return [&](const bool x)
+        {
             if(!x)
             {
                 implVar = 0;
@@ -3046,10 +3095,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_enum_entry<WpnButtonMode>( //
          "Button Mode",                          //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonMode);
-         },                             //
-         "Disabled", "Ammo Type Change" //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnButtonMode); }, //
+         "Disabled", "Ammo Type Change"                                //
          )
         .tooltip("Type of button.");
 
@@ -3117,7 +3165,8 @@ void M_QuakeVRSettings_Key(int k)
 {
     static bool wpnoff_offhand = false;
 
-    const auto getIdx = [] {
+    const auto getIdx = []
+    {
         return wpnoff_offhand ? VR_GetOffHandWpnCvarEntry()
                               : VR_GetMainHandWpnCvarEntry();
     };
@@ -3136,14 +3185,17 @@ void M_QuakeVRSettings_Key(int k)
 
     quake::menu m{"Weapon Configuration (5) - Text", &M_Menu_QuakeVRDevTools_f};
 
-    m.on_key([](int, quake::impl::menu_entry&) {
-        // TODO VR: (P2) hackish
-        VR_ModAllWeapons();
-    });
+    m.on_key(
+        [](int, quake::impl::menu_entry&)
+        {
+            // TODO VR: (P2) hackish
+            VR_ModAllWeapons();
+        });
 
     // ------------------------------------------------------------------------
 
-    const auto o_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto o_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3151,7 +3203,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto r_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto r_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3159,7 +3212,8 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto zb_wpncvar = [&](const char* title, const WpnCVar c) {
+    const auto zb_wpncvar = [&](const char* title, const WpnCVar c)
+    {
         return m.add_cvar_getter_entry<float>(                   //
             title,                                               //
             [getIdx, c] { return &VR_GetWpnCVar(getIdx(), c); }, //
@@ -3167,8 +3221,10 @@ void M_QuakeVRSettings_Key(int k)
         );
     };
 
-    const auto makeHoverFn = [&](int& implVar) {
-        return [&](const bool x) {
+    const auto makeHoverFn = [&](int& implVar)
+    {
+        return [&](const bool x)
+        {
             if(!x)
             {
                 implVar = 0;
@@ -3226,10 +3282,9 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_getter_entry<int>( //
          "Text Anchor Vertex",    //
-         [getIdx] {
-             return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextAnchorVertex);
-         },           //
-         {1, 0, 4096} //
+         [getIdx]
+         { return &VR_GetWpnCVar(getIdx(), WpnCVar::WpnTextAnchorVertex); }, //
+         {1, 0, 4096}                                                        //
          )
         .hover(hoverWpnTextAnchorVertex)
         .tooltip("Index of the mesh vertex where the text will be attached.");
@@ -3303,8 +3358,10 @@ void M_QuakeVRSettings_Key(int k)
 
 [[nodiscard]] static quake::menu makeQVRDTDebugUtilitiesMenu()
 {
-    const auto runCmd = [](const char* cmd) {
-        return [cmd] {
+    const auto runCmd = [](const char* cmd)
+    {
+        return [cmd]
+        {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
             Cmd_ExecuteString(cmd, cmd_source_t::src_command);
         };
@@ -3332,6 +3389,28 @@ void M_QuakeVRSettings_Key(int k)
 
     m.add_cvar_entry<float>("Throw Up Center Of Mass",
         vr_throw_up_center_of_mass, {0.01f, 0.f, 10.f});
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<int>("Throw Avg Frames", vr_throw_avg_frames, {1, 1, 50});
+
+    m.add_cvar_entry<int>(
+        "Throw AngVel Avg Frames", vr_throw_angvel_avg_frames, {1, 1, 50});
+
+    m.add_action_entry(
+        "Refresh Throw Avg Frames", [] { VR_ResetThrowAvgFrames(); });
+
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_getter_enum_entry<VrThrowAlgorithm>( //
+        "Throw Algorithm",                          //
+        [] { return &vr_throw_algorithm; },         //
+        "Basic", "CrossAngVel"                      //
+    );
 
     // ------------------------------------------------------------------------
     m.add_separator();
@@ -3435,7 +3514,8 @@ static void forQVRDTMenus(F&& f)
 {
     quake::menu m{"Quake VR - Dev Tools", &M_Menu_Main_f};
 
-    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s)
+    {
         m.add_action_entry(
             xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
     };
@@ -3488,8 +3568,10 @@ template <typename Range>
 [[nodiscard]] static quake::menu makeQVRCMChangeMapMenuImpl(
     const std::string_view name, const Range& maps)
 {
-    const auto changeMap = [&maps](const int option) {
-        return [&maps, option] {
+    const auto changeMap = [&maps](const int option)
+    {
+        return [&maps, option]
+        {
             quake::menu_util::playMenuSound("items/r_item2.wav", 0.5);
 
             const char* cmd =
@@ -3653,7 +3735,8 @@ static void forQVRCMMenus(F&& f)
 {
     quake::menu m{"Quake VR - Change Map", &M_Menu_Main_f};
 
-    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s) {
+    const auto makeGotoMenu = [&](quake::menu& xm, m_state_e s)
+    {
         m.add_action_entry(
             xm.title(), [&xm, s] { quake::menu_util::setMenuState(xm, s); });
     };
@@ -5027,7 +5110,8 @@ void M_DrawKeyboard()
         const float my = vr_menu_mouse_y;
         const bool click = vr_menu_mouse_click;
 
-        const auto doKey = [&](const int key) {
+        const auto doKey = [&](const int key)
+        {
             if(key_dest == key_menu)
             {
                 M_Keydown(key, true /* fromVirtualKeyboard */);
@@ -5046,8 +5130,8 @@ void M_DrawKeyboard()
             }
         };
 
-        const auto actions = quake::util::make_overload_set(
-            [&](const char c) { Char_Event(mkb().caps_lock() ? c - 32 : c); },
+        const auto actions = quake::util::make_overload_set([&](const char c)
+            { Char_Event(mkb().caps_lock() ? c - 32 : c); },
             [&](menu_keyboard::ka_backspace) { doKey(K_BACKSPACE); },      //
             [&](menu_keyboard::ka_enter) { doKey(K_ENTER); },              //
             [&](menu_keyboard::ka_back) { doKey(K_ESCAPE); },              //
@@ -5058,7 +5142,8 @@ void M_DrawKeyboard()
             [&](menu_keyboard::ka_space) { Char_Event(' '); },             //
             [&](menu_keyboard::ka_tab) { doKey(K_TAB); },                  //
             [&](menu_keyboard::ka_capslock) { mkb().toggle_caps_lock(); }, //,
-            [&](menu_keyboard::ka_console) {
+            [&](menu_keyboard::ka_console)
+            {
                 m_state = m_none;
                 Con_ToggleConsole_f();
             });
@@ -5105,30 +5190,36 @@ void M_Draw()
 
     // -----------------------------------------------------------------------
     // VR: Process nested "Quake VR Settings" menus.
-    forQVRSMenus([&](quake::menu& xm, m_state_e s) {
-        if(m_state == s)
+    forQVRSMenus(
+        [&](quake::menu& xm, m_state_e s)
         {
-            xm.draw();
-        }
-    });
+            if(m_state == s)
+            {
+                xm.draw();
+            }
+        });
 
     // -----------------------------------------------------------------------
     // VR: Process nested "Quake VR Dev Tools" menus.
-    forQVRDTMenus([&](quake::menu& xm, m_state_e s) {
-        if(m_state == s)
+    forQVRDTMenus(
+        [&](quake::menu& xm, m_state_e s)
         {
-            xm.draw();
-        }
-    });
+            if(m_state == s)
+            {
+                xm.draw();
+            }
+        });
 
     // -----------------------------------------------------------------------
     // VR: Process nested "Quake VR Change mMap" menus.
-    forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
-        if(m_state == s)
+    forQVRCMMenus(
+        [&](quake::menu& xm, m_state_e s)
         {
-            xm.draw();
-        }
-    });
+            if(m_state == s)
+            {
+                xm.draw();
+            }
+        });
 
     switch(m_state)
     {
@@ -5198,13 +5289,15 @@ void M_Keydown(int key, const bool fromVirtualKeyboard)
     {
         bool processedAny = false;
 
-        forQVRSMenus([&](quake::menu& xm, m_state_e s) {
-            if(m_state == s)
+        forQVRSMenus(
+            [&](quake::menu& xm, m_state_e s)
             {
-                xm.key(key);
-                processedAny = true;
-            }
-        });
+                if(m_state == s)
+                {
+                    xm.key(key);
+                    processedAny = true;
+                }
+            });
 
         if(processedAny)
         {
@@ -5217,13 +5310,15 @@ void M_Keydown(int key, const bool fromVirtualKeyboard)
     {
         bool processedAny = false;
 
-        forQVRDTMenus([&](quake::menu& xm, m_state_e s) {
-            if(m_state == s)
+        forQVRDTMenus(
+            [&](quake::menu& xm, m_state_e s)
             {
-                xm.key(key);
-                processedAny = true;
-            }
-        });
+                if(m_state == s)
+                {
+                    xm.key(key);
+                    processedAny = true;
+                }
+            });
 
         if(processedAny)
         {
@@ -5236,13 +5331,15 @@ void M_Keydown(int key, const bool fromVirtualKeyboard)
     {
         bool processedAny = false;
 
-        forQVRCMMenus([&](quake::menu& xm, m_state_e s) {
-            if(m_state == s)
+        forQVRCMMenus(
+            [&](quake::menu& xm, m_state_e s)
             {
-                xm.key(key);
-                processedAny = true;
-            }
-        });
+                if(m_state == s)
+                {
+                    xm.key(key);
+                    processedAny = true;
+                }
+            });
 
         if(processedAny)
         {

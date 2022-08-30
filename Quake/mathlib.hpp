@@ -92,6 +92,10 @@ static inline int IS_NAN(float x)
 }
 
 [[nodiscard]] qvec3 VectorAngles(const qvec3& forward) noexcept; // johnfitz
+[[nodiscard]] qvec3 VectorAngles(const qvec3& forward, const qvec3& up);
+
+[[nodiscard]] qvec3 TurnVector(
+    const qvec3 forward, const qvec3 side, float angle);
 
 float VectorLength(vec3_t v);
 [[nodiscard]] qvec3 CrossProduct(const qvec3& v1, const qvec3& v2);

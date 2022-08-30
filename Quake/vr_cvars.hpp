@@ -143,6 +143,7 @@ extern cvar_t vr_2h_disable_angle_threshold;
 extern cvar_t vr_autosave_seconds;
 extern cvar_t vr_autosave_on_changelevel;
 extern cvar_t vr_throw_up_center_of_mass;
+extern cvar_t vr_throw_avg_frames;
 extern cvar_t vr_forcegrabbable_ammo_boxes;
 extern cvar_t vr_forcegrabbable_health_boxes;
 extern cvar_t vr_forcegrabbable_return_time_deathmatch;
@@ -155,6 +156,11 @@ extern cvar_t vr_menu_mouse_pointer_hand;
 extern cvar_t vr_reload_mode;
 extern cvar_t vr_show_weapon_text;
 extern cvar_t vr_disablehaptics;
+extern cvar_t vr_spinreload_pitch_speed;
+extern cvar_t vr_spinreload_x_angular_threshold;
+extern cvar_t vr_fakevr_handroll;
+extern cvar_t vr_throw_algorithm;
+extern cvar_t vr_throw_angvel_avg_frames;
 
 //
 //

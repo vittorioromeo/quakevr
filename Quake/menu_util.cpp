@@ -4,6 +4,7 @@
 #include "client.hpp"
 #include "menu.hpp"
 #include "util.hpp"
+#include "variantutil.hpp"
 #include "keys.hpp"
 #include "q_sound.hpp"
 #include "input.hpp"
@@ -95,40 +96,43 @@ void menu::key_option(const int key, const int idx)
 
     impl::menu_entry& e = access(idx);
 
-    const auto match_entry = [&](auto& self, auto&& entry) -> void {
+    const auto match_entry = [&](auto& self, auto&& entry) -> void
+    {
         quake::util::match(
             std::forward<decltype(entry)>(entry), //
-            [&](const impl::menu_entry_value<bool>& x) {
+            [&](const impl::menu_entry_value<bool>& x)
+            {
                 bool& v = *(x._getter());
                 v = !v;
             },
-            [&](const impl::menu_entry_cvar<float>& x) {
+            [&](const impl::menu_entry_cvar<float>& x)
+            {
                 const auto& [inc, min, max] = x._bounds;
                 adjustCVarF(*(x._cvar_getter()), inc, min, max);
             },
-            [&](const impl::menu_entry_cvar<int>& x) {
+            [&](const impl::menu_entry_cvar<int>& x)
+            {
                 const auto& [inc, min, max] = x._bounds;
                 adjustCVarI(*(x._cvar_getter()), inc, min, max);
             },
-            [&](const impl::menu_entry_cvar<bool>& x) {
-                adjustCVarI(*(x._cvar_getter()), 1, 0, 1);
-            },
-            [&](const impl::menu_entry_value_labeled_cvar<int>& x) {
+            [&](const impl::menu_entry_cvar<bool>& x)
+            { adjustCVarI(*(x._cvar_getter()), 1, 0, 1); },
+            [&](const impl::menu_entry_value_labeled_cvar<int>& x)
+            {
                 const auto& [inc, min, max] = x._bounds;
                 adjustCVarI(*(x._cvar_getter()), inc, min, max);
             },
-            [&](const impl::menu_entry_value_labeled<int>& x) {
+            [&](const impl::menu_entry_value_labeled<int>& x)
+            {
                 const auto& [inc, min, max] = x._bounds;
                 adjustValueI(*(x._getter()), inc, min, max);
             },
             [&](const impl::menu_entry_action& x) { x._action(); },
-            [&](const impl::menu_entry_action_slider& x) {
-                x._action_slide(isLeft ? -1 : 1);
-            },
+            [&](const impl::menu_entry_action_slider& x)
+            { x._action_slide(isLeft ? -1 : 1); },
             [&](const impl::menu_entry_separator&) {},
-            [&](const impl::menu_entry_ptr& ptr) {
-                self(self, ptr._ptr->_variant);
-            });
+            [&](const impl::menu_entry_ptr& ptr)
+            { self(self, ptr._ptr->_variant); });
     };
 
     match_entry(match_entry, e._variant);
@@ -377,7 +381,8 @@ void menu::draw(const int offset_x, const int offset_y)
     constexpr int char_size = 8;
     constexpr int label_padding = 26;
 
-    const auto get_label_x = [&, this](const std::string_view s) {
+    const auto get_label_x = [&, this](const std::string_view s)
+    {
         if(_two_columns)
         {
             return (x - 240) + 70 + (120 * (idx / items_per_column));
@@ -387,8 +392,8 @@ void menu::draw(const int offset_x, const int offset_y)
                ((label_padding - static_cast<int>(s.size())) * char_size);
     };
 
-    const auto print_label = [this, &get_label_x, &y, &buf](
-                                 std::string_view s) {
+    const auto print_label = [this, &get_label_x, &y, &buf](std::string_view s)
+    {
         if(_two_columns && s.size() > 13)
         {
             s.remove_suffix(s.size() - 13);
@@ -403,27 +408,32 @@ void menu::draw(const int offset_x, const int offset_y)
         M_Print(get_label_x(s), y, buf);
     };
 
-    const auto print_as_float_str = [&buf, &x, &y](const float value) {
+    const auto print_as_float_str = [&buf, &x, &y](const float value)
+    {
         snprintf(buf, sizeof(buf), "%.4f", value);
         M_Print(x, y, buf);
     };
 
-    const auto print_as_int_str = [&buf, &x, &y](const int value) {
+    const auto print_as_int_str = [&buf, &x, &y](const int value)
+    {
         snprintf(buf, sizeof(buf), "%d", value);
         M_Print(x, y, buf);
     };
 
-    const auto print_as_bool_str = [&buf, &x, &y](const bool value) {
+    const auto print_as_bool_str = [&buf, &x, &y](const bool value)
+    {
         snprintf(buf, sizeof(buf), value ? "On" : "Off");
         M_Print(x, y, buf);
     };
 
-    const auto print_as_str = [&buf, &x, &y](const std::string_view value) {
+    const auto print_as_str = [&buf, &x, &y](const std::string_view value)
+    {
         snprintf(buf, sizeof(buf), "%s", value.data());
         M_Print(x, y, buf);
     };
 
-    const auto print_tooltip = [&buf](const std::string_view value) {
+    const auto print_tooltip = [&buf](const std::string_view value)
+    {
         snprintf(buf, sizeof(buf), "%s", value.data());
         M_PrintWhiteByWrapping(28, 340, 50, buf);
     };
@@ -440,14 +450,17 @@ void menu::draw(const int offset_x, const int offset_y)
     {
         const std::string_view& e_label = e._common._label;
 
-        const auto match_entry = [&](auto& self, auto&& entry) -> void {
+        const auto match_entry = [&](auto& self, auto&& entry) -> void
+        {
             quake::util::match(
                 std::forward<decltype(entry)>(entry), //
-                [&](const impl::menu_entry_value<bool>& entry) {
+                [&](const impl::menu_entry_value<bool>& entry)
+                {
                     print_label(e_label);
                     print_as_bool_str(*(entry._getter()));
                 },
-                [&](const impl::menu_entry_cvar<float>& entry) {
+                [&](const impl::menu_entry_cvar<float>& entry)
+                {
                     print_label(e_label);
 
                     const float value = entry._cvar_getter()->value;
@@ -461,7 +474,8 @@ void menu::draw(const int offset_x, const int offset_y)
                         M_Print(x, y, buf);
                     }
                 },
-                [&](const impl::menu_entry_cvar<int>& entry) {
+                [&](const impl::menu_entry_cvar<int>& entry)
+                {
                     print_label(e_label);
 
                     const int value = entry._cvar_getter()->value;
@@ -475,21 +489,25 @@ void menu::draw(const int offset_x, const int offset_y)
                         M_Print(x, y, buf);
                     }
                 },
-                [&](const impl::menu_entry_cvar<bool>& entry) {
+                [&](const impl::menu_entry_cvar<bool>& entry)
+                {
                     print_label(e_label);
                     print_as_bool_str(entry._cvar_getter()->value);
                 },
-                [&](const impl::menu_entry_value_labeled_cvar<int>& entry) {
+                [&](const impl::menu_entry_value_labeled_cvar<int>& entry)
+                {
                     print_label(e_label);
                     print_as_str(entry._value_label_fn(
                         static_cast<int>(entry._cvar_getter()->value)));
                 },
-                [&](const impl::menu_entry_value_labeled<int>& entry) {
+                [&](const impl::menu_entry_value_labeled<int>& entry)
+                {
                     print_label(e_label);
                     print_as_str(entry._value_label_fn(
                         static_cast<int>(*entry._getter())));
                 },
-                [&](const impl::menu_entry_action&) {
+                [&](const impl::menu_entry_action&)
+                {
                     print_label(e_label);
 
                     if(!_two_columns)
@@ -497,14 +515,14 @@ void menu::draw(const int offset_x, const int offset_y)
                         print_as_str("(X)");
                     }
                 },
-                [&](const impl::menu_entry_action_slider& entry) {
+                [&](const impl::menu_entry_action_slider& entry)
+                {
                     print_label(e_label);
                     M_DrawSlider(x + 10, y, entry._range());
                 },
                 [&](const impl::menu_entry_separator&) {},
-                [&](const impl::menu_entry_ptr& ptr) {
-                    self(self, ptr._ptr->_variant);
-                });
+                [&](const impl::menu_entry_ptr& ptr)
+                { self(self, ptr._ptr->_variant); });
         };
 
         match_entry(match_entry, e._variant);

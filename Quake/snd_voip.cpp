@@ -78,6 +78,10 @@ void Sys_CloseLibrary(dllhandle_t* lib);
 #include "arch_def.hpp"
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
 void Sys_CloseLibrary(dllhandle_t* lib)
 {
@@ -106,7 +110,7 @@ dllhandle_t* Sys_LoadLibrary(const char* name, dllfunction_t* funcs)
     {
         for(i = 0; funcs[i].name; i++)
         {
-            *funcs[i].funcptr = GetProcAddress(lib, funcs[i].name);
+            *funcs[i].funcptr = reinterpret_cast<void*>(GetProcAddress(lib, funcs[i].name));
             if(!*funcs[i].funcptr)
             {
                 break;

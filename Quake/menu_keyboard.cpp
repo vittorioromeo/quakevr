@@ -1,7 +1,9 @@
 #include "menu_keyboard.hpp"
 
+#include "common.hpp"
 #include "gl_util.hpp"
 #include "menu.hpp"
+#include "variantutil.hpp"
 
 #include <string_view>
 
@@ -113,9 +115,8 @@ void menu_keyboard::draw_letters()
 
         quake::util::match(
             k._action,
-            [&](const char c) {
-                M_DrawCharacter(cp.x, cp.y, _caps_lock ? c - 32 : c);
-            },
+            [&](const char c)
+            { M_DrawCharacter(cp.x, cp.y, _caps_lock ? c - 32 : c); },
             [&](ka_backspace) { M_PrintWhite(cp.x, cp.y, "backspace"); }, //
             [&](ka_enter) { M_PrintWhite(cp.x, cp.y, "enter"); },         //
             [&](ka_back) { M_PrintWhite(cp.x, cp.y, "escape"); },         //
@@ -217,8 +218,9 @@ zxcvbnm,.-)"sv;
         cx += distance;
     }
 
-    const auto add_special_key = [&](const int x, const int y, const int width,
-                                     auto action) {
+    const auto add_special_key =
+        [&](const int x, const int y, const int width, auto action)
+    {
         constexpr int off = 8;
         constexpr int height = 8;
 

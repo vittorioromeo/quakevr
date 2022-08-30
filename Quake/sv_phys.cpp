@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.hpp"
 #include <glm/fwd.hpp>
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "world.hpp"
@@ -633,7 +634,8 @@ void SV_PushMove(edict_t* pusher, float movetime)
             check->v.groundentity = EDICT_TO_PROG(pusher);
         }
 
-        const auto checkBlock = [&](edict_t* ent, qvec3 adjUpMove) {
+        const auto checkBlock = [&](edict_t* ent, qvec3 adjUpMove)
+        {
             if(adjUpMove[2] < 0)
             {
                 adjUpMove[2] *= -1.f;
@@ -1078,7 +1080,8 @@ void SV_Handtouch(edict_t* ent)
 
     // Figure out tracing boundaries
     // (Largest possible volume containing the hands and the player)
-    const auto [origin, mins, maxs] = [&] {
+    const auto [origin, mins, maxs] = [&]
+    {
         const auto& playerOrigin = ent->v.origin;
         const auto& playerMins = ent->v.mins;
         const auto& playerMaxs = ent->v.maxs;
@@ -1108,14 +1111,16 @@ void SV_Handtouch(edict_t* ent)
         return std::tuple{origin, -halfSize, +halfSize};
     }();
 
-    const auto traceCheck = [&](const trace_t& trace) {
+    const auto traceCheck = [&](const trace_t& trace)
+    {
         if(!trace.ent)
         {
             return;
         }
 
-        const auto handCollisionCheck = [&](const int hand,
-                                            const qvec3& handPos) {
+        const auto handCollisionCheck =
+            [&](const int hand, const qvec3& handPos)
+        {
             const float bonus =
                 (quake::util::hasFlag(trace.ent, FL_EASYHANDTOUCH))
                     ? VR_GetEasyHandTouchBonus()
@@ -1141,7 +1146,8 @@ void SV_Handtouch(edict_t* ent)
         handCollisionCheck(cVR_MainHand, ent->v.handpos);
     };
 
-    const auto endHandPos = [&](const qvec3& handPos, const qvec3& handRot) {
+    const auto endHandPos = [&](const qvec3& handPos, const qvec3& handRot)
+    {
         const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         return handPos + fwd * 1._qf;
     };
@@ -1156,7 +1162,8 @@ void SV_Handtouch(edict_t* ent)
         ent->v.origin, ent->v.mins, ent->v.maxs, offHandEnd, MOVE_NORMAL, ent));
     traceCheck(SV_Move(origin, mins, maxs, offHandEnd, MOVE_NORMAL, ent));
 
-    const auto traceForHand = [&](const qvec3& handPos, const qvec3& handRot) {
+    const auto traceForHand = [&](const qvec3& handPos, const qvec3& handRot)
+    {
         const auto fwd = quake::util::getFwdVecFromPitchYawRoll(handRot);
         const auto end = handPos + fwd * 1._qf;
 
@@ -1172,7 +1179,8 @@ void SV_VRWpntouch(edict_t* ent)
 {
     // TODO VR: (P2) code repetition with vr.cpp setHandPos
 
-    const auto doHand = [&](const HandIdx handIndex) {
+    const auto doHand = [&](const HandIdx handIndex)
+    {
         const auto& playerOrigin = ent->v.origin;
 
         const auto worldHandPos = VR_GetWorldHandPos(handIndex, playerOrigin);

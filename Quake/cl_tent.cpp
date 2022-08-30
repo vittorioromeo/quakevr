@@ -74,7 +74,8 @@ beam_t* CL_ParseBeam(qmodel_t* m)
     const auto start = MSG_ReadVec3(cl.protocolflags);
     const auto end = MSG_ReadVec3(cl.protocolflags);
 
-    const auto initBeam = [&](beam_t& b) {
+    const auto initBeam = [&](beam_t& b)
+    {
         b.entity = ent;
         b.disambiguator = disambiguator;
         b.model = m;
@@ -247,7 +248,9 @@ void CL_ParseTEnt()
 
         case TE_LIGHTNING1: // lightning bolts (shambler)
         {
-            if(beam_t* b = CL_ParseBeam(Mod_ForName("progs/bolt.mdl", true)))
+            static qmodel_t* model = Mod_ForName("progs/bolt.mdl", true);
+
+            if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = true;
             }
@@ -257,7 +260,8 @@ void CL_ParseTEnt()
 
         case TE_LIGHTNING2: // lightning bolts (lighting gun, mjolnir, gremlin)
         {
-            qmodel_t* model = Mod_ForName("progs/bolt2.mdl", true);
+            static qmodel_t* model = Mod_ForName("progs/bolt2.mdl", true);
+
             auto* hdr = (aliashdr_t*)Mod_Extradata(model);
             hdr->scale_origin = hdr->original_scale_origin * 0.5_qf;
             hdr->scale = hdr->original_scale * 0.5_qf;
@@ -275,7 +279,9 @@ void CL_ParseTEnt()
 
         case TE_LIGHTNING3: // lightning bolts (boss)
         {
-            if(beam_t* b = CL_ParseBeam(Mod_ForName("progs/bolt3.mdl", true)))
+            static qmodel_t* model = Mod_ForName("progs/bolt3.mdl", true);
+
+            if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = true;
             }
@@ -286,19 +292,24 @@ void CL_ParseTEnt()
             // PGM 01/21/97
         case TE_BEAM: // grappling hook beam
         {
-            qmodel_t* model = Mod_ForName("progs/beam.mdl", true);
-            auto* hdr = (aliashdr_t*)Mod_Extradata(model);
-            hdr->scale_origin = hdr->original_scale_origin * 0.25_qf;
-            hdr->scale = hdr->original_scale * 0.25_qf;
+            static qmodel_t* model = Mod_ForName("progs/beam.mdl", true);
+            static auto* hdr = []
+            {
+                auto* hdr = (aliashdr_t*)Mod_Extradata(model);
+                hdr->scale_origin = hdr->original_scale_origin * 0.25_qf;
+                hdr->scale = hdr->original_scale * 0.25_qf;
 
-            hdr->scale[0] = hdr->original_scale[0] * 0.12_qf;
-            hdr->scale_origin[0] = hdr->original_scale_origin[0] * 0.12_qf;
+                hdr->scale[0] = hdr->original_scale[0] * 0.12_qf;
+                hdr->scale_origin[0] = hdr->original_scale_origin[0] * 0.12_qf;
+                return hdr;
+            }();
+
+            static const auto scaleRatioX =
+                hdr->scale[0] / hdr->original_scale[0];
 
             if(beam_t* b = CL_ParseBeam(model))
             {
                 b->spin = false;
-
-                const auto scaleRatioX = hdr->scale[0] / hdr->original_scale[0];
                 b->scaleRatioX = scaleRatioX;
             }
 
@@ -482,9 +493,9 @@ void CL_UpdateTEnts()
 
             ent->origin = org;
             ent->model = b.model;
-            ent->angles[0] = pitch;
-            ent->angles[1] = yaw;
-            ent->angles[2] = b.spin ? rand() % 360 : 0;
+            ent->angles[PITCH] = pitch;
+            ent->angles[YAW] = yaw;
+            ent->angles[ROLL] = b.spin ? rand() % 360 : 0;
 
             // johnfitz -- use j instead of using i twice, so we don't corrupt
             // memory

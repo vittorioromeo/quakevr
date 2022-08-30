@@ -3346,13 +3346,15 @@ void() wpnthrow_stabilize =
 
 void() forcegrabbable_think_impl =
 {
-    if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
-       time > GetThrownWeaponForcegrabTime(self) + 0.4)
+    if(self.throwhit == QVR_THROWHIT_FORCEGRAB)
     {
-        // After a long linear forcegrab, restore the movement type to "toss".
+        if(time > GetThrownWeaponForcegrabTime(self) + 0.4)
+        {
+            // After a long linear forcegrab, restore the movement type to "toss".
 
-        self.throwhit = QVR_THROWHIT_NEVER_HIT;
-        self.movetype = MOVETYPE_TOSS;
+            self.throwhit = QVR_THROWHIT_NEVER_HIT;
+            self.movetype = MOVETYPE_TOSS;
+        }
     }
 
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)
@@ -3361,35 +3363,54 @@ void() forcegrabbable_think_impl =
         self.velocity += normalize(handDiff);
     }
 
-    if(self.waterlevel == 1)
+    if(self.waterlevel >= 1)
     {
-        if(fabs(self.velocity_x) > 10)
+        if(self.ammocounter < 2)
         {
-            self.velocity_x *= 0.85;
+            self.ammocounter += 1;
         }
-        else
+        else if (self.ammocounter > 0)
         {
-            self.velocity_x = 0;
-        }
-
-        if(fabs(self.velocity_y) > 10)
-        {
-            self.velocity_y *= 0.85;
-        }
-        else
-        {
-            self.velocity_y = 0;
+            self.ammocounter -= 1;
         }
 
-        self.velocity_z = 45;
-        self.flags = self.flags | FL_INWATER;
-        self.throwhit = QVR_THROWHIT_HIT;
-        self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        self.avelocity = '0 0 0';
+        if(self.ammocounter > 1)
+        {
+            if(fabs(self.velocity_x) > 10)
+            {
+                self.velocity_x *= 0.85;
+            }
+            else
+            {
+                self.velocity_x = 0;
+            }
+
+            if(fabs(self.velocity_y) > 10)
+            {
+                self.velocity_y *= 0.85;
+            }
+            else
+            {
+                self.velocity_y = 0;
+            }
+
+            self.velocity_z = 45;
+            self.flags = self.flags | FL_INWATER;
+            self.throwhit = QVR_THROWHIT_HIT;
+            self.solid = SOLID_NOT_BUT_TOUCHABLE;
+            self.avelocity = '0 0 0';
+        }
     }
     else if((time - self.lastwatertime) > 0.15)
     {
         self.flags = self.flags & ~FL_INWATER;
+        self.ammocounter = 0;
+        self.waterlevel = 0;
+    }
+    else if (self.ammocounter > 0)
+    {
+        self.ammocounter -= 1;
+        self.waterlevel = 0;
     }
 
     if(cvar_hget(cvarh_vr_weapondrop_particles) && (self.flags & (FL_ONGROUND | FL_INWATER)))
@@ -3806,6 +3827,7 @@ void MakeThrown(entity newmis,
     float xBaseDamage)
 {
     MakeGrabbable(newmis);
+    newmis.solid = SOLID_NOT_BUT_TOUCHABLE;
 
     SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
     SetThrownWeaponDealDamage(newmis, xDealDamage);
@@ -3832,6 +3854,8 @@ void MakeThrown(entity newmis,
                      + tmp_handavel_y * v_right * -30
                      + tmp_handavel_z * v_up * -30;
 
+    newmis.waterlevel = 0;
+    newmis.ammocounter = 0; // water frame counter
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
 
@@ -4063,6 +4087,8 @@ void(entity ent, float xHand,
     float otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
     float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
+    float handReloadFlicking = VR_HandGrabUtil_IsHandReloadFlicking(ent, xHand);
+    float handPrevReloadFlicking = VR_HandGrabUtil_IsHandPrevReloadFlicking(ent, xHand);
 
     vector handPos = VRGetHandPos(xHand);
     vector handRot = VRGetHandRot(xHand);
@@ -4155,6 +4181,13 @@ void(entity ent, float xHand,
             }
 
             if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot))
+            {
+                VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
+            }
+        }
+        else if(handReloadFlicking)
+        {
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && VRIsWeaponReloadFlickingEnabledFor(ent, xHand))
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }

@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.hpp"
 #include "quakedef.hpp"
 #include "bgmusic.hpp"
-#include <setjmp.h>
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "cmd.hpp"
@@ -55,6 +54,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.hpp"
 #include "developer.hpp"
 #include "qcvm.hpp"
+
+#include <csetjmp>
+#include <exception>
 
 /*
 
@@ -585,12 +587,17 @@ void SV_DropClient(bool crash)
         {
             // call the prog function for removing a client
             // this will set the body to a dead frame, among other things
-            QCVMGuardForce qgf{&sv.qcvm};
+            qcvm_t* oldvm = qcvm;
+            PR_SwitchQCVM(nullptr);
+            PR_SwitchQCVM(&sv.qcvm);
 
             saveSelf = pr_global_struct->self;
             pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
             PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
             pr_global_struct->self = saveSelf;
+
+            PR_SwitchQCVM(nullptr);
+            PR_SwitchQCVM(oldvm);
         }
 
         Sys_Printf("Client %s removed\n", host_client->name);
@@ -706,9 +713,9 @@ void Host_ShutdownServer(bool crash)
     }
 
     // QSS
-    {
-        QCVMGuard qg{&sv.qcvm};
+    PR_SwitchQCVM(&sv.qcvm);
 
+    {
         for(i = 0, host_client = svs.clients; i < svs.maxclients;
             i++, host_client++)
         {
@@ -721,6 +728,8 @@ void Host_ShutdownServer(bool crash)
         // QSS
         qcvm->worldmodel = nullptr;
     }
+
+    PR_SwitchQCVM(nullptr);
 
     //
     // clear structures
@@ -970,7 +979,7 @@ void _Host_Frame(double time) // QSS
             PR_ClearProgs(&cl.qcvm);
             if(pr_checkextension.value && !cl_nocsqc.value)
             { // only try to use csqc if qc extensions are enabled.
-                QCVMGuard qg{&cl.qcvm};
+                PR_SwitchQCVM(&cl.qcvm);
                 // try csprogs.dat first, then fall back on progs.dat in case
                 // someone tried merging the two. we only care about it if it
                 // actually contains a CSQC_DrawHud, otherwise its either just a
@@ -1031,6 +1040,7 @@ void _Host_Frame(double time) // QSS
                 {
                     PR_ClearProgs(qcvm);
                 }
+                PR_SwitchQCVM(nullptr);
             }
 
             cl.sendprespawn = false;
@@ -1077,8 +1087,9 @@ void _Host_Frame(double time) // QSS
 
         if(sv.active)
         {
-            QCVMGuard qg{&sv.qcvm};
+            PR_SwitchQCVM(&sv.qcvm);
             Host_ServerFrame();
+            PR_SwitchQCVM(nullptr);
         }
 
         host_frametime = realframetime;

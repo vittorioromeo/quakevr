@@ -1,6 +1,9 @@
 #include "console.hpp"
 #include "cvar.hpp"
+#include "mathlib.hpp"
 #include "quakedef.hpp"
+#include "quakedef_macros.hpp"
+#include "server.hpp"
 #include "vr.hpp"
 #include "vr_cvars.hpp"
 #include "util.hpp"
@@ -20,14 +23,18 @@
 #include "draw.hpp"
 #include "gl_util.hpp"
 #include "cmd.hpp"
+#include "debugprint.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <vector>
-#include <tuple>
-#include <string>
 #include <deque>
+#include <glm/geometric.hpp>
+#include <iostream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include <SDL2/SDL.h>
 
@@ -84,7 +91,7 @@ private:
 
 public:
     explicit VecHistory(const std::size_t bufCapacity) noexcept
-        : _bufCapacity{5}
+        : _bufCapacity{bufCapacity}
     {
     }
 
@@ -100,14 +107,14 @@ public:
 
     [[nodiscard]] qvec3 average() const noexcept
     {
-        if(_data.size() == 0)
+        if(_data.empty())
         {
             return vec3_zero;
         }
 
         qvec3 res{};
 
-        for(const auto& v : _data)
+        for(const qvec3& v : _data)
         {
             res += v;
         }
@@ -128,7 +135,7 @@ struct vr_controller
     vr::HmdQuaternion_t raworientation;
     bool active{false};
 
-    VecHistory velocityHistory{5};
+    VecHistory velocityHistory{15};
     VecHistory angularVelocityHistory{5};
 };
 
@@ -218,6 +225,13 @@ bool vr_left_reloading{false};
 bool vr_left_prevreloading{false};
 bool vr_right_reloading{false};
 bool vr_right_prevreloading{false};
+bool vr_left_reloadflicking{false};
+bool vr_left_prevreloadflicking{false};
+bool vr_right_reloadflicking{false};
+bool vr_right_prevreloadflicking{false};
+
+float flickreload_effect[2]{};
+qvec3 flicktargetfwd[2]{};
 
 vr::VRSkeletalSummaryData_t vr_ss_lefthand;
 vr::VRSkeletalSummaryData_t vr_ss_righthand;
@@ -642,6 +656,17 @@ void VR_ApplyModelMod(
     return vr_right_grabbing;
 }
 
+[[nodiscard]] bool VR_IsHandReloadFlicking(const int hand) noexcept
+{
+    if(hand == cVR_OffHand)
+    {
+        return vr_left_reloadflicking;
+    }
+
+    assert(hand == cVR_MainHand);
+    return vr_right_reloadflicking;
+}
+
 void ApplyMod_Weapon(const int cvarEntry, aliashdr_t* const hdr)
 {
     const auto ofs = VR_GetWpnOffsets(cvarEntry);
@@ -905,10 +930,9 @@ int InitWeaponCVars(int i, const char* id, const char* offsetX,
     (void)offHandOffsetY;
     (void)offHandOffsetZ;
 
-    const auto init = [&](const WpnCVar wpnCVar, const char* name,
-                          const char* defaultVal) {
-        InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal);
-    };
+    const auto init =
+        [&](const WpnCVar wpnCVar, const char* name, const char* defaultVal)
+    { InitWeaponCVar(VR_GetWpnCVar(i, wpnCVar), name, i, defaultVal); };
 
     // clang-format off
     init(WpnCVar::OffsetX,                  "vr_wofs_x_nn",            offsetX);
@@ -1249,7 +1273,8 @@ static void VR_InitActionHandles()
 
     // -----------------------------------------------------------------------
     // VR: Read all action handles.
-    const auto readHandle = [](const char* name, vr::VRActionHandle_t& handle) {
+    const auto readHandle = [](const char* name, vr::VRActionHandle_t& handle)
+    {
         const auto rc = vr::VRInput()->GetActionHandle(name, &handle);
 
         if(rc != vr::EVRInputError::VRInputError_None)
@@ -1317,8 +1342,9 @@ static void VR_InitActionHandles()
 
     // -----------------------------------------------------------------------
     // VR: Get handles to the controllers.
-    const auto readInputSourceHandle = [](const char* name,
-                                           vr::VRInputValueHandle_t& handle) {
+    const auto readInputSourceHandle =
+        [](const char* name, vr::VRInputValueHandle_t& handle)
+    {
         const auto rc = vr::VRInput()->GetInputSourceHandle(name, &handle);
 
         if(rc != vr::EVRInputError::VRInputError_None)
@@ -1387,6 +1413,11 @@ static void VR_InitActionHandles()
 
 bool VR_Enable()
 {
+    if(COM_CheckParm("-fakevr"))
+    {
+        Cvar_SetValueQuick(&vr_fakevr, 1);
+    }
+
     if(COM_CheckParm("-novr"))
     {
         Cvar_SetValueQuick(&vr_fakevr, 1);
@@ -1889,8 +1920,9 @@ void SetHandPos(int index, entity_t& player)
             VR_CalcWeaponWeightFTAdjusted<VR_GetWeaponWeightPosFactor>(index) *
             VR_GetWpnCVarValue(wpnCvarEntry, WpnCVar::WeightPosMult);
 
-        const auto rotate_point = [](const qvec2& center, const qfloat angle,
-                                      qvec2 p) {
+        const auto rotate_point =
+            [](const qvec2& center, const qfloat angle, qvec2 p)
+        {
             // translate point back to origin:
             p -= center;
 
@@ -1949,20 +1981,35 @@ void SetHandPos(int index, entity_t& player)
     cl.handavel[index] = controllers[index].a_velocity;
 
     // handthrowvel
+    if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::Basic)
     {
-        cl.handthrowvel[index] = controllers[index].velocityHistory.average();
+        cl.handthrowvel[index] = openVRCoordsToQuakeCoords(
+            controllers[index].velocityHistory.average());
+
+        cl.handthrowvel[index] =
+            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
+    }
+    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossAngVel)
+    {
+        cl.handthrowvel[index] = {};
 
         // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto up =
-            std::get<2>(getAngledVectors(controllers[index].orientation));
+        const auto [fwd, right, up] = getAngledVectors(cl.handrot[index]);
 
-        cl.handthrowvel[index] +=
-            glm::cross(controllers[index].angularVelocityHistory.average(),
-                up * vr_throw_up_center_of_mass.value);
+        const qvec3 objOffset =
+            safeNormalize(up) * vr_throw_up_center_of_mass.value;
 
-        cl.handthrowvel[index] = redirectVectorByYaw(
-            openVRCoordsToQuakeCoords(cl.handthrowvel[index]),
-            VR_GetTurnYawAngle());
+        const qvec3 angvel = openVRCoordsToQuakeCoords(
+            controllers[index].angularVelocityHistory.average());
+
+        const auto rav = redirectVector(angvel, cl.handrot[index]);
+
+        cl.handthrowvel[index] += glm::cross(rav, objOffset);
+
+        const auto x = openVRCoordsToQuakeCoords(
+            controllers[index].velocityHistory.average());
+
+        cl.handthrowvel[index] += redirectVectorByYaw(x, VR_GetTurnYawAngle());
     }
 
     // When positional weight is enabled, scale the hand velocity and throw
@@ -2374,9 +2421,8 @@ void SetHandPos(int index, entity_t& player)
     const auto [eyePitch, eyeYaw, eyeRoll] = VR_GetEyesOrientation();
     const auto [headFwd, headRight, headUp] = VR_GetHeadDirs();
 
-    const auto isBetween = [](const auto x, const auto min, const auto max) {
-        return x >= min && x <= max;
-    };
+    const auto isBetween = [](const auto x, const auto min, const auto max)
+    { return x >= min && x <= max; };
 
     if(isBetween(eyePitch, -50.f, 50.f))
     {
@@ -2418,7 +2464,8 @@ void SetHandPos(int index, entity_t& player)
     const qvec3& adjPlayerOriginLeft,
     const qvec3& adjPlayerOriginRight) noexcept
 {
-    const auto fixZ = [&](qvec3 v) {
+    const auto fixZ = [&](qvec3 v)
+    {
         v[2] = adjPlayerOriginLeft[2];
         return v;
     };
@@ -2558,10 +2605,9 @@ static void VR_DoTeleportation()
         const trace_t trace = SV_Move(
             adjPlayerOrigin, mins, maxs, target, MOVE_NORMAL, getPlayerEdict());
 
-        const auto between = [](const float value, const float min,
-                                 const float max) {
-            return value >= min && value <= max;
-        };
+        const auto between =
+            [](const float value, const float min, const float max)
+        { return value >= min && value <= max; };
 
         // Allow slopes, but not walls or ceilings.
         const bool goodNormal = between(trace.plane.normal[2], 0.75f, 1.f);
@@ -2764,9 +2810,8 @@ static void VR_DoWeaponDirSlerp()
         const auto slerpFwd = glm::slerp(nOldFwd, nNewFwd, ftw);
         const auto slerpUp = glm::slerp(nOldUp, nNewUp, ftw);
 
-        const auto anyNan = [](const qvec3& v) {
-            return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]);
-        };
+        const auto anyNan = [](const qvec3& v)
+        { return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]); };
 
         const auto mixFwd = anyNan(slerpFwd) ? nNewFwd : slerpFwd;
         const auto mixUp = anyNan(slerpUp) ? nNewUp : slerpUp;
@@ -2912,8 +2957,9 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
 
     const auto frametime = cl.time - cl.oldtime;
 
-    const auto transitionVar = [&frametime](float& var, const bool predicate,
-                                   const float speed) {
+    const auto transitionVar =
+        [&frametime](float& var, const bool predicate, const float speed)
+    {
         var += frametime * (predicate ? speed : -speed);
         var = std::clamp(var, 0.f, 1.f);
     };
@@ -2934,7 +2980,8 @@ static void VR_Do2HAimingImpl(Vr2HMode vr2HMode, const qvec3 (&originalRots)[2],
 
     const bool helpingHandIsFist = cl.stats[helpingHandStatIdx] == WID_FIST;
 
-    const bool beforeMuzzle = [&] {
+    const bool beforeMuzzle = [&]
+    {
         const auto muzzlePos = VR_CalcFinalWpnMuzzlePos(holdingHand);
 
         const auto gunLength = glm::distance(holdingHandPos, muzzlePos);
@@ -3032,13 +3079,15 @@ static void VR_FakeVRControllerAiming()
 
     cl.handrot[cVR_MainHand] = cl.viewangles;
     cl.handrot[cVR_OffHand] = cl.viewangles;
+    cl.handrot[cVR_MainHand][ROLL] = vr_fakevr_handroll.value;
+    cl.handrot[cVR_OffHand][ROLL] = vr_fakevr_handroll.value;
 }
 
 static void VR_DoWpnButton()
 {
-    const auto doWpnButton = [](const int handIdx,
-                                 const entity_t& wpnButtonEntity,
-                                 const char key) {
+    const auto doWpnButton =
+        [](const int handIdx, const entity_t& wpnButtonEntity, const char key)
+    {
         const bool hasWpnButton = !wpnButtonEntity.hidden;
 
         WpnButtonState& state = vr_wpnbutton_state[handIdx];
@@ -3106,7 +3155,8 @@ static void VR_ControllerAiming(const qvec3& orientation)
 
     // TODO VR: (P1) this is weird, the weapon model name is being used as a
     // key. Should switch to the WID instead
-    const auto setHeldWeaponCVar = [](int& cvarEntry, entity_t& viewEntity) {
+    const auto setHeldWeaponCVar = [](int& cvarEntry, entity_t& viewEntity)
+    {
         if(viewEntity.model)
         {
             cvarEntry = VR_GetWpnCVarFromModel(viewEntity.model);
@@ -3141,6 +3191,61 @@ static void VR_ControllerAiming(const qvec3& orientation)
     VR_DoUpdatePrevAnglesAndPlayerYaw();
     VR_DoTeleportation();
     VR_DoWpnButton();
+
+    // flick reload
+    const auto doFlickReload = [](const int handIdx)
+    {
+        const bool isMainHand = handIdx == cVR_MainHand;
+
+        bool& prev = isMainHand ? vr_right_prevreloadflicking
+                                : vr_left_prevreloadflicking;
+
+        bool& curr =
+            isMainHand ? vr_right_reloadflicking : vr_left_reloadflicking;
+
+        const int clipStat = isMainHand ? STAT_WEAPONCLIP : STAT_WEAPONCLIP2;
+
+        const int clipSizeStat =
+            isMainHand ? STAT_WEAPONCLIPSIZE : STAT_WEAPONCLIPSIZE2;
+
+        const int wpnStat = isMainHand ? STAT_MAINHAND_WID : STAT_OFFHAND_WID;
+
+        const bool clipFull = cl.stats[clipStat] == cl.stats[clipSizeStat];
+
+        if(cl.stats[wpnStat] != WID_SUPER_SHOTGUN || clipFull ||
+            !controllers[handIdx].active)
+        {
+            prev = curr = false;
+            return;
+        }
+
+        const qvec3 rawAngVel = openVRCoordsToQuakeCoords(
+            controllers[handIdx].angularVelocityHistory.average());
+
+        if(glm::length(rawAngVel) < 1.5f)
+        {
+            flicktargetfwd[handIdx] =
+                std::get<2>(getAngledVectors(cl.handrot[handIdx]));
+        }
+
+        const bool aVelThresholdReached =
+            glm::length(rawAngVel) >= vr_spinreload_x_angular_threshold.value;
+
+        const bool goodDot =
+            glm::dot(getFwdVecFromPitchYawRoll(cl.handrot[handIdx]),
+                flicktargetfwd[handIdx]) > 0.6f;
+
+        prev = curr;
+        curr = aVelThresholdReached && goodDot;
+
+        if(flickreload_effect[handIdx] == 0.f && !prev && curr)
+        {
+            flickreload_effect[handIdx] = 360.f;
+        }
+    };
+
+    doFlickReload(cVR_MainHand);
+    doFlickReload(cVR_OffHand);
 }
 
 static void VR_ResetGlobals()
@@ -3174,13 +3279,11 @@ void VR_OnClientClearState()
     // Automatically close thumb if most other fingers are curled.
     if(fingerIdx == FingerIdx::Thumb && vr_finger_auto_close_thumb.value)
     {
-        const auto avg = [](const auto... xs) {
-            return (xs + ...) / sizeof...(xs);
-        };
+        const auto avg = [](const auto... xs)
+        { return (xs + ...) / sizeof...(xs); };
 
-        const auto avgCurl = [&](const auto... xs) {
-            return avg(ss.flFingerCurl[(int)xs]...);
-        };
+        const auto avgCurl = [&](const auto... xs)
+        { return avg(ss.flFingerCurl[(int)xs]...); };
 
         if(avgCurl(FingerIdx::Index, FingerIdx::Middle, FingerIdx::Ring,
                FingerIdx::Pinky) > 0.5)
@@ -3250,6 +3353,34 @@ void VR_UpdateFingerTracking()
     }
 }
 
+void VR_UpdateFlick()
+{
+    for(int i = 0; i < 2; ++i)
+    {
+        int handIdx = i;
+
+        if(flickreload_effect[handIdx] <= 0.f)
+        {
+            flickreload_effect[handIdx] = 0.f;
+            cl.visual_handrot[handIdx] = cl.handrot[handIdx];
+            continue;
+        }
+
+        if(flickreload_effect[handIdx] > 0.f)
+        {
+            const auto frametime = cl.time - cl.oldtime;
+
+            flickreload_effect[handIdx] -=
+                static_cast<float>(frametime) * vr_spinreload_pitch_speed.value;
+        }
+
+        const auto [fwd, right, up] = getAngledVectors(cl.handrot[handIdx]);
+
+        cl.visual_handrot[handIdx] = VectorAngles(
+            TurnVector(fwd, up, 360.f - flickreload_effect[handIdx]), up);
+    }
+}
+
 void VR_UpdateScreenContent()
 {
     // Last chance to enable VR Mode - we get here when the game already
@@ -3280,9 +3411,17 @@ void VR_UpdateScreenContent()
 
     switch((int)vr_aimmode.value)
     {
-            // 1: (Default) Head Aiming; View YAW is mouse+head, PITCH is
-            // head
+
         default:
+        // 7: (Default) Controller Aiming;
+        case VrAimMode::e_CONTROLLER:
+        {
+            VR_ControllerAiming(orientation);
+            break;
+        }
+
+            // 1:Head Aiming; View YAW is mouse+head, PITCH is
+            // head
         case VrAimMode::e_HEAD_MYAW:
             cl.viewangles[PITCH] = cl.aimangles[PITCH] = orientation[PITCH];
             cl.aimangles[YAW] = cl.viewangles[YAW] =
@@ -3338,13 +3477,6 @@ void VR_UpdateScreenContent()
             }
             cl.viewangles[PITCH] = orientation[PITCH];
 
-            break;
-        }
-
-        // 7: Controller Aiming;
-        case VrAimMode::e_CONTROLLER:
-        {
-            VR_ControllerAiming(orientation);
             break;
         }
     }
@@ -3476,7 +3608,8 @@ void VR_Draw2D()
                               // interferring with one another
     glEnable(GL_BLEND);
 
-    const VrMenuMode menuMode = [&] {
+    const VrMenuMode menuMode = [&]
+    {
         const auto v =
             static_cast<VrMenuMode>(static_cast<int>(vr_menumode.value));
 
@@ -3739,7 +3872,8 @@ struct VRAxisResult
     const bool bMoveForward, const bool bMoveBackward, const bool bMoveLeft,
     const bool bMoveRight, const bool bTurnLeft, const bool bTurnRight)
 {
-    const auto getAxis = [](const bool left, const bool right) {
+    const auto getAxis = [](const bool left, const bool right)
+    {
         if(left)
         {
             return -1.f;
@@ -3801,7 +3935,8 @@ static void VR_DoInput_UpdateVRMouse()
         return;
     }
 
-    const auto updateWith = [&](const HandIdx handIdx) {
+    const auto updateWith = [&](const HandIdx handIdx)
+    {
         const auto& orig = cl.handpos[handIdx];
         const auto dir = getFwdVecFromPitchYawRoll(cl.handrot[handIdx]);
 
@@ -3823,7 +3958,8 @@ static void VR_DoInput_UpdateVRMouse()
 
         const float scale_hud = vr_menu_scale.value;
 
-        const auto sign = [](const float x) {
+        const auto sign = [](const float x)
+        {
             if(x >= 0)
             {
                 return 1.f;
@@ -3840,8 +3976,9 @@ static void VR_DoInput_UpdateVRMouse()
         vr_menu_mouse_y = glm::length(yProj) * ySign / scale_hud + 240 / 2;
     };
 
-    const auto doControllersInOrder = [&](const HandIdx first,
-                                          const HandIdx second) {
+    const auto doControllersInOrder =
+        [&](const HandIdx first, const HandIdx second)
+    {
         if(controllers[first].active)
         {
             updateWith(first);
@@ -3886,6 +4023,21 @@ static void VR_DoInput_UpdateVRMouse()
         vr_left_reloading = in_reloadleft.state & 1;
         vr_right_reloading = in_reloadright.state & 1;
 
+        vr_left_prevreloadflicking = vr_left_reloadflicking;
+        vr_right_prevreloadflicking = vr_right_reloadflicking;
+        vr_left_reloadflicking = in_flickreloadleft.state & 1;
+        vr_right_reloadflicking = in_flickreloadright.state & 1;
+
+        if(vr_left_reloadflicking)
+        {
+            flickreload_effect[cVR_OffHand] = 360.f;
+        }
+
+        if(vr_right_reloadflicking)
+        {
+            flickreload_effect[cVR_MainHand] = 360.f;
+        }
+
         VR_DoInput_UpdateFakeMouse();
 
         return {0.f, 0.f, 0.f};
@@ -3902,7 +4054,8 @@ static void VR_DoInput_UpdateVRMouse()
         }
     }
 
-    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle) {
+    const auto readAnalogAction = [](const vr::VRActionHandle_t& actionHandle)
+    {
         vr::InputAnalogActionData_t out;
 
         const auto rc = vr::VRInput()->GetAnalogActionData(actionHandle, &out,
@@ -3918,26 +4071,26 @@ static void VR_DoInput_UpdateVRMouse()
         return out;
     };
 
-    const auto readDigitalAction =
-        [](const vr::VRActionHandle_t& actionHandle) {
-            vr::InputDigitalActionData_t out;
+    const auto readDigitalAction = [](const vr::VRActionHandle_t& actionHandle)
+    {
+        vr::InputDigitalActionData_t out;
 
-            const vr::EVRInputError rc = vr::VRInput()->GetDigitalActionData(
-                actionHandle, &out, sizeof(vr::InputDigitalActionData_t),
-                vr::k_ulInvalidInputValueHandle);
+        const vr::EVRInputError rc = vr::VRInput()->GetDigitalActionData(
+            actionHandle, &out, sizeof(vr::InputDigitalActionData_t),
+            vr::k_ulInvalidInputValueHandle);
 
-            if(rc != vr::EVRInputError::VRInputError_None)
-            {
-                Con_Printf(
-                    "Failed to read Steam VR digital action data, rc = %d\n",
-                    (int)rc);
-            }
+        if(rc != vr::EVRInputError::VRInputError_None)
+        {
+            Con_Printf("Failed to read Steam VR digital action data, rc = %d\n",
+                (int)rc);
+        }
 
-            return out;
-        };
+        return out;
+    };
 
-    const auto readSkeletalSummary = [](const vr::VRActionHandle_t&
-                                             actionHandle) {
+    const auto readSkeletalSummary =
+        [](const vr::VRActionHandle_t& actionHandle)
+    {
         vr::InputSkeletalActionData_t outActionData;
 
         {
@@ -4010,9 +4163,8 @@ static void VR_DoInput_UpdateVRMouse()
     const auto inpBTurnLeft = readDigitalAction(vrahBTurnLeft);
     const auto inpBTurnRight = readDigitalAction(vrahBTurnRight);
 
-    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data) {
-        return data.bState && data.bChanged;
-    };
+    const auto isRisingEdge = [](const vr::InputDigitalActionData_t& data)
+    { return data.bState && data.bChanged; };
 
     const bool mustFireMainHand = inpFireMainHand.bState;
     const bool mustFireOffHand = inpFireOffHand.bState;
@@ -4097,6 +4249,19 @@ static void VR_DoInput_UpdateVRMouse()
         vr_left_reloading = in_reloadleft.state & 1;
         vr_right_reloading = in_reloadright.state & 1;
 
+        vr_left_reloadflicking = in_flickreloadleft.state & 1;
+        vr_right_reloadflicking = in_flickreloadright.state & 1;
+
+        if(vr_left_reloadflicking)
+        {
+            flickreload_effect[cVR_OffHand] = 360.f;
+        }
+
+        if(vr_right_reloadflicking)
+        {
+            flickreload_effect[cVR_MainHand] = 360.f;
+        }
+
         VR_DoInput_UpdateFakeMouse();
     }
 
@@ -4107,7 +4272,8 @@ static void VR_DoInput_UpdateVRMouse()
     vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne.bState);
     vr_menu_mult += static_cast<int>(inpMenuMultiplierPlusOne2.bState);
 
-    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin) {
+    const auto doMenuHaptic = [&](const vr::VRInputValueHandle_t& origin)
+    {
         vr::VRInput()->TriggerHapticVibrationAction(
             vrahLeftHaptic, 0, 0.1, 50, 0.5, origin);
 
@@ -4126,22 +4292,24 @@ static void VR_DoInput_UpdateVRMouse()
     */
 
     const auto doMenuKeyEventWithHaptic =
-        [&](const int key, const vr::InputDigitalActionData_t& i) {
-            const bool pressed = isRisingEdge(i);
+        [&](const int key, const vr::InputDigitalActionData_t& i)
+    {
+        const bool pressed = isRisingEdge(i);
 
-            if(pressed)
-            {
-                doMenuHaptic(i.activeOrigin);
-            }
+        if(pressed)
+        {
+            doMenuHaptic(i.activeOrigin);
+        }
 
-            Key_Event(key, pressed);
-            return pressed;
-        };
+        Key_Event(key, pressed);
+        return pressed;
+    };
 
     if(inMenuOrConsole())
     {
         const auto doAxis = [&](const int axis, const auto& inp,
-                                const int quakeKeyNeg, const int quakeKeyPos) {
+                                const int quakeKeyNeg, const int quakeKeyPos)
+        {
             const float lastVal =
                 axis == 0 ? (inp.x - inp.deltaX) : (inp.y - inp.deltaY);
 
@@ -4174,7 +4342,8 @@ static void VR_DoInput_UpdateVRMouse()
             }
         };
 
-        const auto doBooleanInput = [&](const auto& inp, const int quakeKey) {
+        const auto doBooleanInput = [&](const auto& inp, const int quakeKey)
+        {
             if(inp.bChanged)
             {
                 if(inp.bState)
@@ -4289,8 +4458,9 @@ void VR_Move(usercmd_t* cmd)
 
     // VR: VR-related bits.
     {
-        const auto setBit = [](unsigned int& flags, const int bit,
-                                const bool value) {
+        const auto setBit =
+            [](unsigned int& flags, const int bit, const bool value)
+        {
             if(value)
             {
                 flags |= bit;
@@ -4320,10 +4490,19 @@ void VR_Move(usercmd_t* cmd)
             cmd->vrbits0, QVR_VRBITS0_MAINHAND_RELOADING, vr_right_reloading);
         setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING,
             vr_right_prevreloading);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING,
+            vr_left_reloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADFLICKING,
+            vr_left_prevreloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING,
+            vr_right_reloadflicking);
+        setBit(cmd->vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING,
+            vr_right_prevreloadflicking);
     }
 
     // VR: Hands.
-    const auto computeHotSpot = [](const qvec3& hand) {
+    const auto computeHotSpot = [](const qvec3& hand)
+    {
         if(VR_InShoulderHolsterDistance(hand, VR_GetLeftShoulderHolsterPos()))
         {
             return QVR_HS_LEFT_SHOULDER_HOLSTER;
@@ -4524,6 +4703,16 @@ void VR_OnLoadedPak(pack_t& pak)
             continue;
         }
     }
+}
+
+void VR_ResetThrowAvgFrames()
+{
+    controllers[0].velocityHistory = controllers[1].velocityHistory =
+        VecHistory{static_cast<std::size_t>(vr_throw_avg_frames.value)};
+
+    controllers[0].angularVelocityHistory =
+        controllers[1].angularVelocityHistory = VecHistory{
+            static_cast<std::size_t>(vr_throw_angvel_avg_frames.value)};
 }
 
 // TODO VR: (P1): "seems like for the custom map a2 i can add bots with no

@@ -1,18 +1,10 @@
 #pragma once
 
-#include <GL/glew.h>
-
-#include <string_view>
-#include <filesystem>
-
 // TODO VR: (P2) pimpl
 #include <GL/glew.h>
 
 #include <string_view>
-#include <filesystem>
-#include <cassert>
 #include <vector>
-#include <cstdio>
 
 namespace quake
 {

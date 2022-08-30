@@ -412,6 +412,26 @@ float(float wid) WeaponIdToSupportsReload =
     return -1;
 }
 
+float(float wid) WeaponIdToSupportsReloadFlicking =
+{
+    if(wid == WID_FIST)             { return FALSE; }
+    if(wid == WID_GRAPPLE)          { return FALSE; }
+    if(wid == WID_AXE)              { return FALSE; }
+    if(wid == WID_MJOLNIR)          { return FALSE; }
+    if(wid == WID_SHOTGUN)          { return FALSE; }
+    if(wid == WID_SUPER_SHOTGUN)    { return TRUE; }
+    if(wid == WID_NAILGUN)          { return FALSE; }
+    if(wid == WID_SUPER_NAILGUN)    { return FALSE; }
+    if(wid == WID_GRENADE_LAUNCHER) { return FALSE; }
+    if(wid == WID_PROXIMITY_GUN)    { return FALSE; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return FALSE; }
+    if(wid == WID_LIGHTNING)        { return FALSE; }
+    if(wid == WID_LASER_CANNON)     { return FALSE; }
+
+    ASSERT(FALSE);
+    return -1;
+}
+
 float(float wid) WeaponIdToBaseClipSize =
 {
     if(wid == WID_FIST)             { return 0; }

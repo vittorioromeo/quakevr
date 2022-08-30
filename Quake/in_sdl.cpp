@@ -389,7 +389,7 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
     }
     else if(cl.qcvm.extfuncs.CSQC_InputEvent)
     {
-        QCVMGuard qg{&cl.qcvm};
+        PR_SwitchQCVM(&cl.qcvm);
 
         if(cl.csqc_cursorforced)
         {
@@ -416,6 +416,8 @@ void IN_MouseMotion(int dx, int dy, int wx, int wy)
         {
             dx = dy = 0; // if the qc says it handled it, swallow the movement.
         }
+
+        PR_SwitchQCVM(nullptr);
     }
 
     total_dx += dx;

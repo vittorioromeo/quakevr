@@ -1,13 +1,5 @@
 #pragma once
 
-#ifdef WIN32
-#include <windows.h>
-#include "debugapi.h"
-
-#undef min
-#undef max
-#endif
-
 #include "q_stdinc.hpp"
 #include "cvar.hpp"
 #include "mathlib.hpp"
@@ -15,25 +7,23 @@
 #include "macros.hpp"
 #include "progs.hpp"
 #include "world.hpp"
-#include "server.hpp"
+#include "serverdefines.hpp"
 
-#include <GL/glew.h>
-
-#include <array>
-#include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <string_view>
 #include <tuple>
-#include <type_traits>
-#include <sstream>
-#include <variant>
 
 // TODO VR: (P2) ugly declaration
 float VR_GetMenuMult() noexcept;
 
 namespace quake::util
 {
+
+template <class T>
+constexpr const T& qclamp(const T& v, const T& lo, const T& hi)
+{
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
 
 template <typename T>
 [[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr T mapRange(const T input,
@@ -49,41 +39,6 @@ template <typename T>
 [[nodiscard]] QUAKE_FORCEINLINE_PUREFN T cvarToEnum(const cvar_t& x) noexcept
 {
     return static_cast<T>(static_cast<int>(x.value));
-}
-
-template <typename... Ts>
-[[nodiscard]] std::string stringCat(const Ts&... xs)
-{
-    std::ostringstream oss;
-    (oss << ... << xs);
-    return oss.str();
-}
-
-template <typename T, typename... Ts>
-[[nodiscard]] std::string stringCatSeparated(
-    const std::string_view separator, const T& x, const Ts&... xs)
-{
-    std::ostringstream oss;
-    oss << x;
-    ((oss << separator << xs), ...);
-    return oss.str();
-}
-
-template <typename... Ts>
-void debugPrint([[maybe_unused]] const Ts&... xs)
-{
-#ifdef WIN32
-    OutputDebugStringA(stringCat(xs...).data());
-#endif
-}
-
-template <typename... Ts>
-void debugPrintSeparated([[maybe_unused]] const std::string_view separator,
-    [[maybe_unused]] const Ts&... xs)
-{
-#ifdef WIN32
-    OutputDebugStringA(stringCatSeparated(separator, xs...).data());
-#endif
 }
 
 template <typename TVec3AMin, typename TVec3AMax, typename TVec3BMin,
@@ -200,7 +155,7 @@ getAngledVectors(const qvec3& v) noexcept
         (cr * sp * sy + -sr * cy),  //
         cr * cp};
 
-    return std::tuple{forward, right, up};
+    return {forward, right, up};
 }
 
 [[nodiscard]] QUAKE_FORCEINLINE qvec3 getDirectionVectorFromPitchYawRoll(
@@ -219,31 +174,32 @@ getAngledVectors(const qvec3& v) noexcept
 template <typename T>
 [[nodiscard]] auto makeMenuCVarAdjuster(const bool isLeft)
 {
-    return
-        [isLeft](const cvar_t& cvar, const T incr, const T min, const T max) {
-            const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
+    return [isLeft](const cvar_t& cvar, const T incr, const T min, const T max)
+    {
+        const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
 
-            const T adjIncr = incr * static_cast<T>(factor);
+        const T adjIncr = incr * static_cast<T>(factor);
 
-            const auto newVal = static_cast<T>(
-                isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
-            const auto res = static_cast<T>(std::clamp(newVal, min, max));
+        const auto newVal = static_cast<T>(
+            isLeft ? cvar.value - adjIncr : cvar.value + adjIncr);
+        const auto res = static_cast<T>(qclamp(newVal, min, max));
 
-            Cvar_SetValue(cvar.name, res);
-        };
+        Cvar_SetValue(cvar.name, res);
+    };
 }
 
 template <typename T>
 [[nodiscard]] auto makeMenuValueAdjuster(const bool isLeft)
 {
-    return [isLeft](T& value, const T incr, const T min, const T max) {
+    return [isLeft](T& value, const T incr, const T min, const T max)
+    {
         const float factor = VR_GetMenuMult() >= 3 ? 6.f : VR_GetMenuMult();
 
         const T adjIncr = incr * static_cast<T>(factor);
 
         const auto newVal =
             static_cast<T>(isLeft ? value - adjIncr : value + adjIncr);
-        const auto res = static_cast<T>(std::clamp(newVal, min, max));
+        const auto res = static_cast<T>(qclamp(newVal, min, max));
 
         value = res;
     };
@@ -254,33 +210,6 @@ template <typename T>
     const T& trace) noexcept
 {
     return trace.fraction < 1.f;
-}
-
-template <typename... Fs>
-struct overload_set : Fs...
-{
-    template <typename... FFwds>
-    constexpr overload_set(FFwds&&... fFwds) : Fs{std::forward<FFwds>(fFwds)}...
-    {
-    }
-
-    using Fs::operator()...;
-};
-
-template <typename... Fs>
-overload_set(Fs...) -> overload_set<Fs...>;
-
-template <typename... Fs>
-constexpr auto make_overload_set(Fs&&... fs)
-{
-    return overload_set<std::decay_t<Fs>...>{std::forward<Fs>(fs)...};
-}
-
-template <typename Variant, typename... Fs>
-constexpr decltype(auto) match(Variant&& v, Fs&&... fs)
-{
-    return std::visit(
-        make_overload_set(std::forward<Fs>(fs)...), std::forward<Variant>(v));
 }
 
 // TODO VR: (P2) reuse throughout project
@@ -297,12 +226,7 @@ template <typename TTrace>
     return trace.plane.normal[2] > 0.7;
 }
 
-[[nodiscard]] inline int getMaxMSAALevel() noexcept
-{
-    int res;
-    glGetIntegerv(GL_MAX_SAMPLES, &res);
-    return res;
-}
+[[nodiscard]] int getMaxMSAALevel() noexcept;
 
 [[nodiscard]] QUAKE_FORCEINLINE_CONSTFN constexpr bool hasFlag(
     const float flags, const int x) noexcept
@@ -400,7 +324,8 @@ bool anyXYCorner(const edict_t& ent, F&& f)
     (void)xBias; // TODO VR: (P2) unused
     (void)yBias; // TODO VR: (P2) unused
 
-    const auto checkCorner = [&](const qvec3& pos) {
+    const auto checkCorner = [&](const qvec3& pos)
+    {
         const qvec3 end = pos + move;
 
         traceBuffer = SV_MoveTrace(pos, end, moveType, ent);
@@ -416,10 +341,12 @@ bool anyXYCorner(const edict_t& ent, F&& f)
         return checkCorner(bottomOrigin);
     }
 
-    return anyXYCorner(*ent, [&](const qvec3& offset) {
-        offsetBuffer = offset;
-        return checkCorner(bottomOrigin + offsetBuffer);
-    });
+    return anyXYCorner(*ent,
+        [&](const qvec3& offset)
+        {
+            offsetBuffer = offset;
+            return checkCorner(bottomOrigin + offsetBuffer);
+        });
 }
 
 } // namespace quake::util

@@ -98,20 +98,22 @@ void show_virtual_stock()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto [draw_main_hand, draw_off_hand] =
-            get_hands_to_draw(vr_show_virtual_stock.value);
-
-        if(draw_main_hand)
+    guard.draw_points_and_lines(
+        [&]
         {
-            show_virtual_stock_impl(cVR_MainHand, cVR_OffHand);
-        }
+            const auto [draw_main_hand, draw_off_hand] =
+                get_hands_to_draw(vr_show_virtual_stock.value);
 
-        if(draw_off_hand)
-        {
-            show_virtual_stock_impl(cVR_OffHand, cVR_MainHand);
-        }
-    });
+            if(draw_main_hand)
+            {
+                show_virtual_stock_impl(cVR_MainHand, cVR_OffHand);
+            }
+
+            if(draw_off_hand)
+            {
+                show_virtual_stock_impl(cVR_OffHand, cVR_MainHand);
+            }
+        });
 }
 
 //
@@ -130,33 +132,36 @@ void show_vr_torso_debug_lines()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto len = 20._qf;
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto len = 20._qf;
 
-        const auto [adj_player_origin, adj_player_originLeft,
-            adj_player_originRight, head_fwd_dir, head_right_dir, head_up_dir,
-            mix_hand_dir, mix_final_dir] = VR_GetBodyYawAngleCalculations();
+            const auto [adj_player_origin, adj_player_originLeft,
+                adj_player_originRight, head_fwd_dir, head_right_dir,
+                head_up_dir, mix_hand_dir, mix_final_dir] =
+                VR_GetBodyYawAngleCalculations();
 
-        glColor4f(0, 1, 0, 0.75);
-        gl_vertex(adj_player_originLeft);
-        gl_vertex(cl.handpos[0]);
+            glColor4f(0, 1, 0, 0.75);
+            gl_vertex(adj_player_originLeft);
+            gl_vertex(cl.handpos[0]);
 
-        glColor4f(0, 1, 0, 0.75);
-        gl_vertex(adj_player_originRight);
-        gl_vertex(cl.handpos[1]);
+            glColor4f(0, 1, 0, 0.75);
+            gl_vertex(adj_player_originRight);
+            gl_vertex(cl.handpos[1]);
 
-        glColor4f(0, 1, 0, 0.75);
-        gl_vertex(adj_player_origin);
-        gl_vertex(adj_player_origin + head_fwd_dir * len);
+            glColor4f(0, 1, 0, 0.75);
+            gl_vertex(adj_player_origin);
+            gl_vertex(adj_player_origin + head_fwd_dir * len);
 
-        glColor4f(0, 0, 1, 0.75);
-        gl_vertex(adj_player_origin);
-        gl_vertex(adj_player_origin + mix_hand_dir * len);
+            glColor4f(0, 0, 1, 0.75);
+            gl_vertex(adj_player_origin);
+            gl_vertex(adj_player_origin + mix_hand_dir * len);
 
-        glColor4f(1, 0, 0, 0.75);
-        gl_vertex(adj_player_origin);
-        gl_vertex(adj_player_origin + mix_final_dir * len * 1.25_qf);
-    });
+            glColor4f(1, 0, 0, 0.75);
+            gl_vertex(adj_player_origin);
+            gl_vertex(adj_player_origin + mix_final_dir * len * 1.25_qf);
+        });
 }
 
 //
@@ -181,7 +186,8 @@ void show_holster_impl(
     const auto left_holster_pos = f_left_pos();
     const auto right_holster_pos = f_right_pos();
 
-    const auto do_color = [&](const qvec3& hand, const qvec3& holster) {
+    const auto do_color = [&](const qvec3& hand, const qvec3& holster)
+    {
         if(VR_InHipHolsterDistance(hand, holster))
         {
             glColor4f(1, 1, 0, 0.95);
@@ -191,7 +197,8 @@ void show_holster_impl(
         glColor4f(0, 1, hand == main_hand_pos ? 1 : 0, 0.75);
     };
 
-    const auto do_line = [&](const qvec3& hand, const qvec3& holster) {
+    const auto do_line = [&](const qvec3& hand, const qvec3& holster)
+    {
         do_color(hand, holster);
         gl_vertex(hand);
         gl_vertex(holster);
@@ -199,22 +206,24 @@ void show_holster_impl(
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto [draw_main_hand, draw_off_hand] =
-            get_hands_to_draw(cvarValue);
-
-        if(draw_main_hand)
+    guard.draw_points_and_lines(
+        [&]
         {
-            do_line(main_hand_pos, left_holster_pos);
-            do_line(main_hand_pos, right_holster_pos);
-        }
+            const auto [draw_main_hand, draw_off_hand] =
+                get_hands_to_draw(cvarValue);
 
-        if(draw_off_hand)
-        {
-            do_line(off_hand_pos, left_holster_pos);
-            do_line(off_hand_pos, right_holster_pos);
-        }
-    });
+            if(draw_main_hand)
+            {
+                do_line(main_hand_pos, left_holster_pos);
+                do_line(main_hand_pos, right_holster_pos);
+            }
+
+            if(draw_off_hand)
+            {
+                do_line(off_hand_pos, left_holster_pos);
+                do_line(off_hand_pos, right_holster_pos);
+            }
+        });
 }
 
 //
@@ -416,7 +425,8 @@ void show_teleport_line()
     const auto midB = glm::mix(start, impact, 0.85);
 
     // draw line
-    const auto set_color = [&](const float xAlpha) {
+    const auto set_color = [&](const float xAlpha)
+    {
         if(vr_teleporting_impact_valid)
         {
             glColor4f(0, 0, 1, xAlpha);
@@ -428,17 +438,19 @@ void show_teleport_line()
     };
 
     gl_showfn_guard guard;
-    guard.draw_line_strip(size, [&] {
-        set_color(alpha * 0.01f);
-        gl_vertex(start);
+    guard.draw_line_strip(size,
+        [&]
+        {
+            set_color(alpha * 0.01f);
+            gl_vertex(start);
 
-        set_color(alpha);
-        gl_vertex(midA);
-        gl_vertex(midB);
+            set_color(alpha);
+            gl_vertex(midA);
+            gl_vertex(midB);
 
-        set_color(alpha * 0.01f);
-        gl_vertex(impact);
-    });
+            set_color(alpha * 0.01f);
+            gl_vertex(impact);
+        });
 }
 
 //
@@ -457,7 +469,8 @@ void show_wpn_offset_helper_offset()
 
     const auto do_color = [&] { glColor4f(0, 1, 1, 0.75); };
 
-    const auto do_line = [&](const qvec3& a, const qvec3& b) {
+    const auto do_line = [&](const qvec3& a, const qvec3& b)
+    {
         do_color();
         gl_vertex(a);
         gl_vertex(b);
@@ -465,21 +478,24 @@ void show_wpn_offset_helper_offset()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto [hand_pos, hand_rot, cvarEntry] = [&] {
-            const HandIdx hand_idx = vr_impl_draw_wpnoffset_helper_offset == 1
-                                         ? cVR_MainHand
-                                         : cVR_OffHand;
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto [hand_pos, hand_rot, cvarEntry] = [&]
+            {
+                const HandIdx hand_idx =
+                    vr_impl_draw_wpnoffset_helper_offset == 1 ? cVR_MainHand
+                                                              : cVR_OffHand;
 
-            return std::tuple{cl.handpos[hand_idx], cl.handrot[hand_idx],
-                VR_GetWpnCvarEntry(hand_idx)};
-        }();
+                return std::tuple{cl.handpos[hand_idx], cl.handrot[hand_idx],
+                    VR_GetWpnCvarEntry(hand_idx)};
+            }();
 
-        const auto offsetPos =
-            quake::util::redirectVector(VR_GetWpnOffsets(cvarEntry), hand_rot);
+            const auto offsetPos = quake::util::redirectVector(
+                VR_GetWpnOffsets(cvarEntry), hand_rot);
 
-        do_line(hand_pos, hand_pos + offsetPos);
-    });
+            do_line(hand_pos, hand_pos + offsetPos);
+        });
 }
 
 //
@@ -498,14 +514,16 @@ void show_wpn_offset_helper_muzzle()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto muzzle_pos = vr_impl_draw_wpnoffset_helper_muzzle == 1
-                                    ? VR_CalcFinalWpnMuzzlePos(cVR_MainHand)
-                                    : VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto muzzle_pos = vr_impl_draw_wpnoffset_helper_muzzle == 1
+                                        ? VR_CalcFinalWpnMuzzlePos(cVR_MainHand)
+                                        : VR_CalcFinalWpnMuzzlePos(cVR_OffHand);
 
-        glColor4f(0, 1, 1, 0.75);
-        gl_vertex(muzzle_pos);
-    });
+            glColor4f(0, 1, 1, 0.75);
+            gl_vertex(muzzle_pos);
+        });
 }
 
 //
@@ -524,15 +542,17 @@ void show_wpn_offset_helper_2h_offset()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto pos =
-            vr_impl_draw_wpnoffset_helper_2h_offset == 1
-                ? VR_Get2HHelpingHandPos(cVR_MainHand, cVR_OffHand)
-                : VR_Get2HHelpingHandPos(cVR_OffHand, cVR_MainHand);
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto pos =
+                vr_impl_draw_wpnoffset_helper_2h_offset == 1
+                    ? VR_Get2HHelpingHandPos(cVR_MainHand, cVR_OffHand)
+                    : VR_Get2HHelpingHandPos(cVR_OffHand, cVR_MainHand);
 
-        glColor4f(0, 1, 1, 0.75);
-        gl_vertex(pos);
-    });
+            glColor4f(0, 1, 1, 0.75);
+            gl_vertex(pos);
+        });
 }
 
 //
@@ -551,24 +571,27 @@ void show_hand_pos_and_rot()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto do_hand = [&](const HandIdx hand_idx) {
-            const auto& pos = cl.handpos[hand_idx];
-            const auto& rot = cl.handrot[hand_idx];
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto do_hand = [&](const HandIdx hand_idx)
+            {
+                const auto& pos = cl.handpos[hand_idx];
+                const auto& rot = cl.handrot[hand_idx];
 
-            const auto fwd = quake::util::getFwdVecFromPitchYawRoll(rot);
-            const auto end = pos + fwd * 1._qf;
+                const auto fwd = quake::util::getFwdVecFromPitchYawRoll(rot);
+                const auto end = pos + fwd * 1._qf;
 
-            gl_vertex(pos);
-            gl_vertex(end);
-        };
+                gl_vertex(pos);
+                gl_vertex(end);
+            };
 
-        glColor4f(0, 1, 0, 0.75);
-        do_hand(cVR_MainHand);
+            glColor4f(0, 1, 0, 0.75);
+            do_hand(cVR_MainHand);
 
-        glColor4f(1, 0, 0, 0.75);
-        do_hand(cVR_OffHand);
-    });
+            glColor4f(1, 0, 0, 0.75);
+            do_hand(cVR_OffHand);
+        });
 }
 
 // TODO VR: (P1) move:
@@ -578,26 +601,29 @@ void show_menu_intersection_point()
 
     gl_showfn_guard guard;
 
-    guard.draw_points_and_lines([&] {
-        const auto do_hand = [&](const HandIdx hand_idx) {
-            glColor4f(0, 1, 0, 0.75);
-            gl_vertex(cl.handpos[hand_idx]);
-            gl_vertex(vr_menu_intersection_point);
+    guard.draw_points_and_lines(
+        [&]
+        {
+            const auto do_hand = [&](const HandIdx hand_idx)
+            {
+                glColor4f(0, 1, 0, 0.75);
+                gl_vertex(cl.handpos[hand_idx]);
+                gl_vertex(vr_menu_intersection_point);
 
-            // glColor4f(0, 0, 1, 0.5);
-            // gl_vertex(cl.handpos[hand_idx]);
-            // gl_vertex(vr_menu_target);
+                // glColor4f(0, 0, 1, 0.5);
+                // gl_vertex(cl.handpos[hand_idx]);
+                // gl_vertex(vr_menu_target);
 
-            // glColor4f(1, 0, 0, 0.5);
-            // gl_vertex(vr_menu_target);
-            // gl_vertex(vr_menu_target + vr_menu_normal * 205.f);
-        };
+                // glColor4f(1, 0, 0, 0.5);
+                // gl_vertex(vr_menu_target);
+                // gl_vertex(vr_menu_target + vr_menu_normal * 205.f);
+            };
 
-        do_hand(cVR_MainHand);
+            do_hand(cVR_MainHand);
 
-        // glColor4f(1, 0, 0, 0.75);
-        // do_hand(cVR_OffHand);
-    });
+            // glColor4f(1, 0, 0, 0.75);
+            // do_hand(cVR_OffHand);
+        });
 }
 
 //
@@ -625,7 +651,8 @@ void show_anchor_vertex_impl(const HandIdx hand_idx, const WpnCVar wpn_cvar)
 
     const bool horiz_flip = hand_idx == cVR_OffHand;
 
-    const auto do_vertex = [&](const VertexIdx vertex_idx_offset) {
+    const auto do_vertex = [&](const VertexIdx vertex_idx_offset)
+    {
         const auto pos = VR_GetScaledAndAngledAliasVertexPosition(anchor,
             anchor_vertex + vertex_idx_offset, vec3_zero,
             cl.handrot[hand_idx] + rots, horiz_flip);
@@ -635,33 +662,39 @@ void show_anchor_vertex_impl(const HandIdx hand_idx, const WpnCVar wpn_cvar)
 
     gl_showfn_guard guard;
 
-    guard.draw_points_with_size(12.f, [&] {
-        glColor4f(1.f, 1.f, 1.f, 1.0f);
-        do_vertex(0);
-    });
-
-    guard.draw_points_with_size(6.f, [&] {
-        glColor4f(0.f, 0.f, 1.f, 0.95f);
-        do_vertex(1);
-
-        glColor4f(0.f, 1.f, 0.f, 0.95f);
-        do_vertex(-1);
-    });
-
-    guard.draw_points_with_size(3.25f, [&] {
-        // TODO VR: (P1) use the proper limit instead of 500
-        glColor4f(0.f, 0.f, 1.f, 0.9f);
-        for(int i = 2; i < 500; ++i)
+    guard.draw_points_with_size(12.f,
+        [&]
         {
-            do_vertex(i);
-        }
+            glColor4f(1.f, 1.f, 1.f, 1.0f);
+            do_vertex(0);
+        });
 
-        glColor4f(0.f, 1.f, 0.f, 0.9f);
-        for(int i = 2; i < 500; ++i)
+    guard.draw_points_with_size(6.f,
+        [&]
         {
-            do_vertex(-i);
-        }
-    });
+            glColor4f(0.f, 0.f, 1.f, 0.95f);
+            do_vertex(1);
+
+            glColor4f(0.f, 1.f, 0.f, 0.95f);
+            do_vertex(-1);
+        });
+
+    guard.draw_points_with_size(3.25f,
+        [&]
+        {
+            // TODO VR: (P1) use the proper limit instead of 500
+            glColor4f(0.f, 0.f, 1.f, 0.9f);
+            for(int i = 2; i < 500; ++i)
+            {
+                do_vertex(i);
+            }
+
+            glColor4f(0.f, 1.f, 0.f, 0.9f);
+            for(int i = 2; i < 500; ++i)
+            {
+                do_vertex(-i);
+            }
+        });
 }
 
 void show_anchor_vertex_for(const int impl_flag, WpnCVar wpn_cvar)

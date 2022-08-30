@@ -411,7 +411,8 @@ void R_CullSurfaces();
 bool R_CullBox(const qvec3& emins, const qvec3& emaxs);
 void R_StoreEfrags(efrag_t** ppefrag);
 bool R_CullModelForEntity(entity_t* e);
-void R_RotateForEntity(const qvec3& origin, const qvec3& angles, unsigned char scale);
+void R_RotateForEntity(
+    const qvec3& origin, const qvec3& angles, unsigned char scale);
 void R_MarkLights(
     dlight_t* light, const qvec3& lightorg, int num, mnode_t* node);
 

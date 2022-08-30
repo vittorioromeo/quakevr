@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project(quakevr VERSION 0.0.5 LANGUAGES CXX)
+project(quakevr VERSION 0.0.7 LANGUAGES CXX)
 
 set(source_list
     "Quake/bgmusic.cpp"
@@ -58,6 +58,8 @@ set(source_list
     "Quake/pr_edict.cpp"
     "Quake/pr_exec.cpp"
     "Quake/pr_ext.cpp"
+    "Quake/qcvm.cpp"
+    "Quake/quakeglm_qvec3.cpp"
     "Quake/quakeglm.cpp"
     "Quake/r_alias.cpp"
     "Quake/r_brush.cpp"
@@ -91,6 +93,7 @@ set(source_list
     "Quake/sv_move.cpp"
     "Quake/sv_phys.cpp"
     "Quake/sv_user.cpp"
+    "Quake/util.cpp"
     "Quake/view.cpp"
     "Quake/vr_cvars.cpp"
     "Quake/vr_showfn.cpp"
@@ -128,6 +131,11 @@ endif()
 
 add_executable(${QUAKEVR_TARGET_NAME} "${source_list}")
 set_target_properties(${QUAKEVR_TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+
+target_precompile_headers(
+    ${QUAKEVR_TARGET_NAME} PRIVATE
+    "Quake/pch.hpp"
+)
 
 target_compile_features(${QUAKEVR_TARGET_NAME} PUBLIC cxx_std_17)
 target_compile_options(${QUAKEVR_TARGET_NAME}
@@ -188,6 +196,11 @@ target_include_directories(
 set_property(TARGET ${QUAKEVR_TARGET_NAME} PROPERTY CXX_STANDARD 17)
 
 include(FindOpenGL)
+
+find_package(Boost 1.36.0 REQUIRED)
+if(Boost_FOUND)
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
 
 if (WIN32)
     set(SDL2_LIBRARIES

@@ -29,14 +29,14 @@
 #pragma once
 
 #include <sys/types.h>
-#include <stddef.h>
-#include <limits.h>
+#include <cstddef>
+#include <climits>
 
 #ifndef _WIN32 /* others we support without sys/param.h? */
 #include <sys/param.h>
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 
 /* NOTES on TYPE SIZES:
    Quake/Hexen II engine relied on 32 bit int type size
@@ -58,13 +58,13 @@
  * version 2010.  Even in VS2010, there is no inttypes.h.. */
 #include "msinttypes/stdint.hpp"
 #else
-#include <stdint.h>
+#include <cstdint>
 #endif
 
-#include <stdlib.h>
-#include <stdarg.h>
+#include <cstdlib>
+#include <cstdarg>
 #include <cstring>
-#include <float.h>
+#include <cfloat>
 
 /*==========================================================================*/
 
@@ -81,11 +81,11 @@
 /* Make sure the types really have the right
  * sizes: These macros are from SDL headers.
  */
-static_assert(sizeof(char) == 1, "");
-static_assert(sizeof(float) == 4, "");
-static_assert(sizeof(long) >= 4, "");
-static_assert(sizeof(int) == 4, "");
-static_assert(sizeof(short) == 2, "");
+static_assert(sizeof(char) == 1);
+static_assert(sizeof(float) == 4);
+static_assert(sizeof(long) >= 4);
+static_assert(sizeof(int) == 4);
+static_assert(sizeof(short) == 2);
 
 /* make sure enums are the size of ints for structure packing */
 typedef enum

@@ -233,16 +233,22 @@ private:
 
     [[nodiscard]] bool entry_is_selectable_at(const int idx);
 
+    std::size_t emplace_and_get_handle_impl(
+        const impl::menu_entry_common& common,
+        impl::menu_entry_variant&& entry_variant) noexcept
+    {
+        const auto index = _entries.size();
+        _entries.emplace_back(common, std::move(entry_variant));
+        return index;
+    }
+
     template <typename T, typename... Args>
     entry_handle<T> emplace_and_get_handle(
         const impl::menu_entry_common& common, Args&&... args) noexcept
     {
-        const auto index = _entries.size();
-
-        _entries.emplace_back(
-            common, impl::menu_entry_variant{T{std::forward<Args>(args)...}});
-
-        return entry_handle<T>{*this, index};
+        return entry_handle<T>{*this,
+            emplace_and_get_handle_impl(common,
+                impl::menu_entry_variant{T{std::forward<Args>(args)...}})};
     }
 
     void update_hover(
@@ -283,8 +289,8 @@ public:
     auto add_cvar_getter_enum_entry(const std::string_view label,
         CvarGetter&& cvar_getter, const EnumLabels... enum_labels)
     {
-        const auto enum_labels_fn = [enum_labels...](
-                                        int x) -> std::string_view {
+        const auto enum_labels_fn = [enum_labels...](int x) -> std::string_view
+        {
             static std::array<std::string_view, sizeof...(enum_labels)> strs{
                 enum_labels...};
             return strs[static_cast<int>(x)];
@@ -301,8 +307,8 @@ public:
     auto add_getter_enum_entry(const std::string_view label, Getter&& getter,
         const EnumLabels... enum_labels)
     {
-        const auto enum_labels_fn = [enum_labels...](
-                                        int x) -> std::string_view {
+        const auto enum_labels_fn = [enum_labels...](int x) -> std::string_view
+        {
             static std::array<std::string_view, sizeof...(enum_labels)> strs{
                 enum_labels...};
             return strs[static_cast<int>(x)];

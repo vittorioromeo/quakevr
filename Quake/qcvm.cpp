@@ -24,25 +24,3 @@ void PR_SwitchQCVM(qcvm_t* nvm)
         pr_global_struct = nullptr;
     }
 }
-
-QCVMGuard::QCVMGuard(qcvm_t* newQcvm) : d_oldQcvm(qcvm)
-{
-    PR_SwitchQCVM(newQcvm);
-}
-
-QCVMGuard::~QCVMGuard()
-{
-    PR_SwitchQCVM(d_oldQcvm);
-}
-
-QCVMGuardForce::QCVMGuardForce(qcvm_t* newQcvm) : d_oldQcvm(qcvm)
-{
-    PR_SwitchQCVM(nullptr);
-    PR_SwitchQCVM(newQcvm);
-}
-
-QCVMGuardForce::~QCVMGuardForce()
-{
-    PR_SwitchQCVM(nullptr);
-    PR_SwitchQCVM(d_oldQcvm);
-}

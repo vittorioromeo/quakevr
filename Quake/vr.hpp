@@ -239,6 +239,12 @@ enum class VrForceGrabMode : int
     Instant = 3,
 };
 
+enum class VrThrowAlgorithm : int
+{
+    Basic = 0,
+    CrossAngVel = 1,
+};
+
 //
 //
 //
@@ -369,6 +375,10 @@ void VR_ApplyModelMod(
 [[nodiscard]] entity_t* VR_GetAnchorEntity(const HandIdx handIdx) noexcept;
 
 [[nodiscard]] bool VR_GetHorizFlip(const HandIdx handIdx) noexcept;
+
+[[nodiscard]] bool VR_IsHandReloadFlicking(const int hand) noexcept;
+
+void VR_UpdateFlick();
 
 //
 //
@@ -629,3 +639,9 @@ VR_GetBodyYawAngleCalculations() noexcept;
 [[nodiscard]] std::string VR_ExtractPakName(const pack_t& pak);
 
 void VR_OnLoadedPak(pack_t& pak);
+
+//
+//
+// Debug
+
+void VR_ResetThrowAvgFrames();

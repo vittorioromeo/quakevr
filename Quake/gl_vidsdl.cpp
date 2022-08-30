@@ -788,11 +788,10 @@ static void VID_Restart()
     TexMgr_RecalcWarpImageSize();
 
     // conwidth and conheight need to be recalculated
-    vid.conwidth = (scr_conwidth.value > 0)
-                       ? (int)scr_conwidth.value
-                       : (scr_conscale.value > 0)
-                             ? (int)(vid.width / scr_conscale.value)
-                             : vid.width;
+    vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value
+                   : (scr_conscale.value > 0)
+                       ? (int)(vid.width / scr_conscale.value)
+                       : vid.width;
     vid.conwidth = CLAMP(320, vid.conwidth, vid.width);
     vid.conwidth &= 0xFFFFFFF8;
     vid.conheight = vid.conwidth * vid.height / vid.width;
@@ -1103,11 +1102,11 @@ static void GL_CheckExtensions()
         Con_Warning("texture_non_power_of_two not supported\n");
     }
 
-	gl_texture_s3tc = GLEW_EXT_texture_compression_s3tc;
-	gl_texture_rgtc = GLEW_ARB_texture_compression_rgtc;
-	gl_texture_bptc = GLEW_EXT_texture_compression_bptc;
-	gl_texture_etc2 = GLEW_ARB_ES3_compatibility;
-	gl_texture_astc = GLEW_KHR_texture_compression_astc_ldr;
+    gl_texture_s3tc = GLEW_EXT_texture_compression_s3tc;
+    gl_texture_rgtc = GLEW_ARB_texture_compression_rgtc;
+    gl_texture_bptc = GLEW_EXT_texture_compression_bptc;
+    gl_texture_etc2 = GLEW_ARB_ES3_compatibility;
+    gl_texture_astc = GLEW_KHR_texture_compression_astc_ldr;
 
     // GLSL
     if(COM_CheckParm("-noglsl"))

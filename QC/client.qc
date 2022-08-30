@@ -1050,6 +1050,10 @@ void() PutClientInServer =
     VRSetMainHandGrabbingBit(self, FALSE);
     VRSetMainHandPrevGrabbingBit(self, FALSE);
     VRSet2HAiming(self, FALSE);
+    VRSetOffHandReloadFlickingBit(self, FALSE);
+    VRSetOffHandPrevReloadFlickingBit(self, FALSE);
+    VRSetMainHandReloadFlickingBit(self, FALSE);
+    VRSetMainHandPrevReloadFlickingBit(self, FALSE);
 
     self.offhand_forcegrabbing = FALSE;
     self.mainhand_forcegrabbing = FALSE;

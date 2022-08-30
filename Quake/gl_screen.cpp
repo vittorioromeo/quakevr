@@ -575,11 +575,10 @@ void SCR_Conwidth_f(cvar_t* var)
     (void)var;
 
     vid.recalc_refdef = 1;
-    vid.conwidth = (scr_conwidth.value > 0)
-                       ? (int)scr_conwidth.value
-                       : (scr_conscale.value > 0)
-                             ? (int)(vid.width / scr_conscale.value)
-                             : vid.width;
+    vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value
+                   : (scr_conscale.value > 0)
+                       ? (int)(vid.width / scr_conscale.value)
+                       : vid.width;
     vid.conwidth = CLAMP(320, vid.conwidth, vid.width);
     vid.conwidth &= 0xFFFFFFF8;
     vid.conheight = vid.conwidth * vid.height / vid.width;
@@ -1461,13 +1460,19 @@ void SCR_UpdateScreen()
     //
     SCR_SetUpToDrawConsole();
 
+    VR_UpdateFlick();
+
     if(vr_enabled.value && !con_forcedup)
     {
         // TODO VR: (P2) this is client side, but does use server logic. Should
         // be split accordingly and cleaned up.
 
-        QCVMGuard qg{&sv.qcvm};
+        qcvm_t* oldvm = qcvm;
+        PR_SwitchQCVM(&sv.qcvm);
+
         VR_UpdateScreenContent(); // phoboslab
+
+        PR_SwitchQCVM(oldvm);
     }
     else
     {

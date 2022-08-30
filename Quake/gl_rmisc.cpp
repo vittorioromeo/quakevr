@@ -359,24 +359,24 @@ void R_TranslateNewPlayerSkin(int playernum)
 
     if(paliashdr->numskins)
     {
-    // TODO: move these tests to the place where skinnum gets received from
-    // the server
-    if(skinnum < 0 || skinnum >= paliashdr->numskins)
-    {
-        Con_DPrintf("(%d): Invalid player skin #%d\n", playernum, skinnum);
-        skinnum = 0;
-    }
+        // TODO: move these tests to the place where skinnum gets received from
+        // the server
+        if(skinnum < 0 || skinnum >= paliashdr->numskins)
+        {
+            Con_DPrintf("(%d): Invalid player skin #%d\n", playernum, skinnum);
+            skinnum = 0;
+        }
 
-    pixels = (byte*)paliashdr +
-             paliashdr->texels[skinnum]; // This is not a persistent place!
+        pixels = (byte*)paliashdr +
+                 paliashdr->texels[skinnum]; // This is not a persistent place!
 
-    // upload new image
-    q_snprintf(name, sizeof(name), "player_%i", playernum);
-    playertextures[playernum] = TexMgr_LoadImage(currententity->model, name,
-        paliashdr->skinwidth, paliashdr->skinheight, SRC_INDEXED, pixels,
-        paliashdr->gltextures[skinnum][0]->source_file,
-        paliashdr->gltextures[skinnum][0]->source_offset,
-        TEXPREF_PAD | TEXPREF_OVERWRITE);
+        // upload new image
+        q_snprintf(name, sizeof(name), "player_%i", playernum);
+        playertextures[playernum] = TexMgr_LoadImage(currententity->model, name,
+            paliashdr->skinwidth, paliashdr->skinheight, SRC_INDEXED, pixels,
+            paliashdr->gltextures[skinnum][0]->source_file,
+            paliashdr->gltextures[skinnum][0]->source_offset,
+            TEXPREF_PAD | TEXPREF_OVERWRITE);
     }
     else
     {

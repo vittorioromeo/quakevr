@@ -898,7 +898,7 @@ enum EVREventType
     VREvent_ScreenshotTaken = 521,   // Sent by compositor to the application
                                      // that the screenshot has been taken
     VREvent_ScreenshotFailed = 522,  // Sent by compositor to the application
-                                    // that the screenshot failed to be taken
+                                     // that the screenshot failed to be taken
     VREvent_SubmitScreenshotToDashboard =
         523, // Sent by compositor to the dashboard that a completed
              // screenshot was submitted
@@ -1964,11 +1964,11 @@ enum EVRTrackedCameraFrameType
 {
     VRTrackedCameraFrameType_Distorted = 0, // This is the camera video frame
                                             // size in pixels, still distorted.
-    VRTrackedCameraFrameType_Undistorted, // In pixels, an undistorted
-                                          // inscribed rectangle region
-                                          // without invalid regions. This
-                                          // size is subject to changes
-                                          // shortly.
+    VRTrackedCameraFrameType_Undistorted,   // In pixels, an undistorted
+                                            // inscribed rectangle region
+                                            // without invalid regions. This
+                                            // size is subject to changes
+                                            // shortly.
     VRTrackedCameraFrameType_MaximumUndistorted, // In pixels, maximum
                                                  // undistorted with invalid
                                                  // regions. Non zero alpha

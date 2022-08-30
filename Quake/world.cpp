@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // world.c -- world query functions
 
 #include "quakedef.hpp"
+#include "server.hpp"
 #include "util.hpp"
 #include "quakeglm_qvec3.hpp"
 #include "vr.hpp"
@@ -320,7 +321,8 @@ them and risking the list getting corrupt.
 static void SV_AreaTriggerEdicts(edict_t* ent, areanode_t* node, edict_t** list,
     int* listcount, const int listspace)
 {
-    const auto loopEdicts = [&](link_t& edictList) {
+    const auto loopEdicts = [&](link_t& edictList)
+    {
         link_t* next;
 
         for(link_t* l = edictList.next; l != &edictList; l = next)
@@ -410,7 +412,8 @@ void SV_TouchLinks(edict_t* ent)
     SV_AreaTriggerEdicts(
         ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
 
-    const auto doTouch = [](edict_t* ent, edict_t* target) {
+    const auto doTouch = [](edict_t* ent, edict_t* target)
+    {
         const bool canBeTouched = quake::util::canBeTouched(target);
 
         if(!canBeTouched || !quake::util::entBoxIntersection(ent, target))
@@ -442,7 +445,8 @@ void SV_TouchLinks(edict_t* ent)
         pr_global_struct->other = old_other;
     };
 
-    const auto doHandtouch = [](edict_t* ent, edict_t* target) {
+    const auto doHandtouch = [](edict_t* ent, edict_t* target)
+    {
         // Add some size to the hands.
         const qvec3 offsets{2.5f, 2.5f, 2.5f};
 
@@ -453,8 +457,8 @@ void SV_TouchLinks(edict_t* ent)
 
         const bool canBeHandTouched = quake::util::canBeHandTouched(target);
 
-        const auto intersects = [&](const qvec3& handMin,
-                                    const qvec3& handMax) {
+        const auto intersects = [&](const qvec3& handMin, const qvec3& handMax)
+        {
             // VR: This increases the boundaries for easier hand touching.
             const float bonus = quake::util::hasFlag(target, FL_EASYHANDTOUCH)
                                     ? VR_GetEasyHandTouchBonus()

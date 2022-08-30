@@ -831,7 +831,7 @@ pack_t* FSZIP_LoadArchive(const char* packfile)
     numpackfiles = 0;
     newfiles = nullptr;
 
-    newfiles = (packfile_t*) Z_Malloc(sizeof(*newfiles) * zip.numfiles);
+    newfiles = (packfile_t*)Z_Malloc(sizeof(*newfiles) * zip.numfiles);
     for(numpackfiles = 0, i = 0; i < zip.numfiles; i++)
     {
         qofs_t startpos, datasize;

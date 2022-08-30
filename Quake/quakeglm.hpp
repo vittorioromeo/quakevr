@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/detail/qualifier.hpp>
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 

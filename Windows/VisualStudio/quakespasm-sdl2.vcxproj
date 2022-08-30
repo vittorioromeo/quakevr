@@ -112,6 +112,7 @@
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
     <TargetName>quakevr-debug</TargetName>
+    <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\boost_1_80_0</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Asan|x64'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
@@ -124,6 +125,7 @@
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <TargetName>quakevr</TargetName>
+    <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\boost_1_80_0</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -225,7 +227,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <CompileAs>CompileAsCpp</CompileAs>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>
       </AdditionalOptions>
@@ -312,7 +314,7 @@ make_pak.bat</Command>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>CompileAsCpp</CompileAs>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -406,6 +408,7 @@ make_pak.bat</Command>
     <ClCompile Include="..\..\Quake\pr_ext.cpp" />
     <ClCompile Include="..\..\Quake\qcvm.cpp" />
     <ClCompile Include="..\..\Quake\quakeglm.cpp" />
+    <ClCompile Include="..\..\Quake\quakeglm_qvec3.cpp" />
     <ClCompile Include="..\..\Quake\r_alias.cpp" />
     <ClCompile Include="..\..\Quake\r_brush.cpp" />
     <ClCompile Include="..\..\Quake\r_part.cpp">
@@ -428,6 +431,7 @@ make_pak.bat</Command>
     <ClCompile Include="..\..\Quake\snd_mem.cpp" />
     <ClCompile Include="..\..\Quake\snd_mikmod.cpp" />
     <ClCompile Include="..\..\Quake\snd_mix.cpp" />
+    <ClCompile Include="..\..\Quake\snd_modplug.cpp" />
     <ClCompile Include="..\..\Quake\snd_mp3.cpp" />
     <ClCompile Include="..\..\Quake\snd_mp3tag.cpp" />
     <ClCompile Include="..\..\Quake\snd_opus.cpp" />
@@ -444,6 +448,7 @@ make_pak.bat</Command>
     <ClCompile Include="..\..\Quake\sv_phys.cpp" />
     <ClCompile Include="..\..\Quake\sv_user.cpp" />
     <ClCompile Include="..\..\Quake\sys_sdl_win.cpp" />
+    <ClCompile Include="..\..\Quake\util.cpp" />
     <ClCompile Include="..\..\Quake\view.cpp" />
     <ClCompile Include="..\..\Quake\vr.cpp" />
     <ClCompile Include="..\..\Quake\vr_cvars.cpp" />
@@ -456,66 +461,118 @@ make_pak.bat</Command>
     <ClInclude Include="..\..\Quake\anorms.hpp" />
     <ClInclude Include="..\..\Quake\anorm_dots.hpp" />
     <ClInclude Include="..\..\Quake\arch_def.hpp" />
+    <ClInclude Include="..\..\Quake\areanode.hpp" />
     <ClInclude Include="..\..\Quake\bgmusic.hpp" />
     <ClInclude Include="..\..\Quake\bspfile.hpp" />
+    <ClInclude Include="..\..\Quake\byteorder.hpp" />
     <ClInclude Include="..\..\Quake\cdaudio.hpp" />
     <ClInclude Include="..\..\Quake\cfgfile.hpp" />
     <ClInclude Include="..\..\Quake\client.hpp" />
     <ClInclude Include="..\..\Quake\cmd.hpp" />
+    <ClInclude Include="..\..\Quake\cmd_types.hpp" />
     <ClInclude Include="..\..\Quake\common.hpp" />
     <ClInclude Include="..\..\Quake\console.hpp" />
     <ClInclude Include="..\..\Quake\crc.hpp" />
     <ClInclude Include="..\..\Quake\cvar.hpp" />
+    <ClInclude Include="..\..\Quake\debugprint.hpp" />
+    <ClInclude Include="..\..\Quake\developer.hpp" />
     <ClInclude Include="..\..\Quake\draw.hpp" />
+    <ClInclude Include="..\..\Quake\edict.hpp" />
+    <ClInclude Include="..\..\Quake\efrag.hpp" />
+    <ClInclude Include="..\..\Quake\entity.hpp" />
+    <ClInclude Include="..\..\Quake\filenames.hpp" />
+    <ClInclude Include="..\..\Quake\fshandle.hpp" />
     <ClInclude Include="..\..\Quake\glquake.hpp" />
     <ClInclude Include="..\..\Quake\gl_model.hpp" />
     <ClInclude Include="..\..\Quake\gl_texmgr.hpp" />
+    <ClInclude Include="..\..\Quake\gl_util.hpp" />
     <ClInclude Include="..\..\Quake\gl_warp_sin.hpp" />
+    <ClInclude Include="..\..\Quake\host.hpp" />
     <ClInclude Include="..\..\Quake\image.hpp" />
     <ClInclude Include="..\..\Quake\input.hpp" />
+    <ClInclude Include="..\..\Quake\json.hpp" />
     <ClInclude Include="..\..\Quake\keys.hpp" />
+    <ClInclude Include="..\..\Quake\lerpdata.hpp" />
+    <ClInclude Include="..\..\Quake\link.hpp" />
+    <ClInclude Include="..\..\Quake\lodepng.hpp" />
+    <ClInclude Include="..\..\Quake\macros.hpp" />
     <ClInclude Include="..\..\Quake\mathlib.hpp" />
     <ClInclude Include="..\..\Quake\menu.hpp" />
+    <ClInclude Include="..\..\Quake\menu_keyboard.hpp" />
     <ClInclude Include="..\..\Quake\menu_util.hpp" />
+    <ClInclude Include="..\..\Quake\modeleffects.hpp" />
     <ClInclude Include="..\..\Quake\modelgen.hpp" />
+    <ClInclude Include="..\..\Quake\msg.hpp" />
+    <ClInclude Include="..\..\Quake\mstate.hpp" />
     <ClInclude Include="..\..\Quake\net.hpp" />
     <ClInclude Include="..\..\Quake\net_defs.hpp" />
     <ClInclude Include="..\..\Quake\net_dgrm.hpp" />
     <ClInclude Include="..\..\Quake\net_loop.hpp" />
     <ClInclude Include="..\..\Quake\net_sys.hpp" />
+    <ClInclude Include="..\..\Quake\net_udp.hpp" />
     <ClInclude Include="..\..\Quake\net_wins.hpp" />
     <ClInclude Include="..\..\Quake\net_wipx.hpp" />
     <ClInclude Include="..\..\Quake\openvr.hpp" />
     <ClInclude Include="..\..\Quake\openvr_driver.hpp" />
+    <ClInclude Include="..\..\Quake\pch.hpp" />
     <ClInclude Include="..\..\Quake\platform.hpp" />
     <ClInclude Include="..\..\Quake\progdefs.hpp" />
+    <ClInclude Include="..\..\Quake\progdefs_generated.hpp" />
     <ClInclude Include="..\..\Quake\progs.hpp" />
+    <ClInclude Include="..\..\Quake\progs_types.hpp" />
+    <ClInclude Include="..\..\Quake\progs_utils.hpp" />
     <ClInclude Include="..\..\Quake\protocol.hpp" />
     <ClInclude Include="..\..\Quake\pr_comp.hpp" />
+    <ClInclude Include="..\..\Quake\qcvm.hpp" />
+    <ClInclude Include="..\..\Quake\qpic.hpp" />
     <ClInclude Include="..\..\Quake\qs_bmp.hpp" />
     <ClInclude Include="..\..\Quake\quakedef.hpp" />
+    <ClInclude Include="..\..\Quake\quakedef_macros.hpp" />
     <ClInclude Include="..\..\Quake\quakeglm.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_macros.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qmat3.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qmat4.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qquat.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qvec2.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qvec3.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qvec3_togl.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qvec4.hpp" />
+    <ClInclude Include="..\..\Quake\quakeglm_qvec4_togl.hpp" />
+    <ClInclude Include="..\..\Quake\quakeparms.hpp" />
+    <ClInclude Include="..\..\Quake\q_ctype.hpp" />
     <ClInclude Include="..\..\Quake\q_sound.hpp" />
     <ClInclude Include="..\..\Quake\q_stdinc.hpp" />
+    <ClInclude Include="..\..\Quake\refdef.hpp" />
     <ClInclude Include="..\..\Quake\render.hpp" />
     <ClInclude Include="..\..\Quake\resource.hpp" />
+    <ClInclude Include="..\..\Quake\saveutil.hpp" />
     <ClInclude Include="..\..\Quake\sbar.hpp" />
     <ClInclude Include="..\..\Quake\screen.hpp" />
     <ClInclude Include="..\..\Quake\server.hpp" />
+    <ClInclude Include="..\..\Quake\serverdefines.hpp" />
+    <ClInclude Include="..\..\Quake\shader.hpp" />
+    <ClInclude Include="..\..\Quake\sizebuf.hpp" />
     <ClInclude Include="..\..\Quake\snd_codec.hpp" />
     <ClInclude Include="..\..\Quake\snd_codeci.hpp" />
     <ClInclude Include="..\..\Quake\snd_flac.hpp" />
     <ClInclude Include="..\..\Quake\snd_mikmod.hpp" />
+    <ClInclude Include="..\..\Quake\snd_modplug.hpp" />
     <ClInclude Include="..\..\Quake\snd_mp3.hpp" />
     <ClInclude Include="..\..\Quake\snd_opus.hpp" />
     <ClInclude Include="..\..\Quake\snd_umx.hpp" />
+    <ClInclude Include="..\..\Quake\snd_voip.hpp" />
     <ClInclude Include="..\..\Quake\snd_vorbis.hpp" />
     <ClInclude Include="..\..\Quake\snd_wave.hpp" />
     <ClInclude Include="..\..\Quake\snd_xmp.hpp" />
     <ClInclude Include="..\..\Quake\spritegn.hpp" />
+    <ClInclude Include="..\..\Quake\srcformat.hpp" />
+    <ClInclude Include="..\..\Quake\stb_image.hpp" />
+    <ClInclude Include="..\..\Quake\stb_image_write.hpp" />
+    <ClInclude Include="..\..\Quake\stringcat.hpp" />
     <ClInclude Include="..\..\Quake\strl_fn.hpp" />
     <ClInclude Include="..\..\Quake\sys.hpp" />
     <ClInclude Include="..\..\Quake\util.hpp" />
+    <ClInclude Include="..\..\Quake\variantutil.hpp" />
     <ClInclude Include="..\..\Quake\vid.hpp" />
     <ClInclude Include="..\..\Quake\view.hpp" />
     <ClInclude Include="..\..\Quake\vr.hpp" />
@@ -524,6 +581,7 @@ make_pak.bat</Command>
     <ClInclude Include="..\..\Quake\vr_showfn.hpp" />
     <ClInclude Include="..\..\Quake\wad.hpp" />
     <ClInclude Include="..\..\Quake\world.hpp" />
+    <ClInclude Include="..\..\Quake\worldtext.hpp" />
     <ClInclude Include="..\..\Quake\wsaerror.hpp" />
     <ClInclude Include="..\..\Quake\zone.hpp" />
   </ItemGroup>
