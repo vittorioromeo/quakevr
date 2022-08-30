@@ -1575,6 +1575,7 @@ void() DropBackpack =
     item.handtouch = BackpackTouch;
 
     MakeGrabbable(item);
+    item.solid = SOLID_NOT_BUT_TOUCHABLE;
 
     item.flags |= FL_FORCEGRABBABLE;
 

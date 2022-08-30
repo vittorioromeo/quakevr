@@ -3346,13 +3346,19 @@ void() wpnthrow_stabilize =
 
 void() forcegrabbable_think_impl =
 {
-    if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
-       time > GetThrownWeaponForcegrabTime(self) + 0.4)
+    if(self.throwhit == QVR_THROWHIT_FORCEGRAB)
     {
-        // After a long linear forcegrab, restore the movement type to "toss".
+        if(time > GetThrownWeaponForcegrabTime(self) + 0.4)
+        {
+            // After a long linear forcegrab, restore the movement type to "toss".
 
-        self.throwhit = QVR_THROWHIT_NEVER_HIT;
-        self.movetype = MOVETYPE_TOSS;
+            self.throwhit = QVR_THROWHIT_NEVER_HIT;
+            self.movetype = MOVETYPE_TOSS;
+        }
+        else
+        {
+            self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        }
     }
 
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)
@@ -3825,6 +3831,7 @@ void MakeThrown(entity newmis,
     float xBaseDamage)
 {
     MakeGrabbable(newmis);
+    newmis.solid = SOLID_NOT_BUT_TOUCHABLE;
 
     SetThrownWeaponDisappearOnHit(newmis, xDisappearOnHit);
     SetThrownWeaponDealDamage(newmis, xDealDamage);
