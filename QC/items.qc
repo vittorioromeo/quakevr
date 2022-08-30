@@ -744,6 +744,11 @@ AMMO
 
 void() ammo_touch =
 {
+    if (self.model == string_null || self.solid == SOLID_NOT)
+    {
+        return;
+    }
+
     entity stemp;
 
     if(self.weapon == AID_SHELLS)

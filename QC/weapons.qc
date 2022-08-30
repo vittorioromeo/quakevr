@@ -3355,10 +3355,6 @@ void() forcegrabbable_think_impl =
             self.throwhit = QVR_THROWHIT_NEVER_HIT;
             self.movetype = MOVETYPE_TOSS;
         }
-        else
-        {
-            self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        }
     }
 
     if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)

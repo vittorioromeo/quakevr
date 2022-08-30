@@ -1994,16 +1994,15 @@ void SetHandPos(int index, entity_t& player)
         cl.handthrowvel[index] = {};
 
         // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto [fwd, right, up] =
-            getAngledVectors(controllers[index].orientation);
+        const auto [fwd, right, up] = getAngledVectors(cl.handrot[index]);
 
         const qvec3 objOffset =
-            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
+            safeNormalize(up) * vr_throw_up_center_of_mass.value;
 
         const qvec3 angvel = openVRCoordsToQuakeCoords(
             controllers[index].angularVelocityHistory.average());
 
-        const auto rav = redirectVector(angvel, controllers[index].orientation);
+        const auto rav = redirectVector(angvel, cl.handrot[index]);
 
         cl.handthrowvel[index] += glm::cross(rav, objOffset);
 
