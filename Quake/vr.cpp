@@ -2012,64 +2012,6 @@ void SetHandPos(int index, entity_t& player)
 
         cl.handthrowvel[index] += redirectVectorByYaw(x, VR_GetTurnYawAngle());
     }
-    else if((int)vr_throw_algorithm.value ==
-            (int)VrThrowAlgorithm::CrossAngVel2)
-    {
-        cl.handthrowvel[index] = openVRCoordsToQuakeCoords(
-            controllers[index].velocityHistory.average());
-
-        // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto [fwd, right, up] =
-            getAngledVectors(controllers[index].orientation);
-
-        const qvec3 objOffset =
-            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
-
-        cl.handthrowvel[index] +=
-            glm::cross(openVRCoordsToQuakeCoords(
-                           controllers[index].angularVelocityHistory.average()),
-                objOffset);
-
-        cl.handthrowvel[index] =
-            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
-    }
-    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossOnly)
-    {
-        cl.handthrowvel[index] = {};
-
-        // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto [fwd, right, up] =
-            getAngledVectors(controllers[index].orientation);
-
-        const qvec3 objOffset =
-            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
-
-        cl.handthrowvel[index] +=
-            glm::cross(openVRCoordsToQuakeCoords(
-                           controllers[index].angularVelocityHistory.average()),
-                objOffset);
-
-        cl.handthrowvel[index] =
-            redirectVectorByYaw(cl.handthrowvel[index], VR_GetTurnYawAngle());
-    }
-    else if((int)vr_throw_algorithm.value == (int)VrThrowAlgorithm::CrossOnly2)
-    {
-        cl.handthrowvel[index] = {};
-
-        // TODO VR: (P1) throwing an item up with a small flick feels too strong
-        const auto [fwd, right, up] =
-            getAngledVectors(controllers[index].orientation);
-
-        const qvec3 objOffset =
-            safeNormalize(fwd + up) * vr_throw_up_center_of_mass.value;
-
-        const qvec3 angvel = openVRCoordsToQuakeCoords(
-            controllers[index].angularVelocityHistory.average());
-
-        const auto rav = redirectVector(angvel, controllers[index].orientation);
-
-        cl.handthrowvel[index] += glm::cross(rav, objOffset);
-    }
 
     // When positional weight is enabled, scale the hand velocity and throw
     // velocity depending on the weight.

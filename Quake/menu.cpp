@@ -3406,10 +3406,10 @@ void M_QuakeVRSettings_Key(int k)
     m.add_separator();
     // ------------------------------------------------------------------------
 
-    m.add_cvar_getter_enum_entry<VrThrowAlgorithm>(                       //
-        "Throw Algorithm",                                                //
-        [] { return &vr_throw_algorithm; },                               //
-        "Basic", "CrossAngVel", "CrossAngVel2", "crossonly", "crossonly2" //
+    m.add_cvar_getter_enum_entry<VrThrowAlgorithm>( //
+        "Throw Algorithm",                          //
+        [] { return &vr_throw_algorithm; },         //
+        "Basic", "CrossAngVel"                      //
     );
 
     // ------------------------------------------------------------------------

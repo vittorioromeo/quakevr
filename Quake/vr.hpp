@@ -243,9 +243,6 @@ enum class VrThrowAlgorithm : int
 {
     Basic = 0,
     CrossAngVel = 1,
-    CrossAngVel2 = 2,
-    CrossOnly = 3,
-    CrossOnly2 = 4,
 };
 
 //
