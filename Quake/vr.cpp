@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <deque>
 #include <glm/geometric.hpp>
@@ -300,19 +301,21 @@ void RecreateTextures(
         glDeleteTextures(1, &oldTexture);
     }
 
+    const auto setTexParameters = []
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    };
+
     glBindTexture(GL_TEXTURE_2D, fbo->depth_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    setTexParameters();
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0,
         GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
 
     glBindTexture(GL_TEXTURE_2D, fbo->texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    setTexParameters();
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
         GL_UNSIGNED_BYTE, nullptr);
 
@@ -383,7 +386,7 @@ void CreateMSAA(fbo_t* const fbo, const int width, const int height,
     const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if(status != GL_FRAMEBUFFER_COMPLETE)
     {
-        Con_Printf("Framebuffer incomplete %x", status);
+        Con_Printf("Framebuffer incomplete %x\n", status);
     }
 }
 
@@ -540,7 +543,7 @@ void DeleteFBO(const fbo_t& fbo)
 
     vr::HmdQuaternion_t q;
 
-    q.w = sqrt(1 + m0 + m5 + m10) / 2.0; // Scalar
+    q.w = std::sqrt(1 + m0 + m5 + m10) / 2.0; // Scalar
     q.x = (m9 - m6) / (4 * q.w);
     q.y = (m2 - m8) / (4 * q.w);
     q.z = (m4 - m1) / (4 * q.w);
@@ -1595,7 +1598,6 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
     SCR_UpdateScreenContent();
 
     // Generate the eye texture and send it to the HMD
-
     if(eye.fbo.msaa > 0)
     {
         glDisable(GL_MULTISAMPLE);
@@ -1604,6 +1606,8 @@ static void RenderScreenForCurrentEye_OVR(vr_eye_t& eye)
         glBlitFramebuffer(0, 0, glwidth, glheight, 0, 0, glwidth, glheight,
             GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
+
+    GLSLGamma_GammaCorrect(eye.index);
 
     vr::Texture_t eyeTexture = {
         reinterpret_cast<void*>(uintptr_t(eye.fbo.texture)),
@@ -3465,7 +3469,7 @@ void VR_UpdateScreenContent()
             // find difference between view and aim yaw
             diffYaw = cl.viewangles[YAW] - cl.aimangles[YAW];
 
-            if(fabs(diffYaw) > vr_deadzone.value / 2.0f)
+            if(std::fabs(diffYaw) > vr_deadzone.value / 2.0f)
             {
                 // apply the difference from each set of angles to the other
                 cl.aimangles[YAW] += diffHMDYaw;

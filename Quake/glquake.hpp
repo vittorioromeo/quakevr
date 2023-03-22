@@ -487,7 +487,7 @@ void GL_BindBuffer(GLenum target, GLuint buffer);
 void GL_ClearBufferBindings();
 
 void GLSLGamma_DeleteTexture();
-void GLSLGamma_GammaCorrect();
+void GLSLGamma_GammaCorrect(int eyeIndex);
 
 void R_ScaleView_DeleteTexture();
 

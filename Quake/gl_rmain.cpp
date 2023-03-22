@@ -226,7 +226,7 @@ void main(void) {
 GLSLGamma_GammaCorrect
 =============
 */
-void GLSLGamma_GammaCorrect()
+void GLSLGamma_GammaCorrect(int eyeIndex)
 {
     if(!gl_glsl_gamma_able)
     {
@@ -275,23 +275,13 @@ void GLSLGamma_GammaCorrect()
         }
     }
 
-    // copy the framebuffer to the texture
     GL_DisableMultitexture();
     glBindTexture(GL_TEXTURE_2D, r_gamma_texture);
 
-    // TODO VR: (P2) this only affects 2D rendering, doesn't affect HMD
-    // rendering
-    if(vr_fakevr.value == 0 && vr_novrinit.value == 0)
-    {
-        /*
-        glBindFramebuffer(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
-        glReadBuffer(GL_FRONT);
-        */
+    fbo_t& fbo = VR_GetEyeFBO(eyeIndex);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, VR_GetEyeFBO(0).framebuffer);
-        // glBindTexture(GL_TEXTURE_2D, VR_GetEyeFBO(0).texture);
-    }
-
+    // copy the framebuffer to the texture
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo.framebuffer);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, glx, gly, glwidth, glheight);
 
     // draw the texture back to the framebuffer with a fragment shader
@@ -326,6 +316,8 @@ void GLSLGamma_GammaCorrect()
 
     // clear cached binding
     GL_ClearBindings();
+
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 /*

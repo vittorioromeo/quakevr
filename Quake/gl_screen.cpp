@@ -1408,7 +1408,11 @@ void SCR_UpdateScreenContent()
     V_UpdateBlend(); // johnfitz -- V_UpdatePalette cleaned up and
                      // renamed
 
-    GLSLGamma_GammaCorrect();
+    // if(vr_fakevr.value == 0 && vr_novrinit.value == 0)
+    // {
+    //     GLSLGamma_GammaCorrect(0 /* right eye */);
+    //     GLSLGamma_GammaCorrect(1 /* left eye */);
+    // }
 }
 
 /*

@@ -1237,29 +1237,25 @@ void M_Net_Key(int k)
         },
         [] { return (scr_viewsize.value - 30) / (120 - 30); });
 
-    // TODO VR: (P2) changing these makes the screen black in VR
-    if(false)
-    {
-        m.add_action_slider_entry(
-            "Brightness",
-            [](int dir)
-            {
-                const float f =
-                    std::clamp(vid_gamma.value - dir * 0.05f, 0.5f, 1.f);
-                Cvar_SetValue("gamma", f);
-            },
-            [] { return (1.0 - vid_gamma.value) / 0.5; });
+    m.add_action_slider_entry(
+        "Brightness",
+        [](int dir)
+        {
+            const float f =
+                std::clamp(vid_gamma.value - dir * 0.05f, 0.5f, 1.f);
+            Cvar_SetValue("gamma", f);
+        },
+        [] { return (1.0 - vid_gamma.value) / 0.5; });
 
-        m.add_action_slider_entry(
-            "Contrast",
-            [](int dir)
-            {
-                const float f =
-                    std::clamp(vid_contrast.value + dir * 0.1f, 1.f, 2.f);
-                Cvar_SetValue("contrast", f);
-            },
-            [] { return vid_contrast.value - 1.0; });
-    }
+    m.add_action_slider_entry(
+        "Contrast",
+        [](int dir)
+        {
+            const float f =
+                std::clamp(vid_contrast.value + dir * 0.1f, 1.f, 2.f);
+            Cvar_SetValue("contrast", f);
+        },
+        [] { return vid_contrast.value - 1.0; });
 
     m.add_action_slider_entry(
         "Mouse Speed",
