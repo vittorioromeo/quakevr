@@ -684,7 +684,7 @@ void VR_SetHandtouchParams(int hand, edict_t* player, edict_t* target)
 
 void VR_SetFakeHandtouchParams(edict_t* player, edict_t* target)
 {
-    VR_SetHandtouchParams(2, player, target);
+    VR_SetHandtouchParams(cVR_FakeHand, player, target);
 }
 
 [[nodiscard]] int VR_GetWpnCVarFromModelName(const char* name)

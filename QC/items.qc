@@ -193,8 +193,11 @@ void() PlaceItem =
     }
 
     // HONEY
-    self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
-    self.handtouch = itemTouch;
+    if(enableHoneyExtensions)
+    {
+        self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
+        self.handtouch = itemTouch;
+    }
 
     // HONEY
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
