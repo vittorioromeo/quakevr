@@ -3911,8 +3911,11 @@ void VR_DoHaptic(const int hand, const float delay, const float duration,
     const auto hapticTarget =
         hand == cVR_OffHand ? vrahLeftHaptic : vrahRightHaptic;
 
-    vr::VRInput()->TriggerHapticVibrationAction(hapticTarget, delay, duration,
-        frequency, amplitude, vr::k_ulInvalidInputValueHandle);
+    if(hapticTarget != vr::k_ulInvalidActionHandle)
+    {
+        vr::VRInput()->TriggerHapticVibrationAction(hapticTarget, delay,
+            duration, frequency, amplitude, vr::k_ulInvalidInputValueHandle);
+    }
 }
 
 [[nodiscard]] float VR_GetMenuMult() noexcept
