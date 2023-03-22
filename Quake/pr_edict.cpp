@@ -203,17 +203,15 @@ ED_FindField
 */
 ddef_t* ED_FindField(const char* name)
 {
-    ddef_t* def;
-    int i;
-
-    for(i = 0; i < qcvm->progs->numfielddefs; i++)
+    for(int i = 0; i < qcvm->progs->numfielddefs; i++)
     {
-        def = &qcvm->fielddefs[i];
+        ddef_t* def = &qcvm->fielddefs[i];
         if(!strcmp(PR_GetString(def->s_name), name))
         {
             return def;
         }
     }
+
     return nullptr;
 }
 
@@ -222,11 +220,7 @@ ddef_t* ED_FindField(const char* name)
 int ED_FindFieldOffset(const char* name)
 {
     ddef_t* def = ED_FindField(name);
-    if(!def)
-    {
-        return -1;
-    }
-    return def->ofs;
+    return def ? def->ofs : -1;
 }
 
 /*
@@ -1468,6 +1462,7 @@ bool PR_LoadProgs(
     qcvm->extfields.button8 = ED_FindFieldOffset("button8");
     qcvm->extfields.viewzoom = ED_FindFieldOffset("viewzoom");
     qcvm->extfields.modelflags = ED_FindFieldOffset("modelflags");
+    qcvm->gravityfieldoffset = ED_FindFieldOffset("gravity");
 
     i = qcvm->progs->entityfields;
     if(qcvm->extfields.emiteffectnum < 0)

@@ -65,6 +65,9 @@ struct qcvm_t
     // originally from world.c
     areanode_t areanodes[AREA_NODES];
     int numareanodes;
+
+    // optimization for addgravity
+    int gravityfieldoffset;
 };
 
 extern qcvm_t* qcvm;
