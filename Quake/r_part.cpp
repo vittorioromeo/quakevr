@@ -252,15 +252,14 @@ public:
             },
             [&](const std::size_t targetIdx, const std::size_t srcIdx)
             {
-                _pSOA._orgs[targetIdx] = std::move(_pSOA._orgs[srcIdx]);
-                _pSOA._vels[targetIdx] = std::move(_pSOA._vels[srcIdx]);
-                _pSOA._accs[targetIdx] = std::move(_pSOA._accs[srcIdx]);
-                _pSOA._colors[targetIdx] = std::move(_pSOA._colors[srcIdx]);
-                _pSOA._angles[targetIdx] = std::move(_pSOA._angles[srcIdx]);
-                _pSOA._scales[targetIdx] = std::move(_pSOA._scales[srcIdx]);
-                _pSOA._atlasIdxs[targetIdx] =
-                    std::move(_pSOA._atlasIdxs[srcIdx]);
-                _pSOA._datas[targetIdx] = std::move(_pSOA._datas[srcIdx]);
+                _pSOA._orgs[targetIdx] = _pSOA._orgs[srcIdx];
+                _pSOA._vels[targetIdx] = _pSOA._vels[srcIdx];
+                _pSOA._accs[targetIdx] = _pSOA._accs[srcIdx];
+                _pSOA._colors[targetIdx] = _pSOA._colors[srcIdx];
+                _pSOA._angles[targetIdx] = _pSOA._angles[srcIdx];
+                _pSOA._scales[targetIdx] = _pSOA._scales[srcIdx];
+                _pSOA._atlasIdxs[targetIdx] = _pSOA._atlasIdxs[srcIdx];
+                _pSOA._datas[targetIdx] = _pSOA._datas[srcIdx];
             });
     }
 
@@ -2278,8 +2277,7 @@ in VS_OUT {
 layout(location = 5) uniform vec3 rOrigin;
 layout(location = 6) uniform vec3 rUp;
 layout(location = 7) uniform vec3 rRight;
-layout(location = 8) uniform mat4 mvMatrix;
-layout(location = 12) uniform mat4 pjMatrix;
+layout(location = 8) uniform mat4 pjmvMatrix;
 
 out vec2 texcoord;
 out vec4 outVertexColor;
@@ -2309,27 +2307,32 @@ void main()
     vec3 up = (vec4(rUp, 1.0) * rotMat).xyz;
     vec3 right = (vec4(rRight, 1.0) * rotMat).xyz;
 
-    float halfScale = gs_in[0].opScale / 2.0;
+    float halfScale = gs_in[0].opScale * 0.5;
 
     vec3 left = -right;
     vec3 down = -up;
 
+    vec3 stepUp = halfScale * up;
+    vec3 stepDown = halfScale * down;
+    vec3 stepLeft = halfScale * left;
+    vec3 stepRight = halfScale * right;
+
     outVertexColor = gs_in[0].opColor;
     outAtlasIdx = gs_in[0].opAtlasIdx;
 
-    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * left, 1.0);
+    gl_Position = pjmvMatrix * vec4(pos + stepDown + stepLeft, 1.0);
     texcoord = vec2(0, 0);
     EmitVertex();
 
-    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * left, 1.0);
+    gl_Position = pjmvMatrix * vec4(pos + stepUp + stepLeft, 1.0);
     texcoord = vec2(1, 0);
     EmitVertex();
 
-    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * down + halfScale * right, 1.0);
+    gl_Position = pjmvMatrix * vec4(pos + stepDown + stepRight, 1.0);
     texcoord = vec2(0, 1);
     EmitVertex();
 
-    gl_Position = pjMatrix * mvMatrix * vec4(pos + halfScale * up + halfScale * right, 1.0);
+    gl_Position = pjmvMatrix * vec4(pos + stepUp + stepRight, 1.0);
     texcoord = vec2(1, 1);
     EmitVertex();
 
@@ -2340,7 +2343,7 @@ void main()
     constexpr auto fragmentShader = R"glsl(
 #version 430 core
 
-layout(location = 16) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
+layout(location = 12) uniform vec4 atlasBuf[11]; // TODO VR: (P1) hardcoded
 
 in vec2 texcoord;
 in vec4 outVertexColor;
@@ -2376,6 +2379,33 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to
 CL_RunParticles
 ===============
 */
+
+namespace
+{
+bool particlegenerated = false;
+
+GLint particleProgramId;
+
+GLuint vaoId;
+
+GLuint pOrgVboId;
+GLuint pAngleVboId;
+GLuint pScaleVboId;
+GLuint pColorVboId;
+GLuint pAtlasIdxVboId;
+
+GLint pOrgLocation;
+GLint pAngleLocation;
+GLint pScaleLocation;
+GLint pColorLocation;
+GLint pAtlasIdxLocation;
+GLint rOriginLocation;
+GLint rUpLocation;
+GLint rRightLocation;
+GLint pjmvMatrixLocation;
+GLint atlasBufLocation;
+} // namespace
+
 void R_DrawParticles()
 {
     if(!r_particles.value)
@@ -2383,31 +2413,7 @@ void R_DrawParticles()
         return;
     }
 
-    static bool generated = false;
-
-    static GLint particleProgramId;
-
-    static GLuint vaoId;
-
-    static GLuint pOrgVboId;
-    static GLuint pAngleVboId;
-    static GLuint pScaleVboId;
-    static GLuint pColorVboId;
-    static GLuint pAtlasIdxVboId;
-
-    static GLint pOrgLocation;
-    static GLint pAngleLocation;
-    static GLint pScaleLocation;
-    static GLint pColorLocation;
-    static GLint pAtlasIdxLocation;
-    static GLint rOriginLocation;
-    static GLint rUpLocation;
-    static GLint rRightLocation;
-    static GLint mvMatrixLocation;
-    static GLint pjMatrixLocation;
-    static GLint atlasBufLocation;
-
-    if(!generated)
+    if(!particlegenerated)
     {
         particleProgramId = makeParticleShaders();
 
@@ -2427,21 +2433,22 @@ void R_DrawParticles()
         rOriginLocation = 5;
         rUpLocation = 6;
         rRightLocation = 7;
-        mvMatrixLocation = 8;
-        pjMatrixLocation = 12;
-        atlasBufLocation = 16;
+        pjmvMatrixLocation = 8;
+        atlasBufLocation = 12;
 
-        generated = true;
+        particlegenerated = true;
     }
 
     const auto up = vup * 1.5_qf;
     const auto right = vright * 1.5_qf;
 
-    float mvMatrix[16];
-    glGetFloatv(GL_MODELVIEW_MATRIX, mvMatrix);
+    glm::mat4 mvMatrix;
+    glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(mvMatrix));
 
-    float pjMatrix[16];
-    glGetFloatv(GL_PROJECTION_MATRIX, pjMatrix);
+    glm::mat4 pjMatrix;
+    glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(pjMatrix));
+
+    glm::mat4 pjmvMatrix = pjMatrix * mvMatrix;
 
     //
     //
@@ -2469,16 +2476,10 @@ void R_DrawParticles()
         right[0], right[1], right[2]);
 
     glUniformMatrix4fv(   //
-        mvMatrixLocation, // location
+        pjmvMatrixLocation, // location
         1,                // count
         GL_FALSE,         // transpose
-        mvMatrix);
-
-    glUniformMatrix4fv(   //
-        pjMatrixLocation, // location
-        1,                // count
-        GL_FALSE,         // transpose
-        pjMatrix);
+        glm::value_ptr(pjmvMatrix));
 
     glUniform4fv(                      //
         atlasBufLocation,              // location
