@@ -28,16 +28,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // protocol.h -- communications protocols
 
 #define PROTOCOL_NETQUAKE 15 // johnfitz -- standard quake protocol
-//#define PROTOCOL_VERSION_H2	19
-//#define PROTOCOL_VERSION_NEHD	250
+// #define PROTOCOL_VERSION_H2	19
+// #define PROTOCOL_VERSION_NEHD	250
 #define PROTOCOL_FITZQUAKE \
     666 // johnfitz -- added new protocol for fitzquake 0.85
 #define PROTOCOL_RMQ 999
-//#define PROTOCOL_VERSION_DP5	3502
-//#define PROTOCOL_VERSION_DP6	3503
+// #define PROTOCOL_VERSION_DP5	3502
+// #define PROTOCOL_VERSION_DP6	3503
 #define PROTOCOL_VERSION_DP7 3504
-//#define PROTOCOL_VERSION_BJP1	10000
-//#define PROTOCOL_VERSION_BJP2	10001
+// #define PROTOCOL_VERSION_BJP1	10000
+// #define PROTOCOL_VERSION_BJP2	10001
 #define PROTOCOL_VERSION_BJP3 \
     10002 // spike, note that this protocol is intentionally flawed to work
           // around mods+writebytes - svc_staticsound is limited to 8bit
@@ -69,19 +69,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PEXT1_HLBSP 0x00000200 // hint to server to avoid messy error messages
 #define PEXT1_Q2BSP 0x00020000 // hint to server to avoid messy error messages
 #define PEXT1_Q3BSP 0x00040000 // hint to server to avoid messy error messages
-//#define PEXT1_CUSTOMTEMPEFFECTS	0x00800000
-//#define PEXT1_SPLITSCREEN			0x00100000
-//#define PEXT1_SHOWPIC				0x04000000
-//#define PEXT1_CHUNKEDDOWNLOADS		0x20000000
+// #define PEXT1_CUSTOMTEMPEFFECTS	0x00800000
+// #define PEXT1_SPLITSCREEN			0x00100000
+// #define PEXT1_SHOWPIC				0x04000000
+// #define PEXT1_CHUNKEDDOWNLOADS		0x20000000
 #define PEXT1_CSQC \
     0x40000000 //(full)csqc additions, required for csqc ents+events.
 #define PEXT1_ACCEPTED_CLIENT                                             \
     (/*PEXT1_SUPPORTED_CLIENT|*/ PEXT1_CSQC | PEXT1_Q3BSP | PEXT1_Q2BSP | \
         PEXT1_HLBSP) // pext1 flags that we can accept from a server (aka:
                      // partial support)
-//#define PEXT1_SUPPORTED_CLIENT		(0)	//pext1 flags that we advertise to
-// servers (aka: full support) #define PEXT1_SUPPORTED_SERVER		(0)	//pext1
-// flags that we accept from clients.
+// #define PEXT1_SUPPORTED_CLIENT		(0)	//pext1 flags that we advertise to
+//  servers (aka: full support) #define PEXT1_SUPPORTED_SERVER		(0)	//pext1
+//  flags that we accept from clients.
 
 // PROTOCOL_FTE_PEXT2 flags
 #define PEXT2_PRYDONCURSOR 0x00000001 // a mouse cursor exposed to ssqc
@@ -276,7 +276,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // a sound with no channel is a local only sound
 #define SND_VOLUME (1 << 0)      // a byte
 #define SND_ATTENUATION (1 << 1) // a byte
-//#define	SND_LOOPING		(1<<2)	// a long (unused in vanilla)
+// #define	SND_LOOPING		(1<<2)	// a long (unused in vanilla)
 
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
@@ -366,7 +366,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_particle 18     // [vec3] <variable>
 #define svc_damage 19
 #define svc_spawnstatic 20
-//#define svc_spawnbinary		21
+// #define svc_spawnbinary		21
 #define svcfte_spawnstatic2 21
 #define svc_spawnbaseline 22
 #define svc_temp_entity 23
@@ -540,13 +540,13 @@ struct entity_state_t
 };
 
 #define EFLAGS_STEP 1
-//#define EFLAGS_GLOWTRAIL		2
+// #define EFLAGS_GLOWTRAIL		2
 #define EFLAGS_VIEWMODEL \
     4 // does not appear in reflections/third person. attached to the view.
 #define EFLAGS_EXTERIORMODEL 8 // only appears in reflections/third person
-//#define EFLAGS_				16
-//#define EFLAGS_COLOURMAPPED	32	//.colormap=1024|(top<<4)|bottom), instead
-// of a player number #define EFLAGS_				64
+// #define EFLAGS_				16
+// #define EFLAGS_COLOURMAPPED	32	//.colormap=1024|(top<<4)|bottom), instead
+//  of a player number #define EFLAGS_				64
 #define EFLAGS_ONGROUND 128 // for bobbing more than anything else. *sigh*.
 
 extern entity_state_t nullentitystate; // note: not all null.

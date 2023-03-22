@@ -1987,7 +1987,7 @@ static struct HostList
     bool requery;
     bool master;
     struct qsockaddr addr;
-} * hostlist;
+}* hostlist;
 size_t hostlist_count;
 size_t hostlist_max;
 static void _Datagram_AddPossibleHost(struct qsockaddr* addr, bool master)

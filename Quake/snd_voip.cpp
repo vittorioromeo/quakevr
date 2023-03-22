@@ -110,7 +110,8 @@ dllhandle_t* Sys_LoadLibrary(const char* name, dllfunction_t* funcs)
     {
         for(i = 0; funcs[i].name; i++)
         {
-            *funcs[i].funcptr = reinterpret_cast<void*>(GetProcAddress(lib, funcs[i].name));
+            *funcs[i].funcptr =
+                reinterpret_cast<void*>(GetProcAddress(lib, funcs[i].name));
             if(!*funcs[i].funcptr)
             {
                 break;
@@ -1304,8 +1305,8 @@ void S_RawAudio(int sourceid, byte* data, unsigned int speed,
 /*****************************************************************************************************************************/
 /*client/coding/decoding componant*/
 
-//#define USE_SPEEX_CODEC
-//#define USE_SPEEX_DSP
+// #define USE_SPEEX_CODEC
+// #define USE_SPEEX_DSP
 
 /*the client cvars*/
 cvar_t cl_voip_send = {

@@ -119,7 +119,8 @@ void scanSaves()
                 timestampArray[i] = std::mktime(&tm);
                 if(timestampArray[i] == -1)
                 {
-                    std::cerr << "Error loading timestamp for save '" << name << "'\n";
+                    std::cerr << "Error loading timestamp for save '" << name
+                              << "'\n";
 
                     loadableArray[i] = false;
                     fclose(f);

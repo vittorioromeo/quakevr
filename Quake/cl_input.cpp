@@ -67,7 +67,8 @@ kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack, in_offhandattack,
     in_button3, in_button4, in_button5, in_button6, in_button7, in_button8;
 kbutton_t in_up, in_down;
 kbutton_t in_grableft, in_grabright;
-kbutton_t in_reloadleft, in_reloadright, in_flickreloadleft, in_flickreloadright;
+kbutton_t in_reloadleft, in_reloadright, in_flickreloadleft,
+    in_flickreloadright;
 
 int in_impulse;
 

@@ -156,10 +156,10 @@ extern cvar_t pr_checkextension; // if 0, extensions are disabled (unless they'd
 #define CSIE_KEYUP 1
 #define CSIE_MOUSEDELTA 2
 #define CSIE_MOUSEABS 3
-//#define CSIE_ACCELEROMETER	4
-//#define CSIE_FOCUS			5
+// #define CSIE_ACCELEROMETER	4
+// #define CSIE_FOCUS			5
 #define CSIE_JOYAXIS 6
-//#define CSIE_GYROSCOPE		7
+// #define CSIE_GYROSCOPE		7
 
 extern globalvars_t* pr_global_struct;
 

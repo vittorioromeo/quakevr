@@ -218,7 +218,7 @@ struct client_t
     {
         unsigned int num; // ascending order, there can be gaps.
         entity_state_t state;
-    } * previousentities;
+    }* previousentities;
     size_t numpreviousentities;
     size_t maxpreviousentities;
     unsigned int snapshotresume;
@@ -240,11 +240,11 @@ struct client_t
         {
             unsigned int num;
             unsigned int bits;
-        } * ents;
+        }* ents;
         int numents; // doesn't contain an entry for every entity, just ones
                      // that were sent this frame. no 0 bits
         int maxents;
-    } * frames;
+    }* frames;
     size_t numframes; // preallocated power-of-two
     int lastacksequence;
     int lastmovemessage;

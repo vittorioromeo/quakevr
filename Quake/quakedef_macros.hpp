@@ -161,13 +161,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_HOLSTERWEAPONFLAGS5 42
 #define STAT_ITEMS 43      // replaces clc_clientdata info
 #define STAT_VIEWHEIGHT 44 // replaces clc_clientdata info
-//#define STAT_TIME			45	//zquake, redundant for nq.
-//#define STAT_MATCHSTARTTIME 46
-//#define STAT_VIEW2		47
+// #define STAT_TIME			45	//zquake, redundant for nq.
+// #define STAT_MATCHSTARTTIME 46
+// #define STAT_VIEW2		47
 #define STAT_VIEWZOOM 48 // DP
-//#define STAT_UNUSED3		49
-//#define STAT_UNUSED2		50
-//#define STAT_UNUSED1		51
+// #define STAT_UNUSED3		49
+// #define STAT_UNUSED2		50
+// #define STAT_UNUSED1		51
 #define STAT_IDEALPITCH 52   // nq-emu
 #define STAT_PUNCHANGLE_X 53 // nq-emu
 #define STAT_PUNCHANGLE_Y 54 // nq-emu

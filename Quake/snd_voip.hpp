@@ -15,8 +15,8 @@
 // binding.
 
 // defined elsewhere
-//#define svcfte_voicechat	84
-//#define clcfte_voicechat	83
+// #define svcfte_voicechat	84
+// #define clcfte_voicechat	83
 struct client_t;
 struct sizebuf_t;
 

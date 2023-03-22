@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /*-----------------------------------------------------------------*/
 
 
-//#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
+// #define DEG2RAD( a ) ( a * M_PI ) / 180.0F
 #define DEG2RAD(a) ((a)*M_PI_DIV_180) // johnfitz
 
 qvec3 ProjectPointOnPlane(const qvec3& p, const qvec3& normal)

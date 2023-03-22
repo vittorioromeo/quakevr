@@ -14,7 +14,7 @@
 #define MOVETYPE_NOCLIP 8
 #define MOVETYPE_FLYMISSILE 9 // extra size to monsters
 #define MOVETYPE_BOUNCE 10
-//#define MOVETYPE_EXT_BOUNCEMISSILE 11
+// #define MOVETYPE_EXT_BOUNCEMISSILE 11
 #define MOVETYPE_EXT_FOLLOW 12
 
 // edict->solid values

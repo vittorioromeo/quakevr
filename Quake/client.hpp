@@ -513,7 +513,8 @@ extern kbutton_t in_mlook, in_klook;
 extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
 extern kbutton_t in_grableft, in_grabright;
-extern kbutton_t in_reloadleft, in_reloadright, in_flickreloadleft, in_flickreloadright;
+extern kbutton_t in_reloadleft, in_reloadright, in_flickreloadleft,
+    in_flickreloadright;
 
 void CL_InitInput();
 void CL_AccumulateCmd(); // QSS

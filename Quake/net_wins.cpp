@@ -896,10 +896,10 @@ sys_socket_t WINIPv6_Init()
 
     if(COM_CheckParm("-noudp") || COM_CheckParm("-noudp6")) return -1;
 
-    qgetaddrinfo =
-        (decltype(qgetaddrinfo))GetProcAddress(GetModuleHandle("ws2_32.dll"), "getaddrinfo");
-    qfreeaddrinfo =
-        (decltype(qfreeaddrinfo))GetProcAddress(GetModuleHandle("ws2_32.dll"), "freeaddrinfo");
+    qgetaddrinfo = (decltype(qgetaddrinfo))GetProcAddress(
+        GetModuleHandle("ws2_32.dll"), "getaddrinfo");
+    qfreeaddrinfo = (decltype(qfreeaddrinfo))GetProcAddress(
+        GetModuleHandle("ws2_32.dll"), "freeaddrinfo");
     if(!qgetaddrinfo || !qfreeaddrinfo)
     {
         qgetaddrinfo = nullptr;

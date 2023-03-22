@@ -309,7 +309,7 @@ int PR_Markup_Parse(struct markup_s* mu)
 
 #define D(typestr, desc) typestr, desc
 
-//#define fixme
+// #define fixme
 
 // maths stuff
 static void PF_Sin()
@@ -3215,7 +3215,7 @@ static struct qcfile_s
     int filesize;
     int filebase; // the offset of the file inside a pak
     int mode;
-} * qcfiles;
+}* qcfiles;
 static size_t qcfiles_max;
 #define QC_FILE_BASE 1
 static void PF_fopen()
@@ -3544,7 +3544,7 @@ struct filesearch_s
         char name[MAX_QPATH];
         time_t mtime;
         size_t fsize;
-    } * file;
+    }* file;
 } searches[16];
 static bool PR_Search_AddFile(
     void* ctx, const char* fname, time_t mtime, size_t fsize)
@@ -5569,7 +5569,7 @@ struct qcpics_t
     char name[MAX_QPATH];
     int type;
     qpic_t* pic;
-} * qcpics;
+}* qcpics;
 
 size_t numqcpics;
 size_t maxqcpics;

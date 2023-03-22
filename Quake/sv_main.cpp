@@ -186,7 +186,7 @@ void SV_CalcStats(client_t* client, int* statsi, float* statsf)
 #define UF_RESET2                                                    \
     UF_EXTEND1 /*so new ents are reset multiple times to avoid weird \
                   baselines*/
-//#define UF_UNUSED		UF_EXTEND2	/**/
+// #define UF_UNUSED		UF_EXTEND2	/**/
 #define UF_WEAPONFRAME_OLD UF_EXTEND2
 #define UF_VIEWANGLES UF_EXTEND3 /**/
 
@@ -368,7 +368,7 @@ static unsigned int MSGFTE_DeltaCalcBits(
     return bits;
 }
 
-//#undef MSG_WriteEntity
+// #undef MSG_WriteEntity
 void MSG_WriteEntity(sizebuf_t* sb, int c, unsigned int pext2)
 {
     // high short, low byte
