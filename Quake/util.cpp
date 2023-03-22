@@ -7,9 +7,14 @@ namespace quake::util
 
 [[nodiscard]] int getMaxMSAALevel() noexcept
 {
-    int res;
-    glGetIntegerv(GL_MAX_SAMPLES, &res);
-    return res;
+    static int result = []
+    {
+        int res;
+        glGetIntegerv(GL_MAX_SAMPLES, &res);
+        return res;
+    }();
+
+    return result;
 }
 
 } // namespace quake::util
