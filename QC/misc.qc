@@ -334,9 +334,12 @@ void() spikeshooter_use =
     entity newmis;
     entity lavaball;
 
-    if(mapname == "e2m3" || // VR: There is a bug in e2m3 where spikeshoorters
+    if(mapname == "e2m3" || // VR: There is a bug in e2m3 where spikeshooters
                             // have spawn flags '256', which is invalid in Q1
                             // but valid (fireball) in DoE.
+       mapname == "r1m7" || // VR: There is a bug in r1m7 where spikeshooters
+                            // have spawn flags '4', which ends up shooting
+                            // rockets instead off nails.
         (self.spawnflags & SPAWNFLAG_SUPERSPIKE) ||
         !(self.spawnflags))
     {
