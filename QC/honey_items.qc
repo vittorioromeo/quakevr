@@ -12,19 +12,22 @@ void() itemTouch =
     //self.touch = self.th_die;
     self.th_die();
 
-    if(self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET)
+    if(VR_GameUtil_EnableHoneyExtensions())
     {
-        found_secrets = found_secrets + 1;
-        WriteByte(MSG_ALL, SVC_FOUNDSECRET);
-        self.spawnflags = self.spawnflags - (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET);
+        if(self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET)
+        {
+            found_secrets = found_secrets + 1;
+            WriteByte(MSG_ALL, SVC_FOUNDSECRET);
+            self.spawnflags = self.spawnflags - (self.spawnflags & HONEY_SPAWNFLAG_ITEM_SECRET);
 
-        sound(self, CHAN_ITEM, "misc/secret.wav", 1, ATTN_NORM);
-        centerprint(other, self.message);
-        self.message = string_null;
-        if(self.classname == "item_health" && self.spawnflags & H_MEGA) // Do nothing
-            SUB_Null();
-        else
-            self.think = SUB_Null;
+            sound(self, CHAN_ITEM, "misc/secret.wav", 1, ATTN_NORM);
+            centerprint(other, self.message);
+            self.message = string_null;
+            if(self.classname == "item_health" && self.spawnflags & H_MEGA) // Do nothing
+                SUB_Null();
+            else
+                self.think = SUB_Null;
+        }
     }
 
     if(self.wait && self.solid == SOLID_NOT) {

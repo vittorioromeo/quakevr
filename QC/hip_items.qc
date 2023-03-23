@@ -125,7 +125,7 @@ to spawn the charmed creature.
 */
 void() item_hornofconjuring =
    {
-   self.touch = horn_touch;
+   self.handtouch = horn_touch;
 
    precache_model("progs/horn.mdl");
    precache_sound("hipitems/horn.wav");
