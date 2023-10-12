@@ -297,9 +297,6 @@
     <ClCompile Include="..\..\Quake\snd_voip.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Quake\fakeqcvm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\pr_ext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
