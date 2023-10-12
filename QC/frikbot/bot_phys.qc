@@ -62,7 +62,7 @@ float(float key) CL_KeyState =
 void() CL_KeyMove = // CL_BaseMove + CL_AdjustAngles
 {
     float anglespeed;
-    vector view;
+    vector view = '0 0 0';
     if(self.keys != self.oldkeys)
     {
         self.movevect = '0 0 0';
@@ -502,7 +502,8 @@ float(vector dir) botCheckForStep =
 void(vector dir) BruteForceStep =
 {
     vector currentorigin;
-    float currentflags, i, len;
+    float currentflags, len;
+    float i = 0;
 
     currentorigin = self.origin;
     currentflags = self.flags;

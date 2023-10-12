@@ -414,7 +414,8 @@ attacking an enemy.
 
 void() bot_fight_style =
 {
-    vector v1, v2;
+    vector v1 = '0 0 0';
+    vector v2 = '0 0 0';
     float mysz, foesz;
 
     if(self.enemy.health <= 0)

@@ -149,8 +149,7 @@ manuever around.
 void(vector whichway, float danger) frik_obstructed =
 {
     float dist;
-    vector disway;
-// TODO: something
+    vector disway = '0 0 0';
 
     if(self.b_aiflags & AI_BLIND)
         return;
