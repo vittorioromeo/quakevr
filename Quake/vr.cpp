@@ -60,6 +60,12 @@ using quake::util::mapRange;
 using quake::util::pitchYawRollFromDirectionVector;
 using quake::util::redirectVector;
 
+template <typename T>
+[[nodiscard]] static constexpr T cvarCast(const float x)
+{
+    return static_cast<T>(static_cast<std::underlying_type_t<T>>(x));
+}
+
 //
 //
 //
@@ -3641,8 +3647,10 @@ void VR_Draw2D()
             vr_menu_angles = cl.viewangles;
         }
 
-        if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
-            vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
+        if(cvarCast<VrAimMode::Enum>(vr_aimmode.value) ==
+                VrAimMode::e_HEAD_MYAW ||
+            cvarCast<VrAimMode::Enum>(vr_aimmode.value) ==
+                VrAimMode::e_HEAD_MYAW_MPITCH)
         {
             vr_menu_angles[PITCH] = 0;
         }
@@ -3757,7 +3765,7 @@ void VR_DrawSbar()
     glDisable(GL_DEPTH_TEST); // prevents drawing sprites on sprites from
                               // interferring with one another
 
-    if(vr_aimmode.value == VrAimMode::e_CONTROLLER)
+    if(cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_CONTROLLER)
     {
         const auto mode = cvarToEnum<VrSbarMode>(vr_sbar_mode);
 
@@ -3784,8 +3792,9 @@ void VR_DrawSbar()
     {
         sbar_angles = cl.aimangles;
 
-        if(vr_aimmode.value == VrAimMode::e_HEAD_MYAW ||
-            vr_aimmode.value == VrAimMode::e_HEAD_MYAW_MPITCH)
+        if(cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_HEAD_MYAW ||
+            cvarCast<VrAimMode::Enum>(vr_aimmode.value) ==
+                VrAimMode::e_HEAD_MYAW_MPITCH)
         {
             sbar_angles[PITCH] = 0;
         }
@@ -3803,7 +3812,7 @@ void VR_DrawSbar()
 
     const auto sbarmode = cvarToEnum<VrSbarMode>(vr_sbar_mode);
 
-    if(vr_aimmode.value == VrAimMode::e_CONTROLLER &&
+    if(cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_CONTROLLER &&
         sbarmode == VrSbarMode::OffHand)
     {
         qquat m;
@@ -4575,7 +4584,8 @@ void VR_Move(usercmd_t* cmd)
 
     if(vr_fakevr.value == 0)
     {
-        if(vr_movement_mode.value == VrMovementMode::e_RAW_INPUT)
+        if(cvarCast<VrMovementMode::Enum>(vr_movement_mode.value) ==
+            VrMovementMode::e_RAW_INPUT)
         {
             cmd->forwardmove += cl_forwardspeed.value * fwdMove;
             cmd->sidemove += cl_forwardspeed.value * sideMove;

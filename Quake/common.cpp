@@ -2417,7 +2417,7 @@ static void COM_Game_f()
 
         if(vr_enabled.value)
         {
-            Cbuf_AddText("map start\n");
+            Cbuf_AddText("map vrstart\n");
             VR_ModAllModels();
         }
     }

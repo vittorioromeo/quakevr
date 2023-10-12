@@ -371,6 +371,7 @@ struct client_state_t
     void OnMsg_WorldTextHSetPos() noexcept;
     void OnMsg_WorldTextHSetAngles() noexcept;
     void OnMsg_WorldTextHSetHAlign() noexcept;
+    void OnMsg_WorldTextHSetScale() noexcept;
 };
 
 template <typename F>

@@ -80,3 +80,11 @@ void server_t::SendMsg_WorldTextHSetHAlign(client_t& client,
     MSG_WriteShort(&client.message, wth);
     MSG_WriteByte(&client.message, static_cast<int>(hAlign));
 }
+
+void server_t::SendMsg_WorldTextHSetScale(client_t& client,
+    const WorldTextHandle wth, const float scale) noexcept
+{
+    MSG_WriteByte(&client.message, svc_worldtext_hsetscale);
+    MSG_WriteShort(&client.message, wth);
+    MSG_WriteFloat(&client.message, scale);
+}

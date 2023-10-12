@@ -170,3 +170,4 @@ float(float v) sqrt = #108;
 
 float(float x, float y) atan2 = #109;
 
+void(float h, float v) worldtext_hsetscale = #110;

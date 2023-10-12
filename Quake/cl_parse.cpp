@@ -84,7 +84,7 @@ const char* svc_strings[128] = {
     "svc_sellscreen", "svc_cutscene",
     // johnfitz -- new server messages
     "35 svc_worldtext_hsethalign", // 35
-    "36",                          // 36
+    "36 svc_worldtext_hsetscale",  // 36
     "svc_skybox_fitz",             // 37					// [string] skyname
     "38",                          // 38
     "39",                          // 39
@@ -190,6 +190,11 @@ bool warn_about_nehahra_protocol; // johnfitz
 extern qvec3 v_punchangles[2]; // johnfitz
 
 //=============================================================================
+
+template <typename T>
+static void readAndDrop(const T&)
+{
+}
 
 /*
 ===============
@@ -344,19 +349,19 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
 
         if(predbits & UFP_FORWARD)
         { /*news->movement[0] =*/
-            MSG_ReadShort();
+            readAndDrop(MSG_ReadShort());
         }
         // else
         //	news->movement[0] = 0;
         if(predbits & UFP_SIDE)
         { /*news->movement[1] =*/
-            MSG_ReadShort();
+            readAndDrop(MSG_ReadShort());
         }
         // else
         //	news->movement[1] = 0;
         if(predbits & UFP_UP)
         { /*news->movement[2] =*/
-            MSG_ReadShort();
+            readAndDrop(MSG_ReadShort());
         }
         // else
         //	news->movement[2] = 0;
@@ -397,12 +402,12 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
             {
                 if(bits & UF_ANGLESXZ)
                 {
-                    /*news->vangle[0] =*/MSG_ReadShort();
-                    /*news->vangle[2] =*/MSG_ReadShort();
+                    /*news->vangle[0] =*/readAndDrop(MSG_ReadShort());
+                    /*news->vangle[2] =*/readAndDrop(MSG_ReadShort());
                 }
                 if(bits & UF_ANGLESY)
                 { /*news->vangle[1] =*/
-                    MSG_ReadShort();
+                    readAndDrop(MSG_ReadShort());
                 }
             }
         }
@@ -486,11 +491,11 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
             else if(enc == 16)
             {
                 /*solidsize = */
-                MSG_ReadShort(); // MSG_ReadSize16(&net_message);
+                readAndDrop(MSG_ReadShort()); // MSG_ReadSize16(&net_message);
             }
             else if(enc == 32)
             {
-                /*solidsize = */ MSG_ReadLong();
+                /*solidsize = */ readAndDrop(MSG_ReadShort());
             }
             else
             {
@@ -499,7 +504,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
         }
         else
         {
-            /*solidsize =*/MSG_ReadShort(); // MSG_ReadSize16(&net_message);
+            /*solidsize =*/readAndDrop(MSG_ReadShort()); // MSG_ReadSize16(&net_message);
         }
         //		news->solidsize = solidsize;
     }
@@ -529,7 +534,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
             // &news->boneoffset);
             for(i = 0; i < bonecount * 7; i++)
             { /*bonedata[i] =*/
-                MSG_ReadShort();
+                readAndDrop(MSG_ReadShort());
             }
             // news->bonecount = bonecount;
         }
@@ -538,7 +543,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
         if(fl & 0x40)
         {
             /*news->basebone =*/MSG_ReadByte();
-            /*news->baseframe =*/MSG_ReadShort();
+            /*news->baseframe =*/readAndDrop(MSG_ReadShort());
         }
         /*else
         {
@@ -577,10 +582,10 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
     }
     if(bits & UF_LIGHT)
     {
-        /*news->light[0] =*/MSG_ReadShort();
-        /*news->light[1] =*/MSG_ReadShort();
-        /*news->light[2] =*/MSG_ReadShort();
-        /*news->light[3] =*/MSG_ReadShort();
+        /*news->light[0] =*/readAndDrop(MSG_ReadShort());
+        /*news->light[1] =*/readAndDrop(MSG_ReadShort());
+        /*news->light[2] =*/readAndDrop(MSG_ReadShort());
+        /*news->light[3] =*/readAndDrop(MSG_ReadShort());
         /*news->lightstyle =*/MSG_ReadByte();
         /*news->lightpflags =*/MSG_ReadByte();
     }
@@ -625,7 +630,7 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t* news,
     {
         if(bits & UF_16BIT)
         {
-            /*news->modelindex2 =*/MSG_ReadShort();
+            /*news->modelindex2 =*/readAndDrop(MSG_ReadShort());
         }
         else
         {
@@ -3359,6 +3364,12 @@ void CL_ParseServerMessage()
             case svc_worldtext_hsethalign:
             {
                 cl.OnMsg_WorldTextHSetHAlign();
+                break;
+            }
+
+            case svc_worldtext_hsetscale:
+            {
+                cl.OnMsg_WorldTextHSetScale();
                 break;
             }
 

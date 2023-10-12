@@ -150,6 +150,9 @@ struct server_t
 
     void SendMsg_WorldTextHSetHAlign(client_t& client,
         const WorldTextHandle wth, const WorldText::HAlign hAlign) noexcept;
+
+    void SendMsg_WorldTextHSetScale(client_t& client,
+        const WorldTextHandle wth, float scale) noexcept;
 };
 
 #define NUM_PING_TIMES 16

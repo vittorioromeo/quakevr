@@ -399,6 +399,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_worldtext_hsetpos 48
 #define svc_worldtext_hsetangles 49
 #define svc_worldtext_hsethalign 35
+#define svc_worldtext_hsetscale 36
 // johnfitz
 
 // spike -- some extensions for particles.

@@ -1272,6 +1272,23 @@ static void PF_worldtext_hsethalign()
         { sv.SendMsg_WorldTextHSetHAlign(client, wth, hAlign); });
 }
 
+static void PF_worldtext_hsetscale()
+{
+    const WorldTextHandle wth = G_INT(OFS_PARM0);
+    const float scale = G_FLOAT(OFS_PARM1);
+
+    if(!sv.isValidWorldTextHandle(wth))
+    {
+        Host_Error("Invalid world text handle '%d'", wth);
+        return;
+    }
+
+    sv.getWorldText(wth)._scale = scale;
+
+    forAllActiveOrSpawnedClients([&](client_t& client)
+        { sv.SendMsg_WorldTextHSetScale(client, wth, scale); });
+}
+
 static void PF_strlen()
 {
     G_FLOAT(OFS_RETURN) = std::strlen(G_STRING(OFS_PARM0));
@@ -2412,6 +2429,8 @@ builtin_t pr_ssqcbuiltins[] = {
 
     PF_sqrt,  // #108
     PF_atan2, // #109
+
+    PF_worldtext_hsetscale, // #110
 };
 
 int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins) / sizeof(pr_ssqcbuiltins[0]);

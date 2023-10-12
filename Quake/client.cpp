@@ -68,3 +68,16 @@ void client_state_t::OnMsg_WorldTextHSetHAlign() noexcept
         cl.worldTexts[wth]._hAlign = v;
     }
 }
+
+void client_state_t::OnMsg_WorldTextHSetScale() noexcept
+{
+    const WorldTextHandle wth = MSG_ReadShort();
+    assert(isValidWorldTextHandle(wth));
+
+    const auto f = MSG_ReadFloat();
+
+    if(isValidWorldTextHandle(wth))
+    {
+        cl.worldTexts[wth]._scale = f;
+    }
+}

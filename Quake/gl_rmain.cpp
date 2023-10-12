@@ -877,7 +877,7 @@ void R_DrawWorldText()
 
     const auto drawString = [&](const qvec3& originalpos, const qvec3& angles,
                                 const std::string_view str,
-                                const WorldText::HAlign hAlign)
+                                const WorldText::HAlign hAlign, const float scale)
     {
         static std::vector<std::string_view> lines;
 
@@ -899,8 +899,9 @@ void R_DrawWorldText()
 
         // Angles and offsets
         const auto [fwd, right, up] = quake::util::getAngledVectors(angles);
-        const auto hInc = right * 8.f;
-        const auto zInc = qvec3{0, 0, -8.f} * up;
+        const auto charSize = 8.f * scale;
+        const auto hInc = right * charSize;
+        const auto zInc = qvec3{0, 0, -charSize} * up;
 
         // Bounds
         const auto absmins = originalpos;
@@ -966,7 +967,7 @@ void R_DrawWorldText()
 
     for(const WorldText& wt : cl.worldTexts)
     {
-        drawString(wt._pos, wt._angles, wt._text, wt._hAlign);
+        drawString(wt._pos, wt._angles, wt._text, wt._hAlign, wt._scale);
     }
 
     glEnd();

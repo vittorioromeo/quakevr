@@ -1472,10 +1472,12 @@ void SCR_UpdateScreen()
         // be split accordingly and cleaned up.
 
         qcvm_t* oldvm = qcvm;
+        PR_SwitchQCVM(nullptr);
         PR_SwitchQCVM(&sv.qcvm);
 
         VR_UpdateScreenContent(); // phoboslab
 
+        PR_SwitchQCVM(nullptr);
         PR_SwitchQCVM(oldvm);
     }
     else

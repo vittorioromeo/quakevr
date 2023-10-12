@@ -79,6 +79,10 @@ void() button_fire =
     {
         bprint("Congratulations! You have hands.\n");
     }
+    else if(self.buttonEffect == 3) // Command button
+    {
+        localcmd(self.targetname);
+    }
 };
 
 void() button_use =
@@ -209,6 +213,12 @@ void() func_button =
         worldtext_hsettext(wth, self.worldtext);
         worldtext_hsetpos(wth, realorigin(self) + '0 0 12' - dir * 6.0);
         worldtext_hsetangles(wth, ang);
+        worldtext_hsethalign(wth, self.worldtext_halign);
+        
+        if(self.worldtext_scale != 0)
+        {
+            worldtext_hsetscale(wth, self.worldtext_scale);
+        }
     }
 };
 
@@ -337,6 +347,11 @@ void() func_worldtext_banner =
     worldtext_hsetpos(wth, realorigin(self));
     worldtext_hsetangles(wth, self.angles + '0 180 0');
     worldtext_hsethalign(wth, self.worldtext_halign);
+
+    if(self.worldtext_scale != 0)
+    {
+        worldtext_hsetscale(wth, self.worldtext_scale);
+    }
 
     if(self.lip > 1)
     {

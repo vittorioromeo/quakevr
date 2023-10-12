@@ -93,6 +93,12 @@ qvec3 v_punchangles[2]; // johnfitz -- copied from cl.punchangle.  0 is
 
 
 
+template <typename T>
+[[nodiscard]] static constexpr T cvarCast(const float x)
+{
+    return static_cast<T>(static_cast<std::underlying_type_t<T>>(x));
+}
+
 /*
 ===============
 V_CalcRoll
@@ -701,7 +707,8 @@ void CalcGunAngle(const int wpnCvarEntry, entity_t* viewent,
     const qvec3& handrot, const qvec3& visual_handrot, bool horizFlip)
 {
     // Skip everything if we're doing VR Controller aiming.
-    if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
+    if(vr_enabled.value &&
+        cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_CONTROLLER)
     {
         auto [oPitch, oYaw, oRoll] = VR_GetWpnAngleOffsets(wpnCvarEntry);
         auto [vhrPitch, vhrYaw, vhrRoll] = visual_handrot;
@@ -1055,7 +1062,8 @@ void V_CalcRefdef(
         cl.visual_handrot[cVR_MainHand], false);
 
     // VR controller aiming configuration
-    if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
+    if(vr_enabled.value &&
+        cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_CONTROLLER)
     {
         // VR: This sets the weapon model's position.
         view->origin = handpos + cl.vmeshoffset + gunOffset;
@@ -1175,7 +1183,8 @@ void V_SetupOffHandWpnViewEnt(
         cl.visual_handrot[cVR_OffHand], true);
 
     // VR controller aiming configuration
-    if(vr_enabled.value && vr_aimmode.value == VrAimMode::e_CONTROLLER)
+    if(vr_enabled.value &&
+        cvarCast<VrAimMode::Enum>(vr_aimmode.value) == VrAimMode::e_CONTROLLER)
     {
         view.origin = handpos + cl.vmeshoffset + gunOffset;
     }

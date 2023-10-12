@@ -125,6 +125,7 @@
 
 .string worldtext;
 .float worldtext_halign;
+.float worldtext_scale;
 .float angle;
 
 //

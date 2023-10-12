@@ -23,6 +23,7 @@ struct WorldText
     qvec3 _pos{};
     qvec3 _angles{};
     HAlign _hAlign{HAlign::Left};
+    float _scale{1.f};
 };
 
 using WorldTextHandle = std::uint16_t;

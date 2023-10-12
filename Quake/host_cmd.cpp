@@ -1595,6 +1595,7 @@ bool Host_Loadgame(const char* filename, const bool hasTimestamp)
 
     CL_Disconnect_f();
 
+    PR_SwitchQCVM(nullptr);
     PR_SwitchQCVM(&sv.qcvm);
     SV_SpawnServer(mapname, SpawnServerSrc::FromSaveFile);
 
@@ -2420,6 +2421,7 @@ void Host_Spawn_f()
             sv.SendMsg_WorldTextHSetPos(*host_client, wth, wt._pos);
             sv.SendMsg_WorldTextHSetAngles(*host_client, wth, wt._angles);
             sv.SendMsg_WorldTextHSetHAlign(*host_client, wth, wt._hAlign);
+            sv.SendMsg_WorldTextHSetScale(*host_client, wth, wt._scale);
 
             ++wth;
         }
@@ -3107,7 +3109,7 @@ void Host_Startdemos_f()
             Cbuf_AddText("maxplayers 1\n");
             Cbuf_AddText("deathmatch 0\n");
             Cbuf_AddText("coop 0\n");
-            Cbuf_AddText("map start\n");
+            Cbuf_AddText("map vrstart\n");
             Cbuf_AddText("centerview\n");
         }
 

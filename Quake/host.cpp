@@ -713,6 +713,7 @@ void Host_ShutdownServer(bool crash)
     }
 
     // QSS
+    PR_SwitchQCVM(nullptr);
     PR_SwitchQCVM(&sv.qcvm);
 
     {
