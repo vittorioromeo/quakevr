@@ -10,7 +10,7 @@ float USE_COUNT = 1;
 
 void () particlefield_XZ =
     {
-    vector pos;
+    vector pos = '0 0 0';
    vector start;
    vector end;
 
@@ -50,7 +50,7 @@ void () particlefield_XZ =
 
 void () particlefield_YZ =
     {
-    vector pos;
+    vector pos = '0 0 0';
    vector start;
    vector end;
 
@@ -94,7 +94,7 @@ void () particlefield_YZ =
 
 void () particlefield_XY =
     {
-    vector pos;
+    vector pos = '0 0 0';
    vector start;
    vector end;
 
