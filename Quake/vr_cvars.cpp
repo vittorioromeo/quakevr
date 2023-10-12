@@ -192,6 +192,7 @@ DEFINE_FCVAR_ARCHIVE(vr_disablehaptics, 0);
 DEFINE_FCVAR_ARCHIVE(vr_spinreload_pitch_speed, 1100);
 DEFINE_FCVAR_ARCHIVE(vr_spinreload_x_angular_threshold, 6.5);
 DEFINE_FCVAR_ARCHIVE(vr_throw_algorithm, 0);
+DEFINE_FCVAR_ARCHIVE(vr_player_stepsize, 18.0);
 
 //
 //

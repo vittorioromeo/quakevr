@@ -3482,6 +3482,13 @@ void M_QuakeVRSettings_Key(int k)
     );
 
     m.add_cvar_entry<bool>("Viewkick", vr_viewkick);
+    
+    // ------------------------------------------------------------------------
+    m.add_separator();
+    // ------------------------------------------------------------------------
+
+    m.add_cvar_entry<float>(
+        "Player Stepsize", vr_player_stepsize, {1, 0, 128});
 
     return m;
 }

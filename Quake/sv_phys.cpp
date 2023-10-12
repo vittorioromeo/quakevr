@@ -1012,7 +1012,7 @@ void SV_WalkMove(edict_t* ent, const bool resetOnGround)
     //
     ent->v.origin = oldorg; // back to start pos
 
-    constexpr float stepsize = 18.f;
+    const float stepsize = vr_player_stepsize.value;
     const qvec3 upmove{0.f, 0.f, stepsize};
     const qvec3 downmove{0.f, 0.f, -stepsize + oldvel[2] * host_frametime};
 
