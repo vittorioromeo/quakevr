@@ -192,6 +192,13 @@ At the moment there is no server browser and no dedicated server support. Also, 
 
 *(Please forgive me if I am forgetting someone. I will update this list as needed.)*
 
+## Support The Project
+
+- https://ko-fi.com/vittorioromeo
+- https://paypal.me/romeovittorio
+- https://github.com/sponsors/vittorioromeo
+- https://patreon.com/vittorioromeo
+
 ## Fan Coverage
 
 *(Thanks everyone for playing Quake VR! If you have created content related to the mod, please let me know and I'll add it to this list.)*
