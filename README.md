@@ -1,4 +1,4 @@
-<a href="https://vittorioromeo.info/quakevr">
+<a href="https://vittorioromeo.com/quakevr">
     <p align="center">
         <img width="460" height="250" src="https://vittorioromeo.info/Misc/quakevrlogo.png">
     </p>
@@ -8,7 +8,7 @@
 
 > **The timeless classic from 1996, reimagined for virtual reality.**
 
-[*(Visit the official landing page for videos and more information.)*](https://vittorioromeo.info/quakevr)
+[*(Visit the official landing page for videos and more information.)*](https://vittorioromeo.com/quakevr)
 
 ## Main Features
 
