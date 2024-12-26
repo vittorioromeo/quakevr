@@ -1,6 +1,6 @@
 <a href="https://vittorioromeo.com/quakevr">
     <p align="center">
-        <img width="460" height="250" src="https://vittorioromeo.info/Misc/quakevrlogo.png">
+        <img width="460" height="250" src="https://vittorioromeo.com/Misc/quakevrlogo.png">
     </p>
 </a>
 
