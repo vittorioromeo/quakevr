@@ -9,3 +9,11 @@ Quake/ironwail
 build/
 /.vs
 /out/
+
+# Quake VR: build output and runtime files in the game folder
+/quakevr/progs.dat
+/quakevr/progs.lno
+/quakevr/*.cfg
+!/quakevr/quakevr.cfg
+/quakevr/*.sav
+/quakevr/screenshots/

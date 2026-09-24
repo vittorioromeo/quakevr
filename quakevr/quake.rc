@@ -1,0 +1,10 @@
+// Quake VR startup script (replaces id1/quake.rc when running -game quakevr).
+
+exec default.cfg
+exec config.cfg
+exec quakevr.cfg
+exec autoexec.cfg
+
+stuffcmds
+
+startdemos demo1 demo2 demo3
