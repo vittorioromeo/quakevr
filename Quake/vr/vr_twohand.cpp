@@ -1,8 +1,9 @@
 // vr_twohand.cpp -- see vr_twohand.hpp. Ported from the old engine's VR_Do2HAiming.
 //
 // A weapon is aimed two-handed when the other hand is empty, gripping, between the holding
-// hand and the muzzle (plus a margin), 5 to 25 units away, and roughly along the weapon
-// (vr_2h_angle_threshold, a cosine). The aim then points from the holding hand to the helping
+// hand and the muzzle (plus a margin), roughly along the weapon (vr_2h_angle_threshold, a
+// cosine), and either at the weapon's foregrip ("fixed" display mode, most guns: within 5.5
+// units to take hold, 20 to keep it) or 5 to 25 units from the holding hand. The aim then points from the holding hand to the helping
 // hand (offset by the weapon's 2H offsets), blended in over 0.2 s. With vr_2h_mode 2 ("virtual
 // stock"), a holding hand close to the shoulder (vr_virtual_stock_thresh) aims from the
 // shoulder instead, mixed by vr_2h_virtual_stock_factor.
@@ -105,7 +106,12 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     transition(stockTransition[holding], useStock, 5.f);
 
     const float handDist = glm::distance(holdingPos, helpingPos);
-    const bool goodDistance = handDist > 5.f && handDist < 25.f;
+
+    // "Fixed" display mode (most guns): the hand must come to the weapon's foregrip, and may
+    // then move a little further before letting go. Otherwise anywhere 5-25 units away.
+    const bool fixedMode = holdingWeapon && s.grip2HValid[holding];
+    const bool goodDistance = fixedMode ? glm::distance(s.pos[helping], s.grip2H[holding]) < (shouldAim[holding] ? 20.f : 5.5f)
+                                        : handDist > 5.f && handDist < 25.f;
 
     // Muzzles move with the firing animation, hence the margin.
     const bool beforeMuzzle =

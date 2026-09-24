@@ -106,7 +106,9 @@ gravity and spin. Things to try:
   (`vr_roomscale_move_mult`).
 - **Holsters:** bring a hand to a hip, the chest or a shoulder. The holster lights up while hovered; let go of a
   weapon there to holster it, grip there to draw. Bringing both hands together passes a weapon between them.
-- **Two-handed aiming:** with a weapon in one hand, grip in front of it with the other (empty) hand. With a hand
+- **Two-handed aiming:** with a gun in one hand, grip its foregrip with the other (empty) hand: the hand snaps
+  onto the gun. Weapons trail the hand a little depending on their weight (`vr_wpn_pos_weight`,
+  `vr_wpn_dir_weight`); hands and barrels stop at walls. With a hand
   near the shoulder, the virtual stock steadies the aim (`vr_2h_mode`, `vr_virtual_stock_thresh`).
 - **Flick reload:** with the super shotgun, flick the wrist to snap it open (`vr_spinreload_x_angular_threshold`).
 - **Teleport:** `vr_teleport_enabled 1` and bind a button, e.g. `bind LTHUMB +teleport`. Aim with the off hand,
@@ -132,5 +134,4 @@ swings the main hand for throwing tests.
 
 ## Not there yet
 
-The two-handed "fixed" display mode (the helping hand snapped to the weapon); the smaller beam model; debug
-helpers from the old engine (`vr_show*`); shadows under the player and hands.
+Debug helpers from the old engine (`vr_show*`); shadows under the player and hands.

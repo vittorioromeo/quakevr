@@ -9,6 +9,7 @@
 #include "vr_render.hpp"
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
+#include "vr_twohand.hpp"
 #include "vr_main.hpp"
 #include "vr_weapons.hpp"
 
@@ -283,6 +284,13 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
         s.muzzleValid[hand] = false;
     }
 
+    s.grip2HValid[hand] = model && slot >= 0 && weapons::value(slot, Key::TwoHDisplayMode) == 1.f;
+    if(s.grip2HValid[hand])
+    {
+        s.grip2H[hand] = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::TwoHHandAnchorVertex)),
+            weapons::vec(slot, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY, Key::TwoHFixedOffsetZ));
+    }
+
     // The empty hand's "weapon" is a hand model; hands are drawn separately.
     if(isHandModel(model))
     {
@@ -365,7 +373,30 @@ void setupHand(const hands::State& s, int hand)
         hide = weapons::value(slot, Key::HideHand) != 0.f;
     }
 
-    // TODO VR: (P5) two-handed aiming ("fixed" display mode) and finger tracking frames.
+    // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
+    // onto the weapon's foregrip (blending in and out with the grip), turned like the holding
+    // hand plus the weapon's fixed-hand angles (old engine's V_SetupFixedHelpingHandViewEnt).
+    const int other = 1 - hand;
+    const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
+    if(gripBlend > 0.f)
+    {
+        pos = glm::mix(pos, s.grip2H[other], gripBlend);
+        hide = false;
+
+        if(twohand::helping(hand))
+        {
+            const int otherSlot = weapons::heldSlot(other);
+            glm::vec3 offsets = weapons::vec(otherSlot, Key::TwoHFixedHandPitch, Key::TwoHFixedHandYaw,
+                Key::TwoHFixedHandRoll);
+            if(!mirrored)
+            {
+                offsets.y = -offsets.y;
+                offsets.z = -offsets.z;
+            }
+            handRot = s.rot[other] + offsets + weaponAngleOffsets(fist, mirrored);
+        }
+    }
+
     for(int finger = 0; finger < FingerCount; finger++)
     {
         view::ViewEntity& ve = entities.hand[hand][finger];
@@ -663,6 +694,11 @@ void dumpView_f()
 
     for(int h = 0; h < 2; h++)
     {
+        if(s.grip2HValid[h])
+        {
+            Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == MAIN ? "main" : "off", s.grip2H[h].x,
+                s.grip2H[h].y, s.grip2H[h].z);
+        }
         const HandInput& in = tracking().input.hands[h];
         Con_Printf("%s hand: trigger %.2f grip %.2f thumb %d, curls %.1f %.1f %.1f %.1f %.1f\n",
             h == MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],

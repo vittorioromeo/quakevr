@@ -39,6 +39,11 @@ struct State
     // and kept until the next render (moves are sent before rendering).
     bool muzzleValid[2]{false, false};
     glm::vec3 muzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+
+    // Where the other hand grips each weapon in the "fixed" two-handed display mode (a
+    // foregrip vertex of the weapon model), placed with the muzzles.
+    bool grip2HValid[2]{false, false};
+    glm::vec3 grip2H[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 // The server set the view yaw: turn the play space to match (headset only).
