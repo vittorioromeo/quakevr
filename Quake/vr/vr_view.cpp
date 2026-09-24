@@ -473,6 +473,47 @@ void setupTorso(const hands::State& s)
 // ----------------------------------------------------------------------------
 // Weapon buttons
 
+// Pressing a weapon's button with the other hand's fingertip toggles its secondary ammo (old
+// engine's VR_DoWpnButton, which sent keys bound to these impulses).
+void pressWeaponButtons(const hands::State& s)
+{
+    struct ButtonState
+    {
+        bool hover{false};
+        double lastCheck{0.0};
+    };
+    static ButtonState states[2];
+
+    for(int hand = 0; hand < 2; hand++)
+    {
+        ButtonState& st = states[hand];
+        const view::ViewEntity& button = entities.button[hand];
+        if(!button.visible)
+        {
+            st.hover = false;
+            continue;
+        }
+        if(cl.time - st.lastCheck <= 0.2)
+        {
+            continue;
+        }
+        st.lastCheck = cl.time;
+
+        const int other = 1 - hand;
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(s.rot[other], fwd, right, up);
+        const glm::vec3 fingertip = s.pos[other] + fwd * 2.f - up * 2.5f;
+        const glm::vec3 buttonPos{button.ent.origin[0], button.ent.origin[1], button.ent.origin[2]};
+
+        const bool hover = glm::distance(fingertip, buttonPos) < 2.7f;
+        if(hover && !st.hover)
+        {
+            Cbuf_AddText(hand == OFF ? "impulse 42\n" : "impulse 43\n");
+        }
+        st.hover = hover;
+    }
+}
+
 void setupButton(const hands::State& s, int hand)
 {
     view::ViewEntity& ve = entities.button[hand];
@@ -590,6 +631,10 @@ extern "C" void VR_SetupViewEntities()
     setupTorso(s);
     setupButton(s, MAIN);
     setupButton(s, OFF);
+    if(vrActive())
+    {
+        pressWeaponButtons(s);
+    }
 
     // Rendering may run several times per frame (one per eye); add the entities only once.
     if(lastAddedFrame == host_framecount)
