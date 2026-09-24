@@ -58,7 +58,14 @@ void mockButton_f()
     {
         if(!q_strcasecmp(Cmd_Argv(2), c.name))
         {
-            mockInput.hands[hand].*c.button = Q_atoi(Cmd_Argv(3)) != 0;
+            HandInput& in = mockInput.hands[hand];
+            in.*c.button = Q_atoi(Cmd_Argv(3)) != 0;
+
+            // Like a real controller: the fingers follow the trigger and grip, the thumb rests
+            // on the face buttons.
+            in.triggerValue = in.trigger ? 1.f : 0.f;
+            in.gripValue = in.grip ? 1.f : 0.f;
+            in.thumbTouch = in.primary || in.secondary || in.stickClick;
             return;
         }
     }

@@ -273,6 +273,9 @@ private:
     XrAction stickClickAction{XR_NULL_HANDLE};
     XrAction menuAction{XR_NULL_HANDLE};
     XrAction stickAction{XR_NULL_HANDLE};
+    XrAction triggerValueAction{XR_NULL_HANDLE};
+    XrAction gripValueAction{XR_NULL_HANDLE};
+    XrAction thumbTouchAction{XR_NULL_HANDLE};
     XrAction hapticAction{XR_NULL_HANDLE};
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
@@ -510,6 +513,7 @@ private:
 
         suggest("/interaction_profiles/khr/simple_controller",
             {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/select/click"),
+                QVR_BOTH(triggerValueAction, "input/select/click"),
                 QVR_BOTH(menuAction, "input/menu/click"), QVR_BOTH(hapticAction, "output/haptic")});
 
         for(const char* touch : {"/interaction_profiles/oculus/touch_controller",
@@ -521,7 +525,12 @@ private:
                     QVR_BOTH(stickClickAction, "input/thumbstick/click"),
                     {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
                     {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic")});
+                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                    QVR_BOTH(gripValueAction, "input/squeeze/value"),
+                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                    {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
+                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")}});
         }
 
         // No menu button: the left B opens the menu.
@@ -530,7 +539,10 @@ private:
                 QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
                 QVR_BOTH(stickClickAction, "input/thumbstick/click"), QVR_BOTH(primaryAction, "input/a/click"),
                 {&secondaryAction, QVR_R("input/b/click")}, {&menuAction, QVR_L("input/b/click")},
-                QVR_BOTH(hapticAction, "output/haptic")});
+                QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                QVR_BOTH(gripValueAction, "input/squeeze/value"),
+                QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"), QVR_BOTH(thumbTouchAction, "input/a/touch"),
+                QVR_BOTH(thumbTouchAction, "input/b/touch"), QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
 
         // Trackpads as sticks, their clicks as the primary buttons; the right menu button is the
         // secondary button.
@@ -539,7 +551,9 @@ private:
                 QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/trackpad"),
                 QVR_BOTH(primaryAction, "input/trackpad/click"),
                 {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
-                QVR_BOTH(hapticAction, "output/haptic")});
+                QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                QVR_BOTH(gripValueAction, "input/squeeze/click"),
+                QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
 
         // Trackpad clicks are the primary buttons, the right menu button the secondary one.
         suggest("/interaction_profiles/microsoft/motion_controller",
@@ -548,7 +562,9 @@ private:
                 QVR_BOTH(stickClickAction, "input/thumbstick/click"),
                 QVR_BOTH(primaryAction, "input/trackpad/click"),
                 {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
-                QVR_BOTH(hapticAction, "output/haptic")});
+                QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                QVR_BOTH(gripValueAction, "input/squeeze/click"),
+                QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
 
 #undef QVR_BOTH
 #undef QVR_L
@@ -576,6 +592,9 @@ private:
         stickClickAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "stick_click", "Thumbstick click", true);
         menuAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "menu", "Menu", true);
         stickAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "stick", "Thumbstick", true);
+        triggerValueAction = makeAction(XR_ACTION_TYPE_FLOAT_INPUT, "trigger_curl", "Index finger (trigger)", true);
+        gripValueAction = makeAction(XR_ACTION_TYPE_FLOAT_INPUT, "grip_curl", "Other fingers (grip)", true);
+        thumbTouchAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "thumb_touch", "Thumb resting", true);
         hapticAction = makeAction(XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
 
         suggestBindings();
@@ -613,6 +632,19 @@ private:
                state.currentState;
     }
 
+    [[nodiscard]] float floatState(XrAction action, XrPath subaction) const
+    {
+        XrActionStateGetInfo info{XR_TYPE_ACTION_STATE_GET_INFO};
+        info.action = action;
+        info.subactionPath = subaction;
+        XrActionStateFloat state{XR_TYPE_ACTION_STATE_FLOAT};
+        if(!XR_SUCCEEDED(xrGetActionStateFloat(session, &info, &state)) || !state.isActive)
+        {
+            return 0.f;
+        }
+        return state.currentState;
+    }
+
     [[nodiscard]] glm::vec2 vec2State(XrAction action, XrPath subaction) const
     {
         XrActionStateGetInfo info{XR_TYPE_ACTION_STATE_GET_INFO};
@@ -639,6 +671,9 @@ private:
             hand.stickClick = boolState(stickClickAction, side);
             hand.menu = boolState(menuAction, side);
             hand.stick = vec2State(stickAction, side);
+            hand.triggerValue = floatState(triggerValueAction, side);
+            hand.gripValue = floatState(gripValueAction, side);
+            hand.thumbTouch = boolState(thumbTouchAction, side);
         }
     }
 

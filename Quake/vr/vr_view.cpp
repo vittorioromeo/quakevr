@@ -12,6 +12,7 @@
 #include "vr_weapons.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstring>
 
 using namespace qvr;
@@ -38,6 +39,62 @@ enum Finger : int
 constexpr const char* fingerModels[FingerCount] = {"progs/hand_base.mdl",
     "progs/finger_thumb.mdl", "progs/finger_index.mdl", "progs/finger_middle.mdl",
     "progs/finger_ring.mdl", "progs/finger_pinky.mdl"};
+
+// Finger curls, as finger model frames (0 open .. 5 curled), blended towards the controller's
+// (vr_finger_blending_speed frames per second). From the old engine's finger tracking, driven
+// by the trigger, the grip and the thumb's touch sensors instead of SteamVR's skeleton.
+float fingerFrames[2][FingerCount]{};
+double fingerFramesTime = -1.0;
+
+[[nodiscard]] float targetCurl(const HandInput& in, int finger)
+{
+    const auto curl = [](float v) { return CLAMP(0.f, v + vr_finger_grip_bias.value, 1.f); };
+
+    switch(finger)
+    {
+        case FingerBase: return 0.f;
+        case FingerThumb:
+        {
+            if(!vrActive())
+            {
+                return 1.f; // flat screen: a closed thumb, as the old engine
+            }
+            const bool othersCurled = (curl(in.triggerValue) + 3.f * curl(in.gripValue)) / 4.f > 0.5f;
+            return in.thumbTouch || (vr_finger_auto_close_thumb.value && othersCurled) ? 1.f : 0.f;
+        }
+        case FingerIndex: return curl(in.triggerValue);
+        default: return curl(in.gripValue);
+    }
+}
+
+void updateFingerFrames()
+{
+    const float dt = fingerFramesTime >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - fingerFramesTime, 0.1)) : 0.f;
+    fingerFramesTime = cl.time;
+
+    const InputState& input = tracking().input;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        for(int finger = 0; finger < FingerCount; finger++)
+        {
+            float& frame = fingerFrames[hand][finger];
+            const float target = targetCurl(input.hands[hand], finger) * 5.f;
+            if(!vr_finger_blending.value)
+            {
+                frame = target;
+                continue;
+            }
+
+            const float step = dt * vr_finger_blending_speed.value;
+            frame = frame < target ? std::fmin(frame + step, target) : std::fmax(frame - step, target);
+        }
+    }
+}
+
+[[nodiscard]] int fingerFrame(int hand, int finger)
+{
+    return static_cast<int>(fingerFrames[hand][finger] + 0.5f);
+}
 
 enum Holster : int
 {
@@ -270,7 +327,7 @@ void setupHand(const hands::State& s, int hand)
         }
 
         place(ve, Mod_ForName(fingerModels[finger], false), pos + hands::redirect(foff, handRot),
-            {-handRot.x, handRot.y, handRot.z}, 0, mirrored);
+            {-handRot.x, handRot.y, handRot.z}, fingerFrame(hand, finger), mirrored);
 
         if(hide)
         {
@@ -472,6 +529,7 @@ extern "C" void VR_SetupViewEntities()
         return;
     }
 
+    updateFingerFrames();
     setupWeapon(s, MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
     setupWeapon(s, OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
         cl.stats[STAT_QVR_WEAPONFRAME2]);
@@ -508,11 +566,20 @@ void dumpView_f()
     Con_Printf("hands valid %d  player (%.1f %.1f %.1f)  main (%.1f %.1f %.1f)\n", s.valid,
         s.playerOrigin.x, s.playerOrigin.y, s.playerOrigin.z, s.pos[1].x, s.pos[1].y, s.pos[1].z);
 
+    for(int h = 0; h < 2; h++)
+    {
+        const HandInput& in = tracking().input.hands[h];
+        Con_Printf("%s hand: trigger %.2f grip %.2f thumb %d, curls %.1f %.1f %.1f %.1f %.1f\n",
+            h == MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],
+            fingerFrames[h][FingerIndex], fingerFrames[h][FingerMiddle], fingerFrames[h][FingerRing],
+            fingerFrames[h][FingerPinky]);
+    }
+
     int i = 0;
     forEachEntity([&](ViewEntity& ve) {
         const entity_t& e = ve.ent;
-        Con_Printf("%2d %-24s vis %d mir %d org (%.1f %.1f %.1f) ang (%.0f %.0f %.0f)\n", i++,
-            e.model ? e.model->name : "-", ve.visible, ve.mirrored, e.origin[0], e.origin[1],
+        Con_Printf("%2d %-24s vis %d mir %d frame %d org (%.1f %.1f %.1f) ang (%.0f %.0f %.0f)\n", i++,
+            e.model ? e.model->name : "-", ve.visible, ve.mirrored, e.frame, e.origin[0], e.origin[1],
             e.origin[2], e.angles[0], e.angles[1], e.angles[2]);
     });
 }

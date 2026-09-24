@@ -45,6 +45,12 @@ struct HandInput
     bool stickClick{false};
     bool menu{false};
     glm::vec2 stick{0.f};  // x right, y forward
+
+    // For the fingers (0 open .. 1 pressed): the index finger follows the trigger, the other
+    // three the grip, the thumb whether it rests on a button, stick or thumb rest.
+    float triggerValue{0.f};
+    float gripValue{0.f};
+    bool thumbTouch{false};
 };
 
 // Controller input, [0] off hand, [1] main hand.
