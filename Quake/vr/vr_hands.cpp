@@ -1,7 +1,9 @@
 // vr_hands.cpp -- see vr_hands.hpp.
 
 #include "vr_hands.hpp"
+#include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flick.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
@@ -59,7 +61,6 @@ int stateFrame = -1;
 
 // Rotation of the play space around the vertical axis: accumulated snap/smooth turning, and
 // re-based whenever the server sets the view angle (spawning, teleporters).
-// TODO VR: (P5) snap/smooth turning from the thumbstick.
 float turnYaw = 0.f;
 bool pendingYawValid = false;
 float pendingYaw = 0.f;
@@ -74,6 +75,37 @@ struct Previous
 };
 
 Previous previous;
+
+// Room-scale movement: the head's horizontal tracking position last frame, and the world-space
+// walk accumulated since the last move was sent.
+bool lastHeadValid = false;
+glm::vec3 lastHead{0.f};
+glm::vec3 roomscaleMove{0.f};
+
+void updateRoomscale(const TrackingState& t, float m2u)
+{
+    const glm::vec3 head{t.head.position.x, 0.f, t.head.position.z};
+    if(!t.head.valid)
+    {
+        lastHeadValid = false;
+        return;
+    }
+
+    if(lastHeadValid)
+    {
+        const glm::vec3 delta =
+            rotateYaw(quakeFromTracking(head - lastHead) * m2u, turnYaw) * vr_roomscale_move_mult.value;
+
+        // A jump (recentred play space, tracking lost and found) is not a step.
+        if(glm::length(delta) < 50.f)
+        {
+            roomscaleMove += delta;
+        }
+    }
+
+    lastHead = head;
+    lastHeadValid = true;
+}
 
 // Fills the velocities: from the runtime when it has them, else by differencing body-relative
 // positions (the flat-screen hands, or a runtime without velocities).
@@ -118,12 +150,65 @@ void updateVelocities(const TrackingState* t)
     previous.valid = true;
 }
 
+// Yaw the head faces, also when looking steeply down or up (then the head's up vector tells
+// which way the face points). From the old engine's VR_GetHeadFwdAngleBlended.
+[[nodiscard]] float headYawBlended()
+{
+    const float pitch = state.headAngles.x;
+    if(std::fabs(pitch) <= 50.f)
+    {
+        return state.headAngles.y;
+    }
+
+    glm::vec3 fwd, right, up;
+    angleVectors(state.headAngles, fwd, right, up);
+    const glm::vec3 dir = glm::mix(fwd, pitch > 0.f ? up : -up, std::fabs(pitch) / 90.f);
+    return glm::degrees(std::atan2(dir.y, dir.x));
+}
+
+// The torso faces between the head and the hands (old engine's VR_GetBodyYawAngle): the head's
+// yaw, pulled towards where the hands are relative to the shoulders.
+[[nodiscard]] float bodyYaw(const TrackingState& t)
+{
+    const float headYaw = headYawBlended();
+    if(!t.hands[HAND_OFF].valid || !t.hands[HAND_MAIN].valid)
+    {
+        return headYaw;
+    }
+
+    glm::vec3 headFwd, headRight, headUp;
+    angleVectors({0.f, headYaw, 0.f}, headFwd, headRight, headUp);
+
+    const glm::vec3 chest = state.playerOrigin - headFwd * 10.f;
+    const glm::vec3 shoulders[2]{chest - headRight * 6.5f, chest + headRight * 6.5f};
+
+    glm::vec3 handDir{0.f};
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        glm::vec3 hand = state.pos[h];
+        hand.z = shoulders[HAND_OFF].z;
+        handDir += (hand - shoulders[h]) * 0.5f;
+    }
+    handDir /= 10.f;
+
+    // Hands behind the body pull only a little.
+    if(glm::dot(handDir, headFwd) < 0.f && glm::length(handDir) > 0.1f)
+    {
+        handDir = glm::normalize(handDir) * 0.1f;
+    }
+
+    const glm::vec3 dir = glm::mix(headFwd, handDir, 0.8f);
+    return glm::length(dir) > 0.f ? glm::degrees(std::atan2(dir.y, dir.x)) : headYaw;
+}
+
 void update()
 {
     state.valid = false;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || !cl.viewentity)
     {
         previous.valid = false;
+        lastHeadValid = false;
+        roomscaleMove = glm::vec3{0.f};
         return;
     }
 
@@ -150,6 +235,8 @@ void update()
             pendingYawValid = false;
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
+
+        updateRoomscale(t, m2u);
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -197,13 +284,18 @@ void update()
     }
 
     updateVelocities(vrActive() ? &t : nullptr);
+    flick::update(state);
 
-    // TODO VR: (P5) blend the head direction with the hands, as the old engine did.
-    state.bodyYaw = vrActive() ? state.headAngles.y : yaw;
+    state.bodyYaw = vrActive() ? bodyYaw(t) : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)
                             : 0.f;
+
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        state.hotspot[h] = body::hotspot(state, h);
+    }
 
     state.valid = true;
 }
@@ -226,6 +318,13 @@ void addTurn(float degrees)
 float playSpaceYaw()
 {
     return turnYaw;
+}
+
+glm::vec3 takeRoomscaleMove()
+{
+    const glm::vec3 move = roomscaleMove;
+    roomscaleMove = glm::vec3{0.f};
+    return move;
 }
 
 State& current()

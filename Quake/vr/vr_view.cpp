@@ -2,6 +2,7 @@
 
 #include "vr_view.hpp"
 #include "vr_anchor.hpp"
+#include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
@@ -160,7 +161,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     }
 
     const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
-    const glm::vec3& rot = s.rot[hand];
+    const glm::vec3& rot = s.visualRot[hand];
 
     place(ve, model, s.pos[hand] + gunOffset, {-rot.x + o.x, rot.y + o.y, rot.z + o.z}, frame,
         mirrored);
@@ -281,32 +282,20 @@ void setupHand(const hands::State& s, int hand)
 // ----------------------------------------------------------------------------
 // Body: holsters, holster slots, torso
 
-[[nodiscard]] glm::vec3 negateY(glm::vec3 v)
+// The drawn holsters (stat slots 2..5) in vr_body's terms.
+constexpr body::Holster bodyHolster[HolsterCount] = {
+    body::LeftHip, body::RightHip, body::LeftUpper, body::RightUpper};
+
+[[nodiscard]] bool hovered(const hands::State& s, body::Holster holster)
 {
-    v.y = -v.y;
-    return v;
+    const int hotspot = body::holsterHotspot(holster);
+    return s.hotspot[HAND_OFF] == hotspot || s.hotspot[HAND_MAIN] == hotspot;
 }
 
-[[nodiscard]] glm::vec3 holsterCrouchAdjustment(const hands::State& s, float mult)
+void highlight(view::ViewEntity& ve, bool on)
 {
-    const float heightRatio = CLAMP(0.f, s.crouchRatio - 0.2f, 0.6f);
-    return hands::forward({0.f, s.bodyYaw, 0.f}) * (heightRatio * mult);
-}
-
-[[nodiscard]] glm::vec3 holsterPosition(const hands::State& s, int holster)
-{
-    const glm::vec3 hip{vr_hip_offset_x.value, vr_hip_offset_y.value, vr_hip_offset_z.value};
-    const glm::vec3 upper{vr_upper_holster_offset_x.value, vr_upper_holster_offset_y.value,
-        vr_upper_holster_offset_z.value};
-
-    switch(holster)
-    {
-        case LeftHip: return hands::bodyAnchor(s, negateY(hip)) + holsterCrouchAdjustment(s, -9.5f);
-        case RightHip: return hands::bodyAnchor(s, hip) + holsterCrouchAdjustment(s, -9.5f);
-        case LeftUpper:
-            return hands::bodyAnchor(s, negateY(upper)) + holsterCrouchAdjustment(s, -1.5f);
-        default: return hands::bodyAnchor(s, upper) + holsterCrouchAdjustment(s, -1.5f);
-    }
+    ve.lightMultiply = on;
+    ve.lightMod = glm::vec3{on ? 6.f : 1.f};
 }
 
 void setupHolsters(const hands::State& s)
@@ -326,7 +315,8 @@ void setupHolsters(const hands::State& s)
     for(int h = 0; h < HolsterCount; h++)
     {
         const bool mirrored = h == LeftHip || h == LeftUpper;
-        const glm::vec3 pos = holsterPosition(s, h);
+        const glm::vec3 pos = body::holsterPosition(s, bodyHolster[h]);
+        const bool hover = hovered(s, bodyHolster[h]);
 
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + 2 + h]);
         if(isHandModel(model))
@@ -334,13 +324,14 @@ void setupHolsters(const hands::State& s)
             model = nullptr;
         }
 
-        // TODO VR: (P5) highlight holsters hovered by a hand (lightMultiply 6).
         place(entities.holster[h], model, pos, angles[h], 0, mirrored);
+        highlight(entities.holster[h], hover);
 
         if(vr_leg_holster_model_enabled.value)
         {
             place(entities.holsterSlot[h], Mod_ForName("progs/legholster.mdl", false), pos,
                 slotAngles[h], 0, mirrored);
+            highlight(entities.holsterSlot[h], hover);
         }
         else
         {
@@ -397,7 +388,7 @@ void setupButton(const hands::State& s, int hand)
     {
         angles.z = -angles.z;
     }
-    angles += s.rot[hand];
+    angles += s.visualRot[hand];
     angles.x = -angles.x;
 
     place(ve, Mod_ForName("progs/wpnbutton.mdl", false), pos, angles, 0, mirrored);

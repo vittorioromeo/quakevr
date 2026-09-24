@@ -4287,7 +4287,7 @@ void(entity ent, float xHand,
         }
     }
     // Holding a weapon and hovering an holster. Possible intention to holster or reload.
-    else if(!handEmpty && handGrabbing)
+    else if(!handEmpty && !letGo) // holding it: gripping, or (vr_weapon_grip_mode 1) not let go of
     {
         if(isHolsterHotspot(xHotspot))
         {

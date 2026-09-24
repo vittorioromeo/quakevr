@@ -826,7 +826,7 @@ void CL_SendCmd (void)
 		cmd.forwardmove	+= cl.pendingcmd.forwardmove;
 		cmd.sidemove	+= cl.pendingcmd.sidemove;
 		cmd.upmove		+= cl.pendingcmd.upmove;
-		VR_AdjustMove (&cmd.forwardmove, &cmd.sidemove); // QVR
+		VR_AdjustMove (&cmd.forwardmove, &cmd.sidemove, &cmd.upmove); // QVR
 
 	// send the unreliable message
 		CL_SendMove (&cmd);

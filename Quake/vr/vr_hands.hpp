@@ -25,12 +25,15 @@ struct State
 
     glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] off hand, [1] main hand
     glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 visualRot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // what the weapons are drawn at (flick spin)
 
     // Velocities in metres (radians) per second, in Quake axes turned with the play space, not
     // including the player's own movement: what the QC's thresholds and multipliers expect.
     glm::vec3 vel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 angVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 headVel{0.f};
+
+    int hotspot[2]{0, 0}; // body::Hotspot of each hand
 
     // Weapon muzzles, from the weapon models' anchor vertices: set by the view when it renders,
     // and kept until the next render (moves are sent before rendering).
@@ -47,6 +50,10 @@ void addTurn(float degrees);
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();
+
+// World-space distance the head walked in the play space since the last call (room-scale
+// movement, sent with each move).
+[[nodiscard]] glm::vec3 takeRoomscaleMove();
 
 // Body anchor used for holsters, the torso and shoulder stocks: `offsets` are forward, right
 // and up (scaled by vr_height_calibration), from the player origin.

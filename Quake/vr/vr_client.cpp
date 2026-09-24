@@ -3,6 +3,7 @@
 
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flick.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
@@ -113,6 +114,13 @@ bool wasGrabbing[2]{false, false};
     }
 
     move.headAngles = hs.headAngles;
+    move.vrYaw = hands::playSpaceYaw();
+
+    // The server walks the player by this over its frame (units per second).
+    if(host_frametime > 0.0)
+    {
+        move.roomscaleMove = hands::takeRoomscaleMove() / static_cast<float>(host_frametime);
+    }
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -137,6 +145,8 @@ bool wasGrabbing[2]{false, false};
         }
         wasGrabbing[h] = grabbing;
 
+        move.hotspots[h] = static_cast<std::uint8_t>(hs.hotspot[h]);
+
         // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame.
         move.muzzlePos[h] =
             hs.muzzleValid[h] ? hs.muzzle[h] : hand.pos + hands::forward(hand.rot) * 8.f;
@@ -157,8 +167,8 @@ bool wasGrabbing[2]{false, false};
     set(handButtons(HAND_MAIN).grab, VRBITS0_MAINHAND_GRABBING);
     set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
-    set(handButtons(HAND_OFF).flickReload, VRBITS0_OFFHAND_RELOADFLICKING);
-    set(handButtons(HAND_MAIN).flickReload, VRBITS0_MAINHAND_RELOADFLICKING);
+    set(handButtons(HAND_OFF).flickReload || flick::flicking(HAND_OFF), VRBITS0_OFFHAND_RELOADFLICKING);
+    set(handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN), VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     move.vrBits0 = static_cast<std::uint16_t>(bits);
@@ -312,6 +322,7 @@ extern "C" void VR_OnClientClearState()
     worldtext::clientReset();
     throwing::reset();
     twohand::reset();
+    flick::reset();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

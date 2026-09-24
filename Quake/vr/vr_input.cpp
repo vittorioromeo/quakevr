@@ -15,6 +15,7 @@
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 
+#include <utility>
 #include <vector>
 
 using namespace qvr;
@@ -182,7 +183,8 @@ void update(const InputState& tracked)
         {
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
-            {                Key_Event(b.key[h], now);
+            {
+                Key_Event(b.key[h], now);
             }
         }
 
@@ -223,8 +225,11 @@ void update(const InputState& tracked)
 
 } // namespace qvr::input
 
-// Thumbstick locomotion, relative to the head (the server steers by .v_viewangle).
-extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove)
+// Thumbstick locomotion. The server steers by the head (.v_viewangle): with
+// vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the off hand
+// points, expressed relative to the head. Either way, pointing the off hand up or down while
+// pushing forward swims up or down (from the old engine's VR_Move).
+extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
     if(moveAxes == glm::vec2{0.f})
     {
@@ -232,8 +237,47 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove)
     }
 
     const float speedScale = (in_speed.state & 1) ? cl_movespeedkey.value : 1.f;
-    *forwardmove += moveAxes.y * (moveAxes.y > 0.f ? cl_forwardspeed.value : cl_backspeed.value) * speedScale;
-    *sidemove += moveAxes.x * cl_sidespeed.value * speedScale;
+    const hands::State& s = hands::current();
+
+    float fwd = moveAxes.y;
+    float side = moveAxes.x;
+
+    if(s.valid && static_cast<int>(vr_movement_mode.value) == 0)
+    {
+        glm::vec3 lfwd, lright, lup;
+        hands::angleVectors(s.rot[HAND_OFF], lfwd, lright, lup);
+
+        // Pointing (nearly) straight up or down: steer with the hand's up vector instead.
+        if(std::fabs(lfwd.z) > 0.8f)
+        {
+            if(lfwd.z < -0.8f)
+            {
+                lfwd = -lfwd;
+            }
+            else
+            {
+                lup = -lup;
+            }
+            std::swap(lup, lfwd);
+        }
+
+        // Tilting the hand must not change the speed.
+        const float fac = 1.f / std::fmax(std::fabs(lup.z), 0.2f);
+        const glm::vec3 move = (moveAxes.y * lfwd + moveAxes.x * lright) * fac;
+
+        glm::vec3 vfwd, vright, vup;
+        hands::angleVectors({0.f, s.headAngles.y, 0.f}, vfwd, vright, vup);
+        fwd = glm::dot(move, vfwd);
+        side = glm::dot(move, vright);
+    }
+
+    *forwardmove += fwd * (fwd > 0.f ? cl_forwardspeed.value : cl_backspeed.value) * speedScale;
+    *sidemove += side * cl_sidespeed.value * speedScale;
+
+    if(s.valid)
+    {
+        *upmove += cl_upspeed.value * moveAxes.y * hands::forward(s.rot[HAND_OFF]).z * speedScale;
+    }
 }
 
 // Server side: `haptic(hand, delay, duration, frequency, amplitude)` from QC, sent to the

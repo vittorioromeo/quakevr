@@ -65,17 +65,22 @@ void mockButton_f()
     Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
 }
 
-// vr_mock_hand <main|off> <x> <y> <z>: tracking-space position (metres, +x right, +y up,
-// -z forward); "vr_mock_hand <main|off>" alone restores the standing pose's.
-glm::vec3 mockHandPos[HAND_COUNT];
-bool mockHandSet[HAND_COUNT]{};
+// vr_mock_hand <main|off|head> <x> <y> <z>: tracking-space position (metres, +x right, +y up,
+// -z forward); "vr_mock_hand <main|off|head>" alone restores the standing pose's.
+constexpr int mockHead = HAND_COUNT;
+glm::vec3 mockHandPos[HAND_COUNT + 1];
+bool mockHandSet[HAND_COUNT + 1]{};
 
 void mockHand_f()
 {
-    const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
+    int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
+    if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "head"))
+    {
+        hand = mockHead;
+    }
     if(hand < 0 || (Cmd_Argc() != 2 && Cmd_Argc() != 5))
     {
-        Con_Printf("usage: vr_mock_hand <main|off> [<x> <y> <z>]\n");
+        Con_Printf("usage: vr_mock_hand <main|off|head> [<x> <y> <z>]\n");
         return;
     }
     mockHandSet[hand] = Cmd_Argc() == 5;
@@ -153,6 +158,10 @@ public:
             {
                 tracking.hands[h].position = mockHandPos[h];
             }
+        }
+        if(mockHandSet[mockHead])
+        {
+            tracking.head.position = mockHandPos[mockHead];
         }
         if(vr_mock_swing.value > 0.f)
         {

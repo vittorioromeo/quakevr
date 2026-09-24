@@ -129,8 +129,8 @@ void VR_Status_f()
     {
         for(int h : {qvr::HAND_OFF, qvr::HAND_MAIN})
         {
-            Con_Printf("  %-5s angles (%.1f %.1f %.1f)%s%s\n", h == qvr::HAND_MAIN ? "main" : "off", hs.rot[h].x,
-                hs.rot[h].y, hs.rot[h].z, client::grabbing(h) ? ", grabbing" : "",
+            Con_Printf("  %-5s angles (%.1f %.1f %.1f), hotspot %d%s%s\n", h == qvr::HAND_MAIN ? "main" : "off",
+                hs.rot[h].x, hs.rot[h].y, hs.rot[h].z, hs.hotspot[h], client::grabbing(h) ? ", grabbing" : "",
                 twohand::helping(h) ? ", helping two-handed" : "");
         }
         Con_Printf("  two-handed aiming: %s\n", twohand::aiming() ? "yes" : "no");
