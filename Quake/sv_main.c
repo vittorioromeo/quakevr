@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 server_t	sv;
 server_static_t	svs;
@@ -505,6 +506,7 @@ void SV_ConnectClient (int clientnum)
 		PR_ExecuteProgram (pr_global_struct->SetNewParms);
 		for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 			client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
+		VR_StoreSpawnParms (clientnum); // QVR
 	}
 
 	SV_SendServerinfo (client);
@@ -1698,6 +1700,7 @@ void SV_SaveSpawnparms (void)
 		PR_ExecuteProgram (pr_global_struct->SetChangeParms);
 		for (j=0 ; j<NUM_SPAWN_PARMS ; j++)
 			host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
+		VR_StoreSpawnParms (i); // QVR
 	}
 }
 
@@ -2045,6 +2048,7 @@ void SV_SpawnServer (const char *server)
 // serverflags are for cross level information (sigils)
 	pr_global_struct->serverflags = svs.serverflags;
 
+	VR_OnSpawnServerBeforeLoad (); // QVR
 	ED_LoadFromFile (sv.worldmodel->entities);
 
 	sv.active = true;
@@ -2073,6 +2077,8 @@ void SV_SpawnServer (const char *server)
 	for (i=0,host_client = svs.clients ; i<svs.maxclients ; i++, host_client++)
 		if (host_client->active)
 			SV_SendServerinfo (host_client);
+
+	VR_OnSpawnServerAfterLoad (); // QVR
 
 	Con_DPrintf ("Server spawned.\n");
 

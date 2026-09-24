@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "q_ctype.h"
 #include "json.h"
 #include <time.h>
@@ -2620,6 +2621,7 @@ static void Host_Loadgame_f (void)
 		Host_ShutdownServer (false);
 
 	PR_SwitchQCVM(&sv.qcvm);
+	VR_OnBeginLoadGame (); // QVR
 	SV_SpawnServer (mapname);
 
 	if (!sv.active)
@@ -2694,6 +2696,7 @@ static void Host_Loadgame_f (void)
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
+	VR_OnLoadGame (); // QVR
 
 	PR_SwitchQCVM(NULL);
 
@@ -3088,6 +3091,7 @@ static void Host_Spawn_f (void)
 		// copy spawn parms out of the client_t
 		for (i=0 ; i< NUM_SPAWN_PARMS ; i++)
 			(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
+		VR_RestoreSpawnParms (host_client - svs.clients); // QVR
 		// call the spawn function
 		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG(sv_player);

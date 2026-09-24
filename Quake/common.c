@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "q_ctype.h"
 #include "bgmusic.h"
 #include "steam.h"
@@ -2502,6 +2503,8 @@ void COM_AddGameDirectory (const char *dir)
 	pack_t *pak;
 	char pakfile[MAX_OSPATH];
 
+	VR_BeforeAddGameDirectory (dir); // QVR
+
 	if (*com_gamenames)
 		q_strlcat(com_gamenames, ";", sizeof(com_gamenames));
 	q_strlcat(com_gamenames, dir, sizeof(com_gamenames));
@@ -2560,6 +2563,8 @@ void COM_AddGameDirectory (const char *dir)
 				COM_AddEnginePak ();
 		}
 	}
+
+	VR_AfterAddGameDirectory (dir); // QVR
 }
 
 void COM_ResetGameDirectories(const char *newgamedirs)

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "q_ctype.h"
 
 #define	STRINGTEMP_BUFFERS		1024
@@ -320,7 +321,10 @@ static void PF_setmodel (void)
 
 	if (!*check)
 	{
-		PR_RunError ("no precache: %s", m);
+		i = VR_LatePrecacheModel (m); // QVR
+		if (i < 0)
+			PR_RunError ("no precache: %s", m);
+		check = &sv.model_precache[i]; // QVR
 	}
 	e->v.model = PR_SetEngineString(*check);
 	e->v.modelindex = i; //SV_ModelIndex (m);
@@ -1145,7 +1149,7 @@ static void PF_precache_model (void)
 	const char	*s;
 	int		i;
 
-	if (sv.state != ss_loading)
+	if (sv.state != ss_loading && !VR_AllowLatePrecache ()) // QVR
 		PR_RunError ("PF_Precache_*: Precache can only be done in spawn functions");
 
 	s = G_STRING(OFS_PARM0);
@@ -1242,6 +1246,9 @@ static void PF_droptofloor (void)
 	edict_t		*ent;
 	vec3_t		end;
 	trace_t		trace;
+
+	if (VR_DropToFloor ()) // QVR
+		return;
 
 	ent = PROG_TO_EDICT(pr_global_struct->self);
 
@@ -1701,6 +1708,7 @@ static void PF_setspawnparms (void)
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		(&pr_global_struct->parm1)[i] = client->spawn_parms[i];
+	VR_RestoreSpawnParms (client - svs.clients); // QVR
 }
 
 /*

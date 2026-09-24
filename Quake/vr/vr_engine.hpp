@@ -11,6 +11,10 @@
 
 extern "C" {
 #include "quakedef.h"
+
+// Engine globals that no engine header declares.
+extern cvar_t sv_gravity;
+int ED_FindFieldOffset (const char *name);
 }
 
 #include "vr_api.h"

@@ -31,12 +31,28 @@ extern "C" {
 #endif
 
 // Host lifetime (host.c).
-void VR_Init (void);		// client init, after CL_Init: registers cvars and commands
+void VR_Init (void);		// after SV_Init (also on dedicated servers): registers cvars and commands
 void VR_Shutdown (void);	// client shutdown, before video shutdown
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 
 // Queries.
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running
+
+// Filesystem (common.c).
+void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory
+void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
+
+// Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).
+void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
+void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
+void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
+void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
+void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
+void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
+void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
+int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
+int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
+int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
 
 #ifdef __cplusplus
 }

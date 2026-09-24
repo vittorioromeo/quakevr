@@ -2,16 +2,15 @@
 
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
+#include "vr_cvars.hpp"
 
 #include <cstring>
 #include <memory>
 
+using namespace qvr;
+
 namespace
 {
-
-cvar_t vr_enabled = {"vr_enabled", "0", CVAR_ARCHIVE};
-cvar_t vr_backend = {"vr_backend", "mock", CVAR_ARCHIVE};
-cvar_t vr_world_scale = {"vr_world_scale", "1", CVAR_ARCHIVE};
 
 struct State
 {
@@ -103,9 +102,7 @@ extern "C" void VR_Init()
 {
     state = new State{};
 
-    Cvar_RegisterVariable(&vr_enabled);
-    Cvar_RegisterVariable(&vr_backend);
-    Cvar_RegisterVariable(&vr_world_scale);
+    registerCvars();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
 
@@ -128,7 +125,7 @@ extern "C" void VR_Shutdown()
 
 extern "C" void VR_BeginFrame()
 {
-    if(!state)
+    if(!state || cls.state == ca_dedicated)
     {
         return;
     }
