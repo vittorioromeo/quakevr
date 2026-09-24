@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 static void CL_FinishTimeDemo (void);
 
@@ -731,6 +732,8 @@ void CL_Record_f (void)
 		MSG_WriteByte (&net_message, svc_updatestat);
 		MSG_WriteByte (&net_message, STAT_MONSTERS);
 		MSG_WriteLong (&net_message, cl.stats[STAT_MONSTERS]);
+
+		VR_WriteDemoState (&net_message); // QVR: world texts
 
 		// view entity
 		MSG_WriteByte (&net_message, svc_setview);

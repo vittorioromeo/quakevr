@@ -45,14 +45,16 @@ void writeText(sizebuf_t* msg, int handle, const WorldText& wt)
     MSG_WriteString(msg, wt.text.c_str());
 }
 
-void writePos(sizebuf_t* msg, int handle, const WorldText& wt)
+void writePos(sizebuf_t* msg, int handle, const WorldText& wt, unsigned int protocolflags)
 {
     beginMessage(msg, QVR_SVC_WORLDTEXT_POS, handle);
     for(int i = 0; i < 3; i++)
     {
-        MSG_WriteCoord(msg, wt.pos[i], sv.protocolflags);
+        MSG_WriteCoord(msg, wt.pos[i], protocolflags);
     }
 }
+
+void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags);
 
 void writeAngles(sizebuf_t* msg, int handle, const WorldText& wt)
 {
@@ -129,7 +131,7 @@ void serverSetPos(int handle, const glm::vec3& pos)
     wt.pos = pos;
     if(sizebuf_t* msg = broadcast())
     {
-        writePos(msg, handle, wt);
+        writePos(msg, handle, wt, sv.protocolflags);
     }
 }
 
@@ -163,18 +165,33 @@ void serverSetScale(int handle, float scale)
     }
 }
 
-void serverWriteAll(sizebuf_t* msg)
+namespace
 {
-    for(int handle = 0; handle < static_cast<int>(serverTexts.size()); handle++)
+
+void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags)
+{
+    for(int handle = 0; handle < static_cast<int>(texts.size()); handle++)
     {
-        const WorldText& wt = serverTexts[handle];
+        const WorldText& wt = texts[handle];
         beginMessage(msg, QVR_SVC_WORLDTEXT_MAKE, handle);
         writeText(msg, handle, wt);
-        writePos(msg, handle, wt);
+        writePos(msg, handle, wt, protocolflags);
         writeAngles(msg, handle, wt);
         writeHAlign(msg, handle, wt);
         writeScale(msg, handle, wt);
     }
+}
+
+} // namespace
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    writeAll(msg, serverTexts, sv.protocolflags);
+}
+
+void clientWriteAll(sizebuf_t* msg)
+{
+    writeAll(msg, clientTextList, cl.protocolflags);
 }
 
 void clientReset()

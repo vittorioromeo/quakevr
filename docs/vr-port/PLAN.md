@@ -31,7 +31,6 @@ Known gaps carried forward:
 - World text is networked but not rendered (P7); `particle2` draws plain blood puffs until presets (P7); `haptic` is networked (P5).
 - Hand model is drawn as a plain view model until P3.
 - Deferred old-engine physics rewrites, to evaluate in VR first: `SV_PushMove` (Ironwail's `sv_gameplayfix_elevators` may suffice), `SV_PushEntity` tracing from origin−push. (The toss ground pre-check is `vr_gameplayfix_tossfall`.)
-- Mid-demo recording does not re-emit VR state (world texts); VR stats are resent by the stat channel.
 
 ## Principles
 

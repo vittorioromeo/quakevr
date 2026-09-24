@@ -43,6 +43,7 @@ void serverWriteAll(sizebuf_t* msg); // replay for a spawning client
 // Client side.
 void clientReset();
 void clientParse(int subcmd); // QVR_SVC_WORLDTEXT_*
+void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded mid-game
 [[nodiscard]] const std::vector<WorldText>& clientTexts();
 
 } // namespace qvr::worldtext

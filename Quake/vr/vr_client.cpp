@@ -368,6 +368,15 @@ extern "C" float VR_BeamScale(qmodel_t* model)
     return 1.f;
 }
 
+// CL_Record_f, recording mid-game: the demo needs the VR state received so far.
+extern "C" void VR_WriteDemoState(sizebuf_t* msg)
+{
+    if(vrProtocol())
+    {
+        worldtext::clientWriteAll(msg);
+    }
+}
+
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();

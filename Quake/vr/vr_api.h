@@ -67,6 +67,7 @@ int VR_TossKeepsGround (struct edict_s *ent);			// SV_Physics_Toss, when on the 
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, sv_user.c, sv_main.c, host.c, host_cmd.c).
 void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_SendHaptic (struct edict_s *player, int hand, float delay, float duration, float frequency, float amplitude);
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
