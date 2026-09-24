@@ -62,7 +62,8 @@ void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
-int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
+int VR_DropToFloor (void);
+int VR_TossKeepsGround (struct edict_s *ent);			// SV_Physics_Toss, when on the ground: nonzero to stay				// start of PF_droptofloor: nonzero if it handled the call
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, sv_user.c, sv_main.c, host.c, host_cmd.c).
 void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove

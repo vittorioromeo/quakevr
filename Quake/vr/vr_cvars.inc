@@ -6,6 +6,7 @@
 QVR_CVAR(vr_gameplayfix_droptofloor, "0", CVAR_NONE)  // corner traces instead of a box sweep
 QVR_CVAR(vr_gameplayfix_touchsolids, "0", CVAR_NONE)  // .touch fires for solids, not just triggers
 QVR_CVAR(vr_gameplayfix_missilesize, "0", CVAR_NONE)  // missile-vs-monster box extent (0: vanilla 15)
+QVR_CVAR(vr_gameplayfix_tossfall, "0", CVAR_NONE)     // resting items and weapons fall when their support goes
 
 // Throwing (vr_throw.cpp). Algorithm: 0 average of the last vr_throw_avg_frames frames (the
 // old engine's "Basic"), 1 the same plus the lever-arm term, 2 peak speed within

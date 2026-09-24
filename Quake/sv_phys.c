@@ -1141,7 +1141,7 @@ void SV_Physics_Toss (edict_t *ent)
 		return;
 
 // if onground, return without moving
-	if ( ((int)ent->v.flags & FL_ONGROUND) )
+	if ( ((int)ent->v.flags & FL_ONGROUND) && VR_TossKeepsGround (ent) ) // QVR: unless its support went away
 		return;
 
 	SV_CheckVelocity (ent);
