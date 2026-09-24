@@ -53,7 +53,7 @@ bool offhandAttack = false;
 bool offhandAttackImpulse = false; // pressed and released between two moves
 
 // Which physical hand is which depends on vr_lefthanded.
-[[nodiscard]] const HandButtons& handButtons(int hand)
+[[nodiscard]] HandButtons& handButtons(int hand)
 {
     const bool leftIsOffHand = !vr_lefthanded.value;
     return (hand == HAND_OFF) == leftIsOffHand ? leftButtons : rightButtons;
@@ -75,6 +75,12 @@ QVR_BUTTON_COMMANDS(ReloadLeft, leftButtons.reload)
 QVR_BUTTON_COMMANDS(ReloadRight, rightButtons.reload)
 QVR_BUTTON_COMMANDS(FlickReloadLeft, leftButtons.flickReload)
 QVR_BUTTON_COMMANDS(FlickReloadRight, rightButtons.flickReload)
+
+// By role rather than side: what the controller keys are bound to (quakevr/default.cfg).
+QVR_BUTTON_COMMANDS(GrabMain, handButtons(HAND_MAIN).grab)
+QVR_BUTTON_COMMANDS(GrabOff, handButtons(HAND_OFF).grab)
+QVR_BUTTON_COMMANDS(ReloadMain, handButtons(HAND_MAIN).reload)
+QVR_BUTTON_COMMANDS(ReloadOff, handButtons(HAND_OFF).reload)
 
 #undef QVR_BUTTON_COMMANDS
 
@@ -263,6 +269,14 @@ void init()
     Cmd_AddCommand("-flickreloadleft", FlickReloadLeftUp_f);
     Cmd_AddCommand("+flickreloadright", FlickReloadRightDown_f);
     Cmd_AddCommand("-flickreloadright", FlickReloadRightUp_f);
+    Cmd_AddCommand("+grabmain", GrabMainDown_f);
+    Cmd_AddCommand("-grabmain", GrabMainUp_f);
+    Cmd_AddCommand("+graboff", GrabOffDown_f);
+    Cmd_AddCommand("-graboff", GrabOffUp_f);
+    Cmd_AddCommand("+reloadmain", ReloadMainDown_f);
+    Cmd_AddCommand("-reloadmain", ReloadMainUp_f);
+    Cmd_AddCommand("+reloadoff", ReloadOffDown_f);
+    Cmd_AddCommand("-reloadoff", ReloadOffUp_f);
 }
 
 const EntityVr* entityVr(int num)

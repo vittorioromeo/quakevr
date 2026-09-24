@@ -35,17 +35,22 @@ enum Hand : int
     HAND_COUNT = 2
 };
 
-// Controller input, per hand ([0] off hand, [1] main hand) where it applies.
+// One controller's physical controls. What they do is up to the key bindings (vr_input.cpp).
+struct HandInput
+{
+    bool trigger{false};
+    bool grip{false};
+    bool primary{false};   // A / X
+    bool secondary{false}; // B / Y
+    bool stickClick{false};
+    bool menu{false};
+    glm::vec2 stick{0.f};  // x right, y forward
+};
+
+// Controller input, [0] off hand, [1] main hand.
 struct InputState
 {
-    bool fire[HAND_COUNT]{};
-    bool grab[HAND_COUNT]{};
-    bool reload[HAND_COUNT]{};
-    bool nextWeapon[HAND_COUNT]{};
-    bool jump{false};
-    bool menu{false};
-    glm::vec2 move{0.f}; // locomotion stick: x right, y forward
-    glm::vec2 turn{0.f}; // turning stick: x right
+    HandInput hands[HAND_COUNT];
 };
 
 struct TrackingState
@@ -112,5 +117,8 @@ public:
 
 // A standing player holding both hands in front of the chest (what the mock backend reports).
 [[nodiscard]] TrackingState standingPose();
+
+// Console commands driving the mock backend's controllers: vr_mock_button, vr_mock_stick.
+void registerMockCommands();
 
 } // namespace qvr

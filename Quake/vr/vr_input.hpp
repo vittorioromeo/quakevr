@@ -8,6 +8,8 @@
 namespace qvr::input
 {
 
+void init();
+
 // Once per host frame with the backend's input.
 void update(const InputState& in);
 

@@ -19,6 +19,64 @@ constexpr int eyeWidth = 1024;
 constexpr int eyeHeight = 1024;
 constexpr float halfIpd = 0.032f;
 
+// Controller input set from the console, for testing without a headset.
+InputState mockInput;
+
+[[nodiscard]] int mockHand(const char* name)
+{
+    if(!q_strcasecmp(name, "main"))
+    {
+        return HAND_MAIN;
+    }
+    if(!q_strcasecmp(name, "off"))
+    {
+        return HAND_OFF;
+    }
+    return -1;
+}
+
+// vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>
+void mockButton_f()
+{
+    const int hand = Cmd_Argc() == 4 ? mockHand(Cmd_Argv(1)) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>\n");
+        return;
+    }
+
+    struct Control
+    {
+        const char* name;
+        bool HandInput::*button;
+    };
+    constexpr Control controls[] = {{"trigger", &HandInput::trigger}, {"grip", &HandInput::grip},
+        {"primary", &HandInput::primary}, {"secondary", &HandInput::secondary},
+        {"stickclick", &HandInput::stickClick}, {"menu", &HandInput::menu}};
+
+    for(const Control& c : controls)
+    {
+        if(!q_strcasecmp(Cmd_Argv(2), c.name))
+        {
+            mockInput.hands[hand].*c.button = Q_atoi(Cmd_Argv(3)) != 0;
+            return;
+        }
+    }
+    Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
+}
+
+// vr_mock_stick <main|off> <x> <y>
+void mockStick_f()
+{
+    const int hand = Cmd_Argc() == 4 ? mockHand(Cmd_Argv(1)) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_stick <main|off> <x> <y>\n");
+        return;
+    }
+    mockInput.hands[hand].stick = {Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+}
+
 // vr_mock_swing: the main hand swings on a 60cm arm around the shoulder, from behind the head
 // to in front of the chest and back, with exact velocities (as a runtime reports them).
 void swing(Pose& hand, double time, float period)
@@ -71,6 +129,7 @@ public:
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
     {
         tracking = standingPose();
+        tracking.input = mockInput;
         if(vr_mock_swing.value > 0.f)
         {
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
@@ -129,6 +188,12 @@ TrackingState standingPose()
     }
 
     return out;
+}
+
+void registerMockCommands()
+{
+    Cmd_AddCommand("vr_mock_button", mockButton_f);
+    Cmd_AddCommand("vr_mock_stick", mockStick_f);
 }
 
 std::unique_ptr<Backend> makeMockBackend()

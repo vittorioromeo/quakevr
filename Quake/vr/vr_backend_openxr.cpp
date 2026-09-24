@@ -266,14 +266,13 @@ private:
     XrSpace viewSpace{XR_NULL_HANDLE};
     XrActionSet actionSet{XR_NULL_HANDLE};
     XrAction gripPose{XR_NULL_HANDLE};
-    XrAction fireAction{XR_NULL_HANDLE};
-    XrAction grabAction{XR_NULL_HANDLE};
-    XrAction reloadAction{XR_NULL_HANDLE};
-    XrAction nextWeaponAction{XR_NULL_HANDLE};
-    XrAction jumpAction{XR_NULL_HANDLE};
+    XrAction triggerAction{XR_NULL_HANDLE};
+    XrAction gripAction{XR_NULL_HANDLE};
+    XrAction primaryAction{XR_NULL_HANDLE};
+    XrAction secondaryAction{XR_NULL_HANDLE};
+    XrAction stickClickAction{XR_NULL_HANDLE};
     XrAction menuAction{XR_NULL_HANDLE};
-    XrAction moveAction{XR_NULL_HANDLE};
-    XrAction turnAction{XR_NULL_HANDLE};
+    XrAction stickAction{XR_NULL_HANDLE};
     XrAction hapticAction{XR_NULL_HANDLE};
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
@@ -501,63 +500,57 @@ private:
         }
     }
 
+    // The actions are the controllers' physical controls; the game assigns them through key
+    // bindings. Controllers without some control (Vive wands, WMR) map the closest one.
     void suggestBindings()
     {
 #define QVR_L(p) "/user/hand/left/" p
 #define QVR_R(p) "/user/hand/right/" p
+#define QVR_BOTH(action, p) {&action, QVR_L(p)}, {&action, QVR_R(p)}
 
         suggest("/interaction_profiles/khr/simple_controller",
-            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
-                {&fireAction, QVR_L("input/select/click")}, {&fireAction, QVR_R("input/select/click")},
-                {&menuAction, QVR_L("input/menu/click")},
-                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/select/click"),
+                QVR_BOTH(menuAction, "input/menu/click"), QVR_BOTH(hapticAction, "output/haptic")});
 
         for(const char* touch : {"/interaction_profiles/oculus/touch_controller",
                 "/interaction_profiles/meta/touch_controller_plus"})
         {
             suggest(touch,
-                {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
-                    {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
-                    {&grabAction, QVR_L("input/squeeze/value")}, {&grabAction, QVR_R("input/squeeze/value")},
-                    {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
-                    {&jumpAction, QVR_R("input/a/click")},
-                    {&nextWeaponAction, QVR_R("input/b/click")}, {&nextWeaponAction, QVR_L("input/y/click")},
-                    {&reloadAction, QVR_L("input/x/click")}, {&reloadAction, QVR_R("input/thumbstick/click")},
-                    {&menuAction, QVR_L("input/menu/click")},
-                    {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic")});
         }
 
+        // No menu button: the left B opens the menu.
         suggest("/interaction_profiles/valve/index_controller",
-            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
-                {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
-                {&grabAction, QVR_L("input/squeeze/value")}, {&grabAction, QVR_R("input/squeeze/value")},
-                {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
-                {&jumpAction, QVR_R("input/a/click")},
-                {&nextWeaponAction, QVR_R("input/b/click")}, {&nextWeaponAction, QVR_L("input/thumbstick/click")},
-                {&reloadAction, QVR_L("input/a/click")}, {&reloadAction, QVR_R("input/thumbstick/click")},
-                {&menuAction, QVR_L("input/b/click")},
-                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                QVR_BOTH(stickClickAction, "input/thumbstick/click"), QVR_BOTH(primaryAction, "input/a/click"),
+                {&secondaryAction, QVR_R("input/b/click")}, {&menuAction, QVR_L("input/b/click")},
+                QVR_BOTH(hapticAction, "output/haptic")});
 
+        // Trackpads as sticks, their clicks as the primary buttons; the right menu button is the
+        // secondary button.
         suggest("/interaction_profiles/htc/vive_controller",
-            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
-                {&fireAction, QVR_L("input/trigger/click")}, {&fireAction, QVR_R("input/trigger/click")},
-                {&grabAction, QVR_L("input/squeeze/click")}, {&grabAction, QVR_R("input/squeeze/click")},
-                {&moveAction, QVR_L("input/trackpad")}, {&turnAction, QVR_R("input/trackpad")},
-                {&jumpAction, QVR_R("input/trackpad/click")},
-                {&nextWeaponAction, QVR_R("input/menu/click")},
-                {&menuAction, QVR_L("input/menu/click")},
-                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/click"),
+                QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/trackpad"),
+                QVR_BOTH(primaryAction, "input/trackpad/click"),
+                {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
+                QVR_BOTH(hapticAction, "output/haptic")});
 
+        // Trackpad clicks are the primary buttons, the right menu button the secondary one.
         suggest("/interaction_profiles/microsoft/motion_controller",
-            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
-                {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
-                {&grabAction, QVR_L("input/squeeze/click")}, {&grabAction, QVR_R("input/squeeze/click")},
-                {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
-                {&jumpAction, QVR_R("input/trackpad/click")},
-                {&nextWeaponAction, QVR_R("input/menu/click")}, {&nextWeaponAction, QVR_L("input/trackpad/click")},
-                {&menuAction, QVR_L("input/menu/click")},
-                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                QVR_BOTH(primaryAction, "input/trackpad/click"),
+                {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
+                QVR_BOTH(hapticAction, "output/haptic")});
 
+#undef QVR_BOTH
 #undef QVR_L
 #undef QVR_R
     }
@@ -576,14 +569,13 @@ private:
         handPaths[1] = path("/user/hand/right");
 
         gripPose = makeAction(XR_ACTION_TYPE_POSE_INPUT, "grip_pose", "Hand pose", true);
-        fireAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "fire", "Fire weapon", true);
-        grabAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "grab", "Grab", true);
-        reloadAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "reload", "Reload", true);
-        nextWeaponAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "next_weapon", "Next weapon", true);
-        jumpAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "jump", "Jump", false);
-        menuAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "menu", "Menu", false);
-        moveAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "move", "Move", false);
-        turnAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "turn", "Turn", false);
+        triggerAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "trigger", "Trigger", true);
+        gripAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "grip", "Grip", true);
+        primaryAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "primary", "Primary button (A/X)", true);
+        secondaryAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "secondary", "Secondary button (B/Y)", true);
+        stickClickAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "stick_click", "Thumbstick click", true);
+        menuAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "menu", "Menu", true);
+        stickAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "stick", "Thumbstick", true);
         hapticAction = makeAction(XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
 
         suggestBindings();
@@ -621,10 +613,11 @@ private:
                state.currentState;
     }
 
-    [[nodiscard]] glm::vec2 vec2State(XrAction action) const
+    [[nodiscard]] glm::vec2 vec2State(XrAction action, XrPath subaction) const
     {
         XrActionStateGetInfo info{XR_TYPE_ACTION_STATE_GET_INFO};
         info.action = action;
+        info.subactionPath = subaction;
         XrActionStateVector2f state{XR_TYPE_ACTION_STATE_VECTOR2F};
         if(!XR_SUCCEEDED(xrGetActionStateVector2f(session, &info, &state)) || !state.isActive)
         {
@@ -638,16 +631,15 @@ private:
         for(int h = 0; h < HAND_COUNT; h++)
         {
             const XrPath side = handPaths[handSide(h)];
-            in.fire[h] = boolState(fireAction, side);
-            in.grab[h] = boolState(grabAction, side);
-            in.reload[h] = boolState(reloadAction, side);
-            in.nextWeapon[h] = boolState(nextWeaponAction, side);
+            HandInput& hand = in.hands[h];
+            hand.trigger = boolState(triggerAction, side);
+            hand.grip = boolState(gripAction, side);
+            hand.primary = boolState(primaryAction, side);
+            hand.secondary = boolState(secondaryAction, side);
+            hand.stickClick = boolState(stickClickAction, side);
+            hand.menu = boolState(menuAction, side);
+            hand.stick = vec2State(stickAction, side);
         }
-
-        in.jump = boolState(jumpAction, XR_NULL_PATH);
-        in.menu = boolState(menuAction, XR_NULL_PATH);
-        in.move = vec2State(moveAction);
-        in.turn = vec2State(turnAction);
     }
 
 public:

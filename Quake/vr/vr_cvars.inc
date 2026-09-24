@@ -18,6 +18,9 @@ QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)  // metres from the grip to th
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons (0: sv_gravity, as Quake objects)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimated velocity
 
+// Version of quakevr/vr_bindings.cfg last applied (vr_checkbindings).
+QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
+
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 

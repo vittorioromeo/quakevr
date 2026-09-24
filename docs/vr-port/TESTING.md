@@ -22,19 +22,29 @@ only been checked up to "no headset connected", so expect rough edges: tell me w
 it could not start; `vr_status` prints the tracking state and `vr_restart` restarts the session (after putting the
 headset on, or switching runtimes). `vr_enabled 0` is flat-screen play.
 
-## Controls (right-handed; `vr_lefthanded 1` swaps the hands)
+## Controls
 
-| | Touch / Touch Plus | Index | Vive | WMR |
-|---|---|---|---|---|
-| Fire (each hand) | trigger | trigger | trigger | trigger |
-| Grab (each hand) | grip | grip | grip | grip |
-| Move / turn | left / right stick | left / right stick | left / right trackpad | left / right stick |
-| Jump | A | A | right trackpad click | right trackpad click |
-| Next weapon (main / off hand) | B / Y | B / left stick click | right menu | right menu / left trackpad click |
-| Reload (off / main hand) | X / right stick click | A (left) / right stick click | – | – |
-| Menu | left menu | left B | left menu | left menu |
+Controller buttons are Quake keys (issue #12), so everything can be rebound from the console or Ironwail's
+bindings menu (press the controller button when asked for a key), aliases included. They reuse the gamepad key
+names **by role**: the main hand is the gamepad's right half, the off hand its left half, so `vr_lefthanded 1`
+needs no rebinding.
 
-In menus: sticks navigate, trigger or jump selects, the menu button goes back. The runtime may let you rebind these.
+| Control | Main hand key | Off hand key | Default binding (main / off) |
+|---|---|---|---|
+| Trigger | `RTRIGGER` | `LTRIGGER` | `+attack` / `+offhandattack` |
+| Grip | `RSHOULDER` | `LSHOULDER` | `+grabmain` / `+graboff` |
+| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff` |
+| B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon) |
+| Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` |
+| Stick | turn; up/down are `DPAD_UP`/`DPAD_DOWN` (`+moveup`/`+movedown`: swim) | move | |
+| Menu button | Escape (not rebindable) | | |
+
+Controllers without some of these: Index has no menu button, so its left B opens the menu. Vive wands use the
+trackpads as sticks and their clicks as A/X, and the right menu button as B. WMR uses the trackpad clicks as A/X
+and the right menu button as B. In menus both sticks navigate, A selects and B goes back.
+
+The defaults live in `quakevr/vr_bindings.cfg`. They are applied once (`vr_bindings_version`) on top of whatever
+config was saved before, including one inherited from `id1`; "Reset to defaults" applies them again.
 
 Useful settings:
 
@@ -83,7 +93,7 @@ gravity and spin. Things to try:
 | #34 weapon knockback too strong | the rendered hand follows the weapon's firing animation: please check how it feels |
 | #67 / #40 hands shaking (frame cap, after a break) | OpenVR pose-timing problems; OpenXR predicts poses for the displayed frame: please confirm |
 | #64, #70, #19, #49, #52 | old engine/renderer (SteamVR keyboard, lighting, animated textures, mission-pack launch, black screen): gone with Ironwail |
-| #12 missing bindings | next: make the controller buttons Quake keys, so anything (aliases, swim up/down, scores) can be bound |
+| #12 missing bindings | done: the controller buttons are Quake keys (see Controls) |
 | #20, #14 status bar on the hands | P6 (HUD) |
 
 ## Not there yet

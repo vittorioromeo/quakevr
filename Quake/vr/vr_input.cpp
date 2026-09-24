@@ -1,7 +1,13 @@
-// vr_input.cpp -- controller input: commands, locomotion, turning, menu navigation, haptics.
+// vr_input.cpp -- controller input: keys, locomotion, turning, haptics.
 //
-// Controller buttons run the same commands as keys would (+attack, +grabright, impulse 10...),
-// so nothing depends on key bindings in a config file.
+// Controller buttons are Quake keys, so everything they do comes from bindings (defaults in
+// quakevr/default.cfg) and can be rebound -- with aliases -- from the console or the bindings
+// menu. They reuse Ironwail's gamepad keys by role, not by side, so that vr_lefthanded needs
+// no rebinding: the main hand is the "right" half of a gamepad (RT, RB, A, B, RS), the off
+// hand the "left" half (LT, LB, X, Y, LS). Menus understand these keys already.
+//
+// The off hand's stick moves (analog, see VR_AdjustMove); the main hand's stick turns, and
+// pushed up or down it is DPAD UP/DOWN. In menus both sticks are the DPAD.
 
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -17,11 +23,34 @@ using namespace qvr::protocol;
 namespace
 {
 
+struct ButtonKeys
+{
+    bool HandInput::*button;
+    int key[HAND_COUNT]; // off hand, main hand
+};
+
+constexpr ButtonKeys buttonKeys[] = {
+    {&HandInput::trigger, {K_LTRIGGER, K_RTRIGGER}},
+    {&HandInput::grip, {K_LSHOULDER, K_RSHOULDER}},
+    {&HandInput::primary, {K_XBUTTON, K_ABUTTON}},
+    {&HandInput::secondary, {K_YBUTTON, K_BBUTTON}},
+    {&HandInput::stickClick, {K_LTHUMB, K_RTHUMB}},
+};
+
+// A stick direction acting as a key: pressed past 0.7, released below 0.5, auto-repeating in
+// menus.
+struct StickKey
+{
+    int key;
+    bool down{false};
+    double nextRepeat{0.0};
+};
+
+StickKey stickKeys[] = {{K_DPAD_UP}, {K_DPAD_DOWN}, {K_DPAD_LEFT}, {K_DPAD_RIGHT}};
+
 InputState previous;
-bool previousWasGame = false;
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
-bool menuStickArmed[2] = {true, true};
 
 struct PendingHaptic
 {
@@ -34,28 +63,6 @@ struct PendingHaptic
 
 std::vector<PendingHaptic> pendingHaptics;
 
-void command(const char* text)
-{
-    Cbuf_AddText(text);
-}
-
-// Runs "+name" on press and "-name" on release.
-void button(bool now, bool before, const char* name)
-{
-    if(now != before)
-    {
-        command(va("%c%s\n", now ? '+' : '-', name));
-    }
-}
-
-void key(bool now, bool before, int k)
-{
-    if(now != before)
-    {
-        Key_Event(k, now);
-    }
-}
-
 [[nodiscard]] float deadzone(float v)
 {
     const float dz = CLAMP(0.f, vr_deadzone.value / 100.f, 0.9f);
@@ -66,136 +73,57 @@ void key(bool now, bool before, int k)
     return (v - std::copysign(dz, v)) / (1.f - dz);
 }
 
-// Releases the game buttons held, when a menu opens.
-void releaseGameButtons()
+void stickKey(StickKey& k, float value, bool menu)
 {
-    const InputState& p = previous;
-    const bool left = !vr_lefthanded.value;
+    constexpr double repeatDelay = 0.4;
+    constexpr double repeatInterval = 0.12;
 
-    button(false, p.fire[HAND_MAIN], "attack");
-    button(false, p.fire[HAND_OFF], "offhandattack");
-    button(false, p.grab[HAND_OFF], left ? "grableft" : "grabright");
-    button(false, p.grab[HAND_MAIN], left ? "grabright" : "grableft");
-    button(false, p.reload[HAND_OFF], left ? "reloadleft" : "reloadright");
-    button(false, p.reload[HAND_MAIN], left ? "reloadright" : "reloadleft");
-    button(false, p.jump, "jump");
-}
-
-void gameInput(const InputState& in)
-{
-    const InputState& p = previous;
-    const bool leftIsOff = !vr_lefthanded.value;
-
-    button(in.fire[HAND_MAIN], p.fire[HAND_MAIN], "attack");
-    button(in.fire[HAND_OFF], p.fire[HAND_OFF], "offhandattack");
-    button(in.grab[HAND_OFF], p.grab[HAND_OFF], leftIsOff ? "grableft" : "grabright");
-    button(in.grab[HAND_MAIN], p.grab[HAND_MAIN], leftIsOff ? "grabright" : "grableft");
-    button(in.reload[HAND_OFF], p.reload[HAND_OFF], leftIsOff ? "reloadleft" : "reloadright");
-    button(in.reload[HAND_MAIN], p.reload[HAND_MAIN], leftIsOff ? "reloadright" : "reloadleft");
-    button(in.jump, p.jump, "jump");
-
-    if(in.nextWeapon[HAND_MAIN] && !p.nextWeapon[HAND_MAIN])
+    if(!k.down && value > 0.7f)
     {
-        command("impulse 10\n");
+        k.down = true;
+        k.nextRepeat = realtime + repeatDelay;
+        Key_Event(k.key, true);
     }
-    if(in.nextWeapon[HAND_OFF] && !p.nextWeapon[HAND_OFF])
+    else if(k.down && value < 0.5f)
     {
-        command("impulse 12\n");
+        k.down = false;
+        Key_Event(k.key, false);
     }
-
-    moveAxes = {deadzone(in.move.x), deadzone(in.move.y)};
-
-    // Turning: snap by vr_snap_turn degrees, or smooth at vr_turn_speed.
-    const float turn = deadzone(in.turn.x);
-    if(vr_enable_joystick_turn.value)
+    else if(k.down && menu && realtime >= k.nextRepeat)
     {
-        if(vr_snap_turn.value > 0.f)
-        {
-            if(std::fabs(turn) < 0.3f)
-            {
-                snapTurnArmed = true;
-            }
-            else if(snapTurnArmed && std::fabs(turn) > 0.7f)
-            {
-                snapTurnArmed = false;
-                hands::addTurn(turn > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
-            }
-        }
-        else
-        {
-            hands::addTurn(-turn * static_cast<float>(host_frametime) * 100.f * vr_turn_speed.value);
-        }
+        k.nextRepeat = realtime + repeatInterval;
+        Key_Event(k.key, true);
     }
 }
 
-void menuInput(const InputState& in)
+void turn(float x)
 {
-    const InputState& p = previous;
-
-    // Stick flicks navigate; the main trigger or jump button confirms.
-    const glm::vec2 stick = in.move + in.turn;
-    const auto flick = [&](int axis, float value, int negKey, int posKey) {
-        if(std::fabs(value) < 0.3f)
-        {
-            menuStickArmed[axis] = true;
-        }
-        else if(menuStickArmed[axis] && std::fabs(value) > 0.7f)
-        {
-            menuStickArmed[axis] = false;
-            Key_Event(value > 0.f ? posKey : negKey, true);
-            Key_Event(value > 0.f ? posKey : negKey, false);
-        }
-    };
-    flick(0, stick.x, K_LEFTARROW, K_RIGHTARROW);
-    flick(1, stick.y, K_DOWNARROW, K_UPARROW);
-
-    key(in.fire[HAND_MAIN] || in.jump, p.fire[HAND_MAIN] || p.jump, K_ENTER);
-    moveAxes = glm::vec2{0.f};
-}
-
-} // namespace
-
-namespace qvr::input
-{
-
-void update(const InputState& in)
-{
-    if(!vrActive())
+    if(!vr_enable_joystick_turn.value)
     {
-        moveAxes = glm::vec2{0.f};
         return;
     }
 
-    // The menu button toggles the menu, like Escape.
-    if(in.menu && !previous.menu)
+    // Snap by vr_snap_turn degrees, or turn smoothly at vr_turn_speed.
+    if(vr_snap_turn.value > 0.f)
     {
-        Key_Event(K_ESCAPE, true);
-        Key_Event(K_ESCAPE, false);
-    }
-
-    const bool game = key_dest == key_game;
-    if(game)
-    {
-        if(!previousWasGame)
+        if(std::fabs(x) < 0.3f)
         {
-            // Buttons still held from the menu must not act in the game.
-            previous = in;
+            snapTurnArmed = true;
         }
-        gameInput(in);
-    }
-    else
-    {
-        if(previousWasGame)
+        else if(snapTurnArmed && std::fabs(x) > 0.7f)
         {
-            releaseGameButtons();
+            snapTurnArmed = false;
+            hands::addTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
         }
-        menuInput(in);
     }
+    else if(deadzone(x) != 0.f)
+    {
+        hands::addTurn(-deadzone(x) * static_cast<float>(host_frametime) * 100.f * vr_turn_speed.value);
+    }
+}
 
-    previous = in;
-    previousWasGame = game;
-
-    // Delayed haptics (see VR_ParseHaptic).
+void runHaptics()
+{
     for(auto it = pendingHaptics.begin(); it != pendingHaptics.end();)
     {
         if(realtime >= it->time)
@@ -211,6 +139,87 @@ void update(const InputState& in)
             ++it;
         }
     }
+}
+
+// Bump when quakevr/vr_bindings.cfg changes in a way existing configs should pick up.
+constexpr int bindingsVersion = 1;
+
+void checkBindings_f()
+{
+    if(vr_bindings_version.value >= bindingsVersion)
+    {
+        return;
+    }
+
+    Con_Printf("Quake VR: setting the controller bindings (vr_bindings.cfg)\n");
+    Cbuf_InsertText("exec vr_bindings.cfg\n");
+    Cvar_SetValueQuick(&vr_bindings_version, static_cast<float>(bindingsVersion));
+}
+
+} // namespace
+
+namespace qvr::input
+{
+
+void init()
+{
+    Cmd_AddCommand("vr_checkbindings", checkBindings_f);
+}
+
+void update(const InputState& tracked)
+{
+    // Without VR, everything is released (keys held when the session ends must come up).
+    static const InputState released;
+    const bool active = vrActive();
+    const InputState& in = active ? tracked : released;
+
+    const HandInput& off = in.hands[HAND_OFF];
+    const HandInput& main = in.hands[HAND_MAIN];
+
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        for(const ButtonKeys& b : buttonKeys)
+        {
+            const bool now = in.hands[h].*b.button;
+            if(now != previous.hands[h].*b.button)
+            {
+                Key_Event(b.key[h], now);
+            }
+        }
+
+        // The menu button is Escape: it opens and closes the menu and can never be unbound.
+        if(in.hands[h].menu && !previous.hands[h].menu)
+        {
+            Key_Event(K_ESCAPE, true);
+            Key_Event(K_ESCAPE, false);
+        }
+    }
+
+    const bool menu = key_dest != key_game;
+    if(menu)
+    {
+        const glm::vec2 stick = off.stick + main.stick;
+        stickKey(stickKeys[0], stick.y, true);
+        stickKey(stickKeys[1], -stick.y, true);
+        stickKey(stickKeys[2], -stick.x, true);
+        stickKey(stickKeys[3], stick.x, true);
+        moveAxes = glm::vec2{0.f};
+    }
+    else
+    {
+        stickKey(stickKeys[0], main.stick.y, false);
+        stickKey(stickKeys[1], -main.stick.y, false);
+        stickKey(stickKeys[2], 0.f, false);
+        stickKey(stickKeys[3], 0.f, false);
+        moveAxes = {deadzone(off.stick.x), deadzone(off.stick.y)};
+        if(active)
+        {
+            turn(main.stick.x);
+        }
+    }
+
+    previous = in;
+    runHaptics();
 }
 
 } // namespace qvr::input

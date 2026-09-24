@@ -18,3 +18,5 @@ build/
 /quakevr/*.sav
 /quakevr/*.dem
 /quakevr/screenshots/
+!/quakevr/default.cfg
+!/quakevr/vr_bindings.cfg

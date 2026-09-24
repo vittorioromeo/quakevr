@@ -164,6 +164,8 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
+    registerMockCommands();
+    input::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
@@ -207,10 +209,7 @@ extern "C" void VR_BeginFrame()
         stopBackend();
     }
 
-    if(state->backend)
-    {
-        input::update(state->tracking.input);
-    }
+    input::update(state->tracking.input); // releases held keys when VR is off
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     (void)hands::current();
