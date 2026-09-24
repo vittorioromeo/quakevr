@@ -8,6 +8,7 @@
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_stereo.hpp"
+#include "vr_text3d.hpp"
 #include "vr_main.hpp"
 #include "vr_weapons.hpp"
 
@@ -205,6 +206,51 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
     return o;
 }
 
+// Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
+// in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.
+void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve, int slot)
+{
+    // The view is set up for each eye; queue once per frame.
+    static int queuedFrame[2]{-1, -1};
+    if(!vr_show_weapon_text.value || !ve.visible || weapons::value(slot, Key::WpnTextMode) == 0.f ||
+        queuedFrame[hand] == host_framecount)
+    {
+        return;
+    }
+    queuedFrame[hand] = host_framecount;
+
+    const bool mirrored = hand == OFF;
+    const glm::vec3 pos = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::WpnTextAnchorVertex)),
+        weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
+
+    glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
+    if(mirrored)
+    {
+        angles.z = -angles.z;
+    }
+    // Read from behind the weapon, along its aim (the old engine flipped the pitch for its own
+    // text orientation).
+    angles += s.visualRot[hand];
+
+    const bool main = hand == MAIN;
+    const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
+    const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
+    const int ammo = cl.stats[main ? STAT_QVR_AMMOCOUNTER : STAT_QVR_AMMOCOUNTER2];
+    const bool reloading = vr_reload_mode.value != 0.f && vr_holster_mode.value == 0.f;
+
+    char buf[64];
+    if(reloading && clipSize != 0)
+    {
+        q_snprintf(buf, sizeof(buf), "%d/%d\n%d", clip, clipSize, ammo);
+    }
+    else
+    {
+        q_snprintf(buf, sizeof(buf), "%d", ammo);
+    }
+
+    text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale));
+}
+
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
 {
     view::ViewEntity& ve = entities.weapon[hand];
@@ -241,6 +287,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     if(isHandModel(model))
     {
         ve.visible = false;
+    }
+    else if(model && slot >= 0)
+    {
+        queueWeaponText(s, hand, ve, slot);
     }
 }
 
