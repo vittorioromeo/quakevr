@@ -72,11 +72,15 @@ void mockButton_f()
     Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
 }
 
-// vr_mock_hand <main|off|head> <x> <y> <z>: tracking-space position (metres, +x right, +y up,
-// -z forward); "vr_mock_hand <main|off|head>" alone restores the standing pose's.
+// vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]: tracking-space position
+// (metres, +x right, +y up, -z forward) and, for a hand, its orientation (degrees: pitch up,
+// yaw left, roll right side up); "vr_mock_hand <main|off|head>" alone restores
+// the standing pose's.
 constexpr int mockHead = HAND_COUNT;
 glm::vec3 mockHandPos[HAND_COUNT + 1];
 bool mockHandSet[HAND_COUNT + 1]{};
+glm::quat mockHandRot[HAND_COUNT];
+bool mockHandRotSet[HAND_COUNT]{};
 
 void mockHand_f()
 {
@@ -85,13 +89,20 @@ void mockHand_f()
     {
         hand = mockHead;
     }
-    if(hand < 0 || (Cmd_Argc() != 2 && Cmd_Argc() != 5))
+    if(hand < 0 || (Cmd_Argc() != 2 && Cmd_Argc() != 5 && Cmd_Argc() != 8))
     {
-        Con_Printf("usage: vr_mock_hand <main|off|head> [<x> <y> <z>]\n");
+        Con_Printf("usage: vr_mock_hand <main|off|head> [<x> <y> <z> [<pitch> <yaw> <roll>]]\n");
         return;
     }
-    mockHandSet[hand] = Cmd_Argc() == 5;
+    mockHandSet[hand] = Cmd_Argc() >= 5;
     mockHandPos[hand] = {Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    if(hand < HAND_COUNT)
+    {
+        mockHandRotSet[hand] = Cmd_Argc() == 8;
+        mockHandRot[hand] = glm::angleAxis(glm::radians(Q_atof(Cmd_Argv(6))), glm::vec3{0.f, 1.f, 0.f}) *
+                            glm::angleAxis(glm::radians(Q_atof(Cmd_Argv(5))), glm::vec3{1.f, 0.f, 0.f}) *
+                            glm::angleAxis(glm::radians(-Q_atof(Cmd_Argv(7))), glm::vec3{0.f, 0.f, -1.f});
+    }
 }
 
 // vr_mock_look <pitch> <yaw>: the head's orientation in degrees (pitch down positive).
@@ -181,6 +192,10 @@ public:
             if(mockHandSet[h])
             {
                 tracking.hands[h].position = mockHandPos[h];
+            }
+            if(mockHandRotSet[h])
+            {
+                tracking.hands[h].orientation = mockHandRot[h];
             }
         }
         if(mockHandSet[mockHead])

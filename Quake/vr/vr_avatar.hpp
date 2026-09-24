@@ -47,12 +47,14 @@ enum class Part
 // Whether `model` is the skinned body with the expected skeleton.
 [[nodiscard]] bool usable(qmodel_t* model);
 
-// A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb is,
-// and the direction from the wrist to the fingers.
+// A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb and
+// index finger are, the back of the hand (away from the palm), and the direction from the wrist
+// to the fingers.
 struct HandPose
 {
     glm::vec3 wrist{0.f};
     glm::vec3 up{0.f, 0.f, 1.f};
+    glm::vec3 back{0.f, 0.f, 1.f};
     glm::vec3 forward{0.f};
 };
 

@@ -529,7 +529,9 @@ void setupTorso(const hands::State& s, bool shown)
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
         hp.wrist = view::modelPoint(base, handWrist);
+        // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
         hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
+        hp.back = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
         hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
     }
     else
@@ -538,14 +540,16 @@ void setupTorso(const hands::State& s, bool shown)
         hands::angleVectors(s.rot[hand], fwd, right, up);
         hp.wrist = s.pos[hand] - fwd * 4.f;
         hp.up = up;
+        hp.back = right * (hand == HAND_OFF ? -1.f : 1.f); // palms facing in
         hp.forward = fwd;
     }
     return hp;
 }
 
 // The wrist gadget (vr_hud_mode 1): over the back of the off hand's forearm, just behind the
-// wrist, its screen facing out like a watch's; it reads with "up" away from the player when
-// the forearm is held across the chest, and runs towards the fingers.
+// wrist, its screen facing out of the back of the hand like a watch's. It reads like one: with
+// the forearm raised across the chest, its right is towards the fingers (the left arm's; the
+// right arm's, towards the elbow) and its up away from the player.
 void setupGadget(const hands::State& s)
 {
     view::ViewEntity& ve = entities.gadget;
@@ -567,17 +571,16 @@ void setupGadget(const hands::State& s)
     }
 
     const bool leftArm = vr_lefthanded.value == 0.f;
-    glm::vec3 up = hp.up - dir * glm::dot(hp.up, dir);
-    if(glm::length(up) < 1e-4f)
+    glm::vec3 out = hp.back - dir * glm::dot(hp.back, dir);
+    if(glm::length(out) < 1e-4f)
     {
         ve.visible = false;
         gadget::setPose({});
         return;
     }
-    up = glm::normalize(up);
-    const glm::vec3 out = glm::normalize(glm::cross(dir, up)) * (leftArm ? 1.f : -1.f);
-    const glm::vec3 screenUp = -up;
-    const glm::vec3 right = glm::cross(screenUp, out);
+    out = glm::normalize(out);
+    const glm::vec3 right = dir * (leftArm ? 1.f : -1.f);
+    const glm::vec3 screenUp = glm::cross(out, right);
 
     // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
     const float body = vr_height_calibration.value > 0.5f ? vr_height_calibration.value / 1.646f : 1.f;

@@ -372,7 +372,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 }
 
 // Legs standing with the feet under the head (the balance point: crouching pushes the hips back
-// and the knees forward; less the torso's offset, so that standing is upright), knees forward;
+// and the knees forward; vr_body_legs_back further back, to match a posture), knees forward;
 // collapsed when not shown.
 // Walking: a gait cycle driven by the player's own movement (the stick, not the room). The feet
 // swing along the direction of travel, half a cycle apart, and lift on the way forward; strides
@@ -450,7 +450,7 @@ void solveLeg(Body& b, const glm::vec3& head, int side, bool shown)
     const float a = boneLength(thigh, calf) * b.m2w;
     const float l = boneLength(calf, foot) * b.m2w;
     const glm::vec3 hipSide = b.left * glm::dot(t.pos - b.bones[Pelvis].pos, b.left);
-    const glm::vec3 base = head + hipSide - b.fwd * (vr_body_torso_back.value * b.m2w);
+    const glm::vec3 base = head + hipSide - b.fwd * (vr_body_legs_back.value * b.m2w);
     const glm::vec3 target =
         glm::vec3{base.x, base.y, b.floorZ + bd.pos[foot].z * b.m2w} + gaitOffset(b, side);
 

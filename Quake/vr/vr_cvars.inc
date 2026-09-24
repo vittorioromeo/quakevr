@@ -173,7 +173,8 @@ QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of 
 QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_knees, "0.3", CVAR_ARCHIVE)   // metres of a crouch the legs take entirely,
 QVR_CVAR(vr_body_crouch_legs, "0.7", CVAR_ARCHIVE)    // and their share beyond (the rest bends the back)
-QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck
+QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
+QVR_CVAR(vr_body_legs_back, "0", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
