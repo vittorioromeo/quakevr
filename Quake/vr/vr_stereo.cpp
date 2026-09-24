@@ -243,4 +243,20 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     matrix[0 * 4 + 0] = -(r + l) / (r - l); // off-axis shift, times depth (x)
     matrix[2 * 4 + 1] = 2.f / (u - d);    // clip y from z (up)
     matrix[0 * 4 + 1] = -(u + d) / (u - d);
+
+    // Hands, weapons and the body come much closer to the eyes than to a monitor's view: the
+    // desktop's near plane (up to 4 units, 12 cm) cut them open. Reversed Z keeps the precision.
+    extern cvar_t gl_farclip;
+    const float n = CLAMP(0.1f, vr_nearclip.value, 4.f);
+    const float f = gl_farclip.value;
+    if(gl_clipcontrol_able)
+    {
+        matrix[0 * 4 + 2] = -n / (f - n);
+        matrix[3 * 4 + 2] = f * n / (f - n);
+    }
+    else
+    {
+        matrix[0 * 4 + 2] = (f + n) / (f - n);
+        matrix[3 * 4 + 2] = -2.f * f * n / (f - n);
+    }
 }

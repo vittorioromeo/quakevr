@@ -49,4 +49,9 @@ struct ModelTransform
 
 [[nodiscard]] ModelTransform modelTransform(const qmodel_t* model);
 
+// The weapon and hand models' scale (ModelTransform::k) relative to the defaults the offsets were
+// tuned at (vr_world_scale 1.25, vr_gunmodelscale 0.7): offsets between the models (fingers, the
+// hand on a weapon, muzzles, foregrips) scale with it, so they stay attached at any world scale.
+[[nodiscard]] float offsetScale();
+
 } // namespace qvr::weapons

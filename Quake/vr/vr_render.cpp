@@ -38,7 +38,9 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
 
     if(extra)
     {
-        ApplyTranslation(m, extra->x, extra->y, extra->z);
+        // Tuned at the default scale, like the models they attach to.
+        const float s = weapons::modelTransform(e->model).active ? weapons::offsetScale() : 1.f;
+        ApplyTranslation(m, extra->x * s, extra->y * s, extra->z * s);
     }
 
     if(const client::EntityVr* net = networkData(e); net && net->scale != glm::vec3{0.f})

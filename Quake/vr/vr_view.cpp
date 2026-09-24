@@ -261,7 +261,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     const bool mirrored = hand == OFF;
     const int slot = weapons::slotForModel(model);
 
-    glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ);
+    glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
     if(mirrored)
     {
         gunOffset.y = -gunOffset.y;
@@ -414,7 +414,7 @@ void setupHand(const hands::State& s, int hand)
     {
         view::ViewEntity& ve = entities.hand[hand][finger];
 
-        glm::vec3 foff = fingerOffset(finger, hand);
+        glm::vec3 foff = fingerOffset(finger, hand) * weapons::offsetScale();
         if(mirrored)
         {
             foff.y = -foff.y;

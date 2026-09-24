@@ -68,6 +68,9 @@ QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 
+// Near clipping plane in the headset, in units (the desktop's is up to 4).
+QVR_CVAR(vr_nearclip, "1", CVAR_ARCHIVE)
+
 // Non-archived CVars
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 QVR_CVAR(vr_viewkick, "0", CVAR_NONE)

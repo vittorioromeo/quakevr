@@ -135,6 +135,11 @@ glm::vec3 vec(int slot, Key x, Key y, Key z)
     return {value(slot, x), value(slot, y), value(slot, z)};
 }
 
+float offsetScale()
+{
+    return (vr_world_scale.value / 1.25f) * (vr_gunmodelscale.value / 0.7f);
+}
+
 ModelTransform modelTransform(const qmodel_t* model)
 {
     ModelTransform t;
