@@ -2012,6 +2012,9 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 //
 	for (search = com_searchpaths; search; search = search->next)
 	{
+		if (VR_SkipSearchPath (filename, search->pack ? search->pack->filename : search->filename)) // QVR: campaign start maps
+			continue;
+
 		if (search->pack)	/* look through all the pak file elements */
 		{
 			pak = search->pack;

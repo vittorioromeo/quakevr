@@ -108,6 +108,7 @@ int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
+int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_Menu_Open (void);								// menu.c: Options > VR Settings

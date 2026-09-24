@@ -28,7 +28,6 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 | P8 Release | 🟡 started | `Windows/package-quakevr.ps1`: engine + DLLs (OpenXR loader) + `quakevr` folder with fresh progs, `QuakeVR.bat`, readme, zip. Left: CI, README for the repository. |
 
 Known gaps carried forward:
-- `start` resolves to rogue's start.bsp (last mission pack layered); decide on a start-map selector.
 - World text is networked but not rendered (P7); `particle2` draws plain blood puffs until presets (P7); `haptic` is networked (P5).
 - `.weapon` holds weapon IDs, so Ironwail's HUD weapon highlighting is wrong until P2/P6.
 - Hand model is drawn as a plain view model until P3.

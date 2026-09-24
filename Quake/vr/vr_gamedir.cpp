@@ -6,6 +6,7 @@
 // kept in standard-Quake mode: the mission-pack HUDs and weapon encodings do not apply
 // to the VR progs, which use their own weapon IDs.
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
 #include <cstring>
@@ -73,6 +74,56 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
         }
     }
     addingMissionPacks = false;
+}
+
+// Quake, Scourge of Armagon and Dissolution of Eternity each have a maps/start.bsp; with all
+// three layered the last one would always win. vr_activestartpaknameidx (0 Quake, 1 SoA, 2 DoE,
+// set by the vrstart hub's buttons) picks the campaign whose start map "start" loads, as the old
+// engine's COM_FindFile did for its paks: the other campaigns' folders are skipped for it.
+extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
+{
+    if(strncmp(filename, "maps/start.", 11) != 0 || !gameDirAlreadyAdded(vrGameDir))
+    {
+        return 0;
+    }
+
+    static const char* const campaigns[] = {"id1", "hipnotic", "rogue"};
+    const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
+    const char* selected = campaigns[idx];
+    if(idx > 0 && !gameDirAlreadyAdded(selected))
+    {
+        return 0; // not installed: leave the lookup alone
+    }
+
+    const auto lastSeparator = [](char* s) {
+        char* slash = strrchr(s, '/');
+        char* backslash = strrchr(s, '\\');
+        return slash > backslash ? slash : backslash;
+    };
+
+    // The game folder of the path: its last component, or the folder a pak is in.
+    char dir[MAX_OSPATH];
+    q_strlcpy(dir, path, sizeof(dir));
+    const char* ext = COM_FileGetExtension(dir);
+    if(!q_strcasecmp(ext, "pak") || !q_strcasecmp(ext, "pk3") || !q_strcasecmp(ext, "zip"))
+    {
+        if(char* cut = lastSeparator(dir))
+        {
+            *cut = '\0';
+        }
+    }
+
+    const char* sep = lastSeparator(dir);
+    const char* name = sep ? sep + 1 : dir;
+
+    for(const char* campaign : campaigns)
+    {
+        if(!q_strcasecmp(name, campaign))
+        {
+            return q_strcasecmp(name, selected) != 0;
+        }
+    }
+    return 0;
 }
 
 extern "C" void VR_AfterAddGameDirectory(const char* dir)
