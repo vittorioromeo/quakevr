@@ -26,6 +26,10 @@ void registerCvars();
 // hand and finger models.
 [[nodiscard]] int fistSlot();
 
+// The weapon model a hand holds (0 off hand, 1 main hand), from the VR stats, and its slot.
+[[nodiscard]] qmodel_t* heldModel(int hand);
+[[nodiscard]] int heldSlot(int hand);
+
 [[nodiscard]] float value(int slot, Key key);
 [[nodiscard]] glm::vec3 vec(int slot, Key x, Key y, Key z);
 

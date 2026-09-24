@@ -4,6 +4,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
@@ -374,6 +375,7 @@ extern "C" void VR_OnClientClearState()
     throwing::reset();
     twohand::reset();
     flick::reset();
+    handpose::reset();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

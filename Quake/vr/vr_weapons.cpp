@@ -2,6 +2,7 @@
 
 #include "vr_weapons.hpp"
 #include "vr_cvars.hpp"
+#include "vr_protocol.hpp"
 
 #include <array>
 #include <cstring>
@@ -98,6 +99,17 @@ int slotForModel(const qmodel_t* model)
 
     slotCache.emplace(model, found);
     return found;
+}
+
+qmodel_t* heldModel(int hand)
+{
+    const int index = hand == 1 ? cl.stats[STAT_WEAPON] : cl.stats[protocol::STAT_QVR_WEAPONMODEL2];
+    return index > 0 && index < MAX_MODELS ? cl.model_precache[index] : nullptr;
+}
+
+int heldSlot(int hand)
+{
+    return slotForModel(heldModel(hand));
 }
 
 int fistSlot()

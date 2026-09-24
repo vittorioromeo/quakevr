@@ -4,6 +4,7 @@
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
@@ -255,7 +256,9 @@ void update()
             state.rot[h] = anglesFromTracking(withHandOffsets(t.hands[h].orientation, h), turnYaw);
         }
 
+        handpose::resolvePositions(state, turnYaw);
         twohand::apply(state);
+        handpose::weightDirections(state, turnYaw);
 
         // The server takes the aim from the move's view angles (.v_angle): the main hand.
         for(int i = 0; i < 3; i++)

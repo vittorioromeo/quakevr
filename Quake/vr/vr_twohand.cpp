@@ -11,6 +11,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_handpose.hpp"
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 
@@ -47,12 +48,6 @@ bool helpingHand[2]{false, false};
 double lastTime = -1.0;
 float frameDt = 0.f; // advances once per client frame, however often the hands are recomputed
 
-[[nodiscard]] qmodel_t* weaponModel(int hand)
-{
-    const int index = hand == HAND_MAIN ? cl.stats[STAT_WEAPON] : cl.stats[protocol::STAT_QVR_WEAPONMODEL2];
-    return index > 0 && index < MAX_MODELS ? cl.model_precache[index] : nullptr;
-}
-
 [[nodiscard]] int weaponId(int hand)
 {
     return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
@@ -71,7 +66,7 @@ void transition(float& var, bool on, float speed)
 
 void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
 {
-    const int slot = weapons::slotForModel(weaponModel(holding));
+    const int slot = weapons::heldSlot(holding);
     const bool holdingWeapon = slot >= 0 && weaponId(holding) != widFist;
 
     const glm::vec3 holdingPos = s.pos[holding];
@@ -117,7 +112,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
         !s.muzzleValid[holding] || handDist <= glm::distance(holdingPos, s.muzzle[holding]) + 7.5f;
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
-                         weaponId(helping) == widFist && beforeMuzzle;
+                         weaponId(helping) == widFist && beforeMuzzle && !handpose::gunColliding(holding);
     const bool goodDot = glm::dot(handDir, origDir) > vr_2h_angle_threshold.value || vr_2h_disable_angle_threshold.value;
 
     shouldAim[holding] = canGrab && goodDistance && goodDot;
@@ -167,6 +162,11 @@ void apply(hands::State& s)
 bool aiming()
 {
     return aimTransition[HAND_OFF] >= 0.5f || aimTransition[HAND_MAIN] >= 0.5f;
+}
+
+float transition(int hand)
+{
+    return aimTransition[hand];
 }
 
 bool helping(int hand)

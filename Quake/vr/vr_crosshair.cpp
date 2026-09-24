@@ -25,12 +25,6 @@ enum Mode : int
     LINE_SMOOTH = 3
 };
 
-[[nodiscard]] qmodel_t* weaponModel(int hand)
-{
-    const int index = hand == HAND_MAIN ? cl.stats[STAT_WEAPON] : cl.stats[protocol::STAT_QVR_WEAPONMODEL2];
-    return index > 0 && index < MAX_MODELS ? cl.model_precache[index] : nullptr;
-}
-
 // Where the aim from `start` along `dir` meets the world (walls only, or also entities).
 [[nodiscard]] glm::vec3 aimEnd(const glm::vec3& start, const glm::vec3& dir, bool entities)
 {
@@ -73,7 +67,7 @@ void queue(const hands::State& s)
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        const int slot = weapons::slotForModel(weaponModel(h));
+        const int slot = weapons::heldSlot(h);
         if(!s.muzzleValid[h] || slot < 0 || slot == weapons::fistSlot() ||
             weapons::value(slot, weapons::Key::CrosshairMode) == 1.f)
         {
