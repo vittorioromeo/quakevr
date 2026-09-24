@@ -62,6 +62,7 @@ float cvarh_vr_2h_spread_reduction;
 float cvarh_vr_2h_throw_velocity_mult;
 float cvarh_vr_world_scale;
 float cvarh_vr_throw_gravity;
+float cvarh_vr_pickup_scale;
 float cvarh_vr_throw_gain_max;
 float cvarh_vr_throw_gain_lo;
 float cvarh_vr_throw_gain_hi;
@@ -154,6 +155,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_2h_throw_velocity_mult);
     VR_CVAR_HMAKE(vr_world_scale);
     VR_CVAR_HMAKE(vr_throw_gravity);
+    VR_CVAR_HMAKE(vr_pickup_scale);
     VR_CVAR_HMAKE(vr_throw_gain_max);
     VR_CVAR_HMAKE(vr_throw_gain_lo);
     VR_CVAR_HMAKE(vr_throw_gain_hi);

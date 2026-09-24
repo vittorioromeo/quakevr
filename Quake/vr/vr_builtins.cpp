@@ -54,6 +54,23 @@ void PF_redirectvector()
     }
 }
 
+// The bounds of an entity's model (its mins with `max` 0, maxs otherwise), in model space:
+// vector(entity e, float max) modelbounds.
+void PF_modelbounds()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const bool max = G_FLOAT(OFS_PARM1) != 0.f;
+    float* out = G_VECTOR(OFS_RETURN);
+    VectorCopy(vec3_origin, out);
+
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(model)
+    {
+        VectorCopy(max ? model->maxs : model->mins, out);
+    }
+}
+
 // Launch angle (degrees) to hit `to` from `from` at `throwSpeed`, or 0 if out of range.
 void PF_calcthrowangle()
 {
@@ -269,6 +286,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"maprange", PF_maprange},
     {"redirectvector", PF_redirectvector},
     {"calcthrowangle", PF_calcthrowangle},
+    {"modelbounds", PF_modelbounds},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
     {"cvar_hset", PF_cvar_hset},

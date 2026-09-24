@@ -150,6 +150,7 @@ void(vector ang) makeforward = #0; // sets v_forward
 float(float input, float inputMin, float inputMax, float outputMin, float outputMax) maprange = #0;
 vector(vector input, vector exemplar) redirectvector = #0;
 float(float entGravity, float throwSpeed, vector from, vector to) calcthrowangle = #0;
+vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

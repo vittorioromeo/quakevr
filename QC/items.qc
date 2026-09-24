@@ -138,6 +138,43 @@ PlaceItem
 plants the object on the floor
 ============
 */
+// Pickups (weapons, armour, powerups, keys) drawn at vr_pickup_scale, resting on the floor, so that
+// the player crouches to reach them; their touch box is the model's own. Ammo and health boxes are
+// shrunk when they become grabbable (AfterPlacementAmmoBox, AfterPlacementHealthBox).
+void() VRScalePickup =
+{
+    float s = cvar_hget(cvarh_vr_pickup_scale);
+    if(s <= 0 || s == 1)
+    {
+        return;
+    }
+    if(self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox)
+    {
+        return;
+    }
+
+    VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(s));
+
+    // The model's bounds, square around the origin (items turn about it).
+    vector lo = modelbounds(self, 0) * s;
+    vector hi = modelbounds(self, 1) * s;
+    float r = fabs(lo_x);
+    if(fabs(hi_x) > r) { r = fabs(hi_x); }
+    if(fabs(lo_y) > r) { r = fabs(lo_y); }
+    if(fabs(hi_y) > r) { r = fabs(hi_y); }
+    lo_x = -r;
+    lo_y = -r;
+    hi_x = r;
+    hi_y = r;
+    setsize(self, lo, hi);
+
+    if(self.movetype != MOVETYPE_NONE)
+    {
+        self.origin_z = self.origin_z + 2;
+        droptofloor();
+    }
+}
+
 void() PlaceItem =
 {
     float oldz;
@@ -203,6 +240,7 @@ void() PlaceItem =
     }
 
     SpawnAmmoBoxWeapons(self);
+    VRScalePickup();
 
     self.nextthink = time + 0.2;
     self.think = PlacedItem;
