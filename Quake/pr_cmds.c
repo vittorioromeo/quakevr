@@ -1124,7 +1124,7 @@ static void PF_precache_sound (void)
 	const char	*s;
 	int		i;
 
-	if (sv.state != ss_loading)
+	if (sv.state != ss_loading && !VR_AllowLatePrecache ()) // QVR
 		PR_RunError ("PF_Precache_*: Precache can only be done in spawn functions");
 
 	s = G_STRING(OFS_PARM0);

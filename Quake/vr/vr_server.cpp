@@ -1,10 +1,13 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_move.hpp"
+#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
+
+#include <vector>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -13,8 +16,51 @@ using namespace qvr::protocol;
 namespace
 {
 
-// Model precaches the clients already know about (from serverinfo or a previous broadcast).
+// Per client: the VR bits in effect during the previous server frame, and those received
+// in moves this frame (current state only; see VrBits0 in vr_client.cpp).
+struct ClientBits
+{
+    int previousFrame{0};
+    int received{0};
+};
+
+std::vector<ClientBits> clientBits;
+
+// vrbits0 pairs a "current" bit with the "previous" bit just above it.
+constexpr int currentBitsMask = (1 << 1) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 10) | (1 << 12);
+
+[[nodiscard]] int withPreviousBits(int current, int previousFrame)
+{
+    return current | ((previousFrame & currentBitsMask) << 1);
+}
+
+// Precaches the clients already know about (from serverinfo or a previous broadcast).
 int broadcastModelCount = 0;
+int broadcastSoundCount = 0;
+
+template <int N>
+[[nodiscard]] int precacheCount(const char* const (&list)[N])
+{
+    int count = 0;
+    while(count < N && list[count])
+    {
+        count++;
+    }
+    return count;
+}
+
+template <int N>
+void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
+{
+    const int count = precacheCount(list);
+    for(; known < count; known++)
+    {
+        MSG_WriteByte(&sv.reliable_datagram, svc_quakevr);
+        MSG_WriteByte(&sv.reliable_datagram, subcmd);
+        MSG_WriteShort(&sv.reliable_datagram, known);
+        MSG_WriteString(&sv.reliable_datagram, list[known]);
+    }
+}
 
 [[nodiscard]] bool vrProtocol()
 {
@@ -96,12 +142,20 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setVec(ent, f.headvel, move.headVel);
     setVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
     setVec(ent, f.muzzlepos, move.muzzlePos[1]);
-    setFloat(ent, f.vrbits0, move.vrBits0);
+    const int clientNum = static_cast<int>(client - svs.clients);
+    if(clientNum >= static_cast<int>(clientBits.size()))
+    {
+        clientBits.resize(clientNum + 1);
+    }
+    ClientBits& bits = clientBits[clientNum];
+    bits.received = move.vrBits0;
+    setFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame)));
     setVec(ent, f.teleport_target, move.teleportTarget);
     setFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setVec(ent, f.roomscalemove, move.roomscaleMove);
     setFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
+    physics::setClientHandsTracked(clientNum, (move.buttons & QVR_BUTTON_HANDSTRACKED) != 0);
 }
 
 extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
@@ -222,18 +276,15 @@ extern "C" void VR_ServerFrameEnd()
         return;
     }
 
-    // Late model precaches (setmodel on an unprecached model, precache_model after load).
-    while(broadcastModelCount < MAX_MODELS && sv.model_precache[broadcastModelCount])
+    // This frame's VR bits become next frame's "previous" bits.
+    for(ClientBits& bits : clientBits)
     {
-        if(broadcastModelCount > 0)
-        {
-            MSG_WriteByte(&sv.reliable_datagram, svc_quakevr);
-            MSG_WriteByte(&sv.reliable_datagram, QVR_SVC_PRECACHE_MODEL);
-            MSG_WriteShort(&sv.reliable_datagram, broadcastModelCount);
-            MSG_WriteString(&sv.reliable_datagram, sv.model_precache[broadcastModelCount]);
-        }
-        broadcastModelCount++;
+        bits.previousFrame = bits.received;
     }
+
+    // Late precaches (setmodel on an unprecached model, precache_* after load).
+    broadcastNewPrecaches(sv.model_precache, broadcastModelCount, QVR_SVC_PRECACHE_MODEL);
+    broadcastNewPrecaches(sv.sound_precache, broadcastSoundCount, QVR_SVC_PRECACHE_SOUND);
 }
 
 namespace qvr::server
@@ -277,11 +328,8 @@ void init()
 // Everything precached while loading is in the serverinfo that clients receive.
 void onSpawnServerAfterLoad()
 {
-    broadcastModelCount = 0;
-    while(broadcastModelCount < MAX_MODELS && sv.model_precache[broadcastModelCount])
-    {
-        broadcastModelCount++;
-    }
+    broadcastModelCount = precacheCount(sv.model_precache);
+    broadcastSoundCount = precacheCount(sv.sound_precache);
 }
 
 } // namespace qvr::server

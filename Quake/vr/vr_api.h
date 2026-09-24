@@ -37,6 +37,7 @@ struct sizebuf_s;
 // PROTOCOL_RMQ flag set by servers running Quake VR progs (see vr/vr_protocol.hpp).
 #define PRFL_QUAKEVR				(1 << 16)
 #define VR_ENTITY_UPDATE_MAXSIZE	36		// bytes VR_WriteEntityUpdate may add
+#define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime (host.c).
 void VR_Init (void);		// after SV_Init (also on dedicated servers): registers cvars and commands
@@ -74,6 +75,19 @@ int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+
+// Server physics (sv_phys.c, sv_user.c, world.c).
+int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
+void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
+int VR_ClientTeleport (struct edict_s *ent);			// SV_Physics_Client: 1 teleported, -1 freed
+void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
+float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
+float VR_StepSize (float fallback);					// SV_WalkMove step height
+void VR_OnWaterLevelChange (struct edict_s *ent, float oldwaterlevel); // end of SV_CheckWater
+int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition splash sounds
+int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero if handled
+int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
+float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
 
 #ifdef __cplusplus
 }

@@ -16,4 +16,5 @@ build/
 /quakevr/*.cfg
 !/quakevr/quakevr.cfg
 /quakevr/*.sav
+/quakevr/*.dem
 /quakevr/screenshots/

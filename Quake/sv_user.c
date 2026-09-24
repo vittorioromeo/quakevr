@@ -232,7 +232,7 @@ void SV_WaterMove (void)
 //
 // user intentions
 //
-	AngleVectors (sv_player->v.v_angle, forward, right, up);
+	AngleVectors (VR_MoveAngles (sv_player, sv_player->v.v_angle), forward, right, up); // QVR
 
 	for (i=0 ; i<3 ; i++)
 		wishvel[i] = forward[i]*cmd.forwardmove + right[i]*cmd.sidemove;
@@ -330,7 +330,7 @@ void SV_AirMove (void)
 	float		wishspeed;
 	float		fmove, smove;
 
-	AngleVectors (sv_player->v.angles, forward, right, up);
+	AngleVectors (VR_MoveAngles (sv_player, sv_player->v.angles), forward, right, up); // QVR
 
 	fmove = cmd.forwardmove;
 	smove = cmd.sidemove;

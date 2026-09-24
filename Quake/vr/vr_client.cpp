@@ -129,7 +129,6 @@ struct MoveHistory
     double time{0.0};
     HandHistory hands[2];
     glm::vec3 head{0.f};
-    std::uint16_t vrBits0{0};
 };
 
 MoveHistory history;
@@ -182,7 +181,8 @@ MoveHistory history;
         move.headVel = (head - history.head) * invDt;
     }
 
-    // VR bits: current state, plus last move's state in the "PREV" bits.
+    // VR bits: current state only. The server fills in the "PREV" bits once per server
+    // frame, so that press edges survive several moves arriving in one frame.
     int bits = 0;
     const auto set = [&](bool on, int bit) {
         if(on)
@@ -196,14 +196,6 @@ MoveHistory history;
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
     set(handButtons(HAND_OFF).flickReload, VRBITS0_OFFHAND_RELOADFLICKING);
     set(handButtons(HAND_MAIN).flickReload, VRBITS0_MAINHAND_RELOADFLICKING);
-
-    const int prev = history.vrBits0;
-    set(prev & VRBITS0_OFFHAND_GRABBING, VRBITS0_OFFHAND_PREVGRABBING);
-    set(prev & VRBITS0_MAINHAND_GRABBING, VRBITS0_MAINHAND_PREVGRABBING);
-    set(prev & VRBITS0_OFFHAND_RELOADING, VRBITS0_OFFHAND_PREVRELOADING);
-    set(prev & VRBITS0_MAINHAND_RELOADING, VRBITS0_MAINHAND_PREVRELOADING);
-    set(prev & VRBITS0_OFFHAND_RELOADFLICKING, VRBITS0_OFFHAND_PREVRELOADFLICKING);
-    set(prev & VRBITS0_MAINHAND_RELOADFLICKING, VRBITS0_MAINHAND_PREVRELOADFLICKING);
     move.vrBits0 = static_cast<std::uint16_t>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
@@ -211,6 +203,11 @@ MoveHistory history;
         move.buttons |= QVR_BUTTON_OFFHANDATTACK;
     }
     offhandAttackImpulse = false;
+
+    if(vrActive())
+    {
+        move.buttons |= QVR_BUTTON_HANDSTRACKED;
+    }
 
     history.valid = true;
     history.time = cl.time;
@@ -220,7 +217,6 @@ MoveHistory history;
         history.hands[h].rot = move.hands[h].rot;
     }
     history.head = head;
-    history.vrBits0 = move.vrBits0;
 
     return move;
 }
@@ -285,6 +281,19 @@ void parsePrecacheModel()
     }
 
     cl.model_precache[index] = Mod_ForName(name, false);
+}
+
+void parsePrecacheSound()
+{
+    const int index = MSG_ReadShort();
+    const char* name = MSG_ReadString();
+
+    if(index <= 0 || index >= MAX_SOUNDS)
+    {
+        Host_Error("svc_quakevr: bad sound precache index %d", index);
+    }
+
+    cl.sound_precache[index] = S_PrecacheSound(name);
 }
 
 } // namespace
@@ -368,6 +377,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
     {
         case QVR_SVC_PARTICLE2: parseParticle2(); break;
         case QVR_SVC_PRECACHE_MODEL: parsePrecacheModel(); break;
+        case QVR_SVC_PRECACHE_SOUND: parsePrecacheSound(); break;
         case QVR_SVC_WORLDTEXT_MAKE:
         case QVR_SVC_WORLDTEXT_TEXT:
         case QVR_SVC_WORLDTEXT_POS:

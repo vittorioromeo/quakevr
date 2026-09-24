@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // world.c -- world query functions
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 /*
 
@@ -341,6 +342,9 @@ void SV_TouchLinks (edict_t *ent)
 	int		i, listcount;
 	int		mark;
 
+	if (VR_TouchLinks (ent)) // QVR: hands and touchable non-triggers
+		return;
+
 	mark = Hunk_LowMark ();
 	list = (edict_t **) Hunk_AllocNoFill (qcvm->num_edicts*sizeof(edict_t *));
 
@@ -492,7 +496,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 		ent->v.absmax[0] += 15;
 		ent->v.absmax[1] += 15;
 	}
-	else
+	else if (!VR_ExpandAbsBox (ent)) // QVR: easy hand-touch entities
 	{	// because movement is clipped an epsilon away from an actual edge,
 		// we must fully check even when bounding boxes don't quite touch
 		ent->v.absmin[0] -= 1;
@@ -832,7 +836,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	{
 		next = l->next;
 		touch = EDICT_FROM_AREA(l);
-		if (touch->v.solid == SOLID_NOT)
+		if (touch->v.solid == SOLID_NOT || touch->v.solid == SOLID_NOT_BUT_TOUCHABLE) // QVR
 			continue;
 		if (touch == clip->passedict)
 			continue;
@@ -951,8 +955,8 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	{
 		for (i=0 ; i<3 ; i++)
 		{
-			clip.mins2[i] = -15;
-			clip.maxs2[i] = 15;
+			clip.mins2[i] = -VR_MissileExtent (15); // QVR
+			clip.maxs2[i] = VR_MissileExtent (15); // QVR
 		}
 	}
 	else

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_phys.c
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 /*
 
@@ -123,6 +124,9 @@ Returns false if the entity removed itself.
 qboolean SV_RunThink (edict_t *ent)
 {
 	float	thinktime;
+
+	if (!VR_RunThink2 (ent)) // QVR: second think timer
+		return false;
 
 	thinktime = ent->v.nextthink;
 	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
@@ -409,7 +413,7 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 
 	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
-	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
+	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT || ent->v.solid == SOLID_NOT_BUT_TOUCHABLE) // QVR
 	// only clip against bmodels
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
 	else
@@ -541,6 +545,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		if (block)
 		{	// fail the move
 			if (check->v.mins[0] == check->v.maxs[0])
+				continue;
+			if (check->v.solid == SOLID_NOT_BUT_TOUCHABLE) // QVR: never blocks
 				continue;
 			if (check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
 			{	// corpse
@@ -718,6 +724,7 @@ qboolean SV_CheckWater (edict_t *ent)
 {
 	vec3_t	point;
 	int		cont;
+	float	oldwaterlevel = ent->v.waterlevel; // QVR
 
 	point[0] = ent->v.origin[0];
 	point[1] = ent->v.origin[1];
@@ -741,6 +748,8 @@ qboolean SV_CheckWater (edict_t *ent)
 				ent->v.waterlevel = 3;
 		}
 	}
+
+	VR_OnWaterLevelChange (ent, oldwaterlevel); // QVR
 
 	return ent->v.waterlevel > 1;
 }
@@ -887,8 +896,8 @@ void SV_WalkMove (edict_t *ent)
 
 	VectorCopy (vec3_origin, upmove);
 	VectorCopy (vec3_origin, downmove);
-	upmove[2] = STEPSIZE;
-	downmove[2] = -STEPSIZE + oldvel[2]*host_frametime;
+	upmove[2] = VR_StepSize (STEPSIZE); // QVR
+	downmove[2] = -VR_StepSize (STEPSIZE) + oldvel[2]*host_frametime; // QVR
 
 // move up
 	SV_PushEntity (ent, upmove);	// FIXME: don't link?
@@ -961,10 +970,19 @@ void SV_Physics_Client (edict_t	*ent, int num)
 // do a move
 //
 	SV_CheckVelocity (ent);
+	VR_ClientPreMove (ent); // QVR: hand and weapon touches
 
 //
 // decide which move function to call
 //
+	switch (VR_ClientTeleport (ent)) // QVR
+	{
+	case -1:
+		return;
+	case 1:
+		goto postthink;
+	}
+
 	switch ((int)ent->v.movetype)
 	{
 	case MOVETYPE_NONE:
@@ -1002,7 +1020,9 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	default:
 		Sys_Error ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
 	}
+	VR_ClientRoomscaleMove (ent); // QVR
 
+postthink: // QVR
 //
 // call standard player post-think
 //
@@ -1085,7 +1105,7 @@ void SV_CheckWaterTransition (edict_t *ent)
 
 	if (cont <= CONTENTS_WATER)
 	{
-		if (ent->v.watertype == CONTENTS_EMPTY)
+		if (ent->v.watertype == CONTENTS_EMPTY && VR_AllowWaterSplash (ent)) // QVR
 		{	// just crossed into water
 			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
 		}
@@ -1094,7 +1114,7 @@ void SV_CheckWaterTransition (edict_t *ent)
 	}
 	else
 	{
-		if (ent->v.watertype != CONTENTS_EMPTY)
+		if (ent->v.watertype != CONTENTS_EMPTY && VR_AllowWaterSplash (ent)) // QVR
 		{	// just crossed into water
 			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
 		}

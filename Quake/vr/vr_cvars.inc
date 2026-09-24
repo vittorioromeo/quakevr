@@ -2,7 +2,9 @@
 // Names and defaults carried over from the QSS-based Quake VR engine.
 
 // Gameplay rule changes (opt-in, enabled by quakevr/quakevr.cfg)
-QVR_CVAR(vr_gameplayfix_droptofloor, "0", CVAR_NONE)
+QVR_CVAR(vr_gameplayfix_droptofloor, "0", CVAR_NONE)  // corner traces instead of a box sweep
+QVR_CVAR(vr_gameplayfix_touchsolids, "0", CVAR_NONE)  // .touch fires for solids, not just triggers
+QVR_CVAR(vr_gameplayfix_missilesize, "0", CVAR_NONE)  // missile-vs-monster box extent (0: vanilla 15)
 
 // Non-archived CVars
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)

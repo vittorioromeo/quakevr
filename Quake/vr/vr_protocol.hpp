@@ -33,10 +33,12 @@ enum SvcQuakeVr : int
     QVR_SVC_WORLDTEXT_ANGLES = 6, // [short handle][float3]
     QVR_SVC_WORLDTEXT_HALIGN = 7, // [short handle][byte 0 left, 1 centre, 2 right]
     QVR_SVC_WORLDTEXT_SCALE = 8,  // [short handle][float]
+    QVR_SVC_PRECACHE_SOUND = 9,   // [short index][string name]
 };
 
 // Client -> server: clc_move VR block button bits.
 inline constexpr int QVR_BUTTON_OFFHANDATTACK = 1 << 0; // -> .button3
+inline constexpr int QVR_BUTTON_HANDSTRACKED = 1 << 1;  // hands come from real tracking
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int
