@@ -1561,10 +1561,6 @@ void() DropBackpack =
 
     item.angles_z = 90;
     item.angles_y = random() * 360;
-    // item.angles_z = random() * 360;
-    // item.avelocity_x = random() * 105;
-    item.avelocity_y = random() * 105;
-    // item.avelocity_z = random() * 105;
 
     item.flags = FL_ITEM;
     item.solid = SOLID_NOT_BUT_TOUCHABLE;
@@ -1594,8 +1590,13 @@ void() DropBackpack =
     item.owner = world;
 
     item.throwhit = QVR_THROWHIT_HIT;
-    item.throwstabilizedim = 0;
-    item.throwstabilize = 8;
+
+    // A physical object (engine: vr_rigid.cpp): tumbles a little as it flies, bounces, and comes
+    // to rest on a side instead of spinning in place.
+    item.vr_rigid = 1;
+    item.vr_spin_x = crandom() * 2;
+    item.vr_spin_y = crandom() * 2;
+    item.vr_spin_z = crandom() * 4;
 
     item.nextthink2 = time + 120;    // remove after 2 minutes
     item.think2 = SUB_Remove;

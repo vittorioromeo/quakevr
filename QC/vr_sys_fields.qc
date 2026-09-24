@@ -266,3 +266,4 @@
 
 .float  vr_rigid; // MOVETYPE_TOSS/BOUNCE entities that spin, bounce and settle as rigid bodies
 .vector vr_spin;  // their angular velocity, radians per second, world axes
+.float  vr_rest;  // seconds they have been slow in contact (they sleep after a while)

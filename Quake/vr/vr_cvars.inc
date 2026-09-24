@@ -51,13 +51,12 @@ QVR_CVAR(vr_throw_assist_full, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_strength, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_range, "1200", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
-// Thrown weapons' flight (vr_rigid.cpp): spin as a rigid body, bounces with restitution and
-// friction, settling flat on the ground.
+// Thrown weapons and backpacks as rigid bodies (vr_rigid.cpp): bounciness and friction of
+// their contacts, their spin at most, and how fast the air slows it.
 QVR_CVAR(vr_throw_restitution, "0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_friction, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_friction, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_spin_max, "20", CVAR_ARCHIVE)    // rad/s
 QVR_CVAR(vr_throw_spin_drag, "0.3", CVAR_ARCHIVE)  // per second, in the air
-QVR_CVAR(vr_throw_settle_rate, "8", CVAR_ARCHIVE)  // per second: turning flat once resting
 
 // Version of quakevr/vr_bindings.cfg last applied (vr_checkbindings).
 QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
