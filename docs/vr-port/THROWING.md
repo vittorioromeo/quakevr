@@ -1,6 +1,6 @@
 # Throwing in Quake VR: current state, state of the art, recommendation
 
-Repository: `C:\OHWorkspace\quakevr-iw`, branch `vr-ironwail`, HEAD `a7d92887`. Nothing in the repo was modified.
+Research written 2026-09-24 against commit `a7d92887`; nothing in it is implemented yet.
 Conversions used below: `m2u = vr_world_scale / 0.0381` = 32.8 units/m at the default 1.25. Quake `sv_gravity 800`
 is 24.4 m/s² at that scale, about 2.5 g.
 
