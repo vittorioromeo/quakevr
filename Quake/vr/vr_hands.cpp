@@ -221,6 +221,28 @@ void update()
 
     state.playerOrigin = {player.origin[0], player.origin[1], player.origin[2]};
 
+    // Stair steps: the origin rises at once, so ease the body (head, eyes, hands) up after it,
+    // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
+    {
+        static float smoothZ = 0.f;
+        static double lastTime = -1.0;
+        const float z = state.playerOrigin.z;
+        if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
+        {
+            if(cl.time != lastTime)
+            {
+                smoothZ += static_cast<float>(CLAMP(0.0, cl.time - lastTime, 0.1)) * 80.f;
+            }
+            smoothZ = CLAMP(z - 12.f, smoothZ, z);
+        }
+        else
+        {
+            smoothZ = z;
+        }
+        lastTime = cl.time;
+        state.playerOrigin.z = smoothZ;
+    }
+
     if(vrActive())
     {
         // Positions are relative to the play-space floor below the head.
