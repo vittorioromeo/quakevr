@@ -1931,6 +1931,8 @@ void R_RenderScene (void)
 
 	R_DrawParticles (false);
 
+	VR_DrawSceneOpaque (); // QVR: world text
+
 	Sky_DrawSky (); //johnfitz
 
 	R_DrawWater (false);

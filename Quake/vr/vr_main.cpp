@@ -6,6 +6,7 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
+#include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
@@ -225,6 +226,7 @@ extern "C" void VR_BeginFrame()
     }
 
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
+    text3d::clear();
     input::update(state->tracking.input); // releases held keys when VR is off
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
