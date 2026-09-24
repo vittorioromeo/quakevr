@@ -28,8 +28,9 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 | P8 Release | 🟡 started | `Windows/package-quakevr.ps1`: engine + DLLs (OpenXR loader) + `quakevr` folder with fresh progs, `QuakeVR.bat`, readme, zip. Repository README. The Makefile builds (Linux, macOS, MinGW CI) compile the VR module, mock backend only. Left: CI release artifacts with the `quakevr` folder, OpenXR outside Windows x64. |
 
 Known gaps carried forward:
-- World text is networked but not rendered (P7); `particle2` draws plain blood puffs until presets (P7); `haptic` is networked (P5).
-- Hand model is drawn as a plain view model until P3.
+- Nothing has been tried on a headset yet: OpenXR is verified only up to "no headset" (Virtual Desktop), and all
+  feel-dependent defaults (gun angles, throw scale, 2H thresholds, HUD/panel placement) are first guesses.
+- Not ported: the virtual keyboard, the old in-VR "developer" tuning menus for weapon offsets (cvars only).
 - Deferred old-engine physics rewrites, to evaluate in VR first: `SV_PushMove` (Ironwail's `sv_gameplayfix_elevators` may suffice), `SV_PushEntity` tracing from origin−push. (The toss ground pre-check is `vr_gameplayfix_tossfall`.)
 
 ## Principles
