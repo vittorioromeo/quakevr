@@ -103,6 +103,25 @@ void VR_Restart_f()
     }
 }
 
+// quake.rc's last command: with VR enabled, start in the vrstart hub (tutorial, settings and
+// the mission packs' portals) as the old engine did; otherwise play the attract demos. A map
+// or demo started from the command line runs instead of either.
+void VR_StartGame_f()
+{
+    if(cls.state == ca_dedicated)
+    {
+        return;
+    }
+
+    if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
+    {
+        Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; map vrstart\n");
+        return;
+    }
+
+    Cbuf_InsertText("startdemos demo1 demo2 demo3\n");
+}
+
 void printPose(const char* label, const qvr::Pose& pose)
 {
     Con_Printf("  %-5s %s pos (%.2f %.2f %.2f) rot (%.2f %.2f %.2f %.2f)\n", label,
@@ -180,6 +199,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("menu_vr", VR_Menu_Open);
+    Cmd_AddCommand("vr_startgame", VR_StartGame_f);
     registerMockCommands();
     input::init();
     client::init();

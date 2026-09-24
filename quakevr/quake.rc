@@ -7,4 +7,5 @@ exec autoexec.cfg
 
 stuffcmds
 
-startdemos demo1 demo2 demo3
+// With VR enabled, the vrstart hub; otherwise the attract demos (Quake/vr/vr_main.cpp).
+vr_startgame
