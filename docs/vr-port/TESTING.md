@@ -111,6 +111,12 @@ gravity and spin. Things to try:
 - **Movement:** `vr_movement_mode 0` moves where the off hand points instead of the head; in both modes, pointing
   the off hand up or down while pushing forward swims up or down.
 
+- **HUD:** the status bar is on the off hand (Options > VR Settings > Status Bar for the main hand); centre
+  prints and messages float in front of you. Each weapon shows its ammo (and clip) on the weapon itself.
+- **Crosshair:** Options > VR Settings > Crosshair: a dot, a laser or a soft laser from each muzzle.
+- **VR Settings:** Options > VR Settings (or `menu_vr`) has the comfort, body, weapon and display settings;
+  the sticks move and change, A selects, B goes back. "Set Height Now" calibrates the height while standing.
+
 `vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
 hands, weapons and finger curls.
 
@@ -122,5 +128,5 @@ swings the main hand for throwing tests.
 
 ## Not there yet
 
-The two-handed "fixed" display mode (the helping hand snapped to the weapon); the VR menus and the status bar on
-the hands (P6); particle presets, world text, the crosshair and the smaller beam model (P7).
+The two-handed "fixed" display mode (the helping hand snapped to the weapon); the smaller beam model; debug
+helpers from the old engine (`vr_show*`); shadows under the player and hands.
