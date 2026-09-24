@@ -231,9 +231,41 @@ void parseParticle2()
     const int preset = MSG_ReadByte();
     const int count = MSG_ReadShort();
 
-    // TODO VR: (P7) particle presets; blood-coloured puffs until then.
-    (void)preset;
-    R_RunParticleEffect(org, dir, 73, q_min(count, 255));
+    // The old engine's particle presets (QC QVR_PARTICLE_PRESET_*), approximated with Quake's
+    // own effects and palette colours.
+    enum Preset : int
+    {
+        BULLETPUFF,
+        BLOOD,
+        EXPLOSION,
+        LIGHTNING,
+        SMOKE,
+        SPARKS,
+        GUNSMOKE,
+        TELEPORT,
+        GUNPICKUP,
+        GUNFORCEGRAB,
+        LAVASPIKE,
+        BIGSMOKE
+    };
+
+    const auto puff = [&](int color, int n) { R_RunParticleEffect(org, dir, color, q_min(n, 255)); };
+    switch(preset)
+    {
+        case BULLETPUFF: puff(0, count); break;
+        case BLOOD: puff(73, count); break;
+        case EXPLOSION: R_ParticleExplosion(org); break;
+        case LIGHTNING: puff(225, count); break;
+        case SMOKE: puff(6, count); break;
+        case SPARKS: puff(111, count); break;
+        case GUNSMOKE: puff(4, q_max(count / 2, 1)); break;
+        case TELEPORT: R_TeleportSplash(org); break;
+        case GUNPICKUP: puff(254, count); break;
+        case GUNFORCEGRAB: puff(208, count); break;
+        case LAVASPIKE: puff(235, count); break;
+        case BIGSMOKE: puff(6, count * 2); break;
+        default: puff(73, count); break;
+    }
 }
 
 void parsePrecacheModel()
