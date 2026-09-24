@@ -3079,8 +3079,7 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     // check for attack
-    if(VRGetFireButtonPressed(xHand) &&
-       !VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
+    if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand))
     {
         // TODO VR: (P2) what about when we don't have any weapon equipped? Or
         // when we have axe equipped?
@@ -3345,24 +3344,8 @@ void() wpnthrow_stabilize =
 
 void() forcegrabbable_think_impl =
 {
-    if(self.throwhit == QVR_THROWHIT_FORCEGRAB)
-    {
-        if(time > GetThrownWeaponForcegrabTime(self) + 0.4)
-        {
-            // After a long linear forcegrab, restore the movement type to "toss".
-
-            self.throwhit = QVR_THROWHIT_NEVER_HIT;
-            self.movetype = MOVETYPE_TOSS;
-        }
-    }
-
-    if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA)
-    {
-        vector handDiff = VRGetEntHandPos(self.enemy, self.thinkArg) - self.origin;
-        self.velocity += normalize(handDiff);
-    }
-
-    if(self.waterlevel >= 1)
+    // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
+    if(self.waterlevel >= 1 && self.watertype <= CONTENT_WATER)
     {
         if(self.ammocounter < 2)
         {
@@ -3501,22 +3484,6 @@ void() forcegrabbable_touch =
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = QVR_THROWHIT_HIT;
     }
-    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB &&
-            time > GetThrownWeaponForcegrabTime(self) + 0.1)
-    {
-        // After a linear forcegrab, restore the movement type to "toss".
-
-        self.throwhit = QVR_THROWHIT_HIT;
-        self.movetype = MOVETYPE_TOSS;
-    }
-    else if(self.throwhit == QVR_THROWHIT_FORCEGRAB_PARABOLA ||
-            time > GetThrownWeaponForcegrabTime(self) + 1.0)
-    {
-        // After a parabola forcegrab, restore the movement type to "toss".
-
-        self.throwhit = QVR_THROWHIT_HIT;
-        self.movetype = MOVETYPE_TOSS;
-    }
 
     // ghetto collision detection/resolution (rigid ones bounce in the engine)
     if(!self.vr_rigid && !(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2.0)
@@ -3565,20 +3532,6 @@ void(float xHand, entity ent, entity entPlayer,
     W_SetCurrentAmmo();
 }
 
-void(entity ent, entity entPlayer, float xHand) wpnthrow_forcegrab_instant_ent =
-{
-    if(xHand == cVR_OffHand && VRIsHandEmpty(entPlayer, cVR_OffHand))
-    {
-        wpnthrow_handtouch_impl(cVR_OffHand, ent, entPlayer,
-            &entPlayer.weapon2, &entPlayer.weaponflags2, &entPlayer.weaponclip2);
-    }
-    else if(xHand == cVR_MainHand && VRIsHandEmpty(entPlayer, cVR_MainHand))
-    {
-        wpnthrow_handtouch_impl(cVR_MainHand, ent, entPlayer,
-            &entPlayer.weapon, &entPlayer.weaponflags, &entPlayer.weaponclip);
-    }
-}
-
 float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
@@ -3588,7 +3541,6 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
         return FALSE;
     }
 
-    float pForceGrabbing = VR_ForceGrabUtil_IsEntForceGrabbing(entPlayer, xHand);
     float pStartedGrabbing = VR_HandGrabUtil_StartedHandGrabbing(entPlayer, xHand);
     float* pWeaponPtr = VRGetEntWeaponPtr(entPlayer, xHand);
     float* pWeaponFlagsPtr = VRGetEntWeaponFlagsPtr(entPlayer, xHand);
@@ -3596,21 +3548,10 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 
     float performWeaponSwitch = FALSE;
 
-    // Guaranteed grab (linear force grab)
-    if(ent.throwhit == QVR_THROWHIT_FORCEGRAB)
+    // Must catch it: the grab started as it touches, or a force grab caught in time.
+    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching))
     {
-        if(VRGetHandtouchHand(ent) == xHand || pForceGrabbing &&
-           (GetThrownWeaponForcegrabHand(ent) == xHand))
-        {
-            performWeaponSwitch = TRUE;
-        }
-    }
-    else // Must catch it
-    {
-        if(VRGetHandtouchHand(ent) == xHand && pStartedGrabbing)
-        {
-            performWeaponSwitch = TRUE;
-        }
+        performWeaponSwitch = TRUE;
     }
 
     if(performWeaponSwitch)
@@ -3763,26 +3704,6 @@ void(entity ent, float xValue) SetThrownWeaponDisappearOnHit =
 float(entity ent) GetThrownWeaponDisappearOnHit =
 {
     return ent.lip;
-}
-
-void(entity ent, float xValue) SetThrownWeaponForcegrabTime =
-{
-    ent.lefty = xValue;
-}
-
-float(entity ent) GetThrownWeaponForcegrabTime =
-{
-    return ent.lefty;
-}
-
-void(entity ent, float xValue) SetThrownWeaponForcegrabHand =
-{
-    ent.deadflag = xValue;
-}
-
-float(entity ent) GetThrownWeaponForcegrabHand =
-{
-    return ent.deadflag;
 }
 
 void(entity ent, float xValue) SetThrownWeaponDealDamage =
@@ -4531,22 +4452,7 @@ void(entity ent, float xHand,
     // Not holding a weapon, grabbing the controller, and pressing the trigger.
     else if(handEmpty && triggerPressed)
     {
-        if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
-        {
-            // Intentionally left empty.
-        }
-        else if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_PARABOLA)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabParabola(xHand, handPos, handRot);
-        }
-        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_LINEAR)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabLinear(xHand, handPos, handRot);
-        }
-        else if(handGrabbing && VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_INSTANT)
-        {
-            VR_ForcegrabUtil_Impl_DoForcegrabInstant(xHand, handPos, handRot);
-        }
+        // Force grab: W_Frame_Forcegrab (vr_wpnforcegrab.qc).
     }
     // Not holding a weapon and hovering an holster. Possible intention to unholster.
     else if(handEmpty && !handGrabbing)
@@ -4598,35 +4504,6 @@ void(entity ent, float xHand,
             }
         }
     }
-}
-
-void(float xHand) W_Frame_Forcegrab_Impl =
-{
-    if(!VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
-    {
-        ParticlesAndHapticsForEligibleForceGrabWeapons(
-            xHand, VRGetHandPos(xHand), VRGetHandRot(xHand));
-    }
-
-    // Refresh force grab until trigger is released
-    if(VRGetFireButtonPressed(xHand) &&
-       VR_ForceGrabUtil_IsEntForceGrabbing(self, xHand))
-    {
-        VR_ForceGrabUtil_EntStartForceGrabbing(self, xHand);
-    }
-}
-
-void() W_Frame_Forcegrab =
-{
-    if(VR_ForcegrabUtil_GetForcegrabMode() == QVR_VRFORCEGRABMODE_DISABLED)
-    {
-        VR_ForceGrabUtil_EntStopForceGrabbing(self, cVR_MainHand);
-        VR_ForceGrabUtil_EntStopForceGrabbing(self, cVR_OffHand);
-        return;
-    }
-
-    W_Frame_Forcegrab_Impl(cVR_MainHand);
-    W_Frame_Forcegrab_Impl(cVR_OffHand);
 }
 
 void() W_Frame =

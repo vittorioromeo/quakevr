@@ -187,14 +187,6 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFrame,
                           &self.weaponframe2,
                           &self.weaponframe);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetForceGrabbing,
-                          self.offhand_forcegrabbing,
-                          self.mainhand_forcegrabbing);
-
-VR_IMPL_MAKE_FLOAT_SETTER(VRSetForceGrabbing,
-                          &self.offhand_forcegrabbing,
-                          &self.mainhand_forcegrabbing);
-
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetAmmoCounter,
                           self.ammocounter2,
                           self.ammocounter);
@@ -376,12 +368,6 @@ float(entity e, float xHand) VRIsEntHandPrevReloadingBit =
     else                     return VRGetMainHandPrevReloadingBit(e);
 }
 
-float(entity e, float xHand) VRGetEntForceGrabbing =
-{
-    if(xHand == cVR_OffHand) return e.offhand_forcegrabbing;
-    else                     return e.mainhand_forcegrabbing;
-}
-
 float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
 {
     if(xHand == cVR_OffHand) return VRGetOffHandReloadFlickingBit(e);
@@ -392,12 +378,6 @@ float(entity e, float xHand) VRIsEntHandPrevReloadFlickingBit =
 {
     if(xHand == cVR_OffHand) return VRGetOffHandPrevReloadFlickingBit(e);
     else                     return VRGetMainHandPrevReloadFlickingBit(e);
-}
-
-void(entity e, float xHand, float v) VRSetEntForceGrabbing =
-{
-    if(xHand == cVR_OffHand) e.offhand_forcegrabbing = v;
-    else                     e.mainhand_forcegrabbing = v;
 }
 
 float(entity entPlayer) VRIsTouchingHandFake =

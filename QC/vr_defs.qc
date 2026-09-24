@@ -173,8 +173,6 @@ float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 
 float QVR_THROWHIT_NEVER_HIT          = 0;
 float QVR_THROWHIT_HIT                = 1;
-float QVR_THROWHIT_FORCEGRAB          = 2;
-float QVR_THROWHIT_FORCEGRAB_PARABOLA = 3;
 
 //
 //
@@ -249,18 +247,6 @@ float QVR_ENEMYDROPS_DISABLE = 2;
 float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
 float QVR_AMMOBOXDROPS_ALWAYS = 1;
 float QVR_AMMOBOXDROPS_DISABLE = 2;
-
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Enum values for `VrForceGrabMode`
-// ----------------------------------------------------------------------------
-
-float QVR_VRFORCEGRABMODE_DISABLED = 0;
-float QVR_VRFORCEGRABMODE_LINEAR = 1;
-float QVR_VRFORCEGRABMODE_PARABOLA = 2;
-float QVR_VRFORCEGRABMODE_INSTANT = 3;
 
 //
 //

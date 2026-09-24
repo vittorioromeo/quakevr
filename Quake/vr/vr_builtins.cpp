@@ -71,6 +71,25 @@ void PF_modelbounds()
     }
 }
 
+// void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox:
+// traceline with a box (the engine's own collision, hulls and all); sets the trace_ globals.
+void PF_tracebox()
+{
+    const trace_t trace = SV_Move(G_VECTOR(OFS_PARM0), G_VECTOR(OFS_PARM1), G_VECTOR(OFS_PARM2),
+        G_VECTOR(OFS_PARM3), static_cast<int>(G_FLOAT(OFS_PARM4)), G_EDICT(OFS_PARM5));
+
+    pr_global_struct->trace_allsolid = trace.allsolid;
+    pr_global_struct->trace_startsolid = trace.startsolid;
+    pr_global_struct->trace_fraction = trace.fraction;
+    pr_global_struct->trace_inwater = trace.inwater;
+    pr_global_struct->trace_inopen = trace.inopen;
+    VectorCopy(trace.endpos, pr_global_struct->trace_endpos);
+    VectorCopy(trace.plane.normal, pr_global_struct->trace_plane_normal);
+    pr_global_struct->trace_plane_dist = trace.plane.dist;
+    edict_t* hit = trace.ent ? trace.ent : qcvm->edicts;
+    pr_global_struct->trace_ent = EDICT_TO_PROG(hit);
+}
+
 // Launch angle (degrees) to hit `to` from `from` at `throwSpeed`, or 0 if out of range.
 void PF_calcthrowangle()
 {
@@ -287,6 +306,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"redirectvector", PF_redirectvector},
     {"calcthrowangle", PF_calcthrowangle},
     {"modelbounds", PF_modelbounds},
+    {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
     {"cvar_hset", PF_cvar_hset},

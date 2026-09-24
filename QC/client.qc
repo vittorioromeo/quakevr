@@ -1055,8 +1055,7 @@ void() PutClientInServer =
     VRSetMainHandReloadFlickingBit(self, FALSE);
     VRSetMainHandPrevReloadFlickingBit(self, FALSE);
 
-    self.offhand_forcegrabbing = FALSE;
-    self.mainhand_forcegrabbing = FALSE;
+    VR_Forcegrab_Reset(self);
 
     spawn_tdeath(self.origin, self);
 

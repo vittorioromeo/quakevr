@@ -30,8 +30,21 @@
 // Force-grabbing fields
 // ----------------------------------------------------------------------------
 
-.float offhand_forcegrabbing;
-.float mainhand_forcegrabbing;
+// Per hand, on the player (vr_wpnforcegrab.qc): the object pointed at or locked on to.
+.entity offhand_fgtarget;
+.entity mainhand_fgtarget;
+.float offhand_fglocked;
+.float mainhand_fglocked;
+
+// On the object pulled.
+.entity fg_player;
+.float fg_hand;
+.float fg_state;    // 0 not pulled, 1 flying to the hand, 2 missed: falling, not yet touchable
+.float fg_arrive;   // when it reaches the hand
+.float fg_gravity;  // of its arc
+.float fg_movetype; // as it was before
+.float fg_solid;
+.void() fg_think;
 
 //
 //

@@ -1141,7 +1141,11 @@ void SV_Physics_Toss (edict_t *ent)
 		return;
 
 	if (VR_RigidToss (ent)) // QVR: thrown weapons fly, bounce and settle as rigid bodies
+	{
+		if (!ent->free)
+			SV_CheckWaterTransition (ent); // else "just spawned" leaves waterlevel 1 for good
 		return;
+	}
 
 // if onground, return without moving
 	if ( ((int)ent->v.flags & FL_ONGROUND) && VR_TossKeepsGround (ent) ) // QVR: unless its support went away

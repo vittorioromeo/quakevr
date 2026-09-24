@@ -220,10 +220,18 @@ QVR_CVAR(vr_enemy_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammobox_drops, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammobox_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_menumode, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_forcegrab_powermult, "0.75", CVAR_ARCHIVE)
-QVR_CVAR(vr_forcegrab_mode, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_forcegrab_range, "150.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_forcegrab_radius, "18.0", CVAR_ARCHIVE)
+QVR_CVAR(vr_forcegrab_mode, "1", CVAR_ARCHIVE)             // force grab (QC vr_wpnforcegrab.qc): 0 off, 1 on
+QVR_CVAR(vr_forcegrab_distance, "600", CVAR_ARCHIVE)       // units objects can be pulled from,
+QVR_CVAR(vr_forcegrab_cone, "15", CVAR_ARCHIVE)            // degrees off where the hand points
+QVR_CVAR(vr_forcegrab_flick_speed, "1.0", CVAR_ARCHIVE)    // m/s back or up the hand flicks to pull,
+QVR_CVAR(vr_forcegrab_flick_turn, "250", CVAR_ARCHIVE)     // or degrees/s the fingers swing that way
+QVR_CVAR(vr_forcegrab_time, "0.35", CVAR_ARCHIVE)          // seconds of flight, plus
+QVR_CVAR(vr_forcegrab_speed, "1000", CVAR_ARCHIVE)         // a second per this many units
+QVR_CVAR(vr_forcegrab_arc, "0.15", CVAR_ARCHIVE)           // height of the arc, of the distance
+QVR_CVAR(vr_forcegrab_catch_radius, "14", CVAR_ARCHIVE)    // units from the hand it can be caught,
+QVR_CVAR(vr_forcegrab_catch_early, "0.35", CVAR_ARCHIVE)   // the grip pressed at most this early,
+QVR_CVAR(vr_forcegrab_catch_late, "0.15", CVAR_ARCHIVE)    // or this late
+QVR_CVAR(vr_forcegrab_miss_speed, "0.2", CVAR_ARCHIVE)     // share of its speed a missed object keeps
 QVR_CVAR(vr_forcegrab_eligible_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
