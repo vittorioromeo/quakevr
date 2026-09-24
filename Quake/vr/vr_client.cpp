@@ -3,6 +3,7 @@
 
 #include "vr_client.hpp"
 #include "vr_engine.hpp"
+#include "vr_particles.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_handpose.hpp"
@@ -261,7 +262,12 @@ void parseParticle2()
     const int preset = MSG_ReadByte();
     const int count = MSG_ReadShort();
 
-    // The old engine's particle presets (QC QVR_PARTICLE_PRESET_*), approximated with Quake's
+    if(particles::spawn({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, preset, count))
+    {
+        return;
+    }
+
+    // Without Quake VR's particles (vr_particles 0): the old engine's particle presets (QC QVR_PARTICLE_PRESET_*), approximated with Quake's
     // own effects and palette colours.
     enum Preset : int
     {
@@ -329,9 +335,29 @@ void parsePrecacheSound()
 namespace qvr::client
 {
 
+// vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning).
+void particleTest_f()
+{
+    if(Cmd_Argc() < 2 || cls.state != ca_connected)
+    {
+        Con_Printf("usage: vr_particle_test <preset 0..11> [count]\n");
+        return;
+    }
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 org = glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]} +
+                          glm::vec3{fwd[0], fwd[1], fwd[2]} * 64.f;
+    const int count = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 8;
+    if(!particles::spawn(org, glm::vec3{0.f}, Q_atoi(Cmd_Argv(1)), count))
+    {
+        Con_Printf("vr_particle_test: Quake VR particles are off (vr_particles) or unavailable\n");
+    }
+}
+
 void init()
 {
     teleport::init();
+    Cmd_AddCommand("vr_particle_test", particleTest_f);
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
@@ -409,6 +435,7 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
+    particles::clear();
     worldtext::clientReset();
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;

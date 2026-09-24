@@ -198,6 +198,13 @@ glm::mat4 sceneViewProjection()
     return viewProj;
 }
 
+void sceneCamera(glm::vec3& origin, glm::vec3& right, glm::vec3& up)
+{
+    origin = {r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    right = {vright[0], vright[1], vright[2]};
+    up = {vup[0], vup[1], vup[2]};
+}
+
 Texture fontTexture()
 {
     return char_texture ? char_texture->texnum : 0;
@@ -366,12 +373,20 @@ void copy(const Target& target, Texture image)
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
 }
 
-Texture createTexture(int width, int height)
+Texture createTexture(int width, int height, const void* rgba)
 {
     GLuint tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+    if(rgba)
+    {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
     GL_ClearBindings();
     return tex;

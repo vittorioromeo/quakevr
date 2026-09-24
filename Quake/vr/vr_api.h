@@ -101,6 +101,11 @@ int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero i
 int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
 float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
 
+// Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
+int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)
+int VR_ParticleExplosion (const float *org);										// TE_EXPLOSION
+int VR_ParticleExplosion2 (const float *org, int colorStart, int colorLength);	// TE_EXPLOSION2
+
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
 

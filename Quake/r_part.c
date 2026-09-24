@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 #define MAX_PARTICLES			16384	// default max # of particles at one
 										//  time
@@ -223,6 +224,9 @@ void R_ParticleExplosion (vec3_t org)
 	int			i, j;
 	particle_t	*p;
 
+	if (VR_ParticleExplosion (org)) // QVR: Quake VR's particles
+		return;
+
 	for (i=0 ; i<1024 ; i++)
 	{
 		if (!(p = R_AllocParticle ()))
@@ -261,6 +265,9 @@ void R_ParticleExplosion2 (vec3_t org, int colorStart, int colorLength)
 {
 	int			i, j;
 	particle_t	*p;
+
+	if (VR_ParticleExplosion2 (org, colorStart, colorLength)) // QVR: Quake VR's particles
+		return;
 	int			colorMod = 0;
 
 	for (i=0; i<512; i++)
@@ -330,6 +337,9 @@ void R_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count)
 {
 	int			i, j;
 	particle_t	*p;
+
+	if (VR_RunParticleEffect (org, dir, color, count)) // QVR: Quake VR's particles
+		return;
 
 	for (i=0 ; i<count ; i++)
 	{

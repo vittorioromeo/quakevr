@@ -1,0 +1,23 @@
+// vr_particles.hpp -- Quake VR's own particles (the old engine's r_part.cpp, ported): textured,
+// coloured, spinning and fading sprites for the QC's particle2 presets (QVR_PARTICLE_PRESET_*:
+// bullet puffs, blood, explosions, lightning, smoke, sparks, gun smoke, teleports, pickup and
+// force grab sparkles, lava spikes). The textures are quakevr/textures/particle_*.tga; drawn
+// through vr_gfx in the scene's translucent pass (VR_DrawSceneTranslucent).
+//
+// vr_particles 0 falls back to Quake's own particle effects.
+
+#pragma once
+
+#include <glm/glm.hpp>
+
+namespace qvr::particles
+{
+
+// Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
+// caller to fall back on Quake's effects.
+bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+
+// Removes them all (a new map, a disconnect).
+void clear();
+
+} // namespace qvr::particles

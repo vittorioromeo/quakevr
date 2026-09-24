@@ -57,6 +57,9 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
 // The scene view's world-to-clip transform, while the scene (or an eye) is rendered.
 [[nodiscard]] glm::mat4 sceneViewProjection();
 
+// The scene view's position and its right and up directions (for camera-facing sprites).
+void sceneCamera(glm::vec3& origin, glm::vec3& right, glm::vec3& up);
+
 // The console font: its texture, and a character's texture rectangle (u0, v0, u1, v1).
 [[nodiscard]] Texture fontTexture();
 [[nodiscard]] glm::vec4 fontGlyph(unsigned char c);
@@ -101,8 +104,9 @@ void endCanvas();
 // Copies all of `target` into `image`, a texture of the same size (a runtime's swapchain image).
 void copy(const Target& target, Texture image);
 
-// Colour textures for a backend without a runtime (the mock backend's eye images).
-[[nodiscard]] Texture createTexture(int width, int height);
+// RGBA8 colour textures: the mock backend's eye images (no data), or images such as the particle
+// atlas (`rgba`, rows top first; linear filtering, clamped).
+[[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr);
 void destroyTexture(Texture texture);
 
 } // namespace qvr::gfx

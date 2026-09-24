@@ -38,6 +38,7 @@ int VR_RenderingEye (void);							// forces the post-process path while renderin
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
+void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles)
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D

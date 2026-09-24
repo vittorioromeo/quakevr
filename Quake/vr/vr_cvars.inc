@@ -212,6 +212,8 @@ QVR_CVAR(vr_vrtorso_pitch, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_vrtorso_yaw, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_vrtorso_roll, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
+QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
 QVR_CVAR(vr_player_shadows, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_print_handvel, "0", CVAR_ARCHIVE)

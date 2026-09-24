@@ -1947,6 +1947,8 @@ void R_RenderScene (void)
 
 	R_EndTranslucency ();
 
+	VR_DrawSceneTranslucent (); // QVR: particles
+
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView -- il8r -- moved for oit reasons
 
 	R_ShowTris (); //johnfitz

@@ -24,6 +24,7 @@ extern cvar_t r_lerpmodels;							// r_alias.c
 extern cvar_t gl_farclip;							// gl_rmain.c
 extern gltexture_t* char_texture;					// gl_draw.c
 extern char com_gamenames[];						// common.c
+byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt); // image.c (image.h hides it from C++)
 void M_DrawSlider (int x, int y, float range, const char *desc);	// menu.c
 void M_DrawArrowCursor (int cx, int cy);			// menu.c
 qboolean SV_RunThink (edict_t *ent);				// sv_phys.c

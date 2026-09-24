@@ -30,6 +30,10 @@
 {
     return {
         toggle("Particle Effects", "r_particles").help("Enable or disable all particle effects."),
+        toggle("Quake VR Particles", "vr_particles")
+            .help("Textured smoke, sparks, blood and explosions for Quake VR's effects. Off: Quake's own dots."),
+        slider("Particle Multiplier", "vr_particle_mult", 0.25f, 4.f, 0.25f, "%.2f")
+            .help("How many particles Quake VR's effects make."),
     };
 }
 
