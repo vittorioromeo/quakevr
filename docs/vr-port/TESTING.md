@@ -98,7 +98,7 @@ gravity and spin. Things to try:
 | #67 / #40 hands shaking (frame cap, after a break) | OpenVR pose-timing problems; OpenXR predicts poses for the displayed frame: please confirm |
 | #64, #70, #19, #49, #52 | old engine/renderer (SteamVR keyboard, lighting, animated textures, mission-pack launch, black screen): gone with Ironwail |
 | #12 missing bindings | done: the controller buttons are Quake keys (see Controls) |
-| #20, #14 status bar on the hands | P6 (HUD) |
+| #20, #14 status bar on the hands | done: on the off hand by default (see HUD below) |
 
 ## What to try
 
@@ -125,6 +125,19 @@ gravity and spin. Things to try:
 
 `vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
 hands, weapons and finger curls.
+
+## If something goes wrong
+
+Add `-condebug` to the command line (or `QuakeVR.bat -condebug`): the console goes to `qconsole.log` in the Quake folder, which
+is the most useful thing to send me along with a description. In particular:
+
+- **Nothing in the headset:** look for the `VR:` lines. They say which OpenXR call failed, with its result code.
+  `vr_restart` retries after the headset is on or the runtime is running.
+- **The picture is wrong** (double vision, wrong scale, swimming): `vr_status` output while it happens, and a
+  screenshot of the desktop mirror (`vr_mirror 2` shows both eyes).
+- **Hands or weapons are in the wrong place or at the wrong angle:** `vr_status` and `vr_dumpview` while holding the
+  pose. Gun Angle in VR Settings is the first thing to adjust.
+- **A crash:** the log up to the crash, and what you were doing.
 
 ## Testing without a headset
 
