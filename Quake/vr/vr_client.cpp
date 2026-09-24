@@ -348,6 +348,25 @@ extern "C" void VR_OnSetAngle(float yaw)
     hands::setServerYaw(yaw);
 }
 
+// The old engine drew the lightning gun's beam at half size and the grappling hook's at a
+// quarter, which suits VR's scale better.
+extern "C" float VR_BeamScale(qmodel_t* model)
+{
+    if(!vrProtocol() || !model)
+    {
+        return 1.f;
+    }
+    if(!strcmp(model->name, "progs/bolt2.mdl"))
+    {
+        return 0.5f;
+    }
+    if(!strcmp(model->name, "progs/beam.mdl"))
+    {
+        return 0.25f;
+    }
+    return 1.f;
+}
+
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();

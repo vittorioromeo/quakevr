@@ -295,6 +295,7 @@ CL_UpdateTEnts
 */
 void CL_UpdateTEnts (void)
 {
+	float		beamscale; // QVR
 	int			i, j; //johnfitz -- use j instead of using i twice, so we don't corrupt memory
 	beam_t		*b;
 	vec3_t		dist, org;
@@ -345,6 +346,7 @@ void CL_UpdateTEnts (void)
 	// add new entities for the lightning
 		VectorCopy (b->start, org);
 		d = VectorNormalize(dist);
+		beamscale = VR_BeamScale (b->model); // QVR: thinner beams (1 outside VR)
 		while (d > 0)
 		{
 			ent = CL_NewTempEntity ();
@@ -355,11 +357,12 @@ void CL_UpdateTEnts (void)
 			ent->angles[0] = pitch;
 			ent->angles[1] = yaw;
 			ent->angles[2] = rand()%360;
+			ent->scale = ENTSCALE_ENCODE (beamscale); // QVR
 
 			//johnfitz -- use j instead of using i twice, so we don't corrupt memory
 			for (j=0 ; j<3 ; j++)
-				org[j] += dist[j]*30;
-			d -= 30;
+				org[j] += dist[j]*30*beamscale; // QVR
+			d -= 30*beamscale; // QVR
 		}
 	}
 }
