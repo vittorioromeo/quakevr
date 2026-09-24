@@ -55,7 +55,7 @@ Useful settings:
 | Cvar | Default | |
 |---|---|---|
 | `vr_snap_turn` | 0 | degrees per snap; 0 = smooth turning at `vr_turn_speed` |
-| `vr_gunangle` | 0 | weapon pitch relative to the controller: **please tune this**, the old default was tied to OpenVR poses |
+| `vr_gunangle`, `vr_offhandpitch` | 39.5, 40.25 | weapon pitch relative to the controller (the shipped values, applied to OpenXR's grip pose, which points along the fist): **check this first** (Options > VR Settings > Gun Angle) |
 | `vr_world_scale` | 1.25 | |
 | `vr_height_calibration`, `vr_floor_offset` | 1.646, -21 | |
 | `vr_mirror` | 1 | desktop window: 0 off, 1 left eye, 2 both eyes |
