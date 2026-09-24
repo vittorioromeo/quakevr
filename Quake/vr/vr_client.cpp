@@ -8,6 +8,7 @@
 #include "vr_main.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
+#include "vr_teleport.hpp"
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
 #include "vr_worldtext.hpp"
@@ -159,6 +160,7 @@ bool wasGrabbing[2]{false, false};
     set(handButtons(HAND_OFF).flickReload, VRBITS0_OFFHAND_RELOADFLICKING);
     set(handButtons(HAND_MAIN).flickReload, VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
+    set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     move.vrBits0 = static_cast<std::uint16_t>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
@@ -257,6 +259,7 @@ namespace qvr::client
 
 void init()
 {
+    teleport::init();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
