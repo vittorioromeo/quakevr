@@ -30,6 +30,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern "C" {
 #endif
 
+struct client_s;
+struct edict_s;
+struct sizebuf_s;
+
+// PROTOCOL_RMQ flag set by servers running Quake VR progs (see vr/vr_protocol.hpp).
+#define PRFL_QUAKEVR				(1 << 16)
+#define VR_ENTITY_UPDATE_MAXSIZE	36		// bytes VR_WriteEntityUpdate may add
+
 // Host lifetime (host.c).
 void VR_Init (void);		// after SV_Init (also on dedicated servers): registers cvars and commands
 void VR_Shutdown (void);	// client shutdown, before video shutdown
@@ -53,6 +61,19 @@ void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a cli
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
 int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
+
+// Protocol (cl_input.c, cl_parse.c, cl_tent.c, sv_user.c, sv_main.c, host.c, host_cmd.c).
+void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
+void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
+int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
+void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
+void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
+int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
+int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
+void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
+void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
+void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,7 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
 #include "vr_progs.hpp"
+#include "vr_server.hpp"
 
 #include <cstring>
 #include <vector>
@@ -102,6 +103,10 @@ extern "C" void VR_OnProgsLoaded()
     b.isVrProgs = ED_FindFieldOffset("handpos") >= 0;
     if(b.isVrProgs)
     {
+#define QVR_FIELD(name) b.fields.name = ED_FindFieldOffset(#name);
+#include "vr_fields.inc"
+#undef QVR_FIELD
+
         b.OnSpawnServerBeforeLoad = findFunction("OnSpawnServerBeforeLoad");
         b.OnSpawnServerAfterLoad = findFunction("OnSpawnServerAfterLoad");
         b.OnLoadGame = findFunction("OnLoadGame");
@@ -123,6 +128,10 @@ extern "C" void VR_OnProgsLoaded()
         }
 
         bindBuiltins();
+
+        // The VR protocol extends RMQ (see vr_protocol.hpp).
+        sv.protocol = PROTOCOL_RMQ;
+        sv.protocolflags |= PRFL_QUAKEVR;
         Con_DPrintf("VR: Quake VR progs detected\n");
     }
 
@@ -137,6 +146,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
 
 extern "C" void VR_OnSpawnServerAfterLoad()
 {
+    qvr::server::onSpawnServerAfterLoad();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     loadingSaveGame = false;
 }
@@ -190,7 +200,7 @@ extern "C" int VR_LatePrecacheModel(const char* name)
     {
         if(!sv.model_precache[i])
         {
-            // TODO VR: (P2) tell connected clients about the new model.
+            // Clients learn about it from VR_ServerFrameEnd.
             sv.model_precache[i] = name;
             sv.models[i] = Mod_ForName(name, true);
             return i;

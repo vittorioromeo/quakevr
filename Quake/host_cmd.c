@@ -3165,6 +3165,7 @@ static void Host_Spawn_f (void)
 			MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
 	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags );
 
+	VR_WriteClientSpawnState (&host_client->message); // QVR
 	SV_WriteClientdataToMessage (sv_player, &host_client->message);
 
 	MSG_WriteByte (&host_client->message, svc_signonnum);

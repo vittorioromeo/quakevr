@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 edict_t	*sv_player;
 
@@ -470,6 +471,8 @@ void SV_ReadClientMove (usercmd_t *move)
 	i = MSG_ReadByte ();
 	if (i)
 		host_client->edict->v.impulse = i;
+
+	VR_ReadMoveExtras (host_client); // QVR
 }
 
 /*

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_parse.c  -- parse a message received from the server
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "bgmusic.h"
 #include "steam.h"
 
@@ -301,6 +302,7 @@ void CL_ParseServerInfo (void)
 // wipe the client_state_t struct
 //
 	CL_ClearState ();
+	VR_OnClientClearState (); // QVR
 
 // parse protocol version number
 	i = MSG_ReadLong ();
@@ -314,7 +316,8 @@ void CL_ParseServerInfo (void)
 
 	if (cl.protocol == PROTOCOL_RMQ)
 	{
-		const unsigned int supportedflags = (PRFL_SHORTANGLE | PRFL_FLOATANGLE | PRFL_24BITCOORD | PRFL_FLOATCOORD | PRFL_EDICTSCALE | PRFL_INT32COORD);
+		const unsigned int supportedflags = (PRFL_SHORTANGLE | PRFL_FLOATANGLE | PRFL_24BITCOORD | PRFL_FLOATCOORD | PRFL_EDICTSCALE | PRFL_INT32COORD
+			| PRFL_QUAKEVR); // QVR
 		
 		// mh - read protocol flags from server so that we know what protocol features to expect
 		cl.protocolflags = (unsigned int) MSG_ReadLong ();
@@ -607,6 +610,7 @@ void CL_ParseUpdate (int bits)
 		}
 		else
 			ent->lerpflags &= ~LERP_FINISH;
+		VR_ParseEntityUpdate (num, bits); // QVR
 	}
 	else if (cl.protocol == PROTOCOL_NETQUAKE)
 	{
@@ -1123,6 +1127,8 @@ void CL_ParseServerMessage (void)
 		switch (cmd)
 		{
 		default:
+			if (VR_ParseServerMessage (cmd)) // QVR
+				break;
 		//	CL_DumpPacket ();
 			Host_Error ("Illegible server message %d (previous was %s)", cmd, svc_strings[lastcmd]); //johnfitz -- added svc_strings[lastcmd]
 			break;

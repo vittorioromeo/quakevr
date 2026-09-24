@@ -51,4 +51,7 @@ public:
 
 [[nodiscard]] std::unique_ptr<Backend> makeMockBackend();
 
+// A standing player holding both hands in front of the chest (what the mock backend reports).
+[[nodiscard]] TrackingState standingPose();
+
 } // namespace qvr

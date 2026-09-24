@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_tent.c -- client side temporary entities
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 int			num_temp_entities;
 entity_t	cl_temp_entities[MAX_TEMP_ENTITIES];
@@ -64,6 +65,7 @@ void CL_ParseBeam (qmodel_t *m)
 	int		i;
 
 	ent = MSG_ReadShort ();
+	ent = VR_ParseBeamEntity (ent); // QVR
 
 	start[0] = MSG_ReadCoord (cl.protocolflags);
 	start[1] = MSG_ReadCoord (cl.protocolflags);

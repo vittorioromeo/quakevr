@@ -979,6 +979,8 @@ void Host_ServerFrame (void)
 	}
 //johnfitz
 
+	VR_ServerFrameEnd (); // QVR
+
 // send all messages to the clients
 	SV_SendClientMessages ();
 

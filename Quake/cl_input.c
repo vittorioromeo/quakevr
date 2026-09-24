@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // rights reserved.
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 extern cvar_t cl_maxpitch; //johnfitz -- variable pitch clamping
 extern cvar_t cl_minpitch; //johnfitz -- variable pitch clamping
@@ -387,9 +388,9 @@ void CL_SendMove (const usercmd_t *cmd)
 	int		i;
 	int		bits;
 	sizebuf_t	buf;
-	byte	data[128];
+	byte	data[1024]; // QVR: was 128
 
-	buf.maxsize = 128;
+	buf.maxsize = sizeof (data); // QVR
 	buf.cursize = 0;
 	buf.data = data;
 
@@ -433,6 +434,8 @@ void CL_SendMove (const usercmd_t *cmd)
 
 		MSG_WriteByte (&buf, in_impulse);
 		in_impulse = 0;
+
+		VR_WriteMoveExtras (&buf); // QVR
 	}
 
 //

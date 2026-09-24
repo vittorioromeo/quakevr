@@ -29,27 +29,31 @@ public:
 
     [[nodiscard]] bool update(TrackingState& out) override
     {
-        constexpr float eyeHeight = 1.7f;
-
-        out.head.position = {0.f, eyeHeight, 0.f};
-        out.head.orientation = glm::quat{1.f, 0.f, 0.f, 0.f};
-        out.head.valid = true;
-
-        // Hands at chest height, 40cm forward, 20cm to each side.
-        out.hands[HAND_OFF].position = {-0.2f, eyeHeight - 0.4f, -0.4f};
-        out.hands[HAND_MAIN].position = {0.2f, eyeHeight - 0.4f, -0.4f};
-
-        for(Pose& hand : out.hands)
-        {
-            hand.orientation = glm::quat{1.f, 0.f, 0.f, 0.f};
-            hand.valid = true;
-        }
-
+        out = standingPose();
         return true;
     }
 };
 
 } // namespace
+
+TrackingState standingPose()
+{
+    constexpr float eyeHeight = 1.7f;
+
+    TrackingState out;
+    out.head.position = {0.f, eyeHeight, 0.f};
+    out.head.valid = true;
+
+    // Hands at chest height, 40cm forward, 20cm to each side.
+    out.hands[HAND_OFF].position = {-0.2f, eyeHeight - 0.4f, -0.4f};
+    out.hands[HAND_MAIN].position = {0.2f, eyeHeight - 0.4f, -0.4f};
+    for(Pose& hand : out.hands)
+    {
+        hand.valid = true;
+    }
+
+    return out;
+}
 
 std::unique_ptr<Backend> makeMockBackend()
 {

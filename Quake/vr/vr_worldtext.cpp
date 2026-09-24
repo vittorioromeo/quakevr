@@ -1,0 +1,218 @@
+// vr_worldtext.cpp -- see vr_worldtext.hpp.
+
+#include "vr_worldtext.hpp"
+#include "vr_protocol.hpp"
+
+using namespace qvr::protocol;
+
+namespace qvr::worldtext
+{
+namespace
+{
+
+constexpr int maxWorldTexts = 4096;
+
+std::vector<WorldText> serverTexts;
+std::vector<WorldText> clientTextList;
+
+[[nodiscard]] WorldText& serverText(int handle)
+{
+    if(handle < 0 || handle >= static_cast<int>(serverTexts.size()))
+    {
+        PR_RunError("invalid world text handle %d", handle);
+    }
+
+    return serverTexts[handle];
+}
+
+// Changes made while the map is loading are not broadcast: spawning clients get the full
+// list from serverWriteAll instead.
+[[nodiscard]] sizebuf_t* broadcast()
+{
+    return sv.state == ss_active ? &sv.reliable_datagram : nullptr;
+}
+
+void beginMessage(sizebuf_t* msg, int subcmd, int handle)
+{
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, subcmd);
+    MSG_WriteShort(msg, handle);
+}
+
+void writeText(sizebuf_t* msg, int handle, const WorldText& wt)
+{
+    beginMessage(msg, QVR_SVC_WORLDTEXT_TEXT, handle);
+    MSG_WriteString(msg, wt.text.c_str());
+}
+
+void writePos(sizebuf_t* msg, int handle, const WorldText& wt)
+{
+    beginMessage(msg, QVR_SVC_WORLDTEXT_POS, handle);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(msg, wt.pos[i], sv.protocolflags);
+    }
+}
+
+void writeAngles(sizebuf_t* msg, int handle, const WorldText& wt)
+{
+    beginMessage(msg, QVR_SVC_WORLDTEXT_ANGLES, handle);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteFloat(msg, wt.angles[i]);
+    }
+}
+
+void writeHAlign(sizebuf_t* msg, int handle, const WorldText& wt)
+{
+    beginMessage(msg, QVR_SVC_WORLDTEXT_HALIGN, handle);
+    MSG_WriteByte(msg, static_cast<int>(wt.hAlign));
+}
+
+void writeScale(sizebuf_t* msg, int handle, const WorldText& wt)
+{
+    beginMessage(msg, QVR_SVC_WORLDTEXT_SCALE, handle);
+    MSG_WriteFloat(msg, wt.scale);
+}
+
+[[nodiscard]] WorldText& clientText(int handle)
+{
+    if(handle < 0 || handle >= maxWorldTexts)
+    {
+        Host_Error("svc_quakevr: bad world text handle %d", handle);
+    }
+
+    if(handle >= static_cast<int>(clientTextList.size()))
+    {
+        clientTextList.resize(handle + 1);
+    }
+
+    return clientTextList[handle];
+}
+
+} // namespace
+
+void serverReset()
+{
+    serverTexts.clear();
+}
+
+int serverMake()
+{
+    if(serverTexts.size() >= maxWorldTexts)
+    {
+        PR_RunError("too many world texts (max %d)", maxWorldTexts);
+    }
+
+    serverTexts.emplace_back();
+    const int handle = static_cast<int>(serverTexts.size() - 1);
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_WORLDTEXT_MAKE, handle);
+    }
+    return handle;
+}
+
+void serverSetText(int handle, const char* text)
+{
+    WorldText& wt = serverText(handle);
+    wt.text = text;
+    if(sizebuf_t* msg = broadcast())
+    {
+        writeText(msg, handle, wt);
+    }
+}
+
+void serverSetPos(int handle, const glm::vec3& pos)
+{
+    WorldText& wt = serverText(handle);
+    wt.pos = pos;
+    if(sizebuf_t* msg = broadcast())
+    {
+        writePos(msg, handle, wt);
+    }
+}
+
+void serverSetAngles(int handle, const glm::vec3& angles)
+{
+    WorldText& wt = serverText(handle);
+    wt.angles = angles;
+    if(sizebuf_t* msg = broadcast())
+    {
+        writeAngles(msg, handle, wt);
+    }
+}
+
+void serverSetHAlign(int handle, HAlign hAlign)
+{
+    WorldText& wt = serverText(handle);
+    wt.hAlign = hAlign;
+    if(sizebuf_t* msg = broadcast())
+    {
+        writeHAlign(msg, handle, wt);
+    }
+}
+
+void serverSetScale(int handle, float scale)
+{
+    WorldText& wt = serverText(handle);
+    wt.scale = scale;
+    if(sizebuf_t* msg = broadcast())
+    {
+        writeScale(msg, handle, wt);
+    }
+}
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    for(int handle = 0; handle < static_cast<int>(serverTexts.size()); handle++)
+    {
+        const WorldText& wt = serverTexts[handle];
+        beginMessage(msg, QVR_SVC_WORLDTEXT_MAKE, handle);
+        writeText(msg, handle, wt);
+        writePos(msg, handle, wt);
+        writeAngles(msg, handle, wt);
+        writeHAlign(msg, handle, wt);
+        writeScale(msg, handle, wt);
+    }
+}
+
+void clientReset()
+{
+    clientTextList.clear();
+}
+
+void clientParse(int subcmd)
+{
+    WorldText& wt = clientText(MSG_ReadShort());
+
+    switch(subcmd)
+    {
+        case QVR_SVC_WORLDTEXT_MAKE: wt = WorldText{}; break;
+        case QVR_SVC_WORLDTEXT_TEXT: wt.text = MSG_ReadString(); break;
+        case QVR_SVC_WORLDTEXT_POS:
+            for(int i = 0; i < 3; i++)
+            {
+                wt.pos[i] = MSG_ReadCoord(cl.protocolflags);
+            }
+            break;
+        case QVR_SVC_WORLDTEXT_ANGLES:
+            for(int i = 0; i < 3; i++)
+            {
+                wt.angles[i] = MSG_ReadFloat();
+            }
+            break;
+        case QVR_SVC_WORLDTEXT_HALIGN:
+            wt.hAlign = static_cast<HAlign>(MSG_ReadByte());
+            break;
+        case QVR_SVC_WORLDTEXT_SCALE: wt.scale = MSG_ReadFloat(); break;
+        default: Host_Error("svc_quakevr: bad world text command %d", subcmd);
+    }
+}
+
+const std::vector<WorldText>& clientTexts()
+{
+    return clientTextList;
+}
+
+} // namespace qvr::worldtext

@@ -15,10 +15,19 @@ inline constexpr int firstExtSpawnParm = 17;
 inline constexpr int lastExtSpawnParm = 40;
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
+// Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.
+struct FieldOffsets
+{
+#define QVR_FIELD(name) int name{-1};
+#include "vr_fields.inc"
+#undef QVR_FIELD
+};
+
 // Resolved for sv.qcvm each time progs are loaded.
 struct Bindings
 {
     bool isVrProgs{false};
+    FieldOffsets fields;
 
     func_t OnSpawnServerBeforeLoad{0};
     func_t OnSpawnServerAfterLoad{0};
@@ -29,6 +38,33 @@ struct Bindings
 };
 
 [[nodiscard]] const Bindings& bindings();
+
+[[nodiscard]] inline const FieldOffsets& fields()
+{
+    return bindings().fields;
+}
+
+// Field accessors. Callers must check the offset is valid (isVrProgs guarantees the fields
+// the engine needs; fall back gracefully for optional ones).
+[[nodiscard]] inline float* fieldPtr(edict_t* ent, int ofs)
+{
+    return reinterpret_cast<float*>(&ent->v) + ofs;
+}
+
+[[nodiscard]] inline float& fieldFloat(edict_t* ent, int ofs)
+{
+    return *fieldPtr(ent, ofs);
+}
+
+[[nodiscard]] inline int& fieldInt(edict_t* ent, int ofs) // func_t, string_t, entity
+{
+    return *reinterpret_cast<int*>(fieldPtr(ent, ofs));
+}
+
+[[nodiscard]] inline float fieldFloatOr(edict_t* ent, int ofs, float fallback)
+{
+    return ofs >= 0 ? fieldFloat(ent, ofs) : fallback;
+}
 
 // Lookups on the current qcvm (nullptr / 0 when absent).
 [[nodiscard]] ddef_t* findGlobalDef(const char* name);

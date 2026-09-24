@@ -2,7 +2,10 @@
 
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_main.hpp"
+#include "vr_server.hpp"
 
 #include <cstring>
 #include <memory>
@@ -98,6 +101,22 @@ void VR_Status_f()
 
 } // namespace
 
+namespace qvr
+{
+
+const TrackingState& tracking()
+{
+    static const TrackingState fallback = standingPose();
+    return state && state->backend ? state->tracking : fallback;
+}
+
+bool vrActive()
+{
+    return state && state->backend;
+}
+
+} // namespace qvr
+
 extern "C" void VR_Init()
 {
     state = new State{};
@@ -107,6 +126,8 @@ extern "C" void VR_Init()
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
 
     Cmd_AddCommand("vr_status", VR_Status_f);
+    client::init();
+    server::init();
 
     state->restartRequested = true;
 }

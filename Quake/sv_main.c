@@ -96,6 +96,8 @@ void SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **sta
 			break;
 		}
 	}
+
+	VR_CalcStats (client, statsi, statsf); // QVR
 }
 
 /*
@@ -813,7 +815,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		// assumed here.  And, for protocol 85 the max size is actually 24 bytes.
 		// For float coords and angles the limit is 40.
 		// FIXME: Use tighter limit according to protocol flags and send bits.
-		if (msg->cursize + 40 > msg->maxsize)
+		if (msg->cursize + 40 + VR_ENTITY_UPDATE_MAXSIZE > msg->maxsize) // QVR
 		{
 			//johnfitz -- less spammy overflow message
 			if (!dev_overflows.packetsize || dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime )
@@ -888,6 +890,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00) bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00) bits |= U_MODEL2;
 			if (ent->sendinterval) bits |= U_LERPFINISH;
+			bits |= VR_EntityUpdateBits (ent); // QVR
 			if (bits >= 65536) bits |= U_EXTEND1;
 			if (bits >= 16777216) bits |= U_EXTEND2;
 		}
@@ -954,6 +957,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if (bits & U_LERPFINISH)
 			MSG_WriteByte(msg, (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
 		//johnfitz
+		VR_WriteEntityUpdate (msg, ent, bits); // QVR
 	}
 
 	//johnfitz -- devstats

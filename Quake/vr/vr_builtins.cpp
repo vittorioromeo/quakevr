@@ -4,10 +4,11 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_protocol.hpp"
+#include "vr_worldtext.hpp"
 
 #include <cmath>
 #include <cstring>
-#include <string>
 #include <vector>
 
 namespace qvr::progs
@@ -133,62 +134,48 @@ void PF_cvar_hclear()
 }
 
 // ----------------------------------------------------------------------------
-// World text: server-side state for now.
-// TODO VR: (P2) network to clients; (P7) render.
+// World text (see vr_worldtext.hpp)
 
-struct WorldText
+[[nodiscard]] int worldTextHandle()
 {
-    std::string text;
-    vec3_t pos{};
-    vec3_t angles{};
-    int hAlign{0};
-    float scale{1.f};
-};
+    return static_cast<int>(G_FLOAT(OFS_PARM0));
+}
 
-std::vector<WorldText> worldTexts;
-
-[[nodiscard]] WorldText& worldTextFromHandle(float handle)
+[[nodiscard]] glm::vec3 vecParm1()
 {
-    const int i = static_cast<int>(handle);
-    if(i < 0 || i >= static_cast<int>(worldTexts.size()))
-    {
-        PR_RunError("invalid world text handle %d", i);
-    }
-
-    return worldTexts[i];
+    const float* v = G_VECTOR(OFS_PARM1);
+    return {v[0], v[1], v[2]};
 }
 
 void PF_worldtext_hmake()
 {
-    worldTexts.emplace_back();
-    G_FLOAT(OFS_RETURN) = static_cast<float>(worldTexts.size() - 1);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(worldtext::serverMake());
 }
 
 void PF_worldtext_hsettext()
 {
-    worldTextFromHandle(G_FLOAT(OFS_PARM0)).text = G_STRING(OFS_PARM1);
+    worldtext::serverSetText(worldTextHandle(), G_STRING(OFS_PARM1));
 }
 
 void PF_worldtext_hsetpos()
 {
-    VectorCopy(G_VECTOR(OFS_PARM1), worldTextFromHandle(G_FLOAT(OFS_PARM0)).pos);
+    worldtext::serverSetPos(worldTextHandle(), vecParm1());
 }
 
 void PF_worldtext_hsetangles()
 {
-    VectorCopy(
-        G_VECTOR(OFS_PARM1), worldTextFromHandle(G_FLOAT(OFS_PARM0)).angles);
+    worldtext::serverSetAngles(worldTextHandle(), vecParm1());
 }
 
 void PF_worldtext_hsethalign()
 {
-    worldTextFromHandle(G_FLOAT(OFS_PARM0)).hAlign =
-        static_cast<int>(G_FLOAT(OFS_PARM1));
+    worldtext::serverSetHAlign(
+        worldTextHandle(), static_cast<worldtext::HAlign>(static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
 void PF_worldtext_hsetscale()
 {
-    worldTextFromHandle(G_FLOAT(OFS_PARM0)).scale = G_FLOAT(OFS_PARM1);
+    worldtext::serverSetScale(worldTextHandle(), G_FLOAT(OFS_PARM1));
 }
 
 // ----------------------------------------------------------------------------
@@ -237,9 +224,31 @@ void PF_WriteVec3()
 // ----------------------------------------------------------------------------
 // Not yet ported
 
+// particle2(origin, direction, preset, count): unreliable, like vanilla particle().
 void PF_particle2()
 {
-    // TODO VR: (P2/P7) svc message + particle presets.
+    const float* org = G_VECTOR(OFS_PARM0);
+    const float* dir = G_VECTOR(OFS_PARM1);
+    const int preset = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const int count = static_cast<int>(G_FLOAT(OFS_PARM3));
+
+    if(sv.datagram.cursize > MAX_DATAGRAM - 24)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_PARTICLE2);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, org[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&sv.datagram, CLAMP(-128, static_cast<int>(dir[i] * 16.f), 127));
+    }
+    MSG_WriteByte(&sv.datagram, preset);
+    MSG_WriteShort(&sv.datagram, count);
 }
 
 void PF_haptic()
@@ -307,7 +316,7 @@ void bindBuiltins()
 void resetBuiltinState()
 {
     cvarHandles.clear();
-    worldTexts.clear();
+    worldtext::serverReset();
 }
 
 } // namespace qvr::progs
