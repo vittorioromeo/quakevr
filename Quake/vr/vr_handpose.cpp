@@ -13,6 +13,7 @@
 // with the play space), which amounts to the same.
 
 #include "vr_handpose.hpp"
+#include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_trace.hpp"
@@ -106,9 +107,20 @@ void resolvePositions(hands::State& s, float turnYaw)
     newFrame = cl.time != lastTime;
     lastTime = cl.time;
 
-    // The upper torso: 40 units above where the hands are measured from.
+    // The upper torso: the body's chest (kept within the player's box), or 40 units above where
+    // the hands are measured from.
     glm::vec3 torso = s.playerOrigin;
     torso.z += vr_floor_offset.value + vr_gun_z_offset.value + 40.f;
+    if(vr_body_anchors.value && s.valid)
+    {
+        const glm::vec3 chest = avatar::torso(s).chest.pos;
+        glm::vec2 offset{chest.x - s.playerOrigin.x, chest.y - s.playerOrigin.y};
+        if(const float len = glm::length(offset); len > 12.f)
+        {
+            offset *= 12.f / len;
+        }
+        torso = {s.playerOrigin.x + offset.x, s.playerOrigin.y + offset.y, chest.z};
+    }
 
     for(int h = 0; h < HAND_COUNT; h++)
     {

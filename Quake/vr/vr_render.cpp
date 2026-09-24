@@ -10,6 +10,7 @@
 
 #include "vr_render.hpp"
 #include "vr_anchor.hpp"
+#include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_weapons.hpp"
 
@@ -58,6 +59,11 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
 
 void applyPost(const entity_t* e, float m[16])
 {
+    if(const float k = avatar::modelScale(e); k > 0.f)
+    {
+        ApplyScale(m, k, k, k);
+    }
+
     if(const weapons::ModelTransform t = weapons::modelTransform(e->model); t.active)
     {
         ApplyScale(m, t.scale.x, t.scale.y, t.scale.z);

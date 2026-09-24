@@ -2,6 +2,7 @@
 
 #include "vr_view.hpp"
 #include "vr_anchor.hpp"
+#include "vr_avatar.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -114,6 +115,7 @@ struct Entities
     view::ViewEntity holster[HolsterCount];
     view::ViewEntity holsterSlot[HolsterCount];
     view::ViewEntity torso;
+    view::ViewEntity body;
     view::ViewEntity button[2];
 };
 
@@ -143,6 +145,7 @@ void forEachEntity(F&& f)
         f(ve);
     }
     f(entities.torso);
+    f(entities.body);
     for(view::ViewEntity& ve : entities.button)
     {
         f(ve);
@@ -478,9 +481,9 @@ void setupHolsters(const hands::State& s)
     }
 }
 
-void setupTorso(const hands::State& s)
+void setupTorso(const hands::State& s, bool shown)
 {
-    if(vr_vrtorso_enabled.value != 1.f)
+    if(!shown)
     {
         entities.torso.visible = false;
         return;
@@ -499,6 +502,51 @@ void setupTorso(const hands::State& s)
         {vr_vrtorso_pitch.value - heightRatio * 35.f, s.bodyYaw + vr_vrtorso_yaw.value,
             vr_vrtorso_roll.value},
         0, false);
+}
+
+// The skinned body (vr_body_mode 2 and 3), its arms reaching the drawn hands' wrists; the old
+// torso otherwise, or when the body model is not usable.
+void setupBody(const hands::State& s)
+{
+    const int mode = static_cast<int>(vr_body_mode.value);
+    entities.body.visible = false;
+    avatar::hide();
+
+    if(mode >= 2)
+    {
+        qmodel_t* model = Mod_ForName("progs/vrbody.mdl", false);
+        if(avatar::usable(model))
+        {
+            // The centre of the wrist in hand_base.mdl (frame 0).
+            constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
+
+            glm::vec3 wrist[2], handUp[2];
+            for(int hand = 0; hand < 2; hand++)
+            {
+                const view::ViewEntity& base = entities.hand[hand][FingerBase];
+                if(entities.weapon[hand].ent.model && base.ent.model)
+                {
+                    wrist[hand] = view::modelPoint(base, handWrist);
+                    handUp[hand] = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - wrist[hand]);
+                }
+                else
+                {
+                    glm::vec3 fwd, right, up;
+                    hands::angleVectors(s.rot[hand], fwd, right, up);
+                    wrist[hand] = s.pos[hand] - fwd * 4.f;
+                    handUp[hand] = up;
+                }
+            }
+
+            view::ViewEntity& ve = entities.body;
+            const glm::vec3 origin = avatar::pose(s, model, &ve.ent, wrist, handUp, mode >= 3);
+            place(ve, model, origin, glm::vec3{0.f}, 0, false);
+            setupTorso(s, false);
+            return;
+        }
+    }
+
+    setupTorso(s, mode >= 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -597,6 +645,25 @@ const ViewEntity* find(const entity_t* e)
     return found;
 }
 
+glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
+{
+    const entity_t& e = ve.ent;
+    if(!e.model || e.model->type != mod_alias)
+    {
+        return {e.origin[0], e.origin[1], e.origin[2]};
+    }
+
+    float m[16];
+    render::anchorMatrix(ve, glm::vec3{0.f}, m);
+
+    // anchorMatrix ends with the model's own scale and origin: undo them for a point in model space.
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+    const glm::vec3 v{(point.x - hdr->scale_origin[0]) / hdr->scale[0], (point.y - hdr->scale_origin[1]) / hdr->scale[1],
+        (point.z - hdr->scale_origin[2]) / hdr->scale[2]};
+    return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
+        m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+}
+
 glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra)
 {
     const entity_t& e = ve.ent;
@@ -659,7 +726,7 @@ extern "C" void VR_SetupViewEntities()
     setupHand(s, MAIN);
     setupHand(s, OFF);
     setupHolsters(s);
-    setupTorso(s);
+    setupBody(s);
     setupButton(s, MAIN);
     setupButton(s, OFF);
     if(vrActive())

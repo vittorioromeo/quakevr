@@ -312,6 +312,10 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLintptr	offsets[2];
 	GLsizeiptr	sizes[2];
 	gltexture_t* textures[2];
+	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
+	int			numvrbones;
+	GLuint		vrbonebuf;
+	GLbyte		*vrboneofs;
 
 	if (!ibuf.count)
 		return;
@@ -368,6 +372,10 @@ void R_FlushAliasInstances (qboolean showtris)
 	ibuf_size = sizeof (ibuf.global) + sizeof (ibuf.inst[0]) * ibuf.count;
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
 
+	numvrbones = poseverttype == PV_IQM ? VR_AliasBonePoses (ibuf.ent, &vrbones) : 0; // QVR
+	if (numvrbones)
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, vrbones, sizeof (bonepose_t) * numvrbones, &vrbonebuf, &vrboneofs);
+
 	for (hdr = mainhdr, totalverts = 0; hdr; hdr = Mod_NextSurface (hdr))
 		totalverts += hdr->numverts_vbo;
 
@@ -377,6 +385,11 @@ void R_FlushAliasInstances (qboolean showtris)
 	switch (poseverttype)
 	{
 	case PV_IQM:
+		if (numvrbones) // QVR: the entity's own bone matrices instead of the model's poses
+		{
+			buffers[1] = vrbonebuf; offsets[1] = (GLintptr)vrboneofs; sizes[1] = sizeof (bonepose_t) * numvrbones;
+			break;
+		}
 		buffers[1] = model->meshvbo; offsets[1] = mainhdr->vboposeofs; sizes[1] = sizeof (bonepose_t) * mainhdr->numbones * mainhdr->numposes;
 		break;
 	case PV_MD3:
@@ -493,6 +506,8 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 
 	if (VR_AliasMirrored (ibuf.ent) != VR_AliasMirrored (e)) // QVR
 		return false;
+	if (VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) // QVR: bone matrices are per entity
+		return false;
 
 	return true;
 }
@@ -607,7 +622,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	//
 	// cull it
 	//
-	if (R_CullModelForEntity(e))
+	if (!VR_AliasBonePoses (e, NULL) && R_CullModelForEntity(e)) // QVR: posed limbs reach past the model's bounds
 		return;
 
 	//
@@ -630,7 +645,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	if (entalpha == 0)
 		return;
 
-	if (mode == ALIAS_SHOWSKEL)
+	if (mode == ALIAS_SHOWSKEL && !VR_AliasBonePoses (e, NULL)) // QVR: see vr_body_debug instead
 	{
 		R_DrawSkeleton (paliashdr, model_matrix, &lerpdata);
 		return;

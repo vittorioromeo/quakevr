@@ -22,3 +22,4 @@ build/
 !/quakevr/vr_bindings.cfg
 /build-cmake/
 /dist/
+__pycache__/

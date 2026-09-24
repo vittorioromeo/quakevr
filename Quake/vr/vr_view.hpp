@@ -27,6 +27,9 @@ struct ViewEntity
 // entity's (mirrored) space before the model's own scaling.
 [[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra);
 
+// World position of a point given in `ve`'s model space (as its frames' vertices).
+[[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
+
 void dumpView_f();
 
 } // namespace qvr::view

@@ -33,7 +33,12 @@ enum Hotspot : int
     HS_RIGHT_UPPER_HOLSTER = 9,
 };
 
+// Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the
+// old engine's placement.
 [[nodiscard]] glm::vec3 holsterPosition(const hands::State& s, Holster holster);
+
+// hands::bodyAnchor, carried by the chest with vr_body_anchors (the virtual stock's shoulders).
+[[nodiscard]] glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets);
 
 // Where a hand is, for holstering, two-handed grabs and passing a weapon between hands.
 [[nodiscard]] Hotspot hotspot(const hands::State& s, int hand);

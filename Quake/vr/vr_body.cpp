@@ -2,6 +2,7 @@
 // (VR_Get*HolsterPos, VR_In*HolsterDistance and VR_Move's computeHotSpot).
 
 #include "vr_body.hpp"
+#include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
@@ -36,9 +37,8 @@ namespace
     }
 }
 
-} // namespace
-
-glm::vec3 holsterPosition(const hands::State& s, Holster holster)
+// The old engine's placement, relative to the player origin, the body's yaw and crouch.
+[[nodiscard]] glm::vec3 legacyHolsterPosition(const hands::State& s, Holster holster)
 {
     const glm::vec3 shoulder{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
     const glm::vec3 shoulderHolster{vr_shoulder_holster_offset_x.value, vr_shoulder_holster_offset_y.value,
@@ -57,6 +57,30 @@ glm::vec3 holsterPosition(const hands::State& s, Holster holster)
         case LeftUpper: return hands::bodyAnchor(s, negateY(upper)) + crouchAdjustment(s, -1.5f);
         default: return hands::bodyAnchor(s, upper) + crouchAdjustment(s, -1.5f);
     }
+}
+
+} // namespace
+
+glm::vec3 holsterPosition(const hands::State& s, Holster holster)
+{
+    if(!vr_body_anchors.value)
+    {
+        return legacyHolsterPosition(s, holster);
+    }
+
+    // Where they are for the standing body, carried by the pelvis (hips) or the chest.
+    const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
+    return avatar::follow(s, part, legacyHolsterPosition(avatar::standing(s), holster));
+}
+
+glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
+{
+    if(!vr_body_anchors.value)
+    {
+        return hands::bodyAnchor(s, offsets);
+    }
+
+    return avatar::follow(s, avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
 }
 
 Hotspot holsterHotspot(Holster holster)
@@ -95,7 +119,7 @@ void queueDebug(const hands::State& s)
         glm::vec3 shoulder{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
         for(int side = 0; side < 2; side++)
         {
-            const glm::vec3 pos = hands::bodyAnchor(s, shoulder);
+            const glm::vec3 pos = chestAnchor(s, shoulder);
             lines::point(pos, vr_virtual_stock_thresh.value * 2.f, {0.3f, 0.6f, 1.f, 0.25f});
             shoulder.y = -shoulder.y;
         }

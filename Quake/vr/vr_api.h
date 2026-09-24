@@ -105,6 +105,7 @@ void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
+int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 
 // Stereo rendering (gl_screen.c, gl_rmain.c).
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes

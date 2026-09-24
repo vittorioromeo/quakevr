@@ -115,7 +115,22 @@ QVR_CVAR(vr_upper_holster_offset_y, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_vrtorso_debuglines_enabled, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_vrtorso_enabled, "1", CVAR_ARCHIVE)
+// The player's body (vr_avatar.cpp): 0 none, 1 the old floating torso (vrtorso.mdl, the vr_vrtorso_*
+// cvars), 2 torso and arms, 3 torso, arms and legs (2 and 3: the skinned progs/vrbody model, posed
+// by IK from the head and hands; they fall back to 1 when it is not available).
+QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
+QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
+QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up
+QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_crouch_legs, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_torso_back, "0.1", CVAR_ARCHIVE)     // metres the torso sits behind the neck (looking down shows the chest)    // share of a crouch taken by the legs (the rest bends the back)
+QVR_CVAR(vr_body_arm_stretch, "1.1", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
+QVR_CVAR(vr_body_elbow_out, "0.35", CVAR_ARCHIVE)     // elbow direction: down, plus this much outwards,
+QVR_CVAR(vr_body_elbow_back, "0.25", CVAR_ARCHIVE)    // this much backwards,
+QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from the back of the hand
+QVR_CVAR(vr_body_shoulder_up, "25", CVAR_ARCHIVE)     // degrees the shoulders rise reaching up,
+QVR_CVAR(vr_body_shoulder_forward, "20", CVAR_ARCHIVE) // and swing forward reaching far forward
 QVR_CVAR(vr_vrtorso_x_offset, "-2.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_vrtorso_y_offset, "-4.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_vrtorso_z_offset, "-45", CVAR_ARCHIVE)

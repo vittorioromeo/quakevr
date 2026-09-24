@@ -102,6 +102,16 @@ gravity and spin. Things to try:
 
 ## What to try
 
+- **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
+  leans with your head (Options > VR Settings > Body: Off / Torso / Torso and arms / Full body). To see the whole
+  pose, `vr_body_debug 2` (facing you) or `3` (from the side) shows a copy in front of you. Things to tell me:
+  - where the elbows go when you aim, reload or reach behind you;
+  - whether looking down at your chest feels right (`vr_body_torso_back`, metres the torso sits behind your neck);
+  - whether crouching looks right (`vr_body_crouch_legs`).
+
+  The tuning cvars are listed in `docs/vr-port/IK.md`. Holsters and the virtual stock now follow the body when you
+  crouch or lean; `vr_body_anchors 0` restores the old placement for comparison.
+
 - **Walking around the room** moves you in the game (with collision), as in the old engine
   (`vr_roomscale_move_mult`).
 - **Holsters:** bring a hand to a hip, the chest or a shoulder. The holster lights up while hovered; let go of a

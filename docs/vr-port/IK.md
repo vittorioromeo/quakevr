@@ -1,6 +1,6 @@
 # Research: a full-body avatar with IK
 
-Status: research only, nothing implemented. Written 2026-09-24.
+Status: steps 1–4 implemented on 2026-09-24 (see *Implemented* at the end). Steps 5–7 are still open.
 
 Today's body is `progs/vrtorso.mdl`: one rigid vertex-animated model, placed below the head and turned to
 `bodyYaw` (vr_view.cpp, "Body"). It floats, has no arms, and does not bend when you crouch or lean. This note
@@ -163,6 +163,51 @@ That gives a working prototype, from which a hand-made asset can replace it late
 
 Steps 1–3 can be verified with the mock backend and the skeleton debug view (screenshots and `vr_dumpview`), as
 the rest of the port was. Only the feel needs the headset.
+
+## Implemented (steps 1–4)
+
+- **Engine hook** (`r_alias.c`, 5 `// QVR` lines):
+  - `VR_AliasBonePoses` gives an entity its own skinning matrices, uploaded per draw.
+  - Such entities are never batched with others.
+  - They are never culled: posed limbs reach past the model's bounds.
+- **Body scale:** carried by the entity's model matrix (`VR_AliasPostTransform`). The bone matrices stay at the
+  model's scale, because the shader uses the skinned normals without renormalising them.
+- **Asset:** `Misc/quakevr/make_vrbody.py` writes `quakevr/progs/vrbody.{md5mesh,md5anim,mdl}` and
+  `vrbody_00_00.tga`. It is a 19-bone, 648-triangle low-poly body in Quake palette colours: skin, leather, cloth
+  and boots.
+  - The skeleton's bind pose is duplicated in `vr_avatar.cpp` (`bind()`). With `developer 1`, a mismatch is
+    reported when the model loads.
+  - Ironwail reads only the animated components of an `.md5anim`, so the one bind frame marks all of them animated.
+- **Solver** (`Quake/vr/vr_avatar.cpp`):
+  - The top of the neck is found behind and below the eyes. The torso sits `vr_body_torso_back` (0.1 m) behind
+    it, so looking down shows the chest rather than the top of the shoulders.
+  - A crouch drops the pelvis by `vr_body_crouch_legs` (0.7) of the head's drop. The back leans to absorb the
+    rest.
+  - The clavicles rise and swing forward when reaching up or far forward.
+  - Each arm is a two-bone chain to the drawn hand's wrist (the centre of `hand_base.mdl`'s wrist). The elbow
+    points down, `vr_body_elbow_out` outward, `vr_body_elbow_back` backward, and `vr_body_elbow_hand` away from the
+    back of the hand. Arms stretch up to `vr_body_arm_stretch` (1.1) to reach.
+  - Legs (mode 3) stand with the feet under the head, knees forward. They have no stepping (step 6).
+  - The head and neck are collapsed, so the eyes are never inside them.
+- **Modes:** `vr_body_mode` (Options > VR Settings > Body):
+  - 0: off;
+  - 1: the old torso;
+  - 2: torso and arms (the default);
+  - 3: full body.
+
+  Modes 2 and 3 fall back to 1 if the model is not usable (for example with `r_enhancedmodels 0`).
+- **Anchors (step 4):** with `vr_body_anchors` 1, these follow the body's lean and crouch:
+  - The holsters are placed as before for the standing body, then carried by the pelvis (hips) or the chest (the
+    upper and shoulder holsters).
+  - The same goes for the virtual stock's shoulders.
+  - Hand and barrel collisions sweep from the chest.
+  - When standing upright, everything is where it was.
+- **Tuning aids:** `vr_body_debug`:
+  - 1 draws the skeleton, with each bone's hint axis in blue;
+  - 2 also shows the body in front of you, facing you;
+  - 3 shows it from its left.
+
+  In a headset, this shows the whole pose while you move.
 
 ## Sources
 

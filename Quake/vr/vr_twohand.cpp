@@ -10,6 +10,7 @@
 
 #include "vr_twohand.hpp"
 #include "vr_backend.hpp"
+#include "vr_body.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_handpose.hpp"
@@ -92,7 +93,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     {
         shoulderOffsets.y = -shoulderOffsets.y;
     }
-    const glm::vec3 shoulder = hands::bodyAnchor(s, shoulderOffsets);
+    const glm::vec3 shoulder = body::chestAnchor(s, shoulderOffsets);
     const glm::vec3 averageDir =
         safeNormalize(glm::mix(handDiff, helpingPos - shoulder, vr_2h_virtual_stock_factor.value));
 
