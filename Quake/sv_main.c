@@ -1133,7 +1133,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 
 	if (standard_quake)
 	{
-		MSG_WriteByte (msg, ent->v.weapon);
+		MSG_WriteByte (msg, VR_ActiveWeaponStat (ent)); // QVR: item bit of a Quake VR weapon ID
 	}
 	else
 	{

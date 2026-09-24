@@ -29,7 +29,6 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 
 Known gaps carried forward:
 - World text is networked but not rendered (P7); `particle2` draws plain blood puffs until presets (P7); `haptic` is networked (P5).
-- `.weapon` holds weapon IDs, so Ironwail's HUD weapon highlighting is wrong until P2/P6.
 - Hand model is drawn as a plain view model until P3.
 - Deferred old-engine physics rewrites, to evaluate in VR first: `SV_PushMove` (Ironwail's `sv_gameplayfix_elevators` may suffice), `SV_PushEntity` tracing from origin−push, `SV_Physics_Toss` ground pre-check (items resting on moving platforms).
 - Mid-demo recording does not re-emit VR state (world texts); VR stats are resent by the stat channel.

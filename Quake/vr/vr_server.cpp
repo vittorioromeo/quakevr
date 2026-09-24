@@ -7,6 +7,7 @@
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 
+#include <iterator>
 #include <vector>
 
 using namespace qvr;
@@ -158,6 +159,34 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     physics::setClientHandsTracked(clientNum, (move.buttons & QVR_BUTTON_HANDSTRACKED) != 0);
 }
 
+// The status bar highlights the active weapon by its item bit; with the Quake VR progs .weapon
+// holds a weapon ID (QC WID_*). Weapons without a classic slot highlight nothing.
+extern "C" int VR_ActiveWeaponStat(edict_t* ent)
+{
+    if(!bindings().isVrProgs)
+    {
+        return static_cast<int>(ent->v.weapon);
+    }
+
+    static constexpr int itemBits[] = {
+        0,                   // fist
+        0,                   // grappling hook
+        IT_AXE,              // axe
+        0,                   // Mjolnir
+        IT_SHOTGUN,          // shotgun
+        IT_SUPER_SHOTGUN,    // super shotgun
+        IT_NAILGUN,          // nailgun
+        IT_SUPER_NAILGUN,    // super nailgun
+        IT_GRENADE_LAUNCHER, // grenade launcher
+        IT_GRENADE_LAUNCHER, // proximity gun
+        IT_ROCKET_LAUNCHER,  // rocket launcher
+        IT_LIGHTNING,        // lightning gun
+        0,                   // laser cannon
+    };
+    const int wid = static_cast<int>(ent->v.weapon);
+    return wid >= 0 && wid < static_cast<int>(std::size(itemBits)) ? itemBits[wid] : 0;
+}
+
 extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 {
     if(!bindings().isVrProgs)
@@ -171,6 +200,8 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     const auto stat = [&](int index, int ofs) { statsf[index] = fieldFloatOr(ent, ofs, 0.f); };
 
     statsf[STAT_QVR_WEAPON] = ent->v.weapon;
+
+    statsf[STAT_ACTIVEWEAPON] = static_cast<float>(VR_ActiveWeaponStat(ent));
     stat(STAT_QVR_WEAPON2, f.weapon2);
     statsi[STAT_QVR_WEAPONMODEL2] = modelIndexOfField(ent, f.weaponmodel2);
     stat(STAT_QVR_WEAPONFRAME2, f.weaponframe2);

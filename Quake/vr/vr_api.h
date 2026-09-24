@@ -70,6 +70,7 @@ void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_S
 void VR_SendHaptic (struct edict_s *player, int hand, float delay, float duration, float frequency, float amplitude);
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
+int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
