@@ -10,6 +10,7 @@
 // TODO VR: (P6) menu laser pointer.
 
 #include "vr_cvars.hpp"
+#include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
@@ -167,6 +168,24 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+}
+
+// An opaque texture on a quad in the world, hidden behind what is in front of it (the gadget's
+// screen: a hand can pass in front of it).
+void drawSurface(GLuint texture, const glm::mat4& mvp)
+{
+    if(!texture || !ensureProgram())
+    {
+        return;
+    }
+
+    GL_UseProgram(program);
+    GL_Uniform4fvFunc(1, 1, &wholeCanvas[0]);
+    GL_Uniform4fvFunc(2, 1, &noMask[0]);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 [[nodiscard]] bool panelVisible()
@@ -354,9 +373,23 @@ void drawInEye(const hands::State& s)
 
     if(!visible)
     {
-        // In game: the status bar on a hand, the rest in front of the head.
+        // In game: the status bar on a hand (or the wrist gadget's screen instead), the rest in
+        // front of the head.
         const SbarRect sbar = sbarRect();
-        if(sbar.rows > 0.f)
+        if(gadget::active())
+        {
+            const gadget::Pose& g = gadget::pose();
+            if(g.valid)
+            {
+                glm::vec3 corner;
+                glm::vec2 size;
+                gadget::screenRect(corner, size);
+                const glm::vec3 origin = g.origin + g.axes * (corner * g.scale);
+                drawSurface(gadget::screenTexture(),
+                    viewProjection() * quad(origin, g.axes[0] * (size.x * g.scale), g.axes[1] * (size.y * g.scale)));
+            }
+        }
+        else if(sbar.rows > 0.f)
         {
             drawSbar(s, sbar);
         }
@@ -431,6 +464,8 @@ extern "C" void VR_End2D()
     drawingToCanvas = false;
     GL_ResetState(); // back to Ironwail's usual blend
     crosshair.value = savedCrosshair;
+
+    gadget::renderScreen(); // shown in the eyes next frame, as the canvas
 
     // Back to the window, with the 2D layer over the mirrored eye.
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, GL_NeedsPostprocess() ? framebufs.composite.fbo : 0);

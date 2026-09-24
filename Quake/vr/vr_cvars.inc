@@ -108,6 +108,7 @@ QVR_CVAR(vr_melee_threshold, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
 QVR_CVAR(vr_sbar_offset_x, "-12", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_y, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_z, "-3", CVAR_ARCHIVE)

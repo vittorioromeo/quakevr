@@ -3,9 +3,11 @@
 #include "vr_view.hpp"
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
+#include "vr_gadget.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_stereo.hpp"
@@ -116,6 +118,7 @@ struct Entities
     view::ViewEntity holsterSlot[HolsterCount];
     view::ViewEntity torso;
     view::ViewEntity body;
+    view::ViewEntity gadget;
     view::ViewEntity button[2];
 };
 
@@ -146,6 +149,7 @@ void forEachEntity(F&& f)
     }
     f(entities.torso);
     f(entities.body);
+    f(entities.gadget);
     for(view::ViewEntity& ve : entities.button)
     {
         f(ve);
@@ -514,6 +518,91 @@ void setupTorso(const hands::State& s, bool shown)
         0, false);
 }
 
+// The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
+[[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
+{
+    // The centre of the wrist in hand_base.mdl (frame 0).
+    constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
+
+    avatar::HandPose hp;
+    const view::ViewEntity& base = entities.hand[hand][FingerBase];
+    if(entities.weapon[hand].ent.model && base.ent.model)
+    {
+        hp.wrist = view::modelPoint(base, handWrist);
+        hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
+        hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
+    }
+    else
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(s.rot[hand], fwd, right, up);
+        hp.wrist = s.pos[hand] - fwd * 4.f;
+        hp.up = up;
+        hp.forward = fwd;
+    }
+    return hp;
+}
+
+// The wrist gadget (vr_hud_mode 1): over the back of the off hand's forearm, just behind the
+// wrist, its screen facing out like a watch's; it reads with "up" away from the player when
+// the forearm is held across the chest, and runs towards the fingers.
+void setupGadget(const hands::State& s)
+{
+    view::ViewEntity& ve = entities.gadget;
+    if(!gadget::active())
+    {
+        ve.visible = false;
+        gadget::setPose({});
+        return;
+    }
+
+    const int hand = HAND_OFF;
+    const avatar::HandPose hp = drawnHand(s, hand);
+    glm::vec3 wrist = hp.wrist;
+    glm::vec3 dir = hp.forward;
+    if(glm::vec3 w, d; avatar::forearm(hand, w, d))
+    {
+        wrist = w;
+        dir = glm::normalize(d);
+    }
+
+    const bool leftArm = vr_lefthanded.value == 0.f;
+    glm::vec3 up = hp.up - dir * glm::dot(hp.up, dir);
+    if(glm::length(up) < 1e-4f)
+    {
+        ve.visible = false;
+        gadget::setPose({});
+        return;
+    }
+    up = glm::normalize(up);
+    const glm::vec3 out = glm::normalize(glm::cross(dir, up)) * (leftArm ? 1.f : -1.f);
+    const glm::vec3 screenUp = -up;
+    const glm::vec3 right = glm::cross(screenUp, out);
+
+    // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
+    const float body = vr_height_calibration.value > 0.5f ? vr_height_calibration.value / 1.646f : 1.f;
+    const float m2w = vr_world_scale.value / 0.0381f * body;
+    const float scale = vr_world_scale.value / 1.25f * body;
+
+    gadget::Pose pose;
+    pose.valid = true;
+    pose.origin = wrist - dir * (0.085f * m2w) + out * (0.045f * m2w + 0.35f * scale);
+    pose.axes = glm::mat3{right, screenUp, out};
+    pose.scale = scale;
+    gadget::setPose(pose);
+
+    if(vr_body_debug.value)
+    {
+        lines::line(pose.origin, pose.origin + right * 4.f, 0.2f, {1.f, 0.2f, 0.2f, 1.f}, {1.f, 0.2f, 0.2f, 1.f});
+        lines::line(pose.origin, pose.origin + screenUp * 4.f, 0.2f, {0.2f, 1.f, 0.2f, 1.f}, {0.2f, 1.f, 0.2f, 1.f});
+        lines::line(pose.origin, pose.origin + out * 4.f, 0.2f, {0.2f, 0.4f, 1.f, 1.f}, {0.2f, 0.4f, 1.f, 1.f});
+    }
+
+    const glm::vec3 a = hands::anglesFromVectors(right, out);
+    place(ve, Mod_ForName("progs/vrgadget.mdl", false), pose.origin, {-a.x, a.y, a.z}, 0, false);
+    ve.ent.scale = static_cast<unsigned char>(CLAMP(1.f, scale * ENTSCALE_DEFAULT, 255.f));
+}
+
 // The skinned body (vr_body_mode 2 and 3), its arms reaching the drawn hands' wrists; the old
 // torso otherwise, or when the body model is not usable.
 void setupBody(const hands::State& s)
@@ -534,29 +623,7 @@ void setupBody(const hands::State& s)
         }
         if(avatar::usable(model))
         {
-            // The centre of the wrist in hand_base.mdl (frame 0).
-            constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
-
-            avatar::HandPose handPoses[2];
-            for(int hand = 0; hand < 2; hand++)
-            {
-                avatar::HandPose& hp = handPoses[hand];
-                const view::ViewEntity& base = entities.hand[hand][FingerBase];
-                if(entities.weapon[hand].ent.model && base.ent.model)
-                {
-                    hp.wrist = view::modelPoint(base, handWrist);
-                    hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
-                    hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
-                }
-                else
-                {
-                    glm::vec3 fwd, right, up;
-                    hands::angleVectors(s.rot[hand], fwd, right, up);
-                    hp.wrist = s.pos[hand] - fwd * 4.f;
-                    hp.up = up;
-                    hp.forward = fwd;
-                }
-            }
+            const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
 
             view::ViewEntity& ve = entities.body;
             const glm::vec3 origin = avatar::pose(s, model, &ve.ent, handPoses, mode >= 3);
@@ -747,6 +814,7 @@ extern "C" void VR_SetupViewEntities()
     setupHand(s, OFF);
     setupHolsters(s);
     setupBody(s);
+    setupGadget(s);
     setupButton(s, MAIN);
     setupButton(s, OFF);
     if(vrActive())

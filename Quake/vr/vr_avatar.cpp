@@ -486,6 +486,8 @@ struct Posed
     int numBones{0};
     float scale{0.f};
     std::array<float, JointCount * 12> skin{};
+    glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
+    glm::vec3 forearm[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 Posed posed;
@@ -660,12 +662,31 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     posed.ent = ent;
     posed.numBones = info.numBones;
     posed.scale = k;
+    for(int side = 0; side < 2; side++)
+    {
+        const int hand = side == 0 ? leftHand : 1 - leftHand;
+        const Bone& fore = b.bones[side == 0 ? ForearmL : ForearmR];
+        const Bone& wristBone = b.bones[side == 0 ? HandL : HandR];
+        posed.wrist[hand] = wristBone.pos;
+        posed.forearm[hand] = fore.rot[0];
+    }
     return origin;
 }
 
 void hide()
 {
     posed.ent = nullptr;
+}
+
+bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
+{
+    if(!posed.ent)
+    {
+        return false;
+    }
+    wrist = posed.wrist[hand];
+    direction = posed.forearm[hand];
+    return true;
 }
 
 float modelScale(const entity_t* e)

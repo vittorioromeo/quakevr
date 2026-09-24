@@ -125,6 +125,16 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age. For comp
 
 ## What to try
 
+- **New in this round** (details in the commit log):
+  - **Wrist gadget:** the HUD is now a device strapped over the back of your off-hand forearm. Raise your forearm
+    across your chest, like reading a watch. VR Settings > HUD switches back to the status bar.
+  - **Body:** VR Settings > Build picks the body: Lean, Athletic or Brawny. Full body (VR Settings > Body) walks
+    as you move (`vr_body_walk`).
+  - **Pickups:** weapons, armour, powerups and keys are smaller and lie on the floor (`vr_pickup_scale` 0.6 in
+    `quakevr.cfg`), so you crouch to take them.
+  - **Physics:** thrown weapons and backpacks are real rigid bodies. `vr_debug_throw 3` prints their state.
+  - **Near clipping:** things close to your face are no longer cut away (`vr_nearclip`).
+
 - **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
   leans with your head (Options > VR Settings > Body: Off / Torso / Torso and arms / Full body). To see the whole
   pose, `vr_body_debug 2` (facing you) or `3` (from the side) shows a copy in front of you. Things to tell me:

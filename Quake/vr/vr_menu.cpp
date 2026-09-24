@@ -128,6 +128,7 @@ void restartVr()
         slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f"),
 
         header("Display"),
+        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}),
         slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f"),
         slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f"),

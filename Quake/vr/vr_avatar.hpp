@@ -60,6 +60,10 @@ struct HandPose
 // pelvis).
 glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs);
 
+// The forearm of `hand` (HAND_OFF, HAND_MAIN) as last posed: its wrist and direction (from the
+// elbow). False when the body is not posed.
+[[nodiscard]] bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction);
+
 // Not drawn this frame.
 void hide();
 
