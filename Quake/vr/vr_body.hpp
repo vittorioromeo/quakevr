@@ -41,4 +41,9 @@ enum Hotspot : int
 // The hotspot of a holster, for highlighting it when a hand hovers it.
 [[nodiscard]] Hotspot holsterHotspot(Holster holster);
 
+// Tuning aids (old engine's vr_showfn): markers at the holsters (vr_show_hip_holsters,
+// vr_show_shoulder_holsters, vr_show_upper_holsters) sized to their reach, green while a hand
+// is there, and at the virtual stock's shoulders (vr_show_virtual_stock). Once per frame.
+void queueDebug(const hands::State& s);
+
 } // namespace qvr::body

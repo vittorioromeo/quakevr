@@ -132,6 +132,6 @@ hands, weapons and finger curls.
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z>` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
 swings the main hand for throwing tests.
 
-## Not there yet
-
-Debug helpers from the old engine (`vr_show*`).
+Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
+`vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
+there); move them with the `vr_*_offset_*` cvars.
