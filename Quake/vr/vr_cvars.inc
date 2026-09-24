@@ -30,7 +30,7 @@ QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 // Non-archived CVars
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 QVR_CVAR(vr_viewkick, "0", CVAR_NONE)
-QVR_CVAR(vr_lefthanded, "0", CVAR_NONE)
+QVR_CVAR(vr_lefthanded, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_fakevr, "0", CVAR_NONE)
 QVR_CVAR(vr_novrinit, "0", CVAR_NONE)
 QVR_CVAR(vr_fakevr_handroll, "0", CVAR_NONE)

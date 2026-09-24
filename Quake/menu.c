@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "bgmusic.h"
 #include "q_ctype.h"
 
@@ -3092,6 +3093,7 @@ void M_Menu_Gamepad_f (void)
 		item (SPACER,					"")								\
 		item (OPT_CUSTOMIZE,			"Key Setup")					\
 		item (OPT_GAMEPAD,				"Controller")					\
+		item (OPT_VR,					"VR Settings")	/* QVR */		\
 		item (OPT_MOUSESPEED,			"Mouse Speed")					\
 		item (OPT_INVMOUSE,				"Invert Mouse")					\
 		item (OPT_SNDVOL,				"Sound Volume")					\
@@ -4189,6 +4191,7 @@ static void M_Options_DrawItem (int y, int item)
 	case OPT_GAME:
 	case OPT_CUSTOMIZE:
 	case OPT_GAMEPAD:
+	case OPT_VR: // QVR
 	case OPT_MODS:
 	case GPAD_OPT_CALIBRATE:
 		M_Print (x - 4, y, "...");
@@ -4809,6 +4812,9 @@ void M_Options_Key (int k)
 			break;
 		case OPT_GAMEPAD:
 			M_Menu_Gamepad_f ();
+			break;
+		case OPT_VR:
+			VR_Menu_Open (); // QVR
 			break;
 		case OPT_GAME:
 			M_Options_Init (m_game);
@@ -7340,6 +7346,10 @@ void M_Draw (void)
 	case m_slist:
 		M_ServerList_Draw ();
 		break;
+
+	case m_vr:
+		VR_Menu_Draw (); // QVR
+		break;
 	}
 
 	if (m_entersound)
@@ -7473,6 +7483,10 @@ void M_Keydown (int key, qboolean repeat)
 
 	case m_slist:
 		M_ServerList_Key (key);
+		return;
+
+	case m_vr:
+		VR_Menu_Key (key); // QVR
 		return;
 	}
 }

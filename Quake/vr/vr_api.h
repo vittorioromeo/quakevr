@@ -108,6 +108,9 @@ int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
+void VR_Menu_Open (void);								// menu.c: Options > VR Settings
+void VR_Menu_Draw (void);								// M_Draw, m_vr
+void VR_Menu_Key (int key);								// M_Keydown, m_vr
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
 void VR_End2D (void);									// SCR_UpdateScreen, after Draw_Flush
 

@@ -17,6 +17,8 @@ extern cvar_t sv_gravity;
 int ED_FindFieldOffset (const char *name);
 extern qboolean scr_drawloading;
 extern cvar_t crosshair;
+void M_DrawSlider (int x, int y, float range, const char *desc);
+void M_DrawArrowCursor (int cx, int cy);
 }
 
 #include "vr_api.h"

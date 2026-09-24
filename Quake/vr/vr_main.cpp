@@ -177,6 +177,7 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
+    Cmd_AddCommand("menu_vr", VR_Menu_Open);
     registerMockCommands();
     input::init();
     client::init();
