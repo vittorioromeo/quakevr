@@ -314,12 +314,22 @@ void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp
     u = Bone{};
     u.pos = childPos(b, upper);
 
-    const float d = glm::distance(wrist, u.pos);
-    float a = boneLength(upper, fore) * b.m2w;
-    float l = boneLength(fore, hand) * b.m2w;
+    // Arms of vr_body_arm_length times the model's proportions, stretching up to
+    // vr_body_arm_stretch; beyond that, the shoulder reaches out by up to
+    // vr_body_shoulder_reach metres. Only past all of it does the hand leave the arm.
+    const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
+    float a = boneLength(upper, fore) * b.m2w * length;
+    float l = boneLength(fore, hand) * b.m2w * length;
+    float d = glm::distance(wrist, u.pos);
     const float stretch = CLAMP(1.f, d / (a + l), std::max(1.f, vr_body_arm_stretch.value));
     a *= stretch;
     l *= stretch;
+    if(const float excess = d - (a + l); excess > 0.f)
+    {
+        const float reach = std::min(excess, std::max(0.f, vr_body_shoulder_reach.value) * b.m2w);
+        u.pos += (wrist - u.pos) / d * reach;
+        d -= reach;
+    }
 
     const glm::vec3 pole = -cUp + lateral * vr_body_elbow_out.value - cFwd * vr_body_elbow_back.value -
                            handUp * vr_body_elbow_hand.value;
@@ -327,19 +337,28 @@ void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp
     const glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     u.rot = basis(elbow - u.pos, bend);
-    u.stretch = stretch;
+    u.stretch = stretch * length;
+
+    // The forearm twists with the hand: the wrist fully (the hand bone), the forearm by
+    // vr_body_forearm_twist. The bind pose has the palms facing the thighs, thumbs forward: the
+    // bones' hint axis is the little finger's side, opposite the back of the (gripping) hand's
+    // top, where the thumb is.
+    const glm::vec3 foreDir = safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos));
+    const glm::mat3 untwisted = basis(foreDir, bend);
+    const glm::mat3 wristRot = basis(foreDir, -handUp);
+    const float twist = std::atan2(glm::dot(glm::cross(untwisted[2], wristRot[2]), foreDir),
+        glm::dot(untwisted[2], wristRot[2]));
 
     Bone& f = b.bones[fore];
     f = Bone{};
     f.pos = elbow;
-    const glm::vec3 foreDir = safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos));
-    f.rot = basis(foreDir, bend);
-    f.stretch = stretch;
+    f.rot = glm::mat3_cast(glm::angleAxis(twist * CLAMP(0.f, vr_body_forearm_twist.value, 1.f), foreDir)) * untwisted;
+    f.stretch = stretch * length;
 
     Bone& h = b.bones[hand];
     h = Bone{};
     h.pos = elbow + foreDir * l;
-    h.rot = f.rot;
+    h.rot = wristRot;
 }
 
 // Legs standing with the feet under the head (the balance point: crouching pushes the hips back

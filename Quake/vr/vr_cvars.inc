@@ -125,8 +125,11 @@ QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2,
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up
 QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_legs, "0.7", CVAR_ARCHIVE)
-QVR_CVAR(vr_body_torso_back, "0.1", CVAR_ARCHIVE)     // metres the torso sits behind the neck (looking down shows the chest)    // share of a crouch taken by the legs (the rest bends the back)
-QVR_CVAR(vr_body_arm_stretch, "1.1", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
+QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck    // share of a crouch taken by the legs (the rest bends the back)
+QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
+QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
+QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
+QVR_CVAR(vr_body_forearm_twist, "0.5", CVAR_ARCHIVE)  // share of the wrist's roll the forearm follows
 QVR_CVAR(vr_body_elbow_out, "0.35", CVAR_ARCHIVE)     // elbow direction: down, plus this much outwards,
 QVR_CVAR(vr_body_elbow_back, "0.25", CVAR_ARCHIVE)    // this much backwards,
 QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from the back of the hand

@@ -146,12 +146,13 @@ bases = {name: bone_basis(name) for name, _, _ in joints}
 
 SIDES = 8
 
-# Skin blocks (u0, v0, u1, v1) in a 64x64 texture: skin, leather, cloth, boots.
+# Skin blocks (u0, v0, u1, v1): skin, leather, cloth, boots, bracers.
 BLOCKS = {
     "skin": (0.0, 0.0, 0.5, 0.5),
     "leather": (0.5, 0.0, 1.0, 0.5),
     "cloth": (0.0, 0.5, 0.5, 1.0),
-    "boots": (0.5, 0.5, 1.0, 1.0),
+    "boots": (0.5, 0.5, 0.75, 1.0),
+    "bracer": (0.75, 0.5, 1.0, 1.0),
 }
 
 verts = []  # (position, [(joint index, bias)], (s, t))
@@ -163,7 +164,7 @@ def add_vert(pos, weights, st):
     return len(verts) - 1
 
 
-def loft(rings, block, cap_start=True, cap_end=True):
+def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES):
     """rings: list of (centre, u axis, v axis, radius along u, radius along v, weights)."""
     u0, v0, u1, v1 = BLOCKS[block]
     # Keep away from the block edges so filtering does not bleed into the next block.
@@ -177,31 +178,31 @@ def loft(rings, block, cap_start=True, cap_end=True):
         rings = [(c, ua, mul(va, -1.0), ru, rv, ws) for c, ua, va, ru, rv, ws in rings]
     first = len(verts)
     for r, (centre, ua, va, ru, rv, weights) in enumerate(rings):
-        for k in range(SIDES):
-            a = 2 * math.pi * k / SIDES
+        for k in range(sides):
+            a = 2 * math.pi * k / sides
             p = add(centre, add(mul(ua, math.cos(a) * ru), mul(va, math.sin(a) * rv)))
-            st = (u0 + (u1 - u0) * k / (SIDES - 1), v0 + (v1 - v0) * r / max(1, len(rings) - 1))
+            st = (u0 + (u1 - u0) * k / (sides - 1), v0 + (v1 - v0) * r / max(1, len(rings) - 1))
             add_vert(p, weights, st)
     for r in range(len(rings) - 1):
-        for k in range(SIDES):
-            a = first + r * SIDES + k
-            b = first + r * SIDES + (k + 1) % SIDES
-            c = first + (r + 1) * SIDES + k
-            d = first + (r + 1) * SIDES + (k + 1) % SIDES
+        for k in range(sides):
+            a = first + r * sides + k
+            b = first + r * sides + (k + 1) % sides
+            c = first + (r + 1) * sides + k
+            d = first + (r + 1) * sides + (k + 1) % sides
             tris.append((a, c, b))
             tris.append((b, c, d))
     mid = ((u0 + u1) / 2, (v0 + v1) / 2)
     if cap_start:
         centre, _, _, _, _, weights = rings[0]
         c = add_vert(centre, weights, mid)
-        for k in range(SIDES):
-            tris.append((c, first + k, first + (k + 1) % SIDES))
+        for k in range(sides):
+            tris.append((c, first + k, first + (k + 1) % sides))
     if cap_end:
         centre, _, _, _, _, weights = rings[-1]
         c = add_vert(centre, weights, mid)
-        base = first + (len(rings) - 1) * SIDES
-        for k in range(SIDES):
-            tris.append((c, base + (k + 1) % SIDES, base + k))
+        base = first + (len(rings) - 1) * sides
+        for k in range(sides):
+            tris.append((c, base + (k + 1) % sides, base + k))
 
 
 def w(*pairs):
@@ -235,18 +236,33 @@ for side, sy in (("l", 1.0), ("r", -1.0)):
     wrist = joints[index["hand_" + side]][2]
     upper = bases["upperarm_" + side]
     fore = bases["forearm_" + side]
-    # Ring axes: u towards the bone's hint (back), v the other way round.
+    # Ring axes: u towards the bone's hint (back of the upper arm; the little finger's side of the
+    # forearm, the palms facing the thighs), v the other way round. Muscular: a deltoid over the
+    # shoulder, biceps and triceps (front to back), forearms thick below the elbow and flat at
+    # the wrist (wider across than through).
     ua, va = upper[2], upper[1]
     fa, fv = fore[2], fore[1]
-    ud = upper[0]
+    ud, fd = upper[0], fore[0]
+    ua_, cl_ = "upperarm_" + side, "clavicle_" + side
+    fo_, ha_ = "forearm_" + side, "hand_" + side
     loft([
-        (sub(shoulder, mul(ud, 0.04)), ua, va, 0.05, 0.05, w(("clavicle_" + side, 0.6), ("upperarm_" + side, 0.4))),
-        (add(shoulder, mul(ud, 0.02)), ua, va, 0.058, 0.055, w(("clavicle_" + side, 0.2), ("upperarm_" + side, 0.8))),
-        (add(shoulder, mul(ud, 0.14)), ua, va, 0.05, 0.047, w(("upperarm_" + side, 1.0))),
-        (elbow, ua, va, 0.042, 0.042, w(("upperarm_" + side, 0.5), ("forearm_" + side, 0.5))),
-        (add(elbow, mul(fore[0], 0.10)), fa, fv, 0.038, 0.036, w(("forearm_" + side, 1.0))),
-        (wrist, fa, fv, 0.027, 0.03, w(("forearm_" + side, 1.0))),
-    ], "skin")
+        (sub(shoulder, mul(ud, 0.05)), ua, va, 0.055, 0.055, w((cl_, 0.6), (ua_, 0.4))),
+        (add(shoulder, mul(ud, 0.00)), ua, va, 0.070, 0.066, w((cl_, 0.25), (ua_, 0.75))),
+        (add(shoulder, mul(ud, 0.06)), ua, va, 0.068, 0.062, w((ua_, 1.0))),
+        (add(shoulder, mul(ud, 0.13)), ua, va, 0.064, 0.052, w((ua_, 1.0))),
+        (add(shoulder, mul(ud, 0.21)), ua, va, 0.054, 0.047, w((ua_, 1.0))),
+        (elbow, ua, va, 0.046, 0.046, w((ua_, 0.5), (fo_, 0.5))),
+        (add(elbow, mul(fd, 0.05)), fa, fv, 0.050, 0.048, w((fo_, 1.0))),
+        (add(elbow, mul(fd, 0.12)), fa, fv, 0.044, 0.038, w((fo_, 1.0))),
+        (add(elbow, mul(fd, 0.19)), fa, fv, 0.036, 0.028, w((fo_, 0.5), (ha_, 0.5))),
+        (wrist, fa, fv, 0.030, 0.021, w((ha_, 1.0))),
+    ], "skin", sides=10)
+    # A leather bracer over the forearm's lower half: its strap shows how the forearm turns.
+    loft([
+        (add(elbow, mul(fd, 0.13)), fa, fv, 0.047, 0.041, w((fo_, 1.0))),
+        (add(elbow, mul(fd, 0.19)), fa, fv, 0.040, 0.032, w((fo_, 0.5), (ha_, 0.5))),
+        (add(wrist, mul(fd, 0.005)), fa, fv, 0.034, 0.025, w((ha_, 1.0))),
+    ], "bracer", sides=10)
 
     hip = joints[index["thigh_" + side]][2]
     knee = joints[index["calf_" + side]][2]
@@ -340,10 +356,11 @@ PALETTE_RAMPS = {
     "leather": [(27, 19, 15), (39, 31, 23), (55, 43, 31), (67, 51, 39)],
     "cloth": [(35, 27, 19), (43, 35, 23), (55, 43, 27), (63, 51, 31)],
     "boots": [(15, 11, 7), (23, 15, 11), (31, 23, 15), (39, 27, 15)],
+    "bracer": [(35, 23, 15), (47, 31, 19), (59, 39, 23), (71, 47, 27)],
 }
 
 
-def write_skin(path, size=64):
+def write_skin(path, size=128):
     rng = 12345
     pixels = bytearray()
     # TGA rows go bottom-up; t = 0 is the top of the image.
@@ -352,6 +369,16 @@ def write_skin(path, size=64):
             s, t = (col + 0.5) / size, (row + 0.5) / size
             block = next(b for b, (u0, v0, u1, v1) in BLOCKS.items() if u0 <= s < u1 and v0 <= t < v1)
             ramp = PALETTE_RAMPS[block]
+            if block == "bracer":
+                # A lighter strap down one side and a dark rim at each end.
+                u0, v0, u1, v1 = BLOCKS[block]
+                bu, bv = (s - u0) / (u1 - u0), (t - v0) / (v1 - v0)
+                if abs(bu - 0.3) < 0.06:
+                    pixels += bytes((39, 63, 99, 255))
+                    continue
+                if bv < 0.12 or bv > 0.88:
+                    pixels += bytes((11, 15, 23, 255))
+                    continue
             rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
             # Mostly the middle of the ramp, some lighter and darker specks.
             k = (rng >> 16) % 10

@@ -202,16 +202,17 @@ struct SbarRect
 
 [[nodiscard]] SbarRect sbarRect()
 {
+    // As SCR_CalcRefdef's sb_lines, which is also 0 for a translucent status bar (it is drawn
+    // all the same, only not given its own screen lines).
     SbarRect r;
-    if(sb_lines <= 0 || hudstyle != HUD_CLASSIC || cl.intermission)
+    if(hudstyle != HUD_CLASSIC || cl.intermission || scr_viewsize.value >= 120.f || cl.qcvm.extfuncs.CSQC_DrawHud)
     {
         return r;
     }
+    r.rows = scr_viewsize.value >= 110.f ? 24.f : 48.f;
 
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_SBAR, &t);
-    const float scale = t.scale[0] * vid.guiwidth * 0.5f; // screen pixels per status bar pixel
-    r.rows = CLAMP(0.f, sb_lines / scale, 48.f);
 
     const auto toUv = [](float ndc) { return (ndc + 1.f) * 0.5f; };
     r.uv = {toUv(t.offset[0]), toUv(48.f * t.scale[1] + t.offset[1]), toUv(320.f * t.scale[0] + t.offset[0]),

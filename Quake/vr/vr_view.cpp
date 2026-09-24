@@ -273,7 +273,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     place(ve, model, s.pos[hand] + gunOffset, {-rot.x + o.x, rot.y + o.y, rot.z + o.z}, frame,
         mirrored);
 
-    ve.zeroBlend = weapons::value(slot, Key::ZeroBlend);
+    // Steadied in the "fixed" two-handed display mode: the weapon's own blend towards frame 0
+    // for that grip (old engine's V_SetupHandViewEnts).
+    const bool fixed2H = model && slot >= 0 && weapons::value(slot, Key::TwoHDisplayMode) == 1.f;
+    ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
 
     if(model && slot >= 0)
     {
@@ -287,10 +290,15 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
         s.muzzleValid[hand] = false;
     }
 
-    s.grip2HValid[hand] = model && slot >= 0 && weapons::value(slot, Key::TwoHDisplayMode) == 1.f;
+    s.grip2HValid[hand] = fixed2H;
     if(s.grip2HValid[hand])
     {
-        s.grip2H[hand] = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::TwoHHandAnchorVertex)),
+        // As the old engine's VR_GetWpnFixed2HFinalPosition, which the offsets were tuned with:
+        // the vertex and the offsets are mirrored as the helping (other) hand is, not as the
+        // weapon is drawn.
+        view::ViewEntity helped = ve;
+        helped.mirrored = !mirrored;
+        s.grip2H[hand] = view::anchorPosition(helped, static_cast<int>(weapons::value(slot, Key::TwoHHandAnchorVertex)),
             weapons::vec(slot, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY, Key::TwoHFixedOffsetZ));
     }
 
@@ -396,7 +404,9 @@ void setupHand(const hands::State& s, int hand)
                 offsets.y = -offsets.y;
                 offsets.z = -offsets.z;
             }
-            handRot = s.rot[other] + offsets + weaponAngleOffsets(fist, mirrored);
+            // The weapon hand's angles and the grip's, without the fist's own angle offsets
+            // (old engine's V_SetupFixedHelpingHandViewEnt).
+            handRot = s.rot[other] + offsets;
         }
     }
 
