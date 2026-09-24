@@ -7,6 +7,8 @@
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
+#include "vr_move.hpp"
+#include "vr_server.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -343,7 +345,8 @@ extern "C" void VR_ClientPreMove(edict_t* ent)
 
 extern "C" int VR_ClientTeleport(edict_t* ent)
 {
-    if(!active() || !(static_cast<int>(fieldFloatOr(ent, f().vrbits0, 0.f)) & VRBITS0_TELEPORTING))
+    const VrMove* move = server::clientMove(ent);
+    if(!move || !(move->vrBits0 & VRBITS0_TELEPORTING))
     {
         return 0;
     }
@@ -355,7 +358,7 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
 
     // The client picks the target: accept it only within the teleport range (with some slack for
     // the arc) and where the player fits.
-    const glm::vec3 target = fieldVec(ent, f().teleport_target);
+    const glm::vec3 target = move->teleportTarget;
     const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     if(glm::distance(from, target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
     {
@@ -379,12 +382,13 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
 // Physical walking in the play space: a second, horizontal move with collision.
 extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 {
-    if(!active())
+    const VrMove* vrMove = server::clientMove(ent);
+    if(!vrMove)
     {
         return;
     }
 
-    const glm::vec3 move = fieldVec(ent, f().roomscalemove);
+    const glm::vec3 move = vrMove->roomscaleMove;
     if(move.x == 0.f && move.y == 0.f)
     {
         return;
@@ -421,7 +425,86 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 // Locomotion follows the head, not the aiming hand.
 extern "C" float* VR_MoveAngles(edict_t* ent, float* fallback)
 {
-    return active() && f().v_viewangle >= 0 ? fieldPtr(ent, f().v_viewangle) : fallback;
+    float* head = server::clientHeadAngles(ent);
+    return head ? head : fallback;
+}
+
+// Compatibility mode (a mod's progs): its weapons fire from the player's origin plus '0 0 16'
+// (rockets 8 units further along the aim; bullets at 70% of the player's height) in the aim's
+// direction, which is the hand's (.v_angle). While PlayerPostThink runs its weapon code, the
+// player is moved -- not relinked: nothing touches it, and traces skip it anyway -- so that
+// point is the main hand's muzzle; then moved back.
+namespace
+{
+struct PostThinkShift
+{
+    bool active{false};
+    edict_t* ent{nullptr};
+    glm::vec3 origin{0.f}, absmin{0.f}, absmax{0.f}, delta{0.f};
+};
+PostThinkShift shift;
+} // namespace
+
+extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
+{
+    shift.active = false;
+    const VrMove* move = server::clientMove(ent);
+    if(active() || !move || !vr_compat_muzzle.value)
+    {
+        return;
+    }
+
+    glm::vec3 muzzle = move->muzzlePos[1];
+    if(muzzle == glm::vec3{0.f})
+    {
+        muzzle = move->hands[1].pos;
+    }
+    if(muzzle == glm::vec3{0.f})
+    {
+        return;
+    }
+
+    vec3_t fwd, right, up;
+    AngleVectors(ent->v.v_angle, fwd, right, up);
+    const glm::vec3 shotPoint = vec(ent->v.origin) + glm::vec3{0.f, 0.f, 16.f};
+    const glm::vec3 delta = (muzzle - vec(fwd) * 8.f) - shotPoint;
+    if(glm::length(delta) > 96.f)
+    {
+        return; // not where the player is (a teleport, a respawn)
+    }
+
+    shift = {true, ent, vec(ent->v.origin), vec(ent->v.absmin), vec(ent->v.absmax), delta};
+    if(developer.value >= 2)
+    {
+        Con_Printf("VR compat: shots from %.1f %.1f %.1f (moved %.1f)\n", muzzle.x, muzzle.y, muzzle.z, glm::length(delta));
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        ent->v.origin[i] += delta[i];
+        ent->v.absmin[i] += delta[i];
+        ent->v.absmax[i] += delta[i];
+    }
+}
+
+extern "C" void VR_AfterPlayerPostThink(edict_t* ent)
+{
+    if(!shift.active || shift.ent != ent || ent->free)
+    {
+        shift.active = false;
+        return;
+    }
+    shift.active = false;
+
+    // Back where it was, unless the progs moved it meanwhile.
+    if(vec(ent->v.origin) == shift.origin + shift.delta)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            ent->v.origin[i] = shift.origin[i];
+            ent->v.absmin[i] = shift.absmin[i];
+            ent->v.absmax[i] = shift.absmax[i];
+        }
+    }
 }
 
 extern "C" float VR_StepSize(float fallback)

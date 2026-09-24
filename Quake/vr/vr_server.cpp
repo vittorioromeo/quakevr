@@ -28,6 +28,26 @@ struct ClientBits
 
 std::vector<ClientBits> clientBits;
 
+// Per client: the latest VR move (see server::clientMove).
+struct ClientMove
+{
+    bool valid{false};
+    VrMove move;
+    float headAngles[3]{0.f, 0.f, 0.f};
+};
+std::vector<ClientMove> clientMoves;
+
+[[nodiscard]] ClientMove* clientMoveOf(edict_t* player)
+{
+    const int client = NUM_FOR_EDICT(player) - 1;
+    if(client < 0 || client >= svs.maxclients || client >= static_cast<int>(clientMoves.size()))
+    {
+        return nullptr;
+    }
+    ClientMove& m = clientMoves[client];
+    return m.valid ? &m : nullptr;
+}
+
 // vrbits0 pairs a "current" bit with the "previous" bit just above it.
 constexpr int currentBitsMask = (1 << 1) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 10) | (1 << 12);
 
@@ -91,6 +111,21 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const VrMove move = readVrMove();
 
     edict_t* ent = client->edict;
+    {
+        const int clientNum = static_cast<int>(client - svs.clients);
+        if(clientNum >= static_cast<int>(clientMoves.size()))
+        {
+            clientMoves.resize(clientNum + 1);
+        }
+        ClientMove& m = clientMoves[clientNum];
+        m.valid = true;
+        m.move = move;
+        for(int i = 0; i < 3; i++)
+        {
+            m.headAngles[i] = move.headAngles[i];
+        }
+    }
+
     const FieldOffsets& f = fields();
 
     setFieldVec(ent, f.v_viewangle, move.headAngles);
@@ -333,6 +368,23 @@ void dumpPlayer_f()
     Con_Printf("  vrbits0 %d  button3 %g  weapon %g  weapon2 %g\n",
         static_cast<int>(fieldFloatOr(ent, f.vrbits0, 0.f)), fieldFloatOr(ent, f.button3, 0.f),
         ent->v.weapon, fieldFloatOr(ent, f.weapon2, 0.f));
+}
+
+void resetClients()
+{
+    clientMoves.clear();
+}
+
+const VrMove* clientMove(edict_t* player)
+{
+    const ClientMove* m = clientMoveOf(player);
+    return m ? &m->move : nullptr;
+}
+
+float* clientHeadAngles(edict_t* player)
+{
+    ClientMove* m = clientMoveOf(player);
+    return m ? m->headAngles : nullptr;
 }
 
 void sendHaptic(edict_t* player, int hand, float delay, float duration, float frequency, float amplitude)

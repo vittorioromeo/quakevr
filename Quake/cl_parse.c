@@ -317,7 +317,7 @@ void CL_ParseServerInfo (void)
 	if (cl.protocol == PROTOCOL_RMQ)
 	{
 		const unsigned int supportedflags = (PRFL_SHORTANGLE | PRFL_FLOATANGLE | PRFL_24BITCOORD | PRFL_FLOATCOORD | PRFL_EDICTSCALE | PRFL_INT32COORD
-			| PRFL_QUAKEVR); // QVR
+			| PRFL_QUAKEVR | PRFL_QUAKEVR_PROGS); // QVR
 		
 		// mh - read protocol flags from server so that we know what protocol features to expect
 		cl.protocolflags = (unsigned int) MSG_ReadLong ();

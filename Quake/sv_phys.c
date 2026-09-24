@@ -1032,7 +1032,9 @@ postthink: // QVR
 
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
+	VR_BeforePlayerPostThink (ent); // QVR: a mod's shots start at the gun (compatibility mode)
 	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
+	VR_AfterPlayerPostThink (ent); // QVR
 
 	forceunderwater = !wasunderwater && ent->v.waterlevel >= 3;
 	if (forceunderwater != ent->forcewater)

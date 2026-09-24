@@ -35,8 +35,10 @@ struct edict_s;
 struct qmodel_s;
 struct sizebuf_s;
 
-// PROTOCOL_RMQ flag set by servers running Quake VR progs (see vr/vr_protocol.hpp).
+// PROTOCOL_RMQ flags (see vr/vr_protocol.hpp): the VR protocol (a server for VR clients, whatever
+// its progs), and progs implementing Quake VR's gameplay (without it, VR in compatibility mode).
 #define PRFL_QUAKEVR				(1 << 16)
+#define PRFL_QUAKEVR_PROGS			(1 << 17)
 #define VR_ENTITY_UPDATE_MAXSIZE	36		// bytes VR_WriteEntityUpdate may add
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
@@ -93,6 +95,8 @@ int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the ent
 void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
 int VR_ClientTeleport (struct edict_s *ent);			// SV_Physics_Client: 1 teleported, -1 freed
 void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
+void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
+void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
 float VR_StepSize (float fallback);					// SV_WalkMove step height
 void VR_OnWaterLevelChange (struct edict_s *ent, float oldwaterlevel); // end of SV_CheckWater

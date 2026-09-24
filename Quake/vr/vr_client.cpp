@@ -509,6 +509,12 @@ extern "C" int VR_ParseBeamEntity(int ent)
     {
         return ent;
     }
+    if(!(cl.protocolflags & PRFL_QUAKEVR_PROGS))
+    {
+        // Another mod's progs (compatibility mode) send no beam id; still keep Ironwail from
+        // snapping the player's beam to the view: it starts at the gun (vr_compat_muzzle).
+        return ent | (1 << 16);
+    }
 
     // The QC sends a beam id so that one entity (dual-wielded lightning guns, grapple and
     // weapon) can own several beams. Folding it into the key also stops Ironwail snapping

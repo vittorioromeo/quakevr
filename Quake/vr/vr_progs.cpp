@@ -132,8 +132,18 @@ extern "C" void VR_OnProgsLoaded()
 
         // The VR protocol extends RMQ (see vr_protocol.hpp).
         sv.protocol = PROTOCOL_RMQ;
-        sv.protocolflags |= PRFL_QUAKEVR;
+        sv.protocolflags |= PRFL_QUAKEVR | PRFL_QUAKEVR_PROGS;
         Con_DPrintf("VR: Quake VR progs detected\n");
+    }
+    else if(cls.state != ca_dedicated)
+    {
+        // Another mod's progs, on the player's own server: VR in compatibility mode. The client
+        // renders, tracks and aims with its hand (the hand's angles are .v_angle); the engine
+        // moves the player by the head, walks the room, teleports, and fires the mod's weapons
+        // from the gun (vr_physics.cpp). A dedicated server keeps the plain protocol, for any client.
+        sv.protocol = PROTOCOL_RMQ;
+        sv.protocolflags |= PRFL_QUAKEVR;
+        Con_DPrintf("VR: progs without Quake VR's gameplay: compatibility mode\n");
     }
 
     sv_bindings = b;
@@ -141,6 +151,7 @@ extern "C" void VR_OnProgsLoaded()
 
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
+    qvr::server::resetClients();
     resetBuiltinState();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
 }
