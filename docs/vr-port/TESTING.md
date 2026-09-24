@@ -96,8 +96,31 @@ gravity and spin. Things to try:
 | #12 missing bindings | done: the controller buttons are Quake keys (see Controls) |
 | #20, #14 status bar on the hands | P6 (HUD) |
 
+## What to try
+
+- **Walking around the room** moves you in the game (with collision), as in the old engine
+  (`vr_roomscale_move_mult`).
+- **Holsters:** bring a hand to a hip, the chest or a shoulder. The holster lights up while hovered; let go of a
+  weapon there to holster it, grip there to draw. Bringing both hands together passes a weapon between them.
+- **Two-handed aiming:** with a weapon in one hand, grip in front of it with the other (empty) hand. With a hand
+  near the shoulder, the virtual stock steadies the aim (`vr_2h_mode`, `vr_virtual_stock_thresh`).
+- **Flick reload:** with the super shotgun, flick the wrist to snap it open (`vr_spinreload_x_angular_threshold`).
+- **Teleport:** `vr_teleport_enabled 1` and bind a button, e.g. `bind LTHUMB +teleport`. Aim with the off hand,
+  release on a blue spot.
+- **Fingers** curl with the trigger (index), the grip (middle to pinky) and the thumb resting on a button or stick.
+- **Movement:** `vr_movement_mode 0` moves where the off hand points instead of the head; in both modes, pointing
+  the off hand up or down while pushing forward swims up or down.
+
+`vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
+hands, weapons and finger curls.
+
+## Testing without a headset
+
+`vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
+`vr_mock_stick <main|off> <x> <y>` and `vr_mock_hand <main|off|head> <x> <y> <z>` drive it; `vr_mock_swing <period>`
+swings the main hand for throwing tests.
+
 ## Not there yet
 
-Teleport, two-handed aiming, finger tracking, holster hover highlights, body yaw from the hands, flick reload
-(P5 part 2); the VR menus and the status bar on the hands (P6); particle presets, world text, the crosshair and
-the smaller beam model (P7).
+The two-handed "fixed" display mode (the helping hand snapped to the weapon); the VR menus and the status bar on
+the hands (P6); particle presets, world text, the crosshair and the smaller beam model (P7).
