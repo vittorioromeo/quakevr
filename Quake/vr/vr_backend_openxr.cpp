@@ -5,6 +5,7 @@
 // input work (P5).
 
 #include "vr_backend.hpp"
+#include "vr_cvars.hpp"
 
 #ifdef QVR_HAVE_OPENXR
 
@@ -189,7 +190,12 @@ public:
         }
         for(int h = 0; h < HAND_COUNT; h++)
         {
-            tracking.hands[h] = locate(handSpaces[handSide(h)], time);
+            const int side = handSide(h);
+            tracking.hands[h] = locate(handSpaces[side], time);
+            if(vr_controller_legacy_pose.value)
+            {
+                tracking.hands[h] = toLegacyPose(tracking.hands[h], side);
+            }
         }
 
         frame.shouldRender = viewsOk && frameState.shouldRender;
@@ -476,6 +482,78 @@ private:
         pose.orientation = glm::quat{p.orientation.w, p.orientation.x, p.orientation.y, p.orientation.z};
         pose.valid = valid;
         return pose;
+    }
+
+    // The controller pose the old (OpenVR) engine used, SteamVR's "raw" device pose, from
+    // OpenXR's grip pose: the weapon offsets and gun angles were tuned for it. Per controller,
+    // the grip pose is the raw pose moved by T(offset) * R(xyz degrees): SteamVR's
+    // "openxr_grip" rendermodel components, as collected by xrizer
+    // (src/input/profiles/*.rs, offset_grip_pose). Vive wands and unknown controllers: none.
+    enum class Controller
+    {
+        Other,
+        Touch,
+        Index
+    };
+    Controller controller[2]{Controller::Other, Controller::Other}; // per side (0 left)
+
+    void updateControllers()
+    {
+        for(int side = 0; side < 2; side++)
+        {
+            XrInteractionProfileState state{XR_TYPE_INTERACTION_PROFILE_STATE};
+            controller[side] = Controller::Other;
+            if(!XR_SUCCEEDED(xrGetCurrentInteractionProfile(session, handPaths[side], &state)) ||
+                state.interactionProfile == XR_NULL_PATH)
+            {
+                continue;
+            }
+            if(state.interactionProfile == path("/interaction_profiles/oculus/touch_controller") ||
+                state.interactionProfile == path("/interaction_profiles/meta/touch_controller_plus"))
+            {
+                controller[side] = Controller::Touch;
+            }
+            else if(state.interactionProfile == path("/interaction_profiles/valve/index_controller"))
+            {
+                controller[side] = Controller::Index;
+            }
+        }
+    }
+
+    [[nodiscard]] Pose toLegacyPose(const Pose& grip, int side) const
+    {
+        if(!grip.valid || controller[side] == Controller::Other)
+        {
+            return grip;
+        }
+
+        const float s = side == 0 ? 1.f : -1.f;
+        glm::vec3 offset;
+        glm::vec3 xyz; // degrees
+        if(controller[side] == Controller::Touch)
+        {
+            offset = {0.007f * s, -0.00182941f, 0.1019482f};
+            xyz = {20.6f, 0.f, 0.f};
+        }
+        else
+        {
+            offset = {0.f, -0.015f, 0.13f};
+            xyz = {15.392f, -2.071f * s, 0.303f * s};
+        }
+        const glm::quat r = glm::angleAxis(glm::radians(xyz.x), glm::vec3{1.f, 0.f, 0.f}) *
+                            glm::angleAxis(glm::radians(xyz.y), glm::vec3{0.f, 1.f, 0.f}) *
+                            glm::angleAxis(glm::radians(xyz.z), glm::vec3{0.f, 0.f, 1.f});
+
+        // raw = grip * (T(offset) R)^-1 = grip * R^-1 T(-offset)
+        const glm::quat rInv = glm::inverse(r);
+        Pose raw = grip;
+        raw.orientation = grip.orientation * rInv;
+        raw.position = grip.position + grip.orientation * (rInv * -offset);
+        if(grip.velocityValid)
+        {
+            raw.linearVelocity = grip.linearVelocity + glm::cross(grip.angularVelocity, raw.position - grip.position);
+        }
+        return raw;
     }
 
     [[nodiscard]] Pose locate(XrSpace space, XrTime time) const
@@ -942,6 +1020,7 @@ private:
             switch(event.type)
             {
                 case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING: return false;
+                case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: updateControllers(); break;
                 case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
                 {
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);

@@ -42,9 +42,10 @@ QVR_CVAR(vr_crosshair_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_alpha, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_aimmode, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_deadzone, "25", CVAR_ARCHIVE)
-// Controller rotation offsets. The released values (gunangle 39.5, offhandpitch 40.25)
-// compensated for OpenVR's raw controller pose; OpenXR's grip pose already points out of
-// the fist, so the pitches start at 0.
+// Controller rotation offsets, the released values: tuned for OpenVR's raw controller pose, which
+// the OpenXR backend reproduces from the grip pose with vr_controller_legacy_pose 1 (Touch, Quest
+// and Index controllers), so that they and the weapon offsets line up as in the old engine.
+QVR_CVAR(vr_controller_legacy_pose, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunangle, "39.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodelpitch, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodelscale, "0.7", CVAR_ARCHIVE)
