@@ -118,6 +118,7 @@ int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile:
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_Menu_Open (void);								// menu.c: Options > VR Settings
+void VR_Menu_Command (void);							// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 void VR_Menu_Key (int key);								// M_Keydown, m_vr
 int VR_CanvasBlend (void);								// GL_SetStateEx, alpha blending: nonzero if it set the blend
