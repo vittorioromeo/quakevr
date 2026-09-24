@@ -123,7 +123,8 @@ extern "C" int VR_RenderView()
     Backend* be = backend();
     const FrameState& frame = frameState();
 
-    if(!be || !frame.shouldRender || cls.state != ca_connected || cls.signon != SIGNONS ||
+    // frameActive: not again after the frame was finished (a loading plaque redraws the screen).
+    if(!be || !frame.shouldRender || !be->frameActive() || cls.state != ca_connected || cls.signon != SIGNONS ||
         !cl.worldmodel || con_forcedup || !hands::current().valid)
     {
         return 0; // the backend ends the frame without layers
@@ -148,6 +149,7 @@ extern "C" int VR_RenderView()
     crosshair::queue(hands::current());
     body::queueDebug(hands::current());
 
+    int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
     {
         const unsigned image = be->acquireEyeImage(eye);
@@ -183,6 +185,12 @@ extern "C" int VR_RenderView()
 
         stereo::renderingEye = false;
         be->releaseEyeImage(eye);
+        ++eyesRendered;
+
+        // Released images belong to the runtime again: do not keep them attached.
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+
         stereo::mirrorToWindow(eye, windowTarget, windowWidth, windowHeight);
     }
 
@@ -199,9 +207,10 @@ extern "C" int VR_RenderView()
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
 
-    be->endFrame(true);
-    panel::setStereoThisFrame(true);
-    return 1;
+    // Both eyes, or no projection layer at all (an eye's image could not be acquired).
+    be->endFrame(eyesRendered == 2);
+    panel::setStereoThisFrame(eyesRendered == 2);
+    return eyesRendered == 2;
 }
 
 extern "C" int VR_RenderingEye()

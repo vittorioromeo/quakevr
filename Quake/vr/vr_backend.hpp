@@ -102,6 +102,12 @@ public:
     // tracking. Returns false if the session was lost.
     [[nodiscard]] virtual bool beginFrame(TrackingState& tracking, FrameState& frame) = 0;
 
+    // Whether a frame begun by beginFrame is waiting to be finished (eyes may be rendered).
+    [[nodiscard]] virtual bool frameActive() const
+    {
+        return true;
+    }
+
     // Render target size of each eye.
     virtual void eyeResolution(int& width, int& height) const = 0;
 

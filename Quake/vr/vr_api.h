@@ -117,6 +117,7 @@ void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entitie
 void VR_Menu_Open (void);								// menu.c: Options > VR Settings
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 void VR_Menu_Key (int key);								// M_Keydown, m_vr
+int VR_CanvasBlend (void);								// GL_SetStateEx, alpha blending: nonzero if it set the blend
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
 void VR_End2D (void);									// SCR_UpdateScreen, after Draw_Flush
 

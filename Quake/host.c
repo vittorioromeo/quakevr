@@ -780,10 +780,13 @@ Host_GetFrameInterval
 */
 double Host_GetFrameInterval (void)
 {
+	if (VR_IsActive () && !host_maxfps.value) // QVR: the runtime paces a headset
+		return 0.0;
+
 	if ((host_maxfps.value || cls.state == ca_disconnected) && !cls.timedemo)
 	{
 		float maxfps;
-		if (cls.state == ca_disconnected)
+		if (cls.state == ca_disconnected && !VR_IsActive ()) // QVR: the runtime paces a headset
 		{
 			maxfps = vid.refreshrate ? vid.refreshrate : 60.f;
 			if (host_maxfps.value)

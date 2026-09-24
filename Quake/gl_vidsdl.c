@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_vidsdl.c -- SDL GL vid component
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
@@ -1123,7 +1124,8 @@ static void GL_SetStateEx (unsigned mask, unsigned force)
 				}
 				// fallthrough!
 			case GLS_BLEND_ALPHA:
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				if (!VR_CanvasBlend ()) // QVR: the VR 2D canvas keeps a correct alpha channel
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				break;
 			case GLS_BLEND_MULTIPLY:
 				glBlendFunc(GL_ZERO, GL_SRC_COLOR);

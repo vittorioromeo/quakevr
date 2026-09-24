@@ -122,6 +122,10 @@ public:
             return false;
         }
 
+        if(!sessionRunning && sessionState == XR_SESSION_STATE_READY)
+        {
+            beginSession(); // the first attempt (on the READY event) failed: retry
+        }
         if(!sessionRunning)
         {
             return true;
@@ -192,6 +196,11 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool frameActive() const override
+    {
+        return frameBegun && sessionRunning;
+    }
+
     void eyeResolution(int& width, int& height) const override
     {
         width = swapchains[0].width;
@@ -211,7 +220,12 @@ public:
 
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
-        check(xrWaitSwapchainImage(sc.handle, &waitInfo), "xrWaitSwapchainImage");
+        if(!check(xrWaitSwapchainImage(sc.handle, &waitInfo), "xrWaitSwapchainImage"))
+        {
+            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+            xrReleaseSwapchainImage(sc.handle, &releaseInfo);
+            return 0;
+        }
 
         return sc.images[index].image;
     }
@@ -262,10 +276,13 @@ public:
         XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
         if(panelPending && frameState.shouldRender)
         {
-            if(!panelShown)
+            // Placed anew only after it was away for a while, not across a frame or two without
+            // it (loading, a skipped 2D pass).
+            if(!panelShown && realtime - panelLastShown > 1.0)
             {
                 placePanel();
             }
+            panelLastShown = realtime;
 
             quad.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT; // premultiplied
             quad.space = worldSpace;
@@ -300,7 +317,12 @@ public:
 
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
-        check(xrWaitSwapchainImage(panel.handle, &waitInfo), "xrWaitSwapchainImage");
+        if(!check(xrWaitSwapchainImage(panel.handle, &waitInfo), "xrWaitSwapchainImage"))
+        {
+            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+            xrReleaseSwapchainImage(panel.handle, &releaseInfo);
+            return 0;
+        }
         return panel.images[index].image;
     }
 
@@ -404,6 +426,7 @@ private:
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
+    double panelLastShown{-10.0};
     XrPosef panelPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
     XrPosef lastHeadPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
@@ -482,7 +505,19 @@ private:
 
     bool createInstance()
     {
-        const char* extensions[] = {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+        // Quest 3 controllers get their own profile with this extension (Touch otherwise).
+        std::vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+        uint32_t available = 0;
+        xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
+        std::vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
+        xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
+        for(const XrExtensionProperties& p : extensionList)
+        {
+            if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
+            {
+                extensions.push_back("XR_META_touch_controller_plus");
+            }
+        }
 
         XrInstanceCreateInfo info{XR_TYPE_INSTANCE_CREATE_INFO};
         q_strlcpy(info.applicationInfo.applicationName, "Quake VR", XR_MAX_APPLICATION_NAME_SIZE);
@@ -490,8 +525,8 @@ private:
         q_strlcpy(info.applicationInfo.engineName, "Ironwail", XR_MAX_ENGINE_NAME_SIZE);
         info.applicationInfo.engineVersion = 1;
         info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
-        info.enabledExtensionCount = 1;
-        info.enabledExtensionNames = extensions;
+        info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        info.enabledExtensionNames = extensions.data();
 
         if(!check(xrCreateInstance(&info, &instance), "xrCreateInstance"))
         {
@@ -812,7 +847,7 @@ public:
         }
 
         XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
-        vibration.duration = static_cast<XrDuration>(seconds * 1e9);
+        vibration.duration = seconds > 0.f ? static_cast<XrDuration>(seconds * 1e9) : XR_MIN_HAPTIC_DURATION;
         vibration.frequency = frequency > 0.f ? frequency : XR_FREQUENCY_UNSPECIFIED;
         vibration.amplitude = CLAMP(0.f, amplitude, 1.f);
 
@@ -891,6 +926,13 @@ private:
         return true;
     }
 
+    void beginSession()
+    {
+        XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
+        beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+        sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
+    }
+
     // Returns false if the session is lost or the application should exit VR.
     bool pollEvents()
     {
@@ -906,9 +948,7 @@ private:
                     sessionState = changed.state;
                     if(sessionState == XR_SESSION_STATE_READY)
                     {
-                        XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
-                        beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-                        sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
+                        beginSession();
                     }
                     else if(sessionState == XR_SESSION_STATE_STOPPING)
                     {

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -189,12 +190,12 @@ int main(int argc, char *argv[])
 	while (1)
 	{
 		/* If we have no input focus at all, sleep a bit */
-		if (!VID_HasMouseOrInputFocus() || cl.paused)
+		if ((!VID_HasMouseOrInputFocus() || cl.paused) && !VR_IsActive ()) // QVR: the headset needs every frame
 		{
 			SDL_Delay(16);
 		}
 		/* If we're minimised, sleep a bit more */
-		if (VID_IsMinimized())
+		if (VID_IsMinimized() && !VR_IsActive ()) // QVR
 		{
 			scr_skipupdate = 1;
 			SDL_Delay(32);

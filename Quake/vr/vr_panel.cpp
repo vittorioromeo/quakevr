@@ -292,6 +292,10 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
 
 GLuint panelFbo = 0;
 
+// glBlendFuncSeparate (GL 1.4), which Ironwail does not load.
+using BlendFuncSeparateFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLenum);
+BlendFuncSeparateFn blendFuncSeparate = nullptr;
+
 // The canvas into the backend's panel image, when it has one.
 void copyToRuntimePanel()
 {
@@ -374,6 +378,28 @@ void drawInEye(const hands::State& s)
 
 } // namespace qvr::panel
 
+// While drawing into the canvas, alpha blending must also build up the alpha channel as
+// "covered so far" (ONE, ONE_MINUS_SRC_ALPHA): with the colour's blend applied to alpha too, a
+// translucent pixel would store alpha squared, and the canvas would let too much through
+// where it is composited (in the eyes, on the runtime's panel).
+extern "C" int VR_CanvasBlend()
+{
+    if(!drawingToCanvas)
+    {
+        return 0;
+    }
+    if(!blendFuncSeparate)
+    {
+        blendFuncSeparate = reinterpret_cast<BlendFuncSeparateFn>(SDL_GL_GetProcAddress("glBlendFuncSeparate"));
+        if(!blendFuncSeparate)
+        {
+            return 0;
+        }
+    }
+    blendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    return 1;
+}
+
 extern "C" void VR_Begin2D()
 {
     // With VR active the 2D layer always goes to the canvas: into the eyes when they were
@@ -388,6 +414,7 @@ extern "C" void VR_Begin2D()
     crosshair.value = 0.f;
 
     ensureCanvas(vid.width, vid.height);
+    GL_ResetState(); // re-applies the blend with VR_CanvasBlend in effect
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvasFbo);
     glViewport(0, 0, vid.width, vid.height);
     glClearColor(0.f, 0.f, 0.f, 0.f);
@@ -401,6 +428,7 @@ extern "C" void VR_End2D()
         return;
     }
     drawingToCanvas = false;
+    GL_ResetState(); // back to Ironwail's usual blend
     crosshair.value = savedCrosshair;
 
     // Back to the window, with the 2D layer over the mirrored eye.
