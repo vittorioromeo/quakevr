@@ -24,7 +24,7 @@ void(vector org) BroadcastGunshotEffect =
 
 vector(float xHand, float factor) vrProjectileVelocity =
 {
-    if(cvar_hget(cvarh_vr_enabled) == 1)
+    if(VRHandsTracked(self))
     {
         // VR: Add hand velocity and player velocity to the final projectile
         // velocity, in order to carry momentum
@@ -130,7 +130,7 @@ float(float velmag) VRMeleeStrengthMult =
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
-    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
+    if(!VRHandsTracked(self) || !self.ishuman)
     {
         return 20;
     }
@@ -152,7 +152,7 @@ float(float v) VRMeleeRange =
         mult = 1.10;
     }
 
-    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
+    if(!VRHandsTracked(self) || !self.ishuman)
     {
         mult = mult * 3.5;
     }
@@ -1749,7 +1749,7 @@ void(float xHand) W_FireGrenade =
     tmpAngles = VRGetWeaponFireRot(xHand);
     makevectors(tmpAngles);
 
-    if(cvar_hget(cvarh_vr_enabled) == 1)
+    if(VRHandsTracked(self))
     {
         if(tmpAngles_x)
         {
@@ -1927,7 +1927,7 @@ void(float xHand) W_FireProximityGrenade =
     tmpAngles = VRGetWeaponFireRot(xHand);
     makevectors(tmpAngles);
 
-    if(cvar_hget(cvarh_vr_enabled) == 1)
+    if(VRHandsTracked(self))
     {
         if(tmpAngles_x)
         {
@@ -2286,8 +2286,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 
     if(xWeapon == WID_AXE)
     {
-        if(cvar_hget(cvarh_vr_enabled) == 0 ||
-           cvar_hget(cvarh_vr_fakevr) == 1 ||
+        if(!VRHandsTracked(self) ||
            !self.ishuman)
         {
             sound(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
@@ -2381,8 +2380,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 //MED
    else if(xWeapon == WID_MJOLNIR)
    {
-        if(cvar_hget(cvarh_vr_enabled) == 0 ||
-           cvar_hget(cvarh_vr_fakevr) == 1 ||
+        if(!VRHandsTracked(self) ||
            !self.ishuman)
         {
             if(self.ammo_cells < 30)
@@ -2635,7 +2633,7 @@ float(entity xPlayer, float xDir, float xWeapon,
 
 float() getWeaponCycleMode =
 {
-    if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
+    if(!VRHandsTracked(self) || !self.ishuman)
     {
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
@@ -3141,7 +3139,7 @@ float(float xHolster) getHolsterWeaponClip =
     bprint("\n");
 
     // Bogus, should never happen.
-    return self.holsterweapon0;
+    return 0;
 }
 
 void(float xHolster, float v) setHolsterWeaponClip =
@@ -3455,7 +3453,8 @@ void() forcegrabbable_touch =
         {
             sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
 
-            float posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+            // Where it struck, and going which way (not the trace globals, stale in a touch).
+            float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
@@ -3722,14 +3721,15 @@ float(entity ent) GetThrownWeaponBaseDamage =
     return ent.frags;
 }
 
+// (Not .health: that is the "deal damage" flag.)
 void(entity ent, float xValue) SetThrownWeaponTimeout =
 {
-    ent.health = xValue;
+    ent.thrownweapon_timeout = xValue;
 }
 
 float(entity ent) GetThrownWeaponTimeout =
 {
-    return ent.health;
+    return ent.thrownweapon_timeout;
 }
 
 void MakeGrabbable(entity newmis)
@@ -3821,20 +3821,6 @@ vector(vector xThrowVel, vector xAVel) LegacyThrowSpin =
 float() VRMetersToUnits =
 {
     return cvar_hget(cvarh_vr_world_scale) / (1.5 * 0.0254);
-}
-
-// A hand's angular velocity (radians per second, world axes) as .avelocity (degrees per
-// second) for an object held at view angles `xRot`: pitch (nose up) turns around its right
-// axis, yaw around the vertical, roll around its forward axis.
-vector(vector xAVel, vector xRot) VRThrowSpin =
-{
-    makevectors(xRot);
-
-    vector res;
-    res_x = (xAVel * v_right) * (180 / 3.14159265);
-    res_y = xAVel_z * (180 / 3.14159265);
-    res_z = (xAVel * v_forward) * (180 / 3.14159265);
-    return res;
 }
 
 

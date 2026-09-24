@@ -35,6 +35,7 @@
 .entity mainhand_fgtarget;
 .float offhand_fglocked;
 .float mainhand_fglocked;
+.float thrownweapon_timeout; // a thrown weapon's removal time in deathmatch
 .entity offhand_fgpulled; // the object last pulled, while it flies to that hand
 .entity mainhand_fgpulled;
 .float offhand_fgrearm;   // 1 after a pull, until the trigger is let go

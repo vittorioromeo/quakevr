@@ -115,15 +115,6 @@ float() VR_GameUtil_InHoneyMap =
            (mapname == "credits");
 }
 
-float() VR_GameUtil_InUnknownMap =
-{
-    return !VR_GameUtil_InVanillaMap() &&
-           !VR_GameUtil_InHipnoticMap() &&
-           !VR_GameUtil_InRogueMap() &&
-           !VR_GameUtil_InDopaMap() &&
-           !VR_GameUtil_InHoneyMap();
-}
-
 float() VR_GameUtil_EnableHoneyExtensions =
 {
     // TODO VR: (P2) also add cvar override

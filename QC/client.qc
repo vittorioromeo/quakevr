@@ -782,11 +782,6 @@ void() ClientKill =
     respawn();
 };
 
-float(vector v) CheckSpawnPoint =
-{
-    return FALSE;
-};
-
 /*
 ============
 SelectSpawnPoint
@@ -2610,7 +2605,7 @@ void(float xHand, float xInMelee, float xHandVelMag,
     vr_melee_threshold = cvar_hget(cvarh_vr_melee_speed);
 
     // Once per swing: after a hit (the hit sound played), not again until the hand slows down.
-    if(cvar_hget(cvarh_vr_enabled) == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
+    if(VRHandsTracked(self) && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
        !VRGetMeleeHitSoundPlayed(xHand))
     {
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))

@@ -128,18 +128,6 @@ NullaryFn(PainFn fn) fromPainToTouchFn =
     return fn;
 }
 
-void(vector v) bprintVec =
-{
-    bprint("{");
-    bprint(ftos(v_x));
-    bprint("; ");
-    bprint(ftos(v_y));
-    bprint("; ");
-    bprint(ftos(v_z));
-    bprint("}");
-
-}
-
 //
 //
 //
@@ -167,10 +155,6 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetCurrentAmmo,
                           self.currentammo2,
                           self.currentammo);
 
-VR_IMPL_MAKE_FLOAT_SETTER(VRSetCurrentAmmo,
-                          &self.currentammo2,
-                          &self.currentammo);
-
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetAttackFinished,
                           self.offhand_attack_finished,
                           self.attack_finished);
@@ -186,10 +170,6 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponFrame,
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFrame,
                           &self.weaponframe2,
                           &self.weaponframe);
-
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetAmmoCounter,
-                          self.ammocounter2,
-                          self.ammocounter);
 
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetAmmoCounter,
                           &self.ammocounter2,
@@ -211,10 +191,6 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClip,
                           &self.weaponclip2,
                           &self.weaponclip);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClipSize,
-                          self.weaponclipsize2,
-                          self.weaponclipsize);
-
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClipSize,
                           &self.weaponclipsize2,
                           &self.weaponclipsize);
@@ -226,6 +202,13 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetLavaGunFired,
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetLavaGunFired,
                           &self.offHandLavaGunFired,
                           &self.mainHandLavaGunFired);
+
+// Whether `e` plays with tracked VR hands (not a flat-screen player, not a bot): the engine tells,
+// per client.
+float(entity e) VRHandsTracked =
+{
+    return VRHasBit(e.vrbits0, QVR_VRBITS0_HANDSTRACKED);
+}
 
 float(entity e, float xHand) VRGetEntFireButtonPressed =
 {
@@ -268,12 +251,6 @@ void(entity e, float xHand, float v) VRSetEntWeaponClip =
     else                     e.weaponclip = v;
 }
 
-void(entity e, float xHand, float v) VRSetEntWeaponClipSize =
-{
-    if(xHand == cVR_OffHand) e.weaponclipsize2 = v;
-    else                     e.weaponclipsize = v;
-}
-
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -297,12 +274,6 @@ float(entity e, float xHand) VRGetEntWeaponClip =
     else                     return e.weaponclip;
 }
 
-float(entity e, float xHand) VRGetEntWeaponClipSize =
-{
-    if(xHand == cVR_OffHand) return e.weaponclipsize2;
-    else                     return e.weaponclipsize;
-}
-
 float*(entity e, float xHand) VRGetEntWeaponPtr =
 {
     if(xHand == cVR_OffHand) return &e.weapon2;
@@ -319,12 +290,6 @@ float*(entity e, float xHand) VRGetEntWeaponClipPtr =
 {
     if(xHand == cVR_OffHand) return &e.weaponclip2;
     else                     return &e.weaponclip;
-}
-
-float*(entity e, float xHand) VRGetEntWeaponClipSizePtr =
-{
-    if(xHand == cVR_OffHand) return &e.weaponclipsize2;
-    else                     return &e.weaponclipsize;
 }
 
 float(entity e, float xHand) VRIsHandEmpty =
@@ -360,12 +325,6 @@ float(entity e, float xHand) VRIsEntHandReloadingBit =
 {
     if(xHand == cVR_OffHand) return VRGetOffHandReloadingBit(e);
     else                     return VRGetMainHandReloadingBit(e);
-}
-
-float(entity e, float xHand) VRIsEntHandPrevReloadingBit =
-{
-    if(xHand == cVR_OffHand) return VRGetOffHandPrevReloadingBit(e);
-    else                     return VRGetMainHandPrevReloadingBit(e);
 }
 
 float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
@@ -427,11 +386,6 @@ float(float flags, float bit, float value) VRSetBit =
     {
         return flags & ~bit;
     }
-}
-
-float(entity ent) VRGetTeleporting =
-{
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_TELEPORTING);
 }
 
 float(entity ent) VRGetOffHandGrabbingBit =
@@ -528,26 +482,6 @@ void(entity ent, float value) VRSetMainHandPrevGrabbingBit =
 void(entity ent, float value) VRSet2HAiming =
 {
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING, value);
-}
-
-void(entity ent, float value) VRSetOffHandReloadingBit =
-{
-    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADING, value);
-}
-
-void(entity ent, float value) VRSetOffHandPrevReloadingBit =
-{
-    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADING, value);
-}
-
-void(entity ent, float value) VRSetMainHandReloadingBit =
-{
-    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADING, value);
-}
-
-void(entity ent, float value) VRSetMainHandPrevReloadingBit =
-{
-    ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING, value);
 }
 
 void(entity ent, float value) VRSetOffHandReloadFlickingBit =

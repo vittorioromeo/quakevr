@@ -145,26 +145,6 @@ float(float wid) WeaponIdToItemId =
     return -1;
 }
 
-float(float it) ItemIdToWeaponId =
-{
-    if(it == IID_FIST)              { return WID_FIST; }
-    if(it == IID_GRAPPLE)           { return WID_GRAPPLE; }
-    if(it == IID_AXE)               { return WID_AXE; }
-    if(it == IID_MJOLNIR)           { return WID_MJOLNIR; }
-    if(it == IID_SHOTGUN)           { return WID_SHOTGUN; }
-    if(it == IID_SUPER_SHOTGUN)     { return WID_SUPER_SHOTGUN; }
-    if(it == IID_NAILGUN)           { return WID_NAILGUN; }
-    if(it == IID_SUPER_NAILGUN)     { return WID_SUPER_NAILGUN; }
-    if(it == IID_GRENADE_LAUNCHER)  { return WID_GRENADE_LAUNCHER; }
-    if(it == IID_PROXIMITY_GUN)     { return WID_PROXIMITY_GUN; }
-    if(it == IID_ROCKET_LAUNCHER)   { return WID_ROCKET_LAUNCHER; }
-    if(it == IID_LIGHTNING)         { return WID_LIGHTNING; }
-    if(it == IID_LASER_CANNON)      { return WID_LASER_CANNON; }
-
-    ASSERT(FALSE);
-    return -1;
-}
-
 string(float xWeaponFlags, string xPrimaryModel, string xSecondaryModel) SelectModelByFlags =
 {
     if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO))

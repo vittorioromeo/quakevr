@@ -539,30 +539,6 @@ void() bound_other_ammo =
 };
 
 
-//MED 01/06/97 added hipnotic weapons into rankings
-float(float w) RankForWeapon =
-{
-    if(w == WID_LIGHTNING)
-        return 1;
-    if(w == WID_ROCKET_LAUNCHER)
-        return 2;
-    if(w == WID_LASER_CANNON)
-        return 3;
-    if(w == WID_SUPER_NAILGUN)
-        return 4;
-    if(w == WID_PROXIMITY_GUN)
-        return 5;
-    if(w == WID_GRENADE_LAUNCHER)
-        return 6;
-    if(w == WID_SUPER_SHOTGUN)
-        return 7;
-    if(w == WID_NAILGUN)
-        return 8;
-    if(w == WID_MJOLNIR)
-        return 9;
-   return 10;
-};
-
 /*
 =============
 weapon_touch
@@ -1572,21 +1548,6 @@ void() BackpackTouch =
 DropBackpack
 ===============
 */
-void() BackpackTouch2 =
-{
-    if(self.owner != world && other == self.owner)
-        return;
-
-    if(other.solid == SOLID_TRIGGER)
-        return;    // trigger field, do nothing
-
-    if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
-    {
-        self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        self.throwhit = QVR_THROWHIT_HIT;
-    }
-}
-
 void() DropBackpack =
 {
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
@@ -1631,7 +1592,7 @@ void() DropBackpack =
     SetThrownWeaponDealDamage(item, FALSE);
     SetThrownWeaponDisappearOnHit(item, FALSE);
 
-    item.think = forcegrabbable_item_think;
+    item.think = forcegrabbable_think; // no deathmatch return: it has no place of its own
     item.nextthink = time + 0.02;
 
     item.touch = forcegrabbable_touch;

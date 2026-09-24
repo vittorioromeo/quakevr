@@ -111,12 +111,6 @@ float(entity xEntPlayer, float xHand) VR_HandGrabUtil_StartedHandGrabbing =
         && time > lastReleaseTime;
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_StoppedHandGrabbing =
-{
-    return VRIsEntHandPrevGrabbingBit(xEntPlayer, xHand) &&
-           !VRIsEntHandGrabbingBit(xEntPlayer, xHand);
-}
-
 float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlicking =
 {
     return VRIsEntHandReloadFlickingBit(xEntPlayer, xHand);

@@ -133,7 +133,7 @@ void(float xHand) W_FireMultiGrenade =
     tmpAngles = VRGetWeaponFireRot(xHand);
     makevectors(tmpAngles);
 
-    if(cvar_hget(cvarh_vr_enabled) == 1)
+    if(VRHandsTracked(self))
     {
         if(tmpAngles_x)
         {

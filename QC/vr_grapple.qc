@@ -19,12 +19,6 @@ void(float xHand, entity v) setHook =
     else                  self.hook = v;
 }
 
-void(float xHand, float v) setOnHook =
-{
-    if(xHand == cVR_OffHand) self.on_hook2 = v;
-    else                  self.on_hook = v;
-}
-
 void(float xHand, float v) setHookOut =
 {
     if(xHand == cVR_OffHand) self.hook_out2 = v;
@@ -65,12 +59,6 @@ float(float xHand) getOwnerOnHook =
 {
     if(xHand == cVR_OffHand) return self.owner.on_hook2;
     else                  return self.owner.on_hook;
-}
-
-float(float xHand) getOwnerHookOut =
-{
-    if(xHand == cVR_OffHand) return self.owner.hook_out2;
-    else                  return self.owner.hook_out;
 }
 
 // prototypes for WEAPONS.QC functions

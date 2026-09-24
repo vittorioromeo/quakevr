@@ -8,6 +8,7 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 
+#include <algorithm>
 #include <vector>
 
 using namespace qvr;
@@ -352,7 +353,20 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
         return -1;
     }
 
+    // The client picks the target: accept it only within the teleport range (with some slack for
+    // the arc) and where the player fits.
     const glm::vec3 target = fieldVec(ent, f().teleport_target);
+    const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    if(glm::distance(from, target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
+    {
+        return 0;
+    }
+    vec3_t t{target.x, target.y, target.z};
+    if(SV_Move(t, ent->v.mins, ent->v.maxs, t, MOVE_NOMONSTERS, ent).startsolid)
+    {
+        return 0;
+    }
+
     ent->v.teleport_time = static_cast<float>(qcvm->time) + 0.3f;
     for(int i = 0; i < 3; i++)
     {

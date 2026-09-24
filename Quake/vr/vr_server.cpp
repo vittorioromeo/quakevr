@@ -123,7 +123,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     }
     ClientBits& bits = clientBits[clientNum];
     bits.received = move.vrBits0;
-    setFieldFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame)));
+    // Bit 14 (QC QVR_VRBITS0_HANDSTRACKED): this client's hands come from real tracking, so the QC
+    // can tell a VR player from a flat-screen one (and from a bot).
+    const int tracked = (move.buttons & QVR_BUTTON_HANDSTRACKED) ? (1 << 14) : 0;
+    setFieldFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked));
     setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);

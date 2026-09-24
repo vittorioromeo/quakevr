@@ -86,12 +86,6 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 // Public API
 // ----------------------------------------------------------------------------
 
-float(float xItemId) VR_ItemUtil_IsValidItemId =
-{
-    return (xItemId >= IID_ARMOR1)
-        && (xItemId <= IID_V_SPHERE);
-}
-
 float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 {
     // `IID_CATEGORY_ITEMS`
