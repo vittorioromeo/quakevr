@@ -21,3 +21,4 @@ build/
 !/quakevr/default.cfg
 !/quakevr/vr_bindings.cfg
 /build-cmake/
+/dist/

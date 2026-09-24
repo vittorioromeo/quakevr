@@ -5,6 +5,10 @@ only been checked up to "no headset connected", so expect rough edges: tell me w
 
 ## Build and install
 
+The quickest way: `Windows\package-quakevr.ps1 -Build -Fteqcc <path to fteqcc64.exe>` builds everything into
+`dist\QuakeVR` (and `dist\QuakeVR.zip`); copy its contents into your Quake folder and run `QuakeVR.bat`.
+By hand:
+
 1. Build `Windows/VisualStudio/ironwail.sln`, **Release | x64**. The output is
    `Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe`, with `openxr_loader.dll` copied next to it.
 2. Build the progs: `QC/build.bat` (set `FTEQCC` to `fteqcc64.exe`). It writes `quakevr/progs.dat`.
