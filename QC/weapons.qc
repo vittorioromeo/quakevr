@@ -115,32 +115,28 @@ float() VRMeleeDmgQuadMult =
     return 1;
 }
 
+// Melee: a swing of a hand faster than vr_melee_speed (m/s), in any direction, hits what is ahead
+// of the hand (and of the weapon's end) along its motion, once per swing: the hand must slow down
+// again before it hits anything else. The damage is the weapon's base at vr_melee_speed, growing
+// with the speed up to three times that; a punch (the fist moving along its own forward, knuckles
+// first) does vr_melee_punch_mult more (W_FistMelee).
+
+// How hard the hand swings: its speed over vr_melee_speed, up to 3.
 float(float velmag) VRMeleeStrengthMult =
 {
-    float strength;
-    strength = velmag - cvar_hget(cvarh_vr_melee_threshold);
-
-    if(strength > 1.0)
-    {
-        strength = pow(strength, 1.5);
-    }
-
-    return strength;
+    float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
+    return min(3, velmag / threshold);
 }
 
-float(float xHand, float v, float xBase) VRMeleeDmg =
+float(float xHand, float xBase) VRMeleeDmg =
 {
-    float tmp;
-
     if(cvar_hget(cvarh_vr_fakevr) == 1 || !self.ishuman)
     {
         return 20;
     }
 
-    if(xHand == cVR_OffHand) tmp = self.offhandvelmag;
-    else                     tmp = self.handvelmag;
-
-    return xBase + (v * VRMeleeStrengthMult(tmp)) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+    return xBase * VRMeleeStrengthMult(VRGetHandVelMag(xHand)) * cvar_hget(cvarh_vr_melee_dmg_multiplier) *
+           VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
@@ -171,16 +167,10 @@ void(float hand, float velmag) VRMeleeHaptic =
         return;
     }
 
-    float power, amplitude, xduration;
-    power = VRMeleeStrengthMult(velmag);
-
-    amplitude = power / 10.0;
-    if(amplitude > 1.0)       { amplitude = 1.0; }
-    else if(amplitude < 0.45) { amplitude = 0.45; }
-
-    xduration = 0.35 + power / 18.0;
-    if(xduration < 0.35)     { xduration = 0.35; }
-    else if(xduration > 0.9) { xduration = 0.9; }
+    // Stronger and longer for harder swings.
+    float power = VRMeleeStrengthMult(velmag); // 1 .. 3
+    float amplitude = min(1.0, 0.35 + 0.25 * power);
+    float xduration = min(0.9, 0.25 + 0.15 * power);
 
     VRGunHaptic(hand, xduration, 75.0, amplitude);
 }
@@ -793,64 +783,46 @@ void(float xHand) HIP_FireMjolnirLightning =
     HIP_SpawnMjolnirBase();
 };
 
-float(vector xHandRot, vector xHandPos, vector xMuzzlePos,
-      float xRange, float xMuzzleRange) VRDoMeleeAttackTraceline =
+// What a swing of `xHand` hits: ahead of the hand, and of the weapon's end, along the hand's
+// motion; things that bleed first. Sets the trace_ globals, and v_forward to the motion.
+float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
 {
     float range = VRMeleeRange(xRange);
     float muzzleRange = VRMeleeRange(xRange + xMuzzleRange);
+    vector handPos = VRGetHandPos(xHand);
+    vector muzzlePos = VRGetMuzzlePos(xHand);
 
-    makevectors(xHandRot);
+    vector dir = normalize(VRGetHandVel(xHand));
+    if(dir == '0 0 0')
+    {
+        makevectors(VRGetHandRot(xHand));
+        dir = v_forward;
+    }
 
-    // Prioritize entities taking damage:
-    traceline(xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+    for(float anything = 0; anything < 2; ++anything)
+    {
+        traceline(handPos - dir * 6, handPos + dir * range, FALSE, self);
+        if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
+        {
+            v_forward = dir;
+            return TRUE;
+        }
 
-    traceline(xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
+        traceline(muzzlePos - dir * 6, muzzlePos + dir * muzzleRange, FALSE, self);
+        if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
+        {
+            v_forward = dir;
+            return TRUE;
+        }
+    }
 
-    traceline(xHandPos - v_up*3, xHandPos + v_up * (range / 1.5), FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
-
-    traceline(xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 1.5), FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
-
-    traceline(xHandPos + v_up*3, xHandPos - v_up * (range / 1.5), FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
-
-    traceline(xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 1.5), FALSE, self);
-    if(trace_fraction != 1.0 && trace_ent.takedamage) { return TRUE; }
-
-    // Then test the same traces, but do not prioritize:
-    traceline(xHandPos - v_forward*6, xHandPos + v_forward * range, FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
-    traceline(xMuzzlePos - v_forward*6, xMuzzlePos + v_forward * muzzleRange, FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
-    traceline(xHandPos - v_up*3, xHandPos + v_up * (range / 2.0), FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
-    traceline(xMuzzlePos - v_up*3, xMuzzlePos + v_up * (muzzleRange / 2.0), FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
-    traceline(xHandPos + v_up*3, xHandPos - v_up * (range / 2.0), FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
-    traceline(xMuzzlePos + v_up*3, xMuzzlePos - v_up * (muzzleRange / 2.0), FALSE, self);
-    if(trace_fraction != 1.0) { return TRUE; }
-
+    v_forward = dir;
     return FALSE;
-}
-
-float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
-{
-    return VRDoMeleeAttackTraceline(
-        VRGetHandRot(xHand), VRGetHandPos(xHand), VRGetMuzzlePos(xHand), xRange, xMuzzleRange);
 }
 
 void(float xHand) HIP_FireMjolnir =
 {
-    float xdmg = VRMeleeDmg(xHand, 1.10, 5);
+    float xdmg = VRMeleeDmg(xHand, 25);
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
@@ -877,6 +849,7 @@ void(float xHand) HIP_FireMjolnir =
         trace_ent.axhitme = 1;
         SpawnBlood (org, v_forward, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     else
     {
@@ -971,7 +944,7 @@ void(float xHand) W_FireAxe =
     float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, 1.00, 7);
+    xdmg = VRMeleeDmg(xHand, 20);
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -1058,7 +1031,7 @@ void(float xHand) W_GunMelee =
     vector    org;
     float    xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 0.75, 3);
+    xdmg = VRMeleeDmg(xHand, 12);
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
@@ -1106,8 +1079,15 @@ W_FistMelee
 void(float xHand) W_FistMelee =
 {
     vector org;
-    float xdmg = VRMeleeDmg(xHand, 0.75, 3);
+    float xdmg = VRMeleeDmg(xHand, 10);
     float playedsound = FALSE;
+
+    // A punch: the fist moving along its own forward.
+    makevectors(VRGetHandRot(xHand));
+    if(normalize(VRGetHandVel(xHand)) * v_forward >= 0.6)
+    {
+        xdmg = xdmg * cvar_hget(cvarh_vr_melee_punch_mult);
+    }
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 16, 8))
     {

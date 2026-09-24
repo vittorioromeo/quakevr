@@ -2607,9 +2607,11 @@ void(float xHand, float xInMelee, float xHandVelMag,
      PlayerVRMeleeImpl =
 {
     float vr_melee_threshold;
-    vr_melee_threshold = cvar_hget(cvarh_vr_melee_threshold);
+    vr_melee_threshold = cvar_hget(cvarh_vr_melee_speed);
 
-    if(cvar_hget(cvarh_vr_enabled) == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold)
+    // Once per swing: after a hit (the hit sound played), not again until the hand slows down.
+    if(cvar_hget(cvarh_vr_enabled) == 1 && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
+       !VRGetMeleeHitSoundPlayed(xHand))
     {
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
