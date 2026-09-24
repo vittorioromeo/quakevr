@@ -2096,7 +2096,6 @@ void(vector ang) makeforward_mdl =
     makeforward(ang);
 }
 
-.float hit_z;
 void() spike_touch =
 {
     float posDmgType;

@@ -125,49 +125,42 @@ string(string s) precache_file2        = #77;        // registered version only
                                                 // values at level start
                                                 // for coop respawn
 
-void(vector o, vector d, float preset, float count) particle2 = #79;// start a particle2 effect
-float(float base, float exp) pow = #80; // power function
-void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #81; // VR haptics function
-float(float a, float b) min = #82;
-float(float a, float b) max = #83;
-void(vector ang) makeforward = #84;        // sets v_forward
-float(float input, float inputmin, float inputMax, float outputMin, float outputMax) maprange = #85;        // sets v_forward
+// ----------------------------------------------------------------------------
+// Standard extension builtins (numbers as in DP/FTE/QSS/Ironwail)
+// ----------------------------------------------------------------------------
 
-float(string s) cvar_hmake = #86;
-float(float h) cvar_hget = #87;
-void() cvar_hclear = #88;
+float(float angle) sin = #60;           // DP_QC_SINCOSSQRTPOW, radians
+float(float angle) cos = #61;           // DP_QC_SINCOSSQRTPOW, radians
+float(float v) sqrt = #62;              // DP_QC_SINCOSSQRTPOW
+float(float a, float b) min = #94;      // DP_QC_MINMAXBOUND
+float(float a, float b) max = #95;      // DP_QC_MINMAXBOUND
+float(float base, float exp) pow = #97; // DP_QC_SINCOSSQRTPOW
+float(string s) strlen = #114;          // FRIK_FILE
+string(string s, float start, float length) substring = #116; // FRIK_FILE
+float(string s, float index) str2chr = #222;                  // FTE_STRINGS
+float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians
 
-vector(vector input, vector exemplar) redirectvector = #89;
+// ----------------------------------------------------------------------------
+// Quake VR builtins (#0: bound by name by the engine's VR module)
+// ----------------------------------------------------------------------------
 
-void(float h, float v) cvar_hset = #90;
+void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
+void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
+void(vector ang) makeforward = #0; // sets v_forward
+float(float input, float inputMin, float inputMax, float outputMin, float outputMax) maprange = #0;
+vector(vector input, vector exemplar) redirectvector = #0;
+float(float entGravity, float throwSpeed, vector from, vector to) calcthrowangle = #0;
 
-float() worldtext_hmake                      = #91;
-void(float h, string s) worldtext_hsettext   = #92;
-void(float h, vector v) worldtext_hsetpos    = #93;
-void(float h, vector v) worldtext_hsetangles = #94;
+float(string s) cvar_hmake = #0;
+float(float h) cvar_hget = #0;
+void(float h, float v) cvar_hset = #0;
+void() cvar_hclear = #0;
 
-void(float to, vector v) WriteVec3 = #95;
+float() worldtext_hmake = #0;
+void(float h, string s) worldtext_hsettext = #0;
+void(float h, vector v) worldtext_hsetpos = #0;
+void(float h, vector v) worldtext_hsetangles = #0;
+void(float h, float v) worldtext_hsethalign = #0;
+void(float h, float v) worldtext_hsetscale = #0;
 
-void(float h, float v) worldtext_hsethalign = #96;
-
-float(string s) strlen = #97;
-float(string s, float n) nthchar = #98;
-string(string s, float b, float e) substr = #99;
-
-float(float entGravity, float throwSpeed, vector from, vector to) calcthrowangle = #100;
-vector(vector vec, vector up, float angle) rotatevec = #101;
-
-float(float angle) sin = #102;
-float(float angle) cos = #103;
-
-float(float angle) asin = #104;
-float(float angle) acos = #105;
-
-float(float angle) tan = #106;
-float(float angle) atan = #107;
-
-float(float v) sqrt = #108;
-
-float(float x, float y) atan2 = #109;
-
-void(float h, float v) worldtext_hsetscale = #110;
+void(float to, vector v) WriteVec3 = #0; // three WriteCoords

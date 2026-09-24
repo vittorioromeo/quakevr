@@ -37,9 +37,6 @@ float total_monsters;
 float found_secrets;   // Number of secrets found.
 float killed_monsters; // Number of monsters killed.
 
-float spawnServerFromSaveFile; // Whether the last `OnSpawnServerXXX` call was
-                               // from a save file or a brand new loaded map.
-
 //
 //
 //
@@ -64,30 +61,6 @@ float parm13; // Field: `.holsterweapon2`.
 float parm14; // Field: `.holsterweapon3`.
 float parm15; // Field: `.holsterweapon4`.
 float parm16; // Field: `.holsterweapon5`.
-float parm17; // Field: `.hipnotic_items`.
-float parm18; // Field: `.rogue_items`.
-float parm19; // Field: `.ammo_lava_nails`.
-float parm20; // Field: `.ammo_multi_rockets`.
-float parm21; // Field: `.ammo_plasma`.
-float parm22; // Field: `.steam`.
-float parm23; // Field: `.weaponflags`.
-float parm24; // Field: `.weaponflags2`.
-float parm25; // Field: `.holsterweaponflags0`.
-float parm26; // Field: `.holsterweaponflags1`.
-float parm27; // Field: `.holsterweaponflags2`.
-float parm28; // Field: `.holsterweaponflags3`.
-float parm29; // Field: `.holsterweaponflags4`.
-float parm30; // Field: `.holsterweaponflags5`.
-float parm31; // Field: `.weaponclip`.
-float parm32; // Field: `.weaponclip2`.
-float parm33; // Field: `.holsterweaponclip0`.
-float parm34; // Field: `.holsterweaponclip1`.
-float parm35; // Field: `.holsterweaponclip2`.
-float parm36; // Field: `.holsterweaponclip3`.
-float parm37; // Field: `.holsterweaponclip4`.
-float parm38; // Field: `.holsterweaponclip5`.
-float parm39; // Field: `.weaponclipsize`.
-float parm40; // Field: `.weaponclipsize2`.
 
 //
 //
@@ -139,6 +112,51 @@ void() SetNewParms; // Called when a client first connects to
 void() SetChangeParms; // Call to set parms for self so they can
                        // be saved for a level transition.
 
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Special flag (!)
+// ----------------------------------------------------------------------------
+
+void end_sys_globals; // Flag for structure dumping.
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Quake VR globals (after end_sys_globals: the engine looks these up by name)
+// ----------------------------------------------------------------------------
+
+float spawnServerFromSaveFile; // Whether the last `OnSpawnServerXXX` call was
+                               // from a save file or a brand new loaded map.
+
+// Extended spawnparms, copied by the engine like parm1..parm16.
+float parm17; // Field: `.hipnotic_items`.
+float parm18; // Field: `.rogue_items`.
+float parm19; // Field: `.ammo_lava_nails`.
+float parm20; // Field: `.ammo_multi_rockets`.
+float parm21; // Field: `.ammo_plasma`.
+float parm22; // Field: `.steam`.
+float parm23; // Field: `.weaponflags`.
+float parm24; // Field: `.weaponflags2`.
+float parm25; // Field: `.holsterweaponflags0`.
+float parm26; // Field: `.holsterweaponflags1`.
+float parm27; // Field: `.holsterweaponflags2`.
+float parm28; // Field: `.holsterweaponflags3`.
+float parm29; // Field: `.holsterweaponflags4`.
+float parm30; // Field: `.holsterweaponflags5`.
+float parm31; // Field: `.weaponclip`.
+float parm32; // Field: `.weaponclip2`.
+float parm33; // Field: `.holsterweaponclip0`.
+float parm34; // Field: `.holsterweaponclip1`.
+float parm35; // Field: `.holsterweaponclip2`.
+float parm36; // Field: `.holsterweaponclip3`.
+float parm37; // Field: `.holsterweaponclip4`.
+float parm38; // Field: `.holsterweaponclip5`.
+float parm39; // Field: `.weaponclipsize`.
+float parm40; // Field: `.weaponclipsize2`.
+
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before
                                 // loading any entities.
@@ -149,15 +167,6 @@ void() OnSpawnServerAfterLoad; // Called when a new server
 
 void() OnLoadGame; // Called after loading a saved game, after spawning all the
                    // saved edicts.
-
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Special flag (!)
-// ----------------------------------------------------------------------------
-
-void end_sys_globals; // Flag for structure dumping.
 
 //
 //
@@ -214,8 +223,6 @@ void end_sys_globals; // Flag for structure dumping.
 
 .float currentammo;
 
-.float ammocounter;
-
 .float ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 
 .float items; // Bit flags.
@@ -255,7 +262,6 @@ void end_sys_globals; // Flag for structure dumping.
 
 .float waterlevel;    // 0 = not in, 1 = feet, 2 = waist, 3 = eyes.
 .float watertype;     // A contents value.
-.float lastwatertime; // Time of last water transition.
 
 .float ideal_yaw;
 .float yaw_speed;
@@ -284,10 +290,6 @@ void end_sys_globals; // Flag for structure dumping.
 
 .string noise, noise1, noise2, noise3; // Contains names of wavs to play.
 
-.vector v_viewangle;
-
-#include "vr_sys_fields.qc"
-
 //
 //
 //
@@ -296,6 +298,19 @@ void end_sys_globals; // Flag for structure dumping.
 // ----------------------------------------------------------------------------
 
 void end_sys_fields; // Flag for structure dumping.
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Quake VR fields (after end_sys_fields: the engine looks these up by name)
+// ----------------------------------------------------------------------------
+
+.float ammocounter;
+.float lastwatertime; // Time of last water transition.
+.vector v_viewangle;
+
+#include "vr_sys_fields.qc"
 
 //
 //

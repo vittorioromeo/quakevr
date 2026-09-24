@@ -260,7 +260,7 @@ void() func_worldtext_banner_think =
         endIdx = VR_WorldTextUtil_GetPageStringCharStartIdx(self, self.state);
     }
 
-    string newText = substr(self.worldtext, startIdx, endIdx);
+    string newText = substring(self.worldtext, startIdx, endIdx - startIdx);
     worldtext_hsettext(wth, newText);
 
     self.state += 1;
@@ -302,7 +302,7 @@ VR_WorldTextUtil_InitializePages =
     float len = xEntWorldText.t_length;
     for(float i = 0; i < len; ++i)
     {
-        if(nthchar(s, i) == '$')
+        if(str2chr(s, i) == '$')
         {
             VR_WorldTextUtil_SetPageStringCharStartIdx(xEntWorldText, nSeps, i);
             ++nSeps;
