@@ -9,7 +9,7 @@ namespace qvr
 #include "vr_cvars.inc"
 #undef QVR_CVAR
 
-cvar_t vr_backend = {"vr_backend", "openxr", CVAR_ARCHIVE};
+cvar_t vr_backend = {"vr_backend", "openxr", CVAR_NONE}; // not saved: "mock" is for testing sessions
 
 void registerCvars()
 {
