@@ -12,53 +12,25 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <utility>
+#include <vector>
+
 using namespace qvr;
 
 namespace
 {
 
-// The quad's (0..1, 0..1) corners map to UvRect (u0, v0, u1, v1) of the canvas; texels inside
-// Mask (same layout, empty when u1 <= u0) are left out.
-constexpr const char* vertexShader = R"(#version 430
-layout(location = 0) uniform mat4 MVP;
-layout(location = 1) uniform vec4 UvRect;
-out vec2 uv;
-void main()
-{
-    const vec2 corners[6] = vec2[](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 0), vec2(1, 1), vec2(0, 1));
-    vec2 c = corners[gl_VertexID];
-    uv = mix(UvRect.xy, UvRect.zw, c);
-    gl_Position = MVP * vec4(c, 0.0, 1.0);
-}
-)";
-
-constexpr const char* fragmentShader = R"(#version 430
-layout(binding = 0) uniform sampler2D Canvas;
-layout(location = 2) uniform vec4 Mask;
-in vec2 uv;
-out vec4 color;
-void main()
-{
-    if(all(greaterThan(uv, Mask.xy)) && all(lessThan(uv, Mask.zw)))
-        discard;
-    color = texture(Canvas, uv);
-}
-)";
-
 constexpr glm::vec4 wholeCanvas{0.f, 0.f, 1.f, 1.f};
 constexpr glm::vec4 noMask{0.f, 0.f, 0.f, 0.f};
 
-GLuint program = 0;
-GLuint canvasTexture = 0;
-GLuint canvasFbo = 0;
-int canvasWidth = 0;
-int canvasHeight = 0;
+gfx::Target canvas;
 bool drawingToCanvas = false;
 bool stereoThisFrame = false;
 
@@ -74,119 +46,69 @@ double hudAnglesTime = 0.0;
 // Crosshair setting, while the 2D pass draws into the canvas without it.
 float savedCrosshair = 0.f;
 
-[[nodiscard]] GLuint compile(GLenum type, const char* source)
-{
-    const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
-    GL_CompileShaderFunc(shader);
-
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
-    {
-        char log[1024];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: panel shader: %s\n", log);
-    }
-    return shader;
-}
-
-bool ensureProgram()
-{
-    if(program)
-    {
-        return true;
-    }
-
-    const GLuint vs = compile(GL_VERTEX_SHADER, vertexShader);
-    const GLuint fs = compile(GL_FRAGMENT_SHADER, fragmentShader);
-    program = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(program, vs);
-    GL_AttachShaderFunc(program, fs);
-    GL_LinkProgramFunc(program);
-    GL_DeleteShaderFunc(vs);
-    GL_DeleteShaderFunc(fs);
-
-    GLint ok = 0;
-    GL_GetProgramivFunc(program, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        Con_Warning("VR: panel shader failed to link\n");
-        GL_DeleteProgramFunc(program);
-        program = 0;
-        return false;
-    }
-
-    return true;
-}
-
-void ensureCanvas(int width, int height)
-{
-    if(canvasTexture && canvasWidth == width && canvasHeight == height)
-    {
-        return;
-    }
-
-    if(canvasTexture)
-    {
-        glDeleteTextures(1, &canvasTexture);
-    }
-    if(!canvasFbo)
-    {
-        GL_GenFramebuffersFunc(1, &canvasFbo);
-    }
-
-    glGenTextures(1, &canvasTexture);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvasTexture);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvasFbo);
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvasTexture, 0);
-
-    canvasWidth = width;
-    canvasHeight = height;
-}
-
-// Draws the canvas as a quad; `mvp` maps the quad's (0..1, 0..1) to clip space. The canvas
-// holds colours already multiplied by their alpha (2D was drawn over transparent black).
+// Draws the canvas as a quad: `mvp` maps the quad's (0..1, 0..1) to clip space, and its corners
+// to `uvRect` (u0, v0, u1, v1) of the canvas; texels inside `mask` (same layout, empty when
+// u1 <= u0) are left out. The canvas holds colours already multiplied by their alpha (2D was
+// drawn over transparent black).
 void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, const glm::vec4& mask = noMask)
 {
-    if(!canvasTexture || !ensureProgram())
+    if(!canvas.texture)
     {
         return;
     }
 
-    GL_UseProgram(program);
-    GL_Uniform4fvFunc(1, 1, &uvRect[0]);
-    GL_Uniform4fvFunc(2, 1, &mask[0]);
-    GL_SetState(GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvasTexture);
-    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+    static std::vector<gfx::Vertex> vertices;
+    vertices.clear();
+
+    const glm::vec2 uv0{uvRect.x, uvRect.y};
+    const glm::vec2 uv1{uvRect.z, uvRect.w};
+    const auto rect = [&](float x0, float y0, float x1, float y1) {
+        if(x1 <= x0 || y1 <= y0)
+        {
+            return;
+        }
+        for(const auto& [x, y] : {std::pair{x0, y0}, {x1, y0}, {x1, y1}, {x0, y0}, {x1, y1}, {x0, y1}})
+        {
+            vertices.push_back({{x, y, 0.f}, glm::mix(uv0, uv1, glm::vec2{x, y})});
+        }
+    };
+
+    if(mask.z <= mask.x)
+    {
+        rect(0.f, 0.f, 1.f, 1.f);
+    }
+    else
+    {
+        // The quad around the mask's hole (in the quad's coordinates).
+        const glm::vec2 m0 = (glm::vec2{mask.x, mask.y} - uv0) / (uv1 - uv0);
+        const glm::vec2 m1 = (glm::vec2{mask.z, mask.w} - uv0) / (uv1 - uv0);
+        const glm::vec2 lo = glm::clamp(glm::min(m0, m1), 0.f, 1.f);
+        const glm::vec2 hi = glm::clamp(glm::max(m0, m1), 0.f, 1.f);
+        rect(0.f, 0.f, 1.f, lo.y);
+        rect(0.f, hi.y, 1.f, 1.f);
+        rect(0.f, lo.y, lo.x, hi.y);
+        rect(hi.x, lo.y, 1.f, hi.y);
+    }
+
+    gfx::draw(vertices, mvp,
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false},
+        canvas.texture);
 }
 
-// An opaque texture on a quad in the world, hidden behind what is in front of it (the gadget's
-// screen: a hand can pass in front of it).
-void drawSurface(GLuint texture, const glm::mat4& mvp)
+// An opaque texture on a quad in the world (`mvp` as drawCanvas's), hidden behind what is in
+// front of it: the gadget's screen, which a hand can pass in front of.
+void drawSurface(gfx::Texture texture, const glm::mat4& mvp)
 {
-    if(!texture || !ensureProgram())
+    if(!texture)
     {
         return;
     }
 
-    GL_UseProgram(program);
-    GL_Uniform4fvFunc(1, 1, &wholeCanvas[0]);
-    GL_Uniform4fvFunc(2, 1, &noMask[0]);
-    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
-    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    const gfx::Vertex c[4] = {{{0.f, 0.f, 0.f}, {0.f, 0.f}}, {{1.f, 0.f, 0.f}, {1.f, 0.f}}, {{1.f, 1.f, 0.f}, {1.f, 1.f}},
+        {{0.f, 1.f, 0.f}, {0.f, 1.f}}};
+    const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
+    gfx::draw(quad, mvp, {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = false},
+        texture);
 }
 
 [[nodiscard]] bool panelVisible()
@@ -196,9 +118,7 @@ void drawSurface(GLuint texture, const glm::mat4& mvp)
 
 [[nodiscard]] glm::mat4 viewProjection()
 {
-    glm::mat4 viewProj;
-    memcpy(&viewProj[0][0], r_matviewproj, sizeof(r_matviewproj));
-    return viewProj;
+    return gfx::sceneViewProjection();
 }
 
 // The quad's model matrix: corner (0, 0) at `origin`, spanning `xAxis` and `yAxis`.
@@ -304,47 +224,23 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     hands::angleVectors({hudAngles.x, hudAngles.y, 0.f}, fwd, right, up);
 
     const float height = 200.f * vr_menu_scale.value;
-    const float width = height * static_cast<float>(canvasWidth) / canvasHeight;
+    const float width = height * static_cast<float>(canvas.width) / canvas.height;
     const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
     const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
 
     drawCanvas(viewProjection() * quad(corner, right * width, up * height), wholeCanvas, mask);
 }
 
-GLuint panelFbo = 0;
-
-// glBlendFuncSeparate (GL 1.4), which Ironwail does not load.
-using BlendFuncSeparateFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLenum);
-BlendFuncSeparateFn blendFuncSeparate = nullptr;
-
 // The canvas into the backend's panel image, when it has one.
 void copyToRuntimePanel()
 {
     Backend* be = backend();
-    const unsigned image = be ? be->acquirePanelImage(canvasWidth, canvasHeight) : 0;
+    const unsigned image = be ? be->acquirePanelImage(canvas.width, canvas.height) : 0;
     if(!image)
     {
         return;
     }
-
-    if(!panelFbo)
-    {
-        GL_GenFramebuffersFunc(1, &panelFbo);
-    }
-
-    GLint drawFbo = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
-
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, panelFbo);
-    GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, canvasFbo);
-    GL_BlitFramebufferFunc(0, 0, canvasWidth, canvasHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT,
-        GL_NEAREST);
-    GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
-
+    gfx::copy(canvas, image);
     be->releasePanelImage();
 }
 
@@ -367,7 +263,7 @@ void drawInEye(const hands::State& s)
     }
     panelWasVisible = visible;
 
-    if(!canvasTexture)
+    if(!canvas.texture)
     {
         return;
     }
@@ -404,7 +300,7 @@ void drawInEye(const hands::State& s)
     hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
 
     const float height = 200.f * vr_menu_scale.value;
-    const float width = height * static_cast<float>(canvasWidth) / canvasHeight;
+    const float width = height * static_cast<float>(canvas.width) / canvas.height;
     const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
     const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
 
@@ -419,20 +315,7 @@ void drawInEye(const hands::State& s)
 // where it is composited (in the eyes, on the runtime's panel).
 extern "C" int VR_CanvasBlend()
 {
-    if(!drawingToCanvas)
-    {
-        return 0;
-    }
-    if(!blendFuncSeparate)
-    {
-        blendFuncSeparate = reinterpret_cast<BlendFuncSeparateFn>(SDL_GL_GetProcAddress("glBlendFuncSeparate"));
-        if(!blendFuncSeparate)
-        {
-            return 0;
-        }
-    }
-    blendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    return 1;
+    return drawingToCanvas && gfx::applyCanvasBlend();
 }
 
 extern "C" void VR_Begin2D()
@@ -448,12 +331,7 @@ extern "C" void VR_Begin2D()
     savedCrosshair = crosshair.value;
     crosshair.value = 0.f;
 
-    ensureCanvas(vid.width, vid.height);
-    GL_ResetState(); // re-applies the blend with VR_CanvasBlend in effect
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvasFbo);
-    glViewport(0, 0, vid.width, vid.height);
-    glClearColor(0.f, 0.f, 0.f, 0.f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    gfx::beginCanvas(canvas, vid.width, vid.height);
 }
 
 extern "C" void VR_End2D()
@@ -463,14 +341,11 @@ extern "C" void VR_End2D()
         return;
     }
     drawingToCanvas = false;
-    GL_ResetState(); // back to Ironwail's usual blend
     crosshair.value = savedCrosshair;
 
-    gadget::renderScreen(); // shown in the eyes next frame, as the canvas
-
     // Back to the window, with the 2D layer over the mirrored eye.
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, GL_NeedsPostprocess() ? framebufs.composite.fbo : 0);
-    glViewport(glx, gly, glwidth, glheight);
+    gfx::endCanvas();
+    gadget::renderScreen(); // shown in the eyes next frame, as the canvas
 
     glm::mat4 toNdc{1.f};
     toNdc[0][0] = 2.f;

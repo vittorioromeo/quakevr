@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfx.hpp"
 
 #include <cmath>
 
@@ -165,21 +166,20 @@ public:
 
     [[nodiscard]] bool start() override
     {
-        glGenTextures(2, textures);
-        for(GLuint tex : textures)
+        for(gfx::Texture& tex : textures)
         {
-            glBindTexture(GL_TEXTURE_2D, tex);
-            GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, eyeWidth, eyeHeight);
+            tex = gfx::createTexture(eyeWidth, eyeHeight);
         }
-        glBindTexture(GL_TEXTURE_2D, 0);
-        GL_ClearBindings();
         return true;
     }
 
     void stop() override
     {
-        glDeleteTextures(2, textures);
-        GL_ClearBindings();
+        for(gfx::Texture& tex : textures)
+        {
+            gfx::destroyTexture(tex);
+            tex = 0;
+        }
     }
 
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
@@ -239,7 +239,7 @@ public:
     }
 
 private:
-    GLuint textures[2]{};
+    gfx::Texture textures[2]{};
 };
 
 } // namespace
