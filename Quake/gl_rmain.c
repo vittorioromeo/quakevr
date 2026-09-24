@@ -341,7 +341,7 @@ void GL_PostProcess (void)
 	palidx =  GLPalette_Postprocess ();
 	dither = (softemu == SOFTEMU_FINE) ? NOISESCALE * r_dither.value * r_softemu_dither_screen.value : 0.f;
 
-	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0);
+	GL_BindFramebufferFunc (GL_FRAMEBUFFER, VR_PostProcessTarget ()); // QVR: 0 unless rendering an eye
 	glViewport (glx, gly, glwidth, glheight);
 
 	variant = q_min ((int)softemu, 2);
@@ -843,6 +843,7 @@ void R_SetFrustum (void)
 	zfar = gl_farclip.value;
 
 	GL_FrustumMatrix(r_matproj, DEG2RAD(r_fovx), DEG2RAD(r_fovy), znear, zfar);
+	VR_OverrideProjection (r_matproj); // QVR
 
 	// View matrix
 	RotationMatrix(r_matview, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
@@ -887,7 +888,8 @@ GL_NeedsPostprocess
 */
 qboolean GL_NeedsPostprocess (void)
 {
-	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
+	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT
+		|| VR_RenderingEye (); // QVR
 }
 
 /*

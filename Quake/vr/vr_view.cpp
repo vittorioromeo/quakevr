@@ -6,6 +6,8 @@
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
+#include "vr_stereo.hpp"
+#include "vr_main.hpp"
 #include "vr_weapons.hpp"
 
 #include <array>
@@ -449,9 +451,29 @@ extern "C" int VR_HideViewModel()
     return hands::current().valid;
 }
 
+// Moves the view to the eye being rendered (see vr_stereo.cpp).
+static void applyEyeView(const hands::State& s)
+{
+    const int eye = stereo::eye();
+    for(int i = 0; i < 3; i++)
+    {
+        r_refdef.vieworg[i] = s.eyeOrigin[eye][i];
+        r_refdef.viewangles[i] = s.eyeAngles[eye][i];
+    }
+
+    // Only used for the near plane distance; the projection comes from the eye's FOV.
+    const Fov& fov = frameState().eyes[eye].fov;
+    r_refdef.fov_x = glm::degrees(fov.right - fov.left);
+    r_refdef.fov_y = glm::degrees(fov.up - fov.down);
+}
+
 extern "C" void VR_SetupViewEntities()
 {
     hands::State& s = hands::current();
+    if(s.valid && stereo::isRenderingEye())
+    {
+        applyEyeView(s);
+    }
     if(!s.valid || cl.intermission)
     {
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });

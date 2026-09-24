@@ -3,9 +3,18 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\OpenXR\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">QVR_HAVE_OPENXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link Condition="'$(Platform)'=='x64'">
+      <AdditionalDependencies>openxr_loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\OpenXR\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent Condition="'$(Platform)'=='x64'">
+      <Command>%(Command)
+copy "$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\vr\*.cpp">

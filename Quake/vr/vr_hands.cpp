@@ -33,6 +33,41 @@ int stateFrame = -1;
     return vr_world_scale.value / (1.5f * 0.0254f);
 }
 
+// Quake angles (pitch down positive, yaw, roll) of a tracking-space orientation, turned by
+// `yawOffset` degrees.
+[[nodiscard]] glm::vec3 anglesFromTracking(const glm::quat& q, float yawOffset)
+{
+    const glm::vec3 f = rotateYaw(quakeFromTracking(q * glm::vec3{0.f, 0.f, -1.f}), yawOffset);
+    const glm::vec3 u = rotateYaw(quakeFromTracking(q * glm::vec3{0.f, 1.f, 0.f}), yawOffset);
+
+    const float pitch = glm::degrees(std::asin(CLAMP(-1.f, -f.z, 1.f)));
+    const float yaw = glm::degrees(std::atan2(f.y, f.x));
+
+    glm::vec3 f0, r0, u0;
+    angleVectors({pitch, yaw, 0.f}, f0, r0, u0);
+    const float roll = glm::degrees(std::atan2(glm::dot(u, r0), glm::dot(u, u0)));
+
+    return {pitch, yaw, roll};
+}
+
+// Controller rotation offsets (vr_gunangle/vr_gunyaw, vr_offhandpitch/vr_offhandyaw), in the
+// controller's own frame.
+[[nodiscard]] glm::quat withHandOffsets(const glm::quat& q, int hand)
+{
+    const float pitch = hand == HAND_MAIN ? vr_gunangle.value : vr_offhandpitch.value;
+    const float yaw = hand == HAND_MAIN ? vr_gunyaw.value : vr_offhandyaw.value;
+
+    return q * glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 1.f, 0.f}) *
+           glm::angleAxis(glm::radians(-pitch), glm::vec3{1.f, 0.f, 0.f});
+}
+
+// Rotation of the play space around the vertical axis: accumulated snap/smooth turning, and
+// re-based whenever the server sets the view angle (spawning, teleporters).
+// TODO VR: (P5) snap/smooth turning from the thumbstick.
+float turnYaw = 0.f;
+bool pendingYawValid = false;
+float pendingYaw = 0.f;
+
 void update()
 {
     state.valid = false;
@@ -55,18 +90,37 @@ void update()
         const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
         const glm::vec3 base = state.playerOrigin + glm::vec3{0.f, 0.f, vr_floor_offset.value};
         const auto toWorld = [&](const glm::vec3& trackingPos) {
-            return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, yaw);
+            return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
         };
 
-        // TODO VR: (P4/P5) orientations from tracking; aim from the controllers.
+        if(pendingYawValid)
+        {
+            // Turn the play space so that the head faces the yaw the server asked for.
+            pendingYawValid = false;
+            turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
+        }
+
         state.head = toWorld(t.head.position);
-        state.headAngles = aim;
+        state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
         state.headHeight = t.head.position.y;
+
+        const FrameState& frame = frameState();
+        for(int eye = 0; eye < 2; eye++)
+        {
+            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position);
+            state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
+        }
 
         for(int h = 0; h < HAND_COUNT; h++)
         {
             state.pos[h] = toWorld(t.hands[h].position);
-            state.rot[h] = aim;
+            state.rot[h] = anglesFromTracking(withHandOffsets(t.hands[h].orientation, h), turnYaw);
+        }
+
+        // The server takes the aim from the move's view angles (.v_angle): the main hand.
+        for(int i = 0; i < 3; i++)
+        {
+            cl.viewangles[i] = state.rot[HAND_MAIN][i];
         }
     }
     else
@@ -90,7 +144,7 @@ void update()
     }
 
     // TODO VR: (P5) blend the head direction with the hands, as the old engine did.
-    state.bodyYaw = yaw;
+    state.bodyYaw = vrActive() ? state.headAngles.y : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)
@@ -100,6 +154,18 @@ void update()
 }
 
 } // namespace
+
+void setServerYaw(float yaw)
+{
+    pendingYawValid = true;
+    pendingYaw = yaw;
+    stateFrame = -1; // recompute the hands with the new yaw
+}
+
+float playSpaceYaw()
+{
+    return turnYaw;
+}
 
 State& current()
 {

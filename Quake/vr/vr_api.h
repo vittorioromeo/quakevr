@@ -74,6 +74,7 @@ void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fi
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
+void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
 
@@ -99,6 +100,14 @@ void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
+
+// Stereo rendering (gl_screen.c, gl_rmain.c).
+int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
+int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
+unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
+void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
+void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
+void VR_End2D (void);									// SCR_UpdateScreen, after Draw_Flush
 
 #ifdef __cplusplus
 }

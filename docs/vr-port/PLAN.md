@@ -21,7 +21,8 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 | P1 QC & game data | ✅ done | CRC-5927 progs, by-name VR builtins, entry points, spawn parms 17–40, `quakevr` game folder layering hipnotic/rogue, opt-in droptofloor. Flat-mode check: e1m1/e1m2/hip1m1/r1m1/start/vrstart load, changelevel and save/load work. |
 | P2 Protocol & server | ✅ done | `PRFL_QUAKEVR` RMQ extension (VR move, stats 64+, entity scale/offset, `svc_quakevr`, beam ids, late model/sound precaches); hand/weapon touch on networked hand data, teleport, room-scale pass, head-relative movement, step size, `think2`, `lastwatertime`, touch rules. Flat-mode check: hand grab picks up a weapon on vrfiringrange; demos record/play; save/load/changelevel across all campaigns. |
 | P3 View & entities | ✅ done (core) | Weapons in both hands, hands + fingers (anchored to weapon vertices via the rebuilt BuildTris order), holsters, holster slots, torso, weapon buttons; mirroring, per-model weapon scaling, zero blend (shader), light modifier; muzzles from anchor vertices; 32×66 `vr_wofs_*` table and 78 cvar defaults from the shipped config. Flat mode uses the old "fake VR" hand placement. |
-| P4 Stereo + OpenXR | next | |
+| P4 Stereo + OpenXR | ✅ done (untested on HMD) | OpenXR backend (instance/session/stage space/grip poses/swapchains/frame loop); per-eye rendering through Ironwail's pipeline with eye-sized framebuffers, asymmetric projection and post-process into the swapchain; desktop mirror (`vr_mirror`); 2D canvas composited on the mirror and shown as a panel in the headset while menus are open; play-space yaw re-based on `svc_setangle`. Verified with the mock backend (both eyes, parallax, menu panel); OpenXR verified up to "no headset" against Virtual Desktop. |
+| P5 Input & haptics | next | |
 
 Known gaps carried forward:
 - `start` resolves to rogue's start.bsp (last mission pack layered); decide on a start-map selector.

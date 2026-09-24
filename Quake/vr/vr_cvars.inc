@@ -7,6 +7,9 @@ QVR_CVAR(vr_gameplayfix_droptofloor, "0", CVAR_NONE)  // corner traces instead o
 QVR_CVAR(vr_gameplayfix_touchsolids, "0", CVAR_NONE)  // .touch fires for solids, not just triggers
 QVR_CVAR(vr_gameplayfix_missilesize, "0", CVAR_NONE)  // missile-vs-monster box extent (0: vanilla 15)
 
+// Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
+QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
+
 // Non-archived CVars
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 QVR_CVAR(vr_viewkick, "0", CVAR_NONE)
@@ -21,7 +24,10 @@ QVR_CVAR(vr_crosshair_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_alpha, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_aimmode, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_deadzone, "25", CVAR_ARCHIVE)
-QVR_CVAR(vr_gunangle, "39.5", CVAR_ARCHIVE)
+// Controller rotation offsets. The released values (gunangle 39.5, offhandpitch 40.25)
+// compensated for OpenVR's raw controller pose; OpenXR's grip pose already points out of
+// the fist, so the pitches start at 0.
+QVR_CVAR(vr_gunangle, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodelpitch, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodelscale, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodely, "1.3", CVAR_ARCHIVE)
@@ -73,7 +79,7 @@ QVR_CVAR(vr_wpn_dir_weight_offset, "0.05", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_2h_help_offset, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_2h_help_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_offhandpitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_hip_holsters, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_offset_x, "-3.5", CVAR_ARCHIVE)

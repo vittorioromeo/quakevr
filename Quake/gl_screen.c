@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 #include "steam.h"
 #include <time.h>
 
@@ -2147,10 +2148,12 @@ void SCR_UpdateScreen (void)
 
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 
-	V_RenderView ();
+	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
+		V_RenderView ();
 
 	GL_BeginGroup ("2D");
 
+	VR_Begin2D (); // QVR: to a canvas shown in the headset
 	GL_Set2D ();
 
 	//FIXME: only call this when needed
@@ -2202,6 +2205,7 @@ void SCR_UpdateScreen (void)
 	}
 
 	Draw_Flush ();
+	VR_End2D (); // QVR
 
 	GL_EndGroup ();
 

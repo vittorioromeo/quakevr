@@ -20,6 +20,9 @@ struct State
     float bodyYaw{0.f};
     float crouchRatio{0.f};     // 0 standing .. 1 crouched (relative to vr_height_calibration)
 
+    glm::vec3 eyeOrigin[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] left, [1] right (headset only)
+    glm::vec3 eyeAngles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+
     glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] off hand, [1] main hand
     glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
@@ -28,6 +31,10 @@ struct State
     bool muzzleValid[2]{false, false};
     glm::vec3 muzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
+
+// The server set the view yaw: turn the play space to match (headset only).
+void setServerYaw(float yaw);
+[[nodiscard]] float playSpaceYaw();
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();

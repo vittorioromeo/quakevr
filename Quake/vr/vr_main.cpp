@@ -3,6 +3,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
+#include "vr_hands.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_server.hpp"
@@ -21,6 +22,7 @@ struct State
 {
     std::unique_ptr<qvr::Backend> backend;
     qvr::TrackingState tracking;
+    qvr::FrameState frame;
     bool restartRequested{false};
 };
 
@@ -33,7 +35,18 @@ State* state = nullptr;
         return qvr::makeMockBackend();
     }
 
-    Con_Warning("VR: unknown backend \"%s\" (available: mock)\n", name);
+    if(!strcmp(name, "openxr"))
+    {
+        if(auto backend = qvr::makeOpenXrBackend())
+        {
+            return backend;
+        }
+
+        Con_Warning("VR: this build has no OpenXR support\n");
+        return nullptr;
+    }
+
+    Con_Warning("VR: unknown backend \"%s\" (available: openxr, mock)\n", name);
     return nullptr;
 }
 
@@ -59,7 +72,8 @@ void startBackend()
 
     if(!backend->start())
     {
-        Con_Warning("VR: failed to start %s backend\n", backend->name());
+        Con_Warning("VR: failed to start %s backend (vr_restart to retry)\n", backend->name());
+        backend->stop();
         return;
     }
 
@@ -71,6 +85,14 @@ void onBackendSettingChanged(cvar_t* /* var */)
 {
     // Applied at the start of the next frame, not from inside the cvar callback, so that
     // settings loaded from config.cfg before video init are handled uniformly.
+    if(state)
+    {
+        state->restartRequested = true;
+    }
+}
+
+void VR_Restart_f()
+{
     if(state)
     {
         state->restartRequested = true;
@@ -117,6 +139,17 @@ bool vrActive()
     return state && state->backend;
 }
 
+Backend* backend()
+{
+    return state ? state->backend.get() : nullptr;
+}
+
+const FrameState& frameState()
+{
+    static const FrameState none;
+    return state && state->backend ? state->frame : none;
+}
+
 } // namespace qvr
 
 extern "C" void VR_Init()
@@ -129,6 +162,7 @@ extern "C" void VR_Init()
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
 
     Cmd_AddCommand("vr_status", VR_Status_f);
+    Cmd_AddCommand("vr_restart", VR_Restart_f);
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
@@ -166,11 +200,14 @@ extern "C" void VR_BeginFrame()
         }
     }
 
-    if(state->backend && !state->backend->update(state->tracking))
+    if(state->backend && !state->backend->beginFrame(state->tracking, state->frame))
     {
         Con_Warning("VR: %s session lost\n", state->backend->name());
         stopBackend();
     }
+
+    // Update the hands now, before the move is built (it carries the aim in the view angles).
+    (void)hands::current();
 }
 
 extern "C" int VR_IsActive()

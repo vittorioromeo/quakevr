@@ -13,4 +13,8 @@ namespace qvr
 
 [[nodiscard]] bool vrActive();
 
+// The running backend (null when VR is off) and its current frame.
+[[nodiscard]] Backend* backend();
+[[nodiscard]] const FrameState& frameState();
+
 } // namespace qvr

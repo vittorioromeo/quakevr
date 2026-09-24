@@ -295,6 +295,11 @@ const EntityVr* entityVr(int num)
 
 } // namespace qvr::client
 
+extern "C" void VR_OnSetAngle(float yaw)
+{
+    hands::setServerYaw(yaw);
+}
+
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
