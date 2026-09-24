@@ -32,7 +32,7 @@ Known gaps carried forward:
 - Hand model is drawn as a plain view model until P3.
 - Deferred old-engine physics rewrites, to evaluate in VR first: `SV_PushMove` (Ironwail's `sv_gameplayfix_elevators` may suffice), `SV_PushEntity` tracing from origin−push, `SV_Physics_Toss` ground pre-check (items resting on moving platforms).
 - Mid-demo recording does not re-emit VR state (world texts); VR stats are resent by the stat channel.
-- P3 leftovers: stair smoothing of view entities; anchor vertices use the current frame without inter-frame lerp.
+- P3 leftovers: stair smoothing of view entities.
 
 ## Principles
 

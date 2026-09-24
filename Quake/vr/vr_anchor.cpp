@@ -346,6 +346,42 @@ int currentPose(const entity_t& ent, const aliashdr_t* hdr)
     return animatedPose(hdr->frames[frame]);
 }
 
+namespace
+{
+
+// The vertex as the renderer will draw it this frame: R_SetupAliasFrame blends from
+// .previouspose to .currentpose over .lerptime, and a frame change only starts a new blend
+// (from the pose shown so far) when the entity is drawn. Reads the entity without changing it.
+[[nodiscard]] glm::vec3 drawnVertex(const entity_t& e, const aliashdr_t* hdr, int vertex)
+{
+    const int pose = currentPose(e, hdr);
+    const bool lerping = r_lerpmodels.value && !(e.model->flags & MOD_NOLERP && r_lerpmodels.value != 2);
+    if(!lerping || (e.lerpflags & (LERP_RESETANIM | LERP_RESETANIM2)))
+    {
+        return poseVertex(hdr, pose, vertex);
+    }
+
+    if(pose != e.currentpose)
+    {
+        return poseVertex(hdr, e.currentpose, vertex); // a new blend starts from here
+    }
+
+    float blend = 1.f;
+    if(e.lerpflags & LERP_FINISH && e.lerpfinish > e.lerpstart)
+    {
+        blend = static_cast<float>((cl.time - e.lerpstart) / (e.lerpfinish - e.lerpstart));
+    }
+    else if(e.lerptime > 0.f)
+    {
+        blend = static_cast<float>((cl.time - e.lerpstart) / e.lerptime);
+    }
+    blend = CLAMP(0.f, blend, 1.f);
+
+    return glm::mix(poseVertex(hdr, e.previouspose, vertex), poseVertex(hdr, e.currentpose, vertex), blend);
+}
+
+} // namespace
+
 glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
 {
     if(!ent.model || ent.model->type != mod_alias)
@@ -367,7 +403,7 @@ glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
     }
     vertex = CLAMP(0, vertex, hdr->numverts - 1);
 
-    const glm::vec3 posed = poseVertex(hdr, currentPose(ent, hdr), vertex);
+    const glm::vec3 posed = drawnVertex(ent, hdr, vertex);
     if(zeroBlend <= 0.f)
     {
         return posed;
