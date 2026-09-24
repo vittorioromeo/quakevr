@@ -27,8 +27,12 @@ if ($Build) {
 if (-not $Fteqcc) { $Fteqcc = "fteqcc64" }
 Push-Location (Join-Path $root "QC")
 try {
-    & $Fteqcc -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 *> $null
-    if ($LASTEXITCODE -ne 0) { throw "QC compilation failed" }
+    # fteqcc prints its banner on stderr, which PowerShell would turn into an error.
+    $ErrorActionPreference = "Continue"
+    & $Fteqcc -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 2>&1 | Out-Null
+    $qcResult = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($qcResult -ne 0) { throw "QC compilation failed" }
 } finally {
     Pop-Location
 }
