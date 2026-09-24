@@ -41,16 +41,17 @@
 [[nodiscard]] std::vector<Item> pageLocomotionSettings()
 {
     return {
-        cycle("Movement Mode", "vr_movement_mode", {{0.f, "Follow Hand"}, {1.f, "Follow Head"}}).help("Movement options for smooth locomotion."),
-        slider("Deadzone", "vr_deadzone", 0.f, 180.f, 5.f, "%.0f").help("Controller thumbstick deadzone."),
+        cycle("Movement Mode", "vr_movement_mode", {{1.f, "Follow Head"}, {0.f, "Follow Off Hand"}}).help("Movement options for smooth locomotion."),
+        slider("Deadzone", "vr_deadzone", 0.f, 50.f, 5.f, "%.0f%%").help("Controller thumbstick deadzone."),
         toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
         slider("Turn", "vr_snap_turn", 0.f, 90.f, 5.f, "%.0f"),
         slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").help("How quickly you turn with the joystick."),
         toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
         slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").help("How far you can teleport."),
         slider("Roomscale Move Mult.", "vr_roomscale_move_mult", 0.25f, 5.f, 0.25f, "%.1f").help("Real movement to in-game movement. Increase to cover more ground, e.g. with teleportation or little room."),
-        slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").help("In-game movement speed."),
-        slider("Speed Button Mult.", "cl_movespeedkey", 0.1f, 1.f, 0.05f, "%.2f").help("In-game movement speed multiplier applied when pressing the 'speed button', which needs to be bound to your controllers."),
+        slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").help("Walking speed (running is this times the running multiplier)."),
+        cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
+        slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").help("How much faster running is than walking."),
     };
 }
 
@@ -75,7 +76,7 @@
 [[nodiscard]] std::vector<Item> pagePlayerCalibration()
 {
     return {
-        slider("World Scale", "vr_world_scale", 0.f, 2.f, 0.05f, "%.2f").help("Scale of the world. Affects movement, height, and hand positions."),
+        slider("World Scale", "vr_world_scale", 0.5f, 2.f, 0.05f, "%.2f").help("Scale of the world. Affects movement, height, and hand positions."),
         slider("Floor Offset", "vr_floor_offset", -200.f, 200.f, 2.5f, "%.0f").help("Offset from the floor. Change if you feel like you're floating or stuck in the floor."),
     };
 }
@@ -88,7 +89,7 @@
         slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of a punch (the fist moving knuckles first) over any other swing."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Range multiplier for melee attacks."),
-        toggle("Melee Bloodlust", "vr_melee_bloodlust").help("When enabled, restores the player's health when performing melee attacks on enemies."),
+        cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for melee bloodlust health restoration."),
     };
 }
@@ -98,8 +99,7 @@
 {
     return {
         cycle("2H Aiming", "vr_2h_mode", {{0.f, "Disabled"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}}).help("'Basic' aims between the two hands; 'Virtual Stock' also uses the shoulder when the weapon is close to it (see Hotspots)."),
-        slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter."),
-        toggle("Disable 2H Threshold", "vr_2h_disable_angle_threshold"),
+        slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         toggle("Weighted Weapon Move", "vr_wpn_pos_weight").help("Enable weight simulation for weapon movement."),
         slider("W. Weapon Move Off.", "vr_wpn_pos_weight_offset", 0.05f, 1.f, 0.05f, "%.2f"),
@@ -144,7 +144,7 @@
 [[nodiscard]] std::vector<Item> pageGraphicalSettings()
 {
     return {
-        cycle("Player Shadows", "vr_player_shadows", {{0.f, "Off"}, {1.f, "View Entities"}, {2.f, "Third Person"}, {3.f, "Both"}}),
+        cycle("Player Shadows", "vr_player_shadows", {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Body"}, {3.f, "Both"}}),
     };
 }
 
@@ -152,14 +152,15 @@
 [[nodiscard]] std::vector<Item> pageHudConfiguration()
 {
     return {
-        cycle("Status Bar Mode", "vr_sbar_mode", {{0.f, "Main Hand"}, {1.f, "Off Hand"}}),
+        cycle("HUD", "vr_hud_mode", {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}).help("The settings below apply to the status bar."),
+        cycle("Status Bar Mode", "vr_sbar_mode", {{0.f, "Main Hand"}, {1.f, "Off Hand"}}).help("The offsets below apply to the off hand."),
         slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f"),
         slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f"),
         slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f"),
         slider("Offset Z", "vr_sbar_offset_z", -200.f, 200.f, 1.f, "%.0f"),
-        slider("Roll", "vr_sbar_offset_roll", -90.f, 90.f, 0.1f, "%.1f"),
-        slider("Pitch", "vr_sbar_offset_pitch", -90.f, 90.f, 0.1f, "%.1f"),
-        slider("Yaw", "vr_sbar_offset_yaw", -90.f, 90.f, 0.1f, "%.1f"),
+        slider("Roll", "vr_sbar_offset_roll", -3.14f, 3.14f, 0.05f, "%.2f rad"),
+        slider("Pitch", "vr_sbar_offset_pitch", -3.14f, 3.14f, 0.05f, "%.2f rad"),
+        slider("Yaw", "vr_sbar_offset_yaw", -3.14f, 3.14f, 0.05f, "%.2f rad"),
     };
 }
 
@@ -167,43 +168,26 @@
 [[nodiscard]] std::vector<Item> pageHotspotSettings()
 {
     return {
-        cycle("Show Virtual Stock", "vr_show_virtual_stock", {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}}),
+        toggle("Show Virtual Stock", "vr_show_virtual_stock"),
         slider("Shoulder X", "vr_shoulder_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Shoulder Y", "vr_shoulder_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Shoulder Z", "vr_shoulder_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Virtual Stock Thresh.", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f"),
-        cycle("Show Shoulder Holst.", "vr_show_shoulder_holsters", {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}}),
+        toggle("Show Shoulder Holst.", "vr_show_shoulder_holsters"),
         slider("Shoulder X", "vr_shoulder_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Shoulder Y", "vr_shoulder_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Shoulder Z", "vr_shoulder_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Shoulder Threshold", "vr_shoulder_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
-        cycle("Show Hip Holsters", "vr_show_hip_holsters", {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}}),
+        toggle("Show Hip Holsters", "vr_show_hip_holsters"),
         slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
-        cycle("Show Upper Holsters", "vr_show_upper_holsters", {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}}),
+        toggle("Show Upper Holsters", "vr_show_upper_holsters"),
         slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Upper Y", "vr_upper_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Upper Z", "vr_upper_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
         slider("Upper Threshold", "vr_upper_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
-    };
-}
-
-// Old Quake VR settings: "Torso Settings".
-[[nodiscard]] std::vector<Item> pageTorsoSettings()
-{
-    return {
-        slider("VR Torso X", "vr_vrtorso_x_offset", -100.f, 100.f, 0.5f, "%.1f"),
-        slider("VR Torso Y", "vr_vrtorso_y_offset", -100.f, 100.f, 0.5f, "%.1f"),
-        slider("VR Torso Z", "vr_vrtorso_z_offset", -100.f, 100.f, 0.5f, "%.1f"),
-        slider("VR Torso Head Z Mult", "vr_vrtorso_head_z_mult", 0.f, 250.f, 1.f, "%.0f"),
-        slider("VR Torso Scale X", "vr_vrtorso_x_scale", 0.1f, 2.f, 0.05f, "%.2f"),
-        slider("VR Torso Scale Y", "vr_vrtorso_y_scale", 0.1f, 2.f, 0.05f, "%.2f"),
-        slider("VR Torso Scale Z", "vr_vrtorso_z_scale", 0.1f, 2.f, 0.05f, "%.2f"),
-        slider("VR Torso Pitch", "vr_vrtorso_pitch", -180.f, 180.f, 1.f, "%.0f"),
-        slider("VR Torso Yaw", "vr_vrtorso_yaw", -180.f, 180.f, 1.f, "%.0f"),
-        slider("VR Torso Roll", "vr_vrtorso_roll", -180.f, 180.f, 1.f, "%.0f"),
         toggle("Show Holster Slots", "vr_leg_holster_model_enabled"),
         slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f"),
         slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f"),

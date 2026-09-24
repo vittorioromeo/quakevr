@@ -5,7 +5,7 @@
 // old engine averaged the last 15 frames, which lagged even more (and depended on the frame
 // rate): throws came out weak and aimed where the hand was going several frames earlier.
 //
-// vr_throw_algorithm 3 (Half-Life: Alyx's approach): the release velocity is the controller's
+// Half-Life: Alyx's approach: the release velocity is the controller's
 // own velocity where it was fastest in a window around the moment of release, averaged over a
 // few samples around that peak to reject noise. It is computed once, when the hand lets go, from
 // samples timed on the runtime's clock, so neither the network rate nor the time the release
@@ -13,8 +13,6 @@
 // the hand: a clear wrist flick (above vr_throw_ang_threshold) adds some of its spin's velocity
 // there. The release itself (filterGrips) comes from the analog grip easing off during a throw,
 // earlier than the runtime's grip button.
-//
-// Algorithms 0..2 (the older ones: averages, and the peak of the newest samples) stay for comparison.
 
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
@@ -35,7 +33,6 @@ struct Sample
     double time{0.0};
     glm::vec3 pos{0.f};    // world units
     glm::vec3 vel{0.f};    // controller point
-    glm::vec3 objVel{0.f}; // held object's centre, with the whole lever term (algorithms 1, 2)
     glm::vec3 angVel{0.f};
     glm::vec3 forward{1.f, 0.f, 0.f};
 };
@@ -68,51 +65,7 @@ History histories[2];
     return out;
 }
 
-[[nodiscard]] Estimate average(const History& h, int frames, bool lever)
-{
-    glm::vec3 vel{0.f}, angVel{0.f};
-    const int n = std::min(std::max(frames, 1), h.count);
-    for(int i = 0; i < n; i++)
-    {
-        vel += lever ? h.at(i).objVel : h.at(i).vel;
-        angVel += h.at(i).angVel;
-    }
-    return fromSample(h.at(0), vel / static_cast<float>(n), angVel / static_cast<float>(n));
-}
-
-// Algorithm 2: the peak of the object's speed in the newest `window` seconds.
-[[nodiscard]] Estimate newestPeak(const History& h, double window, double span)
-{
-    const double now = h.at(0).time;
-
-    int best = 0;
-    float bestSpeed = -1.f;
-    for(int i = 0; i < h.count && now - h.at(i).time <= window; i++)
-    {
-        const float speed = glm::length(h.at(i).objVel);
-        if(speed > bestSpeed)
-        {
-            bestSpeed = speed;
-            best = i;
-        }
-    }
-
-    glm::vec3 vel{0.f}, angVel{0.f};
-    int n = 0;
-    const double peakTime = h.at(best).time;
-    for(int i = 0; i < h.count; i++)
-    {
-        if(std::abs(h.at(i).time - peakTime) <= span)
-        {
-            vel += h.at(i).objVel;
-            angVel += h.at(i).angVel;
-            n++;
-        }
-    }
-    return fromSample(h.at(best), vel / static_cast<float>(n), angVel / static_cast<float>(n)); // n >= 1
-}
-
-// Algorithm 3: the peak of the controller's speed around the release.
+// The peak of the controller's speed around the release.
 [[nodiscard]] Estimate releasePeak(const History& h, double releaseTime)
 {
     const double from = releaseTime - std::max(vr_throw_window.value, 0.f);
@@ -214,7 +167,6 @@ void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, c
     s.vel = vel;
     s.angVel = angVel;
     s.forward = forward;
-    s.objVel = vel + glm::cross(angVel, forward * vr_throw_lever_arm.value);
 
     if(h.count > 0 && h.at(0).time == time)
     {
@@ -241,22 +193,15 @@ Estimate estimate(int hand)
         return {};
     }
 
-    switch(static_cast<int>(vr_throw_algorithm.value))
-    {
-        case 0: return average(h, static_cast<int>(vr_throw_avg_frames.value), false);
-        case 1: return average(h, static_cast<int>(vr_throw_avg_frames.value), true);
-        case 2:
-            return newestPeak(h, std::max(vr_throw_window.value, 0.f), std::max(vr_throw_peak_span.value, 0.f));
-        default: return releasePeak(h, h.at(0).time);
-    }
+    return releasePeak(h, h.at(0).time);
 }
 
 Estimate estimateAt(int hand, double releaseTime)
 {
     const History& h = histories[hand];
-    if(h.count == 0 || static_cast<int>(vr_throw_algorithm.value) < 3)
+    if(h.count == 0)
     {
-        return estimate(hand);
+        return {};
     }
 
     return releasePeak(h, releaseTime);

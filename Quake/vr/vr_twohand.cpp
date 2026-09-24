@@ -121,7 +121,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
                          weaponId(helping) == widFist && beforeMuzzle && !handpose::gunColliding(holding);
-    const bool goodDot = glm::dot(handDir, origDir) > vr_2h_angle_threshold.value || vr_2h_disable_angle_threshold.value;
+    const bool goodDot = vr_2h_angle_threshold.value <= -1.f || glm::dot(handDir, origDir) > vr_2h_angle_threshold.value;
 
     shouldAim[holding] = canGrab && goodDistance && goodDot;
     helpingHand[helping] = shouldAim[holding];

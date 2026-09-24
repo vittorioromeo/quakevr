@@ -153,13 +153,6 @@ ModelTransform modelTransform(const qmodel_t* model)
     t.k = (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
 
     const char* name = model->name;
-    if(!strcmp(name, "progs/vrtorso.mdl"))
-    {
-        t.active = true;
-        t.scale = {vr_vrtorso_x_scale.value, vr_vrtorso_y_scale.value, vr_vrtorso_z_scale.value};
-        return t;
-    }
-
     if(!strcmp(name, "progs/legholster.mdl"))
     {
         t.active = true;

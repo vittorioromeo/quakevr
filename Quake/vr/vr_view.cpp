@@ -89,7 +89,7 @@ void updateFingerFrames()
         {
             float& frame = fingerFrames[hand][finger];
             const float target = targetCurl(input.hands[hand], finger) * 5.f;
-            if(!vr_finger_blending.value)
+            if(vr_finger_blending_speed.value <= 0.f) // instant
             {
                 frame = target;
                 continue;
@@ -121,7 +121,6 @@ struct Entities
     view::ViewEntity hand[2][FingerCount];
     view::ViewEntity holster[HolsterCount];
     view::ViewEntity holsterSlot[HolsterCount];
-    view::ViewEntity torso;
     view::ViewEntity body;
     view::ViewEntity gadget;
     view::ViewEntity button[2];
@@ -152,7 +151,6 @@ void forEachEntity(F&& f)
     {
         f(ve);
     }
-    f(entities.torso);
     f(entities.body);
     f(entities.gadget);
     for(view::ViewEntity& ve : entities.button)
@@ -500,29 +498,6 @@ void setupHolsters(const hands::State& s)
     }
 }
 
-void setupTorso(const hands::State& s, bool shown)
-{
-    if(!shown)
-    {
-        entities.torso.visible = false;
-        return;
-    }
-
-    const float heightRatio = CLAMP(0.f, s.crouchRatio, 0.8f);
-
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
-
-    glm::vec3 origin = s.playerOrigin + fwd * vr_vrtorso_x_offset.value -
-                       fwd * (heightRatio * 14.f) + right * vr_vrtorso_y_offset.value;
-    origin.z += s.headHeight * vr_vrtorso_head_z_mult.value + vr_vrtorso_z_offset.value;
-
-    place(entities.torso, Mod_ForName("progs/vrtorso.mdl", false), origin,
-        {vr_vrtorso_pitch.value - heightRatio * 35.f, s.bodyYaw + vr_vrtorso_yaw.value,
-            vr_vrtorso_roll.value},
-        0, false);
-}
-
 // The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
 {
@@ -729,15 +704,15 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
     }
 }
 
-// The skinned body (vr_body_mode 2 and 3), its arms reaching the drawn hands' wrists; the old
-// torso otherwise, or when the body model is not usable.
+// The skinned body (vr_body_mode 2 and 3; 1, the old floating torso, is 2), its arms reaching the
+// drawn hands' wrists.
 void setupBody(const hands::State& s)
 {
     const int mode = static_cast<int>(vr_body_mode.value);
     entities.body.visible = false;
     avatar::hide();
 
-    if(mode >= 2)
+    if(mode >= 1)
     {
         // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny.
         const int build = static_cast<int>(vr_body_build.value);
@@ -755,12 +730,8 @@ void setupBody(const hands::State& s)
             const glm::vec3 origin = avatar::pose(s, model, &ve.ent, handPoses, mode >= 3);
             place(ve, model, origin, glm::vec3{0.f}, 0, false);
             showPlayerState(ve, s);
-            setupTorso(s, false);
-            return;
         }
     }
-
-    setupTorso(s, mode >= 1);
 }
 
 // ----------------------------------------------------------------------------

@@ -34,7 +34,6 @@ float cvarh_v_iroll_level;
 float cvarh_v_iyaw_level;
 float cvarh_vr_ammobox_drops_chance_mult;
 float cvarh_vr_ammobox_drops;
-float cvarh_vr_body_interactions;
 float cvarh_vr_enabled;
 float cvarh_vr_enemy_drops_chance_mult;
 float cvarh_vr_enemy_drops;
@@ -137,7 +136,6 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(v_iyaw_level);
     VR_CVAR_HMAKE(vr_ammobox_drops);
     VR_CVAR_HMAKE(vr_ammobox_drops_chance_mult);
-    VR_CVAR_HMAKE(vr_body_interactions);
     VR_CVAR_HMAKE(vr_enabled);
     VR_CVAR_HMAKE(vr_enemy_drops);
     VR_CVAR_HMAKE(vr_enemy_drops_chance_mult);

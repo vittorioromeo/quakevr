@@ -226,7 +226,10 @@ void update(const InputState& tracked)
 
 } // namespace qvr::input
 
-// Thumbstick locomotion. The server steers by the head (.v_viewangle): with
+// Thumbstick locomotion. Running or walking as with the keyboard: running (cl_alwaysrun, the
+// default; the speed button switches) is cl_movespeedkey times the speed, and the stick, being
+// analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
+// the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the off hand
 // points, expressed relative to the head. Either way, pointing the off hand up or down while
 // pushing forward swims up or down (from the old engine's VR_Move).
@@ -237,7 +240,8 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         return;
     }
 
-    const float speedScale = (in_speed.state & 1) ? cl_movespeedkey.value : 1.f;
+    const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
+    const float speedScale = running ? cl_movespeedkey.value : 1.f;
     const hands::State& s = hands::current();
 
     float fwd = moveAxes.y;
@@ -272,8 +276,8 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         side = glm::dot(move, vright);
     }
 
-    *forwardmove += fwd * (fwd > 0.f ? cl_forwardspeed.value : cl_backspeed.value) * speedScale;
-    *sidemove += side * cl_sidespeed.value * speedScale;
+    *forwardmove += fwd * cl_forwardspeed.value * speedScale;
+    *sidemove += side * cl_forwardspeed.value * speedScale;
 
     if(s.valid)
     {

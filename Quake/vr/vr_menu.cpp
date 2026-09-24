@@ -153,7 +153,7 @@ void restartVr()
 [[nodiscard]] std::vector<Item> pageBody()
 {
     return {
-        cycle("Body", vr_body_mode, {{0.f, "Off"}, {1.f, "Torso"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
+        cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         toggle("Show Armour and Wounds", vr_body_state)
@@ -312,7 +312,6 @@ const Page pages[] = {
     {"Graphics", pageGraphicalSettings},
     {"Status Bar", pageHudConfiguration},
     {"Hotspots", pageHotspotSettings},
-    {"Old Torso", pageTorsoSettings},
     {"Transparency", pageTransparencyOptions},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
@@ -324,6 +323,7 @@ std::vector<Item> pageMain()
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
         slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f"),
         cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Off hand"}}),
+        cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
         toggle("Teleport", vr_teleport_enabled),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f"),
@@ -355,7 +355,7 @@ std::vector<Item> pageMain()
         slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f"),
         slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f"),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
-        cycle("Body", vr_body_mode, {{0.f, "Off"}, {1.f, "Torso"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
+        cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),
         slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),

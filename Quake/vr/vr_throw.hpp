@@ -25,12 +25,10 @@ struct Estimate
 void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, const glm::vec3& angVel,
     const glm::vec3& forward);
 
-// The estimate as of the newest sample, as if released now (vr_throw_algorithm 0..2 are always
-// computed this way).
+// The estimate as of the newest sample, as if released now.
 [[nodiscard]] Estimate estimate(int hand);
 
-// The estimate for a release at `releaseTime`: with vr_throw_algorithm 3, the peak in a window
-// around it; otherwise estimate(hand).
+// The estimate for a release at `releaseTime`: the peak in a window around it.
 [[nodiscard]] Estimate estimateAt(int hand, double releaseTime);
 
 // Time of the newest sample (0 without any).
