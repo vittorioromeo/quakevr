@@ -11,13 +11,53 @@ QVR_CVAR(vr_gameplayfix_tossfall, "0", CVAR_NONE)     // resting items and weapo
 // Throwing (vr_throw.cpp). Algorithm: 0 average of the last vr_throw_avg_frames frames (the
 // old engine's "Basic"), 1 the same plus the lever-arm term, 2 peak speed within
 // vr_throw_window seconds before release, averaged over vr_throw_peak_span seconds around it.
-QVR_CVAR(vr_throw_algorithm, "2", CVAR_ARCHIVE)
+// 3 (docs/vr-port/THROWING.md): the same peak as 2, on the controller's own speed, but in a
+// window around the moment of release (vr_throw_window before it, vr_throw_lookahead after),
+// computed once at release and kept; the wrist's spin adds to it only above
+// vr_throw_ang_threshold rad/s, by vr_throw_ang_factor.
+QVR_CVAR(vr_throw_algorithm, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_avg_frames, "15", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_window, "0.1", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_peak_span, "0.025", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)  // metres from the grip to the held object's centre
-QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons (0: sv_gravity, as Quake objects)
-QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimated velocity
+QVR_CVAR(vr_throw_window, "0.12", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_lookahead, "0.01", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_peak_span, "0.017", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_lever_arm, "0.05", CVAR_ARCHIVE)  // metres from the controller point to the held object's centre
+QVR_CVAR(vr_throw_ang_threshold, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)
+QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
+// Release: the runtime's grip button lets go late. With vr_throw_release 1 the analog grip lets
+// go once it drops vr_throw_release_drop below its peak while the hand moves faster than
+// vr_throw_release_speed m/s (a throw), or below vr_throw_release_floor anyway; it grabs again
+// above vr_throw_grab_press. Controllers without an analog grip keep the button.
+QVR_CVAR(vr_throw_release, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_release_drop, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_release_floor, "0.35", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_release_speed, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_grab_press, "0.7", CVAR_ARCHIVE)
+// Gameplay scaling (QC): speeds up to vr_throw_gain_lo m/s leave the hand as they are (drops,
+// passes), rising smoothly to vr_throw_gain_max times at vr_throw_gain_hi; a weapon's weight
+// slows it by vr_throw_weight_influence of its old multiplier.
+QVR_CVAR(vr_throw_gain_max, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_gain_lo, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_gain_hi, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_weight_influence, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
+// Aim assist (QC, opt-in): bends a throw by up to vr_throw_assist_strength onto a monster or
+// breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
+// range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
+QVR_CVAR(vr_throw_assist, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_cone, "12", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_full, "4", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_strength, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_range, "1200", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
+// Thrown weapons' flight (vr_rigid.cpp): spin as a rigid body, bounces with restitution and
+// friction, settling flat on the ground.
+QVR_CVAR(vr_throw_restitution, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_friction, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_spin_max, "20", CVAR_ARCHIVE)    // rad/s
+QVR_CVAR(vr_throw_spin_drag, "0.3", CVAR_ARCHIVE)  // per second, in the air
+QVR_CVAR(vr_throw_settle_rate, "8", CVAR_ARCHIVE)  // per second: turning flat once resting
 
 // Version of quakevr/vr_bindings.cfg last applied (vr_checkbindings).
 QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
@@ -181,7 +221,7 @@ QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 // TODO VR: (P2) add to menu
-QVR_CVAR(vr_2h_throw_velocity_mult, "1.4", CVAR_ARCHIVE)
+QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
 // TODO VR: (P2) add to menu
 QVR_CVAR(vr_headbutt_velocity_threshold, "2.02", CVAR_ARCHIVE)
 // TODO VR: (P2) add to menu

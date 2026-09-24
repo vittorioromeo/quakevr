@@ -39,6 +39,8 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         writeVec3(buf, hand.throwVel);
         MSG_WriteFloat(buf, hand.velMag);
         writeVec3(buf, hand.angVel);
+        writeVec3(buf, hand.throwPos);
+        MSG_WriteFloat(buf, hand.throwAge);
     }
 
     writeVec3(buf, move.headVel);
@@ -67,6 +69,8 @@ VrMove readVrMove()
         hand.throwVel = readVec3();
         hand.velMag = MSG_ReadFloat();
         hand.angVel = readVec3();
+        hand.throwPos = readVec3();
+        hand.throwAge = MSG_ReadFloat();
     }
 
     move.headVel = readVec3();

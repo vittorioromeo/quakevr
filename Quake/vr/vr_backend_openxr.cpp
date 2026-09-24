@@ -153,6 +153,7 @@ public:
         xrSyncActions(session, &syncInfo);
 
         const XrTime time = frameState.predictedDisplayTime;
+        tracking.time = static_cast<double>(time) * 1e-9;
 
         XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
         locateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;

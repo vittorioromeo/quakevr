@@ -3398,6 +3398,7 @@ void() forcegrabbable_think_impl =
             self.throwhit = QVR_THROWHIT_HIT;
             self.solid = SOLID_NOT_BUT_TOUCHABLE;
             self.avelocity = '0 0 0';
+            self.vr_spin = '0 0 0';
         }
     }
     else if((time - self.lastwatertime) > 0.15)
@@ -3420,7 +3421,7 @@ void() forcegrabbable_think_impl =
         }
     }
 
-    if(self.throwhit == QVR_THROWHIT_HIT)
+    if(self.throwhit == QVR_THROWHIT_HIT && !self.vr_rigid) // rigid ones settle in the engine
     {
         wpnthrow_stabilize();
     }
@@ -3452,8 +3453,12 @@ void() forcegrabbable_touch =
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
-    // A thrown weapon's true-scale gravity lasts for its flight only.
-    self.gravity = 0;
+    // A thrown weapon's true-scale gravity lasted for its flight only; rigid ones keep it (the
+    // engine bounces them: a sudden Quake gravity after the first touch looked wrong).
+    if(!self.vr_rigid)
+    {
+        self.gravity = 0;
+    }
 
     // if(pointcontents(self.origin) == CONTENT_SKY)
     //     return;
@@ -3513,8 +3518,8 @@ void() forcegrabbable_touch =
         self.movetype = MOVETYPE_TOSS;
     }
 
-    // ghetto collision detection/resolution
-    if(!(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2.0)
+    // ghetto collision detection/resolution (rigid ones bounce in the engine)
+    if(!self.vr_rigid && !(self.flags & FL_ONGROUND) && vlen(self.velocity) > 2.0)
     {
         vector dir = normalize(self.velocity);
         dir_z = 0;
@@ -3987,6 +3992,187 @@ float() getWeaponMode =
     return cvar_hget(cvarh_vr_holster_mode);
 }
 
+// Speeds up to vr_throw_gain_lo m/s leave the hand as they are (drops, passes); above, smoothly
+// more, up to vr_throw_gain_max times at vr_throw_gain_hi (docs/vr-port/THROWING.md 3.2).
+float(float xSpeed) VRThrowGain =
+{
+    float lo = cvar_hget(cvarh_vr_throw_gain_lo);
+    float hi = cvar_hget(cvarh_vr_throw_gain_hi);
+    float gainMax = cvar_hget(cvarh_vr_throw_gain_max);
+
+    if(hi <= lo)
+    {
+        if(xSpeed >= hi)
+        {
+            return gainMax;
+        }
+        return 1;
+    }
+
+    float t = (xSpeed - lo) / (hi - lo);
+    if(t < 0)
+    {
+        t = 0;
+    }
+    if(t > 1)
+    {
+        t = 1;
+    }
+    t = t * t * (3 - 2 * t);
+    return 1 + (gainMax - 1) * t;
+}
+
+// Angle between two unit vectors, in degrees.
+float(vector xA, vector xB) VRAngleBetween =
+{
+    vector c;
+    c_x = xA_y * xB_z - xA_z * xB_y;
+    c_y = xA_z * xB_x - xA_x * xB_z;
+    c_z = xA_x * xB_y - xA_y * xB_x;
+    return atan2(vlen(c), xA * xB) * (180 / 3.14159265);
+}
+
+// Optional aim assist (vr_throw_assist, docs/vr-port/THROWING.md 3.3): bends a throw towards the
+// best target near its direction (a living monster or breakable in sight, within
+// vr_throw_assist_cone degrees and vr_throw_assist_range units), onto the low ballistic arc that
+// reaches it at the throw's speed (or up to vr_throw_assist_speed faster), by
+// vr_throw_assist_strength (fully within vr_throw_assist_full degrees, fading to the cone's edge).
+vector(entity xThrower, vector xOrigin, vector xVel, float xGravity) VRThrowAssist =
+{
+    if(!cvar_hget(cvarh_vr_throw_assist))
+    {
+        return xVel;
+    }
+
+    float speed = vlen(xVel);
+    if(speed < 1 || xGravity <= 0)
+    {
+        return xVel;
+    }
+
+    vector dir = normalize(xVel);
+    float cone = cvar_hget(cvarh_vr_throw_assist_cone);
+    float full = cvar_hget(cvarh_vr_throw_assist_full);
+    float range = cvar_hget(cvarh_vr_throw_assist_range);
+
+    vector flatVel = xVel;
+    flatVel_z = 0;
+    float flatSpeed = vlen(flatVel);
+    if(flatSpeed < 1)
+    {
+        flatSpeed = 1;
+    }
+
+    entity best = world;
+    float bestScore = 1000000;
+    float bestAngle = 0;
+    vector bestPos = '0 0 0';
+
+    entity e = findradius(xOrigin, range);
+    while(e)
+    {
+        float isTarget = FALSE;
+        if(e != xThrower && e.classname != "player" && e.health > 0 && e.takedamage)
+        {
+            if((e.flags & FL_MONSTER) || e.solid == SOLID_BSP)
+            {
+                isTarget = TRUE;
+            }
+        }
+
+        if(isTarget)
+        {
+            vector c = (e.absmin + e.absmax) * 0.5;
+
+            // Where it will be when the throw gets there.
+            vector flat = c - xOrigin;
+            flat_z = 0;
+            c = c + e.velocity * (vlen(flat) / flatSpeed);
+
+            float a = VRAngleBetween(dir, normalize(c - xOrigin));
+            if(a <= cone)
+            {
+                traceline(xOrigin, c, TRUE, xThrower);
+                if(trace_fraction == 1 || trace_ent == e)
+                {
+                    float score = a / cone + 0.2 * vlen(c - xOrigin) / range;
+                    if(score < bestScore)
+                    {
+                        bestScore = score;
+                        best = e;
+                        bestAngle = a;
+                        bestPos = c;
+                    }
+                }
+            }
+        }
+
+        e = e.chain;
+    }
+
+    if(best == world)
+    {
+        return xVel;
+    }
+
+    // The low arc to bestPos at speed s: tan(theta) = (s^2 - sqrt(s^4 - g (g x^2 + 2 y s^2))) / (g x).
+    vector d = bestPos - xOrigin;
+    vector flatD = d;
+    flatD_z = 0;
+    float x = vlen(flatD);
+    float y = d_z;
+    float g = xGravity;
+
+    float s = speed;
+    float disc = s * s * s * s - g * (g * x * x + 2 * y * s * s);
+    if(disc < 0)
+    {
+        s = speed * (1 + cvar_hget(cvarh_vr_throw_assist_speed));
+        disc = s * s * s * s - g * (g * x * x + 2 * y * s * s);
+    }
+
+    vector aim;
+    if(disc >= 0 && x > 1)
+    {
+        float theta = atan2(s * s - sqrt(disc), g * x);
+        aim = normalize(flatD) * cos(theta) + '0 0 1' * sin(theta);
+    }
+    else
+    {
+        // Out of reach: only turn towards it, keeping the throw's elevation.
+        s = speed;
+        aim = normalize(flatD) * (flatSpeed / speed);
+        aim_z = dir_z;
+        aim = normalize(aim);
+    }
+
+    float k = cvar_hget(cvarh_vr_throw_assist_strength);
+    if(bestAngle > full && cone > full)
+    {
+        k = k * (cone - bestAngle) / (cone - full);
+    }
+
+    if(cvar("developer"))
+    {
+        particle2(bestPos, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 8);
+    }
+
+    return normalize(dir * (1 - k) + aim * k) * (speed + (s - speed) * k);
+}
+
+// The hand's spin (radians per second, world axes) for a thrown weapon, at most
+// vr_throw_spin_max: wrist-flick noise must not make helicopters.
+vector(vector xAVel) VRThrowSpinCapped =
+{
+    float rate = vlen(xAVel);
+    float spinMax = cvar_hget(cvarh_vr_throw_spin_max);
+    if(rate > spinMax && rate > 0)
+    {
+        return xAVel * (spinMax / rate);
+    }
+    return xAVel;
+}
+
 float() getWeaponThrowMode =
 {
     return cvar_hget(cvarh_vr_weapon_throw_mode);
@@ -4016,18 +4202,46 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
 
 
     // The hand's velocity (m/s) at true scale: the weapon leaves the hand as fast as the hand
-    // moved (heavier weapons slower), and falls at vr_throw_gravity rather than Quake's 3g.
+    // moved, a little more for real throws (VRThrowGain), a little less for heavy weapons, and
+    // falls at vr_throw_gravity rather than Quake's 2.5g.
     float m2u = VRMetersToUnits();
-    vector throwVelUnits = throwVel * m2u * WeaponIdToThrowMult(xWeapon) *
+    float weight = 1 + (WeaponIdToThrowMult(xWeapon) - 1) * cvar_hget(cvarh_vr_throw_weight_influence);
+    vector throwVelUnits = throwVel * m2u * VRThrowGain(vlen(throwVel)) * weight *
                            cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
-    vector spin = VRThrowSpin(VRGetHandAVel(xHand), VRGetHandRot(xHand));
+
+    float throwGravity = cvar_hget(cvarh_sv_gravity);
+    if(cvar_hget(cvarh_vr_throw_gravity) > 0)
+    {
+        throwGravity = cvar_hget(cvarh_vr_throw_gravity) * m2u;
+    }
+
+    // It left the hand a moment ago (the release lags the throw, and the move carrying it is
+    // later still): start where it would be by now, not where the hand followed through to.
+    vector handNow = VRGetHandPos(xHand);
+    vector origin = handNow;
+    float age = VRGetHandThrowAge(xHand);
+    if(VRGetHandThrowPos(xHand) != '0 0 0' && age >= 0 && age < 0.15)
+    {
+        origin = VRGetHandThrowPos(xHand) + throwVelUnits * age;
+        origin_z = origin_z - 0.5 * throwGravity * age * age;
+        throwVelUnits_z = throwVelUnits_z - throwGravity * age;
+
+        traceline(handNow, origin, TRUE, ent); // never inside a wall
+        origin = trace_endpos;
+        if(trace_fraction < 1)
+        {
+            origin = origin - normalize(origin - handNow) * 2;
+        }
+    }
+
+    throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
 
     entity thrown = world;
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
         thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
-            VRGetHandPos(xHand), VRGetHandRot(xHand),
-            throwVelUnits, spin,
+            origin, VRGetHandRot(xHand),
+            throwVelUnits, '0 0 0',
             FALSE /* disappear on hit */,
             TRUE  /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
@@ -4035,8 +4249,8 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
     {
         thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
-            VRGetHandPos(xHand), VRGetHandRot(xHand),
-            throwVelUnits, spin,
+            origin, VRGetHandRot(xHand),
+            throwVelUnits, '0 0 0',
             TRUE /* disappear on hit */,
             TRUE /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
@@ -4047,14 +4261,19 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         // The same damage for the same hand speed as the old x120 scaling.
         thrown.throwdmgspeed = 700 * m2u / 120;
 
-        if(cvar_hget(cvarh_vr_throw_gravity) > 0 && cvar_hget(cvarh_sv_gravity) > 0)
+        if(cvar_hget(cvarh_sv_gravity) > 0)
         {
-            thrown.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
+            thrown.gravity = throwGravity / cvar_hget(cvarh_sv_gravity);
         }
+
+        // Flies, spins, bounces and settles as a rigid body (engine: vr_rigid.cpp).
+        thrown.vr_rigid = 1;
+        thrown.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand));
 
         dprint("thrown: velocity "); dprint(vtos(thrown.velocity));
         dprint(" gravity "); dprint(ftos(thrown.gravity));
-        dprint(" avelocity "); dprint(vtos(thrown.avelocity)); dprint("\n");
+        dprint(" spin "); dprint(vtos(thrown.vr_spin));
+        dprint(" age "); dprint(ftos(age)); dprint("\n");
     }
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
     {

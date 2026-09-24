@@ -143,7 +143,9 @@ void updateVelocities(const TrackingState* t)
         }
 
         previous.hands[h] = local;
-        throwing::sample(h, realtime, state.vel[h], state.angVel[h], forward(state.rot[h]));
+        // On the runtime's clock when it has one: the release is timed on it too.
+        const double time = t && t->time >= 0.0 ? t->time : realtime;
+        throwing::sample(h, time, state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h]));
     }
 
     previous.head = head;

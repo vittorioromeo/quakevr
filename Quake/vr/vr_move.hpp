@@ -16,7 +16,9 @@ struct VrHandMove
     glm::vec3 vel{0.f};      // world units / second
     glm::vec3 throwVel{0.f}; // smoothed velocity used for throwing
     float velMag{0.f};
-    glm::vec3 angVel{0.f};   // degrees / second
+    glm::vec3 angVel{0.f};   // radians / second, of the throw
+    glm::vec3 throwPos{0.f}; // world position the thrown object left the hand at
+    float throwAge{0.f};     // seconds since it left the hand
 };
 
 struct VrMove

@@ -1140,6 +1140,9 @@ void SV_Physics_Toss (edict_t *ent)
 	if (!SV_RunThink (ent))
 		return;
 
+	if (VR_RigidToss (ent)) // QVR: thrown weapons fly, bounce and settle as rigid bodies
+		return;
+
 // if onground, return without moving
 	if ( ((int)ent->v.flags & FL_ONGROUND) && VR_TossKeepsGround (ent) ) // QVR: unless its support went away
 		return;

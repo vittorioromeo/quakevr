@@ -86,6 +86,14 @@ VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandAVel,
                            self.offhandavel,
                            self.handavel);
 
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandThrowPos,
+                           self.offhandthrowpos,
+                           self.handthrowpos);
+
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandThrowAge,
+                          self.offhandthrowage,
+                          self.handthrowage);
+
 VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,
                            self.offmuzzlepos,
                            self.muzzlepos);

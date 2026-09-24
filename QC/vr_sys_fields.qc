@@ -172,6 +172,8 @@
 .vector handthrowvel;
 .float  handvelmag;
 .vector handavel;
+.vector handthrowpos;  // where the thrown object left the hand (world)
+.float  handthrowage;  // seconds since
 
 //
 //
@@ -186,6 +188,8 @@
 .vector offhandthrowvel;
 .float  offhandvelmag;
 .vector offhandavel;
+.vector offhandthrowpos;
+.float  offhandthrowage;
 
 //
 //
@@ -252,3 +256,13 @@
 // ----------------------------------------------------------------------------
 
 .float ishuman;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Rigid-body flight (engine: vr_rigid.cpp)
+// ----------------------------------------------------------------------------
+
+.float  vr_rigid; // MOVETYPE_TOSS/BOUNCE entities that spin, bounce and settle as rigid bodies
+.vector vr_spin;  // their angular velocity, radians per second, world axes

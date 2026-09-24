@@ -64,6 +64,7 @@ struct TrackingState
     Pose head;
     Pose hands[HAND_COUNT]; // grip poses, [0] off hand, [1] main hand
     InputState input;
+    double time{-1.0};      // seconds on the runtime's clock that the poses are for (< 0: unknown)
 };
 
 // Field of view of an eye, as tangent-space angles in radians (left and down negative).

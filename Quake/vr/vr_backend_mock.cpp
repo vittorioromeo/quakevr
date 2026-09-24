@@ -175,6 +175,7 @@ public:
     {
         tracking = standingPose();
         tracking.input = mockInput;
+        tracking.time = realtime;
         for(int h = 0; h < HAND_COUNT; h++)
         {
             if(mockHandSet[h])

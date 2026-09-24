@@ -104,6 +104,10 @@ void OffhandAttackUp_f()
 
 bool wasGrabbing[2]{false, false};
 
+// The throw estimate taken when each hand let go.
+bool thrownValid[2]{false, false};
+throwing::Estimate thrown[2];
+
 [[nodiscard]] VrMove buildMove()
 {
     VrMove move;
@@ -129,22 +133,46 @@ bool wasGrabbing[2]{false, false};
         hand.pos = hs.pos[h];
         hand.rot = hs.rot[h];
 
-        // Every move carries the throw estimate: the server throws with the one of the move
-        // that lets go.
-        const throwing::Estimate thrown = throwing::estimate(h);
-        hand.vel = hs.vel[h];
-        hand.velMag = glm::length(hs.vel[h]);
-        hand.throwVel = thrown.vel;
-        hand.angVel = thrown.angVel;
-
+        // Every move carries a throw estimate: while grabbing, as if let go now (the helping
+        // hand of a two-handed throw); once let go, the one taken at the release, until the next
+        // grab (the server throws with the move that carries the release, or a later one).
         const bool grabbing = handButtons(h).grab;
-        if(wasGrabbing[h] && !grabbing && vr_debug_throw.value)
+        const double latest = throwing::latestTime(h);
+        if(wasGrabbing[h] && !grabbing)
         {
-            Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand %.2f m/s\n",
-                h == HAND_MAIN ? "main" : "off", glm::length(thrown.vel), thrown.vel.x, thrown.vel.y,
-                thrown.vel.z, glm::length(thrown.angVel), hand.velMag);
+            // The grip's own release time, if it is this release (not a key's, nor a stale one).
+            const double released = throwing::releaseTime(h);
+            const double at =
+                released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
+            thrown[h] = throwing::estimateAt(h, at);
+            thrownValid[h] = true;
+
+            if(vr_debug_throw.value)
+            {
+                const throwing::Estimate& e = thrown[h];
+                Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
+                    h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
+                    glm::length(e.angVel), glm::length(hs.vel[h]));
+                if(vr_debug_throw.value >= 2.f)
+                {
+                    Con_Printf("  released %.0f ms after the peak, sent %.0f ms after the release\n",
+                        (at - e.time) * 1000.0, (latest - at) * 1000.0);
+                }
+            }
+        }
+        if(grabbing)
+        {
+            thrownValid[h] = false;
         }
         wasGrabbing[h] = grabbing;
+
+        const throwing::Estimate e = thrownValid[h] ? thrown[h] : throwing::estimate(h);
+        hand.vel = hs.vel[h];
+        hand.velMag = glm::length(hs.vel[h]);
+        hand.throwVel = e.vel;
+        hand.angVel = e.angVel;
+        hand.throwPos = e.pos;
+        hand.throwAge = static_cast<float>(std::max(0.0, latest - e.time));
 
         move.hotspots[h] = static_cast<std::uint8_t>(hs.hotspot[h]);
 
@@ -382,6 +410,7 @@ extern "C" void VR_OnClientClearState()
     entityData.clear();
     worldtext::clientReset();
     throwing::reset();
+    thrownValid[0] = thrownValid[1] = false;
     twohand::reset();
     flick::reset();
     handpose::reset();

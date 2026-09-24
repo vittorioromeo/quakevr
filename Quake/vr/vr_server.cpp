@@ -126,19 +126,21 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFloat(ent, f.vryaw, move.vrYaw);
 
     const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
-                             int throwVel, int velMag, int angVel) {
+                             int throwVel, int velMag, int angVel, int throwPos, int throwAge) {
         setVec(ent, pos, hand.pos);
         setVec(ent, rot, hand.rot);
         setVec(ent, vel, hand.vel);
         setVec(ent, throwVel, hand.throwVel);
         setFloat(ent, velMag, hand.velMag);
         setVec(ent, angVel, hand.angVel);
+        setVec(ent, throwPos, hand.throwPos);
+        setFloat(ent, throwAge, hand.throwAge);
     };
 
     setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
-        f.offhandthrowvel, f.offhandvelmag, f.offhandavel);
+        f.offhandthrowvel, f.offhandvelmag, f.offhandavel, f.offhandthrowpos, f.offhandthrowage);
     setHand(move.hands[1], f.handpos, f.handrot, f.handvel, f.handthrowvel,
-        f.handvelmag, f.handavel);
+        f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage);
 
     setVec(ent, f.headvel, move.headVel);
     setVec(ent, f.offmuzzlepos, move.muzzlePos[0]);

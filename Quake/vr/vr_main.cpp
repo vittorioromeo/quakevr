@@ -2,6 +2,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
+#include "vr_throw.hpp"
 #include "vr_client.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
@@ -247,6 +248,7 @@ extern "C" void VR_BeginFrame()
 
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
+    throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).

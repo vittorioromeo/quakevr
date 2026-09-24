@@ -65,28 +65,50 @@ Useful settings:
 
 ## Throwing: what changed
 
-Throws were imprecise for three reasons, all fixed:
+Reworked after the research in `docs/vr-port/THROWING.md`: how the throw is measured, how strong it comes out,
+where the weapon starts, and how it flies. Most values are starting points: please tell me how they feel.
 
-1. **Too fast.** The QC multiplied the hand's speed (m/s) by 120 units/s, about 3.7 times true scale at the
-   default world scale, so small errors in timing or direction turned into big misses. A thrown weapon now leaves the hand as fast as the hand
-   moved (scaled by `vr_world_scale`, the per-weapon weight and `vr_weapon_throw_velocity_mult`).
-2. **Wrong gravity.** At VR scale, Quake's gravity is about 3 g. Thrown weapons now fall at `vr_throw_gravity`
-   (9.81 m/s², 0 = Quake gravity) until they first hit something, so arcs look and land like real throws.
-3. **Late, laggy velocity.** Letting go of the grip happens tens of milliseconds after the release point, when the
-   hand is already slowing. The old engine averaged 15 frames, which made this worse and depended on the frame
-   rate. The release velocity now comes from the runtime's own controller velocity (IMU-fused). It is the peak
-   within the last `vr_throw_window` (0.1 s), averaged over `vr_throw_peak_span` (25 ms), plus the wrist-flick
-   term angular velocity × `vr_throw_lever_arm` (0.1 m). Spin comes from the real angular velocity too.
+**Measuring the throw** (`vr_throw_algorithm 3`, the default; as Half-Life: Alyx):
+- **Release point:** the release velocity is the controller's own velocity (from the runtime) where it was
+  fastest, in a window around the moment you let go (`vr_throw_window` 0.12 s before, `vr_throw_lookahead`
+  10 ms after), averaged over `vr_throw_peak_span` (17 ms) around that peak.
+- **Frozen at release:** it is taken once, when you let go, on the headset's clock, so the network rate can no
+  longer slide the window past the peak.
+- **Wrist flicks:** a clear flick (spin above `vr_throw_ang_threshold`, 6 rad/s) adds 70% of the spin's
+  velocity at the weapon's centre.
 
-Damage is normalised, so the same hand speed deals the same damage as before.
+**Letting go** (`vr_throw_release 1`): the runtime's grip button lets go late. During a throw (hand faster than
+`vr_throw_release_speed`, 1.5 m/s) the weapon now leaves the hand as soon as the grip eases 30% below its
+firmest (`vr_throw_release_drop`), and it always does below 35% (`vr_throw_release_floor`). Grabbing needs 70%
+(`vr_throw_grab_press`). **Tell me if weapons ever drop while you swing them without meaning to throw.**
 
-To compare, `vr_debug_throw 1` prints every throw's estimate. `developer 1` also prints the spawned velocity,
-gravity and spin. Things to try:
+**Strength:**
+- **Gain:** slow movements (drops, passing a weapon between hands) are 1:1. Real throws get up to 1.5×
+  (`vr_throw_gain_max`), rising smoothly from 1.5 to 6 m/s.
+- **Weight:** heavy weapons are only slightly slower now (`vr_throw_weight_influence` 0.25; before, they were
+  thrown at 40–60% of the hand's speed).
+- **Two-handed:** two-handed throws are no longer 40% stronger (`vr_2h_throw_velocity_mult` 1).
+- **Tuning:** if throws are still short, raise `vr_throw_gain_max` or lower `vr_throw_gravity`.
 
-- If throws feel short or weak, raise `vr_weapon_throw_velocity_mult` (1.2–1.5 is common in VR games), or set
-  `vr_throw_gravity` lower.
-- Short, sharp flicks: `vr_throw_window 0.06`. Long, wind-up throws: `0.15`.
-- The old behaviour, for comparison: `vr_throw_algorithm 0`, `vr_throw_gravity 0`, `vr_weapon_throw_velocity_mult 3.66`.
+**Start position:** the weapon starts where it would be had it left the hand at the release point, not where the
+hand followed through to.
+
+**Flight** (the engine, `vr_rigid.cpp`):
+- **Spin:** the hand's real spin, capped at `vr_throw_spin_max` (20 rad/s). It used to be applied as rates on
+  each angle, which tumbled wildly.
+- **Gravity:** the same true-scale gravity for the whole flight. It used to jump to Quake's 2.5 g after the first
+  touch.
+- **Bounces:** with `vr_throw_restitution` (0.25) and friction (`vr_throw_friction` 0.5).
+- **Resting:** the weapon turns onto its nearest flat side (`vr_throw_settle_rate`) and stays still. No more
+  wiggling.
+- **Hit box:** a 6-unit hit box (`vr_throw_hitbox`) against monsters, so throws that look like hits are hits.
+
+**Aim assist** (`vr_throw_assist 1`, off by default): bends a throw by up to 80% onto the best monster or
+breakable within 12° of it, on the arc that reaches it. With `developer 1` it marks the target it picked.
+
+**Debugging:** `vr_debug_throw 1` prints every throw's estimate; `2` also prints how long after the peak the release
+came. `developer 1` prints the spawned velocity, gravity, spin and age. For comparison, the previous estimate is
+`vr_throw_algorithm 2`.
 
 ## GitHub issues
 
