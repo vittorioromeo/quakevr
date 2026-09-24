@@ -16,6 +16,7 @@ extern "C" {
 extern cvar_t sv_gravity;
 int ED_FindFieldOffset (const char *name);
 extern qboolean scr_drawloading;
+extern cvar_t crosshair;
 }
 
 #include "vr_api.h"

@@ -143,7 +143,7 @@ void runHaptics()
 }
 
 // Bump when quakevr/vr_bindings.cfg changes in a way existing configs should pick up.
-constexpr int bindingsVersion = 1;
+constexpr int bindingsVersion = 2;
 
 void checkBindings_f()
 {
