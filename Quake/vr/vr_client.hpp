@@ -15,6 +15,7 @@ struct EntityVr
     glm::vec3 scale{0.f}; // offset from 1: 0 means unscaled
     glm::vec3 scaleOrigin{0.f};
     glm::vec3 offset{0.f};
+    bool noRotate{false}; // a rigid body: an EF_ROTATE model (the backpack) must not spin
 };
 
 void init(); // registers input commands

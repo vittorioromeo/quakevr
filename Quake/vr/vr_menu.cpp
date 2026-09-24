@@ -156,6 +156,10 @@ void restartVr()
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {1.f, "Torso"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
+        toggle("Show Armour and Wounds", vr_body_state)
+            .help("The armour you wear plates your torso; your arms get bloodier as you are hurt."),
+        toggle("Show Powerups", vr_body_powerups)
+            .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m")
@@ -184,6 +188,32 @@ void restartVr()
             .help("How far the shoulders rise when reaching up."),
         slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 45.f, 1.f, "%.0f deg")
             .help("How far the shoulders swing forward when reaching far forward."),
+    };
+}
+
+[[nodiscard]] std::vector<Item> pageGadget()
+{
+    return {
+        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
+        cycle("Arm", vr_gadget_hand, {{0.f, "Off hand"}, {1.f, "Main hand"}}),
+        slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx"),
+        header("Placement"),
+        slider("Along the Arm", vr_gadget_x, -10.f, 10.f, 0.5f, "%.1f cm"),
+        slider("Across the Arm", vr_gadget_y, -5.f, 5.f, 0.25f, "%.2f cm"),
+        slider("Height", vr_gadget_z, -3.f, 5.f, 0.25f, "%.2f cm").help("How far it stands out of the forearm."),
+        slider("Pitch", vr_gadget_pitch, -90.f, 90.f, 5.f, "%.0f deg"),
+        slider("Yaw", vr_gadget_yaw, -90.f, 90.f, 5.f, "%.0f deg"),
+        slider("Roll", vr_gadget_roll, -180.f, 180.f, 15.f, "%.0f deg")
+            .help("Turns the screen: 90 reads along the arm, 180 turns the text the other way."),
+        header("Colours"),
+        slider("Screen Hue", vr_gadget_screen_hue, 0.f, 355.f, 5.f, "%.0f")
+            .help("The screen's colour: 128 green, 40 amber, 200 blue, 0 red."),
+        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f"),
+        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
+        slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
+        slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
+        header("Screen"),
+        toggle("Level and Stats", vr_gadget_show_level),
     };
 }
 
@@ -267,6 +297,7 @@ const Page pages[] = {
     {"VR Settings", pageMain},
     {"Advanced VR Options", pageAdvanced},
     {"Body", pageBody},
+    {"Wrist Gadget", pageGadget},
     {"Throwing and Physics", pageThrowing},
     {"Force Grab", pageForceGrab},
     {"Menu", pageMenuSettings},

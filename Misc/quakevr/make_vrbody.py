@@ -4,7 +4,11 @@
 #   quakevr/progs/<build>.md5mesh, .md5anim  the skeleton and a low-poly body, in the bind pose
 #   quakevr/progs/<build>.mdl                a placeholder: Ironwail loads MD5 only as the
 #                                            "enhanced" replacement of an existing .mdl
-#   quakevr/progs/vrbody_00_00.tga           their skin (Quake palette colours)
+#   quakevr/progs/vrbody_NN_00.tga           their skins (Quake palette colours): skin
+#                                            armour * 4 + damage (vr_view.cpp picks it from the
+#                                            player's armour and health): damage 0..3 adds scratches
+#                                            and blood, armour 1..3 (green, yellow, red) plates the
+#                                            torso
 #
 # Usage: python Misc/quakevr/make_vrbody.py [output progs folder]
 #
@@ -378,8 +382,76 @@ PALETTE_RAMPS = {
 }
 
 
-def write_skin(path, size=128):
+# The player's armour on the torso: plates in the armour's colour (Quake's green, yellow and red
+# armours), dark seams between them and rivets along the seams.
+ARMOR_RAMPS = {
+    1: [(19, 43, 19), (27, 59, 27), (35, 71, 31), (47, 87, 39)],
+    2: [(79, 59, 15), (99, 75, 19), (115, 87, 23), (131, 99, 27)],
+    3: [(75, 11, 7), (95, 19, 11), (115, 27, 15), (135, 35, 19)],
+}
+
+
+def armor_texel(bu, bv, armor, rng):
+    """The armour's colour at (bu, bv) of the torso block, or None where it leaves the torso bare
+    (the belt at the bottom, the collar at the top)."""
+    if bv < 0.16 or bv > 0.9:
+        return None
+    ramp = ARMOR_RAMPS[armor]
+    lame = (bv - 0.16) / 0.74 * 5.0  # five overlapping lames, top to bottom
+    within = lame - int(lame)
+    if within < 0.08:
+        return (11, 11, 11) if armor != 2 else (39, 27, 7)  # seam
+    if within < 0.2 and int(bu * 24) % 3 == 0 and int(within * 40) % 2 == 0:
+        return (171, 171, 171)  # rivet
+    k = (rng >> 16) % 10
+    i = 2 - (1 if within > 0.8 else 0) + (1 if k > 7 else -1 if k < 2 else 0)  # lower edge darker
+    return ramp[max(0, min(len(ramp) - 1, i))]
+
+
+def damage_marks(damage):
+    """Scratches (short dark lines) and blood (blotches with drips) for a damage level 0..3, in
+    (s, t) texture space: the same marks at every level, more of them the worse it is."""
+    rng = 777
+    marks = []
+
+    def rand():
+        nonlocal rng
+        rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
+        return (rng >> 8) / float(1 << 23)
+
+    for level in range(1, damage + 1):
+        for _ in range(8):  # scratches on the arms (the skin block)
+            s0, t0 = rand() * 0.5, rand() * 0.5
+            angle = rand() * math.pi
+            length = 0.02 + rand() * 0.04
+            marks.append(("scratch", s0, t0, math.cos(angle) * length, math.sin(angle) * length))
+        for _ in range(2 * level):  # blood on the arms, and on the torso and bracers when worse
+            block = "skin" if level < 3 or rand() < 0.6 else ("leather" if rand() < 0.6 else "bracer")
+            u0, v0, u1, v1 = BLOCKS[block]
+            marks.append(("blood", u0 + rand() * (u1 - u0), v0 + rand() * (v1 - v0), 0.012 + rand() * 0.02, rand()))
+    return marks
+
+
+def mark_texel(s, t, marks):
+    for kind, a, b, c, d in marks:
+        if kind == "scratch":
+            # Distance from the segment (a, b) + k (c, d).
+            px, py = s - a, t - b
+            k = max(0.0, min(1.0, (px * c + py * d) / (c * c + d * d)))
+            if math.hypot(px - k * c, py - k * d) < 0.0045:
+                return (111, 27, 19)
+        else:
+            dx, dy = s - a, t - b
+            r = c * (1.0 + 0.35 * math.sin(7.0 * math.atan2(dy, dx) + d * 6.0))  # ragged edge
+            drip = abs(dx) < c * 0.18 and 0 < dy < c * (1.5 + 2.0 * d)  # a drip running down
+            if math.hypot(dx, dy) < r or drip:
+                return (91, 7, 7) if math.hypot(dx, dy) < r * 0.6 else (123, 15, 11)
+    return None
+
+
+def write_skin(path, size=128, damage=0, armor=0):
     rng = 12345
+    marks = damage_marks(damage)
     pixels = bytearray()
     # TGA rows go bottom-up; t = 0 is the top of the image.
     for row in range(size - 1, -1, -1):
@@ -401,6 +473,18 @@ def write_skin(path, size=128):
                     pixels += bytes((11, 15, 23, 255))
                     continue
             rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
+            mark = mark_texel(s, t, marks) if marks else None
+            if mark:
+                r, g, b = mark
+                pixels += bytes((b, g, r, 255))
+                continue
+            if armor and block == "leather":
+                u0, v0, u1, v1 = BLOCKS[block]
+                plate = armor_texel((s - u0) / (u1 - u0), (t - v0) / (v1 - v0), armor, rng)
+                if plate:
+                    r, g, b = plate
+                    pixels += bytes((b, g, r, 255))
+                    continue
             # Mostly the middle of the ramp, some lighter and darker specks.
             k = (rng >> 16) % 10
             i = len(ramp) // 2 + (-1 if k < 3 else 1 if k > 7 else 0)
@@ -436,7 +520,9 @@ def write_placeholder_mdl(path):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
-    write_skin(os.path.join(out, "vrbody_00_00.tga"))
+    for armor in range(4):
+        for damage in range(4):
+            write_skin(os.path.join(out, "vrbody_%02d_00.tga" % (armor * 4 + damage)), damage=damage, armor=armor)
     for suffix, muscle in BUILDS:
         build_mesh(muscle)
         name = "vrbody" + suffix

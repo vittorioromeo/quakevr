@@ -54,12 +54,52 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
     return xPlayer.mainhand_fglocked;
 }
 
+// One object at a time per hand: none while one flies to it, and none until the trigger that
+// pulled it is let go.
+float(float xHand) VR_Forcegrab_IsPulling =
+{
+    entity pulled = self.mainhand_fgpulled;
+    if(xHand == cVR_OffHand) pulled = self.offhand_fgpulled;
+    return pulled != world && pulled.fg_state == 1 && pulled.fg_player == self && pulled.fg_hand == xHand;
+}
+
+float(float xHand, float xTrigger) VR_Forcegrab_WaitsForRelease =
+{
+    float wait = self.mainhand_fgrearm;
+    if(xHand == cVR_OffHand) wait = self.offhand_fgrearm;
+    if(wait && !xTrigger)
+    {
+        wait = FALSE;
+        if(xHand == cVR_OffHand) self.offhand_fgrearm = FALSE;
+        else                     self.mainhand_fgrearm = FALSE;
+    }
+    return wait;
+}
+
+void(float xHand, entity xPulled) VR_Forcegrab_SetPulled =
+{
+    if(xHand == cVR_OffHand)
+    {
+        self.offhand_fgpulled = xPulled;
+        self.offhand_fgrearm = TRUE;
+    }
+    else
+    {
+        self.mainhand_fgpulled = xPulled;
+        self.mainhand_fgrearm = TRUE;
+    }
+}
+
 void(entity xPlayer) VR_Forcegrab_Reset =
 {
     xPlayer.offhand_fgtarget = world;
     xPlayer.offhand_fglocked = FALSE;
     xPlayer.mainhand_fgtarget = world;
     xPlayer.mainhand_fglocked = FALSE;
+    xPlayer.offhand_fgpulled = world;
+    xPlayer.mainhand_fgpulled = world;
+    xPlayer.offhand_fgrearm = FALSE;
+    xPlayer.mainhand_fgrearm = FALSE;
 }
 
 // ----------------------------------------------------------------------------
@@ -397,6 +437,12 @@ void(float xHand) VR_Forcegrab_HandFrame =
     entity target = VR_Forcegrab_GetTarget(xHand);
     float trigger = VRGetFireButtonPressed(xHand);
 
+    if(VR_Forcegrab_WaitsForRelease(xHand, trigger) || VR_Forcegrab_IsPulling(xHand))
+    {
+        VR_Forcegrab_Set(xHand, world, FALSE);
+        return;
+    }
+
     // Locked on: flick to pull it; let go of the trigger to cancel.
     if(VR_Forcegrab_GetLocked(xHand))
     {
@@ -411,6 +457,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
         {
             VR_Forcegrab_Launch(target, xHand);
             VR_Forcegrab_Set(xHand, world, FALSE);
+            VR_Forcegrab_SetPulled(xHand, target);
             return;
         }
 

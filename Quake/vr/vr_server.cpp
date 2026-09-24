@@ -231,6 +231,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     {
         bits |= U_QVR_OFFSET;
     }
+    if(fieldFloatOr(ent, f.vr_rigid, 0.f) != 0.f)
+    {
+        bits |= U_QVR_NOROTATE;
+    }
     return bits;
 }
 

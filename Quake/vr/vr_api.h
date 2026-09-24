@@ -81,6 +81,7 @@ void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
+int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view

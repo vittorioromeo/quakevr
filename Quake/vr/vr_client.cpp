@@ -442,6 +442,12 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.scale = (bits & U_QVR_SCALE) ? readFloats3() : glm::vec3{0.f};
     data.scaleOrigin = (bits & U_QVR_SCALEORIGIN) ? readCoords3() : glm::vec3{0.f};
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
+    data.noRotate = (bits & U_QVR_NOROTATE) != 0;
+}
+
+extern "C" int VR_SuppressModelRotate(int num)
+{
+    return vrProtocol() && num >= 0 && num < static_cast<int>(entityData.size()) && entityData[num].noRotate;
 }
 
 extern "C" int VR_ParseServerMessage(int cmd)

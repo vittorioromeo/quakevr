@@ -606,7 +606,7 @@ void CL_RelinkEntities (void)
 			CL_ResetTrail (ent);
 
 // rotate binary objects locally
-		if (ent->model->flags & EF_ROTATE)
+		if ((ent->model->flags & EF_ROTATE) && !VR_SuppressModelRotate (i)) // QVR: rigid bodies keep their angles
 			ent->angles[1] = bobjrotate;
 
 		if (ent->effects & EF_BRIGHTFIELD)

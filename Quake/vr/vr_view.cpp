@@ -3,6 +3,9 @@
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
+#include "vr_color.hpp"
+
+#include <glm/gtc/quaternion.hpp>
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
@@ -562,7 +565,7 @@ void setupGadget(const hands::State& s)
         return;
     }
 
-    const int hand = HAND_OFF;
+    const int hand = vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
     const avatar::HandPose hp = drawnHand(s, hand);
     glm::vec3 wrist = hp.wrist;
     glm::vec3 dir = hp.forward;
@@ -572,7 +575,7 @@ void setupGadget(const hands::State& s)
         dir = glm::normalize(d);
     }
 
-    const bool leftArm = vr_lefthanded.value == 0.f;
+    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
     glm::vec3 out = hp.back - dir * glm::dot(hp.back, dir);
     if(glm::length(out) < 1e-4f)
     {
@@ -587,12 +590,18 @@ void setupGadget(const hands::State& s)
     // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
     const float body = units::bodyScale();
     const float m2w = units::metresToUnits() * body;
-    const float scale = vr_world_scale.value / 1.25f * body;
+    const float scale = vr_world_scale.value / 1.25f * body * CLAMP(0.25f, vr_gadget_scale.value, 3.f);
+
+    // The player's own placement: offsets in cm and turns in degrees, in the device's axes.
+    const glm::mat3 axes{right, screenUp, out};
+    const glm::vec3 offset{vr_gadget_x.value, vr_gadget_y.value, vr_gadget_z.value};
+    const glm::mat3 turn = glm::mat3_cast(glm::quat{glm::radians(
+        glm::vec3{vr_gadget_pitch.value, vr_gadget_yaw.value, vr_gadget_roll.value})});
 
     gadget::Pose pose;
     pose.valid = true;
-    pose.origin = wrist - dir * (0.085f * m2w) + out * (0.045f * m2w + 0.35f * scale);
-    pose.axes = glm::mat3{right, screenUp, out};
+    pose.origin = wrist - dir * (0.085f * m2w) + out * (0.045f * m2w + 0.35f * scale) + axes * offset * (0.01f * m2w);
+    pose.axes = axes * turn;
     pose.scale = scale;
     gadget::setPose(pose);
 
@@ -603,9 +612,121 @@ void setupGadget(const hands::State& s)
         lines::line(pose.origin, pose.origin + out * 4.f, 0.2f, {0.2f, 0.4f, 1.f, 1.f}, {0.2f, 0.4f, 1.f, 1.f});
     }
 
-    const glm::vec3 a = hands::anglesFromVectors(right, out);
+    const glm::vec3 a = hands::anglesFromVectors(pose.axes[0], pose.axes[2]);
     place(ve, Mod_ForName("progs/vrgadget.mdl", false), pose.origin, {-a.x, a.y, a.z}, 0, false);
     ve.ent.scale = static_cast<unsigned char>(CLAMP(1.f, scale * ENTSCALE_DEFAULT, 255.f));
+
+    // The casing's tint: its lighting times a colour.
+    const float tint = CLAMP(0.f, vr_gadget_tint.value, 1.f);
+    ve.lightMultiply = tint > 0.f;
+    ve.lightMod = glm::mix(glm::vec3{1.f}, hsv(vr_gadget_tint_hue.value, 1.f, 1.f) * 1.4f, tint);
+}
+
+// Quad damage: electric arcs crawling over the hands and forearms, reshaped 20 times a second
+// (the same in both eyes).
+void quadArcs(const hands::State& s)
+{
+    static int lastFrame = -1;
+    if(host_framecount == lastFrame)
+    {
+        return; // once per frame, not per eye
+    }
+    lastFrame = host_framecount;
+
+    unsigned seed = static_cast<unsigned>(realtime * 20.0) * 2654435761u;
+    const auto rnd = [&seed] { // 0..1
+        seed = seed * 1664525u + 1013904223u;
+        return static_cast<float>(seed >> 8) / static_cast<float>(1u << 24);
+    };
+    const auto rndDir = [&] { return glm::normalize(glm::vec3{rnd() - 0.5f, rnd() - 0.5f, rnd() - 0.5f} + 1e-3f); };
+
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f};
+    const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f};
+
+    for(int hand = 0; hand < 2; hand++)
+    {
+        glm::vec3 wrist = s.pos[hand];
+        glm::vec3 dir = hands::forward(s.rot[hand]);
+        if(glm::vec3 w, d; avatar::forearm(hand, w, d))
+        {
+            wrist = w;
+            dir = glm::normalize(d);
+        }
+        const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
+        const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.05f * m2w);
+
+        for(int bolt = 0; bolt < 3; bolt++)
+        {
+            if(rnd() < 0.25f)
+            {
+                continue; // flicker
+            }
+            const float along = rnd();
+            glm::vec3 a = along < 0.25f ? fingers : glm::mix(wrist, elbow, (along - 0.25f) / 0.75f);
+            a += rndDir() * (0.03f * m2w);
+            const glm::vec3 target = a + rndDir() * ((0.04f + 0.06f * rnd()) * m2w);
+            for(int seg = 1; seg <= 4; seg++)
+            {
+                glm::vec3 b = glm::mix(a, target, seg / 4.f);
+                if(seg < 4)
+                {
+                    b += rndDir() * (0.012f * m2w);
+                }
+                lines::line(a, b, 0.6f, glow, glow);
+                lines::line(a, b, 0.15f, core, core);
+                a = b;
+            }
+        }
+    }
+}
+
+// The player's state on the body (vr_body_state, vr_body_powerups): the armour worn and the
+// damage taken are skins (make_vrbody.py: armour * 4 + damage); powerups tint, fade or spark.
+void showPlayerState(view::ViewEntity& ve, const hands::State& s)
+{
+    if(vr_body_state.value)
+    {
+        const int health = cl.stats[STAT_HEALTH];
+        const int damage = health > 75 ? 0 : health > 50 ? 1 : health > 25 ? 2 : 3;
+        const int armor = cl.stats[STAT_ARMOR] <= 0 ? 0
+                          : (cl.items & IT_ARMOR3) ? 3
+                          : (cl.items & IT_ARMOR2) ? 2
+                          : (cl.items & IT_ARMOR1) ? 1
+                                                   : 0;
+        ve.ent.skinnum = armor * 4 + damage;
+    }
+    else
+    {
+        ve.ent.skinnum = 0;
+    }
+
+    ve.lightMultiply = false;
+    ve.lightMod = glm::vec3{1.f};
+    if(!vr_body_powerups.value)
+    {
+        return;
+    }
+
+    const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(realtime) * 6.f);
+    if(cl.items & IT_INVULNERABILITY)
+    {
+        ve.lightMultiply = true;
+        ve.lightMod = glm::vec3{1.6f + 0.6f * pulse, 0.7f, 0.7f};
+    }
+    else if(cl.items & IT_SUIT)
+    {
+        ve.lightMultiply = true;
+        ve.lightMod = glm::vec3{0.8f, 1.25f, 0.8f};
+    }
+    if(cl.items & IT_INVISIBILITY)
+    {
+        ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
+    }
+    if(cl.items & IT_QUAD)
+    {
+        quadArcs(s);
+    }
 }
 
 // The skinned body (vr_body_mode 2 and 3), its arms reaching the drawn hands' wrists; the old
@@ -633,6 +754,7 @@ void setupBody(const hands::State& s)
             view::ViewEntity& ve = entities.body;
             const glm::vec3 origin = avatar::pose(s, model, &ve.ent, handPoses, mode >= 3);
             place(ve, model, origin, glm::vec3{0.f}, 0, false);
+            showPlayerState(ve, s);
             setupTorso(s, false);
             return;
         }

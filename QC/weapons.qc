@@ -799,7 +799,15 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         dir = v_forward;
     }
 
-    for(float anything = 0; anything < 2; ++anything)
+    // A swing mostly downwards (reaching for a hip holster to reload) hits only things that
+    // bleed: not the floor or a wall on its way.
+    float passes = 2;
+    if(dir_z < -0.6)
+    {
+        passes = 1;
+    }
+
+    for(float anything = 0; anything < passes; ++anything)
     {
         traceline(handPos - dir * 6, handPos + dir * range, FALSE, self);
         if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))

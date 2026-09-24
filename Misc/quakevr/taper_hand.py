@@ -4,8 +4,8 @@
 #
 # Usage: python Misc/quakevr/taper_hand.py <input hand_base.mdl> <output hand_base.mdl>
 #
-# Applied once to the original model (git: quakevr/progs/hand_base.mdl before the commit that
-# added this script); run it on that original, not on its own output.
+# Run it on the original model, not on its own output: the original is
+#   git show 03ed2b93~1:quakevr/progs/hand_base.mdl > hand_base_orig.mdl
 #
 # Model space: +x towards the fingers; the wrist's centre is at (-6.86, -1.08, 1.42), the model's
 # end at x -6.97. Vertices behind TAPER_START are pulled towards the wrist's axis, down to
@@ -15,9 +15,9 @@ import struct
 import sys
 
 WRIST_Y, WRIST_Z = -1.08, 1.42
-TAPER_START = -2.5
+TAPER_START = -1.5
 TAPER_END_X = -6.97
-TAPER_END_SCALE = 0.7
+TAPER_END_SCALE = 0.55
 
 
 def taper(x, y, z):

@@ -110,6 +110,20 @@ QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
+QVR_CVAR(vr_gadget_hand, "0", CVAR_ARCHIVE)           // the wrist gadget's arm: 0 the off hand's, 1 the main hand's
+QVR_CVAR(vr_gadget_scale, "1", CVAR_ARCHIVE)          // its size
+QVR_CVAR(vr_gadget_x, "0", CVAR_ARCHIVE)              // cm it moves along the forearm (towards the fingers on the left arm),
+QVR_CVAR(vr_gadget_y, "0", CVAR_ARCHIVE)              // across it (the screen's up),
+QVR_CVAR(vr_gadget_z, "0", CVAR_ARCHIVE)              // and out of it
+QVR_CVAR(vr_gadget_pitch, "0", CVAR_ARCHIVE)          // degrees it turns about the screen's right,
+QVR_CVAR(vr_gadget_yaw, "0", CVAR_ARCHIVE)            // its up,
+QVR_CVAR(vr_gadget_roll, "0", CVAR_ARCHIVE)           // and out of the screen (180: the text runs the other way)
+QVR_CVAR(vr_gadget_tint_hue, "30", CVAR_ARCHIVE)      // the casing's tint: hue (degrees),
+QVR_CVAR(vr_gadget_tint, "0", CVAR_ARCHIVE)           // and strength (0: its own olive drab)
+QVR_CVAR(vr_gadget_screen_hue, "128", CVAR_ARCHIVE)   // the screen's colour: hue (degrees; 128 green, 40 amber, 200 blue),
+QVR_CVAR(vr_gadget_screen_brightness, "1", CVAR_ARCHIVE) // its text and lines' brightness,
+QVR_CVAR(vr_gadget_screen_background, "1", CVAR_ARCHIVE) // and its background's
+QVR_CVAR(vr_gadget_show_level, "1", CVAR_ARCHIVE)     // the level's name, kills and secrets on the screen
 QVR_CVAR(vr_sbar_offset_x, "-12", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_y, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_z, "-3", CVAR_ARCHIVE)
@@ -168,6 +182,8 @@ QVR_CVAR(vr_vrtorso_debuglines_enabled, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
+QVR_CVAR(vr_body_state, "1", CVAR_ARCHIVE)            // the body shows the armour worn and, bloodier, the damage taken
+QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage arcs, pentagram glow, ring translucency, biosuit tint
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up

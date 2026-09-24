@@ -6,6 +6,7 @@
 // screen in each eye, a frame later, as it does the rest of the HUD.
 
 #include "vr_gadget.hpp"
+#include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -49,9 +50,30 @@ constexpr const char* keyPics[2] = {"sb_key1", "sb_key2"};
 constexpr const char* powerupPics[4] = {"sb_invis", "sb_invuln", "sb_suit", "sb_quad"};
 constexpr const char* sigilPics[4] = {"sb_sigil1", "sb_sigil2", "sb_sigil3", "sb_sigil4"};
 
-constexpr glm::vec3 screenGreen{0.25f, 0.6f, 0.3f};
-constexpr glm::vec4 textGreen{0.45f, 1.f, 0.55f, 1.f};
 constexpr glm::vec4 white{1.f};
+
+// The screen's palette, from vr_gadget_screen_hue / _brightness / _background (the default is
+// the green of a phosphor screen).
+struct Palette
+{
+    glm::vec3 background;
+    glm::vec3 scanline;
+    glm::vec3 line; // frame and separators
+    glm::vec4 text;
+};
+
+[[nodiscard]] Palette palette()
+{
+    const float hue = vr_gadget_screen_hue.value;
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
+    Palette p;
+    p.background = hsv(hue, 0.57f, 0.07f * back);
+    p.scanline = hsv(hue, 0.6f, 0.05f * back);
+    p.line = glm::min(hsv(hue, 0.58f, 0.6f * bright), glm::vec3{1.f});
+    p.text = glm::vec4{glm::min(hsv(hue, 0.55f, bright), glm::vec3{1.f}), 1.f};
+    return p;
+}
 
 void fill(float x, float y, float w, float h, float r, float g, float b)
 {
@@ -74,11 +96,15 @@ void number(float x, float y, int value, int digits, bool red, float scale)
 
 void layout()
 {
-    // A green-tinted screen with faint scanlines and a frame.
-    fill(0.f, 0.f, width, height, 0.03f, 0.07f, 0.04f);
+    const Palette pal = palette();
+    const glm::vec3& screenGreen = pal.line;
+    const glm::vec4& textGreen = pal.text;
+
+    // A tinted screen with faint scanlines and a frame.
+    fill(0.f, 0.f, width, height, pal.background.r, pal.background.g, pal.background.b);
     for(int y = 0; y < height; y += 3)
     {
-        fill(0.f, static_cast<float>(y), width, 1.f, 0.02f, 0.05f, 0.03f);
+        fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline.r, pal.scanline.g, pal.scanline.b);
     }
     fill(0.f, 0.f, width, 2.f, screenGreen.r, screenGreen.g, screenGreen.b);
     fill(0.f, height - 2.f, width, 2.f, screenGreen.r, screenGreen.g, screenGreen.b);
@@ -147,6 +173,10 @@ void layout()
     }
 
     // The level, kills and secrets.
+    if(!vr_gadget_show_level.value)
+    {
+        return;
+    }
     fill(8.f, 122.f, width - 16.f, 1.f, screenGreen.r, screenGreen.g, screenGreen.b);
     char line[64];
     q_snprintf(line, sizeof(line), "%.22s", cl.levelname);
