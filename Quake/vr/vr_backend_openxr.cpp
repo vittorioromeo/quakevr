@@ -553,6 +553,8 @@ private:
         if(grip.velocityValid)
         {
             raw.linearVelocity = grip.linearVelocity + glm::cross(grip.angularVelocity, raw.position - grip.position);
+            raw.gripVelocity = grip.linearVelocity;
+            raw.gripVelocityValid = true;
         }
         return raw;
     }

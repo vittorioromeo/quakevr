@@ -143,9 +143,13 @@ void updateVelocities(const TrackingState* t)
         }
 
         previous.hands[h] = local;
-        // On the runtime's clock when it has one: the release is timed on it too.
+        // On the runtime's clock when it has one: the release is timed on it too. Throws go with
+        // the palm, where the object is held, not the controller point further out.
         const double time = t && t->time >= 0.0 ? t->time : realtime;
-        throwing::sample(h, time, state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h]));
+        const glm::vec3 throwVel = t && t->hands[h].velocityValid && t->hands[h].gripVelocityValid
+                                       ? fromTracking(t->hands[h].gripVelocity)
+                                       : state.vel[h];
+        throwing::sample(h, time, state.pos[h], throwVel, state.angVel[h], forward(state.rot[h]));
     }
 
     previous.head = head;

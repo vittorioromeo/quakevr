@@ -20,7 +20,8 @@ QVR_CVAR(vr_throw_avg_frames, "15", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_window, "0.12", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_lookahead, "0.01", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_peak_span, "0.017", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_lever_arm, "0.05", CVAR_ARCHIVE)  // metres from the controller point to the held object's centre
+QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)   // metres from the palm to the held object's centre
+QVR_CVAR(vr_throw_dir_lookback, "0.04", CVAR_ARCHIVE) // seconds before the peak the direction is averaged over
 QVR_CVAR(vr_throw_ang_threshold, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)

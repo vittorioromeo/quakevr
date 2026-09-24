@@ -26,6 +26,11 @@ struct Pose
     glm::vec3 linearVelocity{0.f};
     glm::vec3 angularVelocity{0.f};
     bool velocityValid{false};
+
+    // Of the hand's grip (the palm) when the pose was moved off it (vr_controller_legacy_pose):
+    // what a held object moves with. A wrist flick swings the controller's tip much faster.
+    glm::vec3 gripVelocity{0.f};
+    bool gripVelocityValid{false};
 };
 
 enum Hand : int

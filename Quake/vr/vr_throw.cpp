@@ -164,6 +164,25 @@ History histories[2];
     vel /= static_cast<float>(nVel);
     angVel /= static_cast<float>(nAng);
 
+    // The direction from the samples leading up to the peak: at the peak itself an overarm throw
+    // is already curving down, and throws went lower than meant.
+    if(const float lookback = vr_throw_dir_lookback.value; lookback > 0.f)
+    {
+        glm::vec3 dir{0.f};
+        for(int i = 0; i < h.count; i++)
+        {
+            const Sample& s = h.at(i);
+            if(s.time <= peak.time && s.time >= peak.time - lookback)
+            {
+                dir += s.vel;
+            }
+        }
+        if(glm::length(dir) > 1e-4f && glm::length(vel) > 1e-4f)
+        {
+            vel = glm::normalize(dir) * glm::length(vel);
+        }
+    }
+
     // The object's centre, and the velocity a clear wrist flick adds there.
     const glm::vec3 lever = peak.forward * vr_throw_lever_arm.value; // metres
     if(glm::length(angVel) > vr_throw_ang_threshold.value)
