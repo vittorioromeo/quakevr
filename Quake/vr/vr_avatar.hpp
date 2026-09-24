@@ -47,10 +47,18 @@ enum class Part
 // Whether `model` is the skinned body with the expected skeleton.
 [[nodiscard]] bool usable(qmodel_t* model);
 
-// Poses the body for this frame; `wrist` and `handUp` (the back of the hand's direction) are
-// per hand (HAND_OFF, HAND_MAIN), in world space. Returns the entity origin (the pelvis).
-glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const glm::vec3 wrist[2],
-    const glm::vec3 handUp[2], bool legs);
+// A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb is,
+// and the direction from the wrist to the fingers.
+struct HandPose
+{
+    glm::vec3 wrist{0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+    glm::vec3 forward{0.f};
+};
+
+// Poses the body for this frame, per hand (HAND_OFF, HAND_MAIN). Returns the entity origin (the
+// pelvis).
+glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs);
 
 // Not drawn this frame.
 void hide();

@@ -164,6 +164,7 @@ QVR_CVAR(vr_vrtorso_debuglines_enabled, "0", CVAR_ARCHIVE)
 // cvars), 2 torso and arms, 3 torso, arms and legs (2 and 3: the skinned progs/vrbody model, posed
 // by IK from the head and hands; they fall back to 1 when it is not available).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up

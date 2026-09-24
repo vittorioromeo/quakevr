@@ -134,6 +134,7 @@ void restartVr()
         slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f"),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {1.f, "Torso"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
+        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Headset"),

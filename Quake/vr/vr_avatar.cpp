@@ -282,7 +282,7 @@ void solveTorso(const hands::State& s, Body& b)
 }
 
 // Shoulder and arm of `side` (0 left, 1 right) to the wrist.
-void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp)
+void solveArm(Body& b, int side, const HandPose& handPose)
 {
     const Bind& bd = bind();
     const int clav = side == 0 ? ClavicleL : ClavicleR;
@@ -293,6 +293,8 @@ void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp
     const Bone& chest = b.bones[Chest];
     const glm::vec3 cUp = chest.rot[0];
     const glm::vec3 cFwd = chest.rot[2];
+    const glm::vec3& wrist = handPose.wrist;
+    const glm::vec3& handUp = handPose.up;
 
     // The shoulder rises when the hand is above it, and swings forward when the hand reaches far
     // forward (the clavicle turns about the base of the neck).
@@ -350,7 +352,7 @@ void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp
     // top, where the thumb is.
     const glm::vec3 foreDir = safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos));
     const glm::mat3 untwisted = basis(foreDir, bend);
-    const glm::mat3 wristRot = basis(foreDir, -handUp);
+    const glm::mat3 wristRot = basis(foreDir, -handUp); // the hand's roll only
     const float twist = std::atan2(glm::dot(glm::cross(untwisted[2], wristRot[2]), foreDir),
         glm::dot(untwisted[2], wristRot[2]));
 
@@ -360,10 +362,12 @@ void solveArm(Body& b, int side, const glm::vec3& wrist, const glm::vec3& handUp
     f.rot = glm::mat3_cast(glm::angleAxis(twist * CLAMP(0.f, vr_body_forearm_twist.value, 1.f), foreDir)) * untwisted;
     f.stretch = stretch * length;
 
+    // The hand bone turns with the hand itself, bent at the wrist too: the wrist and the bracer's
+    // cuff over the back of the hand go with it, so that the hand never comes off the arm.
     Bone& h = b.bones[hand];
     h = Bone{};
     h.pos = elbow + foreDir * l;
-    h.rot = wristRot;
+    h.rot = glm::length(handPose.forward) > 0.5f ? basis(handPose.forward, -handUp) : wristRot;
 }
 
 // Legs standing with the feet under the head (the balance point: crouching pushes the hips back
@@ -543,16 +547,15 @@ bool usable(qmodel_t* model)
     return true;
 }
 
-glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const glm::vec3 wrist[2],
-    const glm::vec3 handUp[2], bool legs)
+glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs)
 {
     Body b;
     solveTorso(s, b);
 
     // Which hand is on which side.
     const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
-    solveArm(b, 0, wrist[leftHand], handUp[leftHand]);
-    solveArm(b, 1, wrist[1 - leftHand], handUp[1 - leftHand]);
+    solveArm(b, 0, handPoses[leftHand]);
+    solveArm(b, 1, handPoses[1 - leftHand]);
     solveLeg(b, s.head, 0, legs);
     solveLeg(b, s.head, 1, legs);
 

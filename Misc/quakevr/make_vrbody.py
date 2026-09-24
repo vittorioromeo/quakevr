@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# make_vrbody.py -- generates the prototype skinned body of Quake VR's avatar (Quake/vr/vr_avatar.cpp):
-#   quakevr/progs/vrbody.md5mesh, vrbody.md5anim  the skeleton and a low-poly body, in the bind pose
-#   quakevr/progs/vrbody_00_00.tga                its skin (Quake palette colours)
-#   quakevr/progs/vrbody.mdl                      a placeholder: Ironwail loads MD5 only as the
-#                                                 "enhanced" replacement of an existing .mdl
+# make_vrbody.py -- generates the prototype skinned body of Quake VR's avatar (Quake/vr/vr_avatar.cpp),
+# in three builds (vrbody_lean, vrbody (athletic), vrbody_brawny; vr_body_build picks one):
+#   quakevr/progs/<build>.md5mesh, .md5anim  the skeleton and a low-poly body, in the bind pose
+#   quakevr/progs/<build>.mdl                a placeholder: Ironwail loads MD5 only as the
+#                                            "enhanced" replacement of an existing .mdl
+#   quakevr/progs/vrbody_00_00.tga           their skin (Quake palette colours)
 #
 # Usage: python Misc/quakevr/make_vrbody.py [output progs folder]
 #
@@ -209,80 +210,97 @@ def w(*pairs):
     return [(index[n], b) for n, b in pairs]
 
 
-# Torso: vertical rings (u forward, v left).
-X, Y = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)
-loft([
-    ((-0.01, 0.0, 0.86), X, Y, 0.10, 0.15, w(("pelvis", 1.0))),
-    ((-0.01, 0.0, 0.95), X, Y, 0.115, 0.17, w(("pelvis", 1.0))),
-    ((-0.01, 0.0, 1.05), X, Y, 0.11, 0.155, w(("pelvis", 0.5), ("spine", 0.5))),
-    ((-0.01, 0.0, 1.15), X, Y, 0.105, 0.15, w(("spine", 1.0))),
-    ((-0.01, 0.0, 1.25), X, Y, 0.12, 0.17, w(("spine", 0.4), ("chest", 0.6))),
-    ((-0.01, 0.0, 1.35), X, Y, 0.13, 0.19, w(("chest", 1.0))),
-    ((-0.01, 0.0, 1.43), X, Y, 0.11, 0.17, w(("chest", 1.0))),
-    ((-0.01, 0.0, 1.47), X, Y, 0.06, 0.07, w(("chest", 0.5), ("neck", 0.5))),
-], "leather")
-# Neck and head.
-loft([
-    ((-0.01, 0.0, 1.47), X, Y, 0.05, 0.055, w(("neck", 1.0))),
-    ((-0.01, 0.0, 1.55), X, Y, 0.05, 0.055, w(("neck", 0.5), ("head", 0.5))),
-    ((0.0, 0.0, 1.60), X, Y, 0.095, 0.085, w(("head", 1.0))),
-    ((0.0, 0.0, 1.68), X, Y, 0.10, 0.09, w(("head", 1.0))),
-    ((-0.01, 0.0, 1.75), X, Y, 0.08, 0.07, w(("head", 1.0))),
-], "skin", cap_start=False)
+# Builds (make_vrbody.py writes one model each): muscularity scales the arms' girth (the forearms
+# a little more, the wrists much less: bones do not grow), and some of it the chest and thighs.
+BUILDS = (("_lean", 0.9), ("", 1.2), ("_brawny", 1.5))
 
-for side, sy in (("l", 1.0), ("r", -1.0)):
-    shoulder = joints[index["upperarm_" + side]][2]
-    elbow = joints[index["forearm_" + side]][2]
-    wrist = joints[index["hand_" + side]][2]
-    upper = bases["upperarm_" + side]
-    fore = bases["forearm_" + side]
-    # Ring axes: u towards the bone's hint (back of the upper arm; the little finger's side of the
-    # forearm, the palms facing the thighs), v the other way round. Muscular: a deltoid over the
-    # shoulder, biceps and triceps (front to back), forearms thick below the elbow and flat at
-    # the wrist (wider across than through).
-    ua, va = upper[2], upper[1]
-    fa, fv = fore[2], fore[1]
-    ud, fd = upper[0], fore[0]
-    ua_, cl_ = "upperarm_" + side, "clavicle_" + side
-    fo_, ha_ = "forearm_" + side, "hand_" + side
-    loft([
-        (sub(shoulder, mul(ud, 0.05)), ua, va, 0.055, 0.055, w((cl_, 0.6), (ua_, 0.4))),
-        (add(shoulder, mul(ud, 0.00)), ua, va, 0.070, 0.066, w((cl_, 0.25), (ua_, 0.75))),
-        (add(shoulder, mul(ud, 0.06)), ua, va, 0.068, 0.062, w((ua_, 1.0))),
-        (add(shoulder, mul(ud, 0.13)), ua, va, 0.064, 0.052, w((ua_, 1.0))),
-        (add(shoulder, mul(ud, 0.21)), ua, va, 0.054, 0.047, w((ua_, 1.0))),
-        (elbow, ua, va, 0.046, 0.046, w((ua_, 0.5), (fo_, 0.5))),
-        (add(elbow, mul(fd, 0.05)), fa, fv, 0.050, 0.048, w((fo_, 1.0))),
-        (add(elbow, mul(fd, 0.12)), fa, fv, 0.044, 0.038, w((fo_, 1.0))),
-        (add(elbow, mul(fd, 0.19)), fa, fv, 0.036, 0.028, w((fo_, 0.5), (ha_, 0.5))),
-        (wrist, fa, fv, 0.030, 0.021, w((ha_, 1.0))),
-    ], "skin", sides=10)
-    # A leather bracer over the forearm's lower half: its strap shows how the forearm turns.
-    loft([
-        (add(elbow, mul(fd, 0.13)), fa, fv, 0.047, 0.041, w((fo_, 1.0))),
-        (add(elbow, mul(fd, 0.19)), fa, fv, 0.040, 0.032, w((fo_, 0.5), (ha_, 0.5))),
-        (add(wrist, mul(fd, 0.005)), fa, fv, 0.034, 0.025, w((ha_, 1.0))),
-    ], "bracer", sides=10)
 
-    hip = joints[index["thigh_" + side]][2]
-    knee = joints[index["calf_" + side]][2]
-    ankle = joints[index["foot_" + side]][2]
-    thigh = bases["thigh_" + side]
-    calf = bases["calf_" + side]
+def build_mesh(m):
+    verts.clear()
+    tris.clear()
+    torso = 1.0 + (m - 1.0) * 0.35
+    fm = m * 1.08               # forearms
+    wm = 1.0 + (m - 1.0) * 0.3  # wrists
+
+    # Torso: vertical rings (u forward, v left).
+    X, Y = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)
     loft([
-        (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], 0.085, 0.08, w(("thigh_" + side, 1.0))),
-        (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], 0.075, 0.07, w(("thigh_" + side, 1.0))),
-        (knee, thigh[2], thigh[1], 0.055, 0.055, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
-        (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.055, 0.05, w(("calf_" + side, 1.0))),
-        (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.04, 0.04, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
-    ], "cloth")
-    # Foot: rings along x (u up, v left).
-    Z = (0.0, 0.0, 1.0)
+        ((-0.01, 0.0, 0.86), X, Y, 0.10, 0.15, w(("pelvis", 1.0))),
+        ((-0.01, 0.0, 0.95), X, Y, 0.115, 0.17, w(("pelvis", 1.0))),
+        ((-0.01, 0.0, 1.05), X, Y, 0.11, 0.155, w(("pelvis", 0.5), ("spine", 0.5))),
+        ((-0.01, 0.0, 1.15), X, Y, 0.105 * torso, 0.15 * torso, w(("spine", 1.0))),
+        ((-0.01, 0.0, 1.25), X, Y, 0.12 * torso, 0.17 * torso, w(("spine", 0.4), ("chest", 0.6))),
+        ((-0.01, 0.0, 1.35), X, Y, 0.13 * torso, 0.19 * torso, w(("chest", 1.0))),
+        ((-0.01, 0.0, 1.43), X, Y, 0.11 * torso, 0.17 * torso, w(("chest", 1.0))),
+        ((-0.01, 0.0, 1.47), X, Y, 0.06, 0.07, w(("chest", 0.5), ("neck", 0.5))),
+    ], "leather")
+    # Neck and head.
     loft([
-        ((-0.06, 0.09 * sy, 0.05), Z, Y, 0.05, 0.045, w(("foot_" + side, 1.0))),
-        ((0.03, 0.09 * sy, 0.045), Z, Y, 0.045, 0.05, w(("foot_" + side, 1.0))),
-        ((0.16, 0.09 * sy, 0.03), Z, Y, 0.025, 0.04, w(("foot_" + side, 1.0))),
-    ], "boots")
+        ((-0.01, 0.0, 1.47), X, Y, 0.05 * torso, 0.055 * torso, w(("neck", 1.0))),
+        ((-0.01, 0.0, 1.55), X, Y, 0.05 * torso, 0.055 * torso, w(("neck", 0.5), ("head", 0.5))),
+        ((0.0, 0.0, 1.60), X, Y, 0.095, 0.085, w(("head", 1.0))),
+        ((0.0, 0.0, 1.68), X, Y, 0.10, 0.09, w(("head", 1.0))),
+        ((-0.01, 0.0, 1.75), X, Y, 0.08, 0.07, w(("head", 1.0))),
+    ], "skin", cap_start=False)
+
+    for side, sy in (("l", 1.0), ("r", -1.0)):
+        shoulder = joints[index["upperarm_" + side]][2]
+        elbow = joints[index["forearm_" + side]][2]
+        wrist = joints[index["hand_" + side]][2]
+        upper = bases["upperarm_" + side]
+        fore = bases["forearm_" + side]
+        # Ring axes: u towards the bone's hint (back of the upper arm; the little finger's side
+        # of the forearm, the palms facing the thighs), v the other way round. A deltoid over the
+        # shoulder, biceps and triceps (front to back), forearms thick below the elbow and flat
+        # at the wrist (wider across than through). The wrist ring bends with the hand, and the
+        # bracer ends in a cuff over the base of the hand (the hand bone), so that a bent wrist
+        # does not open a gap between the arm and the hand.
+        ua, va = upper[2], upper[1]
+        fa, fv = fore[2], fore[1]
+        ud, fd = upper[0], fore[0]
+        ua_, cl_ = "upperarm_" + side, "clavicle_" + side
+        fo_, ha_ = "forearm_" + side, "hand_" + side
+        loft([
+            (sub(shoulder, mul(ud, 0.05)), ua, va, 0.055 * m, 0.055 * m, w((cl_, 0.6), (ua_, 0.4))),
+            (add(shoulder, mul(ud, 0.00)), ua, va, 0.070 * m, 0.066 * m, w((cl_, 0.25), (ua_, 0.75))),
+            (add(shoulder, mul(ud, 0.06)), ua, va, 0.068 * m, 0.062 * m, w((ua_, 1.0))),
+            (add(shoulder, mul(ud, 0.13)), ua, va, 0.064 * m, 0.052 * m, w((ua_, 1.0))),
+            (add(shoulder, mul(ud, 0.21)), ua, va, 0.054 * m, 0.047 * m, w((ua_, 1.0))),
+            (elbow, ua, va, 0.046 * m, 0.046 * m, w((ua_, 0.5), (fo_, 0.5))),
+            (add(elbow, mul(fd, 0.05)), fa, fv, 0.052 * fm, 0.050 * fm, w((fo_, 1.0))),
+            (add(elbow, mul(fd, 0.12)), fa, fv, 0.046 * fm, 0.040 * fm, w((fo_, 1.0))),
+            (add(elbow, mul(fd, 0.19)), fa, fv, 0.037 * wm, 0.029 * wm, w((fo_, 0.8), (ha_, 0.2))),
+            (wrist, fa, fv, 0.031 * wm, 0.022 * wm, w((fo_, 0.4), (ha_, 0.6))),
+        ], "skin", sides=10)
+        # A leather bracer over the forearm's lower half (its strap shows how the forearm turns),
+        # ending in a cuff over the base of the hand.
+        loft([
+            (add(elbow, mul(fd, 0.13)), fa, fv, 0.049 * fm, 0.043 * fm, w((fo_, 1.0))),
+            (add(elbow, mul(fd, 0.19)), fa, fv, 0.041 * wm, 0.033 * wm, w((fo_, 0.8), (ha_, 0.2))),
+            (wrist, fa, fv, 0.036 * wm, 0.027 * wm, w((fo_, 0.4), (ha_, 0.6))),
+            (add(wrist, mul(fd, 0.03)), fa, fv, 0.035 * wm, 0.027 * wm, w((ha_, 1.0))),
+        ], "bracer", sides=10)
+
+        hip = joints[index["thigh_" + side]][2]
+        knee = joints[index["calf_" + side]][2]
+        ankle = joints[index["foot_" + side]][2]
+        thigh = bases["thigh_" + side]
+        calf = bases["calf_" + side]
+        loft([
+            (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], 0.085 * torso, 0.08 * torso, w(("thigh_" + side, 1.0))),
+            (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], 0.075 * torso, 0.07 * torso, w(("thigh_" + side, 1.0))),
+            (knee, thigh[2], thigh[1], 0.055, 0.055, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
+            (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.055 * torso, 0.05 * torso, w(("calf_" + side, 1.0))),
+            (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.04, 0.04, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
+        ], "cloth")
+        # Foot: rings along x (u up, v left).
+        Z = (0.0, 0.0, 1.0)
+        loft([
+            ((-0.06, 0.09 * sy, 0.05), Z, Y, 0.05, 0.045, w(("foot_" + side, 1.0))),
+            ((0.03, 0.09 * sy, 0.045), Z, Y, 0.045, 0.05, w(("foot_" + side, 1.0))),
+            ((0.16, 0.09 * sy, 0.03), Z, Y, 0.025, 0.04, w(("foot_" + side, 1.0))),
+        ], "boots")
+
 
 # ----------------------------------------------------------------------------
 # Output
@@ -418,11 +436,15 @@ def write_placeholder_mdl(path):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
-    write_md5mesh(os.path.join(out, "vrbody.md5mesh"))
-    write_md5anim(os.path.join(out, "vrbody.md5anim"))
     write_skin(os.path.join(out, "vrbody_00_00.tga"))
-    write_placeholder_mdl(os.path.join(out, "vrbody.mdl"))
-    print("%d joints, %d vertices, %d triangles -> %s" % (len(joints), len(verts), len(tris), os.path.normpath(out)))
+    for suffix, muscle in BUILDS:
+        build_mesh(muscle)
+        name = "vrbody" + suffix
+        write_md5mesh(os.path.join(out, name + ".md5mesh"))
+        write_md5anim(os.path.join(out, name + ".md5anim"))
+        write_placeholder_mdl(os.path.join(out, name + ".mdl"))
+        print("%s: %d joints, %d vertices, %d triangles" % (name, len(joints), len(verts), len(tris)))
+    print("-> " + os.path.normpath(out))
 
 
 if __name__ == "__main__":

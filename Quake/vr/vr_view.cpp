@@ -524,32 +524,42 @@ void setupBody(const hands::State& s)
 
     if(mode >= 2)
     {
-        qmodel_t* model = Mod_ForName("progs/vrbody.mdl", false);
+        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny.
+        const int build = static_cast<int>(vr_body_build.value);
+        const char* name = build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl";
+        qmodel_t* model = Mod_ForName(name, false);
+        if(!avatar::usable(model))
+        {
+            model = Mod_ForName("progs/vrbody.mdl", false);
+        }
         if(avatar::usable(model))
         {
             // The centre of the wrist in hand_base.mdl (frame 0).
             constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
 
-            glm::vec3 wrist[2], handUp[2];
+            avatar::HandPose handPoses[2];
             for(int hand = 0; hand < 2; hand++)
             {
+                avatar::HandPose& hp = handPoses[hand];
                 const view::ViewEntity& base = entities.hand[hand][FingerBase];
                 if(entities.weapon[hand].ent.model && base.ent.model)
                 {
-                    wrist[hand] = view::modelPoint(base, handWrist);
-                    handUp[hand] = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - wrist[hand]);
+                    hp.wrist = view::modelPoint(base, handWrist);
+                    hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
+                    hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
                 }
                 else
                 {
                     glm::vec3 fwd, right, up;
                     hands::angleVectors(s.rot[hand], fwd, right, up);
-                    wrist[hand] = s.pos[hand] - fwd * 4.f;
-                    handUp[hand] = up;
+                    hp.wrist = s.pos[hand] - fwd * 4.f;
+                    hp.up = up;
+                    hp.forward = fwd;
                 }
             }
 
             view::ViewEntity& ve = entities.body;
-            const glm::vec3 origin = avatar::pose(s, model, &ve.ent, wrist, handUp, mode >= 3);
+            const glm::vec3 origin = avatar::pose(s, model, &ve.ent, handPoses, mode >= 3);
             place(ve, model, origin, glm::vec3{0.f}, 0, false);
             setupTorso(s, false);
             return;
