@@ -129,9 +129,9 @@ hands, weapons and finger curls.
 ## Testing without a headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
-`vr_mock_stick <main|off> <x> <y>` and `vr_mock_hand <main|off|head> <x> <y> <z>` drive it; `vr_mock_swing <period>`
+`vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z>` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
 swings the main hand for throwing tests.
 
 ## Not there yet
 
-Debug helpers from the old engine (`vr_show*`); shadows under the player and hands.
+Debug helpers from the old engine (`vr_show*`).

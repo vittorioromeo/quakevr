@@ -180,6 +180,8 @@ void clear()
 
 } // namespace qvr::text3d
 
+void VR_DrawShadows(); // vr_shadows.cpp
+
 extern "C" void VR_DrawSceneOpaque()
 {
     using namespace qvr;
@@ -189,6 +191,8 @@ extern "C" void VR_DrawSceneOpaque()
     {
         return;
     }
+
+    VR_DrawShadows();
 
     vertices.clear();
     for(const worldtext::WorldText& wt : worldtext::clientTexts())

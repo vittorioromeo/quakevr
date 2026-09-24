@@ -94,6 +94,22 @@ void mockHand_f()
     mockHandPos[hand] = {Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
 }
 
+// vr_mock_look <pitch> <yaw>: the head's orientation in degrees (pitch down positive).
+glm::quat mockHeadOrientation{1.f, 0.f, 0.f, 0.f};
+
+void mockLook_f()
+{
+    if(Cmd_Argc() != 3)
+    {
+        Con_Printf("usage: vr_mock_look <pitch> <yaw>\n");
+        return;
+    }
+    const float pitch = glm::radians(Q_atof(Cmd_Argv(1)));
+    const float yaw = glm::radians(Q_atof(Cmd_Argv(2)));
+    mockHeadOrientation =
+        glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f}) * glm::angleAxis(-pitch, glm::vec3{1.f, 0.f, 0.f});
+}
+
 // vr_mock_stick <main|off> <x> <y>
 void mockStick_f()
 {
@@ -170,6 +186,7 @@ public:
         {
             tracking.head.position = mockHandPos[mockHead];
         }
+        tracking.head.orientation = mockHeadOrientation;
         if(vr_mock_swing.value > 0.f)
         {
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
@@ -235,6 +252,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_button", mockButton_f);
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
+    Cmd_AddCommand("vr_mock_look", mockLook_f);
 }
 
 std::unique_ptr<Backend> makeMockBackend()
