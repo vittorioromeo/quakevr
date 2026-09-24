@@ -10,11 +10,11 @@
 // TODO VR: (P6) menu laser pointer.
 
 #include "vr_cvars.hpp"
-
-#include <glm/gtc/matrix_transform.hpp>
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
+
+#include <glm/gtc/matrix_transform.hpp>
 
 using namespace qvr;
 
@@ -290,6 +290,39 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     drawCanvas(viewProjection() * quad(corner, right * width, up * height), wholeCanvas, mask);
 }
 
+GLuint panelFbo = 0;
+
+// The canvas into the backend's panel image, when it has one.
+void copyToRuntimePanel()
+{
+    Backend* be = backend();
+    const unsigned image = be ? be->acquirePanelImage(canvasWidth, canvasHeight) : 0;
+    if(!image)
+    {
+        return;
+    }
+
+    if(!panelFbo)
+    {
+        GL_GenFramebuffersFunc(1, &panelFbo);
+    }
+
+    GLint drawFbo = 0;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
+
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, panelFbo);
+    GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, canvasFbo);
+    GL_BlitFramebufferFunc(0, 0, canvasWidth, canvasHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT,
+        GL_NEAREST);
+    GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
+
+    be->releasePanelImage();
+}
+
 } // namespace
 
 namespace qvr::panel
@@ -343,7 +376,9 @@ void drawInEye(const hands::State& s)
 
 extern "C" void VR_Begin2D()
 {
-    drawingToCanvas = stereoThisFrame;
+    // With VR active the 2D layer always goes to the canvas: into the eyes when they were
+    // rendered, else onto the runtime's panel (menus before a map, the console, loading).
+    drawingToCanvas = stereoThisFrame || vrActive();
     if(!drawingToCanvas)
     {
         return;
@@ -378,5 +413,9 @@ extern "C" void VR_End2D()
     toNdc[3] = glm::vec4{-1.f, -1.f, 0.f, 1.f};
     drawCanvas(toNdc);
 
+    if(!stereoThisFrame)
+    {
+        copyToRuntimePanel();
+    }
     stereoThisFrame = false;
 }

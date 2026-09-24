@@ -22,6 +22,7 @@
 #define GL_SRGB8_ALPHA8 0x8C43
 #endif
 
+#include <cmath>
 #include <cstring>
 #include <initializer_list>
 #include <vector>
@@ -65,14 +66,15 @@ public:
             endFrame(false);
         }
 
-        for(Swapchain& sc : swapchains)
+        for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel})
         {
-            if(sc.handle != XR_NULL_HANDLE)
+            if(sc->handle != XR_NULL_HANDLE)
             {
-                xrDestroySwapchain(sc.handle);
-                sc = Swapchain{};
+                xrDestroySwapchain(sc->handle);
+                *sc = Swapchain{};
             }
         }
+        panelPending = panelShown = false;
 
         for(XrSpace& space : handSpaces)
         {
@@ -173,6 +175,14 @@ public:
         readInput(tracking.input);
 
         tracking.head = locate(viewSpace, time);
+        if(tracking.head.valid)
+        {
+            XrSpaceLocation location{XR_TYPE_SPACE_LOCATION};
+            if(XR_SUCCEEDED(xrLocateSpace(viewSpace, worldSpace, time, &location)))
+            {
+                lastHeadPose = location.pose;
+            }
+        }
         for(int h = 0; h < HAND_COUNT; h++)
         {
             tracking.hands[h] = locate(handSpaces[handSide(h)], time);
@@ -229,6 +239,9 @@ public:
         endInfo.displayTime = frameState.predictedDisplayTime;
         endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 
+        const XrCompositionLayerBaseHeader* submitted[2];
+        uint32_t count = 0;
+
         if(rendered && frameState.shouldRender)
         {
             for(int eye = 0; eye < 2; eye++)
@@ -243,14 +256,121 @@ public:
             layer.space = worldSpace;
             layer.viewCount = 2;
             layer.views = projViews;
-            endInfo.layerCount = 1;
-            endInfo.layers = layers;
+            submitted[count++] = layers[0];
         }
 
+        XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
+        if(panelPending && frameState.shouldRender)
+        {
+            if(!panelShown)
+            {
+                placePanel();
+            }
+
+            quad.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT; // premultiplied
+            quad.space = worldSpace;
+            quad.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
+            quad.subImage.swapchain = panel.handle;
+            quad.subImage.imageRect.extent = {panel.width, panel.height};
+            quad.pose = panelPose;
+            quad.size = {panelWidth, panelWidth * static_cast<float>(panel.height) / static_cast<float>(panel.width)};
+            submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quad);
+        }
+        panelShown = panelPending && frameState.shouldRender;
+        panelPending = false;
+
+        endInfo.layerCount = count;
+        endInfo.layers = count ? submitted : nullptr;
         check(xrEndFrame(session, &endInfo), "xrEndFrame");
     }
 
+    [[nodiscard]] unsigned acquirePanelImage(int width, int height) override
+    {
+        if(!frameBegun || panelPending || width <= 0 || height <= 0 || !ensurePanelSwapchain(width, height))
+        {
+            return 0;
+        }
+
+        XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        if(!check(xrAcquireSwapchainImage(panel.handle, &acquireInfo, &index), "xrAcquireSwapchainImage"))
+        {
+            return 0;
+        }
+
+        XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        waitInfo.timeout = XR_INFINITE_DURATION;
+        check(xrWaitSwapchainImage(panel.handle, &waitInfo), "xrWaitSwapchainImage");
+        return panel.images[index].image;
+    }
+
+    void releasePanelImage() override
+    {
+        XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        panelPending = check(xrReleaseSwapchainImage(panel.handle, &releaseInfo), "xrReleaseSwapchainImage");
+    }
+
 private:
+    // The panel: 1.6 m wide, 1.4 m in front of where the head faced when it appeared, upright.
+    static constexpr float panelWidth = 1.6f;
+    static constexpr float panelDistance = 1.4f;
+
+    void placePanel()
+    {
+        const XrQuaternionf& q = lastHeadPose.orientation;
+        // The head's forward (-z) direction, flattened.
+        glm::vec3 fwd = glm::quat{q.w, q.x, q.y, q.z} * glm::vec3{0.f, 0.f, -1.f};
+        fwd.y = 0.f;
+        if(glm::length(fwd) < 1e-3f)
+        {
+            fwd = {0.f, 0.f, -1.f};
+        }
+        fwd = glm::normalize(fwd);
+
+        const float yaw = std::atan2(-fwd.x, -fwd.z);
+        const glm::quat orientation = glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f});
+
+        panelPose.position = {lastHeadPose.position.x + fwd.x * panelDistance, lastHeadPose.position.y,
+            lastHeadPose.position.z + fwd.z * panelDistance};
+        panelPose.orientation = {orientation.x, orientation.y, orientation.z, orientation.w};
+    }
+
+    bool ensurePanelSwapchain(int width, int height)
+    {
+        if(panel.handle != XR_NULL_HANDLE && panel.width == width && panel.height == height)
+        {
+            return true;
+        }
+        if(panel.handle != XR_NULL_HANDLE)
+        {
+            xrDestroySwapchain(panel.handle);
+            panel = Swapchain{};
+        }
+
+        XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+        info.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
+        info.format = colorFormat;
+        info.sampleCount = 1;
+        info.width = static_cast<uint32_t>(width);
+        info.height = static_cast<uint32_t>(height);
+        info.faceCount = 1;
+        info.arraySize = 1;
+        info.mipCount = 1;
+        if(!check(xrCreateSwapchain(session, &info, &panel.handle), "xrCreateSwapchain (panel)"))
+        {
+            return false;
+        }
+
+        panel.width = width;
+        panel.height = height;
+        uint32_t imageCount = 0;
+        xrEnumerateSwapchainImages(panel.handle, 0, &imageCount, nullptr);
+        panel.images.assign(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+        xrEnumerateSwapchainImages(panel.handle, imageCount, &imageCount,
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(panel.images.data()));
+        return true;
+    }
+
     struct Swapchain
     {
         XrSwapchain handle{XR_NULL_HANDLE};
@@ -280,6 +400,12 @@ private:
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
+    Swapchain panel;
+    int64_t colorFormat{GL_RGBA8};
+    bool panelPending{false}; // an image was released for the frame being finished
+    bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
+    XrPosef panelPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
+    XrPosef lastHeadPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
     bool sessionRunning{false};
     bool swapIntervalChanged{false};
@@ -733,6 +859,7 @@ private:
             }
         }
 
+        colorFormat = format;
         for(int eye = 0; eye < 2; eye++)
         {
             Swapchain& sc = swapchains[eye];

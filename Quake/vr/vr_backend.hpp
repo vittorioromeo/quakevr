@@ -112,6 +112,17 @@ public:
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered.
     virtual void endFrame(bool rendered) = 0;
 
+    // A flat panel the runtime shows in front of the player while the world is not rendered
+    // (menus before a map, the console, loading): the GL texture to copy the 2D layer into, or
+    // 0 without one. At most once per frame; shown with the frame endFrame finishes.
+    [[nodiscard]] virtual unsigned acquirePanelImage(int /* width */, int /* height */)
+    {
+        return 0;
+    }
+    virtual void releasePanelImage()
+    {
+    }
+
     // Vibrates a controller.
     virtual void haptic(int /* hand */, float /* seconds */, float /* frequency */, float /* amplitude */)
     {
