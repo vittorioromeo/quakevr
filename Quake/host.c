@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "bgmusic.h"
 #include "steam.h"
+#include "vr/vr_api.h" // QVR
 #include <setjmp.h>
 
 /*
@@ -1224,6 +1225,7 @@ void _Host_Frame (double time)
 
 // allow mice or other external controllers to add commands
 	IN_Commands ();
+	VR_BeginFrame (); // QVR
 
 //check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
@@ -1434,6 +1436,7 @@ void Host_Init (void)
 		BGM_Init();
 		Sbar_Init ();
 		CL_Init ();
+		VR_Init (); // QVR
 		ExtraMaps_Init (); //johnfitz
 		DemoList_Init (); //ericw
 		SaveList_Init ();
@@ -1522,6 +1525,7 @@ void Host_Shutdown(void)
 		CDAudio_Shutdown ();
 		S_Shutdown ();
 		IN_Shutdown ();
+		VR_Shutdown (); // QVR
 		VID_Shutdown();
 	}
 

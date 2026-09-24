@@ -431,6 +431,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <FileType>Document</FileType>
     </CopyFileToFolders>
   </ItemGroup>
+  <Import Project="quakevr.props" /><!-- QVR -->
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

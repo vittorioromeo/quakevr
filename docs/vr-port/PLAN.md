@@ -27,7 +27,10 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 5. **Every milestone builds and runs**, and each commit is one coherent step, so upstream Ironwail updates can be
    merged with minimal conflicts.
 
-## Decisions (proposed defaults — confirm or override)
+## Decisions
+
+Confirmed by the author on 2026-09-24: OpenXR directly, clean compatibility break, a proper `quakevr` game folder,
+gameplay rule changes opt-in via cvars. The remaining rows follow from those.
 
 | Topic | Proposal | Why |
 |---|---|---|
@@ -59,7 +62,8 @@ headset.
 - `defs.qc`/`builtins.qc` updates per the ABI decision; VR field lookup by name; builtins module `vr/vr_builtins.c`.
 - 40 spawn parms, QC entry points (`OnSpawnServerBeforeLoad/AfterLoad`, `OnLoadGame`), `setmodel` auto-precache,
   `droptofloor` variant, cvar handles.
-- Game data layout (pak gaps / start.bsp selector or a proper `quakevr` gamedir).
+- Game data layout: a proper `quakevr` game folder on top of id1 (no pak-gap hack); decide how mission-pack maps are
+  reached (loader hook vs documented setup).
 - ✅ Check (flat): `vrstart` and e1m1 load with `vrprogs.dat`, monsters/items/weapons behave, save/load works.
 
 ### P2 — Protocol & server gameplay

@@ -61,6 +61,7 @@ elseif (PC_MAD_FOUND)
 endif()
 
 add_executable(ironwail ${IWAIL_SRC})
+include(Quake/vr/vr.cmake) # QVR
 if (UNIX)
 	target_link_libraries(ironwail PRIVATE m)
 	set(ENABLE_USERDIRS TRUE CACHE STRING "Enable user directories")
