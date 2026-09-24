@@ -20,3 +20,4 @@ build/
 /quakevr/screenshots/
 !/quakevr/default.cfg
 !/quakevr/vr_bindings.cfg
+/build-cmake/
