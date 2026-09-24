@@ -5,7 +5,10 @@
 // stereo rendering -- can run and be tested without a headset.
 
 #include "vr_backend.hpp"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+
+#include <cmath>
 
 namespace qvr
 {
@@ -15,6 +18,28 @@ namespace
 constexpr int eyeWidth = 1024;
 constexpr int eyeHeight = 1024;
 constexpr float halfIpd = 0.032f;
+
+// vr_mock_swing: the main hand swings on a 60cm arm around the shoulder, from behind the head
+// to in front of the chest and back, with exact velocities (as a runtime reports them).
+void swing(Pose& hand, double time, float period)
+{
+    const glm::vec3 shoulder{0.2f, 1.45f, 0.f};
+    constexpr float radius = 0.6f;
+    constexpr float centre = 0.6f; // radians forward from straight up
+    constexpr float amplitude = 0.9f;
+
+    const float w = 2.f * 3.14159265f / period;
+    const float phase = static_cast<float>(std::fmod(time, static_cast<double>(period))) * w;
+    const float theta = centre + amplitude * std::sin(phase);
+    const float thetaRate = amplitude * w * std::cos(phase);
+
+    // theta 0 is straight up; increasing theta brings the hand forward (-z) and down.
+    hand.position = shoulder + radius * glm::vec3{0.f, std::cos(theta), -std::sin(theta)};
+    hand.orientation = glm::angleAxis(-(theta - 1.2f), glm::vec3{1.f, 0.f, 0.f});
+    hand.linearVelocity = radius * thetaRate * glm::vec3{0.f, -std::sin(theta), -std::cos(theta)};
+    hand.angularVelocity = glm::vec3{-thetaRate, 0.f, 0.f};
+    hand.velocityValid = true;
+}
 
 class MockBackend final : public Backend
 {
@@ -46,6 +71,10 @@ public:
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
     {
         tracking = standingPose();
+        if(vr_mock_swing.value > 0.f)
+        {
+            swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
+        }
 
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)

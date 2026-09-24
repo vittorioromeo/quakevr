@@ -20,6 +20,12 @@ struct Pose
     glm::vec3 position{0.f};
     glm::quat orientation{1.f, 0.f, 0.f, 0.f};
     bool valid{false};
+
+    // Velocities reported by the runtime (IMU-fused, far better than differencing positions):
+    // metres per second and radians per second, in tracking space.
+    glm::vec3 linearVelocity{0.f};
+    glm::vec3 angularVelocity{0.f};
+    bool velocityValid{false};
 };
 
 enum Hand : int

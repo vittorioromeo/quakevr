@@ -369,7 +369,7 @@ void() func_weapon_dispenser_use =
     CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
         WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
         self.origin, randomVec(180),
-        '0 0 0', randomVec(20),
+        '0 0 0', LegacyThrowSpin('0 0 0', randomVec(20)),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(self.weapon)
@@ -394,7 +394,7 @@ void() func_weapon_grabbable =
     CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
         WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
         self.origin, randomVec(180),
-        '0 0 0', randomVec(20),
+        '0 0 0', LegacyThrowSpin('0 0 0', randomVec(20)),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(self.weapon)

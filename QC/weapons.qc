@@ -3452,12 +3452,18 @@ void() forcegrabbable_touch =
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
+    // A thrown weapon's true-scale gravity lasts for its flight only.
+    self.gravity = 0;
+
     // if(pointcontents(self.origin) == CONTENT_SKY)
     //     return;
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
-        float finalDmg = ((vlen(self.velocity) / 700) * GetThrownWeaponBaseDamage(self)) *
+        float dmgSpeed = self.throwdmgspeed;
+        if(!dmgSpeed) dmgSpeed = 700;
+
+        float finalDmg = ((vlen(self.velocity) / dmgSpeed) * GetThrownWeaponBaseDamage(self)) *
                    cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 
         // hit something that bleeds
@@ -3847,11 +3853,7 @@ void MakeThrown(entity newmis,
     newmis.classname = "thrown_weapon";
     newmis.netname = WeaponIdToWeaponName(xWeapon);
 
-    makevectors(xThrowVel);
-    vector tmp_handavel = xAVel;
-    newmis.avelocity = tmp_handavel_x * v_forward * 30
-                     + tmp_handavel_y * v_right * -30
-                     + tmp_handavel_z * v_up * -30;
+    newmis.avelocity = xAVel;
 
     newmis.waterlevel = 0;
     newmis.ammocounter = 0; // water frame counter
@@ -3876,9 +3878,43 @@ void MakeThrown(entity newmis,
     setsize(newmis, -tmp_bounds, tmp_bounds);
     setorigin(newmis, xOrigin);
 
-    newmis.velocity = (xThrowVel * 120 * WeaponIdToThrowMult(xWeapon)) * cvar_hget(cvarh_vr_weapon_throw_velocity_mult)
-                    + thrower.velocity;
+    newmis.velocity = xThrowVel + thrower.velocity;
 }
+
+// The old throw parameters, still used for drops and dispensers: `xThrowVel` scaled by 120
+// units/s, and a spin derived from `xAVel` around the throw direction.
+vector(float xWeapon, vector xThrowVel) LegacyThrowVelocity =
+{
+    return xThrowVel * 120 * WeaponIdToThrowMult(xWeapon);
+}
+
+vector(vector xThrowVel, vector xAVel) LegacyThrowSpin =
+{
+    makevectors(xThrowVel);
+    return xAVel_x * v_forward * 30
+         + xAVel_y * v_right * -30
+         + xAVel_z * v_up * -30;
+}
+
+float() VRMetersToUnits =
+{
+    return cvar_hget(cvarh_vr_world_scale) / (1.5 * 0.0254);
+}
+
+// A hand's angular velocity (radians per second, world axes) as .avelocity (degrees per
+// second) for an object held at view angles `xRot`: pitch (nose up) turns around its right
+// axis, yaw around the vertical, roll around its forward axis.
+vector(vector xAVel, vector xRot) VRThrowSpin =
+{
+    makevectors(xRot);
+
+    vector res;
+    res_x = (xAVel * v_right) * (180 / 3.14159265);
+    res_y = xAVel_z * (180 / 3.14159265);
+    res_z = (xAVel * v_forward) * (180 / 3.14159265);
+    return res;
+}
+
 
 entity(entity thrower, float xWeapon, float xWeaponFlags, float xWeaponClip,
     vector xOrigin, vector xRotation,
@@ -3921,7 +3957,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
         WeaponIdToBaseClipSize(xWeapon) /* weaponclip */,
         xOrigin, randomVec(180),
-        throwVel, randomVec(20),
+        LegacyThrowVelocity(xWeapon, throwVel), LegacyThrowSpin(throwVel, randomVec(20)),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(xWeapon)
@@ -3939,7 +3975,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
     CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
         WeaponIdToBaseClipSize(xWeapon) /* weaponclip */,
         xOrigin, randomVec(180),
-        throwVel, randomVec(20),
+        LegacyThrowVelocity(xWeapon, throwVel), LegacyThrowSpin(throwVel, randomVec(20)),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(xWeapon)
@@ -3979,23 +4015,46 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     }
 
 
+    // The hand's velocity (m/s) at true scale: the weapon leaves the hand as fast as the hand
+    // moved (heavier weapons slower), and falls at vr_throw_gravity rather than Quake's 3g.
+    float m2u = VRMetersToUnits();
+    vector throwVelUnits = throwVel * m2u * WeaponIdToThrowMult(xWeapon) *
+                           cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
+    vector spin = VRThrowSpin(VRGetHandAVel(xHand), VRGetHandRot(xHand));
+
+    entity thrown = world;
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
-        CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
+        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
-            throwVel, VRGetHandAVel(xHand),
+            throwVelUnits, spin,
             FALSE /* disappear on hit */,
             TRUE  /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
     }
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
     {
-        CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
+        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
             VRGetHandPos(xHand), VRGetHandRot(xHand),
-            throwVel, VRGetHandAVel(xHand),
+            throwVelUnits, spin,
             TRUE /* disappear on hit */,
             TRUE /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
+    }
+
+    if(thrown != world)
+    {
+        // The same damage for the same hand speed as the old x120 scaling.
+        thrown.throwdmgspeed = 700 * m2u / 120;
+
+        if(cvar_hget(cvarh_vr_throw_gravity) > 0 && cvar_hget(cvarh_sv_gravity) > 0)
+        {
+            thrown.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
+        }
+
+        dprint("thrown: velocity "); dprint(vtos(thrown.velocity));
+        dprint(" gravity "); dprint(ftos(thrown.gravity));
+        dprint(" avelocity "); dprint(vtos(thrown.avelocity)); dprint("\n");
     }
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
     {
@@ -4069,6 +4128,60 @@ VRTryUnloadWeapon =
     }
 }
 
+// Whether the weapon in `xHand` is let go of (to be thrown, holstered or switched to the other
+// hand): with vr_weapon_grip_mode 0 whenever its grip is not held; with 1 ("sticky") only once
+// the grip is let go a second time since the weapon came to the hand.
+float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
+{
+    float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
+    if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
+    {
+        return !grabbing;
+    }
+
+    float bit = 1;
+    float lastWeapon = ent.stickyweaponoff;
+    if(xHand == cVR_MainHand)
+    {
+        bit = 2;
+        lastWeapon = ent.stickyweaponmain;
+        ent.stickyweaponmain = xWeapon;
+    }
+    else
+    {
+        ent.stickyweaponoff = xWeapon;
+    }
+
+    if(VRIsHandEmpty(ent, xHand) || xWeapon != lastWeapon)
+    {
+        // A new weapon (or none): start over.
+        ent.stickyarmed &= ~bit;
+        ent.stickypending &= ~bit;
+    }
+
+    if(grabbing)
+    {
+        ent.stickypending &= ~bit;
+    }
+    else
+    {
+        if(VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand) && (ent.stickyarmed & bit))
+        {
+            ent.stickypending |= bit;
+        }
+
+        ent.stickyarmed |= bit;
+    }
+
+    return !grabbing && (ent.stickypending & bit);
+}
+
+void(entity ent, float xHand) VRWeaponLetGoDone =
+{
+    if(xHand == cVR_MainHand) ent.stickypending &= ~2;
+    else                      ent.stickypending &= ~1;
+}
+
 void(entity ent, float xHand,
      float xWeapon, float* xOutWeapon,
      float xWeaponFlags, float* xOutWeaponFlags,
@@ -4079,6 +4192,8 @@ void(entity ent, float xHand,
      float xOtherWeaponClip, float* xOutOtherWeaponClip,
      float xOtherAttackFinished) DoHandImpl =
 {
+    float letGo = VRWeaponLetGo(ent, xHand, xWeapon);
+
     float handGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     float handPrevGrabbing = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand);
     float otherHandGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, VRGetOtherHand(xHand));
@@ -4109,8 +4224,10 @@ void(entity ent, float xHand,
     }
 
     // Holding a weapon, but not grabbing the controller.
-    if(!handEmpty && !handGrabbing && time >= xAttackFinished)
+    if(!handEmpty && letGo && time >= xAttackFinished)
     {
+        VRWeaponLetGoDone(ent, xHand);
+
         // No hotspot, or 2H hotspot (unusable).
         // (2H hotspots ignored because you can only dual wield with no weapon out.)
         if(xHotspot == QVR_HS_NONE ||

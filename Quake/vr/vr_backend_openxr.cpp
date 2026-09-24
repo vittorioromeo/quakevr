@@ -329,7 +329,9 @@ private:
 
     [[nodiscard]] Pose locate(XrSpace space, XrTime time) const
     {
+        XrSpaceVelocity velocity{XR_TYPE_SPACE_VELOCITY};
         XrSpaceLocation location{XR_TYPE_SPACE_LOCATION};
+        location.next = &velocity;
         if(!XR_SUCCEEDED(xrLocateSpace(space, worldSpace, time, &location)))
         {
             return Pose{};
@@ -337,7 +339,17 @@ private:
 
         constexpr XrSpaceLocationFlags needed =
             XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-        return toPose(location.pose, (location.locationFlags & needed) == needed);
+        Pose pose = toPose(location.pose, (location.locationFlags & needed) == needed);
+
+        constexpr XrSpaceVelocityFlags velNeeded =
+            XR_SPACE_VELOCITY_LINEAR_VALID_BIT | XR_SPACE_VELOCITY_ANGULAR_VALID_BIT;
+        if(pose.valid && (velocity.velocityFlags & velNeeded) == velNeeded)
+        {
+            pose.linearVelocity = {velocity.linearVelocity.x, velocity.linearVelocity.y, velocity.linearVelocity.z};
+            pose.angularVelocity = {velocity.angularVelocity.x, velocity.angularVelocity.y, velocity.angularVelocity.z};
+            pose.velocityValid = true;
+        }
+        return pose;
     }
 
     bool createInstance()

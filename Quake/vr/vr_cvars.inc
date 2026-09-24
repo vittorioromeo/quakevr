@@ -7,6 +7,20 @@ QVR_CVAR(vr_gameplayfix_droptofloor, "0", CVAR_NONE)  // corner traces instead o
 QVR_CVAR(vr_gameplayfix_touchsolids, "0", CVAR_NONE)  // .touch fires for solids, not just triggers
 QVR_CVAR(vr_gameplayfix_missilesize, "0", CVAR_NONE)  // missile-vs-monster box extent (0: vanilla 15)
 
+// Throwing (vr_throw.cpp). Algorithm: 0 average of the last vr_throw_avg_frames frames (the
+// old engine's "Basic"), 1 the same plus the lever-arm term, 2 peak speed within
+// vr_throw_window seconds before release, averaged over vr_throw_peak_span seconds around it.
+QVR_CVAR(vr_throw_algorithm, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_avg_frames, "15", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_window, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_peak_span, "0.025", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)  // metres from the grip to the held object's centre
+QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons (0: sv_gravity, as Quake objects)
+QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimated velocity
+
+// Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
+QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
+
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 
@@ -121,6 +135,9 @@ QVR_CVAR(vr_leg_holster_model_y_offset, "1.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_z_offset, "2.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_mode, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_throw_mode, "0", CVAR_ARCHIVE)
+// 0: a weapon is dropped (thrown) as soon as its grip is let go; 1: it stays in the hand, and
+// is thrown (or holstered) when the grip is let go after gripping it again.
+QVR_CVAR(vr_weapon_grip_mode, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_throw_damage_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_cycle_mode, "0", CVAR_ARCHIVE)
@@ -152,9 +169,6 @@ QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_disable_angle_threshold, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_autosave_seconds, "240", CVAR_ARCHIVE)
 QVR_CVAR(vr_autosave_on_changelevel, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_up_center_of_mass, "0.01", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_avg_frames, "15", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_angvel_avg_frames, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_ammo_boxes, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_health_boxes, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_return_time_deathmatch, "4", CVAR_ARCHIVE)
@@ -169,7 +183,6 @@ QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_disablehaptics, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_spinreload_pitch_speed, "1100", CVAR_ARCHIVE)
 QVR_CVAR(vr_spinreload_x_angular_threshold, "6.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_algorithm, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_player_stepsize, "18.0", CVAR_ARCHIVE)
 // All fingers and base
 QVR_CVAR(vr_fingers_and_base_x, "1.925", CVAR_ARCHIVE)

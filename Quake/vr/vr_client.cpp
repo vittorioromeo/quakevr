@@ -8,6 +8,7 @@
 #include "vr_main.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
+#include "vr_throw.hpp"
 #include "vr_worldtext.hpp"
 
 #include <vector>
@@ -91,21 +92,7 @@ void OffhandAttackUp_f()
 // ----------------------------------------------------------------------------
 // Move
 
-struct HandHistory
-{
-    glm::vec3 pos{0.f};
-    glm::vec3 rot{0.f};
-};
-
-struct MoveHistory
-{
-    bool valid{false};
-    double time{0.0};
-    HandHistory hands[2];
-    glm::vec3 head{0.f};
-};
-
-MoveHistory history;
+bool wasGrabbing[2]{false, false};
 
 [[nodiscard]] VrMove buildMove()
 {
@@ -119,32 +106,35 @@ MoveHistory history;
 
     move.headAngles = hs.headAngles;
 
-    const double dt = history.valid ? cl.time - history.time : 0.0;
-    const float invDt = dt > 0.0 ? static_cast<float>(1.0 / dt) : 0.f;
-
     for(int h = 0; h < HAND_COUNT; h++)
     {
         VrHandMove& hand = move.hands[h];
         hand.pos = hs.pos[h];
         hand.rot = hs.rot[h];
 
-        if(history.valid)
+        // Every move carries the throw estimate: the server throws with the one of the move
+        // that lets go.
+        const throwing::Estimate thrown = throwing::estimate(h);
+        hand.vel = hs.vel[h];
+        hand.velMag = glm::length(hs.vel[h]);
+        hand.throwVel = thrown.vel;
+        hand.angVel = thrown.angVel;
+
+        const bool grabbing = handButtons(h).grab;
+        if(wasGrabbing[h] && !grabbing && vr_debug_throw.value)
         {
-            hand.vel = (hand.pos - history.hands[h].pos) * invDt;
-            hand.angVel = (hand.rot - history.hands[h].rot) * invDt;
+            Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand %.2f m/s\n",
+                h == HAND_MAIN ? "main" : "off", glm::length(thrown.vel), thrown.vel.x, thrown.vel.y,
+                thrown.vel.z, glm::length(thrown.angVel), hand.velMag);
         }
-        hand.throwVel = hand.vel;
-        hand.velMag = glm::length(hand.vel);
+        wasGrabbing[h] = grabbing;
 
         // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame.
         move.muzzlePos[h] =
             hs.muzzleValid[h] ? hs.muzzle[h] : hand.pos + hands::forward(hand.rot) * 8.f;
     }
 
-    if(history.valid)
-    {
-        move.headVel = (hs.head - history.head) * invDt;
-    }
+    move.headVel = hs.headVel;
 
     // VR bits: current state only. The server fills in the "PREV" bits once per server
     // frame, so that press edges survive several moves arriving in one frame.
@@ -173,15 +163,6 @@ MoveHistory history;
     {
         move.buttons |= QVR_BUTTON_HANDSTRACKED;
     }
-
-    history.valid = true;
-    history.time = cl.time;
-    for(int h = 0; h < HAND_COUNT; h++)
-    {
-        history.hands[h].pos = move.hands[h].pos;
-        history.hands[h].rot = move.hands[h].rot;
-    }
-    history.head = hs.head;
 
     return move;
 }
@@ -305,7 +286,7 @@ extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
     worldtext::clientReset();
-    history = MoveHistory{};
+    throwing::reset();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

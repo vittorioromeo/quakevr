@@ -41,6 +41,10 @@
 // ----------------------------------------------------------------------------
 
 .float throwhit;
+.float stickyarmed;   // vr_weapon_grip_mode 1: hands (bit 1 off, 2 main) whose grip was let go since the weapon came
+.float stickypending; // ... hands whose grip was let go again: throw or holster when possible
+.float stickyweaponoff, stickyweaponmain; // the weapon each hand had last frame
+.float throwdmgspeed; // speed (units/s) at which a thrown weapon deals its base damage
 .float throwstabilize;
 .float throwstabilizedim;
 

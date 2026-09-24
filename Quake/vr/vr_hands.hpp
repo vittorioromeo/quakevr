@@ -26,6 +26,12 @@ struct State
     glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] off hand, [1] main hand
     glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
+    // Velocities in metres (radians) per second, in Quake axes turned with the play space, not
+    // including the player's own movement: what the QC's thresholds and multipliers expect.
+    glm::vec3 vel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 angVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 headVel{0.f};
+
     // Weapon muzzles, from the weapon models' anchor vertices: set by the view when it renders,
     // and kept until the next render (moves are sent before rendering).
     bool muzzleValid[2]{false, false};

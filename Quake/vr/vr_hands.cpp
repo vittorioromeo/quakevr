@@ -3,6 +3,7 @@
 #include "vr_hands.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_throw.hpp"
 
 #include <cmath>
 
@@ -70,11 +71,66 @@ float turnYaw = 0.f;
 bool pendingYawValid = false;
 float pendingYaw = 0.f;
 
+// Body-relative positions of the previous update, for velocities when the runtime reports none.
+struct Previous
+{
+    bool valid{false};
+    double time{0.0};
+    glm::vec3 hands[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 head{0.f};
+};
+
+Previous previous;
+
+// Fills the velocities: from the runtime when it has them, else by differencing body-relative
+// positions (the flat-screen hands, or a runtime without velocities).
+void updateVelocities(const TrackingState* t)
+{
+    const float u2m = 1.f / metersToUnits();
+    const double dt = previous.valid ? realtime - previous.time : 0.0;
+    // Recomputed within the same frame (a turn, a server yaw): keep the frame's velocities.
+    const auto differenced = [&](const glm::vec3& now, const glm::vec3& before, const glm::vec3& same) {
+        if(!previous.valid)
+        {
+            return glm::vec3{0.f};
+        }
+        return dt > 0.0 ? (now - before) * u2m / static_cast<float>(dt) : same;
+    };
+    const auto fromTracking = [&](const glm::vec3& v) { return rotateYaw(quakeFromTracking(v), turnYaw); };
+
+    const glm::vec3 head = state.head - state.playerOrigin;
+    state.headVel = t && t->head.velocityValid ? fromTracking(t->head.linearVelocity)
+                                               : differenced(head, previous.head, state.headVel);
+
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const glm::vec3 local = state.pos[h] - state.playerOrigin;
+        if(t && t->hands[h].velocityValid)
+        {
+            state.vel[h] = fromTracking(t->hands[h].linearVelocity);
+            state.angVel[h] = fromTracking(t->hands[h].angularVelocity);
+        }
+        else
+        {
+            state.vel[h] = differenced(local, previous.hands[h], state.vel[h]);
+            state.angVel[h] = glm::vec3{0.f};
+        }
+
+        previous.hands[h] = local;
+        throwing::sample(h, realtime, state.vel[h], state.angVel[h], forward(state.rot[h]));
+    }
+
+    previous.head = head;
+    previous.time = realtime;
+    previous.valid = true;
+}
+
 void update()
 {
     state.valid = false;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || !cl.viewentity)
     {
+        previous.valid = false;
         return;
     }
 
@@ -144,6 +200,8 @@ void update()
             rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
         }
     }
+
+    updateVelocities(vrActive() ? &t : nullptr);
 
     // TODO VR: (P5) blend the head direction with the hands, as the old engine did.
     state.bodyYaw = vrActive() ? state.headAngles.y : yaw;
