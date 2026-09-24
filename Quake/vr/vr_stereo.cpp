@@ -6,8 +6,10 @@
 // writes into the backend's eye image instead of the window. The left eye is then mirrored to
 // the window, where the 2D layer is drawn as usual.
 
+#include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
 #include "vr_stereo.hpp"
@@ -142,6 +144,8 @@ extern "C" int VR_RenderView()
     const vrect_t savedVrect = r_refdef.vrect;
     const float savedFovX = r_refdef.fov_x, savedFovY = r_refdef.fov_y;
 
+    crosshair::queue(hands::current());
+
     for(int eye = 0; eye < 2; eye++)
     {
         const unsigned image = be->acquireEyeImage(eye);
@@ -170,6 +174,7 @@ extern "C" int VR_RenderView()
 
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
         glViewport(0, 0, width, height);
+        lines::drawInEye(hands::current().eyeOrigin[eye]);
         panel::drawInEye(hands::current());
 
         GL_PostProcess();
