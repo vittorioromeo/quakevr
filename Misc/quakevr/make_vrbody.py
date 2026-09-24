@@ -169,10 +169,11 @@ def loft(rings, block, cap_start=True, cap_end=True):
     # Keep away from the block edges so filtering does not bleed into the next block.
     pad = 0.04
     u0, v0, u1, v1 = u0 + pad, v0 + pad, u1 - pad, v1 - pad
-    # Triangles face outwards (counter-clockwise seen from outside) when the loft runs against
-    # u x v (the direction the rings go around); otherwise go around the other way.
+    # Front faces are clockwise seen from outside (Ironwail: glFrontFace(GL_CW)), which the
+    # triangles below are when the loft runs along u x v (the direction the rings go around);
+    # otherwise go around the other way.
     along = sub(rings[-1][0], rings[0][0])
-    if dot(cross(rings[0][1], rings[0][2]), along) > 0:
+    if dot(cross(rings[0][1], rings[0][2]), along) < 0:
         rings = [(c, ua, mul(va, -1.0), ru, rv, ws) for c, ua, va, ru, rv, ws in rings]
     first = len(verts)
     for r, (centre, ua, va, ru, rv, weights) in enumerate(rings):
