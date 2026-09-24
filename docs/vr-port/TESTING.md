@@ -68,7 +68,7 @@ Useful settings:
 Reworked after the research in `docs/vr-port/THROWING.md`: how the throw is measured, how strong it comes out,
 where the weapon starts, and how it flies. Most values are starting points: please tell me how they feel.
 
-**Measuring the throw** (`vr_throw_algorithm 3`, the default; as Half-Life: Alyx):
+**Measuring the throw** (as Half-Life: Alyx):
 - **Release point:** the release velocity is the controller's own velocity (from the runtime) where it was
   fastest, in a window around the moment you let go (`vr_throw_window` 0.12 s before, `vr_throw_lookahead`
   10 ms after), averaged over `vr_throw_peak_span` (17 ms) around that peak.
@@ -107,8 +107,7 @@ hand followed through to.
 breakable within 12° of it, on the arc that reaches it. With `developer 1` it marks the target it picked.
 
 **Debugging:** `vr_debug_throw 1` prints every throw's estimate; `2` also prints how long after the peak the release
-came. `developer 1` prints the spawned velocity, gravity, spin and age. For comparison, the previous estimate is
-`vr_throw_algorithm 2`.
+came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## GitHub issues
 
@@ -126,6 +125,29 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age. For comp
 ## What to try
 
 - **New in this round** (details in the commit log):
+  - **Other mods in VR:** `-game quakevr -game <mod>` runs another mod's progs in VR (compatibility mode): you
+    aim with your hand, its weapons fire from your gun, you move by your head, walk the room and teleport. No
+    off-hand weapons, holsters or hand pickups there yet. See `docs/vr-port/MODS.md`; please try a mod you like.
+  - **Particles:** your old textured particle system is back (smoke, sparks, blood, explosions, force grab and
+    pickup sparkles), for Quake's own impacts and explosions too. Advanced > Particles: Quake VR Particles,
+    Particle Multiplier. `vr_particle_test <0..11>` spawns one in front of you.
+  - **Body state:** your torso shows the armour you wear (green, yellow, red plates) and your arms get bloodier as
+    you are hurt; quad damage sparks around your hands and forearms, the pentagram makes you glow red, the ring
+    fades you. Advanced > Body: Show Armour and Wounds, Show Powerups.
+  - **Wrist gadget options:** Advanced > Wrist Gadget: arm, size, position and rotation, casing tint, screen colour.
+  - **Default Speed: Run/Walk** in VR Settings (the speed button switches to the other). The stick now runs at the
+    old speed (it walked at half of it) and moves as fast in every direction.
+  - **Force grab:** one object at a time per hand (let go of the trigger before pulling another).
+  - **Backpacks** no longer spin (their model's rotate flag).
+  - **Reloading** (reaching down to a hip holster) no longer hits the floor or a wall as a melee swing.
+  - **Old port features back:** VR actions in Options > Key Setup; the status bar shows the ammo count; grenade
+    trails; roomscale jump (`vr_roomscale_jump`); a click in the controller for menu presses; Advanced > Play (hub,
+    tutorial, firing range, bots); desktop keys for the VR actions after "Reset to defaults".
+  - **Settings cleanup:** 15 settings that did nothing, the old floating torso (Body "Torso" is now the body with
+    arms) and the old throw algorithms are gone. Fixed: the bloodlust toggle was inverted, drop chances were
+    applied twice, the hub's Torso/HUD/Shadows buttons.
+
+- **Previous round:**
   - **Force grab** (rewritten, like Half-Life: Alyx): point an empty, open hand at a weapon, backpack, ammo or
     health box (or, in single player, a weapon lying in the level). It sparkles. Pull the trigger to lock on,
     then flick your hand back or up. It flies to your hand in an arc and arrives in about half a second. Close

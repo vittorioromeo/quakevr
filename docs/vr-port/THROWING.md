@@ -289,7 +289,7 @@ if best:
 
 | Cvar | Default | Side |
 |---|---|---|
-| `vr_throw_algorithm` | 3 (new) | C++ |
+| `vr_throw_algorithm` | removed: the release-anchored estimate is the only one | C++ |
 | `vr_throw_window` / `vr_throw_lookahead` / `vr_throw_peak_span` | 0.12 / 0.01 / 0.017 s | C++ |
 | `vr_throw_release_mode` / `_drop` / `_floor` / `vr_throw_grab_press` | 1 / 0.25 / 0.35 / 0.7 | C++ |
 | `vr_throw_ang_threshold` / `vr_throw_ang_factor` / `vr_throw_lever_arm` (now the CoM offset from the controller point) | 6 rad/s / 0.7 / 0.05 m | C++ |

@@ -145,7 +145,7 @@ That gives a working prototype, from which a hand-made asset can replace it late
   weapons sit on the body.
 - **Virtual stock:** the shoulder position comes from the clavicle.
 - **The "upper torso" point** that hand and barrel collisions sweep from (vr_handpose) comes from the chest.
-- **`vr_vrtorso_*` cvars:** kept for the old torso as a fallback mode.
+- **`vr_vrtorso_*` cvars:** removed with the old floating torso (`vr_body_mode 1` now shows the body with arms).
 - **Other players in multiplayer:** they currently see `player.mdl`. Head and hand poses reach the server through
   the VR move. Sending them to other clients and running the same solver there is a later step.
 
