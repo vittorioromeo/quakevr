@@ -7,6 +7,7 @@ file(GLOB QVR_SRC CONFIGURE_DEPENDS
 
 target_sources(ironwail PRIVATE ${QVR_SRC})
 target_include_directories(ironwail PRIVATE
+	"${CMAKE_CURRENT_LIST_DIR}/.."
 	"${CMAKE_CURRENT_LIST_DIR}"
 	"${CMAKE_CURRENT_LIST_DIR}/external")
 set_target_properties(ironwail PROPERTIES
