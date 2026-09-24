@@ -4,6 +4,8 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 
+#include <cmath>
+
 using namespace qvr;
 
 namespace qvr::hands
@@ -160,6 +162,12 @@ void setServerYaw(float yaw)
     pendingYawValid = true;
     pendingYaw = yaw;
     stateFrame = -1; // recompute the hands with the new yaw
+}
+
+void addTurn(float degrees)
+{
+    turnYaw = std::remainder(turnYaw + degrees, 360.f);
+    stateFrame = -1;
 }
 
 float playSpaceYaw()

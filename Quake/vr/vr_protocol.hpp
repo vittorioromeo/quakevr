@@ -34,6 +34,7 @@ enum SvcQuakeVr : int
     QVR_SVC_WORLDTEXT_HALIGN = 7, // [short handle][byte 0 left, 1 centre, 2 right]
     QVR_SVC_WORLDTEXT_SCALE = 8,  // [short handle][float]
     QVR_SVC_PRECACHE_SOUND = 9,   // [short index][string name]
+    QVR_SVC_HAPTIC = 10,          // [byte hand][float delay][float duration][float frequency][float amplitude]
 };
 
 // Client -> server: clc_move VR block button bits.

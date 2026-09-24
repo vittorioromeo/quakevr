@@ -4,6 +4,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_hands.hpp"
+#include "vr_input.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_server.hpp"
@@ -204,6 +205,11 @@ extern "C" void VR_BeginFrame()
     {
         Con_Warning("VR: %s session lost\n", state->backend->name());
         stopBackend();
+    }
+
+    if(state->backend)
+    {
+        input::update(state->tracking.input);
     }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).

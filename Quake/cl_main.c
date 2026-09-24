@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "vr/vr_api.h" // QVR
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -825,6 +826,7 @@ void CL_SendCmd (void)
 		cmd.forwardmove	+= cl.pendingcmd.forwardmove;
 		cmd.sidemove	+= cl.pendingcmd.sidemove;
 		cmd.upmove		+= cl.pendingcmd.upmove;
+		VR_AdjustMove (&cmd.forwardmove, &cmd.sidemove); // QVR
 
 	// send the unreliable message
 		CL_SendMove (&cmd);

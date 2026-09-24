@@ -66,6 +66,8 @@ int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled 
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, sv_user.c, sv_main.c, host.c, host_cmd.c).
 void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+void VR_AdjustMove (float *forwardmove, float *sidemove);	// CL_SendCmd: thumbstick locomotion
+void VR_SendHaptic (struct edict_s *player, int hand, float delay, float duration, float frequency, float amplitude);
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*

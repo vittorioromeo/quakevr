@@ -29,10 +29,24 @@ enum Hand : int
     HAND_COUNT = 2
 };
 
+// Controller input, per hand ([0] off hand, [1] main hand) where it applies.
+struct InputState
+{
+    bool fire[HAND_COUNT]{};
+    bool grab[HAND_COUNT]{};
+    bool reload[HAND_COUNT]{};
+    bool nextWeapon[HAND_COUNT]{};
+    bool jump{false};
+    bool menu{false};
+    glm::vec2 move{0.f}; // locomotion stick: x right, y forward
+    glm::vec2 turn{0.f}; // turning stick: x right
+};
+
 struct TrackingState
 {
     Pose head;
     Pose hands[HAND_COUNT]; // grip poses, [0] off hand, [1] main hand
+    InputState input;
 };
 
 // Field of view of an eye, as tangent-space angles in radians (left and down negative).
@@ -80,6 +94,11 @@ public:
 
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered.
     virtual void endFrame(bool rendered) = 0;
+
+    // Vibrates a controller.
+    virtual void haptic(int /* hand */, float /* seconds */, float /* frequency */, float /* amplitude */)
+    {
+    }
 };
 
 [[nodiscard]] std::unique_ptr<Backend> makeMockBackend();

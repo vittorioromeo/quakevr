@@ -34,6 +34,9 @@ struct State
 
 // The server set the view yaw: turn the play space to match (headset only).
 void setServerYaw(float yaw);
+
+// Turns the play space (thumbstick turning), in degrees, positive to the left.
+void addTurn(float degrees);
 [[nodiscard]] float playSpaceYaw();
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.

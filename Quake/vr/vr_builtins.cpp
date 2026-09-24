@@ -251,9 +251,11 @@ void PF_particle2()
     MSG_WriteShort(&sv.datagram, count);
 }
 
+// haptic(hand, delay, duration, frequency, amplitude), for the `self` player.
 void PF_haptic()
 {
-    // TODO VR: (P5) haptics through the backend, networked for remote clients.
+    VR_SendHaptic(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
+        G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
 struct VrBuiltin

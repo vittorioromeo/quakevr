@@ -23,6 +23,7 @@
 #endif
 
 #include <cstring>
+#include <initializer_list>
 #include <vector>
 
 namespace qvr
@@ -169,6 +170,8 @@ public:
                 views[eye].fov.angleUp, views[eye].fov.angleDown};
         }
 
+        readInput(tracking.input);
+
         tracking.head = locate(viewSpace, time);
         for(int h = 0; h < HAND_COUNT; h++)
         {
@@ -263,6 +266,15 @@ private:
     XrSpace viewSpace{XR_NULL_HANDLE};
     XrActionSet actionSet{XR_NULL_HANDLE};
     XrAction gripPose{XR_NULL_HANDLE};
+    XrAction fireAction{XR_NULL_HANDLE};
+    XrAction grabAction{XR_NULL_HANDLE};
+    XrAction reloadAction{XR_NULL_HANDLE};
+    XrAction nextWeaponAction{XR_NULL_HANDLE};
+    XrAction jumpAction{XR_NULL_HANDLE};
+    XrAction menuAction{XR_NULL_HANDLE};
+    XrAction moveAction{XR_NULL_HANDLE};
+    XrAction turnAction{XR_NULL_HANDLE};
+    XrAction hapticAction{XR_NULL_HANDLE};
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
@@ -436,16 +448,106 @@ private:
         return p;
     }
 
-    void suggest(const char* profile, const char* leftGrip, const char* rightGrip)
+    [[nodiscard]] XrAction makeAction(XrActionType type, const char* name, const char* localized, bool perHand)
     {
-        const XrActionSuggestedBinding bindings[] = {
-            {gripPose, path(leftGrip)}, {gripPose, path(rightGrip)}};
+        XrActionCreateInfo info{XR_TYPE_ACTION_CREATE_INFO};
+        info.actionType = type;
+        q_strlcpy(info.actionName, name, XR_MAX_ACTION_NAME_SIZE);
+        q_strlcpy(info.localizedActionName, localized, XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
+        if(perHand)
+        {
+            info.countSubactionPaths = 2;
+            info.subactionPaths = handPaths;
+        }
+
+        XrAction action = XR_NULL_HANDLE;
+        check(xrCreateAction(actionSet, &info, &action), name);
+        return action;
+    }
+
+    struct Binding
+    {
+        XrAction* action;
+        const char* path;
+    };
+
+    void suggest(const char* profile, std::initializer_list<Binding> bindings)
+    {
+        std::vector<XrActionSuggestedBinding> suggested;
+        for(const Binding& b : bindings)
+        {
+            suggested.push_back({*b.action, path(b.path)});
+        }
 
         XrInteractionProfileSuggestedBinding info{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
         info.interactionProfile = path(profile);
-        info.suggestedBindings = bindings;
-        info.countSuggestedBindings = 2;
-        xrSuggestInteractionProfileBindings(instance, &info); // unsupported profiles just fail
+        info.suggestedBindings = suggested.data();
+        info.countSuggestedBindings = static_cast<uint32_t>(suggested.size());
+        if(!XR_SUCCEEDED(xrSuggestInteractionProfileBindings(instance, &info)))
+        {
+            Con_DPrintf("OpenXR: no bindings for %s\n", profile);
+        }
+    }
+
+    void suggestBindings()
+    {
+#define QVR_L(p) "/user/hand/left/" p
+#define QVR_R(p) "/user/hand/right/" p
+
+        suggest("/interaction_profiles/khr/simple_controller",
+            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
+                {&fireAction, QVR_L("input/select/click")}, {&fireAction, QVR_R("input/select/click")},
+                {&menuAction, QVR_L("input/menu/click")},
+                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+
+        for(const char* touch : {"/interaction_profiles/oculus/touch_controller",
+                "/interaction_profiles/meta/touch_controller_plus"})
+        {
+            suggest(touch,
+                {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
+                    {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
+                    {&grabAction, QVR_L("input/squeeze/value")}, {&grabAction, QVR_R("input/squeeze/value")},
+                    {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
+                    {&jumpAction, QVR_R("input/a/click")},
+                    {&nextWeaponAction, QVR_R("input/b/click")}, {&nextWeaponAction, QVR_L("input/y/click")},
+                    {&reloadAction, QVR_L("input/x/click")}, {&reloadAction, QVR_R("input/thumbstick/click")},
+                    {&menuAction, QVR_L("input/menu/click")},
+                    {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+        }
+
+        suggest("/interaction_profiles/valve/index_controller",
+            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
+                {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
+                {&grabAction, QVR_L("input/squeeze/value")}, {&grabAction, QVR_R("input/squeeze/value")},
+                {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
+                {&jumpAction, QVR_R("input/a/click")},
+                {&nextWeaponAction, QVR_R("input/b/click")}, {&nextWeaponAction, QVR_L("input/thumbstick/click")},
+                {&reloadAction, QVR_L("input/a/click")}, {&reloadAction, QVR_R("input/thumbstick/click")},
+                {&menuAction, QVR_L("input/b/click")},
+                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+
+        suggest("/interaction_profiles/htc/vive_controller",
+            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
+                {&fireAction, QVR_L("input/trigger/click")}, {&fireAction, QVR_R("input/trigger/click")},
+                {&grabAction, QVR_L("input/squeeze/click")}, {&grabAction, QVR_R("input/squeeze/click")},
+                {&moveAction, QVR_L("input/trackpad")}, {&turnAction, QVR_R("input/trackpad")},
+                {&jumpAction, QVR_R("input/trackpad/click")},
+                {&nextWeaponAction, QVR_R("input/menu/click")},
+                {&menuAction, QVR_L("input/menu/click")},
+                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+
+        suggest("/interaction_profiles/microsoft/motion_controller",
+            {{&gripPose, QVR_L("input/grip/pose")}, {&gripPose, QVR_R("input/grip/pose")},
+                {&fireAction, QVR_L("input/trigger/value")}, {&fireAction, QVR_R("input/trigger/value")},
+                {&grabAction, QVR_L("input/squeeze/click")}, {&grabAction, QVR_R("input/squeeze/click")},
+                {&moveAction, QVR_L("input/thumbstick")}, {&turnAction, QVR_R("input/thumbstick")},
+                {&jumpAction, QVR_R("input/trackpad/click")},
+                {&nextWeaponAction, QVR_R("input/menu/click")}, {&nextWeaponAction, QVR_L("input/trackpad/click")},
+                {&menuAction, QVR_L("input/menu/click")},
+                {&hapticAction, QVR_L("output/haptic")}, {&hapticAction, QVR_R("output/haptic")}});
+
+#undef QVR_L
+#undef QVR_R
     }
 
     bool createActions()
@@ -461,25 +563,18 @@ private:
         handPaths[0] = path("/user/hand/left");
         handPaths[1] = path("/user/hand/right");
 
-        XrActionCreateInfo info{XR_TYPE_ACTION_CREATE_INFO};
-        info.actionType = XR_ACTION_TYPE_POSE_INPUT;
-        q_strlcpy(info.actionName, "grip_pose", XR_MAX_ACTION_NAME_SIZE);
-        q_strlcpy(info.localizedActionName, "Hand pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
-        info.countSubactionPaths = 2;
-        info.subactionPaths = handPaths;
-        if(!check(xrCreateAction(actionSet, &info, &gripPose), "xrCreateAction"))
-        {
-            return false;
-        }
+        gripPose = makeAction(XR_ACTION_TYPE_POSE_INPUT, "grip_pose", "Hand pose", true);
+        fireAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "fire", "Fire weapon", true);
+        grabAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "grab", "Grab", true);
+        reloadAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "reload", "Reload", true);
+        nextWeaponAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "next_weapon", "Next weapon", true);
+        jumpAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "jump", "Jump", false);
+        menuAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "menu", "Menu", false);
+        moveAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "move", "Move", false);
+        turnAction = makeAction(XR_ACTION_TYPE_VECTOR2F_INPUT, "turn", "Turn", false);
+        hapticAction = makeAction(XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
 
-        const char* left = "/user/hand/left/input/grip/pose";
-        const char* right = "/user/hand/right/input/grip/pose";
-        suggest("/interaction_profiles/khr/simple_controller", left, right);
-        suggest("/interaction_profiles/oculus/touch_controller", left, right);
-        suggest("/interaction_profiles/meta/touch_controller_plus", left, right);
-        suggest("/interaction_profiles/valve/index_controller", left, right);
-        suggest("/interaction_profiles/htc/vive_controller", left, right);
-        suggest("/interaction_profiles/microsoft/motion_controller", left, right);
+        suggestBindings();
 
         XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
         attachInfo.countActionSets = 1;
@@ -504,6 +599,65 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool boolState(XrAction action, XrPath subaction) const
+    {
+        XrActionStateGetInfo info{XR_TYPE_ACTION_STATE_GET_INFO};
+        info.action = action;
+        info.subactionPath = subaction;
+        XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
+        return XR_SUCCEEDED(xrGetActionStateBoolean(session, &info, &state)) && state.isActive &&
+               state.currentState;
+    }
+
+    [[nodiscard]] glm::vec2 vec2State(XrAction action) const
+    {
+        XrActionStateGetInfo info{XR_TYPE_ACTION_STATE_GET_INFO};
+        info.action = action;
+        XrActionStateVector2f state{XR_TYPE_ACTION_STATE_VECTOR2F};
+        if(!XR_SUCCEEDED(xrGetActionStateVector2f(session, &info, &state)) || !state.isActive)
+        {
+            return glm::vec2{0.f};
+        }
+        return {state.currentState.x, state.currentState.y};
+    }
+
+    void readInput(InputState& in) const
+    {
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            const XrPath side = handPaths[handSide(h)];
+            in.fire[h] = boolState(fireAction, side);
+            in.grab[h] = boolState(grabAction, side);
+            in.reload[h] = boolState(reloadAction, side);
+            in.nextWeapon[h] = boolState(nextWeaponAction, side);
+        }
+
+        in.jump = boolState(jumpAction, XR_NULL_PATH);
+        in.menu = boolState(menuAction, XR_NULL_PATH);
+        in.move = vec2State(moveAction);
+        in.turn = vec2State(turnAction);
+    }
+
+public:
+    void haptic(int hand, float seconds, float frequency, float amplitude) override
+    {
+        if(!sessionRunning || hapticAction == XR_NULL_HANDLE)
+        {
+            return;
+        }
+
+        XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
+        vibration.duration = static_cast<XrDuration>(seconds * 1e9);
+        vibration.frequency = frequency > 0.f ? frequency : XR_FREQUENCY_UNSPECIFIED;
+        vibration.amplitude = CLAMP(0.f, amplitude, 1.f);
+
+        XrHapticActionInfo info{XR_TYPE_HAPTIC_ACTION_INFO};
+        info.action = hapticAction;
+        info.subactionPath = handPaths[handSide(hand)];
+        xrApplyHapticFeedback(session, &info, reinterpret_cast<const XrHapticBaseHeader*>(&vibration));
+    }
+
+private:
     bool createSwapchains()
     {
         uint32_t viewCount = 0;
