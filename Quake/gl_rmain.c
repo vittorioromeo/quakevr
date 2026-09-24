@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -1130,6 +1131,8 @@ R_IsViewModelVisible
 static qboolean R_IsViewModelVisible (void)
 {
 	entity_t *e = &cl.viewent;
+	if (VR_HideViewModel ()) // QVR: VR draws its own weapons
+		return false;
 	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value || scr_viewsize.value >= 130)
 		return false;
 

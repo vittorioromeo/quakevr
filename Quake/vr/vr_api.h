@@ -32,6 +32,7 @@ extern "C" {
 
 struct client_s;
 struct edict_s;
+struct entity_s;
 struct sizebuf_s;
 
 // PROTOCOL_RMQ flag set by servers running Quake VR progs (see vr/vr_protocol.hpp).
@@ -88,6 +89,16 @@ int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition spla
 int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero if handled
 int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
 float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
+
+// View and rendering (view.c, gl_rmain.c, r_alias.c).
+void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+int VR_HideViewModel (void);							// R_IsViewModelVisible: VR draws its own weapons
+int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimum light
+int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
+void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
+void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
+int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 
 #ifdef __cplusplus
 }

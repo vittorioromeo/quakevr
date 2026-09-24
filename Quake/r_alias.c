@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_alias.c -- alias model rendering
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
@@ -245,7 +246,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	}
 
 	// minimum light value on gun (24)
-	if (e == &cl.viewent)
+	if (e == &cl.viewent || VR_IsViewEntity (e)) // QVR
 	{
 		add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
 		if (add > 0.0f)
@@ -286,6 +287,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	}
 
 	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
+	VR_AliasLightModifier (e, lightcolor); // QVR
 }
 
 /*
@@ -342,6 +344,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (5);
 	else
 		state = GLS_CULL_BACK | GLS_ATTRIBS (1);
+	if (VR_AliasMirrored (ibuf.ent)) // QVR: mirroring flips the winding
+		state = (state & ~GLS_MASK_CULL) | GLS_CULL_FRONT;
 
 	opaque_state = (state | GLS_BLEND_OPAQUE) & ~(GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE);
 	transparent_state = (state | GLS_BLEND_ALPHA) & ~(GLS_BLEND_OPAQUE | GLS_CULL_BACK);
@@ -487,6 +491,9 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 	if (!gl_nocolors.value && CL_IsPlayerEnt (ibuf.ent))
 		return false;
 
+	if (VR_AliasMirrored (ibuf.ent) != VR_AliasMirrored (e)) // QVR
+		return false;
+
 	return true;
 }
 
@@ -607,8 +614,10 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	// transform it
 	//
 	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
+	VR_AliasPreTransform (e, model_matrix); // QVR
 	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	VR_AliasPostTransform (e, model_matrix); // QVR
 
 	//
 	// set up for alpha blending
@@ -674,6 +683,8 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		instance->pose1 *= paliashdr->numbones;
 		instance->pose2 *= paliashdr->numbones;
 	}
+
+	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
 }
 
 /*

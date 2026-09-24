@@ -6,6 +6,8 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_server.hpp"
+#include "vr_view.hpp"
+#include "vr_weapons.hpp"
 
 #include <cstring>
 #include <memory>
@@ -122,12 +124,14 @@ extern "C" void VR_Init()
     state = new State{};
 
     registerCvars();
+    weapons::registerCvars();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     client::init();
     server::init();
+    Cmd_AddCommand("vr_dumpview", view::dumpView_f);
 
     state->restartRequested = true;
 }
