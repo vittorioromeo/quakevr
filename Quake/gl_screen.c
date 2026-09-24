@@ -2032,8 +2032,16 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 	do
 	{
 		Sys_SendKeyEvents ();
+		if (VR_IsActive ()) // QVR: keep the headset's frames going, showing the dialog, and the controllers' keys coming
+		{
+			VR_BeginFrame ();
+			scr_drawdialog = true;
+			SCR_UpdateScreen ();
+			scr_drawdialog = false;
+		}
 		Key_GetGrabbedInput (&lastkey, &lastchar);
-		Sys_Sleep (16);
+		if (!VR_IsActive ()) // QVR: the runtime paces a headset
+			Sys_Sleep (16);
 		if (timeout) time2 = Sys_DoubleTime (); //johnfitz -- zero timeout means wait forever.
 	} while (lastchar != 'y' && lastchar != 'Y' &&
 		 lastchar != 'n' && lastchar != 'N' &&
