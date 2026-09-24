@@ -150,6 +150,28 @@ void restartVr()
 // Pages of the port's own tweaks
 // ----------------------------------------------------------------------------
 
+// The old Single Player and Bot Control menus' extras.
+void playHub() { Cbuf_AddText("map vrstart\n"); }
+void playTutorial() { Cbuf_AddText("map vrtutorial\n"); }
+void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
+void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
+void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
+void kickBot() { Cbuf_AddText("impulse 102\n"); }
+
+[[nodiscard]] std::vector<Item> pagePlay()
+{
+    return {
+        header("Maps"),
+        action("VR Hub", playHub),
+        action("Tutorial", playTutorial),
+        action("Firing Range", playFiringRange),
+        header("Bots (Multiplayer)"),
+        action("Add Bot (Team 0)", addBotTeam0),
+        action("Add Bot (Team 1)", addBotTeam1),
+        action("Kick Bot", kickBot),
+    };
+}
+
 [[nodiscard]] std::vector<Item> pageBody()
 {
     return {
@@ -296,6 +318,7 @@ struct Page
 const Page pages[] = {
     {"VR Settings", pageMain},
     {"Advanced VR Options", pageAdvanced},
+    {"Play", pagePlay},
     {"Body", pageBody},
     {"Wrist Gadget", pageGadget},
     {"Throwing and Physics", pageThrowing},

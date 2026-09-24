@@ -253,7 +253,7 @@ extern "C" void VR_BeginFrame()
     input::update(state->tracking.input); // releases held keys when VR is off
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
-    (void)hands::current();
+    input::roomscaleJump(hands::current());
 }
 
 extern "C" int VR_IsActive()

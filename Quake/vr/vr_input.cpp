@@ -186,6 +186,11 @@ void update(const InputState& tracked)
             if(now != previous.hands[h].*b.button)
             {
                 Key_Event(b.key[h], now);
+                if(now && key_dest == key_menu && !vr_disablehaptics.value)
+                {
+                    // A click under the finger, as the old engine gave in menus.
+                    pendingHaptics.push_back({realtime, h, 0.02f, 150.f, 0.3f});
+                }
             }
         }
 
@@ -287,6 +292,18 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
 namespace qvr::input
 {
+
+void roomscaleJump(const hands::State& s)
+{
+    static bool jumping = false;
+    const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game &&
+                        s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
+    if(rising != jumping)
+    {
+        jumping = rising;
+        Cbuf_AddText(rising ? "+jump\n" : "-jump\n");
+    }
+}
 
 void parseHaptic()
 {

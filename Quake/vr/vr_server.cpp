@@ -174,6 +174,10 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 
     statsf[STAT_QVR_WEAPON] = ent->v.weapon;
 
+    // The VR progs keep the main hand's ammo type (AID_*) in .currentammo; the classic status bar
+    // shows STAT_AMMO as a count.
+    statsf[STAT_AMMO] = fieldFloatOr(ent, f.ammocounter, ent->v.currentammo);
+
     statsf[STAT_ACTIVEWEAPON] = static_cast<float>(VR_ActiveWeaponStat(ent));
     stat(STAT_QVR_WEAPON2, f.weapon2);
     statsi[STAT_QVR_WEAPONMODEL2] = modelIndexOfField(ent, f.weaponmodel2);

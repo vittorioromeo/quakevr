@@ -889,6 +889,26 @@ static void applyEyeView(const hands::State& s)
     r_refdef.fov_y = glm::degrees(fov.up - fov.down);
 }
 
+// Quake VR's grenade and proximity bomb models lack the smoke trail flag the old engine gave
+// them when they loaded.
+void patchModelFlags()
+{
+    static const qmodel_t* world = nullptr;
+    if(cl.worldmodel == world)
+    {
+        return;
+    }
+    world = cl.worldmodel;
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        qmodel_t* m = cl.model_precache[i];
+        if(!strcmp(m->name, "progs/grenade.mdl") || !strcmp(m->name, "progs/proxbomb.mdl"))
+        {
+            m->flags |= EF_GRENADE;
+        }
+    }
+}
+
 extern "C" void VR_SetupViewEntities()
 {
     hands::State& s = hands::current();
@@ -919,6 +939,20 @@ extern "C" void VR_SetupViewEntities()
     {
         pressWeaponButtons(s);
     }
+
+    // The ring of shadows fades the hands and weapons too (as the old engine did); the gadget
+    // stays readable.
+    if(vr_body_powerups.value && (cl.items & IT_INVISIBILITY))
+    {
+        forEachEntity([](view::ViewEntity& ve) {
+            if(&ve != &entities.gadget)
+            {
+                ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
+            }
+        });
+    }
+
+    patchModelFlags();
 
     // Rendering may run several times per frame (one per eye); add the entities only once.
     if(lastAddedFrame == host_framecount)

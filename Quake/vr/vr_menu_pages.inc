@@ -1,8 +1,8 @@
 // vr_menu_pages.inc -- the old Quake VR settings pages (Quake VR's menu.cpp, "Quake VR -
 // Settings"), under VR Settings > Advanced VR Options: every setting that still exists in the
 // port, with its old range and help. Included by vr_menu.cpp. Settings that do nothing any more
-// (the menu's anchoring, roomscale jump, MSAA, the old force grab's range and power, voice chat)
-// are left out.
+// (the menu's anchoring, MSAA, the old force grab's range and power, the old floating torso,
+// voice chat) are left out.
 
 // Old Quake VR settings: "Menu Settings".
 [[nodiscard]] std::vector<Item> pageMenuSettings()
@@ -48,6 +48,9 @@
         slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").help("How quickly you turn with the joystick."),
         toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
         slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").help("How far you can teleport."),
+        toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
+        slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s")
+            .help("How fast the head must rise above the standing height."),
         slider("Roomscale Move Mult.", "vr_roomscale_move_mult", 0.25f, 5.f, 0.25f, "%.1f").help("Real movement to in-game movement. Increase to cover more ground, e.g. with teleportation or little room."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
