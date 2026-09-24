@@ -278,7 +278,7 @@ def build_mesh(m):
             (add(elbow, mul(fd, 0.13)), fa, fv, 0.049 * fm, 0.043 * fm, w((fo_, 1.0))),
             (add(elbow, mul(fd, 0.19)), fa, fv, 0.041 * wm, 0.033 * wm, w((fo_, 0.8), (ha_, 0.2))),
             (wrist, fa, fv, 0.036 * wm, 0.027 * wm, w((fo_, 0.4), (ha_, 0.6))),
-            (add(wrist, mul(fd, 0.03)), fa, fv, 0.035 * wm, 0.027 * wm, w((ha_, 1.0))),
+            (add(wrist, mul(fd, 0.03)), fa, fv, 0.037 * wm, 0.030 * wm, w((ha_, 1.0))),  # flared: the hand's base stays inside
         ], "bracer", sides=10)
 
         hip = joints[index["thigh_" + side]][2]

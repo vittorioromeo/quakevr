@@ -3022,6 +3022,14 @@ void() ImpulseCommands =
         InvisibilityCheat();
     if(self.impulse == 255)
         QuadCheat();
+    if(self.impulse == 243 && !deathmatch && !coop) // QVR: a backpack of your ammo ahead (physics tests)
+    {
+        vector playerOrigin = self.origin;
+        makevectors(self.v_angle);
+        self.origin = playerOrigin + v_forward * 64 + '0 0 16';
+        DropBackpack();
+        self.origin = playerOrigin;
+    }
     if(dump_coord == 1)
         DumpCoordinates();
     self.impulse = 0;

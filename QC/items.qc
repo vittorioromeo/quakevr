@@ -908,19 +908,29 @@ void() forcegrabbable_item_think =
     self.nextthink = time + 0.02;
 }
 
-void(entity xEnt, float scaleFactor) MakeItemGrabbable =
+// Ammo and health boxes as objects: drawn at vr_forcegrabbable_box_scale (brush models too),
+// centred on the origin, their touch box the drawn box, resting where the box stood.
+void(entity xEnt) MakeItemGrabbable =
 {
-    vector factorVector = VR_ScaleUtil_GetUniformScaleVector(scaleFactor);
+    float scaleFactor = cvar_hget(cvarh_vr_forcegrabbable_box_scale);
+    if(scaleFactor <= 0)
+    {
+        scaleFactor = 1;
+    }
 
-    VR_ScaleUtil_SetScale(self, factorVector);
+    vector lo = modelbounds(self, 0);
+    vector hi = modelbounds(self, 1);
+    vector centre = (lo + hi) * 0.5;
+    vector half = (hi - lo) * (0.5 * scaleFactor);
 
-    vector s = self.maxs * scaleFactor;
-    setsize(self, -s / 2.0, s / 2.0);
-    self.model_offset = -s - '3 3 3';
+    VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(scaleFactor));
+    self.model_scale_origin = '0 0 0';
+    self.model_offset = -centre; // model units, before the scale
 
-    vector bump = '0 0 0';
-    bump.z = self.maxs.z;
-    setorigin(self, self.origin + bump + s / 2.0);
+    vector o = self.origin + centre;
+    o_z = self.origin_z + lo_z + half_z + 0.25;
+    setsize(self, -half, half);
+    setorigin(self, o);
 
     self.oldorigin = self.origin;
     self.rad_time = -999;
@@ -943,7 +953,7 @@ void() AfterPlacementAmmoBox =
 {
     if(cvar_hget(cvarh_vr_forcegrabbable_ammo_boxes))
     {
-        MakeItemGrabbable(self, 0.4);
+        MakeItemGrabbable(self);
     }
 }
 
@@ -951,7 +961,7 @@ void() AfterPlacementHealthBox =
 {
     if(cvar_hget(cvarh_vr_forcegrabbable_health_boxes))
     {
-        MakeItemGrabbable(self, 0.4);
+        MakeItemGrabbable(self);
     }
 }
 

@@ -251,6 +251,7 @@ QVR_CVAR(vr_autosave_seconds, "240", CVAR_ARCHIVE)
 QVR_CVAR(vr_autosave_on_changelevel, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_ammo_boxes, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_health_boxes, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_forcegrabbable_box_scale, "0.25", CVAR_ARCHIVE) // size of those ammo and health boxes
 QVR_CVAR(vr_forcegrabbable_return_time_deathmatch, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_return_time_singleplayer, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_auto_close_thumb, "1", CVAR_ARCHIVE)

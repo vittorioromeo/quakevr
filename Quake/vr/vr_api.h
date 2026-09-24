@@ -104,6 +104,7 @@ int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimu
 int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
+void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices

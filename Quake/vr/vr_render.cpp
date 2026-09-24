@@ -118,6 +118,14 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
     applyPost(e, matrix);
 }
 
+// Brush entities (the ammo and health boxes are brush models) take the networked scale and offset
+// too.
+extern "C" void VR_BrushTransform(const entity_t* e, float matrix[16])
+{
+    applyPre(e, false, nullptr, matrix);
+    applyPost(e, matrix);
+}
+
 // Zero-blend data for the alias instance's spare int: zero pose (premultiplied by the vertex
 // count, like Pose1/Pose2) in the low 24 bits, blend factor * 255 in the high 8 bits.
 extern "C" int VR_AliasZeroBlend(const entity_t* e, const void* aliashdr, int totalverts)

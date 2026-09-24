@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -205,6 +206,8 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	angles[1] =  ent->angles[1];
 	angles[2] =  ent->angles[2];
 	R_EntityMatrix (mat, ent->origin, angles, ent == &cl_entities[0] ? ENTSCALE_DEFAULT : ent->scale);
+	if (ent != &cl_entities[0])
+		VR_BrushTransform (ent, mat); // QVR
 
 	MatrixTranspose4x3 (mat, inst->world);
 
