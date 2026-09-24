@@ -1,6 +1,7 @@
 // vr_lines.cpp -- see vr_lines.hpp.
 
 #include "vr_lines.hpp"
+#include "vr_engine.hpp"
 
 #include <vector>
 

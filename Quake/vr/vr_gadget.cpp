@@ -6,6 +6,7 @@
 // screen in each eye, a frame later, as it does the rest of the HUD.
 
 #include "vr_gadget.hpp"
+#include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 

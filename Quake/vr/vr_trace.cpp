@@ -1,6 +1,7 @@
 // vr_trace.cpp -- see vr_trace.hpp.
 
 #include "vr_trace.hpp"
+#include "vr_engine.hpp"
 
 namespace qvr::worldtrace
 {

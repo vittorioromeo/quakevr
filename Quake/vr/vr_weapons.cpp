@@ -1,6 +1,7 @@
 // vr_weapons.cpp -- see vr_weapons.hpp.
 
 #include "vr_weapons.hpp"
+#include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 

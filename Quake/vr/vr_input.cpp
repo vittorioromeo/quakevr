@@ -10,6 +10,7 @@
 // pushed up or down it is DPAD UP/DOWN. In menus both sticks are the DPAD.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
@@ -280,27 +281,10 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 }
 
-// Server side: `haptic(hand, delay, duration, frequency, amplitude)` from QC, sent to the
-// player the builtin was called for.
-extern "C" void VR_SendHaptic(edict_t* player, int hand, float delay, float duration, float frequency, float amplitude)
+namespace qvr::input
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
-    {
-        return;
-    }
 
-    sizebuf_t* msg = &svs.clients[client].message;
-    MSG_WriteByte(msg, svc_quakevr);
-    MSG_WriteByte(msg, QVR_SVC_HAPTIC);
-    MSG_WriteByte(msg, hand);
-    MSG_WriteFloat(msg, delay);
-    MSG_WriteFloat(msg, duration);
-    MSG_WriteFloat(msg, frequency);
-    MSG_WriteFloat(msg, amplitude);
-}
-
-void VR_ParseHaptic()
+void parseHaptic()
 {
     const int hand = MSG_ReadByte();
     const float delay = MSG_ReadFloat();
@@ -313,3 +297,5 @@ void VR_ParseHaptic()
         pendingHaptics.push_back({realtime + delay, hand, duration, frequency, amplitude});
     }
 }
+
+} // namespace qvr::input

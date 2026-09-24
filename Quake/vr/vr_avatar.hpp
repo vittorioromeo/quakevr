@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "vr_engine.hpp" // qmodel_t, entity_t
 #include "vr_hands.hpp"
 
 namespace qvr::avatar

@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
+#include "vr_menu.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -561,7 +562,8 @@ extern "C" void VR_Menu_Open()
     }
 }
 
-extern "C" void VR_Menu_Command()
+// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options).
+void qvr::menu::command_f()
 {
     VR_Menu_Open();
     if(Cmd_Argc() > 1)

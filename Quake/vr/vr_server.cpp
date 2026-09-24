@@ -1,6 +1,7 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_move.hpp"
+#include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -68,36 +69,6 @@ void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
     return (sv.protocolflags & PRFL_QUAKEVR) != 0;
 }
 
-void setVec(edict_t* ent, int ofs, const glm::vec3& v)
-{
-    if(ofs >= 0)
-    {
-        float* f = fieldPtr(ent, ofs);
-        f[0] = v.x;
-        f[1] = v.y;
-        f[2] = v.z;
-    }
-}
-
-void setFloat(edict_t* ent, int ofs, float value)
-{
-    if(ofs >= 0)
-    {
-        fieldFloat(ent, ofs) = value;
-    }
-}
-
-[[nodiscard]] glm::vec3 getVec(edict_t* ent, int ofs)
-{
-    if(ofs < 0)
-    {
-        return glm::vec3{0.f};
-    }
-
-    const float* f = fieldPtr(ent, ofs);
-    return {f[0], f[1], f[2]};
-}
-
 [[nodiscard]] int modelIndexOfField(edict_t* ent, int ofs)
 {
     if(ofs < 0 || !fieldInt(ent, ofs))
@@ -122,19 +93,19 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     edict_t* ent = client->edict;
     const FieldOffsets& f = fields();
 
-    setVec(ent, f.v_viewangle, move.headAngles);
-    setFloat(ent, f.vryaw, move.vrYaw);
+    setFieldVec(ent, f.v_viewangle, move.headAngles);
+    setFieldFloat(ent, f.vryaw, move.vrYaw);
 
     const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
                              int throwVel, int velMag, int angVel, int throwPos, int throwAge) {
-        setVec(ent, pos, hand.pos);
-        setVec(ent, rot, hand.rot);
-        setVec(ent, vel, hand.vel);
-        setVec(ent, throwVel, hand.throwVel);
-        setFloat(ent, velMag, hand.velMag);
-        setVec(ent, angVel, hand.angVel);
-        setVec(ent, throwPos, hand.throwPos);
-        setFloat(ent, throwAge, hand.throwAge);
+        setFieldVec(ent, pos, hand.pos);
+        setFieldVec(ent, rot, hand.rot);
+        setFieldVec(ent, vel, hand.vel);
+        setFieldVec(ent, throwVel, hand.throwVel);
+        setFieldFloat(ent, velMag, hand.velMag);
+        setFieldVec(ent, angVel, hand.angVel);
+        setFieldVec(ent, throwPos, hand.throwPos);
+        setFieldFloat(ent, throwAge, hand.throwAge);
     };
 
     setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
@@ -142,9 +113,9 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setHand(move.hands[1], f.handpos, f.handrot, f.handvel, f.handthrowvel,
         f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage);
 
-    setVec(ent, f.headvel, move.headVel);
-    setVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
-    setVec(ent, f.muzzlepos, move.muzzlePos[1]);
+    setFieldVec(ent, f.headvel, move.headVel);
+    setFieldVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
+    setFieldVec(ent, f.muzzlepos, move.muzzlePos[1]);
     const int clientNum = static_cast<int>(client - svs.clients);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
@@ -152,12 +123,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     }
     ClientBits& bits = clientBits[clientNum];
     bits.received = move.vrBits0;
-    setFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame)));
-    setVec(ent, f.teleport_target, move.teleportTarget);
-    setFloat(ent, f.offhand_hotspot, move.hotspots[0]);
-    setFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
-    setVec(ent, f.roomscalemove, move.roomscaleMove);
-    setFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
+    setFieldFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame)));
+    setFieldVec(ent, f.teleport_target, move.teleportTarget);
+    setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
+    setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
+    setFieldVec(ent, f.roomscalemove, move.roomscaleMove);
+    setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
     physics::setClientHandsTracked(clientNum, (move.buttons & QVR_BUTTON_HANDSTRACKED) != 0);
 }
 
@@ -248,15 +219,15 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     // Baselines don't carry these (they are zero), so any non-zero value is sent.
     const FieldOffsets& f = fields();
     int bits = 0;
-    if(getVec(ent, f.model_scale) != glm::vec3{0.f})
+    if(fieldVec(ent, f.model_scale) != glm::vec3{0.f})
     {
         bits |= U_QVR_SCALE;
     }
-    if(getVec(ent, f.model_scale_origin) != glm::vec3{0.f})
+    if(fieldVec(ent, f.model_scale_origin) != glm::vec3{0.f})
     {
         bits |= U_QVR_SCALEORIGIN;
     }
-    if(getVec(ent, f.model_offset) != glm::vec3{0.f})
+    if(fieldVec(ent, f.model_offset) != glm::vec3{0.f})
     {
         bits |= U_QVR_OFFSET;
     }
@@ -269,7 +240,7 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
 
     if(bits & U_QVR_SCALE)
     {
-        const glm::vec3 v = getVec(ent, f.model_scale);
+        const glm::vec3 v = fieldVec(ent, f.model_scale);
         for(int i = 0; i < 3; i++)
         {
             MSG_WriteFloat(msg, v[i]);
@@ -277,7 +248,7 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     }
 
     const auto writeCoords = [&](int ofs) {
-        const glm::vec3 v = getVec(ent, ofs);
+        const glm::vec3 v = fieldVec(ent, ofs);
         for(int i = 0; i < 3; i++)
         {
             MSG_WriteCoord(msg, v[i], sv.protocolflags);
@@ -335,7 +306,7 @@ void dumpPlayer_f()
     edict_t* ent = svs.clients[0].edict;
     const FieldOffsets& f = fields();
     const auto vec = [&](const char* name, int ofs) {
-        const glm::vec3 v = getVec(ent, ofs);
+        const glm::vec3 v = fieldVec(ent, ofs);
         Con_Printf("  %-14s %8.2f %8.2f %8.2f\n", name, v.x, v.y, v.z);
     };
 
@@ -351,6 +322,24 @@ void dumpPlayer_f()
     Con_Printf("  vrbits0 %d  button3 %g  weapon %g  weapon2 %g\n",
         static_cast<int>(fieldFloatOr(ent, f.vrbits0, 0.f)), fieldFloatOr(ent, f.button3, 0.f),
         ent->v.weapon, fieldFloatOr(ent, f.weapon2, 0.f));
+}
+
+void sendHaptic(edict_t* player, int hand, float delay, float duration, float frequency, float amplitude)
+{
+    const int client = NUM_FOR_EDICT(player) - 1;
+    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    {
+        return;
+    }
+
+    sizebuf_t* msg = &svs.clients[client].message;
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_HAPTIC);
+    MSG_WriteByte(msg, hand);
+    MSG_WriteFloat(msg, delay);
+    MSG_WriteFloat(msg, duration);
+    MSG_WriteFloat(msg, frequency);
+    MSG_WriteFloat(msg, amplitude);
 }
 
 void init()

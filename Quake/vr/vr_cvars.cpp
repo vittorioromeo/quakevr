@@ -1,6 +1,7 @@
 // vr_cvars.cpp -- Quake VR cvar definitions and registration.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
 
 namespace qvr
 {

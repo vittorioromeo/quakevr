@@ -1,6 +1,7 @@
 // vr_worldtext.cpp -- see vr_worldtext.hpp.
 
 #include "vr_worldtext.hpp"
+#include "vr_engine.hpp"
 #include "vr_protocol.hpp"
 
 using namespace qvr::protocol;

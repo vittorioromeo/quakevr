@@ -4,6 +4,7 @@
 // game folder's quakevr.cfg.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
 
 using namespace qvr;
 

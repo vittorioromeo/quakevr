@@ -11,8 +11,6 @@
 
 #include <cstring>
 
-extern "C" char com_gamenames[];
-
 namespace
 {
 

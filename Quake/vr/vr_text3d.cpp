@@ -1,6 +1,8 @@
 // vr_text3d.cpp -- see vr_text3d.hpp. Layout from the old engine's R_DrawWorldText.
 
 #include "vr_text3d.hpp"
+#include "vr_engine.hpp"
+#include "vr_shadows.hpp"
 #include "vr_cvars.hpp"
 #include "vr_worldtext.hpp"
 
@@ -180,7 +182,6 @@ void clear()
 
 } // namespace qvr::text3d
 
-void VR_DrawShadows(); // vr_shadows.cpp
 
 extern "C" void VR_DrawSceneOpaque()
 {
@@ -192,7 +193,7 @@ extern "C" void VR_DrawSceneOpaque()
         return;
     }
 
-    VR_DrawShadows();
+    shadows::draw();
 
     vertices.clear();
     for(const worldtext::WorldText& wt : worldtext::clientTexts())

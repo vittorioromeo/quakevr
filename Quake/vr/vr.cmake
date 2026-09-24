@@ -10,7 +10,8 @@ target_include_directories(ironwail PRIVATE
 	"${CMAKE_CURRENT_LIST_DIR}/.."
 	"${CMAKE_CURRENT_LIST_DIR}"
 	"${CMAKE_CURRENT_LIST_DIR}/external")
-# OpenXR: the vendored Windows loader, or an installed OpenXR SDK elsewhere.
+# OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
+# only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	set(QVR_OPENXR_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR")
 	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_DIR}/include")
@@ -18,12 +19,6 @@ if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
 	add_custom_command(TARGET ironwail POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QVR_OPENXR_DIR}/lib/x64/openxr_loader.dll" $<TARGET_FILE_DIR:ironwail>)
-else()
-	find_package(OpenXR CONFIG QUIET)
-	if (OpenXR_FOUND)
-		target_link_libraries(ironwail PRIVATE OpenXR::openxr_loader)
-		target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
-	endif()
 endif()
 
 set_target_properties(ironwail PROPERTIES

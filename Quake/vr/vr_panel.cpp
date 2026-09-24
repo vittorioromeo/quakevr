@@ -10,6 +10,7 @@
 // TODO VR: (P6) menu laser pointer.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"

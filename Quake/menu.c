@@ -4813,8 +4813,8 @@ void M_Options_Key (int k)
 		case OPT_GAMEPAD:
 			M_Menu_Gamepad_f ();
 			break;
-		case OPT_VR:
-			VR_Menu_Open (); // QVR
+		case OPT_VR: // QVR
+			VR_Menu_Open ();
 			break;
 		case OPT_GAME:
 			M_Options_Init (m_game);
@@ -7347,8 +7347,8 @@ void M_Draw (void)
 		M_ServerList_Draw ();
 		break;
 
-	case m_vr:
-		VR_Menu_Draw (); // QVR
+	case m_vr: // QVR
+		VR_Menu_Draw ();
 		break;
 	}
 
@@ -7485,8 +7485,8 @@ void M_Keydown (int key, qboolean repeat)
 		M_ServerList_Key (key);
 		return;
 
-	case m_vr:
-		VR_Menu_Key (key); // QVR
+	case m_vr: // QVR
+		VR_Menu_Key (key);
 		return;
 	}
 }

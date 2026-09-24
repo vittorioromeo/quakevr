@@ -13,7 +13,7 @@ void init();
 // Once per host frame with the backend's input.
 void update(const InputState& in);
 
-} // namespace qvr::input
-
 // svc_quakevr QVR_SVC_HAPTIC (vr_client.cpp dispatches it).
-void VR_ParseHaptic();
+void parseHaptic();
+
+} // namespace qvr::input

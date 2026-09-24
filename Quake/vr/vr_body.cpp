@@ -2,6 +2,7 @@
 // (VR_Get*HolsterPos, VR_In*HolsterDistance and VR_Move's computeHotSpot).
 
 #include "vr_body.hpp"
+#include "vr_engine.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"

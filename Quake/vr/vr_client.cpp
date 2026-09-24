@@ -2,6 +2,7 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_client.hpp"
+#include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_handpose.hpp"
@@ -456,7 +457,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_PARTICLE2: parseParticle2(); break;
         case QVR_SVC_PRECACHE_MODEL: parsePrecacheModel(); break;
         case QVR_SVC_PRECACHE_SOUND: parsePrecacheSound(); break;
-        case QVR_SVC_HAPTIC: VR_ParseHaptic(); break;
+        case QVR_SVC_HAPTIC: input::parseHaptic(); break;
         case QVR_SVC_WORLDTEXT_MAKE:
         case QVR_SVC_WORLDTEXT_TEXT:
         case QVR_SVC_WORLDTEXT_POS:

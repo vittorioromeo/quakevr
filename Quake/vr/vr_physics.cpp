@@ -4,6 +4,7 @@
 // Everything here is inactive unless the server runs Quake VR progs.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 
@@ -11,15 +12,6 @@
 
 using namespace qvr;
 using namespace qvr::progs;
-
-extern "C"
-{
-    // sv_phys.c (not declared in any header).
-    qboolean SV_RunThink(edict_t* ent);
-    int SV_FlyMove(edict_t* ent, float time, trace_t* steptrace);
-    void SV_CheckStuck(edict_t* ent);
-    void SV_WalkMove(edict_t* ent);
-}
 
 namespace
 {
@@ -47,25 +39,9 @@ std::vector<bool> clientHandsTracked;
     return fields();
 }
 
-[[nodiscard]] glm::vec3 vecField(edict_t* ent, int ofs)
-{
-    if(ofs < 0)
-    {
-        return glm::vec3{0.f};
-    }
-
-    const float* v = fieldPtr(ent, ofs);
-    return {v[0], v[1], v[2]};
-}
-
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return {v[0], v[1], v[2]};
-}
-
-[[nodiscard]] func_t funcField(edict_t* ent, int ofs)
-{
-    return ofs >= 0 ? static_cast<func_t>(fieldInt(ent, ofs)) : 0;
 }
 
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag)
@@ -139,12 +115,12 @@ void callField(edict_t* self, edict_t* other, func_t fn)
 // SV_Impact for an arbitrary function field (handtouch, vr_wpntouch).
 void impactField(edict_t* e1, edict_t* e2, int ofs)
 {
-    if(const func_t fn = funcField(e1, ofs); fn && solidOf(e1) != SOLID_NOT)
+    if(const func_t fn = fieldFunc(e1, ofs); fn && solidOf(e1) != SOLID_NOT)
     {
         callField(e1, e2, fn);
     }
 
-    if(const func_t fn = funcField(e2, ofs); fn && solidOf(e2) != SOLID_NOT)
+    if(const func_t fn = fieldFunc(e2, ofs); fn && solidOf(e2) != SOLID_NOT)
     {
         callField(e2, e1, fn);
     }
@@ -163,12 +139,12 @@ void impactField(edict_t* e1, edict_t* e2, int ofs)
 void handTouches(edict_t* ent)
 {
     const glm::vec3 handExtent{handHalfSize};
-    const glm::vec3 hands[2] = {vecField(ent, f().offhandpos), vecField(ent, f().handpos)};
-    const glm::vec3 handRots[2] = {vecField(ent, f().offhandrot), vecField(ent, f().handrot)};
+    const glm::vec3 hands[2] = {fieldVec(ent, f().offhandpos), fieldVec(ent, f().handpos)};
+    const glm::vec3 handRots[2] = {fieldVec(ent, f().offhandrot), fieldVec(ent, f().handrot)};
 
     const auto checkTrace = [&](const trace_t& trace) {
         edict_t* target = trace.ent;
-        if(!target || !funcField(target, f().handtouch))
+        if(!target || !fieldFunc(target, f().handtouch))
         {
             return;
         }
@@ -223,10 +199,10 @@ void weaponTouches(edict_t* ent)
 
     for(int i = 0; i < 2; i++)
     {
-        const trace_t trace = moveTrace(vecField(ent, handPos[i]), -gunExtent, gunExtent,
-            vecField(ent, muzzlePos[i]), MOVE_NORMAL, ent);
+        const trace_t trace = moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent,
+            fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
 
-        if(trace.fraction < 1.f && trace.ent && funcField(trace.ent, f().vr_wpntouch))
+        if(trace.fraction < 1.f && trace.ent && fieldFunc(trace.ent, f().vr_wpntouch))
         {
             setHandtouchParams(handIndex[i], ent, trace.ent);
             impactField(ent, trace.ent, f().vr_wpntouch);
@@ -236,7 +212,7 @@ void weaponTouches(edict_t* ent)
 
 [[nodiscard]] bool canBeTouched(edict_t* target)
 {
-    return (target->v.touch || funcField(target, f().handtouch)) &&
+    return (target->v.touch || fieldFunc(target, f().handtouch)) &&
            solidOf(target) != SOLID_NOT;
 }
 
@@ -256,7 +232,7 @@ void touch(edict_t* ent, edict_t* target)
         callField(target, ent, target->v.touch);
     }
 
-    const func_t handtouch = funcField(target, f().handtouch);
+    const func_t handtouch = fieldFunc(target, f().handtouch);
     if(handtouch && !target->free && isClient(ent) &&
         (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || !handsTracked(ent)))
     {
@@ -267,7 +243,7 @@ void touch(edict_t* ent, edict_t* target)
 
 void handTouch(edict_t* ent, edict_t* target)
 {
-    const func_t handtouch = funcField(target, f().handtouch);
+    const func_t handtouch = fieldFunc(target, f().handtouch);
     if(!handtouch || solidOf(target) == SOLID_NOT)
     {
         return;
@@ -278,8 +254,8 @@ void handTouch(edict_t* ent, edict_t* target)
     const glm::vec3 tMin = vec(target->v.absmin) - bonus;
     const glm::vec3 tMax = vec(target->v.absmax) + bonus;
 
-    const glm::vec3 off = vecField(ent, f().offhandpos);
-    const glm::vec3 main = vecField(ent, f().handpos);
+    const glm::vec3 off = fieldVec(ent, f().offhandpos);
+    const glm::vec3 main = fieldVec(ent, f().handpos);
     const bool offHit = boxesOverlap(off - handExtent, off + handExtent, tMin, tMax);
     const bool mainHit = boxesOverlap(main - handExtent, main + handExtent, tMin, tMax);
 
@@ -298,7 +274,7 @@ void handTouch(edict_t* ent, edict_t* target)
 
     for(const int ofs : {f().offhandpos, f().handpos})
     {
-        const glm::vec3 hand = vecField(ent, ofs);
+        const glm::vec3 hand = fieldVec(ent, ofs);
         if(boxesOverlap(hand - reach, hand + reach, tMin, tMax))
         {
             return true;
@@ -332,7 +308,7 @@ extern "C" int VR_RunThink2(edict_t* ent)
         return 1;
     }
 
-    const func_t think2 = funcField(ent, f().think2);
+    const func_t think2 = fieldFunc(ent, f().think2);
     float thinktime = fieldFloat(ent, f().nextthink2);
     if(!think2 || thinktime <= 0.f || thinktime > qcvm->time + host_frametime)
     {
@@ -376,7 +352,7 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
         return -1;
     }
 
-    const glm::vec3 target = vecField(ent, f().teleport_target);
+    const glm::vec3 target = fieldVec(ent, f().teleport_target);
     ent->v.teleport_time = static_cast<float>(qcvm->time) + 0.3f;
     for(int i = 0; i < 3; i++)
     {
@@ -394,7 +370,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
         return;
     }
 
-    const glm::vec3 move = vecField(ent, f().roomscalemove);
+    const glm::vec3 move = fieldVec(ent, f().roomscalemove);
     if(move.x == 0.f && move.y == 0.f)
     {
         return;

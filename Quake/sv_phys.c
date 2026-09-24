@@ -976,12 +976,12 @@ void SV_Physics_Client (edict_t	*ent, int num)
 // decide which move function to call
 //
 	switch (VR_ClientTeleport (ent)) // QVR
-	{
-	case -1:
-		return;
-	case 1:
-		goto postthink;
-	}
+	{								// QVR
+	case -1:						// QVR
+		return;						// QVR
+	case 1:							// QVR
+		goto postthink;				// QVR
+	}								// QVR
 
 	switch ((int)ent->v.movetype)
 	{
@@ -1141,11 +1141,7 @@ void SV_Physics_Toss (edict_t *ent)
 		return;
 
 	if (VR_RigidToss (ent)) // QVR: thrown weapons fly, bounce and settle as rigid bodies
-	{
-		if (!ent->free)
-			SV_CheckWaterTransition (ent); // else "just spawned" leaves waterlevel 1 for good
 		return;
-	}
 
 // if onground, return without moving
 	if ( ((int)ent->v.flags & FL_ONGROUND) && VR_TossKeepsGround (ent) ) // QVR: unless its support went away

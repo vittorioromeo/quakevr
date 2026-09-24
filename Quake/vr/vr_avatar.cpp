@@ -1,6 +1,8 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
 #include "vr_avatar.hpp"
+#include "vr_engine.hpp"
+#include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
@@ -12,8 +14,6 @@
 #include <cmath>
 #include <cstring>
 
-extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices);
-
 namespace qvr::avatar
 {
 namespace
@@ -21,8 +21,7 @@ namespace
 
 // The modelled body (Misc/quakevr/make_vrbody.py, which these tables must match): model units
 // per metre, and the height of its eyes.
-constexpr float UNITS = 1.f / 0.0381f;
-constexpr float MODEL_EYE_HEIGHT = 1.646f;
+constexpr float UNITS = units::perMetre;
 
 // A bone that is not drawn collapses to a point.
 constexpr float COLLAPSED = 0.001f;
@@ -179,20 +178,14 @@ struct Body
     return p.pos + p.rot * o;
 }
 
-[[nodiscard]] float worldScale()
-{
-    return vr_world_scale.value > 0.f ? vr_world_scale.value : 1.f;
-}
-
 // The spine from the head. The top of the neck is found behind and below the eyes; its drop
 // below the standing height is taken partly by the legs (the pelvis drops) and partly by the
 // back, which leans forward to keep its length.
 void solveTorso(const hands::State& s, Body& b)
 {
     const Bind& bd = bind();
-    const float calibration = vr_height_calibration.value > 0.5f ? vr_height_calibration.value : MODEL_EYE_HEIGHT;
-    b.m2w = UNITS * worldScale() * calibration / MODEL_EYE_HEIGHT;
-    b.floorZ = s.head.z - s.headHeight * UNITS * worldScale();
+    b.m2w = units::metresToUnits() * units::bodyScale();
+    b.floorZ = s.head.z - s.headHeight * units::metresToUnits();
 
     glm::vec3 right, up;
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, b.fwd, right, up);
@@ -526,9 +519,8 @@ Torso torso(const hands::State& s)
 hands::State standing(const hands::State& s)
 {
     hands::State out = s;
-    const float calibration = vr_height_calibration.value > 0.5f ? vr_height_calibration.value : MODEL_EYE_HEIGHT;
-    out.head.z += (calibration - s.headHeight) * UNITS * worldScale();
-    out.headHeight = calibration;
+    out.head.z += (units::eyeHeight() - s.headHeight) * units::metresToUnits();
+    out.headHeight = units::eyeHeight();
     out.headAngles = {0.f, s.bodyYaw, 0.f};
     out.crouchRatio = 0.f;
     return out;

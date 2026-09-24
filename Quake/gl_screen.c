@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api.h" // QVR
+#include "vr/vr_api_render.h" // QVR
 #include "steam.h"
 #include <time.h>
 
@@ -2032,16 +2033,9 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 	do
 	{
 		Sys_SendKeyEvents ();
-		if (VR_IsActive ()) // QVR: keep the headset's frames going, showing the dialog, and the controllers' keys coming
-		{
-			VR_BeginFrame ();
-			scr_drawdialog = true;
-			SCR_UpdateScreen ();
-			scr_drawdialog = false;
-		}
-		Key_GetGrabbedInput (&lastkey, &lastchar);
-		if (!VR_IsActive ()) // QVR: the runtime paces a headset
+		if (!VR_ModalMessageFrame ()) // QVR: a headset's frames go on, showing the dialog
 			Sys_Sleep (16);
+		Key_GetGrabbedInput (&lastkey, &lastchar);
 		if (timeout) time2 = Sys_DoubleTime (); //johnfitz -- zero timeout means wait forever.
 	} while (lastchar != 'y' && lastchar != 'Y' &&
 		 lastchar != 'n' && lastchar != 'N' &&

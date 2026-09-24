@@ -11,6 +11,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_menu.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -199,7 +200,7 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
-    Cmd_AddCommand("menu_vr", VR_Menu_Command);
+    Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_startgame", VR_StartGame_f);
     registerMockCommands();
     input::init();
@@ -258,4 +259,19 @@ extern "C" void VR_BeginFrame()
 extern "C" int VR_IsActive()
 {
     return state && state->backend;
+}
+
+extern "C" int VR_ModalMessageFrame()
+{
+    if(!VR_IsActive())
+    {
+        return 0;
+    }
+
+    // Keep the headset's frames going, showing the dialog, and the controllers' keys coming.
+    VR_BeginFrame();
+    scr_drawdialog = true;
+    SCR_UpdateScreen();
+    scr_drawdialog = false;
+    return 1;
 }

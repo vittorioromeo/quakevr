@@ -19,6 +19,7 @@
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_units.hpp"
 
 #include <algorithm>
 #include <array>
@@ -56,11 +57,6 @@ struct History
 };
 
 History histories[2];
-
-[[nodiscard]] float metersToUnits()
-{
-    return vr_world_scale.value / 0.0381f;
-}
 
 [[nodiscard]] Estimate fromSample(const Sample& s, const glm::vec3& vel, const glm::vec3& angVel)
 {
@@ -191,7 +187,7 @@ History histories[2];
     }
 
     Estimate out = fromSample(peak, vel, angVel);
-    out.pos = peak.pos + lever * metersToUnits();
+    out.pos = peak.pos + lever * units::metresToUnits();
     return out;
 }
 

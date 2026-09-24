@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "vr_engine.hpp"
+#include <glm/glm.hpp>
 
 namespace qvr::lines
 {

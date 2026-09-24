@@ -6,6 +6,7 @@
 // whose crosshair mode is "forbidden" (melee) have none.
 
 #include "vr_crosshair.hpp"
+#include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"

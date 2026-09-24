@@ -1,6 +1,7 @@
 // vr_anchor.cpp -- see vr_anchor.hpp.
 
 #include "vr_anchor.hpp"
+#include "vr_engine.hpp"
 
 #include <cstring>
 #include <string>

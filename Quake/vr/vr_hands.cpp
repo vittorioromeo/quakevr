@@ -1,6 +1,8 @@
 // vr_hands.cpp -- see vr_hands.hpp.
 
 #include "vr_hands.hpp"
+#include "vr_engine.hpp"
+#include "vr_units.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -33,11 +35,6 @@ int stateFrame = -1;
     const float c = std::cos(r);
     const float s = std::sin(r);
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
-}
-
-[[nodiscard]] float metersToUnits()
-{
-    return vr_world_scale.value / (1.5f * 0.0254f);
 }
 
 // Quake angles (pitch down positive, yaw, roll) of a tracking-space orientation, turned by
@@ -112,7 +109,7 @@ void updateRoomscale(const TrackingState& t, float m2u)
 // positions (the flat-screen hands, or a runtime without velocities).
 void updateVelocities(const TrackingState* t)
 {
-    const float u2m = 1.f / metersToUnits();
+    const float u2m = 1.f / units::metresToUnits();
     const double dt = previous.valid ? realtime - previous.time : 0.0;
     // Recomputed within the same frame (a turn, a server yaw): keep the frame's velocities.
     const auto differenced = [&](const glm::vec3& now, const glm::vec3& before, const glm::vec3& same) {
@@ -223,7 +220,7 @@ void update()
     const entity_t& player = cl_entities[cl.viewentity];
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const float yaw = cl.viewangles[YAW];
-    const float m2u = metersToUnits();
+    const float m2u = units::metresToUnits();
 
     state.playerOrigin = {player.origin[0], player.origin[1], player.origin[2]};
 

@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_alias.c -- alias model rendering
 
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR
+#include "vr/vr_api_render.h" // QVR
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
@@ -313,9 +313,9 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLsizeiptr	sizes[2];
 	gltexture_t* textures[2];
 	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
-	int			numvrbones;
-	GLuint		vrbonebuf;
-	GLbyte		*vrboneofs;
+	int			numvrbones;	// QVR
+	GLuint		vrbonebuf;	// QVR
+	GLbyte		*vrboneofs;	// QVR
 
 	if (!ibuf.count)
 		return;
@@ -373,7 +373,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
 
 	numvrbones = poseverttype == PV_IQM ? VR_AliasBonePoses (ibuf.ent, &vrbones) : 0; // QVR
-	if (numvrbones)
+	if (numvrbones) // QVR
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, vrbones, sizeof (bonepose_t) * numvrbones, &vrbonebuf, &vrboneofs);
 
 	for (hdr = mainhdr, totalverts = 0; hdr; hdr = Mod_NextSurface (hdr))
@@ -387,9 +387,9 @@ void R_FlushAliasInstances (qboolean showtris)
 	case PV_IQM:
 		if (numvrbones) // QVR: the entity's own bone matrices instead of the model's poses
 		{
-			buffers[1] = vrbonebuf; offsets[1] = (GLintptr)vrboneofs; sizes[1] = sizeof (bonepose_t) * numvrbones;
-			break;
-		}
+			buffers[1] = vrbonebuf; offsets[1] = (GLintptr)vrboneofs; sizes[1] = sizeof (bonepose_t) * numvrbones; // QVR
+			break; // QVR
+		} // QVR
 		buffers[1] = model->meshvbo; offsets[1] = mainhdr->vboposeofs; sizes[1] = sizeof (bonepose_t) * mainhdr->numbones * mainhdr->numposes;
 		break;
 	case PV_MD3:

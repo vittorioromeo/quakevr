@@ -7,6 +7,7 @@
 // the window, where the 2D layer is drawn as usual.
 
 #include "vr_body.hpp"
+#include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -246,7 +247,6 @@ extern "C" void VR_OverrideProjection(float matrix[16])
 
     // Hands, weapons and the body come much closer to the eyes than to a monitor's view: the
     // desktop's near plane (up to 4 units, 12 cm) cut them open. Reversed Z keeps the precision.
-    extern cvar_t gl_farclip;
     const float n = CLAMP(0.1f, vr_nearclip.value, 4.f);
     const float f = gl_farclip.value;
     if(gl_clipcontrol_able)

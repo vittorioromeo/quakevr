@@ -9,6 +9,7 @@
 //     * S(model scale) * T(network model_offset)                               (post)
 
 #include "vr_render.hpp"
+#include "vr_engine.hpp"
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"

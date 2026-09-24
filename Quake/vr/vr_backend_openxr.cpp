@@ -1,8 +1,10 @@
 // vr_backend_openxr.cpp -- OpenXR runtime backend (OpenGL, Windows).
 //
-// Session lifecycle, stage reference space, grip-pose actions for both hands, one swapchain
-// per eye, and the wait/begin/locate/end frame loop. Controller buttons are added with the
-// input work (P5).
+// Session lifecycle, stage reference space, the controllers' actions (poses, buttons, sticks,
+// haptics), one swapchain per eye and one for the 2D panel, and the wait/begin/locate/end frame
+// loop. The graphics binding (XR_KHR_opengl_enable, WGL, GL swapchain formats and images) is
+// the renderer-bound part: a Vulkan engine binds with XR_KHR_vulkan_enable2 instead
+// (docs/vr-port/PORTING.md).
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -471,7 +473,7 @@ private:
     // Tracked hand -> physical side: the main hand is the right one unless left-handed.
     [[nodiscard]] static int handSide(int hand)
     {
-        const bool leftHanded = Cvar_VariableValue("vr_lefthanded") != 0.f;
+        const bool leftHanded = vr_lefthanded.value != 0.f;
         const bool main = hand == HAND_MAIN;
         return main != leftHanded ? 1 : 0;
     }
@@ -677,7 +679,7 @@ private:
         if(info.referenceSpaceType == XR_REFERENCE_SPACE_TYPE_LOCAL)
         {
             // Local space has its origin at the head; put the floor a standing height below.
-            info.poseInReferenceSpace.position.y = -vr_height_calibration_value();
+            info.poseInReferenceSpace.position.y = -vr_height_calibration.value;
             Con_Printf("OpenXR: no stage space, using local space\n");
         }
 
@@ -690,11 +692,6 @@ private:
         viewInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
         viewInfo.poseInReferenceSpace.orientation.w = 1.f;
         return check(xrCreateReferenceSpace(session, &viewInfo, &viewSpace), "xrCreateReferenceSpace (view)");
-    }
-
-    [[nodiscard]] static float vr_height_calibration_value()
-    {
-        return Cvar_VariableValue("vr_height_calibration");
     }
 
     [[nodiscard]] XrPath path(const char* s) const

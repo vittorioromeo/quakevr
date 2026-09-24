@@ -4,7 +4,9 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_engine.hpp"
 #include "vr_protocol.hpp"
+#include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 
 #include <cmath>
@@ -290,7 +292,7 @@ void PF_particle2()
 // haptic(hand, delay, duration, frequency, amplitude), for the `self` player.
 void PF_haptic()
 {
-    VR_SendHaptic(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
+    server::sendHaptic(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
         G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 

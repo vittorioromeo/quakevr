@@ -66,6 +66,41 @@ struct Bindings
     return ofs >= 0 ? fieldFloat(ent, ofs) : fallback;
 }
 
+// Optional fields: absent ones read as zero, and are not written.
+[[nodiscard]] inline glm::vec3 fieldVec(edict_t* ent, int ofs)
+{
+    if(ofs < 0)
+    {
+        return glm::vec3{0.f};
+    }
+    const float* v = fieldPtr(ent, ofs);
+    return {v[0], v[1], v[2]};
+}
+
+[[nodiscard]] inline func_t fieldFunc(edict_t* ent, int ofs)
+{
+    return ofs >= 0 ? static_cast<func_t>(fieldInt(ent, ofs)) : 0;
+}
+
+inline void setFieldVec(edict_t* ent, int ofs, const glm::vec3& v)
+{
+    if(ofs >= 0)
+    {
+        float* f = fieldPtr(ent, ofs);
+        f[0] = v.x;
+        f[1] = v.y;
+        f[2] = v.z;
+    }
+}
+
+inline void setFieldFloat(edict_t* ent, int ofs, float value)
+{
+    if(ofs >= 0)
+    {
+        fieldFloat(ent, ofs) = value;
+    }
+}
+
 // Lookups on the current qcvm (nullptr / 0 when absent).
 [[nodiscard]] ddef_t* findGlobalDef(const char* name);
 [[nodiscard]] func_t findFunction(const char* name);

@@ -8,6 +8,7 @@
 // barrel going up and back towards the player first (the old engine's TurnVector(fwd, up, a)).
 
 #include "vr_flick.hpp"
+#include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"

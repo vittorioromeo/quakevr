@@ -1,6 +1,7 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
 #include "vr_progs.hpp"
+#include "vr_engine.hpp"
 #include "vr_server.hpp"
 
 #include <cstring>

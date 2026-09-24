@@ -1,6 +1,8 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view.hpp"
+#include "vr_engine.hpp"
+#include "vr_units.hpp"
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
@@ -583,8 +585,8 @@ void setupGadget(const hands::State& s)
     const glm::vec3 screenUp = glm::cross(out, right);
 
     // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
-    const float body = vr_height_calibration.value > 0.5f ? vr_height_calibration.value / 1.646f : 1.f;
-    const float m2w = vr_world_scale.value / 0.0381f * body;
+    const float body = units::bodyScale();
+    const float m2w = units::metresToUnits() * body;
     const float scale = vr_world_scale.value / 1.25f * body;
 
     gadget::Pose pose;

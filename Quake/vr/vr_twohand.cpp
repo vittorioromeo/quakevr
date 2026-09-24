@@ -9,6 +9,7 @@
 // shoulder instead, mixed by vr_2h_virtual_stock_factor.
 
 #include "vr_twohand.hpp"
+#include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
 #include "vr_client.hpp"

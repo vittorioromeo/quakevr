@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "vr_engine.hpp"
+#include "vr_backend.hpp"
+
+#include <glm/glm.hpp>
 
 namespace qvr::client
 {

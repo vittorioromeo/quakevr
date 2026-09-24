@@ -2,7 +2,11 @@
 
 #pragma once
 
-#include "vr_engine.hpp"
+// Only the cvar type: modules that need nothing else of the engine stay free of its headers.
+extern "C" {
+#include "q_stdinc.h"
+#include "cvar.h"
+}
 
 namespace qvr
 {

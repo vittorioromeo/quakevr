@@ -5,9 +5,11 @@
 // Needs the local server's world for the traces (see vr_trace).
 
 #include "vr_backend.hpp"
+#include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_shadows.hpp"
 #include "vr_trace.hpp"
 
 #include <vector>
@@ -122,7 +124,7 @@ void blob(const glm::vec3& from, float radius, float range, float strength)
 } // namespace
 
 // From VR_DrawSceneOpaque (vr_text3d.cpp).
-void VR_DrawShadows()
+void shadows::draw()
 {
     const int mode = static_cast<int>(vr_player_shadows.value);
     const hands::State& s = hands::current();

@@ -2,7 +2,9 @@
 //
 // Always include this instead of quakedef.h from VR sources. glm is included first because
 // the engine defines function-like macros (DotProduct, VectorCopy, ...) that must not leak
-// into glm's templates.
+// into glm's templates. Every engine symbol the module uses that no engine header declares is
+// declared here, so that this file lists what a port to another engine must provide besides the
+// headers (docs/vr-port/PORTING.md).
 
 #pragma once
 
@@ -12,15 +14,26 @@
 extern "C" {
 #include "quakedef.h"
 
-// Engine globals that no engine header declares.
-extern cvar_t sv_gravity;
-int ED_FindFieldOffset (const char *name);
-extern qboolean scr_drawloading;
-extern cvar_t crosshair;
-extern cvar_t r_lerpmodels;
-extern gltexture_t* char_texture;
-void M_DrawSlider (int x, int y, float range, const char *desc);
-void M_DrawArrowCursor (int cx, int cy);
+// Engine symbols that no engine header declares.
+extern cvar_t sv_gravity;							// sv_phys.c
+int ED_FindFieldOffset (const char *name);			// pr_edict.c
+extern qboolean scr_drawloading;					// gl_screen.c
+extern qboolean scr_drawdialog;						// gl_screen.c
+extern cvar_t crosshair;							// gl_screen.c
+extern cvar_t r_lerpmodels;							// r_alias.c
+extern cvar_t gl_farclip;							// gl_rmain.c
+extern gltexture_t* char_texture;					// gl_draw.c
+extern char com_gamenames[];						// common.c
+void M_DrawSlider (int x, int y, float range, const char *desc);	// menu.c
+void M_DrawArrowCursor (int cx, int cy);			// menu.c
+qboolean SV_RunThink (edict_t *ent);				// sv_phys.c
+int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace);
+void SV_CheckStuck (edict_t *ent);
+void SV_WalkMove (edict_t *ent);
+void SV_CheckVelocity (edict_t *ent);
+void SV_CheckWaterTransition (edict_t *ent);
+void SV_Impact (edict_t *e1, edict_t *e2);
 }
 
 #include "vr_api.h"
+#include "vr_api_render.h"

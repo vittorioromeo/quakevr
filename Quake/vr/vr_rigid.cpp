@@ -26,6 +26,8 @@
 //   past, so throws that look like hits are hits.
 
 #include "vr_cvars.hpp"
+#include "vr_engine.hpp"
+#include "vr_units.hpp"
 #include "vr_hands.hpp"
 #include "vr_progs.hpp"
 #include "vr_weapons.hpp"
@@ -35,14 +37,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-
-extern "C"
-{
-    // sv_phys.c (not declared in any header).
-    void SV_CheckVelocity(edict_t* ent);
-    void SV_CheckWaterTransition(edict_t* ent);
-    void SV_Impact(edict_t* e1, edict_t* e2);
-}
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -60,27 +54,6 @@ void fromGlm(const glm::vec3& g, vec3_t v)
     v[0] = g.x;
     v[1] = g.y;
     v[2] = g.z;
-}
-
-[[nodiscard]] glm::vec3 vecField(edict_t* ent, int ofs)
-{
-    if(ofs < 0)
-    {
-        return glm::vec3{0.f};
-    }
-    const float* f = fieldPtr(ent, ofs);
-    return {f[0], f[1], f[2]};
-}
-
-void setVecField(edict_t* ent, int ofs, const glm::vec3& v)
-{
-    if(ofs >= 0)
-    {
-        float* f = fieldPtr(ent, ofs);
-        f[0] = v.x;
-        f[1] = v.y;
-        f[2] = v.z;
-    }
 }
 
 // Model axes (x forward, y left, z up) of an alias entity's angles, whose pitch is inverted.
@@ -133,9 +106,9 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     const weapons::ModelTransform t = weapons::modelTransform(model);
     const FieldOffsets& f = fields();
-    const glm::vec3 netScale = glm::vec3{1.f} + vecField(ent, f.model_scale);
-    const glm::vec3 netScaleOrigin = vecField(ent, f.model_scale_origin);
-    const glm::vec3 netOffset = vecField(ent, f.model_offset);
+    const glm::vec3 netScale = glm::vec3{1.f} + fieldVec(ent, f.model_scale);
+    const glm::vec3 netScaleOrigin = fieldVec(ent, f.model_scale_origin);
+    const glm::vec3 netOffset = fieldVec(ent, f.model_offset);
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
 
@@ -173,11 +146,6 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 {
     const eval_t* val = GetEdictFieldValueByName(ent, "gravity");
     return (val && val->_float ? val->_float : 1.f) * sv_gravity.value;
-}
-
-[[nodiscard]] float metersToUnits()
-{
-    return vr_world_scale.value / 0.0381f;
 }
 
 // Monsters and other damageable entities the corners would pass, within the larger hit box.
@@ -293,7 +261,10 @@ struct Contact
 } // namespace
 
 // SV_Physics_Toss, after thinking: nonzero if this moved the entity.
-extern "C" int VR_RigidToss(edict_t* ent)
+namespace
+{
+
+[[nodiscard]] bool rigidToss(edict_t* ent)
 {
     const FieldOffsets& f = fields();
     const int movetype = static_cast<int>(ent->v.movetype);
@@ -318,7 +289,7 @@ extern "C" int VR_RigidToss(edict_t* ent)
     b.rot = axesFromAngles(ent->v.angles);
     b.com = toGlm(ent->v.origin) + b.rot * b.comLocal;
     b.vel = toGlm(ent->v.velocity);
-    b.spin = vecField(ent, f.vr_spin);
+    b.spin = fieldVec(ent, f.vr_spin);
     const glm::vec3 size = b.half * 2.f;
     b.invInertia = 12.f / glm::vec3{size.y * size.y + size.z * size.z, size.x * size.x + size.z * size.z,
                               size.x * size.x + size.y * size.y};
@@ -327,7 +298,7 @@ extern "C" int VR_RigidToss(edict_t* ent)
         fromGlm(b.com - b.rot * b.comLocal, ent->v.origin);
         anglesFromAxes(b.rot, ent->v.angles);
         fromGlm(b.vel, ent->v.velocity);
-        setVecField(ent, f.vr_spin, b.spin);
+        setFieldVec(ent, f.vr_spin, b.spin);
         SV_LinkEdict(ent, true);
     };
 
@@ -349,7 +320,7 @@ extern "C" int VR_RigidToss(edict_t* ent)
     const float g = gravityOf(ent);
     const float restitution = CLAMP(0.f, vr_throw_restitution.value, 1.f);
     const float friction = std::max(vr_throw_friction.value, 0.f);
-    const float m2u = metersToUnits();
+    const float m2u = units::metresToUnits();
     const float minHalf = std::max(0.5f, std::min({b.half.x, b.half.y, b.half.z}));
 
     // Substeps: at most half the box's thinnest half-extent and 0.25 radians each.
@@ -517,13 +488,30 @@ extern "C" int VR_RigidToss(edict_t* ent)
     }
 
     store();
-    SV_CheckWaterTransition(ent);
 
     if(vr_debug_throw.value >= 3.f)
     {
         Con_Printf("rigid %d: origin %.1f %.1f %.1f, %.0f u/s, spin %.1f rad/s, %s\n", NUM_FOR_EDICT(ent), ent->v.origin[0],
             ent->v.origin[1], ent->v.origin[2], glm::length(b.vel), glm::length(b.spin),
             (static_cast<int>(ent->v.flags) & FL_ONGROUND) ? "asleep" : contact ? "in contact" : "flying");
+    }
+    return 1;
+}
+
+} // namespace
+
+// SV_Physics_Toss, after the think: the whole move of a rigid body. Water transitions are
+// tracked on every path (asleep too): else an entity's "just spawned" waterlevel 1 stays, and
+// the QC takes it for floating.
+extern "C" int VR_RigidToss(edict_t* ent)
+{
+    if(!rigidToss(ent))
+    {
+        return 0;
+    }
+    if(!ent->free)
+    {
+        SV_CheckWaterTransition(ent);
     }
     return 1;
 }

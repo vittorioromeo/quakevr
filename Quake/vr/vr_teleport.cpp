@@ -7,6 +7,7 @@
 // player there. The aim is drawn as a line with a dot at the destination (vr_lines). The sweep needs the local server's world, so it only works when hosting.
 
 #include "vr_teleport.hpp"
+#include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"

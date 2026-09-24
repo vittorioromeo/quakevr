@@ -2,6 +2,7 @@
 // velocities and offsets need more precision than protocol coordinates give.
 
 #include "vr_move.hpp"
+#include "vr_engine.hpp"
 
 namespace qvr
 {

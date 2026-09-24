@@ -10,4 +10,7 @@ void onSpawnServerAfterLoad();
 
 void init(); // registers commands
 
+// `haptic(hand, delay, duration, frequency, amplitude)` from QC, sent to `player` (a client).
+void sendHaptic(struct edict_s* player, int hand, float delay, float duration, float frequency, float amplitude);
+
 } // namespace qvr::server

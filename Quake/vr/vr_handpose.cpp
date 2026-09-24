@@ -13,6 +13,7 @@
 // with the play space), which amounts to the same.
 
 #include "vr_handpose.hpp"
+#include "vr_engine.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
