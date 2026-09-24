@@ -10,6 +10,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_trace.hpp"
 
 namespace qvr::teleport
 {
@@ -33,24 +34,13 @@ void teleportUp_f()
 
 [[nodiscard]] bool trace(const hands::State& s)
 {
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].edict)
+    const glm::vec3 end = s.pos[HAND_OFF] + hands::forward(s.rot[HAND_OFF]) * vr_teleport_range.value;
+    const auto found = worldtrace::move(s.playerOrigin, {-6.f, -6.f, -12.f}, {6.f, 6.f, 12.f}, end, MOVE_NORMAL);
+    if(!found)
     {
         return false;
     }
-
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-
-    edict_t* player = svs.clients[0].edict;
-    vec3_t mins{-6.f, -6.f, -12.f};
-    vec3_t maxs{6.f, 6.f, 12.f};
-
-    const glm::vec3 end = s.pos[HAND_OFF] + hands::forward(s.rot[HAND_OFF]) * vr_teleport_range.value;
-    vec3_t start{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    vec3_t stop{end.x, end.y, end.z};
-    const trace_t tr = SV_Move(start, mins, maxs, stop, MOVE_NORMAL, player);
-
-    PR_PopQCVM(oldvm);
+    const trace_t& tr = *found;
 
     impact = {tr.endpos[0], tr.endpos[1], tr.endpos[2] + 12.f}; // player origin is above the feet
 

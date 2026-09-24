@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
+#include "vr_trace.hpp"
 #include "vr_weapons.hpp"
 
 namespace qvr::crosshair
@@ -34,20 +35,8 @@ enum Mode : int
     }
 
     const glm::vec3 farEnd = start + dir * 4096.f;
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].edict)
-    {
-        return farEnd; // not hosting: no world to trace against
-    }
-
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-    vec3_t a{start.x, start.y, start.z};
-    vec3_t b{farEnd.x, farEnd.y, farEnd.z};
-    const trace_t tr = SV_Move(a, vec3_origin, vec3_origin, b, entities ? MOVE_NORMAL : MOVE_NOMONSTERS,
-        svs.clients[0].edict);
-    PR_PopQCVM(oldvm);
-
-    return {tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+    const auto tr = worldtrace::move(start, glm::vec3{0.f}, glm::vec3{0.f}, farEnd, entities ? MOVE_NORMAL : MOVE_NOMONSTERS);
+    return tr ? worldtrace::endPos(*tr) : farEnd; // not hosting: no world to trace against
 }
 
 } // namespace
