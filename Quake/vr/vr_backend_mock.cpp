@@ -65,6 +65,23 @@ void mockButton_f()
     Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
 }
 
+// vr_mock_hand <main|off> <x> <y> <z>: tracking-space position (metres, +x right, +y up,
+// -z forward); "vr_mock_hand <main|off>" alone restores the standing pose's.
+glm::vec3 mockHandPos[HAND_COUNT];
+bool mockHandSet[HAND_COUNT]{};
+
+void mockHand_f()
+{
+    const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
+    if(hand < 0 || (Cmd_Argc() != 2 && Cmd_Argc() != 5))
+    {
+        Con_Printf("usage: vr_mock_hand <main|off> [<x> <y> <z>]\n");
+        return;
+    }
+    mockHandSet[hand] = Cmd_Argc() == 5;
+    mockHandPos[hand] = {Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+}
+
 // vr_mock_stick <main|off> <x> <y>
 void mockStick_f()
 {
@@ -130,6 +147,13 @@ public:
     {
         tracking = standingPose();
         tracking.input = mockInput;
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            if(mockHandSet[h])
+            {
+                tracking.hands[h].position = mockHandPos[h];
+            }
+        }
         if(vr_mock_swing.value > 0.f)
         {
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
@@ -194,6 +218,7 @@ void registerMockCommands()
 {
     Cmd_AddCommand("vr_mock_button", mockButton_f);
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
+    Cmd_AddCommand("vr_mock_hand", mockHand_f);
 }
 
 std::unique_ptr<Backend> makeMockBackend()

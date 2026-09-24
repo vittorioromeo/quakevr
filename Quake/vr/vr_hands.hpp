@@ -57,5 +57,6 @@ void addTurn(float degrees);
 void angleVectors(
     const glm::vec3& angles, glm::vec3& fwd, glm::vec3& right, glm::vec3& up);
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
+[[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
 
 } // namespace qvr::hands

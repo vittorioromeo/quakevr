@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
+#include "vr_twohand.hpp"
 
 #include <cmath>
 
@@ -42,15 +43,7 @@ int stateFrame = -1;
 {
     const glm::vec3 f = rotateYaw(quakeFromTracking(q * glm::vec3{0.f, 0.f, -1.f}), yawOffset);
     const glm::vec3 u = rotateYaw(quakeFromTracking(q * glm::vec3{0.f, 1.f, 0.f}), yawOffset);
-
-    const float pitch = glm::degrees(std::asin(CLAMP(-1.f, -f.z, 1.f)));
-    const float yaw = glm::degrees(std::atan2(f.y, f.x));
-
-    glm::vec3 f0, r0, u0;
-    angleVectors({pitch, yaw, 0.f}, f0, r0, u0);
-    const float roll = glm::degrees(std::atan2(glm::dot(u, r0), glm::dot(u, u0)));
-
-    return {pitch, yaw, roll};
+    return anglesFromVectors(f, u);
 }
 
 // Controller rotation offsets (vr_gunangle/vr_gunyaw, vr_offhandpitch/vr_offhandyaw), in the
@@ -175,6 +168,8 @@ void update()
             state.rot[h] = anglesFromTracking(withHandOffsets(t.hands[h].orientation, h), turnYaw);
         }
 
+        twohand::apply(state);
+
         // The server takes the aim from the move's view angles (.v_angle): the main hand.
         for(int i = 0; i < 3; i++)
         {
@@ -272,6 +267,18 @@ void angleVectors(const glm::vec3& angles, glm::vec3& fwd, glm::vec3& right, glm
     fwd = {f[0], f[1], f[2]};
     right = {r[0], r[1], r[2]};
     up = {u[0], u[1], u[2]};
+}
+
+glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up)
+{
+    const float pitch = glm::degrees(std::asin(CLAMP(-1.f, -fwd.z, 1.f)));
+    const float yaw = glm::degrees(std::atan2(fwd.y, fwd.x));
+
+    glm::vec3 f0, r0, u0;
+    angleVectors({pitch, yaw, 0.f}, f0, r0, u0);
+    const float roll = glm::degrees(std::atan2(glm::dot(up, r0), glm::dot(up, u0)));
+
+    return {pitch, yaw, roll};
 }
 
 glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)

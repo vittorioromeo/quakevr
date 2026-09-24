@@ -9,6 +9,7 @@
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
+#include "vr_twohand.hpp"
 #include "vr_worldtext.hpp"
 
 #include <vector>
@@ -157,6 +158,7 @@ bool wasGrabbing[2]{false, false};
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
     set(handButtons(HAND_OFF).flickReload, VRBITS0_OFFHAND_RELOADFLICKING);
     set(handButtons(HAND_MAIN).flickReload, VRBITS0_MAINHAND_RELOADFLICKING);
+    set(twohand::aiming(), VRBITS0_2H_AIMING);
     move.vrBits0 = static_cast<std::uint16_t>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
@@ -279,6 +281,11 @@ void init()
     Cmd_AddCommand("-reloadoff", ReloadOffUp_f);
 }
 
+bool grabbing(int hand)
+{
+    return handButtons(hand).grab;
+}
+
 const EntityVr* entityVr(int num)
 {
     if(!vrProtocol() || num < 0 || num >= static_cast<int>(entityData.size()))
@@ -301,6 +308,7 @@ extern "C" void VR_OnClientClearState()
     entityData.clear();
     worldtext::clientReset();
     throwing::reset();
+    twohand::reset();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

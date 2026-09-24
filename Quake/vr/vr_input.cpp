@@ -182,8 +182,7 @@ void update(const InputState& tracked)
         {
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
-            {
-                Key_Event(b.key[h], now);
+            {                Key_Event(b.key[h], now);
             }
         }
 
