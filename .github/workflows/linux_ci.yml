@@ -7,10 +7,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: ["clang", "gcc"]
+        include:
+          - compiler: clang
+            cxx: clang++
+          - compiler: gcc
+            cxx: g++
     steps:
     - uses: actions/checkout@v7
     - name: Install Dependencies
       run: sudo apt update && sudo apt install libcurl4-openssl-dev libmpg123-dev libsdl2-dev libvorbis-dev
     - name: Build
-      run: make --jobs=3 --keep-going --directory=Quake CC=${{ matrix.compiler }}
+      run: make --jobs=3 --keep-going --directory=Quake CC=${{ matrix.compiler }} CXX=${{ matrix.cxx }}

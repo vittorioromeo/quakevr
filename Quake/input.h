@@ -79,7 +79,9 @@ void IN_UpdateInputMode (void);
 
 qboolean IN_EmulatedCharEvents (void);
 
+#ifndef __cplusplus // QVR: C++ (the VR module) has no incomplete enums, and does not need this
 enum keydevice_t IN_GetLastActiveDeviceType (void);
+#endif
 
 void IN_Move (usercmd_t *cmd);
 // add additional movement on top of the keyboard move cmd

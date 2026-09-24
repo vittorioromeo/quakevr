@@ -42,13 +42,14 @@ DEBUG ?= 0
 # ---------------------------
 
 CC = gcc
-LINKER = $(CC)
+# QVR: linked as C++, for the VR module
+LINKER = $(CXX)
 WINDRES = windres
 
 STRIP = strip
 
 CPUFLAGS=
-LDFLAGS?= -m64 -mwindows -static-libgcc
+LDFLAGS?= -m64 -mwindows -static-libgcc -static-libstdc++
 DFLAGS ?=
 CFLAGS ?= -m64 -Wall -Wno-trigraphs
 CFLAGS += -D_FILE_OFFSET_BITS=64
@@ -280,6 +281,12 @@ OBJS = strlcat.o \
 OBJDEPS := $(OBJS:%.o=%.d)
 OBJS += $(SYSOBJ_RES)
 
+# QVR: the Quake VR module (C++20). No OpenXR in these builds: mock backend only.
+VROBJS := $(patsubst %.cpp,%.o,$(wildcard vr/*.cpp))
+OBJS += $(VROBJS)
+OBJDEPS += $(VROBJS:%.o=%.d)
+VR_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++20 -I. -Ivr -Ivr/external
+
 # ---------------------------
 # targets / rules
 # ---------------------------
@@ -299,6 +306,10 @@ all: $(DEFAULT_TARGET)
 	@echo "Compiling $<" && \
 	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $<
 
+vr/%.o:	vr/%.cpp $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CXX) $(DFLAGS) -c $(VR_CXXFLAGS) $(SDL_CFLAGS) -MMD -MP -o $@ $<
+
 ironwail.exe:	$(OBJS) $(MAKEFILE)
 	@echo "Linking $@" && \
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
@@ -309,7 +320,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean: $(MAKEFILE)
-	$(RM) *.o *.d *.res $(DEFAULT_TARGET)
+	$(RM) *.o *.d *.res vr/*.o vr/*.d $(DEFAULT_TARGET)
 
 #---------------------------------------------------------------
 # include dependencies (if not running 'clean' target)

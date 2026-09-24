@@ -47,7 +47,8 @@ DEBUG ?= 0
 # ---------------------------
 
 CC ?= gcc
-LINKER = $(CC)
+# QVR: linked as C++, for the VR module
+LINKER = $(CXX)
 
 STRIP ?= strip
 PKG_CONFIG ?= pkg-config
@@ -281,6 +282,12 @@ OBJS = strlcat.o \
 OBJDEPS := $(OBJS:%.o=%.d)
 OBJS += $(SYSOBJ_RES)
 
+# QVR: the Quake VR module (C++20). No OpenXR in these builds: mock backend only.
+VROBJS := $(patsubst %.cpp,%.o,$(wildcard vr/*.cpp))
+OBJS += $(VROBJS)
+OBJDEPS += $(VROBJS:%.o=%.d)
+VR_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++20 -I. -Ivr -Ivr/external
+
 # ---------------------------
 # targets / rules
 # ---------------------------
@@ -297,6 +304,10 @@ all: $(DEFAULT_TARGET)
 	@echo "Compiling $<" && \
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 
+vr/%.o:	vr/%.cpp $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CXX) $(DFLAGS) -c $(VR_CXXFLAGS) $(SDL_CFLAGS) -MMD -MP -o $@ $<
+
 ironwail:	$(OBJS) $(MAKEFILE)
 	@echo "Linking $@" && \
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
@@ -307,7 +318,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean: $(MAKEFILE)
-	$(RM) *.o *.d $(DEFAULT_TARGET)
+	$(RM) *.o *.d vr/*.o vr/*.d $(DEFAULT_TARGET)
 
 ifeq ($(HOST_OS),haiku)
 IW_APP_DIR=$(shell finddir B_APPS_DIRECTORY)/ironwail/

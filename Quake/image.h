@@ -24,10 +24,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GL_IMAGE_H
 
 //image.h -- image reading / writing
+#ifndef __cplusplus // QVR: C++ (the VR module) has no incomplete enums, and does not need this
 enum srcformat;
 
 //be sure to free the hunk after using this loading function
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt);
+#endif
 
 byte* Image_CopyFlipped (const void *src, int width, int height, int bpp);
 
