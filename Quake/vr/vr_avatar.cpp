@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <array>
@@ -373,6 +374,52 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 // Legs standing with the feet under the head (the balance point: crouching pushes the hips back
 // and the knees forward; less the torso's offset, so that standing is upright), knees forward;
 // collapsed when not shown.
+// Walking: a gait cycle driven by the player's own movement (the stick, not the room). The feet
+// swing along the direction of travel, half a cycle apart, and lift on the way forward; strides
+// lengthen with speed; the whole of it eases in and out as the player starts and stops, and the
+// feet tuck up in the air. The legs' IK does the knees.
+struct Gait
+{
+    double lastTime{-1.0};
+    float phase{0.f};       // radians, a full cycle is two steps
+    float amount{0.f};      // 0 standing .. 1 walking
+    float air{0.f};         // 0 on the ground .. 1 in the air
+    glm::vec3 dir{1.f, 0.f, 0.f};
+    float stride{0.f};      // metres, one step
+};
+
+Gait gait;
+
+// The offset of a foot (side 0 left, 1 right) from where it stands, in world units.
+[[nodiscard]] glm::vec3 gaitOffset(const Body& b, int side)
+{
+    const float swing = gait.phase + (side == 0 ? 0.f : glm::pi<float>());
+    const float along = std::sin(swing) * gait.stride * 0.5f * gait.amount;
+    const float lift = std::max(0.f, std::cos(swing)) * 0.12f * gait.amount + 0.18f * gait.air;
+    return (gait.dir * along + UP * lift) * b.m2w;
+}
+
+void updateGait(float m2w)
+{
+    const double now = realtime;
+    const float dt = gait.lastTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - gait.lastTime, 0.1)) : 0.f;
+    gait.lastTime = now;
+
+    const glm::vec3 vel{cl.velocity[0], cl.velocity[1], 0.f};
+    const float speed = glm::length(vel) / m2w; // metres per second, of the body
+    const bool walking = cl.onground && speed > 0.3f && vr_body_walk.value;
+
+    const float ease = 1.f - std::exp(-8.f * dt);
+    gait.amount += ((walking ? 1.f : 0.f) - gait.amount) * ease;
+    gait.air += ((cl.onground ? 0.f : 1.f) - gait.air) * ease;
+    if(walking)
+    {
+        gait.dir = glm::normalize(vel);
+        gait.stride = CLAMP(0.45f, 0.4f + speed * 0.1f, 1.1f);
+        gait.phase = std::fmod(gait.phase + speed * dt / gait.stride * glm::pi<float>(), glm::two_pi<float>());
+    }
+}
+
 void solveLeg(Body& b, const glm::vec3& head, int side, bool shown)
 {
     const Bind& bd = bind();
@@ -404,7 +451,8 @@ void solveLeg(Body& b, const glm::vec3& head, int side, bool shown)
     const float l = boneLength(calf, foot) * b.m2w;
     const glm::vec3 hipSide = b.left * glm::dot(t.pos - b.bones[Pelvis].pos, b.left);
     const glm::vec3 base = head + hipSide - b.fwd * (vr_body_torso_back.value * b.m2w);
-    const glm::vec3 target{base.x, base.y, b.floorZ + bd.pos[foot].z * b.m2w};
+    const glm::vec3 target =
+        glm::vec3{base.x, base.y, b.floorZ + bd.pos[foot].z * b.m2w} + gaitOffset(b, side);
 
     glm::vec3 bend;
     const glm::vec3 knee = twoBone(t.pos, target, a, l, b.fwd + outward * 0.1f, b.fwd, bend);
@@ -556,6 +604,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
     solveArm(b, 0, handPoses[leftHand]);
     solveArm(b, 1, handPoses[1 - leftHand]);
+    updateGait(b.m2w);
     solveLeg(b, s.head, 0, legs);
     solveLeg(b, s.head, 1, legs);
 
