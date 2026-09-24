@@ -1,3 +1,36 @@
+# Quake VR
+
+Quake VR is a virtual reality port of Quake, built on [Ironwail](https://github.com/andrei-drexler/ironwail) (0.8.2) and
+[OpenXR](https://www.khronos.org/openxr/). It supports:
+- tracked hands and weapons, including two-handed aiming;
+- holsters and throwing;
+- teleport or smooth movement, and room-scale play;
+- a world-space HUD and menus.
+
+Everything VR lives in `Quake/vr/` (C++20) and the `quakevr` game folder. The Ironwail engine sources are changed only by
+small hooks marked `// QVR`, so `git grep QVR` shows the whole engine footprint.
+
+**Playing.** Get a `QuakeVR` package, copy it into your Quake folder (the one containing `id1`), start your OpenXR runtime
+(SteamVR, Oculus, Virtual Desktop...), and run `QuakeVR.bat`. Options > VR Settings has the comfort, body, weapon and
+display settings. `vr_enabled 0` plays on the monitor.
+
+**Building (Windows, x64).**
+1. Build `Windows\VisualStudio\ironwail.sln` (Release|x64), or pass `-Build` to the script in step 2. The CMake
+   project works too, for development.
+2. Run `Windows\package-quakevr.ps1`, with [FTEQCC](https://www.fteqcc.org/) on PATH (or `-Fteqcc <path>`). It compiles
+   `QC\` into `quakevr\progs.dat` and assembles `dist\QuakeVR` and `dist\QuakeVR.zip`.
+
+The Makefile builds (Linux, macOS, MinGW) compile the VR module too, but without OpenXR: they only have the mock backend,
+for development.
+
+**Developing.** See `docs/vr-port/`:
+- `PLAN.md`: the design, decisions and milestones.
+- `TESTING.md`: headset-free testing with the mock backend.
+
+The original Ironwail README follows.
+
+---
+
 <a href="https://github.com/andrei-drexler/ironwail/releases/latest">![GitHub Release](https://img.shields.io/github/v/release/andrei-drexler/ironwail?display_name=release&style=for-the-badge&label=Download)</a>
 
 # What's this?
