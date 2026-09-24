@@ -13,6 +13,21 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 | 06 | [VR core](inventory/06-vr-core.md) | `vr.cpp` architecture, ~60 engine call sites, OpenVR→OpenXR mapping, all `vr_*` cvars |
 | 07 | [Misc & build](inventory/07-misc-build.md) | pak loading with gaps, start.bsp selector, autosave, cvar handles, build/release layout |
 
+## Status
+
+| Phase | State | Notes |
+|---|---|---|
+| P0 Scaffolding | ✅ done | `Quake/vr/`, mock backend, build integration (MSBuild + CMake) |
+| P1 QC & game data | ✅ done | CRC-5927 progs, by-name VR builtins, entry points, spawn parms 17–40, `quakevr` game folder layering hipnotic/rogue, opt-in droptofloor. Flat-mode check: e1m1/e1m2/hip1m1/r1m1/start/vrstart load, changelevel and save/load work. |
+| P2 Protocol & server | next | |
+
+Known gaps carried forward:
+- `start` resolves to rogue's start.bsp (last mission pack layered); decide on a start-map selector.
+- Late precaches are registered server-side only; clients learn about them in P2.
+- World text is server-side only (P2 network, P7 render); `particle2`/`haptic` are stubs.
+- `.weapon` holds weapon IDs, so Ironwail's HUD weapon highlighting is wrong until P2/P6.
+- Hand model is drawn as a plain view model until P3.
+
 ## Principles
 
 1. **Upstream stays pristine-looking.** Engine files keep Ironwail's C, style and names. Every engine edit is a
