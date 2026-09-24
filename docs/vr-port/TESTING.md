@@ -126,6 +126,29 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age. For comp
 ## What to try
 
 - **New in this round** (details in the commit log):
+  - **Force grab** (rewritten, like Half-Life: Alyx): point an empty, open hand at a weapon, backpack, ammo or
+    health box (or, in single player, a weapon lying in the level). It sparkles. Pull the trigger to lock on,
+    then flick your hand back or up. It flies to your hand in an arc and arrives in about half a second. Close
+    your hand (grip) as it arrives to catch it; too early or too late and it drops at your feet. It flies through
+    walls, so it cannot get stuck. Tuning: VR Settings > Advanced VR Options > Force Grab. `developer 1` prints
+    each pull, catch and miss.
+  - **Melee:** any swing faster than `vr_melee_speed` (3 m/s) hits once, whatever its direction; damage grows
+    with speed, and punches (knuckles first) do 25% more (`vr_melee_punch_mult`). Tell me if weak swings still
+    hit, or real punches don't.
+  - **Advanced VR Options** (bottom of VR Settings): your old Quake VR settings pages (everything that still
+    exists, with the old ranges and help), plus Body, Throwing and Physics, and Force Grab pages.
+    `menu_vr <n>` opens a page directly.
+  - **Posture:** VR Settings > Torso Offset and Legs Offset move the torso and the feet back (or forward)
+    separately.
+  - **Wrist gadget:** now over the back of the forearm, and it reads like a watch: raise your forearm across your
+    chest, and the text runs towards your fingers.
+  - **Ammo and health boxes** are small (`vr_forcegrabbable_box_scale` 0.25), their touch box is the box you see,
+    and they can be force-grabbed.
+  - **Backpacks** now come to rest instead of spinning on the ground. `impulse 243` (single player) drops a
+    backpack of your ammo in front of you to try it.
+  - **Hands:** the wrist end of the hand model is tapered, so it stays inside the bracer.
+
+- **Previous round:**
   - **Wrist gadget:** the HUD is now a device strapped over the back of your off-hand forearm. Raise your forearm
     across your chest, like reading a watch. VR Settings > HUD switches back to the status bar.
   - **Body:** VR Settings > Build picks the body: Lean, Athletic or Brawny. Full body (VR Settings > Body) walks
@@ -185,7 +208,7 @@ is the most useful thing to send me along with a description. In particular:
 ## Testing without a headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
-`vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z>` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
+`vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
 swings the main hand for throwing tests.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
