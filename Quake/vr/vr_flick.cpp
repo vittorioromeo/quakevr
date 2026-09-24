@@ -4,7 +4,8 @@
 // With a super shotgun whose clip is not full, a wrist rotation faster than
 // vr_spinreload_x_angular_threshold (rad/s) that swings the barrel towards where the hand's
 // "up" pointed while it was still is a flick: the server reloads (QC), and the weapon is drawn
-// spinning a full turn around the hand's right axis at vr_spinreload_pitch_speed degrees/s.
+// spinning a full turn around the hand's right axis at vr_spinreload_pitch_speed degrees/s, the
+// barrel going up and back towards the player first (the old engine's TurnVector(fwd, up, a)).
 
 #include "vr_flick.hpp"
 #include "vr_backend.hpp"
@@ -23,7 +24,8 @@ constexpr int widSuperShotgun = 5; // QC WID_SUPER_SHOTGUN
 bool current[2]{false, false};
 float spinLeft[2]{0.f, 0.f};                            // degrees of the visual spin still to go
 glm::vec3 restUp[2]{glm::vec3{0.f, 0.f, 1.f}, glm::vec3{0.f, 0.f, 1.f}}; // hand's up while still
-double lastTime = -1.0;
+double lastTime = -1.0;     // cl.time of the last detection
+double lastSpinTime = -1.0; // realtime of the last spin step: every rendered frame, smoothly
 
 [[nodiscard]] bool canFlick(int hand)
 {
@@ -39,9 +41,10 @@ double lastTime = -1.0;
 
 void update(hands::State& s)
 {
-    const float dt = lastTime >= 0.0 ? static_cast<float>(std::fmax(cl.time - lastTime, 0.0)) : 0.f;
     const bool newFrame = cl.time != lastTime;
     lastTime = cl.time;
+    const float spinDt = lastSpinTime >= 0.0 ? static_cast<float>(CLAMP(0.0, realtime - lastSpinTime, 0.1)) : 0.f;
+    lastSpinTime = realtime;
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -69,8 +72,8 @@ void update(hands::State& s)
                 }
             }
 
-            spinLeft[h] = std::fmax(spinLeft[h] - dt * vr_spinreload_pitch_speed.value, 0.f);
         }
+        spinLeft[h] = std::fmax(spinLeft[h] - spinDt * vr_spinreload_pitch_speed.value, 0.f);
 
         if(spinLeft[h] <= 0.f)
         {
@@ -78,10 +81,10 @@ void update(hands::State& s)
             continue;
         }
 
-        // Pitch the weapon forward around the hand's right axis.
+        // Turn the barrel up and back around the hand's right axis.
         const float a = glm::radians(360.f - spinLeft[h]);
-        const glm::vec3 spunFwd = fwd * std::cos(a) - up * std::sin(a);
-        const glm::vec3 spunUp = up * std::cos(a) + fwd * std::sin(a);
+        const glm::vec3 spunFwd = fwd * std::cos(a) + up * std::sin(a);
+        const glm::vec3 spunUp = up * std::cos(a) - fwd * std::sin(a);
         s.visualRot[h] = hands::anglesFromVectors(spunFwd, spunUp);
     }
 }
@@ -104,6 +107,7 @@ void reset()
         spinLeft[h] = 0.f;
     }
     lastTime = -1.0;
+    lastSpinTime = -1.0;
 }
 
 } // namespace qvr::flick

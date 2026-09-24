@@ -202,8 +202,13 @@ void solveTorso(const hands::State& s, Body& b)
     const glm::vec3 top = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
+    // The knees take the first vr_body_crouch_knees metres of a drop entirely (standing a little
+    // lower than calibrated must not bend the back: with the back's length kept, a few
+    // centimetres there would push the hips far back); beyond that, vr_body_crouch_legs of it.
     const float drop = std::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
-    float pelvisZ = b.floorZ + bd.pos[Pelvis].z * b.m2w - drop * CLAMP(0.f, vr_body_crouch_legs.value, 1.f);
+    const float knees = std::max(0.f, vr_body_crouch_knees.value) * b.m2w;
+    const float legDrop = std::min(drop, knees) + std::max(0.f, drop - knees) * CLAMP(0.f, vr_body_crouch_legs.value, 1.f);
+    float pelvisZ = b.floorZ + bd.pos[Pelvis].z * b.m2w - legDrop;
     pelvisZ = std::max(pelvisZ, b.floorZ + 0.3f * b.m2w);  // squatting
     pelvisZ = std::min(pelvisZ, top.z - 0.3f * torsoLen); // lying down: keep the back from folding over
 

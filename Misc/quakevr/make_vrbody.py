@@ -370,10 +370,13 @@ def write_skin(path, size=128):
             block = next(b for b, (u0, v0, u1, v1) in BLOCKS.items() if u0 <= s < u1 and v0 <= t < v1)
             ramp = PALETTE_RAMPS[block]
             if block == "bracer":
-                # A lighter strap down one side and a dark rim at each end.
+                # A lighter strap along the thumb's side and a dark rim at each end. The strap
+                # is where the ring crosses its u axis on the far side (vertex 5 of 10, u = 5/9), so
+                # that it is on the same side of both arms, whichever way their rings go around.
                 u0, v0, u1, v1 = BLOCKS[block]
                 bu, bv = (s - u0) / (u1 - u0), (t - v0) / (v1 - v0)
-                if abs(bu - 0.3) < 0.06:
+                pad = 0.04 / (u1 - u0)
+                if abs(bu - (pad + (1 - 2 * pad) * 5 / 9)) < 0.05:
                     pixels += bytes((39, 63, 99, 255))
                     continue
                 if bv < 0.12 or bv > 0.88:
