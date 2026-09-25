@@ -29,8 +29,11 @@ struct DefaultChange
 const DefaultChange defaultChanges[] = {
     {1, &vr_swim_stick_speed, "0.1"},
     {2, &vr_dlight_uncapped, "0"},
+    {3, &vr_bloom, "0.8"},
+    {3, &vr_bloom_threshold, "0.6"},
+    {3, &vr_headbutt_speed, "1.5"},
 };
-constexpr int configVersion = 2;
+constexpr int configVersion = 3;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()

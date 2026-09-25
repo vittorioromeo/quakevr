@@ -237,6 +237,22 @@ public:
             hand.velocityValid = true;
         }
 
+        // The head likewise (a lunge scripted with vr_mock_hand head).
+        if(tracking.head.position != lastHeadPos)
+        {
+            const double since = realtime - lastHeadMove;
+            lastHeadVel = lastHeadMove > 0.0 ? (tracking.head.position - lastHeadPos) / static_cast<float>(std::clamp(since, 0.004, 0.05))
+                                             : glm::vec3{0.f};
+            lastHeadPos = tracking.head.position;
+            lastHeadMove = realtime;
+        }
+        else if(realtime - lastHeadMove > 0.04)
+        {
+            lastHeadVel = glm::vec3{0.f};
+        }
+        tracking.head.linearVelocity = lastHeadVel;
+        tracking.head.velocityValid = true;
+
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)
         {
@@ -270,6 +286,8 @@ public:
 private:
     gfx::Texture textures[2]{};
     glm::vec3 lastHandPos[HAND_COUNT]{};
+    glm::vec3 lastHeadPos{0.f}, lastHeadVel{0.f}; // the head's, the same way (headbutts)
+    double lastHeadMove = 0.0;
     glm::vec3 lastHandVel[HAND_COUNT]{};
     double lastMoveTime[HAND_COUNT]{};
 };

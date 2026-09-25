@@ -229,8 +229,8 @@ QVR_CVAR(vr_light_contrast, "2", CVAR_ARCHIVE)         // lightmap contrast abou
 QVR_CVAR(vr_decals, "1", CVAR_ARCHIVE)                 // blood and scorch marks on the world
 QVR_CVAR(vr_decal_max, "512", CVAR_ARCHIVE)            // how many are kept (the oldest go first)
 QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
-QVR_CVAR(vr_bloom, "0.8", CVAR_ARCHIVE)                // glow around bright things (lamps, glowing panels, flashes): its strength (0 off)
-QVR_CVAR(vr_bloom_threshold, "0.6", CVAR_ARCHIVE)      // how bright a thing must be to glow (0..1)
+QVR_CVAR(vr_bloom, "0.3", CVAR_ARCHIVE)                // glow around bright things (lamps, glowing panels, flashes): its strength (0 off)
+QVR_CVAR(vr_bloom_threshold, "0.7", CVAR_ARCHIVE)      // how bright a thing must be to glow (0..1)
 QVR_CVAR(vr_bloom_radius, "1", CVAR_ARCHIVE)           // how wide the glow spreads
 QVR_CVAR(vr_flash_scale, "1.8", CVAR_ARCHIVE)          // muzzle flashes' light: size over Quake's
 QVR_CVAR(vr_explosion_light_scale, "1.5", CVAR_ARCHIVE) // explosions' and rockets' light: size over Quake's
@@ -307,7 +307,7 @@ QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_headbutt, "1", CVAR_ARCHIVE)                 // lunge your head at something to headbutt it
-QVR_CVAR(vr_headbutt_speed, "1.5", CVAR_ARCHIVE)         // m/s the head must lunge (towards where it looks)
+QVR_CVAR(vr_headbutt_speed, "1", CVAR_ARCHIVE)           // m/s the head must lunge (roughly towards where it looks)
 QVR_CVAR(vr_headbutt_damage, "32", CVAR_ARCHIVE)         // damage at that speed (up to three times it, faster)
 QVR_CVAR(vr_damage_to_enemies, "1", CVAR_ARCHIVE)        // damage the player deals to monsters
 QVR_CVAR(vr_damage_to_player, "1", CVAR_ARCHIVE)         // damage monsters (and the world) deal to the player

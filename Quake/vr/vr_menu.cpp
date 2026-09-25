@@ -205,7 +205,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
-        slider("Headbutt Speed", vr_headbutt_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the head must lunge (towards where you look)."),
+        slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").help("How fast the head must lunge (towards where you look)."),
         slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f"),
         header("Knights' Swords"),
         slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
