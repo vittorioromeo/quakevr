@@ -437,6 +437,7 @@ typedef struct gpuframedata_s {
 	float	zlogbias;
 	int		numlights;
 	int		shadowflags;	// QVR
+	float	lighttweak[4];	// QVR: lightmap contrast, its pivot (vr_light_contrast)
 } gpuframedata_t;
 
 extern gpulightbuffer_t r_lightbuffer;

@@ -1002,6 +1002,21 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
 
 // R_PushDlights, after the dynamic lights: the map lights with moving casters, the frame's
 // lighting settings, and the atlases on texture units 4 and 5.
+// Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
+// same contrast as the world's.
+extern "C" void VR_AliasLightCurve(float lightcolor[3])
+{
+    const float c = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    if(c == 1.f)
+    {
+        return;
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        lightcolor[i] = 128.f * std::pow(std::max(0.f, lightcolor[i]) / 128.f, c);
+    }
+}
+
 extern "C" void VR_PushMapLights(void)
 {
     unsigned flags = static_cast<unsigned>(std::clamp(static_cast<int>(vr_shadow_filter.value), 0, 3));
@@ -1014,6 +1029,12 @@ extern "C" void VR_PushMapLights(void)
         flags |= 8u;
     }
     r_framedata.shadowflags = static_cast<int>(flags);
+    // Lightmap contrast about Quake's full light (a lightmap value of a half, before the doubling):
+    // shade darker, well lit walls as they were, the brightest a little brighter.
+    r_framedata.lighttweak[0] = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    r_framedata.lighttweak[1] = 0.5f;
+    r_framedata.lighttweak[2] = 0.f;
+    r_framedata.lighttweak[3] = 0.f;
     r_framedata.shadowbias = std::max(0.f, vr_shadow_bias.value);
     r_framedata.dlightangle = std::clamp(vr_dlight_angle.value, 0.f, 1.f);
 
@@ -1083,19 +1104,19 @@ void lighting::applyPreset(int preset)
     struct Preset
     {
         float dlights, dlightSize, maplights, maplightSize, filter, atlasSize, distance, models, angle, entityShadows,
-            modelLighting;
+            modelLighting, look; // look: contrast, bloom, bigger coloured uncapped flashes (0: Quake's)
     };
     static constexpr Preset presets[] = {
         // off: Quake's own look (flat dynamic lights, no shadows)
-        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0},
+        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0, 0},
         // low
-        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1},
+        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1, 1},
         // medium
-        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1},
+        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1, 1},
         // high
-        {6, 512, 4, 512, 2, 4096, 2048, 1, 1, 1, 1},
+        {6, 512, 4, 512, 2, 4096, 2048, 1, 1, 1, 1, 1},
         // ultra
-        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1},
+        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1},
     };
     preset = std::clamp(preset, 0, 4);
     const Preset& p = presets[preset];
@@ -1110,6 +1131,15 @@ void lighting::applyPreset(int preset)
     Cvar_SetValueQuick(&vr_dlight_angle, p.angle);
     Cvar_SetValueQuick(&vr_entity_shadows, p.entityShadows);
     Cvar_SetValueQuick(&vr_model_lighting, p.modelLighting);
+    const auto look = [&](cvar_t& var, float quake) {
+        Cvar_SetQuick(&var, p.look != 0.f ? var.default_string : va("%g", quake));
+    };
+    look(vr_light_contrast, 1.f);
+    look(vr_bloom, 0.f);
+    look(vr_flash_scale, 1.f);
+    look(vr_explosion_light_scale, 1.f);
+    look(vr_colored_lights, 0.f);
+    look(vr_dlight_uncapped, 0.f);
 }
 
 namespace

@@ -85,7 +85,8 @@ void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
-void VR_MuzzleFlashOrigin (int ent, float *origin);		// CL_RelinkEntities: where an entity's muzzle flash lights (the local player's: the gun)
+enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
+void VR_TuneDlight (int kind, int ent, void *dlight);	// after Quake sets a muzzle flash, rocket or explosion light up: size, colour, fade (the local player's flash at the gun)
 int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)

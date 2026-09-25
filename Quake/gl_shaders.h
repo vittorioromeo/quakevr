@@ -295,6 +295,7 @@ NOISE_FUNCTIONS
 "	float	ZLogBias;\n"\
 "	uint	NumLights;\n"\
 "	uint	ShadowFlags; // QVR\n"\
+"	vec4	LightTweak; // QVR: lightmap contrast, its pivot\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -785,6 +786,9 @@ OIT_OUTPUT (out_fragcolor)
 "			);\n"
 "		}\n"
 "	}\n"
+"\n"
+"	if (LightTweak.x != 1.) // QVR: contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n"
+"		total_light = LightTweak.y * pow(max(total_light, vec3(0.)) / LightTweak.y, vec3(LightTweak.x));\n"
 "\n"
 "	if (NumLights > 0u)\n"
 "	{\n"

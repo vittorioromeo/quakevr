@@ -170,6 +170,14 @@
         toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
         cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges, some GPU time."),
 
+        slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.05f, "%.2f").help("Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's)."),
+        slider("Bloom", "vr_bloom", 0.f, 2.f, 0.1f, "%.1f").help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
+        slider("Bloom Threshold", "vr_bloom_threshold", 0.3f, 1.f, 0.05f, "%.2f").help("How bright a thing must be to glow."),
+        slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.25f, "%.2f"),
+        slider("Muzzle Flash Light", "vr_flash_scale", 0.f, 3.f, 0.1f, "%.1fx").help("How far your shots light up the room (0 off)."),
+        slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.1f, "%.1fx"),
+        toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
+
         header("Lights and Shadows"),
         cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
             .help("Sets everything below (and the model options above). Change them after to taste."),

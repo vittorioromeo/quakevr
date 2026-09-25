@@ -16,8 +16,11 @@
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
+#include "vr_weapons.hpp"
 #include "vr_worldtext.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <vector>
 
 using namespace qvr;
@@ -526,10 +529,47 @@ extern "C" int VR_ParseBeamEntity(int ent)
     return ent | ((beamId + 1) << 16);
 }
 
-// The local player's muzzle flash lights up the gun (the main hand's, or the off hand's when the
-// main hand has none), not a point in front of the player's origin.
-extern "C" void VR_MuzzleFlashOrigin(int ent, float* origin)
+// Dynamic lights that make shooting light up a room (vr_flash_scale, vr_explosion_light_scale,
+// vr_colored_lights): muzzle flashes bigger, fading out rather than blinking off, coloured by the
+// weapon (the lightning gun's blue, the nailguns' orange, ...); rockets and explosions warm. The
+// local player's muzzle flash lights up the gun (the main hand's, or the off hand's when the main
+// hand has none), not a point in front of the player's origin.
+extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
 {
+    dlight_t* dl = static_cast<dlight_t*>(dlight);
+    const bool colored = vr_colored_lights.value != 0.f;
+    float brightness = 1.f; // a muzzle flash is dimmer than an explosion: it reaches far, not glaring
+    const auto color = [&](float r, float g, float b) {
+        if(colored)
+        {
+            dl->color[0] = r * brightness;
+            dl->color[1] = g * brightness;
+            dl->color[2] = b * brightness;
+        }
+    };
+
+    if(kind == QVR_DLIGHT_ROCKET)
+    {
+        dl->radius *= std::max(0.f, vr_explosion_light_scale.value) * 0.85f;
+        color(1.f, 0.65f, 0.35f);
+        return;
+    }
+    if(kind == QVR_DLIGHT_EXPLOSION)
+    {
+        const float k = std::max(0.f, vr_explosion_light_scale.value);
+        dl->radius *= k;
+        dl->decay *= k;
+        color(1.f, 0.72f, 0.42f);
+        return;
+    }
+
+    // A muzzle flash: bright at once, gone in about a tenth of a second.
+    dl->radius *= std::max(0.f, vr_flash_scale.value);
+    dl->die = cl.time + 0.12;
+    dl->decay = dl->radius * 6.f;
+    brightness = 0.75f;
+    color(1.f, 0.85f, 0.6f);
+
     if(!vrProtocol() || ent != cl.viewentity)
     {
         return;
@@ -542,9 +582,33 @@ extern "C" void VR_MuzzleFlashOrigin(int ent, float* origin)
     }
     // A little back from the muzzle, so that it is not inside the wall the gun touches.
     const glm::vec3 p = s.muzzle[hand] - hands::forward(s.rot[hand]) * 4.f;
-    origin[0] = p.x;
-    origin[1] = p.y;
-    origin[2] = p.z;
+    dl->origin[0] = p.x;
+    dl->origin[1] = p.y;
+    dl->origin[2] = p.z;
+
+    // The weapon's colour.
+    const qmodel_t* model = weapons::heldModel(hand);
+    const char* n = model ? model->name : "";
+    if(strstr(n, "v_light"))
+    {
+        color(0.55f, 0.7f, 1.f);
+    }
+    else if(strstr(n, "v_plasma"))
+    {
+        color(0.6f, 0.8f, 1.f);
+    }
+    else if(strstr(n, "v_laserg"))
+    {
+        color(1.f, 0.35f, 0.3f);
+    }
+    else if(strstr(n, "v_nail") || strstr(n, "v_lava"))
+    {
+        color(1.f, 0.65f, 0.35f);
+    }
+    else if(strstr(n, "v_rock") || strstr(n, "v_prox") || strstr(n, "v_multi"))
+    {
+        color(1.f, 0.55f, 0.3f);
+    }
 }
 
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last

@@ -248,6 +248,8 @@ void R_SetupAliasLighting (entity_t	*e)
 			VectorMA (lightcolor, l->radius - sqrtf (add), l->color, lightcolor);
 	}
 
+	VR_AliasLightCurve (lightcolor); // QVR: the world's lightmap contrast
+
 	// minimum light value on gun (24)
 	if (e == &cl.viewent || VR_IsViewEntity (e)) // QVR
 	{

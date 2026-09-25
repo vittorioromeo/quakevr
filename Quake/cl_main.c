@@ -622,10 +622,10 @@ void CL_RelinkEntities (void)
 			AngleVectors (ent->angles, fv, rv, uv);
 
 			VectorMA (dl->origin, 18, fv, dl->origin);
-			VR_MuzzleFlashOrigin (i, dl->origin); // QVR: at the gun
 			dl->radius = 200 + (rand()&31);
 			dl->minlight = 32;
 			dl->die = cl.time + 0.1;
+			VR_TuneDlight (QVR_DLIGHT_MUZZLE, i, dl); // QVR: at the gun, bigger, coloured, fading
 
 			//johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
 			if (r_lerpmodels.value != 2)
@@ -688,6 +688,7 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200;
 			dl->die = cl.time + 0.01;
+			VR_TuneDlight (QVR_DLIGHT_ROCKET, i, dl); // QVR
 		}
 		else if (ent->model->flags & EF_GRENADE)
 			CL_RocketTrail (ent, 1);

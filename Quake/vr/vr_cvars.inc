@@ -224,7 +224,14 @@ QVR_CVAR(vr_shadow_atlas, "4096", CVAR_ARCHIVE)        // shadow map atlas size 
 QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second
 QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light models per pixel, by angle and shadowed (0: Quake's flat)
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
-QVR_CVAR(vr_dlight_uncapped, "0", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)
+QVR_CVAR(vr_dlight_uncapped, "1", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)
+QVR_CVAR(vr_light_contrast, "2", CVAR_ARCHIVE)         // lightmap contrast about Quake's full light: shade darker, lamps as bright (1: Quake's)
+QVR_CVAR(vr_bloom, "0.6", CVAR_ARCHIVE)                // glow around bright things (lamps, glowing panels, flashes): its strength (0 off)
+QVR_CVAR(vr_bloom_threshold, "0.6", CVAR_ARCHIVE)      // how bright a thing must be to glow (0..1)
+QVR_CVAR(vr_bloom_radius, "1", CVAR_ARCHIVE)           // how wide the glow spreads
+QVR_CVAR(vr_flash_scale, "1.8", CVAR_ARCHIVE)          // muzzle flashes' light: size over Quake's
+QVR_CVAR(vr_explosion_light_scale, "1.5", CVAR_ARCHIVE) // explosions' and rockets' light: size over Quake's
+QVR_CVAR(vr_colored_lights, "1", CVAR_ARCHIVE)         // muzzle flashes, rockets and explosions coloured (warm; the lightning gun blue)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a headshot (0 off)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you

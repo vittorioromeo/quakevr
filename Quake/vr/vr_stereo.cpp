@@ -6,6 +6,7 @@
 // writes into the backend's eye image instead of the window. The left eye is then mirrored to
 // the window, where the 2D layer is drawn as usual.
 
+#include "vr_bloom.hpp"
 #include "vr_body.hpp"
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
@@ -178,6 +179,7 @@ extern "C" int VR_RenderView()
         stereo::currentEye = eye;
 
         V_RenderView();
+        bloom::apply(framebufs.composite.fbo, framebufs.composite.color_tex, width, height);
 
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
         glViewport(0, 0, width, height);
