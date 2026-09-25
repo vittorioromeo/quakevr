@@ -21,6 +21,7 @@ build/
 /quakevr/*.dem
 /quakevr/screenshots/
 /quakevr/notes/
+/quakevr/profile/
 !/quakevr/default.cfg
 !/quakevr/vr_bindings.cfg
 /build-cmake/

@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_modellight.hpp"
+#include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
 #include <algorithm>
@@ -424,6 +425,15 @@ struct DlightSlot
 };
 std::array<DlightSlot, MAX_DLIGHTS> dlightSlots;
 
+// Lights marked to cast no shadow (lighting::dlightNoShadow): valid while the slot holds the same
+// light (its key and death time).
+struct NoShadow
+{
+    int key = 0;
+    float die = -1.f;
+};
+std::array<NoShadow, MAX_DLIGHTS> noShadows;
+
 struct MapSlot
 {
     int light = -1;       // index in modellight::mapLights()
@@ -487,7 +497,7 @@ void selectDlights(const glm::vec3& eye)
         const dlight_t& l = cl_dlights[i];
         DlightSlot& slot = dlightSlots[i];
         const bool alive = l.die >= cl.time && l.radius > 0.f && l.spawn <= cl.time;
-        if(!alive || maxShadowed <= 0)
+        if(!alive || maxShadowed <= 0 || (noShadows[i].key == l.key && noShadows[i].die == l.die))
         {
             slot.selected = false;
             continue;
@@ -725,6 +735,7 @@ extern "C" void VR_RenderShadowMaps(void)
         return;
     }
     renderedFrame = host_framecount;
+    QVR_GPU_PROFILE("shadow maps");
     const double cpuStart = Sys_DoubleTime();
     const float dt = static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1));
     lastTime = realtime;
@@ -848,6 +859,7 @@ extern "C" void VR_RenderShadowMaps(void)
     modelsDrawn = 0;
     glEnable(GL_SCISSOR_TEST);
 
+    profile::begin("map light world", true);
     // Map lights' world depth, once per light (the world does not move).
     for(MapSlot& s : mapSlots)
     {
@@ -875,14 +887,18 @@ extern "C" void VR_RenderShadowMaps(void)
         memcpy(frustum, saved, sizeof(saved));
         s.cached = true;
     }
+    profile::end();
 
+    profile::begin("atlas clear", true);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
     glScissor(0, 0, atlas.width, atlas.height);
     GL_SetState(glstate & ~GLS_NO_ZWRITE);
     glClearDepth(0.f);
     glClear(GL_DEPTH_BUFFER_BIT);
     glDisable(GL_SCISSOR_TEST);
+    profile::end();
 
+    profile::begin("dlight shadows", true);
     // Dynamic lights: the world, doors and lifts, and models.
     for(int i = 0; i < MAX_DLIGHTS; i++)
     {
@@ -900,6 +916,9 @@ extern "C" void VR_RenderShadowMaps(void)
         renderLight(atlas, p, l.radius, dlightSlots[i].origin, dlightSlots[i].size, worldCount, true, true);
     }
 
+    profile::end();
+
+    profile::begin("map light shadows", true);
     // Map lights: the moving things only.
     for(MapSlot& s : mapSlots)
     {
@@ -913,6 +932,8 @@ extern "C" void VR_RenderShadowMaps(void)
         collectBrushes(l.pos, l.value / l.scale, true);
         renderLight(atlas, l.pos, l.value / l.scale, s.origin, mapSlotSize, 0, true, true);
     }
+
+    profile::end();
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -1019,6 +1040,15 @@ void lighting::dlightLook(const dlight_t* dl, float ambient, float fade)
     dlightLooks[index] = DlightLook{dl->key, dl->die, ambient, fade};
 }
 
+void lighting::dlightNoShadow(const dlight_t* dl)
+{
+    const std::ptrdiff_t index = dl - cl_dlights;
+    if(index >= 0 && index < MAX_DLIGHTS)
+    {
+        noShadows[index] = NoShadow{dl->key, dl->die};
+    }
+}
+
 // Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
 // same contrast as the world's.
 extern "C" void VR_AliasLightCurve(float lightcolor[3])
@@ -1059,7 +1089,8 @@ extern "C" void VR_PushMapLights(void)
     // Lightmap contrast about Quake's full light (a lightmap value of a half, before the doubling):
     // shade darker, well lit walls as they were, the brightest a little brighter.
     r_framedata.lighttweak[0] = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
-    r_framedata.lighttweak[1] = 0.5f;
+    // How much the normal maps shade the baked light (from a direction the shader guesses from the lightmap).
+    r_framedata.lighttweak[1] = std::clamp(vr_normalmap_baked.value, 0.f, 2.f);
     // Dynamic lights' sheen, and how deep the normal maps' bumps are (0: flat).
     r_framedata.lighttweak[2] = std::clamp(vr_specular.value, 0.f, 4.f);
     r_framedata.lighttweak[3] = vr_normalmaps.value != 0.f ? std::clamp(vr_normalmap_strength.value, 0.f, 8.f) : 0.f;
@@ -1204,6 +1235,10 @@ void lighting::applyPreset(int preset)
     look(vr_flash_scale, 1.f);
     look(vr_explosion_light_scale, 1.f);
     look(vr_colored_lights, 0.f);
+    look(vr_projectile_lights, 0.f);
+    look(vr_weapon_screen_light, 0.f);
+    look(vr_gadget_light, 0.f);
+    look(vr_weapon_glow, 0.f);
     look(vr_dlight_uncapped, 0.f);
     look(vr_dlight_falloff, 0.f);
     look(vr_specular, 0.f);

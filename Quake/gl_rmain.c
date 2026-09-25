@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_profile.h" // QVR
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -1042,13 +1043,17 @@ void R_SetupView (void)
 
 	R_SetFrustum ();
 
+	VR_ProfileBegin ("mark surfaces"); // QVR: profile
 	R_MarkSurfaces (); //johnfitz -- create texture chains from PVS
+	VR_ProfileEnd (); // QVR
 
 	R_SortEntities ();
 
 	VR_RenderShadowMaps (); // QVR: vr/vr_lighting.cpp
 
+	VR_ProfileBeginGPU ("lights"); // QVR: profile (clustering)
 	R_PushDlights ();
+	VR_ProfileEnd (); // QVR
 
 	//johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;
@@ -1123,10 +1128,16 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	GL_BeginGroup (alphapass ? "Translucent entities" : "Opaque entities");
 
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
+	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
 	R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBeginGPU ("alias"); // QVR: profile
 	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBeginGPU ("sprites"); // QVR: profile
 	if (!alphapass)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
+	VR_ProfileEnd (); // QVR
 
 	GL_EndGroup ();
 }
@@ -1935,23 +1946,35 @@ void R_RenderScene (void)
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
 
+	VR_ProfileBeginGPU ("particles"); // QVR: profile
 	R_DrawParticles (false);
+	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneOpaque (); // QVR: world text
 
+	VR_ProfileBeginGPU ("sky"); // QVR: profile
 	Sky_DrawSky (); //johnfitz
+	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBeginGPU ("water"); // QVR: profile
 	R_DrawWater (false);
+	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBeginGPU ("translucent"); // QVR: profile
 	R_BeginTranslucency ();
 
+	VR_ProfileBeginGPU ("water"); // QVR: profile
 	R_DrawWater (true);
+	VR_ProfileEnd (); // QVR
 
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
+	VR_ProfileBeginGPU ("particles"); // QVR: profile
 	R_DrawParticles (true);
+	VR_ProfileEnd (); // QVR
 
 	R_EndTranslucency ();
+	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneTranslucent (); // QVR: particles
 
@@ -2072,9 +2095,15 @@ void R_RenderView (void)
 	else if (gl_finish.value)
 		glFinish ();
 
+	VR_ProfileBeginGPU ("setup view"); // QVR: profile
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBeginGPU ("scene"); // QVR: profile
 	R_RenderScene ();
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBeginGPU ("resolve/warp"); // QVR: profile
 	R_WarpScaleView ();
+	VR_ProfileEnd (); // QVR
 
 	//johnfitz -- modified r_speeds output
 	time2 = Sys_DoubleTime ();

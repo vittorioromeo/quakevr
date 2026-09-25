@@ -29,7 +29,9 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_hands.hpp"
+#include "vr_held.hpp"
 #include "vr_physics.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_weapons.hpp"
 
@@ -70,22 +72,16 @@ void fromGlm(const glm::vec3& g, vec3_t v)
     return model && model->type == mod_brush;
 }
 
-// Model axes (x forward, y left, z up) of an entity's angles as the renderer turns it: an alias
-// model's pitch is inverted (R_EntityMatrix tilts the model's forward up for a positive pitch, view
-// angles tilt it down), a brush model's not (R_DrawBrushModels inverts it once more).
+// Model axes of an entity's angles as the renderer turns it (brush and alias models differ in
+// pitch), and back: see vr_held.hpp.
 [[nodiscard]] glm::mat3 axesFromAngles(const vec3_t angles, bool brush)
 {
-    vec3_t a{brush ? angles[0] : -angles[0], angles[1], angles[2]}, f, r, u;
-    AngleVectors(a, f, r, u);
-    return glm::mat3{toGlm(f), -toGlm(r), toGlm(u)};
+    return held::axesFromAngles(angles, brush);
 }
 
 void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
 {
-    const glm::vec3 a = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
-    out[0] = brush ? a.x : -a.x;
-    out[1] = a.y;
-    out[2] = a.z;
+    held::anglesFromAxes(m, out, brush);
 }
 
 [[nodiscard]] glm::mat3 orthonormalize(const glm::mat3& m)
@@ -118,37 +114,8 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
         return;
     }
 
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
-    const weapons::ModelTransform t = weapons::modelTransform(model);
     const FieldOffsets& f = fields();
-    const glm::vec3 netScale = glm::vec3{1.f} + fieldVec(ent, f.model_scale);
-    const glm::vec3 netScaleOrigin = fieldVec(ent, f.model_scale_origin);
-    const glm::vec3 netOffset = fieldVec(ent, f.model_offset);
-    const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-
-    lo = glm::vec3{1e9f};
-    hi = glm::vec3{-1e9f};
-    for(int i = 0; i < 8; i++)
-    {
-        const glm::vec3 v{(i & 1) ? model->maxs[0] : model->mins[0], (i & 2) ? model->maxs[1] : model->mins[1],
-            (i & 4) ? model->maxs[2] : model->mins[2]};
-        const glm::vec3 raw = (v - so) / hs;
-        glm::vec3 p;
-        if(t.active)
-        {
-            p = (raw + netOffset) * t.scale;
-            p = so + hs * p;
-            p = (t.offset + p) * t.k;
-        }
-        else
-        {
-            p = so + hs * (raw + netOffset);
-        }
-        p = netScaleOrigin + (p - netScaleOrigin) * netScale;
-        lo = glm::min(lo, p);
-        hi = glm::max(hi, p);
-    }
+    held::modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
 
     // Never thinner than a unit, so that the corners span a volume.
     const glm::vec3 centre = (lo + hi) * 0.5f;
@@ -184,12 +151,31 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     SV_Impact(ent, hit);
 }
 
+// A corner's trace. Players are left out: their box is Quake's, much wider than a body in VR, and
+// a hand reaching for something at the feet has it inside the box. A trace starting in a player's
+// box reports only that (the floor under it is lost), so a body there fell through the floor as
+// soon as it moved (a hand pressing on it from above pushed it in, and it stayed sunk). What a
+// thrown body hits is found by touchNearby.
 [[nodiscard]] trace_t pointTrace(const glm::vec3& from, const glm::vec3& to, edict_t* pass)
 {
     vec3_t start, end;
     fromGlm(from, start);
     fromGlm(to, end);
-    return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, pass);
+
+    float solids[MAX_SCOREBOARD];
+    const int clients = std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
+    for(int i = 0; i < clients; i++)
+    {
+        edict_t* client = EDICT_NUM(i + 1);
+        solids[i] = client->v.solid;
+        client->v.solid = SOLID_NOT;
+    }
+    const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, pass);
+    for(int i = 0; i < clients; i++)
+    {
+        EDICT_NUM(i + 1)->v.solid = solids[i];
+    }
+    return tr;
 }
 
 struct Body
@@ -358,11 +344,13 @@ void rigidToss(edict_t* ent)
     b.invInertia = 12.f / glm::vec3{size.y * size.y + size.z * size.z, size.x * size.x + size.z * size.z,
                               size.x * size.x + size.y * size.y};
 
-    // Asleep: stays until what holds it goes away, or QC moves it.
+    // Asleep: stays until what holds it goes away, or QC moves it. A body Quake's own toss put to
+    // rest (QC sets .vr_rest -1 as it makes it rigid: a gib's first landing) settles here first:
+    // Quake left it lying by an unturned box, sunk into the floor or hanging off a ledge.
     if(static_cast<int>(ent->v.flags) & FL_ONGROUND)
     {
         const bool pushed = glm::length(b.vel) > 1.f;
-        if(!pushed && supported(b, nullptr))
+        if(!pushed && fieldFloat(ent, f.vr_rest) >= 0.f && supported(b, nullptr))
         {
             return;
         }
@@ -631,6 +619,7 @@ std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's 
 // the QC takes it for floating. Items and rigid bodies are kept in the world first.
 extern "C" int VR_RigidToss(edict_t* ent)
 {
+    QVR_PROFILE("rigid bodies");
     const FieldOffsets& f = fields();
     const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
     keepInWorld(ent, rigid);
@@ -676,6 +665,17 @@ bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)
     // Thin things (a dropped gun) at least 6 units thick, so a hand can still find them.
     const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{margin};
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
+}
+
+glm::vec3 modelCentre(edict_t* ent)
+{
+    if(!modelOf(ent))
+    {
+        return toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f;
+    }
+    glm::vec3 lo, hi;
+    localBox(ent, lo, hi);
+    return toGlm(ent->v.origin) + axesFromAngles(ent->v.angles, brushModel(ent)) * ((lo + hi) * 0.5f);
 }
 
 void resetRigidBodies()

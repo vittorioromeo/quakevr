@@ -78,8 +78,8 @@ struct Target
 void ensureTarget(Target& target, int width, int height);
 
 // Draws into `target` with the engine's 2D functions (the 2D pass's own blend and state), on a
-// virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the
-// previous target and 2D canvas.
+// virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the 2D
+// canvas and goes back to where the engine draws its 2D pass (the window: begin2D is used from it).
 void begin2D(const Target& target, int virtualWidth, int virtualHeight);
 void end2D();
 

@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_api.h" // QVR
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_profile.h" // QVR
 #include "steam.h"
 #include <time.h>
 
@@ -2150,10 +2151,13 @@ void SCR_UpdateScreen (void)
 
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 
+	VR_ProfileBeginGPU ("3D"); // QVR: profile
 	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
 		V_RenderView ();
+	VR_ProfileEnd (); // QVR
 
 	GL_BeginGroup ("2D");
+	VR_ProfileBeginGPU ("2D"); // QVR: profile
 
 	VR_Begin2D (); // QVR: to a canvas shown in the headset
 	GL_Set2D ();
@@ -2208,9 +2212,12 @@ void SCR_UpdateScreen (void)
 
 	Draw_Flush ();
 	VR_End2D (); // QVR
+	VR_ProfileEnd (); // QVR
 
 	GL_EndGroup ();
 
+	VR_ProfileBegin ("swap"); // QVR: profile
 	GL_EndRendering ();
+	VR_ProfileEnd (); // QVR
 }
 

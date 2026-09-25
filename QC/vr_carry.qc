@@ -1,5 +1,5 @@
-// vr_carry.qc -- carrying and nudging physics items (ammo and health boxes) with the hands
-// (vr_carry). See docs/vr-port/ROUND6.md, item 14.
+// vr_carry.qc -- carrying and nudging physics items (ammo and health boxes, backpacks, gibs) with
+// the hands (vr_carry). See docs/vr-port/ROUND6.md, item 14.
 //
 // - A hand or a gun touching a box without gripping nudges it: the box takes up the hand's speed
 //   along its motion, as a rigid body (it tumbles and settles).
@@ -214,10 +214,14 @@ void(float xHand) VR_Carry_HandFrame =
         return;
     }
 
-    // A held gib does not vanish.
+    // A held gib or backpack does not vanish.
     if(box.think == SUB_Remove && box.nextthink < time + 5)
     {
         box.nextthink = time + 5;
+    }
+    if(box.think2 == SUB_Remove && box.nextthink2 < time + 5)
+    {
+        box.nextthink2 = time + 5;
     }
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
@@ -337,6 +341,18 @@ void() VR_Gib_Touch =
             particle2(self.origin, self.velocity * -0.1, QVR_PARTICLE_PRESET_BLOOD, 12);
         }
     }
+
+    // Quake's bounce flings it from the body; from its first landing it is a rigid body (vr_rigid.cpp),
+    // which lies on the floor by its turned box. Quake's box does not turn with the model (and a
+    // gib's collides as a player-sized one), so gibs came to rest up to half their size sunk into
+    // the floor. vr_rest -1: settle even if Quake stops it this frame.
+    if(!self.vr_rigid && other.solid == SOLID_BSP)
+    {
+        self.vr_rigid = 1;
+        self.vr_rest = -1;
+        self.vr_spin = VRThrowSpinCapped(self.avelocity * 0.0087); // half its tumble, in radians
+        self.avelocity = '0 0 0';
+    }
     forcegrabbable_touch();
 };
 
@@ -361,7 +377,7 @@ void(entity xGib) VR_MakeGibGrabbable =
     SetThrownWeaponDealDamage(xGib, FALSE);
     SetThrownWeaponDisappearOnHit(xGib, FALSE);
     VR_Carry_Setup(xGib);
-    xGib.vr_rigid = 0; // Quake's bounce until picked up; a rigid body once let go
+    xGib.vr_rigid = 0; // Quake's bounce until it first lands (VR_Gib_Touch) or is picked up; then a rigid body
 
     // They lie about longer, to be played with.
     if(xGib.think == SUB_Remove)

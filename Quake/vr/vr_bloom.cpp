@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_profile.hpp"
 
 #include <algorithm>
 
@@ -194,6 +195,7 @@ void pass(const Target& target, GLuint prog, GLuint source, float a, float b, fl
 
 void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
 {
+    QVR_GPU_PROFILE("bloom");
     const float strength = vr_bloom.value;
     if(strength <= 0.f || width < 64 || height < 64 || !ensurePrograms())
     {

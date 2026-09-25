@@ -89,7 +89,10 @@ enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
 void VR_DecalTempEntity (int scorch, const float *pos);	// cl_tent.c: a wall hit (0) or an explosion (1) leaves a mark
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
 void VR_TuneDlight (int kind, int ent, void *dlight);	// after Quake sets a muzzle flash, rocket or explosion light up: size, colour, fade (the local player's flash at the gun)
+void VR_ProjectileLight (int ent);						// CL_RelinkEntities, after the trails: glowing projectiles (hell knight flames, scrag spit, vore balls, lasers) light up the room
+void VR_ProjectileImpactLight (int kind, const float *pos); // cl_tent.c: a scrag's (0) or a hell knight's (1) spike hitting a wall flashes
 int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
+void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player's held objects drawn in the hands (vr_held.cpp)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
@@ -121,6 +124,9 @@ int VR_ParticleExplosion2 (const float *org, int colorStart, int colorLength);	/
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+
+// Console (console.c).
+int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log
 
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings

@@ -151,6 +151,7 @@ void(float hand, float strength, vector dir) handimpact = #0; // knock the `self
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
+vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world
 void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox = #0; // traceline with a box
 
 float(string s) cvar_hmake = #0;

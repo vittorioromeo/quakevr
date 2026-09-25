@@ -4,7 +4,7 @@
 // shoulders rise and swing when reaching, and the arms are two-bone chains to the wrists, with
 // the elbows placed by heuristics after Parger et al., "Human upper-body inverse kinematics for
 // increased embodiment in consumer-grade virtual reality" (VRST 2018). Legs, optionally, stand
-// under the hips.
+// planted under the body, stepping round as it turns, and walk as the player moves.
 //
 // The pose is drawn through the renderer's skeletal (MD5) path, with the entity's own bone
 // matrices (VR_AliasBonePoses in r_alias.c) instead of the model's animation.

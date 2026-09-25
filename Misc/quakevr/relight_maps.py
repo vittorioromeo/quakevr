@@ -10,11 +10,13 @@
 # only the light changes.
 #
 # Glowing textures light their surroundings (--glow, on by default): textures with fullbright pixels
-# (buttons, computer panels, light fixtures, glowing runes) get ericw's surface lights ("_surface"
-# light entities, in the colour of their glowing pixels, as bright as the share of them that glows;
-# fixtures (named *light*) half as bright, since mappers put lights by them). These entities are only
-# given to `light`: the relit map keeps its own. --glow-budget sets how much light a glowing texture
-# shares out (300; 600 before round 10, and with --bright).
+# (buttons, computer panels, light fixtures, glowing runes) get lights in the colour of their glowing
+# pixels, as bright as the share of them that glows and the other glowing things in the room allow:
+# small faces a point light each in front of them, textures with big faces ericw's surface lights
+# ("_surface"); strongly coloured ones brighter and further reaching, so that a red button tints its
+# room; fixtures (named *light*) half as bright, since mappers put lights by them (glow_lights). These
+# entities are only given to `light`: the relit map keeps its own. --glow-budget sets how much light a
+# glowing texture shares out in a room (300; 600 before round 10, and with --bright).
 #
 # The results go into quakevr/relit/<game>/maps/<map>.bsp and .lit. Quake VR loads them in place of
 # <game>'s own maps (vr_relit_maps 1, the default; 0 plays the original lighting). The maps are
@@ -108,53 +110,129 @@ def entities_text(data):
     return data[offset : offset + length].split(b"\0")[0].decode("latin-1")
 
 
-def texture_areas(data):
-    """{miptex index: how many lights `light` spawns on the faces using it (one about every 128 x 128
-    units, at least one a face)} (BSP29; empty for BSP2)."""
+def texture_faces(data):
+    """{miptex index: [(centre, area, normal) of each face using it]} (BSP29; empty for BSP2)."""
     if struct.unpack_from("<i", data, 0)[0] != 29:
         return {}
+    pofs, plen = lump(data, 1)
     vofs, vlen = lump(data, 3)
     tofs, tlen = lump(data, 6)
     fofs, flen = lump(data, 7)
     eofs, elen = lump(data, 12)
     sofs, slen = lump(data, 13)
+    planes = [struct.unpack_from("<3f", data, pofs + i * 20) for i in range(plen // 20)]
     verts = [struct.unpack_from("<3f", data, vofs + i * 12) for i in range(vlen // 12)]
     edges = [struct.unpack_from("<2H", data, eofs + i * 4) for i in range(elen // 4)]
     surfedges = struct.unpack_from("<%di" % (slen // 4), data, sofs)
     miptex_of = [struct.unpack_from("<i", data, tofs + i * 40 + 32)[0] for i in range(tlen // 40)]
-    areas = {}
+    faces = {}
     for i in range(flen // 20):
-        _, _, first, count, texinfo = struct.unpack_from("<hhihh", data, fofs + i * 20)
+        planenum, side, first, count, texinfo = struct.unpack_from("<hhihh", data, fofs + i * 20)
         pts = []
         for k in range(count):
             e = surfedges[first + k]
             pts.append(verts[edges[e][0]] if e >= 0 else verts[edges[-e][1]])
+        if not pts:
+            continue
         area = 0.0
         for k in range(1, len(pts) - 1):
             a = [pts[k][j] - pts[0][j] for j in range(3)]
             b = [pts[k + 1][j] - pts[0][j] for j in range(3)]
             c = (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
             area += 0.5 * (c[0] ** 2 + c[1] ** 2 + c[2] ** 2) ** 0.5
+        centre = tuple(sum(p[j] for p in pts) / len(pts) for j in range(3))
+        normal = planes[planenum] if 0 <= planenum < len(planes) else (0.0, 0.0, 1.0)
+        if side:
+            normal = tuple(-x for x in normal)
         m = miptex_of[texinfo] if 0 <= texinfo < len(miptex_of) else -1
-        areas[m] = areas.get(m, 0.0) + max(1.0, area / (128.0 * 128.0))
-    return areas
+        faces.setdefault(m, []).append((centre, area, normal))
+    return faces
+
+
+def solid_at(data):
+    """A function telling whether a point is inside the world's solid (BSP29 hull 0; never for BSP2)."""
+    if struct.unpack_from("<i", data, 0)[0] != 29:
+        return lambda p: False
+    pofs, _ = lump(data, 1)
+    nofs, _ = lump(data, 5)
+    lofs, _ = lump(data, 10)
+
+    def solid(p):
+        node = 0
+        for _ in range(4096):
+            planenum, front, back = struct.unpack_from("<ihh", data, nofs + node * 24)
+            nx, ny, nz, dist = struct.unpack_from("<4f", data, pofs + planenum * 20)
+            child = front if p[0] * nx + p[1] * ny + p[2] * nz - dist >= 0 else back
+            if child < 0:
+                (contents,) = struct.unpack_from("<i", data, lofs + (-child - 1) * 28)
+                return contents == -2
+            node = child
+        return False
+    return solid
+
+
+# `light` spawns a surface light about every SURFLIGHT x SURFLIGHT units of a face, at least one a face.
+SURFLIGHT = 128.0
+# Faces of one glowing texture closer than GLOW_OBJECT are one thing (the faces of a button, a panel,
+# a slipgate); things closer than GLOW_ROOM light the same room together.
+GLOW_OBJECT = 64.0
+GLOW_ROOM = 256.0
+
+
+def near(c, d, r):
+    return sum((c[j] - d[j]) ** 2 for j in range(3)) < r * r
+
+
+def spawned(faces):
+    """How many lights `light` spawns on these faces."""
+    return sum(max(1.0, f[1] / SURFLIGHT ** 2) for f in faces)
+
+
+def things(faces):
+    """Faces grouped into things (closer than GLOW_OBJECT): [(the faces, how many lights it counts as)].
+    A thing counts as its area in lights, or the square root of its faces if more (`light` puts one on
+    each, but a button's faces in the wall light little, and a cluster of small panels is not as bright
+    as all of them)."""
+    groups = []
+    for f in faces:
+        joined = [g for g in groups if any(near(f[0], h[0], GLOW_OBJECT) for h in g)]
+        merged = [f]
+        for g in joined:
+            groups.remove(g)
+            merged += g
+        groups.append(merged)
+    return [(g, max(len(g) ** 0.5, sum(h[1] for h in g) / SURFLIGHT ** 2)) for g in groups]
+
+
+def crowd(thing, everyone):
+    """How many lights light the room of a glowing thing: all the glowing things (`everyone`, of any
+    glowing texture) within GLOW_ROOM of it. A map's buttons are far apart, each lighting its room
+    alone; a slipgate's frame, lamps and panels share one room."""
+    c = thing[0][0][0]
+    return max(1.0, sum(n for g, n in everyone if near(c, g[0][0], GLOW_ROOM)))
 
 
 def glow_lights(data, palette, scale, budget_base):
-    """Surface light entities for the map's textures with fullbright pixels (palette 224-254).
-    Each glowing texture has a budget of light (more the more of it glows), shared by the lights
-    `light` spawns over its faces (at least one a face), none brighter than 130: a small button
-    glows round itself, big or many glowing faces glow faintly each, and do not flood the room. The
-    colour is a quarter of the way to white (a pure red floods a room with red)."""
-    areas = texture_areas(data)
+    """Light entities for the map's textures with fullbright pixels (palette 224-254).
+    Each glowing texture has a budget of light (more the more of it glows), shared by the glowing
+    things in the room (crowd()), none brighter than 130: a button alone in its room glows round
+    itself, big or many glowing faces glow faintly each, and do not flood the room. Strongly coloured
+    glows (red buttons, blue panels) get up to twice the budget, a cap 30% higher, twice the reach and
+    their colour a tenth of the way to white, so that they tint the room; white and pale ones a quarter
+    of the way to white. Small glowing faces (buttons, panels, signs) get a light each in front of them,
+    as bright as their own room allows, unless in a wall; textures with big faces (a slipgate) get ericw's
+    surface lights ("_surface"), as bright as their most crowded room allows. Fixtures (named *light*)
+    get half, shared by all their lights in the map, since mappers put lights by them."""
+    faces = texture_faces(data)
+    solid = solid_at(data)
     offset, length = lump(data, 2)
     if length < 4:
         return ""
     (count,) = struct.unpack_from("<i", data, offset)
-    out = []
+    glows = []
     for i in range(count):
         (mip,) = struct.unpack_from("<i", data, offset + 4 + i * 4)
-        if mip < 0:
+        if mip < 0 or not faces.get(i):  # (an animation's other frames: `light` finds no faces named so)
             continue
         base = offset + mip
         name = data[base : base + 16].split(b"\0")[0].decode("latin-1")
@@ -170,15 +248,37 @@ def glow_lights(data, palette, scale, budget_base):
         r = sum(palette[c * 3] for c in glowing) / len(glowing)
         g = sum(palette[c * 3 + 1] for c in glowing) / len(glowing)
         b = sum(palette[c * 3 + 2] for c in glowing) / len(glowing)
+        glows.append((name, share, (r, g, b), faces[i], things(faces[i])))
+    everyone = [t for glow in glows for t in glow[4]]
+
+    out = []
+    for name, share, (r, g, b), used, mine in glows:
         top = max(r, g, b, 1.0)
-        r, g, b = (r * 0.75 + top * 0.25, g * 0.75 + top * 0.25, b * 0.75 + top * 0.25)
-        spawned = max(1.0, areas.get(i, 1.0))
-        budget = budget_base * min(1.0, 0.4 + share * 2) * scale * (0.5 if "light" in low else 1.0)
-        value = min(130 * scale, budget / spawned)
+        sat = (top - min(r, g, b)) / top  # 0 white .. 1 pure colour
+        white = 0.25 - 0.15 * sat
+        r, g, b = (r * (1 - white) + top * white, g * (1 - white) + top * white, b * (1 - white) + top * white)
+        colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
+        budget = budget_base * min(1.0, 0.4 + share * 2) * scale
+        cap = 130 * scale * (1 + 0.3 * sat)
+        if "light" in name.lower():
+            value = min(130 * scale, budget * 0.5 / spawned(used))
+        elif all(f[1] <= 2 * SURFLIGHT ** 2 for f in used):
+            for thing in mine:
+                value = min(cap, budget * (1 + sat) / crowd(thing, everyone))
+                spots = [tuple(c[j] + n[j] * 2 for j in range(3)) for c, _, n in thing[0]]
+                spots = [p for p in spots if not solid(p)]
+                for p in spots:
+                    each = value / len(spots) ** 0.5
+                    if each >= 12:
+                        out.append('{\n"classname" "light"\n"origin" "%g %g %g"\n"light" "%d"\n"wait" "%.2f"\n'
+                                   '"_color" "%s"\n}\n' % (p[0], p[1], p[2], each, 1 / (1 + sat), colour))
+            continue
+        else:
+            value = min(cap, budget * (1 + sat) / max(crowd(t, everyone) for t in mine))
         if value < 12:
             continue
-        out.append('{\n"classname" "light"\n"_surface" "%s"\n"light" "%d"\n"_color" "%d %d %d"\n'
-                   '"_surface_offset" "2"\n}\n' % (name, value, r * 255 / top, g * 255 / top, b * 255 / top))
+        out.append('{\n"classname" "light"\n"_surface" "%s"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n'
+                   '"_surface_offset" "2"\n}\n' % (name, value, 1 / (1 + sat), colour))
     return "".join(out)
 
 
@@ -245,7 +345,6 @@ def main():
         palette = pak_file(os.path.join(args.quake, "id1"), "gfx/palette.lmp")
         if not palette:
             print("gfx/palette.lmp not found: glowing textures will not light")
-    glow_key = "" if not palette else " glow %g budget %g" % (args.glow_scale, args.glow_budget)
 
     for game in args.games:
         game_dir = os.path.join(args.quake, game)
@@ -263,7 +362,9 @@ def main():
             if not is_level(name, data):
                 continue
             total += 1
-            stamp_value = hashlib.sha1(data + (" ".join(light_args) + glow_key).encode()).hexdigest()
+            # The glowing textures' lights are in the stamp: a change to how they are made relights.
+            lights = glow_lights(data, palette, args.glow_scale, args.glow_budget) if palette else ""
+            stamp_value = hashlib.sha1(data + (" ".join(light_args) + lights).encode("latin-1")).hexdigest()
             out_bsp = os.path.join(out_dir, base + ".bsp")
             out_lit = os.path.join(out_dir, base + ".lit")
             stamp = os.path.join(out_dir, base + ".relit")
@@ -275,7 +376,6 @@ def main():
 
             with tempfile.TemporaryDirectory() as tmp:
                 work = os.path.join(tmp, base + ".bsp")
-                lights = glow_lights(data, palette, args.glow_scale, args.glow_budget) if palette else ""
                 with open(work, "wb") as f:
                     f.write(with_entities(data, entities_text(data) + lights) if lights else data)
                 print("%s/%s ..." % (game, base), end=" ", flush=True)

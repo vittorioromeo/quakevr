@@ -66,6 +66,9 @@
         slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm pushes than a hand slicing edge first (recovering)."),
         slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
         slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
+        slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
+        slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much bringing your hands forward again for the next stroke pushes you back."),
+        slider("Glide", "vr_swim_glide", 0.f, 1.f, 0.1f, "%.1f").help("How far you glide between strokes (less of the water's drag)."),
     };
 }
 
@@ -189,11 +192,15 @@
         toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
+        slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
+        slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a faint light in their colour (0 off)."),
+        slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
         cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
             .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
         slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").help("Dynamic lights glint off walls and models (0 off)."),
-        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by dynamic lights. Next map."),
+        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
         slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
+        slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
         toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
         slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})

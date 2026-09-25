@@ -12,6 +12,7 @@
 #include "vr_main.hpp"
 #include "vr_modellight.hpp"
 #include "vr_shadows.hpp"
+#include "vr_profile.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
@@ -132,6 +133,7 @@ void build()
 // From VR_DrawSceneOpaque (vr_text3d.cpp).
 void shadows::draw()
 {
+    QVR_GPU_PROFILE("blob shadows");
     if(!vrActive() || !cl.worldmodel)
     {
         return;

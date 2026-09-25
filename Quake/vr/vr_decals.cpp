@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_profile.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
@@ -361,8 +362,9 @@ void drip(const glm::vec3& org)
     float f;
     if(hitWorld(o, o - glm::vec3{0, 0, 128}, where, normal, f) && normal.z > 0.6f)
     {
-        // Low over the floor (sliding, rolling, carried low) a smear; from higher, smaller drops.
-        add(BloodDrop, where, normal, f * 128.f < 16.f ? random(5.f, 9.f) : random(3.5f, 7.f));
+        // Low over the floor (sliding, rolling, carried low) a smear; from higher, smaller drops. As
+        // big as Quake's gibs call for (a gib is 10-30 units across).
+        add(BloodDrop, where, normal, f * 128.f < 16.f ? random(12.f, 20.f) : random(8.f, 15.f));
     }
 }
 
@@ -380,7 +382,7 @@ void splat(const glm::vec3& from, const glm::vec3& to, const glm::vec3& oldVeloc
     {
         return;
     }
-    add(Blood, where, normal, std::clamp(8.f + strength * 0.02f, 8.f, 22.f));
+    add(Blood, where, normal, std::clamp(16.f + strength * 0.03f, 16.f, 40.f));
 
     // Quake VR's blood (Quake's own with vr_particles 0).
     vec3_t org, dir;
@@ -458,6 +460,7 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
 
 void draw()
 {
+    QVR_GPU_PROFILE("decals");
     if(decals.empty() || !vr_decals.value)
     {
         return;

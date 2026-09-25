@@ -1561,6 +1561,18 @@ void() BackpackTouch =
     W_SetCurrentAmmo();
 };
 
+// A backpack's think: as a dropped weapon's, but carried (vr_carry.qc) the hand moves it, nothing
+// else.
+void() backpack_think =
+{
+    self.nextthink = time + 0.02;
+    if(self.carry_player != world)
+    {
+        return;
+    }
+    forcegrabbable_think_impl();
+}
+
 /*
 ===============
 DropBackpack
@@ -1610,7 +1622,7 @@ void() DropBackpack =
     SetThrownWeaponDealDamage(item, FALSE);
     SetThrownWeaponDisappearOnHit(item, FALSE);
 
-    item.think = forcegrabbable_think; // no deathmatch return: it has no place of its own
+    item.think = backpack_think; // no deathmatch return: it has no place of its own
     item.nextthink = time + 0.02;
 
     item.touch = forcegrabbable_touch;
@@ -1627,4 +1639,8 @@ void() DropBackpack =
 
     item.nextthink2 = time + 120;    // remove after 2 minutes
     item.think2 = SUB_Remove;
+
+    // Carried like the ammo and health boxes (vr_carry.qc): gripped (or caught from a force grab)
+    // it is held, and let go of at a holster it is taken (vr_carry_take), not taken at a touch.
+    VR_Carry_Setup(item);
 };

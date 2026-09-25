@@ -295,7 +295,7 @@ NOISE_FUNCTIONS
 "	float	ZLogBias;\n"\
 "	uint	NumLights;\n"\
 "	uint	ShadowFlags; // QVR\n"\
-"	vec4	LightTweak; // QVR: lightmap contrast, its pivot, specular intensity, normal map strength\n"\
+"	vec4	LightTweak; // QVR: lightmap contrast, the normal maps' share of the baked light, specular intensity, normal map strength\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -486,6 +486,20 @@ NOISE_FUNCTIONS
 "	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
 "	m *= LightTweak.w;\n"\
 "	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
+"}\n"\
+"\n"\
+"// The baked light on the bumps (vr_normalmap_baked: LightTweak.y): a light from a guessed direction, towards where\n"\
+"// the lightmap gets brighter over the surface (dlum: the screen derivatives of its brightness lum) and a little from\n"\
+"// above, at most 45 degrees off the normal n; as bright as before on the flat. Light straight on the surface (the\n"\
+"// flat light of floors and ceilings) is DarkPlaces' r_glsl_deluxemapping 2.\n"\
+"float BakedBump(vec3 n, vec3 bumped, vec3 dpdx, vec3 dpdy, float lum, vec2 dlum)\n"\
+"{\n"\
+"	float det = dot(n, cross(dpdx, dpdy));\n"\
+"	vec3 grad = (cross(dpdy, n) * dlum.x + cross(n, dpdx) * dlum.y) / (abs(det) > 1e-8 ? det : 1e-8); // per unit\n"\
+"	vec3 tilt = grad * (96.0 / max(lum, 0.03)) + (vec3(0.0, 0.0, 0.5) - n * (0.5 * n.z));\n"\
+"	float len = length(tilt);\n"\
+"	vec3 l = normalize(n + tilt * (min(len, 1.0) / max(len, 1e-4)));\n"\
+"	return max(mix(1.0, max(dot(bumped, l), 0.0) / dot(n, l), LightTweak.y), 0.0);\n"\
 "}\n"\
 "\n"\
 "// A map light's shadow of moving things: the share of the baked light `lit` at pos (normal n) that the\n"\
@@ -845,7 +859,28 @@ OIT_OUTPUT (out_fragcolor)
 "	}\n"
 "\n"
 "	if (LightTweak.x != 1.) // QVR: contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n"
-"		total_light = LightTweak.y * pow(max(total_light, vec3(0.)) / LightTweak.y, vec3(LightTweak.x));\n"
+"		total_light = 0.5 * pow(max(total_light, vec3(0.)) * 2.0, vec3(LightTweak.x));\n"
+"\n"
+"	// QVR: the normal bent by the normal map (vr_normalmaps), for the baked light and the dynamic lights\n"
+"	vec3 facing = normalize(cross(dpdx, dpdy));\n"
+"	facing = dot(facing, EyePos - in_pos) < 0. ? -facing : facing; // towards the viewer\n"
+"	vec3 bumped = facing;\n"
+"#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	if (LightTweak.w > 0.)\n"
+"	{\n"
+"		bumped = BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing);\n"
+"		if (LightTweak.y > 0.)\n"
+"		{\n"
+"			float lum = dot(total_light, vec3(1.0 / 3.0));\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
+"			vec2 dlum = vec2(0.); // no derivatives after the discard\n"
+"#else\n"
+"			vec2 dlum = vec2(dFdx(lum), dFdy(lum));\n"
+"#endif\n"
+"			total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum);\n"
+"		}\n"
+"	}\n"
+"#endif\n"
 "\n"
 "	if (NumLights > 0u)\n"
 "	{\n"
@@ -868,12 +903,6 @@ OIT_OUTPUT (out_fragcolor)
 "			plane.w = dot(in_pos, plane.xyz);\n"
 "#endif\n"
 "			vec3 dynamic_light = vec3(0.);\n"
-"			vec3 facing = dot(plane.xyz, EyePos - in_pos) < 0. ? -plane.xyz : plane.xyz; // QVR: towards the viewer\n"
-"			vec3 bumped = facing; // QVR: bent by the normal map, for the dynamic lights (not the baked light)\n"
-"#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
-"			if (LightTweak.w > 0.)\n"
-"				bumped = BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing);\n"
-"#endif\n"
 "			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "			{\n"
@@ -1269,7 +1298,7 @@ NOISE_FUNCTIONS
 "	float	Blend;\n"\
 "	int		Padding;\n"\
 "	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
-"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y shaded on a par with the world (vr_model_light_parity)\n"\
+"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1367,11 +1396,13 @@ ALIAS_INSTANCE_BUFFER
 "layout(location=4) out float out_depth; // QVR\n"
 "layout(location=5) noperspective out vec2 out_coord; // QVR\n"
 "layout(location=6) flat out float out_glow; // QVR\n"
+"layout(location=7) flat out float out_fbboost; // QVR\n"
 "\n"
 "void main()\n"
 "{\n"
 "	InstanceData inst = instances[gl_InstanceID];\n"
 "	out_glow = inst.Glow.x; // QVR\n"
+"	out_fbboost = inst.Glow.z; // QVR\n"
 "	out_texcoord = in_uv;\n"
 "	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
@@ -1430,6 +1461,7 @@ NOISE_FUNCTIONS
 "layout(location=4) in float in_depth; // QVR\n"
 "layout(location=5) noperspective in vec2 in_coord; // QVR\n"
 "layout(location=6) flat in float in_glow; // QVR\n"
+"layout(location=7) flat in float in_fbboost; // QVR\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1492,6 +1524,11 @@ OIT_OUTPUT (out_fragcolor)
 "	if (result.a < 0.666)\n"
 "		discard;\n"
 "#endif\n"
+"#if ALPHATEST\n"
+"	vec3 emissive = vec3(0.); // QVR\n"
+"#else\n"
+"	vec3 emissive = result.rgb * (1.0 - result.a); // QVR: fullbright texels, unlit (ALPHABRIGHT skins keep them in the alpha)\n"
+"#endif\n"
 "	vec3 spec; // QVR\n"
 "	vec3 light = in_color.rgb + ModelDynamicLights(uv, duvdx, duvdy, dpdx, dpdy, spec); // QVR\n"
 "#if ALPHATEST\n"
@@ -1506,10 +1543,13 @@ OIT_OUTPUT (out_fragcolor)
 "	result.a = in_color.a;\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
-"	result.rgb += textureLod(FullbrightTex, uv, 0.).rgb;\n"
+"	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n"
 "#else\n"
-"	result.rgb += texture(FullbrightTex, uv).rgb;\n"
+"	vec3 fullbright = texture(FullbrightTex, uv).rgb;\n"
 "#endif\n"
+"	// QVR: the held weapons' dim fullbrights (sights) shine brighter, bright ones stay (vr/vr_emissive.cpp)\n"
+"	vec3 glowing = fullbright + emissive;\n"
+"	result.rgb += fullbright + glowing * (in_fbboost * (1.0 - max(glowing.r, max(glowing.g, glowing.b))));\n"
 "	if (in_glow > 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp)\n"
 "	{\n"
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n"

@@ -16,6 +16,7 @@
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
+#include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
 namespace qvr::stereo
@@ -72,6 +73,7 @@ void ensureEyeFramebuffers(int width, int height)
 // Copies the eye just rendered into (its part of) the window, cropped to the aspect ratio.
 void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHeight)
 {
+    QVR_GPU_PROFILE("mirror");
     const int mode = static_cast<int>(vr_mirror.value);
     if(mode <= 0 || (mode == 1 && eye != 0))
     {
@@ -164,7 +166,9 @@ extern "C" int VR_RenderView()
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
     {
+        profile::begin("xr acquire", false); // xrWaitSwapchainImage
         const unsigned image = be->acquireEyeImage(eye);
+        profile::end();
         if(!image)
         {
             continue;
@@ -186,6 +190,7 @@ extern "C" int VR_RenderView()
         stereo::renderingEye = true;
         stereo::currentEye = eye;
         stereo::firstEye = eyesRendered == 0;
+        QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
         V_RenderView();
         bloom::apply(framebufs.composite.fbo, framebufs.composite.color_tex, width, height);
@@ -195,7 +200,9 @@ extern "C" int VR_RenderView()
         lines::drawInEye(hands::current().eyeOrigin[eye]);
         panel::drawInEye(hands::current());
 
+        profile::begin("postprocess", true);
         GL_PostProcess();
+        profile::end();
 
         stereo::renderingEye = false;
         be->releaseEyeImage(eye);
@@ -222,7 +229,9 @@ extern "C" int VR_RenderView()
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
+    profile::begin("xr submit", false); // xrEndFrame
     be->endFrame(eyesRendered == 2);
+    profile::end();
     panel::setStereoThisFrame(eyesRendered == 2);
     return eyesRendered == 2;
 }

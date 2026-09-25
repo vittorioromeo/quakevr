@@ -7,9 +7,11 @@
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_body.hpp"
 #include "vr_bodyblood.hpp"
 #include "vr_cvars.hpp"
+#include "vr_emissive.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
@@ -18,6 +20,7 @@
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
+#include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 
 #include <cmath>
@@ -120,6 +123,7 @@ struct Entities
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
+    view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity button[2];
 };
 
@@ -155,6 +159,7 @@ void forEachEntity(F&& f)
         f(entities.pauldronArm[side]);
     }
     f(entities.gadget);
+    f(entities.flashlight);
     for(view::ViewEntity& ve : entities.button)
     {
         f(ve);
@@ -263,6 +268,10 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
 
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
         vr_weapon_screen.value != 0.f);
+    if(vr_weapon_screen.value != 0.f)
+    {
+        emissive::weaponScreenLight(hand, pos, angles); // its faint glow (vr_weapon_screen_light)
+    }
 }
 
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
@@ -1000,7 +1009,9 @@ static void applyEyeView(const hands::State& s)
 }
 
 // Quake VR's grenade and proximity bomb models lack the smoke trail flag the old engine gave
-// them when they loaded.
+// them when they loaded. Some of its heads (the dog's, the fiend's, the shambler's, the zombie's)
+// lack the gib flag, so they left no blood trail: a head with no trail bleeds like a gib (the
+// zombie's like a zombie's gibs).
 static void patchModelFlags()
 {
     static const qmodel_t* world = nullptr;
@@ -1015,6 +1026,11 @@ static void patchModelFlags()
         if(!strcmp(m->name, "progs/grenade.mdl") || !strcmp(m->name, "progs/proxbomb.mdl"))
         {
             m->flags |= EF_GRENADE;
+        }
+        constexpr int trails = EF_ROCKET | EF_GRENADE | EF_GIB | EF_TRACER | EF_ZOMGIB | EF_TRACER2 | EF_TRACER3;
+        if(m->type == mod_alias && !strncmp(m->name, "progs/h_", 8) && !(m->flags & trails))
+        {
+            m->flags |= !strcmp(m->name, "progs/h_zombie.mdl") ? EF_ZOMGIB : EF_GIB;
         }
     }
 }
@@ -1067,6 +1083,7 @@ void view::parseHandImpact()
 
 extern "C" void VR_SetupViewEntities()
 {
+    QVR_PROFILE("view entities");
     hands::State& s = hands::current();
     if(stereo::isRenderingEye())
     {
@@ -1111,6 +1128,7 @@ extern "C" void VR_SetupViewEntities()
     setupBody(s);
     setupPauldrons();
     setupGadget(s);
+    flashlight::setupView(s, entities.flashlight);
     dripBlood(s);
     setupButton(s, HAND_MAIN);
     setupButton(s, HAND_OFF);

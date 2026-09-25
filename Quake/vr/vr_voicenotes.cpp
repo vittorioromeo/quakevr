@@ -28,7 +28,8 @@ namespace
 
 constexpr int wantedRate = 16000;      // Whisper's own rate
 constexpr double maxSeconds = 180.0;   // a note longer than this is cut there
-constexpr float mouthReach = 0.22f;    // metres from the mouth that count as "at the mouth"
+constexpr float mouthReach = 0.30f;    // metres from the mouth that count as "at the mouth"
+constexpr double minSeconds = 0.8;     // a shorter note is taken for an accidental press, and dropped
 
 SDL_AudioDeviceID device = 0;
 int rate = wantedRate;
@@ -211,7 +212,7 @@ void stop()
     recording = false;
 
     const double seconds = static_cast<double>(samples.size()) / rate;
-    if(seconds < 0.4)
+    if(seconds < minSeconds)
     {
         remove((baseName + ".txt").c_str());
         Con_Printf("VR notes: too short, dropped\n");

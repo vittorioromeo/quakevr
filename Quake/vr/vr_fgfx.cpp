@@ -2,6 +2,7 @@
 
 #include "vr_fgfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
@@ -43,17 +44,11 @@ double lastTime = -1.0;
     return ent > 0 && ent < cl.num_entities && cl_entities[ent].model;
 }
 
-// The middle of an entity as drawn (brush boxes are centred on their origin; alias models stand on
-// theirs).
+// The middle of an entity as drawn: its model's box, turned with it, with the networked scale and
+// offset and the weapon scaling (dropped weapons and backpacks are drawn well off their origin).
 [[nodiscard]] glm::vec3 centre(int ent)
 {
-    const entity_t& e = cl_entities[ent];
-    glm::vec3 o{e.origin[0], e.origin[1], e.origin[2]};
-    if(e.model->type == mod_alias)
-    {
-        o.z += (e.model->mins[2] + e.model->maxs[2]) * 0.5f * ENTSCALE_DECODE(e.scale);
-    }
-    return o;
+    return held::drawnCentre(ent);
 }
 
 // A small hash noise, -1..1.

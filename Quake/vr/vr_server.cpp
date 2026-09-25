@@ -264,6 +264,14 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     statsi[STAT_QVR_FGMAIN] = forcegrab(f.mainhand_fgtarget, f.mainhand_fglocked, f.mainhand_fgpulled, 1.f);
     statsi[STAT_QVR_FGOFF] = forcegrab(f.offhand_fgtarget, f.offhand_fglocked, f.offhand_fgpulled, 0.f);
 
+    // Carrying, per hand: the object (the client draws it in the hand, vr_held.cpp).
+    const auto carried = [&](int ofs) {
+        edict_t* e = entityField(ent, ofs);
+        return e && !e->free ? NUM_FOR_EDICT(e) : 0;
+    };
+    statsi[STAT_QVR_CARRYMAIN] = carried(f.mainhand_held);
+    statsi[STAT_QVR_CARRYOFF] = carried(f.offhand_held);
+
     for(int i = 0; i < numHolsters; i++)
     {
         stat(STAT_QVR_HOLSTERWEAPON0 + i, holsterWeapon[i]);

@@ -223,6 +223,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
+        slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s")
+            .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
+        slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg")
+            .help("How far you turn over your planted feet before they step round to follow."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
         toggle("Wounds Drip Blood", vr_body_blood)
@@ -269,6 +273,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the shoulders rise when reaching up."),
         slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 45.f, 1.f, "%.0f deg")
             .help("How far the shoulders swing forward when reaching far forward."),
+        header("Flashlight"),
+        toggle("Chest Flashlight", vr_flashlight)
+            .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back."),
+        slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
+        slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
+        slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A faint beam in the air in front of the lamp."),
+        toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
+        slider("Tilt Down", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far below where your torso faces the clipped lamp points."),
+        slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
+        slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
     };
 }
 
@@ -295,6 +310,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
         header("Screen"),
         toggle("Level and Stats", vr_gadget_show_level),
+        slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("The screen casts a faint light in its colour on your hand and what is close by (0 off)."),
+        cycle("Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
+            .help("The console's messages float in a small log over the gadget, or at the top of the view."),
+        slider("Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
+            .help("How long a message stays in the gadget's log."),
     };
 }
 
@@ -328,11 +349,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
         header("Carrying Boxes"),
         toggle("Carry Ammo and Health", vr_carry)
-            .help("Grip a box to carry it, push it with a hand or gun. Off: touching takes it."),
+            .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
+        toggle("Drawn In the Hand", vr_carry_local)
+            .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
@@ -432,6 +455,7 @@ std::vector<Item> pageMain()
         action("Set Height Now", calibrateHeight),
         slider("World Scale", vr_world_scale, 0.75f, 1.5f, 0.05f, "%.2f"),
         slider("Floor Offset", vr_floor_offset, -40.f, 10.f, 1.f, "%.0f"),
+        toggle("Chest Flashlight", vr_flashlight).help("Trigger with a hand at the torch on your chest switches it; grip takes it."),
 
         header("Weapons"),
         slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f"),

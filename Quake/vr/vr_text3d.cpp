@@ -8,6 +8,8 @@
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_gadget.hpp"
+#include "vr_profile.hpp"
 
 #include <algorithm>
 #include <string>
@@ -31,7 +33,9 @@ struct Queued
 std::vector<Queued> queued;
 std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
-std::vector<gfx::Vertex> floating; // floating texts (blended: they fade)
+std::vector<gfx::Vertex> floating; // floating texts and the wrist log (blended: they fade)
+std::vector<gfx::Vertex> backings; // the wrist log's backing (blended)
+gadget::Log wristLog;
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
 std::vector<std::string_view> textLines; // layout()'s, kept between calls
 
@@ -93,11 +97,66 @@ void layoutFloating(const worldtext::FloatText& ft, double now, const glm::vec3&
     }
 }
 
-void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d, const glm::vec4& color)
+void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d, const glm::vec4& color,
+    std::vector<gfx::Vertex>& out = panels)
 {
     for(const glm::vec3* p : {&a, &b, &c, &a, &c, &d})
     {
-        panels.push_back({*p, {0.f, 0.f}, color});
+        out.push_back({*p, {0.f, 0.f}, color});
+    }
+}
+
+// The wrist gadget's log (gadget::log), facing the camera (`eye`, `right`, `up`): left-aligned
+// lines on a dark, translucent backing, its bottom edge's centre just over the gadget's screen. It
+// fades out as the screen turns away from the viewer (the arm lowered, or aiming).
+void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& right, const glm::vec3& up)
+{
+    const glm::vec3 toEye = eye - log.base;
+    const float facing = glm::dot(log.normal, toEye) / std::max(glm::length(toEye), 0.01f);
+    const float shown = CLAMP(0.f, (facing - 0.2f) / 0.3f, 1.f);
+    if(shown <= 0.f)
+    {
+        return;
+    }
+
+    size_t longest = 0;
+    float alpha = 0.f;
+    for(size_t i = 0; i < log.lines.size(); i++)
+    {
+        longest = std::max(longest, log.lines[i].size());
+        alpha = std::max(alpha, log.alpha[i] * shown);
+    }
+    if(longest == 0)
+    {
+        return;
+    }
+
+    const float charSize = log.charSize;
+    const float lineStep = charSize * 1.25f;
+    const float width = charSize * static_cast<float>(longest);
+    const float height = lineStep * static_cast<float>(log.lines.size());
+    const glm::vec3 bottom = log.base + up * log.lift;
+    const glm::vec3 topLeft = bottom - right * (width * 0.5f) + up * height;
+
+    const float pad = charSize * 0.5f;
+    const glm::vec3 l = -right * (width * 0.5f + pad), r = right * (width * 0.5f + pad);
+    const glm::vec3 b = bottom - up * pad, t = bottom + up * (height + pad);
+    quad(b + l, b + r, t + r, t + l, glm::vec4{log.backColor, 0.6f * alpha}, backings);
+
+    const glm::vec3 hInc = right * charSize;
+    const glm::vec3 vInc = -up * charSize;
+    for(size_t i = 0; i < log.lines.size(); i++)
+    {
+        const glm::vec4 color{log.color, log.alpha[i] * shown};
+        glm::vec3 p = topLeft - up * (lineStep * static_cast<float>(i) + (lineStep - charSize) * 0.5f);
+        for(const char c : log.lines[i])
+        {
+            if(c != ' ')
+            {
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, floating);
+            }
+            p += hInc;
+        }
     }
 }
 
@@ -206,6 +265,26 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 
 } // namespace
 
+void drawTranslucent()
+{
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || (floating.empty() && backings.empty()))
+    {
+        return;
+    }
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    if(!backings.empty())
+    {
+        gfx::draw(backings, viewProjection,
+            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false});
+    }
+    if(!floating.empty())
+    {
+        gfx::draw(floating, viewProjection,
+            {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
+            gfx::fontTexture());
+    }
+}
+
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
 {
     queued.push_back({std::string{text}, pos, angles, align, scale, screen});
@@ -222,6 +301,7 @@ void clear()
 
 extern "C" void VR_DrawSceneOpaque()
 {
+    QVR_GPU_PROFILE("vr opaque (text3d)");
     using namespace qvr;
     using namespace qvr::text3d;
 
@@ -240,6 +320,7 @@ extern "C" void VR_DrawSceneOpaque()
         vertices.clear();
         panels.clear();
         floating.clear();
+        backings.clear();
         for(const worldtext::WorldText& wt : worldtext::clientTexts())
         {
             layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
@@ -250,15 +331,15 @@ extern "C" void VR_DrawSceneOpaque()
         }
 
         // Facing the first view drawn this frame (the eyes are a few centimetres apart).
-        const std::vector<worldtext::FloatText>& floatTexts = worldtext::clientFloatTexts(cl.time);
-        if(!floatTexts.empty())
+        glm::vec3 eye, right, up;
+        gfx::sceneCamera(eye, right, up);
+        for(const worldtext::FloatText& ft : worldtext::clientFloatTexts(cl.time))
         {
-            glm::vec3 eye, right, up;
-            gfx::sceneCamera(eye, right, up);
-            for(const worldtext::FloatText& ft : floatTexts)
-            {
-                layoutFloating(ft, cl.time, eye, right, up);
-            }
+            layoutFloating(ft, cl.time, eye, right, up);
+        }
+        if(gadget::log(wristLog))
+        {
+            layoutLog(wristLog, eye, right, up);
         }
     }
 
@@ -268,10 +349,6 @@ extern "C" void VR_DrawSceneOpaque()
     gfx::draw(vertices, viewProjection,
         {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
         gfx::fontTexture());
-    if(!floating.empty())
-    {
-        gfx::draw(floating, viewProjection,
-            {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
-            gfx::fontTexture());
-    }
+    // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no
+    // depth, the sky drawn next would paint over them wherever it is behind.
 }

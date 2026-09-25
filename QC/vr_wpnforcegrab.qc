@@ -100,9 +100,11 @@ void(entity xPlayer) VR_Forcegrab_Reset =
 // Targets
 // ----------------------------------------------------------------------------
 
+// Where an object is aimed at, pulled from and caught by: the middle of its model as drawn (a
+// dropped weapon or a backpack is drawn well off its box's middle).
 vector(entity e) VR_Forcegrab_Centre =
 {
-    return e.origin + (e.mins + e.maxs) * 0.5;
+    return modelcentre(e);
 }
 
 float(entity e) VR_Forcegrab_IsEligible =
@@ -249,7 +251,7 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
     e.velocity = '0 0 0';
     e.avelocity = '0 0 0';
     e.vr_spin = '0 0 0';
-    setorigin(e, VRGetEntHandPos(xPlayer, xHand) - (e.mins + e.maxs) * 0.5);
+    setorigin(e, VRGetEntHandPos(xPlayer, xHand) - (VR_Forcegrab_Centre(e) - e.origin));
 
     if(xPlayer.ishuman)
     {
@@ -332,7 +334,7 @@ void() VR_Forcegrab_FlightThink =
         return;
     }
 
-    vector centreOffset = (self.mins + self.maxs) * 0.5;
+    vector centreOffset = VR_Forcegrab_Centre(self) - self.origin;
     vector handPos = VRGetEntHandPos(p, hand);
     float reach = vlen(handPos - (self.origin + centreOffset));
     float catchRadius = cvar_hget(cvarh_vr_forcegrab_catch_radius);
@@ -376,8 +378,7 @@ void() VR_Forcegrab_FlightThink =
 
 void(entity e, float xHand) VR_Forcegrab_Launch =
 {
-    vector centreOffset = (e.mins + e.maxs) * 0.5;
-    vector start = e.origin + centreOffset;
+    vector start = VR_Forcegrab_Centre(e);
     vector handPos = VRGetHandPos(xHand);
     float dist = vlen(handPos - start);
     float flight = cvar_hget(cvarh_vr_forcegrab_time) + dist / max(1, cvar_hget(cvarh_vr_forcegrab_speed));

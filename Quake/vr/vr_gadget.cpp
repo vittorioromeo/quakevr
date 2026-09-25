@@ -4,15 +4,22 @@
 // the console font; vr_gfx.hpp's draw2D) into an offscreen target, on a virtual 240 x 150 screen
 // covering it. The panel (vr_panel.cpp) draws the texture over the model's
 // screen in each eye, a frame later, as it does the rest of the HUD.
+//
+// The log over it (vr_notify_wrist) is the console's notify lines (console.c keeps the times of
+// its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_lighting.hpp"
 #include "vr_main.hpp"
+#include "vr_profile.hpp"
 
+#include <algorithm>
 #include <cstring>
+#include <string_view>
 
 namespace qvr::gadget
 {
@@ -24,6 +31,15 @@ constexpr int height = 150;
 
 Pose current;
 gfx::Target target;
+
+// The log's shape: characters a line, lines at most, seconds a line fades out over.
+constexpr int logColumns = 40;
+constexpr int logRows = 8;
+constexpr float logFade = 1.f;
+
+// The screen's light's key (no entity's: entities' are positive; vr_emissive.cpp's ammo screens
+// take -0x5C00 and below).
+constexpr int lightKey = -0x5C10;
 
 // Status bar pictures (gfx.wad) by name.
 [[nodiscard]] const char* digitPic(int digit, bool red)
@@ -182,6 +198,75 @@ void layout()
     gfx::draw2D::color(white);
 }
 
+// A faint light in the screen's colour just in front of it: it lights the hand and forearm, and
+// a wall close by in the dark. Placed before each eye's scene, it lasts until the next frame's.
+void glow(const Pose& pose)
+{
+    const float k = vr_gadget_light.value;
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    if(!pose.valid || k <= 0.f || bright <= 0.f)
+    {
+        return;
+    }
+
+    dlight_t* dl = CL_AllocDlight(lightKey);
+    const glm::vec3 p = pose.origin + pose.axes[2] * (2.f * pose.scale);
+    dl->origin[0] = p.x;
+    dl->origin[1] = p.y;
+    dl->origin[2] = p.z;
+    dl->die = static_cast<float>(cl.time + 0.05);
+    dl->radius = 72.f;
+    const bool darkplaces = vr_dlight_falloff.value != 0.f;
+    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.5f, 1.f) * (bright * k * (darkplaces ? 0.3f : 0.6f));
+    dl->color[0] = c.r;
+    dl->color[1] = c.g;
+    dl->color[2] = c.b;
+    if(darkplaces)
+    {
+        lighting::dlightLook(dl, 0.f, 0.f);
+    }
+    lighting::dlightNoShadow(dl);
+}
+
+// `text` broken into lines of at most logColumns characters, between words where it can be,
+// appended to `out` (the console's coloured characters plain: the log is in the screen's colour).
+void wrap(std::string_view text, std::vector<std::string>& out)
+{
+    while(!text.empty() && text.back() == ' ')
+    {
+        text.remove_suffix(1);
+    }
+    while(!text.empty())
+    {
+        size_t cut = std::min(text.size(), static_cast<size_t>(logColumns));
+        if(cut < text.size())
+        {
+            const size_t space = text.substr(0, cut + 1).rfind(' ');
+            if(space != std::string_view::npos && space > 0)
+            {
+                cut = space;
+            }
+        }
+        std::string line{text.substr(0, cut)};
+        for(char& c : line)
+        {
+            c = static_cast<char>(static_cast<unsigned char>(c) & 127);
+        }
+        out.push_back(std::move(line));
+        text.remove_prefix(cut);
+        while(!text.empty() && text.front() == ' ')
+        {
+            text.remove_prefix(1);
+        }
+    }
+}
+
+// Whether the log is where the notify lines go (and the gadget is there to show it).
+[[nodiscard]] bool logShown()
+{
+    return vr_notify_wrist.value != 0.f && active() && current.valid;
+}
+
 } // namespace
 
 bool active()
@@ -193,6 +278,7 @@ bool active()
 void setPose(const Pose& pose)
 {
     current = pose;
+    glow(pose);
 }
 
 const Pose& pose()
@@ -209,6 +295,7 @@ void screenRect(glm::vec3& corner, glm::vec2& size)
 
 void renderScreen()
 {
+    QVR_GPU_PROFILE("gadget screen");
     if(!active())
     {
         return;
@@ -225,4 +312,70 @@ unsigned screenTexture()
     return target.texture;
 }
 
+bool log(Log& out)
+{
+    out.lines.clear();
+    out.alpha.clear();
+    if(!logShown())
+    {
+        return false;
+    }
+
+    const float life = vr_notify_wrist_time.value > 0.f ? vr_notify_wrist_time.value
+                                                        : static_cast<float>(Cvar_VariableValue("con_notifytime"));
+    if(life <= 0.f)
+    {
+        return false;
+    }
+
+    // Newest first, each console line's wrapped lines in reverse; turned round below.
+    static std::vector<std::string> wrapped;
+    const char* text = nullptr;
+    int length = 0;
+    double seconds = 0.0;
+    for(int age = 0; age < 16 && static_cast<int>(out.lines.size()) < logRows; age++)
+    {
+        if(!Con_NotifyLine(age, &text, &length, &seconds))
+        {
+            continue; // not a notify line
+        }
+        const float alpha = CLAMP(0.f, (life - static_cast<float>(seconds)) / logFade, 1.f);
+        if(alpha <= 0.f)
+        {
+            break; // older lines are older still
+        }
+        wrapped.clear();
+        wrap(std::string_view{text, static_cast<size_t>(length)}, wrapped);
+        for(auto it = wrapped.rbegin(); it != wrapped.rend() && static_cast<int>(out.lines.size()) < logRows; ++it)
+        {
+            out.lines.push_back(std::move(*it));
+            out.alpha.push_back(alpha);
+        }
+    }
+    if(out.lines.empty())
+    {
+        return false;
+    }
+    std::reverse(out.lines.begin(), out.lines.end());
+    std::reverse(out.alpha.begin(), out.alpha.end());
+
+    // Just over the screen (3 x 1.86 model units, its face 0.43 out), its characters about 7 mm.
+    const Palette pal = palette();
+    out.base = current.origin + current.axes[2] * (0.43f * current.scale);
+    out.lift = 1.3f * current.scale;
+    out.normal = current.axes[2];
+    out.charSize = 0.23f * current.scale;
+    out.color = glm::vec3{pal.text};
+    out.backColor = hsv(vr_gadget_screen_hue.value, 0.57f, 0.05f);
+    return true;
+}
+
 } // namespace qvr::gadget
+
+// The notify lines go to the log over the wrist gadget (vr_notify_wrist 1), not the view's edge.
+extern "C" int VR_NotifyOnWrist()
+{
+    using namespace qvr;
+    using namespace qvr::gadget;
+    return vr_notify_wrist.value == 1.f && logShown();
+}

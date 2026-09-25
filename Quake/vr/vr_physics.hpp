@@ -16,6 +16,9 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // in to take hold of an object (Quake's boxes do not turn, and items' are widened).
 [[nodiscard]] bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin);
 
+// The middle of `ent`'s drawn model (turned with it), in the world: QC's modelcentre.
+[[nodiscard]] glm::vec3 modelCentre(edict_t* ent);
+
 // QC's carryangles: a held object's angles (into `out`), turning with the hand at `handAngles`.
 // At the grip (`grab`) its turn relative to the hand is kept, and its angles are unchanged.
 void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out);

@@ -16,6 +16,7 @@
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_panel.hpp"
+#include "vr_profile.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -258,6 +259,7 @@ void setStereoThisFrame(bool stereo)
 
 void drawInEye(const hands::State& s)
 {
+    QVR_GPU_PROFILE("hud panel");
     const bool visible = panelVisible();
     if(visible && !panelWasVisible)
     {

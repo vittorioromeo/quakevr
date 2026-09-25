@@ -452,10 +452,15 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 // After SV_WaterMove: each hand under water pushes the water, and the body goes the other way:
 // the push is the hand's speed through the water (relative to the body, beyond
 // vr_swim_stroke_min) times vr_swim_stroke, more when the palm meets it flat than when the hand
-// slices edge-first (vr_swim_palm), so that a stroke drives you and the recovery much less.
-// Water friction (SV_WaterMove's) slows you between strokes. Strokes towards where the stick points
-// push more, and against it less (vr_swim_stroke_assist), so that the stick steers the swimming and
-// a stray motion of the hands does not throw you backwards.
+// slices edge-first (vr_swim_palm).
+// You swim where you look: the part of a push that drives you towards where the head looks counts
+// fully, a part sideways of it less (vr_swim_look), and a part away from it -- the hands reaching
+// forward again for the next stroke -- hardly at all (vr_swim_recovery), so that the recovery
+// does not undo the stroke. To rise, look up and push down.
+// Strokes towards where the stick points push more, and against it less (vr_swim_stroke_assist),
+// so that the stick steers the swimming too.
+// Off the bottom you glide between strokes: part of the water friction SV_WaterMove just applied
+// is given back (vr_swim_glide).
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
 {
     const VrMove* move = swimmer(ent);
@@ -467,15 +472,31 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float dt = static_cast<float>(host_frametime);
     const float threshold = std::max(0.f, vr_swim_stroke_min.value) * units::metresToUnits();
     const float palmWeight = CLAMP(0.f, vr_swim_palm.value, 1.f);
+    const float sideKept = 1.f - CLAMP(0.f, vr_swim_look.value, 1.f);
+    const float recovery = CLAMP(0.f, vr_swim_recovery.value, 1.f);
     glm::vec3 vel = vec(ent->v.velocity);
 
-    // Where the stick asks to go (as SV_WaterMove steers it).
+    // The glide: SV_WaterMove's friction took dt * sv_friction of the speed; give part of it back.
+    const float glide = CLAMP(0.f, vr_swim_glide.value, 1.f);
+    if(glide > 0.f && !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
+    {
+        static const cvar_t* friction = Cvar_FindVar("sv_friction");
+        const float lost = dt * (friction ? friction->value : 4.f);
+        if(lost > 0.f && lost < 0.9f)
+        {
+            vel *= (1.f - lost * (1.f - glide)) / (1.f - lost);
+        }
+    }
+
+    // Where the head looks, and where the stick asks to go (as SV_WaterMove steers it).
+    glm::vec3 look{0.f};
     glm::vec3 wish{0.f};
     {
         vec3_t fwd, right, up;
         AngleVectors(VR_MoveAngles(ent, ent->v.v_angle), fwd, right, up);
         for(int k = 0; k < 3; k++)
         {
+            look[k] = fwd[k];
             wish[k] = fwd[k] * forwardmove + right[k] * sidemove;
         }
         wish.z += upmove;
@@ -503,10 +524,15 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         const float flat = std::abs(glm::dot(glm::vec3{r[0], r[1], r[2]}, dir)); // the palm faces the hand's side
         const float palm = (1.f - palmWeight) + palmWeight * flat;
 
-        const float along = glm::dot(-dir, wishDir); // 1: the push goes where the stick points
+        const glm::vec3 push = -dir; // the body goes against the hand
+        const float along = glm::dot(push, wishDir); // 1: the push goes where the stick points
         const float steer = std::max(0.f, 1.f + assist * along);
 
-        vel -= dir * ((speed - threshold) * vr_swim_stroke.value * palm * steer * dt);
+        // Towards where you look it counts, sideways less, back (the recovery) hardly.
+        const float ahead = glm::dot(push, look);
+        const glm::vec3 biased = look * (ahead * (ahead >= 0.f ? 1.f : recovery)) + (push - look * ahead) * sideKept;
+
+        vel += biased * ((speed - threshold) * vr_swim_stroke.value * palm * steer * dt);
     }
 
     const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);

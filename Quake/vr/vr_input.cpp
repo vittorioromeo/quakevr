@@ -15,6 +15,7 @@
 #include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_flashlight.hpp"
 
 #include <utility>
 #include <vector>
@@ -186,6 +187,12 @@ void update(const InputState& tracked)
             {
                 // The off hand's upper button at the mouth records a voice note instead.
                 if(h == HAND_OFF && b.button == &HandInput::secondary && voicenotes::offhandButton(now))
+                {
+                    continue;
+                }
+                // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead.
+                if((b.button == &HandInput::trigger || b.button == &HandInput::grip) &&
+                    flashlight::button(h, b.button == &HandInput::grip, now))
                 {
                     continue;
                 }

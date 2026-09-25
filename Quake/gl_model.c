@@ -729,9 +729,15 @@ static void Mod_LoadTextures (lump_t *l)
 				if (data) //load external image
 				{
 					char filename2[MAX_OSPATH];
+					byte *pristine = NULL; // QVR: the upload mipmaps an RGBA image in place: the normal map needs it whole
+					if (VR_NormalMaps () && fmt == SRC_RGBA)
+					{
+						pristine = (byte *) Hunk_AllocNoFill (fwidth * fheight * 4);
+						memcpy (pristine, data, fwidth * fheight * 4);
+					}
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight,
 						fmt, data, filename, 0, TEXPREF_MIPMAP | extraflags );
-					Mod_LoadNormalMap (tx->gltexture, filename, data, fmt, tx->width); // QVR
+					Mod_LoadNormalMap (tx->gltexture, filename, pristine ? pristine : data, fmt, tx->width); // QVR
 
 					//now try to load glow/luma image from the same place
 					Hunk_FreeToLowMark (mark);

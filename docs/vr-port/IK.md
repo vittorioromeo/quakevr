@@ -187,7 +187,14 @@ the rest of the port was. Only the feel needs the headset.
   - Each arm is a two-bone chain to the drawn hand's wrist (the centre of `hand_base.mdl`'s wrist). The elbow
     points down, `vr_body_elbow_out` outward, `vr_body_elbow_back` backward, and `vr_body_elbow_hand` away from the
     back of the hand. Arms stretch up to `vr_body_arm_stretch` (1.1) to reach.
-  - Legs (mode 3) stand with the feet under the head, knees forward. They have no stepping (step 6).
+  - Legs (mode 3): standing, the feet stay planted, each with its own yaw, while the body turns and sways above
+    them. Past `vr_body_turn_step` (40) degrees of turn (snap, smooth or real), or 0.25 m of drift, the foot on
+    the side of the turn steps back under the body and the other squares up after it; steps quicken during a fast
+    smooth turn, and a foot left more than 25 degrees past the limit pivots round. The knees point between the
+    body's and the feet's forward. Walking (`vr_body_walk`), a gait cycle: the planted foot goes back at an even
+    pace, the other swings forward, lifted. The cadence is the speed over the stride (so the planted foot keeps
+    up) but at most `vr_body_step_rate` (2.2) steps a second at full running speed (70% of that when slow): Quake's
+    10 m/s would otherwise spin the legs. No stair or slope traces yet.
   - The head and neck are collapsed, so the eyes are never inside them.
 - **Modes:** `vr_body_mode` (Options > VR Settings > Body):
   - 0: off;

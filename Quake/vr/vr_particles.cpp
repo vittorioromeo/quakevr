@@ -7,6 +7,8 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_text3d.hpp"
+#include "vr_profile.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -271,7 +273,7 @@ void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellBlood;
         setColor(p, colors[rndi(0, 5)], rnd(80, 120));
         p.die = cl.time + rnd(0.4f, 0.8f);
-        p.scale = rnd(0.35f, 0.6f) * 3.5f;
+        p.scale = rnd(0.35f, 0.6f) * 7.f;
         p.type = Drip;
         p.acc = gravity(0.12f);
         p.org = org + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f)};
@@ -281,10 +283,10 @@ void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellCircle;
         setColor(p, colors[rndi(0, 5)], rnd(190, 240));
         p.die = cl.time + rnd(0.5f, 1.f);
-        p.scale = rnd(0.1f, 0.2f);
+        p.scale = rnd(0.25f, 0.45f);
         p.type = Static;
         p.acc = gravity(0.8f);
-        p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
+        p.org = org + glm::vec3{rnd(-4, 4), rnd(-4, 4), rnd(-4, 4)};
         p.vel = dir * rnd(0.f, 25.f) + glm::vec3{rnd(-10, 10), rnd(-10, 10), rnd(-6, 14)};
     });
 }
@@ -605,8 +607,11 @@ void clear()
 // R_RenderScene, after the translucent pass: the particles, depth-tested against the scene.
 extern "C" void VR_DrawSceneTranslucent()
 {
+    QVR_GPU_PROFILE("vr particles");
     using namespace qvr;
     using namespace qvr::particles;
+
+    text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR) || pool.empty() || !atlas)
     {

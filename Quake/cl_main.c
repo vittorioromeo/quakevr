@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "bgmusic.h"
 #include "vr/vr_api.h" // QVR
+#include "vr/vr_profile.h" // QVR
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
@@ -706,6 +707,7 @@ void CL_RelinkEntities (void)
 			CL_RocketTrail (ent, 6);
 		else
 			CL_ResetTrail (ent);
+		VR_ProjectileLight (i); // QVR: hell knight flames, scrag spit, vore balls and lasers light up the room
 
 		ent->forcelink = false;
 
@@ -718,6 +720,8 @@ void CL_RelinkEntities (void)
 			cl_numvisedicts++;
 		}
 	}
+
+	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
 }
 
 
@@ -749,14 +753,20 @@ int CL_ReadFromServer (void)
 			break;
 
 		cl.last_received_message = realtime;
+		VR_ProfileBegin ("parse"); // QVR: profile
 		CL_ParseServerMessage ();
+		VR_ProfileEnd (); // QVR
 	} while (ret && cls.state == ca_connected);
 
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 
+	VR_ProfileBegin ("relink"); // QVR: profile
 	CL_RelinkEntities ();
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBegin ("temp entities"); // QVR: profile
 	CL_UpdateTEnts ();
+	VR_ProfileEnd (); // QVR
 
 //johnfitz -- devstats
 

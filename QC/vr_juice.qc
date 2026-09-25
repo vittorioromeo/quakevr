@@ -100,15 +100,18 @@ float(float xHand, vector xForward) VR_Bash_Driving =
 // A bash (vr_bash): a guard driven forward hard -- a weapon held across in front (the parry pose),
 // or both empty hands together (crossed or side by side: a shove). What is just ahead takes a little
 // damage (vr_bash_damage), is thrown back (vr_bash_push) and staggers (its pain animation, forced).
+// The motion is only a bash: the hands in it don't also punch or swing (runs before the hands'
+// melee, PlayerVRMelee in client.qc; they may hit again once they slow down).
 void() VR_Bash =
 {
-    if(!cvar_hget(cvarh_vr_bash) || !self.ishuman || self.health <= 0 || time < self.vr_bash_time ||
-       !VRHandsTracked(self))
+    if(!cvar_hget(cvarh_vr_bash) || !self.ishuman || self.health <= 0 || !VRHandsTracked(self))
     {
         return;
     }
 
-    vector fwd = VRForwardOf('0 1 0' * self.v_angle_y);
+    // The body's facing is the head's (.v_angle is the main hand's aim: a weapon held across in
+    // front aims sideways).
+    vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
 
     // (Most frames no hand drives forward: that cheap test comes first.)
     float mainDriving = VR_Bash_Driving(cVR_MainHand, fwd);
@@ -141,6 +144,21 @@ void() VR_Bash =
         }
     }
     if(hand < 0)
+    {
+        return;
+    }
+
+    // No punches or swings in this motion, even during the bash's cooldown: the hands' melee counts
+    // a swing as already landed until the hand slows down (PlayerVRMeleeImpl). A weapon bash keeps
+    // the other hand free, unless it drives forward right by the weapon (held in both hands).
+    VRSetMeleeHitSoundPlayed(hand, TRUE);
+    float other = hand == cVR_MainHand ? cVR_OffHand : cVR_MainHand;
+    if(!armed || ((hand == cVR_MainHand ? offDriving : mainDriving) &&
+                  vlen(VRGetHandPos(other) - VRGetHandPos(hand)) < 24))
+    {
+        VRSetMeleeHitSoundPlayed(other, TRUE);
+    }
+    if(time < self.vr_bash_time)
     {
         return;
     }

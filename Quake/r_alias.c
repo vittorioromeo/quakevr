@@ -715,7 +715,8 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	VR_AliasLightDir (e, instance->lightdir); // QVR
 	instance->glow[0] = VR_EntityGlow (e); // QVR
 	instance->glow[1] = VR_ModelLightParity () ? 1.f : 0.f; // QVR: the shader's shading on a par with the world
-	instance->glow[2] = instance->glow[3] = 0.f;
+	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
+	instance->glow[3] = 0.f;
 }
 
 /*

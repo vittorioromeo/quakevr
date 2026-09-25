@@ -289,27 +289,29 @@ def build_mesh(m):
         ankle = joints[index["foot_" + side]][2]
         thigh = bases["thigh_" + side]
         calf = bases["calf_" + side]
+        # Sturdy legs, as Quake's models have (u front to back, v across: the thighs just clear
+        # each other).
         loft([
-            (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], 0.085 * torso, 0.08 * torso, w(("thigh_" + side, 1.0))),
-            (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], 0.075 * torso, 0.07 * torso, w(("thigh_" + side, 1.0))),
-            (knee, thigh[2], thigh[1], 0.055, 0.055, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
-            (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.055 * torso, 0.05 * torso, w(("calf_" + side, 1.0))),
-            (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.04, 0.04, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
+            (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], 0.100 * torso, 0.088 * torso, w(("thigh_" + side, 1.0))),
+            (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], 0.090 * torso, 0.080 * torso, w(("thigh_" + side, 1.0))),
+            (knee, thigh[2], thigh[1], 0.064, 0.062, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
+            (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.066 * torso, 0.060 * torso, w(("calf_" + side, 1.0))),
+            (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.047, 0.046, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
         ], "cloth", sides=10)
         # The ranger's tall boots: a shaft over the calf, from the ankle to below the knee, flared at
         # its top.
         loft([
-            (add(ankle, (0.0, 0.0, 0.01)), calf[2], calf[1], 0.052, 0.05, w(("calf_" + side, 0.4), ("foot_" + side, 0.6))),
-            (add(ankle, (0.0, 0.0, 0.12)), calf[2], calf[1], 0.052 * torso, 0.05 * torso, w(("calf_" + side, 1.0))),
-            (add(knee, (0.0, 0.0, -0.13)), calf[2], calf[1], 0.062 * torso, 0.058 * torso, w(("calf_" + side, 1.0))),
-            (add(knee, (0.0, 0.0, -0.09)), calf[2], calf[1], 0.068 * torso, 0.064 * torso, w(("calf_" + side, 1.0))),
+            (add(ankle, (0.0, 0.0, 0.01)), calf[2], calf[1], 0.060, 0.057, w(("calf_" + side, 0.4), ("foot_" + side, 0.6))),
+            (add(ankle, (0.0, 0.0, 0.12)), calf[2], calf[1], 0.062 * torso, 0.059 * torso, w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.13)), calf[2], calf[1], 0.075 * torso, 0.069 * torso, w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.09)), calf[2], calf[1], 0.081 * torso, 0.075 * torso, w(("calf_" + side, 1.0))),
         ], "shaft", cap_start=False, cap_end=False, sides=10)
         # Foot: rings along x (u up, v left).
         Z = (0.0, 0.0, 1.0)
         loft([
-            ((-0.06, 0.09 * sy, 0.05), Z, Y, 0.05, 0.045, w(("foot_" + side, 1.0))),
-            ((0.03, 0.09 * sy, 0.045), Z, Y, 0.045, 0.05, w(("foot_" + side, 1.0))),
-            ((0.16, 0.09 * sy, 0.03), Z, Y, 0.025, 0.04, w(("foot_" + side, 1.0))),
+            ((-0.065, 0.09 * sy, 0.055), Z, Y, 0.055, 0.05, w(("foot_" + side, 1.0))),
+            ((0.03, 0.09 * sy, 0.05), Z, Y, 0.05, 0.056, w(("foot_" + side, 1.0))),
+            ((0.17, 0.09 * sy, 0.03), Z, Y, 0.028, 0.045, w(("foot_" + side, 1.0))),
         ], "boots")
 
 

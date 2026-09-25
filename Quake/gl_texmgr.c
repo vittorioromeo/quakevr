@@ -69,7 +69,9 @@ static byte			normalmap_kind[MAX_GLTEXTURES];
 static unsigned short	normalmap_worldwidth[MAX_GLTEXTURES];
 static gltexture_t	*flatnormaltexture;
 #define NORMALMAP_MAXSIZE	256 // made ones: the bumps a dynamic light shows need no more (and a 512 texture's would take 1.4 MB)
-#define NORMALMAP_DEPTH		2.f // units deep a texture's shading from black to white is, at vr_normalmap_strength 1
+#define NORMALMAP_TEXELS	2 // made ones: at most 2 texels a unit (a replacement's finer grain is noise as bumps)
+#define NORMALMAP_DEPTH		4.f // units deep a texture's shading from black to white is, at vr_normalmap_strength 1
+#define NORMALMAP_MEAN		0.35f // the brightness of a texture NORMALMAP_DEPTH is for (relative: dark ones twice as deep at most)
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
@@ -1331,20 +1333,27 @@ static void GL_TexImage (gltexture_t *glt, GLint level, GLint internalformat, GL
 ================
 TexMgr_ShadingToNormals -- QVR: a texture's shading made a normal map (DarkPlaces' r_shadow_bumpscale_basetexture):
 its luminance taken for height, bumps from its Sobel gradient; `scale` is how deep a step from black to white is, in
-texels. The texture tiles: the edges wrap round. Tangent space: x along the texture's s, y up its rows (green up).
+texels, for a texture of average brightness (NORMALMAP_MEAN; darker ones deeper). The texture tiles: the edges wrap
+round. Tangent space: x along the texture's s, y up its rows (green up).
 ================
 */
 static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale)
 {
 	int		x, y, mark;
-	float	*lum;
+	float	*lum, mean = 0.f;
 
 	if (width < 1 || height < 1)
 		return;
 	mark = Hunk_LowMark ();
 	lum = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
 	for (x = 0; x < width * height; x++)
+	{
 		lum[x] = (data[x*4+0] * 0.299f + data[x*4+1] * 0.587f + data[x*4+2] * 0.114f) * (1.f / 255.f);
+		mean += lum[x];
+	}
+	// Shading relative to the texture's own brightness: Quake's dark textures as bumpy as bright ones.
+	mean /= (float)(width * height);
+	scale *= CLAMP (0.75f, NORMALMAP_MEAN / q_max (mean, 1e-3f), 2.f);
 
 	for (y = 0; y < height; y++)
 	{
@@ -1404,8 +1413,14 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
 	mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
 	mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
-	if (normalmap == NORMALMAP_SHADING) // QVR: made at most NORMALMAP_MAXSIZE
+	if (normalmap == NORMALMAP_SHADING) // QVR: made at most NORMALMAP_MAXSIZE, and NORMALMAP_TEXELS a unit
 	{
+		int most = NORMALMAP_TEXELS * q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]);
+		while (mipwidth > most && mipwidth > 1 && mipheight > 1 && !(mipwidth & 1) && !(mipheight & 1))
+		{
+			mipwidth >>= 1;
+			mipheight >>= 1;
+		}
 		while (mipwidth > NORMALMAP_MAXSIZE && !(mipwidth & 1))
 			mipwidth >>= 1;
 		while (mipheight > NORMALMAP_MAXSIZE && !(mipheight & 1))

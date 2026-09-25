@@ -97,11 +97,18 @@ bool ensureProgram()
 struct Saved2D
 {
     bool active{false};
-    GLint framebuffer{0};
-    GLint viewport[4]{};
     glcanvas_t canvas{};
 };
 Saved2D saved2D;
+
+// Where the engine draws its 2D pass: the post-processing composite, or the window. Set rather than
+// read back: glGet* makes the CPU wait for the driver (about half a millisecond a call with a
+// threaded driver).
+void bindWindow()
+{
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, GL_NeedsPostprocess() ? framebufs.composite.fbo : 0);
+    glViewport(glx, gly, glwidth, glheight);
+}
 
 std::unordered_map<std::string, qpic_t*> pics;
 
@@ -275,8 +282,6 @@ void begin2D(const Target& target, int virtualWidth, int virtualHeight)
     Draw_Flush();
 
     saved2D.active = true;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &saved2D.framebuffer);
-    glGetIntegerv(GL_VIEWPORT, saved2D.viewport);
     saved2D.canvas = glcanvas;
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.framebuffer);
@@ -303,8 +308,7 @@ void end2D()
     saved2D.active = false;
 
     glcanvas = saved2D.canvas;
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(saved2D.framebuffer));
-    glViewport(saved2D.viewport[0], saved2D.viewport[1], saved2D.viewport[2], saved2D.viewport[3]);
+    bindWindow();
 }
 
 namespace draw2D
@@ -349,8 +353,7 @@ void beginCanvas(Target& canvas, int width, int height)
 void endCanvas()
 {
     GL_ResetState(); // back to Ironwail's usual blend
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, GL_NeedsPostprocess() ? framebufs.composite.fbo : 0);
-    glViewport(glx, gly, glwidth, glheight);
+    bindWindow();
 }
 
 bool applyCanvasBlend()
@@ -374,9 +377,6 @@ void copy(const Target& target, Texture image)
         GL_GenFramebuffersFunc(1, &copyFbo);
     }
 
-    GLint drawFbo = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
-
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copyFbo);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
@@ -384,8 +384,7 @@ void copy(const Target& target, Texture image)
         GL_NEAREST);
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
+    bindWindow(); // it is called with the window's 2D pass bound
 }
 
 Texture createTexture(int width, int height, const void* rgba)

@@ -69,6 +69,8 @@ enum Stat : int
 
     STAT_QVR_FGMAIN = STAT_QVR_HOLSTERWEAPONCLIP0 + 6, // force grab: entity * 4 + state (1 aimed, 2 locked, 3 pulled)
     STAT_QVR_FGOFF,
+    STAT_QVR_CARRYMAIN, // the entity each hand carries (vr_carry.qc), 0 none: drawn in the hand (vr_held.cpp)
+    STAT_QVR_CARRYOFF,
     STAT_QVR_END
 };
 

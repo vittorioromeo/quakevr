@@ -179,15 +179,21 @@ dynamic lights are capped against bright walls, and nothing glows. Four changes,
   pixels or less.
 - **Glowing textures light their surroundings** (the relight, `Misc/quakevr/relight_maps.py`, on by default;
   `--no-glow`, `--glow-scale`):
-  - Textures with at least 3% fullbright pixels (palette 224-254) get ericw's surface lights (`_surface` light
-    entities), in the average colour of those pixels, a quarter of the way to white.
-  - Each texture has a budget of light, larger the more of it glows. It is shared by the lights `light` spawns
-    on its faces (about one every 128 x 128 units, at least one a face), none brighter than 130. A small button
-    glows round itself; a big or many-faced glowing surface does not flood the room. (A first version without
-    the budget turned e1m1's arrival room red from its slipgate.)
-  - Fixtures named `*light*` get half, since mappers put lights by them.
+  - Textures with at least 3% fullbright pixels (palette 224-254) light in the average colour of those pixels,
+    a quarter of the way to white for white and pale ones, a tenth for strongly coloured ones (red buttons, blue
+    panels), which also get up to twice the light, a cap of 169 instead of 130 and twice the reach (`wait` 0.5).
+  - Each texture has a budget of light, larger the more of it glows, shared by the glowing things in the room:
+    faces closer than 64 units are one thing (a button, a slipgate's frame), counting as their area in lights
+    (one every 128 x 128 units) or the square root of their faces; the things of every glowing texture within
+    256 units add up. A button alone in its room lights it (round 11: e1m1's red buttons had 15, as their
+    texture's budget was shared by every button of the map; now 169, the room around tinted red); a slipgate's
+    many faces do not flood their room. (A first version without the budget turned e1m1's arrival room red.)
+  - Textures whose faces are all small (at most 2 x 128²: buttons, panels, signs, runes) get a point light 2 units
+    in front of each face not in a wall, as bright as its own room allows; others get ericw's surface lights
+    (`_surface` light entities: one template a texture, so as bright as its most crowded room allows).
+  - Fixtures named `*light*` get half, shared by all their lights in the map, since mappers put lights by them.
   - The entities are given to `light` only: the relit map keeps its own, so neither the game nor the model
-    lighting sees them.
+    lighting sees them. They are part of each map's stamp, so a change to how they are made relights the maps.
 
 The presets set all of this: "Off (Quake)" restores Quake's contrast, no bloom, Quake's white capped flashes;
 the others the new look.
@@ -222,15 +228,28 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   - `VR_DlightShadow` hands the shaders the per-light part (the ambient share in `minlight`, the fading colour).
 - **Sheen** (`vr_specular` 0.125): Blinn, exponent 32, white, from dynamic lights only, towards each eye's own
   position, on the world and models, shadowed like the light.
-- **Normal maps made at load** (`vr_normalmaps` 1, `vr_normalmap_strength` 1): for world textures and model skins, from
-  the texture's luminance taken as height (a Sobel gradient; DarkPlaces' `r_shadow_bumpscale_basetexture`), 2 units deep
-  from black to white; an authored `<image>_norm` beside a replacement image is used as it is, and a `<image>_bump`
-  height map instead of the texture. They bend only the dynamic lights' angle and sheen, not the baked light. The
-  surface's frame is a cotangent frame from the derivatives of the position and texture coordinates (exact on the
+- **Normal maps made at load** (`vr_normalmaps` 1, `vr_normalmap_strength` 1, `vr_normalmap_baked` 1): for world
+  textures and model skins, from the texture's luminance taken as height (a Sobel gradient; DarkPlaces'
+  `r_shadow_bumpscale_basetexture`), 4 units deep from black to white (2 before round 11) for a texture of average
+  brightness 0.35, relative to its own (a dark texture up to twice as deep, a bright one down to 0.75); an authored
+  `<image>_norm` beside a replacement image is used as it is, and a `<image>_bump` height map instead of the texture.
+  The surface's frame is a cotangent frame from the derivatives of the position and texture coordinates (exact on the
   world's flat faces, the same in both eyes, no vertex data). World calls carry the map's bindless handle (or unit 3),
-  alias skins use unit 2. Made maps are at most 256² and stored RG8 (the shader makes z): about 15 MB for e1m1's
-  world with QRP and 9 MB for the models' skins. New maps get them as they load (the setting applies next map; model
-  skins already loaded keep what they have).
+  alias skins use unit 2. Made maps are at most 256² and 2 texels a world unit (a QRP 512² texture on a 64-unit wall
+  gets 128²: its finer grain looked like noise as bumps), stored RG8 (the shader makes z). New maps get them as they
+  load (the setting applies next map; model skins already loaded keep what they have).
+  - **On the baked light too** (round 11, `vr_normalmap_baked`, 0..2, "Bumps in Map Light"; the author saw walls flat
+    where no dynamic light was): a fake deluxe map. The world shader guesses where the baked light comes from: towards
+    where the lightmap gets brighter over the surface (the screen derivatives of its brightness, made a gradient per
+    unit with the same cotangent frame, times 96 over the brightness) and a little from above, at most 45° off the
+    normal; the light is shaded `dot(bumped, l) / dot(n, l)`, so the flat is as bright as before and bumps facing the
+    light are brighter, those facing away darker. Alpha-tested surfaces have no gradient (after the discard), liquids
+    none of it. DarkPlaces' `r_glsl_deluxemapping 2` is the case of light straight on (floors and ceilings under flat
+    light). Models keep the dynamic lights' bumps only.
+  - Round 11 fix: a replacement (RGBA) image is mipmapped in place by its upload, so the normal map was made from a
+    scrambled copy (the upper part of the image overwritten by its smaller mips); it is now made from a copy taken
+    before.
+  - They bend the dynamic lights' angle and sheen as well.
 - **Bloom by colour** (`vr_bloom_white` 0.5, `vr_bloom_color` 1.5, times `vr_bloom`): the bright pass weighs a pixel
   by its saturation, so red buttons and blue panels glow more, white lamps and flashes less.
 
@@ -244,15 +263,50 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_specular` | 0.125 | 0 |
 | `vr_normalmaps` | 1 (0 on Low) | 0 |
 | `vr_normalmap_strength` | 1 | (not in presets) |
+| `vr_normalmap_baked` | 1 | (not in presets; nothing without `vr_normalmaps`) |
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
+| `vr_projectile_lights`, `vr_weapon_screen_light`, `vr_weapon_glow` | 1, 1, 1 | 0, 0, 0 |
 
-**Cost.** Per pixel, only where a dynamic light's cluster reaches: one normal map tap and a few instructions per light
-(four derivatives are taken for every world and model pixel). Loading: a Sobel pass over at most 256² per texture, and
-a look for `_norm`/`_bump` images beside each replacement. Memory: about 24 MB of normal maps on e1m1 with QRP.
+**Glows** (`vr/vr_emissive.cpp`; small, unshadowed: `lighting::dlightNoShadow` keeps them out of the shadow slots):
+- `vr_projectile_lights` (size): monsters' glowing projectiles carry a light where they are drawn (`VR_ProjectileLight`
+  in `CL_RelinkEntities`), by trail flag: scrag spit (EF_TRACER) green (0.8, 1.8, 0.3) radius 150, hell knight flames
+  (EF_TRACER2) orange (2, 1, 0.3) 150 flickering a little, vore balls (EF_TRACER3) DarkPlaces' purple (1.2, 0.5, 1) 200;
+  the EF_DIMLIGHT lasers are tinted (the enforcer's yellow-orange, the laser cannon's red). A scrag's or hell knight's
+  spike hitting a wall (TE_WIZSPIKE, TE_KNIGHTSPIKE) flashes its colour, 120, fading out over 0.25 s. With Quake's
+  falloff the colours are scaled to at most 1; without `vr_colored_lights` they are white. Nails and grenades stay
+  unlit (as in DarkPlaces); rockets and lava balls have the rocket light.
+- `vr_weapon_screen_light` (strength): each weapon's ammo screen casts a faint light 3 units in front of it, radius 56,
+  in the screen's colour (`vr_gadget_screen_hue`, `vr_gadget_screen_brightness`), lighting the hand and gun (per pixel,
+  `vr_dlight_models`) and what is close by.
+- `vr_gadget_light` (strength): the wrist gadget's screen does the same, 2 model units in front of it, radius 72
+  (`gadget::setPose`, before each eye's scene; key -0x5C10).
+- `vr_weapon_glow` (strength): the held and holstered weapons' fullbright texels get
+  `fullbright × (1 + 3 × strength × (1 − brightest channel))` in the alias shader (instance `Glow.z`; the fullbright
+  is the fullbright texture's, or for Ironwail's ALPHABRIGHT skins the skin's unlit share, where its alpha is 0): the
+  shotgun's dim red sights (palette 226–228) reach full red, so that the coloured bloom makes them glow; bright
+  fullbrights (muzzle flashes) hardly change.
 
-Not done: DarkPlaces' quad-damage explosion colour (the client can't tell); a fake deluxe map (bumps on the baked
-light).
+**Cost.** Per world pixel: one normal map tap, two more derivatives and about twenty instructions for the bumps on the
+baked light (round 11); per model pixel, only where a dynamic light's cluster reaches: one normal map tap; a few
+instructions per dynamic light (four derivatives are taken for every world and model pixel). Loading: a Sobel pass over
+at most 256² per texture, and a look for `_norm`/`_bump` images beside each replacement. Memory: about 24 MB of normal
+maps on e1m1 with QRP before round 11, less since (at most 2 texels a unit).
+
+Not done: DarkPlaces' quad-damage explosion colour (the client can't tell); bumps on models from their baked light.
+
+## The chest flashlight
+
+`vr_flashlight.cpp` (`vr_flashlight`, Body page): a right-angle torch (`progs/vrflashlight.mdl`,
+`Misc/quakevr/make_flashlight.py`) clipped to the chest on the off hand's side, lighting where the torso faces
+(`vr_flashlight_tilt` degrees lower). Trigger with a hand at it switches it (a click, `sound/vr/flashlight_*.wav`, and a
+tap); grip with an empty hand takes it, and it lights where the hand points; let go, it flies home on its cord
+(critically damped, about 0.4 s). The keys it takes never reach the game, so the holding hand grabs nothing else.
+There is no spotlight: the beam is a trace from the lens (the world, doors and lifts; monsters when hosting) and three
+unshadowed dynamic lights: a pool where it lands, off the surface along its normal (a round pool, about 18 degrees
+either side of the beam) and a little back along the beam, growing and dimming with the distance; a wider, dimmer one
+halfway for the spill; a faint one just in front of the lamp. `vr_flashlight_shadows` lets the pool take one of the
+shadowed lights; `vr_flashlight_beam` adds a faint glow line in the air (drawn over everything, so off by default).
 
 ## Next
 

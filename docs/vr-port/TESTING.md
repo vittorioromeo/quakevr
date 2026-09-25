@@ -126,7 +126,8 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 Raise your off hand to your mouth, like a radio, and hold **Y** to talk; let go to save. "REC" and the
 note's length show low in your view, and the hand buzzes as a note starts and ends. Away from your mouth
-Y does what it always did. Each note is saved in `quakevr/notes/` with a screenshot and where you were (map,
+(more than about 30 cm) Y does what it always did; a note shorter than 0.8 s is taken for an accidental press
+and dropped. Each note is saved in `quakevr/notes/` with a screenshot and where you were (map,
 position, view, health, what each hand held). The microphone is Virtual Desktop's
 (`vr_note_device "Virtual Desktop"`; `vr_note_devices` lists them); Gameplay > Voice Notes turns it off.
 `+vr_note` records from a bound key too.
@@ -140,11 +141,26 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND10.md`):
+- **New in this round** (details in `docs/vr-port/ROUND11.md`, from your voice notes):
+  - **Carrying:** held things stay in the hand when you move or turn; backpacks go to a holster; the force grab
+    beam hits the middle of things; gibs stay on the floor.
+  - **Chest flashlight:** trigger near your chest toggles it, grip takes it, let go and it springs back.
+  - **Lights:** monster projectiles, ammo screens and the wrist gadget give light; the shotgun's sights glow;
+    bumps show in the map's own light; glowing buttons tint their rooms.
+  - **Melee and swimming:** a shove is one shove; swim where you look, recovery strokes don't pull you back.
+  - **Body:** slower legs that step round when you turn; new sword hilts.
+  - **Wrist log:** messages above the gadget; damage numbers readable against the sky.
+  - **Profiling:** `vr_profile 1` (see Profiling below).
+
+- **Previous round** (`docs/vr-port/ROUND10.md`):
   - **The DarkPlaces look:** darker shade, flat model lighting, strong coloured flashes and explosions, a sheen
     and bumps under dynamic lights, smooth QRP textures, bloom stronger on coloured lights and weaker on white
     (and on brightly lit maps). Every part has a switch on the Graphics page.
   - **See-through water** in the relit maps.
+  - **Legs** (Body: Full body): they step at a natural rate now, not spinning at full speed (Advanced > Body >
+    Step Rate, 2.2 steps a second running); turning on the spot (stick or for real), the feet stay planted until
+    you have turned about 40 degrees (Turn Before Stepping), then take a step or two round. The legs and boots
+    are a little sturdier.
   - **Leaning:** walk or lean up to a wall or railing: your head gets close and over it before the body follows
     (Locomotion: Lean, Lean Recentre).
   - **Training dummy** in vrfiringrange: every hit's damage, kind and body part in the console and as a floating
@@ -322,6 +338,27 @@ context and screenshot, ready to paste or to point me at.
 
 `vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
 hands, weapons and finger curls.
+
+## Profiling (CPU and GPU time per effect)
+
+`vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL timer queries,
+read a few frames later, so measuring does not slow the frame down noticeably), per eye. Every
+`vr_profile_interval` seconds (5; 0: only on demand) and on `vr_profile_dump` it writes the averages and the
+worst frame of each part to `quakevr/profile/profile_<map>_<date>_<time>.csv` (one file per map, one block of rows
+per interval; the header lines give the map, the eye resolution, the graphics preset and the graphics settings)
+and prints a one-line summary with the costliest parts. `vr_profile_dump` also prints the whole tree.
+`vr_profile 2` also shows the costliest parts over the wrist gadget. `vr_profile 0` (the default) stops it.
+
+To send me a profile: play a while with `vr_profile 1` in the same spot and settings (the start of E1M1, a big
+fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` with `-condebug`). Comparing the
+presets (`vr_graphics_preset 1` .. `4`, a profile each) shows what each effect costs.
+
+Reading it: `frame` is the engine's frame on the CPU (`xr wait`, the headset's pacing, and `swap` are waiting, not
+work: "CPU busy" leaves them out), and its GPU time is the sum of the 3D and 2D work; `frame period` is the time
+between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (`world+brush`, `alias` models,
+`particles`, `sky`, `water`, `translucent`, Quake VR's `decals`, `blob shadows` and `vr particles`), `bloom`,
+`postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
+shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
 
 ## If something goes wrong
 

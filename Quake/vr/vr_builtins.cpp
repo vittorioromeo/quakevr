@@ -46,6 +46,17 @@ void PF_modelbounds()
     }
 }
 
+// The middle of an entity's drawn model, turned with it, in the world (vr_rigid.cpp): vector(entity
+// e) modelcentre. Dropped weapons and backpacks are drawn well off their box's middle.
+void PF_modelcentre()
+{
+    const glm::vec3 c = physics::modelCentre(G_EDICT(OFS_PARM0));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = c.x;
+    out[1] = c.y;
+    out[2] = c.z;
+}
+
 // void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox:
 // traceline with a box (the engine's own collision, hulls and all); sets the trace_ globals.
 void PF_tracebox()
@@ -266,6 +277,7 @@ struct VrBuiltin
 constexpr VrBuiltin vrBuiltins[] = {
     {"makeforward", PF_makeforward},
     {"modelbounds", PF_modelbounds},
+    {"modelcentre", PF_modelcentre},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},

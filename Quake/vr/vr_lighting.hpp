@@ -27,6 +27,10 @@ void applyPreset(int preset);
 // dies (a muzzle flash's; 0 none). Set after its key and death time.
 void dlightLook(const dlight_t* dl, float ambient, float fade);
 
+// A small glow that casts no shadow (projectiles, the weapons' ammo screens: vr_emissive.cpp): it
+// never takes one of vr_shadow_dlights' shadows. Set after its key and death time.
+void dlightNoShadow(const dlight_t* dl);
+
 void init();
 
 } // namespace qvr::lighting

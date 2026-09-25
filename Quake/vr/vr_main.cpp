@@ -15,9 +15,11 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_profile.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_weapons.hpp"
 
 #include <cstring>
@@ -209,12 +211,14 @@ extern "C" void VR_Init()
     registerMockCommands();
     input::init();
     voicenotes::init();
+    flashlight::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     lighting::init();
+    profile::init();
 
     state->restartRequested = true;
 }
@@ -250,7 +254,10 @@ extern "C" void VR_BeginFrame()
         }
     }
 
-    if(state->backend && !state->backend->beginFrame(state->tracking, state->frame))
+    profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
+    const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
+    profile::end();
+    if(!began)
     {
         Con_Warning("VR: %s session lost\n", state->backend->name());
         stopBackend();
@@ -259,6 +266,7 @@ extern "C" void VR_BeginFrame()
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+    profile::overlay();  // vr_profile 2
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
 

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "q_ctype.h"
+#include "vr/vr_api.h" // QVR
 
 #include <sys/types.h>
 #include <time.h>
@@ -124,6 +125,10 @@ char		con_lastcenterstring[1024]; //johnfitz
 #define	NUM_CON_TIMES 4
 double		con_times[NUM_CON_TIMES];	// realtime time the line was generated
 						// for transparent notify lines
+
+// QVR: the same for more lines, for the wrist gadget's log (vr_notify_wrist, Con_NotifyLine).
+#define	VR_CON_TIMES 16
+static double	vr_con_times[VR_CON_TIMES];
 
 int			con_vislines;
 
@@ -772,6 +777,7 @@ void Con_ToggleConsole_f (void)
 
 	SCR_EndLoadingPlaque ();
 	memset (con_times, 0, sizeof(con_times));
+	memset (vr_con_times, 0, sizeof(vr_con_times)); // QVR
 }
 
 /*
@@ -917,6 +923,32 @@ void Con_ClearNotify (void)
 
 	for (i = 0; i < NUM_CON_TIMES; i++)
 		con_times[i] = 0;
+	memset (vr_con_times, 0, sizeof(vr_con_times)); // QVR
+}
+
+/*
+================
+Con_NotifyLine
+
+QVR: for the wrist gadget's log (vr_notify_wrist), the console line `age` lines back from the
+newest (0): its text (con_linewidth characters, padded with spaces) and the seconds since it was
+printed. 0 when there is no such line, or it is not a notify line (cleared, or [skipnotify]).
+================
+*/
+int Con_NotifyLine (int age, const char **text, int *length, double *seconds)
+{
+	int line = con_current - age;
+	double time;
+
+	if (!con_initialized || age < 0 || age >= VR_CON_TIMES || age >= con_totallines || line < 0)
+		return 0;
+	time = vr_con_times[line % VR_CON_TIMES];
+	if (!time)
+		return 0;
+	*text = con_text + (line % con_totallines) * con_linewidth;
+	*length = con_linewidth;
+	*seconds = realtime - time;
+	return 1;
 }
 
 
@@ -1187,6 +1219,8 @@ static void Con_Print (const char *txt)
 		// mark time for transparent overlay
 			if (con_current >= 0)
 				con_times[con_current % NUM_CON_TIMES] = skipnotify ? 0 : realtime;
+			if (con_current >= 0)
+				vr_con_times[con_current % VR_CON_TIMES] = skipnotify ? 0 : realtime; // QVR
 		}
 
 		switch (c)
@@ -2126,13 +2160,14 @@ void Con_DrawNotify (void)
 	int	i, x, v;
 	const char	*text;
 	float	alpha;
+	qboolean	onwrist = VR_NotifyOnWrist (); // QVR: the wrist gadget shows them instead
 
 	GL_SetCanvas (CANVAS_CONSOLE); //johnfitz
 	v = vid.conheight; //johnfitz
 
 	for (i = con_current-NUM_CON_TIMES+1; i <= con_current; i++)
 	{
-		if (i < 0)
+		if (i < 0 || onwrist)
 			continue;
 		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
 		if (alpha <= 0.f)

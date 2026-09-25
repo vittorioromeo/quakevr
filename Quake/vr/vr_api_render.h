@@ -38,7 +38,7 @@ int VR_RenderingEye (void);							// forces the post-process path while renderin
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
-void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles)
+void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
@@ -56,6 +56,7 @@ int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int total
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
 float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
+float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast
 int VR_ModelDlightsPerPixel (void);						// R_SetupAliasLighting: nonzero to skip adding dynamic lights (the shader does)
 void VR_RenderShadowMaps (void);						// R_SetupView, before R_PushDlights (once per frame)

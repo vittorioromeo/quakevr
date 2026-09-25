@@ -3,6 +3,7 @@
 #include "vr_lines.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
+#include "vr_profile.hpp"
 
 #include <vector>
 
@@ -59,6 +60,7 @@ void glowPoint(const glm::vec3& p, float size, const glm::vec4& color)
 
 void drawInEye(const glm::vec3& eye)
 {
+    QVR_GPU_PROFILE("lines");
     if(queue.empty())
     {
         return;

@@ -134,6 +134,7 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		VR_DecalTempEntity (0, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 20, 30);
+		VR_ProjectileImpactLight (0, pos); // QVR: a green flash
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
 		break;
 
@@ -143,6 +144,7 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		VR_DecalTempEntity (0, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 226, 20);
+		VR_ProjectileImpactLight (1, pos); // QVR: a fiery flash
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
 		break;
 

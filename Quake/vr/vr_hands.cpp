@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
+#include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 
@@ -250,6 +251,7 @@ void updateVelocities(const TrackingState* t)
 
 void update()
 {
+    QVR_PROFILE("hands");
     state.valid = false;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || !cl.viewentity)
     {

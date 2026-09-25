@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "steam.h"
 #include "vr/vr_api.h" // QVR
+#include "vr/vr_profile.h" // QVR
 #include <setjmp.h>
 
 /*
@@ -959,12 +960,16 @@ void Host_ServerFrame (void)
 	SV_CheckForNewClients ();
 
 // read client messages
+	VR_ProfileBegin ("run clients"); // QVR: profile
 	SV_RunClients ();
+	VR_ProfileEnd (); // QVR
 
 // move things around and think
 // always pause in single player if in console or menus
+	VR_ProfileBegin ("SV_Physics"); // QVR: profile
 	if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game) )
 		SV_Physics ();
+	VR_ProfileEnd (); // QVR
 
 //johnfitz -- devstats
 	if (cls.signon == SIGNONS)
@@ -985,7 +990,9 @@ void Host_ServerFrame (void)
 	VR_ServerFrameEnd (); // QVR
 
 // send all messages to the clients
+	VR_ProfileBegin ("send"); // QVR: profile
 	SV_SendClientMessages ();
+	VR_ProfileEnd (); // QVR
 
 	Host_CheckAutosave ();
 }
@@ -1209,6 +1216,7 @@ void _Host_Frame (double time)
 	qboolean ranserver = false;
 
 	time1 = Sys_DoubleTime ();
+	VR_ProfileFrame (); // QVR: ends the last frame's profile, begins this one's
 
 	if (setjmp (host_abortserver) )
 		return;			// something bad happened, or the server disconnected
@@ -1236,7 +1244,9 @@ void _Host_Frame (double time)
 	Host_GetConsoleCommands ();
 
 // process console commands
+	VR_ProfileBegin ("commands"); // QVR: profile
 	Cbuf_Execute ();
+	VR_ProfileEnd (); // QVR
 
 	NET_Poll();
 
@@ -1267,11 +1277,15 @@ void _Host_Frame (double time)
 		}
 		else
 			accumtime -= host_netinterval;
+		VR_ProfileBegin ("client send"); // QVR: profile
 		CL_SendCmd ();
+		VR_ProfileEnd (); // QVR
 		if (sv.active)
 		{
 			PR_SwitchQCVM(&sv.qcvm);
+			VR_ProfileBegin ("server"); // QVR: profile
 			Host_ServerFrame ();
+			VR_ProfileEnd (); // QVR
 			PR_SwitchQCVM(NULL);
 		}
 		host_frametime = realframetime;
@@ -1280,21 +1294,28 @@ void _Host_Frame (double time)
 	}
 
 // fetch results from server
+	VR_ProfileBegin ("client read"); // QVR: profile
 	if (cls.state == ca_connected)
 		CL_ReadFromServer ();
+	VR_ProfileEnd (); // QVR
 
 // update video
 	if (host_speeds.value)
 		time2 = Sys_DoubleTime ();
 
+	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
+	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBegin ("run particles"); // QVR: profile
 	CL_RunParticles (); //johnfitz -- seperated from rendering
+	VR_ProfileEnd (); // QVR
 
 	if (host_speeds.value)
 		time3 = Sys_DoubleTime ();
 
 // update audio
+	VR_ProfileBegin ("sound"); // QVR: profile
 	BGM_Update();	// adds music raw samples and/or advances midi driver
 	if (cls.signon == SIGNONS)
 	{
@@ -1305,6 +1326,7 @@ void _Host_Frame (double time)
 		S_Update (vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 
 	CDAudio_Update();
+	VR_ProfileEnd (); // QVR
 	UpdateWindowTitle();
 
 	if (host_speeds.value)
@@ -1343,6 +1365,7 @@ void _Host_Frame (double time)
 	}
 
 	host_framecount++;
+	VR_ProfileFrameEnd (); // QVR
 }
 
 void Host_Frame (double time)
