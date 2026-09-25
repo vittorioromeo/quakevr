@@ -106,6 +106,8 @@
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never)."),
         slider("Parry Angle", "vr_parry_angle", 15.f, 80.f, 5.f, "%.0f deg").help("How far the weapon may be off square to the blow."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").help("How much a parried blow knocks your hand and arm."),
+        slider("Knights Drop Swords", "vr_sword_drop", 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
+        slider("Sword Damage Mult.", "vr_sword_damage_mult", 0.5f, 3.f, 0.05f, "%.2f").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for melee bloodlust health restoration."),
     };
 }
