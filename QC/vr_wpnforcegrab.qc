@@ -280,15 +280,23 @@ void(entity e) VR_Forcegrab_Miss =
     dprint("force grab: missed ");
     dprint(e.classname);
     dprint("\n");
+    // Back along the way to where it is from somewhere it surely fits: its box placed on the
+    // player's own (a small item clips with the player-sized hull), or else where it flew from.
     entity p = e.fg_player;
+    float placed = FALSE;
     if(p.classname == "player")
     {
-        vector from = p.origin + '0 0 10' - (e.mins + e.maxs) * 0.5;
+        vector from = p.origin + p.mins - e.mins;
         tracebox(from, e.mins, e.maxs, e.origin, TRUE, p);
-        if(!trace_startsolid)
+        if(!trace_startsolid && !trace_allsolid)
         {
             setorigin(e, trace_endpos);
+            placed = TRUE;
         }
+    }
+    if(!placed)
+    {
+        setorigin(e, e.fg_origin);
     }
 
     vector v = e.velocity * cvar_hget(cvarh_vr_forcegrab_miss_speed);
@@ -382,6 +390,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
     arc = max(0, (arc + 8) * trace_fraction - 8);
 
     e.fg_movetype = e.movetype;
+    e.fg_origin = e.origin;
     e.fg_solid = e.solid;
     e.fg_think = e.think;
     e.fg_player = self;

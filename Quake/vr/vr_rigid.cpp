@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 #include <cmath>
 
 using namespace qvr;
@@ -500,11 +501,91 @@ namespace
 
 } // namespace
 
+namespace
+{
+
+// Items must never fall out of the world. Quake lets an entity whose box is buried in the level
+// (a trace that starts and ends in solid) move freely, and it falls forever: a small ammo box
+// clips with the player-sized hull, which a force grab that ends at a hand near a wall or a low
+// ceiling can bury. Rigid bodies collide by their corners from their centre, and fall through
+// the same way when their centre is inside. So the last place each item or rigid body was free is
+// kept, and one found buried goes back there, still.
+struct FreePlace
+{
+    glm::vec3 origin{0.f};
+    bool valid = false;
+};
+std::vector<FreePlace> freePlaces;
+const qmodel_t* freePlacesWorld = nullptr;
+
+[[nodiscard]] bool buried(edict_t* ent, bool rigid)
+{
+    if(rigid)
+    {
+        glm::vec3 lo, hi;
+        localBox(ent, lo, hi);
+        const glm::vec3 centre = toGlm(ent->v.origin) + axesFromAngles(ent->v.angles) * ((lo + hi) * 0.5f);
+        vec3_t c{centre.x, centre.y, centre.z};
+        return SV_PointContents(c) == CONTENTS_SOLID;
+    }
+    const trace_t tr = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, MOVE_NOMONSTERS, ent);
+    return tr.allsolid;
+}
+
+void keepInWorld(edict_t* ent, bool rigid)
+{
+    const bool item = (static_cast<int>(ent->v.flags) & (FL_ITEM | (1 << 15))) != 0; // FL_ITEM, QC's FL_FORCEGRABBABLE
+    if(!rigid && !item)
+    {
+        return;
+    }
+
+    if(freePlacesWorld != sv.worldmodel)
+    {
+        freePlaces.clear();
+        freePlacesWorld = sv.worldmodel;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    if(num >= static_cast<int>(freePlaces.size()))
+    {
+        freePlaces.resize(static_cast<size_t>(num) + 64);
+    }
+    FreePlace& place = freePlaces[num];
+
+    if(!buried(ent, rigid))
+    {
+        place.origin = toGlm(ent->v.origin);
+        place.valid = true;
+        return;
+    }
+    // Resting on the ground it does not move (Quake skips it): only one moving is at risk.
+    if(!place.valid || (static_cast<int>(ent->v.flags) & FL_ONGROUND))
+    {
+        return;
+    }
+    Con_DPrintf("VR: %s buried at %.0f %.0f %.0f, back to %.0f %.0f %.0f\n", PR_GetString(ent->v.classname), ent->v.origin[0],
+        ent->v.origin[1], ent->v.origin[2], place.origin.x, place.origin.y, place.origin.z);
+    fromGlm(place.origin, ent->v.origin);
+    VectorCopy(vec3_origin, ent->v.velocity);
+    VectorCopy(vec3_origin, ent->v.avelocity);
+    SV_LinkEdict(ent, false);
+}
+
+} // namespace
+
 // SV_Physics_Toss, after the think: the whole move of a rigid body. Water transitions are
 // tracked on every path (asleep too): else an entity's "just spawned" waterlevel 1 stays, and
-// the QC takes it for floating.
+// the QC takes it for floating. Items and rigid bodies are kept in the world first.
 extern "C" int VR_RigidToss(edict_t* ent)
 {
+    const FieldOffsets& f = fields();
+    const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
+    keepInWorld(ent, rigid);
+    if(ent->free)
+    {
+        return 1;
+    }
+
     if(!rigidToss(ent))
     {
         return 0;

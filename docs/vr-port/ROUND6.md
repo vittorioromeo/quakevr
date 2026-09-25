@@ -13,7 +13,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 6 | Blob shadows for ammo and health pickups | S | done |
 | 7 | Designer-placed pickups (weapons, keys, armour, powerups) float at torso height | S–M | |
 | 8 | Headshot detection: check rotations, fix; subtle headshot sound (toggle) | M | done |
-| 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | |
+| 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | done |
 | 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | |
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | |
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
@@ -58,3 +58,17 @@ gets a status, what was done, how it was tested, and anything to check on the he
    the head's centre (headshot), another 10.5-11.4 units (body).
    **For tests:** `impulse 150 + weapon id` puts a loaded weapon in the main hand, `170 + id` in the off hand
    (single player; hold `+grabright` or `+grableft` in the mock, since a hand that is not gripping drops its weapon).
+9. **Force-grabbed box through the floor.** Reproduced in the mock: pull the shells box at e1m1 (672, -40), do not
+   grip; it ended at z = -1660, still falling. Cause: ammo and health boxes are small (6 units at
+   `vr_forcegrabbable_box_scale` 0.25), and Quake clips anything over 3 units with the *player* hull (32 x 32 x 56).
+   The flight ends at the hand; near a wall or a low ceiling that tall box is buried, and Quake lets a trace that
+   starts and ends in solid through, so it falls forever. The miss handler meant to put it somewhere it fits, but
+   searched from a place where that box did not fit either and then gave up. Fixes:
+   - `VR_Forcegrab_Miss` starts its search from the item's box laid on the player's own (which fits), and else puts
+     it back where it flew from (`fg_origin`).
+   - Engine safety net (`keepInWorld`, `vr_rigid.cpp`, from `SV_Physics_Toss`): every item (`FL_ITEM`,
+     force-grabbable) and rigid body remembers the last place it was free; one found buried while moving (rigid
+     bodies: centre inside solid, since they collide by their corners from it) goes back there, still.
+     `developer 1` prints "buried". Items resting buried (some map boxes touch a low ceiling with that tall hull)
+     are left alone: Quake does not move grounded items.
+   Tested three times: the box flies, is missed, and ends at rest (z 51), not out of the level.

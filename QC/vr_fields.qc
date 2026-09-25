@@ -48,6 +48,7 @@
 .float fg_arrive;   // when it reaches the hand
 .float fg_gravity;  // of its arc
 .float fg_movetype; // as it was before
+.vector fg_origin;  // where it was before it flew (it fitted there)
 .float fg_solid;
 .void() fg_think;
 
