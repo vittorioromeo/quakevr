@@ -142,7 +142,10 @@ gets a status, what was done, how it was tested, and anything to check on the he
     - the trigger took it (shells 25 -> 45, the box gone);
     - a forward swing and release threw it at 246 units/s forward.
 
-    **Not tested:** carrying into a wall at speed, the improvised punch, thrown damage on a monster.
+    - carried into a wall: the hand jumped 1.5, 2.5, 3.5 and 6 m ahead in single frames; the box stopped against
+      the wall and stayed in the hand, never passing through.
+
+    **Not tested:** the improvised punch, thrown damage on a monster.
     **Known limit:** a held box moves on the server's frames and is interpolated on the client, so it can trail the
     hand a little (as the grapple rope did); if it shows, the next step is to draw held boxes at the hand on the
     client.
