@@ -141,7 +141,6 @@ gets a status, what was done, how it was tested, and anything to check on the he
     - gripping it held it, and it followed the hand up and back;
     - the trigger took it (shells 25 -> 45, the box gone);
     - a forward swing and release threw it at 246 units/s forward.
-
     - carried into a wall: the hand jumped 1.5, 2.5, 3.5 and 6 m ahead in single frames; the box stopped against
       the wall and stayed in the hand, never passing through.
 
@@ -220,6 +219,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
     - e1m2: a knight shot dead lay without its sword, and the sword lay by its head;
     - a hand gripping it on the floor picked it up;
     - in the hand it is about 80 cm, held below the guard, next to the axe for scale;
-    - e2m3: a hell knight, likewise.
+    - e2m3: a hell knight, likewise;
+    - scripted swings (`vr_mock_swing`) with the sword in hand killed an e1m1 grunt.
 
-    **Not tested:** how swings feel and their damage, on the headset.
+    **To check on the headset:** how swings feel, and the sword's reach.
