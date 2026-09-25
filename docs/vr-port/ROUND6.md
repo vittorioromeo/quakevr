@@ -16,7 +16,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | done |
 | 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | done |
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | done |
-| 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
+| 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | done |
 | 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | done |
 | 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | done |
 | 15 | Knights' swords: a usable melee weapon dropped on death; their death frames without the sword | XL | done |
@@ -146,6 +146,46 @@ gets a status, what was done, how it was tested, and anything to check on the he
     **Known limit:** a held box moves on the server's frames and is interpolated on the client, so it can trail the
     hand a little (as the grapple rope did); if it shows, the next step is to draw held boxes at the hand on the
     client.
+12. **Pauldrons and the ranger's clothes.** The reference is the Quake ranger (`progs/player.mdl`, rendered from its
+    skin and frames): a sleeveless olive vest, padded and laced down the front; a dark belt with a red-brown buckle;
+    red-brown camouflage trousers with ridged olive plates on the thighs; tall dark boots; bare, muscular arms; and
+    big quilted brown pauldrons. The colours are his skin's own palette entries.
+    - **Pauldrons** (`Misc/quakevr/make_pauldron.py`, drawn by `setupPauldrons` in `vr_view.cpp`). Each shoulder
+      has two parts, since a single rigid shell cannot both sit on the shoulder and wrap the arm:
+      - a cap over the shoulder (`progs/vrpauldron.mdl`), carried by the clavicle and turning partly with the
+        upper arm (`vr_body_pauldron_follow`, 0.35);
+      - two lames round the top of the upper arm (`progs/vrpauldron_arm.mdl`), which follow it.
+
+      Both are quilted leather plates with stitched seams, a light lower edge and rivets, closed with an inside
+      and a rim. They are modelled in the body's bind pose about the left shoulder joint; the right side is the
+      same model mirrored. The avatar now reports each shoulder's joint and the rotations its clavicle and upper
+      arm apply to the bind pose (`avatar::shoulder`).
+      - `vr_body_pauldrons` (1) toggles them.
+      - `vr_body_pauldron_style`: 0 the ranger's leather, 1 the colour of the armour you wear (leather without
+        armour), 2 steel.
+      - `vr_body_pauldron_size` (1) sets the size; they also scale with the build.
+      - `vr_body_pauldron_forward`, `_up` and `_out` offset them (metres).
+
+      All are in Advanced > Body.
+    - **The body** (`make_vrbody.py`):
+      - **Skins:** the vest has lacing, side seams, padded belly folds, a chest seam and a back yoke. The belt and
+        buckle sit at the hips, with the trousers below them. The trousers are red-brown camouflage, with the thigh
+        plates in front. The armour plates (green, yellow, red) still cover the vest when worn, now from above the
+        belt.
+      - **Boots:** new shafts over the calves, from the ankle to below the knee, with a strap and a turned-down top.
+      - **Geometry:** the torso is rounder (12 sides, was 8).
+      - **Texture seams:** every loft's texture now wraps round once, with a duplicated seam vertex. Before, the
+        last face of each ring squeezed the whole texture backwards. The engine welds normals by position, so
+        shading is unchanged. The texture pad is 2 texels (was 5), so narrow blocks keep their detail.
+
+    **Tested** in the mock with the body preview (`vr_body_debug 2`, `3`) and in first person:
+    - the pauldrons sit on both shoulders; with an arm raised forward, the lames stay on it and the cap on the
+      shoulder;
+    - looking towards a shoulder shows its pauldron at the edge of view, leather and steel;
+    - the body shows the vest, belt, trousers with thigh plates and boots.
+
+    **To check on the headset:** whether the pauldrons are the right size and height for you, and whether the cap
+    follows the arm enough when you aim.
 15. **Knights' swords.** Quake's sword wielders are the knight and the hell knight (the death knight in Quake's
     code). Each now drops its sword when it dies, gibbed or not (not statues), with a chance of `vr_sword_drop`
     (1; Advanced > Melee). The sword is a new melee weapon, `WID_SWORD` (13; item `IID_SWORD`, 43): the hell

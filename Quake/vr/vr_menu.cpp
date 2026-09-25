@@ -182,6 +182,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
+        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
+        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
+            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
+        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx"),
+        slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
+        slider("Pauldron Forward", vr_body_pauldron_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Pauldron Up", vr_body_pauldron_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Pauldron Out", vr_body_pauldron_out, -0.05f, 0.05f, 0.005f, "%.3f m"),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m")

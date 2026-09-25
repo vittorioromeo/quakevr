@@ -122,6 +122,8 @@ struct Entities
     view::ViewEntity holster[HolsterCount];
     view::ViewEntity holsterSlot[HolsterCount];
     view::ViewEntity body;
+    view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
+    view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
     view::ViewEntity button[2];
 };
@@ -152,6 +154,11 @@ void forEachEntity(F&& f)
         f(ve);
     }
     f(entities.body);
+    for(int side = 0; side < 2; side++)
+    {
+        f(entities.pauldron[side]);
+        f(entities.pauldronArm[side]);
+    }
     f(entities.gadget);
     for(view::ViewEntity& ve : entities.button)
     {
@@ -680,16 +687,21 @@ void quadArcs(const hands::State& s)
 
 // The player's state on the body (vr_body_state, vr_body_powerups): the armour worn and the
 // damage taken are skins (make_vrbody.py: armour * 4 + damage); powerups tint, fade or spark.
+// The armour worn: 0 none, 1 green, 2 yellow, 3 red.
+[[nodiscard]] int armorWorn()
+{
+    return cl.stats[STAT_ARMOR] <= 0 ? 0
+           : (cl.items & IT_ARMOR3)  ? 3
+           : (cl.items & IT_ARMOR2)  ? 2
+           : (cl.items & IT_ARMOR1)  ? 1
+                                     : 0;
+}
+
 void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
     {
-        const int armor = cl.stats[STAT_ARMOR] <= 0 ? 0
-                          : (cl.items & IT_ARMOR3) ? 3
-                          : (cl.items & IT_ARMOR2) ? 2
-                          : (cl.items & IT_ARMOR1) ? 1
-                                                   : 0;
-        ve.ent.skinnum = armor * 4 + damageLevel();
+        ve.ent.skinnum = armorWorn() * 4 + damageLevel();
     }
     else
     {
@@ -753,6 +765,64 @@ void setupBody(const hands::State& s)
             place(ve, model, origin, glm::vec3{0.f}, 0, false);
             showPlayerState(ve, s);
         }
+    }
+}
+
+// The pauldrons (vr_body_pauldrons; make_pauldron.py), after the Quake ranger's: a cap over each
+// shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the top
+// of the upper arm, which they follow. Both models are made in the bind pose's body space about the
+// left shoulder joint; the right side draws them mirrored.
+void setupPauldrons()
+{
+    for(int side = 0; side < 2; side++)
+    {
+        entities.pauldron[side].visible = false;
+        entities.pauldronArm[side].visible = false;
+    }
+    const view::ViewEntity& body = entities.body;
+    if(!vr_body_pauldrons.value || !body.visible)
+    {
+        return;
+    }
+
+    // Skins: 0 leather, 1-3 the armours' colours, 4 steel.
+    const int style = static_cast<int>(vr_body_pauldron_style.value);
+    const int skin = style == 1 ? armorWorn() : style >= 2 ? 4 : 0;
+
+    // Made for the athletic build.
+    const int build = static_cast<int>(vr_body_build.value);
+    const float size = CLAMP(0.25f, vr_body_pauldron_size.value, 4.f) * (build <= 0 ? 0.88f : build >= 2 ? 1.18f : 1.f);
+    const float k = avatar::modelScale(&body.ent); // world units per model unit
+    const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
+    const float follow = CLAMP(0.f, vr_body_pauldron_follow.value, 1.f);
+
+    for(int side = 0; side < 2; side++)
+    {
+        avatar::Shoulder sh;
+        if(!avatar::shoulder(side, sh))
+        {
+            return;
+        }
+
+        const bool mirrored = side == 1;
+        // Offsets in the body's bind space: forward, out (left for the left side), up.
+        const glm::vec3 offset = glm::vec3{vr_body_pauldron_forward.value,
+                                     vr_body_pauldron_out.value * (mirrored ? -1.f : 1.f), vr_body_pauldron_up.value} *
+                                 sh.m2w;
+
+        const glm::quat capRot = glm::slerp(sh.clavicle, sh.upperArm, follow);
+        const auto part = [&](view::ViewEntity& ve, const char* model, const glm::quat& rot) {
+            const glm::mat3 m = glm::mat3_cast(rot);
+            const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
+            place(ve, Mod_ForName(model, false), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
+            ve.ent.skinnum = skin;
+            ve.ent.scale = scale;
+            ve.ent.alpha = body.ent.alpha;
+            ve.lightMultiply = body.lightMultiply;
+            ve.lightMod = body.lightMod;
+        };
+        part(entities.pauldron[side], "progs/vrpauldron.mdl", capRot);
+        part(entities.pauldronArm[side], "progs/vrpauldron_arm.mdl", sh.upperArm);
     }
 }
 
@@ -1012,6 +1082,7 @@ extern "C" void VR_SetupViewEntities()
     setupHand(s, OFF);
     setupHolsters(s);
     setupBody(s);
+    setupPauldrons();
     setupGadget(s);
     setupButton(s, MAIN);
     setupButton(s, OFF);

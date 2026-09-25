@@ -475,6 +475,7 @@ struct Posed
     std::array<float, JointCount * 12> skin{};
     glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
     glm::vec3 forearm[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    Shoulder shoulders[2];                                // per side
 };
 
 Posed posed;
@@ -650,6 +651,16 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     posed.scale = k;
     for(int side = 0; side < 2; side++)
     {
+        const int clav = side == 0 ? ClavicleL : ClavicleR;
+        const Bind& bd = bind();
+        Shoulder& sh = posed.shoulders[side];
+        sh.joint = b.bones[clav + 1].pos;
+        sh.clavicle = glm::normalize(glm::quat_cast(b.bones[clav].rot * glm::transpose(bd.rot[clav])));
+        sh.upperArm = glm::normalize(glm::quat_cast(b.bones[clav + 1].rot * glm::transpose(bd.rot[clav + 1])));
+        sh.m2w = b.m2w;
+    }
+    for(int side = 0; side < 2; side++)
+    {
         const int hand = side == 0 ? leftHand : 1 - leftHand;
         const Bone& fore = b.bones[side == 0 ? ForearmL : ForearmR];
         const Bone& wristBone = b.bones[side == 0 ? HandL : HandR];
@@ -672,6 +683,16 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
     }
     wrist = posed.wrist[hand];
     direction = posed.forearm[hand];
+    return true;
+}
+
+bool shoulder(int side, Shoulder& out)
+{
+    if(!posed.ent || side < 0 || side > 1)
+    {
+        return false;
+    }
+    out = posed.shoulders[side];
     return true;
 }
 

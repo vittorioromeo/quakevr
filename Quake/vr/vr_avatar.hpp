@@ -67,6 +67,19 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
 // elbow). False when the body is not posed.
 [[nodiscard]] bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction);
 
+// A shoulder as last posed (side 0 the body's left, 1 its right), for what is strapped to it (the
+// pauldrons): the shoulder joint, and the rotations that take the bind pose's body space (x forward,
+// y left, z up; make_vrbody.py) to the world as the clavicle and the upper arm carry it. `m2w` is
+// world units per metre of the body. False when the body is not posed.
+struct Shoulder
+{
+    glm::vec3 joint{0.f};
+    glm::quat clavicle{1.f, 0.f, 0.f, 0.f};
+    glm::quat upperArm{1.f, 0.f, 0.f, 0.f};
+    float m2w{1.f};
+};
+[[nodiscard]] bool shoulder(int side, Shoulder& out);
+
 // Not drawn this frame.
 void hide();
 

@@ -150,13 +150,17 @@ bases = {name: bone_basis(name) for name, _, _ in joints}
 # Mesh: lofted rings of 8 vertices, with caps
 
 SIDES = 8
+PAD = 2.0 / 128  # texture coordinates kept off each block's edges (2 texels of the 128 skins)
 
-# Skin blocks (u0, v0, u1, v1): skin, leather, cloth, boots, bracers.
+# Skin blocks (u0, v0, u1, v1): skin, the torso ("leather": the ranger's vest, belt and the top of
+# his trousers), the legs ("cloth": trousers and thigh plates), the feet and the boots' shafts, the
+# bracers.
 BLOCKS = {
     "skin": (0.0, 0.0, 0.5, 0.5),
     "leather": (0.5, 0.0, 1.0, 0.5),
     "cloth": (0.0, 0.5, 0.5, 1.0),
-    "boots": (0.5, 0.5, 0.75, 1.0),
+    "boots": (0.5, 0.5, 0.625, 1.0),
+    "shaft": (0.625, 0.5, 0.75, 1.0),
     "bracer": (0.75, 0.5, 1.0, 1.0),
 }
 
@@ -173,27 +177,29 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES):
     """rings: list of (centre, u axis, v axis, radius along u, radius along v, weights)."""
     u0, v0, u1, v1 = BLOCKS[block]
     # Keep away from the block edges so filtering does not bleed into the next block.
-    pad = 0.04
-    u0, v0, u1, v1 = u0 + pad, v0 + pad, u1 - pad, v1 - pad
+    u0, v0, u1, v1 = u0 + PAD, v0 + PAD, u1 - PAD, v1 - PAD
     # Front faces are clockwise seen from outside (Ironwail: glFrontFace(GL_CW)), which the
     # triangles below are when the loft runs along u x v (the direction the rings go around);
     # otherwise go around the other way.
     along = sub(rings[-1][0], rings[0][0])
     if dot(cross(rings[0][1], rings[0][2]), along) < 0:
         rings = [(c, ua, mul(va, -1.0), ru, rv, ws) for c, ua, va, ru, rv, ws in rings]
+    # Each ring has one vertex more than it has sides: the last is the first again, at u = 1, so that
+    # the texture wraps round once (the engine's normals weld vertices by position).
     first = len(verts)
+    n = sides + 1
     for r, (centre, ua, va, ru, rv, weights) in enumerate(rings):
-        for k in range(sides):
-            a = 2 * math.pi * k / sides
+        for k in range(n):
+            a = 2 * math.pi * (k % sides) / sides
             p = add(centre, add(mul(ua, math.cos(a) * ru), mul(va, math.sin(a) * rv)))
-            st = (u0 + (u1 - u0) * k / (sides - 1), v0 + (v1 - v0) * r / max(1, len(rings) - 1))
+            st = (u0 + (u1 - u0) * k / sides, v0 + (v1 - v0) * r / max(1, len(rings) - 1))
             add_vert(p, weights, st)
     for r in range(len(rings) - 1):
         for k in range(sides):
-            a = first + r * sides + k
-            b = first + r * sides + (k + 1) % sides
-            c = first + (r + 1) * sides + k
-            d = first + (r + 1) * sides + (k + 1) % sides
+            a = first + r * n + k
+            b = first + r * n + k + 1
+            c = first + (r + 1) * n + k
+            d = first + (r + 1) * n + k + 1
             tris.append((a, c, b))
             tris.append((b, c, d))
     mid = ((u0 + u1) / 2, (v0 + v1) / 2)
@@ -205,7 +211,7 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES):
     if cap_end:
         centre, _, _, _, _, weights = rings[-1]
         c = add_vert(centre, weights, mid)
-        base = first + (len(rings) - 1) * sides
+        base = first + (len(rings) - 1) * n
         for k in range(sides):
             tris.append((c, base + (k + 1) % sides, base + k))
 
@@ -237,7 +243,7 @@ def build_mesh(m):
         ((-0.01, 0.0, 1.35), X, Y, 0.13 * torso, 0.19 * torso, w(("chest", 1.0))),
         ((-0.01, 0.0, 1.43), X, Y, 0.11 * torso, 0.17 * torso, w(("chest", 1.0))),
         ((-0.01, 0.0, 1.47), X, Y, 0.06, 0.07, w(("chest", 0.5), ("neck", 0.5))),
-    ], "leather")
+    ], "leather", sides=12)
     # Neck and head.
     loft([
         ((-0.01, 0.0, 1.47), X, Y, 0.05 * torso, 0.055 * torso, w(("neck", 1.0))),
@@ -296,7 +302,15 @@ def build_mesh(m):
             (knee, thigh[2], thigh[1], 0.055, 0.055, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
             (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.055 * torso, 0.05 * torso, w(("calf_" + side, 1.0))),
             (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.04, 0.04, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
-        ], "cloth")
+        ], "cloth", sides=10)
+        # The ranger's tall boots: a shaft over the calf, from the ankle to below the knee, flared at
+        # its top.
+        loft([
+            (add(ankle, (0.0, 0.0, 0.01)), calf[2], calf[1], 0.052, 0.05, w(("calf_" + side, 0.4), ("foot_" + side, 0.6))),
+            (add(ankle, (0.0, 0.0, 0.12)), calf[2], calf[1], 0.052 * torso, 0.05 * torso, w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.13)), calf[2], calf[1], 0.062 * torso, 0.058 * torso, w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.09)), calf[2], calf[1], 0.068 * torso, 0.064 * torso, w(("calf_" + side, 1.0))),
+        ], "shaft", cap_start=False, cap_end=False, sides=10)
         # Foot: rings along x (u up, v left).
         Z = (0.0, 0.0, 1.0)
         loft([
@@ -372,14 +386,23 @@ def write_md5anim(path):
         f.write("}\n")
 
 
-# Quake palette colours (index ramps) per block, dithered for a Quake-like grain.
+# Quake palette colours (index ramps) per block, dithered for a Quake-like grain. The ranger's
+# (progs/player.mdl's skin): his arms (palette 118-122), olive vest (21-26, as it looks shaded), red-brown camouflage
+# trousers (98-103), olive thigh plates (19-27), dark brown belt and boots (171-174, 114).
 PALETTE_RAMPS = {
     "skin": [(99, 63, 43), (111, 71, 51), (127, 83, 63), (139, 95, 71), (155, 107, 83)],
-    "leather": [(27, 19, 15), (39, 31, 23), (55, 43, 31), (67, 51, 39)],
-    "cloth": [(35, 27, 19), (43, 35, 23), (55, 43, 27), (63, 51, 31)],
-    "boots": [(15, 11, 7), (23, 15, 11), (31, 23, 15), (39, 27, 15)],
+    "leather": [(55, 43, 23), (63, 47, 23), (75, 55, 27), (83, 59, 27), (91, 67, 31), (99, 75, 31)],
+    "cloth": [(59, 31, 15), (75, 35, 19), (87, 43, 23), (99, 47, 31), (115, 55, 35), (127, 59, 43)],
+    "boots": [(27, 19, 15), (39, 31, 23), (43, 35, 15), (55, 43, 31)],
+    "shaft": [(27, 19, 15), (39, 31, 23), (43, 35, 15), (55, 43, 31)],
     "bracer": [(35, 23, 15), (47, 31, 19), (59, 39, 23), (71, 47, 27)],
 }
+VEST_DARK = [(39, 27, 15), (47, 35, 19), (55, 43, 23)]  # the vest's seams and padding folds (19-21)
+PLATE = [(39, 27, 15), (63, 47, 23), (75, 55, 27), (91, 67, 31), (107, 83, 31)]  # thigh plates (19, 22, 23, 25, 27)
+BELT = [(27, 19, 15), (39, 31, 23), (55, 43, 31)]
+BUCKLE = [(87, 43, 23), (127, 59, 43), (143, 67, 51)]
+LACE = (131, 103, 35)
+COLLAR = [(39, 31, 23), (55, 43, 31)]
 
 
 # The player's armour on the torso: plates in the armour's colour (Quake's green, yellow and red
@@ -395,10 +418,10 @@ ARMOR_RAMPS = {
 def armor_texel(bu, bv, armor, rng):
     """The armour's colour at (bu, bv) of the torso block, or None where it leaves the torso bare
     (the belt at the bottom, the collar at the top)."""
-    if bv < 0.16 or bv > 0.9:
+    if bv < 0.2 or bv > 0.9:
         return None
     ramp = ARMOR_RAMPS[armor]
-    lame = (bv - 0.16) / 0.74 * 5.0  # five overlapping lames, top to bottom
+    lame = (bv - 0.2) / 0.7 * 5.0  # five overlapping lames, top to bottom
     within = lame - int(lame)
     if within < 0.08:
         return (11, 11, 11) if armor != 2 else (39, 27, 7)  # seam
@@ -450,6 +473,75 @@ def mark_texel(s, t, marks):
     return None
 
 
+def camo(s, t):
+    """The trousers' camouflage: -1 (dark) .. 1 (light) blotches, in whole-skin coordinates."""
+    n = (math.sin(s * 41.0 + 1.3 * math.sin(t * 29.0)) + math.sin(t * 37.0 + 1.7 * math.sin(s * 23.0)) +
+         0.6 * math.sin((s + t) * 67.0))
+    return n / 2.6
+
+
+def ramp_pick(ramp, i, k):
+    i += 1 if k > 7 else -1 if k < 2 else 0
+    return ramp[max(0, min(len(ramp) - 1, i))]
+
+
+def trousers_texel(s, t, k):
+    c = camo(s, t)
+    ramp = PALETTE_RAMPS["cloth"]
+    return ramp_pick(ramp, 0 if c < -0.35 else 4 if c > 0.4 else 2, k)
+
+
+def ranger_texel(block, s, t, k):
+    """The ranger's clothes (progs/player.mdl): the colour at (s, t) of `block`, or None for the
+    block's plain dithered ramp. k (0..9) is the dithering's random draw."""
+    u0, v0, u1, v1 = BLOCKS[block]
+    # Round the ring (0 in front) and along the loft (0 its first ring), as loft() lays them out.
+    bu = (s - u0 - PAD) / (u1 - u0 - 2 * PAD)
+    bv = (t - v0 - PAD) / (v1 - v0 - 2 * PAD)
+    front = min(bu, 1.0 - bu)  # 0 at the front, 0.5 at the back
+    if block == "leather":  # the torso, from the hips (bv 0) to the neck
+        if bv < 0.1:
+            return trousers_texel(s, t, k)
+        if bv < 0.2:  # the belt, its buckle in front
+            if front < 0.05:
+                return BUCKLE[0] if front < 0.02 and abs(bv - 0.15) < 0.02 else BUCKLE[2 if k > 6 else 1]
+            return BELT[0] if bv < 0.115 or bv > 0.185 else BELT[1 if k > 1 else 2]
+        if bv > 0.9:
+            return COLLAR[1 if k > 6 else 0]
+        ramp = PALETTE_RAMPS["leather"]
+        if front < 0.018:  # the lacing down the front
+            return LACE if int(bv * 60) % 3 == 0 else VEST_DARK[0]
+        if abs(bu - 0.25) < 0.012 or abs(bu - 0.75) < 0.012:  # side seams
+            return VEST_DARK[1]
+        if front < 0.2 and bv < 0.58:  # the padded belly: folds, lit above
+            fold = (bv - 0.2) % 0.075
+            if fold < 0.012:
+                return VEST_DARK[1]
+            if fold < 0.03:
+                return ramp_pick(ramp, 5, k)
+        if front < 0.22 and abs(bv - 0.62) < 0.012:  # under the chest plates
+            return VEST_DARK[1]
+        if front > 0.3 and abs(bv - 0.8) < 0.01:  # the back's yoke
+            return VEST_DARK[2]
+        return ramp_pick(ramp, 3, k)
+    if block == "cloth":  # the legs, from the hips (bv 0) down
+        if front < 0.13 and 0.06 < bv < 0.42:  # the thigh plates, ridged
+            if front > 0.115 or bv < 0.075 or bv > 0.405:
+                return PLATE[0]
+            if (bv - 0.06) % 0.07 < 0.014:
+                return PLATE[1]
+            return ramp_pick(PLATE, 3, k)
+        return trousers_texel(s, t, k)
+    if block == "shaft":  # the boots' shafts, from the ankle (bv 0) up
+        ramp = PALETTE_RAMPS["shaft"]
+        if bv > 0.8:
+            return ramp[3] if bv > 0.84 else ramp[0]  # the turned-down top
+        if abs(bv - 0.4) < 0.04:
+            return BELT[2]  # a strap
+        return ramp_pick(ramp, 1, k)
+    return None
+
+
 def write_skin(path, size=128, damage=0, armor=0):
     rng = 12345
     marks = damage_marks(damage)
@@ -462,12 +554,11 @@ def write_skin(path, size=128, damage=0, armor=0):
             ramp = PALETTE_RAMPS[block]
             if block == "bracer":
                 # A lighter strap along the thumb's side and a dark rim at each end. The strap
-                # is where the ring crosses its u axis on the far side (vertex 5 of 10, u = 5/9), so
+                # is where the ring crosses its u axis on the far side (vertex 5 of 10, u = 1/2), so
                 # that it is on the same side of both arms, whichever way their rings go around.
                 u0, v0, u1, v1 = BLOCKS[block]
                 bu, bv = (s - u0) / (u1 - u0), (t - v0) / (v1 - v0)
-                pad = 0.04 / (u1 - u0)
-                if abs(bu - (pad + (1 - 2 * pad) * 5 / 9)) < 0.05:
+                if abs(bu - 0.5) < 0.05:
                     pixels += bytes((39, 63, 99, 255))
                     continue
                 if bv < 0.12 or bv > 0.88:
@@ -481,11 +572,16 @@ def write_skin(path, size=128, damage=0, armor=0):
                 continue
             if armor and block == "leather":
                 u0, v0, u1, v1 = BLOCKS[block]
-                plate = armor_texel((s - u0) / (u1 - u0), (t - v0) / (v1 - v0), armor, rng)
+                plate = armor_texel((s - u0 - PAD) / (u1 - u0 - 2 * PAD), (t - v0 - PAD) / (v1 - v0 - 2 * PAD), armor, rng)
                 if plate:
                     r, g, b = plate
                     pixels += bytes((b, g, r, 255))
                     continue
+            clothes = ranger_texel(block, s, t, (rng >> 16) % 10)
+            if clothes:
+                r, g, b = clothes
+                pixels += bytes((b, g, r, 255))
+                continue
             # Mostly the middle of the ramp, some lighter and darker specks.
             k = (rng >> 16) % 10
             i = len(ramp) // 2 + (-1 if k < 3 else 1 if k > 7 else 0)

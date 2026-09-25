@@ -182,6 +182,13 @@ QVR_CVAR(vr_body_legs_back, "0", CVAR_ARCHIVE)        // metres the feet stand b
 QVR_CVAR(vr_body_shoulders_back, "0", CVAR_ARCHIVE)   // metres the shoulders sit behind the chest (negative: in front),
 QVR_CVAR(vr_body_shoulders_up, "0", CVAR_ARCHIVE)     // above it,
 QVR_CVAR(vr_body_shoulders_out, "0", CVAR_ARCHIVE)    // and further out (negative: in)
+QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
+QVR_CVAR(vr_body_pauldron_style, "0", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
+QVR_CVAR(vr_body_pauldron_size, "1", CVAR_ARCHIVE)    // their size (scaled with the build too)
+QVR_CVAR(vr_body_pauldron_follow, "0.35", CVAR_ARCHIVE) // how much the cap turns with the upper arm (0: with the shoulder; the lames follow the arm)
+QVR_CVAR(vr_body_pauldron_forward, "0", CVAR_ARCHIVE) // metres they sit further forward,
+QVR_CVAR(vr_body_pauldron_up, "0", CVAR_ARCHIVE)      // up,
+QVR_CVAR(vr_body_pauldron_out, "0", CVAR_ARCHIVE)     // and out
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
