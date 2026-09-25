@@ -33,7 +33,7 @@ enum class Shade
     Color,         // the vertex colour
     SoftEdge,      // the vertex colour, its alpha fading out with |uv| (1 - |uv|^2): lines, discs
     Texture,       // the texture, times the vertex colour
-    TextureCutout, // the texture's colour, opaque, where its alpha is at least 2/3 (the font)
+    TextureCutout, // the texture's colour times the vertex colour, opaque, where its alpha is at least 2/3 (the font)
 };
 
 enum class Blend

@@ -122,6 +122,8 @@
 {
     return {
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
+        toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
+        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
         toggle("Positional Damage", "vr_positional_damage").help("Enables positional damage multipliers for headshots and leg shots. Only applies to humanoid enemies."),
         slider("Headshot Sound", "vr_headshot_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of a subtle tick when you land a headshot (0 off)."),
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),

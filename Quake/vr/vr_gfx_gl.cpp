@@ -53,7 +53,7 @@ void main()
         vec4 c = texture(Tex, uv);
         if(c.a < 0.666)
             discard;
-        result = vec4(c.rgb, 1.0);
+        result = vec4(c.rgb * color.rgb, 1.0);
     }
     else
     {

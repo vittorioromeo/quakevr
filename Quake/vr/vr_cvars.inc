@@ -269,6 +269,8 @@ QVR_CVAR(vr_finger_auto_close_thumb, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_blending_speed, "50", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)
+QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_disablehaptics, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_spinreload_pitch_speed, "1100", CVAR_ARCHIVE)
 QVR_CVAR(vr_spinreload_x_angular_threshold, "6.5", CVAR_ARCHIVE)

@@ -14,7 +14,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 7 | Designer-placed pickups (weapons, keys, armour, powerups) float at torso height | S–M | |
 | 8 | Headshot detection: check rotations, fix; subtle headshot sound (toggle) | M | done |
 | 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | done |
-| 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | |
+| 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | done |
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | |
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
 | 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | |
@@ -72,3 +72,9 @@ gets a status, what was done, how it was tested, and anything to check on the he
      `developer 1` prints "buried". Items resting buried (some map boxes touch a low ceiling with that tall hull)
      are left alone: Quake does not move grounded items.
    Tested three times: the box flies, is missed, and ends at rest (z 51), not out of the level.
+10. **Ammo screen.** `text3d::queue(..., screen)` (`vr_text3d.cpp`): behind a weapon's ammo counter, a dark bezel
+    box (shaded per face) and a lit screen face in the wrist gadget's palette (`vr_gadget_screen_hue`,
+    `_brightness`, `_background`); the text is tinted the gadget's text colour. All geometry is made in code, sized
+    to the text (`vr_weapon_screen_padding`); no model changed. `vr_weapon_screen` (1) toggles it; menu: Advanced
+    > HUD, "Weapon Ammo Screen", "Ammo Screen Margin". The font's cutout shade now multiplies by the vertex colour
+    (white elsewhere, so unchanged). Checked on the shotgun: a small green screen on its back, "8/8" over "100".

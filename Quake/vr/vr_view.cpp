@@ -259,7 +259,8 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
         q_snprintf(buf, sizeof(buf), "%d", ammo);
     }
 
-    text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale));
+    text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
+        vr_weapon_screen.value != 0.f);
 }
 
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)

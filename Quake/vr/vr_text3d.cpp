@@ -1,6 +1,7 @@
 // vr_text3d.cpp -- see vr_text3d.hpp. Layout from the old engine's R_DrawWorldText.
 
 #include "vr_text3d.hpp"
+#include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_shadows.hpp"
@@ -23,25 +24,51 @@ struct Queued
     glm::vec3 angles;
     Align align;
     float scale;
+    bool screen;
 };
 
 std::vector<Queued> queued;
-std::vector<gfx::Vertex> vertices;
+std::vector<gfx::Vertex> vertices; // glyphs
+std::vector<gfx::Vertex> panels;   // screens behind them
 
-void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c)
+void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color)
 {
     const glm::vec4 uv = gfx::fontGlyph(c);
-    const gfx::Vertex tl{topLeft, {uv.x, uv.y}};
-    const gfx::Vertex tr{topLeft + right, {uv.z, uv.y}};
-    const gfx::Vertex br{topLeft + right + down, {uv.z, uv.w}};
-    const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}};
+    const gfx::Vertex tl{topLeft, {uv.x, uv.y}, color};
+    const gfx::Vertex tr{topLeft + right, {uv.z, uv.y}, color};
+    const gfx::Vertex br{topLeft + right + down, {uv.z, uv.w}, color};
+    const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}, color};
     for(const gfx::Vertex& v : {tl, tr, br, tl, br, bl})
     {
         vertices.push_back(v);
     }
 }
 
-void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale)
+void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d, const glm::vec4& color)
+{
+    for(const glm::vec3* p : {&a, &b, &c, &a, &c, &d})
+    {
+        panels.push_back({*p, {0.f, 0.f}, color});
+    }
+}
+
+// A box centred on `c`, half extents `hr` along `right`, `hu` along `up`, `hn` along `n`; its
+// faces shaded a little by which way they face, so that it reads as a solid.
+void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const glm::vec3& n, float hr, float hu, float hn,
+    const glm::vec3& color)
+{
+    const glm::vec3 r = right * hr, u = up * hu, f = n * hn;
+    const auto shade = [&](float k) { return glm::vec4{color * k, 1.f}; };
+    quad(c + f - r - u, c + f + r - u, c + f + r + u, c + f - r + u, shade(1.f));   // front
+    quad(c - f - r - u, c - f - r + u, c - f + r + u, c - f + r - u, shade(0.6f));  // back
+    quad(c - r - u - f, c - r - u + f, c - r + u + f, c - r + u - f, shade(0.75f)); // left
+    quad(c + r - u - f, c + r + u - f, c + r + u + f, c + r - u + f, shade(0.75f)); // right
+    quad(c - u - r - f, c - u + r - f, c - u + r + f, c - u - r + f, shade(0.65f)); // bottom
+    quad(c + u - r - f, c + u - r + f, c + u + r + f, c + u + r - f, shade(0.9f));  // top
+}
+
+void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
+    bool screen = false)
 {
     std::vector<std::string_view> lines;
     for(size_t start = 0; start <= text.size();)
@@ -73,6 +100,32 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 
     const glm::vec3 topLeft = pos - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(lines.size())) * 0.5f;
 
+    // The screen: a bezel box behind the text and its lit face just behind the text, the readable
+    // side facing the viewer (right x up points at them); the gadget's palette.
+    glm::vec4 textColor{1.f};
+    if(screen)
+    {
+        const glm::vec3 n = glm::normalize(glm::cross(right, up));
+        const float hue = vr_gadget_screen_hue.value;
+        const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+        const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
+        textColor = glm::vec4{glm::min(hsv(hue, 0.55f, bright), glm::vec3{1.f}), 1.f};
+
+        const float halfW = charSize * static_cast<float>(longest) * 0.5f;
+        const float halfH = charSize * static_cast<float>(lines.size()) * 0.5f;
+        const float pad = charSize * 0.35f * std::max(0.f, vr_weapon_screen_padding.value);
+        const float bezel = charSize * 0.3f;
+        const float depth = charSize * 0.5f;
+        const float gap = charSize * 0.04f;
+
+        box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
+            glm::vec3{0.13f, 0.13f, 0.14f});
+        const glm::vec4 face{hsv(hue, 0.57f, 0.12f * std::max(back, 0.2f)), 1.f};
+        const glm::vec3 c = pos - n * gap;
+        quad(c - right * (halfW + pad) - up * (halfH + pad), c + right * (halfW + pad) - up * (halfH + pad),
+            c + right * (halfW + pad) + up * (halfH + pad), c - right * (halfW + pad) + up * (halfH + pad), face);
+    }
+
     for(size_t i = 0; i < lines.size(); i++)
     {
         const float slack = static_cast<float>(longest - lines[i].size());
@@ -83,7 +136,7 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         {
             if(c != ' ')
             {
-                glyph(p, hInc, vInc, static_cast<unsigned char>(c));
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), textColor);
             }
             p += hInc;
         }
@@ -92,9 +145,9 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 
 } // namespace
 
-void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale)
+void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
 {
-    queued.push_back({std::string{text}, pos, angles, align, scale});
+    queued.push_back({std::string{text}, pos, angles, align, scale, screen});
 }
 
 void clear()
@@ -118,15 +171,21 @@ extern "C" void VR_DrawSceneOpaque()
     shadows::draw();
 
     vertices.clear();
+    panels.clear();
     for(const worldtext::WorldText& wt : worldtext::clientTexts())
     {
         layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
     }
     for(const Queued& q : queued)
     {
-        layout(q.text, q.pos, q.angles, q.align, q.scale);
+        layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
     }
 
+    if(!panels.empty())
+    {
+        gfx::draw(panels, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true});
+    }
     if(vertices.empty())
     {
         return;

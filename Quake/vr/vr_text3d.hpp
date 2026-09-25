@@ -18,8 +18,11 @@ enum class Align : int
 };
 
 // Queued for this frame's scene: `pos` is the text block's centre, `angles` face it (Quake
-// angles), each character is 8 * scale units. Lines are separated by '\n'.
-void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale);
+// angles), each character is 8 * scale units. Lines are separated by '\n'. With `screen`, the
+// text sits on a small screen (a bezel box with a lit face, in the wrist gadget's colours), as on
+// the weapons' ammo counters.
+void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
+    bool screen = false);
 
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();
