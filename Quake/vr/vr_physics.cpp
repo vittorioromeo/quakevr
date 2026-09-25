@@ -324,6 +324,7 @@ extern "C" int VR_RunThink2(edict_t* ent)
 
 extern "C" void VR_ClientPreMove(edict_t* ent)
 {
+    server::rebaseHands(ent);
     if(!active())
     {
         return;
@@ -544,6 +545,7 @@ PostThinkShift shift;
 
 extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
 {
+    server::rebaseHands(ent);
     shift.active = false;
     const VrMove* move = server::clientMove(ent);
     if(active() || !move || !vr_compat_muzzle.value)

@@ -20,6 +20,12 @@ void init(); // registers commands
 // VR physics work from these, not from QC fields.
 [[nodiscard]] const VrMove* clientMove(struct edict_s* player);
 
+// The client places `player`'s hands (and muzzles) from where it last saw the player, which
+// lags the server by a frame or more: moves the hand fields (and the stored move) along by
+// however far the player has moved since, so that they sit where the hands are relative to the
+// player now (a held box keeps up with a running player, shots leave the gun).
+void rebaseHands(struct edict_s* player);
+
 // Forgets every client's VR move (a new server).
 void resetClients();
 

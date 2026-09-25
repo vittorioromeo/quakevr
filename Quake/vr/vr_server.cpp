@@ -32,6 +32,7 @@ struct ClientMove
 {
     bool valid{false};
     VrMove move;
+    glm::vec3 base{0.f}; // the player origin the hand fields are placed from (see rebaseHands)
 };
 std::vector<ClientMove> clientMoves;
 
@@ -125,7 +126,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     {
         clientMoves.resize(clientNum + 1);
     }
-    clientMoves[clientNum] = {true, move};
+    clientMoves[clientNum] = {true, move, move.origin};
 
     const FieldOffsets& f = fields();
 
@@ -399,6 +400,36 @@ const VrMove* clientMove(edict_t* player)
 {
     const ClientMove* m = clientMoveOf(player);
     return m ? &m->move : nullptr;
+}
+
+void rebaseHands(edict_t* player)
+{
+    ClientMove* m = clientMoveOf(player);
+    if(!m || m->base == glm::vec3{0.f})
+    {
+        return;
+    }
+    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    const glm::vec3 delta = origin - m->base;
+    if(delta == glm::vec3{0.f})
+    {
+        return;
+    }
+    m->base = origin;
+
+    VrMove& move = m->move;
+    const FieldOffsets& f = fields();
+    for(const int ofs : {f.handpos, f.offhandpos, f.muzzlepos, f.offmuzzlepos, f.handthrowpos, f.offhandthrowpos})
+    {
+        setFieldVec(player, ofs, fieldVec(player, ofs) + delta);
+    }
+    for(VrHandMove& hand : move.hands)
+    {
+        hand.pos += delta;
+        hand.throwPos += delta;
+    }
+    move.muzzlePos[0] += delta;
+    move.muzzlePos[1] += delta;
 }
 
 float* clientHeadAngles(edict_t* player)

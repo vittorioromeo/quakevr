@@ -154,7 +154,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
         xBox.throwdmgspeed = 700 * m2u / 120;
         SetThrownWeaponDealDamage(xBox, TRUE);
-        SetThrownWeaponBaseDamage(xBox, cvar_hget(cvarh_vr_carry_throw_damage));
+        SetThrownWeaponBaseDamage(xBox, cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage));
         xBox.owner = self;
     }
     else
@@ -346,7 +346,10 @@ void(entity xGib) VR_MakeGibGrabbable =
     xGib.solid = SOLID_NOT_BUT_TOUCHABLE;
     xGib.touch = VR_Gib_Touch;
     xGib.handtouch = SUB_Null; // nothing to take: VR_Carry_Setup keeps it as carry_use
-    xGib.flags = xGib.flags | FL_FORCEGRABBABLE;
+    // A head is the monster itself: no longer one (not thrown by the killing blow's push, not a
+    // target). Killed restores its solid after the death code (which often clears it).
+    xGib.flags = (xGib.flags - (xGib.flags & FL_MONSTER)) | FL_FORCEGRABBABLE;
+    xGib.vr_gib = TRUE;
     xGib.throwhit = QVR_THROWHIT_HIT;
     xGib.owner = world;
     SetThrownWeaponDealDamage(xGib, FALSE);

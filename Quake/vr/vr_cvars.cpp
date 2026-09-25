@@ -32,8 +32,9 @@ const DefaultChange defaultChanges[] = {
     {3, &vr_bloom, "0.8"},
     {3, &vr_bloom_threshold, "0.6"},
     {3, &vr_headbutt_speed, "1.5"},
+    {4, &vr_carry_throw_damage, "25"},
 };
-constexpr int configVersion = 3;
+constexpr int configVersion = 4;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()

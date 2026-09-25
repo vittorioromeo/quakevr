@@ -112,6 +112,12 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
+    // Gibs and heads: by hand only, unless vr_grab_gibs 2.
+    if(e.vr_gib && cvar_hget(cvarh_vr_grab_gibs) < 2)
+    {
+        return FALSE;
+    }
+
     if((e.flags & FL_FORCEGRABBABLE) || e.classname == "thrown_weapon")
     {
         // Not while it still flies from a throw.

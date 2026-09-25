@@ -100,6 +100,13 @@ void(entity targ, entity attacker) Killed =
     monster_death_use();
     self.th_die();
 
+    // VR: a head thrown by the death code (the monster itself) stays grabbable, whatever the
+    // death code did after (a soldier's drop makes it SOLID_NOT).
+    if(self.vr_gib)
+    {
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+    }
+
     self = oself;
 };
 
@@ -121,6 +128,8 @@ This should be the only function that ever reduces health.
 // bigger than a grunt move less (by their size), smaller ones more.
 void(entity e, vector dir, float speed, float up) VR_Push =
 {
+    speed = speed * cvar_hget(cvarh_vr_push);
+    up = up * cvar_hget(cvarh_vr_push);
     dir_z = 0;
     dir = normalize(dir);
     if(speed <= 0 || dir == '0 0 0' || e.solid == SOLID_BSP)
@@ -608,15 +617,16 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
 
-    // VR: hit reactions (vr_hit_push): a heavy hit shoves a monster, a killing blow throws the body
-    // (an explosion's away from it).
-    float hitPush = cvar_hget(cvarh_vr_hit_push);
-    if(r && hitPush > 0 && (targ.flags & FL_MONSTER) && (attacker.flags & FL_CLIENT))
+    // VR: hit reactions: a heavy hit shoves a monster (vr_hit_push), a killing blow throws the body
+    // (vr_kill_push; an explosion's away from it).
+    if(r && (targ.flags & FL_MONSTER) && (attacker.flags & FL_CLIENT))
     {
         vector from = inflictor == attacker ? attacker.origin : (inflictor.absmin + inflictor.absmax) * 0.5;
+        float hitPush = cvar_hget(cvarh_vr_hit_push);
         if(targ.health <= 0)
         {
-            VR_Push(targ, targ.origin - from, min(700, damage * 14) * hitPush, min(260, damage * 5) * hitPush);
+            float killPush = cvar_hget(cvarh_vr_kill_push);
+            VR_Push(targ, targ.origin - from, min(700, damage * 14) * killPush, min(260, damage * 5) * killPush);
         }
         else if(damage >= 15)
         {

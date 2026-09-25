@@ -8,6 +8,7 @@
 .void(float) thinkArgFn;
 .void(float) think2ArgFn;
 .float thinkArg;
+.float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .float think2Arg;
 
 //

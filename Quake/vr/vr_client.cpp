@@ -127,6 +127,7 @@ throwing::Estimate thrown[2];
 
     move.headAngles = hs.headAngles;
     move.vrYaw = hands::playSpaceYaw();
+    move.origin = hs.playerOrigin;
 
     // The server walks the player by this over its frame (units per second).
     if(host_frametime > 0.0)
