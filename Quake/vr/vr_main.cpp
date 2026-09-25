@@ -17,6 +17,7 @@
 #include "vr_menu.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
+#include "vr_voicenotes.hpp"
 #include "vr_weapons.hpp"
 
 #include <cstring>
@@ -207,6 +208,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_startgame", VR_StartGame_f);
     registerMockCommands();
     input::init();
+    voicenotes::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
@@ -224,6 +226,7 @@ extern "C" void VR_Shutdown()
         return;
     }
 
+    voicenotes::shutdown();
     stopBackend();
     delete state;
     state = nullptr;
@@ -255,6 +258,7 @@ extern "C" void VR_BeginFrame()
 
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
+    voicenotes::frame(); // after the clear: its indicator is queued anew each frame
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
 

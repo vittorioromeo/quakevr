@@ -14,6 +14,7 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
+#include "vr_voicenotes.hpp"
 
 #include <utility>
 #include <vector>
@@ -183,6 +184,11 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
+                // The off hand's upper button at the mouth records a voice note instead.
+                if(h == HAND_OFF && b.button == &HandInput::secondary && voicenotes::offhandButton(now))
+                {
+                    continue;
+                }
                 Key_Event(b.key[h], now);
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {

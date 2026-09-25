@@ -96,3 +96,13 @@
       with QRP textures.
 
     Dark areas are much darker now; if too dark, Light Contrast between 1 and 1.5 (you play at 1.5).
+
+## Voice notes (after the round)
+
+`vr_voicenotes.cpp`: off hand at the mouth, hold Y (the off hand's upper button; its binding is untouched
+elsewhere) to record from the microphone (SDL capture; Virtual Desktop's by default, `vr_note_device`)
+into `quakevr/notes/<map>_<date>_<time>.wav`, with a context `.txt` and a screenshot of the same name.
+`Misc/quakevr/transcribe_notes.py` transcribes them locally with faster-whisper (large-v3-turbo by
+default) and writes `notes/NOTES.md`. **Tested:** the gesture records from "Microphone (Virtual Desktop
+Audio)"; a synthesised 8.3 s note transcribed word for word in 5.3 s on the CPU.
+

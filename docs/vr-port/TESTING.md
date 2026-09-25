@@ -122,6 +122,22 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 | #12 missing bindings | done: the controller buttons are Quake keys (see Controls) |
 | #20, #14 status bar on the hands | done: on the off hand by default (see HUD below) |
 
+## Voice notes while playing
+
+Raise your off hand to your mouth, like a radio, and hold **Y** to talk; let go to save. "REC" and the
+note's length show low in your view, and the hand buzzes as a note starts and ends. Away from your mouth
+Y does what it always did. Each note is saved in `quakevr/notes/` with a screenshot and where you were (map,
+position, view, health, what each hand held). The microphone is Virtual Desktop's
+(`vr_note_device "Virtual Desktop"`; `vr_note_devices` lists them); Gameplay > Voice Notes turns it off.
+`+vr_note` records from a bound key too.
+
+To turn the notes into text (Whisper, on your PC; the model is already downloaded):
+
+    python Misc/quakevr/transcribe_notes.py
+
+It transcribes the new notes and writes `quakevr/notes/NOTES.md`, every note with its transcript,
+context and screenshot, ready to paste or to point me at.
+
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND10.md`):
