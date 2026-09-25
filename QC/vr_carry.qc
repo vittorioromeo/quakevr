@@ -329,7 +329,13 @@ void() VR_Gib_Touch =
     if(fast && other.solid == SOLID_BSP)
     {
         sound(self, CHAN_AUTO, "zombie/z_miss.wav", 0.7, ATTN_NORM);
-        particle2(self.origin, self.velocity * -0.1, QVR_PARTICLE_PRESET_BLOOD, 12);
+
+        // With vr_gib_blood the engine splats and spurts blood where a gib hits the world (not doors
+        // or lifts, which get this).
+        if(!cvar_hget(cvarh_vr_gib_blood) || other != world)
+        {
+            particle2(self.origin, self.velocity * -0.1, QVR_PARTICLE_PRESET_BLOOD, 12);
+        }
     }
     forcegrabbable_touch();
 };

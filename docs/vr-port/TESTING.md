@@ -124,7 +124,18 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND9.md`):
+- **New in this round** (details in `docs/vr-port/ROUND10.md`):
+  - **The DarkPlaces look:** darker shade, flat model lighting, strong coloured flashes and explosions, a sheen
+    and bumps under dynamic lights, smooth QRP textures, bloom stronger on coloured lights and weaker on white
+    (and on brightly lit maps). Every part has a switch on the Graphics page.
+  - **See-through water** in the relit maps.
+  - **Training dummy** in vrfiringrange: every hit's damage, kind and body part in the console and as a floating
+    number.
+  - **Held boxes** keep up when you move; **knockback** has a base and a setting per source; **thrown boxes and
+    gibs** hurt less (and only when fast); gibs by hand only; **heads** can be picked up; gibs bleed and splat;
+    wounded arms drip; a meatier **headshot** sound.
+
+- **Previous round** (`docs/vr-port/ROUND9.md`):
   - **Boxes:** a held box turns with your hand about where you hold it; it is grabbed only when your hand is
     on it; bounces turn the right way; it comes to rest flat on the floor.
   - **Swords:** the grip is centred on the blade, thicker and square in section.

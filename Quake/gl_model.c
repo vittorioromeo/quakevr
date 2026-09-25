@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api.h" // QVR
+#include "vr/vr_api_render.h" // QVR
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 
@@ -535,6 +536,41 @@ static textype_t Mod_TextureTypeFromName (const char *texname)
 Mod_LoadTextures
 =================
 */
+/*
+=================
+Mod_LoadNormalMap -- QVR: the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
+authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
+own shading (`data`, as loaded). `worldwidth` is the texture's width in the world.
+=================
+*/
+static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, byte *data, enum srcformat format, int worldwidth)
+{
+	static const struct { const char *suffix; int kind; } authored[] = {
+		{"_norm", NORMALMAP_AUTHORED},
+		{"_bump", NORMALMAP_SHADING},
+	};
+	char			filename[MAX_OSPATH];
+	int				i, mark, fwidth, fheight;
+	enum srcformat	fmt;
+	byte			*img;
+
+	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
+		return;
+	for (i = 0; image && i < (int) countof (authored); i++)
+	{
+		mark = Hunk_LowMark ();
+		q_snprintf (filename, sizeof (filename), "%s%s", image, authored[i].suffix);
+		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		if (img)
+			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind, worldwidth);
+		Hunk_FreeToLowMark (mark);
+		if (img)
+			return;
+	}
+	TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+		glt->source_offset, NORMALMAP_SHADING, worldwidth);
+}
+
 static void Mod_LoadTextures (lump_t *l)
 {
 	int		i, j, pixels, num, maxanim, altmax;
@@ -695,6 +731,7 @@ static void Mod_LoadTextures (lump_t *l)
 					char filename2[MAX_OSPATH];
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight,
 						fmt, data, filename, 0, TEXPREF_MIPMAP | extraflags );
+					Mod_LoadNormalMap (tx->gltexture, filename, data, fmt, tx->width); // QVR
 
 					//now try to load glow/luma image from the same place
 					Hunk_FreeToLowMark (mark);
@@ -735,6 +772,7 @@ static void Mod_LoadTextures (lump_t *l)
 						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
 							SRC_INDEXED, (byte *)(tx+1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
+					Mod_LoadNormalMap (tx->gltexture, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width); // QVR
 				}
 				Hunk_FreeToLowMark (mark);
 			}
@@ -2995,6 +3033,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			pheader->gltextures[i][3] = pheader->gltextures[i][2] = pheader->gltextures[i][1] = pheader->gltextures[i][0];
 			pheader->fbtextures[i][3] = pheader->fbtextures[i][2] = pheader->fbtextures[i][1] = pheader->fbtextures[i][0];
 			//johnfitz
+			Mod_LoadNormalMap (pheader->gltextures[i][0], NULL, (byte *)(pskintype+1), SRC_INDEXED, pheader->skinwidth); // QVR
 
 			pskintype = (daliasskintype_t *)((byte *)(pskintype+1) + size);
 		}
@@ -3043,6 +3082,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
+				Mod_LoadNormalMap (pheader->gltextures[i][j&3], NULL, (byte *)(pskintype), SRC_INDEXED, pheader->skinwidth); // QVR
 
 				pskintype = (daliasskintype_t *)((byte *)(pskintype) + size);
 			}

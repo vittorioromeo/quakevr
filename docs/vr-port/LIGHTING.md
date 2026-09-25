@@ -17,7 +17,7 @@ Settings > Lights and Shadows, or the cvars below), with presets from "Off (Quak
 | **Quetoo** (Quake 2) | Per pixel, up to 512. | Atlas tiles per light. Each tile is redrawn only when a hash of the light and its casters changes. Poisson PCF with a normal offset. | The closest match to this design. |
 | **q2pro-ng** (Quake 2) | 64 per-pixel lights for world and models. | A D32F atlas with a quadtree allocator; a static atlas caches world-only depth, copied under the moving casters each frame; 4-tap PCF; `glPolygonOffset`. | The closest existing design; ours keeps the two maps separate so the shader can tell world from moving occlusion. |
 | **vkQuake** | Dynamic lights on the GPU into the lightmap. | `r_rtshadows`: ray queries in the lightmap compute shader (Vulkan RT only), shadows at lightmap resolution. | Its author prefers soft, lightmap-resolution shadows for Quake's look. |
-| **RBDOOM-3-BFG** | | An 8192 atlas; LOD from projected radius (`r_shadowMapLodScale`); Vogel-disk PCF with 1�16 samples; point faces at 92�. | |
+| **RBDOOM-3-BFG** | | An 8192 atlas; LOD from projected radius (`r_shadowMapLodScale`); Vogel-disk PCF with 1�16 samples; point faces at 92�. | |
 | **Hexenwail** (an Ironwail fork) | Froxel lights on world and models. | Planned: the top N lights, 64–1024 px. | |
 | **Ironwail** | A GPU-clustered grid (32×16×32, up to 64 lights, one bitmask per cluster), lightmap-style falloff on the world, flat on models. | None. | The base of this work. |
 
@@ -161,10 +161,10 @@ dynamic lights are capped against bright walls, and nothing glows. Four changes,
   stay as they were, and the brightest spots get a little brighter, so the level's own lamps carry the scene.
   Models get the same curve on the light at their feet (`VR_AliasLightCurve`, before the minimum light). 1 is
   Quake's look.
-- **Shooting lights up rooms.** A muzzle flash's light is `vr_flash_scale` (1.8) times Quake's size. It fades out
+- **Shooting lights up rooms.** A muzzle flash's light is `vr_flash_scale` (1.8; 1 since round 10) times Quake's size. It fades out
   over a tenth of a second rather than blinking off, and is coloured by the weapon: warm for shotguns, orange for
   nailguns, red-orange for rockets, blue for the lightning gun. Explosions and rockets are
-  `vr_explosion_light_scale` (1.5) times bigger and warm (`vr_colored_lights`). Dynamic lights are now uncapped
+  `vr_explosion_light_scale` (1.5; 1 since round 10) times bigger and warm (`vr_colored_lights`). Dynamic lights are now uncapped
   by default (`vr_dlight_uncapped` 1): Quake's cap hid them on anything already lit. All of this is set by one
   hook, `VR_TuneDlight`, called where Quake sets these lights up.
 - **Bloom** (`vr_bloom` 0.8, `vr_bloom_threshold` 0.6, `vr_bloom_radius`; `vr_bloom.cpp`), per eye, after the
@@ -191,6 +191,68 @@ dynamic lights are capped against bright walls, and nothing glows. Four changes,
 
 The presets set all of this: "Off (Quake)" restores Quake's contrast, no bloom, Quake's white capped flashes;
 the others the new look.
+
+## DarkPlaces look (round 10)
+
+DarkPlaces looked moodier than this port. From its source: it never brightens (gamma and contrast 1, no bounced
+light); models are lit flat at the floor's brightness; its dynamic lights are strong, coloured and fall off smoothly;
+textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a faint sheen. The same, each switchable
+(Graphics menu):
+
+- **Neutral headset output.** The eyes use their own `vr_gamma` and `vr_contrast` (1), not the desktop's `gamma` and
+  `contrast` (often raised for a monitor: 0.95 and 1.2 in the author's config), which the desktop window keeps. The
+  OpenXR backend logs the swapchain format once and warns if it isn't sRGB (the compositor would then show the image
+  paler and brighter). The palettized software-emulation modes still use the desktop's values.
+- **Moodier relight** (`relight_maps.py`): no bounced light, ambient occlusion 1.5 (was 1.0), glowing textures half
+  the light (`--glow-budget 300`, was 600). `--bright` gives the earlier look. The relight was rerun for every map.
+- **Smooth replacement textures** (`vr_texture_smooth` 1): images from `textures/` (QRP's 512² ones) and normal maps
+  are linear with trilinear mipmaps; Quake's own 8-bit textures keep `gl_texturemode` (2: all textures smooth).
+- **Models lit as the world** (`vr_model_light_parity`): the light at a model's feet over 128 (the world's full light),
+  shaded 0.6 .. 1.4 by the normal (on average the light given), instead of over 200 with MH's 0.7 .. 2 and the 96 cap:
+  models were 1.5 to 2.6 times as bright as the floor under them. Hands and weapons keep at least
+  `vr_viewmodel_minlight` (8; Quake's 24). `vr_light_contrast`'s curve still applies first.
+- **DarkPlaces' dynamic lights** (`vr_dlight_falloff` 1; 0 is Quake's linear falloff):
+  - falloff `clamp((1 - d) × 2 / (1 + d²), 0, 1)`, d = distance / radius: full light to about 40% of the radius, then
+    smoothly to none, by the 3D distance, never capped, Lambert's angle term (`vr_dlight_angle`);
+  - colours brighter than 1 (`VR_TuneDlight`): muzzle flash radius 150, white 4, fading out over 0.05 s; rocket 200,
+    (3, 1.5, 0.5); explosion 350 shrinking 700/s over 0.5 s, (4, 2, 0.5), a quarter of it reaching what faces away.
+    `vr_colored_lights` 0 makes them white as bright; `vr_flash_scale` and `vr_explosion_light_scale` (now 1) scale
+    DarkPlaces' sizes. Lights not tuned (EF_DIMLIGHT, the powerups' glows, `vr_light_test`) get DarkPlaces' 1.5, 3 from a
+    radius of 400 (EF_BRIGHTLIGHT).
+  - `VR_DlightShadow` hands the shaders the per-light part (the ambient share in `minlight`, the fading colour).
+- **Sheen** (`vr_specular` 0.125): Blinn, exponent 32, white, from dynamic lights only, towards each eye's own
+  position, on the world and models, shadowed like the light.
+- **Normal maps made at load** (`vr_normalmaps` 1, `vr_normalmap_strength` 1): for world textures and model skins, from
+  the texture's luminance taken as height (a Sobel gradient; DarkPlaces' `r_shadow_bumpscale_basetexture`), 2 units deep
+  from black to white; an authored `<image>_norm` beside a replacement image is used as it is, and a `<image>_bump`
+  height map instead of the texture. They bend only the dynamic lights' angle and sheen, not the baked light. The
+  surface's frame is a cotangent frame from the derivatives of the position and texture coordinates (exact on the
+  world's flat faces, the same in both eyes, no vertex data). World calls carry the map's bindless handle (or unit 3),
+  alias skins use unit 2. Made maps are at most 256² and stored RG8 (the shader makes z): about 15 MB for e1m1's
+  world with QRP and 9 MB for the models' skins. New maps get them as they load (the setting applies next map; model
+  skins already loaded keep what they have).
+- **Bloom by colour** (`vr_bloom_white` 0.5, `vr_bloom_color` 1.5, times `vr_bloom`): the bright pass weighs a pixel
+  by its saturation, so red buttons and blue panels glow more, white lamps and flashes less.
+
+| Cvar | Default | Off (Quake) |
+|---|---|---|
+| `vr_gamma`, `vr_contrast` | 1, 1 | (not in presets) |
+| `vr_texture_smooth` | 1 | 0 |
+| `vr_model_light_parity` | 1 | 0 |
+| `vr_viewmodel_minlight` | 8 | 24 |
+| `vr_dlight_falloff` | 1 | 0 |
+| `vr_specular` | 0.125 | 0 |
+| `vr_normalmaps` | 1 (0 on Low) | 0 |
+| `vr_normalmap_strength` | 1 | (not in presets) |
+| `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
+| `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
+
+**Cost.** Per pixel, only where a dynamic light's cluster reaches: one normal map tap and a few instructions per light
+(four derivatives are taken for every world and model pixel). Loading: a Sobel pass over at most 256² per texture, and
+a look for `_norm`/`_bump` images beside each replacement. Memory: about 24 MB of normal maps on e1m1 with QRP.
+
+Not done: DarkPlaces' quad-damage explosion colour (the client can't tell); a fake deluxe map (bumps on the baked
+light).
 
 ## Next
 

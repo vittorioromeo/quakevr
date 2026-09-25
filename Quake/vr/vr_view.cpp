@@ -8,6 +8,7 @@
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
 #include "vr_body.hpp"
+#include "vr_bodyblood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
@@ -766,6 +767,25 @@ void setupBody(const hands::State& s)
     }
 }
 
+// Blood dripping from the wounds (vr_body_blood, vr_bodyblood.cpp): from the hands where they are
+// drawn, and the forearms while the body is posed.
+void dripBlood(const hands::State& s)
+{
+    avatar::HandPose poses[2];
+    const avatar::HandPose* drawn[2]{nullptr, nullptr};
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        if(base.visible && base.ent.model)
+        {
+            poses[hand] = drawnHand(s, hand);
+            drawn[hand] = &poses[hand];
+        }
+    }
+    const bool alive = cl.stats[STAT_HEALTH] > 0;
+    bodyblood::update(s, drawn, alive ? damageLevel() : 0);
+}
+
 // The pauldrons (vr_body_pauldrons; make_pauldron.py), after the Quake ranger's: a cap over each
 // shoulder, carried by the clavicle and turning partly with the upper arm, and lames round the top
 // of the upper arm, which they follow. Both models are made in the bind pose's body space about the
@@ -1064,6 +1084,7 @@ extern "C" void VR_SetupViewEntities()
     {
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
         s.muzzleValid[HAND_OFF] = s.muzzleValid[HAND_MAIN] = false;
+        bodyblood::clear();
         return;
     }
 
@@ -1090,6 +1111,7 @@ extern "C" void VR_SetupViewEntities()
     setupBody(s);
     setupPauldrons();
     setupGadget(s);
+    dripBlood(s);
     setupButton(s, HAND_MAIN);
     setupButton(s, HAND_OFF);
     for(int hand = 0; hand < 2; hand++)

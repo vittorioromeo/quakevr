@@ -139,6 +139,7 @@ float(string s) strlen = #114;          // FRIK_FILE
 string(string s, float start, float length) substring = #116; // FRIK_FILE
 float(string s, float index) str2chr = #222;                  // FTE_STRINGS
 float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians
+string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 
 // ----------------------------------------------------------------------------
 // Quake VR builtins (#0: bound by name by the engine's VR module)
@@ -162,5 +163,7 @@ void(float h, vector v) worldtext_hsetpos = #0;
 void(float h, vector v) worldtext_hsetangles = #0;
 void(float h, float v) worldtext_hsethalign = #0;
 void(float h, float v) worldtext_hsetscale = #0;
+
+void(vector org, string text, vector colour, float scale) floattext = #0; // a text rising from `org` and fading (1.5 s), facing the viewer, for every client
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords

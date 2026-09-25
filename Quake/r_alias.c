@@ -230,6 +230,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	vec3_t		dist;
 	float		add;
 	int			i;
+	qboolean	parity = VR_ModelLightParity (); // QVR: on a par with the world: the shader shades 0.6 .. 1.4 by the normal
 
 	// if the initial trace is completely black, try again from above
 	// this helps with models whose origin is slightly below ground level
@@ -254,7 +255,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	// minimum light value on gun (24)
 	if (e == &cl.viewent || VR_IsViewEntity (e)) // QVR
 	{
-		add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+		add = 3.0f * VR_ViewModelMinLight () - (lightcolor[0] + lightcolor[1] + lightcolor[2]); // QVR: vr_viewmodel_minlight
 		if (add > 0.0f)
 		{
 			add *= 1.0f / 3.0f;
@@ -278,7 +279,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	}
 
 	// clamp lighting so it doesn't overbright as much (96)
-	if (gl_overbright_models.value)
+	if (gl_overbright_models.value && !parity) // QVR: on a par with the world, as bright as it
 	{
 		add = lightcolor[0] + lightcolor[1] + lightcolor[2];
 		if (add > 288.0f)
@@ -292,6 +293,9 @@ void R_SetupAliasLighting (entity_t	*e)
 		lightcolor[2] = 256.0f;
 	}
 
+	if (parity) // QVR: 128 is full light, as on the world (the shader doubles overbright models)
+		VectorScale (lightcolor, gl_overbright_models.value ? 1.0f / 256.0f : 1.0f / 128.0f, lightcolor);
+	else
 	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
 	VR_AliasLightModifier (e, lightcolor); // QVR
 }
@@ -317,7 +321,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLuint		buffers[2];
 	GLintptr	offsets[2];
 	GLsizeiptr	sizes[2];
-	gltexture_t* textures[2];
+	gltexture_t* textures[3];	// QVR: and the normal map
 	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
@@ -446,8 +450,9 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (r_lightmap_cheatsafe) { textures[0] = greytexture; textures[1] = blacktexture; }
 		if (!textures[1]) textures[1] = blacktexture;
 		if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
+		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-		GL_BindTextures (0, 2, textures);
+		GL_BindTextures (0, 3, textures);
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
 		rs_aliaspasses += hdr->numtris * ibuf.count;
 	}
@@ -475,8 +480,9 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (r_lightmap_cheatsafe) { textures[0] = greytexture; textures[1] = blacktexture; }
 			if (!textures[1]) textures[1] = blacktexture;
 			if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
+			textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-			GL_BindTextures (0, 2, textures);
+			GL_BindTextures (0, 3, textures);
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
 			rs_aliaspasses += hdr->numtris * ibuf.count;
 		}
@@ -708,7 +714,8 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
 	VR_AliasLightDir (e, instance->lightdir); // QVR
 	instance->glow[0] = VR_EntityGlow (e); // QVR
-	instance->glow[1] = instance->glow[2] = instance->glow[3] = 0.f;
+	instance->glow[1] = VR_ModelLightParity () ? 1.f : 0.f; // QVR: the shader's shading on a par with the world
+	instance->glow[2] = instance->glow[3] = 0.f;
 }
 
 /*

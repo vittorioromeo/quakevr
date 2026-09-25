@@ -675,13 +675,17 @@ void CL_RelinkEntities (void)
 
 		if (ent->model->flags & EF_GIB)
 		{
-			CL_RocketTrail (ent, 2);
-			VR_DecalGibTrail (i, ent->origin); // QVR: blood drops under it
+			if (VR_GibTrail (i, 0)) // QVR: Quake VR's blood trail, drops and splats
+				CL_ResetTrail (ent);
+			else
+				CL_RocketTrail (ent, 2);
 		}
 		else if (ent->model->flags & EF_ZOMGIB)
 		{
-			CL_RocketTrail (ent, 4);
-			VR_DecalGibTrail (i, ent->origin); // QVR
+			if (VR_GibTrail (i, 1)) // QVR
+				CL_ResetTrail (ent);
+			else
+				CL_RocketTrail (ent, 4);
 		}
 		else if (ent->model->flags & EF_TRACER)
 			CL_RocketTrail (ent, 3);

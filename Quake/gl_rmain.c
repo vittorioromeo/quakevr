@@ -332,9 +332,13 @@ GL_PostProcess
 void GL_PostProcess (void)
 {
 	int palidx, variant;
-	float dither;
+	float dither, gamma, contrast;
 	if (!GL_NeedsPostprocess ())
 		return;
+
+	gamma = vid_gamma.value;
+	contrast = q_min (2.0f, q_max (1.0f, vid_contrast.value));
+	VR_PostProcessGamma (&gamma, &contrast); // QVR: an eye's are the headset's own (vr_gamma, vr_contrast)
 
 	GL_BeginGroup ("Postprocess");
 
@@ -351,7 +355,7 @@ void GL_PostProcess (void)
 	GL_BindNative (GL_TEXTURE1, GL_TEXTURE_3D, gl_palette_lut);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[palidx], 0, 256 * sizeof (GLuint));
 	if (variant != 2) // some AMD drivers optimize out the uniform in variant #2
-		GL_Uniform4fFunc (0, vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)), 1.f/r_refdef.scale, dither);
+		GL_Uniform4fFunc (0, gamma, contrast, 1.f/r_refdef.scale, dither);
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 

@@ -153,6 +153,16 @@ void PF_worldtext_hsetscale()
     worldtext::serverSetScale(worldTextHandle(), G_FLOAT(OFS_PARM1));
 }
 
+// floattext(origin, text, colour, scale): a text that rises from `origin` and fades, facing
+// whoever looks (a damage number), shown to every client.
+void PF_floattext()
+{
+    const float* org = G_VECTOR(OFS_PARM0);
+    const float* color = G_VECTOR(OFS_PARM2);
+    worldtext::serverFloatText({org[0], org[1], org[2]}, G_STRING(OFS_PARM1), {color[0], color[1], color[2]},
+        G_FLOAT(OFS_PARM3));
+}
+
 // ----------------------------------------------------------------------------
 // Messages
 
@@ -271,6 +281,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
+    {"floattext", PF_floattext},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

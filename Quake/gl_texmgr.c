@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "glquake.h"
+#include "vr/vr_api_render.h" // QVR
 
 typedef struct {
 	GLenum		id;
@@ -60,6 +61,16 @@ static int numgltextures;
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
+// QVR: normal maps (TexMgr_LoadNormalMap), by the index of a texture in the array of them: a texture's normal map,
+// and for a normal map what it is made from and the width of its texture in the world (for its depth).
+static gltexture_t	*gltextures_base;
+static gltexture_t	*normalmap_of[MAX_GLTEXTURES];
+static byte			normalmap_kind[MAX_GLTEXTURES];
+static unsigned short	normalmap_worldwidth[MAX_GLTEXTURES];
+static gltexture_t	*flatnormaltexture;
+#define NORMALMAP_MAXSIZE	256 // made ones: the bumps a dynamic light shows need no more (and a 512 texture's would take 1.4 MB)
+#define NORMALMAP_DEPTH		2.f // units deep a texture's shading from black to white is, at vr_normalmap_strength 1
+
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
 unsigned int d_8to24table_fbright[256];			//fullbright palette, 0-223 are black (for additive blending)
@@ -95,6 +106,29 @@ static int glmode_idx = 2; /* nearest with linear mips */
 static GLuint gl_samplers[NUM_GLMODES * 2]; // x2: nomip + mip
 
 texfilter_t gl_texfilter;
+static int gl_texfilter_smooth; // QVR: VR_TextureSmoothing () as applied
+
+#define GLMODE_SMOOTH 5 // QVR: GL_LINEAR_MIPMAP_LINEAR
+
+/*
+===============
+TexMgr_FilterMode -- QVR: the filter mode of a texture. Replacement textures (textures/*.tga and the like, drawn
+several texels to a Quake texel) and normal maps are smooth, linear with trilinear mipmaps (vr_texture_smooth 1),
+or every mipmapped texture is (2); Quake's own follow gl_texturemode.
+===============
+*/
+static int TexMgr_FilterMode (gltexture_t *glt)
+{
+	if (!(glt->flags & TEXPREF_MIPMAP) || gl_texfilter_smooth <= 0)
+		return gl_texfilter.mode;
+	if (gl_texfilter_smooth >= 2)
+		return GLMODE_SMOOTH;
+	if (glt->source_format == SRC_RGBA && glt->source_file[0] && !glt->source_offset) // an image file
+		return GLMODE_SMOOTH;
+	if (gltextures_base && normalmap_kind[glt - gltextures_base] != NORMALMAP_NONE)
+		return GLMODE_SMOOTH;
+	return gl_texfilter.mode;
+}
 
 
 /*
@@ -161,7 +195,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 			return;
 
 		GL_MakeTextureHandleNonResidentARBFunc (glt->bindless_handle);
-		sampleridx = gl_texfilter.mode * 2;
+		sampleridx = TexMgr_FilterMode (glt) * 2; // QVR
 		if (glt->flags & TEXPREF_MIPMAP)
 			sampleridx++;
 		glt->bindless_handle = GL_GetTextureSamplerHandleARBFunc (glt->texnum, gl_samplers[sampleridx]);
@@ -184,8 +218,9 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	}
 	else if (glt->flags & TEXPREF_MIPMAP)
 	{
-		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[gl_texfilter.mode].magfilter);
-		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[gl_texfilter.mode].minfilter);
+		int mode = TexMgr_FilterMode (glt); // QVR
+		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, glmodes[mode].magfilter);
+		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, glmodes[mode].minfilter);
 		glTexParameterf(glt->target, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texfilter.anisotropy);
 		glTexParameterf(glt->target, GL_TEXTURE_LOD_BIAS, gl_texfilter.lodbias);
 	}
@@ -332,9 +367,12 @@ void TexMgr_ApplySettings (void)
 	texfilter_t prev = gl_texfilter;
 	gltexture_t	*glt;
 
+	int			prevsmooth = gl_texfilter_smooth; // QVR
+
 	gl_texfilter.mode		= glmode_idx;
 	gl_texfilter.anisotropy	= CLAMP (1.f, gl_texture_anisotropy.value, gl_max_anisotropy);
 	gl_texfilter.lodbias	= lodbias;
+	gl_texfilter_smooth		= TexMgr_UsesFilterOverride () ? 0 : VR_TextureSmoothing (); // QVR
 
 	// if softemu is either 2 & 3 or r_softemu_lightmap_banding is > 0 we override the filtering mode, unless it's GL_NEAREST
 	if (gl_texfilter.mode != 0 && TexMgr_UsesFilterOverride ())
@@ -347,7 +385,8 @@ void TexMgr_ApplySettings (void)
 
 	if (gl_texfilter.mode		== prev.mode &&
 		gl_texfilter.anisotropy	== prev.anisotropy &&
-		gl_texfilter.lodbias	== prev.lodbias)
+		gl_texfilter.lodbias	== prev.lodbias &&
+		gl_texfilter_smooth		== prevsmooth) // QVR
 		return;
 
 	if (gl_bindless_able)
@@ -604,6 +643,8 @@ gltexture_t *TexMgr_NewTexture (void)
 	free_gltextures = glt->next;
 	glt->next = active_gltextures;
 	active_gltextures = glt;
+	normalmap_of[glt - gltextures_base] = NULL; // QVR
+	normalmap_kind[glt - gltextures_base] = NORMALMAP_NONE;
 
 	glGenTextures(1, &glt->texnum);
 	numgltextures++;
@@ -630,6 +671,10 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		Con_Printf ("TexMgr_FreeTexture: NULL texture\n");
 		return;
 	}
+
+	// QVR: its normal map is freed with it (they have the same owner)
+	normalmap_of[kill - gltextures_base] = NULL;
+	normalmap_kind[kill - gltextures_base] = NORMALMAP_NONE;
 
 	if (active_gltextures == kill)
 	{
@@ -842,11 +887,13 @@ void TexMgr_Init (void)
 	static byte whitetexture_data[16] = {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255}; //white
 	static byte greytexture_data[16] = {127,127,127,255,127,127,127,255,127,127,127,255,127,127,127,255}; //50% grey
 	static byte blacktexture_data[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //black
+	static byte flatnormal_data[16] = {128,128,255,255,128,128,255,255,128,128,255,255,128,128,255,255}; // QVR: a flat normal map
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
 	cmd_function_t	*cmd;
 
 	// init texture list
 	free_gltextures = (gltexture_t *) Hunk_AllocName (MAX_GLTEXTURES * sizeof(gltexture_t), "gltextures");
+	gltextures_base = free_gltextures; // QVR
 	active_gltextures = NULL;
 	for (i = 0; i < MAX_GLTEXTURES - 1; i++)
 		free_gltextures[i].next = &free_gltextures[i+1];
@@ -892,6 +939,7 @@ void TexMgr_Init (void)
 	whitetexture = TexMgr_LoadImage (NULL, "whitetexture", 2, 2, SRC_RGBA, whitetexture_data, "", (src_offset_t)whitetexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_BINDLESS);
 	greytexture = TexMgr_LoadImage (NULL, "greytexture", 2, 2, SRC_RGBA, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_BINDLESS);
 	blacktexture = TexMgr_LoadImage (NULL, "blacktexture", 2, 2, SRC_RGBA, blacktexture_data, "", (src_offset_t)blacktexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_BINDLESS);
+	flatnormaltexture = TexMgr_LoadImage (NULL, "flatnormaltexture", 2, 2, SRC_RGBA, flatnormal_data, "", (src_offset_t)flatnormal_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_BINDLESS | TEXPREF_UNCOMPRESSED); // QVR
 
 	//have to assign these here becuase Mod_Init is called before TexMgr_Init
 	r_notexture_mip->gltexture = r_notexture_mip2->gltexture = notexture;
@@ -1281,6 +1329,50 @@ static void GL_TexImage (gltexture_t *glt, GLint level, GLint internalformat, GL
 
 /*
 ================
+TexMgr_ShadingToNormals -- QVR: a texture's shading made a normal map (DarkPlaces' r_shadow_bumpscale_basetexture):
+its luminance taken for height, bumps from its Sobel gradient; `scale` is how deep a step from black to white is, in
+texels. The texture tiles: the edges wrap round. Tangent space: x along the texture's s, y up its rows (green up).
+================
+*/
+static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale)
+{
+	int		x, y, mark;
+	float	*lum;
+
+	if (width < 1 || height < 1)
+		return;
+	mark = Hunk_LowMark ();
+	lum = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+	for (x = 0; x < width * height; x++)
+		lum[x] = (data[x*4+0] * 0.299f + data[x*4+1] * 0.587f + data[x*4+2] * 0.114f) * (1.f / 255.f);
+
+	for (y = 0; y < height; y++)
+	{
+		const float *up = lum + ((y + height - 1) % height) * width;
+		const float *mid = lum + y * width;
+		const float *down = lum + ((y + 1) % height) * width;
+		for (x = 0; x < width; x++)
+		{
+			int		l = (x + width - 1) % width, r = (x + 1) % width;
+			float	gx = (up[r] + 2.f * mid[r] + down[r]) - (up[l] + 2.f * mid[l] + down[l]); // 8 x d(height)/ds
+			float	gy = (down[l] + 2.f * down[x] + down[r]) - (up[l] + 2.f * up[x] + up[r]); // 8 x d(height)/dt, rows down
+			float	n[3], len;
+			byte	*out = data + (y * width + x) * 4;
+			n[0] = -gx * (scale / 8.f);
+			n[1] = gy * (scale / 8.f); // green up: against the rows
+			n[2] = 1.f;
+			len = 1.f / sqrtf (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+			out[0] = (byte) CLAMP (0, (int)((n[0] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+			out[1] = (byte) CLAMP (0, (int)((n[1] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+			out[2] = (byte) CLAMP (0, (int)((n[2] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+			out[3] = 255;
+		}
+	}
+	Hunk_FreeToLowMark (mark);
+}
+
+/*
+================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -1289,9 +1381,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int	miplevel, mipwidth, mipheight, picmip;
 	glformat_t internalformat;
 	qboolean compress;
+	int normalmap = normalmap_kind[glt - gltextures_base]; // QVR
 
 	// HASALPHA detection
-	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS))
+	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS) && !normalmap) // QVR: normal maps are opaque
 	{
 		int num_pixels = glt->width * glt->height;
 		byte* pixel_data = (byte*)data;
@@ -1311,6 +1404,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
 	mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
 	mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
+	if (normalmap == NORMALMAP_SHADING) // QVR: made at most NORMALMAP_MAXSIZE
+	{
+		while (mipwidth > NORMALMAP_MAXSIZE && !(mipwidth & 1))
+			mipwidth >>= 1;
+		while (mipheight > NORMALMAP_MAXSIZE && !(mipheight & 1))
+			mipheight >>= 1;
+	}
 	while ((int) glt->height > mipheight)
 	{
 		TexMgr_MipMapH (data, glt->width, glt->height, glt->depth);
@@ -1326,9 +1426,18 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
+	if (normalmap == NORMALMAP_SHADING) // QVR
+		TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height,
+			NORMALMAP_DEPTH * glt->width / q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]));
+
 	// upload
 	compress = gl_compress_textures.value && TexMgr_CanCompress (glt);
 	internalformat = (glt->flags & TEXPREF_HASALPHA) ? glformats[compress].alpha : glformats[compress].solid;
+	if (normalmap) // QVR: x and y only, half the memory (the shaders make z)
+	{
+		internalformat.id = GL_RG8;
+		internalformat.ratio = 2;
+	}
 	glt->compression = internalformat.ratio;
 	GL_Bind (GL_TEXTURE0, glt);
 	GL_TexImage (glt, 0, internalformat.id, glt->width, glt->height, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -1578,6 +1687,74 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 	Hunk_FreeToLowMark(mark);
 
 	return glt;
+}
+
+/*
+================
+TexMgr_LoadNormalMap -- QVR: the normal map dynamic lights light `base` with (vr_normalmaps): made from `data`, the
+texture's own pixels or a *_bump height map (NORMALMAP_SHADING), or an authored *_norm map (NORMALMAP_AUTHORED).
+`worldwidth` is the texture's width in the world (a replacement image has more texels), for the bumps' depth. It is
+reloaded from its source like any texture, and freed with its owner.
+================
+*/
+gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int width, int height, enum srcformat format,
+	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth)
+{
+	char		nmname[64];
+	gltexture_t	*glt;
+	int			mark;
+
+	if (isDedicated || !base || !data || kind == NORMALMAP_NONE || format == SRC_LIGHTMAP)
+		return NULL;
+
+	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name ? name : base->name);
+	glt = TexMgr_NewTexture ();
+	glt->owner = base->owner;
+	glt->target = GL_TEXTURE_2D;
+	q_strlcpy (glt->name, nmname, sizeof (glt->name));
+	glt->width = width;
+	glt->height = height;
+	glt->depth = 1;
+	glt->compression = 1;
+	glt->flags = TEXPREF_MIPMAP | (base->flags & (TEXPREF_BINDLESS | TEXPREF_PAD | TEXPREF_PERSIST));
+	glt->shirt = -1;
+	glt->pants = -1;
+	q_strlcpy (glt->source_file, source_file, sizeof (glt->source_file));
+	glt->source_offset = source_offset;
+	glt->source_format = format;
+	glt->source_width = width;
+	glt->source_height = height;
+	glt->source_crc = 0;
+	glt->bindless_handle = 0;
+	normalmap_kind[glt - gltextures_base] = (byte) kind;
+	normalmap_worldwidth[glt - gltextures_base] = (unsigned short) CLAMP (1, worldwidth, 65535);
+
+	mark = Hunk_LowMark ();
+	if (format == SRC_INDEXED)
+		TexMgr_LoadImage8 (glt, data);
+	else
+		TexMgr_LoadImage32 (glt, (unsigned *)data);
+	GL_ObjectLabelFunc (GL_TEXTURE, glt->texnum, -1, glt->name);
+	if (glt->flags & TEXPREF_BINDLESS && gl_bindless_able)
+	{
+		glt->bindless_handle = GL_GetTextureHandleARBFunc (glt->texnum);
+		GL_MakeTextureHandleResidentARBFunc (glt->bindless_handle);
+	}
+	Hunk_FreeToLowMark (mark);
+
+	normalmap_of[base - gltextures_base] = glt;
+	return glt;
+}
+
+/*
+================
+TexMgr_NormalMap -- QVR: a texture's normal map, or a flat one
+================
+*/
+gltexture_t *TexMgr_NormalMap (gltexture_t *glt)
+{
+	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
+	return nm ? nm : flatnormaltexture;
 }
 
 /*

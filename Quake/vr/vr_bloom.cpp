@@ -40,10 +40,13 @@ void main()
 
 // Down to a quarter: 16 texels averaged by four bilinear taps, keeping what is over the threshold.
 // The scene is low dynamic range (a lamp is 1, not 10), so the response rises steeply towards white:
-// lamps and glowing panels glow, merely bright walls hardly.
+// lamps and glowing panels glow, merely bright walls hardly. White and pale light glows by
+// vr_bloom_white, coloured light (red buttons, blue panels) by vr_bloom_color, blended by how
+// saturated it is.
 constexpr const char* brightFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;
 layout(location = 0) uniform vec4 Params; // threshold, 0, 1 / scene width, 1 / scene height
+layout(location = 1) uniform vec2 Weights; // white, coloured
 layout(location = 0) out vec4 Out;
 void main()
 {
@@ -53,7 +56,9 @@ void main()
                  max(texture(Scene, uv + vec2(-t.x, t.y)).rgb, texture(Scene, uv + vec2(t.x, t.y)).rgb));
     float bright = max(c.r, max(c.g, c.b));
     float x = clamp((bright - Params.x) / max(1.0 - Params.x, 1e-3), 0.0, 1.0);
-    Out = vec4(c * (x * x * 4.0), 1.0);
+    float saturation = (bright - min(c.r, min(c.g, c.b))) / max(bright, 1e-3);
+    float weight = mix(Weights.x, Weights.y, smoothstep(0.15, 0.6, saturation));
+    Out = vec4(c * (x * x * 4.0 * weight), 1.0);
 }
 )";
 
@@ -90,18 +95,28 @@ void main()
 )";
 
 // The levels added onto the scene (blended one, one), upsampled bilinearly: the small one a tight
-// halo, the larger ones a wide soft glow.
+// halo, the larger ones a wide soft glow. Weaker the more of the view glows (vr_bloom_adapt): lamps
+// in a dark room keep their full glow, a brightly lit map (all of it over the threshold) is not
+// washed out. How much glows is the widest level's mean, from a fixed 4 x 4 grid of its texels.
 constexpr const char* addFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Glow0;
 layout(binding = 1) uniform sampler2D Glow1;
 layout(binding = 2) uniform sampler2D Glow2;
-layout(location = 0) uniform vec4 Params; // strength, 0, 1 / scene width, 1 / scene height
+layout(location = 0) uniform vec4 Params; // strength, adapt, 1 / scene width, 1 / scene height
 layout(location = 0) out vec4 Out;
 void main()
 {
     vec2 uv = gl_FragCoord.xy * Params.zw;
+    float mean = 0.0;
+    for(int y = 0; y < 4; y++)
+        for(int x = 0; x < 4; x++)
+        {
+            vec3 s = texture(Glow2, (vec2(x, y) + 0.5) * 0.25).rgb;
+            mean += max(s.r, max(s.g, s.b));
+        }
+    mean *= 1.0 / 16.0;
     vec3 g = texture(Glow0, uv).rgb * 0.5 + texture(Glow1, uv).rgb * 0.8 + texture(Glow2, uv).rgb * 1.0;
-    Out = vec4(g * Params.x, 0.0);
+    Out = vec4(g * (Params.x / (1.0 + Params.y * mean)), 0.0);
 }
 )";
 
@@ -205,6 +220,8 @@ void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
         Target& u = targets[l][1];
         if(l == 0)
         {
+            GL_UseProgram(brightProgram);
+            GL_Uniform2fFunc(1, std::max(0.f, vr_bloom_white.value), std::max(0.f, vr_bloom_color.value));
             pass(t, brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
         }
         else
@@ -223,7 +240,7 @@ void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
     {
         GL_BindNative(GL_TEXTURE0 + l, GL_TEXTURE_2D, targets[l][0].tex);
     }
-    GL_Uniform4fFunc(0, strength, 0.f, 1.f / width, 1.f / height);
+    GL_Uniform4fFunc(0, strength, std::max(0.f, vr_bloom_adapt.value), 1.f / width, 1.f / height);
     glBlendFunc(GL_ONE, GL_ONE);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBlendFunc(GL_ONE, GL_ZERO); // GLS_BLEND_OPAQUE, as the state cache has it

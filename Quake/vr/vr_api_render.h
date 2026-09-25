@@ -64,6 +64,13 @@ void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per 
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 
+// The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).
+void VR_PostProcessGamma (float *gamma, float *contrast);	// GL_PostProcess: while rendering an eye, the headset's (vr_gamma, vr_contrast)
+int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement textures smooth, 2 all (vr_texture_smooth)
+int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)
+int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
+float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
+
 #ifdef __cplusplus
 }
 #endif

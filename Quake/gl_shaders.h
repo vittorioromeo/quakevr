@@ -295,7 +295,7 @@ NOISE_FUNCTIONS
 "	float	ZLogBias;\n"\
 "	uint	NumLights;\n"\
 "	uint	ShadowFlags; // QVR\n"\
-"	vec4	LightTweak; // QVR: lightmap contrast, its pivot\n"\
+"	vec4	LightTweak; // QVR: lightmap contrast, its pivot, specular intensity, normal map strength\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -368,12 +368,14 @@ NOISE_FUNCTIONS
 "	float	ZLogBias;\n"\
 "	uint	NumLights;\n"\
 "	uint	ShadowFlags;\n"\
+"	vec4	LightTweak;\n"\
 "};\n"\
 "\n"\
 
 // QVR: shadows and per-pixel light (vr/vr_lighting.cpp). Needs the frame data and LIGHT_BUFFER.
 // ShadowFlags: bits 0-1 filter (1, 4, 9 or 16 taps), 4 dynamic lights uncapped, 8 per-pixel
-// dynamic lights on models. A light's six faces (+x -x +y -y +z -z; right and up below, forward
+// dynamic lights on models, 16 DarkPlaces' falloff (a light's minlight is then its ambient), 32
+// models lit on a par with the world (vr_model_light_parity). A light's six faces (+x -x +y -y +z -z; right and up below, forward
 // the axis) sit 3 x 2 from its origin in the atlas; depth is reversed, SHADOW_NEAR / distance
 // along the face's axis; each face has a border of SHADOW_BORDER texels for filtering.
 #define SHADOW_FUNCTIONS \
@@ -444,6 +446,48 @@ NOISE_FUNCTIONS
 "	return mix(1.0, ambient + (1.0 - ambient) * 2.0 * max(dot(n, dir), 0.0), DlightAngle);\n"\
 "}\n"\
 "\n"\
+"// DarkPlaces' falloff (ShadowFlags 16): full light to about 40% of the radius, then smoothly down to none.\n"\
+"float DarkPlacesAtten(float dist, float radius)\n"\
+"{\n"\
+"	float d = dist / max(radius, 1.0);\n"\
+"	return clamp((1.0 - d) * 2.0 / (1.0 + d * d), 0.0, 1.0);\n"\
+"}\n"\
+"\n"\
+"// DarkPlaces' angle term: Lambert's, over the light's ambient (its minlight: an explosion lights what faces away too).\n"\
+"float LightAngleDP(Light l, vec3 pos, vec3 n)\n"\
+"{\n"\
+"	vec3 dir = normalize(l.origin - pos);\n"\
+"	return mix(1.0, l.minlight + (1.0 - l.minlight) * max(dot(n, dir), 0.0), DlightAngle);\n"\
+"}\n"\
+"\n"\
+"// A dynamic light's sheen towards the eye (DarkPlaces' r_shadow_gloss 2): Blinn's, exponent 32, LightTweak.z strong.\n"\
+"float LightSpecular(Light l, vec3 pos, vec3 n, vec3 eye)\n"\
+"{\n"\
+"	if (LightTweak.z <= 0.)\n"\
+"		return 0.0;\n"\
+"	vec3 dir = normalize(l.origin - pos);\n"\
+"	if (dot(n, dir) <= 0.)\n"\
+"		return 0.0;\n"\
+"	vec3 h = normalize(dir + normalize(eye - pos));\n"\
+"	return pow(max(dot(n, h), 0.0), 32.0) * LightTweak.z;\n"\
+"}\n"\
+"\n"\
+"// The normal n bent by a normal map (tangent space, green up; LightTweak.w deepens it), in the frame the texture\n"\
+"// lies in on the surface: a cotangent frame from the derivatives of the position and texture coordinates, exact on\n"\
+"// the world's flat faces, the same in both eyes. The derivatives come from the caller (taken before any discard).\n"\
+"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n)\n"\
+"{\n"\
+"	vec3 dp2perp = cross(dpdy, n);\n"\
+"	vec3 dp1perp = cross(n, dpdx);\n"\
+"	vec3 t = dp2perp * duvdx.x + dp1perp * duvdy.x;\n"\
+"	vec3 b = dp2perp * duvdx.y + dp1perp * duvdy.y;\n"\
+"	float k = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-24));\n"\
+"	vec2 m = textureGrad(tex, uv, duvdx, duvdy).xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
+"	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
+"	m *= LightTweak.w;\n"\
+"	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
+"}\n"\
+"\n"\
 "// A map light's shadow of moving things: the share of the baked light `lit` at pos (normal n) that the\n"\
 "// light gave and something moving now blocks, where the world itself does not (the baked light has that).\n"\
 "float MapLightShadow(Light l, vec3 pos, vec3 n, vec3 lit)\n"\
@@ -495,6 +539,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "#if BINDLESS\n"\
 "	uvec2	txhandle;\n"\
 "	uvec2	fbhandle;\n"\
+"	uvec2	nmhandle; // QVR: the normal map (vr_normalmaps)\n"\
 "#else\n"\
 "	int		baseinstance;\n"\
 "	int		padding;\n"\
@@ -630,6 +675,7 @@ WORLD_VERTEX_BUFFER
 "layout(location=8) flat out float out_lmofs;\n"
 "#if BINDLESS\n"
 "	layout(location=9) flat out uvec4 out_samplers;\n"
+"	layout(location=11) flat out uvec2 out_nmsampler; // QVR\n"
 "#endif\n"
 "layout(location=10) flat out float out_glow; // QVR\n"
 "\n"
@@ -679,6 +725,7 @@ WORLD_VERTEX_BUFFER
 "		out_samplers.zw = call.fbhandle;\n"
 "	else\n"
 "		out_samplers.zw = out_samplers.xy;\n"
+"	out_nmsampler = call.nmhandle; // QVR\n"
 "#endif\n"
 "}\n";
 
@@ -690,6 +737,7 @@ static const char world_fragment_shader[] =
 "#else\n"
 "	layout(binding=0) uniform sampler2D Tex;\n"
 "	layout(binding=1) uniform sampler2D FullbrightTex;\n"
+"	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
 "#endif\n"
 "layout(binding=2) uniform sampler2D LMTex;\n"
 "\n"
@@ -716,6 +764,7 @@ NOISE_FUNCTIONS
 "layout(location=8) flat in float in_lmofs;\n"
 "#if BINDLESS\n"
 "	layout(location=9) flat in uvec4 in_samplers;\n"
+"	layout(location=11) flat in uvec2 in_nmsampler; // QVR\n"
 "#endif\n"
 "layout(location=10) flat in float in_glow; // QVR\n"
 "\n"
@@ -732,7 +781,11 @@ OIT_OUTPUT (out_fragcolor)
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	uv = uv * 2.0 + 0.125 * sin(uv.yx * (3.14159265 * 2.0) + Time);\n"
 "#endif\n"
+"	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: the surface's frame, for the normal map (before any discard)\n"
+"	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
+"	vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
 "#if BINDLESS\n"
+"	sampler2D NormalTex = sampler2D(in_nmsampler); // QVR\n"
 "	sampler2D Tex = sampler2D(in_samplers.xy);\n"
 "	sampler2D FullbrightTex;\n"
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n"
@@ -816,6 +869,12 @@ OIT_OUTPUT (out_fragcolor)
 "#endif\n"
 "			vec3 dynamic_light = vec3(0.);\n"
 "			vec3 facing = dot(plane.xyz, EyePos - in_pos) < 0. ? -plane.xyz : plane.xyz; // QVR: towards the viewer\n"
+"			vec3 bumped = facing; // QVR: bent by the normal map, for the dynamic lights (not the baked light)\n"
+"#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"			if (LightTweak.w > 0.)\n"
+"				bumped = BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing);\n"
+"#endif\n"
+"			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "			{\n"
 "				uint mask = clusterdata[i];\n"
@@ -827,6 +886,18 @@ OIT_OUTPUT (out_fragcolor)
 "					if (l.shadow.w != 0.) // QVR: a map light's shadow of moving things\n"
 "					{\n"
 "						total_light *= MapLightShadow(l, in_pos, facing, total_light);\n"
+"						continue;\n"
+"					}\n"
+"					if (darkplaces) // QVR: DarkPlaces' falloff, colours brighter than 1 (vr_dlight_falloff)\n"
+"					{\n"
+"						float d = distance(l.origin, in_pos);\n"
+"						if (d >= l.radius)\n"
+"							continue;\n"
+"						float lit = DarkPlacesAtten(d, l.radius) * LightShadow(l, in_pos, facing);\n"
+"						if (lit <= 0.)\n"
+"							continue;\n"
+"						dynamic_light += lit * 0.5 * LightAngleDP(l, in_pos, bumped) * l.color; // halved: the lightmap is doubled below\n"
+"						specular_light += lit * LightSpecular(l, in_pos, bumped, EyePos) * l.color;\n"
 "						continue;\n"
 "					}\n"
 "					// mimics R_AddDynamicLights, up to a point\n"
@@ -842,11 +913,13 @@ OIT_OUTPUT (out_fragcolor)
 "					float add = clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256.;\n"
 "					if (add <= 0.) // QVR\n"
 "						continue;\n"
-"					add *= LightAngle(l, in_pos, facing, 0.0) * LightShadow(l, in_pos, facing); // QVR\n"
+"					add *= LightShadow(l, in_pos, facing); // QVR\n"
+"					specular_light += add * 2.0 * LightSpecular(l, in_pos, bumped, EyePos) * l.color; // QVR\n"
+"					add *= LightAngle(l, in_pos, bumped, 0.0); // QVR\n"
 "					dynamic_light += add * l.color;\n"
 "				}\n"
 "			}\n"
-"			if ((ShadowFlags & 4u) != 0u) // QVR: uncapped\n"
+"			if ((ShadowFlags & 20u) != 0u) // QVR: uncapped (DarkPlaces' never are)\n"
 "				total_light += dynamic_light;\n"
 "			else\n"
 "			total_light += max(min(dynamic_light, 1. - total_light), 0.);\n"
@@ -862,6 +935,7 @@ OIT_OUTPUT (out_fragcolor)
 "#else\n"
 "	result.rgb *= total_light;\n"
 "#endif\n"
+"	result.rgb += specular_light; // QVR\n"
 "	result.rgb += fullbright;\n"
 "	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp)\n"
 "	{\n"
@@ -1195,7 +1269,7 @@ NOISE_FUNCTIONS
 "	float	Blend;\n"\
 "	int		Padding;\n"\
 "	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
-"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp)\n"\
+"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y shaded on a par with the world (vr_model_light_parity)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1315,8 +1389,17 @@ ALIAS_INSTANCE_BUFFER
 "	mat3 orientation = mat3(normalize(worldmatrix[0].xyz), normalize(worldmatrix[1].xyz), normalize(worldmatrix[2].xyz));\n"
 "	orientation = transpose(orientation);\n"
 "	vec3 shadevector = orientation * normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
-"	float dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
-"	float dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
+"	float dot1, dot2;\n"
+"	if (inst.Glow.y != 0.) // QVR: on a par with the world (vr_model_light_parity): 0.6 .. 1.4 by the normal, on average the light given\n"
+"	{\n"
+"		dot1 = 1.0 + 0.4 * dot(pose1.nor, shadevector);\n"
+"		dot2 = 1.0 + 0.4 * dot(pose2.nor, shadevector);\n"
+"	}\n"
+"	else\n"
+"	{\n"
+"		dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
+"		dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
+"	}\n"
 "	out_color = clamp(inst.LightColor * vec4(vec3(mix(dot1, dot2, inst.Blend)), 1.0), 0.0, 1.0);\n"
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
@@ -1334,6 +1417,7 @@ NOISE_FUNCTIONS
 "\n"
 "layout(binding=0) uniform sampler2D Tex;\n"
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
+"layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
@@ -1349,10 +1433,12 @@ NOISE_FUNCTIONS
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
-"// QVR: dynamic lights per pixel (vr/vr_lighting.cpp), in the units of LightColor (Quake adds radius - distance,\n"
-"// and divides by 200), shaded by the angle and shadowed.\n"
-"vec3 ModelDynamicLights()\n"
+"// QVR: dynamic lights per pixel (vr/vr_lighting.cpp), shaded by the angle (the normal bent by the normal map) and\n"
+"// shadowed, as a multiplier of the texture (Quake adds radius - distance to the model's light, which is divided by\n"
+"// 200, doubled for overbright models; by 128 on a par with the world); `spec` gets their sheen.\n"
+"vec3 ModelDynamicLights(vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, out vec3 spec)\n"
 "{\n"
+"	spec = vec3(0.);\n"
 "	if ((ShadowFlags & 8u) == 0u || NumLights == 0u)\n"
 "		return vec3(0.);\n"
 "	ivec3 cluster_coord;\n"
@@ -1364,6 +1450,9 @@ OIT_OUTPUT (out_fragcolor)
 "		return vec3(0.);\n"
 "	vec3 pos = in_pos + EyePos;\n"
 "	vec3 n = normalize(in_nor);\n"
+"	vec3 bumped = LightTweak.w > 0. ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
+"	bool darkplaces = (ShadowFlags & 16u) != 0u;\n"
+"	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n"
 "	vec3 total = vec3(0.);\n"
 "	for (uint i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "	{\n"
@@ -1375,18 +1464,24 @@ OIT_OUTPUT (out_fragcolor)
 "			Light l = Lights[ofs + j];\n"
 "			if (l.shadow.w != 0.)\n"
 "				continue;\n"
-"			float add = max(0., l.radius - distance(l.origin, pos)) / 200.;\n"
-"			if (add <= 0.)\n"
+"			float d = distance(l.origin, pos);\n"
+"			if (d >= l.radius)\n"
 "				continue;\n"
-"			total += add * LightAngle(l, pos, n, 0.3) * LightShadow(l, pos, n) * l.color;\n"
+"			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * LightShadow(l, pos, n);\n"
+"			if (lit <= 0.)\n"
+"				continue;\n"
+"			total += lit * (darkplaces ? LightAngleDP(l, pos, bumped) : LightAngle(l, pos, bumped, 0.3)) * l.color;\n"
+"			spec += lit * LightSpecular(l, pos, bumped, EyePos) * l.color;\n"
 "		}\n"
 "	}\n"
-"	return Fog.w < 0. ? total * 2.0 : total; // the sign of Fog.w: overbright models\n"
+"	return total;\n"
 "}\n"
 "\n"
 "void main()\n"
 "{\n"
 "	vec2 uv = in_texcoord;\n"
+"	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
+"	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	uv -= 0.5 / vec2(textureSize(Tex, 0).xy);\n"
 "	vec4 result = textureLod(Tex, uv, 0.);\n"
@@ -1397,12 +1492,14 @@ OIT_OUTPUT (out_fragcolor)
 "	if (result.a < 0.666)\n"
 "		discard;\n"
 "#endif\n"
-"	vec3 light = in_color.rgb + ModelDynamicLights(); // QVR\n"
+"	vec3 spec; // QVR\n"
+"	vec3 light = in_color.rgb + ModelDynamicLights(uv, duvdx, duvdy, dpdx, dpdy, spec); // QVR\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
 "	result.rgb = mix(result.rgb, result.rgb * light, result.a);\n"
 "#endif\n"
+"	result.rgb += spec; // QVR\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
 "#else\n"

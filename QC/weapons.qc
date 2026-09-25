@@ -226,26 +226,27 @@ float(entity xTarget) PositionalHead =
     if(c == "monster_wizard")           { xHeadForward = 6;  xHeadUp = 25; xHeadRadius = 7;   return TRUE; }
     if(c == "monster_mummy")            { xHeadForward = 0;  xHeadUp = 30; xHeadRadius = 6.5; return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
+    if(c == "vr_dummy")                 { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; } // a grunt
     return FALSE;
 };
 
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
-// `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body.
+// `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
+// when positional damage does not apply (vr_positional_damage 0, a target without a head).
 // The shot is a ray through the target: the head is a sphere turned with the target's facing
 // (heads sit forward of the origin: a shambler's by 14 units), so hits are found the same whatever
-// the angle, rather than by pushing the entry point a fixed depth into the box. A headshot also
-// gives its feedback (PositionalHeadshotFeedback).
-float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
+// the angle, rather than by pushing the entry point a fixed depth into the box.
+float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
 {
     if(cvar_hget(cvarh_vr_positional_damage) == 0 || !PositionalHead(xTarget))
     {
-        return 0;
+        return -1;
     }
 
     vector d = normalize(xDirection);
     if(d == '0 0 0')
     {
-        return 0;
+        return -1;
     }
 
     float yaw = xTarget.angles_y * (3.14159265 / 180);
@@ -259,7 +260,6 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     float t = max(0, (head - xEndpos) * d);
     if(vlen(head - (xEndpos + d * t)) < xHeadRadius)
     {
-        PositionalHeadshotFeedback(xTarget);
         return 1; // headshot
     }
 
@@ -288,6 +288,24 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     }
 
     return 0; // standard
+}
+
+// PositionalRegion for a shot's damage (0, the body, when it does not apply). A headshot also
+// gives its feedback (PositionalHeadshotFeedback). The answer is kept for the training dummy's
+// report (vr_dummy.qc).
+float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
+{
+    float region = PositionalRegion(xTarget, xEndpos, xDirection);
+    if(region == 1)
+    {
+        PositionalHeadshotFeedback(xTarget);
+    }
+
+    vr_hitpart = region;
+    vr_hitpart_target = xTarget;
+    vr_hitpart_time = time;
+    vr_hitpart_pos = xEndpos;
+    return max(0, region);
 }
 
 // A headshot's feedback to the player who made it (vr_headshot_sound, the volume), once per frame (a
@@ -683,10 +701,13 @@ void() HIP_LightningThink =
       dam = 80;
    else
       dam = 30;
+   VR_SetHitKind(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
+   vr_hitweapon = "Mjolnir's lightning";
    if(dot>0.3)
       HIP_HammerDamage(org, trace_endpos, self, dam);
    else
       HIP_HammerDamage(org, trace_endpos, self, dam*0.5);
+   VR_ClearHitKind();
    self = head;
 
    self.nextthink = time + 0.2;
@@ -753,6 +774,17 @@ void(float xHand) HIP_FireMjolnirLightning =
     HIP_SpawnMjolnirBase();
 };
 
+// A swing (tagged by PlayerVRMeleeImpl) struck at trace_endpos, going along `xDir`: kept for the
+// training dummy's report (vr_dummy.qc).
+void(vector xDir) VRMeleeHitAt =
+{
+    if(vr_hitkind == QVR_HITKIND_MELEE)
+    {
+        vr_hitpos = trace_endpos;
+        vr_hitdir = xDir;
+    }
+};
+
 // What a swing of `xHand` hits: ahead of the hand, and of the weapon's end, along the hand's
 // motion; things that bleed first. Sets the trace_ globals, and v_forward to the motion.
 float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
@@ -783,6 +815,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
         {
             v_forward = dir;
+            VRMeleeHitAt(dir);
             return TRUE;
         }
 
@@ -790,6 +823,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
         {
             v_forward = dir;
+            VRMeleeHitAt(dir);
             return TRUE;
         }
     }
@@ -1288,17 +1322,39 @@ Collects multiple small damages into a single damage
 entity    multi_ent;
 float    multi_damage;
 
+// VR: the pellets on multi_ent, by where they struck (PositionalDamage), for the training dummy's
+// report (vr_dummy.qc).
+float multi_pellets;
+float multi_pellets_head;
+float multi_pellets_limb;
+float multi_pellets_leg;
+
+void() ClearMultiDamagePellets =
+{
+    multi_pellets = 0;
+    multi_pellets_head = 0;
+    multi_pellets_limb = 0;
+    multi_pellets_leg = 0;
+};
+
 void() ClearMultiDamage =
 {
     multi_ent = world;
     multi_damage = 0;
+    ClearMultiDamagePellets();
 };
 
 void() ApplyMultiDamage =
 {
     if(!multi_ent)
         return;
+
+    vr_hitpellets = multi_pellets;
+    vr_hitpellets_head = multi_pellets_head;
+    vr_hitpellets_limb = multi_pellets_limb;
+    vr_hitpellets_leg = multi_pellets_leg;
     T_Damage(multi_ent, self, self, multi_damage);
+    vr_hitpellets = 0;
 };
 
 float(entity hit, float damage) AddMultiDamage =
@@ -1311,9 +1367,18 @@ float(entity hit, float damage) AddMultiDamage =
         ApplyMultiDamage();
         multi_damage = damage;
         multi_ent = hit;
+        ClearMultiDamagePellets();
     }
     else
         multi_damage = multi_damage + damage;
+
+    multi_pellets = multi_pellets + 1;
+    if(vr_hitpart_target == hit && vr_hitpart_time == time)
+    {
+        if(vr_hitpart == 1)      multi_pellets_head = multi_pellets_head + 1;
+        else if(vr_hitpart == 2) multi_pellets_limb = multi_pellets_limb + 1;
+        else if(vr_hitpart == 3) multi_pellets_leg = multi_pellets_leg + 1;
+    }
 
     // HONEY
     return !((hit.flags & FL_SPECIFICDAMAGE) && !(hit.items & self.damage_weapon));
@@ -1411,7 +1476,9 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
 
+    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     FireBulletsImpl(shotcount, dir, spread, VRGetMuzzlePos(xHand));
+    VR_ClearHitKind();
 }
 
 void(float shotcount, vector dir, vector spread) EnemyFireBullets =
@@ -1711,7 +1778,9 @@ void(float xHand) W_FireLightning =
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
+    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', v_forward);
     LightningDamage(org, trace_endpos + v_forward*4, self, 30);
+    VR_ClearHitKind();
 
     VRGunHaptic(xHand, 0.4, 175, 1.0);
     particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
@@ -3478,6 +3547,16 @@ void() forcegrabbable_touch =
 
     // if(pointcontents(self.origin) == CONTENT_SKY)
     //     return;
+
+    // Too slow to hurt what bleeds (come to rest against it, or pushed slowly into it; a rigid
+    // body's landing never touches the world, so it can still be "thrown"): no blow, no sound, no
+    // blood, and the throw is over.
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
+       vlen(self.velocity) < cvar_hget(cvarh_vr_throw_hit_min_speed))
+    {
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        self.throwhit = QVR_THROWHIT_HIT;
+    }
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {

@@ -32,6 +32,7 @@ player.qc
 triggers.qc
 weapons.qc
 world.qc
+vr_dummy.qc
 
 orig_mon_boss.qc
 orig_mon_demon.qc

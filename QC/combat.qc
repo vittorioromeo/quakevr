@@ -2,6 +2,53 @@
 
 float IsExplosionDamage;
 
+// VR: what kind of blow the next T_Damage is, for the firing range's training dummy (vr_dummy.qc),
+// which reports every hit. Attacks that their inflictor alone does not tell apart set these just
+// before their T_Damage (VR_SetHitKind) and clear them after (VR_ClearHitKind); the rest (missiles,
+// thrown things, deflected projectiles) the dummy works out from the inflictor.
+float QVR_HITKIND_NONE     = 0; // worked out from the inflictor
+float QVR_HITKIND_MELEE    = 1; // a swing of a hand (vr_hithand): fist, weapon or a gun used as a club
+float QVR_HITKIND_HEADBUTT = 2;
+float QVR_HITKIND_BASH     = 3; // a weapon's guard driven forward (vr_bash)
+float QVR_HITKIND_SHOVE    = 4; // both empty hands driven forward (vr_bash)
+float QVR_HITKIND_SHOT     = 5; // a hitscan weapon (vr_hithand's, or vr_hitweapon): shotguns, lightning
+float QVR_HITKIND_SPLASH   = 6; // an explosion's (or a discharge's) radius damage
+
+float vr_hitkind;     // QVR_HITKIND_*
+float vr_hithand;     // the hand that struck or fired (-1: unknown)
+string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
+vector vr_hitpos;     // where it struck ('0 0 0': unknown)
+vector vr_hitdir;     // and going which way
+
+// A shotgun blast's pellets on its target (ApplyMultiDamage), by where they struck.
+float vr_hitpellets;
+float vr_hitpellets_head;
+float vr_hitpellets_limb;
+float vr_hitpellets_leg;
+
+// PositionalDamage's last answer (1 head, 2 extremity, 3 legs, 0 body), for which target, when.
+float vr_hitpart;
+entity vr_hitpart_target;
+float vr_hitpart_time;
+vector vr_hitpart_pos;
+
+void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
+{
+    vr_hitkind = xKind;
+    vr_hithand = xHand;
+    vr_hitpos = xPos;
+    vr_hitdir = xDir;
+};
+
+void() VR_ClearHitKind =
+{
+    vr_hitkind = QVR_HITKIND_NONE;
+    vr_hithand = -1;
+    vr_hitweapon = "";
+    vr_hitpos = '0 0 0';
+    vr_hitdir = '0 0 0';
+};
+
 //============================================================================
 
 /*
@@ -376,6 +423,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         take = RuneApplyEarth(take, targ);
     }
 
+    // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc).
+    if(targ.classname == "vr_dummy")
+    {
+        VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee);
+        return TRUE;
+    }
+
     // do the damage
     targ.health = targ.health - take;
 
@@ -718,10 +772,13 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
                 {
                     if(CanDamage(head, inflictor))
                     {    // shambler takes half damage from all explosions
+                        float oldHitKind = vr_hitkind;
+                        vr_hitkind = QVR_HITKIND_SPLASH;
                         if(head.classname == "monster_shambler")
                             T_Damage(head, inflictor, attacker, points*0.5);
                         else
                             T_Damage(head, inflictor, attacker, points);
+                        vr_hitkind = oldHitKind;
                     }
                 }
             }
@@ -756,10 +813,13 @@ void(entity attacker, float damage) T_BeamDamage =
             {
                 if(CanDamage(head, attacker))
                 {
+                    float oldHitKind = vr_hitkind;
+                    vr_hitkind = QVR_HITKIND_SPLASH;
                     if(head.classname == "monster_shambler")
                         T_Damage(head, attacker, attacker, points*0.5);
                     else
                         T_Damage(head, attacker, attacker, points);
+                    vr_hitkind = oldHitKind;
                 }
             }
         }

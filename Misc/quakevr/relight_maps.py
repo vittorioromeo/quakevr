@@ -4,14 +4,17 @@
 # Quake's 1996 lightmaps have no ambient occlusion, no bounced light and no colour, which makes
 # the world look flat in VR. `light` can re-light a compiled .bsp from the light entities inside
 # it: this script does that for every map of the installed campaigns (id1, hipnotic, rogue, or the
-# folders you name), with smooth shadows (-extra4), ambient occlusion (-dirt), a gentle bounce and
-# coloured light (-lit). Geometry and entities stay as they are: only the light changes.
+# folders you name), with smooth shadows (-extra4), strong ambient occlusion (-dirt) and coloured
+# light (-lit), and no bounced light: shade stays dark, as in DarkPlaces (--bright: the earlier,
+# brighter look, with bounce and weaker ambient occlusion). Geometry and entities stay as they are:
+# only the light changes.
 #
 # Glowing textures light their surroundings (--glow, on by default): textures with fullbright pixels
 # (buttons, computer panels, light fixtures, glowing runes) get ericw's surface lights ("_surface"
 # light entities, in the colour of their glowing pixels, as bright as the share of them that glows;
 # fixtures (named *light*) half as bright, since mappers put lights by them). These entities are only
-# given to `light`: the relit map keeps its own.
+# given to `light`: the relit map keeps its own. --glow-budget sets how much light a glowing texture
+# shares out (300; 600 before round 10, and with --bright).
 #
 # The results go into quakevr/relit/<game>/maps/<map>.bsp and .lit. Quake VR loads them in place of
 # <game>'s own maps (vr_relit_maps 1, the default; 0 plays the original lighting). The maps are
@@ -22,11 +25,17 @@
 #   python Misc/quakevr/relight_maps.py --quake "C:/Program Files (x86)/Steam/steamapps/common/Quake"
 #       --light C:/tools/ericw-tools/bin/light.exe [--games id1 hipnotic rogue] [--out quakevr/relit]
 #       [--light-args "..."] [--force] [--only e1m1 ...] [--no-glow] [--glow-scale 1.0]
+#       [--glow-budget 300] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
 #
 # ericw-tools: https://github.com/ericwa/ericw-tools/releases (v0.18.1 was used; GPL). `light` may
 # also be given by the ERICW_LIGHT environment variable or found on PATH.
 #
 # Already relit maps are skipped unless their source or the options changed (--force relights all).
+#
+# See-through water (--vis-dir, or the QUAKEVR_VISPATCH environment variable): id's maps were vised
+# with water as a wall, so the engine keeps their liquids opaque; with the VisPatch data files
+# (id1.vis, hipnotic.vis, rogue.vis, or <game>/vispatch.dat) the relit maps get water-vised
+# visibility too (vis_maps.py, which can also do it on its own).
 
 import argparse
 import hashlib
@@ -38,10 +47,16 @@ import sys
 import tempfile
 
 import quakepak
+import vis_maps
 
-# Smooth shadow edges, ambient occlusion in corners, a little bounced light (it brightens maps,
-# which the 2021 re-release was criticised for: kept low), coloured .lit output.
-DEFAULT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit"
+# Smooth shadow edges, strong ambient occlusion in corners, coloured .lit output. No bounced light:
+# it fills the shade and brightens maps (which the 2021 re-release was criticised for), where
+# DarkPlaces, the moodier look, has none.
+DEFAULT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -lit"
+# The look before round 10 (--bright): weaker ambient occlusion and a little bounced light.
+BRIGHT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit"
+DEFAULT_GLOW_BUDGET = 300.0
+BRIGHT_GLOW_BUDGET = 600.0
 
 # Brush models used as items (health and ammo boxes, the exploding box) are not levels.
 SKIP_PREFIXES = ("b_",)
@@ -125,7 +140,7 @@ def texture_areas(data):
     return areas
 
 
-def glow_lights(data, palette, scale):
+def glow_lights(data, palette, scale, budget_base):
     """Surface light entities for the map's textures with fullbright pixels (palette 224-254).
     Each glowing texture has a budget of light (more the more of it glows), shared by the lights
     `light` spawns over its faces (at least one a face), none brighter than 130: a small button
@@ -158,7 +173,7 @@ def glow_lights(data, palette, scale):
         top = max(r, g, b, 1.0)
         r, g, b = (r * 0.75 + top * 0.25, g * 0.75 + top * 0.25, b * 0.75 + top * 0.25)
         spawned = max(1.0, areas.get(i, 1.0))
-        budget = 600 * min(1.0, 0.4 + share * 2) * scale * (0.5 if "light" in low else 1.0)
+        budget = budget_base * min(1.0, 0.4 + share * 2) * scale * (0.5 if "light" in low else 1.0)
         value = min(130 * scale, budget / spawned)
         if value < 12:
             continue
@@ -175,6 +190,22 @@ def is_level(name, data):
     return version == 29 or data[:4] in (b"BSP2", b"2PSB")
 
 
+def water_vise(path, patches, base):
+    """Gives the relit map at `path` VisPatch's water-vised visibility, if there is a patch for it (and
+    it has not got it already)."""
+    entry = patches.get(base + ".bsp") if patches else None
+    if entry is None:
+        return
+    with open(path, "rb") as f:
+        data = f.read()
+    result = vis_maps.vispatch(data, entry)
+    if result is None:
+        print("%s: the water-vis patch is for another version of the map, left alone" % base)
+    elif result != data:
+        with open(path, "wb") as f:
+            f.write(result)
+
+
 def find_light(explicit):
     for candidate in (explicit, os.environ.get("ERICW_LIGHT"), shutil.which("light"), shutil.which("light.exe")):
         if candidate and os.path.isfile(candidate):
@@ -189,12 +220,22 @@ def main():
     parser.add_argument("--light", help="ericw-tools light executable")
     parser.add_argument("--games", nargs="+", default=["id1", "hipnotic", "rogue"])
     parser.add_argument("--out", default=os.path.normpath(os.path.join(here, "..", "..", "quakevr", "relit")))
-    parser.add_argument("--light-args", default=DEFAULT_LIGHT_ARGS)
+    parser.add_argument("--light-args", help="light's options (default: %r)" % DEFAULT_LIGHT_ARGS)
     parser.add_argument("--only", nargs="*", help="map names (e1m1 ...) to relight, for trying options")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-glow", action="store_true", help="no surface lights for glowing textures")
     parser.add_argument("--glow-scale", type=float, default=1.0, help="brightness of the glowing textures' light")
+    parser.add_argument("--glow-budget", type=float,
+                        help="light a glowing texture shares out (default %g)" % DEFAULT_GLOW_BUDGET)
+    parser.add_argument("--vis-dir", default=os.environ.get("QUAKEVR_VISPATCH"),
+                        help="folder with the VisPatch files (id1.vis ...): see-through water (vis_maps.py)")
+    parser.add_argument("--bright", action="store_true",
+                        help="the look before round 10: bounced light, weaker ambient occlusion, twice the glow")
     args = parser.parse_args()
+    if args.light_args is None:
+        args.light_args = BRIGHT_LIGHT_ARGS if args.bright else DEFAULT_LIGHT_ARGS
+    if args.glow_budget is None:
+        args.glow_budget = BRIGHT_GLOW_BUDGET if args.bright else DEFAULT_GLOW_BUDGET
 
     light = find_light(args.light)
     light_args = args.light_args.split()
@@ -204,7 +245,7 @@ def main():
         palette = pak_file(os.path.join(args.quake, "id1"), "gfx/palette.lmp")
         if not palette:
             print("gfx/palette.lmp not found: glowing textures will not light")
-    glow_key = "" if not palette else " glow %g" % args.glow_scale
+    glow_key = "" if not palette else " glow %g budget %g" % (args.glow_scale, args.glow_budget)
 
     for game in args.games:
         game_dir = os.path.join(args.quake, game)
@@ -213,6 +254,7 @@ def main():
             continue
         out_dir = os.path.join(args.out, game, "maps")
         os.makedirs(out_dir, exist_ok=True)
+        patches = vis_maps.load_patches(args.vis_dir, game) if args.vis_dir else None
 
         for name, data in sorted(game_maps(game_dir).items()):
             base = os.path.splitext(os.path.basename(name))[0]
@@ -228,11 +270,12 @@ def main():
             if not args.force and os.path.isfile(out_bsp) and os.path.isfile(stamp):
                 with open(stamp) as f:
                     if f.read().strip() == stamp_value:
+                        water_vise(out_bsp, patches, base)
                         continue
 
             with tempfile.TemporaryDirectory() as tmp:
                 work = os.path.join(tmp, base + ".bsp")
-                lights = glow_lights(data, palette, args.glow_scale) if palette else ""
+                lights = glow_lights(data, palette, args.glow_scale, args.glow_budget) if palette else ""
                 with open(work, "wb") as f:
                     f.write(with_entities(data, entities_text(data) + lights) if lights else data)
                 print("%s/%s ..." % (game, base), end=" ", flush=True)
@@ -252,6 +295,7 @@ def main():
                         f.write(with_entities(relit, entities_text(data)))
                 shutil.copyfile(work, out_bsp)
                 shutil.copyfile(lit, out_lit)
+                water_vise(out_bsp, patches, base)
                 with open(stamp, "w") as f:
                     f.write(stamp_value + "\n")
                 done += 1

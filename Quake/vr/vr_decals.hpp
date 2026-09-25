@@ -1,6 +1,7 @@
 // vr_decals.hpp -- blood and scorch marks on the world (vr_decals): blood splats on the floor under
-// and the walls beside what bleeds, drops along the floor under flying gibs, scorch marks where
-// things explode, chips where bullets and nails hit.
+// and the walls beside what bleeds, scorch marks where things explode, chips where bullets and
+// nails hit. Gibs and heads bleed too (vr_gib_blood, VR_GibTrail): a trail of drops on the floor
+// under them, a splat where they hit a wall or the floor, and Quake VR's blood trail behind them.
 //
 // Each is a quad lying on the surface found by a trace (the static world only: none on doors or
 // lifts), turned at random, shrunk or dropped where it would hang over an edge. They darken what is
@@ -21,6 +22,9 @@ namespace qvr::decals
 
 // A Quake VR particle effect at `org` along `dir` (may be zero).
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count);
+
+// A small drop of blood on the floor (or a gentle slope) just below `org`, `size` units across.
+void drop(const glm::vec3& org, float size);
 
 // Drawn in each eye (VR_DrawSceneOpaque).
 void draw();

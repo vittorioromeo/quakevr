@@ -223,6 +223,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
+        toggle("Wounds Drip Blood", vr_body_blood)
+            .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
@@ -320,6 +322,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s"),
         slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f"),
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
+        slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f")
+            .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
         header("Carrying Boxes"),
         toggle("Carry Ammo and Health", vr_carry)
             .help("Grip a box to carry it, push it with a hand or gun. Off: touching takes it."),

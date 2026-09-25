@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <deque>
+#include <unordered_map>
 #include <vector>
 
 namespace qvr::decals
@@ -45,7 +46,6 @@ std::vector<gfx::Vertex> vertices;
 int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
 int addedThisFrame = 0;
 int addedFrame = -1;
-double gibTime[MAX_EDICTS];
 
 // ---- The atlas ---------------------------------------------------------------------------------
 
@@ -310,7 +310,100 @@ void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
     return lo + (hi - lo) * static_cast<float>(rand() % 1000) * 0.001f;
 }
 
+// ---- Gibs' blood (VR_GibTrail) ----------------------------------------------------------------
+
+// What a gib (or head) has done so far, by entity number.
+struct Gib
+{
+    const qmodel_t* model = nullptr;
+    double seen = 0.0;       // cl.time it was last drawn,
+    glm::vec3 origin{0.f};   // and where
+    double msgTime = 0.0;    // the server message `velocity` is from
+    glm::vec3 velocity{0.f}; // between its last two positions from the server
+    bool moving = false;     // `velocity` is known
+    float sinceTrail = 0.f;  // units travelled since the last trail particles,
+    float sinceDrop = 0.f;   // and since the last drop on the floor
+    int dropsLeft = 0;       // a gib bleeds dry
+    double splatTime = 0.0;  // its last splat
+};
+
+std::unordered_map<int, Gib> gibs;
+int gibsPrunedFrame = 0;
+
+constexpr int gibDrops = 64;           // drops a gib leaves in all
+constexpr float gibTrailSpacing = 5.f; // units between trail particles (vr_gib_blood_trail 1)
+constexpr float gibDropSpacing = 20.f; // and between drops
+constexpr float gibSplatSpeed = 150.f; // units/s it must go at, and its velocity turn, to splat
+
+// Calls `f` every `spacing` units along `from` -> `to` (at most `max` times), `since` carrying the
+// distance travelled since the last one over from call to call.
+template <typename F>
+void along(const glm::vec3& from, const glm::vec3& to, float spacing, float& since, int max, F&& f)
+{
+    const glm::vec3 d = to - from;
+    const float len = glm::length(d);
+    float at = std::max(0.f, spacing - since); // how far along the next one is
+    int n = 0;
+    while(at <= len && n < max)
+    {
+        f(from + d * (len > 0.f ? at / len : 0.f));
+        at += spacing;
+        n++;
+    }
+    since = n == max ? 0.f : len - (at - spacing);
+}
+
+// A drop on the floor under a gib at `org` (its blood falls straight down).
+void drip(const glm::vec3& org)
+{
+    const glm::vec3 o = org + glm::vec3{random(-2.f, 2.f), random(-2.f, 2.f), 0.f};
+    glm::vec3 where, normal;
+    float f;
+    if(hitWorld(o, o - glm::vec3{0, 0, 128}, where, normal, f) && normal.z > 0.6f)
+    {
+        // Low over the floor (sliding, rolling, carried low) a smear; from higher, smaller drops.
+        add(BloodDrop, where, normal, f * 128.f < 16.f ? random(5.f, 9.f) : random(3.5f, 7.f));
+    }
+}
+
+// A gib struck the world between `from` and `to` (its last two positions from the server), going
+// at `oldVelocity`, turned by `change` (beyond gravity's): a splat where it hit, a spurt of blood.
+void splat(const glm::vec3& from, const glm::vec3& to, const glm::vec3& oldVelocity, const glm::vec3& change)
+{
+    const float strength = glm::length(change);
+    const float reach = glm::distance(from, to) + 16.f; // a gib's box is about this big
+    glm::vec3 where, normal;
+    float f;
+    // The surface pushed it back along its normal, so it lies the other way (else ahead of it).
+    if(!hitWorld(from, from - change / strength * reach, where, normal, f) &&
+       !hitWorld(from, from + glm::normalize(oldVelocity) * reach, where, normal, f))
+    {
+        return;
+    }
+    add(Blood, where, normal, std::clamp(8.f + strength * 0.02f, 8.f, 22.f));
+
+    // Quake VR's blood (Quake's own with vr_particles 0).
+    vec3_t org, dir;
+    for(int i = 0; i < 3; i++)
+    {
+        org[i] = where[i] + normal[i] * 2.f;
+        dir[i] = normal[i] * 2.f;
+    }
+    R_RunParticleEffect(org, dir, 73, strength > 500.f ? 24 : 12);
+}
+
 } // namespace
+
+void drop(const glm::vec3& org, float size)
+{
+    glm::vec3 where, normal;
+    float f;
+    if(vr_decals.value && cl.worldmodel &&
+        hitWorld(org + glm::vec3{0, 0, 2}, org - glm::vec3{0, 0, 16}, where, normal, f) && normal.z > 0.6f)
+    {
+        add(BloodDrop, where, normal, size);
+    }
+}
 
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
 {
@@ -427,7 +520,7 @@ void clear()
 {
     decals.clear();
     builtFrame = -1;
-    std::fill(std::begin(gibTime), std::end(gibTime), 0.0);
+    gibs.clear();
 }
 
 } // namespace qvr::decals
@@ -440,21 +533,84 @@ extern "C" void VR_DecalTempEntity(int scorch, const float* pos)
         {pos[0], pos[1], pos[2]}, glm::vec3{0.f}, scorch ? Preset::Explosion : Preset::BulletPuff, 1);
 }
 
-// CL_RelinkEntities: a flying gib drips blood on the floor under it.
-extern "C" void VR_DecalGibTrail(int ent, const float* origin)
+// CL_RelinkEntities, every frame for each gib and head (flying, sliding, lying, carried): Quake VR's
+// blood trail behind it while it moves, drops on the floor under it (a trail that stays), and a
+// splat and a spurt of blood where it hits a wall or the floor. A hit is seen in the positions the
+// server sends: the velocity between the last two turning more than gravity turns it. Nonzero if
+// Quake VR's particles drew the trail (Quake's is not drawn then).
+extern "C" int VR_GibTrail(int ent, int zombie)
 {
     using namespace qvr;
     using namespace qvr::decals;
-    if(!vr_decals.value || ent <= 0 || ent >= MAX_EDICTS || cl.time - gibTime[ent] < 0.12)
+    if(!vr_gib_blood.value || ent <= 0 || ent >= cl.num_entities || !cl.worldmodel)
     {
-        return;
+        return 0;
     }
-    gibTime[ent] = cl.time;
-    const glm::vec3 o{origin[0], origin[1], origin[2]};
-    glm::vec3 where, normal;
-    float f;
-    if(hitWorld(o, o - glm::vec3{0, 0, 96}, where, normal, f) && normal.z > 0.6f)
+    const entity_t& e = cl_entities[ent];
+    const glm::vec3 o{e.origin[0], e.origin[1], e.origin[2]};
+
+    // Forgotten when not seen for a second.
+    if(host_framecount - gibsPrunedFrame > 100 || host_framecount < gibsPrunedFrame)
     {
-        add(BloodDrop, where, normal, random(4.f, 8.f));
+        gibsPrunedFrame = host_framecount;
+        std::erase_if(gibs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
     }
+
+    // A new one (or a new gib in the slot, or a teleport): from here.
+    Gib& g = gibs[ent];
+    if(g.model != e.model || cl.time - g.seen > 0.25 || cl.time < g.seen || glm::distance(g.origin, o) > 128.f)
+    {
+        g = Gib{};
+        g.model = e.model;
+        g.origin = o;
+        g.msgTime = e.msgtime;
+        g.dropsLeft = gibDrops;
+    }
+
+    // A new position from the server: its velocity since the one before, and whether the world
+    // turned it (a bounce, a landing, a wall).
+    const double dt = cl.mtime[0] - cl.mtime[1];
+    if(e.msgtime != g.msgTime && dt > 0.001)
+    {
+        g.msgTime = e.msgtime;
+        const glm::vec3 p0{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
+        const glm::vec3 p1{e.msg_origins[1][0], e.msg_origins[1][1], e.msg_origins[1][2]};
+        const glm::vec3 v = (p0 - p1) / static_cast<float>(dt);
+        if(g.moving && glm::length(g.velocity) > gibSplatSpeed && cl.time - g.splatTime > 0.15)
+        {
+            const glm::vec3 change = v - (g.velocity - glm::vec3{0.f, 0.f, sv_gravity.value * static_cast<float>(dt)});
+            if(glm::length(change) > gibSplatSpeed)
+            {
+                g.splatTime = cl.time;
+                splat(p1, p0, g.velocity, change);
+            }
+        }
+        g.velocity = v;
+        g.moving = true;
+    }
+
+    // The trail, where it went since the last frame (a zombie's gibs bleed less).
+    const float density = std::clamp(vr_gib_blood_trail.value, 0.f, 4.f) * (zombie ? 0.5f : 1.f);
+    const bool ours = particles::enabled();
+    const float travelled = glm::distance(g.origin, o);
+    if(density > 0.f && travelled > 0.01f)
+    {
+        const glm::vec3 dir = (o - g.origin) / travelled;
+        if(ours)
+        {
+            along(g.origin, o, gibTrailSpacing / density, g.sinceTrail, 24,
+                [&](const glm::vec3& p) { particles::spawn(p, dir, particles::Preset::BloodTrail, 1); });
+        }
+        if(vr_decals.value && g.dropsLeft > 0)
+        {
+            along(g.origin, o, gibDropSpacing / density, g.sinceDrop, std::min(4, g.dropsLeft),
+                [&](const glm::vec3& p) {
+                    drip(p);
+                    g.dropsLeft--;
+                });
+        }
+    }
+    g.origin = o;
+    g.seen = cl.time;
+    return ours;
 }

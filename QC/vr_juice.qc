@@ -160,7 +160,9 @@ void() VR_Bash =
            normalize(e.origin - self.origin) * fwd > 0.3)
         {
             hits = hits + 1;
+            VR_SetHitKind(armed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, armed ? hand : -1, at + fwd * 12, fwd);
             T_Damage(e, self, self, cvar_hget(cvarh_vr_bash_damage));
+            VR_ClearHitKind();
             VR_Push(e, fwd, 520 * push, 140 * push);
             if(e.health > 0 && e.th_pain)
             {

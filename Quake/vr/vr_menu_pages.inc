@@ -176,12 +176,28 @@
         slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
         slider("Bloom Threshold", "vr_bloom_threshold", 0.3f, 1.f, 0.01f, "%.2f").help("How bright a thing must be to glow."),
         slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.05f, "%.2f"),
+        slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").help("Glow of white and pale lights (lamps, flashes), times Bloom."),
+        slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
+        slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
         slider("Muzzle Flash Light", "vr_flash_scale", 0.f, 3.f, 0.05f, "%.2fx").help("How far your shots light up the room (0 off)."),
         slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.05f, "%.2fx"),
         toggle("Decals", "vr_decals").help("Blood splats, gib trails, scorch marks and bullet chips on walls and floors."),
         slider("Decal Lifetime", "vr_decal_life", 10.f, 600.f, 10.f, "%.0f s"),
         slider("Max Decals", "vr_decal_max", 64.f, 2048.f, 64.f, "%.0f"),
+        toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
+        slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
+        cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
+            .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
+        slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").help("Dynamic lights glint off walls and models (0 off)."),
+        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by dynamic lights. Next map."),
+        slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
+        toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
+        slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
+        cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
+            .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").help("The headset's own gamma (lower is brighter; 1 neutral). The desktop's is not used."),
+        slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").help("The headset's own contrast (1 neutral)."),
 
         header("Lights and Shadows"),
         cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})

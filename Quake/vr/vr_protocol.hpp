@@ -4,8 +4,8 @@
 // Both ends then add:
 //   - clc_move: a VR block after the vanilla fields (head, hands, muzzles, VR bits, ...);
 //   - entity updates: model scale / scale origin / offset / no-rotate in update bits 24..27;
-//   - svc_quakevr (39) + sub-command for particles, late precaches, world text, haptics and
-//     knocks on the drawn hands;
+//   - svc_quakevr (39) + sub-command for particles, late precaches, world text, floating texts
+//     (damage numbers), haptics and knocks on the drawn hands;
 //   - an extra "beam id" byte in TE_LIGHTNING1-3 / TE_BEAM, so one entity can own two beams;
 //   - VR stats (weapons in both hands, holsters, clips) in stat slots 64+, sent through
 //     Ironwail's generic stat channel.
@@ -37,6 +37,7 @@ enum SvcQuakeVr : int
     QVR_SVC_PRECACHE_SOUND = 9,   // [short index][string name]
     QVR_SVC_HAPTIC = 10,          // [byte hand][float delay][float duration][float frequency][float amplitude]
     QVR_SVC_HANDIMPACT = 11,      // [byte hand][float strength][float3 direction]: the drawn hand is knocked (a parry)
+    QVR_SVC_FLOATTEXT = 12,       // [coord3 org][byte3 colour][byte scale * 32][string]: a text rising from a point and fading
 };
 
 // Client -> server: clc_move VR block button bits.

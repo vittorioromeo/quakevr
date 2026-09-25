@@ -28,12 +28,16 @@ enum class Preset : int
     GunForceGrab,
     LavaSpike,
     BigSmoke,
-    ForceGrabTrail // vr_fgfx.cpp: behind an object flying to the hand
+    ForceGrabTrail, // vr_fgfx.cpp: behind an object flying to the hand
+    BloodTrail      // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
 // caller to fall back on Quake's effects.
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count);
+
+// Whether they are on and drawn (the VR protocol, vr_particles): false for Quake's effects.
+[[nodiscard]] bool enabled();
 
 // Removes them all (a new map, a disconnect).
 void clear();

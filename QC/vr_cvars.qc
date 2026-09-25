@@ -88,6 +88,8 @@ float cvarh_vr_carry_throw_mult;
 float cvarh_vr_carry_melee_mult;
 float cvarh_vr_carry_throw_damage;
 float cvarh_vr_gib_throw_damage;
+float cvarh_vr_gib_blood;
+float cvarh_vr_throw_hit_min_speed;
 float cvarh_vr_parry_reduction;
 float cvarh_vr_parry_drop_chance;
 float cvarh_vr_parry_angle;
@@ -227,6 +229,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_carry_melee_mult);
     VR_CVAR_HMAKE(vr_carry_throw_damage);
     VR_CVAR_HMAKE(vr_gib_throw_damage);
+    VR_CVAR_HMAKE(vr_gib_blood);
+    VR_CVAR_HMAKE(vr_throw_hit_min_speed);
     VR_CVAR_HMAKE(vr_parry_reduction);
     VR_CVAR_HMAKE(vr_parry_drop_chance);
     VR_CVAR_HMAKE(vr_parry_angle);

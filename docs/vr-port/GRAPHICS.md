@@ -99,11 +99,22 @@ models) and keeps the classic pixel look; none of it needs new art.
 
 - **Re-lit maps** (#1). `Misc/quakevr/relight_maps.py --quake <Quake folder> --light <ericw-tools light>` extracts
   the maps of id1, hipnotic and rogue from the player's own paks and re-lights them with
-  `-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit` (about 4 s a map, 73 maps, 143 MB),
+  `-extra4 -dirt -dirtdepth 96 -lit` with stronger ambient occlusion and no bounced light since round 10 (`--bright`: the
+  earlier look with `-bounce -bouncescale 0.5`; about 4 s a map, 73 maps, 143 MB),
   into `quakevr/relit/<game>/maps/`. The engine loads `relit/<game>/maps/X.bsp` and its `.lit` in place of
   `maps/X.bsp` when that comes from `<game>` (`VR_ModelFile` in `Mod_LoadModel` and `Mod_LoadLighting`), per game
   because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
   the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
+- **See-through water.** id's maps were vised with liquids as walls, so the engine keeps their water, slime and
+  teleporters opaque whatever `r_wateralpha` says (changing it prints "Map does not appear to be water-vised").
+  The relit maps get water-vised visibility from the VisPatch data files (`id1.vis`, `hipnotic.vis`, `rogue.vis`,
+  or `<game>/vispatch.dat`; vispatch.sourceforge.net): give their folder to the relight,
+  `relight_maps.py ... --vis-dir <folder>` (or set `QUAKEVR_VISPATCH`), which patches every relit map, also ones
+  already up to date. `Misc/quakevr/vis_maps.py --vis-dir <folder> [--relit quakevr/relit]` does it on its own
+  (only the visibility and leaf lumps change; a patch whose leaves are not the map's is refused);
+  `vis_maps.py --check quakevr/relit/id1/maps` reports, and in game `developer 2; map e1m1` prints
+  "maps/e1m1.bsp is vised for transparent water tele slime". `quakevr.cfg` sets `r_lavaalpha 1` (lava stays
+  opaque); `r_wateralpha` sets the rest. With `vr_relit_maps 0` the original maps load and water is opaque again.
 - **Model lighting** (#2, `vr_model_lighting`, `vr_modellight.cpp`). The map's light entities (parsed at load;
   "start off" lights with a target name skipped) give each alias model the direction of the strongest four
   lights that reach it (Quake's linear falloff, `light - distance * wait`) and see it (a line through the world's

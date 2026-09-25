@@ -1,5 +1,5 @@
 // vr_text3d.hpp -- text drawn in the world with the console font (world texts, weapon ammo
-// counters), depth-tested in the scene pass.
+// counters, floating damage numbers), depth-tested in the scene pass.
 
 #pragma once
 

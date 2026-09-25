@@ -10,6 +10,7 @@
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
+#include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
@@ -493,6 +494,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WORLDTEXT_ANGLES:
         case QVR_SVC_WORLDTEXT_HALIGN:
         case QVR_SVC_WORLDTEXT_SCALE: worldtext::clientParse(subcmd); break;
+        case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 
@@ -525,10 +527,15 @@ extern "C" int VR_ParseBeamEntity(int ent)
 // weapon (the lightning gun's blue, the nailguns' orange, ...); rockets and explosions warm. The
 // local player's muzzle flash lights up the gun (the main hand's, or the off hand's when the main
 // hand has none), not a point in front of the player's origin.
+// With DarkPlaces' falloff (vr_dlight_falloff) they are DarkPlaces' lights: brighter than 1 (the
+// shaders' falloff keeps them full out to about 40% of the radius), smaller; an explosion lights
+// what faces away from it a little, and shrinks at 700 units a second; a muzzle flash is white and
+// fades out in a twentieth of a second (vr_colored_lights keeps the colours, as bright).
 extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
 {
     dlight_t* dl = static_cast<dlight_t*>(dlight);
     const bool colored = vr_colored_lights.value != 0.f;
+    const bool darkplaces = vr_dlight_falloff.value != 0.f;
     float brightness = 1.f; // a muzzle flash is dimmer than an explosion: it reaches far, not glaring
     const auto color = [&](float r, float g, float b) {
         if(colored)
@@ -538,9 +545,23 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
             dl->color[2] = b * brightness;
         }
     };
+    // DarkPlaces' colour; without colours, as bright in white.
+    const auto dpColor = [&](float r, float g, float b) {
+        const float grey = (r + g + b) / 3.f;
+        dl->color[0] = colored ? r : grey;
+        dl->color[1] = colored ? g : grey;
+        dl->color[2] = colored ? b : grey;
+    };
 
     if(kind == QVR_DLIGHT_ROCKET)
     {
+        if(darkplaces)
+        {
+            dl->radius = 200.f * std::max(0.f, vr_explosion_light_scale.value);
+            dpColor(3.f, 1.5f, 0.5f);
+            lighting::dlightLook(dl, 0.f, 0.f);
+            return;
+        }
         dl->radius *= std::max(0.f, vr_explosion_light_scale.value) * 0.85f;
         color(1.f, 0.65f, 0.35f);
         return;
@@ -548,17 +569,39 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     if(kind == QVR_DLIGHT_EXPLOSION)
     {
         const float k = std::max(0.f, vr_explosion_light_scale.value);
+        if(darkplaces)
+        {
+            dl->radius = 350.f * k;
+            dl->decay = 700.f * k;
+            dl->die = static_cast<float>(cl.time + 0.5);
+            dpColor(4.f, 2.f, 0.5f);
+            lighting::dlightLook(dl, 0.25f, 0.f);
+            return;
+        }
         dl->radius *= k;
         dl->decay *= k;
         color(1.f, 0.72f, 0.42f);
         return;
     }
 
-    // A muzzle flash: bright at once, gone in about a tenth of a second.
-    dl->radius *= std::max(0.f, vr_flash_scale.value);
-    dl->die = cl.time + 0.12;
-    dl->decay = dl->radius * 6.f;
-    brightness = 0.75f;
+    if(darkplaces)
+    {
+        // DarkPlaces' muzzle flash: white, four times full light, gone in a twentieth of a second.
+        dl->radius = 150.f * std::max(0.f, vr_flash_scale.value);
+        dl->die = static_cast<float>(cl.time + 0.05);
+        dl->decay = 0.f;
+        brightness = 4.f;
+        dl->color[0] = dl->color[1] = dl->color[2] = brightness;
+        lighting::dlightLook(dl, 0.f, 0.05f);
+    }
+    else
+    {
+        // A muzzle flash: bright at once, gone in about a tenth of a second.
+        dl->radius *= std::max(0.f, vr_flash_scale.value);
+        dl->die = cl.time + 0.12;
+        dl->decay = dl->radius * 6.f;
+        brightness = 0.75f;
+    }
     color(1.f, 0.85f, 0.6f);
 
     if(!vrProtocol() || ent != cl.viewentity)

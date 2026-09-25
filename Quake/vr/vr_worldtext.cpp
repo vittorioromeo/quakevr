@@ -4,6 +4,9 @@
 #include "vr_engine.hpp"
 #include "vr_protocol.hpp"
 
+#include <cstring>
+#include <utility>
+
 using namespace qvr::protocol;
 
 namespace qvr::worldtext
@@ -13,8 +16,11 @@ namespace
 
 constexpr int maxWorldTexts = 4096;
 
+constexpr std::size_t maxFloatTexts = 256;
+
 std::vector<WorldText> serverTexts;
 std::vector<WorldText> clientTextList;
+std::vector<FloatText> clientFloatTextList;
 
 [[nodiscard]] WorldText& serverText(int handle)
 {
@@ -183,6 +189,30 @@ void serverWriteAll(sizebuf_t* msg)
     writeAll(msg, serverTexts, sv.protocolflags);
 }
 
+// Unreliable, like particles: a number lost now and then does not matter.
+void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& color, float scale)
+{
+    sizebuf_t* msg = &sv.datagram;
+    const int size = 2 + 3 * 4 + 4 + static_cast<int>(strlen(text)) + 1;
+    if(sv.state != ss_active || msg->cursize + size > msg->maxsize)
+    {
+        return;
+    }
+
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_FLOATTEXT);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(msg, pos[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteByte(msg, CLAMP(0, static_cast<int>(color[i] * 255.f + 0.5f), 255));
+    }
+    MSG_WriteByte(msg, CLAMP(1, static_cast<int>(scale * 32.f + 0.5f), 255));
+    MSG_WriteString(msg, text);
+}
+
 void clientWriteAll(sizebuf_t* msg)
 {
     writeAll(msg, clientTextList, cl.protocolflags);
@@ -191,6 +221,36 @@ void clientWriteAll(sizebuf_t* msg)
 void clientReset()
 {
     clientTextList.clear();
+    clientFloatTextList.clear();
+}
+
+void clientParseFloatText()
+{
+    FloatText ft;
+    for(int i = 0; i < 3; i++)
+    {
+        ft.pos[i] = MSG_ReadCoord(cl.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        ft.color[i] = static_cast<float>(MSG_ReadByte()) / 255.f;
+    }
+    ft.scale = static_cast<float>(MSG_ReadByte()) / 32.f;
+    ft.text = MSG_ReadString();
+    ft.start = cl.time;
+
+    if(clientFloatTextList.size() < maxFloatTexts)
+    {
+        clientFloatTextList.push_back(std::move(ft));
+    }
+}
+
+const std::vector<FloatText>& clientFloatTexts(double now)
+{
+    // Done, or from before a jump back in time (a demo restarted).
+    std::erase_if(clientFloatTextList,
+        [now](const FloatText& ft) { return now > ft.start + floatTextLife || now < ft.start - 1.0; });
+    return clientFloatTextList;
 }
 
 void clientParse(int subcmd)

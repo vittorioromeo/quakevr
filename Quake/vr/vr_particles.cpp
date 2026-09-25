@@ -36,6 +36,7 @@ enum Type : std::uint8_t
     Rock,
     GunSmoke,
     GunPickup,
+    Drip, // fades out quickly (a gib's blood trail)
 };
 
 // Atlas cells.
@@ -262,6 +263,32 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
     });
 }
 
+// Behind a flying gib, a few steps apart: a faint smear left in the air and drops falling from it.
+void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    constexpr int colors[] = {247, 248, 249, 250, 251};
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellBlood;
+        setColor(p, colors[rndi(0, 5)], rnd(80, 120));
+        p.die = cl.time + rnd(0.4f, 0.8f);
+        p.scale = rnd(0.35f, 0.6f) * 3.5f;
+        p.type = Drip;
+        p.acc = gravity(0.12f);
+        p.org = org + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f)};
+        p.vel = dir * rnd(0.f, 12.f) + glm::vec3{rnd(-4, 4), rnd(-4, 4), rnd(-4, 4)};
+    });
+    make(count * 2.f, [&](Particle& p, int) {
+        p.cell = CellCircle;
+        setColor(p, colors[rndi(0, 5)], rnd(190, 240));
+        p.die = cl.time + rnd(0.5f, 1.f);
+        p.scale = rnd(0.1f, 0.2f);
+        p.type = Static;
+        p.acc = gravity(0.8f);
+        p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
+        p.vel = dir * rnd(0.f, 25.f) + glm::vec3{rnd(-10, 10), rnd(-10, 10), rnd(-6, 14)};
+    });
+}
+
 void lightning(const glm::vec3& org, int count)
 {
     make(count, [&](Particle& p, int) {
@@ -417,6 +444,7 @@ void run()
                 fade(p, -80.f);
                 p.scale -= 0.1f * dt;
                 break;
+            case Drip: fade(p, -170.f); break;
             default: break;
         }
     }
@@ -555,9 +583,15 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::LavaSpike: sparkles(org, count, 247, 254, 180, 225, 0.5, 0.17f, 0.17f, 0.3f, 2.f, 0.f, 0.f); break;
         case Preset::BigSmoke: smoke(org, count, true); break;
         case Preset::ForceGrabTrail: sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f); break;
+        case Preset::BloodTrail: bloodTrail(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
+}
+
+bool enabled()
+{
+    return (cl.protocolflags & PRFL_QUAKEVR) && vr_particles.value && ensureAtlas();
 }
 
 void clear()

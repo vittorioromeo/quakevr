@@ -33,8 +33,10 @@ const DefaultChange defaultChanges[] = {
     {3, &vr_bloom_threshold, "0.6"},
     {3, &vr_headbutt_speed, "1.5"},
     {4, &vr_carry_throw_damage, "25"},
+    {5, &vr_flash_scale, "1.8"},           // sizes over DarkPlaces' lights now (vr_dlight_falloff)
+    {5, &vr_explosion_light_scale, "1.5"},
 };
-constexpr int configVersion = 4;
+constexpr int configVersion = 5;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()

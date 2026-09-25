@@ -2617,11 +2617,13 @@ void(float xHand, float xInMelee, float xHandVelMag,
             gunSound = "";
         }
 
+        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
                 if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
                 if(!DoXHandMelee(xHand, WID_SWORD, "knight/sword1.wav", W_SwordMelee))
                     DoXHandMeleeImpl(xHand, gunSound, W_GunMelee);
+        VR_ClearHitKind();
 
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
@@ -2701,7 +2703,9 @@ void(float xThreshold) VR_Headbutt_Hit =
     {
         victim.axhitme = 1;
         SpawnBloodSplash(at, dmg);
+        VR_SetHitKind(QVR_HITKIND_HEADBUTT, -1, at, dir);
         T_Damage_VRMelee(victim, self, self, dmg);
+        VR_ClearHitKind();
     }
     else
     {

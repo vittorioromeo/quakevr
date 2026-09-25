@@ -164,6 +164,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLfloat		alpha;
 	GLuint64	texture;
 	GLuint64	fullbright;
+	GLuint64	normalmap;	// QVR: vr_normalmaps
 } bmodel_bindless_gpu_call_t;
 
 typedef struct bmodel_bound_gpu_call_s {
@@ -185,7 +186,7 @@ static union {
 	} bindless;
 	struct {
 		bmodel_bound_gpu_call_t		params[MAX_BMODEL_DRAWS];
-		gltexture_t					*textures[MAX_BMODEL_DRAWS][2];
+		gltexture_t					*textures[MAX_BMODEL_DRAWS][3];	// QVR: and the normal map
 	} bound;
 } bmodel_calls;
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
@@ -277,6 +278,7 @@ static void R_FlushBModelCalls (void)
 		{
 			GL_Uniform1iFunc (0, i);
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
+			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]); // QVR: the normal map
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
 	}
@@ -325,6 +327,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->alpha = alpha;
 		call->texture = tx ? tx->bindless_handle : greytexture->bindless_handle;
 		call->fullbright = fb ? fb->bindless_handle : blacktexture->bindless_handle;
+		call->normalmap = TexMgr_NormalMap (tx)->bindless_handle; // QVR
 	}
 	else
 	{
@@ -336,6 +339,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->padding = 0;
 		textures[0] = tx ? tx : greytexture;
 		textures[1] = fb ? fb : blacktexture;
+		textures[2] = TexMgr_NormalMap (tx); // QVR
 	}
 
 	SDL_assert (num_instances > 0);

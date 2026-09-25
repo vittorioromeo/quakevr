@@ -14,11 +14,18 @@
 
 #pragma once
 
+#include "vr_engine.hpp"
+
 namespace qvr::lighting
 {
 
 // Apply a quality preset (vr_graphics_preset): 0 off (Quake's own look) .. 4 ultra.
 void applyPreset(int preset);
+
+// VR_TuneDlight, for DarkPlaces' lights (vr_dlight_falloff): the share of the light that reaches
+// what faces away from it (an explosion's), and the seconds its colour fades out over before it
+// dies (a muzzle flash's; 0 none). Set after its key and death time.
+void dlightLook(const dlight_t* dl, float ambient, float fade);
 
 void init();
 

@@ -31,10 +31,12 @@ struct Queued
 std::vector<Queued> queued;
 std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
+std::vector<gfx::Vertex> floating; // floating texts (blended: they fade)
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
 std::vector<std::string_view> textLines; // layout()'s, kept between calls
 
-void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color)
+void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color,
+    std::vector<gfx::Vertex>& out = vertices)
 {
     const glm::vec4 uv = gfx::fontGlyph(c);
     const gfx::Vertex tl{topLeft, {uv.x, uv.y}, color};
@@ -43,7 +45,51 @@ void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& do
     const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}, color};
     for(const gfx::Vertex& v : {tl, tr, br, tl, br, bl})
     {
-        vertices.push_back(v);
+        out.push_back(v);
+    }
+}
+
+// A floating text (worldtext::FloatText) at client time `now`, facing the camera (`eye`, `right`,
+// `up`): it pops in a little large, rises 20 units, easing out, and fades over its last 40%. A dark
+// copy just behind it keeps it readable against anything. Pulled towards the viewer a little, so
+// that it is not hidden inside what was hit.
+void layoutFloating(const worldtext::FloatText& ft, double now, const glm::vec3& eye, const glm::vec3& right,
+    const glm::vec3& up)
+{
+    if(ft.text.empty())
+    {
+        return;
+    }
+
+    const float t = CLAMP(0.f, static_cast<float>((now - ft.start) / worldtext::floatTextLife), 1.f);
+    const float rise = 1.f - (1.f - t) * (1.f - t);
+    const float alpha = t < 0.6f ? 1.f : 1.f - (t - 0.6f) / 0.4f;
+    const float pop = 1.f + 0.35f * std::max(0.f, 1.f - t / 0.12f);
+
+    glm::vec3 pos = ft.pos + glm::vec3{0.f, 0.f, 20.f * rise};
+    glm::vec3 toEye = eye - pos;
+    const float dist = glm::length(toEye);
+    toEye = dist > 0.01f ? toEye / dist : glm::vec3{0.f};
+    pos += toEye * std::min(10.f, dist * 0.5f);
+
+    const float charSize = 8.f * ft.scale * pop;
+    const glm::vec3 hInc = right * charSize;
+    const glm::vec3 vInc = -up * charSize;
+    const glm::vec3 topLeft = pos - (hInc * static_cast<float>(ft.text.size()) + vInc) * 0.5f;
+    const glm::vec3 shadow = (right - up) * (charSize * 0.1f) - toEye * 0.3f;
+
+    for(const bool dark : {true, false})
+    {
+        const glm::vec4 color = dark ? glm::vec4{0.f, 0.f, 0.f, alpha * 0.8f} : glm::vec4{ft.color, alpha};
+        glm::vec3 p = topLeft + (dark ? shadow : glm::vec3{0.f});
+        for(const char c : ft.text)
+        {
+            if(c != ' ')
+            {
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, floating);
+            }
+            p += hInc;
+        }
     }
 }
 
@@ -96,6 +142,17 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
     AngleVectors(a, f, r, u);
     right = {r[0], r[1], r[2]};
     up = {u[0], u[1], u[2]};
+
+    // A sign read from behind is turned round rather than mirrored (screens have a back).
+    if(!screen)
+    {
+        glm::vec3 eye, camRight, camUp;
+        gfx::sceneCamera(eye, camRight, camUp);
+        if(glm::dot(eye - pos, glm::cross(right, up)) < 0.f)
+        {
+            right = -right;
+        }
+    }
 
     const float charSize = 8.f * scale;
     const glm::vec3 hInc = right * charSize;
@@ -182,6 +239,7 @@ extern "C" void VR_DrawSceneOpaque()
         builtFrame = host_framecount;
         vertices.clear();
         panels.clear();
+        floating.clear();
         for(const worldtext::WorldText& wt : worldtext::clientTexts())
         {
             layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
@@ -189,6 +247,18 @@ extern "C" void VR_DrawSceneOpaque()
         for(const Queued& q : queued)
         {
             layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+        }
+
+        // Facing the first view drawn this frame (the eyes are a few centimetres apart).
+        const std::vector<worldtext::FloatText>& floatTexts = worldtext::clientFloatTexts(cl.time);
+        if(!floatTexts.empty())
+        {
+            glm::vec3 eye, right, up;
+            gfx::sceneCamera(eye, right, up);
+            for(const worldtext::FloatText& ft : floatTexts)
+            {
+                layoutFloating(ft, cl.time, eye, right, up);
+            }
         }
     }
 
@@ -198,4 +268,10 @@ extern "C" void VR_DrawSceneOpaque()
     gfx::draw(vertices, viewProjection,
         {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
         gfx::fontTexture());
+    if(!floating.empty())
+    {
+        gfx::draw(floating, viewProjection,
+            {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
+            gfx::fontTexture());
+    }
 }

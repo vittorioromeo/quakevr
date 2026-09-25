@@ -963,6 +963,24 @@ private:
         }
 
         colorFormat = format;
+        // Once: what the eyes are written into. Anything but sRGB makes the compositor take the colours for
+        // linear ones, and the image looks brighter and washed out.
+        const char* formatName = format == GL_SRGB8_ALPHA8 ? "GL_SRGB8_ALPHA8"
+            : format == GL_RGBA8                           ? "GL_RGBA8"
+            : format == 0x8C41                             ? "GL_SRGB8"
+            : format == 0x881A                             ? "GL_RGBA16F"
+            : format == 0x8059                             ? "GL_RGB10_A2"
+                                                           : "?";
+        static bool formatLogged = false;
+        if(!formatLogged)
+        {
+            formatLogged = true;
+            Con_Printf("OpenXR: swapchain format %s (0x%llx)\n", formatName, static_cast<unsigned long long>(format));
+            if(format != GL_SRGB8_ALPHA8 && format != 0x8C41)
+            {
+                Con_Warning("OpenXR: the swapchain is not sRGB: the headset will show the game brighter and paler than it is\n");
+            }
+        }
         for(int eye = 0; eye < 2; eye++)
         {
             if(!createSwapchain(swapchains[eye], static_cast<int32_t>(configViews[eye].recommendedImageRectWidth),
