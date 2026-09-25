@@ -41,9 +41,20 @@ enum class Part
     Chest
 };
 
-// Where a point given for the standing body (see standing()) is now, carried by `part` as the
-// body leans and crouches.
-[[nodiscard]] glm::vec3 follow(const hands::State& s, Part part, const glm::vec3& standingPoint);
+// Where points given for the standing body (see standing()) are now, carried by a part as the
+// body leans and crouches. The torso is solved (as it is and standing) once, for any number of
+// points.
+class Follower
+{
+public:
+    explicit Follower(const hands::State& s);
+
+    [[nodiscard]] glm::vec3 operator()(Part part, const glm::vec3& standingPoint) const;
+
+private:
+    Torso now;
+    Torso ref;
+};
 
 // Whether `model` is the skinned body with the expected skeleton.
 [[nodiscard]] bool usable(qmodel_t* model);

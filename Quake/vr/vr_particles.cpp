@@ -42,7 +42,6 @@ enum Type : std::uint8_t
 enum Cell : std::uint8_t
 {
     CellCircle,
-    CellBlob,
     CellExplosion,
     CellSmoke,
     CellBlood,
@@ -435,11 +434,12 @@ constexpr int cellSize = 132; // 128 plus a border
 constexpr int atlasColumns = 4;
 constexpr int atlasRows = 3;
 
-// A soft disc as the old engine's generated circle (sharpness 8) or blob (2): a quarter of the
-// quad across, which is how big the old off-centre disc was.
-void buildDisc(std::vector<std::uint8_t>& dst, int size, int sharpness)
+// A soft disc as the old engine's generated circle (sharpness 8): a quarter of the quad across,
+// which is how big the old off-centre disc was.
+[[nodiscard]] std::vector<std::uint8_t> buildDisc(int size)
 {
-    dst.assign(static_cast<std::size_t>(size * size * 4), 255);
+    constexpr float sharpness = 8.f;
+    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
     const float c = (size - 1) * 0.5f;
     const float k = 16.f / (size * 0.25f); // the old 16-texel radius, over a quarter of the size
     for(int y = 0; y < size; y++)
@@ -453,6 +453,7 @@ void buildDisc(std::vector<std::uint8_t>& dst, int size, int sharpness)
                 static_cast<std::uint8_t>(std::min(255.f, sharpness * (255.f - r)));
         }
     }
+    return dst;
 }
 
 bool ensureAtlas()
@@ -478,11 +479,7 @@ bool ensureAtlas()
         cellUv[cell] = {(cx + 0.5f) / width, (cy + 0.5f) / height, (cx + w - 0.5f) / width, (cy + h - 0.5f) / height};
     };
 
-    std::vector<std::uint8_t> disc;
-    buildDisc(disc, 64, 8);
-    put(CellCircle, disc.data(), 64, 64);
-    buildDisc(disc, 64, 2);
-    put(CellBlob, disc.data(), 64, 64);
+    put(CellCircle, buildDisc(64).data(), 64, 64);
 
     struct File
     {
@@ -535,46 +532,29 @@ void explosion2(const glm::vec3& org, int colorStart, int colorLength)
 
 } // namespace
 
-bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
+bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
     if(!vr_particles.value || !ensureAtlas())
     {
         return false;
     }
 
-    enum Preset : int
-    {
-        BulletPuff,
-        Blood,
-        Explosion,
-        LightningPreset,
-        Smoke,
-        Sparks,
-        GunSmokePreset,
-        Teleport,
-        GunPickupPreset,
-        GunForceGrab,
-        LavaSpike,
-        BigSmoke,
-        ForceGrabTrail // vr_fgfx.cpp: behind an object flying to the hand
-    };
-
     switch(preset)
     {
-        case BulletPuff: bulletPuff(org, dir, 0, count); break;
-        case Blood: blood(org, dir, count); break;
-        case Explosion: explosion(org); break;
-        case LightningPreset: lightning(org, count); break;
-        case Smoke: smoke(org, count, false); break;
-        case Sparks: sparks(org, count, 102, 112, 0.45f, 0.0); break;
-        case GunSmokePreset: gunSmoke(org, count); break;
-        case Teleport: sparks(org, count, 208, 220, 0.65f, 0.6); break;
+        case Preset::BulletPuff: bulletPuff(org, dir, 0, count); break;
+        case Preset::Blood: blood(org, dir, count); break;
+        case Preset::Explosion: explosion(org); break;
+        case Preset::Lightning: lightning(org, count); break;
+        case Preset::Smoke: smoke(org, count, false); break;
+        case Preset::Sparks: sparks(org, count, 102, 112, 0.45f, 0.0); break;
+        case Preset::GunSmoke: gunSmoke(org, count); break;
+        case Preset::Teleport: sparks(org, count, 208, 220, 0.65f, 0.6); break;
         // Subtle and slow: faint, small, drifting up.
-        case GunPickupPreset: sparkles(org, count, 12, 16, 70, 120, 1.6, 0.22f, -0.03f, 6.f, 2.f, 1.f, 6.f); break;
-        case GunForceGrab: sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f); break;
-        case LavaSpike: sparkles(org, count, 247, 254, 180, 225, 0.5, 0.17f, 0.17f, 0.3f, 2.f, 0.f, 0.f); break;
-        case BigSmoke: smoke(org, count, true); break;
-        case ForceGrabTrail: sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f); break;
+        case Preset::GunPickup: sparkles(org, count, 12, 16, 70, 120, 1.6, 0.22f, -0.03f, 6.f, 2.f, 1.f, 6.f); break;
+        case Preset::GunForceGrab: sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f); break;
+        case Preset::LavaSpike: sparkles(org, count, 247, 254, 180, 225, 0.5, 0.17f, 0.17f, 0.3f, 2.f, 0.f, 0.f); break;
+        case Preset::BigSmoke: smoke(org, count, true); break;
+        case Preset::ForceGrabTrail: sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -602,11 +582,12 @@ extern "C" void VR_DrawSceneTranslucent()
     run();
 
     glm::vec3 eye, right, up;
-    qvr::gfx::sceneCamera(eye, right, up);
+    gfx::sceneCamera(eye, right, up);
 
-    static std::vector<qvr::gfx::Vertex> vertices;
-    vertices.clear();
-    vertices.reserve(pool.size() * 6);
+    // Resized rather than cleared (no constructing what is written over): every vertex is set below.
+    static std::vector<gfx::Vertex> vertices;
+    vertices.resize(pool.size() * 6);
+    gfx::Vertex* out = vertices.data();
     for(const Particle& p : pool)
     {
         // The quad's right and up, turned by the particle's angle about the view direction.
@@ -617,19 +598,19 @@ extern "C" void VR_DrawSceneTranslucent()
         const glm::vec4& uv = cellUv[p.cell];
         const glm::vec4 color{p.color.r, p.color.g, p.color.b, std::min(p.color.a, 1.f)};
 
-        const qvr::gfx::Vertex downLeft{p.org - u - r, {uv.x, uv.y}, color};
-        const qvr::gfx::Vertex upLeft{p.org + u - r, {uv.z, uv.y}, color};
-        const qvr::gfx::Vertex downRight{p.org - u + r, {uv.x, uv.w}, color};
-        const qvr::gfx::Vertex upRight{p.org + u + r, {uv.z, uv.w}, color};
-        for(const qvr::gfx::Vertex& v : {downLeft, upLeft, upRight, downLeft, upRight, downRight})
-        {
-            vertices.push_back(v);
-        }
+        const gfx::Vertex downLeft{p.org - u - r, {uv.x, uv.y}, color};
+        const gfx::Vertex upRight{p.org + u + r, {uv.z, uv.w}, color};
+        out[0] = downLeft;
+        out[1] = {p.org + u - r, {uv.z, uv.y}, color}; // up left
+        out[2] = upRight;
+        out[3] = downLeft;
+        out[4] = upRight;
+        out[5] = {p.org - u + r, {uv.x, uv.w}, color}; // down right
+        out += 6;
     }
 
-    qvr::gfx::draw(vertices, qvr::gfx::sceneViewProjection(),
-        {.shade = qvr::gfx::Shade::Texture, .blend = qvr::gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
-        atlas);
+    gfx::draw(vertices, gfx::sceneViewProjection(),
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false}, atlas);
 }
 
 // Quake's own effects, when Quake VR's particles are on (as the old engine drew them).
@@ -645,11 +626,11 @@ extern "C" int VR_RunParticleEffect(const float* org, const float* dir, int colo
     const glm::vec3 d{dir[0], dir[1], dir[2]};
     if(count == 1024)
     {
-        return spawn(o, d, 2, 1); // Quake's "explosion" count
+        return spawn(o, d, Preset::Explosion, 1); // Quake's "explosion" count
     }
     if(color >= 64 && color < 80)
     {
-        return spawn(o, d, 1, std::max(1, count / 8)); // blood
+        return spawn(o, d, Preset::Blood, std::max(1, count / 8));
     }
     // Impacts: the bullet puff in the effect's colour.
     if(!vr_particles.value || !ensureAtlas())
@@ -664,7 +645,7 @@ extern "C" int VR_ParticleExplosion(const float* org)
 {
     using namespace qvr;
     using namespace qvr::particles;
-    return (cl.protocolflags & PRFL_QUAKEVR) && spawn({org[0], org[1], org[2]}, glm::vec3{0.f}, 2, 1);
+    return (cl.protocolflags & PRFL_QUAKEVR) && spawn({org[0], org[1], org[2]}, glm::vec3{0.f}, Preset::Explosion, 1);
 }
 
 extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int colorLength)

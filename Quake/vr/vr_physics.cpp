@@ -1,7 +1,8 @@
 // vr_physics.cpp -- server-side Quake VR physics: hand and weapon touches, teleport,
-// room-scale movement, head-relative movement, the second think timer and touch rules.
+// room-scale movement, head-relative movement, swimming, the second think timer and touch rules.
 //
-// Everything here is inactive unless the server runs Quake VR progs.
+// The touches, the second think timer and the touch rules are inactive unless the server runs
+// Quake VR progs; the movement works with any progs (and moves a mod's shots to the gun).
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -13,7 +14,6 @@
 #include "vr_units.hpp"
 
 #include <algorithm>
-#include <vector>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -23,27 +23,6 @@ namespace
 
 // QC constants (QC/defs.qc, QC/vr_defs.qc).
 constexpr int FL_EASYHANDTOUCH = 8192;
-constexpr int FL_FORCEGRABBABLE = 1 << 15; // QC's: boxes, gibs, thrown weapons
-
-extern "C" int VR_PointInModelBox(edict_t* ent, const float* p, float margin);
-
-// Whether a hand at `hand` (its box half `handExtent`) touches `target`: an object that can be
-// carried or pulled by the model's own turned box, a small margin round it; anything else by its
-// box (and the easy-touch bonus).
-[[nodiscard]] bool handOn(edict_t* target, const glm::vec3& hand, float handExtent, float bonus)
-{
-    if((static_cast<int>(target->v.flags) & FL_FORCEGRABBABLE) != 0)
-    {
-        const float p[3] = {hand.x, hand.y, hand.z};
-        return VR_PointInModelBox(target, p, 2.f) != 0;
-    }
-    const glm::vec3 lo = glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]} +
-                         glm::vec3{target->v.mins[0], target->v.mins[1], target->v.mins[2]} - glm::vec3{bonus};
-    const glm::vec3 hi = glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]} +
-                         glm::vec3{target->v.maxs[0], target->v.maxs[1], target->v.maxs[2]} + glm::vec3{bonus};
-    return glm::all(glm::lessThanEqual(hand - glm::vec3{handExtent}, hi)) &&
-           glm::all(glm::greaterThanEqual(hand + glm::vec3{handExtent}, lo));
-}
 constexpr int VRBITS0_TELEPORTING = 1 << 0;
 constexpr float HAND_OFF = 0.f;
 constexpr float HAND_MAIN = 1.f;
@@ -51,9 +30,6 @@ constexpr float HAND_FAKE = 2.f; // body touch standing in for a hand
 
 constexpr float handHalfSize = 2.5f;
 constexpr float easyHandTouchBonus = 4.5f;
-
-// Per client: whether its hands come from real tracking (see QVR_BUTTON_HANDSTRACKED).
-std::vector<bool> clientHandsTracked;
 
 [[nodiscard]] bool active()
 {
@@ -85,11 +61,11 @@ std::vector<bool> clientHandsTracked;
     return hasFlag(ent, FL_CLIENT);
 }
 
+// Whether `player`'s hands come from real tracking (see QVR_BUTTON_HANDSTRACKED).
 [[nodiscard]] bool handsTracked(edict_t* player)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    return client >= 0 && client < static_cast<int>(clientHandsTracked.size()) &&
-           clientHandsTracked[client];
+    const VrMove* move = server::clientMove(player);
+    return move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED);
 }
 
 [[nodiscard]] bool boxesOverlap(const glm::vec3& aMin, const glm::vec3& aMax,
@@ -107,6 +83,22 @@ std::vector<bool> clientHandsTracked;
 [[nodiscard]] float handTouchBonus(edict_t* target)
 {
     return hasFlag(target, FL_EASYHANDTOUCH) ? easyHandTouchBonus : 0.f;
+}
+
+// Whether a hand at `hand` touches `target`: an object that can be carried or pulled by the
+// model's own turned box, a small margin round it; anything else by its box (and the easy-touch
+// bonus).
+[[nodiscard]] bool handOn(edict_t* target, const glm::vec3& hand)
+{
+    if(hasFlag(target, physics::FL_FORCEGRABBABLE))
+    {
+        return physics::pointInModelBox(target, hand, 2.f);
+    }
+    const glm::vec3 extent{handHalfSize};
+    const glm::vec3 bonus{handTouchBonus(target)};
+    const glm::vec3 origin = vec(target->v.origin);
+    return boxesOverlap(hand - extent, hand + extent, origin + vec(target->v.mins) - bonus,
+        origin + vec(target->v.maxs) + bonus);
 }
 
 [[nodiscard]] glm::vec3 forwardFromAngles(const glm::vec3& angles)
@@ -166,7 +158,8 @@ void handTouches(edict_t* ent)
 {
     const glm::vec3 handExtent{handHalfSize};
     const glm::vec3 hands[2] = {fieldVec(ent, f().offhandpos), fieldVec(ent, f().handpos)};
-    const glm::vec3 handRots[2] = {fieldVec(ent, f().offhandrot), fieldVec(ent, f().handrot)};
+    const glm::vec3 ends[2] = {hands[0] + forwardFromAngles(fieldVec(ent, f().offhandrot)),
+        hands[1] + forwardFromAngles(fieldVec(ent, f().handrot))};
 
     const auto checkTrace = [&](const trace_t& trace) {
         edict_t* target = trace.ent;
@@ -177,7 +170,7 @@ void handTouches(edict_t* ent)
 
         for(int h = 0; h < 2; h++)
         {
-            if(handOn(target, hands[h], handHalfSize, handTouchBonus(target)))
+            if(handOn(target, hands[h]))
             {
                 setHandtouchParams(h == 0 ? HAND_OFF : HAND_MAIN, ent, target);
                 impactField(ent, target, f().handtouch);
@@ -197,16 +190,14 @@ void handTouches(edict_t* ent)
 
     for(int h = 1; h >= 0; h--) // main hand first
     {
-        const glm::vec3 end = hands[h] + forwardFromAngles(handRots[h]);
-        checkTrace(moveTrace(vec(ent->v.origin), vec(ent->v.mins), vec(ent->v.maxs), end,
+        checkTrace(moveTrace(vec(ent->v.origin), vec(ent->v.mins), vec(ent->v.maxs), ends[h],
             MOVE_NORMAL, ent));
-        checkTrace(moveTrace(unionCentre, -unionHalf, unionHalf, end, MOVE_NORMAL, ent));
+        checkTrace(moveTrace(unionCentre, -unionHalf, unionHalf, ends[h], MOVE_NORMAL, ent));
     }
 
     for(int h = 1; h >= 0; h--)
     {
-        const glm::vec3 end = hands[h] + forwardFromAngles(handRots[h]);
-        checkTrace(moveTrace(hands[h], -handExtent, handExtent, end, MOVE_NORMAL, ent));
+        checkTrace(moveTrace(hands[h], -handExtent, handExtent, ends[h], MOVE_NORMAL, ent));
     }
 }
 
@@ -273,11 +264,8 @@ void handTouch(edict_t* ent, edict_t* target)
 
     // The entity's own box, not its abs box: Quake widens items' abs boxes by 15 units for walking
     // over them, which made a 6-unit ammo box grabbable from a hand's width away.
-    const float bonus = handTouchBonus(target);
-    const glm::vec3 off = fieldVec(ent, f().offhandpos);
-    const glm::vec3 main = fieldVec(ent, f().handpos);
-    const bool offHit = handOn(target, off, handHalfSize, bonus);
-    const bool mainHit = handOn(target, main, handHalfSize, bonus);
+    const bool offHit = handOn(target, fieldVec(ent, f().offhandpos));
+    const bool mainHit = handOn(target, fieldVec(ent, f().handpos));
 
     if(offHit || mainHit)
     {
@@ -305,21 +293,6 @@ void handTouch(edict_t* ent, edict_t* target)
 }
 
 } // namespace
-
-namespace qvr::physics
-{
-
-void setClientHandsTracked(int client, bool tracked)
-{
-    if(client >= static_cast<int>(clientHandsTracked.size()))
-    {
-        clientHandsTracked.resize(client + 1, false);
-    }
-
-    clientHandsTracked[client] = tracked;
-}
-
-} // namespace qvr::physics
 
 extern "C" int VR_RunThink2(edict_t* ent)
 {
@@ -376,8 +349,7 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     // The client picks the target: accept it only within the teleport range (with some slack for
     // the arc) and where the player fits.
     const glm::vec3 target = move->teleportTarget;
-    const glm::vec3 from{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    if(glm::distance(from, target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
+    if(glm::distance(vec(ent->v.origin), target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
     {
         return 0;
     }
@@ -439,7 +411,6 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     VectorCopy(oldVelocity, ent->v.velocity);
 }
 
-// Locomotion follows the head, not the aiming hand.
 // ----------------------------------------------------------------------------
 // Swimming (vr_swim)
 
@@ -495,7 +466,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float dt = static_cast<float>(host_frametime);
     const float threshold = std::max(0.f, vr_swim_stroke_min.value) * units::metresToUnits();
     const float palmWeight = CLAMP(0.f, vr_swim_palm.value, 1.f);
-    glm::vec3 vel{ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]};
+    glm::vec3 vel = vec(ent->v.velocity);
 
     // Where the stick asks to go (as SV_WaterMove steers it).
     glm::vec3 wish{0.f};
@@ -548,6 +519,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     ent->v.velocity[2] = vel.z;
 }
 
+// Locomotion follows the head, not the aiming hand.
 extern "C" float* VR_MoveAngles(edict_t* ent, float* fallback)
 {
     float* head = server::clientHeadAngles(ent);
@@ -650,7 +622,7 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
 {
     // Things floating and bobbing at the surface cross it all the time: only a thing moving fast
     // enough splashes (players always do).
-    if(!(static_cast<int>(ent->v.flags) & FL_CLIENT))
+    if(!isClient(ent))
     {
         const float speed = static_cast<float>(VectorLength(ent->v.velocity));
         if(speed < vr_water_splash_speed.value)

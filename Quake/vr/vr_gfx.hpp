@@ -110,4 +110,8 @@ void copy(const Target& target, Texture image);
 [[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr);
 void destroyTexture(Texture texture);
 
+// OpenGL only, for the module's own GL passes (vr_bloom.cpp, vr_lighting.cpp): a program from GLSL
+// sources (no `fragment`: depth only), labelled `name`; 0, with a warning, if it does not build.
+[[nodiscard]] unsigned glProgram(const char* vertex, const char* fragment, const char* name);
+
 } // namespace qvr::gfx

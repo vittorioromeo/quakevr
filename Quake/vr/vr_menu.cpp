@@ -304,11 +304,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far back from that moment the throw's direction is averaged."),
         slider("Lever Arm", vr_throw_lever_arm, 0.f, 0.3f, 0.01f, "%.2f m")
             .help("From the palm to the held object's centre: wrist flicks add speed through it."),
-        cycle("Analog Release", vr_throw_release, {{0.f, "Off"}, {1.f, "On"}})
+        toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx")
             .help("Extra speed for fast throws, which feel weak at true speed."),
-        cycle("Aim Assist", vr_throw_assist, {{0.f, "Off"}, {1.f, "On"}})
+        toggle("Aim Assist", vr_throw_assist)
             .help("Throws close to an enemy's direction bend towards it."),
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg"),
         slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
@@ -541,15 +541,21 @@ void moveCursor(const std::vector<Item>& list, int dir)
     cursor = i;
 }
 
-void openPage(int target)
+// Shows `target`, with its cursor on a setting.
+void showPage(int target)
 {
-    parentPage[target] = page;
     page = target;
     const auto& list = items(page);
     if(list[cursors[page]].kind == Item::Header)
     {
         cursors[page] = firstSelectable(list);
     }
+}
+
+void openPage(int target)
+{
+    parentPage[target] = page;
+    showPage(target);
     S_LocalSound("misc/menu2.wav");
 }
 
@@ -673,12 +679,7 @@ extern "C" void VR_Menu_Open()
     key_dest = key_menu;
     m_state = m_vr;
     m_entersound = true;
-    page = PageMain;
-    const auto& list = items(page);
-    if(list[cursors[page]].kind == Item::Header)
-    {
-        cursors[page] = firstSelectable(list);
-    }
+    showPage(PageMain);
 }
 
 // menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options).
@@ -691,7 +692,7 @@ void qvr::menu::command_f()
         if(target > PageMain && target < pageCount)
         {
             parentPage[PageAdvanced] = PageMain;
-            page = PageAdvanced;
+            showPage(PageAdvanced); // the cursor off the headers
             if(target != PageAdvanced)
             {
                 openPage(target);

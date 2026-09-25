@@ -5,7 +5,6 @@
 // things stand on the ground. A model's disc is pushed away from the light it is shaded from
 // (vr_modellight). Built once per frame, drawn in each eye's scene pass, depth-tested.
 
-#include "vr_backend.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -19,8 +18,6 @@
 #include <vector>
 
 using namespace qvr;
-
-extern "C" int VR_IsViewEntity(const entity_t* e);
 
 namespace
 {

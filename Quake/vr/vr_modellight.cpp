@@ -174,15 +174,7 @@ const std::vector<modellight::MapLight>& modellight::mapLights()
 glm::vec4 modellight::direction(const entity_t* e)
 {
     const float amount = CLAMP(0.f, vr_model_lighting.value, 1.f);
-    if(amount <= 0.f || !cl.worldmodel || !e || !e->model)
-    {
-        return glm::vec4{0.f};
-    }
-    if(cl.worldmodel != loadedWorld)
-    {
-        loadLights();
-    }
-    if(lights.empty())
+    if(amount <= 0.f || !cl.worldmodel || !e || !e->model || mapLights().empty())
     {
         return glm::vec4{0.f};
     }
@@ -207,8 +199,7 @@ glm::vec4 modellight::direction(const entity_t* e)
         c.computedAt = realtime;
     }
 
-    const float dt = c.frame < 0 ? 1.f : static_cast<float>(host_frametime);
-    const float k = fresh ? 1.f : 1.f - std::exp(-dt * 6.f);
+    const float k = fresh ? 1.f : 1.f - std::exp(-static_cast<float>(host_frametime) * 6.f);
     glm::vec3 dir = glm::vec3{c.dir} * c.dir.w;
     dir = glm::mix(dir, glm::vec3{c.target} * c.target.w, k);
     const float len = glm::length(dir);

@@ -32,12 +32,15 @@ std::array<cvar_t, numSlots * numKeys> cvars{};
     return cvars[slot * numKeys + static_cast<int>(key)];
 }
 
-// Model -> slot, rebuilt whenever a vr_wofs_id_NN cvar changes.
+// Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
+// vr_wofs_id_NN cvar changes.
 std::unordered_map<const qmodel_t*, int> slotCache;
+int fistCache = -2;
 
 void onIdChanged(cvar_t* /* var */)
 {
     slotCache.clear();
+    fistCache = -2;
 }
 
 [[nodiscard]] bool isHandPart(const char* name)
@@ -147,15 +150,21 @@ int heldSlot(int hand)
 
 int fistSlot()
 {
+    if(fistCache != -2)
+    {
+        return fistCache;
+    }
+
+    fistCache = -1;
     for(int slot = 0; slot < numSlots; slot++)
     {
         if(!strcmp(cvarAt(slot, Key::ID).string, "progs/hand.mdl"))
         {
-            return slot;
+            fistCache = slot;
+            break;
         }
     }
-
-    return -1;
+    return fistCache;
 }
 
 float value(int slot, Key key)

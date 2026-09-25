@@ -2667,14 +2667,18 @@ entity(vector xHead, vector xDir) VR_Headbutt_Target =
     return best;
 };
 
-void(vector xDir, float xDmg) VR_Headbutt_Hit =
+// The headbutt lands: along the lunge (headbutt_max_vec), as hard as its fastest (`xThreshold` is
+// vr_headbutt_speed).
+void(float xThreshold) VR_Headbutt_Hit =
 {
+    vector dir = normalize(self.headbutt_max_vec);
+    float dmg = min(3, vlen(self.headbutt_max_vec) / xThreshold) * cvar_hget(cvarh_vr_headbutt_damage);
     vector head = self.origin + self.view_ofs;
-    entity victim = VR_Headbutt_Target(head, xDir);
+    entity victim = VR_Headbutt_Target(head, dir);
     vector at;
     if(victim == world)
     {
-        traceline(head, head + xDir * 22, FALSE, self);
+        traceline(head, head + dir * 22, FALSE, self);
         if(trace_fraction == 1.0)
         {
             return;
@@ -2684,7 +2688,7 @@ void(vector xDir, float xDmg) VR_Headbutt_Hit =
     }
     else
     {
-        at = head + xDir * 12;
+        at = head + dir * 12;
     }
 
     self.in_headbutt = FALSE;
@@ -2696,8 +2700,8 @@ void(vector xDir, float xDmg) VR_Headbutt_Hit =
     if(victim.takedamage)
     {
         victim.axhitme = 1;
-        SpawnBloodSplash(at, xDmg);
-        T_Damage_VRMelee(victim, self, self, xDmg);
+        SpawnBloodSplash(at, dmg);
+        T_Damage_VRMelee(victim, self, self, dmg);
     }
     else
     {
@@ -2717,17 +2721,10 @@ void() PlayerVRMeleeHeadbutt =
     float threshold = max(0.3, cvar_hget(cvarh_vr_headbutt_speed));
     float speed = vlen(self.headvel);
 
-    vector oldForward = v_forward;
-    vector oldRight = v_right;
-    vector oldUp = v_up;
-    makevectors(self.v_angle);
-    vector look = v_forward;
-    v_forward = oldForward;
-    v_right = oldRight;
-    v_up = oldUp;
-
-    float towards = speed > 0 ? (self.headvel * look) / speed : 0;
-    if(speed >= threshold && towards > 0.2 && time >= self.headbutt_start_time)
+    // Lunging: fast enough, roughly towards where the head looks (tested last: most frames the
+    // head is slow).
+    if(speed >= threshold && time >= self.headbutt_start_time &&
+       (self.headvel * VRForwardOf(self.v_angle)) / speed > 0.2)
     {
         if(!self.in_headbutt)
         {
@@ -2744,8 +2741,7 @@ void() PlayerVRMeleeHeadbutt =
         entity close = VR_Headbutt_Target(head, normalize(self.headvel));
         if(close != world && vlen(close.origin + (close.mins + close.maxs) * 0.5 - head) < 20)
         {
-            VR_Headbutt_Hit(normalize(self.headbutt_max_vec),
-                min(3, vlen(self.headbutt_max_vec) / threshold) * cvar_hget(cvarh_vr_headbutt_damage));
+            VR_Headbutt_Hit(threshold);
         }
         return;
     }
@@ -2757,8 +2753,7 @@ void() PlayerVRMeleeHeadbutt =
     }
     self.in_headbutt = FALSE;
     self.headbutt_start_time = time + 0.4;
-    VR_Headbutt_Hit(normalize(self.headbutt_max_vec),
-        min(3, vlen(self.headbutt_max_vec) / threshold) * cvar_hget(cvarh_vr_headbutt_damage));
+    VR_Headbutt_Hit(threshold);
 }
 
 void() PlayerVRMelee =

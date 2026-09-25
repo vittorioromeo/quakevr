@@ -8,7 +8,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 namespace qvr::gfx
 {
@@ -63,10 +62,9 @@ void main()
 )";
 
 GLuint program = 0;
-GLuint vbo = 0;
 bool programFailed = false;
 
-[[nodiscard]] GLuint compile(GLenum type, const char* source)
+[[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
@@ -78,7 +76,7 @@ bool programFailed = false;
     {
         char log[1024];
         GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: shader: %s\n", log);
+        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
     }
     return shader;
 }
@@ -90,28 +88,9 @@ bool ensureProgram()
         return program != 0;
     }
 
-    const GLuint vs = compile(GL_VERTEX_SHADER, vertexShader);
-    const GLuint fs = compile(GL_FRAGMENT_SHADER, fragmentShader);
-    program = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(program, vs);
-    GL_AttachShaderFunc(program, fs);
-    GL_LinkProgramFunc(program);
-    GL_DeleteShaderFunc(vs);
-    GL_DeleteShaderFunc(fs);
-
-    GLint ok = 0;
-    GL_GetProgramivFunc(program, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        Con_Warning("VR: shader failed to link\n");
-        GL_DeleteProgramFunc(program);
-        program = 0;
-        programFailed = true;
-        return false;
-    }
-
-    GL_GenBuffersFunc(1, &vbo);
-    return true;
+    program = glProgram(vertexShader, fragmentShader, "vr triangles");
+    programFailed = !program;
+    return program != 0;
 }
 
 // begin2D() / end2D().
@@ -145,6 +124,35 @@ using BlendFuncSeparateFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLenum);
 BlendFuncSeparateFn blendFuncSeparate = nullptr;
 
 } // namespace
+
+unsigned glProgram(const char* vertex, const char* fragment, const char* name)
+{
+    const GLuint vs = compile(GL_VERTEX_SHADER, vertex, name);
+    const GLuint fs = fragment ? compile(GL_FRAGMENT_SHADER, fragment, name) : 0;
+    const GLuint p = GL_CreateProgramFunc();
+    GL_AttachShaderFunc(p, vs);
+    if(fs)
+    {
+        GL_AttachShaderFunc(p, fs);
+    }
+    GL_LinkProgramFunc(p);
+    GL_DeleteShaderFunc(vs);
+    if(fs)
+    {
+        GL_DeleteShaderFunc(fs);
+    }
+
+    GLint ok = 0;
+    GL_GetProgramivFunc(p, GL_LINK_STATUS, &ok);
+    if(!ok)
+    {
+        Con_Warning("VR: %s shader failed to link\n", name);
+        GL_DeleteProgramFunc(p);
+        return 0;
+    }
+    GL_ObjectLabelFunc(GL_PROGRAM, p, -1, name);
+    return p;
+}
 
 void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
 {
@@ -181,11 +189,14 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
     }
 
-    GL_BindBuffer(GL_ARRAY_BUFFER, vbo);
-    GL_BufferDataFunc(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(triangles.size_bytes()), triangles.data(), GL_STREAM_DRAW);
-    GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, pos)));
-    GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, uv)));
-    GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, color)));
+    // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
+    GLuint buf = 0;
+    GLbyte* ofs = nullptr;
+    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.size_bytes(), &buf, &ofs);
+    GL_BindBuffer(GL_ARRAY_BUFFER, buf);
+    GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, pos));
+    GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, uv));
+    GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, color));
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triangles.size()));
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 

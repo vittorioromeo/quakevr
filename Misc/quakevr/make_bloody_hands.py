@@ -13,6 +13,8 @@ import os
 import struct
 import sys
 
+from mdlgen import HEADER, read_skins
+
 MODELS = ["hand_base", "finger_thumb", "finger_index", "finger_middle", "finger_ring", "finger_pinky"]
 
 # Quake palette reds (64..79 go from black to (127, 0, 0)); none of them fullbright.
@@ -21,25 +23,12 @@ BLOOD = 75
 BLOOD_EDGE = 78
 SCRATCH = 76
 
-HEADER = struct.Struct("<4si3f3ff3f8if")
-
 
 def read_mdl(path):
     data = open(path, "rb").read()
     h = list(HEADER.unpack_from(data, 0))
     num_skins, w, hgt, num_verts, num_tris = h[12], h[13], h[14], h[15], h[16]
-    off = HEADER.size
-    skins = []
-    for _ in range(num_skins):
-        (group,) = struct.unpack_from("<i", data, off)
-        start = off
-        off += 4
-        if group == 0:
-            off += w * hgt
-        else:
-            (n,) = struct.unpack_from("<i", data, off)
-            off += 4 + 4 * n + n * w * hgt
-        skins.append(data[start:off])
+    skins, off = read_skins(data, HEADER.size, num_skins, w, hgt)
     rest = data[off:]
     stverts = [struct.unpack_from("<3i", rest, 12 * i) for i in range(num_verts)]
     tris = [struct.unpack_from("<4i", rest, 12 * num_verts + 16 * i) for i in range(num_tris)]
@@ -70,7 +59,7 @@ def coverage(stverts, tris, w, hgt):
     return used
 
 
-def marks_for(name, used, w, hgt):
+def marks_for(name, used, w):
     """Blood blotches and scratches per damage level (each level adds to the previous)."""
     rng = sum(ord(c) * 31 ** i for i, c in enumerate(name)) & 0x7FFFFFFF
 
@@ -123,7 +112,7 @@ def process(path, name):
         raise SystemExit("%s: skin 0 is a group; not supported" % path)
     pixels = base[4 : 4 + w * hgt]
     used = coverage(stverts, tris, w, hgt)
-    levels = marks_for(name, used, w, hgt)
+    levels = marks_for(name, used, w)
 
     out_skins = [base]
     marks = []

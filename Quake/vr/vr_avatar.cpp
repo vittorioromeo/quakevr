@@ -20,7 +20,7 @@ namespace
 {
 
 // The modelled body (Misc/quakevr/make_vrbody.py, which these tables must match): model units
-// per metre, and the height of its eyes.
+// per metre.
 constexpr float UNITS = units::perMetre;
 
 // A bone that is not drawn collapses to a point.
@@ -85,6 +85,7 @@ struct Bind
 {
     std::array<glm::vec3, JointCount> pos;
     std::array<glm::mat3, JointCount> rot;
+    std::array<glm::vec3, JointCount> offset; // from the parent, in the parent's frame
     glm::vec3 toe[2];
 };
 
@@ -134,17 +135,21 @@ const Bind& bind()
             r.rot[thigh + 1] = basis(r.pos[thigh + 2] - r.pos[thigh + 1], FWD);
             r.rot[thigh + 2] = basis(r.toe[side] - r.pos[thigh + 2], UP);
         }
+
+        for(int j = Pelvis + 1; j < JointCount; j++)
+        {
+            const int p = parentOf[j];
+            r.offset[j] = glm::transpose(r.rot[p]) * (r.pos[j] - r.pos[p]);
+        }
         return r;
     }();
     return b;
 }
 
 // A joint's offset from its parent, in the parent's bind frame, in metres.
-[[nodiscard]] glm::vec3 localOffset(int joint)
+[[nodiscard]] const glm::vec3& localOffset(int joint)
 {
-    const Bind& b = bind();
-    const int p = parentOf[joint];
-    return glm::transpose(b.rot[p]) * (b.pos[joint] - b.pos[p]);
+    return bind().offset[joint];
 }
 
 [[nodiscard]] float boneLength(int from, int to)
@@ -358,9 +363,6 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     h.rot = glm::length(handPose.forward) > 0.5f ? basis(handPose.forward, -handUp) : wristRot;
 }
 
-// Legs standing with the feet under the head (the balance point: crouching pushes the hips back
-// and the knees forward; vr_body_legs_back further back, to match a posture), knees forward;
-// collapsed when not shown.
 // Walking: a gait cycle driven by the player's own movement (the stick, not the room). The feet
 // swing along the direction of travel, half a cycle apart, and lift on the way forward; strides
 // lengthen with speed; the whole of it eases in and out as the player starts and stops, and the
@@ -407,6 +409,9 @@ void updateGait(float m2w)
     }
 }
 
+// Legs standing with the feet under the head (the balance point: crouching pushes the hips back
+// and the knees forward; vr_body_legs_back further back, to match a posture), knees forward;
+// collapsed when not shown.
 void solveLeg(Body& b, const glm::vec3& head, int side, bool shown)
 {
     const Bind& bd = bind();
@@ -460,17 +465,15 @@ struct ModelInfo
 {
     const qmodel_t* model{nullptr};
     bool usable{false};
-    int numBones{0};
     std::array<int, JointCount> boneOf{};
 };
 
 ModelInfo info;
 
-// The pose being drawn: skinning matrices in model bone order.
+// The pose being drawn: skinning matrices in model bone order (the model has JointCount bones).
 struct Posed
 {
     const entity_t* ent{nullptr};
-    int numBones{0};
     float scale{0.f};
     std::array<float, JointCount * 12> skin{};
     glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
@@ -521,10 +524,12 @@ hands::State standing(const hands::State& s)
     return out;
 }
 
-glm::vec3 follow(const hands::State& s, Part part, const glm::vec3& standingPoint)
+Follower::Follower(const hands::State& s) : now(torso(s)), ref(torso(standing(s)))
 {
-    const Torso now = torso(s);
-    const Torso ref = torso(standing(s));
+}
+
+glm::vec3 Follower::operator()(Part part, const glm::vec3& standingPoint) const
+{
     const Frame& f = part == Part::Pelvis ? now.pelvis : now.chest;
     const Frame& r = part == Part::Pelvis ? ref.pelvis : ref.chest;
     return f.pos + f.rot * (glm::transpose(r.rot) * (standingPoint - r.pos));
@@ -579,7 +584,6 @@ bool usable(qmodel_t* model)
         }
     }
 
-    info.numBones = hdr->numbones;
     info.usable = true;
     return true;
 }
@@ -647,25 +651,20 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     }
 
     posed.ent = ent;
-    posed.numBones = info.numBones;
     posed.scale = k;
+    const Bind& bd = bind();
     for(int side = 0; side < 2; side++)
     {
         const int clav = side == 0 ? ClavicleL : ClavicleR;
-        const Bind& bd = bind();
         Shoulder& sh = posed.shoulders[side];
         sh.joint = b.bones[clav + 1].pos;
         sh.clavicle = glm::normalize(glm::quat_cast(b.bones[clav].rot * glm::transpose(bd.rot[clav])));
         sh.upperArm = glm::normalize(glm::quat_cast(b.bones[clav + 1].rot * glm::transpose(bd.rot[clav + 1])));
         sh.m2w = b.m2w;
-    }
-    for(int side = 0; side < 2; side++)
-    {
+
         const int hand = side == 0 ? leftHand : 1 - leftHand;
-        const Bone& fore = b.bones[side == 0 ? ForearmL : ForearmR];
-        const Bone& wristBone = b.bones[side == 0 ? HandL : HandR];
-        posed.wrist[hand] = wristBone.pos;
-        posed.forearm[hand] = fore.rot[0];
+        posed.wrist[hand] = b.bones[clav + 3].pos;
+        posed.forearm[hand] = b.bones[clav + 2].rot[0];
     }
     return origin;
 }
@@ -706,7 +705,7 @@ float modelScale(const entity_t* e)
 extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
 {
     using namespace qvr::avatar;
-    if(!e || e != posed.ent || !posed.numBones)
+    if(!e || e != posed.ent)
     {
         return 0;
     }
@@ -714,5 +713,5 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     {
         *matrices = posed.skin.data();
     }
-    return posed.numBones;
+    return JointCount;
 }

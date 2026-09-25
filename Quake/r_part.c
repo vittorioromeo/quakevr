@@ -265,10 +265,10 @@ void R_ParticleExplosion2 (vec3_t org, int colorStart, int colorLength)
 {
 	int			i, j;
 	particle_t	*p;
+	int			colorMod = 0;
 
 	if (VR_ParticleExplosion2 (org, colorStart, colorLength)) // QVR: Quake VR's particles
 		return;
-	int			colorMod = 0;
 
 	for (i=0; i<512; i++)
 	{

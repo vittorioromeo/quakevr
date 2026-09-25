@@ -21,13 +21,16 @@ struct Line
 };
 
 std::vector<Line> queue;
-std::vector<gfx::Vertex> vertices; // uv -1..1 across the width (and along a point): the soft edge
 
-void quad(const glm::vec3 (&p)[4], const glm::vec4 (&c)[4], const glm::vec2 (&uv)[4])
+// Blended over the scene [0], added onto it [1]; uv -1..1 across the width (and along a point):
+// the soft edge.
+std::vector<gfx::Vertex> vertices[2];
+
+void quad(std::vector<gfx::Vertex>& out, const glm::vec3 (&p)[4], const glm::vec4 (&c)[4], const glm::vec2 (&uv)[4])
 {
     for(int i : {0, 1, 2, 0, 2, 3})
     {
-        vertices.push_back({p[i], uv[i], c[i]});
+        out.push_back({p[i], uv[i], c[i]});
     }
 }
 
@@ -61,15 +64,11 @@ void drawInEye(const glm::vec3& eye)
         return;
     }
 
-    for(const bool additive : {false, true})
-    {
-    vertices.clear();
+    vertices[0].clear();
+    vertices[1].clear();
     for(const Line& l : queue)
     {
-        if(l.additive != additive)
-        {
-            continue;
-        }
+        std::vector<gfx::Vertex>& out = vertices[l.additive];
         if(l.point)
         {
             // A disc facing the eye.
@@ -79,7 +78,8 @@ void drawInEye(const glm::vec3& eye)
                                                                         : glm::vec3{1.f, 0.f, 0.f}));
             const glm::vec3 up = glm::cross(side, toEye);
             const float r = l.width * 0.5f;
-            quad({l.a - side * r - up * r, l.a + side * r - up * r, l.a + side * r + up * r, l.a - side * r + up * r},
+            quad(out,
+                {l.a - side * r - up * r, l.a + side * r - up * r, l.a + side * r + up * r, l.a - side * r + up * r},
                 {l.colorA, l.colorA, l.colorA, l.colorA}, {{-1.f, -1.f}, {1.f, -1.f}, {1.f, 1.f}, {-1.f, 1.f}});
             continue;
         }
@@ -92,17 +92,15 @@ void drawInEye(const glm::vec3& eye)
             continue;
         }
         side = glm::normalize(side) * (l.width * 0.5f);
-        quad({l.a - side, l.b - side, l.b + side, l.a + side}, {l.colorA, l.colorB, l.colorB, l.colorA},
+        quad(out, {l.a - side, l.b - side, l.b + side, l.a + side}, {l.colorA, l.colorB, l.colorB, l.colorA},
             {{0.f, -1.f}, {0.f, -1.f}, {0.f, 1.f}, {0.f, 1.f}});
     }
 
-    if(!vertices.empty())
-    {
-        gfx::draw(vertices, gfx::sceneViewProjection(),
-            {.shade = gfx::Shade::SoftEdge, .blend = additive ? gfx::Blend::Premultiplied : gfx::Blend::Alpha,
-                .depthTest = false, .depthWrite = false});
-    }
-    }
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    gfx::draw(vertices[0], viewProjection,
+        {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    gfx::draw(vertices[1], viewProjection,
+        {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false});
 }
 
 void clear()

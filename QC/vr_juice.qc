@@ -52,14 +52,7 @@ void(float xHand) VR_Deflect =
             if(d < 16 + e.maxs_x)
             {
                 entity oldOwner = e.owner;
-                vector oldForward = v_forward;
-                vector oldRight = v_right;
-                vector oldUp = v_up;
-                makevectors(VRGetHandRot(xHand));
-                vector dir = v_forward;
-                v_forward = oldForward;
-                v_right = oldRight;
-                v_up = oldUp;
+                vector dir = VRForwardOf(VRGetHandRot(xHand));
 
                 float speed = max(500, vlen(e.velocity)) * 1.2;
                 e.velocity = dir * speed;
@@ -101,8 +94,7 @@ void() VR_Heartbeat =
 // vr_bash_speed (m/s).
 float(float xHand, vector xForward) VR_Bash_Driving =
 {
-    vector v = xHand == cVR_OffHand ? self.offhandvel : self.handvel;
-    return v * xForward > cvar_hget(cvarh_vr_bash_speed);
+    return VRGetEntHandVel(self, xHand) * xForward > cvar_hget(cvarh_vr_bash_speed);
 };
 
 // A bash (vr_bash): a guard driven forward hard -- a weapon held across in front (the parry pose),
@@ -116,29 +108,29 @@ void() VR_Bash =
         return;
     }
 
-    vector oldForward = v_forward;
-    vector oldRight = v_right;
-    vector oldUp = v_up;
-    makevectors('0 1 0' * self.v_angle_y);
-    vector fwd = v_forward;
-    v_forward = oldForward;
-    v_right = oldRight;
-    v_up = oldUp;
+    vector fwd = VRForwardOf('0 1 0' * self.v_angle_y);
+
+    // (Most frames no hand drives forward: that cheap test comes first.)
+    float mainDriving = VR_Bash_Driving(cVR_MainHand, fwd);
+    float offDriving = VR_Bash_Driving(cVR_OffHand, fwd);
+    if(!mainDriving && !offDriving)
+    {
+        return;
+    }
 
     float armed = FALSE;
     float hand = -1;
-    if(VR_Parry_Blocks(self, cVR_MainHand, fwd) && VR_Bash_Driving(cVR_MainHand, fwd))
+    if(mainDriving && VR_Parry_Blocks(self, cVR_MainHand, fwd))
     {
         hand = cVR_MainHand;
         armed = TRUE;
     }
-    else if(VR_Parry_Blocks(self, cVR_OffHand, fwd) && VR_Bash_Driving(cVR_OffHand, fwd))
+    else if(offDriving && VR_Parry_Blocks(self, cVR_OffHand, fwd))
     {
         hand = cVR_OffHand;
         armed = TRUE;
     }
-    else if(VRIsHandEmpty(self, cVR_MainHand) && VRIsHandEmpty(self, cVR_OffHand) &&
-            VR_Bash_Driving(cVR_MainHand, fwd) && VR_Bash_Driving(cVR_OffHand, fwd))
+    else if(mainDriving && offDriving && VRIsHandEmpty(self, cVR_MainHand) && VRIsHandEmpty(self, cVR_OffHand))
     {
         // Both hands together, in front at chest height.
         vector m = VRGetHandPos(cVR_MainHand) - self.origin;
@@ -160,6 +152,7 @@ void() VR_Bash =
         at = VRGetHandPos(hand);
     }
     float hits = 0;
+    float push = cvar_hget(cvarh_vr_bash_push);
     entity e = findradius(at + fwd * 24, 48);
     while(e)
     {
@@ -168,7 +161,6 @@ void() VR_Bash =
         {
             hits = hits + 1;
             T_Damage(e, self, self, cvar_hget(cvarh_vr_bash_damage));
-            float push = cvar_hget(cvarh_vr_bash_push);
             VR_Push(e, fwd, 520 * push, 140 * push);
             if(e.health > 0 && e.th_pain)
             {

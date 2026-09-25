@@ -3,6 +3,7 @@
 #include "vr_bloom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfx.hpp"
 
 #include <algorithm>
 
@@ -104,54 +105,16 @@ void main()
 }
 )";
 
-[[nodiscard]] GLuint compile(GLenum type, const char* source)
-{
-    const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
-    GL_CompileShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
-    {
-        char log[1024];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR bloom: shader failed to compile:\n%s\n", log);
-    }
-    return shader;
-}
-
-[[nodiscard]] GLuint program(const char* fs, const char* name)
-{
-    const GLuint v = compile(GL_VERTEX_SHADER, fullscreenVs);
-    const GLuint f = compile(GL_FRAGMENT_SHADER, fs);
-    const GLuint p = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(p, v);
-    GL_AttachShaderFunc(p, f);
-    GL_LinkProgramFunc(p);
-    GL_DeleteShaderFunc(v);
-    GL_DeleteShaderFunc(f);
-    GLint ok = 0;
-    GL_GetProgramivFunc(p, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        Con_Warning("VR bloom: %s shader failed to link\n", name);
-        GL_DeleteProgramFunc(p);
-        return 0;
-    }
-    GL_ObjectLabelFunc(GL_PROGRAM, p, -1, name);
-    return p;
-}
-
 [[nodiscard]] bool ensurePrograms()
 {
     if(brightProgram || failed)
     {
         return !failed;
     }
-    brightProgram = program(brightFs, "vr bloom bright pass");
-    downProgram = program(downFs, "vr bloom downsample");
-    blurProgram = program(blurFs, "vr bloom blur");
-    addProgram = program(addFs, "vr bloom add");
+    brightProgram = gfx::glProgram(fullscreenVs, brightFs, "vr bloom bright pass");
+    downProgram = gfx::glProgram(fullscreenVs, downFs, "vr bloom downsample");
+    blurProgram = gfx::glProgram(fullscreenVs, blurFs, "vr bloom blur");
+    addProgram = gfx::glProgram(fullscreenVs, addFs, "vr bloom add");
     failed = !brightProgram || !downProgram || !blurProgram || !addProgram;
     return !failed;
 }

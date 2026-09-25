@@ -4,6 +4,8 @@
 
 #include "vr_hands.hpp"
 
+#include <array>
+
 namespace qvr::body
 {
 
@@ -34,14 +36,17 @@ enum Hotspot : int
 };
 
 // Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the
-// old engine's placement.
+// old engine's placement. For several holsters, holsterPositions solves the body once.
+using HolsterPositions = std::array<glm::vec3, HolsterCount>;
 [[nodiscard]] glm::vec3 holsterPosition(const hands::State& s, Holster holster);
+[[nodiscard]] HolsterPositions holsterPositions(const hands::State& s);
 
 // hands::bodyAnchor, carried by the chest with vr_body_anchors (the virtual stock's shoulders).
 [[nodiscard]] glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets);
 
-// Where a hand is, for holstering, two-handed grabs and passing a weapon between hands.
-[[nodiscard]] Hotspot hotspot(const hands::State& s, int hand);
+// Where each hand is (s.hotspot), for holstering, two-handed grabs and passing a weapon between
+// hands.
+void updateHotspots(hands::State& s);
 
 // The hotspot of a holster, for highlighting it when a hand hovers it.
 [[nodiscard]] Hotspot holsterHotspot(Holster holster);

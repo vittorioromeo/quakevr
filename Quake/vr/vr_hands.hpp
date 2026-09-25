@@ -1,6 +1,6 @@
 // vr_hands.hpp -- per-frame client-side VR body state: head, hands, body yaw and crouch, in
 // world space. Computed once per host frame from the backend's tracking (or the standing pose
-// when VR is off) and shared by the VR move, the view entities and later the menus.
+// when VR is off) and shared by the VR move and the view entities.
 
 #pragma once
 
@@ -68,6 +68,7 @@ void addTurn(float degrees);
 [[nodiscard]] glm::vec3 forward(const glm::vec3& angles);
 void angleVectors(
     const glm::vec3& angles, glm::vec3& fwd, glm::vec3& right, glm::vec3& up);
+[[nodiscard]] glm::vec3 rotateYaw(const glm::vec3& v, float degrees); // about the vertical axis
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
 [[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
 

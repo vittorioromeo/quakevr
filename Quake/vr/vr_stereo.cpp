@@ -31,6 +31,7 @@ GLuint targetFbo = 0;
 
 bool renderingEye = false;
 int currentEye = 0;
+bool firstEye = false; // no other eye rendered before it this frame
 
 void ensureEyeFramebuffers(int width, int height)
 {
@@ -119,6 +120,11 @@ int eye()
     return currentEye;
 }
 
+bool isFirstEye()
+{
+    return firstEye;
+}
+
 } // namespace qvr::stereo
 
 using namespace qvr;
@@ -179,6 +185,7 @@ extern "C" int VR_RenderView()
 
         stereo::renderingEye = true;
         stereo::currentEye = eye;
+        stereo::firstEye = eyesRendered == 0;
 
         V_RenderView();
         bloom::apply(framebufs.composite.fbo, framebufs.composite.color_tex, width, height);

@@ -12,7 +12,6 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 
-#include <cstdio>
 #include <cstring>
 
 namespace qvr::gadget
@@ -75,10 +74,7 @@ struct Palette
     return p;
 }
 
-void fill(float x, float y, float w, float h, float r, float g, float b)
-{
-    gfx::draw2D::fill(x, y, w, h, {r, g, b});
-}
+using gfx::draw2D::fill;
 
 // Big numbers, right-aligned in `digits` places of 24 x 24 (scaled).
 void number(float x, float y, int value, int digits, bool red, float scale)
@@ -97,24 +93,22 @@ void number(float x, float y, int value, int digits, bool red, float scale)
 void layout()
 {
     const Palette pal = palette();
-    const glm::vec3& screenGreen = pal.line;
-    const glm::vec4& textGreen = pal.text;
 
     // A tinted screen with faint scanlines and a frame.
-    fill(0.f, 0.f, width, height, pal.background.r, pal.background.g, pal.background.b);
+    fill(0.f, 0.f, width, height, pal.background);
     for(int y = 0; y < height; y += 3)
     {
-        fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline.r, pal.scanline.g, pal.scanline.b);
+        fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline);
     }
-    fill(0.f, 0.f, width, 2.f, screenGreen.r, screenGreen.g, screenGreen.b);
-    fill(0.f, height - 2.f, width, 2.f, screenGreen.r, screenGreen.g, screenGreen.b);
-    fill(0.f, 0.f, 2.f, height, screenGreen.r, screenGreen.g, screenGreen.b);
-    fill(width - 2.f, 0.f, 2.f, height, screenGreen.r, screenGreen.g, screenGreen.b);
+    fill(0.f, 0.f, width, 2.f, pal.line);
+    fill(0.f, height - 2.f, width, 2.f, pal.line);
+    fill(0.f, 0.f, 2.f, height, pal.line);
+    fill(width - 2.f, 0.f, 2.f, height, pal.line);
 
-    gfx::draw2D::color(textGreen);
+    gfx::draw2D::color(pal.text);
     gfx::draw2D::text(8.f, 6.f, 8.f, "RANGER STATUS");
     gfx::draw2D::color(white);
-    fill(8.f, 16.f, width - 16.f, 1.f, screenGreen.r, screenGreen.g, screenGreen.b);
+    fill(8.f, 16.f, width - 16.f, 1.f, pal.line);
 
     // Face and health, armour.
     const int health = cl.stats[STAT_HEALTH];
@@ -138,7 +132,7 @@ void layout()
         gfx::draw2D::pic(x, 56.f, ammoPics[i]);
         char count[8];
         q_snprintf(count, sizeof(count), "%3d", ammo[i]);
-        gfx::draw2D::color(textGreen);
+        gfx::draw2D::color(pal.text);
         gfx::draw2D::text(x - 3.f, 84.f, 10.f, count);
         gfx::draw2D::color(white);
     }
@@ -177,10 +171,10 @@ void layout()
     {
         return;
     }
-    fill(8.f, 122.f, width - 16.f, 1.f, screenGreen.r, screenGreen.g, screenGreen.b);
+    fill(8.f, 122.f, width - 16.f, 1.f, pal.line);
     char line[64];
     q_snprintf(line, sizeof(line), "%.22s", cl.levelname);
-    gfx::draw2D::color(textGreen);
+    gfx::draw2D::color(pal.text);
     gfx::draw2D::text(8.f, 127.f, 8.f, line);
     q_snprintf(line, sizeof(line), "K %d/%d  S %d/%d", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS],
         cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);

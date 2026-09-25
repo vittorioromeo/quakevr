@@ -203,6 +203,8 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
         }
     }
 
+    // Onto the hilt (the hand) if it shares it, else the sword's middle.
+    const std::vector<int>& anchor = shared.empty() ? own : shared;
     int frames = 0;
     for(int f = 0; f < hdr->numframes; f++)
     {
@@ -217,8 +219,6 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
         for(int p = fd.firstpose; p < fd.firstpose + fd.numposes; p++)
         {
             trivertx_t* pose = poses[p];
-            // Onto the hilt (the hand) if it shares it, else the sword's middle.
-            const std::vector<int>& anchor = shared.empty() ? own : shared;
             int sum[3]{};
             for(int v : anchor)
             {

@@ -2,7 +2,6 @@
 
 #include "vr_move.hpp"
 #include "vr_engine.hpp"
-#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -33,7 +32,6 @@ struct ClientMove
 {
     bool valid{false};
     VrMove move;
-    float headAngles[3]{0.f, 0.f, 0.f};
 };
 std::vector<ClientMove> clientMoves;
 
@@ -46,6 +44,17 @@ std::vector<ClientMove> clientMoves;
     }
     ClientMove& m = clientMoves[client];
     return m.valid ? &m : nullptr;
+}
+
+// The reliable message buffer of the client `player` is, or nullptr for an inactive one.
+[[nodiscard]] sizebuf_t* clientMessage(edict_t* player)
+{
+    const int client = NUM_FOR_EDICT(player) - 1;
+    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    {
+        return nullptr;
+    }
+    return &svs.clients[client].message;
 }
 
 // vrbits0 pairs a "current" bit with the "previous" bit just above it.
@@ -111,20 +120,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const VrMove move = readVrMove();
 
     edict_t* ent = client->edict;
+    const int clientNum = static_cast<int>(client - svs.clients);
+    if(clientNum >= static_cast<int>(clientMoves.size()))
     {
-        const int clientNum = static_cast<int>(client - svs.clients);
-        if(clientNum >= static_cast<int>(clientMoves.size()))
-        {
-            clientMoves.resize(clientNum + 1);
-        }
-        ClientMove& m = clientMoves[clientNum];
-        m.valid = true;
-        m.move = move;
-        for(int i = 0; i < 3; i++)
-        {
-            m.headAngles[i] = move.headAngles[i];
-        }
+        clientMoves.resize(clientNum + 1);
     }
+    clientMoves[clientNum] = {true, move};
 
     const FieldOffsets& f = fields();
 
@@ -151,7 +152,6 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldVec(ent, f.headvel, move.headVel);
     setFieldVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
     setFieldVec(ent, f.muzzlepos, move.muzzlePos[1]);
-    const int clientNum = static_cast<int>(client - svs.clients);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);
@@ -167,7 +167,6 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setFieldVec(ent, f.roomscalemove, move.roomscaleMove);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
-    physics::setClientHandsTracked(clientNum, (move.buttons & QVR_BUTTON_HANDSTRACKED) != 0);
 }
 
 // The status bar highlights the active weapon by its item bit; with the Quake VR progs .weapon
@@ -405,18 +404,17 @@ const VrMove* clientMove(edict_t* player)
 float* clientHeadAngles(edict_t* player)
 {
     ClientMove* m = clientMoveOf(player);
-    return m ? m->headAngles : nullptr;
+    return m ? &m->move.headAngles.x : nullptr;
 }
 
 void sendHaptic(edict_t* player, int hand, float delay, float duration, float frequency, float amplitude)
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    sizebuf_t* msg = clientMessage(player);
+    if(!msg)
     {
         return;
     }
 
-    sizebuf_t* msg = &svs.clients[client].message;
     MSG_WriteByte(msg, svc_quakevr);
     MSG_WriteByte(msg, QVR_SVC_HAPTIC);
     MSG_WriteByte(msg, hand);
@@ -429,13 +427,12 @@ void sendHaptic(edict_t* player, int hand, float delay, float duration, float fr
 // A knock on a player's drawn hand (a parried blow): `strength` units along `dir`, dying out.
 void sendHandImpact(edict_t* player, int hand, float strength, const float dir[3])
 {
-    const int client = NUM_FOR_EDICT(player) - 1;
-    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    sizebuf_t* msg = clientMessage(player);
+    if(!msg)
     {
         return;
     }
 
-    sizebuf_t* msg = &svs.clients[client].message;
     MSG_WriteByte(msg, svc_quakevr);
     MSG_WriteByte(msg, QVR_SVC_HANDIMPACT);
     MSG_WriteByte(msg, hand);

@@ -72,7 +72,6 @@ void update(hands::State& s)
                     spin(h);
                 }
             }
-
         }
         spinLeft[h] = std::fmax(spinLeft[h] - spinDt * vr_spinreload_pitch_speed.value, 0.f);
 

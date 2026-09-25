@@ -463,12 +463,7 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
         return FALSE;
     }
 
-    vector rot = p.handrot;
-    if(hand == cVR_OffHand)
-    {
-        rot = p.offhandrot;
-    }
-    makeforward(rot);
+    makeforward(VRGetEntHandRot(p, hand));
     if(fabs(v_forward * toAttacker) > sin(cvar_hget(cvarh_vr_parry_angle) * 0.0174533))
     {
         return FALSE;
@@ -514,8 +509,8 @@ float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
-    if(!cvar_hget(cvarh_vr_parry) || damage <= 0 || targ.classname != "player" || !VRHandsTracked(targ) ||
-       inflictor != attacker || !(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))
+    if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||
+       targ.classname != "player" || !VRHandsTracked(targ) || !VR_Parry_MeleeMonster(attacker))
     {
         return damage;
     }
@@ -631,8 +626,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 
     // VR: a monster's melee blow that was not parried throws the player back (vr_melee_push_player;
     // Quake's own push is weak).
-    if(r && parried == damage && targ.classname == "player" && inflictor == attacker &&
-       (attacker.flags & FL_MONSTER) && VR_Parry_MeleeMonster(attacker) && vlen(attacker.origin - targ.origin) < 150)
+    if(r && parried == damage && inflictor == attacker && (attacker.flags & FL_MONSTER) &&
+       targ.classname == "player" && VR_Parry_MeleeMonster(attacker) && vlen(attacker.origin - targ.origin) < 150)
     {
         VR_Push(targ, targ.origin - attacker.origin, damage * 12 * cvar_hget(cvarh_vr_melee_push_player),
             damage * 3 * cvar_hget(cvarh_vr_melee_push_player));

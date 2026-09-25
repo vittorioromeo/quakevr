@@ -55,16 +55,6 @@ struct History
 
 History histories[2];
 
-[[nodiscard]] Estimate fromSample(const Sample& s, const glm::vec3& vel, const glm::vec3& angVel)
-{
-    Estimate out;
-    out.vel = vel;
-    out.angVel = angVel;
-    out.pos = s.pos;
-    out.time = s.time;
-    return out;
-}
-
 // The peak of the controller's speed around the release.
 [[nodiscard]] Estimate releasePeak(const History& h, double releaseTime)
 {
@@ -139,9 +129,7 @@ History histories[2];
         vel += glm::cross(angVel, lever) * vr_throw_ang_factor.value;
     }
 
-    Estimate out = fromSample(peak, vel, angVel);
-    out.pos = peak.pos + lever * units::metresToUnits();
-    return out;
+    return {vel, angVel, peak.pos + lever * units::metresToUnits(), peak.time};
 }
 
 // Grip state per hand, for the release detection.
@@ -160,13 +148,7 @@ void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, c
     const glm::vec3& forward)
 {
     History& h = histories[hand];
-
-    Sample s;
-    s.time = time;
-    s.pos = pos;
-    s.vel = vel;
-    s.angVel = angVel;
-    s.forward = forward;
+    const Sample s{time, pos, vel, angVel, forward};
 
     if(h.count > 0 && h.at(0).time == time)
     {
@@ -187,13 +169,7 @@ void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, c
 
 Estimate estimate(int hand)
 {
-    const History& h = histories[hand];
-    if(h.count == 0)
-    {
-        return {};
-    }
-
-    return releasePeak(h, h.at(0).time);
+    return estimateAt(hand, latestTime(hand));
 }
 
 Estimate estimateAt(int hand, double releaseTime)

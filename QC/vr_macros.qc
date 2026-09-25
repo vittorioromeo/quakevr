@@ -1,4 +1,7 @@
-#pragma once
+// Included from several files and listed in progs.src: a guard, as FTEQCC read it again despite a
+// `#pragma once` (warning F316 for every macro, each time).
+#ifndef VR_MACROS_QC
+#define VR_MACROS_QC
 
 #define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
 
@@ -34,3 +37,5 @@
     bprint("; "); \
     bprint(ftos(x ## _z)); \
     bprint("}'\n")
+
+#endif

@@ -147,7 +147,8 @@ public:
 // A standing player holding both hands in front of the chest (what the mock backend reports).
 [[nodiscard]] TrackingState standingPose();
 
-// Console commands driving the mock backend's controllers: vr_mock_button, vr_mock_stick.
+// Console commands driving the mock backend's tracking and controllers: vr_mock_button,
+// vr_mock_stick, vr_mock_hand, vr_mock_look.
 void registerMockCommands();
 
 } // namespace qvr

@@ -46,7 +46,7 @@ def main():
     m = build()
     skin = mdlgen.dithered_skin(64, 64, REGIONS, RAMPS, 777)
     path = os.path.join(out, "vrgadget.mdl")
-    mdlgen.write_mdl(path, m, skin, "gadget")
+    mdlgen.write_mdl(path, m, [skin], "gadget")
     print("vrgadget.mdl: %d vertices, %d triangles -> %s" % (len(m.verts), len(m.tris), os.path.normpath(path)))
 
 

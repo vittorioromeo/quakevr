@@ -116,11 +116,6 @@ void drawSurface(gfx::Texture texture, const glm::mat4& mvp)
     return key_dest != key_game || con_forcedup || scr_drawloading || cl.intermission;
 }
 
-[[nodiscard]] glm::mat4 viewProjection()
-{
-    return gfx::sceneViewProjection();
-}
-
 // The quad's model matrix: corner (0, 0) at `origin`, spanning `xAxis` and `yAxis`.
 [[nodiscard]] glm::mat4 quad(const glm::vec3& origin, const glm::vec3& xAxis, const glm::vec3& yAxis)
 {
@@ -130,6 +125,21 @@ void drawSurface(gfx::Texture texture, const glm::mat4& mvp)
     model[2] = glm::vec4{0.f};
     model[3] = glm::vec4{origin, 1.f};
     return model;
+}
+
+// The canvas on a panel vr_menu_distance in front of the head, the way `angles` look (`mask` as
+// drawCanvas's): the menus' and the in-game HUD's.
+void drawFacing(const hands::State& s, const glm::vec3& angles, const glm::vec4& mask = noMask)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(angles, fwd, right, up);
+
+    const float height = 200.f * vr_menu_scale.value;
+    const float width = height * static_cast<float>(canvas.width) / canvas.height;
+    const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
+    const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
+
+    drawCanvas(gfx::sceneViewProjection() * quad(corner, right * width, up * height), wholeCanvas, mask);
 }
 
 // The status bar's rectangle in the canvas (u0, v0, u1, v1; v up), and how many of its 48
@@ -198,7 +208,7 @@ void drawSbar(const hands::State& s, const SbarRect& r)
     const glm::vec3 origin = m * glm::vec4{0.f, 48.f, 0.f, 1.f};
     const glm::vec3 xAxis = m * glm::vec4{320.f, 0.f, 0.f, 0.f};
     const glm::vec3 yAxis = m * glm::vec4{0.f, -r.rows, 0.f, 0.f};
-    drawCanvas(viewProjection() * quad(origin, xAxis, yAxis), r.uv);
+    drawCanvas(gfx::sceneViewProjection() * quad(origin, xAxis, yAxis), r.uv);
 }
 
 // Everything else of the in-game 2D layer, on a panel following the head.
@@ -220,15 +230,7 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
         hudAngles.y += std::remainder(head.y - hudAngles.y, 360.f) * t;
     }
 
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({hudAngles.x, hudAngles.y, 0.f}, fwd, right, up);
-
-    const float height = 200.f * vr_menu_scale.value;
-    const float width = height * static_cast<float>(canvas.width) / canvas.height;
-    const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
-    const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
-
-    drawCanvas(viewProjection() * quad(corner, right * width, up * height), wholeCanvas, mask);
+    drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, mask);
 }
 
 // The canvas into the backend's panel image, when it has one.
@@ -282,8 +284,8 @@ void drawInEye(const hands::State& s)
                 glm::vec2 size;
                 gadget::screenRect(corner, size);
                 const glm::vec3 origin = g.origin + g.axes * (corner * g.scale);
-                drawSurface(gadget::screenTexture(),
-                    viewProjection() * quad(origin, g.axes[0] * (size.x * g.scale), g.axes[1] * (size.y * g.scale)));
+                const glm::mat4 model = quad(origin, g.axes[0] * (size.x * g.scale), g.axes[1] * (size.y * g.scale));
+                drawSurface(gadget::screenTexture(), gfx::sceneViewProjection() * model);
             }
         }
         else if(sbar.rows > 0.f)
@@ -295,16 +297,7 @@ void drawInEye(const hands::State& s)
     }
     hudAnglesValid = false;
 
-    const float yaw = panelYawOffset + hands::playSpaceYaw();
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
-
-    const float height = 200.f * vr_menu_scale.value;
-    const float width = height * static_cast<float>(canvas.width) / canvas.height;
-    const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
-    const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
-
-    drawCanvas(viewProjection() * quad(corner, right * width, up * height));
+    drawFacing(s, {0.f, panelYawOffset + hands::playSpaceYaw(), 0.f});
 }
 
 } // namespace qvr::panel

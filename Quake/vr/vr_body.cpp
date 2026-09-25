@@ -60,6 +60,44 @@ namespace
     }
 }
 
+// With vr_body_anchors: where the holster is for the standing body, carried by the pelvis (hips)
+// or the chest.
+[[nodiscard]] glm::vec3 followingHolsterPosition(
+    const avatar::Follower& follow, const hands::State& standing, Holster holster)
+{
+    const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
+    return follow(part, legacyHolsterPosition(standing, holster));
+}
+
+[[nodiscard]] Hotspot hotspot(const hands::State& s, int hand, const HolsterPositions& holsters)
+{
+    const glm::vec3& pos = s.pos[hand];
+
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const auto holster = static_cast<Holster>(h);
+        if(glm::distance(pos, holsters[h]) < threshold(holster))
+        {
+            return holsterHotspot(holster);
+        }
+    }
+
+    // Close enough to the other hand to steady its weapon (the "dynamic" 2H distance), or to
+    // take the weapon from it.
+    const float handDist = glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]);
+    if(handDist > 5.f && handDist < 25.f)
+    {
+        return hand == HAND_OFF ? HS_OFFHAND_2H_GRAB : HS_MAINHAND_2H_GRAB;
+    }
+
+    if(handDist < 5.f)
+    {
+        return HS_HAND_SWITCH;
+    }
+
+    return HS_NONE;
+}
+
 } // namespace
 
 glm::vec3 holsterPosition(const hands::State& s, Holster holster)
@@ -69,9 +107,28 @@ glm::vec3 holsterPosition(const hands::State& s, Holster holster)
         return legacyHolsterPosition(s, holster);
     }
 
-    // Where they are for the standing body, carried by the pelvis (hips) or the chest.
-    const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
-    return avatar::follow(s, part, legacyHolsterPosition(avatar::standing(s), holster));
+    return followingHolsterPosition(avatar::Follower{s}, avatar::standing(s), holster);
+}
+
+HolsterPositions holsterPositions(const hands::State& s)
+{
+    HolsterPositions out;
+    if(!vr_body_anchors.value)
+    {
+        for(int h = 0; h < HolsterCount; h++)
+        {
+            out[h] = legacyHolsterPosition(s, static_cast<Holster>(h));
+        }
+        return out;
+    }
+
+    const avatar::Follower follow{s};
+    const hands::State standing = avatar::standing(s);
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h));
+    }
+    return out;
 }
 
 glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
@@ -81,7 +138,7 @@ glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
         return hands::bodyAnchor(s, offsets);
     }
 
-    return avatar::follow(s, avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
+    return avatar::Follower{s}(avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
 }
 
 Hotspot holsterHotspot(Holster holster)
@@ -127,33 +184,13 @@ void queueDebug(const hands::State& s)
     }
 }
 
-Hotspot hotspot(const hands::State& s, int hand)
+void updateHotspots(hands::State& s)
 {
-    const glm::vec3& pos = s.pos[hand];
-
-    for(int h = 0; h < HolsterCount; h++)
+    const HolsterPositions holsters = holsterPositions(s);
+    for(int hand = 0; hand < HAND_COUNT; hand++)
     {
-        const auto holster = static_cast<Holster>(h);
-        if(glm::distance(pos, holsterPosition(s, holster)) < threshold(holster))
-        {
-            return holsterHotspot(holster);
-        }
+        s.hotspot[hand] = hotspot(s, hand, holsters);
     }
-
-    // Close enough to the other hand to steady its weapon (the "dynamic" 2H distance), or to
-    // take the weapon from it.
-    const float handDist = glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]);
-    if(handDist > 5.f && handDist < 25.f)
-    {
-        return hand == HAND_OFF ? HS_OFFHAND_2H_GRAB : HS_MAINHAND_2H_GRAB;
-    }
-
-    if(handDist < 5.f)
-    {
-        return HS_HAND_SWITCH;
-    }
-
-    return HS_NONE;
 }
 
 } // namespace qvr::body

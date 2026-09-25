@@ -55,8 +55,6 @@ void writePos(sizebuf_t* msg, int handle, const WorldText& wt, unsigned int prot
     }
 }
 
-void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags);
-
 void writeAngles(sizebuf_t* msg, int handle, const WorldText& wt)
 {
     beginMessage(msg, QVR_SVC_WORLDTEXT_ANGLES, handle);
@@ -76,6 +74,20 @@ void writeScale(sizebuf_t* msg, int handle, const WorldText& wt)
 {
     beginMessage(msg, QVR_SVC_WORLDTEXT_SCALE, handle);
     MSG_WriteFloat(msg, wt.scale);
+}
+
+void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags)
+{
+    for(int handle = 0; handle < static_cast<int>(texts.size()); handle++)
+    {
+        const WorldText& wt = texts[handle];
+        beginMessage(msg, QVR_SVC_WORLDTEXT_MAKE, handle);
+        writeText(msg, handle, wt);
+        writePos(msg, handle, wt, protocolflags);
+        writeAngles(msg, handle, wt);
+        writeHAlign(msg, handle, wt);
+        writeScale(msg, handle, wt);
+    }
 }
 
 [[nodiscard]] WorldText& clientText(int handle)
@@ -165,25 +177,6 @@ void serverSetScale(int handle, float scale)
         writeScale(msg, handle, wt);
     }
 }
-
-namespace
-{
-
-void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags)
-{
-    for(int handle = 0; handle < static_cast<int>(texts.size()); handle++)
-    {
-        const WorldText& wt = texts[handle];
-        beginMessage(msg, QVR_SVC_WORLDTEXT_MAKE, handle);
-        writeText(msg, handle, wt);
-        writePos(msg, handle, wt, protocolflags);
-        writeAngles(msg, handle, wt);
-        writeHAlign(msg, handle, wt);
-        writeScale(msg, handle, wt);
-    }
-}
-
-} // namespace
 
 void serverWriteAll(sizebuf_t* msg)
 {

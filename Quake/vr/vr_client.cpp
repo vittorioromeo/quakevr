@@ -264,48 +264,35 @@ void parseParticle2()
     {
         dir[i] = MSG_ReadChar() * (1.f / 16.f);
     }
-    const int preset = MSG_ReadByte();
+    using particles::Preset;
+    const auto preset = static_cast<Preset>(MSG_ReadByte());
     const int count = MSG_ReadShort();
 
-    decals::fromEffect({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, preset, count);
-    if(particles::spawn({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, preset, count))
+    const glm::vec3 o{org[0], org[1], org[2]};
+    const glm::vec3 d{dir[0], dir[1], dir[2]};
+    decals::fromEffect(o, d, preset, count);
+    if(particles::spawn(o, d, preset, count))
     {
         return;
     }
 
-    // Without Quake VR's particles (vr_particles 0): the old engine's particle presets (QC QVR_PARTICLE_PRESET_*), approximated with Quake's
-    // own effects and palette colours.
-    enum Preset : int
-    {
-        BULLETPUFF,
-        BLOOD,
-        EXPLOSION,
-        LIGHTNING,
-        SMOKE,
-        SPARKS,
-        GUNSMOKE,
-        TELEPORT,
-        GUNPICKUP,
-        GUNFORCEGRAB,
-        LAVASPIKE,
-        BIGSMOKE
-    };
-
+    // Without Quake VR's particles (vr_particles 0): the old engine's particle presets,
+    // approximated with Quake's own effects and palette colours.
     const auto puff = [&](int color, int n) { R_RunParticleEffect(org, dir, color, q_min(n, 255)); };
     switch(preset)
     {
-        case BULLETPUFF: puff(0, count); break;
-        case BLOOD: puff(73, count); break;
-        case EXPLOSION: R_ParticleExplosion(org); break;
-        case LIGHTNING: puff(225, count); break;
-        case SMOKE: puff(6, count); break;
-        case SPARKS: puff(111, count); break;
-        case GUNSMOKE: puff(4, q_max(count / 2, 1)); break;
-        case TELEPORT: R_TeleportSplash(org); break;
-        case GUNPICKUP: puff(254, count); break;
-        case GUNFORCEGRAB: puff(208, count); break;
-        case LAVASPIKE: puff(235, count); break;
-        case BIGSMOKE: puff(6, count * 2); break;
+        case Preset::BulletPuff: puff(0, count); break;
+        case Preset::Blood: puff(73, count); break;
+        case Preset::Explosion: R_ParticleExplosion(org); break;
+        case Preset::Lightning: puff(225, count); break;
+        case Preset::Smoke: puff(6, count); break;
+        case Preset::Sparks: puff(111, count); break;
+        case Preset::GunSmoke: puff(4, q_max(count / 2, 1)); break;
+        case Preset::Teleport: R_TeleportSplash(org); break;
+        case Preset::GunPickup: puff(254, count); break;
+        case Preset::GunForceGrab: puff(208, count); break;
+        case Preset::LavaSpike: puff(235, count); break;
+        case Preset::BigSmoke: puff(6, count * 2); break;
         default: puff(73, count); break;
     }
 }
@@ -336,11 +323,6 @@ void parsePrecacheSound()
     cl.sound_precache[index] = S_PrecacheSound(name);
 }
 
-} // namespace
-
-namespace qvr::client
-{
-
 // vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning).
 void particleTest_f()
 {
@@ -354,11 +336,16 @@ void particleTest_f()
     const glm::vec3 org = glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]} +
                           glm::vec3{fwd[0], fwd[1], fwd[2]} * 64.f;
     const int count = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 8;
-    if(!particles::spawn(org, glm::vec3{0.f}, Q_atoi(Cmd_Argv(1)), count))
+    if(!particles::spawn(org, glm::vec3{0.f}, static_cast<particles::Preset>(Q_atoi(Cmd_Argv(1))), count))
     {
         Con_Printf("vr_particle_test: Quake VR particles are off (vr_particles) or unavailable\n");
     }
 }
+
+} // namespace
+
+namespace qvr::client
+{
 
 void init()
 {

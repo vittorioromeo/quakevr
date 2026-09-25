@@ -32,8 +32,6 @@ struct Target
 std::unordered_map<int, float> glows; // entity -> current glow
 double lastTime = -1.0;
 
-constexpr int trailPreset = 12; // vr_particles.cpp: ForceGrabTrail
-
 [[nodiscard]] Target target(int stat)
 {
     const int v = cl.stats[stat];
@@ -97,10 +95,10 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
                      side2 * (noise(tick + seed * 17 + strand * 3, i + 97) * bulge);
             }
             const float fade = strength * (strand == 0 ? 1.f : 0.5f);
-            lines::glow(prev, p, 1.4f, glm::vec4{0.15f, 0.35f, 0.9f, 1.f} * (0.22f * fade),
-                glm::vec4{0.15f, 0.35f, 0.9f, 1.f} * (0.22f * fade));
-            lines::glow(prev, p, 0.35f, glm::vec4{0.7f, 0.9f, 1.f, 1.f} * (0.9f * fade),
-                glm::vec4{0.7f, 0.9f, 1.f, 1.f} * (0.9f * fade));
+            const glm::vec4 halo = glm::vec4{0.15f, 0.35f, 0.9f, 1.f} * (0.22f * fade);
+            const glm::vec4 core = glm::vec4{0.7f, 0.9f, 1.f, 1.f} * (0.9f * fade);
+            lines::glow(prev, p, 1.4f, halo, halo);
+            lines::glow(prev, p, 0.35f, core, core);
             prev = p;
         }
     }
@@ -116,25 +114,30 @@ void queue(const hands::State& s)
     lastTime = now;
 
     // The glows fade towards each hand's target: aimed at, softly; locked on or flying, fully.
-    std::unordered_map<int, float> wanted;
     const Target targets[2] = {target(protocol::STAT_QVR_FGOFF), target(protocol::STAT_QVR_FGMAIN)};
+    const auto wanted = [](const Target& t) { return t.state != None && valid(t.ent); };
+    const auto goalOf = [&](int ent) {
+        float goal = 0.f;
+        for(const Target& t : targets)
+        {
+            if(t.ent == ent && wanted(t))
+            {
+                goal = std::max(goal, t.state == Aimed ? 0.55f : 1.f);
+            }
+        }
+        return goal;
+    };
     for(const Target& t : targets)
     {
-        if(t.state != None && valid(t.ent))
+        if(wanted(t))
         {
-            const float w = t.state == Aimed ? 0.55f : 1.f;
-            wanted[t.ent] = std::max(wanted[t.ent], w);
+            glows.try_emplace(t.ent, 0.f);
         }
     }
     const float k = 1.f - std::exp(-dt * 8.f);
-    for(auto& [ent, w] : wanted)
-    {
-        glows.try_emplace(ent, 0.f);
-    }
     for(auto it = glows.begin(); it != glows.end();)
     {
-        const auto want = wanted.find(it->first);
-        const float goal = want != wanted.end() ? want->second : 0.f;
+        const float goal = goalOf(it->first);
         it->second += (goal - it->second) * k;
         if(goal == 0.f && it->second < 0.01f)
         {
@@ -154,7 +157,7 @@ void queue(const hands::State& s)
     for(int hand = 0; hand < 2; hand++)
     {
         const Target& t = targets[hand];
-        if(t.state == None || !valid(t.ent))
+        if(!wanted(t))
         {
             continue;
         }
@@ -169,7 +172,7 @@ void queue(const hands::State& s)
         tendril(palm, to, (t.state == Flying ? 1.f : 0.75f) * pulse, t.ent + hand * 1000);
         if(t.state == Flying && dt > 0.f)
         {
-            particles::spawn(to, glm::vec3{0.f}, trailPreset, 2);
+            particles::spawn(to, glm::vec3{0.f}, particles::Preset::ForceGrabTrail, 2);
         }
     }
 }

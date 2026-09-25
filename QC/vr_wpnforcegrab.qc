@@ -27,12 +27,6 @@ entity(float xHand) VR_Forcegrab_GetTarget =
     return self.mainhand_fgtarget;
 }
 
-float(float xHand) VR_Forcegrab_GetLocked =
-{
-    if(xHand == cVR_OffHand) return self.offhand_fglocked;
-    return self.mainhand_fglocked;
-}
-
 void(float xHand, entity xTarget, float xLocked) VR_Forcegrab_Set =
 {
     if(xHand == cVR_OffHand)
@@ -118,7 +112,7 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
-    if(e.classname == "thrown_weapon" || (e.flags & FL_FORCEGRABBABLE))
+    if((e.flags & FL_FORCEGRABBABLE) || e.classname == "thrown_weapon")
     {
         // Not while it still flies from a throw.
         return (e.flags & FL_ONGROUND) || vlen(e.velocity) < 300;
@@ -453,7 +447,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     }
 
     // Locked on: flick to pull it; let go of the trigger to cancel.
-    if(VR_Forcegrab_GetLocked(xHand))
+    if(VR_Forcegrab_IsHandBusy(self, xHand))
     {
         if(!trigger || !VR_Forcegrab_IsEligible(target) ||
            vlen(VR_Forcegrab_Centre(target) - VRGetHandPos(xHand)) > cvar_hget(cvarh_vr_forcegrab_distance) * 1.25)

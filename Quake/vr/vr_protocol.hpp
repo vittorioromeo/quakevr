@@ -4,7 +4,8 @@
 // Both ends then add:
 //   - clc_move: a VR block after the vanilla fields (head, hands, muzzles, VR bits, ...);
 //   - entity updates: model scale / scale origin / offset / no-rotate in update bits 24..27;
-//   - svc_quakevr (39) + sub-command for particles, late precaches and world text;
+//   - svc_quakevr (39) + sub-command for particles, late precaches, world text, haptics and
+//     knocks on the drawn hands;
 //   - an extra "beam id" byte in TE_LIGHTNING1-3 / TE_BEAM, so one entity can own two beams;
 //   - VR stats (weapons in both hands, holsters, clips) in stat slots 64+, sent through
 //     Ironwail's generic stat channel.
@@ -19,7 +20,6 @@ inline constexpr int U_QVR_SCALE = 1 << 24;        // 3 floats
 inline constexpr int U_QVR_SCALEORIGIN = 1 << 25;  // 3 coords
 inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
-inline constexpr int U_QVR_ANY = U_QVR_SCALE | U_QVR_SCALEORIGIN | U_QVR_OFFSET | U_QVR_NOROTATE;
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;

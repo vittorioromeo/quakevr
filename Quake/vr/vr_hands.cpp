@@ -29,14 +29,6 @@ int stateFrame = -1;
     return {-v.z, -v.x, v.y};
 }
 
-[[nodiscard]] glm::vec3 rotateYaw(const glm::vec3& v, float yawDegrees)
-{
-    const float r = glm::radians(yawDegrees);
-    const float c = std::cos(r);
-    const float s = std::sin(r);
-    return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
-}
-
 // Quake angles (pitch down positive, yaw, roll) of a tracking-space orientation, turned by
 // `yawOffset` degrees.
 [[nodiscard]] glm::vec3 anglesFromTracking(const glm::quat& q, float yawOffset)
@@ -320,10 +312,7 @@ void update()
                             ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)
                             : 0.f;
 
-    for(int h = 0; h < HAND_COUNT; h++)
-    {
-        state.hotspot[h] = body::hotspot(state, h);
-    }
+    body::updateHotspots(state);
 
     state.valid = true;
 }
@@ -406,6 +395,14 @@ glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up)
     const float roll = glm::degrees(std::atan2(glm::dot(up, r0), glm::dot(up, u0)));
 
     return {pitch, yaw, roll};
+}
+
+glm::vec3 rotateYaw(const glm::vec3& v, float degrees)
+{
+    const float r = glm::radians(degrees);
+    const float c = std::cos(r);
+    const float s = std::sin(r);
+    return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
 glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)

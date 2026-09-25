@@ -5,16 +5,8 @@
 // Implementation details
 // ----------------------------------------------------------------------------
 
-void(entity xEntPlayer,
-     float xHand,
-     float xCurrBit,
-     float xPrevBit,
-     float xLastGrabTime,
-     float* xOutLastGrabTime,
-     float xLastReleaseTime,
-     float* xOutLastReleaseTime,
-     float xCurrReloadFlickingBit,
-     float xPrevReloadFlickingBit)
+// Records when the grip was last pressed (rising edge) and let go (falling edge).
+void(float xCurrBit, float xPrevBit, float* xOutLastGrabTime, float* xOutLastReleaseTime)
 VR_HandGrabUtil_Impl_UpdateStateForHand =
 {
     if(!xPrevBit && xCurrBit) // Rising edge (grab)
@@ -61,29 +53,17 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
     }
 
     VR_HandGrabUtil_Impl_UpdateStateForHand(
-        xEntPlayer,
-        cVR_OffHand,
         VRGetOffHandGrabbingBit(xEntPlayer),
         VRGetOffHandPrevGrabbingBit(xEntPlayer),
-        xEntPlayer.offhand_lastgrabtime,
         &xEntPlayer.offhand_lastgrabtime,
-        xEntPlayer.offhand_lastreleasetime,
-        &xEntPlayer.offhand_lastreleasetime,
-        VRGetOffHandReloadFlickingBit(xEntPlayer),
-        VRGetOffHandPrevReloadFlickingBit(xEntPlayer)
+        &xEntPlayer.offhand_lastreleasetime
     );
 
     VR_HandGrabUtil_Impl_UpdateStateForHand(
-        xEntPlayer,
-        cVR_MainHand,
         VRGetMainHandGrabbingBit(xEntPlayer),
         VRGetMainHandPrevGrabbingBit(xEntPlayer),
-        xEntPlayer.mainhand_lastgrabtime,
         &xEntPlayer.mainhand_lastgrabtime,
-        xEntPlayer.mainhand_lastreleasetime,
-        &xEntPlayer.mainhand_lastreleasetime,
-        VRGetMainHandReloadFlickingBit(xEntPlayer),
-        VRGetMainHandPrevReloadFlickingBit(xEntPlayer)
+        &xEntPlayer.mainhand_lastreleasetime
     );
 }
 
@@ -114,9 +94,4 @@ float(entity xEntPlayer, float xHand) VR_HandGrabUtil_StartedHandGrabbing =
 float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlicking =
 {
     return VRIsEntHandReloadFlickingBit(xEntPlayer, xHand);
-}
-
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandPrevReloadFlicking =
-{
-    return VRIsEntHandPrevReloadFlickingBit(xEntPlayer, xHand);
 }

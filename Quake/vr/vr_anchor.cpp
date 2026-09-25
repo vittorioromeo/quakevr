@@ -220,13 +220,12 @@ private:
 {
     std::vector<Triangle> tris;
 
-    int size = 0;
     byte* data = COM_LoadMallocFile(modelName, nullptr);
     if(!data)
     {
         return tris;
     }
-    size = com_filesize;
+    const int size = com_filesize;
 
     const auto readInt = [&](int offset) {
         int v;
@@ -288,30 +287,27 @@ private:
     return tris;
 }
 
-// Strip-order index -> original vertex index, per model name.
-std::unordered_map<std::string, std::vector<int>> vertexOrders;
+// Strip-order index -> original vertex index, per model (looked up every frame: by pointer, with
+// the name it was built for, should the model's slot be reused).
+struct VertexOrder
+{
+    std::string name;
+    std::vector<int> order;
+};
+
+std::unordered_map<const qmodel_t*, VertexOrder> vertexOrders;
 
 [[nodiscard]] const std::vector<int>& vertexOrder(const qmodel_t* model)
 {
-    auto it = vertexOrders.find(model->name);
-    if(it == vertexOrders.end())
+    VertexOrder& v = vertexOrders[model];
+    if(v.name != model->name)
     {
+        v.name = model->name;
         const std::vector<Triangle> tris = loadTriangles(model->name);
-        it = vertexOrders.emplace(model->name, StripBuilder{tris}.buildVertexOrder()).first;
+        v.order = StripBuilder{tris}.buildVertexOrder();
     }
 
-    return it->second;
-}
-
-[[nodiscard]] int animatedPose(const maliasframedesc_t& frame)
-{
-    if(frame.numposes <= 1)
-    {
-        return frame.firstpose;
-    }
-
-    const float interval = frame.interval > 0.f ? frame.interval : 0.1f;
-    return frame.firstpose + static_cast<int>(cl.time / interval) % frame.numposes;
+    return v.order;
 }
 
 [[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose, int vertex)
@@ -322,33 +318,18 @@ std::unordered_map<std::string, std::vector<int>> vertexOrders;
     return {v.v[0], v.v[1], v.v[2]};
 }
 
-} // namespace
-
-int zeroPose(const aliashdr_t* hdr)
+// Pose index for the entity's current frame (animated for frame groups).
+[[nodiscard]] int currentPose(const entity_t& ent, const aliashdr_t* hdr)
 {
-    const maliasframedesc_t& frame = hdr->frames[0];
+    const maliasframedesc_t& frame = hdr->frames[ent.frame >= 0 && ent.frame < hdr->numframes ? ent.frame : 0];
     if(frame.numposes <= 1)
     {
         return frame.firstpose;
     }
 
-    // The old engine animated zero-pose groups at a fixed 10 fps.
-    return frame.firstpose + static_cast<int>(cl.time / 0.1) % frame.numposes;
+    const float interval = frame.interval > 0.f ? frame.interval : 0.1f;
+    return frame.firstpose + static_cast<int>(cl.time / interval) % frame.numposes;
 }
-
-int currentPose(const entity_t& ent, const aliashdr_t* hdr)
-{
-    int frame = ent.frame;
-    if(frame < 0 || frame >= hdr->numframes)
-    {
-        frame = 0;
-    }
-
-    return animatedPose(hdr->frames[frame]);
-}
-
-namespace
-{
 
 // The vertex as the renderer will draw it this frame: R_SetupAliasFrame blends from
 // .previouspose to .currentpose over .lerptime, and a frame change only starts a new blend
@@ -382,6 +363,18 @@ namespace
 }
 
 } // namespace
+
+int zeroPose(const aliashdr_t* hdr)
+{
+    const maliasframedesc_t& frame = hdr->frames[0];
+    if(frame.numposes <= 1)
+    {
+        return frame.firstpose;
+    }
+
+    // The old engine animated zero-pose groups at a fixed 10 fps.
+    return frame.firstpose + static_cast<int>(cl.time / 0.1) % frame.numposes;
+}
 
 glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
 {

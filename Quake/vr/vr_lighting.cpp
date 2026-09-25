@@ -3,6 +3,7 @@
 #include "vr_lighting.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfx.hpp"
 #include "vr_modellight.hpp"
 
 #include <algorithm>
@@ -12,8 +13,6 @@
 #include <vector>
 
 using namespace qvr;
-
-extern "C" int VR_IsViewEntity(const entity_t* e);
 
 namespace
 {
@@ -57,22 +56,6 @@ bool timerPending[timerFrames]{};
 int timerIndex = 0;
 float lastMs = 0.f;
 
-GLuint compile(GLenum type, const char* source)
-{
-    const GLuint shader = GL_CreateShaderFunc(type);
-    GL_ShaderSourceFunc(shader, 1, &source, nullptr);
-    GL_CompileShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
-    {
-        char log[1024];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR lighting: shader: %s\n", log);
-    }
-    return shader;
-}
-
 bool ensureProgram()
 {
     if(depthProgram)
@@ -87,19 +70,7 @@ void main()
     gl_Position = MVP * vec4(Pos, 1.0);
 }
 )";
-    const GLuint shader = compile(GL_VERTEX_SHADER, vs);
-    depthProgram = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(depthProgram, shader);
-    GL_LinkProgramFunc(depthProgram);
-    GL_DeleteShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetProgramivFunc(depthProgram, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        Con_Warning("VR lighting: depth shader failed to link\n");
-        GL_DeleteProgramFunc(depthProgram);
-        depthProgram = 0;
-    }
+    depthProgram = gfx::glProgram(vs, nullptr, "vr shadow depth");
     return depthProgram != 0;
 }
 
@@ -466,14 +437,31 @@ std::vector<MapSlot> mapSlots;
 float mapSlotSize = 0.f;
 const qmodel_t* slotsWorld = nullptr;
 
+// A light to shadow, and how much it matters (the greater the more).
+struct Candidate
+{
+    int index;
+    float score;
+};
+
 [[nodiscard]] float pow2Floor(float v)
 {
     return std::exp2(std::floor(std::log2(std::max(v, 1.f))));
 }
 
-bool lightVisible(const glm::vec3& p)
+// The viewer's PVS, or null for everything visible (Mod_LeafPVS decompresses it on every call).
+[[nodiscard]] const byte* viewPVS()
 {
     if(!r_viewleaf || r_viewleaf->contents == CONTENTS_SOLID)
+    {
+        return nullptr;
+    }
+    return Mod_LeafPVS(r_viewleaf, cl.worldmodel);
+}
+
+bool lightVisible(const glm::vec3& p, const byte* vis)
+{
+    if(!vis)
     {
         return true;
     }
@@ -484,7 +472,6 @@ bool lightVisible(const glm::vec3& p)
     {
         return true;
     }
-    const byte* vis = Mod_LeafPVS(r_viewleaf, cl.worldmodel);
     return (vis[index >> 3] & (1 << (index & 7))) != 0;
 }
 
@@ -492,12 +479,8 @@ void selectDlights(const glm::vec3& eye)
 {
     const int maxShadowed = static_cast<int>(vr_shadow_dlights.value);
     const float maxSize = pow2Floor(std::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
-    struct Candidate
-    {
-        int index;
-        float score;
-    };
-    std::vector<Candidate> candidates;
+    static std::vector<Candidate> candidates;
+    candidates.clear();
     for(int i = 0; i < MAX_DLIGHTS; i++)
     {
         const dlight_t& l = cl_dlights[i];
@@ -590,18 +573,15 @@ void selectMapLights(const glm::vec3& eye, float dt)
     // The lights whose light reaches near the viewer (and that the viewer's leaf can see), the
     // brightest there first; the ones already shown keep their place unless clearly beaten.
     const auto& lights = modellight::mapLights();
-    struct Candidate
-    {
-        int index;
-        float score;
-    };
-    std::vector<Candidate> candidates;
+    const byte* vis = viewPVS();
+    static std::vector<Candidate> candidates;
+    candidates.clear();
     for(int i = 0; i < static_cast<int>(lights.size()); i++)
     {
         const auto& l = lights[i];
         const float dist = glm::distance(l.pos, eye);
         const float reach = l.value / l.scale;
-        if(dist > reach + 128.f || dist - reach > vr_shadow_distance.value || !lightVisible(l.pos))
+        if(dist > reach + 128.f || dist - reach > vr_shadow_distance.value || !lightVisible(l.pos, vis))
         {
             continue;
         }
@@ -666,12 +646,13 @@ struct Request
 {
     float size;
     glm::vec2* origin;
-    bool* placed;
+    float* packedSize; // the face size it was packed at, if wanted
 };
 
 // Rows of 3 x 2 face blocks, largest first; when they do not fit, everything is halved and
-// packed again (as DarkPlaces does), down to 32-texel faces.
-void pack(std::vector<Request>& requests, int atlasSize)
+// packed again (as DarkPlaces does), down to 32-texel faces. Returns the scale they were all
+// packed at, 0 if they did not fit.
+float pack(std::vector<Request>& requests, int atlasSize)
 {
     std::sort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size > b.size; });
     for(float scale = 1.f; scale >= 1.f / 16.f; scale *= 0.5f)
@@ -693,23 +674,22 @@ void pack(std::vector<Request>& requests, int atlasSize)
                 break;
             }
             *r.origin = {x, y};
-            *r.placed = true;
             x += 3.f * s;
             rowHeight = std::max(rowHeight, 2.f * s);
         }
         if(fits)
         {
-            for(Request& r : requests)
+            for(const Request& r : requests)
             {
-                r.size = std::max(32.f, r.size * scale);
+                if(r.packedSize)
+                {
+                    *r.packedSize = std::max(32.f, r.size * scale);
+                }
             }
-            return;
+            return scale;
         }
     }
-    for(Request& r : requests)
-    {
-        *r.placed = false;
-    }
+    return 0.f;
 }
 
 bool frameEnabled = false;
@@ -784,50 +764,32 @@ extern "C" void VR_RenderShadowMaps(void)
 
     // Pack this frame's faces.
     const int atlasSize = static_cast<int>(pow2Floor(std::clamp(vr_shadow_atlas.value, 1024.f, 8192.f)));
-    std::vector<Request> requests;
-    std::array<bool, MAX_DLIGHTS> dlightPlaced{};
-    static std::array<bool, 256> mapPlacedFlags;
-    mapPlacedFlags.fill(false);
-    for(int i = 0; i < MAX_DLIGHTS; i++)
+    static std::vector<Request> requests;
+    requests.clear();
+    for(DlightSlot& slot : dlightSlots)
     {
-        if(dlightSlots[i].selected)
+        if(slot.selected)
         {
-            requests.push_back({dlightSlots[i].size, &dlightSlots[i].origin, &dlightPlaced[i]});
+            requests.push_back({slot.size, &slot.origin, &slot.size});
         }
     }
-    for(size_t s = 0; s < mapSlots.size() && s < mapPlacedFlags.size(); s++)
+    for(MapSlot& s : mapSlots)
     {
-        if(mapSlots[s].light >= 0 && mapSlots[s].hasCasters)
+        if(s.light >= 0 && s.hasCasters)
         {
-            requests.push_back({mapSlotSize, &mapSlots[s].origin, &mapPlacedFlags[s]});
+            requests.push_back({mapSlotSize, &s.origin, nullptr});
         }
     }
-    pack(requests, atlasSize);
-    // The map lights' moving casters must match their cached world faces' size.
-    for(const Request& r : requests)
+    // What does not fit casts no shadow this frame; the map lights' moving casters must also
+    // match their cached world faces' size (not scaled down).
+    const float packScale = pack(requests, atlasSize);
+    for(DlightSlot& slot : dlightSlots)
     {
-        for(size_t s = 0; s < mapSlots.size() && s < 256; s++)
-        {
-            if(r.placed == &mapPlacedFlags[s] && r.size != mapSlotSize)
-            {
-                mapPlacedFlags[s] = false;
-            }
-        }
-        for(int i = 0; i < MAX_DLIGHTS; i++)
-        {
-            if(r.placed == &dlightPlaced[i])
-            {
-                dlightSlots[i].size = r.size;
-            }
-        }
+        slot.selected = slot.selected && packScale > 0.f;
     }
-    for(int i = 0; i < MAX_DLIGHTS; i++)
+    for(MapSlot& s : mapSlots)
     {
-        dlightSlots[i].selected = dlightSlots[i].selected && dlightPlaced[i];
-    }
-    for(size_t s = 0; s < mapSlots.size() && s < 256; s++)
-    {
-        mapSlots[s].hasCasters = mapSlots[s].hasCasters && mapPlacedFlags[s];
+        s.hasCasters = s.hasCasters && packScale == 1.f;
     }
 
     if(!ensure(atlas, atlasSize, atlasSize, "shadow atlas"))
@@ -901,8 +863,6 @@ extern "C" void VR_RenderShadowMaps(void)
         glClear(GL_DEPTH_BUFFER_BIT);
         indices.clear();
         collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
-        brushCasters.clear();
-        aliasCasters.clear();
         // All six faces: the cache must not depend on where the viewer looks.
         mplane_t saved[4];
         memcpy(saved, frustum, sizeof(saved));
@@ -948,7 +908,6 @@ extern "C" void VR_RenderShadowMaps(void)
         }
         const auto& l = lights[s.light];
         indices.clear();
-        brushCasters.clear();
         collectAliases(l.pos, l.value / l.scale, 0, true);
         collectBrushes(l.pos, l.value / l.scale, true);
         renderLight(atlas, l.pos, l.value / l.scale, s.origin, mapSlotSize, 0, true, true);
@@ -1000,8 +959,6 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     }
 }
 
-// R_PushDlights, after the dynamic lights: the map lights with moving casters, the frame's
-// lighting settings, and the atlases on texture units 4 and 5.
 // Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
 // same contrast as the world's.
 extern "C" void VR_AliasLightCurve(float lightcolor[3])
@@ -1017,6 +974,8 @@ extern "C" void VR_AliasLightCurve(float lightcolor[3])
     }
 }
 
+// R_PushDlights, after the dynamic lights: the map lights with moving casters, the frame's
+// lighting settings, and the atlases on texture units 4 and 5.
 extern "C" void VR_PushMapLights(void)
 {
     unsigned flags = static_cast<unsigned>(std::clamp(static_cast<int>(vr_shadow_filter.value), 0, 3));

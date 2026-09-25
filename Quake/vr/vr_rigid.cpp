@@ -29,10 +29,9 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_hands.hpp"
+#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_weapons.hpp"
-
-#include <glm/gtc/quaternion.hpp>
 
 #include <algorithm>
 #include <array>
@@ -58,11 +57,16 @@ void fromGlm(const glm::vec3& g, vec3_t v)
     v[2] = g.z;
 }
 
+[[nodiscard]] qmodel_t* modelOf(edict_t* ent)
+{
+    const int index = static_cast<int>(ent->v.modelindex);
+    return index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+}
+
 // Whether `ent` is drawn as a brush model (the ammo and health boxes, maps/b_*.bsp).
 [[nodiscard]] bool brushModel(edict_t* ent)
 {
-    const int index = static_cast<int>(ent->v.modelindex);
-    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const qmodel_t* model = modelOf(ent);
     return model && model->type == mod_brush;
 }
 
@@ -106,8 +110,7 @@ void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
 // then the model's own, the post scale and the networked offset on raw vertices).
 void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 {
-    const int index = static_cast<int>(ent->v.modelindex);
-    qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    qmodel_t* model = modelOf(ent);
     if(!model || model->type != mod_alias)
     {
         lo = toGlm(ent->v.mins);
@@ -130,8 +133,8 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     {
         const glm::vec3 v{(i & 1) ? model->maxs[0] : model->mins[0], (i & 2) ? model->maxs[1] : model->mins[1],
             (i & 4) ? model->maxs[2] : model->mins[2]};
-        glm::vec3 raw = (v - so) / hs;
-        glm::vec3 p = raw;
+        const glm::vec3 raw = (v - so) / hs;
+        glm::vec3 p;
         if(t.active)
         {
             p = (raw + netOffset) * t.scale;
@@ -156,7 +159,7 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 
 [[nodiscard]] float gravityOf(edict_t* ent)
 {
-    const eval_t* val = GetEdictFieldValueByName(ent, "gravity");
+    const eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.gravity);
     return (val && val->_float ? val->_float : 1.f) * sv_gravity.value;
 }
 
@@ -217,7 +220,7 @@ struct Body
         return rot * (local * invInertia);
     }
 
-    // Impulse j along `dir` at `r` (from the centre of mass).
+    // Impulse `j` at `r` (from the centre of mass).
     void impulse(const glm::vec3& r, const glm::vec3& j)
     {
         vel += j;
@@ -270,11 +273,9 @@ void settle(Body& b)
     const glm::vec3 up = glm::dot(b.rot[axis], n) < 0.f ? -b.rot[axis] : b.rot[axis];
     if(best < 0.9999f && best > std::cos(glm::radians(8.f)))
     {
-        const glm::vec3 pivot = low;
-        const glm::vec3 axisOfTurn = glm::cross(up, n);
-        const glm::quat q = glm::angleAxis(std::acos(std::min(1.f, glm::dot(up, n))), glm::normalize(axisOfTurn));
+        const glm::quat q = glm::angleAxis(std::acos(std::min(1.f, glm::dot(up, n))), glm::normalize(glm::cross(up, n)));
         b.rot = orthonormalize(glm::mat3_cast(q) * b.rot);
-        b.com = pivot + q * (b.com - pivot);
+        b.com = low + q * (b.com - low);
         corners = b.corners();
     }
 
@@ -292,7 +293,7 @@ void settle(Body& b)
 }
 
 // Whether the lowest corners rest on something (the body may sleep on it, or must wake).
-[[nodiscard]] bool supported(Body& b, edict_t** ground)
+[[nodiscard]] bool supported(const Body& b, edict_t** ground)
 {
     const std::array<glm::vec3, 8> corners = b.corners();
     float lowest = 1e9f;
@@ -331,25 +332,14 @@ struct Contact
     edict_t* ent{nullptr};
 };
 
-} // namespace
-
-// SV_Physics_Toss, after thinking: nonzero if this moved the entity.
-namespace
-{
-
-[[nodiscard]] bool rigidToss(edict_t* ent)
+// The move of a rigid body (a .vr_rigid toss or bounce entity) over this frame.
+void rigidToss(edict_t* ent)
 {
     const FieldOffsets& f = fields();
-    const int movetype = static_cast<int>(ent->v.movetype);
-    if(f.vr_rigid < 0 || fieldFloat(ent, f.vr_rigid) == 0.f || (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE))
-    {
-        return 0;
-    }
-
     const float dt = static_cast<float>(host_frametime);
     if(dt <= 0.f)
     {
-        return 1;
+        return;
     }
     VectorCopy(vec3_origin, ent->v.avelocity);
 
@@ -368,21 +358,13 @@ namespace
     b.invInertia = 12.f / glm::vec3{size.y * size.y + size.z * size.z, size.x * size.x + size.z * size.z,
                               size.x * size.x + size.y * size.y};
 
-    const auto store = [&] {
-        fromGlm(b.com - b.rot * b.comLocal, ent->v.origin);
-        anglesFromAxes(b.rot, ent->v.angles, brush);
-        fromGlm(b.vel, ent->v.velocity);
-        setFieldVec(ent, f.vr_spin, b.spin);
-        SV_LinkEdict(ent, true);
-    };
-
     // Asleep: stays until what holds it goes away, or QC moves it.
     if(static_cast<int>(ent->v.flags) & FL_ONGROUND)
     {
         const bool pushed = glm::length(b.vel) > 1.f;
         if(!pushed && supported(b, nullptr))
         {
-            return 1;
+            return;
         }
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
         fieldFloat(ent, f.vr_rest) = 0.f;
@@ -397,7 +379,7 @@ namespace
     const float m2u = units::metresToUnits();
     const float minHalf = std::max(0.5f, std::min({b.half.x, b.half.y, b.half.z}));
 
-    // Substeps: at most half the box's thinnest half-extent and 0.25 radians each.
+    // Substeps: each moves at most the box's thinnest half-extent and turns at most 0.25 radians.
     const float travel = glm::length(b.vel) * dt / minHalf + glm::length(b.spin) * dt / 0.25f;
     const int steps = CLAMP(1, static_cast<int>(std::ceil(travel)), 8);
     const float h = dt / static_cast<float>(steps);
@@ -416,7 +398,7 @@ namespace
         touchNearby(ent, b.com, b.com + b.vel * h);
         if(ent->free)
         {
-            return 1;
+            return;
         }
 
         // Contacts, corner by corner: inside a surface (from the centre, the corner is behind
@@ -521,7 +503,7 @@ namespace
                 SV_Impact(ent, c.ent);
                 if(ent->free)
                 {
-                    return 1;
+                    return;
                 }
             }
         }
@@ -562,7 +544,11 @@ namespace
         ent->v.groundentity = EDICT_TO_PROG(ground);
     }
 
-    store();
+    fromGlm(b.com - b.rot * b.comLocal, ent->v.origin);
+    anglesFromAxes(b.rot, ent->v.angles, brush);
+    fromGlm(b.vel, ent->v.velocity);
+    setFieldVec(ent, f.vr_spin, b.spin);
+    SV_LinkEdict(ent, true);
 
     if(vr_debug_throw.value >= 3.f)
     {
@@ -570,13 +556,7 @@ namespace
             ent->v.origin[1], ent->v.origin[2], glm::length(b.vel), glm::length(b.spin),
             (static_cast<int>(ent->v.flags) & FL_ONGROUND) ? "asleep" : contact ? "in contact" : "flying");
     }
-    return 1;
 }
-
-} // namespace
-
-namespace
-{
 
 // Items must never fall out of the world. Quake lets an entity whose box is buried in the level
 // (a trace that starts and ends in solid) move freely, and it falls forever: a small ammo box
@@ -589,8 +569,7 @@ struct FreePlace
     glm::vec3 origin{0.f};
     bool valid = false;
 };
-std::vector<FreePlace> freePlaces;
-const qmodel_t* freePlacesWorld = nullptr;
+std::vector<FreePlace> freePlaces; // by entity number, for this server
 
 [[nodiscard]] bool buried(edict_t* ent, bool rigid)
 {
@@ -608,17 +587,12 @@ const qmodel_t* freePlacesWorld = nullptr;
 
 void keepInWorld(edict_t* ent, bool rigid)
 {
-    const bool item = (static_cast<int>(ent->v.flags) & (FL_ITEM | (1 << 15))) != 0; // FL_ITEM, QC's FL_FORCEGRABBABLE
+    const bool item = (static_cast<int>(ent->v.flags) & (FL_ITEM | physics::FL_FORCEGRABBABLE)) != 0;
     if(!rigid && !item)
     {
         return;
     }
 
-    if(freePlacesWorld != sv.worldmodel)
-    {
-        freePlaces.clear();
-        freePlacesWorld = sv.worldmodel;
-    }
     const int num = NUM_FOR_EDICT(ent);
     if(num >= static_cast<int>(freePlaces.size()))
     {
@@ -645,6 +619,11 @@ void keepInWorld(edict_t* ent, bool rigid)
     SV_LinkEdict(ent, false);
 }
 
+// Held objects (QC's carryangles): the object keeps the turn it had in the hand when gripped. At
+// the grip (`grab`), the object's rotation relative to the hand's is kept; after, the object's
+// angles are the hand's rotation times that, in the object's own convention (brush or alias).
+std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
+
 } // namespace
 
 // SV_Physics_Toss, after the think: the whole move of a rigid body. Water transitions are
@@ -655,15 +634,14 @@ extern "C" int VR_RigidToss(edict_t* ent)
     const FieldOffsets& f = fields();
     const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
     keepInWorld(ent, rigid);
-    if(ent->free)
-    {
-        return 1;
-    }
 
-    if(!rigidToss(ent))
+    const int movetype = static_cast<int>(ent->v.movetype);
+    if(!rigid || (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE))
     {
         return 0;
     }
+
+    rigidToss(ent);
     if(!ent->free)
     {
         SV_CheckWaterTransition(ent);
@@ -671,44 +649,39 @@ extern "C" int VR_RigidToss(edict_t* ent)
     return 1;
 }
 
-// Held objects (QC's carryangles): the object keeps the turn it had in the hand when gripped. At
-// the grip (`grab`), the object's rotation relative to the hand's is kept; after, the object's
-// angles are the hand's rotation times that, in the object's own convention (brush or alias).
-namespace
+namespace qvr::physics
 {
-std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
 
-[[nodiscard]] glm::mat3 handAxes(const float* handAngles)
-{
-    vec3_t a{handAngles[0], handAngles[1], handAngles[2]}, f, r, u;
-    AngleVectors(a, f, r, u); // view angles
-    return glm::mat3{toGlm(f), -toGlm(r), toGlm(u)};
-}
-} // namespace
-
-extern "C" void VR_CarryAngles(edict_t* ent, const float* handAngles, int grab, float* out)
+void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out)
 {
     const bool brush = brushModel(ent);
-    const glm::mat3 hand = handAxes(handAngles);
+    const glm::mat3 hand = axesFromAngles(handAngles, true); // view angles: pitch as a brush model's
     const int num = NUM_FOR_EDICT(ent);
-    if(grab || !carried.count(num))
+    const auto it = carried.find(num);
+    if(grab || it == carried.end())
     {
         carried[num] = glm::transpose(hand) * axesFromAngles(ent->v.angles, brush);
         VectorCopy(ent->v.angles, out);
         return;
     }
-    anglesFromAxes(orthonormalize(hand * carried[num]), out, brush);
+    anglesFromAxes(orthonormalize(hand * it->second), out, brush);
 }
 
-// Whether `p` is inside `ent`'s drawn box (turned with it), grown by `margin`: what a hand must be
-// in to take hold of an object (Quake's boxes do not turn, and items' are widened).
-extern "C" int VR_PointInModelBox(edict_t* ent, const float* p, float margin)
+bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)
 {
     glm::vec3 lo, hi;
     localBox(ent, lo, hi);
     const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
-    const glm::vec3 local = glm::transpose(axes) * (glm::vec3{p[0], p[1], p[2]} - toGlm(ent->v.origin));
+    const glm::vec3 local = glm::transpose(axes) * (p - toGlm(ent->v.origin));
     // Thin things (a dropped gun) at least 6 units thick, so a hand can still find them.
     const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{margin};
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
 }
+
+void resetRigidBodies()
+{
+    freePlaces.clear();
+    carried.clear();
+}
+
+} // namespace qvr::physics

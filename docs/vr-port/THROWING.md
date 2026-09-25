@@ -41,8 +41,8 @@ is 24.4 m/s² at that scale, about 2.5 g.
    Gravity is `vr_throw_gravity × m2u / sv_gravity` (`:4052`, 9.81 m/s², so `.gravity ≈ 0.40`) until the first
    touch, which resets it (`:3456`). Damage is `|v| / throwdmgspeed × base`.
 6. **No aim assist.** `MOVETYPE_TOSS` with a tiny box of half-size 1–2.4 units, i.e. 3–8 cm
-   (`vr_weaponutil.qc:304-318`). The builtin `calcthrowangle` (`vr_builtins.cpp:57-84`) exists but no QC calls it,
-   and its gravity is multiplied by `host_frametime` (`:65`), which looks wrong for a closed-form ballistic solution.
+   (`vr_weaponutil.qc:304-318`). The builtin `calcthrowangle` (`vr_builtins.cpp:57-84`, since removed) existed but no QC called it,
+   and its gravity was multiplied by `host_frametime` (`:65`), which looks wrong for a closed-form ballistic solution.
 
 ### 1.2 Likely problems, most likely first
 

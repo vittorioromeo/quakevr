@@ -32,6 +32,8 @@ namespace
 
 void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[16])
 {
+    const weapons::ModelTransform t = weapons::modelTransform(e->model);
+
     if(mirrored)
     {
         ApplyScale(m, 1.f, -1.f, 1.f);
@@ -40,7 +42,7 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
     if(extra)
     {
         // Tuned at the default scale, like the models they attach to.
-        const float s = weapons::modelTransform(e->model).active ? weapons::offsetScale() : 1.f;
+        const float s = t.active ? weapons::offsetScale() : 1.f;
         ApplyTranslation(m, extra->x * s, extra->y * s, extra->z * s);
     }
 
@@ -53,7 +55,7 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
         ApplyTranslation(m, o.x, o.y, o.z);
     }
 
-    if(const weapons::ModelTransform t = weapons::modelTransform(e->model); t.active)
+    if(t.active)
     {
         ApplyScale(m, t.k, t.k, t.k);
         ApplyTranslation(m, t.offset.x, t.offset.y, t.offset.z);
@@ -85,11 +87,13 @@ namespace qvr::render
 
 void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[16])
 {
-    entity_t e = ve.ent;
-    R_EntityMatrix(out, e.origin, e.angles, ENTSCALE_DEFAULT);
+    vec3_t origin, angles; // R_EntityMatrix takes them non-const
+    VectorCopy(ve.ent.origin, origin);
+    VectorCopy(ve.ent.angles, angles);
+    R_EntityMatrix(out, origin, angles, ENTSCALE_DEFAULT);
     applyPre(&ve.ent, ve.mirrored, &extra, out);
 
-    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ve.ent.model));
     ApplyTranslation(out, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
     ApplyScale(out, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
 

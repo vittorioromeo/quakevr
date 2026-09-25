@@ -14,13 +14,11 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
-#include "vr_protocol.hpp"
 
 #include <utility>
 #include <vector>
 
 using namespace qvr;
-using namespace qvr::protocol;
 
 namespace
 {
@@ -118,9 +116,9 @@ void turn(float x)
             hands::addTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
         }
     }
-    else if(deadzone(x) != 0.f)
+    else if(const float v = deadzone(x); v != 0.f)
     {
-        hands::addTurn(-deadzone(x) * static_cast<float>(host_frametime) * 100.f * vr_turn_speed.value);
+        hands::addTurn(-v * static_cast<float>(host_frametime) * 100.f * vr_turn_speed.value);
     }
 }
 

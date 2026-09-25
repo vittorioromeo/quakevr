@@ -15,6 +15,8 @@
 import struct
 import sys
 
+from mdlgen import HEADER, read_skins
+
 WRIST_Y, WRIST_Z = -1.08, 1.42
 TAPER_START = -1.5
 TAPER_END_X = -6.97
@@ -33,21 +35,12 @@ def taper(x, y, z):
 def main():
     src, dst = sys.argv[1], sys.argv[2]
     d = bytearray(open(src, "rb").read())
-    ident, version = struct.unpack_from("<4si", d, 0)
-    assert ident == b"IDPO" and version == 6, "not a Quake mdl"
-    scale = struct.unpack_from("<3f", d, 8)
-    origin = struct.unpack_from("<3f", d, 20)
-    numskins, sw, sh, nv, nt, nf = struct.unpack_from("<6i", d, 48)
+    h = HEADER.unpack_from(d, 0)
+    assert h[0] == b"IDPO" and h[1] == 6, "not a Quake mdl"
+    scale, origin = h[2:5], h[5:8]
+    numskins, sw, sh, nv, nt, nf = h[12:18]
 
-    o = 84
-    for _ in range(numskins):
-        group, = struct.unpack_from("<i", d, o)
-        o += 4
-        if group == 0:
-            o += sw * sh
-        else:
-            n, = struct.unpack_from("<i", d, o)
-            o += 4 + 4 * n + n * sw * sh
+    _, o = read_skins(d, HEADER.size, numskins, sw, sh)
     o += nv * 12 + nt * 16
 
     def vertices(at):

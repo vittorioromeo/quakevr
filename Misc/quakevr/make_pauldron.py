@@ -18,7 +18,6 @@
 
 import math
 import os
-import struct
 import sys
 
 import mdlgen
@@ -111,10 +110,6 @@ class Builder:
             self.tri(b, d, c)
 
 
-def radians(d):
-    return math.radians(d)
-
-
 def cap():
     """A dome over the top of the shoulder: from the slope towards the neck (u = 0 the front),
     over the top and down the outside to the top of the arm."""
@@ -122,8 +117,8 @@ def cap():
     r = 0.108
 
     def point(u, v):
-        beta = radians(-54 + 108 * u)       # front (u = 0) to back
-        alpha = radians(-32 + 107 * v)     # from inwards over the top (v = 0) to outwards and down
+        beta = math.radians(-54 + 108 * u)   # front (u = 0) to back
+        alpha = math.radians(-32 + 107 * v)  # from inwards over the top (v = 0) to outwards and down
         # Slightly longer front to back, lower over the top, bulging a little at its middle.
         bulge = 1.0 + 0.06 * math.cos(beta * 1.6) * math.sin(math.pi * v)
         return (r * 1.05 * bulge * math.sin(beta),
@@ -136,8 +131,8 @@ def cap():
 
 # The upper arm in the bind pose: 30 degrees out from vertical; "out" is across it, up and away
 # from the body.
-ARM = (0.0, math.sin(radians(30)), -math.cos(radians(30)))
-OUT = (0.0, math.cos(radians(30)), math.sin(radians(30)))
+ARM = (0.0, math.sin(math.radians(30)), -math.cos(math.radians(30)))
+OUT = (0.0, math.cos(math.radians(30)), math.sin(math.radians(30)))
 FWD = (1.0, 0.0, 0.0)
 
 
@@ -147,7 +142,7 @@ def lames():
     b = Builder()
     for d0, d1, r, half in ((0.012, 0.072, 0.094, 78), (0.058, 0.112, 0.089, 72)):
         def point(u, v, d0=d0, d1=d1, r=r, half=half):
-            phi = radians(-half + 2 * half * u)  # front (u = 0) to back, round the outside
+            phi = math.radians(-half + 2 * half * u)  # front (u = 0) to back, round the outside
             d = d0 + (d1 - d0) * v
             rr = r * (1.0 + 0.08 * v)
             around = add(mul(OUT, math.cos(phi)), mul(FWD, -math.sin(phi)))
@@ -203,41 +198,13 @@ def paint(style):
     return bytes(px)
 
 
-def write(path, mesh, skins, name):
-    assert mesh.check_winding() == 0, "counter-clockwise triangles"
-    table = mdlgen.anorms()
-    positions = [v[0] for v in mesh.verts]
-    lo = [min(p[k] for p in positions) for k in range(3)]
-    hi = [max(p[k] for p in positions) for k in range(3)]
-    scale = [(hi[k] - lo[k]) / 255.0 or 1.0 for k in range(3)]
-    radius = max(math.sqrt(dot(p, p)) for p in positions)
-
-    data = bytearray(struct.pack("<4si3f3f f3f 8i f", b"IDPO", 6, *scale, *lo, radius, 0.0, 0.0, 0.0,
-                                 len(skins), SKIN_W, SKIN_H, len(mesh.verts), len(mesh.tris), 1, 0, 0, 1.0))
-    for skin in skins:
-        data += struct.pack("<i", 0) + skin
-    for _, _, (s, t) in mesh.verts:
-        data += struct.pack("<3i", 0, s, t)
-    for a, b, c in mesh.tris:
-        data += struct.pack("<4i", 1, a, b, c)
-    data += struct.pack("<i", 0)
-    data += bytes((0, 0, 0, 0)) + bytes((255, 255, 255, 0))
-    data += name.encode().ljust(16, b"\0")[:16]
-    for p, n, _ in mesh.verts:
-        q = [max(0, min(255, int(round((p[k] - lo[k]) / scale[k])))) for k in range(3)]
-        best = max(range(len(table)), key=lambda i: dot(table[i], n))
-        data += bytes((q[0], q[1], q[2], best))
-    with open(path, "wb") as f:
-        f.write(data)
-
-
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     skins = [paint(style) for style in range(len(RAMPS))]
     for name, mesh in (("vrpauldron", cap()), ("vrpauldron_arm", lames())):
         path = os.path.join(out, name + ".mdl")
-        write(path, mesh, skins, name)
+        mdlgen.write_mdl(path, mesh, skins, name)
         print("%s.mdl: %d vertices, %d triangles, %d skins -> %s" % (name, len(mesh.verts), len(mesh.tris), len(skins),
                                                                      os.path.normpath(path)))
 

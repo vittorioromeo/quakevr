@@ -264,7 +264,7 @@ extern "C" void VR_BeginFrame()
 
 extern "C" int VR_IsActive()
 {
-    return state && state->backend;
+    return vrActive();
 }
 
 extern "C" int VR_ModalMessageFrame()

@@ -3,6 +3,8 @@ Windows/VisualStudio/Build-*/
 Windows/VisualStudio/ironwail.vcxproj.user
 Quake/*.o
 Quake/*.d
+Quake/vr/*.o
+Quake/vr/*.d
 Quake/*.res
 Quake/*.exe
 Quake/ironwail

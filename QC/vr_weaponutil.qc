@@ -87,11 +87,9 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
     float eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
                      (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    float chance = xChance; // the chance multiplier is ShouldDrop*'s (applied once)
+    float roll = random(); // (the chance multiplier is ShouldDrop*'s, applied once)
 
-    float roll = random();
-
-    if(eligible && (roll < chance))
+    if(eligible && (roll < xChance))
     {
         CreateWeaponDrop(entEnemy, xWeapon, entEnemy.origin);
         return TRUE;
@@ -112,11 +110,9 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     float eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
                      (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
-    float chance = xChance; // the chance multiplier is ShouldDrop*'s (applied once)
+    float roll = random(); // (the chance multiplier is ShouldDrop*'s, applied once)
 
-    float roll = random();
-
-    if(eligible && (roll < chance))
+    if(eligible && (roll < xChance))
     {
         CreateAmmoBoxWeaponDrop(entPlayer, xWeapon, entAmmoBox.origin);
         return TRUE;

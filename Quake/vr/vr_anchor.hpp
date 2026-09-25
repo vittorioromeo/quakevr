@@ -20,9 +20,6 @@ namespace qvr::anchor
 // Pose index used for "zero blending" (frame 0, animated for frame groups).
 [[nodiscard]] int zeroPose(const aliashdr_t* hdr);
 
-// Pose index for the entity's current frame.
-[[nodiscard]] int currentPose(const entity_t& ent, const aliashdr_t* hdr);
-
 // Developer commands for making weapon settings (a model's anchor indices are not its file's vertex
 // indices): vr_anchor_info <model> <index> prints where an anchor index is, in the model's own
 // coordinates (as its file's frames: scale and origin applied); vr_anchor_nearest <model> <x> <y> <z>

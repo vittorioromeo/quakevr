@@ -5,12 +5,11 @@
 
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
+#include "vr_physics.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 
-#include <cmath>
-#include <cstring>
 #include <vector>
 
 namespace qvr::progs
@@ -28,32 +27,6 @@ void PF_makeforward()
 {
     vec3_t right, up;
     AngleVectors(G_VECTOR(OFS_PARM0), pr_global_struct->v_forward, right, up);
-}
-
-void PF_maprange()
-{
-    const float in = G_FLOAT(OFS_PARM0);
-    const float inMin = G_FLOAT(OFS_PARM1);
-    const float inMax = G_FLOAT(OFS_PARM2);
-    const float outMin = G_FLOAT(OFS_PARM3);
-    const float outMax = G_FLOAT(OFS_PARM4);
-
-    G_FLOAT(OFS_RETURN) =
-        outMin + (outMax - outMin) / (inMax - inMin) * (in - inMin);
-}
-
-// Expresses `input` (forward, right, up components) in the frame given by `exemplar` angles.
-void PF_redirectvector()
-{
-    vec3_t input, forward, right, up;
-    VectorCopy(G_VECTOR(OFS_PARM0), input);
-    AngleVectors(G_VECTOR(OFS_PARM1), forward, right, up);
-
-    float* out = G_VECTOR(OFS_RETURN);
-    for(int i = 0; i < 3; i++)
-    {
-        out[i] = forward[i] * input[0] + right[i] * input[1] + up[i] * input[2];
-    }
 }
 
 // The bounds of an entity's model (its mins with `max` 0, maxs otherwise), in model space:
@@ -92,34 +65,6 @@ void PF_tracebox()
     pr_global_struct->trace_ent = EDICT_TO_PROG(hit);
 }
 
-// Launch angle (degrees) to hit `to` from `from` at `throwSpeed`, or 0 if out of range.
-void PF_calcthrowangle()
-{
-    const float entGravity = G_FLOAT(OFS_PARM0);
-    const float v = G_FLOAT(OFS_PARM1);
-    const float* from = G_VECTOR(OFS_PARM2);
-    const float* to = G_VECTOR(OFS_PARM3);
-
-    const float g = -(entGravity != 0.f ? entGravity : 1.f) * sv_gravity.value *
-                    static_cast<float>(host_frametime);
-
-    const float dx = to[0] - from[0];
-    const float dy = to[1] - from[1];
-    const float x = std::sqrt(dx * dx + dy * dy);
-    const float z = from[2] - to[2];
-
-    const float v2 = v * v;
-    const float root = v2 * v2 - g * (g * x * x + 2.f * z * v2);
-    if(root < 0.f)
-    {
-        G_FLOAT(OFS_RETURN) = 0.f;
-        return;
-    }
-
-    G_FLOAT(OFS_RETURN) =
-        std::atan2(v2 - std::sqrt(root), g * x) * (180.f / static_cast<float>(M_PI));
-}
-
 // ----------------------------------------------------------------------------
 // Cvar handles: QC resolves cvar names once per map, then reads them by index.
 
@@ -156,14 +101,6 @@ void PF_cvar_hget()
 {
     cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
     G_FLOAT(OFS_RETURN) = var ? var->value : 0.f;
-}
-
-void PF_cvar_hset()
-{
-    if(cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0)))
-    {
-        Cvar_SetValueQuick(var, G_FLOAT(OFS_PARM1));
-    }
 }
 
 void PF_cvar_hclear()
@@ -260,7 +197,7 @@ void PF_WriteVec3()
 }
 
 // ----------------------------------------------------------------------------
-// Not yet ported
+// Effects and the player's hands
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
 void PF_particle2()
@@ -296,12 +233,11 @@ void PF_haptic()
         G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
-extern "C" void VR_CarryAngles(edict_t* ent, const float* handAngles, int grab, float* out);
-
 // carryangles(e, handangles, grab): a held object's angles, turning with the hand (vr_rigid.cpp).
 void PF_carryangles()
 {
-    VR_CarryAngles(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_VECTOR(OFS_RETURN));
+    physics::carryAngles(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)) != 0,
+        G_VECTOR(OFS_RETURN));
 }
 
 // handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).
@@ -319,14 +255,10 @@ struct VrBuiltin
 
 constexpr VrBuiltin vrBuiltins[] = {
     {"makeforward", PF_makeforward},
-    {"maprange", PF_maprange},
-    {"redirectvector", PF_redirectvector},
-    {"calcthrowangle", PF_calcthrowangle},
     {"modelbounds", PF_modelbounds},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
-    {"cvar_hset", PF_cvar_hset},
     {"cvar_hclear", PF_cvar_hclear},
     {"worldtext_hmake", PF_worldtext_hmake},
     {"worldtext_hsettext", PF_worldtext_hsettext},

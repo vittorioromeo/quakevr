@@ -185,11 +185,7 @@ public:
         tracking.head = locate(viewSpace, time);
         if(tracking.head.valid)
         {
-            XrSpaceLocation location{XR_TYPE_SPACE_LOCATION};
-            if(XR_SUCCEEDED(xrLocateSpace(viewSpace, worldSpace, time, &location)))
-            {
-                lastHeadPose = location.pose;
-            }
+            lastHead = tracking.head;
         }
         for(int h = 0; h < HAND_COUNT; h++)
         {
@@ -218,31 +214,12 @@ public:
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
     {
-        Swapchain& sc = swapchains[eye];
-
-        XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-        uint32_t index = 0;
-        if(!check(xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index), "xrAcquireSwapchainImage"))
-        {
-            return 0;
-        }
-
-        XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-        waitInfo.timeout = XR_INFINITE_DURATION;
-        if(!check(xrWaitSwapchainImage(sc.handle, &waitInfo), "xrWaitSwapchainImage"))
-        {
-            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-            xrReleaseSwapchainImage(sc.handle, &releaseInfo);
-            return 0;
-        }
-
-        return sc.images[index].image;
+        return acquireImage(swapchains[eye]);
     }
 
     void releaseEyeImage(int eye) override
     {
-        XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        check(xrReleaseSwapchainImage(swapchains[eye].handle, &releaseInfo), "xrReleaseSwapchainImage");
+        releaseImage(swapchains[eye]);
     }
 
     void endFrame(bool rendered) override
@@ -255,8 +232,6 @@ public:
 
         XrCompositionLayerProjectionView projViews[2]{};
         XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
-        const XrCompositionLayerBaseHeader* layers[] = {
-            reinterpret_cast<const XrCompositionLayerBaseHeader*>(&layer)};
 
         XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
         endInfo.displayTime = frameState.predictedDisplayTime;
@@ -279,7 +254,7 @@ public:
             layer.space = worldSpace;
             layer.viewCount = 2;
             layer.views = projViews;
-            submitted[count++] = layers[0];
+            submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&layer);
         }
 
         XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
@@ -316,29 +291,12 @@ public:
         {
             return 0;
         }
-
-        XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-        uint32_t index = 0;
-        if(!check(xrAcquireSwapchainImage(panel.handle, &acquireInfo, &index), "xrAcquireSwapchainImage"))
-        {
-            return 0;
-        }
-
-        XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-        waitInfo.timeout = XR_INFINITE_DURATION;
-        if(!check(xrWaitSwapchainImage(panel.handle, &waitInfo), "xrWaitSwapchainImage"))
-        {
-            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-            xrReleaseSwapchainImage(panel.handle, &releaseInfo);
-            return 0;
-        }
-        return panel.images[index].image;
+        return acquireImage(panel);
     }
 
     void releasePanelImage() override
     {
-        XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        panelPending = check(xrReleaseSwapchainImage(panel.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        panelPending = releaseImage(panel);
     }
 
 private:
@@ -348,9 +306,8 @@ private:
 
     void placePanel()
     {
-        const XrQuaternionf& q = lastHeadPose.orientation;
         // The head's forward (-z) direction, flattened.
-        glm::vec3 fwd = glm::quat{q.w, q.x, q.y, q.z} * glm::vec3{0.f, 0.f, -1.f};
+        glm::vec3 fwd = lastHead.orientation * glm::vec3{0.f, 0.f, -1.f};
         fwd.y = 0.f;
         if(glm::length(fwd) < 1e-3f)
         {
@@ -361,8 +318,8 @@ private:
         const float yaw = std::atan2(-fwd.x, -fwd.z);
         const glm::quat orientation = glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f});
 
-        panelPose.position = {lastHeadPose.position.x + fwd.x * panelDistance, lastHeadPose.position.y,
-            lastHeadPose.position.z + fwd.z * panelDistance};
+        panelPose.position = {lastHead.position.x + fwd.x * panelDistance, lastHead.position.y,
+            lastHead.position.z + fwd.z * panelDistance};
         panelPose.orientation = {orientation.x, orientation.y, orientation.z, orientation.w};
     }
 
@@ -377,29 +334,8 @@ private:
             xrDestroySwapchain(panel.handle);
             panel = Swapchain{};
         }
-
-        XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
-        info.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
-        info.format = colorFormat;
-        info.sampleCount = 1;
-        info.width = static_cast<uint32_t>(width);
-        info.height = static_cast<uint32_t>(height);
-        info.faceCount = 1;
-        info.arraySize = 1;
-        info.mipCount = 1;
-        if(!check(xrCreateSwapchain(session, &info, &panel.handle), "xrCreateSwapchain (panel)"))
-        {
-            return false;
-        }
-
-        panel.width = width;
-        panel.height = height;
-        uint32_t imageCount = 0;
-        xrEnumerateSwapchainImages(panel.handle, 0, &imageCount, nullptr);
-        panel.images.assign(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
-        xrEnumerateSwapchainImages(panel.handle, imageCount, &imageCount,
-            reinterpret_cast<XrSwapchainImageBaseHeader*>(panel.images.data()));
-        return true;
+        return createSwapchain(panel, width, height,
+            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT, "xrCreateSwapchain (panel)");
     }
 
     struct Swapchain
@@ -437,7 +373,7 @@ private:
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
     double panelLastShown{-10.0};
     XrPosef panelPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
-    XrPosef lastHeadPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
+    Pose lastHead; // the last valid head pose, which the panel is placed in front of
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
     bool sessionRunning{false};
     bool swapIntervalChanged{false};
@@ -459,6 +395,60 @@ private:
         }
         Con_Warning("OpenXR: %s failed: %s (%d)\n", what, text, static_cast<int>(result));
         return false;
+    }
+
+    // A swapchain of width x height images in colorFormat.
+    bool createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
+    {
+        XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+        info.usageFlags = usage;
+        info.format = colorFormat;
+        info.sampleCount = 1;
+        info.width = static_cast<uint32_t>(width);
+        info.height = static_cast<uint32_t>(height);
+        info.faceCount = 1;
+        info.arraySize = 1;
+        info.mipCount = 1;
+        if(!check(xrCreateSwapchain(session, &info, &sc.handle), what))
+        {
+            return false;
+        }
+
+        sc.width = width;
+        sc.height = height;
+        uint32_t imageCount = 0;
+        xrEnumerateSwapchainImages(sc.handle, 0, &imageCount, nullptr);
+        sc.images.assign(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+        xrEnumerateSwapchainImages(sc.handle, imageCount, &imageCount,
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
+        return true;
+    }
+
+    // The GL texture of the swapchain's next image, acquired and waited for; 0 on failure.
+    [[nodiscard]] unsigned acquireImage(const Swapchain& sc) const
+    {
+        XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        if(!check(xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index), "xrAcquireSwapchainImage"))
+        {
+            return 0;
+        }
+
+        XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        waitInfo.timeout = XR_INFINITE_DURATION;
+        if(!check(xrWaitSwapchainImage(sc.handle, &waitInfo), "xrWaitSwapchainImage"))
+        {
+            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+            xrReleaseSwapchainImage(sc.handle, &releaseInfo);
+            return 0;
+        }
+        return sc.images[index].image;
+    }
+
+    bool releaseImage(const Swapchain& sc) const
+    {
+        XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        return check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
     }
 
     static void destroySpace(XrSpace& space)
@@ -975,29 +965,12 @@ private:
         colorFormat = format;
         for(int eye = 0; eye < 2; eye++)
         {
-            Swapchain& sc = swapchains[eye];
-            sc.width = static_cast<int32_t>(configViews[eye].recommendedImageRectWidth);
-            sc.height = static_cast<int32_t>(configViews[eye].recommendedImageRectHeight);
-
-            XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
-            info.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-            info.format = format;
-            info.sampleCount = 1;
-            info.width = static_cast<uint32_t>(sc.width);
-            info.height = static_cast<uint32_t>(sc.height);
-            info.faceCount = 1;
-            info.arraySize = 1;
-            info.mipCount = 1;
-            if(!check(xrCreateSwapchain(session, &info, &sc.handle), "xrCreateSwapchain"))
+            if(!createSwapchain(swapchains[eye], static_cast<int32_t>(configViews[eye].recommendedImageRectWidth),
+                   static_cast<int32_t>(configViews[eye].recommendedImageRectHeight),
+                   XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain"))
             {
                 return false;
             }
-
-            uint32_t imageCount = 0;
-            xrEnumerateSwapchainImages(sc.handle, 0, &imageCount, nullptr);
-            sc.images.assign(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
-            xrEnumerateSwapchainImages(sc.handle, imageCount, &imageCount,
-                reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
         }
 
         Con_Printf("OpenXR: %dx%d per eye\n", swapchains[0].width, swapchains[0].height);

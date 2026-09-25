@@ -23,11 +23,12 @@
 
 import math
 import os
-import re
 import struct
 import sys
 
-HEADER = struct.Struct('<4si3f3ff3f8if')
+import quakepak
+from mdlgen import HEADER, add, anorms, cross, dot, mul, norm, read_skins, sub
+
 SCALE = 2.6  # knight units to weapon model units (the weapon draws at 0.34): about 1 m
 
 # The axe's handle (v_axe.mdl, frame 0): the centre of its bottom end and its direction, up to where
@@ -44,24 +45,9 @@ def pak_files(quake):
     out = {}
     for name in ('PAK0.PAK', 'PAK1.PAK', 'pak0.pak', 'pak1.pak'):
         p = os.path.join(quake, 'id1', name)
-        if not os.path.isfile(p):
-            continue
-        d = open(p, 'rb').read()
-        _, off, ln = struct.unpack('<4sii', d[:12])
-        for i in range(ln // 64):
-            n, fo, fl = struct.unpack('<56sii', d[off + i * 64:off + i * 64 + 64])
-            out[n.split(b'\0')[0].decode('latin-1').lower()] = d[fo:fo + fl]
+        if os.path.isfile(p):
+            out.update(quakepak.read_pak(p))
     return out
-
-
-def anorms():
-    here = os.path.dirname(os.path.abspath(__file__))
-    text = open(os.path.join(here, '..', '..', 'Quake', 'anorms.h')).read()
-    return [tuple(float(x) for x in m) for m in re.findall(r'\{\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\s*\}', text)]
-
-
-def palette(quake_files):
-    return quake_files.get('gfx/palette.lmp') if quake_files else None
 
 
 class Mdl:
@@ -69,18 +55,10 @@ class Mdl:
         h = HEADER.unpack_from(data, 0)
         self.scale, self.origin = h[2:5], h[5:8]
         self.nskins, self.sw, self.sh, self.nverts, self.ntris, self.nframes = h[12:18]
-        off = HEADER.size
-        g, = struct.unpack_from('<i', data, off)
+        skins, off = read_skins(data, HEADER.size, self.nskins, self.sw, self.sh)
+        g, = struct.unpack_from('<i', skins[0], 0)
         assert g == 0
-        self.skin = data[off + 4:off + 4 + self.sw * self.sh]
-        for _ in range(self.nskins):
-            g, = struct.unpack_from('<i', data, off)
-            off += 4
-            if g == 0:
-                off += self.sw * self.sh
-            else:
-                n, = struct.unpack_from('<i', data, off)
-                off += 4 + 4 * n + n * self.sw * self.sh
+        self.skin = skins[0][4:]
         self.stverts = [struct.unpack_from('<3i', data, off + 12 * i) for i in range(self.nverts)]
         off += 12 * self.nverts
         self.tris = [struct.unpack_from('<4i', data, off + 16 * i) for i in range(self.ntris)]
@@ -92,14 +70,6 @@ class Mdl:
 
     def pos(self, v):
         return tuple(self.pose[v][i] * self.scale[i] + self.origin[i] for i in range(3))
-
-
-def sub(a, b): return tuple(a[i] - b[i] for i in range(3))
-def add(a, b): return tuple(a[i] + b[i] for i in range(3))
-def mul(a, k): return tuple(x * k for x in a)
-def dot(a, b): return sum(a[i] * b[i] for i in range(3))
-def cross(a, b): return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
-def norm(a): return mul(a, 1.0 / math.sqrt(dot(a, a)))
 
 
 def knight_sword(m):
@@ -290,9 +260,6 @@ def build(m, tris, normals, pal, add_guard):
     out.ring_loft([(-GRIP - POMMEL, 1.4, 1.4), (-GRIP - POMMEL * 0.5, 2.5, 2.5), (-GRIP, 1.7, 1.7)], flat(metal))
     if add_guard:
         out.box((0.0, 0.0, -0.9), (max(5.0, blade_width * 2.6), 1.1, 0.9), flat(metal))
-    for i in range(len(out.st)):
-        if len(out.st[i]) == 2:
-            out.st[i] = flat(out.st[i])
 
     # Into the axe's space: the grip along its handle, the guard's foot where the head starts.
     A = norm(HANDLE_DIR)
@@ -360,9 +327,10 @@ def main():
                    ('hknight.mdl', by_verts(QVR_HKNIGHT), 'v_hksword.mdl', True))
         load = lambda name: open(os.path.join(progs, name), 'rb').read()
     out_dir = args[0] if args else os.path.join(here, '..', '..', 'quakevr', 'progs')
+    pal = files.get('gfx/palette.lmp') if files else None
     for src, find, dst, add_guard in sources:
         m = Mdl(load(src))
-        data, nv, nt, tip = build(m, find(m), normals, palette(files), add_guard)
+        data, nv, nt, tip = build(m, find(m), normals, pal, add_guard)
         open(os.path.join(out_dir, dst), 'wb').write(data)
         print('%s: %d vertices, %d triangles, tip at %.2f %.2f %.2f' % (dst, nv, nt, *tip))
 

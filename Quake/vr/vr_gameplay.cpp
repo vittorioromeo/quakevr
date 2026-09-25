@@ -6,6 +6,8 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
+#include <array>
+
 using namespace qvr;
 
 namespace
@@ -23,6 +25,18 @@ namespace
 
     out = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, ent);
     return out.fraction < 1.f && !out.allsolid;
+}
+
+// The centre and the four corners of the entity's box, as x and y offsets from its origin.
+[[nodiscard]] std::array<glm::vec2, 5> bottomPoints(const edict_t* ent)
+{
+    return {{
+        {0.f, 0.f},
+        {ent->v.mins[0], ent->v.mins[1]},
+        {ent->v.mins[0], ent->v.maxs[1]},
+        {ent->v.maxs[0], ent->v.mins[1]},
+        {ent->v.maxs[0], ent->v.maxs[1]},
+    }};
 }
 
 } // namespace
@@ -45,18 +59,10 @@ extern "C" int VR_TossKeepsGround(edict_t* ent)
         return 1;
     }
 
-    const float offsets[5][2] = {
-        {0.f, 0.f},
-        {ent->v.mins[0], ent->v.mins[1]},
-        {ent->v.mins[0], ent->v.maxs[1]},
-        {ent->v.maxs[0], ent->v.mins[1]},
-        {ent->v.maxs[0], ent->v.maxs[1]},
-    };
-
     trace_t trace;
-    for(const auto& offset : offsets)
+    for(const glm::vec2& offset : bottomPoints(ent))
     {
-        if(traceFloorBelow(ent, offset[0], offset[1], trace, 2.f) || trace.startsolid)
+        if(traceFloorBelow(ent, offset.x, offset.y, trace, 2.f) || trace.startsolid)
         {
             return 1;
         }
@@ -78,18 +84,10 @@ extern "C" int VR_DropToFloor()
 
     edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
 
-    const float offsets[5][2] = {
-        {0.f, 0.f},
-        {ent->v.mins[0], ent->v.mins[1]},
-        {ent->v.mins[0], ent->v.maxs[1]},
-        {ent->v.maxs[0], ent->v.mins[1]},
-        {ent->v.maxs[0], ent->v.maxs[1]},
-    };
-
     trace_t trace;
-    for(const auto& offset : offsets)
+    for(const glm::vec2& offset : bottomPoints(ent))
     {
-        if(traceFloorBelow(ent, offset[0], offset[1], trace))
+        if(traceFloorBelow(ent, offset.x, offset.y, trace))
         {
             ent->v.origin[2] = trace.endpos[2] - ent->v.mins[2];
             SV_LinkEdict(ent, false);

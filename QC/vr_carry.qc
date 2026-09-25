@@ -18,9 +18,7 @@
 .entity mainhand_held;   // the box each hand carries
 .entity offhand_held;
 .entity carry_player;    // on a box: who carries it
-.float carry_hand;
 .vector carry_offset;    // the box's centre in the hand's frame (forward, right, up)
-.vector carry_angles;    // its angles relative to the hand's
 .float carry_trigger;    // the carrying hand's trigger last frame
 .float carry_nudgetime;
 .void() carry_use;       // taking it: the box's own pickup (ammo_touch, health_touch)
@@ -51,25 +49,6 @@ float(entity xPlayer, float xHand) VR_Carry_IsHolding =
     return VR_Carry_Held(xPlayer, xHand) != world;
 };
 
-// The hand's velocity (m/s) and angles of `xPlayer` (not only `self`).
-vector(entity xPlayer, float xHand) VR_Carry_HandVel =
-{
-    if(xHand == cVR_OffHand)
-    {
-        return xPlayer.offhandvel;
-    }
-    return xPlayer.handvel;
-};
-
-vector(entity xPlayer, float xHand) VR_Carry_HandRot =
-{
-    if(xHand == cVR_OffHand)
-    {
-        return xPlayer.offhandrot;
-    }
-    return xPlayer.handrot;
-};
-
 // A box becomes a physics object again: a rigid body, touchable, no longer carried.
 void(entity xBox) VR_Carry_Loose =
 {
@@ -92,7 +71,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         return;
     }
 
-    vector v = VR_Carry_HandVel(xPlayer, xHand) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_nudge);
+    vector v = VRGetEntHandVel(xPlayer, xHand) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_nudge);
     float speed = vlen(v);
     if(speed < 10)
     {
@@ -125,16 +104,15 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     xBox.carry_player = xPlayer;
-    xBox.carry_hand = xHand;
 
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
-    vector handRot = VR_Carry_HandRot(xPlayer, xHand);
+    vector handRot = VRGetEntHandRot(xPlayer, xHand);
     makevectors(handRot);
     vector d = xBox.origin - handPos;
     xBox.carry_offset_x = d * v_forward;
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
-    xBox.carry_angles = carryangles(xBox, handRot, TRUE); // keeps its turn in the hand
+    carryangles(xBox, handRot, TRUE); // the engine keeps its turn in the hand from here
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
 
     xBox.movetype = MOVETYPE_NONE;
@@ -213,10 +191,7 @@ void(float xHand, entity xBox) VR_Carry_Take =
 // Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one).
 float(float xHand) VR_Carry_AtHolster =
 {
-    float hs = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
-    return hs == QVR_HS_LEFT_SHOULDER_HOLSTER || hs == QVR_HS_RIGHT_SHOULDER_HOLSTER ||
-           hs == QVR_HS_LEFT_HIP_HOLSTER || hs == QVR_HS_RIGHT_HIP_HOLSTER ||
-           hs == QVR_HS_LEFT_UPPER_HOLSTER || hs == QVR_HS_RIGHT_UPPER_HOLSTER;
+    return isHolsterHotspot(xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot);
 };
 
 // Every player frame, for each hand (self is the player).
@@ -274,8 +249,7 @@ void(float xHand) VR_Carry_HandFrame =
         VR_Carry_Take(xHand, box);
         if(box.model == string_null)
         {
-            VR_Carry_SetHeld(self, xHand, world);
-            return;
+            return; // taken (VR_Carry_Take let go of it)
         }
     }
     box.carry_trigger = trigger;

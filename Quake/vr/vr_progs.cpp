@@ -2,6 +2,7 @@
 
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
+#include "vr_physics.hpp"
 #include "vr_server.hpp"
 
 #include <cstring>
@@ -54,14 +55,7 @@ void callSpawnServerEntryPoint(func_t fn)
     callEntryPoint(fn);
 }
 
-} // namespace
-
-const Bindings& bindings()
-{
-    return sv_bindings;
-}
-
-ddef_t* findGlobalDef(const char* name)
+[[nodiscard]] ddef_t* findGlobalDef(const char* name)
 {
     for(int i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
@@ -73,6 +67,13 @@ ddef_t* findGlobalDef(const char* name)
     }
 
     return nullptr;
+}
+
+} // namespace
+
+const Bindings& bindings()
+{
+    return sv_bindings;
 }
 
 func_t findFunction(const char* name)
@@ -152,6 +153,7 @@ extern "C" void VR_OnProgsLoaded()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     qvr::server::resetClients();
+    qvr::physics::resetRigidBodies();
     resetBuiltinState();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
 }

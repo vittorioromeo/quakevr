@@ -25,19 +25,12 @@ import os
 import struct
 import sys
 
+from mdlgen import HEADER, add, cross, dot, mul, norm, sub
+
 UNITS = 1.0 / 0.0381  # Quake units per metre at vr_world_scale 1
 
 # ----------------------------------------------------------------------------
-# Small vector helpers
-
-
-def add(a, b): return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
-def sub(a, b): return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
-def mul(a, k): return (a[0] * k, a[1] * k, a[2] * k)
-def dot(a, b): return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-def cross(a, b): return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
-def length(a): return math.sqrt(dot(a, a))
-def norm(a): return mul(a, 1.0 / length(a))
+# Bases and quaternions
 
 
 def frame(direction, hint):
@@ -595,12 +588,10 @@ def write_skin(path, size=128, damage=0, armor=0):
 def write_placeholder_mdl(path):
     # A single tiny triangle; only its name matters (see the header comment).
     skin_w, skin_h = 8, 8
-    header = struct.pack("<4si3f3f f3f 8i f",
-                         b"IDPO", 6, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-                         1.0, 0.0, 0.0, 0.0,
-                         1, skin_w, skin_h, 3, 1, 1, 0, 0,
-                         1.0)
-    data = bytearray(header)
+    data = bytearray(HEADER.pack(b"IDPO", 6, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
+                                 1.0, 0.0, 0.0, 0.0,
+                                 1, skin_w, skin_h, 3, 1, 1, 0, 0,
+                                 1.0))
     data += struct.pack("<i", 0) + bytes(skin_w * skin_h)
     for sv in ((0, 0, 0), (0, 4, 0), (0, 0, 4)):
         data += struct.pack("<3i", *sv)

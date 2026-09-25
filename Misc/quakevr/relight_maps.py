@@ -37,6 +37,8 @@ import subprocess
 import sys
 import tempfile
 
+import quakepak
+
 # Smooth shadow edges, ambient occlusion in corners, a little bounced light (it brightens maps,
 # which the 2021 re-release was criticised for: kept low), coloured .lit output.
 DEFAULT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit"
@@ -45,33 +47,13 @@ DEFAULT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bounce
 SKIP_PREFIXES = ("b_",)
 
 
-def pak_maps(pak_path):
-    """{name: bytes} of maps/*.bsp in a .pak."""
-    maps = {}
-    with open(pak_path, "rb") as f:
-        data = f.read()
-    ident, offset, length = struct.unpack_from("<4sii", data, 0)
-    if ident != b"PACK":
-        return maps
-    for i in range(length // 64):
-        raw, pos, size = struct.unpack_from("<56sii", data, offset + i * 64)
-        name = raw.split(b"\0")[0].decode("latin-1").lower()
-        if name.startswith("maps/") and name.endswith(".bsp"):
-            maps[name] = data[pos : pos + size]
-    return maps
-
-
 def game_maps(game_dir):
     """Maps of one game folder as the engine sees them: paks in order (later ones win), then loose
     files (which win over paks)."""
     maps = {}
-    paks = []
-    for entry in os.listdir(game_dir):
-        base, ext = os.path.splitext(entry.lower())
-        if ext == ".pak" and base.startswith("pak") and base[3:].isdigit():
-            paks.append((int(base[3:]), entry))
-    for _, entry in sorted(paks):
-        maps.update(pak_maps(os.path.join(game_dir, entry)))
+    for pak in quakepak.game_paks(game_dir):
+        maps.update((name, data) for name, data in quakepak.read_pak(pak).items()
+                    if name.startswith("maps/") and name.endswith(".bsp"))
     loose = os.path.join(game_dir, "maps")
     if os.path.isdir(loose):
         for entry in os.listdir(loose):
@@ -84,21 +66,8 @@ def game_maps(game_dir):
 def pak_file(game_dir, wanted):
     """A file from a game folder's paks (later paks win), or None."""
     found = None
-    paks = []
-    for entry in os.listdir(game_dir):
-        base, ext = os.path.splitext(entry.lower())
-        if ext == ".pak" and base.startswith("pak") and base[3:].isdigit():
-            paks.append((int(base[3:]), entry))
-    for _, entry in sorted(paks):
-        with open(os.path.join(game_dir, entry), "rb") as f:
-            data = f.read()
-        ident, offset, length = struct.unpack_from("<4sii", data, 0)
-        if ident != b"PACK":
-            continue
-        for i in range(length // 64):
-            raw, pos, size = struct.unpack_from("<56sii", data, offset + i * 64)
-            if raw.split(b"\0")[0].decode("latin-1").lower() == wanted:
-                found = data[pos : pos + size]
+    for pak in quakepak.game_paks(game_dir):
+        found = quakepak.read_pak(pak).get(wanted, found)
     return found
 
 

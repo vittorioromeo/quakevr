@@ -12,13 +12,15 @@
 
 #pragma once
 
+#include "vr_particles.hpp"
+
 #include <glm/glm.hpp>
 
 namespace qvr::decals
 {
 
-// A Quake VR particle effect (QVR_PARTICLE_PRESET_*) at `org` along `dir` (may be zero).
-void fromEffect(const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+// A Quake VR particle effect at `org` along `dir` (may be zero).
+void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count);
 
 // Drawn in each eye (VR_DrawSceneOpaque).
 void draw();

@@ -31,6 +31,8 @@ struct Queued
 std::vector<Queued> queued;
 std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
+int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
+std::vector<std::string_view> textLines; // layout()'s, kept between calls
 
 void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color)
 {
@@ -71,16 +73,16 @@ void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const 
 void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false)
 {
-    std::vector<std::string_view> lines;
+    textLines.clear();
     for(size_t start = 0; start <= text.size();)
     {
         const size_t end = std::min(text.find('\n', start), text.size());
-        lines.push_back(text.substr(start, end - start));
+        textLines.push_back(text.substr(start, end - start));
         start = end + 1;
     }
 
     size_t longest = 0;
-    for(std::string_view l : lines)
+    for(std::string_view l : textLines)
     {
         longest = std::max(longest, l.size());
     }
@@ -99,7 +101,8 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
     const glm::vec3 hInc = right * charSize;
     const glm::vec3 vInc = -up * charSize;
 
-    const glm::vec3 topLeft = pos - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(lines.size())) * 0.5f;
+    const glm::vec3 topLeft =
+        pos - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(textLines.size())) * 0.5f;
 
     // The screen: a bezel box behind the text and its lit face just behind the text, the readable
     // side facing the viewer (right x up points at them); the gadget's palette.
@@ -113,7 +116,7 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         textColor = glm::vec4{glm::min(hsv(hue, 0.55f, bright), glm::vec3{1.f}), 1.f};
 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
-        const float halfH = charSize * static_cast<float>(lines.size()) * 0.5f;
+        const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
         const float pad = charSize * 0.35f * std::max(0.f, vr_weapon_screen_padding.value);
         const float bezel = charSize * 0.3f;
         const float depth = charSize * 0.5f;
@@ -127,13 +130,13 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
             c + right * (halfW + pad) + up * (halfH + pad), c - right * (halfW + pad) + up * (halfH + pad), face);
     }
 
-    for(size_t i = 0; i < lines.size(); i++)
+    for(size_t i = 0; i < textLines.size(); i++)
     {
-        const float slack = static_cast<float>(longest - lines[i].size());
+        const float slack = static_cast<float>(longest - textLines[i].size());
         const float indent = align == Align::Left ? 0.f : align == Align::Centre ? slack * 0.5f : slack;
 
         glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * indent;
-        for(char c : lines[i])
+        for(char c : textLines[i])
         {
             if(c != ' ')
             {
@@ -149,15 +152,16 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
 {
     queued.push_back({std::string{text}, pos, angles, align, scale, screen});
+    builtFrame = -1;
 }
 
 void clear()
 {
     queued.clear();
+    builtFrame = -1;
 }
 
 } // namespace qvr::text3d
-
 
 extern "C" void VR_DrawSceneOpaque()
 {
@@ -172,28 +176,26 @@ extern "C" void VR_DrawSceneOpaque()
     decals::draw();
     shadows::draw();
 
-    vertices.clear();
-    panels.clear();
-    for(const worldtext::WorldText& wt : worldtext::clientTexts())
+    // Laid out once a frame, for both eyes.
+    if(builtFrame != host_framecount)
     {
-        layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
-    }
-    for(const Queued& q : queued)
-    {
-        layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
-    }
-
-    if(!panels.empty())
-    {
-        gfx::draw(panels, gfx::sceneViewProjection(),
-            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true});
-    }
-    if(vertices.empty())
-    {
-        return;
+        builtFrame = host_framecount;
+        vertices.clear();
+        panels.clear();
+        for(const worldtext::WorldText& wt : worldtext::clientTexts())
+        {
+            layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
+        }
+        for(const Queued& q : queued)
+        {
+            layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+        }
     }
 
-    gfx::draw(vertices, gfx::sceneViewProjection(),
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    gfx::draw(panels, viewProjection,
+        {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true});
+    gfx::draw(vertices, viewProjection,
         {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
         gfx::fontTexture());
 }

@@ -158,10 +158,7 @@ void() VRScalePickup =
     // The model's bounds, square around the origin (items turn about it).
     vector lo = modelbounds(self, 0) * s;
     vector hi = modelbounds(self, 1) * s;
-    float r = fabs(lo_x);
-    if(fabs(hi_x) > r) { r = fabs(hi_x); }
-    if(fabs(lo_y) > r) { r = fabs(lo_y); }
-    if(fabs(hi_y) > r) { r = fabs(hi_y); }
+    float r = max(max(fabs(lo_x), fabs(hi_x)), max(fabs(lo_y), fabs(hi_y)));
     lo_x = -r;
     lo_y = -r;
     hi_x = r;
@@ -892,19 +889,11 @@ void() forcegrabbable_item_think =
         return;
     }
 
-    float repositionTimeDeathmatch =
-        cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch);
-
-    float repositionTimeSingleplayer =
-        cvar_hget(cvarh_vr_forcegrabbable_return_time_singleplayer);
-
-    if(deathmatch && repositionTimeDeathmatch > 0)
+    float repositionTime = deathmatch ? cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch)
+                                      : cvar_hget(cvarh_vr_forcegrabbable_return_time_singleplayer);
+    if(repositionTime > 0)
     {
-        forcegrabbable_item_reposition(repositionTimeDeathmatch);
-    }
-    else if(!deathmatch && repositionTimeSingleplayer > 0)
-    {
-        forcegrabbable_item_reposition(repositionTimeSingleplayer);
+        forcegrabbable_item_reposition(repositionTime);
     }
 
     forcegrabbable_think_impl();
@@ -913,7 +902,7 @@ void() forcegrabbable_item_think =
 
 // Ammo and health boxes as objects: drawn at vr_forcegrabbable_box_scale (brush models too),
 // centred on the origin, their touch box the drawn box, resting where the box stood.
-void(entity xEnt) MakeItemGrabbable =
+void() MakeItemGrabbable =
 {
     float scaleFactor = cvar_hget(cvarh_vr_forcegrabbable_box_scale);
     if(scaleFactor <= 0)
@@ -958,7 +947,7 @@ void() AfterPlacementAmmoBox =
 {
     if(cvar_hget(cvarh_vr_forcegrabbable_ammo_boxes))
     {
-        MakeItemGrabbable(self);
+        MakeItemGrabbable();
     }
 }
 
@@ -966,7 +955,7 @@ void() AfterPlacementHealthBox =
 {
     if(cvar_hget(cvarh_vr_forcegrabbable_health_boxes))
     {
-        MakeItemGrabbable(self);
+        MakeItemGrabbable();
     }
 }
 

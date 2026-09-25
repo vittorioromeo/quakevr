@@ -113,6 +113,17 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
+// The forward vector of `xAngles`, leaving v_forward (and v_right, v_up) as they were: for code
+// that runs while a caller still needs them.
+vector(vector xAngles) VRForwardOf =
+{
+    vector oldForward = v_forward;
+    makeforward(xAngles);
+    vector forward = v_forward;
+    v_forward = oldForward;
+    return forward;
+}
+
 // TODO VR: (P2) move:
 
 typedef void() NullaryFn;
@@ -220,6 +231,19 @@ vector(entity e, float xHand) VRGetEntHandPos =
 {
     if(xHand == cVR_OffHand) return e.offhandpos;
     else                     return e.handpos;
+}
+
+vector(entity e, float xHand) VRGetEntHandRot =
+{
+    if(xHand == cVR_OffHand) return e.offhandrot;
+    else                     return e.handrot;
+}
+
+// The hand's velocity, in metres per second.
+vector(entity e, float xHand) VRGetEntHandVel =
+{
+    if(xHand == cVR_OffHand) return e.offhandvel;
+    else                     return e.handvel;
 }
 
 float(float xHand) VRIsAmmolessWeapon =
@@ -333,12 +357,6 @@ float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
     else                     return VRGetMainHandReloadFlickingBit(e);
 }
 
-float(entity e, float xHand) VRIsEntHandPrevReloadFlickingBit =
-{
-    if(xHand == cVR_OffHand) return VRGetOffHandPrevReloadFlickingBit(e);
-    else                     return VRGetMainHandPrevReloadFlickingBit(e);
-}
-
 float(entity entPlayer) VRIsTouchingHandFake =
 {
     return entPlayer.touchinghand == cVR_FakeHand;
@@ -418,19 +436,9 @@ float(entity ent) VRGetOffHandReloadingBit =
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADING);
 }
 
-float(entity ent) VRGetOffHandPrevReloadingBit =
-{
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADING);
-}
-
 float(entity ent) VRGetMainHandReloadingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADING);
-}
-
-float(entity ent) VRGetMainHandPrevReloadingBit =
-{
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADING);
 }
 
 float(entity ent) VRGetOffHandReloadFlickingBit =
@@ -438,19 +446,9 @@ float(entity ent) VRGetOffHandReloadFlickingBit =
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING);
 }
 
-float(entity ent) VRGetOffHandPrevReloadFlickingBit =
-{
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVRELOADFLICKING);
-}
-
 float(entity ent) VRGetMainHandReloadFlickingBit =
 {
     return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING);
-}
-
-float(entity ent) VRGetMainHandPrevReloadFlickingBit =
-{
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING);
 }
 
 

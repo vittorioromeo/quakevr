@@ -13,9 +13,27 @@
 namespace qvr::particles
 {
 
+// The QC's particle2 presets (QC/vr_defs.qc QVR_PARTICLE_PRESET_*), and the engine's own.
+enum class Preset : int
+{
+    BulletPuff,
+    Blood,
+    Explosion,
+    Lightning,
+    Smoke,
+    Sparks,
+    GunSmoke,
+    Teleport,
+    GunPickup,
+    GunForceGrab,
+    LavaSpike,
+    BigSmoke,
+    ForceGrabTrail // vr_fgfx.cpp: behind an object flying to the hand
+};
+
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
 // caller to fall back on Quake's effects.
-bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count);
 
 // Removes them all (a new map, a disconnect).
 void clear();

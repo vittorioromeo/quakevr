@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GL_IMAGE_H
 
 //image.h -- image reading / writing
-#ifndef __cplusplus // QVR: C++ (the VR module) has no incomplete enums, and does not need this
+#ifndef __cplusplus // QVR: C++ (the VR module) has no incomplete enums; vr/vr_engine.hpp declares Image_LoadImage itself
 enum srcformat;
 
 //be sure to free the hunk after using this loading function

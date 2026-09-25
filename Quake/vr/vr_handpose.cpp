@@ -22,7 +22,6 @@
 #include "vr_weapons.hpp"
 
 #include <algorithm>
-#include <cmath>
 
 namespace qvr::handpose
 {
@@ -46,19 +45,11 @@ double lastTime = -1.0;
 float frameDt = 0.f;
 bool newFrame = false; // the hands may be recomputed within a frame: weight advances once
 
-[[nodiscard]] glm::vec3 rotateZ(const glm::vec3& v, float degrees)
+// 0..1 per 1/100 s: how quickly a hand follows, from the weight of the weapon it holds (in
+// `slot`; old engine's VR_GetWeaponWeightFactorImpl).
+[[nodiscard]] float followFactor(
+    int hand, int slot, float offset, float mult, float twoHOffset, float twoHMult, Key twoHKey)
 {
-    const float r = glm::radians(degrees);
-    const float c = std::cos(r);
-    const float s = std::sin(r);
-    return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
-}
-
-// 0..1 per 1/100 s: how quickly a hand follows, from the weapon's weight (old engine's
-// VR_GetWeaponWeightFactorImpl).
-[[nodiscard]] float followFactor(int hand, float offset, float mult, float twoHOffset, float twoHMult, Key twoHKey)
-{
-    const int slot = weapons::heldSlot(hand);
     if(slot < 0)
     {
         return 1.f;
@@ -71,33 +62,34 @@ bool newFrame = false; // the hands may be recomputed within a frame: weight adv
     return std::clamp(glm::mix(single, twoHanded, twohand::transition(hand)), 0.f, 1.f);
 }
 
-// The blend towards the tracked pose this frame.
-[[nodiscard]] float blend(float factor, float perWeaponMult)
+// The blend towards the tracked pose this frame, with the weapon's own multiplier `multKey`.
+[[nodiscard]] float blend(float factor, int slot, Key multKey)
 {
+    const float perWeaponMult = slot >= 0 ? weapons::value(slot, multKey) : 1.f;
     return std::clamp(factor * perWeaponMult * frameDt * 100.f, 0.f, 1.f);
 }
 
-[[nodiscard]] glm::vec3 resolveCollision(const glm::vec3& from, const glm::vec3& to)
+// Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
+// faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
+bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const glm::vec3& back = glm::vec3{0.f})
 {
     const glm::vec3 box{1.f};
     const auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL);
     if(!tr || tr->fraction >= 1.f)
     {
-        return to;
+        return false;
     }
 
-    // Stop along the axes the hit plane faces, keep the others.
-    glm::vec3 res = to;
     const glm::vec3 n = worldtrace::normal(*tr);
-    const glm::vec3 end = worldtrace::endPos(*tr);
+    const glm::vec3 stop = worldtrace::endPos(*tr) - back;
     for(int i = 0; i < 3; i++)
     {
         if(n[i] != 0.f)
         {
-            res[i] = end[i];
+            pos[i] = stop[i];
         }
     }
-    return res;
+    return true;
 }
 
 } // namespace
@@ -126,44 +118,31 @@ void resolvePositions(hands::State& s, float turnYaw)
     for(int h = 0; h < HAND_COUNT; h++)
     {
         HandMemory& m = memory[h];
-        glm::vec3 pos = resolveCollision(torso, s.pos[h]);
+        glm::vec3 pos = s.pos[h];
+        stopAtWall(pos, torso, s.pos[h]);
 
         // The weapon's muzzle, as placed last frame, must not go through walls either.
         colliding[h] = false;
         if(m.valid && s.muzzleValid[h])
         {
             const glm::vec3 muzzleOffset = s.muzzle[h] - m.lastPos;
-            const glm::vec3 box{1.f};
-            if(const auto tr = worldtrace::move(pos, -box, box, pos + muzzleOffset, MOVE_NORMAL);
-                tr && tr->fraction < 1.f)
-            {
-                colliding[h] = true;
-                const glm::vec3 pushed = worldtrace::endPos(*tr) - muzzleOffset;
-                const glm::vec3 n = worldtrace::normal(*tr);
-                for(int i = 0; i < 3; i++)
-                {
-                    if(n[i] != 0.f)
-                    {
-                        pos[i] = pushed[i];
-                    }
-                }
-            }
+            colliding[h] = stopAtWall(pos, pos, pos + muzzleOffset, muzzleOffset);
         }
 
         // Weight, in the body's frame.
-        const glm::vec3 local = rotateZ(pos - s.playerOrigin, -turnYaw);
+        const glm::vec3 local = hands::rotateYaw(pos - s.playerOrigin, -turnYaw);
         if(vr_wpn_pos_weight.value && m.valid && newFrame)
         {
-            const float factor = followFactor(h, vr_wpn_pos_weight_offset.value, vr_wpn_pos_weight_mult.value,
-                vr_wpn_pos_weight_2h_help_offset.value, vr_wpn_pos_weight_2h_help_mult.value, Key::Weight2HPosMult);
             const int slot = weapons::heldSlot(h);
-            m.local = glm::mix(m.local, local, blend(factor, slot >= 0 ? weapons::value(slot, Key::WeightPosMult) : 1.f));
+            const float factor = followFactor(h, slot, vr_wpn_pos_weight_offset.value, vr_wpn_pos_weight_mult.value,
+                vr_wpn_pos_weight_2h_help_offset.value, vr_wpn_pos_weight_2h_help_mult.value, Key::Weight2HPosMult);
+            m.local = glm::mix(m.local, local, blend(factor, slot, Key::WeightPosMult));
         }
         else if(!m.valid || !vr_wpn_pos_weight.value)
         {
             m.local = local;
         }
-        pos = s.playerOrigin + rotateZ(m.local, turnYaw);
+        pos = s.playerOrigin + hands::rotateYaw(m.local, turnYaw);
 
         // Not too far from the body.
         constexpr float maxReach = 50.f;
@@ -192,30 +171,25 @@ void weightDirections(hands::State& s, float turnYaw)
             m.anglesValid = true;
             continue;
         }
-        if(!newFrame)
+        if(newFrame)
         {
-            glm::vec3 angles = m.localAngles;
-            angles.y += turnYaw;
-            s.rot[h] = angles;
-            continue;
+            const int slot = weapons::heldSlot(h);
+            const float factor = followFactor(h, slot, vr_wpn_dir_weight_offset.value, vr_wpn_dir_weight_mult.value,
+                vr_wpn_dir_weight_2h_help_offset.value, vr_wpn_dir_weight_2h_help_mult.value, Key::Weight2HDirMult);
+            const float t = blend(factor, slot, Key::WeightDirMult);
+
+            // Slerp the forward and up directions (angles do not interpolate well).
+            glm::vec3 oldFwd, oldRight, oldUp, newFwd, newRight, newUp;
+            hands::angleVectors(m.localAngles, oldFwd, oldRight, oldUp);
+            hands::angleVectors(target, newFwd, newRight, newUp);
+            const glm::quat from = glm::quatLookAt(oldFwd, oldUp);
+            const glm::quat to = glm::quatLookAt(newFwd, newUp);
+            const glm::quat q = glm::slerp(from, to, t);
+
+            const glm::vec3 fwd = q * glm::vec3{0.f, 0.f, -1.f};
+            const glm::vec3 up = q * glm::vec3{0.f, 1.f, 0.f};
+            m.localAngles = hands::anglesFromVectors(fwd, up);
         }
-
-        const float factor = followFactor(h, vr_wpn_dir_weight_offset.value, vr_wpn_dir_weight_mult.value,
-            vr_wpn_dir_weight_2h_help_offset.value, vr_wpn_dir_weight_2h_help_mult.value, Key::Weight2HDirMult);
-        const int slot = weapons::heldSlot(h);
-        const float t = blend(factor, slot >= 0 ? weapons::value(slot, Key::WeightDirMult) : 1.f);
-
-        // Slerp the forward and up directions (angles do not interpolate well).
-        glm::vec3 oldFwd, oldRight, oldUp, newFwd, newRight, newUp;
-        hands::angleVectors(m.localAngles, oldFwd, oldRight, oldUp);
-        hands::angleVectors(target, newFwd, newRight, newUp);
-        const glm::quat from = glm::quatLookAt(oldFwd, oldUp);
-        const glm::quat to = glm::quatLookAt(newFwd, newUp);
-        const glm::quat q = glm::slerp(from, to, t);
-
-        const glm::vec3 fwd = q * glm::vec3{0.f, 0.f, -1.f};
-        const glm::vec3 up = q * glm::vec3{0.f, 1.f, 0.f};
-        m.localAngles = hands::anglesFromVectors(fwd, up);
 
         glm::vec3 angles = m.localAngles;
         angles.y += turnYaw;

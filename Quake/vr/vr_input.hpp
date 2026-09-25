@@ -4,7 +4,6 @@
 
 #include "vr_backend.hpp"
 #include "vr_hands.hpp"
-#include "vr_engine.hpp"
 
 namespace qvr::input
 {

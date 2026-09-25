@@ -101,8 +101,7 @@ inline void setFieldFloat(edict_t* ent, int ofs, float value)
     }
 }
 
-// Lookups on the current qcvm (nullptr / 0 when absent).
-[[nodiscard]] ddef_t* findGlobalDef(const char* name);
+// A function of the current qcvm by name (0 when absent).
 [[nodiscard]] func_t findFunction(const char* name);
 
 // Binds the VR builtins declared "= #0" in QC (vr_builtins.cpp).

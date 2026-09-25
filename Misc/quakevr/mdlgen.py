@@ -1,11 +1,17 @@
 # mdlgen.py -- small Quake MDL builder for Quake VR's generated props (make_holster.py,
-# make_gadget.py): flat-shaded bevelled boxes on a palette-indexed skin, written as a one-frame
-# MDL. Triangles are clockwise seen from outside, as Quake's (Ironwail: glFrontFace(GL_CW)).
+# make_gadget.py, make_pauldron.py): flat-shaded bevelled boxes on a palette-indexed skin, written
+# as a one-frame MDL. Triangles are clockwise seen from outside, as Quake's (Ironwail:
+# glFrontFace(GL_CW)). Also the vector helpers, the MDL header and skin reading and the normals
+# table that the other scripts here share.
 
 import math
 import os
 import re
 import struct
+
+# mdl_t: ident, version, scale, origin, radius, eye position, numskins, skin width and height,
+# numverts, numtris, numframes, synctype, flags, size.
+HEADER = struct.Struct("<4si3f3ff3f8if")
 
 
 def add(a, b): return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
@@ -79,13 +85,32 @@ class Mesh:
 
 
 def anorms():
+    """Quake's vertex normals table (Quake/anorms.h)."""
     here = os.path.dirname(os.path.abspath(__file__))
     text = open(os.path.join(here, "..", "..", "Quake", "anorms.h")).read()
     return [tuple(float(x) for x in m.groups()) for m in
             re.finditer(r"\{\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\}", text)]
 
 
-def write_mdl(path, mesh, skin, name):
+def read_skins(data, off, num_skins, w, h):
+    """The skins at `off` of an MDL (each as it is stored, with its group flag), and the offset
+    after them."""
+    skins = []
+    for _ in range(num_skins):
+        start = off
+        (group,) = struct.unpack_from("<i", data, off)
+        off += 4
+        if group == 0:
+            off += w * h
+        else:
+            (n,) = struct.unpack_from("<i", data, off)
+            off += 4 + 4 * n + n * w * h
+        skins.append(data[start:off])
+    return skins, off
+
+
+def write_mdl(path, mesh, skins, name):
+    """`mesh` as a one-frame MDL with `skins` (palette indices, skin_w x skin_h each)."""
     assert mesh.check_winding() == 0, "counter-clockwise triangles"
     table = anorms()
     positions = [v[0] for v in mesh.verts]
@@ -94,9 +119,10 @@ def write_mdl(path, mesh, skin, name):
     scale = [(hi[k] - lo[k]) / 255.0 or 1.0 for k in range(3)]
     radius = max(math.sqrt(dot(p, p)) for p in positions)
 
-    data = bytearray(struct.pack("<4si3f3f f3f 8i f", b"IDPO", 6, *scale, *lo, radius, 0.0, 0.0, 0.0,
-                                 1, mesh.skin_w, mesh.skin_h, len(mesh.verts), len(mesh.tris), 1, 0, 0, 1.0))
-    data += struct.pack("<i", 0) + skin
+    data = bytearray(HEADER.pack(b"IDPO", 6, *scale, *lo, radius, 0.0, 0.0, 0.0,
+                                 len(skins), mesh.skin_w, mesh.skin_h, len(mesh.verts), len(mesh.tris), 1, 0, 0, 1.0))
+    for skin in skins:
+        data += struct.pack("<i", 0) + skin
     for _, _, (s, t) in mesh.verts:
         data += struct.pack("<3i", 0, s, t)
     for a, b, c in mesh.tris:

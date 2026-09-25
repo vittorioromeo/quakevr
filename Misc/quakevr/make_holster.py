@@ -49,7 +49,7 @@ def main():
     m = build()
     skin = mdlgen.dithered_skin(64, 64, REGIONS, RAMPS, 4242, stitching)
     path = os.path.join(out, "legholster.mdl")
-    mdlgen.write_mdl(path, m, skin, "holster")
+    mdlgen.write_mdl(path, m, [skin], "holster")
     print("legholster.mdl: %d vertices, %d triangles -> %s" % (len(m.verts), len(m.tris), os.path.normpath(path)))
 
 

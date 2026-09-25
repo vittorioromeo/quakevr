@@ -4,7 +4,8 @@
 // to vr_teleport_range units; the spot is valid when it lands on a floor or a gentle slope
 // (normal z 0.75 .. 1), and is marked in blue if valid, red otherwise. Letting
 // go on a valid spot sends it with the move (VRBITS0_TELEPORTING); the server moves the
-// player there. The aim is drawn as a line with a dot at the destination (vr_lines). The sweep needs the local server's world, so it only works when hosting.
+// player there. The aim is drawn as a line with a dot at the destination (vr_lines). The sweep
+// needs the local server's world, so it only works when hosting.
 
 #include "vr_teleport.hpp"
 #include "vr_engine.hpp"
@@ -56,8 +57,9 @@ void drawAim(const hands::State& s)
 
     const glm::vec3 start = s.pos[HAND_OFF];
     const glm::vec3 feet = impact - glm::vec3{0.f, 0.f, 12.f};
-    lines::line(start, glm::mix(start, feet, 0.15f), 0.6f, faded, color);
-    lines::line(glm::mix(start, feet, 0.15f), feet, 0.6f, color, color);
+    const glm::vec3 fadedEnd = glm::mix(start, feet, 0.15f);
+    lines::line(start, fadedEnd, 0.6f, faded, color);
+    lines::line(fadedEnd, feet, 0.6f, color, color);
     lines::point(feet, 12.f, color);
 }
 

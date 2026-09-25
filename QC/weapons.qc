@@ -233,7 +233,8 @@ float(entity xTarget) PositionalHead =
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body.
 // The shot is a ray through the target: the head is a sphere turned with the target's facing
 // (heads sit forward of the origin: a shambler's by 14 units), so hits are found the same whatever
-// the angle, rather than by pushing the entry point a fixed depth into the box.
+// the angle, rather than by pushing the entry point a fixed depth into the box. A headshot also
+// gives its feedback (PositionalHeadshotFeedback).
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
     if(cvar_hget(cvarh_vr_positional_damage) == 0 || !PositionalHead(xTarget))
@@ -258,6 +259,7 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     float t = max(0, (head - xEndpos) * d);
     if(vlen(head - (xEndpos + d * t)) < xHeadRadius)
     {
+        PositionalHeadshotFeedback(xTarget);
         return 1; // headshot
     }
 
@@ -356,10 +358,6 @@ void() HIP_LaserTouch =
 
         makeforward(self.angles);
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        if(posDmgType == 1)
-        {
-            PositionalHeadshotFeedback(trace_ent);
-        }
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
         T_Damage(other, self, self.lastvictim, adjDmg);
@@ -1390,10 +1388,6 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
         //JIM
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
-            if(posDmgType == 1)
-            {
-                PositionalHeadshotFeedback(trace_ent);
-            }
             adjDmg = 4 * PositionalDamageFactor(posDmgType);
 
             TraceAttack (adjDmg, direction);
@@ -2154,10 +2148,6 @@ void() spike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        if(posDmgType == 1)
-        {
-            PositionalHeadshotFeedback(trace_ent);
-        }
         adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
@@ -2215,10 +2205,6 @@ void() superspike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        if(posDmgType == 1)
-        {
-            PositionalHeadshotFeedback(trace_ent);
-        }
         adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
@@ -2944,20 +2930,10 @@ void() ImpulseCommands =
             cheatWid = self.impulse - 170;
         }
         VR_WeaponUtil_EntAddWeapon(self, cheatWid);
-        if(cheatHand == cVR_MainHand)
-        {
-            self.weapon = cheatWid;
-            self.weaponflags = 0;
-            self.weaponclip = WeaponIdToBaseClipSize(cheatWid);
-        }
-        else
-        {
-            self.weapon2 = cheatWid;
-            self.weaponflags2 = 0;
-            self.weaponclip2 = WeaponIdToBaseClipSize(cheatWid);
-        }
-        W_SetCurrentAmmoFor(cheatHand);
+        VRSetEntWeapon(self, cheatHand, cheatWid);
+        VRSetEntWeaponFlags(self, cheatHand, 0);
         VRSetEntWeaponClip(self, cheatHand, WeaponIdToBaseClipSize(cheatWid));
+        W_SetCurrentAmmoFor(cheatHand);
         self.impulse = 0;
         return;
     }
@@ -3237,23 +3213,6 @@ void(float xHolster, float v) setHolsterWeaponClip =
 }
 
 // ---
-
-string(float xHolster) getHolsterWeaponModel =
-{
-    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  return self.holsterweaponmodel0;
-    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) return self.holsterweaponmodel1;
-    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       return self.holsterweaponmodel2;
-    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      return self.holsterweaponmodel3;
-    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     return self.holsterweaponmodel4;
-    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    return self.holsterweaponmodel5;
-
-    bprint("`getHolsterWeaponModel`: invalid holster ID: ");
-    bprint(ftos(xHolster));
-    bprint("\n");
-
-    // Bogus, should never happen.
-    return self.holsterweaponmodel0;
-}
 
 void(float xHolster, string v) setHolsterWeaponModel =
 {
@@ -3535,10 +3494,6 @@ void() forcegrabbable_touch =
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
             float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));
-            if(posDmgType == 1)
-            {
-                PositionalHeadshotFeedback(other);
-            }
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
@@ -3907,7 +3862,6 @@ float() VRMetersToUnits =
     return cvar_hget(cvarh_vr_world_scale) / (1.5 * 0.0254);
 }
 
-
 entity(entity thrower, float xWeapon, float xWeaponFlags, float xWeaponClip,
     vector xOrigin, vector xRotation,
     vector xThrowVel, vector xAVel,
@@ -3996,16 +3950,8 @@ float(float xSpeed) VRThrowGain =
         return 1;
     }
 
-    float t = (xSpeed - lo) / (hi - lo);
-    if(t < 0)
-    {
-        t = 0;
-    }
-    if(t > 1)
-    {
-        t = 1;
-    }
-    t = t * t * (3 - 2 * t);
+    float t = min(1, max(0, (xSpeed - lo) / (hi - lo)));
+    t = t * t * (3 - 2 * t); // smoothstep
     return 1 + (gainMax - 1) * t;
 }
 
@@ -4058,16 +4004,9 @@ vector(entity xThrower, vector xOrigin, vector xVel, float xGravity) VRThrowAssi
     entity e = findradius(xOrigin, range);
     while(e)
     {
-        float isTarget = FALSE;
-        if(e != xThrower && e.classname != "player" && e.health > 0 && e.takedamage)
-        {
-            if((e.flags & FL_MONSTER) || e.solid == SOLID_BSP)
-            {
-                isTarget = TRUE;
-            }
-        }
-
-        if(isTarget)
+        // A living monster or breakable.
+        if(e != xThrower && e.takedamage && e.health > 0 && ((e.flags & FL_MONSTER) || e.solid == SOLID_BSP) &&
+           e.classname != "player")
         {
             vector c = (e.absmin + e.absmax) * 0.5;
 
@@ -4262,10 +4201,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         dprint(" spin "); dprint(vtos(thrown.vr_spin));
         dprint(" age "); dprint(ftos(age)); dprint("\n");
     }
-    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISCARD)
-    {
-        // Intentionally left empty.
-    }
+    // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
     sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);
@@ -4408,10 +4344,6 @@ void(entity ent, float xHand,
     float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);
     float handReloadFlicking = VR_HandGrabUtil_IsHandReloadFlicking(ent, xHand);
-    float handPrevReloadFlicking = VR_HandGrabUtil_IsHandPrevReloadFlicking(ent, xHand);
-
-    vector handPos = VRGetHandPos(xHand);
-    vector handRot = VRGetHandRot(xHand);
 
     if(!deathmatch && time < readytime)
     {

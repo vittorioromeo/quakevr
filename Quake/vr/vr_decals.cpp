@@ -4,7 +4,6 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
-#include "vr_main.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
@@ -43,6 +42,7 @@ struct Decal
 
 std::deque<Decal> decals;
 std::vector<gfx::Vertex> vertices;
+int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
 int addedThisFrame = 0;
 int addedFrame = -1;
 double gibTime[MAX_EDICTS];
@@ -106,8 +106,9 @@ void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p,
             for(const Blob& b : blobs)
             {
                 glm::vec2 d = p - b.c;
-                const float along = glm::dot(d, glm::normalize(b.stretch + glm::vec2{1e-4f}));
-                d -= glm::normalize(b.stretch + glm::vec2{1e-4f}) * along * (glm::length(b.stretch) / (1.f + glm::length(b.stretch)));
+                const glm::vec2 axis = glm::normalize(b.stretch + glm::vec2{1e-4f});
+                const float stretch = glm::length(b.stretch);
+                d -= axis * glm::dot(d, axis) * (stretch / (1.f + stretch));
                 cover = std::max(cover, smoothstep(b.r + 0.02f, b.r - 0.02f, glm::length(d)));
             }
             alpha = cover * (0.82f + 0.18f * hash(static_cast<int>((p.x + 1.f) * 40.f) * 97 + static_cast<int>((p.y + 1.f) * 40.f), seed));
@@ -293,6 +294,7 @@ void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
             {
                 decals.pop_front();
             }
+            builtFrame = -1;
             return;
         }
         size *= 0.55f;
@@ -310,8 +312,9 @@ void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
 
 } // namespace
 
-void fromEffect(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
+void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
 {
+    using particles::Preset;
     if(!vr_decals.value || !cl.worldmodel)
     {
         return;
@@ -321,7 +324,7 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, int preset, int coun
     const glm::vec3 back = glm::dot(dir, dir) > 1e-4f ? -glm::normalize(dir) : glm::vec3{0.f};
     switch(preset)
     {
-        case 1: // blood: a pool on the floor below, spatter on a wall near by
+        case Preset::Blood: // a pool on the floor below, spatter on a wall near by
         {
             const float size = std::clamp(8.f + count * 0.4f, 8.f, 28.f);
             if(hitWorld(org, org - glm::vec3{0, 0, 160}, where, normal, f) && normal.z > 0.6f)
@@ -336,21 +339,21 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, int preset, int coun
             }
             break;
         }
-        case 0: // a bullet's puff: a chip where it hit
-        case 5: // sparks (a melee blow on a wall)
+        case Preset::BulletPuff: // a chip where it hit
+        case Preset::Sparks:     // a melee blow on a wall
             if(nearest(org, 6.f, back, where, normal))
             {
-                add(Hole, where, normal, preset == 0 ? random(3.f, 4.5f) : random(4.f, 6.f));
+                add(Hole, where, normal, preset == Preset::BulletPuff ? random(3.f, 4.5f) : random(4.f, 6.f));
             }
             break;
-        case 2: // an explosion
+        case Preset::Explosion:
             if(nearest(org, 64.f, glm::vec3{0, 0, -1}, where, normal))
             {
                 add(Scorch, where, normal, random(44.f, 60.f));
             }
             break;
-        case 3:  // lightning
-        case 10: // a lava spike
+        case Preset::Lightning:
+        case Preset::LavaSpike:
             if(nearest(org, 10.f, back, where, normal))
             {
                 add(Scorch, where, normal, random(8.f, 14.f));
@@ -371,28 +374,34 @@ void draw()
         makeAtlas();
     }
 
-    // Faded out over their last five seconds.
-    const double life = std::max(5.f, vr_decal_life.value);
-    while(!decals.empty() && cl.time - decals.front().born > life)
+    // Built once a frame (and again when marks come or go), for both eyes.
+    if(builtFrame != host_framecount)
     {
-        decals.pop_front();
-    }
+        builtFrame = host_framecount;
 
-    vertices.clear();
-    constexpr float inset = 0.5f / atlasSize;
-    for(const Decal& d : decals)
-    {
-        const float age = static_cast<float>(cl.time - d.born);
-        const float a = std::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
-        const glm::vec4 c{a, a, a, a};
-        const float u0 = static_cast<float>(d.cell % cellsPerRow) / cellsPerRow + inset;
-        const float v0 = static_cast<float>(d.cell / cellsPerRow) / cellsPerRow + inset;
-        const float u1 = u0 + 1.f / cellsPerRow - 2.f * inset, v1 = v0 + 1.f / cellsPerRow - 2.f * inset;
-        const gfx::Vertex q[4] = {{d.centre - d.u - d.v, {u0, v0}, c}, {d.centre + d.u - d.v, {u1, v0}, c},
-            {d.centre + d.u + d.v, {u1, v1}, c}, {d.centre - d.u + d.v, {u0, v1}, c}};
-        for(int i : {0, 1, 2, 0, 2, 3})
+        // Faded out over their last five seconds.
+        const double life = std::max(5.f, vr_decal_life.value);
+        while(!decals.empty() && cl.time - decals.front().born > life)
         {
-            vertices.push_back(q[i]);
+            decals.pop_front();
+        }
+
+        vertices.clear();
+        constexpr float inset = 0.5f / atlasSize;
+        for(const Decal& d : decals)
+        {
+            const float age = static_cast<float>(cl.time - d.born);
+            const float a = std::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
+            const glm::vec4 c{a, a, a, a};
+            const float u0 = static_cast<float>(d.cell % cellsPerRow) / cellsPerRow + inset;
+            const float v0 = static_cast<float>(d.cell / cellsPerRow) / cellsPerRow + inset;
+            const float u1 = u0 + 1.f / cellsPerRow - 2.f * inset, v1 = v0 + 1.f / cellsPerRow - 2.f * inset;
+            const gfx::Vertex q[4] = {{d.centre - d.u - d.v, {u0, v0}, c}, {d.centre + d.u - d.v, {u1, v0}, c},
+                {d.centre + d.u + d.v, {u1, v1}, c}, {d.centre - d.u + d.v, {u0, v1}, c}};
+            for(int i : {0, 1, 2, 0, 2, 3})
+            {
+                vertices.push_back(q[i]);
+            }
         }
     }
     gfx::draw(vertices, gfx::sceneViewProjection(),
@@ -404,7 +413,11 @@ void count_f()
     int kinds[4]{};
     for(const Decal& d : decals)
     {
-        kinds[d.cell >= 11 ? 3 : d.cell >= 8 ? 2 : d.cell >= 6 ? 1 : 0]++;
+        const Kind kind = d.cell >= firstCell[Hole]        ? Hole
+                          : d.cell >= firstCell[Scorch]    ? Scorch
+                          : d.cell >= firstCell[BloodDrop] ? BloodDrop
+                                                           : Blood;
+        kinds[kind]++;
     }
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips\n", static_cast<int>(decals.size()), kinds[0], kinds[1],
         kinds[2], kinds[3]);
@@ -413,6 +426,7 @@ void count_f()
 void clear()
 {
     decals.clear();
+    builtFrame = -1;
     std::fill(std::begin(gibTime), std::end(gibTime), 0.0);
 }
 
@@ -421,7 +435,9 @@ void clear()
 // cl_tent.c: Quake's own wall hits and explosions.
 extern "C" void VR_DecalTempEntity(int scorch, const float* pos)
 {
-    qvr::decals::fromEffect({pos[0], pos[1], pos[2]}, glm::vec3{0.f}, scorch ? 2 : 0, 1);
+    using qvr::particles::Preset;
+    qvr::decals::fromEffect(
+        {pos[0], pos[1], pos[2]}, glm::vec3{0.f}, scorch ? Preset::Explosion : Preset::BulletPuff, 1);
 }
 
 // CL_RelinkEntities: a flying gib drips blood on the floor under it.

@@ -4,8 +4,6 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_color.hpp"
-
-#include <glm/gtc/quaternion.hpp>
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
@@ -21,7 +19,6 @@
 #include "vr_main.hpp"
 #include "vr_weapons.hpp"
 
-#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -31,9 +28,6 @@ using weapons::Key;
 
 namespace
 {
-
-constexpr int OFF = 0;
-constexpr int MAIN = 1;
 
 enum Finger : int
 {
@@ -228,7 +222,7 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 // in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.
 void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve, int slot)
 {
-    // The view is set up for each eye; queue once per frame.
+    // The view may be set up more than once per frame; queue once.
     static int queuedFrame[2]{-1, -1};
     if(!vr_show_weapon_text.value || !ve.visible || weapons::value(slot, Key::WpnTextMode) == 0.f ||
         queuedFrame[hand] == host_framecount)
@@ -237,7 +231,7 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
     }
     queuedFrame[hand] = host_framecount;
 
-    const bool mirrored = hand == OFF;
+    const bool mirrored = hand == HAND_OFF;
     const glm::vec3 pos = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::WpnTextAnchorVertex)),
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
@@ -250,7 +244,7 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
     // text orientation).
     angles += s.visualRot[hand];
 
-    const bool main = hand == MAIN;
+    const bool main = hand == HAND_MAIN;
     const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
     const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
     const int ammo = cl.stats[main ? STAT_QVR_AMMOCOUNTER : STAT_QVR_AMMOCOUNTER2];
@@ -273,7 +267,7 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
 {
     view::ViewEntity& ve = entities.weapon[hand];
-    const bool mirrored = hand == OFF;
+    const bool mirrored = hand == HAND_OFF;
     const int slot = weapons::slotForModel(model);
 
     glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
@@ -336,7 +330,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     glm::vec3 result{vr_fingers_and_base_x.value, vr_fingers_and_base_y.value,
         vr_fingers_and_base_z.value};
 
-    if(hand == OFF)
+    if(hand == HAND_OFF)
     {
         result += glm::vec3{vr_fingers_and_base_offhand_x.value,
             vr_fingers_and_base_offhand_y.value, vr_fingers_and_base_offhand_z.value};
@@ -385,7 +379,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
 void setupHand(const hands::State& s, int hand)
 {
     const view::ViewEntity& weapon = entities.weapon[hand];
-    const bool mirrored = hand == OFF;
+    const bool mirrored = hand == HAND_OFF;
     const int fist = weapons::fistSlot();
     const int slot = weapons::slotForModel(weapon.ent.model);
 
@@ -437,11 +431,13 @@ void setupHand(const hands::State& s, int hand)
         }
     }
 
+    const float offsetScale = weapons::offsetScale();
+    const int skin = damageLevel();
     for(int finger = 0; finger < FingerCount; finger++)
     {
         view::ViewEntity& ve = entities.hand[hand][finger];
 
-        glm::vec3 foff = fingerOffset(finger, hand) * weapons::offsetScale();
+        glm::vec3 foff = fingerOffset(finger, hand) * offsetScale;
         if(mirrored)
         {
             foff.y = -foff.y;
@@ -449,7 +445,7 @@ void setupHand(const hands::State& s, int hand)
 
         place(ve, Mod_ForName(fingerModels[finger], false), pos + hands::redirect(foff, handRot),
             {-handRot.x, handRot.y, handRot.z}, fingerFrame(hand, finger), mirrored);
-        ve.ent.skinnum = damageLevel();
+        ve.ent.skinnum = skin;
 
         if(hide)
         {
@@ -491,10 +487,12 @@ void setupHolsters(const hands::State& s)
         {0.f, yaw - 10.f, 0.f}, {0.f, yaw + 10.f, 0.f}, {-30.f, yaw - 10.f, 0.f},
         {-30.f, yaw + 10.f, 0.f}};
 
+    const body::HolsterPositions positions = body::holsterPositions(s); // one body solve for all
+    qmodel_t* const slotModel = vr_leg_holster_model_enabled.value ? Mod_ForName("progs/legholster.mdl", false) : nullptr;
     for(int h = 0; h < HolsterCount; h++)
     {
         const bool mirrored = h == LeftHip || h == LeftUpper;
-        const glm::vec3 pos = body::holsterPosition(s, bodyHolster[h]);
+        const glm::vec3 pos = positions[static_cast<std::size_t>(bodyHolster[h])];
         const bool hover = hovered(s, bodyHolster[h]);
 
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + 2 + h]);
@@ -506,9 +504,9 @@ void setupHolsters(const hands::State& s)
         place(entities.holster[h], model, pos, angles[h], 0, mirrored);
         highlight(entities.holster[h], hover);
 
-        if(vr_leg_holster_model_enabled.value)
+        if(slotModel)
         {
-            place(entities.holsterSlot[h], Mod_ForName("progs/legholster.mdl", false), pos,
+            place(entities.holsterSlot[h], slotModel, pos,
                 slotAngles[h], 0, mirrored);
             highlight(entities.holsterSlot[h], hover);
         }
@@ -625,7 +623,7 @@ void quadArcs(const hands::State& s)
     static int lastFrame = -1;
     if(host_framecount == lastFrame)
     {
-        return; // once per frame, not per eye
+        return; // once per frame, however often the view is set up
     }
     lastFrame = host_framecount;
 
@@ -864,7 +862,7 @@ void pressWeaponButtons(const hands::State& s)
         const bool hover = glm::distance(fingertip, buttonPos) < 2.7f;
         if(hover && !st.hover)
         {
-            Cbuf_AddText(hand == OFF ? "impulse 42\n" : "impulse 43\n");
+            Cbuf_AddText(hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n");
         }
         st.hover = hover;
     }
@@ -882,7 +880,7 @@ void setupButton(const hands::State& s, int hand)
         return;
     }
 
-    const bool mirrored = hand == OFF;
+    const bool mirrored = hand == HAND_OFF;
     const glm::vec3 pos = view::anchorPosition(weapon,
         static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
@@ -983,7 +981,7 @@ static void applyEyeView(const hands::State& s)
 
 // Quake VR's grenade and proximity bomb models lack the smoke trail flag the old engine gave
 // them when they loaded.
-void patchModelFlags()
+static void patchModelFlags()
 {
     static const qmodel_t* world = nullptr;
     if(cl.worldmodel == world)
@@ -1041,7 +1039,7 @@ void view::parseHandImpact()
     dir.x = MSG_ReadFloat();
     dir.y = MSG_ReadFloat();
     dir.z = MSG_ReadFloat();
-    if(hand == OFF || hand == MAIN)
+    if(hand == HAND_OFF || hand == HAND_MAIN)
     {
         handImpacts[hand] = {cl.time, strength, glm::length(dir) > 0.f ? glm::normalize(dir) : glm::vec3{0.f}};
     }
@@ -1050,14 +1048,22 @@ void view::parseHandImpact()
 extern "C" void VR_SetupViewEntities()
 {
     hands::State& s = hands::current();
-    if(s.valid && stereo::isRenderingEye())
+    if(stereo::isRenderingEye())
     {
-        applyEyeView(s);
+        if(s.valid)
+        {
+            applyEyeView(s);
+        }
+        // Both eyes see the same entities: the second eye keeps what the first one set up.
+        if(!stereo::isFirstEye())
+        {
+            return;
+        }
     }
     if(!s.valid || cl.intermission)
     {
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
-        s.muzzleValid[OFF] = s.muzzleValid[MAIN] = false;
+        s.muzzleValid[HAND_OFF] = s.muzzleValid[HAND_MAIN] = false;
         return;
     }
 
@@ -1074,18 +1080,18 @@ extern "C" void VR_SetupViewEntities()
         s.visualRot[hand] += knockAngles[hand];
     }
 
-    setupWeapon(s, MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
-    setupWeapon(s, OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
+    setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
+    setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
         cl.stats[STAT_QVR_WEAPONFRAME2]);
 
-    setupHand(s, MAIN);
-    setupHand(s, OFF);
+    setupHand(s, HAND_MAIN);
+    setupHand(s, HAND_OFF);
     setupHolsters(s);
     setupBody(s);
     setupPauldrons();
     setupGadget(s);
-    setupButton(s, MAIN);
-    setupButton(s, OFF);
+    setupButton(s, HAND_MAIN);
+    setupButton(s, HAND_OFF);
     for(int hand = 0; hand < 2; hand++)
     {
         s.pos[hand] -= knockPos[hand];
@@ -1111,7 +1117,7 @@ extern "C" void VR_SetupViewEntities()
 
     patchModelFlags();
 
-    // Rendering may run several times per frame (one per eye); add the entities only once.
+    // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
     if(lastAddedFrame == host_framecount)
     {
         return;
@@ -1140,12 +1146,12 @@ void dumpView_f()
     {
         if(s.grip2HValid[h])
         {
-            Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == MAIN ? "main" : "off", s.grip2H[h].x,
+            Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == HAND_MAIN ? "main" : "off", s.grip2H[h].x,
                 s.grip2H[h].y, s.grip2H[h].z);
         }
         const HandInput& in = tracking().input.hands[h];
         Con_Printf("%s hand: trigger %.2f grip %.2f thumb %d, curls %.1f %.1f %.1f %.1f %.1f\n",
-            h == MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],
+            h == HAND_MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],
             fingerFrames[h][FingerIndex], fingerFrames[h][FingerMiddle], fingerFrames[h][FingerRing],
             fingerFrames[h][FingerPinky]);
     }

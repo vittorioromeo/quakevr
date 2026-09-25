@@ -17,8 +17,8 @@ namespace qvr
 namespace
 {
 
-constexpr int eyeWidth = 1024;
-constexpr int eyeHeight = 1024;
+constexpr int imageWidth = 1024;
+constexpr int imageHeight = 1024;
 constexpr float halfIpd = 0.032f;
 
 // Controller input set from the console, for testing without a headset.
@@ -157,6 +157,32 @@ void swing(Pose& hand, double time, float period)
     hand.velocityValid = true;
 }
 
+// The velocity of a pose moved from the console: a scripted move is a jump in one frame, so the
+// velocity is measured between moves and held for 40 ms (the engine may run several frames per
+// server frame): strokes, throws and swings can be scripted with a move every frame or few.
+struct ScriptedMotion
+{
+    glm::vec3 lastPos{0.f};
+    glm::vec3 velocity{0.f};
+    double lastMove = 0.0;
+
+    [[nodiscard]] glm::vec3 update(const glm::vec3& pos, double now)
+    {
+        if(pos != lastPos)
+        {
+            velocity = lastMove > 0.0 ? (pos - lastPos) / static_cast<float>(std::clamp(now - lastMove, 0.004, 0.05))
+                                      : glm::vec3{0.f};
+            lastPos = pos;
+            lastMove = now;
+        }
+        else if(now - lastMove > 0.04)
+        {
+            velocity = glm::vec3{0.f};
+        }
+        return velocity;
+    }
+};
+
 class MockBackend final : public Backend
 {
 public:
@@ -169,7 +195,7 @@ public:
     {
         for(gfx::Texture& tex : textures)
         {
-            tex = gfx::createTexture(eyeWidth, eyeHeight);
+            tex = gfx::createTexture(imageWidth, imageHeight);
         }
         return true;
     }
@@ -209,10 +235,7 @@ public:
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
         }
 
-        // Hands moved by vr_mock_hand report the velocity of the motion, as a runtime would: a
-        // scripted move is a jump in one frame, so the velocity is measured between moves and held
-        // for 40 ms (the engine may run several frames per server frame): strokes, throws and
-        // swings can be scripted with a move every frame or few.
+        // Hands moved by vr_mock_hand report the velocity of the motion, as a runtime would.
         for(int h = 0; h < HAND_COUNT; h++)
         {
             Pose& hand = tracking.hands[h];
@@ -220,37 +243,13 @@ public:
             {
                 continue; // exact velocities
             }
-            if(hand.position != lastHandPos[h])
-            {
-                const double since = realtime - lastMoveTime[h];
-                lastHandVel[h] = lastMoveTime[h] > 0.0 ? (hand.position - lastHandPos[h]) / static_cast<float>(std::clamp(since, 0.004, 0.05))
-                                                       : glm::vec3{0.f};
-                lastHandPos[h] = hand.position;
-                lastMoveTime[h] = realtime;
-            }
-            else if(realtime - lastMoveTime[h] > 0.04)
-            {
-                lastHandVel[h] = glm::vec3{0.f};
-            }
-            hand.linearVelocity = lastHandVel[h];
+            hand.linearVelocity = handMotion[h].update(hand.position, realtime);
             hand.angularVelocity = glm::vec3{0.f};
             hand.velocityValid = true;
         }
 
         // The head likewise (a lunge scripted with vr_mock_hand head).
-        if(tracking.head.position != lastHeadPos)
-        {
-            const double since = realtime - lastHeadMove;
-            lastHeadVel = lastHeadMove > 0.0 ? (tracking.head.position - lastHeadPos) / static_cast<float>(std::clamp(since, 0.004, 0.05))
-                                             : glm::vec3{0.f};
-            lastHeadPos = tracking.head.position;
-            lastHeadMove = realtime;
-        }
-        else if(realtime - lastHeadMove > 0.04)
-        {
-            lastHeadVel = glm::vec3{0.f};
-        }
-        tracking.head.linearVelocity = lastHeadVel;
+        tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);
         tracking.head.velocityValid = true;
 
         frame.shouldRender = true;
@@ -266,8 +265,8 @@ public:
 
     void eyeResolution(int& width, int& height) const override
     {
-        width = eyeWidth;
-        height = eyeHeight;
+        width = imageWidth;
+        height = imageHeight;
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
@@ -285,11 +284,8 @@ public:
 
 private:
     gfx::Texture textures[2]{};
-    glm::vec3 lastHandPos[HAND_COUNT]{};
-    glm::vec3 lastHeadPos{0.f}, lastHeadVel{0.f}; // the head's, the same way (headbutts)
-    double lastHeadMove = 0.0;
-    glm::vec3 lastHandVel[HAND_COUNT]{};
-    double lastMoveTime[HAND_COUNT]{};
+    ScriptedMotion handMotion[HAND_COUNT];
+    ScriptedMotion headMotion; // headbutts
 };
 
 } // namespace
