@@ -7,6 +7,7 @@
 // the window, where the 2D layer is drawn as usual.
 
 #include "vr_fgfx.hpp"
+#include "vr_gfx.hpp"
 #include "vr_bloom.hpp"
 #include "vr_body.hpp"
 #include "vr_engine.hpp"
@@ -70,6 +71,42 @@ void ensureEyeFramebuffers(int width, int height)
     }
 }
 
+// The mirror: the eye's scene (before its post-processing, which writes into the headset's image)
+// with the eye's glow added as the post-processing adds it (vr_bloom.cpp), so the window shows
+// what the headset does.
+GLuint mirrorProgram = 0;
+bool mirrorFailed = false;
+
+constexpr const char* mirrorVs = R"(#version 430
+void main()
+{
+    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
+    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
+}
+)";
+
+constexpr const char* mirrorFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Scene;
+layout(binding = 1) uniform sampler2D Bloom;
+layout(location = 0) uniform vec4 Source; // the eye's rectangle in uv: x0, y0, width, height
+layout(location = 1) uniform vec4 Dest;   // the window's rectangle: x0, y0, 1 / width, 1 / height
+layout(location = 2) uniform float BloomStrength;
+layout(location = 0) out vec4 Out;
+void main()
+{
+    vec2 uv = Source.xy + (gl_FragCoord.xy - Dest.xy) * Dest.zw * Source.zw;
+    vec3 c = texture(Scene, uv).rgb;
+    if(BloomStrength > 0.0)
+    {
+        vec2 bt = 0.5 / vec2(textureSize(Bloom, 0));
+        c += (texture(Bloom, uv + vec2(-bt.x, -bt.y)).rgb + texture(Bloom, uv + vec2(bt.x, -bt.y)).rgb +
+              texture(Bloom, uv + vec2(-bt.x, bt.y)).rgb + texture(Bloom, uv + vec2(bt.x, bt.y)).rgb) *
+             (0.25 * BloomStrength);
+    }
+    Out = vec4(c, 1.0);
+}
+)";
+
 // Copies the eye just rendered into (its part of) the window, cropped to the aspect ratio.
 void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHeight)
 {
@@ -104,10 +141,34 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
         x1 = x0 + w;
     }
 
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, eyeFramebufs.composite.fbo);
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, windowTarget);
-    GL_BlitFramebufferFunc(x0, y0, x1, y1, dx0, 0, dx1, windowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    if(!mirrorProgram && !mirrorFailed)
+    {
+        mirrorProgram = gfx::glProgram(mirrorVs, mirrorFs, "vr mirror");
+        mirrorFailed = !mirrorProgram;
+    }
+    if(mirrorFailed)
+    {
+        GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, eyeFramebufs.composite.fbo);
+        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, windowTarget);
+        GL_BlitFramebufferFunc(x0, y0, x1, y1, dx0, 0, dx1, windowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
+        return;
+    }
+
+    unsigned glow = 0;
+    const bool hasGlow = bloom::result(glow);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
+    glViewport(dx0, 0, dx1 - dx0, windowHeight);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    GL_UseProgram(mirrorProgram);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, eyeFramebufs.composite.color_tex);
+    GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, hasGlow ? glow : 0);
+    const float ew = static_cast<float>(eyeFramebufsWidth);
+    const float eh = static_cast<float>(eyeFramebufsHeight);
+    GL_Uniform4fFunc(0, x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh);
+    GL_Uniform4fFunc(1, static_cast<float>(dx0), 0.f, 1.f / (dx1 - dx0), 1.f / windowHeight);
+    GL_Uniform1fFunc(2, hasGlow ? 1.f : 0.f);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 } // namespace
@@ -193,7 +254,7 @@ extern "C" int VR_RenderView()
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
         V_RenderView();
-        bloom::apply(framebufs.composite.fbo, framebufs.composite.color_tex, width, height);
+        bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
 
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
         glViewport(0, 0, width, height);

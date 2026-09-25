@@ -21,15 +21,25 @@ struct Target
     int height{0};
 };
 
-// Three levels (a quarter, an eighth, a sixteenth of the scene), each with a second target for the
-// blur's other direction.
-constexpr int levels = 3;
-Target targets[levels][2];
+// The chain: down[0] the bright pass at a quarter of the scene, down[1..3] an eighth, a sixteenth,
+// a thirty-second; up[2..0] back up to a quarter, each the level below it spread out plus its own
+// down level; mean: how much of the view glows, one texel.
+constexpr int levels = 4;
+Target down[levels];
+Target up[levels - 1];
+Target mean;
 GLuint brightProgram = 0;
 GLuint downProgram = 0;
-GLuint blurProgram = 0;
-GLuint addProgram = 0;
+GLuint upProgram = 0;
+GLuint meanProgram = 0;
 bool failed = false;
+
+// This eye's result, for GL_PostProcess (VR_PostProcessBloom).
+GLuint resultTex = 0;
+bool resultValid = false;
+
+// How much each level adds: the quarter a tight halo, the smaller ones a wide soft glow.
+constexpr float levelWeight[levels] = {0.5f, 0.8f, 1.f, 0.4f};
 
 constexpr const char* fullscreenVs = R"(#version 430
 void main()
@@ -39,11 +49,10 @@ void main()
 }
 )";
 
-// Down to a quarter: 16 texels averaged by four bilinear taps, keeping what is over the threshold.
-// The scene is low dynamic range (a lamp is 1, not 10), so the response rises steeply towards white:
-// lamps and glowing panels glow, merely bright walls hardly. White and pale light glows by
-// vr_bloom_white, coloured light (red buttons, blue panels) by vr_bloom_color, blended by how
-// saturated it is.
+// Down to a quarter: 16 texels by four bilinear taps, keeping what is over the threshold. The scene
+// is low dynamic range (a lamp is 1, not 10), so the response rises steeply towards white: lamps and
+// glowing panels glow, merely bright walls hardly. White and pale light glows by vr_bloom_white,
+// coloured light (red buttons, blue panels) by vr_bloom_color, blended by how saturated it is.
 constexpr const char* brightFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;
 layout(location = 0) uniform vec4 Params; // threshold, 0, 1 / scene width, 1 / scene height
@@ -63,61 +72,68 @@ void main()
 }
 )";
 
-// Half the size: four bilinear taps (16 texels).
+// Half the size, dual-filter style (Bjorge, "Bandwidth-efficient rendering", SIGGRAPH 2015): the
+// centre and four diagonal bilinear taps, half a source texel out (times the spread).
 constexpr const char* downFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Source;
-layout(location = 0) uniform vec4 Params; // 0, 0, 1 / source width, 1 / source height
+layout(location = 0) uniform vec4 Params; // spread, 0, 1 / source width, 1 / source height
 layout(location = 0) out vec4 Out;
 void main()
 {
     vec2 uv = (gl_FragCoord.xy * 2.0) * Params.zw;
-    vec2 t = Params.zw;
-    vec3 c = texture(Source, uv + vec2(-t.x, -t.y)).rgb + texture(Source, uv + vec2(t.x, -t.y)).rgb +
-             texture(Source, uv + vec2(-t.x, t.y)).rgb + texture(Source, uv + vec2(t.x, t.y)).rgb;
-    Out = vec4(c * 0.25, 1.0);
+    vec2 o = Params.zw * Params.x;
+    vec3 c = texture(Source, uv).rgb * 4.0;
+    c += texture(Source, uv + vec2(-o.x, -o.y)).rgb + texture(Source, uv + vec2(o.x, -o.y)).rgb +
+         texture(Source, uv + vec2(-o.x, o.y)).rgb + texture(Source, uv + vec2(o.x, o.y)).rgb;
+    Out = vec4(c * 0.125, 1.0);
 }
 )";
 
-// A 9-tap Gaussian along one direction, five bilinear taps.
-constexpr const char* blurFs = R"(#version 430
-layout(binding = 0) uniform sampler2D Source;
-layout(location = 0) uniform vec4 Params; // direction (texels), 1 / width, 1 / height
+// Twice the size, progressively (Jimenez, "Next generation post processing in Call of Duty: Advanced
+// Warfare", SIGGRAPH 2014): the smaller level spread by a 3 x 3 tent of bilinear taps, plus this
+// level's own down level by its weight. The last one (to a quarter) also takes the strength, less
+// the more of the view glows (vr_bloom_adapt: the mean texel), so a brightly lit map is not washed
+// out while lamps in dark rooms keep their glow.
+constexpr const char* upFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Smaller;
+layout(binding = 1) uniform sampler2D Own;
+layout(binding = 2) uniform sampler2D Mean;
+layout(location = 0) uniform vec4 Params; // spread, own weight, 1 / smaller width, 1 / smaller height
+layout(location = 1) uniform vec3 Extra;  // the smaller level's weight, strength (0: not the last), adapt
 layout(location = 0) out vec4 Out;
 void main()
 {
-    vec2 texel = Params.zw;
-    vec2 uv = gl_FragCoord.xy * texel;
-    vec2 d = Params.xy * texel;
-    vec3 c = texture(Source, uv).rgb * 0.2270270270;
-    c += (texture(Source, uv + d * 1.3846153846).rgb + texture(Source, uv - d * 1.3846153846).rgb) * 0.3162162162;
-    c += (texture(Source, uv + d * 3.2307692308).rgb + texture(Source, uv - d * 3.2307692308).rgb) * 0.0702702703;
+    vec2 uv = gl_FragCoord.xy / vec2(textureSize(Own, 0));
+    vec2 o = Params.zw * Params.x;
+    vec3 c = texture(Smaller, uv).rgb * 4.0;
+    c += (texture(Smaller, uv + vec2(-o.x, 0.0)).rgb + texture(Smaller, uv + vec2(o.x, 0.0)).rgb +
+          texture(Smaller, uv + vec2(0.0, -o.y)).rgb + texture(Smaller, uv + vec2(0.0, o.y)).rgb) * 2.0;
+    c += texture(Smaller, uv + vec2(-o.x, -o.y)).rgb + texture(Smaller, uv + vec2(o.x, -o.y)).rgb +
+         texture(Smaller, uv + vec2(-o.x, o.y)).rgb + texture(Smaller, uv + vec2(o.x, o.y)).rgb;
+    c = c * (Extra.x / 16.0) + texelFetch(Own, ivec2(gl_FragCoord.xy), 0).rgb * Params.y;
+    if(Extra.y > 0.0)
+    {
+        c *= Extra.y / (1.0 + Extra.z * texelFetch(Mean, ivec2(0), 0).r);
+    }
     Out = vec4(c, 1.0);
 }
 )";
 
-// The levels added onto the scene (blended one, one), upsampled bilinearly: the small one a tight
-// halo, the larger ones a wide soft glow. Weaker the more of the view glows (vr_bloom_adapt): lamps
-// in a dark room keep their full glow, a brightly lit map (all of it over the threshold) is not
-// washed out. How much glows is the widest level's mean, from a fixed 4 x 4 grid of its texels.
-constexpr const char* addFs = R"(#version 430
-layout(binding = 0) uniform sampler2D Glow0;
-layout(binding = 1) uniform sampler2D Glow1;
-layout(binding = 2) uniform sampler2D Glow2;
-layout(location = 0) uniform vec4 Params; // strength, adapt, 1 / scene width, 1 / scene height
+// How much of the view glows: the brightest channel of the smallest level, averaged over an 8 x 8
+// grid of it (one texel, once per eye).
+constexpr const char* meanFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Source;
 layout(location = 0) out vec4 Out;
 void main()
 {
-    vec2 uv = gl_FragCoord.xy * Params.zw;
-    float mean = 0.0;
-    for(int y = 0; y < 4; y++)
-        for(int x = 0; x < 4; x++)
+    float sum = 0.0;
+    for(int y = 0; y < 8; y++)
+        for(int x = 0; x < 8; x++)
         {
-            vec3 s = texture(Glow2, (vec2(x, y) + 0.5) * 0.25).rgb;
-            mean += max(s.r, max(s.g, s.b));
+            vec3 s = texture(Source, (vec2(x, y) + 0.5) * 0.125).rgb;
+            sum += max(s.r, max(s.g, s.b));
         }
-    mean *= 1.0 / 16.0;
-    vec3 g = texture(Glow0, uv).rgb * 0.5 + texture(Glow1, uv).rgb * 0.8 + texture(Glow2, uv).rgb * 1.0;
-    Out = vec4(g * (Params.x / (1.0 + Params.y * mean)), 0.0);
+    Out = vec4(sum * (1.0 / 64.0), 0.0, 0.0, 1.0);
 }
 )";
 
@@ -128,10 +144,10 @@ void main()
         return !failed;
     }
     brightProgram = gfx::glProgram(fullscreenVs, brightFs, "vr bloom bright pass");
-    downProgram = gfx::glProgram(fullscreenVs, downFs, "vr bloom downsample");
-    blurProgram = gfx::glProgram(fullscreenVs, blurFs, "vr bloom blur");
-    addProgram = gfx::glProgram(fullscreenVs, addFs, "vr bloom add");
-    failed = !brightProgram || !downProgram || !blurProgram || !addProgram;
+    downProgram = gfx::glProgram(fullscreenVs, downFs, "vr bloom down");
+    upProgram = gfx::glProgram(fullscreenVs, upFs, "vr bloom up");
+    meanProgram = gfx::glProgram(fullscreenVs, meanFs, "vr bloom mean");
+    failed = !brightProgram || !downProgram || !upProgram || !meanProgram;
     return !failed;
 }
 
@@ -157,7 +173,7 @@ void destroy(Target& t)
     destroy(t);
     glGenTextures(1, &t.tex);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_R11F_G11F_B10F, width, height);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -193,11 +209,12 @@ void pass(const Target& target, GLuint prog, GLuint source, float a, float b, fl
 
 } // namespace
 
-void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
+void apply(GLuint sceneTex, int width, int height)
 {
     QVR_GPU_PROFILE("bloom");
+    resultValid = false;
     const float strength = vr_bloom.value;
-    if(strength <= 0.f || width < 64 || height < 64 || !ensurePrograms())
+    if(strength <= 0.f || width < 128 || height < 128 || !ensurePrograms())
     {
         return;
     }
@@ -205,10 +222,14 @@ void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
     {
         const int w = std::max(1, width >> (2 + l));
         const int h = std::max(1, height >> (2 + l));
-        if(!ensure(targets[l][0], w, h, "vr bloom") || !ensure(targets[l][1], w, h, "vr bloom blur"))
+        if(!ensure(down[l], w, h, "vr bloom down") || (l < levels - 1 && !ensure(up[l], w, h, "vr bloom up")))
         {
             return;
         }
+    }
+    if(!ensure(mean, 1, 1, "vr bloom mean"))
+    {
+        return;
     }
 
     GL_BeginGroup("VR bloom");
@@ -216,48 +237,53 @@ void apply(GLuint sceneFbo, GLuint sceneTex, int width, int height)
 
     const float threshold = std::clamp(vr_bloom_threshold.value, 0.f, 0.99f);
     const float spread = std::clamp(vr_bloom_radius.value, 0.25f, 4.f);
-    for(int l = 0; l < levels; l++)
+
+    GL_UseProgram(brightProgram);
+    GL_Uniform2fFunc(1, std::max(0.f, vr_bloom_white.value), std::max(0.f, vr_bloom_color.value));
+    pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
+    for(int l = 1; l < levels; l++)
     {
-        Target& t = targets[l][0];
-        Target& u = targets[l][1];
-        if(l == 0)
-        {
-            GL_UseProgram(brightProgram);
-            GL_Uniform2fFunc(1, std::max(0.f, vr_bloom_white.value), std::max(0.f, vr_bloom_color.value));
-            pass(t, brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
-        }
-        else
-        {
-            const Target& previous = targets[l - 1][0];
-            pass(t, downProgram, previous.tex, 0.f, 0.f, 1.f / previous.width, 1.f / previous.height);
-        }
-        pass(u, blurProgram, t.tex, spread, 0.f, 1.f / t.width, 1.f / t.height);
-        pass(t, blurProgram, u.tex, 0.f, spread, 1.f / t.width, 1.f / t.height);
+        const Target& source = down[l - 1];
+        pass(down[l], downProgram, source.tex, spread, 0.f, 1.f / source.width, 1.f / source.height);
+    }
+    pass(mean, meanProgram, down[levels - 1].tex, 0.f, 0.f, 0.f, 0.f);
+
+    GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, mean.tex);
+    for(int l = levels - 2; l >= 0; l--)
+    {
+        // The smallest level has no up level of its own: it comes in by its weight here.
+        const bool first = l == levels - 2;
+        const Target& smaller = first ? down[levels - 1] : up[l + 1];
+        GL_UseProgram(upProgram);
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, down[l].tex);
+        GL_Uniform3fFunc(1, first ? levelWeight[levels - 1] : 1.f, l == 0 ? strength : 0.f,
+            std::max(0.f, vr_bloom_adapt.value));
+        pass(up[l], upProgram, smaller.tex, spread, levelWeight[l], 1.f / smaller.width, 1.f / smaller.height);
     }
 
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
-    glViewport(0, 0, width, height);
-    GL_UseProgram(addProgram);
-    for(int l = 0; l < levels; l++)
-    {
-        GL_BindNative(GL_TEXTURE0 + l, GL_TEXTURE_2D, targets[l][0].tex);
-    }
-    GL_Uniform4fFunc(0, strength, std::max(0.f, vr_bloom_adapt.value), 1.f / width, 1.f / height);
-    glBlendFunc(GL_ONE, GL_ONE);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glBlendFunc(GL_ONE, GL_ZERO); // GLS_BLEND_OPAQUE, as the state cache has it
-
+    resultTex = up[0].tex;
+    resultValid = true;
     GL_EndGroup();
+}
+
+bool result(unsigned& texture)
+{
+    texture = resultTex;
+    return resultValid;
 }
 
 void shutdown()
 {
-    for(auto& level : targets)
+    for(Target& t : down)
     {
-        destroy(level[0]);
-        destroy(level[1]);
+        destroy(t);
     }
-    for(GLuint* p : {&brightProgram, &downProgram, &blurProgram, &addProgram})
+    for(Target& t : up)
+    {
+        destroy(t);
+    }
+    destroy(mean);
+    for(GLuint* p : {&brightProgram, &downProgram, &upProgram, &meanProgram})
     {
         if(*p)
         {
@@ -265,7 +291,21 @@ void shutdown()
             *p = 0;
         }
     }
+    resultValid = false;
     failed = false;
 }
 
 } // namespace qvr::bloom
+
+// GL_PostProcess: binds this eye's glow to texture unit 2 and gives how much of it to add (0: none,
+// the window's own post-processing).
+extern "C" float VR_PostProcessBloom()
+{
+    unsigned texture = 0;
+    if(!VR_RenderingEye() || !qvr::bloom::result(texture))
+    {
+        return 0.f;
+    }
+    GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, texture);
+    return 1.f;
+}

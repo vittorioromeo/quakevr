@@ -316,3 +316,19 @@ shadowed lights; `vr_flashlight_beam` adds a faint glow line in the air (drawn o
 - **The hidden-area mesh and adaptive render scale** (see "VR rendering" above).
 - **Mapper-placed shadow lights**, as in KEX: `_shadowlight` keys on light entities.
 - **BSPX light grid and direction** for model lighting (GRAPHICS.md #9).
+
+## Bloom, faster (after round 11)
+
+The first profile put bloom at about 80% of the world's GPU time (0.047 ms an eye at 1024 x 1024). It was
+eleven passes an eye: the bright pass, two halvings, a separable 9-tap blur on each of three levels, and an
+add at the full size that also read 16 texels a pixel for vr_bloom_adapt. Now (`vr_bloom.cpp`), in the way
+of Call of Duty: Advanced Warfare (Jimenez, SIGGRAPH 2014) and dual filtering (Bjorge, SIGGRAPH 2015): the
+bright pass to a quarter, three halvings of five bilinear taps down to a thirty-second, and three
+doublings back up to the quarter, each a 3 x 3 tent of the level below plus its own level by its weight
+(0.5, 0.8, 1, 0.4 from the quarter down); how much of the view glows is one texel, made once an eye from the
+smallest level. The glow is added in Ironwail's post-processing (GL_PostProcess, `VR_PostProcessBloom`: four
+taps), so no pass runs at the full size; the window's mirror draws the eye with its glow the same way.
+Measured: 0.03 ms an eye at 1024 x 1024 (mostly the fixed cost of the passes), about a quarter of the
+texture reads per pixel, so the saving grows with the headset's larger eyes. The look is the same, with
+slightly tighter halos. The glow now also lies over the HUD panel, as it's added after it.
+
