@@ -8,8 +8,9 @@
 //   far behind (stuck), it drops.
 // - While a hand holds a box it cannot take a weapon (holsters, weapons lying about, force grab).
 //   It still punches, harder (vr_carry_melee_mult): the box is an improvised weapon.
-// - Pulling the trigger while holding it takes it (its ammo or health). Walking over it with body
-//   interactions on, or without tracked hands, still takes it as before.
+// - Taking it (its ammo or health), vr_carry_take: 0 letting go of it at a holster (hip or
+//   shoulder: it goes in your pack), 1 pulling the trigger while holding it, 2 either. Walking over
+//   it with body interactions on, or without tracked hands, still takes it as before.
 // - Letting go leaves it with the hand's throw velocity, as a rigid body; thrown hard, it hurts
 //   what it hits (vr_carry_throw_damage).
 // vr_carry 0 restores the old behaviour: a hand touching a box takes it.
@@ -209,6 +210,15 @@ void(float xHand, entity xBox) VR_Carry_Take =
     }
 };
 
+// Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one).
+float(float xHand) VR_Carry_AtHolster =
+{
+    float hs = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
+    return hs == QVR_HS_LEFT_SHOULDER_HOLSTER || hs == QVR_HS_RIGHT_SHOULDER_HOLSTER ||
+           hs == QVR_HS_LEFT_HIP_HOLSTER || hs == QVR_HS_RIGHT_HIP_HOLSTER ||
+           hs == QVR_HS_LEFT_UPPER_HOLSTER || hs == QVR_HS_RIGHT_UPPER_HOLSTER;
+};
+
 // Every player frame, for each hand (self is the player).
 void(float xHand) VR_Carry_HandFrame =
 {
@@ -229,15 +239,30 @@ void(float xHand) VR_Carry_HandFrame =
         return;
     }
 
+    float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
     {
+        // Let go at a holster: into the pack (if full up, it drops there).
+        if(takeMode != 1 && VR_Carry_AtHolster(xHand))
+        {
+            dprint("carry: into the pack\n");
+            VR_Carry_Take(xHand, box);
+            if(box.model == string_null)
+            {
+                return;
+            }
+            VR_Carry_SetHeld(self, xHand, world);
+            VR_Carry_Loose(box);
+            box.velocity = '0 0 0';
+            return;
+        }
         dprint("carry: let go\n");
         VR_Carry_Release(xHand, box);
         return;
     }
 
     float trigger = VRGetFireButtonPressed(xHand);
-    if(trigger && !box.carry_trigger)
+    if(takeMode != 0 && trigger && !box.carry_trigger)
     {
         box.carry_trigger = trigger;
         VR_Carry_Take(xHand, box);

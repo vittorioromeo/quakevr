@@ -73,6 +73,7 @@ float cvarh_vr_item_float_height;
 float cvarh_vr_headshot_sound;
 float cvarh_vr_parry;
 float cvarh_vr_carry;
+float cvarh_vr_carry_take;
 float cvarh_vr_sword_drop;
 float cvarh_vr_sword_damage_mult;
 float cvarh_vr_carry_nudge;
@@ -197,6 +198,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_headshot_sound);
     VR_CVAR_HMAKE(vr_parry);
     VR_CVAR_HMAKE(vr_carry);
+    VR_CVAR_HMAKE(vr_carry_take);
     VR_CVAR_HMAKE(vr_sword_drop);
     VR_CVAR_HMAKE(vr_sword_damage_mult);
     VR_CVAR_HMAKE(vr_carry_nudge);

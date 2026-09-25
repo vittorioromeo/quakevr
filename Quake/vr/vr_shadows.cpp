@@ -99,8 +99,20 @@ void entityBlobs()
 void build()
 {
     vertices.clear();
+
+    // vr_blob_shadows: 0 none, 1 always, 2 only where real shadows do not fall: the map lights cast
+    // the shadows of moving things (vr_shadow_maplights), and the player's (vr_shadow_self).
+    const int blobs = static_cast<int>(vr_blob_shadows.value);
+    const bool realShadows = vr_shadow_maplights.value > 0.f;
+    if(blobs <= 0)
+    {
+        return;
+    }
+    const bool playerBlobs = blobs == 1 || !(realShadows && vr_shadow_self.value > 0.f);
+    const bool entityBlobs_ = blobs == 1 || !realShadows;
+
     const hands::State& s = hands::current();
-    const int mode = static_cast<int>(vr_player_shadows.value);
+    const int mode = playerBlobs ? static_cast<int>(vr_player_shadows.value) : 0;
     if(s.valid && (mode == 2 || mode == 3))
     {
         blob(s.playerOrigin, 14.f, 256.f, 0.65f);
@@ -112,7 +124,7 @@ void build()
             blob(hand, 3.5f, 96.f, 0.7f);
         }
     }
-    if(vr_entity_shadows.value)
+    if(vr_entity_shadows.value && entityBlobs_)
     {
         entityBlobs();
     }

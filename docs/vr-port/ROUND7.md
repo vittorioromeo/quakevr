@@ -4,9 +4,9 @@
 |---|---|---|
 | 1 | Commit and push everything | done (`origin/vr-ironwail` at 387466c1) |
 | 2 | Lighting: rooms light up when shooting, glowing textures (buttons, lights) glow, darker ambient relying on light sources | |
-| 3 | Blob shadows named as such; easy to turn off when real shadows are on | |
+| 3 | Blob shadows named as such; easy to turn off when real shadows are on | done |
 | 4 | Ammo/health boxes: grab box much larger than the model; their real shadow much bigger than the model | done |
-| 5 | Boxes consumed by releasing them at a holster (default); the trigger as an option | |
+| 5 | Boxes consumed by releasing them at a holster (default); the trigger as an option | done |
 | 6 | Designer-placed weapons: check their hit box | checked |
 | 7 | Push-back (tweakable) on parries and melee hits, for the player and enemies | done |
 | 8 | Swimming: stick penalty 20%; strokes stronger towards where the stick points, weaker against it | done |
@@ -26,6 +26,10 @@
   takes the new one, once (`vr_cfg_version` records it). Settings you changed yourself are kept. Tested with a
   config holding the old swimming stick speed: it became the new one.
 
+3. **Blob shadows.** The menu says so now: Graphics > "Blob Shadows" (Off / Always / Auto), "Blob Shadows: You"
+   (hands, body), "Blob Shadows: Things" (monsters and items). Auto, the default (`vr_blob_shadows` 2), draws them
+   only where real shadows do not fall: none under monsters and items while the map lights cast moving things'
+   shadows (`vr_shadow_maplights` > 0), none under you while they also cast yours (`vr_shadow_self` > 0).
 4. **Boxes' grab box and shadow.**
    - **Grabbing:** hands were tested against the item's abs box, which Quake widens by 15 units on each side for
      items so that walking over them picks them up: a 6-unit box was grabbable from about 20 units away. Hands now
@@ -35,6 +39,10 @@
    - **Shadow:** the shadow pass drew brush entities without the networked scale (boxes are drawn at a quarter
      of their size) and with the pitch uninverted (`vr_lighting.cpp`); it now draws them as they are rendered.
      Checked with a test light: the box's shadow is the box's size.
+5. **Taking a carried box** (`vr_carry_take`; Throwing and Physics > Carrying Boxes > "Take a Box"): 0 (default)
+   let go of it at a holster (hips, shoulders, upper holsters) and it goes into your pack; 1 the trigger (as
+   before); 2 either. Full up, a box let go at a holster just drops there. Tested: carried to the right hip and
+   to the right upper holster, let go: shells 25 -> 45.
 6. **Designer-placed weapons.** Their box is the model's (square around the origin, as they turn), reaching
    down to the floor since they float. Checked with `r_showbboxes 1` and by taking e1m1's super shotgun with the
    hand at the model. Since grabbing now uses the true box rather than the 15-unit-wider one, a hand near but off

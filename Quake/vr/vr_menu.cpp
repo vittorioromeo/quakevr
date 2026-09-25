@@ -308,7 +308,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
         header("Carrying Boxes"),
         toggle("Carry Ammo and Health", vr_carry)
-            .help("Grip a box to carry it, pull the trigger to take it, push it with a hand or gun. Off: touching takes it."),
+            .help("Grip a box to carry it, push it with a hand or gun. Off: touching takes it."),
+        cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
+            .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
