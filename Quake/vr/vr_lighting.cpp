@@ -1365,6 +1365,20 @@ extern "C" int VR_ModelLightParity(void)
     return vr_model_light_parity.value != 0.f;
 }
 
+// How much a model's skin bumps shade its own light (the alias shader's ModelBumpShade), from the light's direction
+// (vr_modellight): vr_normalmap_models times the world's vr_normalmap_baked; the held weapons and hands, a hand's
+// width from the eyes, VIEWMODEL_BUMPS of it (their 8-bit skins' bumps turn to noise that close).
+extern "C" float VR_ModelBumps(const entity_t* e)
+{
+    constexpr float VIEWMODEL_BUMPS = 0.5f;
+    if(vr_normalmaps.value == 0.f)
+    {
+        return 0.f;
+    }
+    const float k = std::clamp(vr_normalmap_models.value, 0.f, 2.f) * std::clamp(vr_normalmap_baked.value, 0.f, 2.f);
+    return e == &cl.viewent || VR_IsViewEntity(e) ? k * VIEWMODEL_BUMPS : k;
+}
+
 extern "C" float VR_ViewModelMinLight(void)
 {
     return std::clamp(vr_viewmodel_minlight.value, 0.f, 128.f);
@@ -1419,6 +1433,7 @@ void lighting::applyPreset(int preset)
     look(vr_weapon_screen_light, 0.f);
     look(vr_gadget_light, 0.f);
     look(vr_screen_glow, 0.f);
+    look(vr_screen_text_glow, 0.f);
     look(vr_weapon_glow, 0.f);
     look(vr_dlight_uncapped, 0.f);
     look(vr_dlight_falloff, 0.f);

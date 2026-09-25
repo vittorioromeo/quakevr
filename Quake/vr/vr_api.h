@@ -145,6 +145,11 @@ int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
 void VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight
+// "Back to game" (vr_menuui.cpp): a button closing the menu from any page, which reopens there.
+void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the button
+int VR_MenuClick (void);								// M_Keydown, K_MOUSE1: nonzero if it clicked the button (the menu closed)
+int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
+int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 
 #ifdef __cplusplus
 }

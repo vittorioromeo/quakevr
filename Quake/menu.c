@@ -1120,7 +1120,7 @@ void M_ToggleMenu_f (void)
 	{
 		Con_ToggleConsole_f ();
 	}
-	else
+	else if (!VR_MenuReopen ()) // QVR: back where "Back to game" left it
 	{
 		M_Menu_Main_f ();
 	}
@@ -7361,6 +7361,8 @@ void M_Draw (void)
 		break;
 	}
 
+	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
+
 	if (m_entersound)
 	{
 		M_ThrottledSound ("misc/menu2.wav");
@@ -7374,6 +7376,8 @@ void M_Draw (void)
 void M_Keydown (int key, qboolean repeat)
 {
 	if (!bind_grab && !ui_mouse.value && M_IsMouseKey (key))
+		return;
+	if (key == K_MOUSE1 && !bind_grab && VR_MenuClick ()) // QVR: the "Back to game" button
 		return;
 
 	m_lastkey = key;
@@ -7605,6 +7609,59 @@ void M_Mousemove (int screenx, int screeny)
 		VR_Menu_Mousemove (x, y);
 		return;
 	}
+}
+
+/*
+================
+M_ScrollList, M_ListPosition -- QVR
+
+The current menu's scrolling list, for the VR controllers (vr/vr_menuui.cpp): scrolled by `rows`
+as the mouse wheel does, the selection kept in view (rows 0: only whether it can scroll); and its
+selection and scroll read or restored (reopening a menu where it was left). False without one.
+================
+*/
+static menulist_t *M_CurrentList (void)
+{
+	switch (M_GetBaseState (m_state))
+	{
+	case m_maps:	return &mapsmenu.list;
+	case m_options:	return &optionsmenu.list;
+	case m_keys:	return &keysmenu.list;
+	case m_mods:	return &modsmenu.list;
+	default:		return NULL;
+	}
+}
+
+qboolean M_ScrollList (int rows)
+{
+	menulist_t *list = M_CurrentList ();
+	if (!list || bind_grab || list->numitems <= 0 || M_List_GetOverflow (list) <= 0)
+		return false;
+	list->scroll = CLAMP (0, list->scroll + rows, M_List_GetOverflow (list));
+	if (list->cursor < list->scroll)
+		M_List_SelectNextActive (list, list->scroll, 1, false);
+	else if (list->cursor >= list->scroll + list->viewsize)
+		M_List_SelectNextActive (list, list->scroll + list->viewsize - 1, -1, false);
+	return true;
+}
+
+qboolean M_ListPosition (int *cursor, int *scroll, qboolean set)
+{
+	menulist_t *list = M_CurrentList ();
+	if (!list || list->numitems <= 0)
+		return false;
+	if (!set)
+	{
+		*cursor = list->cursor;
+		*scroll = list->scroll;
+		return true;
+	}
+	list->cursor = CLAMP (0, *cursor, list->numitems - 1);
+	list->scroll = CLAMP (0, *scroll, list->numitems - 1);
+	if (list->isactive_fn && !list->isactive_fn (list->cursor))
+		M_List_SelectNextActive (list, list->cursor, 1, true);
+	M_List_Rescroll (list);
+	return true;
 }
 
 

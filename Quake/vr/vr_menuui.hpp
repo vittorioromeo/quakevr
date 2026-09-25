@@ -27,4 +27,14 @@ void update(const hands::State& s);
 // Draws the laser and its spot on the panel, in the eye being rendered (after the panel).
 void drawInEye(const hands::State& s);
 
+// "Back to game": closes the menu from whatever page it is on, remembering that page for the next
+// time it opens (vr_menu_remember), with a pulse in `hand`. The panel's top-left button, or the
+// menu button held.
+void backToGame(int hand);
+
+// The main hand's stick (up and down, `y`) in a menu, once a frame: scrolls a page with a
+// scrollbar, a row at a time at a rate growing with the push. False (nothing done) when the
+// page does not scroll: the stick navigates there.
+bool scrollStick(float y);
+
 } // namespace qvr::menuui

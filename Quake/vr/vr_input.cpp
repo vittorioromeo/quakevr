@@ -7,7 +7,8 @@
 // hand the "left" half (LT, LB, X, Y, LS). Menus understand these keys already.
 //
 // The off hand's stick moves (analog, see VR_AdjustMove); the main hand's stick turns, and
-// pushed up or down it is DPAD UP/DOWN. In menus both sticks are the DPAD.
+// pushed up or down it is DPAD UP/DOWN. In menus both sticks are the DPAD, except that the main
+// hand's scrolls a page with a scrollbar; the menu button held closes the menu from any page.
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -50,6 +51,58 @@ struct StickKey
 };
 
 StickKey stickKeys[] = {{K_DPAD_UP}, {K_DPAD_DOWN}, {K_DPAD_LEFT}, {K_DPAD_RIGHT}};
+
+// The menu button is Escape: it opens and closes the menu and can never be unbound. In a menu,
+// held for half a second it goes back to the game at once, from any page (menuui::backToGame);
+// a shorter press is Escape as it is let go (back a page).
+constexpr double menuHoldTime = 0.5;
+
+struct MenuButton
+{
+    bool pending{false}; // pressed in a menu, not yet Escape or back to the game
+    double pressTime{0.0};
+};
+
+MenuButton menuButtons[HAND_COUNT];
+
+void escape()
+{
+    Key_Event(K_ESCAPE, true);
+    Key_Event(K_ESCAPE, false);
+}
+
+void menuButton(int hand, bool now, bool before)
+{
+    MenuButton& b = menuButtons[hand];
+    if(now && !before)
+    {
+        if(key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding())
+        {
+            b = {true, realtime};
+        }
+        else
+        {
+            escape();
+        }
+    }
+    else if(b.pending && now && realtime - b.pressTime >= menuHoldTime)
+    {
+        b.pending = false;
+        menuui::backToGame(hand);
+    }
+    else if(b.pending && !now)
+    {
+        b.pending = false;
+        if(key_dest == key_menu)
+        {
+            escape();
+        }
+    }
+}
+
+// The main hand's stick scrolls the menu page (menuui::scrollStick) from when it is pushed on a
+// page that scrolls until it is let go back to the middle.
+bool mainStickScrolls = false;
 
 InputState previous;
 glm::vec2 moveAxes{0.f};
@@ -211,18 +264,32 @@ void update(const InputState& tracked)
             }
         }
 
-        // The menu button is Escape: it opens and closes the menu and can never be unbound.
-        if(in.hands[h].menu && !previous.hands[h].menu)
-        {
-            Key_Event(K_ESCAPE, true);
-            Key_Event(K_ESCAPE, false);
-        }
+        menuButton(h, in.hands[h].menu, previous.hands[h].menu);
     }
 
     const bool menu = key_dest != key_game;
     if(menu)
     {
-        const glm::vec2 stick = off.stick + main.stick;
+        // The off hand's stick navigates (the arrow keys). The main hand's does too, but on a page
+        // with a scrollbar pushing it up or down scrolls (left and right still change values).
+        const bool scrolls = menuui::scrollStick(main.stick.y);
+        if(scrolls && std::fabs(main.stick.y) > 0.3f)
+        {
+            mainStickScrolls = true;
+        }
+        else if(std::fabs(main.stick.x) < 0.3f && std::fabs(main.stick.y) < 0.3f)
+        {
+            mainStickScrolls = false;
+        }
+        glm::vec2 stick = off.stick;
+        if(!scrolls && !mainStickScrolls)
+        {
+            stick += main.stick;
+        }
+        else if(std::fabs(main.stick.x) > std::fabs(main.stick.y))
+        {
+            stick.x += main.stick.x;
+        }
         stickKey(stickKeys[0], stick.y, true);
         stickKey(stickKeys[1], -stick.y, true);
         stickKey(stickKeys[2], -stick.x, true);

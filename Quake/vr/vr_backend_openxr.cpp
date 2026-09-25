@@ -221,13 +221,6 @@ public:
             return false;
         }
 
-        // vr_render_scale: new eye images between frames (none is acquired now).
-        if(session != XR_NULL_HANDLE && (requestedWidth != scaledWidth() || requestedHeight != scaledHeight()) &&
-            !createEyeSwapchains())
-        {
-            return false;
-        }
-
         if(!sessionRunning && sessionState == XR_SESSION_STATE_READY)
         {
             beginSession(); // the first attempt (on the READY event) failed: retry
@@ -514,20 +507,7 @@ private:
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
     HiddenArea hidden[2];
-    int32_t requestedWidth{0}, requestedHeight{0}; // the eye size last asked for (vr_render_scale)
     bool hiddenStale[2]{true, true}; // to fetch (again) before the next frame
-
-    // The eye images' size: the recommended one times vr_render_scale.
-    [[nodiscard]] int32_t scaledWidth() const
-    {
-        return scaledEyeSize(static_cast<int>(configViews[0].recommendedImageRectWidth),
-            static_cast<int>(configViews[0].maxImageRectWidth));
-    }
-    [[nodiscard]] int32_t scaledHeight() const
-    {
-        return scaledEyeSize(static_cast<int>(configViews[0].recommendedImageRectHeight),
-            static_cast<int>(configViews[0].maxImageRectHeight));
-    }
 
     // Reads an eye's hidden area (the triangles the lenses never show).
     void fetchHiddenArea(int eye)
@@ -606,6 +586,11 @@ private:
         info.faceCount = 1;
         info.arraySize = 1;
         info.mipCount = 1;
+        // SteamVR checks glGetError after its own GL calls in here: an error the engine left
+        // pending fails the swapchain ("SXR_GL_CHECK ... glGenTextures", GL_INVALID_VALUE).
+        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
+        {
+        }
         if(!check(xrCreateSwapchain(session, &info, &sc.handle), what))
         {
             return false;
@@ -1204,33 +1189,29 @@ private:
         return createEyeSwapchains();
     }
 
-    // The eyes' swapchains (again), at the recommended size times vr_render_scale; at the
-    // recommended size if that fails.
+    // The eyes' swapchains, at the recommended size for the whole session: vr_render_scale changes
+    // the size the eyes are rendered at, resampled into these (vr_stereo.cpp). Not recreated at
+    // another size: SteamVR's OpenGL path keeps copying into textures of the first eye images'
+    // size, so larger new images were shown cropped (a corner, magnified: a stretched, wrong
+    // projection) and smaller ones not at all (a GL_INVALID_VALUE copy).
     bool createEyeSwapchains()
     {
-        requestedWidth = scaledWidth();
-        requestedHeight = scaledHeight();
-        for(int attempt = 0; attempt < 2; attempt++)
+        const int32_t w = static_cast<int32_t>(configViews[0].recommendedImageRectWidth);
+        const int32_t h = static_cast<int32_t>(configViews[0].recommendedImageRectHeight);
+        for(Swapchain& sc : swapchains)
         {
-            const int32_t w = attempt == 0 ? scaledWidth() : static_cast<int32_t>(configViews[0].recommendedImageRectWidth);
-            const int32_t h = attempt == 0 ? scaledHeight() : static_cast<int32_t>(configViews[0].recommendedImageRectHeight);
-            bool ok = true;
-            for(Swapchain& sc : swapchains)
+            if(sc.handle != XR_NULL_HANDLE)
             {
-                if(sc.handle != XR_NULL_HANDLE)
-                {
-                    xrDestroySwapchain(sc.handle);
-                    sc = Swapchain{};
-                }
-                ok = ok && createSwapchain(sc, w, h, XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain");
+                xrDestroySwapchain(sc.handle);
+                sc = Swapchain{};
             }
-            if(ok)
+            if(!createSwapchain(sc, w, h, XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain"))
             {
-                Con_Printf("OpenXR: %dx%d per eye (vr_render_scale %g)\n", w, h, vr_render_scale.value);
-                return true;
+                return false;
             }
         }
-        return false;
+        Con_Printf("OpenXR: %dx%d per eye\n", w, h);
+        return true;
     }
 
     void beginSession()

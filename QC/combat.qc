@@ -723,6 +723,44 @@ float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
     return (m * right - o * right) * mainRight < -1;
 };
 
+// Guards (a bash is a guard pushed forward: VR_Bash in vr_juice.qc): the parry's poses, held at chest
+// or face height.
+
+// Whether `xAt` is at a guard's height for `p`: from 65 cm below the eyes (the chest) to 15 cm above.
+float(entity p, vector xAt) VR_Parry_GuardHeight =
+{
+    vector head = VRGetHeadPos(p);
+    float dz = (xAt_z - head_z) / VRMetersToUnits();
+    return dz > -0.65 && dz < 0.15;
+};
+
+// Whether `p`'s `hand` holds a weapon in a guard, facing `xForward` (horizontal, unit): across in
+// front as for a parry (VR_Parry_Blocks), about level (within 30 degrees: a weapon raised or pointing
+// down, as in a swing, is no guard), at a guard's height.
+float(entity p, float hand, vector xForward) VR_Parry_Guard =
+{
+    if(!VR_Parry_Blocks(p, hand, xForward))
+    {
+        return FALSE;
+    }
+    makeforward(VRGetEntHandRot(p, hand));
+    return fabs(v_forward_z) < 0.5 && VR_Parry_GuardHeight(p, VRGetEntHandPos(p, hand));
+};
+
+// Whether `p` holds both empty hands together in front, facing `xForward`: crossed or side by side,
+// less than 45 cm apart, ahead of the body, at a guard's height.
+float(entity p, vector xForward) VR_Parry_HandsTogether =
+{
+    if(!VRIsHandEmpty(p, cVR_MainHand) || !VRIsHandEmpty(p, cVR_OffHand))
+    {
+        return FALSE;
+    }
+    vector m = VRGetEntHandPos(p, cVR_MainHand);
+    vector o = VRGetEntHandPos(p, cVR_OffHand);
+    return vlen(m - o) < 0.45 * VRMetersToUnits() && (m - p.origin) * xForward > 2 && (o - p.origin) * xForward > 2 &&
+           VR_Parry_GuardHeight(p, m) && VR_Parry_GuardHeight(p, o);
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||

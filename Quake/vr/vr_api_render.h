@@ -42,6 +42,7 @@ void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entitie
 void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
+unsigned VR_WaterSceneDepth (void);					// translucent water drawn: how far the opaque scene is, to refract by (0: none)
 void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
@@ -78,6 +79,7 @@ int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement tex
 int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)
 float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3]); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model)
 int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
+float VR_ModelBumps (const struct entity_s *e);				// instance: how much the skin's bumps shade the model's own light (0 none)
 float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
 
 #ifdef __cplusplus

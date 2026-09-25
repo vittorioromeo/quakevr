@@ -3,6 +3,7 @@
 #include "vr_water.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfx.hpp"
 #include "vr_stereo.hpp"
 
 #include <algorithm>
@@ -172,6 +173,125 @@ void ensureSampler()
     GL_BindSamplerFunc(6, linearSampler);
 }
 
+// How far the opaque scene is, for the refraction (unit 8): what is in front of a translucent liquid's surface is not
+// read through it (gl_shaders.h, LiquidRefract). Made once a view, as the first translucent liquid draws, by a small
+// pass: the scene's depth/stencil is the translucent pass's target then (depth tested, its stencil written), which a
+// shader may not read. Half the size, in R32F, each texel the distance (along the view) of the nearest of its four:
+// at 3292 x 3524 it reads the 46 MB of depth once and writes 12 MB, only with translucent liquids in view and the
+// refraction on.
+constexpr const char* distanceVs = R"(#version 430
+void main()
+{
+    ivec2 v = ivec2(gl_VertexID & 1, gl_VertexID >> 1);
+    gl_Position = vec4(vec2(v) * 4.0 - 1.0, 0.0, 1.0);
+}
+)";
+
+constexpr const char* distanceFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Depth;
+layout(location = 0) uniform vec3 Proj; // clip z = x * w + y; z 1: depth is clip z (reversed Z), 0: (clip z + 1) / 2
+layout(location = 0) out float Out;
+void main()
+{
+    ivec2 p = ivec2(gl_FragCoord.xy) * 2;
+    ivec2 last = textureSize(Depth, 0) - 1;
+    float a = texelFetch(Depth, min(p, last), 0).r;
+    float b = texelFetch(Depth, min(p + ivec2(1, 0), last), 0).r;
+    float c = texelFetch(Depth, min(p + ivec2(0, 1), last), 0).r;
+    float d = texelFetch(Depth, min(p + ivec2(1, 1), last), 0).r;
+    float z = Proj.z > 0.5 ? max(max(a, b), max(c, d)) : min(min(a, b), min(c, d)) * 2.0 - 1.0;
+    Out = Proj.y / (z - Proj.x);
+}
+)";
+
+GLuint distanceProgram = 0;
+bool distanceFailed = false;
+
+// Two, used in turn: the next view's does not wait for the last one's reads.
+struct Distances
+{
+    GLuint texture = 0;
+    GLuint fbo = 0;
+    int width = 0, height = 0;
+};
+Distances distances[2];
+int distancesIndex = 0;
+int distancesFrame = -1; // r_framecount the current one is for (one a view: each eye)
+
+GLuint sceneDistances()
+{
+    const GLuint source = R_OpaqueSceneDepthTexture();
+    if(!source || r_framedata.water[2] <= 0.f || r_framedata.causticsscale[3] == 0.f || distanceFailed)
+    {
+        return 0;
+    }
+    if(distancesFrame == r_framecount && distances[distancesIndex].texture)
+    {
+        return distances[distancesIndex].texture;
+    }
+    if(!distanceProgram)
+    {
+        distanceProgram = gfx::glProgram(distanceVs, distanceFs, "vr liquid scene distances");
+        distanceFailed = !distanceProgram;
+        if(distanceFailed)
+        {
+            return 0;
+        }
+    }
+
+    // The scene's size: the framebuffers' (vid's while they were made: an eye's, or the window's), asked of GL only
+    // for another texture (a query a view cost a quarter of a millisecond of CPU).
+    static GLuint sizedSource = 0;
+    static GLint sourceWidth = 0, sourceHeight = 0;
+    if(source != sizedSource)
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, source);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &sourceWidth);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &sourceHeight);
+        sizedSource = source;
+    }
+    if(sourceWidth <= 0 || sourceHeight <= 0)
+    {
+        return 0;
+    }
+    const int width = (sourceWidth + 1) / 2, height = (sourceHeight + 1) / 2;
+
+    distancesIndex ^= 1;
+    Distances& target = distances[distancesIndex];
+    if(!target.texture || width != target.width || height != target.height)
+    {
+        if(target.texture)
+        {
+            GL_DeleteFramebuffersFunc(1, &target.fbo);
+            GL_DeleteNativeTexture(target.texture);
+        }
+        glGenTextures(1, &target.texture);
+        GL_BindNative(GL_TEXTURE8, GL_TEXTURE_2D, target.texture);
+        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_R32F, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_ObjectLabelFunc(GL_TEXTURE, target.texture, -1, "vr liquid scene distances");
+        GL_GenFramebuffersFunc(1, &target.fbo);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.texture, 0);
+        target.width = width;
+        target.height = height;
+    }
+
+    // Into its own framebuffer (no depth or stencil: the tests pass), then back to the translucent pass's.
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
+    glViewport(0, 0, width, height);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    GL_UseProgram(distanceProgram);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, source);
+    GL_Uniform3fFunc(0, r_matproj[0 * 4 + 2], r_matproj[3 * 4 + 2], gl_clipcontrol_able ? 1.f : 0.f);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    R_RestoreTranslucentTarget();
+    distancesFrame = r_framecount;
+    return target.texture;
+}
+
 // ----------------------------------------------------------------------------
 // The underwater view: no pass of its own. The fog is the engine's (Fog_SetupFrame: every shader has it), the tint
 // Quake's colour shift in the liquid's colour, the wobble and blur the eye's post-processing (GL_PostProcess).
@@ -265,7 +385,8 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
         r_framedata.causticsscale[a] = water::volumeScale[a];
     }
     r_framedata.causticsorigin[3] = water::volumeCell;
-    r_framedata.causticsscale[3] = 0.f;
+    // The scene's distances for the refraction (VR_WaterSceneDepth: made as translucent liquids draw).
+    r_framedata.causticsscale[3] = r_framedata.water[2] > 0.f && !water::distanceFailed ? 1.f : 0.f;
     GL_BindNative(GL_TEXTURE7, GL_TEXTURE_3D, water::volumeWet ? water::volumeTex : 0);
 }
 
@@ -288,12 +409,19 @@ extern "C" void VR_WaterFog(float fog[4], float skyfog[4])
     skyfog[3] = 1.f;
 }
 
+// R_DrawBrushModels_Water, translucent liquids: how far the opaque scene is, to refract by, on unit 8 (0: none).
+extern "C" unsigned VR_WaterSceneDepth(void)
+{
+    return water::sceneDistances();
+}
+
 // GL_PostProcess (its program in use): under water, the wobble and blur (gl_shaders.h), reading the scene smoothly
-// on unit 6; no wobble with a menu up (the panels are in the scene it reads).
+// on unit 6. Only the scene is in it: the HUD, the menu, the lasers and the wrist's log are drawn over the eye's
+// image after it (vr_stereo.cpp), the wrist gadget and the rest of the world wobble.
 extern "C" void VR_PostProcessWater(void)
 {
     const bool on = water::viewLiquid && stereo::isRenderingEye();
-    const float wobble = on && key_dest == key_game ? std::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
+    const float wobble = on ? std::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
     const float blur = on ? std::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f;
     GL_Uniform4fFunc(2, static_cast<float>(cl.time), wobble, blur, 0.f);
     if(wobble + blur <= 0.f)

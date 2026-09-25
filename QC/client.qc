@@ -2618,7 +2618,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     float blow = VR_Blow_IsBlow(xHand);
     if(VRHandsTracked(self) && time >= xInMelee && blow && !VRGetMeleeHitSoundPlayed(xHand))
     {
-        VR_Blow_Measure(xHand, VRGetEntWeapon(self, xHand) == WID_FIST);
+        VR_Blow_Measure(xHand);
 
         // A gun swung downwards makes no whoosh (only a hit sounds): reaching down to a holster
         // to reload is a fast swing too.

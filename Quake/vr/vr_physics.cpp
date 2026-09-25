@@ -14,6 +14,7 @@
 #include "vr_units.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -419,8 +420,58 @@ namespace
 {
 
 // Metres per second beyond vr_swim_stroke_min at which a stroke pushes as vr_swim_stroke says
-// (slower less, faster more: the push grows with the square of the speed).
+// (slower less, faster more: the push grows with the square of the speed, vr_swim_speed_exp).
 constexpr float strokeSpeed = 1.2f;
+
+// A stroke ends where the hand turns by more than this from the way it was going (cos 75°): a
+// frog stroke's sweep, curving out and back, stays one stroke; the turn to come back starts another.
+constexpr float strokeTurnCos = 0.26f;
+// How quickly (seconds) the stroke's way follows a curving hand.
+constexpr float strokeFollow = 0.08f;
+// Against the remembered stroke, a stroke as fast (over its peak) as vr_swim_reverse_speed is not
+// damped at all, and one this much slower than that is damped fully: the relaxed return is slower;
+// a deliberate reverse stroke, not.
+constexpr float reverseWeakRange = 0.3f;
+// Faster than this (m/s), a hand is taken for a tracking jump, not a stroke.
+constexpr float glitchSpeed = 8.f;
+
+// One hand's stroke: its motion from where it started (or turned) to where it stops or turns.
+struct Stroke
+{
+    bool active{false};
+    glm::vec3 way{0.f};   // where the hand goes (followed as it curves)
+    glm::vec3 moved{0.f}; // the hand's motion summed (speed-weighted directions)
+    float peak{0.f};      // m/s
+    float factor{0.f};    // the power gate times the reverse damping reached (vr_swim_power_whole)
+    glm::vec3 raw{0.f};   // the push before them
+    glm::vec3 given{0.f}; // and given
+    float ahead{0.f};     // the part of it along where you look (vr_swim_debug)
+    float flat{0.f};      // how flat the hand went, speed-weighted (vr_swim_debug)
+    float weight{0.f};
+};
+
+// One hand's last full stroke (vr_swim_intent_memory).
+struct Intent
+{
+    bool valid{false};
+    glm::vec3 way{0.f};
+    float peak{0.f};
+    double time{0.0};
+};
+
+struct SwimHand
+{
+    Stroke stroke;
+    Intent intent;
+};
+
+struct Swimmer
+{
+    double time{-1.0};
+    SwimHand hands[2];
+};
+
+Swimmer swimmers[MAX_SCOREBOARD];
 
 // A VR player's latest move, when its hands are tracked.
 [[nodiscard]] const VrMove* swimmer(edict_t* ent)
@@ -431,6 +482,28 @@ constexpr float strokeSpeed = 1.2f;
     }
     const VrMove* move = server::clientMove(ent);
     return move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? move : nullptr;
+}
+
+// A stroke is over (the hand stopped, turned, or left the water): a full one -- it passed the power
+// threshold and was not damped as a return -- becomes the hand's intent.
+void endStroke(SwimHand& h, int hand, double now)
+{
+    Stroke& s = h.stroke;
+    if(!s.active)
+    {
+        return;
+    }
+    if(vr_swim_debug.value && glm::length(s.raw) > 0.f)
+    {
+        Con_Printf("swim %s: peak %.2f m/s, flat %.2f, power x%.2f, push %.0f of %.0f (%+.0f ahead)\n",
+            hand ? "main" : "off", s.peak, s.weight > 0.f ? s.flat / s.weight : 0.f, s.factor, glm::length(s.given),
+            glm::length(s.raw), s.ahead);
+    }
+    if(s.factor >= 0.5f && glm::length(s.moved) > 0.f)
+    {
+        h.intent = {true, glm::normalize(s.moved), s.peak, now};
+    }
+    s = {};
 }
 
 } // namespace
@@ -468,19 +541,43 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 // so that the stick steers the swimming too.
 // Off the bottom you glide between strokes: part of the water friction SV_WaterMove just applied
 // is given back (vr_swim_glide).
+// Intent: each hand's motion is cut into strokes (from where it starts or turns back to where it
+// stops or turns again). A stroke propels only if its peak speed passes vr_swim_power_threshold,
+// fading in over vr_swim_power_knee above it, and then all of it counts (vr_swim_power_whole): a
+// brisk stroke swims, a relaxed return of the arms does nothing. And each hand remembers its last
+// full stroke for vr_swim_intent_memory seconds: a stroke against it, slower than it, is damped by
+// vr_swim_reverse_damp (a deliberate reverse stroke, as brisk -- vr_swim_reverse_speed -- is not).
+// vr_swim_debug 1 prints each stroke (peak speed, flatness, power, push) to tune these by.
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
 {
     const VrMove* move = swimmer(ent);
-    if(!move)
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(!move || client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
     {
         return;
     }
+    Swimmer& sw = swimmers[client];
+    const double now = qcvm->time;
+    if(now < sw.time || now - sw.time > 0.5) // a new map, or back in the water: start afresh
+    {
+        sw = {};
+    }
+    sw.time = now;
 
     const float dt = static_cast<float>(host_frametime);
-    const float threshold = std::max(0.f, vr_swim_stroke_min.value) * units::metresToUnits();
+    const float minSpeed = std::max(0.f, vr_swim_stroke_min.value); // m/s
     const float palmWeight = CLAMP(0.f, vr_swim_palm.value, 1.f);
     const float sideKept = 1.f - CLAMP(0.f, vr_swim_look.value, 1.f);
     const float recovery = CLAMP(0.f, vr_swim_recovery.value, 1.f);
+    const float flatExp = CLAMP(0.25f, vr_swim_flat_exp.value, 4.f);
+    const float speedExp = CLAMP(0.5f, vr_swim_speed_exp.value, 3.f);
+    const float palmDir = CLAMP(0.f, vr_swim_palm_dir.value, 1.f);
+    const float powerMin = std::max(0.f, vr_swim_power_threshold.value);
+    const float powerKnee = std::max(0.f, vr_swim_power_knee.value);
+    const bool whole = vr_swim_power_whole.value != 0.f;
+    const float memory = std::max(0.f, vr_swim_intent_memory.value);
+    const float reverseDamp = CLAMP(0.f, vr_swim_reverse_damp.value, 1.f);
+    const float reverseSpeed = CLAMP(reverseWeakRange, vr_swim_reverse_speed.value, 3.f);
     glm::vec3 vel = vec(ent->v.velocity);
 
     // The glide: SV_WaterMove's friction took dt * sv_friction of the speed; give part of it back.
@@ -511,42 +608,105 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float wishLen = glm::length(wish);
     const glm::vec3 wishDir = wishLen > 1.f ? wish / wishLen : glm::vec3{0.f};
     const float assist = CLAMP(0.f, vr_swim_stroke_assist.value, 1.f);
-    for(const VrHandMove& hand : move->hands)
+    for(int h = 0; h < 2; h++)
     {
+        const VrHandMove& hand = move->hands[h];
+        SwimHand& state = sw.hands[h];
+        Stroke& stroke = state.stroke;
         vec3_t p{hand.pos.x, hand.pos.y, hand.pos.z};
-        if(SV_PointContents(p) > CONTENTS_WATER) // not water, slime or lava
+        const float speedMs = glm::length(hand.vel); // the move's hand velocities are in m/s
+        if(speedMs > glitchSpeed)
         {
             continue;
         }
-        const float speed = glm::length(hand.vel) * units::metresToUnits(); // the move's hand velocities are in m/s
-        if(speed <= threshold)
+        if(SV_PointContents(p) > CONTENTS_WATER || speedMs <= minSpeed) // out of the water (or slime, lava); still
         {
+            endStroke(state, h, now);
             continue;
         }
-        const glm::vec3 dir = glm::normalize(hand.vel);
+        const glm::vec3 dir = hand.vel / speedMs;
+
+        // The stroke: it goes on while the hand keeps its way (curving), and ends where it turns.
+        if(stroke.active && glm::dot(dir, stroke.way) < strokeTurnCos)
+        {
+            endStroke(state, h, now);
+        }
+        if(!stroke.active)
+        {
+            stroke.active = true;
+            stroke.way = dir;
+        }
+        else
+        {
+            const glm::vec3 way = glm::mix(stroke.way, dir, std::min(1.f, dt / strokeFollow));
+            stroke.way = glm::length(way) > 0.f ? glm::normalize(way) : dir;
+        }
+        stroke.moved += hand.vel * dt;
+        stroke.peak = std::max(stroke.peak, speedMs);
 
         // The palm (and the back of the hand) faces the hand's side: how flat the hand meets the
         // water. Edge first it slices through (the recovery) and hardly pushes.
         vec3_t a{hand.rot.x, hand.rot.y, hand.rot.z}, f, r, u;
         AngleVectors(a, f, r, u);
-        const float flat = std::abs(glm::dot(glm::vec3{r[0], r[1], r[2]}, dir));
-        const float palm = (1.f - palmWeight) + palmWeight * flat;
+        const glm::vec3 side{r[0], r[1], r[2]};
+        const float facing = glm::dot(side, dir);
+        const float flat = std::abs(facing);
+        const float palm = (1.f - palmWeight) + palmWeight * std::pow(flat, flatExp);
         const float edge = recovery + (1.f - recovery) * glm::smoothstep(0.1f, 0.45f, flat);
 
-        // As water's drag, the push grows with the square of the speed (as the linear push at a
-        // brisk stroke): the stroke, faster, outdoes the return for the next one.
-        const float beyond = speed - threshold;
-        const float strength = beyond * beyond / (strokeSpeed * units::metresToUnits());
+        // As water's drag, the push grows with the square of the speed (vr_swim_speed_exp; as the
+        // linear push at a brisk stroke): the stroke, faster, outdoes the return for the next one.
+        const float beyond = (speedMs - minSpeed) * units::metresToUnits();
+        const float strength = beyond * std::pow(beyond / (strokeSpeed * units::metresToUnits()), speedExp - 1.f);
 
-        const glm::vec3 push = -dir; // the body goes against the hand
+        // The body goes against the hand (or, vr_swim_palm_dir, away from where the palm faces).
+        glm::vec3 push = -dir;
+        if(palmDir > 0.f)
+        {
+            const glm::vec3 blended = glm::mix(-dir, side * (facing < 0.f ? 1.f : -1.f), palmDir);
+            push = glm::length(blended) > 0.001f ? glm::normalize(blended) : -dir;
+        }
         const float along = glm::dot(push, wishDir); // 1: the push goes where the stick points
         const float steer = std::max(0.f, 1.f + assist * along);
 
         // Along where you look (ahead or back) it counts fully, sideways of it less.
         const float ahead = glm::dot(push, look);
         const glm::vec3 biased = look * ahead + (push - look * ahead) * sideKept;
+        const glm::vec3 raw = biased * (strength * vr_swim_stroke.value * palm * edge * steer * dt);
 
-        vel += biased * (strength * vr_swim_stroke.value * palm * edge * steer * dt);
+        // Intent: the stroke's power gate, from its peak speed so far...
+        float factor = 1.f;
+        if(powerKnee > 0.f)
+        {
+            factor = glm::smoothstep(powerMin, powerMin + powerKnee, stroke.peak);
+        }
+        else if(stroke.peak < powerMin)
+        {
+            factor = 0.f;
+        }
+        // ...and against the hand's last full stroke, slower than it: the return, damped.
+        const Intent& intent = state.intent;
+        if(intent.valid && memory > 0.f && now - intent.time < memory && intent.peak > 0.f)
+        {
+            const float against = CLAMP(0.f, -glm::dot(stroke.way, intent.way), 1.f);
+            const float fade = 1.f - glm::smoothstep(0.5f, 1.f, static_cast<float>(now - intent.time) / memory);
+            const float weaker = 1.f - glm::smoothstep(reverseSpeed - reverseWeakRange, reverseSpeed, stroke.peak / intent.peak);
+            factor *= 1.f - reverseDamp * against * fade * weaker;
+        }
+
+        // Only from the moment the gate opens, or (whole) the stroke so far counts as it opens.
+        glm::vec3 give = raw * factor;
+        if(whole && factor > stroke.factor)
+        {
+            give += stroke.raw * (factor - stroke.factor);
+        }
+        stroke.factor = whole ? std::max(stroke.factor, factor) : factor;
+        stroke.raw += raw;
+        stroke.given += give;
+        stroke.ahead += glm::dot(give, look);
+        stroke.flat += flat * speedMs;
+        stroke.weight += speedMs;
+        vel += give;
     }
 
     const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);

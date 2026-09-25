@@ -3,7 +3,8 @@
 // For each eye, an eye-sized set of Ironwail's framebuffers is swapped in, the view is moved
 // to the eye (vr_view.cpp) with the eye's asymmetric projection (VR_OverrideProjection), the
 // usual V_RenderView runs, and Ironwail's post-process pass (gamma, contrast, dithering)
-// writes into the backend's eye image instead of the window. The left eye is then mirrored to
+// writes into the backend's eye image instead of the window (at a vr_render_scale other than 1,
+// into a texture of the scaled size, resampled into the image). The left eye is then mirrored to
 // the window, where the 2D layer is drawn as usual.
 
 #include "vr_fgfx.hpp"
@@ -19,6 +20,7 @@
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_text3d.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -35,9 +37,42 @@ int eyeFramebufsHeight = 0;
 float eyeFramebufsFsaa = 0.f; // vid_fsaa they were made with
 GLuint targetFbo = 0;
 
+// vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
+// that size, and resampled (a linear blit) into the eye image, which keeps the runtime's size.
+GLuint resampleFbo = 0;
+GLuint resampleTex = 0;
+int resampleWidth = 0;
+int resampleHeight = 0;
+bool resampling = false; // this frame's eyes are
+
 bool renderingEye = false;
 int currentEye = 0;
 bool firstEye = false; // no other eye rendered before it this frame
+
+void ensureResampleTarget(int width, int height)
+{
+    if(resampleTex && resampleWidth == width && resampleHeight == height)
+    {
+        return;
+    }
+    if(resampleTex)
+    {
+        GL_DeleteFramebuffersFunc(1, &resampleFbo);
+        GL_DeleteNativeTexture(resampleTex);
+    }
+    glGenTextures(1, &resampleTex);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, resampleTex);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+    GL_GenFramebuffersFunc(1, &resampleFbo);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, resampleFbo);
+    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resampleTex, 0);
+    resampleWidth = width;
+    resampleHeight = height;
+}
 
 void ensureEyeFramebuffers(int width, int height)
 {
@@ -175,6 +210,25 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+// The UI in an eye, into `fbo` (width x height): the lasers, the HUD panel or the menu (with its pointer), the wrist
+// gadget's log. Not depth tested: over whatever the fbo holds.
+void drawUi(int eye, GLuint fbo, int width, int height)
+{
+    QVR_GPU_PROFILE("ui");
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, width, height);
+    lines::drawInEye(hands::current().eyeOrigin[eye]);
+    panel::drawInEye(hands::current());
+    text3d::drawOverlay();
+}
+
+// Whether the window mirrors this eye (mirrorToWindow).
+[[nodiscard]] bool mirrored(int eye)
+{
+    const int mode = static_cast<int>(vr_mirror.value);
+    return mode >= 2 || (mode == 1 && eye == 0);
+}
+
 // The lenses' hidden area (vr_visibility_mask): the runtime's hidden triangles, from the eye's
 // tangent space to clip space by the eye's field of view, drawn black at the near plane (depth
 // 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
@@ -250,14 +304,24 @@ extern "C" int VR_RenderView()
         return 0; // the backend ends the frame without layers
     }
 
-    int width = 0, height = 0;
-    be->eyeResolution(width, height);
-    if(width <= 0 || height <= 0)
+    // The eye images' size (the runtime's, fixed for the session), and the size the eyes are
+    // rendered at (vr_render_scale times it), resampled into the images when it differs.
+    int imageWidth = 0, imageHeight = 0;
+    be->eyeResolution(imageWidth, imageHeight);
+    if(imageWidth <= 0 || imageHeight <= 0)
     {
         return 0;
     }
+    const EyeSizes sizes = be->eyeSizes();
+    const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
+    const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
+    stereo::resampling = width != imageWidth || height != imageHeight;
 
     stereo::ensureEyeFramebuffers(width, height);
+    if(stereo::resampling)
+    {
+        stereo::ensureResampleTarget(width, height);
+    }
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width, windowHeight = vid.height;
@@ -304,14 +368,25 @@ extern "C" int VR_RenderView()
         V_RenderView();
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
 
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebufs.composite.fbo);
-        glViewport(0, 0, width, height);
-        lines::drawInEye(hands::current().eyeOrigin[eye]);
-        panel::drawInEye(hands::current());
-
         profile::begin("postprocess", true);
-        GL_PostProcess();
+        GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
+        if(stereo::resampling)
+        {
+            GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, stereo::resampleFbo);
+            GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, stereo::targetFbo);
+            GL_BlitFramebufferFunc(0, 0, width, height, 0, 0, imageWidth, imageHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
+        }
         profile::end();
+
+        // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
+        // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
+        // else in the world are in the scene. Over the scene's colours too, for the mirror.
+        stereo::drawUi(eye, stereo::targetFbo, imageWidth, imageHeight);
+        if(stereo::mirrored(eye))
+        {
+            stereo::drawUi(eye, framebufs.composite.fbo, width, height);
+        }
 
         stereo::renderingEye = false;
         profile::begin("xr release", true); // xrReleaseSwapchainImage
@@ -362,7 +437,11 @@ extern "C" void VR_DrawHiddenArea()
 
 extern "C" unsigned VR_PostProcessTarget()
 {
-    return stereo::renderingEye ? stereo::targetFbo : 0;
+    if(!stereo::renderingEye)
+    {
+        return 0;
+    }
+    return stereo::resampling ? stereo::resampleFbo : stereo::targetFbo;
 }
 
 // Replaces the symmetric projection with the eye's asymmetric one. Ironwail's projection maps

@@ -714,7 +714,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
 	VR_AliasLightDir (e, instance->lightdir); // QVR
 	instance->glow[0] = VR_EntityGlow (e); // QVR
-	instance->glow[1] = VR_ModelLightParity () ? 1.f : 0.f; // QVR: the shader's shading on a par with the world
+	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
 	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale) : 0.f; // QVR: its parallax depth in units
 }

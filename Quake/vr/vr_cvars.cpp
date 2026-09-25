@@ -39,8 +39,9 @@ const DefaultChange defaultChanges[] = {
     {6, &vr_flashlight_beam, "0"},         // a soft cone of light now, not a line over everything
     {7, &vr_melee_speed, "3"},             // the wrist's speed now (a blow must also travel vr_melee_distance)
     {8, &vr_melee_distance, "0.2"},        // a full blow: wiggles and whips of the hand were hitting
+    {9, &vr_parallax_models, "0.75"},      // off: parallax on 8-bit skins bends their texels (the bumps give models relief now)
 };
-constexpr int configVersion = 8;
+constexpr int configVersion = 9;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()

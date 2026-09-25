@@ -43,6 +43,10 @@ void renderScreen();
 // The ammo screens' offset their time, so that they glitch at other moments.
 [[nodiscard]] float glitch(double time);
 
+// How much the text, numbers and icons on the CRT screens (the gadget's and the ammo screens') glow
+// (vr_screen_text_glow, 0..3; Shade::Screen's glow).
+[[nodiscard]] float textGlow();
+
 // Draws the texture over the model's screen, in one phosphor colour and as a small CRT
 // (vr_gadget_crt: scanlines, a flicker, faint static and now and then a glitch), in each eye's
 // scene after the opaque entities (VR_DrawSceneOpaque), where the bloom catches its light.

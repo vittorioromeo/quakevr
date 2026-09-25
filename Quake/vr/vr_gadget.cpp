@@ -360,7 +360,7 @@ void renderScreen()
         return;
     }
 
-    gfx::ensureTarget(target, width * 2, height * 2);
+    gfx::ensureTarget(target, width * 2, height * 2, true); // mipmaps: for its text's glow
     gfx::begin2D(target, width, height);
     layout();
     gfx::end2D();
@@ -390,9 +390,14 @@ void drawScreen()
     const float k = crtStrength();
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, 0.f},
+            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, textGlow()},
             .screen = {width, height, 0.5f}},
         target.texture);
+}
+
+float textGlow()
+{
+    return CLAMP(0.f, vr_screen_text_glow.value, 3.f);
 }
 
 bool screenGlow(Glow& out)

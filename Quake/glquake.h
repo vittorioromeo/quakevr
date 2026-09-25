@@ -443,7 +443,7 @@ typedef struct gpuframedata_s {
 	float	water[4];		// QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction, glints
 	float	water2[4];		// QVR: lava glow, caustics, the eye in a liquid, unused
 	float	causticsorigin[4];	// QVR: the liquid volume's origin (xyz)
-	float	causticsscale[4];	// QVR: one over its size (xyz)
+	float	causticsscale[4];	// QVR: one over its size (xyz); w 1: the scene's distances to refract by
 } gpuframedata_t;
 
 // QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
@@ -459,6 +459,8 @@ void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
 GLuint R_OpaqueSceneTexture (void); // QVR: the opaque scene's colours translucent liquids can read (0: none)
+GLuint R_OpaqueSceneDepthTexture (void); // QVR: and its depth/stencil (the translucent pass's target: vr/vr_water.cpp reads it first)
+void R_RestoreTranslucentTarget (void); // QVR: the translucent pass's framebuffer and viewport again
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);

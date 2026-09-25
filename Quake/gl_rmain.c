@@ -918,6 +918,20 @@ GLuint R_OpaqueSceneTexture (void)
 
 /*
 =============
+R_OpaqueSceneDepthTexture -- QVR
+
+The depth/stencil of the scene R_OpaqueSceneTexture's colours are in (0: none).
+=============
+*/
+GLuint R_OpaqueSceneDepthTexture (void)
+{
+	if (!R_OpaqueSceneTexture ())
+		return 0;
+	return GL_NeedsSceneEffects () ? framebufs.scene.depth_stencil_tex : framebufs.composite.depth_stencil_tex;
+}
+
+/*
+=============
 R_SetupGL
 =============
 */
@@ -937,6 +951,21 @@ void R_SetupGL (void)
 		framesetup.oit_fbo = framebufs.oit.fbo_scene;
 		glViewport (0, 0, r_refdef.vrect.width / r_refdef.scale, r_refdef.vrect.height / r_refdef.scale);
 	}
+}
+
+/*
+=============
+R_RestoreTranslucentTarget -- QVR
+
+Back to the translucent pass's framebuffer and the scene's viewport, after a pass of vr/vr_water.cpp's there (no
+glGet: it would wait for the GPU).
+=============
+*/
+void R_RestoreTranslucentTarget (void)
+{
+	R_SetupGL ();
+	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.oit_fbo);
 }
 
 /*

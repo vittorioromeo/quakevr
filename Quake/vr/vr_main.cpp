@@ -151,14 +151,17 @@ void VR_Status_f()
     Con_Printf("VR: active, backend \"%s\" (%s), world scale %g\n",
         state->backend->name(), state->backend->runtimeName(), vr_world_scale.value);
 
-    // The eye images: the runtime's recommended size (SteamVR's supersampling included), its
-    // largest, and the size in use (vr_render_scale).
+    // The eyes: the size rendered at (vr_render_scale times the image's), and the images handed to
+    // the runtime (its recommended size, SteamVR's resolution included; its largest).
     const qvr::EyeSizes sizes = state->backend->eyeSizes();
-    const double pixels = static_cast<double>(sizes.width) * sizes.height;
-    const double recommendedPixels = static_cast<double>(sizes.recommendedWidth) * sizes.recommendedHeight;
-    Con_Printf("  eyes  %dx%d (vr_render_scale %g: %.0f%% of the recommended %dx%d's pixels; largest %dx%d)\n",
-        sizes.width, sizes.height, vr_render_scale.value, recommendedPixels > 0.0 ? 100.0 * pixels / recommendedPixels : 0.0,
-        sizes.recommendedWidth, sizes.recommendedHeight, sizes.maxWidth, sizes.maxHeight);
+    const int renderWidth = qvr::scaledEyeSize(sizes.width, sizes.maxWidth);
+    const int renderHeight = qvr::scaledEyeSize(sizes.height, sizes.maxHeight);
+    const double pixels = static_cast<double>(renderWidth) * renderHeight;
+    const double imagePixels = static_cast<double>(sizes.width) * sizes.height;
+    Con_Printf("  eyes  rendered %dx%d (vr_render_scale %g: %.0f%% of the image's pixels), images %dx%d (recommended "
+               "%dx%d, largest %dx%d)\n",
+        renderWidth, renderHeight, vr_render_scale.value, imagePixels > 0.0 ? 100.0 * pixels / imagePixels : 0.0,
+        sizes.width, sizes.height, sizes.recommendedWidth, sizes.recommendedHeight, sizes.maxWidth, sizes.maxHeight);
 
     // The lenses' hidden area (vr_visibility_mask): its share of the image, and its bounds in the
     // eye's tangent space against the eye's field of view (they should lie within it).
@@ -237,10 +240,10 @@ const FrameState& frameState()
     return state && state->backend ? state->frame : none;
 }
 
-int scaledEyeSize(int recommended, int max)
+int scaledEyeSize(int image, int max)
 {
     const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
-    int size = static_cast<int>(std::lround(static_cast<double>(recommended) * scale));
+    int size = static_cast<int>(std::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {
         size = q_min(size, max);

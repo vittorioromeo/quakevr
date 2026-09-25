@@ -17,7 +17,7 @@ namespace qvr
 namespace
 {
 
-// The pretend headset's recommended eye size, and its largest (vr_render_scale).
+// The pretend headset's recommended eye size (its images'), and its largest.
 constexpr int imageWidth = 1024;
 constexpr int imageHeight = 1024;
 constexpr int maxImageSize = 2048;
@@ -252,7 +252,6 @@ public:
         tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);
         tracking.head.velocityValid = true;
 
-        ensureTextures(); // vr_render_scale
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)
         {
@@ -315,21 +314,20 @@ private:
     int height_{0};
     mutable HiddenArea hidden_;
 
+    // The eye images, at the recommended size like a runtime's (vr_render_scale does not change
+    // them: the eyes are resampled into them).
     void ensureTextures()
     {
-        const int w = scaledEyeSize(imageWidth, maxImageSize);
-        const int h = scaledEyeSize(imageHeight, maxImageSize);
-        if(textures[0] && w == width_ && h == height_)
+        if(textures[0])
         {
             return;
         }
         for(gfx::Texture& tex : textures)
         {
-            gfx::destroyTexture(tex);
-            tex = gfx::createTexture(w, h);
+            tex = gfx::createTexture(imageWidth, imageHeight);
         }
-        width_ = w;
-        height_ = h;
+        width_ = imageWidth;
+        height_ = imageHeight;
     }
 
     // Between a circle of radius 1.04 (the image's half-width 1) and the image's edge, in quads

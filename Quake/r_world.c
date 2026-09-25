@@ -544,6 +544,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GLuint buf, program;
 	GLbyte *ofs;
 	qboolean oit;
+	GLuint scenedepth; // QVR
 
 	if (count > countof(bmodel_instances))
 	{
@@ -560,6 +561,10 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		return;
 
 	GL_BeginGroup (translucent ? "Water (translucent)" : "Water (opaque)");
+
+	// QVR: how far the opaque scene is, for the refraction not to read what is in front of the water (vr/vr_water.cpp;
+	// a small pass of its own: before this draw's state is set)
+	scenedepth = translucent ? VR_WaterSceneDepth () : 0;
 
 	// setup state
 	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
@@ -578,6 +583,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GL_SetState (state);
 	GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 	GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, translucent ? R_OpaqueSceneTexture () : 0); // QVR: refraction (vr/vr_water.cpp)
+	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);

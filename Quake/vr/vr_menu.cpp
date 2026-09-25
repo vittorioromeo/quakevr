@@ -205,8 +205,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Parry and Bash"),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Bash", vr_bash).help("While guarding (a weapon held across in front, or both hands together), drive forward hard: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
-        slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must drive forward."),
+        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, or both hands together), then push it forward: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
+        slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must be pushed forward (less than a blow needs)."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
         header("Playtesting"),
@@ -326,6 +326,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
         slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx")
             .help("The gadget's and your weapons' screens glow softly round their edges (0 off)."),
+        slider("Text Glow", vr_screen_text_glow, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
         cycle("Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's messages float in a small log over the gadget, or at the top of the view."),
         slider("Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
@@ -439,6 +441,7 @@ const Page pages[] = {
     {"Wrist Gadget", pageGadget},
     {"Throwing and Physics", pageThrowing},
     {"Force Grab", pageForceGrab},
+    {"Swimming", pageSwimSettings},
     {"Menu", pageMenuSettings},
     {"Crosshair", pageCrosshairSettings},
     {"Particles", pageParticleSettings},
@@ -508,7 +511,7 @@ std::vector<Item> pageMain()
         cycle("OpenXR Runtime", vr_xr_runtime, {{0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
             .help("Which OpenXR runtime runs the headset; VR restarts. VDXR skips SteamVR (keep Virtual Desktop's 'Emulate Index controllers' off)."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f")
-            .help("Eye image size, times the headset's recommended one (SteamVR's resolution included)."), // + the size (renderScaleHelp)
+            .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         toggle("Hide Lens Corners", vr_visibility_mask)
             .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
 
@@ -701,6 +704,24 @@ int scrollbarX = midPos + 188; // where it was drawn
     return true;
 }
 
+// The cursor moved onto the nearest visible setting if the list scrolled it out of view.
+void keepCursorVisible()
+{
+    const auto& list = items(page);
+    const int rows = visibleRows(list);
+    const int scroll = scrolls[page];
+    int& cursor = cursors[page];
+    const int dir = cursor < scroll ? 1 : cursor >= scroll + rows ? -1 : 0;
+    if(dir != 0)
+    {
+        cursor = dir > 0 ? scroll : scroll + rows - 1;
+        while(list[cursor].kind == Item::Header && cursor + dir >= scroll && cursor + dir < scroll + rows)
+        {
+            cursor += dir;
+        }
+    }
+}
+
 // The list scrolled to where the mouse holds the scrollbar, the cursor kept on a visible setting.
 void scrollTo(float cy)
 {
@@ -714,19 +735,8 @@ void scrollTo(float cy)
     }
     const float yrel = cy - listTop - height * 4.f;
     const int range = (rows - height) * 8;
-    int& scroll = scrolls[page];
-    scroll = CLAMP(0, static_cast<int>(yrel * (n - rows) / range + 0.5f), n - rows);
-
-    int& cursor = cursors[page];
-    const int dir = cursor < scroll ? 1 : cursor >= scroll + rows ? -1 : 0;
-    if(dir != 0)
-    {
-        cursor = dir > 0 ? scroll : scroll + rows - 1;
-        while(list[cursor].kind == Item::Header && cursor + dir >= scroll && cursor + dir < scroll + rows)
-        {
-            cursor += dir;
-        }
-    }
+    scrolls[page] = CLAMP(0, static_cast<int>(yrel * (n - rows) / range + 0.5f), n - rows);
+    keepCursorVisible();
 }
 
 // A slider set where the mouse is along it (as Ironwail's: the thumb's middle from midPos + 4 to
@@ -787,23 +797,22 @@ void drawItem(const Item& item, int y, bool selected)
     }
 }
 
-// Render Scale's help: the eye size it makes, and the headset's own.
+// Render Scale's help: the size the eyes are rendered at, and the headset's images'.
 [[nodiscard]] const char* renderScaleHelp()
 {
     static char text[192];
     const Backend* be = backend();
     const EyeSizes s = be ? be->eyeSizes() : EyeSizes{};
-    if(s.recommendedWidth <= 0 || s.recommendedHeight <= 0)
+    if(s.width <= 0 || s.height <= 0)
     {
-        return "Eye image size, times the headset's recommended one (SteamVR's resolution included). Lower: faster, "
-               "blurrier.";
+        return "Eye rendering resolution, times the headset's (SteamVR's resolution included). Above 1: smoother "
+               "edges, slower. Below 1: faster, blurrier.";
     }
-    const int w = scaledEyeSize(s.recommendedWidth, s.maxWidth);
-    const int h = scaledEyeSize(s.recommendedHeight, s.maxHeight);
-    q_snprintf(text, sizeof(text), "%dx%d per eye, %.0f%% of the pixels of the headset's %dx%d (with SteamVR's "
-                                   "resolution). Lower: faster, blurrier.",
-        w, h, 100.0 * w * h / (static_cast<double>(s.recommendedWidth) * s.recommendedHeight), s.recommendedWidth,
-        s.recommendedHeight);
+    const int w = scaledEyeSize(s.width, s.maxWidth);
+    const int h = scaledEyeSize(s.height, s.maxHeight);
+    q_snprintf(text, sizeof(text), "Renders %dx%d per eye, resampled to the headset's %dx%d. Above 1: smoother "
+                                   "edges, slower. Below 1: faster, blurrier.",
+        w, h, s.width, s.height);
     return text;
 }
 
@@ -870,6 +879,38 @@ void qvr::menu::command_f()
             }
         }
     }
+}
+
+int qvr::menu::currentPage()
+{
+    return page;
+}
+
+void qvr::menu::reopen(int target)
+{
+    VR_Menu_Open();
+    if(target > PageMain && target < pageCount)
+    {
+        showPage(target); // its cursor, scroll and way back as they were
+    }
+}
+
+bool qvr::menu::scroll(int rows)
+{
+    if(m_state != m_vr || sliderGrab || scrollGrab)
+    {
+        return false;
+    }
+    const auto& list = items(page);
+    const int n = static_cast<int>(list.size());
+    const int visible = visibleRows(list);
+    if(n <= visible)
+    {
+        return false;
+    }
+    scrolls[page] = CLAMP(0, scrolls[page] + rows, n - visible);
+    keepCursorVisible();
+    return true;
 }
 
 extern "C" void VR_Menu_Draw()

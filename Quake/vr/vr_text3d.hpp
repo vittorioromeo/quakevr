@@ -1,9 +1,10 @@
 // vr_text3d.hpp -- text drawn in the world with the console font (world texts, weapon ammo
 // counters, floating damage numbers, the wrist gadget's log), depth-tested in the scene pass: the
-// solid ones with the opaque entities, the blended ones (floating texts, the log) after the
-// translucent pass, over the sky. The ammo screens and the wrist gadget's glow softly round their
-// edges (vr_screen_glow), added in that pass too; the ammo screens are small CRTs like the
-// gadget's (vr_weapon_screen_crt: their images drawn in the 2D pass, shown a frame later).
+// solid ones with the opaque entities, the blended ones (floating texts) after the translucent
+// pass, over the sky; the log over the eye's final image, as UI (drawOverlay). The ammo screens
+// and the wrist gadget's glow softly round their edges (vr_screen_glow), added in that pass too;
+// the ammo screens are small CRTs like the gadget's (vr_weapon_screen_crt: their images drawn in
+// the 2D pass, shown a frame later).
 
 #pragma once
 
@@ -38,5 +39,9 @@ void renderScreens();
 
 // The blended texts, in each eye's scene after the translucent pass (VR_DrawSceneTranslucent).
 void drawTranslucent();
+
+// The wrist gadget's log (UI: not in the scene's post-processing, the underwater wobble), over the eye's final image
+// with the HUD panel (vr_stereo.cpp); not depth tested (nothing is between it and the eye but the other hand).
+void drawOverlay();
 
 } // namespace qvr::text3d

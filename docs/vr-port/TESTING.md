@@ -141,7 +141,19 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND13.md`, your third batch of notes):
+- **New in this round** (details in `docs/vr-port/ROUND14.md`, your fourth batch of notes):
+  - **Melee from scratch:** strong swings and straight punches rewarded (the dummy shows speed, acceleration and
+    strength); a bash needs a still, level guard first; waving does nothing.
+  - **Render Scale fixed** (SteamVR's OpenGL path ignores swapchain resizes: the eyes are now rendered at the
+    scale and resampled into fixed-size images).
+  - **Menus:** Back to game (top-left, or hold the menu button), reopen where you left, right stick scrolls;
+    live preview keeps the game running on settings pages.
+  - **Water:** the HUD, menu and wrist log no longer wobble underwater; no halos round things over water.
+  - **Swimming:** strokes judged whole, an intent threshold and stroke memory; a new Swimming page of knobs;
+    `vr_swim_debug 1` shows each stroke.
+  - **Models:** bumps under their own light; model parallax off by default. **Screens:** glowing text.
+
+- **Previous round** (`docs/vr-port/ROUND13.md`, your third batch of notes):
   - **VR Settings > Headset:** OpenXR Runtime (try Virtual Desktop's VDXR), Render Scale, Hide Lens Corners.
   - **Menus:** bigger, spaced, modern widgets; point with the laser, trigger to click and drag.
   - **Flashlight:** a real spotlight: lights models, casts shadows, no flicker.

@@ -248,11 +248,17 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
     normal; the light is shaded `dot(bumped, l) / dot(n, l)`, so the flat is as bright as before and bumps facing the
     light are brighter, those facing away darker. Alpha-tested surfaces have no gradient (after the discard), liquids
     none of it. DarkPlaces' `r_glsl_deluxemapping 2` is the case of light straight on (floors and ceilings under flat
-    light). Models keep the dynamic lights' bumps only.
+    light). Models: see "On models' own light" below.
   - Round 11 fix: a replacement (RGBA) image is mipmapped in place by its upload, so the normal map was made from a
     scrambled copy (the upper part of the image overwritten by its smaller mips); it is now made from a copy taken
     before.
   - They bend the dynamic lights' angle and sheen as well.
+  - **On models' own light** (round 14, `vr_normalmap_models` 1, "Bumps on Models"; times `vr_normalmap_baked`):
+    the alias shader shades the skin's bumps by the model's light direction (`vr_modellight`'s, or Quake's fixed
+    one): `1 + strength x lean`, the lean being the bent normal's part along the surface towards the light (it
+    averages out over a skin, so the model is as bright as before), less on the side facing away. Held weapons and
+    hands get half (`VR_ModelBumps`). The instance's `Glow.y` carries it (sign: `vr_model_light_parity`). Skins'
+    luminance is grown out of their islands first (`TexMgr_DilateIslands`), so seams make no ridges.
 - **Bloom by colour** (`vr_bloom_white` 0.5, `vr_bloom_color` 1.5, times `vr_bloom`): the bright pass weighs a pixel
   by its saturation, so red buttons and blue panels glow more, white lamps and flashes less.
 
@@ -268,7 +274,7 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_normalmap_strength` | 1 | (not in presets) |
 | `vr_normalmap_baked` | 1 | (not in presets; nothing without `vr_normalmaps`) |
 | `vr_parallax` (see Parallax below) | 1 (0 on Low) | 0 |
-| `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps`, `vr_parallax_items`, `vr_parallax_models` | 3, 512, 16, 1.5, 0.75 | (not in presets) |
+| `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps`, `vr_parallax_items`, `vr_parallax_models` | 3, 512, 16, 1.5, 0 (0.75 before round 14) | (not in presets) |
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
 | `vr_projectile_lights`, `vr_weapon_screen_light`, `vr_weapon_glow` | 1, 1, 1 | 0, 0, 0 |
@@ -302,7 +308,7 @@ instructions per dynamic light (four derivatives are taken for every world and m
 at most 256² per texture, and a look for `_norm`/`_bump` images beside each replacement. Memory: about 24 MB of normal
 maps on e1m1 with QRP before round 11, less since (at most 2 texels a unit).
 
-Not done: DarkPlaces' quad-damage explosion colour (the client can't tell); bumps on models from their baked light.
+Not done: DarkPlaces' quad-damage explosion colour (the client can't tell).
 
 ## The chest flashlight
 
@@ -454,3 +460,8 @@ with its own dial.
   (`r_softemu_mdl_warp`) mode.
 - **Fewer steps:** everywhere, no more than 1.5 steps for each texel of the height field the ray crosses (4 at
   least), and nothing where the whole shift is under a third of a pixel: small boxes and models cross a few texels.
+- **Round 14: models off by default** (`vr_parallax_models` 0; configs holding 0.75 take 0 once). On Quake's
+  8-bit skins, drawn sharp, the shifts bend their square texels (the reason the world's 8-bit textures get no heights
+  when drawn sharp), and luminance isn't the skins' shape: it looked like the skin swimming. The bumps on the models'
+  own light give them relief instead. When on, it now fades out from 50 to 70 degrees off the triangle (a model's
+  sides are grazing all round). See ROUND14.md, "Model bumps and parallax".

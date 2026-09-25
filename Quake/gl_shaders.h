@@ -329,7 +329,7 @@ NOISE_FUNCTIONS
 "	vec4	Water; // QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction (0: no scene to read), glints\n"\
 "	vec4	Water2; // QVR: lava glow, caustics (0 off), the eye in a liquid (1), unused\n"\
 "	vec4	CausticsOrigin; // QVR: xyz where the liquid volume (LiquidVolume) starts, in the world; w its cell size\n"\
-"	vec4	CausticsScale; // QVR: xyz one over its size in units\n"\
+"	vec4	CausticsScale; // QVR: xyz one over its size in units; w 1: the scene's distances to refract by (LiquidDepth)\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -820,6 +820,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 #define LIQUID_FUNCTIONS \
 "layout(binding=6) uniform sampler2D LiquidScene; // the opaque scene, while translucent liquids draw into the OIT buffers\n"\
 "layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
+"layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
 "\n"\
 "uint LiquidKind(uint flags)\n"\
 "{\n"\
@@ -906,8 +907,19 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	return c;\n"\
 "}\n"\
 "\n"\
+"// The distance along the view (clip w) of the opaque scene at pixel p (LiquidDepth: half the size, the nearest of each\n"\
+"// four pixels).\n"\
+"float LiquidSceneDistance(vec2 p)\n"\
+"{\n"\
+"	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), textureSize(LiquidDepth, 0) - 1), 0).r;\n"\
+"}\n"\
+"\n"\
 "// A translucent liquid over what is behind it, that bent by the waves (n, facing as above): read from the opaque scene\n"\
 "// (Water.z: how far, 0: nothing to read), the liquid then opaque over it. The bend is a shift in the world, projected.\n"\
+"// Only what is behind the surface is read (by the scene's distances, CausticsScale.w 1): where the shifted pixel is\n"\
+"// of something in front of it (a hand or a gun over the water, a monster, a text), the bend is shortened, or none,\n"\
+"// or that thing's colours would smear into the liquid round it, a halo; and it fades out where the liquid is shallow\n"\
+"// along the view (its edges, round what stands in it).\n"\
 "vec4 LiquidRefract(vec4 c, vec3 pos, vec3 n, vec3 facing, uint kind)\n"\
 "{\n"\
 "	if (Water.z <= 0. || c.a >= 1. || kind == 1u || kind == 3u)\n"\
@@ -916,8 +928,15 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	vec3 d = (n - facing) * (Water.z * min(dist * 0.08, 12.0) * (kind == 2u ? 0.5 : 1.0));\n"\
 "	vec4 c0 = ViewProj * vec4(pos, 1.0);\n"\
 "	vec4 c1 = ViewProj * vec4(pos + d, 1.0);\n"\
-"	vec2 uv = gl_FragCoord.xy / vec2(textureSize(LiquidScene, 0)) + (c1.xy / c1.w - c0.xy / c0.w) * 0.5;\n"\
-"	vec3 behind = texture(LiquidScene, uv).rgb;\n"\
+"	vec2 size = vec2(textureSize(LiquidScene, 0));\n"\
+"	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;\n"\
+"	if (CausticsScale.w != 0.)\n"\
+"	{\n"\
+"		shift *= smoothstep(0.0, 12.0, LiquidSceneDistance(gl_FragCoord.xy) - c0.w);\n"\
+"		if (LiquidSceneDistance(gl_FragCoord.xy + shift * size) < c0.w)\n"\
+"			shift *= LiquidSceneDistance(gl_FragCoord.xy + shift * (0.3 * size)) < c0.w ? 0.0 : 0.3;\n"\
+"	}\n"\
+"	vec3 behind = texture(LiquidScene, gl_FragCoord.xy / size + shift).rgb;\n"\
 "	return vec4(mix(behind, c.rgb, c.a), 1.0);\n"\
 "}\n"\
 "\n"\
@@ -1632,7 +1651,7 @@ NOISE_FUNCTIONS
 "	float	Blend;\n"\
 "	int		Padding;\n"\
 "	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
-"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp), w parallax mapping's depth in units\n"\
+"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y 1 + the bumps' strength on its own light (vr_normalmap_models), negative unless shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp), w parallax mapping's depth in units\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1732,6 +1751,7 @@ ALIAS_INSTANCE_BUFFER
 "layout(location=6) flat out float out_glow; // QVR\n"
 "layout(location=7) flat out float out_fbboost; // QVR\n"
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n"
+"layout(location=9) flat out vec4 out_bumplight; // QVR: xyz towards the model's light (world), w how much the bumps shade it\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1755,9 +1775,11 @@ ALIAS_INSTANCE_BUFFER
 "	// transform world X and Z axes to local space\n"
 "	mat3 orientation = mat3(normalize(worldmatrix[0].xyz), normalize(worldmatrix[1].xyz), normalize(worldmatrix[2].xyz));\n"
 "	orientation = transpose(orientation);\n"
-"	vec3 shadevector = orientation * normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
+"	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
+"	vec3 shadevector = orientation * lightdir;\n"
+"	out_bumplight = vec4(lightdir, abs(inst.Glow.y) - 1.0); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n"
 "	float dot1, dot2;\n"
-"	if (inst.Glow.y != 0.) // QVR: on a par with the world (vr_model_light_parity): 0.6 .. 1.4 by the normal, on average the light given\n"
+"	if (inst.Glow.y > 0.) // QVR: on a par with the world (vr_model_light_parity): 0.6 .. 1.4 by the normal, on average the light given\n"
 "	{\n"
 "		dot1 = 1.0 + 0.4 * dot(pose1.nor, shadevector);\n"
 "		dot2 = 1.0 + 0.4 * dot(pose2.nor, shadevector);\n"
@@ -1800,13 +1822,14 @@ NOISE_FUNCTIONS
 "layout(location=6) flat in float in_glow; // QVR\n"
 "layout(location=7) flat in float in_fbboost; // QVR\n"
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off)\n"
+"layout(location=9) flat in vec4 in_bumplight; // QVR: xyz towards the model's light, w how much the bumps shade it\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
 "// QVR: dynamic lights per pixel (vr/vr_lighting.cpp), shaded by the angle (the normal bent by the normal map) and\n"
 "// shadowed, as a multiplier of the texture (Quake adds radius - distance to the model's light, which is divided by\n"
-"// 200, doubled for overbright models; by 128 on a par with the world); `spec` gets their sheen.\n"
-"vec3 ModelDynamicLights(vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, out vec3 spec)\n"
+"// 200, doubled for overbright models; by 128 on a par with the world); `spec` gets their sheen. n: the smooth normal.\n"
+"vec3 ModelDynamicLights(vec3 n, vec3 bumped, out vec3 spec)\n"
 "{\n"
 "	spec = vec3(0.);\n"
 "	if ((ShadowFlags & 8u) == 0u || NumLights == 0u)\n"
@@ -1819,8 +1842,6 @@ OIT_OUTPUT (out_fragcolor)
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n"
 "		return vec3(0.);\n"
 "	vec3 pos = in_pos + EyePos;\n"
-"	vec3 n = normalize(in_nor);\n"
-"	vec3 bumped = LightTweak.w > 0. ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
 "	bool darkplaces = (ShadowFlags & 16u) != 0u;\n"
 "	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n"
 "	vec3 total = vec3(0.);\n"
@@ -1847,6 +1868,19 @@ OIT_OUTPUT (out_fragcolor)
 "	return total;\n"
 "}\n"
 "\n"
+"// QVR: the bumps on the model's own light (in_bumplight.w: vr_normalmap_models), from its direction (vr_modellight's\n"
+"// or the fixed one): brighter where a bump leans towards the light, darker where it leans away. The lean is the bent\n"
+"// normal's part along the surface, which averages out over the skin: as bright as before on the whole (like the\n"
+"// world's bumps in the baked light). Weaker on the side facing away, which the light's direction hardly reaches.\n"
+"float ModelBumpShade(vec3 n, vec3 bumped)\n"
+"{\n"
+"	if (in_bumplight.w <= 0.)\n"
+"		return 1.0;\n"
+"	vec3 l = in_bumplight.xyz;\n"
+"	float lean = dot(bumped - n * dot(bumped, n), l);\n"
+"	return max(1.0 + lean * in_bumplight.w * (0.3 + 0.7 * smoothstep(-0.5, 0.5, dot(n, l))), 0.0);\n"
+"}\n"
+"\n"
 "void main()\n"
 "{\n"
 "	vec2 uv = in_texcoord;\n"
@@ -1862,7 +1896,11 @@ OIT_OUTPUT (out_fragcolor)
 "	{\n"
 "		vec3 n = normalize(cross(dpdx, dpdy));\n"
 "		n = dot(n, in_pos) > 0. ? -n : n; // facing the eye (in_pos is from it)\n"
-"		uv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, in_pos, in_pdepth, max(Parallax.z * 0.5, 4.0), vec4(0.));\n"
+"		// sooner out towards the outlines than on the world (from 50 to 70 degrees off the triangle): a model's\n"
+"		// curved sides are seen at grazing angles all round, where the skin would slide the most\n"
+"		float pdepth = in_pdepth * smoothstep(0.34, 0.64, -dot(normalize(in_pos), n));\n"
+"		if (pdepth > 0.)\n"
+"			uv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, in_pos, pdepth, max(Parallax.z * 0.5, 4.0), vec4(0.));\n"
 "	}\n"
 "	vec4 result = textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
@@ -1875,8 +1913,11 @@ OIT_OUTPUT (out_fragcolor)
 "#else\n"
 "	vec3 emissive = result.rgb * (1.0 - result.a); // QVR: fullbright texels, unlit (ALPHABRIGHT skins keep them in the alpha)\n"
 "#endif\n"
+"	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n"
+"	vec3 n = normalize(in_nor);\n"
+"	vec3 bumped = LightTweak.w > 0. && (in_bumplight.w > 0. || NumLights > 0u) ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
 "	vec3 spec; // QVR\n"
-"	vec3 light = in_color.rgb + ModelDynamicLights(uv, duvdx, duvdy, dpdx, dpdy, spec); // QVR\n"
+"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) + ModelDynamicLights(n, bumped, spec); // QVR\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"

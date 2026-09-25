@@ -108,6 +108,8 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         self = attacker;
         entity b = VR_Blow(vr_hithand);
         self = oldSelf;
+        // What struck, how (the blow's kind), how fast and far the wrist went (and a swung weapon's
+        // head), how suddenly (the wrist's mean acceleration to its fastest), and the strength.
         string what = VR_Blow_KindName(b.blow_kind);
         string speed = sprintf("wrist %.1f m/s", b.blow_peak);
         if(wid == WID_FIST)
@@ -117,20 +119,17 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
                 what = sprintf("%s with a box in hand", what);
             }
         }
+        else if(wid == WID_AXE || wid == WID_SWORD || wid == WID_MJOLNIR)
+        {
+            what = sprintf("%s, %s", WeaponIdToWeaponName(wid), what);
+            speed = sprintf("wrist %.1f m/s, head %.1f m/s", b.blow_peak, b.blow_tippeak);
+        }
         else
         {
-            speed = sprintf("%.1f m/s", max(b.blow_peak, b.blow_tippeak));
-            if(wid == WID_AXE || wid == WID_SWORD || wid == WID_MJOLNIR)
-            {
-                what = sprintf("%s, %s", WeaponIdToWeaponName(wid), what);
-            }
-            else
-            {
-                what = sprintf("%s as a club, %s", WeaponIdToWeaponName(wid), what);
-            }
+            what = sprintf("%s as a club, %s", WeaponIdToWeaponName(wid), what);
         }
-        return sprintf("melee: %s, %s, %s over %.0f cm (x%.2f)", what, VR_Dummy_HandName(vr_hithand), speed,
-            b.blow_dist * 100, b.blow_strength);
+        return sprintf("melee: %s, %s, %s over %.0f cm, %.0f m/s2 (x%.2f)", what, VR_Dummy_HandName(vr_hithand),
+            speed, b.blow_dist * 100, b.blow_accel, b.blow_strength);
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOT)

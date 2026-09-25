@@ -35,8 +35,9 @@ struct Queued
 std::vector<Queued> queued;
 std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
-std::vector<gfx::Vertex> floating; // floating texts and the wrist log (blended: they fade)
-std::vector<gfx::Vertex> backings; // the wrist log's backing (blended)
+std::vector<gfx::Vertex> floating; // floating texts (blended: they fade)
+std::vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
+std::vector<gfx::Vertex> logText;  // and its text
 std::vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 // The ammo screens as small CRTs (vr_weapon_screen_crt): each screen text's image (its face and
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
@@ -214,7 +215,7 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
         {
             if(c != ' ')
             {
-                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, floating);
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, logText);
             }
             p += hInc;
         }
@@ -374,7 +375,7 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
             const double offset = 2.9 + 3.7 * index;
             const float time = static_cast<float>(std::fmod(realtime, 1000.0));
             screenQuads.push_back({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
-                .params = {time, crt, gadget::glitch(realtime + offset) * std::min(crt, 1.f), 0.f},
+                .params = {time, crt, gadget::glitch(realtime + offset) * std::min(crt, 1.f), gadget::textGlow()},
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
                 .texture = image->target.texture});
         }
@@ -411,7 +412,7 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 void drawTranslucent()
 {
     if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
-        (floating.empty() && backings.empty() && glows.empty()))
+        (floating.empty() && glows.empty()))
     {
         return;
     }
@@ -421,17 +422,26 @@ void drawTranslucent()
         gfx::draw(glows, viewProjection,
             {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false});
     }
-    if(!backings.empty())
-    {
-        gfx::draw(backings, viewProjection,
-            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false});
-    }
     if(!floating.empty())
     {
         gfx::draw(floating, viewProjection,
             {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
             gfx::fontTexture());
     }
+}
+
+void drawOverlay()
+{
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || logText.empty())
+    {
+        return;
+    }
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    gfx::draw(backings, viewProjection,
+        {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    gfx::draw(logText, viewProjection,
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false},
+        gfx::fontTexture());
 }
 
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
@@ -477,7 +487,7 @@ void renderScreens()
         const int pad = screenPad();
         image.width = static_cast<int>(longest) * 8 + pad * 2;
         image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
-        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale);
+        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), screenFace());
         gfx::draw2D::color(glm::vec4{screenText(), 1.f});
@@ -519,6 +529,7 @@ extern "C" void VR_DrawSceneOpaque()
         panels.clear();
         floating.clear();
         backings.clear();
+        logText.clear();
         glows.clear();
         screenQuads.clear();
         screenCount = 0;

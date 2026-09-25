@@ -36,8 +36,9 @@ enum class Shade
     TextureCutout, // the texture's colour times the vertex colour, opaque, where its alpha is at least 2/3 (the font)
     Screen,        // a screen (the wrist gadget's, the ammo screens'): the texture in one phosphor colour
                    // (the vertex colour), as a small CRT (State::params: time in seconds, CRT strength,
-                   // glitch 0..1, unused; State::screen: its virtual screen's size in pixels and its
-                   // scanlines per pixel)
+                   // glitch 0..1, the lit strokes' glow; State::screen: its virtual screen's size in
+                   // pixels and its scanlines per pixel). The glow needs the texture's mipmaps (a
+                   // target made with them).
 };
 
 enum class Blend
@@ -79,14 +80,17 @@ struct Target
     unsigned framebuffer{0};
     int width{0};
     int height{0};
+    int levels{1}; // with a mipmap chain when more than 1 (for Shade::Screen's glow)
 };
 
-// (Re)creates `target` at the given size; nothing when it already is.
-void ensureTarget(Target& target, int width, int height);
+// (Re)creates `target` at the given size; nothing when it already is. `mipmaps`: with a mipmap
+// chain, rebuilt by end2D() (filtered trilinearly).
+void ensureTarget(Target& target, int width, int height, bool mipmaps = false);
 
 // Draws into `target` with the engine's 2D functions (the 2D pass's own blend and state), on a
 // virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the 2D
-// canvas and goes back to where the engine draws its 2D pass (the window: begin2D is used from it).
+// canvas and goes back to where the engine draws its 2D pass (the window: begin2D is used from it),
+// and rebuilds its mipmaps if it has them.
 void begin2D(const Target& target, int virtualWidth, int virtualHeight);
 void end2D();
 

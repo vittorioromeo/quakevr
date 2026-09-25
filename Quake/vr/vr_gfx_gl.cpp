@@ -38,7 +38,9 @@ void main()
 // aperture grille (one a pixel of its virtual screen, Size: fading out where they would be finer
 // than the eye's pixels), a darker rim, a slight flicker, a soft bar rolling down, faint static a
 // pixel at a time; while it glitches (g), bands torn sideways, the colours split and the static
-// thick. Seeded by time only: both eyes see the same.
+// thick. Seeded by time only: both eyes see the same. With glow s (Params.w, vr_screen_text_glow):
+// the lit strokes' cores whitish and a soft halo round them (glow(): from the texture's mipmaps),
+// under the scanlines and torn with the rest.
 constexpr const char* fragmentShader = R"(#version 430
 layout(location = 1) uniform int Mode;
 layout(location = 2) uniform vec4 Params;
@@ -53,10 +55,39 @@ float hash(vec2 p)
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
 }
+float lit(vec2 at, float lod)
+{
+    vec3 c = textureLod(Tex, at, lod).rgb;
+    return 0.5 * max(c.r, max(c.g, c.b)) + 0.6 * dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
 float phosphor(vec2 at)
 {
-    vec3 c = texture(Tex, at).rgb;
-    return 0.5 * max(c.r, max(c.g, c.b)) + 0.6 * dot(c, vec3(0.2126, 0.7152, 0.0722));
+    return lit(at, 0.0); // its own texels, sharp, however small it is in the eye (as without mipmaps)
+}
+// Mode 4's glow round the lit strokes: the texture's brightness blurred over about one pixel of the
+// virtual screen (inner: 4 taps) and two and a half (outer: 8 taps), each tap a mipmap level about
+// as coarse as the ring is wide, less the face's own. Near the strokes it is whitish, further out
+// the phosphor's colour.
+vec3 glow(vec2 at, float s)
+{
+    float perPixel = float(textureSize(Tex, 0).x) / Size.x; // texels a pixel of the virtual screen
+    vec2 px = 1.0 / Size.xy;
+    float lodInner = log2(perPixel), lodOuter = log2(perPixel * 2.0);
+    float inner = 0.0, outer = 0.0;
+    for(int i = 0; i < 4; i++)
+    {
+        float a = 1.5707963 * float(i) + 0.7853982;
+        inner += lit(at + vec2(cos(a), sin(a)) * px * 0.9, lodInner);
+    }
+    for(int i = 0; i < 8; i++)
+    {
+        float a = 0.7853982 * float(i) + 0.3926991;
+        outer += lit(at + vec2(cos(a), sin(a)) * px * 2.5, lodOuter);
+    }
+    const float face = 0.14; // about the face's brightness: it does not glow
+    inner = max(inner * 0.25 - face, 0.0) / (1.0 - face);
+    outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
+    return s * (mix(color.rgb, vec3(1.0), 0.5) * (0.9 * inner) + color.rgb * (1.2 * outer));
 }
 vec4 screen()
 {
@@ -72,7 +103,16 @@ vec4 screen()
         at.y += (hash(vec2(seed, 11.0)) - 0.5) * 0.02 * g;
     }
     float split = (0.144 * k + 1.44 * g) / Size.x;
-    vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), phosphor(at), phosphor(at + vec2(split, 0.0)));
+    float lum = phosphor(at);
+    vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), lum, phosphor(at + vec2(split, 0.0)));
+    float s = Params.w;
+    if(s > 0.0)
+    {
+        // The lit strokes' core pushed towards white, a little over (for the bloom), and their glow.
+        float core = s * 0.8 * smoothstep(0.3, 0.9, lum);
+        rgb = mix(rgb, vec3(1.2 * lum), min(core, 0.9));
+        rgb += glow(at, s);
+    }
     rgb *= 1.0 - 0.3 * g;
 
     float y = uv.y * Size.y * Size.z;
@@ -158,6 +198,7 @@ struct Saved2D
 {
     bool active{false};
     glcanvas_t canvas{};
+    GLuint mipmapped{0}; // the target's texture, if its mipmaps are to be rebuilt
 };
 Saved2D saved2D;
 
@@ -311,9 +352,14 @@ glm::vec4 fontGlyph(unsigned char c)
     return {u0, v0, u0 + 8.f / atlas, v0 + 8.f / atlas};
 }
 
-void ensureTarget(Target& target, int width, int height)
+void ensureTarget(Target& target, int width, int height, bool mipmaps)
 {
-    if(target.texture && target.width == width && target.height == height)
+    int levels = 1;
+    while(mipmaps && std::max(width, height) >> levels)
+    {
+        levels++;
+    }
+    if(target.texture && target.width == width && target.height == height && target.levels == levels)
     {
         return;
     }
@@ -331,8 +377,8 @@ void ensureTarget(Target& target, int width, int height)
 
     glGenTextures(1, &texture);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, levels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -343,7 +389,7 @@ void ensureTarget(Target& target, int width, int height)
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(previous));
 
-    target = {texture, fbo, width, height};
+    target = {texture, fbo, width, height, levels};
 }
 
 void begin2D(const Target& target, int virtualWidth, int virtualHeight)
@@ -352,6 +398,7 @@ void begin2D(const Target& target, int virtualWidth, int virtualHeight)
 
     saved2D.active = true;
     saved2D.canvas = glcanvas;
+    saved2D.mipmapped = target.levels > 1 ? target.texture : 0;
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.framebuffer);
     glViewport(0, 0, target.width, target.height);
@@ -378,6 +425,14 @@ void end2D()
 
     glcanvas = saved2D.canvas;
     bindWindow();
+
+    // Its mipmaps, for Shade::Screen's glow (a few small textures: next to nothing).
+    if(saved2D.mipmapped)
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, saved2D.mipmapped);
+        GL_GenerateMipmapFunc(GL_TEXTURE_2D);
+        saved2D.mipmapped = 0;
+    }
 }
 
 namespace draw2D

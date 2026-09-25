@@ -104,8 +104,9 @@ struct HiddenArea
     std::vector<std::uint32_t> indices; // three per triangle
 };
 
-// Eye image sizes: the runtime's recommended and largest, and the one in use (the recommended
-// times vr_render_scale, within the largest).
+// Eye sizes: the runtime's recommended and largest, and the eye images' (the recommended; they
+// keep it for the whole session: SteamVR's OpenGL path does not follow a swapchain created at
+// another size mid-session, it crops or drops the new images).
 struct EyeSizes
 {
     int recommendedWidth{0}, recommendedHeight{0};
@@ -113,8 +114,9 @@ struct EyeSizes
     int width{0}, height{0};
 };
 
-// The eye image size for a recommended size, vr_render_scale and a largest size.
-[[nodiscard]] int scaledEyeSize(int recommended, int max);
+// The size the eyes are rendered at for an eye image size (vr_render_scale times it, within a
+// largest size): resampled into the image when it differs (vr_stereo.cpp).
+[[nodiscard]] int scaledEyeSize(int image, int max);
 
 class Backend
 {
@@ -143,10 +145,10 @@ public:
         return true;
     }
 
-    // Render target size of each eye.
+    // Size of each eye's image (what acquireEyeImage returns).
     virtual void eyeResolution(int& width, int& height) const = 0;
 
-    // The runtime's recommended and largest eye sizes, and the one in use (vr_render_scale).
+    // The runtime's recommended and largest eye sizes, and the images'.
     [[nodiscard]] virtual EyeSizes eyeSizes() const
     {
         EyeSizes s;

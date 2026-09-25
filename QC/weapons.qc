@@ -115,13 +115,12 @@ float() VRMeleeDmgQuadMult =
     return 1;
 }
 
-// Melee: a blow of a hand (a real one: the wrist travelling vr_melee_distance, as fast as
-// vr_melee_speed; VR_Blow in vr_juice.qc, PlayerVRMeleeImpl in client.qc), in any direction, hits
-// what is ahead of the hand (and of the weapon's end) along its motion, once: the hand must stop or
-// pull back before it hits again. The damage is the weapon's base times the blow's strength: 1 at
-// vr_melee_speed, growing with the speed up to three times that; a fist's blows are weighted by
-// their shape and direction (a straight punch vr_melee_punch_mult, an arc -- a slap, an overhead
-// blow -- less for the same speed: VR_Blow_Weight).
+// Melee: a blow of a hand (a real one: a stroke of the wrist over vr_melee_distance, sudden and as
+// fast as vr_melee_speed or more; the model is described in vr_juice.qc, "Blows"; PlayerVRMeleeImpl
+// in client.qc), in any direction, hits what is ahead of the hand (and of the weapon's end) along its
+// motion, once: the hand must stop or pull back before it hits again. The damage is the weapon's base
+// times the blow's strength (VR_Blow_Measure: its speed, its reach and its shape; about 1 for a good
+// punch or swing, at most VR_BLOW_MAX).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -154,7 +153,7 @@ float(float v) VRMeleeRange =
     return v * cvar_hget(cvarh_vr_melee_range_multiplier) * mult;
 }
 
-// Stronger and longer for harder blows (`power`: the blow's strength, 1 .. 3).
+// Stronger and longer for harder blows (`power`: the blow's strength, about 0.5 .. 2).
 void(float hand, float power) VRMeleeHaptic =
 {
     if(!self.ishuman)
@@ -1170,7 +1169,7 @@ void(float xHand) W_FistMelee =
         xdmg = xdmg * cvar_hget(cvarh_vr_carry_melee_mult);
     }
 
-    // (A straight punch's vr_melee_punch_mult is in the blow's strength: VR_Blow_Measure.)
+    // (A straight punch's vr_melee_punch_mult is in the blow's strength: VR_Blow_Weight.)
     if(!VRDoMeleeAttackTracelineFor(xHand, 16, 8))
     {
         return;

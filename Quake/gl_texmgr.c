@@ -1346,6 +1346,57 @@ mapping walks (TexMgr_ShadingToHeights), `texelsperunit` how fine the texture is
 */
 static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit);
 
+/*
+================
+TexMgr_DilateIslands -- QVR: a skin's luminance outside its islands (TexMgr_SetHeightMask) replaced by the islands'
+own, grown out a texel at a time (DILATE_TEXELS), so that the bumps and heights made from it have no edge at a seam:
+the skin's background (often black) or another part of it beside an island would make a ridge along the model's
+seams, which the bumps on the model's own light (vr_normalmap_models) would show as bright and dark lines.
+================
+*/
+#define DILATE_TEXELS 4
+
+static void TexMgr_DilateIslands (float *lum, int width, int height)
+{
+	int		x, y, pass, mark = Hunk_LowMark ();
+	byte	*in = (byte *) Hunk_AllocNoFill (width * height), *next = (byte *) Hunk_AllocNoFill (width * height);
+	float	*src = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+
+	for (y = 0; y < height; y++)
+		for (x = 0; x < width; x++)
+			in[y * width + x] = heightmask[(y * heightmask_height / height) * heightmask_width + x * heightmask_width / width] != 0;
+	for (pass = 0; pass < DILATE_TEXELS * q_max (1, width / heightmask_width); pass++)
+	{
+		memcpy (src, lum, width * height * sizeof (float));
+		memcpy (next, in, width * height);
+		for (y = 0; y < height; y++)
+			for (x = 0; x < width; x++)
+			{
+				int		dx, dy, count = 0;
+				float	sum = 0.f;
+				if (in[y * width + x])
+					continue;
+				for (dy = -1; dy <= 1; dy++)
+					for (dx = -1; dx <= 1; dx++)
+					{
+						int i = ((y + dy + height) % height) * width + (x + dx + width) % width;
+						if (in[i])
+						{
+							sum += src[i];
+							count++;
+						}
+					}
+				if (count)
+				{
+					lum[y * width + x] = sum / count;
+					next[y * width + x] = 1;
+				}
+			}
+		memcpy (in, next, width * height);
+	}
+	Hunk_FreeToLowMark (mark);
+}
+
 static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
 {
 	int		x, y, mark;
@@ -1360,6 +1411,8 @@ static void TexMgr_ShadingToNormals (byte *data, int width, int height, float sc
 		lum[x] = (data[x*4+0] * 0.299f + data[x*4+1] * 0.587f + data[x*4+2] * 0.114f) * (1.f / 255.f);
 		mean += lum[x];
 	}
+	if (heightmask)
+		TexMgr_DilateIslands (lum, width, height);
 	if (heights)
 	{
 		h = (float *) Hunk_AllocNoFill (width * height * sizeof (float));

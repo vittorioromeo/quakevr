@@ -12,6 +12,8 @@
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").help("Distance of the menu from the anchor point."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
+        toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
+        toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or holding the menu button), the menu opens again on the page you left."),
     };
 }
 
@@ -59,21 +61,68 @@
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").help("How much faster running is than walking."),
+        toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you (more on the Swimming page)."),
+        toggle("Ledge Grab (Experimental)", "vr_climb").help("Grip a ledge with an empty hand to hang from it; pull down to climb onto it. Only ledges, not walls."),
+        slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").help("How far above your feet a ledge must be to grab it."),
+        slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").help("How much letting go of a ledge flings you with your hands' motion."),
+    };
+}
+
+// Swimming (vr_physics.cpp, "Swimming"): the stick in water, the strokes, and telling a stroke from
+// the return of the arms for the next one.
+void resetSwimming()
+{
+    static const char* const names[] = {"vr_swim", "vr_swim_shallow_speed", "vr_swim_wade_speed",
+        "vr_swim_stick_speed", "vr_swim_stroke", "vr_swim_stroke_min", "vr_swim_palm", "vr_swim_stroke_assist",
+        "vr_swim_max_speed", "vr_swim_look", "vr_swim_recovery", "vr_swim_glide", "vr_swim_power_threshold",
+        "vr_swim_power_knee", "vr_swim_power_whole", "vr_swim_intent_memory", "vr_swim_reverse_damp", "vr_swim_reverse_speed",
+        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir"};
+    for(const char* name : names)
+    {
+        if(cvar_t* var = Cvar_FindVar(name))
+        {
+            Cvar_SetQuick(var, var->default_string);
+        }
+    }
+}
+
+[[nodiscard]] std::vector<Item> pageSwimSettings()
+{
+    return {
         toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you."),
         slider("Stick in Shallow Water", "vr_swim_shallow_speed", 0.f, 1.f, 0.05f, "%.2f").help("The stick's speed with your feet in water."),
         slider("Stick Wading", "vr_swim_wade_speed", 0.f, 1.f, 0.05f, "%.2f").help("Waist deep, standing on the bottom."),
         slider("Stick Swimming", "vr_swim_stick_speed", 0.f, 1.f, 0.05f, "%.2f").help("Under water or off the bottom: swim with your hands."),
+        header("Strokes"),
         slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").help("How far a stroke of your hand moves you."),
-        slider("Stroke Threshold", "vr_swim_stroke_min", 0.f, 2.f, 0.1f, "%.1f m/s").help("How fast a hand must move to push the water."),
-        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm pushes than a hand slicing edge first (recovering)."),
-        slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
-        slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
-        slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
+        slider("Speed Curve", "vr_swim_speed_exp", 1.f, 3.f, 0.25f, "%.2f")
+            .help("How the push grows with the hand's speed. 1: in proportion. 2: as water's drag, so a brisk stroke outweighs a slower return by far. 3: even more."),
+        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm (or back of the hand) pushes than a hand meeting the water at an angle."),
+        slider("Palm Sharpness", "vr_swim_flat_exp", 0.5f, 4.f, 0.25f, "%.2f")
+            .help("How flat the palm must be to push fully. 1: pushing falls off evenly as the hand turns; 2-3: only a really flat palm pushes well."),
         slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much a hand going edge first (bringing it back for the next stroke) pushes."),
+        slider("Push Along Palm", "vr_swim_palm_dir", 0.f, 1.f, 0.1f, "%.1f")
+            .help("0: you go against the hand's motion. 1: away from where the palm faces, so sweeping the hands in with palms facing each other pushes sideways (the two cancel), not back."),
+        slider("Slowest Push", "vr_swim_stroke_min", 0.f, 1.f, 0.05f, "%.2f m/s").help("A hand slower than this pushes nothing at all (tracking jitter, drifting hands)."),
+        header("Stroke or Return?"),
+        slider("Intent Threshold", "vr_swim_power_threshold", 0.f, 3.f, 0.1f, "%.1f m/s")
+            .help("A stroke moves you only if the hand's top speed during it passes this: a brisk stroke swims, a relaxed return of the arms does nothing. 0: every motion pushes."),
+        slider("Intent Fade-In", "vr_swim_power_knee", 0.f, 2.f, 0.1f, "%.1f m/s")
+            .help("Above the threshold, strokes fade in to full power over this much more speed. 0: all or nothing."),
+        toggle("Whole Stroke Counts", "vr_swim_power_whole")
+            .help("On: once a stroke passes the threshold, all of it pushes, its slow start too. Off: only from the moment it passes."),
+        slider("Stroke Memory", "vr_swim_intent_memory", 0.f, 4.f, 0.25f, "%.2f s")
+            .help("How long each hand remembers the way of its last full stroke, to tell the next return from a stroke back the other way. 0 off."),
+        slider("Return Damping", "vr_swim_reverse_damp", 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much a stroke against the remembered one is damped when it is slower than the Reverse Stroke Speed below (0.3 slower or more: fully). A deliberate stroke back, as brisk, is not damped."),
+        slider("Reverse Stroke Speed", "vr_swim_reverse_speed", 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("How fast, over the stroke it reverses, a stroke the other way must be to count fully. 1: as fast. 1.2: 20% faster (returns never swim you back). 0.8: a bit slower is enough."),
+        header("Direction and Speed"),
+        slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
+        slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
         slider("Glide", "vr_swim_glide", 0.f, 1.f, 0.1f, "%.1f").help("How far you glide between strokes (less of the water's drag)."),
-        toggle("Ledge Grab (Experimental)", "vr_climb").help("Grip a ledge with an empty hand to hang from it; pull down to climb onto it. Only ledges, not walls."),
-        slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").help("How far above your feet a ledge must be to grab it."),
-        slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").help("How much letting go of a ledge flings you with your hands' motion."),
+        slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
+        action("Reset Swimming to Defaults", resetSwimming).help("Every setting on this page back to its default."),
     };
 }
 
@@ -107,8 +156,8 @@
 [[nodiscard]] std::vector<Item> pageMeleeSettings()
 {
     return {
-        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast the wrist must move in a blow to hit. Damage grows with the speed beyond it, up to three times."),
-        slider("Blow Distance", "vr_melee_distance", 0.05f, 0.5f, 0.05f, "%.2f m").help("How far the wrist must travel in a blow to hit: wrist flicks and wiggles don't."),
+        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("The least speed of the wrist in a blow (a swung weapon: a quarter more): a weak hit. Damage grows with the speed: a good punch is 1.6 times this, a good swing 1.8 times."),
+        slider("Blow Distance", "vr_melee_distance", 0.05f, 0.5f, 0.05f, "%.2f m").help("How far the wrist must travel in a blow to hit: wrist flicks and wiggles don't. Wider blows (up to twice this) hit a little harder."),
         slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of a straight punch (where you face) over a slap; overhead blows land between."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Range multiplier for melee attacks."),
@@ -202,6 +251,7 @@
         slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
         slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a small light in their colour on what is in front of them (0 off)."),
         slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
+        slider("Screen Text Glow", "vr_screen_text_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
         slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
         cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
             .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
@@ -209,11 +259,12 @@
         toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
         slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
         slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
+        slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
         toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
         slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").help("How deep the darkest parts of the textures sink, in Quake units."),
         slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").help("How far away walls still look carved (further costs more)."),
         slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
-        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").help("How deep weapons, pickups, monsters and your body look carved, in their own units (0 off)."),
+        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").help("How deep weapons, pickups, monsters and your body look carved, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
         toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
         slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
