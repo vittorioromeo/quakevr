@@ -62,6 +62,7 @@
         slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").help("How far a stroke of your hand moves you."),
         slider("Stroke Threshold", "vr_swim_stroke_min", 0.f, 2.f, 0.1f, "%.1f m/s").help("How fast a hand must move to push the water."),
         slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm pushes than a hand slicing edge first (recovering)."),
+        slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
         slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
     };
 }
@@ -106,8 +107,6 @@
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never)."),
         slider("Parry Angle", "vr_parry_angle", 15.f, 80.f, 5.f, "%.0f deg").help("How far the weapon may be off square to the blow."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").help("How much a parried blow knocks your hand and arm."),
-        slider("Knights Drop Swords", "vr_sword_drop", 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
-        slider("Sword Damage Mult.", "vr_sword_damage_mult", 0.5f, 3.f, 0.05f, "%.2f").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for melee bloodlust health restoration."),
     };
 }
@@ -139,8 +138,6 @@
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
         toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
         slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
-        toggle("Positional Damage", "vr_positional_damage").help("Enables positional damage multipliers for headshots and leg shots. Only applies to humanoid enemies."),
-        slider("Headshot Sound", "vr_headshot_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of a subtle tick when you land a headshot (0 off)."),
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
         toggle("Disable Haptics", "vr_disablehaptics").help("Disable all haptics (vibration)."),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),

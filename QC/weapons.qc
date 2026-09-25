@@ -189,17 +189,17 @@ float PositionalDamageFactor(float positionalDamageType)
 
     if(positionalDamageType == 1) // headshot
     {
-        return 1.5;
+        return cvar_hget(cvarh_vr_headshot_mult);
     }
 
     if(positionalDamageType == 2) // extremities
     {
-        return 0.35;
+        return cvar_hget(cvarh_vr_limbshot_mult);
     }
 
     if(positionalDamageType == 3) // legs
     {
-        return 0.6;
+        return cvar_hget(cvarh_vr_legshot_mult);
     }
 
     return 1;
@@ -288,8 +288,9 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     return 0; // standard
 }
 
-// A headshot's subtle feedback to the player who made it (vr_headshot_sound), once per frame (a
-// shotgun's pellets).
+// A headshot's feedback to the player who made it (vr_headshot_sound, the volume), once per frame (a
+// shotgun's pellets): a sharp crack (Misc/quakevr/make_sounds.py) at the player, so that it is heard
+// over the gunfire.
 float positionalHeadshotTime;
 void(entity xTarget) PositionalHeadshotFeedback =
 {
@@ -310,7 +311,7 @@ void(entity xTarget) PositionalHeadshotFeedback =
         return;
     }
 
-    sound(shooter, CHAN_AUTO, "misc/menu1.wav", min(1, v), ATTN_NORM);
+    sound(shooter, CHAN_AUTO, "vr/headshot.wav", min(1, v), ATTN_NORM);
 };
 
 // HIPNOTIC

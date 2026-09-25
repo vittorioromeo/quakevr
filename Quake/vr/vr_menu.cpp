@@ -172,6 +172,35 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+[[nodiscard]] std::vector<Item> pageGameplay()
+{
+    return {
+        header("Damage"),
+        slider("Damage to Enemies", vr_damage_to_enemies, 0.25f, 4.f, 0.05f, "%.2fx").help("Damage you deal to monsters."),
+        slider("Damage to You", vr_damage_to_player, 0.f, 4.f, 0.05f, "%.2fx").help("Damage monsters, traps and falls deal to you."),
+        slider("Self Damage", vr_damage_self, 0.f, 2.f, 0.05f, "%.2fx").help("Damage your own rockets and grenades deal to you."),
+        slider("Melee Damage", vr_melee_dmg_multiplier, 0.25f, 15.f, 0.25f, "%.2fx"),
+        header("Positional Damage"),
+        toggle("Positional Damage", vr_positional_damage).help("Headshots, arm and leg shots on humanoid monsters."),
+        slider("Headshot Damage", vr_headshot_mult, 1.f, 5.f, 0.1f, "%.1fx"),
+        slider("Arm Shot Damage", vr_limbshot_mult, 0.1f, 1.f, 0.05f, "%.2fx"),
+        slider("Leg Shot Damage", vr_legshot_mult, 0.1f, 1.f, 0.05f, "%.2fx"),
+        slider("Headshot Sound", vr_headshot_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of the crack you hear when you land a headshot (0 off)."),
+        header("Push-back"),
+        slider("Your Blows Push", vr_melee_push, 0.f, 3.f, 0.1f, "%.1fx").help("How far your melee blows (and headbutts) push what they hit."),
+        slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.1f, "%.1fx"),
+        slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.1f, "%.1fx"),
+        slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.1f, "%.1fx"),
+        header("Headbutt"),
+        toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
+        slider("Headbutt Speed", vr_headbutt_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the head must lunge (towards where you look)."),
+        slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f"),
+        header("Knights' Swords"),
+        slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
+        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
+    };
+}
+
 [[nodiscard]] std::vector<Item> pageBody()
 {
     return {
@@ -338,6 +367,7 @@ const Page pages[] = {
     {"VR Settings", pageMain},
     {"Advanced VR Options", pageAdvanced},
     {"Play", pagePlay},
+    {"Gameplay", pageGameplay},
     {"Body", pageBody},
     {"Wrist Gadget", pageGadget},
     {"Throwing and Physics", pageThrowing},

@@ -329,6 +329,8 @@ exec:
 		// Note: this will be executed *after* the config
 		Cbuf_InsertText ("__cfgmarker");
 	}
+	if (!strcmp (path, CONFIG_NAME))
+		Cbuf_InsertText ("\nvr_migrate_config\n"); // QVR: after the saved config, changed defaults reach it
 	Cbuf_InsertText (f);
 	if (f != default_cfg) {
 		Hunk_FreeToLowMark (mark);

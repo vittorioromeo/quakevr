@@ -223,7 +223,8 @@ void() worldspawn =
 
     // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
     // sounds (also a carried box's grab).
-    precache_sound("misc/menu1.wav");
+    precache_sound("vr/headshot.wav");
+    precache_sound("fisthit.wav");
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
     precache_model("progs/v_ksword.mdl");

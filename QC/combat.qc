@@ -116,6 +116,43 @@ The damage is coming from inflictor, but get mad at attacker
 This should be the only function that ever reduces health.
 ============
 */
+// VR: pushes `e` along `dir` (made horizontal) at `speed` units/s, lifted by `up`: players and
+// walking monsters are thrown (their velocity), flying and swimming monsters stepped aside. Monsters
+// bigger than a grunt move less (by their size), smaller ones more.
+void(entity e, vector dir, float speed, float up) VR_Push =
+{
+    dir_z = 0;
+    dir = normalize(dir);
+    if(speed <= 0 || dir == '0 0 0' || e.solid == SOLID_BSP)
+    {
+        return;
+    }
+
+    if(e.flags & FL_MONSTER)
+    {
+        float mass = max(0.6, vlen(e.size) / vlen('32 32 56'));
+        speed = speed / mass;
+        up = up / mass;
+        if(e.flags & (FL_FLY | FL_SWIM))
+        {
+            entity oldSelf = self;
+            self = e;
+            walkmove(vectoyaw(dir), speed * 0.08);
+            self = oldSelf;
+            return;
+        }
+        e.velocity = dir * speed + '0 0 1' * up;
+        e.flags = e.flags - (e.flags & FL_ONGROUND);
+        return;
+    }
+
+    if(e.movetype == MOVETYPE_WALK)
+    {
+        e.velocity = e.velocity + dir * speed + '0 0 1' * up;
+        e.flags = e.flags - (e.flags & FL_ONGROUND);
+    }
+};
+
 //MED 01/10/97 added empathyused variable
 float empathyused;
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
@@ -169,6 +206,23 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(attacker.super_damage_finished > time)
     {
         damage = damage * 4;
+    }
+
+    // VR: the Gameplay menu's damage multipliers.
+    if(targ == attacker)
+    {
+        if(targ.flags & FL_CLIENT)
+        {
+            damage = damage * cvar_hget(cvarh_vr_damage_self);
+        }
+    }
+    else if((targ.flags & FL_CLIENT) && !(attacker.flags & FL_CLIENT))
+    {
+        damage = damage * cvar_hget(cvarh_vr_damage_to_player);
+    }
+    else if((attacker.flags & FL_CLIENT) && (targ.flags & FL_MONSTER))
+    {
+        damage = damage * cvar_hget(cvarh_vr_damage_to_enemies);
     }
 
     // rune power up (Black Magic)
@@ -466,6 +520,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         }
 
         self = oldSelf;
+
+        // Both are pushed apart (vr_parry_push_enemy, vr_parry_push_player).
+        VR_Push(attacker, to, 320 * cvar_hget(cvarh_vr_parry_push_enemy), 120 * cvar_hget(cvarh_vr_parry_push_enemy));
+        VR_Push(targ, to * -1, 180 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+
         dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
         dprint(twoHanded ? " (two hands)\n" : "\n");
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
@@ -479,12 +538,31 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
-    return T_DamageImpl(targ, inflictor, attacker, VR_Parry(targ, inflictor, attacker, damage), 0);
+    float parried = VR_Parry(targ, inflictor, attacker, damage);
+    float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
+
+    // VR: a monster's melee blow that was not parried throws the player back (vr_melee_push_player;
+    // Quake's own push is weak).
+    if(r && parried == damage && targ.classname == "player" && inflictor == attacker &&
+       (attacker.flags & FL_MONSTER) && VR_Parry_MeleeMonster(attacker) && vlen(attacker.origin - targ.origin) < 150)
+    {
+        VR_Push(targ, targ.origin - attacker.origin, damage * 12 * cvar_hget(cvarh_vr_melee_push_player),
+            damage * 3 * cvar_hget(cvarh_vr_melee_push_player));
+    }
+    return r;
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
-    return T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
+
+    // VR: melee blows push what they hit, dead or alive (vr_melee_push).
+    if(targ != attacker && targ.takedamage)
+    {
+        VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
+            min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));
+    }
+    return r;
 };
 
 /*

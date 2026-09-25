@@ -2633,67 +2633,75 @@ void(float xHand, float xInMelee, float xHandVelMag,
     }
 }
 
+// Headbutts (vr_headbutt): a lunge of the head towards where it looks, faster than
+// vr_headbutt_speed (m/s), hits what is just ahead of the eyes when the head stops, for
+// vr_headbutt_damage times the lunge's speed over the threshold (at most three times). Quick looks
+// around do not count (not towards the view), and a headbutt waits 0.4 s after the last.
 void() PlayerVRMeleeHeadbutt =
 {
-    float headvelLen;
-    headvelLen = vlen(self.headvel);
+    if(!cvar_hget(cvarh_vr_headbutt) || !self.ishuman || self.health <= 0)
+    {
+        self.in_headbutt = FALSE;
+        return;
+    }
 
-    if(headvelLen >= cvar_hget(cvarh_vr_headbutt_velocity_threshold))
+    float threshold = max(0.5, cvar_hget(cvarh_vr_headbutt_speed));
+    float speed = vlen(self.headvel);
+
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+    makevectors(self.v_angle);
+    vector look = v_forward;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+
+    float towards = speed > 0 ? (self.headvel * look) / speed : 0;
+    if(speed >= threshold && towards > 0.5 && time >= self.headbutt_start_time)
     {
         if(!self.in_headbutt)
         {
-            self.headbutt_start_time = time;
             self.in_headbutt = TRUE;
             self.headbutt_max_vec = self.headvel;
-            sound(self, CHAN_OTHER, "knight/sword1.wav", 1, ATTN_NORM);
         }
-        else if(vlen(self.headbutt_max_vec) < headvelLen)
+        else if(vlen(self.headbutt_max_vec) < speed)
         {
             self.headbutt_max_vec = self.headvel;
         }
+        return;
     }
-    else if(self.in_headbutt)
+
+    if(!self.in_headbutt)
     {
-        self.in_headbutt = FALSE;
+        return;
+    }
+    self.in_headbutt = FALSE;
+    self.headbutt_start_time = time + 0.4;
 
-        float xdmg;
-        xdmg = (
-            vlen(self.headbutt_max_vec) / cvar_hget(cvarh_vr_headbutt_velocity_threshold)
-            ) * cvar_hget(cvarh_vr_headbutt_damage_mult);
+    float xdmg = min(3, vlen(self.headbutt_max_vec) / threshold) * cvar_hget(cvarh_vr_headbutt_damage);
+    vector dir = normalize(self.headbutt_max_vec);
+    vector head = self.origin + self.view_ofs;
+    traceline(head, head + dir * 18, FALSE, self);
+    if(trace_fraction == 1.0)
+    {
+        return;
+    }
 
-        vector dir;
-        dir = normalize(self.headbutt_max_vec);
+    sound(self, CHAN_OTHER, "fisthit.wav", 1.0, ATTN_NORM);
+    VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
+    VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
 
-        vector adjOrigin;
-        adjOrigin = self.origin + '0 0 25';
-
-        traceline(adjOrigin, adjOrigin + dir * VRMeleeRange(28), FALSE, self);
-
-        if(trace_fraction != 1.0)
-        {
-            sound(self, CHAN_OTHER, "fisthit.wav", 1.0, ATTN_NORM);
-
-            if(trace_ent.takedamage)
-            {
-                VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
-                VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
-
-                trace_ent.axhitme = 1;
-                SpawnBloodSplash(trace_endpos, xdmg);
-                T_Damage_VRMelee(trace_ent, self, self, xdmg);
-            }
-            else
-            {
-                // hit wall
-                VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
-                VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
-
-                PainSound();
-                SpawnBloodSplash(trace_endpos, xdmg);
-
-                BroadcastGunshotEffect(trace_endpos);
-            }
-        }
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        SpawnBloodSplash(trace_endpos, xdmg);
+        T_Damage_VRMelee(trace_ent, self, self, xdmg);
+    }
+    else
+    {
+        BroadcastGunshotEffect(trace_endpos); // a wall: dust, and it hurts a little
+        PainSound();
     }
 }
 

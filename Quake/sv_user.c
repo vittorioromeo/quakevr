@@ -428,7 +428,7 @@ void SV_ClientThink (void)
 		float scale = VR_WaterStickScale (sv_player, true); // QVR: swimming: the stick slowed, strokes
 		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_WaterMove ();
-		VR_AfterWaterMove (sv_player); // QVR
+		VR_AfterWaterMove (sv_player, cmd.forwardmove, cmd.sidemove, cmd.upmove); // QVR
 	}
 	else
 	{

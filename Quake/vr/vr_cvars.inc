@@ -229,7 +229,9 @@ QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,
 QVR_CVAR(vr_swim_wade_speed, "0.6", CVAR_ARCHIVE)     // waist deep standing on the bottom,
-QVR_CVAR(vr_swim_stick_speed, "0.1", CVAR_ARCHIVE)    // and swimming (deeper, or off the bottom)
+QVR_CVAR(vr_swim_stick_speed, "0.2", CVAR_ARCHIVE)    // and swimming (deeper, or off the bottom)
+QVR_CVAR(vr_swim_stroke_assist, "0.5", CVAR_ARCHIVE)  // strokes push this much more towards where the stick points (and as much less against it)
+QVR_CVAR(vr_cfg_version, "0", CVAR_ARCHIVE)           // the changed defaults this config has taken (vr_cvars.cpp)
 QVR_CVAR(vr_swim_stroke, "10", CVAR_ARCHIVE)          // how strongly a hand pushing the water moves you (per second)
 QVR_CVAR(vr_swim_stroke_min, "0.4", CVAR_ARCHIVE)     // metres/second a hand must move to push
 QVR_CVAR(vr_swim_palm, "0.6", CVAR_ARCHIVE)           // how much it matters that the palm, not the edge, meets the water
@@ -283,8 +285,19 @@ QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_headbutt_velocity_threshold, "2.02", CVAR_ARCHIVE)
-QVR_CVAR(vr_headbutt_damage_mult, "32", CVAR_ARCHIVE)
+QVR_CVAR(vr_headbutt, "1", CVAR_ARCHIVE)                 // lunge your head at something to headbutt it
+QVR_CVAR(vr_headbutt_speed, "1.5", CVAR_ARCHIVE)         // m/s the head must lunge (towards where it looks)
+QVR_CVAR(vr_headbutt_damage, "32", CVAR_ARCHIVE)         // damage at that speed (up to three times it, faster)
+QVR_CVAR(vr_damage_to_enemies, "1", CVAR_ARCHIVE)        // damage the player deals to monsters
+QVR_CVAR(vr_damage_to_player, "1", CVAR_ARCHIVE)         // damage monsters (and the world) deal to the player
+QVR_CVAR(vr_damage_self, "1", CVAR_ARCHIVE)              // damage the player deals to themselves (rockets, grenades)
+QVR_CVAR(vr_headshot_mult, "1.5", CVAR_ARCHIVE)          // positional damage: headshots,
+QVR_CVAR(vr_limbshot_mult, "0.35", CVAR_ARCHIVE)         // arms (far from the body's middle),
+QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs
+QVR_CVAR(vr_melee_push, "1", CVAR_ARCHIVE)               // how far your melee blows push what they hit
+QVR_CVAR(vr_melee_push_player, "1", CVAR_ARCHIVE)        // how far monsters' melee blows push you
+QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
+QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
