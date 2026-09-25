@@ -6,13 +6,20 @@
 # Usage: python Misc/quakevr/make_swords.py [--id <Quake folder>] [output progs folder]
 #
 # The sword is found as the engine finds it to hide it in the knights' death frames
-# (Quake/vr/vr_monstermods.cpp): in Quake VR's models by the known vertices (blade, guard and grip;
-# the hell knight's blade), in id's the knight's by the blade's strips on the skin and the hell
-# knight's as its longest separate piece. Its first pose is turned so that the blade points along
-# +z, pommel at the origin, like the axe (v_axe.mdl), and scaled so that the weapon settings' 0.34
-# gives about the knights' own sword length. The skin is the knight's. Nine identical frames (a
-# weapon's frame numbers). Vertex 0 is the pommel (the hand's anchor), vertex 1 the tip (the
-# "muzzle", the reach of a swing).
+# (Quake/vr/vr_monstermods.cpp): in Quake VR's models by the known vertices (the knight's blade and
+# guard; the hell knight's blade), in id's the knight's by the blade's strips on the skin and the
+# hell knight's as its longest separate piece. The knights' hands cover their grips, so the models
+# have none: a leather-wrapped grip and a pommel are added (and the hell knight's sword, a bare blade,
+# gets a crossguard). The skin is the knight's own, so the sword looks as it does in its hand.
+#
+# The sword is laid where the axe's handle is in progs/v_axe.mdl: its grip along the handle's axis,
+# over the stretch the hand holds, the guard where the handle meets the head, the blade going on
+# along the axis with its edges the way the axe's head points. With the axe's weapon settings the
+# hand then holds the grip as it holds the axe, and the sword turns about it. Anchor indices (the
+# hand's, the tip's for a swing's reach) follow the old engine's strip order, not the file's: the
+# engine's vr_anchor_nearest finds them (see vr_weapons.inc, slots 19 and 20). Scaled so that the
+# weapon settings' 0.34 gives about the knights' own sword length. Nine identical frames (a weapon's
+# frame numbers).
 
 import math
 import os
@@ -22,6 +29,14 @@ import sys
 
 HEADER = struct.Struct('<4si3f3ff3f8if')
 SCALE = 2.6  # knight units to weapon model units (the weapon draws at 0.34): about 1 m
+
+# The axe's handle (v_axe.mdl, frame 0): the centre of its bottom end and its direction, up to where
+# the head starts (12.3 units along it).
+HANDLE_BOTTOM = (0.2, 0.0, -3.55)
+HANDLE_DIR = (4.2, 0.0, 11.55)
+GRIP = 12.3          # grip length: the handle up to the head
+GRIP_RADIUS = 1.1    # as the axe's handle
+POMMEL = 2.6         # pommel length below the grip
 
 
 def pak_files(quake):
@@ -42,6 +57,10 @@ def anorms():
     here = os.path.dirname(os.path.abspath(__file__))
     text = open(os.path.join(here, '..', '..', 'Quake', 'anorms.h')).read()
     return [tuple(float(x) for x in m) for m in re.findall(r'\{\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\s*\}', text)]
+
+
+def palette(quake_files):
+    return quake_files.get('gfx/palette.lmp') if quake_files else None
 
 
 class Mdl:
@@ -73,10 +92,6 @@ class Mdl:
     def pos(self, v):
         return tuple(self.pose[v][i] * self.scale[i] + self.origin[i] for i in range(3))
 
-    def uv(self, front, v):
-        onseam, s, t = self.stverts[v]
-        return (s + self.sw // 2 if onseam and not front else s), t
-
 
 def sub(a, b): return tuple(a[i] - b[i] for i in range(3))
 def add(a, b): return tuple(a[i] + b[i] for i in range(3))
@@ -91,7 +106,11 @@ def knight_sword(m):
     half = m.sw // 2
     out = []
     for i, (front, a, b, c) in enumerate(m.tris):
-        if all((s < 22 or half - 2 <= s < half + 22) and t < 120 for s, t in (m.uv(front, v) for v in (a, b, c))):
+        uvs = []
+        for v in (a, b, c):
+            onseam, s, t = m.stverts[v]
+            uvs.append((s + half if onseam and not front else s, t))
+        if all((s < 22 or half - 2 <= s < half + 22) and t < 120 for s, t in uvs):
             out.append(i)
     return out
 
@@ -120,76 +139,93 @@ def hknight_sword(m):
     return [i for i, t in enumerate(m.tris) if t[1] in sword]
 
 
-def uv_triangle(stverts, t, sw):
-    front = t[0]
-    out = []
-    for v in t[1:]:
-        onseam, s, tt = stverts[v]
-        out.append((s + sw // 2 if onseam and not front else s, tt))
-    return out
+def darkest_texel_block(m, want=(45, 34, 24), pal=None, size=3):
+    """(s, t) of a size x size block of the skin closest to a dark leather brown (`want`), for the
+    grip. Without the palette, Quake's leather entries (170-175) are looked for."""
+    best, where = 1e18, (0, 0)
+    step = 2
+    for t in range(0, m.sh - size, step):
+        for s in range(0, m.sw - size, step):
+            cost = 0
+            for dt in range(size):
+                for ds in range(size):
+                    c = m.skin[(t + dt) * m.sw + s + ds]
+                    if pal:
+                        r, g, b = pal[c * 3:c * 3 + 3]
+                        cost += (r - want[0]) ** 2 + (g - want[1]) ** 2 + (b - want[2]) ** 2
+                    else:
+                        cost += 0 if 170 <= c <= 175 else 10000
+            if cost < best:
+                best, where = cost, (s + size // 2, t + size // 2)
+    return where
 
 
-def paint_steel(skin, sw, sh, stverts, blade):
-    """The blade's texels as steel: bright edges, a darker flat and a light ridge down the middle,
-    across each of its strips on the skin (their narrower side)."""
-    tris = [uv_triangle(stverts, t, sw) for t in blade]
-    # The strips: the triangles' UV boxes, merged while they overlap.
-    boxes = []
-    for uv in tris:
-        box = [min(p[0] for p in uv), min(p[1] for p in uv), max(p[0] for p in uv), max(p[1] for p in uv)]
-        boxes.append(box)
-    strips = []
-    for box in boxes:
-        box = list(box)
-        merged = True
-        while merged:
-            merged = False
-            for other in strips:
-                if box[0] <= other[2] + 1 and other[0] <= box[2] + 1 and box[1] <= other[3] + 1 and other[1] <= box[3] + 1:
-                    strips.remove(other)
-                    box = [min(box[0], other[0]), min(box[1], other[1]), max(box[2], other[2]), max(box[3], other[3])]
-                    merged = True
-                    break
-        strips.append(box)
+class Out:
+    """The sword being built: vertices in the sword's own frame (x across the edges, y through the
+    flat, z along the blade from the guard's foot), their skin coordinates, normals, triangles."""
 
-    # Quake's greys are palette indices 0 (black) to 15 (white).
-    def shade(across):
-        edge = abs(across - 0.5) * 2  # 0 at the ridge, 1 at the edges
-        if edge > 0.8:
-            return 13
-        if edge < 0.15:
-            return 11
-        return 9 if edge < 0.5 else 10
+    def __init__(self):
+        self.p, self.st, self.n, self.tris = [], [], [], []
 
-    for uv in tris:
-        box = next(b for b in strips if b[0] <= uv[0][0] <= b[2] and b[1] <= uv[0][1] <= b[3])
-        wide = (box[2] - box[0]) >= (box[3] - box[1])
-        (x0, y0), (x1, y1), (x2, y2) = uv
-        d = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
-        if abs(d) < 1e-9:
-            continue
-        for y in range(max(0, min(y0, y1, y2) - 1), min(sh, max(y0, y1, y2) + 2)):
-            for x in range(max(0, min(x0, x1, x2) - 1), min(sw, max(x0, x1, x2) + 2)):
-                # The texel's centre, with a little slack so that the strips' borders are covered.
-                px, py = x + 0.5, y + 0.5
-                l1 = ((px - x0) * (y2 - y0) - (x2 - x0) * (py - y0)) / d
-                l2 = ((x1 - x0) * (py - y0) - (px - x0) * (y1 - y0)) / d
-                if l1 < -0.1 or l2 < -0.1 or l1 + l2 > 1.1:
-                    continue
-                if wide:
-                    across = (py - box[1]) / max(1, box[3] - box[1])
-                else:
-                    across = (px - box[0]) / max(1, box[2] - box[0])
-                skin[y * sw + x] = shade(min(1.0, max(0.0, across)))
+    def vert(self, p, st, n):
+        self.p.append(p)
+        self.st.append(st)
+        self.n.append(n)
+        return len(self.p) - 1
+
+    def tri(self, a, b, c, outward):
+        """Clockwise seen from outside (Quake's front faces)."""
+        p0, p1, p2 = self.p[a], self.p[b], self.p[c]
+        if dot(cross(sub(p1, p0), sub(p2, p0)), outward) > 0:
+            b, c = c, b
+        self.tris.append((1, a, b, c))
+
+    def ring_loft(self, rings, st, sides=8):
+        """Rings (z, radius x, radius y) along z, closed at both ends, all at the texel `st`."""
+        first = len(self.p)
+        for z, rx, ry in rings:
+            for k in range(sides):
+                a = 2 * math.pi * k / sides
+                d = (math.cos(a), math.sin(a), 0.0)
+                self.vert((rx * d[0], ry * d[1], z), st, d)
+        for r in range(len(rings) - 1):
+            for k in range(sides):
+                a = first + r * sides + k
+                b = first + r * sides + (k + 1) % sides
+                c = first + (r + 1) * sides + k
+                d = first + (r + 1) * sides + (k + 1) % sides
+                ang = 2 * math.pi * (k + 0.5) / sides
+                out = (math.cos(ang), math.sin(ang), 0.0)
+                self.tri(a, c, b, out)
+                self.tri(b, c, d, out)
+        for end, sign in ((0, -1.0), (len(rings) - 1, 1.0)):
+            z = rings[end][0]
+            c = self.vert((0.0, 0.0, z), st, (0.0, 0.0, sign))
+            base = first + end * sides
+            for k in range(sides):
+                self.tri(c, base + k, base + (k + 1) % sides, (0.0, 0.0, sign))
+
+    def box(self, centre, half, st):
+        cx, cy, cz = centre
+        hx, hy, hz = half
+        faces = [((1, 0, 0), [(1, -1, -1), (1, 1, -1), (1, 1, 1), (1, -1, 1)]),
+                 ((-1, 0, 0), [(-1, -1, -1), (-1, -1, 1), (-1, 1, 1), (-1, 1, -1)]),
+                 ((0, 1, 0), [(-1, 1, -1), (-1, 1, 1), (1, 1, 1), (1, 1, -1)]),
+                 ((0, -1, 0), [(-1, -1, -1), (1, -1, -1), (1, -1, 1), (-1, -1, 1)]),
+                 ((0, 0, 1), [(-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)]),
+                 ((0, 0, -1), [(-1, -1, -1), (-1, 1, -1), (1, 1, -1), (1, -1, -1)])]
+        for n, corners in faces:
+            idx = [self.vert((cx + sx * hx, cy + sy * hy, cz + sz * hz), st, n) for sx, sy, sz in corners]
+            self.tri(idx[0], idx[1], idx[2], n)
+            self.tri(idx[0], idx[2], idx[3], n)
 
 
-def build(m, tris, normals):
+def build(m, tris, normals, pal, add_guard):
     verts = sorted({v for i in tris for v in m.tris[i][1:]})
     pts = {v: m.pos(v) for v in verts}
 
     # The blade's axis: the vertices' principal axis (power iteration on their covariance); the
-    # tip is its end farther from the model's middle (the hilt is in the hand, by the body), the
-    # pommel the other end.
+    # tip is its end farther from the model's middle (the hilt is in the hand, by the body).
     centre = mul(tuple(sum(pts[v][i] for v in verts) for i in range(3)), 1.0 / len(verts))
     cov = [[sum((pts[v][i] - centre[i]) * (pts[v][j] - centre[j]) for v in verts) for j in range(3)] for i in range(3)]
     axis = (1.0, 1.0, 1.0)
@@ -201,9 +237,8 @@ def build(m, tris, normals):
     if math.dist(pts[lo_end], body) > math.dist(pts[hi_end], body):
         axis = mul(axis, -1.0)
         lo_end, hi_end = hi_end, lo_end
-    pommel, tip = lo_end, hi_end
     z = axis
-    # Across the blade: the direction of widest spread perpendicular to it.
+    # Across the blade: the direction of widest spread perpendicular to it (the guard's, the edges').
     best, x = 0.0, (1.0, 0.0, 0.0)
     for v in verts:
         d = sub(pts[v], centre)
@@ -211,65 +246,81 @@ def build(m, tris, normals):
         if dot(d, d) > best:
             best, x = dot(d, d), norm(d)
     y = cross(z, x)
+    base = add(centre, mul(z, dot(sub(pts[lo_end], centre), z)))  # the hilt's end, on the axis
 
-    # The pommel end on the axis at the origin.
-    base = add(centre, mul(z, dot(sub(pts[pommel], centre), z)))
+    out = Out()
+    index = {}
+    for v in verts:
+        d = sub(pts[v], base)
+        index[v] = out.vert((dot(d, x) * SCALE, dot(d, y) * SCALE, dot(d, z) * SCALE), None, None)
+    for front, a, b, c in (m.tris[i] for i in tris):
+        out.tris.append((front, index[a], index[b], index[c]))
+    # The blade's own skin coordinates and normals (the face normals' sum).
+    for v in verts:
+        onseam, s, t = m.stverts[v]
+        out.st[index[v]] = (onseam, s, t)
+    acc = {i: (0.0, 0.0, 0.0) for i in index.values()}
+    for _, a, b, c in out.tris:
+        n = cross(sub(out.p[b], out.p[a]), sub(out.p[c], out.p[a]))
+        for i in (a, b, c):
+            acc[i] = add(acc[i], mul(n, -1.0))  # clockwise front faces
+    for i, n in acc.items():
+        out.n[i] = norm(n) if dot(n, n) > 1e-12 else (0.0, 0.0, 1.0)
 
-    def local(p):
-        d = sub(p, base)
-        return (dot(d, x) * SCALE, dot(d, y) * SCALE, dot(d, z) * SCALE)
+    # The hilt's metal: the skin where the lowest part of the blade (the guard) is.
+    lowest = min(index.values(), key=lambda i: out.p[i][2])
+    metal = out.st[lowest][1:]
+    leather = darkest_texel_block(m, pal=pal)
+    flat = lambda st: (0, st[0], st[1])
 
-    order = [pommel, tip] + [v for v in verts if v not in (pommel, tip)]
-    index = {v: i for i, v in enumerate(order)}
-    lp = [local(pts[v]) for v in order]
+    # Grip and pommel below the guard's foot (z = 0), and for a bare blade, a crossguard.
+    blade_width = max(abs(out.p[i][0]) for i in index.values())
+    out.ring_loft([(-GRIP, GRIP_RADIUS * 1.05, GRIP_RADIUS * 0.95), (-GRIP * 0.5, GRIP_RADIUS * 1.12, GRIP_RADIUS),
+                   (0.0, GRIP_RADIUS, GRIP_RADIUS * 0.9)], flat(leather))
+    out.ring_loft([(-GRIP - POMMEL, 0.8, 0.8), (-GRIP - POMMEL * 0.7, 1.9, 1.7), (-GRIP - POMMEL * 0.25, 1.9, 1.7),
+                   (-GRIP, 1.2, 1.1)], flat(metal))
+    if add_guard:
+        out.box((0.0, 0.0, -0.9), (max(5.0, blade_width * 2.6), 1.1, 0.9), flat(metal))
+    for i in range(len(out.st)):
+        if len(out.st[i]) == 2:
+            out.st[i] = flat(out.st[i])
 
-    # Normals: the sum of the adjoining faces', as the nearest of Quake's 162.
-    acc = [(0.0, 0.0, 0.0)] * len(order)
-    for i in tris:
-        _, a, b, c = m.tris[i]
-        pa, pb, pc = lp[index[a]], lp[index[b]], lp[index[c]]
-        n = cross(sub(pb, pa), sub(pc, pa))
-        for v in (a, b, c):
-            acc[index[v]] = add(acc[index[v]], n)
-    nidx = []
-    for n in acc:
-        if dot(n, n) < 1e-9:
-            nidx.append(0)
-            continue
-        n = norm(n)
-        nidx.append(max(range(len(normals)), key=lambda k: dot(normals[k], n)))
+    # Into the axe's space: the grip along its handle, the guard's foot where the head starts.
+    A = norm(HANDLE_DIR)
+    X = norm(sub((1.0, 0.0, 0.0), mul(A, A[0])))  # the edges face the way the axe's head does
+    Y = cross(A, X)
+    guard_foot = add(HANDLE_BOTTOM, mul(A, GRIP))
 
-    # The skin: the model's own, whole (the sword's texels are spread over it), with the blade
-    # repainted as clean steel (the knights' blades are smudged with blood, which up close in the
-    # hand reads as noise).
-    sw, sh = m.sw, m.sh
-    skin = bytearray(m.skin)
-    stverts = [m.stverts[v] for v in order]
-    newtris = [(front, index[a], index[b], index[c]) for front, a, b, c in (m.tris[i] for i in tris)]
-    top = max(p[2] for p in lp)
-    blade = [t for t in newtris if any(lp[v][2] > top * 0.3 for v in t[1:])]  # the guard is at the bottom
-    paint_steel(skin, sw, sh, stverts, blade)
+    def place(p):
+        return add(guard_foot, add(mul(X, p[0]), add(mul(Y, p[1]), mul(A, p[2]))))
 
-    lo = [min(p[i] for p in lp) for i in range(3)]
-    hi = [max(p[i] for p in lp) for i in range(3)]
+    def turn(n):
+        return add(mul(X, n[0]), add(mul(Y, n[1]), mul(A, n[2])))
+
+    positions = [place(p) for p in out.p]
+    norms_ = [turn(n) for n in out.n]
+    nidx = [max(range(len(normals)), key=lambda k: dot(normals[k], n)) for n in norms_]
+
+    lo = [min(p[i] for p in positions) for i in range(3)]
+    hi = [max(p[i] for p in positions) for i in range(3)]
     scale = [max((hi[i] - lo[i]) / 255.0, 1e-4) for i in range(3)]
-    radius = max(math.sqrt(dot(p, p)) for p in lp)
+    radius = max(math.sqrt(dot(p, p)) for p in positions)
     frame = b''
-    for i, p in enumerate(lp):
-        frame += bytes([round((p[k] - lo[k]) / scale[k]) for k in range(3)] + [nidx[i]])
+    for i, p in enumerate(positions):
+        frame += bytes([max(0, min(255, round((p[k] - lo[k]) / scale[k]))) for k in range(3)] + [nidx[i]])
 
-    out = bytearray(HEADER.pack(b'IDPO', 6, *scale, *lo, radius, 0.0, 0.0, 0.0,
-                                1, sw, sh, len(order), len(newtris), 9, 0, 0, 1.0))
-    out += struct.pack('<i', 0) + bytes(skin)
-    for st in stverts:
-        out += struct.pack('<3i', *st)
-    for t in newtris:
-        out += struct.pack('<4i', *t)
-    bmin = bytes([0, 0, 0, 0])
-    bmax = bytes([255, 255, 255, 0])
+    data = bytearray(HEADER.pack(b'IDPO', 6, *scale, *lo, radius, 0.0, 0.0, 0.0,
+                                 1, m.sw, m.sh, len(positions), len(out.tris), 9, 0, 0, 1.0))
+    data += struct.pack('<i', 0) + bytes(m.skin)
+    for st in out.st:
+        data += struct.pack('<3i', *st)
+    for t in out.tris:
+        data += struct.pack('<4i', *t)
+    bmin, bmax = bytes([0, 0, 0, 0]), bytes([255, 255, 255, 0])
     for f in range(9):
-        out += struct.pack('<i', 0) + bmin + bmax + ('frame%d' % (f + 1)).encode().ljust(16, b'\0') + frame
-    return bytes(out), len(order), len(newtris), hi[2]
+        data += struct.pack('<i', 0) + bmin + bmax + ('frame%d' % (f + 1)).encode().ljust(16, b'\0') + frame
+    tip = max(range(len(positions)), key=lambda i: dot(sub(positions[i], HANDLE_BOTTOM), A))
+    return bytes(data), len(positions), len(out.tris), positions[tip]
 
 
 # Quake VR's models: the swords' vertices (the same lists as vr_monstermods.cpp).
@@ -287,21 +338,24 @@ def main():
     args = sys.argv[1:]
     here = os.path.dirname(os.path.abspath(__file__))
     normals = anorms()
+    files = None
     if args and args[0] == '--id':
         files = pak_files(args[1])
         args = args[2:]
-        sources = (('progs/knight.mdl', knight_sword, 'v_ksword.mdl'), ('progs/hknight.mdl', hknight_sword, 'v_hksword.mdl'))
+        sources = (('progs/knight.mdl', knight_sword, 'v_ksword.mdl', False),
+                   ('progs/hknight.mdl', hknight_sword, 'v_hksword.mdl', True))
         load = lambda name: files[name]
     else:
         progs = os.path.join(here, '..', '..', 'quakevr', 'progs')
-        sources = (('knight.mdl', by_verts(QVR_KNIGHT), 'v_ksword.mdl'), ('hknight.mdl', by_verts(QVR_HKNIGHT), 'v_hksword.mdl'))
+        sources = (('knight.mdl', by_verts(QVR_KNIGHT), 'v_ksword.mdl', False),
+                   ('hknight.mdl', by_verts(QVR_HKNIGHT), 'v_hksword.mdl', True))
         load = lambda name: open(os.path.join(progs, name), 'rb').read()
     out_dir = args[0] if args else os.path.join(here, '..', '..', 'quakevr', 'progs')
-    for src, find, dst in sources:
+    for src, find, dst, add_guard in sources:
         m = Mdl(load(src))
-        data, nv, nt, length = build(m, find(m), normals)
+        data, nv, nt, tip = build(m, find(m), normals, palette(files), add_guard)
         open(os.path.join(out_dir, dst), 'wb').write(data)
-        print('%s: %d vertices, %d triangles, %.1f units long' % (dst, nv, nt, length))
+        print('%s: %d vertices, %d triangles, tip at %.2f %.2f %.2f' % (dst, nv, nt, *tip))
 
 
 if __name__ == '__main__':

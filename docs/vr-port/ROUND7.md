@@ -10,7 +10,7 @@
 | 6 | Designer-placed weapons: check their hit box | checked |
 | 7 | Push-back (tweakable) on parries and melee hits, for the player and enemies | done |
 | 8 | Swimming: stick penalty 20%; strokes stronger towards where the stick points, weaker against it | done |
-| 9 | Knights' swords: handle, the knight's own texture, held by the handle and turning about it | |
+| 9 | Knights' swords: handle, the knight's own texture, held by the handle and turning about it | done |
 | 10 | Headshot sound not heard; the "Gameplay" menu missing | done |
 | 11 | Gameplay menu: damage multipliers (player to enemies, enemies to player, headshots, ...) | done |
 | 12 | Headbutt from the old port | done (reworked) |
@@ -58,6 +58,26 @@
 8. **Swimming.** The stick under water is 20% (`vr_swim_stick_speed` 0.2; your saved 0.1 is updated). Strokes
    push up to 50% more towards where the stick points and as much less against it (`vr_swim_stroke_assist`,
    Locomotion > Stroke Steering), so the stick steers the swim and a stray hand motion does not throw you back.
+9. **Knights' swords remade** (`Misc/quakevr/make_swords.py`):
+   - **Texture:** the knight's own skin again, unpainted (it was repainted as steel), so the sword looks as the
+     knights carry it.
+   - **Handle:** the knights' hands cover their grips, so the models have none. A leather grip and a pommel are
+     added, and the hell knight's bare blade gets a crossguard.
+   - **Held by the handle:** the sword is laid where the axe's handle is in `v_axe.mdl`: the grip along the
+     handle's axis, the guard where the head starts, the blade continuing with its edges the way the axe's head
+     points. Weapon slots 19 and 20 are the axe's settings. The hand holds the grip as it holds the axe's handle,
+     and the sword turns about it.
+   - **What was wrong:** weapon anchor indices are not a model's vertex numbers but the old engine's strip order,
+     so "vertex 0" and "vertex 1" were two points by the guard: the hand was placed there and swings reached from
+     there.
+   - **Making weapon settings:** new commands print a model's anchors: `vr_anchor_info <model> <index>` and
+     `vr_anchor_nearest <model> <x> <y> <z>` (model coordinates).
+   - **Scaling:** the engine scales weapon models about their file's bounds corner, not their origin, so the
+     slots' offsets correct for the swords' different bounds.
+   - **Configs:** your config saved the first swords' settings; `vr_wofs_version` 2 resets slots 19 and 20 once
+     more.
+
+   Checked in the mock: the hand wraps the grip under the guard, where it holds the axe.
 10. **Headshot sound and the Gameplay page.** The tick was `misc/menu1.wav`, a faint menu click lost under
     gunfire. It is now a generated crack over a thump (`sound/vr/headshot.wav`, `Misc/quakevr/make_sounds.py`).
     There was no Gameplay page (the docs were wrong: the setting was under Immersion); now there is one, under

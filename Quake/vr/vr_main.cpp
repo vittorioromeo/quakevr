@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_engine.hpp"
+#include "vr_anchor.hpp"
 #include "vr_lighting.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
@@ -208,6 +209,7 @@ extern "C" void VR_Init()
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
+    anchor::registerCommands();
     lighting::init();
 
     state->restartRequested = true;

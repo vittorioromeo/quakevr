@@ -413,4 +413,98 @@ glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
     return glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
 }
 
+namespace
+{
+
+// A model's frame 0 vertex `vertex` in its own coordinates.
+[[nodiscard]] glm::vec3 modelSpaceVertex(const aliashdr_t* hdr, int vertex)
+{
+    const glm::vec3 v = poseVertex(hdr, zeroPose(hdr), vertex);
+    return {v.x * hdr->scale[0] + hdr->scale_origin[0], v.y * hdr->scale[1] + hdr->scale_origin[1],
+        v.z * hdr->scale[2] + hdr->scale_origin[2]};
+}
+
+[[nodiscard]] const aliashdr_t* commandModel(qmodel_t*& model)
+{
+    model = Mod_ForName(Cmd_Argv(1), false);
+    if(!model || model->type != mod_alias)
+    {
+        Con_Printf("%s: not an alias model\n", Cmd_Argv(1));
+        return nullptr;
+    }
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes)
+    {
+        Con_Printf("%s: no Quake vertices\n", Cmd_Argv(1));
+        return nullptr;
+    }
+    return hdr;
+}
+
+void anchorInfo_f()
+{
+    if(Cmd_Argc() != 3)
+    {
+        Con_Printf("usage: vr_anchor_info <model> <anchor index>\n");
+        return;
+    }
+    qmodel_t* model = nullptr;
+    const aliashdr_t* hdr = commandModel(model);
+    if(!hdr)
+    {
+        return;
+    }
+    const std::vector<int>& order = vertexOrder(model);
+    const int index = Q_atoi(Cmd_Argv(2));
+    if(index < 0 || index >= static_cast<int>(order.size()))
+    {
+        Con_Printf("anchor index out of range (0..%d)\n", static_cast<int>(order.size()) - 1);
+        return;
+    }
+    const glm::vec3 p = modelSpaceVertex(hdr, order[index]);
+    Con_Printf("%s anchor %d: vertex %d at %.2f %.2f %.2f\n", model->name, index, order[index], p.x, p.y, p.z);
+}
+
+void anchorNearest_f()
+{
+    if(Cmd_Argc() != 5)
+    {
+        Con_Printf("usage: vr_anchor_nearest <model> <x> <y> <z>\n");
+        return;
+    }
+    qmodel_t* model = nullptr;
+    const aliashdr_t* hdr = commandModel(model);
+    if(!hdr)
+    {
+        return;
+    }
+    const glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    const std::vector<int>& order = vertexOrder(model);
+    int best = -1;
+    float bestDistance = 1e9f;
+    for(int i = 0; i < static_cast<int>(order.size()); i++)
+    {
+        const float d = glm::distance(modelSpaceVertex(hdr, order[i]), target);
+        if(d < bestDistance)
+        {
+            best = i;
+            bestDistance = d;
+        }
+    }
+    if(best >= 0)
+    {
+        const glm::vec3 p = modelSpaceVertex(hdr, order[best]);
+        Con_Printf("%s anchor %d: vertex %d at %.2f %.2f %.2f (%.2f away)\n", model->name, best, order[best], p.x, p.y,
+            p.z, bestDistance);
+    }
+}
+
+} // namespace
+
+void registerCommands()
+{
+    Cmd_AddCommand("vr_anchor_info", anchorInfo_f);
+    Cmd_AddCommand("vr_anchor_nearest", anchorNearest_f);
+}
+
 } // namespace qvr::anchor
