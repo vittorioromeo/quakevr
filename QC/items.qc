@@ -573,11 +573,12 @@ void() weapon_touch =
     // True if `other` has "VR body interactions" enabled.
     touchinghandIsBody = VRIsTouchingHandFake(other);
 
-    // Do not pick up if the touching hand is not empty and grabbing.
+    // Do not pick up if the touching hand is not empty and grabbing (or carries a box).
     if(other.ishuman && !touchinghandIsBody)
     {
         if(!VR_HandGrabUtil_IsHandGrabbing(other, VRGetTouchingHand(other)) ||
-            VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST)
+            VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST ||
+            VR_Carry_IsHolding(other, VRGetTouchingHand(other)))
         {
             return;
         }
@@ -883,6 +884,13 @@ void(float xTime) forcegrabbable_item_reposition =
 
 void() forcegrabbable_item_think =
 {
+    // Carried (vr_carry.qc): the hand moves it, nothing else.
+    if(self.carry_player != world)
+    {
+        self.nextthink = time + 0.02;
+        return;
+    }
+
     float repositionTimeDeathmatch =
         cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch);
 
@@ -941,6 +949,8 @@ void(entity xEnt) MakeItemGrabbable =
 
     self.touch = forcegrabbable_touch;
     self.owner = world;
+
+    VR_Carry_Setup(self);
 }
 
 void() AfterPlacementAmmoBox =

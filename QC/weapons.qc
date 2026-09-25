@@ -1061,6 +1061,12 @@ void(float xHand) W_FistMelee =
     float xdmg = VRMeleeDmg(xHand, 10);
     float playedsound = FALSE;
 
+    // A box in hand is an improvised weapon (vr_carry.qc).
+    if(VR_Carry_IsHolding(self, xHand))
+    {
+        xdmg = xdmg * cvar_hget(cvarh_vr_carry_melee_mult);
+    }
+
     // A punch: the fist moving along its own forward.
     makevectors(VRGetHandRot(xHand));
     if(normalize(VRGetHandVel(xHand)) * v_forward >= 0.6)
@@ -3548,7 +3554,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
 
-    if(!VRIsHandEmpty(entPlayer, xHand))
+    if(!VRIsHandEmpty(entPlayer, xHand) || VR_Carry_IsHolding(entPlayer, xHand))
     {
         return FALSE;
     }
@@ -4464,8 +4470,8 @@ void(entity ent, float xHand,
             }
         }
     }
-    // Not holding a weapon and started grabbing the controller.
-    else if(handEmpty && startedHandGrabbing)
+    // Not holding a weapon (nor carrying a box) and started grabbing the controller.
+    else if(handEmpty && startedHandGrabbing && !VR_Carry_IsHolding(ent, xHand))
     {
         // Not a holster. Do nothing.
         if(xHotspot == QVR_HS_NONE ||
@@ -4511,6 +4517,9 @@ void() W_Frame =
     {
         ImpulseCommands();
     }
+
+    VR_Carry_HandFrame(cVR_MainHand);
+    VR_Carry_HandFrame(cVR_OffHand);
 
     UpdateHolsterHover(self);
 

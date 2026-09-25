@@ -18,7 +18,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | done |
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
 | 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | done |
-| 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | |
+| 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | done |
 | 15 | Knights' swords: a usable melee weapon dropped on death; their death frames without the sword | XL | |
 | 16 | Credits and attributions for everything used (docs/vr-port/CREDITS.md) | S | done, kept up to date |
 
@@ -116,3 +116,33 @@ gets a status, what was done, how it was tested, and anything to check on the he
       40 ms, so strokes, throws and swings can be scripted.
 
     To tune on the headset: stroke strength and threshold, and whether the palm weighting feels right.
+14. **Carrying and nudging boxes** (`QC/vr_carry.qc`, `vr_carry`). Ammo and health boxes (the force-grabbable
+    ones) are rigid bodies now, and their hand touch (`handtouch`) and gun touch (`vr_wpntouch`) go to carrying.
+    The box's own pickup is kept as `carry_use`.
+    - **Nudge:** a hand or a gun touching a box without gripping pushes it: along the hand's motion it takes up at
+      least the hand's speed (`vr_carry_nudge`).
+    - **Hold:** gripping a box holds it, keeping where it was in the hand's frame, and turning with the hand. Each
+      frame it moves along a line from where it is to where the hand wants it, stopping at walls and monsters, so
+      it never passes through them. Left 32 units behind (stuck), it drops. The box's own think (water floating,
+      respawn repositioning) is paused while held.
+    - **Take:** the trigger while holding runs the box's pickup (the ammo or health); if full up, it stays held.
+      With `vr_carry 0`, or body interactions, a touch takes it as before.
+    - **No weapons while holding:** unholstering, weapons lying about, catching thrown weapons and force grab are
+      all refused for that hand.
+    - **Improvised melee:** punches with a box in hand hurt `vr_carry_melee_mult` (1.5) more.
+    - **Throw:** letting go leaves it with the hand's throw estimate (the same as thrown weapons), as a rigid body
+      with the hand's spin. Over 250 units/s it hurts what bleeds (`vr_carry_throw_damage` 25, scaled by speed as
+      thrown weapons are), not the thrower.
+
+    Menu: Advanced > Throwing and Physics > Carrying Boxes.
+
+    **Tested** in the mock on e1m1's shells box:
+    - a hand sweeping through it pushed it 18 units its way;
+    - gripping it held it, and it followed the hand up and back;
+    - the trigger took it (shells 25 -> 45, the box gone);
+    - a forward swing and release threw it at 246 units/s forward.
+
+    **Not tested:** carrying into a wall at speed, the improvised punch, thrown damage on a monster.
+    **Known limit:** a held box moves on the server's frames and is interpolated on the client, so it can trail the
+    hand a little (as the grapple rope did); if it shows, the next step is to draw held boxes at the hand on the
+    client.

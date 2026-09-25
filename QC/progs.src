@@ -19,6 +19,7 @@ vr_scaleutil.qc
 vr_util.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc
+vr_carry.qc
 
 buttons.qc
 client.qc

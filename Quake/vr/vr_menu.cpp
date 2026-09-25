@@ -268,6 +268,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s"),
         slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f"),
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
+        header("Carrying Boxes"),
+        toggle("Carry Ammo and Health", vr_carry)
+            .help("Grip a box to carry it, pull the trigger to take it, push it with a hand or gun. Off: touching takes it."),
+        slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
+        slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
+        slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
+        slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 100.f, 5.f, "%.0f"),
     };
 }
 
