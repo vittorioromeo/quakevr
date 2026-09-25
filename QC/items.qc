@@ -175,6 +175,23 @@ void() VRScalePickup =
     }
 }
 
+// The map's weapons, armour, powerups and keys float at about torso height (vr_item_float_height),
+// easier to take by hand: they cannot be force-grabbed. Their box reaches down to the floor, so
+// walking over them still picks them up. Ammo and health boxes (physics objects) stay down.
+void() VRFloatPickup =
+{
+    float h = cvar_hget(cvarh_vr_item_float_height);
+    if(h <= 0 || self.movetype == MOVETYPE_NONE || (self.flags & FL_FORCEGRABBABLE) ||
+       self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox)
+    {
+        return;
+    }
+
+    self.movetype = MOVETYPE_NONE;
+    setsize(self, self.mins - '0 0 1' * h, self.maxs);
+    setorigin(self, self.origin + '0 0 1' * h);
+};
+
 void() PlaceItem =
 {
     float oldz;
@@ -241,6 +258,7 @@ void() PlaceItem =
 
     SpawnAmmoBoxWeapons(self);
     VRScalePickup();
+    VRFloatPickup();
 
     self.nextthink = time + 0.2;
     self.think = PlacedItem;
