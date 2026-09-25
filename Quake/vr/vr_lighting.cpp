@@ -412,7 +412,11 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, glm:
                 for(const BrushCaster& b : brushCasters)
                 {
                     float m[16];
-                    R_EntityMatrix(m, b.e->origin, b.e->angles, b.e->scale);
+                    // As R_DrawBrushModels draws it: pitch inverted, then the networked scale and
+                    // offset (ammo and health boxes are drawn at a quarter of their size).
+                    vec3_t angles{-b.e->angles[0], b.e->angles[1], b.e->angles[2]};
+                    R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
+                    VR_BrushTransform(b.e, m);
                     glm::mat4 model;
                     memcpy(&model[0][0], m, sizeof(m));
                     drawIndices(vp * model, base + b.first, b.count);

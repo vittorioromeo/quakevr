@@ -254,10 +254,12 @@ void handTouch(edict_t* ent, edict_t* target)
         return;
     }
 
+    // The entity's own box, not its abs box: Quake widens items' abs boxes by 15 units for walking
+    // over them, which made a 6-unit ammo box grabbable from a hand's width away.
     const glm::vec3 handExtent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
-    const glm::vec3 tMin = vec(target->v.absmin) - bonus;
-    const glm::vec3 tMax = vec(target->v.absmax) + bonus;
+    const glm::vec3 tMin = vec(target->v.origin) + vec(target->v.mins) - bonus;
+    const glm::vec3 tMax = vec(target->v.origin) + vec(target->v.maxs) + bonus;
 
     const glm::vec3 off = fieldVec(ent, f().offhandpos);
     const glm::vec3 main = fieldVec(ent, f().handpos);
