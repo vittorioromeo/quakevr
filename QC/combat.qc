@@ -338,8 +338,26 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
         if(targ.ishuman)
         {
-            haptic(cVR_OffHand, 0.0, 0.5, 30, 1.0);
-            haptic(cVR_MainHand, 0.0, 0.5, 30, 1.0);
+            // VR: felt more in the hand on the side the blow came from, and more the harder it is.
+            float amp = min(1, 0.35 + take / 40);
+            float dur = min(0.5, 0.12 + take / 60);
+            float side = 0;
+            if(inflictor != world && inflictor != targ)
+            {
+                vector oldForward = v_forward;
+                vector oldRight = v_right;
+                vector oldUp = v_up;
+                makevectors(targ.v_angle);
+                side = normalize((inflictor.absmin + inflictor.absmax) * 0.5 - targ.origin) * v_right; // 1: right
+                v_forward = oldForward;
+                v_right = oldRight;
+                v_up = oldUp;
+            }
+            entity oldHapticSelf = self;
+            self = targ;
+            haptic(cVR_MainHand, 0.0, dur, 30, amp * (0.4 + 0.3 * (1 + side)));
+            haptic(cVR_OffHand, 0.0, dur, 30, amp * (0.4 + 0.3 * (1 - side)));
+            self = oldHapticSelf;
         }
     }
 
@@ -541,6 +559,22 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
 
+    // VR: hit reactions (vr_hit_push): a heavy hit shoves a monster, a killing blow throws the body
+    // (an explosion's away from it).
+    float hitPush = cvar_hget(cvarh_vr_hit_push);
+    if(r && hitPush > 0 && (targ.flags & FL_MONSTER) && (attacker.flags & FL_CLIENT))
+    {
+        vector from = inflictor == attacker ? attacker.origin : (inflictor.absmin + inflictor.absmax) * 0.5;
+        if(targ.health <= 0)
+        {
+            VR_Push(targ, targ.origin - from, min(700, damage * 14) * hitPush, min(260, damage * 5) * hitPush);
+        }
+        else if(damage >= 15)
+        {
+            VR_Push(targ, targ.origin - from, min(350, damage * 6) * hitPush, min(80, damage * 1.5) * hitPush);
+        }
+    }
+
     // VR: a monster's melee blow that was not parried throws the player back (vr_melee_push_player;
     // Quake's own push is weak).
     if(r && parried == damage && targ.classname == "player" && inflictor == attacker &&
@@ -570,8 +604,36 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
 T_RadiusDamage
 ============
 */
+// VR: an explosion rumbles in the hands of the players near it (vr_explosion_rumble), fading with
+// distance.
+void(vector xOrigin, float xPower) VR_ExplosionRumble =
+{
+    if(!cvar_hget(cvarh_vr_explosion_rumble))
+    {
+        return;
+    }
+    float reach = 300 + xPower * 3;
+    entity oldSelf = self;
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        float d = vlen(p.origin - xOrigin);
+        if(p.ishuman && d < reach)
+        {
+            float a = 1 - d / reach;
+            self = p;
+            haptic(cVR_MainHand, 0.0, 0.2 + 0.3 * a, 45, a);
+            haptic(cVR_OffHand, 0.0, 0.2 + 0.3 * a, 45, a);
+        }
+        p = find(p, classname, "player");
+    }
+    self = oldSelf;
+};
+
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
+    VR_ExplosionRumble(inflictor.origin, damage);
+
     float     points;
     entity    head;
     vector    org;

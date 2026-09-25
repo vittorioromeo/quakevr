@@ -2631,6 +2631,10 @@ void(float xHand, float xInMelee, float xHandVelMag,
     {
         *xMeleeHitSoundPlayed = FALSE;
     }
+    else if(VRHandsTracked(self))
+    {
+        VR_Deflect(xHand); // any fast swing bats enemy projectiles back
+    }
 }
 
 // Headbutts (vr_headbutt): a lunge of the head towards where it looks, faster than
@@ -2708,6 +2712,7 @@ void() PlayerVRMeleeHeadbutt =
 void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
+    VR_Heartbeat();
 
     PlayerVRMeleeImpl(
         cVR_MainHand,

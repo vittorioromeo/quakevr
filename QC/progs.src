@@ -20,6 +20,7 @@ vr_util.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc
 vr_carry.qc
+vr_juice.qc
 
 buttons.qc
 client.qc

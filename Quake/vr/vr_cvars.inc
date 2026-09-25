@@ -300,6 +300,10 @@ QVR_CVAR(vr_melee_push, "1", CVAR_ARCHIVE)               // how far your melee b
 QVR_CVAR(vr_melee_push_player, "1", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
+QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // hit reactions: heavy hits shove monsters, killing blows throw the bodies
+QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
+QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
+QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
